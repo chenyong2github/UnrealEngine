@@ -9,16 +9,15 @@
 
 #include "ParameterDictionary.h"
 #include "ErrorDetail.h"
+#include "ElectraHTTPStream.h"
+#include "Utilities/HttpRangeHeader.h"
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogElectraHTTPManager, Log, All);
 
 namespace Electra
 {
-	//
-	class IPlayerSessionServices;
 	class IHTTPResponseCache;
-
 
 	namespace HTTP
 	{
@@ -59,11 +58,14 @@ namespace Electra
 		};
 
 
-		struct FHTTPHeader
+		struct FHTTPHeader : public FElectraHTTPStreamHeader
 		{
-			FString	Header;
-			FString	Value;
-
+			FHTTPHeader() = default;
+			FHTTPHeader(const FString& InHeader, const FString& InValue)
+			{
+				Header = InHeader;
+				Value = InValue;
+			}
 			void SetFromString(const FString& InString)
 			{
 				int32 ColonPos;
@@ -255,159 +257,6 @@ namespace Electra
 
 		struct FParams
 		{
-			struct FRange
-			{
-				void Reset()
-				{
-					Start = -1;
-					EndIncluding = -1;
-					DocumentSize = -1;
-				}
-				bool IsSet() const
-				{
-					return Start != -1 || EndIncluding != -1;
-				}
-				bool Equals(const FRange& Other)
-				{
-					return Start == Other.Start && EndIncluding == Other.EndIncluding;
-				}
-				//! Check if the range would result in "0-" for the entire file in which case we don't need to use range request.
-				bool IsEverything() const
-				{
-					return Start <= 0 && EndIncluding < 0;
-				}
-				FString GetString() const
-				{
-					FString s, e, d(TEXT("-"));
-					if (Start >= 0)
-					{
-						// An explicit range?
-						if (EndIncluding >= Start)
-						{
-							return FString::Printf(TEXT("%lld-%lld"), (long long int)Start, (long long int)EndIncluding);
-						}
-						// Start to end, whereever that is.
-						else
-						{
-							return FString::Printf(TEXT("%lld-"), (long long int)Start);
-						}
-					}
-					// Everything
-					return FString(TEXT("0-"));
-				}
-				// Returns the number of bytes in the range, which must be fully specified. An unset or partially open range will return -1.
-				int64 GetNumberOfBytes() const
-				{
-					if (Start >= 0 && EndIncluding >= 0)
-					{
-						return EndIncluding - Start + 1;
-					}
-					return -1;
-				}
-				int64 GetStart() const
-				{
-					return Start;
-				}
-				int64 GetEndIncluding() const
-				{
-					return EndIncluding;
-				}
-				bool IsOpenEnded() const
-				{
-					return GetEndIncluding() < 0;
-				}
-				void Set(const FString& InString)
-				{
-					int32 DashPos = INDEX_NONE;
-					if (InString.FindChar(TCHAR('-'), DashPos))
-					{
-						// -end
-						if (DashPos == 0)
-						{
-							Start = 0;
-							LexFromString(EndIncluding, *InString + 1);
-						}
-						// start-
-						else if (DashPos == InString.Len()-1)
-						{
-							LexFromString(Start, *InString.Mid(0, DashPos));
-							EndIncluding = -1;
-						}
-						// start-end
-						else
-						{
-							LexFromString(Start, *InString.Mid(0, DashPos));
-							LexFromString(EndIncluding, *InString + DashPos + 1);
-						}
-					}
-				}
-				void SetStart(int64 InStart)
-				{
-					Start = InStart;
-				}
-				void SetEndIncluding(int64 InEndIncluding)
-				{
-					EndIncluding = InEndIncluding;
-				}
-				int64 GetDocumentSize() const
-				{
-					return DocumentSize;
-				}
-				bool ParseFromContentRangeResponse(const FString& ContentRangeHeader)
-				{
-					// Examples: <unit> <range-start>-<range-end>/<size>
-					//   Content-Range: bytes 26151-157222/7594984
-					//   Content-Range: bytes 26151-157222/*
-					//   Content-Range: bytes */7594984
-					//
-					Start = -1;
-					EndIncluding = -1;
-					DocumentSize = -1;
-					FString rh = ContentRangeHeader;
-					// In case the entire header is given, remove the header including the separating colon and space.
-					rh.RemoveFromStart(TEXT("Content-Range: "), ESearchCase::CaseSensitive);
-					// Split into parts
-					TArray<FString> Parts;
-					const TCHAR* const Delims[3] = {TEXT(" "),TEXT("-"),TEXT("/")};
-					int32 NumParts = rh.ParseIntoArray(Parts, Delims, 3);
-					if (NumParts)
-					{
-						if (Parts[0] == TEXT("bytes"))
-						{
-							Parts.RemoveAt(0);
-						}
-						// We should now be left with 3 remaining results, the start, end and document size.
-						// The case where we get "*/<size>" we treat as invalid.
-						if (Parts.Num() == 3)
-						{
-							if (Parts[0].IsNumeric())
-							{
-								LexFromString(Start, *Parts[0]);
-								if (Parts[1].IsNumeric())
-								{
-									LexFromString(EndIncluding, *Parts[1]);
-									if (Parts[2].IsNumeric())
-									{
-										LexFromString(DocumentSize, *Parts[2]);
-										return true;
-									}
-									else if (Parts[2] == TEXT("*"))
-									{
-										DocumentSize = -1;
-										return true;
-									}
-								}
-							}
-						}
-					}
-					UE_LOG(LogElectraHTTPManager, Error, TEXT("Failed to parse Content-Range HTTP response header \"%s\""), *ContentRangeHeader);
-					return false;
-				}
-				int64			Start = -1;
-				int64			EndIncluding = -1;
-				int64			DocumentSize = -1;
-			};
-
 			void AddFromHeaderList(const TArray<FString>& InHeaderList)
 			{
 				for(int32 i=0; i<InHeaderList.Num(); ++i)
@@ -420,8 +269,7 @@ namespace Electra
 
 			FString								URL;							//!< URL
 			FString								Verb;							//!< GET (default if not set), HEAD, OPTIONS,....
-			FRange								Range;							//!< Optional request range
-			int32								SubRangeRequestSize = 0;		//!< If not 0 the size to break the request into smaller range requests into.
+			ElectraHTTPStream::FHttpRange		Range;							//!< Optional request range
 			TArray<HTTP::FHTTPHeader>			RequestHeaders;					//!< Request headers
 			TMediaOptionalValue<FString>		AcceptEncoding;					//!< Optional accepted encoding
 			FTimeValue							ConnectTimeout;					//!< Optional timeout for connecting to the server

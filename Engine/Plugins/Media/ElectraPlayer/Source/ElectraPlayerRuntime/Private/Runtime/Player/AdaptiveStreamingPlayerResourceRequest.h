@@ -9,6 +9,8 @@
 
 namespace Electra
 {
+class IPlayerSessionServices;
+
 
 class IAdaptiveStreamingPlayerResourceRequest : public TSharedFromThis<IAdaptiveStreamingPlayerResourceRequest, ESPMode::ThreadSafe>
 {

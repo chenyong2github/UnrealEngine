@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HTTPResponseCache.h"
+#include "ElectraHTTPStreamBuffer.h"
 #include "Player/PlayerSessionServices.h"
-#include "Interfaces/IHttpResponse.h"
 
 
 namespace Electra
@@ -19,75 +19,317 @@ public:
 
 	virtual void HandleEntityExpiration() override;
 	virtual void CacheEntity(TSharedPtrTS<FCacheItem> EntityToAdd) override;
-	virtual EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const IElectraHttpManager::FParams::FRange& Range) override;
+	virtual EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& Range) override;
 
 private:
-	class FResponseFromCache : public IHttpResponse
+	/**
+	 * This class wraps IElectraHTTPStreamBuffer with the intention that the original buffer
+	 * can be shared multiple times, each having a new set of internal read offsets.
+	 * Otherwise it would not be possible to return the buffer to multiple cached responses.
+	 * Also, since the original buffer has been read from before it was added to the cache
+	 * it will have its read offsets already pointing to the end.
+	 */
+	class FWrappedHTTPStreamBuffer : public IElectraHTTPStreamBuffer
 	{
 	public:
-		virtual ~FResponseFromCache() = default;
-		FResponseFromCache() = default;
+		FWrappedHTTPStreamBuffer(IElectraHTTPStreamBuffer& InBufferToWrap)
+			: WrappedBuffer(InBufferToWrap)
+		{
+			InBufferToWrap.GetBaseBuffer(WrappedBufferBaseAddress, WrappedBufferSize);
+		}
+		virtual ~FWrappedHTTPStreamBuffer() = default;
 
-		virtual int32 GetResponseCode() const override
-		{ return HTTPResponseCode; }
+		void AddData(const TArray<uint8>& InNewData) override
+		{ }
+		void AddData(TArray<uint8>&& InNewData) override
+		{ }
+		void AddData(const TConstArrayView<const uint8>& InNewData) override
+		{ }
+		void AddData(const IElectraHTTPStreamBuffer& Other, int64 Offset, int64 NumBytes) override
+		{ }
+		int64 GetNumTotalBytesAdded() const override
+		{ return WrappedBuffer.GetNumTotalBytesAdded(); }
+		bool GetEOS() const override
+		{ return true; }
+		void SetEOS() override
+		{ }
+		void ClearEOS() override
+		{ }
+		bool IsCachable() const override
+		{ return false; }
+		void SetIsCachable(bool bInIsCachable) override
+		{ }
+		void SetLengthFromResponseHeader(int64 InLengthFromResponseHeader) override
+		{ }
+		int64 GetLengthFromResponseHeader() const override
+		{ return WrappedBuffer.GetLengthFromResponseHeader(); }
 
-		virtual FString GetContentAsString() const override
-		{ check(!"do not call"); return FString(); }
+		int64 GetNumTotalBytesHandedOut() const override
+		{
+			return NumBytesHandedOut;
+		}
+		int64 GetNumBytesAvailableForRead()	const override
+		{
+			return WrappedBufferSize - NextReadPosInBuffer;
+		}
 
-		virtual FString GetURL() const override
-		{ return URL; }
+		void LockBuffer(const uint8*& OutNextReadAddress, int64& OutNumBytesAvailable) override
+		{
+			OutNextReadAddress = WrappedBufferBaseAddress + NextReadPosInBuffer;
+			OutNumBytesAvailable = WrappedBufferSize - NextReadPosInBuffer;
+		}
+		void UnlockBuffer(int64 NumBytesConsumed) override
+		{
+			check(NumBytesConsumed >= 0 && NumBytesConsumed <= WrappedBufferSize - NextReadPosInBuffer);
+			if (NumBytesConsumed > 0)
+			{
+				if (NumBytesConsumed > WrappedBufferSize - NextReadPosInBuffer)
+				{
+					NumBytesConsumed = WrappedBufferSize - NextReadPosInBuffer;
+				}
+				NextReadPosInBuffer += NumBytesConsumed;
+				NumBytesHandedOut += NumBytesConsumed;
+			}
+		}
+		bool RewindToBeginning() override
+		{
+			NextReadPosInBuffer = 0;
+			NumBytesHandedOut = 0;
+			return true;
+		}
+		bool HasAllDataBeenConsumed() const override
+		{
+			return WrappedBufferSize - NextReadPosInBuffer == 0;
+		}
 
-		virtual FString GetURLParameter(const FString& ParameterName) const override
-		{ check(!"do not call"); return FString(); }
+	private:
+		virtual void GetBaseBuffer(const uint8*& OutBaseAddress, int64& OutBytesInBuffer) override
+		{
+			check(!"Why do you get here?");
+		}
+		IElectraHTTPStreamBuffer& WrappedBuffer;
+		const uint8* WrappedBufferBaseAddress;
+		int64 WrappedBufferSize;
 
-		virtual FString GetHeader(const FString& HeaderName) const override
-		{ check(!"do not call"); return FString(); }
+		int64 NextReadPosInBuffer = 0;
+		int64 NumBytesHandedOut = 0;
+	};
 
-		virtual TArray<FString> GetAllHeaders() const override
-		{ return Headers; }
 
-		virtual FString GetContentType() const override
-		{ return GetHeader(TEXT("Content-Type")); }
+	class FWrappedCacheResponse : public IElectraHTTPStreamResponse
+	{
+	public:
+		FWrappedCacheResponse(IElectraHTTPStreamResponsePtr InResponseToWrap)
+			: WrappedResponse(InResponseToWrap)
+			, WrappedBuffer(InResponseToWrap->GetResponseData())
+		{
+			CopyHeadersExceptDateFrom(InResponseToWrap);
+		}
+		virtual ~FWrappedCacheResponse() = default;
 
-		virtual int32 GetContentLength() const override
-		{ return Payload.Num(); }
+		EStatus GetStatus() override
+		{ return WrappedResponse->GetStatus(); }
+		EState GetState() override
+		{ return WrappedResponse->GetState(); }
+		FString GetErrorMessage() override
+		{ return WrappedResponse->GetErrorMessage(); }
+		int32 GetHTTPResponseCode() override
+		{ return WrappedResponse->GetHTTPResponseCode(); }
+		int64 GetNumResponseBytesReceived() override
+		{ return WrappedResponse->GetNumResponseBytesReceived(); }
+		int64 GetNumRequestBytesSent() override
+		{ return WrappedResponse->GetNumRequestBytesSent(); }
+		FString GetEffectiveURL() override
+		{ return WrappedResponse->GetEffectiveURL(); }
+		FString GetHTTPStatusLine() override
+		{ return WrappedResponse->GetHTTPStatusLine(); }
+		FString GetContentLengthHeader() override
+		{ return WrappedResponse->GetContentLengthHeader(); }
+		FString GetContentRangeHeader() override
+		{ return WrappedResponse->GetContentRangeHeader(); }
+		FString GetAcceptRangesHeader() override
+		{ return WrappedResponse->GetAcceptRangesHeader(); }
+		FString GetTransferEncodingHeader() override
+		{ return WrappedResponse->GetTransferEncodingHeader(); }
+		FString GetContentTypeHeader() override
+		{ return WrappedResponse->GetContentTypeHeader(); }
+		double GetTimeElapsed() override
+		{ return WrappedResponse->GetTimeElapsed(); }
+		double GetTimeSinceLastDataArrived() override
+		{ return WrappedResponse->GetTimeSinceLastDataArrived(); }
+		double GetTimeUntilNameResolved() override
+		{ return WrappedResponse->GetTimeUntilNameResolved(); }
+		double GetTimeUntilConnected() override
+		{ return WrappedResponse->GetTimeUntilConnected(); }
+		double GetTimeUntilRequestSent() override
+		{ return WrappedResponse->GetTimeUntilRequestSent(); }
+		double GetTimeUntilHeadersAvailable() override
+		{ return WrappedResponse->GetTimeUntilHeadersAvailable(); }
+		double GetTimeUntilFirstByte() override
+		{ return WrappedResponse->GetTimeUntilFirstByte(); }
+		double GetTimeUntilFinished() override
+		{ return WrappedResponse->GetTimeUntilFinished(); }
 
-		virtual const TArray<uint8>& GetContent() const override
-		{ return Payload; }
+		void GetAllHeaders(TArray<FElectraHTTPStreamHeader>& OutHeaders) override
+		{ OutHeaders = Headers; }
 
-		void CopyHeadersFromExceptContentSizes(FHttpResponsePtr CachedResponse)
+		IElectraHTTPStreamBuffer& GetResponseData() override
+		{ return WrappedBuffer; }
+
+	private:
+		void CopyHeadersExceptDateFrom(IElectraHTTPStreamResponsePtr CachedResponse)
 		{
 			check(CachedResponse);
 			if (CachedResponse.IsValid())
 			{
-				// Copy all headers except for those containing the content size or length.
-				for(auto &Header : CachedResponse->GetAllHeaders())
+				TArray<FElectraHTTPStreamHeader> CachedHeaders;
+				CachedResponse->GetAllHeaders(CachedHeaders);
+				// Copy all headers except for those containing the date
+				for(auto &Header : CachedHeaders)
 				{
-					if (!Header.StartsWith(TEXT("Content-Length:"), ESearchCase::IgnoreCase) &&
-						!Header.StartsWith(TEXT("Content-Range:"), ESearchCase::IgnoreCase))
+					if (!Header.Header.Equals(TEXT("Date"), ESearchCase::IgnoreCase))
 					{
-						Headers.Emplace(MoveTemp(Header));
+						Headers.Emplace(Header);
 					}
 				}
 			}
 		}
-		void AddHeader(FString InHeader)
-		{ Headers.Emplace(MoveTemp(InHeader)); }
 
-		void SetPayload(TArray<uint8> InPayload)
-		{ Payload = MoveTemp(InPayload); }
+		IElectraHTTPStreamResponsePtr WrappedResponse;
+		TArray<FElectraHTTPStreamHeader> Headers;
+		FWrappedHTTPStreamBuffer WrappedBuffer;
+	};
 
+
+	class FSynthesizedCacheResponse : public IElectraHTTPStreamResponse
+	{
+	public:
+		virtual ~FSynthesizedCacheResponse() = default;
+		FSynthesizedCacheResponse()
+		{
+			// The new response is itself not cachable.
+			Buffer.SetIsCachable(false);
+		}
+
+		EStatus GetStatus() override
+		{ return EStatus::Completed; }
+		EState GetState() override
+		{ return EState::Finished; }
+		FString GetErrorMessage() override
+		{ return FString(); }
+		int32 GetHTTPResponseCode() override
+		{ return HTTPResponseCode; }
+		int64 GetNumResponseBytesReceived() override
+		{ return Buffer.GetNumTotalBytesAdded(); }
+		int64 GetNumRequestBytesSent() override
+		{ return 0; }
+		FString GetEffectiveURL() override
+		{ return URL; }
+
+		void GetAllHeaders(TArray<FElectraHTTPStreamHeader>& OutHeaders) override
+		{ OutHeaders = Headers; }
+		FString GetHTTPStatusLine() override
+		{ return StatusLine; }
+		FString GetContentLengthHeader() override
+		{ return GetHeader(TEXT("Content-Length")); }
+		FString GetContentRangeHeader() override
+		{ return GetHeader(TEXT("Content-Range")); }
+		FString GetAcceptRangesHeader() override
+		{ return GetHeader(TEXT("Accept-Ranges")); }
+		FString GetTransferEncodingHeader() override
+		{ return GetHeader(TEXT("Transfer-Encoding")); }
+		FString GetContentTypeHeader() override
+		{ return GetHeader(TEXT("Content-Type")); }
+
+		IElectraHTTPStreamBuffer& GetResponseData() override
+		{ return Buffer; }
+
+		double GetTimeElapsed() override
+		{ return 0.0; }
+		double GetTimeSinceLastDataArrived() override
+		{ return 0.0; }
+		double GetTimeUntilNameResolved() override
+		{ return TimeUntilNameResolved; }
+		double GetTimeUntilConnected() override
+		{ return TimeUntilConnected; }
+		double GetTimeUntilRequestSent() override
+		{ return TimeUntilRequestSent; }
+		double GetTimeUntilHeadersAvailable() override
+		{ return TimeUntilHeadersAvailable; }
+		double GetTimeUntilFirstByte() override
+		{ return TimeUntilFirstByte; }
+		double GetTimeUntilFinished() override
+		{ return TimeUntilFinished; }
+
+		void SetTimeUntilNameResolved(double InTimeUntilNameResolved)
+		{ TimeUntilNameResolved = InTimeUntilNameResolved; }
+		void SetTimeUntilConnected(double InTimeUntilConnected)
+		{ TimeUntilConnected = InTimeUntilConnected; }
+		void SetTimeUntilRequestSent(double InTimeUntilRequestSent)
+		{ TimeUntilRequestSent = InTimeUntilRequestSent; }
+		void SetTimeUntilHeadersAvailable(double InTimeUntilHeadersAvailable)
+		{ TimeUntilHeadersAvailable = InTimeUntilHeadersAvailable; }
+		void SetTimeUntilFirstByte(double InTimeUntilFirstByte)
+		{ TimeUntilFirstByte = InTimeUntilFirstByte; }
+		void SetTimeUntilFinished(double InTimeUntilFinished)
+		{ TimeUntilFinished = InTimeUntilFinished; }
+
+		void CopyHeadersExceptContentSizesAndDateFrom(IElectraHTTPStreamResponsePtr CachedResponse)
+		{
+			check(CachedResponse);
+			if (CachedResponse.IsValid())
+			{
+				TArray<FElectraHTTPStreamHeader> CachedHeaders;
+				CachedResponse->GetAllHeaders(CachedHeaders);
+				// Copy all headers except for those containing the content size, length or date.
+				for(auto &Header : CachedHeaders)
+				{
+					if (!Header.Header.Equals(TEXT("Content-Length"), ESearchCase::IgnoreCase) &&
+						!Header.Header.Equals(TEXT("Content-Range"), ESearchCase::IgnoreCase) &&
+						!Header.Header.Equals(TEXT("Date"), ESearchCase::IgnoreCase))
+					{
+						Headers.Emplace(Header);
+					}
+				}
+			}
+		}
+		void AddHeader(FString InHeader, FString InValue)
+		{ 
+			FElectraHTTPStreamHeader Hdr;
+			Hdr.Header = MoveTemp(InHeader);
+			Hdr.Value = MoveTemp(InValue);
+			Headers.Emplace(MoveTemp(Hdr)); 
+		}
 		void SetURL(const FString& InUrl)
 		{ URL = InUrl; }
-
+		void SetHTTPStatusLine(const FString& InStatusLine)
+		{ StatusLine = InStatusLine; }
 		void SetHTTPResponseCode(int32 InResponseCode)
 		{ HTTPResponseCode = InResponseCode; }
-
 	private:
-		TArray<uint8> Payload;
-		TArray<FString> Headers;
+		FString GetHeader(const TCHAR* const InHeader)
+		{
+			for(auto& Hdr : Headers)
+			{
+				if (Hdr.Header.Equals(InHeader, ESearchCase::IgnoreCase))
+				{
+					return Hdr.Value;
+				}
+			}
+			return FString();
+		}
+		FElectraHTTPStreamBuffer Buffer;
+		TArray<FElectraHTTPStreamHeader> Headers;
 		FString URL;
+		FString StatusLine;
 		int32 HTTPResponseCode = 200;
+
+		double TimeUntilNameResolved = 0.0;
+		double TimeUntilConnected = 0.0;
+		double TimeUntilRequestSent = 0.0;
+		double TimeUntilHeadersAvailable = 0.0;
+		double TimeUntilFirstByte = 0.0;
+		double TimeUntilFinished = 0.0;
 	};
 
 	void EvictToAddSize(int64 ResponseSize);
@@ -146,7 +388,7 @@ void FHTTPResponseCache::EvictToAddSize(int64 ResponseSize)
 	while(Cache.Num() && (MaxElementSize - SizeInUse < ResponseSize || Cache.Num() >= MaxNumElements))
 	{
 		TSharedPtrTS<FCacheItem> Item = Cache.Pop();
-		SizeInUse -= Item->Response->GetContent().Num();
+		SizeInUse -= Item->Response->GetResponseData().GetNumTotalBytesAdded();
 	}
 }
 
@@ -160,7 +402,9 @@ void FHTTPResponseCache::CacheEntity(TSharedPtrTS<FCacheItem> EntityToAdd)
 {
 	if (EntityToAdd.IsValid())
 	{
-		int64 SizeRequired = EntityToAdd->Response->GetContent().Num();
+		check(EntityToAdd->EffectiveURL.Len());
+
+		int64 SizeRequired = EntityToAdd->Response->GetResponseData().GetNumTotalBytesAdded();
 		EvictToAddSize(SizeRequired);
 		FScopeLock ScopeLock(&Lock);
 		if (SizeInUse + SizeRequired <= MaxElementSize && Cache.Num() < MaxNumElements)
@@ -171,25 +415,26 @@ void FHTTPResponseCache::CacheEntity(TSharedPtrTS<FCacheItem> EntityToAdd)
 	}
 }
 
-FHTTPResponseCache::EScatterResult FHTTPResponseCache::GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const IElectraHttpManager::FParams::FRange& InRange)
+FHTTPResponseCache::EScatterResult FHTTPResponseCache::GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& InRange)
 {
 	FScopeLock lock(&Lock);
 	// Get a list of all cached blocks for this URL.
 	TArray<TSharedPtrTS<FCacheItem>> CachedBlocks;
 	for(auto &Entry : Cache)
 	{
-		if (Entry->URL.Equals(URL))
+		if (Entry->RequestedURL.Equals(URL) || Entry->EffectiveURL.Equals(URL))
 		{
 			CachedBlocks.Add(Entry);
 		}
 	}
 
-	IElectraHttpManager::FParams::FRange Range(InRange);
+	ElectraHTTPStream::FHttpRange Range(InRange);
 
 	// Set up the default output that encompasses the request.
 	// This is what needs to be fetched for cache misses.
 	OutScatteredCachedEntity = MakeSharedTS<IHTTPResponseCache::FCacheItem>();
-	OutScatteredCachedEntity->URL = URL;
+	OutScatteredCachedEntity->RequestedURL = URL;
+	OutScatteredCachedEntity->EffectiveURL = URL;
 	OutScatteredCachedEntity->Range = Range;
 
 	// Quick out if there are no cached blocks at all.
@@ -234,6 +479,7 @@ FHTTPResponseCache::EScatterResult FHTTPResponseCache::GetScatteredCacheEntity(T
 				// Data up to the beginning of this cached block must be fetched first.
 				OutScatteredCachedEntity->Range = Range;
 				OutScatteredCachedEntity->Range.SetEndIncluding(cbstart - 1);
+				OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
 				return EScatterResult::PartialHit;
 			}
 			else
@@ -251,19 +497,21 @@ FHTTPResponseCache::EScatterResult FHTTPResponseCache::GetScatteredCacheEntity(T
 	// Exact match?
 	if (rs == CachedBlocks[firstIndex]->Range.GetStart() && re == CachedBlocks[firstIndex]->Range.GetEndIncluding())
 	{
-		OutScatteredCachedEntity = CachedBlocks[firstIndex];
+		OutScatteredCachedEntity->Response = MakeShared<FWrappedCacheResponse, ESPMode::ThreadSafe>(CachedBlocks[firstIndex]->Response);
+		OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
 		Cache.Remove(CachedBlocks[firstIndex]);
 		Cache.Insert(CachedBlocks[firstIndex], 0);
 		return EScatterResult::FullHit;
 	}
 
 	// Set up the partial cache response.
-	TSharedPtr<FResponseFromCache, ESPMode::ThreadSafe> Response = MakeShared<FResponseFromCache, ESPMode::ThreadSafe>();
-	Response->SetURL(URL);
-	Response->CopyHeadersFromExceptContentSizes(CachedBlocks[firstIndex]->Response);
+	TSharedPtr<FSynthesizedCacheResponse, ESPMode::ThreadSafe> Response = MakeShared<FSynthesizedCacheResponse, ESPMode::ThreadSafe>();
+	Response->SetURL(CachedBlocks[firstIndex]->EffectiveURL);
+	OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
+	Response->CopyHeadersExceptContentSizesAndDateFrom(CachedBlocks[firstIndex]->Response);
+	Response->SetHTTPStatusLine(CachedBlocks[firstIndex]->Response->GetHTTPStatusLine());
 
 	// There is some overlap. Find how many consecutive bytes we can get from the cached blocks.
-	TArray<uint8> Payload;
 	TArray<TSharedPtrTS<FCacheItem>> TouchedBlocks;
 	while(1)
 	{
@@ -273,9 +521,8 @@ FHTTPResponseCache::EScatterResult FHTTPResponseCache::GetScatteredCacheEntity(T
 		int64 offset = rs - cbstart;
 		int64 numAvail = last + 1 - cbstart - offset;
 
-		// Copy the response data into the gathering block.
-		const TArray<uint8>& CachedContent = CachedBlocks[firstIndex]->Response->GetContent();
-		Payload.Append(CachedContent.GetData() + offset, numAvail);
+		// Add the bytes from the cache to the new response.
+		Response->GetResponseData().AddData(CachedBlocks[firstIndex]->Response->GetResponseData(), offset, numAvail);
 
 		// Remember which blocks we just touched.
 		TouchedBlocks.Add(CachedBlocks[firstIndex]);
@@ -310,13 +557,28 @@ FHTTPResponseCache::EScatterResult FHTTPResponseCache::GetScatteredCacheEntity(T
 	Range.SetEndIncluding(rs - 1);
 	if (InRange.IsSet())
 	{
-		Response->AddHeader(FString::Printf(TEXT("Content-Range: bytes %lld-%lld/%lld"), (long long int)Range.GetStart(), (long long int)Range.GetEndIncluding(), (long long int)Range.GetDocumentSize()));
+		Response->AddHeader(TEXT("Content-Range"), FString::Printf(TEXT("bytes %lld-%lld/%lld"), (long long int)Range.GetStart(), (long long int)Range.GetEndIncluding(), (long long int)Range.GetDocumentSize()));
 		Response->SetHTTPResponseCode(206);
+		FString StatusLine = Response->GetHTTPStatusLine();
+		StatusLine.ReplaceInline(TEXT("200"), TEXT("206"));
+		Response->SetHTTPStatusLine(StatusLine);
 	}
-	Response->AddHeader(FString::Printf(TEXT("Content-Length: %lld"), (long long int)Payload.Num()));
-	Response->SetPayload(MoveTemp(Payload));
+	Response->AddHeader(TEXT("Content-Length"), FString::Printf(TEXT("%lld"), (long long int)Response->GetResponseData().GetNumTotalBytesAdded()));
+	Response->GetResponseData().SetLengthFromResponseHeader(Response->GetResponseData().GetNumTotalBytesAdded());
+	Response->GetResponseData().SetEOS();
+
+/*
+	Response->SetTimeUntilNameResolved(double InTimeUntilNameResolved);
+	Response->SetTimeUntilConnected(double InTimeUntilConnected);
+	Response->SetTimeUntilRequestSent(double InTimeUntilRequestSent);
+	Response->SetTimeUntilHeadersAvailable(double InTimeUntilHeadersAvailable);
+	Response->SetTimeUntilFirstByte(double InTimeUntilFirstByte);
+	Response->SetTimeUntilFinished(double InTimeUntilFinished);
+*/
+
 	OutScatteredCachedEntity->Response = Response;
 	OutScatteredCachedEntity->Range = Range;
+
 	return EScatterResult::PartialHit;
 }
 

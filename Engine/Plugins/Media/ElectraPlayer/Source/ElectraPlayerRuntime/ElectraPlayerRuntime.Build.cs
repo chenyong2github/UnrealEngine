@@ -18,10 +18,9 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
-					"HTTP",
-					"WebSockets",
 					"Json",
 					"ElectraBase",
+					"ElectraHTTPStream",
 					"ElectraCDM",
 					"ElectraSubtitles",
 					"XmlParser"

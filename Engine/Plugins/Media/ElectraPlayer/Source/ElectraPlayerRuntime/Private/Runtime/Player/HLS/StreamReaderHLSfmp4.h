@@ -40,7 +40,7 @@ public:
 	virtual void GetDownloadStats(Metrics::FSegmentDownloadStats& OutStats) const override;
 
 	FString																		URL;
-	IElectraHttpManager::FParams::FRange										Range;
+	ElectraHTTPStream::FHttpRange												Range;
 
 	EStreamType																	StreamType;							//!< Type of stream (video, audio, etc.)
 	uint32																		StreamUniqueID;						//!< The unique stream ID identifying the stream for which this is a request.

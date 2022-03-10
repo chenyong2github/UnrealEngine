@@ -162,7 +162,7 @@ namespace Electra
 
 
 		//! Inserts elements into the buffer. Returns true if successful, false if there is no room.
-		bool PushData(const uint8* InData, int32 NumElements)
+		bool PushData(const uint8* InData, int32 NumElements, bool bRingbufferPush=true)
 		{
 			FMediaCriticalSection::ScopedLock Lock(AccessLock);
 			check(!bEOD);
@@ -179,7 +179,10 @@ namespace Electra
 					CopyData(WritePos, InData, NumElements);
 					if ((WritePos += NumElements) == DataEnd)
 					{
-						WritePos = Data;
+						if (bRingbufferPush)
+						{
+							WritePos = Data;
+						}
 					}
 				}
 				else
@@ -384,15 +387,15 @@ namespace Electra
 
 		FMediaCriticalSection	AccessLock;
 		FMediaEvent				SizeAvailableSignal;	//!< signaled when WaitingForSize data is present
-		uint8*					Data;					//!< Base address of buffer
-		uint8*					DataEnd;				//!< End address of buffer
-		uint8*					WritePos;				//!< Current write position
-		uint8*					ReadPos;				//!< Current read position
-		int32					DataSize;				//!< Maximum number of bytes in the buffer
-		int32					NumIn;					//!< Current number of bytes in the buffer
-		int32					WaitingForSize;			//!< If waiting for a certain number of bytes to become available
-		bool					bEOD;					//!< true when the last packet of data was pushed into the buffer.
-		bool					bWasAborted;
+		uint8* volatile			Data;					//!< Base address of buffer
+		uint8* volatile			DataEnd;				//!< End address of buffer
+		uint8* volatile			WritePos;				//!< Current write position
+		uint8* volatile			ReadPos;				//!< Current read position
+		volatile int32			DataSize;				//!< Maximum number of bytes in the buffer
+		volatile int32			NumIn;					//!< Current number of bytes in the buffer
+		volatile int32			WaitingForSize;			//!< If waiting for a certain number of bytes to become available
+		volatile bool			bEOD;					//!< true when the last packet of data was pushed into the buffer.
+		volatile bool			bWasAborted;
 	};
 
 

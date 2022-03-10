@@ -17,14 +17,9 @@
 #include "Serialization/Archive.h"
 #include "Serialization/ArrayReader.h"
 
-// For https:// scheme
-#include "Modules/ModuleManager.h"
-#include "HttpModule.h"
-#include "PlatformHttp.h"
-#include "Interfaces/IHttpResponse.h"
-
-
 #include "ElectraPlayerPrivate.h"
+#include "ElectraHTTPStream.h"
+
 
 #define ERRCODE_OK								0
 #define ERRCODE_HTTP_CONNECTION_TIMEOUT			1
@@ -40,10 +35,14 @@ DECLARE_CYCLE_STAT(TEXT("FElectraHttpManager::WorkerThread"), STAT_ElectraPlayer
 DEFINE_LOG_CATEGORY(LogElectraHTTPManager);
 
 
+#define ELECTRA_HTTPMANAGER_USER_AGENT					TEXT("X-UnrealEngine-Agent")
+//#define ELECTRA_HTTPMANAGER_DEBUG_PROXY_ADDRESS			TEXT("10.29.4.30:8888")
+//#define ELECTRA_HTTPMANAGER_ALLOW_UNSAFE_CONNECTIONS	1
+
 namespace Electra
 {
 
-	class FElectraHttpManager : public IElectraHttpManager, public FMediaThread, public TSharedFromThis<FElectraHttpManager, ESPMode::ThreadSafe>
+	class FElectraHttpManager : public IElectraHttpManager, public TSharedFromThis<FElectraHttpManager, ESPMode::ThreadSafe>
 	{
 	public:
 		static TSharedPtrTS<FElectraHttpManager> Create();
@@ -95,31 +94,14 @@ namespace Electra
 			{
 				Unbind();
 			}
-			void ReportRequestComplete(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully)
+
+			void ReportRequestNotification(IElectraHTTPStreamRequestPtr InRequest, EElectraHTTPStreamNotificationReason InReason, int64 InParam)
 			{
 				FScopeLock lock(&Lock);
 				TSharedPtrTS<FElectraHttpManager> That = Owner.Pin();
 				if (That.IsValid())
 				{
-					That->OnProcessRequestCompleteInternal(Request, Response, bConnectedSuccessfully);
-				}
-			}
-			void ReportRequestProgress(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
-			{
-				FScopeLock lock(&Lock);
-				TSharedPtrTS<FElectraHttpManager> That = Owner.Pin();
-				if (That.IsValid())
-				{
-					That->OnRequestProgressInternal(Request, BytesSent, BytesReceived);
-				}
-			}
-			void ReportRequestHeaderReceived(FHttpRequestPtr Request, const FString& HeaderName, const FString& NewHeaderValue)
-			{
-				FScopeLock lock(&Lock);
-				TSharedPtrTS<FElectraHttpManager> That = Owner.Pin();
-				if (That.IsValid())
-				{
-					That->OnRequestHeaderReceivedInternal(Request, HeaderName, NewHeaderValue);
+					That->OnRequestNotification(InRequest, InReason, InParam);
 				}
 			}
 
@@ -154,15 +136,16 @@ namespace Electra
 						HttpsRequestCallbackWrapper->Unbind();
 					}
 					HttpsRequestCallbackWrapper.Reset();
-					if (HttpRequest.IsValid() && !ActiveResponse.bHitCache && !EHttpRequestStatus::IsFinished(HttpRequest->GetStatus()))
+
+					if (HttpRequest.IsValid() && !ActiveResponse.bHitCache && HttpRequest->GetResponse()->GetStatus() != IElectraHTTPStreamResponse::EStatus::Completed)
 					{
-						HttpRequest->CancelRequest();
+						HttpRequest->Cancel();
 					}
 					HttpRequest.Reset();
 				}
 			}
 
-			bool ProcessHTTPRequest()
+			bool NeedsFetchOfUncachedParts()
 			{
 				check(HandleType == EHandleType::HTTPHandle);
 
@@ -178,7 +161,8 @@ namespace Electra
 						if (CacheItem.IsValid())
 						{
 							ActiveResponse.CacheResponse = MoveTemp(CacheItem);
-							return true;
+							// Have all data, no need to fetch anything.
+							return false;
 						}
 					}
 					else if (Result == IHTTPResponseCache::EScatterResult::PartialHit)
@@ -195,19 +179,21 @@ namespace Electra
 							{
 								ActiveResponse.CacheResponse = MoveTemp(CacheItem);
 								ActiveResponse.ReceivedContentRange = ActiveResponse.CacheResponse->Range;
-								return true;
+								// Don't need to fetch the first part.
+								return false;
 							}
 							else
 							{
 								// The missing range we need to fetch has been set up by the cache so we just need to use
 								// that range in the request.
 								ActiveResponse.Range = CacheItem->Range;
-								HttpRequest->SetHeader(TEXT("Range"), FString::Printf(TEXT("bytes=%s"), *ActiveResponse.Range.GetString()));
+								HttpRequest->SetRange(ActiveResponse.Range.GetString());
 							}
 						}
 					}
 				}
-				return HttpRequest->ProcessRequest();
+				// Fetch needed.
+				return true;
 			}
 
 			struct FRequestResponse
@@ -215,14 +201,14 @@ namespace Electra
 				// URL
 				FString URL;
 				// Current range requested from server.
-				FParams::FRange Range;
+				ElectraHTTPStream::FHttpRange Range;
 				// Current response received from server
-				FHttpResponsePtr Response;
+				IElectraHTTPStreamResponsePtr Response;
 				// Number of bytes passed along already.
 				int64 NumBytesPassedOut = 0;
 				// Original range requested for easier access and comparison.
-				FParams::FRange OriginalRange;
-				FParams::FRange ReceivedContentRange;
+				ElectraHTTPStream::FHttpRange OriginalRange;
+				ElectraHTTPStream::FHttpRange ReceivedContentRange;
 				//
 				bool bIsSubRangeRequest = false;
 				int32 NumSubRangeRequest = 0;
@@ -230,7 +216,6 @@ namespace Electra
 				TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheResponse;
 				bool bHitCache = false;
 				bool bWasAddedToCache = false;
-
 
 				//
 				int64 SizeRemaining() const
@@ -281,11 +266,11 @@ namespace Electra
 			// Local file handle (for file:// and data:)
 			FLocalByteStream*		LocalByteStream = nullptr;
 
-			// HTTP module handle (for http:// and https://)
-			FHttpRequestPtr			HttpRequest;
+			// HTTP handle
+			IElectraHTTPStreamRequestPtr							HttpRequest;
 			TSharedPtr<FHTTPCallbackWrapper, ESPMode::ThreadSafe>	HttpsRequestCallbackWrapper;
-			bool					bHttpRequestFirstEvent = true;
-			TSharedPtrTS<IHTTPResponseCache> HttpResponseCache;
+			bool													bHttpRequestFirstEvent = true;
+			TSharedPtrTS<IHTTPResponseCache>						HttpResponseCache;
 
 			FTimeValue				LastTimeDataReceived;
 			FTimeValue				TimeAtNextProgressCallback;
@@ -343,8 +328,8 @@ namespace Electra
 		};
 
 		FHandle* CreateLocalFileHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<FRequest>& Request);
-		FHandle* CreateHTTPModuleHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<FRequest>& Request);
-		bool PrepareHTTPModuleHandle(const FTimeValue& Now, FHandle* InHandle, const TSharedPtrTS<FRequest>& Request, bool bIsFirstSetup);
+		FHandle* CreateHTTPHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<FRequest>& Request);
+		bool PrepareHTTPHandle(const FTimeValue& Now, FHandle* InHandle, const TSharedPtrTS<FRequest>& Request, bool bIsFirstSetup);
 		void AddPendingRequests(const FTimeValue& Now);
 		void RemovePendingRequests(const FTimeValue& Now);
 		void HandleCompletedRequests();
@@ -356,25 +341,14 @@ namespace Electra
 		void HandleHTTPResponses(const FTimeValue& Now);
 		void RemoveAllRequests();
 
-		void WorkerThread();
+		void StartHTTPManager();
+		void StopHTTPManager();
+		void ProcessHTTPManager();
 
 	public:
-		// Callbacks from the HTTP module
-		void OnProcessRequestCompleteInternal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully);
-		void OnRequestProgressInternal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived);
-		void OnRequestHeaderReceivedInternal(FHttpRequestPtr Request, const FString& HeaderName, const FString& NewHeaderValue);
-	private:
-		struct FHttpEventData
-		{
-			TArray<HTTP::FHTTPHeader>	Headers;
-			FHttpResponsePtr			Response;
-			EHttpRequestStatus::Type	Status = EHttpRequestStatus::Type::NotStarted;
-			int32						BytesSent = 0;
-			int32						BytesReceived = 0;
-			bool						bComplete = false;
-			bool						bConnectedSuccessfully = false;
-		};
+		void OnRequestNotification(IElectraHTTPStreamRequestPtr InRequest, EElectraHTTPStreamNotificationReason InReason, int64 InParam);
 
+	private:
 		struct FRemoveRequest
 		{
 			void SignalDone()
@@ -396,14 +370,15 @@ namespace Electra
 		TQueue<FRemoveRequest, EQueueMode::Mpsc>						RequestsToRemove;
 		TQueue<TSharedPtrTS<FRequest>, EQueueMode::Mpsc>				RequestsCompleted;
 
+		TSharedPtr<IElectraHTTPStream, ESPMode::ThreadSafe>				HTTPStreamHandler;
+		FCriticalSection												HTTPStreamEventLock;
+		TArray<IElectraHTTPStreamRequestPtr>							NotifiedRequests;
+
 		TMap<FHandle*, TSharedPtrTS<FRequest>>							ActiveRequests;
 		FTimeValue														ProgressInterval;
 
-		bool															bThreadStarted = false;
+		bool															bManagerStarted = false;
 		bool															bTerminate = false;
-
-		FCriticalSection												HttpModuleEventLock;
-		TMap<FHttpRequestPtr, FHttpEventData>							HttpModuleEventMap;
 
 		static TWeakPtrTS<FElectraHttpManager>							SingletonSelf;
 		static FCriticalSection											SingletonLock;
@@ -430,9 +405,9 @@ namespace Electra
 			FElectraHttpManager* Manager = new FElectraHttpManager;
 			if (Manager)
 			{
+				Self = MakeShareable(Manager);
 				Manager->Initialize();
 			}
-			Self = MakeShareable(Manager);
 			SingletonSelf = Self;
 		}
 		return Self;
@@ -442,21 +417,17 @@ namespace Electra
 	FElectraHttpManager::~FElectraHttpManager()
 	{
 		bTerminate = true;
-		if (bThreadStarted)
+		if (bManagerStarted)
 		{
-			ThreadWaitDone();
-			ThreadReset();
+			StopHTTPManager();
 		}
 	}
 
 	void FElectraHttpManager::Initialize()
 	{
 		ProgressInterval.SetFromMilliseconds(100);
-
-		ThreadSetName("ElectraPlayer::HTTPManager");
-		ThreadStart(Electra::MakeDelegate(this, &FElectraHttpManager::WorkerThread));
-
-		bThreadStarted = true;
+		StartHTTPManager();
+		bManagerStarted = true;
 	}
 
 	void FElectraHttpManager::AddRequest(TSharedPtrTS<FRequest> Request, bool bAutoRemoveWhenComplete)
@@ -539,7 +510,7 @@ namespace Electra
 		return Handle.Release();
 	}
 
-	FElectraHttpManager::FHandle* FElectraHttpManager::CreateHTTPModuleHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<IElectraHttpManager::FRequest>& Request)
+	FElectraHttpManager::FHandle* FElectraHttpManager::CreateHTTPHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<IElectraHttpManager::FRequest>& Request)
 	{
 		TUniquePtr<FHandle> Handle(new FHandle);
 		Handle->Owner = this;
@@ -548,50 +519,22 @@ namespace Electra
 		Handle->ActiveResponse.NumSubRangeRequest = 0;
 		Handle->ActiveResponse.OriginalRange = Request->Parameters.Range;
 
-		PrepareHTTPModuleHandle(Now, Handle.Get(), Request, true);
+		PrepareHTTPHandle(Now, Handle.Get(), Request, true);
 		return Handle.Release();
 	}
 
 
-	bool FElectraHttpManager::PrepareHTTPModuleHandle(const FTimeValue& Now, FHandle* Handle, const TSharedPtrTS<FRequest>& Request, bool bIsFirstSetup)
+	bool FElectraHttpManager::PrepareHTTPHandle(const FTimeValue& Now, FHandle* Handle, const TSharedPtrTS<FRequest>& Request, bool bIsFirstSetup)
 	{
-		FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-
 		Handle->HttpsRequestCallbackWrapper = MakeShared<FHTTPCallbackWrapper, ESPMode::ThreadSafe>(AsShared());
-		Handle->HttpRequest = HttpModule.Get().CreateRequest();
-		Handle->HttpRequest->OnProcessRequestComplete().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestComplete);
-		Handle->HttpRequest->OnRequestProgress().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestProgress);
-		Handle->HttpRequest->OnHeaderReceived().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestHeaderReceived);
-		Handle->HttpRequest->SetURL(Request->Parameters.URL);
 		Handle->ActiveResponse.URL = Request->Parameters.URL;
-		if (!Request->Parameters.Verb.IsEmpty())
-		{
-			Handle->HttpRequest->SetVerb(Request->Parameters.Verb);
-			// Add POST data
-			if (Request->Parameters.Verb.Equals(TEXT("POST")))
-			{
-				Handle->HttpRequest->SetContent(MoveTemp(Request->Parameters.PostData));
-			}
-		}
-		else
-		{
-			Handle->HttpRequest->SetVerb(TEXT("GET"));
-			Handle->HttpResponseCache = Request->ResponseCache;
-		}
-
-		Handle->HttpRequest->SetHeader(TEXT("User-Agent"), "X-UnrealEngine-Agent");
-		// Set accepted encoding first. If this is also present in custom headers let those overwrite it.
-		if (Request->Parameters.AcceptEncoding.IsSet())
-		{
-			Handle->HttpRequest->SetHeader(TEXT("Accept-Encoding"), Request->Parameters.AcceptEncoding.Value());
-		}
-		for(int32 i=0; i<Request->Parameters.RequestHeaders.Num(); ++i)
-		{
-			Handle->HttpRequest->SetHeader(Request->Parameters.RequestHeaders[i].Header, Request->Parameters.RequestHeaders[i].Value);
-		}
-
 		Handle->RequestStartTime = Now;
 		Handle->TimeAtConnectionTimeoutCheck.SetToPositiveInfinity();
+		if (Request->Parameters.ConnectTimeout.IsValid())
+		{
+			Handle->TimeAtConnectionTimeoutCheck = Now + Request->Parameters.ConnectTimeout;
+		}
+
 		// Is this the first sub range request or a continuation?
 		if (bIsFirstSetup)
 		{
@@ -623,6 +566,7 @@ namespace Electra
 		}
 		Handle->ActiveResponse.NumBytesPassedOut = 0;
 		Handle->ActiveResponse.ReceivedContentRange.Reset();
+
 		Handle->ActiveResponse.Response.Reset();
 
 		// Response not yet received.
@@ -630,50 +574,64 @@ namespace Electra
 
 		// Do a quick check that if the request is reading into a ring buffer that there is also a sub-range request size set up.
 		TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
-		if (ReceiveBuffer.IsValid() && ReceiveBuffer->bEnableRingbuffer)
+		// Give a warning to the console about this circumstance if the original request is not ranged.
+		// If it is a range request that goes up to the end of the file we cannot say with certainty if this is a problem
+		// since we do not know how large the response is going to be. It could be a few bytes, it could be gigabytes...
+		if (ReceiveBuffer.IsValid() && ReceiveBuffer->bEnableRingbuffer && !Handle->ActiveResponse.Range.IsSet())
 		{
-			if (Request->Parameters.SubRangeRequestSize > 0)
-			{
-				// The requested sub range size may be smaller than the range we are supposed to get.
-				// Adjust the first range request accordingly.
-				if (Handle->ActiveResponse.Range.IsSet())
-				{
-					// If the original range is larger than the sub range request, including an open ended range, we need to adjust the range.
-					int64 NumOrgBytes = Handle->ActiveResponse.Range.GetNumberOfBytes();
-					if (NumOrgBytes > Request->Parameters.SubRangeRequestSize || Handle->ActiveResponse.Range.GetEndIncluding() < 0)
-					{
-						Handle->ActiveResponse.Range.SetEndIncluding(Handle->ActiveResponse.Range.GetStart() + Request->Parameters.SubRangeRequestSize - 1);
-						Handle->ActiveResponse.bIsSubRangeRequest = true;
-					}
-				}
-				else
-				{
-					// No range requested. We still need to perform sub range requests.
-					Handle->ActiveResponse.Range.SetStart(0);
-					Handle->ActiveResponse.Range.SetEndIncluding(Request->Parameters.SubRangeRequestSize - 1);
-					Handle->ActiveResponse.bIsSubRangeRequest = true;
-				}
-			}
-			else
-			{
-				// Give a warning to the console about this circumstance if the original request is not ranged.
-				// If it is a range request that goes up to the end of the file we cannot say with certainty if this is a problem
-				// since we do not know how large the response is going to be. It could be a few bytes, it could be gigabytes...
-				if (!Handle->ActiveResponse.Range.IsSet())
-				{
-					UE_LOG(LogElectraHTTPManager, Warning, TEXT("Receive buffer set to ring buffer mode but no sub range request size specified!"));
-				}
-			}
-		}
-		// Set the possibly adjusted range.
-		if (Handle->ActiveResponse.Range.IsSet())
-		{
-			FString Range = FString::Printf(TEXT("bytes=%s"), *Handle->ActiveResponse.Range.GetString());
-			Handle->HttpRequest->SetHeader(TEXT("Range"), Range);
+			UE_LOG(LogElectraHTTPManager, Warning, TEXT("Receive buffer set to ring buffer mode but no sub range request size specified!"));
 		}
 
 		// This could be for the next sub-range request that we also want to add to the cache!
 		Handle->ActiveResponse.bWasAddedToCache = false;
+
+		if (HTTPStreamHandler.IsValid())
+		{
+			Handle->HttpRequest = HTTPStreamHandler->CreateRequest();
+			if (!Handle->HttpRequest.IsValid())
+			{
+				return false;
+			}
+			Handle->HttpRequest->SetVerb(TEXT("GET"));
+			Handle->HttpResponseCache = Request->ResponseCache;
+
+			if (!Request->Parameters.Verb.IsEmpty())
+			{
+				Handle->HttpRequest->SetVerb(Request->Parameters.Verb);
+				// Disable the cache for anything but GET
+				if (!Request->Parameters.Verb.Equals(TEXT("GET")))
+				{
+					Handle->HttpResponseCache.Reset();
+				}
+
+				// Add POST data
+				if (Request->Parameters.Verb.Equals(TEXT("POST")))
+				{
+					IElectraHTTPStreamBuffer& pdb = Handle->HttpRequest->POSTDataBuffer();
+					pdb.AddData(MoveTemp(Request->Parameters.PostData));
+					pdb.SetEOS();
+				}
+			}
+
+			Handle->HttpRequest->SetURL(Request->Parameters.URL);
+			Handle->HttpRequest->SetUserAgent(ELECTRA_HTTPMANAGER_USER_AGENT);
+			Handle->HttpRequest->AllowCompression(!Request->Parameters.AcceptEncoding.GetWithDefault(TEXT("")).Equals(TEXT("identity")));
+			#if defined(ELECTRA_HTTPMANAGER_ALLOW_UNSAFE_CONNECTIONS) && ELECTRA_HTTPMANAGER_ALLOW_UNSAFE_CONNECTIONS
+				Handle->HttpRequest->AllowUnsafeRequestsForDebugging();
+			#endif
+			if (Handle->ActiveResponse.Range.IsSet())
+			{
+				Handle->HttpRequest->SetRange(Handle->ActiveResponse.Range.GetString());
+			}
+
+			for(int32 i=0; i<Request->Parameters.RequestHeaders.Num(); ++i)
+			{
+				Handle->HttpRequest->AddHeader(Request->Parameters.RequestHeaders[i].Header, Request->Parameters.RequestHeaders[i].Value, false);
+			}
+
+			Handle->HttpRequest->NotificationDelegate().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestNotification);
+		}
+
 		return true;
 	}
 
@@ -710,14 +668,21 @@ namespace Electra
 			}
 			else
 			{
-				FHandle* Handle = CreateHTTPModuleHandle(Now, HttpError, Request);
+				FHandle* Handle = CreateHTTPHandle(Now, HttpError, Request);
 				if (Handle)
 				{
 					ActiveRequests.Add(Handle, Request);
-					if (!Handle->ProcessHTTPRequest())
+					if (Handle->NeedsFetchOfUncachedParts())
 					{
-						Request->ConnectionInfo.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage("HTTP request failed on ProcessRequest()");
-						RequestsCompleted.Enqueue(Request);
+						if (HTTPStreamHandler.IsValid())
+						{
+							HTTPStreamHandler->AddRequest(Handle->HttpRequest);
+						}
+						else
+						{
+							Request->ConnectionInfo.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage("HTTP request failed on ProcessRequest()");
+							RequestsCompleted.Enqueue(Request);
+						}
 					}
 				}
 				else
@@ -874,7 +839,7 @@ namespace Electra
 				continue;
 			}
 			// HTTP transfers that are cached or not processing also do not need to be checked.
-			else if (Handle->HandleType == FHandle::EHandleType::HTTPHandle && (Handle->ActiveResponse.CacheResponse.IsValid() || (Handle->HttpRequest.IsValid() && EHttpRequestStatus::IsFinished(Handle->HttpRequest->GetStatus()))))
+			else if (Handle->HandleType == FHandle::EHandleType::HTTPHandle && (Handle->ActiveResponse.CacheResponse.IsValid() || (Handle->HttpRequest.IsValid() && Handle->HttpRequest->GetResponse()->GetState() == IElectraHTTPStreamResponse::EState::Finished)))
 			{
 				continue;
 			}
@@ -952,57 +917,68 @@ namespace Electra
 	}
 
 
-	void FElectraHttpManager::WorkerThread()
+	void FElectraHttpManager::StartHTTPManager()
 	{
 		LLM_SCOPE(ELLMTag::ElectraPlayer);
 
-		FTimeValue Now = MEDIAutcTime::Current();
-		while(!bTerminate)
-		{
-			const long kSelectTimeoutMilliseconds = 15;
-
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FElectraHttpManager_Worker);
-				CSV_SCOPED_TIMING_STAT(ElectraPlayer, ElectraHttpManager_Worker);
-
-				// Add and remove pending requests
-				Lock.Lock();
-				AddPendingRequests(Now);
-				RemovePendingRequests(Now);
-				Lock.Unlock();
-			}
-
-			// Throttle ourselves here a bit.
-			RequestChangesEvent.WaitTimeoutAndReset(kSelectTimeoutMilliseconds * 1000);
-
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FElectraHttpManager_Worker);
-				CSV_SCOPED_TIMING_STAT(ElectraPlayer, ElectraHttpManager_Worker);
-
-				// Handle local file requests.
-				HandleLocalFileRequests();
-
-				Now = MEDIAutcTime::Current();
-
-				// Handle requests that have a cached response.
-				HandleCachedHTTPRequests(Now);
-
-				// Handle requests to the HTTP module
-				HandleHTTPRequests(Now);
-				// Handle the responses.
-				HandleHTTPResponses(Now);
-
-				// Handle periodic progress callbacks. Do this before handling completed requests in case a callback asks to abort.
-				HandlePeriodicCallbacks(Now);
-				// Handle timeouts after the progress callbacks.
-				HandleTimeouts(Now);
-				// Handle all finished requests.
-				HandleCompletedRequests();
-			}
-		}
-		RemoveAllRequests();
-		HttpModuleEventMap.Reset();
+		FParamDict HttpOptions;
+		#ifdef ELECTRA_HTTPMANAGER_DEBUG_PROXY_ADDRESS
+			HttpOptions.Set(FString(TEXT("proxy")), FVariantValue(FString(ELECTRA_HTTPMANAGER_DEBUG_PROXY_ADDRESS)));
+		#endif
+		HTTPStreamHandler = IElectraHTTPStream::Create(HttpOptions);
+		HTTPStreamHandler->ThreadHandlerDelegate().BindThreadSafeSP(AsShared(), &FElectraHttpManager::ProcessHTTPManager);
 	}
+	
+	void FElectraHttpManager::StopHTTPManager()
+	{
+		LLM_SCOPE(ELLMTag::ElectraPlayer);
+
+		if (HTTPStreamHandler.IsValid())
+		{
+			HTTPStreamHandler->ThreadHandlerDelegate().Unbind();
+		}
+
+		RemoveAllRequests();
+
+		if (HTTPStreamHandler.IsValid())
+		{
+			HTTPStreamHandler->Close();
+			HTTPStreamHandler.Reset();
+		}
+	}
+	
+	void FElectraHttpManager::ProcessHTTPManager()
+	{
+		LLM_SCOPE(ELLMTag::ElectraPlayer);
+
+		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FElectraHttpManager_Worker);
+		CSV_SCOPED_TIMING_STAT(ElectraPlayer, ElectraHttpManager_Worker);
+
+		FTimeValue Now = MEDIAutcTime::Current();
+		// Add and remove pending requests
+		Lock.Lock();
+		AddPendingRequests(Now);
+		RemovePendingRequests(Now);
+		Lock.Unlock();
+
+		// Handle local file requests.
+		HandleLocalFileRequests();
+
+		// Handle requests that have a cached response.
+		HandleCachedHTTPRequests(Now);
+
+		// Handle HTTP requests
+		HandleHTTPRequests(Now);
+		HandleHTTPResponses(Now);
+
+		// Handle periodic progress callbacks. Do this before handling the completed requests in case a callback asks to abort.
+		HandlePeriodicCallbacks(Now);
+		// Handle timeouts after the progress callbacks.
+		HandleTimeouts(Now);
+		// Handle all finished requests.
+		HandleCompletedRequests();
+	}
+
 
 
 	void FElectraHttpManager::HandleLocalFileRequests()
@@ -1050,130 +1026,81 @@ namespace Electra
 			if (Handle->HandleType == FHandle::EHandleType::HTTPHandle)
 			{
 				TSharedPtrTS<FRequest> Request = It.Value();
-				if (Handle->ActiveResponse.CacheResponse.IsValid())
+				if (Handle->ActiveResponse.CacheResponse.IsValid() && !Handle->ActiveResponse.bHitCache)
 				{
-					// First send all headers again
-					FScopeLock lock(&HttpModuleEventLock);
-					FHttpEventData& Evt = HttpModuleEventMap.FindOrAdd(Handle->HttpRequest);
-					for(auto &Header : Handle->ActiveResponse.CacheResponse->Response->GetAllHeaders())
-					{
-						HTTP::FHTTPHeader Hdr;
-						Hdr.SetFromString(Header);
-						// Filter out some response headers we cannot re-use.
-						if (Hdr.Header.Equals(TEXT("Date"), ESearchCase::IgnoreCase))
-						{
-							// Date header is bad because this can be used to synchronize the player clock.
-							continue;
-						}
-						Evt.Headers.Emplace(MoveTemp(Hdr));
-					}
-					// Set the received length;
-					Evt.BytesReceived = Handle->ActiveResponse.CacheResponse->Response->GetContent().Num();
-					// And the rest
-					Evt.bComplete = true;
-					Evt.bConnectedSuccessfully = true;
-					Evt.Status = EHttpRequestStatus::Type::Succeeded;
-					Evt.Response = Handle->ActiveResponse.CacheResponse->Response;
-					Handle->ActiveResponse.CacheResponse.Reset();
 					Handle->ActiveResponse.bHitCache = true;
+					FScopeLock lock(&HTTPStreamEventLock);
+					NotifiedRequests.AddUnique(Handle->HttpRequest);
 				}
 			}
 		}
 	}
 
+
 	void FElectraHttpManager::HandleHTTPRequests(const FTimeValue& Now)
 	{
 		// Get the events that have fired so far into a local map and clear out the original.
-		HttpModuleEventLock.Lock();
-		TMap<FHttpRequestPtr, FHttpEventData> Events = MoveTemp(HttpModuleEventMap);
-		HttpModuleEventLock.Unlock();
-
-		for(auto& Evt : Events)
+		HTTPStreamEventLock.Lock();
+		TArray<IElectraHTTPStreamRequestPtr> Notifieds = MoveTemp(NotifiedRequests);
+		HTTPStreamEventLock.Unlock();
+		for(auto &Notified : Notifieds)
 		{
 			// Find the request.
 			for(TMap<FHandle*, TSharedPtrTS<FRequest>>::TIterator It = ActiveRequests.CreateIterator(); It; ++It)
 			{
 				FHandle* Handle = It.Key();
-				if (Handle->HandleType == FHandle::EHandleType::HTTPHandle && Handle->HttpRequest == Evt.Key)
+				if (Handle->HandleType == FHandle::EHandleType::HTTPHandle && Handle->HttpRequest == Notified)
 				{
 					TSharedPtrTS<FRequest> Request = It.Value();
 					HTTP::FConnectionInfo& ci = Request->ConnectionInfo;
-					const FHttpEventData& EvData = Evt.Value;
 
-					FHttpResponsePtr Response = EvData.Response;
-					const int32 /*EHttpResponseCodes::Type*/ ResponseCode = Response ? Response->GetResponseCode() : EHttpResponseCodes::Unknown;
-					const bool bHTTPResponseSuccess = (ResponseCode >= 200 && ResponseCode <= 299) || ResponseCode == 304;
+					IElectraHTTPStreamResponsePtr Response = Handle->HttpRequest->GetResponse();
 
-					//FPlatformMisc::LocalPrint(*FString::Printf(TEXT("(%d, %d, %f; %d, %d, %d, %d)\n"), Status, ResponseCode, ElapsedTime, EvData.bComplete, EvData.bConnectedSuccessfully, EvData.BytesReceived, EvData.BytesSent));
-
-					// Set connect state on the first event indicating any kind of progress.
-					// Note: The HTTP module does not allow access to the response headers or HTTP status code during processing,
-					//       even when those are already available.
-					if (Handle->bHttpRequestFirstEvent)
+					if (Handle->ActiveResponse.CacheResponse.IsValid() && Handle->ActiveResponse.bHitCache)
 					{
-						if (EvData.bComplete || EvData.BytesSent || EvData.BytesReceived || EvData.Headers.Num())
-						{
-							// Any data flow means that the connection has been established.
-							if (Handle->ActiveResponse.NumSubRangeRequest == 0)
-							{
-								ci.bIsConnected = true;
-								ci.TimeUntilConnected = (Now - Handle->RequestStartTime).GetAsSeconds();
-							}
-							Handle->bIsConnected = true;
-							// That's it for the first event.
-							Handle->bHttpRequestFirstEvent = false;
-						}
+						Response = Handle->ActiveResponse.CacheResponse->Response;
+						Handle->ActiveResponse.CacheResponse.Reset();
 					}
 
-					// Process response headers.
-					if (EvData.Headers.Num())
+					if (Response->GetState() > IElectraHTTPStreamResponse::EState::Connecting && Handle->bHttpRequestFirstEvent)
 					{
-						// It may not be all of them yet, but headers were received.
-						// Unfortunately we do not get the "HTTP/1.0" / "HTTP/1.1" / "HTTP/2" header here to see which protocol version we are dealing with.
-						ci.bHaveResponseHeaders = true;
-						Handle->bHaveResponseHeaders = true;
-						for(int32 i=0, iMax=EvData.Headers.Num(); i<iMax; ++i)
+						if (Handle->ActiveResponse.NumSubRangeRequest == 0)
 						{
-							if (!EvData.Headers[i].Header.IsEmpty())
-							{
-								ci.ResponseHeaders.Add(EvData.Headers[i]);
-								const FString& HeaderKey = EvData.Headers[i].Header;
-								const FString& HeaderValue = EvData.Headers[i].Value;
-								if (HeaderKey == TEXT("Content-Length"))
-								{
-									ci.ContentLengthHeader = TEXT("Content-Length:") + HeaderValue;
-								}
-								else if (HeaderKey == TEXT("Content-Range"))
-								{
-									ci.ContentRangeHeader = TEXT("Content-Range: ") + HeaderValue;
-								}
-								else if (HeaderKey == TEXT("Content-Type"))
-								{
-									ci.ContentType = HeaderValue;
-								}
-								else if (HeaderKey == TEXT("Accept-Ranges"))
-								{
-									if (ci.HTTPVersionReceived == 0)
-									{
-										if (HeaderValue.Find(TEXT("none"), ESearchCase::IgnoreCase, ESearchDir::FromStart, INDEX_NONE) == INDEX_NONE)
-										{
-											ci.HTTPVersionReceived = 11;
-										}
-										else
-										{
-											ci.HTTPVersionReceived = 10;
-										}
-									}
-								}
-								else if (HeaderKey == TEXT("Transfer-Encoding"))
-								{
-									if (HeaderValue.Find(TEXT("chunked"), ESearchCase::IgnoreCase, ESearchDir::FromStart, INDEX_NONE) != INDEX_NONE)
-									{
-										ci.bIsChunked = true;
-									}
-								}
-							}
+							ci.bIsConnected = true;
+							ci.TimeForDNSResolve = Response->GetTimeUntilNameResolved();
+							ci.TimeUntilConnected = Response->GetTimeUntilConnected();
 						}
+						Handle->bIsConnected = true;
+						Handle->bHttpRequestFirstEvent = false;
+					}
+
+					// Get the response headers.
+					if (Response->GetState() >= IElectraHTTPStreamResponse::EState::ReceivedResponseHeaders && !ci.bHaveResponseHeaders)
+					{
+						Handle->LastTimeDataReceived = Now;
+
+						TArray<FElectraHTTPStreamHeader> Headers;
+						Response->GetAllHeaders(Headers);
+
+						for(auto &Header : Headers)
+						{
+							HTTP::FHTTPHeader h;
+							h.Header = Header.Header;
+							h.Value = Header.Value;
+							ci.ResponseHeaders.Add(h);
+						}
+						ci.ContentLengthHeader = Response->GetContentLengthHeader();
+						ci.ContentRangeHeader = Response->GetContentRangeHeader();
+						ci.ContentType = Response->GetContentTypeHeader();
+						ci.bIsChunked = Response->GetTransferEncodingHeader().Find(TEXT("chunked"), ESearchCase::IgnoreCase) != INDEX_NONE;
+						ci.HTTPVersionReceived = Response->GetHTTPStatusLine().Find(TEXT("HTTP/1.1"), ESearchCase::IgnoreCase) != INDEX_NONE ? 11 :
+													Response->GetHTTPStatusLine().Find(TEXT("HTTP/2"), ESearchCase::IgnoreCase) != INDEX_NONE ? 20 :
+													Response->GetHTTPStatusLine().Find(TEXT("HTTP/1.0"), ESearchCase::IgnoreCase) != INDEX_NONE ? 10 : 11;
+
+						ci.EffectiveURL = Response->GetEffectiveURL();
+						ci.StatusInfo.HTTPStatus = Response->GetHTTPResponseCode();
+						ci.NumberOfRedirections = 0;
+						bool bContentRangeOk = ci.ContentRangeHeader.Len() ? Handle->ActiveResponse.ReceivedContentRange.ParseFromContentRangeResponse(ci.ContentRangeHeader) : true;
 
 						// Content length needs a bit of special handling.
 						if (Handle->ActiveResponse.NumSubRangeRequest == 0)
@@ -1182,7 +1109,7 @@ namespace Electra
 							// Is there a document size from a Content-Range header?
 							if (!ci.ContentRangeHeader.IsEmpty())
 							{
-								FParams::FRange ContentRange;
+								ElectraHTTPStream::FHttpRange ContentRange;
 								if (ContentRange.ParseFromContentRangeResponse(ci.ContentRangeHeader))
 								{
 									int64 ds = ContentRange.GetDocumentSize();
@@ -1218,117 +1145,81 @@ namespace Electra
 								if (!ci.ContentLengthHeader.IsEmpty())
 								{
 									// Parse from "Content-Length: " header
-									LexFromString(ci.ContentLength, *ci.ContentLengthHeader.Mid(15));
+									LexFromString(ci.ContentLength, *ci.ContentLengthHeader);
 								}
 							}
 						}
-					}
 
-					if (EvData.bComplete && Response.IsValid())
-					{
-						/*
-							We would like to get the effective URL after any redirections.
-							There doesn't seem to be a way right now to get it.
-
-							UE_LOG(LogElectraHTTPManager, Log, TEXT("Effective URL: %s"), *Response->GetURL());
-							UE_LOG(LogElectraHTTPManager, Log, TEXT("Request   URL: %s"), *Request->Parameters.URL);
-						*/
-						ci.EffectiveURL = Request->Parameters.URL;
-						ci.StatusInfo.HTTPStatus = ResponseCode;
-						// Update the time to first byte only on the first sub range request. This is the anchor for the request as a whole.
-						if (Handle->ActiveResponse.NumSubRangeRequest == 0)
+						// If we requested a byte range we need to check if we got the correct range back.
+						// For compatibilities sake a 200 response will also be accepted as long as the number of bytes match
+						// the number requested. This then requires the Content-Length response header to be present.
+						if (Request->Parameters.Range.IsSet() && !Request->Parameters.Range.IsEverything())
 						{
-							ci.TimeUntilFirstByte = ci.TimeUntilConnected;
-							ci.TimeForDNSResolve = 0.001;			// something not zero for the lack of an actual value.
-						}
-						if (ci.HTTPVersionReceived == 0)
-						{
-							ci.HTTPVersionReceived = 11;			// for lack of an actual value let's assume it is HTTP/1.1
-						}
-						ci.NumberOfRedirections = 0;				// no official value to be had
-
-						// Check that the data we are receiving from a range request is actually that range!
-						if (!Handle->bResponseReceived && Request->Parameters.Range.IsSet() && !Request->Parameters.Range.IsEverything())
-						{
-							// Result needs to be "206 - partial content" and a content range header must be present.
-							if (ci.StatusInfo.HTTPStatus != 206 || ci.ContentRangeHeader.IsEmpty())
+							if (ci.StatusInfo.HTTPStatus == 206 && ci.ContentRangeHeader.Len() && bContentRangeOk)
 							{
-								// We allow a 200 response as long as the content size matches the number of bytes we have requested.
-								if (ci.StatusInfo.HTTPStatus == 200 && ci.ContentLength == Request->Parameters.Range.GetNumberOfBytes())
-								{
-									// This primarily supports ISO/IEC-23009-1 Annex E
-								}
-								else
-								{
-									// Note that we did not receive what we thought to get. This gets checked for below.
-									ci.bResponseNotRanged = true;
-								}
+								// We assume that the returned range is what we have requested. It's possible to check for it
+								// but not trivial since the range could be open ended on either side in the request and values
+								// provided in the response.
 							}
-						}
-					}
-
-					// Update receive stats.
-					Handle->LastTimeDataReceived = Now;
-					ci.BytesReadSoFar = Handle->BytesReadSoFar + EvData.BytesReceived;
-
-					// Is the transfer done?
-					if (EvData.bComplete)
-					{
-						bool bFailure = false;
-						bool bContentRangeOk = true;
-						// If there is a Content-Range header we must be able to parse it.
-						if (!ci.ContentRangeHeader.IsEmpty())
-						{
-							bContentRangeOk = Handle->ActiveResponse.ReceivedContentRange.ParseFromContentRangeResponse(ci.ContentRangeHeader);
-						}
-
-						// Success or failure?
-						if (EvData.Status == EHttpRequestStatus::Succeeded && bHTTPResponseSuccess && ci.bResponseNotRanged == false && bContentRangeOk)
-						{
-							// Active responses are handed out in HandleHTTPResponses since they may not fit into the target receive ring buffer
-							// at once and have to be passed out in pieces.
-							if (Response.IsValid())
+							else if (ci.StatusInfo.HTTPStatus == 200 && ci.ContentLength == Request->Parameters.Range.GetNumberOfBytes())
 							{
-								Handle->ActiveResponse.Response = Response;
+								// Allow a 200 response if the number of bytes received matches the number of bytes requested.
 							}
 							else
 							{
-								// Response not valid?
-								bFailure = true;
+								// Not good.
+								ci.bResponseNotRanged = true;
 							}
 						}
-						else
+
+						ci.bHaveResponseHeaders = true;
+						Handle->bHaveResponseHeaders = true;
+
+						// Check for HTTP errors. Redirects are not really expected to reach us here. If they do there were too many.
+						static const TArray<int32> GoodHTTPResponseCodes = { 200, 204, 206, 304 };
+						bool bHTTPResponseOk = GoodHTTPResponseCodes.Contains(ci.StatusInfo.HTTPStatus);
+						bool bFailed = false;
+						if (!bHTTPResponseOk || ci.bResponseNotRanged)
 						{
-							bFailure = true;
 							ci.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_READ_ERROR).SetFacility(Facility::EFacility::HTTPReader).SetCode(ERRCODE_HTTPMODULE_FAILURE);
-							// Set up a bit more verbose error message
 							if (ci.StatusInfo.HTTPStatus >= 400)
 							{
-								ci.StatusInfo.ErrorCode = ERRCODE_HTTP_RETURNED_ERROR;
 								ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("HTTP returned status %d"), ci.StatusInfo.HTTPStatus));
+								ci.StatusInfo.ErrorCode = ERRCODE_HTTP_RETURNED_ERROR;
+								bFailed = true;
+							}
+							else if (ci.StatusInfo.HTTPStatus >= 300)
+							{
+								ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Reached HTTP redirection limit with returned status %d"), ci.StatusInfo.HTTPStatus));
+								ci.StatusInfo.ErrorCode = ERRCODE_HTTP_RETURNED_ERROR;
+								bFailed = true;
+							}
+							else if (ci.StatusInfo.HTTPStatus == 0)
+							{
+								ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Failed to get response from server")));
+								ci.StatusInfo.ErrorCode = ERRCODE_HTTP_RETURNED_ERROR;
+								bFailed = true;
 							}
 							else if (ci.bResponseNotRanged)
 							{
-								ci.StatusInfo.ErrorCode = ERRCODE_HTTP_RANGE_ERROR;
 								ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Did not receive HTTP 206 for range request")));
-							}
-							else if (!bContentRangeOk)
-							{
 								ci.StatusInfo.ErrorCode = ERRCODE_HTTP_RANGE_ERROR;
-								ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Failed to parse HTTP response header \"%s\""), *ci.ContentRangeHeader));
-							}
-							else
-							{
-								ci.StatusInfo.ErrorCode = ERRCODE_WRITE_ERROR;
-								ci.StatusInfo.bReadError = true;
-								ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Read error after receiving %lld of %lld bytes"), (long long int)ci.BytesReadSoFar, (long long int)ci.ContentLength));
+								bFailed = true;
 							}
 						}
-						Handle->bResponseReceived = true;
-						ci.RequestEndTime = ci.StatusInfo.OccurredAtUTC = Now;
-						// Successful responses are processed outside this method. See above.
-						if (bFailure)
+
+						// After having handled the headers we allow the response to get consumed.
+						// Further error handling (which at this point can only be a closed connection or timeouts)
+						// is handled in HandleHTTPResponses().
+						if (!Handle->HttpRequest->HasFailed() && !bFailed)
 						{
+							Handle->ActiveResponse.Response = Response;
+						}
+						else
+						{
+							ci.bHasFinished = true;
+							ci.RequestEndTime = ci.StatusInfo.OccurredAtUTC = Now;
+							Handle->HttpRequest->Cancel();
 							RequestsCompleted.Enqueue(Request);
 						}
 					}
@@ -1336,6 +1227,7 @@ namespace Electra
 			}
 		}
 	}
+
 
 	void FElectraHttpManager::HandleHTTPResponses(const FTimeValue& Now)
 	{
@@ -1345,96 +1237,156 @@ namespace Electra
 			if (Handle->HandleType == FHandle::EHandleType::HTTPHandle)
 			{
 				TSharedPtrTS<FRequest> Request = It.Value();
-				HTTP::FConnectionInfo& ci = Request->ConnectionInfo;
-				ci.bIsCachedResponse = Handle->ActiveResponse.bHitCache;
 
-				// Active response?
-				if (Handle->ActiveResponse.Response.IsValid())
+				// Active response? This will not be set if the HTTP response code indicated an error already.
+				// For our use cases we do not need to read the response body which will be an error message only anyway.
+				IElectraHTTPStreamResponsePtr Response = Handle->ActiveResponse.Response;
+				if (Response.IsValid())
 				{
-					bool bHasFinished = false;
+					HTTP::FConnectionInfo& ci = Request->ConnectionInfo;
+					ci.bIsCachedResponse = Handle->ActiveResponse.bHitCache;
 
-					// Add to response cache unless this was a cached response already.
-					if (Request->ResponseCache.IsValid() && !Handle->ActiveResponse.bHitCache && !Handle->ActiveResponse.bWasAddedToCache)
+					bool bCompletedWithInsufficientData = !Request->Parameters.Verb.Equals(TEXT("HEAD")) &&
+														  Response->GetStatus() == IElectraHTTPStreamResponse::EStatus::Completed && 
+														  Response->GetResponseData().GetLengthFromResponseHeader() > Response->GetResponseData().GetNumTotalBytesAdded();
+					// Has it failed?
+					if (Handle->HttpRequest->HasFailed() || bCompletedWithInsufficientData)
 					{
-						Handle->ActiveResponse.bWasAddedToCache = true;
-						TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheItem = MakeSharedTS<IHTTPResponseCache::FCacheItem>();
-						CacheItem->URL = Request->Parameters.URL;
-						CacheItem->Range = Handle->ActiveResponse.Range;
-						// Make sure the range is always set, even for non-partial responses.
-						CacheItem->Range.DocumentSize = ci.ContentLength > Handle->ActiveResponse.ReceivedContentRange.GetDocumentSize() ? ci.ContentLength : Handle->ActiveResponse.ReceivedContentRange.GetDocumentSize();
-						if (CacheItem->Range.GetStart() < 0)
-						{
-							CacheItem->Range.SetStart(0);
-						}
-						if (CacheItem->Range.GetEndIncluding() < 0)
-						{
-							CacheItem->Range.SetEndIncluding(CacheItem->Range.DocumentSize - 1);
-						}
-						CacheItem->Response = Handle->ActiveResponse.Response;
-						Request->ResponseCache->CacheEntity(CacheItem);
+						ci.StatusInfo.ErrorCode = ERRCODE_WRITE_ERROR;
+						ci.StatusInfo.bReadError = true;
+						ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Read error after receiving %lld of %lld bytes"), (long long int)ci.BytesReadSoFar, (long long int)ci.ContentLength));
+						ci.bHasFinished = true;
+						ci.RequestEndTime = ci.StatusInfo.OccurredAtUTC = Now;
+						Handle->ActiveResponse.Response.Reset();
+						RequestsCompleted.Enqueue(Request);
+						continue;
 					}
 
-					// Receive buffer still there?
-					TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
-					if (ReceiveBuffer.IsValid())
+					bool bHasFinished = Response->GetResponseData().HasAllDataBeenConsumed();
+					int64 NumDataAvailable = Response->GetResponseData().GetNumBytesAvailableForRead();
+					if (NumDataAvailable > 0)
 					{
-						bool bCheckForNext = false;
-						// Is it to be used as a linear buffer?
-						if (!ReceiveBuffer->bEnableRingbuffer)
+						if (ci.TimeUntilFirstByte <= 0.0)
 						{
-							const TArray<uint8>& Content = Handle->ActiveResponse.Response->GetContent();
+							ci.TimeUntilFirstByte = Response->GetTimeUntilFirstByte();
+						}
+						Handle->LastTimeDataReceived = Now;
 
-							if (!ReceiveBuffer->Buffer.EnlargeTo(ReceiveBuffer->Buffer.Num() + Content.Num()) ||
-								!ReceiveBuffer->Buffer.PushData(Content.GetData(), Content.Num()))
+						// Receive buffer still there?
+						TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
+						if (ReceiveBuffer.IsValid())
+						{
+							int64 BufferPushableSize = 0;
+							bool bBufferUsable = false;
+							// Is it to be used as a linear buffer?
+							if (!ReceiveBuffer->bEnableRingbuffer)
+							{
+								int64 RequiredBufferSize = ci.ContentLength > 0 ? ci.ContentLength : 0;
+								int64 BufferSizeAfterPush = ReceiveBuffer->Buffer.Num() + NumDataAvailable;
+								if (BufferSizeAfterPush > RequiredBufferSize)
+								{
+									RequiredBufferSize = BufferSizeAfterPush;
+								}
+								bBufferUsable = ReceiveBuffer->Buffer.EnlargeTo(RequiredBufferSize);
+								BufferPushableSize = bBufferUsable ? NumDataAvailable : 0;
+							}
+							else
+							{
+								// The ring buffer must have been set up to a size the client wants it to have.
+								bBufferUsable = ReceiveBuffer->Buffer.Capacity() > 0;
+								check(bBufferUsable);
+								BufferPushableSize = bBufferUsable ? ReceiveBuffer->Buffer.Avail() : 0;
+							}
+							if (bBufferUsable)
+							{
+								if (BufferPushableSize)
+								{
+									const uint8* NewDataPtr = nullptr;
+									int64 NewDataSize = 0;
+									Response->GetResponseData().LockBuffer(NewDataPtr, NewDataSize);
+									int64 NumToCopy = BufferPushableSize < NewDataSize ? BufferPushableSize : NewDataSize;
+									bBufferUsable = ReceiveBuffer->Buffer.PushData(NewDataPtr, NumToCopy, ReceiveBuffer->bEnableRingbuffer);
+									Response->GetResponseData().UnlockBuffer(bBufferUsable ? NumToCopy : 0);
+									if (bBufferUsable)
+									{
+										Handle->ActiveResponse.NumBytesPassedOut += NumToCopy;
+										ci.BytesReadSoFar += NumToCopy;
+									}
+								}
+							}
+							if (!bBufferUsable)
 							{
 								ci.bWasAborted = true;
 								bHasFinished = true;
 							}
-							else
-							{
-								ci.ContentLength = ReceiveBuffer->Buffer.Num();
-								ci.BytesReadSoFar = ci.ContentLength;
-								bCheckForNext = true;
-							}
 						}
 						else
 						{
-							// The ring buffer must have been set up to a size the client wants it to have.
-							check(ReceiveBuffer->Buffer.Capacity() > 0);
-
-							// How much room is there available?
-							int32 NumAvail = ReceiveBuffer->Buffer.Avail();
-							if (NumAvail)
+							// With the receive buffer having been released we can abort the transfer.
+							ci.bWasAborted = true;
+							if (Handle->HttpsRequestCallbackWrapper.IsValid())
 							{
-								const TArray<uint8>& Content = Handle->ActiveResponse.Response->GetContent();
-								int32 NumToGo = Content.Num() - Handle->ActiveResponse.NumBytesPassedOut;
-								int32 NumToCopy = NumAvail < NumToGo ? NumAvail : NumToGo;
-								ReceiveBuffer->Buffer.PushData(Content.GetData() + Handle->ActiveResponse.NumBytesPassedOut, NumToCopy);
-								Handle->ActiveResponse.NumBytesPassedOut += NumToCopy;
-								// All copied out now?
-								if (Handle->ActiveResponse.NumBytesPassedOut >= Content.Num())
-								{
-									bCheckForNext = true;
-								}
+								Handle->HttpsRequestCallbackWrapper->Unbind();
 							}
+							bHasFinished = true;
 						}
-						if (bCheckForNext)
+					}
+
+					if (bHasFinished)
+					{
+						if (!ci.bWasAborted && Response->GetResponseData().HasAllDataBeenConsumed())
 						{
+							// Add to response cache unless this was a cached response already.
+							if (Request->ResponseCache.IsValid() && Response->GetResponseData().IsCachable() && !Handle->ActiveResponse.bHitCache && !Handle->ActiveResponse.bWasAddedToCache)
+							{
+								Handle->ActiveResponse.bWasAddedToCache = true;
+								TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheItem = MakeSharedTS<IHTTPResponseCache::FCacheItem>();
+								CacheItem->RequestedURL = Request->Parameters.URL;
+								CacheItem->EffectiveURL = Response->GetEffectiveURL();
+								CacheItem->Range = Handle->ActiveResponse.Range;
+								// Make sure the range is always set, even for non-partial responses.
+								CacheItem->Range.DocumentSize = ci.ContentLength > Handle->ActiveResponse.ReceivedContentRange.GetDocumentSize() ? ci.ContentLength : Handle->ActiveResponse.ReceivedContentRange.GetDocumentSize();
+								if (CacheItem->Range.GetStart() < 0)
+								{
+									CacheItem->Range.SetStart(0);
+								}
+								if (CacheItem->Range.GetEndIncluding() < 0)
+								{
+									CacheItem->Range.SetEndIncluding(CacheItem->Range.DocumentSize - 1);
+								}
+								CacheItem->Response = Response;
+								Request->ResponseCache->CacheEntity(CacheItem);
+							}
+ 
 							// Check if this was a sub ranged request and if there is still data to go for the original request.
 							if (Handle->ActiveResponse.SizeRemaining() == 0)
 							{
 								// All done now.
-								bHasFinished = true;
+								TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
+								if (ReceiveBuffer.IsValid())
+								{
+									ReceiveBuffer->Buffer.SetEOD();
+								}
 							}
 							else
 							{
 								// Still another sub range to go.
-								if (PrepareHTTPModuleHandle(Now, Handle, Request, false))
+								if (PrepareHTTPHandle(Now, Handle, Request, false))
 								{
-									if (!Handle->ProcessHTTPRequest())
+									// We need to parse the headers from the new request so we have to clear the flag.
+									ci.bHaveResponseHeaders = false;
+									ci.ResponseHeaders.Empty();
+									if (HTTPStreamHandler.IsValid())
 									{
-										ci.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage("HTTP request failed on ProcessRequest()");
-										bHasFinished = true;
+										if (Handle->NeedsFetchOfUncachedParts())
+										{
+											HTTPStreamHandler->AddRequest(Handle->HttpRequest);
+										}
+										bHasFinished = false;
+									}
+									else
+									{
+										ci.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage("HTTP sub request failed on AddRequest()");
 									}
 								}
 								else
@@ -1443,26 +1395,18 @@ namespace Electra
 									ci.StatusInfo.ErrorCode = ERRCODE_WRITE_ERROR;
 									ci.StatusInfo.bReadError = true;
 									ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Error setting up the next sub range request")));
-									bHasFinished = true;
 								}
 							}
 						}
-					}
-					else
-					{
-						// With the receive buffer having been released we can abort the transfer.
-						ci.bWasAborted = true;
-						if (Handle->HttpsRequestCallbackWrapper.IsValid())
+
+						if (bHasFinished)
 						{
-							Handle->HttpsRequestCallbackWrapper->Unbind();
+							ci.bHasFinished = true;
+							ci.RequestEndTime = ci.StatusInfo.OccurredAtUTC = Now;
+
+							Handle->ActiveResponse.Response.Reset();
+							RequestsCompleted.Enqueue(Request);
 						}
-						bHasFinished = true;
-					}
-					if (bHasFinished)
-					{
-						ci.RequestEndTime = ci.StatusInfo.OccurredAtUTC = Now;
-						Handle->ActiveResponse.Response.Reset();
-						RequestsCompleted.Enqueue(Request);
 					}
 				}
 			}
@@ -1471,32 +1415,15 @@ namespace Electra
 
 
 
-	void FElectraHttpManager::OnProcessRequestCompleteInternal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully)
+	void FElectraHttpManager::OnRequestNotification(IElectraHTTPStreamRequestPtr InRequest, EElectraHTTPStreamNotificationReason InReason, int64 InParam)
 	{
-		FScopeLock lock(&HttpModuleEventLock);
-		FHttpEventData& Evt = HttpModuleEventMap.FindOrAdd(Request);
-		Evt.bComplete = true;
-		Evt.bConnectedSuccessfully = bConnectedSuccessfully;
-		Evt.Status = Request->GetStatus();
-		Evt.Response = Response;
+		// Notify only for headers and completion, not data transfer.
+		if (InReason == EElectraHTTPStreamNotificationReason::ReceivedHeaders || InReason == EElectraHTTPStreamNotificationReason::Completed)
+		{
+			FScopeLock lock(&HTTPStreamEventLock);
+			NotifiedRequests.AddUnique(MoveTemp(InRequest));
+		}
 	}
-
-	void FElectraHttpManager::OnRequestProgressInternal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
-	{
-		FScopeLock lock(&HttpModuleEventLock);
-		FHttpEventData& Evt = HttpModuleEventMap.FindOrAdd(Request);
-		Evt.BytesReceived = BytesReceived;
-		Evt.BytesSent = BytesSent;
-		Evt.Status = Request->GetStatus();
-	}
-
-	void FElectraHttpManager::OnRequestHeaderReceivedInternal(FHttpRequestPtr Request, const FString& HeaderName, const FString& NewHeaderValue)
-	{
-		FScopeLock lock(&HttpModuleEventLock);
-		FHttpEventData& Evt = HttpModuleEventMap.FindOrAdd(Request);
-		Evt.Headers.Add({HeaderName, NewHeaderValue});
-	}
-
 
 
 

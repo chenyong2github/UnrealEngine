@@ -5,8 +5,8 @@
 #include "PlayerCore.h"
 #include "PlayerTime.h"
 #include "ParameterDictionary.h"
-#include "HTTP/HTTPManager.h"
-#include "Interfaces/IHttpRequest.h"
+#include "ElectraHTTPStream.h"
+#include "Utilities/HttpRangeHeader.h"
 
 namespace Electra
 {
@@ -17,10 +17,11 @@ class IHTTPResponseCache
 public:
 	struct FCacheItem
 	{
-		FString URL;
-		IElectraHttpManager::FParams::FRange Range;
+		FString RequestedURL;
+		FString EffectiveURL;
+		ElectraHTTPStream::FHttpRange Range;
 		FTimeValue ExpiresAtUTC;
-		FHttpResponsePtr Response;
+		IElectraHTTPStreamResponsePtr Response;
 	};
 
 	static TSharedPtrTS<IHTTPResponseCache> Create(IPlayerSessionServices* SessionServices, const FParamDict& Options);
@@ -53,7 +54,7 @@ public:
 	 * Returns false to indicate that the range specified in the (otherwise empty) cached response must be requested from the origin.
 	 * Returns true if a - possibly partial - cached response exists. The range that is cached is given in the cache item.
 	 */
-	virtual EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const IElectraHttpManager::FParams::FRange& Range) = 0;
+	virtual EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& Range) = 0;
 
 protected:
 	IHTTPResponseCache() = default;

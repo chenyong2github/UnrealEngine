@@ -505,13 +505,13 @@ void FPlaylistReaderDASH::CheckForMPDUpdate()
 				PlaylistLoadRequest->URL = URL;
 				if (RequestHeader.Len())
 				{
-					PlaylistLoadRequest->Headers.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, RequestHeader}));
+					PlaylistLoadRequest->Headers.Emplace(HTTP::FHTTPHeader(DASH::HTTPHeaderOptionName, RequestHeader));
 				}
 #ifndef DO_NOT_PERFORM_CONDITIONAL_GET
 				// As per the standard we should perform conditional GET requests.
 				if (ETag.Len())
 				{
-					PlaylistLoadRequest->Headers.Emplace(HTTP::FHTTPHeader({TEXT("If-None-Match"), ETag}));
+					PlaylistLoadRequest->Headers.Emplace(HTTP::FHTTPHeader(TEXT("If-None-Match"), ETag));
 				}
 #endif
 				PlaylistLoadRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::ManifestUpdateDownloadCompleted);
@@ -901,7 +901,7 @@ void FPlaylistReaderDASH::SetupRequestTimeouts(FResourceLoadRequestPtr InRequest
 		{
 			InRequest->Request->ConnectionTimeout(FTimeValue(FTimeValue::MillisecondsToHNS(1000 * 5)));
 			InRequest->Request->NoDataTimeout(FTimeValue(FTimeValue::MillisecondsToHNS(1000 * 2)));
-			//InRequest->Request->AcceptEncoding(TEXT("identity"));
+			InRequest->Request->AcceptEncoding(TEXT("identity"));
 			break;
 		}
 		case FMPDLoadRequestDASH::ELoadType::XLink_Period:

@@ -28,6 +28,13 @@
 			"LoadingPhase": "PostEngineInit",
 			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android" ],
 			"TargetDenyList": [ "Server" ]
+		},
+		{
+			"Name": "ElectraHTTPStream",
+			"Type": "RuntimeNoCommandlet",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	]
 }

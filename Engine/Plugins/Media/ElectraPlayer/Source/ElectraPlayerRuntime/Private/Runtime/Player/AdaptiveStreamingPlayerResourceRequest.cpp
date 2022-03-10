@@ -124,7 +124,7 @@ void FHTTPResourceRequest::HTTPCompletionCallback(const IElectraHttpManager::FRe
 					}
 					else
 					{
-						Error = ConnInfo.StatusInfo.HTTPStatus;
+						Error = ConnInfo.StatusInfo.HTTPStatus ? ConnInfo.StatusInfo.HTTPStatus : 4;
 					}
 				}
 

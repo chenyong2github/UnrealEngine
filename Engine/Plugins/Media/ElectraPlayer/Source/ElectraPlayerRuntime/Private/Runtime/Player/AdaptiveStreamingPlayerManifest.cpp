@@ -95,7 +95,16 @@ void FAdaptiveStreamingPlayer::OnManifestGetMimeTypeComplete(TSharedPtrTS<FHTTPR
 			const HTTP::FConnectionInfo* ci = InRequest->GetConnectionInfo();
 			if (ci)
 			{
-				mimeType = ci->ContentType;
+				// Get the content type, if it exists.
+				if (ci->ContentType.Len())
+				{
+					mimeType = ci->ContentType;
+				}
+				// Use the effective URL after potential redirections.
+				if (ci->EffectiveURL.Len())
+				{
+					ManifestURL = ci->EffectiveURL;
+				}
 			}
 		}
 		WorkerThread.SendLoadManifestMessage(ManifestURL, mimeType);

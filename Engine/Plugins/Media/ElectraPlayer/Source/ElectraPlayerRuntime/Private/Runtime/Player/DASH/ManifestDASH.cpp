@@ -1721,7 +1721,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		}
 		if (!IndexRange.IsEmpty())
 		{
-			IElectraHttpManager::FParams::FRange r;
+			ElectraHTTPStream::FHttpRange r;
 			r.Set(IndexRange);
 			if (r.IsSet())
 			{
@@ -1781,7 +1781,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 				LoadReq->Range = IndexRange;
 				if (RequestHeader.Len())
 				{
-					LoadReq->Headers.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, RequestHeader}));
+					LoadReq->Headers.Emplace(HTTP::FHTTPHeader(DASH::HTTPHeaderOptionName, RequestHeader));
 				}
 				LoadReq->PlayerSessionServices = InPlayerSessionServices;
 				LoadReq->XLinkElement = MPDRepresentation;
@@ -1850,7 +1850,7 @@ bool FManifestDASHInternal::FRepresentation::PrepareDownloadURLs(IPlayerSessionS
 
 	if (InOutSegmentInfo.FirstByteOffset && InOutSegmentInfo.NumberOfBytes)
 	{
-		IElectraHttpManager::FParams::FRange r;
+		ElectraHTTPStream::FHttpRange r;
 		r.SetStart(InOutSegmentInfo.FirstByteOffset);
 		r.SetEndIncluding(InOutSegmentInfo.FirstByteOffset + InOutSegmentInfo.NumberOfBytes - 1);
 		InOutSegmentInfo.MediaURL.Range = r.GetString();
@@ -1946,7 +1946,7 @@ bool FManifestDASHInternal::FRepresentation::PrepareDownloadURLs(IPlayerSessionS
 
 	if (InOutSegmentInfo.FirstByteOffset && InOutSegmentInfo.NumberOfBytes)
 	{
-		IElectraHttpManager::FParams::FRange r;
+		ElectraHTTPStream::FHttpRange r;
 		r.SetStart(InOutSegmentInfo.FirstByteOffset);
 		r.SetEndIncluding(InOutSegmentInfo.FirstByteOffset + InOutSegmentInfo.NumberOfBytes - 1);
 		InOutSegmentInfo.MediaURL.Range = r.GetString();

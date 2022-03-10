@@ -13,6 +13,7 @@
 #include "Player/AdaptiveStreamingPlayerABR.h"
 #include "Player/mp4/ManifestMP4.h"
 #include "Player/mp4/StreamReaderMP4.h"
+#include "Player/mp4/OptionKeynamesMP4.h"
 #include "Player/PlayerSessionServices.h"
 #include "Player/PlayerStreamFilter.h"
 
@@ -399,35 +400,21 @@ void FStreamReaderMP4::HandleRequest()
 	ReadBuffer.ReceiveBuffer->Buffer.Reserve(4 << 20);
 	ReadBuffer.ReceiveBuffer->bEnableRingbuffer = true;
 	ReadBuffer.SetCurrentPos(Request->FileStartOffset);
+
+	const FParamDict& Options = PlayerSessionServices->GetOptions();
+
 	TSharedPtrTS<IElectraHttpManager::FRequest> HTTP(new IElectraHttpManager::FRequest);
 	HTTP->Parameters.URL				= TimelineAsset->GetMediaURL();
 	HTTP->Parameters.Range.Start		= Request->FileStartOffset;
 	HTTP->Parameters.Range.EndIncluding = Request->FileEndOffset;
+	// No compression as this would not yield much with already compressed video/audio data.
+	HTTP->Parameters.AcceptEncoding.Set(TEXT("identity"));
+	// Timeouts
+	HTTP->Parameters.ConnectTimeout = Options.GetValue(MP4::OptionKeyMP4LoadConnectTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 8));
+	HTTP->Parameters.NoDataTimeout = Options.GetValue(MP4::OptionKeyMP4LoadNoDataTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 6));
+
 	// Explicit range?
 	int64 NumRequestedBytes = HTTP->Parameters.Range.GetNumberOfBytes();
-	int32 SubRequestSize = 0;
-	if (NumRequestedBytes > 0)
-	{
-		if (Request->bIsFirstSegment && !Request->bIsLastSegment)
-		{
-			SubRequestSize = 512 << 10;
-		}
-		else if (Request->bIsFirstSegment && Request->bIsLastSegment)
-		{
-			SubRequestSize = 2 << 20;
-		}
-	}
-	else
-	{
-		if (Request->SegmentInternalSize < 0)
-		{
-			SubRequestSize = 2 << 20;
-		}
-	}
-	if (SubRequestSize)
-	{
-		HTTP->Parameters.SubRangeRequestSize = SubRequestSize;
-	}
 
 	HTTP->ReceiveBuffer = ReadBuffer.ReceiveBuffer;
 	HTTP->ProgressListener = ProgressListener;

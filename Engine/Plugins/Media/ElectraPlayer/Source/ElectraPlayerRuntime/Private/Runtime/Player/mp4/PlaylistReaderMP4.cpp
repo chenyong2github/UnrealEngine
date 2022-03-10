@@ -13,7 +13,7 @@
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
 #include "Player/PlayerStreamReader.h"
 #include "Player/mp4/ManifestMP4.h"
-
+#include "Player/mp4/OptionKeynamesMP4.h"
 
 #define ERRCODE_MP4_INVALID_FILE							1
 
@@ -276,11 +276,16 @@ void FPlaylistReaderMP4::HTTPCompletionCallback(const IElectraHttpManager::FRequ
 		// Set the size of the resource if we don't have it yet.
 		if (FileSize < 0)
 		{
-			IElectraHttpManager::FParams::FRange crh;
+			ElectraHTTPStream::FHttpRange crh;
 			if (crh.ParseFromContentRangeResponse(InRequest->ConnectionInfo.ContentRangeHeader))
 			{
 				FileSize = crh.GetDocumentSize();
 			}
+		}
+
+		if (ConnectionInfo.EffectiveURL.Len())
+		{
+			MasterPlaylistURL = ConnectionInfo.EffectiveURL;
 		}
 
 		// Copy the read data across.
@@ -326,6 +331,8 @@ void FPlaylistReaderMP4::ReadNextChunk(int64 InFromOffset, int64 ChunkSize)
 	ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
 	ReceiveBuffer->Buffer.Reserve(ChunkSize);
 
+	const FParamDict& Options = PlayerSessionServices->GetOptions();
+
 	Request = MakeSharedTS<IElectraHttpManager::FRequest>();
 	Request->Parameters.URL = MasterPlaylistURL;
 	Request->Parameters.Range.SetStart(InFromOffset);
@@ -335,6 +342,8 @@ void FPlaylistReaderMP4::ReadNextChunk(int64 InFromOffset, int64 ChunkSize)
 		LastByte = FileSize - 1;
 	}
 	Request->Parameters.Range.SetEndIncluding(LastByte);
+	Request->Parameters.ConnectTimeout = Options.GetValue(MP4::OptionKeyMP4LoadConnectTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 8));
+	Request->Parameters.NoDataTimeout = Options.GetValue(MP4::OptionKeyMP4LoadNoDataTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 6));
 	Request->ReceiveBuffer = ReceiveBuffer;
 	Request->ProgressListener = ProgressListener;
 	Request->ResponseCache = PlayerSessionServices->GetHTTPResponseCache();

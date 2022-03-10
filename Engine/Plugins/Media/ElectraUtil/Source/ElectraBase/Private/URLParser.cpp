@@ -136,6 +136,11 @@ namespace Electra
 		return Host;
 	}
 
+	FString FURL_RFC3986::GetPort() const
+	{
+		return Port;
+	}
+
 	FString FURL_RFC3986::GetPath() const
 	{
 		return Path;
@@ -169,6 +174,43 @@ namespace Electra
 			if (Path.Len())
 			{
 				if (Authority.Len() && !IsPathSeparator(Path[0]))
+				{
+					URL += TEXT("/");
+				}
+				UrlEncode(URL, Path, RequiredEscapeCharsPath);
+			}
+			else if ((Query.Len() && bIncludeQuery) || (Fragment.Len() && bIncludeFragment))
+			{
+				URL += TEXT("/");
+			}
+		}
+		else
+		{
+			UrlEncode(URL, Path, RequiredEscapeCharsPath);
+		}
+		if (Query.Len() && bIncludeQuery)
+		{
+			URL += TEXT("?");
+			URL += Query;
+		}
+		if (Fragment.Len() && bIncludeFragment)
+		{
+			URL += TEXT("#");
+			UrlEncode(URL, Fragment, FString());
+		}
+		return URL;
+	}
+
+	FString FURL_RFC3986::GetPath(bool bIncludeQuery, bool bIncludeFragment)
+	{
+		static const FString RequiredEscapeCharsPath(TEXT("?#"));
+
+		FString URL;
+		if (IsAbsolute())
+		{
+			if (Path.Len())
+			{
+				if (GetAuthority().Len() && !IsPathSeparator(Path[0]))
 				{
 					URL += TEXT("/");
 				}
@@ -575,6 +617,19 @@ namespace Electra
 			}
 		}
 		return true;
+	}
+
+	FString FURL_RFC3986::GetStandardPortForScheme(const FString& InScheme, bool bIgnoreCase)
+	{
+		if (InScheme.Equals(TEXT("http"), bIgnoreCase ? ESearchCase::IgnoreCase : ESearchCase::CaseSensitive))
+		{
+			return FString(TEXT("80"));
+		}
+		else if (InScheme.Equals(TEXT("https"), bIgnoreCase ? ESearchCase::IgnoreCase : ESearchCase::CaseSensitive))
+		{
+			return FString(TEXT("443"));
+		}
+		return FString();
 	}
 
 	void FURL_RFC3986::GetPathComponents(TArray<FString>& OutPathComponents, const FString& InPath)

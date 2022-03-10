@@ -18,6 +18,8 @@ namespace Electra
 		FString GetScheme() const;
 		// Returns the host, if present.
 		FString GetHost() const;
+		// Returns the port, if present.
+		FString GetPort() const;
 		// Returns the path. Escape sequences will already be decoded.
 		FString GetPath() const;
 		// Returns the entire query string, if any, without the leading '?'. Escape sequences will still be present!
@@ -26,6 +28,8 @@ namespace Electra
 		FString GetFragment() const;
 		// Returns the full URL with or without query and fragment parts. Characters will be escaped if necessary.
 		FString Get(bool bIncludeQuery=true, bool bIncludeFragment=true);
+		// Returns the path (no scheme or host) with or without query and fragment parts. Characters will be escaped if necessary.
+		FString GetPath(bool bIncludeQuery, bool bIncludeFragment);
 		// Returns whether or not this URL is absolute (the scheme not being empty).
 		bool IsAbsolute() const;
 		// Returns the path as individual components. Like GetPath() the components will have escape sequences already decoded.
@@ -56,6 +60,9 @@ namespace Electra
 		static bool UrlDecode(FString& OutResult, const FString& InUrlToDecode);
 		// Encodes characters not permitted in a URL into %XX escaped sequences. Appends to the output. Hence in and out must not be the same.
 		static bool UrlEncode(FString& OutResult, const FString& InUrlToEncode, const FString& InReservedChars);
+
+		// Returns the standard port for the given scheme. An empty string is returned if none is known.
+		static FString GetStandardPortForScheme(const FString& InScheme, bool bIgnoreCase=true);
 
 	private:
 		FString Scheme;

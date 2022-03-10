@@ -943,6 +943,10 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			{
 				HTTP->Parameters.RequestHeaders.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, Request->Segment.MediaURL.CustomHeader}));
 			}
+			// Set timeouts for media segment retrieval
+			const FParamDict& Options = PlayerSessionService->GetOptions();
+			HTTP->Parameters.ConnectTimeout = Options.GetValue(DASH::OptionKeyMediaSegmentConnectTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 4));
+			HTTP->Parameters.NoDataTimeout = Options.GetValue(DASH::OptionKeyMediaSegmentNoDataTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 4));
 
 			ProgressReportCount = 0;
 			DownloadCompleteSignal.Reset();
