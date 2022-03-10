@@ -453,6 +453,8 @@ bool		   FileCopy(const FPath& From, const FPath& To, std::error_code& OutErrorC
 bool		   FileCopyOverwrite(const FPath& From, const FPath& To, std::error_code& OutErrorCode);
 bool		   FileRemove(const FPath& Path, std::error_code& OutErrorCode);
 
+std::filesystem::recursive_directory_iterator RecursiveDirectoryScan(const FPath& Path);
+
 uint64 ToWindowsFileTime(const std::filesystem::file_time_type& T);
 
 struct FSyncFilter;

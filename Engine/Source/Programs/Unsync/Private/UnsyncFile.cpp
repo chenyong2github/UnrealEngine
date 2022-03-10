@@ -24,6 +24,33 @@ namespace unsync {
 
 bool GForceBufferedFiles = false;
 
+// Returns extended absolute path of a form \\?\D:\verylongpath or \\?\UNC\servername\verylongpath
+// Expects an absolute path input.
+// https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
+static FPath
+MakeExtendedAbsolutePath(const FPath& InAbsolutePath)
+{
+	UNSYNC_ASSERT(InAbsolutePath.is_absolute());
+
+#if UNSYNC_PLATFORM_WINDOWS
+	const std::wstring& InFilenameString = InAbsolutePath.native();
+	if (InFilenameString.starts_with(L"\\\\?\\"))
+	{
+		return InAbsolutePath;
+	}
+	else if (InFilenameString.starts_with(L"\\\\"))
+	{
+		return std::wstring(L"\\\\?\\UNC\\") + InFilenameString.substr(2);
+	}
+	else
+	{
+		return std::wstring(L"\\\\?\\") + InFilenameString;
+	}
+#else // UNSYNC_PLATFORM_WINDOWS
+	return InAbsolutePath;
+#endif // UNSYNC_PLATFORM_WINDOWS
+}
+
 #if UNSYNC_PLATFORM_WINDOWS
 inline uint64
 MakeU64(FILETIME Ft)
@@ -68,7 +95,7 @@ struct FCreateFileInfo
 
 FWindowsFile::FWindowsFile(const FPath& InFilename, EFileMode InMode, uint64 InSize) : Mode(InMode)
 {
-	Filename = InFilename;
+	Filename = MakeExtendedAbsolutePath(InFilename);
 
 	bool bOpenedOk = OpenFileHandle(InMode);
 
@@ -531,8 +558,10 @@ GetFileAttrib(const FPath& Path, FFileAttributeCache* AttribCache)
 		}
 	}
 
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+
 	WIN32_FILE_ATTRIBUTE_DATA AttributeData;
-	BOOL					  Ok = GetFileAttributesExW(Path.c_str(), GetFileExInfoStandard, &AttributeData);
+	BOOL					  Ok = GetFileAttributesExW(ExtendedPath.c_str(), GetFileExInfoStandard, &AttributeData);
 	if (Ok)
 	{
 		Result.bDirectory = !!(AttributeData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
@@ -549,7 +578,10 @@ bool
 SetFileMtime(const FPath& Path, uint64 Mtime)
 {
 	UNSYNC_ASSERT(!GDryRun);
-	HANDLE Fh = CreateFileW(Path.c_str(), FILE_WRITE_ATTRIBUTES, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+
+	HANDLE Fh = CreateFileW(ExtendedPath.c_str(), FILE_WRITE_ATTRIBUTES, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (Fh != INVALID_HANDLE_VALUE)
 	{
 		FILETIME C, A, w;
@@ -570,7 +602,9 @@ SetFileReadOnly(const FPath& Path, bool bReadOnly)
 {
 	UNSYNC_ASSERT(!GDryRun);
 
-	uint32 OldAttributes = GetFileAttributesW(Path.c_str());
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+
+	uint32 OldAttributes = GetFileAttributesW(ExtendedPath.c_str());
 	uint32 NewAttributes = OldAttributes;
 
 	if (bReadOnly)
@@ -588,7 +622,7 @@ SetFileReadOnly(const FPath& Path, bool bReadOnly)
 	}
 	else
 	{
-		return SetFileAttributesW(Path.c_str(), NewAttributes);
+		return SetFileAttributesW(ExtendedPath.c_str(), NewAttributes);
 	}
 }
 
@@ -974,7 +1008,7 @@ CreateFileAttributeCache(const FPath& Root, const FSyncFilter* SyncFilter)
 
 	FPath ResolvedRoot = SyncFilter ? SyncFilter->Resolve(Root) : Root;
 
-	for (const std::filesystem::directory_entry& Dir : std::filesystem::recursive_directory_iterator(ResolvedRoot))
+	for (const std::filesystem::directory_entry& Dir : RecursiveDirectoryScan(ResolvedRoot))
 	{
 		if (Dir.is_directory())
 		{
@@ -1012,44 +1046,60 @@ IsDirectory(const FPath& Path)
 bool
 PathExists(const FPath& Path)
 {
-	return std::filesystem::exists(Path);
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+	return std::filesystem::exists(ExtendedPath);
 }
 
 bool
 PathExists(const FPath& Path, std::error_code& OutErrorCode)
 {
-	return std::filesystem::exists(Path, OutErrorCode);
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+	return std::filesystem::exists(ExtendedPath, OutErrorCode);
 }
 
 bool
 CreateDirectories(const FPath& Path)
 {
-	return std::filesystem::create_directories(Path);
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+	return std::filesystem::create_directories(ExtendedPath);
 }
 
 bool
 FileRename(const FPath& From, const FPath& To, std::error_code& OutErrorCode)
 {
-	std::filesystem::rename(From, To, OutErrorCode);
+	FPath ExtendedFrom = MakeExtendedAbsolutePath(From);
+	FPath ExtendedTo   = MakeExtendedAbsolutePath(To);
+	std::filesystem::rename(ExtendedFrom, ExtendedTo, OutErrorCode);
 	return OutErrorCode.value() == 0;
 }
 
 bool
 FileCopy(const FPath& From, const FPath& To, std::error_code& OutErrorCode)
 {
-	return std::filesystem::copy_file(From, To, OutErrorCode);
+	FPath ExtendedFrom = MakeExtendedAbsolutePath(From);
+	FPath ExtendedTo   = MakeExtendedAbsolutePath(To);
+	return std::filesystem::copy_file(ExtendedFrom, ExtendedTo, OutErrorCode);
 }
 
 bool
 FileCopyOverwrite(const FPath& From, const FPath& To, std::error_code& OutErrorCode)
 {
-	return std::filesystem::copy_file(From, To, std::filesystem::copy_options::overwrite_existing, OutErrorCode);
+	FPath ExtendedFrom = MakeExtendedAbsolutePath(From);
+	FPath ExtendedTo   = MakeExtendedAbsolutePath(To);
+	return std::filesystem::copy_file(ExtendedFrom, ExtendedTo, std::filesystem::copy_options::overwrite_existing, OutErrorCode);
 }
 
 bool
 FileRemove(const FPath& Path, std::error_code& OutErrorCode)
 {
-	return std::filesystem::remove(Path, OutErrorCode);
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+	return std::filesystem::remove(ExtendedPath, OutErrorCode);
+}
+
+std::filesystem::recursive_directory_iterator RecursiveDirectoryScan(const FPath& Path)
+{
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+	return std::filesystem::recursive_directory_iterator(ExtendedPath);
 }
 
 FMemReader::FMemReader(const uint8* InData, uint64 InDataSize) : Data(InData), Size(InDataSize)

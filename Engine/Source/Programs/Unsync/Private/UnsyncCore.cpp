@@ -24,7 +24,7 @@ UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <flat_hash_map.hpp>
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
-#define UNSYNC_VERSION_STR "1.0.38"
+#define UNSYNC_VERSION_STR "1.0.39"
 
 namespace unsync {
 
@@ -1780,8 +1780,6 @@ CreateDirectoryManifest(const FPath& Root, uint32 BlockSize, FAlgorithmOptions A
 
 	Result.Options = Algorithm;
 
-	FPath ManifestRootPath = Root / ".unsync";
-
 	FTimePoint TimeBegin = TimePointNow();
 
 	FTaskGroup	 TaskGroup;
@@ -1789,20 +1787,21 @@ CreateDirectoryManifest(const FPath& Root, uint32 BlockSize, FAlgorithmOptions A
 	FSemaphore	 Semaphore(MaxConcurrentFiles);
 
 	std::mutex ResultMutex;
+	FPath UnsyncDirName = ".unsync";
 
-	for (const std::filesystem::directory_entry& Dir : std::filesystem::recursive_directory_iterator(Root))
+	for (const std::filesystem::directory_entry& Dir : RecursiveDirectoryScan(Root))
 	{
 		if (Dir.is_directory())
 		{
 			continue;
 		}
 
-		if (Dir.path().native().starts_with(ManifestRootPath.native()))
+		FPath RelativePath = std::filesystem::relative(Dir.path(), Root);
+
+		if (RelativePath.native().starts_with(UnsyncDirName.native()))
 		{
 			continue;
 		}
-
-		FPath RelativePath = Dir.path().lexically_relative(Root);
 
 		UNSYNC_VERBOSE2(L"Found '%ls'", RelativePath.wstring().c_str());
 
@@ -2846,7 +2845,8 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	bool			   bBaseDirectoryManifestValid = false;
 	bool			   bQuickDifferencePossible	   = false;
 
-	if (SyncOptions.bQuickDifference && SourceDirectoryManifest.Options.ChunkingAlgorithmId == EChunkingAlgorithmID::VariableBlocks)
+	if (SyncOptions.bQuickDifference && SourceDirectoryManifest.Options.ChunkingAlgorithmId == EChunkingAlgorithmID::VariableBlocks
+		&& PathExists(BaseManifestPath))
 	{
 		bBaseDirectoryManifestValid = LoadDirectoryManifest(BaseDirectoryManifest, BasePath, BaseManifestPath);
 		if (bBaseDirectoryManifestValid &&
@@ -3345,7 +3345,9 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 
 		if (!bCopyOk)
 		{
-			UNSYNC_WARNING(L"Failed to save manifest after sync. System error code: %d.", ErrorCode.value());
+			UNSYNC_WARNING(L"Failed to save manifest after sync. System error code: %hs (%d).",
+						   ErrorCode.message().c_str(),
+						   ErrorCode.value());
 		}
 	}
 
