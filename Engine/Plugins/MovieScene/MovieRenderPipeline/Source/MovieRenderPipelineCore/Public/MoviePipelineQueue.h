@@ -278,9 +278,9 @@ public:
 	void SetPresetOrigin(UMoviePipelineMasterConfig* InPreset);
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	UMoviePipelineMasterConfig* GetPresetOrigin() const
+	UMoviePipelineMasterConfig* GetPresetOrigin() const 
 	{
-		return PresetOrigin.Get();
+		return PresetOrigin.LoadSynchronous();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
