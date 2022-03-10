@@ -71,6 +71,16 @@ public:
 	 */
 	void EmptyCache();
 
+	/**
+	 * Get the current size (in bytess).
+	 */
+	SIZE_T GetCurrentSize() const { return CurrentSize; }
+
+	/**
+	 * Get the maximum size (in bytes).
+	 */
+	SIZE_T GetMaxSize() const { return MaxSize; }
+
 private:
 
 	/** An entry in the cache. */
