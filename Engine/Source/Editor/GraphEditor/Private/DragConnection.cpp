@@ -8,6 +8,7 @@
 #include "EdGraph/EdGraph.h"
 #include "SGraphPanel.h"
 #include "ScopedTransaction.h"
+#include "EdGraphHandleTypes.h"
 
 TSharedRef<FDragConnection> FDragConnection::New(const TSharedRef<SGraphPanel>& GraphPanel, const FDraggedPinTable& DraggedPins)
 {
@@ -201,27 +202,36 @@ FReply FDragConnection::DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPo
 	TArray<UEdGraphPin*> ValidSourcePins;
 	ValidateGraphPinList(/*out*/ ValidSourcePins);
 
+	// store the pins as pin tuples since the structure of the
+	// graph may change during the creation of a connection
+	TArray<FEdGraphPinHandle> ValidSourcePinHandles;
+	for(const UEdGraphPin* ValidSourcePin : ValidSourcePins)
+	{
+		ValidSourcePinHandles.Add(ValidSourcePin);
+	}
+
 	const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "GraphEd_CreateConnection", "Create Pin Link") );
 
-	UEdGraphPin* PinB = GetHoveredPin();
+	FEdGraphPinHandle PinB(GetHoveredPin());
 	bool bError = false;
-	TSet<UEdGraphNode*> NodeList;
+	TSet<FEdGraphNodeHandle> NodeList;
 
-	for (UEdGraphPin* PinA : ValidSourcePins)
+	for (const FEdGraphPinHandle& PinA : ValidSourcePinHandles)
 	{
-		if ((PinA != NULL) && (PinB != NULL))
+		if ((PinA.GetPin() != NULL) && (PinB.GetPin() != NULL))
 		{
-			UEdGraph* MyGraphObj = PinA->GetOwningNode()->GetGraph();
+			const UEdGraph* MyGraphObj = PinA.GetGraph();
 
-			if (MyGraphObj->GetSchema()->TryCreateConnection(PinA, PinB))
+			// the pin may change during the creation of the link
+			if (MyGraphObj->GetSchema()->TryCreateConnection(PinA.GetPin(), PinB.GetPin()))
 			{
-				if (!PinA->IsPendingKill())
+				if (PinA.GetPin() && !PinA.GetPin()->IsPendingKill())
 				{
-					NodeList.Add(PinA->GetOwningNode());
+					NodeList.Add(PinA.GetPin()->GetOwningNode());
 				}
-				if (!PinB->IsPendingKill())
+				if (PinB.GetPin() && !PinB.GetPin()->IsPendingKill())
 				{
-					NodeList.Add(PinB->GetOwningNode());
+					NodeList.Add(PinB.GetNode());
 				}
 			}
 		}
@@ -234,8 +244,10 @@ FReply FDragConnection::DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPo
 	// Send all nodes that received a new pin connection a notification
 	for (auto It = NodeList.CreateConstIterator(); It; ++It)
 	{
-		UEdGraphNode* Node = (*It);
-		Node->NodeConnectionListChanged();
+		if(UEdGraphNode* Node = It->GetNode())
+		{
+			Node->NodeConnectionListChanged();
+		}
 	}
 
 	if (bError)
