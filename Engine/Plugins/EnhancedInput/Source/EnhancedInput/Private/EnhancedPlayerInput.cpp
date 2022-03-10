@@ -179,6 +179,22 @@ bool UEnhancedPlayerInput::InputKey(const FInputKeyParams& Params)
 	return bResult;
 }
 
+float UEnhancedPlayerInput::GetEffectiveTimeDilation() const
+{
+	if (const APlayerController* PC = GetOuterAPlayerController())
+	{
+		return PC->GetActorTimeDilation();
+	}
+	else if (const UWorld* World = GetWorld())
+	{
+		if (const AWorldSettings* WorldSettings = World->GetWorldSettings())
+		{
+			return WorldSettings->GetEffectiveTimeDilation();	
+		}
+	}
+	return 1.0f;
+}
+
 void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
 {
 	// We need to grab the down states of all keys before calling Super::ProcessInputStack as it will leave bDownPrevious in the same state as bDown (i.e. this frame, not last).
@@ -213,8 +229,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 	RealTimeDeltaSeconds = CurrentTime - LastFrameTime;
 	
 	// Use non-dilated delta time for processing
-	check(GetOuterAPlayerController());
-	const float Dilation = GetOuterAPlayerController()->GetActorTimeDilation();
+	const float Dilation = GetEffectiveTimeDilation();
 	const float NonDilatedDeltaTime = Dilation != 0.0f ? DeltaTime / Dilation : RealTimeDeltaSeconds;
 
 	// Handle input devices, applying modifiers and triggers

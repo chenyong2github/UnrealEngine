@@ -18,7 +18,7 @@ enum class EKeyEvent : uint8;
 /**
 * UEnhancedPlayerInput : UPlayerInput extensions for enhanced player input system
 */
-UCLASS(Within = PlayerController, config = Input, transient)
+UCLASS(config = Input, transient)
 class ENHANCEDINPUT_API UEnhancedPlayerInput : public UPlayerInput
 {
 	friend class IEnhancedInputSubsystemInterface;
@@ -42,11 +42,14 @@ public:
 
 	virtual bool InputKey(const FInputKeyParams& Params) override;
 	
-protected:
-
 	// Applies modifiers and triggers without affecting keys read by the base input system
 	virtual void ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused) override;
 
+	/** Returns the Time Dilation value that is currently effecting this input. */
+	float GetEffectiveTimeDilation() const;
+	
+protected:
+	
 	// Causes key to be consumed if it is affecting an action.
 	virtual bool IsKeyHandledByAction(FKey Key) const override;
 

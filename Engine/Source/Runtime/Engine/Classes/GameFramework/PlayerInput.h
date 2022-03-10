@@ -388,7 +388,7 @@ struct ENGINE_API FInputKeyParams
  *
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Input/index.html
  */
-UCLASS(Within=PlayerController, config=Input, transient)
+UCLASS(config=Input, transient)
 class ENGINE_API UPlayerInput : public UObject
 {
 	GENERATED_BODY()
@@ -497,6 +497,10 @@ public:
 
 	/** Clear the current cached key maps and rebuild from the source arrays. */
 	void ForceRebuildingKeyMaps(const bool bRestoreDefaults = false);
+
+	/** Return's this object casted to a player controller. This can be null if there is no player controller. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input")
+	APlayerController* GetOuterAPlayerController() const;
 
 private:
 

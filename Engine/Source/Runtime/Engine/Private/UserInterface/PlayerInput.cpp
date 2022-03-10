@@ -93,7 +93,7 @@ void UPlayerInput::PostInitProperties()
 void UPlayerInput::FlushPressedKeys()
 {
 	APlayerController* PlayerController = GetOuterAPlayerController();
-	ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(PlayerController->Player);
+	ULocalPlayer* LocalPlayer = PlayerController ? Cast<ULocalPlayer>(PlayerController->Player) : nullptr;
 	if (LocalPlayer != nullptr)
 	{
 		TArray<FKey> PressedKeys;
@@ -749,6 +749,11 @@ void UPlayerInput::ForceRebuildingKeyMaps(const bool bRestoreDefaults)
 	bKeyMapsBuilt = false;
 }
 
+APlayerController* UPlayerInput::GetOuterAPlayerController() const
+{
+	return Cast<APlayerController>(GetOuter());
+}
+
 void UPlayerInput::ConditionalBuildKeyMappings_Internal() const
 {
 	if (ActionKeyMap.Num() == 0)
@@ -1108,8 +1113,10 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 	// in this processing batch
 
 	APlayerController* PlayerController = GetOuterAPlayerController();
-
-	PlayerController->PreProcessInput(DeltaTime, bGamePaused);
+	if (PlayerController)
+	{
+		PlayerController->PreProcessInput(DeltaTime, bGamePaused);
+	}
 
 	// copy data from accumulators to the real values
 	for (TMap<FKey,FKeyState>::TIterator It(KeyStateMap); It; ++It)
@@ -1447,8 +1454,11 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 		}
 	}
 
-	PlayerController->PostProcessInput(DeltaTime, bGamePaused);
-
+	if (PlayerController)
+	{
+		PlayerController->PostProcessInput(DeltaTime, bGamePaused);
+	}
+	
 	FinishProcessingPlayerInput();
 	AxisDelegates.Reset();
 	VectorAxisDelegates.Reset();
@@ -1899,7 +1909,7 @@ float UPlayerInput::MassageAxisInput(FKey Key, float RawValue)
 
 		// Take FOV into account (lower FOV == less sensitivity).
 		APlayerController const* const PlayerController = GetOuterAPlayerController();
-		float const FOVScale = (DefaultInputSettings->bEnableFOVScaling && PlayerController->PlayerCameraManager) ? (DefaultInputSettings->FOVScale*PlayerController->PlayerCameraManager->GetFOVAngle()) : 1.0f;
+		float const FOVScale = (DefaultInputSettings->bEnableFOVScaling && PlayerController && PlayerController->PlayerCameraManager) ? (DefaultInputSettings->FOVScale*PlayerController->PlayerCameraManager->GetFOVAngle()) : 1.0f;
 		NewVal *= FOVScale;
 
 		// debug
@@ -2221,7 +2231,10 @@ void UPlayerInput::SetBind(FName BindName, const FString& Command)
 
 class UWorld* UPlayerInput::GetWorld() const
 {
-	check(GetOuterAPlayerController());
-	UWorld* World = GetOuterAPlayerController()->GetWorld();
-	return World;
+	if (APlayerController* PC = GetOuterAPlayerController())
+	{
+		return PC->GetWorld();	
+	}
+	
+	return Super::GetWorld();
 }

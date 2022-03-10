@@ -224,7 +224,10 @@ FInputActionValue UInputModifierFOVScaling::ModifyRaw_Implementation(const UEnha
 {
 	const APlayerController* PC = PlayerInput->GetOuterAPlayerController();
 
-	check(PC);
+	if (!PC)
+	{
+		return CurrentValue;
+	}
 
 	const float FOVAngle = PC->PlayerCameraManager ? PC->PlayerCameraManager->GetFOVAngle() : 1.f;
 	float Scale = FOVScale;

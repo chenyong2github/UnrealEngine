@@ -72,9 +72,9 @@ ETriggerState UInputTriggerTimedBase::UpdateState_Implementation(const UEnhanced
 
 float UInputTriggerTimedBase::CalculateHeldDuration(const UEnhancedPlayerInput* const PlayerInput, const float DeltaTime) const
 {
-	if(ensureMsgf(PlayerInput && PlayerInput->GetOuterAPlayerController(), TEXT("No Player Input was given to Calculate with! Returning 1.0")))
+	if (ensureMsgf(PlayerInput, TEXT("No Player Input was given to Calculate with! Returning 1.0")))
 	{
-		const float TimeDilation = PlayerInput->GetOuterAPlayerController()->GetActorTimeDilation();
+		const float TimeDilation = PlayerInput->GetEffectiveTimeDilation();
 	
 		// Calculates the new held duration, applying time dilation if desired
 		return HeldDuration + (!bAffectedByTimeDilation ? DeltaTime : DeltaTime * TimeDilation);
