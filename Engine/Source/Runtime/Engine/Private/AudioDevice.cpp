@@ -783,6 +783,8 @@ void FAudioDevice::Teardown()
 
 	for (TAudioPluginListenerPtr PluginListener : PluginListeners)
 	{
+		LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+
 		PluginListener->OnListenerShutdown(this);
 	}
 
@@ -3222,6 +3224,8 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 
 	if (World)
 	{
+		LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+
 		for (TAudioPluginListenerPtr PluginManager : PluginListeners)
 		{
 			PluginManager->OnTick(World, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
@@ -3233,6 +3237,8 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 		// Broadcast to a 3rd party plugin listener observer if enabled
 		for (TAudioPluginListenerPtr PluginManager : PluginListeners)
 		{
+			LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+
 			PluginManager->OnListenerUpdated(this, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
 		}
 
@@ -4784,6 +4790,8 @@ void FAudioDevice::InitializePluginListeners(UWorld* World)
 	check(IsInGameThread());
 	check(!bPluginListenersInitialized);
 
+	LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+
 	for (TAudioPluginListenerPtr PluginListener : PluginListeners)
 	{
 		PluginListener->OnListenerInitialize(this, World);
@@ -4793,6 +4801,8 @@ void FAudioDevice::InitializePluginListeners(UWorld* World)
 void FAudioDevice::NotifyPluginListenersWorldChanged(UWorld* World)
 {
 	check(IsInGameThread());
+
+	LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
 
 	for (TAudioPluginListenerPtr PluginListener : PluginListeners)
 	{
