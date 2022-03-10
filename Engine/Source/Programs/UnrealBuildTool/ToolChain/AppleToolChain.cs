@@ -231,6 +231,106 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
+		protected virtual string GetObjCExceptionsFlag(CppCompileEnvironment CompileEnvironment)
+		{
+			return "";
+		}
+
+		protected string GetPCHCompileArgumentsForCompileEnvironment(CppCompileEnvironment CompileEnvironment)
+		{
+			StringBuilder PCHArguments = new StringBuilder();
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
+			{
+				// Add the precompiled header file's path to the include path so GCC can find it.
+				// This needs to be before the other include paths to ensure GCC uses it instead of the source header file.
+				PCHArguments.Append(" -include \"");
+				PCHArguments.Append(CompileEnvironment.PrecompiledHeaderIncludeFilename!.FullName);
+				PCHArguments.Append("\"");
+			}
+
+			return PCHArguments.ToString();
+		}
+
+		protected virtual string GetCompileArgumentsForCompileEnvironment(CppCompileEnvironment CompileEnvironment)
+		{
+			StringBuilder Arguments = new StringBuilder();
+			Arguments.Append(GetCompileArguments_Global(CompileEnvironment));
+
+			// Add include paths to the argument list.
+			HashSet<DirectoryReference> AllIncludes = new HashSet<DirectoryReference>(CompileEnvironment.UserIncludePaths);
+			AllIncludes.UnionWith(CompileEnvironment.SystemIncludePaths);
+			foreach (DirectoryReference IncludePath in AllIncludes)
+			{
+				Arguments.Append(" -I\"");
+				Arguments.Append(IncludePath.FullName);
+				Arguments.Append("\"");
+			}
+
+			foreach (string Definition in CompileEnvironment.Definitions)
+			{
+				string DefinitionArgument = Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
+				Arguments.Append(" -D\"");
+				Arguments.Append(DefinitionArgument);
+				Arguments.Append("\"");
+			}
+
+			return Arguments.ToString();
+		}
+
+		public virtual string GetCompileArgumentsForAbsoluteFilePathWithCompileEnvironment(string FilePath, CppCompileEnvironment CompileEnvironment)
+		{
+			string Arguments = GetCompileArgumentsForCompileEnvironment(CompileEnvironment);
+			string PCHArguments = GetPCHCompileArgumentsForCompileEnvironment(CompileEnvironment);
+
+			foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
+			{
+				Arguments += String.Format(" -include \"{0}\"", ForceIncludeFile.Location.FullName);
+			}
+
+			string FileArguments = "";
+			string Extension = Path.GetExtension(FilePath).ToUpperInvariant();
+
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
+			{
+				// Compile the file as a C++ PCH.
+				FileArguments += GetCompileArguments_PCH(CompileEnvironment);
+				FileArguments += GetRTTIFlag(CompileEnvironment);
+				FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
+			}
+			else if (Extension == ".C")
+			{
+				// Compile the file as C code.
+				FileArguments += GetCompileArguments_C();
+			}
+			else if (Extension == ".MM")
+			{
+				// Compile the file as Objective-C++ code.
+				FileArguments += GetCompileArguments_MM(CompileEnvironment);
+				FileArguments += GetRTTIFlag(CompileEnvironment);
+				FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
+			}
+			else if (Extension == ".M")
+			{
+				// Compile the file as Objective-C++ code.
+				FileArguments += GetCompileArguments_M(CompileEnvironment);
+				FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
+			}
+			else
+			{
+				// Compile the file as C++ code.
+				FileArguments += GetCompileArguments_CPP(CompileEnvironment);
+				FileArguments += GetRTTIFlag(CompileEnvironment);
+				FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
+
+				// only use PCH for .cpp files
+				Arguments = PCHArguments + Arguments;
+			}
+
+			string AllArgs = Arguments + FileArguments;
+
+			return AllArgs;
+		}
+
 		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
@@ -299,5 +399,113 @@ namespace UnrealBuildTool
 			ExtraOptions = (bIsForLTOBuild && Major == 10 && Minor == 0 && Patch == 1) ? "-j 1" : "";
 			return DsymutilLocation.FullName;
 		}
+
+		protected virtual string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+
+			Result += " -fmessage-length=0";
+			Result += " -pipe";
+			Result += " -fpascal-strings";
+			Result += " -Wall -Werror";
+			Result += " -Wdelete-non-virtual-dtor";
+
+			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
+			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
+			// See also MacToolChain.cs
+			if (GetClangVersion().Major >= 12)
+			{
+				Result += " -Wno-range-loop-analysis";
+			}
+
+			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
+			{
+				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
+			}
+
+			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
+			{
+				Result += " -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef");
+			}
+
+			Result += " -c";
+
+			if (!CompileEnvironment.bUseInlining)
+			{
+				Result += " -fno-inline-functions";
+			}
+
+			// Create DWARF format debug info if wanted,
+			if (CompileEnvironment.bCreateDebugInfo)
+			{
+				Result += " -gdwarf-2";
+			}
+
+			return Result;
+		}
+
+		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			Result += " -x objective-c++";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += " -stdlib=libc++";
+
+			return Result;
+		}
+
+		static string GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			Result += " -x objective-c++";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += " -stdlib=libc++";
+			return Result;
+		}
+
+		static string GetCompileArguments_M(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			Result += " -x objective-c";
+			Result += " -stdlib=libc++";
+			return Result;
+		}
+
+		static string GetCompileArguments_C()
+		{
+			string Result = "";
+			Result += " -x c";
+			return Result;
+		}
+
+		static string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			Result += " -x objective-c++-header";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += " -stdlib=libc++";
+
+			return Result;
+		}
+
+		// Conditionally enable (default disabled) generation of information about every class with virtual functions for use by the C++ runtime type identification features 
+		// (`dynamic_cast' and `typeid'). If you don't use those parts of the language, you can save some space by using -fno-rtti. 
+		// Note that exception handling uses the same information, but it will generate it as needed. 
+		protected static string GetRTTIFlag(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+
+			if (CompileEnvironment.bUseRTTI)
+			{
+				Result = " -frtti";
+			}
+			else
+			{
+				Result = " -fno-rtti";
+			}
+
+			return Result;
+		}
+
 	};
 }

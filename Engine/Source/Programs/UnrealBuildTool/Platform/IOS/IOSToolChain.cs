@@ -226,13 +226,35 @@ namespace UnrealBuildTool
 		}
 
 
-		string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		protected override string GetCompileArgumentsForCompileEnvironment(CppCompileEnvironment CompileEnvironment)
 		{
-			string Result = "";
+			StringBuilder Arguments = new StringBuilder();
+			Arguments.Append(base.GetCompileArgumentsForCompileEnvironment(CompileEnvironment));
 
-			Result += " -fmessage-length=0";
-			Result += " -pipe";
-			Result += " -fpascal-strings";
+			string Result = "";
+			// Add additional frameworks so that their headers can be found
+			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
+			{
+				if (Framework.FrameworkDirectory != null)
+				{
+					string FrameworkDir = Framework.FrameworkDirectory.FullName;
+					// embedded frameworks have a framework inside of this directory, so we use this directory. regular frameworks need to go one up to point to the 
+					// directory containing the framework. -F gives a path to look for the -framework
+					if (FrameworkDir.EndsWith(".framework"))
+					{
+						FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
+					}
+					Result += String.Format(" -F\"{0}\"", FrameworkDir);
+				}
+			}
+
+			Arguments.Append(Result);
+			return Arguments.ToString();
+		}
+
+		protected override string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = base.GetCompileArguments_Global(CompileEnvironment);
 
 			if (RuntimePlatform.IsWindows)
 			{
@@ -277,27 +299,6 @@ namespace UnrealBuildTool
 				Result += " -flto";
 			}
 
-			Result += " -Wall -Werror";
-			Result += " -Wdelete-non-virtual-dtor";
-
-			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
-			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
-			// See also MacToolChain.cs
-			if (GetClangVersion().Major >= 12)
-			{
-				Result += " -Wno-range-loop-analysis";
-			}
-
-			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
-			{
-				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
-			}
-
-			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
-			{
-				Result += " -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef");
-			}
-
 			// fix for Xcode 8.3 enabling nonportable include checks, but p4 has some invalid cases in it
 			if (Settings.Value.IOSSDKVersionFloat >= 10.3)
 			{
@@ -308,8 +309,6 @@ namespace UnrealBuildTool
 			{
 				Result += " -fembed-bitcode";
 			}
-
-			Result += " -c";
 
 			// What architecture(s) to build for
 			Result += GetArchitectureArgument(CompileEnvironment.Configuration, CompileEnvironment.Architecture);
@@ -342,102 +341,15 @@ namespace UnrealBuildTool
 				Result += " -O0";
 			}
 
-			if (!CompileEnvironment.bUseInlining)
-			{
-				Result += " -fno-inline-functions";
-			}
-
-			// Create DWARF format debug info if wanted,
-			if (CompileEnvironment.bCreateDebugInfo)
-			{
-				Result += " -gdwarf-2";
-			}
-
-			// Add additional frameworks so that their headers can be found
-			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
-			{
-				if (Framework.FrameworkDirectory != null)
-				{
-					string FrameworkDir = Framework.FrameworkDirectory.FullName;
-					// embedded frameworks have a framework inside of this directory, so we use this directory. regular frameworks need to go one up to point to the 
-					// directory containing the framework. -F gives a path to look for the -framework
-					if (FrameworkDir.EndsWith(".framework"))
-					{
-						FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
-					}
-					Result += String.Format(" -F\"{0}\"", FrameworkDir);
-				}
-			}
-
-			return Result;
-		}
-
-		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-			Result += " -x objective-c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			Result += " -stdlib=libc++";
-
-			return Result;
-		}
-
-		static string GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-			Result += " -x objective-c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			Result += " -stdlib=libc++";
-			return Result;
-		}
-
-		static string GetCompileArguments_M(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-			Result += " -x objective-c";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			Result += " -stdlib=libc++";
-			return Result;
-		}
-
-		static string GetCompileArguments_C()
-		{
-			string Result = "";
-			Result += " -x c";
-			return Result;
-		}
-
-		static string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-			Result += " -x objective-c++-header";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			Result += " -stdlib=libc++";
-
-			return Result;
-		}
-
-		// Conditionally enable (default disabled) generation of information about every class with virtual functions for use by the C++ runtime type identification features 
-		// (`dynamic_cast' and `typeid'). If you don't use those parts of the language, you can save some space by using -fno-rtti. 
-		// Note that exception handling uses the same information, but it will generate it as needed. 
-		static string GetRTTIFlag(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-
-			if (CompileEnvironment.bUseRTTI)
-			{
-				Result = " -frtti";
-			}
-			else
-			{
-				Result = " -fno-rtti";
-			}
-
+			// Added to cope with errors on the index target when building with Xcode
+			Result += " -Wno-implicit-int-conversion";
+			Result += " -Wno-shorten-64-to-32";
+			Result += " -Wno-inconsistent-missing-override";
 			return Result;
 		}
 
 		// Conditionally enable (default disabled) Objective-C exceptions
-		static string GetObjCExceptionsFlag(CppCompileEnvironment CompileEnvironment)
+		protected override string GetObjCExceptionsFlag(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 
@@ -622,77 +534,16 @@ namespace UnrealBuildTool
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
-			string Arguments = GetCompileArguments_Global(CompileEnvironment);
-			string PCHArguments = "";
-
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				PCHArguments += string.Format(" -include \"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename!.FullName);
-			}
-
-			foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
-			{
-				Arguments += String.Format(" -include \"{0}\"", ForceIncludeFile.Location.FullName);
-			}
-
-			// Add include paths to the argument list.
-			HashSet<DirectoryReference> AllIncludes = new HashSet<DirectoryReference>(CompileEnvironment.UserIncludePaths);
-			AllIncludes.UnionWith(CompileEnvironment.SystemIncludePaths);
-			foreach (DirectoryReference IncludePath in AllIncludes)
-			{
-				Arguments += string.Format(" -I\"{0}\"", IncludePath.FullName);
-			}
-
-			foreach (string Definition in CompileEnvironment.Definitions)
-			{
-				string DefinitionArgument = Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
-				Arguments += string.Format(" -D \"{0}\"", DefinitionArgument);
-			}
+			string Arguments = GetCompileArgumentsForCompileEnvironment(CompileEnvironment);
+			string PCHArguments = GetPCHCompileArgumentsForCompileEnvironment(CompileEnvironment);
 
 			CPPOutput Result = new CPPOutput();
 			// Create a compile action for each source file.
 			foreach (FileItem SourceFile in InputFiles)
 			{
 				Action CompileAction = Graph.CreateAction(ActionType.Compile);
-				string FilePCHArguments = "";
-				string FileArguments = "";
-				string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
 
-				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
-				{
-					// Compile the file as a C++ PCH.
-					FileArguments += GetCompileArguments_PCH(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
-					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
-				}
-				else if (Extension == ".C")
-				{
-					// Compile the file as C code.
-					FileArguments += GetCompileArguments_C();
-				}
-				else if (Extension == ".MM")
-				{
-					// Compile the file as Objective-C++ code.
-					FileArguments += GetCompileArguments_MM(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
-					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
-				}
-				else if (Extension == ".M")
-				{
-					// Compile the file as Objective-C code.
-					FileArguments += GetCompileArguments_M(CompileEnvironment);
-					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
-				}
-				else
-				{
-					// Compile the file as C++ code.
-					FileArguments += GetCompileArguments_CPP(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
-					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
-
-					// only use PCH for .cpp files
-					FilePCHArguments = PCHArguments;
-				}
+				string AllArgs = GetCompileArgumentsForAbsoluteFilePathWithCompileEnvironment(SourceFile.AbsolutePath, CompileEnvironment);
 
 				// Add the C++ source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(SourceFile);
@@ -719,7 +570,7 @@ namespace UnrealBuildTool
 					Result.PrecompiledHeaderFile = PrecompiledHeaderFile;
 
 					// Add the parameters needed to compile the precompiled header file to the command-line.
-					FileArguments += string.Format(" -o \"{0}\"", PrecompiledHeaderFile.AbsolutePath);
+					AllArgs += string.Format(" -o \"{0}\"", PrecompiledHeaderFile.AbsolutePath);
 				}
 				else
 				{
@@ -743,35 +594,23 @@ namespace UnrealBuildTool
 
 					CompileAction.ProducedItems.Add(ObjectFile);
 					Result.ObjectFiles.Add(ObjectFile);
-					FileArguments += string.Format(" -o \"{0}\"", ObjectFile.AbsolutePath);
+					AllArgs += string.Format(" -o \"{0}\"", ObjectFile.AbsolutePath);
 					OutputFilePath = ObjectFile.AbsolutePath;
 				}
 
 				// Add the source file path to the command-line.
-				FileArguments += string.Format(" \"{0}\"", SourceFile.AbsolutePath);
+				AllArgs += string.Format(" \"{0}\"", SourceFile.AbsolutePath);
 
 				// Generate the included header dependency list
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
 					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					FileArguments += string.Format(" -MD -MF\"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/'));
+					AllArgs += string.Format(" -MD -MF\"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/'));
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.ProducedItems.Add(DependencyListFile);
 				}
 
 				string CompilerPath = Settings.Value.ToolchainDir + IOSCompiler;
-
-				string AllArgs = FilePCHArguments + Arguments + FileArguments + CompileEnvironment.AdditionalArguments;
-				/*				string SourceText = System.IO.File.ReadAllText(SourceFile.AbsolutePath);
-								if (CompileEnvironment.bOptimizeForSize && (SourceFile.AbsolutePath.Contains("ElementBatcher.cpp") || SourceText.Contains("ElementBatcher.cpp") || SourceFile.AbsolutePath.Contains("AnimationRuntime.cpp") || SourceText.Contains("AnimationRuntime.cpp")
-									|| SourceFile.AbsolutePath.Contains("AnimEncoding.cpp") || SourceText.Contains("AnimEncoding.cpp") || SourceFile.AbsolutePath.Contains("TextRenderComponent.cpp") || SourceText.Contains("TextRenderComponent.cpp")
-									|| SourceFile.AbsolutePath.Contains("SWidget.cpp") || SourceText.Contains("SWidget.cpp") || SourceFile.AbsolutePath.Contains("SCanvas.cpp") || SourceText.Contains("SCanvas.cpp") || SourceFile.AbsolutePath.Contains("ShaderCore.cpp") || SourceText.Contains("ShaderCore.cpp")
-									|| SourceFile.AbsolutePath.Contains("ParticleSystemRender.cpp") || SourceText.Contains("ParticleSystemRender.cpp")))
-								{
-									Log.TraceInformation("Forcing {0} to --O3!", SourceFile.AbsolutePath);
-
-									AllArgs = AllArgs.Replace("-Oz", "-O3");
-								}*/
 
 				// Analyze and then compile using the shell to perform the indirection
 				string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
