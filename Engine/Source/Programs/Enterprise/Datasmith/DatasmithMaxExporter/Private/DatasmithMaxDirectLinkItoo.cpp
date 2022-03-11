@@ -197,6 +197,7 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
 			if (RenderMesh.IsValid())
 			{
 				Scene.SetupDatasmithHISMForNode(NodeTracker, GeometryNode, RenderMesh, NodeTracker.Node->GetMtl(), MeshIndex, Instances.Transforms);
+				MeshIndex ++;
 			}
 		}
 	}
