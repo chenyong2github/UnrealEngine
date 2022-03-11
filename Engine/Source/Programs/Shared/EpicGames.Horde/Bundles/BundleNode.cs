@@ -16,6 +16,21 @@ namespace EpicGames.Horde.Bundles.Nodes
 	/// </summary>
 	public abstract class BundleNode
 	{
+		class DefaultSerializer<T> where T : BundleNode
+		{
+			public static readonly BundleNodeDeserializer<T> Instance = CreateInstance();
+
+			static BundleNodeDeserializer<T> CreateInstance()
+			{
+				BundleNodeDeserializerAttribute? Attribute = typeof(T).GetCustomAttribute<BundleNodeDeserializerAttribute>();
+				if (Attribute == null)
+				{
+					throw new InvalidOperationException($"No serializer is defined for {typeof(T).Name}");
+				}
+				return (BundleNodeDeserializer<T>)Activator.CreateInstance(Attribute.Type)!;
+			}
+		}
+
 		/// <summary>
 		/// Cached incoming reference to the owner of this node. When the contents of this node are flushed to storage, this is modified to become a weak reference
 		/// and hash value. When modified, it becomes a strong reference and zero hash.
@@ -34,6 +49,22 @@ namespace EpicGames.Horde.Bundles.Nodes
 		public abstract ReadOnlySequence<byte> Serialize();
 
 		/// <summary>
+		/// Deserialize a node of a particular type, using the default serializer defined by an <see cref="BundleNodeDeserializerAttribute"/>.
+		/// </summary>
+		/// <typeparam name="T">The type to deserialize</typeparam>
+		/// <param name="Memory">Data to deserialize from</param>
+		/// <returns>New instance of the node</returns>
+		public static T Deserialize<T>(ReadOnlyMemory<byte> Memory) where T : BundleNode => DefaultSerializer<T>.Instance.Deserialize(Memory);
+
+		/// <summary>
+		/// Deserialize a node of a particular type, using the default serializer defined by an <see cref="BundleNodeDeserializerAttribute"/>.
+		/// </summary>
+		/// <typeparam name="T">The type to deserialize</typeparam>
+		/// <param name="Sequence">Data to deserialize from</param>
+		/// <returns>New instance of the node</returns>
+		public static T Deserialize<T>(ReadOnlySequence<byte> Sequence) where T : BundleNode => DefaultSerializer<T>.Instance.Deserialize(Sequence);
+
+		/// <summary>
 		/// Enumerates all the child references from this node
 		/// </summary>
 		/// <returns>Children of this node</returns>
@@ -46,11 +77,6 @@ namespace EpicGames.Horde.Bundles.Nodes
 	public class BundleNodeRef
 	{
 		/// <summary>
-		/// The bundle that owns this reference. Used to realize hashes into full nodes, and set when we do a full scan of the tree from the bundle.
-		/// </summary>
-		internal Bundle? Bundle;
-
-		/// <summary>
 		/// Cached reference to the parent node
 		/// </summary>
 		internal BundleNodeRef? ParentRef;
@@ -58,12 +84,12 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Strong reference to the current node
 		/// </summary>
-		protected BundleNode? StrongRef;
+		internal BundleNode? StrongRef;
 
 		/// <summary>
 		/// Weak reference to the child node. Maintained after the object has been flushed.
 		/// </summary>
-		protected WeakReference<BundleNode>? WeakRef { get; set; }
+		private WeakReference<BundleNode>? WeakRef { get; set; }
 
 		/// <summary>
 		/// Last time that the node was modified
@@ -87,11 +113,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Creates a reference to a node with the given hash
 		/// </summary>
-		/// <param name="Bundle">The bundle that contains the reference</param>
 		/// <param name="Hash">Hash of the referenced node</param>
-		public BundleNodeRef(Bundle Bundle, IoHash Hash)
+		public BundleNodeRef(IoHash Hash)
 		{
-			this.Bundle = Bundle;
 			this.Hash = Hash;
 		}
 
@@ -112,6 +136,25 @@ namespace EpicGames.Horde.Bundles.Nodes
 		{
 			MarkAsDirty();
 			ParentRef = null;
+		}
+
+		/// <summary>
+		/// Converts the node in this reference from a weak to strong reference.
+		/// </summary>
+		/// <returns>True if the ref contains a valid node on return</returns>
+		internal bool MakeStrongRef()
+		{
+			if (StrongRef != null)
+			{
+				return true;
+			}
+			if (WeakRef != null && WeakRef.TryGetTarget(out StrongRef))
+			{
+				WeakRef = null;
+				return true;
+			}
+
+			return false;
 		}
 
 		/// <summary>
@@ -143,7 +186,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 			if (StrongRef != null)
 			{
-				Collapse();
+				OnCollapse();
 
 				this.WeakRef = new WeakReference<BundleNode>(StrongRef);
 				this.StrongRef = null;
@@ -155,7 +198,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Callback for when a reference is collapsed to a hash value. At the time of calling, both the hash and node data will be valid.
 		/// </summary>
-		protected virtual void Collapse()
+		protected virtual void OnCollapse()
 		{
 		}
 	}
@@ -166,18 +209,6 @@ namespace EpicGames.Horde.Bundles.Nodes
 	/// <typeparam name="T">Type of the node</typeparam>
 	public class BundleNodeRef<T> : BundleNodeRef where T : BundleNode
 	{
-		static readonly BundleNodeDeserializer<T> Deserializer = CreateDeserializer();
-
-		static BundleNodeDeserializer<T> CreateDeserializer()
-		{
-			BundleNodeDeserializerAttribute? Attribute = typeof(T).GetCustomAttribute<BundleNodeDeserializerAttribute>();
-			if (Attribute == null)
-			{
-				throw new InvalidOperationException($"No serializer is defined for {typeof(T).Name}");
-			}
-			return (BundleNodeDeserializer<T>)Activator.CreateInstance(Attribute.Type)!;
-		}
-
 		/// <inheritdoc cref="BundleNodeRef.Node"/>
 		public new T? Node
 		{
@@ -188,9 +219,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Bundle">The bundle that contains the reference</param>
 		/// <param name="Hash">Hash of the referenced node</param>
-		public BundleNodeRef(Bundle Bundle, IoHash Hash) : base(Bundle, Hash)
+		public BundleNodeRef(IoHash Hash) : base(Hash)
 		{
 		}
 
@@ -200,26 +230,6 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="Node">The referenced node</param>
 		public BundleNodeRef(T Node) : base(Node)
 		{
-		}
-
-		/// <summary>
-		/// Gets the referenced node, loading it from storage if necessary
-		/// </summary>
-		/// <returns>The parsed node</returns>
-		public async ValueTask<T> GetAsync()
-		{
-			if (StrongRef == null)
-			{
-				if (WeakRef != null && WeakRef.TryGetTarget(out StrongRef))
-				{
-					WeakRef = null;
-				}
-				else
-				{
-					StrongRef = Deserializer.Deserialize(Bundle!, await Bundle!.GetDataAsync(Hash));
-				}
-			}
-			return (T)StrongRef;
 		}
 	}
 
@@ -248,18 +258,16 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Deserializes data from the given bundle
 		/// </summary>
-		/// <param name="Bundle">The bundle containing the data</param>
 		/// <param name="Data">Data to deserialize</param>
 		/// <returns>New node parsed from the data</returns>
-		public abstract T Deserialize(Bundle Bundle, ReadOnlyMemory<byte> Data);
+		public abstract T Deserialize(ReadOnlyMemory<byte> Data);
 
 		/// <summary>
 		/// Deserializes data from the given bundle
 		/// </summary>
-		/// <param name="Bundle">The bundle containing the data</param>
 		/// <param name="Data">Data to deserialize</param>
 		/// <returns>New node parsed from the data</returns>
-		public T Deserialize(Bundle Bundle, ReadOnlySequence<byte> Data)
+		public T Deserialize(ReadOnlySequence<byte> Data)
 		{
 			ReadOnlyMemory<byte> Memory;
 			if (Data.IsSingleSegment)
@@ -270,7 +278,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			{
 				Memory = Data.ToArray();
 			}
-			return Deserialize(Bundle, Memory);
+			return Deserialize(Memory);
 		}
 	}
 }

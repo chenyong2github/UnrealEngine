@@ -79,6 +79,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 	{
 		const byte TypeId = (byte)'c';
 
+		static readonly ReadOnlyMemory<byte> DefaultSegment = CreateFirstSegmentData(0, Array.Empty<byte>());
+
 		class DataSegment : ReadOnlySequenceSegment<byte>
 		{
 			public DataSegment(long RunningIndex, ReadOnlyMemory<byte> Data)
@@ -95,7 +97,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 		internal int Depth { get; private set; }
 		internal ReadOnlySequence<byte> Payload { get; private set; }
-		ReadOnlySequence<byte> Data; // Full serialized data, including type id and header fields.
+		ReadOnlySequence<byte> Data = new ReadOnlySequence<byte>(DefaultSegment); // Full serialized data, including type id and header fields.
 		IoHash? Hash; // Hash of the serialized data buffer.
 
 		// In-memory state
@@ -133,7 +135,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Create a file node from deserialized data
 		/// </summary>
-		public static FileNode Deserialize(Bundle Bundle, ReadOnlyMemory<byte> Data)
+		public static FileNode Deserialize(ReadOnlyMemory<byte> Data)
 		{
 			ReadOnlySpan<byte> Span = Data.Span;
 			if (Span[0] != TypeId)
@@ -165,7 +167,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				while (Span.Length > 0)
 				{
 					IoHash ChildHash = new IoHash(Span);
-					Node.ChildNodeRefs.Add(new BundleNodeRef<FileNode>(Bundle, ChildHash));
+					Node.ChildNodeRefs.Add(new BundleNodeRef<FileNode>(ChildHash));
 				}
 			}
 			return Node;
@@ -175,11 +177,11 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// Serialize this node and its children into a byte array
 		/// </summary>
 		/// <returns>Array of data stored by the tree</returns>
-		public async Task<byte[]> ToByteArrayAsync()
+		public async Task<byte[]> ToByteArrayAsync(Bundle Bundle)
 		{
 			using (MemoryStream Stream = new MemoryStream())
 			{
-				await CopyToStreamAsync(Stream);
+				await CopyToStreamAsync(Bundle, Stream);
 				return Stream.ToArray();
 			}
 		}
@@ -221,15 +223,16 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Copies the contents of this node and its children to the given output stream
 		/// </summary>
+		/// <param name="Bundle">Bundle that can provide node data</param>
 		/// <param name="OutputStream">The output stream to receive the data</param>
-		public async Task CopyToStreamAsync(Stream OutputStream)
+		public async Task CopyToStreamAsync(Bundle Bundle, Stream OutputStream)
 		{
 			if (ChildNodeRefs != null)
 			{
 				foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
 				{
-					FileNode ChildNode = await ChildNodeRef.GetAsync();
-					await ChildNode.CopyToStreamAsync(OutputStream);
+					FileNode ChildNode = ChildNodeRef.Node ?? await Bundle.GetAsync(ChildNodeRef);
+					await ChildNode.CopyToStreamAsync(Bundle, OutputStream);
 				}
 			}
 			else
@@ -244,13 +247,14 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Extracts the contents of this node to a file
 		/// </summary>
+		/// <param name="Bundle">Bundle that can provide node data</param>
 		/// <param name="File">File to write with the contents of this node</param>
 		/// <returns></returns>
-		public async Task CopyToFileAsync(FileInfo File)
+		public async Task CopyToFileAsync(Bundle Bundle, FileInfo File)
 		{
 			using (FileStream Stream = File.OpenWrite())
 			{
-				await CopyToStreamAsync(Stream);
+				await CopyToStreamAsync(Bundle, Stream);
 			}
 		}
 
@@ -428,13 +432,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 			if (LastSegment == null)
 			{
-				byte[] Buffer = new byte[1 + DepthBytes + LeafData.Length];
-				Buffer[0] = TypeId;
-
-				VarInt.Write(Buffer.AsSpan(1, DepthBytes), Depth);
-				LeafData.CopyTo(Buffer.AsSpan(1 + DepthBytes));
-
-				FirstSegment = LastSegment = new DataSegment(0, Buffer);
+				byte[] Buffer = CreateFirstSegmentData(Depth, LeafData);
+				FirstSegment = new DataSegment(0, Buffer);
+				LastSegment = FirstSegment;
 			}
 			else
 			{
@@ -443,10 +443,24 @@ namespace EpicGames.Horde.Bundles.Nodes
 				LastSegment = NewSegment;
 			}
 
+			int HeaderSize = (int)(Data.Length - Payload.Length);
 			Data = new ReadOnlySequence<byte>(FirstSegment!, 0, LastSegment, LastSegment.Memory.Length);
-			Payload = Data.Slice(1 + DepthBytes);
+			Payload = Data.Slice(HeaderSize);
 
 			Length += LeafData.Length;
+		}
+
+		private static byte[] CreateFirstSegmentData(int Depth, ReadOnlySpan<byte> LeafData)
+		{
+			int DepthBytes = VarInt.Measure(Depth);
+
+			byte[] Buffer = new byte[1 + DepthBytes + LeafData.Length];
+			Buffer[0] = TypeId;
+
+			VarInt.Write(Buffer.AsSpan(1, DepthBytes), Depth);
+			LeafData.CopyTo(Buffer.AsSpan(1 + DepthBytes));
+
+			return Buffer;
 		}
 
 		private void MarkComplete()
@@ -538,6 +552,6 @@ namespace EpicGames.Horde.Bundles.Nodes
 	public class FileNodeDeserializer : BundleNodeDeserializer<FileNode>
 	{
 		/// <inheritdoc/>
-		public override FileNode Deserialize(Bundle Bundle, ReadOnlyMemory<byte> Data) => FileNode.Deserialize(Bundle, Data);
+		public override FileNode Deserialize(ReadOnlyMemory<byte> Data) => FileNode.Deserialize(Data);
 	}
 }

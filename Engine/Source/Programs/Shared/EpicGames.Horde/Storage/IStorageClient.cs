@@ -354,7 +354,23 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public static Task<IoHash> WriteObjectAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, T Object)
 		{
-			return WriteObjectAsync(StorageClient, NamespaceId, CbSerializer.Serialize<T>(Object));
+			CbWriter Writer = new CbWriter();
+			CbSerializer.Serialize<T>(Writer, Object);
+			return WriteObjectAsync(StorageClient, NamespaceId, Writer);
+		}
+
+		/// <summary>
+		/// Gets a blob as a byte array
+		/// </summary>
+		/// <param name="StorageClient">The storage interface</param>
+		/// <param name="NamespaceId">Namespace containing the blob</param>
+		/// <param name="Writer">The object to be written</param>
+		/// <returns></returns>
+		public static async Task<IoHash> WriteObjectAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, CbWriter Writer)
+		{
+			IoHash Hash = Writer.ComputeHash();
+			await StorageClient.WriteBlobAsync(NamespaceId, Hash, Writer.AsStream());
+			return Hash;
 		}
 
 		/// <summary>

@@ -4,6 +4,7 @@ using EpicGames.Core;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -838,6 +839,22 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Computes the hash for this object
+		/// </summary>
+		/// <returns>Hash for the object</returns>
+		public IoHash ComputeHash()
+		{
+			using (Blake3.Hasher Hasher = Blake3.Hasher.New())
+			{
+				foreach (ReadOnlyMemory<byte> Segment in EnumerateSegments())
+				{
+					Hasher.Update(Segment.Span);
+				}
+				return IoHash.FromBlake3(Hasher);
+			}
+		}
+
+		/// <summary>
 		/// Gets the size of the serialized data
 		/// </summary>
 		/// <returns></returns>
@@ -849,6 +866,37 @@ namespace EpicGames.Serialization
 			}
 
 			return CurrentOffset + ComputeSizeOfChildHeaders(CurrentScope);
+		}
+
+		/// <summary>
+		/// Gets the contents of this writer as a stream
+		/// </summary>
+		/// <returns>New stream for the contents of this object</returns>
+		public Stream AsStream() => new ReadStream(EnumerateSegments().GetEnumerator(), GetSize());
+
+		private IEnumerable<ReadOnlyMemory<byte>> EnumerateSegments()
+		{
+			byte[] ScopeHeader = new byte[64];
+
+			int SourceOffset = 0;
+			foreach (Chunk Chunk in Chunks)
+			{
+				foreach (Scope Scope in Chunk.Scopes)
+				{
+					ReadOnlyMemory<byte> SourceData = Chunk.Data.AsMemory(SourceOffset - Chunk.Offset, Scope.Offset - SourceOffset);
+					yield return SourceData;
+
+					SourceOffset += SourceData.Length;
+
+					int HeaderLength = WriteScopeHeader(ScopeHeader, Scope);
+					yield return ScopeHeader.AsMemory(0, HeaderLength);
+				}
+
+				ReadOnlyMemory<byte> LastSourceData = Chunk.Data.AsMemory(SourceOffset - Chunk.Offset, (Chunk.Offset + Chunk.Length) - SourceOffset);
+				yield return LastSourceData;
+
+				SourceOffset += LastSourceData.Length;
+			}
 		}
 
 		/// <summary>
@@ -878,6 +926,79 @@ namespace EpicGames.Serialization
 				BufferOffset += LastSourceData.Length;
 				SourceOffset += LastSourceData.Length;
 			}
+		}
+
+		class ReadStream : Stream
+		{
+			IEnumerator<ReadOnlyMemory<byte>> Enumerator;
+			ReadOnlyMemory<byte> Segment;
+			long PositionInternal;
+
+			public ReadStream(IEnumerator<ReadOnlyMemory<byte>> Enumerator, long Length)
+			{
+				this.Enumerator = Enumerator;
+				this.Length = Length;
+			}
+
+			/// <inheritdoc/>
+			public override bool CanRead => true;
+
+			/// <inheritdoc/>
+			public override bool CanSeek => false;
+
+			/// <inheritdoc/>
+			public override bool CanWrite => false;
+
+			/// <inheritdoc/>
+			public override long Length { get; }
+
+			/// <inheritdoc/>
+			public override long Position
+			{
+				get => PositionInternal;
+				set => throw new NotSupportedException();
+			}
+
+			/// <inheritdoc/>
+			public override void Flush() { }
+
+			/// <inheritdoc/>
+			public override int Read(Span<byte> Buffer)
+			{
+				int ReadLength = 0;
+				while (ReadLength < Buffer.Length)
+				{
+					while (Segment.Length == 0)
+					{
+						if (!Enumerator.MoveNext())
+						{
+							return ReadLength;
+						}
+						Segment = Enumerator.Current;
+					}
+
+					int CopyLength = Math.Min(Segment.Length, Buffer.Length);
+
+					Segment.Span.Slice(0, CopyLength).CopyTo(Buffer.Slice(ReadLength));
+					Segment = Segment.Slice(CopyLength);
+
+					PositionInternal += CopyLength;
+					ReadLength += CopyLength;
+				}
+				return ReadLength;
+			}
+
+			/// <inheritdoc/>
+			public override int Read(byte[] Buffer, int Offset, int Count) => Read(Buffer.AsSpan(Offset, Count));
+
+			/// <inheritdoc/>
+			public override long Seek(long Offset, SeekOrigin Origin) => throw new NotSupportedException();
+
+			/// <inheritdoc/>
+			public override void SetLength(long Value) => throw new NotSupportedException();
+
+			/// <inheritdoc/>
+			public override void Write(byte[] Buffer, int Offset, int Count) => throw new NotSupportedException();
 		}
 
 		/// <summary>

@@ -185,7 +185,7 @@ namespace EpicGames.Horde.Bundles
 				NodeInfo? Node;
 				if (!Blob.Nodes.TryGetValue(Export.Hash, out Node))
 				{
-					Node = new NodeInfo(Export.Hash, Export.Rank, Export.Cost, Blob);
+					Node = new NodeInfo(Export.Hash, Export.Rank, Export.Length, Blob);
 					Blob.Nodes.Add(Export.Hash, Node);
 				}
 				Blob.References.Add(Node);
@@ -206,7 +206,7 @@ namespace EpicGames.Horde.Bundles
 					NodeInfo? Node;
 					if (!ImportBlob.Nodes.TryGetValue(Import.Hash, out Node))
 					{
-						Node = new NodeInfo(Import.Hash, Import.Rank, Import.Cost, ImportBlob);
+						Node = new NodeInfo(Import.Hash, Import.Rank, Import.Length, ImportBlob);
 						ImportBlob.Nodes.Add(Import.Hash, Node);
 					}
 					Blob.References.Add(Node);
@@ -264,7 +264,6 @@ namespace EpicGames.Horde.Bundles
 			using StreamWriter Writer = new StreamWriter(FileReference.Open(File, FileMode.Create));
 
 			Writer.WriteLine("schema: {0}", Object.Schema);
-			Writer.WriteLine("time: \"{0}\"", Object.CreationTimeUtc.ToString("u"));
 
 			List<IoHash> References = new List<IoHash>(Object.Exports.Select(x => x.Hash));
 			if (Object.ImportObjects.Count > 0)
@@ -278,7 +277,7 @@ namespace EpicGames.Horde.Bundles
 					{
 						Writer.WriteLine($"  - hash: \"{Import.Hash}\"");
 						Writer.WriteLine($"    rank: \"{Import.Rank}\"");
-						Writer.WriteLine($"    cost: \"{Import.Cost}\"");
+						Writer.WriteLine($"    cost: \"{Import.Length}\"");
 						Writer.WriteLine("");
 						References.Add(Import.Hash);
 					}

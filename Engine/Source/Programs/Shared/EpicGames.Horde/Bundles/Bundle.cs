@@ -69,22 +69,27 @@ namespace EpicGames.Horde.Bundles
 		{
 			public IoHash Hash { get; }
 			public int Rank { get; }
-			public int Cost { get; }
+			public int Length { get; }
 
 			public BlobInfo? Blob;
 			public BundleExport? Export;
 			public ReadOnlySequence<byte> Data;
 			public NodeInfo[]? References;
 
-			public NodeInfo(IoHash Hash, int Rank, int Cost)
+			public NodeInfo(IoHash Hash, int Rank, int Length)
 			{
+				if (Length <= 0)
+				{
+					throw new ArgumentException("Node length must be greater than zero", nameof(Length));
+				}
+
 				this.Hash = Hash;
 				this.Rank = Rank;
-				this.Cost = Cost;
+				this.Length = Length;
 			}
 
 			public NodeInfo(BlobInfo Blob, BundleImport Import)
-				: this(Import.Hash, Import.Rank, Import.Cost)
+				: this(Import.Hash, Import.Rank, Import.Length)
 			{
 				this.Blob = Blob;
 			}
@@ -109,23 +114,21 @@ namespace EpicGames.Horde.Bundles
 		class BlobInfo
 		{
 			public IoHash Hash { get; }
-			public DateTime CreationTimeUtc { get; }
 			public int TotalCost { get; }
 
 			public bool Mounted { get; set; }
 			public List<NodeInfo>? LiveNodes { get; set; }
 
-			public BlobInfo(IoHash Hash, DateTime CreationTimeUtc, int TotalCost)
+			public BlobInfo(IoHash Hash, int TotalCost)
 			{
 				this.Hash = Hash;
-				this.CreationTimeUtc = CreationTimeUtc;
 				this.TotalCost = TotalCost;
 			}
- 		}
+		}
 
 		readonly IStorageClient StorageClient;
 		readonly NamespaceId NamespaceId;
-		
+
 		object RootCacheKey = new object();
 
 		/// <summary>
@@ -136,6 +139,9 @@ namespace EpicGames.Horde.Bundles
 		Dictionary<IoHash, NodeInfo> HashToNode = new Dictionary<IoHash, NodeInfo>();
 		Dictionary<IoHash, BlobInfo> HashToBlob = new Dictionary<IoHash, BlobInfo>();
 		IMemoryCache? Cache;
+
+		CbWriter SharedWriter = new CbWriter();
+		byte[] SharedBlobBuffer = Array.Empty<byte>();
 
 		/// <summary>
 		/// Options for the bundle
@@ -213,9 +219,9 @@ namespace EpicGames.Horde.Bundles
 			NewBundle.RegisterObject(null, Object, Object.Data);
 
 			IoHash RootHash = Object.Exports[Object.Exports.Count - 1].Hash;
-			BundleNodeRef<T> RootRef = new BundleNodeRef<T>(NewBundle, RootHash);
+			BundleNodeRef<T> RootRef = new BundleNodeRef<T>(RootHash);
 
-			((Bundle)NewBundle).Root = await RootRef.GetAsync();
+			((Bundle)NewBundle).Root = await NewBundle.GetAsync(RootRef);
 			return NewBundle;
 		}
 
@@ -254,7 +260,6 @@ namespace EpicGames.Horde.Bundles
 
 			foreach (BundleNodeRef ChildRef in Node.GetReferences())
 			{
-				ChildRef.Bundle ??= this;
 				ChildRef.ParentRef ??= IncomingRef;
 
 				if (ChildRef.Node != null && ChildRef.LastModifiedTime != 0)
@@ -286,22 +291,19 @@ namespace EpicGames.Horde.Bundles
 			List<NodeInfo> WriteNodes = new List<NodeInfo>();
 			FindNodesToWrite(Root, WriteNodes, new HashSet<NodeInfo>());
 
-			// Timestamp for any flushed objects
-			DateTime UtcNow = DateTime.UtcNow;
-
 			// Write them all to storage
 			int MinNodeIdx = 0;
 			int NextBlobCost = 0;
 			for (int Idx = 0; Idx < WriteNodes.Count; Idx++)
 			{
 				NodeInfo Node = WriteNodes[Idx];
-				if (Idx > MinNodeIdx && NextBlobCost + Node.Cost > Options.MaxBlobSize)
+				if (Idx > MinNodeIdx && NextBlobCost + Node.Length > Options.MaxBlobSize)
 				{
-					await WriteObjectAsync(WriteNodes.Slice(MinNodeIdx, Idx - MinNodeIdx), UtcNow);
+					await WriteObjectAsync(WriteNodes.Slice(MinNodeIdx, Idx - MinNodeIdx));
 					MinNodeIdx = Idx;
 					NextBlobCost = 0;
 				}
-				NextBlobCost += Node.Cost;
+				NextBlobCost += Node.Length;
 			}
 		}
 
@@ -330,6 +332,22 @@ namespace EpicGames.Horde.Bundles
 				}
 				WriteNodes.Add(Node);
 			}
+		}
+
+		/// <summary>
+		/// Gets the node referenced by a <see cref="BundleNodeRef{T}"/>, reading it from storage and deserializing it if necessary.
+		/// </summary>
+		/// <typeparam name="T">Type of node to return</typeparam>
+		/// <param name="Ref">The reference to get</param>
+		/// <returns>The deserialized node</returns>
+		public async ValueTask<T> GetAsync<T>(BundleNodeRef<T> Ref) where T : BundleNode
+		{
+			if (!Ref.MakeStrongRef())
+			{
+				ReadOnlySequence<byte> Data = await GetDataAsync(Ref.Hash);
+				Ref.Node = BundleNode.Deserialize<T>(Data);
+			}
+			return Ref.Node!;
 		}
 
 		/// <summary>
@@ -496,7 +514,7 @@ namespace EpicGames.Horde.Bundles
 			List<NodeInfo> Nodes = new List<NodeInfo>();
 			foreach (BundleExport Export in Object.Exports)
 			{
-				NodeInfo Node = FindOrAddNode(Export.Hash, Export.Rank, Export.Cost);
+				NodeInfo Node = FindOrAddNode(Export.Hash, Export.Rank, Export.Length);
 				Nodes.Add(Node);
 			}
 			foreach (BundleImportObject ImportObject in Object.ImportObjects)
@@ -504,12 +522,12 @@ namespace EpicGames.Horde.Bundles
 				BlobInfo? ImportBlob;
 				if (!HashToBlob.TryGetValue(ImportObject.Object.Hash, out ImportBlob))
 				{
-					ImportBlob = new BlobInfo(ImportObject.Object.Hash, ImportObject.CreationTimeUtc, ImportObject.TotalCost);
+					ImportBlob = new BlobInfo(ImportObject.Object.Hash, ImportObject.TotalCost);
 					HashToBlob[ImportObject.Object.Hash] = ImportBlob;
 				}
 				foreach (BundleImport Import in ImportObject.Imports)
 				{
-					NodeInfo Node = FindOrAddNode(Import.Hash, Import.Rank, Import.Cost);
+					NodeInfo Node = FindOrAddNode(Import.Hash, Import.Rank, Import.Length);
 					if(Node.Blob == null)
 					{
 						Node.SetImport(ImportBlob);
@@ -530,8 +548,7 @@ namespace EpicGames.Horde.Bundles
 		/// <param name="BucketId"></param>
 		/// <param name="RefId"></param>
 		/// <param name="Compact"></param>
-		/// <param name="UtcNow"></param>
-		public virtual async Task WriteAsync(BucketId BucketId, RefId RefId, bool Compact, DateTime UtcNow)
+		public virtual async Task WriteAsync(BucketId BucketId, RefId RefId, bool Compact)
 		{
 			// Completely flush the entire working set into NodeInfo objects
 			SerializeWorkingSet(0);
@@ -565,7 +582,7 @@ namespace EpicGames.Horde.Bundles
 				// Figure out which blobs need to be repacked
 				foreach (BlobInfo LiveBlob in LiveBlobs)
 				{
-					int LiveCost = LiveBlob.LiveNodes.Sum(x => x.Cost);
+					int LiveCost = LiveBlob.LiveNodes.Sum(x => x.Length);
 					int MinLiveCost = (int)(LiveBlob.TotalCost * Options.RepackRatio);
 
 					if (LiveCost < MinLiveCost)
@@ -604,27 +621,27 @@ namespace EpicGames.Horde.Bundles
 			NodeInfo[] WriteNodes = NewNodes.Where(x => x.Blob == null).OrderBy(x => x.Rank).ThenBy(x => x.Hash).ToArray();
 
 			int MinIdx = 0;
-			int NextBlobCost = WriteNodes[0].Cost;
+			int NextBlobCost = WriteNodes[0].Length;
 
 			for (int MaxIdx = 1; MaxIdx < WriteNodes.Length; MaxIdx++)
 			{
-				NextBlobCost += WriteNodes[MaxIdx].Cost;
+				NextBlobCost += WriteNodes[MaxIdx].Length;
 				if (NextBlobCost > Options.MaxBlobSize)
 				{
-					await WriteObjectAsync(WriteNodes.Slice(MinIdx, MaxIdx - MinIdx), UtcNow);
+					await WriteObjectAsync(WriteNodes.Slice(MinIdx, MaxIdx - MinIdx));
 					MinIdx = MaxIdx;
-					NextBlobCost = WriteNodes[MaxIdx].Cost;
+					NextBlobCost = WriteNodes[MaxIdx].Length;
 				}
 			}
 
 			if (NextBlobCost > Options.MaxInlineBlobSize && MinIdx + 1 < WriteNodes.Length)
 			{
-				await WriteObjectAsync(WriteNodes.Slice(MinIdx, WriteNodes.Length - 1 - MinIdx), UtcNow);
+				await WriteObjectAsync(WriteNodes.Slice(MinIdx, WriteNodes.Length - 1 - MinIdx));
 				MinIdx = WriteNodes.Length - 1;
 			}
 
 			// Write the final ref
-			await WriteRefAsync(WriteNodes.Slice(MinIdx), BucketId, RefId, UtcNow);
+			await WriteRefAsync(WriteNodes.Slice(MinIdx), BucketId, RefId);
 		}
 
 		private void FindModifiedLiveSet(NodeInfo Node, HashSet<NodeInfo> Nodes)
@@ -660,10 +677,11 @@ namespace EpicGames.Horde.Bundles
 			}
 		}
 
-		async Task WriteRefAsync(IReadOnlyList<NodeInfo> Nodes, BucketId BucketId, RefId RefId, DateTime UtcNow)
+		async Task WriteRefAsync(IReadOnlyList<NodeInfo> Nodes, BucketId BucketId, RefId RefId)
 		{
-			BundleObject Object = await CreateObjectAsync(Nodes, UtcNow);
+			BundleObject Object = await CreateObjectAsync(Nodes);
 			await StorageClient.SetRefAsync(NamespaceId, BucketId, RefId, Object);
+			Object.Data = Object.Data.ToArray(); // Duplicated since its lifetime persists beyond this function. See remarks in CreateObjectAsync.
 
 			foreach (NodeInfo Node in Nodes)
 			{
@@ -674,12 +692,24 @@ namespace EpicGames.Horde.Bundles
 			RootCacheKey = new object();
 		}
 
-		async Task WriteObjectAsync(IReadOnlyList<NodeInfo> Nodes, DateTime UtcNow)
+		ReadOnlyMemory<byte> EncodeObject(BundleObject Object)
 		{
-			BundleObject Object = await CreateObjectAsync(Nodes, UtcNow);
-			IoHash Hash = await StorageClient.WriteObjectAsync(NamespaceId, Object);
+			SharedWriter.Clear();
+			CbSerializer.Serialize(SharedWriter, Object);
 
-			BlobInfo Blob = new BlobInfo(Hash, Object.CreationTimeUtc, Object.Exports.Sum(x => x.Cost));
+			int Size = SharedWriter.GetSize();
+			CreateFreeSpace(ref SharedBlobBuffer, 0, Math.Max(Size, Options.MaxBlobSize));
+
+			SharedWriter.CopyTo(SharedBlobBuffer.AsSpan(0, Size));
+			return SharedBlobBuffer.AsMemory(0, Size);
+		}
+
+		async Task WriteObjectAsync(IReadOnlyList<NodeInfo> Nodes)
+		{
+			BundleObject Object = await CreateObjectAsync(Nodes);
+			IoHash Hash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, EncodeObject(Object));
+
+			BlobInfo Blob = new BlobInfo(Hash, Object.Exports.Sum(x => x.Length));
 			foreach (NodeInfo Node in Nodes)
 			{
 				Node.Blob = Blob;
@@ -687,8 +717,17 @@ namespace EpicGames.Horde.Bundles
 			}
 		}
 
-		async Task<BundleObject> CreateObjectAsync(IReadOnlyList<NodeInfo> Nodes, DateTime UtcNow)
+		/// <summary>
+		/// Creates a BundleObject instance. 
+		///
+		/// WARNING: The <see cref="BundleObject.Data"/> member will be set to the value of <see cref="EncodedBuffer"/> on return, which will be
+		/// reused on a subsequent call. If the object needs to be persisted across the lifetime of other objects, this field must be duplicated.
+		/// </summary>
+		async Task<BundleObject> CreateObjectAsync(IReadOnlyList<NodeInfo> Nodes)
 		{
+			// Preallocate data in the encoded buffer to reduce fragmentation if we have to resize
+			CreateFreeSpace(ref EncodedBuffer, 0, Options.MaxBlobSize);
+
 			// Find node indices for all the export
 			Dictionary<NodeInfo, int> NodeToIndex = new Dictionary<NodeInfo, int>();
 			foreach (NodeInfo Node in Nodes)
@@ -698,7 +737,6 @@ namespace EpicGames.Horde.Bundles
 
 			// Create the new object
 			BundleObject Object = new BundleObject();
-			Object.CreationTimeUtc = UtcNow;
 
 			// Find all the imported nodes
 			HashSet<NodeInfo> ImportedNodes = new HashSet<NodeInfo>();
@@ -719,8 +757,8 @@ namespace EpicGames.Horde.Bundles
 					NodeToIndex[ImportNode] = NodeToIndex.Count;
 				}
 
-				List<BundleImport> Imports = ImportGroup.Select(x => new BundleImport(x.Hash, x.Rank, x.Cost)).ToList();
-				BundleImportObject ImportObject = new BundleImportObject(Blob.CreationTimeUtc, new CbObjectAttachment(Blob.Hash), Blob.TotalCost, Imports);
+				List<BundleImport> Imports = ImportGroup.Select(x => new BundleImport(x.Hash, x.Rank, x.Length)).ToList();
+				BundleImportObject ImportObject = new BundleImportObject(new CbObjectAttachment(Blob.Hash), Blob.TotalCost, Imports);
 				Object.ImportObjects.Add(ImportObject);
 			}
 
@@ -743,7 +781,7 @@ namespace EpicGames.Horde.Bundles
 
 				// Create the export for this node
 				int[] References = Node.References.Select(x => NodeToIndex[x]).ToArray();
-				Node.Export = new BundleExport(Node.Hash, Node.Rank, Node.Cost, Packet, Packet.DecodedLength, (int)NodeData.Length, References);
+				Node.Export = new BundleExport(Node.Hash, Node.Rank, Packet, Packet.DecodedLength, Node.Length, References);
 				Object.Exports.Add(Node.Export);
 
 				// Write out the new block
@@ -767,8 +805,7 @@ namespace EpicGames.Horde.Bundles
 			FlushPacket(BlockBuffer.AsMemory(0, BlockSize), Packet);
 
 			// Flush the data
-			Object.Data = EncodedBuffer.AsSpan(0, Packet.Offset + Packet.EncodedLength).ToArray();
-
+			Object.Data = EncodedBuffer.AsMemory(0, Packet.Offset + Packet.EncodedLength);
 			return Object;
 		}
 

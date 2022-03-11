@@ -39,7 +39,7 @@ namespace HordeServer.Commands.Bundles
 			using (IMemoryCache Cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 1024 * 1024 * 1000 }))
 			{
 				Bundle<DirectoryNode> NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, new BundleOptions(), Cache);
-				await NewBundle.Root.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), Logger);
+				await NewBundle.Root.CopyToDirectoryAsync(NewBundle, OutputDir.ToDirectoryInfo(), Logger);
 			}
 			return 0;
 		}

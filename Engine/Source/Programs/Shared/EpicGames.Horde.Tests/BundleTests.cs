@@ -88,24 +88,19 @@ namespace HordeServerTests
 		[TestMethod]
 		public void SerializationTests()
 		{
-			DateTime UtcNow = DateTime.UtcNow;
-
 			List<BundleImport> Imports = new List<BundleImport>();
 			Imports.Add(new BundleImport(IoHash.Compute(Encoding.UTF8.GetBytes("import1")), 0, 123));
 			Imports.Add(new BundleImport(IoHash.Compute(Encoding.UTF8.GetBytes("import2")), 1, 456));
 
 			BundleObject OldObject = new BundleObject();
-			OldObject.CreationTimeUtc = DateTime.UtcNow;
-			OldObject.ImportObjects.Add(new BundleImportObject(UtcNow - TimeSpan.FromMinutes(5.0), new CbObjectAttachment(IoHash.Compute(new byte[] { 1, 2, 3 })), 12345, Imports));
-			OldObject.Exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 2, 5, new BundleCompressionPacket(0) { EncodedLength = 20, DecodedLength = 40 }, 0, 40, new int[] { 1, 2 }));
-			OldObject.Exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export2")), 3, 6, new BundleCompressionPacket(20) { EncodedLength = 10, DecodedLength = 20 }, 0, 20, new int[] { -1 }));
+			OldObject.ImportObjects.Add(new BundleImportObject(new CbObjectAttachment(IoHash.Compute(new byte[] { 1, 2, 3 })), 12345, Imports));
+			OldObject.Exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 2, new BundleCompressionPacket(0) { EncodedLength = 20, DecodedLength = 40 }, 0, 40, new int[] { 1, 2 }));
+			OldObject.Exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export2")), 3, new BundleCompressionPacket(20) { EncodedLength = 10, DecodedLength = 20 }, 0, 20, new int[] { -1 }));
 
 			CbObject SerializedObject = CbSerializer.Serialize(OldObject);
 			ReadOnlyMemory<byte> SerializedData = SerializedObject.GetView();
 
 			BundleObject NewObject = CbSerializer.Deserialize<BundleObject>(SerializedData);
-
-			Assert.AreEqual(OldObject.CreationTimeUtc, NewObject.CreationTimeUtc);
 
 			Assert.AreEqual(OldObject.ImportObjects.Count, NewObject.ImportObjects.Count);
 			for (int Idx = 0; Idx < OldObject.ImportObjects.Count; Idx++)
@@ -113,7 +108,6 @@ namespace HordeServerTests
 				BundleImportObject OldObjectImport = OldObject.ImportObjects[Idx];
 				BundleImportObject NewObjectImport = NewObject.ImportObjects[Idx];
 
-				Assert.AreEqual(OldObjectImport.CreationTimeUtc, NewObjectImport.CreationTimeUtc);
 				Assert.AreEqual(OldObjectImport.Object, NewObjectImport.Object);
 				Assert.AreEqual(OldObjectImport.TotalCost, NewObjectImport.TotalCost);
 				Assert.AreEqual(OldObjectImport.Imports.Count, NewObjectImport.Imports.Count);
@@ -125,7 +119,7 @@ namespace HordeServerTests
 
 					Assert.AreEqual(OldImport.Hash, NewImport.Hash);
 					Assert.AreEqual(OldImport.Rank, NewImport.Rank);
-					Assert.AreEqual(OldImport.Cost, NewImport.Cost);
+					Assert.AreEqual(OldImport.Length, NewImport.Length);
 				}
 			}
 
@@ -137,7 +131,7 @@ namespace HordeServerTests
 
 				Assert.AreEqual(OldExport.Hash, NewExport.Hash);
 				Assert.AreEqual(OldExport.Rank, NewExport.Rank);
-				Assert.AreEqual(OldExport.Cost, NewExport.Cost);
+				Assert.AreEqual(OldExport.Length, NewExport.Length);
 				Assert.AreEqual(OldExport.Packet.Offset, NewExport.Packet.Offset);
 				Assert.AreEqual(OldExport.Packet.EncodedLength, NewExport.Packet.EncodedLength);
 				Assert.AreEqual(OldExport.Packet.DecodedLength, NewExport.Packet.DecodedLength);
@@ -155,7 +149,7 @@ namespace HordeServerTests
 			DirectoryNode Node2 = Node.AddDirectory("world");
 
 			RefId RefId = new RefId("testref");
-			await NewBundle.WriteAsync(BucketId, RefId, false, DateTime.MinValue);
+			await NewBundle.WriteAsync(BucketId, RefId, false);
 
 			// Should be stored inline
 			Assert.AreEqual(1, StorageClient.Refs.Count);
@@ -173,12 +167,12 @@ namespace HordeServerTests
 
 			Assert.AreEqual(0, NewBundle.Root.Files.Count);
 			Assert.AreEqual(1, NewBundle.Root.Directories.Count);
-			DirectoryNode? OutputNode = await NewBundle.Root.FindDirectoryAsync("hello");
+			DirectoryNode? OutputNode = await NewBundle.FindDirectoryAsync(NewBundle.Root, "hello");
 			Assert.IsNotNull(OutputNode);
 
 			Assert.AreEqual(0, OutputNode!.Files.Count);
 			Assert.AreEqual(1, OutputNode!.Directories.Count);
-			DirectoryNode? OutputNode2 = await OutputNode!.FindDirectoryAsync("world");
+			DirectoryNode? OutputNode2 = await NewBundle.FindDirectoryAsync(OutputNode, "world");
 			Assert.IsNotNull(OutputNode2);
 
 			Assert.AreEqual(0, OutputNode2!.Files.Count);
@@ -202,7 +196,7 @@ namespace HordeServerTests
 			Assert.AreEqual(0, StorageClient.Blobs.Count);
 
 			RefId RefId = new RefId("ref");
-			await Bundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
+			await Bundle.WriteAsync(BucketId, RefId, false);
 
 			Assert.AreEqual(1, StorageClient.Refs.Count);
 			Assert.AreEqual(1, StorageClient.Blobs.Count);
@@ -223,31 +217,29 @@ namespace HordeServerTests
 			DirectoryNode Node4 = Node3.AddDirectory("node4");
 
 			RefId RefId = new RefId("ref");
-			await InitialBundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
+			await InitialBundle.WriteAsync(BucketId, RefId, false);
 
 			Assert.AreEqual(1, StorageClient.Refs.Count);
 			Assert.AreEqual(4, StorageClient.Blobs.Count);
 
 			Bundle<DirectoryNode> NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, Options, null);
 
-			DirectoryNode? NewNode1 = await NewBundle.Root.FindDirectoryAsync("node1");
+			DirectoryNode? NewNode1 = await NewBundle.FindDirectoryAsync(NewBundle.Root, "node1");
 			Assert.IsNotNull(NewNode1);
 
-			DirectoryNode? NewNode2 = await NewNode1!.FindDirectoryAsync("node2");
+			DirectoryNode? NewNode2 = await NewBundle.FindDirectoryAsync(NewNode1!, "node2");
 			Assert.IsNotNull(NewNode2);
 
-			DirectoryNode? NewNode3 = await NewNode2!.FindDirectoryAsync("node3");
+			DirectoryNode? NewNode3 = await NewBundle.FindDirectoryAsync(NewNode2!, "node3");
 			Assert.IsNotNull(NewNode3);
 
-			DirectoryNode? NewNode4 = await NewNode3!.FindDirectoryAsync("node4");
+			DirectoryNode? NewNode4 = await NewBundle.FindDirectoryAsync(NewNode3!, "node4");
 			Assert.IsNotNull(NewNode4);
 		}
 
 		[TestMethod]
 		public async Task CompactTest()
 		{
-			DateTime Time = DateTime.UtcNow;
-
 			BundleOptions Options = new BundleOptions();
 			Options.MaxBlobSize = 1024 * 1024;
 			Options.MaxInlineBlobSize = 1;
@@ -260,7 +252,7 @@ namespace HordeServerTests
 			DirectoryNode Node4 = Bundle.Root.AddDirectory("node4"); // same contents as node 3
 
 			RefId RefId1 = new RefId("ref1");
-			await Bundle.WriteAsync(BucketId, RefId1, false, Time);
+			await Bundle.WriteAsync(BucketId, RefId1, false);
 
 			Assert.AreEqual(1, StorageClient.Refs.Count);
 			Assert.AreEqual(1, StorageClient.Blobs.Count);
@@ -280,7 +272,7 @@ namespace HordeServerTests
 			Bundle.Root.DeleteDirectory("node1");
 
 			RefId RefId2 = new RefId("ref2");
-			await Bundle.WriteAsync(BucketId, RefId2, false, Time);
+			await Bundle.WriteAsync(BucketId, RefId2, false);
 
 			IRef Ref2 = StorageClient.Refs[(NamespaceId, BucketId, RefId2)];
 
@@ -295,7 +287,7 @@ namespace HordeServerTests
 
 			// Repack it and check that we make a new object
 			RefId RefId3 = new RefId("ref3");
-			await Bundle.WriteAsync(BucketId, RefId3, true, Time + TimeSpan.FromDays(7));
+			await Bundle.WriteAsync(BucketId, RefId3, true);
 
 			IRef Ref3 = StorageClient.Refs[(NamespaceId, BucketId, RefId3)];
 
@@ -325,7 +317,7 @@ namespace HordeServerTests
 			{
 				Node.Append(Data.AsMemory(Idx, 1), Options);
 
-				byte[] OutputData = await Node.ToByteArrayAsync();
+				byte[] OutputData = await Node.ToByteArrayAsync(null!);
 				Assert.IsTrue(Data.AsMemory(0, Idx + 1).Span.SequenceEqual(OutputData.AsSpan(0, Idx + 1)));
 			}
 		}
@@ -369,7 +361,7 @@ namespace HordeServerTests
 				Root.Append(Data, Options);
 			}
 
-			byte[] Result = await Root.ToByteArrayAsync();
+			byte[] Result = await Root.ToByteArrayAsync(null!);
 			Assert.AreEqual(NumIterations * Data.Length, Result.Length);
 
 			for (int Idx = 0; Idx < NumIterations; Idx++)
@@ -378,10 +370,10 @@ namespace HordeServerTests
 				Assert.IsTrue(SpanData.Span.SequenceEqual(Data));
 			}
 
-			await CheckSizes(Root, Options, true);
+			await CheckSizes(Bundle, Root, Options, true);
 		}
 
-		async Task CheckSizes(FileNode Node, ChunkingOptions Options, bool Rightmost)
+		async Task CheckSizes(Bundle Bundle, FileNode Node, ChunkingOptions Options, bool Rightmost)
 		{
 			if (Node.Depth == 0)
 			{
@@ -396,8 +388,8 @@ namespace HordeServerTests
 				int ChildCount = Node.Children.Count;
 				for (int Idx = 0; Idx < ChildCount; Idx++)
 				{
-					FileNode ChildNode = await Node.Children[Idx].GetAsync();
-					await CheckSizes(ChildNode, Options, Idx == ChildCount - 1);
+					FileNode ChildNode = await Bundle.GetAsync(Node.Children[Idx]);
+					await CheckSizes(Bundle, ChildNode, Options, Idx == ChildCount - 1);
 				}
 			}
 		}
@@ -423,7 +415,7 @@ namespace HordeServerTests
 						DirectoryNode NodeC = NodeB.AddDirectory($"{IdxC}");
 						for (int IdxD = 0; IdxD < 10; IdxD++)
 						{
-							FileNode File = NodeC.CreateFile($"{IdxD}", 0);
+							FileNode File = NodeC.AddFile($"{IdxD}", 0);
 							byte[] Data = Encoding.UTF8.GetBytes($"This is file {IdxA}/{IdxB}/{IdxC}/{IdxD}");
 							TotalLength += Data.Length;
 							File.Append(Data, new ChunkingOptions());
@@ -442,7 +434,7 @@ namespace HordeServerTests
 			Assert.IsTrue(StorageClient.Refs.Count == 0);
 
 			RefId RefId = new RefId("ref");
-			await Bundle.WriteAsync(BucketId, RefId, true, DateTime.UtcNow);
+			await Bundle.WriteAsync(BucketId, RefId, true);
 
 			Assert.AreEqual(TotalLength, Root.Length);
 

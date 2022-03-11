@@ -38,12 +38,6 @@ namespace EpicGames.Horde.Bundles
 		public int Schema { get; set; } = CurrentSchema;
 
 		/// <summary>
-		/// Time that this object was minted. Used to evaluate how likely it will be that a client will already have it.
-		/// </summary>
-		[CbField("time")]
-		public DateTime CreationTimeUtc { get; set; }
-
-		/// <summary>
 		/// Other objects that are referenced.
 		/// </summary>
 		[CbField("imports")]
@@ -69,12 +63,6 @@ namespace EpicGames.Horde.Bundles
 	[DebuggerDisplay("{Object}")]
 	public class BundleImportObject
 	{
-		/// <summary>
-		/// Time that the blob was created.
-		/// </summary>
-		[CbField("time")]
-		public DateTime CreationTimeUtc { get; set; }
-
 		/// <summary>
 		/// Imported object.
 		/// </summary>
@@ -104,9 +92,8 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleImportObject(DateTime CreationTimeUtc, CbObjectAttachment Object, int TotalCost, List<BundleImport> Imports)
+		public BundleImportObject(CbObjectAttachment Object, int TotalCost, List<BundleImport> Imports)
 		{
-			this.CreationTimeUtc = CreationTimeUtc;
 			this.Object = Object;
 			this.TotalCost = TotalCost;
 			this.Imports = Imports;
@@ -131,16 +118,21 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Decompressed size of this node
 		/// </summary>
-		public int Cost { get; }
+		public int Length { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleImport(IoHash Hash, int Rank, int Cost)
+		public BundleImport(IoHash Hash, int Rank, int Length)
 		{
+			if (Length <= 0)
+			{
+				throw new ArgumentException("Length must be greater than zero", nameof(Length));
+			}
+
 			this.Hash = Hash;
 			this.Rank = Rank;
-			this.Cost = Cost;
+			this.Length = Length;
 		}
 	}
 
@@ -171,7 +163,7 @@ namespace EpicGames.Horde.Bundles
 
 		static byte[] Serialize(List<BundleImport> Imports)
 		{
-			byte[] Data = new byte[Imports.Sum(x => IoHash.NumBytes + VarInt.Measure(x.Rank) + VarInt.Measure(x.Cost))];
+			byte[] Data = new byte[Imports.Sum(x => IoHash.NumBytes + VarInt.Measure(x.Rank) + VarInt.Measure(x.Length))];
 
 			Span<byte> Span = Data;
 			foreach (BundleImport Import in Imports)
@@ -182,7 +174,7 @@ namespace EpicGames.Horde.Bundles
 				int RankBytes = VarInt.Write(Span, Import.Rank);
 				Span = Span.Slice(RankBytes);
 
-				int CostBytes = VarInt.Write(Span, Import.Cost);
+				int CostBytes = VarInt.Write(Span, Import.Length);
 				Span = Span.Slice(CostBytes);
 			}
 
@@ -236,11 +228,6 @@ namespace EpicGames.Horde.Bundles
 		public int Offset { get; }
 
 		/// <summary>
-		/// Length of the node within the decompressed packet
-		/// </summary>
-		public int Length { get; }
-
-		/// <summary>
 		/// References to other nodes.
 		/// </summary>
 		public int[] References { get; }
@@ -248,12 +235,11 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(IoHash Hash, int Rank, int Cost, BundleCompressionPacket Packet, int Offset, int Length, int[] References)
-			: base(Hash, Rank, Cost)
+		public BundleExport(IoHash Hash, int Rank, BundleCompressionPacket Packet, int Offset, int Length, int[] References)
+			: base(Hash, Rank, Length)
 		{
 			this.Packet = Packet;
 			this.Offset = Offset;
-			this.Length = Length;
 			this.References = References;
 		}
 	}
@@ -290,9 +276,6 @@ namespace EpicGames.Horde.Bundles
 					int Rank = (int)VarInt.Read(Span, out int RankBytes);
 					Span = Span.Slice(RankBytes);
 
-					int Cost = (int)VarInt.Read(Span, out int CostBytes);
-					Span = Span.Slice(CostBytes);
-
 					int Length = (int)VarInt.Read(Span, out int LengthBytes);
 					Span = Span.Slice(LengthBytes);
 
@@ -306,7 +289,7 @@ namespace EpicGames.Horde.Bundles
 						Span = Span.Slice(ReferenceBytes);
 					}
 
-					Exports.Add(new BundleExport(Hash, Rank, Cost, Packet, Offset, Length, References));
+					Exports.Add(new BundleExport(Hash, Rank, Packet, Offset, Length, References));
 					Offset += Length;
 				}
 			}
@@ -324,6 +307,8 @@ namespace EpicGames.Horde.Bundles
 			BundleCompressionPacket? PrevPacket = null;
 			foreach (BundleExport Export in Exports)
 			{
+				Debug.Assert(Export.Length > 0);
+
 				BundleCompressionPacket Packet = Export.Packet;
 				if (PrevPacket == null || Packet.Offset != PrevPacket.Offset)
 				{
@@ -343,9 +328,6 @@ namespace EpicGames.Horde.Bundles
 
 				int RankBytes = VarInt.Write(Span, Export.Rank);
 				Span = Span.Slice(RankBytes);
-
-				int CostBytes = VarInt.Write(Span, Export.Cost);
-				Span = Span.Slice(CostBytes);
 
 				int LengthBytes = VarInt.Write(Span, Export.Length);
 				Span = Span.Slice(LengthBytes);
@@ -378,7 +360,8 @@ namespace EpicGames.Horde.Bundles
 					Length += VarInt.Measure(Packet.EncodedLength) + VarInt.Measure(Packet.DecodedLength);
 					PrevPacket = Packet;
 				}
-				Length += IoHash.NumBytes + VarInt.Measure(Export.Rank) + VarInt.Measure(Export.Cost) + VarInt.Measure(Export.Length) + VarInt.Measure(Export.References.Length) + Export.References.Sum(x => VarInt.Measure(x));
+
+				Length += IoHash.NumBytes + VarInt.Measure(Export.Rank) + VarInt.Measure(Export.Length) + VarInt.Measure(Export.References.Length) + Export.References.Sum(x => VarInt.Measure(x));
 			}
 
 			return Length;

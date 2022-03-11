@@ -72,7 +72,7 @@ namespace HordeAgent.Commands.Bundles
 
 			Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), null);
 			await NewBundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), Logger);
-			await NewBundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
+			await NewBundle.WriteAsync(BucketId, RefId, false);
 
 			return 0;
 		}

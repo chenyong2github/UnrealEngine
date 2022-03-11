@@ -36,6 +36,7 @@ using Horde.Build.Utilities;
 using EpicGames.Horde.Bundles;
 using EpicGames.Horde.Bundles.Nodes;
 using Microsoft.Extensions.Caching.Memory;
+using System.Runtime;
 
 namespace HordeServer.Commits.Impl
 {
@@ -72,7 +73,7 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Write Perforce stub files rather than including the actual content.
 		/// </summary>
-		public bool WriteStubFiles { get; set; } = true;
+		public bool WriteStubFiles { get; set; } = false;
 
 		/// <summary>
 		/// Namespace to store content replicated from Perforce
@@ -915,6 +916,8 @@ namespace HordeServer.Commits.Impl
 			Logger.LogInformation("Updating client {Client} to changelist {Change}", ClientInfo.Client.Name, Change);
 			ClientInfo.Change = -1;
 
+			Utf8String ClientRoot = new Utf8String(ClientInfo.Client.Root);
+
 			DirectoryNode Contents = CommitBundle.Root;
 			if (Options.WriteStubFiles)
 			{
@@ -922,13 +925,13 @@ namespace HordeServer.Commits.Impl
 				await foreach (PerforceResponse<SyncRecord> Record in Perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"{QueryPath}@{Change}" }, null, default))
 				{
 					SyncRecord SyncRecord = Record.Data;
-					if (!SyncRecord.Path.StartsWith(ClientInfo.Client.Root, StringComparison.Ordinal))
+					if (!SyncRecord.Path.StartsWith(ClientRoot))
 					{
 						throw new ArgumentException($"Unable to make path {ClientInfo.Client.Root} relative to client root {ClientInfo.Client.Root}");
 					}
 
-					string Path = SyncRecord.Path.Substring(ClientInfo.Client.Root.Length).Replace('\\', '/');
-					FileNode File = await Contents.CreateFileByPathAsync(Path, FileEntryFlags.PerforceDepotPathAndRevision);
+					Utf8String Path = SyncRecord.Path.Substring(ClientRoot.Length);
+					FileNode File = await Contents.AddFileByPathAsync(CommitBundle, Path, FileEntryFlags.PerforceDepotPathAndRevision);
 
 					byte[] Data = Encoding.UTF8.GetBytes($"{SyncRecord.DepotFile}#{SyncRecord.Revision}");
 					File.Append(Data, Options.Chunking);
@@ -942,21 +945,34 @@ namespace HordeServer.Commits.Impl
 			}
 			else
 			{
+				const long TrimInterval = 1024 * 1024 * 256;
+
+				long DataSize = 0;
+				long TrimDataSize = TrimInterval;
+
 				Dictionary<int, FileNode> Files = new Dictionary<int, FileNode>();
 				await foreach (PerforceResponse Response in Perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { $"{QueryPath}@{Change}" }, null, typeof(SyncRecord), true, default))
 				{
+					PerforceError? Error = Response.Error;
+					if (Error != null)
+					{
+						Logger.LogWarning("Perforce: {Message}", Error.Data);
+						continue;
+					}
+
 					PerforceIo? Io = Response.Io;
 					if (Io != null)
 					{
 						if (Io.Command == PerforceIoCommand.Open)
 						{
-							string Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
-							Files[Io.File] = await Contents.CreateFileByPathAsync(Path, 0);
+							Utf8String Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
+							Files[Io.File] = await Contents.AddFileByPathAsync(CommitBundle, Path, 0);
 						}
 						else if (Io.Command == PerforceIoCommand.Write)
 						{
 							FileNode File = Files[Io.File];
 							File.Append(Io.Payload, Options.Chunking);
+							DataSize += Io.Payload.Length;
 						}
 						else if (Io.Command == PerforceIoCommand.Close)
 						{
@@ -964,8 +980,16 @@ namespace HordeServer.Commits.Impl
 						}
 						else if (Io.Command == PerforceIoCommand.Unlink)
 						{
-							string Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
-							await Contents.DeleteFileByPathAsync(Path);
+							Utf8String Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
+							await Contents.DeleteFileByPathAsync(CommitBundle, Path);
+						}
+
+						if (DataSize > TrimDataSize)
+						{
+							Logger.LogInformation("Trimming working set after receiving {NumBytes:n0}mb...", DataSize / (1024 * 1024));
+							await CommitBundle.TrimAsync();
+							TrimDataSize = DataSize + TrimInterval;
+							Logger.LogInformation("Trimming complete. Next trim at {NextNumBytes:n0}mb.", TrimDataSize / (1024 * 1024));
 						}
 					}
 				}
@@ -976,7 +1000,7 @@ namespace HordeServer.Commits.Impl
 			// Return the new root object
 			RefId RefId = CommitTree.GetDefaultRefId(Change);
 			Logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", RefId, Stream.Id, Change);
-			await CommitBundle.WriteAsync(GetStreamBucketId(Stream.Id), RefId, true, DateTime.UtcNow);
+			await CommitBundle.WriteAsync(GetStreamBucketId(Stream.Id), RefId, true);
 
 			return new CommitTree(Stream.Id, Change, RefId);
 		}
@@ -1000,17 +1024,21 @@ namespace HordeServer.Commits.Impl
 			}
 		}
 
-		static string GetClientRelativePath(ReadOnlyMemory<byte> Data, string ClientRoot)
+		static Utf8String GetClientRelativePath(ReadOnlyMemory<byte> Data, Utf8String ClientRoot)
 		{
-			ReadOnlySpan<byte> Span = Data.Span;
+			int Length = Data.Span.IndexOf((byte)0);
+			if (Length != -1)
+			{
+				Data = Data.Slice(0, Length);
+			}
 
-			string Path = Encoding.UTF8.GetString(Span.Slice(0, Span.IndexOf((byte)0)));
-			if (!Path.StartsWith(ClientRoot, StringComparison.Ordinal))
+			Utf8String Path = new Utf8String(Data);
+			if (!Path.StartsWith(ClientRoot, Utf8StringComparer.Ordinal))
 			{
 				throw new ArgumentException($"Unable to make path {Path} relative to client root {ClientRoot}");
 			}
 
-			return Path.Substring(ClientRoot.Length).Replace('\\', '/').TrimStart('/');
+			return Path.Substring(ClientRoot.Length).Clone();
 		}
 
 		class ReplicationClient
