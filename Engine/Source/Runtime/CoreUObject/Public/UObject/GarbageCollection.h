@@ -80,6 +80,7 @@ enum EGCReferenceType
 	GCRT_ArrayDelegate,
 	GCRT_MulticastDelegate,
 	GCRT_ArrayMulticastDelegate,
+	GCRT_DynamicallyTypedValue,
 };
 
 enum class EGCTokenType : uint32

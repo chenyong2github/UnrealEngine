@@ -15,6 +15,7 @@
 #include "Async/ParallelFor.h"
 #include "UObject/UObjectArray.h"
 #include "UObject/FastReferenceCollectorOptions.h"
+#include "UObject/DynamicallyTypedValue.h"
 
 struct FStackEntry;
 
@@ -1280,6 +1281,17 @@ private:
 									ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, TokenType, false);
 								}
 							}
+						}
+					}
+					break;
+					case GCRT_DynamicallyTypedValue:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						UE::FDynamicallyTypedValue* DynamicallyTypedValue = (UE::FDynamicallyTypedValue*)(StackEntryData + ReferenceInfo.Offset);
+						DynamicallyTypedValue->GetType().MarkReachable();
+						if (DynamicallyTypedValue->GetType().GetContainsReferences() != UE::FDynamicallyTypedValueType::EContainsReferences::DoesNot)
+						{
+							DynamicallyTypedValue->GetType().MarkValueReachable(DynamicallyTypedValue->GetDataPointer(), ReferenceCollector);
 						}
 					}
 					break;

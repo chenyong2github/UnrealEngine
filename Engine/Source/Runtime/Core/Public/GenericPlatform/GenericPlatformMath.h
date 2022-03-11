@@ -821,6 +821,15 @@ struct FGenericPlatformMath
 		return (64 - CountLeadingZeros64(Arg - 1)) & (~Bitmask);
 	}
 
+	/**
+	 * Returns the smallest N such that (1<<N)>=Arg. This is a less efficient version of CeilLogTwo, but written in a
+	 * way that can be evaluated at compile-time.
+	 */
+	static FORCEINLINE constexpr uint8 ConstExprCeilLogTwo(SIZE_T Arg)
+	{
+		return Arg <= 1 ? 0 : (1 + ConstExprCeilLogTwo(Arg / 2));
+	}
+
 	/** @return Rounds the given number up to the next highest power of two. */
 	static FORCEINLINE uint32 RoundUpToPowerOfTwo(uint32 Arg)
 	{
