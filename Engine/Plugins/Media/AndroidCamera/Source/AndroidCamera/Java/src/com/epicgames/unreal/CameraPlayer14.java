@@ -909,7 +909,7 @@ public class CameraPlayer14
 						}
 					}
 				}
-}			}
+			}
 
 			if (mUseOwnContext)
 			{
