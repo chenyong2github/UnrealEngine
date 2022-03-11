@@ -45,7 +45,7 @@ public:
 
 	/** Optional source actor to use, if the user parameter binding is valid this will be ignored. */
 	UPROPERTY(EditAnywhere, Category = "UObjectPropertyReader")
-	TLazyObjectPtr<AActor> SourceActor;
+	TSoftObjectPtr<AActor> SourceActor;
 
 	/**
 	When an actor is bound as the object we will also search for a component of this type to bind properties to.

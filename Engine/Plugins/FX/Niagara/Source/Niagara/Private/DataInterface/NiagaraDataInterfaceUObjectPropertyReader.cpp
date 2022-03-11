@@ -80,7 +80,7 @@ namespace NDIUObjectPropertyReaderLocal
 				for ( int32 i=0; i < InstanceData_GT->PropertyGetters.Num(); ++i )
 				{
 					const FNDIPropertyGetter& PropertyGetter = InstanceData_GT->PropertyGetters[i];
-					InstanceData_ForRT->PropertyOffsets[i] = PropertyGetter.PropertyCopyFunction ? PropertyGetter.DataOffset : INDEX_NONE;
+					InstanceData_ForRT->PropertyOffsets[i] = PropertyGetter.PropertyCopyFunction ? PropertyGetter.DataOffset / sizeof(int32) : INDEX_NONE;
 				}
 				InstanceData_ForRT->PropertyData = InstanceData_GT->PropertyData;
 			}
