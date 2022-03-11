@@ -814,109 +814,94 @@ float ConvertTangentUnormToSnorm8(float Input)
 {
 	int IntVal = int(round(Input * 255.0f));
 	//negate
-	IntVal = (IntVal > 127) ? (IntVal | 0xFFFFFF80) : IntVal;
+	IntVal = select(IntVal > 127, IntVal | 0xFFFFFF80, IntVal);
 	return clamp(IntVal / 127.0f, -1, 1);
 }
-
 float2 ConvertTangentUnormToSnorm8(float2 Input)
 {
 	int2 IntVal = int2(round(Input * 255.0f));
 	//negate
-	IntVal = (IntVal > 127) ? (IntVal | 0xFFFFFF80) : IntVal;
+	IntVal = select(IntVal > 127, IntVal | 0xFFFFFF80, IntVal);
 	return clamp(IntVal / 127.0f, -1, 1);
 }
-
 float3 ConvertTangentUnormToSnorm8(float3 Input)
 {
 	int3 IntVal = int3(round(Input * 255.0f));
-	IntVal = (IntVal > 127) ? (IntVal | 0xFFFFFF80) : IntVal;
+	IntVal = select(IntVal > 127, IntVal | 0xFFFFFF80, IntVal);
 	return clamp(IntVal / 127.0f, -1, 1);
 }
-
 float4 ConvertTangentUnormToSnorm8(float4 Input)
 {
 	int4 IntVal = int4(round(Input * 255.0f));
 	//negate
-	IntVal = (IntVal > 127) ? (IntVal | 0xFFFFFF80) : IntVal;
+	IntVal = select(IntVal > 127, IntVal | 0xFFFFFF80, IntVal);
 	return clamp(IntVal / 127.0f, -1, 1);
 }
-
 float ConvertTangentUnormToSnorm16(float Input)
 {
 	int IntVal = int(round(Input * 65535.0f));
 	//negate
-	IntVal = (IntVal > 32767) ? (IntVal | 0xFFFF8000) : IntVal;
+	IntVal = select(IntVal > 32767, IntVal | 0xFFFF8000, IntVal);
 	return clamp(IntVal / 32767.0f, -1, 1);
 }
-
 float2 ConvertTangentUnormToSnorm16(float2 Input)
 {
 	int2 IntVal = int2(round(Input * 65535.0f));
 	//negate
-	IntVal = (IntVal > 32767) ? (IntVal | 0xFFFFFF80) : IntVal;
+	IntVal = select(IntVal > 32767, IntVal | 0xFFFFFF80, IntVal);
 	return clamp(IntVal / 32767.0f, -1, 1);
 }
-
 float3 ConvertTangentUnormToSnorm16(float3 Input)
 {
 	int3 IntVal = int3(round(Input * 65535.0f));
-	IntVal = (IntVal > 32767) ? (IntVal | 0xFFFFFF80) : IntVal;
+	IntVal = select(IntVal > 32767, IntVal | 0xFFFFFF80, IntVal);
 	return clamp(IntVal / 32767.0f, -1, 1);
 }
-
 float4 ConvertTangentUnormToSnorm16(float4 Input)
 {
 	int4 IntVal = int4(round(Input * 65535.0f));
 	//negate
-	IntVal = (IntVal > 32767) ? (IntVal | 0xFFFFFF80) : IntVal;
+	IntVal = select(IntVal > 32767, IntVal | 0xFFFFFF80, IntVal);
 	return clamp(IntVal / 32767.0f, -1, 1);
 }
-
 float ConvertTangentSnormToUnorm8(float Input)
 {
-	float Res = Input >= 0.0f ? Input * 127 : ((Input + 1.0) * 127) + 128;
+	float Res = select(Input >= 0.0f, Input * 127, ((Input + 1.0) * 127) + 128);
 	return clamp(Res / 255, 0.0f, 0.99f);
 }
-
 float2 ConvertTangentSnormToUnorm8(float2 Input)
 {
-	float2 Res = Input >= 0.0f ? Input * 127 : ((Input + 1.0) * 127) + 128;
+	float2 Res = select(Input >= 0.0f, Input * 127, ((Input + 1.0) * 127) + 128);
 	return clamp(Res / 255, 0.0f, 0.99f);
 }
-
 float3 ConvertTangentSnormToUnorm8(float3 Input)
 {
-	float3 Res = Input >= 0.0f ? Input * 127 : ((Input + 1.0) * 127) + 128;
+	float3 Res = select(Input >= 0.0f, Input * 127, ((Input + 1.0) * 127) + 128);
 	return clamp(Res / 255, 0.0f, 0.99f);
 }
-
 float4 ConvertTangentSnormToUnorm8(float4 Input)
 {
-	float4 Res = Input >= 0.0f ? Input * 127 : ((Input + 1.0) * 127) + 128;
+	float4 Res = select(Input >= 0.0f, Input * 127, ((Input + 1.0) * 127) + 128);
 	return clamp(Res / 255, 0.0f, 0.99f);
 }
-
 float ConvertTangentSnormToUnorm16(float Input)
 {
-	float Res = Input >= 0.0f ? Input * 32767 : ((Input + 1.0) * 32767) + 32768;
+	float Res = select(Input >= 0.0f, Input * 32767, ((Input + 1.0) * 32767) + 32768);
 	return clamp(Res / 65535, 0.0f, 0.99f);
 }
-
 float2 ConvertTangentSnormToUnorm16(float2 Input)
 {
-	float2 Res = Input >= 0.0f ? Input * 32767 : ((Input + 1.0) * 32767) + 32768;
+	float2 Res = select(Input >= 0.0f, Input * 32767, ((Input + 1.0) * 32767) + 32768);
 	return clamp(Res / 65535, 0.0f, 0.99f);
 }
-
 float3 ConvertTangentSnormToUnorm16(float3 Input)
 {
-	float3 Res = Input >= 0.0f ? Input * 32767 : ((Input + 1.0) * 32767) + 32768;
+	float3 Res = select(Input >= 0.0f, Input * 32767, ((Input + 1.0) * 32767) + 32768);
 	return clamp(Res / 65535, 0.0f, 0.99f);
 }
-
 float4 ConvertTangentSnormToUnorm16(float4 Input)
 {
-	float4 Res = Input >= 0.0f ? Input * 32767 : ((Input + 1.0) * 32767) + 32768;
+	float4 Res = select(Input >= 0.0f, Input * 32767, ((Input + 1.0) * 32767) + 32768);
 	return clamp(Res / 65535, 0.0f, 0.99f);
 }
 
@@ -1594,8 +1579,8 @@ float2 LineBoxIntersect(float3 RayOrigin, float3 RayEnd, float3 BoxMin, float3 B
 /** Computes distance from an AABB to a point in space. */
 MaterialFloat ComputeDistanceFromBoxToPoint(MaterialFloat3 Mins, MaterialFloat3 Maxs, MaterialFloat3 InPoint)
 {
-	MaterialFloat3 DistancesToMin = InPoint < Mins ? abs(InPoint - Mins) : 0;
-	MaterialFloat3 DistancesToMax = InPoint > Maxs ? abs(InPoint - Maxs) : 0;
+	MaterialFloat3 DistancesToMin = select(InPoint < Mins, abs(InPoint - Mins), MaterialFloat(0.0));
+	MaterialFloat3 DistancesToMax = select(InPoint > Maxs, abs(InPoint - Maxs), MaterialFloat(0.0));
 
 	//@todo - this is actually incorrect, it gives manhattan distance
 	MaterialFloat Distance = dot(DistancesToMin, 1);
@@ -1899,11 +1884,11 @@ booltype IsPositiveFinite(type In) \
 }\
 type MakeFinite(type In) \
 {\
-    return !IsFinite(In)? 0 : In; \
+    return select(!IsFinite(In), 0.0, In); \
 }\
 type MakePositiveFinite(type In) \
 {\
-    return !IsPositiveFinite(In)? 0 : In; \
+    return select(!IsPositiveFinite(In), 0.0, In); \
 }
 
 IsAndMakeFinite_Def(float,  bool)

@@ -206,8 +206,8 @@ FPathTracingPayload CreateMediumHitPayload(float HitT, float3 TranslatedWorldPos
 	Result.PrimitiveLightingChannelMask = 7;
 	Result.SetFrontFace();
 	float3 SigmaS = ShadedResult.SigmaSRayleigh + ShadedResult.SigmaSHG;
-	Result.BaseColor = SigmaS > 0 ? min(ShadedResult.SigmaSRayleigh, SigmaS) / SigmaS : 0.0;
-	Result.CustomData.xyz = SigmaS > 0 ? min(ShadedResult.SigmaSHG, SigmaS) / SigmaS : 0.0;
+	Result.BaseColor = select(SigmaS > 0.0, min(ShadedResult.SigmaSRayleigh, SigmaS) / SigmaS, 0.0);
+	Result.CustomData.xyz = select(SigmaS > 0, min(ShadedResult.SigmaSHG, SigmaS) / SigmaS, 0.0);
 	Result.CustomData.w = ShadedResult.PhaseG;
 	return Result;
 }

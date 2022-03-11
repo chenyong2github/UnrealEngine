@@ -75,7 +75,7 @@ float ComputeVolumeShadowing(
 			float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
 
 			// Treat as unshadowed if the voxel is outside of the shadow map
-			if (all(ShadowUVs >= 0 && ShadowUVs <= 1))
+			if (all(and(ShadowUVs >= 0, ShadowUVs <= 1)))
 			{
 				FPCFSamplerSettings Settings;
 				Settings.ShadowDepthTexture = VSSPREFIX(StaticShadowDepthTexture);

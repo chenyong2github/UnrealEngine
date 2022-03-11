@@ -1101,7 +1101,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	RadianceAccumulated.xyz *= (ActiveNumOfSamples==0)? 0 :(1/ActiveNumOfSamples * 2 * PI) * EnergyNormalization;
 #else
 	// The added epsilon is used to avoid divid by zero.
-	RadianceAccumulated.xyz *= (WeightingFactor == 0)? 0:(1.0f /WeightingFactor*EnergyNormalization);
+	RadianceAccumulated.xyz *= select(WeightingFactor == 0, 0.0, 1.0f /WeightingFactor*EnergyNormalization);
 #endif
 
 	RadianceAccumulated.xyz *= BoundaryColorBleedAccum*InvNumOfSamples;

@@ -442,7 +442,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 
 						// Record the contribution
 						float3 ExitantRadianceSample = LightRadianceOverPdf * MaterialThroughput * SplitFactor;
-						Irradiance += isfinite(ExitantRadianceSample) ? ExitantRadianceSample : 0.0;
+						Irradiance += select(isfinite(ExitantRadianceSample), ExitantRadianceSample, 0.0);
 					}
 				}
 			}

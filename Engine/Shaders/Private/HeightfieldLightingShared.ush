@@ -76,7 +76,7 @@ float2 GetHeightfieldUV(uint HeightfieldIndex, float2 LocalPosition, out float4 
 		// One row of heights in the heightfield are duplicated between subsections
 		// The only number of subsections supported is 2
 		// If we are in subsection 0, no adjustment is needed, but if we are in subsection 1 we need to shift up by one texel
-		HeightfieldUV += HeightfieldUV + .5f * HeightfieldScaleBias.xy > CenterUV ? HeightfieldScaleBias.xy : 0;
+		HeightfieldUV += select((HeightfieldUV + .5f * HeightfieldScaleBias.xy) > CenterUV, HeightfieldScaleBias.xy, 0.0);
 	}
 
 	return HeightfieldUV;

@@ -82,9 +82,9 @@ FBoolType LWCEqualsApprox(FLWCType Lhs, FFloatType Rhs, float Threshold)
 	return abs(LWCGetTile(Lhs) * UE_LWC_RENDER_TILE_SIZE + (Lhs.Offset - Rhs)) < (FFloatType)Threshold;
 }
 
-FLWCType LWCSelect(FBoolType S, FLWCType Lhs, FLWCType Rhs) { return LWCConstructor(S ? LWCGetTile(Lhs) : LWCGetTile(Rhs), S ? Lhs.Offset : Rhs.Offset); }
-FLWCType LWCSelect(FBoolType S, FFloatType Lhs, FLWCType Rhs) { return LWCConstructor(S ? (FFloatType)0 : LWCGetTile(Rhs), S ? Lhs : Rhs.Offset); }
-FLWCType LWCSelect(FBoolType S, FLWCType Lhs, FFloatType Rhs) { return LWCConstructor(S ? LWCGetTile(Lhs) : (FFloatType)0, S ? Lhs.Offset : Rhs); }
+FLWCType LWCSelect(FBoolType S, FLWCType Lhs, FLWCType Rhs) { return LWCConstructor(select(S, LWCGetTile(Lhs), LWCGetTile(Rhs)), select(S, Lhs.Offset, Rhs.Offset)); }
+FLWCType LWCSelect(FBoolType S, FFloatType Lhs, FLWCType Rhs) { return LWCConstructor(select(S, (FFloatType)0, LWCGetTile(Rhs)), select(S, Lhs, Rhs.Offset)); }
+FLWCType LWCSelect(FBoolType S, FLWCType Lhs, FFloatType Rhs) { return LWCConstructor(select(S, LWCGetTile(Lhs), (FFloatType)0), select(S, Lhs.Offset, Rhs)); }
 
 FLWCType LWCNegate(FLWCType V) { return LWCConstructor(-LWCGetTile(V), -V.Offset); }
 
@@ -166,9 +166,9 @@ FLWCType LWCMax(FLWCType Lhs, FFloatType Rhs) { return LWCSelect(LWCGreater(Lhs,
 
 FLWCType LWCAbs(FLWCType V) { return LWCSelect(LWCLess(V, (FFloatType)0), LWCNegate(V), V); }
 
-FFloatType LWCStep(FLWCType Lhs, FLWCType Rhs) { return LWCGreaterEqual(Rhs, Lhs) ? (FFloatType)1.0f : (FFloatType)0.0f; }
-FFloatType LWCStep(FLWCType Lhs, FFloatType Rhs) { return LWCGreaterEqual(Rhs, Lhs) ? (FFloatType)1.0f : (FFloatType)0.0f; }
-FFloatType LWCStep(FFloatType Lhs, FLWCType Rhs) { return LWCGreaterEqual(Rhs, Lhs) ? (FFloatType)1.0f : (FFloatType)0.0f; }
+FFloatType LWCStep(FLWCType Lhs, FLWCType Rhs)   { return select(LWCGreaterEqual(Rhs, Lhs), (FFloatType)1.0f, (FFloatType)0.0f); }
+FFloatType LWCStep(FLWCType Lhs, FFloatType Rhs) { return select(LWCGreaterEqual(Rhs, Lhs), (FFloatType)1.0f, (FFloatType)0.0f); }
+FFloatType LWCStep(FFloatType Lhs, FLWCType Rhs) { return select(LWCGreaterEqual(Rhs, Lhs), (FFloatType)1.0f, (FFloatType)0.0f); }
 
 // LWCSquareScaled returns the value squared, scaled by the LWC tile size
 FLWCType LWCSquareScaled(FLWCType V)

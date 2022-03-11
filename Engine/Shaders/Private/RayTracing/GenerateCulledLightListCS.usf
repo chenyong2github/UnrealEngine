@@ -35,11 +35,11 @@ void ComputeCoords(out float3 Min, out float3 Max, int3 Cell)
 	// compute bounds as logarithmically increasing from center (with minimum cell size of 2)
 	Min = abs(floor(Center));
 	Max = abs(ceil(Center));
-	Min = Min > 0.0 ? pow(2.0, Min + 1.0) : 0.0;
-	Max = Max > 0.0 ? pow(2.0, Max + 1.0) : 0.0;
+	Min = select(Min > 0.0, pow(2.0, Min + 1.0), 0.0);
+	Max = select(Max > 0.0, pow(2.0, Max + 1.0), 0.0);
 
 	// Extend range of last cell
-	Max = (Cell == 0 || Cell == CellCount - 1) ? 1.0e7 : Max;
+	Max = select(or(Cell == 0, Cell == CellCount - 1), 1.0e7, Max);
 
 	// return to sector
 	Min *= SignVal * CellScale;

@@ -18,7 +18,7 @@ float ComputeDirectionalLightStaticShadowing(float3 TranslatedWorldPosition)
 		float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
 
 		// Treat as unshadowed if the voxel is outside of the shadow map
-		if (all(ShadowUVs >= 0 && ShadowUVs <= 1))
+		if (all(and(ShadowUVs >= 0, ShadowUVs <= 1)))
 		{
 			#define FILTER_STATIC_SHADOWING 0
 			#if FILTER_STATIC_SHADOWING
@@ -73,7 +73,7 @@ float ComputeDirectionalLightDynamicShadowing(float3 TranslatedWorldPosition, fl
 			float4 ShadowmapMinMax = ForwardLightData.DirectionalLightShadowmapMinMax[CascadeIndex];
 
 			// Treat as unshadowed if the voxel is outside of the shadow map
-			if (all(ShadowUVs >= ShadowmapMinMax.xy && ShadowUVs <= ShadowmapMinMax.zw))
+			if (all(and(ShadowUVs >= ShadowmapMinMax.xy, ShadowUVs <= ShadowmapMinMax.zw)))
 			{
 			#if FILTER_DIRECTIONAL_LIGHT_SHADOWING
 				FPCFSamplerSettings Settings;

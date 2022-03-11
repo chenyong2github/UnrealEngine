@@ -30,7 +30,7 @@ void RasterizeToRectsVS(
 	out float OutRectIndex : RECT_INDEX)
 {
 	uint4 RectCoord = RectCoordBuffer[InstanceId] * DownsampleFactor;
-	uint2 VertexCoord = VertMax(VertexId) ? RectCoord.zw : RectCoord.xy;
+	uint2 VertexCoord = select(VertMax(VertexId), RectCoord.zw, RectCoord.xy);
 
 	float4 RectUV = RectCoord * InvViewSize.xyxy;
 	#if RECT_UV
@@ -38,7 +38,7 @@ void RasterizeToRectsVS(
 		RectUV = RectUVBuffer[InstanceId] * DownsampleFactor * InvTextureSize.xyxy;
 	}
 	#endif
-	float2 VertexUV = VertMax(VertexId) ? RectUV.zw : RectUV.xy;
+	float2 VertexUV = select(VertMax(VertexId), RectUV.zw, RectUV.xy);
 
 	OutPosition = float4(float2(VertexCoord) * InvViewSize * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.0f, 1.0f);
 	OutUV = VertexUV;

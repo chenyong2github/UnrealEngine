@@ -31,7 +31,7 @@ float2 UnPackMinMax(in float4 Packed)
 // Min downsample excludes zero values to avoid empty pixels affecting the calculation
 float Min4(in float4 Values, in float ReplaceZero)
 {
-	Values = Values == 0 ? ReplaceZero : Values;
+	Values = select(Values == 0, ReplaceZero, Values);
 	return min(min(min(Values.x, Values.y), Values.z), Values.w);
 }
 

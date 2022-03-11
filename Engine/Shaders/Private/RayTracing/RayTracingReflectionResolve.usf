@@ -104,8 +104,7 @@ bool DisocclusionHeuristic(float2 ScreenPos, float DeviceZ, float2 HistoryUV)
 	// Empirically chosen threshold to balance between aliasing/noise from false positives and ghosting from false negatives
 	float DisocclusionMaxDeviceZ = 0.001;
 
-	return (PrevDeviceZ - DeviceZ > DisocclusionMaxDeviceZ)
-		&& (CompensatedPrevDeviceZ - PrevExpectedDeviceZ > DisocclusionMaxDeviceZ);
+	return and(PrevDeviceZ - DeviceZ > DisocclusionMaxDeviceZ, CompensatedPrevDeviceZ - PrevExpectedDeviceZ > DisocclusionMaxDeviceZ);
 }
 
 float RgbLuma(float3 Color)
@@ -147,7 +146,7 @@ void RayTracingReflectionResolveCS(
 	// Temporal accumulation uses neighborhood colors in groupshared memory and clamps the lookup index, sometimes creating a discontinuity between 8x8 tiles.
 	// We can offset and wrap the thread ID every frame to move the tile border, hiding this discontinuity.
 	DispatchThreadId = (DispatchThreadId + ThreadIdOffset);
-	DispatchThreadId = DispatchThreadId < ViewSize ? DispatchThreadId : DispatchThreadId - ViewSize; // faster than mod
+	DispatchThreadId = select(DispatchThreadId < ViewSize, DispatchThreadId, DispatchThreadId - ViewSize); // faster than mod
 
 	const float2 BufferUV = (float2(DispatchThreadId + View.ViewRectMin.xy) + 0.5) * View.BufferSizeAndInvSize.zw;
 	const float2 ViewportUV = BufferUVToViewportUV(BufferUV);

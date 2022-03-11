@@ -168,7 +168,7 @@ float ShadowRayCast(
 
 		// Off screen masking
 		float3 HitUVz = RayStartUVz + RayStepUVz * FirstHitTime;
-		bool bValidUV = all( 0.0 < HitUVz.xy && HitUVz.xy < 1.0 );
+		bool bValidUV = all(and(0.0 < HitUVz.xy, HitUVz.xy < 1.0));
 		HitDistance = bValidUV ? ( FirstHitTime * RayLength ) : -1.0;
 	}	
 	
