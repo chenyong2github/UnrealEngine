@@ -24,10 +24,6 @@ class UParticleModuleSpawn : public UParticleModuleSpawnBase
 	UPROPERTY(EditAnywhere, Category=Spawn)
 	struct FRawDistributionFloat RateScale;
 
-	/** The method to utilize when burst-emitting particles. */
-	UPROPERTY(EditAnywhere, Category=Burst)
-	TEnumAsByte<EParticleBurstMethod> ParticleBurstMethod;
-
 	/** The array of burst entries. */
 	UPROPERTY(EditAnywhere, export, noclear, Category=Burst)
 	TArray<FParticleBurst> BurstList;
@@ -35,6 +31,10 @@ class UParticleModuleSpawn : public UParticleModuleSpawnBase
 	/** Scale all burst entries by this amount. */
 	UPROPERTY(EditAnywhere, Category=Burst)
 	struct FRawDistributionFloat BurstScale;
+
+	/** The method to utilize when burst-emitting particles. */
+	UPROPERTY(EditAnywhere, Category = Burst)
+	TEnumAsByte<EParticleBurstMethod> ParticleBurstMethod;
 
 	/**	If true, the SpawnRate will be scaled by the global CVar r.EmitterSpawnRateScale */
 	UPROPERTY(EditAnywhere, Category=Spawn)
