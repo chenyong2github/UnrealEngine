@@ -3,6 +3,7 @@
 #include "Widgets/SImgMediaProcessImages.h"
 
 #include "Async/Async.h"
+#include "Customizations/ImgMediaFilePathCustomization.h"
 #include "EditorStyleSet.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformFileManager.h"
@@ -72,6 +73,8 @@ void SImgMediaProcessImages::Construct(const FArguments& InArgs)
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailsView->RegisterInstancedCustomPropertyTypeLayout(FName(TEXT("FilePath")),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(FImgMediaFilePathCustomization::MakeInstance));
 	DetailsView->SetObject(Options.Get());
 
 	DetailsViewBox->SetContent(DetailsView->AsShared());
