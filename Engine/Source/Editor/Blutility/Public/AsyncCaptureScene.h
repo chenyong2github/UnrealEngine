@@ -28,6 +28,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta=( BlueprintInternalUseOnly="true" ))
 	static UAsyncCaptureScene* CaptureSceneAsync(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY);
+	
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
+	static UAsyncCaptureScene* CaptureSceneWithWarmupAsync(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY, int WarmUpFrames);
 
 	virtual void Activate() override;
 public:
@@ -38,7 +41,7 @@ public:
 private:
 
 	void NotifyComplete(UTextureRenderTarget2D* InTexture);
-	void Start(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY);
+	void Start(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY, int InWarmUpFrames);
 	void FinishLoadingBeforeScreenshot();
 	
 private:
@@ -47,4 +50,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UTextureRenderTarget2D> SceneCaptureRT;
+
+	int32 WarmUpFrames;
 };

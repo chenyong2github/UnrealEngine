@@ -30,12 +30,20 @@ UAsyncCaptureScene::UAsyncCaptureScene()
 UAsyncCaptureScene* UAsyncCaptureScene::CaptureSceneAsync(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY)
 {
 	UAsyncCaptureScene* AsyncTask = NewObject<UAsyncCaptureScene>();
-	AsyncTask->Start(ViewCamera, SceneCaptureClass, ResX, ResY);
+	AsyncTask->Start(ViewCamera, SceneCaptureClass, ResX, ResY, 0);
 
 	return AsyncTask;
 }
 
-void UAsyncCaptureScene::Start(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY)
+UAsyncCaptureScene* UAsyncCaptureScene::CaptureSceneWithWarmupAsync(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY, int WarmUpFrames)
+{
+	UAsyncCaptureScene* AsyncTask = NewObject<UAsyncCaptureScene>();
+	AsyncTask->Start(ViewCamera, SceneCaptureClass, ResX, ResY, WarmUpFrames);
+
+	return AsyncTask;
+}
+
+void UAsyncCaptureScene::Start(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY, int InWarmUpFrames)
 {
 	const FVector CaptureLocation = ViewCamera->GetComponentLocation();
 	const FRotator CaptureRotation = ViewCamera->GetComponentRotation();
@@ -64,6 +72,8 @@ void UAsyncCaptureScene::Start(UCameraComponent* ViewCamera, TSubclassOf<ASceneC
 		ViewCamera->GetCameraView(0, CaptureView);
 		CaptureComponent->SetCameraView(CaptureView);
 	}
+
+	WarmUpFrames = FMath::Max(InWarmUpFrames, 1);
 }
 
 void UAsyncCaptureScene::Activate()
@@ -80,7 +90,10 @@ void UAsyncCaptureScene::Activate()
 
 	FinishLoadingBeforeScreenshot();
 
-	CaptureComponent->CaptureScene();
+	for (int32 FrameCount = 0; FrameCount < WarmUpFrames; ++FrameCount)
+	{
+		CaptureComponent->CaptureScene();
+	}
 
 	NotifyComplete(SceneCaptureRT);
 }
