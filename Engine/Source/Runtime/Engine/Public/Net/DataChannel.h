@@ -13,6 +13,10 @@
 #include "Net/DataBunch.h"
 #include "Engine/ChildConnection.h"
 
+// Forward declarations
+enum class ENetPingControlMessage : uint8;
+
+
 /*-----------------------------------------------------------------------------
 	UControlChannel base class.
 -----------------------------------------------------------------------------*/
@@ -166,6 +170,7 @@ DEFINE_CONTROL_CHANNEL_MESSAGE(GameSpecific, 20, uint8, FString); // custom game
 DEFINE_CONTROL_CHANNEL_MESSAGE(EncryptionAck, 21);
 DEFINE_CONTROL_CHANNEL_MESSAGE(DestructionInfo, 22);
 DEFINE_CONTROL_CHANNEL_MESSAGE(CloseReason, 23, FString); // Reason for client NetConnection Close, for analytics/logging
+DEFINE_CONTROL_CHANNEL_MESSAGE(NetPing, 24, ENetPingControlMessage /* MessageType */, FString /* MessageStr */);
 
 // 			Beacon control channel flow
 // Client												Server

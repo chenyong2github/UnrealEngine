@@ -130,6 +130,7 @@ public class Engine : ModuleRules
 				"IntelISPC",
 				"TraceLog",
 				"ColorManagement",
+				"Icmp",
 				"XmlParser"
 			}
 		);

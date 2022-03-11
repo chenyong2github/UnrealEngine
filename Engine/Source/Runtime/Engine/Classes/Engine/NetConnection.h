@@ -47,6 +47,11 @@ class UActorChannel;
 class UChildConnection;
 struct FEncryptionKeyResponse;
 
+namespace UE::Net
+{
+	class FNetPing;
+}
+
 typedef TMap<TWeakObjectPtr<AActor>, UActorChannel*, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<AActor>, UActorChannel*>> FActorChannelMap;
 
 namespace NetConnectionHelper
@@ -1660,6 +1665,9 @@ private:
 	/** Whether or not this NetConnection has already received an NMT_CloseReason message */
 	bool bReceivedCloseReason = false;
 
+	/** Ping collection and calculation */
+	TPimplPtr<UE::Net::FNetPing> NetPing;
+
 
 	int32 GetFreeChannelIndex(const FName& ChName) const;
 
@@ -1678,6 +1686,11 @@ public:
 	UE::Net::FNetConnectionFaultRecovery* GetFaultRecovery()
 	{
 		return &FaultRecovery;
+	}
+
+	UE::Net::FNetPing* GetNetPing()
+	{
+		return NetPing.Get();
 	}
 
 	/**

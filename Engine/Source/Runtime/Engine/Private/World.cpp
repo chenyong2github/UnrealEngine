@@ -136,6 +136,7 @@
 #include "MoviePlayerProxy.h"
 #include "ObjectTrace.h"
 #include "ReplaySubsystem.h"
+#include "Net/NetPing.h"
 
 #if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
@@ -5734,6 +5735,29 @@ void UWorld::WelcomePlayer(UNetConnection* Connection)
 	}
 
 	FNetControlMessage<NMT_Welcome>::Send(Connection, LevelName, GameName, RedirectURL);
+
+	FString ClientNetPingICMPAddress;
+	FString ClientNetPingUDPAddress;
+
+	if (FParse::Value(FCommandLine::Get(), TEXT("ClientNetPingICMPAddress="), ClientNetPingICMPAddress) && ClientNetPingICMPAddress.Len() > 0)
+	{
+		const uint32 PingType = static_cast<uint32>(EPingType::ICMP);
+		const ENetPingControlMessage MessageType = ENetPingControlMessage::SetPingAddress;
+		FString MessageStr = FString::Printf(TEXT("%i=%s"), PingType, ToCStr(ClientNetPingICMPAddress));
+
+		FNetControlMessage<NMT_NetPing>::Send(Connection, MessageType, MessageStr);
+	}
+
+	if (FParse::Value(FCommandLine::Get(), TEXT("ClientNetPingUDPAddress="), ClientNetPingUDPAddress) && ClientNetPingUDPAddress.Len() > 0)
+	{
+		const uint32 PingType = static_cast<uint32>(EPingType::UDPQoS);
+		const ENetPingControlMessage MessageType = ENetPingControlMessage::SetPingAddress;
+		FString MessageStr = FString::Printf(TEXT("%i=%s"), PingType, ToCStr(ClientNetPingUDPAddress));
+
+		FNetControlMessage<NMT_NetPing>::Send(Connection, MessageType, MessageStr);
+	}
+
+
 	Connection->FlushNet();
 	// don't count initial join data for netspeed throttling
 	// as it's unnecessary, since connection won't be fully open until it all gets received, and this prevents later gameplay data from being delayed to "catch up"

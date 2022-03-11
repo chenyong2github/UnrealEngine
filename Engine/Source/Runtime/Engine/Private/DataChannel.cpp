@@ -27,6 +27,7 @@
 #include "Misc/NetworkVersion.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "HAL/LowLevelMemStats.h"
+#include "Net/NetPing.h"
 
 DEFINE_LOG_CATEGORY(LogNet);
 DEFINE_LOG_CATEGORY(LogNetSubObject);
@@ -104,18 +105,15 @@ static TAutoConsoleVariable<bool> CVarEnableNetInitialSubObjects(
 	TEXT("Enables new SubObjects to set bNetInitial to true to make sure all replicated properties are replicated.")
 );
 
-namespace UE
+namespace UE::Net
 {
-	namespace Net
-	{
-		extern int32 FilterGuidRemapping;
+	extern int32 FilterGuidRemapping;
 
-		static float QueuedBunchTimeoutSeconds = 30.0f;
-		static FAutoConsoleVariableRef CVarQueuedBunchTimeoutSeconds(
-			TEXT("net.QueuedBunchTimeoutSeconds"),
-			QueuedBunchTimeoutSeconds,
-			TEXT("Time in seconds to wait for queued bunches on a channel to flush before logging a warning."));
-	};
+	static float QueuedBunchTimeoutSeconds = 30.0f;
+	static FAutoConsoleVariableRef CVarQueuedBunchTimeoutSeconds(
+		TEXT("net.QueuedBunchTimeoutSeconds"),
+		QueuedBunchTimeoutSeconds,
+		TEXT("Time in seconds to wait for queued bunches on a channel to flush before logging a warning."));
 };
 
 template<typename T>
@@ -1530,13 +1528,17 @@ IMPLEMENT_CONTROL_CHANNEL_MESSAGE(Abort);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(PCSwap);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(ActorChannelFailure);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(DebugText);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(NetGUIDAssign);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(SecurityViolation);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(GameSpecific);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(EncryptionAck);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(DestructionInfo);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(CloseReason);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(NetPing);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(BeaconWelcome);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(BeaconJoin);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(BeaconAssignGUID);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(BeaconNetGUIDAck);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(EncryptionAck);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(DestructionInfo);
 
 void UControlChannel::Init( UNetConnection* InConnection, int32 InChannelIndex, EChannelCreateFlags CreateFlags )
 {
@@ -1711,6 +1713,19 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 		{
 			ReceiveDestructionInfo(Bunch);
 		}
+		else if (MessageType == NMT_NetPing)
+		{
+			ENetPingControlMessage NetPingMessageType;
+			FString MessageStr;
+
+			if (FNetControlMessage<NMT_NetPing>::Receive(Bunch, NetPingMessageType, MessageStr) &&
+				NetPingMessageType <= ENetPingControlMessage::Max)
+			{
+				FNetPing::HandleNetPingControlMessage(Connection, NetPingMessageType, MessageStr);
+			}
+
+			break;
+		}
 		else
 		{
 			// Process control message on client/server connection
@@ -1772,6 +1787,9 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 					break;
 				case NMT_CloseReason:
 					FNetControlMessage<NMT_CloseReason>::Discard(Bunch);
+					break;
+				case NMT_NetPing:
+					FNetControlMessage<NMT_NetPing>::Discard(Bunch);
 					break;
 				case NMT_BeaconWelcome:
 					//FNetControlMessage<NMT_BeaconWelcome>::Discard(Bunch);

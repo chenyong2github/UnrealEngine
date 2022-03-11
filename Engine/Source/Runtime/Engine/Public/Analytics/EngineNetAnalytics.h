@@ -42,6 +42,22 @@ public:
 		OutOfOrderPacketsDuplicateCount += Count;
 	}
 
+	void AddFailedPingAddressICMP(FString PingAddress)
+	{
+		if (FailedPingAddressesICMP.Num() < 32)
+		{
+			FailedPingAddressesICMP.AddUnique(PingAddress);
+		}
+	}
+
+	void AddFailedPingAddressUDP(FString PingAddress)
+	{
+		if (FailedPingAddressesICMP.Num() < 32)
+		{
+			FailedPingAddressesUDP.AddUnique(PingAddress);
+		}
+	}
+
 
 public:
 	/** The number of packets that were exclusively ack packets */
@@ -70,7 +86,14 @@ public:
 	/** NetConnection faults that were recovered from, and the number of times they were recovered from */
 	TMap<FString, int32> RecoveredFaults;
 
+private:
+	/** List of IP addresses a client failed to ping with ICMP. Should correlate against NetConnection count, to determine overall percent. */
+	TArray<FString> FailedPingAddressesICMP;
 
+	/** List of IP addresses a client failed to ping with UDP. Should correlate against NetConnection count, to determine overall percent. */
+	TArray<FString> FailedPingAddressesUDP;
+
+public:
 	/** Aggregation variables */
 
 	struct FPerNetConnData

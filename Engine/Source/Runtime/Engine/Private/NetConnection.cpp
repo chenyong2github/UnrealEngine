@@ -40,6 +40,7 @@
 #include "Math/NumericLimits.h"
 #include "UObject/UnrealNames.h"
 #include "HAL/LowLevelMemStats.h"
+#include "Net/NetPing.h"
 
 DECLARE_LLM_MEMORY_STAT(TEXT("NetConnection"), STAT_NetConnectionLLM, STATGROUP_LLMFULL);
 LLM_DEFINE_TAG(NetConnection, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetConnectionLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
@@ -505,6 +506,8 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 				Close(ENetCloseResult::RPCDoS);
 			});
 	}
+
+	NetPing = FNetPing::CreateNetPing(this);
 
 	UE_NET_TRACE_CONNECTION_CREATED(NetTraceId, GetConnectionId());
 	UE_NET_TRACE_CONNECTION_STATE_UPDATED(NetTraceId, GetConnectionId(), static_cast<uint8>(GetConnectionState()));
@@ -986,6 +989,7 @@ void UNetConnection::Close(FNetResult&& CloseReason)
 		}
 
 		RPCDoS.NotifyClose();
+		NetPing.Reset();
 
 		if (const uint32 MyConnectionId = GetConnectionId())
 		{
@@ -2307,6 +2311,8 @@ void UNetConnection::WriteFinalPacketInfo(FBitWriter& Writer, const double Packe
 
 bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload)
 {
+	using namespace UE::Net;
+
 	// If this packet did not contain any packet info, nothing else to read
 	if (!bHasPacketInfoPayload)
 	{
@@ -2375,10 +2381,12 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPaylo
 		}
 
 
-		// use FApp's time because it is set closer to the beginning of the frame - we don't care about the time so far of the current frame to process the packet
-		const double CurrentTime = (PacketReceiveTime != 0.0 ? PacketReceiveTime : FApp::GetCurrentTime());
-		const double RTT		 = (CurrentTime - OutLagTime[Index] ) - ( CVarPingExcludeFrameTime.GetValueOnAnyThread() ? ServerFrameTime : 0.0 );
-		const double NewLag		 = FMath::Max( RTT, 0.0 );
+		// Use FApp's time because it is set closer to the beginning of the frame - we don't care about the time so far of the current frame to process the packet
+		const bool bExcludeFrameTime = !!CVarPingExcludeFrameTime.GetValueOnAnyThread();
+		const double CurrentTime	= (PacketReceiveTime != 0.0 ? PacketReceiveTime : FApp::GetCurrentTime());
+		const double RTT			= (CurrentTime - OutLagTime[Index]);
+		const double RTTExclFrame	= RTT - (bExcludeFrameTime ? ServerFrameTime : 0.0);
+		const double NewLag			= FMath::Max(RTTExclFrame, 0.0);
 
 		//UE_LOG( LogNet, Warning, TEXT( "Out: %i, InRemote: %i, Saturation: %f" ), OutBytesPerSecondHistory[Index], RemoteInKBytesPerSecond, RemoteSaturation );
 
@@ -2388,6 +2396,12 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPaylo
 		if (PlayerController)
 		{
 			PlayerController->UpdatePing(NewLag);
+		}
+
+		if (NetPing.IsValid())
+		{
+			NetPing->UpdatePing(EPingType::RoundTrip, CurrentTime, NewLag);
+			NetPing->UpdatePing(EPingType::RoundTripExclFrame, CurrentTime, FMath::Max(RTT, 0.0));
 		}
 
 		if (NetworkCongestionControl.IsSet())
@@ -4258,6 +4272,11 @@ void UNetConnection::Tick(float DeltaSeconds)
 	}
 
 	bFlushedNetThisFrame = false;
+
+	if (NetPing.IsValid())
+	{
+		NetPing->TickRealtime(CurrentRealtimeSeconds);
+	}
 }
 
 void UNetConnection::HandleConnectionTimeout(const FString& Error)
