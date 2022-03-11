@@ -2043,7 +2043,7 @@ public:
 		FString GamePath = FPaths::ProjectContentDir() / TEXT("PipelineCaches") / ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()) / FString::Printf(TEXT("%s_%s.upipelinecache"), *FileName, *PlatformName.ToString());
 
 		static bool bCommandLineNotStable = FParse::Param(FCommandLine::Get(), TEXT("nostablepipelinecache"));
-		if (!bCommandLineNotStable && IFileManager::Get().FileExists(*GamePathStable))
+		if (!bCommandLineNotStable)
 		{
 			GamePath = GamePathStable;
 		}
@@ -2239,7 +2239,7 @@ public:
                 FString GamePathStable = FPaths::ProjectContentDir() / TEXT("PipelineCaches") / ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()) / FString::Printf(TEXT("%s_%s.stable.upipelinecache"), *Name, *PlatformName.ToString());
                 FString GamePath = FPaths::ProjectContentDir() / TEXT("PipelineCaches") / ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()) / FString::Printf(TEXT("%s_%s.upipelinecache"), *Name, *PlatformName.ToString());
 				static bool bCommandLineNotStable = FParse::Param(FCommandLine::Get(), TEXT("nostablepipelinecache"));
-                if (!bCommandLineNotStable && IFileManager::Get().FileExists(*GamePathStable))
+                if (!bCommandLineNotStable)
                 {
                     GamePath = GamePathStable;
                 }
