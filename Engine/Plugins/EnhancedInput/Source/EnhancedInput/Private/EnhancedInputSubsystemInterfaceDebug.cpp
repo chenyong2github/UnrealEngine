@@ -25,7 +25,10 @@ struct FVisualizationTexture
 	// Move only
 	FVisualizationTexture(UTexture2D* InTexture) : Texture(InTexture)
 	{
-		Texture->AddToRoot();
+		if (Texture)
+		{
+			Texture->AddToRoot();
+		}
 	}
 	FVisualizationTexture(FVisualizationTexture&& Other)
 	{
@@ -357,7 +360,12 @@ void IEnhancedInputSubsystemInterface::ShowDebugActionModifiers(UCanvas* Canvas,
 			FCreateTexture2DParameters Params;
 			Params.bDeferCompression = true;
 			Params.CompressionSettings = TC_EditorIcon;
+			// FImageUtils::CreateTexture2D will return null and throw a fatal error unless we have WITH_EDITOR
+#if WITH_EDITOR
 			return FImageUtils::CreateTexture2D(VisSize.X, VisSize.Y, ColorData, IEnhancedInputModule::Get().GetLibrary(), FString(), EObjectFlags::RF_NoFlags, Params);
+#else 
+			return nullptr;
+#endif
 		};
 
 		bool bDrawnAtLeastOneModifier = false;

@@ -232,8 +232,9 @@ void FEnhancedInputModule::StartupModule()
 
 	if (!IsRunningDedicatedServer())
 	{
+#if ENABLE_DRAW_DEBUG
 		AHUD::OnShowDebugInfo.AddStatic(&FEnhancedInputModule::OnShowDebugInfo);
-
+#endif
 	    // Register console commands
 	    ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
 		    TEXT("Input.+action"),
