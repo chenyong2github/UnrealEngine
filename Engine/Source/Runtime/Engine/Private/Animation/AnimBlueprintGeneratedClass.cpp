@@ -543,17 +543,25 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 		}
 	}
 
-	// Must build constant properties to be able to iterate subsystems
-	BuildConstantProperties();
-	
-	ForEachSubsystem([this](const FAnimSubsystemContext& InContext)
+#if WITH_EDITORONLY_DATA
+	// With cooked data, we skip this as Link() is called on serialization and sparse class data
+	// is not properly serialized yet
+	if(!GetPackage()->bIsCookedForEditor)
 	{
-		Subsystems.Add(&InContext.Subsystem);
+		// Must build constant properties to be able to iterate subsystems and call OnLink()
+		// Subsystems in non-editor data builds should be initialized in OnPostLoadDefaults.
+		BuildConstantProperties();
+		
+		ForEachSubsystem([this](const FAnimSubsystemContext& InContext)
+		{
+			Subsystems.Add(&InContext.Subsystem);
 
-		FAnimSubsystemLinkContext Context(InContext, *this);
-		const_cast<FAnimSubsystem&>(InContext.Subsystem).OnLink(Context);
-		return EAnimSubsystemEnumeration::Continue;
-	});	
+			FAnimSubsystemLinkContext Context(InContext, *this);
+			const_cast<FAnimSubsystem&>(InContext.Subsystem).OnLink(Context);
+			return EAnimSubsystemEnumeration::Continue;
+		});
+	}
+#endif
 }
 
 void UAnimBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)

@@ -122,6 +122,8 @@ struct FAnimSubsystem
 	/** Override point to perform subsystem class data initialization post-load */
 	virtual void OnPostLoad(FAnimSubsystemPostLoadContext& InContext) {}
 
+#if WITH_EDITORONLY_DATA
 	/** Override point to perform subsystem class data initialization on class link */
 	virtual void OnLink(FAnimSubsystemLinkContext& InContext) {}
+#endif
 };
