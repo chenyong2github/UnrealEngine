@@ -309,15 +309,28 @@ void FTextureReference::BeginRelease_GameThread()
 	bInitialized_GameThread = false;
 }
 
+double FTextureReference::GetLastRenderTime() const
+{
+	if (bInitialized_GameThread && TextureReferenceRHI)
+	{
+		return TextureReferenceRHI->GetLastRenderTime();
+	}
+
+	return FLastRenderTimeContainer().GetLastRenderTime();
+}
+
 void FTextureReference::InvalidateLastRenderTime()
 {
-	LastRenderTimeRHI.SetLastRenderTime(-FLT_MAX);
+	if (bInitialized_GameThread && TextureReferenceRHI)
+	{
+		TextureReferenceRHI->SetLastRenderTime(-FLT_MAX);
+	}
 }
 
 void FTextureReference::InitRHI()
 {
 	SCOPED_LOADTIMER(FTextureReference_InitRHI);
-	TextureReferenceRHI = RHICreateTextureReference(&LastRenderTimeRHI);
+	TextureReferenceRHI = RHICreateTextureReference();
 }
 	
 int32 GTextureReferenceRevertsLastRenderContainer = 1;
@@ -328,44 +341,6 @@ FAutoConsoleVariableRef CVarTextureReferenceRevertsLastRenderContainer(
 
 void FTextureReference::ReleaseRHI()
 {
-#if PLATFORM_ANDROID 
-	if (TextureReferenceRHI.GetReference())
-	{
-		bool bTextureReferenceRevertsLastRenderContainer = GTextureReferenceRevertsLastRenderContainer != 0;
-		
-		// Check Android's config rules system so we can HF this at startup if needed.
-		{			
-			static bool bConfigRulesChecked = false;
-			static TOptional<bool> bConfigRulesRevertsLastRenderContainer;
-			if (!bConfigRulesChecked)
-			{
-				const FString* ConfigRulesStr = FAndroidMisc::GetConfigRulesVariable(TEXT("TextureReferenceRevertsLastRenderContainer"));
-				if (ConfigRulesStr)
-				{
-					bConfigRulesRevertsLastRenderContainer = ConfigRulesStr->Equals("true", ESearchCase::IgnoreCase);
-					UE_LOG(LogRHI, Log, TEXT("TextureReferenceRevertsLastRenderContainer, set by config rules: %d"), (int)bConfigRulesRevertsLastRenderContainer.GetValue());
-				}
-				else
-				{
-					UE_LOG(LogRHI, Log, TEXT("TextureReferenceRevertsLastRenderContainer, no config rule set: %d"), (int)bTextureReferenceRevertsLastRenderContainer);
-				}
-				bConfigRulesChecked = true;
-			}
-
-			if (bConfigRulesRevertsLastRenderContainer.IsSet())
-			{
-				bTextureReferenceRevertsLastRenderContainer = bConfigRulesRevertsLastRenderContainer.GetValue();
-			}
-		} 
-
-		if (bTextureReferenceRevertsLastRenderContainer && TextureReferenceRHI->GetLastRenderTimeContainer() == &LastRenderTimeRHI)
-		{
-			// we're going away, TextureReferenceRHI must swap out its (soon to be) dangling ref.
-			TextureReferenceRHI->SetDefaultLastRenderTimeContainer();
-		}
-	}
-#endif
-
 	TextureReferenceRHI.SafeRelease();
 }
 

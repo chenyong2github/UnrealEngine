@@ -106,9 +106,9 @@ void FVirtualTextureSpace::InitRHI()
 	for (uint32 TextureIndex = 0u; TextureIndex < GetNumPageTableTextures(); ++TextureIndex)
 	{
 		FTextureEntry& TextureEntry = PageTable[TextureIndex];
-		TextureEntry.TextureReferenceRHI = RHICreateTextureReference(nullptr);
+		TextureEntry.TextureReferenceRHI = RHICreateTextureReference();
 	}
-	PageTableIndirection.TextureReferenceRHI = RHICreateTextureReference(nullptr);
+	PageTableIndirection.TextureReferenceRHI = RHICreateTextureReference();
 	RHIUpdateTextureReference(PageTableIndirection.TextureReferenceRHI, GBlackUintTexture->TextureRHI);
 }
 
