@@ -81,7 +81,7 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 
 	/** Set an MID vector parameter value */
 	UFUNCTION(BlueprintCallable, meta = (Keywords = "SetVectorParameterValue"), Category = "Rendering|Material")
-	void SetDoubleVectorParameterValue(FName ParameterName, FVector Value);
+	void SetDoubleVectorParameterValue(FName ParameterName, FVector4 Value);
 
 	/** Set an MID vector parameter value, using MPI (to allow access to layer parameters) */
 	UFUNCTION(BlueprintCallable, meta = (Keywords = "SetColorParameterValue"), Category = "Rendering|Material")

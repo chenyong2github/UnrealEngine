@@ -126,7 +126,7 @@ void UMaterialInstanceDynamic::SetVectorParameterValue(FName ParameterName, FLin
 	SetVectorParameterValueInternal(ParameterInfo,Value);
 }
 
-void UMaterialInstanceDynamic::SetDoubleVectorParameterValue(FName ParameterName, FVector Value)
+void UMaterialInstanceDynamic::SetDoubleVectorParameterValue(FName ParameterName, FVector4 Value)
 {
 	FMaterialParameterInfo ParameterInfo(ParameterName);
 	SetDoubleVectorParameterValueInternal(ParameterInfo, Value);
