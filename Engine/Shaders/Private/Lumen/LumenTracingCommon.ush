@@ -1169,7 +1169,7 @@ float4 FadeOutVoxelConeTraceMinTransparency(float4 LightingAndAlpha)
 
 uint VoxelFaceFromStep(uint3 StepInc, int3 VoxelStep)
 {
-	uint3 DirectionOffset = VoxelStep >= 0 ? 0 : 1;
+	uint3 DirectionOffset = select(VoxelStep >= 0, 0u, 1u);
 	return dot(StepInc, uint3(0, 2, 4) + DirectionOffset);
 }
 
@@ -1201,7 +1201,7 @@ void ConeTraceVoxels(
 		float3 VoxelClipmapCenter = ClipmapWorldCenter[VoxelClipmapIndex].xyz;
 		float3 VoxelClipmapExtent = ClipmapWorldSamplingExtent[VoxelClipmapIndex].xyz;
 
-		bool bOutsideValidRegion = any(SampleWorldPosition > VoxelClipmapCenter + VoxelClipmapExtent || SampleWorldPosition < VoxelClipmapCenter - VoxelClipmapExtent);
+		bool bOutsideValidRegion = any(or(SampleWorldPosition > VoxelClipmapCenter + VoxelClipmapExtent, SampleWorldPosition < VoxelClipmapCenter - VoxelClipmapExtent));
 
 		// Find the voxel clipmap that matches the cone width at the current step
 		while (bOutsideValidRegion && VoxelClipmapIndex + 1 < NumClipmapLevels)
@@ -1209,7 +1209,7 @@ void ConeTraceVoxels(
 			VoxelClipmapIndex++;
 			VoxelClipmapCenter = ClipmapWorldCenter[VoxelClipmapIndex].xyz;
 			VoxelClipmapExtent = ClipmapWorldSamplingExtent[VoxelClipmapIndex].xyz;
-			bOutsideValidRegion = any(SampleWorldPosition > VoxelClipmapCenter + VoxelClipmapExtent || SampleWorldPosition < VoxelClipmapCenter - VoxelClipmapExtent);
+			bOutsideValidRegion = any(or(SampleWorldPosition > VoxelClipmapCenter + VoxelClipmapExtent, SampleWorldPosition < VoxelClipmapCenter - VoxelClipmapExtent));
 		}
 
 		LightingAndAlpha.xyzw = 0.0f;

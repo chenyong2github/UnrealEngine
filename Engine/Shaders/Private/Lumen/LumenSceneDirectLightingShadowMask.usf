@@ -136,7 +136,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 				}
 
 				// Shadow maps are culled so only query points inside the view frustum are valid
-				if (all(PostProjectionPosition.xy < PostProjectionPosition.w && PostProjectionPosition.xy > -PostProjectionPosition.w))
+				if (all(and(PostProjectionPosition.xy < PostProjectionPosition.w, PostProjectionPosition.xy > -PostProjectionPosition.w)))
 				{
 					#if VIRTUAL_SHADOW_MAP
 					{

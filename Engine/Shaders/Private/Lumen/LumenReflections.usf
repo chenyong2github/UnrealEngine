@@ -481,7 +481,7 @@ void ReflectionResolveCS(
 
 					int2 NeighborTracingCoord = (int2)(ReflectionScreenCoord + Offset);
 
-					if (all(NeighborTracingCoord >= int2(0, 0) && NeighborTracingCoord < (int2)ReflectionTracingViewSize))
+					if (all(and(NeighborTracingCoord >= int2(0, 0), NeighborTracingCoord < (int2)ReflectionTracingViewSize)))
 					{
 						float2 NeighborScreenUV = GetScreenUVFromReflectionTracingCoord(NeighborTracingCoord);
 						float NeighborSceneDepth = DownsampledDepth[NeighborTracingCoord].x;
@@ -798,7 +798,7 @@ void ReflectionTemporalReprojectionCS(
 #endif
 
 	float4 DistanceToHistoryValue = abs(HistorySceneDepth - PrevSceneDepth);
-	float4 OcclusionWeights = DistanceToHistoryValue >= PrevSceneDepth * DisocclusionDistanceThreshold ? 1 : 0;
+	float4 OcclusionWeights = select(DistanceToHistoryValue >= PrevSceneDepth * DisocclusionDistanceThreshold, 1.0, 0.0);
 
 	OcclusionWeights = saturate((bHistoryWasOnscreen ? 1.0f : 0.0f) - OcclusionWeights);
 
@@ -942,7 +942,7 @@ void ReflectionBilateralFilterCS(
 					float2 Offset = (Hammersley16(SampleIndex, NumBilateralFilterSamples, RandomSeed) - .5f) * 2 * KernelRadius;
 					int2 NeighborScreenCoord = (int2)(ScreenCoord + Offset);
 
-					if (all(NeighborScreenCoord >= int2(0, 0) && NeighborScreenCoord < (int2)View.ViewSizeAndInvSize.xy))
+					if (all(and(NeighborScreenCoord >= int2(0, 0), NeighborScreenCoord < (int2)View.ViewSizeAndInvSize.xy)))
 					{
 						float2 NeighborScreenUV = (NeighborScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
 						const FLumenMaterialData NeighborMaterial = ApplySmoothBias(ReadMaterialData(NeighborScreenCoord), true /*bTopLayerRoughness*/);

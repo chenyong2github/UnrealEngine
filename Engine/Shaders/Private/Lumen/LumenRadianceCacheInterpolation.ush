@@ -407,7 +407,7 @@ float3 SampleIrradianceCacheInterpolated(float3 WorldSpacePosition, float3 World
 		float Weight = SoftFalloff * SoftFalloff + .2f;
 
 		//@todo - trilinear weight ignores probe offset
-		float3 TrilinearWeights = max(ProbeOffset > 0 ? LerpAlphas : 1 - LerpAlphas, .001f);
+		float3 TrilinearWeights = max(select(ProbeOffset > 0, LerpAlphas, 1 - LerpAlphas), .001f);
 		Weight *= TrilinearWeights.x * TrilinearWeights.y * TrilinearWeights.z;
 
 		float2 MeanAndMeanSq = SampleProbeOcclusion(ProbeIndex, -SamplePositionToProbe);

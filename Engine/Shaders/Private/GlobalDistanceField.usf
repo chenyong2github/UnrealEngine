@@ -687,8 +687,9 @@ void ComposeObjectsIntoPagesCS(
 	if (all(TexelCoordInPage < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS))
 	{
 		uint3 CoverageTexelCoordInPage = TexelCoordInPage / GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR;
-		bool bThreadWritesCoverage = all((TexelCoordInPage % GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR == 0)
-			&& CoverageTexelCoordInPage < GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS);
+		bool bThreadWritesCoverage = all(and(
+			TexelCoordInPage % GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR == 0,
+			CoverageTexelCoordInPage < GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS));
 		// Conservatively set uncovered only if there are no one sided meshes, and we're not in empty space
 		float Coverage = bVoxelHasTwoSidedMeshes && !bVoxelHasOneSidedMeshes ? 0.0f : 1.0f;
 

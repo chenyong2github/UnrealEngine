@@ -273,7 +273,7 @@ void GatherNeighborRadiance(
 	inout float3 TotalRadiance, 
 	inout float TotalWeight)
 {
-	if (all(NeighborScreenTileCoord >= 0 && NeighborScreenTileCoord < (int2)ScreenProbeViewSize))
+	if (all(and(NeighborScreenTileCoord >= 0, NeighborScreenTileCoord < (int2)ScreenProbeViewSize)))
 	{
 		uint2 NeighborScreenProbeAtlasCoord = NeighborScreenTileCoord;
 		uint2 NeighborScreenProbeScreenPosition = GetUniformScreenProbeScreenPosition(NeighborScreenProbeAtlasCoord);

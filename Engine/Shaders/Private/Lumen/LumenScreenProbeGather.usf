@@ -190,7 +190,7 @@ void CalculateUniformUpsampleInterpolationWeights(
 			
 		float4 RelativeDepthDifference = PlaneDistances / SceneDepth;
 
-		DepthWeights = CornerDepths > 0 ? exp2(-10000.0f * (RelativeDepthDifference * RelativeDepthDifference)) : 0;
+		DepthWeights = select(CornerDepths > 0, exp2(-10000.0f * (RelativeDepthDifference * RelativeDepthDifference)), 0.0);
 	}
 #else
 	{
@@ -1526,7 +1526,7 @@ void ScreenProbeTemporalReprojectionCS(
 	#endif
 
 	float4 DistanceToHistoryValue = abs(HistorySceneDepth - PrevSceneDepth);
-	float4 OcclusionWeights = DistanceToHistoryValue >= PrevSceneDepth * DisocclusionDistanceThreshold ? 1 : 0;
+	float4 OcclusionWeights = select(DistanceToHistoryValue >= PrevSceneDepth * DisocclusionDistanceThreshold, 1.0, 0.0);
 
 #endif
 
@@ -1538,11 +1538,11 @@ void ScreenProbeTemporalReprojectionCS(
 	float3 HistoryNormal01 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(0, TexelSize.y), 0).xyz);
 	float3 HistoryNormal11 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGatherUV00 + TexelSize, 0).xyz);
 
-	float4 HistoryNormalWeights = float4(
+	float4 HistoryNormalWeights = select(float4(
 		dot(HistoryNormal00, WorldNormal),
 		dot(HistoryNormal10, WorldNormal),
 		dot(HistoryNormal01, WorldNormal),
-		dot(HistoryNormal11, WorldNormal)) < HistoryNormalCosThreshold ? 1.0f : 0.0f;
+		dot(HistoryNormal11, WorldNormal)) < HistoryNormalCosThreshold, 1.0f, 0.0f);
 
 	OcclusionWeights = saturate(HistoryNormalWeights + OcclusionWeights);
 #endif

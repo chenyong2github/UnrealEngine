@@ -241,7 +241,7 @@ void VisualizeLumenVoxelsCS(
 	float RayTime = 0.0f;
 	float3 RayDirection = normalize(ScreenVector);
 	float3 RayOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin) + MinTraceDistance * RayDirection;
-	int3 VoxelStep = (RayDirection < 0) ? int3(-1, -1, -1) : int3(1, 1, 1);
+	int3 VoxelStep = select(RayDirection < 0, int3(-1, -1, -1), int3(1, 1, 1));
 
 	uint VoxelClipmapIndex = VisualizeClipmapIndex >= 0 ? VisualizeClipmapIndex : 0;
 	for (uint ClipmapIndex = 0; ClipmapIndex < NumClipmapLevels; ++ClipmapIndex)
@@ -259,7 +259,7 @@ void VisualizeLumenVoxelsCS(
 	float3 VoxelMax = (VoxelCoord + 1.0f) * VoxelSize + ClipmapMin;
 	float3 MaxNegT = (VoxelMin - RayOrigin) / RayDirection;
 	float3 MaxPosT = (VoxelMax - RayOrigin) / RayDirection;
-	float3 NextVoxelFaceT = (RayDirection < 0) ? MaxNegT : MaxPosT;
+	float3 NextVoxelFaceT = select(RayDirection < 0, MaxNegT, MaxPosT);
 	float3 VoxelFaceStepT = abs(VoxelSize / RayDirection);
 
 	uint RayVoxelEntryFace = 6;
@@ -322,7 +322,7 @@ void VisualizeLumenVoxelsCS(
 			VoxelMax = (VoxelCoord + 1.0f) * VoxelSize + ClipmapMin;
 			MaxNegT = (VoxelMin - RayOrigin) / RayDirection;
 			MaxPosT = (VoxelMax - RayOrigin) / RayDirection;
-			NextVoxelFaceT = (RayDirection < 0) ? MaxNegT : MaxPosT;
+			NextVoxelFaceT = select(RayDirection < 0, MaxNegT, MaxPosT);
 			VoxelFaceStepT = abs(VoxelSize / RayDirection);
 		}
 

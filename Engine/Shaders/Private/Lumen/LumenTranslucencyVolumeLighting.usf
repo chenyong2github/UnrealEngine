@@ -161,7 +161,7 @@ void TranslucencyVolumeSpatialFilterCS(
 		{
 			uint3 NeighborGridCoordinate = GridCoordinate + Offsets[OffsetIndex];
 
-			if (all(NeighborGridCoordinate >= 0 && NeighborGridCoordinate < TranslucencyGIGridSize))
+			if (all(and(NeighborGridCoordinate >= 0, NeighborGridCoordinate < TranslucencyGIGridSize)))
 			{
 				float3 NeighborRadiance = VolumeTraceRadiance[uint3(NeighborGridCoordinate.xy * TranslucencyVolumeTracingOctahedronResolution + TraceTexelCoord, NeighborGridCoordinate.z)];
 				float Weight = 1.0f;

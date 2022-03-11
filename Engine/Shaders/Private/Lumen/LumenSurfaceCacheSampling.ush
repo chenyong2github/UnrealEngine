@@ -81,7 +81,7 @@ struct FLumenCardSample
 
 uint2 ResLevelXYToSizeInPages(uint2 ResLevelXY)
 {
-	return ResLevelXY > SUB_ALLOCATION_RES_LEVEL ? 1u << (ResLevelXY - SUB_ALLOCATION_RES_LEVEL) : 1;
+	return select(ResLevelXY > SUB_ALLOCATION_RES_LEVEL, 1u << (ResLevelXY - SUB_ALLOCATION_RES_LEVEL), 1);
 }
 
 uint2 GetSizeInPages(FLumenCardData Card, uint ResLevel)
@@ -124,14 +124,14 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 	// Recompute new SizeInPages and PageCoord, as sampled page may be pointing to an another mip map level
 	SizeInPages = ResLevelXYToSizeInPages(ResLevelXY);
 	PageCoord = CardUV * SizeInPages;
-	uint2 AtlasScale = ResLevelXY > SUB_ALLOCATION_RES_LEVEL ? PHYSICAL_PAGE_SIZE : (1u << ResLevelXY);
+	uint2 AtlasScale = select(ResLevelXY > SUB_ALLOCATION_RES_LEVEL, PHYSICAL_PAGE_SIZE, (1u << ResLevelXY));
 
 	float2 PageUV = frac(CardUV * SizeInPages);
 
 	// Page edges (which aren't card edges) need to be remapped from [0; PageSize] to [0.5; PageSize - 0.5] 
 	// for correct bilinear filtering between pages and not reading texels outside of that page
-	float2 MinUVBorder = PageCoord.xy == 0 ? 0.0f : 0.5f;
-	float2 MaxUVBorder = PageCoord.xy + 1 == SizeInPages.xy ? 0.0f : 0.5f;
+	float2 MinUVBorder = select(PageCoord.xy == 0, 0.0f, 0.5f);
+	float2 MaxUVBorder = select(PageCoord.xy + 1 == SizeInPages.xy, 0.0f, 0.5f);
 	float2 CoordInPage = (PageUV * (AtlasScale - MinUVBorder - MaxUVBorder)) + MinUVBorder;
 
 	// Card edges need to be clamped to [0.5; CardResolution - 0.5] so that bilinear filtering doesn't read texels from other cards

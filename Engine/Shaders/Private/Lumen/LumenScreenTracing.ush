@@ -79,7 +79,7 @@ void InternalTraceScreen(
 	float CurrentIntersectionTime = 0;
 
     // Offset to pick which XY boundary planes to intersect
-    float2 FloorOffset = RayDirectionScreenUV.xy < 0 ? 0 : 1;
+    float2 FloorOffset = select(RayDirectionScreenUV.xy < 0, 0.0, 1.0);
 
 	float3 RayScreenUV = RayStartScreenUV;
 
@@ -93,7 +93,7 @@ void InternalTraceScreen(
 		float2 CurrentMipResolution = 1.0f / CurrentMipTexelSize;
 
 		float2 UVOffset = .005f * CurrentMipTexelSize;
-		UVOffset = RayDirectionScreenUV.xy < 0 ? -UVOffset : UVOffset;
+		UVOffset = select(RayDirectionScreenUV.xy < 0, -UVOffset, UVOffset);
 
 		float2 XYPlane = floor(RayScreenUV.xy * CurrentMipResolution) + FloorOffset;
 		XYPlane = XYPlane * CurrentMipTexelSize + UVOffset;
@@ -123,7 +123,7 @@ void InternalTraceScreen(
 		float2 CurrentMipResolution = 1.0f / CurrentMipTexelSize;
 
 		float2 UVOffset = .005f * CurrentMipTexelSize;
-		UVOffset = RayDirectionScreenUV.xy < 0 ? -UVOffset : UVOffset;
+		UVOffset = select(RayDirectionScreenUV.xy < 0, -UVOffset, UVOffset);
 
 		float2 XYPlane = floor(RayScreenUV.xy * CurrentMipResolution) + FloorOffset;
 		XYPlane = XYPlane * CurrentMipTexelSize + UVOffset;
@@ -202,7 +202,7 @@ void InternalTraceScreen(
 		{
 			float3 SampleUV = RayScreenUV + (I / NumSteps) * ThicknessSearchEndTime * (RayEndScreenUV - RayScreenUV);
 
-			if (all(SampleUV.xy > 0 && SampleUV.xy < HZBUvFactorAndInvFactor.xy))
+			if (all(and(SampleUV.xy > 0, SampleUV.xy < HZBUvFactorAndInvFactor.xy)))
 			{
 				float SampleTileZ = InClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, SampleUV.xy, ThicknessSearchMipLevel).x;
 
