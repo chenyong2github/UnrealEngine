@@ -294,6 +294,23 @@ public:
 			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
 			bValidMaterial;
 	}
+	
+	static bool ShouldCompileComputePermutation(const FMaterialShaderPermutationParameters& Parameters, bool bProgrammableRaster)
+	{
+		// Always compile default material as the fast opaque "fixed function" raster path
+		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
+
+		// Compile this compute shader if it requires programmable raster and it's enabled
+		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && (RequiresProgrammableVertex(Parameters) || RequiresProgrammablePixel(Parameters)))
+		{
+			bValidMaterial = true;
+		}
+
+		return
+			DoesPlatformSupportNanite(Parameters.Platform) &&
+			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
+			bValidMaterial;
+	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{

@@ -127,7 +127,8 @@ static FAutoConsoleVariableRef CVarNaniteMSInterp(
 	TEXT("")
 );
 
-int32 GNaniteAllowProgrammableRaster = 1;
+// TODO: PROG_RASTER - Disabled for now because FMicropolyRasterizeCS requires DXC
+int32 GNaniteAllowProgrammableRaster = 0;
 static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
 	TEXT("r.Nanite.AllowProgrammableRaster"),
 	GNaniteAllowProgrammableRaster,
@@ -266,7 +267,7 @@ END_SHADER_PARAMETER_STRUCT()
 class FRasterTechnique
 {
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters, int32 RasterTechnique)
+	static bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters, int32 RasterTechnique)
 	{
 		if (RasterTechnique == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
 			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
@@ -289,7 +290,7 @@ public:
 		return true;
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment, int32 RasterTechnique)
+	static void ModifyCompilationEnvironment(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment, int32 RasterTechnique)
 	{
 		if (RasterTechnique == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
@@ -803,10 +804,9 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
 END_SHADER_PARAMETER_STRUCT()
 
-class FMicropolyRasterizeCS : public FNaniteGlobalShader
+class FMicropolyRasterizeCS : public FNaniteMaterialShader
 {
-	DECLARE_GLOBAL_SHADER( FMicropolyRasterizeCS );
-	SHADER_USE_PARAMETER_STRUCT( FMicropolyRasterizeCS, FNaniteGlobalShader);
+	DECLARE_SHADER_TYPE(FMicropolyRasterizeCS, Material);
 
 	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
@@ -821,7 +821,21 @@ class FMicropolyRasterizeCS : public FNaniteGlobalShader
 
 	using FParameters = FRasterizePassParameters;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	FMicropolyRasterizeCS() = default;
+	FMicropolyRasterizeCS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+		: FNaniteMaterialShader(Initializer)
+	{
+		Bindings.BindForLegacyShaderParameters(
+			this,
+			Initializer.PermutationId,
+			Initializer.ParameterMap,
+			*FParameters::FTypeInfo::GetStructMetadata(),
+			// Don't require full bindings, we use FMaterialShader::SetParameters
+			false
+		);
+	}
+
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
 		if (!DoesPlatformSupportNanite(Parameters.Platform))
 		{
@@ -852,18 +866,17 @@ class FMicropolyRasterizeCS : public FNaniteGlobalShader
 			return false;
 		}
 
-		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
+		return FNaniteMaterialShader::ShouldCompileComputePermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
-		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
-		OutEnvironment.SetDefine(TEXT("IS_NANITE_PROGRAMMABLE"), 0); // TODO: PROG_RASTER
 
 		// TODO: PROG_RASTER: Implement support for SM6.6 compute derivative operations (if available)
 		// https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_Derivatives.html
@@ -872,10 +885,19 @@ class FMicropolyRasterizeCS : public FNaniteGlobalShader
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
+		// Have to do this for now because FXC takes a long time to compile the shaders (sometimes indefinite)
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
+
+	void SetParameters(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ShaderRHI, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	{
+		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+	}
 };
-IMPLEMENT_GLOBAL_SHADER(FMicropolyRasterizeCS, "/Engine/Private/Nanite/NaniteRasterizer.usf", "MicropolyRasterize", SF_Compute);
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FMicropolyRasterizeCS, TEXT("/Engine/Private/Nanite/NaniteRasterizer.usf"), TEXT("MicropolyRasterize"), SF_Compute);
 
 class FHWRasterizeVS : public FNaniteMaterialShader
 {
@@ -914,24 +936,11 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
-			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		if (!FRasterTechnique::ShouldCompilePermutation(Parameters, PermutationVector.Get<FRasterTechniqueDim>()))
 		{
-			// Only some platforms support native 64-bit atomics.
 			return false;
 		}
-
-		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-			&& !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
-		{
-			// Only supporting vendor extensions on PC D3D SM5+
-			return false;
-		}
-
+		
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
 			PermutationVector.Get<FVisualizeDim>())
 		{
@@ -997,24 +1006,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), bIsPrimitiveShader ? 4 : 5); // Mesh and primitive shaders use an index of 4 instead of 5
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-		{
-			// Need to force optimization for driver injection to work correctly.
-			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
-			// https://gpuopen.com/gcn-shader-extensions-for-direct3d-and-vulkan/
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
-		}
-
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-		{
-			// Force shader model 6.0+
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
-		}
+		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -1070,24 +1062,11 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
-			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		if (!FRasterTechnique::ShouldCompilePermutation(Parameters, PermutationVector.Get<FRasterTechniqueDim>()))
 		{
-			// Only some platforms support native 64-bit atomics.
 			return false;
 		}
-
-		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-			&& !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
-		{
-			// Only supporting vendor extensions on PC D3D SM5+
-			return false;
-		}
-
+		
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
 			PermutationVector.Get<FVisualizeDim>())
 		{
@@ -1125,17 +1104,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-		{
-			// Need to force optimization for driver injection to work correctly.
-			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
-			// https://gpuopen.com/gcn-shader-extensions-for-direct3d-and-vulkan/
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
-		}
+		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		// Force shader model 6.0+
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
@@ -1202,21 +1171,8 @@ public:
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
-			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		if (!FRasterTechnique::ShouldCompilePermutation(Parameters, PermutationVector.Get<FRasterTechniqueDim>()))
 		{
-			// Only some platforms support native 64-bit atomics.
-			return false;
-		}
-
-		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
-			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-			 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
-		{
-			// Only supporting vendor extensions on PC D3D SM5+
 			return false;
 		}
 
@@ -1286,24 +1242,8 @@ public:
 			OutEnvironment.SetDefine(TEXT("NANITE_USE_HW_BARYCENTRICS"), 0);
 		}
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-		{
-			// Need to force optimization for driver injection to work correctly.
-			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
-			// https://gpuopen.com/gcn-shader-extensions-for-direct3d-and-vulkan/
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
-		}
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-		{
-			// Force shader model 6.0+
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
-		}
+		return FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());		
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -2307,11 +2247,13 @@ void AddPass_Rasterize(
 
 		FNaniteRasterPipeline RasterPipeline{};
 
-		const FMaterialRenderProxy* VertexMaterialProxy	= nullptr;
-		const FMaterialRenderProxy* PixelMaterialProxy	= nullptr;
+		const FMaterialRenderProxy* VertexMaterialProxy		= nullptr;
+		const FMaterialRenderProxy* PixelMaterialProxy		= nullptr;
+		const FMaterialRenderProxy* ComputeMaterialProxy	= nullptr;
 
-		const FMaterial* VertexMaterial = nullptr;
-		const FMaterial* PixelMaterial = nullptr;
+		const FMaterial* VertexMaterial		= nullptr;
+		const FMaterial* PixelMaterial		= nullptr;
+		const FMaterial* ComputeMaterial	= nullptr;
 
 		uint32 IndirectOffset = 0u;
 		uint32 RasterizerBin = ~uint32(0u);
@@ -2334,6 +2276,7 @@ void AddPass_Rasterize(
 
 			RasterizerPass.VertexMaterialProxy	= FixedMaterialProxy;
 			RasterizerPass.PixelMaterialProxy	= FixedMaterialProxy;
+			RasterizerPass.ComputeMaterialProxy	= FixedMaterialProxy;
 
 			FMaterialShaderTypes ProgrammableShaderTypes;
 			ProgrammableShaderTypes.PipelineType = nullptr;
@@ -2361,6 +2304,12 @@ void AddPass_Rasterize(
 				if (bUsesPixelDepthOffset || bUsesAlphaTest)
 				{
 					ProgrammableShaderTypes.AddShaderType<FHWRasterizePS>(PermutationVectorPS.ToDimensionValueId());
+				}
+
+				// Programmable micropoly features
+				if (bUsesWorldPositionOffset || bUsesPixelDepthOffset || bUsesAlphaTest)
+				{
+					ProgrammableShaderTypes.AddShaderType<FMicropolyRasterizeCS>(PermutationVectorCS.ToDimensionValueId());
 				}
 			}
 
@@ -2393,6 +2342,11 @@ void AddPass_Rasterize(
 							RasterizerPass.PixelMaterialProxy = ProgrammableRasterProxy;
 						}
 
+						if (ProgrammableShaders.TryGetComputeShader(&RasterizerPass.RasterComputeShader))
+						{
+							RasterizerPass.ComputeMaterialProxy = ProgrammableRasterProxy;
+						}
+
 						break;
 					}
 				}
@@ -2409,15 +2363,13 @@ void AddPass_Rasterize(
 		FRasterizerPass& RasterizerPass		= RasterizerPasses.AddDefaulted_GetRef();
 		RasterizerPass.VertexMaterialProxy	= FixedMaterialProxy;
 		RasterizerPass.PixelMaterialProxy	= FixedMaterialProxy;
+		RasterizerPass.ComputeMaterialProxy	= FixedMaterialProxy;
 		RasterizerPass.IndirectOffset		= 0u;
 		RasterizerPass.RasterizerBin		= 0u;
 	}
 
 	for (FRasterizerPass& RasterizerPass : RasterizerPasses)
 	{
-		RasterizerPass.RasterComputeShader = SharedContext.ShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS); // TODO: PROG_RASTER (Add programmable raster to SW path)
-		check(!RasterizerPass.RasterComputeShader.IsNull());
-
 		if (RasterizerPass.RasterVertexShader.IsNull() || RasterizerPass.RasterMeshShader.IsNull())
 		{
 			const FMaterialShaderMap* VertexShaderMap = RasterizerPass.VertexMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterizerPass.VertexMaterialProxy).GetRenderingThreadShaderMap();
@@ -2443,11 +2395,23 @@ void AddPass_Rasterize(
 			check(!RasterizerPass.RasterPixelShader.IsNull());
 		}
 
+		if (RasterizerPass.RasterComputeShader.IsNull())
+		{
+			const FMaterialShaderMap* ComputeShaderMap = RasterizerPass.ComputeMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterizerPass.ComputeMaterialProxy).GetRenderingThreadShaderMap();
+			check(ComputeShaderMap);
+			
+			RasterizerPass.RasterComputeShader = ComputeShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS);
+			check(!RasterizerPass.RasterComputeShader.IsNull());
+		}
+
 		RasterizerPass.VertexMaterial = RasterizerPass.VertexMaterialProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
 		check(RasterizerPass.VertexMaterial);
 
 		RasterizerPass.PixelMaterial = RasterizerPass.PixelMaterialProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
 		check(RasterizerPass.PixelMaterial);
+
+		RasterizerPass.ComputeMaterial = RasterizerPass.ComputeMaterialProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
+		check(RasterizerPass.ComputeMaterial);
 	}
 
 	// TODO: PROG_RASTER: Optimization (Fold multiple HW rasterizer calls into combined RDG pass to reduce overhead)
@@ -2544,15 +2508,23 @@ void AddPass_Rasterize(
 			SWRasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
 			SWRasterBinPassParameters->Common.IndirectArgs = BinIndirectArgs;
 
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
+			FComputeShaderUtils::ValidateIndirectArgsBuffer(BinIndirectArgs, RasterizerPass.IndirectOffset);
+			ClearUnusedGraphResources(RasterizerPass.RasterComputeShader, &SWRasterBinPassParameters->Common, { BinIndirectArgs });
+
+			GraphBuilder.AddPass(
 				bMainPass ? RDG_EVENT_NAME("Main Pass: SW Rasterize") : RDG_EVENT_NAME("Post Pass: SW Rasterize"),
-				ComputePassFlags,
-				RasterizerPass.RasterComputeShader,
 				&SWRasterBinPassParameters->Common,
-				SWRasterBinPassParameters->Common.IndirectArgs,
-				RasterizerPass.IndirectOffset + 0
-			);
+				ComputePassFlags,
+				[SWRasterBinPassParameters, RasterizerPass, &SceneView, BinIndirectArgs](FRHIComputeCommandList& RHICmdList)
+			{
+				// Marks the indirect draw parameter as used by the pass manually, given it can't be bound directly by any of the shader,
+				// meaning SetShaderParameters() won't be able to do it.
+				BinIndirectArgs->MarkResourceAsUsed();
+
+				RasterizerPass.RasterComputeShader->SetParameters(RHICmdList, RasterizerPass.RasterComputeShader.GetComputeShader(), SceneView, RasterizerPass.ComputeMaterialProxy, *RasterizerPass.ComputeMaterial);
+
+				FComputeShaderUtils::DispatchIndirect(RHICmdList, RasterizerPass.RasterComputeShader, SWRasterBinPassParameters->Common, BinIndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset);
+			});
 		}
 	}
 }

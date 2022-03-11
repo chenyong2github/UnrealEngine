@@ -495,9 +495,9 @@ inline void FRWShaderParameter::UnsetUAV(TRHICmdList& RHICmdList, FRHIComputeSha
 
 
 /** Sets the value of a shader uniform buffer parameter to a uniform buffer containing the struct. */
-template<typename TShaderRHIRef>
+template<typename TShaderRHIRef, typename TRHICmdList>
 inline void SetLocalUniformBufferParameter(
-	FRHICommandList& RHICmdList,
+	TRHICmdList& RHICmdList,
 	const TShaderRHIRef& Shader,
 	const FShaderUniformBufferParameter& Parameter,
 	const FLocalUniformBuffer& LocalUniformBuffer

@@ -203,9 +203,9 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 }
 #endif
 
-template<typename TRHIShader>
+template<typename TRHIShader, typename TRHICommandList>
 void FMaterialShader::SetParameters(
-	FRHICommandList& RHICmdList,
+	TRHICommandList& RHICmdList,
 	TRHIShader* ShaderRHI,
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	const FMaterial& Material,
@@ -322,20 +322,21 @@ void FMaterialShader::SetParameters(
 // Doxygen struggles to parse these explicit specializations. Just ignore them for now.
 #if !UE_BUILD_DOCS
 
-#define IMPLEMENT_MATERIAL_SHADER_SetParameters( TRHIShader ) \
-	template RENDERER_API void FMaterialShader::SetParameters< TRHIShader >( \
-		FRHICommandList& RHICmdList,					\
+#define IMPLEMENT_MATERIAL_SHADER_SetParameters( TRHICommandList, TRHIShader ) \
+	template RENDERER_API void FMaterialShader::SetParameters< TRHIShader, TRHICommandList >( \
+		TRHICommandList& RHICmdList,				\
 		TRHIShader* ShaderRHI,							\
 		const FMaterialRenderProxy* MaterialRenderProxy,\
 		const FMaterial& Material,						\
 		const FSceneView& View							\
 	);
 
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIVertexShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIGeometryShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIPixelShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIComputeShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIMeshShader);
+IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIVertexShader);
+IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIGeometryShader);
+IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIPixelShader);
+IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIMeshShader);
+IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHICommandList, FRHIComputeShader);
+IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIComputeCommandList, FRHIComputeShader);
 
 #endif
 

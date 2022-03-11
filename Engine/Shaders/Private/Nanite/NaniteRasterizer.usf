@@ -7,16 +7,9 @@
 #include "../VirtualShadowMaps/VirtualShadowMapStaticCaching.ush"
 #include "NaniteWritePixel.ush"
 
-#if IS_NANITE_RASTER_PASS
+// Material includes
 #include "/Engine/Generated/Material.ush"
 #include "NaniteVertexFactory.ush"
-#else
-
-// TODO: PROG_RASTER (Make SW rasterizer support material graph)
-#define MATERIAL_TWOSIDED 0
-#define MATERIAL_TWOSIDED_SEPARATE_PASS 0
-
-#endif
 
 #define SUBPIXEL_BITS				8
 #define SUBPIXEL_SAMPLES			(1 << SUBPIXEL_BITS)
@@ -64,8 +57,6 @@ uint3 FetchHWRasterizerBin(const uint ClusterIndex)
 
 #endif
 
-#if IS_NANITE_RASTER_PASS
-
 ViewState ResolveView(FNaniteView NaniteView)
 {
 	ViewState Ret = ResolveView();
@@ -91,8 +82,6 @@ ViewState ResolveView(FNaniteView NaniteView)
 
 	return Ret;
 }
-
-#endif
 
 #if VISUALIZE
 uint VisualizeModeBitMask;
@@ -124,19 +113,57 @@ struct FRaster
 {
 	FNaniteView	NaniteView;
 	int4		ViewRect;
+#if CLUSTER_PER_PAGE
+	uint2		vPage;
+#endif
 #if VISUALIZE
 	uint2		VisualizeValues;
 #endif
 	WritePixelPageTranslation PageTranslation;
 };
 
-void WritePixel( uint PixelValue, uint2 PixelPos, float DeviceZ, FRaster Raster )
+void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, FRaster Raster )
 {
-	WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, Raster.PageTranslation );
-#if VISUALIZE
-	WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, Raster.PageTranslation );
-	InterlockedAdd( OutDbgBuffer32[ PixelPos ], Raster.VisualizeValues.y );
+	float MaterialMask = 1.0f; // TODO: PROG_RASTER
+	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
+
+#if IS_NANITE_PROGRAMMABLE
+	// TODO: PROG_RASTER - Optimize (Barycentrics could be pre-calculated and passed through)
+	const uint DepthInt = asuint(DeviceZ);
+	const UlongType PackedPixel = PackUlongType(uint2(PixelValue, DepthInt));
+
+	// Material parameter inputs
+	float4 SvPosition = float4(float(PixelPos.x) + 0.5f, float(PixelPos.y) + 0.5f, DeviceZ, 1.0f);
+	
+	#if CLUSTER_PER_PAGE
+	// SvPosition is in physical coords; translate it to virtual page
+	SvPosition.xy = SvPosition.xy - Raster.ViewRect.xy + Raster.vPage * VSM_PAGE_SIZE;
+	#endif
+
+	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+	const float3 HWBarycentrics = float3(0.0, 0.0f, 0.0f); // unused for SW raster
+	
+	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, HWBarycentrics, Interpolants, SvPosition);
+	FPixelMaterialInputs PixelMaterialInputs;
+	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
+
+	// TODO: PROG_RASTER
+
+	#if MATERIALBLENDING_MASKED
+	MaterialMask = GetMaterialMask(PixelMaterialInputs);
+	#endif
 #endif
+
+	DeviceZ += MaterialDepthOffset;
+
+	if (MaterialMask >= 0)
+	{
+		WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, Raster.PageTranslation );
+	#if VISUALIZE
+		WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, Raster.PageTranslation );
+		InterlockedAdd( OutDbgBuffer32[ PixelPos ], Raster.VisualizeValues.y );
+	#endif
+	}
 }
 
 struct FRasterTri
@@ -285,7 +312,7 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		int x = Tri.MinPixel.x;
 		if (min3(CY0, CY1, CY2) >= 0)
 		{
-			WritePixel( PixelValue, uint2(x,y), ZY, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZY, Raster );
 		}
 
 		if (x < Tri.MaxPixel.x)
@@ -301,7 +328,7 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 			{
 				if (min3(CX0, CX1, CX2) >= 0)
 				{
-					WritePixel( PixelValue, uint2(x,y), ZX, Raster );
+					WritePixelSW( PixelValue, uint2(x,y), ZX, Raster );
 				}
 
 				if (x >= Tri.MaxPixel.x)
@@ -346,7 +373,7 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	{
 		if( min3( CX0, CX1, CX2 ) >= 0 )
 		{
-			WritePixel( PixelValue, uint2(x,y), ZX, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, Raster );
 		}
 
 		if( x < Tri.MaxPixel.x )
@@ -416,7 +443,7 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		x1 += Tri.MinPixel.x;
 		for( float x = x0; x <= x1; x++ )
 		{
-			WritePixel( PixelValue, uint2(x,y), ZX, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, Raster );
 
 			ZX += Tri.DepthPlane.x;
 		}
@@ -581,7 +608,7 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 		
 		uint PixelValue = Context.PixelValue | TriIndex;
 
-		WritePixel( PixelValue, PixelPos, ZX, Context.Raster );
+		WritePixelSW( PixelValue, PixelPos, ZX, Context.Raster );
 	}
 }
 
@@ -669,6 +696,10 @@ void MicropolyRasterize(
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
+
+#if IS_NANITE_PROGRAMMABLE
+	ResolvedView = ResolveView(NaniteView);
+#endif
 	
 	// Virtual shadow maps can scatter instances into different physical pages for caching purposes
 	bool bVirtualTargetStaticPage = false;
@@ -727,12 +758,15 @@ void MicropolyRasterize(
 	FRaster Raster;
 	Raster.NaniteView		= NaniteView;
 	Raster.ViewRect			= ViewRect;
+#if CLUSTER_PER_PAGE
+	Raster.vPage			= vPage;
+#endif
 #if VISUALIZE
 	Raster.VisualizeValues	= GetVisualizeValues();
 #endif
 	Raster.PageTranslation	= PageTranslation;
 
-	UNROLL
+	UNROLL_N(2)
 	for( uint j = 0; j < 2; j++ )
 	{
 		uint TriIndex = GroupIndex + j * 64;
@@ -1281,7 +1315,7 @@ VSOut HWRasterizeVS(
 	
 		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f);
 
-	#if IS_NANITE_RASTER_PASS && IS_NANITE_PROGRAMMABLE
+	#if IS_NANITE_PROGRAMMABLE
 		BRANCH
 		if (bValidTriangle)
 		{
@@ -1394,7 +1428,7 @@ void HWRasterizePS(VSOut In)
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
 		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
-	#if IS_NANITE_RASTER_PASS && IS_NANITE_PROGRAMMABLE
+	#if IS_NANITE_PROGRAMMABLE
 		ResolvedView = ResolveView(NaniteView);
 
 		const uint DepthInt = asuint(DeviceZ);

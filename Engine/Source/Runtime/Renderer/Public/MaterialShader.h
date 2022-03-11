@@ -92,8 +92,8 @@ public:
 
 	FRHIUniformBuffer* GetParameterCollectionBuffer(const FGuid& Id, const FSceneInterface* SceneInterface) const;
 
-	template<typename ShaderRHIParamRef>
-	FORCEINLINE_DEBUGGABLE void SetViewParameters(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View, const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
+	template<typename ShaderRHIParamRef, typename TRHICommandList>
+	FORCEINLINE_DEBUGGABLE void SetViewParameters(TRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View, const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
 	{
 		const auto& ViewUniformBufferParameter = GetUniformBufferParameter<FViewUniformShaderParameters>();
 		SetUniformBufferParameter(RHICmdList, ShaderRHI, ViewUniformBufferParameter, ViewUniformBuffer);
@@ -111,9 +111,9 @@ public:
 	}
 
 	/** Sets pixel parameters that are material specific but not FMeshBatch specific. */
-	template< typename TRHIShader >
+	template<typename TRHIShader, typename TRHICommandList>
 	void SetParameters(
-		FRHICommandList& RHICmdList,
+		TRHICommandList& RHICmdList,
 		TRHIShader* ShaderRHI,
 		const FMaterialRenderProxy* MaterialRenderProxy, 
 		const FMaterial& Material,
