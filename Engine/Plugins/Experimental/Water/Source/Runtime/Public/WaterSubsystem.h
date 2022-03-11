@@ -10,6 +10,7 @@
 #include "Engine/EngineTypes.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "WaterBodyManager.h"
+#include "WaterZoneActor.h"
 #include "WaterSubsystem.generated.h"
 
 DECLARE_STATS_GROUP(TEXT("Water"), STATGROUP_Water, STATCAT_Advanced);
@@ -17,7 +18,6 @@ DECLARE_STATS_GROUP(TEXT("Water"), STATGROUP_Water, STATCAT_Advanced);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCameraUnderwaterStateChanged, bool, bIsUnderWater, float, DepthUnderwater);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWaterScalabilityChanged);
 
-class AWaterZone;
 class UWaterBodyComponent;
 class UMaterialParameterCollection;
 class UWaterRuntimeSettings;
@@ -165,7 +165,7 @@ public:
 
 	UMaterialParameterCollection* GetMaterialParameterCollection() const {	return MaterialParameterCollection; }
 	
-	void MarkAllWaterZonesForRebuild();
+	void MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags RebuildFlags = EWaterZoneRebuildFlags::All);
 
 #if WITH_EDITOR
 	/** Little scope object to temporarily change the value of bAllowWaterSubsystemOnPreviewWorld */

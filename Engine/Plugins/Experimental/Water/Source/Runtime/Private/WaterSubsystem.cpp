@@ -5,7 +5,6 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "WaterZoneActor.h"
 #include "WaterMeshComponent.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
@@ -515,13 +514,13 @@ float UWaterSubsystem::GetOceanBaseHeight() const
 	return TNumericLimits<float>::Lowest();
 }
 
-void UWaterSubsystem::MarkAllWaterZonesForRebuild()
+void UWaterSubsystem::MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags RebuildFlags)
 {
 	if (UWorld* World = GetWorld())
 	{
 		for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World))
 		{
-			WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::All);
+			WaterZone->MarkForRebuild(RebuildFlags);
 		}
 	}
 }
