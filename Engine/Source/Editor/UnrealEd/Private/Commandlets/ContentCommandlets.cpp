@@ -51,7 +51,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "LevelInstance/LevelInstanceActor.h"
-
+#include "AssetCompilingManager.h"
 #include "PackageHelperFunctions.h"
 #include "PackageTools.h"
 #include "UObject/PackageTrailer.h"
@@ -890,6 +890,11 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 
 		if (!GarbageCollectionFrequency || Counter++ % GarbageCollectionFrequency == 0)
 		{
+			if (FApp::CanEverRender())
+			{
+				FAssetCompilingManager::Get().FinishAllCompilation();
+			}
+
 			if (GarbageCollectionFrequency > 1)
 			{
 				UE_LOG(LogContentCommandlet, Display, TEXT("GC"));
