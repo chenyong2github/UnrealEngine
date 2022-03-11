@@ -31,6 +31,6 @@ void UAndroidFileServerRuntimeSettings::PostInitProperties()
 	{
 		FGuid UniqueId = FGuid::NewGuid();
 		SecurityToken = UniqueId.ToString();
-		TryUpdateDefaultConfigFile();
+		TryUpdateDefaultConfigFile(TEXT(""), false);
 	}
 }
