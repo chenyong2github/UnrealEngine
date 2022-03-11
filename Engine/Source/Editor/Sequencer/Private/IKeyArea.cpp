@@ -299,7 +299,11 @@ TUniquePtr<FCurveModel> IKeyArea::CreateCurveEditorModel(TSharedRef<ISequencer> 
 
 			FText LongDisplayName = FText::Format(LongDisplayNameFormatString, FFormatOrderedArguments(ValidNames));
 			const FText ShortDisplayName = DisplayText;
-			const FString IntentName = ChannelHandle.GetMetaData()->Group.IsEmptyOrWhitespace() ? DisplayText.ToString() : FString::Format(TEXT("{0}.{1}"), { ChannelHandle.GetMetaData()->Group.ToString(), DisplayText.ToString() });
+			FString IntentName = ChannelHandle.GetMetaData()->IntentName.ToString();
+			if (IntentName.IsEmpty())
+			{
+				IntentName = ChannelHandle.GetMetaData()->Group.IsEmptyOrWhitespace() ? DisplayText.ToString() : FString::Format(TEXT("{0}.{1}"), { ChannelHandle.GetMetaData()->Group.ToString(), DisplayText.ToString() });
+			}
 
 			CurveModel->SetShortDisplayName(DisplayText);
 			CurveModel->SetLongDisplayName(LongDisplayName);

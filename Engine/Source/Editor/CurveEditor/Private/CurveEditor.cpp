@@ -1355,29 +1355,6 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 	}
 
 	bool bSelectionNeedsLongNames = false;
-	FCurveEditorTreeItemID LastRootItem;
-
-	for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& Pair : GetTreeSelection())
-	{
-		FCurveEditorTreeItem* TreeItem = &GetTreeItem(Pair.Key);
-
-		FCurveEditorTreeItemID ParentId = TreeItem->GetParentID();
-		while (ParentId.IsValid())
-		{
-			TreeItem = &GetTreeItem(ParentId);
-			ParentId = TreeItem->GetParentID();
-		}
-
-		if (!LastRootItem.IsValid())
-		{
-			LastRootItem = TreeItem->GetID();
-		}
-		else if (TreeItem->GetID() != LastRootItem)
-		{
-			bSelectionNeedsLongNames = true;
-			break;
-		}
-	}
 
 	if (CurveModelIDs.Num() == 0)
 	{
@@ -1454,24 +1431,6 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 	for (UCurveEditorCopyBuffer* CopyBuffer : ImportedCopyBuffers)
 	{
 		bool bUseLongDisplayName = bSelectionNeedsLongNames;
-		if (!bUseLongDisplayName)
-		{
-			TOptional<FString> LastRootName;
-			for (UCurveEditorCopyableCurveKeys* CopyableCurveKeys : CopyBuffer->Curves)
-			{
-				FString RootName;
-				CopyableCurveKeys->LongDisplayName.Split(".", &RootName, nullptr);
-				if (!LastRootName.IsSet())
-				{
-					LastRootName = RootName;
-				}
-				else if (!LastRootName.GetValue().Equals(RootName))
-				{
-					bUseLongDisplayName = true;
-					break;
-				}
-			}
-		}
 
 		double TimeOffset = 0.0f;
 		bool bApplyOffset = !CopyBuffer->bAbsolutePosition;
@@ -1491,6 +1450,8 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 			}
 		}
 
+		TArray<UCurveEditorCopyableCurveKeys*> UsedCurves;
+
 		for (FCurveModelID CurveID : CurveModelIDs)
 		{
 			FCurveModel* Curve = FindCurve(CurveID);
@@ -1498,13 +1459,26 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 			{
 				const FString CurveLongDisplayName = Curve->GetLongDisplayName().ToString();
 				const FString CurveIntentionName = Curve->GetIntentionName();
-
+				
+				bool bFoundMatch = false;
 				for (UCurveEditorCopyableCurveKeys* CopyableCurveKeys : CopyBuffer->Curves)
 				{
+					// Use up all curves in the copied buffer before reusing. For example, if the following 6 curves have been copied,
+					//   Cube1.Location.X, Cube1.Location.Y, Cube1.Location.Z
+					//   Cube2.Location.X, Cube2.Location.Y, Cube2.Location.Z
+					// and the user attempts to paste onto multiple objects, Cube1's curves will match before Cube2's curves if this restriction is not in place.
+					//
+					if (UsedCurves.Contains(CopyableCurveKeys))
+					{
+						continue;
+					}
+
 					if (bAllCopiedCurvesLongNameEqual ||
 						(!bUseLongDisplayName && CurveIntentionName.Equals(CopyableCurveKeys->IntentionName))
 						|| (bUseLongDisplayName && CurveLongDisplayName.Equals(CopyableCurveKeys->LongDisplayName)))
 					{
+						bFoundMatch = true;
+
 						for (int32 Index = 0; Index < CopyableCurveKeys->KeyPositions.Num(); ++Index)
 						{
 							FKeyPosition KeyPosition = CopyableCurveKeys->KeyPositions[Index];
@@ -1519,8 +1493,22 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 								Selection.Add(FCurvePointHandle(CurveID, ECurvePointType::Key, KeyHandle.GetValue()));
 							}
 						}
+
+						UsedCurves.Add(CopyableCurveKeys);
+
+						if (UsedCurves.Num() == CopyBuffer->Curves.Num())
+						{
+							UsedCurves.Empty();
+						}
+
+						break; // Just paste one of the matching curves
 					}
 				}
+
+				if (!bFoundMatch)
+				{
+					UE_LOG(LogCurveEditor, Warning, TEXT("Failed to find matching curve to copy onto: %s"), *CurveLongDisplayName);		
+				}			
 			}
 		}
 	}

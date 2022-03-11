@@ -53,6 +53,8 @@ struct FMovieSceneChannelMetaData
 	FText DisplayText;
 	/** Name to group this channel with others of the same group name */
 	FText Group;
+	/** Intent name */
+	FText IntentName;
 	/** Optional color to draw underneath the keys on this channel */
 	TOptional<FLinearColor> Color;
 };
