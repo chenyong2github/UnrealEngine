@@ -197,6 +197,11 @@ void FRDGTransientResourceAllocator::ReleaseDynamicRHI()
 		DeallocatedList.Empty();
 
 		Allocator->Flush(RHICmdList);
+		
+		// Allocator->Flush() enqueues some lambdas on the command list, so make sure they are executed
+		// before the allocator is deleted.
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
 		Allocator->Release(RHICmdList);
 		Allocator = nullptr;
 	}
