@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Helpers/PCGBlueprintHelpers.h"
+#include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGSettings.h"
 
@@ -25,4 +26,19 @@ FRandomStream UPCGBlueprintHelpers::GetRandomStream(const FPCGPoint& InPoint, co
 	{
 		return FRandomStream(InPoint.Seed);
 	}
+}
+
+UPCGData* UPCGBlueprintHelpers::GetActorData(FPCGContext& Context)
+{
+	return Context.SourceComponent ? Context.SourceComponent->GetActorPCGData() : nullptr;
+}
+
+UPCGData* UPCGBlueprintHelpers::GetInputData(FPCGContext& Context)
+{
+	return Context.SourceComponent ? Context.SourceComponent->GetInputPCGData() : nullptr;
+}
+
+TArray<UPCGData*> UPCGBlueprintHelpers::GetExclusionData(FPCGContext& Context)
+{
+	return Context.SourceComponent ? Context.SourceComponent->GetPCGExclusionData() : TArray<UPCGData*>();
 }

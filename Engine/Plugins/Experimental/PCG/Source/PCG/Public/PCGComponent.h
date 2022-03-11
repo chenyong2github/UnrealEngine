@@ -49,6 +49,9 @@ public:
 	//~End UActorComponent Interface
 
 	UPCGData* GetPCGData();
+	UPCGData* GetInputPCGData();
+	UPCGData* GetActorPCGData();
+	TArray<UPCGData*> GetPCGExclusionData();
 
 	bool CanPartition() const;
 	bool HasSplineComponent() const;
@@ -125,12 +128,9 @@ protected:
 private:
 	UPCGData* CreatePCGData();
 	UPCGData* CreateInputPCGData();
-	UPCGData* GetInputPCGData();
-	UPCGData* GetActorPCGData();
 	UPCGData* CreateActorPCGData();
 	UPCGData* CreateActorPCGData(AActor* Actor);
 	void UpdatePCGExclusionData();
-	TArray<UPCGData*> GetPCGExclusionData();
 
 	bool ShouldGenerate(bool bForce = false) const;
 	FPCGTaskId GenerateInternal(bool bForce, const TArray<FPCGTaskId>& Dependencies);
