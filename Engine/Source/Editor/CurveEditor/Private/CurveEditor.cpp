@@ -419,6 +419,11 @@ void FCurveEditor::BindCommands()
 		FIsActionChecked::CreateLambda( [CurveSettings]{ return CurveSettings->GetSnapTimeToSelection(); } )
 	);
 
+	CommandList->MapAction(FCurveEditorCommands::Get().ToggleShowBufferedCurves,
+		FExecuteAction::CreateLambda( [CurveSettings]{ CurveSettings->SetShowBufferedCurves( !CurveSettings->GetShowBufferedCurves() ); } ),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda( [CurveSettings]{ return CurveSettings->GetShowBufferedCurves(); } ) );
+
 	CommandList->MapAction(FCurveEditorCommands::Get().ToggleShowCurveEditorCurveToolTips,
 		FExecuteAction::CreateLambda( [CurveSettings]{ CurveSettings->SetShowCurveEditorCurveToolTips( !CurveSettings->GetShowCurveEditorCurveToolTips() ); } ),
 		FCanExecuteAction(),
@@ -1784,10 +1789,8 @@ TSet<FCurveModelID> FCurveEditor::GetEditedCurves() const
 	return TSet<FCurveModelID>(AllCurves);
 }
 
-void FCurveEditor::SetBufferedCurves(const TSet<FCurveModelID>& InCurves)
+void FCurveEditor::AddBufferedCurves(const TSet<FCurveModelID>& InCurves)
 {
-	BufferedCurves.Empty();
-
 	// We make a copy of the curve data and store it.
 	for (FCurveModelID CurveID : InCurves)
 	{
@@ -1797,7 +1800,20 @@ void FCurveEditor::SetBufferedCurves(const TSet<FCurveModelID>& InCurves)
 		// Add a buffered curve copy if the curve model supports buffered curves
 		TUniquePtr<IBufferedCurveModel> CurveModelCopy = CurveModel->CreateBufferedCurveCopy();
 		if (CurveModelCopy) 
-		{ 
+		{
+			// Remove any existing buffered curves
+			for (int32 BufferedCurveIndex = 0; BufferedCurveIndex < BufferedCurves.Num(); )
+			{
+				if (BufferedCurves[BufferedCurveIndex]->GetLongDisplayName() == CurveModel->GetLongDisplayName().ToString())
+				{
+					BufferedCurves.RemoveAt(BufferedCurveIndex);
+				}
+				else
+				{
+					++BufferedCurveIndex;
+				}
+			}
+
 			BufferedCurves.Add(MoveTemp(CurveModelCopy)); 
 		}
 		else
@@ -1830,9 +1846,9 @@ void FCurveEditor::ApplyBufferedCurveToTarget(const IBufferedCurveModel* Buffere
 	TargetCurve->AddKeys(KeyPositions, KeyAttributes);
 }
 
-bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToApplyTo)
+bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToApplyTo, const bool bSwapBufferCurves)
 {
-	FScopedTransaction Transaction(LOCTEXT("ApplyBufferedCurves", "Apply Buffered Curves"));
+	FScopedTransaction Transaction(bSwapBufferCurves ? LOCTEXT("SwapBufferedCurves", "Swap Buffered Curves") : LOCTEXT("ApplyBufferedCurves", "Apply Buffered Curves"));
 
 	// Each curve can specify an "Intention" name. This gives a little bit of context about how the curve is intended to be used,
 	// without locking anyone into a specific set of intentions. When you go to apply the buffered curves, for each curve that you
@@ -1853,7 +1869,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 		check(TargetCurve);
 
 		// Figure out what our destination thinks it's supposed to be used for, ie "Location.X"
-		FString TargetIntent = TargetCurve->GetIntentionName();
+		FString TargetIntent = TargetCurve->GetLongDisplayName().ToString();
 		if (TargetIntent.IsEmpty())
 		{
 			// We don't try to match curves with no intent as that's just chaos.
@@ -1879,7 +1895,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 		int32 MatchedBufferedCurveIndex = -1;
 		for (int32 BufferedCurveIndex = BufferedCurveSearchIndexStart; BufferedCurveIndex < BufferedCurves.Num(); BufferedCurveIndex++)
 		{
-			if (BufferedCurves[BufferedCurveIndex]->GetIntentionName() == TargetIntent)
+			if (BufferedCurves[BufferedCurveIndex]->GetLongDisplayName() == TargetIntent)
 			{
 				MatchedBufferedCurveIndex = BufferedCurveIndex;
 
@@ -1905,8 +1921,19 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 			bFoundAnyMatchedIntent = true;
 
 			const IBufferedCurveModel* BufferedCurve = BufferedCurves[MatchedBufferedCurveIndex].Get();
+
+			TUniquePtr<IBufferedCurveModel> CurveModelCopy;
+			if (bSwapBufferCurves)
+			{
+				CurveModelCopy = TargetCurve->CreateBufferedCurveCopy();
+			}
+
 			ApplyBufferedCurveToTarget(BufferedCurve, TargetCurve);
 
+			if (bSwapBufferCurves)
+			{
+				BufferedCurves[MatchedBufferedCurveIndex] = MoveTemp(CurveModelCopy);
+			}
 		}
 		else
 		{
@@ -1956,7 +1983,20 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 		
 		for (int32 CurveIndex = 0; CurveIndex < InCurvesToApplyTo.Num(); CurveIndex++)
 		{
-			ApplyBufferedCurveToTarget(BufferedCurves[CurveIndex].Get(), FindCurve(CurvesToApplyTo[CurveIndex]));
+			FCurveModel* TargetCurve = FindCurve(CurvesToApplyTo[CurveIndex]);
+
+			TUniquePtr<IBufferedCurveModel> CurveModelCopy;
+			if (bSwapBufferCurves)
+			{
+				CurveModelCopy = TargetCurve->CreateBufferedCurveCopy();
+			}
+
+			ApplyBufferedCurveToTarget(BufferedCurves[CurveIndex].Get(), TargetCurve);
+
+			if (bSwapBufferCurves)
+			{
+				BufferedCurves[CurveIndex] = MoveTemp(CurveModelCopy);
+			}
 		}
 
 		FText NotificationText;
@@ -1993,6 +2033,48 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 
 	// No need to make a entry in the Undo/Redo buffer if it didn't apply anything.
 	Transaction.Cancel();
+	return false;
+}
+
+TSet<FCurveModelID> FCurveEditor::GetCurvesForBufferedCurves() const
+{
+	TSet<FCurveModelID> CurveModelIDs;
+
+	// Buffer curves operates on the selected curves (tree selection or key selection)
+	for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& Pair : GetTreeSelection())
+	{
+		if (Pair.Value == ECurveEditorTreeSelectionState::Explicit)
+		{
+			const FCurveEditorTreeItem& TreeItem = GetTreeItem(Pair.Key);
+			for (const FCurveModelID& CurveModelID : TreeItem.GetCurves())
+			{
+				CurveModelIDs.Add(CurveModelID);
+			}
+		}
+	}
+
+	for (const TTuple<FCurveModelID, FKeyHandleSet>& Pair : Selection.GetAll())
+	{
+		CurveModelIDs.Add(Pair.Key);
+	}
+
+	return CurveModelIDs;
+}
+
+bool FCurveEditor::IsActiveBufferedCurve(const TUniquePtr<IBufferedCurveModel>& BufferedCurve) const
+{
+	TSet<FCurveModelID> CurveModelIDs = GetCurvesForBufferedCurves();
+	for (const FCurveModelID& CurveModelID : CurveModelIDs)
+	{
+		if (FCurveModel* Curve = FindCurve(CurveModelID))
+		{
+			if (Curve->GetLongDisplayName().ToString() == BufferedCurve.Get()->GetLongDisplayName())
+			{
+				return true;
+			}
+		}
+	}
+
 	return false;
 }
 

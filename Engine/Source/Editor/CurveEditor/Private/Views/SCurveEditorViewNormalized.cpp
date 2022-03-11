@@ -2,6 +2,7 @@
 
 #include "Views/SCurveEditorViewNormalized.h"
 #include "CurveEditor.h"
+#include "CurveEditorSettings.h"
 #include "CurveEditorHelpers.h"
 #include "CurveModel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -61,6 +62,11 @@ void SCurveEditorViewNormalized::DrawBufferedCurves(const FGeometry& AllottedGeo
 		return;
 	}
 
+	if (!CurveEditor->GetSettings()->GetShowBufferedCurves())
+	{
+		return;
+	}
+
 	const float BufferedCurveThickness = 1.f;
 	const bool  bAntiAliasCurves = true;
 	const FLinearColor CurveColor = CurveViewConstants::BufferedCurveColor;
@@ -73,6 +79,11 @@ void SCurveEditorViewNormalized::DrawBufferedCurves(const FGeometry& AllottedGeo
 	const TArray<TUniquePtr<IBufferedCurveModel>>& BufferedCurves = CurveEditor->GetBufferedCurves();
 	for (const TUniquePtr<IBufferedCurveModel>& BufferedCurve : BufferedCurves)
 	{
+		if (!CurveEditor->IsActiveBufferedCurve(BufferedCurve))
+		{
+			continue;
+		}
+
 		FTransform2D ViewToBufferedCurveTransform;
 		double CurveOutputMin = BufferedCurve->GetValueMin(), CurveOutputMax = BufferedCurve->GetValueMax();
 

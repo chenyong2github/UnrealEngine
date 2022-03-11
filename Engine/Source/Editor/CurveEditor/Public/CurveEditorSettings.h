@@ -87,6 +87,11 @@ public:
 	/** Sets the number of pixels to pad output framing */
 	void SetFrameOutputPadding(int32 InFrameOutputPadding);
 
+	/** Gets whether or not to show buffered curves in the curve editor. */
+	bool GetShowBufferedCurves() const;
+	/** Sets whether or not to show buffered curves in the curve editor. */
+	void SetShowBufferedCurves(bool InbShowBufferedCurves);
+
 	/** Gets whether or not to show curve tool tips in the curve editor. */
 	bool GetShowCurveEditorCurveToolTips() const;
 	/** Sets whether or not to show curve tool tips in the curve editor. */
@@ -135,6 +140,9 @@ protected:
 	/* Number of pixels to add as padding in the output axis when framing curve keys */
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor", meta=(ClampMin=0) )
 	int32 FrameOutputPadding;
+
+	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
+	bool bShowBufferedCurves;
 
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
 	bool bShowCurveEditorCurveToolTips;

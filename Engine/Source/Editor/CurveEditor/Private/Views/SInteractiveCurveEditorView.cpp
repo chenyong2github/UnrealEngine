@@ -449,6 +449,11 @@ void SInteractiveCurveEditorView::DrawCurves(TSharedRef<FCurveEditor> CurveEdito
 
 void SInteractiveCurveEditorView::DrawBufferedCurves(TSharedRef<FCurveEditor> CurveEditor, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, ESlateDrawEffect DrawEffects) const
 {
+	if (!CurveEditor->GetSettings()->GetShowBufferedCurves())
+	{
+		return;
+	}
+
 	const float BufferedCurveThickness = 1.f;
 	const bool  bAntiAliasCurves = true;
 	const FLinearColor CurveColor = CurveViewConstants::BufferedCurveColor;
@@ -459,6 +464,11 @@ void SInteractiveCurveEditorView::DrawBufferedCurves(TSharedRef<FCurveEditor> Cu
 	// Draw each buffered curve using the view space transform since the curve space for all curves is the same
 	for (const TUniquePtr<IBufferedCurveModel>& BufferedCurve : BufferedCurves)
 	{
+		if (!CurveEditor->IsActiveBufferedCurve(BufferedCurve))
+		{
+			continue;
+		}
+
 		TArray<TTuple<double, double>> CurveSpaceInterpolatingPoints;
 		FCurveEditorScreenSpace CurveSpace = GetViewSpace();
 
@@ -1299,6 +1309,7 @@ void SInteractiveCurveEditorView::RebindContextualActions(FVector2D InMousePosit
 	CommandList->UnmapAction(FCurveEditorCommands::Get().AddKeyToAllCurves);
 
 	CommandList->UnmapAction(FCurveEditorCommands::Get().BufferVisibleCurves);
+	CommandList->UnmapAction(FCurveEditorCommands::Get().SwapBufferedCurves);
 	CommandList->UnmapAction(FCurveEditorCommands::Get().ApplyBufferedCurves);
 	
 
@@ -1310,90 +1321,51 @@ void SInteractiveCurveEditorView::RebindContextualActions(FVector2D InMousePosit
 
 		CommandList->MapAction(FCurveEditorCommands::Get().AddKeyHovered, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::AddKeyAtMousePosition, HoveredCurveSet));
 		CommandList->MapAction(FCurveEditorCommands::Get().PasteKeysHovered, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::PasteKeys, HoveredCurveSet));
-
-		// Buffer the curve they have highlighted instead of all of them.
-		CommandList->MapAction(FCurveEditorCommands::Get().BufferVisibleCurves, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::BufferCurve, HoveredCurve.GetValue()));
-	}
-	else
-	{
-		// Apply the buffering action to our entire set and not just the hovered curve.
-		CommandList->MapAction(FCurveEditorCommands::Get().BufferVisibleCurves, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::BufferVisibleCurves));
 	}
 
 	CommandList->MapAction(FCurveEditorCommands::Get().AddKeyToAllCurves, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::AddKeyAtScrubTime, TSet<FCurveModelID>()));
 
-	// Buffer Visible Curves. Can only apply buffered curves if the current number of visible curves matches the number of buffered curves.
-	CommandList->MapAction(FCurveEditorCommands::Get().ApplyBufferedCurves, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::ApplyBufferCurves, HoveredCurve), FCanExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::CanApplyBufferedCurves, HoveredCurve));
+	// Buffer Curves. Can only act on buffered curves if curves are selected in the tree or the curve has selected keys.
+	CommandList->MapAction(FCurveEditorCommands::Get().BufferVisibleCurves, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::BufferCurves), FCanExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::CanBufferedCurves));
+	CommandList->MapAction(FCurveEditorCommands::Get().SwapBufferedCurves, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::ApplyBufferCurves, true), FCanExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::CanApplyBufferedCurves));
+	CommandList->MapAction(FCurveEditorCommands::Get().ApplyBufferedCurves, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::ApplyBufferCurves, false), FCanExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::CanApplyBufferedCurves));
 }
 
-void SInteractiveCurveEditorView::BufferVisibleCurves()
+void SInteractiveCurveEditorView::BufferCurves()
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor.IsValid())
 	{
-		// Curve Editor will handle copying and storing the curves.
-		TSet<FCurveModelID> ActiveCurveIDs;
-		for (const TTuple<FCurveModelID, FCurveInfo>& Pair : CurveInfoByID)
-		{
-			ActiveCurveIDs.Add(Pair.Key);
-		}
-		CurveEditor->SetBufferedCurves(ActiveCurveIDs);
+		CurveEditor->AddBufferedCurves(CurveEditor->GetCurvesForBufferedCurves());
 	}
 }
 
-void SInteractiveCurveEditorView::BufferCurve(const FCurveModelID CurveID)
+void SInteractiveCurveEditorView::ApplyBufferCurves(const bool bSwapBufferCurves)
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor.IsValid())
 	{
-		// Curve Editor will handle copying and storing the curves.
-		TSet<FCurveModelID> CurveSet;
-		CurveSet.Add(CurveID);
-		CurveEditor->SetBufferedCurves(CurveSet);
+		CurveEditor->ApplyBufferedCurves(CurveEditor->GetCurvesForBufferedCurves(), bSwapBufferCurves);
 	}
 }
 
-void SInteractiveCurveEditorView::ApplyBufferCurves(TOptional<FCurveModelID> DestinationCurve)
+bool SInteractiveCurveEditorView::CanBufferedCurves() const
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor.IsValid())
 	{
-		if (DestinationCurve.IsSet())
-		{
-			TSet<FCurveModelID> CurveSet;
-			CurveSet.Add(DestinationCurve.GetValue());
-
-			// Apply the buffered curve (singular) to our highlighted curve.
-			CurveEditor->ApplyBufferedCurves(CurveSet);
-		}
-		else
-		{
-			// Curve Editor will handle attempting to apply the buffered curves to our currently visible ones.
-			TSet<FCurveModelID> ActiveCurveIDs;
-			for (const TTuple<FCurveModelID, FCurveInfo>& Pair : CurveInfoByID)
-			{
-				ActiveCurveIDs.Add(Pair.Key);
-			}
-			CurveEditor->ApplyBufferedCurves(ActiveCurveIDs);
-		}
-
+		return CurveEditor->GetCurvesForBufferedCurves().Num() > 0;
 	}
+
+	return false;
 }
 
-bool SInteractiveCurveEditorView::CanApplyBufferedCurves(TOptional<FCurveModelID> DestinationCurve) const
+bool SInteractiveCurveEditorView::CanApplyBufferedCurves() const
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor.IsValid())
 	{
-		if (DestinationCurve.IsSet())
-		{
-			return CurveEditor->GetNumBufferedCurves() == 1;
-		}
-		else
-		{
-			// For now we just do a 1:1 mapping. Once curves have better names we can try to do an intelligent match up, ie: matching Transform.X to a new Transform.X
-			return CurveEditor->GetNumBufferedCurves() == NumCurves();
-		}
+		return CurveEditor->GetCurvesForBufferedCurves().Num() > 0 && CurveEditor->GetBufferedCurves().Num() > 0;
 	}
 
 	return false;

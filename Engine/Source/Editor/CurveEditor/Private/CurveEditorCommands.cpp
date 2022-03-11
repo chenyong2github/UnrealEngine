@@ -51,6 +51,7 @@ void FCurveEditorCommands::RegisterCommands()
 
 	UI_COMMAND(ToggleAutoFrameCurveEditor, "Auto Frame Curves", "Auto frame curves when they are selected.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND(ToggleSnapTimeToSelection, "Snap Time to Selection", "Snap the current time to the first selected key time.", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND(ToggleShowBufferedCurves, "Buffered Curves", "Show buffered curves for the selected curves.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND(ToggleShowCurveEditorCurveToolTips, "Curve Tool Tips", "Show a tool tip with name and values when hovering over a curve.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 
 	UI_COMMAND(AddKeyHovered, "Add Key", "Add a new key to this curve at the current position.", EUserInterfaceActionType::Button, FInputChord(EKeys::MiddleMouseButton) );
@@ -77,10 +78,11 @@ void FCurveEditorCommands::RegisterCommands()
 	// Deselect any keys that the user has selected.
 	UI_COMMAND(DeselectAllKeys, "Deselect All Keys", "Clears your current key selection.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::D));
 
-	// Buffer and Apply Curves. Like copy and paste, but with multiple curve support.
-	UI_COMMAND(BufferVisibleCurves, "Store Curves", "Stores a copy of the visible curves which can be applied onto other curve sets.", EUserInterfaceActionType::Button, FInputChord());
-	// This name is overwritten in CurveEditorContextMenu to show the number of stashed curves.
-	UI_COMMAND(ApplyBufferedCurves, "Apply Stored Curves", "Applies the stored curves to the visible set.", EUserInterfaceActionType::Button, FInputChord());
+	// Buffer and Apply Curves. Like copy and paste, but directly onto the curves they were stored from.
+	// These names are overwritten in CurveEditorContextMenu to show the number of stashed curves.
+	UI_COMMAND(BufferVisibleCurves, "Store Curves", "Stores a copy of the selected curves which can be applied back onto themselves.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SwapBufferedCurves, "Swap Stored Curves", "Applies the stored curves to the curves they were stored from and stores the current curves to the buffer.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ApplyBufferedCurves, "Apply Stored Curves", "Applies the stored curves to the curves they were stored from.", EUserInterfaceActionType::Button, FInputChord());
 
 	// Axis Snapping
 	UI_COMMAND(SetAxisSnappingNone, "Both", "Disable axis snapping and allow movement on both the X and Y directions.", EUserInterfaceActionType::Button, FInputChord());

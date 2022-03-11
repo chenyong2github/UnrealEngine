@@ -65,6 +65,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> ToggleAutoFrameCurveEditor;
 	TSharedPtr<FUICommandInfo> ToggleSnapTimeToSelection;
+	TSharedPtr<FUICommandInfo> ToggleShowBufferedCurves;
 	TSharedPtr<FUICommandInfo> ToggleShowCurveEditorCurveToolTips;
 
 	TSharedPtr<FUICommandInfo> SetRandomCurveColorsForSelected;
@@ -85,6 +86,7 @@ public:
 	TSharedPtr<FUICommandInfo> DeselectAllKeys;
 
 	TSharedPtr<FUICommandInfo> BufferVisibleCurves;
+	TSharedPtr<FUICommandInfo> SwapBufferedCurves;
 	TSharedPtr<FUICommandInfo> ApplyBufferedCurves;
 
 	// User Filtering

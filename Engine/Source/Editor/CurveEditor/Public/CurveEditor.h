@@ -274,13 +274,18 @@ public:
 	/** Attribute used for determining default attributes to apply to a newly create key */
 	TAttribute<FKeyAttributes> GetDefaultKeyAttribute() const { return DefaultKeyAttributes; }
 	/** Create a copy of the specified set of curves. */
-	void SetBufferedCurves(const TSet<FCurveModelID>& InCurves);
+	void AddBufferedCurves(const TSet<FCurveModelID>& InCurves);
 	/** Attempts to apply the buffered curve to the passed in curve set. Returns true on success. */
-	bool ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToApplyTo);
+	bool ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToApplyTo, const bool bSwapBufferCurves);
 	/** Return the number of stored Buffered Curves. */
 	int32 GetNumBufferedCurves() const { return BufferedCurves.Num(); }
 	/** Return the array of buffered curves */
 	const TArray<TUniquePtr<IBufferedCurveModel>>& GetBufferedCurves() const { return BufferedCurves; }
+	/** Return the curve model IDs to operate buffer curves on, ie. selected in the tree view or with selected keys */
+	TSet<FCurveModelID> GetCurvesForBufferedCurves() const;
+	/** Returns whether the buffered curve is to be acted on, ie. selected, in the tree view or with selected keys */
+	bool IsActiveBufferedCurve(const TUniquePtr<IBufferedCurveModel>& BufferedCurve) const;
+
 	// ~FCurveEditor
 
 	// FEditorUndoClient

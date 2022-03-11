@@ -16,10 +16,10 @@ class FCurveModel;
 class IBufferedCurveModel
 {
 public:
-	IBufferedCurveModel(TArray<FKeyPosition>&& InKeyPositions, TArray<FKeyAttributes>&& InKeyAttributes, const FString& InIntentionName, const double InValueMin, const double InValueMax) 
+	IBufferedCurveModel(TArray<FKeyPosition>&& InKeyPositions, TArray<FKeyAttributes>&& InKeyAttributes, const FString& InLongDisplayName, const double InValueMin, const double InValueMax) 
 	: KeyPositions(MoveTemp(InKeyPositions))
 	, KeyAttributes(MoveTemp(InKeyAttributes))
-	, IntentionName(InIntentionName)
+	, LongDisplayName(InLongDisplayName)
 	, ValueMin(InValueMin)
 	, ValueMax(InValueMax)
 	{}
@@ -44,11 +44,9 @@ public:
 	FORCEINLINE void GetKeyAttributes(TArray<FKeyAttributes>& OutKeyAttributes) const { OutKeyAttributes = KeyAttributes; }
 
 	/**
-	 * Returns the intention name for this buffered curve. This is an internal name used to try to match 
-	 * different curves with each other. See the CurveModel's GetIntentionName method for more detail on
-	 * what an intention name is
+	 * Returns the full/long display name of the curves. Buffered curves can only be applied to the original curve it was stored from.
 	 */
-	FORCEINLINE FString GetIntentionName() const { return IntentionName; }
+	FORCEINLINE FString GetLongDisplayName() const { return LongDisplayName; }
 
 	/** returns the lowest output value in curve space for this buffered curve */
 	FORCEINLINE double GetValueMin() const { return ValueMin; }
@@ -59,6 +57,6 @@ public:
 protected:
 	TArray<FKeyPosition> KeyPositions;
 	TArray<FKeyAttributes> KeyAttributes;
-	FString IntentionName;
+	FString LongDisplayName;
 	double ValueMin, ValueMax;
 };

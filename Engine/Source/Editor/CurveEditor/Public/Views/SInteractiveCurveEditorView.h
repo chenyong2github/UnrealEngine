@@ -153,13 +153,13 @@ private:
 	void RebindContextualActions(FVector2D InMousePosition);
 
 	/** Copy the curves from this view and set them as the Curve Editor's buffered curve support. */
-	void BufferVisibleCurves();
-	/** Copy the curves from this view and set them as the Curve Editor's buffered curve support. */
-	void BufferCurve(const FCurveModelID CurveID);
-	/** Attempt to apply the previously buffered curves to the currently visible curves. */
-	void ApplyBufferCurves(TOptional<FCurveModelID> DestinationCurve);
-	/** Check if it's legal to apply any of the buffered curves to our currently visible curves. */
-	bool CanApplyBufferedCurves(TOptional<FCurveModelID> DestinationCurve) const;
+	void BufferCurves();
+	/** Attempt to apply the previously buffered curves to the currently selected curves. */
+	void ApplyBufferCurves(const bool bSwapBufferCurves);
+	/** Check if it's legal to buffer any of our selected curves. */
+	bool CanBufferedCurves() const;
+	/** Check if it's legal to apply any of the buffered curves to our currently selected curves. */
+	bool CanApplyBufferedCurves() const;
 
 protected:
 

@@ -7,6 +7,7 @@ UCurveEditorSettings::UCurveEditorSettings()
 	bAutoFrameCurveEditor = true;
 	FrameInputPadding = 50;
 	FrameOutputPadding = 50;
+	bShowBufferedCurves = true;
 	bShowCurveEditorCurveToolTips = true;
 	TangentVisibility = ECurveEditorTangentVisibility::SelectedKeys;
 	ZoomPosition = ECurveEditorZoomPosition::CurrentTime;
@@ -54,6 +55,20 @@ void UCurveEditorSettings::SetFrameOutputPadding(int32 InFrameOutputPadding)
 	if (FrameOutputPadding != InFrameOutputPadding)
 	{
 		FrameOutputPadding = InFrameOutputPadding;
+		SaveConfig();
+	}
+}
+
+bool UCurveEditorSettings::GetShowBufferedCurves() const
+{
+	return bShowBufferedCurves;
+}
+
+void UCurveEditorSettings::SetShowBufferedCurves(bool InbShowBufferedCurves)
+{
+	if (bShowBufferedCurves != InbShowBufferedCurves)
+	{
+		bShowBufferedCurves = InbShowBufferedCurves;
 		SaveConfig();
 	}
 }

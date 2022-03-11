@@ -2,6 +2,7 @@
 
 #include "Views/SCurveEditorViewStacked.h"
 #include "CurveEditor.h"
+#include "CurveEditorSettings.h"
 #include "CurveModel.h"
 #include "SCurveEditorPanel.h"
 
@@ -279,6 +280,11 @@ void SCurveEditorViewStacked::DrawBufferedCurves(const FGeometry& AllottedGeomet
 		return;
 	}
 
+	if (!CurveEditor->GetSettings()->GetShowBufferedCurves())
+	{
+		return;
+	}
+
 	const TArray<TUniquePtr<IBufferedCurveModel>>& BufferedCurves = CurveEditor->GetBufferedCurves();
 
 	const float BufferedCurveThickness = 1.f;
@@ -308,6 +314,11 @@ void SCurveEditorViewStacked::DrawBufferedCurves(const FGeometry& AllottedGeomet
 		// Calculate the view to curve transform for each buffered curve, then draw
 		for (const TUniquePtr<IBufferedCurveModel>& BufferedCurve : BufferedCurves)
 		{
+			if (!CurveEditor->IsActiveBufferedCurve(BufferedCurve))
+			{
+				continue;
+			}
+
 			double CurveOutputMin = BufferedCurve->GetValueMin(), CurveOutputMax = BufferedCurve->GetValueMax();
 
 			ViewToBufferedCurveTransform = CalculateViewToCurveTransform(CurveOutputMin, CurveOutputMax, ValueOffset);

@@ -21,8 +21,8 @@
 template<typename ChannelType>
 FBezierChannelBufferedCurveModel<ChannelType>::FBezierChannelBufferedCurveModel(
 		const ChannelType* InChannel, TWeakObjectPtr<UMovieSceneSection> InWeakSection,
-		TArray<FKeyPosition>&& InKeyPositions, TArray<FKeyAttributes>&& InKeyAttributes, const FString& InIntentionName, const double InValueMin, const double InValueMax)
-	: IBufferedCurveModel(MoveTemp(InKeyPositions), MoveTemp(InKeyAttributes), InIntentionName, InValueMin, InValueMax)
+		TArray<FKeyPosition>&& InKeyPositions, TArray<FKeyAttributes>&& InKeyAttributes, const FString& InLongDisplayName, const double InValueMin, const double InValueMax)
+	: IBufferedCurveModel(MoveTemp(InKeyPositions), MoveTemp(InKeyAttributes), InLongDisplayName, InValueMin, InValueMax)
 	, Channel(*InChannel)
 	, WeakSection(InWeakSection)
 {
