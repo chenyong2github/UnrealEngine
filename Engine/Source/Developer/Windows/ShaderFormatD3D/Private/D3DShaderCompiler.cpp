@@ -766,7 +766,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				/*pInclude=*/ NULL,
 				"main",
 				TCHAR_TO_ANSI(ShaderProfile),
-				CompileFlags,
+				CompileFlags & (~D3DCOMPILE_WARNINGS_ARE_ERRORS),
 				0,
 				Shader.GetInitReference(),
 				Errors.GetInitReference(),
