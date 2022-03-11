@@ -383,7 +383,8 @@ namespace Chaos
 					FReal CrossingHorizontalCellBorderT = std::numeric_limits<FReal>::max();
 					if (!DxTooSmall)
 					{
-						CrossingVerticleCellBorderT = DtDx * ((FReal)(CurrentCellIndexX0 - ReferenceCellIndexX + (DeltaCelIndexX > 0 ? 1 : 0)) * DirtyElementGridCellSize - X1);
+						// It should be X0 because CurrentCellIndexX0 has already been updated, but X1 will be updated later on.
+						CrossingVerticleCellBorderT = DtDx * ((FReal)(CurrentCellIndexX0 - ReferenceCellIndexX + (DeltaCelIndexX > 0 ? 1 : 0)) * DirtyElementGridCellSize - X0);
 					}
 
 					if (!DyTooSmall)
@@ -391,7 +392,7 @@ namespace Chaos
 						CrossingHorizontalCellBorderT = DtDy * ((FReal)(CurrentCellIndexY0 - ReferenceCellIndexY + (DeltaCelIndexY > 0 ? 1 : 0)) * DirtyElementGridCellSize - Y1);
 					}
 
-					if (CrossingHorizontalCellBorderT >= CrossingVerticleCellBorderT)
+					if (CrossingHorizontalCellBorderT < CrossingVerticleCellBorderT)
 					{
 						CurrentCellIndexY1 += DeltaCelIndexY;
 					}
