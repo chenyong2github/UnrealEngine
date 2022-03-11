@@ -7,7 +7,7 @@
 #include "Memory/SharedBuffer.h"
 
 class FArchive;
-struct FBlake3Hash;
+struct FIoHash;
 
 namespace FOodleDataCompression { enum class ECompressionLevel : int8; }
 namespace FOodleDataCompression { enum class ECompressor : uint8; }
@@ -113,7 +113,7 @@ public:
 	[[nodiscard]] CORE_API uint64 GetRawSize() const;
 
 	/** Returns the hash of the raw data. Zero on error or if this is null. */
-	[[nodiscard]] CORE_API FBlake3Hash GetRawHash() const;
+	[[nodiscard]] CORE_API FIoHash GetRawHash() const;
 
 	/**
 	 * Returns the compressor and compression level used by this buffer.
@@ -222,7 +222,7 @@ public:
 	[[nodiscard]] CORE_API uint64 GetRawSize();
 
 	/** Returns the hash of the raw data. Zero on error. */
-	[[nodiscard]] CORE_API FBlake3Hash GetRawHash();
+	[[nodiscard]] CORE_API FIoHash GetRawHash();
 
 	/**
 	 * Returns the compressor and compression level used by this buffer.

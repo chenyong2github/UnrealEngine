@@ -3,14 +3,16 @@
 #include "Compression/CompressedBuffer.h"
 
 #include "Algo/Accumulate.h"
+#include "Algo/AnyOf.h"
 #include "Algo/ForEach.h"
+#include "Async/ParallelFor.h"
 #include "Compression/OodleDataCompression.h"
 #include "Hash/Blake3.h"
+#include "IO/IoHash.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/Crc.h"
 #include "Serialization/Archive.h"
-#include "Async/ParallelFor.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "Compression/lz4.h"
@@ -266,174 +268,137 @@ FCompositeBuffer FBlockEncoder::Compress(const FCompositeBuffer& RawData, const 
 
 	checkf(FMath::IsPowerOfTwo(BlockSize) && BlockSize <= MAX_uint32,
 		TEXT("BlockSize must be a 32-bit power of two but was %" UINT64_FMT "."), BlockSize);
+
 	const uint64 RawSize = RawData.GetSize();
-
-	if ( RawSize == 0 )
+	if (RawSize == 0)
 	{
-		return FNoneEncoder().Compress(RawData, BlockSize);
+		return FCompositeBuffer();
 	}
-
-	FBlake3 RawHash;
 
 	const int64 BlockCount = FMath::DivideAndRoundUp(RawSize, BlockSize);
-	check( BlockCount > 0 );
-	checkf(BlockCount < MAX_int32, TEXT("Raw data of size %" UINT64_FMT " with block size %" UINT64_FMT " requires ")
-		TEXT("%" UINT64_FMT " blocks, but the limit is %u."), RawSize, BlockSize, BlockCount, MAX_uint32);
-		
-	uint64 TotalCompressedSize = 0;
+	check(BlockCount > 0);
+	checkf(BlockCount <= MAX_int32, TEXT("Raw data of size %" UINT64_FMT " with block size %" UINT64_FMT " requires ")
+		TEXT("%" UINT64_FMT " blocks, but the limit is %d."), RawSize, BlockSize, BlockCount, MAX_int32);
+
+	FBlake3 RawHash;
 	const uint64 MetaSize = sizeof(uint32) * BlockCount;
-	const uint64 CompressedDataSize = sizeof(FHeader) + MetaSize + GetCompressedBlocksBound(BlockCount, BlockSize, RawSize);
-	FUniqueBuffer CompressedData;
 
 	// Compress the raw data in blocks and store the raw data for incompressible blocks.
+	uint64 CompressedSize = 0;
+	FUniqueBuffer CompressedData;
+	TArray64<uint32> CompressedBlockSizes;
+	TArray<FSharedBuffer> CompressedBlocks;
 
-	if ( BlockCount == 1 )
+	struct FBlockContext
 	{
-		FUniqueBuffer RawBlockCopy;	
-		FMemoryView RawBlock = RawData.ViewOrCopyRange(0, RawSize, RawBlockCopy);
-		
-		RawHash.Update(RawBlock);
-		
-		// Allocate the buffer for the header, metadata, and compressed blocks.
-		CompressedData = FUniqueBuffer::Alloc(CompressedDataSize);
-		
-		FMutableMemoryView CompressedBlocksView = CompressedData.GetView() + sizeof(FHeader) + MetaSize;
-		
-		FMutableMemoryView CompressedBlock = CompressedBlocksView;
-		if (!CompressBlock(CompressedBlock, RawBlock))
+		FUniqueBuffer RawBlockCopy;
+		FMutableMemoryView CompressedBlocksView;
+	};
+
+	// Allocate and encode blocks in parallel with calculating the raw hash.
+	CompressedBlockSizes.SetNum(BlockCount);
+	TArray<FBlockContext> BlockContexts;
+	ParallelForWithPreWorkWithTaskContext(TEXT("BlockEncoder.Compress.PF"), BlockContexts, int32(BlockCount), 1,
+		// Executed on the calling thread to allocate the header and optionally the contiguous compressed blocks.
+		[this, MetaSize, BlockCount, BlockSize, RawSize, &CompressedData, &CompressedBlocks](const int32 ContextIndex, const int32 ContextCount) -> FBlockContext
 		{
-			// compressor error !?
-			return FCompositeBuffer();
-		}
-
-		uint64 CompressedBlockSize = CompressedBlock.GetSize();
-		CompressedBlocksView += CompressedBlockSize;
-		TotalCompressedSize += CompressedBlockSize;
-
-		// Return an uncompressed buffer if the compressed data is larger than the raw data.
-		if (RawSize <= MetaSize + TotalCompressedSize)
-		{
-			CompressedData.Reset();
-			return FNoneEncoder().Compress(RawData, BlockSize);
-		}
-			
-		// put CompressedBlockSizes after FHeader :
-		uint32 CompressedBlockSizeForHeader = IntCastChecked<uint32>(CompressedBlockSize);
-		CompressedBlockSizeForHeader = NETWORK_ORDER32(CompressedBlockSizeForHeader);
-		CompressedData.GetView().Mid(sizeof(FHeader), MetaSize).CopyFrom(MakeMemoryView(&CompressedBlockSizeForHeader,sizeof(CompressedBlockSizeForHeader)));
-	}
-	else
-	{
-		// BlockCount >= 2
-
-		struct CompressedBlockInfo
-		{
-			// in:
-			uint64 RawBlockSize;
-			FUniqueBuffer RawBlockCopy;
-			FMemoryView RawBlock;
-
-			// out:
-			TArray64<uint8> CompressedData;
-		};
-	
-		TArray64<CompressedBlockInfo> CompressedBlockInfos;
-		CompressedBlockInfos.SetNum(BlockCount);
-	
-		// fill all CompressedBlockInfos :
-		for (int64 BlockIndex=0;BlockIndex<BlockCount;BlockIndex++)
+			if (ContextCount == 1)
+			{
+				// Allocate a contiguous buffer for the header, metadata, and compressed blocks.
+				const uint64 CompressedDataSize = sizeof(FHeader) + MetaSize + GetCompressedBlocksBound(BlockCount, BlockSize, RawSize);
+				CompressedData = FUniqueBuffer::Alloc(CompressedDataSize);
+				return {{}, CompressedData.GetView() + sizeof(FHeader) + MetaSize};
+			}
+			if (ContextIndex == 0)
+			{
+				// Allocate a buffer for the header and metadata. The compressed blocks are allocated by workers.
+				CompressedData = FUniqueBuffer::Alloc(sizeof(FHeader) + MetaSize);
+				// Allocate space to store the non-contiguous compressed blocks from the workers.
+				CompressedBlocks.SetNum(int32(BlockCount));
+			}
+			return {};
+		},
+		// Executed in parallel to encode blocks. Blocks are contiguous when there is only one thread.
+		[this, &RawHash, &RawData, RawSize, BlockSize, &CompressedBlocks, &CompressedBlockSizes](FBlockContext& BlockContext, const int32 BlockIndex)
 		{
 			const uint64 RawOffset = BlockIndex * BlockSize;
 			const uint64 RawBlockSize = FMath::Min(RawSize - RawOffset, BlockSize);
-			CompressedBlockInfos[BlockIndex].RawBlockSize = RawBlockSize;
-			CompressedBlockInfos[BlockIndex].RawBlock = RawData.ViewOrCopyRange(RawOffset, RawBlockSize, CompressedBlockInfos[BlockIndex].RawBlockCopy);
-		}
-		
-		uint64 CompressBlockAllocSize = CompressBlockBound(BlockSize);
+			const FMemoryView RawBlock = RawData.ViewOrCopyRange(RawOffset, RawBlockSize, BlockContext.RawBlockCopy);
 
-		// encode blocks independently, can be parallel :
-		ParallelFor(TEXT("BlockEncoder.Compress.PF"), IntCastChecked<int32>(BlockCount)+1,1, [&CompressedBlockInfos,CompressBlockAllocSize,BlockCount,&RawHash,this](int64 ThreadIndex)
-		{
-			int64 BlockIndex = ThreadIndex-1;
-			if ( BlockIndex < 0 )
+			FUniqueBuffer CompressedBlock;
+			FMutableMemoryView CompressedBlockView = BlockContext.CompressedBlocksView;
+			if (CompressedBlockView.IsEmpty())
 			{
-				// one thread does the sequential hash update for all raw blocks
-				for (int64 HashBlockIndex=0;HashBlockIndex<BlockCount;HashBlockIndex++)
-				{
-					RawHash.Update(CompressedBlockInfos[HashBlockIndex].RawBlock);
-				}
+				// Allocate compressed blocks on worker threads when there is more than one thread.
+				CompressedBlock = FUniqueBuffer::Alloc(CompressBlockBound(RawBlockSize));
+				CompressedBlockView = CompressedBlock;
 			}
 			else
 			{
-				CompressedBlockInfos[BlockIndex].CompressedData.SetNum(CompressBlockAllocSize);
-		
-				FMutableMemoryView CompressedBlockView(CompressedBlockInfos[BlockIndex].CompressedData.GetData(),CompressedBlockInfos[BlockIndex].CompressedData.Num());
-		
-				if (CompressBlock(CompressedBlockView, CompressedBlockInfos[BlockIndex].RawBlock))
-				{
-					check( CompressedBlockView.GetSize() > 0 );
-					// false on SetNum to not realloc
-					CompressedBlockInfos[BlockIndex].CompressedData.SetNum(CompressedBlockView.GetSize(),false);
-				}
-				else
-				{
-					// size 0 indicates error
-					CompressedBlockInfos[BlockIndex].CompressedData.Empty();
-				}
+				// Interleave hashing with encoding when there is only one thread.
+				RawHash.Update(RawBlock);
+			}
+
+			if (!CompressBlock(CompressedBlockView, RawBlock))
+			{
+				return;
+			}
+
+			uint64 CompressedBlockSize = CompressedBlockView.GetSize();
+			if (RawBlockSize <= CompressedBlockSize)
+			{
+				// Encoding did not compress the block. Copy the raw block.
+				CompressedBlockSize = RawBlockSize;
+				CompressedBlockView.CopyFrom(RawBlock);
+				CompressedBlockView.LeftInline(CompressedBlockSize);
+			}
+
+			if (CompressedBlock.IsNull())
+			{
+				// Blocks are contiguous. Update the view to the start of the next block.
+				BlockContext.CompressedBlocksView += CompressedBlockSize;
+			}
+			else
+			{
+				// Blocks are non-contiguous. Store the view of this block to gather into a composite buffer.
+				CompressedBlocks[BlockIndex] = FSharedBuffer::MakeView(CompressedBlockView, CompressedBlock.MoveToShared());
+			}
+
+			// Record the compressed block size. A size of 0 is an error and is handled by CompressBlock.
+			check(CompressedBlockSize > 0);
+			CompressedBlockSizes[BlockIndex] = uint32(CompressedBlockSize);
+		},
+		// Executed on the calling thread before it joins in with encoding blocks.
+		[&RawHash, &RawData, &BlockContexts]
+		{
+			if (BlockContexts.Num() > 1)
+			{
+				// Hash the raw data in parallel with encoding the blocks when there are multiple threads.
+				TRACE_CPUPROFILER_EVENT_SCOPE(FBlockEncoder::Compress::RawHash);
+				RawHash.Update(RawData);
 			}
 		});
-	
-		// Allocate the buffer for the header, metadata, and compressed blocks.
-		CompressedData = FUniqueBuffer::Alloc(CompressedDataSize);
 
-		// gather results sequentially :
-		TArray64<uint32> CompressedBlockSizes;
-		CompressedBlockSizes.SetNum(BlockCount);
-		FMutableMemoryView CompressedBlocksView = CompressedData.GetView() + sizeof(FHeader) + MetaSize;
-		for (int64 BlockIndex=0;BlockIndex<BlockCount;BlockIndex++)
+	// Accumulate compressed size and check for failed blocks.
+	for (const uint64 CompressedBlockSize : CompressedBlockSizes)
+	{
+		if (CompressedBlockSize == 0)
 		{
-			FMemoryView CompressedBlock(CompressedBlockInfos[BlockIndex].CompressedData.GetData(),CompressedBlockInfos[BlockIndex].CompressedData.Num());
-
-			uint64 CompressedBlockSize = CompressedBlock.GetSize();
-			if ( CompressedBlockSize == 0 )
-			{
-				// Compressor failed !?
-				CompressedData.Reset();
-				return FNoneEncoder().Compress(RawData, BlockSize);			
-			}
-			else if (CompressedBlockInfos[BlockIndex].RawBlockSize <= CompressedBlockSize)
-			{
-				CompressedBlockSize = CompressedBlockInfos[BlockIndex].RawBlockSize;
-				CompressedBlocksView = CompressedBlocksView.CopyFrom(CompressedBlockInfos[BlockIndex].RawBlock);
-			}
-			else
-			{
-				CompressedBlocksView = CompressedBlocksView.CopyFrom(CompressedBlock);
-			}
-
-			// Can be freed after copied out :
-			CompressedBlockInfos[BlockIndex].CompressedData.Empty();
-
-			CompressedBlockSizes[BlockIndex] = IntCastChecked<uint32>(CompressedBlockSize);
-			TotalCompressedSize += CompressedBlockSize;
+			return FCompositeBuffer();
 		}
-	
-		// CompressedBlockInfos not needed anymore :
-		CompressedBlockInfos.Empty();
+		CompressedSize += CompressedBlockSize;
+	}
 
-		// Return an uncompressed buffer if the compressed data is larger than the raw data.
-		if (RawSize <= MetaSize + TotalCompressedSize)
-		{
-			CompressedData.Reset();
-			return FNoneEncoder().Compress(RawData, BlockSize);
-		}
-
-		// put CompressedBlockSizes after FHeader :
-		Algo::ForEach(CompressedBlockSizes, [](uint32& Size) { Size = NETWORK_ORDER32(Size); });
-		CompressedData.GetView().Mid(sizeof(FHeader), MetaSize).CopyFrom(MakeMemoryView(CompressedBlockSizes));
+	// Do not return compressed data unless it is smaller than the raw data.
+	if (RawSize <= MetaSize + CompressedSize)
+	{
+		return FCompositeBuffer();
 	}
 
 	// Write the header and calculate the CRC-32.
+	Algo::ForEach(CompressedBlockSizes, [](uint32& Size) { Size = NETWORK_ORDER32(Size); });
+	CompressedData.GetView().Mid(sizeof(FHeader), MetaSize).CopyFrom(MakeMemoryView(CompressedBlockSizes));
+
 	FHeader Header;
 	Header.Method = GetMethod();
 	Header.Compressor = GetCompressor();
@@ -441,12 +406,12 @@ FCompositeBuffer FBlockEncoder::Compress(const FCompositeBuffer& RawData, const 
 	Header.BlockSizeExponent = uint8(FMath::FloorLog2_64(BlockSize));
 	Header.BlockCount = IntCastChecked<uint32>(BlockCount);
 	Header.TotalRawSize = RawSize;
-	Header.TotalCompressedSize = sizeof(FHeader) + MetaSize + TotalCompressedSize;
+	Header.TotalCompressedSize = sizeof(FHeader) + MetaSize + CompressedSize;
 	Header.RawHash = RawHash.Finalize();
 	Header.Write(CompressedData.GetView().Left(sizeof(FHeader) + MetaSize));
 
 	const FMemoryView CompositeView = CompressedData.GetView().Left(Header.TotalCompressedSize);
-	return FCompositeBuffer(FSharedBuffer::MakeView(CompositeView, CompressedData.MoveToShared()));
+	return FCompositeBuffer(FSharedBuffer::MakeView(CompositeView, CompressedData.MoveToShared()), MoveTemp(CompressedBlocks));
 }
 
 class FBlockDecoder : public FDecoder
@@ -905,13 +870,13 @@ FCompressedBuffer FCompressedBuffer::Compress(
 	}
 
 	FCompressedBuffer Local;
-	if (CompressionLevel == ECompressedBufferCompressionLevel::None)
-	{
-		Local.CompressedData = FNoneEncoder().Compress(RawData, BlockSize);
-	}
-	else
+	if (CompressionLevel != ECompressedBufferCompressionLevel::None)
 	{
 		Local.CompressedData = FOodleEncoder(Compressor, CompressionLevel).Compress(RawData, BlockSize);
+	}
+	if (Local.CompressedData.IsNull())
+	{
+		Local.CompressedData = FNoneEncoder().Compress(RawData, BlockSize);
 	}
 	return Local;
 }
@@ -997,9 +962,9 @@ uint64 FCompressedBuffer::GetRawSize() const
 	return CompressedData ? UE::CompressedBuffer::Private::FHeader::Read(CompressedData).TotalRawSize : 0;
 }
 
-FBlake3Hash FCompressedBuffer::GetRawHash() const
+FIoHash FCompressedBuffer::GetRawHash() const
 {
-	return CompressedData ? UE::CompressedBuffer::Private::FHeader::Read(CompressedData).RawHash : FBlake3Hash();
+	return CompressedData ? UE::CompressedBuffer::Private::FHeader::Read(CompressedData).RawHash : FIoHash();
 }
 
 bool FCompressedBuffer::TryGetCompressParameters(
@@ -1132,7 +1097,7 @@ uint64 FCompressedBufferReader::GetRawSize()
 	return 0;
 }
 
-FBlake3Hash FCompressedBufferReader::GetRawHash()
+FIoHash FCompressedBufferReader::GetRawHash()
 {
 	using namespace UE::CompressedBuffer::Private;
 	FHeader Header;
@@ -1141,7 +1106,7 @@ FBlake3Hash FCompressedBufferReader::GetRawHash()
 	{
 		return Header.RawHash;
 	}
-	return FBlake3Hash();
+	return FIoHash();
 }
 
 bool FCompressedBufferReader::TryGetCompressParameters(

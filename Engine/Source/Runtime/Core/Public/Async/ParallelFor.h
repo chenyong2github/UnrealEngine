@@ -485,6 +485,71 @@ inline void ParallelForWithPreWork(const TCHAR* DebugName, int32 Num, int32 MinB
 }
 
 /** 
+ * General purpose parallel for that uses the taskgraph
+ * @param DebugName; ProfilingScope and DebugName
+ * @param OutContexts; Array that will hold the user-defined, task-level context objects (allocated per parallel task)
+ * @param Num; number of calls of Body; Body(0), Body(1), ..., Body(Num - 1)
+ * @param MinBatchSize; Minimum Size of a Batch (will only launch DivUp(Num, MinBatchSize) Workers 
+ * @param ContextConstructor; Function to call to initialize each task context allocated for the operation
+ * @param Body; Function to call from multiple threads
+ * @param CurrentThreadWorkToDoBeforeHelping; The work is performed on the main thread before it starts helping with the ParallelFor proper
+ * @param Flags; Used to customize the behavior of the ParallelFor if needed.
+ * Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
+ */
+template <typename ContextType, typename ContextAllocatorType, typename ContextConstructorType, typename BodyType, typename PreWorkType>
+inline void ParallelForWithPreWorkWithTaskContext(
+	const TCHAR* DebugName,
+	TArray<ContextType, ContextAllocatorType>& OutContexts,
+	int32 Num,
+	int32 MinBatchSize,
+	ContextConstructorType&& ContextConstructor,
+	BodyType&& Body,
+	PreWorkType&& CurrentThreadWorkToDoBeforeHelping,
+	EParallelForFlags Flags = EParallelForFlags::None)
+{
+	if (Num > 0)
+	{
+		const int32 NumContexts = ParallelForImpl::GetNumberOfThreadTasks(Num, MinBatchSize, Flags);
+		OutContexts.Reset(NumContexts);
+		for (int32 ContextIndex = 0; ContextIndex < NumContexts; ++ContextIndex)
+		{
+			OutContexts.Emplace(ContextConstructor(ContextIndex, NumContexts));
+		}
+		ParallelForImpl::ParallelForInternal(DebugName, Num, MinBatchSize, Forward<BodyType>(Body), Forward<PreWorkType>(CurrentThreadWorkToDoBeforeHelping), Flags, TArrayView<ContextType>(OutContexts));
+	}
+}
+
+/** 
+ * General purpose parallel for that uses the taskgraph
+ * @param DebugName; ProfilingScope and DebugName
+ * @param OutContexts; Array that will hold the user-defined, task-level context objects (allocated per parallel task)
+ * @param Num; number of calls of Body; Body(0), Body(1), ..., Body(Num - 1)
+ * @param MinBatchSize; Minimum Size of a Batch (will only launch DivUp(Num, MinBatchSize) Workers 
+ * @param Body; Function to call from multiple threads
+ * @param CurrentThreadWorkToDoBeforeHelping; The work is performed on the main thread before it starts helping with the ParallelFor proper
+ * @param Flags; Used to customize the behavior of the ParallelFor if needed.
+ * Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
+ */
+template <typename ContextType, typename ContextAllocatorType, typename BodyType, typename PreWorkType>
+inline void ParallelForWithPreWorkWithTaskContext(
+	const TCHAR* DebugName,
+	TArray<ContextType, ContextAllocatorType>& OutContexts,
+	int32 Num,
+	int32 MinBatchSize,
+	BodyType&& Body,
+	PreWorkType&& CurrentThreadWorkToDoBeforeHelping,
+	EParallelForFlags Flags = EParallelForFlags::None)
+{
+	if (Num > 0)
+	{
+		const int32 NumContexts = ParallelForImpl::GetNumberOfThreadTasks(Num, MinBatchSize, Flags);
+		OutContexts.Reset();
+		OutContexts.AddDefaulted(NumContexts);
+		ParallelForImpl::ParallelForInternal(DebugName, Num, MinBatchSize, Forward<BodyType>(Body), Forward<PreWorkType>(CurrentThreadWorkToDoBeforeHelping), Flags, TArrayView<ContextType>(OutContexts));
+	}
+}
+
+/** 
 	*	General purpose parallel for that uses the taskgraph. This variant constructs for the caller a user-defined context
 	* 	object for each task that may get spawned to do work, and passes it on to the loop body to give it a task-local
 	*   "workspace" that can be mutated without need for synchronization primitives. For this variant, the user provides a
