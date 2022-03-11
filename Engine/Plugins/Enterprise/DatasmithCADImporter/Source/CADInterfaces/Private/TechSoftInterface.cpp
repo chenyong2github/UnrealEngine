@@ -422,15 +422,28 @@ A3DStatus ExportModelFileToPrcFile(const A3DAsmModelFile* ModelFile, const A3DRW
 	return A3DAsmModelFileExportToPrcFile(ModelFile, ParamsExportData, CADFileName, PrcWriteHelper);
 }
 
-A3DStatus SewModel(A3DAsmModelFile* ModelPtr, double Tolerance, A3DSewOptionsData const* SewOptions)
+double GetModelFileUnit(const A3DAsmModelFile* ModelFile)
 {
-	return A3DAsmModelFileSew(&ModelPtr, Tolerance, SewOptions);
+	double FileUnit = 0.1;
+	if (A3DAsmModelFileGetUnit(ModelFile, &FileUnit) != A3DStatus::A3D_SUCCESS)
+	{
+		return 0.1;
+	}
+	return FileUnit * 0.1;
 }
 
-A3DStatus SewBReps(A3DRiBrepModel** BRepsToSew, uint32 const BRepCount, double Tolerance, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
+A3DStatus SewModel(A3DAsmModelFile* ModelPtr, double ToleranceInCM, A3DSewOptionsData const* SewOptions)
 {
+	const double ToleranceInMM = ToleranceInCM * 10.; // cm => mm
+	return A3DAsmModelFileSew(&ModelPtr, ToleranceInMM, SewOptions);
+}
+
+A3DStatus SewBReps(A3DRiBrepModel** BRepsToSew, uint32 const BRepCount, double ToleranceInCM, double FileUnit, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
+{
+	const double ToleranceInFileUnit = ToleranceInCM * 10. / FileUnit; 
+
 	A3DUns32 NewBRepCount = 0;
-	A3DStatus Status = A3DSewBrep(&BRepsToSew, BRepCount, Tolerance, SewOptions, OutNewBReps, &NewBRepCount);
+	A3DStatus Status = A3DSewBrep(&BRepsToSew, BRepCount, ToleranceInFileUnit, SewOptions, OutNewBReps, &NewBRepCount);
 	OutNewBRepCount = NewBRepCount;
 	return Status;
 }

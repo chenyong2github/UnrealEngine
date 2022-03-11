@@ -134,8 +134,17 @@ CADINTERFACES_API A3DUns32 InsertGraphRgbColor(const A3DGraphRgbColorData& InRgb
 CADINTERFACES_API A3DUns32 InsertGraphMaterial(const A3DGraphMaterialData& InMaterialData);
 CADINTERFACES_API A3DUns32 InsertGraphStyle(const A3DGraphStyleData& InStyleData);
 
-CADINTERFACES_API A3DStatus SewModel(A3DAsmModelFile* ModelPtr, double Tolerance, A3DSewOptionsData const* SewOptions);
-CADINTERFACES_API A3DStatus SewBReps(A3DRiBrepModel** BRepsToSew, uint32 const BRepCount, double Tolerance, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount);
+CADINTERFACES_API double GetModelFileUnit(const A3DAsmModelFile* pModelFile);
+
+/**
+ * @param ToleranceInCM : The maximum tolerance for the sewing (in cm).
+ */
+CADINTERFACES_API A3DStatus SewModel(A3DAsmModelFile* ModelPtr, double ToleranceInCM, A3DSewOptionsData const* SewOptions);
+
+/**
+ * @param ToleranceInCM : The maximum tolerance for the sewing (in cm).
+ */
+CADINTERFACES_API A3DStatus SewBReps(A3DRiBrepModel** BRepsToSew, uint32 const BRepCount, double ToleranceInCM, double FileUnit, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount);
 
 #endif
 

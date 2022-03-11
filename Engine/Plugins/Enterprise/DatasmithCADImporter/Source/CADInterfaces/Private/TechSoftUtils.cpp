@@ -65,12 +65,12 @@ bool GetBodyFromPcrFile(const FString& Filename, const FImportParameters& Import
 	TSharedPtr<FJsonObject> JsonObject = GetJsonObject(ModelFileData->m_ppPOccurrences[0]);
 	if (JsonObject.IsValid())
 	{
-		double FileUnit = 1.0;
-		JsonObject->TryGetNumberField(JSON_ENTRY_FILE_UNIT, FileUnit);
+		double BodyUnit = 1.0;
+		JsonObject->TryGetNumberField(JSON_ENTRY_FILE_UNIT, BodyUnit);
 
 		for (A3DUns32 Index = 0; Index < PartDefinitionData->m_uiRepItemsSize; ++Index)
 		{
-			if (!FillBodyMesh(PartDefinitionData->m_ppRepItems[Index], ImportParameters, FileUnit, BodyMesh))
+			if (!FillBodyMesh(PartDefinitionData->m_ppRepItems[Index], ImportParameters, BodyUnit, BodyMesh))
 			{
 				return false;
 			}
@@ -160,7 +160,7 @@ bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, doub
 
 	TessellationParameters->m_eTessellationLevelOfDetail = kA3DTessLODUserDefined; // Enum to specify predefined values for some following members.
 	TessellationParameters->m_bUseHeightInsteadOfRatio = A3D_TRUE;
-	TessellationParameters->m_dMaxChordHeight = ImportParameters.GetChordTolerance() * 10. / FileUnit;
+	TessellationParameters->m_dMaxChordHeight = ImportParameters.GetChordTolerance() * 10.; // cm to mm
 	TessellationParameters->m_dAngleToleranceDeg = ImportParameters.GetMaxNormalAngle();
 	TessellationParameters->m_dMaximalTriangleEdgeLength = 0; //ImportParameters.MaxEdgeLength;
 

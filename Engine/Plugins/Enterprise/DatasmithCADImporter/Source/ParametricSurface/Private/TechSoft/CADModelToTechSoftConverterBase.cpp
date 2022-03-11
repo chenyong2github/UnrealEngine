@@ -23,7 +23,7 @@ bool FCADModelToTechSoftConverterBase::RepairTopology()
 
 		A3DRiBrepModel** OutNewBReps;
 		uint32 OutNewBRepCount;
-		CADLibrary::TechSoftInterface::SewBReps((A3DRiBrepModel**) RiRepresentationItems.GetData(), RiRepresentationItems.Num(), 0.01, SewOptionsData.GetPtr(), &OutNewBReps, OutNewBRepCount);
+		CADLibrary::TechSoftInterface::SewBReps((A3DRiBrepModel**) RiRepresentationItems.GetData(), RiRepresentationItems.Num(), 0.01, 1., SewOptionsData.GetPtr(), &OutNewBReps, OutNewBRepCount);
 
 		RiRepresentationItems.Empty(OutNewBRepCount);
 		for (uint32 Index = 0; Index < OutNewBRepCount; ++Index)

@@ -58,7 +58,7 @@ namespace CADLibrary
 
 
 	public:
-		FImportParameters(double InMetricUnit = 0.001, double InScaleFactor = 0.1, FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
+		FImportParameters(double InMetricUnit = 0.001, double InScaleFactor = 1., FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
 			: MetricUnit(InMetricUnit)
 			, ScaleFactor(InScaleFactor)
 			, ChordTolerance(0.2)
