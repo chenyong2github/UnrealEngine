@@ -29,8 +29,9 @@
 #include "ToolContextInterfaces.h"
 #include "ToolTargetManager.h"
 #include "ToolTargets/ToolTarget.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/DynamicMeshCommitter.h"
+#include "TargetInterfaces/DynamicMeshProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
@@ -54,6 +55,8 @@ namespace CubeGridToolLocals
 
 	const FText SelectionChangeTransactionName = LOCTEXT("SelectionChangeTransaction", "Cube Grid Selection Change");
 	const FText ModeChangeTransactionName = LOCTEXT("ModeChangeTransaction", "Cube Grid Mode Change");
+
+	const FString PropertyCacheIdentifier = TEXT("CubeGridTool");
 
 	const FString& HoverLineSetID(TEXT("HoverLines"));
 	const FString& GridLineSetID(TEXT("GridLines"));
@@ -192,6 +195,9 @@ namespace CubeGridToolLocals
 	};
 	
 	// Attach a frame to the box such that Z points along the given direction.
+	// If we change the choices we make here, we may need to adjust how we pick the welded vertices in
+	// subtract mode (i.e., which way the values are mirrored when Z is flipped) and the output of
+	// GetFaceUVOrientations.
 	FOrientedBox3d ConvertToOrientedBox(const FAxisAlignedBox3d& Box, FCubeGrid::EFaceDirection Direction)
 	{
 		int FlatDim = FCubeGrid::DirToFlatDim(Direction);
@@ -201,7 +207,6 @@ namespace CubeGridToolLocals
 		FVector3d GridSpaceY = GridSpaceZ.Cross(GridSpaceX);
 
 		FVector3d BoxExtents = Box.Extents();
-		FVector3d Extents = BoxExtents; // The case if selection axis is Z
 
 		if (FlatDim == 0)
 		{
@@ -215,6 +220,36 @@ namespace CubeGridToolLocals
 		}
 
 		return FOrientedBox3d(FFrame3d(Box.Center(), GridSpaceX, GridSpaceY, GridSpaceZ), BoxExtents);
+	}
+
+	
+	// Based on direction of the operation, figures out how the faces of the opmesh need to be rotated
+	// relative to the UV plane to make the UV's always keep the same orientation relative to the grid.
+	// This depends on the choices we make in ConvertToOrientedBox, and is hard to reason through without
+	// trial and error... though there may have been a smarter way to pick our frame from direction that
+	// would have made this table easier to produce.
+	TArray<int32, TFixedAllocator<6>> GetFaceUVOrientations(FCubeGrid::EFaceDirection Direction)
+	{
+		switch (Direction)
+		{
+			case FCubeGrid::EFaceDirection::NegativeZ:
+				return TArray<int32, TFixedAllocator<6>>{ 2, 2, 2, 2, 2, 2 };
+				break;
+			case FCubeGrid::EFaceDirection::PositiveX:
+				return TArray<int32, TFixedAllocator<6>>{ 0, 0, 3, 1, 3, 1 };
+				break;
+			case FCubeGrid::EFaceDirection::NegativeX:
+				return TArray<int32, TFixedAllocator<6>>{ 2, 2, 3, 1, 1, 3 };
+				break;
+			case FCubeGrid::EFaceDirection::PositiveY:
+				return TArray<int32, TFixedAllocator<6>>{ 2, 2, 0, 0, 1, 3 };
+				break;
+			case FCubeGrid::EFaceDirection::NegativeY:
+				return TArray<int32, TFixedAllocator<6>>{ 0, 0, 2, 2, 3, 1 };
+				break;
+		}
+		// FCubeGrid::EFaceDirection::PositiveZ:
+		return TArray<int32, TFixedAllocator<6>>{ 0, 0, 0, 0, 0, 0 };
 	}
 
 	void GetNewSelectionFaceInBox(const FCubeGrid& Grid, const FAxisAlignedBox3d& Box, 
@@ -442,8 +477,8 @@ const FToolTargetTypeRequirements& UCubeGridToolBuilder::GetTargetRequirements()
 {
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMaterialProvider::StaticClass(),
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
+		UDynamicMeshCommitter::StaticClass(),
+		UDynamicMeshProvider::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass()
 		});
 	return TypeRequirements;
@@ -527,7 +562,9 @@ TUniquePtr<FDynamicMeshOperator> UCubeGridTool::MakeNewOperator()
 	// is no longer on grid because we changed grid power.
 	double FrameSpaceExtrudeAmount = GetFrameSpaceExtrudeDist(*CubeGrid, Selection.Box.Min, CurrentExtrudeAmount, Selection.Direction);
 
-	FOrientedBox3d FrameSpaceBox = ConvertToOrientedBox(Selection.Box, Selection.Direction);
+	FCubeGrid::EFaceDirection ZDirectionInGrid = CurrentExtrudeAmount < 0 ? FCubeGrid::FlipDir(Selection.Direction) : Selection.Direction;
+
+	FOrientedBox3d FrameSpaceBox = ConvertToOrientedBox(Selection.Box, ZDirectionInGrid);
 
 	// Give the selection box depth
 	FrameSpaceBox.Frame.Origin += (FrameSpaceExtrudeAmount / 2.0f) * FCubeGrid::DirToNormal(Selection.Direction);
@@ -545,6 +582,23 @@ TUniquePtr<FDynamicMeshOperator> UCubeGridTool::MakeNewOperator()
 	Op->WorldBox = WorldBox;
 	Op->bSubtract = CurrentExtrudeAmount < 0;
 	Op->bTrackChangedTids = true;
+	Op->OpMeshMaterialID = OpMeshMaterialID;
+	Op->OpMeshHeightUVOffset = OpMeshHeightUVOffset;
+	if (Settings->bKeepSideGroups)
+	{
+		if (Op->bSubtract && !OpMeshSubtractSideGroups.IsEmpty())
+		{
+			Op->OpMeshSideGroups = OpMeshSubtractSideGroups;
+		}
+		else if (!Op->bSubtract && !OpMeshAddSideGroups.IsEmpty())
+		{
+			Op->OpMeshSideGroups = OpMeshAddSideGroups;
+		}
+	}
+
+	Op->FaceUVOrientations = GetFaceUVOrientations(ZDirectionInGrid);
+	Op->bWorldSpaceUVs = MaterialProperties->bWorldSpaceUVScale;
+	Op->UVScale = MaterialProperties->UVScale;
 
 	if (Mode == EMode::Corner)
 	{
@@ -552,6 +606,14 @@ TUniquePtr<FDynamicMeshOperator> UCubeGridTool::MakeNewOperator()
 		for (int i = 0; i < 4; ++i)
 		{
 			Op->CornerInfo->WeldedAtBase[i] = !CornerSelectedFlags[i];
+		}
+
+		if (Op->bSubtract)
+		{
+			// If we're flipping the Z direction of our frame, we currently effectively do so by rotating around 
+			// the X axis, which determines which way we need to flip these corner labels.
+			Swap(Op->CornerInfo->WeldedAtBase[0], Op->CornerInfo->WeldedAtBase[3]);
+			Swap(Op->CornerInfo->WeldedAtBase[1], Op->CornerInfo->WeldedAtBase[2]);
 		}
 
 		Op->bCrosswiseDiagonal = Settings->bCrosswiseDiagonal;
@@ -575,7 +637,7 @@ void UCubeGridTool::SlideSelection(int32 Amount, bool bEmitChange)
 		Selection.Box.Min + FrameSpaceDisplacement,
 		Selection.Box.Max + FrameSpaceDisplacement);
 
-	SetSelection(NewSelection, true);
+	SetSelection(NewSelection, bEmitChange);
 }
 
 void UCubeGridTool::SetSelection(const FSelection& NewSelection, bool bEmitChange)
@@ -649,16 +711,21 @@ void UCubeGridTool::Setup()
 	AddToolPropertySource(OutputTypeProperties);
 
 	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
-	MaterialProperties->RestoreProperties(this);
-	MaterialProperties->bShowExtendedOptions = false;
+	// Change the default by setting it before restoring
+	MaterialProperties->bWorldSpaceUVScale = true;
+	MaterialProperties->RestoreProperties(this, PropertyCacheIdentifier);
 	AddToolPropertySource(MaterialProperties);
 
 	CurrentMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	CurrentMesh->EnableAttributes();
+	CurrentMeshMaterials.Empty();
 	if (Target)
 	{
 		*CurrentMesh = UE::ToolTarget::GetDynamicMeshCopy(Target);
 		UE::ToolTarget::SetSourceObjectVisible(Target, false);
+
+		CurrentMeshTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+		CurrentMeshMaterials = UE::ToolTarget::GetMaterialSet(Target).Materials;
 	}
 
 	MeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();
@@ -671,20 +738,25 @@ void UCubeGridTool::Setup()
 	if (Target)
 	{
 		Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
-		CurrentMeshTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
-
-		// Set materials
-		FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
-		Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	}
 	Preview->PreviewMesh->SetTransform((FTransform)CurrentMeshTransform);
 	Preview->OnOpCompleted.AddWeakLambda(this, [this](const FDynamicMeshOperator* UncastOp) {
 		const FCubeGridBooleanOp* Op = static_cast<const FCubeGridBooleanOp*>(UncastOp);
 		if (Op->InputMesh == ComputeStartMesh)
 		{
-			LastOpChangedTids = static_cast<const FCubeGridBooleanOp*>(Op)->ChangedTids;
+			LastOpChangedTids = Op->ChangedTids;
+			if (Op->bSubtract)
+			{
+				OpMeshSubtractSideGroups = Op->OpMeshSideGroups;
+			}
+			else
+			{
+				OpMeshAddSideGroups = Op->OpMeshSideGroups;
+			}
+			
 		}
 	});
+	UpdateOpMaterials();
 
 	CubeGrid = MakeShared<FCubeGrid>();
 	CubeGrid->SetGridFrame(FFrame3d(Settings->GridFrameOrigin, Settings->GridFrameOrientation.Quaternion()));
@@ -807,8 +879,30 @@ void UCubeGridTool::Setup()
 		[this](bool bOn) {
 			InvalidatePreview();
 		});
+	Settings->WatchProperty(Settings->bKeepSideGroups,
+		[this](bool bOn) {
+			InvalidatePreview(false);
+		});
 	Settings->WatchProperty(Settings->PlaneTolerance,
 		[this](double Tolerance) {
+			InvalidatePreview(false);
+		});
+
+	MaterialProperties->WatchProperty(MaterialProperties->Material,
+		[this](TWeakObjectPtr<UMaterialInterface> Material) {
+			UpdateOpMaterials();
+			InvalidatePreview(false);
+		});
+	MaterialProperties->WatchProperty(MaterialProperties->UVScale,
+		[this](float UVScale) {
+			InvalidatePreview(false);
+		});
+	MaterialProperties->WatchProperty(MaterialProperties->bShowWireframe,
+		[this](float UVScale) {
+			Preview->PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
+		});
+	MaterialProperties->WatchProperty(MaterialProperties->bWorldSpaceUVScale,
+		[this](float UVScale) {
 			InvalidatePreview(false);
 		});
 
@@ -848,6 +942,18 @@ void UCubeGridTool::Setup()
 	}
 }
 
+void UCubeGridTool::UpdateOpMaterials()
+{
+	TArray<UMaterialInterface*> PreviewMaterials = CurrentMeshMaterials;
+	OpMeshMaterialID = PreviewMaterials.Find(MaterialProperties->Material.Get());
+	if (OpMeshMaterialID == INDEX_NONE)
+	{
+		OpMeshMaterialID = PreviewMaterials.Add(MaterialProperties->Material.Get());
+	}
+
+	Preview->ConfigureMaterials(PreviewMaterials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+}
+
 void UCubeGridTool::UpdateComputeInputs()
 {
 	ComputeStartMesh = MakeShared<FDynamicMesh3>(*CurrentMesh);
@@ -855,8 +961,11 @@ void UCubeGridTool::UpdateComputeInputs()
 
 void UCubeGridTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	using namespace CubeGridToolLocals;
+
 	Settings->SaveProperties(this);
-	MaterialProperties->SaveProperties(this);
+	MaterialProperties->SaveProperties(this, PropertyCacheIdentifier);
+	OutputTypeProperties->SaveProperties(this);
 
 	if (Mode == EMode::Corner)
 	{
@@ -870,7 +979,11 @@ void UCubeGridTool::Shutdown(EToolShutdownType ShutdownType)
 		if (bChangesMade)
 		{
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("CubeGridToolEditTransactionName", "Block Tool Edit"));
-			UE::ToolTarget::CommitDynamicMeshUpdate(Target, *CurrentMesh, true);
+			FComponentMaterialSet OutputMaterialSet;
+			OutputMaterialSet.Materials = CurrentMeshMaterials;
+
+			UE::ToolTarget::CommitDynamicMeshUpdate(Target, *CurrentMesh, true,
+				FConversionToMeshDescriptionOptions(), &OutputMaterialSet);
 			GetToolManager()->EndUndoTransaction();
 		}
 	}
@@ -882,7 +995,7 @@ void UCubeGridTool::Shutdown(EToolShutdownType ShutdownType)
 		NewMeshObjectParams.TargetWorld = TargetWorld;
 		NewMeshObjectParams.Transform = (FTransform)CurrentMeshTransform;
 		NewMeshObjectParams.BaseName = TEXT("CubeGridToolOutput");
-		NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());
+		NewMeshObjectParams.Materials = CurrentMeshMaterials;
 		NewMeshObjectParams.SetMesh(CurrentMesh.Get());
 		OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
 		FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
@@ -936,10 +1049,21 @@ void UCubeGridTool::ApplyPreview()
 	ChangeTracker.SaveTriangles(*LastOpChangedTids, true /*bSaveVertices*/);
 
 	// Update current mesh
+	bool bWasValid = Preview->ProcessCurrentMesh([this](const FDynamicMesh3& Mesh)
+	{
+		CurrentMesh->Copy(Mesh);
+	});
+	if (!ensure(bWasValid))
+	{
+		return;
+	}
+
 	bChangesMade = true; // TODO: make this undoable
 
-	CurrentMesh->Copy(*Preview->PreviewMesh->GetMesh());
 	MeshSpatial->Build();
+
+	CurrentMeshMaterials.Reset();
+	Preview->PreviewMesh->GetMaterials(CurrentMeshMaterials);
 
 	UpdateComputeInputs();
 
@@ -952,11 +1076,15 @@ void UCubeGridTool::ApplyPreview()
 
 	if (bAdjustSelectionOnPreviewUpdate)
 	{
-		// Change the selection to the new location. Note that this should to happen
+		// Save UV offset before sliding selection
+		OpMeshHeightUVOffset += GetFrameSpaceExtrudeDist(*CubeGrid, Selection.Box.Min, CurrentExtrudeAmount, Selection.Direction);
+
+		// Change the selection to the new location. Note that this should happen only
 		// after resetting bPreviewMayDiffer to avoid an extra preview reset when selection
 		// changes.
 		SlideSelection(CurrentExtrudeAmount, true);
 	}
+
 	CurrentExtrudeAmount = 0;
 
 	GetToolManager()->EmitObjectChange(this, MakeUnique<FCubeGridToolMeshChange>(ChangeTracker.EndChange()), TransactionText);
@@ -1207,11 +1335,20 @@ void UCubeGridTool::EndSelectionChange()
 	if (bPreviousHaveSelection != bHaveSelection
 		|| (bHaveSelection && PreviousSelection != Selection))
 	{
+		ResetMultiStepConsistencyData();
+
 		GetToolManager()->EmitObjectChange(this,
 			MakeUnique<FCubeGridToolSelectionChange>(bPreviousHaveSelection, bHaveSelection,
 				PreviousSelection, Selection),
 			SelectionChangeTransactionName);
 	}
+}
+
+void UCubeGridTool::ResetMultiStepConsistencyData()
+{
+	OpMeshHeightUVOffset = 0;
+	OpMeshAddSideGroups.Empty();
+	OpMeshSubtractSideGroups.Empty();
 }
 
 void UCubeGridTool::UpdateGizmoVisibility(bool bVisible)
@@ -1627,22 +1764,22 @@ void UCubeGridTool::UpdateCornerModeLineSet()
 	LineSet->Clear();
 	if (Mode == EMode::Corner && CurrentExtrudeAmount < 0)
 	{
-		FOrientedBox3d FrameSpaceBox = ConvertToOrientedBox(Selection.Box, Selection.Direction);
-
+		// Since we're subtracting here, we need to do some flipping.
+		FOrientedBox3d FrameSpaceBox = ConvertToOrientedBox(Selection.Box, FCubeGrid::FlipDir(Selection.Direction));
 		bool CornerWelded[4];
 		for (int i = 0; i < 4; ++i) {
 			CornerWelded[i] = !CornerSelectedFlags[i];
 		}
+		Swap(CornerWelded[0], CornerWelded[3]);
+		Swap(CornerWelded[1], CornerWelded[2]);
 
-		// The choice of diagonal here lines up with the generator in CubeGridBooleanOp. The
-		// indices look a little different because we're accounting for mirroring that happens in
-		// subtract mode, though we would have actually gotten the same results either way in
-		// the cases we care about (the nonplanar ones)
-		int DiagStartIdx = 1;
-		if (CornerWelded[0] != CornerWelded[2] ||
-			(!CornerWelded[0] && CornerWelded[1] && CornerWelded[3]))
+		// The choice of diagonal here lines up with the generator in CubeGridBooleanOp for
+		// the bottom face.
+		int DiagStartIdx = 0;
+		if (CornerWelded[1] != CornerWelded[3] ||
+			(!CornerWelded[1] && CornerWelded[0] && CornerWelded[2]))
 		{
-			DiagStartIdx = 0;
+			DiagStartIdx = 1;
 		}
 		DiagStartIdx = Settings->bCrosswiseDiagonal ? 1 - DiagStartIdx : DiagStartIdx;
 		
@@ -1707,6 +1844,7 @@ void UCubeGridTool::ApplyFlipSelection()
 	FSelection NewSelection = Selection;
 	NewSelection.Direction = FCubeGrid::FlipDir(Selection.Direction);
 	SetSelection(NewSelection, true);
+	ResetMultiStepConsistencyData();
 
 	GetToolManager()->EndUndoTransaction();
 
@@ -1728,6 +1866,8 @@ void UCubeGridTool::ApplySlide(int32 NumBlocks)
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("SlideTransactionName", "Slide Selection"));
 	SlideSelection(NumBlocks, true);
+	ResetMultiStepConsistencyData();
+
 	GetToolManager()->EndUndoTransaction();
 }
 
@@ -1859,6 +1999,8 @@ void UCubeGridTool::ApplyAction(ECubeGridToolAction ActionType)
 
 void UCubeGridTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
+	using namespace CubeGridToolLocals;
+
 	int32 ActionID = (int32)EStandardToolActions::BaseClientDefinedActionID + 1;
 	ActionSet.RegisterAction(this, ActionID++,
 		TEXT("PullBlock"),
@@ -1946,6 +2088,28 @@ void UCubeGridTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		[this]() {
 			ApplyFlipSelection();
 		});
+}
+
+FBox UCubeGridTool::GetWorldSpaceFocusBox()
+{
+	using namespace CubeGridToolLocals;
+
+	FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
+	if (bHaveSelection)
+	{
+		FOrientedBox3d FrameSpaceBox = ConvertToOrientedBox(Selection.Box, Selection.Direction);
+
+		// The resulting oriented box is flat in the z frame direction (which is aligned to Selection.Direction).
+		// So we only need to contain the four corners of a z face instead of doing 8 corners.
+		const FFrame3d& GridFrame = CubeGrid->GetFrame();
+		int ZFaceIndex = 0;
+		for (int CornerIndex = 0; CornerIndex < 4; ++CornerIndex)
+		{
+			Bounds.Contain(GridFrame.FromFramePoint(FrameSpaceBox.GetCorner(IndexUtil::BoxFaces[ZFaceIndex][CornerIndex])));
+		}
+	}
+
+	return (FBox)Bounds;
 }
 
 void UCubeGridTool::StartCornerMode()

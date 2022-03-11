@@ -18,6 +18,8 @@ namespace CubeGridBooleanOpLocals
  * Generator for creating ramps/pyramids/pyramid cutaways in the bounds of a box. The "welded"
  * refers to welding vertices along the Z axis to create those shapes. See the comment in
  * FCubeGridBooleanOp::FCornerInfo for more information.
+ * 
+ * The generator assigns the group IDs 0-3 to the sides (which become 1-4 in the FDynamicMesh3).
  */
 class FWeldedMinimalBoxMeshGenerator : public FMeshShapeGenerator
 {
@@ -25,9 +27,26 @@ public:
 	FOrientedBox3d Box;
 	FCubeGridBooleanOp::FCornerInfo CornerInfo;
 	bool bCrosswiseDiagonal = false;
+
+	// See comments in CubeGridBooleanOp.h about how these work
+	TArray<int32, TFixedAllocator<6>> FaceUVOrientations;
+	double HeightUVOffset = 0;
 		
 	virtual FMeshShapeGenerator& Generate() override
 	{
+		// Fill any unset orientations with 0.
+		FaceUVOrientations.SetNumZeroed(6);
+
+		// Make sure all orientations are in [0,3]
+		for (int& Orientation : FaceUVOrientations)
+		{
+			if (Orientation < 0)
+			{
+				Orientation = 4 - ((-Orientation) % 4);
+			}
+			Orientation %= 4;
+		}
+
 		// There is a particular odd case that we have to guard against. If one set of diagonal
 		// corners is welded and the second set is unwelded, and if the chosen triangulation
 		// diagonal connects the welded vertices, then the edge between these verts would normally
@@ -80,7 +99,7 @@ protected:
 
 		int GroupID = 0;
 
-		// These actually get reinitialized at during each face traversal, and are out here as globals
+		// These actually get reinitialized during each face traversal, and are out here as globals
 		// to the lambdas we use (to avoid having to pass tons of args). They are indexed by 0-3 
 		// counterclockwise from the bottom left corner, like IndexUtil::BoxFacesUV
 		int UVIndices[4];
@@ -90,11 +109,42 @@ protected:
 		double FaceHeight;
 
 		auto MakeUVsAndNormals = [this, &UVIndices, &NormalIndices, &FaceCornerToVert, &FaceWidth, &FaceHeight]
-		(int FaceCornerIndex, const FVector3f& Normal, int ParentVert) {
-			UVIndices[FaceCornerIndex] = AppendUV(FVector2f(
-				FaceWidth * IndexUtil::BoxFacesUV[FaceCornerIndex].X,
-				FaceHeight * IndexUtil::BoxFacesUV[FaceCornerIndex].Y), ParentVert);
+		(int FaceCornerIndex, const FVector3f& Normal, int ParentVert, float HeightOffset, int FaceOrientation) {
+			
+			/*
+			 * FaceOrientation determines how the face is rotated in UV space. The assignment table ends up:
+			 * 
+			 *    FaceOrientation
+			 * corner  0    1    2    3
+			 *   0    0,0  h,0  w,h  0,w
+			 *   1    w,0  h,w  0,h  0,0
+			 *   2    w,h  0,w  0,0  h,0
+			 *   3    0,h  0,0  w,0  h,w
+			 * 
+			 * Where HeightOffset needs to be added to the column where h is used (V for rotations 0 and 2, U for others)
+			 * 
+			 * From the table, we can see that we can index into IndexUtil::BoxFacesUV with an index that is rotated
+			 * backwards from FaceCornerIndex FaceOrientation number of times to get multiplier that we can then multiply
+			 * by w and h appropriately.
+			 */
 
+			int RotatedCornerIndex = (FaceCornerIndex + 4 - FaceOrientation) % 4;
+			FVector2i UVBase = IndexUtil::BoxFacesUV[RotatedCornerIndex];
+
+			FVector2f UV;
+			if (FaceOrientation % 2 == 0)
+			{
+				UV.X = UVBase.X * FaceWidth;
+				UV.Y = UVBase.Y * FaceHeight + HeightOffset;
+			}
+			else
+			{
+				UV.X = UVBase.X * FaceHeight + HeightOffset;
+				UV.Y = UVBase.Y * FaceWidth;
+			}
+
+			UVIndices[FaceCornerIndex] = AppendUV(UV, ParentVert);
+			
 			NormalIndices[FaceCornerIndex] = AppendNormal(Normal, ParentVert);
 			FaceCornerToVert[FaceCornerIndex] = ParentVert;
 		};
@@ -116,9 +166,17 @@ protected:
 			(FVector3f)Box.AxisY(),
 		};
 
+		// Maps each left corner of the bottom face to the IndexUtil::BoxFaces index of the face that we'll construct.
+		int BottomCornerToSideFaceIndex[4] = { 4, 3, 5, 2 };
+
 		// Set up the sides
 		for (int LeftCorner = 0; LeftCorner < 4; ++LeftCorner)
 		{
+			GroupID = LeftCorner;
+
+			int FaceIndex = BottomCornerToSideFaceIndex[LeftCorner];
+			int FaceUVOrientation = FaceUVOrientations[FaceIndex];
+
 			// We're iterating over the bottom corners of the oriented box (see TOrientedBox3::GetCorner()),
 			// but due to the way these are numbered, if we are looking at the side, the bottom two verts
 			// actually decrease in corner index (wrapping around).
@@ -155,27 +213,28 @@ protected:
 			FaceHeight = Distance(Box.GetCorner(LeftCorner), Box.GetCorner(LeftUp));
 
 			// The bottom two vertices will definitely need uv/normal elements
-			MakeUVsAndNormals(0, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[LeftCorner]);
-			MakeUVsAndNormals(1, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[RightCorner]);
+			MakeUVsAndNormals(0, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[LeftCorner], HeightUVOffset, FaceUVOrientation);
+			MakeUVsAndNormals(1, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[RightCorner], HeightUVOffset, FaceUVOrientation);
 
 			if (!CornerInfo.WeldedAtBase[LeftCorner])
 			{
-				MakeUVsAndNormals(3, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[LeftUp]);
+				MakeUVsAndNormals(3, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[LeftUp], HeightUVOffset, FaceUVOrientation);
 				MakeTriangle(0, 1, 3);
 				if (!CornerInfo.WeldedAtBase[RightCorner])
 				{
-					MakeUVsAndNormals(2, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[RightUp]);
+					MakeUVsAndNormals(2, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[RightUp], HeightUVOffset, FaceUVOrientation);
 					MakeTriangle(3, 1, 2);
 				}
 			}
 			else
 			{
-				MakeUVsAndNormals(2, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[RightUp]);
+				MakeUVsAndNormals(2, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[RightUp], HeightUVOffset, FaceUVOrientation);
 				MakeTriangle(0, 1, 2);
 			}
-
-			++GroupID;
 		}// end making side faces
+
+		// 0-3 are reserved group id's for sides even if a side doesn't exist.
+		GroupID = 4;
 
 		// Figure out which direction we're going to triangulate the top and bottom. 
 		// In the normal case, we place the diagonal such that a single raised/lowered
@@ -190,8 +249,12 @@ protected:
 		}
 		DiagFaceIdx1 = bCrosswiseDiagonal ? 1 - DiagFaceIdx1 : DiagFaceIdx1;
 
+		// DiagFaceIdx1 is either 0 or 1 here and static analysis will complain if we do
+		// mod 4 for some of the later statements. Throw in a check in case we ever change
+		// the above.
+		checkSlow(DiagFaceIdx1 == 0 || DiagFaceIdx1 == 1);
 		int DiagFaceIdx2 = DiagFaceIdx1 + 2;
-		int CCWFromDiag1 = (DiagFaceIdx1 + 1) % 4;
+		int CCWFromDiag1 = DiagFaceIdx1 + 1;
 		int CCWFromDiag2 = (DiagFaceIdx2 + 1) % 4;
 
 		// We've iterated across the sides but it's still actually possible to end up not
@@ -209,19 +272,20 @@ protected:
 		// Prep for UVs
 		FaceWidth = Distance(Box.GetCorner(0), Box.GetCorner(1));
 		FaceHeight = Distance(Box.GetCorner(0), Box.GetCorner(3));
+		int FaceUVOrientation = FaceUVOrientations[0];
 
-		MakeUVsAndNormals(DiagFaceIdx1, (FVector3f)-Box.Frame.Z(), CornerToVert[DiagFaceIdx1]);
-		MakeUVsAndNormals(DiagFaceIdx2, (FVector3f)-Box.Frame.Z(), CornerToVert[DiagFaceIdx2]);
+		MakeUVsAndNormals(DiagFaceIdx1, (FVector3f)-Box.Frame.Z(), CornerToVert[DiagFaceIdx1], 0, FaceUVOrientation);
+		MakeUVsAndNormals(DiagFaceIdx2, (FVector3f)-Box.Frame.Z(), CornerToVert[DiagFaceIdx2], 0, FaceUVOrientation);
 
 		bool bDiagonalWelded = CornerInfo.WeldedAtBase[DiagFaceIdx1] && CornerInfo.WeldedAtBase[DiagFaceIdx2];
 		if (!(bDiagonalWelded && CornerInfo.WeldedAtBase[CCWFromDiag1]))
 		{
-			MakeUVsAndNormals(CCWFromDiag1, (FVector3f)-Box.Frame.Z(), CornerToVert[CCWFromDiag1]);
+			MakeUVsAndNormals(CCWFromDiag1, (FVector3f)-Box.Frame.Z(), CornerToVert[CCWFromDiag1], 0, FaceUVOrientation);
 			MakeTriangle(DiagFaceIdx1, CCWFromDiag1, DiagFaceIdx2);
 		}
 		if (!(bDiagonalWelded && CornerInfo.WeldedAtBase[CCWFromDiag2]))
 		{
-			MakeUVsAndNormals(CCWFromDiag2, (FVector3f)-Box.Frame.Z(), CornerToVert[CCWFromDiag2]);
+			MakeUVsAndNormals(CCWFromDiag2, (FVector3f)-Box.Frame.Z(), CornerToVert[CCWFromDiag2], 0, FaceUVOrientation);
 			MakeTriangle(DiagFaceIdx1, DiagFaceIdx2, CCWFromDiag2);
 		}
 		++GroupID;
@@ -263,6 +327,7 @@ protected:
 		FaceHeight = FMath::Max(
 			FVector3d::Distance(CornerPositions[0], CornerPositions[3]),
 			FVector3d::Distance(CornerPositions[1], CornerPositions[2]));
+		FaceUVOrientation = FaceUVOrientations[1];
 
 		// We're looking at things from the opposite direction, so our diagonal needs to
 		// connect the opposite face indices.
@@ -286,9 +351,9 @@ protected:
 			FVector3f Normal = AToC.Cross(AToB);
 			Normal.Normalize();
 				
-			MakeUVsAndNormals(DiagFaceIdx1, Normal, FaceCornerToVert[DiagFaceIdx1]);
-			MakeUVsAndNormals(CCWFromDiag1, Normal, FaceCornerToVert[CCWFromDiag1]);
-			MakeUVsAndNormals(DiagFaceIdx2, Normal, FaceCornerToVert[DiagFaceIdx2]);
+			MakeUVsAndNormals(DiagFaceIdx1, Normal, FaceCornerToVert[DiagFaceIdx1], 0, FaceUVOrientation);
+			MakeUVsAndNormals(CCWFromDiag1, Normal, FaceCornerToVert[CCWFromDiag1], 0, FaceUVOrientation);
+			MakeUVsAndNormals(DiagFaceIdx2, Normal, FaceCornerToVert[DiagFaceIdx2], 0, FaceUVOrientation);
 
 			MakeTriangle(DiagFaceIdx1, CCWFromDiag1, DiagFaceIdx2);
 
@@ -304,7 +369,7 @@ protected:
 			{
 				// Have to make this copy because we're not allowed to pass a reference to an element
 				// in the container we're modifying.
-				MakeUVsAndNormals(CCWFromDiag2, FVector3f(Normals[NormalIndices[DiagFaceIdx1]]), FaceCornerToVert[CCWFromDiag2]);
+				MakeUVsAndNormals(CCWFromDiag2, FVector3f(Normals[NormalIndices[DiagFaceIdx1]]), FaceCornerToVert[CCWFromDiag2], 0, FaceUVOrientation);
 			}
 			else
 			{
@@ -320,10 +385,10 @@ protected:
 				}
 				else
 				{
-					MakeUVsAndNormals(DiagFaceIdx1, (FVector3f)Normal, FaceCornerToVert[DiagFaceIdx1]);
-					MakeUVsAndNormals(DiagFaceIdx2, (FVector3f)Normal, FaceCornerToVert[DiagFaceIdx2]);
+					MakeUVsAndNormals(DiagFaceIdx1, (FVector3f)Normal, FaceCornerToVert[DiagFaceIdx1], 0, FaceUVOrientation);
+					MakeUVsAndNormals(DiagFaceIdx2, (FVector3f)Normal, FaceCornerToVert[DiagFaceIdx2], 0, FaceUVOrientation);
 				}
-				MakeUVsAndNormals(CCWFromDiag2, (FVector3f)Normal, FaceCornerToVert[CCWFromDiag2]);
+				MakeUVsAndNormals(CCWFromDiag2, (FVector3f)Normal, FaceCornerToVert[CCWFromDiag2], 0, FaceUVOrientation);
 			}
 			MakeTriangle(DiagFaceIdx1, DiagFaceIdx2, CCWFromDiag2);
 		}// end triangulating second tri
@@ -384,48 +449,55 @@ void FCubeGridBooleanOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	TUniquePtr<FDynamicMesh3> OpMesh;
+
+	FWeldedMinimalBoxMeshGenerator Generator;
+	Generator.Box = WorldBox;
 	if (CornerInfo)
 	{
-		if (bSubtract)
+		Generator.CornerInfo = *CornerInfo;
+	}
+	Generator.bCrosswiseDiagonal = bCrosswiseDiagonal;
+	Generator.HeightUVOffset = OpMeshHeightUVOffset;
+	Generator.FaceUVOrientations = FaceUVOrientations;
+
+	OpMesh = MakeUnique<FDynamicMesh3>(&Generator.Generate());
+
+	if (ensure(OpMesh->HasAttributes()))
+	{
+		// Apply the given material ID to the operator mesh if needed.
+		OpMesh->Attributes()->EnableMaterialID();
+		FDynamicMeshMaterialAttribute* MaterialIDs = OpMesh->Attributes()->GetMaterialID();
+		for (int32 Tid : OpMesh->TriangleIndicesItr())
 		{
-			// Recall that for subtracting a welded box mesh, we pick a different 
-			// portion of the box volume as our operator.
-			// However, to be able to use the same code, we can mirror the box in
-			// such a way that the 0-3 indices are at the selection plane, and the
-			// z axis points in the direction of the push (because pushing a corner
-			// down is equivalent to raising it up and then mirroring it down).
-			// We mirror twice to keep the frame handedness, then adjust the
-			// welded flags to point to the correct verts.
-			WorldBox.Frame = FFrame3d(WorldBox.Center(),
-				-WorldBox.AxisX(),
-				WorldBox.AxisY(),
-				-WorldBox.AxisZ());
-			Swap(CornerInfo->WeldedAtBase[0], CornerInfo->WeldedAtBase[1]);
-			Swap(CornerInfo->WeldedAtBase[2], CornerInfo->WeldedAtBase[3]);
+			MaterialIDs->SetValue(Tid, OpMeshMaterialID);
 		}
 
-		FWeldedMinimalBoxMeshGenerator Generator;
-		Generator.Box = WorldBox;
-		Generator.CornerInfo = *CornerInfo;
-		Generator.bCrosswiseDiagonal = bCrosswiseDiagonal;
+		// Rescale UV's
+		FDynamicMeshEditor Editor(OpMesh.Get());
+		float WorldUnitsInMetersFactor = .01;
+		float UVScaleToUse = bWorldSpaceUVs ? WorldUnitsInMetersFactor * UVScale : UVScale;
+		Editor.RescaleAttributeUVs(UVScaleToUse, bWorldSpaceUVs);
 
-		OpMesh = MakeUnique<FDynamicMesh3>(&Generator.Generate());
+		// Unreal stores V's as 1-V, so we probably want to apply this here so it aligns with everything
+		// else. However this should happen after the scaling above.
+		FDynamicMeshUVOverlay* Overlay = OpMesh->Attributes()->PrimaryUV();
+		for (int32 ElementID : Overlay->ElementIndicesItr())
+		{
+			FVector2f UV = Overlay->GetElement(ElementID);
+			Overlay->SetElement(ElementID, FVector2f(UV.X, 1 - UV.Y));
+		}
 	}
-	else
+
+	if (!ResultMesh->HasAttributes())
 	{
-		// Create the box that will be added/subtracted
-		FGridBoxMeshGenerator BoxMeshGenerator;
-		BoxMeshGenerator.Box = WorldBox;
-		BoxMeshGenerator.EdgeVertices = FIndex3i(2, 2, 2);
-		BoxMeshGenerator.bPolygroupPerQuad = true;
-
-		OpMesh = MakeUnique<FDynamicMesh3>(&BoxMeshGenerator.Generate());
+		ResultMesh->EnableAttributes();
 	}
-
-	// Rescale UV's to world space
-	FDynamicMeshEditor Editor(OpMesh.Get());
-	float WorldUnitsInMetersFactor = .01;
-	Editor.RescaleAttributeUVs(WorldUnitsInMetersFactor, true);
+	if (!ResultMesh->Attributes()->HasMaterialID())
+	{
+		// This usually happens when we start with an empty mesh. Materials need to
+		// be enabled or else we won't add in the OpMesh one during the boolean operation.
+		ResultMesh->Attributes()->EnableMaterialID();
+	}
 
 	if (Progress && Progress->Cancelled())
 	{
@@ -439,6 +511,7 @@ void FCubeGridBooleanOp::CalculateResult(FProgressCancel* Progress)
 
 	MeshBoolean.bPutResultInInputSpace = true;
 	MeshBoolean.bSimplifyAlongNewEdges = true;
+	MeshBoolean.bPopulateSecondMeshGroupMap = true;
 	MeshBoolean.Compute();
 
 	if (Progress && Progress->Cancelled())
@@ -464,6 +537,47 @@ void FCubeGridBooleanOp::CalculateResult(FProgressCancel* Progress)
 	if (Progress && Progress->Cancelled())
 	{
 		return;
+	}
+
+	// Prep to remap the side groups if necessary (or output the new side groups)
+	TMap<int32, int32> GroupRemappingToApply;
+	if (ensure(OpMeshSideGroups.Num() == 4))
+	{
+		for (int SideGroupIndex = 0; SideGroupIndex < 4; ++SideGroupIndex)
+		{
+			// We assign the sides groups 0-3 in the generator, but these get turned into 1-4
+			// in the conversion to DynamicMesh.
+			int32 OpMeshGroupID = SideGroupIndex + 1;
+			const int* ResultGroup = MeshBoolean.SecondMeshGroupMap.FindTo(OpMeshGroupID);
+			if (ResultGroup)
+			{
+				if (OpMeshSideGroups[SideGroupIndex] != IndexConstants::InvalidID)
+				{
+					GroupRemappingToApply.Add(*ResultGroup, OpMeshSideGroups[SideGroupIndex]);
+				}
+				else
+				{
+					OpMeshSideGroups[SideGroupIndex] = *ResultGroup;
+				}
+			}
+		}
+	}
+	// Do the actual group remapping
+	if (!GroupRemappingToApply.IsEmpty())
+	{
+		for (int32 Tid : ResultMesh->TriangleIndicesItr())
+		{
+			const int32* RemapGroup = GroupRemappingToApply.Find(ResultMesh->GetTriangleGroup(Tid));
+			if (RemapGroup)
+			{
+				ResultMesh->SetTriangleGroup(Tid, *RemapGroup);;
+			}
+		}
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
 	}
 
 	if (bTrackChangedTids)

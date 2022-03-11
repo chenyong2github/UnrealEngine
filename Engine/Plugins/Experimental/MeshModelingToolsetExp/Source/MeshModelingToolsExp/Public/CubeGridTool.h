@@ -11,7 +11,7 @@
 #include "GeometryBase.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
-#include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI
+#include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI, IInteractiveToolCameraFocusAPI
 #include "Mechanics/CubeGrid.h"
 #include "ModelingOperators.h"
 #include "OrientedBoxTypes.h"
@@ -61,9 +61,13 @@ protected:
 UENUM()
 enum class ECubeGridToolFaceSelectionMode
 {
+	/** Use hit normal to pick the outer face of the containing cell. */
 	OutsideBasedOnNormal,
+	/** Use hit normal to pierce backward through the geometry to pick an inside face of the containing cell. */
 	InsideBasedOnNormal,
+	/** Use view ray to pick the outer face of the containing cell. */
 	OutsideBasedOnViewRay,
+	/** Use view ray to pierce backward through the geometry to pick an inside face of the containing cell. */
 	InsideBasedOnViewRay
 };
 
@@ -114,6 +118,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
 		EditCondition = "bInCornerMode", HideEditConditionToggle))
 	bool bCrosswiseDiagonal = false;
+
+	/** When performing multiple push/pulls with the same selection, attempt to keep the
+	 same group IDs on the sides of the new geometry (ie multiple E/Q presses will not
+	 result in different group topology around the sides compared to a single Ctrl+drag). */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	bool bKeepSideGroups = true;
 
 	/** When performing selection, the tolerance to use when determining
 	 whether things lie in the same plane as a cube face. */
@@ -252,7 +262,8 @@ UCLASS()
 class MESHMODELINGTOOLSEXP_API UCubeGridTool : public UInteractiveTool,
 	public IClickDragBehaviorTarget, public IHoverBehaviorTarget,
 	public UE::Geometry::IDynamicMeshOperatorFactory,
-	public IInteractiveToolNestedAcceptCancelAPI
+	public IInteractiveToolNestedAcceptCancelAPI,
+	public IInteractiveToolCameraFocusAPI
 {
 	GENERATED_BODY()
 protected:
@@ -348,6 +359,10 @@ public:
 	virtual bool SupportsNestedAcceptCommand() override { return true; }
 	virtual bool CanCurrentlyNestedAccept() override;
 	virtual bool ExecuteNestedAcceptCommand() override;
+
+	// IInteractiveToolCameraFocusAPI
+	virtual bool SupportsWorldSpaceFocusBox() { return bHaveSelection; }
+	virtual FBox GetWorldSpaceFocusBox() override;
 
 protected:
 
@@ -463,6 +478,18 @@ protected:
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> MeshSpatial;
 	UE::Geometry::FTransformSRT3d CurrentMeshTransform = UE::Geometry::FTransformSRT3d::Identity();
 	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> LastOpChangedTids;
+
+	TArray<UMaterialInterface*> CurrentMeshMaterials;
+	int32 OpMeshMaterialID = 0;
+	void UpdateOpMaterials();
+
+	// These are used to keep UV's and side groups consistent across multiple E/Q (push/pull) presses. 
+	// This data should be reset whenever the selection changes in a way that is not a byproduct of
+	// a push/pull.
+	double OpMeshHeightUVOffset = 0;
+	TArray<int32, TFixedAllocator<4>> OpMeshAddSideGroups;
+	TArray<int32, TFixedAllocator<4>> OpMeshSubtractSideGroups;
+	void ResetMultiStepConsistencyData();
 
 	// Safe inputs for the background compute to use, untouched by undo/redo/other CurrentMesh updates.
 	TSharedPtr<const UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> ComputeStartMesh;

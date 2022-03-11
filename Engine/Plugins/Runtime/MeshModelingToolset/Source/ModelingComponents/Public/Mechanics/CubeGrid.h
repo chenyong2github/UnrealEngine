@@ -37,16 +37,16 @@ public:
 		PositiveZ = 3
 	};
 
-	/** Convert face direction to its normal. */
+	/**
+	 * Convert face direction to the index of the nonzero normal dimension, or equivalently,
+	 * the dimension in which that face is flat.
+	 */
 	static int8 DirToFlatDim(EFaceDirection DirectionIn)
 	{
 		return FMath::Abs(static_cast<int8>(DirectionIn)) - 1;
 	}
 
-	/** 
-	 * Convert face direction to the index of the nonzero normal dimension, or equivalently,
-	 * the dimension in which that face is flat.
-	 */
+	 /** Convert face direction to its normal. */
 	static FVector3d DirToNormal(EFaceDirection DirectionIn)
 	{
 		FVector3d Normal = FVector3d::Zero();

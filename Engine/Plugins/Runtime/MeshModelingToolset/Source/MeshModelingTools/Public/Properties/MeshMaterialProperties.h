@@ -38,7 +38,7 @@ public:
 	bool bShowWireframe = false;
 
 	/** If true, extended options are available */ 
-	UPROPERTY()
+	UPROPERTY(meta = (TransientToolProperty))
 	bool bShowExtendedOptions = true;
 };
 
