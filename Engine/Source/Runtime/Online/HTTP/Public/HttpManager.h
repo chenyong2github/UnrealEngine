@@ -26,6 +26,7 @@ enum class EHttpFlushReason : uint8
 	Count
 };
 ENUM_RANGE_BY_COUNT(EHttpFlushReason, EHttpFlushReason::Count)
+const TCHAR* LexToString(const EHttpFlushReason& FlushReason);
 
 /**
  * Manages Http request that are currently being processed
