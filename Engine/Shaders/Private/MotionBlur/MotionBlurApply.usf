@@ -931,8 +931,8 @@ void MainCS(
 		mb_short2 OutputPixelCoord1Mip0 = (bIsValid) ? OutputPixelCoord1 : mb_short(~0).xx;
 		mb_short2 OutputPixelCoord2Mip0 = (bIsValid) ? OutputPixelCoord2 : mb_short(~0).xx;
 		mb_short2 OutputPixelCoord3Mip0 = (bIsValid) ? OutputPixelCoord3 : mb_short(~0).xx;
-		mb_short2 OutputPixelCoordMip1 = (bIsValid && (OutputMip1 != 0)) ? (OutputPixelCoord >> mb_short(1)) : mb_short(~0).xx;
-		mb_short2 OutputPixelCoordMip2 = (bIsValid && (OutputMip2 != 0) && (OutputPixelCoord & 0x3) == 0) ? (OutputPixelCoord >> mb_short(2)) : mb_short(~0).xx;
+		mb_short2 OutputPixelCoordMip1 = select(and(bIsValid, OutputMip1 != 0), (OutputPixelCoord >> mb_short(1)), mb_short(~0).xx);
+		mb_short2 OutputPixelCoordMip2 = select(and(bIsValid, and(OutputMip2 != 0, (OutputPixelCoord & 0x3) == 0)), (OutputPixelCoord >> mb_short(2)), mb_short(~0).xx);
 
 		SceneColorOutputMip0[OutputPixelCoord0Mip0] = OutputColor0;
 		SceneColorOutputMip0[OutputPixelCoord1Mip0] = OutputColor1;
@@ -1059,8 +1059,8 @@ void MainCS(
 
 		bool bIsValid = all(OutputPixelCoord < mb_short2(Color_ViewportMax));
 		mb_short2 OutputPixelCoordMip0 = (bIsValid) ? OutputPixelCoord : mb_short(~0).xx;
-		mb_short2 OutputPixelCoordMip1 = (bIsValid && (OutputMip1 != 0) && (OutputPixelCoordMip0 & 0x1) == 0) ? (OutputPixelCoord >> mb_short(1)) : mb_short(~0).xx;
-		mb_short2 OutputPixelCoordMip2 = (bIsValid && (OutputMip2 != 0) && (OutputPixelCoordMip0 & 0x3) == 0) ? (OutputPixelCoord >> mb_short(2)) : mb_short(~0).xx;
+		mb_short2 OutputPixelCoordMip1 = select(and(bIsValid, and(OutputMip1 != 0, (OutputPixelCoordMip0 & 0x1) == 0)), (OutputPixelCoord >> mb_short(1)), mb_short(~0).xx);
+		mb_short2 OutputPixelCoordMip2 = select(and(bIsValid, and(OutputMip2 != 0, (OutputPixelCoordMip0 & 0x3) == 0)), (OutputPixelCoord >> mb_short(2)), mb_short(~0).xx);
 
 		SceneColorOutputMip0[OutputPixelCoordMip0] = OutputColor;
 		SceneColorOutputMip1[OutputPixelCoordMip1] = HalfResOutput;

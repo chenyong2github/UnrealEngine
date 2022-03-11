@@ -493,7 +493,7 @@ void CastScreenSpaceRay(
 		#elif IS_SSGI_SHADER
 		{
 			// If hit set to intersect time. If missed set to beyond end of ray
-            float4 HitTime = bMultipleSampleHit ? float4(1, 2, 3, 4) : 5;
+            float4 HitTime = select(bMultipleSampleHit, float4(1, 2, 3, 4), 5.0);
 
 			// Take closest hit
             float Time1 = float(i) + min(min3(HitTime.x, HitTime.y, HitTime.z), HitTime.w);

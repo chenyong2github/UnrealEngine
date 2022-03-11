@@ -617,7 +617,7 @@ float HistoryClip(float3 History, float3 Filtered, float3 NeighborMin, float3 Ne
 
 	float3 RayOrigin = History;
 	float3 RayDir = Filtered - History;
-	RayDir = abs( RayDir ) < (1.0/65536.0) ? (1.0/65536.0) : RayDir;
+	RayDir = select(abs( RayDir ) < (1.0/65536.0), (1.0/65536.0), RayDir);
 	float3 InvRayDir = rcp( RayDir );
 
 	float3 MinIntersect = (BoxMin - RayOrigin) * InvRayDir;

@@ -45,7 +45,7 @@ void MainCS(
 			int2 Offset = int2(x,y);
 			int2 SampleIndex = PixelPos + Offset;
 			
-			bool2 bInsideViewport = 0 <= SampleIndex && SampleIndex < (int2)VelocityTile_ViewportMax;
+			bool2 bInsideViewport = and(0 <= SampleIndex, SampleIndex < (int2)VelocityTile_ViewportMax);
 			if (!all(bInsideViewport))
 				continue;
 			

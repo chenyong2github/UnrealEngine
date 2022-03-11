@@ -131,7 +131,7 @@ void MainCS(
 
 	// Output velcity flatten texture.
 	{
-		uint2 OutputPos = PixelPos.xy < Velocity_ViewportMax ? PixelPos : uint(~0).xx;
+		uint2 OutputPos = select(PixelPos.xy < Velocity_ViewportMax, PixelPos, uint(~0).xx);
 		OutVelocityFlatTexture[OutputPos] = EncodeVelocityFlatten(VelocityPolar, DeviceZ);
 	}
 

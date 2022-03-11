@@ -172,8 +172,8 @@ half3 FilmToneMap( half3 LinearColor )
 	half3 ToeColor		= (    -FilmBlackClip ) + (2 *      ToeScale) / ( 1 + exp( (-2 * FilmSlope /      ToeScale) * ( LogColor -      ToeMatch ) ) );
 	half3 ShoulderColor	= ( 1 + FilmWhiteClip ) - (2 * ShoulderScale) / ( 1 + exp( ( 2 * FilmSlope / ShoulderScale) * ( LogColor - ShoulderMatch ) ) );
 
-	ToeColor		= LogColor <      ToeMatch ?      ToeColor : StraightColor;
-	ShoulderColor	= LogColor > ShoulderMatch ? ShoulderColor : StraightColor;
+	ToeColor		= select(LogColor <      ToeMatch,      ToeColor, StraightColor);
+	ShoulderColor	= select(LogColor > ShoulderMatch, ShoulderColor, StraightColor);
 
 	half3 t = saturate( ( LogColor - ToeMatch ) / ( ShoulderMatch - ToeMatch ) );
 	t = ShoulderMatch < ToeMatch ? 1 - t : t;
