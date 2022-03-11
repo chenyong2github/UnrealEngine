@@ -25,7 +25,17 @@ namespace UE::DatasmithImporter
 		: SourceUri(InSourceUri)
 	{}
 
-	FExternalSource::~FExternalSource() {}
+	FExternalSource::~FExternalSource()
+	{
+		/*
+		 *  todo: This is should not be done by the FExternalSource but rather by the code loading the scene.
+		 *        Ideally the FExternalSource should provide an interface making use of RAII to manage the loaded state of the Translator.
+		 */
+		if (AssetTranslator)
+		{
+			AssetTranslator->UnloadScene();
+		}
+	}
 
 	const TSharedPtr<IDatasmithTranslator>& FExternalSource::GetAssetTranslator()
 	{
