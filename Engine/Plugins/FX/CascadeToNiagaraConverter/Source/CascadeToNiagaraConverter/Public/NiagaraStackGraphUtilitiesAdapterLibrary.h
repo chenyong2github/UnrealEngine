@@ -479,6 +479,8 @@ struct FCreateScriptContextArgs
 	GENERATED_BODY()
 
 public:
+	FCreateScriptContextArgs() = default;
+
 	FCreateScriptContextArgs(FAssetData InScriptAsset)
 		: ScriptAsset(InScriptAsset)
 		, ScriptVersion()
