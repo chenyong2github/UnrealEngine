@@ -29,10 +29,11 @@ namespace CruncherSharp
 		private readonly Stack<SymbolInfo> _RedoNavigationStack;
 		private readonly SymbolAnalyzer _SymbolAnalyzer;
         private readonly DataTable _Table;
-		private readonly List<uint> _Thresholds;
+		private readonly List<uint> _MemPools;
 		public bool _CloseRequested = false;
         public bool _HasInstancesCount = false;
         public bool _HasSecondPDB = false;
+		public bool _HasMemPools = false;
 		public bool _IgnoreSelectionChange = false;
 		public bool _RestrictToSymbolsImportedFromCSV = false;
 		private ulong _PrefetchStartOffset = 0;
@@ -49,7 +50,7 @@ namespace CruncherSharp
             _Table.CaseSensitive = checkBoxMatchCase.Checked;
             _NavigationStack = new Stack<SymbolInfo>();
 			_RedoNavigationStack = new Stack<SymbolInfo>();
-			_Thresholds = new List<uint>();
+			_MemPools = new List<uint>();
 			_FunctionsToIgnore = new List<string>();
             _SelectedSymbol = null;
             bindingSourceSymbols.DataSource = _Table;
@@ -78,7 +79,7 @@ namespace CruncherSharp
             dataGridViewFunctionsInfo.Rows.Clear();
             _SelectedSymbol = null;
 			_RestrictToSymbolsImportedFromCSV = false;
-			_Thresholds.Clear();
+			_MemPools.Clear();
 			labelCurrentSymbol.Text = "";
             _SymbolAnalyzer.Reset();
 			UpdateBtnLoadText();
@@ -269,19 +270,19 @@ namespace CruncherSharp
                     row["Total delta"] = ((long) symbolInfo.NewSize - (long) symbolInfo.Size) *
                                          (long) symbolInfo.NumInstances;
             }
-			if (_Thresholds.Count > 0)
+			if (_HasMemPools)
 			{
-				uint previousThreshold = 0;
-				foreach (var threshold in _Thresholds)
+				uint previousMemPool = 0;
+				foreach (var memPool in _MemPools)
 				{
-					if (symbolInfo.Size > threshold)
+					if (symbolInfo.Size > memPool)
 					{
-						previousThreshold = threshold;
+						previousMemPool = memPool;
 						continue;
 					}
-					row["MemPool waste"] = threshold - symbolInfo.Size;
-					row["MemPool total waste"] = (long)(threshold - symbolInfo.Size) * (long)symbolInfo.NumInstances;
-					row["MemPool delta"] = symbolInfo.Size - previousThreshold;
+					row["MemPool waste"] = memPool - symbolInfo.Size;
+					row["MemPool total waste"] = (long)(memPool - symbolInfo.Size) * (long)symbolInfo.NumInstances;
+					row["MemPool delta"] = symbolInfo.Size - previousMemPool;
 					break;
 
 				}
@@ -1447,12 +1448,13 @@ namespace CruncherSharp
 		private void addMemPoolsToolStripMenuItem_Click(object sender, EventArgs e)
 		{
 			var memPoolsForm = new AddMemPoolsForm();
-			memPoolsForm.SetMemPools(_Thresholds);
+			memPoolsForm.SetMemPools(_MemPools);
 			memPoolsForm.ShowDialog();
-			_Thresholds.Clear();
-			_Thresholds.AddRange(memPoolsForm.GetMemPool());
-			if (_Thresholds.Count > 0)
+			_MemPools.Clear();
+			_MemPools.AddRange(memPoolsForm.GetMemPool());
+			if (!_HasMemPools && _MemPools.Count > 0)
 			{
+				_HasMemPools = true;
 				_Table.Columns.Add(new DataColumn
 				{
 					ColumnName = "MemPool waste",

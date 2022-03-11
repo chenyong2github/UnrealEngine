@@ -290,7 +290,7 @@
             // addMemPoolsToolStripMenuItem
             // 
             this.addMemPoolsToolStripMenuItem.Name = "addMemPoolsToolStripMenuItem";
-            this.addMemPoolsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.addMemPoolsToolStripMenuItem.Size = new System.Drawing.Size(170, 22);
             this.addMemPoolsToolStripMenuItem.Text = "Set memory pools";
             this.addMemPoolsToolStripMenuItem.Click += new System.EventHandler(this.addMemPoolsToolStripMenuItem_Click);
             // 
