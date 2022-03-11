@@ -88,15 +88,16 @@ public:
 	virtual void SetInitializer(const FRayTracingGeometryInitializer& Initializer) final override;
 
 	void Swap(FVulkanRayTracingGeometry& Other);
-	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
 
-private:
-	FVulkanDevice* const Device = nullptr;
+	using FRHIRayTracingGeometry::Initializer;
+	using FRHIRayTracingGeometry::SizeInfo;
 
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
 	VkDeviceAddress Address = 0;
 	TRefCountPtr<FVulkanResourceMultiBuffer> AccelerationStructureBuffer;
-	TRefCountPtr<FVulkanResourceMultiBuffer> ScratchBuffer;
+
+private:
+	FVulkanDevice* const Device = nullptr;
 };
 
 class FVulkanRayTracingScene : public FRHIRayTracingScene
