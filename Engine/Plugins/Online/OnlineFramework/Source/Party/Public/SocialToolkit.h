@@ -165,6 +165,8 @@ PACKAGE_SCOPE:
 #endif
 
 protected:
+	/** protected function that only handles sending a friend request via the friends interface, assumes all checks are handled previously **/
+	virtual bool InternalSendFriendInvite(USocialUser& SocialUser, ESocialSubsystem SubsystemType, FOnTrySendFriendInviteComplete OnCompleteDelegate = FOnTrySendFriendInviteComplete()) const;
 
 	virtual void OnOwnerLoggedIn();
 	virtual void OnOwnerLoggedOut();
