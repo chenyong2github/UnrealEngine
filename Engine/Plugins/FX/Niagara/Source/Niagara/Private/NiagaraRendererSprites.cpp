@@ -16,7 +16,6 @@
 #include "Renderer/Private/ScenePrivate.h"
 #include "NiagaraCullProxyComponent.h"
 
-DECLARE_CYCLE_STAT(TEXT("Render Sprites [RT]"), STAT_NiagaraRenderSprites, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumSprites"), STAT_NiagaraNumSprites, STATGROUP_Niagara);
 
 static int32 GbEnableNiagaraSpriteRendering = 1;
@@ -928,7 +927,6 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 		return;
 	}
 
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 #if STATS
 	FScopeCycleCounter EmitterStatsCounter(EmitterStatID);
 #endif
@@ -1049,8 +1047,7 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	{
 		return;
 	}
-
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
+	
 #if STATS
 	FScopeCycleCounter EmitterStatsCounter(EmitterStatID);
 #endif
