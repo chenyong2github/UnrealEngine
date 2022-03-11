@@ -1904,18 +1904,32 @@ namespace UnrealBuildTool
 
 			// Find the set of binaries to build. If we're compiling only specific files, filter the list of binaries to only include the files we're interested in.
 			List<UEBuildBinary> BuildBinaries = Binaries;
-			foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
-			{
-				UEBuildBinary? Binary = Binaries.Find(x => x.Modules.Any(y => y.ContainsFile(SpecificFile)));
 
-				if (Binary == null)
+			{
+				// If we've been asked to ignore invalid files, don't build anything if there are no valid individual files to build
+				bool bBuildShouldContinue = !BuildConfiguration.bIgnoreInvalidFiles;
+
+				foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
 				{
-					throw new BuildException("Couldn't find any module containing {0} in {1}.", SpecificFile, TargetName);
+					UEBuildBinary? Binary = Binaries.Find(x => x.Modules.Any(y => y.ContainsFile(SpecificFile)));
+
+					if (Binary == null)
+					{
+						if (!BuildConfiguration.bIgnoreInvalidFiles)
+						{
+							throw new BuildException("Couldn't find any module containing {0} in {1}.", SpecificFile, TargetName);
+						}
+					}
+					else if (!BuildBinaries.Contains(Binary))
+					{
+						bBuildShouldContinue = true;
+						BuildBinaries.Add(Binary);
+					}
 				}
 
-				if (!BuildBinaries.Contains(Binary))
+				if (!bBuildShouldContinue)
 				{
-					BuildBinaries.Add(Binary);
+					return Makefile;
 				}
 			}
 

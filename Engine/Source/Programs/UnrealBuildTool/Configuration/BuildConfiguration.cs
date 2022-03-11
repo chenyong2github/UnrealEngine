@@ -159,5 +159,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		public int MaxNestedPathLength = 200;
+
+		/// <summary>
+		/// When single file targets are specified, via -File=, -SingleFile=, or -FileList=
+		/// If this option is set, no error will be produced if the source file is not included in the target.
+		/// Additionally, if any file or file list is specified, the target will not be built if none of the specified files are part of that target,
+		/// including the case where a file specified via -FileList= is empty.
+		/// </summary>
+		[CommandLine("-IgnoreInvalidFiles")]
+		public bool bIgnoreInvalidFiles;
 	}
 }
