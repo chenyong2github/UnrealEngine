@@ -7,10 +7,22 @@ using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// Collection of property argument specifiers
+	/// </summary>
 	[UnrealHeaderTool]
 	public static class UhtPropertyArgumentSpecifiers
 	{
+
+		/// <summary>
+		/// Table for property argument specifiers
+		/// </summary>
 		public static readonly UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.PropertyArgument);
+
+		/// <summary>
+		/// Table for property argument specifier validators
+		/// </summary>
 		public static readonly UhtSpecifierValidatorTable SpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.PropertyArgument);
 
 		#region Argument Property Specifiers

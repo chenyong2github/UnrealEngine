@@ -11,11 +11,26 @@ using System.Text;
 
 namespace EpicGames.UHT.Tables
 {
+
+	/// <summary>
+	/// Delegate for invoking structure default value sanitizer
+	/// </summary>
+	/// <param name="Property"></param>
+	/// <param name="DefaultValueReader"></param>
+	/// <param name="InnerDefaultValue"></param>
+	/// <returns></returns>
 	public delegate bool UhtStructDefaultValueDelegate(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue);
 
+	/// <summary>
+	/// Options for structure default value sanitizer
+	/// </summary>
 	[Flags]
 	public enum UhtStructDefaultValueOptions
 	{
+
+		/// <summary>
+		/// No options
+		/// </summary>
 		None = 0,
 
 		/// <summary>
@@ -66,24 +81,53 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Structure default value sanitizer attribute
+	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public class UhtStructDefaultValueAttribute : Attribute
 	{
+
+		/// <summary>
+		/// Name of the structure.  Not required for default processor.  
+		/// </summary>
 		public string? Name;
+
+		/// <summary>
+		/// Options
+		/// </summary>
 		public UhtStructDefaultValueOptions Options = UhtStructDefaultValueOptions.None;
 	}
 
+	/// <summary>
+	/// Structure default value sanitizer
+	/// </summary>
 	public struct UhtStructDefaultValue
 	{
+
+		/// <summary>
+		/// The delegate to invoke
+		/// </summary>
 		public UhtStructDefaultValueDelegate Delegate;
 	}
 
+	/// <summary>
+	/// Table of all structure default value specifiers
+	/// </summary>
 	public class UhtStructDefaultValueTable
 	{
+
+		/// <summary>
+		/// Global instance of the structure default value sanitizers
+		/// </summary>
 		public static UhtStructDefaultValueTable Instance = new UhtStructDefaultValueTable();
 
 		private Dictionary<StringView, UhtStructDefaultValue> StructDefaultValues = new Dictionary<StringView, UhtStructDefaultValue>();
 		private UhtStructDefaultValue? DefaultInternal = null;
+
+		/// <summary>
+		/// Fetch the default sanitizer
+		/// </summary>
 		public UhtStructDefaultValue Default
 		{
 			get
@@ -107,6 +151,13 @@ namespace EpicGames.UHT.Tables
 			return this.StructDefaultValues.TryGetValue(Name, out StructDefaultValue);
 		}
 
+		/// <summary>
+		/// Handle a structure default value sanitizer attribute
+		/// </summary>
+		/// <param name="Type">Containing type</param>
+		/// <param name="MethodInfo">Method information</param>
+		/// <param name="StructDefaultValueAttribute">Found attribute</param>
+		/// <exception cref="UhtIceException">Thrown if the attribute isn't property defined</exception>
 		public void OnStructDefaultValueAttribute(Type Type, MethodInfo MethodInfo, UhtStructDefaultValueAttribute StructDefaultValueAttribute)
 		{
 			if (string.IsNullOrEmpty(StructDefaultValueAttribute.Name) && !StructDefaultValueAttribute.Options.HasAnyFlags(UhtStructDefaultValueOptions.Default))

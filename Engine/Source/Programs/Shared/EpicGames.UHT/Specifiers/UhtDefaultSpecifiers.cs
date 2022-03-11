@@ -9,6 +9,10 @@ using System.Collections.Generic;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// Collection of default specifiers that apply to everything
+	/// </summary>
 	[UnrealHeaderTool]
 	public static class UhtDefaultSpecifiers
 	{

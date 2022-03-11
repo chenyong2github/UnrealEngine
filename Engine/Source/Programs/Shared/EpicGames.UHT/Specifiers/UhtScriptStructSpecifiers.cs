@@ -7,6 +7,9 @@ using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Parsers
 {
+	/// <summary>
+	/// Collection of USCRIPT specifiers
+	/// </summary>
 	[UnrealHeaderTool]
 	public static class UhtScriptStructSpecifiers
 	{

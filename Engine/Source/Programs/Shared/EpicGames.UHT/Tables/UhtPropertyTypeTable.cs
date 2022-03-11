@@ -10,9 +10,17 @@ using System.Reflection;
 
 namespace EpicGames.UHT.Tables
 {
+	
+	/// <summary>
+	/// Property type options
+	/// </summary>
 	[Flags]
 	public enum UhtPropertyTypeOptions
 	{
+
+		/// <summary>
+		/// No options
+		/// </summary>
 		None = 0,
 
 		/// <summary>
@@ -79,9 +87,20 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// The phase of UHT where the property is being resolved
+	/// </summary>
 	public enum UhtPropertyResolvePhase
 	{
+
+		/// <summary>
+		/// Resolved during the source processing phase.  Immediate property types only.
+		/// </summary>
 		Parsing,
+
+		/// <summary>
+		/// Resolved during the resolve phase.  Non-immedite property types only.
+		/// </summary>
 		Resolving,
 	}
 
@@ -95,10 +114,21 @@ namespace EpicGames.UHT.Tables
 	/// <returns></returns>
 	public delegate UhtProperty? UhtResolvePropertyDelegate(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken);
 
+	/// <summary>
+	/// Property type attribute
+	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public class UhtPropertyTypeAttribute : Attribute
 	{
+
+		/// <summary>
+		/// The expected keyword.  Must be set unless this is the default processor
+		/// </summary>
 		public string? Keyword = null;
+
+		/// <summary>
+		/// Options
+		/// </summary>
 		public UhtPropertyTypeOptions Options = UhtPropertyTypeOptions.None;
 	}
 
@@ -107,18 +137,36 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public struct UhtPropertyType
 	{
+
+		/// <summary>
+		/// Delegate to invoke
+		/// </summary>
 		public UhtResolvePropertyDelegate Delegate;
+
+		/// <summary>
+		/// Options
+		/// </summary>
 		public UhtPropertyTypeOptions Options;
 	}
 
+	/// <summary>
+	/// Property type table
+	/// </summary>
 	public class UhtPropertyTypeTable
 	{
+
+		/// <summary>
+		/// Global instance of the property type table
+		/// </summary>
 		public static UhtPropertyTypeTable Instance = new UhtPropertyTypeTable();
 
 		private Dictionary<StringView, UhtPropertyType> CaseSensitive = new Dictionary<StringView, UhtPropertyType>();
 		private Dictionary<StringView, UhtPropertyType> CaseInsensitive = new Dictionary<StringView, UhtPropertyType>(StringViewComparer.OrdinalIgnoreCase);
 		private UhtPropertyType? DefaultInternal = null;
 
+		/// <summary>
+		/// Return the default processor
+		/// </summary>
 		public UhtPropertyType Default
 		{
 			get
@@ -144,6 +192,13 @@ namespace EpicGames.UHT.Tables
 				this.CaseInsensitive.TryGetValue(Name, out PropertyType);
 		}
 
+		/// <summary>
+		/// Handle a property type attribute
+		/// </summary>
+		/// <param name="Type">Containing type</param>
+		/// <param name="MethodInfo">Method info</param>
+		/// <param name="PropertyTypeAttribute">Attribute</param>
+		/// <exception cref="UhtIceException">Thrown if the property type isn't properly defined.</exception>
 		public void OnPropertyTypeAttribute(Type Type, MethodInfo MethodInfo, UhtPropertyTypeAttribute PropertyTypeAttribute)
 		{
 			if (string.IsNullOrEmpty(PropertyTypeAttribute.Keyword) && !PropertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.Default))

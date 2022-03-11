@@ -10,6 +10,9 @@ using System.Collections.Generic;
 
 namespace EpicGames.UHT.Parsers
 {
+	/// <summary>
+	/// Collection of UFUNCTION/UDELEGATE specifiers
+	/// </summary>
 	[UnrealHeaderTool]
 	public static class UhtFunctionSpecifiers
 	{

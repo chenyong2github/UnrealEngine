@@ -7,6 +7,10 @@ using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// Collection of UENUM specifiers
+	/// </summary>
 	[UnrealHeaderTool]
 	public static class UhtEnumSpecifiers
 	{

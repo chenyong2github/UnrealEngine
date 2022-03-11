@@ -11,21 +11,50 @@ using System.Text;
 
 namespace EpicGames.UHT.Tables
 {
+
+	/// <summary>
+	/// Delegate to invoke to sanitize a loctext default value
+	/// </summary>
+	/// <param name="Property">Property in question</param>
+	/// <param name="DefaultValueReader">The default value</param>
+	/// <param name="MacroToken">Token for the loctext type being parsed</param>
+	/// <param name="InnerDefaultValue">Output sanitized value.</param>
+	/// <returns>True if sanitized, false if not.</returns>
 	public delegate bool UhtLocTextDefaultValueDelegate(UhtTextProperty Property, IUhtTokenReader DefaultValueReader, ref UhtToken MacroToken, StringBuilder InnerDefaultValue);
 
+	/// <summary>
+	/// Attribute defining the loctext sanitizer
+	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public class UhtLocTextDefaultValueAttribute : Attribute
 	{
+
+		/// <summary>
+		/// Name of the sanitizer (i.e. LOCTEXT, NSLOCTEXT, ...)
+		/// </summary>
 		public string? Name;
 	}
 
+	/// <summary>
+	/// Loctext sanitizer
+	/// </summary>
 	public struct UhtLocTextDefaultValue
 	{
+		/// <summary>
+		/// Delegate to invoke
+		/// </summary>
 		public UhtLocTextDefaultValueDelegate Delegate;
 	}
 
+	/// <summary>
+	/// Table of loctext sanitizers
+	/// </summary>
 	public class UhtLocTextDefaultValueTable
 	{
+
+		/// <summary>
+		/// Global instance of the table
+		/// </summary>
 		public static UhtLocTextDefaultValueTable Instance = new UhtLocTextDefaultValueTable();
 
 		private Dictionary<StringView, UhtLocTextDefaultValue> LocTextDefaultValues = new Dictionary<StringView, UhtLocTextDefaultValue>();
@@ -41,6 +70,13 @@ namespace EpicGames.UHT.Tables
 			return this.LocTextDefaultValues.TryGetValue(Name, out LocTextDefaultValue);
 		}
 
+		/// <summary>
+		/// Handle a loctext default value attribute
+		/// </summary>
+		/// <param name="Type">Containing type</param>
+		/// <param name="MethodInfo">Method info</param>
+		/// <param name="LocTextDefaultValueAttribute">Defining attribute</param>
+		/// <exception cref="UhtIceException">Thrown if the attribute isn't properly defined</exception>
 		public void OnLocTextDefaultValueAttribute(Type Type, MethodInfo MethodInfo, UhtLocTextDefaultValueAttribute LocTextDefaultValueAttribute)
 		{
 			if (string.IsNullOrEmpty(LocTextDefaultValueAttribute.Name))

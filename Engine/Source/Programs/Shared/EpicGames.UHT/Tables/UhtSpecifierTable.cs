@@ -10,6 +10,10 @@ using System.Reflection;
 
 namespace EpicGames.UHT.Tables
 {
+
+	/// <summary>
+	/// Defines the different types specifiers relating to their allowed values
+	/// </summary>
 	public enum UhtSpecifierValueType
 	{
 		/// <summary>
@@ -63,9 +67,20 @@ namespace EpicGames.UHT.Tables
 		Legacy,
 	}
 
+	/// <summary>
+	/// Results from dispatching a specifier
+	/// </summary>
 	public enum UhtSpecifierDispatchResults
 	{
+
+		/// <summary>
+		/// Specifier was known and parsed
+		/// </summary>
 		Known,
+
+		/// <summary>
+		/// Specified was unknown
+		/// </summary>
 		Unknown,
 	}
 
@@ -74,11 +89,34 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierContext
 	{
+
+		/// <summary>
+		/// Current parsing scope (i.e. global, class, ...)
+		/// </summary>
 		public UhtParsingScope Scope;
+
+		/// <summary>
+		/// Message site for messages
+		/// </summary>
 		public IUhtMessageSite MessageSite;
+
+		/// <summary>
+		/// Meta data currently being parsed.
+		/// </summary>
 		public UhtMetaData MetaData;
+
+		/// <summary>
+		/// Make data key index utilized by enumeration values
+		/// </summary>
 		public int MetaNameIndex;
 
+		/// <summary>
+		/// Construct a new specifier context
+		/// </summary>
+		/// <param name="Scope"></param>
+		/// <param name="MessageSite"></param>
+		/// <param name="MetaData"></param>
+		/// <param name="MetaNameIndex"></param>
 		public UhtSpecifierContext(UhtParsingScope Scope, IUhtMessageSite MessageSite, UhtMetaData MetaData, int MetaNameIndex = UhtMetaData.INDEX_NONE)
 		{
 			this.Scope = Scope;
@@ -104,21 +142,56 @@ namespace EpicGames.UHT.Tables
 		Deferred,
 	}
 
+	/// <summary>
+	/// The specifier table contains an instance of UhtSpecifier which is used to dispatch the parsing of
+	/// a specifier to the implementation
+	/// </summary>
 	public abstract class UhtSpecifier
 	{
+
+		/// <summary>
+		/// Name of the specifier
+		/// </summary>
 		public string Name = String.Empty;
+
+		/// <summary>
+		/// Expected value type
+		/// </summary>
 		public UhtSpecifierValueType ValueType;
+
+		/// <summary>
+		/// When is the specifier executed
+		/// </summary>
 		public UhtSpecifierWhen When = UhtSpecifierWhen.Deferred;
 
+		/// <summary>
+		/// Dispatch an instance of the specifier
+		/// </summary>
+		/// <param name="SpecifierContext">Current context</param>
+		/// <param name="Value">Specifier value</param>
+		/// <returns>Results of the dispatch</returns>
 		public abstract UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value);
 	}
 
+	/// <summary>
+	/// Delegate for a specifier with no value
+	/// </summary>
+	/// <param name="SpecifierContext"></param>
 	public delegate void UhtSpecifierNoneDelegate(UhtSpecifierContext SpecifierContext);
 
+	/// <summary>
+	/// Specifier with no value
+	/// </summary>
 	public class UhtSpecifierNone : UhtSpecifier
 	{
 		private UhtSpecifierNoneDelegate Delegate;
 
+		/// <summary>
+		/// Construct the specifier
+		/// </summary>
+		/// <param name="Name">Name of the specifier</param>
+		/// <param name="When">When the specifier is executed</param>
+		/// <param name="Delegate">Delegate to invoke</param>
 		public UhtSpecifierNone(string Name, UhtSpecifierWhen When, UhtSpecifierNoneDelegate Delegate)
 		{
 			this.Name = Name;
@@ -127,6 +200,7 @@ namespace EpicGames.UHT.Tables
 			this.Delegate = Delegate;
 		}
 
+		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value)
 		{
 			this.Delegate(SpecifierContext);
@@ -134,12 +208,26 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Specifier delegate with a string value
+	/// </summary>
+	/// <param name="SpecifierContext">Specifier context</param>
+	/// <param name="Value">Specifier value</param>
 	public delegate void UhtSpecifierStringDelegate(UhtSpecifierContext SpecifierContext, StringView Value);
 
+	/// <summary>
+	/// Specifier with a string value
+	/// </summary>
 	public class UhtSpecifierString : UhtSpecifier
 	{
 		private UhtSpecifierStringDelegate Delegate;
 
+		/// <summary>
+		/// Construct the specifier
+		/// </summary>
+		/// <param name="Name">Name of the specifier</param>
+		/// <param name="When">When the specifier is executed</param>
+		/// <param name="Delegate">Delegate to invoke</param>
 		public UhtSpecifierString(string Name, UhtSpecifierWhen When, UhtSpecifierStringDelegate Delegate)
 		{
 			this.Name = Name;
@@ -148,6 +236,7 @@ namespace EpicGames.UHT.Tables
 			this.Delegate = Delegate;
 		}
 
+		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value)
 		{
 			if (Value == null)
@@ -159,12 +248,26 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Specifier delegate with an optional string value
+	/// </summary>
+	/// <param name="SpecifierContext">Specifier context</param>
+	/// <param name="Value">Specifier value</param>
 	public delegate void UhtSpecifierOptionalStringDelegate(UhtSpecifierContext SpecifierContext, StringView? Value);
 
+	/// <summary>
+	/// Specifier with an optional string value
+	/// </summary>
 	public class UhtSpecifierOptionalString : UhtSpecifier
 	{
 		private UhtSpecifierOptionalStringDelegate Delegate;
 
+		/// <summary>
+		/// Construct the specifier
+		/// </summary>
+		/// <param name="Name">Name of the specifier</param>
+		/// <param name="When">When the specifier is executed</param>
+		/// <param name="Delegate">Delegate to invoke</param>
 		public UhtSpecifierOptionalString(string Name, UhtSpecifierWhen When, UhtSpecifierOptionalStringDelegate Delegate)
 		{
 			this.Name = Name;
@@ -173,6 +276,7 @@ namespace EpicGames.UHT.Tables
 			this.Delegate = Delegate;
 		}
 
+		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value)
 		{
 			this.Delegate(SpecifierContext, (StringView?)Value);
@@ -180,12 +284,26 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Specifier delegate with a string value
+	/// </summary>
+	/// <param name="SpecifierContext">Specifier context</param>
+	/// <param name="Value">Specifier value</param>
 	public delegate void UhtSpecifierSingleStringDelegate(UhtSpecifierContext SpecifierContext, StringView Value);
 
+	/// <summary>
+	/// Specifier with a string value
+	/// </summary>
 	public class UhtSpecifierSingleString : UhtSpecifier
 	{
 		private UhtSpecifierSingleStringDelegate Delegate;
 
+		/// <summary>
+		/// Construct the specifier
+		/// </summary>
+		/// <param name="Name">Name of the specifier</param>
+		/// <param name="When">When the specifier is executed</param>
+		/// <param name="Delegate">Delegate to invoke</param>
 		public UhtSpecifierSingleString(string Name, UhtSpecifierWhen When, UhtSpecifierSingleStringDelegate Delegate)
 		{
 			this.Name = Name;
@@ -194,6 +312,7 @@ namespace EpicGames.UHT.Tables
 			this.Delegate = Delegate;
 		}
 
+		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value)
 		{
 			if (Value == null)
@@ -205,12 +324,27 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Specifier delegate with list of string keys and values 
+	/// </summary>
+	/// <param name="SpecifierContext">Specifier context</param>
+	/// <param name="Value">Specifier value</param>
 	public delegate void UhtSpecifierKeyValuePairListDelegate(UhtSpecifierContext SpecifierContext, List<KeyValuePair<StringView, StringView>> Value);
 
+	/// <summary>
+	/// Specifier with list of string keys and values 
+	/// </summary>
 	public class UhtSpecifierKeyValuePairList : UhtSpecifier
 	{
 		private UhtSpecifierKeyValuePairListDelegate Delegate;
 
+		/// <summary>
+		/// Construct the specifier
+		/// </summary>
+		/// <param name="Name">Name of the specifier</param>
+		/// <param name="When">When the specifier is executed</param>
+		/// <param name="bEqualsOptional">If true this has an optional KVP list</param>
+		/// <param name="Delegate">Delegate to invoke</param>
 		public UhtSpecifierKeyValuePairList(string Name, UhtSpecifierWhen When, bool bEqualsOptional, UhtSpecifierKeyValuePairListDelegate Delegate)
 		{
 			this.Name = Name;
@@ -219,6 +353,7 @@ namespace EpicGames.UHT.Tables
 			this.Delegate = Delegate;
 		}
 
+		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value)
 		{
 			if (Value == null)
@@ -230,12 +365,25 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Specifier delegate with no value
+	/// </summary>
+	/// <param name="SpecifierContext">Specifier context</param>
 	public delegate void UhtSpecifierLegacyDelegate(UhtSpecifierContext SpecifierContext);
 
+	/// <summary>
+	/// Specifier delegate for legacy UHT specifiers with no value.  Will generate a information/deprecation message
+	/// is a value is supplied
+	/// </summary>
 	public class UhtSpecifierLegacy : UhtSpecifier
 	{
 		private UhtSpecifierLegacyDelegate Delegate;
 
+		/// <summary>
+		/// Construct the specifier
+		/// </summary>
+		/// <param name="Name">Name of the specifier</param>
+		/// <param name="Delegate">Delegate to invoke</param>
 		public UhtSpecifierLegacy(string Name, UhtSpecifierLegacyDelegate Delegate)
 		{
 			this.Name = Name;
@@ -244,6 +392,7 @@ namespace EpicGames.UHT.Tables
 			this.Delegate = Delegate;
 		}
 
+		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value)
 		{
 			if (Value != null)
@@ -255,12 +404,26 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Specifier delegate with an optional string list
+	/// </summary>
+	/// <param name="SpecifierContext">Specifier context</param>
+	/// <param name="Value">Specifier value</param>
 	public delegate void UhtSpecifierStringListDelegate(UhtSpecifierContext SpecifierContext, List<StringView>? Value);
 
+	/// <summary>
+	/// Specifier with an optional string list
+	/// </summary>
 	public class UhtSpecifierStringList : UhtSpecifier
 	{
 		private UhtSpecifierStringListDelegate Delegate;
 
+		/// <summary>
+		/// Construct the specifier
+		/// </summary>
+		/// <param name="Name">Name of the specifier</param>
+		/// <param name="When">When the specifier is executed</param>
+		/// <param name="Delegate">Delegate to invoke</param>
 		public UhtSpecifierStringList(string Name, UhtSpecifierWhen When, UhtSpecifierStringListDelegate Delegate)
 		{
 			this.Name = Name;
@@ -269,6 +432,7 @@ namespace EpicGames.UHT.Tables
 			this.Delegate = Delegate;
 		}
 
+		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value)
 		{
 			this.Delegate(SpecifierContext, (List<StringView>?)Value);
@@ -276,12 +440,26 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Specifier delegate with a list of string views
+	/// </summary>
+	/// <param name="SpecifierContext">Specifier context</param>
+	/// <param name="Value">Specifier value</param>
 	public delegate void UhtSpecifierNonEmptyStringListDelegate(UhtSpecifierContext SpecifierContext, List<StringView> Value);
 
+	/// <summary>
+	/// Specifier with a list of string views
+	/// </summary>
 	public class UhtSpecifierNonEmptyStringList : UhtSpecifier
 	{
 		private UhtSpecifierNonEmptyStringListDelegate Delegate;
 
+		/// <summary>
+		/// Construct the specifier
+		/// </summary>
+		/// <param name="Name">Name of the specifier</param>
+		/// <param name="When">When the specifier is executed</param>
+		/// <param name="Delegate">Delegate to invoke</param>
 		public UhtSpecifierNonEmptyStringList(string Name, UhtSpecifierWhen When, UhtSpecifierNonEmptyStringListDelegate Delegate)
 		{
 			this.Name = Name;
@@ -290,6 +468,7 @@ namespace EpicGames.UHT.Tables
 			this.Delegate = Delegate;
 		}
 
+		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext SpecifierContext, object? Value)
 		{
 			if (Value == null)
@@ -301,15 +480,36 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Defines a specifier method
+	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public class UhtSpecifierAttribute : Attribute
 	{
+		/// <summary>
+		/// Name of the specifier.   If not supplied, the method name must end in "Specifier" and the name will be the method name with "Specifier" stripped.
+		/// </summary>
 		public string? Name;
+
+		/// <summary>
+		/// Name of the table/scope this specifier applies
+		/// </summary>
 		public string? Extends;
+
+		/// <summary>
+		/// Value type of the specifier
+		/// </summary>
 		public UhtSpecifierValueType ValueType = UhtSpecifierValueType.NotSet;
+
+		/// <summary>
+		/// When the specifier is dispatched
+		/// </summary>
 		public UhtSpecifierWhen When = UhtSpecifierWhen.Deferred;
 	}
 
+	/// <summary>
+	/// Collection of specifiers for a given scope
+	/// </summary>
 	public class UhtSpecifierTable : UhtLookupTable<UhtSpecifier>
 	{
 
@@ -323,7 +523,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Add the given value to the lookup table.  It will throw an exception if it is a duplicate.
 		/// </summary>
-		/// <param name="Value">Value to be added</param>
+		/// <param name="Specifier">The specifier to add</param>
 		public UhtSpecifierTable Add(UhtSpecifier Specifier)
 		{
 			base.Add(Specifier.Name, Specifier);
@@ -331,14 +531,31 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Collection of all specifier tables
+	/// </summary>
 	public class UhtSpecifierTables : UhtLookupTables<UhtSpecifierTable>
 	{
+
+		/// <summary>
+		/// Returns the global instance for all specifiers
+		/// </summary>
 		public static UhtSpecifierTables Instance = new UhtSpecifierTables();
 
+		/// <summary>
+		/// Construct the specifier table
+		/// </summary>
 		public UhtSpecifierTables() : base("specifiers")
 		{
 		}
 
+		/// <summary>
+		/// Invoke for a method that has the specifier attribute
+		/// </summary>
+		/// <param name="Type">Type containing the method</param>
+		/// <param name="MethodInfo">Method info</param>
+		/// <param name="SpecifierAttribute">Specified attributes</param>
+		/// <exception cref="UhtIceException">Throw if the attribute isn't properly defined.</exception>
 		public void OnSpecifierAttribute(Type Type, MethodInfo MethodInfo, UhtSpecifierAttribute SpecifierAttribute)
 		{
 			string Name = UhtLookupTableBase.GetSuffixedName(Type, MethodInfo, SpecifierAttribute.Name, "Specifier");

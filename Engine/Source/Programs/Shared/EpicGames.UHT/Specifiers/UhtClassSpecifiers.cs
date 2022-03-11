@@ -8,6 +8,9 @@ using System.Collections.Generic;
 
 namespace EpicGames.UHT.Parsers
 {
+	/// <summary>
+	/// Collection of UCLASS specifiers
+	/// </summary>
 	[UnrealHeaderTool]
 	public static class UhtClassSpecifiers
 	{

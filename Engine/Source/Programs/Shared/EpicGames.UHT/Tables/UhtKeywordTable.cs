@@ -17,30 +17,100 @@ namespace EpicGames.UHT.Tables
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public class UhtKeywordAttribute : Attribute
 	{
+
+		/// <summary>
+		/// Keyword table/scope being extended
+		/// </summary>
 		public string? Extends;
+
+		/// <summary>
+		/// Name of the keyword
+		/// </summary>
 		public string? Keyword = null;
+
+		/// <summary>
+		/// Text to be displayed to the user when referencing this keyword
+		/// </summary>
 		public string? AllowText = null;
+
+		/// <summary>
+		/// If true, this applies to all scopes
+		/// </summary>
 		public bool AllScopes = false;
+
+		/// <summary>
+		/// If true, do not include in usage errors
+		/// </summary>
 		public bool DisableUsageError = false;
 	}
 
+	/// <summary>
+	/// Invoked as a last chance processor for a keyword
+	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public class UhtKeywordCatchAllAttribute : Attribute
 	{
+
+		/// <summary>
+		/// Table/scope to be extended
+		/// </summary>
 		public string? Extends;
 	}
 
+	/// <summary>
+	/// Delegate to notify a keyword was parsed
+	/// </summary>
+	/// <param name="TopScope">Current scope being parsed</param>
+	/// <param name="ActionScope">The scope who's table was matched</param>
+	/// <param name="Token">Matching token</param>
+	/// <returns>Results of the parsing</returns>
 	public delegate UhtParseResult UhtKeywordDelegate(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token);
+
+	/// <summary>
+	/// Delegate to invoke as a last chance processor for a keyword
+	/// </summary>
+	/// <param name="TopScope">Current scope being parsed</param>
+	/// <param name="Token">Matching token</param>
+	/// <returns>Results of the parsing</returns>
 	public delegate UhtParseResult UhtKeywordCatchAllDelegate(UhtParsingScope TopScope, ref UhtToken Token);
 
+	/// <summary>
+	/// Defines a keyword
+	/// </summary>
 	public struct UhtKeyword
 	{
+
+		/// <summary>
+		/// Name of the keyword
+		/// </summary>
 		public readonly string Name;
+
+		/// <summary>
+		/// Delegate to invoke
+		/// </summary>
 		public readonly UhtKeywordDelegate Delegate;
+
+		/// <summary>
+		/// Text to be displayed to the user when referencing this keyword
+		/// </summary>
 		public readonly string? AllowText;
+
+		/// <summary>
+		/// If true, this applies to all scopes
+		/// </summary>
 		public readonly bool bAllScopes;
+
+		/// <summary>
+		/// If true, do not include in usage errors
+		/// </summary>
 		public readonly bool bDisableUsageError;
 
+		/// <summary>
+		/// Construct a new keyword
+		/// </summary>
+		/// <param name="Name">Name of the keyword</param>
+		/// <param name="Delegate">Delegate to invoke</param>
+		/// <param name="Attribute">Defining attribute</param>
 		public UhtKeyword(string Name, UhtKeywordDelegate Delegate, UhtKeywordAttribute? Attribute)
 		{
 			this.Name = Name;
@@ -60,6 +130,9 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Keyword table for a specific scope
+	/// </summary>
 	public class UhtKeywordTable : UhtLookupTable<UhtKeyword>
 	{
 
@@ -98,7 +171,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Merge the given keyword table.  Duplicates in the BaseTypeTable will be ignored.
 		/// </summary>
-		/// <param name="BaseTypeTable">Base table being merged</param>
+		/// <param name="BaseTable">Base table being merged</param>
 		public override void Merge(UhtLookupTableBase BaseTable)
 		{
 			base.Merge(BaseTable);
@@ -106,14 +179,31 @@ namespace EpicGames.UHT.Tables
 		}
 	}
 
+	/// <summary>
+	/// Table of all keyword tables
+	/// </summary>
 	public class UhtKeywordTables : UhtLookupTables<UhtKeywordTable>
 	{
+
+		/// <summary>
+		/// Global instance of the tables
+		/// </summary>
 		public static UhtKeywordTables Instance = new UhtKeywordTables();
 
+		/// <summary>
+		/// Construct the keyword tables
+		/// </summary>
 		public UhtKeywordTables() : base("keywords")
 		{
 		}
 
+		/// <summary>
+		/// Handle a keyword attribute
+		/// </summary>
+		/// <param name="Type">Containing type</param>
+		/// <param name="MethodInfo">Method information</param>
+		/// <param name="KeywordCatchAllAttribute">Defining attribute</param>
+		/// <exception cref="UhtIceException">Thrown if the attribute isn't well defined</exception>
 		public void OnKeywordCatchAllAttribute(Type Type, MethodInfo MethodInfo, UhtKeywordCatchAllAttribute KeywordCatchAllAttribute)
 		{
 			if (string.IsNullOrEmpty(KeywordCatchAllAttribute.Extends))
@@ -125,6 +215,13 @@ namespace EpicGames.UHT.Tables
 			Table.AddCatchAll((UhtKeywordCatchAllDelegate)Delegate.CreateDelegate(typeof(UhtKeywordCatchAllDelegate), MethodInfo));
 		}
 
+		/// <summary>
+		/// Handle a keyword attribute
+		/// </summary>
+		/// <param name="Type">Containing type</param>
+		/// <param name="MethodInfo">Method information</param>
+		/// <param name="KeywordAttribute">Defining attribute</param>
+		/// <exception cref="UhtIceException">Thrown if the attribute isn't well defined</exception>
 		public void OnKeywordAttribute(Type Type, MethodInfo MethodInfo, UhtKeywordAttribute KeywordAttribute)
 		{
 			string Name = UhtLookupTableBase.GetSuffixedName(Type, MethodInfo, KeywordAttribute.Keyword, "Keyword");
@@ -138,6 +235,11 @@ namespace EpicGames.UHT.Tables
 			Table.Add(new UhtKeyword(Name, (UhtKeywordDelegate)Delegate.CreateDelegate(typeof(UhtKeywordDelegate), MethodInfo), KeywordAttribute));
 		}
 
+		/// <summary>
+		/// Log an unhandled error
+		/// </summary>
+		/// <param name="MessageSite">Destination message site</param>
+		/// <param name="Token">Keyword</param>
 		public void LogUnhandledError(IUhtMessageSite MessageSite, UhtToken Token)
 		{
 			List<string>? Tables = null;
