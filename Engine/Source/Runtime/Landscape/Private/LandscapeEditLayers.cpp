@@ -1163,6 +1163,7 @@ class FLandscapeLayersHeightmapsStitchHeightmapPS : public FGlobalShader
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FUintVector2, InSourceTextureSize)
+		SHADER_PARAMETER(uint32, InNumSubsections)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2DArray<float2>, InSourceHeightmaps)
 		SHADER_PARAMETER_SCALAR_ARRAY(uint32, InNeighborHeightmapIndices, [9])
 		RENDER_TARGET_BINDING_SLOTS()
@@ -1205,6 +1206,7 @@ class FLandscapeLayersHeightmapsFinalizeHeightmapPS : public FGlobalShader
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FUintVector2, InSourceTextureSize)
+		SHADER_PARAMETER(uint32, InNumSubsections)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2DArray<float2>, InSourceHeightmaps)
 		SHADER_PARAMETER_SCALAR_ARRAY(uint32, InNeighborHeightmapIndices, [9])
 		SHADER_PARAMETER(FUintVector4, InDestinationTextureSubregion)
@@ -1250,6 +1252,7 @@ class FLandscapeLayersHeightmapsGenerateMipsPS : public FGlobalShader
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FUintVector2, InCurrentMipSubregionSize)
+		SHADER_PARAMETER(uint32, InNumSubsections)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InSourceHeightmap)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -1381,6 +1384,7 @@ class FLandscapeLayersWeightmapsGenerateMipsPS : public FGlobalShader
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FUintVector2, InCurrentMipSize)
+		SHADER_PARAMETER(uint32, InNumSubsections)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InSourceWeightmap)
 		RENDER_TARGET_BINDING_SLOTS()
 		END_SHADER_PARAMETER_STRUCT()
@@ -3930,6 +3934,9 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 		// Number of vertices per component
 		FIntPoint ComponentSizeVerts = FIntPoint(ForceInitToZero);
 
+		// Number of sub sections for this landscape 
+		uint32 NumSubsections = 1;
+
 		// Maximum size of all heigthmaps (one heightmap can contain multiple components due to heightmap sharing)
 		FIntPoint MaxHeightmapSize = FIntPoint(ForceInitToZero);
 
@@ -4137,6 +4144,7 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 				FLandscapeLayersHeightmapsStitchHeightmapPS::FParameters* StitchHeightmapPSParams = GraphBuilder.AllocParameters<FLandscapeLayersHeightmapsStitchHeightmapPS::FParameters>();
 				StitchHeightmapPSParams->RenderTargets[0] = FRenderTargetBinding(RDGResources.ScratchStitchedHeightmapTextureArray, ERenderTargetLoadAction::ENoAction, /*InMipIndex = */0, /*InArraySlice = */IndexInBatch);
 				StitchHeightmapPSParams->InSourceTextureSize = FUintVector2(InLocalMergeInfo.ComponentSizeVerts.X, InLocalMergeInfo.ComponentSizeVerts.Y);
+				StitchHeightmapPSParams->InNumSubsections = InLocalMergeInfo.NumSubsections;
 				StitchHeightmapPSParams->InSourceHeightmaps = RDGResources.ScratchMergedHeightmapTextureArraySRV;
 
 				for (int32 NeighborIndex = 0; NeighborIndex < 9; ++NeighborIndex)
@@ -4181,6 +4189,7 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 				FLandscapeLayersHeightmapsFinalizeHeightmapPS::FParameters* FinalizeHeightmapPSParams = GraphBuilder.AllocParameters<FLandscapeLayersHeightmapsFinalizeHeightmapPS::FParameters>();
 				FinalizeHeightmapPSParams->RenderTargets[0] = FRenderTargetBinding(TrackedTexture->ScratchTextureRef, ERenderTargetLoadAction::ENoAction);
 				FinalizeHeightmapPSParams->InSourceTextureSize = FUintVector2(InLocalMergeInfo.ComponentSizeVerts.X, InLocalMergeInfo.ComponentSizeVerts.Y);
+				FinalizeHeightmapPSParams->InNumSubsections = InLocalMergeInfo.NumSubsections;
 				FinalizeHeightmapPSParams->InSourceHeightmaps = RDGResources.ScratchStitchedHeightmapTextureArraySRV;
 				FinalizeHeightmapPSParams->InDestinationTextureSubregion = FUintVector4(ComponentResolveInfo.Heightmap.Subregion.Min.X, ComponentResolveInfo.Heightmap.Subregion.Min.Y, ComponentResolveInfo.Heightmap.Subregion.Max.X, ComponentResolveInfo.Heightmap.Subregion.Max.Y);
 				FinalizeHeightmapPSParams->InLandscapeGridScale = (FVector3f)InLocalMergeInfo.LandscapeGridScale;
@@ -4232,6 +4241,7 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 				FLandscapeLayersHeightmapsGenerateMipsPS::FParameters* GenerateMipsPSParams = GraphBuilder.AllocParameters<FLandscapeLayersHeightmapsGenerateMipsPS::FParameters>();
 				GenerateMipsPSParams->RenderTargets[0] = FRenderTargetBinding(TrackedTexture->ScratchTextureRef, ERenderTargetLoadAction::ENoAction, MipLevel);
 				GenerateMipsPSParams->InCurrentMipSubregionSize = FUintVector2(CurrentMipSubregionSize.X, CurrentMipSubregionSize.Y);
+				GenerateMipsPSParams->InNumSubsections = InLocalMergeInfo.NumSubsections;
 				GenerateMipsPSParams->InSourceHeightmap = TrackedTexture->ScratchTextureMipsSRVRefs[MipLevel - 1];
 
 				FLandscapeLayersHeightmapsGenerateMipsPS::GenerateSingleMip(GraphBuilder, GenerateMipsPSParams);
@@ -4317,6 +4327,7 @@ void ALandscape::PrepareLayersHeightmapsLocalMergeRenderThreadData(const FUpdate
 	int32 ComponentSizeVerts = (SubsectionSizeQuads + 1) * NumSubsections;
 	OutRenderThreadData.ComponentSizeVerts = FIntPoint(ComponentSizeVerts, ComponentSizeVerts);
 	OutRenderThreadData.LandscapeGridScale = GetRootComponent()->GetRelativeScale3D();
+	OutRenderThreadData.NumSubsections = NumSubsections;
 
 	// Prepare landscape edit layers data common to all landscape components: 
 	OutRenderThreadData.VisibleEditLayerInfos.Reserve(LandscapeLayers.Num());
@@ -5800,8 +5811,13 @@ namespace EditLayersWeightmapLocalMerge_RenderThread
 		// Maximum number of weightmap arrays that is needed for a given FTextureResolveBatchInfo (1 per FComponentRenderInfo in the batch) :
 		int32 MaxNumWeightmapArraysPerResolveTextureBatch = 0;
 
-		// Per-landscape component info :
+		// Number of vertices per component : 
 		FIntPoint ComponentSizeVerts = 0;
+
+		// Number of sub sections for this landscape :
+		uint32 NumSubsections = 1;
+
+		// Number of mips for the weightmaps of this landscape
 		int32 NumMips = 0;
 
 		// List of batches of FTextureResolveInfo that needs to be resolved in the same pass. This allows massive saves on transient resources on large landscapes because those can be re-cycled from one pass to another :
@@ -6153,6 +6169,7 @@ namespace EditLayersWeightmapLocalMerge_RenderThread
 			FLandscapeLayersWeightmapsGenerateMipsPS::FParameters* GenerateMipsPSParams = GraphBuilder.AllocParameters<FLandscapeLayersWeightmapsGenerateMipsPS::FParameters>();
 			GenerateMipsPSParams->RenderTargets[0] = FRenderTargetBinding(RDGResources.ScratchFinalWeightmapTexture, ERenderTargetLoadAction::ENoAction, MipLevel);
 			GenerateMipsPSParams->InCurrentMipSize = FUintVector2(CurrentMipSize.X, CurrentMipSize.Y);
+			GenerateMipsPSParams->InNumSubsections = InLocalMergeInfo.NumSubsections;
 			GenerateMipsPSParams->InSourceWeightmap = RDGResources.ScratchFinalWeightmapTextureMipsSRV[MipLevel - 1];
 
 			FLandscapeLayersWeightmapsGenerateMipsPS::GenerateSingleMip(GraphBuilder, GenerateMipsPSParams);
@@ -6210,6 +6227,7 @@ void ALandscape::PrepareLayersWeightmapsLocalMergeRenderThreadData(const FUpdate
 	int32 ComponentSizeVerts = (SubsectionSizeQuads + 1) * NumSubsections;
 	OutRenderThreadData.ComponentSizeVerts = FIntPoint(ComponentSizeVerts, ComponentSizeVerts);
 	OutRenderThreadData.NumMips = FMath::CeilLogTwo(ComponentSizeVerts) + 1;
+	OutRenderThreadData.NumSubsections = NumSubsections;
 
 	// Lookup table to retrieve, for a given paint layer, its index in OutRenderThreadData.PaintLayerInfos (we don't keep UObjects in OutRenderThreadData because it's a render-thread struct) :
 	TMap<ULandscapeLayerInfoObject*, int32> PaintLayerToPaintLayerInfoIndex;

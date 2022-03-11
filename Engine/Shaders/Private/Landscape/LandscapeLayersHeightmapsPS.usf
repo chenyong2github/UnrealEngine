@@ -7,14 +7,17 @@
 #if defined (__INTELLISENSE__)
 // Uncomment the appropriate define for enabling syntax highlighting with HLSL Tools for Visual Studio : 
 //#define MERGE_EDIT_LAYERS 1
-#define STITCH_HEIGHTMAP 1
-#define FINALIZE_HEIGHTMAP 1
+//#define STITCH_HEIGHTMAP 1
+//#define FINALIZE_HEIGHTMAP 1
 //#define GENERATE_MIPS 1
 #endif // defined (__INTELLISENSE__)
 
 #define INDEX_NONE -1
 
 // ----------------------------------------------------------------------------------
+
+// All shaders inputs/outputs
+uint InNumSubsections; // Number of sub-sections for this landscape (1 or 2)
 
 #if MERGE_EDIT_LAYERS
 // MergeEditLayers inputs/outputs :
@@ -158,6 +161,32 @@ float2 LoadNeighborHeightmapUnpackedHeight(bool2 bInIsMinComponentBorder, bool2 
 		{
 			// If we use the textures from the bottom, we need to skip the upmost row as it's a duplicate of our the center texture's downmost row :
 			SampleCoordinates.y = bSkipDuplicateRowColumn ? +1 : 0;
+		}
+
+		// Handle the sub-section case, where there's a duplicate row/column of vertices in the middle : 
+		if (InNumSubsections == 2)
+		{
+			uint2 SubSectionSize = InSourceTextureSize / 2;
+			// If we need the neighbor on the right and we're on the left (duplicate) column of the subsection, skip a column to the right :
+			if ((InRelativeTextureCoordinates.x == SubSectionSize.x - 1) && (InNeighborOffset.x > 0))
+			{
+				SampleCoordinates.x += 1;
+			}
+			// If we need the neighbor on the left and we're on the right (duplicate) column of the subsection, skip a column to the left :
+			else if ((InRelativeTextureCoordinates.x == SubSectionSize.x) && (InNeighborOffset.x < 0))
+			{
+				SampleCoordinates.x -= 1;
+			}
+			// If we need the neighbor on the bottom and we're on the top (duplicate) row of the subsection, skip a row to the bottom :
+			if ((InRelativeTextureCoordinates.y == SubSectionSize.y - 1) && (InNeighborOffset.y > 0))
+			{
+				SampleCoordinates.y += 1;
+			}
+			// If we need the neighbor on the top and we're on the bottom (duplicate) row of the subsection, skip a row to the top :
+			else if ((InRelativeTextureCoordinates.y == SubSectionSize.y) && (InNeighborOffset.y < 0))
+			{
+				SampleCoordinates.y -= 1;
+			}
 		}
 
 		int4 LoadCoordinates = int4(SampleCoordinates, NeighborHeightmapIndex, 0); // xy = relative coordinates, z = index in texture array, w = mip level
@@ -461,10 +490,19 @@ void GenerateMips(in float4 SVPos : SV_POSITION, out float4 OutColor : SV_Target
 	// | * :   |   | * : * |   |   : * | 
 	// +-------+   +-------+   +-------+
 
+	bool bIsLastMip = all(InCurrentMipSubregionSize == 1);
+	
 	uint2 RelativeTextureCoordinates = TextureCoordinates % InCurrentMipSubregionSize;
 	bool2 bIsMinBorder = (RelativeTextureCoordinates == 0);
 	bool2 bIsMaxBorder = (RelativeTextureCoordinates == (InCurrentMipSubregionSize - 1));
-	bool bIsLastMip = all(InCurrentMipSubregionSize == 1);
+
+	// If we use subsections, we'll have an additional column/row of min border and another of max border next to them
+	if (InNumSubsections == 2)
+	{
+		uint2 SubsectionSize = InCurrentMipSubregionSize / 2;
+		bIsMinBorder = bIsMinBorder || (RelativeTextureCoordinates == SubsectionSize);
+		bIsMaxBorder = bIsMaxBorder || (RelativeTextureCoordinates == SubsectionSize - 1);
+	}
 		
 	float SampleWeights[4] =
 	{ 

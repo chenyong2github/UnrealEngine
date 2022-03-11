@@ -7,7 +7,7 @@
 #if defined (__INTELLISENSE__)
 // Uncomment the appropriate define for enabling syntax highlighting with HLSL Tools for Visual Studio : 
 //#define MERGE_EDIT_LAYERS 1
-#define FINALIZE_WEIGHTMAP 1
+//#define FINALIZE_WEIGHTMAP 1
 //#define GENERATE_MIPS 1
 #endif // defined (__INTELLISENSE__)
 
@@ -77,6 +77,7 @@ StructuredBuffer<FWeightmapPaintLayerInfo> InPaintLayerInfos;
 #if GENERATE_MIPS
 // GenerateMips inputs/outputs :
 uint2 InCurrentMipSize; // Size of the texture mip currently being generated
+uint InNumSubsections; // Number of sub-sections for this landscape (1 or 2)
 
 Texture2D<float4> InSourceWeightmap;
 #endif // GENERATE_MIPS
@@ -260,9 +261,17 @@ void GenerateMips(in float4 SVPos : SV_POSITION, out float4 OutColor : SV_Target
 	// | * :   |   | * : * |   |   : * | <-- bIsMaxBorder.y = true
 	// +-------+   +-------+   +-------+
 
+	bool bIsLastMip = all(InCurrentMipSize == 1);
+
 	bool2 bIsMinBorder = (TextureCoordinates == 0);
 	bool2 bIsMaxBorder = (TextureCoordinates == (InCurrentMipSize - 1));
-	bool bIsLastMip = all(InCurrentMipSize == 1);
+	// If we use subsections, we'll have an additional column/row of min border and another of max border next to them
+	if (InNumSubsections == 2)
+	{
+		uint2 SubsectionSize = InCurrentMipSize / 2;
+		bIsMinBorder = bIsMinBorder || (TextureCoordinates == SubsectionSize);
+		bIsMaxBorder = bIsMaxBorder || (TextureCoordinates == SubsectionSize - 1);
+	}
 		
 	float SampleWeights[4] =
 	{ 
