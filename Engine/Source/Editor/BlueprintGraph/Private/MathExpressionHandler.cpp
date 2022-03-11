@@ -253,23 +253,25 @@ void FKCHandler_MathExpression::RegisterNets(FKismetFunctionContext& Context, UE
 				UEdGraphPin* InnerEntryNodePin = InnerEntryNode->Pins[EntryNodeCursor];
 				if (InnerEntryNodePin && (InnerEntryNodePin->GetName() == Pin->GetName()))
 				{
-					UEdGraphPin* Linked = InnerEntryNodePin->LinkedTo[0];
-					if (Linked)
+					for (UEdGraphPin* DestinationPin : InnerEntryNodePin->LinkedTo)
 					{
-						TOptional<CastingUtils::StatementNamePair> ConversionType =
-							CastingUtils::GetFloatingPointConversionType(*PinNet, *Linked);
-
-						if (ConversionType)
+						if (DestinationPin)
 						{
-							EKismetCompiledStatementType CastType = ConversionType->Get<0>();
-							const TCHAR* TermName = ConversionType->Get<1>();
+							TOptional<CastingUtils::StatementNamePair> ConversionType =
+								CastingUtils::GetFloatingPointConversionType(*PinNet, *DestinationPin);
 
-							FBPTerminal* NewTerm = Context.CreateLocalTerminal();
-							UEdGraphNode* OwningNode = Linked->GetOwningNode();
-							NewTerm->CopyFromPin(Linked, Context.NetNameMap->MakeValidName(Linked, TermName));
-							NewTerm->Source = OwningNode;
+							if (ConversionType)
+							{
+								EKismetCompiledStatementType CastType = ConversionType->Get<0>();
+								const TCHAR* TermName = ConversionType->Get<1>();
 
-							Context.ImplicitCastMap.Add(Linked, FImplicitCastParams{ CastType, NewTerm, OwningNode });
+								FBPTerminal* NewTerm = Context.CreateLocalTerminal();
+								UEdGraphNode* OwningNode = DestinationPin->GetOwningNode();
+								NewTerm->CopyFromPin(DestinationPin, Context.NetNameMap->MakeValidName(DestinationPin, TermName));
+								NewTerm->Source = OwningNode;
+
+								Context.ImplicitCastMap.Add(DestinationPin, FImplicitCastParams{ CastType, NewTerm, OwningNode });
+							}
 						}
 					}
 				}
