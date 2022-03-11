@@ -800,6 +800,8 @@ void AddPostProcessingPasses(
 		{
 			const FSceneDownsampleChain* LensFlareSceneDownsampleChain;
 
+			FSceneDownsampleChain BloomDownsampleChain;
+
 			if (bFFTBloomEnabled)
 			{
 				LensFlareSceneDownsampleChain = &SceneDownsampleChain;
@@ -829,8 +831,6 @@ void AddPostProcessingPasses(
 			}
 			else
 			{
-				FSceneDownsampleChain BloomDownsampleChain;
-
 				const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > -1.0f;
 
 				// Reuse the main scene downsample chain if a threshold isn't required for gaussian bloom.
