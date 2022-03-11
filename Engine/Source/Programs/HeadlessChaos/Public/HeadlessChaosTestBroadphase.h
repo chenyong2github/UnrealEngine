@@ -19,6 +19,8 @@ namespace ChaosTest {
 
 	void AABBTreeTimesliceTest();
 
+	void DoForSweepIntersectCellsImpTest();
+
 	void BroadphaseCollectionTest();
 
 	void BoundingVolumeNoBoundsTest();

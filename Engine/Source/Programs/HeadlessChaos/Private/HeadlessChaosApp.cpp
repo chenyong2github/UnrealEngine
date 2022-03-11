@@ -240,6 +240,7 @@ TEST(BP, BroadphaseTests) {
 	ChaosTest::AABBTreeTestDynamic();
 	ChaosTest::AABBTreeDirtyGridTest();
 	ChaosTest::AABBTreeTimesliceTest();
+	ChaosTest::DoForSweepIntersectCellsImpTest();
 	ChaosTest::BoundingVolumeNoBoundsTest();
 	ChaosTest::BroadphaseCollectionTest();
 	SUCCEED();
