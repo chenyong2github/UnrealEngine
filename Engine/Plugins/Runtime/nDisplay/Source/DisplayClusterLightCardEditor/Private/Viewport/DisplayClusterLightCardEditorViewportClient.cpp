@@ -983,7 +983,19 @@ AActor* FDisplayClusterLightCardEditorViewportClient::TraceScreenForLightCard(co
 				if (UDisplayClusterConfigurationViewport* CfgViewport = FindViewportForPrimitiveComponent(ScreenHitResult.Component.Get()))
 				{
 					FString ViewOriginName = CfgViewport->Camera;
-					if (UDisplayClusterCameraComponent* ViewOrigin = RootActorProxy->GetComponentByName<UDisplayClusterCameraComponent>(ViewOriginName))
+					UDisplayClusterCameraComponent* ViewOrigin = nullptr;
+
+					// If the view origin name is empty, use the first found view origin in the root actor
+					if (ViewOriginName.IsEmpty())
+					{
+						ViewOrigin = RootActorProxy->GetDefaultCamera();
+					}
+					else
+					{
+						ViewOrigin = RootActorProxy->GetComponentByName<UDisplayClusterCameraComponent>(ViewOriginName);
+					}
+
+					if (ViewOrigin)
 					{
 						const FVector ViewOriginRayStart = ViewOrigin->GetComponentLocation();
 						const FVector ViewOriginRayEnd = ViewOriginRayStart + (ScreenHitResult.Location - ViewOriginRayStart) * HALF_WORLD_MAX;
