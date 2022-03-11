@@ -8,6 +8,8 @@
 
 UMassLODCollectorProcessor::UMassLODCollectorProcessor()
 {
+	bAutoRegisterWithProcessingPhases = false;
+
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::LODCollector;
@@ -24,8 +26,8 @@ void UMassLODCollectorProcessor::ConfigureQueries()
 	BaseQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 	BaseQuery.SetChunkFilter([](const FMassExecutionContext& Context)
 	{
-		return FMassVisualizationChunkFragment::ShouldUpdateVisualizationForChunk(Context)
-			|| FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame(Context);
+		return FMassVisualizationChunkFragment::IsChunkHandledThisFrame(Context)
+			|| FMassSimulationVariableTickChunkFragment::IsChunkHandledThisFrame(Context);
 	});
 
 	EntityQuery_VisibleRangeAndOnLOD = BaseQuery;

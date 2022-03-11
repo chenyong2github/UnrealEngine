@@ -4,6 +4,7 @@
 #include "MassCrowdRepresentationSubsystem.h"
 #include "MassCrowdVisualizationProcessor.h"
 #include "MassCrowdRepresentationActorManagement.h"
+#include "MassCrowdFragments.h"
 
 UMassCrowdVisualizationTrait::UMassCrowdVisualizationTrait()
 {
@@ -39,4 +40,6 @@ UMassCrowdVisualizationTrait::UMassCrowdVisualizationTrait()
 	LODParams.BufferHysteresisOnDistancePercentage = 20.0f;
 	LODParams.DistanceToFrustum = 0.0f;
 	LODParams.DistanceToFrustumHysteresis = 0.0f;
+
+	LODParams.FilterTag = FMassCrowdTag::StaticStruct();
 }

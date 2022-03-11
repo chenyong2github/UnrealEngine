@@ -3,11 +3,11 @@
 #pragma once
 
 #include "MassVisualizationLODProcessor.h"
+#include "MassLODCollectorProcessor.h"
 #include "MassCrowdVisualizationLODProcessor.generated.h"
 
 /*
- * Created a crowd version for visualization of the UMassVisualizationLODProcessor as we want to use a custom version of the LOD info
- * that combines the visualization and simulation LOD.
+ * Created a crowd version for parallelization of the crowd with the traffic
  */
 UCLASS(meta=(DisplayName="Crowd visualization LOD"))
 class MASSCROWD_API UMassCrowdVisualizationLODProcessor : public UMassVisualizationLODProcessor
@@ -20,3 +20,18 @@ protected:
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 };
+
+/*
+ * Created a crowd version for parallelization of the crowd with the traffic
+ */
+UCLASS(meta = (DisplayName = "Crowd LOD Collection "))
+class MASSCROWD_API UMassCrowdLODCollectorProcessor : public UMassLODCollectorProcessor
+{
+	GENERATED_BODY()
+
+	UMassCrowdLODCollectorProcessor();
+
+protected:
+	virtual void ConfigureQueries() override;
+};
+

@@ -142,10 +142,28 @@ struct MASSLOD_API FMassVisualizationChunkFragment : public FMassChunkFragment
 	}
 
 	/**
-	 * ShouldUpdateVisualizationForChunk
+	 * IsChunkHandledThisFrame
 	 *
-	* @param Context of the execution from the entity sub system
-	 * @return bool true if we should update the representation type for this chunk
+	 * This function is used by LOD collector query chunk filters to check that visual LOD will be updated this frame. 
+	 * It defaults to false (no LOD update), if visualization chunk fragment is NOT present.
+	 * 
+	 * @param Context of the execution from the entity sub system
+	 * @return true if the visual LOD will be updated this frame
+	 */
+	static bool IsChunkHandledThisFrame(const FMassExecutionContext& Context)
+	{
+		const FMassVisualizationChunkFragment* ChunkFragment = Context.GetChunkFragmentPtr<FMassVisualizationChunkFragment>();
+		return ChunkFragment != nullptr && ChunkFragment->ShouldUpdateVisualization();
+	}
+
+	/**
+	 * ShouldUpdateVisualizationForChunk
+	 * 
+	 * This function is used by query chunk filters in processors that require variable visual LOD update. 
+	 * It defaults to true (always updating) if visualization chunk fragment is NOT present.
+	 *
+	 * @param Context of the execution from the entity sub system
+	 * @return true if the chunk should update the visual this frame
 	 */
 	static bool ShouldUpdateVisualizationForChunk(const FMassExecutionContext& Context)
 	{

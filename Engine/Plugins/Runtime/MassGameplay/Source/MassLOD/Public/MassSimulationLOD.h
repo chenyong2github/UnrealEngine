@@ -43,8 +43,26 @@ struct MASSLOD_API FMassSimulationVariableTickChunkFragment : public FMassVariab
 	GENERATED_BODY();
 
 	/**
-	 * @return if Context contains an instance of FMassSimulationVariableTickChunkFragment then the function returns
-	 *	the value of FMassVariableTickChunkFragment.ShouldTickThisFrame; otherwise it returns DefaultValue.
+	 * IsChunkHandledThisFrame
+	 * 
+	 * This function is used by LOD collector query chunk filters to check if the Simulation LOD will be updated this frame.
+	 * It defaults to false (no LOD update), if simulation variable tick chunk fragment is NOT present.
+	 * 
+	 * @return true if the simulation LOD will be updated this frame
+	 */
+	static bool IsChunkHandledThisFrame(const FMassExecutionContext& Context)
+	{
+		const FMassSimulationVariableTickChunkFragment* ChunkFragment = Context.GetChunkFragmentPtr<FMassSimulationVariableTickChunkFragment>();
+		return ChunkFragment != nullptr && ChunkFragment->ShouldTickThisFrame();
+	}
+
+	/**
+	 * ShouldTickChunkThisFrame
+	 * 
+	 * This function is used by query chunk filters in processors that require variable rate ticking based on LOD.
+	 * It defaults to true (always ticking) if simulation variable tick chunk fragment is NOT present.
+	 * 
+	 * @return if the chunk should be ticked this frame
 	 */
 	static bool ShouldTickChunkThisFrame(const FMassExecutionContext& Context)
 	{
