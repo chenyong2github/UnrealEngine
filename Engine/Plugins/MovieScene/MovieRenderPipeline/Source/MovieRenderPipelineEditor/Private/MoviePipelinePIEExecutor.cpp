@@ -117,6 +117,8 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	Params.EditorPlaySettings = PlayInEditorSettings;
 	Params.CustomPIEWindow = CustomWindow;
 	Params.GlobalMapOverride = InJob->Map.GetAssetPathString();
+	// Don't allow the online subsystem to try and authenticate as it will delay PIE startup and no PIE world will exist when PostPIEStarted is called.
+	Params.bAllowOnlineSubsystem = false;
 
 	// Initialize the transient settings so that they will exist in time for the GameOverrides check.
 	InJob->GetConfiguration()->InitializeTransientSettings();
@@ -167,6 +169,7 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	if(!ExecutingWorld)
 	{
 		// This only happens if PIE startup fails and they've usually gotten a pop-up dialog already.
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to find a PIE UWorld after OnPIEStartupFinished!"));
 		OnExecutorFinishedImpl();
 		return;
 	}

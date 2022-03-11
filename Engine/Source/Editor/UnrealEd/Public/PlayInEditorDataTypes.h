@@ -155,6 +155,7 @@ public:
 		: SessionDestination(EPlaySessionDestinationType::InProcess)
 		, WorldType(EPlaySessionWorldType::PlayInEditor)
 		, EditorPlaySettings(nullptr)
+		, bAllowOnlineSubsystem(true)
 	{
 	}
 
@@ -217,6 +218,9 @@ public:
 
 	/** Override which map is loaded for the Play session. This overrides both offline & servers (server only can be overridden in ULevelEditorPlaySettings) */
 	FString GlobalMapOverride;
+	
+	/** If false, then PIE won't try to ask the Online Subsystem/"Use Online Logins" feature if it should authenticate the PIE sessions. */
+	bool bAllowOnlineSubsystem;
 
 	bool HasPlayWorldPlacement() const
 	{

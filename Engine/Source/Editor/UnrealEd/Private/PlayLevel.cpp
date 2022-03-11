@@ -2693,6 +2693,8 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	// If they need to use the online services, validate that they have provided 
 	// enough pie credentials to launch the desired number of clients.
 	bool bUseOnlineSubsystemForLogin = false;
+	bool bRequestAllowsOnlineSubsystem = InRequestParams.bAllowOnlineSubsystem;
+	if(bRequestAllowsOnlineSubsystem)
 	{
 		int32 DesiredNumberOfClients;
 		EditorPlaySettings->GetPlayNumberOfClients(DesiredNumberOfClients);
@@ -2711,9 +2713,8 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 				FMessageLog(NAME_CategoryPIE).Warning(ErrorMsg);
 			}
 		}
-
-		UOnlineEngineInterface::Get()->SetShouldTryOnlinePIE(bUseOnlineSubsystemForLogin);
 	}
+	UOnlineEngineInterface::Get()->SetShouldTryOnlinePIE(bUseOnlineSubsystemForLogin);
 
 	PlayInEditorSessionInfo->bUsingOnlinePlatform = bUseOnlineSubsystemForLogin;
 	PlayInEditorSessionInfo->bAnyBlueprintErrors = ErroredBlueprints.Num() > 0;
