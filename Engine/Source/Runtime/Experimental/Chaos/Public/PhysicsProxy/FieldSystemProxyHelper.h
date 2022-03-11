@@ -288,8 +288,11 @@ namespace Chaos
 
 			for (Chaos::FPBDRigidParticleHandle* Handle : Activated)
 			{
-				IPhysicsProxyBase* ParentProxy = Iter.Key->PhysicsProxy();
-				Handle->SetPhysicsProxy(ParentProxy);
+				if (Handle->PhysicsProxy() == nullptr)
+				{
+					IPhysicsProxyBase* ParentProxy = Iter.Key->PhysicsProxy();
+					Handle->SetPhysicsProxy(ParentProxy);
+				}
 			}
 		}
 	}
