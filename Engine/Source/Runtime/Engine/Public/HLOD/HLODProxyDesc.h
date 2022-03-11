@@ -28,7 +28,7 @@ public:
 	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
 	
 	UPROPERTY()
-	TObjectPtr<const UMaterialInterface> Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 
 	UPROPERTY()
 	TArray<FTransform> Instances;
