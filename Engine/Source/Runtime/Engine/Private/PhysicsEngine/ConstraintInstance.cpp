@@ -256,11 +256,11 @@ void FConstraintInstanceBase::SetConstraintBrokenDelegate(FOnConstraintBroken In
 /** Constructor **/
 FConstraintInstance::FConstraintInstance()
 	: FConstraintInstanceBase()
+	, LastKnownScale(1.f)
 	, AngularRotationOffset(ForceInitToZero)
 	, bScaleLinearLimits(true)
 	, AverageMass(0.f)
 	, UserData(this)
-	, LastKnownScale(1.f)
 #if WITH_EDITORONLY_DATA
 	, bDisableCollision_DEPRECATED(false)
 	, bEnableProjection_DEPRECATED(true)

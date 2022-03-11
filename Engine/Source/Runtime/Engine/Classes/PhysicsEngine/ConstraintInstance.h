@@ -79,12 +79,6 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, Category = Angular)
 	FTwistConstraint TwistLimit;
 
-	UPROPERTY(EditAnywhere, Category = Linear)
-	FLinearDriveConstraint LinearDrive;
-
-	UPROPERTY(EditAnywhere, Category = Angular)
-	FAngularDriveConstraint AngularDrive;
-
 	// Disable collision between bodies joined by this constraint.
 	UPROPERTY(EditAnywhere, Category = Constraint)
 	uint8 bDisableCollision : 1;
@@ -151,6 +145,12 @@ struct ENGINE_API FConstraintProfileProperties
 	/** Whether it is possible to reset spring rest length from the linear deformation. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
 	uint8 bLinearPlasticity : 1;
+
+	UPROPERTY(EditAnywhere, Category = Linear)
+	FLinearDriveConstraint LinearDrive;
+
+	UPROPERTY(EditAnywhere, Category = Angular)
+	FAngularDriveConstraint AngularDrive;
 
 	/** Whether linear plasticity has a operation mode [free]*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
@@ -243,6 +243,12 @@ struct ENGINE_API FConstraintInstance : public FConstraintInstanceBase
 	UPROPERTY(EditAnywhere, Category=Constraint)
 	FName ConstraintBone2;
 
+private:
+	/** The component scale passed in during initialization*/
+	float LastKnownScale;
+
+public:
+
 	///////////////////////////// Body1 ref frame
 	
 	/** Location of constraint in Body1 reference frame (usually the "child" body for skeletal meshes). */
@@ -294,12 +300,6 @@ public:
 	const FPhysicsConstraintHandle& GetPhysicsConstraintRef() const;
 
 	FChaosUserData UserData;
-
-private:
-	/** The component scale passed in during initialization*/
-	float LastKnownScale;
-
-public:
 
 	/** Constructor **/
 	FConstraintInstance();
