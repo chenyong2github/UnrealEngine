@@ -54,6 +54,7 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 		const FText DisplayAndFilterText(LOCTEXT("LandscapeToggleLayerName", "Enable Edit Layers"));
 		const FText ToolTipText(LOCTEXT("LandscapeToggleLayerToolTip", "Toggle whether or not to support edit layers on this Landscape. Toggling this will clear the undo stack."));
 		DetailBuilder.AddCustomRowToCategory(PropertyHandle, DisplayAndFilterText)
+		.RowTag(TEXT("EnableEditLayers"))
 		.NameContent()
 		[
 			PropertyHandle->CreatePropertyNameWidget(DisplayAndFilterText, ToolTipText)
