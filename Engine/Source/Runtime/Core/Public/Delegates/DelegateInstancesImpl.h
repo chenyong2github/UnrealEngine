@@ -906,7 +906,7 @@ public:
 
 	UObject* GetUObject() const final
 	{
-		return ContextObject.Get();
+		return (UObject*)ContextObject.Get();
 	}
 
 	const void* GetObjectForTimerManager() const final
