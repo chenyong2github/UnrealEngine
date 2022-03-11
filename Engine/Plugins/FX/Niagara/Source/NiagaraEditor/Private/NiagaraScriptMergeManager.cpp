@@ -2811,13 +2811,15 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 			else if (OverrideToAdd->GetLinkedValueHandle().IsSet())
 			{
 				check(OverrideToAdd->GetOverrideNode() && OverrideToAdd->GetOverrideNode()->GetNiagaraGraph());
-				UNiagaraScriptVariable* ScriptVar = OverrideToAdd->GetOverrideNode()->GetNiagaraGraph()->GetScriptVariable(FNiagaraVariable(InputType, OverrideToAdd->GetLinkedValueHandle().GetValue().GetParameterHandleString()));
+				FNiagaraVariable Parameter = FNiagaraVariable(InputType, OverrideToAdd->GetLinkedValueHandle().GetValue().GetParameterHandleString());
+				UNiagaraScriptVariable* ScriptVar = OverrideToAdd->GetOverrideNode()->GetNiagaraGraph()->GetScriptVariable(Parameter);
 				ENiagaraDefaultMode DesiredMode = ENiagaraDefaultMode::Value;
 				if (ScriptVar)
 					DesiredMode = ScriptVar->DefaultMode;
 				if (GNiagaraForceFailIfPreviouslyNotSetOnMerge > 0)
 					DesiredMode = ENiagaraDefaultMode::FailIfPreviouslyNotSet;
-				FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(InputOverridePin, OverrideToAdd->GetLinkedValueHandle().GetValue(), DesiredMode, OverrideToAdd->GetOverrideNodeId());
+				TSet KnownParameters = { Parameter };
+				FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(InputOverridePin, OverrideToAdd->GetLinkedValueHandle().GetValue(), KnownParameters, DesiredMode, OverrideToAdd->GetOverrideNodeId());
 				Results.bSucceeded = true;
 			}
 			else if (OverrideToAdd->GetDataValueInputName().IsSet() && OverrideToAdd->GetDataValueObject() != nullptr)

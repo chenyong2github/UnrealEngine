@@ -255,7 +255,8 @@ void UNiagaraStackParameterStoreEntry::OnRenamed(FText NewName)
 			TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
 			FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(*LinkedPin, RemovedDataObjects); // no need to broadcast data objects modified here, the graph will recompile
 			// generate current link
-			FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(*LinkedPin, ParameterHandle);
+			TSet KnownParameters = { FNiagaraVariable(InputType, VariableName) };
+			FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(*LinkedPin, ParameterHandle, KnownParameters);
 		}
 
 		UObject* OwnerObj = Owner.Get();

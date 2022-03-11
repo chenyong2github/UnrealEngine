@@ -1367,7 +1367,25 @@ UEdGraphPin* FNiagaraStackGraphUtilities::GetLinkedValueHandleForFunctionInput(c
 	return GetOutputPin;
 }
 
-void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphPin& OverridePin, FNiagaraParameterHandle LinkedParameterHandle, ENiagaraDefaultMode DesiredDefaultMode, const FGuid& NewNodePersistentId)
+TSet<FNiagaraVariable> FNiagaraStackGraphUtilities::GetParametersForContext(UEdGraph* InGraph, UNiagaraSystem& System)
+{
+	TSet<FNiagaraVariable> Result;
+	if (UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(InGraph))
+	{
+		const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ReferenceMap = NiagaraGraph->GetParameterReferenceMap();
+		ReferenceMap.GetKeys(Result);
+	}
+	TArray<FNiagaraVariable> UserParams;
+	System.GetExposedParameters().GetUserParameters(UserParams);
+	for (FNiagaraVariable& Var : UserParams)
+	{
+		FNiagaraUserRedirectionParameterStore::MakeUserVariable(Var);
+	}
+	Result.Append(UserParams);
+	return Result;
+}
+
+void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphPin& OverridePin, FNiagaraParameterHandle LinkedParameterHandle, const TSet<FNiagaraVariable>& KnownParameters, ENiagaraDefaultMode DesiredDefaultMode, const FGuid& NewNodePersistentId)
 {
 	checkf(OverridePin.LinkedTo.Num() == 0, TEXT("Can't set a linked value handle when the override pin already has a value."));
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
@@ -1396,8 +1414,7 @@ void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphP
 		// see if the requested input exists or if we can use one of the equivalent loose types
 		FNiagaraTypeDefinition AlternateType = InputType == FNiagaraTypeDefinition::GetVec3Def() ? FNiagaraTypeDefinition::GetPositionDef() : FNiagaraTypeDefinition::GetVec3Def();
 		FNiagaraVariable ParameterAlternative(AlternateType, LinkedParameterHandle.GetParameterHandleString());
-		const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ReferenceMap = Graph->GetParameterReferenceMap();
-		if (ReferenceMap.Contains(ParameterToRead) == false && ReferenceMap.Contains(ParameterAlternative))
+		if (KnownParameters.Contains(ParameterToRead) == false && KnownParameters.Contains(ParameterAlternative))
 		{
 			ParameterToRead = ParameterAlternative;
 		}
@@ -2471,7 +2488,8 @@ void SetInputValue(
 	else if (Value.LinkedValue.IsSet())
 	{
 		UEdGraphPin& OverridePin = FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(InputFunctionCallNode, AliasedFunctionHandle, Value.Type);
-		FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(OverridePin, FNiagaraParameterHandle(Value.LinkedValue.GetValue()));
+		TSet<FNiagaraVariable> KnownParameters = FNiagaraStackGraphUtilities::GetParametersForContext(OverridePin.GetOwningNode()->GetGraph(), SystemViewModel->GetSystem());
+		FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(OverridePin, FNiagaraParameterHandle(Value.LinkedValue.GetValue()), KnownParameters);
 	}
 	else if (Value.DataValue.IsSet())
 	{

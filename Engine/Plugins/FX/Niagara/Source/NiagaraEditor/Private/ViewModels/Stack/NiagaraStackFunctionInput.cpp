@@ -1248,7 +1248,9 @@ void UNiagaraStackFunctionInput::SetLinkedValueHandle(const FNiagaraParameterHan
 		}
 
 		// Only set the linked value if it's actually different from the default.
-		FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(GetOrCreateOverridePin(), InParameterHandle);
+		UEdGraphPin& OverridePin = GetOrCreateOverridePin();
+		TSet<FNiagaraVariable> KnownParameters = FNiagaraStackGraphUtilities::GetParametersForContext(OverridePin.GetOwningNode()->GetGraph(), GetSystemViewModel()->GetSystem());
+		FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(OverridePin, InParameterHandle, KnownParameters);
 		OwningFunctionCallNode->FixupPinNames(); // refresh the input guids and update the bound names
 	}
 
