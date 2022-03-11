@@ -721,7 +721,16 @@ public:
 			}
 			else if (FLiteralTypeHelper::IsDouble(&Term->Type, CoerceProperty))
 			{
-				double Value = FCString::Atod(*(Term->Name));
+				double Value = 0.0;
+				if (Term->Type.bSerializeAsSinglePrecisionFloat)
+				{
+					Value = FCString::Atof(*(Term->Name));
+				}
+				else
+				{
+					Value = FCString::Atod(*(Term->Name));
+				}
+				
 				Writer << EX_DoubleConst;
 				Writer << Value;
 			}

@@ -118,6 +118,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Storing inertia tensor as vec3 instead of matrix.
 		ChaosInertiaConvertedToVec3,
 
+		// For Blueprint real numbers, ensure that legacy float data is serialized as single-precision
+		SerializeFloatPinDefaultValuesAsSinglePrecision,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

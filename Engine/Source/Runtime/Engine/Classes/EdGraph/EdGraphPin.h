@@ -136,6 +136,10 @@ public:
 	UPROPERTY()
 	uint8 bIsUObjectWrapper:1;
 
+	/** Set to true if the type was serialized prior to BlueprintPinsUseRealNumbers */
+	UPROPERTY()
+	uint8 bSerializeAsSinglePrecisionFloat:1;
+
 	FORCEINLINE bool IsContainer() const { return (ContainerType != EPinContainerType::None); }
 	FORCEINLINE bool IsArray() const { return (ContainerType == EPinContainerType::Array); }
 	FORCEINLINE bool IsSet() const { return (ContainerType == EPinContainerType::Set); }
@@ -150,6 +154,7 @@ public:
 		, bIsConst(false)
 		, bIsWeakPointer(false)
 		, bIsUObjectWrapper(false)
+		, bSerializeAsSinglePrecisionFloat(false)
 	{
 	}
 
@@ -164,6 +169,7 @@ public:
 		, bIsConst(false)
 		, bIsWeakPointer(false)
 		, bIsUObjectWrapper(false)
+		, bSerializeAsSinglePrecisionFloat(false)
 	{
 	}
 
@@ -176,7 +182,6 @@ public:
 			&& (ContainerType == Other.ContainerType)
 			&& (bIsReference == Other.bIsReference)
 			&& (bIsWeakPointer == Other.bIsWeakPointer)
-			//&& (bIsUObjectWrapper == Other.bIsUObjectWrapper)
 			&& (PinSubCategoryMemberReference == Other.PinSubCategoryMemberReference)
 			&& (bIsConst == Other.bIsConst);
 	}
@@ -196,6 +201,7 @@ public:
 		bIsReference = false;
 		bIsWeakPointer = false;
 		bIsUObjectWrapper = false;
+		bSerializeAsSinglePrecisionFloat = false;
 		bIsConst = false;
 	}
 

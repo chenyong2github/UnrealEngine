@@ -4751,6 +4751,12 @@ void UEdGraphSchema_K2::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewD
 		Pin.DefaultValue = UseDefaultValue;
 		Pin.DefaultTextValue = UseDefaultText;
 
+		// Legacy float data will continue to serialize as a single precision float until we explicitly change the default value
+		if (Pin.PinType.PinCategory == PC_Real)
+		{
+			Pin.PinType.bSerializeAsSinglePrecisionFloat = false;
+		}
+
 		UEdGraphNode* Node = Pin.GetOwningNode();
 		Node->PinDefaultValueChanged(&Pin);
 

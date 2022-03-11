@@ -274,6 +274,8 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 		Ar << bIsUObjectWrapperBool;
 	}
 
+	FName OldPinCategory = PinCategory;
+
 	if (Ar.IsLoading())
 	{
 		bIsReference = bIsReferenceBool;
@@ -313,6 +315,24 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 
 		bIsUObjectWrapper = bIsUObjectWrapperBool;
 	}
+
+#if WITH_EDITOR
+	bool bSerializeAsSinglePrecisionFloatBool = bSerializeAsSinglePrecisionFloat;
+
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::SerializeFloatPinDefaultValuesAsSinglePrecision)
+	{
+		Ar << bSerializeAsSinglePrecisionFloatBool;
+	}
+	else
+	{
+		if (OldPinCategory == TEXT("float"))
+		{
+			bSerializeAsSinglePrecisionFloatBool = true;
+		}
+	}
+
+	bSerializeAsSinglePrecisionFloat = bSerializeAsSinglePrecisionFloatBool;
+#endif
 
 	return true;
 }
@@ -579,6 +599,7 @@ void TransferPersistentDataFromOldPin(UEdGraphPin& DestPin, T& SourcePin, const 
 			DestPin.DefaultObject = SourcePin.DefaultObject;
 			DestPin.DefaultValue = MoveTempIfPossible(SourcePin.DefaultValue);
 			DestPin.DefaultTextValue = MoveTempIfPossible(SourcePin.DefaultTextValue);
+			DestPin.PinType.bSerializeAsSinglePrecisionFloat = SourcePin.PinType.bSerializeAsSinglePrecisionFloat;
 		}
 		else
 		{
