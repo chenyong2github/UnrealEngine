@@ -177,10 +177,18 @@ namespace Metasound
 		return InstanceID;
 	}
 
-	bool FMetaSoundParameterTransmitter::SetParameter(FAudioParameter&& InParameter)
+	bool FMetaSoundParameterTransmitter::SetParameters(TArray<FAudioParameter>&& InParameters)
 	{
-		const FName ParamName = InParameter.ParamName;
-		return SetParameterWithLiteral(ParamName, Frontend::ConvertParameterToLiteral(MoveTemp(InParameter)));
+		bool bSuccess = true;
+
+		for (FAudioParameter& InParameter : InParameters)
+		{
+			const FName ParamName = InParameter.ParamName;
+			bSuccess &= SetParameterWithLiteral(ParamName, Frontend::ConvertParameterToLiteral(MoveTemp(InParameter)));
+		}
+
+		InParameters.Reset();
+		return bSuccess;
 	}
 
 	bool FMetaSoundParameterTransmitter::SetParameterWithLiteral(FName InParameterName, const FLiteral& InLiteral)

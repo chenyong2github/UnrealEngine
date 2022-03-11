@@ -6,6 +6,7 @@
 #include "AudioDevice.h"
 #include "AudioThread.h"
 #include "IAudioExtensionPlugin.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 
 namespace SoundParameterControllerInterfacePrivate
@@ -70,8 +71,8 @@ void ISoundParameterControllerInterface::SetTriggerParameter(FName InName)
 					const FName ParamName = Param.ParamName;
 
 					// Must be copied as original version must be preserved in case command is called on multiple ActiveSounds.
-					FAudioParameter TempParam = Param;
-					if (!Transmitter->SetParameter(MoveTemp(TempParam)))
+					TArray<FAudioParameter> TempParam = { Param };
+					if (!Transmitter->SetParameters(MoveTemp(TempParam)))
 					{
 						UE_LOG(LogAudio, Warning, TEXT("Failed to execute trigger parameter '%s'"), *ParamName.ToString());
 					}
@@ -83,102 +84,94 @@ void ISoundParameterControllerInterface::SetTriggerParameter(FName InName)
 
 void ISoundParameterControllerInterface::SetBoolParameter(FName InName, bool InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters({ FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetBoolArrayParameter(FName InName, const TArray<bool>& InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetIntParameter(FName InName, int32 InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetIntArrayParameter(FName InName, const TArray<int32>& InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetFloatParameter(FName InName, float InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetFloatArrayParameter(FName InName, const TArray<float>& InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetStringParameter(FName InName, const FString& InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetStringArrayParameter(FName InName, const TArray<FString>& InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetObjectParameter(FName InName, UObject* InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetObjectArrayParameter(FName InName, const TArray<UObject*>& InValue)
 {
-	SetParameterInternal(FAudioParameter(InName, InValue));
+	SetParameters( { FAudioParameter(InName, InValue) });
 }
 
 void ISoundParameterControllerInterface::SetParameter(FAudioParameter&& InValue)
 {
-	SetParameterInternal(MoveTemp(InValue));
+	SetParameters({ MoveTemp(InValue) });
 }
 
 void ISoundParameterControllerInterface::SetParameters(TArray<FAudioParameter>&& InValues)
 {
-	for (const FAudioParameter& Value : InValues)
+	TRACE_CPUPROFILER_EVENT_SCOPE(ISoundParameterControllerInterface::SetParameters);
+
+	const bool bUpdateActiveSound = IsPlaying() && !GetDisableParameterUpdatesWhilePlaying();
+
+	TArray<FAudioParameter> ParamsToSet;
+	if (bUpdateActiveSound)
 	{
-		TArray<FAudioParameter>& InstanceParameters = GetInstanceParameters();
-		if (FAudioParameter* CurrentParam = FAudioParameter::FindOrAddParam(InstanceParameters, Value.ParamName))
-		{
-			CurrentParam->Merge(Value, false /* bInTakeName */);
-		}
+		ParamsToSet = InValues;
 	}
 
-	if (IsPlaying() && !GetDisableParameterUpdatesWhilePlaying())
+	TArray<FAudioParameter>& InstanceParameters = GetInstanceParameters();
+	FAudioParameter::Merge(MoveTemp(InValues), InstanceParameters);
+
+	if (bUpdateActiveSound)
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
-			TArray<FAudioParameter> ParamsToSet;
 			if (USoundBase* Sound = GetSound())
 			{
-				Sound->InitParameters(InValues, SoundParameterControllerInterfacePrivate::ProxyFeatureName);
+				Sound->InitParameters(ParamsToSet, SoundParameterControllerInterfacePrivate::ProxyFeatureName);
 			}
 
-			ParamsToSet = MoveTemp(InValues);
-
-			if (ParamsToSet.Num() > 0)
+			// Prior call to InitParameters can prune parameters if they are
+			// invalid, so check here to avoid unnecessary pass of empty array.
+			if (!ParamsToSet.IsEmpty())
 			{
 				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundParameterControllerInterface.SetParameters"), STAT_AudioSetParameters, STATGROUP_AudioThreadCommands);
 				AudioDevice->SendCommandToActiveSounds(GetInstanceOwnerID(), [AudioDevice, Params = MoveTemp(ParamsToSet)](FActiveSound& ActiveSound)
 				{
 					if (Audio::IParameterTransmitter* Transmitter = ActiveSound.GetTransmitter())
 					{
-						for (const FAudioParameter& Param : Params)
-						{
-							const FName ParamName = Param.ParamName;
-							if (!ParamName.IsNone())
-							{
-								// Must be copied as original version must be preserved in case command is called on multiple ActiveSounds.
-								FAudioParameter TempParam = Param;
-								if (!Transmitter->SetParameter(MoveTemp(TempParam)))
-								{
-									UE_LOG(LogAudio, Warning, TEXT("Failed to set parameter '%s'"), *ParamName.ToString());
-								}
-							}
-						}
+						TArray<FAudioParameter> TempParams = Params;
+						Transmitter->SetParameters(MoveTemp(TempParams));
 					}
 				}, GET_STATID(STAT_AudioSetParameters));
 			}
@@ -186,57 +179,28 @@ void ISoundParameterControllerInterface::SetParameters(TArray<FAudioParameter>&&
 	}
 }
 
-void ISoundParameterControllerInterface::SetParameterInternal(FAudioParameter&& InParam)
+void ISoundParameterControllerInterface::SetParameters_Blueprint(const TArray<FAudioParameter>& InValues)
 {
-	if (InParam.ParamName.IsNone())
-	{
-		return;
-	}
-
-	TArray<FAudioParameter>& InstanceParameters = GetInstanceParameters();
-	if (FAudioParameter* CurrentParam = FAudioParameter::FindOrAddParam(InstanceParameters, InParam.ParamName))
-	{
-		CurrentParam->Merge(InParam, false /* bInTakeName */);
-	}
-
-	if (IsPlaying() && !GetDisableParameterUpdatesWhilePlaying())
-	{
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
-		{
-			FAudioParameter ParamToSet;
-			if (USoundBase* Sound = GetSound())
-			{
-				TArray<FAudioParameter> Params = { MoveTemp(InParam) };
-				Sound->InitParameters(Params, SoundParameterControllerInterfacePrivate::ProxyFeatureName);
-				if (Params.Num() == 0)
-				{
-					// USoundBase::InitParameters(...) can remove parameters. 
-					// Exit early if the parameter is removed.
-					return;
-				}
-				ParamToSet = MoveTemp(Params[0]);
-			}
-			else
-			{
-				ParamToSet = MoveTemp(InParam);
-			}
-
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundParameterControllerInterface.SetParameter"), STAT_AudioSetParameter, STATGROUP_AudioThreadCommands);
-
-			AudioDevice->SendCommandToActiveSounds(GetInstanceOwnerID(), [AudioDevice, Param = MoveTemp(ParamToSet)](FActiveSound& ActiveSound)
-			{
-				if (Audio::IParameterTransmitter* Transmitter = ActiveSound.GetTransmitter())
-				{
-					const FName ParamName = Param.ParamName;
-
-					// Must be copied as original version must be preserved in case command is called on multiple ActiveSounds.
-					FAudioParameter TempParam = Param;
-					if (!Transmitter->SetParameter(MoveTemp(TempParam)))
-					{
-						UE_LOG(LogAudio, Warning, TEXT("Failed to set parameter '%s'"), *ParamName.ToString());
-					}
-				}
-			}, GET_STATID(STAT_AudioSetParameter));
-		}
-	}
+	TArray<FAudioParameter> Values = InValues;
+	SetParameters(MoveTemp(Values));
 }
+
+FAudioParameter UAudioParameterConversionStatics::BooleanToAudioParameter(FName Name, bool Bool) { return { Name, Bool }; }
+
+FAudioParameter UAudioParameterConversionStatics::FloatToAudioParameter(FName Name, float Float) { return { Name, Float }; }
+
+FAudioParameter UAudioParameterConversionStatics::IntegerToAudioParameter(FName Name, int32 Integer) { return { Name, Integer }; }
+
+FAudioParameter UAudioParameterConversionStatics::StringToAudioParameter(FName Name, FString String) { return { Name, MoveTemp(String) }; }
+
+FAudioParameter UAudioParameterConversionStatics::ObjectToAudioParameter(FName Name, UObject* Object) { return { Name, Object }; }
+
+FAudioParameter UAudioParameterConversionStatics::BooleanArrayToAudioParameter(FName Name, TArray<bool> Bools) { return { Name, MoveTemp(Bools) }; }
+
+FAudioParameter UAudioParameterConversionStatics::FloatArrayToAudioParameter(FName Name, TArray<float> Floats) { return { Name, MoveTemp(Floats) }; }
+
+FAudioParameter UAudioParameterConversionStatics::IntegerArrayToAudioParameter(FName Name, TArray<int32> Integers) { return { Name, MoveTemp(Integers) }; }
+
+FAudioParameter UAudioParameterConversionStatics::StringArrayToAudioParameter(FName Name, TArray<FString> Strings) { return { Name, MoveTemp(Strings) }; }
+
+FAudioParameter UAudioParameterConversionStatics::ObjectArrayToAudioParameter(FName Name, TArray<UObject*> Objects) { return { Name, MoveTemp(Objects) }; }

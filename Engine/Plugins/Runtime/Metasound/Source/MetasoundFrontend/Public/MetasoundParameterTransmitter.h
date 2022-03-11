@@ -85,11 +85,11 @@ namespace Metasound
 		/** Returns ID of the MetaSound instance associated with this transmitter. */
 		uint64 GetInstanceID() const override;
 
-		/** Sets a parameter using an AudioParameter struct
+		/** Sets parameters using array of AudioParameter structs
 		 *
 		 * @param InParameter - Parameter to set.
 		 */
-		bool SetParameter(FAudioParameter&& InParameter) override;
+		virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) override;
 
 		/** Set a parameter using a literal.
 		 *

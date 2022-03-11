@@ -607,12 +607,14 @@ void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListener
 		return;
 	}
 
+	TArray<FAudioParameter> ParamsToUpdate;
+
 	const FListener& Listener = InListeners[ClosestListenerIndex];
 	const FVector SourceDirection = Transform.GetLocation() - Listener.Transform.GetLocation();
 	if (bImplementsAttenuation)
 	{
 		const float Distance = SourceDirection.Size();
-		InstanceTransmitter->SetParameter({ AttenuationInterface::Inputs::Distance, Distance });
+		ParamsToUpdate.Add({ AttenuationInterface::Inputs::Distance, Distance });
 	}
 
 	if (bImplementsSpatialization)
@@ -621,9 +623,14 @@ void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListener
 		const FVector2D SourceAzimuthAndElevation = FMath::GetAzimuthAndElevation(SourceDirectionNormal, FVector::ForwardVector, FVector::RightVector, FVector::UpVector);
 		const float Azimuth = FMath::RadiansToDegrees(SourceAzimuthAndElevation.X);
 		const float Elevation = FMath::RadiansToDegrees(SourceAzimuthAndElevation.Y);
-		InstanceTransmitter->SetParameter({ SpatializationInterface::Inputs::Azimuth, Azimuth });
-		InstanceTransmitter->SetParameter({ SpatializationInterface::Inputs::Elevation, Elevation });
+		ParamsToUpdate.Append(
+		{
+			{ SpatializationInterface::Inputs::Azimuth, Azimuth },
+			{ SpatializationInterface::Inputs::Elevation, Elevation }
+		});
 	}
+
+	InstanceTransmitter->SetParameters(MoveTemp(ParamsToUpdate));
 }
 
 void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, const float DeltaTime)

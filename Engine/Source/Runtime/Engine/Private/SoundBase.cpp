@@ -308,96 +308,10 @@ TUniquePtr<Audio::IParameterTransmitter> USoundBase::CreateParameterTransmitter(
 			return true;
 		}
 
-		bool SetParameter(FAudioParameter&& InValue) override
+		bool SetParameters(TArray<FAudioParameter>&& InParameters) override
 		{
-			if (FAudioParameter* Param = FAudioParameter::FindOrAddParam(AudioParameters, InValue.ParamName))
-			{
-				// Cannot do wholesale move because legacy system (i.e. SoundCues) support
-				// multiple value types mapped to a single parameter FName
-				switch (InValue.ParamType)
-				{
-					case EAudioParameterType::Boolean:
-					{
-						Param->BoolParam = InValue.BoolParam;
-					}
-					break;
-
-					case EAudioParameterType::BooleanArray:
-					{
-						Param->ArrayBoolParam = MoveTemp(InValue.ArrayBoolParam);
-					}
-					break;
-
-					case EAudioParameterType::Float:
-					{
-						Param->FloatParam = InValue.FloatParam;
-					}
-					break;
-
-					case EAudioParameterType::FloatArray:
-					{
-						Param->ArrayFloatParam = MoveTemp(InValue.ArrayFloatParam);
-					}
-					break;
-
-					case EAudioParameterType::Integer:
-					case EAudioParameterType::NoneArray:
-					{
-						Param->IntParam = InValue.IntParam;
-					}
-					break;
-
-					case EAudioParameterType::IntegerArray:
-					{
-						Param->ArrayIntParam = MoveTemp(InValue.ArrayIntParam);
-					}
-					break;
-
-					case EAudioParameterType::None:
-					{
-						*Param = MoveTemp(InValue);
-					}
-					break;
-
-					case EAudioParameterType::Object:
-					{
-						Param->ObjectParam = MoveTemp(InValue.ObjectParam);
-						Param->ObjectProxies = MoveTemp(InValue.ObjectProxies);
-					}
-					break;
-
-					case EAudioParameterType::ObjectArray:
-					{
-						Param->ArrayObjectParam = MoveTemp(InValue.ArrayObjectParam);
-						Param->ObjectProxies = MoveTemp(InValue.ObjectProxies);
-					}
-					break;
-
-					case EAudioParameterType::String:
-					{
-						Param->StringParam = MoveTemp(InValue.StringParam);
-					}
-					break;
-
-					case EAudioParameterType::StringArray:
-					{
-						Param->ArrayStringParam = MoveTemp(InValue.ArrayStringParam);
-					}
-					break;
-
-					default:
-					{
-						checkNoEntry();
-					}
-				}
-
-				InValue = FAudioParameter();
-
-				return true;
-			}
-
-			InValue = FAudioParameter();
-			return false;
+			FAudioParameter::Merge(MoveTemp(InParameters), AudioParameters);
+			return true;
 		}
 
 		uint64 GetInstanceID() const override
@@ -460,6 +374,11 @@ void USoundBase::InitParameters(TArray<FAudioParameter>& InParametersToInit, FNa
 
 bool USoundBase::IsParameterValid(const FAudioParameter& InParameter) const
 {
+	if (InParameter.ParamName.IsNone())
+	{
+		return false;
+	}
+
 	switch (InParameter.ParamType)
 	{
 		case EAudioParameterType::BooleanArray:

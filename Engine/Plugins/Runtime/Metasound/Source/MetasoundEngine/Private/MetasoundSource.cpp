@@ -273,26 +273,27 @@ void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNod
 
 void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName)
 {
-	TMap<FName, const FMetasoundFrontendClassInput*> TransmittableInputMap;
-	const TArray<const FMetasoundFrontendClassInput*> TransmittableInputs = GetTransmittableClassInputs();
-	Algo::Transform(TransmittableInputs, TransmittableInputMap, [](const FMetasoundFrontendClassInput* Input)
-	{
-		return TPair<FName, const FMetasoundFrontendClassInput*>(Input->Name, Input);
-	});
-	
+	// Have to call cache vs a simple get as the source may have yet to start playing/has not been registered
+	// via InitResources. If it has, this call is fast and returns the already cached RuntimeData.
+	const FRuntimeData& RuntimeData = CacheRuntimeData();
+	const TArray<FMetasoundFrontendClassInput>& TransmittableInputs = RuntimeData.TransmittableInputs;
+
 	// Removes values that are not explicitly defined by the ParamType and returns
 	// whether or not the parameter is a valid input and should be included.
-	auto Sanitize = [&TransmittableInputMap](FAudioParameter& Parameter) -> bool
+	auto Sanitize = [&TransmittableInputs](FAudioParameter& Parameter) -> bool
 	{
-		if (const FMetasoundFrontendClassInput* Input = TransmittableInputMap.FindRef(Parameter.ParamName))
+		auto FindInput = [&Parameter](const FMetasoundFrontendClassInput& Input)
 		{
-			// Only remove if parameter typename is specified and does not match
-			if (Parameter.TypeName != FName() && Parameter.TypeName != Input->TypeName)
+			if (Parameter.ParamName == Input.Name)
 			{
-				return false;
+				return Parameter.TypeName.IsNone() || Parameter.TypeName == Input.TypeName;
 			}
-		}
-		else
+
+			return false;
+		};
+
+		const FMetasoundFrontendClassInput* Input = TransmittableInputs.FindByPredicate(FindInput);
+		if (!Input)
 		{
 			return false;
 		}
@@ -426,12 +427,11 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 
 	for (int32 i = InParametersToInit.Num() - 1; i >= 0; --i)
 	{
-		FAudioParameter& Parameter = InParametersToInit[i];		
+		FAudioParameter& Parameter = InParametersToInit[i];
 		
 #if !NO_LOGGING
 		// For logging in case of failure
-		FString AssetName;
-		GetName(AssetName); 
+		const FString AssetName = GetName();
 #endif // !NO_LOGGING
 		
 		if (Sanitize(Parameter))
@@ -440,19 +440,21 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 			{
 				ConstructProxies(Parameter);
 			}
-#if !NO_LOGGING
 			else
 			{
+#if !NO_LOGGING
 				UE_LOG(LogMetaSound, Error, TEXT("Failed to set invalid parameter '%s' in asset '%s': Either does not exist or is unsupported type"), *Parameter.ParamName.ToString(), *AssetName);
-			}
 #endif // !NO_LOGGING
+				constexpr bool bAllowShrinking = false;
+				InParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
+			}
 		}
 		else
 		{
 			constexpr bool bAllowShrinking = false;
 			InParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
 #if !NO_LOGGING
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to set parameter '%s' in asset '%s': No name specified, no matching input found, or type mismatch."), *Parameter.ParamName.ToString(), *AssetName);
+			UE_LOG(LogMetaSound, Error, TEXT("Failed to set parameter '%s' in asset '%s': No name specified, no transmittable input found, or type mismatch."), *Parameter.ParamName.ToString(), *AssetName);
 #endif // !NO_LOGGING
 		}
 	}
@@ -469,7 +471,9 @@ void UMetaSoundSource::InitResources()
 	{
 		RegOptions.bAutoUpdateLogWarningOnDroppedConnection = Settings->bAutoUpdateLogWarningOnDroppedConnection;
 	}
+
 	RegisterGraphWithFrontend(RegOptions);
+	CacheRuntimeData();
 }
 
 Metasound::Frontend::FNodeClassInfo UMetaSoundSource::GetAssetClassInfo() const
@@ -512,7 +516,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	FOperatorSettings InSettings = GetOperatorSettings(static_cast<FSampleRate>(SampleRate));
 	FMetasoundEnvironment Environment = CreateEnvironment(InParams);
 
-	TSharedPtr<const IGraph, ESPMode::ThreadSafe> MetasoundGraph = GetMetasoundCoreGraph();
+	TSharedPtr<const IGraph, ESPMode::ThreadSafe> MetasoundGraph = GetRuntimeData().Graph;
 	if (!MetasoundGraph.IsValid())
 	{
 		return ISoundGeneratorPtr(nullptr);
@@ -536,70 +540,69 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 	using namespace Metasound::Frontend;
 	using namespace Metasound::Engine;
 
-	TArray<const FMetasoundFrontendClassInput*> TransmittableInputs = GetTransmittableClassInputs();
-	for(const FMetasoundFrontendClassInput* Input : TransmittableInputs)
+	// TODO: Make this use the cached runtime data's input copy. This call can become expensive if called repeatedly.
+	TArray<FMetasoundFrontendClassInput> TransmittableInputs = GetTransmittableClassInputs();
+	for(const FMetasoundFrontendClassInput& Input : TransmittableInputs)
 	{
-		check(Input);
-
 		FAudioParameter Params;
-		Params.ParamName = Input->Name;
-		Params.TypeName = Input->TypeName;
+		Params.ParamName = Input.Name;
+		Params.TypeName = Input.TypeName;
 
-		switch (Input->DefaultLiteral.GetType())
+		switch (Input.DefaultLiteral.GetType())
 		{
 			case EMetasoundFrontendLiteralType::Boolean:
 			{
 				Params.ParamType = EAudioParameterType::Boolean;
-				ensure(Input->DefaultLiteral.TryGet(Params.BoolParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.BoolParam));
 			}
 			break;
 
 			case EMetasoundFrontendLiteralType::BooleanArray:
 			{
 				Params.ParamType = EAudioParameterType::BooleanArray;
-				ensure(Input->DefaultLiteral.TryGet(Params.ArrayBoolParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.ArrayBoolParam));
 			}
 			break;
 
 			case EMetasoundFrontendLiteralType::Integer:
 			{
 				Params.ParamType = EAudioParameterType::Integer;
-				ensure(Input->DefaultLiteral.TryGet(Params.IntParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.IntParam));
 			}
 			break;
 
 			case EMetasoundFrontendLiteralType::IntegerArray:
 			{
 				Params.ParamType = EAudioParameterType::IntegerArray;
-				ensure(Input->DefaultLiteral.TryGet(Params.ArrayIntParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.ArrayIntParam));
 			}
 			break;
 
 			case EMetasoundFrontendLiteralType::Float:
 			{
 				Params.ParamType = EAudioParameterType::Float;
-				ensure(Input->DefaultLiteral.TryGet(Params.FloatParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.FloatParam));
 			}
 			break;
 
 			case EMetasoundFrontendLiteralType::FloatArray:
 			{
 				Params.ParamType = EAudioParameterType::FloatArray;
-				ensure(Input->DefaultLiteral.TryGet(Params.ArrayFloatParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.ArrayFloatParam));
 			}
 			break;
 
 			case EMetasoundFrontendLiteralType::String:
 			{
 				Params.ParamType = EAudioParameterType::String;
-				ensure(Input->DefaultLiteral.TryGet(Params.StringParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.StringParam));
 			}
 			break;
 
 			case EMetasoundFrontendLiteralType::StringArray:
 			{
 				Params.ParamType = EAudioParameterType::StringArray;
-				ensure(Input->DefaultLiteral.TryGet(Params.ArrayStringParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.ArrayStringParam));
 			}
 			break;
 
@@ -607,7 +610,7 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 			{
 				Params.ParamType = EAudioParameterType::Object;
 				UObject* Object = nullptr;
-				ensure(Input->DefaultLiteral.TryGet(Object));
+				ensure(Input.DefaultLiteral.TryGet(Object));
 				Params.ObjectParam = Object;
 			}
 			break;
@@ -615,7 +618,7 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 			case EMetasoundFrontendLiteralType::UObjectArray:
 			{
 				Params.ParamType = EAudioParameterType::ObjectArray;
-				ensure(Input->DefaultLiteral.TryGet(Params.ArrayObjectParam));
+				ensure(Input.DefaultLiteral.TryGet(Params.ArrayObjectParam));
 			}
 			break;
 
@@ -645,6 +648,11 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
+
+	if (InParameter.ParamName.IsNone())
+	{
+		return false;
+	}
 
 	const FName* TypeName = InInputNameTypeMap.Find(InParameter.ParamName);
 	if (!TypeName)
@@ -791,11 +799,7 @@ TUniquePtr<Audio::IParameterTransmitter> UMetaSoundSource::CreateParameterTransm
 	}
 
 	TUniquePtr<Audio::IParameterTransmitter> NewTransmitter = MakeUnique<Metasound::FMetaSoundParameterTransmitter>(InitParams);
-	for (FAudioParameter& AudioParam : InParams.DefaultParams)
-	{
-		NewTransmitter->SetParameter(MoveTemp(AudioParam));
-	}
-	InParams.DefaultParams.Reset();
+	NewTransmitter->SetParameters(MoveTemp(InParams.DefaultParams));
 
 	return NewTransmitter;
 }

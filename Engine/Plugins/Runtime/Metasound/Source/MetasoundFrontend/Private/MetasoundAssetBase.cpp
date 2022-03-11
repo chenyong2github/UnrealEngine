@@ -539,7 +539,7 @@ void FMetasoundAssetBase::ResetSynchronizationState()
 }
 #endif // WITH_EDITOR
 
-TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMetasoundDocument() const
+TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMetasoundDocument(const TArray<FMetasoundFrontendClassInput>& InTransmittableInputs) const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -550,10 +550,8 @@ TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMet
 	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(GetDocumentChecked(), GetOwningAssetName());
 	if (FrontendGraph.IsValid())
 	{
-		const TArray<const FMetasoundFrontendClassInput*> TransmittableInputs = GetTransmittableClassInputs();
-
 		TSet<FVertexName> TransmittableInputNames;
-		Algo::Transform(TransmittableInputs, TransmittableInputNames, [](const FMetasoundFrontendClassInput* Input) { return Input->Name; });
+		Algo::Transform(InTransmittableInputs, TransmittableInputNames, [](const FMetasoundFrontendClassInput& Input) { return Input.Name; });
 
 		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment, TransmittableInputNames);
 		if (!bSuccessfullyInjectedReceiveNodes)
@@ -668,6 +666,7 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 	check(IsInGameThread() || IsInAudioThread());
 
 	const FRuntimeData& RuntimeData = GetRuntimeData();
+	checkf(CurrentCachedRuntimeDataChangeID == RuntimeData.ChangeID, TEXT("Asset must have up-to-date cached RuntimeData prior to calling GetSendInfos"));
 
 	TArray<FSendInfoAndVertexName> SendInfos;
 
@@ -812,18 +811,15 @@ FString FMetasoundAssetBase::GetOwningAssetName() const
 	return FString();
 }
 
-TSharedPtr<const Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::GetMetasoundCoreGraph() const
-{
-	return FMetasoundAssetBase::GetRuntimeData().Graph;
-}
-
-TArray<const FMetasoundFrontendClassInput*> FMetasoundAssetBase::GetTransmittableClassInputs() const
+TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetTransmittableClassInputs() const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetasoundAssetBase::GetTransmittableClassInputs);
+
 	check(IsInGameThread() || IsInAudioThread());
-	TArray<const FMetasoundFrontendClassInput*> Inputs;
+	TArray<FMetasoundFrontendClassInput> Inputs;
 
 	const FMetasoundFrontendDocument& Doc = GetDocumentChecked();
 	auto GetInputName = [](const FMetasoundFrontendClassInput& InInput) { return InInput.Name; };
@@ -860,7 +856,7 @@ TArray<const FMetasoundFrontendClassInput*> FMetasoundAssetBase::GetTransmittabl
 
 		return false;
 	};
-	Algo::TransformIf(Doc.RootGraph.Interface.Inputs, Inputs, IsTransmittable, [] (const FMetasoundFrontendClassInput& Input) { return &Input; });
+	Algo::TransformIf(Doc.RootGraph.Interface.Inputs, Inputs, IsTransmittable, [] (const FMetasoundFrontendClassInput& Input) { return Input; });
 
 	return Inputs;
 }
@@ -873,9 +869,10 @@ void FMetasoundAssetBase::RebuildReferencedAssetClassKeys()
 	SetReferencedAssetClassKeys(MoveTemp(ReferencedKeys));
 }
 
-const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::GetRuntimeData() const
+const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::CacheRuntimeData()
 {
-	
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::CacheRuntimeData);
+
 	// Check if a ChangeID has been generated before.
 	if (!CurrentCachedRuntimeDataChangeID.IsValid())
 	{
@@ -886,13 +883,23 @@ const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::GetRuntimeData() c
 	if (CachedRuntimeData.ChangeID != CurrentCachedRuntimeDataChangeID)
 	{
 		// Update CachedRuntimeData.
-		CachedRuntimeData.TransmittableInputs.Reset();
-		TArray<const FMetasoundFrontendClassInput*> ClassInputs = GetTransmittableClassInputs();
-		Algo::Transform(ClassInputs, CachedRuntimeData.TransmittableInputs, [] (const FMetasoundFrontendClassInput* Input) { return *Input; });
+		TArray<FMetasoundFrontendClassInput> ClassInputs = GetTransmittableClassInputs();
+		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph = BuildMetasoundDocument(ClassInputs);
 
-		CachedRuntimeData.Graph = BuildMetasoundDocument();
-		CachedRuntimeData.ChangeID = CurrentCachedRuntimeDataChangeID;
+		CachedRuntimeData =
+		{
+			CurrentCachedRuntimeDataChangeID,
+			MoveTemp(ClassInputs),
+			MoveTemp(Graph)
+		};
 	}
+
+	return CachedRuntimeData;
+}
+
+const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::GetRuntimeData() const
+{
+	ensureMsgf(CurrentCachedRuntimeDataChangeID == CachedRuntimeData.ChangeID, TEXT("Accessing out-of-date runtime data: MetaSound asset '%s'."), *GetOwningAssetName());
 
 	return CachedRuntimeData;
 }

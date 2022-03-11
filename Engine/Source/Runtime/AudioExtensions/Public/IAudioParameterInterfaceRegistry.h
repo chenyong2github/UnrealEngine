@@ -110,7 +110,7 @@ namespace Audio
 		TArray<FOutput> Outputs;
 		TArray<FEnvironmentVariable> Environment;
 	};
-	using FParameterInterfacePtr = TSharedPtr<FParameterInterface>;
+	using FParameterInterfacePtr = TSharedPtr<FParameterInterface, ESPMode::ThreadSafe>;
 
 	class AUDIOEXTENSIONS_API IAudioParameterInterfaceRegistry
 	{

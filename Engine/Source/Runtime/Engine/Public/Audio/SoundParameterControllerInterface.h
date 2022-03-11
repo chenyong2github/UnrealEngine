@@ -3,6 +3,7 @@
 
 #include "AudioParameterControllerInterface.h"
 #include "UObject/Object.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "SoundParameterControllerInterface.generated.h"
 
@@ -42,6 +43,7 @@ public:
 
 	void SetParameter(FAudioParameter&& InValue) override;
 	void SetParameters(TArray<FAudioParameter>&& InValues) override;
+	void SetParameters_Blueprint(const TArray<FAudioParameter>& InValues) override;
 
 	/** Returns the active audio device to use for this component based on whether or not the component is playing in a world. */
 	virtual FAudioDevice* GetAudioDevice() const = 0;
@@ -58,7 +60,41 @@ public:
 	virtual bool IsPlaying() const = 0;
 
 	virtual bool GetDisableParameterUpdatesWhilePlaying() const = 0;
+};
 
-private:
-	void SetParameterInternal(FAudioParameter&& InValue);
+UCLASS()
+class ENGINE_API UAudioParameterConversionStatics : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter BooleanToAudioParameter(FName Name, bool Bool);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter FloatToAudioParameter(FName Name, float Float);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter IntegerToAudioParameter(FName Name, int32 Integer);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter StringToAudioParameter(FName Name, FString String);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter ObjectToAudioParameter(FName Name, UObject* Object);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter BooleanArrayToAudioParameter(FName Name, TArray<bool> Bools);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter FloatArrayToAudioParameter(FName Name, TArray<float> Floats);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter IntegerArrayToAudioParameter(FName Name, TArray<int32> Integers);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter StringArrayToAudioParameter(FName Name, TArray<FString> Strings);
+
+	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
+	static UPARAM(DisplayName = "Parameter") FAudioParameter ObjectArrayToAudioParameter(FName Name, TArray<UObject*> Objects);
 };

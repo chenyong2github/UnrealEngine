@@ -178,20 +178,12 @@ protected:
 	// Returns an access pointer to the document.
 	virtual Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const = 0;
 
-	// Returns a shared instance of the core metasound graph.
-	TSharedPtr<const Metasound::IGraph, ESPMode::ThreadSafe> GetMetasoundCoreGraph() const;
-
 #if WITH_EDITORONLY_DATA
 	bool bSynchronizationRequired = true;
 	bool bSynchronizationUpdateDetails = false;
 #endif // WITH_EDITORONLY_DATA
 
 protected:
-	TArray<const FMetasoundFrontendClassInput*> GetTransmittableClassInputs() const;
-
-private:
-	Metasound::Frontend::FNodeRegistryKey RegistryKey;
-
 	// Container for runtime data of MetaSound graph.
 	struct FRuntimeData
 	{
@@ -204,15 +196,25 @@ private:
 		// Core graph.
 		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph;
 	};
-	// Cache ID is used to determine whether CachedRuntimeData is out-of-date.
-	mutable FGuid CurrentCachedRuntimeDataChangeID;
-	mutable FRuntimeData CachedRuntimeData;
 
-	// Returns the current runtime data. If the cached data is out-of-date, it will
-	// be updated in this call.
+	// Returns the cached runtime data. Call updates cached data if out-of-date.
+	const FRuntimeData& CacheRuntimeData();
+
+	// Returns the cached runtime data.
 	const FRuntimeData& GetRuntimeData() const;
 
-	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument() const;
+	// Returns all transmissible class inputs.  This is a potentially expensive.
+	// Prefer accessing transmissible class inputs using CacheRuntimeData.
+	TArray<FMetasoundFrontendClassInput> GetTransmittableClassInputs() const;
+
+private:
+	Metasound::Frontend::FNodeRegistryKey RegistryKey;
+
+	// Cache ID is used to determine whether CachedRuntimeData is out-of-date.
+	FGuid CurrentCachedRuntimeDataChangeID;
+	FRuntimeData CachedRuntimeData;
+
+	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument(const TArray<FMetasoundFrontendClassInput>& InTransmittableInputs) const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const;
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
 };

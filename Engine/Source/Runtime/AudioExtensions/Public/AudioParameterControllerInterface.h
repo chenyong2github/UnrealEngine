@@ -75,6 +75,10 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Object Array Parameter"), Category = "Audio|Parameter")
 	virtual void SetObjectArrayParameter(FName InName, const TArray<UObject*>& InValue) = 0;
 
+	// Sets an array of parameters as a batch
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Parameters"), Category = "Audio|Parameter")
+	virtual void SetParameters_Blueprint(const TArray<FAudioParameter>& InParameters) = 0;
+
 	// Sets a named parameter to the given parameter structure value
 	virtual void SetParameter(FAudioParameter&& InValue) = 0;
 
@@ -83,14 +87,14 @@ public:
 
 	// Template Specialization for non-script clients.
 	template<typename DataType> void SetParameter(FName InName, DataType&&) = delete;
-	template<> void SetParameter(FName InName, bool&& InBool) { SetBoolParameter(InName, InBool); }
-	template<> void SetParameter(FName InName, float&& InFloat) { SetFloatParameter(InName, InFloat); }
-	template<> void SetParameter(FName InName, int32&& InInteger) { SetIntParameter(InName, InInteger); }
-	template<> void SetParameter(FName InName, FString&& InString) { SetStringParameter(InName, InString); }
-	template<> void SetParameter(FName InName, UObject*&& InObject) { SetObjectParameter(InName, InObject); }
-	template<> void SetParameter(FName InName, TArray<bool>&& InBools) { SetBoolArrayParameter(InName, InBools); }
-	template<> void SetParameter(FName InName, TArray<float>&& InFloats) { SetFloatArrayParameter(InName, InFloats); }
-	template<> void SetParameter(FName InName, TArray<int32>&& InIntegers) { SetIntArrayParameter(InName, InIntegers); }
-	template<> void SetParameter(FName InName, TArray<FString>&& InStrings) { SetStringArrayParameter(InName, InStrings); }
-	template<> void SetParameter(FName InName, TArray<UObject*>&& InObjects) { SetObjectArrayParameter(InName, InObjects); }
+	template<> void SetParameter(FName InName, bool&& InBool) { SetParameter({ InName, MoveTemp(InBool) }); }
+	template<> void SetParameter(FName InName, float&& InFloat) { SetParameter({ InName, MoveTemp(InFloat) }); }
+	template<> void SetParameter(FName InName, int32&& InInteger) { SetParameter({ InName, MoveTemp(InInteger) }); }
+	template<> void SetParameter(FName InName, FString&& InString) { SetParameter({ InName, MoveTemp(InString) }); }
+	template<> void SetParameter(FName InName, UObject*&& InObject) { SetParameter({ InName, MoveTemp(InObject) }); }
+	template<> void SetParameter(FName InName, TArray<bool>&& InBools) { SetParameter({ InName, MoveTemp(InBools)}); }
+	template<> void SetParameter(FName InName, TArray<float>&& InFloats) { SetParameter({ InName, MoveTemp(InFloats) }); }
+	template<> void SetParameter(FName InName, TArray<int32>&& InIntegers) { SetParameter({ InName, MoveTemp(InIntegers) }); }
+	template<> void SetParameter(FName InName, TArray<FString>&& InStrings) { SetParameter({ InName, MoveTemp(InStrings) }); }
+	template<> void SetParameter(FName InName, TArray<UObject*>&& InObjects) { SetParameter({ InName, MoveTemp(InObjects) }); }
 };

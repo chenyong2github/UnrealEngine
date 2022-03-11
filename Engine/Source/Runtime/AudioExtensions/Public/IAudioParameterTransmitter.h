@@ -54,7 +54,7 @@ namespace Audio
 			virtual uint64 GetInstanceID() const = 0;
 
 			// Parameter Setters
-			virtual bool SetParameter(FAudioParameter&& InValue) = 0;
+			virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) = 0;
 
 			// Create a copy of the instance transmitter.
 			virtual TUniquePtr<Audio::IParameterTransmitter> Clone() const = 0;
