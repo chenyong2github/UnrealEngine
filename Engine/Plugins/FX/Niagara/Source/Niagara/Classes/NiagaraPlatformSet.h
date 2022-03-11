@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "NiagaraPlatformSet.generated.h"
 
-class IConsoleVariable;
 class UDeviceProfile;
 
 UENUM()

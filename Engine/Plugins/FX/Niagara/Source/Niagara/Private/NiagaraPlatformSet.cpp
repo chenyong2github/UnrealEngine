@@ -10,8 +10,6 @@
 #include "NiagaraSettings.h"
 #include "SystemSettings.h"
 
-#include "HAL/IConsoleManager.h"
-
 #if WITH_EDITOR
 #include "PlatformInfo.h"
 #endif
