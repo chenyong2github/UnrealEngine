@@ -10,6 +10,7 @@
 #include "UObject/Script.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectBaseUtility.h"
+#include "UObject/ObjectCompileContext.h"
 #include "ProfilingDebugging/ResourceSize.h"
 #include "UObject/PrimaryAssetId.h"
 
@@ -216,11 +217,7 @@ public:
 	}
 
 #if WITH_EDITOR
-	struct FPostCDOCompiledContext
-	{
-		/** True if this notification was from a 'skeleton-only' compile */
-		bool bIsSkeletonOnly = false;
-	};
+	using FPostCDOCompiledContext = FObjectPostCDOCompiledContext;
 
 	/**
 	 * Called after the Blueprint compiler has finished generating the Class Default Object (CDO) for a class. This can only happen in the editor.
