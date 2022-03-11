@@ -86,7 +86,7 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> InstanceObjects;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	FStateTreeInstanceData InstanceDataDefaultValue;
 
 	/** List of external data required by the state tree, creating during linking. */

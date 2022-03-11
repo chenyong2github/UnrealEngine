@@ -86,7 +86,7 @@ void UStateTree::Link()
 	// This data will be used to allocate runtime instance on all StateTree users.
 	InstanceDataDefaultValue.Reset();
 	if (Instances.Num() > 0)
-	{
+		{
 		InstanceDataDefaultValue.Initialize(Instances);
 	}
 }
