@@ -24,12 +24,15 @@ class FSignedDistanceFieldBuildMaterialData;
 
 namespace MeshCardRepresentation
 {
+	// Generation config
 	extern ENGINE_API float GetMinDensity();
 	extern ENGINE_API float GetNormalTreshold();
 	extern ENGINE_API int32 GetMaxSurfelDistanceXY();
-	extern ENGINE_API int32 GetMaxSurfelDistanceZ();
 	extern ENGINE_API int32 GetSeedIterations();
 	extern ENGINE_API int32 GetGrowIterations();
+
+	// Debugging
+	extern ENGINE_API bool IsDebugMode();
 	extern ENGINE_API int32 GetDebugSurfelDirection();
 };
 
@@ -190,6 +193,15 @@ public:
 	TArray<FSurfel> Surfels;
 	TArray<FRay> SurfelRays;
 	TArray<FSurfelCluster> Clusters;
+	int32 NumSurfels = 0;
+
+	void Init()
+	{
+		Surfels.Reset();
+		SurfelRays.Reset();
+		Clusters.Reset();
+		NumSurfels = 0;
+	}
 };
 
 class FMeshCardsBuildData

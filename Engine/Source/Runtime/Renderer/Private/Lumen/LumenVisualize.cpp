@@ -1197,6 +1197,12 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 		return;
 	}
 
+	// VisualizeCardGeneration runs before LumenSceneUpdate and LumenScene may contain deleted proxies
+	if (LumenSceneData.PendingRemoveOperations.Num() > 0)
+	{
+		return;
+	}
+
 	FConvexVolume ViewFrustum;
 	GetViewFrustumBounds(ViewFrustum, View.ViewMatrices.GetViewProjectionMatrix(), true);
 

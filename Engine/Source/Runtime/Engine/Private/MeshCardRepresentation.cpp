@@ -70,12 +70,6 @@ static TAutoConsoleVariable<int32> CVarCardRepresentationMaxSurfelDistanceXY(
 	TEXT("Max distance (in surfels) when surface elements should be clustered together along XY."),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarCardRepresentationMaxSurfelDistanceZ(
-	TEXT("r.MeshCardRepresentation.DistanceTresholdZ"),
-	16,
-	TEXT("Max distance (in surfels) when surface elements should be clustered together along Z."),
-	ECVF_ReadOnly);
-
 static TAutoConsoleVariable<int32> CVarCardRepresentationSeedIterations(
 	TEXT("r.MeshCardRepresentation.SeedIterations"),
 	3,
@@ -87,6 +81,12 @@ static TAutoConsoleVariable<int32> CVarCardRepresentationGrowIterations(
 	3,
 	TEXT("Max number of grow iterations."),
 	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarCardRepresentationDebug(
+	TEXT("r.MeshCardRepresentation.Debug"),
+	0,
+	TEXT("Enable mesh cards debugging. Skips DDCs and appends extra debug data."),
+	ECVF_Cheat);
 
 static TAutoConsoleVariable<int32> CVarCardRepresentationDebugSurfelDirection(
 	TEXT("r.MeshCardRepresentation.Debug.SurfelDirection"),
@@ -109,16 +109,6 @@ int32 MeshCardRepresentation::GetMaxSurfelDistanceXY()
 	return FMath::Max(CVarCardRepresentationMaxSurfelDistanceXY.GetValueOnAnyThread(), 0);
 }
 
-int32 MeshCardRepresentation::GetMaxSurfelDistanceZ()
-{
-	return FMath::Max(CVarCardRepresentationMaxSurfelDistanceZ.GetValueOnAnyThread(), 0);
-}
-
-int32 MeshCardRepresentation::GetDebugSurfelDirection()
-{
-	return FMath::Clamp(CVarCardRepresentationDebugSurfelDirection.GetValueOnAnyThread(), -1, 5);
-}
-
 int32 MeshCardRepresentation::GetSeedIterations()
 {
 	return FMath::Clamp(CVarCardRepresentationSeedIterations.GetValueOnAnyThread(), 1, 16);
@@ -129,27 +119,40 @@ int32 MeshCardRepresentation::GetGrowIterations()
 	return FMath::Clamp(CVarCardRepresentationGrowIterations.GetValueOnAnyThread(), 0, 16);
 }
 
+bool MeshCardRepresentation::IsDebugMode()
+{
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	return CVarCardRepresentationDebug.GetValueOnAnyThread() != 0;
+#else
+	return false;
+#endif
+}
+
+int32 MeshCardRepresentation::GetDebugSurfelDirection()
+{
+	return FMath::Clamp(CVarCardRepresentationDebugSurfelDirection.GetValueOnAnyThread(), -1, 5);
+}
+
 FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
 
 #if WITH_EDITOR
 
 // DDC key for card representation data, must be changed when modifying the generation code or data format
-#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("B7D0E3B0-440D-4C43-82C7-B2117F14A692")
+#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("69E68026-A68B-A031-A3DF-E7901648DB72")
 
 FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey, int32 MaxLumenMeshCards)
 {
 	const float MinDensity = MeshCardRepresentation::GetMinDensity();
 	const float NormalTreshold = MeshCardRepresentation::GetNormalTreshold();
 	const float MaxSurfelDistanceXY = MeshCardRepresentation::GetMaxSurfelDistanceXY();
-	const float MaxSurfelDistanceZ = MeshCardRepresentation::GetMaxSurfelDistanceZ();
 	const int32 SeedIterations = MeshCardRepresentation::GetSeedIterations();
 	const int32 GrowIterations = MeshCardRepresentation::GetGrowIterations();
-	const int32 DebugSurfelDirection = MeshCardRepresentation::GetDebugSurfelDirection();
+	const bool bDebugMode = MeshCardRepresentation::IsDebugMode();
 
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("CARD"),
-		*FString::Printf(TEXT("%s_%s_%.3f_%.3f_%.3f_%d_%d_%d_%d_%d"), *InMeshKey, CARDREPRESENTATION_DERIVEDDATA_VER, 
-			MinDensity, NormalTreshold, MaxSurfelDistanceXY, MaxSurfelDistanceZ, SeedIterations, GrowIterations, MaxLumenMeshCards, DebugSurfelDirection),
+		*FString::Printf(TEXT("%s_%s%s%.3f_%.3f_%.3f_%d_%d_%d"), *InMeshKey, CARDREPRESENTATION_DERIVEDDATA_VER, bDebugMode ? TEXT("_DEBUG_") : TEXT(""),
+			MinDensity, NormalTreshold, MaxSurfelDistanceXY, SeedIterations, GrowIterations, MaxLumenMeshCards),
 		TEXT(""));
 }
 
@@ -191,7 +194,8 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const IT
 	TArray<uint8> DerivedData;
 
 	COOK_STAT(auto Timer = CardRepresentationCookStats::UsageStats.TimeSyncWork());
-	if (GetDerivedDataCacheRef().GetSynchronous(*InDDCKey, DerivedData, Mesh->GetPathName()))
+
+	if (!MeshCardRepresentation::IsDebugMode() && GetDerivedDataCacheRef().GetSynchronous(*InDDCKey, DerivedData, Mesh->GetPathName()))
 	{
 		COOK_STAT(Timer.AddHit(DerivedData.Num()));
 		FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
@@ -752,6 +756,7 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 				PlatformRenderData = PlatformRenderData->NextCachedRenderData.Get();
 			}
 
+			if (!MeshCardRepresentation::IsDebugMode())
 			{
 				TArray<uint8> DerivedData;
 				// Save built data to DDC

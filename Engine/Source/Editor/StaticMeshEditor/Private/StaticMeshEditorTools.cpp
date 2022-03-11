@@ -49,6 +49,7 @@
 #include "Widgets/Input/STextComboBox.h"
 #include "PerPlatformPropertyCustomization.h"
 #include "Misc/ScopedSlowTask.h"
+#include "MeshCardRepresentation.h"
 
 const uint32 MaxHullCount = 64;
 const uint32 MinHullCount = 1;
@@ -4209,6 +4210,12 @@ bool FLevelOfDetailSettingsLayout::IsApplyNeeded() const
 		{
 			return true;
 		}
+	}
+
+	// Allow to rebuild mesh card representation on demand when debugging it
+	if (MeshCardRepresentation::IsDebugMode())
+	{
+		return true;
 	}
 
 	return false;
