@@ -10,7 +10,7 @@ import java.nio.file.Path;
 
 public class ValidatePermissions
 {
-	public static Map<String, String> ReadWhitelist(String filename)
+	public static Map<String, String> ReadAllowList(String filename)
 	{
 		Path path = Paths.get(filename);
 		if (Files.notExists(path))
@@ -38,11 +38,11 @@ public class ValidatePermissions
 
 	public static void main(String[] args)
 	{
-		String whitelistFilename = "permission_whitelist.txt";
-		Map<String, String> whitelist = ReadWhitelist(whitelistFilename);
-		if (whitelist == null)
+		String allowlistFilename = "permission_allowlist.txt";
+		Map<String, String> allowlist = ReadAllowList(allowlistFilename);
+		if (allowlist == null)
 		{
-			System.out.println("ValidatePermissions: permission_whitelist.txt not provided; not validating.");
+			System.out.println("ValidatePermissions: permission_allow.txt not provided; not validating.");
 			System.exit(0);
 		}
 
@@ -119,10 +119,10 @@ public class ValidatePermissions
 					}
 					line = line.substring(0, stopIndex);
 
-					// check against whitelist
-					if (!whitelist.containsKey(line))
+					// check against allowlist
+					if (!allowlist.containsKey(line))
 					{
-						System.out.println("ERROR: Permission '" + line + "' NOT whitelisted!");
+						System.out.println("ERROR: Permission '" + line + "' NOT allow listed!");
 						System.exit(-1);
 					}
 				}
