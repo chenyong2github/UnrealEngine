@@ -64,7 +64,7 @@ FPreviewScene::FPreviewScene(FPreviewScene::ConstructionValues CVS)
 		{
 			PreviewWorld->SetGameMode(URL);
 
-			AGameMode* Mode = PreviewWorld->GetAuthGameMode<AGameMode>();
+			AGameModeBase* Mode = PreviewWorld->GetAuthGameMode<AGameModeBase>();
 			ensure(Mode);
 		}
 	}
