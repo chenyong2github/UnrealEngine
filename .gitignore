@@ -252,4 +252,4 @@ Engine/Extras/ThirdPartyNotUE/SDKs/HostLinux/**
 /Engine/Binaries/ThirdParty/USD/**
 
 # Ignore test json data files in NeuralNetworkInterface
-/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps/json/**
+/Engine/Plugins/Experimental/NNI/Source/ThirdParty/Deps/json/**
