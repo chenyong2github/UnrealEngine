@@ -616,17 +616,8 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& InOutOutputPortConfi
 
 	CommunicationDeterminator.SetLoopbackToEngine(OutputPortConfig.NeedsLoopbackToEngine());
 
-	const bool bValidDeviceAddress = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs().ContainsByPredicate([this](const TSharedPtr<FString>& IPAddress)
-		{
-			return *IPAddress == DeviceAddress;
-		});
-	if (!bValidDeviceAddress)
-	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot register Output Port %s. Device Address '%s' does not exist on the local machine."), *PortName, *DeviceAddress);
-	}
-
 	// Re-register the port if required
-	if (bNeedsUpdateRegistration && bValidDeviceAddress)
+	if (bNeedsUpdateRegistration)
 	{
 		Register();
 	}

@@ -151,18 +151,20 @@ TArray<TSharedPtr<IDMXSender>> FDMXProtocolSACN::RegisterOutputPort(const TShare
 
 	// Try to use an existing receiver or create a new one
 	TArray<TSharedPtr<IDMXSender>> NewSenders;
-	
 	if (CommunicationType == EDMXCommunicationType::Multicast)
 	{
 		TSharedPtr<FDMXProtocolSACNSender> NewSender = FindExistingMulticastSender(NetworkInterfaceAddress);
 		if (!NewSender.IsValid())
 		{
 			NewSender = FDMXProtocolSACNSender::TryCreateMulticastSender(SharedThis(this), NetworkInterfaceAddress);
-			Senders.Add(NewSender);
 		}
 
-		NewSender->AssignOutputPort(OutputPort);
-		NewSenders.Add(NewSender);
+		if (NewSender.IsValid())
+		{
+			Senders.Add(NewSender);
+			NewSender->AssignOutputPort(OutputPort);
+			NewSenders.Add(NewSender);
+		}
 	}
 	else if (CommunicationType == EDMXCommunicationType::Unicast)
 	{
@@ -177,11 +179,14 @@ TArray<TSharedPtr<IDMXSender>> FDMXProtocolSACN::RegisterOutputPort(const TShare
 			if (!NewSender.IsValid())
 			{
 				NewSender = FDMXProtocolSACNSender::TryCreateUnicastSender(SharedThis(this), NetworkInterfaceAddress, UnicastAddress);
-				Senders.Add(NewSender);
 			}
 
-			NewSender->AssignOutputPort(OutputPort);
-			NewSenders.Add(NewSender);
+			if (NewSender.IsValid())
+			{
+				Senders.Add(NewSender);
+				NewSender->AssignOutputPort(OutputPort);
+				NewSenders.Add(NewSender);
+			}
 		}
 	}
 	else
