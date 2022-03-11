@@ -1431,8 +1431,8 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 		bSupportsInstanceDataBuffer = true;
 		InstanceSceneData.SetNumZeroed(NumRenderInstances);
 
-		bHasPerInstanceDynamicData = InComponent->PerInstancePrevTransform.Num() == InComponent->GetInstanceCount();
-		InstanceDynamicData.SetNumUninitialized(bHasPerInstanceDynamicData ? NumRenderInstances : 0);
+		bHasPerInstanceDynamicData = InComponent->PerInstancePrevTransform.Num() > 0 && InComponent->PerInstancePrevTransform.Num() == InComponent->GetInstanceCount();
+		InstanceDynamicData.SetNumZeroed(bHasPerInstanceDynamicData ? NumRenderInstances : 0);
 
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
