@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class ADisplayClusterRootActor;
+class SDisplayClusterLightCardEditor;
 class ITableRow;
 class STableViewBase;
 
@@ -36,11 +37,14 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& args);
+	void Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor);
 
 	void SetRootActor(ADisplayClusterRootActor* NewRootActor);
 
 	const TArray<TSharedPtr<FLightCardTreeItem>>& GetLightCardActors() const { return LightCardActors; }
+
+	void SelectLightCards(const TArray<AActor*>& LightCardsToSelect);
+
 private:
 	/**
 	 * Fill the LightCard list with available LightCards.
@@ -53,6 +57,9 @@ private:
 	void OnTreeItemSelected(TSharedPtr<FLightCardTreeItem> InItem, ESelectInfo::Type SelectInfo);
 
 private:
+	/** Pointer to the light card editor that owns this widget */
+	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
+
 	/** A hierarchical list of light card tree items to be displayed in the tree view */
 	TArray<TSharedPtr<FLightCardTreeItem>> LightCardTree;
 

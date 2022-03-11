@@ -48,6 +48,13 @@ private:
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
+	/** Adds a pass to perform the translucency render for the mesh projection. */
+	void AddTranslucencyRenderPass(FRDGBuilder& GraphBuilder, 
+		const FViewInfo* View,
+		EDisplayClusterMeshProjectionType ProjectionType,
+		FRenderTargetBinding& OutputRenderTargetBinding,
+		FDepthStencilBinding& OutputDepthStencilBinding);
+
 	/** Adds a pass to perform the hit proxy render for the mesh projection */
 	void AddHitProxyRenderPass(FRDGBuilder& GraphBuilder, 
 		const FViewInfo* View,
@@ -73,7 +80,7 @@ private:
 
 	/** Renders the list of primitive components using the appropriate mesh pass processor given by the template parameter */
 	template<EDisplayClusterMeshProjectionType ProjectionType>
-	void RenderPrimitives_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList);
+	void RenderPrimitives_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, bool bTranslucencyPass);
 
 	/** Renders the hit proxies of the list of primitive components using the appropriate mesh pass processor given by the template parameter */
 	template<EDisplayClusterMeshProjectionType ProjectionType>

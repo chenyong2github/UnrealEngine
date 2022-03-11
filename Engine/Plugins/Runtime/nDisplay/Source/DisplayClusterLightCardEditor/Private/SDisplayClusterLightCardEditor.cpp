@@ -6,6 +6,7 @@
 
 #include "IDisplayClusterOperator.h"
 #include "Viewport/DisplayClusterLightcardEditorViewport.h"
+#include "Viewport/DisplayClusterLightCardEditorViewportClient.h"
 
 #include "DisplayClusterRootActor.h"
 
@@ -112,6 +113,18 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 	BindCompileDelegates();
 }
 
+void SDisplayClusterLightCardEditor::SelectLightCards(const TArray<AActor*>& LightCardsToSelect)
+{
+	check(LightCardList);
+	LightCardList->SelectLightCards(LightCardsToSelect);
+}
+
+void SDisplayClusterLightCardEditor::SelectLightCardProxies(const TArray<AActor*>& LightCardsToSelect)
+{
+	check(ViewportView);
+	ViewportView->GetLightCardEditorViewportClient()->SelectLightCards(LightCardsToSelect);
+}
+
 void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
 	RemoveCompileDelegates();
@@ -129,7 +142,7 @@ void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRoo
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
 {
-	return SAssignNew(LightCardList, SDisplayClusterLightCardList);
+	return SAssignNew(LightCardList, SDisplayClusterLightCardList, SharedThis(this));
 }
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateViewportWidget()

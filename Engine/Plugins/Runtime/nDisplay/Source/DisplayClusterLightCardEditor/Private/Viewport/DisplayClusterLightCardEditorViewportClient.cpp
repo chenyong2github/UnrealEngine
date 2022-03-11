@@ -412,6 +412,10 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
 	check(PreviewWorld);
 
+	const bool bIsCtrlKeyDown = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
+
+	const bool bMultiSelect = Key == EKeys::LeftMouseButton && bIsCtrlKeyDown;
+
 	if (HitProxy)
 	{
 		if (HitProxy->IsA(HActor::StaticGetType()))
@@ -422,14 +426,14 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 				if (ActorHitProxy->PrimComponent && ActorHitProxy->PrimComponent->IsA<UStaticMeshComponent>())
 				{
 					AActor* TracedLightCard = TraceScreenForLightCard(View, HitX, HitY);
-					SelectLightCard(TracedLightCard);
+					SelectLightCard(TracedLightCard, bMultiSelect);
 				}
 			}
 			else if (LightCardProxies.Contains(ActorHitProxy->Actor))
 			{
-				SelectLightCard(ActorHitProxy->Actor);
+				SelectLightCard(ActorHitProxy->Actor, bMultiSelect);
 			}
-			else
+			else if (!bMultiSelect)
 			{
 				SelectLightCard(nullptr);
 			}
@@ -440,6 +444,8 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 		SelectLightCard(nullptr);
 	}
 	
+	PropagateLightCardSelection();
+
 	FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
 }
 
@@ -526,16 +532,15 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 		RootActorProxy.Reset();
 	}
 	
-	for (const TWeakObjectPtr<AActor>& LightCardProxy : LightCardProxies)
+	for (const FLightCardProxy& LightCardProxy : LightCardProxies)
 	{
-		if (LightCardProxy.IsValid())
+		if (LightCardProxy.Proxy.IsValid())
 		{
-			PreviewWorld->EditorDestroyActor(LightCardProxy.Get(), false);
+			PreviewWorld->EditorDestroyActor(LightCardProxy.Proxy.Get(), false);
 		}
 	}
 
 	RootActorLevelInstance.Reset();
-	LightCardLevelInstances.Empty();
 	LightCardProxies.Empty();
 	
 	if (RootActor)
@@ -570,9 +575,10 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 			RootActorProxy->UpdatePreviewComponents();
 
-			FindLightCardsForRootActor(RootActor, LightCardLevelInstances);
+			TArray<TWeakObjectPtr<AActor>> LightCards;
+			FindLightCardsForRootActor(RootActor, LightCards);
 			
-			for (const TWeakObjectPtr<AActor>& LightCard : LightCardLevelInstances)
+			for (const TWeakObjectPtr<AActor>& LightCard : LightCards)
 			{
 				FObjectDuplicationParameters DupeActorParameters(LightCard.Get(), PreviewWorld->GetCurrentLevel());
 				DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
@@ -584,10 +590,29 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActor->GetActorLocation());
 				LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActor->GetActorRotation());
 
-				LightCardProxies.Add(LightCardProxy);
+				LightCardProxies.Add(FLightCardProxy(LightCard.Get(), LightCardProxy));
+
 				MeshProjectionRenderer->AddActor(LightCardProxy);
 			}
 		});
+	}
+
+	Viewport->InvalidateHitProxy();
+	bShouldCheckHitProxy = true;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::SelectLightCards(const TArray<AActor*>& LightCardsToSelect)
+{
+	SelectLightCard(nullptr);
+	for (AActor* LightCard : LightCardsToSelect)
+	{
+		if (FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(LightCard))
+		{
+			if (FoundProxy->Proxy.IsValid())
+			{
+				SelectLightCard(FoundProxy->Proxy.Get(), true);
+			}
+		}
 	}
 }
 
@@ -900,6 +925,23 @@ void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(AActor* Actor
 	{
 		UpdatedActor->PushSelectionToProxies();
 	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardSelection()
+{
+	TArray<AActor*> SelectedLevelInstances;
+	for (const TWeakObjectPtr<AActor>& SelectedLightCard : SelectedLightCards)
+	{
+		if (FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(SelectedLightCard.Get()))
+		{
+			if (FoundProxy->LevelInstance.IsValid())
+			{
+				SelectedLevelInstances.Add(FoundProxy->LevelInstance.Get());
+			}
+		}
+	}
+
+	LightCardEditorPtr.Pin()->SelectLightCards(SelectedLevelInstances);
 }
 
 AActor* FDisplayClusterLightCardEditorViewportClient::TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY)

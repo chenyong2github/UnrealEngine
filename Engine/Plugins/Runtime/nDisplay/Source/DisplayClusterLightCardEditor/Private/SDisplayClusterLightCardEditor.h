@@ -48,6 +48,12 @@ public:
 	/** The current active root actor for this light card editor. */
 	TWeakObjectPtr<ADisplayClusterRootActor> GetActiveRootActor() const { return ActiveRootActor; }
 
+	/** Selects the specified light cards in the light card list and details panel */
+	void SelectLightCards(const TArray<AActor*>& LightCardsToSelect);
+
+	/** Selects the light card proxies that correspond to the specified light cards */
+	void SelectLightCardProxies(const TArray<AActor*>& LightCardsToSelect);
+
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);

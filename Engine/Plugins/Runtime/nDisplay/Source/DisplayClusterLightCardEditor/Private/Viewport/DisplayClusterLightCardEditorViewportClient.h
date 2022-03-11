@@ -47,6 +47,9 @@ public:
 	/** Update the spawned preview actor from a root actor in the level. */
 	void UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce = false);
 	
+	/** Selects the light card proxies that correspond to the specified light cards */
+	void SelectLightCards(const TArray<AActor*>& LightCardsToSelect);
+
 	EDisplayClusterMeshProjectionType GetProjectionMode() const { return ProjectionMode; }
 	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode);
 
@@ -84,6 +87,9 @@ private:
 	/** Adds the specified light card actor the the list of selected light cards */
 	void SelectLightCard(AActor* Actor, bool bAddToSelection = false);
 
+	/** Notifies the light card editor of the currently selected light cards so that it may update other UI components to match */
+	void PropagateLightCardSelection();
+
 	/** Traces to find the light card corresponding to a click on a stage screen */
 	AActor* TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY);
 
@@ -93,8 +99,20 @@ private:
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorProxy;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
 
-	TArray<TWeakObjectPtr<AActor>> LightCardProxies;
-	TArray<TWeakObjectPtr<AActor>> LightCardLevelInstances;
+	struct FLightCardProxy
+	{
+		TWeakObjectPtr<AActor> LevelInstance;
+		TWeakObjectPtr<AActor> Proxy;
+
+		FLightCardProxy(AActor* InLevelInstance, AActor* InProxy)
+			: LevelInstance(InLevelInstance)
+			, Proxy(InProxy)
+		{ }
+
+		bool operator==(AActor* Actor) const { return (LevelInstance.IsValid() && LevelInstance.Get() == Actor) || (Proxy.IsValid() && Proxy.Get() == Actor); }
+	};
+
+	TArray<FLightCardProxy> LightCardProxies;
 	TArray<TWeakObjectPtr<AActor>> SelectedLightCards;
 	
 	/** The renderer for the viewport, which can render the meshes with a variety of projection types */

@@ -2,6 +2,8 @@
 
 #include "SDisplayClusterLightCardList.h"
 
+#include "SDisplayClusterLightCardEditor.h"
+
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "IDisplayClusterOperator.h"
@@ -123,8 +125,10 @@ private:
 };
 
 
-void SDisplayClusterLightCardList::Construct(const FArguments& InArgs)
+void SDisplayClusterLightCardList::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor)
 {
+	LightCardEditorPtr = InLightCardEditor;
+
 	ChildSlot
 	[
 		SAssignNew(LightCardTreeView, STreeView<TSharedPtr<FLightCardTreeItem>>)
@@ -161,6 +165,22 @@ void SDisplayClusterLightCardList::SetRootActor(ADisplayClusterRootActor* NewRoo
 			LightCardTreeView->SetItemExpansion(LightCardTreeItem, true);
 		}
 	}
+}
+
+void SDisplayClusterLightCardList::SelectLightCards(const TArray<AActor*>& LightCardsToSelect)
+{
+	LightCardTreeView->ClearSelection();
+
+	TArray<TSharedPtr<FLightCardTreeItem>> SelectedTreeItems;
+	for (const TSharedPtr<FLightCardTreeItem>& TreeItem : LightCardActors)
+	{
+		if (LightCardsToSelect.Contains(TreeItem->LightCardActor))
+		{
+			SelectedTreeItems.Add(TreeItem);
+		}
+	}
+
+	LightCardTreeView->SetItemSelection(SelectedTreeItems, true);
 }
 
 bool SDisplayClusterLightCardList::FillLightCardList()
@@ -266,13 +286,23 @@ void SDisplayClusterLightCardList::GetChildrenForTreeItem(TSharedPtr<FLightCardT
 
 void SDisplayClusterLightCardList::OnTreeItemSelected(TSharedPtr<FLightCardTreeItem> InItem, ESelectInfo::Type SelectInfo)
 {
-	if (InItem.IsValid() && InItem->LightCardActor.IsValid())
+	TArray<TSharedPtr<FLightCardTreeItem>> SelectedTreeItems;
+	LightCardTreeView->GetSelectedItems(SelectedTreeItems);
+
+	TArray<AActor*> SelectedLightCards;
+	for (const TSharedPtr<FLightCardTreeItem>& SelectedTreeItem : SelectedTreeItems)
 	{
-		IDisplayClusterOperator::Get().ShowDetailsForObject(InItem->LightCardActor.Get());
+		if (SelectedTreeItem->LightCardActor.IsValid())
+		{
+			SelectedLightCards.Add(SelectedTreeItem->LightCardActor.Get());
+		}
 	}
-	else
+
+	IDisplayClusterOperator::Get().ShowDetailsForObjects(*reinterpret_cast<TArray<UObject*>*>(&SelectedLightCards));
+
+	if (LightCardEditorPtr.IsValid())
 	{
-		IDisplayClusterOperator::Get().ShowDetailsForObject(nullptr);
+		LightCardEditorPtr.Pin()->SelectLightCardProxies(SelectedLightCards);
 	}
 }
 
