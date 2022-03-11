@@ -78,6 +78,8 @@ private:
 
 	void RegisterMenus();
 
+	void OnEditorClose();
+
 private:
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExtendSourcesMenuEvent, TSharedRef<FExtender>, UTakeRecorderSources*);

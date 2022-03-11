@@ -8,6 +8,7 @@
 #include "TakeRecorderCommands.h"
 #include "TakeRecorderStyle.h"
 #include "TakePresetActions.h"
+#include "Recorder/TakeRecorder.h"
 
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
@@ -279,12 +280,30 @@ void FTakeRecorderModule::StartupModule()
 			FCoreDelegates::OnPostEngineInit.AddRaw(this, &FTakeRecorderModule::RegisterMenus);
 		}
 	}
+
+	if (GEditor)
+	{
+		GEditor->OnEditorClose().AddRaw(this, &FTakeRecorderModule::OnEditorClose);
+	}
 #endif
+}
+
+void FTakeRecorderModule::OnEditorClose()
+{
+	if (UTakeRecorder* ActiveRecorder = UTakeRecorder::GetActiveRecorder())
+	{
+		ActiveRecorder->Stop();
+	}
 }
 
 void FTakeRecorderModule::ShutdownModule()
 {
 #if WITH_EDITOR
+	if (GEditor)
+	{
+		GEditor->OnEditorClose().RemoveAll(this);
+	}
+
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 #endif
 
