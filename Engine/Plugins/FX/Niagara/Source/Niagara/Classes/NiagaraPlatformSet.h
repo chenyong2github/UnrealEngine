@@ -290,7 +290,7 @@ struct FNiagaraPlatformSetRedirect
 	TArray<FName> ProfileNames;
 
 	UPROPERTY(EditAnywhere, Category = Redirect)
-	ENiagaraDeviceProfileRedirectMode Mode;
+	ENiagaraDeviceProfileRedirectMode Mode = ENiagaraDeviceProfileRedirectMode::CVar;
 
 	/** When in Device Profile mode, the name of the device profile to redirect to. */
 	UPROPERTY(EditAnywhere, Category = Redirect, meta = (EditCondition = "Mode == ENiagaraDeviceProfileRedirectMode::DeviceProfile"))
