@@ -2,9 +2,15 @@
 
 #pragma once
 
+// Define to switch between spline using the thirdparty TinySpline implementation or
+// our native spline implementation
+#define USE_TINYSPLINE 0
+
 #include "CoreMinimal.h"
 #include "ControlRigDefines.h"
+#if USE_TINYSPLINE
 #include "tinysplinecxx.h"
+#endif
 #include "ControlRigSplineTypes.generated.h"
 
 class UControlRig;
@@ -24,6 +30,64 @@ enum class ESplineType : uint8
 	Max UMETA(Hidden),
 };
 
+#if !(USE_TINYSPLINE)
+// Reading material
+// 
+// https://pages.mtu.edu/~shene/COURSES/cs3621/NOTES/notes.html
+// https://github.com/caadxyz/DeBoorAlgorithmNurbs
+// https://stackoverflow.com/questions/32897943/how-do-catmull-rom-and-hermite-splines-relate
+
+// https://stackoverflow.com/questions/30748316/%20catmull-rom-interpolation-on-svg-paths/30826434#30826434
+// https://stackoverflow.com/questions/32897943/how-do-catmull-rom-and-hermite-splines-relate
+// https://www.cs.cmu.edu/~fp/courses/graphics/asst5/catmullRom.pdf
+
+class ControlRigBaseSpline
+{
+
+protected:
+	TArray<FVector> ControlPoints;
+	uint16 Degree;
+	
+public:
+
+	ControlRigBaseSpline(const TArrayView<const FVector>& InControlPoints, uint16 InDegree);
+	virtual ~ControlRigBaseSpline(){}
+	
+	virtual FVector GetPointAtParam(float Param) = 0;
+
+	virtual void SetControlPoints(const TArrayView<const FVector>& InControlPoints) { ControlPoints = InControlPoints; }
+
+	TArray<FVector>& GetControlPoints() { return ControlPoints; }
+};
+
+class ControlRigBSpline : public ControlRigBaseSpline
+{
+	TArray<float> KnotVector;
+	
+public:
+	ControlRigBSpline(const TArrayView<const FVector>& InControlPoints, const uint16 InDegree, const bool bInClamped);
+	
+	virtual FVector GetPointAtParam(float Param);
+
+};
+
+class ControlRigHermite : public ControlRigBaseSpline
+{
+	TArray<FVector> SegmentPoints;
+
+	uint16 NumSegments;
+	
+public:
+	ControlRigHermite(const TArrayView<const FVector>& InControlPoints);
+
+	virtual void SetControlPoints(const TArrayView<const FVector>& InControlPoints) override;
+	
+	virtual FVector GetPointAtParam(float Param);
+
+};
+
+#endif
+
 USTRUCT()
 struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 {
@@ -32,20 +96,31 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 	FControlRigSplineImpl()	
 	{
 		SplineMode = ESplineType::BSpline;
+#if !(USE_TINYSPLINE)
+		Spline = nullptr;
+#endif
 		SamplesPerSegment = 16;
 	}
+
+	virtual ~FControlRigSplineImpl();
 
 	// Spline type
 	ESplineType SplineMode;
 
+#if USE_TINYSPLINE
 	// The control points to construct the spline
 	TArray<FVector> ControlPoints;
+#endif
 
 	// The initial lengths between samples
 	TArray<float> InitialLengths;
 
 	// The actual spline
+#if USE_TINYSPLINE
 	tinyspline::BSpline Spline;
+#else
+	ControlRigBaseSpline* Spline;
+#endif
 
 	// Samples per segment, where segment is the portion between two control points
 	int32 SamplesPerSegment;
@@ -61,6 +136,9 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 
 	// Accumulated length along the spline given by samples
 	TArray<float> AccumulatedLenth;
+
+	// Returns a reference to the control points that were used to create this spline 
+	TArray<FVector>& GetControlPoints();
 };
 
 USTRUCT(BlueprintType)

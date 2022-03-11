@@ -26,11 +26,6 @@
 			"Name": "ControlRigSpline",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "ControlRigSplineEditor",
-			"Type": "Editor",
-			"LoadingPhase": "PostEngineInit"
 		}
 	]
 }
