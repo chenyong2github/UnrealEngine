@@ -41,7 +41,7 @@ static TAutoConsoleVariable<int32> CVarAllowScalabilityGroupsToChangeAtRuntime(
 TMap<FString, FString> UDeviceProfileManager::DeviceProfileScalabilityCVars;
 
 FString UDeviceProfileManager::BackupSuffix = TEXT("_Backup");
-TMap<FString, FString> UDeviceProfileManager::PushedSettings;
+TMap<FString, FPushedCVarSetting> UDeviceProfileManager::PushedSettings;
 TArray<FSelectedFragmentProperties> UDeviceProfileManager::PlatformFragmentsSelected;
 
 UDeviceProfileManager* UDeviceProfileManager::DeviceProfileManagerSingleton = nullptr;
@@ -385,12 +385,12 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 							{
 								if (CVar)
 								{
-									// remember the previous value
-									FString OldValue = CVar->GetString();
-									PushedSettings.Add(CVarKey, OldValue);
+									// remember the previous value and priority
+									FPushedCVarSetting OldSetting = FPushedCVarSetting(CVar->GetString(), CVar->GetFlags());
+									PushedSettings.Add(CVarKey, OldSetting);
 
 									// indicate we are pushing, not setting
-									UE_LOG(LogDeviceProfileManager, Log, TEXT("Pushing Device Profile CVar: [[%s:%s -> %s]]"), *CVarKey, *OldValue, *CVarValue);
+									UE_LOG(LogDeviceProfileManager, Log, TEXT("Pushing Device Profile CVar: [[%s:%s -> %s]]"), *CVarKey, *OldSetting.Value, *CVarValue);
 								}
 								else
 								{
@@ -480,17 +480,29 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 /**
 * Set the cvar state to PushedSettings.
 */
-static void RestorePushedState(TMap<FString, FString>& PushedSettings)
+static void RestorePushedState(TMap<FString, FPushedCVarSetting>& PushedSettings)
 {
 	// restore pushed settings
-	for (TMap<FString, FString>::TIterator It(PushedSettings); It; ++It)
+	for (TMap<FString, FPushedCVarSetting>::TIterator It(PushedSettings); It; ++It)
 	{
 		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*It.Key());
 		if (CVar)
 		{
-			// restore it!
-			CVar->SetWithCurrentPriority(*It.Value());
-			UE_LOG(LogDeviceProfileManager, Log, TEXT("Popping Device Profile CVar: [[%s:%s]]"), *It.Key(), *It.Value());
+			const FPushedCVarSetting& Setting = It.Value();
+
+			// Check if the priority has increased since we pushed it and is now higher than SetByDeviceProfile
+			EConsoleVariableFlags CurrentPriority = EConsoleVariableFlags(int32(CVar->GetFlags()) & (int32)ECVF_SetByMask);
+			if (CurrentPriority > ECVF_SetByDeviceProfile && CurrentPriority > Setting.SetBy )
+			{
+				UE_LOG(LogDeviceProfileManager, Warning, TEXT("Popping Device Profile CVar skipped because priority has been overridden to higher than ECVF_SetByDeviceProfile since the last push [[%s:%s]]"), *It.Key(), *Setting.Value);
+			}
+			else
+			{
+				// restore it!
+				CVar->SetWithCurrentPriority(*Setting.Value);
+				UE_LOG(LogDeviceProfileManager, Log, TEXT("Popping Device Profile CVar: [[%s:%s]]"), *It.Key(), *Setting.Value);
+			}
+
 		}
 	}
 
@@ -954,9 +966,9 @@ void UDeviceProfileManager::SetPreviewDeviceProfile(UDeviceProfile* DeviceProfil
 		// skip over scalability group cvars (maybe they shouldn't be left in the AllExpandedCVars?)
 		if (CVar != nullptr && !CVar->TestFlags(EConsoleVariableFlags::ECVF_ScalabilityGroup))
 		{
-			// remember the previous value so we can restore
-			FString OldValue = CVar->GetString();
-			PreviewPushedSettings.Add(Pair.Key, OldValue);
+			// remember the previous value and priority so we can restore
+			FPushedCVarSetting OldSetting = FPushedCVarSetting(CVar->GetString(), CVar->GetFlags());
+			PreviewPushedSettings.Add(Pair.Key, OldSetting);
 			//UE_LOG(LogDeviceProfileManager, Log, TEXT("Pushing Device Profile CVar: [[%s:%s]]"), *Pair.Key, *Pair.Value);
 			// cheat CVar can only be set in ConsoleVariables.ini
 			if (!CVar->TestFlags(EConsoleVariableFlags::ECVF_Cheat))

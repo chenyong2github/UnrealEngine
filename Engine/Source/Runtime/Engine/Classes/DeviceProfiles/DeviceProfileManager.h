@@ -11,6 +11,7 @@
 #include "UObject/Object.h"
 #include "DeviceProfileMatching.h"
 #include "CoreGlobals.h"
+#include "HAL/IConsoleManager.h"
 #include "DeviceProfileManager.generated.h"
 
 class UDeviceProfile;
@@ -20,6 +21,18 @@ DECLARE_MULTICAST_DELEGATE( FOnDeviceProfileManagerUpdated );
 
 // Delegate used to notify systems when the active device profile changes
 DECLARE_MULTICAST_DELEGATE( FOnActiveDeviceProfileChanged );
+
+struct FPushedCVarSetting
+{
+	FPushedCVarSetting() : SetBy(ECVF_Default)	{}
+	FPushedCVarSetting(const FString& InValue, EConsoleVariableFlags InFlags) 
+		: Value(InValue)
+		, SetBy(EConsoleVariableFlags(InFlags & ECVF_SetByMask))
+	{}
+
+	FString Value;
+	EConsoleVariableFlags SetBy;
+};
 
 /**
  * Implements a helper class that manages all profiles in the Device
@@ -272,11 +285,11 @@ private:
 
 	// Original values of all the CVars modified by the DP.
 	// Used to undo the DP before applying new state.
-	static TMap<FString, FString> PushedSettings;
+	static TMap<FString, FPushedCVarSetting> PushedSettings;
 
 #if ALLOW_OTHER_PLATFORM_CONFIG
 	// Original values of the CVars modified by SetPreviewDeviceProfile.
-	TMap<FString, FString> PreviewPushedSettings;
+	TMap<FString, FPushedCVarSetting> PreviewPushedSettings;
 #endif
 	// Holds the device profile that has been overridden, null no override active.
 	UDeviceProfile* BaseDeviceProfile = nullptr;
