@@ -1340,6 +1340,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 						{
 							FMeshBatch& OverlayMeshBatch = Collector.AllocateMesh();
 							OverlayMeshBatch = MeshBatch;
+							OverlayMeshBatch.bOverlayMaterial = true;
 							OverlayMeshBatch.CastShadow = false;
 							OverlayMeshBatch.bSelectable = false;
 							OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
@@ -1467,6 +1468,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 							{
 								FMeshBatch& OverlayMeshBatch = Collector.AllocateMesh();
 								OverlayMeshBatch = MeshElement;
+								OverlayMeshBatch.bOverlayMaterial = true;
 								OverlayMeshBatch.CastShadow = false;
 								OverlayMeshBatch.bSelectable = false;
 								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();

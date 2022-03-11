@@ -206,6 +206,15 @@ void UMeshComponent::SetOverlayMaterial(UMaterialInterface* NewOverlayMaterial)
 	}
 }
 
+void UMeshComponent::SetOverlayMaterialMaxDrawDistance(float InMaxDrawDistance)
+{
+	if (OverlayMaterialMaxDrawDistance != InMaxDrawDistance)
+	{
+		OverlayMaterialMaxDrawDistance = InMaxDrawDistance;
+		MarkRenderStateDirty();
+	}
+}
+
 void UMeshComponent::PrestreamTextures( float Seconds, bool bPrioritizeCharacterTextures, int32 CinematicTextureGroups )
 {
 	// If requested, tell the streaming system to only process character textures for 30 frames.

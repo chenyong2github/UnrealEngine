@@ -45,6 +45,10 @@ public:
 	/** Translucent material to blend on top of this mesh. Mesh will be rendered twice - once with a base material and once with overlay material */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=Rendering)
 	TObjectPtr<class UMaterialInterface> OverlayMaterial;
+	
+	/** The max draw distance for overlay material. A distance of 0 indicates that overlay will be culled using primitive max distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=Rendering)
+	float OverlayMaterialMaxDrawDistance;
 
 	/** Get the overlay material used by this instance */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
@@ -53,6 +57,10 @@ public:
 	/** Change the overlay material used by this instance */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetOverlayMaterial(class UMaterialInterface* NewOverlayMaterial);
+
+	/** Change the overlay material max draw distance used by this instance */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	void SetOverlayMaterialMaxDrawDistance(float InMaxDrawDistance);
 
 #if WITH_EDITOR
 	/*

@@ -243,6 +243,7 @@ protected:
 	class UPhysicsAsset* PhysicsAssetForDebug;
 	
 	UMaterialInterface* OverlayMaterial;
+	float OverlayMaterialMaxDrawDistance;
 public:
 #if RHI_RAYTRACING
 	bool bAnySegmentUsesWorldPositionOffset : 1;

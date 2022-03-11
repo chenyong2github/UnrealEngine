@@ -2520,6 +2520,8 @@ struct FRelevancePacket
 		const bool bMobileBasePassAlwaysUsesCSM = (ShadingPath == EShadingPath::Mobile) && MobileBasePassAlwaysUsesCSM(Scene->GetShaderPlatform());
 		const bool bHLODActive = Scene->SceneLODHierarchy.IsActive();
 		const FHLODVisibilityState* const HLODState = bHLODActive && ViewState ? &ViewState->HLODVisibilityState : nullptr;
+		float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
+		MaxDrawDistanceScale *= GetCachedScalabilityCVars().CalculateFieldOfViewDistanceScale(View.DesiredFOV);
 
 		
 		for (int32 StaticPrimIndex = 0, Num = RelevantStaticPrimitives.NumPrims; StaticPrimIndex < Num; ++StaticPrimIndex)
@@ -2553,6 +2555,20 @@ struct FRelevancePacket
 			{
 				const FStaticMeshBatchRelevance& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
 				const FStaticMeshBatch& StaticMesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
+
+				if (StaticMesh.bOverlayMaterial && !View.Family->EngineShowFlags.DistanceCulledPrimitives)
+				{
+					// Overlay mesh can have a his own cull distance that is shorter than primitive cull distance
+					float OverlayMaterialMaxDrawDistance = StaticMeshRelevance.ScreenSize;
+					if (OverlayMaterialMaxDrawDistance > 1.f && OverlayMaterialMaxDrawDistance != FLT_MAX)
+					{
+						if (DistanceSquared > FMath::Square(OverlayMaterialMaxDrawDistance * MaxDrawDistanceScale))
+						{
+							// distance culled
+							continue;
+						}
+					}
+				}
 
 				if (LODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
 				{
@@ -2805,7 +2821,9 @@ struct FRelevancePacket
 							BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
 						}
 
-						if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
+						// FIXME: Now if a primitive has one batch with a decal material all primitive mesh batches will be added as decals
+						// Because ViewRelevance is a sum of all material relevances in the primitive
+						if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal && StaticMeshRelevance.bUseForMaterial)
 						{
 							MeshDecalBatches.AddUninitialized(1);
 							FMeshDecalBatch& BatchAndProxy = MeshDecalBatches.Last();

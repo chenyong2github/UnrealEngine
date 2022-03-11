@@ -987,6 +987,7 @@ protected:
 	const FCardRepresentationData* CardRepresentationData;	
 
 	UMaterialInterface* OverlayMaterial;
+	float OverlayMaterialMaxDrawDistance;
 
 #if RHI_RAYTRACING
 	bool bSupportRayTracing;

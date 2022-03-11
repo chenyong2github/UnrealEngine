@@ -5992,6 +5992,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		,	SkeletalMeshForDebug(Component->SkeletalMesh)
 		,	PhysicsAssetForDebug(Component->GetPhysicsAsset())
 		,	OverlayMaterial(Component->OverlayMaterial)
+		,	OverlayMaterialMaxDrawDistance(Component->OverlayMaterialMaxDrawDistance)
 #if RHI_RAYTRACING
 		,	bAnySegmentUsesWorldPositionOffset(false)
 #endif
@@ -6429,10 +6430,13 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 					if (OverlayMaterial != nullptr)
 					{
 						FMeshBatch OverlayMeshBatch(MeshElement);
+						OverlayMeshBatch.bOverlayMaterial = true;
 						OverlayMeshBatch.CastShadow = false;
 						OverlayMeshBatch.bSelectable = false;
 						OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
-						PDI->DrawMesh(OverlayMeshBatch, ScreenSize);
+						// Reuse mesh ScreenSize as cull distance for an overlay. Overlay does not need to compute LOD so we can avoid adding new members into MeshBatch or MeshRelevance
+						float OverlayMeshScreenSize = OverlayMaterialMaxDrawDistance;
+						PDI->DrawMesh(OverlayMeshBatch, OverlayMeshScreenSize);
 					}
 				}
 			}
@@ -6715,15 +6719,37 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 
 			if (OverlayMaterial != nullptr)
 			{
-				FMeshBatch& OverlayMeshBatch = Collector.AllocateMesh();
-				OverlayMeshBatch = Mesh;
-				OverlayMeshBatch.CastShadow = false;
-				OverlayMeshBatch.bSelectable = false;
-				OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
-				Collector.AddMesh(ViewIndex, OverlayMeshBatch);
+				const bool bHasOverlayCullDistance = 
+					OverlayMaterialMaxDrawDistance > 1.f && 
+					OverlayMaterialMaxDrawDistance != FLT_MAX && 
+					!ViewFamily.EngineShowFlags.DistanceCulledPrimitives;
 				
-				INC_DWORD_STAT_BY(STAT_SkelMeshTriangles, OverlayMeshBatch.GetNumPrimitives());
-				INC_DWORD_STAT(STAT_SkelMeshDrawCalls);
+				bool bAddOverlay = true;
+				if (bHasOverlayCullDistance)
+				{
+					float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
+					MaxDrawDistanceScale *= GetCachedScalabilityCVars().CalculateFieldOfViewDistanceScale(View->DesiredFOV);
+					float DistanceSquared = (GetBounds().Origin - View->ViewMatrices.GetViewOrigin()).SizeSquared();
+					if (DistanceSquared > FMath::Square(OverlayMaterialMaxDrawDistance * MaxDrawDistanceScale))
+					{
+						// distance culled
+						bAddOverlay = false;
+					}
+				}
+				
+				if (bAddOverlay)
+				{
+					FMeshBatch& OverlayMeshBatch = Collector.AllocateMesh();
+					OverlayMeshBatch = Mesh;
+					OverlayMeshBatch.bOverlayMaterial = true;
+					OverlayMeshBatch.CastShadow = false;
+					OverlayMeshBatch.bSelectable = false;
+					OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+					Collector.AddMesh(ViewIndex, OverlayMeshBatch);
+				
+					INC_DWORD_STAT_BY(STAT_SkelMeshTriangles, OverlayMeshBatch.GetNumPrimitives());
+					INC_DWORD_STAT(STAT_SkelMeshDrawCalls);
+				}
 			}
 		}
 	}

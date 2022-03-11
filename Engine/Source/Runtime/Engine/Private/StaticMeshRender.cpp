@@ -194,6 +194,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetStaticMesh()->GetFName())
 	, RenderData(InComponent->GetStaticMesh()->GetRenderData())
 	, OverlayMaterial(InComponent->OverlayMaterial)
+	, OverlayMaterialMaxDrawDistance(InComponent->OverlayMaterialMaxDrawDistance)
 	, ForcedLodModel(InComponent->ForcedLodModel)
 	, bCastShadow(InComponent->CastShadow)
 	, bReverseCulling(InComponent->bReverseCulling)
@@ -1190,17 +1191,18 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 							}
 						}
 
+						{
+							PDI->DrawMesh(BaseMeshBatch, FLT_MAX);
+						}
+
 						if (OverlayMaterial != nullptr)
 						{
 							FMeshBatch OverlayMeshBatch(BaseMeshBatch);
+							OverlayMeshBatch.bOverlayMaterial = true;
 							OverlayMeshBatch.CastShadow = false;
 							OverlayMeshBatch.bSelectable = false;
 							OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
 							PDI->DrawMesh(OverlayMeshBatch, FLT_MAX);
-						}
-
-						{
-							PDI->DrawMesh(BaseMeshBatch, FLT_MAX);
 						}
 					}
 				}
@@ -1316,15 +1318,6 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 								}
 							}
 
-							if (OverlayMaterial != nullptr)
-							{
-								FMeshBatch OverlayMeshBatch(BaseMeshBatch);
-								OverlayMeshBatch.CastShadow = false;
-								OverlayMeshBatch.bSelectable = false;
-								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
-								PDI->DrawMesh(OverlayMeshBatch, ScreenSize);
-							}
-
 							{
 								// Standard mesh elements.
 								// If we have submitted an optimized shadow-only mesh, remaining mesh elements must not cast shadows.
@@ -1333,6 +1326,18 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 								MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
 								MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
 								PDI->DrawMesh(MeshBatch, ScreenSize);
+							}
+
+							if (OverlayMaterial != nullptr)
+							{
+								FMeshBatch OverlayMeshBatch(BaseMeshBatch);
+								OverlayMeshBatch.bOverlayMaterial = true;
+								OverlayMeshBatch.CastShadow = false;
+								OverlayMeshBatch.bSelectable = false;
+								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+								// Reuse mesh ScreenSize as cull distance for an overlay. Overlay does not need to compute LOD so we can avoid adding new members into MeshBatch or MeshRelevance
+								float OverlayMeshScreenSize = OverlayMaterialMaxDrawDistance;
+								PDI->DrawMesh(OverlayMeshBatch, OverlayMeshScreenSize);
 							}
 						}
 					}

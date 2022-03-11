@@ -366,6 +366,9 @@ struct FMeshBatch
 	uint32 bRenderToVirtualTexture : 1;
 	/** What virtual texture material type this mesh batch should be rendered with. */
 	uint32 RuntimeVirtualTextureMaterialType : RuntimeVirtualTexture::MaterialType_NumBits;
+	
+	/** Whether mesh is rendered with overlay material. */
+	uint32 bOverlayMaterial	: 1;
 
 #if RHI_RAYTRACING
 	uint32 CastRayTracedShadow : 1;	// Whether it casts ray traced shadow.
@@ -476,6 +479,7 @@ struct FMeshBatch
 	,	bDitheredLODTransition(false)
 	,	bRenderToVirtualTexture(false)
 	,	RuntimeVirtualTextureMaterialType(0)
+	,	bOverlayMaterial(false)
 #if RHI_RAYTRACING
 	,	CastRayTracedShadow(true)
 #endif
