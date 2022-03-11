@@ -22,9 +22,35 @@ struct FRemoteControlDMXProtocolEntityExtraSetting
 {
 	GENERATED_BODY();
 
-	/** Starting universe channel */
-	UPROPERTY(EditAnywhere, Category = Mapping, meta = (ClampMin = "1", ClampMax = "512", UIMin = "1", UIMax = "512"))
+
+	/** DMX universe id */
+	UPROPERTY(EditAnywhere, Category = Mapping, Meta = (ClampMin = "0", UIMin = "0"))
+	int32 Universe = 1;
+
+	/** Starting channel */
+	UPROPERTY(EditAnywhere, Category = Mapping, Meta = (ClampMin = "1", ClampMax = "512", UIMin = "1", UIMax = "512"))
 	int32 StartingChannel = 1;
+
+	/**
+	 * Least Significant Byte mode makes the individual bytes (channels) of the function be
+	 * interpreted with the first bytes being the lowest part of the number.
+	 * Most Fixtures use MSB (Most Significant Byte).
+	 */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	bool bUseLSB = false;
+
+	/** Defines the used number of channels (bytes) */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	EDMXFixtureSignalFormat DataType = EDMXFixtureSignalFormat::E8Bit;
+
+	/** If set to true, uses the default input port set in Remote Control Protocol project settings */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	bool bUseDefaultInputPort = true;
+
+	/** Reference of an input DMX port id */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	FGuid InputPortId;
+
 };
 
 /**
@@ -50,38 +76,13 @@ public:
 	/** Try to get the port ID from dmx protocol settings */
 	void UpdateInputPort();
 
-public:
-	/** DMX universe id */
-	UPROPERTY(EditAnywhere, Category = Mapping)
-	int32 Universe = 1;
-
-	/**
-	 * Least Significant Byte mode makes the individual bytes (channels) of the function be
-	 * interpreted with the first bytes being the lowest part of the number.
-	 * Most Fixtures use MSB (Most Significant Byte).
-	 */
-	UPROPERTY(EditAnywhere, Category = Mapping)
-	bool bUseLSB = false;
-
-	/** Defines the used number of channels (bytes) */
-	UPROPERTY(EditAnywhere, Category = Mapping)
-	EDMXFixtureSignalFormat DataType = EDMXFixtureSignalFormat::E8Bit;
-
 	/** Extra protocol settings. Primary using for customization */
-	UPROPERTY(EditAnywhere, Category = Mapping, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Category = Mapping, meta = (ShowOnlyInnerProperties))
 	FRemoteControlDMXProtocolEntityExtraSetting ExtraSetting;
 
 	/** DMX range input property template, used for binding. */
 	UPROPERTY(Transient)
 	uint32 RangeInputTemplate = 0;
-
-	/** If set to true, uses the default input port set in Remote Control Protocol project settings */
-	UPROPERTY(EditAnywhere, Category = Mapping)
-	bool bUseDefaultInputPort = true;
-
-	/** Reference of an input DMX port id */
-	UPROPERTY(EditAnywhere, Category = Mapping)
-	FGuid InputPortId;
 
 private:
 	/** DMX entity cache buffer. From 1 up to 4 channels, based on DataType */
@@ -89,6 +90,39 @@ private:
 
 	/** A single, generic DMX signal. One universe of raw DMX data received */
 	FDMXSignalSharedPtr LastSignalPtr;
+
+public:
+	/** Called when the struct is serialized */
+	bool Serialize(FArchive& Ar);
+
+	/** Called after the struct is serialized */
+	void PostSerialize(const FArchive& Ar);
+
+	// DEPRECATED MEMBERS
+	// Deprecated 5.0
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "This Property is deprecated and will be removed in a future release. It was moved to the ExtraSetting struct member so the property can be customized."))
+	int32 Universe_DEPRECATED = 1;
+	
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "This Property is deprecated and will be removed in a future release. It was moved to the ExtraSetting struct member so the property can be customized."))
+	bool bUseLSB_DEPRECATED = false;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "This Property is deprecated and will be removed in a future release. It was moved to the ExtraSetting struct member so the property can be customized."))
+	EDMXFixtureSignalFormat DataType_DEPRECATED = EDMXFixtureSignalFormat::E8Bit;
+
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "This Property is deprecated and will be removed in a future release. It was moved to the ExtraSetting struct member so the property can be customized."))
+	bool bUseDefaultInputPort_DEPRECATED = true;
+	
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "This Property is deprecated and will be removed in a future release. It was moved to the ExtraSetting struct member so the property can be customized."))
+	FGuid InputPortId_DEPRECATED;
+};
+template<>
+struct TStructOpsTypeTraits<FRemoteControlDMXProtocolEntity> : public TStructOpsTypeTraitsBase2<FRemoteControlDMXProtocolEntity>
+{
+	enum
+	{
+		WithSerializer = true,
+		WithPostSerialize = true
+	};
 };
 
 /**

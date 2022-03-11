@@ -24,61 +24,62 @@ TSharedRef<IPropertyTypeCustomization> FRemoteControlDMXProtocolEntityExtraSetti
 	return MakeShared<FRemoteControlDMXProtocolEntityExtraSettingCustomization>();
 }
 
-void FRemoteControlDMXProtocolEntityExtraSettingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InStructProperty,
-                                                                       FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+void FRemoteControlDMXProtocolEntityExtraSettingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InStructProperty, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	// No need to have header widget, only structure child widget should be present
+	// No need for a header widget, only structure child widgets should be present
 }
 
-void FRemoteControlDMXProtocolEntityExtraSettingCustomization::CustomizeChildren(const TSharedRef<IPropertyHandle> InStructProperty,
-                                                                         IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+void FRemoteControlDMXProtocolEntityExtraSettingCustomization::CustomizeChildren(const TSharedRef<IPropertyHandle> InStructProperty, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
 
-	const TSharedPtr<IPropertyHandle> ProtocolEntityHandle = InStructProperty->GetParentHandle();
-	if (!ensure(ProtocolEntityHandle.IsValid()))
-	{
-		return;
-	}
+	// Remember relevant property handles
+	InputPortIdHandle = InStructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntityExtraSetting, InputPortId));
+	UseDefaultInputPortHandle = InStructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntityExtraSetting, bUseDefaultInputPort));
+	FixtureSignalFormatHandle = InStructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntityExtraSetting, DataType));
+	StartingChannelPropertyHandle = InStructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntityExtraSetting, StartingChannel));
 
 	// Handle project setting changes
 	URemoteControlProtocolDMXSettings* ProtocolDMXSettings = GetMutableDefault<URemoteControlProtocolDMXSettings>();
 	ProtocolDMXSettings->GetOnRemoteControlProtocolDMXSettingsChanged().AddSP(this, &FRemoteControlDMXProtocolEntityExtraSettingCustomization::OnInputPortChanged);
 
 	// Handle property changes
-	UseDefaultInputPortHandle = ProtocolEntityHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntity, bUseDefaultInputPort));
 	if (!ensure(UseDefaultInputPortHandle.IsValid()))
 	{
 		return;
 	}
 	UseDefaultInputPortHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRemoteControlDMXProtocolEntityExtraSettingCustomization::OnInputPortChanged));
-	UseDefaultInputPortHandle->MarkHiddenByCustomization();
 
-	FixtureSignalFormatHandle = ProtocolEntityHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntity, DataType));
 	if (!ensure(FixtureSignalFormatHandle.IsValid()))
 	{
 		return;
 	}
 	FixtureSignalFormatHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRemoteControlDMXProtocolEntityExtraSettingCustomization::OnFixtureSignalFormatChange));
 
-	StartingChannelPropertyHandle = ProtocolEntityHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntityExtraSetting, StartingChannel));
 	if (!ensure(StartingChannelPropertyHandle.IsValid()))
 	{
 		return;
 	}
 	StartingChannelPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRemoteControlDMXProtocolEntityExtraSettingCustomization::OnStartingChannelChange));
 
-	// Add the bUseDefaultInputPort property before the Input Port Selector
-	ChildBuilder.AddProperty(UseDefaultInputPortHandle.ToSharedRef());
-
-	// Customize the InputPortId property view
-	InputPortIdHandle = ProtocolEntityHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntity, InputPortId));
-	if (!ensure(InputPortIdHandle.IsValid()))
+	// Add all properties besides the InputPortId
+	uint32 NumChildren = 0;
+	InStructProperty->GetNumChildren(NumChildren);
+	for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ChildIndex++)
 	{
-		return;
-	}
-	InputPortIdHandle->MarkHiddenByCustomization();
+		const TSharedPtr<IPropertyHandle> ChildHandle = InStructProperty->GetChildHandle(ChildIndex);
+		const FName PropertyName = ChildHandle->GetProperty() ? ChildHandle->GetProperty()->GetFName() : NAME_None;
 
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(FRemoteControlDMXProtocolEntityExtraSetting, InputPortId))
+		{
+			continue;
+		}
+
+		ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+
+	}
+
+	// Show a port selector instead of the InputPortId
 	const FGuid PortGuid = [ProtocolDMXSettings, this]()
 	{
 		FGuid Result = GetPortGuid();
