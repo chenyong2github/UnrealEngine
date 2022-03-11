@@ -81,19 +81,22 @@ protected:
 	FGameplayResourceSet CurrentlyClaimedResources;
 
 	/** Tasks that run on simulated proxies */
-	UE_DEPRECATED(4.26, "This will be made private in future versions. Use GetSimulatedTasks, GetSimulatedTasks_Mutable, or SetSimulatedTasks instead.")
-	UPROPERTY(ReplicatedUsing = OnRep_SimulatedTasks)
-	TArray<TObjectPtr<UGameplayTask>> SimulatedTasks;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const TArray<UGameplayTask*>& GetSimulatedTasks()
 	{
 		return SimulatedTasks;
 	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	UE_DEPRECATED(5.1, "This will be removed in future versions. Use AddSimulatedTask or RemoveSimulatedTask to modify the array")
 	TArray<UGameplayTask*>& GetSimulatedTasks_Mutable();
+
+	/** Remove all current tasks and register the one in the passed array. It's optimal to use Add/Remove of single tasks directly if possible.*/
 	void SetSimulatedTasks(const TArray<UGameplayTask*>& NewSimulatedTasks);
+
+	/** Add a new simulated task. Returns true if the task was added to the list. Returns false if the task was already registered. */
+	bool AddSimulatedTask(UGameplayTask* NewTask);
+
+	/** Remove an existing simulated task */
+	void RemoveSimulatedTask(UGameplayTask* NewTask);
 
 	UPROPERTY()
 	TArray<TObjectPtr<UGameplayTask>> TaskPriorityQueue;
@@ -119,7 +122,7 @@ public:
 	UGameplayTasksComponent(const FObjectInitializer& ObjectInitializer);
 	
 	UFUNCTION()
-	void OnRep_SimulatedTasks();
+	void OnRep_SimulatedTasks(const TArray<UGameplayTask*>& PreviousSimulatedTasks);
 
 	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const override;
 	virtual bool ReplicateSubobjects(UActorChannel *Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
@@ -154,6 +157,9 @@ public:
 	virtual void OnGameplayTaskActivated(UGameplayTask& Task) override;
 	virtual void OnGameplayTaskDeactivated(UGameplayTask& Task) override;
 	// END IGameplayTaskOwnerInterface
+
+	// ActorComponent overrides
+	virtual void BeginPlay() override;
 
 	UFUNCTION(BlueprintCallable, DisplayName="Run Gameplay Task", meta=(ScriptName="RunGameplayTask"), Category = "Gameplay Tasks", meta = (AutoCreateRefTerm = "AdditionalRequiredResources, AdditionalClaimedResources", AdvancedDisplay = "AdditionalRequiredResources, AdditionalClaimedResources"))
 	static EGameplayTaskRunResult K2_RunGameplayTask(TScriptInterface<IGameplayTaskOwnerInterface> TaskOwner, UGameplayTask* Task, uint8 Priority, TArray<TSubclassOf<UGameplayTaskResource> > AdditionalRequiredResources, TArray<TSubclassOf<UGameplayTaskResource> > AdditionalClaimedResources);
@@ -199,6 +205,13 @@ private:
 	void RemoveTaskFromPriorityQueue(UGameplayTask& Task);
 
 	FORCEINLINE bool CanProcessEvents() const { return !bInEventProcessingInProgress && (EventLockCounter == 0); }
+
+	void SetSimulatedTasksNetDirty();
+
+	/** Tasks that run on simulated proxies */
+	UPROPERTY(ReplicatedUsing = OnRep_SimulatedTasks)
+	TArray<TObjectPtr<UGameplayTask>> SimulatedTasks;
+
 };
 
 typedef UGameplayTasksComponent::GameplayTaskContainerType::TConstIterator FConstGameplayTaskIterator;

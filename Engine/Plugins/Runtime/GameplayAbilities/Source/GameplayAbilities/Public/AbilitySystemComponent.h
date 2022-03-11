@@ -122,13 +122,6 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 		return (T*)GetOrCreateAttributeSubobject(T::StaticClass());
 	}
 
-	template <class T>
-	UE_DEPRECATED(4.25, "AddDefaultSubobjectSet is deprecated. Use AddAttributeSetSubobject instead.")
-	const T*	AddDefaultSubobjectSet(T* Subobject)
-	{
-		return AddAttributeSetSubobject(Subobject);
-	}
-
 	/** 
 	 * Manually add a new attribute set that is a subobject of this ability system component.
 	 * All subobjects of this component are automatically added during initialization.
@@ -136,7 +129,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	template <class T>
 	const T* AddAttributeSetSubobject(T* Subobject)
 	{
-		GetSpawnedAttributes_Mutable().AddUnique(Subobject);
+		AddSpawnedAttribute(Subobject);
 		return Subobject;
 	}
 
@@ -181,14 +174,23 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UPROPERTY(EditAnywhere, Category="AttributeTest")
 	TArray<FAttributeDefaults>	DefaultStartingData;
 
-	/** List of attribute sets */
-	UE_DEPRECATED(4.26, "This will be made private in future engine versions. Use SetSpawnedAttributes, GetSpawnedAttributes, or GetSpawnedAttributes_Mutable instead.")
-	UPROPERTY(Replicated)
-	TArray<UAttributeSet*>	SpawnedAttributes;
-
+	/** Remove all current AttributeSets and register the ones in the passed array. Note that it's better to call Add/Remove directly when possible. */
 	void SetSpawnedAttributes(const TArray<UAttributeSet*>& NewAttributeSet);
+
+	UE_DEPRECATED(5.1, "This function will be made private. Use Add/Remove SpawnedAttributes instead")
 	TArray<UAttributeSet*>& GetSpawnedAttributes_Mutable();
+
+	/** Access the spawned attributes list when you don't intend to modify the list. */
 	const TArray<UAttributeSet*>& GetSpawnedAttributes() const;
+
+	/** Add a new attribute set */
+	void AddSpawnedAttribute(UAttributeSet* Attribute);
+
+	/** Remove an existing attribute set */
+	void RemoveSpawnedAttribute(UAttributeSet* Attribute);
+
+	/** Remove all attribute sets */
+	void RemoveAllSpawnedAttributes();
 
 
 	/** The linked Anim Instance that this component will play montages in. Use NAME_None for the main anim instance. */
@@ -1419,21 +1421,23 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	//	Actor interaction
 	// ----------------------------------------------------------------------------------------------------------------	
 
+private:
+
 	/** The actor that owns this component logically */
-	UE_DEPRECATED(4.26, "This will be made private in future engine versions. Use SetOwnerActor or GetOwnerActor instead.")
 	UPROPERTY(ReplicatedUsing = OnRep_OwningActor)
 	AActor* OwnerActor;
 
-	void SetOwnerActor(AActor* NewOwnerActor);
-	AActor* GetOwnerActor() const;
-
-	UE_DEPRECATED(4.26, "This will be made private in future engine versions. Use SetAvatarActor or GetAvatarActor instead.")
 	/** The actor that is the physical representation used for abilities. Can be NULL */
 	UPROPERTY(ReplicatedUsing = OnRep_OwningActor)
 	AActor* AvatarActor;
 
+public:
+
+	void SetOwnerActor(AActor* NewOwnerActor);
+	AActor* GetOwnerActor() const { return OwnerActor; }
+
 	void SetAvatarActor_Direct(AActor* NewAvatarActor);
-	AActor* GetAvatarActor_Direct() const;
+	AActor* GetAvatarActor_Direct() const { return AvatarActor; }
 	
 	UFUNCTION()
 	void OnRep_OwningActor();
@@ -1603,8 +1607,23 @@ protected:
 	TArray<TPair<FGameplayTagContainer, FGameplayEventTagMulticastDelegate>> GameplayEventTagContainerDelegates;
 
 	/** Full list of all instance-per-execution gameplay abilities associated with this component */
+	UE_DEPRECATED(5.1, "This array will be made private. Use GetReplicatedInstancedAbilities, AddReplicatedInstancedAbility or RemoveReplicatedInstancedAbility instead.")
 	UPROPERTY()
 	TArray<UGameplayAbility*>	AllReplicatedInstancedAbilities;
+
+	/** Full list of all instance-per-execution gameplay abilities associated with this component */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const TArray<UGameplayAbility*>& GetReplicatedInstancedAbilities() const { return AllReplicatedInstancedAbilities; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/** Add a gameplay ability associated to this component */
+	void AddReplicatedInstancedAbility(UGameplayAbility* GameplayAbility);
+
+	/** Remove a gameplay ability associated to this component */
+	void RemoveReplicatedInstancedAbility(UGameplayAbility* GameplayAbility);
+
+	/** Unregister all the gameplay abilities of this component */
+	void RemoveAllReplicatedInstancedAbilities();
 
 	/** Will be called from GiveAbility or from OnRep. Initializes events (triggers and inputs) with the given ability */
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec);
@@ -1819,6 +1838,24 @@ protected:
 	friend class UAbilitySystemGlobals;
 
 private:
+
+	// Needs to be called when modifying the SpawnedAttributes array for changes to be replicated
+	void SetSpawnedAttributesListDirty();
+
+    // Private accessor to the AllReplicatedInstancedAbilities array until the deprecation tag on it is removed and we can reference the array directly again.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TArray<UGameplayAbility*>& GetReplicatedInstancedAbilities_Mutable() { return AllReplicatedInstancedAbilities; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+private:
+
+	/** List of attribute sets */
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_SpawnedAttributes)
+	TArray<UAttributeSet*>	SpawnedAttributes;
+
+	UFUNCTION()
+	void OnRep_SpawnedAttributes(const TArray<UAttributeSet*>& PreviousSpawnedAttributes);
+
 	FDelegateHandle MonitoredTagChangedDelegateHandle;
 	FTimerHandle    OnRep_ActivateAbilitiesTimerHandle;
 

@@ -56,6 +56,22 @@ UGameplayTasksComponent::UGameplayTasksComponent(const FObjectInitializer& Objec
 	bInEventProcessingInProgress = false;
 	TopActivePriority = 0;
 }
+
+void UGameplayTasksComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (IsUsingRegisteredSubObjectList())
+	{
+		for (UGameplayTask* SimulatedTask : SimulatedTasks)
+		{
+			if (SimulatedTask)
+			{
+				AddReplicatedSubObject(SimulatedTask, COND_SkipOwner);
+			}
+		}
+	}	
+}
 	
 void UGameplayTasksComponent::OnGameplayTaskActivated(UGameplayTask& Task)
 {
@@ -77,9 +93,8 @@ void UGameplayTasksComponent::OnGameplayTaskActivated(UGameplayTask& Task)
 	
 	if (Task.IsSimulatedTask())
 	{
-		TArray<UGameplayTask*>& MutableSimulatedTasks = GetSimulatedTasks_Mutable();
-		check(MutableSimulatedTasks.Contains(&Task) == false);
-		MutableSimulatedTasks.Add(&Task);
+		const bool bWasAdded = AddSimulatedTask(&Task);
+		check(bWasAdded == true);
 		bIsNetDirty = true;
 	}
 
@@ -124,7 +139,7 @@ void UGameplayTasksComponent::OnGameplayTaskDeactivated(UGameplayTask& Task)
 
 	if (Task.IsSimulatedTask())
 	{
-		GetSimulatedTasks_Mutable().RemoveSingleSwap(&Task);
+		RemoveSimulatedTask(&Task);
 		bIsNetDirty = true;
 	}
 
@@ -154,10 +169,7 @@ void UGameplayTasksComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProper
 	// Intentionally not calling super: We do not want to replicate bActive which controls ticking. We sometimes need to tick on client predictively.
 	DISABLE_ALL_CLASS_REPLICATED_PROPERTIES(Super, EFieldIteratorFlags::IncludeSuper);
 
-	FDoRepLifetimeParams Params;
-	Params.bIsPushBased = true;
-	Params.Condition = COND_SkipOwner;
-
+	const FDoRepLifetimeParams Params{ COND_SkipOwner, REPNOTIFY_Always, true };
 	DOREPLIFETIME_WITH_PARAMS_FAST(UGameplayTasksComponent, SimulatedTasks, Params);
 }
 
@@ -179,21 +191,47 @@ bool UGameplayTasksComponent::ReplicateSubobjects(UActorChannel* Channel, class 
 	return WroteSomething;
 }
 
-void UGameplayTasksComponent::OnRep_SimulatedTasks()
+void UGameplayTasksComponent::OnRep_SimulatedTasks(const TArray<UGameplayTask*>& PreviousSimulatedTasks)
 {
+	if (IsUsingRegisteredSubObjectList())
+	{
+		// Find if any tasks got removed
+		for (UGameplayTask* OldSimulatedTask : PreviousSimulatedTasks)
+		{
+			const bool bIsRemoved = SimulatedTasks.Find(OldSimulatedTask) == INDEX_NONE;
+			if (bIsRemoved)
+			{
+				RemoveReplicatedSubObject(OldSimulatedTask);
+			}
+		}
+	}
+
 	for (UGameplayTask* SimulatedTask : GetSimulatedTasks())
 	{
-		// Temp check 
-		if (SimulatedTask && SimulatedTask->IsTickingTask() && TickingTasks.Contains(SimulatedTask) == false)
+		if (SimulatedTask)
 		{
-			SimulatedTask->InitSimulatedTask(*this);
-
-			TickingTasks.Add(SimulatedTask);
-
-			// If this is our first ticking task, set this component as active so it begins ticking
-			if (TickingTasks.Num() == 1)
+			// If the task needs to be ticked and isn't yet.
+			if (SimulatedTask->IsTickingTask() && TickingTasks.Contains(SimulatedTask) == false)
 			{
-				UpdateShouldTick();
+				SimulatedTask->InitSimulatedTask(*this);
+
+				TickingTasks.Add(SimulatedTask);
+
+				// If this is our first ticking task, set this component as active so it begins ticking
+				if (TickingTasks.Num() == 1)
+				{
+					UpdateShouldTick();
+				}
+			}
+
+			// See if it's a new task that needs to be registered
+			if (IsUsingRegisteredSubObjectList())
+			{
+				const bool bIsNew = PreviousSimulatedTasks.Find(SimulatedTask) == INDEX_NONE;
+				if (bIsNew)
+				{
+					AddReplicatedSubObject(SimulatedTask, COND_SkipOwner);
+				}
 			}
 		}
 	}
@@ -680,17 +718,73 @@ EGameplayTaskRunResult UGameplayTasksComponent::RunGameplayTask(IGameplayTaskOwn
 	return EGameplayTaskRunResult::Error;
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TArray<UGameplayTask*>& UGameplayTasksComponent::GetSimulatedTasks_Mutable()
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(UGameplayTasksComponent, SimulatedTasks, this);
 	return SimulatedTasks;
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool UGameplayTasksComponent::AddSimulatedTask(UGameplayTask* NewTask)
+{
+	if (SimulatedTasks.Find(NewTask) == INDEX_NONE)
+	{
+		SimulatedTasks.Add(NewTask);
+		SetSimulatedTasksNetDirty();
+
+		if (IsUsingRegisteredSubObjectList())
+		{
+			AddReplicatedSubObject(NewTask, COND_SkipOwner);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void UGameplayTasksComponent::RemoveSimulatedTask(UGameplayTask* NewTask)
+{
+	if (SimulatedTasks.RemoveSingle(NewTask) > 0)
+	{
+		SetSimulatedTasksNetDirty();
+
+		if (IsUsingRegisteredSubObjectList())
+		{
+			RemoveReplicatedSubObject(NewTask);
+		}
+	}
+}
 
 void UGameplayTasksComponent::SetSimulatedTasks(const TArray<UGameplayTask*>& NewSimulatedTasks)
 {
-	GetSimulatedTasks_Mutable() = NewSimulatedTasks;
+	if (IsUsingRegisteredSubObjectList())
+	{
+		// Unregister all current tasks
+		for (UGameplayTask* OldGameplayTask : SimulatedTasks)
+		{
+			RemoveReplicatedSubObject(OldGameplayTask);
+		}
+
+		SimulatedTasks.Reset(NewSimulatedTasks.Num());
+
+		// Register the new tasks
+		for (UGameplayTask* NewGameplayTask : NewSimulatedTasks)
+		{
+			AddReplicatedSubObject(NewGameplayTask, COND_SkipOwner);
+			SimulatedTasks.Add(NewGameplayTask);
+		}
+	}
+	else
+	{
+		SimulatedTasks = NewSimulatedTasks;
+	}
+
+	SetSimulatedTasksNetDirty();
+}
+
+void UGameplayTasksComponent::SetSimulatedTasksNetDirty()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UGameplayTasksComponent, SimulatedTasks, this);
 }
 
 //----------------------------------------------------------------------//

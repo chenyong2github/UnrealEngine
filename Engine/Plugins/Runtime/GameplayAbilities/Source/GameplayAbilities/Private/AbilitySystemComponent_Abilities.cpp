@@ -55,12 +55,11 @@ void UAbilitySystemComponent::InitializeComponent()
 	InitAbilityActorInfo(Owner, Owner);	// Default init to our outer owner
 
 	// cleanup any bad data that may have gotten into SpawnedAttributes
-	TArray<UAttributeSet*>& SpawnedAttributesRef = GetSpawnedAttributes_Mutable();
-	for (int32 Idx = SpawnedAttributesRef.Num()-1; Idx >= 0; --Idx)
+	for (int32 Idx = SpawnedAttributes.Num()-1; Idx >= 0; --Idx)
 	{
-		if (SpawnedAttributesRef[Idx] == nullptr)
+		if (SpawnedAttributes[Idx] == nullptr)
 		{
-			SpawnedAttributesRef.RemoveAt(Idx);
+			SpawnedAttributes.RemoveAt(Idx);
 		}
 	}
 
@@ -72,10 +71,12 @@ void UAbilitySystemComponent::InitializeComponent()
 		UAttributeSet* Set = Cast<UAttributeSet>(Obj);
 		if (Set)  
 		{
-			SpawnedAttributesRef.AddUnique(Set);
+			SpawnedAttributes.AddUnique(Set);
 			bIsNetDirty = true;
 		}
 	}
+
+	SetSpawnedAttributesListDirty();
 }
 
 void UAbilitySystemComponent::UninitializeComponent()
@@ -567,7 +568,7 @@ void UAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& Spec)
 				if (GetOwnerRole() == ROLE_Authority || Instance->GetReplicationPolicy() == EGameplayAbilityReplicationPolicy::ReplicateNo)
 				{
 					// Only destroy if we're the server or this isn't replicated. Can't destroy on the client or replication will fail when it replicates the end state
-					AllReplicatedInstancedAbilities.Remove(Instance);
+					RemoveReplicatedInstancedAbility(Instance);
 					Instance->MarkAsGarbage();
 				}
 			}
@@ -638,13 +639,19 @@ void UAbilitySystemComponent::CheckForClearedAbilities()
 		// We leave around the empty trigger stub, it's likely to be added again
 	}
 
-	for (int32 i = 0; i < AllReplicatedInstancedAbilities.Num(); i++)
+	TArray<UGameplayAbility*>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
+	for (int32 i = 0; i < ReplicatedAbilities.Num(); i++)
 	{
-		UGameplayAbility* Ability = AllReplicatedInstancedAbilities[i];
+		UGameplayAbility* Ability = ReplicatedAbilities[i];
 
 		if (!IsValid(Ability))
 		{
-			AllReplicatedInstancedAbilities.RemoveAt(i);
+			if (IsUsingRegisteredSubObjectList())
+			{
+				RemoveReplicatedSubObject(Ability);
+			}
+
+			ReplicatedAbilities.RemoveAt(i);
 			i--;
 		}
 	}
@@ -969,7 +976,7 @@ UGameplayAbility* UAbilitySystemComponent::CreateNewInstanceOfAbility(FGameplayA
 	if (AbilityInstance->GetReplicationPolicy() != EGameplayAbilityReplicationPolicy::ReplicateNo)
 	{
 		Spec.ReplicatedInstances.Add(AbilityInstance);
-		AllReplicatedInstancedAbilities.Add(AbilityInstance);
+		AddReplicatedInstancedAbility(AbilityInstance);
 	}
 	else
 	{
@@ -1020,7 +1027,7 @@ void UAbilitySystemComponent::NotifyAbilityEnded(FGameplayAbilitySpecHandle Hand
 			if (OwnerRole == ROLE_Authority)
 			{
 				Spec->ReplicatedInstances.Remove(Ability);
-				AllReplicatedInstancedAbilities.Remove(Ability);
+				RemoveReplicatedInstancedAbility(Ability);
 				Ability->MarkAsGarbage();
 			}
 		}

@@ -95,7 +95,7 @@ const UAttributeSet* UAbilitySystemComponent::GetOrCreateAttributeSubobject(TSub
 		if (!MyAttributes)
 		{
 			UAttributeSet* Attributes = NewObject<UAttributeSet>(OwningActor, AttributeClass);
-			GetSpawnedAttributes_Mutable().AddUnique(Attributes);
+			AddSpawnedAttribute(Attributes);
 			MyAttributes = Attributes;
 			bIsNetDirty = true;
 		}
@@ -232,6 +232,15 @@ void UAbilitySystemComponent::BeginPlay()
 
 	// Cache net role here as well since for map-placed actors on clients, the Role may not be set correctly yet in OnRegister.
 	CacheIsNetSimulated();
+
+	// Register the spawned attributes to the replicated sub object list.
+	if (IsUsingRegisteredSubObjectList())
+	{
+		for (UAttributeSet* ReplicatedAttribute : SpawnedAttributes)
+		{
+			AddReplicatedSubObject(ReplicatedAttribute);
+		}
+	}
 }
 
 void UAbilitySystemComponent::CacheIsNetSimulated()
@@ -1552,11 +1561,10 @@ int32 UAbilitySystemComponent::RemoveActiveEffects(const FGameplayEffectQuery& Q
 	return 0;
 }
 
-void UAbilitySystemComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
-{	
+void UAbilitySystemComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
+{
 	// Fast Arrays don't use push model, but there's no harm in marking them with it.
 	// The flag will just be ignored.
-
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 
@@ -1616,7 +1624,7 @@ bool UAbilitySystemComponent::ReplicateSubobjects(class UActorChannel *Channel, 
 		}
 	}
 
-	for (UGameplayAbility* Ability : AllReplicatedInstancedAbilities)
+	for (UGameplayAbility* Ability : GetReplicatedInstancedAbilities())
 	{
 		if (IsValid(Ability))
 		{
@@ -2740,7 +2748,6 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 	Info.YL = MaxCharHeight;
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UAbilitySystemComponent::SetOwnerActor(AActor* NewOwnerActor)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, OwnerActor, this);
@@ -2755,11 +2762,6 @@ void UAbilitySystemComponent::SetOwnerActor(AActor* NewOwnerActor)
 	}
 }
 
-AActor* UAbilitySystemComponent::GetOwnerActor() const
-{
-	return OwnerActor;
-}
-
 void UAbilitySystemComponent::SetAvatarActor_Direct(AActor* NewAvatarActor)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, AvatarActor, this);
@@ -2772,11 +2774,6 @@ void UAbilitySystemComponent::SetAvatarActor_Direct(AActor* NewAvatarActor)
 	{
 		AvatarActor->OnDestroyed.AddDynamic(this, &UAbilitySystemComponent::OnAvatarActorDestroyed);
 	}
-}
-
-AActor* UAbilitySystemComponent::GetAvatarActor_Direct() const
-{
-	return AvatarActor;
 }
 
 void UAbilitySystemComponent::OnAvatarActorDestroyed(AActor* InActor)
@@ -2807,27 +2804,151 @@ void UAbilitySystemComponent::SetSpawnedAttributes(const TArray<UAttributeSet*>&
 			ActorOwner->OnEndPlay.RemoveDynamic(this, &UAbilitySystemComponent::OnSpawnedAttributesEndPlayed);
 		}
 	}
-	GetSpawnedAttributes_Mutable() = NewSpawnedAttributes;
-	for (int32 Index = NewSpawnedAttributes.Num() - 1; Index >= 0; --Index)
+
+	// Clean the previous list
+	RemoveAllSpawnedAttributes();
+
+	// Add the elements from the new list
+	for (UAttributeSet* NewAttribute : NewSpawnedAttributes)
 	{
-		UAttributeSet* AttributeSet = NewSpawnedAttributes[Index];
-		AActor* ActorOwner = AttributeSet->GetTypedOuter<AActor>();
+		AddSpawnedAttribute(NewAttribute);
+
+		AActor* ActorOwner = NewAttribute->GetTypedOuter<AActor>();
 		if (ActorOwner)
 		{
 			ActorOwner->OnEndPlay.AddUniqueDynamic(this, &UAbilitySystemComponent::OnSpawnedAttributesEndPlayed);
 		}
 	}
+
+	SetSpawnedAttributesListDirty();
+}
+
+void UAbilitySystemComponent::AddSpawnedAttribute(UAttributeSet* Attribute)
+{
+
+	if (SpawnedAttributes.Find(Attribute) == INDEX_NONE)
+	{
+		if (IsUsingRegisteredSubObjectList() && HasBegunPlay())
+		{
+			AddReplicatedSubObject(Attribute);
+		}
+
+		SpawnedAttributes.Add(Attribute);
+		SetSpawnedAttributesListDirty();
+	}
+}
+
+void UAbilitySystemComponent::RemoveSpawnedAttribute(UAttributeSet* Attribute)
+{
+	if (SpawnedAttributes.RemoveSingle(Attribute) > 0)
+	{
+		if (IsUsingRegisteredSubObjectList() )
+		{
+			RemoveReplicatedSubObject(Attribute);
+		}
+
+		SetSpawnedAttributesListDirty();
+	}
+}
+
+void UAbilitySystemComponent::RemoveAllSpawnedAttributes()
+{
+	if (IsUsingRegisteredSubObjectList())
+	{
+		for (UAttributeSet* OldAttribute : SpawnedAttributes)
+		{
+			RemoveReplicatedSubObject(OldAttribute);
+		}
+	}
+
+	SpawnedAttributes.Empty();
+	SetSpawnedAttributesListDirty();
+}
+
+void UAbilitySystemComponent::SetSpawnedAttributesListDirty()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, SpawnedAttributes, this);
 }
 
 TArray<UAttributeSet*>& UAbilitySystemComponent::GetSpawnedAttributes_Mutable()
 {
-	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, SpawnedAttributes, this);
+	SetSpawnedAttributesListDirty();
 	return SpawnedAttributes;
 }
 
 const TArray<UAttributeSet*>& UAbilitySystemComponent::GetSpawnedAttributes() const
 {
 	return SpawnedAttributes;
+}
+
+void UAbilitySystemComponent::OnRep_SpawnedAttributes(const TArray<UAttributeSet*>& PreviousSpawnedAttributes)
+{
+	if (IsUsingRegisteredSubObjectList())
+	{
+		// Find the attributes that got removed
+		for (UAttributeSet* PreviousAttributeSet : PreviousSpawnedAttributes)
+		{
+			if (PreviousAttributeSet)
+			{
+				const bool bWasRemoved = SpawnedAttributes.Find(PreviousAttributeSet) == INDEX_NONE;
+				if (bWasRemoved)
+				{
+					RemoveReplicatedSubObject(PreviousAttributeSet);
+				}
+			}
+		}
+
+		// Find the attributes that got added
+		for (UAttributeSet* NewAttributeSet : SpawnedAttributes)
+		{
+			if (NewAttributeSet)
+			{
+				const bool bIsAdded = PreviousSpawnedAttributes.Find(NewAttributeSet) == INDEX_NONE;
+				if (bIsAdded)
+				{
+					AddReplicatedSubObject(NewAttributeSet);
+				}
+			}
+		}
+	}
+}
+
+void UAbilitySystemComponent::AddReplicatedInstancedAbility(UGameplayAbility* GameplayAbility)
+{
+	TArray<UGameplayAbility*>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
+	if (ReplicatedAbilities.Find(GameplayAbility) == INDEX_NONE)
+	{
+		ReplicatedAbilities.Add(GameplayAbility);
+		
+		if (IsUsingRegisteredSubObjectList())
+		{
+			AddReplicatedSubObject(GameplayAbility);
+		}
+	}
+}
+
+void UAbilitySystemComponent::RemoveReplicatedInstancedAbility(UGameplayAbility* GameplayAbility)
+{
+	const bool bWasRemoved = GetReplicatedInstancedAbilities_Mutable().RemoveSingle(GameplayAbility) > 0;
+	if (bWasRemoved && IsUsingRegisteredSubObjectList())
+	{
+		RemoveReplicatedSubObject(GameplayAbility);
+	}
+}
+
+void UAbilitySystemComponent::RemoveAllReplicatedInstancedAbilities()
+{
+	TArray<UGameplayAbility*>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
+
+	if (IsUsingRegisteredSubObjectList())
+	{
+		for (UGameplayAbility* ReplicatedAbility : ReplicatedAbilities)
+		{
+			RemoveReplicatedSubObject(ReplicatedAbility);
+		}
+	}
+
+	ReplicatedAbilities.Empty();
 }
 
 void UAbilitySystemComponent::OnSpawnedAttributesEndPlayed(AActor* InActor, EEndPlayReason::Type EndPlayReason)
@@ -2848,6 +2969,7 @@ void UAbilitySystemComponent::SetClientDebugStrings(TArray<FString>&& NewClientD
 	GetClientDebugStrings_Mutable() = NewClientDebugStrings;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TArray<FString>& UAbilitySystemComponent::GetClientDebugStrings_Mutable()
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, ClientDebugStrings, this);
