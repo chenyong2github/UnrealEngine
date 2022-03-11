@@ -299,7 +299,7 @@ namespace Chaos
 		bool bUseParticleImplicit = false;
 
 		// Need to extract a filter off one of the cluster children 
-		FCollisionFilterData Filter;
+		FCollisionFilterData SimFilter, QueryFilter;
 		for (FPBDRigidParticleHandle* Child : Children)
 		{
 			bool bFilterValid = false;
@@ -307,8 +307,10 @@ namespace Chaos
 			{
 				if (Shape)
 				{
-					Filter = Shape->GetSimData();
-					bFilterValid = Filter.Word0 != 0 || Filter.Word1 != 0 || Filter.Word2 != 0 || Filter.Word3 != 0;
+					SimFilter = Shape->GetSimData();
+					bFilterValid = SimFilter.Word0 != 0 || SimFilter.Word1 != 0 || SimFilter.Word2 != 0 || SimFilter.Word3 != 0;
+
+					QueryFilter = Shape->GetQueryData();
 				}
 
 				if (bFilterValid)
@@ -516,7 +518,8 @@ namespace Chaos
 		// Set the captured filter to our new shapes
 		for (const TUniquePtr<FPerShapeData>& Shape : Parent->ShapesArray())
 		{
-			Shape->SetSimData(Filter);
+			Shape->SetSimData(SimFilter);
+			Shape->SetQueryData(QueryFilter);
 		}
 	}
 

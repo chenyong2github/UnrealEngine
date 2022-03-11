@@ -61,6 +61,14 @@ FAutoConsoleVariableRef CVarGeometryCollectionCollideAll(
 	GeometryCollectionCollideAll,
 	TEXT("Bypass the collision matrix and make geometry collections collide against everything"));
 
+
+bool bGeometryCollectionEnabledNestedChildTransformUpdates = true;
+FAutoConsoleVariableRef CVarEnabledNestedChildTransformUpdates(
+	TEXT("p.GeometryCollection.EnabledNestedChildTransformUpdates"),
+	bGeometryCollectionEnabledNestedChildTransformUpdates,
+	TEXT("Enable updates for driven, disabled, child bodies. Used for line trace results against geometry collections.[def: true]"));
+
+
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 //==============================================================================
@@ -1709,6 +1717,18 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 							ProxyElementHandle->X() = ParticleToWorld.GetTranslation();
 							ProxyElementHandle->R() = ParticleToWorld.GetRotation();
 							CurrentSolver->GetEvolution()->DirtyParticle(*ProxyElementHandle);
+						}
+
+						if (bGeometryCollectionEnabledNestedChildTransformUpdates)
+						{
+							if (!ClusterParent->Disabled())
+							{
+								FTransform ChildToWorld = Handle->ChildToParent() * FRigidTransform3(ClusterParent->X(), ClusterParent->R());
+								Handle->X() = Handle->P() = ChildToWorld.GetTranslation();
+								Handle->R() = Handle->Q() = ChildToWorld.GetRotation();
+								Handle->UpdateWorldSpaceState(ChildToWorld, FVec3(0));
+								CurrentSolver->GetEvolution()->DirtyParticle(*Handle);
+							}
 						}
 					}
 				}
