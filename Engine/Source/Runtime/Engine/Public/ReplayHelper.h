@@ -249,6 +249,57 @@ private:
 		Finalize,
 	};
 
+	struct FCheckpointStepHelper
+	{
+		FCheckpointStepHelper() = delete;
+		FCheckpointStepHelper(ECheckpointSaveState InCheckpointState, const double InCheckpointStartTime, int32* InCurrentIndex, int32 InTotalCount)
+			: CheckpointState(InCheckpointState)
+			, CheckpointStartTime(InCheckpointStartTime)
+			, CurrentIndex(InCurrentIndex)
+			, TotalCount(InTotalCount)
+		{
+			check(InCurrentIndex);
+			StartTime = FPlatformTime::Seconds();
+		}
+
+		~FCheckpointStepHelper()
+		{
+			const double EndTime = FPlatformTime::Seconds();
+			const double TotalTimeInMS = (EndTime - CheckpointStartTime) * 1000.0;
+			const double StepTimeInMS = (EndTime - StartTime) * 1000.0;
+
+			const TCHAR* StateStr = TEXT("Unknown");
+
+			switch (CheckpointState)
+			{
+			case ECheckpointSaveState::SerializeDeletedStartupActors:
+				StateStr = TEXT("SerializeDeletedStartupActors");
+				break;
+			case ECheckpointSaveState::SerializeDeltaDynamicDestroyed:
+				StateStr = TEXT("SerializeDeltaDynamicDestroyed");
+				break;
+			case ECheckpointSaveState::SerializeDeltaClosedChannels:
+				StateStr = TEXT("SerializeDeltaClosedChannels");
+				break;
+			case ECheckpointSaveState::SerializeGuidCache:
+				StateStr = TEXT("SerializeGuidCache");
+				break;
+			default:
+				ensureMsgf(false, TEXT("FCheckpointStepHelper: Unsupported checkpoint state: %d"), CheckpointState);
+				break;
+			}
+
+			UE_LOG(LogDemo, Log, TEXT("Checkpoint. %s: %i/%i, took %.2fms (Total this frame: %.2fms)"), StateStr, *CurrentIndex, TotalCount, StepTimeInMS, TotalTimeInMS);
+		}
+
+	private:
+		ECheckpointSaveState CheckpointState;
+		double StartTime = 0.0;
+		double CheckpointStartTime = 0.0;
+		int32* CurrentIndex = nullptr;
+		int32 TotalCount = 0;
+	};
+
 	/** When we save a checkpoint, we remember all of the actors that need a checkpoint saved out by adding them to this list */
 	struct FPendingCheckPointActor
 	{

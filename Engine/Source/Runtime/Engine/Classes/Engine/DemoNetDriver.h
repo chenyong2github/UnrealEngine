@@ -655,7 +655,7 @@ private:
 	 * @return True if there is time remaining to replicate more actors. False otherwise.
 	 */
 	bool ReplicatePrioritizedActors(const FDemoActorPriority* ActorsToReplicate, uint32 Count, class FRepActorsParams& Params);
-	bool ReplicatePrioritizedActor(const FActorPriority& ActorPriority, const class FRepActorsParams& Params);
+	bool ReplicatePrioritizedActor(const FActorPriority& ActorPriority, class FRepActorsParams& Params);
 
 	friend class FPendingTaskHelper;
 
@@ -687,6 +687,9 @@ private:
 	// Max percent of time to spend building consider lists / prioritizing actors
 	// for demo recording. Only used if MaxDesiredRecordTimeMS > 0.
 	float RecordBuildConsiderAndPrioritizeTimeSlice;
+
+	// Max percent of time to spend replicating prioritized destruction infos. Only used if MaxDesiredRecordTimeMS > 0.
+	float RecordDestructionInfoReplicationTimeSlice;
 
 	void AdjustConsiderTime(const float ReplicatedPercent);
 

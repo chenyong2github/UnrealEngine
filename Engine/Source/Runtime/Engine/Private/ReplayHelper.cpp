@@ -999,7 +999,8 @@ bool FReplayHelper::SerializeGuidCache(UNetConnection* Connection, const FRepAct
 		*CheckpointArchive << CheckpointSaveContext.NextAmortizedItem;
 	}
 
-	const double StartTime = FPlatformTime::Seconds();
+	FCheckpointStepHelper StepHelper(ECheckpointSaveState::SerializeGuidCache, Params.StartCheckpointTime, &CheckpointSaveContext.NextAmortizedItem, CheckpointSaveContext.NetGuidCacheSnapshot.Num());
+
 	const double Deadline = Params.StartCheckpointTime + Params.CheckpointMaxUploadTimePerFrame;
 
 	check(CheckpointSaveContext.NetGuidCacheSnapshot.Num() == 0 || CheckpointSaveContext.NetGuidCacheSnapshot.IsValidIndex(CheckpointSaveContext.NextAmortizedItem));
@@ -1067,8 +1068,6 @@ bool FReplayHelper::SerializeGuidCache(UNetConnection* Connection, const FRepAct
 		CheckpointArchive->Seek(Pos);
 	}
 
-	UE_LOG(LogDemo, Log, TEXT("Checkpoint. SerializeGuidCache: %i/%i (total %i), took %.3f (%.3f)"), CheckpointSaveContext.NextAmortizedItem, CheckpointSaveContext.NetGuidCacheSnapshot.Num(), CheckpointSaveContext.NumNetGuidsForRecording, FPlatformTime::Seconds() - Params.StartCheckpointTime, FPlatformTime::Seconds() - StartTime);
-
 	return bCompleted;
 }
 
@@ -1086,7 +1085,8 @@ bool FReplayHelper::SerializeDeletedStartupActors(UNetConnection* Connection, co
 		*CheckpointArchive << DeletedCount;
 	}
 
-	const double StartTime = FPlatformTime::Seconds();
+	FCheckpointStepHelper StepHelper(ECheckpointSaveState::SerializeDeletedStartupActors, Params.StartCheckpointTime, &CheckpointSaveContext.NextAmortizedItem, DeletedActors.Num());
+
 	const double Deadline = Params.StartCheckpointTime + Params.CheckpointMaxUploadTimePerFrame;
 
 	check(DeletedActors.Num() == 0 || DeletedActors.IsValidIndex(CheckpointSaveContext.NextAmortizedItem));
@@ -1109,8 +1109,6 @@ bool FReplayHelper::SerializeDeletedStartupActors(UNetConnection* Connection, co
 
 	const bool bCompleted = (CheckpointSaveContext.NextAmortizedItem == DeletedActors.Num());
 
-	UE_LOG(LogDemo, Log, TEXT("Checkpoint. SerializeDeletedStartupActors: %i/%i, took %.3f (%.3f)"), CheckpointSaveContext.NextAmortizedItem, DeletedActors.Num(), FPlatformTime::Seconds() - Params.StartCheckpointTime, FPlatformTime::Seconds() - StartTime);
-
 	return bCompleted;
 }
 
@@ -1125,7 +1123,8 @@ bool FReplayHelper::SerializeDeltaDynamicDestroyed(UNetConnection* Connection, c
 		*CheckpointArchive << TotalCount;
 	}
 
-	const double StartTime = FPlatformTime::Seconds();
+	FCheckpointStepHelper StepHelper(ECheckpointSaveState::SerializeDeltaDynamicDestroyed, Params.StartCheckpointTime, &CheckpointSaveContext.NextAmortizedItem, TotalCount);
+
 	const double Deadline = Params.StartCheckpointTime + Params.CheckpointMaxUploadTimePerFrame;
 
 	check(TotalCount == 0 || CheckpointSaveContext.DeltaCheckpointData.DestroyedDynamicActors.IsValidId(FSetElementId::FromInteger(CheckpointSaveContext.NextAmortizedItem)));
@@ -1145,8 +1144,6 @@ bool FReplayHelper::SerializeDeltaDynamicDestroyed(UNetConnection* Connection, c
 
 	const bool bCompleted = (CheckpointSaveContext.NextAmortizedItem == TotalCount);
 
-	UE_LOG(LogDemo, Log, TEXT("Checkpoint. SerializeDeltaDynamicDestroyed: %i/%i, took %.3f (%.3f)"), CheckpointSaveContext.NextAmortizedItem, TotalCount, FPlatformTime::Seconds() - Params.StartCheckpointTime, FPlatformTime::Seconds() - StartTime);
-
 	return bCompleted;
 }
 
@@ -1161,7 +1158,8 @@ bool FReplayHelper::SerializeDeltaClosedChannels(UNetConnection* Connection, con
 		*CheckpointArchive << TotalCount;
 	}
 
-	const double StartTime = FPlatformTime::Seconds();
+	FCheckpointStepHelper StepHelper(ECheckpointSaveState::SerializeDeltaClosedChannels, Params.StartCheckpointTime, &CheckpointSaveContext.NextAmortizedItem, TotalCount);
+
 	const double Deadline = Params.StartCheckpointTime + Params.CheckpointMaxUploadTimePerFrame;
 
 	check(TotalCount == 0 || CheckpointSaveContext.DeltaChannelCloseKeys.IsValidIndex(CheckpointSaveContext.NextAmortizedItem));
@@ -1183,8 +1181,6 @@ bool FReplayHelper::SerializeDeltaClosedChannels(UNetConnection* Connection, con
 	}
 
 	const bool bCompleted = (CheckpointSaveContext.NextAmortizedItem == TotalCount);
-
-	UE_LOG(LogDemo, Log, TEXT("Checkpoint. SerializeDeltaClosedChannels: %i/%i, took %.3f (%.3f)"), CheckpointSaveContext.NextAmortizedItem, TotalCount, FPlatformTime::Seconds() - Params.StartCheckpointTime, FPlatformTime::Seconds() - StartTime);
 
 	return bCompleted;
 }

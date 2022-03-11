@@ -27,7 +27,6 @@
 #include "UObject/EnumProperty.h"
 #include "UObject/UnrealType.h"
 
-DECLARE_CYCLE_STAT(TEXT("RepLayout AddPropertyCmd"), STAT_RepLayout_AddPropertyCmd, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout BuildShadowOffsets"), STAT_RepLayout_BuildShadowOffsets, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout DeltaSerializeFastArray"), STAT_RepLayout_DeltaSerializeFastArray, STATGROUP_Game);
@@ -5292,8 +5291,6 @@ static uint32 AddPropertyCmd(
 	FInitFromPropertySharedParams& SharedParams,
 	const FInitFromPropertyStackParams& StackParams)
 {
-	SCOPE_CYCLE_COUNTER(STAT_RepLayout_AddPropertyCmd);
-
 	FRepLayoutCmd & Cmd = SharedParams.Cmds.AddZeroed_GetRef();
 
 	Cmd.Property = StackParams.Property;
