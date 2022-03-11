@@ -67,15 +67,15 @@ struct ENGINE_API FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= AttenuationDistance)
 	TEnumAsByte<enum EAttenuationShape::Type> AttenuationShape;
 
-	/* The attenuation volume at the falloff distance in decibels (Only for 'Natural Sound' Distance Algorithm). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= AttenuationDistance, meta=(DisplayName = "Attenuation At Max (dB)", ClampMin = "-60", ClampMax = "0"))
-	float dBAttenuationAtMax;
-
 	// Whether to continue attenuating, go silent, or hold last volume value when beyond falloff bounds and 
 	// 'Attenuation At Max (dB)' is set to a value greater than -60dB.
 	// (Only for 'Natural Sound' Distance Algorithm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= AttenuationDistance)
 	ENaturalSoundFalloffMode FalloffMode;
+
+	/* The attenuation volume at the falloff distance in decibels (Only for 'Natural Sound' Distance Algorithm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= AttenuationDistance, meta=(DisplayName = "Attenuation At Max (dB)", ClampMin = "-60", ClampMax = "0"))
+	float dBAttenuationAtMax;
 
 	/* The dimensions to use for the attenuation shape. Interpretation of the values differ per shape.
 	   Sphere  - X is Sphere Radius. Y and Z are unused

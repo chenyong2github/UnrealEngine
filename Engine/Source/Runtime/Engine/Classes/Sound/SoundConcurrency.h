@@ -80,7 +80,13 @@ struct ENGINE_API FSoundConcurrencySettings
 
 	/* Whether or not to limit the concurrency to per sound owner (i.e. the actor that plays the sound). If the sound doesn't have an owner, it falls back to global concurrency. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency)
-	uint32 bLimitToOwner:1;
+	uint8 bLimitToOwner:1;
+
+	/**
+	 * Whether or not volume scaling can recover volume ducking behavior when concurrency group sounds stop (default scale mode only).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume Scaling", meta = (DisplayName = "Can Recover", EditCondition = "VolumeScaleMode == EConcurrencyVolumeScaleMode::Default"))
+	uint8 bVolumeScaleCanRelease:1;
 
 	/** Which concurrency resolution policy to use if max voice count is reached. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency)
@@ -114,12 +120,6 @@ public:
 	float VolumeScaleAttackTime;
 
 	/**
-	 * Whether or not volume scaling can recover volume ducking behavior when concurrency group sounds stop (default scale mode only).
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume Scaling", meta = (DisplayName = "Can Recover", EditCondition = "VolumeScaleMode == EConcurrencyVolumeScaleMode::Default"))
-	uint32 bVolumeScaleCanRelease:1;
-
-	/**
 	 * Time taken to recover volume scalar duck.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume Scaling", meta = (DisplayName = "Recover Time", EditCondition = "bVolumeScaleCanRelease && VolumeScaleMode == EConcurrencyVolumeScaleMode::Default", UIMin = "0.0", ClampMin = "0.0", UIMax = "10.0", ClampMax="1000000.0"))
@@ -135,12 +135,12 @@ public:
 	FSoundConcurrencySettings()
 		: MaxCount(16)
 		, bLimitToOwner(0)
+		, bVolumeScaleCanRelease(0)
 		, ResolutionRule(EMaxConcurrentResolutionRule::StopFarthestThenOldest)
 		, RetriggerTime(0.0f)
 		, VolumeScale(1.0f)
 		, VolumeScaleMode(EConcurrencyVolumeScaleMode::Default)
 		, VolumeScaleAttackTime(0.01f)
-		, bVolumeScaleCanRelease(0)
 		, VolumeScaleReleaseTime(0.5f)
 		, VoiceStealReleaseTime(0.0f)
 	{}

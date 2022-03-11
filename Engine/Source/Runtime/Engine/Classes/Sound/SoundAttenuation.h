@@ -211,6 +211,14 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize"))
 	float BinauralRadius;
 
+	/* The normalized custom curve to use for the air absorption lowpass frequency values. Does a mapping from defined distance values (x-axis) and defined frequency values (y-axis) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption)
+	FRuntimeFloatCurve CustomLowpassAirAbsorptionCurve;
+
+	/* The normalized custom curve to use for the air absorption highpass frequency values. Does a mapping from defined distance values (x-axis) and defined frequency values (y-axis) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption)
+	FRuntimeFloatCurve CustomHighpassAirAbsorptionCurve;
+
 	/** What method to use to map distance values to frequency absorption values. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption)
 	EAirAbsorptionMethod AbsorptionMethod;
@@ -258,14 +266,6 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	/* The max distance range at which to apply an absorption LPF filter. Absorption freq cutoff interpolates between filter frequency ranges between these distance values. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption, meta = (DisplayName = "Max Distance Range"))
 	float LPFRadiusMax;
-
-	/* The normalized custom curve to use for the air absorption lowpass frequency values. Does a mapping from defined distance values (x-axis) and defined frequency values (y-axis) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption)
-	FRuntimeFloatCurve CustomLowpassAirAbsorptionCurve;
-
-	/* The normalized custom curve to use for the air absorption highpass frequency values. Does a mapping from defined distance values (x-axis) and defined frequency values (y-axis) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption)
-	FRuntimeFloatCurve CustomHighpassAirAbsorptionCurve;
 
 	/* The range of the cutoff frequency (in Hz) of the lowpass absorption filter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption, meta = (DisplayName = "Low Pass Cutoff Frequency Min"))
@@ -363,14 +363,6 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend)
 	float ManualReverbSendLevel;
 
-	/* The custom reverb send curve to use for distance-based send level. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend)
-	FRuntimeFloatCurve CustomReverbSendCurve;
-
-	/** Set of submix send settings to use to send audio to submixes as a function of distance. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSubmixSend)
-	TArray<FAttenuationSubmixSendSettings> SubmixSendSettings;
-
 	/** Interpolated value to scale priority against when the sound is at the minimum priority attenuation distance from the closest listener. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", DisplayName = "Priority Attenuation At Min Distance"))
 	float PriorityAttenuationMin;
@@ -390,6 +382,14 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	/* Static priority scalar to use (doesn't change as a function of distance). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", DisplayName = "Attenuation Priority"))
 	float ManualPriorityAttenuation;
+
+	/* The custom reverb send curve to use for distance-based send level. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend)
+	FRuntimeFloatCurve CustomReverbSendCurve;
+
+	/** Set of submix send settings to use to send audio to submixes as a function of distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSubmixSend)
+	TArray<FAttenuationSubmixSendSettings> SubmixSendSettings;
 
 	/* The custom curve to use for distance-based priority attenuation. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority)

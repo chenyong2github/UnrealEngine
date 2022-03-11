@@ -89,10 +89,6 @@ class ENGINE_API USoundCue : public USoundBase
 {
 	GENERATED_UCLASS_BODY()
 
-	/* Makes this sound cue automatically load any sound waves it can play into the cache when it is loaded. */
-	UPROPERTY(EditAnywhere, Category = Memory)
-	uint32 bPrimeOnLoad : 1;
-
 	UPROPERTY()
 	TObjectPtr<USoundNode> FirstNode;
 
@@ -125,6 +121,11 @@ private:
 	float MaxAudibleDistance;
 
 public:
+
+	/* Makes this sound cue automatically load any sound waves it can play into the cache when it is loaded. */
+	UPROPERTY(EditAnywhere, Category = Memory)
+	uint8 bPrimeOnLoad : 1;
+
 	/* Indicates whether attenuation should use the Attenuation Overrides or the Attenuation Settings asset */
 	UPROPERTY(EditAnywhere, Category = Attenuation)
 	uint8 bOverrideAttenuation : 1;
@@ -134,9 +135,7 @@ public:
 	uint8 bExcludeFromRandomNodeBranchCulling : 1;
 
 private:
-	UPROPERTY()
-	int32 CookedQualityIndex = INDEX_NONE;
-	
+
 	/** Whether a sound has play when silent enabled (i.e. for a sound cue, if any sound wave player has it enabled). */
 	UPROPERTY()
 	uint8 bHasPlayWhenSilent : 1;
@@ -146,6 +145,9 @@ private:
 	uint8 bShouldApplyInteriorVolumes : 1;
 	uint8 bShouldApplyInteriorVolumesCached : 1;
 	uint8 bIsRetainingAudio : 1;
+
+	UPROPERTY()
+	int32 CookedQualityIndex = INDEX_NONE;
 
 public:
 
