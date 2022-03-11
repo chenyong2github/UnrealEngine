@@ -994,6 +994,7 @@ void FSlateWindowElementList::ResetElementList()
 	CachedElementDataListStack.Empty();
 
 	check(WidgetDrawStack.Num() == 0);
+	check(ResolveToDeferredIndex.Num() == 0);
 
 	RenderTargetWindow = nullptr;
 }

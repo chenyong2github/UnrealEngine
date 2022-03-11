@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/GCObject.h"
+#include "HAL/CriticalSection.h"
 
 #include <atomic>
 
@@ -16,16 +17,8 @@ class SWindow;
 class SLATECORE_API FSlateDrawBuffer : public FGCObject
 {
 public:
-
 	/** Default constructor. */
-	explicit FSlateDrawBuffer()
-		: bLocked(false)
-		, bIsLockedBySlateThread(false)
-		, ResourceVersion(0)
-	{ }
-
-public:
-	~FSlateDrawBuffer();
+	FSlateDrawBuffer();
 
 	/** Removes all data from the buffer. */
 	void ClearBuffer();
@@ -69,7 +62,7 @@ public:
 	/** @return true if the buffer is locked. */
 	bool IsLocked() const
 	{
-		return bLocked;
+		return bIsLocked;
 	}
 
 	/** FGCObject Interface */
@@ -79,15 +72,16 @@ public:
 		return TEXT("FSlateDrawBuffer for Uncached Elements");
 	}
 
-protected:
-	// List of window element lists.
+private:
+	// List of window element lists
 	TArray< TSharedRef<FSlateWindowElementList> > WindowElementLists;
 
 	// List of window element lists that we store from the previous frame 
 	// that we restore if they're requested again.
 	TArray< TSharedRef<FSlateWindowElementList> > WindowElementListsPool;
 
-	std::atomic<bool> bLocked;
+	FCriticalSection GCLock;
+	std::atomic<bool> bIsLocked;
 	bool bIsLockedBySlateThread;
 
 	// Last recorded version from the render. The WindowElementListsPool is emptied when this changes.

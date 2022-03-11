@@ -10,13 +10,16 @@
 /* FSlateDrawBuffer interface
  *****************************************************************************/
 
-FSlateDrawBuffer::~FSlateDrawBuffer()
-{
-}
+FSlateDrawBuffer::FSlateDrawBuffer()
+	: bIsLocked(false)
+	, bIsLockedBySlateThread(false)
+	, ResourceVersion(0)
+{ }
 
 FSlateWindowElementList& FSlateDrawBuffer::AddWindowElementList(TSharedRef<SWindow> ForWindow)
 {
 	ensureMsgf(IsLocked(), TEXT("The SlateDrawBuffer should be lock before modifying it."));
+	FScopeLock ScopeLock(&GCLock);
 
 	for ( int32 WindowIndex = 0; WindowIndex < WindowElementListsPool.Num(); ++WindowIndex )
 	{
@@ -44,6 +47,7 @@ FSlateWindowElementList& FSlateDrawBuffer::AddWindowElementList(TSharedRef<SWind
 void FSlateDrawBuffer::RemoveUnusedWindowElement(const TArray<SWindow*>& AllWindows)
 {
 	ensureMsgf(IsLocked(), TEXT("The SlateDrawBuffer should be lock before modifying it."));
+	FScopeLock ScopeLock(&GCLock);
 
 	// Remove any window elements that are no longer valid.
 	for (int32 WindowIndex = 0; WindowIndex < WindowElementLists.Num(); ++WindowIndex)
@@ -61,15 +65,9 @@ void FSlateDrawBuffer::RemoveUnusedWindowElement(const TArray<SWindow*>& AllWind
 bool FSlateDrawBuffer::Lock()
 {
 	bool ExpectedValue = false;
-	bool bIsLock = bLocked.compare_exchange_strong(ExpectedValue, true);
+	bool bIsLock = bIsLocked.compare_exchange_strong(ExpectedValue, true);
 	if (bIsLock)
 	{
-		// Rendering doesn't need the batch data anymore
-		for (TSharedRef<FSlateWindowElementList>& ExistingElementList : WindowElementLists)
-		{
-			ExistingElementList->ResetElementList();
-		}
-
 		bIsLockedBySlateThread = IsInSlateThread();
 	}
 	return bIsLock;
@@ -77,15 +75,25 @@ bool FSlateDrawBuffer::Lock()
 
 void FSlateDrawBuffer::Unlock()
 {
-	bLocked = false;
+	ensureMsgf(IsLocked(), TEXT("The SlateDrawBuffer should be lock before modifying it."));
+	FScopeLock ScopeLock(&GCLock);
+
+	// Rendering doesn't need the batch data anymore
+	for (TSharedRef<FSlateWindowElementList>& ExistingElementList : WindowElementLists)
+	{
+		ExistingElementList->ResetElementList();
+	}
+
+	bIsLocked = false;
 }
 
 void FSlateDrawBuffer::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	// Locked buffers are the only ones that are currently referencing objects.
 	//If unlocked, the element list is not in-use and contains "to-be-cleared" data.
-	if(bLocked && !bIsLockedBySlateThread)
+	if(bIsLocked && !bIsLockedBySlateThread)
 	{
+		FScopeLock ScopeLock(&GCLock);
 		for (TSharedRef<FSlateWindowElementList>& ElementList : WindowElementLists)
 		{
 			ElementList->AddReferencedObjects(Collector);
@@ -96,6 +104,7 @@ void FSlateDrawBuffer::AddReferencedObjects(FReferenceCollector& Collector)
 void FSlateDrawBuffer::ClearBuffer()
 {
 	ensureMsgf(IsLocked(), TEXT("The SlateDrawBuffer should be lock before modifying it."));
+	FScopeLock ScopeLock(&GCLock);
 
 	// Remove any window elements that are no longer valid.
 	for (int32 WindowIndex = 0; WindowIndex < WindowElementListsPool.Num(); ++WindowIndex)
