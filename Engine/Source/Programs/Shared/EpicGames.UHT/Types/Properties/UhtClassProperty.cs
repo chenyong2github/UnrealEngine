@@ -8,6 +8,9 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FClassProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "ClassProperty", IsProperty = true)]
 	public class UhtClassProperty : UhtObjectProperty
@@ -21,8 +24,15 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
-		public UhtClassProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass, UhtClass MetaClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, PropertyClass, MetaClass)
+		/// <summary>
+		/// Construct a new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Class">Referenced class</param>
+		/// <param name="MetaClass">Reference meta class</param>
+		/// <param name="ExtraFlags">Extra flags to apply to the property.</param>
+		public UhtClassProperty(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass MetaClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
+			: base(PropertySettings, Class, MetaClass)
 		{
 			this.PropertyFlags |= ExtraFlags;
 			this.PropertyCaps |= UhtPropertyCaps.CanHaveConfig;
@@ -147,7 +157,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "TSubclassOf")]
-		public static UhtProperty? SubclassOfProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? SubclassOfProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtClass? MetaClass = UhtObjectPropertyBase.ParseTemplateClass(PropertySettings, TokenReader, MatchedToken);
 			if (MetaClass == null)

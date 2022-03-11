@@ -7,6 +7,9 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FLargeWorldCoordinatesRealProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "LargeWorldCoordinatesRealProperty", IsProperty = true)]
 	public class UhtLargeWorldCoordinatesRealProperty : UhtNumericProperty
@@ -17,6 +20,10 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override string CppTypeText { get => "double"; }
 
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
 		public UhtLargeWorldCoordinatesRealProperty(UhtPropertySettings PropertySettings) : base(PropertySettings, UhtPropertyIntType.None)
 		{
 			this.PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
@@ -53,7 +60,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "FLargeWorldCoordinatesReal", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
-		public static UhtProperty? LargeWorldCoordinatesRealProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? LargeWorldCoordinatesRealProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			if (!PropertySettings.Outer.HeaderFile.bIsNoExportTypes)
 			{

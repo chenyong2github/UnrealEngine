@@ -10,6 +10,10 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// FEnumProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "EnumProperty", IsProperty = true)]
 	public class UhtEnumProperty : UhtProperty
@@ -26,14 +30,32 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => this.Enum.CppForm != UhtEnumCppForm.EnumClass ? UhtPGetArgumentType.EngineClass : UhtPGetArgumentType.TypeText; }
 
+		/// <summary>
+		/// Referenced enum
+		/// </summary>
 		[JsonConverter(typeof(UhtTypeSourceNameJsonConverter<UhtEnum>))]
 		public UhtEnum Enum { get; set; }
 
+		/// <summary>
+		/// Underlying property set when the enum has an underlying interger type
+		/// </summary>
 		public UhtProperty? UnderlyingProperty { get; set; }
 
+		/// <summary>
+		/// Underlying type which defaults to int32 if the referenced enum doesn't have an underlying type
+		/// </summary>
 		public UhtEnumUnderlyingType UnderlyingType => this.Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? this.Enum.UnderlyingType : UhtEnumUnderlyingType.int32;
+
+		/// <summary>
+		/// Underlying type size.  Defaults to unsized if the referenced enum doesn't have an underlying type
+		/// </summary>
 		public UhtPropertyIntType UnderlyingTypeSize => this.Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? UhtPropertyIntType.Sized : UhtPropertyIntType.Unsized;
 
+		/// <summary>
+		/// Construct property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Enum">Referenced enum</param>
 		public UhtEnumProperty(UhtPropertySettings PropertySettings, UhtEnum Enum) : base(PropertySettings)
 		{
 			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
@@ -71,6 +93,15 @@ namespace EpicGames.UHT.Types
 			yield return this.Enum;
 		}
 
+		/// <summary>
+		/// Append enum text
+		/// </summary>
+		/// <param name="Builder">Destination builder</param>
+		/// <param name="Property">Property in question</param>
+		/// <param name="Enum">Referenced enum</param>
+		/// <param name="TextType">Type of text to append</param>
+		/// <param name="bIsTemplateArgument">If true, this property is a template argument</param>
+		/// <returns></returns>
 		public static StringBuilder AppendEnumText(StringBuilder Builder, UhtProperty Property, UhtEnum Enum, UhtPropertyTextType TextType, bool bIsTemplateArgument)
 		{
 			switch (TextType)
@@ -110,7 +141,8 @@ namespace EpicGames.UHT.Types
 		/// Append the text for a function thunk call argument
 		/// </summary>
 		/// <param name="Builder">Output builder</param>
-		/// 
+		/// <param name="Property">Property in question</param>
+		/// <param name="Enum">Referenced enum</param>
 		/// <returns>Output builder</returns>
 		public static StringBuilder AppendEnumFunctionThunkParameterArg(StringBuilder Builder, UhtProperty Property, UhtEnum Enum)
 		{
@@ -129,12 +161,47 @@ namespace EpicGames.UHT.Types
 			return Builder;
 		}
 
+		/// <summary>
+		/// Get the RigVM type for an enumeration
+		/// </summary>
+		/// <param name="Property">Property in question</param>
+		/// <param name="Enum">Referenced enumeration</param>
+		/// <param name="ParameterFlags">Parameter flags that can be updated</param>
+		/// <returns>Type string</returns>
 		public static string? GetEnumRigVMType(UhtProperty Property, UhtEnum Enum, ref UhtRigVMParameterFlags ParameterFlags)
 		{
 			ParameterFlags |= UhtRigVMParameterFlags.IsEnum;
 			return Enum.CppType.ToString();
 		}
 
+		/// <summary>
+		/// Sanitize the default value for an enumeration
+		/// </summary>
+		/// <param name="Property">Property in question</param>
+		/// <param name="Enum">Referenced enumeration</param>
+		/// <param name="DefaultValueReader">Default value</param>
+		/// <param name="InnerDefaultValue">Destination builder</param>
+		/// <returns>True if the default value was parsed.</returns>
+		public static bool SanitizeEnumDefaultValue(UhtProperty Property, UhtEnum Enum, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		{
+			UhtTokenList CppIdentifier = DefaultValueReader.GetCppIdentifier(UhtCppIdentifierOptions.None);
+			UhtTokenList StartingPoint = CppIdentifier.Next != null ? CppIdentifier.Next : CppIdentifier;
+			StartingPoint.Join(InnerDefaultValue, "::");
+			UhtTokenListCache.Return(CppIdentifier);
+
+			int EntryIndex = Enum.GetIndexByName(InnerDefaultValue.ToString());
+			if (EntryIndex == -1)
+			{
+				return false;
+			}
+			if (Enum.MetaData.ContainsKey(UhtNames.Hidden, EntryIndex))
+			{
+				Property.LogError($"Hidden enum entries cannot be used as default values: '{Property.SourceName}' '{InnerDefaultValue}'");
+			}
+			return true;
+		}
+
+		/// <inheritdoc/>
 		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
 		{
 			return AppendEnumText(Builder, this, this.Enum, TextType, bIsTemplateArgument);
@@ -230,23 +297,10 @@ namespace EpicGames.UHT.Types
 			return false;
 		}
 
-		public static bool SanitizeEnumDefaultValue(UhtProperty Property, UhtEnum Enum, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		/// <inheritdoc/>
+		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
 		{
-			UhtTokenList CppIdentifier = DefaultValueReader.GetCppIdentifier(UhtCppIdentifierOptions.None);
-			UhtTokenList StartingPoint = CppIdentifier.Next != null ? CppIdentifier.Next : CppIdentifier;
-			StartingPoint.Join(InnerDefaultValue, "::");
-			UhtTokenListCache.Return(CppIdentifier);
-
-			int EntryIndex = Enum.GetIndexByName(InnerDefaultValue.ToString());
-			if (EntryIndex == -1)
-			{
-				return false;
-			}
-			if (Enum.MetaData.ContainsKey(UhtNames.Hidden, EntryIndex))
-			{
-				Property.LogError($"Hidden enum entries cannot be used as default values: '{Property.SourceName}' '{InnerDefaultValue}'");
-			}
-			return true;
+			return GetEnumRigVMType(this, this.Enum, ref ParameterFlags);
 		}
 
 		private UhtProperty CreateUnderlyingProperty()
@@ -277,15 +331,9 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return GetEnumRigVMType(this, this.Enum, ref ParameterFlags);
-		}
-
 		#region Keyword
 		[UhtPropertyType(Keyword = "TEnumAsByte")]
-		public static UhtProperty? EnumProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? EnumProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtType Outer = PropertySettings.Outer;
 			UhtEnum? Enum = null;

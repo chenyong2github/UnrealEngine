@@ -7,6 +7,9 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FInt64Property
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "Int64Property", IsProperty = true)]
 	public class UhtInt64Property : UhtNumericProperty
@@ -17,6 +20,11 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override string CppTypeText { get => "int64"; }
 
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="IntType">Integer type</param>
 		public UhtInt64Property(UhtPropertySettings PropertySettings, UhtPropertyIntType IntType) : base(PropertySettings, IntType)
 		{
 			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
@@ -51,7 +59,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "int64", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
-		public static UhtProperty? Int64Property(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? Int64Property(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			return new UhtInt64Property(PropertySettings, UhtPropertyIntType.Sized);
 		}

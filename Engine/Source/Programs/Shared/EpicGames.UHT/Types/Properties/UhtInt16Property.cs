@@ -7,6 +7,9 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FInt16Property
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "Int16Property", IsProperty = true)]
 	public class UhtInt16Property : UhtNumericProperty
@@ -17,6 +20,11 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override string CppTypeText { get => "int16"; }
 
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="IntType">Integer type</param>
 		public UhtInt16Property(UhtPropertySettings PropertySettings, UhtPropertyIntType IntType) : base(PropertySettings, IntType)
 		{
 		}
@@ -35,11 +43,13 @@ namespace EpicGames.UHT.Types
 			return Builder;
 		}
 
+		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			return false;
 		}
 
+		/// <inheritdoc/>
 		public override bool IsSameType(UhtProperty Other)
 		{
 			return Other is UhtInt16Property;
@@ -47,7 +57,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "int16", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
-		public static UhtProperty? Int16Property(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? Int16Property(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			return new UhtInt16Property(PropertySettings, UhtPropertyIntType.Sized);
 		}

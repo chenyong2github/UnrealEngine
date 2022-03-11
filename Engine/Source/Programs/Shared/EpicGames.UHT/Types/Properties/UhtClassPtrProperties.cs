@@ -7,6 +7,10 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// FClassPtrProperty
+	/// </summary>
 	[UhtEngineClass(Name = "ClassPtrProperty", IsProperty = true)]
 	public class UhtClassPtrProperty : UhtClassProperty
 	{
@@ -22,12 +26,20 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
-		public UhtClassPtrProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass, UhtClass MetaClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, PropertyClass, MetaClass)
+		/// <summary>
+		/// Construct a new property
+		/// </summary>
+		/// <param name="PropertySettings"></param>
+		/// <param name="Class">Referenced class</param>
+		/// <param name="MetaClass">Meta data class</param>
+		/// <param name="ExtraFlags">Extra property flags to apply to the property</param>
+		public UhtClassPtrProperty(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass MetaClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
+			: base(PropertySettings, Class, MetaClass)
 		{
 			this.PropertyFlags |= ExtraFlags | EPropertyFlags.UObjectWrapper;
 		}
 
+		/// <inheritdoc/>
 		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
 		{
 			switch (TextType)

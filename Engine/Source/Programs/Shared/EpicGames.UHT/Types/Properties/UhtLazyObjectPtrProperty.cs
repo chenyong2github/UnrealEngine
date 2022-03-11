@@ -8,6 +8,10 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// FLazyObjectProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "LazyObjectProperty", IsProperty = true)]
 	public class UhtLazyObjectPtrProperty : UhtObjectPropertyBase
@@ -27,8 +31,13 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
-		public UhtLazyObjectPtrProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass)
-			: base(PropertySettings, PropertyClass, null)
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Class">Referenced class</param>
+		public UhtLazyObjectPtrProperty(UhtPropertySettings PropertySettings, UhtClass Class)
+			: base(PropertySettings, Class, null)
 		{
 			this.PropertyFlags |= EPropertyFlags.UObjectWrapper;
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg;
@@ -103,7 +112,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "TLazyObjectPtr")]
-		public static UhtProperty? LazyObjectPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? LazyObjectPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
 			if (PropertyClass == null)

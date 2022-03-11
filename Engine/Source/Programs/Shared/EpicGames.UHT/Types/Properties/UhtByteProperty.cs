@@ -10,10 +10,16 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FByteProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "ByteProperty", IsProperty = true)]
 	public class UhtByteProperty : UhtNumericProperty
 	{
+		/// <summary>
+		/// Referenced enumeration (TEnumAsByte)
+		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeSourceNameJsonConverter<UhtEnum>))]
 		public UhtEnum? Enum { get; set; }
 
@@ -29,6 +35,12 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => this.Enum == null || this.Enum.CppForm != UhtEnumCppForm.EnumClass ? UhtPGetArgumentType.EngineClass : UhtPGetArgumentType.TypeText; }
 
+		/// <summary>
+		/// Construct a new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="IntType">Integer type</param>
+		/// <param name="Enum">Optional referenced enum</param>
 		public UhtByteProperty(UhtPropertySettings PropertySettings, UhtPropertyIntType IntType, UhtEnum? Enum = null) : base(PropertySettings, IntType)
 		{
 			this.Enum = Enum;

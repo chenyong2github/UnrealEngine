@@ -8,6 +8,9 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FFieldPathProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "FieldPathProperty", IsProperty = true)]
 	public class UhtFieldPathProperty : UhtProperty
@@ -29,6 +32,11 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public string FieldClassName { get; set; }
 
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="FieldClassName">Field class name</param>
 		public UhtFieldPathProperty(UhtPropertySettings PropertySettings, string FieldClassName) : base(PropertySettings)
 		{
 			this.FieldClassName = FieldClassName;
@@ -101,9 +109,9 @@ namespace EpicGames.UHT.Types
 			return null;
 		}
 
-#region Keyword
+		#region Keyword
 		[UhtPropertyType(Keyword = "TFieldPath", Options = UhtPropertyTypeOptions.Immediate)]
-		public static UhtProperty? FieldPathProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? FieldPathProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			using (var TokenContext = new UhtMessageContext(TokenReader, "TFieldPath"))
 			{
@@ -122,6 +130,6 @@ namespace EpicGames.UHT.Types
 				return new UhtFieldPathProperty(PropertySettings, FieldClassName.ToString());
 			}
 		}
-#endregion
+		#endregion
 	}
 }

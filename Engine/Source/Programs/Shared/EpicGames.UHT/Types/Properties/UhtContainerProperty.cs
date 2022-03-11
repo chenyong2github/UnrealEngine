@@ -4,12 +4,21 @@ using EpicGames.Core;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// Common base class for containers with a value
+	/// </summary>
 	public abstract class UhtContainerBaseProperty : UhtProperty
 	{
 
 		/// <inheritdoc/>
 		public UhtProperty ValueProperty { get; set; }
 
+		/// <summary>
+		/// Construct a new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Value">Value property</param>
 		public UhtContainerBaseProperty(UhtPropertySettings PropertySettings, UhtProperty Value) : base(PropertySettings)
 		{
 			this.ValueProperty = Value;
@@ -23,6 +32,12 @@ namespace EpicGames.UHT.Types
 			this.ValueProperty.Validate(OuterStruct, OutermostProperty, Options | UhtValidationOptions.IsValue);
 		}
 
+		/// <summary>
+		/// Propagate flags and meta data to/from child properties
+		/// </summary>
+		/// <param name="Container">Container property</param>
+		/// <param name="MetaData">Meta data</param>
+		/// <param name="Inner">Inner property</param>
 		protected static void PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(UhtProperty Container, UhtMetaData? MetaData, UhtProperty Inner)
 		{
 			// Copy some of the property flags to the container property.
@@ -38,6 +53,12 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// Resolve the child and return any new flags
+		/// </summary>
+		/// <param name="Child">Child to resolve</param>
+		/// <param name="Phase">Resolve phase</param>
+		/// <returns>And new flags</returns>
 		protected static EPropertyFlags ResolveAndReturnNewFlags(UhtProperty Child, UhtResolvePhase Phase)
 		{
 			EPropertyFlags OldFlags = Child.PropertyFlags;

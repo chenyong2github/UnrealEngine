@@ -7,6 +7,10 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// FDoubleProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "DoubleProperty", IsProperty = true)]
 	public class UhtDoubleProperty : UhtNumericProperty
@@ -17,6 +21,10 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override string CppTypeText { get => "double"; }
 
+		/// <summary>
+		/// Create new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
 		public UhtDoubleProperty(UhtPropertySettings PropertySettings) : base(PropertySettings, UhtPropertyIntType.None)
 		{
 			this.PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
@@ -36,12 +44,14 @@ namespace EpicGames.UHT.Types
 			return Builder;
 		}
 
+		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			InnerDefaultValue.AppendFormat("{0:F6}", DefaultValueReader.GetConstFloatExpression());
 			return true;
 		}
 
+		/// <inheritdoc/>
 		public override bool IsSameType(UhtProperty Other)
 		{
 			return Other is UhtDoubleProperty;
@@ -49,7 +59,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "double", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
-		public static UhtProperty? DoubleProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? DoubleProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			return new UhtDoubleProperty(PropertySettings);
 		}

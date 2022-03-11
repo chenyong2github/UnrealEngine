@@ -9,6 +9,9 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FDelegatePropertyDelegateProperty
+	/// </summary>
 	[UhtEngineClass(Name = "DelegateProperty", IsProperty = true)]
 	public class UhtDelegateProperty : UhtProperty
 	{
@@ -24,9 +27,17 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.EngineClass; }
 
+		/// <summary>
+		/// Referenced function
+		/// </summary>
 		[JsonConverter(typeof(UhtTypeSourceNameJsonConverter<UhtFunction>))]
 		public UhtFunction Function { get; set; }
 
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Function">Referenced function</param>
 		public UhtDelegateProperty(UhtPropertySettings PropertySettings, UhtFunction Function) : base(PropertySettings)
 		{
 			this.Function = Function;
