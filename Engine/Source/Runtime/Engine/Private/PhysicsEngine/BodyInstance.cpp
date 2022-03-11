@@ -497,7 +497,8 @@ void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 					TriMeshCopy->GetObjectChecked<FTriangleMeshImplicitObject>().UpdateVertices(NewPositions);
 					if (Scale != FVec3(1, 1, 1))
 					{
-						TUniquePtr<FImplicitObject> Scaled = MakeUnique<TImplicitObjectScaled<FTriangleMeshImplicitObject, /*bInstanced=*/false>>(MoveTemp(TriMeshCopy), Scale);
+						TSharedPtr<FTriangleMeshImplicitObject, ESPMode::ThreadSafe> SharedPtrForRefCount(nullptr); // Not instanced, no shared trimesh to ref count.
+						TUniquePtr<FImplicitObject> Scaled = MakeUnique<TImplicitObjectScaled<FTriangleMeshImplicitObject, /*bInstanced=*/false>>(MoveTemp(TriMeshCopy), SharedPtrForRefCount, Scale);
 						FPhysicsInterface::SetGeometry(Shape, MoveTemp(Scaled));
 					}
 					else
@@ -2161,7 +2162,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 						{
 							// While a body setup will instantiate the triangle mesh as a shared geometry, other methods might not (e.g. retopologized landscape)
 							TImplicitObjectScaled<FTriangleMeshImplicitObject>::ObjectType InnerObject = ScaledTriangleMesh->Object();
-							NewGeometry.Emplace(MakeUnique<Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>>(ScaledTriangleMesh->Object(), AdjustedScale3D));
+							NewGeometry.Emplace(MakeUnique<Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>>(ScaledTriangleMesh->Object(), InnerTriangleMesh, AdjustedScale3D));
 						}
 					}
 					else if (bIsInstanced)

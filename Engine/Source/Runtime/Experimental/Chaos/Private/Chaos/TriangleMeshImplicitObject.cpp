@@ -31,8 +31,11 @@ namespace Chaos
 template <typename QueryGeomType>
 static auto MakeScaledHelper(const QueryGeomType& B, const FVec3& InvScale)
 {
+	// TODO: Fixup code using this and remove it.
+
 	TUniquePtr<QueryGeomType> HackBPtr(const_cast<QueryGeomType*>(&B));	//todo: hack, need scaled object to accept raw ptr similar to transformed implicit
-	TImplicitObjectScaled<QueryGeomType> ScaledB(MakeSerializable(HackBPtr), InvScale);
+	TSharedPtr<QueryGeomType, ESPMode::ThreadSafe> SharedPtrForRefCount(nullptr); // This scaled is temporary, use null shared ptr.
+	TImplicitObjectScaled<QueryGeomType> ScaledB(MakeSerializable(HackBPtr), SharedPtrForRefCount, InvScale);
 	HackBPtr.Release();
 	return ScaledB;
 }
@@ -41,7 +44,7 @@ template <typename QueryGeomType>
 static auto MakeScaledHelper(const TImplicitObjectScaled<QueryGeomType>& B, const FVec3& InvScale)
 {
 	//if scaled of scaled just collapse into one scaled
-	TImplicitObjectScaled<QueryGeomType> ScaledB(B.Object(), InvScale * B.GetScale());
+	TImplicitObjectScaled<QueryGeomType> ScaledB(B.Object(), B.GetSharedObject(), InvScale * B.GetScale());
 	return ScaledB;
 }
 

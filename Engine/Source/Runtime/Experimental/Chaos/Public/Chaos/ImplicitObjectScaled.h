@@ -420,10 +420,11 @@ public:
 	using ObjectType = typename TChooseClass<bInstanced, TSerializablePtr<TConcrete>, TUniquePtr<TConcrete>>::Result;
 	using FImplicitObject::GetTypeName;
 
-	TImplicitObjectScaled(ObjectType Object, const FVec3& Scale, FReal InMargin = 0)
+	// If Object is instanced and requires ref counting must set SharedPtrForRefCount to ensure geometry remains valid, otherwise use null.
+	TImplicitObjectScaled(ObjectType Object, const TSharedPtr<TConcrete, ESPMode::ThreadSafe>& SharedPtrForRefCount, const FVec3& Scale, FReal InMargin = 0)
 	    : FImplicitObjectScaled(EImplicitObject::HasBoundingBox, Object->GetType())
 	    , MObject(MoveTemp(Object))
-		, MSharedPtrForRefCount(nullptr)
+		, MSharedPtrForRefCount(SharedPtrForRefCount)
 	{
 		ensureMsgf((IsScaled(MObject->GetType()) == false), TEXT("Scaled objects should not contain each other."));
 		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
@@ -462,10 +463,11 @@ public:
 		SetScale(Scale);
 	}
 
-	TImplicitObjectScaled(ObjectType Object, TUniquePtr<Chaos::FImplicitObject> &&ObjectOwner, const FVec3& Scale, FReal InMargin = 0)
+	// If Object is instanced and requires ref counting must set SharedPtrForRefCount to ensure geometry remains valid, otherwise use null.
+	TImplicitObjectScaled(ObjectType Object, TUniquePtr<Chaos::FImplicitObject> &&ObjectOwner, const TSharedPtr<TConcrete, ESPMode::ThreadSafe>& SharedPtrForRefCount, const FVec3& Scale, FReal InMargin = 0)
 	    : FImplicitObjectScaled(EImplicitObject::HasBoundingBox, Object->GetType())
 	    , MObject(Object)
-		, MSharedPtrForRefCount(nullptr)
+		, MSharedPtrForRefCount(SharedPtrForRefCount)
 	{
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
 		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
@@ -994,7 +996,7 @@ private:
 
 	static TImplicitObjectScaled<TConcrete, true>* CopyHelper(const TImplicitObjectScaled<TConcrete, true>* Obj)
 	{
-		return new TImplicitObjectScaled<TConcrete, true>(Obj->MObject, Obj->MScale, Obj->OuterMargin);
+		return new TImplicitObjectScaled<TConcrete, true>(Obj->MObject, Obj->MSharedPtrForRefCount, Obj->MScale, Obj->OuterMargin);
 	}
 
 	static TImplicitObjectScaled<TConcrete, false>* CopyHelper(const TImplicitObjectScaled<TConcrete, false>* Obj)
@@ -1002,7 +1004,7 @@ private:
 		TUniquePtr<FImplicitObject> DuplicatedShape = Obj->MObject->Copy();
 		
 		// We know the actual type of the underlying object pointer so we can cast it to the required type to make a copy of this implicit
-		return new TImplicitObjectScaled<TConcrete, false>(reinterpret_cast<TUniquePtr<TConcrete>&&>(DuplicatedShape), Obj->MScale, Obj->OuterMargin);
+		return new TImplicitObjectScaled<TConcrete, false>(reinterpret_cast<TUniquePtr<TConcrete>&&>(DuplicatedShape), Obj->MSharedPtrForRefCount, Obj->MScale, Obj->OuterMargin);
 	}
 
 	void UpdateBounds()
@@ -1017,8 +1019,12 @@ private:
 	template <typename QueryGeomType>
 	static auto MakeScaledHelper(const QueryGeomType& B, const TVector<T,d>& InvScale )
 	{
+		// TODO: Fixup code using this and remove it.
+
 		TUniquePtr<QueryGeomType> HackBPtr(const_cast<QueryGeomType*>(&B));	//todo: hack, need scaled object to accept raw ptr similar to transformed implicit
-		TImplicitObjectScaled<QueryGeomType> ScaledB(MakeSerializable(HackBPtr), InvScale);
+
+		TSharedPtr<QueryGeomType, ESPMode::ThreadSafe> SharedPtrForRefCount(nullptr); // This scaled is temporary, use fake shared ptr.
+		TImplicitObjectScaled<QueryGeomType> ScaledB(MakeSerializable(HackBPtr), SharedPtrForRefCount, InvScale);
 		HackBPtr.Release();
 		return ScaledB;
 	}
@@ -1027,7 +1033,7 @@ private:
 	static auto MakeScaledHelper(const TImplicitObjectScaled<QueryGeomType>& B, const TVector<T,d>& InvScale)
 	{
 		//if scaled of scaled just collapse into one scaled
-		TImplicitObjectScaled<QueryGeomType> ScaledB(B.Object(), InvScale * B.GetScale());
+		TImplicitObjectScaled<QueryGeomType> ScaledB(B.Object(), B.GetSharedObject(), InvScale * B.GetScale());
 		return ScaledB;
 	}
 
