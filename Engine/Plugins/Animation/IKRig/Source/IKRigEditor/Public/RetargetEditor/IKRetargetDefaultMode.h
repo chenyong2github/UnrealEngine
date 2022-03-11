@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,32 +12,13 @@ class FIKRetargetEditorController;
 class FIKRetargetEditor;
 class FIKRetargetPreviewScene;
 
-enum FIKRetargetTrackingState : int8
-{
-	None,
-	RotatingBone,
-	TranslatingRoot,
-};
 
-struct BoneEdit
-{
-	FName Name;							// name of last selected bone
-	int32 Index;						// index of last selected bone
-	FTransform ParentGlobalTransform;	// global transform of parent of last selected bone
-	FTransform GlobalTransform;			// global transform of last selected bone
-	FTransform LocalTransform;			// local transform of last selected bone
-	FQuat AccumulatedGlobalOffset;		// the accumulated offset from rotation gizmo
-	
-	TArray<FQuat> PrevLocalOffsets;		// the prev stored local offsets of all selected bones
-	TArray<FName> SelectedBones;		// the currently selected bones in the viewport
-};
-
-class FIKRetargetEditMode : public IPersonaEditMode
+class FIKRetargetDefaultMode : public IPersonaEditMode
 {
 public:
 	static FName ModeName;
 	
-	FIKRetargetEditMode() = default;
+	FIKRetargetDefaultMode() = default;
 
 	/** glue for all the editor parts to communicate */
 	void SetEditorController(const TSharedPtr<FIKRetargetEditorController> InEditorController) { EditorController = InEditorController; };
@@ -49,6 +30,7 @@ public:
 	/** END IPersonaEditMode interface */
 
 	/** FEdMode interface */
+	virtual void Initialize() override;
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
@@ -64,29 +46,25 @@ public:
 	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
+
+	virtual void Enter() override;
+	virtual void Exit() override;
+	// IS THIS NEEDED
+	virtual bool IsSelectionAllowed( AActor* InActor, bool bInSelection ) const override { return true; }
 	/** END FEdMode interface */
 
 private:
 
-	void GetAffectedBones(
-		FIKRetargetEditorController* Controller,
-		UIKRigProcessor* Processor,
-		TSet<int32>& OutAffectedBones,
-		TSet<int32>& OutSelectedBones) const;
-
-	UE::Widget::EWidgetMode CurrentWidgetMode;
-
-	bool IsRootSelected() const;
-	bool IsOnlyRootSelected() const;
-	bool IsBoneSelected(const FName& BoneName) const;
-
-	BoneEdit BoneEdit;
-	void UpdateWidgetTransform();
-	void HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace);
+	TObjectPtr<UPrimitiveComponent> SelectedComponent;
+	bool ComponentSelectionOverride(const UPrimitiveComponent* InComponent) const;
+	void SetSelectedComponent(UPrimitiveComponent* InComponent);
+	static void ApplyOffsetToMeshTransform(const FVector& Offset, USceneComponent* Component);
 	
 	/** The hosting app */
 	TWeakPtr<FIKRetargetEditorController> EditorController;
 
-	/** viewport selection/editing state */
-	FIKRetargetTrackingState TrackingState;
+	UE::Widget::EWidgetMode CurrentWidgetMode;
+	bool bIsTranslating = false;
+
+	bool bIsInitialized = false;
 };

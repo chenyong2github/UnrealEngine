@@ -8,12 +8,12 @@
 
 class FIKRetargetEditor;
 
-class FIKRetargetMode : public FApplicationMode
+class FIKRetargetApplicationMode : public FApplicationMode
 {
 	
 public:
 	
-	FIKRetargetMode(TSharedRef<class FWorkflowCentricApplication> InHostingApp, TSharedRef<class IPersonaPreviewScene> InPreviewScene);
+	FIKRetargetApplicationMode(TSharedRef<class FWorkflowCentricApplication> InHostingApp, TSharedRef<class IPersonaPreviewScene> InPreviewScene);
 
 	/** FApplicationMode interface */
 	virtual void RegisterTabFactories(TSharedPtr<FTabManager> InTabManager) override;

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RetargetEditor/IKRetargetEditMode.h"
+#include "RetargetEditor/IKRetargetEditPoseMode.h"
 
 #include "EditorViewportClient.h"
 #include "AssetEditorModeManager.h"
@@ -16,18 +16,19 @@
 #include "Retargeter/IKRetargetProcessor.h"
 #include "RigEditor/IKRigEditMode.h"
 
-FName FIKRetargetEditMode::ModeName("IKRetargetAssetEditMode");
 
 #define LOCTEXT_NAMESPACE "IKRetargeterEditMode"
 
-bool FIKRetargetEditMode::GetCameraTarget(FSphere& OutTarget) const
+FName FIKRetargetEditPoseMode::ModeName("IKRetargetAssetEditMode");
+
+bool FIKRetargetEditPoseMode::GetCameraTarget(FSphere& OutTarget) const
 {
 	// target skeletal mesh
 	if (const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin())
 	{
-		if (Controller->SourceSkelMeshComponent)
+		if (Controller->TargetSkelMeshComponent)
 		{
-			OutTarget = Controller->SourceSkelMeshComponent->Bounds.GetSphere();
+			OutTarget = Controller->TargetSkelMeshComponent->Bounds.GetSphere();
 			return true;
 		}
 	}
@@ -35,17 +36,17 @@ bool FIKRetargetEditMode::GetCameraTarget(FSphere& OutTarget) const
 	return false;
 }
 
-IPersonaPreviewScene& FIKRetargetEditMode::GetAnimPreviewScene() const
+IPersonaPreviewScene& FIKRetargetEditPoseMode::GetAnimPreviewScene() const
 {
 	return *static_cast<IPersonaPreviewScene*>(static_cast<FAssetEditorModeManager*>(Owner)->GetPreviewScene());
 }
 
-void FIKRetargetEditMode::GetOnScreenDebugInfo(TArray<FText>& OutDebugInfo) const
+void FIKRetargetEditPoseMode::GetOnScreenDebugInfo(TArray<FText>& OutDebugInfo) const
 {
 	// todo: provide warnings
 }
 
-void FIKRetargetEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+void FIKRetargetEditPoseMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	FEdMode::Render(View, Viewport, PDI);
 
@@ -111,7 +112,7 @@ void FIKRetargetEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 	}
 }
 
-void FIKRetargetEditMode::GetAffectedBones(
+void FIKRetargetEditPoseMode::GetAffectedBones(
 	FIKRetargetEditorController* Controller,
 	UIKRigProcessor* Processor,
 	TSet<int32>& OutAffectedBones,
@@ -142,22 +143,22 @@ void FIKRetargetEditMode::GetAffectedBones(
 	}
 }
 
-bool FIKRetargetEditMode::AllowWidgetMove()
+bool FIKRetargetEditPoseMode::AllowWidgetMove()
 {
 	return false;
 }
 
-bool FIKRetargetEditMode::ShouldDrawWidget() const
+bool FIKRetargetEditPoseMode::ShouldDrawWidget() const
 {
 	return UsesTransformWidget(CurrentWidgetMode);
 }
 
-bool FIKRetargetEditMode::UsesTransformWidget() const
+bool FIKRetargetEditPoseMode::UsesTransformWidget() const
 {
 	return UsesTransformWidget(CurrentWidgetMode);
 }
 
-bool FIKRetargetEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
+bool FIKRetargetEditPoseMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
 {
 	const bool bIsOnlyRootSelected = IsOnlyRootSelected();
 	const bool bIsAnyBoneSelected = !BoneEdit.SelectedBones.IsEmpty();
@@ -180,7 +181,7 @@ bool FIKRetargetEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode)
 	return false;
 }
 
-FVector FIKRetargetEditMode::GetWidgetLocation() const
+FVector FIKRetargetEditPoseMode::GetWidgetLocation() const
 {
 	if (BoneEdit.SelectedBones.IsEmpty())
 	{
@@ -209,7 +210,7 @@ FVector FIKRetargetEditMode::GetWidgetLocation() const
 	return Controller->GetTargetBoneGlobalTransform(RetargetProcessor, BoneIndex).GetTranslation();
 }
 
-bool FIKRetargetEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
+bool FIKRetargetEditPoseMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
 	// check for selections
 	if (Click.GetKey() == EKeys::LeftMouseButton)
@@ -240,7 +241,7 @@ bool FIKRetargetEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 	return false;
 }
 
-bool FIKRetargetEditMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+bool FIKRetargetEditPoseMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	TrackingState = FIKRetargetTrackingState::None;
 
@@ -288,7 +289,7 @@ bool FIKRetargetEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 	return false;
 }
 
-bool FIKRetargetEditMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+bool FIKRetargetEditPoseMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {	
 	if (TrackingState == FIKRetargetTrackingState::None)
 	{
@@ -308,7 +309,7 @@ bool FIKRetargetEditMode::EndTracking(FEditorViewportClient* InViewportClient, F
 	return true;
 }
 
-bool FIKRetargetEditMode::InputDelta(
+bool FIKRetargetEditPoseMode::InputDelta(
 	FEditorViewportClient* InViewportClient,
 	FViewport* InViewport,
 	FVector& InDrag,
@@ -372,7 +373,7 @@ bool FIKRetargetEditMode::InputDelta(
 	return false;
 }
 
-bool FIKRetargetEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
+bool FIKRetargetEditPoseMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
 {
 	if (BoneEdit.SelectedBones.IsEmpty())
 	{
@@ -394,12 +395,12 @@ bool FIKRetargetEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, vo
 	return true;
 }
 
-bool FIKRetargetEditMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData)
+bool FIKRetargetEditPoseMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData)
 {
 	return GetCustomDrawingCoordinateSystem(InMatrix, InData);
 }
 
-void FIKRetargetEditMode::UpdateWidgetTransform()
+void FIKRetargetEditPoseMode::UpdateWidgetTransform()
 {
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid() || BoneEdit.SelectedBones.IsEmpty())
@@ -439,7 +440,7 @@ void FIKRetargetEditMode::UpdateWidgetTransform()
 	}
 }
 
-bool FIKRetargetEditMode::IsRootSelected() const
+bool FIKRetargetEditPoseMode::IsRootSelected() const
 {
 	if (BoneEdit.SelectedBones.IsEmpty())
 	{
@@ -464,7 +465,7 @@ bool FIKRetargetEditMode::IsRootSelected() const
 	return false;
 }
 
-bool FIKRetargetEditMode::IsOnlyRootSelected() const
+bool FIKRetargetEditPoseMode::IsOnlyRootSelected() const
 {
 	if (BoneEdit.SelectedBones.Num() != 1)
 	{
@@ -480,24 +481,24 @@ bool FIKRetargetEditMode::IsOnlyRootSelected() const
 	return Controller->AssetController->GetTargetRootBone() == BoneEdit.SelectedBones[0];
 }
 
-void FIKRetargetEditMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
+void FIKRetargetEditPoseMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	FEdMode::Tick(ViewportClient, DeltaTime);
 	
 	CurrentWidgetMode = ViewportClient->GetWidgetMode();
 }
 
-void FIKRetargetEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
+void FIKRetargetEditPoseMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
 	FEdMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }
 
-bool FIKRetargetEditMode::IsBoneSelected(const FName& BoneName) const
+bool FIKRetargetEditPoseMode::IsBoneSelected(const FName& BoneName) const
 {
 	return BoneEdit.SelectedBones.Contains(BoneName);
 }
 
-void FIKRetargetEditMode::HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace)
+void FIKRetargetEditPoseMode::HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace)
 {
 	if (bReplace)
 	{

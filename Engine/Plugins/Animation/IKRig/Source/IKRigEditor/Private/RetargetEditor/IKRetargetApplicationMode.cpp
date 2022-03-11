@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RetargetEditor/IKRetargetMode.h"
+#include "RetargetEditor/IKRetargetApplicationMode.h"
 
 #include "IPersonaPreviewScene.h"
 #include "PersonaModule.h"
@@ -14,10 +14,10 @@
 #define LOCTEXT_NAMESPACE "IKRetargetMode"
 
 
-FIKRetargetMode::FIKRetargetMode(
+FIKRetargetApplicationMode::FIKRetargetApplicationMode(
 	TSharedRef<FWorkflowCentricApplication> InHostingApp,  
 	TSharedRef<IPersonaPreviewScene> InPreviewScene)
-	: FApplicationMode(IKRetargetEditorModes::IKRetargetEditorMode)
+	: FApplicationMode(IKRetargetApplicationModes::IKRetargetApplicationMode)
 {
 	IKRetargetEditorPtr = StaticCastSharedRef<FIKRetargetEditor>(InHostingApp);
 	TSharedRef<FIKRetargetEditor> IKRetargetEditor = StaticCastSharedRef<FIKRetargetEditor>(InHostingApp);
@@ -38,7 +38,7 @@ FIKRetargetMode::FIKRetargetMode(
 	TabFactories.RegisterFactory(MakeShared<FIKRetargetAssetBrowserTabSummoner>(IKRetargetEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.007")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.008")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -86,7 +86,7 @@ FIKRetargetMode::FIKRetargetMode(
 	TabLayout->ProcessExtensions(*LayoutExtender.Get());
 }
 
-void FIKRetargetMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
+void FIKRetargetApplicationMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
 {
 	TSharedPtr<FIKRetargetEditor> IKRigEditor = IKRetargetEditorPtr.Pin();
 	IKRigEditor->RegisterTabSpawners(InTabManager.ToSharedRef());

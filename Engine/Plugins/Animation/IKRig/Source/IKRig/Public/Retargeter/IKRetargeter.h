@@ -234,7 +234,7 @@ private:
 public:
 
 #if WITH_EDITORONLY_DATA
-	/** The Skeletal Mesh to preview the retarget on.*/
+	/** Optional. Override the Skeletal Mesh to preview the retarget on. Uses the preview mesh from the Target IK Rig asset by default. */
 	UPROPERTY(EditAnywhere, Category = Rigs)
 	TObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
 #endif
@@ -252,18 +252,27 @@ public:
 	bool bRetargetIK = true;
 
 #if WITH_EDITORONLY_DATA
-	/** Move the target actor in the viewport for easier visualization next to the source actor.*/
-	UPROPERTY(EditAnywhere, Category = TargetActorPreview, meta = (UIMin = "-2000.0", UIMax = "2000.0"))
-	float TargetActorOffset = 150.0f;
+	UPROPERTY()
+	float TargetActorOffset_DEPRECATED = 0.0f;
+	UPROPERTY()
+	float TargetActorScale_DEPRECATED = 0.0f;
 
-	/** Scale the target actor in the viewport for easier visualization next to the source actor.*/
-	UPROPERTY(EditAnywhere, Category = TargetActorPreview, meta = (UIMin = "0.01", UIMax = "10.0"))
-	float TargetActorScale = 1.0f;
+	/** The offset applied to the target mesh in the editor viewport. */
+	UPROPERTY(EditAnywhere, Category = PreviewSettings)
+	FVector TargetMeshOffset;
+
+	/** Scale the target mesh in the viewport for easier visualization next to the source.*/
+	UPROPERTY(EditAnywhere, Category = PreviewSettings, meta = (UIMin = "0.01", UIMax = "10.0"))
+	float TargetMeshScale = 1.0f;
+
+	/** The offset applied to the source mesh in the editor viewport. */
+	UPROPERTY(EditAnywhere, Category = PreviewSettings)
+	FVector SourceMeshOffset;
 
 	/** The visual size of the bones in the viewport when editing the retarget pose.*/
-	UPROPERTY(EditAnywhere, Category = PoseEditSettings, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = PreviewSettings, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
 	float BoneDrawSize = 8.0f;
-
+	
 private:
 	/** A special editor-only mode which forces the retargeter to output the current retarget reference pose,
 	* rather than actually running the retarget and outputting the retargeted pose. Used in Edit-Pose mode.*/

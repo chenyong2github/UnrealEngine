@@ -6,7 +6,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
-#include "RetargetEditor/IKRetargetEditMode.h"
+#include "RetargetEditor/IKRetargetDefaultMode.h"
+#include "RetargetEditor/IKRetargetEditPoseMode.h"
 #include "RetargetEditor/IKRetargetEditor.h"
 #include "RetargetEditor/SIKRetargetChainMapList.h"
 #include "Retargeter/IKRetargeter.h"
@@ -79,11 +80,38 @@ void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetarget
 {
 	// force edit pose mode to be off
 	AssetController->SetEditRetargetPoseMode(false, false); // turn off and don't reinitialize (avoid infinite loop)
-	Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditMode::ModeName);
+	Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
 	// force reinit the runtime retarget processor
 	TargetAnimInstance->SetProcessorNeedsInitialized();
 	// refresh all the UI views
 	RefreshAllViews();
+}
+
+void FIKRetargetEditorController::AddOffsetAndUpdatePreviewMeshPosition(
+	const FVector& Offset,
+	USceneComponent* Component) const
+{
+	UIKRetargeter* Asset = AssetController->GetAsset();
+	FVector Position;
+	float Scale;
+	if (Component == TargetSkelMeshComponent)
+	{
+		Asset->TargetMeshOffset += Offset;
+		Position = Asset->TargetMeshOffset;
+		Scale = Asset->TargetMeshScale;
+	}
+	else
+	{
+		Asset->SourceMeshOffset += Offset;
+		Position = Asset->SourceMeshOffset;
+		Scale = 1.0f;
+	}
+
+	constexpr bool bSweep = false;
+	constexpr FHitResult* OutSweepHitResult = nullptr;
+	constexpr ETeleportType Teleport = ETeleportType::ResetPhysics;
+	Component->SetWorldLocation(Position, bSweep, OutSweepHitResult, Teleport);
+	Component->SetWorldScale3D(FVector(Scale,Scale,Scale));
 }
 
 USkeletalMesh* FIKRetargetEditorController::GetSourceSkeletalMesh() const
@@ -116,8 +144,8 @@ FTransform FIKRetargetEditorController::GetTargetBoneGlobalTransform(
 	FTransform BoneTransform = RetargetProcessor->GetTargetBoneRetargetPoseGlobalTransform(TargetBoneIndex);
 
 	// scale and offset
-	BoneTransform.ScaleTranslation(AssetController->GetAsset()->TargetActorScale);
-	BoneTransform.AddToTranslation(FVector(AssetController->GetAsset()->TargetActorOffset, 0.f, 0.f));
+	BoneTransform.ScaleTranslation(AssetController->GetAsset()->TargetMeshScale);
+	BoneTransform.AddToTranslation(AssetController->GetAsset()->TargetMeshOffset);
 
 	return BoneTransform;
 }
@@ -156,13 +184,13 @@ bool FIKRetargetEditorController::GetTargetBoneLineSegments(
 	}
 
 	// add the target translation offset and scale
-	const FVector TargetOffset(AssetController->GetAsset()->TargetActorOffset, 0.f, 0.f);
-	OutStart *= AssetController->GetAsset()->TargetActorScale;
-	OutStart += TargetOffset;
+	const UIKRetargeter* Asset = AssetController->GetAsset();
+	OutStart *= Asset->TargetMeshScale;
+	OutStart += Asset->TargetMeshOffset;
 	for (FVector& ChildPoint : OutChildren)
 	{
-		ChildPoint *= AssetController->GetAsset()->TargetActorScale;
-		ChildPoint += TargetOffset;
+		ChildPoint *= Asset->TargetMeshScale;
+		ChildPoint += Asset->TargetMeshOffset;
 	}
 	
 	return true;
@@ -212,12 +240,16 @@ void FIKRetargetEditorController::HandleEditPose() const
 	AssetController->SetEditRetargetPoseMode(bEditPoseMode);
 	if (bEditPoseMode)
 	{
-		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetEditMode::ModeName);
+		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetDefaultMode::ModeName);
+		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetEditPoseMode::ModeName);
 		SourceSkelMeshComponent->ShowReferencePose(true);
+		// have to move component back to offset position because ShowReferencePose() sets it back to origin
+		AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, SourceSkelMeshComponent);
 	}
 	else
 	{
-		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditMode::ModeName);
+		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
+		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
 		PlayPreviousAnimationAsset();
 	}
 }

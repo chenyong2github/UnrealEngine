@@ -11,7 +11,8 @@
 #include "RigEditor/AssetTypeActions_IKRigDefinition.h"
 #include "RetargetEditor/AssetTypeActions_IKRetargeter.h"
 #include "RetargetEditor/IKRetargetCommands.h"
-#include "RetargetEditor/IKRetargetEditMode.h"
+#include "RetargetEditor/IKRetargetDefaultMode.h"
+#include "RetargetEditor/IKRetargetEditPoseMode.h"
 #include "RigEditor/IKRigCommands.h"
 #include "RigEditor/IKRigEditMode.h"
 #include "RigEditor/IKRigSkeletonCommands.h"
@@ -43,7 +44,8 @@ void FIKRigEditor::StartupModule()
 
 	// register custom editor modes
 	FEditorModeRegistry::Get().RegisterMode<FIKRigEditMode>(FIKRigEditMode::ModeName, LOCTEXT("IKRigEditMode", "IKRig"), FSlateIcon(), false);
-	FEditorModeRegistry::Get().RegisterMode<FIKRetargetEditMode>(FIKRetargetEditMode::ModeName, LOCTEXT("IKRetargetEditMode", "IKRetarget"), FSlateIcon(), false);
+	FEditorModeRegistry::Get().RegisterMode<FIKRetargetDefaultMode>(FIKRetargetDefaultMode::ModeName, LOCTEXT("IKRetargetDefaultMode", "IKRetargetDefault"), FSlateIcon(), false);
+	FEditorModeRegistry::Get().RegisterMode<FIKRetargetEditPoseMode>(FIKRetargetEditPoseMode::ModeName, LOCTEXT("IKRetargetEditMode", "IKRetargetEditPose"), FSlateIcon(), false);
 
 	// register detail customizations
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -60,7 +62,8 @@ void FIKRigEditor::ShutdownModule()
 	FIKRetargetCommands::Unregister();
 	
 	FEditorModeRegistry::Get().UnregisterMode(FIKRigEditMode::ModeName);
-	FEditorModeRegistry::Get().UnregisterMode(FIKRetargetEditMode::ModeName);
+	FEditorModeRegistry::Get().UnregisterMode(FIKRetargetDefaultMode::ModeName);
+	FEditorModeRegistry::Get().UnregisterMode(FIKRetargetEditPoseMode::ModeName);
 
 	// unregister IKRigDefinition asset action
 	if (IKRigDefinitionAssetAction.IsValid())

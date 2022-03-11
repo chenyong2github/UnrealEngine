@@ -824,7 +824,7 @@ class ENGINE_API FStripDataFlags
 public:
 
 	/** Engine strip flags */
-	enum EStrippedData
+	enum class EStrippedData : uint8
 	{
 		None = 0,
 
@@ -916,7 +916,7 @@ public:
 	 */
 	FORCEINLINE bool IsEditorDataStripped() const
 	{
-		return (GlobalStripFlags & FStripDataFlags::Editor) != 0;
+		return (GlobalStripFlags & static_cast<uint8>(FStripDataFlags::EStrippedData::Editor)) != 0;
 	}
 
 	/**
@@ -926,7 +926,7 @@ public:
 	 */
 	bool IsDataStrippedForServer() const
 	{
-		return (GlobalStripFlags & FStripDataFlags::Server) != 0;
+		return (GlobalStripFlags & static_cast<uint8>(FStripDataFlags::EStrippedData::Server)) != 0;
 	}
 
 	/**

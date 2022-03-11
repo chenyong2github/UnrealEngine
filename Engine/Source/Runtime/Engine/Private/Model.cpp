@@ -187,7 +187,7 @@ void UModel::Serialize( FArchive& Ar )
 	Super::Serialize( Ar );
 
 	const int32 StripVertexBufferFlag = 1;
-	FStripDataFlags StripFlags( Ar, GetOuter() && GetOuter()->IsA(ABrush::StaticClass()) ? StripVertexBufferFlag : FStripDataFlags::None );
+	FStripDataFlags StripFlags( Ar, GetOuter() && GetOuter()->IsA(ABrush::StaticClass()) ? StripVertexBufferFlag : static_cast<int32>(FStripDataFlags::EStrippedData::None) );
 
 	Ar << Bounds;
 

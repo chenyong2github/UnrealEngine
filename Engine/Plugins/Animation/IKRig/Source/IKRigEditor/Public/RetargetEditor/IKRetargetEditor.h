@@ -6,7 +6,7 @@
 
 #include "IHasPersonaToolkit.h"
 #include "IKRetargetEditorController.h"
-#include "IKRetargetMode.h"
+#include "IKRetargetApplicationMode.h"
 #include "IPersonaPreviewScene.h"
 #include "PersonaAssetEditorToolkit.h"
 #include "EditorUndoClient.h"
@@ -22,9 +22,9 @@ class FIKRetargetPreviewScene;
 struct FIKRetargetPose;
 class SEditableTextBox;
 
-namespace IKRetargetEditorModes
+namespace IKRetargetApplicationModes
 {
-	extern const FName IKRetargetEditorMode;
+	extern const FName IKRetargetApplicationMode;
 }
 
 class FIKRetargetEditor :
@@ -97,5 +97,5 @@ private:
 	/** centralized management across all views */
 	TSharedRef<FIKRetargetEditorController> EditorController;
 	
-	friend FIKRetargetMode;
+	friend FIKRetargetApplicationMode;
 };

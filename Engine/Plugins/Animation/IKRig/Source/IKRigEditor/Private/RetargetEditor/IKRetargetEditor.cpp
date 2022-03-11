@@ -18,13 +18,14 @@
 #include "Retargeter/IKRetargeter.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/IKRetargetCommands.h"
-#include "RetargetEditor/IKRetargetEditMode.h"
-#include "RetargetEditor/IKRetargetMode.h"
+#include "RetargetEditor/IKRetargetEditPoseMode.h"
+#include "RetargetEditor/IKRetargetApplicationMode.h"
+#include "RetargetEditor/IKRetargetDefaultMode.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargeterEditor"
 
-const FName IKRetargetEditorModes::IKRetargetEditorMode("IKRetargetEditorMode");
+const FName IKRetargetApplicationModes::IKRetargetApplicationMode("IKRetargetApplicationMode");
 const FName IKRetargetEditorAppName = FName(TEXT("IKRetargetEditorApp"));
 
 FIKRetargetEditor::FIKRetargetEditor()
@@ -65,17 +66,25 @@ void FIKRetargetEditor::InitAssetEditor(
 		bCreateDefaultToolbar, 
 		InAsset);
 
+	// this sets the application mode which defines the tab factory that builds the editor layout
 	AddApplicationMode(
-		IKRetargetEditorModes::IKRetargetEditorMode,
-		MakeShareable(new FIKRetargetMode(SharedThis(this), EditorController->PersonaToolkit->GetPreviewScene())));
+		IKRetargetApplicationModes::IKRetargetApplicationMode,
+		MakeShareable(new FIKRetargetApplicationMode(SharedThis(this),EditorController->PersonaToolkit->GetPreviewScene())));
+	SetCurrentMode(IKRetargetApplicationModes::IKRetargetApplicationMode);
 
-	SetCurrentMode(IKRetargetEditorModes::IKRetargetEditorMode);
+	// set the default editing mode to use in the editor
+	GetEditorModeManager().SetDefaultMode(FIKRetargetDefaultMode::ModeName);
+	
+	// give default editing mode a pointer to the editor controller
+	GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
+	FIKRetargetDefaultMode* DefaultMode = GetEditorModeManager().GetActiveModeTyped<FIKRetargetDefaultMode>(FIKRetargetDefaultMode::ModeName);
+	DefaultMode->SetEditorController(EditorController);
 
-	GetEditorModeManager().SetDefaultMode(FPersonaEditModes::SkeletonSelection);
-	GetEditorModeManager().ActivateMode(FIKRetargetEditMode::ModeName);
-	FIKRetargetEditMode* EditMode = GetEditorModeManager().GetActiveModeTyped<FIKRetargetEditMode>(FIKRetargetEditMode::ModeName);
-	EditMode->SetEditorController(EditorController);
-	GetEditorModeManager().DeactivateMode(FIKRetargetEditMode::ModeName);
+	// give edit pose mode a pointer to the editor controller
+	GetEditorModeManager().ActivateMode(FIKRetargetEditPoseMode::ModeName);
+	FIKRetargetEditPoseMode* EditPoseMode = GetEditorModeManager().GetActiveModeTyped<FIKRetargetEditPoseMode>(FIKRetargetEditPoseMode::ModeName);
+	EditPoseMode->SetEditorController(EditorController);
+	GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
@@ -246,17 +255,9 @@ void FIKRetargetEditor::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FIKRetargetEditor::Tick(float DeltaTime)
 {
-	// apply offset to the target component
-	if (EditorController->TargetSkelMeshComponent)
-	{
-		const UIKRetargeter* Retargeter = EditorController->AssetController->GetAsset();
-		
-		const float TargetOffset = Retargeter->TargetActorOffset;
-		EditorController->TargetSkelMeshComponent->SetRelativeLocation(FVector(TargetOffset,0,0));
-
-		const float TargetScale = Retargeter->TargetActorScale;
-		EditorController->TargetSkelMeshComponent->SetRelativeScale3D(FVector(TargetScale,TargetScale,TargetScale));
-	}
+	// update with latest offsets
+	EditorController->AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, EditorController->SourceSkelMeshComponent);
+	EditorController->AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, EditorController->TargetSkelMeshComponent);
 }
 
 TStatId FIKRetargetEditor::GetStatId() const
@@ -318,11 +319,13 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 
 	// apply mesh to the preview scene
 	InPersonaPreviewScene->SetPreviewMeshComponent(EditorController->SourceSkelMeshComponent);
-	InPersonaPreviewScene->SetAllowMeshHitProxies(false);
-	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
-	EditorController->SourceSkelMeshComponent->bSelectable = false;
-	EditorController->TargetSkelMeshComponent->bSelectable = false;
 	InPersonaPreviewScene->SetPreviewMesh(SourceMesh);
+	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
+
+	// SetPreviewMesh() sets this flag true, which the render uses to filter out objects for selection highlighting...
+	// but since we want to be able to select the mesh in this viewport, we have to set it back to false
+	EditorController->SourceSkelMeshComponent->bCanHighlightSelectedSections = false;
+	
 	InPersonaPreviewScene->AddComponent(EditorController->SourceSkelMeshComponent, FTransform::Identity);
 	InPersonaPreviewScene->AddComponent(EditorController->TargetSkelMeshComponent, FTransform::Identity);
 }
@@ -373,6 +376,7 @@ void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& P
 		{
 			PreviewScene->SetPreviewMeshComponent(EditorController->SourceSkelMeshComponent);
 			PreviewScene->SetPreviewMesh(SourceMesh);
+			EditorController->SourceSkelMeshComponent->bCanHighlightSelectedSections = false;
 		}
 	
 		SetupAnimInstance();

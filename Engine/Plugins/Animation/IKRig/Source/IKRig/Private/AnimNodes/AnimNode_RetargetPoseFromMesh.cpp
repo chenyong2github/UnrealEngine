@@ -114,6 +114,19 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 
 	// convert to local space
 	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(ComponentPose, Output.Pose);
+
+	// copy curves over
+	if (bCopyCurves)
+	{
+		for (const TPair<FName, float>& SourceCurve : SourceCurveList)
+		{
+			if (const SmartName::UID_Type* UID = CurveNameToUIDMap.Find(SourceCurve.Key))
+			{
+				// set source value to output curve
+				Output.Curve.Set(*UID, SourceCurve.Value);
+			}
+		}
+	}
 }
 
 void FAnimNode_RetargetPoseFromMesh::PreUpdate(const UAnimInstance* InAnimInstance)
@@ -134,6 +147,16 @@ void FAnimNode_RetargetPoseFromMesh::PreUpdate(const UAnimInstance* InAnimInstan
 	if (EnsureProcessorIsInitialized(TargetMeshComponent))
 	{
 		CopyBoneTransformsFromSource(TargetMeshComponent);
+
+		if(bCopyCurves)
+		{
+			SourceCurveList.Reset();
+			if (const UAnimInstance* SourceAnimInstance = SourceMeshComponent->GetAnimInstance())
+			{
+				// attribute curve contains all list	
+				SourceCurveList.Append(SourceAnimInstance->GetAnimationCurveList(EAnimCurveType::AttributeCurve));
+			}
+		}
 	}
 }
 
@@ -193,6 +216,14 @@ bool FAnimNode_RetargetPoseFromMesh::EnsureProcessorIsInitialized(const TObjectP
 	{
 		return false; // cannot initialize if components are missing skeletal mesh references
 	}
+
+	// check that both have skeleton assets (shouldn't get this far without a skeleton)
+	const TObjectPtr<USkeleton> SourceSkeleton = SourceMesh->GetSkeleton();
+	const TObjectPtr<USkeleton> TargetSkeleton = TargetMesh->GetSkeleton();
+	if (SourceSkeleton.IsNull() || TargetSkeleton.IsNull())
+	{
+		return false;
+	}
 	
 	// try initializing the processor
 	if (!Processor->WasInitializedWithTheseAssets(SourceMesh, TargetMesh, IKRetargeterAsset))
@@ -200,6 +231,27 @@ bool FAnimNode_RetargetPoseFromMesh::EnsureProcessorIsInitialized(const TObjectP
 		// initialize retarget processor with source and target skeletal meshes
 		// (asset is passed in as outer UObject for new UIKRigProcessor) 
 		Processor->Initialize(SourceMesh,	TargetMesh,IKRetargeterAsset);
+
+		// create a map of curve names to IDs that are present on the target skeleton
+		if (bCopyCurves)
+		{
+			const FSmartNameMapping* SourceContainer = SourceSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+			const FSmartNameMapping* TargetContainer = TargetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+
+			TArray<FName> SourceCurveNames;
+			SourceContainer->FillNameArray(SourceCurveNames);
+			CurveNameToUIDMap.Reset();
+			for (int32 Index = 0; Index < SourceCurveNames.Num(); ++Index)
+			{
+				SmartName::UID_Type UID = TargetContainer->FindUID(SourceCurveNames[Index]);
+				if (UID != SmartName::MaxUID)
+				{
+					// has a valid UID, add to the list
+					SmartName::UID_Type& Value = CurveNameToUIDMap.Add(SourceCurveNames[Index]);
+					Value = UID;
+				}
+			}
+		}
 	}
 
 	return Processor->IsInitialized();

@@ -29,6 +29,10 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(PinHiddenByDefault))
 	TObjectPtr<UIKRetargeter> IKRetargeterAsset = nullptr;
 
+	/* Copy curves from SouceMeshComponent. This will copy any curves the source/target Skeleton have in common. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (NeverAsPin))
+	bool bCopyCurves = true;
+
 #if WITH_EDITOR
 	/** when true, will copy all setting from target IK Rig asset each tick (for live preview) */
 	bool bDriveWithAsset = false;
@@ -67,4 +71,8 @@ private:
 
 	// mapping from required bones to actual bones within the target skeleton
 	TArray< TPair<int32, int32> > RequiredToTargetBoneMapping;
+	// mapping of Skeleton curve names to the UID (for copying curves from the source mesh component)
+	TMap<FName, SmartName::UID_Type> CurveNameToUIDMap;
+	// cached curves, copied on the game thread
+	TMap<FName, float> SourceCurveList;
 };

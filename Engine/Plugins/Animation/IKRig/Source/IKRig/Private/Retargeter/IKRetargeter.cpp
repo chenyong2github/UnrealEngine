@@ -43,6 +43,21 @@ void UIKRetargeter::PostLoad()
 			}
 		}
 	}
+
+	#if WITH_EDITORONLY_DATA
+		// load deprecated target actor offset
+		if (!FMath::IsNearlyZero(TargetActorOffset_DEPRECATED))
+		{
+			TargetMeshOffset.X = TargetActorOffset_DEPRECATED;
+		}
+
+		// load deprecated target actor scale
+		if (!FMath::IsNearlyZero(TargetActorScale_DEPRECATED))
+		{
+			TargetMeshScale = TargetActorScale_DEPRECATED;
+		}
+	#endif
+	
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// remove null settings

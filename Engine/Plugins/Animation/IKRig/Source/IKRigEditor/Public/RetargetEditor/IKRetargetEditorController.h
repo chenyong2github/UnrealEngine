@@ -53,6 +53,8 @@ public:
 	UPROPERTY(transient, NonTransactional)
 	TWeakObjectPtr<class UIKRetargetAnimInstance> TargetAnimInstance;
 
+	void AddOffsetAndUpdatePreviewMeshPosition(const FVector& Offset, USceneComponent* Component) const;
+
 	/** asset properties tab */
 	TSharedPtr<class IDetailsView> DetailsView;
 
