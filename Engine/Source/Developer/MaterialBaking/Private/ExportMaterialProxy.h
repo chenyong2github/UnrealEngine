@@ -34,12 +34,12 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 
 	virtual FMaterialShadingModelField GetMaterialShadingModels() const override
 	{
-		return MSM_MAX;
+		return Compiler->GetMaterialShadingModels();
 	}
 
 	virtual FMaterialShadingModelField GetCompiledShadingModels() const override
 	{
-		return MSM_MAX;
+		return Compiler->GetCompiledShadingModels();
 	}
 
 	virtual int32 WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets) override
