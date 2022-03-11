@@ -251,19 +251,22 @@ void SNiagaraScalabilityPreviewSettings::CreateDeviceProfileTree()
 	{
 		UDeviceProfile* DeviceProfile = CastChecked<UDeviceProfile>(Profile);
 
-		TFunction<void(int32&, UDeviceProfile*)> FindDepth;
-		FindDepth = [&](int32& Depth, UDeviceProfile* CurrProfile)
+		if (DeviceProfile && DeviceProfile->IsVisibleForAssets())
 		{
-			if (CurrProfile->Parent)
+			TFunction<void(int32&, UDeviceProfile*)> FindDepth;
+			FindDepth = [&](int32& Depth, UDeviceProfile* CurrProfile)
 			{
-				FindDepth(++Depth, Cast<UDeviceProfile>(CurrProfile->Parent));
-			}
-		};
+				if (CurrProfile->Parent)
+				{
+					FindDepth(++Depth, Cast<UDeviceProfile>(CurrProfile->Parent));
+				}
+			};
 
-		int32 ProfileDepth = 0;
-		FindDepth(ProfileDepth, DeviceProfile);
-		DeviceProfilesByHierarchyLevel.SetNum(FMath::Max(ProfileDepth+1, DeviceProfilesByHierarchyLevel.Num()));
-		DeviceProfilesByHierarchyLevel[ProfileDepth].Add(DeviceProfile);
+			int32 ProfileDepth = 0;
+			FindDepth(ProfileDepth, DeviceProfile);
+			DeviceProfilesByHierarchyLevel.SetNum(FMath::Max(ProfileDepth + 1, DeviceProfilesByHierarchyLevel.Num()));
+			DeviceProfilesByHierarchyLevel[ProfileDepth].Add(DeviceProfile);
+		}
 	}
 	
 	FullDeviceProfileTree.Reset(DeviceProfilesByHierarchyLevel[0].Num());
@@ -339,7 +342,7 @@ TSharedRef<ITableRow> SNiagaraScalabilityPreviewSettings::OnGenerateDeviceProfil
 	TSharedPtr<SHorizontalBox> RowContainer;
 	SAssignNew(RowContainer, SHorizontalBox);
 
-	int32 ProfileMask = ScalabilityViewModel->GetPreviewPlatformSet()->GetEffectQualityMaskForDeviceProfile(InItem->Profile);
+	int32 ProfileMask = ScalabilityViewModel->GetPreviewPlatformSet()->GetActiveQualityMaskForDeviceProfile(InItem->Profile);
 	FText NameTooltip = FText::Format(LOCTEXT("ProfileQLTooltipFmt", "Effects Quality: {0}"), FNiagaraPlatformSet::GetQualityLevelMaskText(ProfileMask));
 	
 	//Top level profile. Look for a platform icon.

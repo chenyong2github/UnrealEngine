@@ -73,6 +73,18 @@ void FDataDrivenConsoleVariable::Refresh()
 
 	// make sure the cvar is registered
 	Register();
+
+	//Ensure the default value is applied, assuming no other external changes to the CVar.
+	IConsoleVariable* CVarToRefresh = IConsoleManager::Get().FindConsoleVariable(*Name);
+	if (CVarToRefresh)
+	{
+		switch (Type)
+		{
+		case FDataDrivenCVarType::CVarBool: CVarToRefresh->Set(DefaultValueBool, ECVF_SetByConstructor); break;
+		case FDataDrivenCVarType::CVarInt: CVarToRefresh->Set(DefaultValueInt, ECVF_SetByConstructor); break;
+		case FDataDrivenCVarType::CVarFloat: CVarToRefresh->Set(DefaultValueFloat, ECVF_SetByConstructor); break;
+		}
+	}
 }
 #endif
 

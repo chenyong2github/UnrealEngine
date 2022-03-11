@@ -58,6 +58,14 @@ void UNiagaraEffectType::PostLoad()
 		}
 	}
 
+	//Apply platform set redirectors
+	auto ApplyPlatformSetRedirects = [](UObject* Owner, FNiagaraPlatformSet& Platforms)
+	{
+		Platforms.ApplyRedirects();
+	};
+	ForEachPlatformSet(ApplyPlatformSetRedirects);
+
+
 #if !WITH_EDITOR && NIAGARA_PERF_BASELINES
 	//When not in the editor we clear out the baseline so that it's regenerated for play tests.
 	//We cannot use the saved editor/development config settings.

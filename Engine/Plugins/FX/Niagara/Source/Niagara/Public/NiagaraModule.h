@@ -56,6 +56,7 @@ public:
 	void OnPreExit();
 
 	void OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds);
+	void OnBeginFrame();
 	void OnWorldBeginTearDown(UWorld* World);
 
 	FDelegateHandle SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue);
@@ -358,5 +359,7 @@ private:
 #if WITH_NIAGARA_DEBUGGER
 	TPimplPtr<FNiagaraDebuggerClient> DebuggerClient;
 #endif
+
+	FDelegateHandle OnCVarUnregisteredHandle;
 };
 

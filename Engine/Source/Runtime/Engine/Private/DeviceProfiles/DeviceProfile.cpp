@@ -24,6 +24,7 @@ UDeviceProfile::UDeviceProfile(const FObjectInitializer& ObjectInitializer)
 {
 	BaseProfileName = TEXT("");
 	DeviceType = TEXT("");
+	bIsVisibleForAssets = false;
 
 	bVisible = true;
 

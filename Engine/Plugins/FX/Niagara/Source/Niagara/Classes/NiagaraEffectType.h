@@ -433,6 +433,9 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 
 	void SpawnBaselineActor(UWorld* World);
 #endif
+	/** Performs the passed action for all FNiagaraPlatformSets in this system. */
+	template<typename TAction>
+	void ForEachPlatformSet(TAction Func);
 
 private:
 
@@ -465,3 +468,18 @@ public:
 	static void GeneratePerfBaselines();
 #endif
 };
+
+/** Performs the passed action for all FNiagaraPlatformSets in this FXType. */
+template<typename TAction>
+void UNiagaraEffectType::ForEachPlatformSet(TAction Func)
+{
+	for (FNiagaraSystemScalabilitySettings& Setting : SystemScalabilitySettings.Settings)
+	{
+		Func(this, Setting.Platforms);
+	}
+
+	for (FNiagaraEmitterScalabilitySettings& Setting : EmitterScalabilitySettings.Settings)
+	{
+		Func(this, Setting.Platforms);
+	}
+}

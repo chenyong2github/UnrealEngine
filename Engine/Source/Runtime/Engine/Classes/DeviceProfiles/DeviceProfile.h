@@ -30,6 +30,10 @@ class ENGINE_API UDeviceProfile : public UTextureLODSettings
 	UPROPERTY(EditAnywhere, config, Category=DeviceSettings)
 	FString BaseProfileName;
 
+	/** Some asset types can reference Device Profiles, is this profile visible to those assets. */
+	UPROPERTY(EditAnywhere, config, Category = DeviceSettings)
+	uint32 bIsVisibleForAssets : 1;
+
 	/** The parent object of this profile, it is the object matching this DeviceType with the BaseProfileName */
 	UPROPERTY()
 	TObjectPtr<UDeviceProfile> Parent;
@@ -88,6 +92,8 @@ public:
 	 * @return FSelectedFragmentProperties ptr or null if FragmentTag not found.
 	 */	
 	const FSelectedFragmentProperties* GetFragmentByTag(FName& FragmentTag) const;
+
+	bool IsVisibleForAssets()const { return bIsVisibleForAssets; }
 public:
 	/** 
 	 * Access to the device profiles Texture LOD Settings

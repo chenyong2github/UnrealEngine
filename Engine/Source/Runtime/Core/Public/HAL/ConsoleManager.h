@@ -43,6 +43,8 @@ public:
 
 	void OnCVarChanged();
 
+	virtual FConsoleVariableMulticastDelegate& OnCVarUnregistered()override;
+
 	// interface IConsoleManager -----------------------------------
 
 	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags) override;
@@ -89,6 +91,8 @@ private: // ----------------------------------------------------
 	bool bHistoryWasLoaded;
 	TMap<FString, TArray<FString>>	HistoryEntriesMap;
 	TArray<FConsoleCommandDelegate>	ConsoleVariableChangeSinks;
+
+	FConsoleVariableMulticastDelegate ConsoleVariableUnregisteredDelegate;
 
 	IConsoleThreadPropagation* ThreadPropagationCallback;
 

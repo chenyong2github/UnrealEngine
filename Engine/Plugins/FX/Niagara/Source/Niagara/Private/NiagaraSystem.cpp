@@ -32,6 +32,8 @@
 #include "UObject/UObjectThreadContext.h"
 #include "ShaderCompiler.h"
 #include "NiagaraSimulationStageBase.h"
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
@@ -1195,6 +1197,13 @@ void UNiagaraSystem::PostLoad()
 		LibraryVisibility = ENiagaraScriptLibraryVisibility::Unexposed;
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	//Apply platform set redirectors
+	auto ApplyPlatformSetRedirects = [](UObject* Owner, FNiagaraPlatformSet& Platforms)
+	{
+		Platforms.ApplyRedirects();
+	};
+	ForEachPlatformSet(ApplyPlatformSetRedirects);
 
 #if !WITH_EDITOR
 	// When running without the editor in a cooked build we run the update immediately in post load since

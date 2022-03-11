@@ -1523,6 +1523,11 @@ void FConsoleManager::UnregisterConsoleObject(const TCHAR* Name, bool bKeepState
 	{
 		IConsoleVariable* CVar = Object->AsVariable();
 
+		if (CVar)
+		{
+			ConsoleVariableUnregisteredDelegate.Broadcast(CVar);
+		}
+
 		if(CVar && bKeepState)
 		{
 			// to be able to restore the value if we just recompile a module
@@ -2144,6 +2149,11 @@ bool FConsoleManager::IsThreadPropagationThread()
 void FConsoleManager::OnCVarChanged()
 {
 	bCallAllConsoleVariableSinks = true;
+}
+
+FConsoleVariableMulticastDelegate& FConsoleManager::OnCVarUnregistered()
+{
+	return ConsoleVariableUnregisteredDelegate;
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

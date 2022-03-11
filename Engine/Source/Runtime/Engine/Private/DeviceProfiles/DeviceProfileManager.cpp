@@ -983,6 +983,7 @@ void UDeviceProfileManager::SetPreviewDeviceProfile(UDeviceProfile* DeviceProfil
 
 void UDeviceProfileManager::RestorePreviewDeviceProfile()
 {
+	PreviewDeviceProfile = nullptr;
 	if (PreviewPushedSettings.Num())
 	{
 		checkf(BaseDeviceProfile == nullptr, TEXT("call to RestorePreviewDeviceProfile while both preview and BaseDeviceProfile has been set?"));
@@ -991,7 +992,6 @@ void UDeviceProfileManager::RestorePreviewDeviceProfile()
 		// this sets us back to non-preview state.
 		RestorePushedState(PreviewPushedSettings);
 	}
-	PreviewDeviceProfile = nullptr;
 }
 #endif
 

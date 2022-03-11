@@ -356,6 +356,8 @@ void INiagaraModule::StartupModule()
 	FCoreDelegates::OnPreExit.AddRaw(this, &INiagaraModule::OnPreExit);
 	FWorldDelegates::OnWorldBeginTearDown.AddRaw(this, &INiagaraModule::OnWorldBeginTearDown);
 	FWorldDelegates::OnWorldTickStart.AddRaw(this, &INiagaraModule::OnWorldTickStart);
+
+	FCoreDelegates::OnBeginFrame.AddRaw(this, &INiagaraModule::OnBeginFrame);
 }
 
 void INiagaraModule::OnPostEngineInit()
@@ -366,6 +368,14 @@ void INiagaraModule::OnPostEngineInit()
 		BaselineHandler = MakeUnique<FNiagaraPerfBaselineHandler>();
 	}
 #endif
+
+	IConsoleManager& CMan = IConsoleManager::Get();
+	OnCVarUnregisteredHandle = CMan.OnCVarUnregistered().AddLambda(
+		[](IConsoleVariable* CVar)
+		{
+			FNiagaraPlatformSet::OnCVarUnregistered(CVar);
+		}
+	);
 }
 
 void INiagaraModule::OnPreExit()
@@ -380,6 +390,9 @@ void INiagaraModule::OnPreExit()
 #if WITH_NIAGARA_DEBUGGER
 	DebuggerClient.Reset();
 #endif
+
+	IConsoleManager& CMan = IConsoleManager::Get();
+	CMan.OnCVarUnregistered().Remove(OnCVarUnregisteredHandle);
 }
 
 #if WITH_EDITOR
@@ -412,6 +425,11 @@ void INiagaraModule::OnWorldTickStart(UWorld* World, ELevelTick TickType, float 
 #endif
 }
 
+void INiagaraModule::OnBeginFrame()
+{
+	FNiagaraPlatformSet::RefreshScalability();
+}
+
 void INiagaraModule::OnWorldBeginTearDown(UWorld* World)
 {
 #if NIAGARA_PERF_BASELINES
@@ -433,6 +451,7 @@ void INiagaraModule::ShutdownModule()
 {
 	FWorldDelegates::OnWorldBeginTearDown.RemoveAll(this);
 	FWorldDelegates::OnWorldTickStart.RemoveAll(this);
+	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 
 	FNiagaraWorldManager::OnShutdown();
 

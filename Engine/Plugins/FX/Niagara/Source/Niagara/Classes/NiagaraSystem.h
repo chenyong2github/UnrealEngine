@@ -20,6 +20,9 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+#include "NiagaraDataInterfacePlatformSet.h"
+
+
 #include "NiagaraSystem.generated.h"
 
 #if WITH_EDITORONLY_DATA
@@ -347,6 +350,8 @@ public:
 	/** Gets an array of the emitter handles. */
 	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles();
 	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles()const;
+	
+	FNiagaraSystemScalabilityOverrides& GetScalabilityOverrides(){return SystemScalabilityOverrides; }
 
 private:
 	bool IsValidInternal() const;
@@ -415,6 +420,10 @@ public:
 	/** Performs the passed action for all scripts in this system. */
 	template<typename TAction>
 	void ForEachScript(TAction Func) const;
+
+	/** Performs the passed action for all FNiagaraPlatformSets used by this system. Some may not be owned by this system. */
+	template<typename TAction>
+	void ForEachPlatformSet(TAction Func);
 
 	bool AllowScalabilityForLocalPlayerFX()const;
 
@@ -823,11 +832,11 @@ protected:
 	bool bOverrideScalabilitySettings;
 
 	/** Controls whether we should override the Effect Type value for bAllowCullingForLocalPlayers. */
-	UPROPERTY(EditAnywhere, Category = "Override", meta = (InlineEditConditionToggle, EditCondition = bOverrideScalabilitySettings))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle, EditCondition = bOverrideScalabilitySettings))
 	uint32 bOverrideAllowCullingForLocalPlayers : 1;
 	
 	/** The override value for bAllowCullingForLocalPlayers from the Effect Type. */
-	UPROPERTY(EditAnywhere, Category = "Override", meta = (EditCondition = bOverrideAllowCullingForLocalPlayers))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = bOverrideAllowCullingForLocalPlayers))
 	uint32 bAllowCullingForLocalPlayersOverride : 1;
 
 	UPROPERTY()
@@ -1052,15 +1061,61 @@ FORCEINLINE void UNiagaraSystem::UnregisterActiveInstance()
 
 template<typename TAction>
 void UNiagaraSystem::ForEachScript(TAction Func) const
-{	
+{
 	Func(SystemSpawnScript);
 	Func(SystemUpdateScript);
-			
+
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
 		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
 		{
 			Emitter->ForEachScript(Func);
+		}
+	}
+}
+
+/** Performs the passed action for all FNiagaraPlatformSets in this system. */
+template<typename TAction>
+void UNiagaraSystem::ForEachPlatformSet(TAction Func)
+{
+	//Handle our scalability overrides
+	for (FNiagaraSystemScalabilityOverride& Override : SystemScalabilityOverrides.Overrides)
+	{
+		Func(this, Override.Platforms);
+	}
+
+	//Handle and platform set User DIs.
+	for (UNiagaraDataInterface* DI : GetExposedParameters().GetDataInterfaces())
+	{
+		if (UNiagaraDataInterfacePlatformSet* PlatformSetDI = Cast<UNiagaraDataInterfacePlatformSet>(DI))
+		{
+			Func(PlatformSetDI, PlatformSetDI->Platforms);
+		}
+	}
+
+	//Handle all platform set DIs held in scripts for this system.
+	auto HandleScript = [Func](UNiagaraScript* NiagaraScript)
+	{
+		if (NiagaraScript)
+		{
+			for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
+			{
+				if (UNiagaraDataInterfacePlatformSet* PlatformSetDI = Cast<UNiagaraDataInterfacePlatformSet>(DataInterfaceInfo.DataInterface))
+				{
+					Func(PlatformSetDI, PlatformSetDI->Platforms);
+				}
+			}
+		}
+	};
+	HandleScript(SystemSpawnScript);
+	HandleScript(SystemUpdateScript);
+
+	//Finally handle all our emitters.
+	for (FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+		{
+			Emitter->ForEachPlatformSet(Func);
 		}
 	}
 }

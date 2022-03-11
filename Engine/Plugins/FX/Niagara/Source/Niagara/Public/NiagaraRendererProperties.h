@@ -270,6 +270,9 @@ public:
 
 	static bool IsSortHighPrecision(ENiagaraRendererSortPrecision SortPrecision);
 
+	template<typename TAction>
+	void ForEachPlatformSet(TAction Func);
+
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInScalabilityContext))
 	FNiagaraPlatformSet Platforms;
@@ -314,3 +317,9 @@ protected:
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
 #endif
 };
+
+template<typename TAction>
+void UNiagaraRendererProperties::ForEachPlatformSet(TAction Func)
+{
+	Func(this, Platforms);
+}

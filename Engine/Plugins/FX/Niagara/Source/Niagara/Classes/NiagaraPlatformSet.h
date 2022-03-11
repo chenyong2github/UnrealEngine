@@ -99,25 +99,88 @@ struct FNiagaraPlatformSetConflictInfo
 	TArray<FNiagaraPlatformSetConflictEntry> Conflicts;
 };
 
+struct FNiagaraPlatformSetEnabledState
+{
+	bool bIsActive = true;
+	bool bCanBeActive = true;
+};
+
+struct FNiagaraPlatformSetEnabledStateDetails
+{
 #if WITH_EDITOR
-//Helper class for accesssing and caching the value of CVars for device profiles.
+	int32 DefaultQualityMask = INDEX_NONE;
+	int32 AvailableQualityMask = INDEX_NONE;
+
+	/** Provide reasons why this profile is not currently active. */
+	TArray<FText> ReasonsForInActive;
+	/** Provide reasons why this profile could never be active. */
+	TArray<FText> ReasonsForDisabled;
+#endif
+};
+
+#if WITH_EDITOR
+
+struct FNiagaraCVarValue
+{
+	union 
+	{
+		bool bValue;
+		int32 IntValue = 0;
+		float FloatValue;
+	}Data;
+	
+	template<typename T> FORCEINLINE T Get()const;	
+	template<typename T> FORCEINLINE void SetTyped(const FString& Str);
+	FORCEINLINE void Set(const FString& Str, IConsoleVariable* CVar);
+};
+
+template<> FORCEINLINE bool FNiagaraCVarValue::Get<bool>()const{ return Data.bValue; }
+template<> FORCEINLINE void FNiagaraCVarValue::SetTyped<bool>(const FString& Str){ LexFromString(Data.bValue, *Str); }
+
+template<> FORCEINLINE int32 FNiagaraCVarValue::Get<int32>()const { return Data.IntValue; }
+template<> FORCEINLINE void FNiagaraCVarValue::SetTyped<int32>(const FString& Str) { LexFromString(Data.IntValue, *Str); }
+
+template<> FORCEINLINE float FNiagaraCVarValue::Get<float>()const { return Data.FloatValue; }
+template<> FORCEINLINE void FNiagaraCVarValue::SetTyped<float>(const FString& Str) { LexFromString(Data.FloatValue, *Str); }
+
+FORCEINLINE void FNiagaraCVarValue::Set(const FString& Str, IConsoleVariable* CVar)
+{
+	if (CVar->IsVariableBool()) { SetTyped<bool>(Str); }
+	else if (CVar->IsVariableInt()) { SetTyped<int32>(Str); }
+	else if (CVar->IsVariableFloat()) { SetTyped<float>(Str); }
+}
+
+struct FNiagaraCVarValues
+{
+	FNiagaraCVarValue Default;
+
+	TArray<FNiagaraCVarValue> PerQualityLevelValues;
+};
+
+//Helper class for accessing and caching the value of CVars for device profiles.
 struct FDeviceProfileValueCache
 {
 	static void Empty();
 
-	template<typename T>
-	static bool GetValue(const UDeviceProfile* DeviceProfile, FName CVarName, T& OutValue);
+	static const FNiagaraCVarValues& GetValues(const UDeviceProfile* DeviceProfile, IConsoleVariable* CVar, FName CVarName);
 
 private:
-	static bool GetValueInternal(const UDeviceProfile* DeviceProfile, FName CVarName, FString& OutValue);
 
-	typedef TMap<FName, FString> FCVarValueMap;
+	typedef TMap<IConsoleVariable*, FNiagaraCVarValues> FCVarValueMap;
 	/** Cached values for any polled CVar on particular device profiles. */
 	static TMap<const UDeviceProfile*, FCVarValueMap> CachedDeviceProfileValues;
 	/** Cached values for any polled CVar from the platform ini files. */
 	static TMap<FName, FCVarValueMap> CachedPlatformValues;
 };
 #endif
+
+UENUM()
+enum class ENiagaraCVarConditionResponse : uint8
+{
+	None,
+	Enable,
+	Disable,
+};
 
 /** Imposes a condition that a CVar must contain a set value or range of values for a platform set to be enabled. */
 USTRUCT()
@@ -127,11 +190,8 @@ struct NIAGARA_API FNiagaraPlatformSetCVarCondition
 	
 	FNiagaraPlatformSetCVarCondition();
 
-	/** Returns true if this is ever met for any device profile for the given platform. */
-	bool IsEnabledForPlatform(const FString& PlatformName)const;
-
-	/** Return true if this is met by the given device profile. */
-	bool IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile, bool bCheckCurrentStateOnly)const;
+	/** Return true if this condition is met for the given device profile. */
+	bool Evaluate(const UDeviceProfile* DeviceProfile, bool& bOutCanEverPass, bool& bOutCanEverFail)const;
 
 	/** Returns the CVar for this condition. Can be null if the name give is not a valid CVar or the CVar is removed. */
 	IConsoleVariable* GetCVar()const;
@@ -141,6 +201,14 @@ struct NIAGARA_API FNiagaraPlatformSetCVarCondition
 	/** The name of the CVar we're testing the value of. */
 	UPROPERTY(EditAnywhere, Category = "CVar")
 	FName CVarName = NAME_None;
+
+	/** If this CVar condition passes, how should this affect the state of the Platform Set? */
+	UPROPERTY(EditAnywhere, Category = "CVar", AdvancedDisplay)
+	ENiagaraCVarConditionResponse PassResponse = ENiagaraCVarConditionResponse::None;
+	
+	/** If this CVar condition fails, how should this affect the state of the Platform Set? */
+	UPROPERTY(EditAnywhere, Category = "CVar", AdvancedDisplay)
+	ENiagaraCVarConditionResponse FailResponse = ENiagaraCVarConditionResponse::Disable;
 
 	/** The value this CVar must contain for this platform set to be enabled. */
 	UPROPERTY(EditAnywhere, Category = "CVar", meta=(DisplayName="Required Value"))
@@ -179,7 +247,7 @@ struct NIAGARA_API FNiagaraPlatformSetCVarCondition
 	uint32 bUseMaxFloat : 1;
 
 	template<typename T>
-	FORCEINLINE bool IsEnabledForDeviceProfile_Internal(const UDeviceProfile* DeviceProfile, bool bCheckCurrentStateOnly)const;
+	bool Evaluate_Internal(const UDeviceProfile* DeviceProfile, bool& bOutCanEverPass, bool& bOutCanEverFail)const;
 
 	FORCEINLINE bool CheckValue(bool CVarValue)const { return CVarValue == Value; }
 	FORCEINLINE bool CheckValue(int32 CVarValue)const { return (!bUseMinInt || CVarValue >= MinInt) && (!bUseMaxInt || CVarValue <= MaxInt); }
@@ -188,19 +256,51 @@ struct NIAGARA_API FNiagaraPlatformSetCVarCondition
 	template<typename T>
 	FORCEINLINE T GetCVarValue(IConsoleVariable* CVar)const;
 
-	static void OnCVarChanged(IConsoleVariable* CVar);
 private:
 	mutable IConsoleVariable* CachedCVar = nullptr;
-
-	/** 
-	Callbacks for any CVars Niagara has looked at during this run.
-	*/
-	static TMap<FName, FDelegateHandle> CVarChangedDelegateHandles;
-	static FCriticalSection ChangedDelegateHandlesCritSec;
+	mutable uint32 LastCachedFrame = INDEX_NONE;
 };
 
 void NIAGARA_API SetGNiagaraQualityLevel(int32 QualityLevel);
 void NIAGARA_API SetGNiagaraDeviceProfile(UDeviceProfile* Profile);
+
+UENUM()
+enum class ENiagaraDeviceProfileRedirectMode : uint8
+{
+	/** Replace Device Profile Reference with a CVar Condition. */
+	CVar,
+	/** Replace Device Profile Reference with a different Device Profile. */
+	DeviceProfile,
+};
+
+/**
+Allows us to replace a specific device profile usage condition in all NiagaraPlatformSets.
+Helpful when dealing with changes to device profile structure.
+*/
+USTRUCT()
+struct FNiagaraPlatformSetRedirect
+{
+	GENERATED_BODY()
+
+	/** The names of any device profile entry that will apply this redirect. */
+	UPROPERTY(EditAnywhere, Category = Redirect)
+	TArray<FName> ProfileNames;
+
+	UPROPERTY(EditAnywhere, Category = Redirect)
+	ENiagaraDeviceProfileRedirectMode Mode;
+
+	/** When in Device Profile mode, the name of the device profile to redirect to. */
+	UPROPERTY(EditAnywhere, Category = Redirect, meta = (EditCondition = "Mode == ENiagaraDeviceProfileRedirectMode::DeviceProfile"))
+	FName RedirectProfileName;
+
+	/** When in CVar mode, the CVar condition to replace this device profile entry with when the profile entry is in the Enabled state. */
+	UPROPERTY(EditAnywhere, Category = Redirect, meta = (EditCondition = "Mode == ENiagaraDeviceProfileRedirectMode::CVar"))
+	FNiagaraPlatformSetCVarCondition CVarConditionEnabled;
+	
+	/** When in CVar mode, the CVar condition to replace this device profile entry with when the profile entry is in the Disabled state. */
+	UPROPERTY(EditAnywhere, Category = Redirect, meta = (EditCondition = "Mode == ENiagaraDeviceProfileRedirectMode::CVar"))
+	FNiagaraPlatformSetCVarCondition CVarConditionDisabled;
+};
 
 USTRUCT()
 struct NIAGARA_API FNiagaraPlatformSet
@@ -214,6 +314,9 @@ struct NIAGARA_API FNiagaraPlatformSet
 
 	static void OnQualityLevelChanged(IConsoleVariable* Variable);
 	static int32 GetQualityLevel();
+	static int32 GetMinQualityLevel();
+	static int32 GetMaxQualityLevel();
+	static int32 GetAvailableQualityLevelMask();
 public:
 
 	//Runtime public API
@@ -226,8 +329,11 @@ public:
 	/** Is this set active right now. i.e. enabled for the current device profile and quality level. */
 	bool IsActive()const;
 	
-	/** Is this platform set enabled on any quality level for the passed device profile. Returns the QualityLevelMask for all enabled effects qualities for this profile. */
+	/** Is this platform set enabled for the give device profile. */
 	int32 IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
+
+	/** Is this platform set enabled on any quality level for the passed device profile. Returns the QualityLevelMask for all enabled effects qualities for this profile. */
+	int32 GetEnabledMaskForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
 
 	/** Is this platform set enabled at this quality level on any device profile. */
 	bool IsEnabledForQualityLevel(int32 QualityLevel)const;
@@ -244,13 +350,28 @@ public:
 	/**Will force all platform sets to regenerate their cached data next time they are used.*/
 	static void InvalidateCachedData();
 
-	static int32 GetEffectQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
+	/** Returns the currenlty(or default) active quality mask for a profile. */
+	static int32 GetActiveQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
+
+	/** Returns the mask of all available quality levels for a device profile. */
+	static int32 GetAvailableQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
 
 	/** Returns true if the passed platform should prune emitters on cook. */
 	static bool ShouldPruneEmittersOnCook(const FString& PlatformName);
 
 	/** Returns true if the passed platform can modify it's niagara scalability settings at runtime. */
 	static bool CanChangeScalabilityAtRuntime(const UDeviceProfile* DeviceProfile);
+
+	FNiagaraPlatformSetEnabledState IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel, FNiagaraPlatformSetEnabledStateDetails* OutDetails=nullptr)const;
+
+	bool CanConsiderDeviceProfile(const UDeviceProfile* Profile)const;
+
+	bool ApplyRedirects();
+
+	static void RefreshScalability();
+	static void OnCVarChanged(IConsoleVariable* CVar);
+	static void OnCVarUnregistered(IConsoleVariable* CVar);
+	static IConsoleVariable* GetCVar(FName CVarName);
 
 	//Editor only public API
 #if WITH_EDITOR
@@ -268,6 +389,7 @@ public:
 	
 	/** Invalidates any cached data on this platform set when something has changed. */
 	void OnChanged();
+
 
 	/** Inspects the passed sets and generates an array of all conflicts between these sets. Used to keep arrays of platform sets orthogonal. */
 	static bool GatherConflicts(const TArray<const FNiagaraPlatformSet*>& PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);
@@ -290,47 +412,61 @@ public:
 	UPROPERTY(EditAnywhere, Category = Platforms)
 	TArray<FNiagaraPlatformSetCVarCondition> CVarConditions;
 
-private:
-
-	static int32 CachedQualityLevel;
-
-	//Set from outside when we need to force all cached values to be regenerated. For example on CVar changes.
-	static uint32 LastDirtiedFrame;
-
-	//Last frame we built our cached data. 
-	mutable uint32 LastBuiltFrame;
-
-	mutable bool bEnabledForCurrentProfileAndEffectQuality;
-
-	bool IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel, bool bConsiderCurrentStateOnly=false)const;
-
 #if WITH_EDITOR
 	//Data we pull from platform ini files.
 	struct FPlatformIniSettings
 	{
-		FPlatformIniSettings()
-			:bCanChangeScalabilitySettingsAtRuntime(0), bPruneEmittersOnCook(false), EffectsQuality(0)
-		{}
-		FPlatformIniSettings(int32 InbCanChangeScalabilitySettingsAtRuntime, int32 InbPruneEmittersOnCook, int32 InEffectsQuality)
-			:bCanChangeScalabilitySettingsAtRuntime(InbCanChangeScalabilitySettingsAtRuntime), bPruneEmittersOnCook(InbPruneEmittersOnCook), EffectsQuality(InEffectsQuality)
-		{}
+		FPlatformIniSettings();
+		FPlatformIniSettings(int32 InbCanChangeScalabilitySettingsAtRuntime, int32 InbPruneEmittersOnCook, int32 InEffectsQuality, int32 InMinQualityLevel, int32 InMaxQualityLevel);
 		int32 bCanChangeScalabilitySettingsAtRuntime;
 		int32 bPruneEmittersOnCook;
 		int32 EffectsQuality;
+		int32 MinQualityLevel;
+		int32 MaxQualityLevel;
+		int32 QualityLevelMask;
 
 		TArray<int32> QualityLevelsPerEffectsQuality;
 	};
+	static FPlatformIniSettings& GetPlatformIniSettings(const FString& PlatformName);
 
+	static int32 GetEffectQualityMaskForPlatform(const FString& PlatformName);
+#endif
+
+	static uint32 GetLastDirtiedFrame(){ return LastDirtiedFrame; }
+
+private:
+
+	mutable uint32 bEnabledForCurrentProfileAndEffectQuality : 1;
+
+	//Last frame we built our cached data. 
+	mutable uint32 LastBuiltFrame;
+
+	//Set from outside when we need to force all cached values to be regenerated. For example on CVar changes.
+	static uint32 LastDirtiedFrame;
+
+	static int32 CachedQualityLevel;
+	static int32 CachedAvailableQualityLevelMask;
+
+#if WITH_EDITOR
 	//Cached data read from platform ini files.
 	static TMap<FName, FPlatformIniSettings> CachedPlatformIniSettings;
 
 	//Cached final QualityLevel setting for each device profile.
 	static TMap<const UDeviceProfile*, int32> CachedQLMasksPerDeviceProfile;
-
-	static FPlatformIniSettings& GetPlatformIniSettings(const FString& PlatformName);
-
-	static int32 GetEffectQualityMaskForPlatform(const FString& PlatformName);
 #endif
+
+	/**
+	Callbacks for any CVars Niagara has looked at during this run.
+	*/
+	struct FCachedCVarInfo
+	{
+		IConsoleVariable* CVar = nullptr;
+		FDelegateHandle ChangedHandle;
+	};
+	static TMap<FName, FCachedCVarInfo> CachedCVarInfo;
+	static FCriticalSection CachedCVarInfoCritSec;
+
+	static TArray<FName> ChangedCVars;
 };
 
 

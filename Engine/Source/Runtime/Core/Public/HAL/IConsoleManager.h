@@ -979,6 +979,8 @@ struct CORE_API IConsoleManager
 	static bool VisitPlatformCVarsForEmulation(FName PlatformName, bool bVisitPlatformDeviceProfile, TFunctionRef<void(const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)> Visit);
 #endif
 
+	virtual FConsoleVariableMulticastDelegate& OnCVarUnregistered() = 0;
+
 protected:
 	virtual ~IConsoleManager() { }
 

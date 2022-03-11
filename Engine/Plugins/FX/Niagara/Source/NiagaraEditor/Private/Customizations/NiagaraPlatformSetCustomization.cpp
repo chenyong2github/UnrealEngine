@@ -131,6 +131,8 @@ void FNiagaraPlatformSetCustomization::GenerateQualityLevelSelectionWidgets()
 
 	int32 NumQualityLevels = Settings->QualityLevels.Num();
 	
+	QualityLevelMenuAnchors.Reset();
+	QualityLevelMenuContents.Reset();
 	QualityLevelMenuAnchors.SetNum(NumQualityLevels);
 	QualityLevelMenuContents.SetNum(NumQualityLevels);
 
@@ -335,7 +337,7 @@ EVisibility FNiagaraPlatformSetCustomization::GetQualityLevelErrorVisibility(int
 		if (ConflictInfo.SetAIndex == PlatformSetArrayIndex || 
 			ConflictInfo.SetBIndex == PlatformSetArrayIndex)
 		{
-			// this conflict applies to this platform set, check if it applies to this quality leve button
+			// this conflict applies to this platform set, check if it applies to this quality level button
 			const int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 
 			for (const FNiagaraPlatformSetConflictEntry& Conflict : ConflictInfo.Conflicts)
@@ -589,6 +591,9 @@ FText FNiagaraPlatformSetCustomization::GetDeviceProfileErrorToolTip(UDeviceProf
 FReply FNiagaraPlatformSetCustomization::ToggleMenuOpenForQualityLevel(int32 QualityLevel)
 {
 	check(QualityLevelMenuAnchors.IsValidIndex(QualityLevel));
+
+	QualityLevelMenuContents[QualityLevel].Reset();
+	GenerateDeviceProfileTreeWidget(QualityLevel);
 	
 	TSharedPtr<SMenuAnchor> MenuAnchor = QualityLevelMenuAnchors[QualityLevel];
 	MenuAnchor->SetIsOpen(!MenuAnchor->IsOpen());
@@ -599,21 +604,14 @@ FReply FNiagaraPlatformSetCustomization::ToggleMenuOpenForQualityLevel(int32 Qua
 // Is or does a viewmodel contain any children active at the given quality?
 bool FNiagaraPlatformSetCustomization::IsTreeActiveForQL(const TSharedPtr<FNiagaraDeviceProfileViewModel>& Tree, int32 QualityLevelMask) const
 {
-	int32 Mask = TargetPlatformSet->GetEffectQualityMaskForDeviceProfile(Tree->Profile);
-	if ((Mask & QualityLevelMask) != 0)
+	if (TargetPlatformSet->CanConsiderDeviceProfile(Tree->Profile) == false)
 	{
-		return true;
+		return false;
 	}
 
-	for (const TSharedPtr<FNiagaraDeviceProfileViewModel>& Child : Tree->Children)
-	{
-		if (IsTreeActiveForQL(Child, QualityLevelMask))
-		{
-			return true;
-		}
-	}
+	int32 AvailableMask = TargetPlatformSet->GetAvailableQualityMaskForDeviceProfile(Tree->Profile);
 
-	return false;
+	return (AvailableMask & QualityLevelMask) != 0;
 }
 
 void FNiagaraPlatformSetCustomization::FilterTreeForQL(const TSharedPtr<FNiagaraDeviceProfileViewModel>& SourceTree, TSharedPtr<FNiagaraDeviceProfileViewModel>& FilteredTree, int32 QualityLevelMask)
@@ -685,6 +683,7 @@ void FNiagaraPlatformSetCustomization::CreateDeviceProfileTree()
 	check(Settings);
 
 	int32 NumQualityLevels = Settings->QualityLevels.Num();
+	FilteredDeviceProfileTrees.Reset();
 	FilteredDeviceProfileTrees.SetNum(NumQualityLevels);
 	
 	for (TSharedPtr<FNiagaraDeviceProfileViewModel>& FullDeviceRoot : FullDeviceProfileTree)
@@ -708,15 +707,13 @@ void FNiagaraPlatformSetCustomization::CreateDeviceProfileTree()
 
 TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateDeviceProfileTreeWidget(int32 QualityLevel)
 {
+	FullDeviceProfileTree.Reset();
 	if (FullDeviceProfileTree.Num() == 0)
 	{
 		CreateDeviceProfileTree();	
 	}
-
-	if (QualityLevelMenuContents[QualityLevel].IsValid())
-	{
-		return QualityLevelMenuContents[QualityLevel].ToSharedRef();
-	}
+	
+	QualityLevelMenuContents[QualityLevel].Reset();
 
 	TArray<TSharedPtr<FNiagaraDeviceProfileViewModel>>* TreeToUse = &FullDeviceProfileTree;
 	if (QualityLevel != INDEX_NONE)
@@ -741,8 +738,16 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 	TSharedPtr<SHorizontalBox> RowContainer;
 	SAssignNew(RowContainer, SHorizontalBox);
 
-	int32 ProfileMask = TargetPlatformSet->GetEffectQualityMaskForDeviceProfile(InItem->Profile);
-	FText NameTooltip = FText::Format(LOCTEXT("ProfileQLTooltipFmt", "Effects Quality: {0}"), FNiagaraPlatformSet::GetQualityLevelMaskText(ProfileMask));
+	FNiagaraPlatformSetEnabledStateDetails Details;
+	FNiagaraPlatformSetEnabledState EnabledState = TargetPlatformSet->IsEnabled(InItem->Profile, QualityLevel, &Details);
+
+	FText NameTooltip = FText::Format(LOCTEXT("ProfileQLTooltipFmt", "Effects Quality: {0}"), FNiagaraPlatformSet::GetQualityLevelMaskText(QualityLevel));
+
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+
+	int32 NumQualityLevels = Settings->QualityLevels.Num();
+	
 	
 	//Top level profile. Look for a platform icon.
 	if (InItem->Profile->Parent == nullptr)
@@ -774,22 +779,114 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 	FSlateColor TextColor(FSlateColor::UseForeground());
 	ENiagaraPlatformSelectionState CurrentState = TargetPlatformSet->GetDeviceProfileState(InItem->Profile, QualityLevel);
 	
-	if (CurrentState == ENiagaraPlatformSelectionState::Enabled)
+	FSlateColor ActiveColor = FSlateColor::UseForeground();
+	FSlateColor InactiveColor = FSlateColor::UseSubduedForeground();
+	FSlateColor DisabledColor = FSlateColor(FLinearColor(FVector4(1, 0, 0, 1)));
+	if (EnabledState.bIsActive)
 	{
-		TextStyleName = "RichTextBlock.Bold";
-		TextColor = FSlateColor(FLinearColor(FVector4(0,1,0,1)));
+		TextColor = ActiveColor;
 	}
-	else if (CurrentState == ENiagaraPlatformSelectionState::Disabled)
+	else
 	{
-		TextStyleName = "RichTextBlock.Italic";
-		TextColor = FSlateColor(FLinearColor(FVector4(1,0,0,1)));
+		if (EnabledState.bCanBeActive)
+		{
+			TextColor = InactiveColor;
+		}
+		else
+		{
+			TextColor = DisabledColor;
+		}
 	}
 
+	TSharedPtr<SVerticalBox> TooltipContentsBox = SNew(SVerticalBox);
+ 	if (EnabledState.bIsActive)
+ 	{
+		TooltipContentsBox->AddSlot()
+ 		[
+ 			SNew(STextBlock)
+ 			.TextStyle(FEditorStyle::Get(), TextStyleName)
+ 			.ColorAndOpacity(ActiveColor)
+ 			.Text(LOCTEXT("DPActiveTooltip", "Active"))
+ 		];
+ 	}
+ 	else
+ 	{
+ 		if(EnabledState.bCanBeActive)
+ 		{
+			TooltipContentsBox->AddSlot()
+			[
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), TextStyleName)
+				.ColorAndOpacity(InactiveColor)
+				.Text(LOCTEXT("DPInActiveTooltip", "Inactive Due To:"))
+			];
+ 			for (FText Reason : Details.ReasonsForInActive)
+ 			{			
+				TooltipContentsBox->AddSlot()
+ 				[
+ 					SNew(STextBlock)
+ 					.TextStyle(FEditorStyle::Get(), TextStyleName)
+ 					.ColorAndOpacity(InactiveColor)
+ 					.Text(Reason)
+ 				];
+ 			}
+ 		}
+ 		else
+ 		{
+			TooltipContentsBox->AddSlot()
+			[
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), TextStyleName)
+				.ColorAndOpacity(DisabledColor)
+				.Text(LOCTEXT("DPDisabledTooltip", "Disabled Due To:"))
+			];
+ 			for (FText Reason : Details.ReasonsForDisabled)
+ 			{			
+				TooltipContentsBox->AddSlot()
+ 				[
+ 					SNew(STextBlock)
+ 					.TextStyle(FEditorStyle::Get(), TextStyleName)
+ 					.ColorAndOpacity(DisabledColor)
+ 					.Text(Reason)
+ 				];
+ 			}
+ 		}
+	}
+	
+	TooltipContentsBox->AddSlot()
+		[
+			SNew(STextBlock)
+			.TextStyle(FEditorStyle::Get(), TextStyleName)
+			.ColorAndOpacity(ActiveColor)
+			.Text(LOCTEXT("QLTooltipAvailableListHeader", "Available:"))
+		];
 
-	int32 QualityLevelMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
-	if ((ProfileMask & QualityLevelMask) == 0)
+	int32 DefaultQL = FNiagaraPlatformSet::QualityLevelFromMask(Details.DefaultQualityMask);
+	for (int32 QL = 0; QL < NumQualityLevels; ++QL)
 	{
-		TextColor = FSlateColor::UseSubduedForeground();
+		if(Details.AvailableQualityMask & (1<<QL))
+		{
+			if (DefaultQL == QL)
+			{
+				TooltipContentsBox->AddSlot()
+					[
+						SNew(STextBlock)
+						.TextStyle(FEditorStyle::Get(), TextStyleName)
+						.ColorAndOpacity(ActiveColor)
+						.Text(FText::Format(LOCTEXT("QLTooltipAvailableListDefaultFmt", "{0} (Default)"), FNiagaraPlatformSet::GetQualityLevelText(QL)))
+					];
+			}
+			else
+			{
+				TooltipContentsBox->AddSlot()
+					[
+						SNew(STextBlock)
+						.TextStyle(FEditorStyle::Get(), TextStyleName)
+						.ColorAndOpacity(ActiveColor)
+						.Text(FNiagaraPlatformSet::GetQualityLevelText(QL))
+					];
+			}
+		}
 	}
 
 	RowContainer->AddSlot()
@@ -802,7 +899,12 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 			.OnClicked(this, &FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked, InItem, QualityLevel, false)
 			.IsEnabled(this, &FNiagaraPlatformSetCustomization::GetProfileMenuItemEnabled, InItem, QualityLevel)
 			.ForegroundColor(TextColor)
-			.ToolTipText(NameTooltip)
+			.ToolTip(
+				SNew(SToolTip)
+				[
+					TooltipContentsBox.ToSharedRef()
+				]
+			)
 			[
 				SNew(STextBlock)
 				.TextStyle(FEditorStyle::Get(), TextStyleName)
@@ -853,7 +955,7 @@ enum class EProfileButtonMode
 
 static EProfileButtonMode GetProfileMenuButtonMode(FNiagaraPlatformSet* PlatformSet, TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel)
 {
-	int32 Mask = PlatformSet->GetEffectQualityMaskForDeviceProfile(Item->Profile);
+	int32 Mask = PlatformSet->GetAvailableQualityMaskForDeviceProfile(Item->Profile);
 	int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 
 	if ((Mask & QLMask) == 0)
@@ -864,6 +966,7 @@ static EProfileButtonMode GetProfileMenuButtonMode(FNiagaraPlatformSet* Platform
 	ENiagaraPlatformSelectionState CurrentState = PlatformSet->GetDeviceProfileState(Item->Profile, QualityLevel);
 
 	bool bQualityEnabled = PlatformSet->IsEffectQualityEnabled(QualityLevel);
+	//FNiagaraPlatformSetEnabledState Enabled = PlatformSet->IsEnabled(Item->Profile, QualityLevel);
 	bool bIsDefault = CurrentState == ENiagaraPlatformSelectionState::Default;
 
 	if (bIsDefault && bQualityEnabled)
@@ -972,7 +1075,6 @@ FReply FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked(TSharedPtr<F
 
 void FNiagaraPlatformSetCustomization::OnGetDeviceProfileTreeChildren(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, TArray< TSharedPtr<FNiagaraDeviceProfileViewModel> >& OutChildren, int32 QualityLevel)
 {
-	if (TargetPlatformSet->GetDeviceProfileState(InItem->Profile, QualityLevel) == ENiagaraPlatformSelectionState::Default)
 	{
 		OutChildren = InItem->Children;
 	}
@@ -998,8 +1100,8 @@ void FNiagaraPlatformSetCustomization::QLCheckStateChanged(ECheckBoxState CheckS
 
 void FNiagaraPlatformSetCustomization::OnPropertyValueChanged()
 {
-	GenerateQualityLevelSelectionWidgets();
 	UpdateCachedConflicts();
+	GenerateQualityLevelSelectionWidgets();
 	TargetPlatformSet->OnChanged();
 }
 
@@ -1057,6 +1159,9 @@ protected:
 
 	// e.g. Tab or Key_Up
 	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& KeyEvent) override;
+
+	/** Handles entering in a command */
+	FText GetTooltipText()const;
 
 	/** Handles entering in a command */
 	void OnTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
@@ -1195,6 +1300,7 @@ void SNiagaraConsoleInputBox::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot()
 			[
 				SAssignNew(InputText, SMultiLineEditableTextBox)
+				.ToolTipText_Raw(this, &SNiagaraConsoleInputBox::GetTooltipText)
 				.AllowMultiLine(false)
 				.ClearTextSelectionOnFocusLoss(true)
 				.SelectAllTextWhenFocused(true)
@@ -1298,11 +1404,14 @@ TSharedRef<ITableRow> SNiagaraConsoleInputBox::MakeSuggestionListItemWidget(TSha
 	SanitizedText.ReplaceInline(TEXT("\r"), TEXT(" "), ESearchCase::CaseSensitive);
 	SanitizedText.ReplaceInline(TEXT("\n"), TEXT(" "), ESearchCase::CaseSensitive);
 
+	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*SanitizedText);
+	
 	return
 		SNew(STableRow< TSharedPtr<FString> >, OwnerTable)
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(SanitizedText))
+			.ToolTipText(CVar ? FText::FromString(CVar->GetHelp()) : FText::GetEmpty())
 			.TextStyle(FEditorStyle::Get(), "Log.Normal")
 			.HighlightText(Suggestions.SuggestionsHighlight)
 		];
@@ -1375,6 +1484,15 @@ void SNiagaraConsoleInputBox::OnTextChanged(const FText& InText)
 	{
 		ClearSuggestions();
 	}
+}
+
+FText SNiagaraConsoleInputBox::GetTooltipText()const
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*WorkingText.ToString()))
+	{
+		return FText::FromString(CVar->GetHelp());
+	}
+	return FText::GetEmpty();
 }
 
 void SNiagaraConsoleInputBox::OnTextCommitted(const FText& InText, ETextCommit::Type CommitInfo)
@@ -1603,6 +1721,11 @@ void FNiagaraPlatformSetCVarConditionCustomization::CustomizeChildren(TSharedRef
 	ChildBuilder.AddProperty(MinFloatHandle.ToSharedRef()).Visibility(FloatVisAttr);
 	MaxFloatHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, MaxFloat));
 	ChildBuilder.AddProperty(MaxFloatHandle.ToSharedRef()).Visibility(FloatVisAttr);
+
+	TSharedPtr<IPropertyHandle> PassHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, PassResponse));
+	ChildBuilder.AddProperty(PassHandle.ToSharedRef());
+	TSharedPtr<IPropertyHandle> FailHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, FailResponse));
+	ChildBuilder.AddProperty(FailHandle.ToSharedRef());
 }
 
 EVisibility FNiagaraPlatformSetCVarConditionCustomization::BoolPropertyVisibility() const

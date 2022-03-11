@@ -7,6 +7,7 @@
 #include "NiagaraScript.h"
 #include "Engine/DeveloperSettings.h"
 #include "InputCoreTypes.h"
+#include "NiagaraPlatformSet.h"
 #include "NiagaraSettings.generated.h"
 
 // This enum must match the order in NiagaraDataInterfaceSkeletalMesh.ush
@@ -176,6 +177,9 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	*/
 	UPROPERTY(config, EditAnywhere, Category = AsyncGpuTraceDI, meta = (DisplayName = "Trace Provider Priorities (Experimental)", ConfigRestartRequired = true))
 	TArray<TEnumAsByte<ENDICollisionQuery_AsyncGpuTraceProvider::Type>> NDICollisionQuery_AsyncGpuTraceProviderOrder;
+
+	UPROPERTY(config, EditAnywhere, Category = Scalability)
+	TArray<FNiagaraPlatformSetRedirect> PlatformSetRedirects;
 
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;

@@ -15,6 +15,9 @@
 #include "NiagaraRendererProperties.h"
 #include "NiagaraParameterDefinitionsBase.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
+
+#include "NiagaraDataInterfacePlatformSet.h"
+
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
@@ -543,6 +546,9 @@ public:
 	template<typename TAction>
 	void ForEachScript(TAction Func) const;
 
+	template<typename TAction>
+	void ForEachPlatformSet(TAction Func);
+
 	NIAGARA_API void AddRenderer(UNiagaraRendererProperties* Renderer);
 
 	NIAGARA_API void RemoveRenderer(UNiagaraRendererProperties* Renderer);
@@ -782,4 +788,38 @@ void UNiagaraEmitter::ForEachScript(TAction Func) const
 	{
 		Func(EventScriptProps.Script);
 	}
+}
+
+template<typename TAction>
+void UNiagaraEmitter::ForEachPlatformSet(TAction Func)
+{
+	Func(this, Platforms);
+
+	for (FNiagaraEmitterScalabilityOverride& Override : ScalabilityOverrides.Overrides)
+	{
+		Func(this, Override.Platforms);
+	}
+
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if(Renderer)
+		{
+			Renderer->ForEachPlatformSet(Func);
+		}
+	}
+
+	auto HandleScript = [Func](UNiagaraScript* NiagaraScript)
+	{
+		if (NiagaraScript)
+		{
+			for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
+			{
+				if (UNiagaraDataInterfacePlatformSet* PlatformSetDI = Cast<UNiagaraDataInterfacePlatformSet>(DataInterfaceInfo.DataInterface))
+				{
+					Func(PlatformSetDI, PlatformSetDI->Platforms);
+				}
+			}
+		}
+	};
+	ForEachScript(HandleScript);
 }

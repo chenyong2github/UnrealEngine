@@ -5561,7 +5561,14 @@ FConfigCacheIni* FConfigCacheIni::ForPlatform(FName PlatformName)
 #if WITH_EDITOR
 	// they are likely already loaded, but just block to make sure
 	{
-		GetPlatformConfigFutures()[PlatformName].Get();
+		if (auto* PlatformCache = GetPlatformConfigFutures().Find(PlatformName))
+		{
+			PlatformCache->Get();
+		}
+		else
+		{
+			return GConfig;
+		}
 	}
 #endif
 
