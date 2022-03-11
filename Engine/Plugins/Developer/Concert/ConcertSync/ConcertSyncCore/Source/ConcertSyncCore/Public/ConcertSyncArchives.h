@@ -43,6 +43,7 @@ private:
 class CONCERTSYNCCORE_API FConcertSyncObjectWriter : public FConcertIdentifierWriter
 {
 public:
+	FConcertSyncObjectWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, UObject* InObj, TArray<uint8>& OutBytes, const bool InIncludeEditorOnlyData, const bool InSkipAssets, const FConcertSyncRemapObjectPath& InRemapDelegate);
 	FConcertSyncObjectWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, UObject* InObj, TArray<uint8>& OutBytes, const bool InIncludeEditorOnlyData, const bool InSkipAssets);
 
 	void SerializeObject(UObject* InObject, const TArray<FName>* InPropertyNamesToWrite = nullptr);
@@ -65,6 +66,7 @@ private:
 	typedef TFunction<bool(const FProperty*)> FShouldSkipPropertyFunc;
 	bool bSkipAssets;
 	FShouldSkipPropertyFunc ShouldSkipPropertyFunc;
+	FConcertSyncRemapObjectPath RemapObjectPathDelegate;
 };
 
 /** Archive for reading objects that can been received from another instance via Concert */
