@@ -542,7 +542,7 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryPosition(const FSceneSn
 	// cast ray into scene cache
 	FSceneGeometryPoint HitPoint;
 	FSceneGeometryID HitIdentifier;
-	bool bHitSceneCache = SpatialCache->FindNearestHit(WorldRay, HitPoint, HitIdentifier);
+	bool bHitSceneCache = SpatialCache->FindNearestHit(WorldRay, HitPoint, HitIdentifier, &TmpFilter);
 
 	// cast ray into world
 	FHitResult HitResult;
