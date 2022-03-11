@@ -48,6 +48,7 @@ struct FSkeletonTreeArgs
 		, ContextName(TEXT("SkeletonTree"))
 		, bShowBlendProfiles(true)
 		, bShowFilterMenu(true)
+		, bShowDebugVisualizationOptions(false)
 		, bAllowMeshOperations(true)
 		, bAllowSkeletonOperations(true)
 		, bHideBonesByDefault(false)
@@ -80,6 +81,9 @@ struct FSkeletonTreeArgs
 	/** Whether to show the filter menu to allow filtering of active bones, sockets etc. */
 	bool bShowFilterMenu;
 
+	/** Whether to show the filter option to allow filtering of debug draw elements in the viewport. */
+	bool bShowDebugVisualizationOptions;
+
 	/** Whether to allow operations that modify the mesh */
 	bool bAllowMeshOperations;
 
@@ -99,7 +103,10 @@ public:
 		static const FName Name;
 		static const FName Retargeting;
 		static const FName BlendProfile;
+		static const FName DebugVisualization;
 	};
+
+	static const FName DebugVisualizationOptionsName() { return Columns::DebugVisualization; };
 
 	/** Manually refresh the tree */
 	virtual void Refresh() = 0;

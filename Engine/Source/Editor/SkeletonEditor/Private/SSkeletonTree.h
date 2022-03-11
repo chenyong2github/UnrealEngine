@@ -263,6 +263,12 @@ private:
 	/**  Handler for when we change the "Show Retargeting Options" check box */
 	void OnChangeShowingAdvancedOptions();
 
+	/** Handler for "Show Debug Visualization Options" check box IsChecked functionality */
+	bool IsShowingDebugVisualizationOptions() const;
+
+	/**  Handler for when we change the "Show Debug Visualization Options" check box */
+	void OnChangeShowingDebugVisualizationOptions();
+
 	/** This replicates the socket filter to the previewcomponent so that the viewport can use the same settings */
 	void SetPreviewComponentSocketFilter() const;
 
@@ -414,6 +420,9 @@ private:
 
 	/** Whether to allow operations that modify the mesh */
 	bool bAllowSkeletonOperations;
+
+	/** Whether to show the filter option to allow filtering of debug draw elements in the viewport. */
+	bool bShowDebugVisualizationOptions;
 
 	/** Extenders for menus */
 	TSharedPtr<FExtender> Extenders;

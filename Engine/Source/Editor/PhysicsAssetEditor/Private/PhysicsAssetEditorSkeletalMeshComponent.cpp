@@ -11,6 +11,7 @@
 #include "PhysicsAssetEditorHitProxies.h"
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
 #include "PhysicsAssetEditorAnimInstance.h"
+#include "PhysicsAssetRenderUtils.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Chaos/Core.h"
@@ -21,13 +22,8 @@
 
 namespace
 {
-	// How large to make the constraint arrows.
-	// The factor of 60 was found experimentally, to look reasonable in comparison with the rest of the constraint visuals.
-	constexpr float ConstraintArrowScale = 60.0f;
-
 	bool bDebugViewportClicks = false;
 	FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.PhAT.DebugViewportClicks"), bDebugViewportClicks, TEXT("Set to 1 to show mouse click results in PhAT"));
-
 }
 
 UPhysicsAssetEditorSkeletalMeshComponent::UPhysicsAssetEditorSkeletalMeshComponent(const FObjectInitializer& ObjectInitializer)
@@ -72,8 +68,7 @@ UPhysicsAssetEditorSkeletalMeshComponent::UPhysicsAssetEditorSkeletalMeshCompone
 
 	bSelectable = false;
 }
-
-void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView* View, class FPrimitiveDrawInterface* PDI)
+void UPhysicsAssetEditorSkeletalMeshComponent::DebugDraw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	check(SharedData);
 
@@ -107,241 +102,41 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 
 	ElemSelectedMaterial->SetVectorParameterValue(SelectionColorName, LinearSelectionColor);
 
-	// Contains info needed for drawing, in a form that can be sorted by distance.
-	struct DrawElement
+	
+
+	FPhysicsAssetRenderSettings* const RenderSettings = UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset);
+	
+	if (RenderSettings)
 	{
-		DrawElement(
-			FTransform        InTM, 
-			HHitProxy*        InHitProxy, 
-			float             InScale, 
-			const FSceneView* InView,
-			FKShapeElem*      InShapeElem,
-			const FName&      InBoneName
-		)
-			: TM(InTM), HitProxy(InHitProxy), Scale(InScale), ShapeElem(InShapeElem) 
-#ifdef UE_BUILD_DEBUG
-			, BoneName(InBoneName)
-#endif
+		// Copy render settings from editor viewport. These settings must be applied to the rendering in all editors 
+		// when an asset is open in the Physics Asset Editor but should not persist after the editor has been closed.
+		RenderSettings->CollisionViewMode = SharedData->GetCurrentCollisionViewMode(SharedData->bRunningSimulation);
+		RenderSettings->ConstraintViewMode = SharedData->GetCurrentConstraintViewMode(SharedData->bRunningSimulation);
+		RenderSettings->ConstraintDrawSize = SharedData->EditorOptions->ConstraintDrawSize;
+		RenderSettings->PhysicsBlend = SharedData->EditorOptions->PhysicsBlend;
+		RenderSettings->bHideKinematicBodies = SharedData->EditorOptions->bHideKinematicBodies;
+		RenderSettings->bHideSimulatedBodies = SharedData->EditorOptions->bHideSimulatedBodies;
+		RenderSettings->bRenderOnlySelectedConstraints = SharedData->EditorOptions->bRenderOnlySelectedConstraints;
+		RenderSettings->bShowConstraintsAsPoints = SharedData->EditorOptions->bShowConstraintsAsPoints;
+
+		// Draw Bodies.
 		{
-			// The TM position is at the center of the objects, so can be used directly for sorting.
-			// Sorting by distance (rather than along the view direction) reduces flickering when
-			// the camera is rotated without moving it.
-			FVector ViewDir = InView->GetViewDirection();
-			//Distance = TM.GetTranslation() | ViewDir; // Would sort along the view direction
-			SortingMetric = (TM.GetTranslation() - InView->ViewLocation).SquaredLength(); // Sorts by Distance
+			auto TransformFn = [this](const UPhysicsAsset* PhysicsAsset, const FTransform& BoneTM, const int32 BodyIndex, const EAggCollisionShape::Type PrimType, const int32 PrimIndex, const float Scale) { return this->GetPrimitiveTransform(BoneTM, BodyIndex, PrimType, PrimIndex, Scale);  };
+			auto ColorFn = [this](const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex, const FPhysicsAssetRenderSettings& Settings) { return this->GetPrimitiveColor(BodyIndex, PrimitiveType, PrimitiveIndex); };
+			auto MaterialFn = [this](const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex, const FPhysicsAssetRenderSettings& Settings) { return this->GetPrimitiveMaterial(BodyIndex, PrimitiveType, PrimitiveIndex); };
+			auto HitProxyFn = [](const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex) { return new HPhysicsAssetEditorEdBoneProxy(BodyIndex, PrimitiveType, PrimitiveIndex); };
+
+			PhysicsAssetRender::DebugDrawBodies(this, PhysicsAsset, PDI, ColorFn, MaterialFn, TransformFn, HitProxyFn);
 		}
 
-		UMaterialInterface*   Material = 0;
-		FColor                Color = FColor(ForceInitToZero);
-		FTransform            TM;
-		HHitProxy*            HitProxy = nullptr;
-		float                 Scale;
-		FKShapeElem*          ShapeElem = nullptr;
-		float                 SortingMetric;
-#ifdef UE_BUILD_DEBUG
-		FName                 BoneName;
-#endif
-	};
-	TArray<DrawElement> DrawElements;
-
-	// Draw bodies
-	for (int32 i = 0; i <PhysicsAsset->SkeletalBodySetups.Num(); ++i)
-	{
-		if (!ensure(PhysicsAsset->SkeletalBodySetups[i]))
+		// Draw Constraints.
 		{
-			continue;
-		}
-		if ((PhysicsAsset->SkeletalBodySetups[i]->PhysicsType == EPhysicsType::PhysType_Kinematic &&
-			SharedData->EditorOptions->bHideKinematicBodies) ||
-			(PhysicsAsset->SkeletalBodySetups[i]->PhysicsType == EPhysicsType::PhysType_Simulated &&
-			SharedData->EditorOptions->bHideSimulatedBodies)
-			)
-		{
-			continue;
-		}
-		if (SharedData->HiddenBodies.Contains(i))
-		{
-			continue;
-		}
-		int32 BoneIndex = GetBoneIndex(PhysicsAsset->SkeletalBodySetups[i]->BoneName);
+			auto HitProxyFn = [](const int32 InConstraintIndex) { return new HPhysicsAssetEditorEdConstraintProxy(InConstraintIndex); };
+			auto IsConstraintSelectedFn = [this](const uint32 InConstraintIndex) { return this->SharedData->IsConstraintSelected(InConstraintIndex); };
 
-		// If we found a bone for it, draw the collision.
-		// The logic is as follows; always render in the ViewMode requested when not in hit mode - but if we are in hit mode and the right editing mode, render as solid
-		if (BoneIndex != INDEX_NONE)
-		{
-			FTransform BoneTM = GetBoneTransform(BoneIndex);
-			float Scale = BoneTM.GetScale3D().GetAbsMax();
-			BoneTM.RemoveScaling();
-
-			FKAggregateGeom* AggGeom = &PhysicsAsset->SkeletalBodySetups[i]->AggGeom;
-
-			for (int32 j = 0; j <AggGeom->SphereElems.Num(); ++j)
-			{
-				DrawElement DE(
-					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Sphere, j, Scale), 
-					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Sphere, j),
-					Scale, View, &AggGeom->SphereElems[j], GetBoneName(BoneIndex)
-				);
-
-				//solids are drawn if it's the ViewMode and we're not doing a hit, or if it's hitAndBodyMode
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
-				{
-					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::Sphere, j);
-				}
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
-				{
-					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::Sphere, j);
-				}
-				if (DE.Material || DE.Color.A)
-				{
-					DrawElements.Add(DE);
-				}
-			}
-
-			for (int32 j = 0; j <AggGeom->BoxElems.Num(); ++j)
-			{
-				DrawElement DE(
-					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Box, j, Scale),
-					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Box, j),
-					Scale, View, &AggGeom->BoxElems[j], GetBoneName(BoneIndex)
-				);
-
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
-				{
-					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::Box, j);
-				}
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
-				{
-					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::Box, j);
-				}
-				if (DE.Material || DE.Color.A)
-				{
-					DrawElements.Add(DE);
-				}
-			}
-
-			for (int32 j = 0; j <AggGeom->SphylElems.Num(); ++j)
-			{
-				DrawElement DE(
-					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Sphyl, j, Scale),
-					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Sphyl, j),
-					Scale, View, &AggGeom->SphylElems[j], GetBoneName(BoneIndex)
-				);
-
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
-				{
-					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::Sphyl, j);
-				}
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
-				{
-					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::Sphyl, j);
-				}
-				if (DE.Material || DE.Color.A)
-				{
-					DrawElements.Add(DE);
-				}
-			}
-
-			for (int32 j = 0; j <AggGeom->ConvexElems.Num(); ++j)
-			{
-				DrawElement DE(
-					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Convex, j, Scale),
-					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Convex, j),
-					Scale, View, &AggGeom->ConvexElems[j], GetBoneName(BoneIndex)
-				);
-
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
-				{
-					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::Convex, j);
-				}
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
-				{
-					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::Convex, j);
-				}
-				if (DE.Material || DE.Color.A)
-				{
-					DrawElements.Add(DE);
-				}
-			}
-
-			for (int32 j = 0; j <AggGeom->TaperedCapsuleElems.Num(); ++j)
-			{
-				DrawElement DE(
-					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::TaperedCapsule, j, Scale),
-					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::TaperedCapsule, j),
-					Scale, View, &AggGeom->TaperedCapsuleElems[j], GetBoneName(BoneIndex)
-				);
-
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
-				{
-					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::TaperedCapsule, j);
-				}
-				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
-				{
-					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::TaperedCapsule, j);
-				}
-				if (DE.Material || DE.Color.A)
-				{
-					DrawElements.Add(DE);
-				}
-			}
-
-			if (SharedData->bShowCOM && Bodies.IsValidIndex(i))
-			{
-				Bodies[i]->DrawCOMPosition(PDI, COMRenderSize, SharedData->COMRenderColor);
-			}
+			PhysicsAssetRender::DebugDrawConstraints(this, PhysicsAsset, PDI, IsConstraintSelectedFn, SharedData->bRunningSimulation, HitProxyFn);
 		}
 	}
-
-	// Sort elements
-	DrawElements.Sort([this](const DrawElement& DE1, const DrawElement& DE2) {
-		return DE1.SortingMetric > DE2.SortingMetric; 
-		});
-
-
-	// Render sorted elements.
-	for (const DrawElement& DE : DrawElements)
-	{
-		PDI->SetHitProxy(DE.HitProxy);
-		if (DE.Material)
-		{
-			DE.ShapeElem->DrawElemSolid(PDI, DE.TM, DE.Scale, DE.Material->GetRenderProxy());
-		}
-		if (DE.Color.A)
-		{
-			DE.ShapeElem->DrawElemWire(PDI, DE.TM, DE.Scale, DE.Color);
-		}
-		PDI->SetHitProxy(NULL);
-	}
-
-	// Draw Constraints
-	EPhysicsAssetEditorConstraintViewMode ConstraintViewMode = SharedData->GetCurrentConstraintViewMode(SharedData->bRunningSimulation);
-	if (ConstraintViewMode != EPhysicsAssetEditorConstraintViewMode::None)
-	{
-		for (int32 i = 0; i <PhysicsAsset->ConstraintSetup.Num(); ++i)
-		{
-			if((!SharedData->EditorOptions->bRenderOnlySelectedConstraints || (SharedData->EditorOptions->bRenderOnlySelectedConstraints && SharedData->IsConstraintSelected(i))) &&
-				!SharedData->HiddenConstraints.Contains(i))
-			{
-				int32 BoneIndex1 = GetBoneIndex(PhysicsAsset->ConstraintSetup[i]->DefaultInstance.ConstraintBone1);
-				int32 BoneIndex2 = GetBoneIndex(PhysicsAsset->ConstraintSetup[i]->DefaultInstance.ConstraintBone2);
-				// if bone doesn't exist, do not draw it. It crashes in random points when we try to manipulate. 
-				if (BoneIndex1 != INDEX_NONE && BoneIndex2 != INDEX_NONE)
-				{
-					PDI->SetHitProxy(new HPhysicsAssetEditorEdConstraintProxy(i));
-
-					DrawConstraint(i, View, PDI, SharedData->EditorOptions->bShowConstraintsAsPoints);
-
-					PDI->SetHitProxy(NULL);
-				}
-			}
-		}
-	}
-}
-
-void UPhysicsAssetEditorSkeletalMeshComponent::DebugDraw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
-{
-	RenderAssetTools(View, PDI);
 }
 
 FPrimitiveSceneProxy* UPhysicsAssetEditorSkeletalMeshComponent::CreateSceneProxy()
@@ -370,33 +165,7 @@ bool ConstraintInSelected(int32 Index, const TArray<FPhysicsAssetEditorSharedDat
 	return false;
 }
 
-void UPhysicsAssetEditorSkeletalMeshComponent::DrawConstraint(int32 ConstraintIndex, const FSceneView* View, FPrimitiveDrawInterface* PDI, bool bDrawAsPoint)
-{
-	EPhysicsAssetEditorConstraintViewMode ConstraintViewMode = SharedData->GetCurrentConstraintViewMode(SharedData->bRunningSimulation);
-	bool bDrawLimits = false;
-	bool bConstraintSelected = ConstraintInSelected(ConstraintIndex, SharedData->SelectedConstraints);
-	if (ConstraintViewMode == EPhysicsAssetEditorConstraintViewMode::AllLimits || bConstraintSelected)
-	{
-		bDrawLimits = true;
-	}
-
-	bool bDrawSelected = false;
-	if (!SharedData->bRunningSimulation && bConstraintSelected)
-	{
-		bDrawSelected = true;
-	}
-
-	UPhysicsConstraintTemplate* ConstraintSetup = SharedData->PhysicsAsset->ConstraintSetup[ConstraintIndex];
-
-	FTransform Con1Frame = SharedData->GetConstraintMatrix(ConstraintIndex, EConstraintFrame::Frame1, 1.f);
-	FTransform Con2Frame = SharedData->GetConstraintMatrix(ConstraintIndex, EConstraintFrame::Frame2, 1.f);
-
-	const float DrawScale = ConstraintArrowScale * SharedData->EditorOptions->ConstraintDrawSize;
-
-	ConstraintSetup->DefaultInstance.DrawConstraint(PDI, SharedData->EditorOptions->ConstraintDrawSize, DrawScale, bDrawLimits, bDrawSelected, Con1Frame, Con2Frame, bDrawAsPoint);
-}
-
-FTransform UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveTransform(FTransform& BoneTM, int32 BodyIndex, EAggCollisionShape::Type PrimType, int32 PrimIndex, float Scale)
+FTransform UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveTransform(const FTransform& BoneTM, const int32 BodyIndex, const EAggCollisionShape::Type PrimType, const int32 PrimIndex, const float Scale) const
 {
 	UBodySetup* SharedBodySetup = SharedData->PhysicsAsset->SkeletalBodySetups[BodyIndex];
 	FVector Scale3D(Scale);
@@ -454,7 +223,7 @@ FTransform UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveTransform(FTran
 	return FTransform::Identity;
 }
 
-FColor UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveColor(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex)
+FColor UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveColor(const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex) const
 {
 	UBodySetup* SharedBodySetup = SharedData->PhysicsAsset->SkeletalBodySetups[BodyIndex];
 
@@ -526,7 +295,7 @@ FColor UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveColor(int32 BodyInd
 	return BoneUnselectedColor;
 }
 
-UMaterialInterface* UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveMaterial(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex)
+UMaterialInterface* UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveMaterial(const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex) const
 {
 	if (SharedData->bRunningSimulation)
 	{

@@ -72,6 +72,7 @@
 const FName	ISkeletonTree::Columns::Name("Name");
 const FName	ISkeletonTree::Columns::Retargeting("Retargeting");
 const FName ISkeletonTree::Columns::BlendProfile("BlendProfile");
+const FName ISkeletonTree::Columns::DebugVisualization("DebugVisualization");
 
 // This is mostly duplicated from SListView, to allow for us to avoid selecting collapsed items
 template <typename ItemType>
@@ -164,6 +165,7 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 	Mode = InSkeletonTreeArgs.Mode;
 	bAllowMeshOperations = InSkeletonTreeArgs.bAllowMeshOperations;
 	bAllowSkeletonOperations = InSkeletonTreeArgs.bAllowSkeletonOperations;
+	bShowDebugVisualizationOptions = InSkeletonTreeArgs.bShowDebugVisualizationOptions;
 	Extenders = InSkeletonTreeArgs.Extenders;
 	OnGetFilterText = InSkeletonTreeArgs.OnGetFilterText;
 	Builder = InSkeletonTreeArgs.Builder;
@@ -410,6 +412,12 @@ void SSkeletonTree::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &SSkeletonTree::IsShowingAdvancedOptions));
 
+	CommandList.MapAction(
+		MenuActions.ShowDebugVisualization,
+		FExecuteAction::CreateSP(this, &SSkeletonTree::OnChangeShowingDebugVisualizationOptions),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SSkeletonTree::IsShowingDebugVisualizationOptions));
+
 	// Socket manipulation commands
 	CommandList.MapAction(
 		MenuActions.AddSocket,
@@ -560,6 +568,7 @@ void SSkeletonTree::CreateTreeColumns()
 	TArray<FName> HiddenColumnsList;
 	HiddenColumnsList.Add(ISkeletonTree::Columns::Retargeting);
 	HiddenColumnsList.Add(ISkeletonTree::Columns::BlendProfile);
+	HiddenColumnsList.Add(ISkeletonTree::Columns::DebugVisualization);
 
 	TSharedRef<SHeaderRow> TreeHeaderRow = 
 	SNew(SHeaderRow)
@@ -573,6 +582,10 @@ void SSkeletonTree::CreateTreeColumns()
 
 	+ SHeaderRow::Column(ISkeletonTree::Columns::Retargeting)
 	.DefaultLabel(LOCTEXT("SkeletonBoneTranslationRetargetingLabel", "Translation Retargeting"))
+	.FillWidth(0.25f)
+
+	+ SHeaderRow::Column(ISkeletonTree::Columns::DebugVisualization)
+	.DefaultLabel(LOCTEXT("SkeletonBoneDebugVisualizationLabel", "Debug"))
 	.FillWidth(0.25f)
 
 	+ SHeaderRow::Column(ISkeletonTree::Columns::BlendProfile)
@@ -1780,6 +1793,11 @@ TSharedRef< SWidget > SSkeletonTree::CreateFilterMenu()
 		}
 		MenuBuilder.AddMenuEntry(Actions.FilteringFlattensHierarchy);
 		MenuBuilder.AddMenuEntry(Actions.HideParentsWhenFiltering);
+		
+		if (bShowDebugVisualizationOptions)
+		{
+			MenuBuilder.AddMenuEntry(Actions.ShowDebugVisualization);
+		}
 	}
 	MenuBuilder.EndSection();
 
@@ -2042,6 +2060,16 @@ void SSkeletonTree::OnChangeShowingAdvancedOptions()
 bool SSkeletonTree::IsShowingAdvancedOptions() const
 {
 	return SkeletonTreeView->GetHeaderRow()->IsColumnVisible(ISkeletonTree::Columns::Retargeting);
+}
+
+void SSkeletonTree::OnChangeShowingDebugVisualizationOptions()
+{
+	SkeletonTreeView->GetHeaderRow()->SetShowGeneratedColumn(ISkeletonTree::Columns::DebugVisualization, !IsShowingDebugVisualizationOptions());
+}
+
+bool SSkeletonTree::IsShowingDebugVisualizationOptions() const
+{
+	return SkeletonTreeView->GetHeaderRow()->IsColumnVisible(ISkeletonTree::Columns::DebugVisualization);
 }
 
 UBlendProfile* SSkeletonTree::GetSelectedBlendProfile()

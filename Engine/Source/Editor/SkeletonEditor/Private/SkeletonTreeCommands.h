@@ -45,6 +45,9 @@ public:
 	/** Show retargeting options */
 	TSharedPtr< FUICommandInfo > ShowRetargeting;
 
+	/** Show debug visualization options */
+	TSharedPtr< FUICommandInfo > ShowDebugVisualization;
+
 	/** Flatten hierarchy on filter */
 	TSharedPtr< FUICommandInfo > FilteringFlattensHierarchy;
 

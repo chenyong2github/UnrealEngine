@@ -24,6 +24,7 @@
 #include "PhysicsAssetEditorModule.h"
 #include "ScopedTransaction.h"
 #include "PhysicsAssetEditorActions.h"
+#include "PhysicsAssetRenderUtils.h"
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
 #include "Templates/TypeHash.h"
 
@@ -185,6 +186,7 @@ void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, 
 	SkeletonTreeArgs.OnSelectionChanged = FOnSkeletonTreeSelectionChanged::CreateSP(this, &FPhysicsAssetEditor::HandleSelectionChanged);
 	SkeletonTreeArgs.PreviewScene = PersonaToolkit->GetPreviewScene();
 	SkeletonTreeArgs.bShowBlendProfiles = false;
+	SkeletonTreeArgs.bShowDebugVisualizationOptions = true;
 	SkeletonTreeArgs.bAllowMeshOperations = false;
 	SkeletonTreeArgs.bAllowSkeletonOperations = false;
 	SkeletonTreeArgs.bHideBonesByDefault = true;
@@ -382,6 +384,23 @@ FLinearColor FPhysicsAssetEditor::GetWorldCentricTabColorScale() const
 	return FLinearColor(0.3f, 0.2f, 0.5f, 0.5f);
 }
 
+void FPhysicsAssetEditor::OnClose()
+{
+	// Clear render settings from editor viewport. These settings must be applied to the rendering in all editors 
+	// when an asset is open in the Physics Asset Editor but should not persist after the editor has been closed.
+	if (FPhysicsAssetRenderSettings* const RenderSettings = UPhysicsAssetRenderUtilities::GetSettings(SharedData->PhysicsAsset))
+	{
+		RenderSettings->ResetEditorViewportOptions();
+	}
+
+	if (UPhysicsAssetRenderUtilities* PhysicsAssetRenderUtilities = GetMutableDefault<UPhysicsAssetRenderUtilities>())
+	{
+		PhysicsAssetRenderUtilities->SaveConfig();
+	}
+
+	IPhysicsAssetEditor::OnClose();
+}
+
 void FPhysicsAssetEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	SharedData->AddReferencedObjects(Collector);
@@ -483,6 +502,11 @@ void FPhysicsAssetEditor::OnFinishedChangingProperties(const FPropertyChangedEve
 			SharedData->ClearSelectedBody();
 			SharedData->SetSelectedBodiesAnyPrim(SelectedBodyIndices, true);
 		}
+	}
+
+	if (UPhysicsAssetRenderUtilities* PhysicsAssetRenderUtilities = GetMutableDefault<UPhysicsAssetRenderUtilities>())
+	{
+		PhysicsAssetRenderUtilities->SaveConfig();
 	}
 
 	RecreatePhysicsState();
@@ -1507,6 +1531,7 @@ TSharedRef<ISkeletonTree> FPhysicsAssetEditor::BuildMenuWidgetNewConstraintForBo
 	SkeletonTreeArgs.bAllowSkeletonOperations = false;
 	SkeletonTreeArgs.bShowBlendProfiles = false;
 	SkeletonTreeArgs.bShowFilterMenu = false;
+	SkeletonTreeArgs.bShowDebugVisualizationOptions = true;
 	SkeletonTreeArgs.bHideBonesByDefault = true;
 	SkeletonTreeArgs.Builder = Builder;
 	SkeletonTreeArgs.PreviewScene = GetPersonaToolkit()->GetPreviewScene();

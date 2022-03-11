@@ -1,8 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_RigidBody.h"
+#include "AnimNodeEditModes.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "BoneControllers/AnimNode_RigidBody.h"
+#include "PhysicsAssetRenderUtils.h"
+
+// Details includes
+#include "PropertyHandle.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "DetailCategoryBuilder.h"
+#include "Widgets/Input/SButton.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_RigidBody
@@ -39,6 +48,123 @@ void UAnimGraphNode_RigidBody::ValidateAnimNodeDuringCompilation(USkeleton* ForS
 #endif
 	
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+}
+
+void UAnimGraphNode_RigidBody::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const
+{
+	if (const FAnimNode_RigidBody* const RuntimeRigidBodyNode = GetDebuggedAnimNode<FAnimNode_RigidBody>())
+	{
+		if (UPhysicsAsset* const PhysicsAsset = RuntimeRigidBodyNode->GetPhysicsAsset())
+		{
+			PhysicsAssetRender::DebugDraw(PreviewSkelMeshComp, PhysicsAsset, PDI);
+		}
+	}
+}
+
+void UAnimGraphNode_RigidBody::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	Super::CustomizeDetails(DetailBuilder);
+
+	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Debug Visualization"));
+	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
+	FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode());
+
+	WidgetRow
+		[
+			SNew(SHorizontalBox)
+			// Show/Hide Bodies button.
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->ToggleBodyVisibility(); return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this](){ return (AreAnyBodiesHidden()) ? FAppStyle::Get().GetSlateColor("Colors.AccentRed") : FAppStyle::Get().GetSlateColor("Colors.AccentGreen"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return (AreAnyBodiesHidden()) ? LOCTEXT("ShowAllBodiesButtonText", "Show All Bodies") : LOCTEXT("HideAllBodiesButtonText", "Hide All Bodies"); })
+					.ToolTipText(LOCTEXT("ToggleBodyVisibilityButtonToolTip", "Toggle debug visualization of all physics bodies"))
+				]
+			]
+			// Show/Hide Constraints button.
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->ToggleConstraintVisibility(); return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this]() { return (AreAnyConstraintsHidden()) ? FAppStyle::Get().GetSlateColor("Colors.AccentRed") : FAppStyle::Get().GetSlateColor("Colors.AccentGreen"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return (AreAnyConstraintsHidden()) ? LOCTEXT("ShowAllConstraintsButtonText", "Show All Constraints") : LOCTEXT("HideAllConstraintsButtonText", "Hide All Constraints"); })
+					.ToolTipText(LOCTEXT("ToggleConstraintVisibilityButtonToolTip", "Toggle debug visualization of all physics constriants"))
+				]
+			]
+		];
+}
+
+void UAnimGraphNode_RigidBody::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (UPhysicsAssetRenderUtilities* PhysicsAssetRenderUtilities = GetMutableDefault<UPhysicsAssetRenderUtilities>())
+	{
+		PhysicsAssetRenderUtilities->SaveConfig();
+	}
+}
+
+void UAnimGraphNode_RigidBody::ToggleBodyVisibility()
+{
+	FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode());
+	FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings();
+
+	if (PhysicsAssetRenderSettings && RigidBodyNode)
+	{
+		PhysicsAssetRenderSettings->ToggleShowAllBodies(RigidBodyNode->GetPhysicsAsset());
+	}
+}
+
+void UAnimGraphNode_RigidBody::ToggleConstraintVisibility()
+{
+	FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode());
+	FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings();
+
+	if (PhysicsAssetRenderSettings && RigidBodyNode)
+	{
+		PhysicsAssetRenderSettings->ToggleShowAllConstraints(RigidBodyNode->GetPhysicsAsset());
+	}
+}
+
+FPhysicsAssetRenderSettings* UAnimGraphNode_RigidBody::GetRenderSettings() const
+{
+	if (FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode()))
+	{
+		return UPhysicsAssetRenderUtilities::GetSettings(RigidBodyNode->GetPhysicsAsset());
+	}
+
+	return nullptr;
+}
+
+bool UAnimGraphNode_RigidBody::AreAnyBodiesHidden() const
+{
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		return PhysicsAssetRenderSettings->AreAnyBodiesHidden();
+	}
+
+	return false;
+}
+
+bool UAnimGraphNode_RigidBody::AreAnyConstraintsHidden() const
+{
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		return PhysicsAssetRenderSettings->AreAnyConstraintsHidden();
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

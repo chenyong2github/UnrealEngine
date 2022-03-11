@@ -2,6 +2,7 @@
 
 #include "PhysicsAssetEditorSharedData.h"
 #include "PhysicsAssetEditorPhysicsHandleComponent.h"
+#include "PhysicsAssetRenderUtils.h"
 #include "PhysicsEngine/RigidBodyIndexPair.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
@@ -735,7 +736,7 @@ void FPhysicsAssetEditorSharedData::ToggleShowSelected()
 	{
 		for (const FSelection& Selection : SelectedConstraints)
 		{
-			if (HiddenConstraints.Contains(Selection.Index))
+			if (IsConstraintHidden(Selection.Index))
 			{
 				bAllSelectedVisible = false;
 				break;
@@ -746,7 +747,7 @@ void FPhysicsAssetEditorSharedData::ToggleShowSelected()
 	{
 		for (const FSelection& Selection : SelectedBodies)
 		{
-			if (HiddenBodies.Contains(Selection.Index))
+			if (IsBodyHidden(Selection.Index))
 			{
 				bAllSelectedVisible = false;
 			}
@@ -772,7 +773,7 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlySelected()
 	{
 		for (const FSelection& Selection : SelectedConstraints)
 		{
-			if (HiddenConstraints.Contains(Selection.Index))
+			if (IsConstraintHidden(Selection.Index))
 			{
 				bAllSelectedVisible = false;
 				break;
@@ -783,7 +784,7 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlySelected()
 	{
 		for (const FSelection& Selection : SelectedBodies)
 		{
-			if (HiddenBodies.Contains(Selection.Index))
+			if (IsBodyHidden(Selection.Index))
 			{
 				bAllSelectedVisible = false;
 			}
@@ -799,7 +800,7 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlySelected()
 			if (!SelectedConstraints.ContainsByPredicate([ConstraintIndex](FSelection& V) { return V.Index == ConstraintIndex; } ))
 			{
 				// Is it hidden?
-				if (!HiddenConstraints.Contains(ConstraintIndex))
+				if (!IsConstraintHidden(ConstraintIndex))
 				{
 					bAllNotSelectedHidden = false;
 					break;
@@ -815,7 +816,7 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlySelected()
 			if (!SelectedBodies.ContainsByPredicate([BodyIndex](FSelection& V) { return V.Index == BodyIndex; }))
 			{
 				// Is it hidden?
-				if (!HiddenBodies.Contains(BodyIndex))
+				if (!IsBodyHidden(BodyIndex))
 				{
 					bAllNotSelectedHidden = false;
 					break;
@@ -835,33 +836,79 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlySelected()
 	}
 }
 
+bool FPhysicsAssetEditorSharedData::IsBodyHidden(const int32 BodyIndex) const
+{
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		return PhysicsAssetRenderSettings->IsBodyHidden(BodyIndex);
+	}
+	
+	return false;
+}
+
+bool FPhysicsAssetEditorSharedData::IsConstraintHidden(const int32 ConstraintIndex) const
+{
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		return PhysicsAssetRenderSettings->IsConstraintHidden(ConstraintIndex);
+	}
+
+	return false;
+}
+
+void FPhysicsAssetEditorSharedData::HideBody(const int32 BodyIndex)
+{
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		PhysicsAssetRenderSettings->HideBody(BodyIndex);
+	}
+}
+
+void FPhysicsAssetEditorSharedData::ShowBody(const int32 BodyIndex)
+{
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		PhysicsAssetRenderSettings->ShowBody(BodyIndex);
+	}
+}
+
+void FPhysicsAssetEditorSharedData::HideConstraint(const int32 ConstraintIndex)
+{
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		PhysicsAssetRenderSettings->HideConstraint(ConstraintIndex);
+	}
+}
+
+void FPhysicsAssetEditorSharedData::ShowConstraint(const int32 ConstraintIndex)
+{
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		PhysicsAssetRenderSettings->ShowConstraint(ConstraintIndex);
+	}
+}
+
 void FPhysicsAssetEditorSharedData::ShowAll()
 {
-	HiddenConstraints.Empty();
-	HiddenBodies.Empty();
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		PhysicsAssetRenderSettings->ShowAll();
+	}
 }
 
 void FPhysicsAssetEditorSharedData::HideAllBodies()
 {
-	if (PhysicsAsset != nullptr)
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
 	{
-		HiddenBodies.Empty();
-		for (int32 i = 0; i < PhysicsAsset->SkeletalBodySetups.Num(); ++i)
-		{
-			HiddenBodies.Add(i);
-		}
+		PhysicsAssetRenderSettings->HideAllBodies(PhysicsAsset);
 	}
 }
 
 void FPhysicsAssetEditorSharedData::HideAllConstraints()
 {
-	if (PhysicsAsset != nullptr)
+	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
 	{
-		HiddenConstraints.Empty();
-		for (int32 i = 0; i < PhysicsAsset->ConstraintSetup.Num(); ++i)
-		{
-			HiddenConstraints.Add(i);
-		}
+		PhysicsAssetRenderSettings->HideAllConstraints(PhysicsAsset);
 	}
 }
 
@@ -875,17 +922,11 @@ void FPhysicsAssetEditorSharedData::ShowSelected()
 {
 	for (const FSelection& Selection : SelectedConstraints)
 	{
-		if (HiddenConstraints.Contains(Selection.Index))
-		{
-			HiddenConstraints.RemoveSwap(Selection.Index);
-		}
+		ShowConstraint(Selection.Index);
 	}
 	for (const FSelection& Selection : SelectedBodies)
 	{
-		if (HiddenBodies.Contains(Selection.Index))
-		{
-			HiddenBodies.RemoveSwap(Selection.Index);
-		}
+		ShowBody(Selection.Index);
 	}
 }
 
@@ -893,39 +934,41 @@ void FPhysicsAssetEditorSharedData::HideSelected()
 {
 	for (const FSelection& Selection : SelectedConstraints)
 	{
-		if (!HiddenConstraints.Contains(Selection.Index))
-		{
-			HiddenConstraints.Add(Selection.Index);
-		}
+		HideConstraint(Selection.Index);
 	}
 	for (const FSelection& Selection : SelectedBodies)
 	{
-		if (!HiddenBodies.Contains(Selection.Index))
-		{
-			HiddenBodies.Add(Selection.Index);
-		}
+		HideBody(Selection.Index);
 	}
 }
 
 void FPhysicsAssetEditorSharedData::ToggleShowOnlyColliding()
 {
 	// important that we check this before calling ShowAll
-	const bool bIsShowingColliding = (HiddenBodies == NoCollisionBodies);
+	bool bIsShowingColliding = true;
+
+	for (const int32 BodyIndex : NoCollisionBodies)
+	{
+		bIsShowingColliding &= IsBodyHidden(BodyIndex);
+
+		if (!bIsShowingColliding)
+		{
+			break;
+		}
+	}
 
 	// in any case first show all
 	ShowAll();
 
-	if (!bIsShowingColliding)
-	{
-		// only works if one only body is selected
-		if (PhysicsAsset != nullptr && SelectedBodies.Num() == 1)
-		{
-
-			// NoCollisionBodies already contains the non colliding bodies from the one selection
-			HiddenBodies.Empty();
-			HiddenBodies.Append(NoCollisionBodies);
-		}
+	FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings();
+	
+	// only works if one only body is selected
+	if (!bIsShowingColliding && PhysicsAssetRenderSettings && (SelectedBodies.Num() == 1))
+	{	
+		// NoCollisionBodies already contains the non colliding bodies from the one selection
+		PhysicsAssetRenderSettings->SetHiddenBodies(NoCollisionBodies);
 	}
+
 }
 
 void FPhysicsAssetEditorSharedData::ToggleShowOnlyConstrained()
@@ -936,10 +979,13 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlyConstrained()
 	}
 
 	// important that we check this before calling ShowAll
-	if (bool bIsAlreadyShowingConstrained = (HiddenBodies.Num() > 0))
 	{
-		HiddenBodies.Empty();
-		return;
+		FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings();
+		if (PhysicsAssetRenderSettings && PhysicsAssetRenderSettings->AreAnyBodiesHidden())
+		{
+			PhysicsAssetRenderSettings->ShowAllBodies();
+			return;
+		}
 	}
 
 	// first Hide all bodies and then show only the ones that needs to be
@@ -948,7 +994,7 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlyConstrained()
 	// add  the current selection of bodies
 	for (const FSelection& SelectedBody : SelectedBodies)
 	{
-		HiddenBodies.RemoveSwap(SelectedBody.Index);
+		ShowBody(SelectedBody.Index);
 	}
 
 	// collect connected bodies from the selected constraints
@@ -957,16 +1003,16 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlyConstrained()
 		UPhysicsConstraintTemplate* ConstraintTemplate = PhysicsAsset->ConstraintSetup[Selection.Index];
 		FConstraintInstance& DefaultInstance = ConstraintTemplate->DefaultInstance;
 
-		// Add bothe connected bodies
+		// Add both connected bodies
 		int32 Body1IndexToAdd = PhysicsAsset->FindBodyIndex(DefaultInstance.ConstraintBone1);
 		if (Body1IndexToAdd != INDEX_NONE)
 		{
-			HiddenBodies.RemoveSwap(Body1IndexToAdd);
+			ShowBody(Body1IndexToAdd);
 		}
 		int32 Body2IndexToAdd = PhysicsAsset->FindBodyIndex(DefaultInstance.ConstraintBone2);
 		if (Body2IndexToAdd != INDEX_NONE)
 		{
-			HiddenBodies.RemoveSwap(Body2IndexToAdd);
+			ShowBody(Body2IndexToAdd);
 		}
 	}
 
@@ -991,7 +1037,7 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlyConstrained()
 				int32 BodyIndexToAdd = PhysicsAsset->FindBodyIndex(OtherConnectedBody);
 				if (BodyIndexToAdd != INDEX_NONE)
 				{
-					HiddenBodies.RemoveSwap(BodyIndexToAdd);
+					ShowBody(BodyIndexToAdd);
 				}
 			}
 		}
@@ -2837,6 +2883,10 @@ void FPhysicsAssetEditorSharedData::UpdateClothPhysics()
 	}
 }
 
+FPhysicsAssetRenderSettings* FPhysicsAssetEditorSharedData::GetRenderSettings() const
+{
+	return UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset);
+}
 
 
 #undef LOCTEXT_NAMESPACE

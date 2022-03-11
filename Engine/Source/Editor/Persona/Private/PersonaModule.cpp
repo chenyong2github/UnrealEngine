@@ -75,6 +75,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsAssetRenderUtils.h"
 #include "PersonaPreviewSceneDescription.h"
 #include "PersonaPreviewSceneAnimationController.h"
 #include "PersonaPreviewSceneRefPoseController.h"
@@ -112,6 +113,8 @@ void FPersonaModule::StartupModule()
 
 	// Make sure the advanced preview scene module is loaded 
 	FModuleManager::Get().LoadModuleChecked("AdvancedPreviewScene");
+
+	UPhysicsAssetRenderUtilities::Initialise();
 
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");

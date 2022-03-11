@@ -145,7 +145,7 @@ void FPhysicsAssetEditorSkeletonTreeBuilder::AddBodies(FSkeletonTreeBuilderOutpu
 
 						if (bHasShapes)
 						{
-							Output.Add(MakeShared<FSkeletonTreePhysicsBodyItem>(BodySetup, BodySetupIndex, BoneName, true, bHasShapes, SkeletonTreePtr.Pin().ToSharedRef()), BoneName, "FSkeletonTreeBoneItem", true);
+							Output.Add(MakeShared<FSkeletonTreePhysicsBodyItem>(BodySetup, BodySetupIndex, BoneName, true, bHasShapes, PhysicsAsset, SkeletonTreePtr.Pin().ToSharedRef()), BoneName, "FSkeletonTreeBoneItem", true);
 
 							int32 ShapeIndex;
 							for (ShapeIndex = 0; ShapeIndex < AggGeom.SphereElems.Num(); ++ShapeIndex)
@@ -184,7 +184,7 @@ void FPhysicsAssetEditorSkeletonTreeBuilder::AddBodies(FSkeletonTreeBuilderOutpu
 							if (bJointMatches || bUserConstraintMatches)
 							{
 								const bool bIsConstraintOnParentBone = !(ConstraintInstance.JointName == BoneName || ConstraintInstance.ConstraintBone1 == BoneName);
-								Output.Add(MakeShared<FSkeletonTreePhysicsConstraintItem>(PhysicsAsset->ConstraintSetup[ConstraintIndex], ConstraintIndex, BoneName, bIsConstraintOnParentBone, SkeletonTreePtr.Pin().ToSharedRef()), BoneName, FSkeletonTreePhysicsBodyItem::GetTypeId());
+								Output.Add(MakeShared<FSkeletonTreePhysicsConstraintItem>(PhysicsAsset->ConstraintSetup[ConstraintIndex], ConstraintIndex, BoneName, bIsConstraintOnParentBone, PhysicsAsset, SkeletonTreePtr.Pin().ToSharedRef()), BoneName, FSkeletonTreePhysicsBodyItem::GetTypeId());
 							}
 						}
 

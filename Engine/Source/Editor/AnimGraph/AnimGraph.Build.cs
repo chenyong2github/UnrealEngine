@@ -23,6 +23,7 @@ public class AnimGraph : ModuleRules
 				"Slate",
 				"AnimGraphRuntime",
 				"BlueprintGraph",
+				"Persona"
 			}
 		);
 
@@ -54,7 +55,6 @@ public class AnimGraph : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
-                "Persona",
                 "SkeletonEditor",
                 "AdvancedPreviewScene",
                 "AnimationBlueprintEditor",

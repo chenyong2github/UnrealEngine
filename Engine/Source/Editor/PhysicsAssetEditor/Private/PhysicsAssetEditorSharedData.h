@@ -145,6 +145,12 @@ public:
 	bool IsBodySelected(const FSelection& Body) const;
 	void ToggleSelectionType(bool bIgnoreUserConstraints = true);
 	void ToggleShowSelected();
+	bool IsBodyHidden(const int32 BodyIndex) const;
+	bool IsConstraintHidden(const int32 ConstraintIndex) const;
+	void HideBody(const int32 BodyIndex);
+	void ShowBody(const int32 BodyIndex);
+	void HideConstraint(const int32 ConstraintIndex);
+	void ShowConstraint(const int32 ConstraintIndex);
 	void ShowAll();
 	void HideAll();
 	void HideAllBodies();
@@ -315,8 +321,6 @@ public:
 
 	TArray<FSelection> SelectedBodies;
 
-	TArray<int32> HiddenBodies;
-	TArray<int32> HiddenConstraints;
 	FSelection * GetSelectedBody()
 	{
 		int32 Count = SelectedBodies.Num();
@@ -336,6 +340,8 @@ public:
 		int32 Count = SelectedConstraints.Num();
 		return Count ? &SelectedConstraints[Count - 1] : NULL;
 	}
+
+	struct FPhysicsAssetRenderSettings* GetRenderSettings() const;
 
 	/** Show flags */
 	bool bShowCOM;

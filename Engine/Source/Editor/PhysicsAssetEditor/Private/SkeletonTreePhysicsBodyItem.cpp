@@ -1,39 +1,43 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletonTreePhysicsBodyItem.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
+#include "PhysicsAssetRenderUtils.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 
 #define LOCTEXT_NAMESPACE "FSkeletonTreePhysicsBodyItem"
 
-void FSkeletonTreePhysicsBodyItem::GenerateWidgetForNameColumn( TSharedPtr< SHorizontalBox > Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected )
+FSkeletonTreePhysicsBodyItem::FSkeletonTreePhysicsBodyItem(USkeletalBodySetup* InBodySetup, int32 InBodySetupIndex, const FName& InBoneName, bool bInHasBodySetup, bool bInHasShapes, class UPhysicsAsset* const InPhysicsAsset, const TSharedRef<class ISkeletonTree>& InSkeletonTree)
+	: FSkeletonTreePhysicsItem(InPhysicsAsset, InSkeletonTree)
+	, BodySetup(InBodySetup)
+	, BodySetupIndex(InBodySetupIndex)
+	, bHasBodySetup(bInHasBodySetup)
+	, bHasShapes(bInHasShapes)
 {
-	Box->AddSlot()
-	.AutoWidth()
-	.Padding(FMargin(0.0f, 1.0f))
-	[
-		SNew( SImage )
-		.ColorAndOpacity(FSlateColor::UseForeground())
-		.Image(this, &FSkeletonTreePhysicsBodyItem::GetBrush)
-	];
-
-	Box->AddSlot()
-	.AutoWidth()
-	.Padding(2, 0, 0, 0)
-	[
-		SNew(STextBlock)
-		.ColorAndOpacity(this, &FSkeletonTreePhysicsBodyItem::GetBodyTextColor)
-		.Text(FText::FromName(BoneName))
-		.HighlightText(FilterText)
-		.Font(FEditorStyle::GetFontStyle("PhysicsAssetEditor.Tree.Font"))
-		.ToolTipText(FText::Format(LOCTEXT("BodyTooltip", "Aggregate physics body for bone '{0}'. Bodies can consist of multiple shapes."), FText::FromName(BoneName)))
-	];
+	DisplayName = InBoneName;
 }
 
-TSharedRef< SWidget > FSkeletonTreePhysicsBodyItem::GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected)
+UObject* FSkeletonTreePhysicsBodyItem::GetObject() const
 {
-	return SNullWidget::NullWidget;
+	return BodySetup;
+}
+
+void FSkeletonTreePhysicsBodyItem::OnToggleItemDisplayed(ECheckBoxState InCheckboxState)
+{
+	if (FPhysicsAssetRenderSettings* RenderSettings = GetRenderSettings())
+	{
+		RenderSettings->ToggleShowBody(BodySetupIndex);
+	}
+}
+
+ECheckBoxState FSkeletonTreePhysicsBodyItem::IsItemDisplayed() const
+{
+	if (FPhysicsAssetRenderSettings* RenderSettings = GetRenderSettings())
+	{
+		return RenderSettings->IsBodyHidden(BodySetupIndex) ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+	}
+
+	return ECheckBoxState::Undetermined;
 }
 
 const FSlateBrush* FSkeletonTreePhysicsBodyItem::GetBrush() const
@@ -41,7 +45,7 @@ const FSlateBrush* FSkeletonTreePhysicsBodyItem::GetBrush() const
 	return BodySetup->PhysicsType == EPhysicsType::PhysType_Kinematic ? FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.KinematicBody") : FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.Body");
 }
 
-FSlateColor FSkeletonTreePhysicsBodyItem::GetBodyTextColor() const
+FSlateColor FSkeletonTreePhysicsBodyItem::GetTextColor() const
 {
 	FLinearColor Color(1.0f, 1.0f, 1.0f);
 
@@ -60,6 +64,11 @@ FSlateColor FSkeletonTreePhysicsBodyItem::GetBodyTextColor() const
 	{
 		return FSlateColor(Color.Desaturate(0.5f));
 	}
+}
+
+FText FSkeletonTreePhysicsBodyItem::GetNameColumnToolTip() const
+{
+	return FText::Format(LOCTEXT("BodyTooltip", "Aggregate physics body for bone '{0}'. Bodies can consist of multiple shapes."), FText::FromName(GetRowItemName()));
 }
 
 #undef LOCTEXT_NAMESPACE

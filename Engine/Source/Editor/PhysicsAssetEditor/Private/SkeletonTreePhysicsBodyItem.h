@@ -4,52 +4,39 @@
 
 #include "CoreMinimal.h"
 #include "Styling/SlateColor.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "SkeletonTreeItem.h"
-#include "PhysicsEngine/PhysicsAsset.h"
+#include "SkeletonTreePhysicsItem.h"
 
-class FSkeletonTreePhysicsBodyItem : public FSkeletonTreeItem
+class FSkeletonTreePhysicsBodyItem : public FSkeletonTreePhysicsItem
 {
 public:
-	SKELETON_TREE_ITEM_TYPE(FSkeletonTreePhysicsBodyItem, FSkeletonTreeItem)
+	SKELETON_TREE_ITEM_TYPE(FSkeletonTreePhysicsBodyItem, FSkeletonTreePhysicsItem)
 
-	FSkeletonTreePhysicsBodyItem(USkeletalBodySetup* InBodySetup, int32 InBodySetupIndex, const FName& InBoneName, bool bInHasBodySetup, bool bInHasShapes, const TSharedRef<class ISkeletonTree>& InSkeletonTree)
-		: FSkeletonTreeItem(InSkeletonTree)
-		, BodySetup(InBodySetup)
-		, BodySetupIndex(InBodySetupIndex)
-		, BoneName(InBoneName)
-		, bHasBodySetup(bInHasBodySetup)
-		, bHasShapes(bInHasShapes)
-	{}
+	FSkeletonTreePhysicsBodyItem(class USkeletalBodySetup* InBodySetup, int32 InBodySetupIndex, const FName& InBoneName, bool bInHasBodySetup, bool bInHasShapes, class UPhysicsAsset* const InPhysicsAsset, const TSharedRef<class ISkeletonTree>& InSkeletonTree);
 
-	/** ISkeletonTreeItem interface */
-	virtual void GenerateWidgetForNameColumn(TSharedPtr< SHorizontalBox > Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected) override;
-	virtual TSharedRef< SWidget > GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected) override;	
-	virtual FName GetRowItemName() const override { return BoneName; }
-	virtual UObject* GetObject() const override { return BodySetup; }
+	virtual UObject* GetObject() const override;
 
 	/** Get the index of the body setup in the physics asset */
 	int32 GetBodySetupIndex() const { return BodySetupIndex; }
 
+	/** UI Callbacks */
+	virtual void OnToggleItemDisplayed(ECheckBoxState InCheckboxState) override;
+	virtual ECheckBoxState IsItemDisplayed() const override;
+
 private:
 	/** Gets the icon to display for this body */
-	const FSlateBrush* GetBrush() const;
+	virtual const FSlateBrush* GetBrush() const override;
 
 	/** Gets the color to display the item's text */
-	FSlateColor GetBodyTextColor() const;
+	virtual FSlateColor GetTextColor() const override;
 
-private:
+	/** Gets the tool tip to display on hovering over the item's name */
+	virtual FText GetNameColumnToolTip() const override;
+
 	/** The body setup we are representing */
 	USkeletalBodySetup* BodySetup;
 
 	/** The index of the body setup in the physics asset */
 	int32 BodySetupIndex;
-
-	/** The name of the bone that this body is bound to */
-	FName BoneName;
 
 	/** Whether there is a body set up for this bone */
 	bool bHasBodySetup;
