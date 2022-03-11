@@ -9,6 +9,7 @@
 #if STRATA_ENABLED 
 #define STRATA_INLINE_SHADING 0
 #include "/Engine/Private/Strata/Strata.ush"
+#include "/Engine/Private/Strata/StrataEvaluation.ush"
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,8 +28,11 @@ struct FLumenMaterialData
 	bool   bRequiresBxDFImportanceSampling;
 	bool   bIsHair;
 	bool   bIsFoliage;
+	float  Anisotropy;
 
-#if !STRATA_ENABLED
+#if STRATA_ENABLED
+	float3x3 TangentBasis;
+#else
 	FGBufferData GBufferData;
 #endif
 };
@@ -74,6 +78,19 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.bIsHair = StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
 	Out.bIsFoliage = false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
 	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;// || StrataPixelHeader.BSDFCount > 1u || GetDiffuseLerp(Out.Roughness) < 1.0f;
+
+	Out.Anisotropy = 0;
+	Out.TangentBasis = (float3x3)0;
+
+	// STRATA_TODO: For now, use only the last BSDF (arbitrary)
+	Strata_for(uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	{
+		float3 NullV = float3(0, 0, 1);
+		FStrataBSDF BSDF = UnpackStrataBSDF(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
+		FStrataBSDFContext Context = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, NullV);
+		Out.TangentBasis = Context.TangentBasis;
+		Out.Anisotropy = StrataGetBSDFAnisotropy(BSDF);
+	}
 #endif
 	return Out;
 }
@@ -86,6 +103,7 @@ FLumenMaterialData InternalReadMaterialData_GBuffer(const FGBufferData GBufferDa
 	Out.SceneDepth = GBufferData.Depth;
 	Out.WorldNormal = GBufferData.WorldNormal;
 	Out.Roughness = GBufferData.Roughness;
+	Out.Anisotropy = 0;
 	Out.TopLayerRoughness = GetClearCoatRoughness(GBufferData);
 	Out.MaterialAO = GBufferData.GBufferAO;
 	Out.ShadingID = GBufferData.ShadingModelID;
@@ -153,6 +171,11 @@ bool bIsUnlit(FLumenMaterialData In)
 	return In.ShadingID == SHADINGMODELID_UNLIT;
 }
 
+bool HasAnisotropy(FLumenMaterialData In)
+{
+	return In.Anisotropy != 0;
+}
+
 bool ComputeIndirectLighting(FLumenMaterialData In)
 {
 	return IsValid(In);
@@ -192,6 +215,15 @@ bool HasComplexShading(FLumenMaterialData In)
 bool ShouldComputeIndirectLighting(FLumenMaterialData In)
 {
 	return In.ShadingID != SHADINGMODELID_UNLIT;
+}
+
+float3x3 GetTangentBasis(FLumenMaterialData In)
+{
+#if STRATA_ENABLED
+	return In.Anisotropy != 0 ? In.TangentBasis : GetTangentBasis(In.WorldNormal);
+#else
+	return GetTangentBasis(In.WorldNormal);
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -216,6 +216,42 @@ float RadianceCacheAngleThresholdScale;
 RWTexture2D<uint> RWRayTraceDistance;
 RWTexture2D<float4> RWRayBuffer;
 
+float2 GenerateRandom(uint2 InReflectionTracingCoord)
+{
+#define BLUE_NOISE_LUT 1
+#if BLUE_NOISE_LUT
+	float2 E = EvalBlueNoise(InReflectionTracingCoord % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
+#else
+	uint2 RandomSeed = Rand3DPCG16(int3(InReflectionTracingCoord, RAY_DIRECTION_TEMPORAL_INDEX % 8)).xy;
+	float2 E = Hammersley16(0, 1, RandomSeed);
+#endif
+	E.y *= 1 - GGXSamplingBias;
+	return E;
+}
+
+#if STRATA_ENABLED
+FBxDFSample StrataSampleDirection(
+	FStrataMaterialContainer MaterialBuffer,
+	FStrataAddressing StrataAddressing,
+	FStrataPixelHeader StrataPixelHeader,
+	in float3 V,
+	in float2 E)
+{
+	FBxDFSample Out = (FBxDFSample)0;
+	Out.PDF = 1;
+
+	// STRATA_TODO: For now, use only the last BSDF (arbitrary)
+	Strata_for(uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	{
+		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
+		FStrataBSDFContext Context = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
+
+		Out = StrataImportanceSampleBSDF(Context, BSDF, E, SHADING_TERM_SPECULAR, Strata.bRoughDiffuse);
+	}
+	return Out;
+}
+#endif // STRATA_ENABLED
+
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionGenerateRaysCS(
 	uint GroupId : SV_GroupID,
@@ -240,26 +276,26 @@ void ReflectionGenerateRaysCS(
 
 			float3 RayDirection;
 			float ConeAngle = 0.0f;
-
 			bool bMirrorReflectionDebug = false;
 
+		#if STRATA_ENABLED
+			{
+				const float2 E = GenerateRandom(ReflectionTracingCoord);
+				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(ReflectionTracingCoord, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+				const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+				const FBxDFSample Sample = StrataSampleDirection(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader, -CameraVector, E);
+
+				RayDirection = normalize(Sample.L);
+				ConeAngle = 1.0f / max(Sample.PDF, 0.0001f);
+			}
+		#else
 			if (Material.TopLayerRoughness < 0.001f || bMirrorReflectionDebug)
 			{
 				RayDirection = reflect(CameraVector, Material.WorldNormal);
 			}
 			else
 			{
-				#define BLUE_NOISE_LUT 1
-				#if BLUE_NOISE_LUT
-					float2 E = EvalBlueNoise(ReflectionTracingCoord % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
-				#else
-					uint2 RandomSeed = Rand3DPCG16(int3(ReflectionTracingCoord, RAY_DIRECTION_TEMPORAL_INDEX % 8)).xy;
-					float2 E = Hammersley16(0, 1, RandomSeed);
-				#endif
-
-				// STRATA_TODO: this code supposes a single GGX-based sample. Add either lobe selection or multi-sample among 'sharp' lobes
-
-				E.y *= 1 - GGXSamplingBias;
+				const float2 E = GenerateRandom(ReflectionTracingCoord);
 
 				float3x3 TangentBasis = GetTangentBasis(Material.WorldNormal);
 				float3 TangentV = mul(TangentBasis, -CameraVector);
@@ -270,6 +306,7 @@ void ReflectionGenerateRaysCS(
 				RayDirection = reflect(CameraVector, WorldH);
 				ConeAngle = 1.0f / max(GGXSample.w, 0.0001f);
 			}
+		#endif
 
 			ConeAngle = max(ConeAngle, MinReflectionConeAngle);
 			RWRayBuffer[ReflectionTracingCoord] = float4(RayDirection, ConeAngle);
@@ -367,17 +404,23 @@ void ReflectionResolveCS(
 
 		#if USE_SPATIAL_RECONSTRUCTION
 			{
-				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-				float3 V = -normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
-				float3x3 TangentBasis = GetTangentBasis(Material.WorldNormal);
-				float3 TangentV = mul(TangentBasis, V);
-				float4 ScenePlane = float4(Material.WorldNormal, dot(WorldPosition, Material.WorldNormal));
-
+				const float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+				const float3 V = -normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
+				const float3x3 TangentBasis = GetTangentBasis(Material);
+				const float3 TangentV = mul(TangentBasis, V);
 				float TotalWeight = 0;
 				float Mean = 0;
 				float S = 0;
 
-				float a2 = Pow4(clamp(Material.TopLayerRoughness * SpatialReconstructionRoughnessScale, 0.0f, 1.0f));
+				const bool bHasAnisotropy = HasAnisotropy(Material);
+				const float EffectiveRoughness = clamp(Material.TopLayerRoughness * SpatialReconstructionRoughnessScale, 0.0f, 1.0f);
+				float2 ax_ay = Pow2(EffectiveRoughness);
+				if (bHasAnisotropy)
+				{
+					GetAnisotropicRoughness(EffectiveRoughness, Material.Anisotropy, ax_ay.x, ax_ay.y);
+				}
+				float a2 = ax_ay.x * ax_ay.y;
+
 				uint2 RandomSeed = Rand3DPCG16(int3(ScreenCoord, SCREEN_TEMPORAL_INDEX)).xy;
 
 				// Center sample
@@ -408,11 +451,34 @@ void ReflectionResolveCS(
 				float MinKernelRadius = ReflectionDownsampleFactor;
 				float MaxKernelRadius = SpatialReconstructionKernelRadius;
 				float KernelScale = 2.0f * (1.0f - log2((float)ReflectionDownsampleFactor) * .25f);
-				float KernelDiameter = KernelScale * lerp(MinKernelRadius, MaxKernelRadius, saturate(Material.TopLayerRoughness * 8));
+
+				float2 KernelDiameter = KernelScale * lerp(MinKernelRadius, MaxKernelRadius, saturate(Material.TopLayerRoughness * 8));
+				float2 KernelMajorAxis = float2(KernelDiameter.x,0);
+				float2 KernelMinorAxis = float2(0, KernelDiameter.y);
+
+				if (bHasAnisotropy)
+				{
+					// Scale filtering kernel based on the anisotropy scaling
+					KernelDiameter.x = max(KernelDiameter.x * (1.0 + Material.Anisotropy), MinKernelRadius);
+					KernelDiameter.y = max(KernelDiameter.y * (1.0 - Material.Anisotropy), MinKernelRadius);
+
+					// Orient filtering kernel along the projected major/minor axis
+					float4 ProjX = mul(float4(TranslatedWorldPosition + TangentBasis[0], 1), View.TranslatedWorldToClip);
+					float4 ProjY = mul(float4(TranslatedWorldPosition + TangentBasis[1], 1), View.TranslatedWorldToClip);
+					ProjX /= ProjX.w;
+					ProjY /= ProjY.w;
+					ProjX.xy = ProjX.xy * float2(0.5f, -0.5f) + 0.5f;
+					ProjY.xy = ProjY.xy * float2(0.5f, -0.5f) + 0.5f;
+
+					KernelMajorAxis = KernelDiameter.x * normalize(ProjX.xy * View.ViewSizeAndInvSize.xy - (ScreenCoord + 0.5f));
+					KernelMinorAxis = KernelDiameter.y * normalize(ProjY.xy * View.ViewSizeAndInvSize.xy - (ScreenCoord + 0.5f));
+				}
 
 				for (uint SampleIndex = 0; SampleIndex < NumSpatialReconstructionSamples; SampleIndex++)
 				{
-					float2 Offset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f) * KernelDiameter;
+					const float2 LocalOffset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f);
+					const float2 Offset = LocalOffset.x * KernelMajorAxis + LocalOffset.y * KernelMinorAxis;
+
 					int2 NeighborTracingCoord = (int2)(ReflectionScreenCoord + Offset);
 
 					if (all(NeighborTracingCoord >= int2(0, 0) && NeighborTracingCoord < (int2)ReflectionTracingViewSize))
@@ -422,7 +488,7 @@ void ReflectionResolveCS(
 
 						if (NeighborSceneDepth > 0.0f)
 						{
-							float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborSceneDepth);
+							float3 NeighborTranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(NeighborScreenUV, NeighborSceneDepth);
 							FRayData RayData = GetRayData(NeighborTracingCoord);
 
 							bool bHit;
@@ -431,21 +497,29 @@ void ReflectionResolveCS(
 							// Clamp to center distance - preserves contacts and prevents a bias toward trace that hit the background
 							TraceHitDistance = min(TraceHitDistance, CenterTraceHitDistance);
 
-							float3 NeighborHitPosition = NeighborWorldPosition + RayData.Direction * TraceHitDistance;
-							float DistanceToNeighborHit = length(NeighborHitPosition - WorldPosition);
+							float3 NeighborHitPosition = NeighborTranslatedWorldPosition + RayData.Direction * TraceHitDistance;
+							float DistanceToNeighborHit = length(NeighborHitPosition - TranslatedWorldPosition);
 							float3 DirectionToNeighborHit = RayData.Direction;
 
 							if (DistanceToNeighborHit > 0)
 							{
-								DirectionToNeighborHit = (NeighborHitPosition - WorldPosition) / DistanceToNeighborHit;
+								DirectionToNeighborHit = (NeighborHitPosition - TranslatedWorldPosition) / DistanceToNeighborHit;
 							}
 							float3 TangentH = mul(TangentBasis, normalize(V + DirectionToNeighborHit));
 
 							// Re-weight neighbor ray by the ratio of our PDF to neighbor PDF
-							float NewPDF = min(VisibleGGXPDF(TangentV, TangentH, a2), 1.0f / MinReflectionConeAngle);
+							float NewPDF = 1.f;
+							if (bHasAnisotropy)
+							{
+								NewPDF = min(VisibleGGXPDF_aniso(TangentV, TangentH, ax_ay), 1.0f / MinReflectionConeAngle);
+							}
+							else
+							{
+								NewPDF = min(VisibleGGXPDF(TangentV, TangentH, a2), 1.0f / MinReflectionConeAngle);
+							}
+
 							float Weight = NewPDF / RayData.PDF;
 							float ClampedWeight = max(1e-6, Weight);
-
 							float3 TonemappedSampleRadiance = TonemapLighting(TraceRadiance[NeighborTracingCoord]);
 							ReflectionLighting += TonemappedSampleRadiance * ClampedWeight;
 
@@ -860,6 +934,9 @@ void ReflectionBilateralFilterCS(
 
 				uint NumBilateralFilterSamples = min(BilateralFilterNumSamples * (bStrongBlur ? 2 : 1), 16u);
 
+			#if STRATA_ENABLED
+				UNROLL_N(8)
+			#endif
 				for (uint SampleIndex = 0; SampleIndex < NumBilateralFilterSamples; SampleIndex++)
 				{
 					float2 Offset = (Hammersley16(SampleIndex, NumBilateralFilterSamples, RandomSeed) - .5f) * 2 * KernelRadius;
