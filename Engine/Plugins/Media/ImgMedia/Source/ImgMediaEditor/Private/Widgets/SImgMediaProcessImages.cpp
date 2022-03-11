@@ -99,6 +99,7 @@ FReply SImgMediaProcessImages::OnProcessImagesClicked()
 
 void SImgMediaProcessImages::ProcessAllImages(TSharedPtr<SNotificationItem> ConfirmNotification)
 {
+	bool bUseCustomFormat = Options->bUseCustomFormat;
 	int32 InTileWidth = Options->TileSizeX;
 	int32 InTileHeight = Options->TileSizeY;
 
@@ -166,8 +167,16 @@ void SImgMediaProcessImages::ProcessAllImages(TSharedPtr<SNotificationItem> Conf
 				}
 
 				// Import this image.
-				FString Name = FPaths::ChangeExtension(FPaths::Combine(OutPath, FileName), TEXT(""));
-				ProcessImage(ImageWrapper, InTileWidth, InTileHeight, Name, Ext);
+				FString Name = FPaths::Combine(OutPath, FileName);
+				if (bUseCustomFormat)
+				{
+					ProcessImageCustom(ImageWrapper, InTileWidth, InTileHeight, Name);
+				}
+				else
+				{
+					Name = FPaths::ChangeExtension(Name, TEXT(""));
+					ProcessImage(ImageWrapper, InTileWidth, InTileHeight, Name, Ext);
+				}
 			}
 		}
 	}
@@ -246,6 +255,11 @@ void SImgMediaProcessImages::ProcessImage(TSharedPtr<IImageWrapper>& InImageWrap
 			FFileHelper::SaveArrayToFile(CompressedData, *Name);
 		}
 	}
+}
+
+void SImgMediaProcessImages::ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
+	int32 InTileWidth, int32 InTileHeight, const FString& InName)
+{
 }
 
 #undef LOCTEXT_NAMESPACE

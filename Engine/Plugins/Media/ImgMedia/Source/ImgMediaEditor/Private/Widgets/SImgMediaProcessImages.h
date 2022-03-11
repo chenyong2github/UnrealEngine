@@ -50,6 +50,19 @@ private:
 	void ProcessImage(TSharedPtr<IImageWrapper>& InImageWrapper,
 		int32 InTileWidth, int32 InTileHeight, const FString& InName, const FString& FileExtension);
 
+	/**
+	 * Processess a single image and writes out a file.
+	 * Tiles and mips may be generated.
+	 * This does NOT run on the game thread.
+	 *
+	 * @param InImageWrapper	ImageWrapper to read/write the image.
+	 * @param InTileWidth		Desired width of tiles.
+	 * @param InTileHeight		Desired height of tiles.
+	 * @param InName			Full path and name of file to write.
+	 */
+	void ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
+		int32 InTileWidth, int32 InTileHeight, const FString& InName);
+
 	/** Holds our details view. */
 	TSharedPtr<class IDetailsView> DetailsView;
 	/** Object that holds our options. */

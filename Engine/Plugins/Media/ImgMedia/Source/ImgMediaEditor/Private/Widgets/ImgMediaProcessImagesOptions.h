@@ -22,6 +22,10 @@ public:
 	/** The directory to output the processed image sequence files to. */
 	UPROPERTY(EditAnywhere, Category = Sequence)
 	FDirectoryPath OutputPath;
+
+	/** If checked, then use our custom format with a single file for all tiles. */
+	UPROPERTY(EditAnywhere, Category = Sequence)
+	bool bUseCustomFormat;
 	
 	/** Width of a tile in pixels. If 0, then do not make tiles. */
 	UPROPERTY(EditAnywhere, Transient, Category = Tiles)
