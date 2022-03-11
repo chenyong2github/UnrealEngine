@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "Components/SceneComponent.h"
 #include "RCTypeTraits.h"
 #include "RCTypeUtilities.h"
 #include "Serialization/BufferArchive.h"
@@ -460,6 +461,15 @@ namespace RemoteControlPropertyUtilities
 
 	static UFunction* FindSetterFunctionInternal(FProperty* Property, UClass* OwnerClass)
 	{
+		static const FName RelativeLocationPropertyName = USceneComponent::GetRelativeLocationPropertyName();
+		static const FName RelativeRotationPropertyName = USceneComponent::GetRelativeRotationPropertyName();
+		static const FName RelativeScalePropertyName = USceneComponent::GetRelativeScale3DPropertyName();
+
+		static TMap<FName, FName> CommonPropertiesToFunctions = { 
+			{ RelativeLocationPropertyName, "K2_SetRelativeLocation"},
+			{ RelativeRotationPropertyName, "K2_SetRelativeRotation" },
+			{ RelativeScalePropertyName, "SetRelativeScale3D" }
+		};
 		// Check if the property setter is already cached.
 		TWeakObjectPtr<UFunction> SetterPtr = CachedSetterFunctions.FindRef(Property);
 		if (SetterPtr.IsValid())
@@ -476,7 +486,15 @@ namespace RemoteControlPropertyUtilities
 		}
 		else
 		{
-			return nullptr;
+			if (CommonPropertiesToFunctions.Contains(Property->GetFName()))
+			{
+				SetterFunction = OwnerClass->FindFunctionByName(*CommonPropertiesToFunctions[Property->GetFName()].ToString());
+			}
+
+			if (!SetterFunction)
+			{
+				return nullptr;
+			}
 		}
 #endif
 

@@ -6,10 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public MediaIOCore(ReadOnlyTargetRules Target) : base(Target)
 		{
-			OptimizeCode = CodeOptimization.Never;
-			bUseUnity = false;
-			PCHUsage = PCHUsageMode.NoPCHs;
-		
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

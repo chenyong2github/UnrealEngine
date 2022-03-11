@@ -50,7 +50,7 @@ public:
 
 private:
 	/** Cache all presets in the project for the ResolvePreset function. */
-	void CachePresets();
+	void CachePresets() const;
 	
 	//~ Asset registry callbacks
 	void OnAssetAdded(const FAssetData& AssetData);

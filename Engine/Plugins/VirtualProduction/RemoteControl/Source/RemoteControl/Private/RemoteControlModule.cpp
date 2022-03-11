@@ -117,7 +117,6 @@ namespace RemoteControlUtil
 		Filter.bIncludeOnlyOnDiskAssets = false;
 		Filter.ClassNames = {URemoteControlPreset::StaticClass()->GetFName()};
 		Filter.bRecursivePaths = true;
-		Filter.PackagePaths = {TEXT("/")};
 
 		return Filter;
 	}
@@ -1216,6 +1215,11 @@ void FRemoteControlModule::GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset
 
 void FRemoteControlModule::GetPresetAssets(TArray<FAssetData>& OutPresetAssets) const
 {
+	if (CachedPresetsByName.Num() == 0)
+	{
+		CachePresets();
+	}
+
 	OutPresetAssets.Reserve(CachedPresetsByName.Num());
 	for (const TPair<FName, TArray<FAssetData>>& Entry : CachedPresetsByName)
 	{
@@ -1267,7 +1271,7 @@ void FRemoteControlModule::UnregisterEntityFactory(const FName InFactoryName)
 	EntityFactories.Remove(InFactoryName);
 }
 
-void FRemoteControlModule::CachePresets()
+void FRemoteControlModule::CachePresets() const
 {
 	TArray<FAssetData> Assets;
 	RemoteControlUtil::GetAllPresetAssets(Assets);
