@@ -1604,11 +1604,6 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 			ScriptExecutionParamStore.CoalescePaddingInfo();
 		}
 
-		if (!HasValidParameterBindings())
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
-		}
-
 		if (GNiagaraCompressScriptByteCode)
 		{
 			ExecutableData.ByteCode.Compress();
@@ -1628,6 +1623,16 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 	{
 		RapidIterationParameters = TemporaryStore;
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsCooking() && Ar.IsSaving())
+	{
+		if (!HasValidParameterBindings())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
+		}
+	}
+#endif
 
 	bool IsValidShaderScript = false;
 	if (NiagaraVer < FNiagaraCustomVersion::DontCompileGPUWhenNotNeeded)
