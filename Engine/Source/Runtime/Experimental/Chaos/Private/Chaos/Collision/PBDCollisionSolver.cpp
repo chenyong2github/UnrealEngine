@@ -27,7 +27,7 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_VectorRegister(TEXT("p.Chaos.PBDCollisionSolver.VectorRegister"), bChaos_PBDCollisionSolver_VectorRegister, TEXT(""));
 
 		bool bChaos_PBDCollisionSolver_Position_SolveEnabled = true;
-		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.3f;
+		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.77f;
 		float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness = 0.5f;
 		float Chaos_PBDCollisionSolver_Position_PositionSolverTolerance = 0.001f;		// cms
 		float Chaos_PBDCollisionSolver_Position_RotationSolverTolerance = 0.001f;		// rads
