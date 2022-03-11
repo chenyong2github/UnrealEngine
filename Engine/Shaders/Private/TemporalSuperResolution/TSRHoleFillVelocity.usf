@@ -104,7 +104,7 @@ void MainCS(
 		{
 			uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
 
-			bool bValidPixelPos = all(PixelPos >= InputInfo_ViewportMin && PixelPos < InputInfo_ViewportMax);
+			bool bValidPixelPos = all(and(PixelPos >= InputInfo_ViewportMin, PixelPos < InputInfo_ViewportMax));
 
 			uint SampleHistoryClosestDeviceZ = PrevClosestDepthTexture[PixelPos];
 

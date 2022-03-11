@@ -100,7 +100,7 @@ void MainCS(
 			float BilinearWeight = GetSampleWeight(BilinearInter, i);
 			uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
 
-			bool bValidPixelPos = all(PixelPos >= InputInfo_ViewportMin && PixelPos < InputInfo_ViewportMax);
+			bool bValidPixelPos = all(and(PixelPos >= InputInfo_ViewportMin, PixelPos < InputInfo_ViewportMax));
 
 			#if COMPRESS_PREV_USE_COUNT
 				uint2 CompressedUseCountPixelPos;

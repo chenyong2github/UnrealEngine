@@ -129,11 +129,11 @@ void AccumulateEdgeLength(
 {
 	bool2 bStopNowIncrement = abs(StartLuma - SampleLuma) > LumaDelta;
 	bool2 bStopNowDecrement = abs(StartEdgeLuma - SampleEdgeLuma) > LumaDelta;
+	
+	bEdgeStopedByIncrement = or(bEdgeStopedByIncrement, bStopNowIncrement);
+	bEdgeStopedByDecrement = or(bEdgeStopedByDecrement, bStopNowDecrement);
 
-	bEdgeStopedByIncrement = bEdgeStopedByIncrement || bStopNowIncrement;
-	bEdgeStopedByDecrement = bEdgeStopedByDecrement || bStopNowDecrement;
-
-	EdgeLength += (bEdgeStopedByIncrement || bEdgeStopedByDecrement) ? tsr_ushort(0) : tsr_ushort(1);
+	EdgeLength += select(or(bEdgeStopedByIncrement, bEdgeStopedByDecrement), tsr_ushort(0), tsr_ushort(1));
 }
 
 tsr_half ComputeDistanceToEdge(
@@ -275,8 +275,8 @@ void MainCS(
 		#endif
 
 		bBrowseVerticaly = (TotalVarHN + TotalVarH + TotalVarHS) > (TotalVarVE + TotalVarV + TotalVarVW);
-		BrowseDirection[0] = bBrowseVerticaly ? tsr_short(0) : tsr_short(1);
-		BrowseDirection[1] = bBrowseVerticaly ? tsr_short(1) : tsr_short(0);
+		BrowseDirection[0] = select(bBrowseVerticaly, tsr_short(0), tsr_short(1));
+		BrowseDirection[1] = select(bBrowseVerticaly, tsr_short(1), tsr_short(0));
 
 		FLATTEN
 		if (bBrowseVerticaly[0])
@@ -390,11 +390,11 @@ void MainCS(
 		bool2 bEdgeStopedByMaxLumaP = (EdgeStopedByMaxLumaP & SignMask) != 0;
 		bool2 bEdgeStopedByMaxLumaN = (EdgeStopedByMaxLumaN & SignMask) != 0;
 		
-		bEdgeStopedByIncrementP = (bEdgeMoreLuminous && bEdgeStopedByMaxLumaP) || ((!bEdgeMoreLuminous) && bEdgeStopedByMinLumaP);
-		bEdgeStopedByIncrementN = (bEdgeMoreLuminous && bEdgeStopedByMaxLumaN) || ((!bEdgeMoreLuminous) && bEdgeStopedByMinLumaN);
+		bEdgeStopedByIncrementP = or(and(bEdgeMoreLuminous, bEdgeStopedByMaxLumaP), and(!bEdgeMoreLuminous, bEdgeStopedByMinLumaP));
+		bEdgeStopedByIncrementN = or(and(bEdgeMoreLuminous, bEdgeStopedByMaxLumaN), and(!bEdgeMoreLuminous, bEdgeStopedByMinLumaN));
 		
-		bEdgeStopedByDecrementP = (bEdgeMoreLuminous && bEdgeStopedByMinLumaP) || ((!bEdgeMoreLuminous) && bEdgeStopedByMaxLumaP);
-		bEdgeStopedByDecrementN = (bEdgeMoreLuminous && bEdgeStopedByMinLumaN) || ((!bEdgeMoreLuminous) && bEdgeStopedByMaxLumaN);
+		bEdgeStopedByDecrementP = or(and(bEdgeMoreLuminous, bEdgeStopedByMinLumaP), and(!bEdgeMoreLuminous, bEdgeStopedByMaxLumaP));
+		bEdgeStopedByDecrementN = or(and(bEdgeMoreLuminous, bEdgeStopedByMinLumaN), and(!bEdgeMoreLuminous, bEdgeStopedByMaxLumaN));
 
 #else // Reference implementation
 		UNROLL_N(CONFIG_ITERATIONS)
