@@ -7,12 +7,23 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Tokenizer
 {
+
+	/// <summary>
+	/// Options when parsing identifier
+	/// </summary>
 	[Flags]
 	public enum UhtCppIdentifierOptions
 	{
+
+		/// <summary>
+		/// No options
+		/// </summary>
 		None,
+
+		/// <summary>
+		/// Include template arguments when parsing identifier
+		/// </summary>
 		AllowTemplates = 1 << 0,
-		AllTokens = 1 << 1, // AllowTemplates implies AllTokens
 	}
 
 	/// <summary>
@@ -57,6 +68,9 @@ namespace EpicGames.UHT.Tokenizer
 		}
 	}
 
+	/// <summary>
+	/// Collection of token reader extensions for working with identifiers
+	/// </summary>
 	public static class UhtTokenReaderIdentifierExtensions
 	{
 
@@ -78,6 +92,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token and verify that it is an identifier
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="Identifier">The fetched value of the identifier</param>
 		/// <returns>True if it is an identifier, false if not.</returns>
 		public static bool TryOptionalIdentifier(this IUhtTokenReader TokenReader, out UhtToken Identifier)
@@ -93,6 +108,12 @@ namespace EpicGames.UHT.Tokenizer
 			return false;
 		}
 
+		/// <summary>
+		/// Parse an optional identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="TokenDelegate">Invoked of an identifier is parsed</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader OptionalIdentifier(this IUhtTokenReader TokenReader, UhtTokenDelegate TokenDelegate)
 		{
 			ref UhtToken Token = ref TokenReader.PeekToken();
@@ -105,6 +126,13 @@ namespace EpicGames.UHT.Tokenizer
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Parse a required identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="ExceptionContext">Extra exception context</param>
+		/// <returns>Token reader</returns>
+		/// <exception cref="UhtTokenException">Thrown if an identifier isn't found</exception>
 		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
 		{
 			ref UhtToken Token = ref TokenReader.PeekToken();
@@ -116,11 +144,25 @@ namespace EpicGames.UHT.Tokenizer
 			throw new UhtTokenException(TokenReader, Token, "an identifier", ExceptionContext);
 		}
 
+		/// <summary>
+		/// Parse a required identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="TokenDelegate">Invoked if an identifier is parsed</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader TokenReader, UhtTokenDelegate TokenDelegate)
 		{
 			return TokenReader.RequireIdentifier(null, TokenDelegate);
 		}
 
+		/// <summary>
+		/// Parse a required identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="ExceptionContext">Extra exception context</param>
+		/// <param name="TokenDelegate">Invoked if an identifier is parsed</param>
+		/// <returns>Token reader</returns>
+		/// <exception cref="UhtTokenException">Thrown if an identifier isn't found</exception>
 		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader TokenReader, object? ExceptionContext, UhtTokenDelegate TokenDelegate)
 		{
 			ref UhtToken Token = ref TokenReader.PeekToken();
@@ -134,6 +176,13 @@ namespace EpicGames.UHT.Tokenizer
 			throw new UhtTokenException(TokenReader, Token, "an identifier", ExceptionContext);
 		}
 
+		/// <summary>
+		/// Get a required identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="ExceptionContext">Extra exception context</param>
+		/// <returns>Identifier token</returns>
+		/// <exception cref="UhtTokenException">Thrown if an identifier isn't found</exception>
 		public static UhtToken GetIdentifier(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
 		{
 			ref UhtToken Token = ref TokenReader.PeekToken();
@@ -146,6 +195,13 @@ namespace EpicGames.UHT.Tokenizer
 			throw new UhtTokenException(TokenReader, Token, ExceptionContext != null ? ExceptionContext : "an identifier");
 		}
 
+		/// <summary>
+		/// Parse an optional cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Identifier">Enumeration of the identifier tokens</param>
+		/// <param name="Options">Identifier options</param>
+		/// <returns>True if an identifier is parsed</returns>
 		public static bool TryOptionalCppIdentifier(this IUhtTokenReader TokenReader, [NotNullWhen(true)] out IEnumerable<UhtToken>? Identifier, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
 		{
 			Identifier = null;
@@ -164,13 +220,11 @@ namespace EpicGames.UHT.Tokenizer
 					return false;
 				}
 
-				if (Options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates | UhtCppIdentifierOptions.AllTokens))
+				if (Options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates))
 				{
-					bool bAllowTemplates = Options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates);
-
 					while (true)
 					{
-						if (bAllowTemplates && TokenReader.TryPeekOptional('<'))
+						if (TokenReader.TryPeekOptional('<'))
 						{
 							LocalIdentifier.Add(TokenReader.GetToken());
 							int NestedScopes = 1;
@@ -228,24 +282,50 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
+		/// <summary>
+		/// Parse a required cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Options">Parsing options</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
 		{
 			TokenReader.GetCppIdentifier(Options);
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Parse a required cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="InitialIdentifier">Initial token of the identifier</param>
+		/// <param name="Options">Parsing options</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, ref UhtToken InitialIdentifier, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
 		{
 			TokenReader.GetCppIdentifier(ref InitialIdentifier, Options);
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Parse a required cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="TokenListDelegate">Invoked when identifier is parsed</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, UhtTokenListDelegate TokenListDelegate)
 		{
 			TokenReader.RequireCppIdentifier(UhtCppIdentifierOptions.None, TokenListDelegate);
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Parse a required cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Options">Parsing options</param>
+		/// <param name="TokenListDelegate">Invoked when identifier is parsed</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, UhtCppIdentifierOptions Options, UhtTokenListDelegate TokenListDelegate)
 		{
 			UhtTokenList TokenList = TokenReader.GetCppIdentifier(Options);
@@ -254,12 +334,27 @@ namespace EpicGames.UHT.Tokenizer
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Parse a required cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="InitialIdentifier">Initial token of the identifier</param>
+		/// <param name="TokenListDelegate">Invoked when identifier is parsed</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, ref UhtToken InitialIdentifier, UhtTokenListDelegate TokenListDelegate)
 		{
 			TokenReader.RequireCppIdentifier(ref InitialIdentifier, UhtCppIdentifierOptions.None, TokenListDelegate);
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Parse a required cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="InitialIdentifier">Initial token of the identifier</param>
+		/// <param name="Options">Parsing options</param>
+		/// <param name="TokenListDelegate">Invoked when identifier is parsed</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, ref UhtToken InitialIdentifier, UhtCppIdentifierOptions Options, UhtTokenListDelegate TokenListDelegate)
 		{
 			UhtTokenList TokenList = TokenReader.GetCppIdentifier(ref InitialIdentifier, Options);
@@ -268,24 +363,35 @@ namespace EpicGames.UHT.Tokenizer
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Get a required cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Options">Parsing options</param>
+		/// <returns>Token list</returns>
 		public static UhtTokenList GetCppIdentifier(this IUhtTokenReader TokenReader, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
 		{
 			UhtToken Token = TokenReader.GetIdentifier();
 			return TokenReader.GetCppIdentifier(ref Token, Options);
 		}
 
+		/// <summary>
+		/// Get a required cpp identifier
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="InitialIdentifier">Initial token of the identifier</param>
+		/// <param name="Options">Parsing options</param>
+		/// <returns>Token list</returns>
 		public static UhtTokenList GetCppIdentifier(this IUhtTokenReader TokenReader, ref UhtToken InitialIdentifier, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
 		{
 			UhtTokenList ListHead = UhtTokenListCache.Borrow(InitialIdentifier);
 			UhtTokenList ListTail = ListHead;
 
-			if (Options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates | UhtCppIdentifierOptions.AllTokens))
+			if (Options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates))
 			{
-				bool bAllowTemplates = Options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates);
-
 				while (true)
 				{
-					if (bAllowTemplates && TokenReader.TryPeekOptional('<'))
+					if (TokenReader.TryPeekOptional('<'))
 					{
 						ListTail.Next = UhtTokenListCache.Borrow(TokenReader.GetToken());
 						ListTail = ListTail.Next;

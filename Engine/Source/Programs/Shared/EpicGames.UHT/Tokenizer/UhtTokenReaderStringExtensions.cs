@@ -5,11 +5,16 @@ using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tokenizer
 {
+
+	/// <summary>
+	/// Collection of token reader exceptions for handling strings
+	/// </summary>
 	public static class UhtTokenReaderStringExtensions
 	{
 		/// <summary>
 		/// Get the next token as a string.  If the next token is not a string, no token is consumed.
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="Value">The string value of the token</param>
 		/// <returns>True if the next token was an string, false if not.</returns>
 		public static bool TryOptionalConstString(this IUhtTokenReader TokenReader, out StringView Value)
@@ -28,6 +33,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as a string.  If the next token is not a string, no token is consumed.
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <returns>True if the next token was an string, false if not.</returns>
 		public static IUhtTokenReader OptionalConstString(this IUhtTokenReader TokenReader)
 		{
@@ -42,6 +48,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Verify that the next token is a string.
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>True if the next token was a string, false if not.</returns>
 		public static IUhtTokenReader RequireConstString(this IUhtTokenReader TokenReader, object? ExceptionContext)
@@ -58,6 +65,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as a string.  If the next token is not a string, an exception is thrown
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the string.</returns>
 		public static StringView GetConstString(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
@@ -76,6 +84,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// Get the next token as a quoted string.  If the next token is not a string, an exception is thrown.
 		/// Character constants are not considered strings by this routine.
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the string.</returns>
 		public static StringView GetConstQuotedString(this IUhtTokenReader TokenReader, object? ExceptionContext = null)

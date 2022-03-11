@@ -9,11 +9,27 @@ using System.Threading;
 
 namespace EpicGames.UHT.Tokenizer
 {
+
+	/// <summary>
+	/// Options for GetRawString method
+	/// </summary>
 	[Flags]
 	public enum UhtRawStringOptions
 	{
+
+		/// <summary>
+		/// No options
+		/// </summary>
 		None,
+
+		/// <summary>
+		/// Don't consider the terminator while in a quoted string
+		/// </summary>
 		RespectQuotes = 1 << 0,
+
+		/// <summary>
+		/// Don't consume the terminator.  It will be parsed later.
+		/// </summary>
 		DontConsumeTerminator = 1 << 1,
 	}
 
@@ -59,13 +75,36 @@ namespace EpicGames.UHT.Tokenizer
 		}
 	}
 
+	/// <summary>
+	/// Interface invoked when the parser reaches a '#' preprocessor block
+	/// </summary>
 	public interface IUhtTokenPreprocessor
 	{
+
+		/// <summary>
+		/// Parse a preprocessor directive
+		/// </summary>
+		/// <param name="Token">Token starting the directive.  Will be only the '#'</param>
+		/// <param name="bIsBeingIncluded">If true, the directive the source is being included.  Otherwise it is being skipped as part of an #if block</param>
+		/// <param name="bClearComments">If true, comments should be cleared</param>
+		/// <param name="bIllegalContentsCheck">If true, excluded contents should be checked for unparsed UE macros (i.e. UCLASS) </param>
+		/// <returns>True if the source should continue to be included</returns>
 		public bool ParsePreprocessorDirective(ref UhtToken Token, bool bIsBeingIncluded, out bool bClearComments, out bool bIllegalContentsCheck);
+
+		/// <summary>
+		/// Save the current preprocessor state
+		/// </summary>
 		public void SaveState();
+
+		/// <summary>
+		/// Restore the current preprocessor state
+		/// </summary>
 		public void RestoreState();
 	}
 
+	/// <summary>
+	/// Common token reader interfaces for all token reader.  When creating extension methods, use the interface.
+	/// </summary>
 	public interface IUhtTokenReader : IUhtMessageSite
 	{
 		/// <summary>
@@ -287,6 +326,11 @@ namespace EpicGames.UHT.Tokenizer
 	{
 		static private ThreadLocal<UhtTokenList?> Tls = new ThreadLocal<UhtTokenList?>(() => null);
 
+		/// <summary>
+		/// Borrow a token list
+		/// </summary>
+		/// <param name="Token">Starting token</param>
+		/// <returns>Token list</returns>
 		public static UhtTokenList Borrow(UhtToken Token)
 		{
 			UhtTokenList? Identifier = Tls.Value;
@@ -303,6 +347,10 @@ namespace EpicGames.UHT.Tokenizer
 			return Identifier;
 		}
 
+		/// <summary>
+		/// Return a token list to the cache
+		/// </summary>
+		/// <param name="Identifier"></param>
 		public static void Return(UhtTokenList Identifier)
 		{
 			UhtTokenList? Tail = Tls.Value;
@@ -319,35 +367,81 @@ namespace EpicGames.UHT.Tokenizer
 		}
 	}
 
+	/// <summary>
+	/// Delegate for when a token is parsed
+	/// </summary>
+	/// <param name="Token">The token in question</param>
 	public delegate void UhtTokenDelegate(ref UhtToken Token);
+
+	/// <summary>
+	/// Delegate for when a token is parsed in an until block
+	/// </summary>
+	/// <param name="Token">The token in question</param>
+	/// <returns>True if parsing should continue</returns>
 	public delegate bool UhtTokensUntilDelegate(ref UhtToken Token);
-	public delegate void UhtTokensDelegate(IEnumerable<UhtToken> Token);
+
+	/// <summary>
+	/// Delegate for an enumeration of tokens
+	/// </summary>
+	/// <param name="Tokens">Parsed tokens</param>
+	public delegate void UhtTokensDelegate(IEnumerable<UhtToken> Tokens);
+
+	/// <summary>
+	/// Delegate for cached token list
+	/// </summary>
+	/// <param name="TokenList">Token list that can be cached</param>
 	public delegate void UhtTokenListDelegate(UhtTokenList TokenList);
-	public delegate void UhtTokenPositionDelegate(int Position);
+
+	/// <summary>
+	/// Delegate for a constant float
+	/// </summary>
+	/// <param name="Value">Value in question</param>
 	public delegate void UhtTokenConstFloatDelegate(float Value);
+
+	/// <summary>
+	/// Delegate for a constant double
+	/// </summary>
+	/// <param name="Value">Value in question</param>
 	public delegate void UhtTokenConstDoubleDelegate(double Value);
 
+	/// <summary>
+	/// Helper struct to disable comment parsing.  Should be used in a using block
+	/// </summary>
 	public struct UhtTokenDisableComments : IDisposable
 	{
 		private readonly IUhtTokenReader TokenReader;
 
+		/// <summary>
+		/// Construct instance
+		/// </summary>
+		/// <param name="TokenReader">Token reader to disable</param>
 		public UhtTokenDisableComments(IUhtTokenReader TokenReader)
 		{
 			this.TokenReader = TokenReader;
 			this.TokenReader.DisableComments();
 		}
 
+		/// <summary>
+		/// Enable comments
+		/// </summary>
 		public void Dispose()
 		{
 			this.TokenReader.EnableComments();
 		}
 	}
 
+	/// <summary>
+	/// Helper struct to save token reader state
+	/// </summary>
 	public struct UhtTokenSaveState : IDisposable
 	{
 		private readonly IUhtTokenReader TokenReader;
 		private bool bHandled;
 
+		/// <summary>
+		/// Construct instance
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		public UhtTokenSaveState(IUhtTokenReader TokenReader)
 		{
 			this.TokenReader = TokenReader;
@@ -355,14 +449,21 @@ namespace EpicGames.UHT.Tokenizer
 			this.TokenReader.SaveState();
 		}
 
+		/// <summary>
+		/// Restore the token reader state
+		/// </summary>
 		public void Dispose()
 		{
-			if (!bHandled)
+			if (!this.bHandled)
 			{
 				RestoreState();
 			}
 		}
 
+		/// <summary>
+		/// Restore the token reader state
+		/// </summary>
+		/// <exception cref="UhtIceException">Thrown if state has already been restored or aborted</exception>
 		public void RestoreState()
 		{
 			if (this.bHandled)
@@ -373,6 +474,10 @@ namespace EpicGames.UHT.Tokenizer
 			this.bHandled = true;
 		}
 
+		/// <summary>
+		/// Abandon the saved state
+		/// </summary>
+		/// <exception cref="UhtIceException">Thrown if state has already been restored or aborted</exception>
 		public void AbandonState()
 		{
 			if (this.bHandled)

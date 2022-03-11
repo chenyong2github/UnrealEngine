@@ -9,26 +9,85 @@ using System.Text;
 
 namespace EpicGames.UHT.Tokenizer
 {
+
+	/// <summary>
+	/// Type of the token
+	/// </summary>
 	public enum UhtTokenType
 	{
-		EndOfFile,          // End of file token.
-		EndOfDefault,       // End of default value.
-		EndOfType,          // End of type
-		EndOfDeclaration,	// End of declaration
-		Line,				// Line of text (when calling GetLine only)
-		Identifier,			// Alphanumeric identifier.
-		Symbol,				// Symbol.
-		TrueConst,			// True value via identifier
-		FalseConst,			// False value via identifier
-		FloatConst,			// Floating point constant
-		DecimalConst,		// Decimal Integer constant
-		HexConst,			// Hex integer constant
-		CharConst,			// Single character constant
-		StringConst,		// String constant
+
+		/// <summary>
+		/// End of file token.
+		/// </summary>
+		EndOfFile,
+
+		/// <summary>
+		/// End of default value. 
+		/// </summary>
+		EndOfDefault,
+
+		/// <summary>
+		/// End of type
+		/// </summary>
+		EndOfType,
+
+		/// <summary>
+		/// End of declaration
+		/// </summary>
+		EndOfDeclaration,
+
+		/// <summary>
+		/// Line of text (when calling GetLine only)
+		/// </summary>
+		Line,
+
+		/// <summary>
+		/// Alphanumeric identifier.
+		/// </summary>
+		Identifier,
+
+		/// <summary>
+		/// Symbol.
+		/// </summary>
+		Symbol,
+
+		/// <summary>
+		/// Floating point constant
+		/// </summary>
+		FloatConst,
+
+		/// <summary>
+		/// Decimal Integer constant
+		/// </summary>
+		DecimalConst,
+
+		/// <summary>
+		/// Hex integer constant
+		/// </summary>
+		HexConst,
+
+		/// <summary>
+		/// Single character constant
+		/// </summary>
+		CharConst,
+
+		/// <summary>
+		/// String constant
+		/// </summary>
+		StringConst,
 	}
 
+	/// <summary>
+	/// Series of extension methods for the token type
+	/// </summary>
 	public static class UhtTokenTypeExtensions
 	{
+
+		/// <summary>
+		/// Return true if the token type is an end type
+		/// </summary>
+		/// <param name="TokenType">Token type in question</param>
+		/// <returns>True if the token type is an end type</returns>
 		public static bool IsEndType(this UhtTokenType TokenType)
 		{
 			switch (TokenType)
@@ -44,19 +103,61 @@ namespace EpicGames.UHT.Tokenizer
 		}
 	}
 
+	/// <summary>
+	/// Token declaration
+	/// </summary>
 	public struct UhtToken
 	{
+
+		/// <summary>
+		/// Names/Identifiers can not be longer that the following
+		/// </summary>
 		public const int MaxNameLength = 1024;
+
+		/// <summary>
+		/// Strings can not be longer than the following.
+		/// </summary>
 		public const int MaxStringLength = 1024;
 
+		/// <summary>
+		/// Type of the token
+		/// </summary>
 		public UhtTokenType TokenType { get; set; }
+
+		/// <summary>
+		/// Position to restore the reader
+		/// </summary>
 		public int UngetPos { get; set; }
+
+		/// <summary>
+		/// Line to restore the reader
+		/// </summary>
 		public int UngetLine { get; set; }
+
+		/// <summary>
+		/// Starting position of the token value
+		/// </summary>
 		public int InputStartPos { get; set; }
+
+		/// <summary>
+		/// End position of the token value
+		/// </summary>
 		public int InputEndPos { get => this.InputStartPos + this.Value.Span.Length; }
+
+		/// <summary>
+		/// Line containing the token
+		/// </summary>
 		public int InputLine { get; set; }
+
+		/// <summary>
+		/// Token value
+		/// </summary>
 		public StringView Value { get; set; }
 
+		/// <summary>
+		/// Construct a new token
+		/// </summary>
+		/// <param name="TokenType">Type of the token</param>
 		public UhtToken(UhtTokenType TokenType)
 		{
 			this.TokenType = TokenType;
@@ -67,6 +168,15 @@ namespace EpicGames.UHT.Tokenizer
 			this.Value = new StringView();
 		}
 
+		/// <summary>
+		/// Construct a new token
+		/// </summary>
+		/// <param name="TokenType">Type of token</param>
+		/// <param name="UngetPos">Unget position</param>
+		/// <param name="UngetLine">Unget line</param>
+		/// <param name="InputStartPos">Start position of value</param>
+		/// <param name="InputLine">Line of value</param>
+		/// <param name="Value">Token value</param>
 		public UhtToken(UhtTokenType TokenType, int UngetPos, int UngetLine, int InputStartPos, int InputLine, StringView Value)
 		{
 			this.TokenType = TokenType;
@@ -77,82 +187,160 @@ namespace EpicGames.UHT.Tokenizer
 			this.Value = Value;
 		}
 
+		/// <summary>
+		/// True if the token isn't an end token
+		/// </summary>
+		/// <param name="Token">Token in question</param>
 		public static implicit operator bool(UhtToken Token)
 		{
 			return !Token.IsEndType();
 		}
 
+		/// <summary>
+		/// Return true if the token is an end token
+		/// </summary>
+		/// <returns>True if the token is an end token</returns>
 		public bool IsEndType()
 		{
 			return this.TokenType.IsEndType();
 		}
 
+		/// <summary>
+		/// Test to see if the value matches the given character
+		/// </summary>
+		/// <param name="Value">Value to test</param>
+		/// <returns>True if the token value matches the given value</returns>
 		public bool IsValue(char Value)
 		{
 			return this.Value.Span.Length == 1 && this.Value.Span[0] == Value;
 		}
 
+		/// <summary>
+		/// Test to see if the value matches the given string
+		/// </summary>
+		/// <param name="Value">Value to test</param>
+		/// <param name="bIgnoreCase">If true, ignore case</param>
+		/// <returns>True if the value matches</returns>
 		public bool IsValue(string Value, bool bIgnoreCase = false)
 		{
 			return this.Value.Span.Equals(Value, bIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 		}
 
+		/// <summary>
+		/// Test to see if the value matches the given string
+		/// </summary>
+		/// <param name="Value">Value to test</param>
+		/// <param name="bIgnoreCase">If true, ignore case</param>
+		/// <returns>True if the value matches</returns>
 		public bool IsValue(StringView Value, bool bIgnoreCase = false)
 		{
 			return this.Value.Span.Equals(Value.Span, bIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 		}
 
+		/// <summary>
+		/// Test to see if the value starts with the given string
+		/// </summary>
+		/// <param name="Value">Value to test</param>
+		/// <param name="bIgnoreCase">If true, ignore case</param>
+		/// <returns>True is the value starts with the given string</returns>
 		public bool ValueStartsWith(string Value, bool bIgnoreCase = false)
 		{
 			return this.Value.Span.StartsWith(Value, bIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 		}
 
+		/// <summary>
+		/// Return true if the token is an identifier
+		/// </summary>
+		/// <returns>True if the token is an identifier</returns>
 		public bool IsIdentifier()
 		{
 			return this.TokenType == UhtTokenType.Identifier;
 		}
 
+		/// <summary>
+		/// Return true if the identifier matches
+		/// </summary>
+		/// <param name="Identifier">Identifier to test</param>
+		/// <param name="bIgnoreCase">If true, ignore case</param>
+		/// <returns>True if the identifier matches</returns>
 		public bool IsIdentifier(string Identifier, bool bIgnoreCase = false)
 		{
 			return IsIdentifier() && IsValue(Identifier, bIgnoreCase);
 		}
 
+		/// <summary>
+		/// Return true if the identifier matches
+		/// </summary>
+		/// <param name="Identifier">Identifier to test</param>
+		/// <param name="bIgnoreCase">If true, ignore case</param>
+		/// <returns>True if the identifier matches</returns>
 		public bool IsIdentifier(StringView Identifier, bool bIgnoreCase = false)
 		{
 			return IsIdentifier() && IsValue(Identifier, bIgnoreCase);
 		}
 
+		/// <summary>
+		/// Return true if the token is a symbol
+		/// </summary>
+		/// <returns>True if the token is a symbol</returns>
 		public bool IsSymbol()
 		{
 			return this.TokenType == UhtTokenType.Symbol;
 		}
 
+		/// <summary>
+		/// Return true if the symbol matches
+		/// </summary>
+		/// <param name="Symbol">Symbol to test</param>
+		/// <returns>True if the symbol matches</returns>
 		public bool IsSymbol(char Symbol)
 		{
 			return IsSymbol() && IsValue(Symbol);
 		}
 
+		/// <summary>
+		/// Return true if the symbol matches
+		/// </summary>
+		/// <param name="Symbol">Symbol to test</param>
+		/// <returns>True if the symbol matches</returns>
 		public bool IsSymbol(string Symbol)
 		{
 			return IsSymbol() && IsValue(Symbol);
 		}
 
+		/// <summary>
+		/// Return true if the symbol matches
+		/// </summary>
+		/// <param name="Symbol">Symbol to test</param>
+		/// <returns>True if the symbol matches</returns>
 		public bool IsSymbol(StringView Symbol)
 		{
 			return IsSymbol() && IsValue(Symbol);
 		}
 
+		/// <summary>
+		/// Return true if the token is a constant integer
+		/// </summary>
+		/// <returns>True if constant integer</returns>
 		public bool IsConstInt()
 		{
 			return this.TokenType == UhtTokenType.DecimalConst || this.TokenType == UhtTokenType.HexConst;
 		}
 
+		/// <summary>
+		/// Return true if the token is a constant floag
+		/// </summary>
+		/// <returns>True if constant float</returns>
 		public bool IsConstFloat()
 		{
 			return this.TokenType == UhtTokenType.FloatConst;
 		}
 
-		// Get the integer value of the token.  Only supported for decimal, hexidecimal, and floating point values
+		/// <summary>
+		/// Get the integer value of the token.  Only supported for decimal, hexadecimal, and floating point values
+		/// </summary>
+		/// <param name="Value">Resulting value</param>
+		/// <returns>True if the value was set</returns>
 		public bool GetConstInt(out int Value)
 		{
 			switch (TokenType)
@@ -175,7 +363,11 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
-		// Get the integer value of the token.  Only supported for decimal, hexadecimal, and floating point values
+		/// <summary>
+		/// Get the integer value of the token.  Only supported for decimal, hexadecimal, and floating point values
+		/// </summary>
+		/// <param name="Value">Resulting value</param>
+		/// <returns>True if the value was set</returns>
 		public bool GetConstLong(out long Value)
 		{
 			switch (TokenType)
@@ -198,7 +390,11 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
-		// Get the float value of the token.  Only supported for decimal, hexadecimal, and floating point values
+		/// <summary>
+		/// Get the float value of the token.  Only supported for decimal, hexadecimal, and floating point values
+		/// </summary>
+		/// <param name="Value">Resulting value</param>
+		/// <returns>True if the value was set</returns>
 		public bool GetConstFloat(out float Value)
 		{
 			switch (TokenType)
@@ -218,7 +414,11 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
-		// Get the double value of the token.  Only supported for decimal, hexadecimal, and floating point values
+		/// <summary>
+		/// Get the double value of the token.  Only supported for decimal, hexadecimal, and floating point values
+		/// </summary>
+		/// <param name="Value">Resulting value</param>
+		/// <returns>True if the value was set</returns>
 		public bool GetConstDouble(out double Value)
 		{
 			switch (TokenType)
@@ -238,12 +438,23 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
+		/// <summary>
+		/// Return true if the token is a constant string (or a char constant)
+		/// </summary>
+		/// <returns>True if the token is a string or character constant</returns>
 		public bool IsConstString()
 		{
 			return this.TokenType == UhtTokenType.StringConst || this.TokenType == UhtTokenType.CharConst;
 		}
 
 		// Return the token value for string constants
+
+		/// <summary>
+		/// Return an un-escaped string.  The surrounding quotes will be removed and escaped characters will be converted to the actual values.
+		/// </summary>
+		/// <param name="MessageSite"></param>
+		/// <returns>Resulting string</returns>
+		/// <exception cref="UhtException">Thrown if the token type is not a string or character constant</exception>
 		public StringView GetUnescapedString(IUhtMessageSite MessageSite)
 		{
 			switch (this.TokenType)
@@ -296,6 +507,11 @@ namespace EpicGames.UHT.Tokenizer
 			throw new UhtException(MessageSite, this.InputLine, "Call to GetUnescapedString on token that isn't a string or char constant");
 		}
 
+		/// <summary>
+		/// Return a string representation of the token value.  This will convert numeric values and format them.
+		/// </summary>
+		/// <param name="bRespectQuotes">If true, embedded quotes will be respected</param>
+		/// <returns>Resulting string</returns>
 		public StringView GetConstantValue(bool bRespectQuotes = false)
 		{
 			switch (this.TokenType)
@@ -314,6 +530,11 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
+		/// <summary>
+		/// Return an un-escaped string.  The surrounding quotes will be removed and escaped characters will be converted to the actual values.
+		/// </summary>
+		/// <param name="bRespectQuotes">If true, respect embedded quotes</param>
+		/// <returns>Resulting string</returns>
 		public StringView GetTokenString(bool bRespectQuotes = false)
 		{
 			StringViewBuilder SVB = new StringViewBuilder();
@@ -382,6 +603,87 @@ namespace EpicGames.UHT.Tokenizer
 			return SVB.ToStringView();
 		}
 
+		/// <summary>
+		/// Join the given tokens into a string
+		/// </summary>
+		/// <param name="Tokens">Tokens to join</param>
+		/// <returns>Joined strings</returns>
+		public static string Join(IEnumerable<UhtToken> Tokens)
+		{
+			StringBuilder Builder = new StringBuilder();
+			foreach (var Token in Tokens)
+			{
+				Builder.Append(Token.Value.ToString());
+			}
+			return Builder.ToString();
+		}
+
+		/// <summary>
+		/// Join the given tokens into a string
+		/// </summary>
+		/// <param name="Separator">Separator between tokens</param>
+		/// <param name="Tokens">Tokens to join</param>
+		/// <returns>Joined strings</returns>
+		public static string Join(char Separator, IEnumerable<UhtToken> Tokens)
+		{
+			StringBuilder Builder = new StringBuilder();
+			bool bIncludeSeperator = false;
+			foreach (var Token in Tokens)
+			{
+				if (!bIncludeSeperator)
+				{
+					bIncludeSeperator = true;
+				}
+				else
+				{
+					Builder.Append(Separator);
+				}
+				Builder.Append(Token.Value.ToString());
+			}
+			return Builder.ToString();
+		}
+
+		/// <summary>
+		/// Join the given tokens into a string
+		/// </summary>
+		/// <param name="Separator">Separator between tokens</param>
+		/// <param name="Tokens">Tokens to join</param>
+		/// <returns>Joined strings</returns>
+		public static string Join(string Separator, IEnumerable<UhtToken> Tokens)
+		{
+			StringBuilder Builder = new StringBuilder();
+			bool bIncludeSeperator = false;
+			foreach (var Token in Tokens)
+			{
+				if (!bIncludeSeperator)
+				{
+					bIncludeSeperator = true;
+				}
+				else
+				{
+					Builder.Append(Separator);
+				}
+				Builder.Append(Token.Value.ToString());
+			}
+			return Builder.ToString();
+		}
+
+		/// <summary>
+		/// Convert the token to a string.  This will be the value.
+		/// </summary>
+		/// <returns>Value of the token</returns>
+		public override string ToString()
+		{
+			if (IsEndType())
+			{
+				return "<none>";
+			}
+			else
+			{
+				return Value.Span.ToString();
+			}
+		}
+
 		float GetFloatValue()
 		{
 			if (Value.Span.Length > 0)
@@ -433,66 +735,6 @@ namespace EpicGames.UHT.Tokenizer
 		long GetHexValue()
 		{
 			return Convert.ToInt64(this.Value.ToString(), 16);
-		}
-
-		public static string Join(IEnumerable<UhtToken> Tokens)
-		{
-			StringBuilder Builder = new StringBuilder();
-			foreach (var Token in Tokens)
-			{
-				Builder.Append(Token.Value.ToString());
-			}
-			return Builder.ToString();
-		}
-
-		public static string Join(char Seperator, IEnumerable<UhtToken> Tokens)
-		{
-			StringBuilder Builder = new StringBuilder();
-			bool bIncludeSeperator = false;
-			foreach (var Token in Tokens)
-			{
-				if (!bIncludeSeperator)
-				{
-					bIncludeSeperator = true;
-				}
-				else
-				{
-					Builder.Append(Seperator);
-				}
-				Builder.Append(Token.Value.ToString());
-			}
-			return Builder.ToString();
-		}
-
-		public static string Join(string Seperator, IEnumerable<UhtToken> Tokens)
-		{
-			StringBuilder Builder = new StringBuilder();
-			bool bIncludeSeperator = false;
-			foreach (var Token in Tokens)
-			{
-				if (!bIncludeSeperator)
-				{
-					bIncludeSeperator = true;
-				}
-				else
-				{
-					Builder.Append(Seperator);
-				}
-				Builder.Append(Token.Value.ToString());
-			}
-			return Builder.ToString();
-		}
-
-		public override string ToString()
-		{
-			if (IsEndType())
-			{
-				return "<none>";
-			}
-			else
-			{
-				return Value.Span.ToString();
-			}
 		}
 	}
 }

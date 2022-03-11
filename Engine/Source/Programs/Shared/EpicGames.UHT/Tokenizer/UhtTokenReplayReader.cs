@@ -8,6 +8,10 @@ using System.Threading;
 
 namespace EpicGames.UHT.Tokenizer
 {
+
+	/// <summary>
+	/// Token reader to replay previously recorded token stream
+	/// </summary>
 	public class UhtTokenReplayReader : IUhtTokenReader, IUhtMessageLineNumber
 	{
 		static private ThreadLocal<UhtTokenReplayReader> Tls = new ThreadLocal<UhtTokenReplayReader>(() => new UhtTokenReplayReader());
@@ -29,6 +33,13 @@ namespace EpicGames.UHT.Tokenizer
 		private int SavedStateCount = 0;
 		private UhtTokenType EndTokenType = UhtTokenType.EndOfFile;
 
+		/// <summary>
+		/// Construct new token reader
+		/// </summary>
+		/// <param name="MessageSite">Message site for generating errors</param>
+		/// <param name="Data">Complete data for the token (i.e. original source)</param>
+		/// <param name="Tokens">Tokens to replay</param>
+		/// <param name="EndTokenType">Token type to return when end of tokens reached</param>
 		public UhtTokenReplayReader(IUhtMessageSite MessageSite, ReadOnlyMemory<char> Data, ReadOnlyMemory<UhtToken> Tokens, UhtTokenType EndTokenType)
 		{
 			this.MessageSiteInternal = MessageSite;
@@ -38,6 +49,9 @@ namespace EpicGames.UHT.Tokenizer
 			this.CurrentToken = new UhtToken(EndTokenType);
 		}
 
+		/// <summary>
+		/// Construct token replay reader intended for caching.  Use Reset method to prepare it for use
+		/// </summary>
 		public UhtTokenReplayReader()
 		{
 			this.MessageSiteInternal = new UhtEmptyMessageSite();
@@ -45,6 +59,14 @@ namespace EpicGames.UHT.Tokenizer
 			this.Data = new char[0].AsMemory();
 		}
 
+		/// <summary>
+		/// Reset a cached replay reader for replaying a new stream of tokens
+		/// </summary>
+		/// <param name="MessageSite">Message site for generating errors</param>
+		/// <param name="Data">Complete data for the token (i.e. original source)</param>
+		/// <param name="Tokens">Tokens to replay</param>
+		/// <param name="EndTokenType">Token type to return when end of tokens reached</param>
+		/// <returns>The replay reader</returns>
 		public UhtTokenReplayReader Reset(IUhtMessageSite MessageSite, ReadOnlyMemory<char> Data, ReadOnlyMemory<UhtToken> Tokens, UhtTokenType EndTokenType)
 		{
 			this.MessageSiteInternal = MessageSite;
@@ -85,6 +107,7 @@ namespace EpicGames.UHT.Tokenizer
 		#endregion
 
 		#region ITokenReader Implementation
+		/// <inheritdoc/>
 		public bool bIsEOF
 		{
 			get
@@ -97,6 +120,7 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
+		/// <inheritdoc/>
 		public int InputPos 
 		{
 			get
@@ -109,6 +133,7 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
+		/// <inheritdoc/>
 		public int InputLine 
 		{
 			get
@@ -122,52 +147,64 @@ namespace EpicGames.UHT.Tokenizer
 			set => throw new NotImplementedException(); 
 		}
 
+		/// <inheritdoc/>
 		public IUhtTokenPreprocessor? TokenPreprocessor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
+		/// <inheritdoc/>
 		public int LookAheadEnableCount { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
+		/// <inheritdoc/>
 		public ReadOnlySpan<StringView> Comments => throw new NotImplementedException();
 
+		/// <inheritdoc/>
 		public void ClearComments()
 		{
 			throw new NotImplementedException();
 		}
 
+		/// <inheritdoc/>
 		public void ConsumeToken()
 		{
 			this.bHasToken = false;
 		}
 
+		/// <inheritdoc/>
 		public void DisableComments()
 		{
 			throw new NotImplementedException();
 		}
 
+		/// <inheritdoc/>
 		public void EnableComments()
 		{
 			throw new NotImplementedException();
 		}
 
+		/// <inheritdoc/>
 		public void CommitPendingComments()
 		{
 			throw new NotImplementedException();
 		}
 
+		/// <inheritdoc/>
 		public UhtToken GetLine()
 		{
 			throw new NotImplementedException();
 		}
 
+		/// <inheritdoc/>
 		public StringView GetRawString(char Terminator, UhtRawStringOptions Options)
 		{
 			throw new NotImplementedException();
 		}
 
+		/// <inheritdoc/>
 		public StringView GetStringView(int StartPos, int Count)
 		{
 			return new StringView(this.Data, StartPos, Count);
 		}
 
+		/// <inheritdoc/>
 		public UhtToken GetToken()
 		{
 			UhtToken Token = PeekToken();
@@ -175,11 +212,13 @@ namespace EpicGames.UHT.Tokenizer
 			return Token;
 		}
 
+		/// <inheritdoc/>
 		public bool IsFirstTokenInLine(ref UhtToken Token)
 		{
 			throw new NotImplementedException();
 		}
 
+		/// <inheritdoc/>
 		public ref UhtToken PeekToken()
 		{
 			if (!this.bHasToken)
@@ -189,11 +228,13 @@ namespace EpicGames.UHT.Tokenizer
 			return ref this.CurrentToken;
 		}
 
+		/// <inheritdoc/>
 		public void SkipWhitespaceAndComments()
 		{
 			throw new NotImplementedException();
 		}
 
+		/// <inheritdoc/>
 		public void SaveState()
 		{
 			if (this.SavedStateCount == MaxSavedStates)
@@ -204,6 +245,7 @@ namespace EpicGames.UHT.Tokenizer
 			++this.SavedStateCount;
 		}
 
+		/// <inheritdoc/>
 		public void RestoreState()
 		{
 			if (this.SavedStateCount == 0)
@@ -216,6 +258,7 @@ namespace EpicGames.UHT.Tokenizer
 			this.bHasToken = this.SavedStates[this.SavedStateCount].bHasToken;
 		}
 
+		/// <inheritdoc/>
 		public void AbandonState()
 		{
 			if (this.SavedStateCount == 0)

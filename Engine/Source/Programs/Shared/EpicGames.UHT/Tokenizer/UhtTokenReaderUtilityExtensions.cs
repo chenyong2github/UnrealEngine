@@ -7,6 +7,10 @@ using System.Collections.Generic;
 
 namespace EpicGames.UHT.Tokenizer
 {
+
+	/// <summary>
+	/// Collection of assorted utility token reader extensions
+	/// </summary>
 	public static class UhtTokenReaderUtilityExtensions
 	{
 		private static HashSet<StringView> SkipDeclarationWarningStrings = new HashSet<StringView>
@@ -31,7 +35,8 @@ namespace EpicGames.UHT.Tokenizer
 		/// When processing type, make sure that the next token is the expected token
 		/// </summary>
 		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Token">Token that started the process</param>
+		/// <param name="ExpectedIdentifier">Expected identifier</param>
+		/// <param name="bIsMember">If true, log an error if the type begins with const</param>
 		/// <returns>true if there could be more header to process, false if the end was reached.</returns>
 		public static bool SkipExpectedType(this IUhtTokenReader TokenReader, StringView ExpectedIdentifier, bool bIsMember)
 		{
@@ -50,6 +55,12 @@ namespace EpicGames.UHT.Tokenizer
 			return false;
 		}
 
+		/// <summary>
+		/// Try to parse an optional _API macro
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="APIMacroToken">_API macro parsed</param>
+		/// <returns>True if an _API macro was parsed</returns>
 		public static bool TryOptionalAPIMacro(this IUhtTokenReader TokenReader, out UhtToken APIMacroToken)
 		{
 			ref UhtToken Token = ref TokenReader.PeekToken();
@@ -63,6 +74,12 @@ namespace EpicGames.UHT.Tokenizer
 			return false;
 		}
 
+		/// <summary>
+		/// Parse an optional single inheritance
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="SuperClassDelegate">Invoked with the inherited type name</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader OptionalInheritance(this IUhtTokenReader TokenReader, UhtTokenDelegate SuperClassDelegate)
 		{
 			TokenReader.Optional(':', () =>
@@ -74,6 +91,13 @@ namespace EpicGames.UHT.Tokenizer
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Parse an optional inheritance
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="SuperClassDelegate">Invoked with the inherited type name</param>
+		/// <param name="BaseClassDelegate">Invoked when other base classes are parsed</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader OptionalInheritance(this IUhtTokenReader TokenReader, UhtTokenDelegate SuperClassDelegate, UhtTokenListDelegate BaseClassDelegate)
 		{
 			TokenReader.Optional(':', () =>

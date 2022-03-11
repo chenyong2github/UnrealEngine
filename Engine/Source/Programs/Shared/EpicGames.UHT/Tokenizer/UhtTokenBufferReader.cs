@@ -8,6 +8,10 @@ using System.Diagnostics;
 
 namespace EpicGames.UHT.Tokenizer
 {
+
+	/// <summary>
+	/// Token reader for source buffers
+	/// </summary>
 	public class UhtTokenBufferReader : IUhtTokenReader, IUhtMessageLineNumber
 	{
 		private static StringView[] EmptyComments = new StringView[] { };
@@ -34,6 +38,11 @@ namespace EpicGames.UHT.Tokenizer
 		private bool bRecordTokens = false;
 		private int PreprocessorPendingCommentsCount = 0;
 
+		/// <summary>
+		/// Construct a new token reader
+		/// </summary>
+		/// <param name="MessageSite">Message site for messages</param>
+		/// <param name="Input">Input source</param>
 		public UhtTokenBufferReader(IUhtMessageSite MessageSite, ReadOnlyMemory<char> Input)
 		{
 			this.MessageSiteInternal = MessageSite;
@@ -51,6 +60,7 @@ namespace EpicGames.UHT.Tokenizer
 		#endregion
 
 		#region ITokenReader Implementation
+		/// <inheritdoc/>
 		public bool bIsEOF
 		{
 			get
@@ -66,17 +76,20 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
+		/// <inheritdoc/>
 		public int InputPos
 		{
 			get => this.bHasToken ? this.PreCurrentTokenInputPos : this.InputPosInternal;
 		}
 
+		/// <inheritdoc/>
 		public int InputLine
 		{
 			get => this.bHasToken ? this.PreCurrentTokenInputLine : this.InputLineInternal;
 			set { ClearToken(); this.InputLineInternal = value; }
 		}
 
+		/// <inheritdoc/>
 		public ReadOnlySpan<StringView> Comments 
 		{
 			get
@@ -92,8 +105,10 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
+		/// <inheritdoc/>
 		public IUhtTokenPreprocessor? TokenPreprocessor { get => this.TokenPreprocessorInternal; set => this.TokenPreprocessorInternal = value; }
 
+		/// <inheritdoc/>
 		public ref UhtToken PeekToken()
 		{
 			if (!this.bHasToken)
@@ -104,9 +119,7 @@ namespace EpicGames.UHT.Tokenizer
 			return ref this.CurrentToken;
 		}
 
-		/// <summary>
-		/// Skip all leading whitespace and collect any comments
-		/// </summary>
+		/// <inheritdoc/>
 		public void SkipWhitespaceAndComments()
 		{
 			bool bGotInlineComment = false;

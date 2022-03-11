@@ -9,6 +9,12 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public static class UhtTokenReaderSkipExtensions
 	{
+
+		/// <summary>
+		/// Skip a token regardless of the type.
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader SkipOne(this IUhtTokenReader TokenReader)
 		{
 			TokenReader.PeekToken();
@@ -16,6 +22,11 @@ namespace EpicGames.UHT.Tokenizer
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Skip an alignas expression
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader SkipAlignasIfNecessary(this IUhtTokenReader TokenReader)
 		{
 			const string Identifier = "alignas";
@@ -29,6 +40,11 @@ namespace EpicGames.UHT.Tokenizer
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Skip deprecation macro
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader SkipDeprecatedMacroIfNecessary(this IUhtTokenReader TokenReader)
 		{
 			if (TokenReader.TryOptional(new string[] { "DEPRECATED", "UE_DEPRECATED" }) >= 0)
@@ -43,6 +59,11 @@ namespace EpicGames.UHT.Tokenizer
 			return TokenReader;
 		}
 
+		/// <summary>
+		/// Skip alignas and/or deprecation macros
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <returns>Token reader</returns>
 		public static IUhtTokenReader SkipAlignasAndDeprecatedMacroIfNecessary(this IUhtTokenReader TokenReader)
 		{
 			// alignas() can come before or after the deprecation macro.
@@ -53,6 +74,16 @@ namespace EpicGames.UHT.Tokenizer
 				.SkipAlignasIfNecessary();
 		}
 
+		/// <summary>
+		/// Skip any block of tokens wrapped by the given token symbols
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Initiator">Initiating token (i.e. &quot;(&quot;)</param>
+		/// <param name="Terminator">Terminating token (i.e. &quot;)&quot;)</param>
+		/// <param name="InitialNesting">If true, start with an initial nesting count of one (assume we already parsed an initiator)</param>
+		/// <param name="ExceptionContext">Extra context for any errors</param>
+		/// <returns>Token reader</returns>
+		/// <exception cref="UhtTokenException">Throw if end of file is reached</exception>
 		public static IUhtTokenReader SkipBrackets(this IUhtTokenReader TokenReader, char Initiator, char Terminator, int InitialNesting, object? ExceptionContext = null)
 		{
 			int Nesting = InitialNesting;

@@ -4,13 +4,17 @@ using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tokenizer
 {
+
+	/// <summary>
+	/// Collection of token reader extensions for float values
+	/// </summary>
 	public static class UhtTokenReaderFloatExtensions
 	{
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, no token is consumed.
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="Value">The float value of the token</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>True if the next token was an float, false if not.</returns>
 		public static bool TryOptionalConstFloat(this IUhtTokenReader TokenReader, out float Value)
 		{
@@ -27,8 +31,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, no token is consumed.
 		/// </summary>
-		/// <param name="Value">The float value of the token</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="TokenReader"></param>
 		/// <returns>The token reader</returns>
 		public static IUhtTokenReader OptionalConstFloat(this IUhtTokenReader TokenReader)
 		{
@@ -40,8 +43,8 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, no token is consumed.
 		/// </summary>
-		/// <param name="Value">The float value of the token</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Delegate">Delegate to invoke with the float value</param>
 		/// <returns>The token reader</returns>
 		public static IUhtTokenReader OptionalConstFloat(this IUhtTokenReader TokenReader, UhtTokenConstFloatDelegate Delegate)
 		{
@@ -56,6 +59,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, an exception is thrown
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>True if the next token was an float, false if not.</returns>
 		public static IUhtTokenReader RequireConstFloat(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
@@ -71,6 +75,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, an exception is thrown
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The floating point value of the token</returns>
 		public static float GetConstFloat(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
