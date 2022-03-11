@@ -149,31 +149,42 @@ namespace UnrealGameSync
 					ILogger TelemetryLogger = LoggerProvider.CreateLogger("Telemetry");
 					TelemetryLogger.LogInformation("Creating telemetry sink for session {SessionId}", SessionId);
 
-					ITelemetrySink? PrevTelemetrySink = Telemetry.ActiveSink;
 					using (ITelemetrySink TelemetrySink = DeploymentSettings.CreateTelemetrySink(UserName, SessionId, TelemetryLogger))
 					{
-						Telemetry.ActiveSink = TelemetrySink;
-
-						Telemetry.SendEvent("Startup", new { User = Environment.UserName, Machine = Environment.MachineName });
-
-						AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-
-						IPerforceSettings DefaultSettings = new PerforceSettings(ServerAndPort, UserName) { PreferNativeClient = true };
-
-						using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultSettings, UpdatePath, ServiceProvider))
+						ITelemetrySink? PrevTelemetrySink = Telemetry.ActiveSink;
+						try
 						{
-							ProgramApplicationContext Context = new ProgramApplicationContext(DefaultSettings, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, ServiceProvider, Uri);
-							Application.Run(Context);
+							Telemetry.ActiveSink = TelemetrySink;
 
-							if (UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
+							Telemetry.SendEvent("Startup", new { User = Environment.UserName, Machine = Environment.MachineName });
+
+							AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
+							IPerforceSettings DefaultSettings = new PerforceSettings(ServerAndPort, UserName) { PreferNativeClient = true };
+
+							using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultSettings, UpdatePath, ServiceProvider))
 							{
-								InstanceMutex.Close();
-								bool bLaunchUnstable = UpdateMonitor.RelaunchUnstable ?? bUnstable;
-								Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchUnstable ? " -unstable" : ""));
+								ProgramApplicationContext Context = new ProgramApplicationContext(DefaultSettings, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, ServiceProvider, Uri);
+								Application.Run(Context);
+
+								if (UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
+								{
+									InstanceMutex.Close();
+									bool bLaunchUnstable = UpdateMonitor.RelaunchUnstable ?? bUnstable;
+									Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchUnstable ? " -unstable" : ""));
+								}
 							}
 						}
+						catch (Exception Ex)
+						{
+							Telemetry.SendEvent("Crash", new { Exception = Ex.ToString() });
+							throw;
+						}
+						finally
+						{
+							Telemetry.ActiveSink = PrevTelemetrySink;
+						}
 					}
-					Telemetry.ActiveSink = PrevTelemetrySink;
 				}
 			}
 		}
