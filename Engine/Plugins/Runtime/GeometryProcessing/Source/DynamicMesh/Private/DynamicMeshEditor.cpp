@@ -1171,6 +1171,10 @@ void FDynamicMeshEditor::RescaleAttributeUVs(float UVScale, bool bWorldSpace, in
 		double TotalEdgeLen = 0;
 		for (int TID : Mesh->TriangleIndicesItr())
 		{
+			if (!UVs->IsSetTriangle(TID))
+			{
+				continue;
+			}
 			UVs->GetTriElements(TID, TriUVs[0], TriUVs[1], TriUVs[2]);
 			Mesh->GetTriVertices(TID, TriVs[0], TriVs[1], TriVs[2]);
 			if (ToWorld.IsSet())
