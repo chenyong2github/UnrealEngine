@@ -66,9 +66,10 @@ float2 VelocityBlur(float Radius, uint2 TextureCoordinates)
 }
  
 void Main(
-	in float4 SVPos : SV_POSITION,
+	in FScreenVertexOutput Input,
 	out float4 OutColor : SV_Target0)
 {
+	const float4 SVPos = Input.Position;
 	uint2 TextureCoordinates = floor(SVPos.xy);
 	
 	const FWaterInfo WaterInfo = MakeWaterInfo(WaterInfoTexture.Load(int3(TextureCoordinates, 0)));
