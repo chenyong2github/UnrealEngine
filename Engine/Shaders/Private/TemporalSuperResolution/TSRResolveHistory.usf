@@ -142,10 +142,10 @@ void MainCS(
 				tsr_half3 SampleTranslucencyColor = History_Translucency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				tsr_half  SampleTranslucencyAlpha = History_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				
-				tsr_half SampleHistoryValidity = SampleMetadata.y;
+				tsr_half SampleHistoryValidity = DIM_HIGH_FREQUENCY_ONLY ? SampleMetadata.x : SampleMetadata.y;
 				tsr_half InvSampleHistoryValidity = SafeRcp(SampleHistoryValidity);
 
-				#if DIM_SEPARATE_TRANSLUCENCY
+				#if 1
 				{
 					SampleLowFrequencyColor.rgb  = SampleLowFrequencyColor.rgb  * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb;
 					SampleHighFrequencyColor.rgb = SampleHighFrequencyColor.rgb * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb * SampleHistoryValidity;
@@ -182,6 +182,11 @@ void MainCS(
 	
 	// Compute final output
 	tsr_halfC FinalOutputColor;
+	#if DIM_HIGH_FREQUENCY_ONLY
+	{
+		FinalOutputColor = HighFrequencyColor;
+	}
+	#else
 	{
 		tsr_half OutputBlend = ComputeLowFrequencyContribution(HistoryValidity);
 		
@@ -192,6 +197,7 @@ void MainCS(
 		
 		FinalOutputColor = LowFrequencyColor * Weights[0] + HighFrequencyColor * Weights[1];
 	}
+	#endif
 
 	tsr_short2 OutputPixelPosition = InvalidateOutputPixelPos(tsr_short2(OutputViewRectMin + DispatchThreadId), OutputViewRectMax);
 	

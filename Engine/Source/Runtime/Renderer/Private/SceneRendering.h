@@ -900,7 +900,7 @@ struct FTSRHistory
 
 	bool IsValid() const
 	{
-		return LowFrequency.IsValid();
+		return HighFrequency.IsValid();
 	}
 };
 

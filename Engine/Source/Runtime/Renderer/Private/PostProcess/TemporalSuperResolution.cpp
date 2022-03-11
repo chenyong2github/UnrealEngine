@@ -31,6 +31,11 @@ TAutoConsoleVariable<int32> CVarTSRHistoryUpdateQuality(
 	TEXT("Select the quality of the history update."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarTSRHistoryHighFrequencyOnly(
+	TEXT("r.TSR.History.HighFrequencyOnly"), 0,
+	TEXT("Experimental store only high frequency in the history for performance saving (default = 0)."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<int32> CVarTSRHalfResShadingRejection(
 	TEXT("r.TSR.ShadingRejection.HalfRes"), 0,
 	TEXT("Whether the shading rejection should be done at half res. Saves performance but may introduce back some flickering (default = 0)."),
@@ -58,11 +63,6 @@ TAutoConsoleVariable<float> CVarTSRTranslucencyHighlightLuminance(
 //	TEXT("r.TSR.Translucency.PreviousFrameRejection"), 0,
 //	TEXT("Enable heuristic to reject Separate translucency based on previous frame translucency."),
 //	ECVF_RenderThreadSafe);
-
-TAutoConsoleVariable<int32> CVarTSRTranslucencySeparateTemporalAccumulation(
-	TEXT("r.TSR.Translucency.SeparateTemporalAccumulation"), 1,
-	TEXT("Accumulates separate translucency separatly (enabled by default)."),
-	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSREnableResponiveAA(
 	TEXT("r.TSR.Translucency.EnableResponiveAA"), 1,
@@ -144,15 +144,15 @@ END_SHADER_PARAMETER_STRUCT()
 FTSRHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTSRHistoryTextures& Textures)
 {
 	FTSRHistoryUAVs UAVs;
-	UAVs.LowFrequency = GraphBuilder.CreateUAV(Textures.LowFrequency);
+	if (Textures.LowFrequency)
+	{
+		UAVs.LowFrequency = GraphBuilder.CreateUAV(Textures.LowFrequency);
+	}
 	UAVs.HighFrequency = GraphBuilder.CreateUAV(Textures.HighFrequency);
 	UAVs.Metadata = GraphBuilder.CreateUAV(Textures.Metadata);
 	UAVs.SubpixelDetails = GraphBuilder.CreateUAV(Textures.SubpixelDetails);
-	if (Textures.Translucency)
-	{
-		UAVs.Translucency = GraphBuilder.CreateUAV(Textures.Translucency);
-		UAVs.TranslucencyAlpha = GraphBuilder.CreateUAV(Textures.TranslucencyAlpha);
-	}
+	UAVs.Translucency = GraphBuilder.CreateUAV(Textures.Translucency);
+	UAVs.TranslucencyAlpha = GraphBuilder.CreateUAV(Textures.TranslucencyAlpha); // TODO: move into metadata
 	return UAVs;
 }
 
@@ -177,6 +177,8 @@ public:
 		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 }; // class FTemporalSuperResolutionShader
+
+class FTSRHighFrequencyOnlyDim : SHADER_PERMUTATION_BOOL("DIM_HIGH_FREQUENCY_ONLY");
 
 class FTSRClearPrevTexturesCS : public FTSRShader
 {
@@ -232,7 +234,7 @@ class FTSRDecimateHistoryCS : public FTSRShader
 
 	class FOutputHalfRes : SHADER_PERMUTATION_BOOL("DIM_OUTPUT_HALF_RES");
 
-	using FPermutationDomain = TShaderPermutationDomain<FOutputHalfRes>;
+	using FPermutationDomain = TShaderPermutationDomain<FTSRHighFrequencyOnlyDim, FOutputHalfRes>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
@@ -438,10 +440,9 @@ class FTSRUpdateHistoryCS : public FTSRShader
 		MAX
 	};
 
-	class FSeparateTranslucencyDim : SHADER_PERMUTATION_BOOL("DIM_SEPARATE_TRANSLUCENCY");
 	class FQualityDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_UPDATE_QUALITY", EQuality);
 
-	using FPermutationDomain = TShaderPermutationDomain<FSeparateTranslucencyDim, FQualityDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FTSRHighFrequencyOnlyDim, FQualityDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
@@ -467,6 +468,7 @@ class FTSRUpdateHistoryCS : public FTSRShader
 		SHADER_PARAMETER(float, InputToHistoryFactor)
 		SHADER_PARAMETER(int32, ResponsiveStencilMask)
 		SHADER_PARAMETER(int32, bGenerateOutputMip1)
+		SHADER_PARAMETER(int32, bHasSeparateTranslucency)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRPrevHistoryParameters, PrevHistoryParameters)
 		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, PrevHistory)
@@ -489,7 +491,7 @@ class FTSRResolveHistoryCS : public FTSRShader
 	DECLARE_GLOBAL_SHADER(FTSRResolveHistoryCS);
 	SHADER_USE_PARAMETER_STRUCT(FTSRResolveHistoryCS, FTSRShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<FTSRUpdateHistoryCS::FSeparateTranslucencyDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FTSRHighFrequencyOnlyDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
@@ -556,7 +558,7 @@ FVector ComputePixelFormatQuantizationError(EPixelFormat PixelFormat);
 
 bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View)
 {
-	return CVarTSRTranslucencySeparateTemporalAccumulation.GetValueOnRenderThread() != 0;
+	return true;
 }
 
 static FRDGTextureUAVRef CreateDummyUAV(FRDGBuilder& GraphBuilder, EPixelFormat PixelFormat)
@@ -598,7 +600,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 	const bool bRejectSeparateTranslucency = false; // bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencyPreviousFrameRejection.GetValueOnRenderThread() != 0;
 
-	bool bAccumulateSeparateTranslucency = bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencySeparateTemporalAccumulation.GetValueOnRenderThread() != 0;
+	const bool bHistoryHighFrequencyOnly = CVarTSRHistoryHighFrequencyOnly.GetValueOnRenderThread() != 0;
 
 	EPixelFormat ColorFormat = bSupportsAlpha ? PF_FloatRGBA : PF_FloatR11G11B10;
 
@@ -692,11 +694,11 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FRDGTextureRef BlackAlphaOneDummy = GSystemTextures.GetBlackAlphaOneDummy(GraphBuilder);
 	FRDGTextureRef WhiteDummy = GSystemTextures.GetWhiteDummy(GraphBuilder);
 
-	FIntRect SeparateTranslucencyRect;
-	FRDGTextureRef SeparateTranslucencyTexture = nullptr;
-	if (bRejectSeparateTranslucency || bAccumulateSeparateTranslucency)
+	FIntRect SeparateTranslucencyRect = FIntRect(0, 0, 1, 1);
+	FRDGTextureRef SeparateTranslucencyTexture = BlackAlphaOneDummy;
+	bool bHasSeparateTranslucency = PassInputs.PostDOFTranslucencyResources.IsValid();
+	if (bHasSeparateTranslucency)
 	{
-		check(PassInputs.PostDOFTranslucencyResources.IsValid());
 		SeparateTranslucencyTexture = PassInputs.PostDOFTranslucencyResources.ColorTexture.Resolve;
 		SeparateTranslucencyRect = PassInputs.PostDOFTranslucencyResources.ViewRect;
 	}
@@ -884,7 +886,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	if (InputHistory.IsValid())
 	{
 		// Register filterable history
-		PrevHistory.LowFrequency = GraphBuilder.RegisterExternalTexture(InputHistory.LowFrequency);
+
+		PrevHistory.LowFrequency = InputHistory.LowFrequency.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.LowFrequency) : DummyHistory.LowFrequency;
 		PrevHistory.HighFrequency = GraphBuilder.RegisterExternalTexture(InputHistory.HighFrequency);
 		PrevHistory.Metadata = GraphBuilder.RegisterExternalTexture(InputHistory.Metadata);
 		PrevHistory.Translucency = InputHistory.Translucency.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.Translucency) : DummyHistory.Translucency;
@@ -903,7 +906,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	{
 
 		// Setup prev history parameters.
-		FScreenPassTextureViewport PrevHistoryViewport(PrevHistory.LowFrequency->Desc.Extent, InputHistory.OutputViewportRect);
+		FScreenPassTextureViewport PrevHistoryViewport(PrevHistory.HighFrequency->Desc.Extent, InputHistory.OutputViewportRect);
 		if (bCameraCut)
 		{
 			PrevHistoryViewport.Extent = FIntPoint(1, 1);
@@ -924,20 +927,20 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
 
-		History.LowFrequency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.LowFrequencies"));
+		if (!bHistoryHighFrequencyOnly)
+		{
+			History.LowFrequency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.LowFrequencies"));
+		}
 		History.HighFrequency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.HighFrequencies"));
 
 		Desc.Format = PF_R8G8;
 		History.Metadata = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Metadata"));
 
-		if (bAccumulateSeparateTranslucency)
-		{
-			Desc.Format = (CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha) ? PF_FloatR11G11B10 : PF_FloatRGBA;
-			History.Translucency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Translucency"));
+		Desc.Format = (CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha) ? PF_FloatR11G11B10 : PF_FloatRGBA;
+		History.Translucency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Translucency"));
 
-			Desc.Format = PF_R8;
-			History.TranslucencyAlpha = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.TranslucencyAlpha"));
-		}
+		Desc.Format = PF_R8;
+		History.TranslucencyAlpha = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.TranslucencyAlpha"));
 
 		Desc.Format = PF_R16_UINT;
 		History.SubpixelDetails = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.SubpixelInfo"));
@@ -1024,13 +1027,15 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TSR.DecimateHistory"));
 
 		FTSRDecimateHistoryCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FTSRHighFrequencyOnlyDim>(bHistoryHighFrequencyOnly);
 		PermutationVector.Set<FTSRDecimateHistoryCS::FOutputHalfRes>(bHalfResLowFrequency);
 
 		TShaderMapRef<FTSRDecimateHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TSR DecimateHistory(%s) %dx%d",
-				bHalfResLowFrequency ? TEXT("HalfResShadingOutput") : TEXT(""),
+			RDG_EVENT_NAME("TSR DecimateHistory(%s%s) %dx%d",
+				bHistoryHighFrequencyOnly ? TEXT("HighFrequency") : TEXT("LowFrequency"),
+				bHalfResLowFrequency ? TEXT(" HalfResShadingOutput") : TEXT(""),
 				InputRect.Width(), InputRect.Height()),
 			ComputeShader,
 			PassParameters,
@@ -1368,7 +1373,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 	// Update temporal history.
 	{
-		ensure(SeparateTranslucencyRect.Size() == InputRect.Size() || SeparateTranslucencyTexture == nullptr);
+		ensure(SeparateTranslucencyRect.Size() == InputRect.Size() || !bHasSeparateTranslucency);
 
 		static const TCHAR* const kUpdateQualityNames[] = {
 			TEXT("Low"),
@@ -1397,12 +1402,13 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		FScreenTransform HistoryPixelPosToViewportUV = (FScreenTransform::Identity + 0.5f) * CommonParameters.HistoryInfo.ViewportSizeInverse;
 		PassParameters->HistoryPixelPosToScreenPos = HistoryPixelPosToViewportUV * FScreenTransform::ViewportUVToScreenPos;
 		PassParameters->HistoryPixelPosToPPCo = HistoryPixelPosToViewportUV * CommonParameters.InputInfo.ViewportSize + CommonParameters.InputJitter + CommonParameters.InputPixelPosMin;
-		PassParameters->HistoryQuantizationError = (FVector3f)ComputePixelFormatQuantizationError(History.LowFrequency->Desc.Format);
+		PassParameters->HistoryQuantizationError = (FVector3f)ComputePixelFormatQuantizationError(History.HighFrequency->Desc.Format);
 		PassParameters->MinTranslucencyRejection = TranslucencyRejectionTexture == nullptr ? 1.0 : 0.0;
 		PassParameters->InvWeightClampingPixelSpeed = 1.0f / CVarTSRWeightClampingPixelSpeed.GetValueOnRenderThread();
 		PassParameters->InputToHistoryFactor = float(HistorySize.X) / float(InputRect.Width());
 		PassParameters->ResponsiveStencilMask = CVarTSREnableResponiveAA.GetValueOnRenderThread() ? (STENCIL_TEMPORAL_RESPONSIVE_AA_MASK) : 0;
 		PassParameters->bGenerateOutputMip1 = (PassInputs.bGenerateOutputMip1 && HistorySize == OutputRect.Size()) ? 1 : 0;
+		PassParameters->bHasSeparateTranslucency = bHasSeparateTranslucency;
 
 		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
 		PassParameters->PrevHistory = PrevHistory;
@@ -1428,7 +1434,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent, TEXT("Debug.TSR.UpdateHistory"));
 
 		FTSRUpdateHistoryCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FTSRUpdateHistoryCS::FSeparateTranslucencyDim>(bAccumulateSeparateTranslucency);
+		PermutationVector.Set<FTSRHighFrequencyOnlyDim>(bHistoryHighFrequencyOnly);
 		PermutationVector.Set<FTSRUpdateHistoryCS::FQualityDim>(UpdateHistoryQuality);
 
 		TShaderMapRef<FTSRUpdateHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
@@ -1436,8 +1442,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			GraphBuilder,
 			RDG_EVENT_NAME("TSR UpdateHistory(Quality=%s %s%s%s) %dx%d",
 				kUpdateQualityNames[int32(PermutationVector.Get<FTSRUpdateHistoryCS::FQualityDim>())],
-				History.LowFrequency->Desc.Format == PF_FloatR11G11B10 ? TEXT("R11G11B10") : TEXT(""),
-				PermutationVector.Get<FTSRUpdateHistoryCS::FSeparateTranslucencyDim>() ? TEXT(" SeparateTranslucency") : TEXT(""),
+				History.HighFrequency->Desc.Format == PF_FloatR11G11B10 ? TEXT("R11G11B10") : TEXT(""),
+				PermutationVector.Get<FTSRHighFrequencyOnlyDim>() ? TEXT("") : TEXT(" LowFrequency"),
 				PassInputs.bGenerateOutputMip1 ? TEXT(" OutputMip1") : TEXT(""),
 				HistorySize.X, HistorySize.Y),
 			ComputeShader,
@@ -1496,7 +1502,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent, TEXT("Debug.TSR.ResolveHistory"));
 
 		FTSRResolveHistoryCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FTSRUpdateHistoryCS::FSeparateTranslucencyDim>(bAccumulateSeparateTranslucency);
+		PermutationVector.Set<FTSRHighFrequencyOnlyDim>(bHistoryHighFrequencyOnly);
 
 		TShaderMapRef<FTSRResolveHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
@@ -1514,14 +1520,14 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		OutputHistory.OutputViewportRect = FIntRect(FIntPoint(0, 0), HistorySize);
 
 		// Extract filterable history
-		GraphBuilder.QueueTextureExtraction(History.LowFrequency, &OutputHistory.LowFrequency);
+		if (!bHistoryHighFrequencyOnly)
+		{
+			GraphBuilder.QueueTextureExtraction(History.LowFrequency, &OutputHistory.LowFrequency);
+		}
 		GraphBuilder.QueueTextureExtraction(History.HighFrequency, &OutputHistory.HighFrequency);
 		GraphBuilder.QueueTextureExtraction(History.Metadata, &OutputHistory.Metadata);
-		if (bAccumulateSeparateTranslucency)
-		{
-			GraphBuilder.QueueTextureExtraction(History.Translucency, &OutputHistory.Translucency);
-			GraphBuilder.QueueTextureExtraction(History.TranslucencyAlpha, &OutputHistory.TranslucencyAlpha);
-		}
+		GraphBuilder.QueueTextureExtraction(History.Translucency, &OutputHistory.Translucency);
+		GraphBuilder.QueueTextureExtraction(History.TranslucencyAlpha, &OutputHistory.TranslucencyAlpha);
 
 		// Extract non-filterable history
 		GraphBuilder.QueueTextureExtraction(History.SubpixelDetails, &OutputHistory.SubpixelDetails);
@@ -1535,7 +1541,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		}
 
 		// Extract the output for next frame SSR so that separate translucency shows up in SSR.
-		if (bAccumulateSeparateTranslucency || HistorySize != OutputRect.Size())
 		{
 			GraphBuilder.QueueTextureExtraction(
 				SceneColorOutputTexture, &View.ViewState->PrevFrameViewInfo.CustomSSRInput.RT[0]);

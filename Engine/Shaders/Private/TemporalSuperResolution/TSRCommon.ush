@@ -619,6 +619,8 @@ half2 SafeRcp(half2 x)
 
 #endif
 
+#define MIN_IMPLICIT_HISTORY_WEIGHT ceil(tsr_half(255.0) * rcp(tsr_half(MAX_SAMPLE_COUNT)) * tsr_half(0.25)) * rcp(tsr_half(255.0))
+
 CALL_SITE_DEBUGLOC
 tsr_half2 ComputeLowFrequencyContribution(tsr_half2 HistoryValidity)
 {
