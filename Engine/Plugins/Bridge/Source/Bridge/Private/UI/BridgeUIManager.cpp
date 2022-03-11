@@ -189,6 +189,12 @@ void FBridgeUIManagerImpl::CreateWindow()
 
 		if (DesiredWidth < MainWindowSize.X && DesiredHeight < MainWindowSize.Y && LocalBrowserDock->GetParentWindow().IsValid())
 		{
+			// If Bridge is docked as a tab, the parent window will be the main window
+			if (LocalBrowserDock->GetParentWindow() == Windows[0])
+			{
+				return;
+			}
+
 			LocalBrowserDock->GetParentWindow()->Resize(FVector2D(DesiredWidth, DesiredHeight));
 			LocalBrowserDock->GetParentWindow()->MoveWindowTo(FVector2D((MainWindowSize.X - DesiredWidth) - 17, MainWindowSize.Y - DesiredHeight) / 2);
 		}
