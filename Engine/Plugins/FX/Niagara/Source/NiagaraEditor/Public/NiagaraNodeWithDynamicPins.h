@@ -77,7 +77,7 @@ protected:
 	virtual void RemoveDynamicPin(UEdGraphPin* Pin);
 
 	/** Moves a pin among the pins of the same direction. Negative values for up, positive for down. */
-	virtual void MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToMove);
+	virtual void MoveDynamicPin(UEdGraphPin* Pin, int32 MoveAmount);
 
 	virtual bool OnVerifyTextChanged(const FText& NewText, FText& OutMessage) { return true; };
 
