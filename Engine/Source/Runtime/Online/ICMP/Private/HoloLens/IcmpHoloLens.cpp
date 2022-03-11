@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Icmp.h"
 
 #include "Microsoft/AllowMicrosoftPlatformTypes.h"
