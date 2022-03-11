@@ -1244,7 +1244,7 @@ namespace RuntimeVirtualTexture
 		}
 	}
 
-	void RenderPages(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc)
+	void RenderPagesInternal(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc)
 	{
 		check(InDesc.NumPageDescs <= EMaxRenderPageBatch);
 
@@ -1287,7 +1287,21 @@ namespace RuntimeVirtualTexture
 		// Call to let GPU-Scene determine if it is active and record scene primitive count
 		FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(InDesc.Scene->GPUScene, GPUSceneDynamicContext, InDesc.Scene);
 		InDesc.Scene->GPUScene.Update(GraphBuilder, *InDesc.Scene);
-		RenderPages(GraphBuilder, InDesc);
+		RenderPagesInternal(GraphBuilder, InDesc);
+	}
+
+	void RenderPages(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc)
+	{
+		if (InDesc.Scene->GPUScene.IsRendering())
+		{
+			RenderPagesInternal(GraphBuilder, InDesc);
+		}
+		else
+		{
+			// We allow locked root pages to be rendered outside of their scene update.
+			// We expect to hit this path very rarely. (One case is during material baking.)
+			RenderPagesStandAlone(GraphBuilder, InDesc);
+		}
 	}
 
 	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)

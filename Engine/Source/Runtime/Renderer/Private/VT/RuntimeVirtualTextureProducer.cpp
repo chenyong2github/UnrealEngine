@@ -162,9 +162,7 @@ FVTRequestPageResult FRuntimeVirtualTextureProducer::RequestPageData(
 
 	FVTRequestPageResult result;
 	result.Handle = 0;
-	//todo[vt]:
-	// Returning Saturated instead of Pending here because higher level ignores Pending for locked pages. Need to fix that...
-	result.Status = Finalizer.IsReady() ? EVTRequestPageStatus::Available : EVTRequestPageStatus::Saturated;
+	result.Status = Finalizer.IsReady() ? EVTRequestPageStatus::Available : EVTRequestPageStatus::Pending;
 	return result;
 }
 
