@@ -395,6 +395,8 @@ private:
 	/** Find the replicated subobjects of the component and write them into the bunch */
 	bool WriteSubObjects(UActorComponent* Component, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap);
 
+	bool ValidateReplicatedSubObjects() const;
+
 private:
 
 	// TODO: It would be nice to merge the tracking of these with PendingGuidResolves, to not duplicate memory,

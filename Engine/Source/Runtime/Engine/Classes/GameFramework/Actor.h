@@ -718,7 +718,12 @@ public:
     */
 	bool IsUsingRegisteredSubObjectList() const { return bReplicateUsingRegisteredSubObjectList; }
 
-	/** Method that allows an actor to replicate subobjects on its actor channel */
+	/** 
+	* Method that allows an actor to replicate subobjects on its actor channel. 
+	* Must return true if any data was serialized into the bunch.
+	* This method is used only when bReplicateUsingRegisteredSubObjectList is false.
+	* Otherwise this function is not called and only the ReplicatedSubObjects list is used.
+	*/
 	virtual bool ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags);
 
 	/** Called on the actor when a new subobject is dynamically created via replication */
