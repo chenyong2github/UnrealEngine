@@ -120,7 +120,8 @@ class CONTENTBROWSER_API UContentBrowserToolbarMenuContext : public UObject
 
 public:
 	FName GetCurrentPath() const;
-public:
+
+	bool CanWriteToCurrentPath() const;
 
 	TWeakPtr<SContentBrowser> ContentBrowser;
 };

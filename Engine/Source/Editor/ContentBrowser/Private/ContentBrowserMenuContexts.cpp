@@ -12,3 +12,13 @@ FName UContentBrowserToolbarMenuContext::GetCurrentPath() const
 
 	return NAME_None;
 }
+
+bool UContentBrowserToolbarMenuContext::CanWriteToCurrentPath() const
+{
+	if (TSharedPtr<SContentBrowser> Browser = ContentBrowser.Pin())
+	{
+		return Browser->CanWriteToCurrentPath();
+	}
+
+	return false;
+}

@@ -2484,10 +2484,59 @@ void SContentBrowser::PopulateAddNewContextMenu(class UToolMenu* Menu)
 		);
 }
 
+bool SContentBrowser::CanWriteToCurrentPath() const
+{
+	if (AssetViewPtr.IsValid())
+	{
+		const FSourcesData& SourcesData = AssetViewPtr->GetSourcesData();
+		if (SourcesData.VirtualPaths.Num() == 1)
+		{
+			if (!CachedCanWriteToCurrentPath.IsSet() || CachedCanWriteToCurrentPath.GetValue() != SourcesData.VirtualPaths[0])
+			{
+				CachedCanWriteToCurrentPath = SourcesData.VirtualPaths[0];
+				bCachedCanWriteToCurrentPath = CanWriteToPath(FContentBrowserItemPath(SourcesData.VirtualPaths[0], EContentBrowserPathType::Virtual));
+			}
+
+			return bCachedCanWriteToCurrentPath;
+		}
+		else
+		{
+			CachedCanWriteToCurrentPath.Reset();
+			bCachedCanWriteToCurrentPath = false;
+		}
+	}
+
+	return false;
+}
+
+bool SContentBrowser::CanWriteToPath(const FContentBrowserItemPath InPath) const
+{
+	// Reject if only virtual
+	if (!InPath.HasInternalPath())
+	{
+		return false;
+	}
+
+	// Reject if path not inside a mount point
+	if (!FPackageName::IsValidPath(InPath.GetInternalPathString()))
+	{
+		return false;
+	}
+
+	// Reject if folder writes blocked to path
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	const TSharedRef<FPathPermissionList>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderPermissionList();
+	if (!WritableFolderFilter->PassesStartsWithFilter(InPath.GetInternalPathName()))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool SContentBrowser::IsAddNewEnabled() const
 {
-	const FSourcesData& SourcesData = AssetViewPtr->GetSourcesData();
-	return SourcesData.VirtualPaths.Num() == 1;
+	return CanWriteToCurrentPath();
 }
 
 FText SContentBrowser::GetAddNewToolTipText() const
@@ -2497,6 +2546,12 @@ FText SContentBrowser::GetAddNewToolTipText() const
 	if ( SourcesData.VirtualPaths.Num() == 1 )
 	{
 		const FString CurrentPath = SourcesData.VirtualPaths[0].ToString();
+
+		if (!CanWriteToCurrentPath())
+		{
+			return FText::Format(LOCTEXT("AddNewToolTip_CannotWrite", "Cannot write to path {0}..."), FText::FromString(CurrentPath));
+		}
+
 		return FText::Format( LOCTEXT("AddNewToolTip_AddNewContent", "Create a new content in {0}..."), FText::FromString(CurrentPath) );
 	}
 	else if ( SourcesData.VirtualPaths.Num() > 1 )
@@ -3190,6 +3245,8 @@ void SContentBrowser::UpdatePath()
 		ActiveSourcesWidgetIndex = NewSourcesWidgetIndex;
 		SourcesWidgetSwitcher->SetActiveWidgetIndex(ActiveSourcesWidgetIndex);
 	}
+
+	CachedCanWriteToCurrentPath.Reset();
 }
 
 void SContentBrowser::OnFilterChanged()

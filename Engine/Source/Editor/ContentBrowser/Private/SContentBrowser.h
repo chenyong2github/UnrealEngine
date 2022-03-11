@@ -193,6 +193,12 @@ public:
 	virtual FReply OnPreviewMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
 
+	/** Returns true if current path can be written to */
+	bool CanWriteToCurrentPath() const;
+
+	/** Returns true if path can be written to */
+	bool CanWriteToPath(const FContentBrowserItemPath InPath) const;
+
 private:
 
 	/** Called prior to syncing the selection in this Content Browser */
@@ -632,6 +638,12 @@ private:
 
 	/** True if source should not be changed from an outside source */
 	bool bIsLocked;
+
+	/** Cached result of CanWriteToPath to avoid recalculating it every frame */
+	mutable bool bCachedCanWriteToCurrentPath = false;
+
+	/** Path that was last used to determine bCachedCanWriteToCurrentPath */
+	mutable TOptional<FName> CachedCanWriteToCurrentPath;
 
 	/** The list of FrontendFilters currently applied to the asset view */
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;

@@ -2130,7 +2130,7 @@ FReply UContentBrowserAssetDataSource::OnImportClicked(const UContentBrowserTool
 
 bool UContentBrowserAssetDataSource::IsImportEnabled(const UContentBrowserToolbarMenuContext* ContextObject) const
 {
-	return ContextObject->GetCurrentPath() != NAME_None;
+	return ContextObject->CanWriteToCurrentPath();
 }
 
 FContentBrowserItemData UContentBrowserAssetDataSource::OnFinalizeCreateFolder(const FContentBrowserItemData& InItemData, const FString& InProposedName, FText* OutErrorMsg)
