@@ -48,6 +48,13 @@ namespace ConcertSyncUtil
 
 FString FConcertSyncWorldRemapper::RemapObjectPathName(const FString& InObjectPathName) const
 {
+	if (RemapDelegate.IsBound())
+	{
+		FString Result;
+		RemapDelegate.Execute(Result);
+		return MoveTemp(Result);
+	}
+
 	return HasMapping() ? InObjectPathName.Replace(*SourceWorldPathName, *DestWorldPathName) : InObjectPathName;
 }
 
@@ -58,7 +65,7 @@ bool FConcertSyncWorldRemapper::ObjectBelongsToWorld(const FString& InObjectPath
 
 bool FConcertSyncWorldRemapper::HasMapping() const
 {
-	return SourceWorldPathName.Len() > 0 && DestWorldPathName.Len() > 0;
+	return RemapDelegate.IsBound() || (SourceWorldPathName.Len() > 0 && DestWorldPathName.Len() > 0 || RemapDelegate.IsBound());
 }
 
 FConcertSyncObjectWriter::FConcertSyncObjectWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, UObject* InObj, TArray<uint8>& OutBytes, const bool InIncludeEditorOnlyData, const bool InSkipAssets)

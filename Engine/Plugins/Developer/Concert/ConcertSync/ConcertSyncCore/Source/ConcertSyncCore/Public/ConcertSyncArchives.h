@@ -7,6 +7,8 @@
 
 struct FConcertSessionVersionInfo;
 
+DECLARE_DELEGATE_OneParam(FConcertSyncRemapObjectPath, FString& /*ObjectPath*/)
+
 namespace ConcertSyncUtil
 {
 	 bool CONCERTSYNCCORE_API ShouldSkipTransientProperty(const FProperty* Property);
@@ -29,6 +31,8 @@ public:
 	bool ObjectBelongsToWorld(const FString& InObjectPathName) const;
 
 	bool HasMapping() const;
+
+	FConcertSyncRemapObjectPath RemapDelegate;
 
 private:
 	FString SourceWorldPathName;
