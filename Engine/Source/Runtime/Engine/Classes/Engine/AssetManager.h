@@ -672,6 +672,9 @@ protected:
 	/** Try to remove an old asset identifier when it has been deleted/renamed */
 	virtual void RemovePrimaryAssetId(const FPrimaryAssetId& PrimaryAssetId);
 
+	/** Scans the respective PackagePath for public assets to include in PackagesToCook */
+	virtual void GatherPublicAssetsForPackage(FName PackagePath, TArray<FName>& PackagesToCook) const;
+
 	/** Called right before PIE starts, will refresh asset directory and can be overriden to preload assets */
 	virtual void PreBeginPIE(bool bStartSimulate);
 
