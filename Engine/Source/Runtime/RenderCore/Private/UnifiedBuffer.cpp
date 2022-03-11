@@ -823,6 +823,10 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, const R
 
 	RHICmdList.EndUAVOverlap(DstBuffer.UAV);
 
+	// We need to unbind shader SRVs in this case, because scatter upload buffers are sometimes used more than once in a
+	// frame, and this can cause rendering bugs on D3D12, where the driver fails to update the bound SRV with new data.
+	UnsetShaderSRVs(RHICmdList, ComputeShader, ComputeShader.GetComputeShader());
+
 	if (bFlush)
 	{
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);

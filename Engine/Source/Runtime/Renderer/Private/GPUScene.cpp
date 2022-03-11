@@ -1826,6 +1826,8 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilde
 {
 	if (bIsEnabled)
 	{
+		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
 		UploadDynamicPrimitiveShaderDataForViewInternal(GraphBuilder, Scene, View, bIsShadowView);
 	}
 }
@@ -2112,6 +2114,8 @@ bool FGPUScene::ExecuteDeferredGPUWritePass(FRDGBuilder& GraphBuilder, const TAr
 	{
 		return false;
 	}
+
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	// Mark this pass as having executed for the frame
 	LastDeferredGPUWritePass = GPUWritePass;
