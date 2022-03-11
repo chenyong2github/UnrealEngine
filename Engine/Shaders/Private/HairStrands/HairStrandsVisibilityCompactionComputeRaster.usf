@@ -16,6 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+//TODO: re-enable support for 64 bit visibilty buffer format?
+/*
 #if COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS && COMPILER_SUPPORTS_ULONG_TYPES
 #define PackedType UlongType
 uint2 UnpackData(PackedType In)
@@ -29,6 +31,7 @@ uint2 UnpackData(PackedType In)
 	return In;
 }
 #endif
+*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -58,13 +61,9 @@ struct FSampleSetDesc
 // Compute raster visibility buffer
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Texture2D<PackedType> VisibilityTexture0;
-Texture2D<PackedType> VisibilityTexture1;
-Texture2D<PackedType> VisibilityTexture2;
-Texture2D<PackedType> VisibilityTexture3;
-
-Texture2D<uint>  VisibilityHairCount;
-Texture2D<float> ViewTransmittanceTexture;
+Texture2D<uint>  DepthCovTexture;
+Texture2D<uint>  PrimMatTexture;
+Texture2D<uint>  HairCountTexture;
 
 #if PERMUTATION_TILE
 int2 TileCountXY;
@@ -106,87 +105,26 @@ void MainCS(
 
 	const float OpaqueDepth = SceneTexturesStruct.SceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
 
-	//const uint HairCountAndRadius = VisibilityHairCount.Load(uint3(PixelCoord, 0)); // Contains both hair count and the radius;
-	//const uint HairRadius = 0; // TODO
-	//const uint HairCount  = HairCountAndRadius;
-	const uint2 VisData0 = UnpackData(VisibilityTexture0.Load(uint3(PixelCoord, 0)));
-	const uint2 VisData1 = UnpackData(VisibilityTexture1.Load(uint3(PixelCoord, 0)));
-	const uint2 VisData2 = UnpackData(VisibilityTexture2.Load(uint3(PixelCoord, 0)));
-	const uint2 VisData3 = UnpackData(VisibilityTexture3.Load(uint3(PixelCoord, 0)));
+
+	const uint VisData0 = DepthCovTexture.Load(uint3(PixelCoord, 0));
+	const uint VisData1 = PrimMatTexture.Load(uint3(PixelCoord, 0));
 
 	uint2  Vis_PrimId_MatId[4];
 	float2 Vis_Depth_Cov[4];
 	float  TotalCoverage = 0;
 	uint   UniqueSampleCount = 0;
 
-	uint CurrentPrimitiveId = 0;
-	const float DepthThres = OpaqueDepth;
-	if (VisData0.y)
+	if (VisData1)
 	{
-		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData0.x);
-		const uint VisSampleMaterialId  = UnpackHairVisMaterialId(VisData0.x);
-		const float2 Depth_Cov = float2(UnpackHairVisDepth(VisData0.y), UnpackHairVisCoverage(VisData0.y));
+		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData1);
+		const uint VisSampleMaterialId = UnpackHairVisMaterialId(VisData1);
+		const float2 Depth_Cov = float2(UnpackHairVisDepth(VisData0), UnpackHairVisCoverage(VisData0));
 
-		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSamplePrimitiveId, VisSampleMaterialId);
-		Vis_Depth_Cov[UniqueSampleCount]	= Depth_Cov;
+		Vis_PrimId_MatId[UniqueSampleCount] = uint2(VisSamplePrimitiveId, VisSampleMaterialId);
+		Vis_Depth_Cov[UniqueSampleCount] = Depth_Cov;
 
-		if (Depth_Cov.x > DepthThres && VisSamplePrimitiveId != CurrentPrimitiveId)
-		{
-			TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
-			CurrentPrimitiveId = VisSamplePrimitiveId;
-			UniqueSampleCount++;
-		}
-	}
-
-	if (VisData1.y && SamplerPerPixel > 1)
-	{
-		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData1.x);
-		const uint VisSampleMaterialId  = UnpackHairVisMaterialId(VisData1.x);
-		const float2 Depth_Cov			= float2(UnpackHairVisDepth(VisData1.y), UnpackHairVisCoverage(VisData1.y));
-
-		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSamplePrimitiveId, VisSampleMaterialId);
-		Vis_Depth_Cov[UniqueSampleCount]	= Depth_Cov;
-		
-		if (Depth_Cov.x > DepthThres && VisSamplePrimitiveId != CurrentPrimitiveId)
-		{
-			TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
-			CurrentPrimitiveId = VisSamplePrimitiveId;
-			UniqueSampleCount++;
-		}
-	}
-
-	if (VisData2.y && SamplerPerPixel > 2)
-	{
-		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData2.x);
-		const uint VisSampleMaterialId  = UnpackHairVisMaterialId(VisData2.x);
-		const float2 Depth_Cov			= float2(UnpackHairVisDepth(VisData2.y), UnpackHairVisCoverage(VisData2.y));
-
-		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSamplePrimitiveId, VisSampleMaterialId);
-		Vis_Depth_Cov[UniqueSampleCount]	= Depth_Cov;
-		
-		if (Depth_Cov.x > DepthThres && VisSamplePrimitiveId != CurrentPrimitiveId)
-		{
-			TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
-			CurrentPrimitiveId = VisSamplePrimitiveId;
-			UniqueSampleCount++;
-		}
-	}
-
-	if (VisData3.y && SamplerPerPixel > 3)
-	{
-		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData3.x);
-		const uint VisSampleMaterialId  = UnpackHairVisMaterialId(VisData3.x);
-		const float2 Depth_Cov			= float2(UnpackHairVisDepth(VisData3.y), UnpackHairVisCoverage(VisData3.y));
-
-		Vis_PrimId_MatId[UniqueSampleCount]	 = uint2(VisSamplePrimitiveId, VisSampleMaterialId);
-		Vis_Depth_Cov[UniqueSampleCount]	 = Depth_Cov;
-		
-		if (Depth_Cov.x > DepthThres && VisSamplePrimitiveId != CurrentPrimitiveId)
-		{
-			TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
-			CurrentPrimitiveId = VisSamplePrimitiveId;
-			UniqueSampleCount++;
-		}
+		TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
+		UniqueSampleCount++;
 	}
 
 	FNodeDesc NodeDesc;
@@ -220,14 +158,20 @@ void MainCS(
 				OutNodeVis.PrimitiveId	= Vis_PrimId_MatId[OutIndex].x;
 				OutNodeVis.MaterialId	= Vis_PrimId_MatId[OutIndex].y;
 				OutNodeVis.Depth		= Vis_Depth_Cov[OutIndex].x;
-				OutNodeVis.Coverage8bit = To8bitCoverage(Vis_Depth_Cov[OutIndex].y / TotalCoverage); 
-
+				OutNodeVis.Coverage8bit = 0xff;
+				//OutNodeVis.Coverage8bit = To8bitCoverage(Vis_Depth_Cov[OutIndex].y / TotalCoverage); 
 				const uint StoreIndex = NodeDesc.Offset + OutIndex;
 				OutCompactNodeVis[StoreIndex] = PackHairVis(OutNodeVis);
 				OutCompactNodeCoord[StoreIndex] = PixelCoord;
 			}
 
-			PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)), CoverageThreshold);
+			// skips separate count to transmittance pass  
+			float LogViewTransmittance = -(HairCountTexture.Load(uint3(PixelCoord, 0)) / 1000.0);
+			float ViewTransmittance = pow(2.71828, LogViewTransmittance);
+			float CoverageThreshold = 0.98;
+			PixelCoverage = saturate(min(1.0 - ViewTransmittance, 1.0) / CoverageThreshold);
+
+//			PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)), CoverageThreshold);
 		}
 	}
 

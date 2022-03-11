@@ -1,72 +1,71 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "../MonteCarlo.ush"
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
 ///////////////////////////////////////////////////////////////////////////
-// 64 bits atomic
-#define RASTER_PLATFORM 0
-#define RASTER_NVIDIA 1
-#define RASTER_AMD_DX11 2
-#define RASTER_AMD_DX12 3
+// 
+// Wave size
+#if SHADER_RASTERCOMPUTE_DEPTH_GRID == 0
 
-// Group size
 #if PERMUTATION_GROUP_SIZE == 64
-	#define GROUP_SIZE 64
+#define WAVE_SIZE 32
 #elif PERMUTATION_GROUP_SIZE == 32
-	#define GROUP_SIZE 32
+#define WAVE_SIZE 32
 #else
-	#error Unknown group size	
+#error Unknown group size	
 #endif
 
-// Add permutation for AMD/other
-#if PERMUTATION_RASTER_ATOMIC == RASTER_NVIDIA
-#define NV_SHADER_EXTN_SLOT u7
-#include "/Engine/Shared/ThirdParty/NVIDIA/nvHLSLExtns.h"
-#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD_DX11
-#define AmdDxExtShaderIntrinsicsUAVSlot u7
-#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx11.h"
-#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD_DX12
-#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx12.h"
-#endif
+#endif //SHADER_RASTERCOMPUTE_DEPTH_GRID
 
-#if PERMUTATION_RASTER_ATOMIC == RASTER_PLATFORM && COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS && COMPILER_SUPPORTS_ULONG_TYPES
-#define PackedType UlongType
-PackedType ToPackedType(uint2 Data)
+///////////////////////////////////////////////////////////////////////////
+
+uint TileSize;
+float RcpTileSize;
+uint SqrTileSize;
+
+uint NumBinners;
+float RcpNumBinners;
+uint NumRasterizers;
+float RcpNumRasterizers;
+
+/* 
+// use untyped buffer for segment tiles to reduce VGPR usage - 16 bytes
+struct FVisTile
 {
-	return PackUlongType(Data);
+	uint PrimOffset;
+	uint PrimCount;
+	uint TileCoord;
+	uint MinDepth;
+};
+*/
+#define VT_SIZE 4
+
+#define VT_PrimOffset 0
+#define VT_PrimCount 1
+#define VT_Coord 2
+#define VT_NearestDepth 3
+
+uint PackVisTileCoord(uint2 Coord)
+{
+	return uint(((Coord.x & 0xff) << 0) | (((Coord.y) & 0xff) << 8));
 }
-#else
-#define PackedType uint2
-PackedType ToPackedType(uint2 Data)
-{
-	return Data;
-}
-#endif
 
-void WriteVisibilityData(RWTexture2D<PackedType> OutTexture, uint2 Coords, PackedType Data)
+uint2 UppackVisTileCoord(uint Packed)
 {
-#if PERMUTATION_RASTER_ATOMIC == RASTER_NVIDIA
-	NvInterlockedMaxUint64(OutTexture, Coords, Data);
-#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD_DX11
-	AmdDxExtShaderIntrinsics_AtomicMaxU64(OutTexture, Coords, Data);
-#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD_DX12
-	AmdExtD3DShaderIntrinsics_AtomicMaxU64(OutTexture, Coords, Data);
-#elif PERMUTATION_RASTER_ATOMIC == RASTER_PLATFORM && COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS && COMPILER_SUPPORTS_ULONG_TYPES
-	ImageInterlockedMaxUInt64(OutTexture, Coords, Data);
-#endif
+	return uint2(((Packed >> 0) & 0xff), ((Packed >> 8) & 0xff));
 }
 
 ///////////////////////////////////////////////////////////////////////////
-uint			DispatchCountX;
+
 uint			MaxRasterCount;
 uint			FrameIdMod8;
 uint			MacroGroupId;
 uint			ResolutionMultiplier;
 int2			OutputResolution;
+float2			OutputResolutionf;
 uint			HairMaterialId;
 uint			HairStrandsVF_bIsCullingEnable;
 float			HairStrandsVF_Radius;
@@ -81,29 +80,10 @@ float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
 Buffer<uint4>	HairStrandsVF_PositionBuffer;
 Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
 
-#if PERMUTATION_CULLING
-Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
-Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
-Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
-Buffer<uint>	IndirectBufferArgs;
-#endif
-
 Texture2D<float> SceneDepthTexture;
-
-RWTexture2D<uint>  OutHairCountTexture;
-
-RWTexture2D<PackedType> OutVisibilityTexture0;
-#if PERMUTATION_SPP == 2 || PERMUTATION_SPP == 4
-RWTexture2D<PackedType> OutVisibilityTexture1;
-#endif
-#if PERMUTATION_SPP == 4
-RWTexture2D<PackedType> OutVisibilityTexture2;
-RWTexture2D<PackedType> OutVisibilityTexture3;
-#endif
-
-
-///////////////////////////////////////////////////////////////////////////
-// Helping functions 
+float			TileLODScale;
+int2			TileRes;
+float			TileBaseDepth;
 
 float3 NDCToPixelCoord(float4 InDC)
 {
@@ -112,340 +92,565 @@ float3 NDCToPixelCoord(float4 InDC)
 	return float3(UV * OutputResolution, NDC.z);
 }
 
-float ToCoverage(FHairControlPoint CP, float4 NDC, float RadiusAtDepth1Primary)
+void CalcScreenPos(in uint4 PB, in float3 PBO, out float3 SP, out uint Type)
 {
-	const float SceneDepth = NDC.w;
-	const float PixelRadius = SceneDepth * RadiusAtDepth1Primary;
-	return CP.WorldRadius / max(CP.WorldRadius, PixelRadius);
+	const FHairControlPoint CP = UnpackHairControlPoint(
+		PB,
+		PBO,
+		HairStrandsVF_Radius,
+		HairStrandsVF_RootScale,
+		HairStrandsVF_TipScale);
+
+	const float3 WP = mul(float4(CP.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
+	float4 NDC = mul(float4(WP, 1), LWCHackToFloat(PrimaryView.WorldToClip));
+
+	SP = NDCToPixelCoord(NDC);
+
+	Type = CP.Type;
 }
 
-void Swap(inout float V0, inout float V1)
+void CalcScreenPosAndRad(in uint4 PB, in float3 PBO, out float4 SP, out float Rad)
 {
-	float T = V0;
-	V0 = V1;
-	V1 = T;
+	const FHairControlPoint CP = UnpackHairControlPoint(
+		PB,
+		PBO,
+		HairStrandsVF_Radius,
+		HairStrandsVF_RootScale,
+		HairStrandsVF_TipScale);
+
+	const float3 WP = mul(float4(CP.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
+	float4 NDC = mul(float4(WP, 1), LWCHackToFloat(PrimaryView.WorldToClip));
+
+	SP = float4(NDCToPixelCoord(NDC).xy, NDC.zw);
+
+	Rad = CP.WorldRadius * OutputResolutionf.x;
 }
 
-void Swap(inout float3 V0, inout float3 V1)
-{
-	float3 T = V0;
-	V0 = V1;
-	V1 = T;
-}
+///////////////////////////////////////////////////////////////////////////
 
-bool IsVisible(float3 SP)
-{
-	const float DeviceZ = SP.z;
-	const uint2 SceneCoord = SP.xy / ResolutionMultiplier;
-	return DeviceZ > SceneDepthTexture.Load(uint3(SceneCoord, 0)); // InverseZ
-}
+#if SHADER_RASTERCOMPUTE_DEPTH_GRID
 
-bool IsVisible(int2 PixelCoords, float HairDeviceZ)
-{
-	const float DeviceZ = SceneDepthTexture.Load(uint3(PixelCoords, 0)); // InverseZ
-	return HairDeviceZ >= DeviceZ;
-}
+RWTexture2D<uint>	OutVisTileDepthGrid;
+RWTexture2D<uint>	OutDepthCovTexture;
 
-bool IsInScreen(int2 C)
-{
-	return C.x >= 0 && C.x < OutputResolution.x && C.y >= 0 && C.y < OutputResolution.y;
-}
+groupshared uint group_FurthestDepth; // (4 bytes)
 
-void InternalRasterize(int2 Coords, float Ratio, float Depth, uint PrimitiveId, float Coverage)
+[numthreads(1024, 1, 1)]
+void PrepareDepthGridCS(uint dId : SV_DispatchThreadID, uint GroupThreadID : SV_GroupThreadID)
 {
-	if (IsInScreen(Coords))
+	uint tw = TileRes.x;
+	uint th = TileRes.y;
+
+	if (GroupThreadID == 0) group_FurthestDepth = 0xffffffff;
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint t = dId / 1024;
+
+	uint ty = uint((float(t)+0.5) / float(tw));
+	uint tx = t - (ty*tw);
+
+	for (uint p = GroupThreadID; p < SqrTileSize; p += 1024)
 	{
-		// Fine culling per pixel
-		// Fine grain culling is disabled, as it creates some flickering (on Nvidia cards). It is unclear if this is driver bug or another issue.
-		#if 1
-		const bool bIsVisible = IsVisible(Coords, Depth);
-		if (!bIsVisible)
-			return;
-		#endif
-
-		const float PrecisionScale = 1000.f;
-		const float ViewTransmittance = 1 - saturate(Ratio * Coverage);
-		const float LogViewTransmittance = -log2(ViewTransmittance);
-		const uint PackedViewTransmittance = uint(LogViewTransmittance * PrecisionScale);
-		InterlockedAdd(OutHairCountTexture[uint2(Coords)], PackedViewTransmittance);
-
-		uint2 PackedVisibility;
-		PackedVisibility.x = PackHairVisPrimitiveMaterialId(PrimitiveId, HairMaterialId);
-		PackedVisibility.y = PackHairVisDepthCoverage(Depth, Ratio * Coverage);
-
-		PackedType In = ToPackedType(PackedVisibility);
-		PackedType Out = 0;
-
-	#if PERMUTATION_SPP == 1
-		WriteVisibilityData(OutVisibilityTexture0, Coords, In);
-	#endif
-
-	#if PERMUTATION_SPP == 2
-		if (Ratio < 0.5f)
-			WriteVisibilityData(OutVisibilityTexture0, Coords, In);
-		else
-			WriteVisibilityData(OutVisibilityTexture1, Coords, In);
-	#endif
-
-	#if PERMUTATION_SPP == 4
-		if (Ratio < 0.25f)
-			WriteVisibilityData(OutVisibilityTexture0, Coords, In);
-		else if (Ratio < 0.5f)
-			WriteVisibilityData(OutVisibilityTexture1, Coords, In);
-		else if (Ratio < 0.75f)
-			WriteVisibilityData(OutVisibilityTexture2, Coords, In);
-		else
-			WriteVisibilityData(OutVisibilityTexture3, Coords, In);
-	#endif
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-// Queued work
-
-struct FRasterInfo
-{
-	bool bIsSteep;
-	uint P0x;
-	uint P1x;
-	float DeltaY;
-	float DeltaZ;
-	float GradientY;
-	float GradientZ;
-};
-
-uint4 PackRasterInfo(FRasterInfo In)
-{
-	uint4 Out;
-	return Out;
-}
-
-FRasterInfo UnpackRasterInfo(uint4 In)
-{
-	return (FRasterInfo)0;
-}
-
-float2 StochasticRasterRandom(uint2 PixelPosition)
-{
-	const uint InSeed = View.StateFrameIndexMod8;
-	const uint2 Seed0 = Rand3DPCG16(int3(PixelPosition, InSeed)).xy;
-	return Hammersley16(InSeed, 8, Seed0);
-}
-
-// Rasterize a given pixel with anti-aliasing. 
-// This can be done by writing the two adjacents pixel covered by the segments, or stochastically, by picking one of the two pixels randomly based on coverage
-uint2 Rasterize(uint2 PixelCoord, bool bIsSteep, float FracY, float RatioScale, float Coverage, float DeviceZ, uint ProvokingVertexId, bool bStochastic=true, uint2 SeedCoord=uint2(0,0))
-{
-#if PERMUTATION_STOCHASTIC
-	// Select randomly Bottom Left/Right
-	{
-		// No select based on the exact frac amount, as this will oscillate too much. 
-		// The stochastic raster only acts on the visibility check. The final covarage is computed analytically
-		float U = StochasticRasterRandom(SeedCoord).x;
-		const bool bLower = bStochastic ? (U < 0.5 ? FracY < 0.5 : FracY > 0.5) : FracY < 0.5f;
-
-		uint2 Coord = PixelCoord + (bLower ? uint2(0, 0) : uint2(0, 1));
-		Coord = bIsSteep ? Coord.yx : Coord.xy;
-		const float Ratio = (bLower ? 1 - FracY : FracY) * RatioScale;;
-		InternalRasterize(Coord, Ratio * RatioScale, DeviceZ, ProvokingVertexId, Coverage);
-		SeedCoord = Coord;
-	}
-#else
-	const bool bLower = FracY < 0.5f;
-	const float Ratio = (bLower ? 1 - FracY : FracY) * RatioScale;
-
-	// Bottom/Left Pixel (or inverse)
-	{
-		uint2 Coord = PixelCoord + (bLower ? uint2(0, 0) : uint2(0, 1));
-		Coord = bIsSteep ? Coord.yx : Coord.xy;
-		InternalRasterize(Coord, Ratio, DeviceZ, ProvokingVertexId, Coverage);
-	}
-	// Top/Right Pixel (or inverse)
-	{
-		uint2 Coord = PixelCoord + (bLower ? uint2(0, 0) : uint2(0, 1));
-		Coord = bIsSteep ? Coord.yx : Coord.xy;
-		InternalRasterize(Coord, 1.f - Ratio, DeviceZ, ProvokingVertexId, Coverage);
-	}
-#endif
-	return SeedCoord;
-}
-//////////////////////////////////////////////////////////////////////////////////////////
-[numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
-{
-#if PERMUTATION_CULLING
-	uint VertexIndex0 = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadID, GROUP_SIZE);
-#else
-	uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadID, GROUP_SIZE, DispatchCountX);
-#endif
-
-	uint VertexIndex1 = min(VertexIndex0 + 1, HairStrandsVF_VertexCount - 1);
-	if (VertexIndex0 >= HairStrandsVF_VertexCount)
-	{
-		return;
-	}
-
-	float LodRadiusScale0 = 1;
-	float LodRadiusScale1 = 1;
-#if PERMUTATION_CULLING
-	if (HairStrandsVF_bIsCullingEnable)
-	{
-		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
-		uint FetchIndex0 = VertexIndex0;
-		uint FetchIndex1 = VertexIndex1;
-		if (FetchIndex0 >= VertexCountAfterCulling)
+		if (p < SqrTileSize)
 		{
-			return;
-		}
-		FetchIndex1 = min(FetchIndex0 + 1, VertexCountAfterCulling - 1);
+			uint py = (float(p)+0.5) * RcpTileSize;
+			uint px = p - (py*TileSize);
 
-		VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
-		LodRadiusScale0	= HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex0];
+			uint2 Coord = uint2(tx * TileSize + px, ty * TileSize + py);
 
-		VertexIndex1 = HairStrandsVF_CullingIndexBuffer[FetchIndex1];
-		LodRadiusScale1 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex1];
+			if (Coord.x < uint(OutputResolution.x) && Coord.y < uint(OutputResolution.y))
+			{
+				float Depth = SceneDepthTexture.Load(uint3(Coord, 0));
+				uint packedDepth = PackHairVisDepthCoverage(Depth, 1.0);
 
-		if (LodRadiusScale0 <= 0.0f)
-		{
-			return;
+				InterlockedMin(group_FurthestDepth, packedDepth);
+
+				InterlockedMax(OutDepthCovTexture[Coord], packedDepth);
+			}
 		}
 	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	OutVisTileDepthGrid[uint2(tx, ty)] = group_FurthestDepth;
+}
+
+#endif //SHADER_RASTERCOMPUTE_DEPTH_GRID
+
+///////////////////////////////////////////////////////////////////////////
+
+#if SHADER_RASTERCOMPUTE_BINNING
+
+#if PERMUTATION_CULLING
+Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
+Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
+Buffer<uint>	IndirectBufferArgs;
 #endif
 
+RWTexture3D<uint> 					OutVisTileBinningGrid;
+Texture2D<uint>						VisTileDepthGrid;
+RWBuffer<uint>						OutVisTilePrims;
+RWBuffer<uint>						OutVisTileArgs;
+RWByteAddressBuffer					OutVisTileData;
+
+uint LoadOutVisTileData(uint index, uint offset)
+{
+	return OutVisTileData.Load((((index)) * VT_SIZE * 4) + ((offset) * 4));
+}
+
+void StoreOutVisTileData(uint index, uint offset, uint value)
+{
+	OutVisTileData.Store((((index)) * VT_SIZE * 4) + ((offset) * 4), (value));
+}
+
+groupshared uint group_LoopNum;
+groupshared uint group_BatchNum;
+
+// The total number of line segments (VertexCount) is divided up equally between N binners - each binner = a workgroup which loops through the designated set segments in batches of 1024
+// NB there is still potential to use LDS to prevent/reduce contention when adding segments to the binning grid and this may improve perf
+
+[numthreads(1024, 1, 1)]
+void BinningCS(uint2 DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV_GroupThreadID, uint GroupID : SV_GroupID)
+{
+	ResolvedView = ResolveView();
+	if (GroupThreadID == 0)
+	{
+		uint VertexCount = HairStrandsVF_VertexCount;
+#if PERMUTATION_CULLING	
+		if (HairStrandsVF_bIsCullingEnable)
+		{
+			VertexCount = HairStrandsVF_CullingIndirectBuffer[3];
+		}
+#endif
+		group_BatchNum = (VertexCount+1023)/1024;
+		group_LoopNum = (group_BatchNum + (NumBinners - 1)) * RcpNumBinners;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	[loop]
+	for (uint LoopIndex = 0; LoopIndex < group_LoopNum; LoopIndex++)
+	{
+		uint BatchIndex = LoopIndex + (GroupID * group_LoopNum);
+
+		bool bSegValid = (BatchIndex < group_BatchNum) ? true : false;
+
+		bool bTileIntersected[3] = { false, false, false };
+
+		int2 TileCoord[3] = { int2(-1, -1), int2(-1, -1), int2(-1, -1) };
+
+		uint SegIndex[3] = { 0xffffffff, 0xffffffff, 0xffffffff };
+
+		uint PrimID = BatchIndex * 1024 + GroupThreadID;
+
+#if PERMUTATION_CULLING
+		if (bSegValid && HairStrandsVF_bIsCullingEnable)
+		{
+			const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+			uint FetchIndex0 = PrimID;
+			if (FetchIndex0 >= (VertexCountAfterCulling-1))
+			{
+				bSegValid = false;
+			}
+			else
+			{
+				uint FetchIndex1 = min(FetchIndex0 + 1, VertexCountAfterCulling - 1);
+
+				uint VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
+				float LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex0];
+
+				uint VertexIndex1 = HairStrandsVF_CullingIndexBuffer[FetchIndex1];
+				float LodRadiusScale1 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex1];
+
+				if ((LodRadiusScale0 <= 0.0f) || (VertexIndex1 != VertexIndex0 + 1))
+				{
+					bSegValid = false;
+				}
+				else
+				{
+					PrimID = VertexIndex0;
+				}
+			}
+		}
+#endif
+
+		uint BinID = GroupID - (uint(float(GroupID + 0.5) * RcpNumBinners)* NumBinners);
+		uint BinID2 = BinID + NumBinners;
+
+#if PERMUTATION_TEMPORAL_LAYERING
+		//remap linear frame index to improve TAA result (still a bit exprimental)
+		uint remapped = (View.StateFrameIndex) & 0x3;
+		remapped = ((remapped & 0x1) << 1) | ((remapped & 0x2) >> 1);
+
+		if (bSegValid) bSegValid = ((PrimID < HairStrandsVF_VertexCount) && ((PrimID & 0x3) == (remapped))) ? true : false;
+#else
+		if (bSegValid) bSegValid = (PrimID < HairStrandsVF_VertexCount) ? true : false;
+#endif
+		if (bSegValid) //currently hardcoded to a maximum of 3 tile bins - this only works corectly when segment length does not exceed TileSize - TODO: add support for N bins
+		{
+			float3 SP0;
+			float3 SP1;
+
+			uint Type;
+			CalcScreenPos(HairStrandsVF_PositionBuffer[PrimID], HairStrandsVF_PositionOffsetBuffer[0].xyz, SP0, Type);
+
+			bool bIsEndCV = (Type == HAIR_CONTROLPOINT_END); 
+
+			if (!bIsEndCV)
+			{
+				CalcScreenPos(HairStrandsVF_PositionBuffer[PrimID + 1], HairStrandsVF_PositionOffsetBuffer[0].xyz, SP1, Type);
+
+				uint NearestDepth = PackHairVisDepthCoverage(max(SP0.z, SP1.z), 1.0);
+
+				TileCoord[0] = int2(SP0.x * RcpTileSize, SP0.y * RcpTileSize);
+
+				if (all(TileCoord[0] >= 0) && all(TileCoord[0] < TileRes) && NearestDepth > VisTileDepthGrid[TileCoord[0]])
+				{
+					InterlockedAdd(OutVisTileBinningGrid[uint3(TileCoord[0], BinID)], 1, SegIndex[0]);
+					bTileIntersected[0] = true;
+				}
+
+				TileCoord[1] = int2(SP1.x * RcpTileSize, SP1.y * RcpTileSize);
+
+				if ( any(TileCoord[1] != TileCoord[0]) && all(TileCoord[1] >= 0) && all(TileCoord[1] < TileRes) && NearestDepth > VisTileDepthGrid[TileCoord[1]])
+				{
+					InterlockedAdd(OutVisTileBinningGrid[uint3(TileCoord[1], BinID)], 1, SegIndex[1]);
+					bTileIntersected[1] = true;
+				}
+
+				if ((bTileIntersected[0] || bTileIntersected[1]) && all(TileCoord[1] != TileCoord[0]))
+				{
+					float2 MP = (TileCoord[0] + float2(0.5, 0.5) + TileCoord[1] + float2(0.5, 0.5)) * 0.5 * 32;
+
+					float2 SPI;
+					SPI.x = SP0.x + (SP1.x - SP0.x) * ((MP.y - SP0.y) / (SP1.y - SP0.y));
+					SPI.y = SP0.y + (SP1.y - SP0.y) * ((MP.x - SP0.x) / (SP1.x - SP0.x));
+
+					TileCoord[2] = int2(SPI.x * RcpTileSize, SPI.y * RcpTileSize);
+
+					if (all(TileCoord[2] >= 0) && all(TileCoord[2] < TileRes) && NearestDepth > VisTileDepthGrid[TileCoord[2]])
+					{
+						InterlockedAdd(OutVisTileBinningGrid[uint3(TileCoord[2], BinID)], 1, SegIndex[2]);
+						bTileIntersected[2] = true;
+					}
+				}
+			}
+		}
+		
+		GroupMemoryBarrierWithGroupSync();
+
+		if (bSegValid) //add tiles if any needed - this is unlikely to happen in all batches
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				if ((SegIndex[i] != 0xffffffff) && ((SegIndex[i] % 1024)==0))
+				{
+					uint NewTile;
+					InterlockedAdd(OutVisTileArgs[0], 1, NewTile);
+					
+					StoreOutVisTileData(NewTile, VT_Coord, PackVisTileCoord(TileCoord[i]));
+					StoreOutVisTileData(NewTile, VT_PrimOffset, NewTile * 1024);
+					StoreOutVisTileData(NewTile, VT_NearestDepth, SegIndex[i]); //tmp - use this to decide if seg should go in new or prev tile.
+
+					uint PrevTile = (OutVisTileBinningGrid[uint3(TileCoord[i], BinID2)] & 0xffff);
+					
+					if (SegIndex[i]>0)	StoreOutVisTileData(PrevTile, VT_PrimCount, 1024);
+
+					OutVisTileBinningGrid[uint3(TileCoord[i], BinID2)] = (PrevTile << 16) | (NewTile & 0xffff);
+
+				}
+			}
+		}
+
+		GroupMemoryBarrierWithGroupSync();
+
+		if (bSegValid) //now set the PrimID at the location indicated by the prev/current tile.
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				if (SegIndex[i] != 0xffffffff)
+				{
+					uint PackedTiles = OutVisTileBinningGrid[uint3(TileCoord[i], BinID2)];
+					uint CurTile = (PackedTiles & 0xffff);
+					uint PrevTile = ((PackedTiles >> 16) & 0xffff);
+
+					if (SegIndex[i] >= LoadOutVisTileData(CurTile, VT_NearestDepth))
+					{
+						uint PrimIndex = LoadOutVisTileData(CurTile, VT_PrimOffset) + (SegIndex[i] % 1024);
+						OutVisTilePrims[PrimIndex] = PrimID;
+
+						if ((SegIndex[i] + 1) == OutVisTileBinningGrid[uint3(TileCoord[i], BinID)])
+						{
+							StoreOutVisTileData(CurTile, VT_PrimCount, (SegIndex[i]==1023) ? 1024 : ((SegIndex[i] + 1) % 1024));
+						}
+					}
+					else
+					{
+						uint PrimIndex = LoadOutVisTileData(PrevTile, VT_PrimOffset) + (SegIndex[i] % 1024);
+						OutVisTilePrims[PrimIndex] = PrimID;
+					}
+
+					//InterlockedAdd(OutVisTileArgs[1], 1); //debug
+				}
+			}
+		}
+	}
+}
+#endif //SHADER_RASTERCOMPUTE_BINNING
+
+///////////////////////////////////////////////////////////////////////////
+
+#if SHADER_RASTERCOMPUTE_RASTER
+
+RWTexture2D<uint> 					RWVisTileDepthGrid;
+Buffer<uint> 						VisTilePrims;
+Buffer<uint> 						VisTileArgs;
+RWByteAddressBuffer					RWVisTileData;
+Buffer<uint>						VisTileIndirect;
+
+uint LoadRWVisTileData(uint index, uint offset)
+{
+	return RWVisTileData.Load((((index)) * VT_SIZE * 4) + ((offset) * 4));
+}
+
+void StoreRWVisTileData(uint index, uint offset, uint value)
+{
+	RWVisTileData.Store((((index)) * VT_SIZE * 4) + ((offset) * 4), (value));
+}
+
+RWTexture2D<uint> OutHairCountTexture;
+RWTexture2D<uint> OutDepthCovTexture;
+RWTexture2D<uint> OutPrimMatTexture;
+
+
+groupshared uint4 group_SubTile[1024]; //(32 x 32 x 4 x 4 bytes = 16k bytes)
+
+groupshared float3 group_PositionOffset;
+groupshared float group_ooTileLODScale;
+
+groupshared uint group_LoopNum;
+groupshared uint group_TileNum;
+
+groupshared uint group_ThreadsPerSeg;
+
+#define GS_SEGS 320 //this number is limited by group shared memory
+
+groupshared float4 group_SP0[GS_SEGS];
+groupshared float4 group_SP1[GS_SEGS];
+groupshared float group_Rad0[GS_SEGS];
+groupshared float group_Rad1[GS_SEGS];
+groupshared uint group_PrimMatID[GS_SEGS];
+
+groupshared uint group_TileIndex;
+
+[numthreads(1024, 1, 1)]
+void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV_GroupThreadID, uint GroupID : SV_GroupID)
+{
 	ResolvedView = ResolveView();
 
-	const float3 PositionOffset = HairStrandsVF_PositionOffsetBuffer[0].xyz;
-
-	const FHairControlPoint CP0 = UnpackHairControlPoint(
-		HairStrandsVF_PositionBuffer[VertexIndex0],
-		PositionOffset,
-		HairStrandsVF_Radius * LodRadiusScale0,
-		HairStrandsVF_RootScale,
-		HairStrandsVF_TipScale);
-
-	if (CP0.Type == HAIR_CONTROLPOINT_END)
-		return;
-
-	const FHairControlPoint CP1 = UnpackHairControlPoint(
-		HairStrandsVF_PositionBuffer[VertexIndex1],
-		PositionOffset,
-		HairStrandsVF_Radius * LodRadiusScale1,
-		HairStrandsVF_RootScale,
-		HairStrandsVF_TipScale);
-
-
-	const FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo, ResolvedView.HairRenderInfoBits, HairStrandsVF_bUseStableRasterization > 0);
-
-	const float VelocityScale = 0;
-	FHairViewInfo HairViewInfo;
-	HairViewInfo.TranslatedWorldCameraOrigin = ResolvedView.TranslatedWorldCameraOrigin;
-	HairViewInfo.ViewForward = ResolvedView.ViewForward;
-	HairViewInfo.RadiusAtDepth1 = lerp(HairRenderInfo.RadiusAtDepth1Primary, HairRenderInfo.RadiusAtDepth1Velocity, VelocityScale);
-	HairViewInfo.bIsOrthoView = false;
-
-	const float3 WP0  = mul(float4(CP0.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
-	const float4 NDC0 = mul(float4(WP0, 1), LWCHackToFloat(PrimaryView.WorldToClip));
-
-	const float3 WP1  = mul(float4(CP1.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
-	const float4 NDC1 = mul(float4(WP1, 1), LWCHackToFloat(PrimaryView.WorldToClip));
-	
-	float3 SP0 = NDCToPixelCoord(NDC0);
-	float3 SP1 = NDCToPixelCoord(NDC1);
-
-	// Coarse culling per segment
-	const bool bInClip0 = IsInScreen(SP0.xy);
-	const bool bInClip1 = IsInScreen(SP1.xy);
-	if (!bInClip0 || !bInClip1)
+	if (GroupThreadID == 0)
 	{
-		return;
+		group_TileNum = VisTileArgs[0];
+		group_LoopNum = (float(group_TileNum) + float(NumRasterizers - 1))* RcpNumRasterizers;
+//		group_LoopNum = (float(1024) + float(NumRasterizers - 1)) * RcpNumRasterizers;
+
+		group_PositionOffset = HairStrandsVF_PositionOffsetBuffer[0].xyz;
+
+		group_ooTileLODScale = 1.0;// max(min(1.0 / (TileLODScale * 25.0), 16.0), 1.0);
+
+		/* no longer in use - keep for ref? Moving these values to group shared memory did seem to reduce VGPRs - more experimentation needed
+		group_RadScale = (((HairStrandsVF_TipScale - HairStrandsVF_RootScale) * HairStrandsVF_Radius * OutputResolutionf.x) / 63.0) / 255.0;
+		group_RadOffset = (HairStrandsVF_RootScale * HairStrandsVF_Radius * OutputResolutionf.x)/63.0;
+		*/
 	}
 
-	const bool bIsVisible0 = IsVisible(SP0);
-	const bool bIsVisible1 = IsVisible(SP1);
-	if (!bIsVisible0 && !bIsVisible1)
+	GroupMemoryBarrierWithGroupSync();
+
+	[loop]
+	for (uint LoopIndex = 0; LoopIndex < group_LoopNum; LoopIndex++)
 	{
-		return;
-	}
-
-	const float Coverage0 = ToCoverage(CP0, NDC0, HairRenderInfo.RadiusAtDepth1Primary);
-	const float Coverage1 = ToCoverage(CP1, NDC1, HairRenderInfo.RadiusAtDepth1Primary);
-
-	// Conservative line raster (Wu's Algo)
-	// https://en.wikipedia.org/wiki/Xiaolin_Wu%27s_line_algorithm
-	const bool bIsSteep = abs(SP1.y - SP0.y) > abs(SP1.x - SP0.x);
-	if (bIsSteep)
-	{
-		Swap(SP0.x, SP0.y);
-		Swap(SP1.x, SP1.y);
-	}
-	if (SP0.x > SP1.x)
-	{
-		Swap(SP0, SP1);
-	}
-
-	const float3 D = SP1 - SP0;
-	const float GradientY = abs(D.x) < 0.00001f ? 1.0f : D.y / D.x;
-	const float GradientZ = abs(D.x) < 0.00001f ? 1.0f : D.z / D.x;
-
-	float DeltaY = 0;
-	float DeltaZ = 0;
-
-	// First point
-	int2 PX0;
-	{
-		float2 End;
-		End.x = round(SP0.x);
-		End.y = SP0.y + GradientY * (End.x - SP0.x);
-
-		const float XGap = 1.f - frac(SP0.x + 0.5f);
-
-		PX0.x = End.x;
-		PX0.y = floor(End.y);
-
-		const float FracY = frac(End.y);
-		Rasterize(PX0, bIsSteep, FracY, XGap, Coverage0, SP0.z, VertexIndex0, false);
-
-		DeltaY = End.y + GradientY; // first y-intersection for the main loop
-		DeltaZ = SP1.z + GradientZ; // This is not perspective correct. Interpolate linear depth instead
-	}
-
-	// Second point
-	int2 PX1;
-	{
-		float2 End;
-		End.x = floor(SP1.x + 0.5); // Round
-		End.y = SP1.y + GradientY * (End.x - SP1.x);
-		const float XGap = 1 - frac(SP1.x + 0.5);
-
-		PX1.x = End.x;
-		PX1.y = floor(End.y);
-
-		// In order to avoid doubled rasterizated point at segments connection we exclude 
-		// the last pixel apart for pixel placed at the end of a curve
-		//if (CP1.Type == HAIR_CONTROLPOINT_END)
+		if (GroupThreadID == 0)
 		{
-			const float FracY = frac(End.y);
-			Rasterize(PX1, bIsSteep, FracY, XGap, max(Coverage1, 0.01f), SP1.z, VertexIndex0, false);
+			group_TileIndex = LoopIndex + (GroupID * group_LoopNum);
 		}
-	}
-
-	// Inner points
-	const uint MaxIteration = MaxRasterCount;
-	const float PixelCount = abs(PX1.x - (PX0.x + 1));
-	uint2 SeedCoord = PX0;
-	for (int i = PX0.x + 1, j = 0; i < PX1.x && j < MaxIteration; ++i, ++j)
-	{
-		const float S = float(j) / PixelCount;
-		const float FracY = frac(DeltaY);
-		const float DC_Z = lerp(NDC0.z, NDC1.z, S);
-		const float DC_W = lerp(NDC0.w, NDC1.w, S);
-		const float DeviceZ = DC_Z / DC_W;
 		
-		const uint2 PixelCoord = uint2(int2(i, floor(DeltaY)));
+		GroupMemoryBarrierWithGroupSync();
 
-		SeedCoord = Rasterize(PixelCoord, bIsSteep, FracY, 1.0f, lerp(Coverage0, Coverage1, S), DeviceZ, VertexIndex0, true, SeedCoord);
+		bool bTileValid = (group_TileIndex < group_TileNum) ? true : false;
 
-		DeltaY += GradientY;
-		DeltaZ += GradientZ;
+		uint PrimOffset = LoadRWVisTileData(group_TileIndex, VT_PrimOffset);
+		uint PrimCount = LoadRWVisTileData(group_TileIndex, VT_PrimCount);
+
+		uint PackedCoord = LoadRWVisTileData(group_TileIndex, VT_Coord);
+		uint2 SubTileMin = UppackVisTileCoord(PackedCoord)*TileSize;
+
+		uint PackedTileMin = ((SubTileMin.x & 0xffff) << 0) | ((SubTileMin.y & 0xffff) << 16);
+
+		if (GroupThreadID == 0)
+		{
+			group_ThreadsPerSeg = 1;
+
+			if (PrimCount <= 512)
+				group_ThreadsPerSeg = 2;
+			if (PrimCount <= 341)
+				group_ThreadsPerSeg = 3;
+			if (PrimCount <= 256)
+				group_ThreadsPerSeg = 4;
+			if (PrimCount <= 204)
+				group_ThreadsPerSeg = 5;
+			if (PrimCount <= 170)
+				group_ThreadsPerSeg = 6;
+			if (PrimCount <= 146)
+				group_ThreadsPerSeg = 7;
+			if (PrimCount <= 128)
+				group_ThreadsPerSeg = 8;
+			if (PrimCount <= 64)
+				group_ThreadsPerSeg = 16;
+			if (PrimCount <= 32)
+				group_ThreadsPerSeg = 32;
+		}
+		
+		GroupMemoryBarrierWithGroupSync();
+
+		bool bThreadValid = (bTileValid && (GroupThreadID < (PrimCount*group_ThreadsPerSeg) )) ? true : false;
+
+		uint WaveCount = ((PrimCount* group_ThreadsPerSeg) + (WAVE_SIZE-1) ) / WAVE_SIZE;
+		uint WaveThreadCount = WaveCount * WAVE_SIZE;
+
+		bool bWaveThreadValid = (bTileValid && (GroupThreadID < WaveThreadCount)) ? true : false;
+
+		bool bUseGroupSPs = (bThreadValid && (GroupThreadID < (min(PrimCount, GS_SEGS)* group_ThreadsPerSeg) )) ? true : false;
+
+		bool bGenGroupSPs = (bThreadValid && (GroupThreadID < (min(PrimCount, GS_SEGS)) )) ? true : false;
+
+		if (bGenGroupSPs)
+		{
+			uint Prim = GroupThreadID;
+			uint PrimID = VisTilePrims[PrimOffset + Prim];
+
+			group_PrimMatID[Prim] = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+
+			CalcScreenPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, group_SP0[Prim], group_Rad0[Prim]);
+			CalcScreenPosAndRad(HairStrandsVF_PositionBuffer[PrimID+1], group_PositionOffset, group_SP1[Prim], group_Rad1[Prim]);
+		}
+
+		if (bWaveThreadValid)
+		{
+			for (uint LinearIndex = GroupThreadID; LinearIndex < SqrTileSize; LinearIndex += WaveThreadCount)
+			{
+				uint2 Coord;
+
+				Coord.y = (float(LinearIndex) + 0.5) * RcpTileSize;
+				Coord.x = LinearIndex - (Coord.y * TileSize);
+
+				Coord += uint2(((PackedTileMin >> 0) & 0xffff), ((PackedTileMin >> 16) & 0xffff));
+
+				group_SubTile[LinearIndex].x = OutDepthCovTexture[Coord];
+				group_SubTile[LinearIndex].y = 0;
+				group_SubTile[LinearIndex].z = 0;
+				group_SubTile[LinearIndex].w = PackHairVisDepthCoverage(SceneDepthTexture.Load(uint3(Coord, 0)), 1.0);
+			}
+		}
+
+		GroupMemoryBarrierWithGroupSync();
+
+		if (bThreadValid)
+		{
+			uint Prim = uint((float(GroupThreadID)+0.5) / float(group_ThreadsPerSeg));
+			uint PModTPS = GroupThreadID - (Prim * group_ThreadsPerSeg);
+
+			uint PrimMatID;
+			float4 SP0;
+			float4 SP1;
+			float Rad0;
+			float Rad1;
+
+			if (bUseGroupSPs)
+			{
+				PrimMatID = group_PrimMatID[Prim];
+				SP0 = group_SP0[Prim];
+				SP1 = group_SP1[Prim];
+				Rad0 = group_Rad0[Prim];
+				Rad1 = group_Rad1[Prim];
+			}
+			else
+			{
+				uint PrimID = VisTilePrims[PrimOffset + Prim];
+				PrimMatID = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+
+				CalcScreenPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, SP0, Rad0);
+				CalcScreenPosAndRad(HairStrandsVF_PositionBuffer[PrimID+1], group_PositionOffset, SP1, Rad1);
+			}
+
+			uint NumSteps = min(max(abs(SP1.x - SP0.x), abs(SP1.y - SP0.y))+1.0, TileSize);
+
+			[loop]
+			for (int J = PModTPS; J < NumSteps; J+=group_ThreadsPerSeg)
+			{
+				const float4 SP = lerp(SP0, SP1, J / float(NumSteps));
+
+				const int2 SPi = int2(SP.xy)-int2(((PackedTileMin >> 0) & 0xffff), ((PackedTileMin >> 16) & 0xffff));
+
+				if (SPi.x >= 0 && SPi.x < TileSize && SPi.y >= 0 && SPi.y < TileSize)
+				{
+					uint PackedDepthCov = PackHairVisDepthCoverage(SP.z / SP.w, 1.0);
+
+					uint LinearIndex = SPi.x + SPi.y * TileSize;
+
+					uint OldValue;
+					InterlockedMax(group_SubTile[LinearIndex].x, PackedDepthCov, OldValue);
+					if (PackedDepthCov > OldValue)
+					{
+						group_SubTile[LinearIndex].y = PrimMatID;
+					}
+
+					if (PackedDepthCov > group_SubTile[LinearIndex].w)
+					{
+						const float Rad = lerp(Rad0, Rad1, J / float(NumSteps)) / SP.w;
+
+#if PERMUTATION_TEMPORAL_LAYERING
+						InterlockedAdd(group_SubTile[LinearIndex].z, min(Rad, 1.0) * 1.0 * 8000.0 * group_ooTileLODScale);
+#else
+						InterlockedAdd(group_SubTile[LinearIndex].z, min(Rad, 1.0) * 1.0 * 1000.0 * group_ooTileLODScale);
+#endif
+					}
+				}					
+			}
+		}
+
+		GroupMemoryBarrierWithGroupSync();
+
+		if (bWaveThreadValid) 
+		{
+			for (uint LinearIndex = GroupThreadID; LinearIndex < SqrTileSize; LinearIndex += WaveThreadCount)
+			{
+				uint2 Coord;
+
+				Coord.y = (float(LinearIndex) + 0.5) * RcpTileSize;
+				Coord.x = LinearIndex - (Coord.y * TileSize);
+
+				Coord += uint2(((PackedTileMin >> 0) & 0xffff), ((PackedTileMin >> 16) & 0xffff));
+
+				if (group_SubTile[LinearIndex].y != 0)
+				{
+					uint oldValue;
+					InterlockedMax(OutDepthCovTexture[Coord], group_SubTile[LinearIndex].x, oldValue);
+					if (group_SubTile[LinearIndex].x > oldValue)
+					{
+						OutPrimMatTexture[Coord] = group_SubTile[LinearIndex].y;
+					}
+				}
+				InterlockedAdd(OutHairCountTexture[Coord], group_SubTile[LinearIndex].z);
+			}
+		}
+
+		GroupMemoryBarrierWithGroupSync();
 	}
 }
+
+#endif //SHADER_RASTERCOMPUTE_RASTER
+
+///////////////////////////////////////////////////////////////////////////
+

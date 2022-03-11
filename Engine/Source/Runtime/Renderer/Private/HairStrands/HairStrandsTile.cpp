@@ -147,6 +147,7 @@ class FHairStrandsTileGenerationPassCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FHairStrandsTileGenerationPassCS, "/Engine/Private/HairStrands/HairStrandsVisibilityTile.usf", "TileMainCS", SF_Compute);
 
 float GetHairStrandsFullCoverageThreshold();
+uint32 GetHairStrandsIntCoverageThreshold();
 
 FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	FRDGBuilder& GraphBuilder,
@@ -180,8 +181,8 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	FHairStrandsTileGenerationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsTileGenerationPassCS::FParameters>();
 	PassParameters->BufferResolution		= InputResolution;//View.ViewRect.Size();
 	PassParameters->bUintTexture			= bUintTexture ? 1u : 0u;
-	PassParameters->TransmittanceThreshold	= 1.f - GetHairStrandsFullCoverageThreshold();
-	PassParameters->IntCoverageThreshold	= 1000u; // Arbitrary
+	PassParameters->TransmittanceThreshold	= 1.f - GetHairStrandsFullCoverageThreshold();	
+	PassParameters->IntCoverageThreshold 	= GetHairStrandsIntCoverageThreshold();
 	PassParameters->InputFloatTexture = bUintTexture ? GSystemTextures.GetBlackDummy(GraphBuilder) : InputTexture;
 	PassParameters->InputUintTexture  = bUintTexture ? InputTexture : GSystemTextures.GetZeroUIntDummy(GraphBuilder);
 	PassParameters->TileHairAllBuffer		= GraphBuilder.CreateUAV(Out.TileDataBuffer[ToIndex(FHairStrandsTiles::ETileType::HairAll)], PF_R16G16_UINT);
