@@ -34,17 +34,17 @@ public class OpenCV : ModuleRules
 			PublicDefinitions.Add("OPENCV_PLATFORM_PATH=Binaries/ThirdParty/" + PlatformDir);
 			PublicDefinitions.Add("OPENCV_DLL_NAME=" + DLLName);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux)
-		{
-			PublicSystemIncludePaths.Add(IncPath);
+		//else if (Target.Platform == UnrealTargetPlatform.Linux)
+		//{
+		//	PublicSystemIncludePaths.Add(IncPath);
 			
-			string LibName = "libopencv_world.so";
-			PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, LibName));
-			RuntimeDependencies.Add(Path.Combine(BinaryPath, LibName));
-			RuntimeDependencies.Add(Path.Combine(BinaryPath, "libopencv_world.so.405"));
-			RuntimeDependencies.Add(Path.Combine(BinaryPath, "libopencv_world.so.4.5.5"));
-			PublicDefinitions.Add("WITH_OPENCV=1");
-		}
+		//	string LibName = "libopencv_world.so";
+		//	PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, LibName));
+		//	RuntimeDependencies.Add(Path.Combine(BinaryPath, LibName));
+		//	RuntimeDependencies.Add(Path.Combine(BinaryPath, "libopencv_world.so.405"));
+		//	RuntimeDependencies.Add(Path.Combine(BinaryPath, "libopencv_world.so.4.5.5"));
+		//	PublicDefinitions.Add("WITH_OPENCV=1");
+		//}
 		else // unsupported platform
 		{
             PublicDefinitions.Add("WITH_OPENCV=0");
