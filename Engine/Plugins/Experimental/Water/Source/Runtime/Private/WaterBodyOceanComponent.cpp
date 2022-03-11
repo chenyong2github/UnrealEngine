@@ -178,7 +178,7 @@ void UWaterBodyOceanComponent::GenerateWaterBodyMesh()
 		MeshVertex.TextureCoordinate[0].X = WaterBodyIndex;
 		WaterBodyMeshVertices.Add(MeshVertex);
 
-		OceanMesh.AppendVertex(MeshVertex.Position);
+		OceanMesh.AppendVertex(FVector3d(Vertex, 0.0));
 	}
 
 	for (const FIndex3i& Triangle : Triangulation.Triangles)

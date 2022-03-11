@@ -96,7 +96,7 @@ void UWaterBodyLakeComponent::GenerateWaterBodyMesh()
 		MeshVertex.TextureCoordinate[0].X = WaterBodyIndex;
 		WaterBodyMeshVertices.Add(MeshVertex);
 
-		LakeMesh.AppendVertex(MeshVertex.Position);
+		LakeMesh.AppendVertex(FVector3d(Vertex, 0.0));
 	}
 
 	for (const FIndex3i& Triangle : Triangulation.Triangles)
