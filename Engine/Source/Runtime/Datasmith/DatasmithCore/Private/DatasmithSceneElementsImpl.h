@@ -190,11 +190,14 @@ public:
 		return Parent.View();
 	}
 
-	virtual void SetIsAComponent(bool Value) { UPDATE_BITFLAGS(Flags, Value, EActorFlags::IsAComponent); }
+	virtual void SetIsAComponent(bool Value) override { UPDATE_BITFLAGS(Flags, Value, EActorFlags::IsAComponent); }
 	virtual bool IsAComponent() const override { return !!(Flags & EActorFlags::IsAComponent); }
 
 	virtual void SetVisibility(bool bInVisibility) override { UPDATE_BITFLAGS(Flags, bInVisibility, EActorFlags::IsVisible); }
 	virtual bool GetVisibility() const override { return !!(Flags & EActorFlags::IsVisible); }
+
+	virtual void SetCastShadow(bool bInCastShadow) override { bCastShadow = bInCastShadow; }
+	virtual bool GetCastShadow() const override { return bCastShadow; }
 
 protected:
 	/** Converts all children's transforms to relative */
@@ -222,7 +225,7 @@ private:
 	TDatasmithReferenceProxy<IDatasmithActorElement> Parent;
 
 	TReflected<EActorFlags, uint8> Flags;
-	TReflected<int32> SelectionIdx;
+	TReflected<bool> bCastShadow;
 };
 
 template< typename InterfaceType >
@@ -235,7 +238,7 @@ inline FDatasmithActorElementImpl<T>::FDatasmithActorElementImpl(const TCHAR* In
 	, Scale(FVector::OneVector)
 	, Rotation(FQuat::Identity)
 	, Flags(EActorFlags::IsVisible)
-	, SelectionIdx(-1)
+	, bCastShadow(true)
 {
 	this->RegisterReferenceProxy(Children, "Children");
 	this->RegisterReferenceProxy(Parent,   "Parent"  );
@@ -245,8 +248,8 @@ inline FDatasmithActorElementImpl<T>::FDatasmithActorElementImpl(const TCHAR* In
 	Store.RegisterParameter(Rotation,     "Rotation"     );
 	Store.RegisterParameter(Layer,        "Layer"        );
 	Store.RegisterParameter(Tags,         "Tags"         ); // reflect as low prio for directlink
-	Store.RegisterParameter(SelectionIdx, "SelectionIdx" );
 	Store.RegisterParameter(Flags,        "Flags"        );
+	Store.RegisterParameter(bCastShadow,  "CastShadow"   );
 }
 
 template< typename T >

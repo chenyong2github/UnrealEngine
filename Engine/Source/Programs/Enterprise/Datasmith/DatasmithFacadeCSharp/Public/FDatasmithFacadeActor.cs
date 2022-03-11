@@ -206,6 +206,15 @@ public class FDatasmithFacadeActor : FDatasmithFacadeElement {
     return ret;
   }
 
+  public void SetCastShadow(bool bInCastShadow) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_SetCastShadow(swigCPtr, bInCastShadow);
+  }
+
+  public bool GetCastShadow() {
+    bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_GetCastShadow(swigCPtr);
+    return ret;
+  }
+
   public FDatasmithFacadeActor.EActorType GetActorType() {
     FDatasmithFacadeActor.EActorType ret = (FDatasmithFacadeActor.EActorType)DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_GetActorType(swigCPtr);
     return ret;

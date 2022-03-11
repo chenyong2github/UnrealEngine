@@ -33,10 +33,7 @@ namespace DatasmithSceneXmlReaderImpl
 		DATASMITH_CUSTOMACTORNAME, DATASMITH_LANDSCAPENAME, DATASMITH_POSTPROCESSVOLUME, DATASMITH_ACTORHIERARCHICALINSTANCEDMESHNAME, DATASMITH_DECALACTORNAME };
 
 	template< typename T >
-	T ValueFromString( const FString& InString )
-	{
-		// Invalid
-	}
+	T ValueFromString( const FString& InString ) = delete;
 
 	template<>
 	float ValueFromString< float >( const FString& InString )
@@ -759,6 +756,9 @@ void FDatasmithSceneXmlReader::ParseActor(FXmlNode* InNode, TSharedPtr<IDatasmit
 
 	FString VisibleAtribute = InNode->GetAttribute(TEXT("visible"));
 	InOutElement->SetVisibility(VisibleAtribute.IsEmpty() ? true : ValueFromString<bool>(VisibleAtribute));
+
+	FString CastShadowAtribute = InNode->GetAttribute(TEXT("castshadow"));
+	InOutElement->SetCastShadow(CastShadowAtribute.IsEmpty() ? true : ValueFromString<bool>(CastShadowAtribute));
 
 	for (FXmlNode* ChildNode : InNode->GetChildrenNodes())
 	{

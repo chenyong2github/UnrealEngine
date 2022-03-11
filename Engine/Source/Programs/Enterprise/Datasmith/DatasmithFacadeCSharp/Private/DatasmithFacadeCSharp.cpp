@@ -3760,6 +3760,28 @@ SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetVisibility(v
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetCastShadow(void * jarg1, unsigned int jarg2) {
+  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
+  bool arg2 ;
+  
+  arg1 = (FDatasmithFacadeActor *)jarg1; 
+  arg2 = jarg2 ? true : false; 
+  (arg1)->SetCastShadow(arg2);
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetCastShadow(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeActor *)jarg1; 
+  result = (bool)((FDatasmithFacadeActor const *)arg1)->GetCastShadow();
+  jresult = result; 
+  return jresult;
+}
+
+
 SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetActorType(void * jarg1) {
   int jresult ;
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
@@ -6726,6 +6748,16 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeDirectLink(void * jarg
 }
 
 
+SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadeUniqueNameProvider() {
+  void * jresult ;
+  FDatasmithFacadeUniqueNameProvider *result = 0 ;
+  
+  result = (FDatasmithFacadeUniqueNameProvider *)new FDatasmithFacadeUniqueNameProvider();
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
 SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeUniqueNameProvider_GenerateUniqueName(void * jarg1, wchar_t * jarg2) {
   wchar_t * jresult ;
   FDatasmithFacadeUniqueNameProvider *arg1 = (FDatasmithFacadeUniqueNameProvider *) 0 ;
@@ -6767,16 +6799,6 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUniqueNameProvider_RemoveExis
   arg1 = (FDatasmithFacadeUniqueNameProvider *)jarg1; 
   arg2 = (TCHAR *)jarg2; 
   (arg1)->RemoveExistingName((TCHAR const *)arg2);
-}
-
-
-SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadeUniqueNameProvider() {
-  void * jresult ;
-  FDatasmithFacadeUniqueNameProvider *result = 0 ;
-  
-  result = (FDatasmithFacadeUniqueNameProvider *)new FDatasmithFacadeUniqueNameProvider();
-  jresult = (void *)result; 
-  return jresult;
 }
 
 

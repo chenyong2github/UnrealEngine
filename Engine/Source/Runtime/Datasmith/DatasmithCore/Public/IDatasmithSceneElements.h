@@ -140,11 +140,17 @@ public:
 	virtual void SetIsAComponent(bool Value) = 0;
 	virtual bool IsAComponent() const = 0;
 
-	/** Get a mesh actor's visibility */
+	/** Set a mesh actor's visibility */
 	virtual void SetVisibility(bool bInVisibility) = 0;
 
-	/** Set a mesh actor's visibility */
+	/** Get a mesh actor's visibility */
 	virtual bool GetVisibility() const = 0;
+
+	/** Set whether an actor's casts shadow */
+	virtual void SetCastShadow(bool bInCastShadow) = 0;
+
+	/** Get whether an actor's casts shadow */
+	virtual bool GetCastShadow() const = 0;
 };
 
 /**

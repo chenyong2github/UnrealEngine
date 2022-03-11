@@ -122,7 +122,12 @@ FString FDatasmithSceneXmlWriterImpl::GetLabelAndLayer(const TSharedPtr<IDatasmi
 
 	if (!ActorElement->GetVisibility())
 	{
-		LabelAndLayer += TEXT(" visible=\"0\"");
+		LabelAndLayer += TEXT(" visible=\"false\"");
+	}
+
+	if (!ActorElement->GetCastShadow())
+	{
+		LabelAndLayer += TEXT(" castshadow=\"false\"");
 	}
 
 	if (ActorElement->IsAComponent())

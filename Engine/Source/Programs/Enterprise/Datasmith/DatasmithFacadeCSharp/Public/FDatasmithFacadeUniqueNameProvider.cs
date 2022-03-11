@@ -45,6 +45,9 @@ public class FDatasmithFacadeUniqueNameProvider : global::System.IDisposable {
     }
   }
 
+  public FDatasmithFacadeUniqueNameProvider() : this(DatasmithFacadeCSharpPINVOKE.new_FDatasmithFacadeUniqueNameProvider(), true) {
+  }
+
   public string GenerateUniqueName(string BaseName) {
     string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUniqueNameProvider_GenerateUniqueName(swigCPtr, BaseName));
     return ret;
@@ -60,9 +63,6 @@ public class FDatasmithFacadeUniqueNameProvider : global::System.IDisposable {
 
   public void RemoveExistingName(string Name) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUniqueNameProvider_RemoveExistingName(swigCPtr, Name);
-  }
-
-  public FDatasmithFacadeUniqueNameProvider() : this(DatasmithFacadeCSharpPINVOKE.new_FDatasmithFacadeUniqueNameProvider(), true) {
   }
 
 }

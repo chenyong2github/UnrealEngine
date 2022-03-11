@@ -191,6 +191,16 @@ bool FDatasmithFacadeActor::GetVisibility() const
 	return GetDatasmithActorElement()->GetVisibility();
 }
 
+void FDatasmithFacadeActor::SetCastShadow(bool bInCastShadow)
+{
+	GetDatasmithActorElement()->SetCastShadow(bInCastShadow);
+}
+
+bool FDatasmithFacadeActor::GetCastShadow() const
+{
+	return GetDatasmithActorElement()->GetCastShadow();
+}
+
 FDatasmithFacadeActor::EActorType FDatasmithFacadeActor::GetActorType() const
 {
 	return FDatasmithFacadeActor::GetActorType(GetDatasmithActorElement());

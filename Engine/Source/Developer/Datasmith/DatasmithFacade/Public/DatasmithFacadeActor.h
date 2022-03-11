@@ -56,13 +56,13 @@ public:
 		float Yaw,
 		float Roll
 	);
-	
+
 	void GetRotation(
 		float& OutPitch,
 		float& OutYaw,
 		float& OutRoll
 	) const;
-	
+
 	void SetRotation(
 		float X,
 		float Y,
@@ -82,7 +82,7 @@ public:
 		float Y,
 		float Z
 	);
-	
+
 	void GetTranslation(
 		float& OutX,
 		float& OutY,
@@ -129,7 +129,7 @@ public:
 	// Get the number of children on this actor
 	int32 GetChildrenCount() const;
 
-	/** 
+	/**
 	 *	Returns a new FDatasmithFacadeActor pointing to the InIndex-th child of the mesh actor
 	 *	If there is no child at the given index, returned value is nullptr.
 	 *	The caller is responsible of deleting the returned object pointer.
@@ -159,6 +159,12 @@ public:
 
 	// Set a mesh actor's visibility
 	bool GetVisibility() const;
+
+	void SetCastShadow(
+		bool bInCastShadow
+	);
+
+	bool GetCastShadow() const;
 
 	EActorType GetActorType() const;
 

@@ -27,6 +27,9 @@ public:
 	bool bVisible;
 
 	UPROPERTY()
+	bool bCastShadow = true;
+
+	UPROPERTY()
 	TSet<FName> Tags;
 
 	virtual UObject* UpdateObject( UObject* Destination, bool bForce = false ) override;

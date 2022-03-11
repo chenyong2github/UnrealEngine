@@ -44,6 +44,14 @@ UObject* UDatasmithSceneComponentTemplate::UpdateObject( UObject* Destination, b
 		SceneComponent->SetVisibility( bVisible );
 	}
 
+	if ( UPrimitiveComponent* PrimComponent = Cast< UPrimitiveComponent >( SceneComponent ) )
+	{
+		if ( !PreviousTemplate || PreviousTemplate->bCastShadow == PrimComponent->CastShadow )
+		{
+			PrimComponent->SetCastShadow( bCastShadow );
+		}
+	}
+
 	const ULevel* SceneComponentLevel = SceneComponent->GetComponentLevel();
 	bool bCanAttach = ( AttachParent && AttachParent->GetComponentLevel() == SceneComponentLevel );
 	bCanAttach |= ( !AttachParent && ( SceneComponentLevel == nullptr || SceneComponentLevel->OwningWorld == Destination->GetWorld() ) );
@@ -126,6 +134,8 @@ void UDatasmithSceneComponentTemplate::Load( const UObject* Source )
 	AttachParent = SceneComponent->GetAttachParent();
 	Tags = TSet<FName>(SceneComponent->ComponentTags);
 
+	const UPrimitiveComponent* PrimComponent = Cast< const UPrimitiveComponent >( SceneComponent );
+	bCastShadow = PrimComponent ? PrimComponent->CastShadow : true;
 #endif // #if WITH_EDITORONLY_DATA
 }
 
@@ -141,6 +151,7 @@ bool UDatasmithSceneComponentTemplate::Equals( const UDatasmithObjectTemplate* O
 	bool bEquals = AreTransformsEqual( RelativeTransform, TypedOther->RelativeTransform );
 	bEquals = bEquals && ( Mobility == TypedOther->Mobility );
 	bEquals = bEquals && ( bVisible == TypedOther->bVisible );
+	bEquals = bEquals && ( bCastShadow == TypedOther->bCastShadow );
 	bEquals = bEquals && ( AttachParent == TypedOther->AttachParent );
 	bEquals = bEquals && FDatasmithObjectTemplateUtils::SetsEquals(Tags, TypedOther->Tags);
 
