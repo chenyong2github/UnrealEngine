@@ -110,6 +110,12 @@ public:
 	}
 
 	/**
+	 * Similar to a tool, this determines whether the activity prefers an accept/cancel option to be
+	 * displayed (if true) vs a "complete".
+	 */
+	virtual bool HasAccept() const { return false; };
+
+	/**
 	 * If true, calling End with EToolShutdownType::Accept will result in a valid completion of
 	 * the activity. It's up to the tool whether to respect this or not, since End() should still
 	 * end the activity.

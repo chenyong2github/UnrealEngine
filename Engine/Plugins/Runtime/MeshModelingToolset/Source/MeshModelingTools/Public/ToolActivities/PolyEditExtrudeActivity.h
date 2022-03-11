@@ -30,6 +30,20 @@ enum class EPolyEditExtrudeDirection
 	LocalZ
 };
 
+UENUM()
+enum class EPolyEditExtrudeDistanceMode
+{
+	/** Set distance by clicking in the viewport. */
+	ClickInViewport,
+
+	/** Set distance with an explicit numerical value, then explictly accept. */
+	Fixed,
+
+	//~ TODO: Add someday
+	// Gizmo,
+};
+
+
 // There is a lot of overlap in the options for Extrude, Offset, and Push/Pull, and they map to
 // the same op behind the scenes. However, we want to keep them as separate buttons to keep some
 // amount of shallowness in the UI, to make it more likely that new users will find the setting
@@ -97,6 +111,14 @@ class MESHMODELINGTOOLS_API UPolyEditExtrudeProperties : public UInteractiveTool
 	GENERATED_BODY()
 
 public:
+	/** How the extrude distance is set. */
+	UPROPERTY(EditAnywhere, Category = Extrude)
+	EPolyEditExtrudeDistanceMode DistanceMode = EPolyEditExtrudeDistanceMode::ClickInViewport;
+
+	/** Distance to extrude. */
+	UPROPERTY(EditAnywhere, Category = Extrude,
+		meta = (EditConditionHides, EditCondition = "DistanceMode == EPolyEditExtrudeDistanceMode::Fixed"))
+	double Distance = 100;
 
 	/** Direction in which to extrude. */
 	UPROPERTY(EditAnywhere, Category = Extrude,
@@ -105,7 +127,7 @@ public:
 
 	/** What axis to measure the extrusion distance along. */
 	UPROPERTY(EditAnywhere, Category = Extrude, AdvancedDisplay,
-		meta = (EditConditionHides, EditCondition = "DirectionMode != EPolyEditExtrudeModeOptions::SingleDirection"))
+		meta = (EditConditionHides, EditCondition = "DirectionMode != EPolyEditExtrudeModeOptions::SingleDirection && DistanceMode == EPolyEditExtrudeDistanceMode::ClickInViewport"))
 	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
 
 	/** Controls whether extruding an entire open-border patch should create a solid or an open shell */
@@ -117,7 +139,7 @@ public:
 	EPolyEditExtrudeModeOptions DirectionMode = EPolyEditExtrudeModeOptions::SingleDirection;
 
 	/** Controls the maximum distance vertices can move from the target distance in order to stay parallel with their source triangles. */
-	UPROPERTY(EditAnywhere, Category = Offset,
+	UPROPERTY(EditAnywhere, Category = Extrude,
 		meta = (ClampMin = "1", EditConditionHides, EditCondition = "DirectionMode == EPolyEditExtrudeModeOptions::SelectedTriangleNormalsEven"))
 	double MaxDistanceScaleFactor = 4.0;
 
@@ -137,6 +159,15 @@ class MESHMODELINGTOOLS_API UPolyEditOffsetProperties : public UInteractiveToolP
 	GENERATED_BODY()
 
 public:
+	/** How the offset distance is set. */
+	UPROPERTY(EditAnywhere, Category = Extrude)
+	EPolyEditExtrudeDistanceMode DistanceMode = EPolyEditExtrudeDistanceMode::ClickInViewport;
+
+	/** Offset distance. */
+	UPROPERTY(EditAnywhere, Category = Extrude,
+		meta = (EditConditionHides, EditCondition = "DistanceMode == EPolyEditExtrudeDistanceMode::Fixed"))
+	double Distance = 100;
+
 	/** Which way to move vertices during the offset */
 	UPROPERTY(EditAnywhere, Category = Offset)
 	EPolyEditOffsetModeOptions DirectionMode = EPolyEditOffsetModeOptions::VertexNormals;
@@ -150,8 +181,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Offset)
 	bool bShellsToSolids = true;
 
-	/** What axis to measure the extrusion distance along. When the direction mode is Single Direction, also controls the direction. */
-	UPROPERTY(EditAnywhere, Category = Offset, AdvancedDisplay)
+	/** What axis to measure the extrusion distance along. */
+	UPROPERTY(EditAnywhere, Category = Offset, AdvancedDisplay, meta = (EditConditionHides,
+		EditCondition = "DistanceMode == EPolyEditExtrudeDistanceMode::ClickInViewport"))
 	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
 
 	/**
@@ -170,6 +202,15 @@ class MESHMODELINGTOOLS_API UPolyEditPushPullProperties : public UInteractiveToo
 	GENERATED_BODY()
 
 public:
+	/** How the offset distance is set. */
+	UPROPERTY(EditAnywhere, Category = Extrude)
+	EPolyEditExtrudeDistanceMode DistanceMode = EPolyEditExtrudeDistanceMode::ClickInViewport;
+
+	/** Offset distance. */
+	UPROPERTY(EditAnywhere, Category = Extrude,
+		meta = (EditConditionHides, EditCondition = "DistanceMode == EPolyEditExtrudeDistanceMode::Fixed"))
+	double Distance = 100;
+
 	/** Which way to move vertices during the offset */
 	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
 	EPolyEditPushPullModeOptions DirectionMode = EPolyEditPushPullModeOptions::SelectedTriangleNormals;
@@ -183,8 +224,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
 	bool bShellsToSolids = true;
 
-	/** What axis to measure the extrusion distance along. When the direction mode is Single Direction, also controls the direction. */
-	UPROPERTY(EditAnywhere, Category = ExtrusionOptions, AdvancedDisplay)
+	/** What axis to measure the extrusion distance along. */
+	UPROPERTY(EditAnywhere, Category = ExtrusionOptions, AdvancedDisplay, meta = (EditConditionHides, 
+		EditCondition = "DistanceMode == EPolyEditExtrudeDistanceMode::ClickInViewport"))
 	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
 
 	/**
@@ -229,6 +271,7 @@ public:
 	virtual bool CanStart() const override;
 	virtual EToolActivityStartResult Start() override;
 	virtual bool IsRunning() const override { return bIsRunning; }
+	virtual bool HasAccept() const { return true; };
 	virtual bool CanAccept() const override;
 	virtual EToolActivityEndResult End(EToolShutdownType) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -277,7 +320,6 @@ protected:
 
 	UE::Geometry::FGroupTopologySelection ActiveSelection;
 	UE::Geometry::FFrame3d ActiveSelectionFrameWorld;
-	UE::Geometry::FFrame3d ExtrusionFrameWorld;
 	float UVScaleFactor = 1.0f;
 
 	bool bRequestedApply = false;

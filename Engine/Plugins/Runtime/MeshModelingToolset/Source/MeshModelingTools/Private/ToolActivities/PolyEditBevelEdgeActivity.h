@@ -48,6 +48,7 @@ public:
 	virtual bool CanStart() const override;
 	virtual EToolActivityStartResult Start() override;
 	virtual bool IsRunning() const override { return bIsRunning; }
+	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
 	virtual EToolActivityEndResult End(EToolShutdownType) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;

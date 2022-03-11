@@ -1075,7 +1075,7 @@ void UEditMeshPolygonsTool::StartActivity(TObjectPtr<UInteractiveToolActivity> A
 		SelectionMechanic->SetIsEnabled(false);
 		SetToolPropertySourceEnabled(SelectionMechanic->Properties, false);
 		CurrentActivity = Activity;
-		if (CurrentActivity == BevelEdgeActivity)
+		if (CurrentActivity->HasAccept())
 		{
 			SetToolPropertySourceEnabled(AcceptCancelAction, true);
 		}
