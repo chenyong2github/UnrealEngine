@@ -75,7 +75,7 @@ FUVRange GetUVRange(RWByteAddressBuffer InputBuffer, uint StartOffset, uint Inde
 
 float2 UnpackTexCoord(uint2 Packed, FUVRange UVRange)
 {
-	uint2 T = Packed + ((Packed > UVRange.GapStart) ? UVRange.GapLength : 0u);
+	uint2 T = Packed + select(Packed > UVRange.GapStart, UVRange.GapLength, 0u);
 
 	const float Scale = asfloat(asint(1.0f) - (UVRange.Precision << 23));
 	return float2((int2)T + UVRange.Min) * Scale;
@@ -87,7 +87,7 @@ float3 UnpackNormal(uint Packed, uint Bits)
 	float2 F = uint2(BitFieldExtractU32(Packed, Bits, 0), BitFieldExtractU32(Packed, Bits, Bits)) * (2.0f / Mask) - 1.0f;
 	float3 N = float3(F.xy, 1.0 - abs(F.x) - abs(F.y));
 	float T = saturate(-N.z);
-	N.xy += N.xy >= 0.0 ? -T : T;
+	N.xy += select(N.xy >= 0.0, -T, T);
 	return N;
 }
 

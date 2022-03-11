@@ -169,7 +169,7 @@ float4 CalculateOcclusion(float4 ShadowmapDepth, FPCFSamplerSettings Settings)
 		float4 Thickness = max(Settings.SceneDepth - ShadowmapDepth, 0);
 		float4 Occlusion = saturate(FastExp(-Thickness * Settings.DensityMulConstant));
 		// Never shadow from depths that were never written to (max depth value)
-		return ShadowmapDepth > .99f ? 1 : Occlusion;
+		return select(ShadowmapDepth > .99f, 1.0, Occlusion);
 	}
 	else
 	{
@@ -203,7 +203,7 @@ float3 CalculateOcclusion(float3 ShadowmapDepth, FPCFSamplerSettings Settings)
 		float3 Thickness = max(Settings.SceneDepth - ShadowmapDepth, 0);
 		float3 Occlusion = saturate(FastExp(-Thickness * Settings.DensityMulConstant));
 		// Never shadow from depths that were never written to (max depth value)
-		return ShadowmapDepth > .99f ? 1 : Occlusion;
+		return select(ShadowmapDepth > .99f, 1.0, Occlusion);
 	}
 	else
 	{

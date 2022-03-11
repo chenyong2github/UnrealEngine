@@ -328,16 +328,16 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 		const FUVRange UVRange	= GetUVRange(SrcPageBuffer, SrcPageBaseOffset + PageDiskHeader.DecodeInfoOffset + LocalClusterIndex * CompileTimeNumTexCoords *  32, TexCoordIndex);
         
 		const float Scale		= asfloat(asint(1.0f) + ((UVRange.Precision - SrcUVRange.Precision) << 23));
-		const int2 SrcUV		= SrcPackedUV + ((SrcPackedUV > SrcUVRange.GapStart) ? SrcUVRange.GapLength : 0u) + SrcUVRange.Min;
+		const int2 SrcUV		= SrcPackedUV + select(SrcPackedUV > SrcUVRange.GapStart, SrcUVRange.GapLength, 0u) + SrcUVRange.Min;
 		int2 DstUV				= int2(round(SrcUV*Scale));
 		uint2 DstPackedUV		= (uint2)max(DstUV - UVRange.Min, 0);
 
 		const uint2 GapMid		= UVRange.GapStart + (UVRange.GapLength >> 1);
 		const bool2 bOverMid	= DstPackedUV > GapMid;
 		
-		const uint2 RangeMin	= bOverMid ? (UVRange.GapStart + 1u) : 0u;
-		const uint2 RangeMax	= bOverMid ? uint2(BitFieldMaskU32(DstU_NumBits, 0), BitFieldMaskU32(DstV_NumBits, 0)) : UVRange.GapStart;
-		DstPackedUV				= bOverMid ? (DstPackedUV - UVRange.GapLength) : DstPackedUV;
+		const uint2 RangeMin	= select(bOverMid, UVRange.GapStart + 1u, 0u);
+		const uint2 RangeMax	= select(bOverMid, uint2(BitFieldMaskU32(DstU_NumBits, 0), BitFieldMaskU32(DstV_NumBits, 0)), UVRange.GapStart);
+		DstPackedUV				= select(bOverMid, DstPackedUV - UVRange.GapLength, DstPackedUV);
 		DstPackedUV				= fastClamp(DstPackedUV, RangeMin, RangeMax);
 		
 		BitStreamWriter_Writer(DstPageBuffer, OutputStream, (DstPackedUV.y << DstU_NumBits) | DstPackedUV.x, DstU_NumBits + DstV_NumBits, 2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS);

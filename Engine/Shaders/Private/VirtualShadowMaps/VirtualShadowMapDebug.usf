@@ -112,7 +112,7 @@ float3 DebugVisualizeClipmap(uint2 OutputPixel, int VirtualShadowMapId)
 	uint SquareDomainDim = min(DebugTargetWidth, DebugTargetHeight) - BorderWidth * 2U;
 
 	// fill background pixels
-	if (any(OutputPixel < BorderWidth || OutputPixel >(SquareDomainDim + BorderWidth)))
+	if (any(or(OutputPixel < BorderWidth, OutputPixel >(SquareDomainDim + BorderWidth))))
 	{
 		return BackGroundColor;
 	}

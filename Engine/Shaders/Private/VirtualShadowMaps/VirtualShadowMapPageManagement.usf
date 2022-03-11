@@ -92,8 +92,8 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 TranslatedWorldPosi
 	// Check overlap vs the shadow map space
 	// NOTE: XY test not really needed anymore with the precise cone test in the caller, but we'll leave it for the moment
 	bool bInClip = ShadowUVz.w > 0.0f && 
-		all(ShadowUVz.xyz <= ShadowUVz.w &&
-			ShadowUVz.xyz >= float3(-ShadowUVz.ww, 0.0f));
+		all(and(ShadowUVz.xyz <= ShadowUVz.w,
+				ShadowUVz.xyz >= float3(-ShadowUVz.ww, 0.0f)));
 	if (!bInClip)
 	{
 		return;

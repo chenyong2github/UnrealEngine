@@ -301,7 +301,7 @@ float4 GetDominantFacePlane( float3 ViewOrigin, float3 BoundsCenter, float3 Boun
 	FaceNormal.y = Axis == 1 ? Sign : 0;
 	FaceNormal.z = Axis == 2 ? Sign : 0;
 
-	float3 ClosestCorner = BoundsCenter + (UnitCubeDir > 0 ? BoundsExtent : -BoundsExtent);
+	float3 ClosestCorner = BoundsCenter + select(UnitCubeDir > 0, BoundsExtent, -BoundsExtent);
 
 	return float4( FaceNormal, dot( FaceNormal, -ClosestCorner ) );
 }
@@ -349,7 +349,7 @@ FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x
 	
 	if (!bSkipFrustumCull) // for debugging, will compile out
 	{
-		const bool bFrustumCull = any(Cull.RectMax.xy < -1.0f || Cull.RectMin.xy > 1.0f);
+		const bool bFrustumCull = any(or(Cull.RectMax.xy < -1.0f, Cull.RectMin.xy > 1.0f));
 		Cull.bFrustumSideCulled = Cull.bIsVisible && bFrustumCull;
 		Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
 	}
@@ -434,17 +434,19 @@ FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 Lo
 	{
 		// Test if all points are outside one side of the frustum.
 		// One vector compare per test. The rest is scalar.
-		bool2 SignMin =		 PC000.xy > PC000.w &&  PC001.xy > PC001.w && 
-							 PC010.xy > PC010.w &&  PC011.xy > PC011.w && 
-							 PC100.xy > PC100.w &&  PC101.xy > PC101.w && 
-							 PC110.xy > PC110.w &&  PC111.xy > PC111.w;
+		bool2 SignMin =	and(
+			and(and(PC000.xy > PC000.w, PC001.xy > PC001.w),
+				and(PC010.xy > PC010.w, PC011.xy > PC011.w)), 
+			and(and(PC100.xy > PC100.w, PC101.xy > PC101.w), 
+				and(PC110.xy > PC110.w, PC111.xy > PC111.w)));
 
-		bool2 SignMax =		-PC000.xy > PC000.w && -PC001.xy > PC001.w && 
-							-PC010.xy > PC010.w && -PC011.xy > PC011.w && 
-							-PC100.xy > PC100.w && -PC101.xy > PC101.w && 
-							-PC110.xy > PC110.w && -PC111.xy > PC111.w;
+		bool2 SignMax =	and(
+			and(and(-PC000.xy > PC000.w, -PC001.xy > PC001.w),
+				and(-PC010.xy > PC010.w, -PC011.xy > PC011.w)),
+			and(and(-PC100.xy > PC100.w, -PC101.xy > PC101.w), 
+				and(-PC110.xy > PC110.w, -PC111.xy > PC111.w)));
 
-		const bool bFrustumCull = any(SignMin || SignMax);
+		const bool bFrustumCull = any(or(SignMin, SignMax));
 		Cull.bFrustumSideCulled = Cull.bIsVisible && bFrustumCull;
 		Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
 	}
