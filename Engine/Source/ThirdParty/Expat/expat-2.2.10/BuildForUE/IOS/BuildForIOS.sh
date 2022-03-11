@@ -13,8 +13,8 @@ mkdir -pv "${BUILD_DIR}"
 
 VERSION=$(xcodebuild -version 2>&1 | head -n 1)
 
-if [[ ${VERSION} != "Xcode 12.5" ]]; then
-	echo Please use Xcode 12.5
+if [[ ${VERSION} != "Xcode 12.4" ]]; then
+	echo Please use Xcode 12.4
 	exit 1
 fi
 
