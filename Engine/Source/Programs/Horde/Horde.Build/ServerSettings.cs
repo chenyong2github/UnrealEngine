@@ -490,6 +490,16 @@ namespace HordeServer
 		public PoolSizeStrategy DefaultAgentPoolSizeStrategy { get; set; } = PoolSizeStrategy.LeaseUtilization;
 
 		/// <summary>
+		/// Scale-out cooldown for auto-scaling agent pools (in seconds). Can be overridden by per-pool settings.
+		/// </summary>
+		public int AgentPoolScaleOutCooldownSeconds { get; set; } = 60; // 1 min
+		
+		/// <summary>
+		/// Scale-in cooldown for auto-scaling agent pools (in seconds). Can be overridden by per-pool settings.
+		/// </summary>
+		public int AgentPoolScaleInCooldownSeconds { get; set; } = 1200; // 20 mins
+
+		/// <summary>
 		/// Set the minimum size of the global thread pool
 		/// This value has been found in need of tweaking to avoid timeouts with the Redis client during bursts
 		/// of traffic. Default is 16 for .NET Core CLR. The correct value is dependent on the traffic the Horde Server

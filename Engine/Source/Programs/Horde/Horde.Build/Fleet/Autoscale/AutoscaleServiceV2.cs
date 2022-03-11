@@ -28,20 +28,19 @@ namespace Horde.Build.Fleet.Autoscale
 	/// </summary>
 	public sealed class AutoscaleServiceV2 : IHostedService, IDisposable
 	{
-		static readonly TimeSpan DefaultScaleOutCooldown = TimeSpan.FromMinutes(5);
-		static readonly TimeSpan DefaultScaleInCooldown = TimeSpan.FromMinutes(20);
-
-		IPoolSizeStrategy LeaseUtilizationStrategy;
-		IPoolSizeStrategy JobQueueStrategy;
-		IPoolSizeStrategy NoOpStrategy;
-		IAgentCollection AgentCollection;
-		IPoolCollection PoolCollection;
-		IFleetManager FleetManager;
-		IDogStatsd DogStatsd;
-		IClock Clock;
-		ITicker Ticker;
-		ServerSettings Settings;
-		ILogger<AutoscaleServiceV2> Logger;
+		private IPoolSizeStrategy LeaseUtilizationStrategy;
+		private IPoolSizeStrategy JobQueueStrategy;
+		private IPoolSizeStrategy NoOpStrategy;
+		private readonly IAgentCollection AgentCollection;
+		private readonly IPoolCollection PoolCollection;
+		private readonly IFleetManager FleetManager;
+		private readonly IDogStatsd DogStatsd;
+		private readonly IClock Clock;
+		private readonly ITicker Ticker;
+		private readonly ServerSettings Settings;
+		private readonly TimeSpan DefaultScaleOutCooldown;
+		private readonly TimeSpan DefaultScaleInCooldown;
+		private readonly ILogger<AutoscaleServiceV2> Logger;
 
 		/// <summary>
 		/// Constructor
@@ -59,6 +58,8 @@ namespace Horde.Build.Fleet.Autoscale
 			this.Ticker = Clock.AddSharedTicker<AutoscaleServiceV2>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, Logger);
 			this.Settings = Settings.Value;
 			this.Logger = Logger;
+			this.DefaultScaleOutCooldown = TimeSpan.FromSeconds(Settings.Value.AgentPoolScaleOutCooldownSeconds);
+			this.DefaultScaleInCooldown = TimeSpan.FromSeconds(Settings.Value.AgentPoolScaleInCooldownSeconds);
 		}
 
 		/// <inheritdoc/>
