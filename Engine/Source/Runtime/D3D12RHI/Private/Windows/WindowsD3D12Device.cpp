@@ -372,19 +372,58 @@ static bool SupportsHDROutput(FD3D12DynamicRHI* D3DRHI)
 	return bSupportsHDROutput;
 }
 
-static bool ShouldEnableExperimentalShaderModels()
+static bool IsAdapterBlocked(FD3D12Adapter* InAdapter)
 {
 #if !UE_BUILD_SHIPPING
-	if (CVarExperimentalShaderModels.GetValueOnAnyThread() == 1)
+	if (InAdapter)
 	{
-		return true;
+		FString BlockedIHVString;
+		if (GConfig->GetString(TEXT("SystemSettings"), TEXT("RHI.BlockIHVD3D12"), BlockedIHVString, GEngineIni))
+		{
+			TArray<FString> BlockedIHVs;
+			BlockedIHVString.ParseIntoArray(BlockedIHVs, TEXT(","));
+
+			const TCHAR* VendorId = RHIVendorIdToString(EGpuVendorId(InAdapter->GetD3DAdapterDesc().VendorId));
+			for (const FString& BlockedVendor : BlockedIHVs)
+			{
+				if (BlockedVendor.Equals(VendorId, ESearchCase::IgnoreCase))
+				{
+					return true;
+				}
+			}
+		}
 	}
-#endif // !UE_BUILD_SHIPPING
+#endif
 
 	return false;
 }
 
-bool FD3D12DynamicRHIModule::IsSupported()
+static bool IsAdapterSupported(FD3D12Adapter* InAdapter, ERHIFeatureLevel::Type InRequestedFeatureLevel)
+{
+	if (InAdapter)
+	{
+		if (const FD3D12AdapterDesc& Desc = InAdapter->GetDesc(); Desc.IsValid())
+		{
+			ERHIFeatureLevel::Type MaxSupportedFeatureLevel = ERHIFeatureLevel::Num;
+
+			// TODO: D3D_FEATURE_LEVEL_12_2?
+			if (Desc.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_12_1 && Desc.MaxSupportedShaderModel >= D3D_SHADER_MODEL_6_6)
+			{
+				MaxSupportedFeatureLevel = ERHIFeatureLevel::SM6;
+			}
+			else if (Desc.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_11_0)
+			{
+				MaxSupportedFeatureLevel = ERHIFeatureLevel::SM5;
+			}
+
+			return MaxSupportedFeatureLevel != ERHIFeatureLevel::Num && MaxSupportedFeatureLevel >= InRequestedFeatureLevel;
+		}
+	}
+
+	return false;
+}
+
+bool FD3D12DynamicRHIModule::IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
 #if !PLATFORM_HOLOLENS
 	if (!FPlatformMisc::VerifyWindowsVersion(10, 0))
@@ -393,52 +432,16 @@ bool FD3D12DynamicRHIModule::IsSupported()
 	}
 #endif
 
-	if (ShouldEnableExperimentalShaderModels())
-	{
-		// Experimental features must be enabled before doing anything else with D3D.
-
-		UUID ExperimentalFeatures[] =
-		{
-			D3D12ExperimentalShaderModels
-		};
-		HRESULT hr = D3D12EnableExperimentalFeatures(UE_ARRAY_COUNT(ExperimentalFeatures), ExperimentalFeatures, nullptr, nullptr);
-		if (SUCCEEDED(hr))
-		{
-			UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 experimental shader models enabled"));
-		}
-	}
-
 	// If not computed yet
 	if (ChosenAdapters.Num() == 0)
 	{
 		FindAdapter();
 	}
 
-	bool bBlockD3D12 = false;
-#if UE_BUILD_SHIPPING
-	FString BlockedIHVString;
-	if (ChosenAdapters.Num() > 0 && ChosenAdapters[0].IsValid() && GConfig->GetString(TEXT("SystemSettings"), TEXT("RHI.BlockIHVD3D12"), BlockedIHVString, GEngineIni))
-	{
-		TArray<FString> BlockedIHVs;
-		BlockedIHVString.ParseIntoArray(BlockedIHVs, TEXT(","));
-
-		const TCHAR* VendorId = RHIVendorIdToString(EGpuVendorId(ChosenAdapters[0]->GetD3DAdapterDesc().VendorId));
-		for (const FString& BlockedVendor : BlockedIHVs)
-		{
-			if (BlockedVendor.Equals(VendorId, ESearchCase::IgnoreCase))
-			{
-				bBlockD3D12 = true;
-				break;
-			}
-		}
-	}
-#endif
-
 	// The hardware must support at least 11.0.
 	return ChosenAdapters.Num() > 0
-		&& ChosenAdapters[0]->GetDesc().IsValid()
-		&& ChosenAdapters[0]->GetDesc().MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_11_0
-		&& !bBlockD3D12;
+		&& !IsAdapterBlocked(ChosenAdapters[0].Get())
+		&& IsAdapterSupported(ChosenAdapters[0].Get(), RequestedFeatureLevel);
 }
 
 namespace D3D12RHI
@@ -456,6 +459,9 @@ namespace D3D12RHI
 		case D3D_FEATURE_LEVEL_11_1:	return TEXT("11_1");
 		case D3D_FEATURE_LEVEL_12_0:	return TEXT("12_0");
 		case D3D_FEATURE_LEVEL_12_1:	return TEXT("12_1");
+#if !PLATFORM_HOLOLENS
+		case D3D_FEATURE_LEVEL_12_2:	return TEXT("12_2");
+#endif
 		}
 		return TEXT("X_X");
 	}
@@ -482,6 +488,23 @@ void FD3D12DynamicRHIModule::FindAdapter()
 {
 	// Once we've chosen one we don't need to do it again.
 	check(ChosenAdapters.Num() == 0);
+
+#if !UE_BUILD_SHIPPING
+	if (CVarExperimentalShaderModels.GetValueOnAnyThread() == 1)
+	{
+		// Experimental features must be enabled before doing anything else with D3D.
+
+		UUID ExperimentalFeatures[] =
+		{
+			D3D12ExperimentalShaderModels
+		};
+		HRESULT hr = D3D12EnableExperimentalFeatures(UE_ARRAY_COUNT(ExperimentalFeatures), ExperimentalFeatures, nullptr, nullptr);
+		if (SUCCEEDED(hr))
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 experimental shader models enabled"));
+		}
+	}
+#endif
 
 	// Try to create the DXGIFactory.  This will fail if we're not running Vista.
 	TRefCountPtr<IDXGIFactory4> DXGIFactory4;
@@ -679,8 +702,7 @@ static bool DoesAnyAdapterSupportSM6(const TArray<TSharedPtr<FD3D12Adapter>>& Ad
 {
 	for (const TSharedPtr<FD3D12Adapter>& Adapter : Adapters)
 	{
-		// TODO: D3D_FEATURE_LEVEL_12_2
-		if (Adapter->GetFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && Adapter->GetHighestShaderModel() >= D3D_SHADER_MODEL_6_6)
+		if (IsAdapterSupported(Adapter.Get(), ERHIFeatureLevel::SM6))
 		{
 			return true;
 		}

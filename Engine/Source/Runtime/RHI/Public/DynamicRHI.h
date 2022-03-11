@@ -1682,6 +1682,8 @@ public:
 	/** Checks whether the RHI is supported by the current system. */
 	virtual bool IsSupported() = 0;
 
+	virtual bool IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel) { return IsSupported(); }
+
 	/** Creates a new instance of the dynamic RHI implemented by the module. */
 	virtual FDynamicRHI* CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::Num) = 0;
 };

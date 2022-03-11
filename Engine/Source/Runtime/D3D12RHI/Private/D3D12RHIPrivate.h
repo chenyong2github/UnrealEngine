@@ -1284,7 +1284,8 @@ public:
 	virtual void ShutdownModule() override;
 
 	// IDynamicRHIModule
-	virtual bool IsSupported() override;
+	virtual bool IsSupported() override { return IsSupported(ERHIFeatureLevel::SM5); }
+	virtual bool IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel) override;
 	virtual FDynamicRHI* CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::Num) override;
 
 private:
