@@ -63,6 +63,13 @@ public:
 	/** Broadcasts when a new tab is created. */
 	UPROPERTY(BlueprintAssignable, Category = TabList)
 	FOnTabButtonRemoval OnTabButtonRemoval;
+	
+	/** Delegate broadcast when the tab list has been rebuilt (after a new tab has been inserted rather than added to the end). */
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTabListRebuilt);
+	
+	/** Broadcasts when the tab list has been rebuilt (after a new tab has been inserted rather than added to the end). */
+	UPROPERTY(BlueprintAssignable, Category = TabList)
+	FOnTabListRebuilt OnTabListRebuilt;
 
 	/** @return The currently active (selected) tab */
 	UFUNCTION(BlueprintCallable, Category = TabList)
@@ -84,10 +91,11 @@ public:
 	 * @param TabID The name ID used to keep track of this tab. Attempts to register a tab under a duplicate ID will fail.
 	 * @param ButtonWidgetType The widget type to create for this tab
 	 * @param ContentWidget The widget to associate with the registered tab
+	 * @param TabIndex Determines where in the tab list to insert the new tab (-1 means tab will be added to end of the list)
 	 * @return True if the new tab registered successfully and there were no name ID conflicts
 	 */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	bool RegisterTab(FName TabNameID, TSubclassOf<UCommonButtonBase> ButtonWidgetType, UWidget* ContentWidget);
+	bool RegisterTab(FName TabNameID, TSubclassOf<UCommonButtonBase> ButtonWidgetType, UWidget* ContentWidget, const int32 TabIndex = -1 /*INDEX_NONE*/);
 
 	UFUNCTION(BlueprintCallable, Category = TabList)
 	bool RemoveTab(FName TabNameID);
@@ -143,6 +151,8 @@ protected:
 
 	virtual void UpdateBindings();
 
+	bool IsRebuildingList() const;
+
 	UFUNCTION(BlueprintImplementableEvent, Category = TabList, meta = (BlueprintProtected = "true"))
 	void HandlePreLinkedSwitcherChanged_BP();
 
@@ -171,7 +181,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (ExposeOnSpawn = "true"))
 	bool bAutoListenForInput;
 
+	/**
+	* Whether to defer until next tick rebuilding tab list when inserting new tab (rather than adding to the end).
+	* Useful if inserting multiple tabs in the same tick as the tab list will only be rebuilt once.
+	*/
+	UPROPERTY(EditAnywhere, Category = TabList)
+	bool bDeferRebuildingTabList;
+
 protected:
+	const TMap<FName, FCommonRegisteredTabInfo>& GetRegisteredTabsByID() const;
+
 	UFUNCTION()
 	void HandleTabButtonSelected(UCommonButtonBase* SelectedTabButton, int32 ButtonIndex);
 
@@ -196,13 +215,18 @@ private:
 	void HandleNextTabAction();
 	void HandlePreviousTabAction();
 
+	bool DeferredRebuildTabList(float DeltaTime);
+	void RebuildTabList();
+
 	/** Info about each of the currently registered tabs organized by a given registration name ID */
 	UPROPERTY(Transient)
 	TMap<FName, FCommonRegisteredTabInfo> RegisteredTabsByID;
 
-
 	/** The registration ID of the currently active tab */
 	FName ActiveTabID;
+
+	bool bIsRebuildingList = false;
+	bool bPendingRebuild = false;
 
 	FUIActionBindingHandle NextTabActionHandle;
 	FUIActionBindingHandle PrevTabActionHandle;

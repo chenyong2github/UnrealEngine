@@ -3,21 +3,25 @@
 #include "CommonTabListWidgetBase.h"
 #include "CommonUIPrivatePCH.h"
 
-#include "CommonUISubsystemBase.h"
-#include "Groups/CommonButtonGroupBase.h"
-#include "CommonAnimatedSwitcher.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
-#include "ICommonUIModule.h"
+#include "CommonAnimatedSwitcher.h"
+#include "CommonUISubsystemBase.h"
 #include "CommonUIUtils.h"
+#include "Containers/Ticker.h"
+#include "Groups/CommonButtonGroupBase.h"
+#include "ICommonUIModule.h"
 #include "Input/CommonUIInputTypes.h"
 
 UCommonTabListWidgetBase::UCommonTabListWidgetBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bAutoListenForInput(false)
+	, bDeferRebuildingTabList(false)
 	, TabButtonGroup(nullptr)
 	, bIsListeningForInput(false)
 	, RegisteredTabsByID()
 	, ActiveTabID(NAME_None)
+	, bIsRebuildingList(false)
+	, bPendingRebuild(false)
 {
 }
  
@@ -36,23 +40,30 @@ UCommonAnimatedSwitcher* UCommonTabListWidgetBase::GetLinkedSwitcher() const
 	return LinkedSwitcher.Get();
 }
 
-bool UCommonTabListWidgetBase::RegisterTab(FName TabNameID, TSubclassOf<UCommonButtonBase> ButtonWidgetType, UWidget* ContentWidget)
+bool UCommonTabListWidgetBase::RegisterTab(FName TabNameID, TSubclassOf<UCommonButtonBase> ButtonWidgetType, UWidget* ContentWidget, const int32 TabIndex /*= INDEX_NONE*/)
 {
-	bool AreParametersValid = true;
+	bool bAreParametersValid = true;
 
 	// Early out on redundant tab registration.
 	if (!ensure(!RegisteredTabsByID.Contains(TabNameID)))
 	{
-		AreParametersValid = false;
+		bAreParametersValid = false;
 	}
 
 	// Early out on invalid tab button type.
 	if (!ensure(ButtonWidgetType))
 	{
-		AreParametersValid = false;
+		bAreParametersValid = false;
+	}
+	
+	// NOTE: Adding the button to the group may change it's selection, which raises an event we listen to,
+	// which can only properly be handled if we already know that this button is associated with a registered tab.
+	if (!ensure(TabButtonGroup))
+	{
+		bAreParametersValid = false;
 	}
 
-	if (!AreParametersValid)
+	if (!bAreParametersValid)
 	{
 		return false;
 	}
@@ -63,9 +74,27 @@ bool UCommonTabListWidgetBase::RegisterTab(FName TabNameID, TSubclassOf<UCommonB
 		return false;
 	}
 
+	const int32 NumRegisteredTabs = RegisteredTabsByID.Num();
+	const int32 NewTabIndex = (TabIndex == INDEX_NONE) ? NumRegisteredTabs : FMath::Clamp(TabIndex, 0, NumRegisteredTabs);
+
+	// If the new tab is being inserted before the end of the list, we need to rebuild the tab list.
+	const bool bRequiresRebuild = (NewTabIndex < NumRegisteredTabs);
+
+	if (bRequiresRebuild)
+	{
+		for (TPair<FName, FCommonRegisteredTabInfo>& Pair : RegisteredTabsByID)
+		{
+			if (NewTabIndex <= Pair.Value.TabIndex)
+			{
+				// Increment this tab's index as we are inserting the new tab before it.
+				Pair.Value.TabIndex++;
+			}
+		}
+	}
+
 	// Tab book-keeping.
 	FCommonRegisteredTabInfo NewTabInfo;
-	NewTabInfo.TabIndex = RegisteredTabsByID.Num();
+	NewTabInfo.TabIndex = NewTabIndex;
 	NewTabInfo.TabButton = NewTabButton;
 	NewTabInfo.ContentInstance = ContentWidget;
 	RegisteredTabsByID.Add(TabNameID, NewTabInfo);
@@ -73,20 +102,31 @@ bool UCommonTabListWidgetBase::RegisterTab(FName TabNameID, TSubclassOf<UCommonB
 	// Enforce the "contract" that tab buttons require - single-selectability, but not toggleability.
 	NewTabButton->SetIsSelectable(true);
 	NewTabButton->SetIsToggleable(false);
-	// NOTE: Adding the button to the group may change it's selection, which raises an event we listen to,
-	// which can only properly be handled if we already know that this button is associated with a registered tab.
-	if (ensure(TabButtonGroup != nullptr))
-	{
-		TabButtonGroup->AddWidget(NewTabButton);
-	}
 
-	// Callbacks.
+	TabButtonGroup->AddWidget(NewTabButton);
 	HandleTabCreation(TabNameID, NewTabInfo.TabButton);
+	
 	OnTabButtonCreation.Broadcast(TabNameID, NewTabInfo.TabButton);
+	
+	if (bRequiresRebuild)
+	{
+		if (bDeferRebuildingTabList)
+		{
+			if (!bPendingRebuild)
+			{
+				bPendingRebuild = true;
+
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonTabListWidgetBase::DeferredRebuildTabList));
+			}
+		}
+		else
+		{
+			RebuildTabList();
+		}
+	}
 
 	return true;
 }
-
 
 bool UCommonTabListWidgetBase::RemoveTab(FName TabNameID)
 {
@@ -159,6 +199,11 @@ void UCommonTabListWidgetBase::UpdateBindings()
 		NextTabActionHandle.Unregister();
 		PrevTabActionHandle.Unregister();
 	}
+}
+
+bool UCommonTabListWidgetBase::IsRebuildingList() const
+{
+	return bIsRebuildingList;
 }
 
 bool UCommonTabListWidgetBase::SelectTabByID(FName TabNameID, bool bSuppressClickFeedback)
@@ -346,6 +391,11 @@ void UCommonTabListWidgetBase::HandleTabRemoval_Implementation(FName TabNameID, 
 {
 }
 
+const TMap<FName, FCommonRegisteredTabInfo>& UCommonTabListWidgetBase::GetRegisteredTabsByID() const
+{
+	return RegisteredTabsByID;
+}
+
 void UCommonTabListWidgetBase::HandleTabButtonSelected(UCommonButtonBase* SelectedTabButton, int32 ButtonIndex)
 {
 	for (auto& TabPair : RegisteredTabsByID)
@@ -395,4 +445,47 @@ void UCommonTabListWidgetBase::HandlePreviousTabAction()
 	{
 		TabButtonGroup->SelectPreviousButton();
 	}
+}
+
+bool UCommonTabListWidgetBase::DeferredRebuildTabList(float DeltaTime)
+{
+	bPendingRebuild = false;
+	RebuildTabList();
+	return false;
+}
+
+void UCommonTabListWidgetBase::RebuildTabList()
+{
+	bIsRebuildingList = true;
+
+	// Copy the registered tabs (as we are about to clear them) and sort by TabIndex.
+	TMap<FName, FCommonRegisteredTabInfo> SortedRegisteredTabsByID = RegisteredTabsByID;
+	SortedRegisteredTabsByID.ValueSort([](const FCommonRegisteredTabInfo& TabInfoA, const FCommonRegisteredTabInfo& TabInfoB)
+		{
+			return (TabInfoA.TabIndex < TabInfoB.TabIndex);
+		});
+
+	// Keep track of the current ActiveTabID so we can restore it after the list is rebuilt.
+	const FName CurrentActiveTabID = ActiveTabID;
+
+	// Disable selection required temporarily so we can deselect everything, rebuild the list, then select the tab we want.
+	TabButtonGroup->SetSelectionRequired(false);
+	TabButtonGroup->DeselectAll();
+	RemoveAllTabs();
+
+	RegisteredTabsByID = SortedRegisteredTabsByID;
+
+	for (TPair<FName, FCommonRegisteredTabInfo>& Pair : RegisteredTabsByID)
+	{
+		TabButtonGroup->AddWidget(Pair.Value.TabButton);
+		HandleTabCreation(Pair.Key, Pair.Value.TabButton);
+	}
+
+	bIsRebuildingList = false;
+
+	constexpr bool bSuppressClickFeedback = true;
+	SelectTabByID(CurrentActiveTabID, bSuppressClickFeedback);
+
+	TabButtonGroup->SetSelectionRequired(true);
+	OnTabListRebuilt.Broadcast();
 }
