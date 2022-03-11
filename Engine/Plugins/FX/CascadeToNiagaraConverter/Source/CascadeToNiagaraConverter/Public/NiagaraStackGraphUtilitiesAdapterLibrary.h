@@ -479,11 +479,8 @@ struct FCreateScriptContextArgs
 	GENERATED_BODY()
 
 public:
-	FCreateScriptContextArgs() = default;
-
 	FCreateScriptContextArgs(FAssetData InScriptAsset)
 		: ScriptAsset(InScriptAsset)
-		, bScriptVersionSet(false)
 		, ScriptVersion()
 	{};
 
@@ -497,7 +494,7 @@ public:
 	FAssetData ScriptAsset;
 
 	UPROPERTY()
-	bool bScriptVersionSet;
+	bool bScriptVersionSet = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
 	FNiagaraScriptVersion ScriptVersion;
