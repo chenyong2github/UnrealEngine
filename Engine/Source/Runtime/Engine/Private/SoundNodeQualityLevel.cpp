@@ -117,7 +117,7 @@ void USoundNodeQualityLevel::ParseNodes( FAudioDevice* AudioDevice, const UPTRIN
 	int32 QualityLevel = USoundCue::GetCachedQualityLevel();
 	
 	// If CookedQualityLevelIndex has been set, we will have a *single* quality level.
-	if (CookedQualityLevelIndex >= 0)
+	if (CookedQualityLevelIndex >= 0 && ChildNodes.Num() == 1)
 	{	
 		// Remap to index 0 (as all other levels have been removed by cooker).
 		QualityLevel = 0;
@@ -148,14 +148,26 @@ void USoundNodeQualityLevel::Serialize(FArchive& Ar)
 				CookedQualityLevelIndex = CookOverrides->SoundCueCookQualityIndex;
 
 				// Move out all nodes.
-				TArray<USoundNode*> ChildNodesBackup;
+				TArray<TObjectPtr<class USoundNode>> ChildNodesBackup;
 				ChildNodesBackup = MoveTemp(ChildNodes);
-
+				check(ChildNodes.Num() == 0);
+			
 				// Put *just* the node we care about in our child array to be serialized by the Super
 				if (ChildNodesBackup.IsValidIndex(CookedQualityLevelIndex))
 				{
 					ChildNodes.Add(ChildNodesBackup[CookedQualityLevelIndex]);
 				}
+
+				int32 BranchesPruned = ChildNodesBackup.Num() - ChildNodes.Num();
+				UE_CLOG(
+					BranchesPruned > 0,
+					LogAudio,
+					Display, 
+					TEXT("Pruning '%s' of '%d' quality branches, as it's cooked at '%s' quality."),
+					*GetFullNameSafe(this),
+					BranchesPruned,
+					*GetDefault<UAudioSettings>()->FindQualityNameByIndex(CookedQualityLevelIndex)
+				);
 
 				// Call base serialize that will walk all properties and serialize them.
 				Super::Serialize(Ar);
@@ -190,7 +202,7 @@ void USoundNodeQualityLevel::ForCurrentQualityLevel(TFunction<void(USoundNode*)>
 #endif
 
 	// If CookedQualityLevelIndex has been set, we will have a *single* quality level.
-	if (CookedQualityLevelIndex >= 0)
+	if (CookedQualityLevelIndex >= 0 && ChildNodes.Num() == 1)
 	{
 		// Remap to index 0 (as all other levels have been removed by cooker).
 		QualityLevel = 0;

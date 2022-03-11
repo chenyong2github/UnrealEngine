@@ -212,8 +212,8 @@ void USoundCue::PostLoad()
 #endif // WITH_EDITOR
 
 	// Warn if the Quality index is set to something that we can't support.
-	UE_CLOG(USoundCue::GetCachedQualityLevel() != CookedQualityIndex && CookedQualityIndex != INDEX_NONE, LogAudio, Warning,
-		TEXT("'%s' is ingoring Quality Setting '%s'(%d) as it was cooked with '%s'(%d)"),
+	UE_CLOG(USoundCue::GetCachedQualityLevel() != CookedQualityIndex && CookedQualityIndex != INDEX_NONE, LogAudio, Verbose,
+		TEXT("'%s' is igoring Quality Setting '%s'(%d) as it was cooked with '%s'(%d)"),
 		*GetFullNameSafe(this),
 		*GetDefault<UAudioSettings>()->FindQualityNameByIndex(USoundCue::GetCachedQualityLevel()),
 		USoundCue::GetCachedQualityLevel(),
