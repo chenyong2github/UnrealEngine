@@ -86,6 +86,12 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
+		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		{
+			return Task.FromResult(Hashes.Where(x => !FileReference.Exists(GetBlobFile(NamespaceId, x))).ToHashSet());
+		}
+
+		/// <inheritdoc/>
 		public Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
 		{
 			FileReference File = GetRefFile(NamespaceId, BucketId, RefId);

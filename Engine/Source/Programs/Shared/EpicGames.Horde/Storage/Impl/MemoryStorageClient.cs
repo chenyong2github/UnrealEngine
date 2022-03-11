@@ -64,6 +64,12 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
+		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		{
+			return Task.FromResult(Hashes.Where(x => !Blobs.ContainsKey((NamespaceId, x))).ToHashSet());
+		}
+
+		/// <inheritdoc/>
 		public Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
 		{
 			return Task.FromResult(Refs.Remove((NamespaceId, BucketId, RefId)));

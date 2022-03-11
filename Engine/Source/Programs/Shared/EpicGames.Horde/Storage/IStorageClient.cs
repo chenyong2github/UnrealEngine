@@ -185,6 +185,15 @@ namespace EpicGames.Horde.Storage
 		/// <returns>True if the blob exists, false if it did not exist</returns>
 		Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default);
 
+		/// <summary>
+		/// Checks if a list of blobs exist, returning the set of missing blobs
+		/// </summary>
+		/// <param name="NamespaceId">Namespace to operate on</param>
+		/// <param name="Hashes">Set of hashes to check</param>
+		/// <param name="CancellationToken">Cancellation token for the operation</param>
+		/// <returns>A set of the missing hashes</returns>
+		Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken = default);
+
 		#endregion
 		#region Refs
 

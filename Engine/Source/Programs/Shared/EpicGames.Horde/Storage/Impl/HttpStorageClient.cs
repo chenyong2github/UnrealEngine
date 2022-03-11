@@ -18,6 +18,17 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Storage.Impl
 {
 	/// <summary>
+	/// Response from checking for missing blobs
+	/// </summary>
+	public class BlobExistsResponse
+	{
+		/// <summary>
+		/// Set of missing hashes
+		/// </summary>
+		public HashSet<IoHash> Needs { get; set; } = new HashSet<IoHash>();
+	}
+
+	/// <summary>
 	/// Response from adding a new object
 	/// </summary>
 	public class RefPutResponse
@@ -136,6 +147,29 @@ namespace EpicGames.Horde.Storage.Impl
 				Response.Dispose();
 				throw;
 			}
+		}
+
+		/// <inheritdoc/>
+		public async Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		{
+			using StringContent Content = new StringContent(JsonSerializer.Serialize(Hashes));
+
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/blobs/{NamespaceId}/exist");
+
+			Request.Headers.Accept.Clear();
+			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+			Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+			Request.Content = Content;
+
+			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
+			Response.EnsureSuccessStatusCode();
+
+			BlobExistsResponse? ResponseBody = await ReadJsonResponse<BlobExistsResponse>(Response.Content);
+			if (ResponseBody == null)
+			{
+				throw new StorageException("Unable to parse response body", null);
+			}
+			return ResponseBody.Needs;
 		}
 
 		#endregion

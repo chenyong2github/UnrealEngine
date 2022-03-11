@@ -53,6 +53,12 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
+		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		{
+			return Inner.FindMissingBlobsAsync(NamespaceId, Hashes, CancellationToken);
+		}
+
+		/// <inheritdoc/>
 		public Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
 		{
 			Logger.LogDebug("Deleting ref {NamespaceId}/{BucketId}/{RefId}", NamespaceId, BucketId, RefId);

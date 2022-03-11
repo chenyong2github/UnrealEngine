@@ -100,6 +100,14 @@ namespace Horde.Build.Storage.Services
 		}
 
 		/// <inheritdoc/>
+		public async Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		{
+			var Tasks = Hashes.Select(async Hash => (Hash, await StorageBackend.ExistsAsync(GetFullBlobPath(NamespaceId, Hash))));
+			await Task.WhenAll(Tasks);
+			return Tasks.Where(x => !x.Result.Item2).Select(x => x.Result.Item1).ToHashSet();
+		}
+
+		/// <inheritdoc/>
 		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
 		{
 			string Id = GetFullRefId(NamespaceId, BucketId, RefId);
