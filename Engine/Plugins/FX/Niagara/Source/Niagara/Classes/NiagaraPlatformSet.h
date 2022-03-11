@@ -283,6 +283,8 @@ struct FNiagaraPlatformSetRedirect
 {
 	GENERATED_BODY()
 
+	FNiagaraPlatformSetRedirect();
+
 	/** The names of any device profile entry that will apply this redirect. */
 	UPROPERTY(EditAnywhere, Category = Redirect)
 	TArray<FName> ProfileNames;

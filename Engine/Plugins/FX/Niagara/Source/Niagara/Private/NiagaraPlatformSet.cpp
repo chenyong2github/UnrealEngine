@@ -1551,4 +1551,8 @@ bool FNiagaraPlatformSetCVarCondition::Evaluate(const UDeviceProfile* DeviceProf
 	return false;
 }
 
+FNiagaraPlatformSetRedirect::FNiagaraPlatformSetRedirect()
+	: Mode(ENiagaraDeviceProfileRedirectMode::CVar)
+{}
+
 #undef LOCTEXT_NAMESPACE
