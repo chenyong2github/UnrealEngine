@@ -43,6 +43,10 @@ public:
 
 	void DumpStreamingSources(FOutputDevice& OutputDevice) const;
 
+	TArray<IWorldPartitionStreamingSourceProvider*> GetStreamingSourceProviders() const { return StreamingSourceProviders; }
+	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
+	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
+
 private:
 #if WITH_EDITOR
 	bool IsRunningConvertWorldPartitionCommandlet() const;
@@ -55,6 +59,10 @@ private:
 	const UWorldPartition* GetWorldPartition() const;
 	void Draw(class UCanvas* Canvas, class APlayerController* PC);
 	friend class UWorldPartition;
+
+	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
+
+	TArray<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
 
 	FDelegateHandle	DrawHandle;
 

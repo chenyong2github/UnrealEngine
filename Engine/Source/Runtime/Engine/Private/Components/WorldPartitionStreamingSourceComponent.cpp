@@ -37,10 +37,9 @@ void UWorldPartitionStreamingSourceComponent::OnRegister()
 	}
 #endif
 
-	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
-	{
-		WorldPartition->RegisterStreamingSourceProvider(this);
-	}
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
+	check(WorldPartitionSubsystem);
+	WorldPartitionSubsystem->RegisterStreamingSourceProvider(this);
 }
 
 void UWorldPartitionStreamingSourceComponent::OnUnregister()
@@ -56,10 +55,9 @@ void UWorldPartitionStreamingSourceComponent::OnUnregister()
 	}
 #endif
 
-	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
-	{
-		verify(WorldPartition->UnregisterStreamingSourceProvider(this));
-	}
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
+	check(WorldPartitionSubsystem);
+	verify(WorldPartitionSubsystem->UnregisterStreamingSourceProvider(this));
 }
 
 bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource)

@@ -177,6 +177,7 @@ public:
 	bool IsInitialized() const;
 	virtual void Uninitialize() override;
 
+	bool IsMainWorldPartition() const;
 	const FTransform& GetInstanceTransform() const { return InstanceTransform; }
 
 	void Tick(float DeltaSeconds);
@@ -186,12 +187,10 @@ public:
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 
-	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
-	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
-
 	// Debugging Methods
 	bool CanDrawRuntimeHash() const;
-	void DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset);
+	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
+	void DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset);
 	void DrawRuntimeHash3D();
 	void DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset);
 	void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset);
@@ -243,8 +242,6 @@ private:
 
 	UPROPERTY()
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;
-
-	TArray<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
 
 #if WITH_EDITORONLY_DATA
 	FLinkerInstancingContext InstancingContext;

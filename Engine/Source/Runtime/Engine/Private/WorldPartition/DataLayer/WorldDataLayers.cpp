@@ -780,7 +780,7 @@ void AWorldDataLayers::PostLoad()
 
 	GetLevel()->ConditionalPostLoad();
 
-	GetWorld()->SetWorldDataLayers(this);
+	GetTypedOuter<UWorld>()->SetWorldDataLayers(this);
 
 #if WITH_EDITOR
 	// Remove all Editor Data Layers when cooking or when in a game world

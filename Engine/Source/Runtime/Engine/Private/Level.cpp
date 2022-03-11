@@ -2415,11 +2415,20 @@ void ULevel::OnLevelLoaded()
 
 	// 1. Cook commandlet does it's own UWorldPartition::Initialize call in FWorldPartitionCookPackageSplitter::GetGenerateList
 	// 2. Do not Initialize if World doesn't have a UWorldPartitionSubsystem (Known case is when WorldType == EWorldType::Inactive)
-	if (!IsRunningCookCommandlet() && IsPersistentLevel() && GetWorld()->HasSubsystem<UWorldPartitionSubsystem>())
+	if (!IsRunningCookCommandlet() && GetWorld()->HasSubsystem<UWorldPartitionSubsystem>())
 	{
-		if (UWorldPartition* WorldPartition = GetWorldPartition())
+		if (IsPersistentLevel() || GetWorld()->IsGameWorld())
 		{
-			WorldPartition->Initialize(GetWorld(), FTransform::Identity);
+			if (UWorldPartition* WorldPartition = GetWorldPartition())
+			{
+				FTransform Transform = FTransform::Identity;
+				if (ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(this))
+				{
+					Transform = LevelStreaming->LevelTransform;
+				}
+
+				WorldPartition->Initialize(GetWorld(), Transform);
+			}
 		}
 	}
 }

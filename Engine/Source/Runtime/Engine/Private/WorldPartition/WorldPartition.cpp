@@ -409,8 +409,11 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	RegisterDelegates();
 
-	AWorldPartitionReplay::Initialize(World);
-	
+	if (IsMainWorldPartition())
+	{
+		AWorldPartitionReplay::Initialize(World);
+	}
+
 #if WITH_EDITOR
 	const bool bIsGame = IsRunningGame();
 	const bool bIsEditor = !World->IsGameWorld();
@@ -427,7 +430,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	}
 	else if (bIsEditor)
 	{
-		CreateOrRepairWorldPartition(World->GetWorldSettings());
+		CreateOrRepairWorldPartition(OuterWorld->GetWorldSettings());
 
 		check(!StreamingPolicy);
 		check(EditorHash);
@@ -448,7 +451,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		// - World Partition map template (New Level)
 		// - PIE World Travel
 		FString SourceWorldPath, RemappedWorldPath;
-		const bool bIsInstanced = World->GetSoftObjectPathMapping(SourceWorldPath, RemappedWorldPath);
+		const bool bIsInstanced = OuterWorld->GetSoftObjectPathMapping(SourceWorldPath, RemappedWorldPath);
 	
 		if (bIsInstanced)
 		{
@@ -485,13 +488,16 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		}
 	}
 
-	// Make sure to preload only AWorldDataLayers actor first (ShouldActorBeLoadedByEditorCells requires it)
-	for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	if (bIsEditor)
 	{
-		if (ActorDescIterator->GetActorClass()->IsChildOf<AWorldDataLayers>())
+		// Make sure to preload only AWorldDataLayers actor first (ShouldActorBeLoadedByEditorCells requires it)
+		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
-			WorldDataLayersActor = FWorldPartitionReference(this, ActorDescIterator->GetGuid());
-			break;
+			if (ActorDescIterator->GetActorClass()->IsChildOf<AWorldDataLayers>())
+			{
+				WorldDataLayersActor = FWorldPartitionReference(this, ActorDescIterator->GetGuid());
+				break;
+			}
 		}
 	}
 
@@ -541,7 +547,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		}
 
 		// Apply remapping of Persistent Level's SoftObjectPaths
-		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
+		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(OuterWorld->PersistentLevel, this);
 	}
 #endif
 
@@ -549,16 +555,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OnWorldPartitionInitialized.Broadcast(this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-void UWorldPartition::RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
-{
-	StreamingSourceProviders.Add(StreamingSource);
-}
-
-bool UWorldPartition::UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
-{
-	return !!StreamingSourceProviders.Remove(StreamingSource);
 }
 
 void UWorldPartition::Uninitialize()
@@ -629,6 +625,12 @@ bool UWorldPartition::IsInitialized() const
 	return InitState == EWorldPartitionInitState::Initialized;
 }
 
+bool UWorldPartition::IsMainWorldPartition() const
+{
+	check(World);
+	return World == GetTypedOuter<UWorld>();
+}
+
 void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot)
 {
 #if WITH_EDITOR
@@ -645,27 +647,30 @@ void UWorldPartition::RegisterDelegates()
 {
 	check(World); 
 
-#if WITH_EDITOR
-	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	if (IsMainWorldPartition())
 	{
-		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
-		FEditorDelegates::PrePIEEnded.AddUObject(this, &UWorldPartition::OnPrePIEEnded);
-		FEditorDelegates::CancelPIE.AddUObject(this, &UWorldPartition::OnCancelPIE);
-		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
+#if WITH_EDITOR
+		if (GEditor && !IsTemplate() && !World->IsGameWorld())
+		{
+			FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
+			FEditorDelegates::PrePIEEnded.AddUObject(this, &UWorldPartition::OnPrePIEEnded);
+			FEditorDelegates::CancelPIE.AddUObject(this, &UWorldPartition::OnCancelPIE);
+			FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
 
-		FCoreUObjectDelegates::PostReachabilityAnalysis.AddUObject(this, &UWorldPartition::OnGCPostReachabilityAnalysis);
+			FCoreUObjectDelegates::PostReachabilityAnalysis.AddUObject(this, &UWorldPartition::OnGCPostReachabilityAnalysis);
 
-		GEditor->OnPostBugItGoCalled().AddUObject(this, &UWorldPartition::OnPostBugItGoCalled);
-	}
+			GEditor->OnPostBugItGoCalled().AddUObject(this, &UWorldPartition::OnPostBugItGoCalled);
+		}
 #endif
 
-	if (World->IsGameWorld())
-	{
-		World->OnWorldMatchStarting.AddUObject(this, &UWorldPartition::OnWorldMatchStarting);
+		if (World->IsGameWorld())
+		{
+			World->OnWorldMatchStarting.AddUObject(this, &UWorldPartition::OnWorldMatchStarting);
 
 #if !UE_BUILD_SHIPPING
-		FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
+			FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
 #endif
+		}
 	}
 }
 
@@ -673,30 +678,33 @@ void UWorldPartition::UnregisterDelegates()
 {
 	check(World);
 
-#if WITH_EDITOR
-	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	if (IsMainWorldPartition())
 	{
-		FEditorDelegates::PreBeginPIE.RemoveAll(this);
-		FEditorDelegates::PrePIEEnded.RemoveAll(this);
-		FEditorDelegates::CancelPIE.RemoveAll(this);
-		FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
-
-		if (!IsEngineExitRequested())
+#if WITH_EDITOR
+		if (GEditor && !IsTemplate() && !World->IsGameWorld())
 		{
-			FCoreUObjectDelegates::PostReachabilityAnalysis.RemoveAll(this);
-		}
+			FEditorDelegates::PreBeginPIE.RemoveAll(this);
+			FEditorDelegates::PrePIEEnded.RemoveAll(this);
+			FEditorDelegates::CancelPIE.RemoveAll(this);
+			FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 
-		GEditor->OnPostBugItGoCalled().RemoveAll(this);
-	}
+			if (!IsEngineExitRequested())
+			{
+				FCoreUObjectDelegates::PostReachabilityAnalysis.RemoveAll(this);
+			}
+
+			GEditor->OnPostBugItGoCalled().RemoveAll(this);
+		}
 #endif
 
-	if (World->IsGameWorld())
-	{
-		World->OnWorldMatchStarting.RemoveAll(this);
+		if (World->IsGameWorld())
+		{
+			World->OnWorldMatchStarting.RemoveAll(this);
 
 #if !UE_BUILD_SHIPPING
-		FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
+			FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
 #endif
+		}
 	}
 }
 
@@ -1135,6 +1143,7 @@ void UWorldPartition::OnActorDescRegistered(const FWorldPartitionActorDesc& Acto
 	check(Actor);
 	ApplyActorTransform(Actor, InstanceTransform);
 	Actor->GetLevel()->AddLoadedActor(Actor);
+
 }
 
 void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& ActorDesc) 
@@ -1352,7 +1361,13 @@ bool UWorldPartition::CanDrawRuntimeHash() const
 	return GetWorld()->IsGameWorld() || UWorldPartition::IsSimulating();
 }
 
-void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset)
+FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
+{
+	check(CanDrawRuntimeHash());
+	return StreamingPolicy->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
+}
+
+void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset)
 {
 	check(CanDrawRuntimeHash());
 	StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, Offset);

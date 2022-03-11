@@ -124,21 +124,21 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 	{
 		if (!SrcObjectPath.GetSubPathString().IsEmpty())
 		{
-			UWorld* World = WorldPartition->GetWorld();
-			const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, World);
+			UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
+			const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, OuterWorld);
 			FString PrefixPath;
 			if (IsRunningCookCommandlet())
 			{
 				//@todo_ow: Temporary workaround. This information should be provided by the COTFS
-				const UPackage* Package = GetOuterUWorldPartition()->GetWorld()->GetPackage();
+				const UPackage* Package = OuterWorld->GetPackage();
 				PrefixPath = FString::Printf(TEXT("%s/%s/_Generated_"), *FPackageName::GetLongPackagePath(Package->GetPathName()), *FPackageName::GetShortName(Package->GetName()));
 			}
 
 			// Use the WorldPartition world name here instead of using the world name from the path to support converting level instance paths to main world paths.
-			ObjectPath.SetAssetPathName(FName(*FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *World->GetName())));
+			ObjectPath.SetAssetPathName(FName(*FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *OuterWorld->GetName())));
 			ObjectPath.SetSubPathString(SrcObjectPath.GetSubPathString());
 			// Put back PIE prefix
-			if (World->IsPlayInEditor() && (PIEInstanceID != INDEX_NONE))
+			if (OuterWorld->IsPlayInEditor() && (PIEInstanceID != INDEX_NONE))
 			{
 				ObjectPath.FixupForPIE(PIEInstanceID);
 			}

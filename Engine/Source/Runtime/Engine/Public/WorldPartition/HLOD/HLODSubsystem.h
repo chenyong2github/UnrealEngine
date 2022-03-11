@@ -71,9 +71,14 @@ private:
 		}
 	};
 
-	TMap<FName, FCellData> CellsData;
-	TSet<FCellData*> CellsToWarmup;
-
+	struct FWorldPartitionHLODRuntimeData
+	{
+		TMap<FName, FCellData> CellsData;
+		TSet<FCellData*> CellsToWarmup;
+	};
+	
+	TMap<TObjectPtr<UWorldPartition>, FWorldPartitionHLODRuntimeData> WorldPartitionsHLODRuntimeData;
+		
 	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
 	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
 	void OnBeginRenderViews(const FSceneViewFamily& InViewFamily);

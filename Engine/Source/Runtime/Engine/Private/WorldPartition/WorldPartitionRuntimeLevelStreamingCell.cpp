@@ -323,7 +323,15 @@ ULevel* UWorldPartitionRuntimeLevelStreamingCell::GetLevel() const
 
 bool UWorldPartitionRuntimeLevelStreamingCell::CanUnload() const
 {
-	return LevelStreaming ? LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->RequestUnloading(this) : true;
+	if (LevelStreaming)
+	{
+		if (UHLODSubsystem* HLODSubsystem = LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>())
+		{
+			return HLODSubsystem->RequestUnloading(this);
+		}
+	}
+
+	return true;
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::Unload() const

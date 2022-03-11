@@ -149,56 +149,76 @@ void UWorldPartitionSubsystem::Deinitialize()
 
 void UWorldPartitionSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartition)
 {
-	check(InWorldPartition == GetWorldPartition());
-	if (InWorldPartition->CanDrawRuntimeHash() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
+	if (RegisteredWorldPartitions.IsEmpty())
 	{
-		DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
+		if (InWorldPartition->CanDrawRuntimeHash() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
+		{
+			DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
+		}
+
+		// Enforce some GC settings when using World Partition
+		if (GetWorld()->IsGameWorld())
+		{
+			LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
+			LevelStreamingForceGCAfterLevelStreamedOut = GLevelStreamingForceGCAfterLevelStreamedOut;
+
+			GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP;
+			GLevelStreamingForceGCAfterLevelStreamedOut = 0;
+		}
 	}
 
-	// Enforce some GC settings when using World Partition
-	if (GetWorld()->IsGameWorld())
-	{
-		LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
-		LevelStreamingForceGCAfterLevelStreamedOut = GLevelStreamingForceGCAfterLevelStreamedOut;
-
-		GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP;
-		GLevelStreamingForceGCAfterLevelStreamedOut = 0;
-	}
+	check(!RegisteredWorldPartitions.Contains(InWorldPartition));
+	RegisteredWorldPartitions.Add(InWorldPartition);
 }
 
 void UWorldPartitionSubsystem::OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition)
 {
-	check(InWorldPartition == GetWorldPartition());
-	if (GetWorld()->IsGameWorld())
-	{
-		GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
-		GLevelStreamingForceGCAfterLevelStreamedOut = LevelStreamingForceGCAfterLevelStreamedOut;
-	}
+	check(RegisteredWorldPartitions.Contains(InWorldPartition));
+	RegisteredWorldPartitions.Remove(InWorldPartition);
 
-	if (DrawHandle.IsValid())
+	if (RegisteredWorldPartitions.IsEmpty())
 	{
-		UDebugDrawService::Unregister(DrawHandle);
-		DrawHandle.Reset();
+		if (GetWorld()->IsGameWorld())
+		{
+			GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
+			GLevelStreamingForceGCAfterLevelStreamedOut = LevelStreamingForceGCAfterLevelStreamedOut;
+		}
+
+		if (DrawHandle.IsValid())
+		{
+			UDebugDrawService::Unregister(DrawHandle);
+			DrawHandle.Reset();
+		}
 	}
+}
+
+void UWorldPartitionSubsystem::RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
+{
+	StreamingSourceProviders.Add(StreamingSource);
+}
+
+bool UWorldPartitionSubsystem::UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
+{
+	return !!StreamingSourceProviders.Remove(StreamingSource);
 }
 
 void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (UWorldPartition* Partition = GetWorldPartition())
+	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
 	{
-		Partition->Tick(DeltaSeconds);
+		RegisteredWorldPartition->Tick(DeltaSeconds);
 
-		if (GDrawRuntimeHash3D && Partition->CanDrawRuntimeHash())
+		if (GDrawRuntimeHash3D && RegisteredWorldPartition->CanDrawRuntimeHash())
 		{
-			Partition->DrawRuntimeHash3D();
+			RegisteredWorldPartition->DrawRuntimeHash3D();
 		}
 
 #if WITH_EDITOR
 		if (!GetWorld()->IsGameWorld())
 		{
-			Partition->DrawRuntimeHashPreview();
+			RegisteredWorldPartition->DrawRuntimeHashPreview();
 		}
 #endif
 	}
@@ -216,9 +236,12 @@ TStatId UWorldPartitionSubsystem::GetStatId() const
 
 bool UWorldPartitionSubsystem::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const
 {
-	if (const UWorldPartition* Partition = GetWorldPartition())
+	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
 	{
-		return Partition->IsStreamingCompleted(QueryState, QuerySources, bExactState);
+		if (!RegisteredWorldPartition->IsStreamingCompleted(QueryState, QuerySources, bExactState))
+		{
+			return false;
+		}
 	}
 
 	return true;
@@ -228,7 +251,7 @@ void UWorldPartitionSubsystem::DumpStreamingSources(FOutputDevice& OutputDevice)
 {
 	if (const UWorldPartition* WorldPartition = GetWorldPartition())
 	{
-		const TArray<FWorldPartitionStreamingSource>* StreamingSources = WorldPartition ? &WorldPartition->GetStreamingSources() : nullptr;
+		const TArray<FWorldPartitionStreamingSource>* StreamingSources = &WorldPartition->GetStreamingSources();
 		if (StreamingSources && (StreamingSources->Num() > 0))
 		{
 			OutputDevice.Logf(TEXT("Streaming Sources:"));
@@ -250,9 +273,9 @@ void UWorldPartitionSubsystem::UpdateStreamingState()
 	}
 #endif
 
-	if (UWorldPartition* Partition = GetWorldPartition())
+	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
 	{
-		Partition->UpdateStreamingState();
+		RegisteredWorldPartition->UpdateStreamingState();
 	}
 }
 
@@ -282,11 +305,26 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		const FVector2D CanvasMinimumSize(100.f, 100.f);
 		const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CurrentOffset, CanvasMinimumSize);
 
-		if (UWorldPartition* Partition = GetWorldPartition())
+		FVector2D TotalFootprint(ForceInitToZero);
+		for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
 		{
-			FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X, CanvasMaxScreenSize.Y);
-			Partition->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, CurrentOffset);
+			FVector2D Footprint = RegisteredWorldPartition->GetDrawRuntimeHash2DDesiredFootprint(CanvasMaxScreenSize);
+			TotalFootprint.X += Footprint.X;
+		}
+
+		if (TotalFootprint.X > 0.f)
+		{
+			for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
+			{
+				FVector2D Footprint = RegisteredWorldPartition->GetDrawRuntimeHash2DDesiredFootprint(CanvasMaxScreenSize);
+				float FootprintRatio = Footprint.X / TotalFootprint.X;
+				FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X * FootprintRatio, CanvasMaxScreenSize.Y);
+				RegisteredWorldPartition->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, CurrentOffset);
+				CurrentOffset.X += PartitionCanvasSize.X;
+			}
+			
 			CurrentOffset.X = CanvasBottomRightPadding.X;
+			CurrentOffset.Y += CanvasMaxScreenSize.Y;
 		}
 	}
 	
