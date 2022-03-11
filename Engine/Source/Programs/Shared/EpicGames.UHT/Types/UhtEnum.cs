@@ -9,50 +9,138 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+	
+	/// <summary>
+	/// How the enumeration was declared
+	/// </summary>
 	public enum UhtEnumCppForm
 	{
+		/// <summary>
+		/// enum Name {...}
+		/// </summary>
 		Regular,
+
+		/// <summary>
+		/// namespace Name { enum Type { ... } }
+		/// </summary>
 		Namespaced,
+
+		/// <summary>
+		/// enum class Name {...}
+		/// </summary>
 		EnumClass
 	}
 
+	/// <summary>
+	/// Underlying type of the enumeration
+	/// </summary>
 	public enum UhtEnumUnderlyingType
 	{
+
+		/// <summary>
+		/// Not specified
+		/// </summary>
 		Unspecified,
+
+		/// <summary>
+		/// uint8
+		/// </summary>
 		uint8,
+
+		/// <summary>
+		/// uint16
+		/// </summary>
 		uint16,
+
+		/// <summary>
+		/// uint32
+		/// </summary>
 		uint32,
+
+		/// <summary>
+		/// uint64
+		/// </summary>
 		uint64,
+
+		/// <summary>
+		/// int8
+		/// </summary>
 		int8,
+
+		/// <summary>
+		/// int16
+		/// </summary>
 		int16,
+
+		/// <summary>
+		/// int32
+		/// </summary>
 		int32,
+
+		/// <summary>
+		/// int64
+		/// </summary>
 		int64
 	}
 
+	/// <summary>
+	/// Represents an enumeration value
+	/// </summary>
 	public struct UhtEnumValue
 	{
-		public string Name { get; internal set; }
-		public long Value { get; internal set; }
+		/// <summary>
+		/// Name of the enumeration value
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// Value of the enumeration or -1 if not parsed.
+		/// </summary>
+		public long Value { get; set; }
 	}
 
+	/// <summary>
+	/// Represents a UEnum
+	/// </summary>
 	[UhtEngineClass(Name = "Enum")]
 	public class UhtEnum : UhtField, IUhtMetaDataKeyConversion
 	{
 		private static UhtSpecifierValidatorTable EnumSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.Enum);
 
+		/// <summary>
+		/// Engine enumeration flags
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public EEnumFlags EnumFlags { get; internal set; } = EEnumFlags.None;
+		public EEnumFlags EnumFlags { get; set; } = EEnumFlags.None;
 
+		/// <summary>
+		/// C++ form of the enumeration
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public UhtEnumCppForm CppForm { get; internal set; } = UhtEnumCppForm.Regular;
+		public UhtEnumCppForm CppForm { get; set; } = UhtEnumCppForm.Regular;
 
+		/// <summary>
+		/// Underlying integer enumeration type
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public UhtEnumUnderlyingType UnderlyingType { get; internal set; } = UhtEnumUnderlyingType.uint8;
+		public UhtEnumUnderlyingType UnderlyingType { get; set; } = UhtEnumUnderlyingType.uint8;
 
-		public string CppType { get; internal set; } = String.Empty;
-		public bool bIsEditorOnly { get; internal set; } = false;
+		/// <summary>
+		/// Full enumeration type.  For namespace enumerations, this includes the namespace name and the enum type name
+		/// </summary>
+		public string CppType { get; set; } = String.Empty;
+
+		/// <summary>
+		/// True if the enum was declared in an WITH_EDITORONLY_DATA block
+		/// </summary>
+		public bool bIsEditorOnly { get; set; } = false;
+
+		/// <summary>
+		/// Collection of enumeration values
+		/// </summary>
 		public List<UhtEnumValue> EnumValues { get; set; }
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtEngineType EngineType => UhtEngineType.Enum;
 
@@ -63,12 +151,22 @@ namespace EpicGames.UHT.Types
 		[JsonIgnore]
 		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable { get => UhtEnum.EnumSpecifierValidatorTable; }
 
+		/// <summary>
+		/// Construct a new enumeration
+		/// </summary>
+		/// <param name="Outer">Outer type</param>
+		/// <param name="LineNumber">Line number of declaration</param>
 		public UhtEnum(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 			this.MetaData.KeyConversion = this;
 			this.EnumValues = new List<UhtEnumValue>();
 		}
 
+		/// <summary>
+		/// Test to see if the value is a known enum value
+		/// </summary>
+		/// <param name="Value">Value in question</param>
+		/// <returns>True if the value is known</returns>
 		public bool IsValidEnumValue(long Value)
 		{
 			foreach (UhtEnumValue EnumValue in EnumValues)
@@ -81,6 +179,11 @@ namespace EpicGames.UHT.Types
 			return false;
 		}
 
+		/// <summary>
+		/// Return the index of the given enumeration value name
+		/// </summary>
+		/// <param name="Name">Value name in question</param>
+		/// <returns>Index of the value or -1 if not found.</returns>
 		public int GetIndexByName(string Name)
 		{
 			Name = CleanEnumValueName(Name);
@@ -94,6 +197,12 @@ namespace EpicGames.UHT.Types
 			return -1;
 		}
 
+		/// <summary>
+		/// Converts meta data name and index to a full meta data key name
+		/// </summary>
+		/// <param name="Name">Meta data key name</param>
+		/// <param name="NameIndex">Meta data key index</param>
+		/// <returns>Meta data name with the enum value name</returns>
 		public string GetMetaDataKey(string Name, int NameIndex)
 		{
 			string EnumName = this.EnumValues[NameIndex].Name;
@@ -108,6 +217,12 @@ namespace EpicGames.UHT.Types
 			return $"{EnumName}.{Name}";
 		}
 
+		/// <summary>
+		/// Given an enumeration value name, return the full enumeration name
+		/// </summary>
+		/// <param name="ShortEnumName">Enum value name</param>
+		/// <returns>If required, enum type name combined with value name.  Otherwise just the value name.</returns>
+		/// <exception cref="UhtIceException">Unexpected enum form</exception>
 		public string GetFullEnumName(string ShortEnumName)
 		{
 			switch (this.CppForm)
@@ -120,10 +235,16 @@ namespace EpicGames.UHT.Types
 					return ShortEnumName;
 
 				default:
-					throw new UhtIceException("Unexpected EEnumCppForm value");
+					throw new UhtIceException("Unexpected UhtEnumCppForm value");
 			}
 		}
 
+		/// <summary>
+		/// Add a new enum value.
+		/// </summary>
+		/// <param name="ShortEnumName">Name of the enum value.</param>
+		/// <param name="Value">Enumeration value or -1 if the value can't be determined.</param>
+		/// <returns></returns>
 		public int AddEnumValue(string ShortEnumName, long Value)
 		{
 			int EnumIndex = this.EnumValues.Count;
@@ -131,6 +252,12 @@ namespace EpicGames.UHT.Types
 			return EnumIndex;
 		}
 
+		/// <summary>
+		/// Reconstruct the full enum name.  Any existing enumeration name will be stripped and replaced 
+		/// with this enumeration name.
+		/// </summary>
+		/// <param name="Name">Name to reconstruct.</param>
+		/// <returns>Reconstructed enum name</returns>
 		private string CleanEnumValueName(string Name)
 		{
 			int LastColons = Name.LastIndexOf("::");
@@ -138,6 +265,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		#region Validation support
+		///<inheritdoc/>
 		protected override void ValidateDocumentationPolicy(UhtDocumentationPolicy Policy)
 		{
 			if (Policy.bClassOrStructCommentRequired)

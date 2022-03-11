@@ -7,6 +7,10 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// FSoftClassProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "SoftClassProperty", IsProperty = true)]
 	public class UhtSoftClassProperty : UhtSoftObjectProperty
@@ -23,8 +27,14 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
-		public UhtSoftClassProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass, UhtClass MetaClass)
-			: base(PropertySettings, PropertyClass, MetaClass)
+		/// <summary>
+		/// Construct a new class property
+		/// </summary>
+		/// <param name="PropertySettings">Property setting</param>
+		/// <param name="Class">Referenced class (Always UClass)</param>
+		/// <param name="MetaClass">Referenced meta class</param>
+		public UhtSoftClassProperty(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass MetaClass)
+			: base(PropertySettings, Class, MetaClass)
 		{
 		}
 
@@ -75,7 +85,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "TSoftClassPtr")]
-		public static UhtProperty? SoftClassPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? SoftClassPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtClass? MetaClass = ParseTemplateClass(PropertySettings, TokenReader, MatchedToken);
 			if (MetaClass == null)

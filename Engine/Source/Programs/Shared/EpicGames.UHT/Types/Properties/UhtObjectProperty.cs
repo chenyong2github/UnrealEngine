@@ -7,6 +7,9 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FObjectProperty
+	/// </summary>
 	[UhtEngineClass(Name = "ObjectProperty", IsProperty = true)]
 	public class UhtObjectProperty : UhtObjectPropertyBase
 	{
@@ -16,16 +19,15 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
-		public UhtObjectProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, PropertyClass, null)
-		{
-			this.PropertyFlags |= ExtraFlags;
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanExposeOnSpawn |
-				UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
-		}
-
-		protected UhtObjectProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass, UhtClass MetaClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, PropertyClass, MetaClass)
+		/// <summary>
+		/// Construct a new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Class">Referenced class</param>
+		/// <param name="MetaClass">Optional reference class (used by class properties)</param>
+		/// <param name="ExtraFlags">Extra flags to add to the property</param>
+		public UhtObjectProperty(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass? MetaClass = null, EPropertyFlags ExtraFlags = EPropertyFlags.None)
+			: base(PropertySettings, Class, MetaClass)
 		{
 			this.PropertyFlags |= ExtraFlags;
 			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanExposeOnSpawn |

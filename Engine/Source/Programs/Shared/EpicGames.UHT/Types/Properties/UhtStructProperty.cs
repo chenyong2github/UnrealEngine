@@ -10,6 +10,9 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FStructProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "StructProperty", IsProperty = true)]
 	public class UhtStructProperty : UhtProperty
@@ -26,9 +29,17 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
+		/// <summary>
+		/// USTRUCT referenced by the property
+		/// </summary>
 		[JsonConverter(typeof(UhtTypeSourceNameJsonConverter<UhtScriptStruct>))]
 		public UhtScriptStruct ScriptStruct { get; set; }
 
+		/// <summary>
+		/// Construct property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="ScriptStruct">USTRUCT being referenced</param>
 		public UhtStructProperty(UhtPropertySettings PropertySettings, UhtScriptStruct ScriptStruct) : base(PropertySettings)
 		{
 			this.ScriptStruct = ScriptStruct;
@@ -201,7 +212,7 @@ namespace EpicGames.UHT.Types
 
 		#region Structure default value sanitizers
 		[UhtStructDefaultValue(Name = "FVector")]
-		public static bool VectorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool VectorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			string Format = "{0:F6},{1:F6},{2:F6}";
 
@@ -241,7 +252,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		[UhtStructDefaultValue(Name = "FRotator")]
-		public static bool RotatorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool RotatorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			DefaultValueReader.Require("FRotator");
 			if (DefaultValueReader.TryOptional("::"))
@@ -273,7 +284,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		[UhtStructDefaultValue(Name = "FVector2D")]
-		public static bool Vector2DStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool Vector2DStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			string Format = "(X={0:F3},Y={1:F3})";
 
@@ -306,7 +317,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		[UhtStructDefaultValue(Name = "FLinearColor")]
-		public static bool LinearColorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool LinearColorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			string Format = "(R={0:F6},G={1:F6},B={2:F6},A={3:F6})";
 
@@ -352,7 +363,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		[UhtStructDefaultValue(Name = "FColor")]
-		public static bool ColorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool ColorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			string Format = "(R={0},G={1},B={2},A={3})";
 
@@ -398,7 +409,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		[UhtStructDefaultValue(Options = UhtStructDefaultValueOptions.Default)]
-		public static bool DefaultStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool DefaultStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			DefaultValueReader
 				.Require(Property.ScriptStruct.SourceName)

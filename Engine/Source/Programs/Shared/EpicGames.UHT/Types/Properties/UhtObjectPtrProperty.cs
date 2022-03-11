@@ -8,6 +8,9 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FObjectPtrProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "ObjectPtrProperty", IsProperty = true)]
 	public class UhtObjectPtrProperty : UhtObjectProperty
@@ -24,8 +27,14 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
-		public UhtObjectPtrProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, PropertyClass)
+		/// <summary>
+		/// Construct a new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Class">Referenced class</param>
+		/// <param name="ExtraFlags">Extra property flags to apply</param>
+		public UhtObjectPtrProperty(UhtPropertySettings PropertySettings, UhtClass Class, EPropertyFlags ExtraFlags = EPropertyFlags.None)
+			: base(PropertySettings, Class)
 		{
 			this.PropertyFlags |= ExtraFlags | EPropertyFlags.UObjectWrapper;
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
@@ -91,7 +100,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "TObjectPtr")]
-		public static UhtProperty? ObjectPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? ObjectPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			int TypeStartPos = TokenReader.PeekToken().InputStartPos;
 

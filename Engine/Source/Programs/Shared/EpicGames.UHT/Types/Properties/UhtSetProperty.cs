@@ -10,6 +10,9 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FSetProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "SetProperty", IsProperty = true)]
 	public class UhtSetProperty : UhtContainerBaseProperty
@@ -26,6 +29,11 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
+		/// <summary>
+		/// Construct a new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Value">Property key</param>
 		public UhtSetProperty(UhtPropertySettings PropertySettings, UhtProperty Value) : base(PropertySettings, Value)
 		{
 			// If the creation of the value property set more flags, then copy those flags to ourselves
@@ -202,9 +210,9 @@ namespace EpicGames.UHT.Types
 			return null;
 		}
 
-#region Keyword
+		#region Keyword
 		[UhtPropertyType(Keyword = "TSet")]
-		public static UhtProperty? SetProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? SetProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			using (var TokenContext = new UhtMessageContext(TokenReader, "TSet"))
 			{
@@ -245,6 +253,6 @@ namespace EpicGames.UHT.Types
 				return new UhtSetProperty(PropertySettings, Value);
 			}
 		}
-#endregion
+		#endregion
 	}
 }

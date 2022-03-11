@@ -4,6 +4,10 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// Base class for all numeric properties
+	/// </summary>
 	public abstract class UhtNumericProperty : UhtProperty
 	{
 		/// <inheritdoc/>
@@ -17,6 +21,11 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public readonly UhtPropertyIntType IntType;
 
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="IntType">Type of integer</param>
 		protected UhtNumericProperty(UhtPropertySettings PropertySettings, UhtPropertyIntType IntType) : base(PropertySettings)
 		{
 			this.IntType = IntType;

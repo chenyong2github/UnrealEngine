@@ -8,6 +8,10 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// Represents a FWeakObjectProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "WeakObjectProperty", IsProperty = true)]
 	public class UhtWeakObjectPtrProperty : UhtObjectPropertyBase
@@ -24,6 +28,12 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
+		/// <summary>
+		/// Construct a new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="PropertyClass">Class being referenced</param>
+		/// <param name="ExtraFlags">Extra property flags to add to the definition</param>
 		public UhtWeakObjectPtrProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
 			: base(PropertySettings, PropertyClass, null)
 		{
@@ -97,22 +107,22 @@ namespace EpicGames.UHT.Types
 		}
 
 		#region Keywords
-		protected static UhtProperty CreateWeakProperty(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtClass PropertyClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
+		private static UhtProperty CreateWeakProperty(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtClass Class, EPropertyFlags ExtraFlags = EPropertyFlags.None)
 		{
-			if (PropertyClass.IsChildOf(PropertyClass.Session.UClass))
+			if (Class.IsChildOf(Class.Session.UClass))
 			{
 				TokenReader.LogError("Class variables cannot be weak, they are always strong.");
 			}
 
 			if (PropertySettings.DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak))
 			{
-				return new UhtObjectProperty(PropertySettings, PropertyClass, ExtraFlags | EPropertyFlags.UObjectWrapper);
+				return new UhtObjectProperty(PropertySettings, Class, null, ExtraFlags | EPropertyFlags.UObjectWrapper);
 			}
-			return new UhtWeakObjectPtrProperty(PropertySettings, PropertyClass, ExtraFlags);
+			return new UhtWeakObjectPtrProperty(PropertySettings, Class, ExtraFlags);
 		}
 
 		[UhtPropertyType(Keyword = "TWeakObjectPtr")]
-		public static UhtProperty? WeakObjectProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? WeakObjectProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
 			if (PropertyClass == null)
@@ -124,7 +134,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		[UhtPropertyType(Keyword = "TAutoWeakObjectPtr")]
-		public static UhtProperty? AutoWeakObjectProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? AutoWeakObjectProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
 			if (PropertyClass == null)

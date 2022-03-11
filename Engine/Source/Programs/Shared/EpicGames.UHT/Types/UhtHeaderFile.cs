@@ -10,11 +10,31 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// Represents the different directories where headers can appear
+	/// </summary>
 	public enum UhtHeaderFileType
 	{
+
+		/// <summary>
+		/// Classes folder
+		/// </summary>
 		Classes,
+
+		/// <summary>
+		/// Public folder
+		/// </summary>
 		Public,
+
+		/// <summary>
+		/// Internal folder
+		/// </summary>
 		Internal,
+
+		/// <summary>
+		/// Private folder
+		/// </summary>
 		Private,
 	}
 
@@ -24,6 +44,9 @@ namespace EpicGames.UHT.Types
 	[Flags]
 	public enum UhtHeaderFileExportFlags : UInt32
 	{
+		/// <summary>
+		/// No export flags
+		/// </summary>
 		None = 0,
 
 		/// <summary>
@@ -74,32 +97,81 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
-	public delegate bool UhtReferencedHeaderDelegate(UhtHeaderFile HeaderFile);
-
+	/// <summary>
+	/// Represents a header file.  Unlike the engine, UhtHeader files will appear as a child 
+	/// of a UhtPackage and the outer of all global types found in that header.
+	/// </summary>
 	public class UhtHeaderFile : UhtType
 	{
+		private UhtSimpleMessageSite MessageSite;
+		private UhtSourceFile SourceFile;
+		private List<UhtHeaderFile> ReferencedHeaders = new List<UhtHeaderFile>();
+
+		/// <summary>
+		/// Contents of the header
+		/// </summary>
 		[JsonIgnore]
 		public StringView Data { get => this.SourceFile.Data; }
 
+		/// <summary>
+		/// Path of the header
+		/// </summary>
 		[JsonIgnore]
 		public string FilePath { get => this.SourceFile.FilePath; }
 
+		/// <summary>
+		/// File name without the extension
+		/// </summary>
 		public readonly string FileNameWithoutExtension;
+
+		/// <summary>
+		/// Required name for the generated.h file name.  Used to validate parsed code
+		/// </summary>
 		public readonly string GeneratedHeaderFileName;
+
+		/// <summary>
+		/// True if this header is NoExportTypes.h
+		/// </summary>
 		public readonly bool bIsNoExportTypes;
 
+		/// <summary>
+		/// The file path of the header relative to the module location
+		/// </summary>
 		public string ModuleRelativeFilePath = string.Empty;
+
+		/// <summary>
+		/// Include file path added as meta data to the types
+		/// </summary>
 		public string IncludeFilePath = string.Empty;
+
+		/// <summary>
+		/// Location where the header file was found
+		/// </summary>
 		public UhtHeaderFileType HeaderFileType = UhtHeaderFileType.Private;
+
+		/// <summary>
+		/// Unique index of the header file
+		/// </summary>
 		public readonly int HeaderFileTypeIndex;
 
+		/// <summary>
+		/// UHT flags for the header
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtHeaderFileExportFlags HeaderFileExportFlags { get; set; } = UhtHeaderFileExportFlags.None;
 
+		/// <summary>
+		/// If true, the header file should be exported
+		/// </summary>
 		[JsonIgnore]
 		public bool bShouldExport => this.HeaderFileExportFlags.HasAnyFlags(UhtHeaderFileExportFlags.Referenced) || this.Children.Count > 0;
+
+		/// <summary>
+		/// Resource collector for the header file
+		/// </summary>
 		public UhtReferenceCollector References = new UhtReferenceCollector();
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtPackage Package
 		{
@@ -113,32 +185,39 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtHeaderFile HeaderFile { get => this; }
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtEngineType EngineType => UhtEngineType.Header;
 
 		/// <inheritdoc/>
 		public override string EngineClassName { get => "UhtHeaderFile"; }
 
-		private List<UhtHeaderFile> ReferencedHeaders = new List<UhtHeaderFile>();
-
+		/// <summary>
+		/// Collection of headers directly included by this header
+		/// </summary>
 		[JsonIgnore]
 		public List<UhtHeaderFile> IncludedHeaders { get; set; } = new List<UhtHeaderFile>();
 
-		private UhtSimpleMessageSite MessageSite;
-
 		#region IUHTMessageSite implementation
+
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override IUhtMessageSession MessageSession => this.MessageSite.MessageSession;
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override IUhtMessageSource? MessageSource => this.MessageSite.MessageSource;
 		#endregion
 
-		private UhtSourceFile SourceFile;
-
+		/// <summary>
+		/// Construct a new header file
+		/// </summary>
+		/// <param name="Package">Owning package</param>
+		/// <param name="Path">Path to the header file</param>
 		public UhtHeaderFile(UhtPackage Package, string Path) : base(Package, 1)
 		{
 			this.HeaderFileTypeIndex = this.Session.GetNextHeaderFileTypeIndex();
@@ -151,11 +230,19 @@ namespace EpicGames.UHT.Types
 			this.bIsNoExportTypes = string.Compare(this.SourceFile.FileName, "NoExportTypes", true) == 0;
 		}
 
+		/// <summary>
+		/// Read the contents of the header
+		/// </summary>
 		public void Read()
 		{
 			this.SourceFile.Read();
 		}
 
+		/// <summary>
+		/// Add a reference to the given header
+		/// </summary>
+		/// <param name="Id">Path of the header</param>
+		/// <param name="bIsIncludedFile">True if this is a directly included file</param>
 		public void AddReferencedHeader(string Id, bool bIsIncludedFile)
 		{
 			UhtHeaderFile? HeaderFile = this.Session.FindHeaderFile(Path.GetFileName(Id));
@@ -165,11 +252,20 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// Add a reference to the header that defines the given type
+		/// </summary>
+		/// <param name="Type">Type in question</param>
 		public void AddReferencedHeader(UhtType Type)
 		{
 			AddReferencedHeader(Type.HeaderFile, false);
 		}
 
+		/// <summary>
+		/// Add a reference to the given header file
+		/// </summary>
+		/// <param name="HeaderFile">Header file in question</param>
+		/// <param name="bIsIncludedFile">True if this is a directly included file</param>
 		public void AddReferencedHeader(UhtHeaderFile HeaderFile, bool bIsIncludedFile)
 		{
 			lock (this.ReferencedHeaders)
@@ -227,6 +323,7 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <inheritdoc/>
 		public override void GetPathName(StringBuilder Builder, UhtType? StopOuter = null)
 		{
 			// Headers do not contribute to path names
@@ -236,6 +333,7 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <inheritdoc/>
 		protected override UhtValidationOptions Validate(UhtValidationOptions Options)
 		{
 			Options = base.Validate(Options | UhtValidationOptions.Shadowing);

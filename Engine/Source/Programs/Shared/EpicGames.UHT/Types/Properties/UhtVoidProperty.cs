@@ -8,6 +8,10 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// Internal only void property for void return types
+	/// </summary>
 	[UnrealHeaderTool]
 	public class UhtVoidProperty : UhtProperty
 	{
@@ -20,6 +24,10 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override string PGetMacroText { get => "invalid"; }
 
+		/// <summary>
+		/// Construct a new void property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
 		public UhtVoidProperty(UhtPropertySettings PropertySettings) : base(PropertySettings)
 		{
 		}
@@ -68,7 +76,7 @@ namespace EpicGames.UHT.Types
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "void", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
-		public static UhtProperty? VoidProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? VoidProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			if (PropertySettings.PropertyCategory != UhtPropertyCategory.Return)
 			{

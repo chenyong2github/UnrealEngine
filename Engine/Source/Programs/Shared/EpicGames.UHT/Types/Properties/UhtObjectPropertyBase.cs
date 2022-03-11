@@ -11,6 +11,9 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FObjectPropertyBase
+	/// </summary>
 	[UhtEngineClass(Name = "ObjectPropertyBase", IsProperty = true)]
 	public abstract class UhtObjectPropertyBase : UhtProperty
 	{
@@ -23,15 +26,27 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override string PGetMacroText { get => "OBJECT"; }
 
+		/// <summary>
+		/// Referenced UCLASS
+		/// </summary>
 		[JsonConverter(typeof(UhtTypeSourceNameJsonConverter<UhtClass>))]
 		public UhtClass Class { get; set; }
 
+		/// <summary>
+		/// Referenced UCLASS for class properties
+		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeSourceNameJsonConverter<UhtClass>))]
 		public UhtClass? MetaClass { get; set; }
 
-		public UhtObjectPropertyBase(UhtPropertySettings PropertySettings, UhtClass PropertyClass, UhtClass? MetaClass) : base(PropertySettings)
+		/// <summary>
+		/// Construct a property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Class">Referenced UCLASS</param>
+		/// <param name="MetaClass">Referenced UCLASS used by class properties</param>
+		public UhtObjectPropertyBase(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass? MetaClass) : base(PropertySettings)
 		{
-			this.Class = PropertyClass;
+			this.Class = Class;
 			this.MetaClass = MetaClass;
 
 			// This applies to EVERYTHING including raw pointer
@@ -121,6 +136,14 @@ namespace EpicGames.UHT.Types
 		}
 
 		#region Parsing support methods
+		/// <summary>
+		/// Parse a template type
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="MatchedToken">Token matched for type</param>
+		/// <param name="bReturnUInterface">If true, return the UInterface instead of the type listed</param>
+		/// <returns>Referenced class</returns>
 		public static UhtClass? ParseTemplateObject(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken, bool bReturnUInterface)
 		{
 			if (TokenReader.TryOptional("const"))
@@ -154,6 +177,13 @@ namespace EpicGames.UHT.Types
 			return Return;
 		}
 
+		/// <summary>
+		/// Parse a template type
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="MatchedToken">Token matched for type</param>
+		/// <returns>Referenced class</returns>
 		public static UhtClass? ParseTemplateClass(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtToken Identifier = new UhtToken();
@@ -185,6 +215,17 @@ namespace EpicGames.UHT.Types
 			return Return;
 		}
 
+		/// <summary>
+		/// Log point usage warning/error
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="EngineBehavior">Expected behavior for engine types</param>
+		/// <param name="NonEngineBehavior">Expected behavior for non-engine types</param>
+		/// <param name="PointerTypeDesc">Description of the pointer type</param>
+		/// <param name="TokenReader">Token reader for type being parsed</param>
+		/// <param name="TypeStartPos">Starting character position of the type</param>
+		/// <param name="AlternativeTypeDesc">Suggested alternate declaration</param>
+		/// <exception cref="UhtIceException">Thrown if the behavior type is unexpected</exception>
 		public static void ConditionalLogPointerUsage(UhtPropertySettings PropertySettings, UhtPointerMemberBehavior EngineBehavior, UhtPointerMemberBehavior NonEngineBehavior,
 			string PointerTypeDesc, IUhtTokenReader TokenReader, int TypeStartPos, string? AlternativeTypeDesc)
 		{

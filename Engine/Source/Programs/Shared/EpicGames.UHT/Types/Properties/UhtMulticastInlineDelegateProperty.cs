@@ -5,16 +5,25 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FMulticastInlineDelegateProperty
+	/// </summary>
 	[UhtEngineClass(Name = "MulticastInlineDelegateProperty", IsProperty = true)]
 	public class UhtMulticastInlineDelegateProperty : UhtMulticastDelegateProperty
 	{
 		/// <inheritdoc/>
 		public override string EngineClassName { get => "MulticastInlineDelegateProperty"; }
 
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Function">Referenced function</param>
 		public UhtMulticastInlineDelegateProperty(UhtPropertySettings PropertySettings, UhtFunction Function) : base(PropertySettings, Function)
 		{
 		}
 
+		/// <inheritdoc/>
 		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
 		{
 			switch (TextType)

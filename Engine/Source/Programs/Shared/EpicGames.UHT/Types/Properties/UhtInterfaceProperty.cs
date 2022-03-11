@@ -11,6 +11,9 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// FInterfaceProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "InterfaceProperty", IsProperty = true)]
 	public class UhtInterfaceProperty : UhtProperty
@@ -27,9 +30,17 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
+		/// <summary>
+		/// Referenced interface class
+		/// </summary>
 		[JsonConverter(typeof(UhtTypeSourceNameJsonConverter<UhtClass>))]
 		public UhtClass InterfaceClass { get; set; }
 
+		/// <summary>
+		/// Create a new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="InterfaceClass">Referenced interface</param>
 		public UhtInterfaceProperty(UhtPropertySettings PropertySettings, UhtClass InterfaceClass) : base(PropertySettings)
 		{
 			this.InterfaceClass = InterfaceClass;
@@ -168,13 +179,13 @@ namespace EpicGames.UHT.Types
 
 		#region Keywords
 		[UhtPropertyType(Keyword = "FScriptInterface", Options = UhtPropertyTypeOptions.Simple)] // This can't be immediate due to the reference to UInterface
-		public static UhtProperty? FScriptInterfaceProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? FScriptInterfaceProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			return new UhtInterfaceProperty(PropertySettings, PropertySettings.Outer.Session.IInterface);
 		}
 
 		[UhtPropertyType(Keyword = "TScriptInterface")]
-		public static UhtProperty? TScriptInterfaceProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? TScriptInterfaceProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtClass? PropertyClass = UhtObjectPropertyBase.ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, false);
 			if (PropertyClass == null)
@@ -186,7 +197,7 @@ namespace EpicGames.UHT.Types
 			{
 				return new UhtInterfaceProperty(PropertySettings, PropertyClass);
 			}
-			return new UhtObjectProperty(PropertySettings, PropertyClass, EPropertyFlags.UObjectWrapper);
+			return new UhtObjectProperty(PropertySettings, PropertyClass, null, EPropertyFlags.UObjectWrapper);
 		}
 		#endregion
 	}

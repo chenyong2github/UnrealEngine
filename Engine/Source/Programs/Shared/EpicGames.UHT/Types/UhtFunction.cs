@@ -16,6 +16,10 @@ namespace EpicGames.UHT.Types
 	[Flags]
 	public enum UhtFunctionExportFlags : UInt32
 	{
+
+		/// <summary>
+		/// No export flags
+		/// </summary>
 		None = 0,
 
 		/// <summary>
@@ -143,44 +147,97 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
+	/// <summary>
+	/// Type of function
+	/// </summary>
 	public enum UhtFunctionType
 	{
+
+		/// <summary>
+		/// UFUNCTION
+		/// </summary>
 		Function,
+
+		/// <summary>
+		/// UDELEGATE/DECLARE_DYNAMIC_...
+		/// </summary>
 		Delegate,
+
+		/// <summary>
+		/// UDELEGATE/DECLARE_DYNAMIC_...SPARSE_...
+		/// </summary>
 		SparseDelegate,
 	}
 
+	/// <summary>
+	/// Extension 
+	/// </summary>
 	public static class UhtFunctionTypeExtensions
 	{
+
+		/// <summary>
+		/// Test to see if the function type is a delegate type
+		/// </summary>
+		/// <param name="FunctionType">Function type being tested</param>
+		/// <returns>True if the type is a delegate</returns>
 		public static bool IsDelegate(this UhtFunctionType FunctionType)
 		{
 			return FunctionType == UhtFunctionType.Delegate || FunctionType == UhtFunctionType.SparseDelegate;
 		}
 	}
 
+	/// <summary>
+	/// Represents a UFUNCTION/delegate
+	/// </summary>
 	public class UhtFunction : UhtStruct
 	{
 		private static UhtSpecifierValidatorTable FunctionSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.Function);
 		private string? StrippedFunctionNameInternal = null;
 
+		/// <summary>
+		/// Suffix added to delegate engine names 
+		/// </summary>
 		public static string GeneratedDelegateSignatureSuffix = "__DelegateSignature";
 
+		/// <summary>
+		/// Engine function flags
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public EFunctionFlags FunctionFlags { get; set; } = EFunctionFlags.None;
 
+		/// <summary>
+		/// UHT specific function flags
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtFunctionExportFlags FunctionExportFlags { get; set; } = UhtFunctionExportFlags.None;
 
+		/// <summary>
+		/// The type of function
+		/// </summary>
 		public UhtFunctionType FunctionType = UhtFunctionType.Function;
 
-		public int FunctionLineNumber { get; set; } = 1;
+		/// <summary>
+		/// The line number for the macro.
+		/// </summary>
 		public int MacroLineNumber { get; set; } = 1;
+
+		/// <summary>
+		/// Owning class name for sparse functions
+		/// </summary>
 		public string? SparseOwningClassName { get; set; } = null;
+
+		/// <summary>
+		/// Sparse delegate name
+		/// </summary>
 		public string? SparseDelegateName { get; set; } = null;
 
+		/// <summary>
+		/// The super function.  Currently unused
+		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeSourceNameJsonConverter<UhtFunction>))]
 		public UhtFunction? SuperFunction => (UhtFunction?)this.Super;
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtEngineType EngineType => this.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate) ? UhtEngineType.Delegate : UhtEngineType.Function;
 
@@ -203,6 +260,9 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// Stripped function name without the generated delegate suffix
+		/// </summary>
 		[JsonIgnore]
 		public string StrippedFunctionName
 		{
@@ -336,6 +396,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		#region Resolution support
+		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase Phase)
 		{
 			bool bResults = base.ResolveSelf(Phase);
@@ -424,6 +485,7 @@ namespace EpicGames.UHT.Types
 		#endregion
 
 		#region Validation support
+		/// <inheritdoc/>
 		protected override UhtValidationOptions Validate(UhtValidationOptions Options)
 		{
 			Options = base.Validate(Options);
@@ -794,6 +856,7 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <inheritdoc/>
 		protected override void ValidateDocumentationPolicy(UhtDocumentationPolicy Policy)
 		{
 			if (this.FunctionType != UhtFunctionType.Function)

@@ -1962,7 +1962,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <summary>
-		/// Append the full declaration including such things as 'const', '*', and '&'
+		/// Append the full declaration including such things as const, *, and &amp;
 		/// </summary>
 		/// <param name="Builder">Destination builder</param>
 		/// <param name="Property">Property in question</param>

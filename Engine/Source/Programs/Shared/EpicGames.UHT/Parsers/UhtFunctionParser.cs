@@ -326,8 +326,6 @@ namespace EpicGames.UHT.Parsers
 						Function.SparseDelegateName = TopScope.TokenReader.GetIdentifier("delegate name").Value.ToString();
 					}
 
-					Function.FunctionLineNumber = TopScope.TokenReader.InputLine;
-
 					// Get parameter list.
 					if (FoundParamIndex >= 0)
 					{

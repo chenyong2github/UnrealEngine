@@ -10,6 +10,10 @@ using System.Text;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// FMapProperty
+	/// </summary>
 	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "MapProperty", IsProperty = true)]
 	public class UhtMapProperty : UhtContainerBaseProperty
@@ -26,8 +30,17 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
 
+		/// <summary>
+		/// Key property
+		/// </summary>
 		public UhtProperty KeyProperty { get; set; }
 
+		/// <summary>
+		/// Construct new property
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="Key">Key property</param>
+		/// <param name="Value">Value property</param>
 		public UhtMapProperty(UhtPropertySettings PropertySettings, UhtProperty Key, UhtProperty Value) : base(PropertySettings, Value)
 		{
 			// If the creation of the value property set more flags, then copy those flags to ourselves
@@ -234,9 +247,9 @@ namespace EpicGames.UHT.Types
 			return null;
 		}
 
-#region Keyword
+		#region Keyword
 		[UhtPropertyType(Keyword = "TMap")]
-		public static UhtProperty? MapProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? MapProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			using (var TokenContext = new UhtMessageContext(TokenReader, "TMap"))
 			{
@@ -296,6 +309,6 @@ namespace EpicGames.UHT.Types
 				return new UhtMapProperty(PropertySettings, Key, Value);
 			}
 		}
-#endregion
+		#endregion
 	}
 }
