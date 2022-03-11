@@ -6272,7 +6272,7 @@ bool URigVMController::SetPinIsWatched(URigVMPin* InPin, bool bIsWatched, bool b
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	if (Graph->IsA<URigVMFunctionLibrary>())
+	if (Graph->GetRootGraph()->IsA<URigVMFunctionLibrary>())
 	{
 		ReportError(TEXT("Cannot watch pins in function library graphs."));
 		return false;
