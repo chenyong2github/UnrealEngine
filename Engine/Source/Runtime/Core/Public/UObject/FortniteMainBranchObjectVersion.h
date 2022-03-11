@@ -199,6 +199,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Add faster damping calculations to the cloth simulation and rename previous Damping parameter to LocalDamping.
 		ChaosClothFasterDamping,
 
+		// Migrated function handlers to the CDO/archetype data
+		MigratedFunctionHandlersToDefaults,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
