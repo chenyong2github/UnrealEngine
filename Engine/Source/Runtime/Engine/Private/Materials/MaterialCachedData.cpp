@@ -32,7 +32,7 @@
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialParameterCollection.h"
-#include "Materials/MaterialHLSLTree.h"
+#include "MaterialHLSLTree.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "HLSLTree/HLSLTree.h"
 #include "VT/RuntimeVirtualTexture.h"
@@ -457,14 +457,6 @@ void FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 
 namespace Private
 {
-class FNullErrorHandler : public UE::HLSLTree::FErrorHandlerInterface
-{
-public:
-	virtual void AddErrorInternal(UObject* InOwner, FStringView InError) override
-	{
-	}
-};
-
 void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
 	const FMaterialCachedHLSLTree& CachedTree,
 	FMaterialCachedExpressionData& CachedData,
@@ -481,26 +473,13 @@ void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
 	FRequestedType RequestedAttributesType;
 	CachedTree.SetRequestedFields(ShaderFrequency, RequestedAttributesType);
 
-	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
-	for (const FGuid& AttributeID : OrderedVisibleAttributes)
-	{
-		if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == ShaderFrequency)
-		{
-			const FString& FieldName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
-			const FStructField* Field = CachedTree.GetMaterialAttributesType()->FindFieldByName(*FieldName);
-			if (Field)
-			{
-				RequestedAttributesType.SetFieldRequested(Field);
-			}
-		}
-	}
-
 	const FPreparedType& ResultType = EmitContext.PrepareExpression(CachedTree.GetResultExpression(), *EmitResultScope, RequestedAttributesType);
 	if (!ResultType.IsVoid())
 	{
 		EmitContext.bMarkLiveValues = true;
 		EmitContext.PrepareExpression(CachedTree.GetResultExpression(), *EmitResultScope, RequestedAttributesType);
 
+		const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
 		for (const FGuid& AttributeID : OrderedVisibleAttributes)
 		{
 			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == ShaderFrequency)
@@ -522,7 +501,7 @@ void FMaterialCachedExpressionData::UpdateForCachedHLSLTree(const FMaterialCache
 	using namespace UE::HLSLTree;
 
 	// We ignore errors here, errors will be captured when we actually emit HLSL from the tree
-	::Private::FNullErrorHandler NullErrorHandler;
+	FNullErrorHandler NullErrorHandler;
 
 	FMemStackBase Allocator;
 	FEmitContext EmitContext(Allocator, FTargetParameters(), NullErrorHandler, CachedTree.GetTypeRegistry());

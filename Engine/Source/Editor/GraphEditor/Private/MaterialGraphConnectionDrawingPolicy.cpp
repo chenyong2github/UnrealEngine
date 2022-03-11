@@ -5,6 +5,7 @@
 #include "MaterialGraph/MaterialGraphSchema.h"
 #include "MaterialGraphConnectionDrawingPolicy.h"
 #include "MaterialGraphNode_Knot.h"
+#include "MaterialCachedHLSLTree.h"
 
 /////////////////////////////////////////////////////
 // FMaterialGraphConnectionDrawingPolicy
@@ -109,12 +110,20 @@ void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Ou
 	Params.AssociatedPin2 = InputPin;
 	Params.WireColor = MaterialGraphSchema->ActivePinColor;
 
+	FMaterialConnectionKey ConnectionKey;
+	bool bInactivePin = false;
+	bool bExecPin = false;
+
 	// Have to consider both pins as the input will be an 'output' when previewing a connection
 	if (OutputPin)
 	{
 		if (!MaterialGraph->IsInputActive(OutputPin))
 		{
-			Params.WireColor = MaterialGraphSchema->InactivePinColor;
+			bInactivePin = true;
+		}
+		if (OutputPin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
+		{
+			bExecPin = true;
 		}
 
 		UEdGraphNode* OutputNode = OutputPin->GetOwningNode();
@@ -127,14 +136,23 @@ void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Ou
 		}
 		else if (!OutputNode->IsNodeEnabled() || OutputNode->IsDisplayAsDisabledForced() || OutputNode->IsNodeUnrelated())
 		{
-			Params.WireColor = MaterialGraphSchema->InactivePinColor;
+			bInactivePin = true;
+		}
+		else if(UMaterialGraphNode_Base* OutputMaterialNode = Cast<UMaterialGraphNode_Base>(OutputNode))
+		{
+			ConnectionKey.OutputObject = OutputMaterialNode->GetMaterialNodeOwner();
+			ConnectionKey.OutputIndex = OutputPin->SourceIndex;
 		}
 	}
 	if (InputPin)
 	{
 		if (!MaterialGraph->IsInputActive(InputPin))
 		{
-			Params.WireColor = MaterialGraphSchema->InactivePinColor;
+			bInactivePin = true;
+		}
+		if (InputPin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
+		{
+			bExecPin = true;
 		}
 
 		UEdGraphNode* InputNode = InputPin->GetOwningNode();
@@ -147,7 +165,61 @@ void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Ou
 		}
 		else if (!InputNode->IsNodeEnabled() || InputNode->IsDisplayAsDisabledForced() || InputNode->IsNodeUnrelated())
 		{
-			Params.WireColor = MaterialGraphSchema->InactivePinColor;
+			bInactivePin = true;
+		}
+		else if (UMaterialGraphNode_Base* InputMaterialNode = Cast<UMaterialGraphNode_Base>(InputNode))
+		{
+			ConnectionKey.InputObject = InputMaterialNode->GetMaterialNodeOwner();
+			ConnectionKey.InputIndex = InputMaterialNode->GetInputIndexForPin(InputPin);
+		}
+	}
+
+	if (bInactivePin)
+	{
+		Params.WireColor = MaterialGraphSchema->InactivePinColor;
+	}
+	else if (bExecPin)
+	{
+		Params.WireColor = Settings->ExecutionPinTypeColor;
+		Params.WireThickness = Settings->DefaultExecutionWireThickness;
+	}
+	else
+	{
+		const UE::Shader::EValueType ConnectionType = MaterialGraph->GetConnectionType(ConnectionKey);
+		if (ConnectionType == UE::Shader::EValueType::Struct)
+		{
+			Params.WireColor = Settings->StructPinTypeColor;
+		}
+		else
+		{
+			const UE::Shader::FValueTypeDescription TypeDesc = UE::Shader::GetValueTypeDescription(ConnectionType);
+			if (UE::Shader::IsTextureType(TypeDesc.ComponentType))
+			{
+				Params.WireColor = Settings->ObjectPinTypeColor;
+			}
+			else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Float)
+			{
+				if (TypeDesc.NumComponents == 1)
+				{
+					Params.WireColor = Settings->FloatPinTypeColor;
+				}
+				else
+				{
+					Params.WireColor = Settings->VectorPinTypeColor;
+				}
+			}
+			else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Double)
+			{
+				Params.WireColor = Settings->DoublePinTypeColor;
+			}
+			else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Bool)
+			{
+				Params.WireColor = Settings->BooleanPinTypeColor;
+			}
+			else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Int)
+			{
+				Params.WireColor = Settings->IntPinTypeColor;
+			}
 		}
 	}
 

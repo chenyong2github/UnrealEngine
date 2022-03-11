@@ -28,6 +28,8 @@ class UMaterialGraphNode_Root : public UMaterialGraphNode_Base
 	//~ End UEdGraphNode Interface.
 
 	//~ Begin UMaterialGraphNode_Base Interface
+	virtual UObject* GetMaterialNodeOwner() const override { return Material; }
+	virtual int32 GetInputIndexForPin(const UEdGraphPin* Pin) const override;
 	virtual uint32 GetPinMaterialType(const UEdGraphPin* Pin) const override;
 	virtual void CreateInputPins() override;
 	virtual bool IsRootNode() const override {return true;}

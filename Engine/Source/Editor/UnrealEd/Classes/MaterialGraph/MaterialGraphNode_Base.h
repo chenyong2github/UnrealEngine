@@ -21,6 +21,10 @@ class UMaterialGraphNode_Base : public UEdGraphNode
 	virtual void CreateOutputPins() {};
 	/** Is this the undeletable root node */
 	virtual bool IsRootNode() const {return false;}
+	/** Gets the object that owns this node, typically either a UMaterial, UMaterialFunction, UMaterialExpression */
+	virtual UObject* GetMaterialNodeOwner() const { return nullptr; }
+	/** Returns the InputIndex associated with the given pin, maps to FMaterialConnectionKey::InputIndex */
+	virtual int32 GetInputIndexForPin(const UEdGraphPin* Pin) const;
 	/** Get a single Input Pin via its index */
 	UNREALED_API class UEdGraphPin* GetInputPin(int32 InputIndex) const;
 	/** Get a single Output Pin via its index */

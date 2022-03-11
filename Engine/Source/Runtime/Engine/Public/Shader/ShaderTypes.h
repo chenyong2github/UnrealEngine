@@ -81,14 +81,14 @@ struct FValueComponentTypeDescription
 	FComponentBounds Bounds;
 };
 
-FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentType Type);
+ENGINE_API FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentType Type);
 inline const TCHAR* GetComponentTypeName(EValueComponentType Type) { return GetValueComponentTypeDescription(Type).Name; }
 inline uint32 GetComponentTypeSizeInBytes(EValueComponentType Type) { return GetValueComponentTypeDescription(Type).SizeInBytes; }
 inline bool IsNumericType(EValueComponentType Type) { return Type != EValueComponentType::Void && (uint8)Type < (uint8)EValueComponentType::FirstTexture; }
 inline bool IsTextureType(EValueComponentType Type) { return (uint8)Type >= (uint8)EValueComponentType::FirstTexture; }
 inline bool IsComponentTypeWithinBounds(EValueComponentType Type, FComponentBounds Bounds) { return IsWithinBounds(GetValueComponentTypeDescription(Type).Bounds, Bounds); }
 
-EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
+ENGINE_API EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
 
 inline EValueComponentType MakeNonLWCType(EValueComponentType Type) { return Type == EValueComponentType::Double ? EValueComponentType::Float : Type; }
 inline bool IsLWCType(EValueComponentType Type) { return Type == EValueComponentType::Double; }
@@ -145,15 +145,15 @@ struct FValueTypeDescription
 	int8 NumComponents;
 };
 
-FValueTypeDescription GetValueTypeDescription(EValueType Type);
+ENGINE_API FValueTypeDescription GetValueTypeDescription(EValueType Type);
 inline bool IsLWCType(EValueType Type) { return IsLWCType(GetValueTypeDescription(Type).ComponentType); }
-EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents);
-EValueType MakeValueType(EValueType BaseType, int32 NumComponents);
-EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents);
-EValueType MakeNonLWCType(EValueType Type);
-EValueType MakeDerivativeType(EValueType Type);
-EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
-EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
+ENGINE_API EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents);
+ENGINE_API EValueType MakeValueType(EValueType BaseType, int32 NumComponents);
+ENGINE_API EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents);
+ENGINE_API EValueType MakeNonLWCType(EValueType Type);
+ENGINE_API EValueType MakeDerivativeType(EValueType Type);
+ENGINE_API EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
+ENGINE_API EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 
 inline bool IsNumericType(EValueType Type) { return IsNumericType(GetValueTypeDescription(Type).ComponentType); }
 inline bool IsTextureType(EValueType Type) { return IsTextureType(GetValueTypeDescription(Type).ComponentType); }

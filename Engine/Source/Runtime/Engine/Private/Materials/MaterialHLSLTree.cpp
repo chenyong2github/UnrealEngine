@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #if WITH_EDITOR
 
-#include "Materials/MaterialHLSLTree.h"
+#include "MaterialHLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Misc/StringBuilder.h"

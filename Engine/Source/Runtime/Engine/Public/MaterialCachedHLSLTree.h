@@ -14,6 +14,29 @@ class UMaterialExpression;
 class UMaterialExpressionCustomOutput;
 struct FMaterialLayersFunctions;
 
+struct FMaterialConnectionKey
+{
+	const UObject* InputObject = nullptr;
+	const UObject* OutputObject = nullptr;
+	int32 InputIndex = INDEX_NONE;
+	int32 OutputIndex = INDEX_NONE;
+};
+inline uint32 GetTypeHash(const FMaterialConnectionKey& Key)
+{
+	return HashCombine(HashCombine(HashCombine(GetTypeHash(Key.InputObject), GetTypeHash(Key.OutputObject)), GetTypeHash(Key.InputIndex)), GetTypeHash(Key.OutputIndex));
+}
+inline bool operator==(const FMaterialConnectionKey& Lhs, const FMaterialConnectionKey& Rhs)
+{
+	return Lhs.InputObject == Rhs.InputObject &&
+		Lhs.OutputObject == Rhs.OutputObject &&
+		Lhs.InputIndex == Rhs.InputIndex &&
+		Lhs.OutputIndex == Rhs.OutputIndex;
+}
+inline bool operator!=(const FMaterialConnectionKey& Lhs, const FMaterialConnectionKey& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
 class FMaterialCachedHLSLTree
 {
 public:
@@ -38,10 +61,12 @@ public:
 	const UE::Shader::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
 	const UE::Shader::FValue& GetMaterialAttributesDefaultValue() const { return MaterialAttributesDefaultValue; }
 
-	void SetRequestedFields(EShaderFrequency ShaderFrequency, UE::HLSLTree::FRequestedType& OutRequestedType) const;
+	const TMap<FMaterialConnectionKey, const UE::HLSLTree::FExpression*>& GetConnections() const { return ConnectionMap; }
+
+	ENGINE_API void SetRequestedFields(EShaderFrequency ShaderFrequency, UE::HLSLTree::FRequestedType& OutRequestedType) const;
 	void EmitSharedCode(FStringBuilderBase& OutCode) const;
 
-	bool IsAttributeUsed(UE::HLSLTree::FEmitContext& Context,
+	ENGINE_API bool IsAttributeUsed(UE::HLSLTree::FEmitContext& Context,
 		UE::HLSLTree::FEmitScope& Scope,
 		const UE::HLSLTree::FPreparedType& ResultType,
 		EMaterialProperty Property) const;
@@ -54,6 +79,7 @@ private:
 	UE::HLSLTree::FScope* ResultScope = nullptr;
 
 	TArray<UMaterialExpressionCustomOutput*> MaterialCustomOutputs;
+	TMap<FMaterialConnectionKey, const UE::HLSLTree::FExpression*> ConnectionMap;
 	const UE::Shader::FStructType* MaterialAttributesType = nullptr;
 	UE::Shader::FValue MaterialAttributesDefaultValue;
 

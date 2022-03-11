@@ -11,7 +11,7 @@
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/Material.h"
-#include "Materials/MaterialHLSLTree.h"
+#include "MaterialHLSLTree.h"
 #include "MaterialCachedHLSLTree.h"
 #include "ShaderCore.h"
 #include "HLSLTree/HLSLTree.h"
@@ -808,18 +808,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		// Prepare all fields *except* normal
 		FRequestedType RequestedPixelAttributesType;
 		CachedTree->SetRequestedFields(SF_Pixel, RequestedPixelAttributesType);
-		for (const FGuid& AttributeID : OrderedVisibleAttributes)
-		{
-			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == SF_Pixel)
-			{
-				const FString& FieldName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
-				const FStructField* Field = CachedTree->GetMaterialAttributesType()->FindFieldByName(*FieldName);
-				if (Field && Field != NormalField)
-				{
-					RequestedPixelAttributesType.SetFieldRequested(Field);
-				}
-			}
-		}
+		RequestedPixelAttributesType.SetFieldRequested(NormalField, false);
 
 		const FPreparedType PixelResultType0 = EmitContext.PrepareExpression(CachedTree->GetResultExpression(), *EmitResultScope, RequestedPixelAttributesType);
 		if (PixelResultType0.IsVoid())
@@ -894,18 +883,6 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	{
 		FRequestedType RequestedVertexAttributesType;
 		CachedTree->SetRequestedFields(SF_Vertex, RequestedVertexAttributesType);
-		for (const FGuid& AttributeID : OrderedVisibleAttributes)
-		{
-			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == SF_Vertex)
-			{
-				const FString& FieldName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
-				const FStructField* Field = CachedTree->GetMaterialAttributesType()->FindFieldByName(*FieldName);
-				if (Field)
-				{
-					RequestedVertexAttributesType.SetFieldRequested(Field);
-				}
-			}
-		}
 		RequestedVertexAttributesType.SetFieldRequested(CachedTree->GetMaterialAttributesType()->FindFieldByName(TEXT("PrevWorldPositionOffset")));
 
 		EmitContext.ShaderFrequency = SF_Vertex;

@@ -137,6 +137,16 @@ struct FOperationDescription
 
 FOperationDescription GetOperationDescription(EOperation Op);
 
+struct FSwizzleParameters
+{
+	FSwizzleParameters() : NumComponents(0), bHasSwizzle(false) { ComponentIndex[0] = ComponentIndex[1] = ComponentIndex[2] = ComponentIndex[3] = INDEX_NONE; }
+	explicit FSwizzleParameters(int8 IndexR, int8 IndexG = INDEX_NONE, int8 IndexB = INDEX_NONE, int8 IndexA = INDEX_NONE);
+
+	int8 ComponentIndex[4];
+	int8 NumComponents;
+	bool bHasSwizzle;
+};
+
 struct FCustomHLSLInput
 {
 	FCustomHLSLInput() = default;

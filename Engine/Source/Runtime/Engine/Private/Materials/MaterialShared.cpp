@@ -278,32 +278,51 @@ int32 FExpressionInput::Compile(class FMaterialCompiler* Compiler)
 		return INDEX_NONE;
 }
 
-const UE::HLSLTree::FExpression* FExpressionInput::TryAcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+const UE::HLSLTree::FExpression* FExpressionInput::TryAcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 InputIndex) const
 {
-	const UE::HLSLTree::FExpression* Result = nullptr;
+	using namespace UE::HLSLTree;
+	const FExpression* Result = nullptr;
 	if (Expression)
 	{
 		Expression->ValidateState();
-		Result = Generator.AcquireExpression(Scope, Expression, OutputIndex);
-		if (Mask && Result)
-		{
-			const UE::HLSLTree::FSwizzleParameters SwizzleParams = UE::HLSLTree::MakeSwizzleMask(!!MaskR, !!MaskG, !!MaskB, !!MaskA);
-			Result = Generator.NewSwizzle(SwizzleParams, Result);
-		}
+		const FSwizzleParameters SwizzleParams = Mask ? MakeSwizzleMask(!!MaskR, !!MaskG, !!MaskB, !!MaskA) : FSwizzleParameters();
+		Result = Generator.AcquireExpression(Scope, InputIndex, Expression, OutputIndex, SwizzleParams);
 	}
-
 	return Result;
 }
 
-const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+const UE::HLSLTree::FExpression* FExpressionInput::TryAcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	return TryAcquireHLSLExpression(Generator, Scope, Generator.FindInputIndex(this));
+}
+
+const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 InputIndex) const
 {
 	const FExpressionInput TracedInput = GetTracedInput();
 	if (!TracedInput.Expression)
 	{
-		Generator.Error(TEXT("Missing input"));
+		UMaterialExpression* OwnerExpression = Generator.GetCurrentExpression();
+		FName LocalInputName;
+		if (OwnerExpression && InputIndex != INDEX_NONE)
+		{
+			LocalInputName = OwnerExpression->GetInputName(InputIndex);
+		}
+		if (!LocalInputName.IsNone())
+		{
+			Generator.Errorf(TEXT("Missing input '%s'"), *LocalInputName.ToString());
+		}
+		else
+		{
+			Generator.Error(TEXT("Missing input"));
+		}
 		return nullptr;
 	}
-	return TryAcquireHLSLExpression(Generator, Scope);
+	return TryAcquireHLSLExpression(Generator, Scope, InputIndex);
+}
+
+const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	return AcquireHLSLExpression(Generator, Scope, Generator.FindInputIndex(this));
 }
 
 const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionOrConstant(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& ConstantValue) const

@@ -28,6 +28,7 @@ class UMaterialExpressionFunctionOutput;
 class UMaterialExpressionCustomOutput;
 class UMaterialExpressionVertexInterpolator;
 struct FFunctionExpressionInput;
+struct FExpressionInput;
 class ITargetPlatform;
 enum class EMaterialParameterType : uint8;
 
@@ -75,6 +76,8 @@ public:
 	const UE::Shader::FStructType* GetMaterialAttributesType() const;
 	const UE::Shader::FValue& GetMaterialAttributesDefaultValue() const;
 
+	UMaterialExpression* GetCurrentExpression() const;
+
 	template<typename StringType>
 	inline bool Error(const StringType& InError)
 	{
@@ -105,12 +108,19 @@ public:
 
 	const UE::Shader::FTextureValue* AcquireTextureValue(const UE::Shader::FTextureValue& Value);
 
+	int32 FindInputIndex(const FExpressionInput* Input) const;
+
 	/**
 	 * Returns the appropriate HLSLNode representing the given UMaterialExpression.
 	 * The node will be created if it doesn't exist. Otherwise, the tree will be updated to ensure the node is visible in the given scope
 	 * Note that a given UMaterialExpression may only support 1 of these node types, attempting to access an invalid node type will generate an error
 	 */
-	const UE::HLSLTree::FExpression* AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
+	const UE::HLSLTree::FExpression* AcquireExpression(UE::HLSLTree::FScope& Scope,
+		int32 InputIndex,
+		UMaterialExpression* MaterialExpression,
+		int32 OutputIndex,
+		const UE::HLSLTree::FSwizzleParameters& Swizzle);
+
 	const UE::HLSLTree::FExpression* AcquireFunctionInputExpression(UE::HLSLTree::FScope& Scope, const UMaterialExpressionFunctionInput* MaterialExpression);
 
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
@@ -175,7 +185,7 @@ private:
 	};
 
 	using FFunctionInputArray = TArray<const UMaterialExpressionFunctionInput*, TInlineAllocator<4>>;
-	using FFunctionOutputArray = TArray<const UMaterialExpressionFunctionOutput*, TInlineAllocator<4>>;
+	using FFunctionOutputArray = TArray<UMaterialExpressionFunctionOutput*, TInlineAllocator<4>>;
 	using FConnectedInputArray = TArray<const UE::HLSLTree::FExpression*, TInlineAllocator<4>>;
 
 	struct FFunctionCallEntry

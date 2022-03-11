@@ -112,6 +112,13 @@ private:
 	int32 NumErrors = 0;
 };
 
+class FNullErrorHandler : public FErrorHandlerInterface
+{
+public:
+	virtual void AddErrorInternal(UObject* InOwner, FStringView InError) override
+	{
+	}
+};
 
 /** Root class of the HLSL AST */
 class FNode
@@ -521,6 +528,7 @@ public:
 
 	/** Shortcuts to create various common expression types */
 	const FExpression* NewConstant(const Shader::FValue& Value);
+	const FExpression* NewSwizzle(const FSwizzleParameters& Params, const FExpression* Input);
 	const FExpression* NewUnaryOp(EOperation Op, const FExpression* Input);
 	const FExpression* NewBinaryOp(EOperation Op, const FExpression* Lhs, const FExpression* Rhs);
 

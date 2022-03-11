@@ -17,6 +17,12 @@ UMaterialGraphNode_Base::UMaterialGraphNode_Base(const FObjectInitializer& Objec
 {
 }
 
+int32 UMaterialGraphNode_Base::GetInputIndexForPin(const UEdGraphPin* Pin) const
+{
+	// For most node types, the pin's SourceIndex will be the input index
+	return Pin ? Pin->SourceIndex : INDEX_NONE;
+}
+
 UEdGraphPin* UMaterialGraphNode_Base::GetInputPin(int32 InputIndex) const
 {
 	for (UEdGraphPin* Pin : Pins)

@@ -162,17 +162,6 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
-struct FSwizzleParameters
-{
-	FSwizzleParameters() : NumComponents(0) { ComponentIndex[0] = ComponentIndex[1] = ComponentIndex[2] = ComponentIndex[3] = INDEX_NONE; }
-	explicit FSwizzleParameters(int8 IndexR, int8 IndexG = INDEX_NONE, int8 IndexB = INDEX_NONE, int8 IndexA = INDEX_NONE);
-
-	FRequestedType GetRequestedInputType(const FRequestedType& RequestedType) const;
-	bool HasSwizzle() const;
-
-	int8 ComponentIndex[4];
-	int32 NumComponents;
-};
 FSwizzleParameters MakeSwizzleMask(bool bInR, bool bInG, bool bInB, bool bInA);
 
 class FExpressionSwizzle : public FExpression

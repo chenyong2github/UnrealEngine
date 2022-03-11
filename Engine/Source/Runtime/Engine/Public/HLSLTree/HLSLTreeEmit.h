@@ -265,7 +265,7 @@ struct FTargetParameters
 };
 
 /** Tracks shared state while emitting HLSL code */
-class FEmitContext
+class ENGINE_API FEmitContext
 {
 public:
 	explicit FEmitContext(FMemStackBase& InAllocator,

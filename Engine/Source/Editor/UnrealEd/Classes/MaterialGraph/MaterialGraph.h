@@ -4,12 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Templates/UniquePtr.h"
 #include "EdGraph/EdGraph.h"
 #include "Materials/Material.h"
 #include "MaterialGraph.generated.h"
 
 class UMaterialExpressionComment;
 class UMaterialExpressionComposite;
+struct FMaterialGraphCachedConnections;
+struct FMaterialConnectionKey;
+
+namespace UE::Shader
+{
+enum class EValueType : uint8;
+}
 
 DECLARE_DELEGATE_RetVal( bool, FRealtimeStateGetter );
 DECLARE_DELEGATE( FSetMaterialDirty );
@@ -135,7 +143,17 @@ class UNREALED_API UMaterialGraph : public UEdGraph
 	UPROPERTY()
 	FString	OriginalMaterialFullName;
 
+	//~ Begin UEdGraph interface
+	virtual void NotifyGraphChanged() override;
+protected:
+	virtual void NotifyGraphChanged(const FEdGraphEditAction& Action) override;
+	//~ End UEdGraph interface
+
 public:
+	UMaterialGraph();
+	UMaterialGraph(FVTableHelper& Helper);
+	virtual ~UMaterialGraph();
+
 	/**
 	 * Completely rebuild the graph from the material, removing all old nodes
 	 */
@@ -173,7 +191,7 @@ public:
 	void LinkGraphNodesFromMaterial();
 
 	/** Link the Material using the Graph node's connections */
-	void LinkMaterialExpressionsFromGraph() const;
+	void LinkMaterialExpressionsFromGraph();
 
 	/**
 	 * Check whether a material input should be marked as active
@@ -182,12 +200,17 @@ public:
 	 */
 	bool IsInputActive(class UEdGraphPin* GraphPin) const;
 
+	/** Returns the input index associated with the given property */
+	int32 GetInputIndexForProperty(EMaterialProperty Property) const;
+
 	/**
 	 * Get a list of nodes representing expressions that are not used in the Material
 	 *
 	 * @param	UnusedNodes	Array to contain nodes representing unused expressions
 	 */
 	void GetUnusedExpressions(TArray<class UEdGraphNode*>& UnusedNodes) const;
+
+	UE::Shader::EValueType GetConnectionType(const FMaterialConnectionKey& Key);
 
 private:
 	/**
@@ -204,4 +227,5 @@ private:
 	 */
 	int32 GetValidOutputIndex(FExpressionInput* Input) const;
 
+	TUniquePtr<FMaterialGraphCachedConnections> CachedConnections;
 };

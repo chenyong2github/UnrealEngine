@@ -21,14 +21,33 @@
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialExpressionExecEnd.h"
 
+#include "MaterialCachedHLSLTree.h"
+#include "HLSLTree/HLSLTreeEmit.h"
+#include "MaterialHLSLTree.h"
+
 #include "MaterialGraphNode_Knot.h"
 
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "MaterialGraph"
 
+struct FMaterialGraphCachedConnections
+{
+	TMap<FMaterialConnectionKey, UE::Shader::EValueType> ConnectionMap;
+};
+
 UMaterialGraph::UMaterialGraph(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+{
+}
+
+UMaterialGraph::UMaterialGraph() = default;
+
+UMaterialGraph::UMaterialGraph(FVTableHelper& Helper)
+{
+}
+
+UMaterialGraph::~UMaterialGraph()
 {
 }
 
@@ -76,6 +95,73 @@ static UMaterialGraphNode* InitExpressionNewNode(UMaterialGraph* Graph, UMateria
 	NodeCreator.Finalize();
 
 	return NewNode;
+}
+
+namespace Private
+{
+void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
+	const FMaterialCachedHLSLTree& CachedTree,
+	EShaderFrequency ShaderFrequency)
+{
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+
+	EmitContext.ShaderFrequency = ShaderFrequency;
+	EmitContext.bUseAnalyticDerivatives = true; // We want to consider expressions used for analytic derivatives
+	EmitContext.bMarkLiveValues = false;
+	FEmitScope* EmitResultScope = EmitContext.PrepareScope(CachedTree.GetResultScope());
+
+	FRequestedType RequestedAttributesType;
+	CachedTree.SetRequestedFields(ShaderFrequency, RequestedAttributesType);
+
+	const FPreparedType& ResultType = EmitContext.PrepareExpression(CachedTree.GetResultExpression(), *EmitResultScope, RequestedAttributesType);
+}
+
+FMaterialGraphCachedConnections* CreateConnections(const FMaterialCachedHLSLTree& CachedTree)
+{
+	using namespace UE::HLSLTree;
+
+	FNullErrorHandler NullErrorHandler;
+	FMemStackBase Allocator;
+	FEmitContext EmitContext(Allocator, FTargetParameters(), NullErrorHandler, CachedTree.GetTypeRegistry());
+
+	Material::FEmitData& EmitMaterialData = EmitContext.AcquireData<Material::FEmitData>();
+
+	PrepareHLSLTree(EmitContext, CachedTree, SF_Pixel);
+	PrepareHLSLTree(EmitContext, CachedTree, SF_Vertex);
+
+	FMaterialGraphCachedConnections* Connections = new FMaterialGraphCachedConnections();
+	for (const auto& It : CachedTree.GetConnections())
+	{
+		const UE::Shader::FType Type = EmitContext.GetType(It.Value);
+		if (!Type.IsVoid())
+		{
+			Connections->ConnectionMap.Add(It.Key, Type.ValueType);
+		}
+	}
+
+	return Connections;
+}
+
+} // namespace Private
+
+UE::Shader::EValueType UMaterialGraph::GetConnectionType(const FMaterialConnectionKey& Key)
+{
+	FMaterialGraphCachedConnections* LocalConnections = CachedConnections.Get();
+	if (!LocalConnections && Material->IsUsingNewHLSLGenerator())
+	{
+		LocalConnections = Private::CreateConnections(Material->GetCachedHLSLTree());
+		CachedConnections.Reset(LocalConnections);
+	}
+	if (LocalConnections)
+	{
+		const UE::Shader::EValueType* Result = LocalConnections->ConnectionMap.Find(Key);
+		if (Result)
+		{
+			return *Result;
+		}
+	}
+	return UE::Shader::EValueType::Void;
 }
 
 void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArray<UMaterialExpression*>>& SubgraphExpressionMap, const TMap<UMaterialExpression*, TArray<UMaterialExpressionComment*>>& SubgraphCommentMap)
@@ -411,7 +497,7 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 	NotifyGraphChanged();
 }
 
-void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
+void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 {
 	// Use GraphNodes to make Material Expression Connections
 	for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); ++NodeIndex)
@@ -584,10 +670,13 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 	}
 
 	// Also link subgraphs?
-	for (const UEdGraph* SubGraph : SubGraphs)
+	for (UEdGraph* SubGraph : SubGraphs)
 	{
 		CastChecked<UMaterialGraph>(SubGraph)->LinkMaterialExpressionsFromGraph();
 	}
+
+	// This is called when graph connections have been modified, so we need to reset any cached connection types
+	CachedConnections.Reset();
 }
 
 bool UMaterialGraph::IsInputActive(UEdGraphPin* GraphPin) const
@@ -604,6 +693,18 @@ bool UMaterialGraph::IsInputActive(UEdGraphPin* GraphPin) const
 		return Material->IsPropertyActiveInEditor(Property);
 	}
 	return true;
+}
+
+int32 UMaterialGraph::GetInputIndexForProperty(EMaterialProperty Property) const
+{
+	for (int32 Index = 0; Index < MaterialInputs.Num(); ++Index)
+	{
+		if (MaterialInputs[Index].GetProperty() == Property)
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
 }
 
 void UMaterialGraph::GetUnusedExpressions(TArray<UEdGraphNode*>& UnusedNodes) const
@@ -703,6 +804,18 @@ void UMaterialGraph::GetUnusedExpressions(TArray<UEdGraphNode*>& UnusedNodes) co
 			UnusedNodes.Add(GraphNode);
 		}
 	}
+}
+
+void UMaterialGraph::NotifyGraphChanged(const FEdGraphEditAction& Action)
+{
+	CachedConnections.Reset();
+	Super::NotifyGraphChanged(Action);
+}
+
+void UMaterialGraph::NotifyGraphChanged()
+{
+	CachedConnections.Reset();
+	Super::NotifyGraphChanged();
 }
 
 void UMaterialGraph::RemoveAllNodes()

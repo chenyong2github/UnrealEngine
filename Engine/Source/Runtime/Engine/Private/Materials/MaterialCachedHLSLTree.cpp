@@ -155,6 +155,20 @@ void FMaterialCachedHLSLTree::SetRequestedFields(EShaderFrequency ShaderFrequenc
 			OutRequestedType.SetFieldRequested(CustomOutputField);
 		}
 	}
+
+	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
+	for (const FGuid& AttributeID : OrderedVisibleAttributes)
+	{
+		if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == ShaderFrequency)
+		{
+			const FString& FieldName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
+			const UE::Shader::FStructField* Field = MaterialAttributesType->FindFieldByName(*FieldName);
+			if (Field)
+			{
+				OutRequestedType.SetFieldRequested(Field);
+			}
+		}
+	}
 }
 
 void FMaterialCachedHLSLTree::EmitSharedCode(FStringBuilderBase& OutCode) const
