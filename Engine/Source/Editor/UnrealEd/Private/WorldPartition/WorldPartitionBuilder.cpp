@@ -141,6 +141,15 @@ static FIntVector GetCellCoord(const FVector& InPos, const int32 InCellSize)
 	);
 }
 
+static FIntVector GetCellCount(const FBox& InBounds, const int32 InCellSize)
+{
+	const FIntVector MinCellCoords = GetCellCoord(InBounds.Min, InCellSize);
+	const FIntVector MaxCellCoords = FIntVector(FMath::CeilToInt(InBounds.Max.X / InCellSize),
+												FMath::CeilToInt(InBounds.Max.Y / InCellSize),
+												FMath::CeilToInt(InBounds.Max.Z / InCellSize));
+	return MaxCellCoords - MinCellCoords;
+}
+
 bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	// Notify derived classes that partition building process starts
@@ -192,20 +201,22 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 	if ((LoadingMode == ELoadingMode::IterativeCells) || (LoadingMode == ELoadingMode::IterativeCells2D))
 	{
 		// do partial loading loop that calls RunInternal
-		auto CanIterateZ = [](const bool bInResult, const ELoadingMode InLoadingMode, const int32 InZ, const int32 InMinZ, const int32 InMaxZ) -> bool
+		const FIntVector MinCellCoords = GetCellCoord(CellInfo.EditorBounds.Min, IterativeCellSize);
+		const FIntVector NumCellsIterations = GetCellCount(CellInfo.EditorBounds, IterativeCellSize);
+		const FIntVector BeginCellCoords = MinCellCoords;
+		const FIntVector EndCellCoords = BeginCellCoords + NumCellsIterations;
+
+		auto CanIterateZ = [&BeginCellCoords, &EndCellCoords, LoadingMode](const bool bInResult, const int32 InZ) -> bool
 		{
-			if (InLoadingMode == ELoadingMode::IterativeCells2D)
+			if (LoadingMode == ELoadingMode::IterativeCells2D)
 			{
-				return bInResult && (InZ == InMinZ);
+				return bInResult && (InZ == BeginCellCoords.Z);
 			}
 
-			return bInResult && (InZ <= InMaxZ);
+			return bInResult && (InZ < EndCellCoords.Z);
 		};
 
-		const FIntVector MinCellCoords = GetCellCoord(CellInfo.EditorBounds.Min, IterativeCellSize);
-		const FIntVector MaxCellCoords = GetCellCoord(CellInfo.EditorBounds.Max, IterativeCellSize);
-
-		const int32 IterationCount = ((LoadingMode == ELoadingMode::IterativeCells2D) ? 1 : (MaxCellCoords.Z - MinCellCoords.Z + 1)) * (MaxCellCoords.Y - MinCellCoords.Y + 1) * (MaxCellCoords.X - MinCellCoords.X + 1);
+		const int32 IterationCount = ((LoadingMode == ELoadingMode::IterativeCells2D) ? 1 : NumCellsIterations.Z) * NumCellsIterations.Y * NumCellsIterations.X;
 		int32 IterationIndex = 0;
 
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Iterative Cell Mode"));
@@ -216,11 +227,11 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		
 		FBox LoadedBounds(ForceInit);
 
-		for (int32 z = MinCellCoords.Z; CanIterateZ(bResult, LoadingMode, z, MinCellCoords.Z, MaxCellCoords.Z); z++)
+		for (int32 z = BeginCellCoords.Z; CanIterateZ(bResult, z); z++)
 		{
-			for (int32 y = MinCellCoords.Y; bResult && (y <= MaxCellCoords.Y); y++)
+			for (int32 y = BeginCellCoords.Y; bResult && (y < EndCellCoords.Y); y++)
 			{
-				for (int32 x = MinCellCoords.X; bResult && (x <= MaxCellCoords.X); x++)
+				for (int32 x = BeginCellCoords.X; bResult && (x < EndCellCoords.X); x++)
 				{
 					IterationIndex++;
 					UE_LOG(LogWorldPartitionBuilder, Display, TEXT("[%d / %d] Processing cells..."), IterationIndex, IterationCount);

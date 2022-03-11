@@ -2,10 +2,23 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "UObject/StrongObjectPtr.h"
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 
 #include "WorldPartitionMiniMapBuilder.generated.h"
+
+
+/** Structure holding Minimap's tile resources */
+struct FMinimapTile
+{
+	/** Tile's texture */
+	TStrongObjectPtr<UTexture2D> Texture;
+
+	/** Coordinates of the tile in the Minimap's Virtual Texture */
+	FIntVector2 Coordinates;
+};
 
 UCLASS(config = Engine, defaultconfig)
 class UNREALED_API UWorldPartitionMiniMapBuilder : public UWorldPartitionBuilder
@@ -26,11 +39,9 @@ protected:
 
 private:
 	/*MiniMap Texture Tiles for displaying on world partition window*/
-	UPROPERTY(Transient, VisibleAnywhere, Category = WorldPartitionMiniMap)
 	TArray<FMinimapTile> MiniMapTiles;
+	TObjectPtr<AWorldPartitionMiniMap> WorldMiniMap;
 
-	UPROPERTY(Transient, VisibleAnywhere, Category = WorldPartitionMiniMap)
-	TObjectPtr<AWorldPartitionMiniMap> WorldMiniMap = nullptr;
 	FBox EditorBounds;
 	bool bAutoSubmit;
 };

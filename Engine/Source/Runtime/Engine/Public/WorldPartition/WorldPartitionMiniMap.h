@@ -6,36 +6,6 @@
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartitionMiniMap.generated.h"
 
-/** Coordinates of the tile in Minimap texture */
-USTRUCT()
-struct FTileCoordinates
-{
-	GENERATED_BODY()
-
-	UPROPERTY(VisibleAnywhere, Category = WorldPartitionMiniMap)
-	int32 X = 0;
-
-	UPROPERTY(VisibleAnywhere, Category = WorldPartitionMiniMap)
-	int32 Y = 0;
-};
-
-/** Structure holding Minimap's tile resources */
-USTRUCT()
-struct FMinimapTile
-{
-	GENERATED_BODY()
-
-	FMinimapTile() : Texture(nullptr) {}
-
-	/** Tile's texture */
-	UPROPERTY(VisibleAnywhere, Category = WorldPartitionMiniMap)
-	TObjectPtr<UTexture2D> Texture;
-
-	/** Coordinates of the tile in the Minimap's Virtual Texture */
-	UPROPERTY(VisibleAnywhere, Category = WorldPartitionMiniMap)
-	FTileCoordinates Coordinates;
-};
-
 /**
  * A mini map to preview the world in world partition window. (editor-only)
  */
@@ -54,6 +24,7 @@ public:
 	virtual bool IsLockLocation() const { return true; }
 	virtual bool IsUserManaged() const final { return false; }
 	virtual bool SupportsDataLayer() const final { return false; }
+	virtual void CheckForErrors() override;
 #endif
 
 	/*WorldBounds for MinMapTexture*/

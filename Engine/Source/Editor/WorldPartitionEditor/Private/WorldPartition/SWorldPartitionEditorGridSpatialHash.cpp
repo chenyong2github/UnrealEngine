@@ -34,7 +34,6 @@
 
 SWorldPartitionEditorGridSpatialHash::SWorldPartitionEditorGridSpatialHash()
 	: WorldMiniMapBounds(ForceInit)
-	, WorldMinimapUsesVirtualTexture(false)
 {
 }
 
@@ -49,9 +48,6 @@ void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 
 	if (WorldPartition)
 	{
-		UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
-
-		//Update MiniMap data for drawing  
 		UpdateWorldMiniMapDetails();
 
 		bShowActors = !WorldMiniMapBrush.HasUObject();
@@ -60,38 +56,16 @@ void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
 }
 
-void SWorldPartitionEditorGridSpatialHash::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	SWorldPartitionEditorGrid2D::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
-	UTexture2D* Texture2D = Cast<UTexture2D>(WorldMiniMapBrush.GetResourceObject());
-
-	if ((Texture2D != nullptr) && (Texture2D->IsCurrentlyVirtualTextured() != WorldMinimapUsesVirtualTexture))
-	{
-		UpdateWorldMiniMapDetails();
-	}
-}
-
 void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
 {
-	auto WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World);
+	AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World);
 	if (WorldMiniMap)
 	{
 		WorldMiniMapBounds = FBox2D(FVector2D(WorldMiniMap->MiniMapWorldBounds.Min), FVector2D(WorldMiniMap->MiniMapWorldBounds.Max));
 		if (UTexture2D* MiniMapTexture = WorldMiniMap->MiniMapTexture)
 		{
-			WorldMinimapUsesVirtualTexture = MiniMapTexture->IsCurrentlyVirtualTextured();
-
-			if (WorldMinimapUsesVirtualTexture)
-			{
-				WorldMiniMapBrush.SetUVRegion(WorldMiniMap->UVOffset);
-			}
-			else
-			{
-				WorldMiniMapBrush.SetUVRegion(FBox2D({ 0.f, 0.f }, { 1.f, 1.f }));
-			}
-
-			WorldMiniMapBrush.SetImageSize(FVector2D(MiniMapTexture->GetSizeX(), MiniMapTexture->GetSizeY()));
+			WorldMiniMapBrush.SetUVRegion(WorldMiniMap->UVOffset);
+			WorldMiniMapBrush.SetImageSize(MiniMapTexture->GetImportedSize());
 			WorldMiniMapBrush.SetResourceObject(MiniMapTexture);
 		}
 	}

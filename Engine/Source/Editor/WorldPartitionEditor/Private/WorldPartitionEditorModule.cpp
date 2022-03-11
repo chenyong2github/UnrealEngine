@@ -278,10 +278,13 @@ static void RunCommandletAsExternalProcess(const FString& InCommandletArgs, cons
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
 
 	uint32 ProcessID;
-	FString Arguments = FString::Printf(TEXT("\"%s\" %s"), *ProjectPath, *InCommandletArgs);
+	FString Arguments = FString::Printf(TEXT("\"%s\" %s -unattended"), *ProjectPath, *InCommandletArgs);
 	
 	UE_LOG(LogWorldPartitionEditor, Display, TEXT("Running commandlet: %s %s"), *CurrentExecutableName, *Arguments);
-	ProcessHandle = FPlatformProcess::CreateProc(*CurrentExecutableName, *Arguments, true, false, false, &ProcessID, 0, nullptr, WritePipe, ReadPipe);
+	const bool bLaunchDetached = true;
+	const bool bLaunchHidden = true;
+	const bool bLaunchReallyHidden = true;
+	ProcessHandle = FPlatformProcess::CreateProc(*CurrentExecutableName, *Arguments, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, 0, nullptr, WritePipe, ReadPipe);
 
 	while (FPlatformProcess::IsProcRunning(ProcessHandle))
 	{

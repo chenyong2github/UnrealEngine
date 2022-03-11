@@ -78,18 +78,18 @@ bool UWorldPartitionMiniMapBuilder::PreRun(UWorld* World, FPackageSourceControlH
 
 bool UWorldPartitionMiniMapBuilder::RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)
 {
-	FMinimapTile MinimapTile;
-	
-	MinimapTile.Coordinates.X = InCellInfo.Location.X;
-	MinimapTile.Coordinates.Y = InCellInfo.Location.Y;
-
 	EditorBounds = InCellInfo.EditorBounds;
 	IterativeCellSize = InCellInfo.IterativeCellSize;
 
 	FString TextureName = FString::Format(TEXT("MinimapTile_{0}_{1}_{2}"), { InCellInfo.Location.X, InCellInfo.Location.Y, InCellInfo.Location.Z });
 
-	FWorldPartitionMiniMapHelper::CaptureBoundsMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapTileSize, static_cast<UTexture2D*&>(MinimapTile.Texture), TextureName, InCellInfo.Bounds);
+	UTexture2D* TileTexture = nullptr;
+	FWorldPartitionMiniMapHelper::CaptureBoundsMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapTileSize, TileTexture, TextureName, InCellInfo.Bounds);
 
+	FMinimapTile MinimapTile;
+	MinimapTile.Texture = TStrongObjectPtr<UTexture2D>(TileTexture);
+	MinimapTile.Coordinates.X = InCellInfo.Location.X;
+	MinimapTile.Coordinates.Y = InCellInfo.Location.Y;
 	MiniMapTiles.Add(MoveTemp(MinimapTile));
 
 	return true;
@@ -97,9 +97,6 @@ bool UWorldPartitionMiniMapBuilder::RunInternal(UWorld* World, const FCellInfo& 
 
 bool UWorldPartitionMiniMapBuilder::PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess)
 {
-	TArray<FTextureSourceBlock> SourceBlocks;
-	TArray<const uint8*>		SourceImageData;
-
 	if (!bInRunSuccess)
 	{
 		return false;
@@ -116,63 +113,74 @@ bool UWorldPartitionMiniMapBuilder::PostRun(UWorld* World, FPackageSourceControl
 		return false;
 	}
 
-	SourceBlocks.Reserve(MiniMapTiles.Num());
-	SourceImageData.Reserve(MiniMapTiles.Num());
-
-	FTileCoordinates Min = { FMath::FloorToInt32(EditorBounds.Min.X / IterativeCellSize), FMath::FloorToInt32(EditorBounds.Min.Y / IterativeCellSize) };
-	FTileCoordinates Max = { FMath::FloorToInt32(EditorBounds.Max.X / IterativeCellSize), FMath::FloorToInt32(EditorBounds.Max.Y / IterativeCellSize) };
-
-	FVector2D				Offset;
-	ETextureSourceFormat	Format = TSF_BGRA8;
-
-	for (FMinimapTile& Tile : MiniMapTiles)
-	{
-		FTextureSourceBlock* Block = new(SourceBlocks) FTextureSourceBlock();
-		bool bIsOrigin = (Tile.Coordinates.X == 0) && (Tile.Coordinates.Y == 0);
-
-		Format = (Tile.Texture != nullptr) ? Tile.Texture->Source.GetFormat() : Format;
-
-		// Offset X coordinates and reverse Y
-		Tile.Coordinates.X = Tile.Coordinates.X - Min.X;
-		Tile.Coordinates.Y = Max.Y - Tile.Coordinates.Y;
-
-		if (bIsOrigin)
-		{
-			Offset.X = Tile.Coordinates.X;
-			Offset.Y = -Tile.Coordinates.Y;
-		}
-
-		Block->BlockX = Tile.Coordinates.X;
-		Block->BlockY = Tile.Coordinates.Y;
-		Block->SizeX = Tile.Texture->GetSizeX();
-		Block->SizeY = Tile.Texture->GetSizeY();
-		Block->NumSlices = 1;
-		Block->NumMips = 1;
-
-		const uint8* DataPtr = Tile.Texture->Source.LockMip(0);
-		SourceImageData.Add(DataPtr);
-	}
-
-	TStrongObjectPtr<UTextureFactory> Factory(NewObject<UTextureFactory>());
-
-	WorldMiniMap->MiniMapTexture = Factory->CreateTexture2D(WorldMiniMap, TEXT("MinimapTexture"), RF_NoFlags);
-	WorldMiniMap->MiniMapTexture->Source.InitBlocked(&Format, SourceBlocks.GetData(), 1, SourceBlocks.Num(), SourceImageData.GetData());
-
+	FIntVector2 MinTileCoords(INT32_MAX);
+	FIntVector2 MaxTileCoords(-INT32_MAX);
 	for (const FMinimapTile& Tile : MiniMapTiles)
 	{
-		Tile.Texture->Source.UnlockMip(0);
+		MinTileCoords = FIntVector2(FMath::Min(MinTileCoords.X, Tile.Coordinates.X), FMath::Min(MinTileCoords.Y, Tile.Coordinates.Y));
+		MaxTileCoords = FIntVector2(FMath::Max(MaxTileCoords.X, Tile.Coordinates.X), FMath::Max(MaxTileCoords.Y, Tile.Coordinates.Y));
 	}
 
-	WorldMiniMap->MiniMapTexture->AdjustMinAlpha = 1.f;
-	WorldMiniMap->MiniMapTexture->LODGroup = TEXTUREGROUP_UI;
-	WorldMiniMap->MiniMapTexture->VirtualTextureStreaming = true;
-	WorldMiniMap->MiniMapTexture->UpdateResource();
+	const FIntVector2 NumTilesCoords = FIntVector2(MaxTileCoords.X - MinTileCoords.X + 1, MaxTileCoords.Y - MinTileCoords.Y + 1);
+	const int32 MinimapTileSize = WorldMiniMap->MiniMapTileSize;
+	const int32 MinimapImageSizeX = NumTilesCoords.X * MinimapTileSize;
+	const int32 MinimapImageSizeY = NumTilesCoords.Y * MinimapTileSize;
+	
+	// Copy all tiles to the final minimap texture
+	{
+		TStrongObjectPtr<UTextureFactory> Factory(NewObject<UTextureFactory>());
+		UTexture2D* MiniMapTexture = Factory->CreateTexture2D(WorldMiniMap, TEXT("MinimapTexture"), RF_NoFlags);
+		MiniMapTexture->Source.Init(MinimapImageSizeX, MinimapImageSizeY, 1, 1, TSF_BGRA8);
 
-	FBox2D UVOffset(FVector2D(EditorBounds.Min.X / IterativeCellSize + Offset.X, EditorBounds.Min.Y / IterativeCellSize + Offset.Y),
-					FVector2D(EditorBounds.Max.X / IterativeCellSize + Offset.X, EditorBounds.Max.Y / IterativeCellSize + Offset.Y));
+	    const uint32 DstDataStride = MiniMapTexture->Source.GetSizeX() * MiniMapTexture->Source.GetBytesPerPixel();
+	    uint8* DstDataBasePtr = MiniMapTexture->Source.LockMip(0);
+    
+	    for (const FMinimapTile& Tile : MiniMapTiles)
+	    {
+		    const uint32 SrcDataStride = MinimapTileSize * Tile.Texture->Source.GetBytesPerPixel();
+		    const uint8* SrcDataPtr = Tile.Texture->Source.LockMipReadOnly(0);
+    
+		    const int32 TileOffsetX = Tile.Coordinates.X - MinTileCoords.X;
+		    const int32 TileOffsetY = Tile.Coordinates.Y - MinTileCoords.Y;
+    
+		    uint8* DstDataPtr = DstDataBasePtr + (TileOffsetY * MinimapTileSize * DstDataStride) + (TileOffsetX * SrcDataStride);
+    
+		    for (int RowIdx = 0; RowIdx < MinimapTileSize; ++RowIdx)
+		    {
+			    FMemory::Memcpy(DstDataPtr + DstDataStride * RowIdx,
+							    SrcDataPtr + SrcDataStride * RowIdx,
+							    SrcDataStride);
+		    }
+    
+		    Tile.Texture->Source.UnlockMip(0);
+	    }
 
-	UVOffset.bIsValid = true;
-	WorldMiniMap->UVOffset = UVOffset;
+		MiniMapTexture->Source.UnlockMip(0);
+		MiniMapTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;	// Required for VTs
+		MiniMapTexture->AdjustMinAlpha = 1.f;
+		MiniMapTexture->LODGroup = TEXTUREGROUP_UI;
+		MiniMapTexture->VirtualTextureStreaming = true;
+		MiniMapTexture->UpdateResource();
+
+		WorldMiniMap->MiniMapTexture = MiniMapTexture;
+	}
+
+	// Compute relevant UV space for the minimap
+	{
+		FBox2D MinimapWorldBounds = FBox2D({ EditorBounds.Min.X, EditorBounds.Min.Y }, { EditorBounds.Max.X, EditorBounds.Max.Y });
+		FBox2D ImageWorldBounds = FBox2D(FVector2D(MinTileCoords.X, MinTileCoords.Y) * IterativeCellSize, FVector2D(MaxTileCoords.X + 1, MaxTileCoords.Y + 1) * IterativeCellSize);
+
+		FVector2D TexturePOW2ScaleFactor = FVector2D((float)MinimapImageSizeX / FMath::RoundUpToPowerOfTwo(MinimapImageSizeX),
+			(float)MinimapImageSizeY / FMath::RoundUpToPowerOfTwo(MinimapImageSizeY));
+
+		FBox2D UVOffset(FVector2D((MinimapWorldBounds.Min - ImageWorldBounds.Min) / ImageWorldBounds.GetSize()),
+			FVector2D((MinimapWorldBounds.Max - ImageWorldBounds.Min) / ImageWorldBounds.GetSize()));
+
+		UVOffset.Min *= TexturePOW2ScaleFactor;
+		UVOffset.Max *= TexturePOW2ScaleFactor;
+
+		WorldMiniMap->UVOffset = UVOffset;
+	}
 
 	// Make sure the minimap texture is ready before saving
 	FAssetCompilingManager::Get().FinishAllCompilation();
