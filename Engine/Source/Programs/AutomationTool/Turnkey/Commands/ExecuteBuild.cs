@@ -16,7 +16,17 @@ namespace Turnkey.Commands
 		protected override CommandGroup Group => CommandGroup.Builds;
 
 		// could move this to TurnkeyUtils!
-		static string GetStructEntry(string Input, string Property, bool bIsArrayProperty)
+		public static string GetStructEntryForSetting(ConfigHierarchy Config, string Section, string Setting, string Property)
+		{
+			string ConfigEntry;
+			if (Config.GetString(Section, Setting, out ConfigEntry))
+			{
+				return GetStructEntry(ConfigEntry, Property, false);
+			}
+			return null;
+		}
+
+		public static string GetStructEntry(string Input, string Property, bool bIsArrayProperty)
 		{
 			string PrimaryRegex;
 			string AltRegex = null;
@@ -26,10 +36,46 @@ namespace Turnkey.Commands
 			}
 			else
 			{
-				// handle quoted strings, allowing for quoited quotation marks (basically doing " followed by whatever, until we see a quote that was not proceeded by a \, and gather the whole mess in an outer group)
+				// handle quoted strings, allowing for escaped quotation marks (basically doing " followed by whatever, until we see a quote that was not proceeded by a \, and gather the whole mess in an outer group)
 				PrimaryRegex = string.Format("{0}\\s*=\\s*\"((.*?)[^\\\\])\"", Property);
-				AltRegex = string.Format("{0}\\s*=\\s*(.*?)\\,", Property);
+				// when no quotes, we skip over whitespace, and we end when we see whitespace, a comma or a ). This will handle (Ip = 192.168.0.1 , Name=....) , and return only '192.168.0.1'
+				AltRegex = string.Format("{0}\\s*=\\s*(.*?)[\\s,\\)]", Property);
 			}
+
+			// attempt to match it!
+			Match Result = Regex.Match(Input, PrimaryRegex);
+			if (!Result.Success && AltRegex != null)
+			{
+				Result = Regex.Match(Input, AltRegex);
+			}
+
+			// if we got a success, return the main match value
+			if (Result.Success)
+			{
+				return Result.Groups[1].Value.ToString();
+			}
+
+			return null;
+		}
+
+		public static string GetMapValueForSetting(ConfigHierarchy Config, string Section, string Setting, string Key)
+		{
+			string ConfigEntry;
+			if (Config.GetString(Section, Setting, out ConfigEntry))
+			{
+				return GetMapValue(ConfigEntry, Key);
+			}
+			return null;
+		}
+
+		// Key cannot have escaped quotes or commas
+		public static string GetMapValue(string Input, string Key)
+		{
+			string PrimaryRegex;
+			string AltRegex = null;
+			// handle quoted strings, allowing for escaped quotation marks (and possibly the key in quotes as well)
+			PrimaryRegex = string.Format("{0}\"?\\s*,\\s*\"((.*?)[^\\\\])\"", Key);
+			AltRegex = string.Format("{0}\"?\\s*,\\s*(.*?)[\\s,\\)]", Key);
 
 			// attempt to match it!
 			Match Result = Regex.Match(Input, PrimaryRegex);
@@ -50,16 +96,19 @@ namespace Turnkey.Commands
 		protected override void Execute(string[] CommandOptions)
 		{
 			// we need a platform to execute
-			List<UnrealTargetPlatform> Platforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, null);
 			FileReference ProjectFile = TurnkeyUtils.GetProjectFromCommandLineOrUser(CommandOptions);
+			List<UnrealTargetPlatform> Platforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, null);
+			string DesiredBuild = TurnkeyUtils.ParseParamValue("Build", null, CommandOptions);
+			string ExtraOptions = TurnkeyUtils.ParseParamValue("ExtraOptions", "", CommandOptions);
+			string OutputDir = TurnkeyUtils.ParseParamValue("OutputDir", null, CommandOptions);
+			bool bPrintCommandOnly = TurnkeyUtils.ParseParam("PrintOnly", CommandOptions);
+			bool bInteractive = TurnkeyUtils.ParseParam("Interactive", CommandOptions);
 
 			// we need a project file, so if canceled, abore this command
 			if (ProjectFile == null)
 			{
 				return;
 			}
-
-			string DesiredBuild = TurnkeyUtils.ParseParamValue("Build", null, CommandOptions);
 
 			// get a list of builds from config
 			foreach (UnrealTargetPlatform Platform in Platforms)
@@ -81,12 +130,13 @@ namespace Turnkey.Commands
 					Builds.AddRange(ProjectBuilds);
 				}
 
-				Dictionary<string, string> BuildCommands = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+				Dictionary<string, Tuple<string, string>> BuildCommands = new Dictionary<string, Tuple<string, string>>(StringComparer.InvariantCultureIgnoreCase);
 				if (Builds != null)
 				{
 					foreach (string Build in Builds)
 					{
 						string Name = GetStructEntry(Build, "Name", false);
+						string Help = GetStructEntry(Build, "HelpText", false);
 						string SpecificPlatforms = GetStructEntry(Build, "SpecificPlatforms", true);
 						string Params = GetStructEntry(Build, "BuildCookRunParams", false);
 
@@ -99,16 +149,17 @@ namespace Turnkey.Commands
 						// if platforms are specified, and this platform isn't one of them, skip it
 						if (!string.IsNullOrEmpty(SpecificPlatforms))
 						{
+							string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
 							string[] PlatformList = SpecificPlatforms.Split(",\"".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 							// case insensitive Contains
-							if (PlatformList.Length > 0 && !PlatformList.Any(x => x.Equals(Platform.ToString(), StringComparison.OrdinalIgnoreCase)))
+							if (PlatformList.Length > 0 && !PlatformList.Any(x => x.Equals(IniPlatformName, StringComparison.OrdinalIgnoreCase)))
 							{
 								continue;
 							}
 						}
 
 						// add to list of commands
-						BuildCommands.Add(Name, Params);
+						BuildCommands.Add(Name, new Tuple<string, string>(Help, Params));
 					}
 				}
 
@@ -121,31 +172,100 @@ namespace Turnkey.Commands
 				string FinalParams;
 				if (!string.IsNullOrEmpty(DesiredBuild) && BuildCommands.ContainsKey(DesiredBuild))
 				{
-					FinalParams = BuildCommands[DesiredBuild];
+					FinalParams = BuildCommands[DesiredBuild].Item2;
 				}
 				else
 				{
 					List<string> BuildNames = BuildCommands.Keys.ToList();
-					int Choice = TurnkeyUtils.ReadInputInt("Choose a build to execute", BuildNames, true);
+					List<string> BuildItems = BuildNames.Select(x => x + (string.IsNullOrEmpty(BuildCommands[x].Item1) ? "" : $" [{BuildCommands[x].Item1}]")).ToList();
+					int Choice = TurnkeyUtils.ReadInputInt("Choose a build to execute", BuildItems, true);
 					if (Choice == 0)
 					{
 						continue;
 					}
 
-					FinalParams = BuildCommands[BuildNames[Choice - 1]];
+					FinalParams = BuildCommands[BuildNames[Choice - 1]].Item2;
 				}
 
-				FinalParams = FinalParams.Replace("{Project}", "\"" + ProjectFile.FullName + "\"");
-				FinalParams = FinalParams.Replace("{Platform}", Platform.ToString());
+				// make sure a project option is specified
+				if (!FinalParams.Contains("-project=", StringComparison.InvariantCultureIgnoreCase))
+				{
+					FinalParams = "-project={Project} " + FinalParams;
+				}
+
+				FinalParams = FinalParams.Replace("{Project}", "\"" + ProjectFile.FullName + "\"", StringComparison.InvariantCultureIgnoreCase);
+				FinalParams = FinalParams.Replace("{Platform}", Platform.ToString(), StringComparison.InvariantCultureIgnoreCase);
+				FinalParams = FinalParams.Replace("{ProjectPackagingSettings}", CreateBuild.MakeCommandLineFromPackagingSettings(Platform, ProjectFile, FinalParams));
 				FinalParams = PerformIniReplacements(FinalParams, ProjectFile.Directory, Platform);
 
-				TurnkeyUtils.Log("Executing '{0}'...", FinalParams);
+				// if there is a {DeviceId} param, get it from the commandline or user
+				if (FinalParams.Contains("{DeviceId}", StringComparison.InvariantCultureIgnoreCase))
+				{
+					List<DeviceInfo> Devices = TurnkeyUtils.GetDevicesFromCommandLineOrUser(CommandOptions, Platform);
+					string DeviceIds = string.Join("+", Devices.Select(x => x.Id));
+					FinalParams = FinalParams.Replace("{DeviceId}", DeviceIds, StringComparison.InvariantCultureIgnoreCase);
+				}
 
+				FinalParams += " " + ExtraOptions;
+
+				if (bPrintCommandOnly)
+				{
+					TurnkeyUtils.Log("To execute this build manually, run:");
+					TurnkeyUtils.Log("");
+					TurnkeyUtils.Report($"RunUAT BuildCookRun {FinalParams}");
+					TurnkeyUtils.Log("");
+					return;
+				}
+
+				// handle browsing for BrowseForDir after printing out, as it doesn't make much sense to ask for a directory or print out one
+				if (FinalParams.Contains("{BrowseForDir}"))
+				{
+					// if the -outputdir option was specified, use that, otherwise ask user for directory
+					if (OutputDir == null)
+					{
+						//if (RuntimePlatform.IsWindows)
+						//{
+						//	string ChosenFile = null;
+						//	System.Threading.Thread t = new System.Threading.Thread(x =>
+						//	{
+						//		ChosenFile = UnrealWindowsForms.Utils.ShowOpenFileDialogAndReturnFilename("Project Files (*.uproject)|*.uproject");
+						//	});
+
+						//	t.SetApartmentState(System.Threading.ApartmentState.STA);
+						//	t.Start();
+						//	t.Join();
+
+						//	if (ChosenFile == null)
+						//	{
+						//		continue;
+						//	}
+						//}
+						//else
+						//{
+						//	while (true)
+							{
+								OutputDir = TurnkeyUtils.ReadInput("Enter output directory:");
+							}
+						//}
+
+					}
+					if (string.IsNullOrEmpty(OutputDir))
+					{
+						TurnkeyUtils.Log("Cancelling...");
+						return;
+					}
+					// handle {BrowseForDir} with or without quotes already around it (if already has quotes, then replace with the path, and if
+					// without quotes, replace with path wrapped in quotes
+					FinalParams = FinalParams.Replace("\"{BrowseForDir}\"", OutputDir);
+					FinalParams = FinalParams.Replace("{BrowseForDir}", $"\"{OutputDir}\"");
+				}
+
+				TurnkeyUtils.Log("Executing '{0}'...", FinalParams);
 				ExecuteBuildCookRun(FinalParams);
 			}
 		}
 
-		private static void ExecuteBuildCookRun(string Params)
+		internal static void ExecuteBuildCookRun(string Params)
 		{
 			// split the params on whitespace not inside quotes (see https://stackoverflow.com/questions/4780728/regex-split-string-preserving-quotes/4780801#4780801 to explain the regex)
 			Regex Matcher = new Regex("(?<=^[^\"]*(?:\"[^\"]*\"[^\"]*)*)\\s(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");

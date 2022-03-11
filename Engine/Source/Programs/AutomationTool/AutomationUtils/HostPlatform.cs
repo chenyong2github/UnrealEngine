@@ -107,6 +107,11 @@ namespace AutomationTool
 		abstract public UnrealBuildTool.UnrealTargetPlatform HostEditorPlatform { get; }
 
 		/// <summary>
+		/// Returns the type of the current running host platform
+		/// </summary>
+		public static UnrealBuildTool.UnrealTargetPlatform Platform { get => Current.HostEditorPlatform; }
+
+		/// <summary>
 		/// Returns the pdb file extenstion for the host platform.
 		/// </summary>
 		abstract public string PdbExtension { get; }

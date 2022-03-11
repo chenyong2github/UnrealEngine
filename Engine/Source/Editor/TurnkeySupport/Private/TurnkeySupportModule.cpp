@@ -14,6 +14,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "ITargetDeviceServicesModule.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Async/Async.h"
@@ -60,6 +61,9 @@
 DEFINE_LOG_CATEGORY(LogTurnkeySupport);
 #define LOCTEXT_NAMESPACE "FTurnkeySupportModule"
 
+
+#define ALLOW_CONTROL_TO_COPY_COMMANDLINE 0
+
 namespace 
 {
 	FCriticalSection GTurnkeySection;
@@ -103,6 +107,7 @@ protected:
 		// If we are installed or don't have a compiler, we must assume we have a precompiled UAT.
 		return TEXT("-nocompileeditor -skipbuildeditor");
 	}
+
 
 	static bool ShowBadSDKDialog(FName IniPlatformName)
 	{
@@ -201,6 +206,16 @@ protected:
 
 public:
 
+
+	static FString GetLogAndReportCommandline(FString& LogFilename, FString& ReportFilename)
+	{
+		static int ReportIndex = 0;
+
+		LogFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyLog_%d.log"), ReportIndex)));
+		ReportFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyReport_%d.log"), ReportIndex++)));
+
+		return FString::Printf(TEXT("-ReportFilename=\"%s\" -log=\"%s\""), *ReportFilename, *LogFilename);
+	}
 
 	static void OpenProjectLauncher()
 	{
@@ -529,7 +544,7 @@ public:
 		FString CommandLine;
 		if (!ProjectPath.IsEmpty())
 		{
-			CommandLine.Appendf(TEXT("-ScriptsForProject=\"%s\" "), *ProjectPath);
+			CommandLine.Appendf(TEXT(" -ScriptsForProject=\"%s\" "), *ProjectPath);
 		}
 		CommandLine.Appendf(TEXT("Turnkey %s BuildCookRun %s"), *TurnkeyParams, *BuildCookRunParams);
 
@@ -546,25 +561,122 @@ public:
 		return true;
 	}
 
-	static void ExecuteCustomBuild(FName IniPlatformName, FProjectBuildSettings Build)
+	static FString GetCustomBuildCommandLine(FName IniPlatformName, const FString& DeviceId, const FProjectBuildSettings& Build)
 	{
-		const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(GetDefault<UProjectPackagingSettings>()->GetTargetFlavorForPlatform(IniPlatformName));
 		const FString ProjectPath = GetProjectPathForTurnkey();
 
 		FString CommandLine;
-		if (!ProjectPath.IsEmpty())
-		{
-			CommandLine.Appendf(TEXT("-ScriptsForProject=\"%s\" "), *ProjectPath);
-		}
-		CommandLine.Appendf(TEXT("Turnkey -command=ExecuteBuild -build=\"%s\" -platform=%s"),
-			*Build.Name, *IniPlatformName.ToString());
+		CommandLine.Appendf(TEXT("Turnkey -command=ExecuteBuild -build=\"%s\" -platform=%s"), *Build.Name, *ConvertToUATPlatform(IniPlatformName.ToString()));
 		if (!ProjectPath.IsEmpty())
 		{
 			CommandLine.Appendf(TEXT(" -project=\"%s\""), *ProjectPath);
 		}
+		if (!DeviceId.IsEmpty())
+		{
+			CommandLine.Appendf(TEXT(" -device=\"%s\""), *ConvertToUATDeviceId(DeviceId));
+		}
 
-		FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, LOCTEXT("Turnkey_CustomTaskNameVerbose", "Executing Custom Build"), LOCTEXT("Turnkey_CustomTaskName", "Custom"), FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")));
+		// pass the editor setting down to UAT in case they aren't saved to the ini's that UAT would read
+		{
+			UProjectPackagingSettings* PackagingSettings = FTurnkeySupportCallbacks::GetPackagingSettingsForPlatform(IniPlatformName);
+			UProjectPackagingSettings* AllPlatformPackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+			bool bIsProjectBuildTarget = false;
+			const FTargetInfo* BuildTargetInfo = AllPlatformPackagingSettings->GetBuildTargetInfoForPlatform(IniPlatformName, bIsProjectBuildTarget);
 
+			CommandLine.Appendf(TEXT(" -overridetarget=%s"), *BuildTargetInfo->Name);
+
+			// distribution builds can set shipping 
+			EProjectPackagingBuildConfigurations BuildConfig = PackagingSettings->ForDistribution ? 
+				EProjectPackagingBuildConfigurations::PPBC_Shipping :
+				AllPlatformPackagingSettings->GetBuildConfigurationForPlatform(IniPlatformName);
+
+			// if PPBC_MAX is set, then the project default should be used instead of the per platform build config
+			if (BuildConfig == EProjectPackagingBuildConfigurations::PPBC_MAX)
+			{
+				BuildConfig = AllPlatformPackagingSettings->BuildConfiguration;
+			}
+			const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)BuildConfig];
+			CommandLine.Appendf(TEXT(" -overrideconfiguration=%s"), LexToString(ConfigurationInfo.Configuration));
+
+
+			// get the chosen cook flavor (texture format, etc)
+			const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(AllPlatformPackagingSettings->GetTargetFlavorForPlatform(IniPlatformName));
+			if (PlatformInfo->IsFlavor())
+			{
+				CommandLine.Appendf(TEXT(" -overrideflavor=%s"), *PlatformInfo->PlatformFlavor.ToString());
+			}
+		}
+
+		return CommandLine;
+	}
+
+	static void ExecuteCustomBuild(FName IniPlatformName, FString DeviceId, FProjectBuildSettings Build)
+	{
+		const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(GetDefault<UProjectPackagingSettings>()->GetTargetFlavorForPlatform(IniPlatformName));
+		const FString ProjectPath = GetProjectPathForTurnkey();
+
+		// throw this on the command before the actual automation name (Turnkey, BuildCOokRun, etc) because they are global-to-UAT options, not options for a single command
+		// and may not carry through when Turnkey passes along to the BCR command
+		FString CommandLine = TEXT("-utf8output");
+		if (!ProjectPath.IsEmpty())
+		{
+			CommandLine.Appendf(TEXT(" -ScriptsForProject=\"%s\" "), *ProjectPath);
+		}
+		CommandLine += GetCustomBuildCommandLine(IniPlatformName, DeviceId, Build);
+
+#if ALLOW_CONTROL_TO_COPY_COMMANDLINE
+		bool bIsControlHeld = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+		if (bIsControlHeld)
+		{
+			CommandLine += TEXT(" -PrintOnly ");
+
+			FString LogFilename, ReportFilename;
+			CommandLine += GetLogAndReportCommandline(LogFilename, ReportFilename);
+
+			FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, LOCTEXT("Turnkey_GettingCommandLine", "Copying Commandline"), LOCTEXT("Turnkey_CustomTaskName", "CustomCommandLine"), nullptr /* TaskIcon */,
+				[BuildName=Build.Name, ReportFilename](FString, double)
+				{
+					FString ReportContents;
+					FFileHelper::LoadFileToString(ReportContents, *ReportFilename);
+					UE_LOG(LogTurnkeySupport, Log, TEXT("Custom command '%s' gave commandline: %s"), *BuildName, *ReportContents);
+					if (ReportContents.Len())
+					{
+						FPlatformApplicationMisc::ClipboardCopy(*ReportContents);
+					}
+				});
+		}
+		else
+#endif
+		{
+			// append the stuff needed for running under editor
+			FString EditorSpecificCommandLine = FString::Printf(TEXT(" %s"), GetUATCompilationFlags());
+			if (FDerivedDataCacheInterface* DDC = GetDerivedDataCache())
+			{
+				EditorSpecificCommandLine += FString::Printf(TEXT(" -ddc=%s"), DDC->GetGraphName());
+			}
+
+			CommandLine += FString::Printf(TEXT(" -extraoptions=\"%s\""), *EditorSpecificCommandLine);
+
+			// if there is a Broese option, execute it now before passing to UAT to get the editor dialog
+			if (Build.BuildCookRunParams.Contains("{BrowseForDir}"))
+			{
+				// we reuse the already-presenbt StagingDirectory to save it, although it's more like "BuildOutpuDirectory" now 
+				UProjectPackagingSettings* AllPlatformPackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+				FString OutFolderName;
+				if (!FDesktopPlatformModule::Get()->OpenDirectoryDialog(FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr), LOCTEXT("PackageDirectoryDialogTitle", "Package project...").ToString(), AllPlatformPackagingSettings->StagingDirectory.Path, OutFolderName))
+				{
+					return;
+				}
+
+				AllPlatformPackagingSettings->StagingDirectory.Path = OutFolderName;
+				AllPlatformPackagingSettings->SaveConfig();
+
+				CommandLine += FString::Printf(TEXT(" -outputdir=\"%s\""), *OutFolderName);
+			}
+
+
+			FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, LOCTEXT("Turnkey_CustomTaskNameVerbose", "Executing Custom Build"), LOCTEXT("Turnkey_CustomTaskName", "Custom"), FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")));
+		}
 	}
 
 	static void SetPackageBuildConfiguration(const PlatformInfo::FTargetPlatformInfo* Info, EProjectPackagingBuildConfigurations BuildConfiguration)
@@ -747,7 +859,7 @@ static void TurnkeyInstallSdk(FString IniPlatformName, bool bPreferFull, bool bF
 	FString CommandLine;
 	if (!ProjectPath.IsEmpty())
 	{
-		CommandLine.Appendf(TEXT("-ScriptsForProject=\"%s\" "), *ProjectPath);
+		CommandLine.Appendf(TEXT(" -ScriptsForProject=\"%s\" "), *ProjectPath);
 	}
 	CommandLine.Appendf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s %s %s -noturnkeyvariables -utf8output -WaitForUATMutex"), *IniPlatformName, *OptionalOptions, *ITurnkeyIOModule::Get().GetUATParams());
 
@@ -907,8 +1019,55 @@ static void FormatSdkInfo(const FString& PlatformOrDevice, const FTurnkeySdkInfo
 }
 
 
+static bool HasBuildForDeviceOrNot(const TArray<FProjectBuildSettings> Builds, bool bLookForDeviceBuilds)
+{
+	for (const FProjectBuildSettings& Build : Builds)
+	{
+		const bool bHasDeviceEntry = Build.BuildCookRunParams.Contains(TEXT("{DeviceId}"));
+		// if it has a device, and we are looking for device, or vice versa, return true
+		if (bHasDeviceEntry == bLookForDeviceBuilds)
+		{
+			return true;
+		}
+	}
 
+	return true;
+}
 
+static void MakeCustomBuildMenuEntries(FToolMenuSection& Section, const TArray<FProjectBuildSettings> Builds, FName IniPlatformName, const FString& DeviceId, const FString& DeviceName, const FText& ToolTipFormat)
+{
+	FString PlatformString = IniPlatformName.ToString();
+
+	for (FProjectBuildSettings Build : Builds)
+	{
+		if (Build.SpecificPlatforms.Num() == 0 || Build.SpecificPlatforms.Contains(PlatformString))
+		{
+			const bool bHasDeviceEntry = Build.BuildCookRunParams.Contains(TEXT("{DeviceId}"));
+			const bool bNeedsDeviceEntry = !DeviceId.IsEmpty();
+			if (bHasDeviceEntry == bNeedsDeviceEntry)
+			{
+				FString CommandLine = FTurnkeySupportCallbacks::GetCustomBuildCommandLine(IniPlatformName, DeviceId, Build);
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("CommandLine"), FText::FromString(CommandLine));
+				Args.Add(TEXT("BuildName"), FText::FromString(Build.Name));
+				Args.Add(TEXT("BuildHelp"), FText::FromString(Build.HelpText));
+				Args.Add(TEXT("DeviceName"), FText::FromString(DeviceName));
+
+				Section.AddMenuEntry(
+					NAME_None,
+					FText::FromString(Build.Name),
+					FText::Format(ToolTipFormat, Args),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::ExecuteCustomBuild, IniPlatformName, DeviceId, Build),
+						FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanExecuteCustomBuild, IniPlatformName, Build)
+					)
+				);
+			}
+		}
+	}
+
+}
 
 static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, ITargetDeviceServicesModule* TargetDeviceServicesModule)
 {
@@ -955,44 +1114,26 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
 // 		);
 // 
 
-		FString PlatformString = IniPlatformName.ToString();
 		UProjectPackagingSettings* PackagingSettings = FTurnkeySupportCallbacks::GetPackagingSettingsForPlatform(IniPlatformName);
 
-		for (FProjectBuildSettings Build : PackagingSettings->EngineCustomBuilds)
-		{
-			if (Build.SpecificPlatforms.Num() == 0 || Build.SpecificPlatforms.Contains(PlatformString))
-			{
-				Section.AddMenuEntry(
-					NAME_None,
-					FText::FromString(Build.Name),
-					// @todo turnkey: add the build string to the tooltip
-					LOCTEXT("TurnkeyTooltip_EngineCustomBuild", "Execute a custom build"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::ExecuteCustomBuild, IniPlatformName, Build),
-						FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanExecuteCustomBuild, IniPlatformName, Build)
-					)
-				);
-			}
-		}
 
-		for (FProjectBuildSettings Build : PackagingSettings->ProjectCustomBuilds)
-		{
-			if (Build.SpecificPlatforms.Num() == 0 || Build.SpecificPlatforms.Contains(PlatformString))
-			{
-				Section.AddMenuEntry(
-					NAME_None,
-					FText::FromString(Build.Name),
-					// @todo turnkey: add the build string to the tooltip
-					LOCTEXT("TurnkeyTooltip_ProjectCustomBuild", "Execute a custom build (this comes from Packaging Settings)"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::ExecuteCustomBuild, IniPlatformName, Build),
-						FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanExecuteCustomBuild, IniPlatformName, Build)
-					)
-				);
-			}
-		}
+			
+		// these ToolTipFormats will be formatted inside the MakeCustomBuildMenuEntries function with some named args
+		// the empty strings passed in is the deviceId, which means to show builds that don't contain DeviceId components
+#if ALLOW_CONTROL_TO_COPY_COMMANDLINE
+		FText ToolTipFormat = LOCTEXT("TurnkeyTooltip_EngineCustomBuild_WithCopy", "Execute the '{BuildName}' command.\n{BuildHelp}\n--\nThis runs the following command:\nRunUAT {CommandLine}\nHold Control to copy the final underlying BuildCookRun commandline to the clipboard.");
+#else
+		FText ToolTipFormat = LOCTEXT("TurnkeyTooltip_EngineCustomBuild", "Execute the '{BuildName}' command.\n{BuildHelp}\n--\nThis runs the following command:\nRunUAT {CommandLine}");
+#endif
+		MakeCustomBuildMenuEntries(Section, PackagingSettings->EngineCustomBuilds, IniPlatformName, FString(), FString(), ToolTipFormat);
+		
+#if ALLOW_CONTROL_TO_COPY_COMMANDLINE
+		ToolTipFormat = LOCTEXT("TurnkeyTooltip_ProjectCustomBuild_WithCopy", "Execute this project's custom '{BuildName}' command.\n{BuildHelp}\n--\nThis runs the following command:\nRunUAT {CommandLine}\nHold Control to copy the final BuildCookRun commandline to the clipboard.\nThis custom command comes from Project Settings.");
+#else
+		ToolTipFormat = LOCTEXT("TurnkeyTooltip_ProjectCustomBuild", "Execute this project's custom '{BuildName}' command.\n{BuildHelp}\n--\nThis runs the following command:\nRunUAT {CommandLine}\nThis custom command comes from Project Settings.");
+#endif
+		MakeCustomBuildMenuEntries(Section, PackagingSettings->ProjectCustomBuilds, IniPlatformName, FString(), FString(), ToolTipFormat);
+
 
 		UProjectPackagingSettings* AllPlatformPackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
 
@@ -1151,13 +1292,35 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
 				NAME_None,
 				MakeSdkStatusAttribute(IniPlatformName, Proxy),
 				FText(),
-				FNewToolMenuDelegate::CreateLambda([IniPlatformName, DeviceName, DeviceId](UToolMenu* SubToolMenu)
+				FNewToolMenuDelegate::CreateLambda([IniPlatformName, DeviceName, DeviceId, PackagingSettings](UToolMenu* SubToolMenu)
 				{
+					if (HasBuildForDeviceOrNot(PackagingSettings->EngineCustomBuilds, true) || HasBuildForDeviceOrNot(PackagingSettings->ProjectCustomBuilds, true))
+					{
+						FToolMenuSection& CustomBuildSection = SubToolMenu->AddSection("DeviceCustomBuilds", LOCTEXT("TurnkeySection_DeviceCustomBuilds", "Builds For Devices"));
+
+						// these ToolTipFormats will be formatted inside the MakeCustomBuildMenuEntries function with some named args
+						// the empty strings passed in is the deviceId, which means to show builds that don't contain DeviceId components
+#if ALLOW_CONTROL_TO_COPY_COMMANDLINE
+						FText ToolTipFormat = LOCTEXT("TurnkeyTooltip_EngineCustomBuild_WithCopy", "Execute the '{BuildName}' command on {DeviceName}.\n{BuildHelp}\n--\nThis runs the following command:\nRunUAT {CommandLine}\nHold Control to copy the final underlying BuildCookRun commandline to the clipboard.");
+#else
+						FText ToolTipFormat = LOCTEXT("TurnkeyTooltip_EngineCustomBuild", "Execute the '{BuildName}' command on {DeviceName}.\n{BuildHelp}\n--\nThis runs the following command:\nRunUAT {CommandLine}");
+#endif
+						MakeCustomBuildMenuEntries(CustomBuildSection, PackagingSettings->EngineCustomBuilds, IniPlatformName, DeviceId, DeviceName, ToolTipFormat);
+
+#if ALLOW_CONTROL_TO_COPY_COMMANDLINE
+						ToolTipFormat = LOCTEXT("TurnkeyTooltip_ProjectCustomBuild", "Execute this project's custom '{BuildName}' command on {DeviceName}.\n{BuildHelp}\n--\nThis runs the following command:\nRunUAT {CommandLine}\nHold Control to copy the final BuildCookRun commandline to the clipboard.\nThis custom command comes from Project Settings.");
+#else
+						ToolTipFormat = LOCTEXT("TurnkeyTooltip_ProjectCustomBuild_WithCopy", "Execute this project's custom '{BuildName}' command on {DeviceName}.\n{BuildHelp}\n--\nThis runs the following command:\nRunUAT {CommandLine}\nThis custom command comes from Project Settings.");
+#endif
+						MakeCustomBuildMenuEntries(CustomBuildSection, PackagingSettings->ProjectCustomBuilds, IniPlatformName, DeviceId, DeviceName, ToolTipFormat);
+					}
+
+
 					FTurnkeySdkInfo SdkInfo = ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId);
 					FText SdkText, SdkToolTip;
 					FormatSdkInfo(DeviceId, SdkInfo, false, SdkText, SdkToolTip);
 
-					FToolMenuSection& Section = SubToolMenu->AddSection(NAME_None);
+					FToolMenuSection& Section = SubToolMenu->AddSection("DeviceSdkInfo", LOCTEXT("TurnkeySection_DeviceSdkInfo", "Sdk Info"));
 					Section.AddEntry(
 						FToolMenuEntry::InitWidget(
 							NAME_None,
@@ -1797,16 +1960,6 @@ void FTurnkeySupportModule::MakeTurnkeyMenu(FToolMenuSection& MenuSection) const
 	MenuSection.AddEntry(Entry);
 }
 
-static FString GetLogAndReportCommandline(FString& LogFilename, FString& ReportFilename)
-{
-	static int ReportIndex = 0;
-
-	LogFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyLog_%d.log"), ReportIndex)));
-	ReportFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyReport_%d.log"), ReportIndex++)));
-
-	return FString::Printf(TEXT("-ReportFilename=\"%s\" -log=\"%s\""), *ReportFilename, *LogFilename);
-}
-
 // some shared functionality
 static void PrepForTurnkeyReport(FString& BaseCommandline, FString& ReportFilename)
 {
@@ -1821,7 +1974,7 @@ static void PrepForTurnkeyReport(FString& BaseCommandline, FString& ReportFilena
 	}
 
 	FString LogFilename;
-	FString LogAndReportParams = GetLogAndReportCommandline(LogFilename, ReportFilename);
+	FString LogAndReportParams = FTurnkeySupportCallbacks::GetLogAndReportCommandline(LogFilename, ReportFilename);
 
 	BaseCommandline = BaseCommandline.Appendf(TEXT("Turnkey -utf8output -WaitForUATMutex -command=VerifySdk %s"), *LogAndReportParams);
 	// now pass a project to Turnkey

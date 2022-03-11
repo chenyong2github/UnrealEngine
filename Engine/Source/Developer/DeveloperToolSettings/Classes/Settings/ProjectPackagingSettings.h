@@ -145,6 +145,10 @@ struct FProjectBuildSettings
 	UPROPERTY(EditAnywhere, Category="Packaging")
 	FString Name;
 
+	/** Any help that you would like to include in the ToolTip of the menu option (or shown in interactive mode Turnkey) */
+	UPROPERTY(EditAnywhere, Category="Packaging")
+	FString HelpText;
+
 	/** If this build step is specific to one or more platforms, add them here by name (note: use Windows, not Win64) */
 	UPROPERTY(EditAnywhere, Category="Packaging")
 	TArray<FString> SpecificPlatforms;
@@ -651,7 +655,7 @@ private:
 	TMap<FName, FName> PerPlatformTargetFlavorName;
 
 	/** Per platform build target */
-	UPROPERTY(config)
+	UPROPERTY(config, EditAnywhere, Category=Project)
 	TMap<FName, FString> PerPlatformBuildTarget;
 
 	/** Helper array used to mirror Blueprint asset selections across edits */

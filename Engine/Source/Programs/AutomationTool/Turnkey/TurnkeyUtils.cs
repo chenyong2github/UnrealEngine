@@ -96,7 +96,7 @@ namespace Turnkey
 		public static string ParseParamValue(string Param, string Default, string[] ExtraOptions)
 		{
 			// our internal extraoptions still have - in front, but CommandUtilHelper won't have the dashes
-			string Value = CommandUtils.ParseParamValue(ExtraOptions, "-" + Param, Default);
+			string Value = CommandUtils.ParseParamValue(ExtraOptions, "-" + Param, null);
 			if (Value == null)
 			{
 				Value = CommandUtilHelper.ParseParamValue(Param, Default);

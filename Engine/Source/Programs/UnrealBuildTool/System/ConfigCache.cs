@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -59,6 +60,21 @@ namespace UnrealBuildTool
 				this.FieldInfo = FieldInfo;
 				this.Attribute = Attribute;
 			}
+		}
+
+		/// <summary>
+		/// Allowed modification types allowed for default config files
+		/// </summary>
+		public enum ConfigDefaultUpdateType
+		{
+			/// <summary>
+			/// Used for non-array types, this will replace a setting, or it will add a setting if it doesn't exist
+			/// </summary>
+			SetValue,
+			/// <summary>
+			/// Used to add an array entry to the end of any existing array entries, or will add to the end of the section
+			/// </summary>
+			AddArrayEntry,
 		}
 
 		/// <summary>
@@ -457,5 +473,158 @@ namespace UnrealBuildTool
 				throw new Exception("Unsupported type for [ConfigFile] attribute");
 			}
 		}
+
+
+		#region Updating Default Config file support
+
+		/// <summary>
+		/// Calculates the path to where the project's Default config of the type given (ie DefaultEngine.ini)
+		/// </summary>
+		/// <param name="ConfigType">Game, Engine, etc</param>
+		/// <param name="ProjectDir">Project directory, used to find Config/Default[Type].ini</param>
+		public static FileReference GetDefaultConfigFileReference(ConfigHierarchyType ConfigType, DirectoryReference ProjectDir)
+		{
+			return FileReference.Combine(ProjectDir, "Config", $"Default{ConfigType}.ini");
+		}
+
+		/// <summary>
+		/// Updates a section in a Default***.ini, and will write it out. If the file is not writable, p4 can attempt to check it out.
+		/// </summary>
+		/// <param name="ConfigType">Game, Engine, etc</param>
+		/// <param name="ProjectDir">Project directory, used to find Config/Default[Type].ini</param>
+		/// <param name="UpdateType">How to modify the secion</param>
+		/// <param name="Section">Name of the section with the Key in it</param>
+		/// <param name="Key">Key to update</param>
+		/// <param name="Value">Value to write for te Key</param>
+		/// <returns></returns>		
+		public static bool WriteSettingToDefaultConfig(ConfigHierarchyType ConfigType, DirectoryReference ProjectDir, ConfigDefaultUpdateType UpdateType, string Section, string Key, string Value)
+		{
+			FileReference DefaultConfigFile = GetDefaultConfigFileReference(ConfigType, ProjectDir);
+
+			if (!FileReference.Exists(DefaultConfigFile))
+			{
+				Log.TraceWarning($"Failed to find config file '{DefaultConfigFile.FullName}' to update");
+				return false;
+			}
+
+			if (File.GetAttributes(DefaultConfigFile.FullName).HasFlag(FileAttributes.ReadOnly))
+			{
+				Log.TraceWarning($"Config file '{DefaultConfigFile.FullName}' is read-only, unable to write setting {Key}");
+				return false;
+			}
+
+			// generate the section header
+			string SectionString = $"[{Section}]";
+
+			// genrate the line we are going to write to the config
+			string KeyWithEquals = $"{Key}=";
+			string LineToWrite = (UpdateType == ConfigDefaultUpdateType.AddArrayEntry ? "+" : "");
+			LineToWrite += KeyWithEquals + Value;
+
+
+			// read in all the lines so we can insert or replace one
+			List<string> Lines = File.ReadAllLines(DefaultConfigFile.FullName).ToList();
+
+			// look for the section
+			int SectionIndex = -1;
+			for (int Index = 0; Index < Lines.Count; Index++)
+			{
+				if (Lines[Index].Trim().Equals(SectionString, StringComparison.InvariantCultureIgnoreCase))
+				{
+					SectionIndex = Index;
+					break;
+				}
+			}
+
+			// if section not found, just append to the end
+			if (SectionIndex == -1)
+			{
+				Lines.Add(SectionString);
+				Lines.Add(LineToWrite);
+
+				File.WriteAllLines(DefaultConfigFile.FullName, Lines);
+				return true;
+			}
+
+
+			// find the last line in the section with the prefix
+			int LastIndexOfPrefix = -1;
+			int NextSectionIndex = -1;
+			for (int Index = SectionIndex + 1; Index < Lines.Count; Index++)
+			{
+				string Line = Lines[Index];
+				if (Line.StartsWith('+') || Line.StartsWith('-') || Line.StartsWith('.') || Line.StartsWith('!'))
+				{
+					Line = Line.Substring(1);
+				}
+
+				// look for last array entry in case of multiples (or the only line for non-array type)
+				if (Line.StartsWith(KeyWithEquals, StringComparison.InvariantCultureIgnoreCase))
+				{
+					LastIndexOfPrefix = Index;
+				}
+				else if (Lines[Index].StartsWith("["))
+				{
+					NextSectionIndex = Index;
+					// we found another section, so break out
+					break;
+				}
+			}
+
+			// now we know enough to either insert or replace a line
+
+			// if we never found the key, we will insert at the end of the section
+			if (LastIndexOfPrefix == -1)
+			{
+				// if we didn't find a next section, thjen we will insert at the end of the file
+				if (NextSectionIndex == -1)
+				{
+					NextSectionIndex = Lines.Count;
+				}
+
+				// move past blank lines between sections
+				while (string.IsNullOrWhiteSpace(Lines[NextSectionIndex - 1]))
+				{
+					NextSectionIndex--;
+				}
+				// insert before the next section (or end of file)
+				Lines.Insert(NextSectionIndex, LineToWrite);
+			}
+			// otherwise, insert after, or replace, a line, depending on type
+			else
+			{
+				if (UpdateType == ConfigDefaultUpdateType.AddArrayEntry)
+				{
+					Lines.Insert(LastIndexOfPrefix + 1, LineToWrite);
+				}
+				else
+				{
+					Lines[LastIndexOfPrefix] = LineToWrite;
+				}
+			}
+
+			// now the lines are updated, we can overwrite the file
+			File.WriteAllLines(DefaultConfigFile.FullName, Lines);
+			return true;
+		}
+
+		/// <summary>
+		/// Invalidates the hierarchy internal caches so that next call to ReadHierarchy will re-read from disk
+		/// but existing ones will still be valid with old values
+		/// </summary>
+		public static void InvalidateCaches()
+		{
+			lock (LocationToConfigFile)
+			{
+				LocationToConfigFile.Clear();
+			}
+
+			lock (HierarchyKeyToHierarchy)
+			{
+				HierarchyKeyToHierarchy.Clear();
+			}
+		}
+
+		#endregion
 	}
 }

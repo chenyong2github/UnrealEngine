@@ -31,6 +31,11 @@ namespace UnrealBuildTool
 			public bool bIsEnabled = false;
 
 			/// <summary>
+			/// If true, this platform can stage the crashreporter
+			/// </summary>
+			public bool bCanUseCrashReporter = false;
+
+			/// <summary>
 			/// Additional restricted folders for this platform.
 			/// </summary>
 			public string[]? AdditionalRestrictedFolders = null;
@@ -114,6 +119,12 @@ namespace UnrealBuildTool
 							if (ParsedSection.TryGetValue("bIsConfidential", out Temp))
 							{
 								ConfigHierarchy.TryParse(Temp, out NewInfo.bIsConfidential);
+							}
+							// unspecified means true for this property
+							NewInfo.bCanUseCrashReporter = true;
+							if (ParsedSection.TryGetValue("bCanUseCrashReporter", out Temp))
+							{
+								ConfigHierarchy.TryParse(Temp, out NewInfo.bCanUseCrashReporter);
 							}
 
 							string HostKey = ConfigHierarchy.GetIniPlatformName(BuildHostPlatform.Current.Platform) + ":bIsEnabled";
