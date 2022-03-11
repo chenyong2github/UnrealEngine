@@ -201,6 +201,7 @@ protected:
 	virtual FInputActionValue ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;
 };
 
+class UCurveFloat;
 
 /** Response Curve User Defined
 	*  Apply a custom response curve to input values, per axis
@@ -213,11 +214,11 @@ class UInputModifierResponseCurveUser : public	UInputModifier
 public:
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = Settings, meta = (DisplayThumbnail = "false"))
-	class UCurveFloat* ResponseX;
+	TObjectPtr<UCurveFloat> ResponseX;
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = Settings, meta = (DisplayThumbnail = "false"))
-	class UCurveFloat* ResponseY;
+	TObjectPtr<UCurveFloat> ResponseY;
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = Settings, meta = (DisplayThumbnail = "false"))
-	class UCurveFloat* ResponseZ;
+	TObjectPtr<UCurveFloat> ResponseZ;
 
 protected:
 	virtual FInputActionValue ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;

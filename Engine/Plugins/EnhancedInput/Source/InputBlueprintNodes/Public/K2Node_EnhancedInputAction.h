@@ -23,7 +23,7 @@ class INPUTBLUEPRINTNODES_API UK2Node_EnhancedInputAction : public UK2Node, publ
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	const UInputAction* InputAction;
+	TObjectPtr<const UInputAction> InputAction;
 
 	//~ Begin UEdGraphNode Interface.
 	virtual void AllocateDefaultPins() override;

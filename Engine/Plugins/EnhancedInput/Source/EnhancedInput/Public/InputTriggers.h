@@ -387,7 +387,7 @@ public:
 
 	// The action that must be triggering for this trigger's action to trigger
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
-	const class UInputAction* ChordAction = nullptr;
+	TObjectPtr<const class UInputAction> ChordAction = nullptr;
 };
 
 /** UInputTriggerChordBlocker

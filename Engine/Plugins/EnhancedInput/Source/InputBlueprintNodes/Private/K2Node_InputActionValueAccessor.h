@@ -29,5 +29,5 @@ public:
 
 private:
 	UPROPERTY()
-	const UInputAction* InputAction;
+	TObjectPtr<const UInputAction> InputAction;
 };

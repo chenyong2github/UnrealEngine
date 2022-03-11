@@ -20,7 +20,7 @@ class UK2Node_GetInputActionValue : public UK2Node
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	const UInputAction* InputAction;
+	TObjectPtr<const UInputAction> InputAction;
 
 	//~ Begin EdGraphNode Interface
 	virtual void AllocateDefaultPins() override;

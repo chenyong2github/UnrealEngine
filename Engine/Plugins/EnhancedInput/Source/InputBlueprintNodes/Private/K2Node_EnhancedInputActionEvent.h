@@ -17,7 +17,7 @@ class INPUTBLUEPRINTNODES_API UK2Node_EnhancedInputActionEvent : public UK2Node_
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	const UInputAction* InputAction;
+	TObjectPtr<const UInputAction> InputAction;
 
 	UPROPERTY()
 	ETriggerEvent TriggerEvent;

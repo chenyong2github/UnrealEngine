@@ -21,7 +21,7 @@ void UK2Node_InputActionValueAccessor::AllocateDefaultPins()
 	Super::AllocateDefaultPins();
 
 	UEdGraphPin* InputActionPin = FindPinChecked(TEXT("Action"));
-	InputActionPin->DefaultObject = const_cast<UInputAction*>(InputAction);
+	InputActionPin->DefaultObject = const_cast<UInputAction*>(ToRawPtr(InputAction));
 }
 
 UClass* UK2Node_InputActionValueAccessor::GetDynamicBindingClass() const
