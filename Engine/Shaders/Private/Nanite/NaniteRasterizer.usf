@@ -79,7 +79,7 @@ ViewState ResolveView(FNaniteView NaniteView)
 	Ret.PrevTranslatedWorldToClip 	= NaniteView.PrevTranslatedWorldToClip;
 	Ret.PrevViewToClip 				= NaniteView.PrevViewToClip;
 	Ret.PrevClipToWorld 			= NaniteView.PrevClipToWorld;
-	Ret.ViewRectMin					= NaniteView.ViewRect;
+	Ret.ViewRectMin					= (float4)NaniteView.ViewRect;
 	Ret.ViewSizeAndInvSize 			= NaniteView.ViewSizeAndInvSize;
 	Ret.PreViewTranslation 			= NaniteView.PreViewTranslation;
 	Ret.PrevPreViewTranslation 		= NaniteView.PrevPreViewTranslation;
@@ -928,12 +928,24 @@ uint3 UnpackTriangleExport(uint Packed)
 	return uint3(Index0, Index1, Index2);
 }
 
+#define NUM_VERTEX_MASKS ((NANITE_MAX_CLUSTER_VERTICES + 31)/32)
+
+groupshared union
+{
 #if VERTEX_TO_TRIANGLE_MASKS
-groupshared uint GroupVertexToTriangleMasks[256][4];
+	uint VertexToTriangleMasks[NANITE_MAX_CLUSTER_VERTICES][4];
 #endif
-groupshared uint GroupTriangleCount;
-groupshared uint GroupVertexCount;
-groupshared uint GroupClusterIndex;
+	struct
+	{
+		uint ClusterIndex;			// NOTE: Overlapping ClusterIndex with VertexToTriangleMasks reduces peak LDS usage because of allocation granularity.
+#if HAS_RASTER_BIN
+		uint ReferencedVerticesMasks[NUM_VERTEX_MASKS];
+		uint ReferencedVerticesPrefixSums[NUM_VERTEX_MASKS];
+		uchar NewToOldVertex[NANITE_MAX_CLUSTER_VERTICES];
+		uchar OldToNewVertex[NANITE_MAX_CLUSTER_VERTICES];
+#endif
+	} S;
+} LDS;
 
 PRIM_SHADER_OUTPUT_TRIANGLES
 PRIM_SHADER_PRIM_COUNT(1)
@@ -951,12 +963,12 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	if (GroupThreadID == 0)
 	{
 		// Input index is only initialized for lane 0, so we need to manually communicate it to all other threads in subgroup (not just wavefront).
-		GroupClusterIndex = Input.Index;
+		LDS.S.ClusterIndex = Input.Index;
 	}
 	
 	GroupMemoryBarrierWithGroupSync();
+	uint VisibleIndex = LDS.S.ClusterIndex;
 
-	uint VisibleIndex = GroupClusterIndex;
 #if HAS_RASTER_BIN
 	const uint3 RasterBin = FetchHWRasterizerBin(VisibleIndex);
 	VisibleIndex = RasterBin.x;
@@ -978,64 +990,134 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-#if VERTEX_TO_TRIANGLE_MASKS
-	if (GroupThreadID < Cluster.NumVerts)
-	{
-		GroupVertexToTriangleMasks[GroupThreadID][0] = 0;
-		GroupVertexToTriangleMasks[GroupThreadID][1] = 0;
-		GroupVertexToTriangleMasks[GroupThreadID][2] = 0;
-		GroupVertexToTriangleMasks[GroupThreadID][3] = 0;
-	}
+	
+#if HAS_RASTER_BIN
+	const uint NumExportTriangles = RasterBin.z - RasterBin.y;
+	const uint FirstExportTriangle = RasterBin.y;
+	uint NumExportVertices = Cluster.NumVerts;
+	const bool bNeedsCompaction = (NumExportTriangles != Cluster.NumTris);
+#else
+	const uint NumExportTriangles = Cluster.NumTris;
+	const uint FirstExportTriangle = 0;
+	const uint NumExportVertices = Cluster.NumVerts;
 #endif
 
-	GroupMemoryBarrierWithGroupSync();
-
-	PrimitiveOutput PrimOutput;
-	PrimOutput.VertCount = Cluster.NumVerts;
-	PrimOutput.PrimCount = Cluster.NumTris;
-
-	if (GroupThreadID < Cluster.NumTris)
+	uint SrcVertexIndex = GroupThreadID;
+	uint3 TriangleIndices;
+	if (GroupThreadID < NumExportTriangles)
 	{
-		uint TriangleID = GroupThreadID;
-
-		bool bValidTriangle = true;
-		uint3 TriangleIndices = uint3(0u, 0u, 0u);
-	#if HAS_RASTER_BIN
-		if (TriangleID >= RasterBin.y && TriangleID < RasterBin.z) // TODO: PROG_RASTER: Not safe to skip triangles here
-	#endif
+		TriangleIndices = ReadTriangleIndices(Cluster, FirstExportTriangle + GroupThreadID);
+		if (ReverseWindingOrder(InstanceData))
 		{
-			TriangleIndices = ReadTriangleIndices(Cluster, TriangleID);
-			if (ReverseWindingOrder(InstanceData))
+			TriangleIndices = TriangleIndices.xzy;
+		}
+	}
+
+#if HAS_RASTER_BIN
+	if (bNeedsCompaction)
+	{
+		// Programmable raster renders a single material at a time, so clusters with multiple materials need to only
+		// export triangles from the current material. Unreferenced vertices are not allowed in primitive shaders,
+		// so we need to compact the vertices and remap any references.
+		
+		// The expectation is that this path is going to be rare as most clusters will have just a single material and
+		// most materials will not need programmable raster.
+
+		if (GroupThreadID < NUM_VERTEX_MASKS)
+		{
+			// Clear vertex reference masks
+			LDS.S.ReferencedVerticesMasks[GroupThreadID] = 0u;
+		}
+		GroupMemoryBarrierWithGroupSync();
+		if (GroupThreadID < NumExportTriangles)
+		{
+			// Mark referenced vertices
+			InterlockedOr(LDS.S.ReferencedVerticesMasks[TriangleIndices.x >> 5], 1u << (TriangleIndices.x & 31));
+			InterlockedOr(LDS.S.ReferencedVerticesMasks[TriangleIndices.y >> 5], 1u << (TriangleIndices.y & 31));
+			InterlockedOr(LDS.S.ReferencedVerticesMasks[TriangleIndices.z >> 5], 1u << (TriangleIndices.z & 31));
+		}
+
+		GroupMemoryBarrierWithGroupSync();
+		if (GroupThreadID < NUM_VERTEX_MASKS)
+		{
+			// Calculate dword prefix sums
+			const uint NumMaskBits = countbits(LDS.S.ReferencedVerticesMasks[GroupThreadID]);
+			LDS.S.ReferencedVerticesPrefixSums[GroupThreadID] = WavePrefixSum(NumMaskBits);
+		}
+		GroupMemoryBarrierWithGroupSync();
+
+		// Update export vertices to number of referenced vertices
+		NumExportVertices = LDS.S.ReferencedVerticesPrefixSums[NUM_VERTEX_MASKS - 1] + countbits(LDS.S.ReferencedVerticesMasks[NUM_VERTEX_MASKS - 1]);
+
+		if (GroupThreadID < Cluster.NumVerts)
+		{
+			const uint DwordIndex = GroupThreadID >> 5;
+			const uint BitIndex = GroupThreadID & 31;
+			if (LDS.S.ReferencedVerticesMasks[DwordIndex] & (1u << BitIndex))
 			{
-				TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+				// Fill mappings between old and new (compact) vertex indices
+				const uint NewVertexIndex = LDS.S.ReferencedVerticesPrefixSums[DwordIndex] + countbits(BitFieldExtractU32(LDS.S.ReferencedVerticesMasks[DwordIndex], BitIndex, 0));
+				LDS.S.OldToNewVertex[GroupThreadID] = NewVertexIndex;
+				LDS.S.NewToOldVertex[NewVertexIndex] = GroupThreadID;
 			}
 		}
 
-#if VERTEX_TO_TRIANGLE_MASKS
-		const uint DwordIndex   = (GroupThreadID >> 5) & 3;
-		const uint TriangleMask = 1 << (GroupThreadID & 31);
-		InterlockedOr(GroupVertexToTriangleMasks[TriangleIndices.x][DwordIndex], TriangleMask);
-		InterlockedOr(GroupVertexToTriangleMasks[TriangleIndices.y][DwordIndex], TriangleMask);
-		InterlockedOr(GroupVertexToTriangleMasks[TriangleIndices.z][DwordIndex], TriangleMask);
+		GroupMemoryBarrierWithGroupSync();
+		if(GroupThreadID < NumExportTriangles)
+		{
+			// Remap triangles to new vertex indices
+			TriangleIndices = uint3(LDS.S.OldToNewVertex[TriangleIndices.x], LDS.S.OldToNewVertex[TriangleIndices.y], LDS.S.OldToNewVertex[TriangleIndices.z]);
+		}
+		if (GroupThreadID < NumExportVertices)
+		{
+			// Remap source vertex from compact to old
+			SrcVertexIndex = LDS.S.NewToOldVertex[GroupThreadID];
+		}
+	}
 #endif
+
+	PrimitiveOutput PrimOutput;
+	PrimOutput.VertCount = NumExportVertices;
+	PrimOutput.PrimCount = NumExportTriangles;
+
+	if(GroupThreadID < NumExportTriangles)
+	{
 		PrimOutput.PrimExport = PackTriangleExport(TriangleIndices);
 	}
 
-	GroupMemoryBarrierWithGroupSync();
-
-	if (GroupThreadID < Cluster.NumVerts)
+	if (GroupThreadID < NumExportVertices)
 	{
 		float4 PointClipNoScaling;
 		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
 		const uint PixelValue = ((VisibleIndex + 1) << 7);
-		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, GroupThreadID, PixelValue, WorldPositionOffset, PointClipNoScaling);
-#if VERTEX_TO_TRIANGLE_MASKS
-		PrimOutput.Out.ToTriangleMasks = uint4(GroupVertexToTriangleMasks[GroupThreadID][0],
-											   GroupVertexToTriangleMasks[GroupThreadID][1],
-											   GroupVertexToTriangleMasks[GroupThreadID][2],
-											   GroupVertexToTriangleMasks[GroupThreadID][3]);
-#endif
+		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, SrcVertexIndex, PixelValue, WorldPositionOffset, PointClipNoScaling);
 	}
+
+#if VERTEX_TO_TRIANGLE_MASKS
+	GroupMemoryBarrierWithGroupSync();	// Sync to make sure there is no lifetime overlap with LDS.S
+
+	if (GroupThreadID < NumExportVertices)
+	{
+		LDS.VertexToTriangleMasks[GroupThreadID][0] = 0;
+		LDS.VertexToTriangleMasks[GroupThreadID][1] = 0;
+		LDS.VertexToTriangleMasks[GroupThreadID][2] = 0;
+		LDS.VertexToTriangleMasks[GroupThreadID][3] = 0;
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	const uint TriangleID = FirstExportTriangle + GroupThreadID;
+	const uint DwordIndex = (TriangleID >> 5) & 3;
+	const uint TriangleMask = 1 << (TriangleID & 31);
+	InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.x][DwordIndex], TriangleMask);
+	InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.y][DwordIndex], TriangleMask);
+	InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.z][DwordIndex], TriangleMask);
+
+	GroupMemoryBarrierWithGroupSync();
+	PrimOutput.Out.ToTriangleMasks = uint4(	LDS.VertexToTriangleMasks[GroupThreadID][0],
+											LDS.VertexToTriangleMasks[GroupThreadID][1],
+											LDS.VertexToTriangleMasks[GroupThreadID][2],
+											LDS.VertexToTriangleMasks[GroupThreadID][3]);
+#endif
 
 	return PrimOutput;
 }
