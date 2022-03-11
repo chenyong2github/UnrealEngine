@@ -391,7 +391,7 @@ namespace Chaos
 						CrossingHorizontalCellBorderT = DtDy * ((FReal)(CurrentCellIndexY0 - ReferenceCellIndexY + (DeltaCelIndexY > 0 ? 1 : 0)) * DirtyElementGridCellSize - Y1);
 					}
 
-					if (CrossingHorizontalCellBorderT < CrossingVerticleCellBorderT)
+					if (CrossingHorizontalCellBorderT >= CrossingVerticleCellBorderT)
 					{
 						CurrentCellIndexY1 += DeltaCelIndexY;
 					}
