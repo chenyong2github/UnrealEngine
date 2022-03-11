@@ -636,8 +636,9 @@ void FLevelEditorMenu::RegisterBuildMenu()
 	}
 
 	{
-		FToolMenuSection& Section = Menu->AddSection("LevelEditorLOD", LOCTEXT("LODHeading", "Hierarchical LOD"));
-		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildLODsOnly);
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorWorldPartition", LOCTEXT("WorldPartitionHeading", "World Partition"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildHLODs);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildMinimap);
 	}
 
 	{

@@ -1469,9 +1469,12 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 	ActionList.MapAction( Commands.BuildPathsOnly,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::BuildPathsOnly_Execute ) );
 
-	ActionList.MapAction(Commands.BuildLODsOnly,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildLODsOnly_Execute));
+	ActionList.MapAction(Commands.BuildHLODs,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildHLODs_Execute));
 	
+	ActionList.MapAction(Commands.BuildMinimap,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildMinimap_Execute));
+
 	ActionList.MapAction(Commands.BuildTextureStreamingOnly,
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildTextureStreamingOnly_Execute));
 

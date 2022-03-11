@@ -8,7 +8,7 @@
 #include "WorldPartitionMiniMapBuilder.generated.h"
 
 UCLASS(config = Engine, defaultconfig)
-class UWorldPartitionMiniMapBuilder : public UWorldPartitionBuilder
+class UNREALED_API UWorldPartitionMiniMapBuilder : public UWorldPartitionBuilder
 {
 	GENERATED_UCLASS_BODY()
 

@@ -40,8 +40,10 @@ public:
 		BUILDTYPE_Lighting,
 		/** Paths are being built. */
 		BUILDTYPE_Paths,
-		/** LODs are being built */
-		BUILDTYPE_LODs, 
+		/** HLODs are being built */
+		BUILDTYPE_HLODs,
+		/** Minimap is being built */
+		BUILDTYPE_Minimap,
 		/** Texture streaming data is being built */
 		BUILDTYPE_TextureStreaming, 
 		/** Virtual texture data is being built */

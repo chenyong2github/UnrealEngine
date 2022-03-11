@@ -77,7 +77,8 @@ public:
 	TSharedPtr< FUICommandInfo > BuildGeometryOnly;
 	TSharedPtr< FUICommandInfo > BuildGeometryOnly_OnlyCurrentLevel;
 	TSharedPtr< FUICommandInfo > BuildPathsOnly;
-	TSharedPtr< FUICommandInfo > BuildLODsOnly;
+	TSharedPtr< FUICommandInfo > BuildHLODs;
+	TSharedPtr< FUICommandInfo > BuildMinimap;
 	TSharedPtr< FUICommandInfo > BuildTextureStreamingOnly;
 	TSharedPtr< FUICommandInfo > BuildVirtualTextureOnly;
 	TSharedPtr< FUICommandInfo > BuildAllLandscape;
@@ -748,7 +749,8 @@ public:
 	static void BuildGeometryOnly_Execute();
 	static void BuildGeometryOnly_OnlyCurrentLevel_Execute();
 	static void BuildPathsOnly_Execute();
-	static void BuildLODsOnly_Execute();
+	static void BuildHLODs_Execute();
+	static void BuildMinimap_Execute();
 	static void BuildTextureStreamingOnly_Execute();
 	static void BuildVirtualTextureOnly_Execute();
 	static void BuildAllLandscape_Execute();

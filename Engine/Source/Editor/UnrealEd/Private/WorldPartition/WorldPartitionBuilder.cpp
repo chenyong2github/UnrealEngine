@@ -205,11 +205,14 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		const FIntVector MinCellCoords = GetCellCoord(CellInfo.EditorBounds.Min, IterativeCellSize);
 		const FIntVector MaxCellCoords = GetCellCoord(CellInfo.EditorBounds.Max, IterativeCellSize);
 
+		const int32 IterationCount = ((LoadingMode == ELoadingMode::IterativeCells2D) ? 1 : (MaxCellCoords.Z - MinCellCoords.Z + 1)) * (MaxCellCoords.Y - MinCellCoords.Y + 1) * (MaxCellCoords.X - MinCellCoords.X + 1);
+		int32 IterationIndex = 0;
+
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Iterative Cell Mode"));
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Cell Size %d"), IterativeCellSize);
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Cell Overlap %d"), IterativeCellOverlapSize);
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("WorldBounds: Min %s, Max %s"), *CellInfo.EditorBounds.Min.ToString(), *CellInfo.EditorBounds.Max.ToString());
-		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Iteration Count: %d"), ((LoadingMode == ELoadingMode::IterativeCells2D) ? 1 : (MaxCellCoords.Z-MinCellCoords.Z + 1)) * (MaxCellCoords.Y-MinCellCoords.Y + 1) * (MaxCellCoords.X - MinCellCoords.X + 1));
+		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Iteration Count: %d"), IterationCount);
 		
 		FBox LoadedBounds(ForceInit);
 
@@ -219,6 +222,9 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 			{
 				for (int32 x = MinCellCoords.X; bResult && (x <= MaxCellCoords.X); x++)
 				{
+					IterationIndex++;
+					UE_LOG(LogWorldPartitionBuilder, Display, TEXT("[%d / %d] Processing cells..."), IterationIndex, IterationCount);
+
 					FVector Min(x * IterativeCellSize, y * IterativeCellSize, z * IterativeCellSize);
 					FVector Max = Min + FVector(IterativeCellSize);
 

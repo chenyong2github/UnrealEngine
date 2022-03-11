@@ -70,7 +70,7 @@ enum class EHLODBuildStep : uint8
 ENUM_CLASS_FLAGS(EHLODBuildStep);
 
 UCLASS()
-class UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
+class UNREALED_API UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
 {
 	GENERATED_UCLASS_BODY()
 public:

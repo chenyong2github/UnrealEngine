@@ -4,6 +4,9 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionVolume.h"
 
+#include "WorldPartition/WorldPartitionHLODsBuilder.h"
+#include "WorldPartition/WorldPartitionMiniMapBuilder.h"
+
 #include "WorldPartition/HLOD/HLODLayerAssetTypeActions.h"
 
 #include "WorldPartition/SWorldPartitionEditor.h"
@@ -15,6 +18,8 @@
 #include "WorldPartition/WorldPartitionConvertOptions.h"
 #include "WorldPartition/WorldPartitionEditorSettings.h"
 
+#include "WorldPartition/HLOD/SWorldPartitionBuildHLODsDialog.h"
+
 #include "LevelEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -23,6 +28,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Internationalization/Regex.h"
 
 #include "Interfaces/IMainFrameModule.h"
 #include "Widgets/SWindow.h"
@@ -30,6 +36,8 @@
 #include "FileHelpers.h"
 #include "ToolMenus.h"
 #include "IContentBrowserSingleton.h"
+#include "IDirectoryWatcher.h"
+#include "DirectoryWatcherModule.h"
 #include "ContentBrowserModule.h"
 #include "EditorDirectories.h"
 #include "AssetRegistryModule.h"
@@ -44,6 +52,8 @@ IMPLEMENT_MODULE( FWorldPartitionEditorModule, WorldPartitionEditor );
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
 const FName WorldPartitionEditorTabId("WorldBrowserPartitionEditor");
+
+DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionEditor, All, All);
 
 // World Partition
 static void OnLoadSelectedWorldPartitionVolumes(TArray<TWeakObjectPtr<AActor>> Volumes)
@@ -212,6 +222,103 @@ void FWorldPartitionEditorModule::OnConvertMap()
 	}
 }
 
+static bool UnloadCurrentMap(bool bAskSaveContentPackages)
+{
+	// Ask user to save dirty packages
+	if (!FEditorFileUtils::SaveDirtyPackages(/*bPromptUserToSave=*/true, /*bSaveMapPackages=*/true, bAskSaveContentPackages))
+	{
+		return false;
+	}
+
+	// Unload any loaded map
+	if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+static void RescanAssetsAndLoadMap(const FString& MapToLoad)
+{
+	// Force a directory watcher tick for the asset registry to get notified of the changes
+	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
+	DirectoryWatcherModule.Get()->Tick(-1.0f);
+
+	// Force update before loading converted map
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	TArray<FString> ExternalObjectsPaths = ULevel::GetExternalObjectsPaths(MapToLoad);
+
+	AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
+	AssetRegistry.ScanPathsSynchronous(ExternalObjectsPaths, true);
+
+	FEditorFileUtils::LoadMap(MapToLoad);
+}
+
+static void RunCommandletAsExternalProcess(const FString& InCommandletArgs, const FText& InOperationDescription, int32& OutResult, bool& bOutCancelled, FString& OutCommandletOutput)
+{
+	OutResult = 0;
+	bOutCancelled = false;
+	OutCommandletOutput.Empty();
+
+	FProcHandle ProcessHandle;
+
+	FScopedSlowTask SlowTask(1.0f, InOperationDescription);
+	SlowTask.MakeDialog(true);
+
+	void* ReadPipe = nullptr;
+	void* WritePipe = nullptr;
+	verify(FPlatformProcess::CreatePipe(ReadPipe, WritePipe));
+
+	FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
+
+	// Try to provide complete Path, if we can't try with project name
+	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
+
+	uint32 ProcessID;
+	FString Arguments = FString::Printf(TEXT("\"%s\" %s"), *ProjectPath, *InCommandletArgs);
+	
+	UE_LOG(LogWorldPartitionEditor, Display, TEXT("Running commandlet: %s %s"), *CurrentExecutableName, *Arguments);
+	ProcessHandle = FPlatformProcess::CreateProc(*CurrentExecutableName, *Arguments, true, false, false, &ProcessID, 0, nullptr, WritePipe, ReadPipe);
+
+	while (FPlatformProcess::IsProcRunning(ProcessHandle))
+	{
+		if (SlowTask.ShouldCancel())
+		{
+			bOutCancelled = true;
+			FPlatformProcess::TerminateProc(ProcessHandle);
+			break;
+		}
+
+		const FString LogString = FPlatformProcess::ReadPipe(ReadPipe);
+		if (!LogString.IsEmpty())
+		{
+			OutCommandletOutput.Append(LogString);
+		}
+
+		// Parse output, look for progress indicator in the log (in the form "Display: [i / N] Msg...\n")
+		const FRegexPattern LogProgressPattern(TEXT("Display:\\s\\[([0-9]+)\\s\\/\\s([0-9]+)\\]\\s(.+)?(?=\\.{3}$)"));
+		FRegexMatcher Regex(LogProgressPattern, *LogString);
+		while (Regex.FindNext())
+		{
+			// Update slow task progress & message
+			SlowTask.CompletedWork = FCString::Atoi(*Regex.GetCaptureGroup(1));
+			SlowTask.TotalAmountOfWork = FCString::Atoi(*Regex.GetCaptureGroup(2));
+			SlowTask.DefaultMessage = FText::FromString(Regex.GetCaptureGroup(3));
+		}
+
+		SlowTask.EnterProgressFrame(0);
+		FPlatformProcess::Sleep(0.1);
+	}
+
+	UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### Begin commandlet output ####\n%s"), *OutCommandletOutput);
+	UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### End commandlet output ####"));
+
+	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
+}
+
 bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 {
 	if (ULevel::GetIsLevelPartitionedFromPackage(FName(*InLongPackageName)))
@@ -247,106 +354,157 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 
 	if (ConvertDialog->ClickedOk())
 	{
-		// Conversion will try to load the converted map so ask user to save dirty packages
-		if (!FEditorFileUtils::SaveDirtyPackages(/*bPromptUserToSave=*/true, /*bSaveMapPackages=*/true, /*bSaveContentPackages=*/false))
+		if (!UnloadCurrentMap(/*bAskSaveContentPackages=*/false))
 		{
 			return false;
 		}
 
-		// Unload any loaded map
-		if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
-		{
-			return false;
-		}
-
-		FProcHandle ProcessHandle;
+		const FString CommandletArgs = *DefaultConvertOptions->ToCommandletArgs();
+		const FText OperationDescription = LOCTEXT("ConvertProgress", "Converting map to world partition...");
+		
+		int32 Result;
+		bool bCancelled;
 		FString CommandletOutput;
-		bool bCancelled = false;
-
-		// Task scope
-		{
-			FScopedSlowTask SlowTask(0, LOCTEXT("ConvertProgress", "Converting map to world partition..."));
-			SlowTask.MakeDialog(true);
-
-			void* ReadPipe = nullptr;
-			void* WritePipe = nullptr;
-			verify(FPlatformProcess::CreatePipe(ReadPipe, WritePipe));
-
-			FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
-
-			// Try to provide complete Path, if we can't try with project name
-			FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
-
-			uint32 ProcessID;
-			FString Arguments = FString::Printf(TEXT("\"%s\" %s"), *ProjectPath, *DefaultConvertOptions->ToCommandletArgs());
-			ProcessHandle = FPlatformProcess::CreateProc(*CurrentExecutableName, *Arguments, true, false, false, &ProcessID, 0, nullptr, WritePipe, ReadPipe);
-			
-			while (FPlatformProcess::IsProcRunning(ProcessHandle))
-			{
-				if (SlowTask.ShouldCancel())
-				{
-					bCancelled = true;
-					FPlatformProcess::TerminateProc(ProcessHandle);
-					break;
-				}
-
-				const FString LogString = FPlatformProcess::ReadPipe(ReadPipe);
-				if (!LogString.IsEmpty())
-				{
-					CommandletOutput.Append(LogString);
-				}
-
-				SlowTask.EnterProgressFrame(0);
-				FPlatformProcess::Sleep(0.1);
-			}
-
-			FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
-		}
-
-		int32 Result = 0;
-		if (!bCancelled && FPlatformProcess::GetProcReturnCode(ProcessHandle, &Result))
+		RunCommandletAsExternalProcess(CommandletArgs, OperationDescription, Result, bCancelled, CommandletOutput);
+		if (!bCancelled && Result == 0)
 		{	
-			if (Result == 0)
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("ConvertMapCompleted", "Conversion completed:\n{0}"), FText::FromString(CommandletOutput)));
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("ConvertMapCompleted", "Conversion completed:\n{0}"), FText::FromString(CommandletOutput)));
 
 #if	PLATFORM_DESKTOP
-				if (DefaultConvertOptions->bGenerateIni)
-				{
-					const FString PackageFilename = FPackageName::LongPackageNameToFilename(DefaultConvertOptions->LongPackageName);
-					const FString PackageDirectory = FPaths::ConvertRelativePathToFull(FPaths::GetPath(PackageFilename));
-					FPlatformProcess::ExploreFolder(*PackageDirectory);
-				}
-#endif
-				
-				// Force update before loading converted map
-				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-												
-				FString MapToLoad = InLongPackageName;
-				if (!DefaultConvertOptions->bInPlace)
-				{
-					MapToLoad += UWorldPartitionConvertCommandlet::GetConversionSuffix(DefaultConvertOptions->bOnlyMergeSubLevels);
-				}
-				
-				AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
-				AssetRegistry.ScanPathsSynchronous( ULevel::GetExternalObjectsPaths(MapToLoad), true);
-				
-				FEditorFileUtils::LoadMap(MapToLoad);
+			if (DefaultConvertOptions->bGenerateIni)
+			{
+				const FString PackageFilename = FPackageName::LongPackageNameToFilename(DefaultConvertOptions->LongPackageName);
+				const FString PackageDirectory = FPaths::ConvertRelativePathToFull(FPaths::GetPath(PackageFilename));
+				FPlatformProcess::ExploreFolder(*PackageDirectory);
 			}
+#endif				
+				
+			FString MapToLoad = InLongPackageName;
+			if (!DefaultConvertOptions->bInPlace)
+			{
+				MapToLoad += UWorldPartitionConvertCommandlet::GetConversionSuffix(DefaultConvertOptions->bOnlyMergeSubLevels);
+			}
+
+			RescanAssetsAndLoadMap(MapToLoad);
 		}
 		else if (bCancelled)
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertMapCancelled", "Conversion cancelled!"));
 		}
-		
-		if(Result != 0)
+		else if(Result != 0)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertMapFailed", "Conversion failed!"));
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("ConvertMapFailed", "Conversion failed:\n{0}"), FText::FromString(CommandletOutput)));
 		}
 	}
 
 	return false;
+}
+
+bool FWorldPartitionEditorModule::RunBuilder(TSubclassOf<UWorldPartitionBuilder> InWorldPartitionBuilder, const FString& InLongPackageName)
+{
+	// Ideally this should be improved to automatically register all builders & present their options in a consistent way...
+
+	if (InWorldPartitionBuilder == UWorldPartitionHLODsBuilder::StaticClass())
+	{
+		return BuildHLODs(InLongPackageName);
+	}
+	
+	if (InWorldPartitionBuilder == UWorldPartitionMiniMapBuilder::StaticClass())
+	{
+		return BuildMinimap(InLongPackageName);
+	}
+
+	return false;
+}
+
+bool FWorldPartitionEditorModule::BuildHLODs(const FString& InMapToProcess)
+{
+	TSharedPtr<SWindow> DlgWindow =
+		SNew(SWindow)
+		.Title(LOCTEXT("BuildHLODsWindowTitle", "Build HLODs"))
+		.ClientSize(SWorldPartitionBuildHLODsDialog::DEFAULT_WINDOW_SIZE)
+		.SizingRule(ESizingRule::UserSized)
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
+		.SizingRule(ESizingRule::FixedSize);
+
+	TSharedRef<SWorldPartitionBuildHLODsDialog> BuildHLODsDialog =
+		SNew(SWorldPartitionBuildHLODsDialog)
+		.ParentWindow(DlgWindow);
+
+	DlgWindow->SetContent(BuildHLODsDialog);
+
+	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+	FSlateApplication::Get().AddModalWindow(DlgWindow.ToSharedRef(), MainFrameModule.GetParentWindow());
+
+	if (BuildHLODsDialog->GetDialogResult() != SWorldPartitionBuildHLODsDialog::DialogResult::Cancel)
+	{
+		if (!UnloadCurrentMap(/*bAskSaveContentPackages=*/true))
+		{
+			return false;
+		}
+
+		const FString BuildArgs = BuildHLODsDialog->GetDialogResult() == SWorldPartitionBuildHLODsDialog::DialogResult::BuildHLODs ? "-SetupHLODs -BuildHLODs -AllowCommandletRendering" : "-DeleteHLODs";
+		const FString CommandletArgs = InMapToProcess + " -run=WorldPartitionBuilderCommandlet -Builder=WorldPartitionHLODsBuilder " + BuildArgs;
+		const FText OperationDescription = LOCTEXT("HLODBuildProgress", "Building HLODs...");
+
+		int32 Result;
+		bool bCancelled;
+		FString CommandletOutput;
+		RunCommandletAsExternalProcess(CommandletArgs, OperationDescription, Result, bCancelled, CommandletOutput);
+
+		bool bSuccess = !bCancelled && Result == 0;
+		if (bSuccess)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("HLODBuildCompleted", "HLOD build completed:\n{0}"), FText::FromString(CommandletOutput)));
+			RescanAssetsAndLoadMap(InMapToProcess);
+		}
+		else if (bCancelled)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("HLODBuildCancelled", "HLOD build cancelled!"));
+		}
+		else if (Result != 0)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("HLODBuildFailed", "HLOD build failed:\n{0}"), FText::FromString(CommandletOutput)));
+		}
+
+		return bSuccess;
+	}
+
+	return false;
+}
+
+bool FWorldPartitionEditorModule::BuildMinimap(const FString& InMapToProcess)
+{
+	if (!UnloadCurrentMap(/*bAskSaveContentPackages=*/true))
+	{
+		return false;
+	}
+
+	const FString CommandletArgs = InMapToProcess + " -run=WorldPartitionBuilderCommandlet -Builder=WorldPartitionMinimapBuilder -AllowCommandletRendering";
+	const FText OperationDescription = LOCTEXT("MinimapBuildProgress", "Building minimap...");
+
+	int32 Result;
+	bool bCancelled;
+	FString CommandletOutput;
+	RunCommandletAsExternalProcess(CommandletArgs, OperationDescription, Result, bCancelled, CommandletOutput);
+	
+	bool bSuccess = !bCancelled && Result == 0;
+	if (bSuccess)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("MinimapBuildCompleted", "Minimap build completed:\n{0}"), FText::FromString(CommandletOutput)));
+		RescanAssetsAndLoadMap(InMapToProcess);
+	}
+	else if (bCancelled)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("MinimapBuildCancelled", "Minimap build cancelled!"));
+	}
+	else if (Result != 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("MinimapBuildFailed", "Minimap build failed:\n{0}"), FText::FromString(CommandletOutput)));
+	}
+
+	return bSuccess;
 }
 
 void FWorldPartitionEditorModule::OnMapChanged(uint32 MapFlags)

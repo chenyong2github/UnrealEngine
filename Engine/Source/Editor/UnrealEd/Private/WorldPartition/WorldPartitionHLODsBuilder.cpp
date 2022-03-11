@@ -466,7 +466,7 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 
 		AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(ActorDesc->GetActor());
 
-		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("    [%d/%d] Building HLOD actor %s..."), CurrentActor, HLODActorsToBuild.Num(), *HLODActor->GetActorLabel());
+		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("[%d / %d] Building HLOD actor %s..."), CurrentActor + 1, HLODActorsToBuild.Num(), *HLODActor->GetActorLabel());
 
 		if (HLODLevelToBuild == INDEX_NONE || HLODActor->GetLODLevel() == HLODLevelToBuild)
 		{
@@ -548,23 +548,23 @@ bool UWorldPartitionHLODsBuilder::DeleteHLODActors()
 	WorldPartition->Uninitialize();
 	FWorldPartitionHelpers::DoCollectGarbage();
 
-	int32 NumDeleted = 0;
-	for (const FString& PackageName : PackagesToDelete)
+	for (int32 PackageIndex = 0; PackageIndex < PackagesToDelete.Num(); ++PackageIndex)
 	{
+		const FString& PackageName = PackagesToDelete[PackageIndex];
+
 		bool bDeleted = SourceControlHelper->Delete(PackageName);
 		if (bDeleted)
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("    [%d] %s"), NumDeleted, *PackageName);
+			UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("[%d / %d] Deleting %s..."), PackageIndex + 1, PackagesToDelete.Num(), *PackageName);
 		}
 		else
 		{
 			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to delete %s, exiting..."), *PackageName);
 			return false;
 		}
-		NumDeleted++;
 	}
 
-	UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Deleted %d HLOD actors ####"), NumDeleted);
+	UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Deleted %d HLOD actors ####"), PackagesToDelete.Num());
 
 	return true;
 }

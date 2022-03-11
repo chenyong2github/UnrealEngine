@@ -49,6 +49,7 @@
 #include "ShaderCompilerCore.h"
 #include "AssetRegistryModule.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/SWorldPartitionBuildNavigationDialog.h"
 #include "WorldPartition/WorldPartitionBuildNavigationOptions.h"
 
@@ -69,6 +70,7 @@ const FName FBuildOptions::BuildAll(TEXT("BuildAll"));
 const FName FBuildOptions::BuildAllSubmit(TEXT("BuildAllSubmit"));
 const FName FBuildOptions::BuildAllOnlySelectedPaths(TEXT("BuildAllOnlySelectedPaths"));
 const FName FBuildOptions::BuildHierarchicalLOD(TEXT("BuildHierarchicalLOD"));
+const FName FBuildOptions::BuildMinimap(TEXT("BuildMinimap"));
 const FName FBuildOptions::BuildTextureStreaming(TEXT("BuildTextureStreaming"));
 const FName FBuildOptions::BuildVirtualTexture(TEXT("BuildVirtualTexture"));
 const FName FBuildOptions::BuildAllLandscape(TEXT("BuildAllLandscape"));
@@ -306,7 +308,11 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 	}
 	else if (Id == FBuildOptions::BuildHierarchicalLOD)
 	{
-		BuildType = SBuildProgressWidget::BUILDTYPE_LODs;
+		BuildType = SBuildProgressWidget::BUILDTYPE_HLODs;
+	}
+	else if (Id == FBuildOptions::BuildMinimap)
+	{
+		BuildType = SBuildProgressWidget::BUILDTYPE_Minimap;
 	}
 	else if (Id == FBuildOptions::BuildTextureStreaming)
 	{
@@ -432,13 +438,36 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 		bDoBuild = GEditor->WarnAboutHiddenLevels( InWorld, false );
 		if ( bDoBuild )
 		{
-				GEditor->ResetTransaction( NSLOCTEXT("UnrealEd", "BuildHLODMeshes", "Building Hierarchical LOD Meshes") );
+			GEditor->ResetTransaction( NSLOCTEXT("UnrealEd", "BuildHLODMeshes", "Building Hierarchical LOD Meshes") );
 
 			// We can't set the busy cursor for all windows, because lighting
 			// needs a cursor for the lighting options dialog.
 			const FScopedBusyCursor BusyCursor;
 
+			if (InWorld->IsPartitionedWorld())
+			{
+				bShouldMapCheck = false;
+				bDirtyPersistentLevel = false;
+			}
+
 			TriggerHierarchicalLODBuilder(InWorld, Id);
+		}
+	}
+	else if (Id == FBuildOptions::BuildMinimap)
+	{
+		bDoBuild = InWorld->IsPartitionedWorld();
+		if ( bDoBuild )
+		{
+			GEditor->ResetTransaction( NSLOCTEXT("UnrealEd", "BuildHLODMeshes", "Building Hierarchical LOD Meshes") );
+
+			// We can't set the busy cursor for all windows, because lighting
+			// needs a cursor for the lighting options dialog.
+			const FScopedBusyCursor BusyCursor;
+
+			bShouldMapCheck = false;
+			bDirtyPersistentLevel = false;
+
+			TriggerMinimapBuilder(InWorld, Id);
 		}
 	}
 	else if (Id == FBuildOptions::BuildAllLandscape)
@@ -1146,7 +1175,12 @@ void FBuildAllHandler::ProcessBuild(const TWeakPtr<SBuildProgressWidget>& BuildP
 		}
 		else if (StepId == FBuildOptions::BuildHierarchicalLOD)
 		{
-			BuildProgressWidget.Pin()->SetBuildType(SBuildProgressWidget::BUILDTYPE_LODs);
+			BuildProgressWidget.Pin()->SetBuildType(SBuildProgressWidget::BUILDTYPE_HLODs);
+			FEditorBuildUtils::TriggerHierarchicalLODBuilder(CurrentWorld, CurrentBuildId);
+		}
+		else if (StepId == FBuildOptions::BuildMinimap)
+		{
+			BuildProgressWidget.Pin()->SetBuildType(SBuildProgressWidget::BUILDTYPE_HLODs);
 			FEditorBuildUtils::TriggerHierarchicalLODBuilder(CurrentWorld, CurrentBuildId);
 		}
 		else if (StepId == FBuildOptions::BuildTextureStreaming)
@@ -1231,8 +1265,27 @@ void FBuildAllHandler::BuildFinished()
 
 void FEditorBuildUtils::TriggerHierarchicalLODBuilder(UWorld* InWorld, FName Id)
 {
-	// Invoke HLOD generator, with either preview or full build
-	InWorld->HierarchicalLODBuilder->BuildMeshesForLODActors(false);
+	if (InWorld->IsPartitionedWorld())
+	{
+		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+		TSubclassOf<UWorldPartitionBuilder> WorldPartitionHLODsBuilder = FindObjectChecked<UClass>(ANY_PACKAGE, TEXT("WorldPartitionHLODsBuilder"), true);
+		WorldPartitionEditorModule.RunBuilder(WorldPartitionHLODsBuilder, InWorld->GetPackage()->GetName());
+	}
+	else
+	{
+		// Invoke HLOD generator, with either preview or full build
+		InWorld->HierarchicalLODBuilder->BuildMeshesForLODActors(false);
+	}
+}
+
+void FEditorBuildUtils::TriggerMinimapBuilder(UWorld* InWorld, FName Id)
+{
+	if (InWorld->IsPartitionedWorld())
+	{
+		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+		TSubclassOf<UWorldPartitionBuilder> WorldPartitionMiniMapBuilder = FindObjectChecked<UClass>(ANY_PACKAGE, TEXT("WorldPartitionMiniMapBuilder"), true);
+		WorldPartitionEditorModule.RunBuilder(WorldPartitionMiniMapBuilder, InWorld->GetPackage()->GetName());
+	}
 }
 
 EDebugViewShaderMode ViewModeIndexToDebugViewShaderMode(EViewModeIndex SelectedViewMode)

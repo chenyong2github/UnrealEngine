@@ -42,9 +42,14 @@ public:
 	virtual int32 GetInstancedFoliageGridSize() const;
 
 	/**
-	 * 
+	 * Convert the specified map to a world partition map.
 	 */
 	virtual bool ConvertMap(const FString& InLongPackageName) override;
+
+	/**
+	 * Run a world partition builder for the current map. Will display a dialog to specify options for the generation.
+	 */
+	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> WorldPartitionBuilder, const FString& InLongPackageName) override;
 
 	/**
 	 *
@@ -63,6 +68,9 @@ private:
 	
 	/** Spawns the world partition tab */
 	TSharedRef<SDockTab> SpawnWorldPartitionTab(const FSpawnTabArgs& Args);
+
+	bool BuildHLODs(const FString& InMapToProcess);
+	bool BuildMinimap(const FString& InMapToProcess);
 
 private:
 	void OnConvertMap();

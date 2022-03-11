@@ -30,8 +30,10 @@ struct FBuildOptions
 	UNREALED_API static const FName BuildAllSubmit;
 	/** Build everything except for paths only build selected */
 	UNREALED_API static const FName BuildAllOnlySelectedPaths;
-	/** Build Hierarchical LOD system - need WorldSetting setup*/
+	/** Build HLODs */
 	UNREALED_API static const FName BuildHierarchicalLOD;
+	/** Build minimap */
+	UNREALED_API static const FName BuildMinimap;
 	/** Build texture streaming */
 	UNREALED_API static const FName BuildTextureStreaming;
 	/** Build virtual textures */
@@ -262,12 +264,20 @@ private:
 	static bool WorldPartitionBuildNavigation(const FString& InLongPackageName);
 
 	/** 
-	 * Trigger LOD builder to (re)generate LODActors
+	 * Trigger HLOD builder to (re)generate HLOD actors
 	 *
 	 * @param	InWorld			WorldContext
 	 * @param	BuildSettings	Build settings that will be used for the editor build
 	 */
 	static void TriggerHierarchicalLODBuilder(UWorld* InWorld, FName Id);
+
+	/** 
+	 * Trigger minimap builder to (re)generate minimap
+	 *
+	 * @param	InWorld			WorldContext
+	 * @param	BuildSettings	Build settings that will be used for the editor build
+	 */
+	static void TriggerMinimapBuilder(UWorld* InWorld, FName Id);
 
 	/** Intentionally hide constructors, etc. to prevent instantiation */
 	FEditorBuildUtils();
