@@ -413,6 +413,12 @@ void FCurveEditor::BindCommands()
 		FIsActionChecked::CreateLambda( [CurveSettings]{ return CurveSettings->GetAutoFrameCurveEditor(); } )
 	);
 
+	CommandList->MapAction(FCurveEditorCommands::Get().ToggleSnapTimeToSelection,
+		FExecuteAction::CreateLambda( [CurveSettings]{ CurveSettings->SetSnapTimeToSelection( !CurveSettings->GetSnapTimeToSelection() ); } ),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda( [CurveSettings]{ return CurveSettings->GetSnapTimeToSelection(); } )
+	);
+
 	CommandList->MapAction(FCurveEditorCommands::Get().ToggleShowCurveEditorCurveToolTips,
 		FExecuteAction::CreateLambda( [CurveSettings]{ CurveSettings->SetShowCurveEditorCurveToolTips( !CurveSettings->GetShowCurveEditorCurveToolTips() ); } ),
 		FCanExecuteAction(),
@@ -743,6 +749,53 @@ void FCurveEditor::TranslateSelectedKeysRight()
 	double SecondsToAdd = FrameRate.AsInterval();
 
 	TranslateSelectedKeys(SecondsToAdd);
+}
+
+void FCurveEditor::SnapToSelectedKey()
+{
+	TSharedPtr<ITimeSliderController> TimeSliderController = WeakTimeSliderController.Pin();
+	if (!TimeSliderController.IsValid())
+	{
+		return;
+	}
+
+	FFrameRate TickResolution = TimeSliderController->GetTickResolution();
+
+	TOptional<double> MinTime;
+
+	for (const TTuple<FCurveModelID, FKeyHandleSet>& Pair : Selection.GetAll())
+	{
+		if (FCurveModel* Curve = FindCurve(Pair.Key))
+		{
+			int32 NumKeys = Pair.Value.Num();
+
+			if (NumKeys > 0)
+			{
+				TArrayView<const FKeyHandle> KeyHandles = Pair.Value.AsArray();
+				TArray<FKeyPosition> KeyPositions;
+				KeyPositions.SetNum(KeyHandles.Num());
+
+				Curve->GetKeyPositions(KeyHandles, KeyPositions);
+
+				for (const FKeyPosition& KeyPosition : KeyPositions)
+				{
+					if (MinTime.IsSet())
+					{
+						MinTime = FMath::Min(KeyPosition.InputValue, MinTime.GetValue());
+					}
+					else
+					{
+						MinTime = KeyPosition.InputValue;
+					}
+				}
+			}
+		}
+	}
+
+	if (MinTime.IsSet())
+	{
+		TimeSliderController->SetScrubPosition(MinTime.GetValue() * TickResolution);		
+	}
 }
 
 void FCurveEditor::StepToNextKey()

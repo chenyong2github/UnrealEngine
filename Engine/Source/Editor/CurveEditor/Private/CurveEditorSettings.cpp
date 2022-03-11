@@ -10,6 +10,7 @@ UCurveEditorSettings::UCurveEditorSettings()
 	bShowCurveEditorCurveToolTips = true;
 	TangentVisibility = ECurveEditorTangentVisibility::SelectedKeys;
 	ZoomPosition = ECurveEditorZoomPosition::CurrentTime;
+	bSnapTimeToSelection = false;
 
 	ParentSpaceCustomColor = FLinearColor(.93, .31, .19); //pastel orange
 	WorldSpaceCustomColor = FLinearColor(.198, .610, .558); //pastel teal
@@ -95,6 +96,20 @@ void UCurveEditorSettings::SetZoomPosition(ECurveEditorZoomPosition InZoomPositi
 	if (ZoomPosition != InZoomPosition)
 	{
 		ZoomPosition = InZoomPosition;
+		SaveConfig();
+	}
+}
+
+bool UCurveEditorSettings::GetSnapTimeToSelection() const
+{
+	return bSnapTimeToSelection;
+}
+
+void UCurveEditorSettings::SetSnapTimeToSelection(bool bInSnapTimeToSelection)
+{
+	if (bSnapTimeToSelection != bInSnapTimeToSelection)
+	{
+		bSnapTimeToSelection = bInSnapTimeToSelection;
 		SaveConfig();
 	}
 }

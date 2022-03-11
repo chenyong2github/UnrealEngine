@@ -159,6 +159,7 @@ private:
 	EVisibility GetSplitterVisibility() const;
 
 	/*~ Event bindings */
+	void UpdateTime();
 	void UpdateEditBox();
 	void UpdateCommonCurveInfo();
 

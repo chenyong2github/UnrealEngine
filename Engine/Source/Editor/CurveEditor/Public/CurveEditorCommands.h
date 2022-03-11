@@ -64,6 +64,7 @@ public:
 	TSharedPtr<FUICommandInfo> SetNoTangentsVisibility;
 
 	TSharedPtr<FUICommandInfo> ToggleAutoFrameCurveEditor;
+	TSharedPtr<FUICommandInfo> ToggleSnapTimeToSelection;
 	TSharedPtr<FUICommandInfo> ToggleShowCurveEditorCurveToolTips;
 
 	TSharedPtr<FUICommandInfo> SetRandomCurveColorsForSelected;

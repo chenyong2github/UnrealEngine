@@ -181,6 +181,9 @@ public:
 	void TranslateSelectedKeysLeft();
 	void TranslateSelectedKeysRight();
 
+	/** Snap time to the first selected key */
+	void SnapToSelectedKey();
+
 	/** Step to next or previous key from the current time */
 	void StepToNextKey();
 	void StepToPreviousKey();

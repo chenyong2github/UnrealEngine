@@ -102,6 +102,11 @@ public:
 	/** Set zoom in/out position (mouse position or current time). */
 	void SetZoomPosition(ECurveEditorZoomPosition InZoomPosition);
 
+	/** Get whether to snap the time to the currently selected key. */
+	bool GetSnapTimeToSelection() const;
+	/** Set whether to snap the time to the currently selected key. */
+	void SetSnapTimeToSelection(bool bInSnapTimeToSelection);
+
 	/** Get custom color for object and property if it exists, if it doesn't the optional won't be set */
 	TOptional<FLinearColor> GetCustomColor(UClass* InClass, const FString& InPropertyName) const;
 	/** Set Custom Color for the specified parameters. */
@@ -139,6 +144,9 @@ protected:
 
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor")
 	ECurveEditorZoomPosition ZoomPosition;
+
+	UPROPERTY( config, EditAnywhere, Category="Curve Editor")
+	bool bSnapTimeToSelection;
 
 	UPROPERTY(config, EditAnywhere, Category="Curve Editor")
 	TArray<FCustomColorForChannel> CustomColors;

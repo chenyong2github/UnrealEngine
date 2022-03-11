@@ -434,6 +434,7 @@ void SCurveEditorPanel::Tick(const FGeometry& AllottedGeometry, const double InC
 
 	UpdateCommonCurveInfo();
 	UpdateEditBox();
+	UpdateTime();
 
 	CachedSelectionSerialNumber = CurveEditor->Selection.GetSerialNumber();
 }
@@ -688,6 +689,20 @@ void SCurveEditorPanel::OnCurveEditorToolChanged(FCurveEditorToolID InToolId)
 	ToolPropertiesPanel->OnToolChanged(InToolId);
 }
 
+void SCurveEditorPanel::UpdateTime()
+{
+	const FCurveEditorSelection& Selection = CurveEditor->Selection;
+	if (CachedSelectionSerialNumber == Selection.GetSerialNumber())
+	{
+		return;
+	}
+
+	if (CurveEditor->GetSettings()->GetSnapTimeToSelection())
+	{
+		CurveEditor->SnapToSelectedKey();
+	}
+}
+
 void SCurveEditorPanel::UpdateEditBox()
 {
 	const FCurveEditorSelection& Selection = CurveEditor->Selection;
@@ -890,6 +905,7 @@ TSharedRef<SWidget> SCurveEditorPanel::MakeCurveEditorCurveViewOptionsMenu()
 
 	MenuBuilder.AddMenuSeparator();
 	MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ToggleAutoFrameCurveEditor);
+	MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ToggleSnapTimeToSelection);
 	MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ToggleShowCurveEditorCurveToolTips);
 
 	MenuBuilder.BeginSection("Organize", LOCTEXT("CurveEditorMenuOrganizeHeader", "Organize"));
