@@ -38,4 +38,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Temporary", meta = (ScriptMethod))
 	static TArray<UPCGData*> GetExclusionData(UPARAM(ref) FPCGContext& Context);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Temporary", meta = (ScriptMethod))
+	static UPCGComponent* GetComponent(UPARAM(ref) FPCGContext& Context);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Temporary", meta = (ScriptMethod))
+	static UPCGComponent* GetOriginalComponent(UPARAM(ref) FPCGContext& Context);
 };

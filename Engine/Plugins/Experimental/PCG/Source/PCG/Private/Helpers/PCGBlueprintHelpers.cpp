@@ -4,6 +4,7 @@
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGSettings.h"
+#include "Grid/PCGPartitionActor.h"
 
 int UPCGBlueprintHelpers::ComputeSeedFromPosition(const FVector& InPosition)
 {
@@ -41,4 +42,23 @@ UPCGData* UPCGBlueprintHelpers::GetInputData(FPCGContext& Context)
 TArray<UPCGData*> UPCGBlueprintHelpers::GetExclusionData(FPCGContext& Context)
 {
 	return Context.SourceComponent ? Context.SourceComponent->GetPCGExclusionData() : TArray<UPCGData*>();
+}
+
+UPCGComponent* UPCGBlueprintHelpers::GetComponent(FPCGContext& Context)
+{
+	return Context.SourceComponent;
+}
+
+UPCGComponent* UPCGBlueprintHelpers::GetOriginalComponent(FPCGContext& Context)
+{
+	if (Context.SourceComponent &&
+		Cast<APCGPartitionActor>(Context.SourceComponent->GetOwner()) &&
+		Cast<APCGPartitionActor>(Context.SourceComponent->GetOwner())->GetOriginalComponent(Context.SourceComponent))
+	{
+		return Cast<APCGPartitionActor>(Context.SourceComponent->GetOwner())->GetOriginalComponent(Context.SourceComponent);
+	}
+	else
+	{
+		return Context.SourceComponent;
+	}
 }
