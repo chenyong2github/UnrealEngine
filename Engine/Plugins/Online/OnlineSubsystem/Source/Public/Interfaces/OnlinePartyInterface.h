@@ -729,6 +729,12 @@ struct FPartyInvitationRecipient
 		: Id(InId.AsShared())
 	{}
 
+	/** Constructor */
+	FPartyInvitationRecipient(const FUniqueNetId& InId, const FString& InMetaData)
+		: Id(InId.AsShared())
+		, PlatformData(InMetaData)
+	{}
+
 	/** Id of the user to send the invitation to */
 	FUniqueNetIdRef Id;
 	/** Additional data to provide context for the invitee */

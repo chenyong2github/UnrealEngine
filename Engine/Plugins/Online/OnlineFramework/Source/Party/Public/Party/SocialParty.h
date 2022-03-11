@@ -229,7 +229,7 @@ PACKAGE_SCOPE:
 	bool CanPromoteMember(const UPartyMember& PartyMember) const;
 	bool CanKickMember(const UPartyMember& PartyMember) const;
 	
-	bool TryInviteUser(const USocialUser& UserToInvite, const ESocialPartyInviteMethod InviteMethod = ESocialPartyInviteMethod::Other);
+	bool TryInviteUser(const USocialUser& UserToInvite, const ESocialPartyInviteMethod InviteMethod = ESocialPartyInviteMethod::Other, const FString& MetaData = FString());
 	bool TryPromoteMember(const UPartyMember& PartyMember);
 	bool TryKickMember(const UPartyMember& PartyMember);
 	//--------------------------
