@@ -914,7 +914,8 @@ void FNiagaraWorldManager::PreSendAllEndOfFrameUpdates()
 				Simulation->WaitForInstancesTickComplete();
 			}
 		}
-		SimulationsWithPostActorWork.Reset();
+		// Note: We do not clear the SimulationsWithPostActorWork array as we just want to safely wait for any async work,
+		//       they still require additional processing, i.e. Tick Group Changes / Spawning
 	}
 
 	for (const auto& Simulation : SimulationsWithEndOfFrameWait)
