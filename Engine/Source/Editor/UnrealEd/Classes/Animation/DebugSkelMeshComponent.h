@@ -532,6 +532,7 @@ public:
 	// Rebuilds the fixed parameter on the mesh to mesh data, to be used if the editor has
 	// changed a vert to be fixed or unfixed otherwise the simulation will not work
 	// bInvalidateDerivedDataCache can only be false during previewing as otherwise the changes won't be correctly saved
+	UE_DEPRECATED(5.0, "This function is redundant, since it is always called after ApplyParameterMasks and therefore will be removed.")
 	void RebuildClothingSectionsFixedVerts(bool bInvalidateDerivedDataCache = true);
 
 	TArray<FVector3f> SkinnedSelectedClothingPositions;
@@ -540,6 +541,7 @@ public:
 private:
 	// Rebuilds the fixed vertex attribute on any cloth deformer mappings,
 	// including LOD bias mappings, that reference the specified LOD section.
+	UE_DEPRECATED(5.0, "This function is redundant, since it is always called after ApplyParameterMasks and therefore will be removed.")
 	void RebuildClothingSectionFixedVerts(int32 LODIndex, int32 SectionIndex);
 
 	// Helper function to generate space bases for current frame

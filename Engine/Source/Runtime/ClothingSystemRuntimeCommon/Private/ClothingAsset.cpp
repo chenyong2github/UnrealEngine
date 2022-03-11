@@ -863,7 +863,7 @@ void UClothingAssetCommon::ForEachInteractorUsingClothing(TFunction<void(UClothi
 	}
 }
 
-void UClothingAssetCommon::ApplyParameterMasks(bool bUpdateFixedVertData)
+void UClothingAssetCommon::ApplyParameterMasks(bool bUpdateFixedVertData, bool bInvalidateDerivedDataCache)
 {
 	for(FClothLODDataCommon& Lod : LodData)
 	{
@@ -899,8 +899,10 @@ void UClothingAssetCommon::ApplyParameterMasks(bool bUpdateFixedVertData)
 				}
 			}
 		}
-		// We must always dirty the DDC key unless previewing
-		SkeletalMesh->InvalidateDeriveDataCacheGUID();
+		if (bInvalidateDerivedDataCache)  // We must always dirty the DDC key unless previewing
+		{
+			SkeletalMesh->InvalidateDeriveDataCacheGUID();
+		}
 	}
 }
 

@@ -146,9 +146,9 @@ public:
 	/** 
 	 * Callback envoked after weights have been edited.
 	 * Calls \c PushWeightsToMesh() on each \c ClothLodData, and invalidates cached data. 
-	 * Optionaly recalculate the owner's sections fixed vertex data based on this asset masks.
+	 * Optionaly recalculate the owner's sections fixed vertex data based on this asset masks, and invalidate the DDC for this asset.
 	 */
-	void ApplyParameterMasks(bool bUpdateFixedVertData = false);
+	void ApplyParameterMasks(bool bUpdateFixedVertData = false, bool bInvalidateDerivedDataCache = true);
 
 	/**
 	 * Builds the LOD transition data.

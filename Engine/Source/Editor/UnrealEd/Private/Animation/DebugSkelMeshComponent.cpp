@@ -958,7 +958,9 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts(bool bInvalidate
 	{
 		for (int32 SectionIndex = 0; SectionIndex < LODModels[LODIndex].Sections.Num(); ++SectionIndex)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			RebuildClothingSectionFixedVerts(LODIndex, SectionIndex);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 

@@ -93,11 +93,12 @@ void FClothingPaintEditMode::Exit()
 				for(UClothingAssetBase* AssetBase : SkelMesh->GetMeshClothingAssets())
 				{
 					UClothingAssetCommon* ConcreteAsset = CastChecked<UClothingAssetCommon>(AssetBase);
-					ConcreteAsset->ApplyParameterMasks();
+					constexpr bool bUpdateFixedVertData = true;
+					constexpr bool bInvalidateDerivedDataCache = true;
+					ConcreteAsset->ApplyParameterMasks(bUpdateFixedVertData, bInvalidateDerivedDataCache);
 				}
 			}
 
-			MeshComponent->RebuildClothingSectionsFixedVerts();
 			MeshComponent->ResetMeshSectionVisibility();
 			MeshComponent->SelectedClothingGuidForPainting = FGuid();
 			MeshComponent->SelectedClothingLodForPainting = INDEX_NONE;

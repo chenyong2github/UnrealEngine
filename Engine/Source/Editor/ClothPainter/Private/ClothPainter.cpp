@@ -274,11 +274,12 @@ void FClothPainter::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 			{
 				if(Asset)
 				{
-					Asset->ApplyParameterMasks();
+					constexpr bool bUpdateFixedVertData = true;  // There's Currently no way of telling whether the MaxDistance mask has been edited
+					constexpr bool bInvalidateDerivedDataCache = false;  // No need to rebuild the DDC while previewing
+
+					Asset->ApplyParameterMasks(bUpdateFixedVertData, bInvalidateDerivedDataCache);
 				}
 			}
-			static const bool bInvalidateDerivedDataCache = false;  // No need to rebuild the DDC while previewing
-			SkeletalMeshComponent->RebuildClothingSectionsFixedVerts(bInvalidateDerivedDataCache);
 		}
 
 		FComponentReregisterContext ReregisterContext(SkeletalMeshComponent);
