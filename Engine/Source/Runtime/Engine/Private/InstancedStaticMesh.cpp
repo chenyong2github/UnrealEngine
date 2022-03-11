@@ -1306,6 +1306,18 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 
 							Collector.AddMesh(ViewIndex, MeshElement);
 							INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, MeshElement.GetNumPrimitives());
+
+							if (OverlayMaterial != nullptr)
+							{
+								FMeshBatch& OverlayMeshBatch = Collector.AllocateMesh();
+								OverlayMeshBatch = MeshElement;
+								OverlayMeshBatch.CastShadow = false;
+								OverlayMeshBatch.bSelectable = false;
+								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+								Collector.AddMesh(ViewIndex, OverlayMeshBatch);
+								
+								INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, OverlayMeshBatch.GetNumPrimitives());
+							}
 						}
 					}
 				}
@@ -1367,6 +1379,15 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
 			bHasPerInstanceRandom |= CachedMaterialData.bHasPerInstanceRandom;
 			bHasPerInstanceCustomData |= CachedMaterialData.bHasPerInstanceCustomData;
+		}
+	}
+
+	if (OverlayMaterial != nullptr)
+	{
+		if (!OverlayMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_InstancedStaticMeshes))
+		{
+			OverlayMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			UE_LOG(LogStaticMesh, Error, TEXT("Overlay material with missing usage flag was applied to instanced static mesh %s"),	*InComponent->GetStaticMesh()->GetPathName());
 		}
 	}
 

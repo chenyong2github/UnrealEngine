@@ -42,6 +42,18 @@ public:
 	/** Returns override Materials count */
 	virtual int32 GetNumOverrideMaterials() const;
 
+	/** Translucent material to blend on top of this mesh. Mesh will be rendered twice - once with a base material and once with overlay material */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=Rendering)
+	TObjectPtr<class UMaterialInterface> OverlayMaterial;
+
+	/** Get the overlay material used by this instance */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	class UMaterialInterface* GetOverlayMaterial() const;
+
+	/** Change the overlay material used by this instance */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	void SetOverlayMaterial(class UMaterialInterface* NewOverlayMaterial);
+
 #if WITH_EDITOR
 	/*
 	 * Make sure the Override array is using only the space it should use.

@@ -2699,6 +2699,11 @@ void USkinnedMeshComponent::GetUsedMaterials( TArray<UMaterialInterface*>& OutMa
 			UMaterialInterface* MaterialInterface = GetMaterial( MatIdx );
 			OutMaterials.Add( MaterialInterface );
 		}
+
+		if (OverlayMaterial != nullptr)
+		{
+			OutMaterials.Add(OverlayMaterial);
+		}
 	}
 
 	if (bGetDebugMaterials)

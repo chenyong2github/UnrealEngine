@@ -241,7 +241,8 @@ protected:
 	/** The points to the skeletal mesh and physics assets are purely for debug purposes. Access is NOT thread safe! */
 	const USkeletalMesh* SkeletalMeshForDebug;
 	class UPhysicsAsset* PhysicsAssetForDebug;
-
+	
+	UMaterialInterface* OverlayMaterial;
 public:
 #if RHI_RAYTRACING
 	bool bAnySegmentUsesWorldPositionOffset : 1;

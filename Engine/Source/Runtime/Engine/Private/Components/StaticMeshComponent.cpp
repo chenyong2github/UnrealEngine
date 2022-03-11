@@ -2523,6 +2523,11 @@ void UStaticMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMate
 			{
 				OutMaterials.Add(GetMaterial(MaterialIndex));
 			}
+
+			if (OverlayMaterial != nullptr)
+			{
+				OutMaterials.Add(OverlayMaterial);
+			}
 		}
 	}
 }

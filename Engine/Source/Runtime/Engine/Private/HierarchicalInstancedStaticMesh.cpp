@@ -1335,6 +1335,16 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 					if (TotalTriangles < (int64)CVarMaxTrianglesToRender.GetValueOnRenderThread())
 					{
 						Collector.AddMesh(ElementParams.ViewIndex, MeshBatch);
+
+						if (OverlayMaterial != nullptr)
+						{
+							FMeshBatch& OverlayMeshBatch = Collector.AllocateMesh();
+							OverlayMeshBatch = MeshBatch;
+							OverlayMeshBatch.CastShadow = false;
+							OverlayMeshBatch.bSelectable = false;
+							OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+							Collector.AddMesh(ElementParams.ViewIndex, OverlayMeshBatch);
+						}
 					}
 				}
 				else
@@ -1452,6 +1462,16 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 						if (TotalTriangles < (int64)CVarMaxTrianglesToRender.GetValueOnRenderThread())
 						{
 							Collector.AddMesh(ElementParams.ViewIndex, MeshElement);
+
+							if (OverlayMaterial != nullptr)
+							{
+								FMeshBatch& OverlayMeshBatch = Collector.AllocateMesh();
+								OverlayMeshBatch = MeshElement;
+								OverlayMeshBatch.CastShadow = false;
+								OverlayMeshBatch.bSelectable = false;
+								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+								Collector.AddMesh(ElementParams.ViewIndex, OverlayMeshBatch);
+							}
 						}
 					}
 				}
@@ -1459,6 +1479,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 		}
 	}
 #if STATS
+	TotalTriangles*= (OverlayMaterial != nullptr ? 2 : 1);
 	TotalTriangles = FMath::Min<int64>(TotalTriangles, MAX_int32);
 	INC_DWORD_STAT_BY(STAT_FoliageTriangles, (uint32)TotalTriangles);
 	INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, (uint32)TotalTriangles);

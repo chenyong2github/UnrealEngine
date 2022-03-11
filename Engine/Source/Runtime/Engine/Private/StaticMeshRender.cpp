@@ -193,6 +193,7 @@ static TAutoConsoleVariable<float> CVarRayTracingStaticMeshesWPOCullingRadius(
 FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, bool bForceLODsShareStaticLighting)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetStaticMesh()->GetFName())
 	, RenderData(InComponent->GetStaticMesh()->GetRenderData())
+	, OverlayMaterial(InComponent->OverlayMaterial)
 	, ForcedLodModel(InComponent->ForcedLodModel)
 	, bCastShadow(InComponent->CastShadow)
 	, bReverseCulling(InComponent->bReverseCulling)
@@ -1188,6 +1189,16 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 								PDI->DrawMesh(MeshBatch, FLT_MAX);
 							}
 						}
+
+						if (OverlayMaterial != nullptr)
+						{
+							FMeshBatch OverlayMeshBatch(BaseMeshBatch);
+							OverlayMeshBatch.CastShadow = false;
+							OverlayMeshBatch.bSelectable = false;
+							OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+							PDI->DrawMesh(OverlayMeshBatch, FLT_MAX);
+						}
+
 						{
 							PDI->DrawMesh(BaseMeshBatch, FLT_MAX);
 						}
@@ -1303,6 +1314,15 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 									MeshBatch.RuntimeVirtualTextureMaterialType = (uint32)MaterialType;
 									PDI->DrawMesh(MeshBatch, ScreenSize);
 								}
+							}
+
+							if (OverlayMaterial != nullptr)
+							{
+								FMeshBatch OverlayMeshBatch(BaseMeshBatch);
+								OverlayMeshBatch.CastShadow = false;
+								OverlayMeshBatch.bSelectable = false;
+								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+								PDI->DrawMesh(OverlayMeshBatch, ScreenSize);
 							}
 
 							{

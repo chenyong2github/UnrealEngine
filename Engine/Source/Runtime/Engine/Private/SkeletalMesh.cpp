@@ -5991,6 +5991,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		,	SkeletalMeshRenderData(InSkelMeshRenderData)
 		,	SkeletalMeshForDebug(Component->SkeletalMesh)
 		,	PhysicsAssetForDebug(Component->GetPhysicsAsset())
+		,	OverlayMaterial(Component->OverlayMaterial)
 #if RHI_RAYTRACING
 		,	bAnySegmentUsesWorldPositionOffset(false)
 #endif
@@ -6111,6 +6112,15 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 					UseMaterialIndex
 					));
 			MaterialsInUse_GameThread.Add(Material);
+		}
+	}
+
+	if (OverlayMaterial != nullptr)
+	{
+		if (!OverlayMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_SkeletalMesh))
+		{
+			OverlayMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			UE_LOG(LogSkeletalMesh, Error, TEXT("Overlay material with missing usage flag was applied to skeletal mesh %s"),	*Component->SkeletalMesh->GetPathName());
 		}
 	}
 
@@ -6415,6 +6425,15 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 					BatchElement.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer();
 													
 					PDI->DrawMesh(MeshElement, ScreenSize);
+
+					if (OverlayMaterial != nullptr)
+					{
+						FMeshBatch OverlayMeshBatch(MeshElement);
+						OverlayMeshBatch.CastShadow = false;
+						OverlayMeshBatch.bSelectable = false;
+						OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+						PDI->DrawMesh(OverlayMeshBatch, ScreenSize);
+					}
 				}
 			}
 		}
@@ -6693,6 +6712,19 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			INC_DWORD_STAT_BY(STAT_GPUSkinVertices,(uint32)(bIsCPUSkinned ? 0 : NumVertices));
 			INC_DWORD_STAT_BY(STAT_SkelMeshTriangles,Mesh.GetNumPrimitives());
 			INC_DWORD_STAT(STAT_SkelMeshDrawCalls);
+
+			if (OverlayMaterial != nullptr)
+			{
+				FMeshBatch& OverlayMeshBatch = Collector.AllocateMesh();
+				OverlayMeshBatch = Mesh;
+				OverlayMeshBatch.CastShadow = false;
+				OverlayMeshBatch.bSelectable = false;
+				OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+				Collector.AddMesh(ViewIndex, OverlayMeshBatch);
+				
+				INC_DWORD_STAT_BY(STAT_SkelMeshTriangles, OverlayMeshBatch.GetNumPrimitives());
+				INC_DWORD_STAT(STAT_SkelMeshDrawCalls);
+			}
 		}
 	}
 }

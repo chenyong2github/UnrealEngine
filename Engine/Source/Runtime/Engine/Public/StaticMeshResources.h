@@ -986,6 +986,8 @@ protected:
 	const FDistanceFieldVolumeData* DistanceFieldData;	
 	const FCardRepresentationData* CardRepresentationData;	
 
+	UMaterialInterface* OverlayMaterial;
+
 #if RHI_RAYTRACING
 	bool bSupportRayTracing;
 	bool bDynamicRayTracingGeometry;

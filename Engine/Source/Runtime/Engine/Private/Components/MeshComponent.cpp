@@ -114,6 +114,12 @@ FMaterialRelevance UMeshComponent::GetMaterialRelevance(ERHIFeatureLevel::Type I
 		}
 		Result |= MaterialInterface->GetRelevance_Concurrent(InFeatureLevel);
 	}
+
+	if (OverlayMaterial != nullptr)
+	{
+		Result |= OverlayMaterial->GetRelevance_Concurrent(InFeatureLevel);
+	}
+
 	return Result;
 }
 
@@ -178,6 +184,25 @@ void UMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials,
 		{
 			OutMaterials.Add(MaterialInterface);
 		}
+	}
+
+	if (OverlayMaterial != nullptr)
+	{
+		OutMaterials.Add(OverlayMaterial);
+	}
+}
+
+UMaterialInterface* UMeshComponent::GetOverlayMaterial() const
+{
+	return OverlayMaterial;
+}
+
+void UMeshComponent::SetOverlayMaterial(UMaterialInterface* NewOverlayMaterial)
+{
+	if (OverlayMaterial != NewOverlayMaterial)
+	{
+		OverlayMaterial = NewOverlayMaterial;
+		MarkRenderStateDirty();
 	}
 }
 
