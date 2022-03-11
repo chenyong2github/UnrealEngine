@@ -642,6 +642,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		uint32 StencilClearValue = Inputs.CustomDepthTexture ? Inputs.CustomDepthTexture->Desc.ClearValue.Value.DSValue.Stencil : 0;
 		bFailStencil &= PostProcessStencilTest(StencilClearValue, Material->GetStencilCompare(), PostProcessMaterialParameters->MobileStencilValueRef);
 
+
 		for (const uint32& Value : View.CustomDepthStencilValues)
 		{
 			bFailStencil &= PostProcessStencilTest(Value, Material->GetStencilCompare(), PostProcessMaterialParameters->MobileStencilValueRef);
