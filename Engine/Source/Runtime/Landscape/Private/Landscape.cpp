@@ -13,6 +13,7 @@ Landscape.cpp: Terrain rendering
 #include "UObject/UObjectIterator.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/DevObjectVersion.h"
 #include "UObject/LinkerLoad.h"
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
@@ -129,12 +130,6 @@ namespace LandscapeCookStats
 
 // Set this to 0 to disable landscape cooking and thus disable it on device.
 #define ENABLE_LANDSCAPE_COOKING 1
-
-// If mobile landscape data data needs to be rebuilt (new format, serialization
-// differences, etc.) replace the version GUID below with a new one.
-// In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("43D02EF867C74B71A0D4E0FA41392707")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -293,7 +288,7 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 	}
 
 	// Serialize the version guid as part of the hash so we can invalidate DDC data if needed
-	FString Version(LANDSCAPE_MOBILE_COOK_VERSION);
+	FString Version = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().LANDSCAPE_MOBILE_COOK_VERSION).ToString();
 	ComponentStateAr << Version;
 
 	uint32 Hash[5];
