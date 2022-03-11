@@ -126,6 +126,8 @@ private:
 	/** Handle clicking on the content menu */
 	virtual FReply OnButtonClicked() override;
 
+	FReply OnKeyDownHandler(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
+
 	/** The item style to use. */
 	const FTableRowStyle* ItemStyle;
 

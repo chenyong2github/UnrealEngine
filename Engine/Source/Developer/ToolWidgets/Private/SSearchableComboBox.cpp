@@ -50,6 +50,7 @@ void SSearchableComboBox::Construct(const FArguments& InArgs)
 				.ListItemsSource(&FilteredOptionsSource)
 				.OnGenerateRow(this, &SSearchableComboBox::GenerateMenuItemRow)
 				.OnSelectionChanged(this, &SSearchableComboBox::OnSelectionChanged_Internal)
+				.OnKeyDownHandler(this, &SSearchableComboBox::OnKeyDownHandler)
 				.SelectionMode(ESelectionMode::Single)
 				.ExternalScrollbar(InArgs._CustomScrollbar)
 			]
@@ -188,9 +189,10 @@ void SSearchableComboBox::OnMenuOpenChanged(bool bOpen)
 		}
 
 		// Set focus back to ComboBox for users focusing the ListView that just closed
-		TSharedRef<SWidget> ThisRef = AsShared();
-		FSlateApplication::Get().ForEachUser([&ThisRef](FSlateUser& User) {
-			if (User.HasFocusedDescendants(ThisRef))
+		FSlateApplication::Get().ForEachUser([this](FSlateUser& User) 
+		{
+			TSharedRef<SWidget> ThisRef = this->AsShared();
+			if (User.IsWidgetInFocusPath(this->ComboListView))
 			{
 				User.SetFocus(ThisRef);
 			}
@@ -207,6 +209,12 @@ void SSearchableComboBox::OnSelectionChanged_Internal(TSharedPtr<FString> Propos
 		return;
 	}
 
+	// Don't select on navigation, user has to press "Enter" to select the item
+	if (SelectInfo == ESelectInfo::OnNavigation)
+	{
+		return;
+	}
+
 	// Ensure that the proposed selection is different from selected
 	if (ProposedSelection != SelectedItem)
 	{
@@ -214,15 +222,7 @@ void SSearchableComboBox::OnSelectionChanged_Internal(TSharedPtr<FString> Propos
 		OnSelectionChanged.ExecuteIfBound(ProposedSelection, SelectInfo);
 	}
 
-	// close combo as long as the selection wasn't from navigation
-	if (SelectInfo != ESelectInfo::OnNavigation)
-	{
-		this->SetIsOpen(false);
-	}
-	else
-	{
-		ComboListView->RequestScrollIntoView(SelectedItem, 0);
-	}
+	this->SetIsOpen(false);
 }
 
 void SSearchableComboBox::OnSearchTextChanged(const FText& ChangedText)
@@ -259,6 +259,22 @@ FReply SSearchableComboBox::OnButtonClicked()
 	}
 
 	return SComboButton::OnButtonClicked();
+}
+
+FReply SSearchableComboBox::OnKeyDownHandler(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::Enter)
+	{
+		// Select the first selected item on hitting enter
+		TArray<TSharedPtr<FString>> SelectedItems = ComboListView->GetSelectedItems();
+		if (SelectedItems.Num() > 0)
+		{
+			OnSelectionChanged_Internal(SelectedItems[0], ESelectInfo::OnKeyPress);
+			return FReply::Handled();
+		}
+	}
+
+	return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -123,6 +123,12 @@ FReply SComboButton::OnButtonClicked()
 	// Focusing any newly-created widgets must occur after they have been added to the UI root.
 	FReply ButtonClickedReply = FReply::Handled();
 	
+	// Don't try to focus the menu if the menu is closing
+	if (!IsOpen())
+	{
+		return ButtonClickedReply;
+	}
+
 	TSharedPtr<SWidget> WidgetToFocus = WidgetToFocusPtr.Pin();
 	
 	if (bIsFocusable)

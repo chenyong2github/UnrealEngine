@@ -216,6 +216,7 @@ public:
 				.ListItemsSource(InArgs._OptionsSource)
 				.OnGenerateRow(this, &SComboBox< OptionType >::GenerateMenuItemRow)
 				.OnSelectionChanged(this, &SComboBox< OptionType >::OnSelectionChanged_Internal)
+				.OnKeyDownHandler(this, &SComboBox< OptionType >::OnKeyDownHandler)
 				.SelectionMode(ESelectionMode::Single)
 				.ExternalScrollbar(InArgs._CustomScrollbar)
 			];
@@ -524,11 +525,12 @@ private:
 			}
 
 			// Set focus back to ComboBox for users focusing the ListView that just closed
-			TSharedRef<SWidget> ThisRef = AsShared();
-			FSlateApplication::Get().ForEachUser([&ThisRef](FSlateUser& User) {
-				if (User.HasFocusedDescendants(ThisRef))
+			FSlateApplication::Get().ForEachUser([this](FSlateUser& User) 
+			{
+				TSharedRef<SWidget> ThisRef = this->AsShared();
+				if (User.IsWidgetInFocusPath(this->ComboListView))
 				{
-					User.SetFocus(ThisRef, EFocusCause::SetDirectly);
+					User.SetFocus(ThisRef);
 				}
 			});
 
@@ -574,6 +576,23 @@ private:
 
 		return SComboButton::OnButtonClicked();
 	}
+
+	FReply OnKeyDownHandler(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+	{
+		if (InKeyEvent.GetKey() == EKeys::Enter)
+		{
+			// Select the first selected item on hitting enter
+			TArray<OptionType> SelectedItems = ComboListView->GetSelectedItems();
+			if (SelectedItems.Num() > 0)
+			{
+				OnSelectionChanged_Internal(SelectedItems[0], ESelectInfo::OnKeyPress);
+				return FReply::Handled();
+			}
+		}
+
+		return FReply::Unhandled();
+	}
+
 
 	/** Play the pressed sound */
 	void PlayPressedSound() const

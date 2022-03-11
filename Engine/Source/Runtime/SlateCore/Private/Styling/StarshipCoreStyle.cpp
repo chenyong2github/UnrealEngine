@@ -1306,7 +1306,7 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 		.SetOddRowBackgroundBrush(FSlateNoResource())
 		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Primary))
 
-		.SetSelectorFocusedBrush(FSlateNoResource())
+		.SetSelectorFocusedBrush(FSlateRoundedBoxBrush(FStyleColors::Transparent, InputFocusRadius, FStyleColors::Select, InputFocusThickness))
 
 		.SetActiveBrush(FSlateNoResource())
 		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Primary))
