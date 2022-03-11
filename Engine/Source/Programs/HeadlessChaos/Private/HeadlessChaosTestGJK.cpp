@@ -624,9 +624,9 @@ namespace ChaosTest
 	{
 		TSphere<FReal, 3> A(FVec3(10, 0, 0), 5);
 		TUniquePtr<TSphere<FReal, 3>> Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(4, 0, 0), 2);
-		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), FVec3(1));
-		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaled(MakeSerializable(Sphere), FVec3(2));
-		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaled(MakeSerializable(Sphere), FVec3(2,1,1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), nullptr, FVec3(1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaled(MakeSerializable(Sphere), nullptr, FVec3(2));
+		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaled(MakeSerializable(Sphere), nullptr, FVec3(2,1,1));
 
 		FVec3 InitialDirs[] = { FVec3(1,0,0), FVec3(-1,0,0), FVec3(0,1,0), FVec3(0,-1,0), FVec3(0,0,1), FVec3(0,0,-1) };
 
@@ -1007,9 +1007,9 @@ namespace ChaosTest
 	{
 		TSphere<FReal, 3> A(FVec3(10, 0, 0), 5);
 		TUniquePtr<TSphere<FReal, 3>> Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0, 0, 0), 2);
-		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), FVec3(1));
-		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaled(MakeSerializable(Sphere), FVec3(2));
-		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaled(MakeSerializable(Sphere), FVec3(2, 1, 1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), nullptr, FVec3(1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaled(MakeSerializable(Sphere), nullptr, FVec3(2));
+		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaled(MakeSerializable(Sphere), nullptr, FVec3(2, 1, 1));
 
 		FVec3 InitialDirs[] = { FVec3(1,0,0), FVec3(-1,0,0), FVec3(0,1,0), FVec3(0,-1,0), FVec3(0,0,1), FVec3(0,0,-1) };
 
@@ -1402,7 +1402,7 @@ namespace ChaosTest
 
 			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles, 0.0f);
 			TSerializablePtr<FConvex> AConv(UniqueConvex);
-			const TImplicitObjectScaled<FConvex> A(AConv,FVec3(1.0,1.0,1.0));
+			const TImplicitObjectScaled<FConvex> A(AConv, nullptr, FVec3(1.0,1.0,1.0));
 
 			const FVec3 Pt0(0.0,0.0,-33.0);
 			FVec3 Pt1 = Pt0;
@@ -1503,7 +1503,7 @@ namespace ChaosTest
 			
 			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles, 0.0f);
 			TSerializablePtr<FConvex> AConv(UniqueConvex);
-			const TImplicitObjectScaled<FConvex> AConvScaled(AConv,FVec3(1.0,1.0,1.0));
+			const TImplicitObjectScaled<FConvex> AConvScaled(AConv, nullptr, FVec3(1.0,1.0,1.0));
 
 			FTriangle A(ConvexParticles[0],ConvexParticles[1],ConvexParticles[2]);
 			FTriangleRegister AReg(
@@ -1740,8 +1740,8 @@ namespace ChaosTest
 		const FReal Margin = 0.75f;
 
 		TUniquePtr<FImplicitConvex3> CoreConvexShapePtr = MakeUnique<FImplicitConvex3>(CoreShapeVerts, 0.0f);
-		const TImplicitObjectScaled<FImplicitConvex3> ShapeA(MakeSerializable(CoreConvexShapePtr), Scale, Margin);
-		const TImplicitObjectScaled<FImplicitConvex3> ShapeB(MakeSerializable(CoreConvexShapePtr), Scale, Margin);
+		const TImplicitObjectScaled<FImplicitConvex3> ShapeA(MakeSerializable(CoreConvexShapePtr), nullptr, Scale, Margin);
+		const TImplicitObjectScaled<FImplicitConvex3> ShapeB(MakeSerializable(CoreConvexShapePtr), nullptr, Scale, Margin);
 		const FRigidTransform3 TransformA(FVec3(0.000000000f, 0.000000000f, 182.378937f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.707106650f, 0.707106888f));	// Top
 		const FRigidTransform3 TransformB(FVec3(0.000000000f, 0.000000000f, 107.378944f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.000000000f, 1.00000000f));		// Bottom
 
@@ -1804,7 +1804,7 @@ namespace ChaosTest
 		};
 		TArray<FConvex::FVec3Type> ConvexVertices(MoveTemp(ConvexVerts));
 		TUniquePtr<FImplicitConvex3> CoreConvex = MakeUnique<FImplicitConvex3>(ConvexVertices, 0.0f);
-		const TImplicitObjectScaled<FImplicitConvex3> ScaledConvex(MakeSerializable(CoreConvex), FVec3(-1,1,1), 38.4000015);
+		const TImplicitObjectScaled<FImplicitConvex3> ScaledConvex(MakeSerializable(CoreConvex), nullptr, FVec3(-1,1,1), 38.4000015);
 		const TSphere<FReal, 3> Sphere(FVec3(0,0,0), 32);
 		const FRigidTransform3 StartTM(FVec3( -172.000000, -48.0000000, 52.0000000 ), FRotation3::FromIdentity());
 

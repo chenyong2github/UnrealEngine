@@ -4258,8 +4258,8 @@ namespace ChaosTest {
 				Dynamic.SetGravityEnabled(true);
 				Dynamic.SetParticleID(FParticleID{ MappingHelper(Idx), INDEX_NONE });
 				Dynamic.SetX(FVec3(0, 5 * MappingHelper(Idx), 100 * MappingHelper(Idx) + 50));	//slightly offset
-				Dynamic.SetI(FMatrix33(1000, 1000, 1000));
-				Dynamic.SetInvI(FMatrix33(1/1000.0, 1/1000.0, 1/1000.0));
+				Dynamic.SetI(FVec3(1000, 1000, 1000));
+				Dynamic.SetInvI(FVec3(1/1000.0, 1/1000.0, 1/1000.0));
 
 				Storage.Add(DynamicProxy);
 			}

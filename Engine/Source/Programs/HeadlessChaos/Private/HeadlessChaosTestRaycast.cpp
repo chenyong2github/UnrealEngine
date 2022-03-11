@@ -555,12 +555,12 @@ namespace ChaosTest
 		const FReal Thickness = 0.1;
 
 		TUniquePtr<TSphere<FReal, 3>> Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(1), 2);
-		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), FVec3(1));
-		TImplicitObjectScaled<TSphere<FReal, 3>> UnscaledThickened(MakeSerializable(Sphere), FVec3(1), Thickness);
-		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaled(MakeSerializable(Sphere), FVec3(2));
-		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaledThickened(MakeSerializable(Sphere), FVec3(2), Thickness);
-		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaled(MakeSerializable(Sphere), FVec3(2,1,1));
-		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaledThickened(MakeSerializable(Sphere), FVec3(2, 1, 1), Thickness);
+		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), nullptr, FVec3(1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> UnscaledThickened(MakeSerializable(Sphere), nullptr, FVec3(1), Thickness);
+		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaled(MakeSerializable(Sphere), nullptr, FVec3(2));
+		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaledThickened(MakeSerializable(Sphere), nullptr, FVec3(2), Thickness);
+		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaled(MakeSerializable(Sphere), nullptr, FVec3(2,1,1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaledThickened(MakeSerializable(Sphere), nullptr, FVec3(2, 1, 1), Thickness);
 
 		//simple
 		bool bHit = Unscaled.Raycast(FVec3(1, 1, 8), FVec3(0, 0, -1), 8, 0, Time, Position, Normal, FaceIndex);

@@ -781,15 +781,15 @@ namespace ChaosTest {
 	void ImplicitScaled()
 	{
 		TUniquePtr<TBox<FReal, 3>> UnitCube = MakeUnique<TBox<FReal, 3>>(FVec3(-1), FVec3(1));
-		TImplicitObjectScaled<TBox<FReal,3>> UnitUnscaled(MakeSerializable(UnitCube), FVec3(1));
+		TImplicitObjectScaled<TBox<FReal,3>> UnitUnscaled(MakeSerializable(UnitCube), nullptr, FVec3(1));
 		UnitImplicitObjectNormalsInternal(UnitUnscaled, FString("ImplicitTransformed()"));
 		UnitImplicitObjectNormalsExternal(UnitUnscaled, FString("ImplicitTransformed()"));
 		UnitImplicitObjectIntersections(UnitUnscaled, FString("ImplicitTransformed()"));
 
 		TUniquePtr<TSphere<FReal, 3>> Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(3, 0, 0), 5);
-		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), FVec3(1));
-		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScale(MakeSerializable(Sphere), FVec3(2));
-		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScale(MakeSerializable(Sphere), FVec3(2, 1, 1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), nullptr, FVec3(1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScale(MakeSerializable(Sphere), nullptr, FVec3(2));
+		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScale(MakeSerializable(Sphere), nullptr, FVec3(2, 1, 1));
 
 		{//phi
 			const FVec3 NearEdge(7.5, 0, 0);
@@ -1807,12 +1807,12 @@ namespace ChaosTest {
 		// ImplicitObjectScaled is ignored.
 		FReal Thickness = 0.1;
 		TUniquePtr<TSphere<FReal, 3>> Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(3, 0, 0), 5);
-		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), FVec3(1));
-		TImplicitObjectScaled<TSphere<FReal, 3>> UnscaledThickened(MakeSerializable(Sphere), FVec3(1), Thickness);
-		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScale(MakeSerializable(Sphere),FVec3(2));
-		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaleThickened(MakeSerializable(Sphere), FVec3(2), Thickness);
-		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScale(MakeSerializable(Sphere), FVec3(2, 1, 1));
-		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaleThickened(MakeSerializable(Sphere), FVec3(2, 1, 1), Thickness);
+		TImplicitObjectScaled<TSphere<FReal, 3>> Unscaled(MakeSerializable(Sphere), nullptr, FVec3(1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> UnscaledThickened(MakeSerializable(Sphere), nullptr, FVec3(1), Thickness);
+		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScale(MakeSerializable(Sphere), nullptr, FVec3(2));
+		TImplicitObjectScaled<TSphere<FReal, 3>> UniformScaleThickened(MakeSerializable(Sphere), nullptr, FVec3(2), Thickness);
+		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScale(MakeSerializable(Sphere), nullptr, FVec3(2, 1, 1));
+		TImplicitObjectScaled<TSphere<FReal, 3>> NonUniformScaleThickened(MakeSerializable(Sphere), nullptr, FVec3(2, 1, 1), Thickness);
 
 		//phi
 		{

@@ -144,7 +144,7 @@ namespace ChaosTest
 
 		//identity scale
 		{
-			TImplicitObjectScaledGeneric<FReal, 3> Scaled(MakeSerializable(Convex), FVec3(1, 1, 1));
+			TImplicitObjectScaledGeneric<FReal, 3> Scaled(MakeSerializable(Convex), nullptr, FVec3(1, 1, 1));
 
 			//simple into the triangle
 			bool bHit = Scaled.Raycast(FVec3(0.5, 0, 2), FVec3(0, 0, -1), 3, 0, Time, Position, Normal, FaceIndex);
@@ -180,7 +180,7 @@ namespace ChaosTest
 
 		//non-uniform scale
 		{
-			TImplicitObjectScaledGeneric<FReal, 3> Scaled(MakeSerializable(Convex), FVec3(2, 1, 1));
+			TImplicitObjectScaledGeneric<FReal, 3> Scaled(MakeSerializable(Convex), nullptr, FVec3(2, 1, 1));
 
 			//simple into the triangle
 			bool bHit = Scaled.Raycast(FVec3(0.5, 0, 2), FVec3(0, 0, -1), 3, 0, Time, Position, Normal, FaceIndex);
