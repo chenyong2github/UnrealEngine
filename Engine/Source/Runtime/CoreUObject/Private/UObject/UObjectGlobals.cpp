@@ -739,7 +739,7 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 	bool bSubobjectPath = false;
 
 	// Handle specified packages.
-	constexpr FAsciiSet Delimiters = FAsciiSet(".") + SUBOBJECT_DELIMITER_CHAR;
+	constexpr FAsciiSet Delimiters = FAsciiSet(".") + (char)SUBOBJECT_DELIMITER_CHAR;
 	while (true)
 	{
 		const TCHAR* DelimiterOrEnd = FAsciiSet::FindFirstOrEnd(*InOutName, Delimiters);

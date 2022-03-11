@@ -522,7 +522,7 @@ FORCEINLINE constexpr FStringView ParsePropertyToken(const TCHAR* Str, bool Dott
 {
 	constexpr FAsciiSet RegularTokenChars = AlphaNumericChars  + '_' + '-' + '+';
 	constexpr FAsciiSet RegularNonTokenChars = ~RegularTokenChars;
-	constexpr FAsciiSet DottedNonTokenChars = ~(RegularTokenChars + '.' + '/' + SUBOBJECT_DELIMITER_CHAR);
+	constexpr FAsciiSet DottedNonTokenChars = ~(RegularTokenChars + '.' + '/' + (char)SUBOBJECT_DELIMITER_CHAR);
 	FAsciiSet CurrentNonTokenChars = DottedNames ? DottedNonTokenChars : RegularNonTokenChars;
 
 	const TCHAR* TokenEnd = FAsciiSet::FindFirstOrEnd(Str, CurrentNonTokenChars);

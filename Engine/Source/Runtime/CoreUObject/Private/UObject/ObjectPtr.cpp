@@ -16,7 +16,7 @@ FString FObjectPtr::GetPath() const
 	CompletePath << Ref.PackageName;
 	for (int32 ResolvedNameIndex = 0; ResolvedNameIndex < ResolvedNames.Num(); ++ResolvedNameIndex)
 	{
-		CompletePath << (ResolvedNameIndex == 1 ? SUBOBJECT_DELIMITER_CHAR : '.') << ResolvedNames[ResolvedNameIndex];
+		CompletePath << (ResolvedNameIndex == 1 ? SUBOBJECT_DELIMITER_CHAR : TEXT('.')) << ResolvedNames[ResolvedNameIndex];
 	}
 	return FString(CompletePath);
 }

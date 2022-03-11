@@ -621,7 +621,7 @@ bool FPackageReader::SerializeImportedClasses(const TArray<FObjectImport>& Impor
 		{
 			int32 NumTokens = ParentChain.Num();
 			check(NumTokens >= 1);
-			const TCHAR Delimiters[] = {'.', SUBOBJECT_DELIMITER_CHAR, '.' };
+			const TCHAR Delimiters[] = { TEXT('.'), SUBOBJECT_DELIMITER_CHAR, TEXT('.') };
 			int32 DelimiterIndex = 0;
 			ParentChain[NumTokens - 1].AppendString(ClassObjectPath);
 			for (int32 TokenIndex = NumTokens - 2; TokenIndex >= 0; --TokenIndex)
