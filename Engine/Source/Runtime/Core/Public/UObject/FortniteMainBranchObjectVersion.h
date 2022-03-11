@@ -196,6 +196,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Decoupled the generation of the water texture from the Water Brush and the landscape
 		WaterZonesRefactor,
 
+		// Add faster damping calculations to the cloth simulation and rename previous Damping parameter to LocalDamping.
+		ChaosClothFasterDamping,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
