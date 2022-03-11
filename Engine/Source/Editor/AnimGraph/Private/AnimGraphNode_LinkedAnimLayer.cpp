@@ -25,6 +25,12 @@
 
 #define LOCTEXT_NAMESPACE "LinkedAnimLayerNode"
 
+namespace LinkedAnimLayerGraphNodeConstants
+{
+	FLinearColor TitleColor(0.4f, 0.1f, 1.f);
+}
+
+
 void UAnimGraphNode_LinkedAnimLayer::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -657,6 +663,11 @@ bool UAnimGraphNode_LinkedAnimLayer::IsStructuralProperty(FProperty* InProperty)
 {
 	return Super::IsStructuralProperty(InProperty) ||
 		InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_LinkedAnimLayer, Layer);
+}
+
+FLinearColor UAnimGraphNode_LinkedAnimLayer::GetDefaultNodeTitleColor() const
+{
+	return LinkedAnimLayerGraphNodeConstants::TitleColor;
 }
 
 UClass* UAnimGraphNode_LinkedAnimLayer::GetTargetSkeletonClass() const

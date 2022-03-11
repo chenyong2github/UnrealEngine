@@ -66,7 +66,7 @@ FLinearColor UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitleColor() const
 	
 	if(!Color.IsSet())
 	{
-		return LinkedAnimGraphGraphNodeConstants::TitleColor;
+		return GetDefaultNodeTitleColor();
 	}
 
 	return Color.GetValue();
@@ -461,6 +461,11 @@ void UAnimGraphNode_LinkedAnimGraphBase::OnSetInstanceBlueprint(const FAssetData
 	{
 		ClassHandle->SetValue((UObject*)nullptr);
 	}
+}
+
+FLinearColor UAnimGraphNode_LinkedAnimGraphBase::GetDefaultNodeTitleColor() const
+{
+	return LinkedAnimGraphGraphNodeConstants::TitleColor;
 }
 
 FPoseLinkMappingRecord UAnimGraphNode_LinkedAnimGraphBase::GetLinkIDLocation(const UScriptStruct* NodeType, UEdGraphPin* SourcePin)

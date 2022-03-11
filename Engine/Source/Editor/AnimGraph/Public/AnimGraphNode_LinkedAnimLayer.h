@@ -80,6 +80,7 @@ protected:
 	virtual bool OnShouldFilterInstanceBlueprint(const FAssetData& AssetData) const override;
 	virtual FString GetCurrentInstanceBlueprintPath() const override;
 	virtual bool IsStructuralProperty(FProperty* InProperty) const override;
+	virtual FLinearColor GetDefaultNodeTitleColor() const override;
 
 	friend class FAnimationLayerDragDropAction;
 	

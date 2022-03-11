@@ -82,6 +82,8 @@ protected:
 	void OnSetInstanceBlueprint(const FAssetData& AssetData, IDetailLayoutBuilder* InDetailBuilder);
 	// ----- END UI CALLBACKS ----- //
 
+	virtual FLinearColor GetDefaultNodeTitleColor() const;
+
 	// Skeleton name used for filtering unloaded classes 
 	FString SkeletonName;
 
