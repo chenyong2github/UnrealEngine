@@ -268,6 +268,11 @@ private:
 	/** Called once when first moving to the Export state. */
 	void BeginExport();
 
+	/** Attempts to start an Unreal Insights capture to a file on disk adjacent to the movie output. */
+	void StartUnrealInsightsCapture();
+	/** Attempts to stop an already started Unreal Insights capture. */
+	void StopUnrealInsightsCapture();
+
 	/** 
 	* Runs the per-tick logic when doing the Finalize state.
 	*

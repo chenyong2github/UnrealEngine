@@ -39,6 +39,10 @@ public:
 	/** Used when capturing rendering information with RenderDoc. In Display Rate frames.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RenderDoc")
 	int32 CaptureFrame;
+
+	/** If true, automatically capture an Unreal Insights trace file for the duration of the render. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profiling")
+	bool bCaptureUnrealInsightsTrace;
 	
 private:
 	bool bIsRenderDebugCaptureAvailable;

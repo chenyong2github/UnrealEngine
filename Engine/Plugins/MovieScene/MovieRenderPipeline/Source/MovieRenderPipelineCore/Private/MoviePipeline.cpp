@@ -36,11 +36,13 @@
 #include "ImageWriteQueue.h"
 #include "MoviePipelineHighResSetting.h"
 #include "MoviePipelineCameraSetting.h"
+#include "MoviePipelineDebugSettings.h"
 #include "MoviePipelineQueue.h"
 #include "HAL/FileManager.h"
 #include "Misc/CoreDelegates.h"
 #include "MoviePipelineCommandLineEncoder.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
@@ -177,6 +179,15 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	{
 		Shutdown(true);
 		return;
+	}
+
+	UMoviePipelineDebugSettings* DebugSetting = FindOrAddSettingForShot<UMoviePipelineDebugSettings>(nullptr);
+	if (DebugSetting)
+	{
+		if (DebugSetting->bCaptureUnrealInsightsTrace)
+		{
+			StartUnrealInsightsCapture();
+		}
 	}
 
 	TargetSequence = Cast<ULevelSequence>(GetCurrentJob()->Sequence.TryLoad());
@@ -536,6 +547,15 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			GAreScreenMessagesEnabled = bPrevGScreenMessagesEnabled;
 
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Movie Pipeline completed. Duration: %s"), *(FDateTime::UtcNow() - InitializationTime).ToString());
+
+			UMoviePipelineDebugSettings* DebugSetting = FindOrAddSettingForShot<UMoviePipelineDebugSettings>(nullptr);
+			if (DebugSetting)
+			{
+				if (DebugSetting->bCaptureUnrealInsightsTrace)
+				{
+					StopUnrealInsightsCapture();
+				}
+			}
 
 			OnMoviePipelineFinishedImpl();
 		}
@@ -1546,5 +1566,41 @@ void UMoviePipeline::PrintVerboseLogForFiles(const TArray<FMoviePipelineShotOutp
 			}
 		}
 	}
+}
+
+void UMoviePipeline::StartUnrealInsightsCapture()
+{
+	// Generate a filepath to attempt to store the trace file in.
+	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	FString FileName = OutputSetting->FileNameFormat + TEXT("_UnrealInsights");
+	FString FileNameFormatString = OutputSetting->OutputDirectory.Path / FileName;
+
+	// Generate a filename for this encoded file
+	TMap<FString, FString> FormatOverrides;
+	FormatOverrides.Add(TEXT("ext"), TEXT("utrace"));
+	FMoviePipelineFormatArgs FinalFormatArgs;
+
+	FString FinalFilePath;
+	ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs);
+
+	if (FPaths::IsRelative(FinalFilePath))
+	{
+		FinalFilePath = FPaths::ConvertRelativePathToFull(FinalFilePath);
+	}	
+
+	const bool bTraceStarted = FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::File, *FinalFilePath);
+	if (bTraceStarted)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Started capturing UnrealInsights trace file to %s"), *FinalFilePath);
+	}
+	else
+	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Failed to start capturing UnrealInsights trace. Is there already a trace session in progress?"));
+	}
+}
+
+void UMoviePipeline::StopUnrealInsightsCapture()
+{
+	FTraceAuxiliary::Stop();
 }
 #undef LOCTEXT_NAMESPACE // "MoviePipeline"
