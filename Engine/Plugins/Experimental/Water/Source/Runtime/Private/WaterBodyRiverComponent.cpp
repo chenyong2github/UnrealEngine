@@ -82,6 +82,238 @@ void UWaterBodyRiverComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	}
 }
 
+// ----------------------------------------------------------------------------------
+
+static FColor PackWaterFlow(float VelocityMagnitude, float DirectionAngle)
+{
+	check((DirectionAngle >= 0.f) && (DirectionAngle <= TWO_PI));
+
+	const float MaxVelocity = FWaterUtils::GetWaterMaxFlowVelocity(false);
+
+	float NormalizedMagnitude = FMath::Clamp(VelocityMagnitude, 0.f, MaxVelocity) / MaxVelocity;
+	float NormalizedAngle = DirectionAngle / TWO_PI;
+	float MappedMagnitude = NormalizedMagnitude * TNumericLimits<uint16>::Max();
+	float MappedAngle = NormalizedAngle * TNumericLimits<uint16>::Max();
+
+	uint16 ResultMag = (uint16)MappedMagnitude;
+	uint16 ResultAngle = (uint16)MappedAngle;
+	
+	FColor Result;
+	Result.R = (ResultMag >> 8) & 0xFF;
+	Result.G = (ResultMag >> 0) & 0xFF;
+	Result.B = (ResultAngle >> 8) & 0xFF;
+	Result.A = (ResultAngle >> 0) & 0xFF;
+
+	return Result;
+}
+
+static void AddVerticesForRiverSplineStep(float DistanceAlongSpline, const UWaterBodyRiverComponent* Component, TArray<FDynamicMeshVertex>& Vertices, TArray<uint32>& Indices)
+{
+	const UWaterSplineComponent* SplineComp = Component->GetWaterSpline();
+	
+	const FVector Tangent = SplineComp->GetTangentAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::Local).GetSafeNormal();
+	const FVector Up = SplineComp->GetUpVectorAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::Local).GetSafeNormal();
+
+	const FVector Normal = FVector::CrossProduct(Tangent, Up).GetSafeNormal();
+	const FVector Pos = SplineComp->GetLocationAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::Local);
+
+	const float Key = SplineComp->SplineCurves.ReparamTable.Eval(DistanceAlongSpline, 0.f);
+	const float HalfWidth = Cast<UWaterSplineMetadata>(SplineComp->GetSplinePointsMetadata())->RiverWidth.Eval(Key) / 2;
+	float Velocity = Cast<UWaterSplineMetadata>(SplineComp->GetSplinePointsMetadata())->WaterVelocityScalar.Eval(Key);
+
+	// Distance from the center of the spline to place our first vertices
+	FVector OutwardDistance = Normal * HalfWidth;
+	// Prevent there being a relative height difference between the two vertices even when the spline has a slight roll to it
+	OutwardDistance.Z = 0.f;
+
+	const float DilationAmount = Component->ShapeDilation;
+	const FVector DilationOffset = Normal * DilationAmount;
+
+	FDynamicMeshVertex Left(Pos - OutwardDistance);
+	FDynamicMeshVertex Right(Pos + OutwardDistance);
+
+	FDynamicMeshVertex DilatedFarLeft(Pos - OutwardDistance - DilationOffset);
+	DilatedFarLeft.Position.Z += Component->GetShapeDilationZOffsetFar();
+	FDynamicMeshVertex DilatedLeft(Pos - OutwardDistance);
+	DilatedLeft.Position.Z += Component->GetShapeDilationZOffset();
+	FDynamicMeshVertex DilatedRight(Pos + OutwardDistance);
+	DilatedRight.Position.Z += Component->GetShapeDilationZOffset();
+	FDynamicMeshVertex DilatedFarRight(Pos + OutwardDistance + DilationOffset);
+	DilatedFarRight.Position.Z += Component->GetShapeDilationZOffsetFar();
+
+	float FlowDirection = Tangent.HeadingAngle() + FMath::DegreesToRadians(Component->GetRelativeRotation().Yaw);
+	// Convert negative angles into positive angles
+	if (FlowDirection < 0.f)
+	{
+		FlowDirection = TWO_PI + FlowDirection;
+	}
+
+	// If negative velocity, inverse the direction and change the velocity back to positive.
+	if (Velocity < 0.f)
+	{
+		Velocity *= -1.f;
+		FlowDirection = FMath::Fmod(PI + FlowDirection, TWO_PI);
+	}
+
+	const FColor EmptyFlowData = FColor(0.f);
+
+	const FColor PackedFlowData = PackWaterFlow(Velocity, FlowDirection);
+	Left.Color = PackedFlowData;
+	Right.Color = PackedFlowData;
+
+	DilatedFarLeft.Color = EmptyFlowData;
+	DilatedLeft.Color = EmptyFlowData;
+	DilatedRight.Color = EmptyFlowData;
+	DilatedFarRight.Color = EmptyFlowData;
+
+	// Embed the water body index in the vertex data so that we can distinguish between dilated and undilated regions of the texture
+	const int32 WaterBodyIndex = Component->GetWaterBodyIndex();
+	Left.TextureCoordinate[0].X = WaterBodyIndex;
+	Right.TextureCoordinate[0].X = WaterBodyIndex;
+	
+	DilatedFarLeft.TextureCoordinate[0].X = -1;
+	DilatedLeft.TextureCoordinate[0].X = -1;
+	DilatedRight.TextureCoordinate[0].X = -1;
+	DilatedFarRight.TextureCoordinate[0].X = -1;
+
+	/* River segment geometry:
+		6---7,8---9,10--11
+		| /  |  /  |  / |
+		0---1,2---3,4---5
+	*/
+	const uint32 BaseIndex = Vertices.Num();
+	Vertices.Append({ DilatedFarLeft, DilatedLeft, Left, Right, DilatedRight, DilatedFarRight });
+	// Append left dilation quad
+	Indices.Append({ BaseIndex, BaseIndex + 7, BaseIndex + 1, BaseIndex, BaseIndex + 6, BaseIndex + 7 });
+	// Append main quad
+	Indices.Append({ BaseIndex + 2, BaseIndex + 9, BaseIndex + 3, BaseIndex + 2, BaseIndex + 8, BaseIndex + 9});
+	// Append right dilation quad
+	Indices.Append({ BaseIndex + 4, BaseIndex + 11, BaseIndex + 5, BaseIndex + 4, BaseIndex + 10, BaseIndex + 11 });
+}
+
+enum class ERiverBoundaryEdge {
+	Start,
+	End,
+};
+
+static void AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge Edge, const UWaterBodyRiverComponent* Component, TArray<FDynamicMeshVertex>& Vertices, TArray<uint32>& Indices)
+{
+	const UWaterSplineComponent* SplineComp = Component->GetWaterSpline();
+
+	const float DistanceAlongSpline = (Edge == ERiverBoundaryEdge::Start) ? 0.f : SplineComp->GetSplineLength();
+	
+	const FVector Tangent = SplineComp->GetTangentAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::Local).GetSafeNormal();
+	const FVector Up = SplineComp->GetUpVectorAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::Local).GetSafeNormal();
+	
+	const FVector Normal = FVector::CrossProduct(Tangent, Up).GetSafeNormal();
+	const FVector Pos = SplineComp->GetLocationAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::Local);
+	
+	const float Key = SplineComp->SplineCurves.ReparamTable.Eval(DistanceAlongSpline, 0.f);
+	const float HalfWidth = Cast<UWaterSplineMetadata>(SplineComp->GetSplinePointsMetadata())->RiverWidth.Eval(Key) / 2;
+
+	const float DilationAmount = Component->ShapeDilation;
+	const FVector DilationOffset = Normal * DilationAmount;
+	FVector OutwardDistance = Normal * HalfWidth;
+	OutwardDistance.Z = 0.f;
+
+	FVector TangentialOffset = Tangent * DilationAmount;
+	TangentialOffset.Z = 0.f;
+
+	// For the starting edge the tangential offset is negative to push it backwards
+	if (Edge == ERiverBoundaryEdge::Start)
+	{
+		TangentialOffset *= -1;
+	}
+
+	FDynamicMeshVertex BackLeft(Pos - OutwardDistance + TangentialOffset - DilationOffset);
+	BackLeft.Position.Z += Component->GetShapeDilationZOffsetFar();
+	FDynamicMeshVertex Left(Pos - OutwardDistance + TangentialOffset);
+	Left.Position.Z += Component->GetShapeDilationZOffsetFar();
+	FDynamicMeshVertex Right(Pos + OutwardDistance + TangentialOffset);
+	Right.Position.Z += Component->GetShapeDilationZOffsetFar();
+	FDynamicMeshVertex BackRight(Pos + OutwardDistance + TangentialOffset + DilationOffset);
+	BackRight.Position.Z += Component->GetShapeDilationZOffsetFar();
+
+	// Initialize the vertex data to correct represent what we expect the dilated region to look like
+	// (no color and -1 UVs[0].x
+	BackLeft.Color = FColor(0.f);
+	BackLeft.TextureCoordinate[0].X = -1;
+	Left.Color = FColor(0.f);
+	Left.TextureCoordinate[0].X = -1;
+	Right.Color = FColor(0.f);
+	Right.TextureCoordinate[0].X = -1;
+	BackRight.Color = FColor(0.f);
+	BackRight.TextureCoordinate[0].X = -1;
+	
+
+	Vertices.Append({ BackLeft, Left, Right, BackRight });
+	if (Edge == ERiverBoundaryEdge::Start)
+	{
+		/* Dilated front segment geometry: (ignore vertices 6-7 since they are the non-dilated vertices)
+			4---5,6---7,8---9
+			|    |     |    |
+			0----1-----2----3
+		*/
+		Indices.Append({ 0, 5, 1, 0, 4, 5});
+		Indices.Append({ 1, 8, 2, 1, 5, 8});
+		Indices.Append({ 2, 9, 3, 2, 8, 9});
+	}
+	else
+	{
+		/* Dilated back segment geometry: (ignore vertices 6-7 since they are the non-dilated vertices)
+			6----7-----8----9
+			|    |     |    |
+			0---1,2---3,4---5
+		*/
+		check(Vertices.Num() >= 10);
+		const uint32 BaseIndex = Vertices.Num() - 10;
+		// Since we don't know if we're at the end point or not in the AddVerticesForRiverSplineStep function,
+		// we end up adding a bunch of indices which link to the next set of vertices but they don't exist so we must trim them here.
+		Indices.SetNum(Indices.Num() - 18);
+
+		Indices.Append({ BaseIndex + 0, BaseIndex + 6, BaseIndex + 7, BaseIndex + 0, BaseIndex + 7, BaseIndex + 1 });
+		Indices.Append({ BaseIndex + 1, BaseIndex + 7, BaseIndex + 8, BaseIndex + 1, BaseIndex + 8, BaseIndex + 4 });
+		Indices.Append({ BaseIndex + 4, BaseIndex + 9, BaseIndex + 5, BaseIndex + 4, BaseIndex + 8, BaseIndex + 9 });
+	}
+}
+
+// ----------------------------------------------------------------------------------
+
+void UWaterBodyRiverComponent::GenerateWaterBodyMesh()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateRiverMesh);
+
+	WaterBodyMeshVertices.Empty();
+	WaterBodyMeshIndices.Empty();
+
+	const UWaterSplineComponent* SplineComp = GetWaterSpline();
+	if (SplineComp == nullptr)
+	{
+		return;
+	}
+
+	TArray<FDynamicMeshVertex> Vertices;
+	TArray<uint32> Indices;
+
+	// Add an extra point at the start to dilate starting edge
+	AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge::Start, this, Vertices, Indices);
+
+	TArray<double> Distances;
+	TArray<FVector> Points;
+	SplineComp->DivideSplineIntoPolylineRecursiveWithDistances(0.f, SplineComp->GetSplineLength(), ESplineCoordinateSpace::Local, FMath::Square(10.f), Points, Distances);
+	
+	for (double DistanceAlongSpline : Distances)
+	{
+		AddVerticesForRiverSplineStep(DistanceAlongSpline, this, Vertices, Indices);
+	}
+	
+	// Add an extra point at the end to dilate ending edge
+	AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge::End, this, Vertices, Indices);
+
+	WaterBodyMeshVertices = MoveTemp(Vertices);
+	WaterBodyMeshIndices = MoveTemp(Indices);
+}
+
 FBoxSphereBounds UWaterBodyRiverComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
 	FBox BoxExtent(ForceInit);

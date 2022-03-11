@@ -23,6 +23,7 @@ public:
 	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Lake; }
 	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
 	virtual TArray<UPrimitiveComponent*> GetStandardRenderableComponents() const override;
+	virtual void GenerateWaterBodyMesh() override;
 
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 

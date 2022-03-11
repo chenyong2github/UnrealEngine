@@ -18,7 +18,7 @@ class FMaterialRenderProxy;
 class FWaterBodySceneProxy final : public FPrimitiveSceneProxy
 {
 public:
-	FWaterBodySceneProxy(UWaterBodyComponent* Component);
+	FWaterBodySceneProxy(UWaterBodyComponent* Component, const TArray<FDynamicMeshVertex>& Vertices, TArray<uint32>& Indices);
 	virtual ~FWaterBodySceneProxy();
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
@@ -32,12 +32,6 @@ public:
 	void SetWithinWaterInfoPass(bool bInWithinWaterInfoPass);
 
 private:
-	void GenerateLakeMesh(UWaterBodyLakeComponent* Component);
-	void GenerateOceanMesh(UWaterBodyOceanComponent* Component);
-	void GenerateRiverMesh(UWaterBodyRiverComponent* Component);
-
-	void AddSectionFromDynamicMesh(const UE::Geometry::FDynamicMesh3& DynamicMesh, TFunctionRef<FDynamicMeshVertex(const FVector&)> VertTransformFunc);
-
 	void InitResources(FWaterBodyMeshSection* Section);
 
 	TArray<FWaterBodyMeshSection*> Sections;

@@ -108,7 +108,7 @@ void UWaterBodyComponent::OnHiddenInGameChanged()
 
 FPrimitiveSceneProxy* UWaterBodyComponent::CreateSceneProxy()
 {
-	return new FWaterBodySceneProxy(this);
+	return new FWaterBodySceneProxy(this, WaterBodyMeshVertices, WaterBodyMeshIndices);
 }
 
 void UWaterBodyComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterialInterfaces, bool bGetDebugMaterials) const
@@ -1162,7 +1162,7 @@ void UWaterBodyComponent::UpdateAll(bool bShapeOrPositionChanged)
 		{
 			FNavigationSystem::UpdateActorAndComponentData(*WaterBodyOwner);
 
-			MarkRenderStateDirty();
+			UpdateWaterBodyRenderData();
 		}
 
 		UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
@@ -1430,6 +1430,17 @@ AWaterZone* UWaterBodyComponent::GetWaterZone() const
 		return WaterSubsystem->GetWaterZoneActor();
 	}
 	return nullptr;
+}
+
+void UWaterBodyComponent::UpdateWaterBodyRenderData()
+{
+	GenerateWaterBodyMesh();
+	MarkRenderStateDirty();
+
+	if (AWaterZone* WaterZone = GetWaterZone())
+	{
+		WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
+	}
 }
 
 #if WITH_EDITOR

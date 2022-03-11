@@ -551,9 +551,10 @@ void AWaterBody::PostRegisterAllComponents()
 			WaterBodyComponent->WaterBodyIndex = Manager->AddWaterBodyComponent(WaterBodyComponent);
 			WaterBodyIndex = WaterBodyComponent->WaterBodyIndex;
 
-			// By this point, the water body will have already generated its scene proxy. Since we have just updated the water body index, we will
-			// need to regenerate the scene proxy so that its vertices contain the updated index.
-			WaterBodyComponent->MarkRenderStateDirty();
+			// By this point, the water body will have already generated a scene proxy.
+			// However, the existing scene proxy doesn't have the correct water body index as we have just been assigned one here from the water body manager.
+			// We need to regenerate the mesh and scene proxy so that the vertex colors contain the updated index.
+			WaterBodyComponent->UpdateWaterBodyRenderData();
 		}
 
 		// At this point, the water mesh actor should be ready and we can setup the MID accordingly : 

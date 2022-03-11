@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyLakeComponent.h"
+#include "WaterModule.h"
 #include "WaterSplineComponent.h"
 #include "WaterSubsystem.h"
 #include "Components/SplineMeshComponent.h"
@@ -8,6 +9,10 @@
 #include "Engine/StaticMesh.h"
 #include "LakeCollisionComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Polygon2.h"
+#include "ConstrainedDelaunay2.h"
+#include "Operations/InsetMeshRegion.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -42,6 +47,100 @@ TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetStandardRenderableCompo
 		Result.Add(LakeMeshComp);
 	}
 	return Result;
+}
+
+void UWaterBodyLakeComponent::GenerateWaterBodyMesh()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateLakeMesh);
+
+	using namespace UE::Geometry;
+
+	WaterBodyMeshVertices.Empty();
+	WaterBodyMeshIndices.Empty();
+
+	const UWaterSplineComponent* SplineComp = GetWaterSpline();
+	if (SplineComp == nullptr || SplineComp->GetNumberOfSplineSegments() < 3)
+	{
+		return;
+	}
+
+	FPolygon2d LakePoly;
+	{
+		TArray<FVector> PolyLineVertices;
+		SplineComp->ConvertSplineToPolyLine(ESplineCoordinateSpace::Local, FMath::Square(10.f), PolyLineVertices);
+		
+		for (int32 i = 0; i < PolyLineVertices.Num() - 1; ++i) // skip the last vertex since it's the same as the first vertex
+		{
+			LakePoly.AppendVertex(FVector2D(PolyLineVertices[i]));
+		}
+	}
+	
+	FConstrainedDelaunay2d Triangulation;
+	Triangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
+	Triangulation.Add(LakePoly);
+	Triangulation.Triangulate();
+
+	if (Triangulation.Triangles.Num() == 0)
+	{
+		return;
+	}
+
+
+	// This FDynamicMesh3 will only be used to compute the inset region for shape dilation
+	FDynamicMesh3 LakeMesh(EMeshComponents::None);
+	for (const FVector2d& Vertex : Triangulation.Vertices)
+	{
+		// push the set of undilated vertices to the persistent mesh
+		FDynamicMeshVertex MeshVertex(FVector(Vertex.X, Vertex.Y, 0.f));
+		MeshVertex.Color = FColor::Black;
+		MeshVertex.TextureCoordinate[0].X = WaterBodyIndex;
+		WaterBodyMeshVertices.Add(MeshVertex);
+
+		LakeMesh.AppendVertex(MeshVertex.Position);
+	}
+
+	for (const FIndex3i& Triangle : Triangulation.Triangles)
+	{
+		WaterBodyMeshIndices.Append({ (uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
+		LakeMesh.AppendTriangle(Triangle);
+	}
+
+	if (ShapeDilation > 0.f)
+	{
+		// Inset the mesh by -ShapeDilation to effectively expand the mesh
+		FInsetMeshRegion Inset(&LakeMesh);
+		Inset.InsetDistance = -1 * ShapeDilation / 2.f;
+
+		for (const FIndex3i& Triangle : LakeMesh.GetTrianglesBuffer())
+		{
+			Inset.Triangles.Add(Triangle.A);
+			Inset.Triangles.Add(Triangle.B);
+			Inset.Triangles.Add(Triangle.C);
+		}
+		
+		if (Inset.Apply())
+		{
+			const uint32 IndexOffset = WaterBodyMeshVertices.Num();
+			for (const FVector3d& Vertex : LakeMesh.GetVerticesBuffer())
+			{
+				// push the set of dilated vertices to the persistent mesh
+				FDynamicMeshVertex MeshVertex(Vertex);
+				MeshVertex.Position.Z = ShapeDilationZOffset;
+				MeshVertex.Color = FColor::Black;
+				MeshVertex.TextureCoordinate[0].X = -1;
+				WaterBodyMeshVertices.Add(MeshVertex);
+			}
+
+			for (const FIndex3i& Triangle : LakeMesh.GetTrianglesBuffer())
+			{
+				WaterBodyMeshIndices.Append({ IndexOffset + Triangle.A, IndexOffset + Triangle.B, IndexOffset + Triangle.C });
+			}
+		}
+		else
+		{
+			UE_LOG(LogWater, Warning, TEXT("Failed to apply mesh inset for shape dilation (%s"), *GetOwner()->GetActorNameOrLabel());
+		}
+	}
 }
 
 FBoxSphereBounds UWaterBodyLakeComponent::CalcBounds(const FTransform& LocalToWorld) const

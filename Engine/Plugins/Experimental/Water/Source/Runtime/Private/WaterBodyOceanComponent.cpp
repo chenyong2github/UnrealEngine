@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyOceanComponent.h"
+#include "WaterModule.h"
 #include "WaterSplineComponent.h"
 #include "Components/SplineMeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"
@@ -11,6 +12,10 @@
 #include "WaterZoneActor.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "Polygon2.h"
+#include "ConstrainedDelaunay2.h"
+#include "Operations/InsetMeshRegion.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -65,7 +70,7 @@ void UWaterBodyOceanComponent::SetVisualExtents(FVector2D NewExtents)
 	if (VisualExtents != NewExtents)
 	{
 		VisualExtents = NewExtents;
-		MarkRenderStateDirty();
+		UpdateWaterBodyRenderData();
 		Modify();
 	}
 }
@@ -120,6 +125,107 @@ void UWaterBodyOceanComponent::Reset()
 		}
 	}
 	CollisionHullSets.Reset();
+}
+
+void UWaterBodyOceanComponent::GenerateWaterBodyMesh()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateOceanMesh);
+
+	using namespace UE::Geometry;
+
+	WaterBodyMeshVertices.Empty();
+	WaterBodyMeshIndices.Empty();
+
+	const UWaterSplineComponent* SplineComp = GetWaterSpline();
+	
+	if (SplineComp->GetNumberOfSplineSegments() < 3)
+	{
+		return;
+	}
+
+	FPolygon2d Island;
+	TArray<FVector> PolyLineVertices;
+	SplineComp->ConvertSplineToPolyLine(ESplineCoordinateSpace::Local, FMath::Square(10.f), PolyLineVertices);
+	
+	// Construct a 2D polygon describing the central island
+	for (int32 i = PolyLineVertices.Num() - 2; i >= 0; --i) // skip the last vertex since it's the same as the first vertex
+	{
+		Island.AppendVertex(FVector2D(PolyLineVertices[i]));
+	}
+
+	FVector OceanLocation = GetComponentLocation();
+	FPolygon2d OceanBoundingPolygon = FPolygon2d::MakeRectangle(FVector2d(OceanLocation.X, OceanLocation.Y), VisualExtents.X, VisualExtents.Y);
+	FGeneralPolygon2d FinalPoly(OceanBoundingPolygon);
+	FinalPoly.AddHole(Island);
+
+	FConstrainedDelaunay2d Triangulation;
+	Triangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
+	Triangulation.Add(FinalPoly);
+	Triangulation.Triangulate();
+
+	if (Triangulation.Triangles.Num() == 0)
+	{
+		return;
+	}
+
+	// This FDynamicMesh3 will only be used to compute the inset region for shape dilation
+	FDynamicMesh3 OceanMesh(EMeshComponents::None);
+	for (const FVector2d& Vertex : Triangulation.Vertices)
+	{
+		// push the set of undilated vertices to the persistent mesh
+		FDynamicMeshVertex MeshVertex(FVector(Vertex.X, Vertex.Y, 0.f));
+		MeshVertex.Color = FColor::Black;
+		MeshVertex.TextureCoordinate[0].X = WaterBodyIndex;
+		WaterBodyMeshVertices.Add(MeshVertex);
+
+		OceanMesh.AppendVertex(MeshVertex.Position);
+	}
+
+	for (const FIndex3i& Triangle : Triangulation.Triangles)
+	{
+		WaterBodyMeshIndices.Append({ (uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
+		OceanMesh.AppendTriangle(Triangle);
+	}
+
+
+	if (ShapeDilation > 0.f)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DilateOceanMesh);
+
+		// Inset the mesh by -ShapeDilation to effectively expand the mesh
+		FInsetMeshRegion Inset(&OceanMesh);
+		Inset.InsetDistance = -1 * ShapeDilation / 2.f;
+
+		for (FIndex3i Triangle : OceanMesh.GetTrianglesBuffer())
+		{
+			Inset.Triangles.Add(Triangle.A);
+			Inset.Triangles.Add(Triangle.B);
+			Inset.Triangles.Add(Triangle.C);
+		}
+		
+		if (Inset.Apply())
+		{
+			const uint32 IndexOffset = WaterBodyMeshVertices.Num();
+			for (const FVector3d& Vertex : OceanMesh.GetVerticesBuffer())
+			{
+				// push the set of dilated vertices to the persistent mesh
+				FDynamicMeshVertex MeshVertex(Vertex);
+				MeshVertex.Position.Z = ShapeDilationZOffset;
+				MeshVertex.Color = FColor::Black;
+				MeshVertex.TextureCoordinate[0].X = -1;
+				WaterBodyMeshVertices.Add(MeshVertex);
+			}
+
+			for (const FIndex3i& Triangle : OceanMesh.GetTrianglesBuffer())
+			{
+				WaterBodyMeshIndices.Append({ IndexOffset + Triangle.A, IndexOffset + Triangle.B, IndexOffset + Triangle.C });
+			}
+		}
+		else
+		{
+			UE_LOG(LogWater, Warning, TEXT("Failed to apply mesh inset for shape dilation (%s"), *GetOwner()->GetActorNameOrLabel());
+		}
+	}	
 }
 
 void UWaterBodyOceanComponent::PostLoad()

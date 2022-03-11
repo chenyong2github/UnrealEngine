@@ -285,6 +285,6 @@ void AWaterZone::UpdateWaterInfoTexture()
 			Component->UpdateMaterialInstances();
 		}
 
-		UE_LOG(LogWater, Log, TEXT("Queued Water Info texture update"));
+		UE_LOG(LogWater, Verbose, TEXT("Queued Water Info texture update"));
 	}
 }

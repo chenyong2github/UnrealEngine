@@ -16,6 +16,7 @@
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "WaterWaves.h"
 #include "WaterBodyTypes.h"
+#include "DynamicMeshBuilder.h"
 #include "WaterBodyComponent.generated.h"
 
 class UWaterSplineComponent;
@@ -321,6 +322,8 @@ public:
 	/** Gets the water zone to which this component belongs */
 	AWaterZone* GetWaterZone() const;
 
+	void UpdateWaterBodyRenderData();
+
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const override;
 protected:
@@ -348,6 +351,9 @@ protected:
 	virtual void UpdateWaterBody(bool bWithExclusionVolumes);
 
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) {}
+
+	/* Generates the mesh used to render the Water Info texture */
+	virtual void GenerateWaterBodyMesh() {}
 
 	/** Returns navigation area class */
 	TSubclassOf<UNavAreaBase> GetNavAreaClass() const { return WaterNavAreaClass; }
@@ -538,6 +544,9 @@ protected:
 	/** Push down the dilated region to prevent overwriting adjacent water body data */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Rendering)
 	float ShapeDilationZOffset = -64.f;
+
+	TArray<FDynamicMeshVertex> WaterBodyMeshVertices;
+	TArray<uint32> WaterBodyMeshIndices;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
