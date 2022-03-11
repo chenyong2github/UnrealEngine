@@ -12,10 +12,23 @@ class UWidgetBlueprint;
 /////////////////////////////////////////////////////
 // FWidgetBlueprintApplicationMode
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWidgetBlueprintModeTransition, class FWidgetBlueprintApplicationMode&);
+
 class UMGEDITOR_API FWidgetBlueprintApplicationMode : public FBlueprintEditorApplicationMode
 {
 public:
 	FWidgetBlueprintApplicationMode(TSharedPtr<class FWidgetBlueprintEditor> InWidgetEditor, FName InModeName);
+
+	// FApplicationMode interface
+	virtual void PreDeactivateMode() override;
+	virtual void PostActivateMode() override;
+	// End of FApplicationMode interface
+
+	/** Called at start of PostActivateMode */
+	mutable FOnWidgetBlueprintModeTransition OnPostActivateMode;
+
+	/** Called at end of PreDeactivateMode */
+	mutable FOnWidgetBlueprintModeTransition OnPreDeactivateMode;
 
 public:
 	TSharedPtr<class FWidgetBlueprintEditor> GetBlueprintEditor() const;

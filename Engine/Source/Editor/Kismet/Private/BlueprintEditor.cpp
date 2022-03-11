@@ -4397,6 +4397,11 @@ bool FBlueprintEditor::CanAccessComponentsMode() const
 	return bCanAccess;
 }
 
+bool FBlueprintEditor::IsEditorClosing() const
+{
+	return bEditorMarkedAsClosed;
+}
+
 void FBlueprintEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>& InTabManager)
 {
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);

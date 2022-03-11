@@ -189,6 +189,15 @@ public:
 	/** Gets sequencer widget, for anim drawer */
 	TSharedRef<SWidget> OnGetWidgetAnimSequencer();
 
+	/** Adds external widget whose lifetime should be managed by this editor */
+	void AddExternalEditorWidget(FName ID, TSharedRef<SWidget> InExternalWidget);
+
+	/** Removes external widget whose lifetime should be managed by this editor */
+	int32 RemoveExternalEditorWidget(FName ID);
+
+	/** Gets external widget whose lifetime should be managed by this editor, NullWidget if not found */
+	TSharedPtr<SWidget> GetExternalEditorWidget(FName ID);
+
 	/** Toggles Anim Drawer, only used for keyboard shortcut */
 	void ToggleAnimDrawer();
 
@@ -400,6 +409,9 @@ private:
 private:
 	/** The preview scene that owns the preview GUI */
 	FPreviewScene PreviewScene;
+
+	/** For external widgets to have lifetimes bound to this editor instance */
+	TMap<FName, TSharedPtr<SWidget>> ExternalEditorWidgets;
 
 	/** List of created sequencers */
 	TArray<TWeakPtr<ISequencer>> Sequencers;

@@ -12,6 +12,18 @@ FWidgetBlueprintApplicationMode::FWidgetBlueprintApplicationMode(TSharedPtr<FWid
 {
 }
 
+void FWidgetBlueprintApplicationMode::PreDeactivateMode()
+{
+	FBlueprintEditorApplicationMode::PreDeactivateMode();
+	OnPreDeactivateMode.Broadcast(*this);
+}
+
+void FWidgetBlueprintApplicationMode::PostActivateMode()
+{
+	OnPostActivateMode.Broadcast(*this);
+	FBlueprintEditorApplicationMode::PostActivateMode();
+}
+
 UWidgetBlueprint* FWidgetBlueprintApplicationMode::GetBlueprint() const
 {
 	if ( FWidgetBlueprintEditor* Editor = MyWidgetBlueprintEditor.Pin().Get() )

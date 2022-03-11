@@ -1129,6 +1129,31 @@ TSharedRef<SWidget> FWidgetBlueprintEditor::OnGetWidgetAnimSequencer()
 	return AnimDrawerWidget.ToSharedRef();
 }
 
+void FWidgetBlueprintEditor::AddExternalEditorWidget(FName ID, TSharedRef<SWidget> InExternalWidget)
+{
+	if (!ExternalEditorWidgets.Contains(ID))
+	{
+		ExternalEditorWidgets.Add(ID, InExternalWidget);
+	}
+}
+
+int32 FWidgetBlueprintEditor::RemoveExternalEditorWidget(FName ID)
+{
+	return ExternalEditorWidgets.Remove(ID);
+}
+
+TSharedPtr<SWidget> FWidgetBlueprintEditor::GetExternalEditorWidget(FName ID)
+{
+	TSharedPtr<SWidget>* ExternalWidget = ExternalEditorWidgets.Find(ID);
+
+	if (ExternalWidget)
+	{
+		return *ExternalWidget;
+	}
+
+	return nullptr;
+}
+
 void FWidgetBlueprintEditor::ToggleAnimDrawer()
 {
 	GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->TryToggleDrawer(FAnimationTabSummoner::WidgetAnimSequencerDrawerID);

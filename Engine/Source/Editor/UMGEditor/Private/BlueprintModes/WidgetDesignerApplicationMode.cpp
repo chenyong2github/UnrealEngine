@@ -184,11 +184,14 @@ void FWidgetDesignerApplicationMode::PreDeactivateMode()
 			PaletteTab->RequestCloseTab();
 		}
 	}
+
+	OnPreDeactivateMode.Broadcast(*this);
 }
 
 void FWidgetDesignerApplicationMode::PostActivateMode()
 {
-	//FWidgetBlueprintApplicationMode::PostActivateMode();
+	// FWidgetBlueprintApplicationMode::PostActivateMode();
+	OnPostActivateMode.Broadcast(*this);
 
 	TSharedPtr<FWidgetBlueprintEditor> BP = GetBlueprintEditor();
 

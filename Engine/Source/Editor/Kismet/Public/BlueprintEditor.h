@@ -328,6 +328,9 @@ public:
 	/**	Returns whether the edited blueprint has components */
 	bool CanAccessComponentsMode() const;
 
+	/** Returns if we are currently closing the editor */
+	bool IsEditorClosing() const;
+
 	// @todo This is a hack for now until we reconcile the default toolbar with application modes
 	void RegisterToolbarTab(const TSharedRef<class FTabManager>& TabManager);
 	/** Throw a simple message into the log */
