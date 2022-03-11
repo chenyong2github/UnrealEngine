@@ -189,6 +189,8 @@ protect /Source/Programs/Shared/EpicGames.Build/bin/**
 + /Source/ThirdParty/libSampleRate/**.cpp
 + /Source/ThirdParty/Eigen/**
 + /Source/ThirdParty/mimalloc/src/**
++ /Source/ThirdParty/**/IOS/**.framework/**
++ /Source/ThirdParty/**/TVOS/**.framework/**
 - /Source/ThirdParty/**
 
 # Source: Include everything else
