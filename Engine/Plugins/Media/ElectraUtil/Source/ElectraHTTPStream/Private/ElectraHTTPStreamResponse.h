@@ -2,6 +2,13 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
+#include "Templates/SharedPointer.h"
+
 #include "ElectraHTTPStream.h"
 #include "ElectraHTTPStreamBuffer.h"
 

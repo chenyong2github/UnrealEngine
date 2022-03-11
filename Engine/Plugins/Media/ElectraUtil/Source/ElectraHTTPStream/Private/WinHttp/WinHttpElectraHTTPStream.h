@@ -8,6 +8,8 @@
 #include "Templates/SharedPointer.h"
 #include "ParameterDictionary.h"
 
+class IElectraHTTPStream;
+
 class ELECTRAHTTPSTREAM_API FPlatformElectraHTTPStreamWinHttp
 {
 public:
