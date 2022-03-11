@@ -141,9 +141,17 @@ bool FEngineShowFlags::GetSingleFlag(uint32 Index) const
 	#define SHOWFLAG_ALWAYS_ACCESSIBLE(a,...) case SF_##a: return a != 0;
 	#include "ShowFlagsValues.inl"
 	default:
-		if (Index >= SF_FirstCustom && (Index - SF_FirstCustom) < (uint32)CustomShowFlags.Num())
+		if (Index >= SF_FirstCustom)
 		{
-			return CustomShowFlags[Index - SF_FirstCustom];
+			ECustomShowFlag CustomShowFlag = ECustomShowFlag(Index - SF_FirstCustom);
+			if (CustomShowFlags.IsValidIndex((uint32)CustomShowFlag))
+			{
+				return CustomShowFlags[(uint32)CustomShowFlag];
+			}
+			else if (IsRegisteredCustomShowFlag(CustomShowFlag))
+			{
+				return false;
+			}
 		}
 		{
 			checkNoEntry();
@@ -959,6 +967,12 @@ FEngineShowFlags::ECustomShowFlag FEngineShowFlags::FindCustomShowFlagByName(con
 		return *Existing;
 	}
 	return ECustomShowFlag::None;
+}
+
+bool FEngineShowFlags::IsRegisteredCustomShowFlag(ECustomShowFlag Index)
+{
+	FRWScopeLock Lock(CustomShowFlagsInternal::GetLock(), SLT_ReadOnly);
+	return CustomShowFlagsInternal::GetRegisteredCustomShowFlags().IsValidIndex((uint32)Index);
 }
 
 FString FEngineShowFlags::GetCustomShowFlagName(ECustomShowFlag Index)

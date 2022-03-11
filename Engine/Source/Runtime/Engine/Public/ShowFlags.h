@@ -539,6 +539,7 @@ private:
 	
 	// Lookup functions for custom show flags matching engine ones
 	static ENGINE_API bool FindCustomShowFlagDisplayName(const FString& InName, FText& OutText);
+	static bool IsRegisteredCustomShowFlag(ECustomShowFlag Index);
 	static FString GetCustomShowFlagName(ECustomShowFlag Index);
 	static FText GetCustomShowFlagDisplayName(ECustomShowFlag Index);
 	static ENGINE_API EShowFlagGroup GetCustomShowFlagGroup(ECustomShowFlag Index);
