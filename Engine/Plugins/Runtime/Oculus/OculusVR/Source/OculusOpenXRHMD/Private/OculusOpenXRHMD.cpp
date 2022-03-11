@@ -21,7 +21,7 @@ bool FOculusOpenXRHMD::GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensi
 bool FOculusOpenXRHMD::GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics)
 {
 	//UE_LOG(LogOculusOpenXRPlugin, Log, TEXT("Oculus OpenXR GetInteractionProfile"));
-	return true;
+	return false;	// if you return true, make sure OutPath and OutHasHaptics are initialized
 }
 
 bool FOculusOpenXRHMD::GetSpectatorScreenController(FHeadMountedDisplayBase* InHMDBase, TUniquePtr<FDefaultSpectatorScreenController>& OutSpectatorScreenController)
