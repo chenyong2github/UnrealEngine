@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MathStructProxyCustomizations.h"
+#include "Customizations/MathStructProxyCustomizations.h"
 #include "Framework/Commands/UIAction.h"
 #include "UObject/UnrealType.h"
 #include "Editor.h"

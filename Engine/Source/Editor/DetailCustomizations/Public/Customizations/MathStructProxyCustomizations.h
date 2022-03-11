@@ -142,7 +142,7 @@ private:
  * Helper class to aid representing math structs to the user in an editable form
  * e.g. representing a quaternion as a set of euler angles
  */
-class FMathStructProxyCustomization : public FMathStructCustomization
+class DETAILCUSTOMIZATIONS_API FMathStructProxyCustomization : public FMathStructCustomization
 {
 public:
 	/** IPropertyTypeCustomization interface */
@@ -225,7 +225,7 @@ protected:
 /** 
  * Proxy struct customization that displays a matrix as a position, rotation & scale.
  */
-class FMatrixStructCustomization : public FMathStructProxyCustomization
+class DETAILCUSTOMIZATIONS_API FMatrixStructCustomization : public FMathStructProxyCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
@@ -313,7 +313,7 @@ protected:
 /**
  * Proxy struct customization that displays an FQuat as an euler rotation
  */
-class FQuatStructCustomization : public FMatrixStructCustomization
+class DETAILCUSTOMIZATIONS_API FQuatStructCustomization : public FMatrixStructCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
