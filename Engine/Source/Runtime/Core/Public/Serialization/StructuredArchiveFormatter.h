@@ -76,30 +76,24 @@ public:
 	virtual bool HasDocumentTree() const = 0;
 
 	virtual void EnterRecord() = 0;
-	virtual void EnterRecord_TextOnly(TArray<FString>& OutFieldNames) = 0;
 	virtual void LeaveRecord() = 0;
 	virtual void EnterField(FArchiveFieldName Name) = 0;
-	virtual void EnterField_TextOnly(FArchiveFieldName Name, EArchiveValueType& OutType) = 0;
 	virtual void LeaveField() = 0;
 	virtual bool TryEnterField(FArchiveFieldName Name, bool bEnterWhenWriting) = 0;
 
 	virtual void EnterArray(int32& NumElements) = 0;
 	virtual void LeaveArray() = 0;
 	virtual void EnterArrayElement() = 0;
-	virtual void EnterArrayElement_TextOnly(EArchiveValueType& OutType) = 0;
 	virtual void LeaveArrayElement() = 0;
 
 	virtual void EnterStream() = 0;
-	virtual void EnterStream_TextOnly(int32& OutNumElements) = 0;
 	virtual void LeaveStream() = 0;
 	virtual void EnterStreamElement() = 0;
-	virtual void EnterStreamElement_TextOnly(EArchiveValueType& OutType) = 0;
 	virtual void LeaveStreamElement() = 0;
 
 	virtual void EnterMap(int32& NumElements) = 0;
 	virtual void LeaveMap() = 0;
 	virtual void EnterMapElement(FString& Name) = 0;
-	virtual void EnterMapElement_TextOnly(FString& Name, EArchiveValueType& OutType) = 0;
 	virtual void LeaveMapElement() = 0;
 
 	virtual void EnterAttributedValue() = 0;
@@ -133,10 +127,3 @@ public:
 	virtual void Serialize(TArray<uint8>& Value) = 0;
 	virtual void Serialize(void* Data, uint64 DataSize) = 0;
 };
-
-#if WITH_TEXT_ARCHIVE_SUPPORT
-	/**
-	 * Copies formatted data from one place to another. Useful for conversion functions or visitor patterns.
-	 */
-	CORE_API void CopyFormattedData(FStructuredArchiveFormatter& InputFormatter, FStructuredArchiveFormatter& OutputFormatter);
-#endif
