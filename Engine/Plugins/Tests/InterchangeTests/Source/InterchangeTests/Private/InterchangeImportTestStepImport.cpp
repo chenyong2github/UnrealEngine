@@ -9,11 +9,14 @@
 #include "Editor.h"
 
 
-UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepImport::StartStep(const FInterchangeImportTestData& Data)
+UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepImport::StartStep(FInterchangeImportTestData& Data)
 {
 	// Empty the destination folder here if requested
 	if (bEmptyDestinationFolderPriorToImport)
 	{
+		Data.ResultObjects.Empty();
+		Data.ImportedAssets.Empty();
+
 		const bool bRequireExists = true;
 		const bool bDeleteRecursively = true;
 		IFileManager::Get().DeleteDirectory(*Data.DestAssetFilePath, bRequireExists, bDeleteRecursively);
@@ -61,11 +64,6 @@ FTestStepResults UInterchangeImportTestStepImport::FinishStep(FInterchangeImport
 				SaveArgs);
 		}
 
-		if ((GEditor != nullptr) && (GEditor->Trans != nullptr))
-		{
-			GEditor->Trans->Reset(FText::FromString("Discard undo history during Automation testing."));
-		}
-
 		// Then rename original objects and their packages, and mark as garbage
 		for (const FAssetData& AssetData : Data.ImportedAssets)
 		{
@@ -91,11 +89,12 @@ FTestStepResults UInterchangeImportTestStepImport::FinishStep(FInterchangeImport
 			PackageObject->Rename(*(PackageObject->GetName() + TEXT("_TRASH")), nullptr, RenameFlags);
 			PackageObject->RemoveFromRoot();
 			PackageObject->MarkAsGarbage();
+
+			// Remove the old version of the asset object from the results
+			Data.ResultObjects.Remove(AssetObject);
 		}
 
-
 		// Now reload
-		Data.ResultObjects.Reset();
 		for (const FAssetData& AssetData : Data.ImportedAssets)
 		{
 			check(!AssetData.IsAssetLoaded());

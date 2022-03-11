@@ -34,7 +34,7 @@ public:
 
 public:
 	// UInterchangeImportTestStepBase interface
-	virtual UE::Interchange::FAssetImportResultPtr StartStep(const FInterchangeImportTestData& Data) override;
+	virtual UE::Interchange::FAssetImportResultPtr StartStep(FInterchangeImportTestData& Data) override;
 	virtual FTestStepResults FinishStep(FInterchangeImportTestData& Data, FAutomationTestExecutionInfo& ExecutionInfo) override;
 	virtual FString GetContextString() const override;
 };

@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
+#include "ObjectTools.h"
 
 
 UClass* UStaticMeshImportTestFunctions::GetAssociatedAssetType() const
@@ -643,9 +644,9 @@ FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckAgainstGroun
 		}
 	}
 
-	// Don't keep the ground truth asset lying around; mark it as garbage to get rid of it at the end of the tests
-	GroundTruth->RemoveFromRoot();
-	GroundTruth->MarkAsGarbage();
+	// Don't keep the ground truth asset lying around.
+	// @todo: this doesn't work for some reason; find out why.
+//	GroundTruth->ClearFlags(RF_Standalone | RF_WasLoaded | RF_LoadCompleted);
 
 	return Result;
 }

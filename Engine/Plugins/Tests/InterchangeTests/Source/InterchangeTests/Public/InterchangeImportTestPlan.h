@@ -27,10 +27,13 @@ public:
 	void WriteToJson(const FString& Filename);
 
 public:
-
 	/** Set of steps to perform to carry out this test plan */
 	UPROPERTY(EditAnywhere, Instanced, Category = Definition, Meta = (DisplayPriority = 0))
 	TArray<TObjectPtr<UInterchangeImportTestStepBase>> Steps;
+
+	/** Whether or not this test plan is currently enabled */
+	UPROPERTY(EditAnywhere, Category = Activation)
+	bool bIsEnabledInAutomationTests = true;
 
 	/** Click here to immediately run this single test through the automation framework */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = Run, Meta = (DisplayPriority = 1))

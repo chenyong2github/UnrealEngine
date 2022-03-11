@@ -83,11 +83,21 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 		AssetRegistryModule.Get().EnumerateAssets(AssetRegistryFilter,
-			[&TestPlans](const FAssetData& AssetData)
+			[this, &TestPlans](const FAssetData& AssetData)
 			{
-				FInterchangeImportTestData& TP = TestPlans.AddDefaulted_GetRef();
-				TP.AssetData = AssetData;
-				TP.TestPlan = CastChecked<UInterchangeImportTestPlan>(AssetData.GetAsset());
+				UInterchangeImportTestPlan* AssetObject = CastChecked<UInterchangeImportTestPlan>(AssetData.GetAsset());
+
+				if (AssetObject->bIsEnabledInAutomationTests)
+				{
+					FInterchangeImportTestData& TP = TestPlans.AddDefaulted_GetRef();
+					TP.AssetData = AssetData;
+					TP.TestPlan = AssetObject;
+				}
+				else
+				{
+					ExecutionInfo.AddWarning(FString::Printf(TEXT("InterchangeImportTestPlan %s is disabled."), *AssetObject->GetName()));
+				}
+
 				return true;
 			}
 		);
@@ -123,7 +133,8 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 		for (int32 PlanIndex = 0; PlanIndex < TestPlans.Num(); PlanIndex++)
 		{
 			FInterchangeImportTestData& Data = TestPlans[PlanIndex];
-			
+			Data.ImportedAssets.Empty();
+
 			FString AssetName = Data.AssetData.AssetName.ToString().Replace(TEXT("/"), TEXT("_"));
 			Data.DestAssetPackagePath = BasePackagePath / AssetName;
 			Data.DestAssetFilePath = BaseFilePath / AssetName;
@@ -169,7 +180,10 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 
 						// Fill out list of result objects in the data object.
 						// These are the UObject* results corresponding to imported assets.
-						Data.ResultObjects = Results[PlanIndex]->GetImportedObjects();
+						for (UObject* ImportedObject : Results[PlanIndex]->GetImportedObjects())
+						{
+							Data.ResultObjects.AddUnique(ImportedObject);
+						}
 
 						// Also add the InterchangeResultsContainer to the data so that tests can be run on it
 						// (e.g. to check whether something imported with a specific expected error)

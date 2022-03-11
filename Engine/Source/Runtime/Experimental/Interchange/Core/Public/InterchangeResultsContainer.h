@@ -70,6 +70,15 @@ public:
 		return Results;
 	}
 
+	/**
+	 * Removes the given UInterchangeResult from the container.
+	 */
+	void RemoveResult(UInterchangeResult* Item)
+	{
+		FScopeLock ScopeLock(&Lock);
+		Results.Remove(Item);
+	}
+
 private:
 
 	mutable FCriticalSection Lock;

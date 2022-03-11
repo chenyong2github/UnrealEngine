@@ -6,7 +6,7 @@
 #include "UObject/SavePackage.h"
 
 
-UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepReimport::StartStep(const FInterchangeImportTestData& Data)
+UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepReimport::StartStep(FInterchangeImportTestData& Data)
 {
 	// Find the object we wish to reimport
 	TArray<UObject*> PotentialObjectsToReimport;
@@ -99,10 +99,11 @@ FTestStepResults UInterchangeImportTestStepReimport::FinishStep(FInterchangeImpo
 			AssetObject->RemoveFromRoot();
 			AssetObject->MarkAsGarbage();
 			PackageObject->MarkAsGarbage();
+
+			Data.ResultObjects.Remove(AssetObject);
 		}
 
 		// Now reload
-		Data.ResultObjects.Reset();
 		for (const FAssetData& AssetData : Data.ImportedAssets)
 		{
 			check(!AssetData.IsAssetLoaded());

@@ -60,6 +60,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Test)
 	TSubclassOf<UObject> AssetClass;
 
+	/** Optional name of the asset to test, if there are various contenders */
+	UPROPERTY(EditAnywhere, Category = Test)
+	FString OptionalAssetName;
+
 	/** A function to be called to determine whether the result is correct */
 	UPROPERTY(EditAnywhere, Category = Test)
 	TObjectPtr<UFunction> CheckFunction = nullptr;

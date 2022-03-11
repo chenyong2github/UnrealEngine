@@ -4,10 +4,10 @@
 
 #include "ImportTestFunctionsBase.h"
 #include "InterchangeTestFunction.h"
+#include "InterchangeResultsContainer.h"
 #include "InterchangeResultImportTestFunctions.generated.h"
 
 struct FInterchangeTestFunctionResult;
-class UInterchangeResultsContainer;
 
 
 UCLASS()
@@ -19,4 +19,8 @@ public:
 
 	// UImportTestFunctionsBase interface
 	virtual UClass* GetAssociatedAssetType() const override;
+
+	/** Check whether the specified InterchangeResult was emitted during import */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckIfErrorOrWarningWasGenerated(UInterchangeResultsContainer* ResultsContainer, TSubclassOf<UInterchangeResult> ErrorOrWarningClass);
 };

@@ -49,6 +49,7 @@ private:
 
 	TSharedPtr<IPropertyHandle> StructProperty;
 	TSharedPtr<IPropertyHandle> AssetClassProperty;
+	TSharedPtr<IPropertyHandle> OptionalAssetNameProperty;
 	TSharedPtr<IPropertyHandle> CheckFunctionProperty;
 	TSharedPtr<IPropertyHandle> ParametersProperty;
 

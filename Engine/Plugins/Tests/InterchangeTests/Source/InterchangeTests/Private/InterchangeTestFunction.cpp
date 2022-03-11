@@ -220,7 +220,12 @@ FInterchangeTestFunctionResult FInterchangeTestFunction::Invoke(const TArray<UOb
 	{
 		if (Asset->GetClass()->IsChildOf(ExpectedClass))
 		{
-			AssetsToPass.Add(Asset);
+			// If the asset is of the expected class, add it if the name matches the supplied optional asset name,
+			// or if we are not checking a specific name.
+			if (OptionalAssetName.IsEmpty() || OptionalAssetName == Asset->GetName())
+			{
+				AssetsToPass.Add(Asset);
+			}
 		}
 	}
 
@@ -235,6 +240,18 @@ FInterchangeTestFunctionResult FInterchangeTestFunction::Invoke(const TArray<UOb
 	}
 	else
 	{
+		// If there was an asset name, but no matches, return with an error
+		if (!OptionalAssetName.IsEmpty() && AssetsToPass.Num() == 0)
+		{
+			FInterchangeTestFunctionResult Result;
+			Result.AddError(FString::Printf(
+				TEXT("No asset with the name '%s' was found"),
+				*OptionalAssetName)
+			);
+
+			return Result;
+		}
+
 		// If there is not exactly one entry in the array, the result is ambiguous, so return with an error
 		if (AssetsToPass.Num() != 1)
 		{

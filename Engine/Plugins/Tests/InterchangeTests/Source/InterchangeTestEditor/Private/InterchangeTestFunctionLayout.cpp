@@ -47,6 +47,7 @@ void FInterchangeTestFunctionLayout::CustomizeHeader(TSharedRef<IPropertyHandle>
 	// Cache all the child properties we're interested in manipulating
 
 	AssetClassProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FInterchangeTestFunction, AssetClass));
+	OptionalAssetNameProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FInterchangeTestFunction, OptionalAssetName));
 	CheckFunctionProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FInterchangeTestFunction, CheckFunction));
 	ParametersProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FInterchangeTestFunction, Parameters));
 	PropertyUtilities = StructCustomizationUtils.GetPropertyUtilities();
@@ -75,29 +76,49 @@ void FInterchangeTestFunctionLayout::CustomizeHeader(TSharedRef<IPropertyHandle>
 	]
 	.ValueContent()
 	[
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.AutoWidth()
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SComboBox<UClass*>)
-			.OptionsSource(&AssetClasses)
-			.OnGenerateWidget(this, &FInterchangeTestFunctionLayout::OnGenerateClassComboWidget)
-			.OnSelectionChanged(this, &FInterchangeTestFunctionLayout::OnClassComboSelectionChanged)
-			.InitiallySelectedItem(InterchangeTestFunction->AssetClass)
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
 			[
-				OnGenerateClassComboWidget(InterchangeTestFunction->AssetClass)
+				SNew(SComboBox<UClass*>)
+				.OptionsSource(&AssetClasses)
+				.OnGenerateWidget(this, &FInterchangeTestFunctionLayout::OnGenerateClassComboWidget)
+				.OnSelectionChanged(this, &FInterchangeTestFunctionLayout::OnClassComboSelectionChanged)
+				.InitiallySelectedItem(InterchangeTestFunction->AssetClass)
+				[
+					OnGenerateClassComboWidget(InterchangeTestFunction->AssetClass)
+				]
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SEditableTextBox)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.HintText(LOCTEXT("OptionalAssetName", "Optional Asset Name"))
+				.Text_Lambda([this] { FString Value; OptionalAssetNameProperty->GetValue(Value); return FText::FromString(Value); })
+				.OnTextCommitted_Lambda([this](const FText& Val, ETextCommit::Type TextCommitType) { OptionalAssetNameProperty->SetValue(Val.ToString()); })
+				.ToolTipText(LOCTEXT("OptionalAssetNameTooltip", "Fill out this field with the name of an imported asset which you wish to test, if there are multiple assets of the same type to choose from."))
 			]
 		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
+		+SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SComboBox<UFunction*>)
-			.OptionsSource(&Functions)
-			.OnGenerateWidget(this, &FInterchangeTestFunctionLayout::OnGenerateFunctionComboWidget)
-			.OnSelectionChanged(this, &FInterchangeTestFunctionLayout::OnFunctionComboSelectionChanged)
-			.InitiallySelectedItem(InterchangeTestFunction->CheckFunction)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
 			[
-				OnGenerateFunctionComboWidget(InterchangeTestFunction->CheckFunction)
+				SNew(SComboBox<UFunction*>)
+				.OptionsSource(&Functions)
+				.OnGenerateWidget(this, &FInterchangeTestFunctionLayout::OnGenerateFunctionComboWidget)
+				.OnSelectionChanged(this, &FInterchangeTestFunctionLayout::OnFunctionComboSelectionChanged)
+				.InitiallySelectedItem(InterchangeTestFunction->CheckFunction)
+				[
+					OnGenerateFunctionComboWidget(InterchangeTestFunction->CheckFunction)
+				]
 			]
 		]
 	];
