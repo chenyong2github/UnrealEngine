@@ -249,44 +249,6 @@ void FControlRigEditorModule::StartupModule()
 	//UThumbnailManager::Get().RegisterCustomRenderer(UControlRigPoseAsset::StaticClass(), UControlRigPoseThumbnailRenderer::StaticClass());
 
 	bFilterAssetBySkeleton = true;
-
-	FFunctionGraphTask::CreateAndDispatchWhenReady([]()
-	{
-		if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
-		{
-			const FArrayProperty* ReferenceNodeDataProperty =
-				CastField<FArrayProperty>(UControlRigBlueprint::StaticClass()->FindPropertyByName(TEXT("FunctionReferenceNodeData")));
-			if(ReferenceNodeDataProperty)
-			{
-				const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-
-				// find all control rigs in the project
-				TArray<FAssetData> ControlRigAssetDatas;
-				FARFilter ControlRigAssetFilter;
-				ControlRigAssetFilter.ClassNames.Add(UControlRigBlueprint::StaticClass()->GetFName());
-				AssetRegistryModule.Get().GetAssets(ControlRigAssetFilter, ControlRigAssetDatas);
-
-				// loop over all control rigs in the project
-				for(const FAssetData& ControlRigAssetData : ControlRigAssetDatas)
-				{
-					const FString ReferenceNodeDataString =
-						ControlRigAssetData.GetTagValueRef<FString>(ReferenceNodeDataProperty->GetFName());
-					if(ReferenceNodeDataString.IsEmpty())
-					{
-						continue;
-					}
-
-					TArray<FRigVMReferenceNodeData> ReferenceNodeDatas;
-					ReferenceNodeDataProperty->ImportText_Direct(*ReferenceNodeDataString, &ReferenceNodeDatas, nullptr, EPropertyPortFlags::PPF_None);
-
-					for(const FRigVMReferenceNodeData& ReferenceNodeData : ReferenceNodeDatas)
-					{
-						BuildData->RegisterFunctionReference(ReferenceNodeData);
-					}
-				}
-			}
-		}
-	}, TStatId(), NULL, ENamedThreads::GameThread);
 }
 
 void FControlRigEditorModule::ShutdownModule()
