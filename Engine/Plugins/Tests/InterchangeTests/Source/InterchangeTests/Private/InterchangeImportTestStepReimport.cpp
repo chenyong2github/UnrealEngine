@@ -89,15 +89,21 @@ FTestStepResults UInterchangeImportTestStepReimport::FinishStep(FInterchangeImpo
 			check(PackageObject);
 			check(PackageObject == AssetData.GetPackage());
 
+			// Mark all objects in the package as garbage, and remove the standalone flag, so that GC can remove the package later
+			TArray<UObject*> ObjectsInPackage;
+			GetObjectsWithPackage(PackageObject, ObjectsInPackage, true);
+			for (UObject* ObjectInPackage : ObjectsInPackage)
+			{
+				ObjectInPackage->ClearFlags(RF_Standalone | RF_Public);
+				ObjectInPackage->MarkAsGarbage();
+			}
+
 			// Renaming the original objects avoids having to do a GC sweep here.
 			// Any existing references to them will be retained but irrelevant.
 			// Then the new object can be loaded in their place, as if it were being loaded for the first time.
 			const ERenameFlags RenameFlags = REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty;
-			AssetObject->Rename(*(AssetObject->GetName() + TEXT("_TRASH")), PackageObject, RenameFlags);
 			PackageObject->Rename(*(PackageObject->GetName() + TEXT("_TRASH")), nullptr, RenameFlags);
-			AssetObject->ClearFlags(RF_Standalone | RF_Public);
-			AssetObject->RemoveFromRoot();
-			AssetObject->MarkAsGarbage();
+			PackageObject->RemoveFromRoot();
 			PackageObject->MarkAsGarbage();
 
 			Data.ResultObjects.Remove(AssetObject);

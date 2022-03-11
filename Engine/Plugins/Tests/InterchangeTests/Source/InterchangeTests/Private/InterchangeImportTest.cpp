@@ -189,21 +189,6 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 						// (e.g. to check whether something imported with a specific expected error)
 						Data.InterchangeResults = Results[PlanIndex]->GetResults();
 
-						// Populate the automation test execution info with the interchange import results
-						for (UInterchangeResult* Result : Data.InterchangeResults->GetResults())
-						{
-							switch (Result->GetResultType())
-							{
-							case EInterchangeResultType::Error:
-								ExecutionInfo.AddError(Result->GetText().ToString());
-								break;
-
-							case EInterchangeResultType::Warning:
-								ExecutionInfo.AddWarning(Result->GetText().ToString());
-								break;
-							}
-						}
-
 						// Fill out list of imported assets as FAssetData
 						for (UObject* Object : Results[PlanIndex]->GetImportedObjects())
 						{
@@ -216,12 +201,34 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 
 						Data.TestPlan->Steps[StepIndex]->FinishStep(Data, ExecutionInfo);
 
+						// Populate the automation test execution info with the interchange import results
+						for (UInterchangeResult* Result : Data.InterchangeResults->GetResults())
+						{
+							switch (Result->GetResultType())
+							{
+							case EInterchangeResultType::Error:
+								ExecutionInfo.AddError(Result->GetText().ToString());
+								bSuccess = false;
+								break;
+
+							case EInterchangeResultType::Warning:
+								ExecutionInfo.AddWarning(Result->GetText().ToString());
+								break;
+							}
+						}
+
 						ExecutionInfo.PopContext();
 					}
 				}
 			}
 
-			// Collect garbage between every step, so that 
+			// Collect garbage between every step, so that we remove renamed packages which come from the save+reload operation
+			// Note we also reset the transaction buffer here to stop it from holding onto references which would prevent garbage collection.
+			// @todo: not really a big fan of this; is there a better way of just disabling transactions?
+			if ((GEditor != nullptr) && (GEditor->Trans != nullptr))
+			{
+				GEditor->Trans->Reset(FText::FromString("Discard undo history during FBX Automation testing."));
+			}
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		}
 
@@ -237,5 +244,5 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 	bool bShowConfirmation = false;
 	ObjectTools::ForceDeleteObjects(ObjectsToDelete, bShowConfirmation);
 
-	return true;
+	return bSuccess;
 }

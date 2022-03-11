@@ -15,7 +15,7 @@ bool UInterchangeImportTestStepBase::PerformTests(FInterchangeImportTestData& Da
 
 	for (FInterchangeTestFunction& Test : Tests)
 	{
-		FInterchangeTestFunctionResult Result = Test.Invoke(Data.ResultObjects);
+		FInterchangeTestFunctionResult Result = Test.Invoke(ResultObjects);
 
 		for (const FString& Warning : Result.GetWarnings())
 		{
