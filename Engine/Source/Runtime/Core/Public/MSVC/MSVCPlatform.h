@@ -6,9 +6,7 @@
 
 #pragma once
 
-#if _MSC_VER >= 1920
-	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 1
-#else
+#if _MSC_VER < 1920
 	#error "Compiler is expected to support if constexpr"
 #endif
 

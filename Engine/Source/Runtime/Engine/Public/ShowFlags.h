@@ -572,15 +572,10 @@ enum class EShowFlagShippingValue
 template<EShowFlagShippingValue ShippingValue = EShowFlagShippingValue::Dynamic>
 struct TCustomShowFlag
 {
-#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
-#define IF_CONSTEXPR if constexpr
-#else 
-#define IF_CONSTEXPR if
-#endif
 	TCustomShowFlag(const TCHAR* Name, bool DefaultEnabled, EShowFlagGroup Group = SFG_Custom, FText DisplayName = {})
 	{
 #if UE_BUILD_SHIPPING
-		IF_CONSTEXPR(ShippingValue == EShowFlagShippingValue::Dynamic)
+		if constexpr (ShippingValue == EShowFlagShippingValue::Dynamic)
 #endif
 		{
 			FlagIndex = FEngineShowFlags::RegisterCustomShowFlag(Name, DefaultEnabled, Group, DisplayName);
@@ -590,11 +585,11 @@ struct TCustomShowFlag
 	bool IsEnabled(const FEngineShowFlags& ShowFlags)
 	{
 #if UE_BUILD_SHIPPING
-		IF_CONSTEXPR (ShippingValue == EShowFlagShippingValue::ForceDisabled)
+		if constexpr (ShippingValue == EShowFlagShippingValue::ForceDisabled)
 		{
 			return false;
 		}
-		else IF_CONSTEXPR(ShippingValue == EShowFlagShippingValue::ForceEnabled)
+		else if constexpr (ShippingValue == EShowFlagShippingValue::ForceEnabled)
 		{
 			return true;
 		}
@@ -611,7 +606,6 @@ struct TCustomShowFlag
 			}
 		}
 	}
-#undef IF_CONSTEXPR
 
 private:
 	FEngineShowFlags::ECustomShowFlag FlagIndex = FEngineShowFlags::ECustomShowFlag::None;

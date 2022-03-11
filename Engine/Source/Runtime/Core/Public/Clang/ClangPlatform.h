@@ -6,9 +6,7 @@
 
 #pragma once
 
-#if defined(__cpp_if_constexpr)
-	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 1
-#else
+#if !defined(__cpp_if_constexpr)
 	#error "Compiler is expected to support if constexpr"
 #endif
 

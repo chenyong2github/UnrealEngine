@@ -255,8 +255,6 @@ namespace UE::Core::Private::Function
 	{
 	};
 
-#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
-
 	template <typename T>
 	FORCEINLINE bool IsBound(const T& Func)
 	{
@@ -272,25 +270,6 @@ namespace UE::Core::Private::Function
 			return true;
 		}
 	}
-
-#else
-
-	template <typename T>
-	FORCEINLINE typename TEnableIf<TIsNullableBinding<T>::Value, bool>::Type IsBound(const T& Func)
-	{
-		// Function pointers, data member pointers, member function pointers and TFunctions
-		// can all be null/unbound, so test them using their boolean state.
-		return !!Func;
-	}
-
-	template <typename T>
-	FORCEINLINE typename TEnableIf<!TIsNullableBinding<T>::Value, bool>::Type IsBound(const T& Func)
-	{
-		// We can't tell if any other generic callable can be invoked, so just assume they can be.
-		return true;
-	}
-
-#endif
 
 	template <typename FunctorType, bool bUnique, bool bOnHeap>
 	struct TStorageOwnerType;
@@ -393,8 +372,6 @@ namespace UE::Core::Private::Function
 		{
 		}
 
-#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
-
 		template <typename FunctorType>
 		typename TDecay<FunctorType>::Type* Bind(FunctorType&& InFunc)
 		{
@@ -428,57 +405,6 @@ namespace UE::Core::Private::Function
 			auto* NewOwned = new (NewAlloc) OwnedType(Forward<FunctorType>(InFunc));
 			return &NewOwned->Obj;
 		}
-
-#else
-
-		#if TFUNCTION_USES_INLINE_STORAGE
-		template <typename FunctorType>
-		typename TEnableIf<
-			(sizeof(TStorageOwnerTypeT<FunctorType, bUnique, false>) <= TFUNCTION_INLINE_SIZE),
-			typename TDecay<FunctorType>::Type*
-		>::Type Bind(FunctorType&& InFunc)
-		{
-			if (!IsBound(InFunc))
-			{
-				return nullptr;
-			}
-
-			using OwnedType = TStorageOwnerTypeT<FunctorType, bUnique, false>;
-
-			void* NewAlloc = &InlineAllocation;
-			auto* NewOwned = new (NewAlloc) OwnedType(Forward<FunctorType>(InFunc));
-
-			return &NewOwned->Obj;
-		}
-		#endif
-
-		template <typename FunctorType>
-		#if TFUNCTION_USES_INLINE_STORAGE
-		typename TEnableIf<
-			(sizeof(TStorageOwnerTypeT<FunctorType, bUnique, true>) > TFUNCTION_INLINE_SIZE),
-			typename TDecay<FunctorType>::Type*
-		>::Type Bind(FunctorType&& InFunc)
-		#else
-		typename TDecay<FunctorType>::Type* Bind(FunctorType&& InFunc)
-		#endif
-		{
-			if (!IsBound(InFunc))
-			{
-				return nullptr;
-			}
-
-			using OwnedType = TStorageOwnerTypeT<FunctorType, bUnique, true>;
-
-			void* NewAlloc = FMemory::Malloc(sizeof(OwnedType), alignof(OwnedType));
-			CA_ASSUME(NewAlloc);
-			auto* NewOwned = new (NewAlloc) OwnedType(Forward<FunctorType>(InFunc));
-
-			HeapAllocation = NewAlloc;
-
-			return &NewOwned->Obj;
-		}
-
-#endif
 	};
 
 	template <typename T, bool bOnHeap>
