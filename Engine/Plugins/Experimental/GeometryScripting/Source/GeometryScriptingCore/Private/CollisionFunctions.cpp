@@ -57,6 +57,7 @@ void ComputeCollisionFromMesh(
 	else
 	{
 		Submeshes.SetNum(NumComponents);
+		SubmeshPointers.SetNum(NumComponents);
 		ParallelFor(NumComponents, [&](int32 k)
 		{
 			FDynamicSubmesh3 Submesh(&Mesh, Components[k].Indices, (int32)EMeshComponents::None, false);
