@@ -502,6 +502,12 @@ void UCommonRichTextBlock::SetText(const FText& InText)
 	}
 }
 
+void UCommonRichTextBlock::SetScrollingEnabled(bool bInIsScrollingEnabled)
+{
+	bIsScrollingEnabled = bInIsScrollingEnabled;
+	SynchronizeProperties();
+}
+
 #if WITH_EDITOR
 
 void UCommonRichTextBlock::OnCreationFromPalette()
@@ -592,6 +598,28 @@ void UCommonRichTextBlock::SynchronizeProperties()
 		if (CommonUIUtils::ShouldDisplayMobileUISizes() && DefaultTextStyleOverrideClass.GetDefaultObject() == nullptr)
 		{
 			ApplyTextBlockScale();
+		}
+	}
+
+	if (MyTextScroller.IsValid())
+	{
+		if (bIsScrollingEnabled)
+		{
+			MyTextScroller->StartScrolling();
+
+			if (MyRichTextBlock.IsValid())
+			{
+				MyRichTextBlock->SetOverflowPolicy(ETextOverflowPolicy::Clip);
+			}
+		}
+		else
+		{
+			MyTextScroller->SuspendScrolling();
+
+			if (MyRichTextBlock.IsValid())
+			{
+				MyRichTextBlock->SetOverflowPolicy(TOptional<ETextOverflowPolicy>());
+			}
 		}
 	}
 }

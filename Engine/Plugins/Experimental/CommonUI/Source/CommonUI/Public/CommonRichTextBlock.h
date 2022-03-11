@@ -41,6 +41,9 @@ public:
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	virtual void SetText(const FText& InText) override;
 
+	UFUNCTION(BlueprintCallable, Category = "Common Rich Text|Scroll Style")
+	void SetScrollingEnabled(bool bInIsScrollingEnabled);
+
 #if WITH_EDITOR
 	virtual void OnCreationFromPalette() override;
 	const FText GetPaletteCategory() override;
@@ -75,8 +78,12 @@ private:
 	float MobileTextBlockScale = 1.0f;
 
 	/** References the scroll style asset to use, no reference disables scrolling*/
-	UPROPERTY(EditAnywhere, Category = Appearance)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
 	TSubclassOf<UCommonTextScrollStyle> ScrollStyle;
+
+	/** If scrolling is enabled/disabled initially, this can be updated in blueprint */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
+	bool bIsScrollingEnabled = true;
 
 	/** True to always display text in ALL CAPS */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "bDisplayAllCaps is deprecated. Please use TextTransformPolicy instead."))

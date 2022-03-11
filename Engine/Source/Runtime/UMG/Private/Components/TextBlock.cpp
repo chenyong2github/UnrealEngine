@@ -137,11 +137,7 @@ void UTextBlock::SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy)
 void UTextBlock::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
 {
 	TextOverflowPolicy = InOverflowPolicy;
-
-	if (MyTextBlock.IsValid())
-	{
-		MyTextBlock->SetOverflowPolicy(TextOverflowPolicy);
-	}
+	SynchronizeProperties();
 }
 
 UMaterialInstanceDynamic* UTextBlock::GetDynamicFontMaterial()

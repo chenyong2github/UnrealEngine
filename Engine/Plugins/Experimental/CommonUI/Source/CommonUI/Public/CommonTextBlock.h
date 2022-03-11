@@ -128,6 +128,10 @@ public:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 	void ResetScrollState();
+	void StartScrolling();
+	void SuspendScrolling();
+
+	bool IsScrollingEnabled() const { return ActiveState != EActiveState::ESuspend; }
 
 private:
 	void UpdateTickability(const FGeometry& AllottedGeometry);
@@ -143,6 +147,7 @@ private:
 		EStop,
 		EStopWait,
 		EFadeOut,
+		ESuspend,
 	} ActiveState;
 
 	float TimeElapsed;
@@ -181,6 +186,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Common Text|Scroll Style")
 	void ResetScrollState();
 
+	UFUNCTION(BlueprintCallable, Category = "Common Text|Scroll Style")
+	void SetScrollingEnabled(bool bInIsScrollingEnabled);
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void SynchronizeProperties() override;
@@ -199,6 +207,10 @@ private:
 	/** References the scroll style asset to use, no reference disables scrolling*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
 	TSubclassOf<UCommonTextScrollStyle> ScrollStyle;
+
+	/** If scrolling is enabled/disabled initially, this can be updated in blueprint */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
+	bool bIsScrollingEnabled = true;
 
 	/** True to always display text in ALL CAPS */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "bDisplayAllCaps is deprecated. Please use TextTransformPolicy instead."))

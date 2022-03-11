@@ -64,8 +64,24 @@ void STextScroller::ResetScrollState()
 	FontAlpha = 1.f;
 	TimeElapsed = 0.f;
 	ScrollOffset = 0.f;
-	ActiveState = EActiveState::EStart;
+	// If suspended, make sure we stay suspended until receiving an explicit call to resume
+	if (IsScrollingEnabled())
+	{
+		ActiveState = EActiveState::EStart;
+	}
 	SetRenderOpacity(1.0f);
+}
+
+void STextScroller::StartScrolling()
+{
+	ActiveState = EActiveState::EStart;
+	ResetScrollState();
+}
+
+void STextScroller::SuspendScrolling()
+{
+	ActiveState = EActiveState::ESuspend;
+	ResetScrollState();
 }
 
 void STextScroller::UpdateTickability(const FGeometry& AllottedGeometry)
@@ -73,7 +89,7 @@ void STextScroller::UpdateTickability(const FGeometry& AllottedGeometry)
 	const float VisibleWidth = AllottedGeometry.GetLocalSize().X;
 	const float DesiredWidth = VisibleWidth == 0 ? VisibleWidth : ChildSlot.GetWidget()->GetDesiredSize().X;
 
-	if (DesiredWidth > (VisibleWidth + 2))
+	if (DesiredWidth > (VisibleWidth + 2) && IsScrollingEnabled())
 	{
 		if (!ActiveTimerHandle.IsValid())
 		{
@@ -409,6 +425,12 @@ void UCommonTextBlock::ResetScrollState()
 	}
 }
 
+void UCommonTextBlock::SetScrollingEnabled(bool bInIsScrollingEnabled)
+{
+	bIsScrollingEnabled = bInIsScrollingEnabled;
+	SynchronizeProperties();
+}
+
 void UCommonTextBlock::SynchronizeProperties()
 {
 	UpdateFromStyle();
@@ -423,6 +445,24 @@ void UCommonTextBlock::SynchronizeProperties()
 	if (CommonUIUtils::ShouldDisplayMobileUISizes())
 	{
 		ApplyFontSizeMultiplier();
+	}
+
+	if (TextScroller.IsValid())
+	{
+		if (bIsScrollingEnabled)
+		{
+			TextScroller->StartScrolling();
+
+			// Hide ellipsis when scrolling
+			if (MyTextBlock.IsValid())
+			{
+				MyTextBlock->SetOverflowPolicy(ETextOverflowPolicy::Clip);
+			}
+		}
+		else
+		{
+			TextScroller->SuspendScrolling();
+		}
 	}
 }
 
