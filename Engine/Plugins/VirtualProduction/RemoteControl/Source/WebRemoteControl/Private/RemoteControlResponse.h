@@ -88,7 +88,6 @@ struct FCheckPassphraseResponse
 
 	UPROPERTY()
 	bool keyCorrect = false;
-	
 };
 
 USTRUCT()
