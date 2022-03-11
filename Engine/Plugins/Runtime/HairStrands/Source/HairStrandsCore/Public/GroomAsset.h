@@ -644,9 +644,13 @@ private:
 	const FHairDescriptionGroups& GetHairDescriptionGroups();
 	FString BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings) const;
 	bool IsFullyCached();
-	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
-	TUniquePtr<FHairDescriptionGroups> HairDescriptionGroups;
+
+	// Transient HairDescription & HairDescriptionGroups, which are built from HairDescriptionBulkData.
+	// All these data (bulk/desc/groups) needs to be in sync. I.e., when the HairDescription is updated, 
+	// HairDescriptionGroups needs to also be updated
+	TUniquePtr<FHairDescription> CachedHairDescription;
+	TUniquePtr<FHairDescriptionGroups> CachedHairDescriptionGroups;
 
 	TArray<FString> StrandsDerivedDataKey;
 	TArray<FString> CardsDerivedDataKey;
