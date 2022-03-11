@@ -213,7 +213,38 @@ struct SLATECORE_API FSlateBrush
 	GENERATED_USTRUCT_BODY()
 
 	friend class FSlateShaderResourceManager;
+
+protected:
+	/** Whether or not the brush path is a path to a UObject */
+	UPROPERTY()
+	uint8 bIsDynamicallyLoaded:1;
+
+	/** Whether or not the brush has a UTexture resource */
+	UPROPERTY()
+	uint8 bHasUObject_DEPRECATED:1;
+
+	/** This is true for all constructed brushes except for optional brushes */
+	uint8 bIsSet : 1;
+
 public:
+
+	/** How to draw the image */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
+	TEnumAsByte<enum ESlateBrushDrawType::Type > DrawAs;
+
+	/** How to tile the image in Image mode */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
+	TEnumAsByte<enum ESlateBrushTileType::Type> Tiling;
+
+	/** How to mirror the image in Image mode.  This is normally only used for dynamic image brushes where the source texture
+	    comes from a hardware device such as a web camera. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
+	TEnumAsByte<enum ESlateBrushMirrorType::Type> Mirroring;
+
+	/** The type of image */
+	UPROPERTY()
+	TEnumAsByte<enum ESlateBrushImageType::Type> ImageType;
+
 	/** Size of the resource in Slate Units */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
 	FVector2D ImageSize;
@@ -232,6 +263,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush, meta=( DisplayName="Tint", sRGB="true" ))
 	FSlateColor TintColor;
 
+public:
 	/** How to draw the outline.  Currently only used for RoundedBox type brushes. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
 	FSlateBrushOutlineSettings OutlineSettings;
@@ -449,37 +481,10 @@ protected:
 	FBox2f UVRegion;
 
 public:
-	/** How to draw the image */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
-	TEnumAsByte<enum ESlateBrushDrawType::Type > DrawAs;
-
-	/** How to tile the image in Image mode */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
-	TEnumAsByte<enum ESlateBrushTileType::Type> Tiling;
-
-	/** How to mirror the image in Image mode.  This is normally only used for dynamic image brushes where the source texture
-	    comes from a hardware device such as a web camera. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
-	TEnumAsByte<enum ESlateBrushMirrorType::Type> Mirroring;
-
-	/** The type of image */
-	UPROPERTY()
-	TEnumAsByte<enum ESlateBrushImageType::Type> ImageType;
 
 	/** Rendering resource for this brush */
 	mutable FSlateResourceHandle ResourceHandle;
 protected:
-
-	/** Whether or not the brush path is a path to a UObject */
-	UPROPERTY()
-	uint8 bIsDynamicallyLoaded:1;
-
-	/** Whether or not the brush has a UTexture resource */
-	UPROPERTY()
-	uint8 bHasUObject_DEPRECATED:1;
-
-	/** This is true for all constructed brushes except for optional brushes */
-	uint8 bIsSet : 1;
 
 	/** 
 	 * This constructor is protected; use one of the deriving classes instead.
