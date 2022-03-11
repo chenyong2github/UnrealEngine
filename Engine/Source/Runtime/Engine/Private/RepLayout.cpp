@@ -6495,7 +6495,7 @@ void FRepLayout::SerializeProperties_r(
 		}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (GDoReplicationContextString > 0)
+		if (GDoReplicationContextString > 0 && Map)
 		{
 			Map->SetDebugContextString(FString::Printf(TEXT("%s - %s"), *Owner->GetPathName(), *Cmd.Property->GetPathName()));
 		}
@@ -6571,7 +6571,7 @@ void FRepLayout::SerializeProperties_r(
 		}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (GDoReplicationContextString > 0)
+		if (GDoReplicationContextString > 0 && Map)
 		{
 			Map->ClearDebugContextString();
 		}

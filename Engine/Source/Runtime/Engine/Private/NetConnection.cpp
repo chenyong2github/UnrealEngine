@@ -3269,7 +3269,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 				// Dispatch the raw, unsequenced bunch to the channel.
 				bool bLocalSkipAck = false;
-				Channel->ReceivedRawBunch( Bunch, bLocalSkipAck ); //warning: May destroy channel.
+				//warning: May destroy channel.
+				Channel->ReceivedRawBunch( Bunch, bLocalSkipAck ); //-V595
 				if ( bLocalSkipAck )
 				{
 					bSkipAck = true;
