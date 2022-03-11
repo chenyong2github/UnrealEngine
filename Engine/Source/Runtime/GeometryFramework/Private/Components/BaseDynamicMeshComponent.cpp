@@ -8,6 +8,8 @@ using namespace UE::Geometry;
 UBaseDynamicMeshComponent::UBaseDynamicMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// including DynamicMeshComponent in sky captures can result in crashes in UE5.0, this should be a temporary workaround
+	bVisibleInRealTimeSkyCaptures = false;
 }
 
 
