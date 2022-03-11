@@ -748,9 +748,6 @@ public:
 	void SetQualityLevelMinLOD(FPerQualityLevelInt InMinLOD)
 	{
 		MinQualityLevelLOD = MoveTemp(InMinLOD);
-#if WITH_EDITOR
-		OnMeshChanged.Broadcast();
-#endif
 	}
 
 	UFUNCTION(BlueprintPure, Category = StaticMesh)
@@ -803,9 +800,6 @@ public:
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		MinLOD = MoveTemp(InMinLOD);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#if WITH_EDITOR
-		OnMeshChanged.Broadcast();
-#endif
 	}
 
 	UFUNCTION(BlueprintPure, Category=StaticMesh)
