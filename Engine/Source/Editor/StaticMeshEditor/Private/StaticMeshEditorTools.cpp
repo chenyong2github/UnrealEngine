@@ -4448,6 +4448,7 @@ void FLevelOfDetailSettingsLayout::OnMinQualityLevelLODChanged(int32 NewValue, F
 		}
 		StaticMesh->SetQualityLevelMinLOD(MoveTemp(MinLOD));
 		StaticMesh->Modify();
+		StaticMesh->GetOnMeshChanged().Broadcast();
 	}
 	StaticMeshEditor.RefreshViewport();
 }
