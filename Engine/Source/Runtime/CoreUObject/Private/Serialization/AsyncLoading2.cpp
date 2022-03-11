@@ -5795,9 +5795,9 @@ void FAsyncPackage2::CreateUPackage(const FZenPackageSummary* PackageSummary, co
 	}
 	else
 	{
+		LinkerRoot->SetPackageFlags(PackageSummary->PackageFlags | PKG_Cooked);
 		check(LinkerRoot->CanBeImported() == Desc.bCanBeImported);
 		check(LinkerRoot->GetPackageId() == Desc.UPackageId);
-		check(LinkerRoot->GetPackageFlags() == (PackageSummary->PackageFlags | PKG_Cooked));
 		check(LinkerRoot->GetLinkerPackageVersion() == GPackageFileUEVersion);
 		check(LinkerRoot->GetLinkerLicenseeVersion() == GPackageFileLicenseeUEVersion);
 		check(LinkerRoot->HasAnyFlags(RF_WasLoaded));
