@@ -526,7 +526,7 @@ bool USocialToolkit::TrySendFriendInvite(USocialUser& SocialUser, ESocialSubsyst
 		const bool bIsFriendshipRestricted = IsFriendshipRestricted(SocialUser, SubsystemType);
 		if (!bIsFriendshipRestricted)
 		{
-			return InternalSendFriendInvite(SocialUser, SubsystemType, OnCompleteDelegate);
+			return SendFriendInviteInternal(SocialUser, SubsystemType, OnCompleteDelegate);
 		}
 		else
 		{
@@ -542,13 +542,24 @@ bool USocialToolkit::TrySendFriendInvite(USocialUser& SocialUser, ESocialSubsyst
 }
 
 
-bool USocialToolkit::InternalSendFriendInvite(USocialUser& SocialUser, ESocialSubsystem SubsystemType, FOnTrySendFriendInviteComplete OnCompleteDelegate) const
+bool USocialToolkit::SendFriendInviteInternal(USocialUser& SocialUser, ESocialSubsystem SubsystemType, FOnTrySendFriendInviteComplete OnCompleteDelegate) const
 {
 	IOnlineFriendsPtr FriendsInterface = Online::GetFriendsInterface(GetWorld(), USocialManager::GetSocialOssName(SubsystemType));
 	const FUniqueNetIdRepl SocialUserSubsystemId = SocialUser.GetUserId(SubsystemType);
 	if (FriendsInterface && SocialUserSubsystemId.IsValid())
 	{
-		return FriendsInterface->SendInvite(GetLocalUserNum(), *SocialUserSubsystemId, FriendListToQuery, FOnSendInviteComplete::CreateUObject(const_cast<USocialToolkit*>(this), &USocialToolkit::HandleFriendInviteSent, SubsystemType, SocialUser.GetDisplayName(), OnCompleteDelegate));
+		return FriendsInterface->SendInvite(
+			GetLocalUserNum(), 
+			*SocialUserSubsystemId, 
+			FriendListToQuery, 
+			FOnSendInviteComplete::CreateUObject(
+				const_cast<USocialToolkit*>(this), 
+				&USocialToolkit::HandleSendFriendInviteComplete, 
+				SubsystemType, 
+				SocialUser.GetDisplayName(), 
+				OnCompleteDelegate
+			)
+		);
 	}
 	else
 	{
@@ -564,7 +575,16 @@ bool USocialToolkit::AcceptFriendInvite(const USocialUser& SocialUser, ESocialSu
 	{
 		IOnlineFriendsPtr FriendsInterface = GetSocialOss(SubsystemType)->GetFriendsInterface();
 		check(FriendsInterface.IsValid());
-		return FriendsInterface->AcceptInvite(GetLocalUserNum(), *SocialUser.GetUserId(SubsystemType), EFriendsLists::ToString(EFriendsLists::Default), FOnAcceptInviteComplete::CreateUObject(const_cast<USocialToolkit*>(this), &USocialToolkit::HandleAcceptFriendInviteComplete, OnCompleteDelegate));
+		return FriendsInterface->AcceptInvite(
+			GetLocalUserNum(), 
+			*SocialUser.GetUserId(SubsystemType), 
+			EFriendsLists::ToString(EFriendsLists::Default), 
+			FOnAcceptInviteComplete::CreateUObject(
+				const_cast<USocialToolkit*>(this), 
+				&USocialToolkit::HandleAcceptFriendInviteComplete, 
+				OnCompleteDelegate
+			)
+		);
 	}
 	else
 	{
@@ -1010,7 +1030,7 @@ void USocialToolkit::HandleFriendInviteRejected(const FUniqueNetId& LocalUserId,
 	}
 }
 
-void USocialToolkit::HandleFriendInviteSent(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InvitedUserId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType, FString DisplayName, FOnTrySendFriendInviteComplete OnCompleteDelegate)
+void USocialToolkit::HandleSendFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InvitedUserId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType, FString DisplayName, FOnTrySendFriendInviteComplete OnCompleteDelegate)
 {
 	if (bWasSuccessful)
 	{
