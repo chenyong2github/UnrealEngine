@@ -469,6 +469,7 @@ public:
 		, State(EMovieRenderShotState::Uninitialized)
 		, bHasEvaluatedMotionBlurFrame(false)
 		, NumEngineWarmUpFramesRemaining(0)
+		, VersionNumber(0)
 	{
 	}
 
@@ -532,6 +533,9 @@ public:
 
 	/** How many engine warm up frames are left to process for this shot. May be zero. */
 	int32 NumEngineWarmUpFramesRemaining;
+
+	/** What version number should this shot use when resolving format arguments. */
+	int32 VersionNumber;
 };
 
 /**
