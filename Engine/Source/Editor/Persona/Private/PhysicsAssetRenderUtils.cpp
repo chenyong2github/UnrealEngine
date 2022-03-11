@@ -511,11 +511,28 @@ namespace PhysicsAssetRender
 	}
 }
 
+UPhysicsAssetRenderUtilities::UPhysicsAssetRenderUtilities()
+: PhysicsAssetRenderInterface(nullptr)
+{}
+
+UPhysicsAssetRenderUtilities::~UPhysicsAssetRenderUtilities()
+{
+	delete PhysicsAssetRenderInterface;
+}
+
+
 void UPhysicsAssetRenderUtilities::Initialise()
 {
 	if (UPhysicsAssetRenderUtilities* PhysicsAssetRenderUtilities = GetMutableDefault<UPhysicsAssetRenderUtilities>())
 	{
 		PhysicsAssetRenderUtilities->InitialiseImpl();
+
+		if (!PhysicsAssetRenderUtilities->PhysicsAssetRenderInterface)
+		{
+			PhysicsAssetRenderUtilities->PhysicsAssetRenderInterface = new FPhysicsAssetRenderInterface;
+		}
+
+		IModularFeatures::Get().RegisterModularFeature("PhysicsAssetRenderInterface", PhysicsAssetRenderUtilities->PhysicsAssetRenderInterface);
 	}
 }
 
@@ -598,7 +615,6 @@ FPhysicsAssetRenderSettings* UPhysicsAssetRenderUtilities::GetSettingsImpl(const
 	return Settings;
 }
 
-
 uint32 UPhysicsAssetRenderUtilities::GetPathNameHash(const UPhysicsAsset* InPhysicsAsset)
 {
 	if (InPhysicsAsset)
@@ -612,6 +628,56 @@ uint32 UPhysicsAssetRenderUtilities::GetPathNameHash(const UPhysicsAsset* InPhys
 uint32 UPhysicsAssetRenderUtilities::GetPathNameHash(const FString& InPhysicsAssetPathName)
 {
 	return TextKeyUtil::HashString(InPhysicsAssetPathName);
+}
+
+// class FPhysicsAssetRenderInterface
+void FPhysicsAssetRenderInterface::DebugDraw(class USkeletalMeshComponent* const SkeletalMeshComponent, class UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI)
+{
+	PhysicsAssetRender::DebugDraw(SkeletalMeshComponent, PhysicsAsset, PDI);
+}
+
+void FPhysicsAssetRenderInterface::SaveConfig()
+{
+	if (UPhysicsAssetRenderUtilities* PhysicsAssetRenderUtilities = GetMutableDefault<UPhysicsAssetRenderUtilities>())
+	{
+		PhysicsAssetRenderUtilities->SaveConfig();
+	}
+}
+
+void FPhysicsAssetRenderInterface::ToggleShowAllBodies(class UPhysicsAsset* const PhysicsAsset)
+{
+	if (FPhysicsAssetRenderSettings* PhysicsAssetRenderSettings = UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset))
+	{
+		PhysicsAssetRenderSettings->ToggleShowAllBodies(PhysicsAsset);
+	}
+}
+
+void FPhysicsAssetRenderInterface::ToggleShowAllConstraints(class UPhysicsAsset* const PhysicsAsset)
+{
+	if (FPhysicsAssetRenderSettings* PhysicsAssetRenderSettings = UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset))
+	{
+		PhysicsAssetRenderSettings->ToggleShowAllConstraints(PhysicsAsset);
+	}
+}
+
+bool FPhysicsAssetRenderInterface::AreAnyBodiesHidden(class UPhysicsAsset* const PhysicsAsset)
+{
+	if (FPhysicsAssetRenderSettings* PhysicsAssetRenderSettings = UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset))
+	{
+		return PhysicsAssetRenderSettings->AreAnyBodiesHidden();
+	}
+
+	return false;
+}
+
+bool FPhysicsAssetRenderInterface::AreAnyConstraintsHidden(class UPhysicsAsset* const PhysicsAsset)
+{
+	if (FPhysicsAssetRenderSettings* PhysicsAssetRenderSettings = UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset))
+	{
+		return PhysicsAssetRenderSettings->AreAnyConstraintsHidden();
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IPhysicsAssetRenderInterface.h"
 #include "UObject/ObjectMacros.h"
 #include "Math/Color.h"
 #include "PhysicsEngine/ShapeElem.h"
@@ -130,6 +131,9 @@ class PERSONA_API UPhysicsAssetRenderUtilities : public UObject
 
 public:
 
+	UPhysicsAssetRenderUtilities();
+	virtual ~UPhysicsAssetRenderUtilities();
+
 	static void Initialise();
 
 	/** Returns an existing render settings object or creates and returns a new one if none exists. */
@@ -150,6 +154,8 @@ private:
 
 	UPROPERTY()
 	TMap< uint32, FPhysicsAssetRenderSettings > IdToSettingsMap;
+
+	IPhysicsAssetRenderInterface* PhysicsAssetRenderInterface;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -179,3 +185,16 @@ namespace PhysicsAssetRender
 	PERSONA_API FColor GetPrimitiveColor(const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex, const FPhysicsAssetRenderSettings& Settings);
 	PERSONA_API class UMaterialInterface* GetPrimitiveMaterial(const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex, const FPhysicsAssetRenderSettings& Settings);
 }
+
+class FPhysicsAssetRenderInterface : public IPhysicsAssetRenderInterface
+{
+public:
+	virtual void DebugDraw(class USkeletalMeshComponent* const SkeletalMeshComponent, class UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI) override;
+
+	virtual void SaveConfig() override;
+
+	virtual void ToggleShowAllBodies(class UPhysicsAsset* const PhysicsAsset) override;
+	virtual void ToggleShowAllConstraints(class UPhysicsAsset* const PhysicsAsset) override;
+	virtual bool AreAnyBodiesHidden(class UPhysicsAsset* const PhysicsAsset) override;
+	virtual bool AreAnyConstraintsHidden(class UPhysicsAsset* const PhysicsAsset) override;
+};

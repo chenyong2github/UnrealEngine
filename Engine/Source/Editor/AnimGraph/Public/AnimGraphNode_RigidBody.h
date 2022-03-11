@@ -36,7 +36,6 @@ protected:
 	virtual const FAnimNode_SkeletalControlBase* GetNode() const override { return &Node; }
 	// End of UAnimGraphNode_SkeletalControlBase interface
 
-	struct FPhysicsAssetRenderSettings* GetRenderSettings() const;
 	bool AreAnyBodiesHidden() const;
 	bool AreAnyConstraintsHidden() const;
 };

@@ -4,7 +4,7 @@
 #include "AnimNodeEditModes.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "BoneControllers/AnimNode_RigidBody.h"
-#include "PhysicsAssetRenderUtils.h"
+#include "IPhysicsAssetRenderInterface.h"
 
 // Details includes
 #include "PropertyHandle.h"
@@ -56,7 +56,8 @@ void UAnimGraphNode_RigidBody::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshC
 	{
 		if (UPhysicsAsset* const PhysicsAsset = RuntimeRigidBodyNode->GetPhysicsAsset())
 		{
-			PhysicsAssetRender::DebugDraw(PreviewSkelMeshComp, PhysicsAsset, PDI);
+			IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
+			PhysicsAssetRenderInterface.DebugDraw(PreviewSkelMeshComp, PhysicsAsset, PDI);
 		}
 	}
 }
@@ -109,49 +110,41 @@ void UAnimGraphNode_RigidBody::PostEditChangeProperty(struct FPropertyChangedEve
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (UPhysicsAssetRenderUtilities* PhysicsAssetRenderUtilities = GetMutableDefault<UPhysicsAssetRenderUtilities>())
-	{
-		PhysicsAssetRenderUtilities->SaveConfig();
-	}
+	IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
+	PhysicsAssetRenderInterface.SaveConfig();
 }
 
 void UAnimGraphNode_RigidBody::ToggleBodyVisibility()
 {
 	FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode());
-	FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings();
+	
+	IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
 
-	if (PhysicsAssetRenderSettings && RigidBodyNode)
+	if (RigidBodyNode)
 	{
-		PhysicsAssetRenderSettings->ToggleShowAllBodies(RigidBodyNode->GetPhysicsAsset());
+		PhysicsAssetRenderInterface.ToggleShowAllBodies(RigidBodyNode->GetPhysicsAsset());
 	}
 }
 
 void UAnimGraphNode_RigidBody::ToggleConstraintVisibility()
 {
 	FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode());
-	FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings();
+	IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
 
-	if (PhysicsAssetRenderSettings && RigidBodyNode)
+	if (RigidBodyNode)
 	{
-		PhysicsAssetRenderSettings->ToggleShowAllConstraints(RigidBodyNode->GetPhysicsAsset());
+		PhysicsAssetRenderInterface.ToggleShowAllConstraints(RigidBodyNode->GetPhysicsAsset());
 	}
-}
-
-FPhysicsAssetRenderSettings* UAnimGraphNode_RigidBody::GetRenderSettings() const
-{
-	if (FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode()))
-	{
-		return UPhysicsAssetRenderUtilities::GetSettings(RigidBodyNode->GetPhysicsAsset());
-	}
-
-	return nullptr;
 }
 
 bool UAnimGraphNode_RigidBody::AreAnyBodiesHidden() const
 {
-	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode());
+	IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
+
+	if (RigidBodyNode)
 	{
-		return PhysicsAssetRenderSettings->AreAnyBodiesHidden();
+		PhysicsAssetRenderInterface.AreAnyBodiesHidden(RigidBodyNode->GetPhysicsAsset());
 	}
 
 	return false;
@@ -159,9 +152,12 @@ bool UAnimGraphNode_RigidBody::AreAnyBodiesHidden() const
 
 bool UAnimGraphNode_RigidBody::AreAnyConstraintsHidden() const
 {
-	if (FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	FAnimNode_RigidBody* const RigidBodyNode = static_cast<FAnimNode_RigidBody*>(GetDebuggedAnimNode());
+	IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
+
+	if (RigidBodyNode)
 	{
-		return PhysicsAssetRenderSettings->AreAnyConstraintsHidden();
+		PhysicsAssetRenderInterface.AreAnyConstraintsHidden(RigidBodyNode->GetPhysicsAsset());
 	}
 
 	return false;
