@@ -214,6 +214,8 @@ private:
 	FNetPing(UNetConnection* InOwner);
 
 public:
+	~FNetPing();
+
 	/**
 	 * Creates a new FNetPing instance, owned by the specified NetConnection.
 	 * NOTE: Presently only enabled for GameNetDriver, but can support other NetDriver's (except ICMP ping).
