@@ -40,6 +40,7 @@ public:
 	{
 	public:
 		FStyle(const TWeakObjectPtr< UEditorStyleSettings >& InSettings);
+		~FStyle();
 
 		void Initialize();
 		void SetupGeneralStyles();
@@ -74,7 +75,7 @@ public:
 		void SetupColorPickerStyle();
 		void SetupDerivedDataStyle();
 
-		void SettingsChanged(UObject* ChangedObject, FPropertyChangedEvent& PropertyChangedEvent);
+		void SettingsChanged(FName PropertyName);
 		void SyncSettings();
 		void SyncParentStyles();
 
@@ -136,19 +137,18 @@ public:
 		FButtonStyle NoBorder;
 		FScrollBarStyle ScrollBar;
 		FSlateFontInfo NormalFont;
-		FSlateBrush EditorWindowHighlightBrush;
+
+		FSlateBrush* WindowTitleOverride;
 
 		TWeakObjectPtr< UEditorStyleSettings > Settings;
+
+		FDelegateHandle SettingChangedHandler;
 	};
 
 	static TSharedRef<class FStarshipEditorStyle::FStyle> Create(const TWeakObjectPtr< UEditorStyleSettings >& InCustomization)
 	{
 		TSharedRef<class FStarshipEditorStyle::FStyle> NewStyle = MakeShareable(new FStarshipEditorStyle::FStyle(InCustomization));
 		NewStyle->Initialize();
-
-#if WITH_EDITOR
-		FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(NewStyle, &FStarshipEditorStyle::FStyle::SettingsChanged);
-#endif
 
 		return NewStyle;
 	}
