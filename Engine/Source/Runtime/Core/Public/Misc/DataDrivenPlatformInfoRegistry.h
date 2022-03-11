@@ -12,6 +12,15 @@
 
 #define DDPI_HAS_EXTENDED_PLATFORMINFO_DATA (WITH_EDITOR || IS_PROGRAM)
 
+enum class EPlatformInfoType : uint8
+{
+	/** Only return "real" platforms (no groups or fake platforms) */
+	TruePlatformsOnly,
+
+	/** All known platforms/groups/etc that have a DDPI.ini file */
+	AllPlatformInfos,
+};
+
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
 
@@ -259,9 +268,22 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	static const FDataDrivenPlatformInfo& GetPlatformInfo(const char* PlatformName);
 
 
-	// get just names or just infos, 
-	static const TArray<FName> GetSortedPlatformNames();
-	static const TArray<const FDataDrivenPlatformInfo*>& GetSortedPlatformInfos();
+	/**
+	 * Get sorted platorm infos or names. PlatformType is used to choose between true platforms and platform groups (or other fake platforms)
+	 */
+	static const TArray<FName> GetSortedPlatformNames(EPlatformInfoType PlatformType);
+	static const TArray<const FDataDrivenPlatformInfo*>& GetSortedPlatformInfos(EPlatformInfoType PlatformType);
+
+	UE_DEPRECATED(5.1, "Use GetSoprtedPlatformNames that takes a PlatformType parameter")
+	static const TArray<FName> GetSortedPlatformNames()
+	{
+		return GetSortedPlatformNames(EPlatformInfoType::AllPlatformInfos);
+	}
+	UE_DEPRECATED(5.1, "Use GetSortedPlatformInfos that takes a PlatformType parameter")
+	static const TArray<const FDataDrivenPlatformInfo*>& GetSortedPlatformInfos()
+	{
+		return GetSortedPlatformInfos(EPlatformInfoType::AllPlatformInfos);
+	}
 
 	/**
 	 * Gets a list of all known confidential platforms (note these are just the platforms you have access to, so, for example PS4 won't be

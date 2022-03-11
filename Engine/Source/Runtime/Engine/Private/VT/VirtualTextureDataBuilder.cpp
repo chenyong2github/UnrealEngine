@@ -837,7 +837,7 @@ static const FName RemovePrefixFromName(FName const& InName, FName& OutPrefix)
 	// Then we detect a non-platform prefix (such as codec name)
 	// and split the result into  explicit FORMAT and PREFIX parts.
 
-	for (FName PlatformName : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames())
+	for (FName PlatformName : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames(EPlatformInfoType::AllPlatformInfos))
 	{
 		FString PlatformTextureFormatPrefix = PlatformName.ToString();
 		PlatformTextureFormatPrefix += TEXT('_');

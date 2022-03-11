@@ -57,13 +57,12 @@ namespace QualityLevelProperty
 		if (bIsPlatformGroup)
 		{
 			// get all the platforms from that group
-			for (const FName& DataDrivenPlatformName : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames())
+			for (const FDataDrivenPlatformInfo* DataDrivenPlatformInfo : FDataDrivenPlatformInfoRegistry::GetSortedPlatformInfos(EPlatformInfoType::TruePlatformsOnly))
 			{
 				// gather all platform related to the platform group
-				const FDataDrivenPlatformInfo& DataDrivenPlatformInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(DataDrivenPlatformName);
-				if (DataDrivenPlatformInfo.PlatformGroupName == FName(*InPlatformName))
+				if (DataDrivenPlatformInfo->PlatformGroupName == FName(*InPlatformName))
 				{
-					EnginePlatforms.AddUnique(DataDrivenPlatformName);
+					EnginePlatforms.AddUnique(DataDrivenPlatformInfo->IniPlatformName);
 				}
 			}
 		}

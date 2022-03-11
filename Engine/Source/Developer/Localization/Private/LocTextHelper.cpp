@@ -49,7 +49,7 @@ const TArray<FString>& FLocTextPlatformSplitUtils::GetPlatformsToSplit(const ELo
 			{
 				// the Keys of the FDataDrivenPlatformInfoRegistry platforms are the known ini platform names
 				TArray<FString> TmpArray;
-				for (FName Name : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames())
+				for (FName Name : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames(EPlatformInfoType::AllPlatformInfos))
 				{
 					TmpArray.Add(Name.ToString());
 				}

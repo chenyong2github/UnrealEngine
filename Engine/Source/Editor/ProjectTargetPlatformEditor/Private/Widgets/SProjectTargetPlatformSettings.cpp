@@ -20,30 +20,15 @@
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SProjectTargetPlatformSettings::Construct(const FArguments& InArgs)
 {
-	// Create and sort a list of vanilla platforms that are game targets (sort by display name)
-	// We show all of the platforms regardless of whether we have an SDK installed for them or not
-	for(const PlatformInfo::FTargetPlatformInfo* PlatformInfo : PlatformInfo::GetPlatformInfoArray())
-	{
-		if(PlatformInfo->IsVanilla() && PlatformInfo->PlatformType == EBuildTargetType::Game)
-		{
-			AvailablePlatforms.Add(PlatformInfo);
-		}
-	}
-
-	AvailablePlatforms.Sort([](const PlatformInfo::FTargetPlatformInfo& One, const PlatformInfo::FTargetPlatformInfo& Two) -> bool
-	{
-		return One.DisplayName.CompareTo(Two.DisplayName) < 0;
-	});
-
-	// Generate a widget for each platform
 	TSharedRef<SVerticalBox> PlatformsListBox = SNew(SVerticalBox);
-	for(const PlatformInfo::FTargetPlatformInfo* AvailablePlatform : AvailablePlatforms)
+
+	for (const FDataDrivenPlatformInfo* DDPI : FDataDrivenPlatformInfoRegistry::GetSortedPlatformInfos(EPlatformInfoType::TruePlatformsOnly))
 	{
 		PlatformsListBox->AddSlot()
-		.AutoHeight()
-		[
-			MakePlatformRow(AvailablePlatform->DisplayName, AvailablePlatform->Name, FEditorStyle::GetBrush(AvailablePlatform->GetIconStyleName(EPlatformIconSize::Normal)))
-		];
+			.AutoHeight()
+			[
+				MakePlatformRow(FText::FromName(DDPI->IniPlatformName), DDPI->IniPlatformName, FEditorStyle::GetBrush(DDPI->GetIconStyleName(EPlatformIconSize::Normal)))
+			];
 	}
 
 	ChildSlot
@@ -187,9 +172,9 @@ void SProjectTargetPlatformSettings::HandlePlatformCheckBoxStateChanged(ECheckBo
 		else
 		{
 			// We've deselected "All Platforms", so manually select every available platform
-			for(const PlatformInfo::FTargetPlatformInfo* AvailablePlatform : AvailablePlatforms)
+			for (const FDataDrivenPlatformInfo* DDPI : FDataDrivenPlatformInfoRegistry::GetSortedPlatformInfos(EPlatformInfoType::TruePlatformsOnly))
 			{
-				FGameProjectGenerationModule::Get().UpdateSupportedTargetPlatforms(AvailablePlatform->Name, true);
+				FGameProjectGenerationModule::Get().UpdateSupportedTargetPlatforms(DDPI->IniPlatformName, true);
 			}
 		}
 	}

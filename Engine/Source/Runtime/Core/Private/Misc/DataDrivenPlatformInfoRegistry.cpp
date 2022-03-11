@@ -14,6 +14,8 @@ namespace
 {
 	TMap<FName, FDataDrivenPlatformInfo> DataDrivenPlatforms;
 	TMap<FName, FName> GlobalPlatformNameAliases;
+	TArray<FName> AllSortedPlatformNames;
+	TArray<const FDataDrivenPlatformInfo*> AllSortedPlatformInfos;
 	TArray<FName> SortedPlatformNames;
 	TArray<const FDataDrivenPlatformInfo*> SortedPlatformInfos;
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
@@ -430,15 +432,29 @@ const TMap<FName, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::Get
 			}
 		}
 
-		DataDrivenPlatforms.GetKeys(SortedPlatformNames);
+		DataDrivenPlatforms.GetKeys(AllSortedPlatformNames);
 		// now sort them into arrays of keys and values
-		Algo::Sort(SortedPlatformNames, [](FName One, FName Two) -> bool
+		Algo::Sort(AllSortedPlatformNames, [](FName One, FName Two) -> bool
 		{
 			return One.Compare(Two) < 0;
 		});
+		
+		// now remove the invalid platforms (this is not about installed SDKs or anything, just based on ini values)
+		SortedPlatformNames = AllSortedPlatformNames;
+		SortedPlatformNames.RemoveAll([](FName Platform)
+		{
+			return DataDrivenPlatforms[Platform].bIsFakePlatform;
+		});
+
 
 		// now build list of values from the sort
-		SortedPlatformInfos.Empty(SortedPlatformNames.Num());
+		AllSortedPlatformInfos.AddZeroed(AllSortedPlatformNames.Num());
+		for (int Index = 0; Index < AllSortedPlatformInfos.Num(); Index++)
+		{
+			AllSortedPlatformInfos[Index] = &DataDrivenPlatforms[AllSortedPlatformNames[Index]];
+		}
+
+		SortedPlatformInfos.AddZeroed(SortedPlatformNames.Num());
 		for (int Index = 0; Index < SortedPlatformInfos.Num(); Index++)
 		{
 			SortedPlatformInfos[Index] = &DataDrivenPlatforms[SortedPlatformNames[Index]];
@@ -448,20 +464,20 @@ const TMap<FName, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::Get
 	return DataDrivenPlatforms;
 }
 
-const TArray<FName> FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames()
+const TArray<FName> FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames(EPlatformInfoType PlatformType)
 {
 	// make sure we've read in the inis
 	GetAllPlatformInfos();
 
-	return SortedPlatformNames;
+	return PlatformType == EPlatformInfoType::AllPlatformInfos ? AllSortedPlatformNames : SortedPlatformNames;
 }
 
-const TArray<const FDataDrivenPlatformInfo*>& FDataDrivenPlatformInfoRegistry::GetSortedPlatformInfos()
+const TArray<const FDataDrivenPlatformInfo*>& FDataDrivenPlatformInfoRegistry::GetSortedPlatformInfos(EPlatformInfoType PlatformType)
 {
 	// make sure we've read in the inis
 	GetAllPlatformInfos();
 
-	return SortedPlatformInfos;
+	return PlatformType == EPlatformInfoType::AllPlatformInfos ? AllSortedPlatformInfos : SortedPlatformInfos;
 }
 
 
