@@ -52,7 +52,7 @@ FString FSocialInteraction_JoinParty::GetSlashCommandToken()
 bool FSocialInteraction_JoinParty::CanExecute(const USocialUser& User)
 {
 	FJoinPartyResult MockJoinResult = User.CheckPartyJoinability(IOnlinePartySystem::GetPrimaryPartyTypeId());
-	return MockJoinResult.WasSuccessful();
+	return MockJoinResult.WasSuccessful() && User.IsFriend();
 }
 
 void FSocialInteraction_JoinParty::ExecuteInteraction(USocialUser& User)
@@ -76,7 +76,7 @@ FString FSocialInteraction_RequestToJoinParty::GetSlashCommandToken()
 
 bool FSocialInteraction_RequestToJoinParty::CanExecute(const USocialUser& User)
 {
-	return User.CanRequestToJoin();
+	return User.CanRequestToJoin() && User.IsFriend();
 }
 
 void FSocialInteraction_RequestToJoinParty::ExecuteInteraction(USocialUser& User)
