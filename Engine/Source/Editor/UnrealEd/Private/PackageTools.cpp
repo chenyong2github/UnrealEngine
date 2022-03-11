@@ -79,7 +79,7 @@ namespace
  * Utility function that checks each UObject inside of the given UPackage to see if it is waiting 
  * on async compilation.
  * 
- * @return true is the package contains at least one UObject that has compilation work running, otherwise false.
+ * @return true if the package contains at least one UObject that has compilation work running, otherwise false.
  */
 static bool IsPackageCompiling(const UPackage* Package)
 {
@@ -102,38 +102,26 @@ static bool IsPackageCompiling(const UPackage* Package)
 }
 
 /**
- * Utility function to reset the loaders for an array of packages safely.
- * 
- * If any of the packages contains an object with running async compilation
- * tasks then we need to wait for all existing async compilation tasks to
- * be flushed before we can call ResetLoaders, due to thread safety issues.
+ * Utility function that checks all of the provided packages to see if any
+ * of them contain assets that currently have async compilation work running.
+ * If there are assets that are waiting on async compilation work then we 
+ * wait on all currently outstanding work to finish before returning.
  */
-static void ResetPackageLoaders(const TArray<TWeakObjectPtr<UPackage>>& PackagesToUnload)
+static void FlushAsyncCompilation(const TSet<UPackage*>& PackagesToUnload)
 {
 	bool bHasAsyncCompilationWork = false;
-	for (const TWeakObjectPtr<UPackage>& Package : PackagesToUnload)
+	for (const UPackage* Package : PackagesToUnload)
 	{
-		if (Package.IsValid())
+		if (IsPackageCompiling(Package))
 		{
-			if (IsPackageCompiling(Package.Get()))
-			{
-				bHasAsyncCompilationWork = true;
-				break;
-			}
+			bHasAsyncCompilationWork = true;
+			break;
 		}
 	}
 
 	if (bHasAsyncCompilationWork)
 	{
 		FAssetCompilingManager::Get().FinishAllCompilation();
-	}
-
-	for (const TWeakObjectPtr<UPackage>& Package : PackagesToUnload)
-	{
-		if (Package.IsValid())
-		{
-			ResetLoaders(Package.Get());
-		}
 	}
 }
 
@@ -434,14 +422,6 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			FlushAsyncLoading();
 			(*GFlushStreamingFunc)();
 
-			// Store the packages as weak pointers so that we can identify which ones 
-			// survive garbage collection later on
-			TArray<TWeakObjectPtr<UPackage>> PackagesToReset;
-			for (UPackage* Package : PackagesToUnload)
-			{
-				PackagesToReset.Add(Package);
-			}
-
 			// Remove potential references to to-be deleted objects from the GB selection set.
 			GEditor->GetSelectedObjects()->DeselectAll();
 
@@ -459,6 +439,10 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					PackagesAddedToRoot.Add(PackageToUnload);
 				}
 			}
+
+			// We need to make sure that there is no async compilation work running for the packages that we are about to unload
+			// so that it is safe to call ::ResetLoaders
+			FlushAsyncCompilation(PackagesToUnload);
 
 			// Now try to clean up assets in all packages to unload.
 			int32 PackageIndex = 0;
@@ -522,6 +506,15 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					ObjectsInPackage.Reset();
 				}
 
+				// Calling ::ResetLoaders now will force any bulkdata objects still attached to the FLinkerLoad to load
+				// their payloads into memory. If we don't call this now, then the version that will be called during
+				// garbage collection will cause the bulkdata objects to be invalidated rather than loading the payloads 
+				// into memory.
+				// This might seem odd, but if the package we are unloading is being renamed, then the inner UObjects will
+				// be moved to the newly named package rather than being garbage collected and so we need to make sure that
+				// their bulkdata objects remain valid, otherwise renamed packages will not save correctly and cease to function.
+				ResetLoaders(PackageBeingUnloaded);
+
 				if( PackageBeingUnloaded->IsDirty() )
 				{
 					// The package was marked dirty as a result of something that happened above (e.g callbacks in CollectGarbage).  
@@ -573,10 +566,6 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 
 			CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 
-			// We need to reset the loader of any of the package that survived garbage collection to  
-			// make sure that they are detached from their file on disk.
-			ResetPackageLoaders(PackagesToReset);
-			
 			// Restore the standalone flag on any metadata objects that survived the GC
 			for ( const TWeakObjectPtr<UMetaData>& WeakPackageMetaData : PackageMetaDataWithClearedStandaloneFlag )
 			{
