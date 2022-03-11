@@ -1933,6 +1933,18 @@ void FControlRigEditor::Compile()
 			FBlueprintEditor::Compile();
 		}
 
+		// ensure the skeletal mesh is still bound
+		UControlRigSkeletalMeshComponent* SkelMeshComponent = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+		if (SkelMeshComponent)
+		{
+			bool bWasCreated = false;
+			FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UControlRigLayerInstance>(SkelMeshComponent, bWasCreated);
+			if (bWasCreated)
+			{
+				OnAnimInitialized();
+			}
+		}
+		
 		if (ControlRig)
 		{
 			ControlRig->ControlRigLog = &ControlRigLog;
