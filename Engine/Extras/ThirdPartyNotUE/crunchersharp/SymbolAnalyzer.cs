@@ -203,7 +203,7 @@ namespace CruncherSharp
             return Symbols.ContainsKey(name);
         }
 
-		public void LoadSymbolsRecursive(IDiaSession session, string name)
+		public void LoadSymbolsRecursive(IDiaSession session, string name, bool SetImportedFromCSV)
 		{
 			if (Symbols.ContainsKey(name))
 				return;
@@ -215,9 +215,21 @@ namespace CruncherSharp
 
 			foreach (IDiaSymbol sym in allSymbols)
 			{
-				if (sym.length > 0 && !Symbols.ContainsKey(sym.name))
+				if (sym.length > 0)
 				{
+					if (Symbols.ContainsKey(sym.name))
+					{
+						if (SetImportedFromCSV)
+						{
+							Symbols[sym.name].IsImportedFromCSV = true;
+						}
+						continue;
+					}
 					var symbolInfo = new SymbolInfo(sym.name, sym.GetType().Name, sym.length);
+					if (SetImportedFromCSV)
+					{
+						symbolInfo.IsImportedFromCSV = true;
+					}
 					symbolInfo.ProcessChildren(sym);
 					Symbols.Add(symbolInfo.Name, symbolInfo);
 
@@ -231,7 +243,7 @@ namespace CruncherSharp
 					{
 						if (member.Category == SymbolMemberInfo.MemberCategory.UDT || member.Category == SymbolMemberInfo.MemberCategory.Base)
 						{
-							LoadSymbolsRecursive(session, member.TypeName);
+							LoadSymbolsRecursive(session, member.TypeName, false);
 						}
 					}
 				}
@@ -286,7 +298,7 @@ namespace CruncherSharp
 				{
 					if (sym.length > 0)
 					{
-						LoadSymbolsRecursive(session, sym.name);
+						LoadSymbolsRecursive(session, sym.name, true);
 						Symbols.TryGetValue(sym.name, out var symbolInfo);
 						if (symbolInfo != null)
 							symbolInfo.TotalCount = symbolInfo.NumInstances = task.Count;

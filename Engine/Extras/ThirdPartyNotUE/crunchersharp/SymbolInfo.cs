@@ -20,7 +20,8 @@ namespace CruncherSharp
         public ulong TotalCount { get; set; }
         public bool IsAbstract { get; set; }
         public bool IsTemplate { get; set; }
-        public List<SymbolMemberInfo> Members { get; set; }
+		public bool IsImportedFromCSV { get; set; }
+		public List<SymbolMemberInfo> Members { get; set; }
         public List<SymbolFunctionInfo> Functions { get; set; }
         public List<SymbolInfo> DerivedClasses { get; set; }
 
@@ -36,7 +37,9 @@ namespace CruncherSharp
             Members = new List<SymbolMemberInfo>();
             Functions = new List<SymbolFunctionInfo>();
             IsAbstract = false;
-            if (Name.Contains("<") && Name.Contains(">"))
+			IsImportedFromCSV = false;
+
+			if (Name.Contains("<") && Name.Contains(">"))
                 IsTemplate = true;
         }
 
@@ -85,7 +88,8 @@ namespace CruncherSharp
             }
         }
 
-        public bool HasMSVCExtraPadding
+		// https://randomascii.wordpress.com/2013/12/01/vc-2013-class-layout-change-and-wasted-space/
+		public bool HasMSVCExtraPadding
         {
             get
             {

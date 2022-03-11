@@ -29,10 +29,12 @@ namespace CruncherSharp
 		private readonly Stack<SymbolInfo> _RedoNavigationStack;
 		private readonly SymbolAnalyzer _SymbolAnalyzer;
         private readonly DataTable _Table;
-        public bool _CloseRequested = false;
+		private readonly List<uint> _Thresholds;
+		public bool _CloseRequested = false;
         public bool _HasInstancesCount = false;
         public bool _HasSecondPDB = false;
 		public bool _IgnoreSelectionChange = false;
+		public bool _RestrictToSymbolsImportedFromCSV = false;
 		private ulong _PrefetchStartOffset = 0;
         private SearchType _SearchCategory = SearchType.None;
 
@@ -47,6 +49,7 @@ namespace CruncherSharp
             _Table.CaseSensitive = checkBoxMatchCase.Checked;
             _NavigationStack = new Stack<SymbolInfo>();
 			_RedoNavigationStack = new Stack<SymbolInfo>();
+			_Thresholds = new List<uint>();
 			_FunctionsToIgnore = new List<string>();
             _SelectedSymbol = null;
             bindingSourceSymbols.DataSource = _Table;
@@ -70,11 +73,13 @@ namespace CruncherSharp
         private void Reset()
         {
             checkedListBoxNamespaces.Items.Clear();
-            _Table.Clear();
+			_Table.Clear();
             dataGridViewSymbolInfo.Rows.Clear();
             dataGridViewFunctionsInfo.Rows.Clear();
             _SelectedSymbol = null;
-            labelCurrentSymbol.Text = "";
+			_RestrictToSymbolsImportedFromCSV = false;
+			_Thresholds.Clear();
+			labelCurrentSymbol.Text = "";
             _SymbolAnalyzer.Reset();
 			UpdateBtnLoadText();
 		}
@@ -131,7 +136,7 @@ namespace CruncherSharp
                 MatchCase = checkBoxMatchCase.Checked,
                 WholeExpression = checkBoxMatchWholeExpression.Checked,
                 UseRegularExpression = checkBoxRegularExpressions.Checked,
-                UseProgressBar = !checkBoxMatchWholeExpression.Checked
+                UseProgressBar = String.IsNullOrEmpty(textBoxFilter.Text) || !checkBoxMatchWholeExpression.Checked
 			};
 			loadPDBBackgroundWorker.RunWorkerAsync(task);
         }
@@ -264,6 +269,23 @@ namespace CruncherSharp
                     row["Total delta"] = ((long) symbolInfo.NewSize - (long) symbolInfo.Size) *
                                          (long) symbolInfo.NumInstances;
             }
+			if (_Thresholds.Count > 0)
+			{
+				uint previousThreshold = 0;
+				foreach (var threshold in _Thresholds)
+				{
+					if (symbolInfo.Size > threshold)
+					{
+						previousThreshold = threshold;
+						continue;
+					}
+					row["MemPool waste"] = threshold - symbolInfo.Size;
+					row["MemPool total waste"] = (long)(threshold - symbolInfo.Size) * (long)symbolInfo.NumInstances;
+					row["MemPool delta"] = symbolInfo.Size - previousThreshold;
+					break;
+
+				}
+			}
 
             _Table.Rows.Add(row);
         }
@@ -1276,7 +1298,13 @@ namespace CruncherSharp
             _Table.BeginLoadData();
 
             foreach (var symbolInfo in _SymbolAnalyzer.Symbols.Values)
-                switch (SearchCategory)
+			{
+				if (restrictToSymbolsImportedFroCSVToolStripMenuItem.Checked && ! symbolInfo.IsImportedFromCSV)
+				{
+					continue;
+				}
+
+				switch (SearchCategory)
                 {
                     case SearchType.None:
                         AddSymbolToTable(symbolInfo);
@@ -1286,13 +1314,16 @@ namespace CruncherSharp
                             AddSymbolToTable(symbolInfo);
                         break;
                     case SearchType.MSVCExtraPadding:
-                        if (symbolInfo.HasMSVCExtraPadding) AddSymbolToTable(symbolInfo);
+                        if (symbolInfo.HasMSVCExtraPadding) 
+							AddSymbolToTable(symbolInfo);
                         break;
                     case SearchType.MSVCEmptyBaseClass:
-                        if (symbolInfo.HasMSVCEmptyBaseClass) AddSymbolToTable(symbolInfo);
+                        if (symbolInfo.HasMSVCEmptyBaseClass) 
+							AddSymbolToTable(symbolInfo);
                         break;
                     case SearchType.UnusedInterfaces:
-                        if (symbolInfo.IsAbstract && symbolInfo.DerivedClasses == null) AddSymbolToTable(symbolInfo);
+                        if (symbolInfo.IsAbstract && symbolInfo.DerivedClasses == null) 
+							AddSymbolToTable(symbolInfo);
                         break;
                     case SearchType.UnusedVirtual:
                         foreach (var function in symbolInfo.Functions)
@@ -1325,8 +1356,8 @@ namespace CruncherSharp
 
                         break;
                 }
-
-            _Table.EndLoadData();
+			}
+			_Table.EndLoadData();
         }
 
         private void btnLoad_Click(object sender, EventArgs e)
@@ -1406,5 +1437,43 @@ namespace CruncherSharp
 			_SymbolAnalyzer.FunctionAnalysis = checkBoxFunctionAnalysis.Checked;
 			Cursor.Current = Cursors.Default;
 		}
+
+		private void restrictToSymbolsImportedFroCSVToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			restrictToSymbolsImportedFroCSVToolStripMenuItem.Checked = !restrictToSymbolsImportedFroCSVToolStripMenuItem.Checked;
+			PopulateDataTable();
+		}
+
+		private void addMemPoolsToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			var memPoolsForm = new AddMemPoolsForm();
+			memPoolsForm.SetMemPools(_Thresholds);
+			memPoolsForm.ShowDialog();
+			_Thresholds.Clear();
+			_Thresholds.AddRange(memPoolsForm.GetMemPool());
+			if (_Thresholds.Count > 0)
+			{
+				_Table.Columns.Add(new DataColumn
+				{
+					ColumnName = "MemPool waste",
+					ReadOnly = true,
+					DataType = Type.GetType("System.UInt32")
+				});
+				_Table.Columns.Add(new DataColumn
+				{
+					ColumnName = "MemPool total waste",
+					ReadOnly = true,
+					DataType = Type.GetType("System.UInt64")
+				});
+				_Table.Columns.Add(new DataColumn
+				{
+					ColumnName = "MemPool delta",
+					ReadOnly = true,
+					DataType = Type.GetType("System.UInt32")
+				});
+			}
+			PopulateDataTable();
+		}
+
 	}
 }

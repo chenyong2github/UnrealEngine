@@ -89,6 +89,12 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="MemPoolsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MemPoolsForm.Designer.cs">
+      <DependentUpon>MemPoolsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="SelectNamespaceForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -113,6 +119,9 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <EmbeddedResource Include="MemPoolsForm.resx">
+      <DependentUpon>MemPoolsForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="SelectNamespaceForm.resx">
       <DependentUpon>SelectNamespaceForm.cs</DependentUpon>
     </EmbeddedResource>

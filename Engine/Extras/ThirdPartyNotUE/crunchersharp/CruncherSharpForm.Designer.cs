@@ -50,6 +50,9 @@
             this.findUnusedVirtualToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.findMaskingFunctionsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.findRemovedInlineToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.restrictToSymbolsImportedFroCSVToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.unrealEngineToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.addMemPoolsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openPdbDialog = new System.Windows.Forms.OpenFileDialog();
             this.openCsvDialog = new System.Windows.Forms.OpenFileDialog();
             this.saveCsvDialog = new System.Windows.Forms.SaveFileDialog();
@@ -69,6 +72,7 @@
             this.loadCSVBackgroundWorker = new System.ComponentModel.BackgroundWorker();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.checkBoxFunctionAnalysis = new System.Windows.Forms.CheckBox();
             this.checkBoxShowOverlap = new System.Windows.Forms.CheckBox();
             this.checkBoxBitPadding = new System.Windows.Forms.CheckBox();
             this.checkBoxPadding = new System.Windows.Forms.CheckBox();
@@ -108,7 +112,6 @@
             this.contextMenuStripFunctions = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.ignoreFunctionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bindingSourceSymbols = new System.Windows.Forms.BindingSource(this.components);
-            this.checkBoxFunctionAnalysis = new System.Windows.Forms.CheckBox();
             this.mainMenu.SuspendLayout();
             this.statusStripBar.SuspendLayout();
             this.contextMenuStripMembers.SuspendLayout();
@@ -139,7 +142,8 @@
             // 
             this.mainMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fileToolStripMenuItem,
-            this.findToolStripMenuItem1});
+            this.findToolStripMenuItem1,
+            this.unrealEngineToolStripMenuItem});
             this.mainMenu.Location = new System.Drawing.Point(0, 0);
             this.mainMenu.Name = "mainMenu";
             this.mainMenu.Size = new System.Drawing.Size(1794, 24);
@@ -206,7 +210,8 @@
             this.findUnusedInterfacesToolStripMenuItem,
             this.findUnusedVirtualToolStripMenuItem,
             this.findMaskingFunctionsToolStripMenuItem,
-            this.findRemovedInlineToolStripMenuItem});
+            this.findRemovedInlineToolStripMenuItem,
+            this.restrictToSymbolsImportedFroCSVToolStripMenuItem});
             this.findToolStripMenuItem1.Name = "findToolStripMenuItem1";
             this.findToolStripMenuItem1.Size = new System.Drawing.Size(42, 20);
             this.findToolStripMenuItem1.Text = "Find";
@@ -215,7 +220,7 @@
             // 
             this.findUnusedVtablesToolStripMenuItem.Enabled = false;
             this.findUnusedVtablesToolStripMenuItem.Name = "findUnusedVtablesToolStripMenuItem";
-            this.findUnusedVtablesToolStripMenuItem.Size = new System.Drawing.Size(224, 22);
+            this.findUnusedVtablesToolStripMenuItem.Size = new System.Drawing.Size(279, 22);
             this.findUnusedVtablesToolStripMenuItem.Text = "Find unused Vtables";
             this.findUnusedVtablesToolStripMenuItem.Click += new System.EventHandler(this.findUnusedVtablesToolStripMenuItem_Click);
             // 
@@ -223,7 +228,7 @@
             // 
             this.findMSVCExtraPaddingToolStripMenuItem.Enabled = false;
             this.findMSVCExtraPaddingToolStripMenuItem.Name = "findMSVCExtraPaddingToolStripMenuItem";
-            this.findMSVCExtraPaddingToolStripMenuItem.Size = new System.Drawing.Size(224, 22);
+            this.findMSVCExtraPaddingToolStripMenuItem.Size = new System.Drawing.Size(279, 22);
             this.findMSVCExtraPaddingToolStripMenuItem.Text = "Find MSVC extra padding";
             this.findMSVCExtraPaddingToolStripMenuItem.Click += new System.EventHandler(this.findMSVCExtraPaddingToolStripMenuItem_Click);
             // 
@@ -231,7 +236,7 @@
             // 
             this.findMSVCEmptyBaseClassToolStripMenuItem.Enabled = false;
             this.findMSVCEmptyBaseClassToolStripMenuItem.Name = "findMSVCEmptyBaseClassToolStripMenuItem";
-            this.findMSVCEmptyBaseClassToolStripMenuItem.Size = new System.Drawing.Size(224, 22);
+            this.findMSVCEmptyBaseClassToolStripMenuItem.Size = new System.Drawing.Size(279, 22);
             this.findMSVCEmptyBaseClassToolStripMenuItem.Text = "Find MSVC empty base class";
             this.findMSVCEmptyBaseClassToolStripMenuItem.Click += new System.EventHandler(this.findMSVCEmptyBaseClassToolStripMenuItem_Click);
             // 
@@ -239,7 +244,7 @@
             // 
             this.findUnusedInterfacesToolStripMenuItem.Enabled = false;
             this.findUnusedInterfacesToolStripMenuItem.Name = "findUnusedInterfacesToolStripMenuItem";
-            this.findUnusedInterfacesToolStripMenuItem.Size = new System.Drawing.Size(224, 22);
+            this.findUnusedInterfacesToolStripMenuItem.Size = new System.Drawing.Size(279, 22);
             this.findUnusedInterfacesToolStripMenuItem.Text = "Find unused interfaces";
             this.findUnusedInterfacesToolStripMenuItem.Click += new System.EventHandler(this.findUnusedInterfacesToolStripMenuItem_Click);
             // 
@@ -247,7 +252,7 @@
             // 
             this.findUnusedVirtualToolStripMenuItem.Enabled = false;
             this.findUnusedVirtualToolStripMenuItem.Name = "findUnusedVirtualToolStripMenuItem";
-            this.findUnusedVirtualToolStripMenuItem.Size = new System.Drawing.Size(224, 22);
+            this.findUnusedVirtualToolStripMenuItem.Size = new System.Drawing.Size(279, 22);
             this.findUnusedVirtualToolStripMenuItem.Text = "Find unused virtual";
             this.findUnusedVirtualToolStripMenuItem.Click += new System.EventHandler(this.findUnusedVirtualToolStripMenuItem_Click);
             // 
@@ -255,7 +260,7 @@
             // 
             this.findMaskingFunctionsToolStripMenuItem.Enabled = false;
             this.findMaskingFunctionsToolStripMenuItem.Name = "findMaskingFunctionsToolStripMenuItem";
-            this.findMaskingFunctionsToolStripMenuItem.Size = new System.Drawing.Size(224, 22);
+            this.findMaskingFunctionsToolStripMenuItem.Size = new System.Drawing.Size(279, 22);
             this.findMaskingFunctionsToolStripMenuItem.Text = "Find masking functions";
             this.findMaskingFunctionsToolStripMenuItem.Click += new System.EventHandler(this.findMaskingFunctionsToolStripMenuItem_Click);
             // 
@@ -263,9 +268,31 @@
             // 
             this.findRemovedInlineToolStripMenuItem.Enabled = false;
             this.findRemovedInlineToolStripMenuItem.Name = "findRemovedInlineToolStripMenuItem";
-            this.findRemovedInlineToolStripMenuItem.Size = new System.Drawing.Size(224, 22);
+            this.findRemovedInlineToolStripMenuItem.Size = new System.Drawing.Size(279, 22);
             this.findRemovedInlineToolStripMenuItem.Text = "Find removed inline";
             this.findRemovedInlineToolStripMenuItem.Click += new System.EventHandler(this.findRemovedInlineToolStripMenuItem_Click);
+            // 
+            // restrictToSymbolsImportedFroCSVToolStripMenuItem
+            // 
+            this.restrictToSymbolsImportedFroCSVToolStripMenuItem.Name = "restrictToSymbolsImportedFroCSVToolStripMenuItem";
+            this.restrictToSymbolsImportedFroCSVToolStripMenuItem.Size = new System.Drawing.Size(279, 22);
+            this.restrictToSymbolsImportedFroCSVToolStripMenuItem.Text = "Restrict to symbols imported from CSV";
+            this.restrictToSymbolsImportedFroCSVToolStripMenuItem.Click += new System.EventHandler(this.restrictToSymbolsImportedFroCSVToolStripMenuItem_Click);
+            // 
+            // unrealEngineToolStripMenuItem
+            // 
+            this.unrealEngineToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.addMemPoolsToolStripMenuItem});
+            this.unrealEngineToolStripMenuItem.Name = "unrealEngineToolStripMenuItem";
+            this.unrealEngineToolStripMenuItem.Size = new System.Drawing.Size(92, 20);
+            this.unrealEngineToolStripMenuItem.Text = "Unreal Engine";
+            // 
+            // addMemPoolsToolStripMenuItem
+            // 
+            this.addMemPoolsToolStripMenuItem.Name = "addMemPoolsToolStripMenuItem";
+            this.addMemPoolsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.addMemPoolsToolStripMenuItem.Text = "Set memory pools";
+            this.addMemPoolsToolStripMenuItem.Click += new System.EventHandler(this.addMemPoolsToolStripMenuItem_Click);
             // 
             // openPdbDialog
             // 
@@ -445,6 +472,17 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(1791, 104);
             this.panel1.TabIndex = 4;
+            // 
+            // checkBoxFunctionAnalysis
+            // 
+            this.checkBoxFunctionAnalysis.AutoSize = true;
+            this.checkBoxFunctionAnalysis.Location = new System.Drawing.Point(335, 83);
+            this.checkBoxFunctionAnalysis.Name = "checkBoxFunctionAnalysis";
+            this.checkBoxFunctionAnalysis.Size = new System.Drawing.Size(107, 17);
+            this.checkBoxFunctionAnalysis.TabIndex = 17;
+            this.checkBoxFunctionAnalysis.Text = "Function analysis";
+            this.checkBoxFunctionAnalysis.UseVisualStyleBackColor = true;
+            this.checkBoxFunctionAnalysis.CheckedChanged += new System.EventHandler(this.checkBoxFunctionAnalysis_CheckedChanged);
             // 
             // checkBoxShowOverlap
             // 
@@ -887,17 +925,6 @@
             this.ignoreFunctionToolStripMenuItem.Text = "Ignore function";
             this.ignoreFunctionToolStripMenuItem.Click += new System.EventHandler(this.ignoreFunctionToolStripMenuItem_Click);
             // 
-            // checkBoxFunctionAnalysis
-            // 
-            this.checkBoxFunctionAnalysis.AutoSize = true;
-            this.checkBoxFunctionAnalysis.Location = new System.Drawing.Point(335, 83);
-            this.checkBoxFunctionAnalysis.Name = "checkBoxFunctionAnalysis";
-            this.checkBoxFunctionAnalysis.Size = new System.Drawing.Size(107, 17);
-            this.checkBoxFunctionAnalysis.TabIndex = 17;
-            this.checkBoxFunctionAnalysis.Text = "Function analysis";
-            this.checkBoxFunctionAnalysis.UseVisualStyleBackColor = true;
-            this.checkBoxFunctionAnalysis.CheckedChanged += new System.EventHandler(this.checkBoxFunctionAnalysis_CheckedChanged);
-            // 
             // CruncherSharpForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -979,7 +1006,6 @@
         private System.Windows.Forms.ContextMenuStrip contextMenuStripClassInfo;
         private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemParentClasses;
         private System.Windows.Forms.Button btnReset;
-        private System.Windows.Forms.ToolStripMenuItem findUnusedVtablesToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem findMSVCExtraPaddingToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem findMSVCEmptyBaseClassToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem findUnusedInterfacesToolStripMenuItem;
@@ -1003,7 +1029,6 @@
         private System.Windows.Forms.ContextMenuStrip contextMenuStripFunctions;
         private System.Windows.Forms.ToolStripMenuItem ignoreFunctionToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem findRemovedInlineToolStripMenuItem;
-        private System.Windows.Forms.BindingSource bindingSourceSymbols;
         private System.Windows.Forms.Button btnLoad;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.CheckBox checkBoxMatchWholeExpression;
@@ -1021,6 +1046,11 @@
         private System.Windows.Forms.CheckBox checkBoxBitPadding;
 		private System.Windows.Forms.CheckBox checkBoxShowOverlap;
 		private System.Windows.Forms.CheckBox checkBoxFunctionAnalysis;
+		private System.Windows.Forms.ToolStripMenuItem findUnusedVtablesToolStripMenuItem;
+		private System.Windows.Forms.BindingSource bindingSourceSymbols;
+		private System.Windows.Forms.ToolStripMenuItem restrictToSymbolsImportedFroCSVToolStripMenuItem;
+		private System.Windows.Forms.ToolStripMenuItem unrealEngineToolStripMenuItem;
+		private System.Windows.Forms.ToolStripMenuItem addMemPoolsToolStripMenuItem;
 	}
 }
 
