@@ -307,6 +307,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Transform", meta=( DisplayName="Pivot" ))
 	FVector2D RenderTransformPivot;
 
+	/** Allows you to set a new flow direction */
+	UPROPERTY(EditAnywhere, Category = "Localization")
+	EFlowDirectionPreference FlowDirectionPreference;
+
 	/**
 	 * Allows controls to be exposed as variables in a blueprint.  Not all controls need to be exposed
 	 * as variables, so this allows only the most useful ones to end up being exposed.
@@ -325,10 +329,6 @@ public:
 	/**  */
 	UPROPERTY(EditAnywhere, Category="Behavior", meta=(InlineEditConditionToggle))
 	uint8 bOverride_Cursor : 1;
-
-	/** Allows you to set a new flow direction */
-	UPROPERTY(EditAnywhere, Category = "Localization")
-	EFlowDirectionPreference FlowDirectionPreference;
 
 #if WITH_EDITORONLY_DATA
 	// These editor-only properties exist for two reasons:
@@ -375,11 +375,6 @@ public:
 	UPROPERTY()
 	USlateAccessibleWidgetData::FGetText AccessibleSummaryTextDelegate;
 #endif
-
-private:
-	/** A custom set of accessibility rules for this widget. If null, default rules for the widget are used. */
-	UPROPERTY(Instanced)
-	TObjectPtr<USlateAccessibleWidgetData> AccessibleWidgetData;
 
 protected:
 
@@ -431,6 +426,12 @@ public:
 	UPROPERTY(EditAnywhere, Category="Behavior")
 	float RenderOpacity;
 
+private:
+	/** A custom set of accessibility rules for this widget. If null, default rules for the widget are used. */
+	UPROPERTY(Instanced)
+	TObjectPtr<USlateAccessibleWidgetData> AccessibleWidgetData;
+
+public:
 	/**
 	 * The navigation object for this widget is optionally created if the user has configured custom
 	 * navigation rules for this widget in the widget designer.  Those rules determine how navigation transitions
