@@ -129,16 +129,16 @@ static void AddVerticesForRiverSplineStep(float DistanceAlongSpline, const UWate
 	const float DilationAmount = Component->ShapeDilation;
 	const FVector DilationOffset = Normal * DilationAmount;
 
-	FDynamicMeshVertex Left(Pos - OutwardDistance);
-	FDynamicMeshVertex Right(Pos + OutwardDistance);
+	FDynamicMeshVertex Left(FVector3f(Pos - OutwardDistance));
+	FDynamicMeshVertex Right(FVector3f(Pos + OutwardDistance));
 
-	FDynamicMeshVertex DilatedFarLeft(Pos - OutwardDistance - DilationOffset);
+	FDynamicMeshVertex DilatedFarLeft(FVector3f(Pos - OutwardDistance - DilationOffset));
 	DilatedFarLeft.Position.Z += Component->GetShapeDilationZOffsetFar();
-	FDynamicMeshVertex DilatedLeft(Pos - OutwardDistance);
+	FDynamicMeshVertex DilatedLeft(FVector3f(Pos - OutwardDistance));
 	DilatedLeft.Position.Z += Component->GetShapeDilationZOffset();
-	FDynamicMeshVertex DilatedRight(Pos + OutwardDistance);
+	FDynamicMeshVertex DilatedRight(FVector3f(Pos + OutwardDistance));
 	DilatedRight.Position.Z += Component->GetShapeDilationZOffset();
-	FDynamicMeshVertex DilatedFarRight(Pos + OutwardDistance + DilationOffset);
+	FDynamicMeshVertex DilatedFarRight(FVector3f(Pos + OutwardDistance + DilationOffset));
 	DilatedFarRight.Position.Z += Component->GetShapeDilationZOffsetFar();
 
 	float FlowDirection = Tangent.HeadingAngle() + FMath::DegreesToRadians(Component->GetRelativeRotation().Yaw);
@@ -225,13 +225,13 @@ static void AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge Edge, const UWa
 		TangentialOffset *= -1;
 	}
 
-	FDynamicMeshVertex BackLeft(Pos - OutwardDistance + TangentialOffset - DilationOffset);
+	FDynamicMeshVertex BackLeft(FVector3f(Pos - OutwardDistance + TangentialOffset - DilationOffset));
 	BackLeft.Position.Z += Component->GetShapeDilationZOffsetFar();
-	FDynamicMeshVertex Left(Pos - OutwardDistance + TangentialOffset);
+	FDynamicMeshVertex Left(FVector3f(Pos - OutwardDistance + TangentialOffset));
 	Left.Position.Z += Component->GetShapeDilationZOffsetFar();
-	FDynamicMeshVertex Right(Pos + OutwardDistance + TangentialOffset);
+	FDynamicMeshVertex Right(FVector3f(Pos + OutwardDistance + TangentialOffset));
 	Right.Position.Z += Component->GetShapeDilationZOffsetFar();
-	FDynamicMeshVertex BackRight(Pos + OutwardDistance + TangentialOffset + DilationOffset);
+	FDynamicMeshVertex BackRight(FVector3f(Pos + OutwardDistance + TangentialOffset + DilationOffset));
 	BackRight.Position.Z += Component->GetShapeDilationZOffsetFar();
 
 	// Initialize the vertex data to correct represent what we expect the dilated region to look like

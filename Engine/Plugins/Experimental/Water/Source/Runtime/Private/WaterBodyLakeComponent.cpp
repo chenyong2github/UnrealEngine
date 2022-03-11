@@ -91,7 +91,7 @@ void UWaterBodyLakeComponent::GenerateWaterBodyMesh()
 	for (const FVector2d& Vertex : Triangulation.Vertices)
 	{
 		// push the set of undilated vertices to the persistent mesh
-		FDynamicMeshVertex MeshVertex(FVector(Vertex.X, Vertex.Y, 0.f));
+		FDynamicMeshVertex MeshVertex(FVector3f(Vertex.X, Vertex.Y, 0.f));
 		MeshVertex.Color = FColor::Black;
 		MeshVertex.TextureCoordinate[0].X = WaterBodyIndex;
 		WaterBodyMeshVertices.Add(MeshVertex);
@@ -124,7 +124,7 @@ void UWaterBodyLakeComponent::GenerateWaterBodyMesh()
 			for (const FVector3d& Vertex : LakeMesh.GetVerticesBuffer())
 			{
 				// push the set of dilated vertices to the persistent mesh
-				FDynamicMeshVertex MeshVertex(Vertex);
+				FDynamicMeshVertex MeshVertex(FVector3f(Vertex.X, Vertex.Y, 0.f));
 				MeshVertex.Position.Z = ShapeDilationZOffset;
 				MeshVertex.Color = FColor::Black;
 				MeshVertex.TextureCoordinate[0].X = -1;
