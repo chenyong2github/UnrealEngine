@@ -30,8 +30,6 @@ namespace FriendInviteFailureReason
 	const FString InviteFailReason_AddingSelfFail = TEXT("AddingSelfFail");
 	const FString InviteFailReason_AddingBlockedFail = TEXT("AddingBlockedFail");
 	const FString InviteFailReason_AlreadyFriends = TEXT("AlreadyFriends");
-	const FString InviteFailReason_Uninitialized = TEXT("Uninitialized");
-	const FString InviteFailReason_FriendshipRestricted = TEXT("FriendshipRestricted");
 }
 namespace FriendAcceptFailureReason
 {
@@ -39,8 +37,6 @@ namespace FriendAcceptFailureReason
 }
 
 DECLARE_DELEGATE_OneParam(FUserDependentAction, USocialUser&);
-DECLARE_DELEGATE_TwoParams(FOnTrySendFriendInviteComplete, bool /* bWasSuccessful */, FString /* ErrorString */);
-DECLARE_DELEGATE_TwoParams(FOnAcceptFriendInviteComplete, bool /* bWasSuccessful */, FString /* ErrorString */);
 
 /** Represents the full suite of social functionality available to a given LocalPlayer */
 UCLASS(Within = SocialManager)
@@ -101,12 +97,7 @@ public:
 	 * Attempts to send a friend invite to another user based on display name or email.
 	 * Only necessary to use this path when you do not have a known USocialUser for this user already.
 	 */
-	virtual void TrySendFriendInvite(const FString& DisplayNameOrEmail, FOnTrySendFriendInviteComplete OnCompleteDelegate = FOnTrySendFriendInviteComplete()) const;
-
-	/** Send friend invite to a SocialUser */
-	virtual bool TrySendFriendInvite(USocialUser& SocialUser, ESocialSubsystem SubsystemType, FOnTrySendFriendInviteComplete OnCompleteDelegate = FOnTrySendFriendInviteComplete()) const;
-
-	virtual bool AcceptFriendInvite(const USocialUser& SocialUser, ESocialSubsystem SubsystemType, FOnAcceptFriendInviteComplete OnCompleteDelegate = FOnAcceptFriendInviteComplete()) const;
+	void TrySendFriendInvite(const FString& DisplayNameOrEmail) const;
 
 	virtual bool IsFriendshipRestricted(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
@@ -155,6 +146,10 @@ public:
 PACKAGE_SCOPE:
 	void NotifySubsystemIdEstablished(USocialUser& SocialUser, ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	TSubclassOf<USocialChatManager> GetChatManagerClass() { return ChatManagerClass; }
+	
+	bool TrySendFriendInvite(USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
+
+	bool AcceptFriendInvite(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
 	void RequestToJoinParty(USocialUser& SocialUser);
 
@@ -165,8 +160,10 @@ PACKAGE_SCOPE:
 #endif
 
 protected:
-	/** protected function that only handles sending a friend request via the friends interface, assumes all checks are handled previously **/
-	virtual bool SendFriendInviteInternal(USocialUser& SocialUser, ESocialSubsystem SubsystemType, FOnTrySendFriendInviteComplete OnCompleteDelegate = FOnTrySendFriendInviteComplete()) const;
+	/** only handles sending a friend request via the friends interface, assumes all checks are handled previously **/
+	virtual bool SendFriendInviteInternal(USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
+	/** only handles accepting a friend request via the friends interface, assumes all checks are handled previously **/
+	virtual bool AcceptFriendInviteInternal(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
 	virtual void OnOwnerLoggedIn();
 	virtual void OnOwnerLoggedOut();
@@ -193,9 +190,9 @@ protected:
 	virtual void OnQueryRecentPlayersSuccess(ESocialSubsystem SubsystemType, const TArray<TSharedRef<FOnlineRecentPlayer>>& FriendsList) {}
 
 	/** handle result of TrySendFriendInviteInternal **/
-	void HandleSendFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InvitedUserId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType, FString DisplayName, FOnTrySendFriendInviteComplete OnCompleteDelegate);
+	void HandleSendFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InvitedUserId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType, FString DisplayName);
 	/** handle result of AcceptFriendInvite **/
-	void HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InviterUserId, const FString& ListName, const FString& ErrorStr, FOnAcceptFriendInviteComplete OnCompleteDelegate);
+	void HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InviterUserId, const FString& ListName, const FString& ErrorStr);
 
 	/** The type of SocialUser to create to represent known users */
 	TSubclassOf<USocialUser> SocialUserClass;
@@ -269,7 +266,7 @@ private:	// Handlers
 	void HandleBlockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& BlockedPlayerID, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType);
 	void HandleUnblockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UnblockedPlayerID, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType);
 	
-	void HandleQueryPrimaryUserIdMappingComplete(bool bWasSuccessful, const FUniqueNetId& RequestingUserId, const FString& DisplayName, const FUniqueNetId& IdentifiedUserId, const FString& Error, FOnTrySendFriendInviteComplete OnCompleteDelegate);
+	void HandleQueryPrimaryUserIdMappingComplete(bool bWasSuccessful, const FUniqueNetId& RequestingUserId, const FString& DisplayName, const FUniqueNetId& IdentifiedUserId, const FString& Error);
 
 	void HandlePartyMemberExited(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, const EMemberExitedReason Reason);
 	void HandleGameDestroyed(const FName SessionName, bool bWasSuccessful);
