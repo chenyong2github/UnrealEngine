@@ -941,7 +941,7 @@ public:
             [
                 SNew(SCheckBox)
                 .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBox"))
-                .IsChecked(true)
+                .IsChecked(ECheckBoxState::Checked)
                 [
                     LeftRightLabel(NAME_None, LOCTEXT("Label", "Label"), "SmallButtonText")
                 ]
@@ -953,7 +953,7 @@ public:
             [
                 SNew(SCheckBox)
                 .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBox"))
-                .IsChecked(true)
+                .IsChecked(ECheckBoxState::Checked)
                 [
                     LeftRightLabel("Icons.pyramid", LOCTEXT("Label", "Label"), "SmallButtonText")
                 ]

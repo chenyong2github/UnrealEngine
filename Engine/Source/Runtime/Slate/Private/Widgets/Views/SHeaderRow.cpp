@@ -814,7 +814,7 @@ void SHeaderRow::RegenerateWidgets()
 					const float GripSize = SplitterHandleSize > 0.0f ? SplitterHandleSize + 4.0f : 5.0f;
 					TSharedRef<SBorder> SizingGrip = SNew(SBorder)
 						.Padding(0.0f)
-						.BorderImage( &Style->ColumnSplitterStyle.HandleNormalBrush )
+						.BorderImage( nullptr )
 						.Cursor(EMouseCursor::ResizeLeftRight)
 						.Content()
 						[

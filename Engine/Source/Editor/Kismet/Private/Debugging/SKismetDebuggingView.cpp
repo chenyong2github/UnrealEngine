@@ -65,7 +65,7 @@ TSharedRef<SHorizontalBox> SKismetDebuggingView::GetDebugLineTypeToggle(FDebugLi
 		.AutoWidth()
 		[
 			SNew(SCheckBox)
-				.IsChecked(true)
+				.IsChecked(ECheckBoxState::Checked)
 				.OnCheckStateChanged_Static(&FDebugLineItem::OnDebugLineTypeActiveChanged, Type)
 		]
 		+ SHorizontalBox::Slot()
