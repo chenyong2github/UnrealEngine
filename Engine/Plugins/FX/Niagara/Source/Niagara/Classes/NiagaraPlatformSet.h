@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "NiagaraPlatformSet.generated.h"
 
+class IConsoleVariable;
 class UDeviceProfile;
 
 UENUM()
