@@ -478,11 +478,7 @@ void FArrayProperty::ExportText_Internal( FString& ValueStr, const void* Contain
 	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
 	{
 		// Allocate temporary map as we first need to initialize it with the value provided by the getter function and then export it
-		TempArrayStorage = (uint8*)FMemory::MallocZeroed(GetSize());
-		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
-		{
-			InitializeValue(TempArrayStorage);
-		}
+		TempArrayStorage = (uint8*)AllocateAndInitializeValue();
 		PropertyValuePtr = TempArrayStorage;
 		FProperty::GetValue_InContainer(ContainerOrPropertyPtr, PropertyValuePtr);
 	}
@@ -493,11 +489,7 @@ void FArrayProperty::ExportText_Internal( FString& ValueStr, const void* Contain
 
 	ON_SCOPE_EXIT
 	{
-		if (TempArrayStorage)
-		{
-			DestroyValue(TempArrayStorage);
-			FMemory::Free(TempArrayStorage);
-		}
+		DestroyAndFreeValue(TempArrayStorage);
 	};
 
 	FScriptArrayHelper ArrayHelper(this, PropertyValuePtr);
@@ -603,8 +595,7 @@ const TCHAR* FArrayProperty::ImportText_Internal(const TCHAR* Buffer, void* Cont
 			FProperty::SetValue_InContainer(ContainerOrPropertyPtr, TempArrayStorage);
 
 			// Destroy and free the temp array used by property setter
-			DestroyValue(TempArrayStorage);
-			FMemory::Free(TempArrayStorage);
+			DestroyAndFreeValue(TempArrayStorage);
 		}
 	};
 
@@ -612,11 +603,7 @@ const TCHAR* FArrayProperty::ImportText_Internal(const TCHAR* Buffer, void* Cont
 	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 	{
 		// Allocate temporary map as we first need to initialize it with the parsed items and then use the setter to update the property
-		TempArrayStorage = (uint8*)FMemory::MallocZeroed(GetSize());
-		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
-		{
-			InitializeValue(TempArrayStorage);
-		}
+		TempArrayStorage = (uint8*)AllocateAndInitializeValue();
 		ArrayPtr = TempArrayStorage;
 	}
 	else
@@ -894,6 +881,15 @@ void FArrayProperty::GetInnerFields(TArray<FField*>& OutFields)
 		OutFields.Add(Inner);
 		Inner->GetInnerFields(OutFields);
 	}
+}
+
+void* FArrayProperty::GetValueAddressAtIndex_Direct(const FProperty* InInner, void* InValueAddress, int32 Index) const
+{
+	FScriptArrayHelper ArrayHelper(this, InValueAddress);
+	checkf(Inner == InInner, TEXT("Passed in inner must be identical to the array property inner property"));
+	checkf(Index < ArrayHelper.Num() && Index >= 0, TEXT("Array index (%d) out of range"), Index);
+
+	return ArrayHelper.GetRawPtr(Index);
 }
 
 #include "UObject/DefineUPropertyMacros.h"

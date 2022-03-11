@@ -1259,6 +1259,89 @@ bool FProperty::SameType(const FProperty* Other) const
 	return Other && (GetClass() == Other->GetClass());
 }
 
+void* FProperty::AllocateAndInitializeValue() const
+{
+	void* Memory = (uint8*)FMemory::MallocZeroed(GetSize(), GetMinAlignment());
+	if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
+	{
+		InitializeValue(Memory);
+	}
+	return Memory;
+}
+
+void FProperty::DestroyAndFreeValue(void* InMemory) const
+{
+	if (InMemory)
+	{
+		DestroyValue(InMemory);
+		FMemory::Free(InMemory);
+	}
+}
+
+void* FProperty::GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const
+{
+	checkf(Inner == nullptr, TEXT("%s should not have an inner property or it's missing specialized GetValueAddressAtIndex_Direct override"), *GetFullName());
+	checkf(Index < ArrayDim && Index >= 0, TEXT("Array index (%d) out of range"), Index);
+	return (uint8*)InValueAddress + ElementSize * Index;
+}
+
+void FProperty::PerformOperationWithSetter(void* InContainer, void* DirectPropertyAddress, TFunctionRef<void(void*)> DirectValueAccessFunc) const
+{
+	if (InContainer && HasSetterOrGetter()) // If there's a getter we need to allocate a temp value even if there's no setter
+	{
+		// When modifying container or struct properties that have a setter or getter function we first allocate a temp value
+		// that we can operate on directly (add new elements or modify existing ones)
+		void* LocalValuePtr = AllocateAndInitializeValue();
+		// Copy the value to the allocated local (using a getter if present)
+		GetValue_InContainer(InContainer, LocalValuePtr);
+
+		// Perform operation on the temp value
+		DirectValueAccessFunc(LocalValuePtr);
+
+		// Assign the temp value back to the property using a setter function
+		SetValue_InContainer(InContainer, LocalValuePtr);
+		// Destroy and free the temp value
+		DestroyAndFreeValue(LocalValuePtr);
+	}
+	else
+	{
+		// When there's no setter or getter present it's ok to perform the operation directly on the container / struct memory
+		if (!DirectPropertyAddress)
+		{
+			checkf(InContainer, TEXT("Container pointr must be valid if DirectPropertyAddress is not valid"));
+			DirectPropertyAddress = PointerToValuePtr(InContainer, EPropertyPointerType::Container);
+		}
+		DirectValueAccessFunc(DirectPropertyAddress);
+	}
+}
+
+void FProperty::PerformOperationWithGetter(void* InContainer, const void* DirectPropertyAddress, TFunctionRef<void(const void*)> DirectValueAccessFunc) const
+{
+	if (InContainer && HasGetter())
+	{
+		// When modifying container or struct properties that have a getter function we first allocate a temp value
+		// that we can operate on directly (add new elements or modify existing ones)
+		void* LocalValuePtr = AllocateAndInitializeValue();
+		// Copy the value to the allocated local using a getter
+		GetValue_InContainer(InContainer, LocalValuePtr);
+
+		// Perform read-only operation on the temp value
+		DirectValueAccessFunc(LocalValuePtr);
+
+		// Destroy and free the temp value
+		DestroyAndFreeValue(LocalValuePtr);
+	}
+	else
+	{
+		if (!DirectPropertyAddress)
+		{
+			checkf(InContainer, TEXT("Container pointr must be valid if DirectPropertyAddress is not valid"));
+			DirectPropertyAddress = PointerToValuePtr(InContainer, EPropertyPointerType::Container);
+		}
+		DirectValueAccessFunc(DirectPropertyAddress);
+	}
+}
+
 /**
  * Attempts to read an array index (xxx) sequence.  Handles const/enum replacements, etc.
  * @param	ObjectStruct	the scope of the object/struct containing the property we're currently importing

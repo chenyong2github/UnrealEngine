@@ -656,11 +656,7 @@ void FMapProperty::ExportText_Internal(FString& ValueStr, const void* ContainerO
 	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
 	{
 		// Allocate temporary map as we first need to initialize it with the value provided by the getter function and then export it
-		TempMapStorage = (uint8*)FMemory::MallocZeroed(GetSize());
-		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
-		{
-			InitializeValue(TempMapStorage);
-		}
+		TempMapStorage = (uint8*)AllocateAndInitializeValue();
 		PropertyValuePtr = TempMapStorage;
 		FProperty::GetValue_InContainer(ContainerOrPropertyPtr, PropertyValuePtr);
 	}
@@ -671,11 +667,7 @@ void FMapProperty::ExportText_Internal(FString& ValueStr, const void* ContainerO
 
 	ON_SCOPE_EXIT
 	{
-		if (TempMapStorage)
-		{
-			DestroyValue(TempMapStorage);
-			FMemory::Free(TempMapStorage);
-		}
+		DestroyAndFreeValue(TempMapStorage);
 	};
 
 	FScriptMapHelper MapHelper(this, PropertyValuePtr);
@@ -809,19 +801,14 @@ const TCHAR* FMapProperty::ImportText_Internal(const TCHAR* Buffer, void* Contai
 			FProperty::SetValue_InContainer(ContainerOrPropertyPtr, TempMapStorage);
 
 			// Destroy and free the temp map used by property setter
-			DestroyValue(TempMapStorage);
-			FMemory::Free(TempMapStorage);
+			DestroyAndFreeValue(TempMapStorage);
 		}
 	};
 
 	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 	{
 		// Allocate temporary map as we first need to initialize it with the parsed items and then use the setter to update the property
-		TempMapStorage = (uint8*)FMemory::MallocZeroed(GetSize());
-		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
-		{
-			InitializeValue(TempMapStorage);
-		}
+		TempMapStorage = (uint8*)AllocateAndInitializeValue();
 		// Reinitialize the map helper with the temp value
 		MapHelper = FScriptMapHelper(this, TempMapStorage);
 	}
@@ -1333,6 +1320,34 @@ void FMapProperty::GetInnerFields(TArray<FField*>& OutFields)
 		OutFields.Add(ValueProp);
 		ValueProp->GetInnerFields(OutFields);
 	}
+}
+
+void* FMapProperty::GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const
+{
+	FScriptMapHelper MapHelper(this, InValueAddress);
+	checkf(Inner == KeyProp || Inner == ValueProp, TEXT("Inner property must be either KeyProp or ValueProp"));
+
+	for (int32 MapIndex = 0, Num = MapHelper.Num(), LocalIndex = Index; LocalIndex >= 0 && Num > 0; ++MapIndex)
+	{
+		if (MapHelper.IsValidIndex(MapIndex))
+		{
+			if (LocalIndex == 0)
+			{
+				if (Inner == KeyProp)
+				{
+					return MapHelper.GetKeyPtr(MapIndex);
+				}
+				else
+				{
+					return MapHelper.GetValuePtr(MapIndex);
+				}
+			}
+			LocalIndex--;
+			Num--;
+		}
+	}
+	checkf(false, TEXT("Map element index (%d) out of range"), Index);
+	return nullptr;
 }
 
 #include "UObject/DefineUPropertyMacros.h"

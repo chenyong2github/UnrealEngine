@@ -560,6 +560,36 @@ public:
 		}
 	}
 
+	/** Allocates and initializes memory to hold a value this property represents */
+	void* AllocateAndInitializeValue() const;
+
+	/** Destroys and frees memory with a value this property represents */
+	void DestroyAndFreeValue(void* InMemory) const;
+
+	/**
+	 * Helper function for setting container / struct property value and performing operation directly on the value memory
+	 * @param InContainer Pointer to the container that owns the property. Can be null but then setters and getters will not be used.
+	 * @param DirectPropertyAddress Direct property value address. Can be null only if InContainer is a valid pointer.
+	 * @param DirectValueAccessFunc Function that manipulates directly on property value address. The value address can be different than the passed in DirectPropertyAddress if setters and getters are present and InContainer pointer is valid.
+	 */
+	void PerformOperationWithSetter(void* InContainer, void* DirectPropertyAddress, TFunctionRef<void(void*)> DirectValueAccessFunc) const;
+
+	/**
+	 * Helper function for getting container / struct property value and performing operation directly on the value memory
+	 * @param InContainer Pointer to the container that owns the property. Can be null but then setters and getters will not be used.
+	 * @param DirectPropertyAddress Direct property value address. Can be null only if InContainer is a valid pointer.
+	 * @param DirectValueAccessFunc Function that manipulates directly on property value address. The value address can be different than the passed in DirectPropertyAddress if setters and getters are present and InContainer pointer is valid.
+	 */
+	void PerformOperationWithGetter(void* InContainer, const void* DirectPropertyAddress, TFunctionRef<void(const void*)> DirectValueAccessFunc) const;
+
+	/** 
+	 * Gets value address at given index inside of a static array or container
+	 * @param InValueAddress address of the value represented by this property
+	 * @param Index into the static array or container
+	 * @returns address of the value at given index
+	 */
+	virtual void* GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const;
+
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Updates the given HashBuilder with name and type information of this Property.
@@ -3579,6 +3609,8 @@ public:
 		// This is the same as alignof(FFreezableScriptArray)
 		return alignof(FScriptArray);
 	}
+
+	virtual void* GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const override;
 	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerTypeText, const FString& InInnerExtendedTypeText) const;
@@ -3707,6 +3739,7 @@ public:
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+	virtual void* GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const override;
 	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& KeyTypeText, const FString& InKeyExtendedTypeText, const FString& ValueTypeText, const FString& InValueExtendedTypeText) const;
@@ -3830,6 +3863,7 @@ public:
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+	virtual void* GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const override;
 	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& ElementTypeText, const FString& InElementExtendedTypeText) const;

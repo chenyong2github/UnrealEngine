@@ -568,11 +568,7 @@ void FSetProperty::ExportText_Internal(FString& ValueStr, const void* ContainerO
 	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
 	{
 		// Allocate temporary map as we first need to initialize it with the value provided by the getter function and then export it
-		TempSetStorage = (uint8*)FMemory::MallocZeroed(GetSize());
-		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
-		{
-			InitializeValue(TempSetStorage);
-		}
+		TempSetStorage = (uint8*)AllocateAndInitializeValue();
 		PropertyValuePtr = TempSetStorage;
 		FProperty::GetValue_InContainer(ContainerOrPropertyPtr, PropertyValuePtr);
 	}
@@ -583,11 +579,7 @@ void FSetProperty::ExportText_Internal(FString& ValueStr, const void* ContainerO
 
 	ON_SCOPE_EXIT
 	{
-		if (TempSetStorage)
-		{
-			DestroyValue(TempSetStorage);
-			FMemory::Free(TempSetStorage);
-		}
+		DestroyAndFreeValue(TempSetStorage);
 	};
 
 	FScriptSetHelper SetHelper(this, PropertyValuePtr);
@@ -719,19 +711,14 @@ const TCHAR* FSetProperty::ImportText_Internal(const TCHAR* Buffer, void* Contai
 			FProperty::SetValue_InContainer(ContainerOrPropertyPtr, TempSetStorage);
 
 			// Destroy and free the temp set used by property setter
-			DestroyValue(TempSetStorage);
-			FMemory::Free(TempSetStorage);
+			DestroyAndFreeValue(TempSetStorage);
 		}
 	};
 
 	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 	{
 		// Allocate temporary set as we first need to initialize it with the parsed items and then use the setter to update the property
-		TempSetStorage = (uint8*)FMemory::MallocZeroed(GetSize());
-		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
-		{
-			InitializeValue(TempSetStorage);
-		}
+		TempSetStorage = (uint8*)AllocateAndInitializeValue();
 		// Reinitialize the set helper with the temp value
 		SetHelper = FScriptSetHelper(this, TempSetStorage);
 	}
@@ -1111,6 +1098,27 @@ void FSetProperty::GetInnerFields(TArray<FField*>& OutFields)
 		OutFields.Add(ElementProp);
 		ElementProp->GetInnerFields(OutFields);
 	}
+}
+
+void* FSetProperty::GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const
+{
+	FScriptSetHelper SetHelper(this, InValueAddress);
+	checkf(Inner == ElementProp, TEXT("Inner property must be identical to ElementProp"));
+
+	for (int32 SetIndex = 0, Num = SetHelper.Num(), LocalIndex = Index; LocalIndex >= 0 && Num > 0; ++SetIndex)
+	{
+		if (SetHelper.IsValidIndex(SetIndex))
+		{
+			if (LocalIndex == 0)
+			{
+				return SetHelper.GetElementPtr(SetIndex);
+			}
+			LocalIndex--;
+			Num--;
+		}
+	}
+	checkf(false, TEXT("Set element index (%d) out of range"), Index);
+	return nullptr;
 }
 
 #include "UObject/DefineUPropertyMacros.h"
