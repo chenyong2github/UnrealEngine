@@ -54,7 +54,7 @@ void SResetToDefaultPropertyEditor::Tick(const FGeometry& AllottedGeometry, cons
 FText SResetToDefaultPropertyEditor::GetResetToolTip() const
 {
 	FString Tooltip;
-	Tooltip = NSLOCTEXT("PropertyEditor", "ResetToDefaultToolTip", "Reset to Default").ToString();
+	Tooltip = LOCTEXT("ResetToDefaultToolTip", "Reset to Default").ToString();
 
 	if( PropertyHandle.IsValid() && !PropertyHandle->IsEditConst() && PropertyHandle->DiffersFromDefault() )
 	{

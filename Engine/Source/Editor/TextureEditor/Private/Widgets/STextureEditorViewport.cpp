@@ -41,7 +41,7 @@ void STextureEditorViewport::Construct( const FArguments& InArgs, const TSharedR
 
 	if (InToolkit->GetTexture() != nullptr)
 	{
-		FText FormattedText = InToolkit->HasValidTextureResource() ? FText::FromString(TEXT("{0}")) : LOCTEXT( "InvalidTexture", "{0} (Invalid Texture)");
+		FText FormattedText = InToolkit->HasValidTextureResource() ? FText::FromString(TEXT("{0}")) : LOCTEXT( "InvalidTextureWithParam", "{0} (Invalid Texture)");
 		TextureName = FText::Format(FormattedText, FText::FromName(InToolkit->GetTexture()->GetFName()));
 	}
 

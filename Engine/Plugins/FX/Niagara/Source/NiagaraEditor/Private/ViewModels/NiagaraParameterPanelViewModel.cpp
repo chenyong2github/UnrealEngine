@@ -375,7 +375,7 @@ bool INiagaraParameterPanelViewModel::GetCanPasteParameterMetaDataAndToolTip(FTe
 void INiagaraParameterPanelViewModel::DuplicateParameters(const TArray<FNiagaraParameterPanelItem> ItemsToDuplicate) const
 {
 	bool bAnyChange = false;
-	FScopedTransaction Transaction(LOCTEXT("DuplicateParameterTransaction", "Duplicate parameter(s)"));
+	FScopedTransaction Transaction(LOCTEXT("DuplicateParameter(s)Transaction", "Duplicate parameter(s)"));
 
 	for(const FNiagaraParameterPanelItem& ItemToDuplicate : ItemsToDuplicate)
 	{
