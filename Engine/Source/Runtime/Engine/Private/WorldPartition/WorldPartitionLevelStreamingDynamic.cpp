@@ -424,6 +424,8 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 
 	// Mark this package as fully loaded with regards to external objects
 	RuntimeLevel->GetPackage()->SetDynamicPIEPackagePending(false);
+
+	PackageCache.UnloadPackages();
 }
 
 /**
