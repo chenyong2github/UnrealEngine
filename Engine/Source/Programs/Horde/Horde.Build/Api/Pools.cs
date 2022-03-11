@@ -34,11 +34,19 @@ namespace HordeServer.Api
 	/// <see cref="Horde.Build.Fleet.Autoscale.JobQueueSettings" />
 	public class JobQueueSettings
 	{
-		/// <see cref="Horde.Build.Fleet.Autoscale.JobQueueSettings.ScaleOutFactor" />
-		private double ScaleOutFactor { get; set; }
+		/// <summary>
+		/// Factor translating queue size to additional agents to grow the pool with
+		/// The result is always rounded up to nearest integer. 
+		/// Example: if there are 20 jobs in queue, a factor 0.25 will result in 5 new agents being added (20 * 0.25)
+		/// </summary>
+		public double ScaleOutFactor { get; set; }
 
-		/// <see cref="Horde.Build.Fleet.Autoscale.JobQueueSettings.ScaleInFactor" />
-		private double ScaleInFactor { get; set; }
+		/// <summary>
+		/// Factor by which to shrink the pool size with when queue is empty
+		/// The result is always rounded up to nearest integer.
+		/// Example: when the queue size is zero, a default value of 0.9 will shrink the pool by 10% (current agent count * 0.9)
+		/// </summary>
+		public double ScaleInFactor { get; set; }
 
 		/// <summary>
 		/// Construct a public REST API representation from the internal one
@@ -82,14 +90,14 @@ namespace HordeServer.Api
 		public bool? EnableAutoscaling { get; set; }
 		
 		/// <summary>
-		/// Cooldown time between scale-out events
+		/// Cooldown time between scale-out events in seconds
 		/// </summary>
-		public TimeSpan? ScaleOutCooldown { get; }
+		public int? ScaleOutCooldown { get; set; }
 		
 		/// <summary>
-		/// Cooldown time between scale-in events
+		/// Cooldown time between scale-in events in seconds
 		/// </summary>
-		public TimeSpan? ScaleInCooldown { get; }
+		public int? ScaleInCooldown { get; set; }
 		
 		/// <summary>
 		/// Pool sizing strategy
@@ -163,14 +171,14 @@ namespace HordeServer.Api
 		public bool? EnableAutoscaling { get; set; }
 		
 		/// <summary>
-		/// Cooldown time between scale-out events
+		/// Cooldown time between scale-out events in seconds
 		/// </summary>
-		public TimeSpan? ScaleOutCooldown { get; }
+		public int? ScaleOutCooldown { get; set; }
 		
 		/// <summary>
-		/// Cooldown time between scale-in events
+		/// Cooldown time between scale-in events in seconds
 		/// </summary>
-		public TimeSpan? ScaleInCooldown { get; }
+		public int? ScaleInCooldown { get; set; }
 		
 		/// <summary>
 		/// Pool sizing strategy
@@ -251,14 +259,14 @@ namespace HordeServer.Api
 		public bool EnableAutoscaling { get; set; }
 		
 		/// <summary>
-		/// Cooldown time between scale-out events
+		/// Cooldown time between scale-out events in seconds
 		/// </summary>
-		public TimeSpan? ScaleOutCooldown { get; }
+		public int? ScaleOutCooldown { get; set; }
 		
 		/// <summary>
-		/// Cooldown time between scale-in events
+		/// Cooldown time between scale-in events in seconds
 		/// </summary>
-		public TimeSpan? ScaleInCooldown { get; }
+		public int? ScaleInCooldown { get; set; }
 		
 		/// <summary>
 		/// Pool sizing strategy to be used for this pool
@@ -305,8 +313,8 @@ namespace HordeServer.Api
 			this.Name = Pool.Name;
 			this.Condition = Pool.Condition;
 			this.EnableAutoscaling = Pool.EnableAutoscaling;
-			this.ScaleOutCooldown = Pool.ScaleOutCooldown;
-			this.ScaleInCooldown = Pool.ScaleInCooldown;
+			this.ScaleOutCooldown = Pool.ScaleOutCooldown == null ? null : (int)Pool.ScaleOutCooldown.Value.TotalSeconds;
+			this.ScaleInCooldown = Pool.ScaleInCooldown == null ? null : (int)Pool.ScaleInCooldown.Value.TotalSeconds;
 			this.SizeStrategy = Pool.SizeStrategy;
 			this.LeaseUtilizationSettings = Pool.LeaseUtilizationSettings == null ? null : new LeaseUtilizationSettings(Pool.LeaseUtilizationSettings);
 			this.JobQueueSettings = Pool.JobQueueSettings == null ? null : new JobQueueSettings(Pool.JobQueueSettings);
