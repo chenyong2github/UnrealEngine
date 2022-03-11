@@ -114,6 +114,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeDiffuseIntegralMethod(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenProbeMaterialAO = 1;
+FAutoConsoleVariableRef CVarLumenScreenProbeMaterialAO(
+	TEXT("r.Lumen.ScreenProbeGather.MaterialAO"),
+	GLumenScreenProbeMaterialAO,
+	TEXT("Whether to apply Material Ambient Occlusion or Material Bent Normal to Lumen GI."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenScreenProbeTemporalFilter = 1;
 FAutoConsoleVariableRef CVarLumenScreenProbeTemporalFilter(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal"),
@@ -862,6 +870,7 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 		SHADER_PARAMETER(float, FullResolutionJitterWidth)
 		SHADER_PARAMETER(float, MaxRoughnessToTrace)
 		SHADER_PARAMETER(float, RoughnessFadeLength)
+		SHADER_PARAMETER(uint32, ApplyMaterialAO)
 		SHADER_PARAMETER(uint32, DefaultDiffuseIntegrationMethod)
 		SHADER_PARAMETER(FIntPoint, ViewportTileDimensions)
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
@@ -1100,6 +1109,7 @@ void InterpolateAndIntegrate(
 			extern float GLumenReflectionRoughnessFadeLength;
 			PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 			PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+			PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
 			PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
 			PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
 			PassParameters->ViewportTileDimensions = ViewportIntegrateTileDimensions;
@@ -1144,6 +1154,7 @@ void InterpolateAndIntegrate(
 		extern float GLumenReflectionRoughnessFadeLength;
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 		PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+		PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
 		PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
 		PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
 		PassParameters->ViewportTileDimensions = FIntPoint(0, 0);

@@ -580,7 +580,7 @@ uint GetDiffuseIntegrationMethod(FLumenMaterialData In)
 	}
 
 #if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-	if (In.DiffuseIndirectSampleOcclusion != 0)
+	if (In.DiffuseIndirectSampleOcclusion != 0 && ApplyMaterialAO > )
 	{
 		DiffuseIntegrationMethod = DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF;
 	}
@@ -948,6 +948,7 @@ float3 InverseTonemapLighting(float3 TonemappedLighting)
 
 float MaxRoughnessToTrace;
 float RoughnessFadeLength;
+uint ApplyMaterialAO;
 
 StructuredBuffer<uint> IntegrateTileData;
 
@@ -1092,7 +1093,7 @@ void ScreenProbeIntegrateCS(
 
 					#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 						// GetDiffuseIndirectSampleOcclusion in BasePassPixelShader encodes visibility bit using the same ComputeIndirectLightingSampleE
-						bool bIsBentNormalOccluded = (Material.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
+						bool bIsBentNormalOccluded = ApplyMaterialAO > 0 ? ((Material.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0) : false;
 						float DirectionVisibility = bIsBentNormalOccluded ? 0 : 1;
 					#else
 						float DirectionVisibility = 1.0f;
@@ -1109,6 +1110,7 @@ void ScreenProbeIntegrateCS(
 				DiffuseLighting = DiffuseLighting * PI / ((float)NumPixelSamples * AO);
 
 				#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
+				if (ApplyMaterialAO > 0)
 				{
 					DiffuseLighting *= AOMultiBounce(Material.GBufferData.BaseColor, Material.MaterialAO) * (Material.MaterialAO > 0.0 ? rcp(Material.MaterialAO) : 0.0);
 				}
@@ -1188,7 +1190,10 @@ void ScreenProbeIntegrateCS(
 			bool bLightingIsValid = dot(StochasticScreenProbeSample.Weights, 1) > 1.0f - Epsilon;
 
 			#if !GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
+			if (ApplyMaterialAO > 0)
+			{
 				DiffuseLighting *= AOMultiBounce(Material.GBufferData.BaseColor, Material.MaterialAO);
+			}
 			#endif
 
 			#if SCREEN_SPACE_BENT_NORMAL && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
