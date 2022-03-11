@@ -580,7 +580,7 @@ uint GetDiffuseIntegrationMethod(FLumenMaterialData In)
 	}
 
 #if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-	if (In.DiffuseIndirectSampleOcclusion != 0 && ApplyMaterialAO > )
+	if (In.DiffuseIndirectSampleOcclusion != 0)
 	{
 		DiffuseIntegrationMethod = DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF;
 	}
