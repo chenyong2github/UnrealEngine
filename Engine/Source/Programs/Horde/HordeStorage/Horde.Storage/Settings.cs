@@ -132,11 +132,11 @@ namespace Horde.Storage
         public ContentIdStoreImplementations ContentIdStoreImplementation { get; set; } = ContentIdStoreImplementations.Memory;
         public BlobIndexImplementations BlobIndexImplementation { get; set; } = BlobIndexImplementations.Memory;
 
+        public List<string> NamespacesThatUseBlobIndexForExistsCheck { get; set; } = new List<string>();
+
         public int? MaxSingleBlobSize { get; set; } = null; // disable blob partitioning
 
         public int LastAccessRollupFrequencySeconds { get; set; } = 900; // 15 minutes
-
-        public bool BlobStoreParallel { get; set; } = false;
     }
 
     public class MongoSettings
