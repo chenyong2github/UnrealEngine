@@ -130,7 +130,6 @@ protected:
 
 private:
 	bool bUseKeysForTrajectory = false; //on when interatively moving
-	FTransform EvaluateChannelsAtTime(TArrayView<FMovieSceneFloatChannel*> Channels, FFrameTime Time) const;
 	FName ControlName;
 };
 

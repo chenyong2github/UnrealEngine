@@ -302,26 +302,24 @@ TRange<double> FMovieSceneTransformTrail::GetEffectiveSectionRange(int32 Channel
 
 	TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Empty();
 
+	int32 MaxChannel = (int32)ETransformChannel::TranslateZ; //0,1,2 are the position channels only onces we care about.
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	TArrayView<FMovieSceneFloatChannel*> FloatChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+
+	if (DoubleChannels.Num() > MaxChannel)
 	{
-		TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
-		if (Channels.Num() > 0)
+		for (int32 ChannelIdx = ChannelOffset; ChannelIdx <= (ChannelOffset + MaxChannel); ChannelIdx++)
 		{
-			for (int32 ChannelIdx = ChannelOffset; ChannelIdx <= ChannelOffset + uint8(ETransformChannel::MaxChannel); ChannelIdx++)
-			{
-				FMovieSceneDoubleChannel* Channel = Channels[ChannelIdx];
-				EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
-			}
+			FMovieSceneDoubleChannel* Channel = DoubleChannels[ChannelIdx];
+			EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
 		}
 	}
+	if (FloatChannels.Num() > MaxChannel)
 	{
-		TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-		if (Channels.Num() > 0)
+		for (int32 ChannelIdx = ChannelOffset; ChannelIdx <= (ChannelOffset + MaxChannel); ChannelIdx++)
 		{
-			for (int32 ChannelIdx = ChannelOffset; ChannelIdx <= ChannelOffset + uint8(ETransformChannel::MaxChannel); ChannelIdx++)
-			{
-				FMovieSceneFloatChannel* Channel = Channels[ChannelIdx];
-				EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
-			}
+			FMovieSceneFloatChannel* Channel = FloatChannels[ChannelIdx];
+			EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
 		}
 	}
 
@@ -600,24 +598,6 @@ FMovieSceneControlRigTransformTrail::FMovieSceneControlRigTransformTrail(USceneC
 {
 }
 
-FTransform FMovieSceneControlRigTransformTrail::EvaluateChannelsAtTime(TArrayView<FMovieSceneFloatChannel*> Channels, FFrameTime Time) const
-{
-	FVector3f TempTranslation;
-	Channels[0]->Evaluate(Time, TempTranslation.X);
-	Channels[1]->Evaluate(Time, TempTranslation.Y);
-	Channels[2]->Evaluate(Time, TempTranslation.Z);
-	FRotator3f TempRotation;
-	Channels[3]->Evaluate(Time, TempRotation.Roll);
-	Channels[4]->Evaluate(Time, TempRotation.Pitch);
-	Channels[5]->Evaluate(Time, TempRotation.Yaw);
-	FVector3f TempScale3D;
-	Channels[6]->Evaluate(Time, TempScale3D.X);
-	Channels[7]->Evaluate(Time, TempScale3D.Y);
-	Channels[8]->Evaluate(Time, TempScale3D.Z);
-	FTransform TempTransform = FTransform(FRotator(TempRotation), FVector(TempTranslation), FVector(TempScale3D));
-	TempTransform.NormalizeRotation();
-	return TempTransform;
-}
 
 void FMovieSceneControlRigTransformTrail::UpdateCacheTimes(const FSceneContext& InSceneContext)
 {
