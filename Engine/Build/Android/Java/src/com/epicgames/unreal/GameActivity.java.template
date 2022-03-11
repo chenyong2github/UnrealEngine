@@ -2660,9 +2660,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				Log.debug( "Did not find DepthBufferPreference, using default.");
 			}
 
-			if (bundle.containsKey("com.epicgames.ue4.GameActivity.PropagateAlpha"))
+			if (bundle.containsKey("com.epicgames.unreal.GameActivity.PropagateAlpha"))
 			{
-				PropagateAlpha = bundle.getInt("com.epicgames.ue4.GameActivity.PropagateAlpha");
+				PropagateAlpha = bundle.getInt("com.epicgames.unreal.GameActivity.PropagateAlpha");
 				Log.debug( "Found PropagateAlpha = " + PropagateAlpha);
 			}
 			else
