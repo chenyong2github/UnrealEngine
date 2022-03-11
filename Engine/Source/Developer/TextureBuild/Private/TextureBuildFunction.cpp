@@ -267,6 +267,7 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 		}
 		else
 		{
+			SourceMip->RawData.Reset(MipSize);
 			SourceMip->RawData.AddUninitialized(MipSize);
 			FMemory::Memcpy(
 				SourceMip->RawData.GetData(),
