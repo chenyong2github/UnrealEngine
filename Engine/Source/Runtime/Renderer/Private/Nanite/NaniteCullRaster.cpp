@@ -127,11 +127,19 @@ static FAutoConsoleVariableRef CVarNaniteMSInterp(
 	TEXT("")
 );
 
-// TODO: PROG_RASTER - Disabled for now because FMicropolyRasterizeCS requires DXC
-int32 GNaniteAllowProgrammableRaster = 0;
+int32 GNaniteAllowProgrammableRaster = 1;
 static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
 	TEXT("r.Nanite.AllowProgrammableRaster"),
 	GNaniteAllowProgrammableRaster,
+	TEXT(""),
+	ECVF_ReadOnly
+);
+
+// TODO: PROG_RASTER - Disabled for now because FMicropolyRasterizeCS requires DXC, and compile times are slow
+int32 GNaniteAllowProgrammableRasterSW = 0;
+static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRasterSW(
+	TEXT("r.Nanite.AllowProgrammableRasterSW"),
+	GNaniteAllowProgrammableRasterSW,
 	TEXT(""),
 	ECVF_ReadOnly
 );
@@ -866,7 +874,8 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompileComputePermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
+		const bool bAllow = GNaniteAllowProgrammableRaster != 0 && GNaniteAllowProgrammableRasterSW != 0;
+		return FNaniteMaterialShader::ShouldCompileComputePermutation(Parameters, bAllow);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -2307,7 +2316,7 @@ void AddPass_Rasterize(
 				}
 
 				// Programmable micropoly features
-				if (bUsesWorldPositionOffset || bUsesPixelDepthOffset || bUsesAlphaTest)
+				if (GNaniteAllowProgrammableRasterSW && (bUsesWorldPositionOffset || bUsesPixelDepthOffset || bUsesAlphaTest))
 				{
 					ProgrammableShaderTypes.AddShaderType<FMicropolyRasterizeCS>(PermutationVectorCS.ToDimensionValueId());
 				}
