@@ -224,7 +224,10 @@ TSharedPtr<FComponentRequestHandle> UGameFrameworkComponentManager::AddComponent
 						if (ActorIt->IsActorInitialized())
 						{
 #if WITH_EDITOR
-							ensureMsgf(AllReceivers.Contains(*ActorIt), TEXT("You may not add a component request for an actor class that does not call AddReceiver/RemoveReceiver in code! Class:%s"), *GetPathNameSafe(ReceiverClassPtr));
+							if (!ReceiverClassPtr->HasAllClassFlags(CLASS_Abstract))
+							{
+								ensureMsgf(AllReceivers.Contains(*ActorIt), TEXT("You may not add a component request for an actor class that does not call AddReceiver/RemoveReceiver in code! Class:%s"), *GetPathNameSafe(ReceiverClassPtr));
+							}
 #endif
 							CreateComponentOnInstance(*ActorIt, ComponentClass);
 						}
