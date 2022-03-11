@@ -66,6 +66,7 @@ struct FAxisConstraintDatas
 	bool bLimitsCheck[3];
 	bool bAccelerationMode;
 	bool bSoftLimit[3];
+	
 	EJointMotionType MotionType[3];
 };
 	
@@ -363,6 +364,12 @@ struct FAxisConstraintDatas
 			const FPBDJointSettings& JointSettings,
 			const FReal Dt);
 
+		void InitPyramidSwingConstraint(
+		   const FPBDJointSettings& JointSettings,
+		   const FReal Dt,
+		   const bool bApplySwing1,
+		   const bool bApplySwing2);
+
 		// One Swing axis is free, and the other locked. This applies the lock: Body1 Twist axis is confined to a plane.
 		void InitSingleLockedSwingConstraint(
 			const FPBDJointSettings& JointSettings,
@@ -386,7 +393,8 @@ struct FAxisConstraintDatas
 			const FPBDJointSettings& JointSettings,
 			const FReal Dt,
 			const bool bApplyTwist,
-			const bool bApplySwing);
+			const bool bApplySwing1,
+			const bool bApplySwing2);
 
 		/** Apply Rotation constraints */
 
