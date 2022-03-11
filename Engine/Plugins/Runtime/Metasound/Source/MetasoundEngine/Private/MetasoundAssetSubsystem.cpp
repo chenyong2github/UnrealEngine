@@ -184,7 +184,11 @@ Metasound::Frontend::FNodeRegistryKey UMetaSoundAssetSubsystem::AddOrUpdateAsset
 
 	FNodeClassInfo ClassInfo = MetaSoundAsset->GetAssetClassInfo();
 	const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
-	PathMap.FindOrAdd(RegistryKey) = InObject.GetPathName();
+
+	if (NodeRegistryKey::IsValid(RegistryKey))
+	{
+		PathMap.FindOrAdd(RegistryKey) = InObject.GetPathName();
+	}
 
 	return RegistryKey;
 }
@@ -221,10 +225,20 @@ Metasound::Frontend::FNodeRegistryKey UMetaSoundAssetSubsystem::AddOrUpdateAsset
 		}
 	}
 
-	const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
-	PathMap.FindOrAdd(RegistryKey) = InAssetData.ObjectPath;
+	if (ClassInfo.AssetClassID.IsValid())
+	{
+		const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
+		if (NodeRegistryKey::IsValid(RegistryKey))
+		{
+			PathMap.FindOrAdd(RegistryKey) = InAssetData.ObjectPath;
+		}
 
-	return RegistryKey;
+		return RegistryKey;
+	}
+
+	// Invalid ClassID means the node could not be registered.
+	// Let caller report or ensure as necessary.
+	return NodeRegistryKey::GetInvalid();
 }
 
 bool UMetaSoundAssetSubsystem::CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const

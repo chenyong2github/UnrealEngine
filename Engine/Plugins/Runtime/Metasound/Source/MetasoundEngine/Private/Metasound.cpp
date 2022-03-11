@@ -46,7 +46,8 @@ void UMetaSound::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
 	// asset duplicated from but should not be registered as such.
 	if (InDuplicateMode == EDuplicateMode::Normal)
 	{
-		Metasound::Frontend::FRegenerateAssetClassName().Transform(GetDocumentHandle());
+		AssetClassID = FGuid::NewGuid();
+		Metasound::Frontend::FRenameRootGraphClass::Generate(GetDocumentHandle(), AssetClassID);
 	}
 }
 

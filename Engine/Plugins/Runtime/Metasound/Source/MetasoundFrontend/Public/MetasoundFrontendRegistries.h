@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IAudioProxyInitializer.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundEnum.h"
@@ -51,12 +50,6 @@ namespace Metasound
 	namespace Frontend
 	{
 		using FNodeRegistryKey = FString;
-
-
-		// Returns true if the registry key is a valid key. 
-		//
-		// This does *not* connote that the registry key exists in the registry.
-		METASOUNDFRONTEND_API bool IsValidNodeRegistryKey(const FNodeRegistryKey& InKey);
 
 		/** FNodeClassInfo contains a minimal set of information needed to find
 		 * and query node classes. 
@@ -236,7 +229,10 @@ namespace Metasound
 
 		namespace NodeRegistryKey
 		{
-			// Returns true if the registry key is a valid key. 
+			// Returns the invalid NodeRegistryKey.
+			METASOUNDFRONTEND_API const FNodeRegistryKey& GetInvalid();
+
+			// Returns true if the registry key is a valid key.
 			//
 			// This does *not* connote that the registry key exists in the registry.
 			METASOUNDFRONTEND_API bool IsValid(const FNodeRegistryKey& InKey);
@@ -250,7 +246,7 @@ namespace Metasound
 			// Returns true if the class info and key represent the same entry in the node registry.
 			METASOUNDFRONTEND_API bool IsEqual(const FNodeClassInfo& InLHS, const FNodeRegistryKey& InRHS);
 
-			// Returns true if the class metadatas represent the same entry in the node registry.
+			// Returns true if the class metadata represent the same entry in the node registry.
 			METASOUNDFRONTEND_API bool IsEqual(const FMetasoundFrontendClassMetadata& InLHS, const FMetasoundFrontendClassMetadata& InRHS);
 
 			// Returns true if the class info and class metadata represent the same entry in the node registry.

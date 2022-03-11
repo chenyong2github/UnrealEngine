@@ -902,13 +902,14 @@ namespace Metasound
 			return ClassOutputs;
 		}
 
-		bool FRegenerateAssetClassName::Transform(FDocumentHandle InDocument) const
+		bool FRenameRootGraphClass::Transform(FDocumentHandle InDocument) const
 		{
-			FMetasoundFrontendClassMetadata Metadata = InDocument->GetRootGraph()->GetGraphMetadata();
-			FMetasoundFrontendClassName NewName = Metadata.GetClassName();
-			NewName.Name = *FGuid::NewGuid().ToString();
-			Metadata.SetClassName(NewName);
-			InDocument->GetRootGraph()->SetGraphMetadata(Metadata);
+			FGraphHandle RootGraph = InDocument->GetRootGraph();
+
+			FMetasoundFrontendClassMetadata Metadata = RootGraph->GetGraphMetadata();
+			Metadata.SetClassName(NewClassName);
+			RootGraph->SetGraphMetadata(Metadata);
+
 			return true;
 		}
 
@@ -1154,9 +1155,7 @@ namespace Metasound
 		class FVersionDocument_1_6 : public FVersionDocumentTransform
 		{
 		public:
-			FVersionDocument_1_6()
-			{
-			}
+			FVersionDocument_1_6() = default;
 
 			FMetasoundFrontendVersionNumber GetTargetVersion() const override
 			{
@@ -1165,7 +1164,8 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
-				FRegenerateAssetClassName().Transform(InDocument);
+				const FGuid NewAssetClassID = FGuid::NewGuid();
+				FRenameRootGraphClass::Generate(InDocument, NewAssetClassID);
 			}
 		};
 

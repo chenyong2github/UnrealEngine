@@ -1589,7 +1589,7 @@ void UMetasoundEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>&
 			// This may not be necessary as dropping an asset on the graph may load it, thus triggering the registration from the MetaSoundAssetManager.
 			const FNodeClassInfo ClassInfo = DroppedMetaSoundAsset->GetAssetClassInfo();
 			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
-			if (ensure(IsValidNodeRegistryKey(RegistryKey)))
+			if (ensure(NodeRegistryKey::IsValid(RegistryKey)))
 			{
 				FMetaSoundAssetRegistrationOptions RegOptions;
 				RegOptions.bForceReregister = false;

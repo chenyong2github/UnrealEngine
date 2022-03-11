@@ -288,7 +288,7 @@ namespace Metasound
 
 			bool FRegistryContainerImpl::UnregisterNode(const FNodeRegistryKey& InKey)
 			{
-				if (IsValidNodeRegistryKey(InKey))
+				if (NodeRegistryKey::IsValid(InKey))
 				{
 					if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
 					{
@@ -467,15 +467,19 @@ namespace Metasound
 			FNodeRegistryKey CreateKey(EMetasoundFrontendClassType InType, const FString& InFullClassName, int32 InMajorVersion, int32 InMinorVersion)
 			{
 				using namespace MetasoundFrontendRegistryPrivate;
-
-				FString RegistryKey = FString::Format(TEXT("{0}_{1}_{2}.{3}"), {*GetClassTypeString(InType), *InFullClassName, InMajorVersion, InMinorVersion});
-
+				const FString RegistryKey = FString::Format(TEXT("{0}_{1}_{2}.{3}"), {*GetClassTypeString(InType), *InFullClassName, InMajorVersion, InMinorVersion});
 				return RegistryKey;
+			}
+
+			const FNodeRegistryKey& GetInvalid()
+			{
+				static const FNodeRegistryKey InvalidKey;
+				return InvalidKey;
 			}
 
 			bool IsValid(const FNodeRegistryKey& InKey)
 			{
-				return !InKey.IsEmpty();
+				return InKey != GetInvalid();
 			}
 
 			bool IsEqual(const FNodeRegistryKey& InLHS, const FNodeRegistryKey& InRHS)
@@ -527,11 +531,6 @@ namespace Metasound
 			{
 				return CreateKey(InClassInfo.Type, InClassInfo.ClassName.GetFullName().ToString(), InClassInfo.Version.Major, InClassInfo.Version.Minor);
 			}
-		}
-
-		bool IsValidNodeRegistryKey(const FNodeRegistryKey& InKey)
-		{
-			return NodeRegistryKey::IsValid(InKey);
 		}
 
 		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendClassMetadata& InMetadata)

@@ -161,13 +161,26 @@ namespace Metasound
 			bool bLogWarningOnDroppedConnection;
 		};
 
-		/** Regenerates the class' name, effectively causing the class to get registered as
-		  * a new class (useful for when an asset is duplicated). */
-		class METASOUNDFRONTEND_API FRegenerateAssetClassName : public IDocumentTransform
+		/** Sets the document's graph class, optionally updating the namespace and variant. */
+		class METASOUNDFRONTEND_API FRenameRootGraphClass : public IDocumentTransform
 		{
+			const FMetasoundFrontendClassName NewClassName;
 
 		public:
-			FRegenerateAssetClassName() = default;
+			/* Generates and assigns the docment's root graph class a unique name using the provided guid as the name field and
+			 * (optionally) namespace and variant.
+			 * Returns true if transform succeeded, false if not.
+			 */
+			static bool Generate(FDocumentHandle InDocument, const FGuid& InGuid, const FName Namespace = { }, const FName Variant = { })
+			{
+				const FMetasoundFrontendClassName GeneratedClassName = { Namespace, *InGuid.ToString(), Variant };
+				return FRenameRootGraphClass(GeneratedClassName).Transform(InDocument);
+			}
+
+			FRenameRootGraphClass(const FMetasoundFrontendClassName InClassName)
+				: NewClassName(InClassName)
+			{
+			}
 
 			bool Transform(FDocumentHandle InDocument) const override;
 		};
