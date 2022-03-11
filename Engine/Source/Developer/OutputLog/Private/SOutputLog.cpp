@@ -1699,6 +1699,35 @@ void SOutputLog::CategoriesSingle_Execute(FName InName)
 	Refresh();
 }
 
+void SOutputLog::UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors, TOptional<bool> bShowWarnings, TOptional<bool> bShowLogs)
+{
+	if (bShowErrors.IsSet())
+	{
+		Filter.bShowErrors = bShowErrors.GetValue();
+	}
+	if (bShowWarnings.IsSet())
+	{
+		Filter.bShowWarnings = bShowWarnings.GetValue();
+	}
+	if (bShowLogs.IsSet())
+	{
+		Filter.bShowLogs = bShowLogs.GetValue();
+	}
+
+	// Show all categories if empty list is passed in. This means there's no way to change the Show* bools
+	// and also leave the categories as-is, but that use case is probably minimal. It can be added if needed.
+	Filter.bShowAllCategories = CategoriesToShow.Num() == 0;
+	Filter.ClearSelectedLogCategories();
+	const TArray<FName> ActualCategoriesToShow = Filter.bShowAllCategories ? Filter.GetAvailableLogCategories() : CategoriesToShow;
+	for (const auto& AvailableCategory : ActualCategoriesToShow)
+	{
+		Filter.ToggleLogCategory(AvailableCategory);
+	}
+
+	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
+	Refresh();
+}
+
 TSharedRef<SWidget> SOutputLog::GetViewButtonContent(EOutputLogSettingsMenuFlags Flags)
 {
 	TSharedPtr<FExtender> Extender;

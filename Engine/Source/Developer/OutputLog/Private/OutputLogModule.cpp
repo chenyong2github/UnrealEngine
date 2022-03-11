@@ -296,3 +296,16 @@ const TSharedPtr<SWidget> FOutputLogModule::GetOutputLog() const
 {
 	return OutputLog.Pin();
 }
+
+void FOutputLogModule::UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors, TOptional<bool> bShowWarnings, TOptional<bool> bShowLogs)
+{
+	if (TSharedPtr<SOutputLog> SharedOutputLog = OutputLog.Pin())
+	{
+		SharedOutputLog->UpdateOutputLogFilter(CategoriesToShow, bShowErrors, bShowWarnings, bShowLogs);
+	}
+}
+
+void FOutputLogModule::OpenOutputLog() const
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(OutputLogModule::OutputLogTabName);
+}

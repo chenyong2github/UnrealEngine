@@ -369,6 +369,9 @@ public:
 
 	/** Focuses the edit box where you type in console commands */
 	void FocusConsoleCommandBox();
+
+	/** Change the output log's filter. If CategoriesToShow is empty, all categories will be shown. */
+	void UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors = TOptional<bool>(), TOptional<bool> bShowWarnings = TOptional<bool>(), TOptional<bool> bShowLogs = TOptional<bool>());
 protected:
 
 	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;

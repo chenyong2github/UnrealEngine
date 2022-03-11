@@ -63,6 +63,11 @@ public:
 	virtual const TSharedPtr<SWidget> GetOutputLog() const;
 	const TSharedPtr<SDockTab> GetOutputLogTab() const { return OutputLogTab.Pin(); }
 
+	/** Change the output log's filter. If CategoriesToShow is empty, all categories will be shown. */
+	void OUTPUTLOG_API UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors = TOptional<bool>(), TOptional<bool> bShowWarnings = TOptional<bool>(), TOptional<bool> bShowLogs = TOptional<bool>());
+	/** Opens the output log tab, or brings it to front if it's already open */
+	void OUTPUTLOG_API OpenOutputLog() const;
+
 private:
 	TSharedRef<SDockTab> SpawnOutputLogTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnDeviceOutputLogTab(const FSpawnTabArgs& Args);
