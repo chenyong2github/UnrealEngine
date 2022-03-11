@@ -5349,6 +5349,12 @@ FORCEINLINE FTextureReferenceRHIRef RHICreateTextureReference()
 	return new FRHITextureReference();
 }
 
+UE_DEPRECATED(5.0, "The LastRenderTime parameter will be removed in the future")
+FORCEINLINE FTextureReferenceRHIRef RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
+{
+	return RHICreateTextureReference();
+}
+
 FORCEINLINE void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
 {
 	check(IsInRenderingThread());

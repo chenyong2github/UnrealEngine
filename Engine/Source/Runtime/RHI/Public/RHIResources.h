@@ -1245,6 +1245,11 @@ public:
 		, Flags(InFlags)
 	{}
 
+	UE_DEPRECATED(5.0, "The InLastRenderTime parameter will be removed in the future")
+	FRHITexture(ERHIResourceType InResourceType, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, FLastRenderTimeContainer* InLastRenderTime, const FClearValueBinding& InClearValue)
+		: FRHITexture(InResourceType, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
+	{}
+
 	// Dynamic cast methods.
 	virtual class FRHITexture2D* GetTexture2D() { return NULL; }
 	virtual class FRHITexture2DArray* GetTexture2DArray() { return NULL; }
@@ -1330,6 +1335,18 @@ public:
 	double GetLastRenderTime() const
 	{
 		return LastRenderTime.GetLastRenderTime();
+	}
+
+	/** Returns the last render time container, or NULL if none were specified at creation. */
+	UE_DEPRECATED(5.0, "GetLastRenderTimeContainer is deprecated and will be removed in the future")
+	FLastRenderTimeContainer* GetLastRenderTimeContainer()
+	{
+		return nullptr;
+	}
+
+	UE_DEPRECATED(5.0, "SetDefaultLastRenderTimeContainer is deprecated and will be removed in the future")
+	FORCEINLINE_DEBUGGABLE void SetDefaultLastRenderTimeContainer()
+	{
 	}
 
 	void SetName(const FName& InName)
@@ -1546,6 +1563,11 @@ public:
 		check(DefaultTexture);
 		ReferencedTexture = DefaultTexture;
 	}
+
+	UE_DEPRECATED(5.0, "The InLastRenderTime parameter will be removed in the future")
+	explicit FRHITextureReference(FLastRenderTimeContainer* InLastRenderTime)
+		: FRHITextureReference()
+	{}
 
 	virtual class FRHITextureReference* GetTextureReference() override
 	{
