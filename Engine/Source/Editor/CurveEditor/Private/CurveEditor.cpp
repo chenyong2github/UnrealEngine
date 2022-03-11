@@ -794,7 +794,7 @@ void FCurveEditor::SnapToSelectedKey()
 
 	if (MinTime.IsSet())
 	{
-		TimeSliderController->SetScrubPosition(MinTime.GetValue() * TickResolution);		
+		TimeSliderController->SetScrubPosition(MinTime.GetValue() * TickResolution,/*bEvaluate*/ true);		
 	}
 }
 
