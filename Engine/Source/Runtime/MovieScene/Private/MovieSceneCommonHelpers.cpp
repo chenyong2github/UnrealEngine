@@ -434,7 +434,7 @@ UCameraComponent* MovieSceneHelpers::CameraComponentFromRuntimeObject(UObject* R
 
 float MovieSceneHelpers::GetSoundDuration(USoundBase* Sound)
 {
-	return Sound ? Sound->GetDuration() : 0.0f;
+	return Sound ? FMath::Max(0.0f, Sound->GetDuration()) : 0.0f;
 }
 
 
