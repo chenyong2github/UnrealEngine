@@ -2,7 +2,6 @@
 
 #include "WebImage.h"
 
-#include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "HttpModule.h"
 #include "Modules/ModuleManager.h"
@@ -14,6 +13,7 @@
 FWebImage::FWebImage()
 : StandInBrush(FCoreStyle::Get().GetDefaultBrush())
 , bDownloadSuccess(false)
+, RGBFormat(ERGBFormat::RGBA)
 {
 }
 
@@ -139,7 +139,7 @@ bool FWebImage::ProcessHttpResponse(const FString& RequestUrl, FHttpResponsePtr 
 
 	// get the raw image data
 	TArray<uint8> RawImageData;
-	if (!ImageWrapper->GetRaw(ERGBFormat::RGBA, 8, RawImageData))
+	if (!ImageWrapper->GetRaw(RGBFormat, 8, RawImageData))
 	{
 		UE_LOG(LogImageDownload, Error, TEXT("Image Download: Unable to convert image format %d to BGRA 8"), (int32)ImageFormat);
 		return false;

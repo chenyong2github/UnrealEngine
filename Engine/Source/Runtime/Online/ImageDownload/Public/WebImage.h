@@ -11,6 +11,7 @@
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Brushes/SlateDynamicImageBrush.h"
+#include "IImageWrapper.h"
 
 class IHttpRequest;
 struct FSlateBrush;
@@ -53,6 +54,9 @@ public:
 
 	/** Set the brush that is currently being returned (this will be overridden when any async download completes) */
 	FORCEINLINE FWebImage& SetStandInBrush(TAttribute<const FSlateBrush*> StandInBrushIn) { StandInBrush = StandInBrushIn; DownloadedBrush.Reset(); return *this; }
+
+	/** Sets the RGB format used to read the downloaded image data (ERGBFormat::RGBA by default) */
+	void SetRGBFormat(const ERGBFormat InRGBFormat) { RGBFormat = InRGBFormat; }
 
 	/** Begin downloading an image. This will automatically set the current brush to the downloaded image when it completes (if successful) */
 	bool BeginDownload(const FString& InUrl, const TOptional<FString>& StandInETag = TOptional<FString>(), const FOnImageDownloaded& DownloadCallback = FOnImageDownloaded());
@@ -121,4 +125,7 @@ private:
 
 	/** The ETag of the downloaded image */
 	TOptional<FString> ETag;
+
+	/** RGB format used to read the downloaded image data */
+	ERGBFormat RGBFormat;
 };
