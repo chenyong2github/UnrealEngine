@@ -18,6 +18,8 @@
 #include "SceneTextureParameters.h"
 #include "Strata/Strata.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
+#include "Lumen/LumenSceneData.h"
+#include "Lumen/LumenTracingUtils.h"
 
 DECLARE_GPU_STAT_NAMED(RayTracingWaterReflections, TEXT("Ray Tracing Water Reflections"));
 
@@ -141,10 +143,9 @@ class FSingleLayerWaterCompositePS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FSingleLayerWaterCompositePS);
 	SHADER_USE_PARAMETER_STRUCT(FSingleLayerWaterCompositePS, FGlobalShader)
 
-	class FScreenSpaceReflections : SHADER_PERMUTATION_BOOL("SCREEN_SPACE_REFLECTION");
 	class FHasBoxCaptures : SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_BOX_CAPTURES");
 	class FHasSphereCaptures : SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_SPHERE_CAPTURES");
-	using FPermutationDomain = TShaderPermutationDomain<FScreenSpaceReflections, FHasBoxCaptures, FHasSphereCaptures>;
+	using FPermutationDomain = TShaderPermutationDomain<FHasBoxCaptures, FHasSphereCaptures>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSingleLayerWaterCommonShaderParameters, CommonParameters)
@@ -176,6 +177,7 @@ class FWaterTileCategorisationCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSingleLayerWaterCommonShaderParameters, CommonParameters)
 		SHADER_PARAMETER(uint32, VertexCountPerInstanceIndirect)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectDataUAV)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DispatchIndirectDataUAV)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, WaterTileListDataUAV)
 	END_SHADER_PARAMETER_STRUCT()
@@ -357,7 +359,8 @@ END_SHADER_PARAMETER_STRUCT()
 void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures)
+	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
+	FLumenSceneFrameTemporaries& LumenFrameTemporaries)
 {
 	if (CVarWaterSingleLayer.GetValueOnRenderThread() <= 0 || CVarWaterSingleLayerReflection.GetValueOnRenderThread() <= 0)
 	{
@@ -408,20 +411,24 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		};
 
 		const bool bRunTiled = UseSingleLayerWaterIndirectDraw(View.GetShaderPlatform()) && CVarWaterSingleLayerTiledComposite.GetValueOnRenderThread();
-		FTiledScreenSpaceReflection TiledScreenSpaceReflection = {nullptr, nullptr, nullptr, nullptr, nullptr, 8};
+		FTiledReflection TiledScreenSpaceReflection = {nullptr, nullptr, nullptr, nullptr, 8};
 		FIntVector ViewRes(View.ViewRect.Width(), View.ViewRect.Height(), 1);
 		FIntVector TiledViewRes = FIntVector::DivideAndRoundUp(ViewRes, TiledScreenSpaceReflection.TileSize);
 
 		if (bRunTiled)
 		{
-			TiledScreenSpaceReflection.DispatchIndirectParametersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("SLW.WaterIndirectDrawParameters"));
-			TiledScreenSpaceReflection.DispatchIndirectParametersBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.DispatchIndirectParametersBuffer);
+			TiledScreenSpaceReflection.DrawIndirectParametersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("SLW.WaterIndirectDrawParameters"));
+			TiledScreenSpaceReflection.DispatchIndirectParametersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("SLW.WaterIndirectDispatchParameters"));
 			TiledScreenSpaceReflection.TileListDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TiledViewRes.X * TiledViewRes.Y), TEXT("SLW.TileListDataBuffer"));
-			TiledScreenSpaceReflection.TileListStructureBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.TileListDataBuffer, PF_R32_UINT);
 			TiledScreenSpaceReflection.TileListStructureBufferSRV = GraphBuilder.CreateSRV(TiledScreenSpaceReflection.TileListDataBuffer, PF_R32_UINT);
 
-			// Clear DispatchIndirectParametersBuffer
-			AddClearUAVPass(GraphBuilder, TiledScreenSpaceReflection.DispatchIndirectParametersBufferUAV, 0);
+			FRDGBufferUAVRef DrawIndirectParametersBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.DrawIndirectParametersBuffer);
+			FRDGBufferUAVRef DispatchIndirectParametersBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.DispatchIndirectParametersBuffer);
+			FRDGBufferUAVRef TileListStructureBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.TileListDataBuffer, PF_R32_UINT);
+
+			// Clear DrawIndirectParametersBuffer
+			AddClearUAVPass(GraphBuilder, DrawIndirectParametersBufferUAV, 0);
+			AddClearUAVPass(GraphBuilder, DispatchIndirectParametersBufferUAV, 0);
 
 			// Categorization based on SHADING_MODEL_ID
 			{
@@ -430,18 +437,36 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				FWaterTileCategorisationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FWaterTileCategorisationCS::FParameters>();
 				SetCommonParameters(PassParameters->CommonParameters);
 				PassParameters->VertexCountPerInstanceIndirect = GRHISupportsRectTopology ? 3 : 6;
-				PassParameters->DispatchIndirectDataUAV = TiledScreenSpaceReflection.DispatchIndirectParametersBufferUAV;
-				PassParameters->WaterTileListDataUAV = TiledScreenSpaceReflection.TileListStructureBufferUAV;
+				PassParameters->DrawIndirectDataUAV = DrawIndirectParametersBufferUAV;
+				PassParameters->DispatchIndirectDataUAV = DispatchIndirectParametersBufferUAV;
+				PassParameters->WaterTileListDataUAV = TileListStructureBufferUAV;
 
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("WaterTileCategorisation"), ComputeShader, PassParameters, TiledViewRes);
 			}
 		}
 
- 		const bool bEnableSSR = CVarWaterSingleLayerSSR.GetValueOnRenderThread() != 0 && ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View);
-		const bool bEnableRTR = CVarWaterSingleLayerRTR.GetValueOnRenderThread() != 0 && ShouldRenderRayTracingReflections(View) 
-			&& FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(View.GetShaderPlatform()); // Water requires the full RT reflection shader, which may not always be supported
+		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 
-		if (bEnableRTR)
+		if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen && CVarWaterSingleLayerLumenReflections.GetValueOnRenderThread() != 0)
+		{
+			FLumenMeshSDFGridParameters MeshSDFGridParameters;
+			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+			FLumenReflectionCompositeParameters LumenReflectionCompositeParameters;
+
+			ReflectionsColor = RenderLumenReflections(
+				GraphBuilder,
+				View,
+				SceneTextures,
+				LumenFrameTemporaries,
+				MeshSDFGridParameters,
+				RadianceCacheParameters,
+				true,
+				&TiledScreenSpaceReflection,
+				LumenReflectionCompositeParameters);
+		}
+		else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::RTR 
+			&& CVarWaterSingleLayerRTR.GetValueOnRenderThread() != 0 
+			&& FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(View.GetShaderPlatform()))
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "RayTracingWaterReflections");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingWaterReflections);
@@ -520,7 +545,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				ReflectionsColor = DenoiserInputs.Color;
 			}
 		}
-		else if (bEnableSSR)
+		else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR && CVarWaterSingleLayerSSR.GetValueOnRenderThread() != 0)
 		{
 			// RUN SSR
 			// Uses the water GBuffer (depth, ABCDEF) to know how to start tracing.
@@ -562,15 +587,12 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			}
 		}
 
-		const bool bComposeLumenReflections = false;
-
 		// Composite reflections on water
 		{
 			const bool bHasBoxCaptures = (View.NumBoxReflectionCaptures > 0);
 			const bool bHasSphereCaptures = (View.NumSphereReflectionCaptures > 0);
 
 			FSingleLayerWaterCompositePS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FSingleLayerWaterCompositePS::FScreenSpaceReflections>(bEnableSSR || bComposeLumenReflections);
 			PermutationVector.Set<FSingleLayerWaterCompositePS::FHasBoxCaptures>(bHasBoxCaptures);
 			PermutationVector.Set<FSingleLayerWaterCompositePS::FHasSphereCaptures>(bHasSphereCaptures);
 			TShaderMapRef<FSingleLayerWaterCompositePS> PixelShader(View.ShaderMap, PermutationVector);
@@ -582,7 +604,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 
 			SetCommonParameters(PassParameters->PS.CommonParameters);
 
-			PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection.DispatchIndirectParametersBuffer;
+			PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection.DrawIndirectParametersBuffer;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
 			ValidateShaderParameters(PixelShader, PassParameters->PS);
@@ -649,7 +671,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
 	bool bShouldRenderVolumetricCloud,
-	FSceneWithoutWaterTextures& SceneWithoutWaterTextures)
+	FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
+	FLumenSceneFrameTemporaries& LumenFrameTemporaries)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "SingleLayerWater");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SingleLayerWater);
@@ -674,7 +697,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	if (!IsAnyForwardShadingEnabled(ShaderPlatform))
 	{
 		// If supported render SSR, the composite pass in non deferred and/or under water effect.
-		RenderSingleLayerWaterReflections(GraphBuilder, SceneTextures, SceneWithoutWaterTextures);
+		RenderSingleLayerWaterReflections(GraphBuilder, SceneTextures, SceneWithoutWaterTextures, LumenFrameTemporaries);
 	}
 }
 

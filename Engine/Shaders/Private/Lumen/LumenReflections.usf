@@ -23,17 +23,6 @@ float MaxRoughnessToTrace;
 
 RWBuffer<uint> RWReflectionResolveTileIndirectArgs;
 RWBuffer<uint> RWReflectionTracingTileIndirectArgs;
-
-[numthreads(64, 1, 1)]
-void ReflectionClearTileIndirectArgsCS(uint GroupThreadId : SV_GroupThreadID)
-{
-	if (GroupThreadId < 3)
-	{
-		RWReflectionResolveTileIndirectArgs[0] = GroupThreadId == 0 ? 0 : 1;
-		RWReflectionTracingTileIndirectArgs[0] = GroupThreadId == 0 ? 0 : 1;
-	}
-}
-
 RWTexture2D<float> RWDownsampledDepth;
 
 groupshared uint SharedTileNeedsResolve[4][4];
@@ -55,7 +44,18 @@ FLumenMaterialData ApplySmoothBias(FLumenMaterialData In, bool bTopLayerRoughnes
 
 bool NeedRayTracedReflections(float InRoughness, const FLumenMaterialData In)
 {
-	return IsValid(In) && (InRoughness <= MaxRoughnessToTrace || IsClearCoat(In));
+	bool bNeedReflections = false;
+
+	if (SingleLayerWaterReflections)
+	{
+		bNeedReflections = IsSingleLayerWater(In);
+	}
+	else
+	{
+		bNeedReflections = IsValid(In) && (InRoughness <= MaxRoughnessToTrace || IsClearCoat(In));
+	}
+
+	return bNeedReflections;
 }
 
 // Must match cpp GReflectionResolveTileSize
@@ -184,6 +184,7 @@ void ReflectionTileClassificationBuildListsCS(
 				if (bTileUsed)
 				{
 					uint TileOffset = SharedNumTiles;
+					// Note: Must match encoding in WaterTileCatergorisationCS
 					uint PackedTileData = TileCoordinate.x | (TileCoordinate.y << 16);
 					SharedTileData[TileOffset] = PackedTileData;
 					SharedNumTiles = TileOffset + 1;
@@ -309,6 +310,8 @@ RWTexture2D<float> RWResolveVariance;
 uint NumSpatialReconstructionSamples;
 float SpatialReconstructionKernelRadius;
 float SpatialReconstructionRoughnessScale;
+
+uint ResolveIsFinalOutput;
 
 float Luma(float3 Color) 
 {
@@ -483,8 +486,10 @@ void ReflectionResolveCS(
 		}
 	}
 
+	// SingleLayerWaterComposite expects opacity in alpha
 	//@todo - hit depth in separate render target so neighborhood lookup doesn't read it
-	RWSpecularIndirect[ScreenCoord] = float4(ReflectionLighting, ConvertToDeviceZ(DepthForReprojection));
+	float Alpha = ResolveIsFinalOutput ? 1.0f : ConvertToDeviceZ(DepthForReprojection);
+	RWSpecularIndirect[ScreenCoord] = float4(ReflectionLighting, Alpha);
 
 	#if USE_BILATERAL_FILTER
 		RWResolveVariance[ScreenCoord] = ResolveVariance;

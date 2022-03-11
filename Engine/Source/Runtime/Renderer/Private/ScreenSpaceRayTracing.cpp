@@ -1040,7 +1040,7 @@ void RenderScreenSpaceReflections(
 	bool bDenoiser,
 	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs,
 	bool bSingleLayerWater,
-	FTiledScreenSpaceReflection* TiledScreenSpaceReflection)
+	FTiledReflection* TiledScreenSpaceReflection)
 {
 	FRDGTextureRef InputColor = CurrentSceneColor;
 	if (SSRQuality != ESSRQuality::VisualizeSSR)
@@ -1261,7 +1261,7 @@ void RenderScreenSpaceReflections(
 		TShaderMapRef<FScreenSpaceReflectionsTileVS> VertexShader(View.ShaderMap, VsPermutationVector);
 
 		PassParameters->TileListData = TiledScreenSpaceReflection->TileListStructureBufferSRV;
-		PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection->DispatchIndirectParametersBuffer;
+		PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection->DrawIndirectParametersBuffer;
 
 		ClearUnusedGraphResources(VertexShader, PixelShader, PassParameters);
 

@@ -143,6 +143,11 @@ bool IsClearCoat(FLumenMaterialData In)
 	return In.ShadingID == SHADINGMODELID_CLEAR_COAT;
 }
 
+bool IsSingleLayerWater(FLumenMaterialData In)
+{
+	return In.ShadingID == SHADINGMODELID_SINGLELAYERWATER;
+}
+
 bool bIsUnlit(FLumenMaterialData In)
 {
 	return In.ShadingID == SHADINGMODELID_UNLIT;

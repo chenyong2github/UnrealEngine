@@ -24,6 +24,7 @@
  * RayTranslatedWorldOrigin must be a position on-screen
  * RayWorldDirection must be unit length
  * OutScreenUV gives either the hit screen UV or the screen UV of the furthest unoccluded position along the ray, which can be plugged into ComputeRayHitSqrDistance.  
+ * OutLastVisibleScreenUV gives the screen UV of the furthest unoccluded position along the ray, which can be plugged into ComputeRayHitSqrDistance. 
  * MaxIterations has a large impact on performance
  * RelativeDepthThickness is how thick to treat each pixel as.  Larger values cause artifacts as the color value of the pixel gets stretched.
  */
@@ -43,6 +44,7 @@ void InternalTraceScreen(
 	inout bool bHit,
 	inout bool bUncertain,
 	inout float3 OutScreenUV,
+	inout float3 OutLastVisibleScreenUV,
 	inout float OutHitTileZ)
 {
 	float3 RayStartScreenUV;
@@ -106,7 +108,7 @@ void InternalTraceScreen(
 	bHit = false;
 	bUncertain = false;
 	OutHitTileZ = 0;
-	float LastAboveSurfaceTime = 0.0f;
+	float LastAboveSurfaceTime = CurrentIntersectionTime;
 
 	// Stackless HZB traversal
 	while (MipLevel >= BaseMipLevel 
@@ -219,6 +221,10 @@ void InternalTraceScreen(
 	// Output in GBuffer SceneUV space for xy
 	OutScreenUV.xy = RayScreenUV.xy * InHZBUVToScreenUVScaleBias.xy + InHZBUVToScreenUVScaleBias.zw;
 	OutScreenUV.z = RayScreenUV.z;
+
+	float3 LastVisibleScreenUV = RayStartScreenUV + LastAboveSurfaceTime * RayDirectionScreenUV;
+	OutLastVisibleScreenUV.xy = LastVisibleScreenUV.xy * InHZBUVToScreenUVScaleBias.xy + InHZBUVToScreenUVScaleBias.zw;
+	OutLastVisibleScreenUV.z = LastVisibleScreenUV.z;
 }
 
 Texture2D ClosestHZBTexture;
@@ -237,6 +243,7 @@ void TraceScreen(
 	inout bool bHit,
 	inout bool bUncertain,
 	inout float3 OutScreenUV,
+	inout float3 OutLastVisibleScreenUV,
 	inout float OutHitTileZ)
 {
 	InternalTraceScreen(
@@ -255,6 +262,7 @@ void TraceScreen(
 		bHit,
 		bUncertain,
 		OutScreenUV,
+		OutLastVisibleScreenUV,
 		OutHitTileZ);
 } 
 

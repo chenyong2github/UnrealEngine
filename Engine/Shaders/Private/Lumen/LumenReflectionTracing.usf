@@ -69,6 +69,7 @@ void ReflectionTraceScreenTexturesCS(
 			bool bHit;
 			bool bUncertain;
 			float3 HitUVz;
+			float3 LastVisibleHitUVz;
 			float HitTileZ;
 
 			TraceScreen(
@@ -83,6 +84,7 @@ void ReflectionTraceScreenTexturesCS(
 				bHit,
 				bUncertain,
 				HitUVz,
+				LastVisibleHitUVz,
 				HitTileZ);
 
 			#if USE_HAIRSTRANDS_SCREEN
@@ -91,6 +93,7 @@ void ReflectionTraceScreenTexturesCS(
 				bool   Hair_bHit;
 				bool   Hair_bUncertain;
 				float3 Hair_HitUVz;
+				float3 Hair_LastVisibleHitUVz;
 				float Hair_HitTileZ;
 
 				TraceHairScreen(
@@ -104,12 +107,14 @@ void ReflectionTraceScreenTexturesCS(
 					Hair_bHit,
 					Hair_bUncertain,
 					Hair_HitUVz,
+					Hair_LastVisibleHitUVz,
 					Hair_HitTileZ);
 
 				if (Hair_bHit && !Hair_bUncertain)
 				{
 					bHit = Hair_bHit;
 					HitUVz = Hair_HitUVz;
+					LastVisibleHitUVz = Hair_LastVisibleHitUVz;
 					bUncertain = Hair_bUncertain;
 					HitTileZ = Hair_HitTileZ;
 				}
@@ -133,6 +138,7 @@ void ReflectionTraceScreenTexturesCS(
 				if (Vignette < Noise)
 				{
 					bHit = false;
+					HitUVz = LastVisibleHitUVz;
 				}
 
 				if (bHit)
@@ -145,6 +151,12 @@ void ReflectionTraceScreenTexturesCS(
 					float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalPointClampedSampler, HitHistoryScreenUVForDepth, 0).x);
 
 					bHit = abs(HistoryDepth - PrevSceneDepth) < HistoryDepthTestRelativeThickness * lerp(.5f, 2.0f, Noise) * PrevSceneDepth;
+
+					if (!bHit)
+					{
+						// We found a hit but discarded it, rewind to the last time we know the ray hadn't hit for the next method to resume from
+						HitUVz = LastVisibleHitUVz;
+					}
 				}
 
 				if (bHit)

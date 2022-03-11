@@ -15,6 +15,8 @@ uint2 ReflectionTracingBufferSize;
 uint ReflectionDownsampleFactor;
 float MaxRayIntensity;
 float ReflectionSmoothBias;
+uint SingleLayerWaterReflections;
+uint UseJitter;
 
 // Note: negative if invalid ray
 Texture2D DownsampledDepth;
@@ -41,7 +43,7 @@ Texture2D<float> TraceHit;
 float2 GetScreenTileJitter(uint TemporalIndex)
 {
 	//uint2 RandomSeed = Rand3DPCG16(int3(ReflectionTracingCoord, 1)).xy;
-	return floor(Hammersley16(TemporalIndex, 8, uint2(0, 0)) * ReflectionDownsampleFactor);
+	return UseJitter ? floor(Hammersley16(TemporalIndex, 8, uint2(0, 0)) * ReflectionDownsampleFactor) : 0;
 }
 
 float2 GetScreenUVFromReflectionTracingCoord(uint2 ReflectionTracingCoord)
@@ -173,14 +175,14 @@ void DecodeTraceTexel(uint2 TraceTexelData, inout uint2 ReflectionTracingCoord,
 
 float ApplySmoothBias(float Roughness)
 {
+	float NewRoughness = Roughness;
+
 	if (ReflectionSmoothBias > 0)
 	{
 		// SmoothStep-like function up to SmoothBias, original value above
 		float X = saturate(Roughness / ReflectionSmoothBias);
-		return Roughness * X * X * (3.0 - 2.0 * X);
+		NewRoughness = Roughness * X * X * (3.0 - 2.0 * X);
 	}
-	else
-	{
-		return Roughness;
-	}
+
+	return SingleLayerWaterReflections == 1 ? 0.0f : NewRoughness;
 }

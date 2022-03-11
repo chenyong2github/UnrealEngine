@@ -25,6 +25,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
 	SHADER_PARAMETER(FIntPoint, ReflectionTracingBufferSize)
 	SHADER_PARAMETER(float, MaxRayIntensity)
 	SHADER_PARAMETER(float, ReflectionSmoothBias)
+	SHADER_PARAMETER(uint32, SingleLayerWaterReflections)
+	SHADER_PARAMETER(uint32, UseJitter)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, RayBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, RayTraceDistance)

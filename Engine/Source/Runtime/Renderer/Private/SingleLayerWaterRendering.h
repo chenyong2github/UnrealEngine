@@ -56,13 +56,13 @@ void SingleLayerWaterAddTiledFullscreenPass(
 	TPassParameters* PassParameters,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
 	const FIntRect& Viewport,
-	FTiledScreenSpaceReflection* TiledScreenSpaceReflection = nullptr,
+	FTiledReflection* TiledScreenSpaceReflection = nullptr,
 	FRHIBlendState* BlendState = nullptr,
 	FRHIRasterizerState* RasterizerState = nullptr,
 	FRHIDepthStencilState* DepthStencilState = nullptr,
 	uint32 StencilRef = 0)
 {
-	PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection ? TiledScreenSpaceReflection->DispatchIndirectParametersBuffer : nullptr;
+	PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection ? TiledScreenSpaceReflection->DrawIndirectParametersBuffer : nullptr;
 
 	PassParameters->VS.ViewUniformBuffer = ViewUniformBuffer;
 	PassParameters->VS.TileListData = TiledScreenSpaceReflection ? TiledScreenSpaceReflection->TileListStructureBufferSRV : nullptr;

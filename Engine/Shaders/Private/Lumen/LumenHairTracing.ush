@@ -26,6 +26,7 @@ void TraceHairScreen(
 	inout bool bHit,
 	inout bool bUncertain,
 	inout float3 OutScreenUV,
+	inout float3 OutLastVisibleScreenUV,
 	inout float OutHitTileZ)
 {
 	InternalTraceScreen(
@@ -44,6 +45,7 @@ void TraceHairScreen(
 		bHit,
 		bUncertain,
 		OutScreenUV,
+		OutLastVisibleScreenUV,
 		OutHitTileZ);
 }
 #endif

@@ -216,6 +216,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 uint VertexCountPerInstanceIndirect;
 
+RWBuffer<uint> DrawIndirectDataUAV;
 RWBuffer<uint> DispatchIndirectDataUAV;
 RWBuffer<uint> WaterTileListDataUAV;
 
@@ -227,10 +228,13 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 	if (ThreadId.x == 0 && ThreadId.y == 0 && GroupThreadId.x == 0 && GroupThreadId.y == 0)
 	{
 		// TODO compute clear myself
-		DispatchIndirectDataUAV[0] = VertexCountPerInstanceIndirect;		// VertexCountPerInstance
-		//DispatchIndirectDataUAV[1]		// InstanceCount			already cleared to 0
-		//DispatchIndirectDataUAV[2] = 0;	// StartVertexLocation			"			"
-		//DispatchIndirectDataUAV[3] = 0;	// StartInstanceLocation		"			"
+		DrawIndirectDataUAV[0] = VertexCountPerInstanceIndirect;		// VertexCountPerInstance
+		//DrawIndirectDataUAV[1]		// InstanceCount			already cleared to 0
+		//DrawIndirectDataUAV[2] = 0;	// StartVertexLocation			"			"
+		//DrawIndirectDataUAV[3] = 0;	// StartInstanceLocation		"			"
+
+		DispatchIndirectDataUAV[1] = 1;
+		DispatchIndirectDataUAV[2] = 1;
 	}
 
 #if 0
@@ -259,7 +263,8 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 		if (bContainsWater)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(DispatchIndirectDataUAV[0], 1, WriteToIndex);
+			InterlockedAdd(DrawIndirectDataUAV[0], 1, WriteToIndex);
+			InterlockedAdd(DispatchIndirectDataUAV[0], 1);
 			WaterTileListDataUAV[WriteToIndex] = GroupId.x | (GroupId.y << 16); // assumes 16bit is enought to represent a tiled resolution up to 65,535 :)
 		}
 	}
@@ -318,7 +323,8 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 	if (LinearIndex < 1 && (ContainsWater[LinearIndex] || ContainsWater[LinearIndex + 1]))
 	{
 		uint WriteToIndex;  
-		InterlockedAdd(DispatchIndirectDataUAV[1], 1, WriteToIndex);
+		InterlockedAdd(DrawIndirectDataUAV[1], 1, WriteToIndex);
+		InterlockedAdd(DispatchIndirectDataUAV[0], 1);
 		WaterTileListDataUAV[WriteToIndex] = GroupId.x | (GroupId.y << 16); // assumes 16bit is enought to represent a tiled resolution up to 65,535 :)
 	}
 #endif

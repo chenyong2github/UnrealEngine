@@ -23,12 +23,11 @@ enum class ESSRQuality
 	MAX
 };
 
-struct FTiledScreenSpaceReflection
+struct FTiledReflection
 {
 	FRDGBufferRef TileListDataBuffer;
+	FRDGBufferRef DrawIndirectParametersBuffer;
 	FRDGBufferRef DispatchIndirectParametersBuffer;
-	FRDGBufferUAVRef DispatchIndirectParametersBufferUAV;
-	FRDGBufferUAVRef TileListStructureBufferUAV;
 	FRDGBufferSRVRef TileListStructureBufferSRV;
 	uint32 TileSize;
 };
@@ -102,7 +101,7 @@ void RenderScreenSpaceReflections(
 	bool bDenoiser,
 	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs,
 	bool bSingleLayerWater = false,
-	FTiledScreenSpaceReflection* TiledScreenSpaceReflection = nullptr);
+	FTiledReflection* TiledScreenSpaceReflection = nullptr);
 
 bool IsScreenSpaceDiffuseIndirectSupported(const FViewInfo& View);
 

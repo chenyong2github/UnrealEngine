@@ -113,6 +113,7 @@ void ScreenProbeTraceScreenTexturesCS(
 				bool bHit;
 				bool bUncertain;
 				float3 HitUVz;
+				float3 LastVisibleHitUVz;
 				float Unused;
 
 				TraceScreen(
@@ -127,6 +128,7 @@ void ScreenProbeTraceScreenTexturesCS(
 					bHit,
 					bUncertain,
 					HitUVz,
+					LastVisibleHitUVz,
 					Unused);
 				
 				#if USE_HAIRSTRANDS_SCREEN
@@ -135,6 +137,7 @@ void ScreenProbeTraceScreenTexturesCS(
 					bool   Hair_bHit;
 					bool   Hair_bUncertain;
 					float3 Hair_HitUVz;
+					float3 Hair_LastVisibleHitUVz;
 
 					TraceHairScreen(
 						WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),
@@ -147,13 +150,15 @@ void ScreenProbeTraceScreenTexturesCS(
 						Hair_bHit,
 						Hair_bUncertain,
 						Hair_HitUVz,
+						Hair_LastVisibleHitUVz,
 						Unused);
 
 					if (Hair_bHit && !Hair_bUncertain)
 					{
-						bHit		= Hair_bHit;
-						HitUVz		= Hair_HitUVz;
-						bUncertain	= Hair_bUncertain;
+						bHit				= Hair_bHit;
+						HitUVz				= Hair_HitUVz;
+						LastVisibleHitUVz	= Hair_LastVisibleHitUVz;
+						bUncertain			= Hair_bUncertain;
 					}
 				}
 				#endif

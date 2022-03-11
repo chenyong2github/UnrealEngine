@@ -45,6 +45,7 @@ struct FRayTracingReflectionOptions;
 struct FHairStrandsTransmittanceMaskData;
 struct FVolumetricFogLocalLightFunctionInfo;
 struct FTranslucencyLightingVolumeTextures;
+struct FLumenSceneFrameTemporaries;
 
 /**   
  * Data for rendering meshes into Lumen Lighting Cards.
@@ -260,7 +261,8 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
 		bool bShouldRenderVolumetricCloud,
-		FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
+		FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
+		FLumenSceneFrameTemporaries& LumenFrameTemporaries);
 
 	void RenderSingleLayerWaterInner(
 		FRDGBuilder& GraphBuilder,
@@ -270,7 +272,8 @@ public:
 	void RenderSingleLayerWaterReflections(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
-		const FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
+		const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
+		FLumenSceneFrameTemporaries& LumenFrameTemporaries);
 
 	void RenderOcclusion(
 		FRDGBuilder& GraphBuilder,
@@ -581,6 +584,8 @@ private:
 		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		const class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		bool bSingleLayerWater,
+		const FTiledReflection* TiledReflectionInput,
 		FLumenReflectionCompositeParameters& OutCompositeParameters);
 
 	void RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, FLumenSceneFrameTemporaries& FrameTemporaries);
