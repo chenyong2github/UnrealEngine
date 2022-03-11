@@ -203,7 +203,7 @@ struct FTemplateCategoryDef
 
 	/** Is this a major top-level category? Major categories are displayed as full rows, eg. the Game category.*/
 	UPROPERTY()
-		bool IsMajorCategory{ false };
+	bool IsMajorCategory=false;
 };
 
 UCLASS(config=TemplateCategories)

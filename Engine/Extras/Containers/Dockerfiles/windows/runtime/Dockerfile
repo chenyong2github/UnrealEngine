@@ -1,6 +1,7 @@
 # escape=`
+ARG DLL_IMAGE
 ARG BASETAG
-FROM mcr.microsoft.com/windows:${BASETAG} AS full
+FROM ${DLL_IMAGE}:${BASETAG} AS full
 
 # Gather the system DLLs that we need from the full Windows base image
 RUN xcopy /y C:\Windows\System32\avicap32.dll C:\GatheredDlls\ && `

@@ -4,7 +4,6 @@
 
 #include "NiagaraEditorStyle.h"
 #include "Widgets/Images/SImage.h"
-//#include "Widgets/SNiagaraParameterPanel.h"
 #include "Widgets/SNiagaraParameterMenu.h"
 #include "NiagaraNode.h"
 #include "NiagaraEditorUtilities.h"
