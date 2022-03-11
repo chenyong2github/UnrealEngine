@@ -8,6 +8,7 @@
 
 // Forward declarations
 enum class EPingType : uint32;
+class FInternetAddr;
 
 namespace UE::Net
 {
