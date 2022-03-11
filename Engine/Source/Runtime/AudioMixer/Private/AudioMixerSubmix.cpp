@@ -1330,7 +1330,7 @@ namespace Audio
 					}
 
 					// Prepare the scratch buffer for effect chain processing
-					EffectChainOutputBuffer.SetNumUninitialized(NumSamples);
+					EffectChainOutputBuffer.SetNumZeroed(NumSamples);
 
 					bProcessedAnEffect |= GenerateEffectChainAudio(InputData, InputBuffer, FadeInfo.EffectChain, EffectChainOutputBuffer);
 
