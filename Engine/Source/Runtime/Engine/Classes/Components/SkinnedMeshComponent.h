@@ -279,6 +279,9 @@ protected:
 	TArray<FTransform> PreviousComponentSpaceTransformsArray;
 
 protected:
+	/** The bounds radius at the point we last notified the streamer of a bounds radius change */
+	double LastStreamerUpdateBoundsRadius;
+
 	/** The index for the ComponentSpaceTransforms buffer we can currently write to */
 	int32 CurrentEditableComponentTransforms;
 
