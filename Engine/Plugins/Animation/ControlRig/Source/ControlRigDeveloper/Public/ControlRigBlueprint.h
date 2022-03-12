@@ -551,6 +551,7 @@ private:
 	void PatchRigElementKeyCacheOnLoad();
 	void PatchBoundVariables();
 	void PatchVariableNodesWithIncorrectType();
+	void PatchPropagateToChildren();
 	void ConvertUnitNodesToTemplateNodes();
 	void PatchParameterNodesOnLoad();
 
