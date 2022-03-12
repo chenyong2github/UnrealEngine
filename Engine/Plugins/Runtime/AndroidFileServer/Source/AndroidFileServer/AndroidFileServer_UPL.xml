@@ -49,6 +49,12 @@
 		</if>
 	</init>
 
+	<!-- register the ini keys that modify the packaging -->
+	<registerBuildSettings>
+		<insertValue value="/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings[bEnablePlugin,bAllowNetworkConnection,SecurityToken,bIncludeInShipping,bAllowExternalStartInShipping]"/>
+		<insertNewline/>
+	</registerBuildSettings>
+
 	<androidManifestUpdates>
 		<if condition="bEnabled">
 			<true>
