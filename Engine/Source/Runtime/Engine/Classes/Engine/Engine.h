@@ -1808,7 +1808,7 @@ private:
 protected:
 
 	/** The audio device manager */
-	FAudioDeviceManager* AudioDeviceManager;
+	FAudioDeviceManager* AudioDeviceManager = nullptr;
 
 	/** Audio device handle to the main audio device. */
 	FAudioDeviceHandle MainAudioDeviceHandle;
