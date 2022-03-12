@@ -448,6 +448,29 @@ namespace Gauntlet
 
 			return HashString;
 		}
+
+		public static string ComputeHash(string Input, HashAlgorithm Algo, int MaxLength = 0)
+		{
+			if (string.IsNullOrEmpty(Input))
+			{
+				return "0";
+			}
+
+			byte[] Hash = Algo.ComputeHash(Encoding.UTF8.GetBytes(Input));
+			var SBuilder = new StringBuilder();
+
+			for (int i = 0; i < Hash.Length; i++)
+			{
+				SBuilder.Append(Hash[i].ToString("x2"));
+				if (MaxLength > 0 && SBuilder.Length >= MaxLength)
+				{
+					if (SBuilder.Length > MaxLength) { SBuilder.Remove(MaxLength, 1); }
+					break;
+				}
+			}
+
+			return SBuilder.ToString();
+		}
 	}
 
 	/*

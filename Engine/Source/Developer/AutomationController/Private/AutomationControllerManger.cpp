@@ -132,6 +132,7 @@ void FAutomatedTestPassResults::UpdateTestResultStatus(const IAutomationReportPt
 		Failed++;
 		break;
 	case EAutomationState::InProcess:
+		TestResult.DateTime = FDateTime::Now();
 		InProcess++;
 		break;
 	case EAutomationState::NotRun:
@@ -534,6 +535,7 @@ void FAutomationControllerManager::CollectTestResults(TSharedPtr<IAutomationRepo
 		TestResult.SetEvents(Results.GetEntries(), Results.GetWarningTotal(), Results.GetErrorTotal());
 		TestResult.SetArtifacts(Results.Artifacts);
 		TestResult.DeviceInstance = Results.GameInstance;
+		TestResult.Duration = Results.Duration;
 
 		JsonTestPassResults.TotalDuration += Results.Duration;
 

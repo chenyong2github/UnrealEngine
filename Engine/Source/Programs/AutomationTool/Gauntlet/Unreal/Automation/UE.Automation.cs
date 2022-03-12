@@ -301,6 +301,11 @@ namespace UE
 		/// <returns></returns>
 		public override AutomationTestConfig GetConfiguration()
 		{
+			if (CachedConfig != null)
+			{
+				return CachedConfig;
+			}
+
 			AutomationTestConfig Config = base.GetConfiguration();
 
 			// Tests in the editor only require a single role
@@ -328,6 +333,11 @@ namespace UE
 		/// <returns></returns>
 		public override AutomationTestConfig GetConfiguration()
 		{
+			if (CachedConfig != null)
+			{
+				return CachedConfig;
+			}
+
 			AutomationTestConfig Config = base.GetConfiguration();
 
 			// Target tests require an editor which hosts the process
@@ -387,6 +397,33 @@ namespace UE
 				return BaseName;
 			}
 		}
+
+		/// <summary>
+		/// Override the Suite by RunTest if it is a Group
+		/// </summary>
+		public override string Suite
+		{
+			get
+			{
+				string BaseSuite = base.Suite;
+				var Config = GetConfiguration();
+				if (Config is AutomationTestConfig)
+				{
+					var AutomationConfig = Config as AutomationTestConfig;
+					if (!string.IsNullOrEmpty(AutomationConfig.RunTest) && AutomationConfig.RunTest.ToLower().StartsWith("group:"))
+					{
+						BaseSuite  = AutomationConfig.RunTest.Substring(6);
+					}
+				}
+
+				return BaseSuite;
+			}
+		}
+
+		/// <summary>
+		/// Override the Type
+		/// </summary>
+		public override string Type { get { return "UE.Automation"; } }
 
 		/// <summary>
 		/// Called when a test is starting

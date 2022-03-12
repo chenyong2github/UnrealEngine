@@ -83,7 +83,9 @@ namespace Gauntlet
 		public string FullTestPath { get; set; }
 		public string ArtifactName { get; set; }
 		public TestStateType State { get; set; }
-		public String DeviceInstance { get; set; }
+		public string DeviceInstance { get; set; }
+		public float Duration { get; set; }
+		public string DateTime { get; set; }
 		public int Warnings { get; set; }
 		public int Errors { get; set; }
 		public List<UnrealAutomationArtifact> Artifacts { get; set; }
@@ -100,7 +102,7 @@ namespace Gauntlet
 			var Event = new UnrealAutomationEvent(EventType, Message);
 			var Entry = new UnrealAutomationEntry();
 			Entry.Event = Event;
-			Entry.Timestamp = DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss");
+			Entry.Timestamp = System.DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss");
 			Entries.Add(Entry);
 
 			switch(EventType)

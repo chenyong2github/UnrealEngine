@@ -582,6 +582,12 @@ namespace Gauntlet
 		public string HordeArtifactPath = "";
 
 		/// <summary>
+		/// PreFlight change id
+		/// </summary>
+		[AutoParam]
+		public string PreFlightChange = "";
+
+		/// <summary>
 		/// Telemetry Database config to use
 		/// </summary>
 		[AutoParam]
@@ -905,7 +911,7 @@ namespace Gauntlet
 			}
 
 			// we write results to Horde test data if we run under Horde agent
-			if (HordeReport.IsUnderHordeAgent)
+			if (HordeReport.IsUnderHordeAgent && Globals.Params.ParseValues("WriteTestResultsForHorde").Count() == 0)
 			{
 				WriteTestResultsForHorde = true;
 			}

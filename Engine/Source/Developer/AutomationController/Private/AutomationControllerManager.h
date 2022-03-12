@@ -39,11 +39,19 @@ public:
 	UPROPERTY()
 	FString DeviceInstance;
 
+	UPROPERTY()
+	float Duration;
+
+	UPROPERTY()
+	FDateTime DateTime;
+
 	FAutomatedTestResult()
 	{
 		Warnings = 0;
 		Errors = 0;
 		State = EAutomationState::NotRun;
+		Duration = 0;
+		DateTime = 0;
 	}
 
 	void SetEvents(const TArray<FAutomationExecutionEntry>& InEntries, int32 InWarnings, int32 InErrors)

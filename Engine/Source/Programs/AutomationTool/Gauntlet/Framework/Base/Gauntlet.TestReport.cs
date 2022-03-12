@@ -78,6 +78,12 @@ namespace Gauntlet
 		/// <param name="ArtifactPath"></param>
 		/// <returns></returns>
 		bool AttachArtifact(string ArtifactPath, string Name = null);
+
+		/// <summary>
+		/// Return a dictionary of key/object intended to be a data collection of dependencies that comes with the report but not part of the report. ie: an artifact manifest
+		/// </summary>
+		/// <returns></returns>
+		Dictionary<string, object> GetReportDependencies();
 	}
 
 	/// <summary>
@@ -230,6 +236,15 @@ namespace Gauntlet
 		public virtual IEnumerable<TelemetryData> GetAllTelemetryData()
 		{
 			return TelemetryDataList;
+		}
+
+		/// <summary>
+		/// Return a dictionary of key/object intended to be a data collection of dependencies that comes with the report but not part of the report. ie: an artifact manifest
+		/// </summary>
+		/// <returns></returns>
+		public virtual Dictionary<string, object> GetReportDependencies()
+		{
+			return new Dictionary<string, object>();
 		}
 	}
 

@@ -38,6 +38,16 @@ namespace Gauntlet
 		public override string Name { get { return this.GetType().FullName; } }
 
 		/// <summary>
+		/// Returns the test suite. Default to the project name
+		/// </summary>
+		public virtual string Suite { get { return Context.BuildInfo.ProjectName; } }
+
+		/// <summary>
+		///Returns an identifier for this type of test
+		/// </summary>
+		public virtual string Type { get { return this.GetType().FullName; } }
+
+		/// <summary>
 		/// This class will log its own warnings and errors as part of its summary
 		/// </summary>
 		public override bool LogWarningsAndErrorsAfterSummary { get; protected set; } = false;
@@ -1127,7 +1137,7 @@ namespace Gauntlet
 		/// <returns>ITestReport</returns>
 		public virtual ITestReport CreateReport(TestResult Result)
 		{
-			if (GetConfiguration().WriteTestResultsForHorde)
+			if (GetCachedConfiguration().WriteTestResultsForHorde)
 			{
 				// write test report for Horde
 				HordeReport.SimpleTestReport HordeTestReport = CreateSimpleReportForHorde(Result);
@@ -1143,6 +1153,10 @@ namespace Gauntlet
 		/// <param name="Result"></param>
 		protected virtual HordeReport.SimpleTestReport CreateSimpleReportForHorde(TestResult Result)
 		{
+			if (string.IsNullOrEmpty(GetCachedConfiguration().HordeTestDataKey))
+			{
+				GetCachedConfiguration().HordeTestDataKey = Name + " " + Context.ToString();
+			}
 			HordeReport.SimpleTestReport HordeTestReport = new HordeReport.SimpleTestReport();
 			HordeTestReport.ReportCreatedOn = DateTime.Now.ToString();
 			HordeTestReport.TotalDurationSeconds = (float) (DateTime.Now - SessionStartTime).TotalSeconds;
@@ -1160,7 +1174,7 @@ namespace Gauntlet
 				SetUnrealTestResult(TestResult.Failed);
 			}
 			HordeTestReport.Status = GetTestResult().ToString();
-			string HordeArtifactPath = string.IsNullOrEmpty(GetConfiguration().HordeArtifactPath) ? HordeReport.DefaultArtifactsDir : GetConfiguration().HordeArtifactPath;
+			string HordeArtifactPath = string.IsNullOrEmpty(GetCachedConfiguration().HordeArtifactPath) ? HordeReport.DefaultArtifactsDir : GetCachedConfiguration().HordeArtifactPath;
 			HordeTestReport.SetOutputArtifactPath(HordeArtifactPath);
 			if (SessionArtifacts != null)
 			{
@@ -1182,7 +1196,7 @@ namespace Gauntlet
 				}
 			}
 			// Metadata
-			SetReportMetadata(HordeTestReport, GetConfiguration().RequiredRoles.Values.SelectMany(V => V));
+			SetReportMetadata(HordeTestReport, GetCachedConfiguration().RequiredRoles.Values.SelectMany(V => V));
 
 			return HordeTestReport;
 		}
@@ -1198,7 +1212,7 @@ namespace Gauntlet
 			string JsonReportPath = Path.Combine(UnrealAutomatedTestReportPath, "index.json");
 			if (File.Exists(JsonReportPath))
 			{
-				string HordeArtifactPath = GetConfiguration().HordeArtifactPath;
+				string HordeArtifactPath = GetCachedConfiguration().HordeArtifactPath;
 				Log.Verbose("Reading json Unreal Automated test report from {0}", JsonReportPath);
 				UnrealAutomatedTestPassResults JsonTestPassResults = UnrealAutomatedTestPassResults.LoadFromJson(JsonReportPath);
 				if (JsonTestPassResults.InProcess > 0)
@@ -1233,7 +1247,7 @@ namespace Gauntlet
 					// The test pass did not run at all
 					Log.Verbose("Found not-run tests: {0}", JsonTestPassResults.NotRun);
 					bool HasTimeout = RoleResults != null && RoleResults.Where(R => R.ProcessResult == UnrealProcessResult.TimeOut).Any();
-					if (GetConfiguration().ResumeOnCriticalFailure && !HasTimeout)
+					if (GetCachedConfiguration().ResumeOnCriticalFailure && !HasTimeout)
 					{
 						if (Retries < MaxRetries)
 						{
@@ -1260,13 +1274,23 @@ namespace Gauntlet
 						}
 					}
 				}
+				string HordeTestDataKey = string.IsNullOrEmpty(GetCachedConfiguration().HordeTestDataKey) ? Name + " " + Context.ToString() : GetCachedConfiguration().HordeTestDataKey;
+				GetCachedConfiguration().HordeTestDataKey = HordeTestDataKey;
 				// Convert test results for Horde
-				HordeReport.UnrealEngineTestPassResults HordeTestPassResults = HordeReport.UnrealEngineTestPassResults.FromUnrealAutomatedTests(JsonTestPassResults, ReportURL);
-				HordeTestPassResults.CopyTestResultsArtifacts(UnrealAutomatedTestReportPath, HordeArtifactPath);
+				HordeReport.AutomatedTestSessionData HordeTestPassResults = HordeReport.AutomatedTestSessionData.FromUnrealAutomatedTests(
+					JsonTestPassResults, string.Format("{0}({1})", Type, Suite), Suite, UnrealAutomatedTestReportPath, HordeArtifactPath
+				);
+				// Make a copy of the report in the old way - until we decide the transition is over
+				HordeReport.UnrealEngineTestPassResults CopyTestPassResults = HordeReport.UnrealEngineTestPassResults.FromUnrealAutomatedTests(JsonTestPassResults, ReportURL);
+				CopyTestPassResults.CopyTestResultsArtifacts(UnrealAutomatedTestReportPath, HordeArtifactPath);
+				HordeTestPassResults.AttachDependencyReport(CopyTestPassResults, HordeTestDataKey);
+				// Pre Flight information
+				HordeTestPassResults.PreFlightChange = GetCachedConfiguration().PreFlightChange;
 				// Metadata
 				// With UE Test Automation, we care only for one role.
-				var MainRole = new List<UnrealTestRole>() { GetConfiguration().GetMainRequiredRole() };
+				var MainRole = new List<UnrealTestRole>() { GetCachedConfiguration().GetMainRequiredRole() };
 				SetReportMetadata(HordeTestPassResults, MainRole);
+				SetReportMetadata(CopyTestPassResults, MainRole); // Set the metadata to the old report too
 				// Attached test Artifacts
 				if (SessionArtifacts != null)
 				{
@@ -1326,27 +1350,26 @@ namespace Gauntlet
 		/// <param name="Report"></param>
 		public virtual void SubmitToDashboard(ITestReport Report)
 		{
-			if (GetConfiguration().WriteTestResultsForHorde)
+			if (GetCachedConfiguration().WriteTestResultsForHorde)
 			{
 				// write test data collection for Horde
-				string HordeTestDataKey = string.IsNullOrEmpty(GetConfiguration().HordeTestDataKey) ? Name + " " + Context.ToString() : GetConfiguration().HordeTestDataKey;
 				string HordeTestDataFilePath = Path.Combine(
-					string.IsNullOrEmpty(GetConfiguration().HordeTestDataPath) ? HordeReport.DefaultTestDataDir : GetConfiguration().HordeTestDataPath,
+					string.IsNullOrEmpty(GetCachedConfiguration().HordeTestDataPath) ? HordeReport.DefaultTestDataDir : GetCachedConfiguration().HordeTestDataPath,
 					FileUtils.SanitizeFilename(Name) + ".TestData.json"
 				);
 				HordeReport.TestDataCollection HordeTestDataCollection = new HordeReport.TestDataCollection();
-				HordeTestDataCollection.AddNewTestReport(HordeTestDataKey, Report);
+				HordeTestDataCollection.AddNewTestReport(Report, GetCachedConfiguration().HordeTestDataKey);
 				HordeTestDataCollection.WriteToJson(HordeTestDataFilePath, true);
 			}
-			if (!string.IsNullOrEmpty(GetConfiguration().PublishTelemetryTo) && Report is ITelemetryReport Telemetry)
+			if (!string.IsNullOrEmpty(GetCachedConfiguration().PublishTelemetryTo) && Report is ITelemetryReport Telemetry)
 			{
 				IEnumerable<TelemetryData> DataRows = Telemetry.GetAllTelemetryData();
 				if (DataRows != null)
 				{
-					IDatabaseConfig<TelemetryData> DBConfig = DatabaseConfigManager<TelemetryData>.GetConfigByName(GetConfiguration().PublishTelemetryTo);
+					IDatabaseConfig<TelemetryData> DBConfig = DatabaseConfigManager<TelemetryData>.GetConfigByName(GetCachedConfiguration().PublishTelemetryTo);
 					if (DBConfig != null)
 					{
-						DBConfig.LoadConfig(GetConfiguration().DatabaseConfigPath);
+						DBConfig.LoadConfig(GetCachedConfiguration().DatabaseConfigPath);
 						IDatabaseDriver<TelemetryData> DB = DBConfig.GetDriver();
 						Log.Verbose("Submitting telemetry data to {0}", DB.ToString());
 
@@ -1354,7 +1377,7 @@ namespace Gauntlet
 						TestContext.SetProperty("ProjectName", Context.BuildInfo.ProjectName);
 						TestContext.SetProperty("Branch", Context.BuildInfo.Branch);
 						TestContext.SetProperty("Changelist", Context.BuildInfo.Changelist);
-						var RoleType = GetConfiguration().GetMainRequiredRole().Type;
+						var RoleType = GetCachedConfiguration().GetMainRequiredRole().Type;
 						var Role = Context.GetRoleContext(RoleType);
 						TestContext.SetProperty("Platform", Role.Platform);
 						TestContext.SetProperty("Configuration", string.Format("{0} {1}", RoleType, Role.Configuration));
@@ -1363,7 +1386,7 @@ namespace Gauntlet
 					}
 					else
 					{
-						Log.Warning("Got telemetry data, but database configuration is unknown '{0}'.", GetConfiguration().PublishTelemetryTo);
+						Log.Warning("Got telemetry data, but database configuration is unknown '{0}'.", GetCachedConfiguration().PublishTelemetryTo);
 					}
 				}
 			}
