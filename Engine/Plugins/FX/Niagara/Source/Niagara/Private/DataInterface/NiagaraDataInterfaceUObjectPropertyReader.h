@@ -90,6 +90,7 @@ public:
 
 private:
 	void VMGetComponentTransform(FVectorVMExternalFunctionContext& Context);
+	void VMGetComponentInvTransform(FVectorVMExternalFunctionContext& Context);
 
 	FName GetRemappedPropertyName(FName InName) const
 	{
