@@ -290,29 +290,21 @@ UDynamicMesh* UGeometryScriptLibrary_CollisionFunctions::SetDynamicMeshCollision
 	}
 #endif
 
-	UBodySetup* BodySetup = DynamicMeshComponent->GetBodySetup();
-	if (BodySetup != nullptr)
-	{
-		// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
 #if WITH_EDITOR
-		if (Options.bEmitTransaction)
+	if (Options.bEmitTransaction)
+	{
+		UBodySetup* BodySetup = DynamicMeshComponent->GetBodySetup();
+		if (BodySetup != nullptr)
 		{
 			BodySetup->Modify();
 		}
+	}
 #endif
 
-		// clear existing simple collision. This will call BodySetup->InvalidatePhysicsData()
-		BodySetup->RemoveSimpleCollision();
+	// set new collision geometry
+	DynamicMeshComponent->SetSimpleCollisionShapes(NewCollision, true /*bUpdateCollision*/);
 
-		// set new collision geometry
-		BodySetup->AggGeom = NewCollision;
-
-		// update collision type
-		//BodySetup->CollisionTraceFlag = (ECollisionTraceFlag)(int32)Settings->SetCollisionType;
-
-		// do we need to do a post edit change here??
-		DynamicMeshComponent->UpdateCollision(false);
-	}
+	// do we need to do a post edit change here??
 
 #if WITH_EDITOR
 	if (Options.bEmitTransaction)
@@ -344,23 +336,22 @@ void UGeometryScriptLibrary_CollisionFunctions::ResetDynamicMeshCollision(
 	}
 #endif
 
-	UBodySetup* BodySetup = DynamicMeshComponent->GetBodySetup();
-	if (BodySetup != nullptr)
-	{
-		// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
 #if WITH_EDITOR
-		if (bEmitTransaction)
+	if (bEmitTransaction)
+	{
+		// mark the BodySetup for modification.
+		UBodySetup* BodySetup = DynamicMeshComponent->GetBodySetup();
+		if (BodySetup != nullptr)
 		{
 			BodySetup->Modify();
 		}
+	}
 #endif
 
-		// clear existing simple collision. This will call BodySetup->InvalidatePhysicsData()
-		BodySetup->RemoveSimpleCollision();
+	// clear existing simple collision.
+	DynamicMeshComponent->ClearSimpleCollisionShapes(true /*bUpdateCollision*/);
 
-		// do we need to do a post edit change here??
-		DynamicMeshComponent->UpdateCollision(false);
-	}
+	// do we need to do a post edit change here??
 
 #if WITH_EDITOR
 	if (bEmitTransaction)

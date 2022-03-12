@@ -1123,26 +1123,33 @@ bool UDynamicMeshComponent::WantsNegXTriMesh()
 	return true;
 }
 
+UBodySetup* UDynamicMeshComponent::CreateBodySetupHelper()
+{
+	UBodySetup* NewBodySetup = nullptr;
+	{
+		FGCScopeGuard Scope;
+
+		// Below flags are copied from UProceduralMeshComponent::CreateBodySetupHelper(). Without these flags, DynamicMeshComponents inside
+		// a DynamicMeshActor BP will result on a GLEO error after loading and modifying a saved Level (but *not* on the initial save)
+		// The UBodySetup in a template needs to be public since the property is Instanced and thus is the archetype of the instance meaning there is a direct reference
+		NewBodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public | RF_ArchetypeObject : RF_NoFlags));
+	}
+	NewBodySetup->BodySetupGuid = FGuid::NewGuid();
+
+	NewBodySetup->bGenerateMirroredCollision = false;
+	NewBodySetup->CollisionTraceFlag = this->CollisionType;
+
+	NewBodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	NewBodySetup->bSupportUVsAndFaceRemap = false; /* bSupportPhysicalMaterialMasks; */
+
+	return NewBodySetup;
+}
+
 UBodySetup* UDynamicMeshComponent::GetBodySetup()
 {
 	if (MeshBodySetup == nullptr)
 	{
-		UBodySetup* NewBodySetup = nullptr;
-		{
-			FGCScopeGuard Scope;
-
-			// Below flags are copied from UProceduralMeshComponent::CreateBodySetupHelper(). Without these flags, DynamicMeshComponents inside
-			// a DynamicMeshActor BP will result on a GLEO error after loading and modifying a saved Level (but *not* on the initial save)
-			// The UBodySetup in a template needs to be public since the property is Instanced and thus is the archetype of the instance meaning there is a direct reference
-			NewBodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public | RF_ArchetypeObject : RF_NoFlags));
-		}
-		NewBodySetup->BodySetupGuid = FGuid::NewGuid();
-		
-		NewBodySetup->bGenerateMirroredCollision = false;
-		NewBodySetup->CollisionTraceFlag = this->CollisionType;
-
-		NewBodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
-		NewBodySetup->bSupportUVsAndFaceRemap = false; /* bSupportPhysicalMaterialMasks; */
+		UBodySetup* NewBodySetup = CreateBodySetupHelper();
 		
 		SetBodySetup(NewBodySetup);
 	}
@@ -1158,6 +1165,24 @@ void UDynamicMeshComponent::SetBodySetup(UBodySetup* NewSetup)
 	}
 }
 
+void UDynamicMeshComponent::SetSimpleCollisionShapes(const struct FKAggregateGeom& AggGeomIn, bool bUpdateCollision)
+{
+	AggGeom = AggGeomIn;
+	if (bUpdateCollision)
+	{
+		UpdateCollision(false);
+	}
+}
+
+void UDynamicMeshComponent::ClearSimpleCollisionShapes(bool bUpdateCollision)
+{
+	AggGeom.EmptyElements();
+	if (bUpdateCollision)
+	{
+		UpdateCollision(false);
+	}
+}
+
 void UDynamicMeshComponent::InvalidatePhysicsData()
 {
 	if (GetBodySetup())
@@ -1169,21 +1194,88 @@ void UDynamicMeshComponent::InvalidatePhysicsData()
 
 void UDynamicMeshComponent::RebuildPhysicsData()
 {
-	UBodySetup* BodySetup = GetBodySetup();
-	if (BodySetup)
+	UWorld* World = GetWorld();
+	const bool bUseAsyncCook = World && World->IsGameWorld() && bUseAsyncCooking;
+
+	UBodySetup* BodySetup = nullptr;
+	if (bUseAsyncCook)
+	{
+		// Abort all previous ones still standing
+		for (UBodySetup* OldBody : AsyncBodySetupQueue)
+		{
+			OldBody->AbortPhysicsMeshAsyncCreation();
+		}
+
+		BodySetup = CreateBodySetupHelper();
+		if (BodySetup)
+		{
+			AsyncBodySetupQueue.Add(BodySetup);
+		}
+	}
+	else
+	{
+		AsyncBodySetupQueue.Empty();	// If for some reason we modified the async at runtime, just clear any pending async body setups
+		BodySetup = GetBodySetup();
+	}
+
+	if (!BodySetup)
+	{
+		return;
+	}
+
+	BodySetup->CollisionTraceFlag = this->CollisionType;
+	// Note: Directly assigning AggGeom wouldn't do some important-looking cleanup (clearing pointers on convex elements)
+	//  so we RemoveSimpleCollision then AddCollisionFrom instead
+	BodySetup->RemoveSimpleCollision();
+	BodySetup->AddCollisionFrom(this->AggGeom);
+
+	if (bUseAsyncCook)
+	{
+		BodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateUObject(this, &UDynamicMeshComponent::FinishPhysicsAsyncCook, BodySetup));
+	}
+	else
 	{
 		// New GUID as collision has changed
 		BodySetup->BodySetupGuid = FGuid::NewGuid();
 		// Also we want cooked data for this
 		BodySetup->bHasCookedCollisionData = true;
-
-		BodySetup->CollisionTraceFlag = this->CollisionType;
-
 		BodySetup->InvalidatePhysicsData();
 		BodySetup->CreatePhysicsMeshes();
 		RecreatePhysicsState();
 
 		bCollisionUpdatePending = false;
+	}
+}
+
+void UDynamicMeshComponent::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* FinishedBodySetup)
+{
+	TArray<UBodySetup*> NewQueue;
+	NewQueue.Reserve(AsyncBodySetupQueue.Num());
+
+	int32 FoundIdx;
+	if (AsyncBodySetupQueue.Find(FinishedBodySetup, FoundIdx))
+	{
+		// Note: currently no-cook-needed is reported identically to cook failed.
+		// Checking AggGeom.GetElemCount() here is a hack to distinguish the no-cook-needed case
+		// TODO: remove this hack to distinguish the no-cook-needed case when/if that is no longer identical to the cook failed case
+		if (bSuccess || FinishedBodySetup->AggGeom.GetElementCount() > 0)
+		{
+			// The new body was found in the array meaning it's newer, so use it
+			MeshBodySetup = FinishedBodySetup;
+			RecreatePhysicsState();
+
+			// remove any async body setups that were requested before this one
+			for (int32 AsyncIdx = FoundIdx + 1; AsyncIdx < AsyncBodySetupQueue.Num(); ++AsyncIdx)
+			{
+				NewQueue.Add(AsyncBodySetupQueue[AsyncIdx]);
+			}
+
+			AsyncBodySetupQueue = NewQueue;
+		}
+		else
+		{
+			AsyncBodySetupQueue.RemoveAt(FoundIdx);
+		}
 	}
 }
 
@@ -1193,6 +1285,13 @@ void UDynamicMeshComponent::UpdateCollision(bool bOnlyIfPending)
 	{
 		RebuildPhysicsData();
 	}
+}
+
+void UDynamicMeshComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	AggGeom.FreeRenderInfo();
 }
 
 void UDynamicMeshComponent::EnableComplexAsSimpleCollision()
