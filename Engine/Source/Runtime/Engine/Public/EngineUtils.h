@@ -707,6 +707,19 @@ private:
  */
 ENGINE_API void DrawStatsHUD( UWorld* InWorld, FViewport* Viewport, FCanvas* Canvas, UCanvas* CanvasObject, TArray<struct FDebugDisplayProperty>& DebugProperties, const FVector& ViewLocation, const FRotator& ViewRotation );
 
+/** SubLevel Actor breakdown information **/
+struct FSubLevelActorDetails
+{
+	FSubLevelActorDetails() :
+		Count(0)
+		, NativeClassName(NAME_None)
+	{
+	}
+
+	int32 Count;
+	FName NativeClassName;
+};
+
 /** SubLevel status information */
 struct FSubLevelStatus
 {
@@ -715,6 +728,8 @@ struct FSubLevelStatus
 	int32				LODIndex;
 	bool				bInConsiderList;
 	bool				bPlayerInside;
+	int32				ActorCount;
+	TMap<FName, FSubLevelActorDetails>	ActorMapToCount;
 };
 
 /**
@@ -722,7 +737,7 @@ struct FSubLevelStatus
  *	@param InWorld		World to gather sublevels stats from
  *	@return				sublevels status (streaming state, LOD index, where player is)
  */
-TArray<FSubLevelStatus> GetSubLevelsStatus( UWorld* InWorld );
+ENGINE_API TArray<FSubLevelStatus> GetSubLevelsStatus( UWorld* InWorld, bool SortByActorCount = false );
 
 #if !UE_BUILD_SHIPPING
 
