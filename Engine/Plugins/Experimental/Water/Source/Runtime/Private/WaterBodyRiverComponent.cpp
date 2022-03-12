@@ -143,7 +143,7 @@ static void AddVerticesForRiverSplineStep(float DistanceAlongSpline, const UWate
 
 	float FlowDirection = Tangent.HeadingAngle() + FMath::DegreesToRadians(Component->GetRelativeRotation().Yaw);
 	// Convert negative angles into positive angles
-	if (FlowDirection < 0.f)
+	while (FlowDirection < 0.f)
 	{
 		FlowDirection = TWO_PI + FlowDirection;
 	}
