@@ -127,6 +127,7 @@ namespace Gauntlet
 			{
 				Log.Info("Failed to resolve all devices. Releasing the ones we have ");
 				DevicePool.Instance.ReleaseDevices(AcquiredDevices);
+				ReservedDevices = new List<ITargetDevice>();
 			}
 			else
 			{
