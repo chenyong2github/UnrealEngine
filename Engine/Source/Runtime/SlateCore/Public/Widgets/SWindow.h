@@ -620,7 +620,7 @@ public:
 	 *
 	 * @return	The widget content for this window
 	 */
-	TSharedRef<const SWidget> GetContent() const;
+	TSharedRef<SWidget> GetContent();
 
 	/**
 	 * Check whether we have a full window overlay, used to draw content over the entire window.

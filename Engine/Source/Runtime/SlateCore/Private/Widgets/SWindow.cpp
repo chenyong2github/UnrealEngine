@@ -1270,7 +1270,7 @@ void SWindow::SetContent( TSharedRef<SWidget> InContent )
 	Invalidate(EInvalidateWidgetReason::ChildOrder);
 }
 
-TSharedRef<const SWidget> SWindow::GetContent() const
+TSharedRef<SWidget> SWindow::GetContent()
 {
 	if (ContentSlot)
 	{
