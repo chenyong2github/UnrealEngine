@@ -964,8 +964,8 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 
 	for (int32 i = 0; i < BoxElems.Num(); i++)
 	{
-		FTransform ElemTM = BoxElems[i].GetTransform();
-		ElemTM.ScaleTranslation(Scale3D);
+		const FKBoxElem ScaledBox = BoxElems[i].GetFinalScaled(Scale3D, FTransform::Identity);
+		FTransform ElemTM = ScaledBox.GetTransform();
 		ElemTM *= ParentTM;
 
 		if (bDrawSolid)
@@ -976,8 +976,8 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 
 	for (int32 i = 0; i < SphylElems.Num(); i++)
 	{
-		FTransform ElemTM = SphylElems[i].GetTransform();
-		ElemTM.ScaleTranslation(Scale3D);
+		const FKSphylElem ScaledSphyl = SphylElems[i].GetFinalScaled(Scale3D, FTransform::Identity);  
+		FTransform ElemTM = ScaledSphyl.GetTransform();
 		ElemTM *= ParentTM;
 
 		if (bDrawSolid)
@@ -1067,8 +1067,8 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 
 	for (int32 i = 0; i < TaperedCapsuleElems.Num(); i++)
 	{
-		FTransform ElemTM = TaperedCapsuleElems[i].GetTransform();
-		ElemTM.ScaleTranslation(Scale3D);
+		const FKTaperedCapsuleElem ScaledTaperedCapsule = TaperedCapsuleElems[i].GetFinalScaled(Scale3D, FTransform::Identity);
+		FTransform ElemTM = ScaledTaperedCapsule.GetTransform();
 		ElemTM *= ParentTM;
 
 		if (bDrawSolid)

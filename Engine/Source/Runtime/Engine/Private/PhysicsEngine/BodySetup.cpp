@@ -2164,8 +2164,8 @@ FKBoxElem FKBoxElem::GetFinalScaled(const FVector& Scale3D, const FTransform& Re
 	ScaledBox.Y *= Scale3DAbs.Y;
 	ScaledBox.Z *= Scale3DAbs.Z;
 
-	FTransform BoxTransform = GetTransform() * RelativeTM;
-	BoxTransform.ScaleTranslation(Scale3D);
+	FTransform ScaleTransform(FQuat::Identity, FVector::ZeroVector, Scale3D); 
+	FTransform BoxTransform = GetTransform() * ScaleTransform * RelativeTM;
 	ScaledBox.SetTransform(BoxTransform);
 
 	return ScaledBox;
@@ -2260,9 +2260,13 @@ FKSphylElem FKSphylElem::GetFinalScaled(const FVector& Scale3D, const FTransform
 	ScaledSphylElem.Radius = GetScaledRadius(Scale3DAbs);
 	ScaledSphylElem.Length = GetScaledCylinderLength(Scale3DAbs);
 
-	FVector LocalOrigin = RelativeTM.TransformPosition(Center) * Scale3D;
+	const FTransform ScaleTransform(FQuat::Identity, FVector::ZeroVector, Scale3D);
+	const FTransform RotationTransform(ScaledSphylElem.Rotation, FVector::ZeroVector, Scale3D);
+	const FTransform ScaledRotationTransform = RotationTransform * ScaleTransform;
+	
+	const FVector LocalOrigin = RelativeTM.TransformPosition(Center) * Scale3D;
 	ScaledSphylElem.Center = LocalOrigin;
-	ScaledSphylElem.Rotation = FRotator(RelativeTM.GetRotation() * FQuat(ScaledSphylElem.Rotation));
+	ScaledSphylElem.Rotation = FRotator(RelativeTM.GetRotation() * ScaledRotationTransform.GetRotation());
 
 	return ScaledSphylElem;
 }
@@ -2361,9 +2365,13 @@ FKTaperedCapsuleElem FKTaperedCapsuleElem::GetFinalScaled(const FVector& Scale3D
 	GetScaledRadii(Scale3DAbs, ScaledTaperedCapsuleElem.Radius0, ScaledTaperedCapsuleElem.Radius1);
 	ScaledTaperedCapsuleElem.Length = GetScaledCylinderLength(Scale3DAbs);
 
-	FVector LocalOrigin = RelativeTM.TransformPosition(Center) * Scale3D;
+	const FTransform ScaleTransform(FQuat::Identity, FVector::ZeroVector, Scale3D);
+	const FTransform RotationTransform(ScaledTaperedCapsuleElem.Rotation, FVector::ZeroVector, Scale3D);
+	const FTransform ScaledRotationTransform = RotationTransform * ScaleTransform;
+	
+	const FVector LocalOrigin = RelativeTM.TransformPosition(Center) * Scale3D;
 	ScaledTaperedCapsuleElem.Center = LocalOrigin;
-	ScaledTaperedCapsuleElem.Rotation = FRotator(RelativeTM.GetRotation() * FQuat(ScaledTaperedCapsuleElem.Rotation));
+	ScaledTaperedCapsuleElem.Rotation = FRotator(RelativeTM.GetRotation() * ScaledRotationTransform.GetRotation());
 
 	return ScaledTaperedCapsuleElem;
 }
