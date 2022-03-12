@@ -6,10 +6,10 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "BlueprintActionDatabase.h"
 #include "FindInBlueprintManager.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
 #include "BlueprintTypePromotion.h"
+#include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "BlueprintEditorModule.h"
 #include "BlueprintNamespaceHelper.h"
 #include "BlueprintNamespaceUtilities.h"
 
@@ -154,6 +154,15 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 		// Refresh the Blueprint editor UI environment to match current settings.
 		FBlueprintNamespaceUtilities::RefreshBlueprintEditorFeatures();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, NamespacesToAlwaysInclude))
+	{
+		// Close any open Blueprint editor windows so that we have a chance to reload them with the updated import set.
+		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
+		for (const TSharedRef<IBlueprintEditor>& BlueprintEditor : BlueprintEditorModule.GetBlueprintEditors())
+		{
+			BlueprintEditor->CloseWindow();
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);

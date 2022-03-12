@@ -5542,12 +5542,12 @@ FReply FBlueprintGraphActionDetails::OnAddNewOutputClicked()
 }
 
 
-FBlueprintManagedListDetails::FBlueprintManagedListDetails(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetailsPtr)
-: GlobalOptionsDetailsPtr(InGlobalOptionsDetailsPtr)
+FBlueprintGlobalOptionsManagedListDetails::FBlueprintGlobalOptionsManagedListDetails(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetailsPtr)
+	: GlobalOptionsDetailsPtr(InGlobalOptionsDetailsPtr)
 {
 }
 
-UBlueprint* FBlueprintManagedListDetails::GetBlueprintObjectChecked() const
+UBlueprint* FBlueprintGlobalOptionsManagedListDetails::GetBlueprintObjectChecked() const
 {
 	UBlueprint* BlueprintObject = nullptr;
 
@@ -5561,7 +5561,7 @@ UBlueprint* FBlueprintManagedListDetails::GetBlueprintObjectChecked() const
 	return BlueprintObject;
 }
 
-TSharedPtr<FBlueprintEditor> FBlueprintManagedListDetails::GetPinnedBlueprintEditorPtr() const
+TSharedPtr<FBlueprintEditor> FBlueprintGlobalOptionsManagedListDetails::GetPinnedBlueprintEditorPtr() const
 {
 	TSharedPtr<FBlueprintGlobalOptionsDetails> PinnedGlobalOptionsDetailsPtr = GlobalOptionsDetailsPtr.Pin();
 	if (PinnedGlobalOptionsDetailsPtr.IsValid())
@@ -5572,106 +5572,7 @@ TSharedPtr<FBlueprintEditor> FBlueprintManagedListDetails::GetPinnedBlueprintEdi
 	return TSharedPtr<FBlueprintEditor>();
 }
 
-void FBlueprintManagedListDetails::GenerateHeaderRowContent(FDetailWidgetRow& HeaderRow)
-{
-	HeaderRow
-	[
-		SNew(STextBlock)
-		.Text(DisplayOptions.TitleText)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
-	];
-}
-
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void FBlueprintManagedListDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
-{
-	TArray<FManagedListItem> Items;
-	GetManagedListItems(Items);
-
-	if (Items.Num() > 0)
-	{
-		for (const FManagedListItem& Item : Items)
-		{
-			TSharedPtr<SHorizontalBox> Box;
-			ChildrenBuilder.AddCustomRow(DisplayOptions.ItemRowFilterText)
-			[
-				SAssignNew(Box, SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				[
-					SNew(STextBlock)
-					.Text(Item.DisplayName)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-			];
-
-			if (Item.AssetPtr.IsValid())
-			{
-				TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateLambda([this, AssetPtr = Item.AssetPtr]() -> void
-				{
-					if (AssetPtr.IsValid())
-					{
-						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetPtr.Get());
-					}
-				}));
-
-				BrowseButton->SetToolTipText(DisplayOptions.BrowseButtonToolTipText);
-
-				Box->AddSlot()
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				[
-					BrowseButton
-				];
-			}
-
-			if (Item.bIsRemovable)
-			{
-				TSharedRef<SWidget> RemoveButton = PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateLambda([this, Item]() -> void
-				{
-					OnRemoveItem(Item);
-				}));
-
-				RemoveButton->SetToolTipText(DisplayOptions.RemoveButtonToolTipText);
-
-				Box->AddSlot()
-				.AutoWidth()
-				[
-					RemoveButton
-				];
-			}
-		}
-	}
-	else
-	{
-		ChildrenBuilder.AddCustomRow(DisplayOptions.ItemRowFilterText)
-			[
-			SNew(STextBlock)
-			.Text(DisplayOptions.NoItemsLabelText)
-			.Font(IDetailLayoutBuilder::GetDetailFontItalic())
-		];
-	}
-
-	TSharedPtr<SWidget> AddItemRowWidget = MakeAddItemRowWidget();
-	if (AddItemRowWidget.IsValid())
-	{
-		ChildrenBuilder.AddCustomRow(DisplayOptions.AddItemRowFilterText)
-		[
-			SNew(SBox)
-			.HAlign(HAlign_Right)
-			[
-				AddItemRowWidget.ToSharedRef()
-			]
-		];
-	}
-}
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void FBlueprintManagedListDetails::RegenerateChildContent()
-{
-	RegenerateChildrenDelegate.ExecuteIfBound();
-}
-
-void FBlueprintManagedListDetails::OnRefreshInDetailsView()
+void FBlueprintGlobalOptionsManagedListDetails::OnRefreshInDetailsView()
 {
 	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
 	if (BlueprintEditorPtr.IsValid())
@@ -5687,18 +5588,16 @@ void FBlueprintManagedListDetails::OnRefreshInDetailsView()
 
 
 FBlueprintImportsLayout::FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowDefaultImports)
-	:FBlueprintManagedListDetails(InGlobalOptionsDetails)
-	,bShouldShowDefaultImports(bInShowDefaultImports)
+	: FBlueprintGlobalOptionsManagedListDetails(InGlobalOptionsDetails)
+	, bShouldShowDefaultImports(bInShowDefaultImports)
 {
 	DisplayOptions.TitleText = bShouldShowDefaultImports ?
 		LOCTEXT("BlueprintDefaultNamespaceTitle", "Default Namespaces") :
 		LOCTEXT("BlueprintImportedNamespaceTitle", "Imported Namespaces");
 	DisplayOptions.NoItemsLabelText = LOCTEXT("NoBlueprintImports", "No Imports");
-	DisplayOptions.ItemRowFilterText = LOCTEXT("BlueprintImportsValue", "Imports Value");
-	DisplayOptions.AddItemRowFilterText = LOCTEXT("BlueprintAddImport", "Add Import");
 }
 
-TSharedPtr<SWidget> FBlueprintImportsLayout::MakeAddItemRowWidget()
+TSharedPtr<SWidget> FBlueprintImportsLayout::MakeAddItemWidget()
 {
 	if (bShouldShowDefaultImports)
 	{
@@ -5734,18 +5633,14 @@ void FBlueprintImportsLayout::GetManagedListItems(TArray<FManagedListItem>& OutL
 	TSet<FString> NamespaceItems;
 	const UBlueprint* Blueprint = GetBlueprintObjectChecked();
 
-	if (bShouldShowDefaultImports)
-	{
-		FBlueprintNamespaceUtilities::GetSharedGlobalImports(NamespaceItems);
-		FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(Blueprint, NamespaceItems);
-	}
-	else
-	{
-		// Blueprint imports (removable).
-		NamespaceItems.Append(Blueprint->ImportedNamespaces);
+	// Default imports (non-removable). These include anything from the shared global set, as well as any namespaces assigned to the Blueprint hierarchy.
+	FBlueprintNamespaceUtilities::GetSharedGlobalImports(NamespaceItems);
+	FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(Blueprint, NamespaceItems);
 
-		// A Blueprint can explicitly import and also be assigned to the same namespace.
-		NamespaceItems.Remove(Blueprint->BlueprintNamespace);
+	if(!bShouldShowDefaultImports)
+	{
+		// Blueprint imports (removable). A Blueprint may explicitly import a namespace that's also in the default set, but we exclude those here so they can't be removed.
+		NamespaceItems = Blueprint->ImportedNamespaces.Difference(NamespaceItems);
 	}
 
 	AddNamespaceItemsToOutputList(NamespaceItems, !bShouldShowDefaultImports);
@@ -5795,19 +5690,17 @@ void FBlueprintImportsLayout::OnFilterNamespaceList(TArray<FString>& InOutNamesp
 
 
 FBlueprintInterfaceLayout::FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowsInheritedInterfaces)
-	:FBlueprintManagedListDetails(InGlobalOptionsDetails)
-	,bShowsInheritedInterfaces(bInShowsInheritedInterfaces)
+	: FBlueprintGlobalOptionsManagedListDetails(InGlobalOptionsDetails)
+	, bShowsInheritedInterfaces(bInShowsInheritedInterfaces)
 {
 	DisplayOptions.TitleText = bShowsInheritedInterfaces ?
 		LOCTEXT("BlueprintInheritedInterfaceTitle", "Inherited Interfaces") :
 		LOCTEXT("BlueprintImplementedInterfaceTitle", "Implemented Interfaces");
 	DisplayOptions.NoItemsLabelText = LOCTEXT("NoBlueprintInterface", "No Interfaces");
-	DisplayOptions.ItemRowFilterText = LOCTEXT("BlueprintInterfaceValue", "Interface Value");
-	DisplayOptions.AddItemRowFilterText = LOCTEXT("BlueprintAddInterface", "Add Interface");
 	DisplayOptions.BrowseButtonToolTipText = LOCTEXT("BlueprintInterfaceBrowseTooltip", "Opens this interface");
 }
 
-TSharedPtr<SWidget> FBlueprintInterfaceLayout::MakeAddItemRowWidget()
+TSharedPtr<SWidget> FBlueprintInterfaceLayout::MakeAddItemWidget()
 {
 	if (!bShowsInheritedInterfaces)
 	{

@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BlueprintEditorProjectSettingsCustomization.h"
+#include "BlueprintEditorSettingsCustomization.h"
 #include "BlueprintEditorSettings.h"
-#include "Settings/BlueprintEditorProjectSettings.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -12,14 +11,14 @@
 #include "SBlueprintNamespaceEntry.h"
 #include "ScopedTransaction.h"
 
-#define LOCTEXT_NAMESPACE "FBlueprintEditorProjectSettingsCustomization"
+#define LOCTEXT_NAMESPACE "FBlueprintEditorSettingsCustomization"
 
-namespace UE::Editor::BlueprintEditorProjectSettingsCustomization::Private
+namespace UE::Editor::BlueprintEditorSettingsCustomization::Private
 {
-	class FBlueprintGlobalProjectImportsLayout : public FBlueprintManagedListDetails, public TSharedFromThis<FBlueprintGlobalProjectImportsLayout>
+	class FBlueprintGlobalEditorImportsLayout : public FBlueprintManagedListDetails, public TSharedFromThis<FBlueprintGlobalEditorImportsLayout>
 	{
 	public:
-		FBlueprintGlobalProjectImportsLayout(TSharedRef<IPropertyHandle> InPropertyHandle)
+		FBlueprintGlobalEditorImportsLayout(TSharedRef<IPropertyHandle> InPropertyHandle)
 			: FBlueprintManagedListDetails()
 			, PropertyHandle(InPropertyHandle)
 		{
@@ -28,7 +27,7 @@ namespace UE::Editor::BlueprintEditorProjectSettingsCustomization::Private
 
 			DisplayOptions.NoItemsLabelText = LOCTEXT("NoGlobalImports", "None");
 
-			// Add a custom edit condition to link it to the editor's namespace feature toggle flag (for consistency w/ the editor-specific set).
+			// Add an edit condition to link it to the namespace feature toggle flag.
 			DisplayOptions.EditCondition = TAttribute<bool>::CreateLambda([]()
 			{
 				return GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceEditorFeatures;
@@ -41,19 +40,19 @@ namespace UE::Editor::BlueprintEditorProjectSettingsCustomization::Private
 		{
 			return SNew(SBlueprintNamespaceEntry)
 				.AllowTextEntry(false)
-				.OnNamespaceSelected(this, &FBlueprintGlobalProjectImportsLayout::OnNamespaceSelected)
-				.OnFilterNamespaceList(this, &FBlueprintGlobalProjectImportsLayout::OnFilterNamespaceList)
+				.OnNamespaceSelected(this, &FBlueprintGlobalEditorImportsLayout::OnNamespaceSelected)
+				.OnFilterNamespaceList(this, &FBlueprintGlobalEditorImportsLayout::OnFilterNamespaceList)
 				.ButtonContent()
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("BlueprintAddGlobalImportButton", "Add"))
-					.ToolTipText(LOCTEXT("BlueprintAddGlobalImportButton_Tooltip", "Choose a namespace that all Blueprints in this project should import by default (applies to all users)."))
+					.ToolTipText(LOCTEXT("BlueprintAddGlobalImportButton_Tooltip", "Choose a namespace that Blueprint editors should always import by default (applies only to you as the current local user)."))
 				];
 		}
 
 		virtual void GetManagedListItems(TArray<FManagedListItem>& OutListItems) const override
 		{
-			for(const FString& GlobalNamespace : GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude)
+			for (const FString& GlobalNamespace : GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude)
 			{
 				FManagedListItem ItemDesc;
 				ItemDesc.ItemName = GlobalNamespace;
@@ -68,11 +67,11 @@ namespace UE::Editor::BlueprintEditorProjectSettingsCustomization::Private
 		{
 			FScopedTransaction Transaction(LOCTEXT("RemoveGlobalImport_Transaction", "Remove Global Import"));
 
-			UBlueprintEditorProjectSettings* BlueprintEditorProjectSettings = GetMutableDefault<UBlueprintEditorProjectSettings>();
-			check(BlueprintEditorProjectSettings);
+			UBlueprintEditorSettings* BlueprintEditorSettings = GetMutableDefault<UBlueprintEditorSettings>();
+			check(BlueprintEditorSettings);
 
 			PropertyHandle->NotifyPreChange();
-			BlueprintEditorProjectSettings->NamespacesToAlwaysInclude.Remove(Item.ItemName);
+			BlueprintEditorSettings->NamespacesToAlwaysInclude.Remove(Item.ItemName);
 			PropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayRemove);
 			PropertyHandle->NotifyFinishedChangingProperties();
 
@@ -84,11 +83,11 @@ namespace UE::Editor::BlueprintEditorProjectSettingsCustomization::Private
 		{
 			FScopedTransaction Transaction(LOCTEXT("AddGlobalImport_Transaction", "Add Global Import"));
 
-			UBlueprintEditorProjectSettings* BlueprintEditorProjectSettings = GetMutableDefault<UBlueprintEditorProjectSettings>();
-			check(BlueprintEditorProjectSettings);
+			UBlueprintEditorSettings* BlueprintEditorSettings = GetMutableDefault<UBlueprintEditorSettings>();
+			check(BlueprintEditorSettings);
 
 			PropertyHandle->NotifyPreChange();
-			BlueprintEditorProjectSettings->NamespacesToAlwaysInclude.AddUnique(InNamespace);
+			BlueprintEditorSettings->NamespacesToAlwaysInclude.AddUnique(InNamespace);
 			PropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 			PropertyHandle->NotifyFinishedChangingProperties();
 
@@ -97,7 +96,7 @@ namespace UE::Editor::BlueprintEditorProjectSettingsCustomization::Private
 
 		void OnFilterNamespaceList(TArray<FString>& InOutNamespaceList)
 		{
-			for (const FString& GlobalNamespace : GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude)
+			for (const FString& GlobalNamespace : GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude)
 			{
 				InOutNamespaceList.RemoveSwap(GlobalNamespace);
 			}
@@ -108,20 +107,20 @@ namespace UE::Editor::BlueprintEditorProjectSettingsCustomization::Private
 	};
 }
 
-TSharedRef<IDetailCustomization> FBlueprintEditorProjectSettingsCustomization::MakeInstance()
+TSharedRef<IDetailCustomization> FBlueprintEditorSettingsCustomization::MakeInstance()
 {
-	return MakeShared<FBlueprintEditorProjectSettingsCustomization>();
+	return MakeShared<FBlueprintEditorSettingsCustomization>();
 }
 
-void FBlueprintEditorProjectSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& LayoutBuilder)
+void FBlueprintEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& LayoutBuilder)
 {
-	static FName PropertyName_NamespacesToAlwaysInclude = GET_MEMBER_NAME_CHECKED(UBlueprintEditorProjectSettings, NamespacesToAlwaysInclude);
+	static FName PropertyName_NamespacesToAlwaysInclude = GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, NamespacesToAlwaysInclude);
 	TSharedRef<IPropertyHandle> PropertyHandle_NamespacesToAlwaysInclude = LayoutBuilder.GetProperty(PropertyName_NamespacesToAlwaysInclude);
 
 	PropertyHandle_NamespacesToAlwaysInclude->MarkHiddenByCustomization();
 
 	IDetailCategoryBuilder& CategoryBuilder = LayoutBuilder.EditCategory(PropertyHandle_NamespacesToAlwaysInclude->GetDefaultCategoryName());
-	CategoryBuilder.AddCustomBuilder(MakeShared<UE::Editor::BlueprintEditorProjectSettingsCustomization::Private::FBlueprintGlobalProjectImportsLayout>(PropertyHandle_NamespacesToAlwaysInclude));
+	CategoryBuilder.AddCustomBuilder(MakeShared<UE::Editor::BlueprintEditorSettingsCustomization::Private::FBlueprintGlobalEditorImportsLayout>(PropertyHandle_NamespacesToAlwaysInclude));
 }
 
 #undef LOCTEXT_NAMESPACE

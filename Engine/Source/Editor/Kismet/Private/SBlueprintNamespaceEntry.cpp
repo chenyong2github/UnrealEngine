@@ -150,13 +150,13 @@ TSharedRef<SWidget> SBlueprintNamespaceEntry::OnGetNamespaceListMenuContent()
 
 	// Construct the list view widget that we'll use for the menu content.
 	SAssignNew(ListView, SListView<TSharedPtr<FString>>)
-		.SelectionMode(ESelectionMode::SingleToggle)
+		.SelectionMode(ESelectionMode::Single)
 		.ListItemsSource(&ListItems)
 		.OnGenerateRow(this, &SBlueprintNamespaceEntry::OnGenerateRowForNamespaceList)
 		.OnSelectionChanged(this, &SBlueprintNamespaceEntry::OnNamespaceListSelectionChanged);
 
-	// If the current namespace is non-empty, look for a matching item in the set.
-	if (!CurrentNamespace.IsEmpty())
+	// If we are allowing manual entry and the current namespace is non-empty, look for a matching item in the set.
+	if (!CurrentNamespace.IsEmpty() && TextBox.IsValid() && TextBox->GetVisibility().IsVisible())
 	{
 		const TSharedPtr<FString>* CurrentItemPtr = ListItems.FindByPredicate([&CurrentNamespace = this->CurrentNamespace](const TSharedPtr<FString>& Item)
 		{

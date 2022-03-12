@@ -17,6 +17,7 @@
 #include "SMyBlueprint.h"
 #include "SGraphPin.h"
 #include "UObject/WeakFieldPtr.h"
+#include "BlueprintManagedListDetails.h"
 
 class Error;
 class FBlueprintGlobalOptionsDetails;
@@ -682,63 +683,17 @@ private:
 	TArray<TSharedPtr<IDetailCustomization>> ExternalDetailCustomizations;
 };
 
-/** Blueprint managed list details */
-class FBlueprintManagedListDetails : public IDetailCustomNodeBuilder
+/** Blueprint global options - managed list details customization base */
+class FBlueprintGlobalOptionsManagedListDetails : public FBlueprintManagedListDetails
 {
 public:
 	/** Constructor method */
-	FBlueprintManagedListDetails(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetailsPtr);
-	
+	FBlueprintGlobalOptionsManagedListDetails(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetailsPtr);
+
 protected:
-	/** List item node type */
-	struct FManagedListItem
-	{
-		FString ItemName;
-		FText DisplayName;
-		TWeakObjectPtr<> AssetPtr;
-		uint8 bIsRemovable : 1;
-
-		FManagedListItem()
-			:bIsRemovable(false)
-		{
-		}
-	};
-
-	/** Customizable display options */
-	struct FDisplayOptions
-	{
-		FText TitleText;
-		FText NoItemsLabelText;
-		FText ItemRowFilterText;
-		FText AddItemRowFilterText;
-		FText BrowseButtonToolTipText;
-		FText RemoveButtonToolTipText;
-	};
-
-	/** Mutable display options */
-	FDisplayOptions DisplayOptions;
-
 	/** Access to external resources */
 	UBlueprint* GetBlueprintObjectChecked() const;
 	TSharedPtr<FBlueprintEditor> GetPinnedBlueprintEditorPtr() const;
-
-	/** IDetailCustomNodeBuilder interface */
-	virtual void GenerateHeaderRowContent(FDetailWidgetRow& HeaderRow) override;
-	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override;
-	virtual FName GetName() const override { return NAME_None; }
-	virtual bool InitiallyCollapsed() const override { return false; }
-	virtual void Tick(float DeltaTime) override {}
-	virtual bool RequiresTick() const override { return false; }
-	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRebuildChildren) override { RegenerateChildrenDelegate = InOnRebuildChildren; }
-	/** END IDetailCustomNodeBuilder interface */
-
-	/** Overridable interface methods */
-	virtual TSharedPtr<SWidget> MakeAddItemRowWidget() { return nullptr; }
-	virtual void GetManagedListItems(TArray<FManagedListItem>& OutListItems) const {}
-	virtual void OnRemoveItem(const FManagedListItem& Item) {}
-
-	/** Helper function to regenerate the details customization */
-	void RegenerateChildContent();
 
 	/** Helper function to set the Blueprint back into the KismetInspector's details view */
 	void OnRefreshInDetailsView();
@@ -746,27 +701,23 @@ protected:
 private:
 	/** The parent graph action details customization */
 	TWeakPtr<class FBlueprintGlobalOptionsDetails> GlobalOptionsDetailsPtr;
-
-	/** A delegate to regenerate this list of children */
-	FSimpleDelegate RegenerateChildrenDelegate;
 };
 
 /** Blueprint Imports List Details */
-class FBlueprintImportsLayout : public FBlueprintManagedListDetails, public TSharedFromThis<FBlueprintImportsLayout>
+class FBlueprintImportsLayout : public FBlueprintGlobalOptionsManagedListDetails, public TSharedFromThis<FBlueprintImportsLayout>
 {
 public:
 	FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowDefaultImports);
 
 protected:
 	/** FBlueprintManagedListDetails interface*/
-	virtual TSharedPtr<SWidget> MakeAddItemRowWidget() override;
+	virtual TSharedPtr<SWidget> MakeAddItemWidget() override;
 	virtual void GetManagedListItems(TArray<FManagedListItem>& OutListItems) const override;
 	virtual void OnRemoveItem(const FManagedListItem& Item) override;
 	/** END FBlueprintManagedListDetails interface */
 
 	void OnNamespaceSelected(const FString& InNamespace);
 	void OnFilterNamespaceList(TArray<FString>& InOutNamespaceList);
-	void HandleImportEntryTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType);
 
 private:
 	/** Whether we should show default (i.e. global) imports versus custom (i.e. local) imports */
@@ -774,14 +725,14 @@ private:
 };
 
 /** Blueprint Interface List Details */
-class FBlueprintInterfaceLayout : public FBlueprintManagedListDetails, public TSharedFromThis<FBlueprintInterfaceLayout>
+class FBlueprintInterfaceLayout : public FBlueprintGlobalOptionsManagedListDetails, public TSharedFromThis<FBlueprintInterfaceLayout>
 {
 public:
 	FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowsInheritedInterfaces);
 
 protected:
 	/** FBlueprintManagedListDetails interface */
-	virtual TSharedPtr<SWidget> MakeAddItemRowWidget() override;
+	virtual TSharedPtr<SWidget> MakeAddItemWidget() override;
 	virtual void GetManagedListItems(TArray<FManagedListItem>& OutListItems) const override;
 	virtual void OnRemoveItem(const FManagedListItem& Item) override;
 	/** END FBlueprintManagedListDetails interface */
@@ -794,11 +745,11 @@ private:
 	void OnClassPicked(UClass* PickedClass);
 
 private:
-	/** Whether we show inherited interfaces versus implemented interfaces */
-	bool bShowsInheritedInterfaces;
-
 	/** The add interface combo button */
 	TSharedPtr<SComboButton> AddInterfaceComboButton;
+
+	/** Whether we show inherited interfaces versus implemented interfaces */
+	bool bShowsInheritedInterfaces;
 };
 
 /** Details customization for Blueprint settings */

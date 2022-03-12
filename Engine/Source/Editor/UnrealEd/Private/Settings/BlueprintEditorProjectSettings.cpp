@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Settings/BlueprintEditorProjectSettings.h"
-#include "UObject/UnrealType.h"
-#include "Toolkits/ToolkitManager.h"
-#include "BlueprintEditor.h"
+#include "Modules/ModuleManager.h"
+#include "BlueprintEditorModule.h"
+#include "Editor.h"
 
 /* UBlueprintEditorProjectSettings */
 
@@ -20,36 +20,29 @@ void UBlueprintEditorProjectSettings::PostEditChangeProperty(struct FPropertyCha
 	const FName Name = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	if (Name == GET_MEMBER_NAME_CHECKED(UBlueprintEditorProjectSettings, bEnableChildActorExpansionInTreeView))
 	{
-		if (!GEditor)
-		{
-			return;
-		}
-
 		// Find open blueprint editors and refresh them
-		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
+		for (const TSharedRef<IBlueprintEditor>& BlueprintEditor : BlueprintEditorModule.GetBlueprintEditors())
 		{
-			TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets();
-			for (UObject* Asset : EditedAssets)
-			{
-				if (Asset && Asset->IsA<UBlueprint>())
-				{
-					TSharedPtr<IToolkit> AssetEditorPtr = FToolkitManager::Get().FindEditorForAsset(Asset);
-					if (AssetEditorPtr.IsValid() && AssetEditorPtr->IsBlueprintEditor())
-					{
-						TSharedPtr<IBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<IBlueprintEditor>(AssetEditorPtr);
-						BlueprintEditorPtr->RefreshEditors();
-					}
-				}
-			}
+			BlueprintEditor->RefreshEditors();
 		}
 
 		// Deselect actors so we are forced to clear the current tree view
 		// @todo - Figure out how to update the tree view directly instead?
-		if (GEditor->GetSelectedActorCount() > 0)
+		if (GEditor && GEditor->GetSelectedActorCount() > 0)
 		{
 			const bool bNoteSelectionChange = true;
 			const bool bDeselectBSPSurfaces = true;
 			GEditor->SelectNone(bNoteSelectionChange, bDeselectBSPSurfaces);
+		}
+	}
+	else if (Name == GET_MEMBER_NAME_CHECKED(UBlueprintEditorProjectSettings, NamespacesToAlwaysInclude))
+	{
+		// Close any open Blueprint editor windows so that we have a chance to reload them with the updated import set.
+		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
+		for (const TSharedRef<IBlueprintEditor>& BlueprintEditor : BlueprintEditorModule.GetBlueprintEditors())
+		{
+			BlueprintEditor->CloseWindow();
 		}
 	}
 }

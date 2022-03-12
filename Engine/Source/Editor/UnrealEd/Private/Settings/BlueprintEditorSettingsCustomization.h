@@ -6,9 +6,9 @@
 #include "IDetailCustomization.h"
 
 /**
- * Implements a details customization for UBlueprintEditorProjectSettings.
+ * Implements a details customization for UBlueprintEditorSettings.
  */
-class FBlueprintEditorProjectSettingsCustomization : public IDetailCustomization
+class FBlueprintEditorSettingsCustomization : public IDetailCustomization
 {
 public:
 	// Factory creation.
