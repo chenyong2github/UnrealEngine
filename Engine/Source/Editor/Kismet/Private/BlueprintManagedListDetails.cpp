@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "BlueprintManagedListDetails.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
