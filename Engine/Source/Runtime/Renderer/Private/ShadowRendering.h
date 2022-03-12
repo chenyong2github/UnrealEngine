@@ -562,7 +562,8 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FSceneRenderer* SceneRenderer,
 		FRDGTextureRef ShadowDepthTexture,
-		bool bDoParallelDispatch);
+		bool bDoParallelDispatch,
+		bool bDoCrossGPUCopy);
 
 	void BeginRenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
