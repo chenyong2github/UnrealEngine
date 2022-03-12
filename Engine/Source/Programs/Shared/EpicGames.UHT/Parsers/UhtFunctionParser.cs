@@ -90,12 +90,20 @@ namespace EpicGames.UHT.Parsers
 		}
 	}
 
+	/// <summary>
+	/// UFUNCTION parser
+	/// </summary>
 	[UnrealHeaderTool]
 	public class UhtFunctionParser : UhtFunction
 	{
 		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Function);
 		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.Function);
 
+		/// <summary>
+		/// Construct a new function parser
+		/// </summary>
+		/// <param name="Outer">Outer object</param>
+		/// <param name="LineNumber">Line number</param>
 		public UhtFunctionParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
@@ -105,6 +113,7 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		public bool bSawPropertyAccessor = false;
 
+		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
 		{
 			bool bResult = base.ResolveSelf(ResolvePhase);
@@ -150,7 +159,7 @@ namespace EpicGames.UHT.Parsers
 			return bResult;
 		}
 
-		public UhtPropertyParseOptions GetPropertyParseOptions(bool bReturnValue)
+		private UhtPropertyParseOptions GetPropertyParseOptions(bool bReturnValue)
 		{
 			switch (this.FunctionType)
 			{
@@ -171,6 +180,7 @@ namespace EpicGames.UHT.Parsers
 					throw new UhtIceException("Unknown enumeration value");
 			}
 		}
+
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[UhtKeyword(Extends = UhtTableNames.Class)]

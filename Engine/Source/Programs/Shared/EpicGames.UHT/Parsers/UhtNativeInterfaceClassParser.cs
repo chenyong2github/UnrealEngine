@@ -8,16 +8,26 @@ using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// Parser object for native interfaces
+	/// </summary>
 	[UnrealHeaderTool]
 	public class UhtParserNativeInterfaceClass : UhtClassBaseParser
 	{
 		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.NativeInterface);
 		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.NativeInterface);
 
+		/// <summary>
+		/// Construct a new native interface
+		/// </summary>
+		/// <param name="Outer">Outer object</param>
+		/// <param name="LineNumber">Line number of declaration</param>
 		public UhtParserNativeInterfaceClass(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
 
+		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
 		{
 			bool bResult = base.ResolveSelf(ResolvePhase);

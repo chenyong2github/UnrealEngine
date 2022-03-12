@@ -7,15 +7,33 @@ using System.Collections.Generic;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// Base parser class for all UClass types
+	/// </summary>
 	public class UhtClassBaseParser : UhtClass
 	{
+
+		/// <summary>
+		/// The super class identifier
+		/// </summary>
 		public UhtToken SuperIdentifier;
+
+		/// <summary>
+		/// List of base identifiers
+		/// </summary>
 		public List<UhtToken[]>? BaseIdentifiers = null;
 
+		/// <summary>
+		/// Construct a new base class parser
+		/// </summary>
+		/// <param name="Outer">Outer type</param>
+		/// <param name="LineNumber">Line number of class</param>
 		public UhtClassBaseParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
 
+		/// <inheritdoc/>
 		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
 		{
 			base.ResolveSuper(ResolvePhase);
@@ -34,6 +52,7 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
 		{
 			bool bResult = base.ResolveSelf(ResolvePhase);

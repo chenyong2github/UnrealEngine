@@ -41,6 +41,12 @@ namespace EpicGames.UHT.Parsers
 		private readonly Action ParseKVPValueAction;
 		private readonly Action ParseStringViewListAction;
 
+		/// <summary>
+		/// Construct a new specifier parser
+		/// </summary>
+		/// <param name="SpecifierContext">Specifier context</param>
+		/// <param name="Context">User facing context added to messages</param>
+		/// <param name="Table">Specifier table</param>
 		public UhtSpecifierParser(UhtSpecifierContext SpecifierContext, StringView Context, UhtSpecifierTable Table)
 		{
 			this.SpecifierContext = SpecifierContext;
@@ -68,6 +74,12 @@ namespace EpicGames.UHT.Parsers
 			};
 		}
 
+		/// <summary>
+		/// Reset an existing parser to parse a new specifier block
+		/// </summary>
+		/// <param name="SpecifierContext">Specifier context</param>
+		/// <param name="Context">User facing context added to messages</param>
+		/// <param name="Table">Specifier table</param>
 		public void Reset(UhtSpecifierContext SpecifierContext, StringView Context, UhtSpecifierTable Table)
 		{
 			this.SpecifierContext = SpecifierContext;
@@ -76,6 +88,10 @@ namespace EpicGames.UHT.Parsers
 			this.Table = Table;
 		}
 
+		/// <summary>
+		/// Perform the specify parsing
+		/// </summary>
+		/// <returns>The parser</returns>
 		public UhtSpecifierParser ParseSpecifiers()
 		{
 			this.bIsParsingFieldMetaData = false;
@@ -88,6 +104,11 @@ namespace EpicGames.UHT.Parsers
 			return this;
 		}
 
+		/// <summary>
+		/// Parse field meta data
+		/// </summary>
+		/// <param name="Context">User facing context for error messages</param>
+		/// <returns>Specifier parser</returns>
 		public UhtSpecifierParser ParseFieldMetaData(StringView Context)
 		{
 			this.TokenReader = this.SpecifierContext.Scope.TokenReader;
@@ -108,6 +129,9 @@ namespace EpicGames.UHT.Parsers
 			return this;
 		}
 
+		/// <summary>
+		/// Parse any deffered specifiers
+		/// </summary>
 		public void ParseDeferred()
 		{
 			foreach (var Deferred in this.DeferredSpecifiers)
@@ -118,6 +142,8 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		#region IMessageExtraContext implementation
+
+		/// <inheritdoc/>
 		public IEnumerable<object?>? MessageExtraContext
 		{
 			get

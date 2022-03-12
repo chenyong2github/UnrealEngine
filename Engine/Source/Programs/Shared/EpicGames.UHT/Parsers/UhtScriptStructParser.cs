@@ -9,19 +9,36 @@ using System.Collections.Generic;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// USTRUCT parser object
+	/// </summary>
 	[UnrealHeaderTool]
 	public class UhtScriptStructParser : UhtScriptStruct
 	{
 		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.ScriptStruct);
 		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.ScriptStruct);
 
+		/// <summary>
+		/// Super identifier
+		/// </summary>
 		public UhtToken SuperIdentifier;
+
+		/// <summary>
+		/// Base identifiers
+		/// </summary>
 		public List<UhtToken[]>? BaseIdentifiers = null;
 
+		/// <summary>
+		/// Construct a new instance
+		/// </summary>
+		/// <param name="Outer">Output type</param>
+		/// <param name="LineNumber">Line number of declaration</param>
 		public UhtScriptStructParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
 
+		/// <inheritdoc/>
 		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
 		{
 			base.ResolveSuper(ResolvePhase);
@@ -41,6 +58,7 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
 		{
 			bool bResult = base.ResolveSelf(ResolvePhase);

@@ -8,12 +8,20 @@ using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Parsers
 {
+	/// <summary>
+	/// UENUM parser
+	/// </summary>
 	[UnrealHeaderTool]
 	public class UhtEnumParser : UhtEnum
 	{
 		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Enum);
 		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.Enum);
 
+		/// <summary>
+		/// Construct a new enum parser
+		/// </summary>
+		/// <param name="Outer">Outer type</param>
+		/// <param name="LineNumber">Line number</param>
 		public UhtEnumParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}

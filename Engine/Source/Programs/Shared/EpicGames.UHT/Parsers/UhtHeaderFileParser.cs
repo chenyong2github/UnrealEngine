@@ -11,45 +11,75 @@ using System.IO;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// Keyword parse results
+	/// </summary>
 	public enum UhtParseResult
 	{
+
+		/// <summary>
+		/// Keyword was handled
+		/// </summary>
 		Handled,
+
+		/// <summary>
+		/// Keyword wasn't handled (more attempts will be made to match)
+		/// </summary>
 		Unhandled,
+
+		/// <summary>
+		/// Keyword is invalid
+		/// </summary>
 		Invalid,
 	}
 
+	/// <summary>
+	/// Compiler directives
+	/// </summary>
 	[Flags]
 	public enum UhtCompilerDirective
 	{
+		/// <summary>
+		/// No compile directives
+		/// </summary>
 		None = 0,
+
 		/// <summary>
 		/// This indicates we are in a "#if CPP" block
 		/// </summary>
 		CPPBlock = 1 << 0,
+
 		/// <summary>
 		/// This indicates we are in a "#if !CPP" block
 		/// </summary>
 		NotCPPBlock = 1 << 1,
+
 		/// <summary>
 		/// This indicates we are in a "#if 0" block
 		/// </summary>
 		ZeroBlock = 1 << 2,
+
 		/// <summary>
 		/// This indicates we are in a "#if 1" block
 		/// </summary>
 		OneBlock = 1 << 3,
+
 		/// <summary>
 		/// This indicates we are in a "#if WITH_EDITOR" block
 		/// </summary>
 		WithEditor = 1 << 4,
+
 		/// <summary>
 		/// This indicates we are in a "#if WITH_EDITORONLY_DATA" block
 		/// </summary>
 		WithEditorOnlyData = 1 << 5,
+
 		/// <summary>
 		/// This indicates we are in a "#if WITH_HOT_RELOAD" block
 		/// </summary>
 		WithHotReload = 1 << 6,
+
 		/// <summary>
 		/// This directive is unrecognized and does not change the code generation at all
 		/// </summary>
@@ -98,6 +128,9 @@ namespace EpicGames.UHT.Parsers
 		}
 	}
 
+	/// <summary>
+	/// Specifiers for public, private, and protected
+	/// </summary>
 	[UnrealHeaderTool]
 	public static class UhtAccessSpecifierKeywords
 	{
@@ -132,6 +165,9 @@ namespace EpicGames.UHT.Parsers
 		}
 	}
 
+	/// <summary>
+	/// Header file parser
+	/// </summary>
 	public class UhtHeaderFileParser : IUhtTokenPreprocessor
 	{
 		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Global);
@@ -193,6 +229,11 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		private int StatementsParsed = 0;
 
+		/// <summary>
+		/// Parse the given header file
+		/// </summary>
+		/// <param name="HeaderFile">Header file to parse</param>
+		/// <returns>Parser</returns>
 		public static UhtHeaderFileParser Parse(UhtHeaderFile HeaderFile)
 		{
 			UhtHeaderFileParser HeaderParser = new UhtHeaderFileParser(HeaderFile);
@@ -224,13 +265,18 @@ namespace EpicGames.UHT.Parsers
 			return HeaderParser;
 		}
 
-		public UhtHeaderFileParser(UhtHeaderFile HeaderFile)
+		private UhtHeaderFileParser(UhtHeaderFile HeaderFile)
 		{
 			this.TokenReader = new UhtTokenBufferReader(HeaderFile, HeaderFile.Data.Memory);
 			this.HeaderFile = HeaderFile;
 			this.TokenReader.TokenPreprocessor = this;
 		}
 
+		/// <summary>
+		/// Push a new scope
+		/// </summary>
+		/// <param name="Scope">Scope to push</param>
+		/// <exception cref="UhtIceException">Throw if the new scope isn't parented by the current scope</exception>
 		public void PushScope(UhtParsingScope Scope)
 		{
 			if (Scope.ParentScope != this.TopScope)
@@ -240,6 +286,11 @@ namespace EpicGames.UHT.Parsers
 			this.TopScope = Scope;
 		}
 
+		/// <summary>
+		/// Pop the given scope
+		/// </summary>
+		/// <param name="Scope">Scope to be popped</param>
+		/// <exception cref="UhtIceException">Thrown if the given scope isn't the top scope</exception>
 		public void PopScope(UhtParsingScope Scope)
 		{
 			if (Scope != this.TopScope)
@@ -249,6 +300,13 @@ namespace EpicGames.UHT.Parsers
 			this.TopScope = Scope.ParentScope;
 		}
 
+		/// <summary>
+		/// Get the cached specifier parser
+		/// </summary>
+		/// <param name="SpecifierContext">Specifier context</param>
+		/// <param name="Context">User facing context</param>
+		/// <param name="Table">Specifier table</param>
+		/// <returns>Specifier parser</returns>
 		public UhtSpecifierParser GetSpecifierParser(UhtSpecifierContext SpecifierContext, StringView Context, UhtSpecifierTable Table)
 		{
 			if (this.SpecifierParser == null)
@@ -262,6 +320,11 @@ namespace EpicGames.UHT.Parsers
 			return this.SpecifierParser;
 		}
 
+		/// <summary>
+		/// Get the cached property parser
+		/// </summary>
+		/// <param name="TopScope">Top scope requesting parser</param>
+		/// <returns>Property parser</returns>
 		public UhtPropertyParser GetPropertyParser(UhtParsingScope TopScope)
 		{
 			if (this.PropertyParser == null)
@@ -284,12 +347,17 @@ namespace EpicGames.UHT.Parsers
 			return this.CompilerDirectives.Count > 0 ? this.CompilerDirectives[this.CompilerDirectives.Count - 1].Composite : UhtCompilerDirective.None;
 		}
 
+		/// <summary>
+		/// Get the current compiler directive without any parent scopes merged in
+		/// </summary>
+		/// <returns>Current compiler directive</returns>
 		public UhtCompilerDirective GetCurrentNonCompositeCompilerDirective()
 		{
 			return this.CompilerDirectives.Count > 0 ? this.CompilerDirectives[this.CompilerDirectives.Count - 1].Element : UhtCompilerDirective.None;
 		}
 
 		#region ITokenPreprocessor implementation
+		/// <inheritdoc/>
 		public bool ParsePreprocessorDirective(ref UhtToken Token, bool bIsBeingIncluded, out bool bClearComments, out bool bIllegalContentsCheck)
 		{
 			bClearComments = true;
@@ -302,12 +370,14 @@ namespace EpicGames.UHT.Parsers
 			return IncludeCurrentCompilerDirective();
 		}
 
+		/// <inheritdoc/>
 		public void SaveState()
 		{
 			this.SavedCompilerDirectives.Clear();
 			this.SavedCompilerDirectives.AddRange(this.CompilerDirectives);
 		}
 
+		/// <inheritdoc/>
 		public void RestoreState()
 		{
 			this.CompilerDirectives.Clear();
@@ -316,11 +386,21 @@ namespace EpicGames.UHT.Parsers
 		#endregion
 
 		#region Statement parsing
+
+		/// <summary>
+		/// Parse all statements in the header file
+		/// </summary>
 		public void ParseStatements()
 		{
 			ParseStatements((char)0, (char)0, true);
 		}
 
+		/// <summary>
+		/// Parse the statements between the given symbols
+		/// </summary>
+		/// <param name="Initiator">Starting symbol</param>
+		/// <param name="Terminator">Ending symbol</param>
+		/// <param name="bLogUnhandledKeywords">If true, log any unhandled keywords</param>
 		public void ParseStatements(char Initiator, char Terminator, bool bLogUnhandledKeywords)
 		{
 			if (this.TopScope == null)
@@ -357,7 +437,13 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
-
+		/// <summary>
+		/// Parse a statement
+		/// </summary>
+		/// <param name="TopScope">Current top scope</param>
+		/// <param name="Token">Token starting the statement</param>
+		/// <param name="bLogUnhandledKeywords">If true, log unhandled keywords</param>
+		/// <returns>Always returns true ATM</returns>
 		public static bool ParseStatement(UhtParsingScope TopScope, ref UhtToken Token, bool bLogUnhandledKeywords)
 		{
 			UhtParseResult ParseResult = UhtParseResult.Unhandled;
@@ -462,6 +548,7 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Tests if an identifier looks like a macro which doesn't have a following open parenthesis.
 		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
 		/// <param name="Token">The current token that initiated the process</param>
 		/// <returns>Result if matching the token</returns>
 		private static UhtParseResult ProbablyAnUnknownObjectLikeMacro(IUhtTokenReader TokenReader, ref UhtToken Token)

@@ -8,16 +8,26 @@ using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// Interface class parser
+	/// </summary>
 	[UnrealHeaderTool]
 	public class UhtInterfaceClassParser : UhtClassBaseParser
 	{
 		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Interface);
 		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.Interface);
 
+		/// <summary>
+		/// Construct a new interface class parser
+		/// </summary>
+		/// <param name="Outer">Outer object</param>
+		/// <param name="LineNumber">Line number</param>
 		public UhtInterfaceClassParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
 
+		/// <inheritdoc/>
 		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
 		{
 			base.ResolveSuper( ResolvePhase);
@@ -42,6 +52,7 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
 		{
 			bool bResult = base.ResolveSelf(ResolvePhase);
@@ -93,7 +104,7 @@ namespace EpicGames.UHT.Parsers
 		}
 		#endregion
 
-		public static UhtParseResult ParseUInterface(UhtParsingScope ParentScope, ref UhtToken Token)
+		private static UhtParseResult ParseUInterface(UhtParsingScope ParentScope, ref UhtToken Token)
 		{
 			UhtInterfaceClassParser Class = new UhtInterfaceClassParser(ParentScope.ScopeType, Token.InputLine);
 			Class.ClassType = UhtClassType.Interface;

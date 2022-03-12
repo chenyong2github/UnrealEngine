@@ -9,8 +9,18 @@ using System.Collections.Generic;
 
 namespace EpicGames.UHT.Parsers
 {
+	/// <summary>
+	/// Collection of helper methods
+	/// </summary>
 	public static class UhtParserHelpers
 	{
+
+		/// <summary>
+		/// Parse the inheritance 
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="SuperIdentifier">Output super identifier</param>
+		/// <param name="BaseIdentifiers">Output base identifiers</param>
 		public static void ParseInheritance(IUhtTokenReader TokenReader, out UhtToken SuperIdentifier, out List<UhtToken[]>? BaseIdentifiers)
 		{
 			UhtToken SuperIdentifierTemp = new UhtToken();
@@ -33,6 +43,11 @@ namespace EpicGames.UHT.Parsers
 			BaseIdentifiers = BaseIdentifiersTemp;
 		}
 
+		/// <summary>
+		/// Parse compiler version declaration
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Struct">Struct being parsed</param>
 		public static void ParseCompileVersionDeclaration(IUhtTokenReader TokenReader, UhtStruct Struct)
 		{
 

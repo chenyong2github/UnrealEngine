@@ -10,13 +10,41 @@ using System.Text;
 
 namespace EpicGames.UHT.Parsers
 {
+
+	/// <summary>
+	/// Nested structure of scopes being parsed
+	/// </summary>
 	public class UhtParsingScope : IDisposable
 	{
+
+		/// <summary>
+		/// Header file parser
+		/// </summary>
 		public readonly UhtHeaderFileParser HeaderParser;
+
+		/// <summary>
+		/// Token reader
+		/// </summary>
 		public readonly IUhtTokenReader TokenReader;
+
+		/// <summary>
+		/// Parent scope
+		/// </summary>
 		public readonly UhtParsingScope? ParentScope;
+
+		/// <summary>
+		/// Type being parsed
+		/// </summary>
 		public readonly UhtType ScopeType;
+
+		/// <summary>
+		/// Keyword table for the scope
+		/// </summary>
 		public readonly UhtKeywordTable ScopeKeywordTable;
+
+		/// <summary>
+		/// Current access specifier
+		/// </summary>
 		public UhtAccessSpecifier AccessSpecifier = UhtAccessSpecifier.Public;
 
 		/// <summary>
@@ -44,6 +72,12 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		public UhtClass CurrentClass => (UhtClass)this.CurrentClassScope.ScopeType;
 
+		/// <summary>
+		/// Construct a root/global scope
+		/// </summary>
+		/// <param name="HeaderParser">Header parser</param>
+		/// <param name="ScopeType">Type being parsed</param>
+		/// <param name="KeywordTable">Keyword table</param>
 		public UhtParsingScope(UhtHeaderFileParser HeaderParser, UhtType ScopeType, UhtKeywordTable KeywordTable)
 		{
 			this.HeaderParser = HeaderParser;
@@ -54,6 +88,13 @@ namespace EpicGames.UHT.Parsers
 			this.HeaderParser.PushScope(this);
 		}
 
+		/// <summary>
+		/// Construct a scope for a type
+		/// </summary>
+		/// <param name="ParentScope">Parent scope</param>
+		/// <param name="ScopeType">Type being parsed</param>
+		/// <param name="KeywordTable">Keyword table</param>
+		/// <param name="AccessSpecifier">Current access specifier</param>
 		public UhtParsingScope(UhtParsingScope ParentScope, UhtType ScopeType, UhtKeywordTable KeywordTable, UhtAccessSpecifier AccessSpecifier)
 		{
 			this.HeaderParser = ParentScope.HeaderParser;
@@ -65,6 +106,9 @@ namespace EpicGames.UHT.Parsers
 			this.HeaderParser.PushScope(this);
 		}
 
+		/// <summary>
+		/// Dispose the scope
+		/// </summary>
 		public void Dispose()
 		{
 			this.HeaderParser.PopScope(this);
@@ -432,12 +476,20 @@ namespace EpicGames.UHT.Parsers
 		}
 	}
 
+	/// <summary>
+	/// Token recorder
+	/// </summary>
 	public struct UhtTokenRecorder : IDisposable
 	{
 		private readonly UhtCompilerDirective CompilerDirective;
 		private readonly UhtParsingScope Scope;
 		private bool bFlushed;
 
+		/// <summary>
+		/// Construct a new recorder
+		/// </summary>
+		/// <param name="Scope">Scope being parsed</param>
+		/// <param name="InitialToken">Initial toke nto add to the recorder</param>
 		public UhtTokenRecorder(UhtParsingScope Scope, ref UhtToken InitialToken)
 		{
 			this.Scope = Scope;
@@ -445,12 +497,15 @@ namespace EpicGames.UHT.Parsers
 			this.bFlushed = false;
 			if (this.Scope.ScopeType is UhtClass)
 			{
-
 				this.Scope.TokenReader.EnableRecording();
 				this.Scope.TokenReader.RecordToken(ref InitialToken);
 			}
 		}
 
+		/// <summary>
+		/// Create a new recorder
+		/// </summary>
+		/// <param name="Scope">Scope being parsed</param>
 		public UhtTokenRecorder(UhtParsingScope Scope)
 		{
 			this.Scope = Scope;
@@ -462,11 +517,18 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <summary>
+		/// Stop the recording
+		/// </summary>
 		public void Dispose()
 		{
 			Stop();
 		}
 
+		/// <summary>
+		/// Stop the recording
+		/// </summary>
+		/// <returns>True if the recorded content was added to a class</returns>
 		public bool Stop()
 		{
 			if (!bFlushed)

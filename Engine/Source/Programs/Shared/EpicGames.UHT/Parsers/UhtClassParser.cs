@@ -11,41 +11,100 @@ using System.Text;
 
 namespace EpicGames.UHT.Parsers
 {
+	/// <summary>
+	/// UCLASS parser
+	/// </summary>
 	[UnrealHeaderTool]
 	public class UhtClassParser : UhtClassBaseParser
 	{
 		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Class);
 		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.Class);
 
+		/// <summary>
+		/// Engine class flags removed
+		/// </summary>
 		public EClassFlags RemovedClassFlags = EClassFlags.None;
+
+		/// <summary>
+		/// Class within identifier
+		/// </summary>
 		public string ClassWithinIdentifier = String.Empty;
 
+		/// <summary>
+		/// Collection of show categories
+		/// </summary>
 		public List<string> ShowCategories = new List<string>();
+
+		/// <summary>
+		/// Collection of hide categories
+		/// </summary>
 		public List<string> HideCategories = new List<string>();
+
+		/// <summary>
+		/// Collection of auto expand categories
+		/// </summary>
 		public List<string> AutoExpandCategories = new List<string>();
+
+		/// <summary>
+		/// Collection of auto collapse categories
+		/// </summary>
 		public List<string> AutoCollapseCategories = new List<string>();
+
+		/// <summary>
+		/// Collection of prioritize categories
+		/// </summary>
 		public List<string> PrioritizeCategories = new List<string>();
+
+		/// <summary>
+		/// Collection of show functions
+		/// </summary>
 		public List<string> ShowFunctions = new List<string>();
+
+		/// <summary>
+		/// Collection of hide functions
+		/// </summary>
 		public List<string> HideFunctions = new List<string>();
+
+		/// <summary>
+		/// Sparse class data types
+		/// </summary>
 		public List<string> SparseClassDataTypes = new List<string>();
+
+		/// <summary>
+		/// Class group names
+		/// </summary>
 		public List<string> ClassGroupNames = new List<string>();
 
+		/// <summary>
+		/// Add the given class flags
+		/// </summary>
+		/// <param name="Flags">Flags to add</param>
 		public void AddClassFlags(EClassFlags Flags)
 		{
 			this.ClassFlags |= Flags;
 			this.RemovedClassFlags &= ~Flags;
 		}
 
+		/// <summary>
+		/// Remove the given class flags
+		/// </summary>
+		/// <param name="Flags">Flags to remove</param>
 		public void RemoveClassFlags(EClassFlags Flags)
 		{
 			this.RemovedClassFlags |= Flags;
 			this.ClassFlags &= ~Flags;
 		}
 
+		/// <summary>
+		/// Construct a new class parser
+		/// </summary>
+		/// <param name="Outer">Outer type</param>
+		/// <param name="LineNumber">Line number</param>
 		public UhtClassParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
 
+		/// <inheritdoc/>
 		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
 		{
 			base.ResolveSuper(ResolvePhase);
@@ -342,7 +401,7 @@ namespace EpicGames.UHT.Parsers
 		}
 		#endregion
 
-		public static UhtParseResult ParseUClass(UhtParsingScope ParentScope, ref UhtToken Token)
+		private static UhtParseResult ParseUClass(UhtParsingScope ParentScope, ref UhtToken Token)
 		{
 			UhtClassParser Class = new UhtClassParser(ParentScope.ScopeType, Token.InputLine);
 			using (var TopScope = new UhtParsingScope(ParentScope, Class, UhtClassParser.KeywordTable, UhtAccessSpecifier.Private))

@@ -19,6 +19,10 @@ namespace EpicGames.UHT.Parsers
 	[Flags]
 	public enum UhtPropertyParseOptions
 	{
+
+		/// <summary>
+		/// No options
+		/// </summary>
 		None = 0,
 
 		/// <summary>
@@ -121,20 +125,64 @@ namespace EpicGames.UHT.Parsers
 		UPROPERTY
 	};
 
+	/// <summary>
+	/// Layout macro type
+	/// </summary>
 	public enum UhtLayoutMacroType
 	{
+
+		/// <summary>
+		/// None found
+		/// </summary>
 		None,
+		
+		/// <summary>
+		/// Array
+		/// </summary>
 		Array,
+
+		/// <summary>
+		/// Editor only array
+		/// </summary>
 		ArrayEditorOnly,
+
+		/// <summary>
+		/// Bit field
+		/// </summary>
 		Bitfield,
+
+		/// <summary>
+		/// Editor only bit field
+		/// </summary>
 		BitfieldEditorOnly,
+
+		/// <summary>
+		/// Field
+		/// </summary>
 		Field,
+
+		/// <summary>
+		/// Editor only field
+		/// </summary>
 		FieldEditorOnly,
+
+		/// <summary>
+		/// Field with initializer
+		/// </summary>
 		FieldInitialized,
 	}
 
+	/// <summary>
+	/// Extensions for working with the layout macro type
+	/// </summary>
 	public static class UhtLayoutMacroTypeExtensions
 	{
+
+		/// <summary>
+		/// Return true if the type is editor only
+		/// </summary>
+		/// <param name="LayoutMacroType">Layout macro type</param>
+		/// <returns>True if editor only</returns>
 		public static bool IsEditorOnly(this UhtLayoutMacroType LayoutMacroType)
 		{
 			switch (LayoutMacroType)
@@ -149,6 +197,11 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <summary>
+		/// Return true if the type is a bit field
+		/// </summary>
+		/// <param name="LayoutMacroType">Layout macro type</param>
+		/// <returns>True if bit field</returns>
 		public static bool IsBitfield(this UhtLayoutMacroType LayoutMacroType)
 		{
 			switch (LayoutMacroType)
@@ -162,6 +215,11 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <summary>
+		/// Return true if the type is an array
+		/// </summary>
+		/// <param name="LayoutMacroType">Layout macro type</param>
+		/// <returns>True if array</returns>
 		public static bool IsArray(this UhtLayoutMacroType LayoutMacroType)
 		{
 			switch (LayoutMacroType)
@@ -175,6 +233,11 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <summary>
+		/// Return true if the type has an initializer
+		/// </summary>
+		/// <param name="LayoutMacroType">Layout macro type</param>
+		/// <returns>True if it has an initializer</returns>
 		public static bool HasInitializer(this UhtLayoutMacroType LayoutMacroType)
 		{
 			switch (LayoutMacroType)
@@ -187,6 +250,12 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <summary>
+		/// Return the layout macro name
+		/// </summary>
+		/// <param name="LayoutMacroType">Type in question</param>
+		/// <returns>Macro name</returns>
+		/// <exception cref="UhtIceException">Thrown if the macro type is none or invalid</exception>
 		public static StringView MacroName(this UhtLayoutMacroType LayoutMacroType)
 		{
 			switch (LayoutMacroType)
@@ -218,22 +287,61 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <summary>
+		/// Return the macro name and value
+		/// </summary>
+		/// <param name="LayoutMacroType">Macro name</param>
+		/// <returns>Name and type</returns>
 		public static KeyValuePair<StringView, UhtLayoutMacroType> MacroNameAndValue(this UhtLayoutMacroType LayoutMacroType)
 		{
 			return new KeyValuePair<StringView, UhtLayoutMacroType>(LayoutMacroType.MacroName(), LayoutMacroType);
 		}
 	}
 
+	/// <summary>
+	/// Delegate invoked to handle a parsed property 
+	/// </summary>
+	/// <param name="TopScope">Scope being parsed</param>
+	/// <param name="Property">Property just parsed</param>
+	/// <param name="NameToken">Name of the property</param>
+	/// <param name="LayoutMacroType">Layout macro type</param>
 	public delegate void UhtPropertyDelegate(UhtParsingScope TopScope, UhtProperty Property, ref UhtToken NameToken, UhtLayoutMacroType LayoutMacroType);
 
+	/// <summary>
+	/// Context for property specifier parsing
+	/// </summary>
 	public class UhtPropertySpecifierContext : UhtSpecifierContext
 	{
+		/// <summary>
+		/// The property settings being parsed
+		/// </summary>
 		public UhtPropertySettings PropertySettings;
+
+		/// <summary>
+		/// If true, editor specifier seen
+		/// </summary>
 		public bool bSeenEditSpecifier = false;
+
+		/// <summary>
+		/// If true, blueprint write specifier seen
+		/// </summary>
 		public bool bSeenBlueprintWriteSpecifier = false;
+
+		/// <summary>
+		/// If true, blueprint readonly specifier seen
+		/// </summary>
 		public bool bSeenBlueprintReadOnlySpecifier = false;
+
+		/// <summary>
+		/// If true, blueprint getter specifier seen
+		/// </summary>
 		public bool bSeenBlueprintGetterSpecifier = false;
 
+		/// <summary>
+		/// Construct a new property specifier context
+		/// </summary>
+		/// <param name="Scope">Scope being parsed</param>
+		/// <param name="MessageSite">Message site</param>
 		public UhtPropertySpecifierContext(UhtParsingScope Scope, IUhtMessageSite MessageSite) : base(Scope, MessageSite, UhtMetaData.Empty)
 		{
 			this.PropertySettings = new UhtPropertySettings();
@@ -256,9 +364,21 @@ namespace EpicGames.UHT.Parsers
 		/// <inheritdoc/>
 		protected override string PGetMacroText { get => "invalid"; }
 
+		/// <summary>
+		/// Collection of type tokens 
+		/// </summary>
 		public ReadOnlyMemory<UhtToken> TypeTokens;
+
+		/// <summary>
+		/// Property settings being parsed
+		/// </summary>
 		public UhtPropertySettings PropertySettings;
 
+		/// <summary>
+		/// Construct a new property to be resolved
+		/// </summary>
+		/// <param name="PropertySettings">Property settings</param>
+		/// <param name="TypeTokens">Type tokens</param>
 		public UhtPreResolveProperty(UhtPropertySettings PropertySettings, ReadOnlyMemory<UhtToken> TypeTokens) : base(PropertySettings)
 		{
 			this.TypeTokens = TypeTokens;
@@ -314,6 +434,9 @@ namespace EpicGames.UHT.Parsers
 		}
 	}
 
+	/// <summary>
+	/// Property parser
+	/// </summary>
 	public class UhtPropertyParser : IUhtMessageExtraContext
 	{
 		private UhtPropertySpecifierContext SpecifierContext;
@@ -342,18 +465,37 @@ namespace EpicGames.UHT.Parsers
 			UhtLayoutMacroType.FieldInitialized.MacroNameAndValue(),
 		});
 
+		/// <summary>
+		/// Construct a new property parser
+		/// </summary>
+		/// <param name="Scope">Current scope being parsed</param>
+		/// <param name="MessageSite">Message site</param>
 		public UhtPropertyParser(UhtParsingScope Scope, IUhtMessageSite MessageSite)
 		{
 			this.SpecifierContext = new UhtPropertySpecifierContext(Scope, MessageSite);
 			this.GatherTypeTokensDelegate = GatherTypeTokens;
 		}
 
+		/// <summary>
+		/// Reset the property parser for a new parse
+		/// </summary>
+		/// <param name="Scope">Current scope being parsed</param>
+		/// <param name="MessageSite">Message site</param>
 		public void Reset(UhtParsingScope Scope, IUhtMessageSite MessageSite)
 		{
 			this.SpecifierContext.Scope = Scope;
 			this.SpecifierContext.MessageSite = MessageSite;
 		}
 
+		/// <summary>
+		/// Parse the property
+		/// </summary>
+		/// <param name="DisallowPropertyFlags">Flags to be disallowed</param>
+		/// <param name="Options">Parsing options</param>
+		/// <param name="DeclarationStyle">Style of declaration</param>
+		/// <param name="Category">Property category</param>
+		/// <param name="Delegate">Delegate to be invoked after property has been parsed</param>
+		/// <returns>The property parser</returns>
 		public UhtPropertyParser Parse(EPropertyFlags DisallowPropertyFlags, UhtPropertyParseOptions Options, UhtParsePropertyDeclarationStyle DeclarationStyle, UhtPropertyCategory Category, UhtPropertyDelegate Delegate)
 		{
 			// Reset the context and create the property
@@ -382,6 +524,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		#region IMessageExtraContext implementation
+		/// <inheritdoc/>
 		public IEnumerable<object?>? MessageExtraContext
 		{
 			get
@@ -479,6 +622,14 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		/// <summary>
+		/// Parse a template parameter
+		/// </summary>
+		/// <param name="ResolvePhase">Resolution phase</param>
+		/// <param name="ParentPropertySettings">Parent property (container) settings</param>
+		/// <param name="ParamName">Name of the template parameter</param>
+		/// <param name="TokenReader">Token type</param>
+		/// <returns>Parsed property</returns>
 		public static UhtProperty? ParseTemplateParam(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings ParentPropertySettings, StringView ParamName, IUhtTokenReader TokenReader)
 		{
 			UhtPropertyTypeTable PropertyTypeTable = UhtPropertyTypeTable.Instance;
@@ -1041,9 +1192,9 @@ namespace EpicGames.UHT.Parsers
 	}
 
 	[UnrealHeaderTool]
-	public static class PropertyKeywords
+	static class PropertyKeywords
 	{
-#region Keywords
+		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Class)]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
 		private static UhtParseResult UPROPERTYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
@@ -1053,7 +1204,7 @@ namespace EpicGames.UHT.Parsers
 			TopScope.TokenReader.Require(';');
 			return UhtParseResult.Handled;
 		}
-#endregion
+		#endregion
 
 		private static UhtPropertyDelegate PropertyDelegate = PropertyParsed;
 
@@ -1075,12 +1226,10 @@ namespace EpicGames.UHT.Parsers
 	}
 
 	[UnrealHeaderTool]
-	public static class UhtDefaultPropertyParser
+	static class UhtDefaultPropertyParser
 	{
 		[UhtPropertyType(Options = UhtPropertyTypeOptions.Default)]
-
-
-		public static UhtProperty? DefaultProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? DefaultProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			int TypeStartPos = TokenReader.PeekToken().InputStartPos;
 
