@@ -300,7 +300,7 @@ CResourceState& FD3D12CommandListHandle::FD3D12CommandListData::FCommandListReso
 
 void FD3D12CommandListHandle::FD3D12CommandListData::FCommandListResourceState::Empty()
 {
-	ResourceStates.Empty();
+	ResourceStates.Reset();
 }
 
 void FD3D12CommandListHandle::Execute(FD3D12SyncPoint& CopyQueueSyncPoint, bool WaitForCompletion)

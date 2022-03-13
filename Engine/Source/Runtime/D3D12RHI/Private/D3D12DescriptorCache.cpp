@@ -205,7 +205,7 @@ void FD3D12DescriptorCache::GatherUniqueSamplerTables()
 	}
 
 	// Reset the tables as the next frame should inherit them from the global heap
-	UniqueTables.Empty();
+	UniqueTables.Reset();
 }
 
 bool FD3D12DescriptorCache::SetDescriptorHeaps()
