@@ -341,6 +341,9 @@ public:
 	/** Removes specified properties from the list of UCS-modified properties */
 	void RemoveUCSModifiedProperties(const TArray<FProperty*>& Properties);
 
+	/** Clears the component's UCS modified properties */
+	void ClearUCSModifiedProperties();
+
 	/** True if this component can be modified when it was inherited from a parent actor class */
 	bool IsEditableWhenInherited() const;
 
@@ -402,9 +405,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Components|Activation")
 	FActorComponentDeactivateSignature OnComponentDeactivated;
 
+#if WITH_EDITORONLY_DATA
 private:
 	UPROPERTY()
-	TArray<FSimpleMemberReference> UCSModifiedProperties;
+	TArray<FSimpleMemberReference> UCSModifiedProperties_DEPRECATED;
+#endif
+
+	static FRWLock AllUCSModifiedPropertiesLock;
+	static TMap<UActorComponent*, TArray<FSimpleMemberReference>> AllUCSModifiedProperties;
 
 public:
 	/**
@@ -950,6 +958,7 @@ public:
 	virtual bool Rename( const TCHAR* NewName=NULL, UObject* NewOuter=NULL, ERenameFlags Flags=REN_None ) override;
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	virtual void Serialize(FArchive& Ar) override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #if WITH_EDITOR
 	virtual bool Modify( bool bAlwaysMarkDirty = true ) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
@@ -1087,7 +1096,6 @@ private:
 
 	friend struct FMarkComponentEndOfFrameUpdateState;
 	friend struct FSetUCSSerializationIndex;
-	friend struct FActorComponentInstanceData;
 	friend class FActorComponentDetails;
 	friend class FComponentReregisterContextBase;
 	friend class FComponentRecreateRenderStateContext;

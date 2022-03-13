@@ -21,6 +21,9 @@ struct CORE_API FFortniteReleaseBranchCustomObjectVersion
 		// Chaos::TKinematicTarget no longer stores a full transform, only position/rotation.
 		ChaosKinematicTargetRemoveScale,
 
+		// Move UCSModifiedProperties out of ActorComponent and in to sparse storage
+		ActorComponentUCSModifiedPropertiesSparseStorage,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

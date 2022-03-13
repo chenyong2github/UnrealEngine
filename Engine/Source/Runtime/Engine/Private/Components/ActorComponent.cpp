@@ -34,6 +34,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "Async/ParallelFor.h"
 
 #if WITH_EDITOR
@@ -300,6 +301,8 @@ FActorComponentGlobalDestroyPhysicsSignature UActorComponent::GlobalDestroyPhysi
 UActorComponent::FOnMarkRenderStateDirty UActorComponent::MarkRenderStateDirtyEvent;
 
 const FString UActorComponent::ComponentTemplateNameSuffix(TEXT("_GEN_VARIABLE"));
+TMap<UActorComponent*, TArray<FSimpleMemberReference>> UActorComponent::AllUCSModifiedProperties;
+FRWLock UActorComponent::AllUCSModifiedPropertiesLock;
 
 UActorComponent::UActorComponent(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
 	: Super(ObjectInitializer)
@@ -432,13 +435,23 @@ void UActorComponent::PostLoad()
 		{
 			DetermineUCSModifiedProperties();
 		}
+#if WITH_EDITORONLY_DATA
+		else if (GetLinkerCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::ActorComponentUCSModifiedPropertiesSparseStorage)
+		{
+			if (UCSModifiedProperties_DEPRECATED.Num())
+			{
+				FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
+				AllUCSModifiedProperties.Add(this, MoveTemp(UCSModifiedProperties_DEPRECATED));
+			}
+		}
+#endif
 	}
 	else
 	{
-		// For a brief period of time we were inadvertently storing these for all components, need to clear it out
-		UCSModifiedProperties.Empty();
-
 #if WITH_EDITORONLY_DATA
+		// For a brief period of time we were inadvertently storing these for all components, need to clear it out
+		UCSModifiedProperties_DEPRECATED.Empty();
+
 		if (CreationMethod == EComponentCreationMethod::UserConstructionScript)
 		{
 			if (GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::StoringUCSSerializationIndex)
@@ -721,6 +734,8 @@ void UActorComponent::BeginDestroy()
 #if WITH_EDITOR
 	UEngineElementsLibrary::DestroyEditorComponentElement(this);
 #endif	// WITH_EDITOR
+
+	ClearUCSModifiedProperties();
 
 	Super::BeginDestroy();
 }
@@ -2188,10 +2203,10 @@ bool UActorComponent::IsEditableWhenInherited() const
 
 void UActorComponent::DetermineUCSModifiedProperties()
 {
-	UCSModifiedProperties.Empty();
-
 	if (CreationMethod == EComponentCreationMethod::SimpleConstructionScript)
 	{
+		TArray<FSimpleMemberReference> UCSModifiedProperties;
+
 		class FComponentPropertySkipper : public FArchive
 		{
 		public:
@@ -2238,24 +2253,60 @@ void UActorComponent::DetermineUCSModifiedProperties()
 				}
 			}
 		}
+
+		FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
+		if (UCSModifiedProperties.Num() > 0)
+		{
+			AllUCSModifiedProperties.Add(this, MoveTemp(UCSModifiedProperties));
+		}
+		else
+		{
+			AllUCSModifiedProperties.Remove(this);
+		}
 	}
 }
 
 void UActorComponent::GetUCSModifiedProperties(TSet<const FProperty*>& ModifiedProperties) const
 {
-	for (const FSimpleMemberReference& MemberReference : UCSModifiedProperties)
+	FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_ReadOnly);
+	if (TArray<FSimpleMemberReference>* UCSModifiedProperties = AllUCSModifiedProperties.Find(this))
 	{
-		ModifiedProperties.Add(FMemberReference::ResolveSimpleMemberReference<FProperty>(MemberReference));
+		for (const FSimpleMemberReference& MemberReference : *UCSModifiedProperties)
+		{
+			ModifiedProperties.Add(FMemberReference::ResolveSimpleMemberReference<FProperty>(MemberReference));
+		}
 	}
 }
 
 void UActorComponent::RemoveUCSModifiedProperties(const TArray<FProperty*>& Properties)
 {
-	for (FProperty* Property : Properties)
+	FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
+	if (TArray<FSimpleMemberReference>* UCSModifiedProperties = AllUCSModifiedProperties.Find(this))
 	{
-		FSimpleMemberReference MemberReference;
-		FMemberReference::FillSimpleMemberReference<FProperty>(Property, MemberReference);
-		UCSModifiedProperties.RemoveSwap(MemberReference);
+		for (FProperty* Property : Properties)
+		{
+			FSimpleMemberReference MemberReference;
+			FMemberReference::FillSimpleMemberReference<FProperty>(Property, MemberReference);
+			UCSModifiedProperties->RemoveSwap(MemberReference);
+		}
+	}
+}
+
+void UActorComponent::ClearUCSModifiedProperties()
+{
+	FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
+	AllUCSModifiedProperties.Remove(this);
+}
+
+void UActorComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_ReadOnly);
+	if (TArray<FSimpleMemberReference>* UCSModifiedProperties = AllUCSModifiedProperties.Find(CastChecked<UActorComponent>(InThis)))
+	{
+		for (FSimpleMemberReference& MemberReference : *UCSModifiedProperties)
+		{
+			Collector.AddReferencedObject(MemberReference.MemberParent);
+		}
 	}
 }
 
@@ -2291,10 +2342,43 @@ void UActorComponent::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
 
 	if (Ar.IsLoading() && (Ar.HasAnyPortFlags(PPF_DuplicateForPIE)||!Ar.HasAnyPortFlags(PPF_Duplicate)) && !IsTemplate())
 	{
 		bHasBeenCreated = true;
+	}
+
+	if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) >= FFortniteReleaseBranchCustomObjectVersion::ActorComponentUCSModifiedPropertiesSparseStorage)
+	{
+		if (Ar.IsLoading())
+		{
+			TArray<FSimpleMemberReference> UCSModifiedProperties;
+			Ar << UCSModifiedProperties;
+
+			FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
+			if (UCSModifiedProperties.Num() > 0)
+			{
+				AllUCSModifiedProperties.Add(this, MoveTemp(UCSModifiedProperties));
+			}
+			else
+			{
+				AllUCSModifiedProperties.Remove(this);
+			}
+		}
+		else
+		{
+			FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_ReadOnly);
+			if (TArray<FSimpleMemberReference>* UCSModifiedProperties = AllUCSModifiedProperties.Find(this))
+			{
+				Ar << *UCSModifiedProperties;
+			}
+			else
+			{
+				TArray<FSimpleMemberReference> EmptyUCSModifiedProperties;
+				Ar << EmptyUCSModifiedProperties;
+			}
+		}
 	}
 }
 

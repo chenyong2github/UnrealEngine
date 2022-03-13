@@ -386,7 +386,7 @@ void FActorComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 		else if (CacheApplyPhase == ECacheApplyPhase::NonConstructionScript)
 		{
 			// When this case is used, we want to apply all properties, even UCS modified ones
-			Component->UCSModifiedProperties.Reset();
+			Component->ClearUCSModifiedProperties();
 		}
 
 		for (const FActorComponentDuplicatedObjectData& DuplicatedObjectData : DuplicatedObjects)
