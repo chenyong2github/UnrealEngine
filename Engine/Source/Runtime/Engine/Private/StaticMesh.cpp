@@ -5134,7 +5134,6 @@ void UStaticMesh::Serialize(FArchive& Ar)
 			FStaticMeshSourceModel& SrcModel = GetSourceModel(i);
 			SrcModel.SerializeBulkData(Ar, this);
 
-			//@@!!
 			// Automatically detect assets saved before CL 16135278 which changed F16 to RTNE
 			//	set them to bUseBackwardsCompatibleF16TruncUVs	
 			if ( Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DirLightsAreAtmosphereLightsByDefault)

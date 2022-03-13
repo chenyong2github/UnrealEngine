@@ -1713,7 +1713,6 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FNiagaraObjectVersion::GUID);
-	//@@!! NOTE: FUE5MainStreamObjectVersion was not here but does seem to be in the Archive anyway
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	FStripDataFlags StripFlags( Ar );
@@ -1960,17 +1959,6 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			ThisLODInfo.BuildSettings.bUseBackwardsCompatibleF16TruncUVs = true;
 		}
 	}
-	
-	//@@!!  NOTE : will remove
-	// FUE5MainStreamObjectVersion is present in UE5 saves of SkeletalMesh
-	//	I'm not sure who's putting it there
-	//  but it does seem like I can use it even without an explicit Using here
-	/*
-	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::DirLightsAreAtmosphereLightsByDefault)
-	{
-		UE_LOG(LogSkeletalMesh, Display, TEXT("Skeletal mesh %s has FUE5MainStreamObjectVersion"), *GetFullName() );
-	}
-	*/
 }
 
 void USkeletalMesh::DeclareCustomVersions(FArchive& Ar)
