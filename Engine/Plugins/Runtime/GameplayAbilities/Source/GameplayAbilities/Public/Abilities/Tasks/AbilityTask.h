@@ -121,6 +121,10 @@ class GAMEPLAYABILITIES_API UAbilityTask : public UGameplayTask
 
 	virtual void InitSimulatedTask(UGameplayTasksComponent& InGameplayTasksComponent) override;
 
+#if !UE_BUILD_SHIPPING
+	static void DebugRecordAbilityTaskCreatedByAbility(const UObject* Ability);
+#endif  // !UE_BUILD_SHIPPING
+
 	/** Helper function for instantiating and initializing a new task */
 	template <class T>
 	static T* NewAbilityTask(UGameplayAbility* ThisAbility, FName InstanceName = FName())
@@ -129,6 +133,11 @@ class GAMEPLAYABILITIES_API UAbilityTask : public UGameplayTask
 
 		T* MyObj = NewObject<T>();
 		MyObj->InitTask(*ThisAbility, ThisAbility->GetGameplayTaskDefaultPriority());
+
+#if !UE_BUILD_SHIPPING
+		UAbilityTask::DebugRecordAbilityTaskCreatedByAbility(ThisAbility);
+#endif  // !UE_BUILD_SHIPPING
+
 		MyObj->InstanceName = InstanceName;
 		return MyObj;
 	}

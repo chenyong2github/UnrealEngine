@@ -27,6 +27,13 @@ namespace AbilityTaskCVars
 		TEXT("If this is enabled, all new AbilityTasks will be counted by type. Use 'AbilitySystem.AbilityTask.Debug.PrintCounts' to print out the current counts.")
 	);
 
+	static bool bRecordAbilityTaskSourceAbilityCounts = false;
+	static FAutoConsoleVariableRef CVarRecordAbilityTaskSourceAbilityCounts(
+		TEXT("AbilitySystem.AbilityTask.Debug.SourceRecordingEnabled"),
+		bRecordAbilityTaskSourceAbilityCounts,
+		TEXT("Requires bRecordAbilityTaskCounts to be set to true for this value to do anything.  If both are enabled, all new AbilityTasks (after InitTask is called in NewAbilityTask) will be counted by the class of the ability that created them.  Use 'AbilitySystem.AbilityTask.Debug.PrintCounts' to print out the current counts.")
+	);
+
 	static FAutoConsoleCommand AbilityTaskPrintAbilityTaskCountsCmd(
 		TEXT("AbilitySystem.AbilityTask.Debug.PrintCounts"),
 		TEXT("Print out the current AbilityTask counts by class. 'AbilitySystem.AbilityTask.Debug.RecordingEnabled' must be turned on for this to function."),
@@ -212,8 +219,9 @@ bool UAbilityTask::IsWaitingOnAvatar() const
 
 #if !UE_BUILD_SHIPPING
 static TMap<const UClass*, int32> StaticAbilityTasksByClass = {};
+static TMap<const UClass*, int32> StaticAbilityTasksByAbilityClass = {};
 
-static void DebugRecordAbilityTaskCreated(const UAbilityTask* NewTask)
+void DebugRecordAbilityTaskCreated(const UAbilityTask* NewTask)
 {
 	const UClass* ClassPtr = (NewTask != nullptr) ? NewTask->GetClass() : nullptr;
 	if (ClassPtr != nullptr)
@@ -227,7 +235,27 @@ static void DebugRecordAbilityTaskCreated(const UAbilityTask* NewTask)
 			StaticAbilityTasksByClass.Add(ClassPtr, 1);
 		}
 	}
+}
 
+void UAbilityTask::DebugRecordAbilityTaskCreatedByAbility(const UObject* Ability)
+{
+	if (!AbilityTaskCVars::bRecordAbilityTaskSourceAbilityCounts || !AbilityTaskCVars::bRecordAbilityTaskCounts)
+	{	// Both the more detailed and the basic recording is required for the detailed recording to work properly.
+		return;
+	}
+
+	const UClass* ClassPtr = (Ability != nullptr) ? Ability->GetClass() : nullptr;
+	if (ClassPtr != nullptr)
+	{
+		if (StaticAbilityTasksByAbilityClass.Contains(ClassPtr))
+		{
+			StaticAbilityTasksByAbilityClass[ClassPtr]++;
+		}
+		else
+		{
+			StaticAbilityTasksByAbilityClass.Add(ClassPtr, 1);
+		}
+	}
 }
 
 static void DebugRecordAbilityTaskDestroyed(const UAbilityTask* DestroyedTask)
@@ -235,6 +263,23 @@ static void DebugRecordAbilityTaskDestroyed(const UAbilityTask* DestroyedTask)
 	const UClass* ClassPtr = (DestroyedTask != nullptr) ? DestroyedTask->GetClass() : nullptr;
 	if (ClassPtr != nullptr)
 	{
+		if (AbilityTaskCVars::bRecordAbilityTaskSourceAbilityCounts)
+		{
+			const UClass* AbilityClassPtr = (DestroyedTask->Ability != nullptr) ? DestroyedTask->Ability->GetClass() : nullptr;
+			if (AbilityClassPtr != nullptr)
+			{
+				if (StaticAbilityTasksByAbilityClass.Contains(AbilityClassPtr))
+				{
+					StaticAbilityTasksByAbilityClass[AbilityClassPtr]--;
+
+					if (StaticAbilityTasksByAbilityClass[AbilityClassPtr] <= 0)
+					{
+						StaticAbilityTasksByAbilityClass.Remove(AbilityClassPtr);
+					}
+				}
+			}
+		}
+
 		if (StaticAbilityTasksByClass.Contains(ClassPtr))
 		{
 			StaticAbilityTasksByClass[ClassPtr]--;
@@ -267,6 +312,17 @@ static void DebugPrintAbilityTasksByClass()
 			// It's possible to allocate AbilityTasks before AbilityTaskCVars::bRecordAbilityTaskCounts was set to 'true', even if set via command line.
 			// However, if this value increases during play, there is an issue.
 			ABILITY_LOG(Display, TEXT("- Unknown (allocated before recording): %d"), UnaccountedAbilityTasks);
+		}
+
+		if (AbilityTaskCVars::bRecordAbilityTaskSourceAbilityCounts)
+		{
+			ABILITY_LOG(Display, TEXT("UAbilityTask counts per Ability Class:"));
+			StaticAbilityTasksByAbilityClass.ValueSort(TGreater<int32>());
+			for (const TPair<const UClass*, int32>& Pair : StaticAbilityTasksByAbilityClass)
+			{
+				FString SafeName = GetNameSafe(Pair.Key);
+				ABILITY_LOG(Display, TEXT("- Ability Class '%s': %d"), *SafeName, Pair.Value);
+			}
 		}
 
 		ABILITY_LOG(Display, TEXT("Total AbilityTask count: %d"), GlobalAbilityTaskCount);
