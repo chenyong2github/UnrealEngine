@@ -5,6 +5,7 @@ using EpicGames.Serialization;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -74,8 +75,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileEntry(Utf8String Name, FileEntryFlags Flags, FileNode Node)
-			: base(Node)
+		public FileEntry(DirectoryNode Owner, Utf8String Name, FileEntryFlags Flags, FileNode Node)
+			: base(Owner, Node)
 		{
 			this.Name = Name;
 			this.Flags = Flags;
@@ -84,8 +85,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileEntry(Utf8String Name, FileEntryFlags Flags, long Length, IoHash Hash)
-			: base(Hash)
+		public FileEntry(DirectoryNode Owner, Utf8String Name, FileEntryFlags Flags, long Length, IoHash Hash)
+			: base(Owner, Hash)
 		{
 			this.Name = Name;
 			this.Flags = Flags;
@@ -97,6 +98,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 		{
 			CachedLength = Node!.Length;
 		}
+
+		/// <inheritdoc/>
+		public override string ToString() => IsDirty() ? $"{Name} (*)" : Name.ToString();
 	}
 
 	/// <summary>
@@ -122,8 +126,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DirectoryEntry(Utf8String Name, DirectoryNode Node)
-			: base(Node)
+		public DirectoryEntry(DirectoryNode Owner, Utf8String Name, DirectoryNode Node)
+			: base(Owner, Node)
 		{
 			this.Name = Name;
 		}
@@ -131,8 +135,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DirectoryEntry(Utf8String Name, long Length, IoHash Hash)
-			: base(Hash)
+		public DirectoryEntry(DirectoryNode Owner, Utf8String Name, long Length, IoHash Hash)
+			: base(Owner, Hash)
 		{
 			this.Name = Name;
 			this.CachedLength = Length;
@@ -143,6 +147,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 		{
 			CachedLength = Node!.Length;
 		}
+
+		/// <inheritdoc/>
+		public override string ToString() => IsDirty() ? $"{Name} (*)" : Name.ToString();
 	}
 
 	/// <summary>
@@ -208,7 +215,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 			FileNode NewNode = new FileNode();
 
-			FileEntry Entry = new FileEntry(Name, Flags, NewNode);
+			FileEntry Entry = new FileEntry(this, Name, Flags, NewNode);
 			NameToFileEntry[Name] = Entry;
 			MarkAsDirty();
 
@@ -331,7 +338,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 			DirectoryNode Node = new DirectoryNode();
 
-			DirectoryEntry Entry = new DirectoryEntry(Name, Node);
+			DirectoryEntry Entry = new DirectoryEntry(this, Name, Node);
 			NameToDirectoryEntry.Add(Name, Entry);
 			MarkAsDirty();
 
@@ -466,7 +473,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				IoHash Hash = new IoHash(Span);
 				Span = Span.Slice(IoHash.NumBytes);
 
-				Node.NameToFileEntry[Name] = new FileEntry(Name, Flags, Length, Hash);
+				Node.NameToFileEntry[Name] = new FileEntry(Node, Name, Flags, Length, Hash);
 			}
 
 			int DirectoryCount = (int)VarInt.Read(Span, out int DirectoryCountBytes);
@@ -485,7 +492,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				IoHash Hash = new IoHash(Span);
 				Span = Span.Slice(IoHash.NumBytes);
 
-				Node.NameToDirectoryEntry[Name] = new DirectoryEntry(Name, Length, Hash);
+				Node.NameToDirectoryEntry[Name] = new DirectoryEntry(Node, Name, Length, Hash);
 			}
 
 			Debug.Assert(Span.Length == 0);

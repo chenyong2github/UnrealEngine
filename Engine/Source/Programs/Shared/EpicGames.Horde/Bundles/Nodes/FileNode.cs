@@ -115,7 +115,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Whether this node is read-only
 		/// </summary>
-		public bool IsComplete() => Hash != null;
+		public override bool IsReadOnly() => Hash != null;
 
 		/// <summary>
 		/// Accessor for the children of this node
@@ -167,7 +167,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				while (Span.Length > 0)
 				{
 					IoHash ChildHash = new IoHash(Span);
-					Node.ChildNodeRefs.Add(new BundleNodeRef<FileNode>(ChildHash));
+					Node.ChildNodeRefs.Add(new BundleNodeRef<FileNode>(Node, ChildHash));
 				}
 			}
 			return Node;
@@ -299,7 +299,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				{
 					foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
 					{
-						ChildNodeRef.Detach();
+						ChildNodeRef.Reparent(NewNode);
 					}
 					ChildNodeRefs = null;
 				}
@@ -317,13 +317,13 @@ namespace EpicGames.Horde.Bundles.Nodes
 				ChildNodeRefs = new List<BundleNodeRef<FileNode>>();
 
 				// Append the new node as a child
-				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(NewNode));
+				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(this, NewNode));
 			}
 		}
 
 		private ReadOnlyMemory<byte> AppendToNode(ReadOnlyMemory<byte> Data, ChunkingOptions Options)
 		{
-			if (Data.Length == 0 || IsComplete())
+			if (Data.Length == 0 || IsReadOnly())
 			{
 				return Data;
 			}
@@ -515,7 +515,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 						Length += LastNode.Length;
 
 						// If the last node is complete, write it to the buffer
-						if (LastNode.IsComplete())
+						if (LastNode.IsReadOnly())
 						{
 							// Update the hash
 							byte[] HashData = LastNode.Hash!.Value.ToByteArray();
@@ -541,7 +541,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				// Add a new child node
 				FileNode ChildNode = new FileNode();
 				ChildNode.IsRoot = false;
-				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(ChildNode));
+				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(this, ChildNode));
 			}
 		}
 	}

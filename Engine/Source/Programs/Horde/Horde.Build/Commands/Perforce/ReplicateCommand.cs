@@ -41,6 +41,12 @@ namespace HordeServer.Commands
 		public bool Content { get; set; }
 
 		[CommandLine]
+		public bool Compact { get; set; } = true;
+
+		[CommandLine]
+		public bool Clean { get; set; }
+
+		[CommandLine]
 		public string Filter { get; set; } = "//...";
 
 		[CommandLine]
@@ -81,34 +87,50 @@ namespace HordeServer.Commands
 			Dictionary<IStream, int> StreamToFirstChange = new Dictionary<IStream, int>();
 			StreamToFirstChange[Stream] = Change;
 
-			CommitTree? BaseTree = null; 
+			CommitTree? BaseTree = null;
 			if (BaseChange != 0)
 			{
-				ICommit? Commit = await CommitCollection.GetCommitAsync(Stream.Id, BaseChange);
-				if (Commit == null)
-				{
-					throw new InvalidOperationException($"Unable to find existing commit for {StreamId} @ CL {BaseChange}");
-				}
-				if (Commit.TreeRefId == null)
-				{
-					throw new InvalidOperationException($"No tree for commit {StreamId} @ CL {BaseChange}");
-				}
-				BaseTree = new CommitTree(Commit.StreamId, Commit.Change, Commit.TreeRefId.Value);
+				BaseTree = await GetBaseTreeAsync(CommitCollection, Stream.Id, Change);
 			}
 
 			await foreach (NewCommit NewCommit in CommitService.FindCommitsForClusterAsync(Stream.ClusterName, StreamToFirstChange).Take(Count))
 			{
-				string BriefSummary = NewCommit.Description.Replace('\n', ' ').Substring(0, 50);
-				Logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", NewCommit.Change, NewCommit.AuthorId, BriefSummary);
+				string BriefSummary = NewCommit.Description.Replace('\n', ' ');
+				Logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", NewCommit.Change, NewCommit.AuthorId, BriefSummary.Substring(0, Math.Min(50, BriefSummary.Length)));
 				Logger.LogInformation(" - Base path: {BasePath}", NewCommit.BasePath);
 
 				if (Content)
 				{
-					BaseTree = await CommitService.FindCommitTreeAsync(Stream, NewCommit.Change, BaseTree, Filter);
+					if (BaseTree == null && !Clean)
+					{
+						BaseTree = await GetBaseTreeAsync(CommitCollection, Stream.Id, NewCommit.Change);
+					}
+					else
+					{
+						BaseTree = await CommitService.FindCommitTreeAsync(Stream, NewCommit.Change, BaseTree, Filter);
+					}
+
+					NewCommit.TreeRefId = BaseTree.RefId;
 				}
+
+				await CommitCollection.AddOrReplaceAsync(NewCommit);
 			}
 
 			return 0;
+		}
+
+		static async Task<CommitTree> GetBaseTreeAsync(ICommitCollection CommitCollection, StreamId StreamId, int Change)
+		{
+			ICommit? Commit = await CommitCollection.GetCommitAsync(StreamId, Change);
+			if (Commit == null)
+			{
+				throw new InvalidOperationException($"Unable to find existing commit for {StreamId} @ CL {Change}");
+			}
+			if (Commit.TreeRefId == null)
+			{
+				throw new InvalidOperationException($"No tree for commit {StreamId} @ CL {Change}");
+			}
+			return new CommitTree(Commit.StreamId, Commit.Change, Commit.TreeRefId.Value);
 		}
 	}
 }

@@ -62,7 +62,17 @@ namespace EpicGames.Horde.Bundles
 	public class Bundle
 	{
 		/// <summary>
-		/// Information about a node within a bundle.
+		/// Information about a node within a bundle. Nodes may be in the following states:
+		/// 
+		/// * Imported
+		///   Node is known to be in located a particular hashed blob in storage, but we haven't yet read the blob index to figure out exactly where.
+		///   
+		/// * Exported
+		///   Node is known to be located within a particular blob in storage, and the <see cref="NodeInfo.Export"/> member identifies specifically where.
+		///   
+		/// * Standalone
+		///   Node exists in memory, but has not been written to storage yet.
+		/// 
 		/// </summary>
 		[DebuggerDisplay("{Hash}")]
 		sealed class NodeInfo
@@ -71,10 +81,10 @@ namespace EpicGames.Horde.Bundles
 			public int Rank { get; }
 			public int Length { get; }
 
-			public BlobInfo? Blob;
-			public BundleExport? Export;
-			public ReadOnlySequence<byte> Data;
-			public NodeInfo[]? References;
+			public BlobInfo? Blob { get; private set; }
+			public BundleExport? Export { get; private set; }
+			public ReadOnlySequence<byte> Data { get; private set; }
+			public NodeInfo[]? References { get; private set; }
 
 			public NodeInfo(IoHash Hash, int Rank, int Length)
 			{
@@ -103,7 +113,7 @@ namespace EpicGames.Horde.Bundles
 			}
 
 			public void SetImport(BlobInfo Blob) => Set(Blob, null, ReadOnlySequence<byte>.Empty, null);
-			public void SetExport(BlobInfo? Blob, BundleExport Export, ReadOnlySequence<byte> Data, NodeInfo[] References) => Set(Blob, Export, Data, References);
+			public void SetExport(BlobInfo Blob, BundleExport Export, NodeInfo[] References) => Set(Blob, Export, ReadOnlySequence<byte>.Empty, References);
 			public void SetStandalone(ReadOnlySequence<byte> Data, NodeInfo[] References) => Set(null, null, Data, References);
 		}
 
@@ -128,8 +138,6 @@ namespace EpicGames.Horde.Bundles
 
 		readonly IStorageClient StorageClient;
 		readonly NamespaceId NamespaceId;
-
-		object RootCacheKey = new object();
 
 		/// <summary>
 		/// Reference to the root node in the bundle
@@ -176,7 +184,7 @@ namespace EpicGames.Horde.Bundles
 		protected Bundle(IStorageClient StorageClient, NamespaceId NamespaceId, BundleObject Object, BundleNode Root, BundleOptions Options, IMemoryCache? Cache)
 			: this(StorageClient, NamespaceId, Root, Options, Cache)
 		{
-			RegisterObject(null, Object, Object.Data);
+			RegisterRootObject(Object);
 		}
 
 		/// <summary>
@@ -216,12 +224,12 @@ namespace EpicGames.Horde.Bundles
 			Bundle<T> NewBundle = new Bundle<T>(StorageClient, NamespaceId, null!, Options, Cache);
 
 			BundleObject Object = await StorageClient.GetRefAsync<BundleObject>(NamespaceId, BucketId, RefId);
-			NewBundle.RegisterObject(null, Object, Object.Data);
+			NewBundle.RegisterRootObject(Object);
 
 			IoHash RootHash = Object.Exports[Object.Exports.Count - 1].Hash;
-			BundleNodeRef<T> RootRef = new BundleNodeRef<T>(RootHash);
+			ReadOnlySequence<byte> Data = await NewBundle.GetDataAsync(RootHash);
+			((Bundle)NewBundle).Root = BundleNode.Deserialize<T>(Data);
 
-			((Bundle)NewBundle).Root = await NewBundle.GetAsync(RootRef);
 			return NewBundle;
 		}
 
@@ -232,14 +240,16 @@ namespace EpicGames.Horde.Bundles
 		{
 			// Find all the nodes that need to be flushed, in order
 			List<BundleNodeRef> NodeRefs = new List<BundleNodeRef>();
-			LinkWorkingSet(Root, null, NodeRefs);
+			LinkWorkingSet(Root, NodeRefs);
+
+			// Find the working set of mutable nodes to retain in memory
+			HashSet<BundleNodeRef> WorkingSet = new HashSet<BundleNodeRef>(NodeRefs.Where(x => !x.Node!.IsReadOnly()).OrderByDescending(x => x.LastModifiedTime).Take(IgnoreCount));
+			NodeRefs.RemoveAll(x => WorkingSet.Contains(x));
 			NodeRefs.SortBy(x => x.LastModifiedTime);
 
 			// Write them all to storage
-			for (int Idx = 0; Idx + IgnoreCount < NodeRefs.Count; Idx++)
+			foreach (BundleNodeRef NodeRef in NodeRefs)
 			{
-				BundleNodeRef NodeRef = NodeRefs[Idx];
-
 				BundleNode? Node = NodeRef.Node;
 				Debug.Assert(Node != null);
 
@@ -252,22 +262,17 @@ namespace EpicGames.Horde.Bundles
 		/// Traverse a tree of <see cref="BundleNodeRef"/> objects and update the incoming reference to each node
 		/// </summary>
 		/// <param name="Node">The reference to update</param>
-		/// <param name="IncomingRef">The parent reference</param>
 		/// <param name="NodeRefs">List to accumulate the list of all modified references</param>
-		private void LinkWorkingSet(BundleNode Node, BundleNodeRef? IncomingRef, List<BundleNodeRef> NodeRefs)
+		private void LinkWorkingSet(BundleNode Node, List<BundleNodeRef> NodeRefs)
 		{
-			Node.IncomingRef = IncomingRef;
-
 			foreach (BundleNodeRef ChildRef in Node.GetReferences())
 			{
-				ChildRef.ParentRef ??= IncomingRef;
-
 				if (ChildRef.Node != null && ChildRef.LastModifiedTime != 0)
 				{
-					LinkWorkingSet(ChildRef.Node, ChildRef, NodeRefs);
-					if (IncomingRef != null)
+					LinkWorkingSet(ChildRef.Node, NodeRefs);
+					if (Node.IncomingRef != null)
 					{
-						IncomingRef.LastModifiedTime = Math.Max(IncomingRef.LastModifiedTime, ChildRef.LastModifiedTime + 1);
+						Node.IncomingRef.LastModifiedTime = Math.Max(Node.IncomingRef.LastModifiedTime, ChildRef.LastModifiedTime + 1);
 					}
 					NodeRefs.Add(ChildRef);
 				}
@@ -346,6 +351,7 @@ namespace EpicGames.Horde.Bundles
 			{
 				ReadOnlySequence<byte> Data = await GetDataAsync(Ref.Hash);
 				Ref.Node = BundleNode.Deserialize<T>(Data);
+				Ref.Node.IncomingRef = Ref;
 			}
 			return Ref.Node!;
 		}
@@ -369,21 +375,17 @@ namespace EpicGames.Horde.Bundles
 		{
 			if (Node.Blob == null)
 			{
-				if (Node.Export == null)
-				{
-					return Node.Data;
-				}
-				else
-				{
-					return new ReadOnlySequence<byte>(DecodePacket(RootCacheKey, Node.Data, Node.Export.Packet).Slice(Node.Export.Offset, Node.Export.Length));
-				}
+				return Node.Data;
 			}
 			else
 			{
 				await MountBlobAsync(Node.Blob);
 				Debug.Assert(Node.Export != null);
+
 				BundleObject Object = await GetObjectAsync(Node.Blob.Hash);
-				return new ReadOnlySequence<byte>(DecodePacket(Node.Blob.Hash, new ReadOnlySequence<byte>(Object.Data), Node.Export.Packet).Slice(Node.Export.Offset, Node.Export.Length));
+				ReadOnlySequence<byte> Data = new ReadOnlySequence<byte>(DecodePacket(Node.Blob.Hash, new ReadOnlySequence<byte>(Object.Data), Node.Export.Packet).Slice(Node.Export.Offset, Node.Export.Length));
+
+				return Data;
 			}
 		}
 
@@ -434,8 +436,7 @@ namespace EpicGames.Horde.Bundles
 			if(!Blob.Mounted)
 			{
 				BundleObject Object = await GetObjectAsync(Blob.Hash);
-				RegisterObject(Blob, Object, ReadOnlyMemory<byte>.Empty);
-				Blob.Mounted = true;
+				RegisterBlobObject(Object, Blob);
 			}
 		}
 
@@ -509,7 +510,50 @@ namespace EpicGames.Horde.Bundles
 			return Node;
 		}
 
-		void RegisterObject(BlobInfo? Blob, BundleObject Object, ReadOnlyMemory<byte> Data)
+		/// <summary>
+		/// Creates nodes for a given root object. Data for each node will be decompressed and copied from the object.
+		/// </summary>
+		void RegisterRootObject(BundleObject Object)
+		{
+			List<NodeInfo> Nodes = CreateNodesForObject(Object);
+
+			for (int Idx = 0; Idx < Object.Exports.Count; )
+			{
+				BundleCompressionPacket Packet = Object.Exports[Idx].Packet;
+
+				byte[] DecodedData = new byte[Packet.DecodedLength];
+				LZ4Codec.Decode(Object.Data.Slice(Packet.Offset, Packet.EncodedLength).Span, DecodedData);
+
+				for (; Idx < Object.Exports.Count && Object.Exports[Idx].Packet == Packet; Idx++)
+				{
+					BundleExport Export = Object.Exports[Idx];
+
+					ReadOnlyMemory<byte> NodeData = DecodedData.AsMemory(Export.Offset, Export.Length);
+					if(Export.Length != DecodedData.Length)
+					{
+						NodeData = NodeData.ToArray();
+					}
+
+					Nodes[Idx].SetStandalone(new ReadOnlySequence<byte>(NodeData), Export.References.Select(x => Nodes[x]).ToArray());
+				}
+			}
+		}
+
+		/// <summary>
+		/// Creates nodes for a given blob object.
+		/// </summary>
+		void RegisterBlobObject(BundleObject Object, BlobInfo Blob)
+		{
+			List<NodeInfo> Nodes = CreateNodesForObject(Object);
+			for (int Idx = 0; Idx < Object.Exports.Count; Idx++)
+			{
+				BundleExport Export = Object.Exports[Idx];
+				Nodes[Idx].SetExport(Blob, Export, Export.References.Select(x => Nodes[x]).ToArray());
+			}
+			Blob.Mounted = true;
+		}
+
+		List<NodeInfo> CreateNodesForObject(BundleObject Object)
 		{
 			List<NodeInfo> Nodes = new List<NodeInfo>();
 			foreach (BundleExport Export in Object.Exports)
@@ -528,18 +572,14 @@ namespace EpicGames.Horde.Bundles
 				foreach (BundleImport Import in ImportObject.Imports)
 				{
 					NodeInfo Node = FindOrAddNode(Import.Hash, Import.Rank, Import.Length);
-					if(Node.Blob == null)
+					if (Node.Blob == null)
 					{
 						Node.SetImport(ImportBlob);
 					}
 					Nodes.Add(Node);
 				}
 			}
-			for(int Idx = 0; Idx < Object.Exports.Count; Idx++)
-			{
-				NodeInfo Node = Nodes[Idx];
-				Node.SetExport(Blob, Object.Exports[Idx], new ReadOnlySequence<byte>(Data), Object.Exports[Idx].References.Select(x => Nodes[x]).ToArray());
-			}
+			return Nodes;
 		}
 
 		/// <summary>
@@ -679,17 +719,14 @@ namespace EpicGames.Horde.Bundles
 
 		async Task WriteRefAsync(IReadOnlyList<NodeInfo> Nodes, BucketId BucketId, RefId RefId)
 		{
-			BundleObject Object = await CreateObjectAsync(Nodes);
-			await StorageClient.SetRefAsync(NamespaceId, BucketId, RefId, Object);
-			Object.Data = Object.Data.ToArray(); // Duplicated since its lifetime persists beyond this function. See remarks in CreateObjectAsync.
-
 			foreach (NodeInfo Node in Nodes)
 			{
-				Node.Blob = null;
-				Node.Data = new ReadOnlySequence<byte>(Object.Data);
+				ReadOnlySequence<byte> Data = await GetDataAsync(Node);
+				Node.SetStandalone(Data, Node.References!);
 			}
 
-			RootCacheKey = new object();
+			BundleObject Object = await CreateObjectAsync(Nodes);
+			await StorageClient.SetRefAsync(NamespaceId, BucketId, RefId, Object);
 		}
 
 		ReadOnlyMemory<byte> EncodeObject(BundleObject Object)
@@ -710,11 +747,13 @@ namespace EpicGames.Horde.Bundles
 			IoHash Hash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, EncodeObject(Object));
 
 			BlobInfo Blob = new BlobInfo(Hash, Object.Exports.Sum(x => x.Length));
-			foreach (NodeInfo Node in Nodes)
+			for (int Idx = 0; Idx < Object.Exports.Count; Idx++)
 			{
-				Node.Blob = Blob;
-				Node.Data = ReadOnlySequence<byte>.Empty;
+				NodeInfo Node = Nodes[Idx];
+				Node.SetExport(Blob, Object.Exports[Idx], Node.References!);
 			}
+
+			Blob.Mounted = true;
 		}
 
 		/// <summary>
@@ -781,8 +820,8 @@ namespace EpicGames.Horde.Bundles
 
 				// Create the export for this node
 				int[] References = Node.References.Select(x => NodeToIndex[x]).ToArray();
-				Node.Export = new BundleExport(Node.Hash, Node.Rank, Packet, Packet.DecodedLength, Node.Length, References);
-				Object.Exports.Add(Node.Export);
+				BundleExport Export = new BundleExport(Node.Hash, Node.Rank, Packet, BlockSize, Node.Length, References);
+				Object.Exports.Add(Export);
 
 				// Write out the new block
 				int Offset = Packet.EncodedLength;

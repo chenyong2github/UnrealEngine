@@ -32,10 +32,15 @@ namespace EpicGames.Horde.Bundles.Nodes
 		}
 
 		/// <summary>
-		/// Cached incoming reference to the owner of this node. When the contents of this node are flushed to storage, this is modified to become a weak reference
-		/// and hash value. When modified, it becomes a strong reference and zero hash.
+		/// Cached incoming reference to the owner of this node.
 		/// </summary>
 		internal BundleNodeRef? IncomingRef { get; set; }
+
+		/// <summary>
+		/// Queries if the node in its current state is read-only. Once we know that nodes are no longer going to be modified, they are favored for spilling to persistent storage.
+		/// </summary>
+		/// <returns>True if the node is read-only.</returns>
+		public virtual bool IsReadOnly() => false;
 
 		/// <summary>
 		/// Mark this node as dirty
@@ -79,7 +84,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Cached reference to the parent node
 		/// </summary>
-		internal BundleNodeRef? ParentRef;
+		internal BundleNode Owner;
 
 		/// <summary>
 		/// Strong reference to the current node
@@ -113,30 +118,43 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Creates a reference to a node with the given hash
 		/// </summary>
+		/// <param name="Owner">The node which owns the reference</param>
 		/// <param name="Hash">Hash of the referenced node</param>
-		public BundleNodeRef(IoHash Hash)
+		public BundleNodeRef(BundleNode Owner, IoHash Hash)
 		{
+			this.Owner = Owner;
 			this.Hash = Hash;
 		}
 
 		/// <summary>
 		/// Creates a reference to the given node
 		/// </summary>
+		/// <param name="Owner">The node which owns the reference</param>
 		/// <param name="Node">The referenced node</param>
-		public BundleNodeRef(BundleNode Node)
+		public BundleNodeRef(BundleNode Owner, BundleNode Node)
 		{
+			this.Owner = Owner;
 			this.StrongRef = Node;
 			this.LastModifiedTime = Stopwatch.GetTimestamp();
+
+			Node.IncomingRef = this;
 		}
 
 		/// <summary>
-		/// Detach this reference from its current owner. Used in situations where a node needs to be reparented.
+		/// Reparent this reference to a new owner.
 		/// </summary>
-		public void Detach()
+		public void Reparent(BundleNode NewOwner)
 		{
 			MarkAsDirty();
-			ParentRef = null;
+			Owner = NewOwner;
+			MarkAsDirty();
 		}
+
+		/// <summary>
+		/// Figure out whether this ref is dirty
+		/// </summary>
+		/// <returns></returns>
+		public bool IsDirty() => LastModifiedTime != 0;
 
 		/// <summary>
 		/// Converts the node in this reference from a weak to strong reference.
@@ -173,7 +191,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 					}
 					this.WeakRef = null;
 				}
-				ParentRef?.MarkAsDirty();
+				Owner.IncomingRef?.MarkAsDirty();
 			}
 		}
 
@@ -219,16 +237,18 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="Owner">The node which owns the reference</param>
 		/// <param name="Hash">Hash of the referenced node</param>
-		public BundleNodeRef(IoHash Hash) : base(Hash)
+		public BundleNodeRef(BundleNode Owner, IoHash Hash) : base(Owner, Hash)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="Owner">The node which owns the reference</param>
 		/// <param name="Node">The referenced node</param>
-		public BundleNodeRef(T Node) : base(Node)
+		public BundleNodeRef(BundleNode Owner, T Node) : base(Owner, Node)
 		{
 		}
 	}
