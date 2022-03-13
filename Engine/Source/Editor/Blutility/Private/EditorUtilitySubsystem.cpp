@@ -258,6 +258,12 @@ bool UEditorUtilitySubsystem::CloseTabByID(FName NewTabID)
 
 UEditorUtilityWidget* UEditorUtilitySubsystem::FindUtilityWidgetFromBlueprint(class UEditorUtilityWidgetBlueprint* InBlueprint)
 {
+	if (!IsValid(InBlueprint))
+	{ 
+		UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("Found Invalid Blueprint in FindUtilityWidgetFromBlueprint"));
+		return nullptr; 
+	}
+
 	return InBlueprint->GetCreatedWidget();
 }
 
