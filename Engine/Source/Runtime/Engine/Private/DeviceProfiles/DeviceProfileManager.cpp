@@ -753,6 +753,39 @@ UDeviceProfile* UDeviceProfileManager::CreateProfile(const FString& ProfileName,
 	return DeviceProfile;
 }
 
+bool UDeviceProfileManager::HasLoadableProfileName(const FString& ProfileName, FName OptionalPlatformName)
+{
+	UDeviceProfile* DeviceProfile = FindObject<UDeviceProfile>(GetTransientPackage(), *ProfileName);
+	if (DeviceProfile != nullptr)
+	{
+		return true;
+	}
+
+	FConfigCacheIni* ConfigSystem = GConfig;
+
+	if (OptionalPlatformName != NAME_None)
+	{
+#if ALLOW_OTHER_PLATFORM_CONFIG
+		ConfigSystem = FConfigCacheIni::ForPlatform(OptionalPlatformName);
+#else
+
+		checkf(OptionalPlatformName == FName(FPlatformProperties::IniPlatformName()), 
+			"UDeviceProfileManager::HasLoadableProfileName - This platform cannot load configurations for other platforms.");
+#endif
+	}
+
+	// use ConfigPlatform ini hierarchy to look in for the parent profile
+	// @todo config: we could likely cache local ini files to speed this up,
+	// along with the ones we load in LoadConfig
+	// NOTE: This happens at runtime, so maybe only do this if !RequiresCookedData()?
+	FConfigFile* PlatformConfigFile;
+	FConfigFile LocalConfigFile;
+
+	PlatformConfigFile = GConfig->Find(GDeviceProfilesIni);
+	const FString SectionName = FString::Printf(TEXT("%s %s"), *ProfileName, *UDeviceProfile::StaticClass()->GetName());
+	return PlatformConfigFile->Contains(SectionName);
+}
+
 
 void UDeviceProfileManager::DeleteProfile( UDeviceProfile* Profile )
 {

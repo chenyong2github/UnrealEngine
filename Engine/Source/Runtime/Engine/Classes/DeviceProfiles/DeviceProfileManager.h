@@ -75,6 +75,16 @@ public:
 	UDeviceProfile* CreateProfile(const FString& ProfileName, const FString& ProfileType, const FString& ParentName=TEXT(""), const TCHAR* ConfigPlatform=nullptr);
 
 	/**
+	 * Tests to see if a named device profile is available to call CreateProfile with.
+	 *
+	 * @param ProfileName - The profile name.
+	 * @param ProfileToCopy - The profile to copy name.
+	 *
+	 * @return the created profile.
+	 */
+	bool HasLoadableProfileName(const FString& ProfileName, FName OptionalPlatformName = FName());
+
+	/**
 	 * Delete a profile.
 	 *
 	 * @param Profile - The profile to delete.
