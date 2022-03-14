@@ -864,8 +864,11 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
-		// Have to do this for now because FXC takes a long time to compile the shaders (sometimes indefinite)
-		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+		// Have to do this for now because FXC takes a long time to compile the programmable shaders (sometimes indefinite)
+		if (!Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+		}
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
