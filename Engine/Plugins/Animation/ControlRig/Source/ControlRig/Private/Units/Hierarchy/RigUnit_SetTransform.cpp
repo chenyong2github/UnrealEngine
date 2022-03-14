@@ -44,7 +44,7 @@ FRigUnit_SetTransform_Execute()
 					// for controls - set the control offset transform instead
 					if(bInitial && (CachedIndex.GetKey().Type == ERigElementType::Control))
 					{
-						FTransform TransformMutable = Transform;
+						FTransform TransformMutable = Value;
 						FRigUnit_SetControlOffset::StaticExecute(RigVMExecuteContext, CachedIndex.GetKey().Name, TransformMutable, Space, CachedIndex, ExecuteContext, Context);
 						
 						if (ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
@@ -55,7 +55,7 @@ FRigUnit_SetTransform_Execute()
 						return;
 					}
 					
-					FTransform WeightedTransform = Transform;
+					FTransform WeightedTransform = Value;
 					if (Weight < 1.f - SMALL_NUMBER)
 					{
 						FTransform PreviousTransform = WeightedTransform;
@@ -125,9 +125,9 @@ FString FRigUnit_SetTranslation::GetUnitLabel() const
 FRigUnit_SetTranslation_Execute()
 {
 	FTransform Transform = FTransform::Identity;
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, false, Transform, CachedIndex, Context);
-	Transform.SetLocation(Translation);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, false, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
+	Transform.SetLocation(Value);
+	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
 }
 
 FString FRigUnit_SetRotation::GetUnitLabel() const
@@ -139,9 +139,9 @@ FString FRigUnit_SetRotation::GetUnitLabel() const
 FRigUnit_SetRotation_Execute()
 {
 	FTransform Transform = FTransform::Identity;
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, false, Transform, CachedIndex, Context);
-	Transform.SetRotation(Rotation);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, false, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
+	Transform.SetRotation(Value);
+	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
 }
 
 FString FRigUnit_SetScale::GetUnitLabel() const
@@ -153,9 +153,9 @@ FString FRigUnit_SetScale::GetUnitLabel() const
 FRigUnit_SetScale_Execute()
 {
 	FTransform Transform = FTransform::Identity;
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, false, Transform, CachedIndex, Context);
+	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
 	Transform.SetScale3D(Scale);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, false, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
 }
 
 

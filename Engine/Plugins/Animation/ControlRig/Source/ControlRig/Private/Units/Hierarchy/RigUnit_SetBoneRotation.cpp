@@ -82,10 +82,11 @@ FRigVMStructUpgradeInfo FRigUnit_SetBoneRotation::GetUpgradeInfo() const
 	FRigUnit_SetRotation NewNode;
 	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
 	NewNode.Space = Space;
-	NewNode.Rotation = Rotation;
+	NewNode.Value = Rotation;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
+	Info.AddRemappedPin(TEXT("Rotation"), TEXT("Value"));
 	return Info;
 }
 

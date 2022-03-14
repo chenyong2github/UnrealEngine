@@ -50,10 +50,11 @@ FRigVMStructUpgradeInfo FRigUnit_SetSpaceInitialTransform::GetUpgradeInfo() cons
 	FRigUnit_SetTransform NewNode;
 	NewNode.Item = FRigElementKey(SpaceName, ERigElementType::Null);
 	NewNode.Space = Space;
-	NewNode.Transform = Transform;
+	NewNode.Value = Transform;
 	NewNode.bInitial = true;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("SpaceName"), TEXT("Item.Name"));
+	Info.AddRemappedPin(TEXT("Transform"), TEXT("Value"));
 	return Info;
 }

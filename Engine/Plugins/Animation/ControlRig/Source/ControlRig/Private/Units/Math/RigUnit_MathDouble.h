@@ -3,70 +3,70 @@
 #pragma once
 
 #include "RigUnit_MathBase.h"
-#include "RigUnit_MathFloat.generated.h"
+#include "RigUnit_MathDouble.generated.h"
 
-USTRUCT(meta=(Abstract, Category="Math|Float", MenuDescSuffix="(Float)"))
-struct CONTROLRIG_API FRigUnit_MathFloatBase : public FRigUnit_MathBase
+USTRUCT(meta=(Abstract, Category="Math|Double", MenuDescSuffix="(Double)"))
+struct CONTROLRIG_API FRigUnit_MathDoubleBase : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta=(Abstract))
-struct CONTROLRIG_API FRigUnit_MathFloatConstant : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleConstant : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatConstant()
+	FRigUnit_MathDoubleConstant()
 	{
-		Value = 0.f;
+		Value = 0.0;
 	}
 
 	UPROPERTY(meta=(Output))
-	float Value;
+	double Value;
 };
 
 USTRUCT(meta=(Abstract))
-struct CONTROLRIG_API FRigUnit_MathFloatUnaryOp : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleUnaryOp : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatUnaryOp()
+	FRigUnit_MathDoubleUnaryOp()
 	{
-		Value = Result = 0.f;
+		Value = Result = 0.0;
 	}
 
 	UPROPERTY(meta=(Input))
-	float Value;
+	double Value;
 
 	UPROPERTY(meta=(Output))
-	float Result;
+	double Result;
 };
 
 USTRUCT(meta=(Abstract))
-struct CONTROLRIG_API FRigUnit_MathFloatBinaryOp : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleBinaryOp : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatBinaryOp()
+	FRigUnit_MathDoubleBinaryOp()
 	{
-		A = B = Result = 0.f;
+		A = B = Result = 0.0;
 	}
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Output))
-	float Result;
+	double Result;
 };
 
 /**
  * Returns PI
  */
 USTRUCT(meta=(DisplayName="Pi", TemplateName="Pi"))
-struct CONTROLRIG_API FRigUnit_MathFloatConstPi : public FRigUnit_MathFloatConstant
+struct CONTROLRIG_API FRigUnit_MathDoubleConstPi : public FRigUnit_MathDoubleConstant
 {
 	GENERATED_BODY()
 	
@@ -78,7 +78,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstPi : public FRigUnit_MathFloatConst
  * Returns PI * 0.5
  */
 USTRUCT(meta=(DisplayName="Half Pi", TemplateName="HalfPi"))
-struct CONTROLRIG_API FRigUnit_MathFloatConstHalfPi : public FRigUnit_MathFloatConstant
+struct CONTROLRIG_API FRigUnit_MathDoubleConstHalfPi : public FRigUnit_MathDoubleConstant
 {
 	GENERATED_BODY()
 
@@ -90,7 +90,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstHalfPi : public FRigUnit_MathFloatC
  * Returns PI * 2.0
  */
 USTRUCT(meta=(DisplayName="Two Pi", TemplateName="TwoPi", Keywords="Tau"))
-struct CONTROLRIG_API FRigUnit_MathFloatConstTwoPi : public FRigUnit_MathFloatConstant
+struct CONTROLRIG_API FRigUnit_MathDoubleConstTwoPi : public FRigUnit_MathDoubleConstant
 {
 	GENERATED_BODY()
 
@@ -102,7 +102,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstTwoPi : public FRigUnit_MathFloatCo
  * Returns E
  */
 USTRUCT(meta=(DisplayName="E", TemplateName="E", Keywords="Euler"))
-struct CONTROLRIG_API FRigUnit_MathFloatConstE : public FRigUnit_MathFloatConstant
+struct CONTROLRIG_API FRigUnit_MathDoubleConstE : public FRigUnit_MathDoubleConstant
 {
 	GENERATED_BODY()
 	
@@ -114,7 +114,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstE : public FRigUnit_MathFloatConsta
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", TemplateName="Add", Keywords="Sum,+"))
-struct CONTROLRIG_API FRigUnit_MathFloatAdd : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleAdd : public FRigUnit_MathDoubleBinaryOp
 {
 	GENERATED_BODY()
 
@@ -126,7 +126,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatAdd : public FRigUnit_MathFloatBinaryOp
  * Returns the difference of the two values
  */
 USTRUCT(meta=(DisplayName="Subtract", TemplateName="Subtract", Keywords="-"))
-struct CONTROLRIG_API FRigUnit_MathFloatSub : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleSub : public FRigUnit_MathDoubleBinaryOp
 {
 	GENERATED_BODY()
 
@@ -138,14 +138,14 @@ struct CONTROLRIG_API FRigUnit_MathFloatSub : public FRigUnit_MathFloatBinaryOp
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*"))
-struct CONTROLRIG_API FRigUnit_MathFloatMul : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleMul : public FRigUnit_MathDoubleBinaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatMul()
+	FRigUnit_MathDoubleMul()
 	{
-		A = 1.f;
-		B = 1.f;
+		A = 1.0;
+		B = 1.0;
 	}
 
 	RIGVM_METHOD()
@@ -156,13 +156,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatMul : public FRigUnit_MathFloatBinaryOp
  * Returns the division of the two values
  */
 USTRUCT(meta=(DisplayName="Divide", TemplateName="Divide", Keywords="Division,Divisor,/"))
-struct CONTROLRIG_API FRigUnit_MathFloatDiv : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleDiv : public FRigUnit_MathDoubleBinaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatDiv()
+	FRigUnit_MathDoubleDiv()
 	{
-		B = 1.f;
+		B = 1.0;
 	}
 
 	RIGVM_METHOD()
@@ -173,14 +173,14 @@ struct CONTROLRIG_API FRigUnit_MathFloatDiv : public FRigUnit_MathFloatBinaryOp
  * Returns the modulo of the two values
  */
 USTRUCT(meta=(DisplayName="Modulo", TemplateName="Modulo", Keywords="%,fmod"))
-struct CONTROLRIG_API FRigUnit_MathFloatMod : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleMod : public FRigUnit_MathDoubleBinaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatMod()
+	FRigUnit_MathDoubleMod()
 	{
-		A = 0.f;
-		B = 1.f;
+		A = 0.0;
+		B = 1.0;
 	}
 
 	RIGVM_METHOD()
@@ -191,7 +191,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatMod : public FRigUnit_MathFloatBinaryOp
  * Returns the smaller of the two values
  */
 USTRUCT(meta=(DisplayName="Minimum", TemplateName="Minimum"))
-struct CONTROLRIG_API FRigUnit_MathFloatMin : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleMin : public FRigUnit_MathDoubleBinaryOp
 {
 	GENERATED_BODY()
 
@@ -203,7 +203,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatMin : public FRigUnit_MathFloatBinaryOp
  * Returns the larger of the two values
  */
 USTRUCT(meta=(DisplayName="Maximum", TemplateName="Maximum"))
-struct CONTROLRIG_API FRigUnit_MathFloatMax : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleMax : public FRigUnit_MathDoubleBinaryOp
 {
 	GENERATED_BODY()
 
@@ -215,14 +215,14 @@ struct CONTROLRIG_API FRigUnit_MathFloatMax : public FRigUnit_MathFloatBinaryOp
  * Returns the value of A raised to the power of B.
  */
 USTRUCT(meta=(DisplayName="Power", TemplateName="Power"))
-struct CONTROLRIG_API FRigUnit_MathFloatPow : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoublePow : public FRigUnit_MathDoubleBinaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatPow()
+	FRigUnit_MathDoublePow()
 	{
-		A = 1.f;
-		B = 1.f;
+		A = 1.0;
+		B = 1.0;
 	}
 
 	RIGVM_METHOD()
@@ -233,7 +233,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatPow : public FRigUnit_MathFloatBinaryOp
  * Returns the square root of the given value
  */
 USTRUCT(meta=(DisplayName="Sqrt", TemplateName="Sqrt", Keywords="Root,Square"))
-struct CONTROLRIG_API FRigUnit_MathFloatSqrt : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleSqrt : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -245,7 +245,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatSqrt : public FRigUnit_MathFloatUnaryOp
  * Returns the negative value
  */
 USTRUCT(meta=(DisplayName="Negate", TemplateName="Negate", Keywords="-,Abs"))
-struct CONTROLRIG_API FRigUnit_MathFloatNegate : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleNegate : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -257,7 +257,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatNegate : public FRigUnit_MathFloatUnaryO
  * Returns the absolute (positive) value
  */
 USTRUCT(meta=(DisplayName="Absolute", TemplateName="Absolute", Keywords="Abs,Neg"))
-struct CONTROLRIG_API FRigUnit_MathFloatAbs : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleAbs : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -269,13 +269,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatAbs : public FRigUnit_MathFloatUnaryOp
  * Returns the closest lower full number (integer) of the value
  */
 USTRUCT(meta=(DisplayName="Floor", TemplateName="Floor", Keywords="Round"))
-struct CONTROLRIG_API FRigUnit_MathFloatFloor : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleFloor : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatFloor()
+	FRigUnit_MathDoubleFloor()
 	{
-		Value = Result = 0.f;
+		Value = Result = 0.0;
 		Int = 0;
 	}
 
@@ -283,10 +283,10 @@ struct CONTROLRIG_API FRigUnit_MathFloatFloor : public FRigUnit_MathFloatBase
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float Value;
+	double Value;
 
 	UPROPERTY(meta=(Output))
-	float Result;
+	double Result;
 
 	UPROPERTY(meta=(Output))
 	int32 Int;
@@ -296,13 +296,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatFloor : public FRigUnit_MathFloatBase
  * Returns the closest higher full number (integer) of the value
  */
 USTRUCT(meta=(DisplayName="Ceiling", TemplateName="Ceiling", Keywords="Round"))
-struct CONTROLRIG_API FRigUnit_MathFloatCeil : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleCeil : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatCeil()
+	FRigUnit_MathDoubleCeil()
 	{
-		Value = Result = 0.f;
+		Value = Result = 0.0;
 		Int = 0;
 	}
 
@@ -310,10 +310,10 @@ struct CONTROLRIG_API FRigUnit_MathFloatCeil : public FRigUnit_MathFloatBase
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float Value;
+	double Value;
 
 	UPROPERTY(meta=(Output))
-	float Result;
+	double Result;
 
 	UPROPERTY(meta=(Output))
 	int32 Int;
@@ -323,13 +323,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatCeil : public FRigUnit_MathFloatBase
  * Returns the closest higher full number (integer) of the value
  */
 USTRUCT(meta=(DisplayName="Round", TemplateName="Round"))
-struct CONTROLRIG_API FRigUnit_MathFloatRound : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleRound : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatRound()
+	FRigUnit_MathDoubleRound()
 	{
-		Value = Result = 0.f;
+		Value = Result = 0.0;
 		Int = 0;
 	}
 
@@ -337,26 +337,26 @@ struct CONTROLRIG_API FRigUnit_MathFloatRound : public FRigUnit_MathFloatBase
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float Value;
+	double Value;
 
 	UPROPERTY(meta=(Output))
-	float Result;
+	double Result;
 
 	UPROPERTY(meta=(Output))
 	int32 Int;
 };
 
 /**
- * Returns the float cast to an int (this uses floor)
+ * Returns the double cast to an int (this uses floor)
  */
 USTRUCT(meta=(DisplayName="To Int", TemplateName="Cast"))
-struct CONTROLRIG_API FRigUnit_MathFloatToInt : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleToInt : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatToInt()
+	FRigUnit_MathDoubleToInt()
 	{
-		Value = 0.f;
+		Value = 0.0;
 		Result = 0;
 	}
 
@@ -364,17 +364,17 @@ struct CONTROLRIG_API FRigUnit_MathFloatToInt : public FRigUnit_MathFloatBase
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float Value;
+	double Value;
 
 	UPROPERTY(meta=(Output))
 	int32 Result;
 };
 
 /**
- * Returns the sign of the value (+1 for >= 0.f, -1 for < 0.f)
+ * Returns the sign of the value (+1 for >= 0.0, -1 for < 0.0)
  */
 USTRUCT(meta=(DisplayName="Sign", TemplateName="Sign"))
-struct CONTROLRIG_API FRigUnit_MathFloatSign : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleSign : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -386,73 +386,73 @@ struct CONTROLRIG_API FRigUnit_MathFloatSign : public FRigUnit_MathFloatUnaryOp
  * Clamps the given value within the range provided by minimum and maximum
  */
 USTRUCT(meta=(DisplayName="Clamp", TemplateName="Clamp", Keywords="Range,Remap"))
-struct CONTROLRIG_API FRigUnit_MathFloatClamp : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleClamp : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatClamp()
+	FRigUnit_MathDoubleClamp()
 	{
-		Value = Minimum = Maximum = Result = 0.f;
+		Value = Minimum = Maximum = Result = 0.0;
 	}
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float Value;
+	double Value;
 
 	UPROPERTY(meta=(Input))
-	float Minimum;
+	double Minimum;
 
 	UPROPERTY(meta=(Input))
-	float Maximum;
+	double Maximum;
 
 	UPROPERTY(meta=(Output))
-	float Result;
+	double Result;
 };
 
 /**
  * Linearly interpolates between A and B using the ratio T
  */
 USTRUCT(meta=(DisplayName="Interpolate", TemplateName="Interpolate", Keywords="Lerp,Mix,Blend"))
-struct CONTROLRIG_API FRigUnit_MathFloatLerp : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleLerp : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatLerp()
+	FRigUnit_MathDoubleLerp()
 	{
-		A = B = T = Result = 0.f;
-		B = 1.f;
+		A = B = T = Result = 0.0;
+		B = 1.0;
 	}
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Input))
-	float T;
+	double T;
 
 	UPROPERTY(meta=(Output))
-	float Result;
+	double Result;
 };
 
 /**
  * Remaps the given value from a source range to a target range.
  */
 USTRUCT(meta=(DisplayName="Remap", TemplateName="Remap", Keywords="Rescale,Scale"))
-struct CONTROLRIG_API FRigUnit_MathFloatRemap : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleRemap : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatRemap()
+	FRigUnit_MathDoubleRemap()
 	{
-		Value = SourceMinimum = TargetMinimum = Result = 0.f;
-		SourceMaximum = TargetMaximum = 1.f;
+		Value = SourceMinimum = TargetMinimum = Result = 0.0;
+		SourceMaximum = TargetMaximum = 1.0;
 		bClamp = false;
 	}
 
@@ -460,49 +460,49 @@ struct CONTROLRIG_API FRigUnit_MathFloatRemap : public FRigUnit_MathFloatBase
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float Value;
+	double Value;
 
 	UPROPERTY(meta=(Input))
-	float SourceMinimum;
+	double SourceMinimum;
 
 	UPROPERTY(meta=(Input))
-	float SourceMaximum;
+	double SourceMaximum;
 
 	UPROPERTY(meta=(Input))
-	float TargetMinimum;
+	double TargetMinimum;
 
 	UPROPERTY(meta=(Input))
-	float TargetMaximum;
+	double TargetMaximum;
 
 	/** If set to true the result is clamped to the target range */
 	UPROPERTY(meta=(Input))
 	bool bClamp;
 
 	UPROPERTY(meta=(Output))
-	float Result;
+	double Result;
 };
 
 /**
  * Returns true if the value A equals B
  */
 USTRUCT(meta=(DisplayName="Equals", TemplateName="Equals", Keywords="Same,=="))
-struct CONTROLRIG_API FRigUnit_MathFloatEquals : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleEquals : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
-	FRigUnit_MathFloatEquals()
+	FRigUnit_MathDoubleEquals()
 	{
-		A = B = 0.f;
+		A = B = 0.0;
 		Result = true;
 	}
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Output))
 	bool Result;
@@ -512,23 +512,23 @@ struct CONTROLRIG_API FRigUnit_MathFloatEquals : public FRigUnit_MathFloatBase
  * Returns true if the value A does not equal B
  */
 USTRUCT(meta=(DisplayName="Not Equals", TemplateName="NotEquals", Keywords="Different,!="))
-struct CONTROLRIG_API FRigUnit_MathFloatNotEquals : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleNotEquals : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
-	FRigUnit_MathFloatNotEquals()
+	FRigUnit_MathDoubleNotEquals()
 	{
-		A = B = 0.f;
+		A = B = 0.0;
 		Result = false;
 	}
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Output))
 	bool Result;
@@ -538,13 +538,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatNotEquals : public FRigUnit_MathFloatBas
  * Returns true if the value A is greater than B
  */
 USTRUCT(meta=(DisplayName="Greater", TemplateName="Greater", Keywords="Larger,Bigger,>"))
-struct CONTROLRIG_API FRigUnit_MathFloatGreater : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleGreater : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatGreater()
+	FRigUnit_MathDoubleGreater()
 	{
-		A = B = 0.f;
+		A = B = 0.0;
 		Result = false;
 	}
 
@@ -552,10 +552,10 @@ struct CONTROLRIG_API FRigUnit_MathFloatGreater : public FRigUnit_MathFloatBase
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Output))
 	bool Result;
@@ -565,13 +565,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatGreater : public FRigUnit_MathFloatBase
  * Returns true if the value A is less than B
  */
 USTRUCT(meta=(DisplayName="Less", TemplateName="Less", Keywords="Smaller,<"))
-struct CONTROLRIG_API FRigUnit_MathFloatLess : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleLess : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 	
-	FRigUnit_MathFloatLess()
+	FRigUnit_MathDoubleLess()
 	{
-		A = B = 0.f;
+		A = B = 0.0;
 		Result = false;
 	}
 
@@ -579,10 +579,10 @@ struct CONTROLRIG_API FRigUnit_MathFloatLess : public FRigUnit_MathFloatBase
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Output))
 	bool Result;
@@ -592,13 +592,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatLess : public FRigUnit_MathFloatBase
  * Returns true if the value A is greater than or equal to B
  */
 USTRUCT(meta=(DisplayName="Greater Equal", TemplateName="GreaterEqual", Keywords="Larger,Bigger,>="))
-struct CONTROLRIG_API FRigUnit_MathFloatGreaterEqual : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleGreaterEqual : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatGreaterEqual()
+	FRigUnit_MathDoubleGreaterEqual()
 	{
-		A = B = 0.f;
+		A = B = 0.0;
 		Result = true;
 	}
 
@@ -606,10 +606,10 @@ struct CONTROLRIG_API FRigUnit_MathFloatGreaterEqual : public FRigUnit_MathFloat
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Output))
 	bool Result;
@@ -619,13 +619,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatGreaterEqual : public FRigUnit_MathFloat
  * Returns true if the value A is less than or equal to B
  */
 USTRUCT(meta=(DisplayName="Less Equal", TemplateName="LessEqual", Keywords="Smaller,<="))
-struct CONTROLRIG_API FRigUnit_MathFloatLessEqual : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleLessEqual : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatLessEqual()
+	FRigUnit_MathDoubleLessEqual()
 	{
-		A = B = 0.f;
+		A = B = 0.0;
 		Result = true;
 	}
 
@@ -633,10 +633,10 @@ struct CONTROLRIG_API FRigUnit_MathFloatLessEqual : public FRigUnit_MathFloatBas
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Output))
 	bool Result;
@@ -646,13 +646,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatLessEqual : public FRigUnit_MathFloatBas
  * Returns true if the value is nearly zero
  */
 USTRUCT(meta=(DisplayName="Is Nearly Zero", TemplateName="IsNearlyZero", Keywords="AlmostZero,0"))
-struct CONTROLRIG_API FRigUnit_MathFloatIsNearlyZero : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleIsNearlyZero : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 	
-	FRigUnit_MathFloatIsNearlyZero()
+	FRigUnit_MathDoubleIsNearlyZero()
 	{
-		Value = Tolerance = 0.f;
+		Value = Tolerance = 0.0;
 		Result = true;
 	}
 	
@@ -660,10 +660,10 @@ struct CONTROLRIG_API FRigUnit_MathFloatIsNearlyZero : public FRigUnit_MathFloat
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float Value;
+	double Value;
 
 	UPROPERTY(meta=(Input))
-	float Tolerance;
+	double Tolerance;
 
 	UPROPERTY(meta=(Output))
 	bool Result;
@@ -673,13 +673,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatIsNearlyZero : public FRigUnit_MathFloat
  * Returns true if the value A is almost equal to B
  */
 USTRUCT(meta=(DisplayName="Is Nearly Equal", TemplateName="IsNearlyEqual", Keywords="AlmostEqual,=="))
-struct CONTROLRIG_API FRigUnit_MathFloatIsNearlyEqual : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleIsNearlyEqual : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatIsNearlyEqual()
+	FRigUnit_MathDoubleIsNearlyEqual()
 	{
-		A = B = Tolerance = 0.f;
+		A = B = Tolerance = 0.0;
 		Result = true;
 	}
 
@@ -687,56 +687,23 @@ struct CONTROLRIG_API FRigUnit_MathFloatIsNearlyEqual : public FRigUnit_MathFloa
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta=(Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta=(Input))
-	float Tolerance;
+	double Tolerance;
 
 	UPROPERTY(meta=(Output))
 	bool Result;
 };
 
 /**
- * Return one of the two values based on the condition
- */
-USTRUCT(meta=(DisplayName="Select", TemplateName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
-struct CONTROLRIG_API FRigUnit_MathFloatSelectBool : public FRigUnit_MathFloatBase
-{
-	GENERATED_BODY()
-
-	FRigUnit_MathFloatSelectBool()
-	{
-		Condition = false;
-		IfTrue = IfFalse = Result = 0.f;
-	}
-
-	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
-
-	UPROPERTY(meta=(Input))
-	bool Condition;
-
-	UPROPERTY(meta=(Input))
-	float IfTrue;
-
-	UPROPERTY(meta=(Input))
-	float IfFalse;
-
-	UPROPERTY(meta=(Output))
-	float Result;
-
-	RIGVM_METHOD()
-	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
-};
-
-/**
  * Returns the degrees of a given value in radians
  */
 USTRUCT(meta=(DisplayName="Degrees", TemplateName="Degrees"))
-struct CONTROLRIG_API FRigUnit_MathFloatDeg : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleDeg : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -748,7 +715,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatDeg : public FRigUnit_MathFloatUnaryOp
  * Returns the radians of a given value in degrees
  */
 USTRUCT(meta=(DisplayName="Radians", TemplateName="Radians"))
-struct CONTROLRIG_API FRigUnit_MathFloatRad : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleRad : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -760,7 +727,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatRad : public FRigUnit_MathFloatUnaryOp
  * Returns the sinus value of the given value (in radians)
  */
 USTRUCT(meta=(DisplayName="Sin", TemplateName="Sin"))
-struct CONTROLRIG_API FRigUnit_MathFloatSin : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleSin : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -772,7 +739,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatSin : public FRigUnit_MathFloatUnaryOp
  * Returns the cosinus value of the given value (in radians)
  */
 USTRUCT(meta=(DisplayName="Cos", TemplateName="Cos"))
-struct CONTROLRIG_API FRigUnit_MathFloatCos : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleCos : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -784,7 +751,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatCos : public FRigUnit_MathFloatUnaryOp
  * Returns the tangens value of the given value (in radians)
  */
 USTRUCT(meta=(DisplayName="Tan", TemplateName="Tan"))
-struct CONTROLRIG_API FRigUnit_MathFloatTan : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleTan : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -796,7 +763,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatTan : public FRigUnit_MathFloatUnaryOp
  * Returns the inverse sinus value (in radians) of the given value
  */
 USTRUCT(meta=(DisplayName="Asin", TemplateName="Asin", Keywords="Arcsin"))
-struct CONTROLRIG_API FRigUnit_MathFloatAsin : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleAsin : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -808,7 +775,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatAsin : public FRigUnit_MathFloatUnaryOp
  * Returns the inverse cosinus value (in radians) of the given value
  */
 USTRUCT(meta=(DisplayName="Acos", TemplateName="Acos", Keywords="Arccos"))
-struct CONTROLRIG_API FRigUnit_MathFloatAcos : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleAcos : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -820,7 +787,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatAcos : public FRigUnit_MathFloatUnaryOp
  * Returns the inverse tangens value (in radians) of the given value
  */
 USTRUCT(meta=(DisplayName="Atan", TemplateName="Atan", Keywords="Arctan"))
-struct CONTROLRIG_API FRigUnit_MathFloatAtan : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleAtan : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 
@@ -832,13 +799,13 @@ struct CONTROLRIG_API FRigUnit_MathFloatAtan : public FRigUnit_MathFloatUnaryOp
  * Computes the angles alpha, beta and gamma (in radians) between the three sides A, B and C
  */
 USTRUCT(meta = (DisplayName = "Law Of Cosine", TemplateName="LawOfCosine"))
-struct CONTROLRIG_API FRigUnit_MathFloatLawOfCosine : public FRigUnit_MathFloatBase
+struct CONTROLRIG_API FRigUnit_MathDoubleLawOfCosine : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatLawOfCosine()
+	FRigUnit_MathDoubleLawOfCosine()
 	{
-		A = B = C = AlphaAngle = BetaAngle = GammaAngle = 0.f;
+		A = B = C = AlphaAngle = BetaAngle = GammaAngle = 0.0;
 		bValid = false;
 	}
 
@@ -846,22 +813,22 @@ struct CONTROLRIG_API FRigUnit_MathFloatLawOfCosine : public FRigUnit_MathFloatB
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
-	float A;
+	double A;
 
 	UPROPERTY(meta = (Input))
-	float B;
+	double B;
 
 	UPROPERTY(meta = (Input))
-	float C;
+	double C;
 
 	UPROPERTY(meta = (Output))
-	float AlphaAngle;
+	double AlphaAngle;
 
 	UPROPERTY(meta = (Output))
-	float BetaAngle;
+	double BetaAngle;
 
 	UPROPERTY(meta = (Output))
-	float GammaAngle;
+	double GammaAngle;
 
 	UPROPERTY(meta = (Output))
 	bool bValid;
@@ -871,7 +838,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatLawOfCosine : public FRigUnit_MathFloatB
  * Computes the base-e exponential of the given value 
  */
 USTRUCT(meta = (DisplayName = "Exponential", TemplateName="Exponential"))
-struct CONTROLRIG_API FRigUnit_MathFloatExponential : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleExponential : public FRigUnit_MathDoubleUnaryOp
 {
 	GENERATED_BODY()
 

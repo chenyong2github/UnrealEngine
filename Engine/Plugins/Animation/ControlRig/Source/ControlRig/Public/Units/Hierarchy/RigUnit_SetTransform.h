@@ -12,7 +12,7 @@
  * actually sets the Control's offset transform and resets the local
  * values to (0, 0, 0).
  */
-USTRUCT(meta=(DisplayName="Set Transform", Category="Transforms", DocumentationPolicy = "Strict", Keywords="SetBoneTransform,SetControlTransform,SetInitialTransform,SetSpaceTransform", NodeColor="0, 0.364706, 1.0", Varying))
+USTRUCT(meta=(DisplayName="Set Transform", Category="Transforms", TemplateName = "Set Transform", DocumentationPolicy = "Strict", Keywords="SetBoneTransform,SetControlTransform,SetInitialTransform,SetSpaceTransform", NodeColor="0, 0.364706, 1.0", Varying))
 struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -21,7 +21,7 @@ struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 		: Item(NAME_None, ERigElementType::Bone)
 		, Space(EBoneGetterSetterMode::GlobalSpace)
 		, bInitial(false)
-		, Transform(FTransform::Identity)
+		, Value(FTransform::Identity)
 		, Weight(1.f)
 		, bPropagateToChildren(true)
 		, CachedIndex()
@@ -66,7 +66,7 @@ struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 
 	// The new transform of the given item
 	UPROPERTY(meta=(Input))
-	FTransform Transform;
+	FTransform Value;
 
 	// Defines how much the change will be applied
 	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
@@ -85,7 +85,7 @@ struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 /**
  * SetTranslation is used to set a single translation on hierarchy.
  */
-USTRUCT(meta=(DisplayName="Set Translation", Category="Transforms", DocumentationPolicy = "Strict", Keywords="SetBoneTranslation,SetControlTranslation,SetInitialTranslation,SetSpaceTranslation,SetBoneLocation,SetControlLocation,SetInitialLocation,SetSpaceLocation,SetBonePosition,SetControlPosition,SetInitialPosition,SetSpacePosition,SetTranslation,SetLocation,SetPosition", NodeColor="0, 0.364706, 1.0", Varying))
+USTRUCT(meta=(DisplayName="Set Translation", Category="Transforms", TemplateName = "Set Transform", DocumentationPolicy = "Strict", Keywords="SetBoneTranslation,SetControlTranslation,SetInitialTranslation,SetSpaceTranslation,SetBoneLocation,SetControlLocation,SetInitialLocation,SetSpaceLocation,SetBonePosition,SetControlPosition,SetInitialPosition,SetSpacePosition,SetTranslation,SetLocation,SetPosition", NodeColor="0, 0.364706, 1.0", Varying))
 struct CONTROLRIG_API FRigUnit_SetTranslation : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -93,7 +93,8 @@ struct CONTROLRIG_API FRigUnit_SetTranslation : public FRigUnitMutable
 	FRigUnit_SetTranslation()
 		: Item(NAME_None, ERigElementType::Bone)
 		, Space(EBoneGetterSetterMode::GlobalSpace)
-		, Translation(FVector::ZeroVector)
+		, bInitial(false)
+		, Value(FVector::ZeroVector)
 		, Weight(1.f)
 		, bPropagateToChildren(true)
 		, CachedIndex()
@@ -128,9 +129,16 @@ struct CONTROLRIG_API FRigUnit_SetTranslation : public FRigUnitMutable
 	UPROPERTY(meta = (Input))
 	EBoneGetterSetterMode Space;
 
+	/**
+	 * Defines if the transform should be set as current (false) or initial (true).
+	 * Initial transforms for bones and other elements in the hierarchy represent the reference pose's value.
+	 */ 
+	UPROPERTY(meta = (Input))
+	bool bInitial;
+
 	// The new translation of the given item
 	UPROPERTY(meta=(Input))
-	FVector Translation;
+	FVector Value;
 
 	// Defines how much the change will be applied
 	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
@@ -149,7 +157,7 @@ struct CONTROLRIG_API FRigUnit_SetTranslation : public FRigUnitMutable
 /**
  * SetRotation is used to set a single rotation on hierarchy.
  */
-USTRUCT(meta=(DisplayName="Set Rotation", Category="Transforms", DocumentationPolicy = "Strict", Keywords="SetBoneRotation,SetControlRotation,SetInitialRotation,SetSpaceRotation,SetBoneOrientation,SetControlOrientation,SetInitialOrientation,SetSpaceOrientation,SetRotation,SetOrientation", NodeColor="0, 0.364706, 1.0", Varying))
+USTRUCT(meta=(DisplayName="Set Rotation", Category="Transforms", TemplateName = "Set Transform", DocumentationPolicy = "Strict", Keywords="SetBoneRotation,SetControlRotation,SetInitialRotation,SetSpaceRotation,SetBoneOrientation,SetControlOrientation,SetInitialOrientation,SetSpaceOrientation,SetRotation,SetOrientation", NodeColor="0, 0.364706, 1.0", Varying))
 struct CONTROLRIG_API FRigUnit_SetRotation : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -157,7 +165,8 @@ struct CONTROLRIG_API FRigUnit_SetRotation : public FRigUnitMutable
 	FRigUnit_SetRotation()
 		: Item(NAME_None, ERigElementType::Bone)
 		, Space(EBoneGetterSetterMode::GlobalSpace)
-		, Rotation(FQuat::Identity)
+		, bInitial(false)
+		, Value(FQuat::Identity)
 		, Weight(1.f)
 		, bPropagateToChildren(true)
 		, CachedIndex()
@@ -192,9 +201,16 @@ struct CONTROLRIG_API FRigUnit_SetRotation : public FRigUnitMutable
 	UPROPERTY(meta = (Input))
 	EBoneGetterSetterMode Space;
 
+	/**
+	 * Defines if the transform should be set as current (false) or initial (true).
+	 * Initial transforms for bones and other elements in the hierarchy represent the reference pose's value.
+	 */ 
+	UPROPERTY(meta = (Input))
+	bool bInitial;
+
 	// The new rotation of the given item
 	UPROPERTY(meta=(Input))
-	FQuat Rotation;
+	FQuat Value;
 
 	// Defines how much the change will be applied
 	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
@@ -221,6 +237,7 @@ struct FRigUnit_SetScale : public FRigUnitMutable
 	FRigUnit_SetScale()
 		: Item(NAME_None, ERigElementType::Bone)
 		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, bInitial(false)
 		, Scale(FVector::OneVector)
 		, Weight(1.f)
 		, bPropagateToChildren(true)
@@ -243,6 +260,13 @@ struct FRigUnit_SetScale : public FRigUnitMutable
 	 */ 
 	UPROPERTY(meta = (Input))
 	EBoneGetterSetterMode Space;
+
+	/**
+	 * Defines if the transform should be set as current (false) or initial (true).
+	 * Initial transforms for bones and other elements in the hierarchy represent the reference pose's value.
+	 */ 
+	UPROPERTY(meta = (Input))
+	bool bInitial;
 
 	// The new scale of the given item
 	UPROPERTY(meta=(Input))

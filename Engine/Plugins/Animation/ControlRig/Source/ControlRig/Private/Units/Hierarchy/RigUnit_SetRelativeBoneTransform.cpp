@@ -58,7 +58,7 @@ FRigVMStructUpgradeInfo FRigUnit_SetRelativeBoneTransform::GetUpgradeInfo() cons
 	FRigUnit_SetRelativeTransformForItem NewNode;
 	NewNode.Parent = FRigElementKey(Space, ERigElementType::Bone);
 	NewNode.Child = FRigElementKey(Bone, ERigElementType::Bone);
-	NewNode.RelativeTransform = Transform;
+	NewNode.Value = Transform;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("Space"), TEXT("Parent.Name"));

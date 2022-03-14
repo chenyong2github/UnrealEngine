@@ -53,7 +53,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixBinaryOp : public FRigUnit_MathMatrixBa
 /**
 * Makes a transform from a matrix
 */
-USTRUCT(meta=(DisplayName="To Transform", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="To Transform", TemplateName="Cast", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathMatrixToTransform : public FRigUnit_MathMatrixBase
 {
 	GENERATED_BODY()
@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixToTransform : public FRigUnit_MathMatri
 /**
  * Makes a matrix from a transform
  */
-USTRUCT(meta=(DisplayName="From Transform", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Transform", Keywords="Make,Construct", Deprecated="5.0.1"))
 struct CONTROLRIG_API FRigUnit_MathMatrixFromTransform : public FRigUnit_MathMatrixBase
 {
 	GENERATED_BODY()
@@ -93,6 +93,33 @@ struct CONTROLRIG_API FRigUnit_MathMatrixFromTransform : public FRigUnit_MathMat
 
 	UPROPERTY(meta=(Input))
 	FTransform Transform;
+
+	UPROPERTY(meta=(Output))
+	FMatrix Result;
+	
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+};
+
+/**
+ * Makes a matrix from a transform
+ */
+USTRUCT(meta=(DisplayName="From Transform", TemplateName="Cast", Keywords="Make,Construct"))
+struct CONTROLRIG_API FRigUnit_MathMatrixFromTransformV2 : public FRigUnit_MathMatrixBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathMatrixFromTransformV2()
+	{
+		Value = FTransform::Identity;
+		Result = FMatrix::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FTransform Value;
 
 	UPROPERTY(meta=(Output))
 	FMatrix Result;

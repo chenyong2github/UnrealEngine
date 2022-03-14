@@ -2,6 +2,7 @@
 
 #if WITH_EDITOR
 #include "Units/Math/RigUnit_MathQuaternion.h"
+#include "Units/Math/RigUnit_MathTransform.h"
 #include "Units/RigUnitTest.h"
 #include "AnimationCoreLibrary.h"
 
@@ -192,7 +193,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionUnit)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionRotateVector)
 {
-	Unit.Quaternion = FQuat(FVector(1.f, 0.f, 0.f), -HALF_PI);
+	Unit.Transform = FQuat(FVector(1.f, 0.f, 0.f), -HALF_PI);
 	Unit.Vector = FVector(0.f, 0.f, 1.f);
 	InitAndExecute();
 	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Result, FVector(0.f, 1.f, 0.f)), TEXT("unexpected result"));
@@ -211,6 +212,48 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionGetAxis)
 	Unit.Axis = EAxis::Z;
 	InitAndExecute();
 	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Result, FVector(0.f, 0.f, 1.f)), TEXT("unexpected result"));
+	return true;
+}
+
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionMakeRelative)
+{
+	FRigUnit_MathTransformMakeRelative TransformUnit;
+	Unit.Global = FQuat(FVector(1.f, 0.f, 0.f), -HALF_PI);
+	Unit.Parent = FQuat(FVector(0.2f, 0.8f, 0.f), -HALF_PI).GetNormalized();
+	
+	TransformUnit.Global.SetRotation(Unit.Global);
+	TransformUnit.Parent.SetRotation(Unit.Parent);
+
+	Context.State = EControlRigState::Init;
+	Unit.Execute(Context);
+	TransformUnit.Execute(Context);
+
+	Context.State = EControlRigState::Update;
+	Unit.Execute(Context);
+	TransformUnit.Execute(Context);
+
+	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Local, TransformUnit.Local.GetRotation()), TEXT("unexpected result"));
+	return true;
+}
+
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionMakeAbsolute)
+{
+	FRigUnit_MathTransformMakeAbsolute TransformUnit;
+	Unit.Local = FQuat(FVector(1.f, 0.f, 0.f), -HALF_PI);
+	Unit.Parent = FQuat(FVector(0.2f, 0.8f, 0.f), -HALF_PI).GetNormalized();
+	
+	TransformUnit.Local.SetRotation(Unit.Local);
+	TransformUnit.Parent.SetRotation(Unit.Parent);
+
+	Context.State = EControlRigState::Init;
+	Unit.Execute(Context);
+	TransformUnit.Execute(Context);
+
+	Context.State = EControlRigState::Update;
+	Unit.Execute(Context);
+	TransformUnit.Execute(Context);
+
+	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Global, TransformUnit.Global.GetRotation()), TEXT("unexpected result"));
 	return true;
 }
 

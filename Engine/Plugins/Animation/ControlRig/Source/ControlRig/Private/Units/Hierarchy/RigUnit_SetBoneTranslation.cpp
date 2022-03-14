@@ -82,9 +82,10 @@ FRigVMStructUpgradeInfo FRigUnit_SetBoneTranslation::GetUpgradeInfo() const
 	FRigUnit_SetTranslation NewNode;
 	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
 	NewNode.Space = Space;
-	NewNode.Translation = Translation;
+	NewNode.Value = Translation;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
+	Info.AddRemappedPin(TEXT("Translation"), TEXT("Value"));
 	return Info;
 }

@@ -59,7 +59,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformBinaryOp : public FRigUnit_MathTrans
 /**
  * Makes a quaternion based transform from a euler based transform
  */
-USTRUCT(meta=(DisplayName="From Euler Transform", TemplateName="FromEulerTransform", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Euler Transform", TemplateName="FromEulerTransform", Keywords="Make,Construct", Deprecated="5.0.1"))
 struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -78,12 +78,39 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransform : public FRigUnit
 
 	UPROPERTY(meta=(Output))
 	FTransform Result;
+	
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+};
+
+/**
+ * Makes a quaternion based transform from a euler based transform
+ */
+USTRUCT(meta=(DisplayName="To Transform", TemplateName="Cast", Keywords="Make,Construct"))
+struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransformV2 : public FRigUnit_MathTransformBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathTransformFromEulerTransformV2()
+	{
+		Value = FEulerTransform::Identity;
+		Result = FTransform::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FEulerTransform Value;
+
+	UPROPERTY(meta=(Output))
+	FTransform Result;
 };
 
 /**
  * Retrieves a euler based transform from a quaternion based transform
  */
-USTRUCT(meta=(DisplayName="To Euler Transform", TemplateName="ToEulerTransform", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="To Euler Transform", TemplateName="Cast", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -118,7 +145,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMul : public FRigUnit_MathTransformB
 /**
  * Returns the relative local transform within a parent's transform
  */
-USTRUCT(meta=(DisplayName="Make Relative", TemplateName="MakeRelative", Keywords="Local,Global,Absolute"))
+USTRUCT(meta=(DisplayName="Make Relative", TemplateName="Make Relative", Keywords="Local,Global,Absolute"))
 struct CONTROLRIG_API FRigUnit_MathTransformMakeRelative : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -144,7 +171,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMakeRelative : public FRigUnit_MathT
 /**
  * Returns the absolute global transform within a parent's transform
  */
-USTRUCT(meta = (DisplayName = "Make Absolute", TemplateName="MakeAbsolute", Keywords = "Local,Global,Relative"))
+USTRUCT(meta = (DisplayName = "Make Absolute", TemplateName="Make Absolute", Keywords = "Local,Global,Relative"))
 struct CONTROLRIG_API FRigUnit_MathTransformMakeAbsolute : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -288,7 +315,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformSelectBool : public FRigUnit_MathTra
 /**
  * Rotates a given vector (direction) by the transform
  */
-USTRUCT(meta=(DisplayName="Transform Direction", TemplateName="Rotate", Keywords="Transform,Direction"))
+USTRUCT(meta=(DisplayName="Rotate Vector", TemplateName="Rotate Vector", Keywords="Transform,Direction,TransformDirection"))
 struct CONTROLRIG_API FRigUnit_MathTransformRotateVector : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -296,7 +323,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformRotateVector : public FRigUnit_MathT
 	FRigUnit_MathTransformRotateVector()
 	{
 		Transform = FTransform::Identity;
-		Direction = Result = FVector::ZeroVector;
+		Vector = Result = FVector::ZeroVector;
 	}
 
 	RIGVM_METHOD()
@@ -306,7 +333,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformRotateVector : public FRigUnit_MathT
 	FTransform Transform;
 
 	UPROPERTY(meta=(Input))
-	FVector Direction;
+	FVector Vector;
 
 	UPROPERTY(meta=(Output))
 	FVector Result;
@@ -433,5 +460,43 @@ struct CONTROLRIG_API FRigUnit_MathTransformClampSpatially : public FRigUnit_Mat
 	float DebugThickness;
 
 	UPROPERTY(meta = (Output))
+	FTransform Result;
+};
+
+/**
+ * Mirror a transform about a central transform.
+ */
+USTRUCT(meta=(DisplayName="Mirror", TemplateName="Mirror"))
+struct CONTROLRIG_API FRigUnit_MathTransformMirrorTransform : public FRigUnit_MathTransformBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathTransformMirrorTransform()
+	{
+		Value = Result = FTransform::Identity;
+		MirrorAxis = EAxis::X;
+		AxisToFlip = EAxis::Z;
+		CentralTransform = FTransform::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FTransform Value;
+
+	// the axis to mirror against
+	UPROPERTY(meta=(Input))
+	TEnumAsByte<EAxis::Type> MirrorAxis;
+
+	// the axis to flip for rotations
+	UPROPERTY(meta=(Input))
+	TEnumAsByte<EAxis::Type> AxisToFlip;
+
+	// The transform about which to mirror
+	UPROPERTY(meta=(Input))
+	FTransform CentralTransform;
+
+	UPROPERTY(meta=(Output))
 	FTransform Result;
 };

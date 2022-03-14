@@ -108,7 +108,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQua
 /**
  * Makes a quaternion from a rotator
  */
-USTRUCT(meta=(DisplayName="From Rotator", TemplateName="FromRotator", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Rotator", Keywords="Make,Construct", Deprecated="5.0.1"))
 struct CONTROLRIG_API FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
@@ -124,6 +124,33 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQ
 
 	UPROPERTY(meta=(Input))
 	FRotator Rotator;
+
+	UPROPERTY(meta=(Output))
+	FQuat Result;
+	
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+};
+
+/**
+ * Makes a quaternion from a rotator
+ */
+USTRUCT(meta=(DisplayName="From Rotator", TemplateName="Cast", Keywords="Make,Construct"))
+struct CONTROLRIG_API FRigUnit_MathQuaternionFromRotatorV2 : public FRigUnit_MathQuaternionBase
+{
+	GENERATED_BODY()
+	
+	FRigUnit_MathQuaternionFromRotatorV2()
+	{
+		Value = FRotator::ZeroRotator;
+		Result = FQuat::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FRotator Value;
 
 	UPROPERTY(meta=(Output))
 	FQuat Result;
@@ -187,7 +214,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToAxisAndAngle : public FRigUnit_Ma
 /**
  * Scales a quaternion's angle
  */
-USTRUCT(meta=(DisplayName="Scale", TemplateName="Scale", Keywords="Multiply,Angle,Scale", Constant))
+USTRUCT(meta=(DisplayName="Scale", Keywords="Multiply,Angle,Scale", Constant, Deprecated = "5.0.1"))
 struct CONTROLRIG_API FRigUnit_MathQuaternionScale : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
@@ -206,6 +233,36 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionScale : public FRigUnit_MathQuatern
 
 	UPROPERTY(meta=(Input))
 	float Scale;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+};
+
+/**
+ * Scales a quaternion's angle
+ */
+USTRUCT(meta=(DisplayName="Scale", TemplateName="Scale", Keywords="Multiply,Angle,Scale", Constant))
+struct CONTROLRIG_API FRigUnit_MathQuaternionScaleV2 : public FRigUnit_MathQuaternionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathQuaternionScaleV2()
+	{
+		Value = Result = FQuat::Identity;
+		Factor = 1.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FQuat Value;
+
+	UPROPERTY(meta=(Input))
+	float Factor;
+
+	UPROPERTY(meta=(Output))
+	FQuat Result;
 };
 
 /**
@@ -239,7 +296,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuate
 /**
  * Retrieves the rotator
  */
-USTRUCT(meta=(DisplayName="To Rotator", TemplateName="ToRotator", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="To Rotator", TemplateName="Cast", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
@@ -440,14 +497,14 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionUnit : public FRigUnit_MathQuaterni
 /**
  * Rotates a given vector by the quaternion
  */
-USTRUCT(meta=(DisplayName="Rotate", TemplateName="Multiply", Keywords="Transform"))
+USTRUCT(meta=(DisplayName="Rotate Vector", TemplateName="Rotate Vector", Keywords="Transform,Multiply"))
 struct CONTROLRIG_API FRigUnit_MathQuaternionRotateVector : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
 	FRigUnit_MathQuaternionRotateVector()
 	{
-		Quaternion = FQuat::Identity;
+		Transform = FQuat::Identity;
 		Vector = Result = FVector::ZeroVector;
 	}
 
@@ -455,7 +512,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionRotateVector : public FRigUnit_Math
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	FQuat Quaternion;
+	FQuat Transform;
 
 	UPROPERTY(meta=(Input))
 	FVector Vector;
@@ -542,4 +599,94 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionRotationOrder : public FRigUnit_Mat
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+};
+
+/**
+ * Returns the relative local transform within a parent's transform
+ */
+USTRUCT(meta=(DisplayName="Make Relative", TemplateName="Make Relative", Keywords="Local,Global,Absolute"))
+struct CONTROLRIG_API FRigUnit_MathQuaternionMakeRelative : public FRigUnit_MathQuaternionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathQuaternionMakeRelative()
+	{
+		Global = Parent = Local = FQuat::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FQuat Global;
+
+	UPROPERTY(meta=(Input))
+	FQuat Parent;
+
+	UPROPERTY(meta=(Output))
+	FQuat Local;
+};
+
+/**
+ * Returns the absolute global transform within a parent's transform
+ */
+USTRUCT(meta = (DisplayName = "Make Absolute", TemplateName="Make Absolute", Keywords = "Local,Global,Relative"))
+struct CONTROLRIG_API FRigUnit_MathQuaternionMakeAbsolute : public FRigUnit_MathQuaternionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathQuaternionMakeAbsolute()
+	{
+		Global = Parent = Local = FQuat::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FQuat Local;
+
+	UPROPERTY(meta = (Input))
+	FQuat Parent;
+
+	UPROPERTY(meta = (Output))
+	FQuat Global;
+};
+
+/**
+ * Mirror a rotation about a central transform.
+ */
+USTRUCT(meta=(DisplayName="Mirror", TemplateName="Mirror"))
+struct CONTROLRIG_API FRigUnit_MathQuaternionMirrorTransform : public FRigUnit_MathQuaternionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathQuaternionMirrorTransform()
+	{
+		Value = Result = FQuat::Identity;
+		MirrorAxis = EAxis::X;
+		AxisToFlip = EAxis::Z;
+		CentralTransform = FTransform::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FQuat Value;
+
+	// the axis to mirror against
+	UPROPERTY(meta=(Input))
+	TEnumAsByte<EAxis::Type> MirrorAxis;
+
+	// the axis to flip for rotations
+	UPROPERTY(meta=(Input))
+	TEnumAsByte<EAxis::Type> AxisToFlip;
+
+	// The transform about which to mirror
+	UPROPERTY(meta=(Input))
+	FTransform CentralTransform;
+
+	UPROPERTY(meta=(Output))
+	FQuat Result;
 };

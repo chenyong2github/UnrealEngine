@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Math/RigUnit_MathVector.h"
+#include "Units/Math/RigUnit_MathTransform.h"
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 
@@ -529,3 +530,22 @@ FRigUnit_MathDistanceToPlane_Execute()
 	}
 }
 
+FRigUnit_MathVectorMakeRelative_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Local = Global - Parent;
+}
+
+FRigUnit_MathVectorMakeAbsolute_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Global = Parent + Local;
+}
+
+FRigUnit_MathVectorMirrorTransform_Execute()
+{
+	FTransform Transform = FTransform::Identity;
+	Transform.SetTranslation(Value);
+	FRigUnit_MathTransformMirrorTransform::StaticExecute(RigVMExecuteContext, Transform, MirrorAxis, AxisToFlip, CentralTransform, Transform, Context);
+	Result = Transform.GetTranslation();
+}

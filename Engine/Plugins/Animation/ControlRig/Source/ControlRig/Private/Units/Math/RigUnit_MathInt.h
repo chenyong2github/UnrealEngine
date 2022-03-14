@@ -194,7 +194,7 @@ struct CONTROLRIG_API FRigUnit_MathIntAbs : public FRigUnit_MathIntUnaryOp
 /**
  * Returns the int cast to a float
  */
-USTRUCT(meta=(DisplayName="To Float", TemplateName="Convert"))
+USTRUCT(meta=(DisplayName="To Float", TemplateName="Cast"))
 struct CONTROLRIG_API FRigUnit_MathIntToFloat : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()

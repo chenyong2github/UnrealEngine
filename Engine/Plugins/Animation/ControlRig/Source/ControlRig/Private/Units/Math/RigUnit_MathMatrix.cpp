@@ -10,6 +10,22 @@ FRigUnit_MathMatrixFromTransform_Execute()
 	Result = Transform.ToMatrixWithScale();
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathMatrixFromTransform::GetUpgradeInfo() const
+{
+	FRigUnit_MathMatrixFromTransformV2 NewNode;
+	NewNode.Value = Transform;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Transform"), TEXT("Value"));
+	return Info;
+}
+
+FRigUnit_MathMatrixFromTransformV2_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = Value.ToMatrixWithScale();
+}
+
 FRigUnit_MathMatrixToTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

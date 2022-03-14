@@ -5,11 +5,28 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
 #include "AnimationCoreLibrary.h"
+#include "Rigs/RigHierarchyDefines.h"
 
 FRigUnit_MathTransformFromEulerTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = EulerTransform.ToFTransform();
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathTransformFromEulerTransform::GetUpgradeInfo() const
+{
+	FRigUnit_MathTransformFromEulerTransformV2 NewNode;
+	NewNode.Value = EulerTransform;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("EulerTransform"), TEXT("Value"));
+	return Info;
+}
+
+FRigUnit_MathTransformFromEulerTransformV2_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = Value.ToFTransform();
 }
 
 FRigUnit_MathTransformToEulerTransform_Execute()
@@ -128,7 +145,7 @@ FRigVMStructUpgradeInfo FRigUnit_MathTransformSelectBool::GetUpgradeInfo() const
 FRigUnit_MathTransformRotateVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	Result = Transform.TransformVector(Direction);
+	Result = Transform.TransformVector(Vector);
 }
 
 FRigUnit_MathTransformTransformVector_Execute()
@@ -153,4 +170,16 @@ FRigUnit_MathTransformClampSpatially_Execute()
 	FRigUnit_MathVectorClampSpatially::StaticExecute(RigVMExecuteContext, Value.GetTranslation(), Axis, Type, Minimum, Maximum, Space, bDrawDebug, DebugColor, DebugThickness, Position, Context);
 	Result = Value;
 	Result.SetTranslation(Position);
+}
+
+FRigUnit_MathTransformMirrorTransform_Execute()
+{
+	FRigMirrorSettings MirrorSettings;
+	MirrorSettings.MirrorAxis = MirrorAxis;
+	MirrorSettings.AxisToFlip = AxisToFlip;
+
+	FTransform Local = FTransform::Identity;
+	FRigUnit_MathTransformMakeRelative::StaticExecute(RigVMExecuteContext, Value, CentralTransform, Local, Context);
+	Local = MirrorSettings.MirrorTransform(Local);
+	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, Local, CentralTransform, Result, Context);
 }

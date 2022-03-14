@@ -52,7 +52,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorBinaryOp : public FRigUnit_MathVectorBa
 /**
  * Makes a vector from a single float
  */
-USTRUCT(meta=(DisplayName="From Float", TemplateName="FromFloat", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
@@ -226,7 +226,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorAbs : public FRigUnit_MathVectorUnaryOp
 /**
  * Returns the closest lower full number (integer) of the value for each component
  */
-USTRUCT(meta=(DisplayName="Floor", TemplateName="Floor", Keywords="Round"))
+USTRUCT(meta=(DisplayName="Floor", Keywords="Round"))
 struct CONTROLRIG_API FRigUnit_MathVectorFloor : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
@@ -238,7 +238,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorFloor : public FRigUnit_MathVectorUnary
 /**
  * Returns the closest higher full number (integer) of the value for each component
  */
-USTRUCT(meta=(DisplayName="Ceiling", TemplateName="Ceiling", Keywords="Round"))
+USTRUCT(meta=(DisplayName="Ceiling", Keywords="Round"))
 struct CONTROLRIG_API FRigUnit_MathVectorCeil : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
@@ -250,7 +250,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorCeil : public FRigUnit_MathVectorUnaryO
 /**
  * Returns the closest higher full number (integer) of the value for each component
  */
-USTRUCT(meta=(DisplayName="Round", TemplateName="Round"))
+USTRUCT(meta=(DisplayName="Round"))
 struct CONTROLRIG_API FRigUnit_MathVectorRound : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
@@ -730,7 +730,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorClampLength: public FRigUnit_MathVector
 /**
  * Mirror a vector about a normal vector.
  */
-USTRUCT(meta=(DisplayName="Mirror", TemplateName="Mirror"))
+USTRUCT(meta=(DisplayName="Mirror on Normal"))
 struct CONTROLRIG_API FRigUnit_MathVectorMirror : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
@@ -1019,4 +1019,94 @@ struct CONTROLRIG_API FRigUnit_MathDistanceToPlane : public FRigUnit_MathVectorB
 
 	UPROPERTY(meta = (Output))
 	float SignedDistance;
+};
+
+/**
+ * Returns the relative local vector within a parent's vector
+ */
+USTRUCT(meta=(DisplayName="Make Relative", TemplateName="Make Relative", Keywords="Local,Global,Absolute"))
+struct CONTROLRIG_API FRigUnit_MathVectorMakeRelative : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorMakeRelative()
+	{
+		Global = Parent = Local = FVector::ZeroVector;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FVector Global;
+
+	UPROPERTY(meta=(Input))
+	FVector Parent;
+
+	UPROPERTY(meta=(Output))
+	FVector Local;
+};
+
+/**
+ * Returns the absolute global vector within a parent's vector
+ */
+USTRUCT(meta = (DisplayName = "Make Absolute", TemplateName="Make Absolute", Keywords = "Local,Global,Relative"))
+struct CONTROLRIG_API FRigUnit_MathVectorMakeAbsolute : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorMakeAbsolute()
+	{
+		Global = Parent = Local = FVector::ZeroVector;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Local;
+
+	UPROPERTY(meta = (Input))
+	FVector Parent;
+
+	UPROPERTY(meta = (Output))
+	FVector Global;
+};
+
+/**
+ * Mirror a vector about a central transform.
+ */
+USTRUCT(meta=(DisplayName="Mirror", TemplateName="Mirror"))
+struct CONTROLRIG_API FRigUnit_MathVectorMirrorTransform : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorMirrorTransform()
+	{
+		Value = Result = FVector::ZeroVector;
+		MirrorAxis = EAxis::X;
+		AxisToFlip = EAxis::Z;
+		CentralTransform = FTransform::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FVector Value;
+
+	// the axis to mirror against
+	UPROPERTY(meta=(Input))
+	TEnumAsByte<EAxis::Type> MirrorAxis;
+
+	// the axis to flip for rotations
+	UPROPERTY(meta=(Input))
+	TEnumAsByte<EAxis::Type> AxisToFlip;
+
+	// The transform about which to mirror
+	UPROPERTY(meta=(Input))
+	FTransform CentralTransform;
+
+	UPROPERTY(meta=(Output))
+	FVector Result;
 };

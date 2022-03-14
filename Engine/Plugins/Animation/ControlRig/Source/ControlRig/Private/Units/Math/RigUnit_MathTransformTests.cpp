@@ -112,7 +112,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathTransformSelectBool)
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathTransformRotateVector)
 {
 	Unit.Transform = FTransform(FQuat(FVector(1.f, 0.f, 0.f), -HALF_PI), FVector(1.f, 2.f, 3.f));
-	Unit.Direction = FVector(0.f, 0.f, 4.f);
+	Unit.Vector = FVector(0.f, 0.f, 4.f);
 	InitAndExecute();
 	AddErrorIfFalse(FRigUnit_MathTransformTest_Utils::IsNearlyEqual(Unit.Result, FVector(0.f, 4.f, 0.f)), TEXT("unexpected result"));
 	return true;
