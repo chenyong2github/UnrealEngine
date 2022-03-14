@@ -214,7 +214,6 @@ struct RIGVM_API FRigVMExecuteContext
 		SliceOffsets.Reset();
 		InstructionIndex = 0;
 		VM = nullptr;
-		ExternalVariables.Reset();
 	}
 
 	FORCEINLINE void CopyFrom(const FRigVMExecuteContext& Other)
@@ -224,7 +223,6 @@ struct RIGVM_API FRigVMExecuteContext
 		InstructionIndex = Other.InstructionIndex;
 		VM = Other.VM;
 		RuntimeSettings = Other.RuntimeSettings;
-		ExternalVariables = Other.ExternalVariables;
 		OpaqueArguments = Other.OpaqueArguments;
 		Slices = Other.Slices;
 		SliceOffsets = Other.SliceOffsets;
@@ -263,30 +261,6 @@ struct RIGVM_API FRigVMExecuteContext
 	FORCEINLINE bool IsSliceComplete() const
 	{
 		return GetSlice().IsComplete();
-	}
-
-	FORCEINLINE const FRigVMExternalVariable* FindExternalVariable(const FName& InExternalVariableName) const
-	{
-		for (const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
-		{
-			if (ExternalVariable.Name == InExternalVariableName)
-			{
-				return &ExternalVariable;
-			}
-		}
-		return nullptr;
-	}
-
-	FORCEINLINE FRigVMExternalVariable* FindExternalVariable(const FName& InExternalVariableName)
-	{
-		for (FRigVMExternalVariable& ExternalVariable : ExternalVariables)
-		{
-			if (ExternalVariable.Name == InExternalVariableName)
-			{
-				return &ExternalVariable;
-			}
-		}
-		return nullptr;
 	}
 
 	FORCEINLINE void Log(EMessageSeverity::Type InSeverity, const FString& InMessage) const
@@ -352,7 +326,6 @@ struct RIGVM_API FRigVMExecuteContext
 	URigVM* VM;
 	FRigVMRuntimeSettings RuntimeSettings;
 	TArrayView<void*> OpaqueArguments;
-	TArray<FRigVMExternalVariable> ExternalVariables;
 	TArray<FRigVMSlice> Slices;
 	TArray<uint16> SliceOffsets;
 	double LastExecutionMicroSeconds;

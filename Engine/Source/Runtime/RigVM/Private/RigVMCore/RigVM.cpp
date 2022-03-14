@@ -1335,7 +1335,6 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 	Context.Reset();
 	Context.SliceOffsets.AddZeroed(Instructions.Num());
 	Context.OpaqueArguments = AdditionalArguments;
-	Context.ExternalVariables = ExternalVariables;
 
 	TGuardValue<URigVM*> VMInContext(Context.VM, this);
 	
@@ -1545,7 +1544,6 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	Context.Reset();
 	Context.SliceOffsets.AddZeroed(Instructions.Num());
 	Context.OpaqueArguments = AdditionalArguments;
-	Context.ExternalVariables = ExternalVariables;
 
 	TGuardValue<URigVM*> VMInContext(Context.VM, this);
 
