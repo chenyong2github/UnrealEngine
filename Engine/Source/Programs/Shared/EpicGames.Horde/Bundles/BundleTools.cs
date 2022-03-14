@@ -242,7 +242,7 @@ namespace EpicGames.Horde.Bundles
 				IoHash Hash = ImportObject.Object.Hash;
 				if (Hashes.Add(Hash))
 				{
-					BundleObject Object = await StorageClient.ReadObjectAsync<BundleObject>(NamespaceId, Hash);
+					BundleObject Object = await StorageClient.ReadBlobAsync<BundleObject>(NamespaceId, Hash);
 
 					FileReference OutputFile = FileReference.Combine(OutputDir, $"{Hash}.yml");
 					WriteSummaryForObject(Object, OutputFile);

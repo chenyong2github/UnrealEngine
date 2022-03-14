@@ -457,7 +457,7 @@ namespace HordeServer.Compute.Impl
 				NamespaceId NamespaceId = new NamespaceId(ClusterConfig.NamespaceId);
 				try
 				{
-					Requirements = await StorageClient.ReadObjectAsync<Requirements>(NamespaceId, QueueKey.RequirementsHash);
+					Requirements = await StorageClient.ReadBlobAsync<Requirements>(NamespaceId, QueueKey.RequirementsHash);
 				}
 				catch (BlobNotFoundException)
 				{

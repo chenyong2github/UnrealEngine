@@ -342,23 +342,10 @@ namespace EpicGames.Horde.Storage
 		/// <param name="MaxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
 		/// <param name="CancellationToken">Cancellation token for the operation</param>
 		/// <returns>The decoded object</returns>
-		public static async Task<T> ReadObjectAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, int MaxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken CancellationToken = default)
+		public static async Task<T> ReadBlobAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, int MaxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken CancellationToken = default)
 		{
 			ReadOnlyMemory<byte> Data = await ReadBlobToMemoryAsync(StorageClient, NamespaceId, Hash, MaxInMemoryBlobLength, CancellationToken);
 			return CbSerializer.Deserialize<T>(Data);
-		}
-
-		/// <summary>
-		/// Writes a serialized compact binary object to storage
-		/// </summary>
-		/// <param name="StorageClient">The storage interface</param>
-		/// <param name="NamespaceId">Namespace containing the blob</param>
-		/// <param name="Object">The object to be written</param>
-		/// <param name="CancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public static Task<IoHash> WriteObjectAsync(this IStorageClient StorageClient, NamespaceId NamespaceId, CbObject Object, CancellationToken CancellationToken = default)
-		{
-			return WriteBlobFromMemoryAsync(StorageClient, NamespaceId, Object.GetView(), CancellationToken);
 		}
 
 		/// <summary>
@@ -369,7 +356,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="Object">The object to be written</param>
 		/// <param name="CancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task<IoHash> WriteObjectAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, T Object, CancellationToken CancellationToken = default)
+		public static async Task<IoHash> WriteBlobAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, T Object, CancellationToken CancellationToken = default)
 		{
 			CbWriter Writer = new CbWriter();
 			CbSerializer.Serialize<T>(Writer, Object);
@@ -396,20 +383,18 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Attempts to set a ref to a particular value
+		/// Sets a ref to a particular value
 		/// </summary>
-		/// <typeparam name="T"></typeparam>
 		/// <param name="StorageClient">The storage interface</param>
 		/// <param name="NamespaceId">Namespace containing the ref</param>
 		/// <param name="BucketId">Bucket containing the ref</param>
 		/// <param name="RefId">The ref id</param>
 		/// <param name="Value">The new object for the ref</param>
 		/// <param name="CancellationToken">Cancellation token for the operation</param>
-		/// <returns>List of missing blob hashes</returns>
-		public static Task<List<IoHash>> TrySetRefAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, BucketId BucketId, RefId RefId, T Value, CancellationToken CancellationToken = default)
+		public static Task SetRefAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, BucketId BucketId, RefId RefId, T Value, CancellationToken CancellationToken = default)
 		{
 			CbObject Object = CbSerializer.Serialize<T>(Value);
-			return StorageClient.TrySetRefAsync(NamespaceId, BucketId, RefId, Object, CancellationToken);
+			return SetRefAsync(StorageClient, NamespaceId, BucketId, RefId, Object, CancellationToken);
 		}
 
 		/// <summary>
@@ -431,18 +416,20 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Sets a ref to a particular value
+		/// Attempts to set a ref to a particular value
 		/// </summary>
+		/// <typeparam name="T"></typeparam>
 		/// <param name="StorageClient">The storage interface</param>
 		/// <param name="NamespaceId">Namespace containing the ref</param>
 		/// <param name="BucketId">Bucket containing the ref</param>
 		/// <param name="RefId">The ref id</param>
 		/// <param name="Value">The new object for the ref</param>
 		/// <param name="CancellationToken">Cancellation token for the operation</param>
-		public static Task SetRefAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, BucketId BucketId, RefId RefId, T Value, CancellationToken CancellationToken = default)
+		/// <returns>List of missing blob hashes</returns>
+		public static Task<List<IoHash>> TrySetRefAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, BucketId BucketId, RefId RefId, T Value, CancellationToken CancellationToken = default)
 		{
 			CbObject Object = CbSerializer.Serialize<T>(Value);
-			return SetRefAsync(StorageClient, NamespaceId, BucketId, RefId, Object, CancellationToken);
+			return StorageClient.TrySetRefAsync(NamespaceId, BucketId, RefId, Object, CancellationToken);
 		}
 
 		/// <summary>

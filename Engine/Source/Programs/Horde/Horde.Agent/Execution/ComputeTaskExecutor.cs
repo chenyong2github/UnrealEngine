@@ -113,7 +113,7 @@ namespace HordeAgent
 			FileUtils.ForceDeleteDirectoryContents(SandboxDir);
 
 			DateTimeOffset InputFetchStart = DateTimeOffset.UtcNow;
-			DirectoryTree InputDirectory = await StorageClient.ReadObjectAsync<DirectoryTree>(NamespaceId, Task.SandboxHash);
+			DirectoryTree InputDirectory = await StorageClient.ReadBlobAsync<DirectoryTree>(NamespaceId, Task.SandboxHash);
 			await SetupSandboxAsync(NamespaceId, InputDirectory, SandboxDir);
 			DateTimeOffset InputFetchCompleted = DateTimeOffset.UtcNow;
 
@@ -196,7 +196,7 @@ namespace HordeAgent
 
 			async Task DownloadDir(DirectoryNode DirectoryNode)
 			{
-				DirectoryTree InputSubDirectory = await StorageClient.ReadObjectAsync<DirectoryTree>(NamespaceId, DirectoryNode.Hash);
+				DirectoryTree InputSubDirectory = await StorageClient.ReadBlobAsync<DirectoryTree>(NamespaceId, DirectoryNode.Hash);
 				DirectoryReference OutputSubDirectory = DirectoryReference.Combine(OutputDir, DirectoryNode.Name.ToString());
 				await SetupSandboxAsync(NamespaceId, InputSubDirectory, OutputSubDirectory);
 			}
@@ -253,7 +253,7 @@ namespace HordeAgent
 			Tree.Files.AddRange(await Task.WhenAll(Files));
 			Tree.Directories.AddRange(await Task.WhenAll(Trees));
 
-			IoHash Hash = await StorageClient.WriteObjectAsync<DirectoryTree>(NamespaceId, Tree);
+			IoHash Hash = await StorageClient.WriteBlobAsync<DirectoryTree>(NamespaceId, Tree);
 			return (Tree, Hash);
 		}
 
