@@ -45,13 +45,13 @@ namespace Horde.Storage.Implementation
                 // do not apply our cleanup policies to the internal namespace
                 return Task.FromResult(new List<OldRecord>());
             }
-            else if (_settings.CurrentValue.CleanNamespacesV1.Contains(ns.ToString()))
-            {
-                return CleanNamespaceV1(ns, cancellationToken);
-            }
             else if (_settings.CurrentValue.CleanNamespaces.Contains(ns.ToString()))
             {
                 return CleanNamespace(ns, cancellationToken);
+            }
+            else if (_settings.CurrentValue.CleanNamespacesLegacy.Contains(ns.ToString()))
+            {
+                return CleanNamespaceLegacy(ns, cancellationToken);
             }
             else
                 throw new NotImplementedException(
@@ -105,7 +105,7 @@ namespace Horde.Storage.Implementation
             return deletedRecords;
         }
 
-        private async Task<List<OldRecord>> CleanNamespaceV1(NamespaceId ns, CancellationToken cancellationToken)
+        private async Task<List<OldRecord>> CleanNamespaceLegacy(NamespaceId ns, CancellationToken cancellationToken)
         {
             List<OldRecord> deletedRecords = new List<OldRecord>();
             await foreach (OldRecord record in _refs.GetOldRecords(ns, _settings.CurrentValue.LastAccessCutoff).WithCancellation(cancellationToken))
