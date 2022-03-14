@@ -421,6 +421,21 @@ namespace Horde.Storage.FunctionalTests.Storage
         }
 
         [TestMethod]
+        public async Task PostSmallBlob()
+        {
+            byte[] payload = Encoding.ASCII.GetBytes("I am a small blob");
+            using ByteArrayContent requestContent = new ByteArrayContent(payload);
+            requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            requestContent.Headers.ContentLength = payload.Length;
+            BlobIdentifier contentHash = BlobIdentifier.FromBlob(payload);
+            HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/s/{TestNamespaceName}", requestContent);
+
+            result.EnsureSuccessStatusCode();
+            InsertResponse content = await result.Content.ReadAsAsync<InsertResponse>();
+            Assert.AreEqual(contentHash, content.Identifier);
+        }
+
+        [TestMethod]
         public async Task DeleteBlob()
         {
             HttpResponseMessage result = await  _httpClient!.DeleteAsync($"api/v1/s/{TestNamespaceName}/{_deleteFileHash}");

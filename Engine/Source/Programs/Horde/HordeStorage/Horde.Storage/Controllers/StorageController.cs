@@ -189,6 +189,35 @@ namespace Horde.Storage.Controllers
             });
         }
 
+        [HttpPost("{ns}")]
+        [Authorize("Storage.write")]
+        [RequiredContentType(MediaTypeNames.Application.Octet)]
+        [DisableRequestSizeLimit]
+        public async Task<IActionResult> Post(
+            [Required] NamespaceId ns)
+        {
+            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+
+            if (!authorizationResult.Succeeded)
+            {
+                return Forbid();
+            }
+
+            _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
+            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+            
+            await using Stream stream = payload.GetStream();
+
+            BlobIdentifier id = await BlobIdentifier.FromStream(stream);
+            await _storage.PutObjectKnownHash(ns, payload, id);
+
+            return Ok(new
+            {
+                Identifier = id.ToString()
+            });
+        }
+
+
         [HttpDelete("{ns}/{id}")]
         [Authorize("Storage.delete")]
         public async Task<IActionResult> Delete(
