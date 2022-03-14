@@ -35,7 +35,7 @@ public class MemoryBlobIndex : IBlobIndex
     {
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
         ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo> index = GetNamespaceContainer(ns);
-        index[id] = NewBlobInfo(ns, region);
+        index[id] = NewBlobInfo(ns, id, region);
         return Task.CompletedTask;
     }
 
@@ -56,6 +56,23 @@ public class MemoryBlobIndex : IBlobIndex
         return Task.FromResult(index.TryRemove(id, out MemoryBlobInfo? _));
     }
 
+    public Task RemoveBlobFromRegion(NamespaceId ns, BlobIdentifier id, string? region = null)
+    {
+        region ??= _jupiterSettings.CurrentValue.CurrentSite;
+        ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo> index = GetNamespaceContainer(ns);
+
+        index.AddOrUpdate(id, _ =>
+        {
+            MemoryBlobInfo info = NewBlobInfo(ns, id, region);
+            return info;
+        }, (_, info) =>
+        {
+            info.Regions.Remove(region);
+            return info;
+        });
+        return Task.CompletedTask;
+    }
+
     public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
     {
         IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
@@ -70,7 +87,7 @@ public class MemoryBlobIndex : IBlobIndex
 
             index.AddOrUpdate(id, _ =>
             {
-                MemoryBlobInfo info = NewBlobInfo(ns, _jupiterSettings.CurrentValue.CurrentSite);
+                MemoryBlobInfo info = NewBlobInfo(ns, id, _jupiterSettings.CurrentValue.CurrentSite);
                 info.References.Add((bucket, key));
                 return info;
             }, (_, info) =>
@@ -83,12 +100,13 @@ public class MemoryBlobIndex : IBlobIndex
         return Task.CompletedTask;
     }
 
-    private MemoryBlobInfo NewBlobInfo(NamespaceId ns, string region)
+    private MemoryBlobInfo NewBlobInfo(NamespaceId ns, BlobIdentifier blob, string region)
     {
         MemoryBlobInfo info = new MemoryBlobInfo
         {
             Regions = new HashSet<string> { region },
             Namespace = ns,
+            BlobIdentifier = blob,
         };
         return info;
     }

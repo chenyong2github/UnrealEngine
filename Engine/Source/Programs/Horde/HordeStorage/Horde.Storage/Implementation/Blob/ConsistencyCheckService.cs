@@ -9,6 +9,7 @@ using Cassandra;
 using Dasync.Collections;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
+using Horde.Storage.Implementation.Blob;
 using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,7 @@ namespace Horde.Storage.Implementation
         private readonly ILeaderElection _leaderElection;
         private readonly IRefsStore _refsStore;
         private readonly IReferencesStore _referencesStore;
+        private readonly IBlobIndex _blobIndex;
         private readonly ILogger _logger = Log.ForContext<ConsistencyCheckService>();
 
         public class ConsistencyState
@@ -36,7 +38,7 @@ namespace Horde.Storage.Implementation
             return _settings.CurrentValue.Enabled;
         }
 
-        public ConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IServiceProvider provider, ILeaderElection leaderElection, IRefsStore refsStore, IReferencesStore referencesStore) :
+        public ConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IServiceProvider provider, ILeaderElection leaderElection, IRefsStore refsStore, IReferencesStore referencesStore, IBlobIndex blobIndex) :
             base(serviceName: nameof(ConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
         {
             _settings = settings;
@@ -44,6 +46,7 @@ namespace Horde.Storage.Implementation
             _leaderElection = leaderElection;
             _refsStore = refsStore;
             _referencesStore = referencesStore;
+            _blobIndex = blobIndex;
         }
 
         public override async Task<bool> OnPoll(ConsistencyState state, CancellationToken cancellationToken)
@@ -111,6 +114,8 @@ namespace Horde.Storage.Implementation
                         _logger.Error("Mismatching hash for S3 object {Blob} in {Namespace}, new hash has {NewHash}. Deleting incorrect blob.", blob, ns, newHash);
 
                         await s3Store.DeleteObject(ns, blob);
+                        // update blob index tracking to indicate that we no longer have this blob in this region
+                        await _blobIndex.RemoveBlobFromRegion(ns, blob);
                     }
                 }
                 

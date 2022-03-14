@@ -121,12 +121,10 @@ public class BlobService : IBlobService
         await using Stream hashStream = payload.GetStream();
         BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
 
-        Task<BlobIdentifier> putObjectTask = PutObjectToStores(ns, payload, id);
-        Task addToBlobIndexTask = _blobIndex.AddBlobToIndex(ns, id);
+        BlobIdentifier objectStoreIdentifier = await PutObjectToStores(ns, payload, id);
+        await _blobIndex.AddBlobToIndex(ns, id);
 
-        await Task.WhenAll(putObjectTask, addToBlobIndexTask);
-
-        return await putObjectTask;
+        return objectStoreIdentifier;
 
     }
 
@@ -137,24 +135,20 @@ public class BlobService : IBlobService
         await using Stream hashStream = new MemoryStream(payload);
         BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
 
-        Task<BlobIdentifier> putObjectTask = PutObjectToStores(ns, payload, id);
-        Task addToBlobIndexTask = _blobIndex.AddBlobToIndex(ns, id);
+        BlobIdentifier objectStoreIdentifier = await PutObjectToStores(ns, payload, id);
+        await _blobIndex.AddBlobToIndex(ns, id);
 
-        await Task.WhenAll(putObjectTask, addToBlobIndexTask);
-
-        return await putObjectTask;
+        return objectStoreIdentifier;
     }
 
     public async Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content, BlobIdentifier identifier)
     {
         using IScope scope = Tracer.Instance.StartActive("put_blob");
         scope.Span.ResourceName = identifier.ToString();
-        Task<BlobIdentifier> putObjectTask = PutObjectToStores(ns, content, identifier);
-        Task addToBlobIndexTask = _blobIndex.AddBlobToIndex(ns, identifier);
+        BlobIdentifier objectStoreIdentifier = await PutObjectToStores(ns, content, identifier);
+        await _blobIndex.AddBlobToIndex(ns, identifier);
 
-        await Task.WhenAll(putObjectTask, addToBlobIndexTask);
-
-        return await putObjectTask;
+        return objectStoreIdentifier;
     }
 
     private async Task<BlobIdentifier> PutObjectToStores(NamespaceId ns, IBufferedPayload bufferedPayload, BlobIdentifier identifier)

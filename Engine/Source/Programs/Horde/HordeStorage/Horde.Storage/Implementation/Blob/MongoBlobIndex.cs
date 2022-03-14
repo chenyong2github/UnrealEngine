@@ -73,6 +73,22 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         return result.IsAcknowledged;
     }
 
+    public async Task RemoveBlobFromRegion(NamespaceId ns, BlobIdentifier id, string? region = null)
+    {
+        region ??= _jupiterSettings.CurrentValue.CurrentSite;
+
+        IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, id);
+        IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
+        MongoBlobIndexModelV0 model = new MongoBlobIndexModelV0(blobInfo!);
+        model.Regions.Remove(region);
+        FilterDefinition<MongoBlobIndexModelV0> filter = Builders<MongoBlobIndexModelV0>.Filter.Where(m => m.Ns == ns.ToString() && m.BlobId == id.ToString());
+        await collection.FindOneAndReplaceAsync(filter, model, new FindOneAndReplaceOptions<MongoBlobIndexModelV0, MongoBlobIndexModelV0>
+        {
+            IsUpsert = true
+        });
+
+    }
+
     public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
     {
         IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
@@ -116,6 +132,14 @@ class MongoBlobIndexModelV0
         References = references;
     }
 
+    public MongoBlobIndexModelV0(IBlobIndex.BlobInfo blobInfo)
+    {
+        Ns = blobInfo.Namespace.ToString();
+        BlobId = blobInfo.BlobIdentifier.ToString();
+        Regions = blobInfo.Regions.ToList();
+        References = blobInfo.References.Select(pair => new Dictionary<string, string>{ {"bucket", pair.Item1.ToString()}, {"key", pair.Item2.ToString()}}).ToList();
+    }
+
     public MongoBlobIndexModelV0(NamespaceId ns, BlobIdentifier blobId)
     {
         Ns = ns.ToString();
@@ -138,6 +162,7 @@ class MongoBlobIndexModelV0
         return new IBlobIndex.BlobInfo()
         {
             Namespace = new NamespaceId(Ns),
+            BlobIdentifier = new BlobIdentifier(BlobId),
             Regions = Regions.ToHashSet(),
             References = References.Select(dictionary =>
                 (new BucketId(dictionary["bucket"]), new IoHashKey(dictionary["key"]))).ToList(),

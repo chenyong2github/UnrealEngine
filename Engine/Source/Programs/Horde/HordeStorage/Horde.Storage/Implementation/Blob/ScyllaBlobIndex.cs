@@ -60,6 +60,7 @@ public class ScyllaBlobIndex : IBlobIndex
         return new IBlobIndex.BlobInfo
         {
             Regions = blobIndex.Regions ?? new HashSet<string>(),
+            BlobIdentifier = id,
             Namespace = new NamespaceId(blobIndex.Namespace),
             References = blobIndex.References != null ? blobIndex.References.Select(reference => reference.AsTuple()).ToList() : new List<(BucketId, IoHashKey)>()
         };
@@ -67,7 +68,6 @@ public class ScyllaBlobIndex : IBlobIndex
 
     public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
     {
-        // TODO: Should this only remove the current region, and the actual row isnt removed until all regions have been removed? Seems overly complicated
         using IScope scope = Tracer.Instance.StartActive("scylla.remove_from_blob_index");
         scope.Span.ResourceName = $"{ns}.{id}";
 
@@ -75,6 +75,15 @@ public class ScyllaBlobIndex : IBlobIndex
             new ScyllaBlobIdentifier(id));
 
         return true;
+    }
+
+    public async Task RemoveBlobFromRegion(NamespaceId ns, BlobIdentifier id, string? region = null)
+    {
+        region ??= _jupiterSettings.CurrentValue.CurrentSite;
+        using IScope scope = Tracer.Instance.StartActive("scylla.remove_blob_index_region");
+        scope.Span.ResourceName = $"{ns}.{id}";
+
+        await _mapper.UpdateAsync<ScyllaBlobIndexTable>("SET regions = regions - ? WHERE namespace = ? AND blob_id = ?", new string[] { region }, ns.ToString(), new ScyllaBlobIdentifier(id));
     }
 
     public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)

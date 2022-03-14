@@ -28,6 +28,7 @@ public class CachedBlobIndex : IBlobIndex
             return new IBlobIndex.BlobInfo
             {
                 Namespace = ns,
+                BlobIdentifier = id,
                 References = new List<(BucketId, IoHashKey)>(),
                 Regions = new HashSet<string> {_jupiterSettings.CurrentValue.CurrentSite}
             };
@@ -47,6 +48,12 @@ public class CachedBlobIndex : IBlobIndex
         // We do not actually track any blob information when running in cached mode
         await Task.CompletedTask;
         return false;
+    }
+
+    public async Task RemoveBlobFromRegion(NamespaceId ns, BlobIdentifier id, string? region = null)
+    {
+        // We do not actually track any blob information when running in cached mode
+        await Task.CompletedTask;
     }
 
     public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)

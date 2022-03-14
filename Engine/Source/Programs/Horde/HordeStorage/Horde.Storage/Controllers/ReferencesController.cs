@@ -217,10 +217,18 @@ namespace Horde.Storage.Controllers
                             if (referencedBlobs.Count == 1)
                             {
                                 BlobIdentifier attachmentToSend = referencedBlobs.First();
-                                BlobContents referencedBlobContents = await _blobStore.GetObject(ns, attachmentToSend);
-                                Response.Headers[CommonHeaders.InlinePayloadHash] = attachmentToSend.ToString();
+                                try
+                                {
+                                    BlobContents referencedBlobContents = await _blobStore.GetObject(ns, attachmentToSend);
+                                    Response.Headers[CommonHeaders.InlinePayloadHash] = attachmentToSend.ToString();
 
-                                await WriteBody(referencedBlobContents, CustomMediaTypeNames.JupiterInlinedPayload);
+                                    await WriteBody(referencedBlobContents, CustomMediaTypeNames.JupiterInlinedPayload);
+                                }
+                                catch (BlobNotFoundException)
+                                {
+                                    _logger.Error("Failed to find blob {Blob} in namespace {Namespace} but it was expected to exist after reference resolving", attachmentToSend, ns);
+                                    throw;
+                                }
                                 return new EmptyResult();
                             }
                             else if (referencedBlobs.Count == 0)
