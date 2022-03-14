@@ -209,26 +209,42 @@ public:
 	 * @param	InStruct				The type of the variable to create the customization for
 	 * @param	InOnGetDetailCustomization	The delegate used to create customization instances
 	 */
-	virtual void RegisterVariableCustomization(FFieldClass* InFieldClass, FOnGetVariableCustomizationInstance InOnGetVariableCustomization);
+	virtual FDelegateHandle RegisterVariableCustomization(FFieldClass* InFieldClass, FOnGetVariableCustomizationInstance InOnGetVariableCustomization);
 
 	/** 
 	 * Unregister a previously registered customization for BP variables
 	 * @param	InStruct				The type to create the customization for
 	 */
+	UE_DEPRECATED(5.1, "UnregisterVariableCustomization without a delegate handle is deprecated.")
 	virtual void UnregisterVariableCustomization(FFieldClass* InFieldClass);
 
+	/**
+	 * Unregister a previously registered customization for BP variables
+	 * @param	InStruct				The type to create the customization for
+	 * @param	InHandle				The handle returned by RegisterVariableCustomization
+	 */
+	virtual void UnregisterVariableCustomization(FFieldClass* InFieldClass, FDelegateHandle InHandle);
+
 	/** 
-	* Register a customization for for Blueprint local variables
-	* @param	InFieldClass				The type of the variable to create the customization for
-	* @param	InOnGetLocalVariableCustomization	The delegate used to create customization instances
-	*/
-	virtual void RegisterLocalVariableCustomization(FFieldClass* InFieldClass, FOnGetLocalVariableCustomizationInstance InOnGetLocalVariableCustomization);
+	 * Register a customization for for Blueprint local variables
+	 * @param	InFieldClass				The type of the variable to create the customization for
+	 * @param	InOnGetLocalVariableCustomization	The delegate used to create customization instances
+	 */
+	virtual FDelegateHandle RegisterLocalVariableCustomization(FFieldClass* InFieldClass, FOnGetLocalVariableCustomizationInstance InOnGetLocalVariableCustomization);
 
 	/** 
 	* Unregister a previously registered customization for BP local variables
 	* @param	InFieldClass				The type to create the customization for
-	*/
+	 */
+	UE_DEPRECATED(5.1, "UnregisterLocalVariableCustomization without a delegate handle is deprecated.")
 	virtual void UnregisterLocalVariableCustomization(FFieldClass* InFieldClass);
+
+	/** 
+	 * Unregister a previously registered customization for BP local variables
+	 * @param	InFieldClass				The type to create the customization for
+	 * @param	InHandle				The handle returned by RegisterLocalVariableCustomization
+	 */
+	virtual void UnregisterLocalVariableCustomization(FFieldClass* InFieldClass, FDelegateHandle InHandle);
 
 	/** 
 	 * Register a customization for for Blueprint graphs
@@ -296,10 +312,10 @@ private:
 	TMap<FName, FSCSEditorCustomizationBuilder> SCSEditorCustomizations;
 
 	/** Customizations for Blueprint variables */
-	TMap<FFieldClass*, FOnGetVariableCustomizationInstance> VariableCustomizations;
+	TMultiMap<FFieldClass*, FOnGetVariableCustomizationInstance> VariableCustomizations;
 
 	/** Customizations for Blueprint local variables */
-	TMap<FFieldClass*, FOnGetLocalVariableCustomizationInstance> LocalVariableCustomizations;
+	TMultiMap<FFieldClass*, FOnGetLocalVariableCustomizationInstance> LocalVariableCustomizations;
 
 	/** Customizations for Blueprint graphs */
 	TMap<const UEdGraphSchema*, FOnGetGraphCustomizationInstance> GraphCustomizations;

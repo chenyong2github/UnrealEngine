@@ -86,6 +86,7 @@ private:
 	/** Delegate handles for blueprint utils */
 	FDelegateHandle RefreshAllNodesDelegateHandle;
 	FDelegateHandle ReconstructAllNodesDelegateHandle;
+	FDelegateHandle BlueprintVariableCustomizationHandle;
 
 	/** Animation Editor Handle*/
 	FDelegateHandle AnimationEditorExtenderHandle;

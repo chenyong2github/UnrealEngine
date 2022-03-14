@@ -365,9 +365,11 @@ void FBlueprintEditorModule::UnregisterSCSEditorCustomization(const FName& InCom
 	SCSEditorCustomizations.Remove(InComponentName);
 }
 
-void FBlueprintEditorModule::RegisterVariableCustomization(FFieldClass* InFieldClass, FOnGetVariableCustomizationInstance InOnGetVariableCustomization)
+FDelegateHandle FBlueprintEditorModule::RegisterVariableCustomization(FFieldClass* InFieldClass, FOnGetVariableCustomizationInstance InOnGetVariableCustomization)
 {
+	FDelegateHandle Result = InOnGetVariableCustomization.GetHandle();
 	VariableCustomizations.Add(InFieldClass, InOnGetVariableCustomization);
+	return Result;
 }
 
 void FBlueprintEditorModule::UnregisterVariableCustomization(FFieldClass* InFieldClass)
@@ -375,14 +377,38 @@ void FBlueprintEditorModule::UnregisterVariableCustomization(FFieldClass* InFiel
 	VariableCustomizations.Remove(InFieldClass);
 }
 
-void FBlueprintEditorModule::RegisterLocalVariableCustomization(FFieldClass* InFieldClass, FOnGetLocalVariableCustomizationInstance InOnGetLocalVariableCustomization)
+void FBlueprintEditorModule::UnregisterVariableCustomization(FFieldClass* InFieldClass, FDelegateHandle InHandle)
 {
+	for (TMultiMap<FFieldClass*, FOnGetVariableCustomizationInstance>::TKeyIterator It = VariableCustomizations.CreateKeyIterator(InFieldClass); It; ++It)
+	{
+		if (It.Value().GetHandle() == InHandle)
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+FDelegateHandle FBlueprintEditorModule::RegisterLocalVariableCustomization(FFieldClass* InFieldClass, FOnGetLocalVariableCustomizationInstance InOnGetLocalVariableCustomization)
+{
+	FDelegateHandle Result = InOnGetLocalVariableCustomization.GetHandle();
 	LocalVariableCustomizations.Add(InFieldClass, InOnGetLocalVariableCustomization);
+	return Result;
 }
 
 void FBlueprintEditorModule::UnregisterLocalVariableCustomization(FFieldClass* InFieldClass)
 {
 	LocalVariableCustomizations.Remove(InFieldClass);
+}
+
+void FBlueprintEditorModule::UnregisterLocalVariableCustomization(FFieldClass* InFieldClass, FDelegateHandle InHandle)
+{
+	for (TMultiMap<FFieldClass*, FOnGetVariableCustomizationInstance>::TKeyIterator It = LocalVariableCustomizations.CreateKeyIterator(InFieldClass); It; ++It)
+	{
+		if (It.Value().GetHandle() == InHandle)
+		{
+			It.RemoveCurrent();
+		}
+	}
 }
 
 void FBlueprintEditorModule::RegisterGraphCustomization(const UEdGraphSchema* InGraphSchema, FOnGetGraphCustomizationInstance InOnGetGraphCustomization)
@@ -412,13 +438,17 @@ TArray<TSharedPtr<IDetailCustomization>> FBlueprintEditorModule::CustomizeVariab
 
 		for (FFieldClass* ClassToQuery : ParentClassesToQuery)
 		{
-			FOnGetVariableCustomizationInstance* CustomizationDelegate = VariableCustomizations.Find(ClassToQuery);
-			if (CustomizationDelegate && CustomizationDelegate->IsBound())
+			TArray<FOnGetVariableCustomizationInstance*, TInlineAllocator<4>> CustomizationDelegates;
+			VariableCustomizations.MultiFindPointer(ClassToQuery, CustomizationDelegates, false);
+			for (FOnGetVariableCustomizationInstance* CustomizationDelegate : CustomizationDelegates)
 			{
-				TSharedPtr<IDetailCustomization> Customization = CustomizationDelegate->Execute(InBlueprintEditor);
-				if(Customization.IsValid())
-				{ 
-					DetailsCustomizations.Add(Customization);
+				if (CustomizationDelegate && CustomizationDelegate->IsBound())
+				{
+					TSharedPtr<IDetailCustomization> Customization = CustomizationDelegate->Execute(InBlueprintEditor);
+					if (Customization.IsValid())
+					{
+						DetailsCustomizations.Add(Customization);
+					}
 				}
 			}
 		}
