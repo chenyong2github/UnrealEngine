@@ -9,6 +9,7 @@
 
 namespace Electra
 {
+THIRD_PARTY_INCLUDES_START
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4191)
@@ -20,6 +21,7 @@ namespace Electra
 #if defined(_MSC_VER)
 #pragma warning( pop )
 #endif
+THIRD_PARTY_INCLUDES_END
 
 
 
