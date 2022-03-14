@@ -778,6 +778,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 
 	if (RemainingRequestCount.Signal())
 	{
+		++NodeIndex;
 		DispatchRequests();
 	}
 }
@@ -1054,6 +1055,7 @@ void FCacheStoreHierarchy::FGetChunksBatch::CompleteRequest(FCacheGetChunkRespon
 
 	if (RemainingRequestCount.Signal())
 	{
+		++NodeIndex;
 		DispatchRequests();
 	}
 }
@@ -1241,6 +1243,7 @@ void FCacheStoreHierarchy::FLegacyDeleteBatch::CompleteRequest(FLegacyCacheDelet
 	}
 	if (RemainingRequestCount.Signal())
 	{
+		++NodeIndex;
 		DispatchRequests();
 	}
 }
