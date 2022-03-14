@@ -20,6 +20,7 @@ enum class ECompilerVersion : uint8
 	VisualStudio2019 = 3 UMETA(DisplayName = "Visual Studio 2019"),
 	VisualStudio2022 = 4 UMETA(DisplayName = "Visual Studio 2022"),
 };
+
 UENUM()
 enum class EDefaultGraphicsRHI : uint8
 {
@@ -29,7 +30,13 @@ enum class EDefaultGraphicsRHI : uint8
 	DefaultGraphicsRHI_Vulkan = 3 UMETA(DisplayName = "Vulkan"),
 };
 
-
+UENUM()
+enum class EWindowsRHIFeatureLevel : uint8
+{
+	ES3_1 = 0 UMETA(DisplayName = "ES3.1"),
+	SM5   = 1 UMETA(DisplayName = "SM5"),
+	SM6   = 2 UMETA(DisplayName = "SM6"),
+};
 
 /**
  * Implements the settings for the Windows target platform. The first instance of this class is initialized in
@@ -60,6 +67,24 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category="Targeted RHIs", Meta = (DisplayName = "Default RHI", ConfigRestartRequired = true))
 	EDefaultGraphicsRHI DefaultGraphicsRHI;
+
+	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "DirectX 12 Minimum FeatureLevel", ConfigRestartRequired = true))
+	EWindowsRHIFeatureLevel D3D12MinimumFeatureLevel;
+
+	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "DirectX 12 Maximum FeatureLevel", ConfigRestartRequired = true))
+	EWindowsRHIFeatureLevel D3D12MaximumFeatureLevel;
+
+	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "DirectX 11 Minimum FeatureLevel", ConfigRestartRequired = true))
+	EWindowsRHIFeatureLevel D3D11MinimumFeatureLevel;
+
+	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "DirectX 11 Maximum FeatureLevel", ConfigRestartRequired = true))
+	EWindowsRHIFeatureLevel D3D11MaximumFeatureLevel;
+
+	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "Vulkan Minimum FeatureLevel", ConfigRestartRequired = true))
+	EWindowsRHIFeatureLevel VulkanMinimumFeatureLevel;
+
+	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "Vulkan Maximum FeatureLevel", ConfigRestartRequired = true))
+	EWindowsRHIFeatureLevel VulkanMaximumFeatureLevel;
 
 	/** Sample rate to run the audio mixer with. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", Meta = (DisplayName = "Audio Mixer Sample Rate"))
