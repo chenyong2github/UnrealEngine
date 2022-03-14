@@ -74,7 +74,7 @@ FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (s
 
 where.exe /Q adb.exe
 IF /I "%ERRORLEVEL%" NEQ "0" (
-	echo Current user path: %USERPATH%
+	echo Current user path: "%USERPATH%"
 	setx PATH "%USERPATH%;%PLATFORMTOOLS%"
 	echo Added %PLATFORMTOOLS% to path
 )

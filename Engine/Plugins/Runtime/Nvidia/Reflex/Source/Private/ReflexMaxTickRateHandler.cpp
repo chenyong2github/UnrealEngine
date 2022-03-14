@@ -42,7 +42,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogMaxTickRateHandler, Log, All);
 
 void FReflexMaxTickRateHandler::Initialize()
 {
-	if (IsRHIDeviceNVIDIA())
+	if ((RHIGetInterfaceType() == ERHIInterfaceType::D3D11 || RHIGetInterfaceType() == ERHIInterfaceType::D3D12) && IsRHIDeviceNVIDIA())
 	{
 		FString RHIName = GDynamicRHI->GetName();
 		if (RHIName.StartsWith(TEXT("Vulkan")))

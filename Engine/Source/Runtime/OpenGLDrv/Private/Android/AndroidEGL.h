@@ -95,7 +95,6 @@ public:
 	void AcquireCurrentRenderingContext();
 	void ReleaseContextOwnership();
 
-	GLuint GetOnScreenColorRenderBuffer();
 	GLuint GetResolveFrameBuffer();
 	bool IsCurrentContextValid();
 	EGLContext  GetCurrentContext(  );

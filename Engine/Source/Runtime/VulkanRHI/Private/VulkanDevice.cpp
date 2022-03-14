@@ -172,7 +172,7 @@ FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	, MemoryManager(this)
 	, DeferredDeletionQueue(this)
 	, DefaultSampler(nullptr)
-	, DefaultImage(nullptr)
+	, DefaultTexture(nullptr)
 	, Gpu(InGpu)
 	, GfxQueue(nullptr)
 	, ComputeQueue(nullptr)
@@ -1411,9 +1411,19 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		FSamplerStateInitializerRHI Default(SF_Point);
 		DefaultSampler = ResourceCast(RHICreateSamplerState(Default).GetReference());
 
-		FRHIResourceCreateInfo CreateInfo(TEXT("FVulkanDevice_DefaultImage"));
-		DefaultImage = new FVulkanSurface(*this, 0, VK_IMAGE_VIEW_TYPE_2D, PF_B8G8R8A8, 1, 1, 1, 1, 1, 1, TexCreate_RenderTargetable | TexCreate_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
-		DefaultTextureView.Create(*this, DefaultImage->Image, VK_IMAGE_VIEW_TYPE_2D, DefaultImage->GetFullAspectMask(), PF_B8G8R8A8, VK_FORMAT_B8G8R8A8_UNORM, 0, 1, 0, 1);
+		FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
+			TEXT("FVulkanDevice_DefaultImage"),
+			{ 1, 1 },
+			PF_B8G8R8A8,
+			FClearValueBinding::None,
+			TexCreate_RenderTargetable | TexCreate_ShaderResource,
+			1,
+			1,
+			0,
+			ERHIAccess::SRVMask
+		);
+
+		DefaultTexture = new FVulkanTexture(*this, Desc, nullptr);
 	}
 }
 
@@ -1458,9 +1468,6 @@ void FVulkanDevice::Destroy()
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	} while (NumDeletes > 0);
 
-	VulkanRHI::vkDestroyImageView(GetInstanceHandle(), DefaultTextureView.View, VULKAN_CPU_ALLOCATOR);
-	DefaultTextureView = {};
-
 	delete DescriptorSetCache;
 	DescriptorSetCache = nullptr;
 	
@@ -1470,8 +1477,8 @@ void FVulkanDevice::Destroy()
 	// No need to delete as it's stored in SamplerMap
 	DefaultSampler = nullptr;
 
-	delete DefaultImage;
-	DefaultImage = nullptr;
+	delete DefaultTexture;
+	DefaultTexture = nullptr;
 
 	for (int32 Index = CommandContexts.Num() - 1; Index >= 0; --Index)
 	{

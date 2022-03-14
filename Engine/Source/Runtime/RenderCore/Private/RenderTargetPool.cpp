@@ -17,34 +17,12 @@ TRefCountPtr<IPooledRenderTarget> CreateRenderTarget(FRHITexture* Texture, const
 {
 	check(Texture);
 
-	const FIntVector Size = Texture->GetSizeXYZ();
-
-	FPooledRenderTargetDesc Desc;
-	Desc.Extent = FIntPoint(Size.X, Size.Y);
-	Desc.ClearValue = Texture->GetClearBinding();
-	Desc.Format = Texture->GetFormat();
-	Desc.NumMips = Texture->GetNumMips();
-	Desc.NumSamples = Texture->GetNumSamples();
-	Desc.Flags = Texture->GetFlags();
-	Desc.DebugName = Name;
-
-	if (FRHITextureCube* TextureCube = Texture->GetTextureCube())
-	{
-		Desc.bIsCubemap = true;
-	}
-	else if (FRHITexture3D* Texture3D = Texture->GetTexture3D())
-	{
-		Desc.Depth = Size.Z;
-	}
-	else if (FRHITexture2DArray* TextureArray = Texture->GetTexture2DArray())
-	{
-		Desc.bIsArray = true;
-		Desc.ArraySize = Size.Z;
-	}
-
 	FSceneRenderTargetItem Item;
 	Item.TargetableTexture = Texture;
 	Item.ShaderResourceTexture = Texture;
+
+	FPooledRenderTargetDesc Desc = Translate(Texture->GetDesc());
+	Desc.DebugName = Name;
 
 	TRefCountPtr<IPooledRenderTarget> PooledRenderTarget;
 	GRenderTargetPool.CreateUntrackedElement(Desc, PooledRenderTarget, Item);
@@ -59,30 +37,6 @@ bool CacheRenderTarget(FRHITexture* Texture, const TCHAR* Name, TRefCountPtr<IPo
 		return true;
 	}
 	return false;
-}
-
-static uint64 GetTypeHash(FClearValueBinding Binding)
-{
-	uint64 Hash = 0;
-	switch (Binding.ColorBinding)
-	{
-	case EClearBinding::EColorBound:
-		Hash = CityHash64((const char*)Binding.Value.Color, sizeof(Binding.Value.Color));
-		break;
-	case EClearBinding::EDepthStencilBound:
-		Hash = uint64(GetTypeHash(Binding.Value.DSValue.Depth)) << 32 | uint64(Binding.Value.DSValue.Stencil);
-		break;
-	}
-	return Hash ^ uint64(Binding.ColorBinding);
-}
-
-inline uint64 ComputeHash(const FRHITextureCreateInfo& InCreateInfo)
-{
-	// Make sure all padding is removed.
-	FRHITextureCreateInfo NewInfo;
-	FPlatformMemory::Memzero(&NewInfo, sizeof(FRHITextureCreateInfo));
-	NewInfo = InCreateInfo;
-	return CityHash64((const char*)&NewInfo, sizeof(FRHITextureCreateInfo));
 }
 
 RENDERCORE_API void DumpRenderTargetPoolMemory(FOutputDevice& OutputDevice)
@@ -109,7 +63,10 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(FRH
 	// FastVRAM is no longer supported by the render target pool.
 	EnumRemoveFlags(Desc.Flags, ETextureCreateFlags::FastVRAM | ETextureCreateFlags::FastVRAMPartialAlloc);
 
-	const uint64 DescHash = ComputeHash(Desc);
+	// We always want SRV access
+	Desc.Flags |= TexCreate_ShaderResource;
+
+	const uint32 DescHash = GetTypeHash(Desc);
 
 	for (uint32 Index = 0, Num = (uint32)PooledRenderTargets.Num(); Index < Num; ++Index)
 	{
@@ -139,84 +96,14 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(FRH
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRenderTargetPool::CreateTexture);
 
-		FRHIResourceCreateInfo CreateInfo(Name, Desc.ClearValue);
-
-		FTextureRHIRef ResultTexture;
 		const ERHIAccess AccessInitial = ERHIAccess::SRVMask;
-		const ETextureCreateFlags TextureFlags = Desc.Flags | TexCreate_ShaderResource;
+		FRHITextureCreateDesc CreateDesc(Desc, AccessInitial, Name);
 
-		// Only create resources if we're not asked to defer creation.
-		if (Desc.IsTexture2D())
-		{
-			if (!Desc.IsTextureArray())
-			{
-				ResultTexture = RHICreateTexture2D(
-					Desc.Extent.X,
-					Desc.Extent.Y,
-					(uint8)Desc.Format,
-					Desc.NumMips,
-					Desc.NumSamples,
-					TextureFlags,
-					AccessInitial,
-					CreateInfo
-				);
-			}
-			else
-			{
-				ResultTexture = RHICreateTexture2DArray(
-					Desc.Extent.X,
-					Desc.Extent.Y,
-					Desc.ArraySize,
-					(uint8)Desc.Format,
-					Desc.NumMips,
-					Desc.NumSamples,
-					TextureFlags,
-					AccessInitial,
-					CreateInfo
-				);
-			}
-		}
-		else if (Desc.IsTexture3D())
-		{
-			ResultTexture = RHICreateTexture3D(
-				Desc.Extent.X,
-				Desc.Extent.Y,
-				Desc.Depth,
-				(uint8)Desc.Format,
-				Desc.NumMips,
-				TextureFlags,
-				AccessInitial,
-				CreateInfo);
-		}
-		else
-		{
-			check(Desc.IsTextureCube());
-			if (Desc.IsTextureArray())
-			{
-				ResultTexture = RHICreateTextureCubeArray(
-					Desc.Extent.X,
-					Desc.ArraySize,
-					(uint8)Desc.Format,
-					Desc.NumMips,
-					TextureFlags,
-					AccessInitial,
-					CreateInfo
-				);
-			}
-			else
-			{
-				ResultTexture = RHICreateTextureCube(
-					Desc.Extent.X,
-					(uint8)Desc.Format,
-					Desc.NumMips,
-					TextureFlags,
-					AccessInitial,
-					CreateInfo
-				);
-			}
-		}
-
-		Found = new FPooledRenderTarget(ResultTexture, AccessInitial, Translate(Desc), this);
+		Found = new FPooledRenderTarget(
+			RHICreateTexture(CreateDesc),
+			AccessInitial,
+			Translate(CreateDesc),
+			this);
 
 		PooledRenderTargets.Add(Found);
 		PooledRenderTargetHashes.Add(DescHash);

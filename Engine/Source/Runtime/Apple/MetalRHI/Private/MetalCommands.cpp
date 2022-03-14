@@ -308,7 +308,7 @@ void FMetalRHICommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,
 	EMetalShaderStages Stage = GetShaderStage(ShaderRHI);
 	if (Surface != nullptr)
 	{
-        if (Surface->Texture || !(Surface->Flags & TexCreate_Presentable))
+        if (Surface->Texture || !(Surface->GetDesc().Flags & TexCreate_Presentable))
         {
             Context->GetCurrentState().SetShaderTexture(Stage, Surface->Texture, TextureIndex, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
         }
@@ -331,7 +331,7 @@ void FMetalRHICommandContext::RHISetShaderTexture(FRHIComputeShader* ComputeShad
 	FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(NewTextureRHI);
 	if (Surface != nullptr)
     {
-        if (Surface->Texture || !(Surface->Flags & TexCreate_Presentable))
+        if (Surface->Texture || !(Surface->GetDesc().Flags & TexCreate_Presentable))
         {
             Context->GetCurrentState().SetShaderTexture(EMetalShaderStages::Compute, Surface->Texture, TextureIndex, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
         }

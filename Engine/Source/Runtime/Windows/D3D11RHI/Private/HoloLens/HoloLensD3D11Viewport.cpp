@@ -37,8 +37,6 @@ DXGI_FORMAT GetSupportedSwapChainBufferFormat(DXGI_FORMAT InPreferredDXGIFormat)
 //	return DXGI_FORMAT_B8G8R8A8_UNORM;
 //}
 
-extern void D3D11TextureAllocated2D( FD3D11Texture2D& Texture );
-
 FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat):
 	D3DRHI(InD3DRHI),
 	LastFlipTime(0),

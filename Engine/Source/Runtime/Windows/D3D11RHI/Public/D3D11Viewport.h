@@ -71,7 +71,7 @@ public:
 
 	// Accessors.
 	FIntPoint GetSizeXY() const { return FIntPoint(SizeX, SizeY); }
-	FD3D11Texture2D* GetBackBuffer() const { return BackBuffer; }
+	FD3D11Texture* GetBackBuffer() const { return BackBuffer; }
 	EColorSpaceAndEOTF GetPixelColorSpace() const { return PixelColorSpace; }
 
 	virtual void WaitForFrameEventCompletion() override
@@ -91,7 +91,7 @@ public:
 #endif
 
 	virtual void* GetNativeSwapChain() const override { return GetSwapChain(); }
-	virtual void* GetNativeBackBufferTexture() const override { return GetBackBuffer()->GetResource(); }
+	virtual void* GetNativeBackBufferTexture() const override { return GetBackBuffer()->GetD3D11Texture2D(); }
 	virtual void* GetNativeBackBufferRT() const override { return GetBackBuffer()->GetRenderTargetView(0, 0); }
 
 	virtual void SetCustomPresent(FRHICustomPresent* InCustomPresent) override
@@ -101,7 +101,7 @@ public:
 	virtual FRHICustomPresent* GetCustomPresent() const { return CustomPresent; }
 
 	virtual void* GetNativeWindow(void** AddParam = nullptr) const override { return (void*)WindowHandle; }
-	static FD3D11Texture2D* GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain);
+	static FD3D11Texture* GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain);
 
 	static DXGI_FORMAT GetRenderTargetFormat(EPixelFormat PixelFormat)
 	{
@@ -159,7 +159,7 @@ protected:
 #else
 	TRefCountPtr<IDXGISwapChain> SwapChain;
 #endif
-	TRefCountPtr<FD3D11Texture2D> BackBuffer;
+	TRefCountPtr<FD3D11Texture> BackBuffer;
 
 	// Support for selecting non-default output for display in fullscreen exclusive
 	TRefCountPtr<IDXGIOutput>	ForcedFullscreenOutput;

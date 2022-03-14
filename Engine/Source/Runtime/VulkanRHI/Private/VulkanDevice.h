@@ -381,7 +381,7 @@ public:
 
 	inline const FVulkanTextureView& GetDefaultImageView() const
 	{
-		return DefaultTextureView;
+		return DefaultTexture->DefaultView;
 	}
 
 	inline const VkFormatProperties* GetFormatProperties() const
@@ -567,8 +567,7 @@ private:
 	FVulkanShaderFactory ShaderFactory;
 
 	FVulkanSamplerState* DefaultSampler;
-	FVulkanSurface* DefaultImage;
-	FVulkanTextureView DefaultTextureView;
+	FVulkanTexture* DefaultTexture;
 
 	VkPhysicalDevice Gpu;
 	VkPhysicalDeviceProperties GpuProps;

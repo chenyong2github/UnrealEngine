@@ -9,7 +9,7 @@
 #include "RHIUtilities.h"
 
 class MEDIArendererVideoUE;
-class FRHITexture2D;
+class FRHITexture;
 
 class FElectraTextureSampleUnix 
 	: public IMediaTextureSample

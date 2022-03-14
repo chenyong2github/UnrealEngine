@@ -7,437 +7,430 @@
 #include "ClearReplacementShaders.h"
 #include "AGXTransitionData.h"
 
-FAGXShaderResourceView::FAGXShaderResourceView()
-	: TextureView(nullptr)
-	, Offset(0)
-	, MipLevel(0)
-	, bSRGBForceDisable(0)
-	, Reserved(0)
-	, NumMips(0)
-	, Format(0)
-	, Stride(0)
-	, LinearTextureDesc(nullptr)
+// Constructor for buffers
+FAGXResourceViewBase::FAGXResourceViewBase(FRHIBuffer* InBuffer, uint32 InStartOffsetBytes, uint32 InNumElements, EPixelFormat InFormat)
+	: SourceBuffer     (ResourceCast(InBuffer))
+	, bTexture         (false)
+	, bSRGBForceDisable(false)
+	, MipLevel         (0)
+	, Reserved         (0)
+	, NumMips          (0)
+	, Format           (InFormat)
+	, Stride           (0)
+	, Offset           (InBuffer ? InStartOffsetBytes : 0)
 {
-	// void
-}
+	check(!bTexture);
 
-FAGXShaderResourceView::~FAGXShaderResourceView()
-{
-	if (LinearTextureDesc)
+	if (SourceBuffer)
 	{
-		delete LinearTextureDesc;
-		LinearTextureDesc = nullptr;
+		SourceBuffer->AddRef();
 	}
-	
-	if (TextureView)
+
+	EBufferUsageFlags Usage = SourceBuffer->GetUsage();
+	if (EnumHasAnyFlags(Usage, BUF_VertexBuffer))
 	{
-		FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(SourceTexture);
-		if (Surface)
+		if (!SourceBuffer)
 		{
-			Surface->SRVs.Remove(this);
+			Stride = 0;
 		}
+		else
+		{
+			check(SourceBuffer->GetUsage() & BUF_ShaderResource);
+			Stride = GPixelFormats[Format].BlockBytes;
 
-		delete TextureView;
-		TextureView = nullptr;
+			LinearTextureDesc = MakeUnique<FAGXLinearTextureDescriptor>(InStartOffsetBytes, InNumElements, Stride);
+			SourceBuffer->CreateLinearTexture((EPixelFormat)Format, SourceBuffer, LinearTextureDesc.Get());
+		}
 	}
-	
-	SourceVertexBuffer = NULL;
-	SourceTexture = NULL;
+	else if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
+	{
+		if (!SourceBuffer)
+		{
+			Format = PF_R16_UINT;
+			Stride = 0;
+		}
+		else
+		{
+			Format = (SourceBuffer->IndexType == mtlpp::IndexType::UInt16) ? PF_R16_UINT : PF_R32_UINT;
+			Stride = SourceBuffer->GetStride();
+
+			check(Stride == ((Format == PF_R16_UINT) ? 2 : 4));
+
+			LinearTextureDesc = MakeUnique<FAGXLinearTextureDescriptor>(InStartOffsetBytes, InNumElements, Stride);
+			SourceBuffer->CreateLinearTexture((EPixelFormat)Format, SourceBuffer, LinearTextureDesc.Get());
+		}
+	}
+	else
+	{
+		check(EnumHasAnyFlags(Usage, BUF_StructuredBuffer));
+
+		Format = PF_Unknown;
+		Stride = SourceBuffer->GetStride();
+	}
 }
 
-void FAGXShaderResourceView::InitLinearTextureDescriptor(const FAGXLinearTextureDescriptor& InLinearTextureDescriptor)
+// Constructor for textures
+FAGXResourceViewBase::FAGXResourceViewBase(
+	  FRHITexture* InTexture
+	, EPixelFormat InFormat
+	, uint8 InMipLevel
+	, uint8 InNumMipLevels
+	, ERHITextureSRVOverrideSRGBType InSRGBOverride
+	, uint32 InFirstArraySlice
+	, uint32 InNumArraySlices
+	)
+	: SourceTexture    (ResourceCast(InTexture))
+	, bTexture         (true)
+	, bSRGBForceDisable(InSRGBOverride == SRGBO_ForceDisable)
+	, MipLevel         (InMipLevel)
+	, Reserved         (0)
+	, NumMips          (InNumMipLevels)
+	, Format           ((InTexture && InFormat == PF_Unknown) ? InTexture->GetDesc().Format : InFormat)
+	, Stride           (0)
+	, Offset           (0)
 {
-	check(!LinearTextureDesc);
-	LinearTextureDesc = new FAGXLinearTextureDescriptor(InLinearTextureDescriptor);
-	check(LinearTextureDesc);
+	// Slice selection of a texture array still need to be implemented on Metal
+	check(InFirstArraySlice == 0 && InNumArraySlices == 0);
+
+	if (SourceTexture)
+	{
+		SourceTexture->AddRef();
+
+		// TODO: Apple Silicon supports memoryless
+#if PLATFORM_IOS
+		// Memoryless targets can't have texture views (SRVs or UAVs)
+		if (Source.Texture.GetStorageMode() != mtlpp::StorageMode::Memoryless)
+#endif
+		{
+			// Determine the appropriate metal format for the view.
+			// This format will be non-sRGB. We convert to sRGB below if required.
+			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[Format].PlatformFormat;
+
+			if (Format == PF_X24_G8)
+			{
+				// Stencil buffer view of a depth texture
+				check(SourceTexture->GetDesc().Format == PF_DepthStencil);
+				switch (SourceTexture->Texture.GetPixelFormat())
+				{
+					default:
+						checkNoEntry();
+						break;
+
+					case mtlpp::PixelFormat::Depth24Unorm_Stencil8:
+						MetalFormat = mtlpp::PixelFormat::X24_Stencil8;
+						break;
+
+					case mtlpp::PixelFormat::Depth32Float_Stencil8:
+						MetalFormat = mtlpp::PixelFormat::X32_Stencil8;
+						break;
+				}
+			}
+			else
+			{
+				// Override the format's sRGB setting if appropriate
+				if (EnumHasAnyFlags(SourceTexture->GetDesc().Flags, TexCreate_SRGB))
+				{
+					if (bSRGBForceDisable)
+					{
+#if PLATFORM_MAC
+						// R8Unorm has been expanded in the source surface for sRGBA support - we need to expand to RGBA to enable compatible texture format view for non apple silicon macs
+						if (Format == PF_G8 && SourceTexture->Texture.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
+						{
+							MetalFormat = mtlpp::PixelFormat::RGBA8Unorm;
+						}
+#endif
+					}
+					else
+					{
+						// Ensure we have the correct sRGB target format if we create a new texture view rather than using the source texture
+						MetalFormat = AGXToSRGBFormat(MetalFormat);
+					}
+				}
+			}
+
+			// We can use the source texture directly if the view's format / mip count etc matches.
+			bool bUseSourceTex =
+				   MipLevel == 0
+				&& NumMips == SourceTexture->Texture.GetMipmapLevelCount()
+				&& MetalFormat == SourceTexture->Texture.GetPixelFormat();
+
+			if (bUseSourceTex)
+			{
+				// SRV is exactly compatible with the original texture.
+				TextureView = SourceTexture->Texture;
+			}
+			else
+			{
+				// Recreate the texture to enable MTLTextureUsagePixelFormatView which must be off unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
+				// @todo recreating resources like this will likely prevent us from making view creation multi-threaded.
+				if (!(SourceTexture->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
+					SourceTexture->PrepareTextureView();
+
+				ns::Range Slices(0, SourceTexture->Texture.GetArrayLength() * (SourceTexture->GetDesc().IsTextureCube() ? 6 : 1));
+
+				TextureView = SourceTexture->Texture.NewTextureView(
+					MetalFormat,
+					SourceTexture->Texture.GetTextureType(),
+					ns::Range(MipLevel, NumMips),
+					Slices);
+			}
+		}
+	}
+	else
+	{
+		TextureView = {};
+	}
 }
 
-ns::AutoReleased<FAGXTexture> FAGXShaderResourceView::GetLinearTexture(bool const bUAV)
+FAGXResourceViewBase::~FAGXResourceViewBase()
+{
+	if (bTexture)
+	{
+		if (SourceTexture)
+		{
+			SourceTexture->Release();
+		}
+	}
+	else
+	{
+		if (SourceBuffer)
+		{
+			SourceBuffer->Release();
+		}
+	}
+}
+
+ns::AutoReleased<FAGXTexture> FAGXResourceViewBase::GetLinearTexture()
 {
 	ns::AutoReleased<FAGXTexture> NewLinearTexture;
+	if (SourceBuffer)
 	{
-		if (IsValidRef(SourceVertexBuffer))
-		{
-			NewLinearTexture = SourceVertexBuffer->GetLinearTexture((EPixelFormat)Format, LinearTextureDesc);
-		}
-		else if (IsValidRef(SourceIndexBuffer))
-		{
-			NewLinearTexture = SourceIndexBuffer->GetLinearTexture((EPixelFormat)Format, LinearTextureDesc);
-		}
+		NewLinearTexture = SourceBuffer->GetLinearTexture((EPixelFormat)Format, LinearTextureDesc.Get());
 	}
 	return NewLinearTexture;
 }
 
 FUnorderedAccessViewRHIRef FAGXDynamicRHI::RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
 {
-	return GDynamicRHI->RHICreateUnorderedAccessView(Buffer, bUseUAVCounter, bAppendBuffer);
+	return this->RHICreateUnorderedAccessView(Buffer, bUseUAVCounter, bAppendBuffer);
 }
 
 FUnorderedAccessViewRHIRef FAGXDynamicRHI::RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
 {
-	FAGXSurface* Surface = (FAGXSurface*)Texture->GetTextureBaseRHI();
-	FAGXTexture Tex = Surface->Texture;
-	if (!(Tex.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
+	FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(Texture);
+
+	//
+	// The FAGXResourceViewBase constructor for textures currently modifies the
+	// underlying texture object via FMetalSurface::PrepareTextureView() to add
+	// PixelFormatView support if it was not already created with it.
+	//
+	// Because of this, the following RHI thread stall is necessary. We will need
+	// to clean this up in future before RHI functions can be completely thread-
+	// safe.
+	//
+
+	if (!(Surface->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		return GDynamicRHI->RHICreateUnorderedAccessView(Texture, MipLevel, FirstArraySlice, NumArraySlices);
+		return this->RHICreateUnorderedAccessView(Texture, MipLevel, FirstArraySlice, NumArraySlices);
 	}
 	else
 	{
-		return GDynamicRHI->RHICreateUnorderedAccessView(Texture, MipLevel, FirstArraySlice, NumArraySlices);
+		return this->RHICreateUnorderedAccessView(Texture, MipLevel, FirstArraySlice, NumArraySlices);
 	}
 }
 
 FUnorderedAccessViewRHIRef FAGXDynamicRHI::RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint8 Format)
 {
-	FUnorderedAccessViewRHIRef Result = GDynamicRHI->RHICreateUnorderedAccessView(Buffer, Format);
-	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass()) 	{ 		RHICmdList.RHIThreadFence(true); 	}
+	FUnorderedAccessViewRHIRef Result = this->RHICreateUnorderedAccessView(Buffer, Format);
+	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass())
+	{
+		RHICmdList.RHIThreadFence(true);
+	}
 	return Result;
 }
 
 FUnorderedAccessViewRHIRef FAGXDynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
 {
 	@autoreleasepool {
-	FAGXStructuredBuffer* StructuredBuffer = ResourceCast(BufferRHI);
-	
-	FAGXShaderResourceView* SRV = new FAGXShaderResourceView;
-	SRV->SourceVertexBuffer = nullptr;
-	SRV->SourceIndexBuffer = nullptr;
-	SRV->TextureView = nullptr;
-	SRV->SourceStructuredBuffer = StructuredBuffer;
-
-	// create the UAV buffer to point to the structured buffer's memory
-	FAGXUnorderedAccessView* UAV = new FAGXUnorderedAccessView;
-	UAV->SourceView = SRV;
-	return UAV;
+		return new FAGXUnorderedAccessView(BufferRHI, bUseUAVCounter, bAppendBuffer);
 	}
 }
 
 FUnorderedAccessViewRHIRef FAGXDynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
 {
-	// Slice selection of a texture array still need to be implemented on AGX
-	check(FirstArraySlice == 0 && NumArraySlices == 0);
 	@autoreleasepool {
-	FAGXShaderResourceView* SRV = new FAGXShaderResourceView;
-	SRV->SourceTexture = TextureRHI;
-	
-	FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(TextureRHI);
-	SRV->TextureView = Surface ? new FAGXSurface(*Surface, NSMakeRange(MipLevel, 1)) : nullptr;
-	
-	SRV->SourceVertexBuffer = nullptr;
-	SRV->SourceIndexBuffer = nullptr;
-	SRV->SourceStructuredBuffer = nullptr;
-	
-	SRV->MipLevel = MipLevel;
-	SRV->NumMips = 1;
-	SRV->Format = PF_Unknown;
-		
-	if (Surface)
-	{
-		Surface->SRVs.Add(SRV);
-	}
-		
-	// create the UAV buffer to point to the structured buffer's memory
-	FAGXUnorderedAccessView* UAV = new FAGXUnorderedAccessView;
-	UAV->SourceView = SRV;
-
-	return UAV;
+		return new FAGXUnorderedAccessView(TextureRHI, MipLevel, FirstArraySlice, NumArraySlices);
 	}
 }
 
 FUnorderedAccessViewRHIRef FAGXDynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, uint8 Format)
 {
 	@autoreleasepool {
-	FAGXResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
-	
-	FAGXShaderResourceView* SRV = new FAGXShaderResourceView;
-	SRV->SourceVertexBuffer = EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_VertexBuffer) ? Buffer : nullptr;
-	SRV->TextureView = nullptr;
-	SRV->SourceIndexBuffer = EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_IndexBuffer) ? Buffer : nullptr;
-	SRV->SourceStructuredBuffer = nullptr;
-	SRV->Format = Format;
-	{
-		check(Buffer->GetUsage() & BUF_UnorderedAccess);
-		Buffer->CreateLinearTexture((EPixelFormat)Format, Buffer);
-	}
-		
-	// create the UAV buffer to point to the structured buffer's memory
-	FAGXUnorderedAccessView* UAV = new FAGXUnorderedAccessView;
-	UAV->SourceView = SRV;
-
-	return UAV;
+		return new FAGXUnorderedAccessView(BufferRHI, (EPixelFormat)Format);
 	}
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
 {
-	FShaderResourceViewRHIRef Result = GDynamicRHI->RHICreateShaderResourceView(Buffer, Stride, Format);
-	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass()) 	{ 		RHICmdList.RHIThreadFence(true); 	}
+	FShaderResourceViewRHIRef Result = this->RHICreateShaderResourceView(Buffer, Stride, Format);
+	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass())
+	{
+		RHICmdList.RHIThreadFence(true);
+	}
 	return Result;
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer)
 {
-	FShaderResourceViewRHIRef Result = GDynamicRHI->RHICreateShaderResourceView(Initializer);
-	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass()) { RHICmdList.RHIThreadFence(true); }
+	FShaderResourceViewRHIRef Result = this->RHICreateShaderResourceView(Initializer);
+	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass())
+	{
+		RHICmdList.RHIThreadFence(true);
+	}
 	return Result;
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer)
 {
-	FShaderResourceViewRHIRef Result = GDynamicRHI->RHICreateShaderResourceView(Buffer);
-	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass()) 	{ 		RHICmdList.RHIThreadFence(true); 	}
+	FShaderResourceViewRHIRef Result = this->RHICreateShaderResourceView(Buffer);
+	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass())
+	{
+		RHICmdList.RHIThreadFence(true);
+	}
 	return Result;
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
 {
-	FShaderResourceViewRHIRef Result = GDynamicRHI->RHICreateShaderResourceView(Buffer, Stride, Format);
-	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass()) 	{ 		RHICmdList.RHIThreadFence(true); 	}
+	FShaderResourceViewRHIRef Result = this->RHICreateShaderResourceView(Buffer, Stride, Format);
+	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass())
+	{
+		RHICmdList.RHIThreadFence(true);
+	}
 	return Result;
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer)
 {
-	FShaderResourceViewRHIRef Result = GDynamicRHI->RHICreateShaderResourceView(Initializer);
-	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass()) 	{ 		RHICmdList.RHIThreadFence(true); 	}
+	FShaderResourceViewRHIRef Result = this->RHICreateShaderResourceView(Initializer);
+	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass())
+	{
+		RHICmdList.RHIThreadFence(true);
+	}
 	return Result;
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer)
 {
-	FShaderResourceViewRHIRef Result = GDynamicRHI->RHICreateShaderResourceView(Buffer);
-	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass()) 	{ 		RHICmdList.RHIThreadFence(true); 	}
+	FShaderResourceViewRHIRef Result = this->RHICreateShaderResourceView(Buffer);
+	if (IsRunningRHIInSeparateThread() && !RHICmdList.Bypass())
+	{
+		RHICmdList.RHIThreadFence(true);
+	}
 	return Result;
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture2DRHI, const FRHITextureSRVCreateInfo& CreateInfo)
 {
-	FAGXSurface* Surface = (FAGXSurface*)Texture2DRHI->GetTextureBaseRHI();
-	FAGXTexture Tex = Surface->Texture;
-	if (!(Tex.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
+	FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(Texture2DRHI);
+
+	//
+	// The FMetalResourceViewBase constructor for textures currently modifies the
+	// underlying texture object via FMetalSurface::PrepareTextureView() to add
+	// PixelFormatView support if it was not already created with it.
+	//
+	// Because of this, the following RHI thread stall is necessary. We will need
+	// to clean this up in future before RHI functions can be completely thread-
+	// safe.
+	//
+	
+	if (!(Surface->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		return GDynamicRHI->RHICreateShaderResourceView(Texture2DRHI, CreateInfo);
+		return this->RHICreateShaderResourceView(Texture2DRHI, CreateInfo);
 	}
 	else
 	{
-		return GDynamicRHI->RHICreateShaderResourceView(Texture2DRHI, CreateInfo);
+		return this->RHICreateShaderResourceView(Texture2DRHI, CreateInfo);
 	}
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView(FRHITexture* Texture2DRHI, const FRHITextureSRVCreateInfo& CreateInfo)
 {
 	@autoreleasepool {
-		FAGXShaderResourceView* SRV = new FAGXShaderResourceView;
-		SRV->SourceTexture = (FRHITexture*)Texture2DRHI;
-		
-		FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(Texture2DRHI);
-		
-		// Asking to make a SRV with PF_Unknown means to use the same format.
-		// This matches the behavior of the DX11 RHI.
-		EPixelFormat Format = (EPixelFormat) CreateInfo.Format;
-		if(Surface && Format == PF_Unknown)
-		{
-			Format = Surface->PixelFormat;
-		}
-		
-		const bool bSRGBForceDisable = (CreateInfo.SRGBOverride == SRGBO_ForceDisable);
-		
-		SRV->TextureView = Surface ? new FAGXSurface(*Surface, NSMakeRange(CreateInfo.MipLevel, CreateInfo.NumMipLevels), Format, bSRGBForceDisable) : nullptr;
-		
-		SRV->SourceVertexBuffer = nullptr;
-		SRV->SourceIndexBuffer = nullptr;
-		SRV->SourceStructuredBuffer = nullptr;
-		
-		SRV->MipLevel = CreateInfo.MipLevel;
-		SRV->bSRGBForceDisable = bSRGBForceDisable;
-		SRV->NumMips = CreateInfo.NumMipLevels;
-		SRV->Format = CreateInfo.Format;
-		
-		if (Surface)
-		{
-			Surface->SRVs.Add(SRV);
-		}
-		
-		return SRV;
+		return new FAGXShaderResourceView(Texture2DRHI, CreateInfo);
 	}
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI)
 {
 	@autoreleasepool {
-	return RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI));
+		return this->RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI));
 	}
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI, uint32 Stride, uint8 Format)
 {
-	check(GPixelFormats[Format].BlockBytes == Stride);
-
-	@autoreleasepool
-	{
-		return RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI, EPixelFormat(Format)));
+	@autoreleasepool {
+		check(GPixelFormats[Format].BlockBytes == Stride);
+		return this->RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI, EPixelFormat(Format)));
 	}
 }
 
 FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
 {
-	@autoreleasepool
-	{
-		switch(Initializer.GetType())
-		{
-			case FShaderResourceViewInitializer::EType::VertexBufferSRV:
-			{
-				FShaderResourceViewInitializer::FVertexBufferShaderResourceViewInitializer Desc = Initializer.AsVertexBufferSRV();
-				
-				FAGXVertexBuffer* VertexBuffer = ResourceCast(Desc.Buffer);
-				
-				FAGXShaderResourceView* SRV = new FAGXShaderResourceView;
-				SRV->SourceVertexBuffer = VertexBuffer;
-				SRV->TextureView = nullptr;
-				SRV->SourceIndexBuffer = nullptr;
-				SRV->SourceStructuredBuffer = nullptr;
-				
-				SRV->Format = Desc.Format;
-				
-				if(!VertexBuffer)
-				{
-					SRV->Offset = 0;
-					SRV->Stride = 0;
-				}
-				else
-				{
-					check(VertexBuffer->GetUsage() & BUF_ShaderResource);
-					uint32 Stride = GPixelFormats[Desc.Format].BlockBytes;
-					
-					SRV->Stride = Stride;
-					SRV->Offset = Desc.StartOffsetBytes;
-					
-					FAGXLinearTextureDescriptor LinearTextureDesc(Desc.StartOffsetBytes, Desc.NumElements, Stride);
-					SRV->InitLinearTextureDescriptor(LinearTextureDesc);
-					
-					VertexBuffer->CreateLinearTexture((EPixelFormat)Desc.Format, VertexBuffer, &LinearTextureDesc);
-				}
-				
-				return SRV;
-			} // VertexBufferSRV
-				
-			case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
-			{
-				FShaderResourceViewInitializer::FStructuredBufferShaderResourceViewInitializer Desc = Initializer.AsStructuredBufferSRV();
-				
-				FAGXStructuredBuffer* StructuredBuffer = ResourceCast(Desc.Buffer);
-
-				FAGXShaderResourceView* SRV = new FAGXShaderResourceView;
-				SRV->SourceVertexBuffer = nullptr;
-				SRV->SourceIndexBuffer = nullptr;
-				SRV->TextureView = nullptr;
-				SRV->SourceStructuredBuffer = StructuredBuffer;
-				
-				SRV->Offset = Desc.StartOffsetBytes;
-				SRV->Format = 0;
-				SRV->Stride = StructuredBuffer->GetStride();
-				
-				return SRV;
-			} // StructuredBufferSRV
-				
-			case FShaderResourceViewInitializer::EType::IndexBufferSRV:
-			{
-				FShaderResourceViewInitializer::FIndexBufferShaderResourceViewInitializer Desc = Initializer.AsIndexBufferSRV();
-				
-				FAGXIndexBuffer* IndexBuffer = ResourceCast(Desc.Buffer);
-				
-				FAGXShaderResourceView* SRV = new FAGXShaderResourceView;
-				SRV->SourceVertexBuffer = nullptr;
-				SRV->SourceIndexBuffer = IndexBuffer;
-				SRV->TextureView = nullptr;
-				
-				if(!IndexBuffer)
-				{
-					SRV->Format = PF_R16_UINT;
-					SRV->Stride = 0;
-					SRV->Offset = 0;
-				}
-				else
-				{
-					SRV->Format = (IndexBuffer->IndexType == mtlpp::IndexType::UInt16) ? PF_R16_UINT : PF_R32_UINT;
-					
-					const uint32 Stride = Desc.Buffer->GetStride();
-					check(Stride == ((SRV->Format == PF_R16_UINT) ? 2 : 4));
-					
-					SRV->Offset = Desc.StartOffsetBytes;
-					SRV->Stride = Stride;
-					
-					FAGXLinearTextureDescriptor LinearTextureDesc(Desc.StartOffsetBytes, Desc.NumElements, Stride);
-					SRV->InitLinearTextureDescriptor(LinearTextureDesc);
-					
-					IndexBuffer->CreateLinearTexture((EPixelFormat)SRV->Format, IndexBuffer, &LinearTextureDesc);
-				}
-					  
-				return SRV;
-			} // IndexBufferSRV
-					  
-			default:
-			{
-				checkNoEntry();
-				return nullptr;
-			}
-		}
+	@autoreleasepool {
+		return new FAGXShaderResourceView(Initializer);
 	}
 }
 
-void FAGXDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRHI, FRHIBuffer* VertexBufferRHI, uint32 Stride, uint8 Format)
+void FAGXDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRHI, FRHIBuffer* BufferRHI, uint32 Stride, uint8 Format)
 {
 	check(SRVRHI);
 	FAGXShaderResourceView* SRV = ResourceCast(SRVRHI);
-	if (!VertexBufferRHI)
+	check(!SRV->bTexture);
+
+	FAGXResourceMultiBuffer* OldBuffer = SRV->SourceBuffer;
+
+	SRV->SourceBuffer = ResourceCast(BufferRHI);
+	SRV->Stride = Stride;
+	SRV->Format = Format;
+
+	if (SRV->SourceBuffer)
 	{
-		SRV->SourceVertexBuffer = nullptr;
-		SRV->TextureView = nullptr;
-		SRV->SourceIndexBuffer = nullptr;
-		SRV->SourceStructuredBuffer = nullptr;
-		SRV->Offset = 0;
-		SRV->Format = Format;
-		SRV->Stride = Stride;
+		SRV->SourceBuffer->AddRef();
 	}
-	else if (SRV->SourceVertexBuffer != VertexBufferRHI)
+
+	if (OldBuffer)
 	{
-		FAGXVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
-		SRV->SourceVertexBuffer = VertexBuffer;
-		SRV->TextureView = nullptr;
-		SRV->SourceIndexBuffer = nullptr;
-		SRV->SourceStructuredBuffer = nullptr;
-		SRV->Offset = 0;
-		SRV->Format = Format;
-		SRV->Stride = Stride;
+		OldBuffer->Release();
 	}
 }
 
-void FAGXDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRHI, FRHIBuffer* IndexBufferRHI)
+void FAGXDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRHI, FRHIBuffer* BufferRHI)
 {
 	check(SRVRHI);
 	FAGXShaderResourceView* SRV = ResourceCast(SRVRHI);
-	if (!IndexBufferRHI)
+	check(!SRV->bTexture);
+
+	FAGXResourceMultiBuffer* OldBuffer = SRV->SourceBuffer;
+
+	SRV->SourceBuffer = ResourceCast(BufferRHI);
+	SRV->Stride = 0;
+
+	SRV->Format = SRV->SourceBuffer && SRV->SourceBuffer->IndexType != mtlpp::IndexType::UInt16
+		? PF_R32_UINT
+		: PF_R16_UINT;
+
+	if (SRV->SourceBuffer)
 	{
-		SRV->SourceVertexBuffer = nullptr;
-		SRV->TextureView = nullptr;
-		SRV->SourceIndexBuffer = nullptr;
-		SRV->SourceStructuredBuffer = nullptr;
-		SRV->Offset = 0;
-		SRV->Format = PF_R16_UINT;
-		SRV->Stride = 0;
+		SRV->SourceBuffer->AddRef();
 	}
-	else if (SRV->SourceIndexBuffer != IndexBufferRHI)
+
+	if (OldBuffer)
 	{
-		FAGXIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-		SRV->SourceVertexBuffer = nullptr;
-		SRV->TextureView = nullptr;
-		SRV->SourceIndexBuffer = IndexBuffer;
-		SRV->SourceStructuredBuffer = nullptr;
-		SRV->Offset = 0;
-		SRV->Format = (IndexBuffer->IndexType == mtlpp::IndexType::UInt16) ? PF_R16_UINT : PF_R32_UINT;
-		SRV->Stride = 0;
+		OldBuffer->Release();
 	}
 }
 
@@ -446,24 +439,11 @@ void FAGXRHICommandContext::ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* Uno
 {
 	SCOPED_AUTORELEASE_POOL;
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FAGXUnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);
-	FAGXBuffer Buffer;
-	uint32 Size = 0;
+	FAGXResourceMultiBuffer* SourceBuffer = ResourceCast(UnorderedAccessViewRHI)->GetSourceBuffer();
+	FAGXBuffer Buffer = SourceBuffer->GetCurrentBuffer();
+	uint32 Size = SourceBuffer->GetSize();
 
-	switch (Type)
-	{
-		case EAGXRHIClearUAVType::VertexBuffer:
-			check(EnumHasAnyFlags(UnorderedAccessView->SourceView->SourceVertexBuffer->GetUsage(), BUF_ByteAddressBuffer));
-			Buffer = UnorderedAccessView->SourceView->SourceVertexBuffer->GetCurrentBuffer();
-			Size = UnorderedAccessView->SourceView->SourceVertexBuffer->GetSize();
-			break;
-
-		case EAGXRHIClearUAVType::StructuredBuffer:
-			Buffer = UnorderedAccessView->SourceView->SourceStructuredBuffer->GetCurrentBuffer();
-			Size = UnorderedAccessView->SourceView->SourceStructuredBuffer->GetSize();
-			break;
-	};
+	check(Type != EAGXRHIClearUAVType::VertexBuffer || EnumHasAnyFlags(SourceBuffer->GetUsage(), BUF_ByteAddressBuffer));
 
 	uint32 AlignedSize = Align(Size, BufferOffsetAlignment);
 	FAGXPooledBufferArgs Args(AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
@@ -481,8 +461,8 @@ void FAGXRHICommandContext::ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* Uno
 void FAGXRHICommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values)
 {
 #if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-	FAGXUnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);
-	if (UnorderedAccessView->SourceView->SourceStructuredBuffer)
+	FAGXUnorderedAccessView* UAV = ResourceCast(UnorderedAccessViewRHI);
+	if (!UAV->bTexture && EnumHasAnyFlags(UAV->GetSourceBuffer()->GetUsage(), BUF_StructuredBuffer))
 	{
 		ClearUAVWithBlitEncoder(UnorderedAccessViewRHI, EAGXRHIClearUAVType::StructuredBuffer, *(uint32*)&Values.X);
 	}
@@ -497,8 +477,8 @@ void FAGXRHICommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedA
 void FAGXRHICommandContext::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values)
 {
 #if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-	FAGXUnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);
-	if (UnorderedAccessView->SourceView->SourceStructuredBuffer)
+	FAGXUnorderedAccessView* UAV = ResourceCast(UnorderedAccessViewRHI);
+	if (!UAV->bTexture && EnumHasAnyFlags(UAV->GetSourceBuffer()->GetUsage(), BUF_StructuredBuffer))
 	{
 		ClearUAVWithBlitEncoder(UnorderedAccessViewRHI, EAGXRHIClearUAVType::StructuredBuffer, *(uint32*)&Values.X);
 	}
@@ -518,7 +498,7 @@ void FAGXRHICommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FAGXRHIC
 		// The Metal validation layer will complain about resources with a
 		// signed format bound against an unsigned data format type as the
 		// shader parameter.
-		switch (GPixelFormats[UnorderedAccessView->SourceView->Format].UnrealFormat)
+		switch (GPixelFormats[UnorderedAccessView->Format].UnrealFormat)
 		{
 			case PF_R32_SINT:
 			case PF_R16_SINT:
@@ -530,37 +510,24 @@ void FAGXRHICommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FAGXRHIC
 				break;
 		}
 
-		if (UnorderedAccessView->SourceView->SourceVertexBuffer)
+		if (UnorderedAccessView->bTexture)
 		{
-#if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-			if (EnumHasAnyFlags(UnorderedAccessView->SourceView->SourceVertexBuffer->GetUsage(), BUF_ByteAddressBuffer))
-			{
-				ClearUAVWithBlitEncoder(UnorderedAccessView, EAGXRHIClearUAVType::VertexBuffer, *(const uint32*)ClearValue);
-			}
-			else
-#endif // UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-			{
-				uint32 NumElements = UnorderedAccessView->SourceView->SourceVertexBuffer->GetSize() / GPixelFormats[UnorderedAccessView->SourceView->Format].BlockBytes;
-				ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
-			}
-		}
-		else if (UnorderedAccessView->SourceView->SourceTexture)
-		{
-			FIntVector SizeXYZ = UnorderedAccessView->SourceView->SourceTexture->GetSizeXYZ();
+			FAGXSurface* Texture = UnorderedAccessView->GetSourceTexture();
+			FIntVector SizeXYZ = Texture->GetSizeXYZ();
 
-			if (FRHITexture2D* Texture2D = UnorderedAccessView->SourceView->SourceTexture->GetTexture2D())
+			if (FRHITexture2D* Texture2D = Texture->GetTexture2D())
 			{
 				ClearUAVShader_T<EClearReplacementResourceType::Texture2D, 4, false>(RHICmdList, UnorderedAccessView, SizeXYZ.X, SizeXYZ.Y, SizeXYZ.Z, ClearValue, ValueType);
 			}
-			else if (FRHITexture2DArray* Texture2DArray = UnorderedAccessView->SourceView->SourceTexture->GetTexture2DArray())
+			else if (FRHITexture2DArray* Texture2DArray = Texture->GetTexture2DArray())
 			{
 				ClearUAVShader_T<EClearReplacementResourceType::Texture2DArray, 4, false>(RHICmdList, UnorderedAccessView, SizeXYZ.X, SizeXYZ.Y, SizeXYZ.Z, ClearValue, ValueType);
 			}
-			else if (FRHITexture3D* Texture3D = UnorderedAccessView->SourceView->SourceTexture->GetTexture3D())
+			else if (FRHITexture3D* Texture3D = Texture->GetTexture3D())
 			{
 				ClearUAVShader_T<EClearReplacementResourceType::Texture3D, 4, false>(RHICmdList, UnorderedAccessView, SizeXYZ.X, SizeXYZ.Y, SizeXYZ.Z, ClearValue, ValueType);
 			}
-			else if (FRHITextureCube* TextureCube = UnorderedAccessView->SourceView->SourceTexture->GetTextureCube())
+			else if (FRHITextureCube* TextureCube = Texture->GetTextureCube())
 			{
 				ClearUAVShader_T<EClearReplacementResourceType::Texture2DArray, 4, false>(RHICmdList, UnorderedAccessView, SizeXYZ.X, SizeXYZ.Y, SizeXYZ.Z, ClearValue, ValueType);
 			}
@@ -571,8 +538,19 @@ void FAGXRHICommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FAGXRHIC
 		}
 		else
 		{
-			// TODO: ensure(0);
-			UE_LOG(LogRHI, Warning, TEXT("AGX RHI ClearUAV does not yet support clearing of a UAV without a SourceView."));
+			FAGXResourceMultiBuffer* SourceBuffer = UnorderedAccessView->GetSourceBuffer();
+
+#if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
+			if (EnumHasAnyFlags(SourceBuffer->GetUsage(), BUF_ByteAddressBuffer))
+			{
+				ClearUAVWithBlitEncoder(UnorderedAccessView, EAGXRHIClearUAVType::VertexBuffer, *(const uint32*)ClearValue);
+			}
+			else
+#endif // UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
+			{
+				uint32 NumElements = SourceBuffer->GetSize() / GPixelFormats[UnorderedAccessView->Format].BlockBytes;
+				ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
+			}
 		}
 	} // @autoreleasepool
 }

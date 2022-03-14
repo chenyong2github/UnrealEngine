@@ -1042,6 +1042,9 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 ,	PlatformDevice(NULL)
 ,	GPUProfilingData(this)
 {
+	check(Singleton == nullptr);
+	Singleton = this;
+
 	// This should be called once at the start
 	check( IsInGameThread() );
 	check( !GIsThreadedRendering );

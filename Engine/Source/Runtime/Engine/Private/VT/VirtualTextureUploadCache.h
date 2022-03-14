@@ -7,7 +7,7 @@
 #include "RenderResource.h"
 #include "PixelFormat.h"
 
-class FRHITexture2D;
+class FRHITexture;
 class FRHIBuffer;
 
 /** Opaque handle for referencing an upload tile returned by FVirtualTextureUploadCache::PrepareTileForUpload(). */

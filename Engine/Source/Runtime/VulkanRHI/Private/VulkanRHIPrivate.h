@@ -139,7 +139,6 @@ inline EShaderFrequency VkStageBitToUEFrequency(VkShaderStageFlagBits FlagBits)
 	return SF_NumFrequencies;
 }
 
-
 class FVulkanRenderTargetLayout
 {
 public:
@@ -285,8 +284,8 @@ public:
 	inline bool ContainsRenderTarget(FRHITexture* Texture) const
 	{
 		ensure(Texture);
-		FVulkanTextureBase* Base = (FVulkanTextureBase*)Texture->GetTextureBaseRHI();
-		return ContainsRenderTarget(Base->Surface.Image);
+		FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(Texture);
+		return ContainsRenderTarget(VulkanTexture->Image);
 	}
 
 	inline bool ContainsRenderTarget(VkImage Image) const

@@ -7,7 +7,7 @@
 #include "VirtualTexturing.h"
 
 enum class ERuntimeVirtualTextureMaterialType;
-class FRHITexture2D;
+class FRHITexture;
 class FSceneInterface;
 
 /** IVirtualTextureFinalizer implementation that renders the virtual texture pages on demand. */

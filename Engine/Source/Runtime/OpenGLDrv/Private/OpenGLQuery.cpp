@@ -711,7 +711,6 @@ void FOpenGLEventQuery::IssueEvent()
 	FOpenGL::Flush();
 
 	checkSlow(FOpenGL::IsSync(Sync));
-
 }
 
 void FOpenGLEventQuery::WaitForCompletion()
@@ -720,9 +719,7 @@ void FOpenGLEventQuery::WaitForCompletion()
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOpenGLEventQuery_WaitForCompletion);
 
-
 	checkSlow(FOpenGL::IsSync(Sync));
-
 
 	// Wait up to 1/2 second for sync execution
 	FOpenGL::EFenceResult Status = FOpenGL::ClientWaitSync( Sync, 0, 500*1000*1000);
@@ -748,27 +745,20 @@ void FOpenGLEventQuery::WaitForCompletion()
 	}	
 }
 
-void FOpenGLEventQuery::InitDynamicRHI()
+FOpenGLEventQuery::FOpenGLEventQuery()
 {
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
+
 	// Initialize the query by issuing an initial event.
 	IssueEvent();
 
 	check(FOpenGL::IsSync(Sync));
-	RHITHREAD_GLCOMMAND_EPILOGUE();
 }
 
-void FOpenGLEventQuery::ReleaseDynamicRHI()
+FOpenGLEventQuery::~FOpenGLEventQuery()
 {
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
 	FOpenGL::DeleteSync(Sync);
-	RHITHREAD_GLCOMMAND_EPILOGUE();
 }
 
 /*=============================================================================

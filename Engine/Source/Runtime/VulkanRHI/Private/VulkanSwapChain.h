@@ -6,6 +6,8 @@
 
 #pragma once
 
+class FVulkanTexture;
+
 namespace VulkanRHI
 {
 	class FFence;
@@ -40,9 +42,9 @@ public:
 	void RenderThreadPacing();
 	inline int8 DoesLockToVsync() { return LockToVsync; }
 
-	const FVulkanTextureView* GetOrCreateQCOMDepthStencilView(const FVulkanSurface& InSurface) const;
-	const FVulkanTextureView* GetOrCreateQCOMDepthView(const FVulkanSurface& InSurface) const;
-	const FVulkanSurface* GetQCOMDepthStencilSurface() const;
+	const FVulkanTextureView* GetOrCreateQCOMDepthStencilView(const FVulkanTexture& InSurface) const;
+	const FVulkanTextureView* GetOrCreateQCOMDepthView(const FVulkanTexture& InSurface) const;
+	const FVulkanTexture* GetQCOMDepthStencilSurface() const;
 
 protected:
 	VkSurfaceTransformFlagBitsKHR QCOMRenderPassTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
@@ -82,8 +84,8 @@ protected:
 	// For example in case if QCOMRenderPassTransform is VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR we must swap width/height of depth target.
 	// But probably engine can use same depth texture for swapchain and NON swapchain passes. So it is why we have this addditional surface.
 	// With this approach we should be careful in case if depth in swapchain pass is used as attachement and fetched in shader in same time
-	void CreateQCOMDepthStencil(const FVulkanSurface& InSurface) const;
-	mutable FVulkanSurface* QCOMDepthStencilSurface = nullptr;
+	void CreateQCOMDepthStencil(const FVulkanTexture& InSurface) const;
+	mutable FVulkanTexture* QCOMDepthStencilSurface = nullptr;
 	mutable FVulkanTextureView* QCOMDepthStencilView = nullptr;
 	mutable FVulkanTextureView* QCOMDepthView = nullptr;
 

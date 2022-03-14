@@ -8,7 +8,7 @@
 #include "RHI.h"
 #include "RHIUtilities.h"
 
-class FRHITexture2D;
+class FRHITexture;
 
 class WEBMMEDIA_API FWebMMediaTextureSample
 	: public IMediaTextureSample

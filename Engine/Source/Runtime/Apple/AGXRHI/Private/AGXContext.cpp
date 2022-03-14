@@ -1085,36 +1085,10 @@ void FAGXContext::TransitionResource(FRHIUnorderedAccessView* InResource)
 {
 	FAGXUnorderedAccessView* UAV = ResourceCast(InResource);
 
-	// figure out which one of the resources we need to set
-	FAGXStructuredBuffer* StructuredBuffer = UAV->SourceView->SourceStructuredBuffer.GetReference();
-	FAGXVertexBuffer*     VertexBuffer     = UAV->SourceView->SourceVertexBuffer.GetReference();
-	FAGXIndexBuffer*      IndexBuffer      = UAV->SourceView->SourceIndexBuffer.GetReference();
-	FRHITexture*            Texture          = UAV->SourceView->SourceTexture.GetReference();
-	FAGXSurface*          Surface          = UAV->SourceView->TextureView;
-
-	if (StructuredBuffer)
+	if (UAV->bTexture)
 	{
-		RenderPass.TransitionResources(StructuredBuffer->GetCurrentBuffer());
-	}
-	else if (VertexBuffer && VertexBuffer->GetCurrentBufferOrNil())
-	{
-		RenderPass.TransitionResources(VertexBuffer->GetCurrentBuffer());
-	}
-	else if (IndexBuffer)
-	{
-		RenderPass.TransitionResources(IndexBuffer->GetCurrentBuffer());
-	}
-	else if (Surface)
-	{
-		RenderPass.TransitionResources(Surface->Texture.GetParentTexture());
-	}
-	else if (Texture)
-	{
-		if (!Surface)
-		{
-			Surface = AGXGetMetalSurfaceFromRHITexture(Texture);
-		}
-		if ((Surface != nullptr) && Surface->Texture)
+		FAGXSurface* Surface = UAV->GetSourceTexture();
+		if (Surface->Texture)
 		{
 			RenderPass.TransitionResources(Surface->Texture);
 			if (Surface->MSAATexture)
@@ -1122,6 +1096,11 @@ void FAGXContext::TransitionResource(FRHIUnorderedAccessView* InResource)
 				RenderPass.TransitionResources(Surface->MSAATexture);
 			}
 		}
+	}
+	else
+	{
+		FAGXResourceMultiBuffer* Buffer = UAV->GetSourceBuffer();
+		RenderPass.TransitionResources(Buffer->GetCurrentBuffer());
 	}
 }
 

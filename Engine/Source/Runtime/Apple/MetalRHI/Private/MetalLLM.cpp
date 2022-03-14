@@ -143,47 +143,6 @@ static EPixelFormat MetalToRHIPixelFormat(mtlpp::PixelFormat Format)
 	return PF_MAX;
 }
 
-static mtlpp::SizeAndAlign TextureSizeAndAlign(mtlpp::TextureType TextureType, uint32 Width, uint32 Height, uint32 Depth, mtlpp::PixelFormat Format, uint32 MipCount, uint32 SampleCount, uint32 ArrayCount)
-{
-	mtlpp::SizeAndAlign SizeAlign;
-	SizeAlign.Size = 0;
-	SizeAlign.Align = 0;
-	
-	uint32 Align = 0;
-	FRHIResourceCreateInfo CreateInfo(TEXT(""));
-	switch (TextureType)
-	{
-		case mtlpp::TextureType::Texture2D:
-		case mtlpp::TextureType::Texture2DMultisample:
-			SizeAlign.Size = RHICalcTexture2DPlatformSize(Width, Height, MetalToRHIPixelFormat(Format), MipCount, SampleCount, TexCreate_None, CreateInfo, Align);
-			SizeAlign.Align = Align;
-			break;
-		case mtlpp::TextureType::Texture2DArray:
-			SizeAlign.Size = RHICalcTexture2DPlatformSize(Width, Height, MetalToRHIPixelFormat(Format), MipCount, SampleCount, TexCreate_None, CreateInfo, Align) * ArrayCount;
-			SizeAlign.Align = Align;
-			break;
-		case mtlpp::TextureType::TextureCube:
-			SizeAlign.Size = RHICalcTextureCubePlatformSize(Width, MetalToRHIPixelFormat(Format), MipCount, TexCreate_None, CreateInfo, Align);
-			SizeAlign.Align = Align;
-			break;
-		case mtlpp::TextureType::TextureCubeArray:
-			SizeAlign.Size = RHICalcTextureCubePlatformSize(Width, MetalToRHIPixelFormat(Format), MipCount, TexCreate_None, CreateInfo, Align) * ArrayCount;
-			SizeAlign.Align = Align;
-			break;
-		case mtlpp::TextureType::Texture3D:
-			SizeAlign.Size = RHICalcTexture3DPlatformSize(Width, Height, Depth, MetalToRHIPixelFormat(Format), MipCount, TexCreate_None, CreateInfo, Align);
-			SizeAlign.Align = Align;
-			break;
-		case mtlpp::TextureType::Texture1D:
-		case mtlpp::TextureType::Texture1DArray:
-		default:
-			check(false);
-			break;
-	}
-	
-	return SizeAlign;
-}
-
 void MetalLLM::LogAllocTexture(mtlpp::Device& Device, mtlpp::TextureDescriptor const& Desc, mtlpp::Texture const& Texture)
 {
 	mtlpp::SizeAndAlign SizeAlign;

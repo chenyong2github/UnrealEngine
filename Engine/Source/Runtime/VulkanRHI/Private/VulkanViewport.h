@@ -19,13 +19,13 @@ namespace VulkanRHI
 	class FSemaphore;
 }
 
-class FVulkanBackBuffer : public FVulkanTexture2D
+class FVulkanBackBuffer : public FVulkanTexture
 {
 public:
 	FVulkanBackBuffer(FVulkanDevice& Device, FVulkanViewport* InViewport, EPixelFormat Format, uint32 SizeX, uint32 SizeY, ETextureCreateFlags UEFlags);
 	virtual ~FVulkanBackBuffer();
 	
-	virtual void OnLayoutTransition(FVulkanCommandListContext& Context, VkImageLayout NewLayout) override final;
+	void OnLayoutTransition(FVulkanCommandListContext& Context, VkImageLayout NewLayout) override final;
 
 	void OnGetBackBufferImage(FRHICommandListImmediate& RHICmdList);
 	void OnAdvanceBackBufferFrame(FRHICommandListImmediate& RHICmdList);
@@ -118,7 +118,7 @@ protected:
 	TRefCountPtr<FVulkanBackBuffer> RHIBackBuffer;
 
 	// 'Dummy' back buffer
-	TRefCountPtr<FVulkanTexture2D>	RenderingBackBuffer;
+	TRefCountPtr<FVulkanTexture>	RenderingBackBuffer;
 	
 	/** narrow-scoped section that locks access to back buffer during its recreation*/
 	FCriticalSection RecreatingSwapchain;

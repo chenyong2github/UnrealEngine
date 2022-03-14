@@ -10,7 +10,7 @@
 #undef PF_MAX
 #endif
 
-enum EPixelFormat
+enum EPixelFormat : uint8
 {
 	PF_Unknown              =0,
 	PF_A32B32G32R32F        =1,

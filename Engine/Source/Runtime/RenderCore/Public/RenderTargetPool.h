@@ -152,7 +152,7 @@ private:
 	void FreeElementAtIndex(int32 Index);
 
 	/** Elements can be 0, we compact the buffer later. */
-	TArray<uint64> PooledRenderTargetHashes;
+	TArray<uint32> PooledRenderTargetHashes;
 	TArray< TRefCountPtr<FPooledRenderTarget> > PooledRenderTargets;
 	TArray< TRefCountPtr<FPooledRenderTarget> > DeferredDeleteArray;
 

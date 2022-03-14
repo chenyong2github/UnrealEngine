@@ -15,7 +15,7 @@
 #include "RHI.h"
 #include "Templates/RefCounting.h"
 
-class FRHITexture2D;
+class FRHITexture;
 
 class WmfMediaDecoder;
 class FWmfMediaHardwareVideoDecodingTextureSamplePool;

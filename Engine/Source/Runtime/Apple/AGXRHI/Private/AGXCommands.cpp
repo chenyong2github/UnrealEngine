@@ -307,7 +307,7 @@ void FAGXRHICommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, u
 	EAGXShaderStages Stage = GetShaderStage(ShaderRHI);
 	if (Surface != nullptr)
 	{
-        if (Surface->Texture || !(Surface->Flags & TexCreate_Presentable))
+        if (Surface->Texture || !(Surface->GetDesc().Flags & TexCreate_Presentable))
         {
             Context->GetCurrentState().SetShaderTexture(Stage, Surface->Texture, TextureIndex, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
         }
@@ -330,7 +330,7 @@ void FAGXRHICommandContext::RHISetShaderTexture(FRHIComputeShader* ComputeShader
 	FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(NewTextureRHI);
 	if (Surface != nullptr)
     {
-        if (Surface->Texture || !(Surface->Flags & TexCreate_Presentable))
+        if (Surface->Texture || !(Surface->GetDesc().Flags & TexCreate_Presentable))
         {
             Context->GetCurrentState().SetShaderTexture(EAGXShaderStages::Compute, Surface->Texture, TextureIndex, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
         }

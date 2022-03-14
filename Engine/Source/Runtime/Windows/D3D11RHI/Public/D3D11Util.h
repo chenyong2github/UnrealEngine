@@ -120,43 +120,40 @@ FORCEINLINE uint32 GetD3D11CubeFace(ECubeFace Face)
 class FD3D11LockedKey
 {
 public:
-	void* SourceObject;
-	uint32 Subresource;
+	ID3D11Resource* SourceObject = nullptr;
+	uint32 Subresource = 0;
 
-public:
-	FD3D11LockedKey() : SourceObject(NULL)
-		, Subresource(0)
+	FD3D11LockedKey() = default;
+
+	FD3D11LockedKey(ID3D11Resource* InSource, uint32 InSubresource = 0)
+		: SourceObject(InSource)
+		, Subresource (InSubresource)
 	{}
-	FD3D11LockedKey(ID3D11Texture2D* source, uint32 subres=0) : SourceObject((void*)source)
-		, Subresource(subres)
-	{}
-	FD3D11LockedKey(ID3D11Texture3D* source, uint32 subres=0) : SourceObject((void*)source)
-		, Subresource(subres)
-	{}
-	FD3D11LockedKey(ID3D11Buffer* source, uint32 subres=0) : SourceObject((void*)source)
-		, Subresource(subres)
-	{}
-	bool operator==( const FD3D11LockedKey& Other ) const
+
+	bool operator == (const FD3D11LockedKey& Other) const
 	{
 		return SourceObject == Other.SourceObject && Subresource == Other.Subresource;
 	}
-	bool operator!=( const FD3D11LockedKey& Other ) const
+
+	bool operator != (const FD3D11LockedKey& Other) const
 	{
 		return SourceObject != Other.SourceObject || Subresource != Other.Subresource;
 	}
-	FD3D11LockedKey& operator=( const FD3D11LockedKey& Other )
+
+	FD3D11LockedKey& operator = (const FD3D11LockedKey& Other)
 	{
 		SourceObject = Other.SourceObject;
 		Subresource = Other.Subresource;
 		return *this;
 	}
+
 	uint32 GetHash() const
 	{
-		return PointerHash( SourceObject );
+		return PointerHash(SourceObject);
 	}
 
 	/** Hashing function. */
-	friend uint32 GetTypeHash( const FD3D11LockedKey& K )
+	friend uint32 GetTypeHash(const FD3D11LockedKey& K)
 	{
 		return K.GetHash();
 	}

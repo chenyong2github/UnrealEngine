@@ -985,7 +985,7 @@ bool PlatformContextIsCurrent( uint64 QueryContext )
 	return (uint64)Linux_GetCurrentContext() == QueryContext;
 }
 
-FRHITexture* PlatformCreateBuiltinBackBuffer( FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY )
+FOpenGLTexture* PlatformCreateBuiltinBackBuffer( FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY )
 {
 	return nullptr;
 }

@@ -92,10 +92,10 @@ public:
 	// Accessors.
 	FIntPoint GetSizeXY() const { return FIntPoint(SizeX, SizeY); }
 
-	FD3D12Texture2D* GetDummyBackBuffer_RenderThread(bool bInIsSDR) const { return bInIsSDR ? SDRDummyBackBuffer_RenderThread : DummyBackBuffer_RenderThread; }
+	FD3D12Texture* GetDummyBackBuffer_RenderThread(bool bInIsSDR) const { return bInIsSDR ? SDRDummyBackBuffer_RenderThread : DummyBackBuffer_RenderThread; }
 
-	FD3D12Texture2D* GetBackBuffer_RHIThread() const { return BackBuffer_RHIThread; }
-	FD3D12Texture2D* GetSDRBackBuffer_RHIThread() const { return (PixelFormat == SDRPixelFormat) ? GetBackBuffer_RHIThread() : SDRBackBuffer_RHIThread; }
+	FD3D12Texture* GetBackBuffer_RHIThread() const { return BackBuffer_RHIThread; }
+	FD3D12Texture* GetSDRBackBuffer_RHIThread() const { return (PixelFormat == SDRPixelFormat) ? GetBackBuffer_RHIThread() : SDRBackBuffer_RHIThread; }
 
 	virtual void WaitForFrameEventCompletion() override;
 	virtual void IssueFrameEvent() override;
@@ -159,7 +159,7 @@ private:
 	/**
 	 * Create the dummy back buffer textures
 	 */
-	FD3D12Texture2D* CreateDummyBackBufferTextures(FD3D12Adapter* InAdapter, EPixelFormat InPixelFormat, uint32 InSizeX, uint32 InSizeY, bool bInIsSDR);
+	FD3D12Texture* CreateDummyBackBufferTextures(FD3D12Adapter* InAdapter, EPixelFormat InPixelFormat, uint32 InSizeX, uint32 InSizeY, bool bInIsSDR);
 
 	/** Presents the frame synchronizing with DWM. */
 	void PresentWithVsyncDWM();
@@ -205,12 +205,12 @@ private:
 	TRefCountPtr<IDXGISwapChain1> SDRSwapChain1;
 #endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 
-	TArray<TRefCountPtr<FD3D12Texture2D>> BackBuffers;
+	TArray<TRefCountPtr<FD3D12Texture>> BackBuffers;
 	uint32 NumBackBuffers;
 
-	TRefCountPtr<FD3D12Texture2D> DummyBackBuffer_RenderThread; // Dummy back buffer texture which always references the current back buffer on the RHI thread
+	TRefCountPtr<FD3D12Texture> DummyBackBuffer_RenderThread; // Dummy back buffer texture which always references the current back buffer on the RHI thread
 	uint32 CurrentBackBufferIndex_RHIThread;
-	FD3D12Texture2D* BackBuffer_RHIThread;
+	FD3D12Texture* BackBuffer_RHIThread;
 
 #if WITH_MGPU
 	int32 BackbufferMultiGPUBinding; // where INDEX_NONE cycles through the GPU, otherwise the GPU index.
@@ -222,9 +222,9 @@ private:
 	/** 
 	 * When HDR is enabled, SDR backbuffers may be required on some architectures for game DVR or broadcasting
 	 */
-	TArray<TRefCountPtr<FD3D12Texture2D>> SDRBackBuffers;
-	TRefCountPtr<FD3D12Texture2D> SDRDummyBackBuffer_RenderThread;
-	FD3D12Texture2D* SDRBackBuffer_RHIThread;
+	TArray<TRefCountPtr<FD3D12Texture>> SDRBackBuffers;
+	TRefCountPtr<FD3D12Texture> SDRDummyBackBuffer_RenderThread;
+	FD3D12Texture* SDRBackBuffer_RHIThread;
 	EPixelFormat SDRPixelFormat;
 
 	/** A fence value used to track the GPU's progress. */

@@ -1124,8 +1124,8 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 		{
 			check(Param.Buffer == nullptr);
 
-			SrcResource = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.SrcGPUIndex)->GetResource();
-			DestResource = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.DestGPUIndex)->GetResource();
+			SrcResource = FD3D12CommandContext::RetrieveTexture(Param.Texture, Param.SrcGPUIndex)->GetResource();
+			DestResource = FD3D12CommandContext::RetrieveTexture(Param.Texture, Param.DestGPUIndex)->GetResource();
 		}
 		else
 		{
@@ -1177,8 +1177,8 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 
 		if (Param.Texture)
 		{
-			FD3D12TextureBase* SrcTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.SrcGPUIndex);
-			FD3D12TextureBase* DestTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.DestGPUIndex);
+			FD3D12Texture* SrcTexture = FD3D12CommandContext::RetrieveTexture(Param.Texture, Param.SrcGPUIndex);
+			FD3D12Texture* DestTexture = FD3D12CommandContext::RetrieveTexture(Param.Texture, Param.DestGPUIndex);
 
 			// If the texture size is zero (Max.Z == 0, set in the constructor), copy the whole resource
 			if (Param.Max.Z == 0)

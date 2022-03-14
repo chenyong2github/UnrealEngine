@@ -23,6 +23,7 @@
 class FVulkanCommandListContext;
 class FVulkanQueue;
 class FVulkanCmdBuffer;
+class FVulkanTexture;
 
 #if !VULKAN_OBJECT_TRACKING
 #define VULKAN_TRACK_OBJECT_CREATE(Type, Ptr) do{}while(0)
@@ -88,15 +89,12 @@ namespace VulkanRHI
 class FVulkanEvictable
 {
 public:
-	virtual void Evict(FVulkanDevice& Device) = 0;
-	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& Allocation) = 0;
-
-	virtual void OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset);
-	
-	virtual struct FVulkanTextureBase* GetTextureBase(){return 0;}
-	virtual bool CanMove(){return true;}
-	virtual bool CanEvict(){return true;}
-	
+	virtual bool CanMove() const { return false; }
+	virtual bool CanEvict() const { return false; }
+	virtual void Evict(FVulkanDevice& Device) { checkNoEntry(); }
+	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& Allocation) { checkNoEntry(); }
+	virtual void OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset) { checkNoEntry(); }
+	virtual FVulkanTexture* GetEvictableTexture() { return nullptr; }
 };
 
 
@@ -908,13 +906,9 @@ namespace VulkanRHI
 
 	class FStagingBuffer : public FVulkanEvictable, public FRefCount
 	{
-		virtual void Evict(FVulkanDevice& Device);
-		virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanAllocation& Allocation);
-		virtual bool CanMove(){return false;}
-		virtual bool CanEvict(){return false;}
-
 	public:
 		FStagingBuffer(FVulkanDevice* InDevice);
+
 		VkBuffer GetHandle() const;
 		void* GetMappedPointer();
 		uint32 GetSize() const;

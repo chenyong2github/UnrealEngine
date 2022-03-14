@@ -1315,46 +1315,48 @@ TArray<VkExtensionProperties> FVulkanDynamicRHI::RHIGetAllDeviceExtensions(VkPhy
 	return Extensions;
 }
 
-VkImage FVulkanDynamicRHI::RHIGetVkImage(FRHITexture2D* InTexture) const
+VkImage FVulkanDynamicRHI::RHIGetVkImage(FRHITexture* InTexture) const
 {
-	FVulkanTexture2D* VulkanTexture = ResourceCast(InTexture);
-	return VulkanTexture->Surface.Image;
+	FVulkanTexture* VulkanTexture = ResourceCast(InTexture);
+	return VulkanTexture->Image;
 }
 
-VkFormat FVulkanDynamicRHI::RHIGetViewVkFormat(FRHITexture2D* InTexture) const
+VkFormat FVulkanDynamicRHI::RHIGetViewVkFormat(FRHITexture* InTexture) const
 {
-	FVulkanTexture2D* VulkanTexture = ResourceCast(InTexture);
-	return VulkanTexture->Surface.ViewFormat;
+	FVulkanTexture* VulkanTexture = ResourceCast(InTexture);
+	return VulkanTexture->ViewFormat;
 }
 
-FVulkanRHIAllocationInfo FVulkanDynamicRHI::RHIGetAllocationInfo(FRHITexture2D* InTexture) const
+FVulkanRHIAllocationInfo FVulkanDynamicRHI::RHIGetAllocationInfo(FRHITexture* InTexture) const
 {
-	FVulkanTexture2D* VulkanTexture = ResourceCast(InTexture);
+	FVulkanTexture* VulkanTexture = ResourceCast(InTexture);
 
 	FVulkanRHIAllocationInfo NewInfo{};
-	NewInfo.Handle = VulkanTexture->Surface.GetAllocationHandle();
-	NewInfo.Offset = VulkanTexture->Surface.GetAllocationOffset();
-	NewInfo.Size = VulkanTexture->Surface.GetMemorySize();
+	NewInfo.Handle = VulkanTexture->GetAllocationHandle();
+	NewInfo.Offset = VulkanTexture->GetAllocationOffset();
+	NewInfo.Size = VulkanTexture->GetMemorySize();
 
 	return NewInfo;
 }
 
 FVulkanRHIImageViewInfo FVulkanDynamicRHI::RHIGetImageViewInfo(FRHITexture* InTexture) const
 {
-	FVulkanTextureBase* VulkanTexture = (FVulkanTextureBase*)InTexture->GetTextureBaseRHI();
+	FVulkanTexture* VulkanTexture = ResourceCast(InTexture);
+
+	const FRHITextureDesc& Desc = InTexture->GetDesc();
 
 	FVulkanRHIImageViewInfo Info{};
 	Info.ImageView = VulkanTexture->DefaultView.View;
 	Info.Image = VulkanTexture->DefaultView.Image;
-	Info.Format = VulkanTexture->Surface.ViewFormat;
-	Info.Width = VulkanTexture->Surface.Width;
-	Info.Height = VulkanTexture->Surface.Height;
-	Info.Depth = VulkanTexture->Surface.Depth;
-	Info.UEFlags = VulkanTexture->Surface.UEFlags;
+	Info.Format = VulkanTexture->ViewFormat;
+	Info.Width = Desc.Extent.X;
+	Info.Height = Desc.Extent.Y;
+	Info.Depth = Desc.Depth;
+	Info.UEFlags = Desc.Flags;
 
-	Info.SubresourceRange.aspectMask = VulkanTexture->Surface.GetFullAspectMask();
-	Info.SubresourceRange.layerCount = VulkanTexture->Surface.GetNumberOfArrayLevels();
-	Info.SubresourceRange.levelCount = VulkanTexture->Surface.GetNumMips();
+	Info.SubresourceRange.aspectMask = VulkanTexture->GetFullAspectMask();
+	Info.SubresourceRange.layerCount = VulkanTexture->GetNumberOfArrayLevels();
+	Info.SubresourceRange.levelCount = Desc.NumMips;
 
 	// TODO: do we need these?
 	Info.SubresourceRange.baseMipLevel = 0;
@@ -1363,10 +1365,10 @@ FVulkanRHIImageViewInfo FVulkanDynamicRHI::RHIGetImageViewInfo(FRHITexture* InTe
 	return Info;
 }
 
-VkImageLayout& FVulkanDynamicRHI::RHIFindOrAddLayoutRW(FRHITexture2D* InTexture, VkImageLayout LayoutIfNotFound)
+VkImageLayout& FVulkanDynamicRHI::RHIFindOrAddLayoutRW(FRHITexture* InTexture, VkImageLayout LayoutIfNotFound)
 {
-	FVulkanTexture2D* VulkanTexture = ResourceCast(InTexture);
-	return GetDevice()->GetImmediateContext().GetLayoutManager().FindOrAddLayoutRW(VulkanTexture->Surface, LayoutIfNotFound);
+	FVulkanTexture* VulkanTexture = ResourceCast(InTexture);
+	return GetDevice()->GetImmediateContext().GetLayoutManager().FindOrAddLayoutRW(*VulkanTexture, LayoutIfNotFound);
 }
 
 void FVulkanDynamicRHI::RHISetImageLayout(VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange)
@@ -1470,58 +1472,81 @@ void FVulkanDynamicRHI::RHISubmitCommandsAndFlushGPU()
 
 FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags)
 {
-	const FRHIResourceCreateInfo ResourceCreateInfo(TEXT("FVulkanTexture2D"), EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
-	return new FVulkanTexture2D(*Device, Format, SizeX, SizeY, NumMips, NumSamples, Resource, Flags, ResourceCreateInfo);
+	FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
+		TEXT("VulkanTexture2DFromResource"),
+		{ (int32)SizeX, (int32)SizeY },
+		Format,
+		EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent,
+		Flags,
+		NumMips,
+		NumSamples
+	);
+
+	return new FVulkanTexture(*Device, Desc, Resource, false);
 }
 
 FTexture2DArrayRHIRef FVulkanDynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags)
 {
-	const FRHIResourceCreateInfo ResourceCreateInfo(TEXT("FVulkanTexture2DArray"), EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
-	return new FVulkanTexture2DArray(*Device, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Resource, Flags, ResourceCreateInfo);
+	FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2DArray(
+		TEXT("VulkanTextureArrayFromResource"),
+		{ (int32)SizeX, (int32)SizeY },
+		Format,
+		EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent,
+		Flags,
+		ArraySize,
+		NumMips,
+		NumSamples
+	);
+
+	return new FVulkanTexture(*Device, Desc, Resource, false);
 }
 
 FTextureCubeRHIRef FVulkanDynamicRHI::RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, VkImage Resource, ETextureCreateFlags Flags)
 {
-	const FRHIResourceCreateInfo ResourceCreateInfo(TEXT("FVulkanTextureCube"), EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
-	return new FVulkanTextureCube(*Device, Format, Size, bArray, ArraySize, NumMips, Resource, Flags, ResourceCreateInfo);
+	FRHITextureCreateDesc Desc;
+
+	if (ArraySize > 1)
+	{
+		Desc = FRHITextureCreateDesc::CreateCubeArray(
+			TEXT("VulkanTextureCubeFromResource"),
+			Size,
+			Format,
+			EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent,
+			Flags,
+			ArraySize,
+			NumMips,
+			1
+		);
+	}
+	else
+	{
+		Desc = FRHITextureCreateDesc::CreateCube(
+			TEXT("VulkanTextureCubeFromResource"),
+			Size,
+			Format,
+			EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent,
+			Flags,
+			NumMips,
+			1
+		);
+	}
+
+	return new FVulkanTexture(*Device, Desc, Resource, false);
 }
 
 void FVulkanDynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, FTextureRHIRef& SrcTextureRHI)
 {
 	if (DestTextureRHI && SrcTextureRHI)
 	{
-		FVulkanTextureBase* DestTextureBase = (FVulkanTextureBase*)DestTextureRHI->GetTextureBaseRHI();
-		FVulkanTextureBase* SrcTextureBase = (FVulkanTextureBase*)SrcTextureRHI->GetTextureBaseRHI();
-
-		if (DestTextureBase && SrcTextureBase)
-		{
-			DestTextureBase->AliasTextureResources(SrcTextureRHI);
-		}
+		FVulkanTexture* DestTexture = FVulkanTexture::Cast(DestTextureRHI);
+		DestTexture->AliasTextureResources(SrcTextureRHI);
 	}
 }
 
 FTextureRHIRef FVulkanDynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTextureRHI)
 {
-	FVulkanTextureBase* SourceTexture = (FVulkanTextureBase*)SourceTextureRHI->GetTextureBaseRHI();
-	FTextureRHIRef AliasedTexture;
-	if (SourceTextureRHI->GetTexture2D() != nullptr)
-	{
-		AliasedTexture = new FVulkanTexture2D(SourceTextureRHI, (FVulkanTexture2D*)SourceTexture);
-	}
-	else if (SourceTextureRHI->GetTexture2DArray() != nullptr)
-	{
-		AliasedTexture = new FVulkanTexture2DArray(SourceTextureRHI, (FVulkanTexture2DArray*)SourceTexture);
-	}
-	else if (SourceTextureRHI->GetTextureCube() != nullptr)
-	{
-		AliasedTexture = new FVulkanTextureCube(SourceTextureRHI, (FVulkanTextureCube*)SourceTexture);
-	}
-	else
-	{
-		UE_LOG(LogRHI, Error, TEXT("Currently FVulkanDynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
-	}
-
-	return AliasedTexture;
+	FRHITextureCreateDesc Desc(SourceTextureRHI->GetDesc(), ERHIAccess::SRVMask, *SourceTextureRHI->GetName().ToString());
+	return new FVulkanTexture(*Device, Desc, SourceTextureRHI);
 }
 
 FVulkanDescriptorSetsLayout::FVulkanDescriptorSetsLayout(FVulkanDevice* InDevice) :

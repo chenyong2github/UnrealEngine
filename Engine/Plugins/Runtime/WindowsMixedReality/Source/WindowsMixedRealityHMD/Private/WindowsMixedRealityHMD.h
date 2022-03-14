@@ -283,8 +283,8 @@ namespace WindowsMixedReality
 		virtual void RenderTexture_RenderThread
 		(
 			class FRHICommandListImmediate & RHICmdList,
-			class FRHITexture2D * BackBuffer,
-			class FRHITexture2D * SrcTexture,
+			class FRHITexture * BackBuffer,
+			class FRHITexture * SrcTexture,
 			FVector2D WindowSize
 		) const override;
 		virtual bool AllocateRenderTargetTexture(

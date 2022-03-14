@@ -87,27 +87,25 @@ private:
 class FAGXTexture : public mtlpp::Texture
 {
 public:
-	FAGXTexture(ns::Ownership retain = ns::Ownership::Retain) : mtlpp::Texture(retain) { }
+	FAGXTexture(ns::Ownership retain = ns::Ownership::Retain)
+		: mtlpp::Texture(retain)
+	{}
+
 	FAGXTexture(ns::Protocol<id<MTLTexture>>::type handle, ns::Ownership retain = ns::Ownership::Retain)
-	: mtlpp::Texture(handle, nullptr, retain) {}
+		: mtlpp::Texture(handle, nullptr, retain)
+	{}
 	
 	FAGXTexture(mtlpp::Texture&& rhs)
-	: mtlpp::Texture((mtlpp::Texture&&)rhs)
-	{
-		
-	}
+		: mtlpp::Texture((mtlpp::Texture&&)rhs)
+	{}
 	
 	FAGXTexture(const FAGXTexture& rhs)
-	: mtlpp::Texture(rhs)
-	{
-		
-	}
+		: mtlpp::Texture(rhs)
+	{}
 	
 	FAGXTexture(FAGXTexture&& rhs)
-	: mtlpp::Texture((mtlpp::Texture&&)rhs)
-	{
-		
-	}
+		: mtlpp::Texture((mtlpp::Texture&&)rhs)
+	{}
 	
 	FAGXTexture& operator=(const FAGXTexture& rhs)
 	{
@@ -135,24 +133,43 @@ public:
 	}
 };
 
-/** Texture/RT wrapper. */
-class AGXRHI_API FAGXSurface
+struct FAGXTextureDesc
+{
+	FAGXTextureDesc(FRHITextureDesc const& InDesc);
+	
+	mtlpp::TextureDescriptor Desc;
+	mtlpp::PixelFormat MTLFormat;
+	bool bMemoryless = false;
+	bool bIsRenderTarget = false;
+	uint8 FormatKey = 0;
+};
+
+struct FAGXTextureCreateDesc : public FRHITextureCreateDesc, public FAGXTextureDesc
+{
+	FAGXTextureCreateDesc(FRHITextureCreateDesc const& CreateDesc)
+		: FRHITextureCreateDesc(CreateDesc)
+		, FAGXTextureDesc(CreateDesc)
+	{
+		// @todo: texture type unification - Metal can override NumSamples based on command line options.
+		// We should instead require the renderer to do this.
+		NumSamples = Desc.GetSampleCount();
+	}
+};
+
+// AGX RHI texture resource
+class AGXRHI_API FAGXSurface : public FRHITexture
 {
 public:
 
 	/** 
 	 * Constructor that will create Texture and Color/DepthBuffers as needed
 	 */
-	FAGXSurface(ERHIResourceType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumSamples, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData);
-
-	FAGXSurface(FAGXSurface& Source, NSRange MipRange);
-	
-	FAGXSurface(FAGXSurface& Source, NSRange MipRange, EPixelFormat Format, bool bSRGBForceDisable);
+	FAGXSurface(FAGXTextureCreateDesc const& CreateDesc);
 	
 	/**
 	 * Destructor
 	 */
-	~FAGXSurface();
+	virtual ~FAGXSurface();
 
 	/** Prepare for texture-view support - need only call this once on the source texture which is to be viewed. */
 	void PrepareTextureView();
@@ -207,13 +224,9 @@ public:
 	ns::AutoReleased<FAGXTexture> GetCurrentTexture();
 
 	FAGXTexture Reallocate(FAGXTexture Texture, mtlpp::TextureUsage UsageModifier);
-	void ReplaceTexture(FAGXContext& Context, FAGXTexture OldTexture, FAGXTexture NewTexture);
 	void MakeAliasable(void);
-	void MakeUnAliasable(void);
-	
-	ERHIResourceType Type;
-	EPixelFormat PixelFormat;
-	uint8 FormatKey;
+
+	uint8 const FormatKey;
 	//texture used for store actions and binding to shader params
 	FAGXTexture Texture;
 	//if surface is MSAA, texture used to bind for RT
@@ -226,8 +239,7 @@ public:
 	// iOS A9+ where depth resolve is available
 	// iOS < A9 where depth resolve is unavailable.
 	FAGXTexture MSAAResolveTexture;
-	uint32 SizeX, SizeY, SizeZ;
-	bool bIsCubemap;
+
 	int16 volatile Written;
 	int16 GPUReadback = 0;
 	enum EAGXGPUReadbackFlags : int16
@@ -238,8 +250,6 @@ public:
 		ReadbackFenceComplete 			= 1 << ReadbackFenceCompleteShift,
 		ReadbackRequestedAndComplete 	= ReadbackRequested | ReadbackFenceComplete
 	};
-	
-	ETextureCreateFlags Flags;
 
 	uint32 BufferLocks;
 
@@ -248,125 +258,23 @@ public:
 	
 	// For back-buffers, the owning viewport.
 	class FAGXViewport* Viewport;
-	
-	TSet<class FAGXShaderResourceView*> SRVs;
 
-private:
-	void Init(FAGXSurface& Source, NSRange MipRange);
-	
-	void Init(FAGXSurface& Source, NSRange MipRange, EPixelFormat Format, bool bSRGBForceDisable);
+	virtual void* GetTextureBaseRHI() override final
+	{
+		return this;
+	}
+
+	virtual void* GetNativeResource() const override final
+	{
+		return Texture;
+	}
 	
 private:
 	// The movie playback IOSurface/CVTexture wrapper to avoid page-off
 	CFTypeRef ImageSurfaceRef;
-	
-	// Texture view surfaces don't own their resources, only reference
-	bool bTextureView;
-	
+
 	// Count of outstanding async. texture uploads
 	static volatile int64 ActiveUploads;
-};
-
-class FAGXTexture2D : public FRHITexture2D
-{
-public:
-	/** The surface info */
-	FAGXSurface Surface;
-
-	// Constructor, just calls base and Surface constructor
-	FAGXTexture2D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
-		: FRHITexture2D(SizeX, SizeY, NumMips, NumSamples, Format, Flags, InClearValue)
-		, Surface(RRT_Texture2D, Format, SizeX, SizeY, 1, NumSamples, /*bArray=*/ false, 1, NumMips, Flags, BulkData)
-	{
-	}
-	
-	virtual ~FAGXTexture2D()
-	{
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return &Surface;
-	}
-	
-	virtual void* GetNativeResource() const override final
-	{
-		return Surface.Texture;
-	}
-};
-
-class FAGXTexture2DArray : public FRHITexture2DArray
-{
-public:
-	/** The surface info */
-	FAGXSurface Surface;
-
-	// Constructor, just calls base and Surface constructor
-	FAGXTexture2DArray(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
-		: FRHITexture2DArray(SizeX, SizeY, ArraySize, NumMips, 1, Format, Flags, InClearValue)
-		, Surface(RRT_Texture2DArray, Format, SizeX, SizeY, 1, /*NumSamples=*/1, /*bArray=*/ true, ArraySize, NumMips, Flags, BulkData)
-	{
-	}
-	
-	virtual ~FAGXTexture2DArray()
-	{
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return &Surface;
-	}
-};
-
-class FAGXTexture3D : public FRHITexture3D
-{
-public:
-	/** The surface info */
-	FAGXSurface Surface;
-
-	// Constructor, just calls base and Surface constructor
-	FAGXTexture3D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
-		: FRHITexture3D(SizeX, SizeY, SizeZ, NumMips, Format, Flags, InClearValue)
-		, Surface(RRT_Texture3D, Format, SizeX, SizeY, SizeZ, /*NumSamples=*/1, /*bArray=*/ false, 1, NumMips, Flags, BulkData)
-	{
-	}
-	
-	virtual ~FAGXTexture3D()
-	{
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return &Surface;
-	}
-};
-
-class FAGXTextureCube : public FRHITextureCube
-{
-public:
-	/** The surface info */
-	FAGXSurface Surface;
-
-	// Constructor, just calls base and Surface constructor
-	FAGXTextureCube(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
-		: FRHITextureCube(Size, NumMips, Format, Flags, InClearValue)
-		, Surface(RRT_TextureCube, Format, Size, Size, 6, /*NumSamples=*/1, bArray, ArraySize, NumMips, Flags, BulkData)
-	{
-	}
-	
-	virtual ~FAGXTextureCube()
-	{
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return &Surface;
-	}
-
-	virtual void* GetNativeResource() const override final
-	{
-		return Surface.Texture;
-	}
 };
 
 @interface FAGXBufferData : FApplePlatformObject<NSObject>
@@ -390,34 +298,13 @@ ENUM_CLASS_FLAGS(EAGXBufferUsage);
 class FAGXLinearTextureDescriptor
 {
 public:
-	FAGXLinearTextureDescriptor()
-		: StartOffsetBytes(0)
-		, NumElements(UINT_MAX)
-		, BytesPerElement(0)
-	{
-		// void
-	}
+	FAGXLinearTextureDescriptor() = default;
 
 	FAGXLinearTextureDescriptor(uint32 InStartOffsetBytes, uint32 InNumElements, uint32 InBytesPerElement)
 		: StartOffsetBytes(InStartOffsetBytes)
-		, NumElements(InNumElements)
-		, BytesPerElement(InBytesPerElement)
-	{
-		// void
-	}
-	
-	FAGXLinearTextureDescriptor(const FAGXLinearTextureDescriptor& Other)
-		: StartOffsetBytes(Other.StartOffsetBytes)
-		, NumElements(Other.NumElements)
-		, BytesPerElement(Other.BytesPerElement)
-	{
-		// void
-	}
-	
-	~FAGXLinearTextureDescriptor()
-	{
-		// void
-	}
+		, NumElements     (InNumElements)
+		, BytesPerElement (InBytesPerElement)
+	{}
 
 	friend uint32 GetTypeHash(FAGXLinearTextureDescriptor const& Key)
 	{
@@ -434,9 +321,9 @@ public:
 		       && BytesPerElement  == Other.BytesPerElement;
 	}
 
-	uint32 StartOffsetBytes;
-	uint32 NumElements;
-	uint32 BytesPerElement;
+	uint32 StartOffsetBytes = 0;
+	uint32 NumElements      = UINT_MAX;
+	uint32 BytesPerElement  = 0;
 };
 
 class FAGXRHIBuffer
@@ -599,50 +486,118 @@ typedef FAGXResourceMultiBuffer FAGXIndexBuffer;
 typedef FAGXResourceMultiBuffer FAGXVertexBuffer;
 typedef FAGXResourceMultiBuffer FAGXStructuredBuffer;
 
-class FAGXShaderResourceView : public FRHIShaderResourceView
+class FAGXResourceViewBase
 {
+protected:
+	// Constructor for buffers
+	FAGXResourceViewBase(
+		  FRHIBuffer* InBuffer
+		, uint32 InStartOffsetBytes
+		, uint32 InNumElements
+		, EPixelFormat InFormat
+	);
+
+	// Constructor for textures
+	FAGXResourceViewBase(
+		  FRHITexture* InTexture
+		, EPixelFormat InFormat
+		, uint8 InMipLevel
+		, uint8 InNumMipLevels
+		, ERHITextureSRVOverrideSRGBType InSRGBOverride
+		, uint32 InFirstArraySlice
+		, uint32 InNumArraySlices
+	);
+
 public:
+	~FAGXResourceViewBase();
 
-	// The vertex buffer this SRV comes from (can be null)
-	TRefCountPtr<FAGXVertexBuffer> SourceVertexBuffer;
-	
-	// The index buffer this SRV comes from (can be null)
-	TRefCountPtr<FAGXIndexBuffer> SourceIndexBuffer;
+	inline FAGXResourceMultiBuffer* GetSourceBuffer () const { check(!bTexture); return SourceBuffer; }
 
-	// The texture that this SRV come from
-	TRefCountPtr<FRHITexture> SourceTexture;
-	
-	// The source structured buffer (can be null)
-	TRefCountPtr<FAGXStructuredBuffer> SourceStructuredBuffer;
-	
-	FAGXSurface* TextureView;
-	uint32 Offset;
-	uint8 MipLevel          : 4;
-	uint8 bSRGBForceDisable : 1;
-	uint8 Reserved          : 3;
-	uint8 NumMips;
-	uint8 Format;
-	uint8 Stride;
-
-	void InitLinearTextureDescriptor(const FAGXLinearTextureDescriptor& InLinearTextureDescriptor);
-
-	FAGXShaderResourceView();
-	~FAGXShaderResourceView();
-	
-	ns::AutoReleased<FAGXTexture> GetLinearTexture(bool const bUAV);
+	inline FAGXSurface*             GetSourceTexture() const { check(bTexture); return SourceTexture; }
+	inline FAGXTexture const&       GetTextureView  () const { check(bTexture); return TextureView;   }
 
 private:
-	FAGXLinearTextureDescriptor* LinearTextureDesc;
+	// Needed for RHIUpdateShaderResourceView
+	friend class FAGXDynamicRHI;
+
+	union
+	{
+		FAGXResourceMultiBuffer* SourceBuffer;
+		FAGXSurface* SourceTexture;
+	};
+
+	TUniquePtr<FAGXLinearTextureDescriptor> LinearTextureDesc = nullptr;
+	FAGXTexture TextureView = nullptr;
+
+public:
+	uint8 const bTexture : 1;
+	uint8       bSRGBForceDisable : 1;
+	uint8       MipLevel : 4;
+	uint8       Reserved : 2;
+	uint8       NumMips;
+	uint8       Format;
+	uint8       Stride;
+	uint32      Offset;
+
+	ns::AutoReleased<FAGXTexture> GetLinearTexture();
 };
 
-
-
-class FAGXUnorderedAccessView : public FRHIUnorderedAccessView
+class FAGXShaderResourceView final : public FRHIShaderResourceView, public FAGXResourceViewBase
 {
 public:
-	
-	// the potential resources to refer to with the UAV object
-	TRefCountPtr<FAGXShaderResourceView> SourceView;
+	explicit FAGXShaderResourceView(const FShaderResourceViewInitializer& Initializer)
+		: FAGXResourceViewBase(
+			  Initializer.AsBufferSRV().Buffer
+			, Initializer.AsBufferSRV().StartOffsetBytes
+			, Initializer.AsBufferSRV().NumElements
+			, Initializer.AsBufferSRV().Format
+		)
+	{}
+
+	explicit FAGXShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
+		: FAGXResourceViewBase(
+			  Texture
+			, CreateInfo.Format
+			, CreateInfo.MipLevel
+			, CreateInfo.NumMipLevels
+			, CreateInfo.SRGBOverride
+			, CreateInfo.FirstArraySlice
+			, CreateInfo.NumArraySlices
+		)
+	{}
+
+	virtual ~FAGXShaderResourceView()
+	{}
+};
+
+class FAGXUnorderedAccessView final : public FRHIUnorderedAccessView, public FAGXResourceViewBase
+{
+public:
+	explicit FAGXUnorderedAccessView(FRHIBuffer* Buffer, EPixelFormat Format)
+		: FAGXResourceViewBase(Buffer, 0, UINT_MAX, Format)
+	{}
+
+	explicit FAGXUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
+		: FAGXResourceViewBase(Buffer, 0, UINT_MAX, PF_Unknown)
+	{
+		checkf(!bUseUAVCounter, TEXT("UAV counters not implemented."));
+		checkf(!bAppendBuffer, TEXT("UAV append buffers not implemented."));
+	}
+
+	explicit FAGXUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
+		: FAGXResourceViewBase(
+			  Texture
+			, PF_Unknown
+			, MipLevel
+			, 1 // NumMipLevels
+			, ERHITextureSRVOverrideSRGBType::SRGBO_ForceDisable
+			, FirstArraySlice
+			, NumArraySlices
+		)
+	{}
+
+	virtual ~FAGXUnorderedAccessView()
+	{}
 };
 
 class FAGXGPUFence final : public FRHIGPUFence
@@ -712,26 +667,6 @@ template<>
 struct TAGXResourceTraits<FRHIComputeShader>
 {
 	typedef FAGXComputeShader TConcreteType;
-};
-template<>
-struct TAGXResourceTraits<FRHITexture3D>
-{
-	typedef FAGXTexture3D TConcreteType;
-};
-template<>
-struct TAGXResourceTraits<FRHITexture2D>
-{
-	typedef FAGXTexture2D TConcreteType;
-};
-template<>
-struct TAGXResourceTraits<FRHITexture2DArray>
-{
-	typedef FAGXTexture2DArray TConcreteType;
-};
-template<>
-struct TAGXResourceTraits<FRHITextureCube>
-{
-	typedef FAGXTextureCube TConcreteType;
 };
 template<>
 struct TAGXResourceTraits<FRHIRenderQuery>

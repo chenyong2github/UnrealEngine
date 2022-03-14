@@ -238,29 +238,35 @@ void FAGXViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,E
 
     {
         FScopeLock Lock(&Mutex);
-        FRHIResourceCreateInfo CreateInfo(TEXT("BackBuffer"));
-        FTexture2DRHIRef NewBackBuffer;
-        FTexture2DRHIRef DoubleBuffer;
-        if (GAGXSupportsIntermediateBackBuffer)
+
+		TRefCountPtr<FAGXSurface> NewBackBuffer;
+		TRefCountPtr<FAGXSurface> DoubleBuffer;
+
+		ETextureCreateFlags Flags = GAGXSupportsIntermediateBackBuffer
+			? TexCreate_RenderTargetable
+			: TexCreate_RenderTargetable | TexCreate_Presentable;
+
+		FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(
+			  TEXT("BackBuffer")
+			, { (int32)InSizeX, (int32)InSizeY }
+			, Format
+			, FClearValueBinding::None
+			, Flags
+		);
+
+		NewBackBuffer = new FAGXSurface(CreateDesc);
+		NewBackBuffer->Viewport = this;
+
+        if (GAGXSupportsIntermediateBackBuffer && GAGXSeparatePresentThread)
         {
-            NewBackBuffer = (FAGXTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Unknown, CreateInfo);
-            
-            if (GAGXSeparatePresentThread)
-            {
-                DoubleBuffer = GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Unknown, CreateInfo);
-                ((FAGXTexture2D*)DoubleBuffer.GetReference())->Surface.Viewport = this;
-            }
+            DoubleBuffer = new FAGXSurface(CreateDesc);
+            DoubleBuffer->Viewport = this;
         }
-        else
-        {
-            NewBackBuffer = (FAGXTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable | TexCreate_Presentable, ERHIAccess::Unknown, CreateInfo);
-        }
-        ((FAGXTexture2D*)NewBackBuffer.GetReference())->Surface.Viewport = this;
-        
-        BackBuffer[Index] = (FAGXTexture2D*)NewBackBuffer.GetReference();
+
+        BackBuffer[Index] = NewBackBuffer;
         if (GAGXSeparatePresentThread)
         {
-            BackBuffer[EAGXViewportAccessRHI] = (FAGXTexture2D*)DoubleBuffer.GetReference();
+            BackBuffer[EAGXViewportAccessRHI] = DoubleBuffer;
         }
         else
         {
@@ -269,7 +275,7 @@ void FAGXViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,E
     }
 }
 
-TRefCountPtr<FAGXTexture2D> FAGXViewport::GetBackBuffer(EAGXViewportAccessFlag Accessor) const
+TRefCountPtr<FAGXSurface> FAGXViewport::GetBackBuffer(EAGXViewportAccessFlag Accessor) const
 {
 	FScopeLock Lock(&Mutex);
 	
@@ -405,7 +411,7 @@ void FAGXViewport::ReleaseDrawable()
 
 		if (!GAGXSupportsIntermediateBackBuffer && IsValidRef(BackBuffer[GetViewportIndex(EAGXViewportAccessRHI)]))
 		{
-			BackBuffer[GetViewportIndex(EAGXViewportAccessRHI)]->Surface.Texture = nil;
+			BackBuffer[GetViewportIndex(EAGXViewportAccessRHI)]->Texture = nil;
 		}
 	}
 }
@@ -470,10 +476,10 @@ void FAGXViewport::Present(FAGXCommandQueue& CommandQueue, bool bLockToVsync)
 						
 						if (GAGXSupportsIntermediateBackBuffer)
 						{
-							TRefCountPtr<FAGXTexture2D> Texture = LastCompleteFrame;
+							TRefCountPtr<FAGXSurface> Texture = LastCompleteFrame;
 							check(IsValidRef(Texture));
 							
-							FAGXTexture Src = Texture->Surface.Texture;
+							FAGXTexture Src = Texture->Texture;
 							FAGXTexture Dst = LocalDrawable.texture;
 							
 							NSUInteger Width = FMath::Min(Src.GetWidth(), Dst.GetWidth());
@@ -578,8 +584,8 @@ void FAGXViewport::Swap()
 		check(IsValidRef(BackBuffer[0]));
 		check(IsValidRef(BackBuffer[1]));
 		
-		TRefCountPtr<FAGXTexture2D> BB0 = BackBuffer[0];
-		TRefCountPtr<FAGXTexture2D> BB1 = BackBuffer[1];
+		TRefCountPtr<FAGXSurface> BB0 = BackBuffer[0];
+		TRefCountPtr<FAGXSurface> BB1 = BackBuffer[1];
 		
 		BackBuffer[0] = BB1;
 		BackBuffer[1] = BB0;

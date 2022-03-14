@@ -4,7 +4,7 @@
 
 #include "D3D12Descriptors.h"
 
-class FD3D12TextureBase;
+class FD3D12Texture;
 
 enum ViewSubresourceSubsetFlags
 {
@@ -803,7 +803,7 @@ public:
 	// Used for buffer SRVs, we usually only control the stride and offset
 	FD3D12ShaderResourceView(FD3D12Buffer* InBuffer, const D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, uint32 InStride, uint32 InStartOffsetBytes = 0);
 	// Used for texture SRVs, we don't control much other than disabling fast create
-	FD3D12ShaderResourceView(FD3D12TextureBase* InTexture, const D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, ETextureCreateFlags InTextureCreateFlags = ETextureCreateFlags::None);
+	FD3D12ShaderResourceView(FD3D12Texture* InTexture, const D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, ETextureCreateFlags InTextureCreateFlags = ETextureCreateFlags::None);
 	~FD3D12ShaderResourceView();
 
 	void InitializeAfterCreate(const D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, uint32 InStride, uint32 InStartOffsetBytes = 0, bool InSkipFastClearFinalize = false);

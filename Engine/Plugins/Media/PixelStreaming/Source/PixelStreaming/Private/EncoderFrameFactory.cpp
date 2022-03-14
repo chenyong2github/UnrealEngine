@@ -39,10 +39,10 @@ void UE::PixelStreaming::FEncoderFrameFactory::RemoveStaleTextures()
 {
 	// Remove any textures whose only reference is the one held by this class
 
-	TMap<FTexture2DRHIRef, TSharedPtr<AVEncoder::FVideoEncoderInputFrame>>::TIterator Iter = TextureToFrameMapping.CreateIterator();
+	TMap<FTextureRHIRef, TSharedPtr<AVEncoder::FVideoEncoderInputFrame>>::TIterator Iter = TextureToFrameMapping.CreateIterator();
 	for(; Iter; ++Iter)
 	{
-		FTexture2DRHIRef& Tex = Iter.Key();
+		FTextureRHIRef& Tex = Iter.Key();
 
 		if(Tex.GetRefCount() == 1) {
 			Iter.RemoveCurrent();
@@ -50,7 +50,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::RemoveStaleTextures()
 	}
 }
 
-TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrameFactory::GetOrCreateFrame(const FTexture2DRHIRef InTexture)
+TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrameFactory::GetOrCreateFrame(const FTextureRHIRef InTexture)
 {
 	check(EncoderInput.IsValid());
 
@@ -82,7 +82,7 @@ TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrame
 	return OutFrame;
 }
 
-TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrameFactory::GetFrameAndSetTexture(FTexture2DRHIRef InTexture)
+TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrameFactory::GetFrameAndSetTexture(FTextureRHIRef InTexture)
 {
 	check(EncoderInput.IsValid());
 
@@ -165,7 +165,7 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 	return nullptr;
 }
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
+void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
 {
 	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
@@ -216,10 +216,9 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::
 	}
 }
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
+void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
 {
 	IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
-
 	const FVulkanRHIAllocationInfo TextureAllocationInfo = VulkanRHI->RHIGetAllocationInfo(Texture.GetReference());
 
 	VkDevice Device = VulkanRHI->RHIGetVkDevice();
@@ -371,9 +370,9 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 }
 
 #if PLATFORM_WINDOWS
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
+void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
 {
-	FD3D11TextureBase* D3D11Texture = GetD3D11TextureFromRHITexture(Texture);
+	FD3D11Texture* D3D11Texture = GetD3D11TextureFromRHITexture(Texture);
 	unsigned long long TextureMemorySize = D3D11Texture->GetMemorySize();
 
 	ID3D11Texture2D* D3D11NativeTexture = static_cast<ID3D11Texture2D*>(D3D11Texture->GetResource());
@@ -477,7 +476,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AV
 	});
 }
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D12(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
+void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D12(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
 {
 	ID3D12Resource* NativeD3D12Resource = GetID3D12DynamicRHI()->RHIGetResource(Texture);
 	const int64 TextureMemorySize = GetID3D12DynamicRHI()->RHIGetResourceMemorySize(Texture);

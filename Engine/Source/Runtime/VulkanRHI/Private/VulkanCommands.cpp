@@ -191,8 +191,8 @@ void FVulkanCommandListContext::RHISetUAVParameter(FRHIComputeShader* ComputeSha
 
 void FVulkanCommandListContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
-	FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(NewTextureRHI);
-	VkImageLayout Layout = LayoutManager.FindLayoutChecked(Texture->Surface.Image);
+	FVulkanTexture* Texture = FVulkanTexture::Cast(NewTextureRHI);
+	VkImageLayout Layout = LayoutManager.FindLayoutChecked(Texture->Image);
 
 	ShaderStage::EStage Stage = GetAndVerifyShaderStage(ShaderRHI, PendingGfxState);
 	PendingGfxState->SetTextureForStage(Stage, TextureIndex, Texture, Layout);
@@ -204,8 +204,8 @@ void FVulkanCommandListContext::RHISetShaderTexture(FRHIComputeShader* ComputeSh
 	FVulkanComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
 	check(PendingComputeState->GetCurrentShader() == ComputeShader);
 
-	FVulkanTextureBase* VulkanTexture = FVulkanTextureBase::Cast(NewTextureRHI);
-	VkImageLayout Layout = LayoutManager.FindLayoutChecked(VulkanTexture->Surface.Image);
+	FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(NewTextureRHI);
+	VkImageLayout Layout = LayoutManager.FindLayoutChecked(VulkanTexture->Image);
 	PendingComputeState->SetTextureForStage(TextureIndex, VulkanTexture, Layout);
 	NewTextureRHI->SetLastRenderTime((float)FPlatformTime::Seconds());
 }
@@ -303,14 +303,14 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 			FRHITexture* TexRef = (FRHITexture*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
 			if (TexRef)
 			{
-				const FVulkanTextureBase* BaseTexture = FVulkanTextureBase::Cast(TexRef);
-				if (!ensure(BaseTexture))
+				const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(TexRef);
+				if (!ensure(VulkanTexture))
 				{
-					BaseTexture = FVulkanTextureBase::Cast(GBlackTexture->TextureRHI.GetReference());
+					VulkanTexture = FVulkanTexture::Cast(GBlackTexture->TextureRHI.GetReference());
 				}
 
 				// If the descriptor is a storage image in a slot expecting to read only, make sure it's because we don't support sampling
-				ensure(DescriptorType != VK_DESCRIPTOR_TYPE_STORAGE_IMAGE || !BaseTexture->Surface.SupportsSampling());
+				ensure(DescriptorType != VK_DESCRIPTOR_TYPE_STORAGE_IMAGE || !VulkanTexture->SupportsSampling());
 
 #if ENABLE_RHI_VALIDATION
 				if (Context->Tracker)
@@ -319,8 +319,8 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 				}
 #endif
 
-				const VkImageLayout Layout = Context->GetLayoutManager().FindLayoutChecked(BaseTexture->Surface.Image);
-				State->SetTextureForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, BaseTexture, Layout);
+				const VkImageLayout Layout = Context->GetLayoutManager().FindLayoutChecked(VulkanTexture->Image);
+				State->SetTextureForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, VulkanTexture, Layout);
 				TexRef->SetLastRenderTime(CurrentTime);
 			}
 			else

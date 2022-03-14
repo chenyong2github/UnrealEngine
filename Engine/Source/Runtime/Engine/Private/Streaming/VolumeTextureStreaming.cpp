@@ -9,51 +9,6 @@ VolumeTextureStreaming.cpp: Helpers to stream in and out volume texture LODs.
 extern RHI_API bool GUseTexture3DBulkDataRHI;
 
 //*****************************************************************************
-//***************************** Global Definitions ****************************
-//*****************************************************************************
-
-void RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture3D* DestTexture, FRHITexture3D* SrcTexture)
-{
-	// Transition to copy source and dest
-	{
-		FRHITransitionInfo TransitionsBefore[] = { FRHITransitionInfo(SrcTexture, ERHIAccess::SRVMask, ERHIAccess::CopySrc), FRHITransitionInfo(DestTexture, ERHIAccess::SRVMask, ERHIAccess::CopyDest) };
-		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
-	}
-
-	// Copy 
-	{
-		FRHICopyTextureInfo CopyInfo;
-
-		auto SetCopyInfo = [&](FRHITexture3D* Texture3D)
-		{
-			CopyInfo.Size.X = Texture3D->GetSizeX();
-			CopyInfo.Size.Y = Texture3D->GetSizeY();
-			CopyInfo.Size.Z = Texture3D->GetSizeZ();
-			CopyInfo.NumMips = Texture3D->GetNumMips();
-		};
-
-		if (DestTexture->GetNumMips() < SrcTexture->GetNumMips())
-		{
-			SetCopyInfo(DestTexture);
-		}
-		else
-		{
-			SetCopyInfo(SrcTexture);
-		}
-
-		CopyInfo.SourceMipIndex = SrcTexture->GetNumMips() - CopyInfo.NumMips;
-		CopyInfo.DestMipIndex = DestTexture->GetNumMips() - CopyInfo.NumMips;
-		RHICmdList.CopyTexture(SrcTexture, DestTexture, CopyInfo);
-	}
-
-	// Transition to SRV
-	{
-		FRHITransitionInfo TransitionsAfter[] = { FRHITransitionInfo(SrcTexture, ERHIAccess::CopySrc, ERHIAccess::SRVMask), FRHITransitionInfo(DestTexture, ERHIAccess::CopyDest, ERHIAccess::SRVMask) };
-		RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
-	}
-}
-
-//*****************************************************************************
 //******************** FVolumeTextureMipAllocator_Reallocate ******************
 //*****************************************************************************
 
@@ -135,7 +90,7 @@ bool FVolumeTextureMipAllocator_Reallocate::FinalizeMips(const FTextureUpdateCon
 		ENQUEUE_RENDER_COMMAND(FCopySharedMipsForTexture3D)(
 			[&](FRHICommandListImmediate& RHICmdList)
 		{
-			RHICopySharedMips(RHICmdList, IntermediateTextureRHI.GetReference(), Context.Resource->GetTexture3DRHI());
+			RHICmdList.CopySharedMips(IntermediateTextureRHI.GetReference(), Context.Resource->GetTexture3DRHI());
 			bCopySharedMipsDone = true;
 		});
 		// Expected to execute immediately since ran on the renderthread.

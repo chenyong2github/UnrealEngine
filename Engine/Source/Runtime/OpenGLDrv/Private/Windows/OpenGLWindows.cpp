@@ -999,17 +999,20 @@ bool PlatformContextIsCurrent( uint64 QueryContext )
 	return (uint64)GetCurrentContext() == QueryContext;
 }
 
-FRHITexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY)
+FOpenGLTexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY)
 {
 	if (FOpenGL::IsAndroidGLESCompatibilityModeEnabled())
 	{
-		ETextureCreateFlags Flags = TexCreate_RenderTargetable;
-		FOpenGLTexture2D* Texture2D = new FOpenGLTexture2D(OpenGLRHI, 0, GL_RENDERBUFFER, GL_COLOR_ATTACHMENT0, SizeX, SizeY, 0, 1, 1, 1, 1, PF_B8G8R8A8, false, false, Flags, FClearValueBinding::Transparent);
-		OpenGLTextureAllocated(Texture2D, Flags);
-		return Texture2D;
+		return new FOpenGLTexture(FRHITextureCreateDesc::Create2D(
+			TEXT("PlatformCreateBuiltinBackBuffer"),
+			{ (int32)SizeX, (int32)SizeY },
+			PF_B8G8R8A8,
+			FClearValueBinding::Transparent,
+			TexCreate_RenderTargetable | TexCreate_Presentable
+		));
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 void* PlatformGetWindow(FPlatformOpenGLContext* Context, void** AddParam)

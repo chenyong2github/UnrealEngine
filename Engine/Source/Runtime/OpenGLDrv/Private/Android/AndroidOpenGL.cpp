@@ -444,17 +444,22 @@ void PlatformDestroyOpenGLContext(FPlatformOpenGLDevice* Device, FPlatformOpenGL
 {
 }
 
-FRHITexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY)
+FOpenGLTexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY)
 {
+	check(IsInRenderingThread());
 	// Create the built-in back buffer if we disable backbuffer sampling.
 	// Otherwise return null and we will create an off-screen surface afterward.
 	if (!FPlatformMisc::SupportsBackbufferSampling())
 	{
-		ETextureCreateFlags Flags = TexCreate_RenderTargetable;
-		FOpenGLTexture2D* Texture2D = new FOpenGLTexture2D(OpenGLRHI, AndroidEGL::GetInstance()->GetOnScreenColorRenderBuffer(), GL_RENDERBUFFER, GL_COLOR_ATTACHMENT0, SizeX, SizeY, 0, 1, 1, 1, 1, PF_B8G8R8A8, false, false, Flags, FClearValueBinding::Transparent);
-		OpenGLTextureAllocated(Texture2D, Flags);
+		FOpenGLTextureCreateDesc CreateDesc = FOpenGLTextureCreateDesc::Create2D(
+			TEXT("PlatformCreateBuiltinBackBuffer"),
+			{ (int32)SizeX, (int32)SizeY },
+			PF_B8G8R8A8,
+			FClearValueBinding::Transparent,
+			TexCreate_RenderTargetable | TexCreate_Presentable
+		);
 
-		return Texture2D;
+		return new FOpenGLTexture(CreateDesc);
 	}
 	else
 	{
@@ -465,7 +470,8 @@ FRHITexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint3
 void PlatformResizeGLContext( FPlatformOpenGLDevice* Device, FPlatformOpenGLContext* Context, uint32 SizeX, uint32 SizeY, bool bFullscreen, bool bWasFullscreen, GLenum BackBufferTarget, GLuint BackBufferResource)
 {
 	check(Context);
-	
+	VERIFY_GL_SCOPE();
+
 	Context->BackBufferResource = BackBufferResource;
 	Context->BackBufferTarget = BackBufferTarget;
 
@@ -543,13 +549,6 @@ void FPlatformOpenGLDevice::SetupCurrentContext()
 
 void PlatformLabelObjects()
 {
-	// @todo: Check that there is a valid id (non-zero) as LabelObject will fail otherwise
-	GLuint RenderBuffer = AndroidEGL::GetInstance()->GetOnScreenColorRenderBuffer();
-	if (RenderBuffer != 0)
-	{
-		FOpenGL::LabelObject(GL_RENDERBUFFER, RenderBuffer, "OnScreenColorRB");
-	}
-
 	GLuint FrameBuffer = AndroidEGL::GetInstance()->GetResolveFrameBuffer();
 	if (FrameBuffer != 0)
 	{

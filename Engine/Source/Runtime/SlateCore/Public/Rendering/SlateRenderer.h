@@ -10,7 +10,7 @@
 #include "Fonts/FontTypes.h"
 #include "PixelFormat.h"
 
-class FRHITexture2D;
+class FRHITexture;
 class FRenderTarget;
 class FSlateDrawBuffer;
 class FSlateUpdatableTexture;
@@ -22,7 +22,7 @@ struct Rect;
 class FSceneInterface;
 struct FSlateBrush;
 
-typedef TRefCountPtr<FRHITexture2D> FTexture2DRHIRef;
+typedef TRefCountPtr<FRHITexture> FTexture2DRHIRef;
 
 /**
  * Update context for deferred drawing of widgets to render targets

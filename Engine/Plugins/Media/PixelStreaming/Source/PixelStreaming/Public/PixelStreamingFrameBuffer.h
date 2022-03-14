@@ -9,7 +9,7 @@
 #include "api/video/i420_buffer.h"
 #include "api/scoped_refptr.h"
 
-class FRHITexture2D;
+class FRHITexture;
 class IPixelStreamingTextureSource;
 
 namespace UE
@@ -111,7 +111,7 @@ public:
 	virtual ~FLayerFrameBuffer();
 
 	virtual UE::PixelStreaming::EFrameBufferType GetFrameBufferType() const { return UE::PixelStreaming::EFrameBufferType::Layer; }
-	TRefCountPtr<FRHITexture2D> GetFrame() const;
+	TRefCountPtr<FRHITexture> GetFrame() const;
 
 	virtual int width() const override;
 	virtual int height() const override;
@@ -131,7 +131,7 @@ public:
 	virtual ~FFrameBufferI420();
 
 	virtual UE::PixelStreaming::EFrameBufferType GetFrameBufferType() const { return UE::PixelStreaming::EFrameBufferType::Layer; }
-	TRefCountPtr<FRHITexture2D> GetFrame() const;
+	TRefCountPtr<FRHITexture> GetFrame() const;
 
 	virtual int width() const override;
 	virtual int height() const override;

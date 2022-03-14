@@ -6,8 +6,12 @@
 
 #pragma once
 
+#include "D3D12RHIPrivate.h"
 #include "BoundShaderStateCache.h"
 #include "D3D12ShaderResources.h"
+#include "D3D12Residency.h"
+#include "D3D12Util.h"
+#include "D3D12State.h"
 #include "RHIPoolAllocator.h"
 
 constexpr D3D12_RESOURCE_STATES BackBufferBarrierWriteTransitionTargets = D3D12_RESOURCE_STATES(
@@ -40,12 +44,6 @@ enum class ED3D12ResourceStateMode
 	Default,					//< Decide if tracking is required based on flags
 	SingleState,				//< Force disable state tracking of resource - resource will always be in the initial resource state
 	MultiState,					//< Force enable state tracking of resource
-};
-
-enum class ED3D12ResourceTransientMode
-{
-	NonTransient,				//< Resource is not transient
-	Transient,					//< Resource is transient
 };
 
 class FD3D12PendingResourceBarrier
@@ -780,19 +778,6 @@ protected:
 	friend class FD3D12BaseShaderResource;
 	virtual void ResourceRenamed(FD3D12BaseShaderResource* InRenamedResource, FD3D12ResourceLocation* InNewResourceLocation) = 0;
 };
-
-
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-class FD3D12FastClearResource
-{
-public:
-	inline void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
-	{
-		OutData = nullptr;
-		OutSize = 0;
-	}
-};
-#endif
 
 
 /** The base class of resources that may be bound as shader resources (texture or buffer). */

@@ -6,7 +6,7 @@
 #include "VT/RuntimeVirtualTextureEnum.h"
 
 class FRHICommandListImmediate;
-class FRHITexture2D;
+class FRHITexture;
 class FRHIUnorderedAccessView;
 class FRDGBuilder;
 class FRDGTexture;

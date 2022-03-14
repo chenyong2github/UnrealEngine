@@ -148,7 +148,7 @@ public:
 	// Tracks the currently set state blocks.
 	FD3D12RenderTargetView* CurrentRenderTargets[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	FD3D12DepthStencilView* CurrentDepthStencilTarget;
-	FD3D12TextureBase* CurrentDepthTexture;
+	FD3D12Texture* CurrentDepthTexture;
 	uint32 NumSimultaneousRenderTargets;
 
 	/** Track the currently bound uniform buffers. */
@@ -247,8 +247,8 @@ public:
 	template<typename TPixelShader>
 	void ResolveTextureUsingShader(
 		FRHICommandList_RecursiveHazardous& RHICmdList,
-		FD3D12Texture2D* SourceTexture,
-		FD3D12Texture2D* DestTexture,
+		FD3D12Texture* SourceTexture,
+		FD3D12Texture* DestTexture,
 		FD3D12RenderTargetView* DestSurfaceRTV,
 		FD3D12DepthStencilView* DestSurfaceDSV,
 		const D3D12_RESOURCE_DESC& ResolveTargetDesc,
@@ -442,15 +442,15 @@ public:
 		return RetrieveObject<ObjectType, RHIType>(RHIObject, GetGPUIndex());
 	}
 
-	static inline FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture, uint32 GPUIndex)
+	static inline FD3D12Texture* RetrieveTexture(FRHITexture* Texture, uint32 GPUIndex)
 	{
-		FD3D12TextureBase* RHITexture = GetD3D12TextureFromRHITexture(Texture);
+		FD3D12Texture* RHITexture = GetD3D12TextureFromRHITexture(Texture);
 		return RHITexture ? RHITexture->GetLinkedObject(GPUIndex) : nullptr;
 	}
 
-	FORCEINLINE_DEBUGGABLE FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture)
+	FORCEINLINE_DEBUGGABLE FD3D12Texture* RetrieveTexture(FRHITexture* Texture)
 	{
-		return RetrieveTextureBase(Texture, GetGPUIndex());
+		return RetrieveTexture(Texture, GetGPUIndex());
 	}
 
 	uint32 GetGPUIndex() const { return GPUMask.ToIndex(); }

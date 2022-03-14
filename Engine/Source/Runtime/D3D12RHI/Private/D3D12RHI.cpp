@@ -473,25 +473,25 @@ ID3D12Resource* FD3D12DynamicRHI::RHIGetResource(FRHITexture* InTexture) const
 
 uint32 FD3D12DynamicRHI::RHIGetResourceDeviceIndex(FRHITexture* InTexture) const
 {
-	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	FD3D12Texture* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
 	return D3D12Texture->GetParentDevice()->GetGPUIndex();
 }
 
 int64 FD3D12DynamicRHI::RHIGetResourceMemorySize(FRHITexture* InTexture) const
 {
-	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
-	return D3D12Texture->GetMemorySize();
+	FD3D12Texture* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	return D3D12Texture->ResourceLocation.GetSize();
 }
 
 bool FD3D12DynamicRHI::RHIIsResourcePlaced(FRHITexture* InTexture) const
 {
-	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	FD3D12Texture* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
 	return D3D12Texture->GetResource()->IsPlacedResource();
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE FD3D12DynamicRHI::RHIGetRenderTargetView(FRHITexture* InTexture, int32 InMipIndex, int32 InArraySliceIndex) const
 {
-	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	FD3D12Texture* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
 	FD3D12RenderTargetView* RTV = D3D12Texture->GetRenderTargetView(InMipIndex, InArraySliceIndex);
 	return RTV ? RTV->GetView() : D3D12_CPU_DESCRIPTOR_HANDLE{};
 }
@@ -517,7 +517,7 @@ void FD3D12DynamicRHI::RHIRegisterWork(uint32 InDeviceIndex, uint32 NumPrimitive
 
 void FD3D12DynamicRHI::RHIAddPendingBarrier(FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource)
 {
-	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	FD3D12Texture* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
 	FD3D12CommandListHandle& CommandList = D3D12Texture->GetParentDevice()->GetDefaultCommandContext().CommandListHandle;
 
 	CommandList.AddPendingResourceBarrier(D3D12Texture->GetResource(), InState, InSubResource);

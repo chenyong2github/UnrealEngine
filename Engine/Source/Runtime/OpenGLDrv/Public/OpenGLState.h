@@ -192,7 +192,7 @@ public:
 
 struct FTextureStage
 {
-	class FOpenGLTextureBase* Texture;
+	class FOpenGLTexture* Texture;
 	class FOpenGLShaderResourceView* SRV;
 	GLenum Target;
 	GLuint Resource;
@@ -434,10 +434,10 @@ struct FOpenGLRHIState final : public FOpenGLCommonState
 
 	// Pending framebuffer setup
 	int32							FirstNonzeroRenderTarget;
-	FOpenGLTextureBase*				RenderTargets[MaxSimultaneousRenderTargets];
+	FOpenGLTexture*					RenderTargets[MaxSimultaneousRenderTargets];
 	uint32							RenderTargetMipmapLevels[MaxSimultaneousRenderTargets];
 	uint32							RenderTargetArrayIndex[MaxSimultaneousRenderTargets];
-	FOpenGLTextureBase*				DepthStencil;
+	FOpenGLTexture*					DepthStencil;
 	ERenderTargetStoreAction		StencilStoreAction;
 	uint32							DepthTargetWidth;
 	uint32							DepthTargetHeight;

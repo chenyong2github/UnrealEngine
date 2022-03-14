@@ -36,7 +36,7 @@ public:
 
 	void Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,EPixelFormat Format);
 	
-	TRefCountPtr<FAGXTexture2D> GetBackBuffer(EAGXViewportAccessFlag Accessor) const;
+	TRefCountPtr<FAGXSurface> GetBackBuffer(EAGXViewportAccessFlag Accessor) const;
 	id<CAMetalDrawable> GetDrawable(EAGXViewportAccessFlag Accessor);
 	FAGXTexture GetDrawableTexture(EAGXViewportAccessFlag Accessor);
 	ns::AutoReleased<FAGXTexture> GetCurrentTexture(EAGXViewportAccessFlag Accessor);
@@ -65,7 +65,7 @@ private:
 
 private:
 	id<CAMetalDrawable> Drawable;
-	TRefCountPtr<FAGXTexture2D> BackBuffer[2];
+	TRefCountPtr<FAGXSurface> BackBuffer[2];
 	mutable FCriticalSection Mutex;
 	
 	ns::AutoReleased<FAGXTexture> DrawableTextures[2];
@@ -73,7 +73,7 @@ private:
 	uint32 DisplayID;
 	FAGXViewportPresentHandler Block;
 	volatile int32 FrameAvailable;
-	TRefCountPtr<FAGXTexture2D> LastCompleteFrame;
+	TRefCountPtr<FAGXSurface> LastCompleteFrame;
 	bool bIsFullScreen;
 
 #if PLATFORM_MAC

@@ -36,7 +36,7 @@ public:
 
 	void Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,EPixelFormat Format);
 	
-	TRefCountPtr<FMetalTexture2D> GetBackBuffer(EMetalViewportAccessFlag Accessor) const;
+	TRefCountPtr<FMetalSurface> GetBackBuffer(EMetalViewportAccessFlag Accessor) const;
 	id<CAMetalDrawable> GetDrawable(EMetalViewportAccessFlag Accessor);
 	FMetalTexture GetDrawableTexture(EMetalViewportAccessFlag Accessor);
 	ns::AutoReleased<FMetalTexture> GetCurrentTexture(EMetalViewportAccessFlag Accessor);
@@ -65,7 +65,7 @@ private:
 
 private:
 	id<CAMetalDrawable> Drawable;
-	TRefCountPtr<FMetalTexture2D> BackBuffer[2];
+	TRefCountPtr<FMetalSurface> BackBuffer[2];
 	mutable FCriticalSection Mutex;
 	
 	ns::AutoReleased<FMetalTexture> DrawableTextures[2];
@@ -73,7 +73,7 @@ private:
 	uint32 DisplayID;
 	FMetalViewportPresentHandler Block;
 	volatile int32 FrameAvailable;
-	TRefCountPtr<FMetalTexture2D> LastCompleteFrame;
+	TRefCountPtr<FMetalSurface> LastCompleteFrame;
 	bool bIsFullScreen;
 
 #if PLATFORM_MAC

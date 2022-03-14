@@ -500,8 +500,8 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				FAGXSurface& Surface = *AGXGetMetalSurfaceFromRHITexture(RenderTargetView.RenderTarget);
 				FormatKey = Surface.FormatKey;
 				
-				uint32 Width = FMath::Max((uint32)(Surface.SizeX >> RenderTargetView.MipIndex), (uint32)1);
-				uint32 Height = FMath::Max((uint32)(Surface.SizeY >> RenderTargetView.MipIndex), (uint32)1);
+				uint32 Width = FMath::Max((uint32)(Surface.GetDesc().Extent.X >> RenderTargetView.MipIndex), (uint32)1);
+				uint32 Height = FMath::Max((uint32)(Surface.GetDesc().Extent.Y >> RenderTargetView.MipIndex), (uint32)1);
 				if(!bFramebufferSizeSet)
 				{
 					bFramebufferSizeSet = true;
@@ -516,9 +516,14 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 	
 				// if this is the back buffer, make sure we have a usable drawable
 				ConditionalUpdateBackBuffer(Surface);
-	
+				FAGXSurface* ResolveSurface = AGXGetMetalSurfaceFromRHITexture(RenderTargetView.ResolveTarget);
+				if (ResolveSurface)
+				{
+					ConditionalUpdateBackBuffer(*ResolveSurface);
+				}
+
 				BoundTargets |= 1 << RenderTargetIndex;
-            
+
 #if !PLATFORM_MAC
                 if (Surface.Texture.GetPtr() == nil)
                 {
@@ -527,22 +532,23 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
                     return true;
                 }
 #endif
-				
+
 				// The surface cannot be nil - we have to have a valid render-target array after this call.
 				check (Surface.Texture);
 	
 				// user code generally passes -1 as a default, but we need 0
 				uint32 ArraySliceIndex = RenderTargetView.ArraySlice == 0xFFFFFFFF ? 0 : RenderTargetView.ArraySlice;
-				if (Surface.bIsCubemap)
+				if (Surface.GetDesc().IsTextureCube())
 				{
 					ArraySliceIndex = GetMetalCubeFace((ECubeFace)ArraySliceIndex);
 				}
 				
-				switch(Surface.Type)
+				switch(Surface.GetDesc().Dimension)
 				{
-					case RRT_Texture2DArray:
-					case RRT_Texture3D:
-					case RRT_TextureCube:
+					case ETextureDimension::Texture2DArray:
+					case ETextureDimension::Texture3D:
+					case ETextureDimension::TextureCube:
+					case ETextureDimension::TextureCubeArray:
 						if(RenderTargetView.ArraySlice == 0xFFFFFFFF)
 						{
 							ArrayTargets |= (1 << RenderTargetIndex);
@@ -573,9 +579,9 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 					HighLevelLoadAction == ERenderTargetLoadAction::ELoad);
 #endif
 				
+				bool bMemoryless = false;
 				if (Surface.MSAATexture && !bUseResolvedTexture)
 				{
-					bool bMemoryless = false;
 #if PLATFORM_IOS
 					if (Surface.MSAATexture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 					{
@@ -592,7 +598,6 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				}
 				else
 				{
-					bool bMemoryless = false;
 #if PLATFORM_IOS
 					if (Surface.Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 					{
@@ -609,7 +614,7 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				}
 				
 				ColorAttachment.SetLevel(RenderTargetView.MipIndex);
-				if(Surface.Type == RRT_Texture3D)
+				if(Surface.GetDesc().IsTexture3D())
 				{
 					ColorAttachment.SetSlice(0);
 					ColorAttachment.SetDepthPlane(ArraySliceIndex);
@@ -631,7 +636,9 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 					ColorAttachment.SetClearColor(mtlpp::ClearColor(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A));
 				}
 
-				bCanRestartRenderPass &= (SampleCount <= 1) && (ColorAttachment.GetLoadAction() == mtlpp::LoadAction::Load) && (HighLevelStoreAction == ERenderTargetStoreAction::EStore);
+				bCanRestartRenderPass &= 	!bMemoryless &&
+											ColorAttachment.GetLoadAction() == mtlpp::LoadAction::Load &&
+											HighLevelStoreAction != ERenderTargetStoreAction::ENoAction;
 	
 				bHasValidRenderTarget = true;
 				bHasValidColorTarget = true;
@@ -670,11 +677,12 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 		{
 			FAGXSurface& Surface = *AGXGetMetalSurfaceFromRHITexture(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget);
 			
-			switch(Surface.Type)
+			switch(Surface.GetDesc().Dimension)
 			{
-				case RRT_Texture2DArray:
-				case RRT_Texture3D:
-				case RRT_TextureCube:
+				case ETextureDimension::Texture2DArray:
+				case ETextureDimension::Texture3D:
+				case ETextureDimension::TextureCube:
+				case ETextureDimension::TextureCubeArray:
 					ArrayRenderLayers = Surface.GetNumFaces();
 					break;
 				default:
@@ -693,13 +701,13 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 			if(!bFramebufferSizeSet)
 			{
 				bFramebufferSizeSet = true;
-				FrameBufferSize.width = Surface.SizeX;
-				FrameBufferSize.height = Surface.SizeY;
+				FrameBufferSize.width  = Surface.GetDesc().Extent.X;
+				FrameBufferSize.height = Surface.GetDesc().Extent.Y;
 			}
 			else
 			{
-				FrameBufferSize.width = FMath::Min(FrameBufferSize.width, (CGFloat)Surface.SizeX);
-				FrameBufferSize.height = FMath::Min(FrameBufferSize.height, (CGFloat)Surface.SizeY);
+				FrameBufferSize.width = FMath::Min(FrameBufferSize.width, (CGFloat)Surface.GetDesc().Extent.X);
+				FrameBufferSize.height = FMath::Min(FrameBufferSize.height, (CGFloat)Surface.GetDesc().Extent.Y);
 			}
 			
 			EPixelFormat DepthStencilPixelFormat = RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget->GetFormat();
@@ -859,7 +867,12 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				bHasValidRenderTarget = true;
 				bFallbackDepthStencilBound = (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget == FallbackDepthStencilSurface);
 
-				bCanRestartRenderPass &= (SampleCount <= 1) && ((RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget == FallbackDepthStencilSurface) || ((DepthAttachment.GetLoadAction() == mtlpp::LoadAction::Load) && (!RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsDepthWrite() || (DepthStoreAction == ERenderTargetStoreAction::EStore))));
+				bool bDepthMSAARestart = !bDepthTextureMemoryless && HighLevelStoreAction == ERenderTargetStoreAction::EMultisampleResolve;
+				bCanRestartRenderPass &=	(DepthSampleCount <= 1 || bDepthMSAARestart) &&
+											(
+												(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget == FallbackDepthStencilSurface) ||
+												((DepthAttachment.GetLoadAction() == mtlpp::LoadAction::Load) && (bDepthMSAARestart || !RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsDepthWrite() || DepthStoreAction == ERenderTargetStoreAction::EStore))
+											);
 				
 				// and assign it
 				RenderPass.SetDepthAttachment(DepthAttachment);
@@ -921,7 +934,12 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				
 				// @todo Stencil writes that need to persist must use ERenderTargetStoreAction::EStore on iOS.
 				// We should probably be using deferred store actions so that we can safely lazily instantiate encoders.
-				bCanRestartRenderPass &= (SampleCount <= 1) && ((RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget == FallbackDepthStencilSurface) || ((StencilAttachment.GetLoadAction() == mtlpp::LoadAction::Load) && (1 || !RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsStencilWrite() || (StencilStoreAction == ERenderTargetStoreAction::EStore))));
+				bool bStencilMSAARestart = !bStencilMemoryless && HighLevelStoreAction != ERenderTargetStoreAction::ENoAction;
+				bCanRestartRenderPass &= 	(bStencilMSAARestart || SampleCount <= 1) &&
+											(
+												(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget == FallbackDepthStencilSurface) ||
+												((StencilAttachment.GetLoadAction() == mtlpp::LoadAction::Load) && (bStencilMSAARestart || !RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsStencilWrite() || (StencilStoreAction == ERenderTargetStoreAction::EStore)))
+											);
 				
 				// and assign it
 				RenderPass.SetStencilAttachment(StencilAttachment);
@@ -1178,7 +1196,7 @@ void FAGXStateCache::SetVisibilityResultMode(mtlpp::VisibilityResultMode const M
 void FAGXStateCache::ConditionalUpdateBackBuffer(FAGXSurface& Surface)
 {
 	// are we setting the back buffer? if so, make sure we have the drawable
-	if (EnumHasAnyFlags(Surface.Flags, TexCreate_Presentable))
+	if (EnumHasAnyFlags(Surface.GetDesc().Flags, TexCreate_Presentable))
 	{
 		// update the back buffer texture the first time used this frame
 		if (Surface.Texture.GetPtr() == nil)
@@ -1436,48 +1454,33 @@ void FAGXStateCache::SetShaderResourceView(FAGXContext* Context, EAGXShaderStage
 {
 	if (SRV)
 	{
-		FRHITexture* Texture = SRV->SourceTexture.GetReference();
-		FAGXVertexBuffer* VB = SRV->SourceVertexBuffer.GetReference();
-		FAGXIndexBuffer* IB = SRV->SourceIndexBuffer.GetReference();
-		FAGXStructuredBuffer* SB = SRV->SourceStructuredBuffer.GetReference();
-		if (Texture)
+		if (SRV->bTexture)
 		{
-			FAGXSurface* Surface = SRV->TextureView;
-			if (Surface != nullptr)
+			FAGXTexture const& View = SRV->GetTextureView();
+			if (View)
 			{
-				SetShaderTexture(ShaderStage, Surface->Texture, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
+				SetShaderTexture(ShaderStage, View, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
 			}
 			else
 			{
 				SetShaderTexture(ShaderStage, nil, BindIndex, mtlpp::ResourceUsage(0));
 			}
 		}
-		else if (IsLinearBuffer(ShaderStage, BindIndex) && SRV->GetLinearTexture(false))
+		else
 		{
-			ns::AutoReleased<FAGXTexture> Tex;
-			Tex = SRV->GetLinearTexture(false);
-			
-			SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
-			if (VB)
-            {
-				SetShaderBuffer(ShaderStage, VB->GetCurrentBufferOrNil(), VB->Data, SRV->Offset, VB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
-            }
-            else if (IB)
-            {
-                SetShaderBuffer(ShaderStage, IB->GetCurrentBufferOrNil(), nil, SRV->Offset, IB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
-            }
-		}
-		else if (VB)
-		{
-			SetShaderBuffer(ShaderStage, VB->GetCurrentBufferOrNil(), VB->Data, SRV->Offset, VB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
-		}
-		else if (IB)
-		{
-			SetShaderBuffer(ShaderStage, IB->GetCurrentBufferOrNil(), nil, SRV->Offset, IB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
-		}
-		else if (SB)
-		{
-			SetShaderBuffer(ShaderStage, SB->GetCurrentBufferOrNil(), nil, SRV->Offset, SB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read);
+			FAGXResourceMultiBuffer* Buffer = SRV->GetSourceBuffer();
+
+			if (IsLinearBuffer(ShaderStage, BindIndex) && SRV->GetLinearTexture())
+			{
+				ns::AutoReleased<FAGXTexture> Tex;
+				Tex = SRV->GetLinearTexture();
+
+				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
+			}
+			else 
+			{
+				SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, SRV->Offset, Buffer->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
+			}
 		}
 	}
 }
@@ -1512,68 +1515,21 @@ void FAGXStateCache::SetShaderUnorderedAccessView(EAGXShaderStages ShaderStage, 
 {
 	if (UAV)
 	{
-		// figure out which one of the resources we need to set
-		FAGXStructuredBuffer* StructuredBuffer = UAV->SourceView->SourceStructuredBuffer.GetReference();
-		FAGXVertexBuffer* VertexBuffer = UAV->SourceView->SourceVertexBuffer.GetReference();
-		FAGXIndexBuffer* IndexBuffer = UAV->SourceView->SourceIndexBuffer.GetReference();
-		FRHITexture* Texture = UAV->SourceView->SourceTexture.GetReference();
-		FAGXSurface* Surface = UAV->SourceView->TextureView;
-		if (StructuredBuffer)
+		if (UAV->bTexture)
 		{
-			SetShaderBuffer(ShaderStage, StructuredBuffer->GetCurrentBufferOrNil(), nil, 0, StructuredBuffer->GetSize(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
-		}
-		else if (VertexBuffer)
-		{
-			check(!VertexBuffer->Data && VertexBuffer->GetCurrentBufferOrNil());
-			if (IsLinearBuffer(ShaderStage, BindIndex) && UAV->SourceView->GetLinearTexture(true))
+			FAGXSurface* Surface = UAV->GetSourceTexture();
+			FAGXTexture const& View = UAV->GetTextureView();
+
+			if (View)
 			{
-				ns::AutoReleased<FAGXTexture> Tex;
-				Tex = UAV->SourceView->GetLinearTexture(true);
-				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
-                
-                SetShaderBuffer(ShaderStage, VertexBuffer->GetCurrentBufferOrNil(), VertexBuffer->Data, 0, VertexBuffer->GetSize(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), (EPixelFormat)UAV->SourceView->Format);
-			}
-			else
-			{
-				SetShaderBuffer(ShaderStage, VertexBuffer->GetCurrentBufferOrNil(), VertexBuffer->Data, 0, VertexBuffer->GetSize(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), (EPixelFormat)UAV->SourceView->Format);
-			}
-		}
-		else if (IndexBuffer)
-		{
-			check(IndexBuffer->GetCurrentBufferOrNil());
-			if (IsLinearBuffer(ShaderStage, BindIndex) && UAV->SourceView->GetLinearTexture(true))
-			{
-				ns::AutoReleased<FAGXTexture> Tex;
-				Tex = UAV->SourceView->GetLinearTexture(true);
-				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
-				
-				SetShaderBuffer(ShaderStage, IndexBuffer->GetCurrentBufferOrNil(), nullptr, 0, IndexBuffer->GetSize(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), (EPixelFormat)UAV->SourceView->Format);
-			}
-			else
-			{
-				SetShaderBuffer(ShaderStage, IndexBuffer->GetCurrentBufferOrNil(), nullptr, 0, IndexBuffer->GetSize(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), (EPixelFormat)UAV->SourceView->Format);
-			}
-		}
-		else if (Texture)
-		{
-			if (!Surface)
-			{
-				Surface = AGXGetMetalSurfaceFromRHITexture(Texture);
-			}
-			if (Surface != nullptr)
-			{
-				FAGXSurface* Source = AGXGetMetalSurfaceFromRHITexture(Texture);
-				
 				FPlatformAtomics::InterlockedExchange(&Surface->Written, 1);
-				FPlatformAtomics::InterlockedExchange(&Source->Written, 1);
-				
-				SetShaderTexture(ShaderStage, Surface->Texture, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
-				
-				if (Surface->Texture.GetBuffer() &&
-					(EnumHasAllFlags(Source->Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(Source->Flags, TexCreate_AtomicCompatible)))
+
+				SetShaderTexture(ShaderStage, View, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
+
+				if (Surface->Texture.GetBuffer() && (EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_AtomicCompatible)))
 				{
 					uint32 BytesPerRow = Surface->Texture.GetBufferBytesPerRow();
-					uint32 ElementsPerRow = BytesPerRow / GPixelFormats[(EPixelFormat)Texture->GetFormat()].BlockBytes;
+					uint32 ElementsPerRow = BytesPerRow / GPixelFormats[(EPixelFormat)Surface->GetFormat()].BlockBytes;
 					
 					FAGXBuffer Buffer(Surface->Texture.GetBuffer(), false);
 					const uint32 BufferOffset = Surface->Texture.GetBufferOffset();
@@ -1585,6 +1541,20 @@ void FAGXStateCache::SetShaderUnorderedAccessView(EAGXShaderStages ShaderStage, 
 			{
 				SetShaderTexture(ShaderStage, nil, BindIndex, mtlpp::ResourceUsage(0));
 			}
+		}
+		else
+		{
+			FAGXResourceMultiBuffer* Buffer = UAV->GetSourceBuffer();
+			check(!Buffer->Data && Buffer->GetCurrentBufferOrNil());
+
+			if (IsLinearBuffer(ShaderStage, BindIndex) && UAV->GetLinearTexture())
+			{
+				ns::AutoReleased<FAGXTexture> Tex;
+				Tex = UAV->GetLinearTexture();
+				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
+			}
+
+			SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, 0, Buffer->GetSize(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), (EPixelFormat)UAV->Format);
 		}
 	}
 }
@@ -1764,67 +1734,74 @@ bool FAGXStateCache::PrepareToRestart(bool const bCurrentApplied)
 	}
 	else
 	{
-		if (SampleCount <= 1)
+		FRHIRenderPassInfo Info = GetRenderPassInfo();
+		
+		ERenderTargetActions DepthActions = GetDepthActions(Info.DepthStencilRenderTarget.Action);
+		ERenderTargetActions StencilActions = GetStencilActions(Info.DepthStencilRenderTarget.Action);
+		ERenderTargetLoadAction DepthLoadAction = GetLoadAction(DepthActions);
+		ERenderTargetStoreAction DepthStoreAction = GetStoreAction(DepthActions);
+		ERenderTargetLoadAction StencilLoadAction = GetLoadAction(StencilActions);
+		ERenderTargetStoreAction StencilStoreAction = GetStoreAction(StencilActions);
+
+		if (Info.DepthStencilRenderTarget.DepthStencilTarget)
 		{
-			FRHIRenderPassInfo Info = GetRenderPassInfo();
-			
-			ERenderTargetActions DepthActions = GetDepthActions(Info.DepthStencilRenderTarget.Action);
-			ERenderTargetActions StencilActions = GetStencilActions(Info.DepthStencilRenderTarget.Action);
-			ERenderTargetLoadAction DepthLoadAction = GetLoadAction(DepthActions);
-			ERenderTargetStoreAction DepthStoreAction = GetStoreAction(DepthActions);
-			ERenderTargetLoadAction StencilLoadAction = GetLoadAction(StencilActions);
-			ERenderTargetStoreAction StencilStoreAction = GetStoreAction(StencilActions);
-
-			if (Info.DepthStencilRenderTarget.DepthStencilTarget)
+			if(bCurrentApplied && Info.DepthStencilRenderTarget.ExclusiveDepthStencil.IsDepthWrite() && DepthStoreAction == ERenderTargetStoreAction::ENoAction)
 			{
-				if (bCurrentApplied || DepthLoadAction != ERenderTargetLoadAction::EClear)
-				{
-					DepthLoadAction = ERenderTargetLoadAction::ELoad;
-				}
-				if (Info.DepthStencilRenderTarget.ExclusiveDepthStencil.IsDepthWrite())
-				{
-					DepthStoreAction = ERenderTargetStoreAction::EStore;
-				}
+				return false;
+			}
+			if (bCurrentApplied && Info.DepthStencilRenderTarget.ExclusiveDepthStencil.IsStencilWrite() && StencilStoreAction == ERenderTargetStoreAction::ENoAction)
+			{
+				return false;
+			}
+		
+			if (bCurrentApplied || DepthLoadAction != ERenderTargetLoadAction::EClear)
+			{
+				DepthLoadAction = ERenderTargetLoadAction::ELoad;
+			}
+			if (Info.DepthStencilRenderTarget.ExclusiveDepthStencil.IsDepthWrite())
+			{
+				DepthStoreAction = ERenderTargetStoreAction::EStore;
+			}
 
-				if (bCurrentApplied || StencilLoadAction != ERenderTargetLoadAction::EClear)
-				{
-					StencilLoadAction = ERenderTargetLoadAction::ELoad;
-				}
-				if (Info.DepthStencilRenderTarget.ExclusiveDepthStencil.IsStencilWrite())
-				{
-					StencilStoreAction = ERenderTargetStoreAction::EStore;
-				}
-				
-				DepthActions = MakeRenderTargetActions(DepthLoadAction, DepthStoreAction);
-				StencilActions = MakeRenderTargetActions(StencilLoadAction, StencilStoreAction);
-				Info.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(DepthActions, StencilActions);
+			if (bCurrentApplied || StencilLoadAction != ERenderTargetLoadAction::EClear)
+			{
+				StencilLoadAction = ERenderTargetLoadAction::ELoad;
+			}
+			if (Info.DepthStencilRenderTarget.ExclusiveDepthStencil.IsStencilWrite())
+			{
+				StencilStoreAction = ERenderTargetStoreAction::EStore;
 			}
 			
-			for (int32 RenderTargetIndex = 0; RenderTargetIndex < Info.GetNumColorRenderTargets(); RenderTargetIndex++)
+			DepthActions = MakeRenderTargetActions(DepthLoadAction, DepthStoreAction);
+			StencilActions = MakeRenderTargetActions(StencilLoadAction, StencilStoreAction);
+			Info.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(DepthActions, StencilActions);
+		}
+		
+		for (int32 RenderTargetIndex = 0; RenderTargetIndex < Info.GetNumColorRenderTargets(); RenderTargetIndex++)
+		{
+			FRHIRenderPassInfo::FColorEntry& RenderTargetView = Info.ColorRenderTargets[RenderTargetIndex];
+			ERenderTargetLoadAction LoadAction = GetLoadAction(RenderTargetView.Action);
+			ERenderTargetStoreAction StoreAction = GetStoreAction(RenderTargetView.Action);
+			
+			if(bCurrentApplied && StoreAction == ERenderTargetStoreAction::ENoAction)
 			{
-				FRHIRenderPassInfo::FColorEntry& RenderTargetView = Info.ColorRenderTargets[RenderTargetIndex];
-				ERenderTargetLoadAction LoadAction = GetLoadAction(RenderTargetView.Action);
-				ERenderTargetStoreAction StoreAction = GetStoreAction(RenderTargetView.Action);
-				
-				if (!bCurrentApplied && LoadAction == ERenderTargetLoadAction::EClear)
-				{
-					StoreAction == ERenderTargetStoreAction::EStore;
-				}
-				else
-				{
-					LoadAction = ERenderTargetLoadAction::ELoad;
-				}
-				RenderTargetView.Action = MakeRenderTargetActions(LoadAction, StoreAction);
-				check(RenderTargetView.RenderTarget == nil || GetStoreAction(RenderTargetView.Action) == ERenderTargetStoreAction::EStore);
+				return false;
 			}
 			
-			InvalidateRenderTargets();
-			return SetRenderPassInfo(Info, GetVisibilityResultsBuffer(), true) && CanRestartRenderPass();
+			if (!bCurrentApplied && LoadAction == ERenderTargetLoadAction::EClear)
+			{
+				StoreAction == ERenderTargetStoreAction::EStore;
+			}
+			else
+			{
+				LoadAction = ERenderTargetLoadAction::ELoad;
+			}
+			RenderTargetView.Action = MakeRenderTargetActions(LoadAction, StoreAction);
+			check(RenderTargetView.RenderTarget == nil || GetStoreAction(RenderTargetView.Action) != ERenderTargetStoreAction::ENoAction);
 		}
-		else
-		{
-			return false;
-		}
+		
+		InvalidateRenderTargets();
+		return SetRenderPassInfo(Info, GetVisibilityResultsBuffer(), true) && CanRestartRenderPass();
 	}
 }
 

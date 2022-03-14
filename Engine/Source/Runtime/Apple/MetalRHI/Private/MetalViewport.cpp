@@ -238,29 +238,35 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
     {
         FScopeLock Lock(&Mutex);
-        FRHIResourceCreateInfo CreateInfo(TEXT("BackBuffer"));
-        FTexture2DRHIRef NewBackBuffer;
-        FTexture2DRHIRef DoubleBuffer;
-        if (GMetalSupportsIntermediateBackBuffer)
+
+		TRefCountPtr<FMetalSurface> NewBackBuffer;
+		TRefCountPtr<FMetalSurface> DoubleBuffer;
+
+		ETextureCreateFlags Flags = GMetalSupportsIntermediateBackBuffer
+			? TexCreate_RenderTargetable
+			: TexCreate_RenderTargetable | TexCreate_Presentable;
+
+		FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(
+			  TEXT("BackBuffer")
+			, { (int32)InSizeX, (int32)InSizeY }
+			, Format
+			, FClearValueBinding::None
+			, Flags
+		);
+
+		NewBackBuffer = new FMetalSurface(CreateDesc);
+		NewBackBuffer->Viewport = this;
+
+        if (GMetalSupportsIntermediateBackBuffer && GMetalSeparatePresentThread)
         {
-            NewBackBuffer = (FMetalTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Unknown, CreateInfo);
-            
-            if (GMetalSeparatePresentThread)
-            {
-                DoubleBuffer = GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Unknown, CreateInfo);
-                ((FMetalTexture2D*)DoubleBuffer.GetReference())->Surface.Viewport = this;
-            }
+            DoubleBuffer = new FMetalSurface(CreateDesc);
+            DoubleBuffer->Viewport = this;
         }
-        else
-        {
-            NewBackBuffer = (FMetalTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable | TexCreate_Presentable, ERHIAccess::Unknown, CreateInfo);
-        }
-        ((FMetalTexture2D*)NewBackBuffer.GetReference())->Surface.Viewport = this;
-        
-        BackBuffer[Index] = (FMetalTexture2D*)NewBackBuffer.GetReference();
+
+        BackBuffer[Index] = NewBackBuffer;
         if (GMetalSeparatePresentThread)
         {
-            BackBuffer[EMetalViewportAccessRHI] = (FMetalTexture2D*)DoubleBuffer.GetReference();
+            BackBuffer[EMetalViewportAccessRHI] = DoubleBuffer;
         }
         else
         {
@@ -269,7 +275,7 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
     }
 }
 
-TRefCountPtr<FMetalTexture2D> FMetalViewport::GetBackBuffer(EMetalViewportAccessFlag Accessor) const
+TRefCountPtr<FMetalSurface> FMetalViewport::GetBackBuffer(EMetalViewportAccessFlag Accessor) const
 {
 	FScopeLock Lock(&Mutex);
 	
@@ -405,7 +411,7 @@ void FMetalViewport::ReleaseDrawable()
 
 		if (!GMetalSupportsIntermediateBackBuffer && IsValidRef(BackBuffer[GetViewportIndex(EMetalViewportAccessRHI)]))
 		{
-			BackBuffer[GetViewportIndex(EMetalViewportAccessRHI)]->Surface.Texture = nil;
+			BackBuffer[GetViewportIndex(EMetalViewportAccessRHI)]->Texture = nil;
 		}
 	}
 }
@@ -470,10 +476,10 @@ void FMetalViewport::Present(FMetalCommandQueue& CommandQueue, bool bLockToVsync
 						
 						if (GMetalSupportsIntermediateBackBuffer)
 						{
-							TRefCountPtr<FMetalTexture2D> Texture = LastCompleteFrame;
+							TRefCountPtr<FMetalSurface> Texture = LastCompleteFrame;
 							check(IsValidRef(Texture));
 							
-							FMetalTexture Src = Texture->Surface.Texture;
+							FMetalTexture Src = Texture->Texture;
 							FMetalTexture Dst = LocalDrawable.texture;
 							
 							NSUInteger Width = FMath::Min(Src.GetWidth(), Dst.GetWidth());
@@ -585,8 +591,8 @@ void FMetalViewport::Swap()
 		check(IsValidRef(BackBuffer[0]));
 		check(IsValidRef(BackBuffer[1]));
 		
-		TRefCountPtr<FMetalTexture2D> BB0 = BackBuffer[0];
-		TRefCountPtr<FMetalTexture2D> BB1 = BackBuffer[1];
+		TRefCountPtr<FMetalSurface> BB0 = BackBuffer[0];
+		TRefCountPtr<FMetalSurface> BB1 = BackBuffer[1];
 		
 		BackBuffer[0] = BB1;
 		BackBuffer[1] = BB0;

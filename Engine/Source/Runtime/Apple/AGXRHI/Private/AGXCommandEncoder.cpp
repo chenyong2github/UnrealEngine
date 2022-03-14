@@ -1128,21 +1128,23 @@ void FAGXCommandEncoder::FenceResource(mtlpp::Buffer const& Resource)
 
 void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, uint32 Index)
 {
-	NSUInteger Offset = ShaderBuffers[uint32(Function)].Offsets[Index];
-	mtlpp::ResourceUsage Usage = ShaderBuffers[uint32(Function)].Usage[Index];
-	bool bBufferHasBytes = ShaderBuffers[uint32(Function)].Bytes[Index] != nil;
-	if (!ShaderBuffers[uint32(Function)].Buffers[Index] && bBufferHasBytes && !bSupportsMetalFeaturesSetBytes)
+	FAGXBufferBindings& Binding = ShaderBuffers[uint32(Function)];
+
+	NSUInteger Offset = Binding.Offsets[Index];
+	
+	bool bBufferHasBytes = Binding.Bytes[Index] != nil;
+	if (!Binding.Buffers[Index] && bBufferHasBytes && !bSupportsMetalFeaturesSetBytes)
 	{
-		uint8 const* Bytes = (((uint8 const*)ShaderBuffers[uint32(Function)].Bytes[Index]->Data) + ShaderBuffers[uint32(Function)].Offsets[Index]);
-		uint32 Len = ShaderBuffers[uint32(Function)].Bytes[Index]->Len - ShaderBuffers[uint32(Function)].Offsets[Index];
+		uint8 const* Bytes = (((uint8 const*)Binding.Bytes[Index]->Data) + Binding.Offsets[Index]);
+		uint32 Len = Binding.Bytes[Index]->Len - Binding.Offsets[Index];
 		
 		Offset = 0;
-		ShaderBuffers[uint32(Function)].Buffers[Index] = RingBuffer.NewBuffer(Len, BufferOffsetAlignment);
+		Binding.Buffers[Index] = RingBuffer.NewBuffer(Len, BufferOffsetAlignment);
 		
-		FMemory::Memcpy(((uint8*)ShaderBuffers[uint32(Function)].Buffers[Index].GetContents()) + Offset, Bytes, Len);
+		FMemory::Memcpy(((uint8*)Binding.Buffers[Index].GetContents()) + Offset, Bytes, Len);
 	}
 	
-	ns::AutoReleased<FAGXBuffer>& Buffer = ShaderBuffers[uint32(Function)].Buffers[Index];
+	ns::AutoReleased<FAGXBuffer>& Buffer = Binding.Buffers[Index];
 	if (Buffer)
 	{
 #if METAL_DEBUG_OPTIONS
@@ -1155,22 +1157,25 @@ void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, u
 		switch (Function)
 		{
 			case mtlpp::FunctionType::Vertex:
-				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
+				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				FenceResource(Buffer);
 				RenderCommandEncoder.SetVertexBuffer(Buffer, Offset, Index);
 				break;
+
 			case mtlpp::FunctionType::Fragment:
-				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
+				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				RenderCommandEncoder.SetFragmentBuffer(Buffer, Offset, Index);
 				break;
+
 			case mtlpp::FunctionType::Kernel:
-				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
+				Binding.Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
 				FenceResource(Buffer);
 				ComputeCommandEncoder.SetBuffer(Buffer, Offset, Index);
 				break;
+
 			default:
 				check(false);
 				break;
@@ -1178,34 +1183,37 @@ void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, u
 		
 		if (Buffer.IsSingleUse())
 		{
-			ShaderBuffers[uint32(Function)].Usage[Index] = mtlpp::ResourceUsage(0);
-			ShaderBuffers[uint32(Function)].Offsets[Index] = 0;
-			ShaderBuffers[uint32(Function)].Buffers[Index] = nil;
-			ShaderBuffers[uint32(Function)].Bound &= ~(1 << Index);
+			Binding.Usage[Index] = mtlpp::ResourceUsage(0);
+			Binding.Offsets[Index] = 0;
+			Binding.Buffers[Index] = nil;
+			Binding.Bound &= ~(1 << Index);
 		}
 	}
 	else if (bBufferHasBytes && bSupportsMetalFeaturesSetBytes)
 	{
-		uint8 const* Bytes = (((uint8 const*)ShaderBuffers[uint32(Function)].Bytes[Index]->Data) + ShaderBuffers[uint32(Function)].Offsets[Index]);
-		uint32 Len = ShaderBuffers[uint32(Function)].Bytes[Index]->Len - ShaderBuffers[uint32(Function)].Offsets[Index];
+		uint8 const* Bytes = (((uint8 const*)Binding.Bytes[Index]->Data) + Binding.Offsets[Index]);
+		uint32 Len = Binding.Bytes[Index]->Len - Binding.Offsets[Index];
 		
 		switch (Function)
 		{
 			case mtlpp::FunctionType::Vertex:
-				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
+				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				RenderCommandEncoder.SetVertexData(Bytes, Len, Index);
 				break;
+
 			case mtlpp::FunctionType::Fragment:
-				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
+				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				RenderCommandEncoder.SetFragmentData(Bytes, Len, Index);
 				break;
+
 			case mtlpp::FunctionType::Kernel:
-				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
+				Binding.Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
 				ComputeCommandEncoder.SetBytes(Bytes, Len, Index);
 				break;
+
 			default:
 				check(false);
 				break;

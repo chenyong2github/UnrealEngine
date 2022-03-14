@@ -86,19 +86,34 @@ namespace UE::PixelStreaming
 	inline FTexture2DRHIRef CreateTexture(uint32 Width, uint32 Height)
 	{
 		// Create empty texture
-		FRHIResourceCreateInfo CreateInfo(TEXT("BlankTexture"));
+		ETextureCreateFlags Flags;
+		ERHIAccess InitialState;
 
-		FTexture2DRHIRef Texture;
 
 		if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 		{
-			Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable | TexCreate_External, ERHIAccess::Present, CreateInfo);
+			Flags = TexCreate_RenderTargetable | TexCreate_External;
+			InitialState = ERHIAccess::Present;
 		}
 		else
 		{
-			Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
+			Flags = TexCreate_RenderTargetable | TexCreate_Shared;
+			InitialState = ERHIAccess::CopyDest;
 		}
-		return Texture;
+
+		FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
+			TEXT("PixelStreamingBlankTexture"),
+			{ (int32)Width, (int32)Height },
+			EPixelFormat::PF_B8G8R8A8,
+			FClearValueBinding::None,
+			Flags,
+			1,
+			1,
+			0,
+			InitialState
+		);
+
+		return GDynamicRHI->RHICreateTexture(Desc);
 	}
 
 	inline void ReadTextureToCPU(FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef& TextureRef, TArray<FColor>& OutPixels)

@@ -393,7 +393,7 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 //
 struct FDepthStencilSubresTransition
 {
-	FVulkanTextureBase* Texture;
+	FVulkanTexture* Texture;
 	int ArraySlice;
 	ERHIAccess SrcDepthAccess;
 	ERHIAccess DestDepthAccess;
@@ -643,8 +643,8 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		if (Info.Type == FRHITransitionInfo::EType::Texture)
 		{
 			// CPU accessible "textures" are implemented as buffers. Check if this is a real texture or a buffer.
-			FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(Info.Texture);
-			if (Texture->Surface.GetCpuReadbackBuffer() == nullptr)
+			FVulkanTexture* Texture = FVulkanTexture::Cast(Info.Texture);
+			if (Texture->GetCpuReadbackBuffer() == nullptr)
 			{
 				++NumTextures;
 			}
@@ -691,7 +691,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		checkf(Info.AccessAfter != ERHIAccess::Unknown, TEXT("Transitioning a resource to an unknown state is not allowed."));
 
 		FVulkanResourceMultiBuffer* Buffer = nullptr;
-		FVulkanTextureBase* Texture = nullptr;
+		FVulkanTexture* Texture = nullptr;
 		FRHITransitionInfo::EType UnderlyingType = Info.Type;
 		uint32 UsageFlags = 0;
 
@@ -699,8 +699,8 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		{
 		case FRHITransitionInfo::EType::Texture:
 		{
-			Texture = FVulkanTextureBase::Cast(Info.Texture);
-			if (Texture->Surface.GetCpuReadbackBuffer())
+			Texture = FVulkanTexture::Cast(Info.Texture);
+			if (Texture->GetCpuReadbackBuffer())
 			{
 				Texture = nullptr;
 			}
@@ -717,7 +717,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 			FVulkanUnorderedAccessView* UAV = ResourceCast(Info.UAV);
 			if (UAV->SourceTexture)
 			{
-				Texture = FVulkanTextureBase::Cast(UAV->SourceTexture);
+				Texture = FVulkanTexture::Cast(UAV->SourceTexture);
 				UnderlyingType = FRHITransitionInfo::EType::Texture;
 			}
 			else if (UAV->SourceBuffer)
@@ -749,13 +749,13 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		VkAccessFlags SrcAccessFlags, DstAccessFlags;
 		VkImageLayout SrcLayout, DstLayout;
 
-		const bool bIsDepthStencil = Texture && Texture->Surface.IsDepthOrStencilAspect();
+		const bool bIsDepthStencil = Texture && Texture->IsDepthOrStencilAspect();
 
 		// If the device doesn't support separate depth-stencil layouts, we must merge depth-stencil subresource transitions so we only do one barrier on the image.
 		if (bIsDepthStencil && Info.PlaneSlice != FRHISubresourceRange::kAllSubresources)
 		{
 			int32 Index = DSSubresTransitions.IndexOfByPredicate([Texture, Info](const FDepthStencilSubresTransition& Entry) -> bool {
-				return Entry.Texture->Surface.Image == Texture->Surface.Image && Entry.ArraySlice == Info.ArraySlice;
+				return Entry.Texture->Image == Texture->Image && Entry.ArraySlice == Info.ArraySlice;
 			});
 
 			FDepthStencilSubresTransition* PendingTransition;
@@ -805,7 +805,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		else
 		{
 			
-			const bool bSupportsReadOnlyOptimal = (Texture == nullptr) || Texture->Surface.SupportsSampling();
+			const bool bSupportsReadOnlyOptimal = (Texture == nullptr) || Texture->SupportsSampling();
 
 			GetVkStageAndAccessFlags(Info.AccessBefore, UnderlyingType, UsageFlags, bIsDepthStencil, bSupportsReadOnlyOptimal, SrcStageMask, SrcAccessFlags, SrcLayout, true);
 			GetVkStageAndAccessFlags(Info.AccessAfter, UnderlyingType, UsageFlags, bIsDepthStencil, bSupportsReadOnlyOptimal, DstStageMask, DstAccessFlags, DstLayout, false);
@@ -862,7 +862,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		check(Texture != nullptr);
 
 		VkImageSubresourceRange SubresRange;
-		SetupSubresourceRange(SubresRange, Info, Texture->Surface.GetFullAspectMask());
+		SetupSubresourceRange(SubresRange, Info, Texture->GetFullAspectMask());
 
 		// For some textures, e.g. FVulkanBackBuffer, the image handle may not be set yet, or may be stale, so there's no point storing it here.
 		// We'll set the image to NULL in the barrier info, and RHIEndTransitions will fetch the up to date pointer from the texture, after
@@ -1066,10 +1066,10 @@ void FVulkanCommandListContext::RHIBeginTransitions(TArrayView<const FRHITransit
 		{
 			const VkImageMemoryBarrier& ImageBarrier = Data->ImageBarriers[ImgBarrierIdx];
 			const FVulkanPipelineBarrier::ImageBarrierExtraData& ExtraData = Data->ImageBarrierExtras[ImgBarrierIdx];
-			FVulkanTextureBase* Texture = ExtraData.BaseTexture;
-			check(Texture->Surface.Image != VK_NULL_HANDLE);
+			FVulkanTexture* Texture = ExtraData.BaseTexture;
+			check(Texture->Image != VK_NULL_HANDLE);
 
-			const FVulkanImageLayout& Layout = LayoutManager.GetOrAddFullLayout(Texture->Surface, VK_IMAGE_LAYOUT_UNDEFINED);
+			const FVulkanImageLayout& Layout = LayoutManager.GetOrAddFullLayout(*Texture, VK_IMAGE_LAYOUT_UNDEFINED);
 
 			VkAccessFlags SrcAccessFlags;
 			VkImageLayout SrcLayout, DstLayout;
@@ -1093,14 +1093,14 @@ void FVulkanCommandListContext::RHIBeginTransitions(TArrayView<const FRHITransit
 
 			VkImageMemoryBarrier& RealBarrier = RealImageBarriers.AddDefaulted_GetRef();
 			RealBarrier = ImageBarrier;
-			RealBarrier.image = Texture->Surface.Image;
+			RealBarrier.image = Texture->Image;
 			RealBarrier.srcAccessMask = SrcAccessFlags;
 			RealBarrier.dstAccessMask = 0; // Release resource from current queue.
 			RealBarrier.oldLayout = SrcLayout;
 			RealBarrier.newLayout = DstLayout;
 			
-			// Fix up the destination layout if this barrier specifies a sub-aspect of a depth-stencil surface.
-			AdjustDepthStencilLayout(RealBarrier, Texture->Surface.GetFullAspectMask());
+			// Fix up the destination layout if this barrier specifies a sub-aspect of a depth-stencil 
+			AdjustDepthStencilLayout(RealBarrier, Texture->GetFullAspectMask());
 
 			// We don't update the image layout here. That will be done in RHIEndTransitions.
 		}
@@ -1264,16 +1264,22 @@ void FVulkanCommandListContext::RHIEndTransitions(TArrayView<const FRHITransitio
 		for (int32 ImgBarrierIdx = 0; ImgBarrierIdx < Data->ImageBarriers.Num(); ++ImgBarrierIdx)
 		{
 			const VkImageMemoryBarrier& ImageBarrier = Data->ImageBarriers[ImgBarrierIdx];
+			check(ImageBarrier.image == VK_NULL_HANDLE);
+
 			const FVulkanPipelineBarrier::ImageBarrierExtraData& ExtraData = Data->ImageBarrierExtras[ImgBarrierIdx];
-			FVulkanTextureBase* Texture = ExtraData.BaseTexture;
-			check(Texture->Surface.GetCpuReadbackBuffer() == nullptr);
+			FVulkanTexture* Texture = ExtraData.BaseTexture;
+			check(Texture->GetCpuReadbackBuffer() == nullptr);
 
 			Texture->OnLayoutTransition(*this, ImageBarrier.newLayout);
 
-			// Make sure the texture contains a valid image handle now.
-			check(Texture->Surface.Image != VK_NULL_HANDLE && ImageBarrier.image == VK_NULL_HANDLE);
+			if (Texture->Image == VK_NULL_HANDLE)
+			{
+				// If Texture is a backbuffer, OnLayoutTransition normally updates the image handle. However, if the viewport got invalidated during the
+				// OnLayoutTransition call, we may end up with a null handle, which is fine. Just ignore the transition.
+				continue;
+			}
 
-			FVulkanImageLayout& Layout = LayoutManager.GetOrAddFullLayout(Texture->Surface, VK_IMAGE_LAYOUT_UNDEFINED);
+			FVulkanImageLayout& Layout = LayoutManager.GetOrAddFullLayout(*Texture, VK_IMAGE_LAYOUT_UNDEFINED);
 
 			VkAccessFlags SrcAccessFlags;
 			VkImageLayout SrcLayout, DstLayout;
@@ -1293,7 +1299,7 @@ void FVulkanCommandListContext::RHIEndTransitions(TArrayView<const FRHITransitio
 				{
 					// Slow path, adds one transition per subresource.
 					check(Data->SrcPipelines == Data->DstPipelines);
-					AddSubresourceTransitions(RealImageBarriers, RealSrcStageMask, ImageBarrier, Texture->Surface.Image, Layout, DstLayout);
+					AddSubresourceTransitions(RealImageBarriers, RealSrcStageMask, ImageBarrier, Texture->Image, Layout, DstLayout);
 					continue;
 				}
 			}
@@ -1305,13 +1311,13 @@ void FVulkanCommandListContext::RHIEndTransitions(TArrayView<const FRHITransitio
 			}
 
 			VkImageMemoryBarrier RealBarrier = ImageBarrier;
-			RealBarrier.image = Texture->Surface.Image; // Use the up to date image handle.
+			RealBarrier.image = Texture->Image; // Use the up to date image handle.
 			RealBarrier.srcAccessMask = SrcAccessFlags;
 			RealBarrier.oldLayout = SrcLayout;
 			RealBarrier.newLayout = DstLayout;
 
 			// Fix up the destination layout if this barrier specifies a sub-aspect of a depth-stencil surface.
-			AdjustDepthStencilLayout(RealBarrier, Texture->Surface.GetFullAspectMask());
+			AdjustDepthStencilLayout(RealBarrier, Texture->GetFullAspectMask());
 
 			if (Data->SrcPipelines == Data->DstPipelines)
 			{
@@ -1481,7 +1487,7 @@ void FVulkanPipelineBarrier::AddImageLayoutTransition(VkImage Image, VkImageAspe
 	}
 }
 
-void FVulkanPipelineBarrier::AddImageAccessTransition(const FVulkanSurface& Surface, ERHIAccess SrcAccess, ERHIAccess DstAccess, const VkImageSubresourceRange& SubresourceRange, VkImageLayout& InOutLayout)
+void FVulkanPipelineBarrier::AddImageAccessTransition(const FVulkanTexture& Surface, ERHIAccess SrcAccess, ERHIAccess DstAccess, const VkImageSubresourceRange& SubresourceRange, VkImageLayout& InOutLayout)
 {
 	// This function should only be used for known states.
 	check(DstAccess != ERHIAccess::Unknown);
@@ -1715,7 +1721,7 @@ void FVulkanLayoutManager::ValidateRenderPassColorEntry(const FRHIRenderPassInfo
 {
 	FRHITexture* Texture = bResolveTarget ? ColorEntry.ResolveTarget : ColorEntry.RenderTarget;
 	CA_ASSUME(Texture);
-	FVulkanSurface& Surface = FVulkanTextureBase::Cast(Texture)->Surface;
+	FVulkanTexture& Surface = *FVulkanTexture::Cast(Texture);
 	check(Surface.Image != VK_NULL_HANDLE);
 
 	// Check that the image is in the correct layout for rendering.
@@ -1761,7 +1767,7 @@ void FVulkanLayoutManager::BeginRenderPass(FVulkanCommandListContext& Context, F
 
 		FRHITexture* ColorTexture = ColorEntry.RenderTarget;
 		CA_ASSUME(ColorTexture);
-		FVulkanSurface& ColorSurface = FVulkanTextureBase::Cast(ColorTexture)->Surface;
+		FVulkanTexture& ColorSurface = *FVulkanTexture::Cast(ColorTexture);
 		const bool bPassPerformsResolve = ColorSurface.GetNumSamples() > 1 && ColorEntry.ResolveTarget;
 
 		ValidateRenderPassColorEntry(ColorEntry, false, Barrier);
@@ -1822,7 +1828,7 @@ void FVulkanLayoutManager::BeginRenderPass(FVulkanCommandListContext& Context, F
 	FRHITexture* ShadingRateTexture = RPInfo.ShadingRateTexture;
 	if (ShadingRateTexture && ValidateShadingRateDataType())
 	{
-		FVulkanSurface& Surface = FVulkanTextureBase::Cast(ShadingRateTexture)->Surface;
+		FVulkanTexture& Surface = *FVulkanTexture::Cast(ShadingRateTexture);
 		VkImageLayout& DSLayout = FindOrAddLayoutRW(Surface, VK_IMAGE_LAYOUT_UNDEFINED);
 		
 		VkImageLayout ExpectedLayout = VK_IMAGE_LAYOUT_UNDEFINED;

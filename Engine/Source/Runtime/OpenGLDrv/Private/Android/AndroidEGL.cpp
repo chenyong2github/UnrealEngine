@@ -86,7 +86,6 @@ struct AndroidESPImpl
 	ANativeWindow* Window;
 	bool Initalized ;
 	EOpenGLCurrentContext CurrentContextType;
-	GLuint OnScreenColorRenderBuffer;
 	GLuint ResolveFrameBuffer;
 	FPlatformRect CachedWindowRect;
 
@@ -525,7 +524,6 @@ eglDisplay(EGL_NO_DISPLAY)
 	,DepthSize(0)
 	,Window(NULL)
 	,Initalized(false)
-	,OnScreenColorRenderBuffer(0)
 	,ResolveFrameBuffer(0)
 	,NativeVisualID(0)
 	,CurrentContextType(CONTEXT_Invalid)
@@ -614,11 +612,6 @@ void AndroidEGL::DestroyBackBuffer()
 		glDeleteFramebuffers(1, &PImplData->ResolveFrameBuffer);
 		PImplData->ResolveFrameBuffer = 0 ;
 	}
-	if(PImplData->OnScreenColorRenderBuffer)
-	{
-		glDeleteRenderbuffers(1, &(PImplData->OnScreenColorRenderBuffer));
-		PImplData->OnScreenColorRenderBuffer = 0;
-	}
 }
 
 void AndroidEGL::InitBackBuffer()
@@ -633,7 +626,6 @@ void AndroidEGL::InitBackBuffer()
 	{
 		PImplData->ResolveFrameBuffer = 0;
 	}
-	PImplData->OnScreenColorRenderBuffer = 0;
 	OnScreenWidth = PImplData->eglWidth;
 	OnScreenHeight = PImplData->eglHeight;
 
@@ -830,11 +822,6 @@ int32 AndroidEGL::GetError()
 bool AndroidEGL::IsInitialized()
 {
 	return PImplData->Initalized;
-}
-
-GLuint AndroidEGL::GetOnScreenColorRenderBuffer()
-{
-	return PImplData->OnScreenColorRenderBuffer;
 }
 
 GLuint AndroidEGL::GetResolveFrameBuffer()

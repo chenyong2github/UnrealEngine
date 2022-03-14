@@ -87,27 +87,25 @@ private:
 class FMetalTexture : public mtlpp::Texture
 {
 public:
-	FMetalTexture(ns::Ownership retain = ns::Ownership::Retain) : mtlpp::Texture(retain) { }
+	FMetalTexture(ns::Ownership retain = ns::Ownership::Retain)
+		: mtlpp::Texture(retain)
+	{}
+
 	FMetalTexture(ns::Protocol<id<MTLTexture>>::type handle, ns::Ownership retain = ns::Ownership::Retain)
-	: mtlpp::Texture(handle, nullptr, retain) {}
+		: mtlpp::Texture(handle, nullptr, retain)
+	{}
 	
 	FMetalTexture(mtlpp::Texture&& rhs)
-	: mtlpp::Texture((mtlpp::Texture&&)rhs)
-	{
-		
-	}
+		: mtlpp::Texture((mtlpp::Texture&&)rhs)
+	{}
 	
 	FMetalTexture(const FMetalTexture& rhs)
-	: mtlpp::Texture(rhs)
-	{
-		
-	}
+		: mtlpp::Texture(rhs)
+	{}
 	
 	FMetalTexture(FMetalTexture&& rhs)
-	: mtlpp::Texture((mtlpp::Texture&&)rhs)
-	{
-		
-	}
+		: mtlpp::Texture((mtlpp::Texture&&)rhs)
+	{}
 	
 	FMetalTexture& operator=(const FMetalTexture& rhs)
 	{
@@ -135,24 +133,43 @@ public:
 	}
 };
 
-/** Texture/RT wrapper. */
-class METALRHI_API FMetalSurface
+struct FMetalTextureDesc
+{
+	FMetalTextureDesc(FRHITextureDesc const& InDesc);
+	
+	mtlpp::TextureDescriptor Desc;
+	mtlpp::PixelFormat MTLFormat;
+	bool bMemoryless = false;
+	bool bIsRenderTarget = false;
+	uint8 FormatKey = 0;
+};
+
+struct FMetalTextureCreateDesc : public FRHITextureCreateDesc, public FMetalTextureDesc
+{
+	FMetalTextureCreateDesc(FRHITextureCreateDesc const& CreateDesc)
+		: FRHITextureCreateDesc(CreateDesc)
+		, FMetalTextureDesc(CreateDesc)
+	{
+		// @todo: texture type unification - Metal can override NumSamples based on command line options.
+		// We should instead require the renderer to do this.
+		NumSamples = Desc.GetSampleCount();
+	}
+};
+
+// Metal RHI texture resource
+class METALRHI_API FMetalSurface : public FRHITexture
 {
 public:
 
 	/** 
 	 * Constructor that will create Texture and Color/DepthBuffers as needed
 	 */
-	FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumSamples, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData);
-
-	FMetalSurface(FMetalSurface& Source, NSRange MipRange);
-	
-	FMetalSurface(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format, bool bSRGBForceDisable);
+	FMetalSurface(FMetalTextureCreateDesc const& CreateDesc);
 	
 	/**
 	 * Destructor
 	 */
-	~FMetalSurface();
+	virtual ~FMetalSurface();
 
 	/** Prepare for texture-view support - need only call this once on the source texture which is to be viewed. */
 	void PrepareTextureView();
@@ -207,13 +224,9 @@ public:
 	ns::AutoReleased<FMetalTexture> GetCurrentTexture();
 
 	FMetalTexture Reallocate(FMetalTexture Texture, mtlpp::TextureUsage UsageModifier);
-	void ReplaceTexture(FMetalContext& Context, FMetalTexture OldTexture, FMetalTexture NewTexture);
 	void MakeAliasable(void);
-	void MakeUnAliasable(void);
-	
-	ERHIResourceType Type;
-	EPixelFormat PixelFormat;
-	uint8 FormatKey;
+
+	uint8 const FormatKey;
 	//texture used for store actions and binding to shader params
 	FMetalTexture Texture;
 	//if surface is MSAA, texture used to bind for RT
@@ -226,8 +239,7 @@ public:
 	// iOS A9+ where depth resolve is available
 	// iOS < A9 where depth resolve is unavailable.
 	FMetalTexture MSAAResolveTexture;
-	uint32 SizeX, SizeY, SizeZ;
-	bool bIsCubemap;
+
 	int16 volatile Written;
 	int16 GPUReadback = 0;
 	enum EMetalGPUReadbackFlags : int16
@@ -238,8 +250,6 @@ public:
 		ReadbackFenceComplete 			= 1 << ReadbackFenceCompleteShift,
 		ReadbackRequestedAndComplete 	= ReadbackRequested | ReadbackFenceComplete
 	};
-	
-	ETextureCreateFlags Flags;
 
 	uint32 BufferLocks;
 
@@ -248,125 +258,23 @@ public:
 	
 	// For back-buffers, the owning viewport.
 	class FMetalViewport* Viewport;
-	
-	TSet<class FMetalShaderResourceView*> SRVs;
 
-private:
-	void Init(FMetalSurface& Source, NSRange MipRange);
-	
-	void Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format, bool bSRGBForceDisable);
+	virtual void* GetTextureBaseRHI() override final
+	{
+		return this;
+	}
+
+	virtual void* GetNativeResource() const override final
+	{
+		return Texture;
+	}
 	
 private:
 	// The movie playback IOSurface/CVTexture wrapper to avoid page-off
 	CFTypeRef ImageSurfaceRef;
-	
-	// Texture view surfaces don't own their resources, only reference
-	bool bTextureView;
-	
+
 	// Count of outstanding async. texture uploads
 	static volatile int64 ActiveUploads;
-};
-
-class FMetalTexture2D : public FRHITexture2D
-{
-public:
-	/** The surface info */
-	FMetalSurface Surface;
-
-	// Constructor, just calls base and Surface constructor
-	FMetalTexture2D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
-		: FRHITexture2D(SizeX, SizeY, NumMips, NumSamples, Format, Flags, InClearValue)
-		, Surface(RRT_Texture2D, Format, SizeX, SizeY, 1, NumSamples, /*bArray=*/ false, 1, NumMips, Flags, BulkData)
-	{
-	}
-	
-	virtual ~FMetalTexture2D()
-	{
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return &Surface;
-	}
-	
-	virtual void* GetNativeResource() const override final
-	{
-		return Surface.Texture;
-	}
-};
-
-class FMetalTexture2DArray : public FRHITexture2DArray
-{
-public:
-	/** The surface info */
-	FMetalSurface Surface;
-
-	// Constructor, just calls base and Surface constructor
-	FMetalTexture2DArray(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
-		: FRHITexture2DArray(SizeX, SizeY, ArraySize, NumMips, 1, Format, Flags, InClearValue)
-		, Surface(RRT_Texture2DArray, Format, SizeX, SizeY, 1, /*NumSamples=*/1, /*bArray=*/ true, ArraySize, NumMips, Flags, BulkData)
-	{
-	}
-	
-	virtual ~FMetalTexture2DArray()
-	{
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return &Surface;
-	}
-};
-
-class FMetalTexture3D : public FRHITexture3D
-{
-public:
-	/** The surface info */
-	FMetalSurface Surface;
-
-	// Constructor, just calls base and Surface constructor
-	FMetalTexture3D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
-		: FRHITexture3D(SizeX, SizeY, SizeZ, NumMips, Format, Flags, InClearValue)
-		, Surface(RRT_Texture3D, Format, SizeX, SizeY, SizeZ, /*NumSamples=*/1, /*bArray=*/ false, 1, NumMips, Flags, BulkData)
-	{
-	}
-	
-	virtual ~FMetalTexture3D()
-	{
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return &Surface;
-	}
-};
-
-class FMetalTextureCube : public FRHITextureCube
-{
-public:
-	/** The surface info */
-	FMetalSurface Surface;
-
-	// Constructor, just calls base and Surface constructor
-	FMetalTextureCube(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
-		: FRHITextureCube(Size, NumMips, Format, Flags, InClearValue)
-		, Surface(RRT_TextureCube, Format, Size, Size, 6, /*NumSamples=*/1, bArray, ArraySize, NumMips, Flags, BulkData)
-	{
-	}
-	
-	virtual ~FMetalTextureCube()
-	{
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return &Surface;
-	}
-
-	virtual void* GetNativeResource() const override final
-	{
-		return Surface.Texture;
-	}
 };
 
 @interface FMetalBufferData : FApplePlatformObject<NSObject>
@@ -390,34 +298,13 @@ ENUM_CLASS_FLAGS(EMetalBufferUsage);
 class FMetalLinearTextureDescriptor
 {
 public:
-	FMetalLinearTextureDescriptor()
-		: StartOffsetBytes(0)
-		, NumElements(UINT_MAX)
-		, BytesPerElement(0)
-	{
-		// void
-	}
+	FMetalLinearTextureDescriptor() = default;
 
 	FMetalLinearTextureDescriptor(uint32 InStartOffsetBytes, uint32 InNumElements, uint32 InBytesPerElement)
 		: StartOffsetBytes(InStartOffsetBytes)
-		, NumElements(InNumElements)
-		, BytesPerElement(InBytesPerElement)
-	{
-		// void
-	}
-	
-	FMetalLinearTextureDescriptor(const FMetalLinearTextureDescriptor& Other)
-		: StartOffsetBytes(Other.StartOffsetBytes)
-		, NumElements(Other.NumElements)
-		, BytesPerElement(Other.BytesPerElement)
-	{
-		// void
-	}
-	
-	~FMetalLinearTextureDescriptor()
-	{
-		// void
-	}
+		, NumElements     (InNumElements)
+		, BytesPerElement (InBytesPerElement)
+	{}
 
 	friend uint32 GetTypeHash(FMetalLinearTextureDescriptor const& Key)
 	{
@@ -434,9 +321,9 @@ public:
 		       && BytesPerElement  == Other.BytesPerElement;
 	}
 
-	uint32 StartOffsetBytes;
-	uint32 NumElements;
-	uint32 BytesPerElement;
+	uint32 StartOffsetBytes = 0;
+	uint32 NumElements      = UINT_MAX;
+	uint32 BytesPerElement  = 0;
 };
 
 class FMetalRHIBuffer
@@ -599,50 +486,118 @@ typedef FMetalResourceMultiBuffer FMetalIndexBuffer;
 typedef FMetalResourceMultiBuffer FMetalVertexBuffer;
 typedef FMetalResourceMultiBuffer FMetalStructuredBuffer;
 
-class FMetalShaderResourceView : public FRHIShaderResourceView
+class FMetalResourceViewBase
 {
+protected:
+	// Constructor for buffers
+	FMetalResourceViewBase(
+		  FRHIBuffer* InBuffer
+		, uint32 InStartOffsetBytes
+		, uint32 InNumElements
+		, EPixelFormat InFormat
+	);
+
+	// Constructor for textures
+	FMetalResourceViewBase(
+		  FRHITexture* InTexture
+		, EPixelFormat InFormat
+		, uint8 InMipLevel
+		, uint8 InNumMipLevels
+		, ERHITextureSRVOverrideSRGBType InSRGBOverride
+		, uint32 InFirstArraySlice
+		, uint32 InNumArraySlices
+	);
+
 public:
+	~FMetalResourceViewBase();
 
-	// The vertex buffer this SRV comes from (can be null)
-	TRefCountPtr<FMetalVertexBuffer> SourceVertexBuffer;
-	
-	// The index buffer this SRV comes from (can be null)
-	TRefCountPtr<FMetalIndexBuffer> SourceIndexBuffer;
+	inline FMetalResourceMultiBuffer* GetSourceBuffer () const { check(!bTexture); return SourceBuffer; }
 
-	// The texture that this SRV come from
-	TRefCountPtr<FRHITexture> SourceTexture;
-	
-	// The source structured buffer (can be null)
-	TRefCountPtr<FMetalStructuredBuffer> SourceStructuredBuffer;
-	
-	FMetalSurface* TextureView;
-	uint32 Offset;
-	uint8 MipLevel          : 4;
-	uint8 bSRGBForceDisable : 1;
-	uint8 Reserved          : 3;
-	uint8 NumMips;
-	uint8 Format;
-	uint8 Stride;
-
-	void InitLinearTextureDescriptor(const FMetalLinearTextureDescriptor& InLinearTextureDescriptor);
-
-	FMetalShaderResourceView();
-	~FMetalShaderResourceView();
-	
-	ns::AutoReleased<FMetalTexture> GetLinearTexture(bool const bUAV);
+	inline FMetalSurface*             GetSourceTexture() const { check(bTexture); return SourceTexture; }
+	inline FMetalTexture const&       GetTextureView  () const { check(bTexture); return TextureView;   }
 
 private:
-	FMetalLinearTextureDescriptor* LinearTextureDesc;
+	// Needed for RHIUpdateShaderResourceView
+	friend class FMetalDynamicRHI;
+
+	union
+	{
+		FMetalResourceMultiBuffer* SourceBuffer;
+		FMetalSurface* SourceTexture;
+	};
+
+	TUniquePtr<FMetalLinearTextureDescriptor> LinearTextureDesc = nullptr;
+	FMetalTexture TextureView = nullptr;
+
+public:
+	uint8 const bTexture : 1;
+	uint8       bSRGBForceDisable : 1;
+	uint8       MipLevel : 4;
+	uint8       Reserved : 2;
+	uint8       NumMips;
+	uint8       Format;
+	uint8       Stride;
+	uint32      Offset;
+
+	ns::AutoReleased<FMetalTexture> GetLinearTexture();
 };
 
-
-
-class FMetalUnorderedAccessView : public FRHIUnorderedAccessView
+class FMetalShaderResourceView final : public FRHIShaderResourceView, public FMetalResourceViewBase
 {
 public:
-	
-	// the potential resources to refer to with the UAV object
-	TRefCountPtr<FMetalShaderResourceView> SourceView;
+	explicit FMetalShaderResourceView(const FShaderResourceViewInitializer& Initializer)
+		: FMetalResourceViewBase(
+			  Initializer.AsBufferSRV().Buffer
+			, Initializer.AsBufferSRV().StartOffsetBytes
+			, Initializer.AsBufferSRV().NumElements
+			, Initializer.AsBufferSRV().Format
+		)
+	{}
+
+	explicit FMetalShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
+		: FMetalResourceViewBase(
+			  Texture
+			, CreateInfo.Format
+			, CreateInfo.MipLevel
+			, CreateInfo.NumMipLevels
+			, CreateInfo.SRGBOverride
+			, CreateInfo.FirstArraySlice
+			, CreateInfo.NumArraySlices
+		)
+	{}
+
+	virtual ~FMetalShaderResourceView()
+	{}
+};
+
+class FMetalUnorderedAccessView final : public FRHIUnorderedAccessView, public FMetalResourceViewBase
+{
+public:
+	explicit FMetalUnorderedAccessView(FRHIBuffer* Buffer, EPixelFormat Format)
+		: FMetalResourceViewBase(Buffer, 0, UINT_MAX, Format)
+	{}
+
+	explicit FMetalUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
+		: FMetalResourceViewBase(Buffer, 0, UINT_MAX, PF_Unknown)
+	{
+		checkf(!bUseUAVCounter, TEXT("UAV counters not implemented."));
+		checkf(!bAppendBuffer, TEXT("UAV append buffers not implemented."));
+	}
+
+	explicit FMetalUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
+		: FMetalResourceViewBase(
+			  Texture
+			, PF_Unknown
+			, MipLevel
+			, 1 // NumMipLevels
+			, ERHITextureSRVOverrideSRGBType::SRGBO_ForceDisable
+			, FirstArraySlice
+			, NumArraySlices
+		)
+	{}
+
+	virtual ~FMetalUnorderedAccessView()
+	{}
 };
 
 class FMetalGPUFence final : public FRHIGPUFence
@@ -712,26 +667,6 @@ template<>
 struct TMetalResourceTraits<FRHIComputeShader>
 {
 	typedef FMetalComputeShader TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHITexture3D>
-{
-	typedef FMetalTexture3D TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHITexture2D>
-{
-	typedef FMetalTexture2D TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHITexture2DArray>
-{
-	typedef FMetalTexture2DArray TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHITextureCube>
-{
-	typedef FMetalTextureCube TConcreteType;
 };
 template<>
 struct TMetalResourceTraits<FRHIRenderQuery>

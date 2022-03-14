@@ -40,34 +40,39 @@ void FAGXRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI
 		// nothing to do if one of the textures is null!
 		return;
 	}
-	if(SourceTextureRHI != DestTextureRHI)
+	if (SourceTextureRHI != DestTextureRHI)
 	{
 		FAGXSurface* Source = AGXGetMetalSurfaceFromRHITexture(SourceTextureRHI);
 		FAGXSurface* Destination = AGXGetMetalSurfaceFromRHITexture(DestTextureRHI);
 		
-		switch (Source->Type)
+		const FRHITextureDesc& SourceDesc = Source->GetDesc();
+		const FRHITextureDesc& DestinationDesc = Destination->GetDesc();
+
+		// Only valid to have nil Metal textures when they are TexCreate_Presentable
+		if (!Source->Texture)
 		{
-			case RRT_Texture2D:
-				break;
-			case RRT_TextureCube:
-				check(Source->SizeZ == 6); // Arrays might not work yet.
-				break;
-			default:
-				check(false); // Only Tex2D & Cube are tested to work so far!
-				break;
+			// Source RHI texture is valid with no Presentable Metal texture - there is nothing to copy from
+			check(EnumHasAnyFlags(SourceDesc.Flags, TexCreate_Presentable));
+			return;
 		}
-		switch (Destination->Type)
+		if (!Destination->Texture)
 		{
-			case RRT_Texture2D:
-				break;
-			case RRT_TextureCube:
-				check(Destination->SizeZ == 6); // Arrays might not work yet.
-				break;
-			default:
-				check(false); // Only Tex2D & Cube are tested to work so far!
-				break;
+			// Destination RHI texture is valid with no Presentable Metal texture - force fetch it now so we can complete the copy
+			check(EnumHasAnyFlags(DestinationDesc.Flags, TexCreate_Presentable));
+			Destination->GetDrawableTexture();
+			if(!Destination->Texture)
+			{
+				UE_LOG(LogRHI, Error, TEXT("Drawable for destination texture resolve target unavailable"));
+				return;
+			}
 		}
-		
+
+		checkf( SourceDesc.IsTexture2D()   || SourceDesc.IsTextureCube(), TEXT("Only Tex2D & Cube are tested to work so far!"));
+		checkf(!SourceDesc.IsTextureCube() || SourceDesc.ArraySize == 1,  TEXT("Cube arrays might not work yet."));
+
+		checkf( DestinationDesc.IsTexture2D()   || DestinationDesc.IsTextureCube(), TEXT("Only Tex2D & Cube are tested to work so far!"));
+		checkf(!DestinationDesc.IsTextureCube() || DestinationDesc.ArraySize == 1,  TEXT("Cube arrays might not work yet."));
+
 		mtlpp::Origin Origin(0, 0, 0);
 		mtlpp::Size Size(0, 0, 1);
 		if (ResolveParams.Rect.IsValid())
@@ -84,12 +89,15 @@ void FAGXRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI
 			Origin.x = 0;
 			Origin.y = 0;
 			
-			Size.width = FMath::Max<uint32>(1, Source->SizeX >> ResolveParams.MipIndex);
-			Size.height = FMath::Max<uint32>(1, Source->SizeY >> ResolveParams.MipIndex);
+			Size.width = FMath::Max<uint32>(1, SourceDesc.Extent.X >> ResolveParams.MipIndex);
+			Size.height = FMath::Max<uint32>(1, SourceDesc.Extent.Y >> ResolveParams.MipIndex);
+			// clamp to a destination size
+			Size.width = FMath::Min<uint32>(Size.width, DestinationDesc.Extent.X >> ResolveParams.MipIndex);
+			Size.height = FMath::Min<uint32>(Size.height, DestinationDesc.Extent.Y >> ResolveParams.MipIndex);
 		}
 		
-		const bool bSrcCubemap  = Source->bIsCubemap;
-		const bool bDestCubemap = Destination->bIsCubemap;
+		const bool bSrcCubemap  = SourceDesc.IsTextureCube();
+		const bool bDestCubemap = DestinationDesc.IsTextureCube();
 		
 		uint32 DestIndex = ResolveParams.DestArrayIndex * (bDestCubemap ? 6 : 1) + (bDestCubemap ? uint32(ResolveParams.CubeFace) : 0);
 		uint32 SrcIndex  = ResolveParams.SourceArrayIndex * (bSrcCubemap ? 6 : 1) + (bSrcCubemap ? uint32(ResolveParams.CubeFace) : 0);
@@ -101,7 +109,7 @@ void FAGXRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI
 
 		const bool bMSAASource = Source->MSAATexture;
         const bool bMSAADest = Destination->MSAATexture;
-        const bool bDepthStencil = Source->PixelFormat == PF_DepthStencil;
+        const bool bDepthStencil = SourceDesc.Format == PF_DepthStencil;
 		if (bMSAASource && !bMSAADest)
 		{
 			// Resolve required - Device must support this - Using Shader for resolve not supported amd NumSamples should be 1
@@ -111,9 +119,30 @@ void FAGXRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI
 			
 			Context->CopyFromTextureToTexture(Source->MSAAResolveTexture, SrcIndex, ResolveParams.MipIndex, Origin, Size, Destination->Texture, DestIndex, ResolveParams.MipIndex, Origin);
 		}
+		else if(Source->Texture.GetPixelFormat() == Destination->Texture.GetPixelFormat())
+		{
+			// Blit Copy for matching formats
+			Context->CopyFromTextureToTexture(Source->Texture, SrcIndex, ResolveParams.MipIndex, Origin, Size, Destination->Texture, DestIndex, ResolveParams.MipIndex, Origin);
+		}
 		else
 		{
-			Context->CopyFromTextureToTexture(Source->Texture, SrcIndex, ResolveParams.MipIndex, Origin, Size, Destination->Texture, DestIndex, ResolveParams.MipIndex, Origin);
+			const FPixelFormatInfo& SourceFormatInfo = GPixelFormats[SourceDesc.Format];
+			const FPixelFormatInfo& DestFormatInfo = GPixelFormats[DestinationDesc.Format];
+			bool bUsingPixelFormatView = (Source->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView) != 0;
+			
+			// Attempt to Resolve with a texture view - source Texture doesn't have to be created with MTLTextureUsagePixelFormatView for these cases e.g:
+			// If we are resolving to/from sRGB linear color space within the same format OR using same bit length color format
+			if	(	SourceFormatInfo.BlockBytes == DestFormatInfo.BlockBytes &&
+					(bUsingPixelFormatView || SourceFormatInfo.NumComponents == DestFormatInfo.NumComponents)
+				)
+			{
+				FAGXTexture SourceTextureView = Source->Texture.NewTextureView(Destination->Texture.GetPixelFormat(), Source->Texture.GetTextureType(), ns::Range(ResolveParams.MipIndex, 1), ns::Range(SrcIndex, 1));
+				if(SourceTextureView)
+				{
+					Context->CopyFromTextureToTexture(SourceTextureView, 0, 0, Origin, Size, Destination->Texture, DestIndex, ResolveParams.MipIndex, Origin);
+					AGXSafeReleaseMetalTexture(SourceTextureView);
+				}
+			}
 		}
 
 #if PLATFORM_MAC
@@ -239,7 +268,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 	mtlpp::Region Region(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
     
 	FAGXTexture Texture = Surface->Texture;
-    if(!Texture && EnumHasAnyFlags(Surface->Flags, TexCreate_Presentable))
+    if(!Texture && EnumHasAnyFlags(Surface->GetDesc().Flags, TexCreate_Presentable))
     {
         Texture = Surface->GetCurrentTexture();
     }
@@ -249,7 +278,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
         return;
     }
 
-	if (GAGXUseTexGetBytes && Surface->PixelFormat != PF_DepthStencil && Surface->PixelFormat != PF_ShadowDepth)
+	if (GAGXUseTexGetBytes && Surface->GetDesc().Format != PF_DepthStencil && Surface->GetDesc().Format != PF_ShadowDepth)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AGXTexturePageOffTime);
 		
@@ -261,7 +290,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 #else
 			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Shared;
 #endif
-			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[Surface->PixelFormat].PlatformFormat;
+			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[Surface->GetDesc().Format].PlatformFormat;
 			mtlpp::TextureDescriptor Desc;
 			Desc.SetTextureType(Texture.GetTextureType());
 			Desc.SetPixelFormat(Texture.GetPixelFormat());
@@ -297,7 +326,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 		//kick the current command buffer.
 		ImmediateContext.Context->SubmitCommandBufferAndWait();
 		
-		const uint32 Stride = GPixelFormats[Surface->PixelFormat].BlockBytes * SizeX;
+		const uint32 Stride = GPixelFormats[Surface->GetDesc().Format].BlockBytes * SizeX;
 		const uint32 BytesPerImage = Stride * SizeY;
 
 		TArray<uint8> Data;
@@ -305,7 +334,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 		
 		Texture.GetBytes(Data.GetData(), Stride, BytesPerImage, Region, 0, 0);
 		
-		ConvertSurfaceDataToFColor(Surface->PixelFormat, SizeX, SizeY, (uint8*)Data.GetData(), Stride, OutDataPtr, InFlags);
+		ConvertSurfaceDataToFColor(Surface->GetDesc().Format, SizeX, SizeY, (uint8*)Data.GetData(), Stride, OutDataPtr, InFlags);
 		
 		if (TempTexture)
 		{
@@ -314,7 +343,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 	}
 	else
 	{
-		uint32 BytesPerPixel = (Surface->PixelFormat != PF_DepthStencil || !InFlags.GetOutputStencil()) ? GPixelFormats[Surface->PixelFormat].BlockBytes : 1;
+		uint32 BytesPerPixel = (Surface->GetDesc().Format != PF_DepthStencil || !InFlags.GetOutputStencil()) ? GPixelFormats[Surface->GetDesc().Format].BlockBytes : 1;
 		const uint32 Stride = BytesPerPixel * SizeX;
 		const uint32 Alignment = PLATFORM_MAC ? 1u : 64u; // Mac permits natural row alignment (tightly-packed) but iOS does not.
 		const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
@@ -324,7 +353,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 			// Synchronise the texture with the CPU
 			SCOPE_CYCLE_COUNTER(STAT_AGXTexturePageOffTime);
 			
-			if (Surface->PixelFormat != PF_DepthStencil)
+			if (Surface->GetDesc().Format != PF_DepthStencil)
 			{
 				ImmediateContext.Context->CopyFromTextureToBuffer(Texture, 0, InFlags.GetMip(), Region.origin, Region.size, Buffer, 0, AlignedStride, BytesPerImage, mtlpp::BlitOption::None);
 			}
@@ -343,7 +372,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 			//kick the current command buffer.
 			ImmediateContext.Context->SubmitCommandBufferAndWait();
 			
-			ConvertSurfaceDataToFColor(Surface->PixelFormat, SizeX, SizeY, (uint8*)Buffer.GetContents(), AlignedStride, OutDataPtr, InFlags);
+			ConvertSurfaceDataToFColor(Surface->GetDesc().Format, SizeX, SizeY, (uint8*)Buffer.GetContents(), AlignedStride, OutDataPtr, InFlags);
 		}
 		((FAGXDeviceContext*)ImmediateContext.Context)->ReleaseBuffer(Buffer);
 	}
@@ -354,7 +383,6 @@ void FAGXDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence*
 {
 	@autoreleasepool {
     FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(TextureRHI);
-    FAGXTexture2D* Texture = (FAGXTexture2D*)TextureRHI->GetTexture2D();
     
 #if PLATFORM_MAC
 	uint16 FencePoll = FenceRHI && FenceRHI->Poll() ? 1 : 0;
@@ -362,8 +390,8 @@ void FAGXDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence*
 #endif
     
     uint32 Stride = 0;
-    OutWidth = Texture->GetSizeX();
-    OutHeight = Texture->GetSizeY();
+    OutWidth = Surface->GetSizeX();
+    OutHeight = Surface->GetSizeY();
     OutData = Surface->Lock(0, 0, RLM_ReadOnly, Stride);
     
 #if PLATFORM_MAC
@@ -387,7 +415,7 @@ void FAGXDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect R
 	FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(TextureRHI);
 	
     FAGXTexture Texture = Surface->Texture;
-    if(!Texture && EnumHasAnyFlags(Surface->Flags, TexCreate_Presentable))
+    if(!Texture && EnumHasAnyFlags(Surface->GetDesc().Flags, TexCreate_Presentable))
     {
 		Texture = Surface->GetCurrentTexture();
     }
@@ -398,7 +426,7 @@ void FAGXDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect R
     }
     
 	// verify the input image format (but don't crash)
-	if (Surface->PixelFormat != PF_FloatRGBA)
+	if (Surface->GetDesc().Format != PF_FloatRGBA)
 	{
 		UE_LOG(LogRHI, Log, TEXT("Trying to read non-FloatRGBA surface."));
 	}
@@ -419,7 +447,7 @@ void FAGXDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect R
 	mtlpp::Region Region = mtlpp::Region(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
 	
 	// function wants details about the destination, not the source
-	const uint32 Stride = GPixelFormats[Surface->PixelFormat].BlockBytes * SizeX;
+	const uint32 Stride = GPixelFormats[Surface->GetDesc().Format].BlockBytes * SizeX;
 	const uint32 Alignment = PLATFORM_MAC ? 1u : 64u; // Mac permits natural row alignment (tightly-packed) but iOS does not.
 	const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 	const uint32 BytesPerImage = AlignedStride  * SizeY;
@@ -470,7 +498,7 @@ void FAGXDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRect 
 	}
 	
 	// verify the input image format (but don't crash)
-	if (Surface->PixelFormat != PF_FloatRGBA)
+	if (Surface->GetDesc().Format != PF_FloatRGBA)
 	{
 		UE_LOG(LogRHI, Log, TEXT("Trying to read non-FloatRGBA surface."));
 	}
@@ -485,7 +513,7 @@ void FAGXDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRect 
 	mtlpp::Region Region = mtlpp::Region(InRect.Min.X, InRect.Min.Y, ZMinMax.X, SizeX, SizeY, SizeZ);
 	
 	// function wants details about the destination, not the source
-	const uint32 Stride = GPixelFormats[Surface->PixelFormat].BlockBytes * SizeX;
+	const uint32 Stride = GPixelFormats[Surface->GetDesc().Format].BlockBytes * SizeX;
 	const uint32 Alignment = PLATFORM_MAC ? 1u : 64u; // Mac permits natural row alignment (tightly-packed) but iOS does not.
 	const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 	const uint32 BytesPerImage = AlignedStride  * SizeY;

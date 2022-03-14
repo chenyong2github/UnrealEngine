@@ -139,62 +139,89 @@ public:
 };
 
 /** Texture base class. */
-class D3D11RHI_API FD3D11TextureBase : public FD3D11BaseShaderResource
+class D3D11RHI_API FD3D11Texture final : public FRHITexture, public FD3D11BaseShaderResource
 {
 public:
+	virtual uint32 AddRef     () const override	{ return FRHITexture::AddRef();      }
+	virtual uint32 Release    () const override	{ return FRHITexture::Release();     }
+	virtual uint32 GetRefCount() const override	{ return FRHITexture::GetRefCount(); }
 
-	FD3D11TextureBase(
-		class FD3D11DynamicRHI* InD3DRHI,
+	explicit FD3D11Texture(
+		const FRHITextureCreateDesc& InDesc,
 		ID3D11Resource* InResource,
 		ID3D11ShaderResourceView* InShaderResourceView,
 		int32 InRTVArraySize,
 		bool bInCreatedRTVsPerSlice,
-		const TArray<TRefCountPtr<ID3D11RenderTargetView> >& InRenderTargetViews,
-		TRefCountPtr<ID3D11DepthStencilView>* InDepthStencilViews
-		) 
-	: D3DRHI(InD3DRHI)
-	, IHVResourceHandle(nullptr)
-	, MemorySize(0)
-	, BaseShaderResource(this)
-	, Resource(InResource)
-	, ShaderResourceView(InShaderResourceView)
-	, RenderTargetViews(InRenderTargetViews)
-	, bCreatedRTVsPerSlice(bInCreatedRTVsPerSlice)
-	, RTVArraySize(InRTVArraySize)
-	{
-		// Set the DSVs for all the access type combinations
-		if ( InDepthStencilViews != nullptr )
-		{
-			for (uint32 Index = 0; Index < FExclusiveDepthStencil::MaxIndex; Index++)
-			{
-				DepthStencilViews[Index] = InDepthStencilViews[Index];
-			}
-		}
-	}
+		TConstArrayView<TRefCountPtr<ID3D11RenderTargetView>> InRenderTargetViews,
+		TConstArrayView<TRefCountPtr<ID3D11DepthStencilView>> InDepthStencilViews
+	);
 
-	virtual ~FD3D11TextureBase() {}
+	enum EAliasResourceParam { CreateAlias };
+	explicit FD3D11Texture(FD3D11Texture const& Other, EAliasResourceParam);
+	void AliasResource(FD3D11Texture const& Other);
 
-	int32 GetMemorySize() const
-	{
-		return MemorySize;
-	}
+	virtual ~FD3D11Texture();
 
-	void SetMemorySize( int32 InMemorySize )
+	inline uint64 GetMemorySize() const
 	{
-		MemorySize = InMemorySize;
+		return RHICalcTexturePlatformSize(GetDesc()).Size;
 	}
 
 	// Accessors.
-	ID3D11Resource* GetResource() const { return Resource; }
-	ID3D11ShaderResourceView* GetShaderResourceView() const { return ShaderResourceView; }
-	FD3D11BaseShaderResource* GetBaseShaderResource() const { return BaseShaderResource; }
+	inline ID3D11Resource* GetResource() const { return Resource; }
+	inline ID3D11ShaderResourceView* GetShaderResourceView() const { return ShaderResourceView; }
 
-	void SetIHVResourceHandle(void* InHandle)
+	inline bool IsCubemap() const
+	{
+		FRHITextureDesc const& Desc = GetDesc();
+		return Desc.Dimension == ETextureDimension::TextureCube || Desc.Dimension == ETextureDimension::TextureCubeArray;
+	}
+
+	inline ID3D11Texture2D* GetD3D11Texture2D() const
+	{
+		check(Resource);
+		check(GetDesc().Dimension == ETextureDimension::Texture2D
+		   || GetDesc().Dimension == ETextureDimension::Texture2DArray
+		   || GetDesc().Dimension == ETextureDimension::TextureCube
+		   || GetDesc().Dimension == ETextureDimension::TextureCubeArray);
+
+		return static_cast<ID3D11Texture2D*>(Resource.GetReference());
+	}
+
+	inline ID3D11Texture3D* GetD3D11Texture3D() const
+	{
+		check(Resource);
+		check(GetDesc().Dimension == ETextureDimension::Texture3D);
+
+		return static_cast<ID3D11Texture3D*>(Resource.GetReference());
+	}
+
+	inline bool IsTexture3D() const
+	{
+		return GetDesc().Dimension == ETextureDimension::Texture3D;
+	}
+
+	virtual inline void* GetNativeResource() const override
+	{
+		return GetResource();
+	}
+
+	virtual inline void* GetNativeShaderResourceView() const override
+	{
+		return GetShaderResourceView();
+	}
+
+	virtual inline void* GetTextureBaseRHI() override
+	{
+		return this;
+	}
+
+	inline void SetIHVResourceHandle(void* InHandle)
 	{
 		IHVResourceHandle = InHandle;
 	}
 
-	void* GetIHVResourceHandle() const
+	inline void* GetIHVResourceHandle() const
 	{
 		return IHVResourceHandle;
 	}
@@ -203,7 +230,7 @@ public:
 	 * Get the render target view for the specified mip and array slice.
 	 * An array slice of -1 is used to indicate that no array slice should be required. 
 	 */
-	ID3D11RenderTargetView* GetRenderTargetView(int32 MipIndex, int32 ArraySliceIndex) const
+	inline ID3D11RenderTargetView* GetRenderTargetView(int32 MipIndex, int32 ArraySliceIndex) const
 	{
 		int32 ArrayIndex = MipIndex;
 
@@ -224,42 +251,35 @@ public:
 		}
 		return 0;
 	}
-	ID3D11DepthStencilView* GetDepthStencilView(FExclusiveDepthStencil AccessType) const
+
+	inline ID3D11DepthStencilView* GetDepthStencilView(FExclusiveDepthStencil AccessType) const
 	{ 
 		return DepthStencilViews[AccessType.GetIndex()]; 
 	}
 
-	void AliasResources(FD3D11TextureBase* Texture)
+#if RHI_ENABLE_RESOURCE_INFO
+	virtual bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
 	{
-		check(MemorySize == Texture->MemorySize);
-		check(bCreatedRTVsPerSlice == Texture->bCreatedRTVsPerSlice);
-		check(RTVArraySize == Texture->RTVArraySize);
-
-		// Do not copy the BaseShaderResource from the source texture (this is initialized correctly here, and is used for
-		// state caching logic).
-		Resource = Texture->Resource;
-		ShaderResourceView = Texture->ShaderResourceView;
-		RenderTargetViews = Texture->RenderTargetViews;
-
-		for (uint32 Index = 0; Index < FExclusiveDepthStencil::MaxIndex; Index++)
-		{
-			DepthStencilViews[Index] = Texture->DepthStencilViews[Index];
-		}
+		OutResourceInfo = FRHIResourceInfo{};
+		OutResourceInfo.Name = GetName();
+		OutResourceInfo.Type = GetType();
+		OutResourceInfo.VRamAllocation.AllocationSize = GetMemorySize();
+		return true;
 	}
+#endif
 
-protected:
+	/**
+	* Locks one of the texture's mip-maps.
+	* @return A pointer to the specified texture data.
+	*/
+	void* Lock(class FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool bForceLockDeferred = false);
 
-	/** The D3D11 RHI that created this texture. */
-	FD3D11DynamicRHI* D3DRHI;
+	/** Unlocks a previously locked mip-map. */
+	void Unlock(class FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 ArrayIndex);
 
+private:
 	//Resource handle for use by IHVs for SLI and other purposes.
-	void* IHVResourceHandle;
-
-	/** Amount of memory allocated by this texture, in bytes. */
-	int32 MemorySize;
-
-	/** Pointer to the base shader resource. Usually the object itself, but not for texture references. */
-	FD3D11BaseShaderResource* BaseShaderResource;
+	void* IHVResourceHandle = nullptr;
 
 	/** The texture resource. */
 	TRefCountPtr<ID3D11Resource> Resource;
@@ -270,261 +290,24 @@ protected:
 	/** A render targetable view of the texture. */
 	TArray<TRefCountPtr<ID3D11RenderTargetView> > RenderTargetViews;
 
-	bool bCreatedRTVsPerSlice;
+	/** A depth-stencil targetable view of the texture. */
+	TRefCountPtr<ID3D11DepthStencilView> DepthStencilViews[FExclusiveDepthStencil::MaxIndex];
 
 	int32 RTVArraySize;
 
-	/** A depth-stencil targetable view of the texture. */
-	TRefCountPtr<ID3D11DepthStencilView> DepthStencilViews[FExclusiveDepthStencil::MaxIndex];
+	uint8 bCreatedRTVsPerSlice : 1;
+	uint8 bAlias : 1;
 };
 
-/** 2D texture (vanilla, cubemap or 2D array) */
-template<typename BaseResourceType>
-class D3D11RHI_API TD3D11Texture2D : public BaseResourceType, public FD3D11TextureBase
-{
-public:
-
-	/** Flags used when the texture was created */
-	ETextureCreateFlags Flags;
-
-	/** Initialization constructor. */
-	TD3D11Texture2D(
-		class FD3D11DynamicRHI* InD3DRHI,
-		ID3D11Texture2D* InResource,
-		ID3D11ShaderResourceView* InShaderResourceView,
-		bool bInCreatedRTVsPerSlice,
-		int32 InRTVArraySize,
-		const TArray<TRefCountPtr<ID3D11RenderTargetView> >& InRenderTargetViews,
-		TRefCountPtr<ID3D11DepthStencilView>* InDepthStencilViews,
-		uint32 InSizeX,
-		uint32 InSizeY,
-		uint32 InSizeZ,
-		uint32 InNumMips,
-		uint32 InNumSamples,
-		EPixelFormat InFormat,
-		bool bInCubemap,
-		ETextureCreateFlags InFlags,
-		bool bInPooled,
-		const FClearValueBinding& InClearValue
-#if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-		, void* InRawTextureMemory = nullptr
-#endif
-		)
-	: BaseResourceType(
-		InSizeX,
-		InSizeY,
-		InSizeZ,
-		InNumMips,
-		InNumSamples,
-		InFormat,
-		InFlags,
-		InClearValue
-		)
-	, FD3D11TextureBase(
-		InD3DRHI,
-		InResource,
-		InShaderResourceView, 
-		InRTVArraySize,
-		bInCreatedRTVsPerSlice,
-		InRenderTargetViews,
-		InDepthStencilViews
-		)
-	, Flags(InFlags)
-	, bCubemap(bInCubemap)
-	, bPooled(bInPooled)
-#if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-	, RawTextureMemory(InRawTextureMemory)
-#endif
-	{
-	}
-
-	virtual ~TD3D11Texture2D();
-
-	// FRHIResource overrides
-#if RHI_ENABLE_RESOURCE_INFO
-	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
-	{
-		OutResourceInfo = FRHIResourceInfo{};
-		OutResourceInfo.Name = this->GetName();
-		OutResourceInfo.Type = this->GetType();
-		OutResourceInfo.VRamAllocation.AllocationSize = GetMemorySize();
-		return true;
-	}
-#endif
-
-	/**
-	 * Locks one of the texture's mip-maps.
-	 * @return A pointer to the specified texture data.
-	 */
-	void* Lock(uint32 MipIndex,uint32 ArrayIndex,EResourceLockMode LockMode,uint32& DestStride,bool bForceLockDeferred = false);
-
-	/** Unlocks a previously locked mip-map. */
-	void Unlock(uint32 MipIndex,uint32 ArrayIndex);
-
-	// Accessors.
-	ID3D11Texture2D* GetResource() const { return (ID3D11Texture2D*)FD3D11TextureBase::GetResource(); }
-	bool IsCubemap() const { return bCubemap; }
-
-	/** FRHITexture override.  See FRHITexture::GetNativeResource() */
-	virtual void* GetNativeResource() const override final
-	{ 
-		return GetResource();
-	}
-	virtual void* GetNativeShaderResourceView() const override final
-	{
-		return GetShaderResourceView();
-	}
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return static_cast<FD3D11TextureBase*>(this);
-	}
-
-
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const
-	{
-		return FRHIResource::AddRef();
-	}
-	virtual uint32 Release() const
-	{
-		return FRHIResource::Release();
-	}
-	virtual uint32 GetRefCount() const
-	{
-		return FRHIResource::GetRefCount();
-	}
-#if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-	void* GetRawTextureMemory() const
-	{
-		return RawTextureMemory;
-	}
-#endif
-
-private:
-
-	/** Whether the texture is a cube-map. */
-	const uint32 bCubemap : 1;
-	/** Whether the texture can be pooled. */
-	const uint32 bPooled : 1;
-#if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-	void* RawTextureMemory;
-#endif
-};
-
-/** 3D Texture */
-class FD3D11Texture3D : public FRHITexture3D, public FD3D11TextureBase
-{
-public:
-
-	/** Initialization constructor. */
-	FD3D11Texture3D(
-		class FD3D11DynamicRHI* InD3DRHI,
-		ID3D11Texture3D* InResource,
-		ID3D11ShaderResourceView* InShaderResourceView,
-		const TArray<TRefCountPtr<ID3D11RenderTargetView> >& InRenderTargetViews,
-		uint32 InSizeX,
-		uint32 InSizeY,
-		uint32 InSizeZ,
-		uint32 InNumMips,
-		EPixelFormat InFormat,
-		ETextureCreateFlags InFlags,
-		const FClearValueBinding& InClearValue
-		)
-	: FRHITexture3D(InSizeX,InSizeY,InSizeZ,InNumMips,InFormat,InFlags,InClearValue)
-	, FD3D11TextureBase(
-		InD3DRHI,
-		InResource,
-		InShaderResourceView,
-		1,
-		false,
-		InRenderTargetViews,
-		NULL
-		)
-	{
-	}
-
-	virtual ~FD3D11Texture3D();
-
-	// FRHIResource overrides
-#if RHI_ENABLE_RESOURCE_INFO
-	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
-	{
-		OutResourceInfo = FRHIResourceInfo{};
-		OutResourceInfo.Name = GetName();
-		OutResourceInfo.Type = GetType();
-		OutResourceInfo.VRamAllocation.AllocationSize = GetMemorySize();
-		return true;
-	}
-#endif
-	
-	// Accessors.
-	ID3D11Texture3D* GetResource() const { return (ID3D11Texture3D*)FD3D11TextureBase::GetResource(); }
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return static_cast<FD3D11TextureBase*>(this);
-	}
-
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const
-	{
-		return FRHIResource::AddRef();
-	}
-	virtual uint32 Release() const
-	{
-		return FRHIResource::Release();
-	}
-	virtual uint32 GetRefCount() const
-	{
-		return FRHIResource::GetRefCount();
-	}
-};
-
-class FD3D11BaseTexture2D : public FRHITexture2D
-{
-public:
-	FD3D11BaseTexture2D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture2D(InSizeX,InSizeY,InNumMips,InNumSamples,InFormat,InFlags, InClearValue)
-	{}
-	uint32 GetSizeZ() const { return 0; }
-};
-
-class FD3D11BaseTexture2DArray : public FRHITexture2DArray
-{
-public:
-	FD3D11BaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture2DArray(InSizeX,InSizeY,InSizeZ,InNumMips,InNumSamples, InFormat,InFlags,InClearValue)
-	{}
-};
-
-class FD3D11BaseTextureCube : public FRHITextureCube
-{
-public:
-	FD3D11BaseTextureCube(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
-	: FRHITextureCube(InSizeX,InNumMips,InFormat,InFlags,InClearValue)
-	, SliceCount(InSizeZ)
-	{ check(InNumSamples == 1); }
-	uint32 GetSizeX() const { return GetSize(); }
-	uint32 GetSizeY() const { return GetSize(); } //-V524
-	uint32 GetSizeZ() const { return SliceCount; }
-
-private:
-	uint32 SliceCount;
-};
-
-typedef TD3D11Texture2D<FRHITexture>              FD3D11Texture;
-typedef TD3D11Texture2D<FD3D11BaseTexture2D>      FD3D11Texture2D;
-typedef TD3D11Texture2D<FD3D11BaseTexture2DArray> FD3D11Texture2DArray;
-typedef TD3D11Texture2D<FD3D11BaseTextureCube>    FD3D11TextureCube;
-
-/** Given a pointer to a RHI texture that was created by the D3D11 RHI, returns a pointer to the FD3D11TextureBase it encapsulates. */
-FORCEINLINE FD3D11TextureBase* GetD3D11TextureFromRHITexture(FRHITexture* Texture)
+/** Given a pointer to a RHI texture that was created by the D3D11 RHI, returns a pointer to the FD3D11Texture it encapsulates. */
+FORCEINLINE FD3D11Texture* GetD3D11TextureFromRHITexture(FRHITexture* Texture)
 {
 	if (!Texture)
 	{
-		return NULL;
+		return nullptr;
 	}
-	FD3D11TextureBase* Result((FD3D11TextureBase*)Texture->GetTextureBaseRHI());
+
+	FD3D11Texture* Result = static_cast<FD3D11Texture*>(Texture->GetTextureBaseRHI());
 	check(Result);
 	return Result;
 }
@@ -722,9 +505,6 @@ public:
 	{}
 };
 
-void ReturnPooledTexture2D(int32 MipCount, EPixelFormat PixelFormat, ID3D11Texture2D* InResource);
-void ReleasePooledTextures();
-
 template<class T>
 struct TD3D11ResourceTraits
 {
@@ -760,29 +540,9 @@ struct TD3D11ResourceTraits<FRHIBoundShaderState>
 	typedef FD3D11BoundShaderState TConcreteType;
 };
 template<>
-struct TD3D11ResourceTraits<FRHITexture3D>
-{
-	typedef FD3D11Texture3D TConcreteType;
-};
-template<>
 struct TD3D11ResourceTraits<FRHITexture>
 {
 	typedef FD3D11Texture TConcreteType;
-};
-template<>
-struct TD3D11ResourceTraits<FRHITexture2D>
-{
-	typedef FD3D11Texture2D TConcreteType;
-};
-template<>
-struct TD3D11ResourceTraits<FRHITexture2DArray>
-{
-	typedef FD3D11Texture2DArray TConcreteType;
-};
-template<>
-struct TD3D11ResourceTraits<FRHITextureCube>
-{
-	typedef FD3D11TextureCube TConcreteType;
 };
 template<>
 struct TD3D11ResourceTraits<FRHIRenderQuery>

@@ -39,11 +39,6 @@
 
 #define RHI_ENABLE_RESOURCE_INFO (RHI_WANT_RESOURCE_INFO && !RHI_FORCE_DISABLE_RESOURCE_INFO)
 
-#ifndef RHI_RESOURCE_LIFETIME_VALIDATION
-#define RHI_RESOURCE_LIFETIME_VALIDATION 0
-#endif
-
-
 class FRHICommandListImmediate;
 struct FClearValueBinding;
 struct FRHIResourceInfo;
@@ -57,11 +52,19 @@ public:
 	UE_DEPRECATED(5.0, "FRHIResource(bool) is deprecated, please use FRHIResource(ERHIResourceType)")
 	FRHIResource(bool InbDoNotDeferDelete=false)
 		: ResourceType(RRT_None)
+		, bCommitted(true)
+#if RHI_ENABLE_RESOURCE_INFO
+		, bBeingTracked(false)
+#endif
 	{
 	}
 
 	FRHIResource(ERHIResourceType InResourceType)
 		: ResourceType(InResourceType)
+		, bCommitted(true)
+#if RHI_ENABLE_RESOURCE_INFO
+		, bBeingTracked(false)
+#endif
 	{
 #if RHI_ENABLE_RESOURCE_INFO
 		BeginTrackingResource(this);
@@ -161,162 +164,85 @@ public:
 private:
 	class FAtomicFlags
 	{
-#if RHI_RESOURCE_LIFETIME_VALIDATION
-		struct FPacked
-		{
-			FPacked(uint64 InNumRefs, bool InMarkedForDelete, bool InDeleting) : NumRefs(InNumRefs), MarkedForDelete(InMarkedForDelete), Deleting(InDeleting)
-			{
-			}
+		static constexpr uint32 MarkedForDeleteBit    = 1 << 30;
+		static constexpr uint32 DeletingBit           = 1 << 31;
+		static constexpr uint32 NumRefsMask           = ~(MarkedForDeleteBit | DeletingBit);
 
-			FPacked() : NumRefs(0), MarkedForDelete(0), Deleting(0)
-			{
-			}
-
-			uint32 NumRefs			: 30;
-			uint32 MarkedForDelete	: 1;
-			uint32 Deleting			: 1;
-		};
-		std::atomic<FPacked> Packed = {};
-#else
-		std::atomic_int NumRefs = { 0 };
-		std::atomic_bool MarkedForDelete = { 0 };
-#endif
+		std::atomic_uint Packed = { 0 };
 
 	public:
 		int32 AddRef(std::memory_order MemoryOrder)
 		{
-#if RHI_RESOURCE_LIFETIME_VALIDATION
-			FPacked Old = Packed.load(std::memory_order_relaxed);
-			while(true)
-			{
-				check(Old.Deleting == false);
-				if(Packed.compare_exchange_weak(Old, FPacked(Old.NumRefs + 1, Old.MarkedForDelete, false), MemoryOrder, std::memory_order_relaxed))
-				{
-					return Old.NumRefs + 1;
-				}
-			}
-#else
-			return NumRefs.fetch_add(1, MemoryOrder) + 1;
-#endif
+			uint32 OldPacked = Packed.fetch_add(1, MemoryOrder);
+			checkf((OldPacked & DeletingBit) == 0, TEXT("Resource is being deleted."));
+			int32  NumRefs = (OldPacked & NumRefsMask) + 1;
+			checkf(NumRefs < NumRefsMask, TEXT("Reference count has overflowed."));
+			return NumRefs;
 		}
 
 		int32 Release(std::memory_order MemoryOrder)
 		{
-#if RHI_RESOURCE_LIFETIME_VALIDATION
-			FPacked Old = Packed.load(std::memory_order_relaxed);
-			while(true)
-			{
-				check(Old.Deleting == false);
-				if(Packed.compare_exchange_weak(Old, FPacked(Old.NumRefs - 1, Old.MarkedForDelete, false), MemoryOrder, std::memory_order_relaxed))
-				{
-					return Old.NumRefs - 1;
-				}
-			}
-#else
-			return NumRefs.fetch_sub(1, MemoryOrder) - 1;
-#endif
+			uint32 OldPacked = Packed.fetch_sub(1, MemoryOrder);
+			checkf((OldPacked & DeletingBit) == 0, TEXT("Resource is being deleted."));
+			int32  NumRefs = (OldPacked & NumRefsMask) - 1;
+			checkf(NumRefs >= 0, TEXT("Reference count has underflowed."));
+			return NumRefs;
 		}
 
 		bool MarkForDelete(std::memory_order MemoryOrder)
 		{
-#if RHI_RESOURCE_LIFETIME_VALIDATION
-			FPacked Old = Packed.load(std::memory_order_relaxed);
-			while(true)
-			{
-				check(Old.Deleting == false);
-				if(Packed.compare_exchange_weak(Old, FPacked(Old.NumRefs, true, false), MemoryOrder, std::memory_order_relaxed))
-				{
-					return Old.MarkedForDelete;
-				}
-			}
-#else
-			return MarkedForDelete.exchange(true, MemoryOrder);
-#endif
+			uint32 OldPacked = Packed.fetch_or(MarkedForDeleteBit, MemoryOrder);
+			check((OldPacked & DeletingBit) == 0);
+			return (OldPacked & MarkedForDeleteBit) != 0;
 		}
 
 		bool UnmarkForDelete(std::memory_order MemoryOrder)
 		{
-#if RHI_RESOURCE_LIFETIME_VALIDATION
-			FPacked Old = Packed.load(std::memory_order_relaxed);
-			while(true)
-			{
-				check(Old.Deleting == false); 
-				check(Old.MarkedForDelete == true);
-				if(Packed.compare_exchange_weak(Old, FPacked(Old.NumRefs, false, false), MemoryOrder, std::memory_order_relaxed))
-				{
-					return Old.MarkedForDelete;
-				}
-			}
-#else
-			bool Old = MarkedForDelete.exchange(false, MemoryOrder);
-			check(Old == true);
-			return Old;
-#endif
+			uint32 OldPacked = Packed.fetch_xor(MarkedForDeleteBit, MemoryOrder);
+			check((OldPacked & DeletingBit) == 0);
+			bool  OldMarkedForDelete = (OldPacked & MarkedForDeleteBit) != 0;
+			check(OldMarkedForDelete == true);
+			return OldMarkedForDelete;
 		}
 
 		bool Deleteing()
 		{
-#if RHI_RESOURCE_LIFETIME_VALIDATION
-			FPacked Old = Packed.load(std::memory_order_relaxed);
-			while(true)
+			uint32 LocalPacked = Packed.load(std::memory_order_acquire);
+			check((LocalPacked & MarkedForDeleteBit) != 0);
+			check((LocalPacked & DeletingBit) == 0);
+			uint32 NumRefs = LocalPacked & NumRefsMask;
+
+			if (NumRefs == 0) // caches can bring dead objects back to life
 			{
-				check(Old.Deleting == false); 
-				check(Old.MarkedForDelete == true);
-				if(Old.NumRefs == 0)
-				{
-					if(Packed.compare_exchange_weak(Old, FPacked(0, true, true), std::memory_order_acquire, std::memory_order_relaxed))
-					{
-						return true;
-					}
-				}
-				else
-				{
-					if(Packed.compare_exchange_weak(Old, FPacked(Old.NumRefs, false, false), std::memory_order_release, std::memory_order_relaxed))
-					{
-						return false;
-					}
-				}
-			}
-#else
-			check(MarkedForDelete.load(std::memory_order_relaxed) == 1);
-			if (NumRefs.load(std::memory_order_acquire) == 0) // caches can bring dead objects back to life
-			{
+#if DO_CHECK
+				Packed.fetch_or(DeletingBit, std::memory_order_acquire);
+#endif
 				return true;
 			}
 			else
 			{
-				verify(MarkedForDelete.exchange(false, std::memory_order_release));	
+				UnmarkForDelete(std::memory_order_release);
 				return false;
 			}
-#endif
 		}
 
 		bool IsValid(std::memory_order MemoryOrder)
 		{
-#if RHI_RESOURCE_LIFETIME_VALIDATION
-			FPacked Old = Packed.load(MemoryOrder);
-			return !Old.MarkedForDelete && Old.NumRefs > 0;
-#else
-			return !MarkedForDelete.load(MemoryOrder) && NumRefs.load(MemoryOrder) > 0;
-#endif
+			uint32 LocalPacked = Packed.load(MemoryOrder);
+			return (LocalPacked & MarkedForDeleteBit) == 0 && (LocalPacked & NumRefsMask) != 0;
 		}
 
 		int32 GetNumRefs(std::memory_order MemoryOrder)
 		{
-#if RHI_RESOURCE_LIFETIME_VALIDATION
-			FPacked Old = Packed.load(MemoryOrder);
-			return Old.NumRefs;
-#else
-			return NumRefs.load(MemoryOrder);
-#endif
+			return Packed.load(MemoryOrder) & NumRefsMask;
 		}
 	};
 	mutable FAtomicFlags AtomicFlags;
 
 	const ERHIResourceType ResourceType;
-	bool bCommitted { true };
+	uint8 bCommitted : 1;
 #if RHI_ENABLE_RESOURCE_INFO
-	bool bBeingTracked { false };
+	uint8 bBeingTracked : 1;
 #endif
 
 	static std::atomic<TClosableMpscQueue<FRHIResource*>*> PendingDeletes;
@@ -1228,39 +1154,516 @@ private:
 	double LastRenderTime;
 };
 
+
+/** Descriptor used to create a texture resource */
+struct RHI_API FRHITextureDesc
+{
+	static FRHITextureDesc Create2D(
+		  FIntPoint           Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint8               NumMips    = 1
+		, uint8               NumSamples = 1
+		, uint32              ExtData    = 0
+		)
+	{
+		const uint32 Depth     = 1;
+		const uint32 ArraySize = 1;
+		return FRHITextureDesc(ETextureDimension::Texture2D, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
+	}
+
+	static FRHITextureDesc Create2DArray(
+		  FIntPoint           Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint16              ArraySize
+		, uint8               NumMips    = 1
+		, uint8               NumSamples = 1
+		, uint32              ExtData    = 0
+		)
+	{
+		const uint32 Depth   = 1;
+		return FRHITextureDesc(ETextureDimension::Texture2DArray, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
+	}
+
+	static FRHITextureDesc Create3D(
+		  FIntVector          Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint8               NumMips    = 1
+		, uint32              ExtData    = 0
+		)
+	{
+		const uint32 ArraySize  = 1;
+		const uint32 LocalNumSamples = 1;
+
+		checkf(Size.Z <= TNumericLimits<decltype(FRHITextureDesc::Depth)>::Max(), TEXT("Depth parameter (Size.Z) exceeds valid range"));
+
+		return FRHITextureDesc(ETextureDimension::Texture3D, Flags, Format, ClearValue, { Size.X, Size.Y }, Size.Z, ArraySize, NumMips, LocalNumSamples, ExtData);
+	}
+
+	static FRHITextureDesc CreateCube(
+		  uint32              Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint8               NumMips    = 1
+		, uint8               NumSamples = 1
+		, uint32              ExtData    = 0
+		)
+	{
+		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
+
+		const uint32 Depth     = 1;
+		const uint32 ArraySize = 1;
+		return FRHITextureDesc(ETextureDimension::TextureCube, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
+	}
+
+	static FRHITextureDesc CreateCubeArray(
+		  uint32              Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint16              ArraySize
+		, uint8               NumMips    = 1
+		, uint8               NumSamples = 1
+		, uint32              ExtData    = 0
+		)
+	{
+		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
+
+		const uint32 Depth   = 1;
+		return FRHITextureDesc(ETextureDimension::TextureCubeArray, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
+	}
+
+	FRHITextureDesc()
+		: NumSamples(1)
+		, Dimension(ETextureDimension::Texture2D)
+	{}
+
+	FRHITextureDesc(
+		  ETextureDimension   InDimension
+		, ETextureCreateFlags InFlags
+		, EPixelFormat        InFormat
+		, FClearValueBinding  InClearValue
+		, FIntPoint           InExtent
+		, uint16              InDepth
+		, uint16              InArraySize
+		, uint8               InNumMips
+		, uint8               InNumSamples
+		, uint32              InExtData
+		)
+		: Flags     (InFlags     )
+		, ClearValue(InClearValue)
+		, ExtData   (InExtData   )
+		, Extent    (InExtent    )
+		, Depth     (InDepth     )
+		, ArraySize (InArraySize )
+		, NumMips   (InNumMips   )
+		, NumSamples(InNumSamples)
+		, Dimension (InDimension )
+		, Format    (InFormat    )
+	{}
+
+	UE_DEPRECATED(5.1, "Prefer using one of the FRHITextureDesc::Create...() functions rather than this FRHITextureDesc constructor. Otherwise use the FRHITextureDesc constructor that does not take optional arguments.")
+	FRHITextureDesc(
+		  ETextureDimension   InDimension
+		, ETextureCreateFlags InFlags
+		, EPixelFormat        InFormat
+		, FIntPoint           InExtent
+		, FClearValueBinding  InClearValue
+		, uint16              InDepth      = 1
+		, uint16              InArraySize  = 1
+		, uint8               InNumMips    = 1
+		, uint8               InNumSamples = 1
+		, uint32              InExtData    = 0
+		)
+		: FRHITextureDesc(
+		  InDimension
+		, InFlags
+		, InFormat
+		, InClearValue
+		, InExtent
+		, InDepth
+		, InArraySize
+		, InNumMips
+		, InNumSamples
+		, InExtData
+		)
+	{}
+
+	friend uint32 GetTypeHash(const FRHITextureDesc& Desc)
+	{
+		uint32 Hash = GetTypeHash(Desc.Dimension);
+		Hash = HashCombine(Hash, GetTypeHash(Desc.Flags		));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.Format	));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.UAVFormat	));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.Extent	));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.Depth		));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.ArraySize	));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.NumMips	));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.NumSamples));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.ClearValue));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.ExtData   ));
+		return Hash;
+	}
+
+	bool operator == (const FRHITextureDesc& Other) const
+	{
+		return Dimension  == Other.Dimension
+			&& Flags      == Other.Flags
+			&& Format     == Other.Format
+			&& UAVFormat  == Other.UAVFormat
+			&& Extent     == Other.Extent
+			&& Depth      == Other.Depth
+			&& ArraySize  == Other.ArraySize
+			&& NumMips    == Other.NumMips
+			&& NumSamples == Other.NumSamples
+			&& ClearValue == Other.ClearValue
+			&& ExtData    == Other.ExtData;
+	}
+
+	bool operator != (const FRHITextureDesc& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	bool IsTexture2D() const
+	{
+		return Dimension == ETextureDimension::Texture2D || Dimension == ETextureDimension::Texture2DArray;
+	}
+
+	bool IsTexture3D() const
+	{
+		return Dimension == ETextureDimension::Texture3D;
+	}
+
+	bool IsTextureCube() const
+	{
+		return Dimension == ETextureDimension::TextureCube || Dimension == ETextureDimension::TextureCubeArray;
+	}
+
+	bool IsTextureArray() const
+	{
+		return Dimension == ETextureDimension::Texture2DArray || Dimension == ETextureDimension::TextureCubeArray;
+	}
+
+	bool IsMipChain() const
+	{
+		return NumMips > 1;
+	}
+
+	bool IsMultisample() const
+	{
+		return NumSamples > 1;
+	}
+
+	FIntVector GetSize() const
+	{
+		return FIntVector(Extent.X, Extent.Y, Depth);
+	}
+
+	void Reset()
+	{
+		// Usually we don't want to propagate MSAA samples.
+		NumSamples = 1;
+
+		// Remove UAV flag for textures that don't need it (some formats are incompatible).
+		Flags |= TexCreate_RenderTargetable;
+		Flags &= ~(TexCreate_UAV | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget);
+	}
+
+	/** Returns whether this descriptor conforms to requirements. */
+	bool IsValid() const
+	{
+		return FRHITextureDesc::Validate(*this, /* Name = */ TEXT(""), /* bFatal = */ false);
+	}
+
+	/** Texture flags passed on to RHI texture. */
+	ETextureCreateFlags Flags = TexCreate_None;
+
+	/** Clear value to use when fast-clearing the texture. */
+	FClearValueBinding ClearValue;
+
+	/** Platform-specific additional data. Used for offline processed textures on some platforms. */
+	uint32 ExtData = 0;
+
+	/** Extent of the texture in x and y. */
+	FIntPoint Extent = FIntPoint(1, 1);
+
+	/** Depth of the texture if the dimension is 3D. */
+	uint16 Depth = 1;
+
+	/** The number of array elements in the texture. (Keep at 1 if dimension is 3D). */
+	uint16 ArraySize = 1;
+
+	/** Number of mips in the texture mip-map chain. */
+	uint8 NumMips = 1;
+
+	/** Number of samples in the texture. >1 for MSAA. */
+	uint8 NumSamples : 5;
+
+	/** Texture dimension to use when creating the RHI texture. */
+	ETextureDimension Dimension : 3;
+
+	/** Pixel format used to create RHI texture. */
+	EPixelFormat Format = PF_Unknown;
+
+	/** Texture format used when creating the UAV. PF_Unknown means to use the default one (same as Format). */
+	EPixelFormat UAVFormat = PF_Unknown;
+
+	/** Check the validity. */
+	static bool CheckValidity(const FRHITextureDesc& Desc, const TCHAR* Name)
+	{
+		return FRHITextureDesc::Validate(Desc, Name, /* bFatal = */ true);
+	}
+
+	/**
+	 * Returns an estimated total memory size the described texture will occupy in GPU memory.
+	 * This is an estimate because it only considers the dimensions / format etc of the texture, 
+	 * not any specifics about platform texture layout.
+	 * 
+	 * To get a true measure of a texture resource for the current running platform RHI, use RHICalcTexturePlatformSize().
+	 * 
+	 * @param FirstMipIndex - the index of the most detailed mip to consider in the memory size calculation. Must be < NumMips and <= LastMipIndex.
+	 * @param LastMipIndex  - the index of the least detailed mip to consider in the memory size calculation. Must be < NumMips and >= FirstMipIndex.
+	 */
+	uint64 CalcMemorySizeEstimate(uint32 FirstMipIndex, uint32 LastMipIndex) const;
+	uint64 CalcMemorySizeEstimate(uint32 FirstMipIndex = 0) const
+	{
+		return CalcMemorySizeEstimate(FirstMipIndex, NumMips - 1);
+	}
+
+private:
+	static bool Validate(const FRHITextureDesc& Desc, const TCHAR* Name, bool bFatal);
+};
+
+// @todo deprecate
+using FRHITextureCreateInfo = FRHITextureDesc;
+
+extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData);
+
+struct FRHITextureCreateDesc : public FRHITextureDesc
+{
+	static FRHITextureCreateDesc Create2D(
+		  TCHAR const*                DebugName
+		, FIntPoint                   Size
+		, EPixelFormat                Format
+		, FClearValueBinding          ClearValue
+		, ETextureCreateFlags         Flags
+		, uint8                       NumMips      = 1
+		, uint8                       NumSamples   = 1
+		, uint32		              ExtData      = 0
+		, ERHIAccess                  InitialState = ERHIAccess::Unknown
+		, FResourceBulkDataInterface* BulkData     = nullptr
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		)
+	{
+		return FRHITextureCreateDesc(
+			  FRHITextureDesc::Create2D(Size, Format, ClearValue, Flags, NumMips, NumSamples, ExtData)
+			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
+			, DebugName
+			, BulkData
+			, GPUMask
+		);
+	}
+
+	static FRHITextureCreateDesc Create2DArray(
+		  TCHAR const*                DebugName
+		, FIntPoint                   Size
+		, EPixelFormat                Format
+		, FClearValueBinding          ClearValue
+		, ETextureCreateFlags         Flags
+		, uint16                      ArraySize
+		, uint8                       NumMips      = 1
+		, uint8                       NumSamples   = 1
+		, uint32		              ExtData      = 0
+		, ERHIAccess                  InitialState = ERHIAccess::Unknown
+		, FResourceBulkDataInterface* BulkData     = nullptr
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		)
+	{
+		return FRHITextureCreateDesc(
+			  FRHITextureDesc::Create2DArray(Size, Format, ClearValue, Flags, ArraySize, NumMips, NumSamples, ExtData)
+			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
+			, DebugName
+			, BulkData
+			, GPUMask
+		);
+	}
+
+	static FRHITextureCreateDesc Create3D(
+		  TCHAR const*                DebugName
+		, FIntVector                  Size
+		, EPixelFormat                Format
+		, FClearValueBinding          ClearValue
+		, ETextureCreateFlags         Flags
+		, uint8                       NumMips      = 1
+		, uint32		              ExtData      = 0
+		, ERHIAccess                  InitialState = ERHIAccess::Unknown
+		, FResourceBulkDataInterface* BulkData     = nullptr
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		)
+	{
+		return FRHITextureCreateDesc(
+			  FRHITextureDesc::Create3D(Size, Format, ClearValue, Flags, NumMips, ExtData)
+			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
+			, DebugName
+			, BulkData
+			, GPUMask
+		);
+	}
+
+	static FRHITextureCreateDesc CreateCube(
+		  TCHAR const*                DebugName
+		, uint32                      Size
+		, EPixelFormat                Format
+		, FClearValueBinding          ClearValue
+		, ETextureCreateFlags         Flags
+		, uint8                       NumMips      = 1
+		, uint8                       NumSamples   = 1
+		, uint32		              ExtData      = 0
+		, ERHIAccess                  InitialState = ERHIAccess::Unknown
+		, FResourceBulkDataInterface* BulkData     = nullptr
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		)
+	{
+		return FRHITextureCreateDesc(
+			  FRHITextureDesc::CreateCube(Size, Format, ClearValue, Flags, NumMips, NumSamples, ExtData)
+			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
+			, DebugName
+			, BulkData
+			, GPUMask
+		);
+	}
+
+	static FRHITextureCreateDesc CreateCubeArray(
+		  TCHAR const*                DebugName
+		, uint32                      Size
+		, EPixelFormat                Format
+		, FClearValueBinding          ClearValue
+		, ETextureCreateFlags         Flags
+		, uint16                      ArraySize
+		, uint8                       NumMips      = 1
+		, uint8                       NumSamples   = 1
+		, uint32		              ExtData      = 0
+		, ERHIAccess                  InitialState = ERHIAccess::Unknown
+		, FResourceBulkDataInterface* BulkData     = nullptr
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		)
+	{
+		return FRHITextureCreateDesc(
+			  FRHITextureDesc::CreateCubeArray(Size, Format, ClearValue, Flags, ArraySize, NumMips, NumSamples, ExtData)
+			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
+			, DebugName
+			, BulkData
+			, GPUMask
+		);
+	}
+
+	FRHITextureCreateDesc() = default;
+
+	// Constructor will full argument set.
+	FRHITextureCreateDesc(
+		  ETextureDimension           InDimension
+		, ETextureCreateFlags         InFlags
+		, EPixelFormat                InFormat
+		, FClearValueBinding          InClearValue
+		, FIntPoint                   InExtent
+		, uint16                      InDepth
+		, uint16                      InArraySize
+		, uint8                       InNumMips
+		, uint8                       InNumSamples
+		, uint32                      InExtData
+		, ERHIAccess                  InInitialState
+		, TCHAR const*                InDebugName
+		, FResourceBulkDataInterface* InBulkData    = nullptr 
+		, FRHIGPUMask                 InGPUMask     = FRHIGPUMask()
+		)
+		: FRHITextureDesc(InDimension, InFlags, InFormat, InClearValue, InExtent, InDepth, InArraySize, InNumMips, InNumSamples, InExtData)
+		, InitialState   (InInitialState)
+		, DebugName      (InDebugName)
+		, GPUMask        (InGPUMask)
+		, BulkData       (InBulkData)
+	{}
+
+	// Constructor for when you already have an FRHITextureDesc
+	FRHITextureCreateDesc(
+		  FRHITextureDesc const&      InDesc
+		, ERHIAccess                  InInitialState
+		, TCHAR const*                InDebugName
+		, FResourceBulkDataInterface* InBulkData     = nullptr
+		, FRHIGPUMask                 InGPUMask      = FRHIGPUMask()
+		)
+		: FRHITextureDesc(InDesc)
+		, InitialState   (InInitialState)
+		, DebugName      (InDebugName)
+		, GPUMask        (InGPUMask)
+		, BulkData       (InBulkData)
+	{}
+
+	void CheckValidity() const
+	{
+		FRHITextureDesc::CheckValidity(*this, DebugName);
+
+		ensureMsgf(InitialState != ERHIAccess::Unknown, TEXT("Resource %s cannot be created in an unknown state."), DebugName);
+	}
+
+	/* The RHI access state that the resource will be created in. */
+	ERHIAccess InitialState = ERHIAccess::Unknown;
+
+	/* A friendly name for the resource. */
+	const TCHAR* DebugName = nullptr;
+
+	/* A mask representing which GPUs to create the resource on, in a multi-GPU system. */
+	FRHIGPUMask GPUMask;
+
+	/* Optional initial data to fill the resource with. */
+	FResourceBulkDataInterface* BulkData = nullptr;
+};
+
+class FRHITexture;
+/*UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use FRHITexture.")      */ typedef class FRHITexture FRHITexture2D;
+/*UE_DEPRECATED(5.1, "FRHITexture2DArray is deprecated, please use FRHITexture.") */ typedef class FRHITexture FRHITexture2DArray;
+/*UE_DEPRECATED(5.1, "FRHITexture3D is deprecated, please use FRHITexture.")      */ typedef class FRHITexture FRHITexture3D;
+/*UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use FRHITexture.")    */ typedef class FRHITexture FRHITextureCube;
+
+
 class RHI_API FRHITexture : public FRHIResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FTextureResource
 #endif
 {
+protected:
+	/** Initialization constructor. Should only be called by platform RHI implementations. */
+	FRHITexture(const FRHITextureCreateDesc& InDesc)
+		: FRHIResource(RRT_Texture)
+#if ENABLE_RHI_VALIDATION
+		, RHIValidation::FTextureResource(InDesc)
+#endif
+		, TextureDesc(InDesc)
+	{
+		SetName(InDesc.DebugName);
+	}
+
 public:
+	/**
+	 * Get the texture description used to create the texture
+	 * Still virtual because FRHITextureReference can override this function - remove virtual when FRHITextureReference is deprecated
+	 *
+	 * @return TextureDesc used to create the texture
+	 */
+	virtual const FRHITextureDesc& GetDesc() const { return TextureDesc; }
 	
-	/** Initialization constructor. */
-	FRHITexture(ERHIResourceType InResourceType, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
-		: FRHIResource(InResourceType)
-		, ClearValue(InClearValue)
-		, NumMips(InNumMips)
-		, NumSamples(InNumSamples)
-		, Format(InFormat)
-		, Flags(InFlags)
-	{}
-
-	UE_DEPRECATED(5.0, "The InLastRenderTime parameter will be removed in the future")
-	FRHITexture(ERHIResourceType InResourceType, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, FLastRenderTimeContainer* InLastRenderTime, const FClearValueBinding& InClearValue)
-		: FRHITexture(InResourceType, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
-	{}
-
-	// Dynamic cast methods.
-	virtual class FRHITexture2D* GetTexture2D() { return NULL; }
-	virtual class FRHITexture2DArray* GetTexture2DArray() { return NULL; }
-	virtual class FRHITexture3D* GetTexture3D() { return NULL; }
-	virtual class FRHITextureCube* GetTextureCube() { return NULL; }
+	///
+	/// Virtual functions implemented per RHI
+	/// 
+	
 	virtual class FRHITextureReference* GetTextureReference() { return NULL; }
-
 	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const { return FRHIDescriptorHandle(); }
-
-	// Slower method to get Size X, Y & Z information. Prefer sub-classes' GetSizeX(), etc
-	virtual FIntVector GetSizeXYZ() const = 0;
 
 	/**
 	 * Returns access to the platform-specific native resource pointer.  This is designed to be used to provide plugins with access
@@ -1285,7 +1688,7 @@ public:
 		// Override this in derived classes to expose access to the native texture resource
 		return nullptr;
 	}
-	
+
 	/**
 	 * Returns access to the platform-specific RHI texture baseclass.  This is designed to provide the RHI with fast access to its base classes in the face of multiple inheritance.
 	 * @return	The pointer to the platform-specific RHI texture baseclass or NULL if it not initialized or not supported for this RHI
@@ -1296,35 +1699,91 @@ public:
 		return nullptr;
 	}
 
+	virtual void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
+	{
+		OutData = nullptr;
+		OutSize = 0;
+	}
+
+	///
+	/// Helper getter functions - non virtual
+	/// 
+
+	/**
+	 * Returns the x, y & z dimensions if the texture
+	 * The Z component will always be 1 for 2D/cube resources and will contain depth for volume textures & array size for array textures
+	 */
+	FIntVector GetSizeXYZ() const
+	{
+		const FRHITextureDesc& Desc = GetDesc();
+		switch (Desc.Dimension)
+		{
+		case ETextureDimension::Texture2D:		  return FIntVector(Desc.Extent.X, Desc.Extent.Y, 1);
+		case ETextureDimension::Texture2DArray:	  return FIntVector(Desc.Extent.X, Desc.Extent.Y, Desc.ArraySize);
+		case ETextureDimension::Texture3D:		  return FIntVector(Desc.Extent.X, Desc.Extent.Y, Desc.Depth);
+		case ETextureDimension::TextureCube:	  return FIntVector(Desc.Extent.X, Desc.Extent.Y, 1);
+		case ETextureDimension::TextureCubeArray: return FIntVector(Desc.Extent.X, Desc.Extent.Y, Desc.ArraySize);
+		}
+		return FIntVector(0, 0, 0);
+	}
+
 	/**
 	 * Returns the dimensions (i.e. the actual number of texels in each dimension) of the specified mip. ArraySize is ignored.
 	 * The Z component will always be 1 for 2D/cube resources and will contain depth for volume textures.
 	 * This differs from GetSizeXYZ() which returns ArraySize in Z for 2D arrays.
 	 */
-	virtual FIntVector GetMipDimensions(uint8 MipIndex) const
+	FIntVector GetMipDimensions(uint8 MipIndex) const
 	{
-		FIntVector Size = GetSizeXYZ();
+		const FRHITextureDesc& Desc = GetDesc();
 		return FIntVector(
-			FMath::Max(Size.X >> MipIndex, 1),
-			FMath::Max(Size.Y >> MipIndex, 1),
-			FMath::Max(Size.Z >> MipIndex, 1)
+			FMath::Max<int32>(Desc.Extent.X >> MipIndex, 1),
+			FMath::Max<int32>(Desc.Extent.Y >> MipIndex, 1),
+			FMath::Max<int32>(Desc.Depth    >> MipIndex, 1)
 		);
 	}
 
-	/** @return The number of mip-maps in the texture. */
-	uint32 GetNumMips() const { return NumMips; }
-
-	/** @return The format of the pixels in the texture. */
-	EPixelFormat GetFormat() const { return Format; }
-
-	/** @return The flags used to create the texture. */
-	ETextureCreateFlags GetFlags() const { return Flags; }
-
-	/* @return the number of samples for multi-sampling. */
-	uint32 GetNumSamples() const { return NumSamples; }
-
 	/** @return Whether the texture is multi sampled. */
-	bool IsMultisampled() const { return NumSamples > 1; }		
+	bool IsMultisampled() const { return GetDesc().NumSamples > 1; }
+
+	/** @return Whether the texture has a clear color defined */
+	bool HasClearValue() const
+	{
+		return GetDesc().ClearValue.ColorBinding != EClearBinding::ENoneBound;
+	}
+
+	/** @return the clear color value if set */
+	FLinearColor GetClearColor() const
+	{
+		return GetDesc().ClearValue.GetClearColor();
+	}
+
+	/** @return the depth & stencil clear value if set */
+	void GetDepthStencilClearValue(float& OutDepth, uint32& OutStencil) const
+	{
+		return GetDesc().ClearValue.GetDepthStencil(OutDepth, OutStencil);
+	}
+
+	/** @return the depth clear value if set */
+	float GetDepthClearValue() const
+	{
+		float Depth;
+		uint32 Stencil;
+		GetDesc().ClearValue.GetDepthStencil(Depth, Stencil);
+		return Depth;
+	}
+
+	/** @return the stencil clear value if set */
+	uint32 GetStencilClearValue() const
+	{
+		float Depth;
+		uint32 Stencil;
+		GetDesc().ClearValue.GetDepthStencil(Depth, Stencil);
+		return Stencil;
+	}
+
+	///
+	/// RenderTime & Name functions - non virtual
+	/// 
 
 	/** sets the last time this texture was cached in a resource table. */
 	FORCEINLINE_DEBUGGABLE void SetLastRenderTime(float InLastRenderTime)
@@ -1362,203 +1821,72 @@ public:
 	{
 		return TextureName;
 	}
+	
+	///
+	/// Deprecated functions
+	/// 
 
-	bool HasClearValue() const
-	{
-		return ClearValue.ColorBinding != EClearBinding::ENoneBound;
-	}
+	//UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use FRHITexture directly")
+	inline FRHITexture2D* GetTexture2D() { return TextureDesc.Dimension == ETextureDimension::Texture2D ? this : nullptr; }
+	//UE_DEPRECATED(5.1, "FRHITexture2DArray is deprecated, please use FRHITexture directly")
+	inline FRHITexture2DArray* GetTexture2DArray() { return TextureDesc.Dimension == ETextureDimension::Texture2DArray ? this : nullptr; }
+	//UE_DEPRECATED(5.1, "FRHITexture3D is deprecated, please use FRHITexture directly")
+	inline FRHITexture3D* GetTexture3D() { return TextureDesc.Dimension == ETextureDimension::Texture3D ? this : nullptr; }
+	//UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use FRHITexture directly")
+	inline FRHITextureCube* GetTextureCube() { return TextureDesc.Dimension == ETextureDimension::TextureCube ? this : nullptr; }
 
-	FLinearColor GetClearColor() const
-	{
-		return ClearValue.GetClearColor();
-	}
+	//UE_DEPRECATED(5.1, "GetSizeX() is deprecated, please use GetDesc().Extent.X instead")
+	uint32 GetSizeX() const { return GetDesc().Extent.X; }
 
-	void GetDepthStencilClearValue(float& OutDepth, uint32& OutStencil) const
-	{
-		return ClearValue.GetDepthStencil(OutDepth, OutStencil);
-	}
+	//UE_DEPRECATED(5.1, "GetSizeY() is deprecated, please use GetDesc().Extent.Y instead")
+	uint32 GetSizeY() const { return GetDesc().Extent.Y; }
 
-	float GetDepthClearValue() const
-	{
-		float Depth;
-		uint32 Stencil;
-		ClearValue.GetDepthStencil(Depth, Stencil);
-		return Depth;
-	}
+	//UE_DEPRECATED(5.1, "GetSizeXY() is deprecated, please use GetDesc().Extent.X or GetDesc().Extent.Y instead")
+	FIntPoint GetSizeXY() const { return FIntPoint(GetDesc().Extent.X, GetDesc().Extent.Y); }
 
-	uint32 GetStencilClearValue() const
-	{
-		float Depth;
-		uint32 Stencil;
-		ClearValue.GetDepthStencil(Depth, Stencil);
-		return Stencil;
-	}
+	//UE_DEPRECATED(5.1, "GetSizeZ() is deprecated, please use GetDesc().ArraySize instead for TextureArrays and GetDesc().Depth for 3D textures")
+	uint32 GetSizeZ() const { return GetSizeXYZ().Z; }
 
-	const FClearValueBinding GetClearBinding() const
-	{
-		return ClearValue;
-	}
+	//UE_DEPRECATED(5.1, "GetNumMips() is deprecated, please use GetDesc().NumMips instead")
+	uint32 GetNumMips() const { return GetDesc().NumMips; }
 
-	virtual void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
-	{
-		OutData = nullptr;
-		OutSize = 0;
-	}
+	//UE_DEPRECATED(5.1, "GetFormat() is deprecated, please use GetDesc().Format instead")
+	EPixelFormat GetFormat() const { return GetDesc().Format; }
+
+	//UE_DEPRECATED(5.1, "GetFlags() is deprecated, please use GetDesc().Flags instead")
+	ETextureCreateFlags GetFlags() const { return GetDesc().Flags; }
+
+	//UE_DEPRECATED(5.1, "GetNumSamples() is deprecated, please use GetDesc().NumSamples instead")
+	uint32 GetNumSamples() const { return GetDesc().NumSamples; }
+
+	//UE_DEPRECATED(5.1, "GetClearBinding() is deprecated, please use GetDesc().ClearValue instead")
+	const FClearValueBinding GetClearBinding() const { return GetDesc().ClearValue; }
+
+	//UE_DEPRECATED(5.1, "GetSize() is deprecated, please use GetDesc().Extent.X instead")
+	uint32 GetSize() const { check(GetDesc().IsTextureCube()); return GetDesc().Extent.X; }
 
 private:
-	FClearValueBinding ClearValue;
-	uint32 NumMips;
-	uint32 NumSamples;
-	EPixelFormat Format;
-	ETextureCreateFlags Flags;
+
+	friend class FRHITextureReference;
+	/** Constructor for texture references */
+	FRHITexture(ERHIResourceType InResourceType)
+		: FRHIResource(InResourceType)
+	{
+		check(InResourceType == RRT_TextureReference);
+	}
+
+	FRHITextureDesc TextureDesc;
+
 	FLastRenderTimeContainer LastRenderTime;
+
 	FName TextureName;
-};
-
-class RHI_API FRHITexture2D : public FRHITexture
-{
-public:
-	
-	/** Initialization constructor. */
-	FRHITexture2D(uint32 InSizeX,uint32 InSizeY,uint32 InNumMips,uint32 InNumSamples,EPixelFormat InFormat,ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue, ERHIResourceType InResourceTypeOverride = RRT_None)
-	: FRHITexture(InResourceTypeOverride != RRT_None ? InResourceTypeOverride : RRT_Texture2D, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
-	, SizeX(InSizeX)
-	, SizeY(InSizeY)
-	{}
-	
-	// Dynamic cast methods.
-	virtual FRHITexture2D* GetTexture2D() { return this; }
-
-	/** @return The width of the texture. */
-	uint32 GetSizeX() const { return SizeX; }
-	
-	/** @return The height of the texture. */
-	uint32 GetSizeY() const { return SizeY; }
-
-	inline FIntPoint GetSizeXY() const
-	{
-		return FIntPoint(SizeX, SizeY);
-	}
-
-	virtual FIntVector GetSizeXYZ() const override
-	{
-		return FIntVector(SizeX, SizeY, 1);
-	}
-
-private:
-
-	uint32 SizeX;
-	uint32 SizeY;
-};
-
-class RHI_API FRHITexture2DArray : public FRHITexture2D
-{
-public:
-	
-	/** Initialization constructor. */
-	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,uint32 NumSamples, EPixelFormat InFormat,ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture2D(InSizeX, InSizeY, InNumMips,NumSamples,InFormat,InFlags, InClearValue, RRT_Texture2DArray)
-	, SizeZ(InSizeZ)
-	{
-		check(InSizeZ != 0);
-	}
-	
-	// Dynamic cast methods.
-	virtual FRHITexture2DArray* GetTexture2DArray() { return this; }
-
-	virtual FRHITexture2D* GetTexture2D() { return NULL; }
-
-	/** @return The number of textures in the array. */
-	uint32 GetSizeZ() const { return SizeZ; }
-
-	virtual FIntVector GetSizeXYZ() const final override
-	{
-		return FIntVector(GetSizeX(), GetSizeY(), SizeZ);
-	}
-
-	// Because GetSizeXYZ() returns ArraySize in Z, we need to override this function to return 1 instead.
-	// @todo: Unify the meaning of "Z" in all texture resources
-	virtual FIntVector GetMipDimensions(uint8 MipIndex) const final override
-	{
-		return FIntVector(
-			FMath::Max(GetSizeX() >> MipIndex, 1u),
-			FMath::Max(GetSizeY() >> MipIndex, 1u),
-			1
-		);
-	}
-
-private:
-
-	uint32 SizeZ;
-};
-
-class RHI_API FRHITexture3D : public FRHITexture
-{
-public:
-	
-	/** Initialization constructor. */
-	FRHITexture3D(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,EPixelFormat InFormat,ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture(RRT_Texture3D, InNumMips,1,InFormat,InFlags, InClearValue)
-	, SizeX(InSizeX)
-	, SizeY(InSizeY)
-	, SizeZ(InSizeZ)
-	{}
-	
-	// Dynamic cast methods.
-	virtual FRHITexture3D* GetTexture3D() { return this; }
-	
-	/** @return The width of the texture. */
-	uint32 GetSizeX() const { return SizeX; }
-	
-	/** @return The height of the texture. */
-	uint32 GetSizeY() const { return SizeY; }
-
-	/** @return The depth of the texture. */
-	uint32 GetSizeZ() const { return SizeZ; }
-
-	virtual FIntVector GetSizeXYZ() const final override
-	{
-		return FIntVector(SizeX, SizeY, SizeZ);
-	}
-
-private:
-
-	uint32 SizeX;
-	uint32 SizeY;
-	uint32 SizeZ;
-};
-
-class RHI_API FRHITextureCube : public FRHITexture
-{
-public:
-	
-	/** Initialization constructor. */
-	FRHITextureCube(uint32 InSize,uint32 InNumMips,EPixelFormat InFormat,ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture(RRT_TextureCube, InNumMips,1,InFormat,InFlags, InClearValue)
-	, Size(InSize)
-	{}
-	
-	// Dynamic cast methods.
-	virtual FRHITextureCube* GetTextureCube() { return this; }
-	
-	/** @return The width and height of each face of the cubemap. */
-	uint32 GetSize() const { return Size; }
-
-	virtual FIntVector GetSizeXYZ() const final override
-	{
-		return FIntVector(Size, Size, 1);
-	}
-
-private:
-
-	uint32 Size;
 };
 
 class RHI_API FRHITextureReference final : public FRHITexture
 {
 public:
 	explicit FRHITextureReference()
-		: FRHITexture(RRT_TextureReference, 0, 0, PF_Unknown, TexCreate_None, FClearValueBinding())
+		: FRHITexture(RRT_TextureReference)
 	{
 		check(DefaultTexture);
 		ReferencedTexture = DefaultTexture;
@@ -1572,12 +1900,6 @@ public:
 	virtual class FRHITextureReference* GetTextureReference() override
 	{
 		return this;
-	}
-
-	virtual FIntVector GetSizeXYZ() const override 
-	{
-		check(ReferencedTexture);
-		return ReferencedTexture->GetSizeXYZ();
 	}
 
 	virtual void* GetNativeResource() const override 
@@ -1615,6 +1937,12 @@ public:
 	inline FRHITexture* GetReferencedTexture() const
 	{
 		return ReferencedTexture.GetReference();
+	}
+
+	virtual const FRHITextureDesc& GetDesc() const override
+	{
+		check(ReferencedTexture);
+		return ReferencedTexture->GetDesc();
 	}
 
 private:
@@ -1899,10 +2227,10 @@ UE_DEPRECATED(5.0, "FIndexBufferRHIRef is deprecated, please use FBufferRHIRef."
 UE_DEPRECATED(5.0, "FVertexBufferRHIRef is deprecated, please use FBufferRHIRef.")     typedef FBufferRHIRef FVertexBufferRHIRef;
 UE_DEPRECATED(5.0, "FStructuredBufferRHIRef is deprecated, please use FBufferRHIRef.") typedef FBufferRHIRef FStructuredBufferRHIRef;
 typedef TRefCountPtr<FRHITexture> FTextureRHIRef;
-typedef TRefCountPtr<FRHITexture2D> FTexture2DRHIRef;
-typedef TRefCountPtr<FRHITexture2DArray> FTexture2DArrayRHIRef;
-typedef TRefCountPtr<FRHITexture3D> FTexture3DRHIRef;
-typedef TRefCountPtr<FRHITextureCube> FTextureCubeRHIRef;
+/*UE_DEPRECATED(5.1, "FTexture2DRHIRef is deprecated, please use FTextureRHIRef.")      */ typedef FTextureRHIRef FTexture2DRHIRef;
+/*UE_DEPRECATED(5.1, "FTexture2DArrayRHIRef is deprecated, please use FTextureRHIRef.") */ typedef FTextureRHIRef FTexture2DArrayRHIRef;
+/*UE_DEPRECATED(5.1, "FTexture3DRHIRef is deprecated, please use FTextureRHIRef.")      */ typedef FTextureRHIRef FTexture3DRHIRef;
+/*UE_DEPRECATED(5.1, "FTextureCubeRHIRef is deprecated, please use FTextureRHIRef.")    */ typedef FTextureRHIRef FTextureCubeRHIRef;
 typedef TRefCountPtr<FRHITextureReference> FTextureReferenceRHIRef;
 typedef TRefCountPtr<FRHIRenderQuery> FRenderQueryRHIRef;
 typedef TRefCountPtr<FRHIRenderQueryPool> FRenderQueryPoolRHIRef;
@@ -3644,198 +3972,6 @@ struct FRHIRenderPassInfo
 
 private:
 	RHI_API void OnVerifyNumUAVsFailed(int32 InNumUAVs);
-};
-
-/** Descriptor used to create a texture resource */
-struct RHI_API FRHITextureCreateInfo
-{
-	static FRHITextureCreateInfo Create2D(
-		FIntPoint InExtent,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRHITextureCreateInfo(ETextureDimension::Texture2D, InFlags, InFormat, InExtent, InClearValue, 1, 1, InNumMips, InNumSamples);
-	}
-
-	static FRHITextureCreateInfo Create2DArray(
-		FIntPoint InExtent,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint16 InArraySize,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRHITextureCreateInfo(ETextureDimension::Texture2DArray, InFlags, InFormat, InExtent, InClearValue, 1, InArraySize, InNumMips, InNumSamples);
-	}
-
-	static FRHITextureCreateInfo Create3D(
-		FIntVector InSize,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint8 InNumMips = 1)
-	{
-		checkf(InSize.Z >= 0 && InSize.Z <= TNumericLimits<uint16>::Max(), TEXT("Depth parameter (InSize.Z) exceeds valid range"));
-		return FRHITextureCreateInfo(ETextureDimension::Texture3D, InFlags, InFormat, FIntPoint(InSize.X, InSize.Y), InClearValue, (uint16)InSize.Z, 1, InNumMips);
-	}
-
-	static FRHITextureCreateInfo CreateCube(
-		uint32 InSizeInPixels,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRHITextureCreateInfo(ETextureDimension::TextureCube, InFlags, InFormat, FIntPoint(InSizeInPixels, InSizeInPixels), InClearValue, 1, 1, InNumMips, InNumSamples);
-	}
-
-	static FRHITextureCreateInfo CreateCubeArray(
-		uint32 InSizeInPixels,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint16 InArraySize,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRHITextureCreateInfo(ETextureDimension::TextureCubeArray, InFlags, InFormat, FIntPoint(InSizeInPixels, InSizeInPixels), InClearValue, 1, InArraySize, InNumMips, InNumSamples);
-	}
-
-	FRHITextureCreateInfo() = default;
-	FRHITextureCreateInfo(
-		ETextureDimension InDimension,
-		ETextureCreateFlags InFlags,
-		EPixelFormat InFormat,
-		FIntPoint InExtent,
-		FClearValueBinding InClearValue,
-		uint16 InDepth = 1,
-		uint16 InArraySize = 1,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-		: ClearValue(InClearValue)
-		, Dimension(InDimension)
-		, Flags(InFlags)
-		, Format(InFormat)
-		, Extent(InExtent)
-		, Depth(InDepth)
-		, ArraySize(InArraySize)
-		, NumMips(InNumMips)
-		, NumSamples(InNumSamples)
-	{}
-
-	bool operator == (const FRHITextureCreateInfo& Other) const
-	{
-		return Dimension == Other.Dimension
-			&& Flags == Other.Flags
-			&& Format == Other.Format
-			&& UAVFormat == Other.UAVFormat
-			&& Extent == Other.Extent
-			&& Depth == Other.Depth
-			&& ArraySize == Other.ArraySize
-			&& NumMips == Other.NumMips
-			&& NumSamples == Other.NumSamples
-			&& ClearValue == Other.ClearValue;
-	}
-
-	bool operator != (const FRHITextureCreateInfo& Other) const
-	{
-		return !(*this == Other);
-	}
-
-	bool IsTexture2D() const
-	{
-		return Dimension == ETextureDimension::Texture2D || Dimension == ETextureDimension::Texture2DArray;
-	}
-
-	bool IsTexture3D() const
-	{
-		return Dimension == ETextureDimension::Texture3D;
-	}
-
-	bool IsTextureCube() const
-	{
-		return Dimension == ETextureDimension::TextureCube || Dimension == ETextureDimension::TextureCubeArray;
-	}
-
-	bool IsTextureArray() const
-	{
-		return Dimension == ETextureDimension::Texture2DArray || Dimension == ETextureDimension::TextureCubeArray;
-	}
-
-	bool IsMipChain() const
-	{
-		return NumMips > 1;
-	}
-
-	bool IsMultisample() const
-	{
-		return NumSamples > 1;
-	}
-
-	FIntVector GetSize() const
-	{
-		return FIntVector(Extent.X, Extent.Y, Depth);
-	}
-
-	void Reset()
-	{
-		// Usually we don't want to propagate MSAA samples.
-		NumSamples = 1;
-
-		// Remove UAV flag for textures that don't need it (some formats are incompatible).
-		Flags |= TexCreate_RenderTargetable;
-		Flags &= ~(TexCreate_UAV | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget);
-	}
-
-	/** Returns whether this descriptor conforms to requirements. */
-	inline bool IsValid() const
-	{
-		return FRHITextureCreateInfo::Validate(*this, /* Name = */ TEXT(""), /* bFatal = */ false);
-	}
-
-	/** Clear value to use when fast-clearing the texture. */
-	FClearValueBinding ClearValue;
-
-	/** Texture dimension to use when creating the RHI texture. */
-	ETextureDimension Dimension = ETextureDimension::Texture2D;
-
-	/** Texture flags passed on to RHI texture. */
-	ETextureCreateFlags Flags = TexCreate_None;
-
-	/** Pixel format used to create RHI texture. */
-	EPixelFormat Format = PF_Unknown;
-
-	/** Texture format used when creating the UAV. PF_Unknown means to use the default one (same as Format). */
-	EPixelFormat UAVFormat = PF_Unknown;
-
-	/** Extent of the texture in x and y. */
-	FIntPoint Extent = FIntPoint(1, 1);
-
-	/** Depth of the texture if the dimension is 3D. */
-	uint16 Depth = 1;
-
-	/** The number of array elements in the texture. (Keep at 1 if dimension is 3D). */
-	uint16 ArraySize = 1;
-
-	/** Number of mips in the texture mip-map chain. */
-	uint8 NumMips = 1;
-
-	/** Number of samples in the texture. >1 for MSAA. */
-	uint8 NumSamples = 1;
-
-	/** Check the validity. */
-	static bool CheckValidity(const FRHITextureCreateInfo& Desc, const TCHAR* Name)
-	{
-		return FRHITextureCreateInfo::Validate(Desc, Name, /* bFatal = */ true);
-	}
-
-private:
-	static bool Validate(const FRHITextureCreateInfo& Desc, const TCHAR* Name, bool bFatal);
 };
 
 /** Used to specify a texture metadata plane when creating a view. */

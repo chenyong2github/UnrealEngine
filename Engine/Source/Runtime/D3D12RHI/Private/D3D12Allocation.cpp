@@ -1671,7 +1671,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 	const TCHAR* Name)
 {
 	// The top mip level must be less than 64 KB to use 4 KB alignment
-	bool b4KAligment = TextureCanBe4KAligned(Desc, (EPixelFormat)UEFormat);
+	bool b4KAligment = FD3D12Texture::CanBe4KAligned(Desc, (EPixelFormat)UEFormat);
 	Desc.Alignment = b4KAligment ?	D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : (Desc.SampleDesc.Count > 1 ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
 	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 
@@ -1896,7 +1896,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(FD3D12ResourceDesc Desc, con
 		Desc.SampleDesc.Count == 1)// Multi-Sample texures have much larger alignment requirements (4MB vs 64KB)
 	{
 		// The top mip level must be less than 64k
-		if (TextureCanBe4KAligned(Desc, (EPixelFormat)UEFormat))
+		if (FD3D12Texture::CanBe4KAligned(Desc, (EPixelFormat)UEFormat))
 		{
 			Desc.Alignment = D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT; // request 4k alignment
 			return ReadOnlyTexturePool.AllocateTexture(Desc, ClearValue, TextureLocation, InitialState, Name);
@@ -1907,12 +1907,11 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(FD3D12ResourceDesc Desc, con
 	FD3D12Resource* Resource = nullptr;
 
 	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
+	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 
 	// UAV Aliasing needs a Heap to create the aliased resource in.
 	if (Desc.NeedsUAVAliasWorkarounds())
 	{
-		const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
-
 		D3D12_HEAP_DESC HeapDesc{};
 		HeapDesc.SizeInBytes = Info.SizeInBytes;
 		HeapDesc.Properties = HeapProps;
@@ -1933,8 +1932,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(FD3D12ResourceDesc Desc, con
 
 		if (SUCCEEDED(hr))
 		{
-			TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
-			TextureLocation.SetResource(Resource);
+			TextureLocation.AsStandAlone(Resource, Info.SizeInBytes);
 		}
 
 		return hr;
@@ -1944,8 +1942,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(FD3D12ResourceDesc Desc, con
 
 	if (SUCCEEDED(hr))
 	{
-		TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
-		TextureLocation.SetResource(Resource);
+		TextureLocation.AsStandAlone(Resource, Info.SizeInBytes);
 	}
 
 	return hr;

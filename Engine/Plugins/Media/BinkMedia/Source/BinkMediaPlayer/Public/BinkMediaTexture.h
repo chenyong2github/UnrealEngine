@@ -9,7 +9,7 @@
 
 class UBinkMediaPlayer;
 class FBinkMediaPlayer;
-enum EPixelFormat;
+enum EPixelFormat : uint8;
 enum TextureAddress;
 
 /**

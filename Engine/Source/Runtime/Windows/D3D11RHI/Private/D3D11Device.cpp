@@ -613,7 +613,6 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		} while (NumDeletes > 0);
 
 		ReleasePooledUniformBuffers();
-		ReleasePooledTextures();
 		ReleaseCachedQueries();
 
 

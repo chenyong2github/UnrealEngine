@@ -245,7 +245,7 @@ void PlatformSharedContextSetup(FPlatformOpenGLDevice* Device);
 void PlatformNULLContextSetup();
 
 // Creates a platform-specific back buffer
-FRHITexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY);
+class FOpenGLTexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY);
 
 /**
  * Main function for transferring data to on-screen buffers.
@@ -290,26 +290,14 @@ void* PlatformGetWindow(FPlatformOpenGLContext* Context, void** AddParam);
 struct FOpenGLTextureFormat
 {
 	// [0]: without sRGB, [1]: with sRGB
-	GLenum InternalFormat[2];
-	// [0]: without sRGB, [1]: with sRGB
-	GLenum SizedInternalFormat[2];
-	GLenum Format;
-	GLenum Type;
-	bool bCompressed;
+	GLenum InternalFormat[2] = { GL_NONE, GL_NONE };
+	GLenum Format = GL_NONE;
+	GLenum Type = GL_NONE;
+	bool bCompressed = false;
 	// Reorder to B and R elements using texture swizzle
-	bool bBGRA;
+	bool bBGRA = false;
 
-	FOpenGLTextureFormat()
-	{
-		InternalFormat[0] = GL_NONE;
-		InternalFormat[1] = GL_NONE;
-		SizedInternalFormat[0] = GL_NONE;
-		SizedInternalFormat[1] = GL_NONE;
-		Format = GL_NONE;
-		Type = GL_NONE;
-		bCompressed = false;
-		bBGRA = false;
-	}
+	FOpenGLTextureFormat() = default;
 
 	FOpenGLTextureFormat(
 		GLenum InInternalFormat, GLenum InInternalFormatSRGB, GLenum InFormat,
@@ -317,30 +305,11 @@ struct FOpenGLTextureFormat
 	{
 		InternalFormat[0] = InInternalFormat;
 		InternalFormat[1] = InInternalFormatSRGB;
-		SizedInternalFormat[0] = InInternalFormat;
-		SizedInternalFormat[1] = InInternalFormatSRGB;
 		Format = InFormat;
 		Type = InType;
 		bCompressed = bInCompressed;
 		bBGRA = bInBGRA;
 	}
-
-	FOpenGLTextureFormat(
-		GLenum InInternalFormat, GLenum InInternalFormatSRGB, 
-		GLenum InSizedInternalFormat, GLenum InSizedInternalFormatSRGB,
-		GLenum InFormat,
-		GLenum InType, bool bInCompressed, bool bInBGRA)
-	{
-		InternalFormat[0] = InInternalFormat;
-		InternalFormat[1] = InInternalFormatSRGB;
-		SizedInternalFormat[0] = InSizedInternalFormat;
-		SizedInternalFormat[1] = InSizedInternalFormatSRGB;
-		Format = InFormat;
-		Type = InType;
-		bCompressed = bInCompressed;
-		bBGRA = bInBGRA;
-	}
-
 };
 
 extern FOpenGLTextureFormat OPENGLDRV_API GOpenGLTextureFormats[PF_MAX];

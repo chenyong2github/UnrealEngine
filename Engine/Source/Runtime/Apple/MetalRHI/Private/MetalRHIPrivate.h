@@ -225,6 +225,11 @@ static FORCEINLINE typename TMetalResourceTraits<TRHIType>::TConcreteType* Resou
 	return static_cast<typename TMetalResourceTraits<TRHIType>::TConcreteType*>(Resource);
 }
 
+static FORCEINLINE FMetalSurface* ResourceCast(FRHITexture* Texture)
+{
+	return GetMetalSurfaceFromRHITexture(Texture);
+}
+
 uint32 SafeGetRuntimeDebuggingLevel();
 
 extern int32 GMetalBufferZeroFill;

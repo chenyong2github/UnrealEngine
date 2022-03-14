@@ -64,12 +64,12 @@ struct IVulkanDynamicRHI : public FDynamicRHI
 	virtual FTexture2DArrayRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags) = 0;
 	virtual FTextureCubeRHIRef    RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, VkImage Resource, ETextureCreateFlags Flags) = 0;
 
-	virtual VkImage                  RHIGetVkImage(FRHITexture2D* InTexture) const = 0;
-	virtual VkFormat                 RHIGetViewVkFormat(FRHITexture2D* InTexture) const = 0;
-	virtual FVulkanRHIAllocationInfo RHIGetAllocationInfo(FRHITexture2D* InTexture) const = 0;
+	virtual VkImage                  RHIGetVkImage(FRHITexture* InTexture) const = 0;
+	virtual VkFormat                 RHIGetViewVkFormat(FRHITexture* InTexture) const = 0;
+	virtual FVulkanRHIAllocationInfo RHIGetAllocationInfo(FRHITexture* InTexture) const = 0;
 	virtual FVulkanRHIImageViewInfo  RHIGetImageViewInfo(FRHITexture* InTexture) const = 0;
 
-	virtual VkImageLayout& RHIFindOrAddLayoutRW(FRHITexture2D* InTexture, VkImageLayout LayoutIfNotFound) = 0;
+	virtual VkImageLayout& RHIFindOrAddLayoutRW(FRHITexture* InTexture, VkImageLayout LayoutIfNotFound) = 0;
 	virtual void           RHISetImageLayout(VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange) = 0;
 	virtual void           RHISetUploadImageLayout(VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange) = 0;
 

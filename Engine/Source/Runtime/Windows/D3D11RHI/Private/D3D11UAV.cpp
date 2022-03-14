@@ -76,33 +76,30 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView_Render
 
 FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
 {
-	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 	
 	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
 
 	if (TextureRHI->GetTexture3D() != NULL)
 	{
-		FD3D11Texture3D* Texture3D = (FD3D11Texture3D*)Texture;
 		UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
 		UAVDesc.Texture3D.MipSlice = MipLevel;
 		UAVDesc.Texture3D.FirstWSlice = 0;
-		UAVDesc.Texture3D.WSize = Texture3D->GetSizeZ() >> MipLevel;
+		UAVDesc.Texture3D.WSize = Texture->GetDesc().Depth >> MipLevel;
 	}
 	else if (TextureRHI->GetTexture2DArray() != NULL)
 	{
-		FD3D11Texture2DArray* Texture2DArray = (FD3D11Texture2DArray*)Texture;
 		UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
 		UAVDesc.Texture2DArray.MipSlice = MipLevel;
 		UAVDesc.Texture2DArray.FirstArraySlice = NumArraySlices == 0 ? 0 : FirstArraySlice;
-		UAVDesc.Texture2DArray.ArraySize = NumArraySlices == 0 ? Texture2DArray->GetSizeZ() : NumArraySlices;
+		UAVDesc.Texture2DArray.ArraySize = NumArraySlices == 0 ? Texture->GetDesc().ArraySize : NumArraySlices;
 	}
 	else if (TextureRHI->GetTextureCube() != NULL)
 	{
-		FD3D11TextureCube* TextureCube = (FD3D11TextureCube*)Texture;
 		UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
 		UAVDesc.Texture2DArray.MipSlice = MipLevel;
 		UAVDesc.Texture2DArray.FirstArraySlice = 0;
-		UAVDesc.Texture2DArray.ArraySize = TextureCube->GetSizeZ();
+		UAVDesc.Texture2DArray.ArraySize = Texture->GetSizeZ();
 	}
 	else
 	{
@@ -433,8 +430,8 @@ void FD3D11DynamicRHI::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D11Dynamic
 	{
 		if (UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE2D)
 		{
-			FD3D11Texture2D* Texture2D = static_cast<FD3D11Texture2D*>(UnorderedAccessView->Resource.GetReference());
-			FIntVector Size = Texture2D->GetSizeXYZ();
+			FD3D11Texture* Texture = static_cast<FD3D11Texture*>(UnorderedAccessView->Resource.GetReference());
+			FIntVector Size = Texture->GetSizeXYZ();
 
 			uint32 Width  = Size.X >> UAVDesc.Texture2D.MipSlice;
 			uint32 Height = Size.Y >> UAVDesc.Texture2D.MipSlice;
@@ -442,8 +439,8 @@ void FD3D11DynamicRHI::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D11Dynamic
 		}
 		else if (UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE2DARRAY)
 		{
-			FD3D11Texture2DArray* Texture2DArray = static_cast<FD3D11Texture2DArray*>(UnorderedAccessView->Resource.GetReference());
-			FIntVector Size = Texture2DArray->GetSizeXYZ();
+			FD3D11Texture* Texture = static_cast<FD3D11Texture*>(UnorderedAccessView->Resource.GetReference());
+			FIntVector Size = Texture->GetSizeXYZ();
 
 			uint32 Width = Size.X >> UAVDesc.Texture2DArray.MipSlice;
 			uint32 Height = Size.Y >> UAVDesc.Texture2DArray.MipSlice;
@@ -451,8 +448,8 @@ void FD3D11DynamicRHI::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D11Dynamic
 		}
 		else if (UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE3D)
 		{
-			FD3D11Texture3D* Texture3D = static_cast<FD3D11Texture3D*>(UnorderedAccessView->Resource.GetReference());
-			FIntVector Size = Texture3D->GetSizeXYZ();
+			FD3D11Texture* Texture = static_cast<FD3D11Texture*>(UnorderedAccessView->Resource.GetReference());
+			FIntVector Size = Texture->GetSizeXYZ();
 
 			// @todo - is WSize / mip index handling here correct?
 			uint32 Width = Size.X >> UAVDesc.Texture2DArray.MipSlice;

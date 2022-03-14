@@ -1682,7 +1682,7 @@ enum class EGpuVendorId
 };
 
 /** An enumeration of the different RHI reference types. */
-enum ERHIResourceType
+enum ERHIResourceType : uint8
 {
 	RRT_None,
 
@@ -1706,10 +1706,12 @@ enum ERHIResourceType
 	RRT_UniformBuffer,
 	RRT_Buffer,
 	RRT_Texture,
+	// @todo: texture type unification - remove these
 	RRT_Texture2D,
 	RRT_Texture2DArray,
 	RRT_Texture3D,
 	RRT_TextureCube,
+	// @todo: texture type unification - remove these
 	RRT_TextureReference,
 	RRT_TimestampCalibrationQuery,
 	RRT_GPUFence,
@@ -1729,7 +1731,7 @@ enum ERHIResourceType
 };
 
 /** Describes the dimension of a texture. */
-enum class ETextureDimension
+enum class ETextureDimension : uint8
 {
 	Texture2D,
 	Texture2DArray,

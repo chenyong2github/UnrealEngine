@@ -2036,7 +2036,7 @@ void FRHIRenderPassInfo::Validate() const
 	} \
 
 // static
-bool FRHITextureCreateInfo::Validate(const FRHITextureCreateInfo& Desc, const TCHAR* Name, bool bFatal)
+bool FRHITextureDesc::Validate(const FRHITextureCreateInfo& Desc, const TCHAR* Name, bool bFatal)
 {
 	// Validate texture's pixel format.
 	{
@@ -2106,6 +2106,37 @@ bool FRHITextureCreateInfo::Validate(const FRHITextureCreateInfo& Desc, const TC
 }
 
 #undef ValidateTextureDesc
+
+uint64 FRHITextureDesc::CalcMemorySizeEstimate(uint32 FirstMipIndex, uint32 LastMipIndex) const
+{
+#if DO_CHECK
+	Validate(*this, TEXT("CalcMemorySizeEstimate"), /* bFatal = */true);
+#endif
+	check(FirstMipIndex < NumMips && FirstMipIndex <= LastMipIndex && LastMipIndex < NumMips);
+
+	uint64 MemorySize = 0;
+	for (uint32 MipIndex = FirstMipIndex; MipIndex <= LastMipIndex; ++MipIndex)
+	{
+		FIntVector MipSizeInBlocks = FIntVector(
+			FMath::DivideAndRoundUp(FMath::Max(Extent.X >> MipIndex, 1), GPixelFormats[Format].BlockSizeX),
+			FMath::DivideAndRoundUp(FMath::Max(Extent.Y >> MipIndex, 1), GPixelFormats[Format].BlockSizeY),
+			FMath::DivideAndRoundUp(FMath::Max(Depth    >> MipIndex, 1), GPixelFormats[Format].BlockSizeZ)
+		);
+
+		uint32 NumBlocksInMip = MipSizeInBlocks.X * MipSizeInBlocks.Y * MipSizeInBlocks.Z;
+		MemorySize += NumBlocksInMip * GPixelFormats[Format].BlockBytes;
+	}
+
+	MemorySize *= ArraySize;
+	MemorySize *= NumSamples;
+
+	if (IsTextureCube())
+	{
+		MemorySize *= 6;
+	}
+
+	return MemorySize;
+}
 
 static FRHIPanicEvent RHIPanicEvent;
 FRHIPanicEvent& RHIGetPanicDelegate()

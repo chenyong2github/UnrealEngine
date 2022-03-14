@@ -7,12 +7,6 @@
 #include "OpenGLDrvPrivate.h"
 #include "ClearReplacementShaders.h"
 
-FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI, uint32 Stride, uint8 Format)
-{
-	ensureMsgf(Stride == GPixelFormats[Format].BlockBytes, TEXT("provided stride: %i was not consitent with Pixelformat: %s"), Stride, GPixelFormats[Format].Name);
-	return FOpenGLDynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI, EPixelFormat(Format)));
-}
-
 // Binds the specified buffer range to a texture resource and selects glTexBuffer or glTexBufferRange 
 static void BindGLTexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Buffer, uint32 StartOffsetBytes, uint32 NumElements, uint32 Stride)
 {
@@ -35,56 +29,80 @@ static void BindGLTexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Bu
 	}
 }
 
-FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
+FOpenGLShaderResourceView::FOpenGLShaderResourceView(const FShaderResourceViewInitializer& Initializer)
 {
 	FShaderResourceViewInitializer::FBufferShaderResourceViewInitializer Desc = Initializer.AsBufferSRV();
-	FRHIBuffer* BufferRHI = Desc.Buffer;
-	if (BufferRHI == nullptr)
+	Buffer = FOpenGLDynamicRHI::ResourceCast(Desc.Buffer);
+	if (Buffer == nullptr)
 	{
-		return new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
-		{
-			return new FOpenGLShaderResourceView(this, 0, GL_TEXTURE_BUFFER);
-		});
+		return;
 	}
 
 	EPixelFormat Format = Desc.Format;
-	
 	if (Initializer.GetType() == FShaderResourceViewInitializer::EType::IndexBufferSRV && Format == PF_Unknown)
-	{		
-		uint32 Stride = BufferRHI->GetStride();
+	{
+		uint32 Stride = Buffer->GetStride();
 		Format = (Stride == 2) ? PF_R16_UINT : PF_R32_UINT;
 	}
 
 	if (Format != PF_Unknown)
 	{
+		Target = GL_TEXTURE_BUFFER;
+		OwnsResource = true;
+
 		UE_CLOG(!GPixelFormats[Format].Supported, LogRHI, Error, TEXT("Unsupported EPixelFormat %d"), Format);
-		
-		return new FOpenGLShaderResourceViewProxy([=, OGLRHI = this](FRHIShaderResourceView* OwnerRHI)
+
+		RunOnGLRenderContextThread([this, Format, StartOffsetBytes = Desc.StartOffsetBytes, NumElements = Desc.NumElements]()
 		{
-			VERIFY_GL_SCOPE();
-			GLuint TextureID = 0;
-			FOpenGL::GenTextures(1, &TextureID);
-			FOpenGLBuffer* GLBuffer = FOpenGLDynamicRHI::ResourceCast(BufferRHI);
-			const uint32 FormatBPP = GPixelFormats[Format].BlockBytes;
-			const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format];
+			FOpenGL::GenTextures(1, &Resource);
+
 			// Use a texture stage that's not likely to be used for draws, to avoid waiting
-			OGLRHI->CachedSetupTextureStage(OGLRHI->GetContextStateForCurrentContext(), FOpenGL::GetMaxCombinedTextureImageUnits() - 1, GL_TEXTURE_BUFFER, TextureID, -1, 1);
-			BindGLTexBufferRange(GL_TEXTURE_BUFFER, GLFormat.InternalFormat[0], GLBuffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, FormatBPP);
-			return new FOpenGLShaderResourceView(OGLRHI, TextureID, GL_TEXTURE_BUFFER, BufferRHI, Format);
+			FOpenGLDynamicRHI::Get().CachedSetupTextureStage(
+				FOpenGLDynamicRHI::Get().GetContextStateForCurrentContext(),
+				FOpenGL::GetMaxCombinedTextureImageUnits() - 1,
+				GL_TEXTURE_BUFFER,
+				Resource,
+				-1,
+				1
+			);
+
+			BindGLTexBufferRange(
+				GL_TEXTURE_BUFFER,
+				GOpenGLTextureFormats[Format].InternalFormat[0],
+				Buffer->Resource,
+				StartOffsetBytes,
+				NumElements,
+				GPixelFormats[Format].BlockBytes
+			);
 		});
 	}
 	else
 	{
 		//TODO: add range views for SSBO
 		ensure(Desc.IsWholeResource());
+		Target = GL_SHADER_STORAGE_BUFFER;
 
-		return new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
+		RunOnGLRenderContextThread([this]()
 		{
-			VERIFY_GL_SCOPE();
-			FOpenGLBuffer* BufferGL = ResourceCast(BufferRHI);
-			return new FOpenGLShaderResourceView(this, BufferGL->Resource, GL_SHADER_STORAGE_BUFFER, BufferRHI);
+			Resource = Buffer->Resource;
 		});
 	}
+}
+
+FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
+{
+	return new FOpenGLShaderResourceView(Initializer);
+}
+
+FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI, uint32 Stride, uint8 Format)
+{
+	ensureMsgf(Stride == GPixelFormats[Format].BlockBytes, TEXT("provided stride: %i was not consitent with Pixelformat: %s"), Stride, GPixelFormats[Format].Name);
+	return FOpenGLDynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI, EPixelFormat(Format)));
+}
+
+FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI)
+{
+	return FOpenGLDynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI));
 }
 
 void FOpenGLDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* InBuffer)
@@ -102,24 +120,21 @@ void FOpenGLDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV,
 		if (!BufferGL)
 		{
 			FOpenGL::TexBuffer(GL_TEXTURE_BUFFER, GL_R16UI, 0); // format ignored here since we're detaching.
-			SRVGL->BufferRHI = nullptr;
-			SRVGL->ModificationVersion = 0;
+			SRVGL->Buffer = nullptr;
 		}
 		else
 		{
-			uint32 Stride = InBuffer->GetStride();
+			uint32 Stride = BufferGL->GetStride();
 			GLenum Format = (Stride == 2) ? GL_R16UI : GL_R32UI;
-			uint32 NumElements = InBuffer->GetSize() / Stride;
+			uint32 NumElements = BufferGL->GetSize() / Stride;
 			BindGLTexBufferRange(GL_TEXTURE_BUFFER, Format, BufferGL->Resource, 0, NumElements, Stride);
-			SRVGL->BufferRHI = InBuffer;
-			SRVGL->ModificationVersion = BufferGL->ModificationCount;
+			SRVGL->Buffer = BufferGL;
 		}
 	}
 	else if (SRVGL->Target == GL_SHADER_STORAGE_BUFFER)
 	{
 		SRVGL->Resource = BufferGL->Resource;
-		SRVGL->BufferRHI = InBuffer;
-		SRVGL->ModificationVersion = BufferGL->ModificationCount;
+		SRVGL->Buffer = BufferGL;
 	}
 	else
 	{
@@ -144,31 +159,23 @@ void FOpenGLDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV,
 	if (!BufferGL)
 	{
 		FOpenGL::TexBuffer(GL_TEXTURE_BUFFER, GLFormat.InternalFormat[0], 0);
-		SRVGL->BufferRHI = nullptr;
-		SRVGL->ModificationVersion = 0;
+		SRVGL->Buffer = nullptr;
 	}
 	else
 	{
 		FOpenGL::TexBuffer(GL_TEXTURE_BUFFER, GLFormat.InternalFormat[0], BufferGL->Resource);
-		SRVGL->BufferRHI = InBuffer;
-		SRVGL->Format = Format;
-		SRVGL->ModificationVersion = BufferGL->ModificationCount;
+		SRVGL->Buffer = BufferGL;
 	}
-}
-
-FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI)
-{
-	return FOpenGLDynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI));
 }
 
 FOpenGLShaderResourceView::~FOpenGLShaderResourceView()
 {
 	if (Resource && OwnsResource)
 	{
-		RunOnGLRenderContextThread([OpenGLRHI= OpenGLRHI, Resource = Resource]()
+		RunOnGLRenderContextThread([Resource = Resource]()
 		{
 			VERIFY_GL_SCOPE();
-			OpenGLRHI->InvalidateTextureResourceInCache(Resource);
+			FOpenGLDynamicRHI::Get().InvalidateTextureResourceInCache(Resource);
 			FOpenGL::DeleteTextures(1, &Resource);
 		});
 	}
@@ -187,7 +194,7 @@ FOpenGLTextureUnorderedAccessView::FOpenGLTextureUnorderedAccessView(FRHITexture
 {
 	VERIFY_GL_SCOPE();
 	
-	FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[TextureRHI->GetFormat()];
 
 	check(!Texture->CanBeEvicted() && !Texture->IsEvicted());

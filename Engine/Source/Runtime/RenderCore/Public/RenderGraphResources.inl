@@ -97,7 +97,7 @@ inline FRHIBufferCreateInfo Translate(const FRDGBufferDesc& InDesc)
 	return CreateInfo;
 }
 
-FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc)
+inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc)
 {
 	check(InDesc.IsValid());
 

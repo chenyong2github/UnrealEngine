@@ -1351,7 +1351,7 @@ namespace VulkanRHI
 			};
 
 
-			TVulkanTrackBase<FVulkanTextureBase>::CollectAll(Collector);
+			TVulkanTrackBase<FVulkanTexture>::CollectAll(Collector);
 			TVulkanTrackBase<FVulkanResourceMultiBuffer>::CollectAll(Collector);
 			for(auto& Itr : AllocationBuckets)
 			{
@@ -4068,15 +4068,11 @@ namespace VulkanRHI
 				if(Alloc.MetaType == EVulkanAllocationMetaImageRenderTarget)
 				{
 					FVulkanEvictable* Evictable = Alloc.AllocationOwner;
-					FVulkanTextureBase* Texture = Evictable->GetTextureBase();
+					FVulkanTexture* Texture = Evictable->GetEvictableTexture();
 					if(Texture)
 					{
-						FRHITexture* RHITexture = Texture->GetRHITexture();
-						if(RHITexture)
-						{
-							Tmp = RHITexture->GetName().ToString();
-							Name = *Tmp;
-						}
+						Tmp = Texture->GetName().ToString();
+						Name = *Tmp;
 					}
 				}
 
@@ -4301,7 +4297,7 @@ namespace VulkanRHI
 						if(Heap->TryRealloc(Allocation, EvictableOwner, EType::Image, Alloc.Size, Alloc.Alignment, Alloc.MetaType))
 						{
 							check(Allocation.HasAllocation());
-							FVulkanTextureBase* Texture = (FVulkanTextureBase*)EvictableOwner;
+							FVulkanTexture* Texture = EvictableOwner->GetEvictableTexture();
 
 							if(GVulkanLogDefrag)
 							{
@@ -5293,27 +5289,4 @@ VkResult FDeviceMemoryManager::GetMemoryTypeFromPropertiesExcluding(uint32 TypeB
 const VkPhysicalDeviceMemoryProperties& FDeviceMemoryManager::GetMemoryProperties() const
 {
 	return MemoryProperties;
-}
-
-
-void FStagingBuffer::Evict(FVulkanDevice& InDevice)
-{
-	checkNoEntry(); //stagingbuffers are always in system memory so this should not happen
-}
-void FStagingBuffer::Move(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& InAllocation)
-{
-	checkNoEntry();//stagingbuffers are always in system memory so this should not happen
-}
-void FVulkanRingBuffer::Evict(FVulkanDevice& InDevice)
-{
-	checkNoEntry(); //stagingbuffers are always in system memory so this should not happen
-}
-void FVulkanRingBuffer::Move(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& InAllocation)
-{
-	checkNoEntry();//stagingbuffers are always in system memory so this should not happen
-}
-
-void FVulkanEvictable::OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, uint32 NewOffset)
-{
-	checkNoEntry();
 }

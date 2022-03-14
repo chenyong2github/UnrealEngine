@@ -22,20 +22,20 @@ bool FOpenGLDynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& Resol
 	if (Result)
 	{
 		Resolutions.Sort([](const FScreenResolutionRHI& L, const FScreenResolutionRHI& R)
-							{
-								if (L.Width != R.Width)
-								{
-									return L.Width < R.Width;
-								}
-								else if (L.Height != R.Height)
-								{
-									return L.Height < R.Height;
-								}
-								else
-								{
-									return L.RefreshRate < R.RefreshRate;
-								}
-							});
+		{
+			if (L.Width != R.Width)
+			{
+				return L.Width < R.Width;
+			}
+			else if (L.Height != R.Height)
+			{
+				return L.Height < R.Height;
+			}
+			else
+			{
+				return L.RefreshRate < R.RefreshRate;
+			}
+		});
 	}
 	return Result;
 }
@@ -130,7 +130,7 @@ void FOpenGLDynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPr
 
 	check(DrawingViewport.GetReference() == Viewport);
 
-	FOpenGLTexture2D* BackBuffer = Viewport->GetBackBuffer();
+	FOpenGLTexture* BackBuffer = Viewport->GetBackBuffer();
 
 	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
 
@@ -226,7 +226,6 @@ FOpenGLViewport::FOpenGLViewport(FOpenGLDynamicRHI* InOpenGLRHI,void* InWindowHa
 	, bIsFullscreen(false)
 	, PixelFormat(PreferredPixelFormat)
 	, bIsValid(true)
-	, FrameSyncEvent(InOpenGLRHI)
 {
 	check(OpenGLRHI);
 	// @todo lumin: Add a "PLATFORM_HAS_NO_NATIVE_WINDOW" or something
@@ -234,14 +233,26 @@ FOpenGLViewport::FOpenGLViewport(FOpenGLDynamicRHI* InOpenGLRHI,void* InWindowHa
 	check(InWindowHandle);
 #endif
 	check(IsInGameThread());
-	PlatformGlGetError();	// flush out old errors.
+
+	// flush out old errors.
+	PlatformGlGetError();	
+
 	OpenGLRHI->Viewports.Add(this);
-	check(PlatformOpenGLCurrentContext(OpenGLRHI->PlatformDevice) == CONTEXT_Shared);
-	OpenGLContext = PlatformCreateOpenGLContext(OpenGLRHI->PlatformDevice, InWindowHandle);
-	Resize(InSizeX, InSizeY, bInIsFullscreen);
+
 	check(PlatformOpenGLCurrentContext(OpenGLRHI->PlatformDevice) == CONTEXT_Shared);
 
-	BeginInitResource(&FrameSyncEvent);
+	OpenGLContext = PlatformCreateOpenGLContext(OpenGLRHI->PlatformDevice, InWindowHandle);
+	Resize(InSizeX, InSizeY, bInIsFullscreen);
+
+	check(PlatformOpenGLCurrentContext(OpenGLRHI->PlatformDevice) == CONTEXT_Shared);
+
+	ENQUEUE_RENDER_COMMAND(CreateFrameSyncEvent)([this](FRHICommandListImmediate& RHICmdList)
+	{
+		RunOnGLRenderContextThread([this]()
+		{
+			FrameSyncEvent = MakeUnique<FOpenGLEventQuery>();
+		});
+	});
 }
 
 FOpenGLViewport::~FOpenGLViewport()
@@ -253,44 +264,71 @@ FOpenGLViewport::~FOpenGLViewport()
 		PlatformRestoreDesktopDisplayMode();
 	}
 
-	BeginReleaseResource(&FrameSyncEvent);
-
 	// Release back buffer, before OpenGL context becomes invalid, making it impossible
 	BackBuffer.SafeRelease();
 	check(!IsValidRef(BackBuffer));
 
-	RunOnGLRenderContextThread([&]() {	PlatformDestroyOpenGLContext(OpenGLRHI->PlatformDevice, OpenGLContext); }, true);
+	RunOnGLRenderContextThread([&]()
+	{
+		FrameSyncEvent = nullptr;
+		PlatformDestroyOpenGLContext(OpenGLRHI->PlatformDevice, OpenGLContext);
+	}, true);
+
 	OpenGLContext = NULL;
 	OpenGLRHI->Viewports.Remove(this);
 }
 
+void FOpenGLViewport::WaitForFrameEventCompletion()
+{
+	VERIFY_GL_SCOPE();
+	FrameSyncEvent->WaitForCompletion();
+}
+
+void FOpenGLViewport::IssueFrameEvent()
+{
+	VERIFY_GL_SCOPE();
+	FrameSyncEvent->IssueEvent();
+}
+
 void FOpenGLViewport::Resize(uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen)
 {
+	check(IsInGameThread());
 	if ((InSizeX == SizeX) && (InSizeY == SizeY) && (bInIsFullscreen == bIsFullscreen))
 	{
 		return;
 	}
 
-	VERIFY_GL_SCOPE();
-
-	if (IsValidRef(CustomPresent))
-	{
-		CustomPresent->OnBackBufferResize();
-	}
-
-	BackBuffer.SafeRelease();	// when the rest of the engine releases it, its framebuffers will be released too (those the engine knows about)
-
-	BackBuffer = (FOpenGLTexture2D*)PlatformCreateBuiltinBackBuffer(OpenGLRHI, InSizeX, InSizeY);
-	if (!BackBuffer)
-	{
-		BackBuffer = (FOpenGLTexture2D*)OpenGLRHI->CreateOpenGLTexture(InSizeX, InSizeY, false, false, false, PixelFormat, 1, 1, 1, TexCreate_RenderTargetable, FClearValueBinding::Transparent);
-	}
-
-	PlatformResizeGLContext(OpenGLRHI->PlatformDevice, OpenGLContext, InSizeX, InSizeY, bInIsFullscreen, bIsFullscreen, BackBuffer->Target, BackBuffer->GetResource());
-
 	SizeX = InSizeX;
 	SizeY = InSizeY;
+	bool bWasFullscreen = bIsFullscreen;
 	bIsFullscreen = bInIsFullscreen;
+
+	ENQUEUE_RENDER_COMMAND(ResizeViewport)([this, InSizeX, InSizeY, bInIsFullscreen, bWasFullscreen](FRHICommandListImmediate& RHICmdList)
+	{
+		if (IsValidRef(CustomPresent))
+		{
+			CustomPresent->OnBackBufferResize();
+		}
+
+		BackBuffer.SafeRelease();	// when the rest of the engine releases it, its framebuffers will be released too (those the engine knows about)
+
+		BackBuffer = PlatformCreateBuiltinBackBuffer(OpenGLRHI, InSizeX, InSizeY);
+		if (!BackBuffer)
+		{
+			BackBuffer = new FOpenGLTexture(FRHITextureCreateDesc::Create2D(
+				TEXT("FOpenGLViewport"),
+				{ (int32)InSizeX, (int32)InSizeY },
+				PixelFormat,
+				FClearValueBinding::Transparent,
+				TexCreate_RenderTargetable
+			));
+		}
+
+		RHICmdList.EnqueueLambda([=](FRHICommandListImmediate&)
+		{
+			PlatformResizeGLContext(OpenGLRHI->PlatformDevice, OpenGLContext, InSizeX, InSizeY, bInIsFullscreen, bWasFullscreen, BackBuffer->Target, BackBuffer->GetResource());
+		});
+	});	
 }
 
 void* FOpenGLViewport::GetNativeWindow(void** AddParam) const

@@ -908,24 +908,34 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 	return EStatus::Healthy;
 }
 
-void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanSurface& InSurface) const
+void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) const
 {
 	check(!QCOMDepthStencilSurface);
 	check(!QCOMDepthStencilView);
 	check(!QCOMDepthView);
 
-	ETextureCreateFlags UEFlags = InSurface.UEFlags;
+	const FRHITextureDesc& Desc = InSurface.GetDesc();
+	const ETextureCreateFlags UEFlags = Desc.Flags;
 	check(UEFlags & TexCreate_DepthStencilTargetable);
 
-	QCOMDepthStencilSurface = new FVulkanSurface(*InSurface.Device, nullptr, InSurface.GetViewType(), InSurface.PixelFormat, InSurface.Height, InSurface.Width,
-													InSurface.Depth, 1, InSurface.GetNumMips(), InSurface.GetNumSamples(), UEFlags, ERHIAccess::Unknown, FRHIResourceCreateInfo(TEXT("FVulkanSwapChain")));
+	FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(
+		TEXT("FVulkanSwapChainQCOM"),
+		{ (int32)Desc.Extent.X, (int32)Desc.Extent.Y }, // Yes, these are intentionally swapped.
+		Desc.Format,
+		FClearValueBinding::None,
+		UEFlags,
+		Desc.NumMips,
+		Desc.NumSamples
+	);
+
+	QCOMDepthStencilSurface = new FVulkanTexture(Device, CreateDesc, nullptr);
 
 	check(QCOMDepthStencilSurface->GetViewType() == VK_IMAGE_VIEW_TYPE_2D);
 	check(QCOMDepthStencilSurface->Image != VK_NULL_HANDLE);
 
 	QCOMDepthStencilView = new FVulkanTextureView;
 	QCOMDepthStencilView->Create(*QCOMDepthStencilSurface->Device, QCOMDepthStencilSurface->Image, QCOMDepthStencilSurface->GetViewType(), QCOMDepthStencilSurface->GetFullAspectMask(),
-								QCOMDepthStencilSurface->PixelFormat, QCOMDepthStencilSurface->ViewFormat, 0, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u), 0, 1u);
+								QCOMDepthStencilSurface->GetDesc().Format, QCOMDepthStencilSurface->ViewFormat, 0, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u), 0, 1u, false);
 
 	if (QCOMDepthStencilSurface->GetFullAspectMask() == QCOMDepthStencilSurface->GetPartialAspectMask())
 	{
@@ -935,11 +945,11 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanSurface& InSurface) c
 	{
 		QCOMDepthView = new FVulkanTextureView;
 		QCOMDepthView->Create(*QCOMDepthStencilSurface->Device, QCOMDepthStencilSurface->Image, QCOMDepthStencilSurface->GetViewType(), QCOMDepthStencilSurface->GetPartialAspectMask(),
-			QCOMDepthStencilSurface->PixelFormat, QCOMDepthStencilSurface->ViewFormat, 0, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u), 0, 1u);
+			QCOMDepthStencilSurface->GetDesc().Format, QCOMDepthStencilSurface->ViewFormat, 0, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u), 0, 1u, false);
 	}
 }
 
-const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthStencilView(const FVulkanSurface& InSurface) const
+const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthStencilView(const FVulkanTexture& InSurface) const
 {
 	if (QCOMDepthStencilView)
 	{
@@ -951,7 +961,7 @@ const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthStencilView(cons
 	return QCOMDepthStencilView;
 }
 
-const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthView(const FVulkanSurface& InSurface) const
+const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthView(const FVulkanTexture& InSurface) const
 {
 	if (QCOMDepthView)
 	{
@@ -963,7 +973,7 @@ const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthView(const FVulk
 	return QCOMDepthView;
 }
 
-const FVulkanSurface* FVulkanSwapChain::GetQCOMDepthStencilSurface() const
+const FVulkanTexture* FVulkanSwapChain::GetQCOMDepthStencilSurface() const
 {
 	return QCOMDepthStencilSurface;
 }

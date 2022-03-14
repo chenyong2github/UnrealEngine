@@ -1306,13 +1306,13 @@ namespace VulkanRHI
 
 	void PrintResultAndPointer(VkResult Result, uint64 Handle)
 	{
-		DebugLog += FString::Printf(TEXT(" -> %s => %ull\n"), *GetVkResultErrorString(Result), Handle);
+		DebugLog += FString::Printf(TEXT(" -> %s => %llu\n"), *GetVkResultErrorString(Result), Handle);
 		FlushDebugWrapperLog();
 	}
 
 	void PrintResultAndNamedHandle(VkResult Result, const TCHAR* HandleName, uint64 Handle)
 	{
-		DebugLog += FString::Printf(TEXT(" -> %s => %s=%ull\n"), *GetVkResultErrorString(Result), HandleName, Handle);
+		DebugLog += FString::Printf(TEXT(" -> %s => %s=%llu\n"), *GetVkResultErrorString(Result), HandleName, Handle);
 		FlushDebugWrapperLog();
 	}
 }

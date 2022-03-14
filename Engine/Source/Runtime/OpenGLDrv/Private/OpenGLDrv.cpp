@@ -46,7 +46,7 @@ bool FOpenGLDynamicRHI::RHISupportsFramebufferSRGBEnable() const
 
 GLuint FOpenGLDynamicRHI::RHIGetResource(FRHITexture* InTexture) const
 {
-	FOpenGLTextureBase* GLTexture = GetOpenGLTextureFromRHITexture(InTexture);
+	FOpenGLTexture* GLTexture = GetOpenGLTextureFromRHITexture(InTexture);
 	return GLTexture->GetResource();
 }
 

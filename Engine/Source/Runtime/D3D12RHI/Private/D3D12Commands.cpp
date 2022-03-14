@@ -252,7 +252,7 @@ void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& In
 	}
 	case FRHITransitionInfo::EType::Texture:
 	{
-		FD3D12TextureBase* Texture = Context.RetrieveTextureBase(Info.Texture);
+		FD3D12Texture* Texture = Context.RetrieveTexture(Info.Texture);
 		check(Texture);
 		Function(Info, Texture->GetResource());
 		break;
@@ -395,7 +395,7 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 		}
 		case FRHITransientAliasingInfo::EType::Texture:
 		{
-			FD3D12TextureBase* Texture = Context.RetrieveTextureBase(Info.Texture);
+			FD3D12Texture* Texture = Context.RetrieveTexture(Info.Texture);
 			check(Texture);
 			BaseShaderResource = Texture;
 			break;
@@ -423,7 +423,7 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 					switch (Overlap.Type)
 					{
 					case FRHITransientAliasingOverlap::EType::Texture:
-						ResourceBefore = Context.RetrieveTextureBase(Overlap.Texture)->GetResource();
+						ResourceBefore = Context.RetrieveTexture(Overlap.Texture)->GetResource();
 						break;
 					case FRHITransientAliasingOverlap::EType::Buffer:
 						ResourceBefore = Context.RetrieveObject<FD3D12Buffer>(Overlap.Buffer)->GetResource();
@@ -782,7 +782,7 @@ void FD3D12CommandContext::RHISetComputePipelineState(FRHIComputePipelineState* 
 
 void FD3D12CommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
-	FD3D12TextureBase* const NewTexture = RetrieveTextureBase(NewTextureRHI);
+	FD3D12Texture* const NewTexture = RetrieveTexture(NewTextureRHI);
 	switch (ShaderRHI->GetFrequency())
 	{
 	case SF_Vertex:
@@ -830,7 +830,7 @@ void FD3D12CommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, ui
 void FD3D12CommandContext::RHISetShaderTexture(FRHIComputeShader* ComputeShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 	//ValidateBoundShader(StateCache, ComputeShaderRHI);
-	FD3D12TextureBase* const NewTexture = RetrieveTextureBase(NewTextureRHI);
+	FD3D12Texture* const NewTexture = RetrieveTexture(NewTextureRHI);
 	StateCache.SetShaderResourceView<SF_Compute>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
 }
 
@@ -1228,7 +1228,7 @@ void FD3D12CommandContext::SetRenderTargets(
 	const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI
 	)
 {
-	FD3D12TextureBase* NewDepthStencilTarget = NewDepthStencilTargetRHI ? RetrieveTextureBase(NewDepthStencilTargetRHI->Texture) : nullptr;
+	FD3D12Texture* NewDepthStencilTarget = NewDepthStencilTargetRHI ? RetrieveTexture(NewDepthStencilTargetRHI->Texture) : nullptr;
 
 	check(NewNumSimultaneousRenderTargets <= MaxSimultaneousRenderTargets);
 
@@ -1263,7 +1263,7 @@ void FD3D12CommandContext::SetRenderTargets(
 		{
 			int32 RTMipIndex = NewRenderTargetsRHI[RenderTargetIndex].MipIndex;
 			int32 RTSliceIndex = NewRenderTargetsRHI[RenderTargetIndex].ArraySliceIndex;
-			FD3D12TextureBase* NewRenderTarget = RetrieveTextureBase(NewRenderTargetsRHI[RenderTargetIndex].Texture);
+			FD3D12Texture* NewRenderTarget = RetrieveTexture(NewRenderTargetsRHI[RenderTargetIndex].Texture);
 			RenderTargetView = NewRenderTarget->GetRenderTargetView(RTMipIndex, RTSliceIndex);
 
 			ensureMsgf(RenderTargetView, TEXT("Texture being set as render target has no RTV"));
@@ -1429,7 +1429,7 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 			VRSCombiners[1] = ConvertShadingRateCombiner(RenderTargetsInfo.ShadingRateTextureCombiner); // Combiner 1 is used to mix rates from a texture and the previous combiner
 			if (RenderTargetsInfo.ShadingRateTexture != nullptr)
 			{
-				FD3D12Resource* Resource = RetrieveTextureBase(RenderTargetsInfo.ShadingRateTexture)->GetResource();
+				FD3D12Resource* Resource = RetrieveTexture(RenderTargetsInfo.ShadingRateTexture)->GetResource();
 				CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(Resource->GetResource());
 			}
 			else
@@ -1601,11 +1601,11 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D12CommandContext& CmdConte
 			}
 			TextureRHI->SetLastRenderTime(CurrentTime);
 
-			FD3D12TextureBase* TextureD3D12 = CmdContext.RetrieveTextureBase(TextureRHI);
+			FD3D12Texture* TextureD3D12 = CmdContext.RetrieveTexture(TextureRHI);
 			FD3D12ShaderResourceView* D3D12Resource = TextureD3D12->GetShaderResourceView();
 			if (D3D12Resource == nullptr)
 			{
-				D3D12Resource = CmdContext.RetrieveTextureBase(GWhiteTexture->TextureRHI)->GetShaderResourceView();
+				D3D12Resource = CmdContext.RetrieveTexture(GWhiteTexture->TextureRHI)->GetShaderResourceView();
 			}
 
 #if ENABLE_RHI_VALIDATION
@@ -2536,13 +2536,13 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 {
 #if WITH_MGPU
 	FMemMark Mark(FMemStack::Get());
-	TArray<FD3D12TextureBase*, TMemStackAllocator<>> Resources;
+	TArray<FD3D12Texture*, TMemStackAllocator<>> Resources;
 	Resources.Reserve(InTextures.Num());
 	for (FRHITexture* Texture : InTextures)
 	{
-		Resources.Emplace(RetrieveTextureBase(Texture));
+		Resources.Emplace(RetrieveTexture(Texture));
 	}
-	auto CopyFunction = [](FD3D12CommandListHandle& CommandList, FD3D12TextureBase* Dst, FD3D12TextureBase* Src)
+	auto CopyFunction = [](FD3D12CommandListHandle& CommandList, FD3D12Texture* Dst, FD3D12Texture* Src)
 	{
 		CommandList->CopyResource(Dst->GetResource()->GetResource(), Src->GetResource()->GetResource());
 	};

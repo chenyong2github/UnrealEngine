@@ -266,6 +266,11 @@ static FORCEINLINE typename TAGXResourceTraits<TRHIType>::TConcreteType* Resourc
 	return static_cast<typename TAGXResourceTraits<TRHIType>::TConcreteType*>(Resource);
 }
 
+static FORCEINLINE FAGXSurface* ResourceCast(FRHITexture* Texture)
+{
+	return AGXGetMetalSurfaceFromRHITexture(Texture);
+}
+
 extern uint32 AGXSafeGetRuntimeDebuggingLevel();
 
 extern int32 GAGXBufferZeroFill;

@@ -77,7 +77,7 @@ public:
 		SetUAVForUBResource(DescriptorSet, BindingIndex, UAV);
 	}
 
-	inline void SetTextureForStage(uint32 TextureIndex, const FVulkanTextureBase* TextureBase, VkImageLayout Layout)
+	inline void SetTextureForStage(uint32 TextureIndex, const FVulkanTexture* Texture, VkImageLayout Layout)
 	{
 		const FVulkanComputePipelineDescriptorInfo& DescriptorInfo = CurrentState->GetComputePipelineDescriptorInfo();
 		uint8 DescriptorSet;
@@ -87,7 +87,7 @@ public:
 			return;
 		}
 
-		CurrentState->SetTexture(DescriptorSet, BindingIndex, TextureBase, Layout);
+		CurrentState->SetTexture(DescriptorSet, BindingIndex, Texture, Layout);
 	}
 
 	inline void SetSamplerStateForStage(uint32 SamplerIndex, FVulkanSamplerState* Sampler)
@@ -103,9 +103,9 @@ public:
 		CurrentState->SetSamplerState(DescriptorSet, BindingIndex, Sampler);
 	}
 
-	inline void SetTextureForUBResource(int32 DescriptorSet, uint32 BindingIndex, const FVulkanTextureBase* TextureBase, VkImageLayout Layout)
+	inline void SetTextureForUBResource(int32 DescriptorSet, uint32 BindingIndex, const FVulkanTexture* Texture, VkImageLayout Layout)
 	{
-		CurrentState->SetTexture(DescriptorSet, BindingIndex, TextureBase, Layout);
+		CurrentState->SetTexture(DescriptorSet, BindingIndex, Texture, Layout);
 	}
 
 	void SetSRVForUBResource(uint32 DescriptorSet, uint32 BindingIndex, FVulkanShaderResourceView* SRV);
@@ -253,7 +253,7 @@ public:
 		CurrentPipeline->Bind(CmdBuffer);
 	}
 
-	inline void SetTextureForStage(ShaderStage::EStage Stage, uint32 ParameterIndex, const FVulkanTextureBase* TextureBase, VkImageLayout Layout)
+	inline void SetTextureForStage(ShaderStage::EStage Stage, uint32 ParameterIndex, const FVulkanTexture* Texture, VkImageLayout Layout)
 	{
 		const FVulkanGfxPipelineDescriptorInfo& DescriptorInfo = CurrentState->GetGfxPipelineDescriptorInfo();
 		uint8 DescriptorSet;
@@ -263,12 +263,12 @@ public:
 			return;
 		}
 
-		CurrentState->SetTexture(DescriptorSet, BindingIndex, TextureBase, Layout);
+		CurrentState->SetTexture(DescriptorSet, BindingIndex, Texture, Layout);
 	}
 
-	inline void SetTextureForUBResource(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanTextureBase* TextureBase, VkImageLayout Layout)
+	inline void SetTextureForUBResource(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanTexture* Texture, VkImageLayout Layout)
 	{
-		CurrentState->SetTexture(DescriptorSet, BindingIndex, TextureBase, Layout);
+		CurrentState->SetTexture(DescriptorSet, BindingIndex, Texture, Layout);
 	}
 
 	inline void SetUniformBufferConstantData(ShaderStage::EStage Stage, uint32 BindingIndex, const TArray<uint8>& ConstantData)

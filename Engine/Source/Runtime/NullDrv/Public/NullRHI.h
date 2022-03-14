@@ -187,23 +187,9 @@ public:
 
 	}
 
-	virtual uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) final override
-	{ 
-		OutAlign = 0; 
-		return 0; 
-	}
-
-
-	virtual uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) final override
-	{ 
-		OutAlign = 0; 
-		return 0; 
-	}
-
-	virtual uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) final override
-	{ 
-		OutAlign = 0; 
-		return 0; 
+	virtual FRHICalcTextureSizeResult RHICalcTexturePlatformSize(FRHITextureDesc const& Desc, uint32 FirstMipIndex) override final
+	{
+		return {};
 	}
 
 	virtual void RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats) final override
@@ -216,28 +202,41 @@ public:
 		return false; 
 	}
 
+	class FNullTexture : public FRHITexture
+	{
+	public:
+		FNullTexture(const FRHITextureCreateDesc& InDesc)
+			: FRHITexture(InDesc)
+		{}
+	};
 
-	virtual FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
-	{ 
-		return new FRHITexture2D(SizeX,SizeY,NumMips,NumSamples,(EPixelFormat)Format,Flags, CreateInfo.ClearValueBinding); 
+	virtual FTextureRHIRef RHICreateTexture(const FRHITextureCreateDesc& CreateDesc) final override
+	{
+		return new FNullTexture(CreateDesc);
 	}
 
-	virtual FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips) final override
+	virtual FTextureRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips) final override
 	{ 
-		return FTexture2DRHIRef(); 
+		const uint32 NumSamples = 1;
+		const uint32 ExtData = 0;
+
+		return this->RHICreateTexture(
+			FRHITextureCreateDesc::Create2D(
+				  TEXT("FNullDynamicRHI::RHIAsyncCreateTexture2D")
+				, { (int32)SizeX, (int32)SizeY}
+				, (EPixelFormat)Format
+				, FClearValueBinding::None
+				, Flags
+				, NumMips
+				, NumSamples
+				, ExtData
+				, InResourceState
+			)
+		);
 	}
 
 	virtual void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) final override
 	{
-	}
-	virtual FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
-	{ 
-		return new FRHITexture2DArray(SizeX,SizeY,SizeZ,NumMips,NumSamples,(EPixelFormat)Format,Flags, CreateInfo.ClearValueBinding); 
-	}
-
-	virtual FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
-	{ 
-		return new FRHITexture3D(SizeX, SizeY, SizeZ, NumMips, (EPixelFormat)Format, Flags, CreateInfo.ClearValueBinding);
 	}
 
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo) final override
@@ -255,7 +254,17 @@ public:
 	}
 	virtual FTexture2DRHIRef RHIAsyncReallocateTexture2D(FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus) final override
 	{ 
-		return new FRHITexture2D(NewSizeX,NewSizeY,NewMipCount,1,Texture2D->GetFormat(),Texture2D->GetFlags(), Texture2D->GetClearBinding());
+		return this->RHICreateTexture(
+			FRHITextureCreateDesc::Create2D(
+				  TEXT("FNullDynamicRHI::RHIAsyncReallocateTexture2D")
+				, { NewSizeX, NewSizeY }
+				, Texture2D->GetFormat()
+				, Texture2D->GetClearBinding()
+				, Texture2D->GetFlags()
+				, NewMipCount
+				, Texture2D->GetNumSamples()
+			)
+		);
 	}
 	virtual ETextureReallocationStatus RHIFinalizeAsyncReallocateTexture2D(FRHITexture2D* Texture2D, bool bBlockUntilCompleted) final override
 	{ 
@@ -291,14 +300,7 @@ public:
 	{
 
 	}
-	virtual FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
-	{ 
-		return new FRHITextureCube(Size, NumMips, (EPixelFormat)Format, Flags, CreateInfo.ClearValueBinding);
-	}
-	virtual FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
-	{ 
-		return new FRHITextureCube(Size, NumMips, (EPixelFormat)Format, Flags, CreateInfo.ClearValueBinding);
-	}
+
 	virtual void* RHILockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail) final override
 	{ 
 		DestStride = 0; 
@@ -385,8 +387,16 @@ public:
 	}
 
 	virtual FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport) final override
-	{ 
-		return new FRHITexture2D(1,1,1,1,PF_B8G8R8A8,TexCreate_RenderTargetable, FClearValueBinding()); 
+	{
+		return this->RHICreateTexture(
+			FRHITextureCreateDesc::Create2D(
+				  TEXT("FNullDynamicRHI::RHIGetViewportBackBuffer")
+				, { 1, 1 }
+				, PF_B8G8R8A8
+				, FClearValueBinding::None
+				, ETextureCreateFlags::RenderTargetable
+			)
+		);
 	}
 
 	virtual void RHIBeginFrame() final override

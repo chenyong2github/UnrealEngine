@@ -350,9 +350,13 @@ public:
 		D3D12_RESOURCE_STATES InCreateState,
 		bool bHasInitialData,
 		const FRHIGPUMask& InGPUMask,
-		ED3D12ResourceTransientMode TransientMode,
 		ID3D12ResourceAllocator* ResourceAllocator,
 		const TCHAR* InDebugName);
+
+	void CreateUAVAliasResource(
+		D3D12_CLEAR_VALUE* ClearValuePtr,
+		const TCHAR* DebugName,
+		FD3D12ResourceLocation& Location);
 
 	template <typename ObjectType, typename CreationCoreFunction>
 	inline ObjectType* CreateLinkedObject(FRHIGPUMask GPUMask, const CreationCoreFunction& pfnCreationCore)
@@ -438,7 +442,6 @@ protected:
 		uint32 Alignment,
 		FD3D12Buffer* Buffer,
 		FD3D12ResourceLocation& ResourceLocation,
-		ED3D12ResourceTransientMode TransientMode,
 		ID3D12ResourceAllocator* ResourceAllocator,
 		const TCHAR* InDebugName);
 

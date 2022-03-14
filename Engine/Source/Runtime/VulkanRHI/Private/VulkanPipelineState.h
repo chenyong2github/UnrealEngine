@@ -76,18 +76,18 @@ public:
 		MarkDirty(DSWriter[DescriptorSet].WriteStorageImage(BindingIndex, TextureView, Layout));
 	}
 
-	inline void SetTexture(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanTextureBase* TextureBase, VkImageLayout Layout)
+	inline void SetTexture(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanTexture* Texture, VkImageLayout Layout)
 	{
-		check(TextureBase && TextureBase->PartialView);
+		check(Texture && Texture->PartialView);
 
 		// If the texture doesn't support sampling, then we read it through a UAV
-		if (TextureBase->Surface.SupportsSampling())
+		if (Texture->SupportsSampling())
 		{
-			MarkDirty(DSWriter[DescriptorSet].WriteImage(BindingIndex, *TextureBase->PartialView, Layout));
+			MarkDirty(DSWriter[DescriptorSet].WriteImage(BindingIndex, *Texture->PartialView, Layout));
 		}
 		else
 		{
-			MarkDirty(DSWriter[DescriptorSet].WriteStorageImage(BindingIndex, *TextureBase->PartialView, Layout));
+			MarkDirty(DSWriter[DescriptorSet].WriteStorageImage(BindingIndex, *Texture->PartialView, Layout));
 		}
 	}
 

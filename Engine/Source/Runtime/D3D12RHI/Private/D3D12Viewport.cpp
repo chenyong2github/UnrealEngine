@@ -202,7 +202,7 @@ bool bNeedSwapChain = true;
 /**
  * Creates a FD3D12Surface to represent a swap chain's back buffer.
  */
-FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain, uint32 BackBufferIndex, TRefCountPtr<ID3D12Resource> BackBufferResourceOverride)
+FD3D12Texture* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain, uint32 BackBufferIndex, TRefCountPtr<ID3D12Resource> BackBufferResourceOverride)
 {
 	verify(D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN || SwapChain == nullptr);
 
@@ -245,18 +245,14 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 
 	D3D12_RESOURCE_DESC BackBufferDesc = BackBufferResource->GetDesc();
 
-	FD3D12Texture2D* SwapChainTexture = Adapter->CreateLinkedObject<FD3D12Texture2D>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
+	FString Name = FString::Printf(TEXT("BackBuffer%d"), BackBufferIndex);
+	FRHITextureCreateDesc CreateDesc(FRHITextureDesc::Create2D(FIntPoint((uint32)BackBufferDesc.Width, BackBufferDesc.Height), PixelFormat, FClearValueBinding(), TexCreate_RenderTargetable, 1, 1), ERHIAccess::Present, *Name);
+
+	FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
+
+	FD3D12Texture* SwapChainTexture = Adapter->CreateLinkedObject<FD3D12Texture>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
 	{
-		FD3D12Texture2D* NewTexture = new FD3D12Texture2D(Device,
-			(uint32)BackBufferDesc.Width,
-			BackBufferDesc.Height,
-			1,
-			1,
-			1,
-			PixelFormat,
-			false,
-			TexCreate_RenderTargetable,
-			FClearValueBinding());
+		FD3D12Texture* NewTexture = DynamicRHI->CreateNewD3D12Texture(CreateDesc, Device);
 
 		const D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_COMMON;
 
@@ -339,12 +335,14 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 		return NewTexture;
 	});
 
-	FString Name = FString::Printf(TEXT("BackBuffer%d"), BackBufferIndex);
 	SetName(SwapChainTexture->GetResource(), *Name);
 
 	SwapChainTexture->GetResource()->SetIsBackBuffer(true);
 
-	FD3D12TextureStats::D3D12TextureAllocated2D(*SwapChainTexture);
+	const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = Parent->GetDevice()->GetResourceAllocationInfo(0, 1, &SwapChainTexture->GetResource()->GetDesc());
+	SwapChainTexture->ResourceLocation.SetSize(AllocationInfo.SizeInBytes);
+
+	FD3D12TextureStats::D3D12TextureAllocated(*SwapChainTexture);
 	return SwapChainTexture;
 }
 
@@ -352,11 +350,13 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 /**
 * Create the dummy back buffer textures - They don't have actual D3D resource but are used to always reference the current back buffer index on the RHI thread
 */
-FD3D12Texture2D* FD3D12Viewport::CreateDummyBackBufferTextures(FD3D12Adapter* InAdapter, EPixelFormat InPixelFormat, uint32 InSizeX, uint32 InSizeY, bool bInIsSDR)
+FD3D12Texture* FD3D12Viewport::CreateDummyBackBufferTextures(FD3D12Adapter* InAdapter, EPixelFormat InPixelFormat, uint32 InSizeX, uint32 InSizeY, bool bInIsSDR)
 {
-	FD3D12Texture2D* Result = InAdapter->CreateLinkedObject<FD3D12Texture2D>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
+	FRHITextureCreateDesc CreateDesc(FRHITextureDesc::Create2D(FIntPoint(InSizeX, InSizeY), InPixelFormat, FClearValueBinding(), TexCreate_RenderTargetable | TexCreate_Presentable, 1, 1), ERHIAccess::Present, TEXT("BackBufferReference"));
+
+	FD3D12Texture* Result = InAdapter->CreateLinkedObject<FD3D12Texture>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
 	{
-		FD3D12Texture2D* NewTexture = new FD3D12BackBufferReferenceTexture2D(this, bInIsSDR, Device, InSizeX, InSizeY, PixelFormat);
+		FD3D12Texture* NewTexture = new FD3D12BackBufferReferenceTexture2D(CreateDesc, this, bInIsSDR, Device);
 		return NewTexture;
 	});
 	return Result;
@@ -478,7 +478,7 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			}
 			check(BackBuffers[i]->GetRefCount() == 1);
 
-			for (FD3D12TextureBase& Tex : *BackBuffers[i])
+			for (FD3D12Texture& Tex : *BackBuffers[i])
 			{
 				Tex.GetResource()->DoNotDeferDelete();
 			}
@@ -495,7 +495,7 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			}
 			check(SDRBackBuffers[i]->GetRefCount() == 1);
 
-			for (FD3D12TextureBase& Tex : *SDRBackBuffers[i])
+			for (FD3D12Texture& Tex : *SDRBackBuffers[i])
 			{
 				Tex.GetResource()->DoNotDeferDelete();
 			}
@@ -817,8 +817,8 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 		FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
 
 		// Those are not necessarily the swap chain back buffer in case of multi-gpu
-		FD3D12Texture2D* DeviceBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture2D, FRHITexture2D*>(GetBackBuffer_RHIThread());
-		FD3D12Texture2D* DeviceSDRBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture2D, FRHITexture2D*>(GetSDRBackBuffer_RHIThread());
+		FD3D12Texture* DeviceBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture, FRHITexture2D*>(GetBackBuffer_RHIThread());
+		FD3D12Texture* DeviceSDRBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture, FRHITexture2D*>(GetSDRBackBuffer_RHIThread());
 
 		FD3D12DynamicRHI::TransitionResource(DefaultContext.CommandListHandle, DeviceBackBuffer->GetShaderResourceView()->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_PRESENT, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
 		if (SDRBackBuffer_RHIThread != nullptr)

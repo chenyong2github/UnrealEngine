@@ -109,10 +109,9 @@ FVulkanTransientResourceAllocator::FVulkanTransientResourceAllocator(FVulkanTran
 
 FRHITransientTexture* FVulkanTransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex)
 {
-	uint32 ReqAlign = 1;
-	uint64 ReqSize = GVulkanRHI->RHICalcTexturePlatformSize(InCreateInfo, ReqAlign);
+	FDynamicRHI::FRHICalcTextureSizeResult MemReq = GVulkanRHI->RHICalcTexturePlatformSize(InCreateInfo, 0);
 
-	return CreateTextureInternal(InCreateInfo, InDebugName, InPassIndex, ReqSize, ReqAlign,
+	return CreateTextureInternal(InCreateInfo, InDebugName, InPassIndex, MemReq.Size, MemReq.Align,
 		[&](const FRHITransientHeap::FResourceInitializer& Initializer)
 	{
 		ERHIAccess InitialState = ERHIAccess::UAVMask;
@@ -125,9 +124,9 @@ FRHITransientTexture* FVulkanTransientResourceAllocator::CreateTexture(const FRH
 			InitialState = ERHIAccess::DSVWrite;
 		}
 
-		FRHIResourceCreateInfo ResourceCreateInfo(InDebugName, InCreateInfo.ClearValue);
-		FRHITexture* Texture = GVulkanRHI->CreateTexture(InCreateInfo, ResourceCreateInfo, InitialState, &Initializer.Allocation);
-		return new FRHITransientTexture(Texture, 0/*GpuVirtualAddress*/, Initializer.Hash, ReqSize, ERHITransientAllocationType::Heap, InCreateInfo);
+		FRHITextureCreateDesc CreateDesc(InCreateInfo, InitialState, InDebugName);
+		FRHITexture* Texture = new FVulkanTexture(*Device, CreateDesc, &Initializer.Allocation);
+		return new FRHITransientTexture(Texture, 0/*GpuVirtualAddress*/, Initializer.Hash, MemReq.Size, ERHITransientAllocationType::Heap, InCreateInfo);
 	});
 }
 

@@ -46,8 +46,8 @@ static FResolveRect GetDefaultRect(const FResolveRect& Rect,uint32 DefaultWidth,
 template<typename TPixelShader>
 void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	FRHICommandList_RecursiveHazardous& RHICmdList,
-	FD3D11Texture2D* SourceTexture,
-	FD3D11Texture2D* DestTexture,
+	FD3D11Texture* SourceTexture,
+	FD3D11Texture* DestTexture,
 	ID3D11RenderTargetView* DestTextureRTV,
 	ID3D11DepthStencilView* DestTextureDSV,
 	const D3D11_TEXTURE2D_DESC& ResolveTargetDesc,
@@ -88,7 +88,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	//we may change rendertargets and depth state behind the RHI's back here.
 	//save off this original state to restore it.
 	FExclusiveDepthStencil OriginalDSVAccessType = CurrentDSVAccessType;
-	TRefCountPtr<FD3D11TextureBase> OriginalDepthTexture = CurrentDepthTexture;
+	TRefCountPtr<FD3D11Texture> OriginalDepthTexture = CurrentDepthTexture;
 
 	if(ResolveTargetDesc.BindFlags & D3D11_BIND_DEPTH_STENCIL)
 	{
@@ -189,16 +189,15 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRH
 	}
 
 	FRHICommandList_RecursiveHazardous RHICmdList(this);
-	
 
-	FD3D11Texture2D* SourceTexture2D = static_cast<FD3D11Texture2D*>(SourceTextureRHI->GetTexture2D());
-	FD3D11Texture2D* DestTexture2D = static_cast<FD3D11Texture2D*>(DestTextureRHI->GetTexture2D());
+	FD3D11Texture* SourceTexture2D   = GetD3D11TextureFromRHITexture(SourceTextureRHI->GetTexture2D());
+	FD3D11Texture* DestTexture2D     = GetD3D11TextureFromRHITexture(DestTextureRHI->GetTexture2D());
 
-	FD3D11TextureCube* SourceTextureCube = static_cast<FD3D11TextureCube*>(SourceTextureRHI->GetTextureCube());
-	FD3D11TextureCube* DestTextureCube = static_cast<FD3D11TextureCube*>(DestTextureRHI->GetTextureCube());
+	FD3D11Texture* SourceTextureCube = GetD3D11TextureFromRHITexture(SourceTextureRHI->GetTextureCube());
+	FD3D11Texture* DestTextureCube   = GetD3D11TextureFromRHITexture(DestTextureRHI->GetTextureCube());
 
-	FD3D11Texture3D* SourceTexture3D = static_cast<FD3D11Texture3D*>(SourceTextureRHI->GetTexture3D());
-	FD3D11Texture3D* DestTexture3D = static_cast<FD3D11Texture3D*>(DestTextureRHI->GetTexture3D());
+	FD3D11Texture* SourceTexture3D   = GetD3D11TextureFromRHITexture(SourceTextureRHI->GetTexture3D());
+	FD3D11Texture* DestTexture3D     = GetD3D11TextureFromRHITexture(DestTextureRHI->GetTexture3D());
 		
 	if(SourceTexture2D && DestTexture2D)
 	{
@@ -212,8 +211,7 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRH
 				&& !DestTextureRHI->IsMultisampled())
 			{
 				D3D11_TEXTURE2D_DESC ResolveTargetDesc;
-				
-				DestTexture2D->GetResource()->GetDesc(&ResolveTargetDesc);
+				DestTexture2D->GetD3D11Texture2D()->GetDesc(&ResolveTargetDesc);
 
 				ResolveTextureUsingShader<FResolveDepthPS>(
 					RHICmdList,
@@ -430,9 +428,10 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 
 TRefCountPtr<ID3D11Texture2D> FD3D11DynamicRHI::GetStagingTexture(FRHITexture* TextureRHI,FIntRect InRect, FIntRect& StagingRectOUT, FReadSurfaceDataFlags InFlags)
 {
-	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+
 	D3D11_TEXTURE2D_DESC SourceDesc; 
-	((ID3D11Texture2D*)Texture->GetResource())->GetDesc(&SourceDesc);// check for 3D textures?
+	Texture->GetD3D11Texture2D()->GetDesc(&SourceDesc);
 	
 	bool bRequiresTempStagingTexture = SourceDesc.Usage != D3D11_USAGE_STAGING; 
 	if(bRequiresTempStagingTexture == false)
@@ -441,7 +440,7 @@ TRefCountPtr<ID3D11Texture2D> FD3D11DynamicRHI::GetStagingTexture(FRHITexture* T
 		// a new staging texture as we do not have to wait for the GPU pipeline to catch up
 		// to the staging texture preparation work.
 		StagingRectOUT = InRect;
-		return ((ID3D11Texture2D*)Texture->GetResource());
+		return Texture->GetD3D11Texture2D();
 	}
 
 	// a temporary staging texture is needed.
@@ -506,14 +505,14 @@ void FD3D11DynamicRHI::ReadSurfaceDataNoMSAARaw(FRHITexture* TextureRHI,FIntRect
 	checkf(InRect.Width() <= TextureRHI->GetSizeXYZ().X >> InFlags.GetMip(), TEXT("Provided rect width (%d), must be smaller or equal to the texture size requested Mip (%d)"), InRect.Width(), TextureRHI->GetSizeXYZ().X >> InFlags.GetMip());
 	checkf(InRect.Height() <= TextureRHI->GetSizeXYZ().Y >> InFlags.GetMip(), TEXT("Provided rect height (%d), must be smaller or equal to the texture size requested Mip (%d)"), InRect.Height(), TextureRHI->GetSizeXYZ().Y >> InFlags.GetMip());
 
-	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
 	const uint32 SizeX = InRect.Width();
 	const uint32 SizeY = InRect.Height();
 
 	// Check the format of the surface
 	D3D11_TEXTURE2D_DESC TextureDesc;
-	((ID3D11Texture2D*)Texture->GetResource())->GetDesc(&TextureDesc);
+	Texture->GetD3D11Texture2D()->GetDesc(&TextureDesc);
 	
 	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc.Format);
 	
@@ -645,12 +644,11 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI,FIntRect InRec
 
 	TArray<uint8> OutDataRaw;
 
-	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
 	// Check the format of the surface
 	D3D11_TEXTURE2D_DESC TextureDesc;
-
-	((ID3D11Texture2D*)Texture->GetResource())->GetDesc(&TextureDesc);
+	Texture->GetD3D11Texture2D()->GetDesc(&TextureDesc);
 
 	check(TextureDesc.SampleDesc.Count >= 1);
 
@@ -679,14 +677,14 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI,FIntRect InRec
 
 void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous& RHICmdList, FRHITexture* TextureRHI,FIntRect InRect,TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
 {
-	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
 	const uint32 SizeX = InRect.Width();
 	const uint32 SizeY = InRect.Height();
 	
 	// Check the format of the surface
 	D3D11_TEXTURE2D_DESC TextureDesc;
-	((ID3D11Texture2D*)Texture->GetResource())->GetDesc(&TextureDesc);
+	Texture->GetD3D11Texture2D()->GetDesc(&TextureDesc);
 
 	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc.Format);
 
@@ -764,7 +762,7 @@ void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 		// Resolve the sample to the non-MSAA render target.
 		ResolveTextureUsingShader<FResolveSingleSamplePS>(
 			RHICmdList,
-			(FD3D11Texture2D*)TextureRHI->GetTexture2D(),
+			Texture,
 			NULL,
 			NonMSAARTV,
 			NULL,
@@ -805,7 +803,7 @@ void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 
 void FD3D11DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
-	ID3D11Texture2D* Texture = (ID3D11Texture2D*)(GetD3D11TextureFromRHITexture(TextureRHI)->GetResource());
+	ID3D11Texture2D* Texture = GetD3D11TextureFromRHITexture(TextureRHI)->GetD3D11Texture2D();
 	
 	D3D11_TEXTURE2D_DESC TextureDesc;
 	Texture->GetDesc(&TextureDesc);
@@ -823,21 +821,21 @@ void FD3D11DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFenc
 
 void FD3D11DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {
-	ID3D11Texture2D* Texture = (ID3D11Texture2D*)(GetD3D11TextureFromRHITexture(TextureRHI)->GetResource());
+	ID3D11Texture2D* Texture = GetD3D11TextureFromRHITexture(TextureRHI)->GetD3D11Texture2D();
 
 	Direct3DDeviceIMContext->Unmap(Texture,0);
 }
 
 void FD3D11DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI,FIntRect InRect,TArray<FFloat16Color>& OutData,ECubeFace CubeFace,int32 ArrayIndex,int32 MipIndex)
 {
-	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
 	uint32 SizeX = InRect.Width();
 	uint32 SizeY = InRect.Height();
 
 	// Check the format of the surface
 	D3D11_TEXTURE2D_DESC TextureDesc;
-	((ID3D11Texture2D*)Texture->GetResource())->GetDesc(&TextureDesc);
+	Texture->GetD3D11Texture2D()->GetDesc(&TextureDesc);
 
 	check(TextureDesc.Format == GPixelFormats[PF_FloatRGBA].PlatformFormat);
 
@@ -967,12 +965,11 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRe
 {
 	TArray<uint8> OutDataRaw;
 
-	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
 	// Check the format of the surface
 	D3D11_TEXTURE2D_DESC TextureDesc;
-
-	((ID3D11Texture2D*)Texture->GetResource())->GetDesc(&TextureDesc);
+	Texture->GetD3D11Texture2D()->GetDesc(&TextureDesc);
 
 	check(TextureDesc.SampleDesc.Count >= 1);
 
@@ -1004,7 +1001,7 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRe
 
 void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRect InRect,FIntPoint ZMinMax,TArray<FFloat16Color>& OutData)
 {
-	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
 	uint32 SizeX = InRect.Width();
 	uint32 SizeY = InRect.Height();
@@ -1012,7 +1009,7 @@ void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRec
 
 	// Check the format of the surface
 	D3D11_TEXTURE3D_DESC TextureDesc;
-	((ID3D11Texture3D*)Texture->GetResource())->GetDesc(&TextureDesc);
+	Texture->GetD3D11Texture3D()->GetDesc(&TextureDesc);
 
 	bool bIsRGBAFmt = TextureDesc.Format == GPixelFormats[PF_FloatRGBA].PlatformFormat;
 	bool bIsR16FFmt = TextureDesc.Format == GPixelFormats[PF_R16F].PlatformFormat;	

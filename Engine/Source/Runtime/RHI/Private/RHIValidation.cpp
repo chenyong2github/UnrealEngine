@@ -67,6 +67,23 @@ namespace RHIValidation
 
 		return Init.Strings;
 	}
+
+	FTextureResource::FTextureResource(FRHITextureCreateDesc const& CreateDesc)
+		: FTextureResource()
+	{
+		InitBarrierTracking(CreateDesc);
+	}
+
+	void FTextureResource::InitBarrierTracking(FRHITextureCreateDesc const& CreateDesc)
+	{
+		InitBarrierTracking(
+			CreateDesc.NumMips,
+			CreateDesc.ArraySize * (CreateDesc.IsTextureCube() ? 6 : 1),
+			CreateDesc.Format,
+			CreateDesc.Flags,
+			CreateDesc.InitialState,
+			CreateDesc.DebugName);
+	}
 }
 
 TSet<uint32> FValidationRHI::SeenFailureHashes;

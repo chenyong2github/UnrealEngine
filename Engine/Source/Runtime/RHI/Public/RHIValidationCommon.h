@@ -16,6 +16,7 @@ const bool GRHIValidationEnabled = false;
 
 class FRHIUniformBuffer;
 class FValidationRHI;
+struct FRHITextureCreateDesc;
 
 // Forward declaration of function defined in RHIUtilities.h
 static inline bool IsStencilFormat(EPixelFormat Format);
@@ -383,9 +384,21 @@ namespace RHIValidation
 		FResource PRIVATE_TrackerResource;
 
 	public:
+		FTextureResource() = default;
+		RHI_API FTextureResource(FRHITextureCreateDesc const& CreateDesc);
+
 		virtual ~FTextureResource() {}
 
 		virtual FResource* GetTrackerResource() { return &PRIVATE_TrackerResource; }
+
+		void InitBarrierTracking(FRHITextureCreateDesc const& CreateDesc);
+
+		inline bool IsBarrierTrackingInitialized() const
+		{
+			// @todo: clean up const_cast once FRHITextureReference is removed and
+			// we don't need to keep a separate PRIVATE_TrackerResource object.
+			return const_cast<FTextureResource*>(this)->GetTrackerResource()->IsBarrierTrackingInitialized();
+		}
 
 		inline void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, EPixelFormat PixelFormat, ETextureCreateFlags Flags, ERHIAccess InResourceState, const TCHAR* InDebugName)
 		{
@@ -454,7 +467,7 @@ namespace RHIValidation
 			}
 			else
 			{
-				checkSlow(Info.MipIndex < uint32(Resource->NumMips));
+				check(Info.MipIndex < uint32(Resource->NumMips));
 				Identity.SubresourceRange.MipIndex = Info.MipIndex;
 				Identity.SubresourceRange.NumMips = 1;
 			}
@@ -466,7 +479,7 @@ namespace RHIValidation
 			}
 			else
 			{
-				checkSlow(Info.ArraySlice < uint32(Resource->NumArraySlices));
+				check(Info.ArraySlice < uint32(Resource->NumArraySlices));
 				Identity.SubresourceRange.ArraySlice = Info.ArraySlice;
 				Identity.SubresourceRange.NumArraySlices = 1;
 			}
@@ -478,7 +491,7 @@ namespace RHIValidation
 			}
 			else
 			{
-				checkSlow(Info.PlaneSlice < uint32(Resource->NumPlanes));
+				check(Info.PlaneSlice < uint32(Resource->NumPlanes));
 				Identity.SubresourceRange.PlaneIndex = Info.PlaneSlice;
 				Identity.SubresourceRange.NumPlanes = 1;
 			}

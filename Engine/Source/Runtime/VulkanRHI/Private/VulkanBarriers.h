@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "VulkanCommon.h"
 
-class FVulkanSurface;
 
 struct FVulkanPipelineBarrier
 {
@@ -25,7 +24,7 @@ struct FVulkanPipelineBarrier
 	// We need to keep the texture pointers around, because we need to call OnTransitionResource on them, and we need mip and layer counts for the tracking code.
 	struct ImageBarrierExtraData
 	{
-		FVulkanTextureBase* BaseTexture = nullptr;
+		FVulkanTexture* BaseTexture = nullptr;
 		bool IsAliasingBarrier = false;
 	};
 	TArray<ImageBarrierExtraData, TInlineAllocator<2>> ImageBarrierExtras;
@@ -35,7 +34,7 @@ struct FVulkanPipelineBarrier
 	void AddImageLayoutTransition(VkImage Image, VkImageAspectFlags AspectMask, const struct FVulkanImageLayout& SrcLayout, VkImageLayout DstLayout);
 	void AddImageLayoutTransition(VkImage Image, VkImageAspectFlags AspectMask, VkImageLayout SrcLayout, const struct FVulkanImageLayout& DstLayout);
 	void AddImageLayoutTransition(VkImage Image, VkImageAspectFlags AspectMask, const struct FVulkanImageLayout& SrcLayout, const struct FVulkanImageLayout& DstLayout);
-	void AddImageAccessTransition(const FVulkanSurface& Surface, ERHIAccess SrcAccess, ERHIAccess DstAccess, const VkImageSubresourceRange& SubresourceRange, VkImageLayout& InOutLayout);
+	void AddImageAccessTransition(const FVulkanTexture& Surface, ERHIAccess SrcAccess, ERHIAccess DstAccess, const VkImageSubresourceRange& SubresourceRange, VkImageLayout& InOutLayout);
 	void Execute(VkCommandBuffer CmdBuffer);
 
 	static VkImageSubresourceRange MakeSubresourceRange(VkImageAspectFlags AspectMask, uint32 FirstMip = 0, uint32 NumMips = VK_REMAINING_MIP_LEVELS, uint32 FirstLayer = 0, uint32 NumLayers = VK_REMAINING_ARRAY_LAYERS);
@@ -164,7 +163,7 @@ public:
 		return Layouts.FindChecked(Image);
 	}
 
-	FVulkanImageLayout& GetOrAddFullLayout(const FVulkanSurface& Surface, VkImageLayout LayoutIfNotFound)
+	FVulkanImageLayout& GetOrAddFullLayout(const FVulkanTexture& Surface, VkImageLayout LayoutIfNotFound)
 	{
 		FVulkanImageLayout* Layout = Layouts.Find(Surface.Image);
 		if (Layout)
@@ -202,12 +201,12 @@ public:
 		return FindOrAddFullLayoutRW(Image, LayoutIfNotFound, NumMips, NumLayers).MainLayout;
 	}
 
-	VULKANRHI_API VkImageLayout& FindOrAddLayoutRW(const FVulkanSurface& Surface, VkImageLayout LayoutIfNotFound)
+	VULKANRHI_API VkImageLayout& FindOrAddLayoutRW(const FVulkanTexture& Surface, VkImageLayout LayoutIfNotFound)
 	{
 		return FindOrAddLayoutRW(Surface.Image, LayoutIfNotFound, Surface.GetNumMips(), Surface.GetNumberOfArrayLevels());
 	}
 
-	VkImageLayout FindOrAddLayout(const FVulkanSurface& Surface, VkImageLayout LayoutIfNotFound)
+	VkImageLayout FindOrAddLayout(const FVulkanTexture& Surface, VkImageLayout LayoutIfNotFound)
 	{
 		return FindOrAddLayoutRW(Surface, LayoutIfNotFound);
 	}
