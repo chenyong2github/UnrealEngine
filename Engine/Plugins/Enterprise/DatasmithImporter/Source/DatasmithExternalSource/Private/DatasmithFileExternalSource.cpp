@@ -45,16 +45,8 @@ namespace UE::DatasmithImporter
 
 	TSharedPtr<IDatasmithScene> FDatasmithFileExternalSource::LoadImpl()
 	{
-		const TSharedPtr<IDatasmithTranslator>& Translator = GetAssetTranslator();
-
-		if (!Translator.IsValid())
-		{
-			UE_LOG(LogDatasmithFileExternalSource, Warning, TEXT("Datasmith import error: no suitable translator found for this external source. Abort import."));
-			return nullptr;
-		}
-	
 		TSharedRef<IDatasmithScene> LoadedScene = FDatasmithSceneFactory::CreateScene(*GetSceneName());
-		if (!Translator->LoadScene(LoadedScene))
+		if (!TranslatorLoadScene(LoadedScene))
 		{
 			UE_LOG(LogDatasmithFileExternalSource, Warning, TEXT("Datasmith import error: Scene translation failure. Abort import."));
 			return nullptr;

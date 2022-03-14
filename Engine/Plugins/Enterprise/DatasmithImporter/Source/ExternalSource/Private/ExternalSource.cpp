@@ -5,6 +5,7 @@
 #include "Async/Async.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
+#include "DatasmithTranslatableSource.h"
 #include "DatasmithTranslator.h"
 #include "DatasmithTranslatorManager.h"
 #include "DatasmithUtils.h"
@@ -26,16 +27,7 @@ namespace UE::DatasmithImporter
 	{}
 
 	FExternalSource::~FExternalSource()
-	{
-		/*
-		 *  todo: This is should not be done by the FExternalSource but rather by the code loading the scene.
-		 *        Ideally the FExternalSource should provide an interface making use of RAII to manage the loaded state of the Translator.
-		 */
-		if (AssetTranslator)
-		{
-			AssetTranslator->UnloadScene();
-		}
-	}
+	{}
 
 	const TSharedPtr<IDatasmithTranslator>& FExternalSource::GetAssetTranslator()
 	{
@@ -232,6 +224,14 @@ namespace UE::DatasmithImporter
 		{
 			CurrentPromise->SetValue(Scene);
 		}
+	}
+
+	bool FExternalSource::TranslatorLoadScene(const TSharedRef<IDatasmithScene>& Scene)
+	{
+		bool bLoaded = false;
+		//Unload any previously loaded scene, and load a new one.
+		SceneGuard = MakeUnique<FDatasmithSceneGuard>(GetAssetTranslator(), Scene, bLoaded);
+		return bLoaded;
 	}
 
 	void FExternalSource::ValidateDatasmithVersion() const

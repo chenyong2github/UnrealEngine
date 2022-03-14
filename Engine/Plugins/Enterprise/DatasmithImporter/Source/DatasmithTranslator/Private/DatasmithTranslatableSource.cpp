@@ -6,27 +6,20 @@
 
 #define LOCTEXT_NAMESPACE "DatasmithTranslatableSceneSource"
 
-class FSceneGuard
+
+FDatasmithSceneGuard::FDatasmithSceneGuard(const TSharedPtr<IDatasmithTranslator>& Translator, const TSharedRef<IDatasmithScene>& Scene, bool& bOutLoadOk)
+	: Translator(Translator)
 {
-public:
-	FSceneGuard(TSharedPtr<IDatasmithTranslator> Translator, TSharedRef< IDatasmithScene > Scene, bool& bOutLoadOk)
-		: Translator(Translator)
+	bOutLoadOk = Translator.IsValid() && Translator->LoadScene(Scene);
+}
+
+FDatasmithSceneGuard::~FDatasmithSceneGuard()
+{
+	if (Translator.IsValid())
 	{
-		bOutLoadOk = Translator.IsValid() && Translator->LoadScene(Scene);
+		Translator->UnloadScene();
 	}
-
-	~FSceneGuard()
-	{
-		if (Translator.IsValid())
-		{
-			Translator->UnloadScene();
-		}
-	}
-
-private:
-	TSharedPtr<IDatasmithTranslator> Translator;
-};
-
+}
 
 FDatasmithTranslatableSceneSource::FDatasmithTranslatableSceneSource(const FDatasmithSceneSource& Source)
 	: Translator(nullptr)
@@ -52,7 +45,7 @@ bool FDatasmithTranslatableSceneSource::Translate(TSharedRef< IDatasmithScene > 
 	bool bIsAlreadyLoaded = SceneGuard.IsValid();
 	if (IsTranslatable() && !bIsAlreadyLoaded)
 	{
-		SceneGuard.Reset(new FSceneGuard(Translator, Scene, bLoadedOk));
+		SceneGuard.Reset(new FDatasmithSceneGuard(Translator, Scene, bLoadedOk));
 	}
 	return bLoadedOk;
 }

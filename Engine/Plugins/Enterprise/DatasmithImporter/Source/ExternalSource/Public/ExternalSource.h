@@ -19,6 +19,7 @@
 #endif //WITH_EDITOR
 
 class FAsyncTaskNotification;
+class FDatasmithSceneGuard;
 class IDatasmithScene;
 class IDatasmithTranslator;
 
@@ -164,6 +165,11 @@ namespace UE::DatasmithImporter
 		 */
 		void TriggerOnExternalSourceChanged();
 
+		/**
+		 * Loads a scene from the translator and starts a new translator load lifecycle.
+		 */
+		bool TranslatorLoadScene(const TSharedRef<IDatasmithScene>& Scene);
+
 	private:
 
 		typedef TOptional<TPromise<TSharedPtr<IDatasmithScene>>> FOptionalScenePromise;
@@ -190,5 +196,7 @@ namespace UE::DatasmithImporter
 		FString SceneName;
 
 		TSharedPtr<IDatasmithTranslator> AssetTranslator;
+
+		TUniquePtr<FDatasmithSceneGuard> SceneGuard;
 	};
 }

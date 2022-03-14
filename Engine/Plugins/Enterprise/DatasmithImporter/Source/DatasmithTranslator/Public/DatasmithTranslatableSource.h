@@ -7,6 +7,23 @@
 #include "CoreMinimal.h"
 #include "UObject/StrongObjectPtr.h"
 
+class IDatasmithScene;
+class IDatasmithTranslator;
+
+/**
+ * Scopes a translator's loading lifecycle.
+ */
+class DATASMITHTRANSLATOR_API FDatasmithSceneGuard
+{
+public:
+	FDatasmithSceneGuard(const TSharedPtr<IDatasmithTranslator>& Translator, const TSharedRef<IDatasmithScene>& Scene, bool& bOutLoadOk);
+
+	~FDatasmithSceneGuard();
+
+private:
+	TSharedPtr<IDatasmithTranslator> Translator;
+};
+
 /**
  * Wrap a source with an adapted translator.
  * This scopes the lifecycle of a translator, 
@@ -18,17 +35,14 @@ struct DATASMITHTRANSLATOR_API FDatasmithTranslatableSceneSource
 
 	bool IsTranslatable() const;
 
-	bool Translate(TSharedRef< class IDatasmithScene > Scene);
+	bool Translate(TSharedRef<IDatasmithScene> Scene);
 
-	TSharedPtr<class IDatasmithTranslator> GetTranslator() const;
+	TSharedPtr<IDatasmithTranslator> GetTranslator() const;
 
 private:
 	/** Translator currently in use (null when not importing) */
-	TSharedPtr<class IDatasmithTranslator> Translator;
+	TSharedPtr<IDatasmithTranslator> Translator;
 
 	/** internal helper to release scene */
-	TUniquePtr< class FSceneGuard > SceneGuard;
+	TUniquePtr<FDatasmithSceneGuard> SceneGuard;
 };
-
-
-

@@ -34,6 +34,12 @@ namespace UE::DatasmithImporter
 			SceneReceiver->FinalSnapshot(SceneSnapshot);
 			if (TSharedPtr<FDirectLinkExternalSource> PinnedExternalSource = DirectLinkExternalSource.Pin())
 			{
+				if (TSharedPtr<IDatasmithScene> Scene = PinnedExternalSource->GetDatasmithScene())
+				{
+					// Even though the scene is already loaded, it needs to be loaded inside the translator before we can load additional payload with it.
+					PinnedExternalSource->TranslatorLoadScene(Scene.ToSharedRef());
+				}
+
 				PinnedExternalSource->CachedHash = GenerateSceneSnapshotHash(SceneSnapshot);
 				PinnedExternalSource->TriggerOnExternalSourceChanged();
 			}
