@@ -25,6 +25,7 @@ float4 StrataEnvironmentLighting(
 	FStrataMaterialContainer MaterialBuffer,
 	FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader,
+	float CloudVolumetricAOShadow,
 	inout float SSRReductionFactor,
 	inout float3 TopLayerEnvBRDF)
 {
@@ -88,7 +89,7 @@ float4 StrataEnvironmentLighting(
 				float3 DiffuseLookup = GetSkySHDiffuse(BentNormal) * View.SkyLightColor.rgb;
 				// And accumulate
 				// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
-				DiffuseLighting = BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseWeight;
+				DiffuseLighting = CloudVolumetricAOShadow * BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseWeight;
 			}
 			if (bProcessBackFaceDiffuse)
 			{
@@ -99,7 +100,7 @@ float4 StrataEnvironmentLighting(
 				float3 DiffuseLookup = GetSkySHDiffuse(-BentNormal) * View.SkyLightColor.rgb;
 				// And accumulate
 				// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
-				DiffuseLighting += BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup) * StrataEnvLight.DiffuseBackFaceWeight;
+				DiffuseLighting += CloudVolumetricAOShadow * BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup) * StrataEnvLight.DiffuseBackFaceWeight;
 			}
 		}
 	#endif // ENABLE_DYNAMIC_SKY_LIGHT
@@ -179,10 +180,9 @@ float4 StrataEnvironmentLighting(
 			TopLayerEnvBRDF += BSDFThroughput * StrataEnvLight.SpecularWeight;
 		}
 
-		const bool bNeedsSeparateSubsurfaceLightAccumulation = StrataEnvLight.bSubsurface;
-		LightAccumulator_AddSplit(Out, DiffuseLighting, SpecularLighting, DiffuseLighting, View.PreExposure, bNeedsSeparateSubsurfaceLightAccumulation);
+		// STRATA_TODO ReflectionEnvironment(...) for static reflection volumes.
 
-		// STRATA_TODO: Missing probe reflection here
+		LightAccumulator_AddSplit(Out, DiffuseLighting, SpecularLighting, DiffuseLighting, View.PreExposure, StrataEnvLight.bSubsurface);
 	}
 
 	SSRReductionFactor = saturate(SSRReductionFactor);
