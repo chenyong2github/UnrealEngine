@@ -9,11 +9,23 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Xml.Linq;
+using System.Net;
+using System.Text.Json;
 
 namespace UnsyncUI
 {
 	public sealed class Config
 	{
+		// Structure that represents mirror server entry in the list from /api/v1/mirrors endpoint
+		class JsonMirrorDesc
+		{
+			public String name { get; set; }
+			public String address { get; set; }
+			public int port { get; set; } = 0;
+			public String description { get; set; }
+			public String parent { get; set; }
+		}
+
 		public sealed class Proxy
 		{
 			public string Name { get; set; }
@@ -159,11 +171,26 @@ namespace UnsyncUI
 				Name = "(none)",
 				Path = null
 			});
-			Proxies.AddRange(rootNode.Element("proxies").Elements("proxy").Select(p => new Proxy()
+
+			List<Proxy> ConfigProxies = new List<Proxy>();
+
+			ConfigProxies.AddRange(rootNode.Element("proxies").Elements("proxy").Select(p => new Proxy()
 			{
 				Name = p.Attribute("name")?.Value,
 				Path = p.Attribute("path")?.Value
 			}));
+
+			// Auto-discover proxies
+			List<Proxy> DiscoveredProxies = DiscoverProxies(ConfigProxies);
+
+			if (DiscoveredProxies == null)
+			{
+				Proxies.AddRange(ConfigProxies);
+			}
+			else
+			{
+				Proxies.AddRange(DiscoveredProxies);
+			}
 
 			Projects = rootNode.Element("projects").Elements("project").Select(p => new Project()
 			{
@@ -173,6 +200,84 @@ namespace UnsyncUI
 				Children = p.Elements("dir").Select(d => new Directory(d)).ToList(),
 				Exclusions = p.Elements("exclude").Select(d => d.Value).ToList()
 			}).ToList();
+		}
+
+		private List<Proxy> DiscoverProxies(List<Proxy> SeedServers)
+		{
+			int DefaultPort = 53841;
+
+			foreach (Proxy SeedServer in SeedServers)
+			{
+				if (SeedServer.Path == null)
+				{
+					continue;
+				}
+
+				try
+				{
+					String Url = SeedServer.Path;
+					if (!Url.Contains(":"))
+					{
+						Url += ":" + DefaultPort.ToString();
+					}
+
+					if (!Url.StartsWith("http://"))
+					{
+						Url = "http://" + Url;
+					}
+
+					Url += "/api/v1/mirrors";
+
+					var Request = WebRequest.Create(Url);
+					Request.Timeout = 2500;
+					var Response = (HttpWebResponse)Request.GetResponse();
+					if (Response.StatusCode == HttpStatusCode.OK)
+					{
+						var Reader = new StreamReader(Response.GetResponseStream());
+						var Body = Reader.ReadToEnd();
+						var ParsedList = JsonSerializer.Deserialize<List<JsonMirrorDesc>>(Body);
+
+						var ParsedProxies = new List<Proxy>();
+						foreach (var ParsedProxy in ParsedList)
+						{
+							if (ParsedProxy.address == null)
+							{
+								continue;
+							}
+
+							var ConvertedProxy = new Proxy();
+							ConvertedProxy.Path = ParsedProxy.address;
+
+							if (ParsedProxy.description != null)
+							{
+								ConvertedProxy.Name = ParsedProxy.description;
+							}
+							else if (ParsedProxy.name != null)
+							{
+								ConvertedProxy.Name = ParsedProxy.name;
+							}
+
+							if (ParsedProxy.port != 0)
+							{
+								ConvertedProxy.Path += ":" + ParsedProxy.port.ToString();
+							}
+
+							ParsedProxies.Add(ConvertedProxy);
+						}
+
+						if (ParsedProxies.Count != 0)
+						{
+							return ParsedProxies;
+						}
+					}
+				}
+				catch (Exception)
+				{
+					continue;
+				}
+			}
+
+			return null;
 		}
 	}
 }
