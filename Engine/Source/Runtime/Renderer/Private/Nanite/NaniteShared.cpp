@@ -184,6 +184,7 @@ void FGlobalResources::ReleaseRHI()
 		StatsBuffer.SafeRelease();
 
 		StructureBufferStride8.SafeRelease();
+		StructureBufferStride16.SafeRelease();
 
 #if !UE_BUILD_SHIPPING
 		delete FeedbackManager;
@@ -201,6 +202,12 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 		FRDGBufferDesc StructureBufferStride8Desc = FRDGBufferDesc::CreateStructuredDesc(8, 1);
 		GetPooledFreeBuffer(GraphBuilder.RHICmdList, StructureBufferStride8Desc, StructureBufferStride8, TEXT("Nanite.StructureBufferStride8"));
 		check(StructureBufferStride8.IsValid());
+	}
+	if (!StructureBufferStride16.IsValid())
+	{
+		FRDGBufferDesc StructureBufferStride16Desc = FRDGBufferDesc::CreateStructuredDesc(16, 1);
+		GetPooledFreeBuffer(GraphBuilder.RHICmdList, StructureBufferStride16Desc, StructureBufferStride16, TEXT("Nanite.StructureBufferStride16"));
+		check(StructureBufferStride16.IsValid());
 	}
 }
 

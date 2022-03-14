@@ -168,6 +168,7 @@ public:
 
 	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
 	TRefCountPtr<FRDGPooledBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
+	TRefCountPtr<FRDGPooledBuffer>& GetStructureBufferStride16() { return StructureBufferStride16; }
 
 #if !UE_BUILD_SHIPPING
 	FFeedbackManager* GetFeedbackManager() { return FeedbackManager; }
@@ -181,8 +182,9 @@ private:
 	// Used for statistics
 	TRefCountPtr<FRDGPooledBuffer> StatsBuffer;
 
-	// Dummy structured buffer with stride8
+	// Dummy structured buffers
 	TRefCountPtr<FRDGPooledBuffer> StructureBufferStride8;
+	TRefCountPtr<FRDGPooledBuffer> StructureBufferStride16;
 
 #if !UE_BUILD_SHIPPING
 	FFeedbackManager* FeedbackManager = nullptr;

@@ -1824,13 +1824,13 @@ static void AddPass_Binning(
 
 	BinningData.BinCount = bProgrammableRaster ? Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinCount() : 0u;
 
-	BinningData.HeaderBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 4, FMath::RoundUpToPowerOfTwo(FMath::Max(BinningData.BinCount, 1u))), TEXT("Nanite.RasterizerBinHeaders"));
-	BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(FMath::Max(BinningData.BinCount, 1u) * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
-
 	if (BinningData.BinCount == 0)
 	{
 		return;
 	}
+
+	BinningData.HeaderBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 4, FMath::RoundUpToPowerOfTwo(FMath::Max(BinningData.BinCount, 1u))), TEXT("Nanite.RasterizerBinHeaders"));
+	BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(BinningData.BinCount * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
 
 	const uint32 MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 
@@ -1988,12 +1988,13 @@ void AddPass_Rasterize(
 
 	LLM_SCOPE_BYTAG(Nanite);
 
-	FRDGBufferRef DummyBuffer = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
+	FRDGBufferRef DummyBuffer8 = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
+	FRDGBufferRef DummyBuffer16 = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride16(), TEXT("Nanite.StructuredBufferStride16"));
 
 	if (bMainPass)
 	{
 		check(ClusterOffsetSWHW == nullptr);
-		ClusterOffsetSWHW = DummyBuffer;
+		ClusterOffsetSWHW = DummyBuffer8;
 	}
 	else
 	{
@@ -2003,7 +2004,7 @@ void AddPass_Rasterize(
 	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA);
 	if (!bHasPrevDrawData)
 	{
-		TotalPrevDrawClustersBuffer = DummyBuffer;
+		TotalPrevDrawClustersBuffer = DummyBuffer8;
 	}
 
 	// Rasterizer Binning
@@ -2029,6 +2030,15 @@ void AddPass_Rasterize(
 	if (bProgrammableRaster)
 	{
 		RenderFlags |= NANITE_RENDER_FLAG_HAS_RASTER_BIN;
+	}
+
+	if (BinningData.DataBuffer == nullptr)
+	{
+		BinningData.DataBuffer = DummyBuffer8;
+	}
+	if (BinningData.HeaderBuffer == nullptr)
+	{
+		BinningData.HeaderBuffer = DummyBuffer16;
 	}
 
 	FRDGBufferRef BinIndirectArgs = bProgrammableRaster ? BinningData.IndirectArgs : IndirectArgs;
