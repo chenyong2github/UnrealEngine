@@ -13,6 +13,7 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
 	#include <dxgi1_3.h>
+	#include <pix3.h>
 	#include <DXProgrammableCapture.h>
 THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -66,6 +67,10 @@ namespace Impl
 		{
 #if PIX_PLUGIN_ENABLED
 			check(IsValid());
+
+			HWND WindowHandle = GetActiveWindow();
+			PIXSetTargetWindow(WindowHandle);
+
 			GraphicsAnalysis->BeginCapture();
 #endif
 		}
