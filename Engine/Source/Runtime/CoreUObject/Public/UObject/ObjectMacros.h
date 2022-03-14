@@ -199,7 +199,7 @@ enum EClassFlags
 	/** Class is a native class - native interfaces will have CLASS_Native set, but not RF_MarkAsNative */
 	CLASS_Native			  = 0x00000080u,
 	/** Don't export to C++ header. */
-	CLASS_NoExport            = 0x00000100u,
+	CLASS_NoExport UE_DEPRECATED(5.1, "CLASS_NoExport should no longer be used. It is no longer being set by engine code.") = 0x00000100u,
 	/** Do not allow users to create in the editor. */
 	CLASS_NotPlaceable        = 0x00000200u,
 	/** Handle object configuration on a per-object basis, rather than per-class. */
@@ -215,7 +215,7 @@ enum EClassFlags
 	/** Class is an interface **/
 	CLASS_Interface           = 0x00004000u,
 	/**  Do not export a constructor for this class, assuming it is in the cpptext **/
-	CLASS_CustomConstructor   = 0x00008000u,
+	CLASS_CustomConstructor UE_DEPRECATED(5.1, "CLASS_CustomConstructor should no longer be used. It is no longer being set by engine code.") = 0x00008000u,
 	/** all properties and functions in this class are const and should be exported as const */
 	CLASS_Const			      = 0x00010000u,
 
@@ -264,7 +264,7 @@ ENUM_CLASS_FLAGS(EClassFlags);
 						| CLASS_Const | CLASS_HasInstancedReference | CLASS_Deprecated | CLASS_DefaultToInstanced | CLASS_GlobalUserConfig | CLASS_ProjectUserConfig | CLASS_NeedsDeferredDependencyLoading))
 
 /** These flags will be cleared by the compiler when the class is parsed during script compilation */
-#define CLASS_RecompilerClear ((EClassFlags)(CLASS_Inherit | CLASS_Abstract | CLASS_NoExport | CLASS_Native | CLASS_Intrinsic | CLASS_TokenStreamAssembled))
+#define CLASS_RecompilerClear ((EClassFlags)(CLASS_Inherit | CLASS_Abstract | CLASS_Native | CLASS_Intrinsic | CLASS_TokenStreamAssembled))
 
 /** These flags will be cleared by the compiler when the class is parsed during script compilation */
 #define CLASS_ShouldNeverBeLoaded ((EClassFlags)(CLASS_Native | CLASS_Optional | CLASS_Intrinsic | CLASS_TokenStreamAssembled))

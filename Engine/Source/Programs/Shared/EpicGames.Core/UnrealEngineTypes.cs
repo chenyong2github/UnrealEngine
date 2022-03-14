@@ -139,6 +139,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Don't export to C++ header.
 		/// </summary>
+		[Obsolete("No longer used in the engine.")]
 		NoExport = 0x00000100u,
 
 		/// <summary>
@@ -174,6 +175,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Do not export a constructor for this class, assuming it is in the cpptext
 		/// </summary>
+		[Obsolete("No longer used in the engine.")]
 		CustomConstructor = 0x00008000u,
 
 		/// <summary>
@@ -265,7 +267,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// These flags will be cleared by the compiler when the class is parsed during script compilation
 		/// </summary>
-		RecompilerClear = Inherit | Abstract | NoExport | Native | Intrinsic | TokenStreamAssembled,
+		RecompilerClear = Inherit | Abstract | Native | Intrinsic | TokenStreamAssembled,
 
 		/// <summary>
 		/// These flags will be cleared by the compiler when the class is parsed during script compilation

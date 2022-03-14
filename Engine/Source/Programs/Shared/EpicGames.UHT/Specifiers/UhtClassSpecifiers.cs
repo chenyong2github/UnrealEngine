@@ -18,7 +18,7 @@ namespace EpicGames.UHT.Parsers
 		private static void NoExportSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.NoExport);
+			Class.ClassExportFlags |= UhtClassExportFlags.NoExport;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]

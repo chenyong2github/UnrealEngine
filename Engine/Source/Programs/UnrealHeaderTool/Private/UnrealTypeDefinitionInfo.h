@@ -3337,6 +3337,22 @@ public:
 	}
 
 	/**
+	 * Return true if the class should not export
+	 */
+	bool IsNoExport() const
+	{
+		return bNoExport;
+	}
+
+	/**
+	 * Mark the class as not to be exported
+	 */
+	void MarkNoExport()
+	{
+		bNoExport = true;
+	}
+
+	/**
 	 * Get the generated body access specifier
 	 */
 	EAccessSpecifier GetGeneratedBodyMacroAccessSpecifier() const
@@ -3454,6 +3470,9 @@ private:
 
 	/** True if the class has a custom constructor */
 	bool bCustomConstructor = false;
+
+	/** True if the class is not to be exported */
+	bool bNoExport = false;
 
 	/** True if the class is an interface */
 	bool bIsInterface = false;

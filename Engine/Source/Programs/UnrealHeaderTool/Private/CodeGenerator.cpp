@@ -1995,7 +1995,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 {
 	check(!OutFriendText.Len());
 
-	const bool   bIsNoExport  = ClassDef.HasAnyClassFlags(CLASS_NoExport);
+	const bool   bIsNoExport  = ClassDef.IsNoExport();
 	const FString ClassNameCPP = ClassDef.GetAlternateNameCPP();
 
 	const FString& ApiString = GetAPIString();
@@ -2750,7 +2750,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 		// VM -> C++ proxies (events and delegates).
 		FOutputDeviceNull NullOutput;
-		FOutputDevice& CallbackOut = ClassDef.HasAnyClassFlags(CLASS_NoExport) ? NullOutput : OutCpp;
+		FOutputDevice& CallbackOut = ClassDef.IsNoExport() ? NullOutput : OutCpp;
 		FString CallbackWrappersMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_CALLBACK_WRAPPERS"));
 		ExportCallbackFunctions(
 			OutGeneratedHeaderText,
@@ -2767,7 +2767,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	}
 
 	// Class definition.
-	if (!ClassDef.HasAnyClassFlags(CLASS_NoExport))
+	if (!ClassDef.IsNoExport())
 	{
 		ExportNatives(OutCpp, ClassDef);
 	}
@@ -7117,8 +7117,6 @@ void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 	{
 		ClassDef.Throwf(TEXT("Class '%s' cannot inherit from itself"), *ClassName);
 	}
-
-	UClass* ResultClass = FEngineAPI::FindObject<UClass>(ANY_PACKAGE, *ClassNameStripped);
 
 	// if we aren't generating headers, then we shouldn't set misaligned object, since it won't get cleared
 

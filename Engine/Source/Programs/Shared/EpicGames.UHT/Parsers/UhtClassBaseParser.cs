@@ -44,7 +44,7 @@ namespace EpicGames.UHT.Parsers
 					BindAndResolveBases(this.BaseIdentifiers, UhtFindOptions.Class);
 
 					// Force the MatchedSerializers on for anything being exported
-					if (!this.ClassFlags.HasAnyFlags(EClassFlags.NoExport))
+					if (!this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 					{
 						this.ClassFlags |= EClassFlags.MatchedSerializers;
 					}

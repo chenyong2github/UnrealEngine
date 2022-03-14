@@ -935,7 +935,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			// Export the class's native function registration.
 			Builder.Append("private: \\\r\n");
 			Builder.Append("\tstatic void StaticRegisterNatives").Append(Class.SourceName).Append("(); \\\r\n");
-			if (!Class.ClassFlags.HasAnyFlags(EClassFlags.NoExport))
+			if (!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 			{
 				Builder.Append("\tfriend struct ").Append(this.ObjectInfos[Class.ObjectTypeIndex].RegisteredSingletonName).Append("_Statics; \\\r\n");
 			}

@@ -900,12 +900,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			CallbackFunctions.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
 
 			// VM -> C++ proxies (events and delegates).
-			if (!Class.ClassFlags.HasAnyFlags(EClassFlags.NoExport))
+			if (!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 			{
 				AppendCallbackFunctions(Builder, Class, CallbackFunctions);
 			}
 
-			if (!Class.ClassFlags.HasAnyFlags(EClassFlags.NoExport))
+			if (!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 			{
 				AppendNatives(Builder, Class);
 			}
@@ -1119,7 +1119,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate))
 				{
-					AppendFunction(Builder, Function, Class.ClassFlags.HasAnyFlags(EClassFlags.NoExport));
+					AppendFunction(Builder, Function, Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport));
 				}				
 			}
 
@@ -1345,7 +1345,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 				}
 
-				if (Class.ClassFlags.HasAnyFlags(EClassFlags.NoExport))
+				if (Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 				{
 					Builder.Append("\t/* friend declarations for pasting into noexport class ").Append(Class.SourceName).Append("\r\n");
 					Builder.Append("\tfriend struct ").Append(StaticsName).Append(";\r\n");

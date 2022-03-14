@@ -2132,7 +2132,7 @@ namespace EpicGames.UHT.Types
 			}
 			else if (Object is UhtClass Class)
 			{
-				if (Class.ClassFlags.HasAnyFlags(EClassFlags.NoExport))
+				if (Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 				{
 					return Builder;
 				}

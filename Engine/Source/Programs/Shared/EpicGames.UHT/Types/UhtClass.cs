@@ -69,6 +69,11 @@ namespace EpicGames.UHT.Types
 		/// GetLifetimeReplicatedProps was found in the class
 		/// </summary>
 		HasGetLifetimeReplicatedProps = 1 << 7,
+
+		/// <summary>
+		/// Class should not be exported
+		/// </summary>
+		NoExport = 1 << 8,
 	}
 
 	/// <summary>

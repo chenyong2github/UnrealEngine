@@ -155,7 +155,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							if (Type is UhtClass Class)
 							{
 								if (Class.ClassType != UhtClassType.NativeInterface && 
-									Class.ClassFlags.HasExactFlags(EClassFlags.Native | EClassFlags.NoExport | EClassFlags.Intrinsic, EClassFlags.Native))
+									Class.ClassFlags.HasExactFlags(EClassFlags.Native | EClassFlags.Intrinsic, EClassFlags.Native) &&
+									!Class.ClassExportFlags.HasAllFlags(UhtClassExportFlags.NoExport))
 								{
 									bWriteHeader = true;
 									break;

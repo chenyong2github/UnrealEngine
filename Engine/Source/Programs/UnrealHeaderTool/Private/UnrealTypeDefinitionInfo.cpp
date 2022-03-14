@@ -2099,12 +2099,9 @@ FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindScriptClass(const FS
 
 uint32 FUnrealClassDefinitionInfo::GetHash(FUnrealTypeDefinitionInfo& ReferencingDef, bool bIncludeNoExport) const
 {
-	if (!bIncludeNoExport)
+	if (!bIncludeNoExport && IsNoExport())
 	{
-		if (HasAnyClassFlags(CLASS_NoExport))
-		{
-			return 0;
-		}
+		return 0;
 	}
 	return FUnrealStructDefinitionInfo::GetHash(ReferencingDef, bIncludeNoExport);
 }
@@ -2212,7 +2209,7 @@ void FUnrealClassDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineT
 			{
 				//Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
 			}
-			else if (!HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic))
+			else if (!IsNoExport() && !HasAnyClassFlags(CLASS_Intrinsic))
 			{
 				//Class->UnMark(OBJECTMARK_TagImp);
 				//Class->Mark(OBJECTMARK_TagExp);
@@ -2297,7 +2294,7 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 		if (!HasAnyClassFlags(CLASS_Native))
 		{
 		}
-		else if (!HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic))
+		else if (!IsNoExport() && !HasAnyClassFlags(CLASS_Intrinsic))
 		{
 			GetPackageDef().SetWriteClassesH(true);
 		}
@@ -2307,7 +2304,7 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 		{
 
 			// Check for differences in ClassFlags
-			const EClassFlags CheckFlags = CLASS_SaveInCompiledInClasses & ~CLASS_NoExport & ~CLASS_Intrinsic;
+			const EClassFlags CheckFlags = CLASS_SaveInCompiledInClasses & ~CLASS_Intrinsic;
 			if ((ClassFlags & CheckFlags) != (Class->ClassFlags & CheckFlags))
 			{
 				LogError(TEXT("Class flags in core class '%s', is '0x%08x', should be '0x%08x'"), *GetNameCPP(), ClassFlags & CheckFlags, Class->ClassFlags & CheckFlags);
@@ -2393,7 +2390,7 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 		case EClassMetadataSpecifier::NoExport:
 
 			// Don't export to C++ header.
-			ParsedClassFlags |= CLASS_NoExport;
+			MarkNoExport();
 			break;
 
 		case EClassMetadataSpecifier::Intrinsic:

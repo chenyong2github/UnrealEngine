@@ -248,7 +248,7 @@ namespace EpicGames.UHT.Parsers
 					{
 						if (Type is UhtClass Class)
 						{
-							if (Class.ClassType != UhtClassType.NativeInterface && !Class.ClassFlags.HasAnyFlags(EClassFlags.NoExport))
+							if (Class.ClassType != UhtClassType.NativeInterface && !Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 							{
 								bNoExportClassesOnly = false;
 								break;
