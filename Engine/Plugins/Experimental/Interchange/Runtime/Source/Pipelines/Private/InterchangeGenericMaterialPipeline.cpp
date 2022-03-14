@@ -943,6 +943,66 @@ void UInterchangeGenericMaterialPipeline::HandleLerpNode(const UInterchangeShade
 	}
 }
 
+void UInterchangeGenericMaterialPipeline::HandleMaskNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* MaskFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	MaskFactoryNode->SetCustomExpressionClassName(UMaterialExpressionComponentMask::StaticClass()->GetName());
+
+	bool bRChannel = false;
+	bool bGChannel = false;
+	bool bBChannel = false;
+	bool bAChannel = false;
+	bool bIsAnyMaskChannelSet = 
+		ShaderNode->GetBooleanAttribute(Mask::Attributes::R.ToString(), bRChannel) ||
+		ShaderNode->GetBooleanAttribute(Mask::Attributes::G.ToString(), bGChannel) ||
+		ShaderNode->GetBooleanAttribute(Mask::Attributes::B.ToString(), bBChannel) ||
+		ShaderNode->GetBooleanAttribute(Mask::Attributes::A.ToString(), bAChannel);
+
+	if(bIsAnyMaskChannelSet)
+	{
+		// R
+		{
+			const FString RMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, R).ToString();
+			MaskFactoryNode->AddBooleanAttribute(RMemberName, bRChannel);
+			MaskFactoryNode->AddApplyAndFillDelegates<bool>(RMemberName, UMaterialExpressionComponentMask::StaticClass(), *RMemberName);
+		}
+
+		// G
+		{
+			const FString GMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, G).ToString();
+			MaskFactoryNode->AddBooleanAttribute(GMemberName, bGChannel);
+			MaskFactoryNode->AddApplyAndFillDelegates<bool>(GMemberName, UMaterialExpressionComponentMask::StaticClass(), *GMemberName);
+		}
+
+		// B
+		{
+			const FString BMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, B).ToString();
+			MaskFactoryNode->AddBooleanAttribute(BMemberName, bBChannel);
+			MaskFactoryNode->AddApplyAndFillDelegates<bool>(BMemberName, UMaterialExpressionComponentMask::StaticClass(), *BMemberName);
+		}
+
+		// A
+		{
+			const FString AMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, A).ToString();
+			MaskFactoryNode->AddBooleanAttribute(AMemberName, bAChannel);
+			MaskFactoryNode->AddApplyAndFillDelegates<bool>(AMemberName, UMaterialExpressionComponentMask::StaticClass(), *AMemberName);
+		}
+	}
+
+	// Input
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> InputExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Mask::Inputs::Input.ToString(), MaskFactoryNode->GetUniqueID());
+
+		if(InputExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(MaskFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, Input).ToString(),
+				InputExpression.Get<0>()->GetUniqueID(), InputExpression.Get<1>());
+		}
+	}
+}
+
 UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::CreateMaterialExpressionForShaderNode(UInterchangeMaterialFactoryNode* MaterialFactoryNode,
 	const UInterchangeShaderNode* ShaderNode, const FString& ParentUid)
 {
@@ -976,6 +1036,10 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	else if (*ShaderType == Nodes::Lerp::Name)
 	{
 		HandleLerpNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
+	}
+	else if(*ShaderType == Nodes::Mask::Name)
+	{
+		HandleMaskNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
 	else if (*ShaderType == Nodes::TextureCoordinate::Name)
 	{

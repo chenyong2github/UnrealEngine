@@ -46,6 +46,24 @@ namespace Interchange
 					}
 				}
 
+				namespace Mask
+				{
+					const FName Name = TEXT("ComponentMask");
+
+					namespace Attributes
+					{
+						const FName R = TEXT("R");
+						const FName G = TEXT("G");
+						const FName B = TEXT("B");
+						const FName A = TEXT("A");
+					}
+
+					namespace Inputs
+					{
+						const FName Input = TEXT("Input");
+					}
+				}
+
 				namespace Multiply
 				{
 					const FName Name = TEXT("Multiply");
