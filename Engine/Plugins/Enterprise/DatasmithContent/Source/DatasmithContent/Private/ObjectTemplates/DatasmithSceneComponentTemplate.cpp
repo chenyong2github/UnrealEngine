@@ -3,6 +3,7 @@
 #include "ObjectTemplates/DatasmithSceneComponentTemplate.h"
 
 #include "DatasmithAssetUserData.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/Level.h"
 #include "GameFramework/Actor.h"

@@ -33,7 +33,7 @@ namespace RuntimeVirtualTexture
 	struct FRenderPageTarget
 	{
 		/** Physical texture to render to. */
-		FRHITexture2D* Texture = nullptr;
+		FRHITexture* Texture = nullptr;
 		/** Unordered access view of physical texture to render to. If this exists we can render to it directly instead of using RHICopyTexture(). */
 		FRHIUnorderedAccessView* UAV = nullptr;
 

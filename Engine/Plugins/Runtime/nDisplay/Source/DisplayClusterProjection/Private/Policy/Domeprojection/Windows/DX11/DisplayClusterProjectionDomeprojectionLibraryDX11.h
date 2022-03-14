@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RHI.h"
 #include "ID3D11DynamicRHI.h"
 
 THIRD_PARTY_INCLUDES_START
