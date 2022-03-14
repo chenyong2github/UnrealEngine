@@ -9,6 +9,7 @@
 #include "HAL/Thread.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "HAL/ThreadSingleton.h"
 #include "HAL/Event.h"
 #include "Containers/Queue.h"
 #include "Containers/StringConv.h"
@@ -89,6 +90,58 @@ namespace
 			Thread = FThread(TEXT("Test.Thread.TestDefaultConstruction"), []() { /* NOOP */ });
 			This.TestTrue(TEXT("Move-constructed FThread from joinable thread must be joinable"), Thread.IsJoinable());
 			Thread.Join();
+		}
+		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
+	}
+
+	void TestThreadSingleton(FThreadTest& This)
+	{
+		{	// check that ThreadSingleton instances in different threads are isolated from each other
+			class FThreadSingletonTest : public TThreadSingleton<FThreadSingletonTest>
+			{
+			public:
+				void SetTestField(int NewValue) { TestField = NewValue; }
+				int GetTestField() const { return TestField; }
+			private:
+				int TestField{ 0 };
+			};
+			FThreadSingletonTest::Get().SetTestField(1);
+			FThread Thread;
+			TAtomic<bool> bDefaultValuePass{ false };
+			Thread = FThread(TEXT("Test.Thread.TestThreadSingleton"),
+				[&bDefaultValuePass]()
+				{
+					bDefaultValuePass = FThreadSingletonTest::TryGet() == nullptr;
+					bDefaultValuePass = bDefaultValuePass && (FThreadSingletonTest::Get().GetTestField() == 0);
+					FThreadSingletonTest::Get().SetTestField(2);
+				});
+			Thread.Join();
+			This.TestTrue(TEXT("Thread singleton should be uninitialized by default"), bDefaultValuePass);
+			This.TestTrue(TEXT("Thread singletons in different threads should be isolated"), FThreadSingletonTest::Get().GetTestField() == 1);
+		}
+		{	// check that ThreadSingleton entries don't point to invalid memory after cleanup
+			class FThreadSingletonFirst : public TThreadSingleton<FThreadSingletonFirst>
+			{
+			};
+			class FThreadSingletonSecond : public TThreadSingleton<FThreadSingletonSecond>
+			{
+			public:
+				virtual ~FThreadSingletonSecond()
+				{
+					// By the time we reach this destructor, the first singleton's destructor should have been executed already.
+					check(FThreadSingletonFirst::TryGet() == nullptr);
+				}
+			};
+			FThread Thread;
+			Thread = FThread(TEXT("Test.Thread.TestThreadSingleton"),
+				[]()
+				{
+					FThreadSingletonFirst::Get();
+					FThreadSingletonSecond::Get();
+				});
+			Thread.Join();
+			This.TestTrue(TEXT("Thread singletons should be uninitialized by default"), FThreadSingletonFirst::TryGet() == nullptr);
+			This.TestTrue(TEXT("Thread singletons should be uninitialized by default"), FThreadSingletonSecond::TryGet() == nullptr);
 		}
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
@@ -210,6 +263,7 @@ bool FThreadTest::RunTest(const FString& Parameters)
 	TestMovability(*this);
 
 	TestTypicalUseCase(*this);
+	TestThreadSingleton(*this);
 
 	return true;
 }

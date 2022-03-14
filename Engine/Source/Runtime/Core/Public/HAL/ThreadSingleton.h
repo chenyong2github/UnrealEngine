@@ -62,6 +62,13 @@ protected:
 		: ThreadId(FPlatformTLS::GetCurrentThreadId())
 	{}
 
+	virtual ~TThreadSingleton()
+	{
+		// Clean the dangling pointer from the TLS.
+		check(GetTlsSlot() != 0xFFFFFFFF);
+		FPlatformTLS::SetTlsValue(GetTlsSlot(), nullptr);
+	}
+
 	/**
 	 * @return a new instance of the thread singleton.
 	 */
