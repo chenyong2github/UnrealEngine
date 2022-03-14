@@ -73,6 +73,7 @@ public:
 
 	// UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 	// Tries to resolve the property value on the passed object, or the parent binding's bound object if the argument is nullptr
@@ -173,6 +174,10 @@ protected:
 
 	FOnPropertyApplied OnPropertyApplied;
 	FOnPropertyRecorded OnPropertyRecorded;
+	
+#if WITH_EDITOR
+	void OnPIEEnded(const bool bIsSimulatingInEditor);
+#endif
 
 	// Temp data cached from last resolve
 	FProperty* LeafProperty;

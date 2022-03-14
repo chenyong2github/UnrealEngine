@@ -20,6 +20,7 @@
 
 #if WITH_EDITOR
 #include "EdGraphSchema_K2.h"
+#include "Editor.h"
 #endif
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
@@ -303,6 +304,12 @@ UPropertyValue::UPropertyValue(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, LeafPropertyClass(nullptr)
 {
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		FEditorDelegates::EndPIE.AddUObject(this, &UPropertyValue::OnPIEEnded);
+	}
+#endif
 }
 
 void UPropertyValue::Init(const TArray<FCapturedPropSegment>& InCapturedPropSegments, FFieldClass* InLeafPropertyClass, const FString& InFullDisplayString, const FName& InPropertySetterName, EPropertyValueCategory InCategory)
@@ -323,6 +330,24 @@ void UPropertyValue::Init(const TArray<FCapturedPropSegment>& InCapturedPropSegm
 	DefaultValue.Empty();
 	TempObjPtr.Reset();
 }
+
+void UPropertyValue::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+#if WITH_EDITOR
+	FEditorDelegates::EndPIE.RemoveAll(this);
+#endif
+}
+
+#if WITH_EDITOR
+
+void UPropertyValue::OnPIEEnded(const bool bIsSimulatingInEditor)
+{
+	ClearLastResolve();
+}
+
+#endif
 
 UVariantObjectBinding* UPropertyValue::GetParent() const
 {
