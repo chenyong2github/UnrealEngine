@@ -20,7 +20,7 @@ UEditorUtilityBlueprintAsyncActionBase::UEditorUtilityBlueprintAsyncActionBase(c
 {
 }
 
-void UEditorUtilityBlueprintAsyncActionBase::RegisterWithGameInstance(UObject* WorldContextObject)
+void UEditorUtilityBlueprintAsyncActionBase::RegisterWithGameInstance(const UObject* WorldContextObject)
 {
 	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
 	EditorUtilitySubsystem->RegisterReferencedObject(this);

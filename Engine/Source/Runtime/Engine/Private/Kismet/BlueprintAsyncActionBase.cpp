@@ -20,7 +20,7 @@ void UBlueprintAsyncActionBase::Activate()
 {
 }
 
-void UBlueprintAsyncActionBase::RegisterWithGameInstance(UObject* WorldContextObject)
+void UBlueprintAsyncActionBase::RegisterWithGameInstance(const UObject* WorldContextObject)
 {
 	UWorld* FoundWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 

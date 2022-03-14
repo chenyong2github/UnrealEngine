@@ -20,7 +20,7 @@ class BLUTILITY_API UEditorUtilityBlueprintAsyncActionBase : public UBlueprintAs
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void RegisterWithGameInstance(UObject* WorldContextObject) override;
+	virtual void RegisterWithGameInstance(const UObject* WorldContextObject) override;
 	virtual void SetReadyToDestroy() override;
 };
 
