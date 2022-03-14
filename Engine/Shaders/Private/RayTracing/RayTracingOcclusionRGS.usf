@@ -626,7 +626,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 			ShadingParameters.bIsHair = StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
 			ShadingParameters.bIsSubsurface = SSSData.bIsValid && !SSSData.bIsProfile;
 			ShadingParameters.bHasSubsurfaceProfile = SSSData.bIsValid && SSSData.bIsProfile;
-			ShadingParameters.bBackfaceCulling = any(SSSData.DMFP > 0); // STRATA_TODO
+			ShadingParameters.bBackfaceCulling = any(SSSData.MFP > 0); // STRATA_TODO
 
 			WorldNormal = TopLayerData.WorldNormal;
 

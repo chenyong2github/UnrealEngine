@@ -161,10 +161,10 @@ void ApplyDBufferData(in FStrataDBuffer StrataDBufferData, inout FStrataPixelHea
 					}
 
 					// Disable SSS when the coverage reach one to preserve the decal color
-					SLAB_SSSDMFP(BSDF) = lerp(0.f, SLAB_SSSDMFP(BSDF), StrataDBufferData.OneMinusCoverage_BaseColor);
-					if (all(SLAB_SSSDMFP(BSDF) == 0.0f))
+					SLAB_SSSMFP(BSDF) = lerp(0.f, SLAB_SSSMFP(BSDF), StrataDBufferData.OneMinusCoverage_BaseColor);
+					if (all(SLAB_SSSMFP(BSDF) == 0.0f))
 					{
-						BSDF_SETHASDMFP(BSDF, 0);
+						BSDF_SETHASMFP(BSDF, 0);
 						BSDF_SETHASSSS(BSDF, 0);
 					}
 				#endif

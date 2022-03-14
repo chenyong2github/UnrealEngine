@@ -65,7 +65,7 @@ FStrataRegisteredSharedLocalBasis StrataCompilationInfoCreateSharedLocalBasis(FM
 
 void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk,
 	const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis,
-	uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasFuzz, bool bHasHaziness)
+	uint8 BSDFType, bool bHasSSS, bool bHasMFPPluggedIn, bool bHasEdgeColor, bool bHasFuzz, bool bHasHaziness)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
@@ -73,7 +73,7 @@ void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, 
 	StrataInfo.Layers[0].BSDFs[0].Type = BSDFType;
 	StrataInfo.Layers[0].BSDFs[0].RegisteredSharedLocalBasis = RegisteredSharedLocalBasis;
 	StrataInfo.Layers[0].BSDFs[0].bHasSSS = bHasSSS;
-	StrataInfo.Layers[0].BSDFs[0].bHasDMFPPluggedIn = bHasDMFPPluggedIn;
+	StrataInfo.Layers[0].BSDFs[0].bHasMFPPluggedIn = bHasMFPPluggedIn;
 	StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = bHasEdgeColor;
 	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = false;
 	StrataInfo.Layers[0].BSDFs[0].bHasFuzz = bHasFuzz;
@@ -155,7 +155,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAddParamBlend(FMaterialCompi
 
 	// When parameter blending is used, we take the union of all the features activated by input BSDFs.
 	NewBSDF.bHasSSS				|=	OtherBSDF.bHasSSS;
-	NewBSDF.bHasDMFPPluggedIn	|=	OtherBSDF.bHasDMFPPluggedIn;
+	NewBSDF.bHasMFPPluggedIn	|=	OtherBSDF.bHasMFPPluggedIn;
 	NewBSDF.bHasEdgeColor		|=	OtherBSDF.bHasEdgeColor;
 	NewBSDF.bHasThinFilm		|=	OtherBSDF.bHasThinFilm;
 	NewBSDF.bHasFuzz			|=	OtherBSDF.bHasFuzz;
@@ -185,7 +185,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(F
 
 	// When parameter blending is used, we take the union of all the features activated by input BSDFs.
 	NewBSDF.bHasSSS				|=	OtherBSDF.bHasSSS;
-	NewBSDF.bHasDMFPPluggedIn	|=	OtherBSDF.bHasDMFPPluggedIn;
+	NewBSDF.bHasMFPPluggedIn	|=	OtherBSDF.bHasMFPPluggedIn;
 	NewBSDF.bHasEdgeColor		|=	OtherBSDF.bHasEdgeColor;
 	NewBSDF.bHasThinFilm		|=	OtherBSDF.bHasThinFilm;
 	NewBSDF.bHasFuzz			|=	OtherBSDF.bHasFuzz;
@@ -231,7 +231,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayeringParamBlend(F
 	NewBSDF.RegisteredSharedLocalBasis = RegisteredSharedLocalBasis;
 
 //	NewBSDF.bHasSSS				= TopBSDF.bHasSSS;				// We keep SSS only if the base layer has it. Otherwise it will be simple volume and the throughput wll be applied on the parameters.
-//	NewBSDF.bHasDMFPPluggedIn	= TopBSDF.bHasDMFPPluggedIn;	// Idem
+//	NewBSDF.bHasMFPPluggedIn	= TopBSDF.bHasMFPPluggedIn;		// Idem
 	NewBSDF.bHasEdgeColor		|= TopBSDF.bHasEdgeColor;		// We keep the union of both, even though it will be hard to get a perfect match.
 	NewBSDF.bHasFuzz			|= TopBSDF.bHasFuzz;			// Idem
 	NewBSDF.bHasHaziness		|= TopBSDF.bHasHaziness;		// Idem
@@ -386,7 +386,7 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 			case STRATA_BSDF_TYPE_SLAB:
 			{
 				// Compute values closer to the reality for HasSSS and IsSimpleVolume, now that we know that we know the topology of the material.
-				const bool bIsSimpleVolume = !bBottomLayer && BSDF.bHasDMFPPluggedIn;
+				const bool bIsSimpleVolume = !bBottomLayer && BSDF.bHasMFPPluggedIn;
 				const bool bHasSSS = bBottomLayer && BSDF.bHasSSS && !bIsSimpleVolume;
 
 				Result.RequestedByteCount += UintByteSize;

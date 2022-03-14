@@ -94,19 +94,37 @@ float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
 	return 3.5 + 100 * Value * Value * Value * Value;
 }
 
+// TODO: find the source of this magic number to convert dmfp to mfp to match path tracer and rasterizer.
+// DMFP/SearchLightDiffuseScalingFactor goes to the normalized distance(d=l/s), then multiply the PerpendicularScalingFactor to get the mfp
+// float Dmfp2MfpMagicNumber = 0.6f;
+
+// Mathmatically matching based on diffusion coefficient instead of burley's approximation. However, it leads to incorrect result as 
+// we use burley's approximation (IOR=1.0) for screenspace diffuse scattering.
+//float3 Alpha = 1 - exp(-11.43 * SurfaceAlbedo + 15.38 * SurfaceAlbedo * SurfaceAlbedo - 13.91 * SurfaceAlbedo * SurfaceAlbedo * SurfaceAlbedo);
+//return DMFP * sqrt(3 * (1 - Alpha) / (2 - Alpha));
+float3 GetMFPFromDMFPCoeff(float3 DMFPSurfaceAlbedo, float3 MFPSurfaceAlbedo, float Dmfp2MfpMagicNumber = 0.6f)
+{
+	return Dmfp2MfpMagicNumber * GetPerpendicularScalingFactor3D(MFPSurfaceAlbedo) / GetSearchLightDiffuseScalingFactor3D(DMFPSurfaceAlbedo);
+}
+
 float3 GetMFPFromDMFPApprox(float3 SurfaceAlbedo, float3 TargetSurfaceAlbedo, float3 DMFP)
 {
-	// TODO: find the source of this magic number to convert dmfp to mfp to match path tracer and rasterizer.
-	// DMFP/SearchLightDiffuseScalingFactor goes to the normalized distance(d=l/s), then multiply the PerpendicularScalingFactor to get the mfp
+	return GetMFPFromDMFPCoeff(SurfaceAlbedo, TargetSurfaceAlbedo) * DMFP;
+}
 
-	const float Dmfp2MfpMagicNumber = 0.6f;
-	float3 DMFPToMFPCoeff = Dmfp2MfpMagicNumber * GetPerpendicularScalingFactor3D(TargetSurfaceAlbedo) / GetSearchLightDiffuseScalingFactor3D(SurfaceAlbedo);
-	return DMFPToMFPCoeff * DMFP;
-	
-	// Mathmatically matching based on diffusion coefficient instead of burley's approximation. However, it leads to incorrect result as 
-	// we use burley's approximation (IOR=1.0) for screenspace diffuse scattering.
-	//float3 Alpha = 1 - exp(-11.43 * SurfaceAlbedo + 15.38 * SurfaceAlbedo * SurfaceAlbedo - 13.91 * SurfaceAlbedo * SurfaceAlbedo * SurfaceAlbedo);
-	//return DMFP * sqrt(3 * (1 - Alpha) / (2 - Alpha));
+float3 GetDMFPFromMFPApprox(float3 SurfaceAlbedo, float3 MFP)
+{
+	float3 MFPFromDMFPCoeff = GetMFPFromDMFPCoeff(SurfaceAlbedo, SurfaceAlbedo);
+	return MFP / MFPFromDMFPCoeff;
+}
+
+// With world unit scale 
+float4 GetSubsurfaceProfileMFPInCm(int SubsurfaceProfileInt)
+{
+	float4 DMFP = GetSubsurfaceProfileDMFPInCm(SubsurfaceProfileInt);
+	float4 SurfaceAlbedo = GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
+
+	return float4(GetMFPFromDMFPApprox(SurfaceAlbedo.xyz, SurfaceAlbedo.xyz, DMFP.xyz),0.0f);
 }
 
 float GetScalingFactor(float A)
@@ -166,7 +184,7 @@ float3 InternalGetBurleyTransmissionProfile(
 	float ThicknessInCm)
 {
 	// Assuming that the volume albedo is the same to the surface albedo for transmission;
-	const float3 ScalingFactor = GetSearchLightDiffuseScalingFactor3D(SubsurfaceAlebdo);
+	const float3 ScalingFactor = GetPerpendicularScalingFactor3D(SubsurfaceAlebdo);
 	const float3 r = ThicknessInCm / MeanFreePathInCm.xyz;
 	const float3 Output = 0.25 * SubsurfaceAlebdo * (exp(-ScalingFactor * r) + 3 * exp(-ScalingFactor * r / 3));
 

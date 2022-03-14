@@ -169,6 +169,7 @@ void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSi
 		}
 
 		// We still need to do a small tweak to get the radius to visually match. Multiplying by 2.0 seems to fix it.
+		// Match that in GetSubsurfaceProfileKernel in PostProcessSubsurface.usf
 		const float StepScale = 2.0f;
 		for (int32 i = 0; i < nTotalSamples; i++)
 		{

@@ -187,7 +187,7 @@ float4 GetSceneColor(float2 BufferUV)
 half4 GetSubsurfaceProfileKernel(int SampleIndex, float3 D, float ScatterRadiusInMM, float WorldUnitScale)
 {
 	// See notes in SubsurfaceProfile.cpp. Scatter radius is in mm instead of cm here.
-	ScatterRadiusInMM = max(ScatterRadiusInMM/2.229f,1.0f);
+	ScatterRadiusInMM = max(ScatterRadiusInMM,1.0f);
 	
 	const float Range = ((2 * SSSS_N_KERNELWEIGHTCOUNT - 1) > 20) ? 3.0f : 2.0f;
 
@@ -213,19 +213,20 @@ half4 GetSubsurfaceProfileKernel(int SampleIndex, float3 D, float ScatterRadiusI
 			// Need to multiply by 0.5f, and modify MaxCDF to match as close as offline LUT. Here favors integration 
 			// instead of discrete approximation.
 			Kernel.rgb = (GetCDF3D(D, ScatterRadiusInMM * x1) - GetCDF3D(D, ScatterRadiusInMM * x0)) / MaxCDF;
-			Kernel.a =  4.0f * x; // 4.0f is consistent to the scale in LUT
+			Kernel.a = 2.0 * x; // 2.0f is consistent to the scale in ComputeMirroredBSSSKernel of BurleyNormalizedSSS.cpp
 		}
 
 	// Scale to match offline encoding
-	const float TableMaxA = 3.0f;
+	// const float TableMaxA = SUBSURFACE_KERNEL_SIZE;
 	// const FLinearColor TableColorScale = FLinearColor(
 	//		1.0f / TableMaxRGB,
 	//		1.0f / TableMaxRGB,
 	//		1.0f / TableMaxRGB,
 	//		1.0f / TableMaxA);
 	// C *= TableColorScale
-	// C.W *= Data.ScatterRadius / SUBSURFACE_RADIUS_SCALE;     
-	Kernel.a *= (ScatterRadiusInMM * BURLEY_MM_2_CM) * WorldUnitScale * 2.229f * 0.707f / (TableMaxA * SUBSURFACE_RADIUS_SCALE);
+	// C.W *= Data.ScatterRadius / SUBSURFACE_RADIUS_SCALE;
+	// SUBSURFACE_KERNEL_SIZE and TableMaxA cancels out
+	Kernel.a *= (ScatterRadiusInMM * BURLEY_MM_2_CM) * WorldUnitScale /** SUBSURFACE_KERNEL_SIZE*/ /(/*TableMaxA **/ SUBSURFACE_RADIUS_SCALE);
 
 	return Kernel;
 }
@@ -249,15 +250,17 @@ FBurleyParameter GetBurleyParameters(FStrataSubsurfaceData SSSData)
 	}
 	else if (SSSData.bIsValid)
 	{
-		// Decode the DMFP stored as Float111110 in a uint over a RGBA8 unorm
-		const float3 DMFP = SSSData.DMFP * BURLEY_CM_2_MM; // Stored DMFP is in cm, converted into mm
+		// Decode the MFP stored as Float111110 in a uint over a RGBA8 unorm
+		const float3 MFP = SSSData.MFP * BURLEY_CM_2_MM; // Stored DMFP is in cm, converted into mm
 
-		const float MaxDMFP = max3(DMFP.x, DMFP.y, DMFP.z);
-		const uint IndexOfMaxDmfp = (DMFP.r == MaxDMFP) ? 0 : ((DMFP.g == MaxDMFP) ? 1 : 2);
+		const float MaxMFP = max3(MFP.x, MFP.y, MFP.z);
+		const uint IndexOfMaxMfp = (MFP.r == MaxMFP) ? 0 : ((MFP.g == MaxMFP) ? 1 : 2);
 
-		Out.SurfaceAlbedo = float4(SSSData.BaseColor, SSSData.BaseColor[IndexOfMaxDmfp]);
-		Out.DiffuseMeanFreePath = float4(DMFP, MaxDMFP);
-		Out.WorldUnitScale = BURLEY_CM_2_MM;
+		const float3 DMFP = GetDMFPFromMFPApprox(SSSData.BaseColor, MFP);
+
+		Out.SurfaceAlbedo = float4(SSSData.BaseColor, SSSData.BaseColor[IndexOfMaxMfp]);
+		Out.DiffuseMeanFreePath = float4(DMFP, DMFP[IndexOfMaxMfp]);
+		Out.WorldUnitScale = 1.0f;	// no world unit scale change.
 
 		// STRATA_TODO smooth transistion based on pixel footprint w.r.t. MFPRadius and pixel footprint
 		Out.SurfaceOpacity = 1.0f;

@@ -20514,7 +20514,7 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		StrataInfo.Layers[0].BSDFs[0].Type = STRATA_BSDF_TYPE_SLAB;
 		StrataInfo.Layers[0].BSDFs[0].RegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 		StrataInfo.Layers[0].BSDFs[0].bHasSSS = bSSS;
-		StrataInfo.Layers[0].BSDFs[0].bHasDMFPPluggedIn = true;
+		StrataInfo.Layers[0].BSDFs[0].bHasMFPPluggedIn = true;
 		StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = false;
 		StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = false;
 		StrataInfo.Layers[0].BSDFs[0].bHasFuzz = false;
@@ -20524,7 +20524,7 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		StrataInfo.Layers[1].BSDFs[0].Type = STRATA_BSDF_TYPE_SLAB;
 		StrataInfo.Layers[1].BSDFs[0].RegisteredSharedLocalBasis = ClearCoat_NewRegisteredSharedLocalBasis;
 		StrataInfo.Layers[1].BSDFs[0].bHasSSS = bSSS;
-		StrataInfo.Layers[1].BSDFs[0].bHasDMFPPluggedIn = false;
+		StrataInfo.Layers[1].BSDFs[0].bHasMFPPluggedIn = false;
 		StrataInfo.Layers[1].BSDFs[0].bHasEdgeColor = false;
 		StrataInfo.Layers[1].BSDFs[0].bHasThinFilm = false;
 		StrataInfo.Layers[1].BSDFs[0].bHasFuzz = true;
@@ -20547,7 +20547,7 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 			StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis,
 				STRATA_BSDF_TYPE_UNLIT, 
 				false /*bHasSSS*/, 
-				false /*bHasDMFPPluggedIn*/, 
+				false /*bHasMFPPluggedIn*/, 
 				false /*bHasEdgeColor*/, 
 				false /*bHasFuzz*/, 
 				false /*bHasHaziness*/);
@@ -20565,7 +20565,7 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 			StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis,
 				STRATA_BSDF_TYPE_HAIR,
 				false /*bHasSSS*/,
-				false /*bHasDMFPPluggedIn*/,
+				false /*bHasMFPPluggedIn*/,
 				false /*bHasEdgeColor*/,
 				false /*bHasFuzz*/,
 				false /*bHasHaziness*/);
@@ -20575,7 +20575,7 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 			StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis,
 				STRATA_BSDF_TYPE_SINGLELAYERWATER,
 				false /*bHasSSS*/,
-				false /*bHasDMFPPluggedIn*/,
+				false /*bHasMFPPluggedIn*/,
 				false /*bHasEdgeColor*/,
 				false /*bHasFuzz*/,
 				false /*bHasHaziness*/);
@@ -20795,7 +20795,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	const bool bHasEdgeColor = HasEdgeColor(); // This accounts for EdgeColor and also F90 when the non metalness worfklow is selected.
 	const bool bHasFuzz = HasFuzz();
 	const bool bHasHaziness = HasHaziness();
-	const bool bHasDMFPPluggedIn = HasDMFPPluggedIn();
+	const bool bHasMFPPluggedIn = HasMFPPluggedIn();
 
 	int32 SSSProfileCodeChunk = INDEX_NONE;
 	const bool bHasSSS = HasSSS();
@@ -20830,8 +20830,8 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		RoughnessCodeChunk,
 		AnisotropyCodeChunk,
 		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),	
-		CompileWithDefaultFloat3(Compiler, SSSDMFP, 0.0f, 0.0f, 0.0f),
-		CompileWithDefaultFloat1(Compiler, SSSDMFPScale, 1.0f),
+		CompileWithDefaultFloat3(Compiler, SSSMFP, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, SSSMFPScale, 1.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
 		CompileWithDefaultFloat1(Compiler, FuzzAmount, 0.0f),
@@ -20841,7 +20841,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		TangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
 		!StrataOperator.bUseParameterBlending || (StrataOperator.bUseParameterBlending && StrataOperator.bRootOfParameterBlendingSubTree) ? &StrataOperator : nullptr);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasDMFPPluggedIn, bHasEdgeColor, bHasFuzz, bHasHaziness);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasMFPPluggedIn, bHasEdgeColor, bHasFuzz, bHasHaziness);
 
 	return OutputCodeChunk;
 }
@@ -20867,8 +20867,8 @@ const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
 	Result.Add(&Anisotropy);
 	Result.Add(&Normal);
 	Result.Add(&Tangent);
-	Result.Add(&SSSDMFP);
-	Result.Add(&SSSDMFPScale);
+	Result.Add(&SSSMFP);
+	Result.Add(&SSSMFPScale);
 	Result.Add(&EmissiveColor);
 	Result.Add(&Haziness);
 	Result.Add(&Thickness);
@@ -20993,11 +20993,11 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	}
 	else if (InputIndex == (8 + SkipDisabledInputOffset))
 	{
-		return MCT_Float3; // SSSDMFP
+		return MCT_Float3; // SSSMFP
 	}
 	else if (InputIndex == (9 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // SSSDMFPScale
+		return MCT_Float1; // SSSMFPScale
 	}
 	else if (InputIndex == (10 + SkipDisabledInputOffset))
 	{
@@ -21081,11 +21081,11 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == (8 + SkipDisabledInputOffset))
 	{
-		return TEXT("SSS Diffuse MFP");
+		return TEXT("SSS MFP");
 	}
 	else if (InputIndex == (9 + SkipDisabledInputOffset))
 	{
-		return TEXT("SSS Diffuse MFP Scale");
+		return TEXT("SSS MFP Scale");
 	}
 	else if (InputIndex == (10 + SkipDisabledInputOffset))
 	{
@@ -21229,7 +21229,7 @@ void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterial
 	if (EmissiveColor.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_EmissiveColor); }
 	if (Normal.IsConnected())				{ StrataMaterialInfo.AddPropertyConnected(MP_Normal); }
 	if (Tangent.IsConnected())				{ StrataMaterialInfo.AddPropertyConnected(MP_Tangent); }
-	if (SSSDMFP.IsConnected())				{ StrataMaterialInfo.AddPropertyConnected(MP_SubsurfaceColor); }
+	if (SSSMFP.IsConnected())				{ StrataMaterialInfo.AddPropertyConnected(MP_SubsurfaceColor); }
 
 	if (HasSSS())
 	{
@@ -21253,7 +21253,7 @@ FStrataOperator* UMaterialExpressionStrataSlabBSDF::StrataGenerateMaterialTopolo
 
 bool UMaterialExpressionStrataSlabBSDF::HasSSS() const
 {
-	return SubsurfaceProfile != nullptr || SSSDMFP.IsConnected();
+	return SubsurfaceProfile != nullptr || SSSMFP.IsConnected();
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasSSSProfile() const
@@ -21261,9 +21261,9 @@ bool UMaterialExpressionStrataSlabBSDF::HasSSSProfile() const
 	return SubsurfaceProfile != nullptr;
 }
 
-bool UMaterialExpressionStrataSlabBSDF::HasDMFPPluggedIn() const
+bool UMaterialExpressionStrataSlabBSDF::HasMFPPluggedIn() const
 {
-	return SSSDMFP.IsConnected();
+	return SSSMFP.IsConnected();
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasEdgeColor() const

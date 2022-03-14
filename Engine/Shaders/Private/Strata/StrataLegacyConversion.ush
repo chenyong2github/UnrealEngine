@@ -18,8 +18,8 @@ struct FStrataLegacyParameters
 	float  Roughness;
 	float  Anisotropy;
 	float  SSSProfileID;
-	float3 SSSDMFP;
-	float  SSSDMFPScale;
+	float3 SSSMFP;
+	float  SSSMFPScale;
 	float3 Emissive;
 	float  FuzzAmount;
 	float3 FuzzColor;
@@ -49,8 +49,8 @@ FStrataLegacyParameters InitStrataLegacyParameters(FStrataPixelFootprint InPixel
 	Out.Roughness = 0.5f;
 	Out.Anisotropy = 0.f;
 	Out.SSSProfileID = 0.f;
-	Out.SSSDMFP = Zeros;
-	Out.SSSDMFPScale = 1.f;
+	Out.SSSMFP = Zeros;
+	Out.SSSMFPScale = 1.f;
 	Out.Emissive = Zeros;
 	Out.FuzzAmount = 0.f;
 	Out.FuzzColor = Zeros;
@@ -86,8 +86,8 @@ FStrataData CreateLegacySlab(
 			In.Roughness,		// Roughness
 			In.Anisotropy,		// Anisotropy
 			In.SSSProfileID,	// SSSProfileID
-			In.SSSDMFP,			// SSSDMFP
-			In.SSSDMFPScale,	// SSSDMFPScale
+			In.SSSMFP,			// SSSMFP
+			In.SSSMFPScale,	// SSSMFPScale
 			In.Emissive,		// Emissive
 			0.f,				// Haziness
 			In.FuzzAmount,		// FuzzAmount
@@ -225,8 +225,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Metallic = Metallic;
 		Top.Roughness = Roughness;
 		Top.Anisotropy = Anisotropy;
-		Top.SSSDMFP = SSSMFP;
-		Top.SSSDMFPScale = Opacity;
+		Top.SSSMFP = SSSMFP;
+		Top.SSSMFPScale = Opacity;
 		Top.Emissive = Emissive;
 
 		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
@@ -241,8 +241,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		// All this will be fixed when this material will be converted to LUT.
 		const float Transmittance = saturate(1.f - Opacity);
 		const float Thickness = DefaultThickness;
-		Top.SSSDMFP = 0;// TransmittanceToMeanFreePath(Transmittance, Thickness* CENTIMETER_TO_METER)* METER_TO_CENTIMETER;
-		Top.SSSDMFPScale = 1.0f;
+		Top.SSSMFP = 0;// TransmittanceToMeanFreePath(Transmittance, Thickness* CENTIMETER_TO_METER)* METER_TO_CENTIMETER;
+		Top.SSSMFPScale = 1.0f;
 		Top.Thickness = Thickness;
 
 		FinalWeight = Opacity;
@@ -256,7 +256,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Roughness = Roughness;
 		Top.Anisotropy = Anisotropy;
 		Top.SSSProfileID = SubSurfaceProfileId;
-		Top.SSSDMFPScale = Opacity;
+		Top.SSSMFPScale = Opacity;
 		Top.Emissive = Emissive;
 
 		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
@@ -276,8 +276,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Bot.Roughness = Roughness;
 		Bot.Anisotropy = Anisotropy;
 		Bot.SSSProfileID = 0.f;
-		Bot.SSSDMFP = Zeros;
-		Bot.SSSDMFPScale = 0.f;
+		Bot.SSSMFP = Zeros;
+		Bot.SSSMFPScale = 0.f;
 		Bot.Emissive = Zeros;
 		Bot.SharedLocalBasisIndex = ClearCoatBottomNormal_SharedLocalBasisIndex;
 		Bot.bIsTop = 0;
@@ -302,8 +302,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Roughness = ClearCoatRoughness;
 		Top.Anisotropy = Anisotropy;
 		Top.SSSProfileID = 0.f;
-		Top.SSSDMFP = MFP;
-		Top.SSSDMFPScale = 1.f;
+		Top.SSSMFP = MFP;
+		Top.SSSMFPScale = 1.f;
 		Top.Emissive = Emissive;
 		Top.Thickness = Thickness;
 		Top.SharedLocalBasisIndex = SharedLocalBasisIndex;
@@ -328,8 +328,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Roughness = Roughness;
 		Top.Anisotropy = Anisotropy;
 		Top.SSSProfileID = 0.f;
-		Top.SSSDMFP = MFP;
-		Top.SSSDMFPScale = 1.f;
+		Top.SSSMFP = MFP;
+		Top.SSSMFPScale = 1.f;
 		Top.Emissive = Emissive;
 		Top.Thickness = Thickness;
 
@@ -349,8 +349,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Roughness = Roughness;
 		Top.Anisotropy = Anisotropy;
 		Top.SSSProfileID = 0.f;
-		Top.SSSDMFP = 0.f;
-		Top.SSSDMFPScale = 0.f;
+		Top.SSSMFP = 0.f;
+		Top.SSSMFPScale = 0.f;
 		Top.Emissive = Emissive;
 		Top.FuzzAmount = ClearCoat;
 		Top.FuzzColor = SubSurfaceColor;
@@ -378,8 +378,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Roughness = Roughness;
 		Top.Anisotropy = 0.f;
 		Top.SSSProfileID = SubSurfaceProfileId;
-		Top.SSSDMFP = MFP;
-		Top.SSSDMFPScale = Opacity;
+		Top.SSSMFP = MFP;
+		Top.SSSMFPScale = Opacity;
 		Top.Emissive = Emissive;
 		Top.SharedLocalBasisIndex = SharedLocalBasisIndex;
 		Top.bIsTop = 1;
@@ -393,8 +393,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Bot.Roughness = Roughness;
 		Bot.Anisotropy = 0.f;
 		Bot.SSSProfileID = SubSurfaceProfileId;
-		Bot.SSSDMFP = Zeros;
-		Bot.SSSDMFPScale = Opacity;
+		Bot.SSSMFP = Zeros;
+		Bot.SSSMFPScale = Opacity;
 		Bot.Emissive = Emissive;
 		Bot.SharedLocalBasisIndex = ClearCoatBottomNormal_SharedLocalBasisIndex;
 		Bot.bIsTop = 0;
@@ -433,14 +433,14 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		const float3 BotMFP    = MFP;
 
 		Top.DiffuseAlbedo	= lerp(BotAlbedo, TopAlbedo, Opacity);
-		Top.SSSDMFP			= lerp(BotMFP,    TopMFP,    Opacity);
+		Top.SSSMFP			= lerp(BotMFP,    TopMFP,    Opacity);
 		Top.F0				= lerp(BotF0,     TopF0,     Opacity);
 		Top.F90				= Ones;
 		Top.UseMetalness	= false;
 		Top.Roughness 		= Roughness;
 		Top.Anisotropy 		= 0.f;
 		Top.SSSProfileID 	= 0.f;
-		Top.SSSDMFPScale 	= 1.f;
+		Top.SSSMFPScale 	= 1.f;
 		Top.Emissive 		= Emissive;
 		Top.Thickness 		= Thickness;
 		Top.SharedLocalBasisIndex = SharedLocalBasisIndex;
@@ -457,8 +457,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Roughness = Roughness;
 		Top.Anisotropy = Anisotropy;
 		Top.SSSProfileID = 0.f;
-		Top.SSSDMFP = Zeros;
-		Top.SSSDMFPScale = 0.f;
+		Top.SSSMFP = Zeros;
+		Top.SSSMFPScale = 0.f;
 		Top.Emissive = Emissive;
 		Top.SharedLocalBasisIndex = SharedLocalBasisIndex;
 
@@ -473,8 +473,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Bot.Roughness = Roughness;
 		Bot.Anisotropy = 0.f;
 		Bot.SSSProfileID = .0f;
-		Bot.SSSDMFP = MFP;
-		Bot.SSSDMFPScale = 1.f;
+		Bot.SSSMFP = MFP;
+		Bot.SSSMFPScale = 1.f;
 		Bot.Emissive = Zeros;
 		Bot.Thickness = Thickness;
 		Bot.SharedLocalBasisIndex = ClearCoatBottomNormal_SharedLocalBasisIndex;

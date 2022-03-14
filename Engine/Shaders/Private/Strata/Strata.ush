@@ -142,7 +142,7 @@ struct FStrataBSDF
 
 	float3				Emissive;		// All bsdf can potientially have emissive. This is never written out to the strata gbuffer but instead accumulated in the emissive buffer during the base pass.
 	float				ThicknessCm;	// This must be kept in order to be able to normalize the mean free path to comply with our volumetric material math all done in a normalised slab of medium.
-	float3				TmpDMFP;
+	float3				TmpMFP;
 
 	float				TopLayerDataWeight;// The weight this BSDF contributes to the top layer (normal and roughness for SSR and SSAO for instance)
 #endif
@@ -292,7 +292,7 @@ struct FStrataBSDF
 #define STATE_BIT_COUNT_F90						1
 #define STATE_BIT_COUNT_THINFILM				1
 #define STATE_BIT_COUNT_SIMPLEVOLUME			1
-#define STATE_BIT_COUNT_DMFPPLUGGED				1
+#define STATE_BIT_COUNT_MFPPLUGGED				1
 #define STATE_BIT_COUNT_HASFUZZ					1
 #define STATE_BIT_COUNT_ISTHIN					1
 #define STATE_BIT_COUNT_BSDF_TYPE				3
@@ -310,8 +310,8 @@ struct FStrataBSDF
 #define STATE_BIT_OFFSET_F90					(STATE_BIT_OFFSET_HAZINESS			+ STATE_BIT_COUNT_HAZINESS)
 #define STATE_BIT_OFFSET_THINFILM				(STATE_BIT_OFFSET_F90				+ STATE_BIT_COUNT_F90)
 #define STATE_BIT_OFFSET_SIMPLEVOLUME			(STATE_BIT_OFFSET_THINFILM			+ STATE_BIT_COUNT_THINFILM)
-#define STATE_BIT_OFFSET_DMFPPLUGGED			(STATE_BIT_OFFSET_SIMPLEVOLUME		+ STATE_BIT_COUNT_SIMPLEVOLUME)
-#define STATE_BIT_OFFSET_HASFUZZ				(STATE_BIT_OFFSET_DMFPPLUGGED		+ STATE_BIT_COUNT_DMFPPLUGGED)
+#define STATE_BIT_OFFSET_MFPPLUGGED				(STATE_BIT_OFFSET_SIMPLEVOLUME		+ STATE_BIT_COUNT_SIMPLEVOLUME)
+#define STATE_BIT_OFFSET_HASFUZZ				(STATE_BIT_OFFSET_MFPPLUGGED		+ STATE_BIT_COUNT_MFPPLUGGED)
 #define STATE_BIT_OFFSET_ISTHIN					(STATE_BIT_OFFSET_HASFUZZ			+ STATE_BIT_COUNT_HASFUZZ)
 #define STATE_BIT_OFFSET_BSDF_TYPE				(STATE_BIT_OFFSET_ISTHIN			+ STATE_BIT_COUNT_ISTHIN)
 #define STATE_BIT_OFFSET_SHAREDLOCALBASESID		(STATE_BIT_OFFSET_BSDF_TYPE			+ STATE_BIT_COUNT_BSDF_TYPE)
@@ -383,8 +383,8 @@ struct FStrataBSDF
 #define BSDF_SETISSIMPLEVOLUME(X, Value) WRITE_BITS(X.State, STATE_BIT_COUNT_SIMPLEVOLUME, STATE_BIT_OFFSET_SIMPLEVOLUME, Value)
 
 // Indicates if the BSDF is part of the top layer
-#define BSDF_GETHASDMFP(X)				READ_BITS(X.State,  STATE_BIT_COUNT_DMFPPLUGGED, STATE_BIT_OFFSET_DMFPPLUGGED)
-#define BSDF_SETHASDMFP(X, Value)		WRITE_BITS(X.State, STATE_BIT_COUNT_DMFPPLUGGED, STATE_BIT_OFFSET_DMFPPLUGGED, Value)
+#define BSDF_GETHASMFP(X)				READ_BITS(X.State,  STATE_BIT_COUNT_MFPPLUGGED, STATE_BIT_OFFSET_MFPPLUGGED)
+#define BSDF_SETHASMFP(X, Value)		WRITE_BITS(X.State, STATE_BIT_COUNT_MFPPLUGGED, STATE_BIT_OFFSET_MFPPLUGGED, Value)
 
 // Indicates if the BSDF is part of the top layer
 #define BSDF_GETHASFUZZ(X)				READ_BITS(X.State,  STATE_BIT_COUNT_HASFUZZ, STATE_BIT_OFFSET_HASFUZZ)
@@ -428,8 +428,8 @@ struct FStrataBSDF
 // Either with SSS profile
 #define SLAB_SSSPROFILEID(X)			X.VGPRs[3].x
 #define SLAB_SSSPROFILERADIUSSCALE(X)	X.VGPRs[3].y
-// Or explicit DMFP in centimeter
-#define SLAB_SSSDMFP(X)					X.VGPRs[3].xyz
+// Or explicit MFP in centimeter
+#define SLAB_SSSMFP(X)					X.VGPRs[3].xyz
 // Thin film. IOR is harcoded to oil IOR in order to save VGPR
 #define SLAB_THINFILM_THICKNESS(X)		X.VGPRs[3].w
 #define SLAB_THINFILM_IOR(X)			1.44f
@@ -583,14 +583,14 @@ struct FStrataSubsurfaceData
 	uint   ProfileId;
 	float  ProfileRadiusScale;
 
-	float3 DMFP;				// When the profile is not used, a per pixel DMFP is used
+	float3 MFP;				// When the profile is not used, a per pixel MFP is used
 };
 
 uint2 StrataPackSSSData(FStrataSubsurfaceData In)
 {
 	uint2 Out;
 	Out.x = PackColorLinearToGamma2AlphaLinear(float4(In.BaseColor, In.bIsValid ? (In.bIsProfile ? 1.0f : 0.5f) : 0.0f));
-	Out.y = In.bIsProfile ? ((In.ProfileId & 0xFF) | PackRGBA8(float4(0.f, In.ProfileRadiusScale, In.Specular, 0.0f))) : PackR11G11B10F(In.DMFP);
+	Out.y = In.bIsProfile ? ((In.ProfileId & 0xFF) | PackRGBA8(float4(0.f, In.ProfileRadiusScale, In.Specular, 0.0f))) : PackR11G11B10F(In.MFP);
 	return Out;
 }
 
@@ -621,7 +621,7 @@ FStrataSubsurfaceData StrataUnpackSSSData(uint2 In)
 	{
 		Out.ProfileId = SSS_PROFILE_ID_PERPIXEL;
 		Out.ProfileRadiusScale = 1.0f;
-		Out.DMFP = UnpackR11G11B10F(In.y);
+		Out.MFP = UnpackR11G11B10F(In.y);
 	}
 	return Out;
 }
@@ -821,7 +821,7 @@ FStrataData GetStrataSlabBSDF(
 	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic,	//  Metalness workflow
 	float3 DiffuseAlbedo, float3 F0, float3 F90,						// !Metalness workflow
 	float Roughness, float Anisotropy,
-	float SSSProfileID, float3 SSSDMFP, float SSSDMFPScale,
+	float SSSProfileID, float3 SSSMFP, float SSSMFPScale,
 	float3 Emissive, 
 	float Haziness, 
 	float FuzzAmount, float3 FuzzColor,
@@ -831,12 +831,12 @@ FStrataData GetStrataSlabBSDF(
 	FStrataData StrataData = GetInitialisedStrataData();
 
 	// STRATA_TODO apply SSS as a function of pixel footprint w.r.t. MFP
-	SSSDMFPScale = saturate(SSSDMFPScale);
+	SSSMFPScale = saturate(SSSMFPScale);
 	const bool bSSSProfilePlugged = SSSProfileID > 0.0f;
-	const bool bDMFPPlugged = any(SSSDMFP > 0);
-	bool bIsThin = bDMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM;
-	bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSDMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
-	bool bHasSSS = bDMFPPlugged || bHasSSSProfile;
+	const bool bMFPPlugged = any(SSSMFP > 0);
+	bool bIsThin = bMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM;
+	bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
+	bool bHasSSS = bMFPPlugged || bHasSSSProfile;
 
 	// Derive roughness and haziness from profile data
 	if (bSSSProfilePlugged)
@@ -848,13 +848,13 @@ FStrataData GetStrataSlabBSDF(
 		float AverageToRoughness1 = 0;
 		float LobeMix = 0;
 		float MaterialRoughnessToAverage = 0;
-		GetSubsurfaceProfileDualSpecular(SubsurfaceProfileUInt, SSSDMFPScale, AverageToRoughness0, AverageToRoughness1, LobeMix, MaterialRoughnessToAverage);
+		GetSubsurfaceProfileDualSpecular(SubsurfaceProfileUInt, SSSMFPScale, AverageToRoughness0, AverageToRoughness1, LobeMix, MaterialRoughnessToAverage);
 
 		float AverageRoughness = saturate(Roughness * MaterialRoughnessToAverage); // This is the roughness originallys stored into the gbuffer
 		float Lobe0Roughness   = saturate(AverageRoughness * AverageToRoughness0);
 		float Lobe1Roughness   = saturate(AverageRoughness * AverageToRoughness1);
 
-		GetSubsurfaceProfileRoughnesses(Lobe0Roughness, Lobe1Roughness, SSSDMFPScale);
+		GetSubsurfaceProfileRoughnesses(Lobe0Roughness, Lobe1Roughness, SSSMFPScale);
 
 		// Convertion from roughness0/1 to roughness+haziness
 		// * This encoding is based on how roughness0 + haziness is translated to roughness1, see ComputeHazyLobeRoughness
@@ -862,7 +862,7 @@ FStrataData GetStrataSlabBSDF(
 		Haziness = (Lobe1Roughness - Lobe0Roughness) / (1.f - min(Lobe0Roughness, 0.99f));
 		Roughness = Lobe0Roughness;
 
-		SSSDMFP = GetSubsurfaceProfileDMFPInCm(SubsurfaceProfileUInt).xyz * SSSDMFPScale;
+		SSSMFP = GetSubsurfaceProfileMFPInCm(SubsurfaceProfileUInt).xyz * SSSMFPScale;
 	}
 	else
 	{
@@ -875,13 +875,13 @@ FStrataData GetStrataSlabBSDF(
 	// If MFP is smaller than the pixel's footprint, remove SSS attributes
 	// The scaling factor 'SSSFootprintScale' is based on empiric tests
 	const float SSSFootprintScale = 3.f;
-	if (all(SSSDMFP * SSSFootprintScale < InPixelFootprint.PixelRadiusInWorldSpace))
+	if (all(SSSMFP * SSSFootprintScale < InPixelFootprint.PixelRadiusInWorldSpace))
 	{
 		bHasSSSProfile = false;
 		bHasSSS = false;
 
-		// DMFPPlugged is not cleared as it is used for thin surface and thin volumetric
-		// bDMFPPlugged = false;
+		// MFPPlugged is not cleared as it is used for thin surface and thin volumetric
+		// bMFPPlugged = false;
 	}
 
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
@@ -909,7 +909,7 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETHASSSS			(StrataData.InlinedBSDF,		bHasSSS ? 1 : 0);
 	BSDF_SETHASSSSPROFILE	(StrataData.InlinedBSDF,		bHasSSSProfile ? 1 : 0);
 	BSDF_SETISTHIN			(StrataData.InlinedBSDF,		bIsThin ? 1 : 0);
-	BSDF_SETHASDMFP			(StrataData.InlinedBSDF,		bDMFPPlugged ? 1 : 0);
+	BSDF_SETHASMFP			(StrataData.InlinedBSDF,		bMFPPlugged ? 1 : 0);
 	BSDF_SETHASHAZINESS		(StrataData.InlinedBSDF,		bHasHaziness);
 	BSDF_SETHASTHINFILM		(StrataData.InlinedBSDF,		bHasThinFilm);
 	BSDF_SETTHICKNESSCM		(StrataData.InlinedBSDF,		Thickness);
@@ -942,19 +942,19 @@ FStrataData GetStrataSlabBSDF(
 	if (bHasSSSProfile)
 	{
 		SLAB_SSSPROFILEID	(StrataData.InlinedBSDF)		= SSSProfileID;
-		SLAB_SSSPROFILERADIUSSCALE(StrataData.InlinedBSDF)	= SSSDMFPScale;
+		SLAB_SSSPROFILERADIUSSCALE(StrataData.InlinedBSDF)	= SSSMFPScale;
 	}
 	else
 	{
-		SLAB_SSSDMFP	(StrataData.InlinedBSDF)			= SSSDMFP * SSSDMFPScale;
+		SLAB_SSSMFP	(StrataData.InlinedBSDF)			= SSSMFP * SSSMFPScale;
 	}
 
 	SLAB_FUZZ_AMOUNT		(StrataData.InlinedBSDF)		= FuzzAmount;
 	SLAB_FUZZ_COLOR			(StrataData.InlinedBSDF)		= FuzzColor;
 
 #if STRATA_INLINE_SHADING
-	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the DMFP on the side to not override SSSPROFILE data.
-	StrataData.InlinedBSDF.TmpDMFP = SSSDMFP * SSSDMFPScale;
+	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the MFP on the side to not override SSSPROFILE data.
+	StrataData.InlinedBSDF.TmpMFP = SSSMFP * SSSMFPScale;
 
 	StrataData.InlinedBSDF.Coverage = 1.0f;
 #endif
@@ -1444,8 +1444,8 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	BSDF_SETHASANISOTROPY(ResultBSDF,	BSDF_GETHASANISOTROPY(ForegroundBSDF)			| BSDF_GETHASANISOTROPY(BackgroundBSDF));
 	BSDF_SETHASSSS(ResultBSDF,			BSDF_GETHASSSS(ForegroundBSDF)					| BSDF_GETHASSSS(BackgroundBSDF));
 	BSDF_SETHASSSSPROFILE(ResultBSDF,	BSDF_GETHASSSSPROFILE(ForegroundBSDF)			| BSDF_GETHASSSSPROFILE(BackgroundBSDF));	// Problem: cannot blend SSS profiles...
-	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(ForegroundBSDF)					| BSDF_GETISTHIN(BackgroundBSDF));			// STRATA_TODO fix the MPF/DMFP situation for that to really work
-	BSDF_SETHASDMFP(ResultBSDF,			BSDF_GETHASDMFP(ForegroundBSDF)					| BSDF_GETHASDMFP(BackgroundBSDF));
+	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(ForegroundBSDF)					| BSDF_GETISTHIN(BackgroundBSDF));
+	BSDF_SETHASMFP(ResultBSDF,			BSDF_GETHASMFP(ForegroundBSDF)					| BSDF_GETHASMFP(BackgroundBSDF));
 	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(ForegroundBSDF)				| BSDF_GETHASHAZINESS(BackgroundBSDF));
 	BSDF_SETHASF90(ResultBSDF,			BSDF_GETHASF90(ForegroundBSDF)					| BSDF_GETHASF90(BackgroundBSDF));
 	BSDF_SETHASTHINFILM(ResultBSDF,		BSDF_GETHASTHINFILM(ForegroundBSDF)				| BSDF_GETHASTHINFILM(BackgroundBSDF));
@@ -1487,10 +1487,10 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	}
 	else
 	{
-		SLAB_SSSDMFP(ResultBSDF) =		lerp(SLAB_SSSDMFP(BackgroundBSDF),				SLAB_SSSDMFP(ForegroundBSDF),				ForegroundOtherMixFactor);
+		SLAB_SSSMFP(ResultBSDF) =		lerp(SLAB_SSSMFP(BackgroundBSDF),				SLAB_SSSMFP(ForegroundBSDF),				ForegroundOtherMixFactor);
 
 		// We still try to disable SSS if possible: for performance and also to preserve the surface color (especially specular reflection color).
-		if (all(SLAB_SSSDMFP(ResultBSDF) == 0.0f))
+		if (all(SLAB_SSSMFP(ResultBSDF) == 0.0f))
 		{
 			BSDF_SETHASSSS(ResultBSDF, 0);
 		}
@@ -1498,8 +1498,8 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 
 
 #if STRATA_INLINE_SHADING
-	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the DMFP on the side to not override SSSPROFILE data.
-	ResultBSDF.TmpDMFP =				lerp(BackgroundBSDF.TmpDMFP,					ForegroundBSDF.TmpDMFP,						ForegroundOtherMixFactor);
+	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the MFP on the side to not override SSSPROFILE data.
+	ResultBSDF.TmpMFP =				lerp(BackgroundBSDF.TmpMFP,					ForegroundBSDF.TmpMFP,						ForegroundOtherMixFactor);
 
 	// We blend the parameter above, and we also need to lerp the Coverage to match the total energy.
 	ResultBSDF.Coverage =				lerp(BackgroundBSDF.Coverage,					ForegroundBSDF.Coverage,					HorizontalMixValue);
@@ -1540,8 +1540,8 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	BSDF_SETHASANISOTROPY(ResultBSDF,	BSDF_GETHASANISOTROPY(BBSDF)					| BSDF_GETHASANISOTROPY(ABSDF));
 	BSDF_SETHASSSS(ResultBSDF,			BSDF_GETHASSSS(BBSDF)							| BSDF_GETHASSSS(ABSDF));
 	BSDF_SETHASSSSPROFILE(ResultBSDF,	BSDF_GETHASSSSPROFILE(BBSDF)					| BSDF_GETHASSSSPROFILE(ABSDF));	// Problem: cannot blend SSS profiles...
-	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(BBSDF)							| BSDF_GETISTHIN(ABSDF));			// STRATA_TODO fix the MPF/DMFP situation for that to really work
-	BSDF_SETHASDMFP(ResultBSDF,			BSDF_GETHASDMFP(BBSDF)							| BSDF_GETHASDMFP(ABSDF));
+	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(BBSDF)							| BSDF_GETISTHIN(ABSDF));			// STRATA_TODO fix the MPF/MFP situation for that to really work
+	BSDF_SETHASMFP(ResultBSDF,			BSDF_GETHASMFP(BBSDF)							| BSDF_GETHASMFP(ABSDF));
 	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(BBSDF)						| BSDF_GETHASHAZINESS(ABSDF));
 	BSDF_SETHASF90(ResultBSDF,			BSDF_GETHASF90(BBSDF)							| BSDF_GETHASF90(ABSDF));
 	BSDF_SETHASTHINFILM(ResultBSDF,		BSDF_GETHASTHINFILM(BBSDF)						| BSDF_GETHASTHINFILM(ABSDF));
@@ -1579,13 +1579,13 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	}
 	else
 	{
-		SLAB_SSSDMFP(ResultBSDF) =		lerp(SLAB_SSSDMFP(BBSDF),						SLAB_SSSDMFP(ABSDF),						AMixFactor);
+		SLAB_SSSMFP(ResultBSDF) =		lerp(SLAB_SSSMFP(BBSDF),						SLAB_SSSMFP(ABSDF),						AMixFactor);
 	}
 
 
 #if STRATA_INLINE_SHADING
-	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the DMFP on the side to not override SSSPROFILE data.
-	ResultBSDF.TmpDMFP =				lerp(BBSDF.TmpDMFP,								ABSDF.TmpDMFP,								AMixFactor);
+	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the MFP on the side to not override SSSPROFILE data.
+	ResultBSDF.TmpMFP =				lerp(BBSDF.TmpMFP,								ABSDF.TmpMFP,								AMixFactor);
 
 	// When it comes to adding the visual contribution, we chose to add the coverage without clamping as currently done in the StrataAdd function.
 	// Operations using Coverage are currently making sure they are in a safe range.
@@ -1631,8 +1631,8 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	BSDF_SETHASANISOTROPY(ResultBSDF,	0);																					// Anisotropy is disabled because it changes a lot of things
 	BSDF_SETHASSSS(ResultBSDF,			BSDF_GETHASSSS(BaseBSDF));															// We only keep SSS if the bottom layer has it
 	BSDF_SETHASSSSPROFILE(ResultBSDF,	0);																					// Problem: cannot blend SSS profiles so we simply disable SSSProfile
-	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(BaseBSDF));															// STRATA_TODO fix the MPF/DMFP situation for that to really work
-	BSDF_SETHASDMFP(ResultBSDF,			BSDF_GETHASDMFP(BaseBSDF)						| BSDF_GETHASDMFP(TopBSDF));		// We keep DMFP of both to make sure bottom layer on translucent can laos be effective
+	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(BaseBSDF));															// STRATA_TODO fix the MPF/MFP situation for that to really work
+	BSDF_SETHASMFP(ResultBSDF,			BSDF_GETHASMFP(BaseBSDF)						| BSDF_GETHASMFP(TopBSDF));		// We keep MFP of both to make sure bottom layer on translucent can laos be effective
 	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(TopBSDF));														// We only keep haziness if the top layer has it
 	BSDF_SETHASF90(ResultBSDF,			BSDF_GETHASF90(BaseBSDF)						| BSDF_GETHASF90(TopBSDF));			// F90: keep union of both even though it will be hard to get a match
 	BSDF_SETHASTHINFILM(ResultBSDF,		BSDF_GETHASTHINFILM(TopBSDF));														// We only keep thinfilme if the top layer has it
@@ -1643,7 +1643,7 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	EnableSlabBSDFSimpleVolumetric(TopBSDF);
 	EnableSlabBSDFSimpleVolumetric(BaseBSDF);
 	const float3 UnusedDiffuseColor		= 0;	// Unused when only transmittance is needed
-	FParticipatingMedia PM				= StrataSlabCreateParticipatingMedia(UnusedDiffuseColor, SLAB_SSSDMFP(TopBSDF));
+	FParticipatingMedia PM				= StrataSlabCreateParticipatingMedia(UnusedDiffuseColor, SLAB_SSSMFP(TopBSDF));
 	const float3 SlabTransmittance		= IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, NoV);
 
 	// STRATA_TODO account for energy conservation here.
@@ -1677,13 +1677,13 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	// Only keep thin film for the top layer.
 	SLAB_THINFILM_THICKNESS(ResultBSDF)= (SafeTopCoverage >= 1.0f) ? SLAB_THINFILM_THICKNESS(TopBSDF) : 0.0f;
 
-	// Keep the DMFP form the bottom layer only (top layer simple volume is backed in parameters).
-	SLAB_SSSDMFP(ResultBSDF) =			lerp(SLAB_SSSDMFP(TopBSDF),						SLAB_SSSDMFP(BaseBSDF),		TopToBottomLerp); // SLAB_SSSDMFP(BaseBSDF);
+	// Keep the MFP form the bottom layer only (top layer simple volume is backed in parameters).
+	SLAB_SSSMFP(ResultBSDF) =			lerp(SLAB_SSSMFP(TopBSDF),						SLAB_SSSMFP(BaseBSDF),		TopToBottomLerp); // SLAB_SSSMFP(BaseBSDF);
 
 #if STRATA_INLINE_SHADING
 #if STRATA_OPAQUE_MATERIAL
 	// Only the bottom layer SSS / Thin model is used so we only keep the bottom layer data there. Top layer is converted to throughput.
-	ResultBSDF.TmpDMFP =				BaseBSDF.TmpDMFP;
+	ResultBSDF.TmpMFP =				BaseBSDF.TmpMFP;
 	ResultBSDF.Coverage =				Info.Coverage;
 #else
 
@@ -1692,8 +1692,8 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	FVerticalLayeringInfo Info2 = GetVerticalLayeringInfo(TopBSDF.Coverage / MaxCoverage, BaseBSDF.Coverage / MaxCoverage);
 #if 0
 	// Using transmittance as a way to interpolate should be better but there are issues with large values
-	const float3 TopExtinction			= 1.0f / max(0.0, TopBSDF.TmpDMFP);
-	const float3 BaseExtinction			= 1.0f / max(0.0, BaseBSDF.TmpDMFP);
+	const float3 TopExtinction			= 1.0f / max(0.0, TopBSDF.TmpMFP);
+	const float3 BaseExtinction			= 1.0f / max(0.0, BaseBSDF.TmpMFP);
 	const float3 TopTransmitance		= exp(-TopExtinction);	// extinction = optical depth, we assume here d = 1 meter
 	const float3 BaseTransmitance		= exp(-BaseExtinction);
 	const float3 NewTransmittance		= Info2.TransmittanceOnlyBottom * BaseTransmitance + Info2.TransmittanceOnlyTop * TopTransmitance + Info2.TransmittanceTopAndBottom * TopTransmitance * BaseTransmitance;
@@ -1701,11 +1701,11 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	const float3 NewMFP					= 1.0f / NewExtinction;
 #else
 	// MFP looks more prceptually linear even though it is not perfect
-	const float3 NewMFP = Info2.TransmittanceOnlyBottom * BaseBSDF.TmpDMFP + Info2.TransmittanceOnlyTop * TopBSDF.TmpDMFP + Info2.TransmittanceTopAndBottom * min(TopBSDF.TmpDMFP, BaseBSDF.TmpDMFP);
+	const float3 NewMFP = Info2.TransmittanceOnlyBottom * BaseBSDF.TmpMFP + Info2.TransmittanceOnlyTop * TopBSDF.TmpMFP + Info2.TransmittanceTopAndBottom * min(TopBSDF.TmpMFP, BaseBSDF.TmpMFP);
 #endif
 
-	ResultBSDF.TmpDMFP					= NewMFP;
-	SLAB_SSSDMFP(ResultBSDF)			= NewMFP;
+	ResultBSDF.TmpMFP					= NewMFP;
+	SLAB_SSSMFP(ResultBSDF)			= NewMFP;
 
 	ResultBSDF.Coverage				= MaxCoverage;
 #endif
@@ -1764,10 +1764,10 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 	SLAB_HAZINESS(BSDF) = saturate(SLAB_HAZINESS(BSDF));
 	SLAB_THINFILM_THICKNESS(BSDF) = saturate(SLAB_THINFILM_THICKNESS(BSDF));
 #if STRATA_INLINE_SHADING
-	BSDF.TmpDMFP = clamp(BSDF.TmpDMFP, 0.0f, Max111110BitsFloat3);
+	BSDF.TmpMFP = clamp(BSDF.TmpMFP, 0.0f, Max111110BitsFloat3);
 #endif
 
-	// BSDF feature tests must be executed for profile path to not interact with DMFP, especially for forward rendered simple volumetrics.
+	// BSDF feature tests must be executed for profile path to not interact with MFP, especially for forward rendered simple volumetrics.
 	if (BSDF_GETHASSSS(BSDF))
 	{
 		if (BSDF_GETHASSSSPROFILE(BSDF))
@@ -1776,7 +1776,7 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 		}
 		else
 		{
-			SLAB_SSSDMFP(BSDF) = clamp(SLAB_SSSDMFP(BSDF), 0.0f, Max111110BitsFloat3);
+			SLAB_SSSMFP(BSDF) = clamp(SLAB_SSSMFP(BSDF), 0.0f, Max111110BitsFloat3);
 		}
 	}
 
@@ -1864,7 +1864,7 @@ void StrataDitherBSDF(inout FStrataBSDF BSDF, in float Dither)
 ///////////////////////////////////////////////////////////////////////////////
 // Other tools
 
-// Those participating media funtion are use by the Slab node. In this case, the DMFP is considered as a simple MFP because DMFP is not directly inversible to medium properties.
+// Those participating media funtion are use by the Slab node. In this case, the MFP is considered as a simple MFP because MFP is not directly inversible to medium properties.
 
 FParticipatingMedia StrataSlabCreateParticipatingMedia(float3 DiffuseColor, float3 MeanFreePathCentimeters)
 {
@@ -1878,10 +1878,10 @@ float StrataSlabDiffuseToVolumeBlend(FParticipatingMedia PM)
 	// We start blending from diffuse toward a slab of participating media when the mean free path reaches 4 centimeters.
 	const float MaxMeanFreePathMeters = max(PM.MeanFreePath.x, max(PM.MeanFreePath.y, PM.MeanFreePath.z));
 	// Start blending volumetric after mean free path of 4 centimeters (also needed because threshold when recovering extinction from transmittance cause a small minimum value)
-	const float StartVolumeBlendMFP = 0.04f;
+	const float StartVolumeBlenMFP = 0.04f;
 	// And when the mean free path reaches 1/3.0f = 0.33 meter. That is extinction=1/0.33=3, transmittance at 1m (bottom of the slab) = exp(-3) = 0.05) we fully use the volumetric model.
-	const float Blend = saturate(max(0.0, MaxMeanFreePathMeters - StartVolumeBlendMFP) * 3.0f);
-	//const float Blend = max(0.0, MaxMeanFreePathMeters - StartVolumeBlendMFP) > 0.0 ? 1.0 : 0.0;
+	const float Blend = saturate(max(0.0, MaxMeanFreePathMeters - StartVolumeBlenMFP) * 3.0f);
+	//const float Blend = max(0.0, MaxMeanFreePathMeters - StartVolumeBlenMFP) > 0.0 ? 1.0 : 0.0;
 
 	// Using a non linear blend helps smoothing out transitions visually.
 	return Blend * Blend;
@@ -1891,12 +1891,12 @@ void EnableSlabMFPComputationSpace(inout FStrataBSDF BSDF)
 {
 #if STRATA_INLINE_SHADING
 	// Now we know that this is a simple volume so we can freely set the mean free path
-	SLAB_SSSDMFP(BSDF) = BSDF.TmpDMFP;
+	SLAB_SSSMFP(BSDF) = BSDF.TmpMFP;
 #endif
 
 	// Rescale the BSDF mean free path so that we can drop the thickness parameter and run volumetric material math on a unit slab of medium
 	// For instance, if thickness is larger => we need to reduce the MFP for the medium to appear visually thicker.
-	SLAB_SSSDMFP(BSDF) = clamp(SLAB_SSSDMFP(BSDF) * (STRATA_SIMPLEVOLUME_THICKNESS_CM / max(STRATA_EPSILON, BSDF_GETTHICKNESSCM(BSDF))), 0.0f, Max111110BitsFloat3);
+	SLAB_SSSMFP(BSDF) = clamp(SLAB_SSSMFP(BSDF) * (STRATA_SIMPLEVOLUME_THICKNESS_CM / max(STRATA_EPSILON, BSDF_GETTHICKNESSCM(BSDF))), 0.0f, Max111110BitsFloat3);
 }
 
 void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF)
@@ -1991,7 +1991,7 @@ float3 StrataGetBSDFSubSurfaceColor(in FStrataBSDF BSDF)
 {
 	switch (BSDF_GETTYPE(BSDF))
 	{
-	case STRATA_BSDF_TYPE_SLAB: 			return BSDF_GETHASSSS(BSDF) ? SLAB_DIFFUSEALBEDO(BSDF) : 0; // A more accurate version would be IsotropicMediumSlabPunctualDirectionalAlbedo(StrataSlabCreateParticipatingMedia(SLAB_DIFFUSEALBEDO(BSDF), SLAB_SSSDMFP(BSDFContext.BSDF)));
+	case STRATA_BSDF_TYPE_SLAB: 			return BSDF_GETHASSSS(BSDF) ? SLAB_DIFFUSEALBEDO(BSDF) : 0; // A more accurate version would be IsotropicMediumSlabPunctualDirectionalAlbedo(StrataSlabCreateParticipatingMedia(SLAB_DIFFUSEALBEDO(BSDF), SLAB_SSSMFP(BSDFContext.BSDF)));
 	case STRATA_BSDF_TYPE_HAIR: 			return 0;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 0;
 	}
@@ -2100,7 +2100,7 @@ float StrataGetLegacyShadingModels(in FStrataBSDF BSDF)
 // Note: When SSS data uses DFMP data, the conversion to opacity is ad-hoc/hacky
 float StrataGetOpacityFromSubSurface(FStrataSubsurfaceData In)
 {
-	return In.bIsValid ? (In.bIsProfile ? In.ProfileRadiusScale : saturate(1.f - max3(In.DMFP.x, In.DMFP.y, In.DMFP.z))) : 1.f;
+	return In.bIsValid ? (In.bIsProfile ? In.ProfileRadiusScale : saturate(1.f - max3(In.MFP.x, In.MFP.y, In.MFP.z))) : 1.f;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2510,8 +2510,8 @@ void StrataConvertFromDBuffer(
 		In.Roughness,		// Roughness
 		0.f,				// Anisotropy
 		0.f,				// SSSProfileID
-		0.f,				// SSSDMFP
-		0.f,				// SSSDMFPScale
+		0.f,				// SSSMFP
+		0.f,				// SSSMFPScale
 		0.f,				// Emissive
 		0.f,				// Haziness
 		0.f,				// FuzzAmount
@@ -2905,7 +2905,7 @@ void PackStrataOut(
 
 								// STRATA_TODO This should be accumulated according to the BSDF weight when we run this in the base pass.
 								// We cannot do that now because BSDFWeight contains weight*coverage*trhougput all mixed together.
-								SSSData.DMFP = SLAB_SSSDMFP(BSDF);
+								SSSData.MFP = SLAB_SSSMFP(BSDF);
 							}
 
 							if (BSDF_GETHASSSSPROFILE(BSDF) && !bIsSimpleVolume)
@@ -2916,7 +2916,7 @@ void PackStrataOut(
 							else
 							{
 								// Path used for bottom most layer SSS, simple volume and two sided lighting.
-								STRATA_STORE_UINT1(PackR11G11B10F(SLAB_SSSDMFP(BSDF)));
+								STRATA_STORE_UINT1(PackR11G11B10F(SLAB_SSSMFP(BSDF)));
 							}
 						}
 
@@ -3190,7 +3190,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 			}
 			else
 			{
-				StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, SLAB_SSSDMFP(OutBSDF));
+				StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, SLAB_SSSMFP(OutBSDF));
 			}
 
 			// When loading Strata BSDF which have SSS enable, BaseColor and (optionally) Specular value can be overriden 

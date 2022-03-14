@@ -20,10 +20,10 @@ void PostProcessSlabBeforeLighting(inout FStrataBSDF BSDF)
 	// Two sided lighting can only be evaluated on the bottom layer, together with option SSS. Otherwise, the simple volume will be used.
 	const bool bIsThin = BSDF.bIsBottom && BSDF_GETISTHIN(BSDF);
 
-	// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid dealing with simple volumetric.
+	// We want simple volumetric only if the MFP input is pluged in, otherwise we avoid dealing with simple volumetric.
 	// We also do not want to use the simple volumetric path if we are dealing with an opaque material and this slab is not at the bottom.
 	// And when opaque, the bottom layer must be opaque and thus will ahve a solid opaque diffuse color.
-	const bool bIsSimpleVolume = !bIsThin && BSDF_GETHASDMFP(BSDF) && (!STRATA_OPAQUE_MATERIAL || (STRATA_OPAQUE_MATERIAL && !BSDF.bIsBottom));
+	const bool bIsSimpleVolume = !bIsThin && BSDF_GETHASMFP(BSDF) && (!STRATA_OPAQUE_MATERIAL || (STRATA_OPAQUE_MATERIAL && !BSDF.bIsBottom));
 
 	if (bIsSimpleVolume)
 	{

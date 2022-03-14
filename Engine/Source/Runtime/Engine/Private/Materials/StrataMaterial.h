@@ -22,7 +22,7 @@ struct FStrataMaterialCompilationInfo
 
 		// Those properties are centered around the SLAB node. Maybe this can be abstracted at some point.
 		bool  bHasSSS;
-		bool  bHasDMFPPluggedIn;
+		bool  bHasMFPPluggedIn;
 		bool  bHasEdgeColor;
 		bool  bHasThinFilm;
 		bool  bHasFuzz;
@@ -66,7 +66,7 @@ FStrataRegisteredSharedLocalBasis StrataCompilationInfoCreateSharedLocalBasis(FM
 void  StrataCompilationInfoCreateNullBSDF(FMaterialCompiler* Compiler, int32 CodeChunk);
 void  StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, 
 	const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis,
-	uint8 BSDFType, bool bHasSSS = false, bool bHasDMFPPluggedIn = false, bool bHasEdgeColor = false, bool bHasFuzz = false, bool bHasHaziness = false);
+	uint8 BSDFType, bool bHasSSS = false, bool bHasMFPPluggedIn = false, bool bHasEdgeColor = false, bool bHasFuzz = false, bool bHasHaziness = false);
 
 FStrataMaterialCompilationInfo StrataCompilationInfoWeight(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A);
 FStrataMaterialCompilationInfo StrataCompilationInfoWeightParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A);

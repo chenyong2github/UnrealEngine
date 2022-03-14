@@ -258,13 +258,13 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	 * Chromatic mean free path . Only used when there is not any sub-surface profile provided. (type = float3, unit = centimeters, default = 0)
 	 */
 	UPROPERTY()
-	FExpressionInput SSSDMFP;
+	FExpressionInput SSSMFP;
 
 	/**
 	 * Scale the mean free path radius of the SSS profile according to a value between 0 and 1. Always used, when a subsurface profile is provided or not. (type = float, unitless, defaults to 1)
 	 */
 	UPROPERTY()
-	FExpressionInput SSSDMFPScale;
+	FExpressionInput SSSMFPScale;
 
 	/**
 	 * Emissive color on top of the surface (type = float3, unit = luminance, default = 0)
@@ -323,7 +323,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	bool HasHaziness() const;
 	bool HasSSS() const;
 	bool HasSSSProfile() const;
-	bool HasDMFPPluggedIn() const;
+	bool HasMFPPluggedIn() const;
 	bool HasAnisotropy() const;
 #endif
 	//~ End UMaterialExpression Interface
