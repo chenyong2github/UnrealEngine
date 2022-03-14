@@ -11,8 +11,10 @@ THIRD_PARTY_INCLUDES_START
 	#include "Imath/ImathBox.h"
 	#include "OpenEXR/ImfCompressionAttribute.h"
 	#include "OpenEXR/ImfHeader.h"
+	#include "OpenEXR/ImfIntAttribute.h"
 	#include "OpenEXR/ImfRgbaFile.h"
 	#include "OpenEXR/ImfStandardAttributes.h"
+	#include "OpenEXR/ImfTiledRgbaFile.h"
 THIRD_PARTY_INCLUDES_END
 PRAGMA_DEFAULT_VISIBILITY_END
 
@@ -212,5 +214,146 @@ void FRgbaInputFile::SetFrameBuffer(void* Buffer, const FIntPoint& BufferDim)
 	((Imf::RgbaInputFile*)InputFile)->setFrameBuffer((Imf::Rgba*)Buffer - Win.min.x - Win.min.y * BufferDim.X, 1, BufferDim.X);
 }
 
+FTiledRgbaOutputFile::FTiledRgbaOutputFile(
+	const FIntPoint& DisplayWindowMin,
+	const FIntPoint& DisplayWindowMax,
+	const FIntPoint& DataWindowMin,
+	const FIntPoint& DataWindowMax)
+{
+	OutputFile = nullptr;
+
+	Imath::Box2i EXRDisplayWindow = Imath::Box2i(Imath::V2i(DisplayWindowMin.X, DisplayWindowMin.Y),
+		Imath::V2i(DisplayWindowMax.X, DisplayWindowMax.Y));
+	Imath::Box2i EXRDataWindow = Imath::Box2i(Imath::V2i(DataWindowMin.X, DataWindowMin.Y),
+		Imath::V2i(DataWindowMax.X, DataWindowMax.Y));
+	
+	Header = new Imf::Header(EXRDisplayWindow, EXRDataWindow, 1, IMATH_NAMESPACE::V2f(0, 0), 1, Imf::INCREASING_Y,
+		Imf::NO_COMPRESSION);
+}
+
+FTiledRgbaOutputFile::~FTiledRgbaOutputFile()
+{
+	if (Header != nullptr)
+	{
+		delete (Imf::Header*)Header;
+	}
+	if (OutputFile != nullptr)
+	{
+		delete (Imf::TiledRgbaOutputFile*)OutputFile;
+	}
+}
+
+void FTiledRgbaOutputFile::AddIntAttribute(const FString& Name, int32 Value)
+{
+	// Make sure we don't have an output file yet.
+	if (OutputFile == nullptr)
+	{
+		((Imf::Header*)Header)->insert(std::string(TCHAR_TO_ANSI(*Name)), Imf::IntAttribute(Value));
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error, TEXT("Attribute %s added after calling CreateOutputFile."),
+			*Name);
+	}
+}
+
+void FTiledRgbaOutputFile::CreateOutputFile(const FString& FilePath, 
+	int32 TileWidth, int32 TileHeight, int32 NumChannels, bool bIsMipsEnabled)
+{
+	if (OutputFile == nullptr)
+	{
+		try
+		{
+			// Get channels.
+			Imf::RgbaChannels Channels;
+			switch (NumChannels)
+			{
+			case 1:
+				Channels = Imf::WRITE_R;
+				break;
+			case 2:
+				Channels = Imf::WRITE_YC;
+				break;
+			case 3:
+				Channels = Imf::WRITE_RGB;
+				break;
+			case 4:
+				Channels = Imf::WRITE_RGBA;
+				break;
+			default:
+				UE_LOG(LogOpenEXRWrapper, Error, TEXT("Unsupported number of channels %d"),
+					NumChannels);
+				Channels = Imf::WRITE_RGBA;
+				break;
+			}
+
+			// Create output file.
+			OutputFile = new Imf::TiledRgbaOutputFile(TCHAR_TO_ANSI(*FilePath),
+				*((Imf::Header*)Header),
+				Channels,
+				TileWidth, TileHeight,
+				bIsMipsEnabled ? Imf::MIPMAP_LEVELS : Imf::ONE_LEVEL,
+				Imf::ROUND_DOWN);
+		}
+		catch (std::exception const& Exception)
+		{
+			UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot write EXR file: %s (%s)"),
+				*FilePath, StringCast<TCHAR>(Exception.what()).Get());
+		}
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("Cannot create output file as it has already been created."));
+	}
+}
+
+int32 FTiledRgbaOutputFile::GetNumberOfMipLevels()
+{
+	if (OutputFile != nullptr)
+	{
+		return ((Imf::TiledRgbaOutputFile*)OutputFile)->numLevels();
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("GetNumberOfMipLevels failed: CreateOutputFile has not been called yet."));
+		return 0;
+	}
+}
+
+void FTiledRgbaOutputFile::SetFrameBuffer(void* Buffer, const FIntPoint& Stride)
+{
+	if (OutputFile != nullptr)
+	{
+		((Imf::TiledRgbaOutputFile*)OutputFile)->setFrameBuffer((Imf::Rgba*)Buffer, Stride.X, Stride.Y);
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("SetFrameBuffer failed: CreateOutputFile has not been called yet."));
+	}
+}
+
+void FTiledRgbaOutputFile::WriteTile(int32 TileX, int32 TileY, int32 MipLevel)
+{
+	if (OutputFile != nullptr)
+	{
+		try
+		{
+			((Imf::TiledRgbaOutputFile*)OutputFile)->writeTile(TileX, TileY, MipLevel);
+		}
+		catch (std::exception const& Exception)
+		{
+			UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot write EXR file: %s"),
+				StringCast<TCHAR>(Exception.what()).Get());
+		}
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("WriteTile failed: CreateOutputFile has not been called yet."));
+	}
+}
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, OpenExrWrapper);
