@@ -55,6 +55,7 @@ public:
 
 	virtual bool Cook(FName Format, const TArray<uint8>& SrcBuffer, FSoundQualityInfo& QualityInfo, TArray<uint8>& CompressedDataStore) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatOgg::Cook);
 		check(Format == NAME_OGG);
 #if WITH_OGGVORBIS
 		{
@@ -206,6 +207,7 @@ public:
 
 	virtual bool CookSurround(FName Format, const TArray<TArray<uint8> >& SrcBuffers, FSoundQualityInfo& QualityInfo, TArray<uint8>& CompressedDataStore) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatOgg::CookSurround);
 		check(Format == NAME_OGG);
 #if WITH_OGGVORBIS
 		{

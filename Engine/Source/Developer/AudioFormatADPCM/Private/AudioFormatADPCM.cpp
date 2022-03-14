@@ -463,6 +463,7 @@ public:
 
 	virtual bool Cook(FName Format, const TArray<uint8>& SrcBuffer, FSoundQualityInfo& QualityInfo, TArray<uint8>& CompressedDataStore) const
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatADPCM::Cook);
 		check(Format == Audio::NAME_ADPCM || Format == Audio::NAME_PCM);
 
 		if (QualityInfo.Quality == 100)
@@ -479,6 +480,8 @@ public:
 
 	virtual bool CookSurround(FName Format, const TArray<TArray<uint8> >& SrcBuffers, FSoundQualityInfo& QualityInfo, TArray<uint8>& CompressedDataStore) const
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatADPCM::CookSurround);
+
 		// Ensure the right format
 		check(Format == Audio::NAME_ADPCM || Format == Audio::NAME_PCM);
 		// Ensure at least two channel

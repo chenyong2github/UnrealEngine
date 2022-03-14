@@ -44,6 +44,7 @@ public:
 
 	virtual bool Cook(FName InFormat, const TArray<uint8>& InSrcBuffer, FSoundQualityInfo& InQualityInfo, TArray<uint8>& OutCompressedDataStore) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatBink::Cook);
 		check(InFormat == NAME_BINKA);
 
 		// Bink goes from 0 (best) to 9 (worst), but is basically unusable below like 4,
@@ -63,6 +64,7 @@ public:
 
 	virtual bool CookSurround(FName InFormat, const TArray<TArray<uint8> >& InSrcBuffers, FSoundQualityInfo& InQualityInfo, TArray<uint8>& OutCompressedDataStore) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatBink::CookSurround);
 		check(InFormat == NAME_BINKA);
 
 		//

@@ -53,6 +53,7 @@ public:
 
 	virtual bool Cook(FName Format, const TArray<uint8>& SrcBuffer, FSoundQualityInfo& QualityInfo, TArray<uint8>& CompressedDataStore) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatOpus::Cook);
 		check(Format == NAME_OPUS);
 
 		// Get best compatible sample rate
@@ -153,6 +154,7 @@ public:
 
 	virtual bool CookSurround(FName Format, const TArray<TArray<uint8> >& SrcBuffers, FSoundQualityInfo& QualityInfo, TArray<uint8>& CompressedDataStore) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatOpus::CookSurround);
 		check(Format == NAME_OPUS);
 
 		// Get best compatible sample rate
