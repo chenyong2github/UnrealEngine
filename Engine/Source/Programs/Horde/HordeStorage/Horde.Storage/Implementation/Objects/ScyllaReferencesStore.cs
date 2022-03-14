@@ -66,7 +66,8 @@ namespace Horde.Storage.Implementation
 
         public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey name, IReferencesStore.FieldFlags flags)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.get");
+            using IScope scope = Tracer.Instance.StartActive("scylla.get");
+            scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
 
             ScyllaObject? o;
             bool includePayload = (flags & IReferencesStore.FieldFlags.IncludePayload) != 0;
@@ -94,7 +95,9 @@ namespace Horde.Storage.Implementation
 
         public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.put");
+            using IScope scope = Tracer.Instance.StartActive("scylla.put");
+            scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
+
             if (blob.LongLength > _settings.CurrentValue.InlineBlobMaxSize)
             {
                 // do not inline large blobs
@@ -113,7 +116,8 @@ namespace Horde.Storage.Implementation
 
         public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobIdentifier)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.finalize");
+            using IScope scope = Tracer.Instance.StartActive("scylla.finalize");
+            scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
 
             await _mapper.UpdateAsync<ScyllaObject>("SET is_finalized=true WHERE namespace=? AND bucket=? AND name=?", ns.ToString(), bucket.ToString(), name.ToString());
         }
@@ -256,7 +260,9 @@ namespace Horde.Storage.Implementation
 
         public async Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.delete_record");
+            using IScope scope = Tracer.Instance.StartActive("scylla.delete_record");
+            scope.Span.ResourceName = $"{ns}.{bucket}.{key}";
+
             ObjectRecord record;
             try
             {

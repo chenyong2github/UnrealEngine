@@ -38,7 +38,8 @@ public class ScyllaBlobIndex : IBlobIndex
     public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null)
     {
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
-        using IScope _ = Tracer.Instance.StartActive("scylla.insert_blob_index");
+        using IScope scope = Tracer.Instance.StartActive("scylla.insert_blob_index");
+        scope.Span.ResourceName = $"{ns}.{id}";
 
         await _mapper.UpdateAsync<ScyllaBlobIndexTable>("SET regions = regions + ? WHERE namespace = ? AND blob_id = ?",
             new string[] { region }, ns.ToString(), new ScyllaBlobIdentifier(id));
@@ -46,7 +47,8 @@ public class ScyllaBlobIndex : IBlobIndex
 
     public async Task<IBlobIndex.BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
     {
-        using IScope _ = Tracer.Instance.StartActive("scylla.fetch_blob_index");
+        using IScope scope = Tracer.Instance.StartActive("scylla.fetch_blob_index");
+        scope.Span.ResourceName = $"{ns}.{id}";
 
         ScyllaBlobIndexTable? blobIndex =
             await _mapper.FirstOrDefaultAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?",
@@ -66,7 +68,9 @@ public class ScyllaBlobIndex : IBlobIndex
     public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
     {
         // TODO: Should this only remove the current region, and the actual row isnt removed until all regions have been removed? Seems overly complicated
-        using IScope _ = Tracer.Instance.StartActive("scylla.remove_from_blob_index");
+        using IScope scope = Tracer.Instance.StartActive("scylla.remove_from_blob_index");
+        scope.Span.ResourceName = $"{ns}.{id}";
+
         await _mapper.DeleteAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?", ns.ToString(),
             new ScyllaBlobIdentifier(id));
 

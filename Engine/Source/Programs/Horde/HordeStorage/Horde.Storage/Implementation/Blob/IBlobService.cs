@@ -116,8 +116,8 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObject(NamespaceId ns, IBufferedPayload payload, BlobIdentifier identifier)
     {
-        using IScope _ = Tracer.Instance.StartActive("put_blob");
-
+        using IScope scope = Tracer.Instance.StartActive("put_blob");
+        scope.Span.ResourceName = identifier.ToString();
         await using Stream hashStream = payload.GetStream();
         BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
 
@@ -132,8 +132,8 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] payload, BlobIdentifier identifier)
     {
-        using IScope _ = Tracer.Instance.StartActive("put_blob");
-
+        using IScope scope = Tracer.Instance.StartActive("put_blob");
+        scope.Span.ResourceName = identifier.ToString();
         await using Stream hashStream = new MemoryStream(payload);
         BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
 
@@ -147,7 +147,8 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content, BlobIdentifier identifier)
     {
-        using IScope _ = Tracer.Instance.StartActive("put_blob");
+        using IScope scope = Tracer.Instance.StartActive("put_blob");
+        scope.Span.ResourceName = identifier.ToString();
         Task<BlobIdentifier> putObjectTask = PutObjectToStores(ns, content, identifier);
         Task addToBlobIndexTask = _blobIndex.AddBlobToIndex(ns, identifier);
 
@@ -191,6 +192,7 @@ public class BlobService : IBlobService
         foreach (IBlobStore store in _blobStores)
         {
             using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.GetObject");
+            scope.Span.ResourceName = blob.ToString();
             scope.Span.SetTag("BlobStore", store.GetType().Name);
             scope.Span.SetTag("ObjectFound", false.ToString());
             try
@@ -309,6 +311,7 @@ public class BlobService : IBlobService
         if (useBlobIndex)
         {
             using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
+            scope.Span.ResourceName = blob.ToString();
             scope.Span.SetTag("BlobStore", "BlobIndex");
             bool exists = await _blobIndex.BlobExistsInRegion(ns, blob);
             if (exists)
@@ -325,6 +328,7 @@ public class BlobService : IBlobService
             foreach (IBlobStore store in _blobStores)
             {
                 using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
+                scope.Span.ResourceName = blob.ToString();
                 scope.Span.SetTag("BlobStore", store.GetType().Name);
                 if (await store.Exists(ns, blob))
                 {
@@ -349,6 +353,7 @@ public class BlobService : IBlobService
             try
             {
                 using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.DeleteObject");
+                scope.Span.ResourceName = blob.ToString();
                 scope.Span.SetTag("BlobStore", store.GetType().Name);
                 await store.DeleteObject(ns, blob);
                 deletedAtLeastOnce = true;
