@@ -15,7 +15,6 @@ let webRtcPlayerObj = null;
 let print_stats = false;
 let print_inputs = false;
 let connect_on_load = false;
-let is_reconnection = false;
 let ws;
 const WS_OPEN_STATE = 1;
 
@@ -75,6 +74,8 @@ let hiddenInput = undefined;
 
 let t0 = Date.now();
 
+let activeKeys = [];
+
 function log(str) {
     console.log(`${Math.floor(Date.now() - t0)}: ` + str);
 }
@@ -87,11 +88,6 @@ function scanGamepads() {
         }
     }
 }
-
-var script = document.createElement('script');
-script.src = 'https://code.jquery.com/jquery-3.4.1.min.js';
-script.type = 'text/javascript';
-document.getElementsByTagName('head')[0].appendChild(script);
 
 function updateStatus() {
     scanGamepads();
@@ -265,6 +261,13 @@ function setupHtmlEvents() {
                 ConsoleCommand: 'Stat FPS'
             };
             emitCommand(consoleDescriptor);
+        };
+    }
+
+    let restartStreamButton = document.getElementById('restart-stream-button');
+    if (restartStreamButton !== null) {
+        restartStreamButton.onclick = function (event) {
+            restartStream();
         };
     }
 
@@ -634,7 +637,6 @@ function setupWebRtcPlayer(htmlElement, config) {
 
     webRtcPlayerObj.onDataChannelConnected = function() {
         if (ws && ws.readyState === WS_OPEN_STATE) {
-            console.log("Data channel connected")
             requestQualityControl();
         }
     };
@@ -733,10 +735,9 @@ function setupWebRtcPlayer(htmlElement, config) {
             var a = document.createElement('a');
             a.setAttribute('href', URL.createObjectURL(received));
             a.setAttribute('download', `transfer.${file.extension}`);
-            var aj = $(a);
-            aj.appendTo('body');
-            // aj[0].click();
-            aj.remove();
+            document.body.append(a);
+            // if you are so inclined to make it auto-download, do something like: a.click();
+            a.remove();
         } 
         else if(file.data.length > file.size)
         {
@@ -1400,7 +1401,7 @@ function emitDescriptor(messageType, descriptor) {
 
 // A UI interation will occur when the user presses a button powered by
 // JavaScript as opposed to pressing a button which is part of the pixel
-// streamed UI from the UE4 client.
+// streamed UI from the UE client.
 function emitUIInteraction(descriptor) {
     emitDescriptor(MessageType.UIInteraction, descriptor);
 }
@@ -1740,6 +1741,15 @@ function registerLockedMouseEvents(playerElement) {
         } else {
             console.log('The pointer lock status is now unlocked');
             document.removeEventListener("mousemove", updatePosition, false);
+
+            // If mouse loses focus, send a key up for all of the currently held-down keys
+            // This is necessary as when the mouse loses focus, the windows stops listening for events and as such
+            // the keyup listener won't get fired
+            [...new Set(activeKeys)].forEach((uniqueKeycode) => {
+                sendInputData(new Uint8Array([MessageType.KeyUp, uniqueKeycode]).buffer);
+            });
+            // Reset the active keys back to nothing
+            activeKeys = [];
         }
     }
 
@@ -2004,6 +2014,7 @@ function registerKeyboardEvents() {
             console.log(`key down ${e.keyCode}, repeat = ${e.repeat}`);
         }
         sendInputData(new Uint8Array([MessageType.KeyDown, getKeyCode(e), e.repeat]).buffer);
+        activeKeys.push(getKeyCode(e));
         // Backspace is not considered a keypress in JavaScript but we need it
         // to be so characters may be deleted in a UE4 text entry field.
         if (e.keyCode === SpecialKeyCodes.BackSpace) {
@@ -2025,16 +2036,6 @@ function registerKeyboardEvents() {
             e.preventDefault();
         }
     };
-
-    document.onkeypress = function(e) {
-        if (print_inputs) {
-            console.log(`key press ${e.charCode}`);
-        }
-        let data = new DataView(new ArrayBuffer(3));
-        data.setUint8(0, MessageType.KeyPress);
-        data.setUint16(1, e.charCode, true);
-        sendInputData(data.buffer);
-    };
 }
 
 function onExpandOverlay_Click( /* e */ ) {
@@ -2042,7 +2043,7 @@ function onExpandOverlay_Click( /* e */ ) {
     overlay.classList.toggle("overlay-shown");
 }
 
-function start() {
+function start(isReconnection) {
     // update "quality status" to "disconnected" state
     let qualityStatus = document.getElementById("qualityStatus");
     if (qualityStatus) {
@@ -2055,7 +2056,7 @@ function start() {
         statsDiv.innerHTML = 'Not connected';
     }
 
-    if (!connect_on_load || is_reconnection) {
+    if (!connect_on_load || isReconnection) {
         showConnectOverlay();
         invalidateFreezeFrameOverlay();
         shouldShowPlayOverlay = true;
@@ -2075,7 +2076,11 @@ function connect() {
         return;
     }
 
-    ws = new WebSocket(window.location.href.replace('http://', 'ws://').replace('https://', 'wss://'));
+    // Make a new websocket connection
+    let connectionUrl = window.location.href.replace('http://', 'ws://').replace('https://', 'wss://');
+    console.log(`Creating a websocket connection to: ${connectionUrl}`);
+    ws = new WebSocket(connectionUrl);
+    ws.attemptStreamReconnection = true;
 
     ws.onmessage = function(event) {
         let msg = JSON.parse(event.data);
@@ -2106,20 +2111,20 @@ function connect() {
     };
 
     ws.onclose = function(event) {
-        console.log(`WS closed: ${JSON.stringify(event.code)} - ${event.reason}`);
-        ws = undefined;
-        is_reconnection = true;
 
-        // destroy `webRtcPlayerObj` if any
-        let playerDiv = document.getElementById('player');
-        if (webRtcPlayerObj) {
-            playerDiv.removeChild(webRtcPlayerObj.video);
-            webRtcPlayerObj.close();
-            webRtcPlayerObj = undefined;
+        closeStream();
+
+        if(ws.attemptStreamReconnection === true){
+            console.log(`WS closed: ${JSON.stringify(event.code)} - ${event.reason}`);
+
+            showTextOverlay(`Disconnected: ${event.reason}`);
+
+            let reclickToStart = setTimeout(function(){
+                start(true)
+            }, 4000);
         }
 
-        showTextOverlay(`Disconnected: ${event.reason}`);
-        let reclickToStart = setTimeout(start, 4000);
+        ws = undefined;
     };
 }
 
@@ -2143,9 +2148,42 @@ function onConfig(config) {
     }
 }
 
+function restartStream() {
+    if(!ws){
+        return;
+    }
+    ws.attemptStreamReconnection = false;
+
+    let existingOnClose = ws.onclose;
+
+    ws.onclose = function(event) {
+        existingOnClose(event);
+        // this is how we restart
+        connect_on_load = true;
+        start(false);
+    }
+
+    // Closing the websocket closes the connection to signalling server, ending the peer connection, and closing the clientside stream too.
+    ws.close();
+}
+
+function closeStream() {
+    console.log("----------------------Closing stream----------------------")
+    if (webRtcPlayerObj) {
+        // Remove video element from the page.
+        let playerDiv = document.getElementById('player');
+        if(playerDiv){
+            playerDiv.removeChild(webRtcPlayerObj.video);
+        }
+        // Close the peer connection and associated webrtc machinery.
+        webRtcPlayerObj.close();
+        webRtcPlayerObj = undefined;
+    }
+}
+
 function load() {
     setupHtmlEvents();
     setupFreezeFrameOverlay();
     registerKeyboardEvents();
-    start();
+    start(false);
 }
