@@ -368,7 +368,7 @@ FString FPackagePath::GetDebugNameWithExtension(EPackageSegment PackageSegment) 
 	return Result;
 }
 
-#if WITH_EDITOR
+#if UE_SUPPORT_FULL_PACKAGEPATH
 
 FPackagePath& FPackagePath::operator=(const FPackagePath& Other)
 {
@@ -1207,4 +1207,4 @@ FStringView FPackagePath::GetCustomExtension() const
 	return FStringView();
 }
 
-#endif
+#endif //UE_SUPPORT_FULL_PACKAGEPATH
