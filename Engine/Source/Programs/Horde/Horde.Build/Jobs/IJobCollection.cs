@@ -51,6 +51,7 @@ namespace HordeServer.Collections
 		/// <param name="Priority">Priority of the job</param>
 		/// <param name="AutoSubmit">Whether to automatically submit the preflighted change on completion</param>
 		/// <param name="UpdateIssues">Whether to update issues based on the outcome of this job</param>
+		/// <param name="PromoteIssuesByDefault">Whether to promote issues based on the outcome of this job by default</param>
 		/// <param name="JobTriggers">List of downstream job triggers</param>
 		/// <param name="ShowUgsBadges">Whether to show badges in UGS for this job</param>
 		/// <param name="ShowUgsAlerts">Whether to show alerts in UGS for this job</param>
@@ -58,7 +59,7 @@ namespace HordeServer.Collections
 		/// <param name="NotificationChannelFilter">Notification channel filter for this job</param>
 		/// <param name="Arguments">Arguments for the job</param>
 		/// <returns>The new job document</returns>
-		Task<IJob> AddAsync(JobId JobId, StreamId StreamId, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, List<string>? Arguments);
+		Task<IJob> AddAsync(JobId JobId, StreamId StreamId, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, bool? PromoteIssuesByDefault, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, List<string>? Arguments);
 
 		/// <summary>
 		/// Gets a job with the given unique id

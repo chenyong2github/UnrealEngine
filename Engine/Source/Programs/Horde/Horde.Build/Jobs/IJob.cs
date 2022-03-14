@@ -584,6 +584,11 @@ namespace HordeServer.Models
 		public bool UpdateIssues { get; }
 
 		/// <summary>
+		/// Whether to promote issues by default based on the outcome of this job
+		/// </summary>
+		public bool PromoteIssuesByDefault { get; }
+
+		/// <summary>
 		/// Time that the job was created (in UTC)
 		/// </summary>
 		public DateTime CreateTimeUtc { get; }

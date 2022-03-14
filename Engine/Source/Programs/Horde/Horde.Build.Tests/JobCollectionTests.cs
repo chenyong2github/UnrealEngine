@@ -82,7 +82,7 @@ namespace HordeServerTests
 			Arguments.Add("-Target=Publish Client");
 			Arguments.Add("-Target=Post-Publish Client");
 
-			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, false, false, null, null, Arguments);
+			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, Arguments);
 
 			Job = await StartBatch(Job, BaseGraph, 0);
 			Job = await RunStep(Job, BaseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
@@ -157,7 +157,7 @@ namespace HordeServerTests
 			Arguments.Add("-Target=Step 1");
 			Arguments.Add("-Target=Step 3");
 
-			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, false, false, null, null, Arguments);
+			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, Arguments);
 
 			Job = await StartBatch(Job, BaseGraph, 0);
 			Job = await RunStep(Job, BaseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
@@ -213,7 +213,7 @@ namespace HordeServerTests
 			Arguments.Add("-Target=Step 1");
 			Arguments.Add("-Target=Step 3");
 
-			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, false, false, null, null, Arguments);
+			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, Arguments);
 			Assert.AreEqual(1, Job.Batches.Count);
 
 			Job = await StartBatch(Job, BaseGraph, 0);

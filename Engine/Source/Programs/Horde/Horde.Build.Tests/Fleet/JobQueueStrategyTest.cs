@@ -147,7 +147,7 @@ namespace Horde.Build.Tests.Fleet
 		{
 			IJob Job = await JobCollection.AddAsync(ObjectId<IJob>.GenerateNewId(), StreamId,
 				new StringId<TemplateRef>("bogusTemplateRefId"), ContentHash.Empty, Graph, "bogusJobName",
-				1000, 1000, null, null, null, null, null, null, null, false,
+				1000, 1000, null, null, null, null, null, null, null, null, false,
 				false, null, null, new List<string> { "-Target=" + NodeNameToExecute });
 
 			return Job;

@@ -218,6 +218,7 @@ namespace HordeServerTests
 			Job.SetupGet(x => x.Batches).Returns(Batches);
 			Job.SetupGet(x => x.ShowUgsBadges).Returns(PromoteByDefault);
 			Job.SetupGet(x => x.ShowUgsAlerts).Returns(PromoteByDefault);
+			Job.SetupGet(x => x.PromoteIssuesByDefault).Returns(PromoteByDefault);
 			Job.SetupGet(x => x.NotificationChannel).Returns("#devtools-horde-slack-testing");
 			return Job.Object;
 		}
@@ -691,6 +692,45 @@ namespace HordeServerTests
 				Assert.IsTrue(Issues[0].Promoted);
 			}
 		}
+
+		[TestMethod]
+		public async Task DefaultPromotionTest()
+		{
+			// #1
+			// Scenario: Job step completes successfully at CL 105
+			// Expected: No issues are created
+			{
+				IJob Job = CreateJob(MainStreamId, 105, "Compile Test", Graph);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, Issues.Count);
+			}
+
+			// #2
+			// Scenario: Job step fails at CL 120
+			// Expected: Issue is promoted
+			{
+				string[] Lines =
+				{
+					FileReference.Combine(WorkspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+				};
+
+				Perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
+				Perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
+				Perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+
+				IJob Job = CreateJob(MainStreamId, 120, "Compile Test", Graph, PromoteByDefault: true);
+				await ParseEventsAsync(Job, 0, 0, Lines);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, Issues.Count);
+				Assert.IsTrue(Issues[0].Promoted);
+
+			}
+		}
+
 
 		[TestMethod]
 		public async Task CompileIssueTest()

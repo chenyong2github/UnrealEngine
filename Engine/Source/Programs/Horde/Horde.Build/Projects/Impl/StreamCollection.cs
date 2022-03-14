@@ -180,7 +180,7 @@ namespace HordeServer.Collections.Impl
 			foreach (CreateTemplateRefRequest Request in Requests)
 			{
 				// Create the template
-				ITemplate NewTemplate = await TemplateCollection.AddAsync(Request.Name, Request.Priority, Request.AllowPreflights, Request.UpdateIssues, Request.InitialAgentType, Request.SubmitNewChange, Request.SubmitDescription, Request.Arguments, Request.Parameters.ConvertAll(x => x.ToModel()));
+				ITemplate NewTemplate = await TemplateCollection.AddAsync(Request.Name, Request.Priority, Request.AllowPreflights, Request.UpdateIssues, Request.PromoteIssuesByDefault, Request.InitialAgentType, Request.SubmitNewChange, Request.SubmitDescription, Request.Arguments, Request.Parameters.ConvertAll(x => x.ToModel()));
 
 				// Get an identifier for the new template ref
 				TemplateRefId NewTemplateRefId;

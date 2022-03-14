@@ -572,26 +572,6 @@ namespace HordeServer.Services.Impl
 			// Gets the events for this step grouped by fingerprint
 			HashSet<NewEventGroup> EventGroups = await GetEventGroupsForStepAsync(Job, Batch, Step, Node);
 
-			// Figure out if we want notifications for this step
-			bool bPromoteByDefault = Job.ShowUgsAlerts;
-			if (bPromoteByDefault)
-			{
-				if (!Job.TemplateId.ToString().Contains("incremental", StringComparison.Ordinal))
-				{
-					if (EventGroups.FirstOrDefault(Group => Group.Fingerprint.Type == "Compile" || Group.Fingerprint.Type == "Symbol" || Group.Fingerprint.Type == "Copyright") == null)
-					{
-						bPromoteByDefault = false;
-					}
-
-					string? StreamId = Job.StreamId.ToString();
-					if (StreamId != null && StreamId.StartsWith("fortnite-", StringComparison.Ordinal))
-					{
-						bPromoteByDefault = false;
-					}
-
-				}
-			}
-
 			// Try to update all the events. We may need to restart this due to optimistic transactions, so keep track of any existing spans we do not need to check against.
 			await using(IAsyncDisposable Lock = await IssueCollection.EnterCriticalSectionAsync())
 			{
@@ -605,11 +585,11 @@ namespace HordeServer.Services.Impl
 					// Add the events to existing issues, and create new issues for everything else
 					if (EventGroups.Count > 0)
 					{
-						if (!await AddEventsToExistingSpans(Job, Batch, Step, EventGroups, OpenSpans, CheckedSpanIds, bPromoteByDefault))
+						if (!await AddEventsToExistingSpans(Job, Batch, Step, EventGroups, OpenSpans, CheckedSpanIds, Job.PromoteIssuesByDefault))
 						{
 							continue;
 						}
-						if (!await AddEventsToNewSpans(Stream, Job, Batch, Step, Node, OpenSpans, EventGroups, bPromoteByDefault))
+						if (!await AddEventsToNewSpans(Stream, Job, Batch, Step, Node, OpenSpans, EventGroups, Job.PromoteIssuesByDefault))
 						{
 							continue;
 						}

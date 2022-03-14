@@ -447,6 +447,11 @@ namespace HordeServer.Models
 		public bool UpdateIssues { get; }
 
 		/// <summary>
+		/// Whether to promote issues by default for jobs using this template
+		/// </summary>
+		public bool PromoteIssuesByDefault { get; }
+
+		/// <summary>
 		/// Agent type to use for parsing the job state
 		/// </summary>
 		public string? InitialAgentType { get; }

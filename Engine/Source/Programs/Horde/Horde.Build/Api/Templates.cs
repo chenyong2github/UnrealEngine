@@ -416,6 +416,11 @@ namespace HordeServer.Api
 		public bool UpdateIssues { get; set; } = false;
 
 		/// <summary>
+		/// Whether issues should be promoted by default for this template, promoted issues will generate user notifications 
+		/// </summary>
+		public bool PromoteIssuesByDefault { get; set; } = false;
+
+		/// <summary>
 		/// Initial agent type to parse the buildgraph script on
 		/// </summary>
 		public string? InitialAgentType { get; set; }
