@@ -11,10 +11,13 @@
 UImgMediaSourceFactory::UImgMediaSourceFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Formats.Add(TEXT("exr;EXR Image Sequence"));
+	Formats.Add(TEXT("exr;EXR ImgMedia Image Sequence"));
 
 	SupportedClass = UImgMediaSource::StaticClass();
 	bEditorImport = true;
+	
+	// Required to allow texture factory to take priority when importing new image files
+	ImportPriority = DefaultImportPriority - 1;
 }
 
 

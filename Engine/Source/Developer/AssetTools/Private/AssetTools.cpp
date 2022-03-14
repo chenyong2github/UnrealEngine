@@ -2023,19 +2023,43 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		{
 			const TArray<UFactory*>& Factories = *FactoriesPtr;
 
-			// Handle the potential of multiple factories being found
 			if(Factories.Num() > 0)
 			{
-				Factory = Factories[0];
+				// Handle the potential of multiple factories being found
+				//	Factories was previously sorted by ImportPriority
+				//  and filtered by file extension
+				//  but FactoryCanImport has not been checked yet
 
 				for(auto FactoryIt = Factories.CreateConstIterator(); FactoryIt; ++FactoryIt)
 				{
 					UFactory* TestFactory = *FactoryIt;
 					if(TestFactory->FactoryCanImport(Filename))
 					{
+						if ( Factory != nullptr )
+						{
+							// we found a second factory for this type
+							if ( Factory->ImportPriority == TestFactory->ImportPriority )
+							{
+								UE_LOG(LogAssetTools, Warning, TEXT("Two factories registered with same priority : %s and %s"), *Factory->GetName(), *TestFactory->GetName() );
+							}
+							break;
+						}
+
 						Factory = TestFactory;
-						break;
+						//found one, continue so we can check for multiple importers 
+						//break;
 					}
+				}
+
+				if ( Factory == nullptr )
+				{
+					// no factories passed FactoryCanImport()
+					//  this seems wrong, but it preserves old behavior
+					// ??
+					
+					Factory = Factories[0];
+					
+					UE_LOG(LogAssetTools, Warning, TEXT("Factory did not pass FactoryCanImport, trying anyway : %s"), *Factory->GetName());
 				}
 			}
 		}
@@ -2432,33 +2456,54 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 		}
 
 		// If FBX is listed, make that the most preferred option
-		const FString PreferredExtension = TEXT("FBX");
-		int32 ExtIndex = PreferredExtensions.Find(PreferredExtension);
-		if (ExtIndex > 0)
+		//   also prioritize PNG and EXR ahead of other image formats
+		// @todo provide a general purpose way of prioritizing export formats, don't hard-code FBX here
+		const TCHAR * TopPriorityExtensions[] =
 		{
-			PreferredExtensions.RemoveAt(ExtIndex);
-			PreferredExtensions.Insert(PreferredExtension, 0);
+			TEXT("FBX"),
+			TEXT("PNG"),
+			TEXT("EXR")
+		};
+		const int TopPriorityExtensionsCount = 3;
+
+		for(int TopPriorityExtensionsIndex=0;TopPriorityExtensionsIndex<TopPriorityExtensionsCount;TopPriorityExtensionsIndex++)
+		{
+			FString ThisExtension = TopPriorityExtensions[TopPriorityExtensionsIndex];
+			// FString.Find is case insensitive
+			int32 ExtIndex = PreferredExtensions.Find(ThisExtension);
+			if (ExtIndex != INDEX_NONE)
+			{
+				PreferredExtensions.RemoveAt(ExtIndex);
+				PreferredExtensions.Insert(ThisExtension, 0);
+				// only do for first one found:
+				break;
+			}
 		}
+
+		// if there are multiple exporters, we arbitrarily choose [0] to go first
+		//	@todo sort by alpha or priority or something to make this order consistent
 		FString FirstExtension = PreferredExtensions[0];
 
-		// If FBX is listed, make that the first option here too, then compile them all into one string
+		// If TopPriorityExtension is listed, make that the first option here too, then compile them all into one string
 		check(AllFileTypes.Num() == AllExtensions.Num())
-			for (ExtIndex = 1; ExtIndex < AllFileTypes.Num(); ++ExtIndex)
-			{
-				const FString FileType = AllFileTypes[ExtIndex];
-				if (FileType.Contains(PreferredExtension))
-				{
-					AllFileTypes.RemoveAt(ExtIndex);
-					AllFileTypes.Insert(FileType, 0);
 
-					const FString Extension = AllExtensions[ExtIndex];
-					AllExtensions.RemoveAt(ExtIndex);
-					AllExtensions.Insert(Extension, 0);
-				}
+		for (int ExtIndex = 1; ExtIndex < AllFileTypes.Num(); ++ExtIndex)
+		{
+			const FString FileType = AllFileTypes[ExtIndex];
+			if (FileType.Contains(FirstExtension))
+			{
+				AllFileTypes.RemoveAt(ExtIndex);
+				AllFileTypes.Insert(FileType, 0);
+
+				const FString Extension = AllExtensions[ExtIndex];
+				AllExtensions.RemoveAt(ExtIndex);
+				AllExtensions.Insert(Extension, 0);
 			}
+		}
+
 		FString FileTypes;
 		FString Extensions;
-		for (ExtIndex = 0; ExtIndex < AllFileTypes.Num(); ++ExtIndex)
+		for (int ExtIndex = 0; ExtIndex < AllFileTypes.Num(); ++ExtIndex)
 		{
 			if (FileTypes.Len())
 			{
