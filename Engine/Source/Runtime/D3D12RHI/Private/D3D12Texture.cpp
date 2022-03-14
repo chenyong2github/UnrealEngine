@@ -1222,8 +1222,11 @@ void FD3D12DynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2DRHI, FRHITe
 			}
 		}
 
-		// unlock the pool allocated resource because all data has been written
-		DestTexture2D->ResourceLocation.UnlockPoolData();
+		if (DestTexture2D->ResourceLocation.IsPoolDataLocked())
+		{
+			// unlock the pool allocated resource because all data has been written
+			DestTexture2D->ResourceLocation.UnlockPoolData();
+		}
 
 		Device->GetDefaultCommandContext().ConditionalFlushCommandList();
 
