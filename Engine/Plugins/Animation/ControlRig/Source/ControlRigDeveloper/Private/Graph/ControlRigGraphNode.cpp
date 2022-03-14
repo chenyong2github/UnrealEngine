@@ -564,7 +564,7 @@ void UControlRigGraphNode::CreateExecutionPins()
 			Pair.InputPin = CreatePin(EGPD_Input, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.InputPin != nullptr)
 		{
-				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+				ConfigurePin(Pair.InputPin, ModelPin, false, true);
 		}
 	}
 		if (Pair.OutputPin == nullptr)
@@ -572,7 +572,7 @@ void UControlRigGraphNode::CreateExecutionPins()
 			Pair.OutputPin = CreatePin(EGPD_Output, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.OutputPin != nullptr)
 		{
-				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+				ConfigurePin(Pair.OutputPin, ModelPin, false, true);
 		}
 	}
 		// note: no recursion for execution pins
@@ -592,9 +592,7 @@ void UControlRigGraphNode::CreateInputPins(URigVMPin* InParentPin)
 			Pair.InputPin = CreatePin(EGPD_Input, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.InputPin != nullptr)
 			{
-				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
-				Pair.InputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::Input;
-				Pair.InputPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
+				ConfigurePin(Pair.InputPin, ModelPin, false, ModelPin->GetDirection() == ERigVMPinDirection::Input);
 
 				SetupPinDefaultsFromModel(Pair.InputPin);
 
@@ -629,10 +627,7 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin, bool bH
 			Pair.InputPin = CreatePin(EGPD_Input, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.InputPin != nullptr)
 		{
-				Pair.InputPin->bHidden = bHidden;
-				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
-				Pair.InputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::IO;
-				Pair.InputPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
+				ConfigurePin(Pair.InputPin, ModelPin, bHidden, ModelPin->GetDirection() == ERigVMPinDirection::IO);
 
 				SetupPinDefaultsFromModel(Pair.InputPin);
 
@@ -649,10 +644,7 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin, bool bH
 			Pair.OutputPin = CreatePin(EGPD_Output, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.OutputPin != nullptr)
 		{
-				Pair.OutputPin->bHidden = bHidden;
-				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
-				Pair.OutputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::IO;
-				Pair.OutputPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
+				ConfigurePin(Pair.OutputPin, ModelPin, bHidden, ModelPin->GetDirection() == ERigVMPinDirection::IO);
 
 				if (InParentPin != nullptr)
 		{
@@ -696,9 +688,7 @@ void UControlRigGraphNode::CreateOutputPins(URigVMPin* InParentPin)
 			Pair.OutputPin = CreatePin(EGPD_Output, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.OutputPin != nullptr)
 			{
-				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
-				Pair.OutputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::Output;
-				Pair.OutputPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
+				ConfigurePin(Pair.OutputPin, ModelPin, false,  ModelPin->GetDirection() == ERigVMPinDirection::Output);
 
 				if (InParentPin != nullptr)
 	{
@@ -1188,64 +1178,18 @@ bool UControlRigGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIn
 
 FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPin)
 {
-	FEdGraphPinType PinType;
-	PinType.ResetToDefaults();
-
-	FName ModelPinCPPType = InModelPin->IsArray() ? *InModelPin->GetArrayElementCppType() : *InModelPin->GetCPPType();
-	if (ModelPinCPPType == TEXT("bool"))
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
-	}
-	else if (ModelPinCPPType == TEXT("int32"))
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
-	}
-	else if (ModelPinCPPType == TEXT("float"))
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
-		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
-	}
-	else if (ModelPinCPPType == TEXT("double"))
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
-		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
-	}
-	else if (ModelPinCPPType == TEXT("FName"))
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
-	}
-	else if (ModelPinCPPType == TEXT("FString"))
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
-	}
-	else if (InModelPin->GetScriptStruct() != nullptr)
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
-		PinType.PinSubCategoryObject = InModelPin->GetScriptStruct();
-	}
-	else if (InModelPin->IsUObject())
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Object;
-		PinType.PinSubCategoryObject = InModelPin->GetCPPTypeObject();
-	}
-	else if (InModelPin->GetEnum() != nullptr)
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Byte;
-		PinType.PinSubCategoryObject = InModelPin->GetEnum();
-	}
-
-	if (InModelPin->IsArray())
-	{
-		PinType.ContainerType = EPinContainerType::Array;
-	}
-	else
-	{
-		PinType.ContainerType = EPinContainerType::None;
-	}
-
+	FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(InModelPin->GetCPPType(), InModelPin->GetCPPTypeObject());
 	PinType.bIsConst = InModelPin->IsDefinedAsConstant();
-
 	return PinType;
+}
+
+void UControlRigGraphNode::ConfigurePin(UEdGraphPin* EdGraphPin, URigVMPin* ModelPin, bool bHidden, bool bConnectable)
+{
+	EdGraphPin->bHidden = bHidden;
+	EdGraphPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+	EdGraphPin->bNotConnectable = !bConnectable;
+	EdGraphPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
+	EdGraphPin->bDisplayAsMutableRef = ModelPin->IsWildCard();
 }
 
 #undef LOCTEXT_NAMESPACE

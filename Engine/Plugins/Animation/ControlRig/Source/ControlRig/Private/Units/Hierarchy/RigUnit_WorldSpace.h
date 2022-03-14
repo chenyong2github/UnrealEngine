@@ -8,13 +8,13 @@
 /**
  * Converts a transform from rig (global) space to world space
  */
-USTRUCT(meta=(DisplayName="To World", MenuDescSuffix="(Transform)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="To World", TemplateName="To World", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_ToWorldSpace_Transform : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_ToWorldSpace_Transform()
-		: Transform(FTransform::Identity)
+		: Value(FTransform::Identity)
 		, World(FTransform::Identity)
 	{}
 
@@ -25,7 +25,7 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Transform : public FRigUnit
 	 * The input transform in global / rig space
 	 */
 	UPROPERTY(meta = (Input))
-	FTransform Transform;
+	FTransform Value;
 
 	/**
 	 * The result transform in world space
@@ -37,13 +37,13 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Transform : public FRigUnit
 /**
  * Converts a transform from world space to rig (global) space
  */
-USTRUCT(meta=(DisplayName="From World", MenuDescSuffix="(Transform)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="From World", TemplateName="From World", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_ToRigSpace_Transform : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_ToRigSpace_Transform()
-		: Transform(FTransform::Identity)
+		: Value(FTransform::Identity)
 		, Global(FTransform::Identity)
 	{}
 
@@ -54,7 +54,7 @@ struct CONTROLRIG_API FRigUnit_ToRigSpace_Transform : public FRigUnit
 	 * The input transform in world
 	 */
 	UPROPERTY(meta = (Input))
-	FTransform Transform;
+	FTransform Value;
 
 	/**
 	 * The result transform in global / rig space
@@ -66,13 +66,13 @@ struct CONTROLRIG_API FRigUnit_ToRigSpace_Transform : public FRigUnit
 /**
  * Converts a position / location from rig (global) space to world space
  */
-USTRUCT(meta=(DisplayName="To World", MenuDescSuffix="(Vector)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="To World", TemplateName="To World", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_ToWorldSpace_Location : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_ToWorldSpace_Location()
-		: Location(FVector::ZeroVector)
+		: Value(FVector::ZeroVector)
 		, World(FVector::ZeroVector)
 	{}
 
@@ -83,7 +83,7 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Location : public FRigUnit
 	 * The input position / location in global / rig space
 	 */
 	UPROPERTY(meta = (Input))
-	FVector Location;
+	FVector Value;
 
 	/**
 	 * The result position / location in world space
@@ -95,13 +95,13 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Location : public FRigUnit
 /**
  * Converts a position / location from world space to rig (global) space
  */
-USTRUCT(meta=(DisplayName="From World", MenuDescSuffix="(Vector)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="From World", TemplateName="From World", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_ToRigSpace_Location : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_ToRigSpace_Location()
-		: Location(FVector::ZeroVector)
+		: Value(FVector::ZeroVector)
 		, Global(FVector::ZeroVector)
 	{}
 
@@ -112,7 +112,7 @@ struct CONTROLRIG_API FRigUnit_ToRigSpace_Location : public FRigUnit
 	 * The input position / location in world
 	 */
 	UPROPERTY(meta = (Input))
-	FVector Location;
+	FVector Value;
 
 	/**
 	 * The result position / location in global / rig space
@@ -124,13 +124,13 @@ struct CONTROLRIG_API FRigUnit_ToRigSpace_Location : public FRigUnit
 /**
  * Converts a rotation from rig (global) space to world space
  */
-USTRUCT(meta=(DisplayName="To World", MenuDescSuffix="(Quat)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="To World", TemplateName="To World", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_ToWorldSpace_Rotation : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_ToWorldSpace_Rotation()
-		: Rotation(FQuat::Identity)
+		: Value(FQuat::Identity)
 		, World(FQuat::Identity)
 	{}
 
@@ -141,7 +141,7 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Rotation : public FRigUnit
 	 * The input rotation in global / rig space
 	 */
 	UPROPERTY(meta = (Input))
-	FQuat Rotation;
+	FQuat Value;
 
 	/**
 	 * The result rotation in world space
@@ -153,13 +153,13 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Rotation : public FRigUnit
 /**
  * Converts a rotation from world space to rig (global) space
  */
-USTRUCT(meta=(DisplayName="From World", MenuDescSuffix="(Quat)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="From World", TemplateName="From World", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_ToRigSpace_Rotation : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_ToRigSpace_Rotation()
-		: Rotation(FQuat::Identity)
+		: Value(FQuat::Identity)
 		, Global(FQuat::Identity)
 	{}
 
@@ -170,7 +170,7 @@ struct CONTROLRIG_API FRigUnit_ToRigSpace_Rotation : public FRigUnit
 	 * The input rotation in world
 	 */
 	UPROPERTY(meta = (Input))
-	FQuat Rotation;
+	FQuat Value;
 
 	/**
 	 * The result rotation in global / rig space

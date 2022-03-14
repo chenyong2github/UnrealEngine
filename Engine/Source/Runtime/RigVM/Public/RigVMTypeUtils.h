@@ -16,6 +16,7 @@ namespace RigVMTypeUtils
 	const FString FloatType = TEXT("float");
 	const FString DoubleType = TEXT("double");
 	const FString Int32Type = TEXT("int32");
+	const FString UInt8Type = TEXT("uint8");
 	const FString FNameType = TEXT("FName");
 	const FString FStringType = TEXT("FString");
 	const FString BoolArrayType = TEXT("TArray<bool>");
@@ -24,6 +25,20 @@ namespace RigVMTypeUtils
 	const FString Int32ArrayType = TEXT("TArray<int32>");
 	const FString FNameArrayType = TEXT("TArray<FName>");
 	const FString FStringArrayType = TEXT("TArray<FString>");
+
+	const FName BoolTypeName = *BoolType;
+	const FName FloatTypeName = *FloatType;
+	const FName DoubleTypeName = *DoubleType;
+	const FName Int32TypeName = *Int32Type;
+	const FName UInt8TypeName = *UInt8Type;
+	const FName FNameTypeName = *FNameType;
+	const FName FStringTypeName = *FStringType;
+	const FName BoolArrayTypeName = *BoolArrayType;
+	const FName FloatArrayTypeName = *FloatArrayType;
+	const FName DoubleArrayTypeName = *DoubleArrayType;
+	const FName Int32ArrayTypeName = *Int32ArrayType;
+	const FName FNameArrayTypeName = *FNameArrayType;
+	const FName FStringArrayTypeName = *FStringArrayType;
 
 	// Returns true if the type specified is an array
 	FORCEINLINE bool IsArrayType(const FString& InCPPType)

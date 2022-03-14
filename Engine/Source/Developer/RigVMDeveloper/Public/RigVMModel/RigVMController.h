@@ -86,6 +86,8 @@ DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_IsDependencyCyclicDeleg
 DECLARE_DELEGATE_RetVal_TwoParams(FRigVMController_BulkEditResult, FRigVMController_RequestBulkEditDialogDelegate, URigVMLibraryNode*, ERigVMControllerBulkEditType)
 DECLARE_DELEGATE_FiveParams(FRigVMController_OnBulkEditProgressDelegate, TSoftObjectPtr<URigVMFunctionReferenceNode>, ERigVMControllerBulkEditType, ERigVMControllerBulkEditProgress, int32, int32)
 DECLARE_DELEGATE_RetVal_TwoParams(FString, FRigVMController_PinPathRemapDelegate, const FString& /* InPinPath */, bool /* bIsInput */);
+DECLARE_DELEGATE_OneParam(FRigVMController_RequestJumpToHyperlinkDelegate, const UObject* InSubject);
+
 
 /**
  * The Controller is the sole authority to perform changes
@@ -218,6 +220,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMTemplateNode* ReplaceUnitNodeWithTemplateNode(const FName& InNodeName, bool bSetupUndoRedo);
 
+	// Turns a resolved templated node(s) back into its template.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool UnresolveTemplateNodes(const TArray<FName>& InNodeNames, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
 	// Upgrades a set of nodes with each corresponding next known version
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	TArray<URigVMNode*> UpgradeNodes(const TArray<FName>& InNodeNames, bool bRecursive = true, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
@@ -290,6 +296,22 @@ public:
 	// Adds a template node to the graph.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMTemplateNode* AddTemplateNode(const FName& InNotation, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Returns all registered unit structs
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	static TArray<UScriptStruct*> GetRegisteredUnitStructs();
+
+	// Returns all registered template notations
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	static TArray<FString> GetRegisteredTemplates();
+
+	// Returns all supported unit structs for a given template notation
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	static TArray<UScriptStruct*> GetUnitStructsForTemplate(const FName& InNotation);
+
+	// Returns the template for a given function (or an empty string)
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	static FString GetTemplateForUnitStruct(UScriptStruct* InFunction, const FString& InMethodName = TEXT("Execute"));
 
 	// Resolves a wildcard pin on any node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -540,6 +562,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController, meta=(DeprecatedFunction))
 	bool RenameParameter(const FName& InOldName, const FName& InNewName, bool bSetupUndoRedo = true);\
 
+	bool UnresolveTemplateNodes(const TArray<URigVMTemplateNode*>& InNodes, bool bSetupUndoRedo);
+
 	// Upgrades a set of nodes with each corresponding next known version
 	TArray<URigVMNode*> UpgradeNodes(const TArray<URigVMNode*>& InNodes, bool bRecursive = true, bool bSetupUndoRedo = true);
 
@@ -625,7 +649,7 @@ public:
 	// Adds a link to the graph.
 	// This causes a LinkAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool AddLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+	bool AddLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false, ERigVMPinDirection InUserDirection = ERigVMPinDirection::Invalid);
 
 	// Removes a link from the graph.
 	// This causes a LinkRemoved modified event.
@@ -738,6 +762,9 @@ public:
 	// A delegate to inform the host / client about the progress during a bulk edit
 	FRigVMController_OnBulkEditProgressDelegate OnBulkEditProgressDelegate;
 
+	// A delegate to request the client to follow a hyper link
+	FRigVMController_RequestJumpToHyperlinkDelegate RequestJumpToHyperlinkDelegate; 
+
 	// Returns the build data of the host
 	static URigVMBuildData* GetBuildData(bool bCreateIfNeeded = true);
 
@@ -775,7 +802,10 @@ public:
 	void ReportInfo(const FString& InMessage) const;
 	void ReportWarning(const FString& InMessage) const;
 	void ReportError(const FString& InMessage) const;
+	void ReportAndNotifyInfo(const FString& InMessage) const;
+	void ReportAndNotifyWarning(const FString& InMessage) const;
 	void ReportAndNotifyError(const FString& InMessage) const;
+	void SendUserFacingNotification(const FString& InMessage, float InDuration = 0.f, const UObject* InSubject = nullptr, const FName& InBrushName = TEXT("MessageLog.Warning")) const;
 
 	template <typename FmtType, typename... Types>
 	void ReportInfof(const FmtType& Fmt, Types... Args)
@@ -793,6 +823,18 @@ public:
 	void ReportErrorf(const FmtType& Fmt, Types... Args)
 	{
 		ReportError(FString::Printf(Fmt, Args...));
+	}
+
+	template <typename FmtType, typename... Types>
+	void ReportAndNotifyInfof(const FmtType& Fmt, Types... Args)
+	{
+		ReportAndNotifyInfo(FString::Printf(Fmt, Args...));
+	}
+
+	template <typename FmtType, typename... Types>
+	void ReportAndNotifyWarningf(const FmtType& Fmt, Types... Args)
+	{
+		ReportAndNotifyWarning(FString::Printf(Fmt, Args...));
 	}
 
 	template <typename FmtType, typename... Types>
@@ -856,7 +898,7 @@ private:
 	void RelinkSourceAndTargetPins(URigVMNode* RigNode, bool bSetupUndoRedo = true);
 
 public:
-	bool AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo = true);
+	bool AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo = true, ERigVMPinDirection InUserDirection = ERigVMPinDirection::Invalid);
 	bool BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo = true);
 	bool BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupUndoRedo = true);
 
@@ -876,6 +918,8 @@ private:
 	void SetReferencedFunction(URigVMFunctionReferenceNode* InFunctionRefNode, URigVMLibraryNode* InNewReferencedNode, bool bSetupUndoRedo);
 
 	void RefreshFunctionPins(URigVMNode* InNode, bool bNotify = true);
+
+	void ReportRemovedLink(const FString& InSourcePinPath, const FString& InTargetPinPath);
 
 	struct FPinState
 	{
@@ -899,10 +943,10 @@ private:
 	static void PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefaultValue);
 	static FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject);
 
-	bool ResolveWildCardPin(URigVMPin* InPinToResolve, URigVMPin* InTemplatePin, bool bSetupUndoRedo, bool bTraverseNode = true, bool bTraverseParentPins = true, bool bTraverseLinks = true);
-	bool ResolveWildCardPinImpl(URigVMPin* InPinToResolve, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bTraverseNode = true, bool bTraverseParentPins = true, bool bTraverseLinks = true);
+	bool ResolveWildCardPin(URigVMPin* InPinToResolve, URigVMPin* InTemplatePin, bool bSetupUndoRedo, bool bTraverseNode = true, bool bTraverseParentPins = true, bool bTraverseLinks = true, bool bAllowFloatingPointCasts = false);
+	bool ResolveWildCardPinImpl(URigVMPin* InPinToResolve, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bTraverseNode = true, bool bTraverseParentPins = true, bool bTraverseLinks = true, bool bAllowFloatingPointCasts = false);
 	void ResolveTemplateNodePins(URigVMTemplateNode* InNode, bool bSetupUndoRedo);
-	void ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode);
+	void ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode, bool bSetupUndoRedo);
 	bool FullyResolveTemplateNode(URigVMTemplateNode* InNode, const FRigVMFunction* InFunctionToResolve, bool bSetupUndoRedo);
 	bool ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
 	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
@@ -940,6 +984,8 @@ public:
 	static FString GetSanitizedPinName(const FString& InName);
 	static FString GetSanitizedPinPath(const FString& InName);
 	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
+	static TArray<TPair<FString, FString>> GetLinkedPinPaths(URigVMNode* InNode);
+	static TArray<TPair<FString, FString>> GetLinkedPinPaths(const TArray<URigVMNode*>& InNodes);
 
 private: 
 	UPROPERTY(transient)
@@ -954,6 +1000,7 @@ private:
 	bool bSuspendNotifications;
 	bool bReportWarningsAndErrors;
 	bool bIgnoreRerouteCompactnessChanges;
+	ERigVMPinDirection UserLinkDirection;
 
 	// temporary maps used for pin redirection
 	// only valid between Detach & ReattachLinksToPinObjects

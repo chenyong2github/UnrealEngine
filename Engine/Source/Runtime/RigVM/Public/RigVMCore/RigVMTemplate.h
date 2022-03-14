@@ -48,6 +48,11 @@ struct RIGVM_API FRigVMTemplateArgument
 			return CPPType != InOther.CPPType;
 		}
 
+		friend FORCEINLINE uint32 GetTypeHash(const FType& InType)
+		{
+			return GetTypeHash(InType.CPPType);
+		}
+
 		FORCEINLINE bool Matches(const FString& InCPPType, bool bAllowFloatingPointCasts = true) const
 		{
 			if(CPPType == InCPPType)
@@ -87,12 +92,23 @@ struct RIGVM_API FRigVMTemplateArgument
 
 		bool IsWildCard() const
 		{
-			return CPPTypeObject == RigVMTypeUtils::GetWildCardCPPTypeObject();
+			return CPPTypeObject == RigVMTypeUtils::GetWildCardCPPTypeObject() ||
+				CPPType == RigVMTypeUtils::GetWildCardCPPType() ||
+				CPPType == RigVMTypeUtils::GetWildCardArrayCPPType();
 		}
 
 		bool IsArray() const
 		{
 			return RigVMTypeUtils::IsArrayType(CPPType);
+		}
+
+		FString GetBaseCPPType() const
+		{
+			if(IsArray())
+			{
+				return RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
+			}
+			return CPPType;
 		}
 	};
 
@@ -149,6 +165,7 @@ struct RIGVM_API FRigVMTemplate
 public:
 
 	typedef TMap<FName, FRigVMTemplateArgument::FType> FTypeMap;
+	typedef TPair<FName, FRigVMTemplateArgument::FType> FTypePair;
 
 	// returns true if this is a valid template
 	bool IsValid() const;
@@ -194,6 +211,9 @@ public:
 
 	// returns true if the template was able to resolve to at least one permutation
 	bool Resolve(FTypeMap& InOutTypes, TArray<int32> & OutPermutationIndices, bool bAllowFloatingPointCasts) const;
+
+	// returns true if the template can resolve an argument to a new type
+	bool ResolveArgument(const FName& InArgumentName, const FRigVMTemplateArgument::FType& InType, FTypeMap& InOutTypes) const;
 
 	// returns true if a given argument is valid for a template
 	static bool IsValidArgumentForTemplate(const FRigVMTemplateArgument& InArgument);

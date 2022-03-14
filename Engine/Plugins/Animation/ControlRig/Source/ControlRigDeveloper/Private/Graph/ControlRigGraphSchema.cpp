@@ -562,11 +562,11 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 	{
 		if (URigVMController* Controller = RigBlueprint->GetOrCreateController(PinA->GetOwningNode()->GetGraph()))
 		{
+			ERigVMPinDirection UserLinkDirection = ERigVMPinDirection::Output;
 			if (PinA->Direction == EGPD_Input)
 			{
-				UEdGraphPin* Temp = PinA;
-				PinA = PinB;
-				PinB = Temp;
+				Swap(PinA, PinB);
+				UserLinkDirection = ERigVMPinDirection::Input;
 			}
 
 #if WITH_EDITOR
@@ -644,7 +644,7 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 			}
 #endif
 
-			return Controller->AddLink(PinA->GetName(), PinB->GetName(), true, true);
+			return Controller->AddLink(PinA->GetName(), PinB->GetName(), true, true, UserLinkDirection);
 		}
 	}
 	return false;
@@ -697,17 +697,17 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 				PinB = PinB->GetPinForLink();
 			}
 
+			ERigVMPinDirection UserLinkDirection = ERigVMPinDirection::Output;
 			if (A->Direction == EGPD_Input)
 			{
-				URigVMPin* Temp = PinA;
-				PinA = PinB;
-				PinB = Temp;
+				Swap(PinA, PinB);
+				UserLinkDirection = ERigVMPinDirection::Input;
 			}
 
 			const FRigVMByteCode* ByteCode = RigNodeA->GetController()->GetCurrentByteCode();
 
 			FString FailureReason;
-			bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason, ByteCode);
+			bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason, ByteCode, UserLinkDirection);
 			if (!bResult)
 			{
 				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::FromString(FailureReason));
@@ -1565,8 +1565,17 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 			}
 			return true;
 		};
+
+		auto IsTemplateNodePin = [](const UEdGraphPin* InPin)
+		{
+			if(const UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InPin->GetOwningNode()))
+			{
+				return RigNode->GetTemplate() != nullptr;
+			};
+			return false;
+		};
 		
-		if(PinA->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject())
+		if(PinA->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject() || IsTemplateNodePin(PinA))
 		{
 			if(IsPinCompatibleWithType(PinA, PinB->PinType))
 			{
@@ -1576,7 +1585,7 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 				return true;
 			}
 		}
- 		else if(PinB->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject())
+ 		if(PinB->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject() || IsTemplateNodePin(PinB))
 		{
  			if(IsPinCompatibleWithType(PinB, PinA->PinType))
  			{

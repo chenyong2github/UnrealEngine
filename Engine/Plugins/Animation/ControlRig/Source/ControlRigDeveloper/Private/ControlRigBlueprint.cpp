@@ -1580,6 +1580,19 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 		return FName();
 	});
 
+
+	Controller->RequestJumpToHyperlinkDelegate.BindLambda([WeakThis](const UObject* InSubject)
+	{
+		if (WeakThis.IsValid())
+		{
+			UControlRigBlueprint* StrongThis = WeakThis.Get();
+			if(StrongThis->OnRequestJumpToHyperlink().IsBound())
+			{
+				StrongThis->OnRequestJumpToHyperlink().Execute(InSubject);
+			}
+		}
+	});
+
 #endif
 
 	Controller->RemoveStaleNodes();
@@ -3825,6 +3838,12 @@ void UControlRigBlueprint::ConvertUnitNodesToTemplateNodes()
 {
 	TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
 
+	bool bWasDirty = false;
+	if (const UPackage* Package = GetOutermost())
+	{
+		bWasDirty = Package->IsDirty();
+	}
+
 	for (URigVMGraph* Graph : GetAllModels())
 	{
 		URigVMController* Controller = GetOrCreateController(Graph);
@@ -3833,6 +3852,11 @@ void UControlRigBlueprint::ConvertUnitNodesToTemplateNodes()
 		{
 			Controller->ReplaceUnitNodeWithTemplateNode(Node->GetFName(), false);
 		}
+	}
+
+	if (UPackage* Package = GetOutermost())
+	{
+		Package->SetDirtyFlag(bWasDirty);
 	}
 }
 

@@ -31,11 +31,14 @@ public:
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
 
 	// Returns the notation of the node
-	UFUNCTION(BlueprintCallable, Category = Template)
+	UFUNCTION(BlueprintPure, Category = Template)
 	FName GetNotation() const;
 
 	// returns true if a pin supports a given type
 	bool SupportsType(const URigVMPin* InPin, const FString& InCPPType, FString* OutCPPType = nullptr);
+
+	// resolves a pin to a new type outputs the new type map
+	bool GetTypeMapForNewPinType(const URigVMPin* InPin, const FString& InCPPType, UObject* InCPPTypeObject, FRigVMTemplate::FTypeMap& OutTypes) const;
 
 	// returns the index of the resolved RigVM function (or INDEX_NONE)
 	TArray<int32> GetResolvedPermutationIndices(FRigVMTemplate::FTypeMap* OutTypes = nullptr) const;
@@ -46,11 +49,30 @@ public:
 	// returns the template used for this node
 	const FRigVMTemplate* GetTemplate() const;
 
+	// returns the type map for the currently resolved pins
+	FRigVMTemplate::FTypeMap GetResolvedTypes() const;
+
 	// returns the resolved function or nullptr if there are still unresolved pins left
 	const FRigVMFunction* GetResolvedFunction() const;
 
 	// returns true if the template node is resolved
+	UFUNCTION(BlueprintPure, Category = Template)
 	bool IsResolved() const;
+
+	// returns true if the template is fully unresolved
+	UFUNCTION(BlueprintPure, Category = Template)
+	bool IsFullyUnresolved() const;
+
+	// returns the sole resolved unit struct
+	UFUNCTION(BlueprintPure, Category = Template)
+	UScriptStruct* GetResolvedUnitStruct() const { return GetScriptStruct(); }
+
+	// returns the list of all supported unit structs
+	UFUNCTION(BlueprintPure, Category = Template)
+	TArray<UScriptStruct*> GetSupportedUnitStructs() const;
+
+	// returns a default value for pin if it is known
+	FString GetInitialDefaultValueForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
 private:
 

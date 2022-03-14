@@ -195,6 +195,8 @@ private:
 	FORCEINLINE int32 GetNodeTopologyVersion() const { return NodeTopologyVersion; }
 	int32 NodeTopologyVersion;
 
+	void ConfigurePin(UEdGraphPin* EdGraphPin, URigVMPin* ModelPin, bool bHidden, bool bConnectable);
+
 	FLinearColor CachedTitleColor;
 	FLinearColor CachedNodeColor;
 

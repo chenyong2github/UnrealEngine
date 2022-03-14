@@ -43,6 +43,10 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(FProperty* InProperty)
 	{
 		Type.CPPTypeObject = EnumProperty->GetEnum();
 	}
+	else if (FByteProperty* ByteProperty = CastField<FByteProperty>(InProperty))
+	{
+		Type.CPPTypeObject = ByteProperty->Enum;
+	}
 
 	Types.Add(Type);
 }
@@ -600,6 +604,15 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 			if(bFoundMatch)
 			{
 				InOutTypes.Add(Argument.Name,MatchedType);
+
+				// if we found a perfect match - remove all permutations which don't match this one
+				if(bFoundPerfectMatch)
+				{
+					OutPermutationIndices.RemoveAll([Argument, MatchedType](int32 PermutationIndex) -> bool
+					{
+						return Argument.Types[PermutationIndex] != MatchedType;
+					});
+				}
 				continue;
 			}
 		}
@@ -634,6 +647,92 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 	}
 
 	return !OutPermutationIndices.IsEmpty();
+}
+
+bool FRigVMTemplate::ResolveArgument(const FName& InArgumentName, const FRigVMTemplateArgument::FType& InType,
+	FTypeMap& InOutTypes) const
+{
+	auto RemoveWildCardTypes = [](const FTypeMap& InTypes)
+	{
+		FTypeMap FilteredTypes;
+		for(const FTypePair& Pair: InTypes)
+		{
+			if(!Pair.Value.IsWildCard())
+			{
+				FilteredTypes.Add(Pair);
+			}
+		}
+		return FilteredTypes;
+	};
+
+	// remove all wildcards from map
+	InOutTypes = RemoveWildCardTypes(InOutTypes);
+
+	// first resolve with no types given except for the new argument type
+	FTypeMap ResolvedTypes;
+	ResolvedTypes.Add(InArgumentName, InType);
+	TArray<int32> PermutationIndices;
+	FTypeMap RemainingTypesToResolve;
+	
+	if(Resolve(ResolvedTypes, PermutationIndices, true))
+	{
+		// let's see if the input argument resolved into the expected type
+		const FRigVMTemplateArgument::FType ResolvedInputType = ResolvedTypes.FindChecked(InArgumentName);
+		if(!ResolvedInputType.Matches(InType.CPPType, true))
+		{
+			return false;
+		}
+		
+		ResolvedTypes = RemoveWildCardTypes(ResolvedTypes);
+		
+		// remove all argument types from the reference list
+		// provided from the outside. we cannot resolve these further
+		auto RemoveResolvedTypesFromRemainingList = [](
+			FTypeMap& InOutTypes, const FTypeMap& InResolvedTypes, FTypeMap& InOutRemainingTypesToResolve)
+		{
+			InOutRemainingTypesToResolve = InOutTypes;
+			for(const FTypePair& Pair: InOutTypes)
+			{
+				if(InResolvedTypes.Contains(Pair.Key))
+				{
+					InOutRemainingTypesToResolve.Remove(Pair.Key);
+				}
+			}
+			InOutTypes = InResolvedTypes;
+		};
+
+		RemoveResolvedTypesFromRemainingList(InOutTypes, ResolvedTypes, RemainingTypesToResolve);
+
+		// if the type hasn't been specified we need to slowly resolve the template
+		// arguments until we hit a match. for this we'll create a list of arguments
+		// to resolve and reduce the list slowly.
+		bool bSuccessFullyResolvedRemainingTypes = true;
+		while(!RemainingTypesToResolve.IsEmpty())
+		{
+			PermutationIndices.Reset();
+
+			const FTypePair TypeToResolve = *RemainingTypesToResolve.begin();
+			FTypeMap NewResolvedTypes = RemoveWildCardTypes(ResolvedTypes);
+			NewResolvedTypes.FindOrAdd(TypeToResolve.Key) = TypeToResolve.Value;
+
+			if(Resolve(NewResolvedTypes, PermutationIndices, true))
+			{
+				ResolvedTypes = NewResolvedTypes;
+				RemoveResolvedTypesFromRemainingList(InOutTypes, ResolvedTypes, RemainingTypesToResolve);
+			}
+			else
+			{
+				// we were not able to resolve this argument, remove it from the resolved types list.
+				RemainingTypesToResolve.Remove(TypeToResolve.Key);
+				bSuccessFullyResolvedRemainingTypes = false;
+			}
+		}
+
+		// if there is nothing left to resolve we were successful
+		return RemainingTypesToResolve.IsEmpty() && bSuccessFullyResolvedRemainingTypes;
+	}
+
+	return false;
 }
 
 #if WITH_EDITOR

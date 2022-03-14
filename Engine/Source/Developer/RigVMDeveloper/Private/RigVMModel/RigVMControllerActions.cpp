@@ -1274,6 +1274,14 @@ FRigVMSetPinDefaultValueAction::FRigVMSetPinDefaultValueAction(URigVMPin* InPin,
 , OldDefaultValue(InPin->GetDefaultValue())
 , NewDefaultValue(InNewDefaultValue)
 {
+	if(!OldDefaultValue.IsEmpty())
+	{
+		check(InPin->IsValidDefaultValue(OldDefaultValue));
+	}
+	if(!NewDefaultValue.IsEmpty())
+	{
+		check(InPin->IsValidDefaultValue(NewDefaultValue));
+	}
 }
 
 bool FRigVMSetPinDefaultValueAction::Merge(const FRigVMBaseAction* Other)

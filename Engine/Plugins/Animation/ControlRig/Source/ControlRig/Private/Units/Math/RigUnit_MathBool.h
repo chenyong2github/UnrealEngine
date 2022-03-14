@@ -5,7 +5,7 @@
 #include "Units/Math/RigUnit_MathBase.h"
 #include "RigUnit_MathBool.generated.h"
 
-USTRUCT(meta=(Abstract, Category="Math|Boolean", MenuDescSuffix="(Bool)"))
+USTRUCT(meta=(Abstract, Category="Math|Boolean"))
 struct CONTROLRIG_API FRigUnit_MathBoolBase : public FRigUnit_MathBase
 {
 	GENERATED_BODY()

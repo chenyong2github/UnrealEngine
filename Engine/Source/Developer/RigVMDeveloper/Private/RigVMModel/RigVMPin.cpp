@@ -21,23 +21,9 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 
-class FRigVMPinDefaultValueImportErrorContext : public FOutputDevice
-{
-public:
-
-	int32 NumErrors;
-
-	FRigVMPinDefaultValueImportErrorContext()
-		: FOutputDevice()
-		, NumErrors(0)
-	{
-	}
-
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
-	{
-		NumErrors++;
-	}
-};
+#if WITH_EDITOR
+#include "UObject/CoreRedirects.h"
+#endif
 
 URigVMGraph* URigVMInjectionInfo::GetGraph() const
 {
@@ -198,6 +184,57 @@ URigVMPin::URigVMPin()
 #if UE_BUILD_DEBUG
 	CachedPinPath = GetPinPath();
 #endif
+}
+
+bool URigVMPin::NameEquals(const FString& InName, bool bFollowCoreRedirectors) const
+{
+	if(InName.Equals(GetName()))
+	{
+		return true;
+	}
+#if WITH_EDITOR
+	if(bFollowCoreRedirectors)
+	{
+		UScriptStruct* Struct = nullptr;
+		if(const URigVMPin* ParentPin = GetParentPin())
+		{
+			Struct = ParentPin->GetScriptStruct();
+		}
+		else if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetNode()))
+		{
+			Struct = UnitNode->GetScriptStruct();
+		}
+
+		if(Struct)
+		{
+			typedef TPair<FName, FString> FRedirectPinPair;
+			const FRedirectPinPair Key(Struct->GetFName(), InName);
+			static TMap<FRedirectPinPair, FName> RedirectedPinNames;
+
+			if(const FName* RedirectedNamePtr = RedirectedPinNames.Find(Key))
+			{
+				if(RedirectedNamePtr->IsNone())
+				{
+					return false;
+				}
+				return NameEquals(*RedirectedNamePtr->ToString(), false);
+			}
+
+			const FCoreRedirectObjectName OldObjectName(*InName, Struct->GetFName(), *Struct->GetOutermost()->GetPathName());
+			const FCoreRedirectObjectName NewObjectName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Property, OldObjectName);
+			if (OldObjectName != NewObjectName)
+			{
+				RedirectedPinNames.Add(Key, NewObjectName.ObjectName);
+				
+				const FString RedirectedName = NewObjectName.ObjectName.ToString();
+				return NameEquals(RedirectedName, false);
+			}
+
+			RedirectedPinNames.Add(Key, NAME_None);
+		}
+	}
+#endif
+	return false;
 }
 
 FString URigVMPin::GetPinPath(bool bUseNodePath) const
@@ -521,6 +558,11 @@ FString URigVMPin::GetArrayElementCppType() const
 	return RigVMTypeUtils::BaseTypeFromArrayType(ResolvedType);
 }
 
+FRigVMTemplateArgument::FType URigVMPin::GetTemplateArgumentType() const
+{
+	return FRigVMTemplateArgument::FType(GetCPPType(), GetCPPTypeObject());
+}
+
 bool URigVMPin::IsStringType() const
 {
 	const FString ResolvedType = GetCPPType();
@@ -550,6 +592,19 @@ bool URigVMPin::IsWildCard() const
 	}
 	return false;
 }
+
+bool URigVMPin::ContainsWildCardSubPin() const
+{
+	for(const URigVMPin* SubPin : SubPins)
+	{
+		if(SubPin->IsWildCard() || SubPin->ContainsWildCardSubPin())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 
 FString URigVMPin::GetDefaultValue() const
 {
@@ -1232,6 +1287,11 @@ URigVMPin* URigVMPin::GetPinForLink() const
 
 URigVMPin* URigVMPin::GetOriginalPinFromInjectedNode() const
 {
+	if(GetNode() == nullptr)
+	{
+		return nullptr;
+	}
+	
 	if (URigVMInjectionInfo* Injection = GetNode()->GetInjectionInfo())
 	{
 		URigVMPin* RootPin = GetRootPin();
@@ -1281,7 +1341,7 @@ URigVMPin* URigVMPin::FindSubPin(const FString& InPinPath) const
 
 	for (URigVMPin* Pin : SubPins)
 	{
-		if (Pin->GetName() == Left)
+		if (Pin->NameEquals(Left, true))
 		{
 			if (Right.IsEmpty())
 			{
@@ -1447,7 +1507,7 @@ URigVMGraph* URigVMPin::GetGraph() const
 	return nullptr;
 }
 
-bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode)
+bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection)
 {
 	if (InSourcePin == nullptr || InTargetPin == nullptr)
 	{
@@ -1551,12 +1611,37 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 					return true;
 
 				};
+
+				auto IsPinValidForTypeChange = [](URigVMPin* InPin, bool bIsInput, ERigVMPinDirection InDirection) -> bool
+				{
+					if(InPin->IsWildCard())
+					{
+						return true;
+					}
+
+					if(!InPin->GetNode()->IsA<URigVMTemplateNode>() || InDirection == ERigVMPinDirection::Invalid)
+					{
+						return false;
+					}
+
+					if((bIsInput && (InDirection != ERigVMPinDirection::Input)) ||
+						(!bIsInput && (InDirection != ERigVMPinDirection::Output)))
+					{
+						if(InPin->IsRootPin() ||
+							(InPin->GetParentPin()->IsRootPin() && InPin->IsArrayElement()))
+						{
+							return true;
+						}
+					}
+					
+					return false;
+				};
 				
-				if(InSourcePin->IsWildCard() && !InTargetPin->IsExecuteContext())
+				if(IsPinValidForTypeChange(InSourcePin, false, InUserLinkDirection) && !InTargetPin->IsExecuteContext())
 				{
 					return TemplateNodeSupportsType(InSourcePin, InTargetPin->GetCPPType(), OutFailureReason);
 				}
-				else if(InTargetPin->IsWildCard() && !InSourcePin->IsExecuteContext())
+				else if(IsPinValidForTypeChange(InTargetPin, true, InUserLinkDirection) && !InSourcePin->IsExecuteContext())
 				{
 					return TemplateNodeSupportsType(InTargetPin, InSourcePin->GetCPPType(), OutFailureReason);
 				}

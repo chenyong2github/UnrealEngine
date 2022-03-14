@@ -2,6 +2,8 @@
 
 #include "RigVMModel/Nodes/RigVMTemplateNode.h"
 
+#include "RigVMModel/RigVMController.h"
+
 URigVMTemplateNode::URigVMTemplateNode()
 	: Super()
 	, TemplateNotation(NAME_None)
@@ -96,26 +98,40 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, const FString& InC
 	static const FString WildCardCPPType = RigVMTypeUtils::GetWildCardCPPType();
 	static const FString WildCardArrayCPPType = RigVMTypeUtils::ArrayTypeFromBaseType(WildCardCPPType);
 
+	const URigVMPin* RootPin = InPin->GetRootPin();
+
 	// we always support the unknown type
 	if(((InCPPType == WildCardCPPType) && !InPin->IsArray()) ||
 		((InCPPType == WildCardArrayCPPType) && InPin->IsArray()))
 	{
-		if(OutCPPType)
+		if(const FRigVMTemplate* Template = GetTemplate())
 		{
-			*OutCPPType = InCPPType;
+			if(const FRigVMTemplateArgument* Argument = Template->FindArgument(RootPin->GetFName()))
+			{
+				// support this only on non-singleton arguments
+				if(Argument->IsSingleton())
+				{
+					return false;
+				}
+				
+				if(OutCPPType)
+				{
+					*OutCPPType = InCPPType;
+				}
+				return true;
+			}
 		}
-		return true;
+		return false;
 	}
 	
 	FString CPPType = InCPPType;
-	const URigVMPin* RootPin = InPin->GetRootPin();
 
 	if(InPin->GetParentPin() == RootPin && RootPin->IsArray())
 	{
 		CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
 	}
-	
-	if (RootPin->IsWildCard())
+
+	if (const FRigVMTemplate* Template = GetTemplate())
 	{
 		const FString CacheKey = RootPin->GetName() + TEXT("|") + CPPType;
 		if (const TPair<bool, FRigVMTemplateArgument::FType>* CachedResult = SupportedTypesCache.Find(CacheKey))
@@ -127,37 +143,45 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, const FString& InC
 			return CachedResult->Key;
 		}
 
-		if (const FRigVMTemplate* Template = GetTemplate())
+		FRigVMTemplate::FTypeMap Types;
+
+		for (URigVMPin* Pin : GetPins())
 		{
-			FRigVMTemplate::FTypeMap Types;
-
-			for (URigVMPin* Pin : GetPins())
+			if (Pin == RootPin)
 			{
-				if (Pin == RootPin)
-				{
-					continue;
-				}
-
-				if (Pin->IsWildCard())
-				{
-					continue;
-				}
-
-				FRigVMTemplateArgument::FType Type(Pin->GetCPPType(), Pin->GetCPPTypeObject());
-				Types.Add(Pin->GetFName(), Type);
+				continue;
 			}
-
-			FRigVMTemplateArgument::FType ResolvedType;
-			bool Result = Template->ArgumentSupportsType(RootPin->GetFName(), CPPType, Types, &ResolvedType);
-			SupportedTypesCache.Add(CacheKey, TPair<bool, FRigVMTemplateArgument::FType>(Result, ResolvedType));
-			if(OutCPPType)
+			if (Pin->IsWildCard())
 			{
-				*OutCPPType = ResolvedType.CPPType;
+				continue;
 			}
-			return Result;
+			Types.Add(Pin->GetFName(), Pin->GetTemplateArgumentType());
 		}
-	}
 
+		FRigVMTemplateArgument::FType ResolvedType;
+		bool bSupportsType = false;
+		if(RootPin->IsWildCard())
+		{
+			bSupportsType = Template->ArgumentSupportsType(RootPin->GetFName(), CPPType, Types, &ResolvedType);
+		}
+		else
+		{
+			FRigVMTemplate::FTypeMap ResolvedTypes;
+			bSupportsType = Template->ResolveArgument(RootPin->GetFName(), FRigVMTemplateArgument::FType(CPPType), ResolvedTypes);
+			if(bSupportsType)
+			{
+				ResolvedType = ResolvedTypes.FindChecked(RootPin->GetFName());
+			}
+		}
+	
+		SupportedTypesCache.Add(CacheKey, TPair<bool, FRigVMTemplateArgument::FType>(bSupportsType, ResolvedType));
+		if(OutCPPType)
+		{
+			*OutCPPType = ResolvedType.CPPType;
+		}
+		return bSupportsType;
+	}
+	
 	if(RootPin->GetCPPType() == CPPType)
 	{
 		if(OutCPPType)
@@ -169,23 +193,29 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, const FString& InC
 	return false;
 }
 
+bool URigVMTemplateNode::GetTypeMapForNewPinType(const URigVMPin* InPin, const FString& InCPPType, UObject* InCPPTypeObject,
+	FRigVMTemplate::FTypeMap& OutTypes) const
+{
+	check(InPin);
+	check(InPin->GetNode() == this);
+	check(InPin->IsRootPin());
+	
+	if(const FRigVMTemplate* Template = GetTemplate())
+	{
+		OutTypes = GetResolvedTypes();
+		const FRigVMTemplateArgument::FType ExpectedType(InCPPType, InCPPTypeObject);
+		return GetTemplate()->ResolveArgument(InPin->GetFName(), ExpectedType, OutTypes);
+	}
+
+	OutTypes.Reset();
+	return false;
+}
+
 TArray<int32> URigVMTemplateNode::GetResolvedPermutationIndices(FRigVMTemplate::FTypeMap* OutTypes) const
 {
 	if (const FRigVMTemplate* Template = GetTemplate())
 	{
-		FRigVMTemplate::FTypeMap Types;
-
-		for (URigVMPin* Pin : GetPins())
-		{
-			if (Pin->IsWildCard())
-			{
-				continue;
-			}
-
-			FRigVMTemplateArgument::FType Type(Pin->GetCPPType(), Pin->GetCPPTypeObject());
-			Types.Add(Pin->GetFName(), Type);
-		}
-
+		FRigVMTemplate::FTypeMap Types = GetResolvedTypes();
 		TArray<int32> PermutationIndices;
 		Template->Resolve(Types, PermutationIndices, false);
 
@@ -219,6 +249,20 @@ const FRigVMTemplate* URigVMTemplateNode::GetTemplate() const
 	return CachedTemplate;
 }
 
+FRigVMTemplate::FTypeMap URigVMTemplateNode::GetResolvedTypes() const
+{
+	FRigVMTemplate::FTypeMap Types;
+	for (URigVMPin* Pin : GetPins())
+	{
+		if (Pin->IsWildCard())
+		{
+			continue;
+		}
+		Types.Add(Pin->GetFName(), Pin->GetTemplateArgumentType());
+	}
+	return Types;
+}
+
 const FRigVMFunction* URigVMTemplateNode::GetResolvedFunction() const
 {
 	if(CachedFunction == nullptr)
@@ -243,6 +287,65 @@ const FRigVMFunction* URigVMTemplateNode::GetResolvedFunction() const
 bool URigVMTemplateNode::IsResolved() const
 {
 	return GetScriptStruct() != nullptr;
+}
+
+bool URigVMTemplateNode::IsFullyUnresolved() const
+{
+	check(GetTemplate());
+
+	// all permutations are available means we haven't resolved any wildcard pin
+	return GetResolvedPermutations().Num() == GetTemplate()->NumPermutations();
+}
+
+TArray<UScriptStruct*> URigVMTemplateNode::GetSupportedUnitStructs() const
+{
+	if(const FRigVMTemplate* Template = GetTemplate())
+	{
+		return URigVMController::GetUnitStructsForTemplate(Template->GetNotation());
+	}
+	return TArray<UScriptStruct*>();
+}
+
+FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices) const
+{
+	if(GetTemplate() == nullptr)
+	{
+		return FString();
+	}
+	
+	TArray<int32> PermutationIndices = InPermutationIndices;
+	if(PermutationIndices.IsEmpty())
+	{
+		PermutationIndices = GetResolvedPermutationIndices();
+	}
+
+	FString DefaultValue;
+
+	for(const int32 PermutationIndex : PermutationIndices)
+	{
+		const FRigVMFunction* Permutation = GetTemplate()->GetPermutation(PermutationIndex);
+		check(Permutation);
+
+		const TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Permutation->Struct));
+		const FRigVMStruct* DefaultStruct = (const FRigVMStruct*)StructOnScope->GetStructMemory();
+
+		const FString NewDefaultValue = DefaultStruct->ExportToFullyQualifiedText(
+			Cast<UScriptStruct>(StructOnScope->GetStruct()), InRootPinName);
+
+		if(!NewDefaultValue.IsEmpty())
+		{
+			if(DefaultValue.IsEmpty())
+			{
+				DefaultValue = NewDefaultValue;
+			}
+			else if(!NewDefaultValue.Equals(DefaultValue))
+			{
+				return FString();
+			}
+		}
+	}
+	
+	return DefaultValue;
 }
 
 void URigVMTemplateNode::InvalidateCache()

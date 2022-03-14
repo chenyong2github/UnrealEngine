@@ -147,7 +147,7 @@ URigVMPin* URigVMNode::FindPin(const FString& InPinPath) const
 
 	for (URigVMPin* Pin : GetPins())
 	{
-		if (Pin->GetName() == Left)
+		if (Pin->NameEquals(Left, true))
 		{
 			if (Right.IsEmpty())
 			{

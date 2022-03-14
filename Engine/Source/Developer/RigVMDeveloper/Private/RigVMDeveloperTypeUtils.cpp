@@ -1,6 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMDeveloperTypeUtils.h"
+
+#include "Internationalization/StringTableCore.h"
 #include "RigVMModel/RigVMVariableDescription.h"
 
 #if WITH_EDITOR
@@ -63,12 +65,12 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& 
 
 	if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
-		ExternalVariable.TypeName = TEXT("bool");
+		ExternalVariable.TypeName = BoolTypeName;
 		ExternalVariable.Size = sizeof(bool);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
-		ExternalVariable.TypeName = TEXT("int32");
+		ExternalVariable.TypeName = Int32TypeName;
 		ExternalVariable.Size = sizeof(int32);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum ||
@@ -81,7 +83,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& 
 		}
 		else
 		{
-			ExternalVariable.TypeName = TEXT("uint8");
+			ExternalVariable.TypeName = UInt8TypeName;
 		}
 		ExternalVariable.Size = sizeof(uint8);
 	}
@@ -89,12 +91,12 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& 
 	{
 		if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
 		{
-			ExternalVariable.TypeName = TEXT("float");
+			ExternalVariable.TypeName = FloatTypeName;
 			ExternalVariable.Size = sizeof(float);
 		}
 		else if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
 		{
-			ExternalVariable.TypeName = TEXT("double");
+			ExternalVariable.TypeName = DoubleTypeName;
 			ExternalVariable.Size = sizeof(double);
 		}
 		else
@@ -104,12 +106,12 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& 
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 	{
-		ExternalVariable.TypeName = TEXT("FName");
+		ExternalVariable.TypeName = FNameTypeName;
 		ExternalVariable.Size = sizeof(FName);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_String)
 	{
-		ExternalVariable.TypeName = TEXT("FString");
+		ExternalVariable.TypeName = FStringTypeName;
 		ExternalVariable.Size = sizeof(FString);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
@@ -144,32 +146,32 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPTypePath(const FNa
 		CPPTypePath = BaseTypeFromArrayType(CPPTypePath);
 	}
 
-	if (CPPTypePath == TEXT("bool"))
+	if (CPPTypePath == BoolType)
 	{
 		Variable.TypeName = *CPPTypePath;
 		Variable.Size = sizeof(bool);
 	}
-	else if (CPPTypePath == TEXT("float"))
+	else if (CPPTypePath == FloatType)
 	{
 		Variable.TypeName = *CPPTypePath;
 		Variable.Size = sizeof(float);
 	}
-	else if (CPPTypePath == TEXT("double"))
+	else if (CPPTypePath == DoubleType)
 	{
 		Variable.TypeName = *CPPTypePath;
 		Variable.Size = sizeof(double);
 	}
-	else if (CPPTypePath == TEXT("int32"))
+	else if (CPPTypePath == Int32Type)
 	{
 		Variable.TypeName = *CPPTypePath;
 		Variable.Size = sizeof(int32);
 	}
-	else if (CPPTypePath == TEXT("FString"))
+	else if (CPPTypePath == FStringType)
 	{
 		Variable.TypeName = *CPPTypePath;
 		Variable.Size = sizeof(FString);
 	}
-	else if (CPPTypePath == TEXT("FName"))
+	else if (CPPTypePath == FNameType)
 	{
 		Variable.TypeName = *CPPTypePath;
 		Variable.Size = sizeof(FName);
@@ -213,32 +215,32 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 		CPPType = BaseTypeFromArrayType(CPPType);
 	}
 
-	if (CPPType == TEXT("bool"))
+	if (CPPType == BoolType)
 	{
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(bool);
 	}
-	else if (CPPType == TEXT("float"))
+	else if (CPPType == FloatType)
 	{
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(float);
 	}
-	else if (CPPType == TEXT("double"))
+	else if (CPPType == DoubleType)
 	{
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(double);
 	}
-	else if (CPPType == TEXT("int32"))
+	else if (CPPType == Int32Type)
 	{
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(int32);
 	}
-	else if (CPPType == TEXT("FString"))
+	else if (CPPType == FStringType)
 	{
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(FString);
 	}
-	else if (CPPType == TEXT("FName"))
+	else if (CPPType == FNameType)
 	{
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(FName);
@@ -279,29 +281,29 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromCPPType(const FString& InCPPType, UOb
 		PinType.ContainerType = EPinContainerType::Array;
 	}
 
-	if (BaseCPPType == TEXT("bool"))
+	if (BaseCPPType == BoolType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 	}
-	else if (BaseCPPType == TEXT("int32"))
+	else if (BaseCPPType == Int32Type)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
-	else if (BaseCPPType == TEXT("float"))
+	else if (BaseCPPType == FloatType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
 	}
-	else if (BaseCPPType == TEXT("double"))
+	else if (BaseCPPType == DoubleType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
 	}
-	else if (BaseCPPType == TEXT("FName"))
+	else if (BaseCPPType == FNameType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
 	}
-	else if (BaseCPPType == TEXT("FString"))
+	else if (BaseCPPType == FStringType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
 	}
@@ -325,29 +327,29 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromExternalVariable(const FRigVMExternal
 	PinType.ResetToDefaults();
 	PinType.PinCategory = NAME_None;
 
-	if (InExternalVariable.TypeName == TEXT("bool"))
+	if (InExternalVariable.TypeName == BoolTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 	}
-	else if (InExternalVariable.TypeName == TEXT("int32"))
+	else if (InExternalVariable.TypeName == Int32TypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
-	else if (InExternalVariable.TypeName == TEXT("float"))
+	else if (InExternalVariable.TypeName == FloatTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
 	}
-	else if (InExternalVariable.TypeName == TEXT("double"))
+	else if (InExternalVariable.TypeName == DoubleTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
 	}
-	else if (InExternalVariable.TypeName == TEXT("FName"))
+	else if (InExternalVariable.TypeName == FNameTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
 	}
-	else if (InExternalVariable.TypeName == TEXT("FString"))
+	else if (InExternalVariable.TypeName == FStringTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
 	}
@@ -392,29 +394,29 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromRigVMVariableDescription(
 		PinType.ContainerType = EPinContainerType::None;
 	}
 
-	if (CurrentCPPType == TEXT("bool"))
+	if (CurrentCPPType == BoolType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 	}
-	else if (CurrentCPPType == TEXT("int32"))
+	else if (CurrentCPPType == Int32Type)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
-	else if (CurrentCPPType == TEXT("float"))
+	else if (CurrentCPPType == FloatType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
 	}
-	else if (CurrentCPPType == TEXT("double"))
+	else if (CurrentCPPType == DoubleType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
 	}
-	else if (CurrentCPPType == TEXT("FName"))
+	else if (CurrentCPPType == FNameType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
 	}
-	else if (CurrentCPPType == TEXT("FString"))
+	else if (CurrentCPPType == FStringType)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
 	}
@@ -547,21 +549,21 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 	*OutCPPTypeObject = nullptr;
 	if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
-		OutCPPType = Prefix + TEXT("bool") + Suffix;
+		OutCPPType = Prefix + BoolType + Suffix;
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
-		OutCPPType = Prefix + TEXT("int32") + Suffix;
+		OutCPPType = Prefix + Int32Type + Suffix;
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Real)
 	{
 		if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
 		{
-			OutCPPType = Prefix + TEXT("float") + Suffix;
+			OutCPPType = Prefix + FloatType + Suffix;
 		}
 		else if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
 		{
-			OutCPPType = Prefix + TEXT("double") + Suffix;
+			OutCPPType = Prefix + DoubleType + Suffix;
 		}
 		else
 		{
@@ -570,19 +572,19 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
-		OutCPPType = Prefix + TEXT("float") + Suffix;
+		OutCPPType = Prefix + FloatType + Suffix;
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Double)
 	{
-		OutCPPType = Prefix + TEXT("double") + Suffix;
+		OutCPPType = Prefix + DoubleType + Suffix;
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 	{
-		OutCPPType = Prefix + TEXT("FName") + Suffix;
+		OutCPPType = Prefix + FNameType + Suffix;
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_String)
 	{
-		OutCPPType = Prefix + TEXT("FString") + Suffix;
+		OutCPPType = Prefix + FStringType + Suffix;
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 	{
@@ -612,7 +614,7 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 		}
 		else
 		{
-			OutCPPType = Prefix + TEXT("uint8") + Suffix;
+			OutCPPType = Prefix + UInt8Type + Suffix;
 		}
 	}
 	else
@@ -679,29 +681,29 @@ bool RigVMTypeUtils::CPPTypeFromExternalVariable(const FRigVMExternalVariable& I
 	}
 
 	*OutCPPTypeObject = nullptr;
-	if (InExternalVariable.TypeName == TEXT("bool"))
+	if (InExternalVariable.TypeName == BoolTypeName)
 	{
-		OutCPPType = Prefix + TEXT("bool") + Suffix;
+		OutCPPType = Prefix + BoolType + Suffix;
 	}
-	else if (InExternalVariable.TypeName == TEXT("int32"))
+	else if (InExternalVariable.TypeName == Int32TypeName)
 	{
-		OutCPPType = Prefix + TEXT("int32") + Suffix;
+		OutCPPType = Prefix + Int32Type + Suffix;
 	}
-	else if (InExternalVariable.TypeName == TEXT("float"))
+	else if (InExternalVariable.TypeName == FloatTypeName)
 	{
-		OutCPPType = Prefix + TEXT("float") + Suffix;
+		OutCPPType = Prefix + FloatType + Suffix;
 	}
-	else if (InExternalVariable.TypeName == TEXT("double"))
+	else if (InExternalVariable.TypeName == DoubleTypeName)
 	{
-		OutCPPType = Prefix + TEXT("double") + Suffix;
+		OutCPPType = Prefix + DoubleType + Suffix;
 	}
-	else if (InExternalVariable.TypeName == TEXT("FName"))
+	else if (InExternalVariable.TypeName == FNameTypeName)
 	{
-		OutCPPType = Prefix + TEXT("FName") + Suffix;
+		OutCPPType = Prefix + FNameType + Suffix;
 	}
-	else if (InExternalVariable.TypeName == TEXT("FString"))
+	else if (InExternalVariable.TypeName == FStringTypeName)
 	{
-		OutCPPType = Prefix + TEXT("FString") + Suffix;
+		OutCPPType = Prefix + FStringType + Suffix;
 	}
 	else if (UScriptStruct* Struct = Cast<UScriptStruct>(InExternalVariable.TypeObject))
 	{
@@ -741,8 +743,8 @@ bool RigVMTypeUtils::AreCompatible(const FEdGraphPinType& InTypeA, const FEdGrap
 	// Every other case is evaluated by UEdGraphSchema_K2::ArePinTypesCompatible
 	if (SubPinTypeA.ContainerType == SubPinTypeB.ContainerType)
 	{
-		if ((SubPinTypeA.PinCategory == TEXT("float") && SubPinTypeB.PinCategory == TEXT("double")) ||
-			(SubPinTypeA.PinCategory == TEXT("double") && SubPinTypeB.PinCategory == TEXT("float")))
+		if ((SubPinTypeA.PinCategory == FloatTypeName && SubPinTypeB.PinCategory == DoubleTypeName) ||
+			(SubPinTypeA.PinCategory == DoubleTypeName && SubPinTypeB.PinCategory == FloatTypeName))
 		{
 			return true;
 		}

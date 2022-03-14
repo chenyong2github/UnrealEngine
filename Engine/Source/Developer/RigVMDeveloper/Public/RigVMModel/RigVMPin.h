@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMByteCode.h"
+#include "RigVMCore/RigVMTemplate.h"
 #include "RigVMCompiler/RigVMASTProxy.h"
 #include "RigVMPin.generated.h"
 
@@ -123,6 +124,9 @@ public:
 	// Default constructor
 	URigVMPin();
 
+	// returns true if the name of this pin matches a given name
+	bool NameEquals(const FString& InName, bool bFollowCoreRedirectors = false) const;
+
 	// Returns a . separated path containing all names of the pin and its owners,
 	// this includes the node name, for example "Node.Color.R"
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
@@ -206,6 +210,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	FString GetArrayElementCppType() const;
 
+	// Returns the argument type this pin would represent within a template
+	FRigVMTemplateArgument::FType GetTemplateArgumentType() const;
+
 	// Returns true if the C++ data type is FString or FName
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsStringType() const;
@@ -217,6 +224,10 @@ public:
 	// Returns true if the C++ data type is unknown
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsWildCard() const;
+
+	// Returns true if any of the subpins is a wildcard
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool ContainsWildCardSubPin() const;
 
 	// Returns the default value of the Pin as a string.
 	// Note that this value is computed based on the Pin's
@@ -335,7 +346,7 @@ public:
 
 	// Returns true is the two provided source and target Pins
 	// can be linked to one another.
-	static bool CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode);
+	static bool CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection = ERigVMPinDirection::IO);
 
 	// Returns true if this pin has injected nodes
 	bool HasInjectedNodes() const { return InjectionInfos.Num() > 0; }
@@ -469,4 +480,22 @@ private:
 	friend class URigVMGraph;
 	friend class URigVMNode;
 	friend class FRigVMParserAST;
+};
+
+class RIGVMDEVELOPER_API FRigVMPinDefaultValueImportErrorContext : public FOutputDevice
+{
+public:
+
+	int32 NumErrors;
+
+	FRigVMPinDefaultValueImportErrorContext()
+		: FOutputDevice()
+		, NumErrors(0)
+	{
+	}
+
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+	{
+		NumErrors++;
+	}
 };

@@ -95,8 +95,17 @@ FText SControlRigVariableBinding::GetBindingText() const
 
 const FSlateBrush* SControlRigVariableBinding::GetBindingImage() const
 {
-	static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
-	return FEditorStyle::GetBrush(PropertyIcon);
+	static FName TypeIcon(TEXT("Kismet.VariableList.TypeIcon"));
+	static FName ArrayTypeIcon(TEXT("Kismet.VariableList.ArrayTypeIcon"));
+
+	if (ModelPins.Num() > 0)
+	{
+		if(ModelPins[0]->IsArray())
+		{
+			return FEditorStyle::GetBrush(ArrayTypeIcon);
+		}
+	}
+	return FEditorStyle::GetBrush(TypeIcon);
 }
 
 FLinearColor SControlRigVariableBinding::GetBindingColor() const

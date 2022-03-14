@@ -246,6 +246,7 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnGraphImported().RemoveAll(this);
 		RigBlueprint->OnRequestLocalizeFunctionDialog().RemoveAll(this);
 		RigBlueprint->OnRequestBulkEditDialog().Unbind();
+		RigBlueprint->OnRequestJumpToHyperlink().Unbind();
 		RigBlueprint->OnReportCompilerMessage().RemoveAll(this);
 
 #if WITH_EDITOR
@@ -505,6 +506,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		InControlRigBlueprint->OnGraphImported().AddSP(this, &FControlRigEditor::OnGraphImported);
 		InControlRigBlueprint->OnRequestLocalizeFunctionDialog().AddSP(this, &FControlRigEditor::OnRequestLocalizeFunctionDialog);
 		InControlRigBlueprint->OnRequestBulkEditDialog().BindSP(this, &FControlRigEditor::OnRequestBulkEditDialog);
+		InControlRigBlueprint->OnRequestJumpToHyperlink().BindSP(this, &FControlRigEditor::HandleJumpToHyperlink);
 	}
 
 	UpdateStaleWatchedPins();
@@ -2764,7 +2766,10 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 									if(TargetProperty)
 									{
 										uint8* PropertyStorage = TargetProperty->ContainerPtrToValuePtr<uint8>(WrapperObject);
-										TargetProperty->ImportText_Direct(*DefaultValue, PropertyStorage, nullptr, PPF_None, nullptr);
+
+										// we are ok with not reacting to errors here
+										FRigVMPinDefaultValueImportErrorContext ErrorPipe;										
+										TargetProperty->ImportText_Direct(*DefaultValue, PropertyStorage, nullptr, PPF_None, &ErrorPipe);
 									}
 								}
 							}
@@ -2777,6 +2782,7 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 		}
 		case ERigVMGraphNotifType::PinArraySizeChanged:
 		case ERigVMGraphNotifType::PinBoundVariableChanged:
+		case ERigVMGraphNotifType::PinTypeChanged:
 		{
 			URigVMPin* Pin = Cast<URigVMPin>(InSubject);
 
@@ -4667,6 +4673,63 @@ FRigVMController_BulkEditResult FControlRigEditor::OnRequestBulkEditDialog(UCont
 	Result.bCanceled = BulkEditDialog->ShowModal() == EAppReturnType::Cancel; 
 	Result.bSetupUndoRedo = false;
 	return Result;
+}
+
+void FControlRigEditor::HandleJumpToHyperlink(const UObject* InSubject)
+{
+	UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
+	if(RigBlueprint == nullptr)
+	{
+		return;
+	}
+
+	const URigVMGraph* GraphToJumpTo = nullptr;
+	const URigVMNode* NodeToJumpTo = nullptr;
+	const URigVMPin* PinToJumpTo = nullptr;
+	if(const URigVMNode* Node = Cast<URigVMNode>(InSubject))
+	{
+		GraphToJumpTo = Node->GetGraph();
+		NodeToJumpTo = Node;
+	}
+	else if(const URigVMPin* Pin = Cast<URigVMPin>(InSubject))
+	{
+		GraphToJumpTo = Pin->GetGraph();
+		NodeToJumpTo = Pin->GetNode();
+		PinToJumpTo = Pin;
+	}
+	else if(const URigVMLink* Link = Cast<URigVMLink>(InSubject))
+	{
+		GraphToJumpTo = Link->GetGraph();
+		if(const URigVMPin* TargetPin = ((URigVMLink*)Link)->GetTargetPin())
+		{
+			NodeToJumpTo = TargetPin->GetNode();
+			PinToJumpTo = TargetPin;
+		}
+	}
+
+	if(GraphToJumpTo)
+	{
+		if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(RigBlueprint->GetEdGraph(NodeToJumpTo->GetGraph())))
+		{
+			if(NodeToJumpTo)
+			{
+				if(const UControlRigGraphNode* EdGraphNode = Cast<UControlRigGraphNode>(EdGraph->FindNodeForModelNodeName(NodeToJumpTo->GetFName())))
+				{
+					if(PinToJumpTo)
+					{
+						if(const UEdGraphPin* EdGraphPin = EdGraphNode->FindPin(PinToJumpTo->GetSegmentPath(true)))
+						{
+							JumpToPin(EdGraphPin);
+							return;
+						}
+					}
+					JumpToNode(EdGraphNode);
+					return;
+				}
+			}
+			JumpToHyperlink(EdGraph);
+		}
+	}
 }
 
 void FControlRigEditor::UpdateDefaultValueForVariable(FBPVariableDescription& InVariable, bool bUseCDO)
