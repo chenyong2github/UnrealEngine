@@ -25,6 +25,8 @@ public:
 	virtual void RegisterCommands() override;
 	
 	TSharedPtr<FUICommandInfo> Search;
+	TSharedPtr<FUICommandInfo> NextOccurrence;
+	TSharedPtr<FUICommandInfo> PreviousOccurrence;
 };
 
 class SOptimusShaderTextDocumentTextBox : public SCompoundWidget
@@ -74,10 +76,15 @@ private:
 	void OnSearchTextCommitted(const FText& InTextToSearch, ETextCommit::Type InCommitType);
 	TOptional<SSearchBox::FSearchResultData> GetSearchResultData() const;
 	void OnSearchResultNavigationButtonClicked(SSearchBox::SearchDirection InDirection);
+	void OnGoToNextOccurrence();
+	void OnGoToPreviousOccurrence();
 	
 	FReply OnTextKeyChar(const FGeometry& MyGeometry,
 		const FCharacterEvent& InCharacterEvent);
-	
+
+	// Figure out if we need to auto-indent.
+	void HandleAutoIndent() const;
+
 	TSharedPtr<SVerticalBox> TabBody;
 	
 	TSharedPtr<SMultiLineEditableText> Text;

@@ -9,13 +9,45 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/SlateUser.h"
 
 #define LOCTEXT_NAMESPACE "OptimusShaderTextDocumentTextBox"
+
+static int32 GetNumSpacesAtStartOfLine(const FString& InLine)
+{
+	int32 NumSpaces = 0;
+	for (const TCHAR Char : InLine)
+	{
+		if ((Char != TEXT(' ')))
+		{
+			break;
+		}
+				
+		NumSpaces++;
+	}
+
+	return NumSpaces;
+}
+
+static bool IsOpenBrace(const TCHAR& InCharacter)
+{
+	return (InCharacter == TEXT('{') || InCharacter == TEXT('[') || InCharacter == TEXT('('));
+}
+
+static bool IsCloseBrace(const TCHAR& InCharacter)
+{
+	return (InCharacter == TEXT('}') || InCharacter == TEXT(']') || InCharacter == TEXT(')'));
+}
+
+static TCHAR GetMatchedCloseBrace(const TCHAR& InCharacter)
+{
+	return InCharacter == TEXT('{') ? TEXT('}') :
+		(InCharacter == TEXT('[') ? TEXT(']') : TEXT(')'));
+}
 
 FOptimusShaderTextEditorDocumentTextBoxCommands::FOptimusShaderTextEditorDocumentTextBoxCommands() 
 	: TCommands<FOptimusShaderTextEditorDocumentTextBoxCommands>(
@@ -30,11 +62,13 @@ FOptimusShaderTextEditorDocumentTextBoxCommands::FOptimusShaderTextEditorDocumen
 void FOptimusShaderTextEditorDocumentTextBoxCommands::RegisterCommands()
 {
 	UI_COMMAND(Search, "Search", "Search for a String", EUserInterfaceActionType::Button, FInputChord(EKeys::F, EModifierKey::Control));
+	UI_COMMAND(NextOccurrence, "Next Occurrence", "Go to Next Occurrence", EUserInterfaceActionType::Button, FInputChord(EKeys::F3, EModifierKey::None));
+	UI_COMMAND(PreviousOccurrence, "Previous Occurrence", "Go to Previous Occurrence", EUserInterfaceActionType::Button, FInputChord(EKeys::F3, EModifierKey::Shift));
 }
 
 SOptimusShaderTextDocumentTextBox::SOptimusShaderTextDocumentTextBox()
-	:bIsSearchBarHidden(true)
-	,CommandList(MakeShared<FUICommandList>())
+	: bIsSearchBarHidden(true)
+	, CommandList(MakeShared<FUICommandList>())
 {
 }
 
@@ -119,6 +153,15 @@ void SOptimusShaderTextDocumentTextBox::RegisterCommands()
 		Commands.Search,
 		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentTextBox::OnTriggerSearch)
 	);
+
+	CommandList->MapAction(
+		Commands.NextOccurrence,
+		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentTextBox::OnGoToNextOccurrence)
+	);
+	CommandList->MapAction(
+		Commands.PreviousOccurrence,
+		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentTextBox::OnGoToPreviousOccurrence)
+	);
 }
 
 FReply SOptimusShaderTextDocumentTextBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -188,10 +231,6 @@ void SOptimusShaderTextDocumentTextBox::OnTriggerSearch()
 
 	FText SelectedText = Text->GetSelectedText();
 	
-	// we start the search from the beginning of current selection.
-	// goto clears the selection, but it will be restored by the first search
-	Text->GoTo(Text->GetSelection().GetBeginning());
-
 	SearchBar->TriggerSearch(SelectedText);
 }
 
@@ -203,6 +242,10 @@ void SOptimusShaderTextDocumentTextBox::Refresh() const
 
 void SOptimusShaderTextDocumentTextBox::OnSearchTextChanged(const FText& InTextToSearch)
 {
+	// we start the search from the beginning of current selection.
+	// goto clears the selection, but it will be restored by the first search
+	Text->GoTo(Text->GetSelection().GetBeginning());
+
 	Text->SetSearchText(InTextToSearch);
 }
 
@@ -216,7 +259,7 @@ void SOptimusShaderTextDocumentTextBox::OnSearchTextCommitted(const FText& InTex
 	{
 		if (InCommitType == ETextCommit::Type::OnEnter)
 		{
-			Text->AdvanceSearch(false);
+			OnSearchResultNavigationButtonClicked(SSearchBox::SearchDirection::Next);
 		}
 	}
 }
@@ -242,6 +285,16 @@ void SOptimusShaderTextDocumentTextBox::OnSearchResultNavigationButtonClicked(SS
 	Text->AdvanceSearch(InDirection == SSearchBox::SearchDirection::Previous);
 }
 
+void SOptimusShaderTextDocumentTextBox::OnGoToNextOccurrence()
+{
+	OnSearchResultNavigationButtonClicked(SSearchBox::SearchDirection::Next);
+}
+
+void SOptimusShaderTextDocumentTextBox::OnGoToPreviousOccurrence()
+{
+	OnSearchResultNavigationButtonClicked(SSearchBox::SearchDirection::Previous);
+}
+
 FReply SOptimusShaderTextDocumentTextBox::OnTextKeyChar(const FGeometry& MyGeometry,
 	const FCharacterEvent& InCharacterEvent)
 {
@@ -251,27 +304,164 @@ FReply SOptimusShaderTextDocumentTextBox::OnTextKeyChar(const FGeometry& MyGeome
 	}
 
 	const TCHAR Character = InCharacterEvent.GetCharacter();
-	if (Character == TEXT('\t'))
+
+	if (Character == TEXT('\b'))
 	{
-		// Tab to nearest 4.
-		Text->InsertTextAtCursor(TEXT("    "));
+		if (!Text->AnyTextSelected())
+		{
+			// if we are deleting a single open brace
+			// look for a matching close brace following it and delete the close brace as well
+			const FTextLocation CursorLocation = Text->GetCursorLocation();
+			const int Offset = CursorLocation.GetOffset();
+			FString Line;
+			Text->GetTextLine(CursorLocation.GetLineIndex(), Line);
+
+			if (Line.IsValidIndex(Offset) && Line.IsValidIndex(Offset-1))
+			{
+				if (IsOpenBrace(Line[Offset-1]))
+				{
+					if (Line[Offset] == GetMatchedCloseBrace(Line[Offset-1]))
+					{
+						SMultiLineEditableText::FScopedEditableTextTransaction ScopedTransaction(Text);
+						Text->SelectText(FTextLocation(CursorLocation, -1),FTextLocation(CursorLocation, 1));
+						Text->DeleteSelectedText();
+						Text->GoTo(FTextLocation(CursorLocation, -1));
+						return FReply::Handled();
+					}
+				}
+				
+			}
+		}
+
+		return FReply::Unhandled();
+	}
+	else if (Character == TEXT('\t'))
+	{
+		SMultiLineEditableText::FScopedEditableTextTransaction Transaction(Text);
+
+		const FTextLocation CursorLocation = Text->GetCursorLocation();
+
+		const bool bShouldIncreaseIndentation = InCharacterEvent.GetModifierKeys().IsShiftDown() ? false : true;
+		
+		// When there is no text selected, shift tab should also decrease line indentation
+		const bool bShouldIndentLine = Text->AnyTextSelected() || (!Text->AnyTextSelected() && !bShouldIncreaseIndentation);
+		
+		if (bShouldIndentLine)
+		{
+			// Indent the whole line if there is a text selection
+			const FTextSelection Selection = Text->GetSelection();
+			const FTextLocation SelectionStart =
+				CursorLocation == Selection.GetBeginning() ? Selection.GetEnd() : Selection.GetBeginning();
+
+			// Shift the selection according to the new indentation
+			FTextLocation NewCursorLocation;
+			FTextLocation NewSelectionStart;
+		
+			const int32 StartLine = Selection.GetBeginning().GetLineIndex();
+			const int32 EndLine = Selection.GetEnd().GetLineIndex();
+		
+			for (int32 Index = StartLine; Index <= EndLine; Index++)
+			{
+				const FTextLocation LineStart(Index, 0);
+				Text->GoTo(LineStart);
+				
+				FString Line;
+				Text->GetTextLine(Index, Line);
+				const int32 NumSpaces = GetNumSpacesAtStartOfLine(Line);
+				const int32 NumExtraSpaces = NumSpaces % 4;
+
+				// Tab to nearest 4.
+				int32 NumSpacesForIndentation;
+				if (bShouldIncreaseIndentation)
+				{
+					NumSpacesForIndentation = NumExtraSpaces == 0 ? 4 : 4 - NumExtraSpaces ;
+					Text->InsertTextAtCursor(FString::ChrN(NumSpacesForIndentation, TEXT(' ')));
+				}
+				else
+				{
+					NumSpacesForIndentation = NumExtraSpaces == 0 ? FMath::Min(4, NumSpaces) : NumExtraSpaces;
+					Text->SelectText(LineStart,FTextLocation(LineStart, NumSpacesForIndentation));
+					Text->DeleteSelectedText();
+				}
+
+				const int32 CursorShiftDirection = bShouldIncreaseIndentation ? 1 : -1;
+				const int32 CursorShift = NumSpacesForIndentation * CursorShiftDirection;
+				
+				if (Index == CursorLocation.GetLineIndex())
+				{
+					NewCursorLocation = FTextLocation(CursorLocation, CursorShift);
+				}
+				
+				if (Index == SelectionStart.GetLineIndex())
+				{
+					NewSelectionStart = FTextLocation(SelectionStart, CursorShift);
+				}
+			}
+			
+			Text->SelectText(NewSelectionStart, NewCursorLocation);
+		}
+		else
+		{
+			FString Line;
+			Text->GetCurrentTextLine(Line);
+
+			const int32 Offset = CursorLocation.GetOffset();
+
+			// Tab to nearest 4.
+			if (ensure(bShouldIncreaseIndentation))
+			{
+				const int32 NumSpacesForIndentation = 4 - Offset % 4;
+				Text->InsertTextAtCursor(FString::ChrN(NumSpacesForIndentation, TEXT(' ')));
+			}
+		}
+
 		return FReply::Handled();
 	}
 	else if (Character == TEXT('\n') || Character == TEXT('\r'))
 	{
-		// Figure out if we need to auto-indent.
-		FString CurrentLine;
-		Text->GetCurrentTextLine(CurrentLine);
-
-		// See what the open/close curly brace balance is.
-		int32 BraceBalance = 0;
-		for (TCHAR Char : CurrentLine)
-		{
-			BraceBalance += (Char == TEXT('{'));
-			BraceBalance -= (Char == TEXT('}'));
-		}
+		SMultiLineEditableText::FScopedEditableTextTransaction Transaction(Text);
+		
+		// at this point, the text after the text cursor is already in a new line
+		HandleAutoIndent();
+		
+		return FReply::Handled();
+	}
+	else if (IsOpenBrace(Character))
+	{
+		SMultiLineEditableText::FScopedEditableTextTransaction Transaction(Text);
+		
+		// auto insert the matched close brace
+		Text->InsertTextAtCursor(FString::Chr(Character));
+		Text->InsertTextAtCursor(FString::Chr(GetMatchedCloseBrace(Character)));
+		
+		const FTextLocation NewCursorLocation(Text->GetCursorLocation(), -1);
+		Text->GoTo(NewCursorLocation);
 
 		return FReply::Handled();
+	}
+	else if (IsCloseBrace(Character))
+	{
+		if (!Text->AnyTextSelected())
+		{
+			const FTextLocation CursorLocation = Text->GetCursorLocation();	
+			FString Line;
+			Text->GetTextLine(CursorLocation.GetLineIndex(), Line);
+			
+			const int32 Offset =CursorLocation.GetOffset();
+			
+			if (Line.IsValidIndex(Offset))
+			{
+				if (Line[Offset] == Character)
+				{
+					// avoid creating a duplicated close brace and simply
+					// advance the cursor
+					Text->GoTo(FTextLocation(CursorLocation, 1));
+					return FReply::Handled();
+				}
+			}
+		}
+		
+		return FReply::Unhandled();
 	}
 	else
 	{
@@ -280,5 +470,75 @@ FReply SOptimusShaderTextDocumentTextBox::OnTextKeyChar(const FGeometry& MyGeome
 	}
 }
 
+void SOptimusShaderTextDocumentTextBox::HandleAutoIndent() const
+{
+	const FTextLocation CursorLocation = Text->GetCursorLocation();
+	const int32 CurLineIndex = CursorLocation.GetLineIndex();
+	const int32 LastLineIndex = CurLineIndex - 1;
+
+	if (LastLineIndex > 0)
+	{
+		FString LastLine;
+		Text->GetTextLine(LastLineIndex, LastLine);
+
+		const int32 NumSpaces = GetNumSpacesAtStartOfLine(LastLine);
+
+		const int32 NumSpacesForCurrentIndentation = NumSpaces/4*4;
+		const FString CurrentIndentation = FString::ChrN(NumSpacesForCurrentIndentation, TEXT(' '));
+		const FString NextIndentation = FString::ChrN(NumSpacesForCurrentIndentation + 4, TEXT(' '));
+	
+		// See what the open/close curly brace balance is.
+		int32 BraceBalance = 0;
+		for (const TCHAR Char : LastLine)
+		{
+			BraceBalance += (Char == TEXT('{'));
+			BraceBalance -= (Char == TEXT('}'));
+		}
+
+		if (BraceBalance <= 0)
+		{
+			Text->InsertTextAtCursor(CurrentIndentation);
+		}
+		else
+		{
+			Text->InsertTextAtCursor(NextIndentation);
+		
+			// Look for an extra close curly brace and auto-indent it as well
+			FString CurLine;
+			Text->GetTextLine(CurLineIndex, CurLine);
+
+			BraceBalance = 0;
+			int32 CloseBraceOffset = 0;
+			for (const TCHAR Char : CurLine)
+			{
+				BraceBalance += (Char == TEXT('{'));
+				BraceBalance -= (Char == TEXT('}'));
+
+				// Found the first extra '}'
+				if (BraceBalance < 0)
+				{
+					break;
+				}
+
+				CloseBraceOffset++;
+			}
+
+			if (BraceBalance < 0)
+			{
+				const FTextLocation SavedCursorLocation = Text->GetCursorLocation();
+				const FTextLocation CloseBraceLocation(CurLineIndex, CloseBraceOffset);
+			
+				// Create a new line and apply indentation for the close curly brace
+				FString NewLineAndIndent(TEXT("\n"));
+				NewLineAndIndent.Append(CurrentIndentation);
+			
+				Text->GoTo(CloseBraceLocation);
+				Text->InsertTextAtCursor(NewLineAndIndent);
+				// Recover cursor location
+				Text->GoTo(SavedCursorLocation);
+			}
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

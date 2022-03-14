@@ -60,6 +60,18 @@ void SOptimusShaderTextSearchWidget::FocusSearchBox() const
 void SOptimusShaderTextSearchWidget::TriggerSearch(const FText& InNewSearchText) const
 {
 	FocusSearchBox();
+
+	// multiline search is not supported, sanitize the input to be single line text
+	FString SingleLineString = InNewSearchText.ToString();
+	{
+		SingleLineString.GetCharArray().RemoveAll([&](const TCHAR InChar) -> bool
+		{
+			const bool bIsCharAllowed = !FChar::IsLinebreak(InChar);
+			return !bIsCharAllowed;
+		});
+	}
+	
+	FText SingleLineSearchText = FText::FromString(SingleLineString);
 	
 	// clear the text to trigger a fresh search
 	// sometimes, the search text can be the same but starting from different place
@@ -71,7 +83,7 @@ void SOptimusShaderTextSearchWidget::TriggerSearch(const FText& InNewSearchText)
 	}
 	else
 	{
-		SearchBox->SetText(InNewSearchText);
+		SearchBox->SetText(SingleLineSearchText);
 	}
 
 	SearchBox->SelectAllText();
