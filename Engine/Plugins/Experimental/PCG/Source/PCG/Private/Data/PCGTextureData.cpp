@@ -6,6 +6,21 @@
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
 
+namespace PCGTextureDataMaths
+{
+	float ComputeDensity(float InDensityA, float InDensityB, EPCGTextureDensityFunction InDensityFunction)
+	{
+		if (InDensityFunction == EPCGTextureDensityFunction::Multiply)
+		{
+			return InDensityA * InDensityB;
+		}
+		else // default: Ignore
+		{
+			return InDensityA;
+		}
+	}
+}
+
 namespace PCGTextureSampling
 {
 	template<typename ValueType>
@@ -102,7 +117,7 @@ FPCGPoint UPCGBaseTextureData::TransformPoint(const FPCGPoint& InPoint) const
 	FLinearColor Color = PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, Width, Height, [this](int32 Index) { return ColorData[Index]; });
 
 	Point.Color *= Color;
-	Point.Density *= PCGTextureSampling::SampleFloatChannel(Color, ColorChannel);
+	Point.Density = PCGTextureDataMaths::ComputeDensity(Point.Density, PCGTextureSampling::SampleFloatChannel(Color, ColorChannel), DensityFunction);
 
 	return Point;
 }

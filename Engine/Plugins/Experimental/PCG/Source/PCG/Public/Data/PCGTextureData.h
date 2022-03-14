@@ -16,6 +16,14 @@ enum class EPCGTextureColorChannel : uint8
 	Alpha
 };
 
+
+UENUM(BlueprintType)
+enum class EPCGTextureDensityFunction : uint8
+{
+	Ignore,
+	Multiply
+};
+
 UCLASS(Abstract)
 class PCG_API UPCGBaseTextureData : public UPCGSurfaceData
 {
@@ -33,15 +41,19 @@ public:
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override;
 	//~End UPCGSpatialDataWithPointCache interface
 
+public:
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = SpatialData)
+	EPCGTextureDensityFunction DensityFunction = EPCGTextureDensityFunction::Multiply; 
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	EPCGTextureColorChannel ColorChannel = EPCGTextureColorChannel::Alpha;
+
 protected:
 	UPROPERTY()
 	TArray<FLinearColor> ColorData;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	FBox Bounds = FBox(EForceInit::ForceInit);
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	EPCGTextureColorChannel ColorChannel = EPCGTextureColorChannel::Alpha;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	int32 Height = 0;
