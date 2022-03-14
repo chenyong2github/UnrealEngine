@@ -19,6 +19,8 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 
 	bool bOrtho = NaniteView.ViewToClip[3][3] >= 1;
 
+	const bool bDepthClamp = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
+
 	for( int y = Rect.Pixels.y; y <= Rect.Pixels.w; y++ )
 	{
 		for( int x = Rect.Pixels.x; x <= Rect.Pixels.z; x++ )
@@ -65,10 +67,10 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 
 				uint TriIndex = ImposterPixel.x;
 				uint PixelValue = ImposterPixelCode + TriIndex;
-				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ );
+				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ, bDepthClamp );
 
 				#if 0//VISUALIZE
-					WritePixel( OutDbgBuffer64, 0, PixelPos, DeviceZ );
+					WritePixel( OutDbgBuffer64, 0, PixelPos, DeviceZ, bDepthClamp );
 					InterlockedAdd(OutDbgBuffer32[ PixelPos ], 1);
 				#endif
 			}
@@ -260,11 +262,11 @@ void InstanceCull(
 			FNaniteView NaniteView = GetNaniteView(ViewId);
 
 			// Depth clipping should only be disabled with orthographic projections
-			const bool bNearClip = (NEAR_CLIP != 0);
+			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-			const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-			const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+			const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
+			const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
 #else
 			const bool bSkipBoxCullFrustum = false;
 			const bool bSkipBoxCullHZB     = false;
@@ -275,7 +277,7 @@ void InstanceCull(
 
 			float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
 			bIsVisible = BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
-			const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
+			const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
 
 			FFrustumCullData Cull;
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -471,9 +473,6 @@ void InstanceCullVSM(
 	}
 #endif
 
-	// Depth clipping should only be disabled with orthographic projections
-	const bool bNearClip = ( NEAR_CLIP != 0 );
-
 #if DEBUG_FLAGS && COMPILER_PSSL
 	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
 	const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
@@ -540,6 +539,10 @@ void InstanceCullVSM(
 
 		{
 			FNaniteView NaniteView = GetNaniteView( PrimaryViewId );
+			
+			// Depth clipping should only be disabled with orthographic projections
+			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
+
 			// NOTE: With view compaction, the "primary view" may be any of the mip levels
 			// const uint2 TargetViewSize = uint2( NaniteView.ViewSizeAndInvSize.xy );
 

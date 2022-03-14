@@ -2676,91 +2676,54 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					CullingConfig
 				);
 
-				if (GLumenSceneNaniteMultiViewRaster != 0)
+				const uint32 NumCardPagesToRender = CardPagesToRender.Num();
+
+				uint32 NextCardIndex = 0;
+				while(NextCardIndex < NumCardPagesToRender)
 				{
-					// Multi-view rendering path
-					const uint32 NumCardPagesToRender = CardPagesToRender.Num();
+					TArray<Nanite::FPackedView, SceneRenderingAllocator> NaniteViews;
+					TArray<Nanite::FInstanceDraw, SceneRenderingAllocator> NaniteInstanceDraws;
 
-					uint32 NextCardIndex = 0;
-					while(NextCardIndex < NumCardPagesToRender)
+					while(NextCardIndex < NumCardPagesToRender && NaniteViews.Num() < NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 					{
-						TArray<Nanite::FPackedView, SceneRenderingAllocator> NaniteViews;
-						TArray<Nanite::FInstanceDraw, SceneRenderingAllocator> NaniteInstanceDraws;
+						const FCardPageRenderData& CardPageRenderData = CardPagesToRender[NextCardIndex];
 
-						while(NextCardIndex < NumCardPagesToRender && NaniteViews.Num() < NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
-						{
-							const FCardPageRenderData& CardPageRenderData = CardPagesToRender[NextCardIndex];
-
-							if(CardPageRenderData.NaniteInstanceIds.Num() > 0)
-							{
-								for(uint32 InstanceID : CardPageRenderData.NaniteInstanceIds)
-								{
-									NaniteInstanceDraws.Add(Nanite::FInstanceDraw { InstanceID, (uint32)NaniteViews.Num() });
-								}
-
-								Nanite::FPackedViewParams Params;
-								Params.ViewMatrices = CardPageRenderData.ViewMatrices;
-								Params.PrevViewMatrices = CardPageRenderData.ViewMatrices;
-								Params.ViewRect = CardPageRenderData.CardCaptureAtlasRect;
-								Params.RasterContextSize = DepthStencilAtlasSize;
-								Params.LODScaleFactor = CardPageRenderData.NaniteLODScaleFactor;
-								NaniteViews.Add(Nanite::CreatePackedView(Params));
-							}
-
-							NextCardIndex++;
-						}
-
-						if (NaniteInstanceDraws.Num() > 0)
-						{
-							RDG_EVENT_SCOPE(GraphBuilder, "Nanite::RasterizeLumenCards");
-
-							Nanite::FRasterState RasterState;
-							Nanite::CullRasterize(
-								GraphBuilder,
-								Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-								*Scene,
-								*SharedView,
-								NaniteViews,
-								SharedContext,
-								CullingContext,
-								RasterContext,
-								RasterState,
-								&NaniteInstanceDraws
-							);
-						}
-					}
-				}
-				else
-				{
-					RDG_EVENT_SCOPE(GraphBuilder, "RenderLumenCardsWithNanite");
-
-					// One draw call per view
-					for(FCardPageRenderData& CardPageRenderData : CardPagesToRender)
-					{
 						if(CardPageRenderData.NaniteInstanceIds.Num() > 0)
-						{						
-							TArray<Nanite::FInstanceDraw, SceneRenderingAllocator> NaniteInstanceDraws;
-							for( uint32 InstanceID : CardPageRenderData.NaniteInstanceIds )
+						{
+							for(uint32 InstanceID : CardPageRenderData.NaniteInstanceIds)
 							{
-								NaniteInstanceDraws.Add( Nanite::FInstanceDraw { InstanceID, 0u } );
+								NaniteInstanceDraws.Add(Nanite::FInstanceDraw { InstanceID, (uint32)NaniteViews.Num() });
 							}
-						
-							CardPageRenderData.PatchView(GraphBuilder.RHICmdList, Scene, SharedView);
-							Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(*SharedView, DepthStencilAtlasSize, 0);
 
-							Nanite::CullRasterize(
-								GraphBuilder,
-								Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-								*Scene,
-								*SharedView,
-								{ PackedView },
-								SharedContext,
-								CullingContext,
-								RasterContext,
-								Nanite::FRasterState(),
-								&NaniteInstanceDraws
-							);
+							Nanite::FPackedViewParams Params;
+							Params.ViewMatrices = CardPageRenderData.ViewMatrices;
+							Params.PrevViewMatrices = CardPageRenderData.ViewMatrices;
+							Params.ViewRect = CardPageRenderData.CardCaptureAtlasRect;
+							Params.RasterContextSize = DepthStencilAtlasSize;
+							Params.LODScaleFactor = CardPageRenderData.NaniteLODScaleFactor;
+							NaniteViews.Add(Nanite::CreatePackedView(Params));
 						}
+
+						NextCardIndex++;
+					}
+
+					if (NaniteInstanceDraws.Num() > 0)
+					{
+						RDG_EVENT_SCOPE(GraphBuilder, "Nanite::RasterizeLumenCards");
+
+						Nanite::FRasterState RasterState;
+						Nanite::CullRasterize(
+							GraphBuilder,
+							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+							*Scene,
+							*SharedView,
+							NaniteViews,
+							SharedContext,
+							CullingContext,
+							RasterContext,
+							RasterState,
+							&NaniteInstanceDraws
+						);
 					}
 				}
 
@@ -2772,13 +2735,12 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					if (CardPageRenderData.bDistantScene)
 					{
 						Nanite::FRasterState RasterState;
-						RasterState.bNearClip = false;
 
 						CardPageRenderData.PatchView(GraphBuilder.RHICmdList, Scene, SharedView);
 						Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
 							*SharedView,
 							DepthStencilAtlasSize,
-							/*Flags*/ 0,
+							/* Flags */ 0u, // Near clip is intentionally disabled here
 							/*StreamingPriorityCategory*/ 0,
 							GLumenDistantSceneMinInstanceBoundsRadius,
 							Lumen::GetDistanceSceneNaniteLODScaleFactor());

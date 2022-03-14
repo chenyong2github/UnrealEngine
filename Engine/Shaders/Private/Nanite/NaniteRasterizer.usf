@@ -16,8 +16,6 @@
 #define SUBPIXEL_MASK				(SUBPIXEL_SAMPLES - 1)
 #define SUBPIXEL_DILATE				0	// To correct for mismatch with HW rasterizer
 
-#if HAS_RASTER_BIN
-
 uint ActiveRasterizerBin;
 
 // .x = count of SW clusters in bin
@@ -54,8 +52,6 @@ uint3 FetchHWRasterizerBin(const uint ClusterIndex)
 	const uint RangeEnd				= PackedData.y & 0xFFFFu;
 	return uint3(VisibleIndex, RangeStart, RangeEnd);
 }
-
-#endif
 
 ViewState ResolveView(FNaniteView NaniteView)
 {
@@ -113,7 +109,7 @@ struct FRaster
 {
 	FNaniteView	NaniteView;
 	int4		ViewRect;
-#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 	uint2		vPage;
 #endif
 #if VISUALIZE
@@ -122,7 +118,7 @@ struct FRaster
 	WritePixelPageTranslation PageTranslation;
 };
 
-void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, FRaster Raster )
+void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, bool bDepthClamp, FRaster Raster )
 {
 	float MaterialMask = 1.0f; // TODO: PROG_RASTER
 	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
@@ -135,10 +131,10 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, FRaster Raste
 	// Material parameter inputs
 	float4 SvPosition = float4(float(PixelPos.x) + 0.5f, float(PixelPos.y) + 0.5f, DeviceZ, 1.0f);
 	
-	#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 	// SvPosition is in physical coords; translate it to virtual page
 	SvPosition.xy = SvPosition.xy - Raster.ViewRect.xy + Raster.vPage * VSM_PAGE_SIZE;
-	#endif
+#endif
 
 	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 	const float3 HWBarycentrics = float3(0.0, 0.0f, 0.0f); // unused for SW raster
@@ -158,9 +154,9 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, FRaster Raste
 
 	if (MaterialMask >= 0)
 	{
-		WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, Raster.PageTranslation );
+		WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp, Raster.PageTranslation );
 	#if VISUALIZE
-		WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, Raster.PageTranslation );
+		WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp, Raster.PageTranslation );
 		InterlockedAdd( OutDbgBuffer32[ PixelPos ], Raster.VisualizeValues.y );
 	#endif
 	}
@@ -306,13 +302,15 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	float CY2 = Tri.C2;
 	float ZY  = Tri.DepthPlane.z;
 
+	const bool bDepthClamp = (Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
+
 	int y = Tri.MinPixel.y;
 	while (true)
 	{
 		int x = Tri.MinPixel.x;
 		if (min3(CY0, CY1, CY2) >= 0)
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZY, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZY, bDepthClamp, Raster );
 		}
 
 		if (x < Tri.MaxPixel.x)
@@ -328,7 +326,7 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 			{
 				if (min3(CX0, CX1, CX2) >= 0)
 				{
-					WritePixelSW( PixelValue, uint2(x,y), ZX, Raster );
+					WritePixelSW( PixelValue, uint2(x,y), ZX, bDepthClamp, Raster );
 				}
 
 				if (x >= Tri.MaxPixel.x)
@@ -368,12 +366,14 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	int x = Tri.MinPixel.x;
 	int y = Tri.MinPixel.y;
 
+	const bool bDepthClamp = (Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
+
 	HOIST_DESCRIPTORS
 	while( true )
 	{
 		if( min3( CX0, CX1, CX2 ) >= 0 )
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZX, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, bDepthClamp, Raster );
 		}
 
 		if( x < Tri.MaxPixel.x )
@@ -416,6 +416,8 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	bool3 bOpenEdge = Edge012 < 0;
 	float3 InvEdge012 = Edge012 == 0 ? 1e8 : rcp( Edge012 );
 
+	const bool bDepthClamp = (Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
+
 	int y = Tri.MinPixel.y;
 	while( true )
 	{
@@ -443,7 +445,7 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		x1 += Tri.MinPixel.x;
 		for( float x = x0; x <= x1; x++ )
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZX, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, bDepthClamp, Raster );
 
 			ZX += Tri.DepthPlane.x;
 		}
@@ -608,7 +610,8 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 		
 		uint PixelValue = Context.PixelValue | TriIndex;
 
-		WritePixelSW( PixelValue, PixelPos, ZX, Context.Raster );
+		const bool bDepthClamp = (Context.Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
+		WritePixelSW( PixelValue, PixelPos, ZX, bDepthClamp, Context.Raster );
 	}
 }
 
@@ -680,17 +683,29 @@ void MicropolyRasterize(
 	uint	VisibleIndex	: SV_GroupID,
 	uint	GroupIndex		: SV_GroupIndex) 
 {
-#if HAS_RASTER_BIN
-	const uint3 RasterBin = FetchSWRasterizerBin(VisibleIndex);
-	VisibleIndex = RasterBin.x;
-#endif
+	uint3 RasterBin = uint3(0,0,0);
 
-#if HAS_PREV_DRAW_DATA
-	VisibleIndex += InTotalPrevDrawClusters[0].x;
-#endif
-#if ADD_CLUSTER_OFFSET
-	VisibleIndex += InClusterOffsetSWHW[0];
-#endif
+	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
+	BRANCH
+	if (bHasRasterBin)
+	{
+		RasterBin = FetchSWRasterizerBin(VisibleIndex);
+		VisibleIndex = RasterBin.x;
+	}
+
+	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
+	BRANCH
+	if (bHasPrevDrawData)
+	{
+		VisibleIndex += InTotalPrevDrawClusters[0].x;
+	}
+
+	const bool bAddClusterOffset = (RenderFlags & NANITE_RENDER_FLAG_ADD_CLUSTER_OFFSET) != 0u;
+	BRANCH
+	if (bAddClusterOffset)
+	{
+		VisibleIndex += InClusterOffsetSWHW[0];
+	}
 
 	// Should be all scalar.
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
@@ -703,11 +718,10 @@ void MicropolyRasterize(
 	
 	// Virtual shadow maps can scatter instances into different physical pages for caching purposes
 	bool bVirtualTargetStaticPage = false;
+
 #if VIRTUAL_TEXTURE_TARGET
 	bVirtualTargetStaticPage = ShouldCacheInstanceAsStatic( InstanceData );
-#endif
 
-#if CLUSTER_PER_PAGE
 	// Scalar
 	uint2 vPage = VisibleCluster.vPage;
 	uint2 pPageAddress = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ).PhysicalAddress;	
@@ -723,7 +737,7 @@ void MicropolyRasterize(
 
 	float2 SubpixelScale = float2(0.5, -0.5) * NaniteView.ViewSizeAndInvSize.xy * SUBPIXEL_SAMPLES;
 	float2 SubpixelBias = (0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy) * SUBPIXEL_SAMPLES + 0.5f;
-#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 	SubpixelBias += ( (float2)pPageAddress - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
 #endif
 
@@ -750,7 +764,7 @@ void MicropolyRasterize(
 
 	int4 ViewRect = NaniteView.ViewRect;
 
-#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 	ViewRect.xy = pPageAddress * VSM_PAGE_SIZE;
 	ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
 #endif
@@ -770,14 +784,13 @@ void MicropolyRasterize(
 	for( uint j = 0; j < 2; j++ )
 	{
 		uint TriIndex = GroupIndex + j * 64;
-	#if HAS_RASTER_BIN
+
 		BRANCH
-		if (TriIndex < RasterBin.y || TriIndex >= RasterBin.z)
+		if (bHasRasterBin && (TriIndex < RasterBin.y || TriIndex >= RasterBin.z))
 		{
 			// Tri not contained in active rasterizer bin
 			continue;
 		}
-	#endif
 
 		uint3 VertIndexes = 0;
 		if( TriIndex < Cluster.NumTris )
@@ -842,24 +855,19 @@ void MicropolyRasterize(
 
 struct VSOut
 {
-#if !NEAR_CLIP
-	float2 ClipZW								: TEXCOORD0;
-#endif
+	float2 ClipZW								: TEXCOORD0; // Only used when not near clipping
 	nointerpolation uint2 PixelValuePageInfo	: TEXCOORD1;
 #if NANITE_MULTI_VIEW
 	nointerpolation int4 ViewRect				: TEXCOORD2;
 #endif
-#if VISUALIZE
-	nointerpolation uint2 VisualizeValues		: TEXCOORD3;
-#endif
 #if VERTEX_TO_TRIANGLE_MASKS
-	CUSTOM_INTERPOLATION uint4 ToTriangleMasks	: TEXCOORD4;
+	CUSTOM_INTERPOLATION uint4 ToTriangleMasks	: TEXCOORD3;
 #endif
 #if NANITE_MESH_SHADER_INTERP == 1
-	float4 InterpPosition						: TEXCOORD5;
+	float4 InterpPosition						: TEXCOORD4;
 #endif
 #if NANITE_USE_HW_BARYCENTRICS
-	float3 HWBarycentrics						: TEXCOORD6;
+	float3 HWBarycentrics						: TEXCOORD5;
 #endif
 	float4 Position								: SV_Position;
 };
@@ -874,7 +882,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	float3 PointTranslatedWorld = PointRotated + LocalToTranslatedWorld[3].xyz + WorldPositionOffset;
 	float4 PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 	PointClipNoScaling = PointClip;
-#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 	/*
 	float2 vUV = PointClip.xy * float2(0.5, -0.5) + 0.5 * PointClip.w;
 	float2 vPixels = vUV * NaniteView.ViewSizeAndInvSize.xy;
@@ -906,14 +914,15 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	Out.PixelValuePageInfo.y = 0u;
 #endif
 	Out.Position = PointClip;
-#if !NEAR_CLIP
-	Out.ClipZW = PointClip.zw;
-#endif
 
-	// Shader workaround to avoid HW depth clipping. Should be replaced with rasterizer state ideally.
-#if !NEAR_CLIP
-	Out.Position.z = 0.5f * Out.Position.w;
-#endif
+	const bool bNearClip = ((NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u);
+	if (!bNearClip)
+	{
+		Out.ClipZW = PointClip.zw;
+
+		// Shader workaround to avoid HW depth clipping. Should be replaced with rasterizer state ideally.
+		Out.Position.z = 0.5f * Out.Position.w;
+	}
 
 #if NANITE_MESH_SHADER_INTERP == 1
 	Out.InterpPosition = Out.Position;
@@ -923,9 +932,6 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	Out.HWBarycentrics = float3(0.0f, 0.0f, 0.0f);
 #endif
 
-#if VISUALIZE
-	Out.VisualizeValues = GetVisualizeValues();
-#endif
 	return Out;
 }
 
@@ -951,7 +957,7 @@ struct PrimitiveOutput
 
 uint PackTriangleExport(uint3 TriangleIndices)
 {
-    return TriangleIndices.x | (TriangleIndices.y << 10) | (TriangleIndices.z << 20);
+	return TriangleIndices.x | (TriangleIndices.y << 10) | (TriangleIndices.z << 20);
 }
 
 uint3 UnpackTriangleExport(uint Packed)
@@ -972,12 +978,10 @@ groupshared union
 	struct
 	{
 		uint ClusterIndex;			// NOTE: Overlapping ClusterIndex with VertexToTriangleMasks reduces peak LDS usage because of allocation granularity.
-#if HAS_RASTER_BIN
 		uint ReferencedVerticesMasks[NUM_VERTEX_MASKS];
 		uint ReferencedVerticesPrefixSums[NUM_VERTEX_MASKS];
 		uchar NewToOldVertex[NANITE_MAX_CLUSTER_VERTICES];
 		uchar OldToNewVertex[NANITE_MAX_CLUSTER_VERTICES];
-#endif
 	} S;
 } LDS;
 
@@ -1003,16 +1007,30 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	GroupMemoryBarrierWithGroupSync();
 	uint VisibleIndex = LDS.S.ClusterIndex;
 
-#if HAS_RASTER_BIN
-	const uint3 RasterBin = FetchHWRasterizerBin(VisibleIndex);
-	VisibleIndex = RasterBin.x;
-#endif
-#if HAS_PREV_DRAW_DATA
-	VisibleIndex += InTotalPrevDrawClusters[0].y;
-#endif
-#if ADD_CLUSTER_OFFSET
-	VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
-#endif
+	uint3 RasterBin = uint3(0,0,0);
+
+	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
+	BRANCH
+	if (bHasRasterBin)
+	{
+		RasterBin = FetchHWRasterizerBin(VisibleIndex);
+		VisibleIndex = RasterBin.x;
+	}
+
+	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
+	BRANCH
+	if (bHasPrevDrawData)
+	{
+		VisibleIndex += InTotalPrevDrawClusters[0].y;
+	}
+
+	const bool bAddClusterOffset = (RenderFlags & NANITE_RENDER_FLAG_ADD_CLUSTER_OFFSET) != 0u;
+	BRANCH
+	if (bAddClusterOffset)
+	{
+		VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
+	}
+
 	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex;
 
 	// Should be all scalar.
@@ -1024,17 +1042,20 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-	
-#if HAS_RASTER_BIN
-	const uint NumExportTriangles = RasterBin.z - RasterBin.y;
-	const uint FirstExportTriangle = RasterBin.y;
-	uint NumExportVertices = Cluster.NumVerts;
-	const bool bNeedsCompaction = (NumExportTriangles != Cluster.NumTris);
-#else
-	const uint NumExportTriangles = Cluster.NumTris;
-	const uint FirstExportTriangle = 0;
-	const uint NumExportVertices = Cluster.NumVerts;
-#endif
+	uint FirstExportTriangle = 0;
+	uint NumExportTriangles = Cluster.NumTris;
+	uint NumExportVertices  = Cluster.NumVerts;
+
+	bool bNeedsCompaction = false;
+
+	BRANCH
+	if (bHasRasterBin)
+	{
+		FirstExportTriangle = RasterBin.y;
+		NumExportTriangles  = RasterBin.z - RasterBin.y;
+		NumExportVertices   = Cluster.NumVerts;
+		bNeedsCompaction    = (NumExportTriangles != Cluster.NumTris);
+	}
 
 	uint SrcVertexIndex = GroupThreadID;
 	uint3 TriangleIndices;
@@ -1047,7 +1068,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		}
 	}
 
-#if HAS_RASTER_BIN
+	BRANCH
 	if (bNeedsCompaction)
 	{
 		// Programmable raster renders a single material at a time, so clusters with multiple materials need to only
@@ -1108,7 +1129,6 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 			SrcVertexIndex = LDS.S.NewToOldVertex[GroupThreadID];
 		}
 	}
-#endif
 
 	PrimitiveOutput PrimOutput;
 	PrimOutput.VertCount = NumExportVertices;
@@ -1180,16 +1200,31 @@ void HWRasterizeMS(
 )
 {
 	uint VisibleIndex = GroupID;
-#if HAS_RASTER_BIN
-	const uint3 RasterBin = FetchHWRasterizerBin(VisibleIndex);
-	VisibleIndex = RasterBin.x;
-#endif
-#if HAS_PREV_DRAW_DATA
-	VisibleIndex += InTotalPrevDrawClusters[0].y;
-#endif
-#if ADD_CLUSTER_OFFSET
-	VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
-#endif
+
+	uint3 RasterBin = uint3(0,0,0);
+
+	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
+	BRANCH
+	if (bHasRasterBin)
+	{
+		RasterBin = FetchHWRasterizerBin(VisibleIndex);
+		VisibleIndex = RasterBin.x;
+	}
+
+	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
+	BRANCH
+	if (bHasPrevDrawData)
+	{
+		VisibleIndex += InTotalPrevDrawClusters[0].y;
+	}
+
+	const bool bAddClusterOffset = (RenderFlags & NANITE_RENDER_FLAG_ADD_CLUSTER_OFFSET) != 0u;
+	BRANCH
+	if (bAddClusterOffset)
+	{
+		VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
+	}
+
 	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex;
 
 	FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleIndex, VIRTUAL_TEXTURE_TARGET);
@@ -1206,15 +1241,14 @@ void HWRasterizeMS(
 
 		bool bValidTriangle = true;
 		uint3 TriangleIndices = uint3(0u, 0u, 0u);
-	#if HAS_RASTER_BIN
+
 		BRANCH
-		if (TriangleIndex < RasterBin.y || TriangleIndex >= RasterBin.z)
+		if (bHasRasterBin && (TriangleIndex < RasterBin.y || TriangleIndex >= RasterBin.z))
 		{
 			// Tri not contained in active rasterizer bin
 			bValidTriangle = false;
 		}
 		else
-	#endif
 		{
 			TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
 			if (ReverseWindingOrder(InstanceData))
@@ -1265,18 +1299,29 @@ VSOut HWRasterizeVS(
 	uint VisibleIndex	: SV_InstanceID
 	)
 {
-#if HAS_RASTER_BIN
-	const uint3 RasterBin = FetchHWRasterizerBin(VisibleIndex);
-	VisibleIndex = RasterBin.x;
-#endif
+	uint3 RasterBin = uint3(0, 0, 0);
 
-#if HAS_PREV_DRAW_DATA
-	VisibleIndex += InTotalPrevDrawClusters[0].y;
-#endif
+	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
+	BRANCH
+	if (bHasRasterBin)
+	{
+		RasterBin = FetchHWRasterizerBin(VisibleIndex);
+		VisibleIndex = RasterBin.x;
+	}
 
-#if ADD_CLUSTER_OFFSET
-	VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
-#endif
+	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
+	BRANCH
+	if (bHasPrevDrawData)
+	{
+		VisibleIndex += InTotalPrevDrawClusters[0].y;
+	}
+
+	const bool bAddClusterOffset = (RenderFlags & NANITE_RENDER_FLAG_ADD_CLUSTER_OFFSET) != 0u;
+	BRANCH
+	if (bAddClusterOffset)
+	{
+		VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
+	}
 
 	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex; // HW clusters are written from the top (in the visible cluster list)
 
@@ -1285,9 +1330,7 @@ VSOut HWRasterizeVS(
 
 	VSOut Out;
 	Out.Position = float4(0,0,0,1);
-#if !NEAR_CLIP
 	Out.ClipZW = float2(0,0);
-#endif
 
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
@@ -1299,10 +1342,9 @@ VSOut HWRasterizeVS(
 	{
 		bool bValidTriangle = true;
 		uint3 TriangleIndices = uint3(0u, 0u, 0u);
-	#if HAS_RASTER_BIN
+
 		BRANCH
-		if (TriIndex >= RasterBin.y && TriIndex < RasterBin.z)
-	#endif
+		if (bHasRasterBin && (TriIndex >= RasterBin.y && TriIndex < RasterBin.z))
 		{
 			TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);
 			if (ReverseWindingOrder(InstanceData))
@@ -1401,7 +1443,7 @@ void HWRasterizePS(VSOut In)
 	PixelValue = ((ClusterIndex + 1) << 7) | TriangleIndex;
 #endif
 
-#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 	PixelPos += In.ViewRect.xy;
 	In.Position.xy += In.ViewRect.xy;
 	if (all(PixelPos < In.ViewRect.zw))
@@ -1410,12 +1452,6 @@ void HWRasterizePS(VSOut In)
 	if (all(PixelPos >= In.ViewRect.xy && PixelPos < In.ViewRect.zw))
 #endif
 	{
-	#if NEAR_CLIP
-		float DeviceZ = In.Position.z;
-	#else
-		float DeviceZ = In.ClipZW.x / In.ClipZW.y;
-	#endif
-		
 	#if VIRTUAL_TEXTURE_TARGET
 		FPageInfo PageInfo = UnpackPageInfo(In.PixelValuePageInfo.y);
 		const FNaniteView NaniteView = GetNaniteView(PageInfo.ViewId);
@@ -1424,6 +1460,9 @@ void HWRasterizePS(VSOut In)
 		const FNaniteView NaniteView = GetNaniteView(0);
 		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
 	#endif
+
+		const bool bNearClip = ((NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u);
+		float DeviceZ = CondMask(bNearClip, In.Position.z, In.ClipZW.x / In.ClipZW.y);
 
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
 		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
@@ -1459,10 +1498,12 @@ void HWRasterizePS(VSOut In)
 
 		if (MaterialMask >= 0)
 		{
-			WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, PageTranslation);
+			const bool bDepthClamp = !bNearClip;
+			WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp, PageTranslation);
 		#if VISUALIZE
-			WritePixel(OutDbgBuffer64, In.VisualizeValues.x, PixelPos, DeviceZ, PageTranslation);
-			InterlockedAdd(OutDbgBuffer32[PixelPos], In.VisualizeValues.y);
+			const uint2 VisualizeValues = GetVisualizeValues();
+			WritePixel(OutDbgBuffer64, VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp, PageTranslation);
+			InterlockedAdd(OutDbgBuffer32[PixelPos], VisualizeValues.y);
 		#endif
 		}
 	}

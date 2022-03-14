@@ -95,10 +95,6 @@ void Main(
 	uint2 vAddress = (uint2)SvPosition.xy;
 	float DeviceZ = SvPosition.z;
 
-#if !NEAR_CLIP
-	//DeviceZ = max(0.0f, DeviceZ);
-#endif
-
 	FPageInfo PageInfo = UnpackPageInfo( PackedPageInfo );
 	FNaniteView NaniteView = UnpackNaniteView( PassStruct.PackedNaniteViews[ PageInfo.ViewId ] );
 

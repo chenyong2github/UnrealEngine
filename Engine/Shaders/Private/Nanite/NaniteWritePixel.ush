@@ -62,12 +62,15 @@ void WritePixel(
 	RWTexture2D<UlongType> OutBuffer,
 	uint PixelValue,
 	uint2 PixelPos,
-	float DeviceZ
+	float DeviceZ,
+	bool bDepthClamp
 )
 {
-#if !NEAR_CLIP
-	DeviceZ = max(0.0f, DeviceZ);
-#endif
+	if (bDepthClamp)
+	{
+		// When near clipping is disabled we need to move the geometry 
+		DeviceZ = max(0.0f, DeviceZ);
+	}
 
 	const uint DepthInt = asuint(DeviceZ);
 
@@ -106,7 +109,6 @@ void WritePixel(
 #endif
 }
 
-
 // Optional per-pixel page translation parameters
 struct WritePixelPageTranslation
 {
@@ -140,6 +142,7 @@ void WritePixel(
 	uint PixelValue,
 	uint2 PixelPos,
 	float DeviceZ,
+	bool bDepthClamp,
 	WritePixelPageTranslation PageTranslation
 )
 {
@@ -155,5 +158,5 @@ void WritePixel(
 	}
 #endif
 
-	WritePixel( OutBuffer, PixelValue, PixelPos, DeviceZ );
+	WritePixel( OutBuffer, PixelValue, PixelPos, DeviceZ, bDepthClamp );
 }

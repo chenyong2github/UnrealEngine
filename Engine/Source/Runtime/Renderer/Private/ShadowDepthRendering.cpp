@@ -1363,10 +1363,7 @@ static void RenderShadowDepthAtlasNanite(
 	const bool bUseHZB = (CVarNaniteShadowsUseHZB.GetValueOnRenderThread() != 0);
 	TArray<TRefCountPtr<IPooledRenderTarget>>&	PrevAtlasHZBs = Scene.PrevAtlasHZBs;
 
-	bool bWantsNearClip = false;
-	bool bWantsNoNearClip = false;
 	TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
-	TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViewsNoNearClip;
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ShadowsToEmit;
 	for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
 	{
@@ -1389,7 +1386,9 @@ static void RenderShadowDepthAtlasNanite(
 		Initializer.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
 		Initializer.PrevViewMatrices = Initializer.ViewMatrices;
 		Initializer.HZBTestViewRect = ProjectedShadowInfo->GetInnerViewRect();
-		Initializer.Flags = 0;
+		
+		// Orthographic shadow projections want depth clamping rather than clipping
+		Initializer.Flags = ProjectedShadowInfo->ShouldClampToNearPlane() ? 0u : NANITE_VIEW_FLAG_NEAR_CLIP;
 
 		FLightSceneInfo& LightSceneInfo = ProjectedShadowInfo->GetLightSceneInfo();
 		
@@ -1403,20 +1402,11 @@ static void RenderShadowDepthAtlasNanite(
 		UpdatePackedViewParamsFromPrevShadowState(Initializer, PrevShadowState);
 		UpdateCurrentFrameHZB(LightSceneInfo, ShadowKey, ProjectedShadowInfo, nullptr);
 
-		// Orthographic shadow projections want depth clamping rather than clipping
-		if (ProjectedShadowInfo->ShouldClampToNearPlane())
-		{
-			PackedViewsNoNearClip.Add(Nanite::CreatePackedView(Initializer));
-		}
-		else
-		{
-			PackedViews.Add(Nanite::CreatePackedView(Initializer));
-		}
-
+		PackedViews.Add(Nanite::CreatePackedView(Initializer));
 		ShadowsToEmit.Add(ProjectedShadowInfo);
 	}
 
-	if (PackedViews.Num() > 0 || PackedViewsNoNearClip.Num() > 0)
+	if (PackedViews.Num() > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Nanite Shadows");
 
@@ -1432,14 +1422,13 @@ static void RenderShadowDepthAtlasNanite(
 
 		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bTwoPassOcclusion			= true;
-		CullingConfig.bSupportsMultiplePasses	= (PackedViews.Num() > 0 && PackedViewsNoNearClip.Num() > 0); // Need separate passes for near clip on/off currently
 		CullingConfig.bUpdateStreaming			= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 		CullingConfig.SetViewFlags(SceneView);
 
 		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, Scene, PrevAtlasHZB, FullAtlasViewRect, CullingConfig);
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, AtlasSize, false, Nanite::EOutputBufferMode::DepthOnly);
 
-		bool bExtractStats = false;		
+		bool bExtractStats = false;
 		if (GNaniteShowStats != 0)
 		{
 			FString AtlasFilterName = FString::Printf(TEXT("ShadowAtlas%d"), AtlasIndex);
@@ -1449,7 +1438,6 @@ static void RenderShadowDepthAtlasNanite(
 		if (PackedViews.Num() > 0)
 		{
 			Nanite::FRasterState RasterState;
-			RasterState.bNearClip = true;
 
 			Nanite::CullRasterize(
 				GraphBuilder,
@@ -1457,26 +1445,6 @@ static void RenderShadowDepthAtlasNanite(
 				Scene,
 				SceneView,
 				PackedViews,
-				SharedContext,
-				CullingContext,
-				RasterContext,
-				RasterState,
-				nullptr,	// InstanceDraws
-				bExtractStats
-			);
-		}
-
-		if (PackedViewsNoNearClip.Num() > 0)
-		{
-			Nanite::FRasterState RasterState;
-			RasterState.bNearClip = false;
-
-			Nanite::CullRasterize(
-				GraphBuilder,
-				Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-				Scene,
-				SceneView,
-				PackedViewsNoNearClip,
 				SharedContext,
 				CullingContext,
 				RasterContext,
@@ -1729,6 +1697,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 							ComputeNaniteShadowsLODScaleFactor(),
 							PrevHZBPhysical.IsValid(),
 							bVSMUseHZB,
+							bShouldClampToNearPlane,
 							VirtualShadowViews);
 					}
 				}
@@ -1742,6 +1711,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 							ComputeNaniteShadowsLODScaleFactor(),
 							PrevHZBPhysical.IsValid(),
 							bVSMUseHZB,
+							bShouldClampToNearPlane,
 							VirtualShadowViews);
 					}
 				}
@@ -1752,10 +1722,6 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 					VirtualShadowMapArray.CreateMipViews( VirtualShadowViews );
 
 					Nanite::FRasterState RasterState;
-					if (bShouldClampToNearPlane)
-					{
-						RasterState.bNearClip = false;
-					}
 
 					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 					CullingConfig.bUpdateStreaming			= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;

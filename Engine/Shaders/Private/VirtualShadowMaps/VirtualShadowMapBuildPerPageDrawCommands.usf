@@ -14,11 +14,6 @@
 #include "VirtualShadowMapStats.ush"
 #include "VirtualShadowMapPageCacheCommon.ush"
 
-
-#ifndef NEAR_CLIP
-#define NEAR_CLIP 1
-#endif
-
 // Stored in an unordered fashion, needs to be reorganized later
 struct FVisibleInstanceCmd
 {
@@ -178,8 +173,6 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	uint InstanceId = InstanceDataOffset + uint(WorkSetup.LocalItemIndex);	
 	FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[Payload.IndirectArgIndex];
 
-	const bool bNearClip = (NEAR_CLIP != 0);
-
 	// Load relevant instance data
 	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 
@@ -205,6 +198,9 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	for (uint PrimaryViewId = VSMCullingBatchInfo.FirstPrimaryView; PrimaryViewId < VSMCullingBatchInfo.FirstPrimaryView + VSMCullingBatchInfo.NumPrimaryViews; ++PrimaryViewId)
 	{
 		FNaniteView NaniteView = GetNaniteView(PrimaryViewId);
+
+		const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
+
 		const uint2 TargetViewSize = uint2(NaniteView.ViewSizeAndInvSize.xy);
 
 		float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);

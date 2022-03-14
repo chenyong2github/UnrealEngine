@@ -709,7 +709,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 				CullingConfig
 			);
 
-			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(View, HitProxyTextureSize, NANITE_VIEW_FLAG_HZBTEST);
+			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(View, HitProxyTextureSize, NANITE_VIEW_FLAG_HZBTEST | NANITE_VIEW_FLAG_NEAR_CLIP);
 			Nanite::CullRasterize(GraphBuilder, Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass], *Scene, View, { PackedView }, SharedContext, CullingContext, RasterContext, RasterState);
 			Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
 		}

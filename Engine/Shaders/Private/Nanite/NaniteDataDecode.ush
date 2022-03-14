@@ -666,7 +666,7 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.LODScaleHW					= 1.0f;
 	NaniteView.MinBoundsRadiusSq			= 0;
 	NaniteView.StreamingPriorityCategory	= 3;
-	NaniteView.Flags						= NANITE_VIEW_FLAG_HZBTEST;
+	NaniteView.Flags						= NANITE_VIEW_FLAG_HZBTEST | NANITE_VIEW_FLAG_NEAR_CLIP;
 	
 	NaniteView.TargetLayerIndex = 0;
 	NaniteView.TargetMipLevel = 0;

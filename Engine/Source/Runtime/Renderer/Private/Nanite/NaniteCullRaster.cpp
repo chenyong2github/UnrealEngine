@@ -169,13 +169,6 @@ FAutoConsoleVariableRef CVarNaniteRequireAtomic64Support(
 	})
 );
 
-int32 GNaniteClusterPerPage = 1;
-static FAutoConsoleVariableRef CVarNaniteClusterPerPage(
-	TEXT("r.Nanite.ClusterPerPage"),
-	GNaniteClusterPerPage,
-	TEXT("")
-);
-
 int32 GNaniteBoxCullingHZB = 1;
 static FAutoConsoleVariableRef CVarNaniteBoxCullingHZB(
 	TEXT("r.Nanite.BoxCullingHZB"),
@@ -374,11 +367,10 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 
 	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST, CULLING_PASS_EXPLICIT_LIST);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
-	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FNearClipDim, FPrimitiveFilterDim, FDebugFlagsDim, FRasterTechniqueDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FPrimitiveFilterDim, FDebugFlagsDim, FRasterTechniqueDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -480,11 +472,10 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 	DECLARE_GLOBAL_SHADER( FInstanceCullVSM_CS );
 	SHADER_USE_PARAMETER_STRUCT( FInstanceCullVSM_CS, FNaniteGlobalShader);
 
-	class FNearClipDim : SHADER_PERMUTATION_BOOL( "NEAR_CLIP" );
 	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
 
-	using FPermutationDomain = TShaderPermutationDomain<FNearClipDim, FPrimitiveFilterDim, FDebugFlagsDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FPrimitiveFilterDim, FDebugFlagsDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -534,12 +525,10 @@ class FPersistentClusterCull_CS : public FNaniteGlobalShader
 
 	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
-	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
 
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim, FDebugFlagsDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FVirtualTextureTargetDim, FDebugFlagsDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
@@ -577,12 +566,6 @@ class FPersistentClusterCull_CS : public FNaniteGlobalShader
 
 		if( PermutationVector.Get<FVirtualTextureTargetDim>() &&
 			!PermutationVector.Get<FMultiViewDim>() )
-		{
-			return false;
-		}
-
-		if( PermutationVector.Get<FClusterPerPageDim>() &&
-			!PermutationVector.Get<FVirtualTextureTargetDim>() )
 		{
 			return false;
 		}
@@ -671,10 +654,9 @@ class FCalculateSafeRasterizerArgs_CS : public FNaniteGlobalShader
 	DECLARE_GLOBAL_SHADER(FCalculateSafeRasterizerArgs_CS);
 	SHADER_USE_PARAMETER_STRUCT(FCalculateSafeRasterizerArgs_CS, FNaniteGlobalShader);
 
-	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
 	class FIsPostPass : SHADER_PERMUTATION_BOOL("IS_POST_PASS");
 	class FProgrammableRaster : SHADER_PERMUTATION_BOOL("PROGRAMMABLE_RASTER");
-	using FPermutationDomain = TShaderPermutationDomain<FHasPrevDrawData, FIsPostPass, FProgrammableRaster>;
+	using FPermutationDomain = TShaderPermutationDomain<FIsPostPass, FProgrammableRaster>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -699,12 +681,11 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 	DECLARE_GLOBAL_SHADER(FRasterBinBuild_CS);
 	SHADER_USE_PARAMETER_STRUCT(FRasterBinBuild_CS, FNaniteGlobalShader);
 
-	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
 	class FIsPostPass : SHADER_PERMUTATION_BOOL("IS_POST_PASS");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FBuildPassDim : SHADER_PERMUTATION_SPARSE_INT("RASTER_BIN_PASS", NANITE_RASTER_BIN_CLASSIFY_SW, NANITE_RASTER_BIN_CLASSIFY_HW, NANITE_RASTER_BIN_SCATTER_SW, NANITE_RASTER_BIN_SCATTER_HW);
 
-	using FPermutationDomain = TShaderPermutationDomain<FHasPrevDrawData, FIsPostPass, FVirtualTextureTargetDim, FBuildPassDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FIsPostPass, FVirtualTextureTargetDim, FBuildPassDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
@@ -816,16 +797,11 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 {
 	DECLARE_SHADER_TYPE(FMicropolyRasterizeCS, Material);
 
-	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
-	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL( "HAS_PREV_DRAW_DATA");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
-	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
-	class FHasRasterBinDim : SHADER_PERMUTATION_BOOL("HAS_RASTER_BIN");
-	using FPermutationDomain = TShaderPermutationDomain<FAddClusterOffset, FMultiViewDim, FHasPrevDrawData, FRasterTechniqueDim, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim, FHasRasterBinDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FMultiViewDim, FRasterTechniqueDim, FVisualizeDim, FVirtualTextureTargetDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -864,12 +840,6 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 
 		if( PermutationVector.Get<FVirtualTextureTargetDim>() &&
 			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
-		{
-			return false;
-		}
-
-		if( PermutationVector.Get<FClusterPerPageDim>() &&
-			!PermutationVector.Get<FVirtualTextureTargetDim>() )
 		{
 			return false;
 		}
@@ -913,17 +883,11 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 	DECLARE_SHADER_TYPE(FHWRasterizeVS, Material);
 
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
-	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FAutoShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_AUTO_SHADER_CULL");
-	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
-	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
-	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
-	class FHasRasterBinDim : SHADER_PERMUTATION_BOOL("HAS_RASTER_BIN");
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FPrimShaderDim, FAutoShaderCullDim, FHasPrevDrawData, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FHasRasterBinDim, FClusterPerPageDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FAutoShaderCullDim, FVirtualTextureTargetDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -949,13 +913,6 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		{
 			return false;
 		}
-		
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
-			PermutationVector.Get<FVisualizeDim>())
-		{
-			// Visualization not supported with depth only
-			return false;
-		}
 
 		if ((PermutationVector.Get<FPrimShaderDim>() || PermutationVector.Get<FAutoShaderCullDim>()) &&
 			!FDataDrivenShaderPlatformInfo::GetSupportsPrimitiveShaders(Parameters.Platform))
@@ -971,11 +928,6 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		}
 
 		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FMultiViewDim>())
-		{
-			return false;
-		}
-
-		if (PermutationVector.Get<FClusterPerPageDim>() && !PermutationVector.Get<FVirtualTextureTargetDim>())
 		{
 			return false;
 		}
@@ -1035,15 +987,9 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 
 	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
-	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
-	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
-	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
-	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
-	class FHasRasterBinDim : SHADER_PERMUTATION_BOOL("HAS_RASTER_BIN");
-	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FHasPrevDrawData, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim, FHasRasterBinDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FRasterTechniqueDim, FMultiViewDim, FVirtualTextureTargetDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -1075,20 +1021,14 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		{
 			return false;
 		}
-		
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
-			PermutationVector.Get<FVisualizeDim>())
+
+		if (PermutationVector.Get<FInterpOptDim>())
 		{
-			// Visualization not supported with depth only
+			// TODO: PROG_RASTER (WIP optimization, always disable to save permutation count for now)
 			return false;
 		}
 
 		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FMultiViewDim>())
-		{
-			return false;
-		}
-
-		if (PermutationVector.Get<FClusterPerPageDim>() && !PermutationVector.Get<FVirtualTextureTargetDim>())
 		{
 			return false;
 		}
@@ -1141,8 +1081,6 @@ public:
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
-	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 
 	using FPermutationDomain = TShaderPermutationDomain
 	<
@@ -1152,9 +1090,7 @@ public:
 		FMeshShaderDim,
 		FPrimShaderDim,
 		FVisualizeDim,
-		FVirtualTextureTargetDim,
-		FClusterPerPageDim,
-		FNearClipDim
+		FVirtualTextureTargetDim
 	>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -1182,6 +1118,12 @@ public:
 
 		if (!FRasterTechnique::ShouldCompilePermutation(Parameters, PermutationVector.Get<FRasterTechniqueDim>()))
 		{
+			return false;
+		}
+
+		if (PermutationVector.Get<FInterpOptDim>())
+		{
+			// TODO: PROG_RASTER (WIP optimization, always disable to save permutation count for now)
 			return false;
 		}
 
@@ -1217,11 +1159,6 @@ public:
 			return false;
 		}
 
-		if (PermutationVector.Get<FClusterPerPageDim>() && !PermutationVector.Get<FVirtualTextureTargetDim>())
-		{
-			return false;
-		}
-
 		if (!PermutationVector.Get<FMeshShaderDim>() && PermutationVector.Get<FInterpOptDim>())
 		{
 			return false;
@@ -1239,7 +1176,6 @@ public:
 
 		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_R32_UINT);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
-		OutEnvironment.SetDefine(TEXT("HAS_RASTER_BIN"), 0);
 
 		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FPrimShaderDim>()) // TODO: PROG_RASTER: Implement support for FPrimShaderDim
 		{
@@ -1250,7 +1186,6 @@ public:
 		{
 			OutEnvironment.SetDefine(TEXT("NANITE_USE_HW_BARYCENTRICS"), 0);
 		}
-
 
 		return FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());		
 	}
@@ -1441,7 +1376,7 @@ FCullingContext InitCullingContext(
 		CullingContext.ClusterCountSWHW = nullptr;
 	}
 
-	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer()); 
+	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer());
 	
 	if (CullingContext.Configuration.bSupportsMultiplePasses)
 	{
@@ -1598,6 +1533,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
+	FRDGBufferRef Dummy = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
+
 	if (VirtualShadowMapArray)
 	{
 		RDG_GPU_STAT_SCOPE( GraphBuilder, NaniteInstanceCullVSM );
@@ -1631,7 +1568,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		check(CullingContext.ViewsBuffer);
 
 		FInstanceCullVSM_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FInstanceCullVSM_CS::FNearClipDim>(RasterState.bNearClip);
 		PermutationVector.Set<FInstanceCullVSM_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 
@@ -1700,7 +1636,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		FInstanceCull_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FInstanceCull_CS::FCullingPassDim>(InstanceCullingPass);
 		PermutationVector.Set<FInstanceCull_CS::FMultiViewDim>(bMultiView);
-		PermutationVector.Set<FInstanceCull_CS::FNearClipDim>(RasterState.bNearClip);
 		PermutationVector.Set<FInstanceCull_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCull_CS::FRasterTechniqueDim>(int32(RasterContext.RasterTechnique));
@@ -1743,14 +1678,13 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV();
 		
-		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA); // sanity check
-		if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA)
+		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA); // sanity check
+		if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA)
 		{
 			PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(CullingContext.TotalPrevDrawClustersBuffer);
 		}
 		else
 		{
-			FRDGBufferRef Dummy = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
 			PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(Dummy);
 		}
 
@@ -1789,9 +1723,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		FPersistentClusterCull_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FPersistentClusterCull_CS::FCullingPassDim>(CullingPass);
 		PermutationVector.Set<FPersistentClusterCull_CS::FMultiViewDim>(bMultiView);
-		PermutationVector.Set<FPersistentClusterCull_CS::FNearClipDim>(RasterState.bNearClip);
 		PermutationVector.Set<FPersistentClusterCull_CS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-		PermutationVector.Set<FPersistentClusterCull_CS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
 		PermutationVector.Set<FPersistentClusterCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FPersistentClusterCull_CS>(PermutationVector);
@@ -1811,14 +1743,18 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		FCalculateSafeRasterizerArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCalculateSafeRasterizerArgs_CS::FParameters >();
 
 		const bool bProgrammableRaster	= (CullingContext.RenderFlags & NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER) != 0;
-		const bool bPrevDrawData		= (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA) != 0;
+		const bool bPrevDrawData		= (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0;
 		const bool bPostPass			= (CullingPass == CULLING_PASS_OCCLUSION_POST) != 0;
 
 		if (bPrevDrawData)
 		{
 			PassParameters->InTotalPrevDrawClusters		= GraphBuilder.CreateSRV(CullingContext.TotalPrevDrawClustersBuffer);
 		}
-		
+		else
+		{
+			PassParameters->InTotalPrevDrawClusters		= GraphBuilder.CreateSRV(Dummy);
+		}
+
 		if (bPostPass)
 		{
 			PassParameters->OffsetClustersArgsSWHW		= GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
@@ -1840,7 +1776,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->RenderFlags						= CullingContext.RenderFlags;
 		
 		FCalculateSafeRasterizerArgs_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FCalculateSafeRasterizerArgs_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FCalculateSafeRasterizerArgs_CS::FIsPostPass>(bPostPass);
 		PermutationVector.Set<FCalculateSafeRasterizerArgs_CS::FProgrammableRaster>(bProgrammableRaster);
 
@@ -1885,15 +1820,16 @@ static void AddPass_Binning(
 	const bool bProgrammableRaster = (RenderFlags & NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER) != 0;
 
 	BinningData.BinCount = bProgrammableRaster ? Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinCount() : 0u;
+
+	BinningData.HeaderBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 4, FMath::RoundUpToPowerOfTwo(FMath::Max(BinningData.BinCount, 1u))), TEXT("Nanite.RasterizerBinHeaders"));
+	BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(FMath::Max(BinningData.BinCount, 1u) * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
+
 	if (BinningData.BinCount == 0)
 	{
 		return;
 	}
 
 	const uint32 MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
-
-	BinningData.HeaderBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 4, FMath::RoundUpToPowerOfTwo(BinningData.BinCount)), TEXT("Nanite.RasterizerBinHeaders"));
-	BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(BinningData.BinCount * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
 
 	// Support a max of 3 unique materials per visible cluster (i.e. if all clusters are fast path and use full range, never run out of space).
 	const uint32 MaxClusterIndirections = MaxVisibleClusters * 3u;
@@ -1904,24 +1840,14 @@ static void AddPass_Binning(
 
 	FRasterBinBuild_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterBinBuild_CS::FParameters>();
 
-	PassParameters->GPUSceneParameters			= GPUSceneParameters;
-	PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-	PassParameters->ClusterPageData				= GStreamingManager.GetClusterPageDataSRV();
-	PassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
-	PassParameters->InClusterCountSWHW			= GraphBuilder.CreateSRV(ClusterCountSWHW);
-	PassParameters->IndirectArgs				= IndirectArgs;
-
-	const bool bPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA) != 0;
-	if (bPrevDrawData)
-	{
-		PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
-	}
-
-	if (!bMainPass)
-	{
-		PassParameters->InClusterOffsetSWHW = GraphBuilder.CreateSRV(ClusterOffsetSWHW);
-	}
-
+	PassParameters->GPUSceneParameters		= GPUSceneParameters;
+	PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
+	PassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV();
+	PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+	PassParameters->InClusterCountSWHW		= GraphBuilder.CreateSRV(ClusterCountSWHW);
+	PassParameters->InClusterOffsetSWHW		= GraphBuilder.CreateSRV(ClusterOffsetSWHW);
+	PassParameters->IndirectArgs			= IndirectArgs;
+	PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
 	PassParameters->OutRasterizerBinHeaders = GraphBuilder.CreateUAV(BinningData.HeaderBuffer);
 
 	PassParameters->PageConstants = PageConstants;
@@ -1931,7 +1857,6 @@ static void AddPass_Binning(
 	// Classify SW Clusters
 	{
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FRasterBinBuild_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
 		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_CLASSIFY_SW);
@@ -1951,7 +1876,6 @@ static void AddPass_Binning(
 	// Classify HW Clusters
 	{
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FRasterBinBuild_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
 		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_CLASSIFY_HW);
@@ -1996,7 +1920,6 @@ static void AddPass_Binning(
 	// Scatter SW Clusters
 	{
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FRasterBinBuild_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
 		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_SCATTER_SW);
@@ -2018,7 +1941,6 @@ static void AddPass_Binning(
 	// Scatter HW Clusters
 	{
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FRasterBinBuild_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
 		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_SCATTER_HW);
@@ -2063,6 +1985,24 @@ void AddPass_Rasterize(
 
 	LLM_SCOPE_BYTAG(Nanite);
 
+	FRDGBufferRef DummyBuffer = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
+
+	if (bMainPass)
+	{
+		check(ClusterOffsetSWHW == nullptr);
+		ClusterOffsetSWHW = DummyBuffer;
+	}
+	else
+	{
+		RenderFlags |= NANITE_RENDER_FLAG_ADD_CLUSTER_OFFSET;
+	}
+
+	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA);
+	if (!bHasPrevDrawData)
+	{
+		TotalPrevDrawClustersBuffer = DummyBuffer;
+	}
+
 	// Rasterizer Binning
 	FBinningData BinningData = {};
 	AddPass_Binning(
@@ -2082,9 +2022,12 @@ void AddPass_Rasterize(
 		BinningData
 	);
 
-	const bool bHavePrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA);
-
 	const bool bProgrammableRaster = BinningData.BinCount > 0;
+	if (bProgrammableRaster)
+	{
+		RenderFlags |= NANITE_RENDER_FLAG_HAS_RASTER_BIN;
+	}
+
 	FRDGBufferRef BinIndirectArgs = bProgrammableRaster ? BinningData.IndirectArgs : IndirectArgs;
 
 	auto ConstructRasterBinPassParameters = [&](bool bIsTwoSided) -> FHWRasterizePS::FParameters*
@@ -2114,27 +2057,23 @@ void AddPass_Rasterize(
 		CommonPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 
 		CommonPassParameters->InViews = ViewsBuffer != nullptr ? GraphBuilder.CreateSRV(ViewsBuffer) : nullptr;
-		CommonPassParameters->InClusterOffsetSWHW = !bMainPass ? GraphBuilder.CreateSRV(ClusterOffsetSWHW) : nullptr;
-		CommonPassParameters->InTotalPrevDrawClusters = bHavePrevDrawData ? GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer) : nullptr;
+		CommonPassParameters->InClusterOffsetSWHW = GraphBuilder.CreateSRV(ClusterOffsetSWHW);
+		CommonPassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
 
 		if (VirtualShadowMapArray != nullptr)
 		{
 			CommonPassParameters->VirtualShadowMap = VirtualTargetParameters;
 		}
 
-		if (bProgrammableRaster)
-		{
-			CommonPassParameters->MaterialSlotTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
-			CommonPassParameters->RasterizerBinData = GraphBuilder.CreateSRV(BinningData.DataBuffer);
-			CommonPassParameters->RasterizerBinHeaders = GraphBuilder.CreateSRV(BinningData.HeaderBuffer);
-		}
+		CommonPassParameters->MaterialSlotTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+		CommonPassParameters->RasterizerBinData = GraphBuilder.CreateSRV(BinningData.DataBuffer);
+		CommonPassParameters->RasterizerBinHeaders = GraphBuilder.CreateSRV(BinningData.HeaderBuffer);
 
 		return RasterPassParameters;
 	};
 
 	const ERasterTechnique Technique = RasterContext.RasterTechnique;
 	const ERasterScheduling Scheduling = RasterContext.RasterScheduling;
-	const bool bNearClip = RasterState.bNearClip;
 	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
 	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute;
@@ -2170,14 +2109,7 @@ void AddPass_Rasterize(
 	if (VirtualShadowMapArray)
 	{
 		ViewRect.Min = FIntPoint::ZeroValue;
-		if( GNaniteClusterPerPage )
-		{
-			ViewRect.Max = FIntPoint( FVirtualShadowMap::PageSize, FVirtualShadowMap::PageSize ) * FVirtualShadowMap::RasterWindowPages;
-		}
-		else
-		{
-			ViewRect.Max = FIntPoint( FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY );
-		}
+		ViewRect.Max = FIntPoint( FVirtualShadowMap::PageSize, FVirtualShadowMap::PageSize ) * FVirtualShadowMap::RasterWindowPages;
 	}
 
 	FRHIRenderPassInfo RPInfo;
@@ -2202,46 +2134,27 @@ void AddPass_Rasterize(
 	PermutationVectorPS.Set<FHWRasterizePS::FMeshShaderDim>(bUseMeshShader);
 	PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
-	PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
 	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	PermutationVectorPS.Set<FHWRasterizePS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
 
 	FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
 	PermutationVectorVS.Set<FHWRasterizeVS::FRasterTechniqueDim>(int32(Technique));
-	PermutationVectorVS.Set<FHWRasterizeVS::FAddClusterOffset>(bMainPass ? 0 : 1);
 	PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
 	PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
-	PermutationVectorVS.Set<FHWRasterizeVS::FHasPrevDrawData>(bHavePrevDrawData);
-	PermutationVectorVS.Set<FHWRasterizeVS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
-	PermutationVectorVS.Set<FHWRasterizeVS::FNearClipDim>(bNearClip);
 	PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
-	PermutationVectorVS.Set<FHWRasterizeVS::FHasRasterBinDim>(bProgrammableRaster);
 
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
 	PermutationVectorMS.Set<FHWRasterizeMS::FInterpOptDim>(GNaniteMSInterp != 0);
 	PermutationVectorMS.Set<FHWRasterizeMS::FRasterTechniqueDim>(int32(Technique));
-	PermutationVectorMS.Set<FHWRasterizeMS::FAddClusterOffset>(bMainPass ? 0 : 1);
 	PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
-	PermutationVectorMS.Set<FHWRasterizeMS::FHasPrevDrawData>(bHavePrevDrawData);
-	PermutationVectorMS.Set<FHWRasterizeMS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
-	PermutationVectorMS.Set<FHWRasterizeMS::FNearClipDim>(bNearClip);
 	PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	PermutationVectorMS.Set<FHWRasterizeMS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
-	PermutationVectorMS.Set<FHWRasterizeMS::FHasRasterBinDim>(bProgrammableRaster);
 
 	// SW Rasterize
 	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FAddClusterOffset>(bMainPass ? 0 : 1);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FMultiViewDim>(bMultiView);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FHasPrevDrawData>(bHavePrevDrawData);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FRasterTechniqueDim>(int32(Technique));
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FNearClipDim>(bNearClip);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FClusterPerPageDim>(GNaniteClusterPerPage&& VirtualShadowMapArray != nullptr);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FHasRasterBinDim>(bProgrammableRaster);
 
 	const FMaterialRenderProxy* FixedMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	check(FixedMaterialProxy);
@@ -2806,7 +2719,6 @@ void CullRasterize(
 	bool bExtractStats
 )
 {
-	check((CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA) == 0); // TODO: PROG_RASTER (delete permutation)
 	LLM_SCOPE_BYTAG(Nanite);
 	
 	// Split rasterization into multiple passes if there are too many views. Only possible for depth-only rendering.
@@ -2997,8 +2909,8 @@ void CullRasterize(
 			PassParameters->InOutPostPassRasterizeArgsSWHW = GraphBuilder.CreateUAV( CullingContext.PostRasterizeArgsSWHW );
 		}
 		
-		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA); // sanity check
-		if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA)
+		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA); // sanity check
+		if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA)
 		{
 			PassParameters->InOutTotalPrevDrawClusters = GraphBuilder.CreateUAV(CullingContext.TotalPrevDrawClustersBuffer);
 		}
@@ -3176,7 +3088,7 @@ void CullRasterize(
 	{
 		// Pass index and number of clusters rendered in previous passes are irrelevant for depth-only rendering.
 		CullingContext.DrawPassIndex++;
-		CullingContext.RenderFlags |= NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA;
+		CullingContext.RenderFlags |= NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA;
 	}
 
 	if (bExtractStats)

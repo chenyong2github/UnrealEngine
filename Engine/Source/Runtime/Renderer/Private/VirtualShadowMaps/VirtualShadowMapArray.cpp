@@ -1633,7 +1633,6 @@ void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewIn
 	}
 }
 
-extern int32 GNaniteClusterPerPage;
 void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const
 {
 	// strategy: 
@@ -1685,19 +1684,17 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 
 			MipView.HZBTestViewRect = MipView.ViewRect;	// Assumed to always be the same for VSM
 
-			float RcpExtXY = 1.0f / FVirtualShadowMap::VirtualMaxResolutionXY;
-			if( GNaniteClusterPerPage )
-				RcpExtXY = 1.0f / ( FVirtualShadowMap::PageSize * FVirtualShadowMap::RasterWindowPages );
+			float RcpExtXY = 1.0f / ( FVirtualShadowMap::PageSize * FVirtualShadowMap::RasterWindowPages );
 
 			// Transform clip from virtual address space to viewport.
 			MipView.ClipSpaceScaleOffset = FVector4f(
-				MipView.ViewSizeAndInvSize.X * RcpExtXY,
-				MipView.ViewSizeAndInvSize.Y * RcpExtXY,
-				(MipView.ViewSizeAndInvSize.X + 2.0f * MipView.ViewRect.X) * RcpExtXY - 1.0f,
+				  MipView.ViewSizeAndInvSize.X * RcpExtXY,
+				  MipView.ViewSizeAndInvSize.Y * RcpExtXY,
+				 (MipView.ViewSizeAndInvSize.X + 2.0f * MipView.ViewRect.X) * RcpExtXY - 1.0f,
 				-(MipView.ViewSizeAndInvSize.Y + 2.0f * MipView.ViewRect.Y) * RcpExtXY + 1.0f);
 
 			uint32 StreamingPriorityCategory = 0;
-			uint32 ViewFlags = NANITE_VIEW_FLAG_HZBTEST;
+			uint32 ViewFlags = NANITE_VIEW_FLAG_HZBTEST | NANITE_VIEW_FLAG_NEAR_CLIP;
 			MipView.StreamingPriorityCategory_AndFlags = (ViewFlags << NANITE_NUM_STREAMING_PRIORITY_CATEGORY_BITS) | StreamingPriorityCategory;
 		}
 	}
@@ -2201,7 +2198,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 
 	/**
 	 * Use the 'dependent view' i.e., the view used to set up a view dependent CSM/VSM(clipmap) OR select the view closest to the local light.
-	 * This last is important to get some kind of reasonable behaviour for split screen.
+	 * This last is important to get some kind of reasonable behavior for split screen.
 	 */
 	auto GetCullingViewOrigin = [&Views](const FProjectedShadowInfo* ProjectedShadowInfo) -> FLargeWorldRenderPosition
 	{
@@ -2251,7 +2248,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		const TSharedPtr<FVirtualShadowMapClipmap> Clipmap = ProjectedShadowInfo->VirtualShadowMapClipmap;
 		if (Clipmap)
 		{
-			VSMCullingBatchInfo.NumPrimaryViews = AddRenderViews(Clipmap, 1.0f, HZBTexture != nullptr, false, VirtualShadowViews);
+			VSMCullingBatchInfo.NumPrimaryViews = AddRenderViews(Clipmap, 1.0f, HZBTexture != nullptr, false, ProjectedShadowInfo->ShouldClampToNearPlane(), VirtualShadowViews);
 			UnBatchedVSMCullingBatchInfo.Add(VSMCullingBatchInfo);
 			UnBatchedVirtualSmMeshCommandPasses.Add(ProjectedShadowInfo);
 		}
@@ -2264,7 +2261,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 
 			if (InstanceCullingContext->HasCullingCommands())
 			{
-				VSMCullingBatchInfo.NumPrimaryViews = AddRenderViews(ProjectedShadowInfo, 1.0f, HZBTexture != nullptr, false, VirtualShadowViews);
+				VSMCullingBatchInfo.NumPrimaryViews = AddRenderViews(ProjectedShadowInfo, 1.0f, HZBTexture != nullptr, false, ProjectedShadowInfo->ShouldClampToNearPlane(), VirtualShadowViews);
 
 				if (CVarDoNonNaniteBatching.GetValueOnRenderThread())
 				{
@@ -2372,7 +2369,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 				FParallelMeshDrawCommandPass& MeshCommandPass = ProjectedShadowInfo->GetShadowDepthPass();
 				FViewInfo* ShadowDepthView = ProjectedShadowInfo->ShadowDepthView;
 
-				// Local lights are assumed to not use the clamp to near-plane (this is used for some per-object SMs but these should never be used fotr VSM).
+				// Local lights are assumed to not use the clamp to near-plane (this is used for some per-object SMs but these should never be used for VSM).
 				check(!ProjectedShadowInfo->ShouldClampToNearPlane());
 			
 				FString LightNameWithLevel;
@@ -2414,7 +2411,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 			{
 				PrimitiveRevealedMaskRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.RevealedPrimitivesMask"), Clipmap->GetRevealedPrimitivesMask());
 				PrimitiveRevealedNum = Clipmap->GetNumRevealedPrimitives();
-
 			}
 
 			FCullingResult CullingResult = AddCullingPasses(
@@ -2666,7 +2662,7 @@ FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilde
 }
 
 
-uint32 FVirtualShadowMapArray::AddRenderViews(const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap, float LODScaleFactor, bool bSetHzbParams, bool bUpdateHZBMetaData, TArray<Nanite::FPackedView, SceneRenderingAllocator> &OutVirtualShadowViews)
+uint32 FVirtualShadowMapArray::AddRenderViews(const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap, float LODScaleFactor, bool bSetHZBParams, bool bUpdateHZBMetaData, bool bClampToNearPlane, TArray<Nanite::FPackedView, SceneRenderingAllocator> &OutVirtualShadowViews)
 {
 	// TODO: Decide if this sort of logic belongs here or in Nanite (as with the mip level view expansion logic)
 	// We're eventually going to want to snap/quantize these rectangles/positions somewhat so probably don't want it
@@ -2681,6 +2677,7 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const TSharedPtr<FVirtualShadowMap
 	BaseParams.PrevTargetLayerIndex = INDEX_NONE;
 	BaseParams.TargetMipLevel = 0;
 	BaseParams.TargetMipCount = 1;	// No mips for clipmaps
+	BaseParams.Flags = bClampToNearPlane ? 0u : NANITE_VIEW_FLAG_NEAR_CLIP;
 
 	for (int32 ClipmapLevelIndex = 0; ClipmapLevelIndex < Clipmap->GetLevelCount(); ++ClipmapLevelIndex)
 	{
@@ -2691,12 +2688,11 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const TSharedPtr<FVirtualShadowMap
 		Params.ViewMatrices = Clipmap->GetViewMatrices(ClipmapLevelIndex);
 		Params.PrevTargetLayerIndex = INDEX_NONE;
 		Params.PrevViewMatrices = Params.ViewMatrices;
-		Params.Flags = 0;
 
 		// TODO: Clean this up - could be stored in a single structure for the whole clipmap
 		int32 HZBKey = Clipmap->GetHZBKey(ClipmapLevelIndex);
 
-		if (bSetHzbParams)
+		if (bSetHZBParams)
 		{
 			CacheManager->SetHZBViewParams(HZBKey, Params);
 		}
@@ -2723,7 +2719,7 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const TSharedPtr<FVirtualShadowMap
 	return uint32(Clipmap->GetLevelCount());
 }
 
-uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* ProjectedShadowInfo, float LODScaleFactor, bool bSetHzbParams, bool bUpdateHZBMetaData, TArray<Nanite::FPackedView, SceneRenderingAllocator>& OutVirtualShadowViews)
+uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* ProjectedShadowInfo, float LODScaleFactor, bool bSetHZBParams, bool bUpdateHZBMetaData, bool bClampToNearPlane, TArray<Nanite::FPackedView, SceneRenderingAllocator>& OutVirtualShadowViews)
 {
 	Nanite::FPackedViewParams BaseParams;
 	BaseParams.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
@@ -2733,6 +2729,7 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* Projec
 	BaseParams.PrevTargetLayerIndex = INDEX_NONE;
 	BaseParams.TargetMipLevel = 0;
 	BaseParams.TargetMipCount = FVirtualShadowMap::MaxMipLevels;
+	BaseParams.Flags = bClampToNearPlane ? 0u : NANITE_VIEW_FLAG_NEAR_CLIP;
 
 	int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
 	for (int32 Index = 0; Index < NumMaps; ++Index)
@@ -2745,7 +2742,7 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* Projec
 
 		int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (Index << 24);
 
-		if (bSetHzbParams)
+		if (bSetHZBParams)
 		{
 			CacheManager->SetHZBViewParams(HZBKey, Params);
 		}

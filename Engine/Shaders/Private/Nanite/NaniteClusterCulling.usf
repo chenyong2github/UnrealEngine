@@ -19,20 +19,12 @@
 #include "NaniteCulling.ush"
 #include "../GPUMessaging.ush"
 
-#ifndef NEAR_CLIP
-#define NEAR_CLIP 1
-#endif
-
 #ifndef CULLING_PASS
 #define CULLING_PASS 0
 #endif
 
 #ifndef VIRTUAL_TEXTURE_TARGET
 #define VIRTUAL_TEXTURE_TARGET 0
-#endif
-
-#ifndef CLUSTER_PER_PAGE
-#define CLUSTER_PER_PAGE 0
 #endif
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
@@ -223,13 +215,12 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
 
 	// Near depth clipping should only be disabled with orthographic projections
-	// WARNING: This is a macro/permutation because of FXC code gen issues! Be careful if you change this to test thoroughly!
-	const bool bNearClip = (NEAR_CLIP != 0);
-	const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
+	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
+	const bool bViewHZB  = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-	const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
+	const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
 #else
 	const bool bSkipBoxCullFrustum = false;
 	const bool bSkipBoxCullHZB     = false;
@@ -350,7 +341,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	}
 #endif
 
-#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 	uint NumClustersToEmit = 0;
 	uint PageTableLevelOffset = 0;
 	if( bVisible )
@@ -402,7 +393,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	BRANCH
 	if( bVisible && !bWasOccluded )
 	{
-#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 		// Need full size counters
 		if( bUseHWRaster )
 		{
@@ -426,15 +417,11 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 
 	if( bVisible )
 	{
-		const uint2 TotalPrevDrawClusters = (RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA) ? InTotalPrevDrawClusters[0] : 0;
+		const uint2 TotalPrevDrawClusters = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) ? InTotalPrevDrawClusters[0] : 0;
 
 		if( !bWasOccluded )
 		{
-#if CLUSTER_PER_PAGE
-
-#if !VIRTUAL_TEXTURE_TARGET
-#error "This should always be enabled."
-#endif
+#if VIRTUAL_TEXTURE_TARGET
 
 			uint ClusterIndex;
 			if( bUseHWRaster )
@@ -549,12 +536,12 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 #endif
 
 	// Depth clipping should only be disabled with orthographic projections
-	const bool bNearClip = (NEAR_CLIP != 0);
-	const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
+	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
+	const bool bViewHZB  = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-	const bool bSkipBoxCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
+	const bool bSkipBoxCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
 #else
 	const bool bSkipBoxCullFrustum = false;
 	const bool bSkipBoxCullHZB = false;
@@ -965,14 +952,16 @@ RWStructuredBuffer<uint2>	OutClusterCountSWHW;
 [numthreads(1, 1, 1)]
 void CalculateSafeRasterizerArgs()
 {
-#if HAS_PREV_DRAW_DATA
-	const uint2 TotalPrevDrawClusters = InTotalPrevDrawClusters[0];
-	int ClusterOffsetSW = TotalPrevDrawClusters.x;
-	int ClusterOffsetHW = TotalPrevDrawClusters.y;
-#else
 	int ClusterOffsetSW = 0;
 	int ClusterOffsetHW = 0;
-#endif
+
+	BRANCH
+	if ((RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u)
+	{
+		const uint2 TotalPrevDrawClusters = InTotalPrevDrawClusters[0];
+		ClusterOffsetSW = TotalPrevDrawClusters.x;
+		ClusterOffsetHW = TotalPrevDrawClusters.y;
+	}
 
 	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
 

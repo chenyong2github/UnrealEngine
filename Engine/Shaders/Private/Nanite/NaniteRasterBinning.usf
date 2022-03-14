@@ -134,9 +134,14 @@ uint AllocateRasterizerBinCluster(uint BinIndex)
 uint2 GetClassifyClusterOffsetAndCount()
 {
 	uint SWClusterOffset = 0;
-#if HAS_PREV_DRAW_DATA
-	SWClusterOffset += InTotalPrevDrawClusters[0].x;
-#endif
+
+	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
+	BRANCH
+	if (bHasPrevDrawData)
+	{
+		SWClusterOffset += InTotalPrevDrawClusters[0].x;
+	}
+
 #if IS_POST_PASS
 	SWClusterOffset += InClusterOffsetSWHW[0];
 #endif
@@ -148,14 +153,17 @@ uint2 GetClassifyClusterOffsetAndCount()
 
 uint2 GetClassifyClusterOffsetAndCount()
 {
-	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
-
 	uint HWClusterOffset = 0;
-#if HAS_PREV_DRAW_DATA
-	HWClusterOffset += InTotalPrevDrawClusters[0].y;
-#endif
+
+	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
+	BRANCH
+	if (bHasPrevDrawData)
+	{
+		HWClusterOffset += InTotalPrevDrawClusters[0].y;
+	}
+
 #if IS_POST_PASS
-	HWClusterOffset += InClusterOffsetSWHW[HWClusterCounterIndex];
+	HWClusterOffset += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
 #endif
 	uint HWClusterCount = InClusterCountSWHW[0].y;
 	return uint2(HWClusterOffset, HWClusterCount);
