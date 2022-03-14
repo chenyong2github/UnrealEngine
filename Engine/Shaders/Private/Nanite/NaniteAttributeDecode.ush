@@ -394,6 +394,9 @@ FNaniteAttributeData GetAttributeData(
 {
 	FNaniteAttributeData AttributeData = (FNaniteAttributeData)0;
 
+	// Always process first UV set. Even if it isn't used, we might still need TangentToWorld.
+	CompileTimeMaxTexCoords = max(1, min(NANITE_MAX_UVS, CompileTimeMaxTexCoords));
+
 	float3 TangentZ = normalize(Barycentrics.UVW.x * RawData.TangentZ[0] + Barycentrics.UVW.y * RawData.TangentZ[1] + Barycentrics.UVW.z * RawData.TangentZ[2]);
 
 	// Decode vertex color
