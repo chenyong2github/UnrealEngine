@@ -49,6 +49,9 @@ public:
 	FText DisplayCategory = FText::GetEmpty();
 };
 
+class UInputTrigger;
+class UInputModifier;
+
 /**
  * Defines a mapping between a key activation and the resulting enhanced action
  * An key could be a button press, joystick axis movement, etc.
@@ -62,7 +65,7 @@ struct FEnhancedActionKeyMapping
 
 	/** Action to be affected by the key  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	const UInputAction* Action = nullptr;
+	TObjectPtr<const UInputAction> Action = nullptr;
 
 	/** Key that affect the action. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -93,14 +96,14 @@ struct FEnhancedActionKeyMapping
 	* All Implicit triggers in this list must be met.
 	*/
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Input")
-	TArray<class UInputTrigger*> Triggers;
+	TArray<TObjectPtr<UInputTrigger>> Triggers;
 
 	/**
 	* Modifiers applied to the raw key value.
 	* These are applied sequentially in array order.
 	*/
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Input")
-	TArray<class UInputModifier*> Modifiers;
+	TArray<TObjectPtr<UInputModifier>> Modifiers;
 
 	bool operator==(const FEnhancedActionKeyMapping& Other) const
 	{

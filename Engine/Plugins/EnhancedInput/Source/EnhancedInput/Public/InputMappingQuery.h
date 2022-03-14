@@ -61,6 +61,9 @@ constexpr EMappingQueryIssue TypeMismatch = EMappingQueryIssue::ForcesTypePromot
 constexpr EMappingQueryIssue StandardFatal = EMappingQueryIssue::ReservedByAction | NoCollisions | TypeMismatch;	// Default fatal value for QueryMapKeyIn... function calls.
 }
 
+class UInputMappingContext;
+class UInputAction;
+
 // Potential issue raised with a mapping request
 USTRUCT(BlueprintType)
 struct FMappingQueryIssue
@@ -75,11 +78,11 @@ struct FMappingQueryIssue
 
 	// Input context that contains a blocking action bound to the queried key
 	UPROPERTY(BlueprintReadOnly, Category = Result)
-	const class UInputMappingContext* BlockingContext = nullptr;
+	TObjectPtr<const UInputMappingContext> BlockingContext = nullptr;
 
 	// Action within the input context that caused the blockage
 	UPROPERTY(BlueprintReadOnly, Category = Result)
-	const class UInputAction* BlockingAction = nullptr;
+	TObjectPtr<const UInputAction> BlockingAction = nullptr;
 };
 
 // ************************************************************************************************

@@ -78,11 +78,11 @@ FEnhancedActionKeyMapping& AnActionIsMappedToAKey(UControllablePlayer& PlayerDat
 		{
 			FBindingTargets& BindingTargets = PlayerData.BindingTargets.Emplace(ActionName, FBindingTargets(PlayerData.Player));
 
-			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Started, BindingTargets.Started, &UInputBindingTarget::MappingListener);
-			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Ongoing, BindingTargets.Ongoing, &UInputBindingTarget::MappingListener);
-			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Canceled, BindingTargets.Canceled, &UInputBindingTarget::MappingListener);
-			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Completed, BindingTargets.Completed, &UInputBindingTarget::MappingListener);
-			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Triggered, BindingTargets.Triggered, &UInputBindingTarget::MappingListener);
+			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Started, BindingTargets.Started.Get(), &UInputBindingTarget::MappingListener);
+			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Ongoing, BindingTargets.Ongoing.Get(), &UInputBindingTarget::MappingListener);
+			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Canceled, BindingTargets.Canceled.Get(), &UInputBindingTarget::MappingListener);
+			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Completed, BindingTargets.Completed.Get(), &UInputBindingTarget::MappingListener);
+			PlayerData.InputComponent->BindAction(Action, ETriggerEvent::Triggered, BindingTargets.Triggered.Get(), &UInputBindingTarget::MappingListener);
 		}
 
 		// Initialise mapping in context
@@ -237,13 +237,13 @@ void InputIsTicked(UControllablePlayer& PlayerData, float Delta)
 
 UInputMappingContext* FInputTestHelper::FindContext(UControllablePlayer& Data, FName ContextName)
 {
-	UInputMappingContext** Context = Data.InputContext.Find(ContextName);
+	TObjectPtr<UInputMappingContext>* Context = Data.InputContext.Find(ContextName);
 	return Context ? *Context : nullptr;
 }
 
 UInputAction* FInputTestHelper::FindAction(UControllablePlayer& Data, FName ActionName)
 {
-	UInputAction** Action = Data.InputAction.Find(ActionName);
+	TObjectPtr<UInputAction>* Action = Data.InputAction.Find(ActionName);
 	return Action ? *Action : nullptr;
 }
 

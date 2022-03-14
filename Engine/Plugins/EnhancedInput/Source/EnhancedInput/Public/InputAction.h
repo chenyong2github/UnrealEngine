@@ -54,7 +54,7 @@ public:
 	* All Implicit triggers in this list are met.
 	*/
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action)
-	TArray<UInputTrigger*> Triggers;
+	TArray<TObjectPtr<UInputTrigger>> Triggers;
 
 	/**
 	* Modifiers are applied to the final action value.
@@ -62,7 +62,7 @@ public:
 	* They are applied on top of any FEnhancedActionKeyMapping modifiers that drove the initial input
 	*/
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action)
-	TArray<UInputModifier*> Modifiers;
+	TArray<TObjectPtr<UInputModifier>> Modifiers;
 };
 
 // Calculate a collective representation of trigger state from evaluations of all triggers in one or more trigger groups.
@@ -116,7 +116,7 @@ private:
 
 	// The source action that this instance is created from
 	UPROPERTY(BlueprintReadOnly, Category = "Input", Meta = (AllowPrivateAccess))
-	const UInputAction* SourceAction = nullptr;
+	TObjectPtr<const UInputAction> SourceAction = nullptr;
 
 	// Internal trigger states
 	ETriggerState LastTriggerState = ETriggerState::None;
@@ -127,15 +127,15 @@ protected:
 	// TODO: Just hold a duplicate of the UInputAction in here?
 	// TODO: Restrict blueprint access to triggers and modifiers?
 	UPROPERTY(Instanced, BlueprintReadOnly, Category = Config)
-	TArray<UInputTrigger*> Triggers;
+	TArray<TObjectPtr<UInputTrigger>> Triggers;
 
 	UPROPERTY(Instanced, BlueprintReadOnly, Category = Config)
-	TArray<UInputModifier*> Modifiers;
+	TArray<TObjectPtr<UInputModifier>> Modifiers;
 	
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Moved to Modifiers."))
-	TArray<UInputModifier*> PerInputModifiers_DEPRECATED;
+	TArray<TObjectPtr<UInputModifier>> PerInputModifiers_DEPRECATED;
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Moved to Modifiers."))
-	TArray<UInputModifier*> FinalValueModifiers_DEPRECATED;
+	TArray<TObjectPtr<UInputModifier>> FinalValueModifiers_DEPRECATED;
 
 	// Combined value of all inputs mapped to this action
 	FInputActionValue Value;

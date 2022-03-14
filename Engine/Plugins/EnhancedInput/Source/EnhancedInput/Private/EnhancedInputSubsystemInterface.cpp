@@ -122,14 +122,14 @@ EMappingQueryResult IEnhancedInputSubsystemInterface::QueryMapKeyInActiveContext
 	}
 
 	// TODO: Inefficient, but somewhat forgivable as the mapping context count is likely to be single figure.
-	TMap<const UInputMappingContext*, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
+	TMap<TObjectPtr<const UInputMappingContext>, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
 	OrderedInputContexts.ValueSort([](const int32& A, const int32& B) { return A > B; });
 
 	TArray<UInputMappingContext*> Applied;
 	Applied.Reserve(OrderedInputContexts.Num());
-	for (const TPair<const UInputMappingContext*, int32>& ContextPair : OrderedInputContexts)
+	for (const TPair<TObjectPtr<const UInputMappingContext>, int32>& ContextPair : OrderedInputContexts)
 	{
-		Applied.Add(const_cast<UInputMappingContext*>(ContextPair.Key));
+		Applied.Add(const_cast<UInputMappingContext*>(ToRawPtr(ContextPair.Key)));
 	}
 
 	return QueryMapKeyInContextSet(Applied, InputContext, Action, Key, OutIssues, BlockingIssues);
@@ -420,7 +420,7 @@ void IEnhancedInputSubsystemInterface::AddPlayerMappableConfig(const UPlayerMapp
 {
 	if(Config)
 	{
-		for(TPair<UInputMappingContext*, int32> Pair : Config->GetMappingContexts())
+		for(TPair<TObjectPtr<UInputMappingContext>, int32> Pair : Config->GetMappingContexts())
 		{
 			AddMappingContext(Pair.Key, Pair.Value, Options);
 		}	
@@ -431,7 +431,7 @@ void IEnhancedInputSubsystemInterface::RemovePlayerMappableConfig(const UPlayerM
 {
 	if(Config)
 	{
-		for(TPair<UInputMappingContext*, int32> Pair : Config->GetMappingContexts())
+		for(TPair<TObjectPtr<UInputMappingContext>, int32> Pair : Config->GetMappingContexts())
 		{
 			RemoveMappingContext(Pair.Key, Options);
 		}	
@@ -548,14 +548,14 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	PlayerInput->ClearAllMappings();
 
 	// Order contexts by priority
-	TMap<const UInputMappingContext*, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
+	TMap<TObjectPtr<const UInputMappingContext>, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
 	OrderedInputContexts.ValueSort([](const int32& A, const int32& B) { return A > B; });
 
 	TSet<FKey> AppliedKeys;
 
 	TArray<int32> ChordedMappings;
 
-	for (const TPair<const UInputMappingContext*, int32>& ContextPair : OrderedInputContexts)
+	for (const TPair<TObjectPtr<const UInputMappingContext>, int32>& ContextPair : OrderedInputContexts)
 	{
 		// Don't apply context specific keys immediately, allowing multiple mappings to the same key within the same context if required.
 		TArray<FKey> ContextAppliedKeys;
@@ -633,9 +633,9 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 		
 		// Remove action instance data for actions that are not referenced in the new action mappings
 		TSet<const UInputAction*> RemovedActions;
-		for (TPair<const UInputAction*, FInputActionInstance>& ActionInstance : PlayerInput->ActionInstanceData)
+		for (TPair<TObjectPtr<const UInputAction>, FInputActionInstance>& ActionInstance : PlayerInput->ActionInstanceData)
 		{
-			RemovedActions.Add(ActionInstance.Key);
+			RemovedActions.Add(ActionInstance.Key.Get());
 		}
 
 		// Return true if the given FKey was in the old Player Input mappings

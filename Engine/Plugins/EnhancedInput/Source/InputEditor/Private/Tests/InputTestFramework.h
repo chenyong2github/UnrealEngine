@@ -49,19 +49,19 @@ struct FBindingTargets
 	}
 
 	UPROPERTY()
-	UInputBindingTarget* Started = nullptr;
+	TObjectPtr<UInputBindingTarget> Started = nullptr;
 
 	UPROPERTY()
-	UInputBindingTarget* Ongoing = nullptr;
+	TObjectPtr<UInputBindingTarget> Ongoing = nullptr;
 
 	UPROPERTY()
-	UInputBindingTarget* Canceled = nullptr;
+	TObjectPtr<UInputBindingTarget> Canceled = nullptr;
 
 	UPROPERTY()
-	UInputBindingTarget* Completed = nullptr;
+	TObjectPtr<UInputBindingTarget> Completed = nullptr;
 
 	UPROPERTY()
-	UInputBindingTarget* Triggered = nullptr;
+	TObjectPtr<UInputBindingTarget> Triggered = nullptr;
 };
 
 // Mock input subsystems to avoid having to create an actual subsystem + local player + game instance.
@@ -81,7 +81,7 @@ class UControllablePlayer : public UObject
 public:
 
 	UPROPERTY()
-	class APlayerController* Player;
+	TObjectPtr<class APlayerController> Player;
 
 	// These exist on (and have their lifetime managed by) Player, but are downcast here for rapid access.
 	TWeakObjectPtr<UEnhancedPlayerInput> PlayerInput;
@@ -92,11 +92,11 @@ public:
 
 	// Storage for input mapping contexts applied to the player
 	UPROPERTY()
-	TMap<FName, UInputMappingContext*> InputContext;
+	TMap<FName, TObjectPtr<UInputMappingContext>> InputContext;
 
 	// Storage for input actions applied to the player
 	UPROPERTY()
-	TMap<FName, UInputAction*> InputAction;
+	TMap<FName, TObjectPtr<UInputAction>> InputAction;
 
 	// Ensure we don't try to double bind listeners when applying multiple key mappings
 	TSet<const UInputAction*> MappedActionListeners;

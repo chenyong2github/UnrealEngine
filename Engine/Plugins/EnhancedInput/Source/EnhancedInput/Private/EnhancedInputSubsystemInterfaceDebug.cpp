@@ -123,13 +123,13 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 			}
 		};
 
-		TMap<const UInputMappingContext*, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
+		TMap<TObjectPtr<const UInputMappingContext>, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
 		OrderedInputContexts.ValueSort([](const int32& A, const int32& B) { return A > B; });
 
 		// Work through all input contexts, displaying active mappings, overridden mappings, etc.
-		for (const TPair<const UInputMappingContext*, int32>& ContextPair : OrderedInputContexts)
+		for (const TPair<TObjectPtr<const UInputMappingContext>, int32>& ContextPair : OrderedInputContexts)
 		{
-			const UInputMappingContext* Context = ContextPair.Key;
+			const UInputMappingContext* Context = ContextPair.Key.Get();
 			DisplayDebugManager.SetDrawColor(FColor::Yellow);
 			DisplayDebugManager.DrawString(FString::Printf(TEXT("  Context: %s"), *Context->GetFName().ToString()));
 

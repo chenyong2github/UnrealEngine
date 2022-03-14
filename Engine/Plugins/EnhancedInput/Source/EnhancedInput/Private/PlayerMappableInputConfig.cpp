@@ -30,12 +30,10 @@ EDataValidationResult UPlayerMappableInputConfig::IsDataValid(TArray<FText>& Val
 		Result = CombineDataValidationResults(Result, EDataValidationResult::Invalid);
 	}
 	
-	//TMap<const UInputMappingContext*, int32> InputContexts = Contexts;
-	
 	// Check that every context is valid and all player bindable mappings have names
-	for (const TPair<UInputMappingContext*, int32>& ContextPair : Contexts)
+	for (const TPair<TObjectPtr<UInputMappingContext>, int32>& ContextPair : Contexts)
 	{
-		if(const UInputMappingContext* IMC = ContextPair.Key)
+		if(const UInputMappingContext* IMC = ContextPair.Key.Get())
 		{
 			for(const FEnhancedActionKeyMapping& Mapping : IMC->GetMappings())
 			{
@@ -70,9 +68,9 @@ EDataValidationResult UPlayerMappableInputConfig::IsDataValid(TArray<FText>& Val
 
 void UPlayerMappableInputConfig::ForEachDefaultPlayerMappableKey(TFunctionRef<void(const FEnhancedActionKeyMapping&)> Operation) const
 {
-	for (const TPair<UInputMappingContext*, int32>& ContextPair: Contexts)
+	for (const TPair<TObjectPtr<UInputMappingContext>, int32>& ContextPair: Contexts)
 	{
-		if(const UInputMappingContext* IMC = ContextPair.Key)
+		if(const UInputMappingContext* IMC = ContextPair.Key.Get())
 		{
 			for(const FEnhancedActionKeyMapping& Mapping : IMC->GetMappings())
 			{

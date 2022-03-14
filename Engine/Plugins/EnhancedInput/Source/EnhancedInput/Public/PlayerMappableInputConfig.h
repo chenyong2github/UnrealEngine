@@ -66,17 +66,17 @@ protected:
 
 	/** Metadata that can used to store any other related items to your key mapping such as icons, ability assets, etc. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
-	UObject* Metadata = nullptr;
+	TObjectPtr<UObject> Metadata = nullptr;
 
 	/** Mapping contexts that make up this Input Config with their associated priority. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
-	TMap<UInputMappingContext*, int32> Contexts;
+	TMap<TObjectPtr<UInputMappingContext>, int32> Contexts;
 
 public:
 
 	/** Return all the Input Mapping contexts that  */
 	UFUNCTION(BlueprintCallable, Category = "Input|PlayerMappable")
-	const TMap<UInputMappingContext*, int32>& GetMappingContexts() const { return Contexts; }
+	const TMap<TObjectPtr<UInputMappingContext>, int32>& GetMappingContexts() const { return Contexts; }
 
 	UFUNCTION(BlueprintCallable, Category = "Input|PlayerMappable")
 	const FName GetConfigName() const { return ConfigName; }

@@ -19,7 +19,7 @@ void UEnhancedInputActionDelegateBinding::BindToInputComponent(UInputComponent* 
 
 	for(const FBlueprintEnhancedInputActionBinding& Binding : InputActionDelegateBindings)
 	{
-		Component->BindAction(Binding.InputAction, Binding.TriggerEvent, ObjectToBindTo, Binding.FunctionNameToBind);
+		Component->BindAction(Binding.InputAction.Get(), Binding.TriggerEvent, ObjectToBindTo, Binding.FunctionNameToBind);
 	}
 }
 

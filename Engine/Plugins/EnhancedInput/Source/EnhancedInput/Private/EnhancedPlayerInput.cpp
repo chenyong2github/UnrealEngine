@@ -331,7 +331,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 
 
 	// Post tick action instance updates
-	for (TPair<const UInputAction*, FInputActionInstance>& ActionPair : ActionInstanceData)
+	for (TPair<TObjectPtr<const UInputAction>, FInputActionInstance>& ActionPair : ActionInstanceData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_PostTick);
 
@@ -505,7 +505,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 	}
 
 	// Reset action instance timers where necessary post delegate calls
-	for (TPair<const UInputAction*, FInputActionInstance>& ActionPair : ActionInstanceData)
+	for (TPair<TObjectPtr<const UInputAction>, FInputActionInstance>& ActionPair : ActionInstanceData)
 	{
 		FInputActionInstance& ActionData = ActionPair.Value;
 		switch (ActionData.TriggerEvent)

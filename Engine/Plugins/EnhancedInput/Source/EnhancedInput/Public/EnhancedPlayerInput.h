@@ -14,6 +14,7 @@
 // Internal representation containing event variants
 enum class ETriggerEventInternal : uint8;
 enum class EKeyEvent : uint8;
+class UInputMappingContext;
 
 /**
 * UEnhancedPlayerInput : UPlayerInput extensions for enhanced player input system
@@ -80,7 +81,7 @@ private:
 	 * Note: Source reference only. Use EnhancedActionMappings for the actual mappings (with properly instanced triggers/modifiers)
 	 */
 	UPROPERTY(Transient)
-	TMap<const class UInputMappingContext*, int32> AppliedInputContexts;
+	TMap<TObjectPtr<const UInputMappingContext>, int32> AppliedInputContexts;
 
 	/** This player's version of the Action Mappings */
 	UPROPERTY(Transient)
@@ -91,7 +92,7 @@ private:
 
 	/** Tracked action values. Queryable. */
 	UPROPERTY(Transient)
-	mutable TMap<const UInputAction*, FInputActionInstance> ActionInstanceData;
+	mutable TMap<TObjectPtr<const UInputAction>, FInputActionInstance> ActionInstanceData;
 
 	/** Actions which had actuated events at the last call to ProcessInputStack (held/pressed/released) */
 	TSet<const UInputAction*> ActionsWithEventsThisTick;
