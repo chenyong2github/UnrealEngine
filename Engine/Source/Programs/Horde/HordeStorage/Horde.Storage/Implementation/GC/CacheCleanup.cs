@@ -55,7 +55,7 @@ namespace Horde.Storage.Implementation
             }
             else
                 throw new NotImplementedException(
-                    $"Namespace {ns} not present in CleanNamespaces or CleanNamespacesV1 lists, unable to clean it as we do not know which method to use.");
+                    $"Namespace {ns} not present in CleanNamespaces or CleanNamespacesLegacy lists, unable to clean it as we do not know which method to use.");
            
         }
 

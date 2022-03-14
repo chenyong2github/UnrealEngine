@@ -43,7 +43,7 @@ namespace Horde.Storage.FunctionalTests.GC
                             .AddEnvironmentVariables()
                             .AddInMemoryCollection(new List<KeyValuePair<string, string>>()
                             {
-                                new KeyValuePair<string, string>("GC:CleanNamespacesV1:0", TestNamespace.ToString()),
+                                new KeyValuePair<string, string>("GC:CleanNamespacesLegacy:0", TestNamespace.ToString()),
                             })
                             .Build();
 
