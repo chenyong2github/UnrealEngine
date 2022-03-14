@@ -117,6 +117,8 @@ public:
 	TUniquePtr<FVolumetricLightmapRenderer> VolumetricLightmapRenderer;
 	TUniquePtr<FIrradianceCache> IrradianceCache;
 
+	ERHIFeatureLevel::Type FeatureLevel;
+
 	int32 GetPrimitiveIdForGPUScene(const FGeometryInstanceRenderStateRef& GeometryInstanceRef) const;
 
 	bool SetupRayTracingScene(int32 LODIndex = 0);
@@ -190,6 +192,8 @@ public:
 	FLightScene LightScene;
 
 	FSceneRenderState RenderState;
+
+	ERHIFeatureLevel::Type FeatureLevel;
 
 	bool bNeedsVoxelization = true;
 

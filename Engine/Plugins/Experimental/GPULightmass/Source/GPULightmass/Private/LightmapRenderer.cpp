@@ -614,7 +614,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 			for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 			{
 				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(GMaxRHIFeatureLevel, FallbackMaterialRenderProxyPtr);
+				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(Scene.FeatureLevel, FallbackMaterialRenderProxyPtr);
 
 				bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 				bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
@@ -667,7 +667,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 			for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 			{
 				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(GMaxRHIFeatureLevel, FallbackMaterialRenderProxyPtr);
+				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(Scene.FeatureLevel, FallbackMaterialRenderProxyPtr);
 
 				bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 				bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
@@ -982,7 +982,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 							RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
 
 							const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-							const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(GMaxRHIFeatureLevel, FallbackMaterialRenderProxyPtr);
+							const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
 
 							bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 							bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
@@ -1135,24 +1135,26 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			PSOInitializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE;
 			PSOInitializer.bAllowHitGroupIndexing = true;
 
+			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+
 			TArray<FRHIRayTracingShader*> RayGenShaderTable;
 			{
 				FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(LightmapRenderer->bUseFirstBounceRayGuiding);
 				PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Settings->bUseIrradianceCaching);
-				RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
+				RayGenShaderTable.Add(GlobalShaderMap->GetShader<FLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
 			}
 			{
-				RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FStationaryLightShadowTracingRGS>().GetRayTracingShader());
+				RayGenShaderTable.Add(GlobalShaderMap->GetShader<FStationaryLightShadowTracingRGS>().GetRayTracingShader());
 			}
 			{
 				FVolumetricLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FVolumetricLightmapPathTracingRGS::FUseIrradianceCaching>(Settings->bUseIrradianceCaching);
-				RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVolumetricLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
+				RayGenShaderTable.Add(GlobalShaderMap->GetShader<FVolumetricLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
 			}
 			PSOInitializer.SetRayGenShaderTable(RayGenShaderTable);
 
-			auto DefaultClosestHitShader = GetGlobalShaderMap(ERHIFeatureLevel::SM5)->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
+			auto DefaultClosestHitShader = GlobalShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
 			TArray<FRHIRayTracingShader*> RayTracingMaterialLibrary;
 			FShaderMapResource::GetRayTracingMaterialLibrary(RayTracingMaterialLibrary, DefaultClosestHitShader);
 
@@ -1417,6 +1419,8 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 		return *GraphBuilder.AllocObject<FShaderResourceViewRHIRef>(View);
 	};
 
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(Scene->FeatureLevel);
+
 	// Upload & copy converged tiles directly
 	{
 		TArray<FLightmapTileRequest> TileUploadRequests = PendingTileRequests.FilterByPredicate(
@@ -1644,7 +1648,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					PassParameters->SrcTilePositions = HoldReference(GraphBuilder, SrcTilePositionsSRV);
 					PassParameters->DstTilePositions = HoldReference(GraphBuilder, DstTilePositionsSRV);
 
-					TShaderMapRef<FUploadConvergedLightmapTilesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+					TShaderMapRef<FUploadConvergedLightmapTilesCS> ComputeShader(GlobalShaderMap);
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("UploadConvergedLightmapTiles"),
@@ -1692,7 +1696,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					PassParameters->SrcTilePositions = HoldReference(GraphBuilder, SrcTilePositionsSRV);
 					PassParameters->DstTilePositions = HoldReference(GraphBuilder, DstTilePositionsSRV);
 
-					TShaderMapRef<FUploadConvergedLightmapTilesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+					TShaderMapRef<FUploadConvergedLightmapTilesCS> ComputeShader(GlobalShaderMap);
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("UploadConvergedLightmapTiles"),
@@ -1740,7 +1744,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					PassParameters->SrcTilePositions = HoldReference(GraphBuilder, SrcTilePositionsSRV);
 					PassParameters->DstTilePositions = HoldReference(GraphBuilder, DstTilePositionsSRV);
 
-					TShaderMapRef<FUploadConvergedLightmapTilesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+					TShaderMapRef<FUploadConvergedLightmapTilesCS> ComputeShader(GlobalShaderMap);
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("UploadConvergedLightmapTiles"),
@@ -2176,7 +2180,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 						Parameters->TilePositions = HoldReference(GraphBuilder, TilePositionsBuffer.SRV);
 						Parameters->TilePool = ScratchTilePoolLayerUAVs[ScratchLayerIndex];
 
-						TShaderMapRef<FMultiTileClearCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+						TShaderMapRef<FMultiTileClearCS> ComputeShader(GlobalShaderMap);
 						FComputeShaderUtils::AddPass(
 							GraphBuilder,
 							RDG_EVENT_NAME("MultiTileClear"),
@@ -2347,7 +2351,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 									PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(bUseFirstBounceRayGuiding);
 									PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Scene->Settings->bUseIrradianceCaching);
-									auto RayGenerationShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(PermutationVector);
+									auto RayGenerationShader = GlobalShaderMap->GetShader<FLightmapPathTracingRGS>(PermutationVector);
 									ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 									GraphBuilder.AddPass(
@@ -2375,7 +2379,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									PassParameters->RayGuidingCDFY = GraphBuilder.CreateUAV(RayGuidingCDFY);
 									PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
 
-									TShaderMapRef<FFirstBounceRayGuidingCDFBuildCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+									TShaderMapRef<FFirstBounceRayGuidingCDFBuildCS> ComputeShader(GlobalShaderMap);
 									FComputeShaderUtils::AddPass(
 										GraphBuilder,
 										RDG_EVENT_NAME("FirstBounceRayGuidingCDFBuild"),
@@ -2436,7 +2440,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 						Parameters->TilePositions = HoldReference(GraphBuilder, TilePositionsBufferSRV);
 						Parameters->TilePool = ScratchTilePoolLayerUAVs[ScratchLayerIndex];
 
-						TShaderMapRef<FMultiTileClearCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+						TShaderMapRef<FMultiTileClearCS> ComputeShader(GlobalShaderMap);
 						FComputeShaderUtils::AddPass(
 							GraphBuilder,
 							RDG_EVENT_NAME("MultiTileClear"),
@@ -2714,7 +2718,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 						PassParameters->ShadowMask = GraphBuilder.CreateUAV(ShadowMask);
 						PassParameters->ShadowMaskSampleCount = GraphBuilder.CreateUAV(ShadowMaskSampleCount);
 
-						auto RayGenerationShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FStationaryLightShadowTracingRGS>();
+						auto RayGenerationShader = GlobalShaderMap->GetShader<FStationaryLightShadowTracingRGS>();
 						ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 						GraphBuilder.AddPass(
@@ -2820,7 +2824,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 				PermutationVector.Set<FSelectiveLightmapOutputCS::FOutputLayerDim>(0);
 				PermutationVector.Set<FSelectiveLightmapOutputCS::FDrawProgressBars>(Scene->Settings->bShowProgressBars);
 
-				auto Shader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectiveLightmapOutputCS>(PermutationVector);
+				auto Shader = GlobalShaderMap->GetShader<FSelectiveLightmapOutputCS>(PermutationVector);
 
 				FSelectiveLightmapOutputCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectiveLightmapOutputCS::FParameters>();
 				PassParameters->NumBatchedTiles = GPUBatchedTileRequests.BatchedTilesDesc.Num();
@@ -2848,7 +2852,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 				PermutationVector.Set<FSelectiveLightmapOutputCS::FOutputLayerDim>(2);
 				PermutationVector.Set<FSelectiveLightmapOutputCS::FDrawProgressBars>(Scene->Settings->bShowProgressBars);
 
-				auto Shader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectiveLightmapOutputCS>(PermutationVector);
+				auto Shader = GlobalShaderMap->GetShader<FSelectiveLightmapOutputCS>(PermutationVector);
 
 				FSelectiveLightmapOutputCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectiveLightmapOutputCS::FParameters>();
 				PassParameters->NumBatchedTiles = GPUBatchedTileRequests.BatchedTilesDesc.Num();
@@ -2998,7 +3002,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					PassParameters->StagingHQLayer1 = GraphBuilder.CreateUAV(StagingHQLayer1);
 					PassParameters->StagingShadowMask = GraphBuilder.CreateUAV(StagingShadowMask);
 
-					TShaderMapRef<FCopyConvergedLightmapTilesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+					TShaderMapRef<FCopyConvergedLightmapTilesCS> ComputeShader(GlobalShaderMap);
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("CopyConvergedLightmapTiles"),
@@ -3439,7 +3443,7 @@ void FLightmapRenderer::BackgroundTick()
 
 								Lightmap.LightmapPreviewVirtualTexture->ProducePageData(
 									RHICmdList,
-									ERHIFeatureLevel::SM5,
+									Scene->FeatureLevel,
 									EVTProducePageFlags::None,
 									FVirtualTextureProducerHandle(),
 									0b111,
@@ -3663,6 +3667,7 @@ void FLightmapRenderer::DeduplicateRecordedTileRequests()
 void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderParameters& Parameters)
 {
 	FRDGBuilder& GraphBuilder = *Parameters.GraphBuilder;
+	const ERHIFeatureLevel::Type FeatureLevel = Scene->FeatureLevel;
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeIrradianceCachePS::FParameters>();
 	PassParameters->View = Parameters.View->ViewUniformBuffer;
@@ -3677,12 +3682,12 @@ void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderPara
 		RDG_EVENT_NAME("ClearIrradiance"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[ViewportRect, PassParameters, TextureExtent] (FRHICommandList& RHICmdList)
+		[ViewportRect, PassParameters, TextureExtent, FeatureLevel] (FRHICommandList& RHICmdList)
 	{
 		RHICmdList.SetViewport(0, 0, 0.0f, ViewportRect.Width(), ViewportRect.Height(), 1.0f);
 
-		TShaderMapRef<FPostProcessVS> VertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-		TShaderMapRef<FVisualizeIrradianceCachePS> PixelShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FPostProcessVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
+		TShaderMapRef<FVisualizeIrradianceCachePS> PixelShader(GetGlobalShaderMap(FeatureLevel));
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);

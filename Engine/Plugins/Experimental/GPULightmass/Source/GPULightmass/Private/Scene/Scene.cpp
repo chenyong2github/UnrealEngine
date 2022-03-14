@@ -40,12 +40,14 @@ FScene::FScene(FGPULightmass* InGPULightmass)
 	: GPULightmass(InGPULightmass)
 	, Settings(InGPULightmass->Settings)
 	, Geometries(*this)
+	, FeatureLevel(InGPULightmass->World->FeatureLevel)
 {
 	StaticMeshInstances.LinkRenderStateArray(RenderState.StaticMeshInstanceRenderStates);
 	InstanceGroups.LinkRenderStateArray(RenderState.InstanceGroupRenderStates);
 	Landscapes.LinkRenderStateArray(RenderState.LandscapeRenderStates);
 
 	RenderState.Settings = Settings;
+	RenderState.FeatureLevel = FeatureLevel;
 
 	ENQUEUE_RENDER_COMMAND(RenderThreadInit)(
 		[&RenderState = RenderState](FRHICommandListImmediate&) mutable
@@ -872,7 +874,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 
 	for (auto ResourceCluster : ResourceClusters)
 	{
-		ResourceCluster->UpdateUniformBuffer(ERHIFeatureLevel::SM5);
+		ResourceCluster->UpdateUniformBuffer(FeatureLevel);
 	}
 
 	if (InComponent->GetWorld())
@@ -1023,7 +1025,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 	FInstanceGroupRenderState InstanceRenderState;
 	InstanceRenderState.ComponentUObject = Instance->ComponentUObject;
 	InstanceRenderState.RenderData = Instance->ComponentUObject->GetStaticMesh()->GetRenderData();
-	InstanceRenderState.InstancedRenderData = MakeUnique<FInstancedStaticMeshRenderData>(Instance->ComponentUObject, ERHIFeatureLevel::SM5);
+	InstanceRenderState.InstancedRenderData = MakeUnique<FInstancedStaticMeshRenderData>(Instance->ComponentUObject, FeatureLevel);
 	InstanceRenderState.LocalToWorld = InComponent->GetRenderMatrix();
 	InstanceRenderState.WorldBounds = InComponent->Bounds;
 	InstanceRenderState.ActorPosition = InComponent->GetAttachmentRootActor() ? InComponent->GetAttachmentRootActor()->GetActorLocation() : FVector(ForceInitToZero);
@@ -1112,7 +1114,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 
 	for (auto ResourceCluster : ResourceClusters)
 	{
-		ResourceCluster->UpdateUniformBuffer(ERHIFeatureLevel::SM5);
+		ResourceCluster->UpdateUniformBuffer(FeatureLevel);
 	}
 }
 
@@ -1241,9 +1243,8 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 
 	const int8 SubsectionSizeLog2 = FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1);
 	InstanceRenderState.SharedBuffersKey = (SubsectionSizeLog2 & 0xf) | ((InComponent->NumSubsections & 0xf) << 4) |
-		(InComponent->GetWorld()->FeatureLevel <= ERHIFeatureLevel::ES3_1 ? 0 : (1 << 30)) | (InComponent->XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
+		(FeatureLevel <= ERHIFeatureLevel::ES3_1 ? 0 : (1 << 30)) | (InComponent->XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
 	InstanceRenderState.SharedBuffersKey |= 1 << 29; // Use this bit to indicate it is GPULightmass specific buffer (which only has FixedGridVertexFactory created)
-	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel = InComponent->GetWorld()->FeatureLevel;
 
 	TArray<UMaterialInterface*> AvailableMaterials;
 
@@ -1286,7 +1287,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 	ENQUEUE_RENDER_COMMAND(RenderThreadInit)(
 		[
 			InstanceRenderState = MoveTemp(InstanceRenderState),
-			FeatureLevel,
+			LocalFeatureLevel = FeatureLevel,
 			Initializer,
 			InstanceLightmapRenderStateInitializers = MoveTemp(InstanceLightmapRenderStateInitializers),
 			&RenderState = RenderState,
@@ -1300,11 +1301,11 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 		{
 			InstanceRenderState.SharedBuffers = new FLandscapeSharedBuffers(
 				InstanceRenderState.SharedBuffersKey, Initializer.SubsectionSizeQuads, Initializer.NumSubsections,
-				FeatureLevel);
+				LocalFeatureLevel);
 
 			FLandscapeComponentSceneProxy::SharedBuffersMap.Add(InstanceRenderState.SharedBuffersKey, InstanceRenderState.SharedBuffers);
 
-			FLandscapeFixedGridVertexFactory* LandscapeVertexFactory = new FLandscapeFixedGridVertexFactory(FeatureLevel);
+			FLandscapeFixedGridVertexFactory* LandscapeVertexFactory = new FLandscapeFixedGridVertexFactory(LocalFeatureLevel);
 			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(InstanceRenderState.SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_Float4);
 			LandscapeVertexFactory->InitResource();
 			InstanceRenderState.SharedBuffers->FixedGridVertexFactory = LandscapeVertexFactory;
@@ -1456,7 +1457,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 
 	for (auto ResourceCluster : ResourceClusters)
 	{
-		ResourceCluster->UpdateUniformBuffer(ERHIFeatureLevel::SM5);
+		ResourceCluster->UpdateUniformBuffer(FeatureLevel);
 	}
 
 	if (InComponent->GetWorld())
@@ -1827,10 +1828,10 @@ void GatherBuildDataResourcesToKeep(const ULevel* InLevel, ULevel* LightingScena
 
 void FScene::ApplyFinishedLightmapsToWorld()
 {
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(GMaxRHIFeatureLevel);
-
 	UWorld* World = GPULightmass->World;
+
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(World->FeatureLevel);
 
 	{
 		FScopedSlowTask SlowTask(3);

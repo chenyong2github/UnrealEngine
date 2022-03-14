@@ -100,6 +100,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FVolumetricLightmapRenderer::VoxelizeScene()
 {
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(Scene->FeatureLevel);
+
 	for (int32 MipLevel = 0; MipLevel < VoxelizationVolumeMips.Num(); MipLevel++)
 	{
 		VoxelizationVolumeMips[MipLevel].SafeRelease();
@@ -196,8 +198,6 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	for (int32 MipLevel = 0; MipLevel < VoxelizationVolumeMips.Num(); MipLevel++)
 	{
-		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 		FClearVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FClearVolumeCS::FParameters>();
 		Parameters->VolumeSize = VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize();
 		Parameters->VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV;
@@ -213,8 +213,6 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	for (FBox ImportanceVolume : ImportanceVolumes)
 	{
-		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 		TShaderMapRef<FVoxelizeImportanceVolumeCS> ComputeShader(GlobalShaderMap);
 
 		FVoxelizeImportanceVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelizeImportanceVolumeCS::FParameters>();
@@ -341,8 +339,6 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	});
 
 	{
-		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 		TShaderMapRef<FDilateVolumeCS> ComputeShader(GlobalShaderMap);
 
 		FDilateVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDilateVolumeCS::FParameters>();
@@ -359,7 +355,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	for (int32 MipLevel = 1; MipLevel < VoxelizationVolumeMips.Num(); MipLevel++)
 	{
-		TShaderMapRef<FDownsampleVolumeCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FDownsampleVolumeCS> ComputeShader(GlobalShaderMap);
 
 		FDownsampleVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDownsampleVolumeCS::FParameters>();
 		Parameters->bIsHighestMip = (MipLevel == VoxelizationVolumeMips.Num() - 1) ? 1 : 0;
@@ -383,8 +379,6 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)
 	{
-		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 		TShaderMapRef<FCountNumBricksCS> ComputeShader(GlobalShaderMap);
 
 		FCountNumBricksCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCountNumBricksCS::FParameters>();
@@ -439,8 +433,6 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)
 	{
-		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 		TShaderMapRef<FGatherBrickRequestsCS> ComputeShader(GlobalShaderMap);
 
 		FGatherBrickRequestsCS::FParameters Parameters;
@@ -457,8 +449,6 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)
 	{
-		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 		TShaderMapRef<FSplatVolumeCS> ComputeShader(GlobalShaderMap);
 
 		FSplatVolumeCS::FParameters Parameters;
@@ -511,6 +501,8 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Volumetric Lightmap Path Tracing");
 
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(Scene->FeatureLevel);
+
 		bool bLastFewFramesIdle = !GCurrentLevelEditingViewportClient || !GCurrentLevelEditingViewportClient->IsRealtime();
 
 		int32 NumSamplesThisFrame = !bLastFewFramesIdle ? 1 : 32;
@@ -542,8 +534,6 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 #if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
-				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 				{
 					FVolumetricLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 					PermutationVector.Set<FVolumetricLightmapPathTracingRGS::FUseIrradianceCaching>(Scene->Settings->bUseIrradianceCaching);
@@ -631,8 +621,6 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				}
 				);
 
-				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 				TShaderMapRef<FFinalizeBrickResultsCS> ComputeShader(GlobalShaderMap);
 
 				FFinalizeBrickResultsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFinalizeBrickResultsCS::FParameters>();
@@ -679,8 +667,6 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				// Doing 2 passes no longer makes sense in an amortized setup
 				// for (int32 StitchPass = 0; StitchPass < 2; StitchPass++)
 				{
-					FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
 					TShaderMapRef<FStitchBorderCS> ComputeShader(GlobalShaderMap);
 
 					FStitchBorderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStitchBorderCS::FParameters>();
