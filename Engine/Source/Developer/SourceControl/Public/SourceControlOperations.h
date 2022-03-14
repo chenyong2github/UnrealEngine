@@ -398,7 +398,7 @@ public:
 	 *				with the path to see if it is a file or a directory.
 	 * 
 	 */
-	void SetRequireDirPathEndWithSeperator(bool bFlag)
+	void SetRequireDirPathEndWithSeparator(bool bFlag)
 	{
 		bSetRequireDirPathEndWithSeparator = bFlag;
 	}
