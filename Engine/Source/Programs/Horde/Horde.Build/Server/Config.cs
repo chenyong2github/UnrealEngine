@@ -249,6 +249,16 @@ namespace HordeServer.Models
 		/// Reason for pausing builds of the stream
 		/// </summary>
 		public string? PauseComment { get; set; }
+
+		/// <summary>
+		/// How to replicate data from VCS to Horde Storage.
+		/// </summary>
+		public ContentReplicationMode ReplicationMode { get; set; }
+
+		/// <summary>
+		/// Filter for paths to be replicated to storage, as a Perforce wildcard relative to the root of the workspace.
+		/// </summary>
+		public string? ReplicationFilter { get; set; }
 	}
 
 	/// <summary>

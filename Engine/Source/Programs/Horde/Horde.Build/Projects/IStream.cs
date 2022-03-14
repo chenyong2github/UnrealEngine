@@ -484,6 +484,27 @@ namespace HordeServer.Models
 	}
 
 	/// <summary>
+	/// How to replicate data for this stream
+	/// </summary>
+	public enum ContentReplicationMode
+	{
+		/// <summary>
+		/// No content will be replicated for this stream
+		/// </summary>
+		None,
+
+		/// <summary>
+		/// Only replicate depot path and revision data for each file
+		/// </summary>
+		RevisionsOnly,
+
+		/// <summary>
+		/// Replicate full stream contents to storage
+		/// </summary>
+		Full,
+	}
+
+	/// <summary>
 	/// Information about a stream
 	/// </summary>
 	public interface IStream
@@ -572,6 +593,16 @@ namespace HordeServer.Models
 		/// Comment/reason for why the stream was paused
 		/// </summary>
 		public string? PauseComment { get; }
+
+		/// <summary>
+		/// Whether to replicate data from Perforce to Horde Storage.
+		/// </summary>
+		public ContentReplicationMode ReplicationMode { get; }
+
+		/// <summary>
+		/// Filter for paths to be replicated. May be removed in future.
+		/// </summary>
+		public string? ReplicationFilter { get; }
 
 		/// <summary>
 		/// The ACL for this object

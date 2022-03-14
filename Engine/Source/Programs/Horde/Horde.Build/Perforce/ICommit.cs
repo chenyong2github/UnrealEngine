@@ -67,11 +67,6 @@ namespace HordeServer.Commits
 		/// Date/time that change was committed
 		/// </summary>
 		public DateTime DateUtc { get; }
-
-		/// <summary>
-		/// Name of a reference describing the tree at this changelist
-		/// </summary>
-		public RefId? TreeRefId { get; }
 	}
 
 	/// <summary>
@@ -103,16 +98,12 @@ namespace HordeServer.Commits
 		/// <inheritdoc cref="ICommit.DateUtc"/>
 		public DateTime DateUtc { get; set; }
 
-		/// <inheritdoc cref="ICommit.TreeRefId"/>
-		public RefId? TreeRefId { get; set; }
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		public NewCommit(ICommit Commit)
 			: this(Commit.StreamId, Commit.Change, Commit.OriginalChange, Commit.AuthorId, Commit.OwnerId, Commit.Description, Commit.BasePath, Commit.DateUtc)
 		{
-			this.TreeRefId = Commit.TreeRefId;
 		}
 
 		/// <summary>

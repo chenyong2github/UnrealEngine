@@ -58,6 +58,14 @@ namespace HordeServer.Collections.Impl
 			public Dictionary<TemplateRefId, TemplateRef> Templates { get; set; } = new Dictionary<TemplateRefId, TemplateRef>();
 			public DateTime? PausedUntil { get; set; }
 			public string? PauseComment { get; set; }
+
+			[BsonIgnoreIfDefault]
+			[BsonDefaultValue(ContentReplicationMode.None)]
+			public ContentReplicationMode ReplicationMode { get; set; }
+
+			[BsonIgnoreIfNull]
+			public string? ReplicationFilter { get; set; }
+
 			public Acl? Acl { get; set; }
 			public int UpdateIndex { get; set; }
 			public bool Deleted { get; set; }
@@ -235,6 +243,8 @@ namespace HordeServer.Collections.Impl
 			NewStream.AgentTypes = AgentTypes;
 			NewStream.WorkspaceTypes = WorkspaceTypes;
 			NewStream.Templates = TemplateRefs;
+			NewStream.ReplicationMode = Config.ReplicationMode;
+			NewStream.ReplicationFilter = Config.ReplicationFilter;
 			NewStream.Acl = Acl;
 
 			try
@@ -279,6 +289,8 @@ namespace HordeServer.Collections.Impl
 			Updates.Add(UpdateBuilder.Set(x => x.AgentTypes, AgentTypes ?? new Dictionary<string, AgentType>()));
 			Updates.Add(UpdateBuilder.Set(x => x.WorkspaceTypes, WorkspaceTypes ?? new Dictionary<string, WorkspaceType>()));
 			Updates.Add(UpdateBuilder.Set(x => x.Templates, TemplateRefs ?? new Dictionary<TemplateRefId, TemplateRef>()));
+			Updates.Add(UpdateBuilder.Set(x => x.ReplicationMode, Config.ReplicationMode));
+			Updates.Add(UpdateBuilder.SetOrUnsetNullRef(x => x.ReplicationFilter, Config.ReplicationFilter));
 			Updates.Add(UpdateBuilder.SetOrUnsetNullRef(x => x.Acl, Acl));
 			Updates.Add(UpdateBuilder.Unset(x => x.Deleted));
 

@@ -32,7 +32,7 @@ namespace HordeServer.Commands
 		public int Change { get; set; }
 
 		[CommandLine]
-		public int BaseChange { get; set; }
+		public int? BaseChange { get; set; }
 
 		[CommandLine]
 		public int Count { get; set; } = 1;
@@ -48,6 +48,9 @@ namespace HordeServer.Commands
 
 		[CommandLine]
 		public string Filter { get; set; } = "...";
+
+		[CommandLine]
+		public bool Metadata { get; set; } = false;
 
 		[CommandLine]
 		public DirectoryReference? OutputDir { get; set; }
@@ -87,12 +90,6 @@ namespace HordeServer.Commands
 			Dictionary<IStream, int> StreamToFirstChange = new Dictionary<IStream, int>();
 			StreamToFirstChange[Stream] = Change;
 
-			CommitTree? BaseTree = null;
-			if (BaseChange != 0)
-			{
-				BaseTree = await GetBaseTreeAsync(CommitCollection, Stream.Id, Change);
-			}
-
 			await foreach (NewCommit NewCommit in CommitService.FindCommitsForClusterAsync(Stream.ClusterName, StreamToFirstChange).Take(Count))
 			{
 				string BriefSummary = NewCommit.Description.Replace('\n', ' ');
@@ -101,36 +98,15 @@ namespace HordeServer.Commands
 
 				if (Content)
 				{
-					if (BaseTree == null && !Clean)
+					if (Clean || BaseChange != null)
 					{
-						BaseTree = await GetBaseTreeAsync(CommitCollection, Stream.Id, NewCommit.Change);
+						await CommitService.WriteCommitTreeAsync(Stream, NewCommit.Change, BaseChange, Filter, Metadata);
 					}
-					else
-					{
-						BaseTree = await CommitService.FindCommitTreeAsync(Stream, NewCommit.Change, BaseTree, Filter);
-					}
-
-					NewCommit.TreeRefId = BaseTree.RefId;
+					BaseChange = NewCommit.Change;
 				}
-
-				await CommitCollection.AddOrReplaceAsync(NewCommit);
 			}
 
 			return 0;
-		}
-
-		static async Task<CommitTree> GetBaseTreeAsync(ICommitCollection CommitCollection, StreamId StreamId, int Change)
-		{
-			ICommit? Commit = await CommitCollection.GetCommitAsync(StreamId, Change);
-			if (Commit == null)
-			{
-				throw new InvalidOperationException($"Unable to find existing commit for {StreamId} @ CL {Change}");
-			}
-			if (Commit.TreeRefId == null)
-			{
-				throw new InvalidOperationException($"No tree for commit {StreamId} @ CL {Change}");
-			}
-			return new CommitTree(Commit.StreamId, Commit.Change, Commit.TreeRefId.Value);
 		}
 	}
 }
