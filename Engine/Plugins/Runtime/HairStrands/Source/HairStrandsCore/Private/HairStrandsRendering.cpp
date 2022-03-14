@@ -2176,7 +2176,6 @@ void ComputeHairStrandsInterpolation(
 				check(Instance->Guides.IsValid());
 				check(Instance->Guides.HasValidRootData());
 				check(Instance->Guides.DeformedRootResource);
-				check(Instance->Guides.DeformedRootResource->IsValid(MeshLODIndex));
 
 				AddHairMeshesRBFInterpolationPass(
 					GraphBuilder,
