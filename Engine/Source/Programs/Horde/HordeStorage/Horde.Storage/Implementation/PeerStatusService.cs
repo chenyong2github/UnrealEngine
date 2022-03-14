@@ -15,6 +15,12 @@ namespace Horde.Storage.Implementation
     {
         public class PeerStatus
         {
+            public PeerStatus(PeerSettings peerSettings)
+            {
+                Endpoints = peerSettings.Endpoints;
+            }
+
+            public List<PeerEndpoints> Endpoints { get; set; }
             public int Latency { get; set; }
             public bool Reachable { get; set; }
         }
@@ -76,7 +82,7 @@ namespace Horde.Storage.Implementation
                 if (string.Equals(peerSettings.Name, jupiterSettings.CurrentValue.CurrentSite, StringComparison.InvariantCultureIgnoreCase))
                     continue;
 
-                _peers[peerSettings.Name] = new IPeerStatusService.PeerStatus
+                _peers[peerSettings.Name] = new IPeerStatusService.PeerStatus(peerSettings)
                 {
                     Latency = int.MaxValue
                 };

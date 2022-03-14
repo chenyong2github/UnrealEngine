@@ -5,6 +5,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
@@ -27,6 +29,9 @@ public interface IBlobService
     Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] payload, BlobIdentifier identifier);
 
     Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob);
+
+    Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob);
+
     Task<bool> Exists(NamespaceId ns, BlobIdentifier blob);
 
     // Delete a object
@@ -41,6 +46,7 @@ public interface IBlobService
     Task<BlobIdentifier[]> FilterOutKnownBlobs(NamespaceId ns, IAsyncEnumerable<BlobIdentifier> blobs);
     Task<BlobContents> GetObjects(NamespaceId ns, BlobIdentifier[] refRequestBlobReferences);
 
+    bool ShouldFetchBlobOnDemand(NamespaceId ns);
 }
 
 public class BlobService : IBlobService
@@ -48,6 +54,9 @@ public class BlobService : IBlobService
     private List<IBlobStore> _blobStores;
     private readonly IOptionsMonitor<HordeStorageSettings> _settings;
     private readonly IBlobIndex _blobIndex;
+    private readonly IPeerStatusService _peerStatusService;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IServiceCredentials _serviceCredentials;
     private readonly ILogger _logger = Log.ForContext<BlobService>();
 
     internal IEnumerable<IBlobStore> BlobStore
@@ -56,11 +65,14 @@ public class BlobService : IBlobService
         set { _blobStores = value.ToList(); } 
     }
 
-    public BlobService(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings, IBlobIndex blobIndex)
+    public BlobService(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials)
     {
         _blobStores = GetBlobStores(provider, settings).ToList();
         _settings = settings;
         _blobIndex = blobIndex;
+        _peerStatusService = peerStatusService;
+        _httpClientFactory = httpClientFactory;
+        _serviceCredentials = serviceCredentials;
     }
 
     private IEnumerable<IBlobStore> GetBlobStores(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings)
@@ -235,6 +247,60 @@ public class BlobService : IBlobService
         }
         
         return blobContents;
+    }
+
+    public async Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob)
+    {
+        if (!ShouldFetchBlobOnDemand(ns))
+            throw new NotSupportedException($"Replication is not allowed in namespace {ns}");
+
+        using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.Replicate");
+
+        IBlobIndex.BlobInfo? blobInfo = await _blobIndex.GetBlobInfo(ns, blob);
+        if (blobInfo == null)
+            throw new BlobNotFoundException(ns, blob);
+
+        _logger.Information("On-demand replicating blob {Blob} in Namespace {Ns}", blob, ns);
+        SortedList<int, string> possiblePeers = _peerStatusService.GetPeersByLatency(blobInfo.Regions.ToList());
+
+        string bestPeer = possiblePeers.First().Value;
+        IPeerStatusService.PeerStatus? peerStatus = _peerStatusService.GetPeerStatus(bestPeer);
+        if (peerStatus == null)
+            throw new Exception($"Failed to find peer {bestPeer}");
+        PeerEndpoints peerEndpoint = peerStatus.Endpoints.First();
+        HttpClient httpClient = _httpClientFactory.CreateClient();
+        HttpRequestMessage blobRequest = BuildHttpRequest(HttpMethod.Get, $"{peerEndpoint.Url}/api/v1/blobs/{ns}/{blob}");
+        HttpResponseMessage blobResponse = await httpClient.SendAsync(blobRequest, HttpCompletionOption.ResponseHeadersRead);
+
+        if (blobResponse.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new BlobReplicationException(ns, blob, $"Failed to replicate {blob} in {ns} due to it not existing in region {bestPeer}.");
+        }
+
+        if (blobResponse.StatusCode != HttpStatusCode.OK)
+        {
+            throw new BlobReplicationException(ns, blob, $"Failed to replicate {blob} in {ns} from region {bestPeer} due to bad http status code {blobResponse.StatusCode}.");
+        }
+
+        await using Stream s = await blobResponse.Content.ReadAsStreamAsync();
+        using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(s);
+        await PutObject(ns, payload, blob);
+
+        return await GetObject(ns, blob);
+    }
+
+    public bool ShouldFetchBlobOnDemand(NamespaceId ns)
+    {
+        return _settings.CurrentValue.EnableOnDemandReplication && _settings.CurrentValue.OnDemandReplicationNamespaces.Any(s => s.Equals("*") || s.Equals(ns.ToString()));
+    }
+
+    private HttpRequestMessage BuildHttpRequest(HttpMethod httpMethod, string uri)
+    {
+        string? token = _serviceCredentials.GetToken();
+        HttpRequestMessage request = new HttpRequestMessage(httpMethod, uri);
+        if (!string.IsNullOrEmpty(token))
+            request.Headers.Add("Authorization", "Bearer " + token);
+        return request;
     }
 
     public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob)

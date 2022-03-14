@@ -151,7 +151,16 @@ namespace Horde.Storage.Controllers
 
         private async Task<BlobContents> GetImpl(NamespaceId ns, BlobIdentifier blob)
         {
-            return await _storage.GetObject(ns, blob);
+            try
+            {
+                return await _storage.GetObject(ns, blob);
+            }
+            catch (BlobNotFoundException)
+            {
+                if (!_storage.ShouldFetchBlobOnDemand(ns))
+                    throw;
+                return await _storage.ReplicateObject(ns, blob);
+            }
         }
 
         [HttpPut("{ns}/{id}")]

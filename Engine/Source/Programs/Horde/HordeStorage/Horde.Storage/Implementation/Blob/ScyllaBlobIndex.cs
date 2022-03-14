@@ -35,12 +35,13 @@ public class ScyllaBlobIndex : IBlobIndex
         ));
     }
 
-    public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id)
+    public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null)
     {
+        region ??= _jupiterSettings.CurrentValue.CurrentSite;
         using IScope _ = Tracer.Instance.StartActive("scylla.insert_blob_index");
 
         await _mapper.UpdateAsync<ScyllaBlobIndexTable>("SET regions = regions + ? WHERE namespace = ? AND blob_id = ?",
-            new string[] { _jupiterSettings.CurrentValue.CurrentSite }, ns.ToString(), new ScyllaBlobIdentifier(id));
+            new string[] { region }, ns.ToString(), new ScyllaBlobIdentifier(id));
     }
 
     public async Task<IBlobIndex.BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)

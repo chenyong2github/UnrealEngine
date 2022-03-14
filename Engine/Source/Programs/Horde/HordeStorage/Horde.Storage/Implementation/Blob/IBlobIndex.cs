@@ -16,7 +16,7 @@ namespace Horde.Storage.Implementation.Blob
             public List<(BucketId, IoHashKey)> References { get; init; } = new List<(BucketId, IoHashKey)>();
         }
 
-        Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id);
+        Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null);
 
         Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id);
 

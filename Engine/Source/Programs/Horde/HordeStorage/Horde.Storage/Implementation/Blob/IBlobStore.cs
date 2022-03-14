@@ -43,6 +43,19 @@ namespace Horde.Storage.Implementation
             Ns = ns;
             Blob = blob;
         }
+
+        public BlobNotFoundException(NamespaceId ns, BlobIdentifier blob, string message) : base(message)
+        {
+            Ns = ns;
+            Blob = blob;
+        }
+    }
+
+    public class BlobReplicationException : BlobNotFoundException
+    {
+        public BlobReplicationException(NamespaceId ns, BlobIdentifier blob, string message) : base(ns, blob, message)
+        {
+        }
     }
 
     public class NamespaceNotFoundException : Exception

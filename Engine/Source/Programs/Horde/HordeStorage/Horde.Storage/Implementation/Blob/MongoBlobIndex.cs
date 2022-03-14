@@ -40,11 +40,12 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         });
     }
 
-    public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id)
+    public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null)
     {
+        region ??= _jupiterSettings.CurrentValue.CurrentSite;
         IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
         MongoBlobIndexModelV0 model = new MongoBlobIndexModelV0(ns, id);
-        model.Regions.Add(_jupiterSettings.CurrentValue.CurrentSite);
+        model.Regions.Add(region);
             
         FilterDefinition<MongoBlobIndexModelV0> filter = Builders<MongoBlobIndexModelV0>.Filter.Where(m => m.Ns == ns.ToString() && m.BlobId == id.ToString());
         await collection.FindOneAndReplaceAsync(filter, model, new FindOneAndReplaceOptions<MongoBlobIndexModelV0, MongoBlobIndexModelV0>

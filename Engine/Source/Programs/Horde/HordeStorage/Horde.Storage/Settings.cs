@@ -137,6 +137,8 @@ namespace Horde.Storage
         public int? MaxSingleBlobSize { get; set; } = null; // disable blob partitioning
 
         public int LastAccessRollupFrequencySeconds { get; set; } = 900; // 15 minutes
+        public List<string> OnDemandReplicationNamespaces { get; set; } = new List<string> { "*" };
+        public bool EnableOnDemandReplication { get; set; } = false;
     }
 
     public class MongoSettings
@@ -258,8 +260,8 @@ namespace Horde.Storage
 
         public TimeSpan BlobCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
         public TimeSpan RefCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
-        public List<string> CleanNamespacesV1 { get; set; } = new List<string>();
-        public List<string> CleanNamespaces { get; set; }  = new List<string>();
+        public List<string> CleanNamespaces { get; set; } = new List<string>();
+        public List<string> CleanNamespacesLegacy { get; set; }  = new List<string>();
 
     }
 

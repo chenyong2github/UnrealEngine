@@ -31,10 +31,11 @@ public class MemoryBlobIndex : IBlobIndex
         return _index.GetOrAdd(ns, id => new ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo>());
     }
 
-    public Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id)
+    public Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null)
     {
+        region ??= _jupiterSettings.CurrentValue.CurrentSite;
         ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo> index = GetNamespaceContainer(ns);
-        index[id] = NewBlobInfo(ns);
+        index[id] = NewBlobInfo(ns, region);
         return Task.CompletedTask;
     }
 
@@ -69,7 +70,7 @@ public class MemoryBlobIndex : IBlobIndex
 
             index.AddOrUpdate(id, _ =>
             {
-                MemoryBlobInfo info = NewBlobInfo(ns);
+                MemoryBlobInfo info = NewBlobInfo(ns, _jupiterSettings.CurrentValue.CurrentSite);
                 info.References.Add((bucket, key));
                 return info;
             }, (_, info) =>
@@ -82,11 +83,11 @@ public class MemoryBlobIndex : IBlobIndex
         return Task.CompletedTask;
     }
 
-    private MemoryBlobInfo NewBlobInfo(NamespaceId ns)
+    private MemoryBlobInfo NewBlobInfo(NamespaceId ns, string region)
     {
         MemoryBlobInfo info = new MemoryBlobInfo
         {
-            Regions = new HashSet<string> { _jupiterSettings.CurrentValue.CurrentSite },
+            Regions = new HashSet<string> { region },
             Namespace = ns,
         };
         return info;

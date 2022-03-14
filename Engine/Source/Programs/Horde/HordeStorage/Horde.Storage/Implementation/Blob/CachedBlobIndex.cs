@@ -36,7 +36,7 @@ public class CachedBlobIndex : IBlobIndex
         return null;
     }
 
-    public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id)
+    public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null)
     {
         // We do not actually track any blob information when running in cached mode
         await Task.CompletedTask;
