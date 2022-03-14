@@ -48,7 +48,7 @@ void FGenericPlatformOutputDevices::SetupOutputDevices()
 #if USE_DEBUG_LOGGING
 	// If the platform has a separate debug output channel (e.g. OutputDebugString) then add an output device
 	// unless logging is turned off
-	if (FPlatformMisc::HasSeparateChannelForDebugOutput())
+	if (FPlatformMisc::HasSeparateChannelForDebugOutput() && !FParse::Param(FCommandLine::Get(), TEXT("NODEBUGOUTPUT")))
 	{
 		GLog->AddOutputDevice(new FOutputDeviceDebug());
 	}
