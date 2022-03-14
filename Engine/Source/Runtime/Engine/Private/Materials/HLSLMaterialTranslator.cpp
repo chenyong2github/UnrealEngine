@@ -174,6 +174,10 @@ static inline const TCHAR* GetStrataOperatorStr(int32 OperatorType)
 	{
 		return TEXT("BSDFLEGACY");
 	}
+	case STRATA_OPERATOR_THINFILM:
+	{
+		return TEXT("THINFILM");
+	}
 	}
 	return TEXT("UNKNOWN   ");
 };
@@ -1391,6 +1395,77 @@ bool FHLSLMaterialTranslator::Translate()
 			{
 				// Now implement the functions needed to process the material topology
 
+				// Pre-Update the slab BSDF with operators (like thin film coating, which can alter F0/F90)
+				{
+					// Update the coverage/transmittance of each node in the graph
+					check(StrataMaterialRootOperator);
+					int32 RootMaximumDistanceToLeaves = StrataMaterialRootOperator->MaxDistanceFromLeaves;
+
+					ResourcesString += "void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V)\n";
+					ResourcesString += "{\n";
+					for (uint32 BSDFIndex = 0; BSDFIndex < StrataMaterialBSDFCount; ++BSDFIndex)
+					{
+						ResourcesString += "\t{\n";
+						ResourcesString += "\t\tbool bCanReceiveThinFilm = true;\n";
+						for (auto& It : StrataMaterialExpressionRegisteredOperators)
+						{
+							if (!It.IsDiscarded() && It.BSDFIndex == BSDFIndex)
+							{
+								// Walk up the graph to the root node and apply weight factors
+								std::function<void(const FStrataOperator&, int32)> WalkOperatorsUp = [&](const FStrataOperator& CurrentOperator, int32 PreviousOperatorIndex) -> void
+								{
+									switch (CurrentOperator.OperatorType)
+									{
+									case STRATA_OPERATOR_WEIGHT:
+									{
+										break; // NOP
+									}
+									case STRATA_OPERATOR_HORIZONTAL:
+									{
+										break; // NOP
+									}
+									case STRATA_OPERATOR_VERTICAL:
+									{
+										ResourcesString += FString::Printf(TEXT("\t PreUpdateAllBSDFWithBottomUpOperatorVisit_Vertical(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], NullStrataAddressing, bCanReceiveThinFilm, V, %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+										break;
+									}
+									case STRATA_OPERATOR_ADD:
+									{
+										break; // NOP
+									}
+									case STRATA_OPERATOR_THINFILM:
+									{
+										ResourcesString += FString::Printf(TEXT("\t PreUpdateAllBSDFWithBottomUpOperatorVisit_ThinFilm(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], NullStrataAddressing, bCanReceiveThinFilm, V,  %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+										break;
+									}
+									default:
+									case STRATA_OPERATOR_BSDF:
+									{
+										check(false);
+									}
+									}
+
+									if (CurrentOperator.ParentIndex != INDEX_NONE)
+									{
+										WalkOperatorsUp(StrataMaterialExpressionRegisteredOperators[CurrentOperator.ParentIndex], CurrentOperator.Index);
+									}
+								};
+
+								const int32 BSDFOperatorIndex = It.Index;
+								const FStrataOperator& BSDFOperator = StrataMaterialExpressionRegisteredOperators[BSDFOperatorIndex];
+
+								// Start visiting node up from the BSDF leaf only if it has a parent.
+								if (BSDFOperator.ParentIndex != INDEX_NONE)
+								{
+									WalkOperatorsUp(StrataMaterialExpressionRegisteredOperators[BSDFOperator.ParentIndex], BSDFOperator.Index);
+								}
+							}
+						}
+						ResourcesString += "\t}\n";
+					}
+					ResourcesString += "}\n";
+				}
+			
 				// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
 				{
 					ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L)\n";
@@ -1439,7 +1514,7 @@ bool FHLSLMaterialTranslator::Translate()
 							if (!It.IsDiscarded() && It.BSDFIndex == BSDFIndex)
 							{
 								// Walk up the graph to the root node and apply weight factors
-								std::function<void(FStrataOperator&, int32)> WalkOperatorsUp = [&](FStrataOperator& CurrentOperator, int32 PreviousOperatorIndex) -> void
+								std::function<void(const FStrataOperator&, int32)> WalkOperatorsUp = [&](const FStrataOperator& CurrentOperator, int32 PreviousOperatorIndex) -> void
 								{
 									switch (CurrentOperator.OperatorType)
 									{
@@ -1453,18 +1528,19 @@ bool FHLSLMaterialTranslator::Translate()
 										ResourcesString += FString::Printf(TEXT("\t UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 										break;
 									}
-
 									case STRATA_OPERATOR_VERTICAL:
 									{
 										ResourcesString += FString::Printf(TEXT("\t UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 										break;
 									}
-
 									case STRATA_OPERATOR_ADD:
 									{
 										break; // NOP
 									}
-
+									case STRATA_OPERATOR_THINFILM:
+									{
+										break; // NOP
+									}
 									default:
 									case STRATA_OPERATOR_BSDF:
 									{
@@ -1479,7 +1555,7 @@ bool FHLSLMaterialTranslator::Translate()
 								};
 
 								const int32 BSDFOperatorIndex = It.Index;
-								FStrataOperator& BSDFOperator = StrataMaterialExpressionRegisteredOperators[BSDFOperatorIndex];
+								const FStrataOperator& BSDFOperator = StrataMaterialExpressionRegisteredOperators[BSDFOperatorIndex];
 
 								// Start visiting node up from the BSDF leaf only if it has a parent.
 								if (BSDFOperator.ParentIndex != INDEX_NONE)
@@ -9630,7 +9706,7 @@ FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int3
 	NewOperator.LeftIndex   = INDEX_NONE;
 	NewOperator.RightIndex   = INDEX_NONE;
 
-	NewOperator.BSDFIndex = INDEX_NONE;	// Allocated later to be ableto account for inline
+	NewOperator.BSDFIndex = INDEX_NONE;	// Allocated later to be albedo account for inline
 
 	NewOperator.MaxDistanceFromLeaves = 0;
 	NewOperator.bIsBottom = false;
@@ -9697,6 +9773,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 		// Operators with a single child
 		case STRATA_OPERATOR_WEIGHT:
+		case STRATA_OPERATOR_THINFILM:
 		{
 			bMustHaveLeftChild = true;
 		}
@@ -9748,6 +9825,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 				break;
 			}
 			case STRATA_OPERATOR_WEIGHT:
+			case STRATA_OPERATOR_THINFILM:
 			{
 				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex], bUseParameterBlending);
 				break;
@@ -9812,6 +9890,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 		// Operators with a single child
 		case STRATA_OPERATOR_WEIGHT:
+		case STRATA_OPERATOR_THINFILM:
 		{
 			check(It.LeftIndex != INDEX_NONE);
 		}
@@ -9828,6 +9907,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			switch (CurrentOperator.OperatorType)
 			{
 			case STRATA_OPERATOR_WEIGHT:
+			case STRATA_OPERATOR_THINFILM:
 			{
 				CurrentOperator.MaxDistanceFromLeaves = StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex].MaxDistanceFromLeaves + 1;
 				break;
@@ -9898,6 +9978,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 				break;
 			}
 			case STRATA_OPERATOR_WEIGHT:
+			case STRATA_OPERATOR_THINFILM:
 			{
 				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex]);
 				break;
@@ -10059,7 +10140,6 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale, 
 	int32 EmissiveColor,	
 	int32 Haziness, 
-	int32 ThinFilmThickness, 
 	int32 FuzzAmount, int32 FuzzColor,
 	int32 Thickness, 
 	int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
@@ -10074,7 +10154,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 		check(PromoteToOperator->Index != INDEX_NONE);
 		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */, Parameters.StrataTree, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */, Parameters.StrataTree, %u, %u, %u, %u)"),
 			*GetParameterCode(UseMetalness),
 			*GetParameterCode(BaseColor), *GetParameterCode(EdgeColor), *GetParameterCode(Specular), *GetParameterCode(Metallic),
 			*GetParameterCode(DiffuseAlbedo), *GetParameterCode(F0), *GetParameterCode(F90),
@@ -10084,7 +10164,6 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			*GetParameterCode(SSSDMFPScale),
 			*GetParameterCode(EmissiveColor),
 			*GetParameterCode(Haziness),
-			*GetParameterCode(ThinFilmThickness),
 			*GetParameterCode(FuzzAmount), *GetParameterCode(FuzzColor),
 			*GetParameterCode(Thickness),
 			*SharedLocalBasisIndexMacro,
@@ -10097,7 +10176,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	}
 
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */"),
+		MCT_Strata, TEXT("GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */"),
 		* GetParameterCode(UseMetalness),
 		*GetParameterCode(BaseColor),		*GetParameterCode(EdgeColor),	*GetParameterCode(Specular), *GetParameterCode(Metallic),
 		*GetParameterCode(DiffuseAlbedo),	*GetParameterCode(F0),			*GetParameterCode(F90),
@@ -10107,7 +10186,6 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 		*GetParameterCode(SSSDMFPScale),
 		*GetParameterCode(EmissiveColor),
 		*GetParameterCode(Haziness),
-		*GetParameterCode(ThinFilmThickness),
 		*GetParameterCode(FuzzAmount),		*GetParameterCode(FuzzColor),
 		*GetParameterCode(Thickness),
 		*SharedLocalBasisIndexMacro,
@@ -10409,6 +10487,23 @@ int32 FHLSLMaterialTranslator::StrataWeightParameterBlending(int32 A, int32 Weig
 	);
 }
 
+int32 FHLSLMaterialTranslator::StrataThinFilm(int32 A, int32 Thickness, int32 IOR, bool bInlinedEvaluation, int OperatorIndex, uint32 MaxDistanceFromLeaves)
+{
+	if (A == INDEX_NONE || Thickness == INDEX_NONE || IOR == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(
+		MCT_Strata, TEXT("StrataThinFilm(%s, %s, %s, %d, Parameters.StrataTree, %u, %u)"),
+		*GetParameterCode(A),
+		*GetParameterCode(Thickness),
+		*GetParameterCode(IOR),
+		bInlinedEvaluation ? 1u : 0u,
+		OperatorIndex,
+		MaxDistanceFromLeaves
+	);
+
+}
 int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex)
 {
 	if (OutputIndex == INDEX_NONE)

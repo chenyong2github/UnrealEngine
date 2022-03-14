@@ -19,6 +19,7 @@ uint MaxBytesPerPixel;
 void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L) {}
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree) {}
 void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree) {}
+void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}
 
 #endif // STRATA_ENABLED
 
@@ -83,6 +84,15 @@ void MainPS(
 	, out float  OutDepth		: SV_DEPTH
 )
 {
+	OutColor = 0.f;
+#if PERMUTATION_PASS == RENDER_BASEPASS
+	OutGBufferA = 0;
+	OutGBufferB = 0;
+	OutGBufferC = 0;
+	OutGBufferD = 0;
+	OutGBufferE = 0;
+#endif
+
 	ResolvedView = ResolveView();
 	const uint2 PixelCoord = uint2(SvPosition.xy);
 
@@ -288,7 +298,6 @@ void MainPS(
 			/*float SSSDMFPScale					*/0.0f,
 			/*float3 Emissive						*/0.0f,
 			/*float Haziness						*/0.0f,
-			/*float ThinFilmThickness				*/0.0f,
 			/*float FuzzAmount						*/0.0f,
 			/*float3 FuzzColor						*/0.0f,
 			/*float Thickness						*/0.0f,

@@ -263,6 +263,18 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		break;
 	}
 
+	case STRATA_OPERATOR_THINFILM:
+	{
+		// Thin-film does not affect these property
+		Op.Coverage = OpA.Coverage;
+		Op.Transmittance = OpA.Transmittance;
+		Op.TopDownRefractionLobeStat = OpA.TopDownRefractionLobeStat;
+		Op.TopDownRefractionWorldNormal = OpA.TopDownRefractionWorldNormal;
+		Op.BottomUpRefractionLobeStat = OpA.BottomUpRefractionLobeStat;
+		Op.ThicknessCm = OpA.ThicknessCm;
+		break;
+	}
+
 	}
 
 #undef Op
@@ -276,7 +288,7 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 #define Op StrataTree.Operators[OpIndex]
 
-
+// Post-update visit operators
 void UpdateAllBSDFWithBottomUpOperatorVisit_Weight(
 	inout FStrataTree StrataTree,
 	inout FStrataBSDF CurrentBSDF,
@@ -348,6 +360,83 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataOppositeLobe(ReflectedLobe), DummyInterfaceDFG, StrataLobeVarianceToRoughness(TopLayerSigma), BottomUpInterfaceEta);/////////////////
 
 		StrataSetBSDFRoughness(CurrentBSDF, StrataLobeVarianceToRoughness(RefractedLobe.Sigma));
+	}
+
+#endif // STRATA_INLINE_SHADING
+}
+
+// Pre-update visit operators
+void PreUpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
+	FStrataPixelHeader StrataPixelHeader,
+	inout FStrataTree StrataTree,
+	inout FStrataBSDF CurrentBSDF,
+	FStrataAddressing NullStrataAddressing,
+	inout bool bCanReceiveThinFilm,
+	float3 V,
+	int OpIndex,
+	int PreviousIsInputA)
+{
+#if STRATA_INLINE_SHADING
+
+	// If the BSDF is coated with a vertical layer, it can no longer receive thin film-coating
+	if (PreviousIsInputA <= 0)
+	{
+		bCanReceiveThinFilm = false;
+	}
+
+#endif // STRATA_INLINE_SHADING
+}
+
+void PreUpdateAllBSDFWithBottomUpOperatorVisit_ThinFilm(
+	FStrataPixelHeader StrataPixelHeader,
+	inout FStrataTree StrataTree,
+	inout FStrataBSDF CurrentBSDF,
+	FStrataAddressing NullStrataAddressing,
+	inout bool bCanReceiveThinFilm,
+	float3 V,
+	int OpIndex,
+	int PreviousIsInputA)
+{
+#if STRATA_INLINE_SHADING
+
+	if (bCanReceiveThinFilm && BSDF_GETTYPE(CurrentBSDF) == STRATA_BSDF_TYPE_SLAB)
+	{
+		if (Op.bThinFilmInline)
+		{
+			const float3 F0  = SLAB_F0(CurrentBSDF);
+			const float3 F90 = SLAB_F90(CurrentBSDF);
+
+			const float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
+			const float3 N = TangentBasis[2];
+			const float NoV = saturate(dot(N, V));
+			const float NoL = NoV;
+			const float VoH = NoV;
+			float3 RThinFilm = F_ThinFilm(NoV, NoL, VoH, F0, F90, Op.ThinFilmIOR, Op.ThinFilmThickness);
+
+			// Compute a F0 which match evaluation Thin-Film reflectance for the current view angle using Schlick's Fresnel
+			const float FReference = min(0.99f, F_Schlick(0, 1.0f, NoV).x);
+			RThinFilm = max(RThinFilm, FReference);
+
+			float3 F0_Thin = (RThinFilm - F90 * FReference) / (1 - FReference);
+
+			// Anything less than 2% is physically impossible and is instead considered to be shadowing
+			// Ensure the generated F0 doesn't cause micro-oclusion
+			const float MicroOcclusionThreshold = 0.02f;
+			F0_Thin = max(MicroOcclusionThreshold, F0_Thin);
+
+			// If micro-occlusion was set, re-apply it.
+			const float3 MicroOcclusion = saturate(F0 * 50.f);
+			F0_Thin *= MicroOcclusion;
+
+			SLAB_F0(CurrentBSDF)  = F0_Thin;
+			SLAB_F90(CurrentBSDF) = max(F0_Thin, F90);
+		}
+		else
+		{
+			const uint bHasThinFilm = Op.ThinFilmThickness > 0 ? 1u : 0u;
+			BSDF_SETHASTHINFILM(CurrentBSDF, bHasThinFilm);
+			SLAB_THINFILM_THICKNESS(CurrentBSDF) += Op.ThinFilmThickness;
+		}
 	}
 
 #endif // STRATA_INLINE_SHADING

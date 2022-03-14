@@ -90,7 +90,6 @@ FStrataData CreateLegacySlab(
 			In.SSSDMFPScale,	// SSSDMFPScale
 			In.Emissive,		// Emissive
 			0.f,				// Haziness
-			0.f,				// ThinFilmThickness
 			In.FuzzAmount,		// FuzzAmount
 			In.FuzzColor,		// FuzzColor
 			In.Thickness,

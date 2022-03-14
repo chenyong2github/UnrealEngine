@@ -20549,7 +20549,6 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 				false /*bHasSSS*/, 
 				false /*bHasDMFPPluggedIn*/, 
 				false /*bHasEdgeColor*/, 
-				false /*bHasThinFilm*/, 
 				false /*bHasFuzz*/, 
 				false /*bHasHaziness*/);
 		}
@@ -20568,7 +20567,6 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 				false /*bHasSSS*/,
 				false /*bHasDMFPPluggedIn*/,
 				false /*bHasEdgeColor*/,
-				false /*bHasThinFilm*/,
 				false /*bHasFuzz*/,
 				false /*bHasHaziness*/);
 		}
@@ -20579,7 +20577,6 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 				false /*bHasSSS*/,
 				false /*bHasDMFPPluggedIn*/,
 				false /*bHasEdgeColor*/,
-				false /*bHasThinFilm*/,
 				false /*bHasFuzz*/,
 				false /*bHasHaziness*/);
 		}
@@ -20796,7 +20793,6 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, NormalCodeChunk, TangentCodeChunk);
 
 	const bool bHasEdgeColor = HasEdgeColor(); // This accounts for EdgeColor and also F90 when the non metalness worfklow is selected.
-	const bool bHasThinFilm = HasThinFilm();
 	const bool bHasFuzz = HasFuzz();
 	const bool bHasHaziness = HasHaziness();
 	const bool bHasDMFPPluggedIn = HasDMFPPluggedIn();
@@ -20838,7 +20834,6 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat1(Compiler, SSSDMFPScale, 1.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
-		CompileWithDefaultFloat1(Compiler, ThinFilmThickness, 0.0f),
 		CompileWithDefaultFloat1(Compiler, FuzzAmount, 0.0f),
 		CompileWithDefaultFloat3(Compiler, FuzzColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Thickness, STRATA_LAYER_DEFAULT_THICKNESS_CM),
@@ -20846,7 +20841,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		TangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
 		!StrataOperator.bUseParameterBlending || (StrataOperator.bUseParameterBlending && StrataOperator.bRootOfParameterBlendingSubTree) ? &StrataOperator : nullptr);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasDMFPPluggedIn, bHasEdgeColor, bHasThinFilm, bHasFuzz, bHasHaziness);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasDMFPPluggedIn, bHasEdgeColor, bHasFuzz, bHasHaziness);
 
 	return OutputCodeChunk;
 }
@@ -20876,7 +20871,6 @@ const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
 	Result.Add(&SSSDMFPScale);
 	Result.Add(&EmissiveColor);
 	Result.Add(&Haziness);
-	Result.Add(&ThinFilmThickness);
 	Result.Add(&Thickness);
 	Result.Add(&FuzzAmount);
 	Result.Add(&FuzzColor);
@@ -21015,17 +21009,13 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	}
 	else if (InputIndex == (12 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // ThinFilm Thickness
+		return MCT_Float1; // Thickness
 	}
 	else if (InputIndex == (13 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // Thickness
-	}
-	else if (InputIndex == (14 + SkipDisabledInputOffset))
-	{
 		return MCT_Float1; // FuzzAmount
 	}
-	else if (InputIndex == (15 + SkipDisabledInputOffset))
+	else if (InputIndex == (14 + SkipDisabledInputOffset))
 	{
 		return MCT_Float3; // FuzzColor
 	}
@@ -21107,17 +21097,13 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == (12 + SkipDisabledInputOffset))
 	{
-		return TEXT("ThinFilm Thickness");
+		return TEXT("Thickness");
 	}
 	else if (InputIndex == (13 + SkipDisabledInputOffset))
 	{
-		return TEXT("Thickness");
-	}
-	else if (InputIndex == (14 + SkipDisabledInputOffset))
-	{
 		return TEXT("FuzzAmount");
 	}
-	else if (InputIndex == (15 + SkipDisabledInputOffset))
+	else if (InputIndex == (14 + SkipDisabledInputOffset))
 	{
 		return TEXT("FuzzColor");
 	}
@@ -21283,11 +21269,6 @@ bool UMaterialExpressionStrataSlabBSDF::HasDMFPPluggedIn() const
 bool UMaterialExpressionStrataSlabBSDF::HasEdgeColor() const
 {
 	return bUseMetalness ? EdgeColor.IsConnected() : F90.IsConnected();
-}
-
-bool UMaterialExpressionStrataSlabBSDF::HasThinFilm() const
-{
-	return ThinFilmThickness.IsConnected();
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasFuzz() const
@@ -22491,6 +22472,95 @@ void UMaterialExpressionStrataWeight::GatherStrataMaterialInfo(FStrataMaterialIn
 FStrataOperator* UMaterialExpressionStrataWeight::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_WEIGHT, this, Parent);
+
+	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
+	if (ChildAExpression)
+	{
+		StrataOperator.LeftIndex = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex)->Index;
+	}
+
+	return &StrataOperator;
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataThinFilm::UMaterialExpressionStrataThinFilm(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Ops", "Strata Operators")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataThinFilm::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!A.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing A input"));
+	}
+
+	int32 ACodeChunk = A.Compile(Compiler);
+	int32 ThicknessCodeChunk = Thickness.GetTracedInput().Expression ? Thickness.Compile(Compiler) : Compiler->Constant(1.0f);
+	int32 IORCodeChunk = IOR.GetTracedInput().Expression ? IOR.Compile(Compiler) : Compiler->Constant(1.44f);
+
+	int32 OutputCodeChunk = INDEX_NONE;
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
+	{
+		OutputCodeChunk = Compiler->StrataThinFilm(ACodeChunk, ThicknessCodeChunk, IORCodeChunk, bUseParameterBlending, StrataOperator.Index, StrataOperator.MaxDistanceFromLeaves);
+
+		if (!Compiler->StrataCompilationInfoContainsCodeChunk(ACodeChunk))
+		{
+			return Compiler->Errorf(TEXT("Could not find ACodeChunk to coat with thin-film"));
+		}
+		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoThinFilm(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk));
+		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
+	}
+
+	return OutputCodeChunk;
+}
+
+void UMaterialExpressionStrataThinFilm::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Thin-Film"));
+}
+
+uint32 UMaterialExpressionStrataThinFilm::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataThinFilm::GetInputType(int32 InputIndex)
+{
+	if (InputIndex == 0) { return MCT_Strata; } // Material
+	if (InputIndex == 1) { return MCT_Float1; } // Thickness
+	if (InputIndex == 2) { return MCT_Float1; } // IOR
+	return MCT_Float1;
+}
+
+bool UMaterialExpressionStrataThinFilm::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return true;
+}
+
+void UMaterialExpressionStrataThinFilm::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (A.GetTracedInput().Expression)
+	{
+		A.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, A.OutputIndex);
+	}
+}
+
+FStrataOperator* UMaterialExpressionStrataThinFilm::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_THINFILM, this, Parent);
 
 	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
 	if (ChildAExpression)

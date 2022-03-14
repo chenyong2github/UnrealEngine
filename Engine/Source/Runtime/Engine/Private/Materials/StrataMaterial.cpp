@@ -65,7 +65,7 @@ FStrataRegisteredSharedLocalBasis StrataCompilationInfoCreateSharedLocalBasis(FM
 
 void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk,
 	const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis,
-	uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm, bool bHasFuzz, bool bHasHaziness)
+	uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasFuzz, bool bHasHaziness)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
@@ -75,7 +75,7 @@ void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, 
 	StrataInfo.Layers[0].BSDFs[0].bHasSSS = bHasSSS;
 	StrataInfo.Layers[0].BSDFs[0].bHasDMFPPluggedIn = bHasDMFPPluggedIn;
 	StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = bHasEdgeColor;
-	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = bHasThinFilm;
+	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = false;
 	StrataInfo.Layers[0].BSDFs[0].bHasFuzz = bHasFuzz;
 	StrataInfo.Layers[0].BSDFs[0].bHasHaziness = bHasHaziness;
 	UpdateTotalBSDFCount(Compiler, StrataInfo);
@@ -93,7 +93,9 @@ void  StrataCompilationInfoCreateNullBSDF(FMaterialCompiler* Compiler, int32 Cod
 
 FStrataMaterialCompilationInfo StrataCompilationInfoWeight(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
 {
+	// STRATA_TODO: This is not correct. FStrataMaterialCompilationInfo is meant to be removed and replaced with Strata tree / metadata
 	FStrataMaterialCompilationInfo StrataInfo = A;
+	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = true;
 	return StrataInfo;
 }
 
@@ -103,6 +105,11 @@ FStrataMaterialCompilationInfo StrataCompilationInfoWeightParamBlend(FMaterialCo
 	return StrataInfo;
 }
 
+FStrataMaterialCompilationInfo StrataCompilationInfoThinFilm(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
+{
+	FStrataMaterialCompilationInfo StrataInfo = A;
+	return StrataInfo;
+}
 
 FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {

@@ -736,6 +736,11 @@ struct FStrataOperator
 	float				 ThicknessCm;					// The thickness of the layer
 	float				 VerticalTop_ThicknessCm;		// Only used by vertical layering operators. It represent the thickness that is used to drive the roughness propagation from top layers to sub layers.
 
+	// Thin film
+	float ThinFilmThickness;							// Thickness of thin-film coating layer. In micro-meters (1um == 1000nm).  Merge with regular ThicknessCm?
+	float ThinFilmIOR;									// IOR of the thin-film coating layer
+	bool  bThinFilmInline;								// If true the thin-film reflectance is evaluated during the base-pass and stored into F0/F90 to speed up lighting computation
+
 	// Topology information
 	bool				 bIsTop;
 
@@ -819,7 +824,6 @@ FStrataData GetStrataSlabBSDF(
 	float SSSProfileID, float3 SSSDMFP, float SSSDMFPScale,
 	float3 Emissive, 
 	float Haziness, 
-	float ThinFilmThickness,
 	float FuzzAmount, float3 FuzzColor,
 	float Thickness,
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
@@ -881,7 +885,7 @@ FStrataData GetStrataSlabBSDF(
 	}
 
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
-	const uint bHasThinFilm = ThinFilmThickness > 0.0f ? 1 : 0;
+	const uint bHasThinFilm = 0;
 	const uint bHasAnisotropy = Anisotropy != 0 ? 1 : 0;
 	const uint bHasFuzz = FuzzAmount > 0.0f ? 1 : 0;
 	if (bHasAnisotropy)
@@ -933,7 +937,7 @@ FStrataData GetStrataSlabBSDF(
 	SLAB_ROUGHNESS			(StrataData.InlinedBSDF)		= Roughness;
 	SLAB_ANISOTROPY			(StrataData.InlinedBSDF)		= Anisotropy;
 	SLAB_HAZINESS			(StrataData.InlinedBSDF)		= Haziness;
-	SLAB_THINFILM_THICKNESS	(StrataData.InlinedBSDF)		= ThinFilmThickness;
+	SLAB_THINFILM_THICKNESS	(StrataData.InlinedBSDF)		= 0.f;
 
 	if (bHasSSSProfile)
 	{
@@ -1307,7 +1311,30 @@ FStrataData StrataWeight(FStrataData A, float Weight, inout FStrataTree StrataTr
 	StrataTree.Operators[OperatorIndex].Weight					= Weight;
 	StrataTree.Operators[OperatorIndex].LeftIndex				= A.OperatorIndex;
 
-	StrataTree.Operators[A.OperatorIndex].ParentIndex				= OperatorIndex;
+	StrataTree.Operators[A.OperatorIndex].ParentIndex			= OperatorIndex;
+
+	return StrataData;
+}
+
+FStrataData StrataThinFilm(FStrataData A, float Thickness, float IOR, bool bInlineEvaluation, inout FStrataTree StrataTree, int OperatorIndex, uint MaxDistanceFromLeaves)
+{
+	const float SafeThickness = saturate(Thickness);
+	const float SafeIOR = clamp(IOR, 1.01f, 3.0f);
+
+	FStrataData StrataData = GetInitialisedStrataData();
+
+	StrataTree.OperatorCount++;
+	StrataData.OperatorIndex = OperatorIndex;
+
+	StrataTree.Operators[OperatorIndex] = GetInitialisedStrataOperator();
+	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves = MaxDistanceFromLeaves;
+	StrataTree.Operators[OperatorIndex].Type = STRATA_OPERATOR_THINFILM;
+	StrataTree.Operators[OperatorIndex].ThinFilmThickness = SafeThickness;
+	StrataTree.Operators[OperatorIndex].ThinFilmIOR = SafeIOR;
+	StrataTree.Operators[OperatorIndex].bThinFilmInline = bInlineEvaluation;
+	StrataTree.Operators[OperatorIndex].LeftIndex = A.OperatorIndex;
+
+	StrataTree.Operators[A.OperatorIndex].ParentIndex = OperatorIndex;
 
 	return StrataData;
 }
@@ -1917,7 +1944,7 @@ float3 StrataGetBSDFDiffuseColor(in FStrataBSDF BSDF)
 	return 0.f;
 }
 
-float3 StrataGetBSDFSpecularColor(in FStrataBSDF BSDF)
+float3 StrataGetBSDFSpecularF0(in FStrataBSDF BSDF)
 {
 	switch (BSDF_GETTYPE(BSDF))
 	{
@@ -1927,6 +1954,7 @@ float3 StrataGetBSDFSpecularColor(in FStrataBSDF BSDF)
 	}
 	return 0.f;
 }
+float3 StrataGetBSDFSpecularColor(in FStrataBSDF BSDF) { return StrataGetBSDFSpecularF0(BSDF);  }
 
 float3 StrataGetBSDFSpecularF90(in FStrataBSDF BSDF)
 {
@@ -1937,6 +1965,26 @@ float3 StrataGetBSDFSpecularF90(in FStrataBSDF BSDF)
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 1.0f;
 	}
 	return 0.f;
+}
+
+void StrataSetBSDFSpecularF0(in FStrataBSDF BSDF, float3 F0)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			SLAB_F0(BSDF) = F0;
+	case STRATA_BSDF_TYPE_HAIR: 			HAIR_SPECULAR(BSDF) = F0ToDielectricSpecular(max3(F0.x, F0.y, F0.z)); break;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: SLW_SPECULAR(BSDF) = F0ToDielectricSpecular(max3(F0.x, F0.y, F0.z)); break;
+	}
+}
+
+void StrataSetBSDFSpecularF90(in FStrataBSDF BSDF, float3 F90)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			SLAB_F90(BSDF) = F90;
+	case STRATA_BSDF_TYPE_HAIR: 			break;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: break;
+	}
 }
 
 float3 StrataGetBSDFSubSurfaceColor(in FStrataBSDF BSDF)
@@ -2466,7 +2514,6 @@ void StrataConvertFromDBuffer(
 		0.f,				// SSSDMFPScale
 		0.f,				// Emissive
 		0.f,				// Haziness
-		0.f,				// ThinFilmThickness
 		0.f,				// FuzzAmount
 		0.f,				// FuzzColor
 		DefaultThickness,
@@ -2489,6 +2536,7 @@ void StrataConvertFromDBuffer(
 void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L);
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree);
 void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree);
+void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V);
 #else
 void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L);
 #endif
@@ -2503,6 +2551,11 @@ void StrataUpdateTree(
 	bool bRoughDiffuseEnabled)
 {
 #if STRATA_USES_CONVERSION_FROM_LEGACY==0
+	//
+	// Pre-Update the BSDF by traversing up the strata tree until the root node. This allows to modify BSDF's parameters based on operators (i.e., thin-film coating)
+	//
+	PreUpdateAllBSDFWithBottomUpOperatorVisit(StrataPixelHeader, StrataTree, StrataAddressing, V);
+
 	//
 	// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
 	//
