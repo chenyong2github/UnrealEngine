@@ -5,6 +5,7 @@
 
 typedef void * (VectorVMReallocFn)              (void *Ptr, size_t NumBytes, const char *Filename, int LineNumber);
 typedef void   (VectorVMFreeFn)                 (void *Ptr, const char *Filename, int LineNumber);
+struct FDataSetMeta;
 
 //prototypes for serialization that are required whether or not serialization is enabled
 #if defined(NIAGARA_EXP_VM) || defined(VVM_INCLUDE_SERIALIZATION)

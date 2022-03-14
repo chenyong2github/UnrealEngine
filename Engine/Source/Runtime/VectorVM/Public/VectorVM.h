@@ -10,6 +10,7 @@
 #include "Math/RandomStream.h"
 #include "Misc/ByteSwap.h"
 #include "Templates/AlignmentTemplates.h"
+#include "VectorVMExperimental.h"  
 
 //TODO: move to a per platform header and have VM scale vectorization according to vector width.
 #define VECTOR_WIDTH (128)
@@ -315,7 +316,7 @@ private:
 	FDataSetMeta& operator=(const FDataSetMeta&) = delete;
 };
 
-#include "VectorVMExperimental.h"  // -V547
+
 
 //Data the VM will keep on each dataset locally per thread which is then thread safely pushed to it's destination at the end of execution.
 struct FDataSetThreadLocalTempData
