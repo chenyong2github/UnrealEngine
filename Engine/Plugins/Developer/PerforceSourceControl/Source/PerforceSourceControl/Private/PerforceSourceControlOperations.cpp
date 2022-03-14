@@ -1712,7 +1712,7 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 			// Mandatory parameters (the list of files to stat):
 			for (FString File : InCommand.Files)
 			{
-				if (IFileManager::Get().DirectoryExists(*File))
+				if (Operation->IsDirectoryPath(File))
 				{
 					// If the file is a directory, do a recursive fstat on the contents
 					File /= TEXT("...");

@@ -347,6 +347,7 @@ public:
 		, bCheckingAllFiles(false)
 		, bForceQuiet(false)
 		, bForceUpdate(false)
+		, bSetRequireDirPathEndWithSeparator(false)
 	{
 	}
 
@@ -386,6 +387,22 @@ public:
 		bForceQuiet = bInQuiet;
 	}
 
+	/** 
+	 * Sets the method that the operation will use to determine if a path
+	 * references a file or a directory. For more details @see IsDirectoryPath()
+	 * 
+	 * @param bFlag When true the operation will check the path and assume that it
+	 *				is a directory if the path ends with '/' or '\' and a file if it 
+	 *				does not.
+	 *				When false (the default) the operation will poll the file system
+	 *				with the path to see if it is a file or a directory.
+	 * 
+	 */
+	void SetRequireDirPathEndWithSeperator(bool bFlag)
+	{
+		bSetRequireDirPathEndWithSeparator = bFlag;
+	}
+
 	void SetForceUpdate(const bool bInForceUpdate)
 	{
 		bForceUpdate = bInForceUpdate;
@@ -421,6 +438,19 @@ public:
 		return bForceUpdate;
 	}
 
+	/** 
+	 * Returns if the given path should be considered a directory or not.
+	 * If bSetRequireDirPathEndWithSeparator is not set (the default) then
+	 * we will poll the file system. However in some cases this can be very
+	 * slow, in which case bSetRequireDirPathEndWithSeparator can be set 
+	 * to true and we require that any directory path must be terminated
+	 * by a path separator (/ or \) so that we can tell by simply looking at
+	 * the path itself.
+	 * This is opt in behavior to avoid breaking existing 3rd party code that
+	 * relies on the default behavior.
+	 */
+	SOURCECONTROL_API bool IsDirectoryPath(const FString& Path) const;
+
 protected:
 	/** Whether to update history */
 	bool bUpdateHistory;
@@ -439,6 +469,9 @@ protected:
 
 	/** Forces the verification for provided files - providers can ignore files not opened/edited without it */
 	bool bForceUpdate;
+
+	/** If we should assume paths ending in a separator are directory paths or do we need to check with the file system? */
+	bool bSetRequireDirPathEndWithSeparator;
 };
 
 /**

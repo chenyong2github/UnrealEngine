@@ -3,9 +3,46 @@
 #include "SourceControlOperations.h"
 
 #include "Containers/StringView.h"
+#include "HAL/FileManager.h"
 #include "ISourceControlModule.h"
 #include "Misc/PathViews.h"
 #include "Misc/Paths.h"
+
+bool FUpdateStatus::IsDirectoryPath(const FString& Path) const
+{
+	// Problem:
+	// We need to be able to work out if a path if a directory or not as some source 
+	// control implementations will need to append wildcards to the path if it is
+	// a directory in order for it to function correctly.
+	// 
+	// Strictly speaking the only way we can tell the difference between a file path
+	// and a directory path is to check with the file system. 
+	// However some source control implementations let us reference files on the server
+	// and do not require us to have them on the users machine. This means checking with
+	// the file system does not give an accurate result and can end up being very 
+	// slow if the file system interprets the path as a UNC path and tries to resolve it.
+	//
+	// Ideally we would let the caller clearly mark if the path is for a file or a 
+	// directory but this would require a large overhaul of the source control API.
+	// We cannot change the existing behavior as it is very likely that 3rd party code is
+	// relying on it.
+	//
+	// Solution:
+	// As a 'temporary' solution, the caller can set bSetRequireDirPathEndWithSeparator
+	// to true. When it is true we will assume that all directory paths end with a 
+	// separator. Although we tend to not terminate directory paths with a separator in the 
+	// engine, this will allow us an opt in to the new behavior until more substantial API
+	// changes can be made.
+
+	if (bSetRequireDirPathEndWithSeparator)
+	{
+		return Path.EndsWith(TEXT("/")) || Path.EndsWith(TEXT("\\"));
+	}
+	else
+	{
+		return IFileManager::Get().DirectoryExists(*Path);
+	}
+}
 
 FDownloadFile::FDownloadFile(FStringView InTargetDirectory, EVerbosity InVerbosity)
 	: Verbosity(InVerbosity)
