@@ -808,6 +808,23 @@ namespace UsdSkelRootTranslatorImpl
 
 					Context->AssetCache->LinkAssetToPrim( SkelRootPath, SkeletalMesh );
 
+					// Track our Skeleton by the source skeleton prim path
+					if ( USkeleton* Skeleton = SkeletalMesh->GetSkeleton() )
+					{
+						FScopedUsdAllocs Allocs;
+
+						// Our SkeletonCache should already have been populated by our call to UsdSkelRootTranslatorImpl::LoadAllSkeletalData, so we should
+						// be able to quickly query our skeleton again to find its path
+						std::vector< pxr::UsdSkelBinding > SkeletonBindings;
+						SkeletonCache.Get().ComputeSkelBindings( pxr::UsdSkelRoot( GetPrim() ), &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+						if ( SkeletonBindings.size() > 0 )
+						{
+							pxr::UsdSkelBinding& SkeletonBinding = SkeletonBindings[ 0 ];
+							const pxr::UsdSkelSkeleton& UsdSkeleton = SkeletonBinding.GetSkeleton();
+							Context->AssetCache->LinkAssetToPrim( UsdToUnreal::ConvertPath( UsdSkeleton.GetPrim().GetPrimPath() ), Skeleton );
+						}
+					}
+
 					// We may be reusing a skeletal mesh we got in the cache, but we always need the BlendShapesByPath stored on the
 					// actor to be up-to-date with the Skeletal Mesh that is actually being displayed
 					if ( Context->BlendShapesByPath )
@@ -840,7 +857,6 @@ namespace UsdSkelRootTranslatorImpl
 
 				if ( pxr::UsdSkelRoot SkeletonRoot{ GetPrim() } )
 				{
-					FString SkelRootPath = PrimPath.GetString();
 					std::vector< pxr::UsdSkelBinding > SkeletonBindings;
 					SkeletonCache.Get().Populate( SkeletonRoot, pxr::UsdTraverseInstanceProxies() );
 					SkeletonCache.Get().ComputeSkelBindings( SkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
@@ -860,6 +876,7 @@ namespace UsdSkelRootTranslatorImpl
 						{
 							continue;
 						}
+						FString SkelAnimationPrimPath = UsdToUnreal::ConvertPath( SkelAnimationPrim.GetPath() );
 
 						if ( !AnimQuery.JointTransformsMightBeTimeVarying() &&
 							( NewBlendShapes.Num() == 0 || !AnimQuery.BlendShapeWeightsMightBeTimeVarying() ) )
@@ -894,7 +911,7 @@ namespace UsdSkelRootTranslatorImpl
 								UUsdAnimSequenceAssetImportData* ImportData = NewObject< UUsdAnimSequenceAssetImportData >( AnimSequence, TEXT( "USDAssetImportData" ) );
 								AnimSequence->AssetImportData = ImportData;
 
-								ImportData->PrimPath = SkelRootPath;
+								ImportData->PrimPath = SkelAnimationPrimPath;
 								ImportData->LayerStartOffsetSeconds = LayerStartOffsetSeconds;
 
 								Context->AssetCache->CacheAsset( HashString, AnimSequence );
@@ -907,7 +924,7 @@ namespace UsdSkelRootTranslatorImpl
 
 						if ( AnimSequence )
 						{
-							Context->AssetCache->LinkAssetToPrim( SkelRootPath, AnimSequence );
+							Context->AssetCache->LinkAssetToPrim( SkelAnimationPrimPath, AnimSequence );
 						}
 					}
 				}

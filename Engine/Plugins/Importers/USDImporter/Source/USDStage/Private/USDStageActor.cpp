@@ -1360,24 +1360,32 @@ TArray<UObject*> AUsdStageActor::GetGeneratedAssets( const FString& PrimPath )
 		return {};
 	}
 
-	FString UncollapsedPath = PrimPath;
-	if ( CollapsingCache.IsValid() )
-	{
-		UncollapsedPath = CollapsingCache->UnwindToNonCollapsedPath( UsdPath, ECollapsingType::Assets ).GetString();
-	}
-
 	TSet<UObject*> Result;
+	FString PathToUse = PrimPath;
 
-	if ( UObject* FoundAsset = AssetCache->GetAssetForPrim( UncollapsedPath ) )
+	// If we found an asset generated specifically for a prim path, use that. If this prim has been collapsed,
+	// the asset generated for it will be assigned to its collapsing root, so we won't find anything here
+	if ( UObject* FoundAsset = AssetCache->GetAssetForPrim( PrimPath ) )
 	{
 		Result.Add( FoundAsset );
 	}
+	// If we haven't try seeing if we collapsed into another asset
+	else if ( CollapsingCache.IsValid() )
+	{
+		PathToUse = CollapsingCache->UnwindToNonCollapsedPath( UsdPath, ECollapsingType::Assets ).GetString();
+		if ( UObject* FoundCollapsedAsset = AssetCache->GetAssetForPrim( PathToUse ) )
+		{
+			Result.Add( FoundCollapsedAsset );
+		}
+	}
 
+	// Collect any other asset that claims they came from the same prim (e.g. also return the skeleton if we query
+	// the SkelRoot, or return textures if we query a material prim that used them, etc.)
 	for ( const TPair<FString, UObject*>& HashToAsset : AssetCache->GetCachedAssets() )
 	{
 		if ( UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( HashToAsset.Value ) )
 		{
-			if ( ImportData->PrimPath == UncollapsedPath )
+			if ( ImportData->PrimPath == PathToUse )
 			{
 				Result.Add( HashToAsset.Value );
 			}
