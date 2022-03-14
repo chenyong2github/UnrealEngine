@@ -214,6 +214,26 @@ void FRgbaInputFile::SetFrameBuffer(void* Buffer, const FIntPoint& BufferDim)
 	((Imf::RgbaInputFile*)InputFile)->setFrameBuffer((Imf::Rgba*)Buffer - Win.min.x - Win.min.y * BufferDim.X, 1, BufferDim.X);
 }
 
+bool FRgbaInputFile::GetIntAttribute(const FString& Name, int32& Value)
+{
+	bool bIsAttributeFound = false;
+
+	if (InputFile != nullptr)
+	{
+		const Imf::IntAttribute* Attribute =
+			((Imf::RgbaInputFile*)InputFile)->header().
+			findTypedAttribute<Imf::IntAttribute>(std::string(TCHAR_TO_ANSI(*Name)));
+
+		if (Attribute != nullptr)
+		{
+			Value = Attribute->value();
+			bIsAttributeFound = true;
+		}
+	}
+
+	return bIsAttributeFound;
+}
+
 FTiledRgbaOutputFile::FTiledRgbaOutputFile(
 	const FIntPoint& DisplayWindowMin,
 	const FIntPoint& DisplayWindowMax,

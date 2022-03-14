@@ -38,6 +38,16 @@ public:
 	void ReadPixels(int32 StartY, int32 EndY);
 	void SetFrameBuffer(void* Buffer, const FIntPoint& Stride);
 
+	/**
+	 * Get an attribute from the image.
+	 *
+	 * @param Name		Name of attribute.
+	 * @param Value		Will be set to the value of the attribute if the attribute is found.
+	 *					Will NOT be set if the attribute is not found.
+	 * @return			True if the attribute was found, false otherwise.
+	 */
+	bool GetIntAttribute(const FString& Name, int32& Value);
+
 private:
 
 	void* InputFile;
