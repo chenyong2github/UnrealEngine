@@ -47,7 +47,7 @@ namespace HordeServer.Commands
 		public bool Clean { get; set; }
 
 		[CommandLine]
-		public string Filter { get; set; } = "//...";
+		public string Filter { get; set; } = "...";
 
 		[CommandLine]
 		public DirectoryReference? OutputDir { get; set; }

@@ -22,6 +22,24 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Bundles
 {
 	/// <summary>
+	/// Object stored within the ref for a bundle
+	/// </summary>
+	public class BundleRoot
+	{
+		/// <summary>
+		/// Data hashed to produce the ref key; included in unhashed form for debugging purposes.
+		/// </summary>
+		[CbField("metadata")]
+		public CbObject Metadata { get; set; } = CbObject.Empty;
+
+		/// <summary>
+		/// Embedded object data
+		/// </summary>
+		[CbField("object")]
+		public BundleObject Object { get; set; } = new BundleObject();
+	}
+
+	/// <summary>
 	/// Blob within the bundle.
 	/// </summary>
 	public class BundleObject
