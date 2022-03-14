@@ -12,6 +12,7 @@
 #include "ExrReaderGpu.h"
 #include "RHICommandList.h"
 #include "ExrSwizzlingShader.h"
+#include "ImgMedia/Public/ImgMediaMipMapInfo.h"
 #include "SceneUtils.h"
 
 
@@ -28,7 +29,6 @@
 #include "ID3D12DynamicRHI.h"
 
 #define READ_IN_CHUNKS 1
-#define EXR_ENABLE_MIPS 1
 
 DECLARE_GPU_STAT_NAMED(ExrImgMediaReaderGpu, TEXT("ExrImgMediaReaderGpu"));
 
@@ -38,24 +38,23 @@ namespace {
 	void DrawScreenPass(
 		FRHICommandListImmediate& RHICmdList,
 		const FIntPoint& OutputResolution,
+		const FIntRect& Viewport,
 		const FScreenPassPipelineState& PipelineState,
 		TSetupFunction SetupFunction)
 	{
-		RHICmdList.SetViewport(0.f, 0.f, 0.f, OutputResolution.X, OutputResolution.Y, 1.0f);
+		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 
 		SetScreenPassPipelineState(RHICmdList, PipelineState);
 
 		// Setting up buffers.
 		SetupFunction(RHICmdList);
 
-		FIntPoint LocalOutputPos(FIntPoint::ZeroValue);
-		FIntPoint LocalOutputSize(OutputResolution);
 		EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
 
 		DrawPostProcessPass(
 			RHICmdList,
-			LocalOutputPos.X, LocalOutputPos.Y, LocalOutputSize.X, LocalOutputSize.Y,
-			0., 0., OutputResolution.X, OutputResolution.Y,
+			0, 0, OutputResolution.X, OutputResolution.Y,
+			Viewport.Min.X, Viewport.Min.Y, Viewport.Width(), Viewport.Height(),
 			OutputResolution,
 			OutputResolution,
 			PipelineState.VertexShader,
@@ -129,6 +128,15 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 		return false;
 	}
 
+	// Get tile info.
+	int32 NumTilesX = Loader->GetNumTilesX();
+	int32 NumTilesY = Loader->GetNumTilesY();
+	bool bHasTiles = (NumTilesX * NumTilesY) > 1;
+
+	int32 StartTileX = InTileSelection.TopLeftX;
+	int32 StartTileY = InTileSelection.TopLeftY;
+	int32 EndTileX = FMath::Min((int32)InTileSelection.BottomRightX, NumTilesX);
+	int32 EndTileY = FMath::Min((int32)InTileSelection.BottomRightY, NumTilesY);
 	const FString& LargestImagePath = Loader->GetImagePath(FrameId, 0);
 	FRgbaInputFile InputFile(LargestImagePath);
 
@@ -137,9 +145,15 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 		return false;
 	}
 
-	const FIntPoint& LargestDim = OutFrame->Info.Dim;
+	FIntPoint& FullResolution = OutFrame->Info.Dim;
+	const FIntPoint TileDim = FullResolution;
+	FullResolution.X *= NumTilesX;
+	FullResolution.Y *= NumTilesY;
+	OutFrame->Info.UncompressedSize *= NumTilesX * NumTilesY;
 
-	if (LargestDim.GetMin() <= 0)
+	FIntRect Viewport(StartTileX * TileDim.X, StartTileY * TileDim.Y, EndTileX * TileDim.X, EndTileY * TileDim.Y);
+
+	if (FullResolution.GetMin() <= 0)
 	{
 		return false;
 	}
@@ -152,44 +166,112 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 	int32 NumMipLevels = Loader->GetNumMipLevels();
 	{
 		// Loop over all mips.
-		FIntPoint Dim = LargestDim;
+		FIntPoint Dim = FullResolution;
+
 		for (int32 CurrentMipLevel = 0; CurrentMipLevel < NumMipLevels; ++CurrentMipLevel)
 		{
 			// Do we want to read in this mip?
 			bool IsThisLevelPresent = (OutFrame->MipMapsPresent & (1 << CurrentMipLevel)) != 0;
-			bool ReadThisMip = (CurrentMipLevel >= MipLevel) &&
-				(IsThisLevelPresent == false);
+			bool ReadThisMip = (CurrentMipLevel >= MipLevel) && (IsThisLevelPresent == false);
 
-#if EXR_ENABLE_MIPS == 0
-			// Just read in mip 0 if we don't already have it.
-			if ((CurrentMipLevel > 0) || (OutFrame->MipMapsPresent != 0))
-			{
-				break;
-			}
-			ReadThisMip = true;
-#endif // EXR_ENABLE_MIPS == 0
+			// Next mip level.
+			Dim = FullResolution / FMath::Pow(2., float(CurrentMipLevel));
 
 			if (ReadThisMip)
 			{
-				// Get for our frame/mip level.
-				const FString& ImagePath = Loader->GetImagePath(FrameId, CurrentMipLevel);
-				EReadResult ReadResult = Fail;
-				
-				const SIZE_T BufferSize = GetBufferSize(Dim, NumChannels);
+				const uint8 PlanePadding = 8;
+				const SIZE_T BufferSize = GetBufferSize(Dim, NumChannels) - Dim.Y * PlanePadding + NumTilesX * NumTilesY * TileDim.Y * PlanePadding;
 				FStructuredBufferPoolItemSharedPtr& BufferData = BufferDataArray[CurrentMipLevel];
 				BufferData = AllocateGpuBufferFromPool(BufferSize);
 				uint16* MipDataPtr = static_cast<uint16*>(BufferData->MappedBuffer);
 
-#if READ_IN_CHUNKS
-				ReadResult = ReadInChunks(MipDataPtr, ImagePath, FrameId, Dim, BufferSize, PixelSize, NumChannels);
-#else
+				// Get for our frame/mip level.
+				FString ImagePath = Loader->GetImagePath(FrameId, CurrentMipLevel);
+				FString BaseImage;
+				if (bHasTiles)
+				{
+					// Remove "_x0_y0.exr" so we can add on the correct name for the tile we want.
+					BaseImage = ImagePath.LeftChop(10);
+				}
+				EReadResult ReadResult = Fail;
 
-				bool bResult = FExrReader::GenerateTextureData(MipDataPtr, ImagePath, Dim.X, Dim.Y, PixelSize, NumChannels);
-				ReadResult = bResult ? Success : Fail;
+				int32 TileWidth = Dim.X / NumTilesX;
+				int32 TileHeight = Dim.Y / NumTilesY;
+
+				FIntPoint TileSize(TileWidth, TileHeight);
+				const SIZE_T DataSizeToRead = GetBufferSize(TileSize, NumChannels);
+
+#if READ_IN_CHUNKS
+				for (int32 TileY = StartTileY; TileY < EndTileY; TileY++)
+				{
+					for (int32 TileX = StartTileX; TileX < EndTileX; TileX++)
+					{
+						// Get for our frame/mip level.
+						if (bHasTiles)
+						{
+							ImagePath = FString::Printf(TEXT("%s_x%d_y%d.exr"), *BaseImage, TileX, TileY);
+						}
+						FRgbaInputFile InputTileFile(ImagePath);
+						if (InputTileFile.HasInputFile())
+						{
+							// read frame data
+							uint32 CurrentBufferOffset = (NumTilesX * TileY + TileX) * DataSizeToRead / sizeof(uint16);
+							check(CurrentBufferOffset <= BufferSize);
+
+							ReadResult = ReadInChunks(MipDataPtr + CurrentBufferOffset, ImagePath, FrameId, TileSize, DataSizeToRead, PixelSize, NumChannels);
+							
+							if (ReadResult == Fail)
+							{
+								goto ReadFailedFallback;
+							}
+
+							OutFrame->MipMapsPresent |= 1 << CurrentMipLevel;
+						}
+						else
+						{
+							UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *ImagePath);
+							return false;
+						}
+					}
+				}
+#else
+				for (int32 TileY = StartTileY; TileY < EndTileY; TileY++)
+				{
+					for (int32 TileX = StartTileX; TileX < EndTileX; TileX++)
+					{
+						// Get for our frame/mip level.
+						if (bHasTiles)
+						{
+							ImagePath = FString::Printf(TEXT("%s_x%d_y%d.exr"), *BaseImage, TileX, TileY);
+						}
+						FRgbaInputFile InputTileFile(ImagePath);
+						if (InputTileFile.HasInputFile())
+						{
+							// read frame data
+							uint32 CurrentBufferOffset = (NumTilesX * (TileY)+TileX) * DataSizeToRead / sizeof(uint16);
+							check(CurrentBufferOffset <= BufferSize);
+							bool bResult = FExrReader::GenerateTextureData(MipDataPtr + CurrentBufferOffset, ImagePath, TileSize.X, TileSize.Y, PixelSize, NumChannels);
+							ReadResult = bResult ? Success : Fail;
+
+							if (!bResult)
+							{
+								goto ReadFailedFallback;
+							}
+
+							OutFrame->MipMapsPresent |= 1 << CurrentMipLevel;
+						}
+						else
+						{
+							UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *ImagePath);
+							return false;
+						}
+					}
+				}
 #endif
 
 				if (ReadResult == Fail)
 				{
+				ReadFailedFallback:
 					// Check if we have a compressed file.
 					FRgbaInputFile InputFileMip(ImagePath);
 					FImgMediaFrameInfo Info;
@@ -207,20 +289,17 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 					return FExrImgMediaReader::ReadFrame(FrameId, MipLevel, InTileSelection, OutFrame);
 				}
 			}
-
-			// Next level.
-			Dim /= 2;
 		}
 	}
 
 	OutFrame->Format = NumChannels <= 3 ? EMediaTextureSampleFormat::FloatRGB : EMediaTextureSampleFormat::FloatRGBA;
-	OutFrame->Stride = LargestDim.X * PixelSize;
-	auto RenderThreadSwizzler = [this, BufferDataArray, LargestDim, FrameId, NumChannels, NumMipLevels](FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef RenderTargetTextureRHI)->bool
+	OutFrame->Stride = FullResolution.X * PixelSize;
+	auto RenderThreadSwizzler = [this, BufferDataArray, FullResolution, TileDim, Viewport, NumChannels, NumMipLevels, bHasTiles](FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef RenderTargetTextureRHI)->bool
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, FExrImgMediaReaderGpu_Convert);
 		SCOPED_GPU_STAT(RHICmdList, ExrImgMediaReaderGpu);
 
-		FIntPoint Dim = LargestDim;
+		FIntPoint Dim = FullResolution;
 		for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 		{
 			FStructuredBufferPoolItemSharedPtr BufferData = BufferDataArray[MipLevel];
@@ -238,9 +317,10 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 
 				FExrSwizzlePS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FExrSwizzlePS::FRgbaSwizzle>(NumChannels);
+				PermutationVector.Set<FExrSwizzlePS::FSwizzleTiles>(bHasTiles);
 				FExrSwizzlePS::FParameters Parameters = FExrSwizzlePS::FParameters();
-				Parameters.TextureWidth = Dim.X;
-				Parameters.TextureHeight = Dim.Y;
+				Parameters.TextureSize = Dim;
+				Parameters.TileSize = TileDim;
 
 				Parameters.UnswizzledBuffer = RHICreateShaderResourceView(BufferData->BufferRef);
 
@@ -250,7 +330,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 				TShaderMapRef<FExrSwizzlePS> SwizzleShaderPS(ShaderMap, PermutationVector);
 
 				FScreenPassPipelineState PipelineState(SwizzleShaderVS, SwizzleShaderPS, TStaticBlendState<>::GetRHI(), TStaticDepthStencilState<false, CF_Always>::GetRHI());
-				DrawScreenPass(RHICmdList, Dim, PipelineState, [&](FRHICommandListImmediate& RHICmdList)
+				DrawScreenPass(RHICmdList, Dim, Viewport, PipelineState, [&](FRHICommandListImmediate& RHICmdList)
 				{
 					SetShaderParameters(RHICmdList, SwizzleShaderPS, SwizzleShaderPS.GetPixelShader(), Parameters);
 				});
@@ -312,7 +392,6 @@ FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadInChunks(uint16* B
 	const int32 Remainder = BufferSize % ChunkSize;
 	const int32 NumChunks = (BufferSize - Remainder) / ChunkSize;
 	int32 CurrentBufferPos = 0;
-	
 	FExrReader ChunkReader;
 
 

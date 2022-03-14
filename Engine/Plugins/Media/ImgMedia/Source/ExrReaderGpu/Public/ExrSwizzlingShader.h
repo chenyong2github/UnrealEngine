@@ -41,7 +41,8 @@ class EXRREADERGPU_API FExrSwizzlePS : public FGlobalShader
 
 	/** If the provided buffer is RGBA the shader would work slightly differently to RGB. */
 	class FRgbaSwizzle : SHADER_PERMUTATION_INT("NUM_CHANNELS", 5);
-	using FPermutationDomain = TShaderPermutationDomain<FRgbaSwizzle>;
+	class FSwizzleTiles : SHADER_PERMUTATION_BOOL("SWIZZLE_TILES");
+	using FPermutationDomain = TShaderPermutationDomain<FRgbaSwizzle, FSwizzleTiles>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
 	{
@@ -50,8 +51,8 @@ class EXRREADERGPU_API FExrSwizzlePS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, UnswizzledBuffer)
-		SHADER_PARAMETER(int, TextureWidth)
-		SHADER_PARAMETER(int, TextureHeight)
+		SHADER_PARAMETER(FIntPoint, TextureSize)
+		SHADER_PARAMETER(FIntPoint, TileSize)
 	END_SHADER_PARAMETER_STRUCT()
 };
 #endif

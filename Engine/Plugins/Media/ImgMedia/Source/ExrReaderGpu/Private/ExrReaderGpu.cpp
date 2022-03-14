@@ -297,13 +297,13 @@ bool FExrReader::ReadExrImageChunk(void* Buffer, int32 ChunkSize)
 		UE_LOG(LogExrReaderGpu, Error, TEXT("Buffer provided is invalid. Please provide a valid buffer. "));
 		return false;
 	}
-
-	size_t Result = fread(Buffer, ChunkSize, 1, FileHandle);
-	if (Result != 1)
+	size_t NumElements = 1;
+	size_t NumElementsRead = fread(Buffer, ChunkSize, NumElements, FileHandle);
+	if (NumElementsRead != NumElements)
 	{
 		UE_LOG(LogExrReaderGpu, Error, TEXT("Issue reading EXR chunk. "));
 	}
-	return Result == 1;
+	return NumElementsRead == NumElements;
 }
 
 bool FExrReader::CloseExrFile()
