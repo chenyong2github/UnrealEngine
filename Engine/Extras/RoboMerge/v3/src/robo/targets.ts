@@ -166,7 +166,6 @@ export class DescriptionParser {
 	descFinal: string[] = []
 
 	propagatingNullMerge = false
-	hasOkForGithubTag = false
 	useDefaultFlow = true
 
 	// arguments: string[] = []
@@ -241,9 +240,6 @@ export class DescriptionParser {
 			return false
 		}
 
-		if (token.tag === 'OKFORGITHUB') {
-			this.hasOkForGithubTag = true
-		}
 		return true
 	}
 

@@ -151,7 +151,6 @@ export interface ChangeInfo extends TargetInfo {
 	targetWorkspaceOverride?: string
 	overriddenCommand: string
 	macros: string[]
-	hasOkForGithubTag: boolean
 }
 
 export interface PendingChange {

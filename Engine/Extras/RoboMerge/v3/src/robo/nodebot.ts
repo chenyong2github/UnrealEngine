@@ -1609,7 +1609,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			forceCreateAShelf, sendNoShelfEmail,
 
 			forceStompChanges, additionalDescriptionText,
-			hasOkForGithubTag: parsedLines.hasOkForGithubTag,
 			overriddenCommand: commandOverride,
 			macros: parsedLines.expandedMacros
 		}

@@ -133,7 +133,6 @@ const edgeOptionFieldsPrototype = {
 	additionalSlackChannel: '',
 
 	terminal: false, // changes go along terminal edges but no further
-	doHackyOkForGithubThing: false,
 
 	implicitCommands: [''],
 
