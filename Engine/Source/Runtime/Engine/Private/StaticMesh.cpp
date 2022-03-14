@@ -1952,7 +1952,7 @@ void FStaticMeshRenderData::ResolveSectionInfo(UStaticMesh* Owner)
 		{
 			if (LODIndex == 0)
 			{
-				ScreenSize[LODIndex].Default = 1.0f;
+				ScreenSize[LODIndex].Default = 2.0f;
 			}
 			else if(LOD.MaxDeviation <= 0.0f)
 			{

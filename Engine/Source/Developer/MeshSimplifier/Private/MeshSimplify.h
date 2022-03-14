@@ -53,6 +53,7 @@ public:
 	void		SetAttributeWeights( const float* Weights )			{ AttributeWeights = Weights; }
 	void		SetEdgeWeight( float Weight )						{ EdgeWeight = Weight; }
 	void		SetCorrectAttributes( void (*Function)( float* ) )	{ CorrectAttributes = Function; }
+	void		SetLimitErrorToSurfaceArea( bool Value )			{ bLimitErrorToSurfaceArea = Value; }
 
 	QUADRICMESHREDUCTION_API void	LockPosition( const FVector3f& Position );
 
@@ -64,12 +65,12 @@ public:
 	uint32		GetRemainingNumVerts() const	{ return RemainingNumVerts; }
 	uint32		GetRemainingNumTris() const		{ return RemainingNumTris; }
 
-protected:
-	const int32 DegreeLimit			= 24;
-	const float DegreePenalty		= 0.5f;
-	const float LockPenalty			= 1e8f;
-	const float InversionPenalty	= 100.0f;
+	int32 DegreeLimit		= 24;
+	float DegreePenalty		= 0.5f;
+	float LockPenalty		= 1e8f;
+	float InversionPenalty	= 100.0f;
 
+protected:
 	uint32		NumVerts;
 	uint32		NumIndexes;
 	uint32		NumAttributes;
@@ -85,6 +86,7 @@ protected:
 	const float*	AttributeWeights = nullptr;
 	float			EdgeWeight = 8.0f;
 	void			(*CorrectAttributes)( float* ) = nullptr;
+	bool			bLimitErrorToSurfaceArea = true;
 
 	FHashTable		VertHash;
 	FHashTable		CornerHash;

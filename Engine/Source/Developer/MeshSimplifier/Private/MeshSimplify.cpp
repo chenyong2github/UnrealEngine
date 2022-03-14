@@ -492,8 +492,11 @@ float FMeshSimplifier::EvaluateMerge( const FVector3f& Position0, const FVector3
 
 	Error += EdgeError;
 
-	// Limit error to be no greater than the size of the triangles it could affect.
-	Error = FMath::Min( Error, SurfaceArea );
+	if( bLimitErrorToSurfaceArea )
+	{
+		// Limit error to be no greater than the size of the triangles it could affect.
+		Error = FMath::Min( Error, SurfaceArea );
+	}
 
 	if( bMoveVerts )
 	{
