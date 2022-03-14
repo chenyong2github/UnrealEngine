@@ -349,6 +349,9 @@ public:
 			KinematicHandle->SetKinematicTarget(NewKinematicTarget);
 		}
 	}
+	
+
+
 
 	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle, const FGeometryParticleHandle* ParentParticle)
 	{

@@ -108,7 +108,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 			if(auto NewData = ParticleData.FindDynamics(Manager, DataIdx))
 			{
 				RigidHandle->SetDynamics(*NewData);
-				RigidHandle->ResetVSmoothFromForces();
+				Evolution.ResetVSmoothFromForces(*RigidHandle);
 			}
 
 			if(auto NewData = ParticleData.FindDynamicMisc(Manager,DataIdx))

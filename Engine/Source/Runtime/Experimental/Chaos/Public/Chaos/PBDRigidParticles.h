@@ -178,22 +178,6 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		this->SleepType(Index) = InSleepType;
 	}
 
-
-	void ResetVSmoothFromForces(int32 Index)
-	{
-		// Reset VSmooth to something roughly in the same direction as what V will be after integration.
-		// This is temp fix, if this is only re-computed after solve, island will get incorrectly put back to sleep even if it was just impulsed.
-		FReal FakeDT = (FReal)1. / (FReal)30.;
-		if (this->LinearImpulseVelocity(Index).IsNearlyZero() == false || this->Acceleration(Index).IsNearlyZero() == false)
-		{
-			this->VSmooth(Index) = this->Acceleration(Index) * FakeDT + this->LinearImpulseVelocity(Index);
-		}
-		if (this->AngularImpulseVelocity(Index).IsNearlyZero() == false || this->AngularAcceleration(Index).IsNearlyZero() == false)
-		{
-			this->WSmooth(Index) = this->AngularAcceleration(Index) * FakeDT + this->AngularImpulseVelocity(Index);
-		}
-	}
-
 	FString ToString(int32 index) const
 	{
 		FString BaseString = TRigidParticles<T, d>::ToString(index);
