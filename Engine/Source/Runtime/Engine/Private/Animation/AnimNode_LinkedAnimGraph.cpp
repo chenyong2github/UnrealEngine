@@ -283,6 +283,10 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 
 		RequestBlend(PriorAnimBPClass, NewAnimBPClass);
 	}
+	else
+	{
+		RequestBlend(PriorAnimBPClass, nullptr);
+	}
 }
 
 void FAnimNode_LinkedAnimGraph::SetAnimClass(TSubclassOf<UAnimInstance> InClass, const UAnimInstance* InOwningAnimInstance)
