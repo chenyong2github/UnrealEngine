@@ -2972,6 +2972,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 				ClassMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 
 				ExportConstructorsMacros(OutGeneratedHeaderText, OutCpp, StandardUObjectConstructorsMacroCall, EnhancedUObjectConstructorsMacroCall, SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine()), ClassDef, *APIArg);
+				ExportFieldNotify(OutGeneratedHeaderText, OutCpp, StandardUObjectConstructorsMacroCall, EnhancedUObjectConstructorsMacroCall, SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine()), ClassDef);
 			}
 		}
 	}
@@ -5044,6 +5045,210 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		OutNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 
 		OutGeneratedCPPText.Log(RuntimeStringBuilders.AccessorWrapperImplementations);
+	}
+}
+
+
+void FNativeClassHeaderGenerator::ExportFieldNotify(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FUnrealClassDefinitionInfo& ClassDef) const
+{
+	TArray<TSharedRef<FUnrealPropertyDefinitionInfo>> EditorProperties;
+	TArray<TSharedRef<FUnrealPropertyDefinitionInfo>> RuntimeProperties;
+	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>> EditorFunctions;
+	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>> RuntimeFunctions;
+	const FString ClassCPPName = ClassDef.GetAlternateNameCPP();
+
+	if (ClassDef.HasCustomFieldNotify())
+	{
+		return;
+	}
+
+	{
+		TArray<TSharedRef<FUnrealPropertyDefinitionInfo>>& Properties = ClassDef.GetProperties();
+		for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : Properties)
+		{
+			if (Prop->GetPropertyBase().bFieldNotify)
+			{
+				const bool bEditorOnlyProperty = Prop->IsEditorOnlyProperty();
+				if (bEditorOnlyProperty)
+				{
+					EditorProperties.Add(Prop);
+				}
+				else
+				{
+					RuntimeProperties.Add(Prop);
+				}
+			}
+		}
+		for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : ClassDef.GetFunctions())
+		{
+			if (FunctionDef->GetFunctionData().bFieldNotify)
+			{
+				const bool bEditorOnlyFunc = FunctionDef->HasAnyFunctionFlags(FUNC_EditorOnly);
+				if (bEditorOnlyFunc)
+				{
+					EditorFunctions.Add(FunctionDef);
+				}
+				else
+				{
+					RuntimeFunctions.Add(FunctionDef);
+				}
+			}
+		}
+	}
+
+	if (RuntimeProperties.Num() > 0 || EditorProperties.Num() > 0 || RuntimeFunctions.Num() > 0 || EditorFunctions.Num() > 0)
+	{
+		FUHTStringBuilder RuntimeHeaderStringBuilders;
+		FUHTStringBuilder EditorHeaderStringBuilders;
+
+		const bool bOnlyHasEditorFields = RuntimeProperties.Num() == 0 && RuntimeFunctions.Num() == 0;
+		const bool bOnlyHasRuntimeFields = EditorProperties.Num() == 0 && EditorFunctions.Num() == 0;
+		const bool bHasEditorFields = EditorProperties.Num() > 0 || EditorFunctions.Num() > 0;
+
+		if (bOnlyHasEditorFields)
+		{
+			OutGeneratedCPPText.Logf(TEXT("#if WITH_EDITORONLY_DATA\r\n"));
+		}
+
+		RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN()\r\n"));
+		EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN()\r\n"));
+
+		//UE_FIELD_NOTIFICATION_DECLARE_FIELD
+		{
+			for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : RuntimeProperties)
+			{
+				RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_FIELD(%s)\r\n"), *Prop->GetName());
+				EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_FIELD(%s)\r\n"), *Prop->GetName());
+				OutGeneratedCPPText.Logf(TEXT("\tUE_FIELD_NOTIFICATION_IMPLEMENT_FIELD(%s, %s)\r\n"), *ClassCPPName ,*Prop->GetName());
+			}
+			for (TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : RuntimeFunctions)
+			{
+				RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_FIELD(%s)\r\n"), *FunctionDef->GetFunctionData().CppImplName);
+				EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_FIELD(%s)\r\n"), *FunctionDef->GetFunctionData().CppImplName);
+				OutGeneratedCPPText.Logf(TEXT("\tUE_FIELD_NOTIFICATION_IMPLEMENT_FIELD(%s, %s)\r\n"), *ClassCPPName, *FunctionDef->GetFunctionData().CppImplName);
+			}
+
+			if (bHasEditorFields)
+			{
+				if (!bOnlyHasEditorFields)
+				{
+					OutGeneratedCPPText.Logf(TEXT("#if WITH_EDITORONLY_DATA\r\n"));
+				}
+
+				for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : EditorProperties)
+				{
+					EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_FIELD(%s)\r\n"), *Prop->GetName());
+					OutGeneratedCPPText.Logf(TEXT("\tUE_FIELD_NOTIFICATION_IMPLEMENT_FIELD(%s, %s)\r\n"), *ClassCPPName, *Prop->GetName());
+				}
+				for (TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : EditorFunctions)
+				{
+					EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_FIELD(%s)\r\n"), *FunctionDef->GetFunctionData().CppImplName);
+					OutGeneratedCPPText.Logf(TEXT("\tUE_FIELD_NOTIFICATION_IMPLEMENT_FIELD(%s, %s)\r\n"), *ClassCPPName, *FunctionDef->GetFunctionData().CppImplName);
+				}
+
+				if (!bOnlyHasEditorFields)
+				{
+					OutGeneratedCPPText.Logf(TEXT("#endif // WITH_EDITORONLY_DATA\r\n"));
+				}
+			}
+		}
+
+		OutGeneratedCPPText.Logf(TEXT("\tUE_FIELD_NOTIFICATION_IMPLEMENTATION_BEGIN(%s)\r\n"), *ClassCPPName);
+
+		//UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD
+		{
+			bool bIsRuntimeFirst = true;
+			bool bIsEditorFirst = true;
+			auto AddFieldNotificationEnumField = [&bIsRuntimeFirst, &bIsEditorFirst, &RuntimeHeaderStringBuilders, &EditorHeaderStringBuilders, &OutGeneratedCPPText, &ClassCPPName](bool bRuntime, const FString& FieldName)
+			{
+				if (bRuntime)
+				{
+					if (bIsRuntimeFirst)
+					{
+						bIsRuntimeFirst = false;
+						bIsEditorFirst = false;
+						RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(%s)\r\n"), *FieldName);
+						EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(%s)\r\n"), *FieldName);
+					}
+					else
+					{
+						RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD(%s)\r\n"), *FieldName);
+						EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD(%s)\r\n"), *FieldName);
+					}
+				}
+				else
+				{
+					if (bIsEditorFirst)
+					{
+						bIsEditorFirst = false;
+						EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(%s)\r\n"), *FieldName);
+					}
+					EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD(%s)\r\n"), *FieldName);
+				}
+				OutGeneratedCPPText.Logf(TEXT("\tUE_FIELD_NOTIFICATION_IMPLEMENT_ENUM_FIELD(%s, %s)\r\n"), *ClassCPPName, *FieldName);
+			};
+
+			bool bIsFirstRuntime = true;
+			for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : RuntimeProperties)
+			{
+				AddFieldNotificationEnumField(true, *Prop->GetName());
+			}
+			for (TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : RuntimeFunctions)
+			{
+				AddFieldNotificationEnumField(true, *FunctionDef->GetFunctionData().CppImplName);
+			}
+
+			if (bHasEditorFields)
+			{
+				if (!bOnlyHasEditorFields)
+				{
+					OutGeneratedCPPText.Logf(TEXT("#if WITH_EDITORONLY_DATA\r\n"));
+				}
+
+				for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : EditorProperties)
+				{
+					AddFieldNotificationEnumField(false, *Prop->GetName());
+				}
+				for (TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : EditorFunctions)
+				{
+					AddFieldNotificationEnumField(false, *FunctionDef->GetFunctionData().CppImplName);
+				}
+
+				if (!bOnlyHasEditorFields)
+				{
+					OutGeneratedCPPText.Logf(TEXT("#endif // WITH_EDITORONLY_DATA\r\n"));
+				}
+			}
+		}
+
+		RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_END()\r\n"));
+		EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_END()\r\n"));
+		RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END();\r\n"));
+		EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END();\r\n"));
+		OutGeneratedCPPText.Logf(TEXT("\tUE_FIELD_NOTIFICATION_IMPLEMENTATION_END(%s);\r\n"), *ClassCPPName);
+
+		if (bOnlyHasEditorFields)
+		{
+			OutGeneratedCPPText.Logf(TEXT("#endif // WITH_EDITORONLY_DATA\r\n"));
+		}
+
+		FString HeaderMacroName = ConstructorsMacroPrefix + TEXT("_FIELDNOTIFY");
+
+		if (bHasEditorFields)
+		{
+			OutGeneratedHeaderText.Logf(TEXT("#if WITH_EDITORONLY_DATA\r\n"));
+			WriteMacro(OutGeneratedHeaderText, HeaderMacroName, EditorHeaderStringBuilders);
+			OutGeneratedHeaderText.Logf(TEXT("#else //WITH_EDITORONLY_DATA\r\n"));
+			WriteMacro(OutGeneratedHeaderText, HeaderMacroName, RuntimeHeaderStringBuilders);
+			OutGeneratedHeaderText.Logf(TEXT("#endif // WITH_EDITORONLY_DATA\r\n"));
+		}
+		else 
+		{
+			WriteMacro(OutGeneratedHeaderText, HeaderMacroName, RuntimeHeaderStringBuilders);
+		}
+
+		StandardUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *HeaderMacroName);
+		EnhancedUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *HeaderMacroName);
 	}
 }
 

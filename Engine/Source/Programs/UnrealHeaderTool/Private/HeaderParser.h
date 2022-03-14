@@ -593,6 +593,15 @@ private:
 	// Verifies the target function meets the criteria for a replication notify callback
 	void VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
+	// Vefifies the target property meets the criteria for FieldNotify
+	void VerifyNotifyValueChangedProperties(FUnrealPropertyDefinitionInfo& PropertyDef);
+
+	// Verifies that all specified class's UFunction
+	void VerifyFunctionsMarkups(FUnrealClassDefinitionInfo& TargetClassDef);
+
+	// Verifies the target function meets the criteria for FieldNotify
+	void VerifyNotifyValueChangedFunction(const FUnrealFunctionDefinitionInfo& TargetFuncDef);
+
 	// Constructs the policy from a string
 	static FDocumentationPolicy GetDocumentationPolicyFromName(const FUHTMessageProvider& Context, const FString& PolicyName);
 

@@ -3329,6 +3329,35 @@ public:
 	}
 
 	/**
+	 * Return true if the class has a custom FieldNotify declaration and implementation
+	 */
+	bool HasCustomFieldNotify() const
+	{
+		return bCustomFieldNotify;
+	}
+
+	/**
+	 * Mark the class as having a custom FieldNotify declaration and implementation
+	 */
+	void MarkCustomFieldNotify()
+	{
+		bCustomFieldNotify = true;
+	}
+
+	/**
+	 * Return true if the class has at least one FieldNotify field
+	 */
+	bool HasFieldNotify() const
+	{
+		return bHasFieldNotify;
+	}
+
+	/**
+	 * Mark the class as having at least one FieldNotify field
+	 */
+	void MarkHasFieldNotify();
+
+	/**
 	 * Return true if the class is compiled in
 	 */
 	bool IsCompiledIn() const
@@ -3470,6 +3499,12 @@ private:
 
 	/** True if the class has a custom constructor */
 	bool bCustomConstructor = false;
+
+	/** True if the class has a custom FieldNotify declaration and implementation */
+	bool bCustomFieldNotify = false;
+
+	/** True if the class has at least one FProperty or UFunction that has the FieldNotify specifier */
+	bool bHasFieldNotify = false;
 
 	/** True if the class is not to be exported */
 	bool bNoExport = false;

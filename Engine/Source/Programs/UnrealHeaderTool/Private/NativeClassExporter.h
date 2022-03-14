@@ -532,6 +532,18 @@ private:
 	 */
 	void ExportFunctionThunk(FUHTStringBuilder& RPCWrappers, FReferenceGatherers& OutReferenceGatherers, FUnrealFunctionDefinitionInfo& FunctionDef, const TArray<FUnrealPropertyDefinitionInfo*>& ParameterDefs, FUnrealPropertyDefinitionInfo* ReturnDef) const;
 
+	/** 
+	 * Export the declaration for FFieldNotificationClassDescriptor.
+	 * 
+	 * @param OutGeneratedHeaderText Output device for writing in the generated header file.
+	 * @param OutGeneratedCPPText Output device for writing in the generated cpp file.
+	 * @param StandardUObjectConstructorsMacroCall The destination to write standard constructor macros to.
+	 * @param EnhancedUObjectConstructorsMacroCall The destination to write enhanced constructor macros to.
+	 * @param ConstructorsMacroPrefix Prefix for constructors macro.
+	 * @param Class Class for which to export macros.
+	 */
+	void ExportFieldNotify(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FUnrealClassDefinitionInfo& ClassDef) const;
+
 	/** Exports the native function registration code for the given class. */
 	static void ExportNatives(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef);
 

@@ -214,12 +214,14 @@ public:
 	FString GetterName;
 	/** True if the property was marked as having a setter */
 	bool bSetterTagFound = false;
-	/** True if the property was marked as having a gatter */
+	/** True if the property was marked as having a getter */
 	bool bGetterTagFound = false;
 	/** True if setter function declaration was found while parsing class header */
 	bool bSetterFunctionFound = false;
 	/** True if getter function declaration was found while parsing class header */
 	bool bGetterFunctionFound = false;
+	/** True if the property is declared as FieldNotify. */
+	bool bFieldNotify = false;
 
 public:
 	/** @name Constructors */
@@ -419,6 +421,8 @@ struct FFuncInfo
 	bool		bSealedEvent = false;
 	/** TRUE if the function is being forced to be considered as impure by the user */
 	bool		bForceBlueprintImpure = false;
+	/** TRUE generate the entry for the FieldNotificationClassDescriptor. */
+	bool		bFieldNotify = false;
 
 	//@}
 

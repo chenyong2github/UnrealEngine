@@ -534,6 +534,11 @@ namespace
 					}
 				}
 				break;
+				case EFunctionSpecifier::FieldNotify:
+				{
+					FuncInfo.bFieldNotify = true;
+				}
+				break;
 			}
 		}
 
@@ -2608,6 +2613,73 @@ void FHeaderParser::VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& Prope
 		LogError(TEXT("Replication notification function %s not found"), *PropertyDef.GetRepNotifyFunc().ToString() );
 	}
 }
+
+void FHeaderParser::VerifyNotifyValueChangedProperties(FUnrealPropertyDefinitionInfo& PropertyDef)
+{
+	FUnrealTypeDefinitionInfo* Info = PropertyDef.GetOuter();
+	if (Info == nullptr)
+	{
+		LogError(TEXT("FieldNofity property %s does not have a outer."), *PropertyDef.GetName());
+		return;
+	}
+	
+	FUnrealClassDefinitionInfo* ClassInfo = Info->AsClass();
+	if (ClassInfo == nullptr)
+	{
+		LogError(TEXT("FieldNofity property are only valid as UClass member variable."));
+		return;
+	}
+	if (ClassInfo->IsInterface())
+	{
+		LogError(TEXT("FieldNofity are not valid on UInterface."));
+		return;
+	}
+
+	ClassInfo->MarkHasFieldNotify();
+}
+
+void FHeaderParser::VerifyNotifyValueChangedFunction(const FUnrealFunctionDefinitionInfo& TargetFuncDef)
+{
+	FUnrealTypeDefinitionInfo* Info = TargetFuncDef.GetOuter();
+	if (Info == nullptr)
+	{
+		LogError(TEXT("FieldNofity function %s does not have a outer."), *TargetFuncDef.GetName());
+		return;
+	}
+
+	FUnrealClassDefinitionInfo* ClassInfo = Info->AsClass();
+	if (ClassInfo == nullptr)
+	{
+		LogError(TEXT("FieldNofity function %s are only valid as UClass member function."), *TargetFuncDef.GetName());
+		return;
+	}
+
+	const TArray<TSharedRef<FUnrealPropertyDefinitionInfo>>& Properties = TargetFuncDef.GetProperties();
+	FUnrealPropertyDefinitionInfo* ReturnPropDef = TargetFuncDef.GetReturn();
+	if (Properties.Num() > 1 || (Properties.Num() == 1 && ReturnPropDef == nullptr))
+	{
+		LogError(TEXT("FieldNotify function %s must not have parameters."), *TargetFuncDef.GetName());
+		return;
+	}
+	if (ReturnPropDef == nullptr)
+	{
+		LogError(TEXT("FieldNotify function %s must return a value."), *TargetFuncDef.GetName());
+		return;
+	}
+	if (TargetFuncDef.HasAnyFunctionFlags(FUNC_Event))
+	{
+		LogError(TEXT("FieldNotify function %s cannot be a blueprint event."), *TargetFuncDef.GetName());
+		return;
+	}
+	if (!TargetFuncDef.HasAnyFunctionFlags(FUNC_BlueprintPure))
+	{
+		LogError(TEXT("FieldNotify function %s must be pure."), *TargetFuncDef.GetName());
+		return;
+	}
+
+	ClassInfo->MarkHasFieldNotify();
+}
+
 void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClassDef)
 {
 	// Iterate over all properties, looking for those flagged as CPF_RepNotify
@@ -2687,6 +2759,22 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 			{
 				LogError(TEXT("Property %s getter function %s not found"), *PropertyDef->GetName(), *PropertyToken.GetterName);
 			}
+		}
+
+		if (PropertyDef->GetPropertyBase().bFieldNotify)
+		{
+			VerifyNotifyValueChangedProperties(*PropertyDef);
+		}
+	}
+}
+
+void FHeaderParser::VerifyFunctionsMarkups(FUnrealClassDefinitionInfo& TargetClassDef)
+{
+	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : TargetClassDef.GetFunctions())
+	{
+		if (FunctionDef->GetFunctionData().bFieldNotify)
+		{
+			VerifyNotifyValueChangedFunction(*FunctionDef);
 		}
 	}
 }
@@ -2859,6 +2947,7 @@ void FHeaderParser::GetVarType(
 	FString GetterName;
 	bool bHasSetterTag = false;
 	bool bHasGetterTag = false;
+	bool bFieldNotify = false;
 
 	// Get flags.
 	EPropertyFlags Flags        = CPF_None;
@@ -3309,6 +3398,12 @@ void FHeaderParser::GetVarType(
 					{
 						Throwf(TEXT("The specifier '%s' must be given exactly one value"), *Specifier.Key);
 					}
+				}
+				break;
+				
+				case EVariableSpecifier::FieldNotify:
+				{
+					bFieldNotify = true;
 				}
 				break;
 
@@ -4405,6 +4500,8 @@ void FHeaderParser::GetVarType(
 	VarProperty.SetterName = SetterName;
 	VarProperty.bGetterTagFound = bHasGetterTag;
 	VarProperty.GetterName = GetterName;
+
+	VarProperty.bFieldNotify = bFieldNotify;
 
 	// Perform some more specific validation on the property flags
 	if (VarProperty.PropertyFlags & CPF_PersistentInstance)
@@ -9178,6 +9275,8 @@ void FHeaderParser::PostPopNestClass(FUnrealClassDefinitionInfo& CurrentClassDef
 {
 	// Validate all the rep notify events here, to make sure they're implemented
 	VerifyPropertyMarkups(CurrentClassDef);
+
+	VerifyFunctionsMarkups(CurrentClassDef);
 
 	// Iterate over all the interfaces we claim to implement
 	for (const FUnrealStructDefinitionInfo::FBaseStructInfo& BaseClassInfo : CurrentClassDef.GetBaseStructInfos())

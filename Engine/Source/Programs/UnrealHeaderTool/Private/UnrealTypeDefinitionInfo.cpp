@@ -2349,6 +2349,23 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 	}
 }
 
+void FUnrealClassDefinitionInfo::MarkHasFieldNotify()
+{
+	if (!bHasFieldNotify)
+	{
+		bHasFieldNotify = true;
+		const FUnrealClassDefinitionInfo* NotifyFieldInterface = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(TEXT("NotifyFieldValueChanged"));
+		if (NotifyFieldInterface == nullptr)
+		{
+			LogError(TEXT("INotifyFieldValueChanged could not be found. FieldNotify are not valid for UClass %s"), *GetName());
+		}
+		if (!ImplementsInterface(*NotifyFieldInterface))
+		{
+			LogError(TEXT("UClass %s need to implement the interface INotifyFieldValueChanged to support FieldNotify."), *GetName());
+		}
+	}
+}
+
 bool FUnrealClassDefinitionInfo::ImplementsInterface(const FUnrealClassDefinitionInfo& SomeInterface) const
 {
 	if (SomeInterface.HasAnyClassFlags(CLASS_Interface) && &SomeInterface != GUInterfaceDef)
@@ -2356,7 +2373,7 @@ bool FUnrealClassDefinitionInfo::ImplementsInterface(const FUnrealClassDefinitio
 		for (const FUnrealClassDefinitionInfo* CurrentClassDef = this; CurrentClassDef; CurrentClassDef = CurrentClassDef->GetSuperClass())
 		{
 			// SomeInterface might be a base interface of our implemented interface
-			for (const FBaseStructInfo& BaseStructInfo : GetBaseStructInfos())
+			for (const FBaseStructInfo& BaseStructInfo : CurrentClassDef->GetBaseStructInfos())
 			{
 				if (const FUnrealClassDefinitionInfo* InterfaceDef = UHTCast<FUnrealClassDefinitionInfo>(BaseStructInfo.Struct))
 				{
@@ -2512,6 +2529,12 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 			// we will not export a constructor for this class, assuming it is in the CPP block
 			MarkCustomConstructor();
+			break;
+
+		case EClassMetadataSpecifier::CustomFieldNotify:
+
+			// we will not export a UE_FIELD_NOTIFICATION for this class
+			MarkCustomFieldNotify();
 			break;
 
 		case EClassMetadataSpecifier::Config:
