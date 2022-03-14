@@ -1860,60 +1860,12 @@ bool FPackageDatas::TryLookupFileNameOnDisk(FName PackageName, FString& OutFileN
 	}
 	else
 	{
-		TArray<FAssetData> Assets;
-		AssetRegistry->GetAssetsByPackageName(PackageName, Assets, /*bIncludeOnlyDiskAssets =*/true);
-
-		if (Assets.Num() <= 0)
+		FString PackageExtension;
+		if (!AssetRegistry->DoesPackageExistOnDisk(PackageName, nullptr, &PackageExtension))
 		{
-			if (FPackageName::DoesPackageExist(PackageNameStr, &OutFileName, false /* InAllowTextFormats */))
-			{
-				if (AssetRegistry->GetAssetPackageDataCopy(PackageName))
-				{
-					// The AssetRegistry knows the package exists, but it has 0 assets.
-				}
-				else
-				{
-					UE_LOG(LogCook, Warning, TEXT("Package %s exists on disk but does not exist in the AssetRegistry"), *PackageNameStr);
-				}
-				return true;
-			}
 			return false;
 		}
-		else
-		{
-			// Temporary fix for packages added during cook: GetAssetsByPackageName is returning true for these generated
-			// files that do not exist on disk, since they get added into the AssetRegistryState in UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache
-			// The current known cases where this is a problem is when cooking WorldPartition maps, which create temporary World packages in
-			// //Temp. So for /Temp files, use the slower disk check rather than the AssetRegistry.
-			bool bForceDiskCheck = PackageNameStr.StartsWith(TEXT("/Temp/"));
-			if (bForceDiskCheck)
-			{
-				if (!FPackageName::DoesPackageExist(PackageNameStr, &OutFileName, false /* InAllowTextFormats */))
-				{
-					return false;
-				}
-				return true;
-			}
-		}
 
-		FName ClassRedirector = UObjectRedirector::StaticClass()->GetFName();
-		bool bContainsMap = false;
-		bool bContainsRedirector = false;
-		for (const FAssetData& Asset : Assets)
-		{
-			bContainsMap = bContainsMap | ((Asset.PackageFlags & PKG_ContainsMap) != 0);
-			bContainsRedirector = bContainsRedirector | (Asset.AssetClass == ClassRedirector);
-		}
-		if (!bContainsMap && bContainsRedirector)
-		{
-			// presence of map -> .umap
-			// But we can only assume lack of map -> .uasset if we know the type of every object in the package.
-			// If we don't, because there was a redirector, we have to check the package on disk
-			// TODO: Have the AssetRegistry store the extension of the package so that we don't have to look it up
-			// Guessing the extension based on map vs non-map also does not support text assets and maps which have a different extension
-			return FPackageName::DoesPackageExist(PackageNameStr, &OutFileName, false /* InAllowTextFormats */);
-		}
-		const FString& PackageExtension = bContainsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
 		return FPackageName::TryConvertLongPackageNameToFilename(PackageNameStr, OutFileName, PackageExtension);
 	}
 }

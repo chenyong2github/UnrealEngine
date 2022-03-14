@@ -32,7 +32,7 @@ namespace AssetDataGathererConstants
 	constexpr int32 SingleThreadFilesPerBatch = 3;
 	constexpr int32 ExpectedMaxBatchSize = 100;
 	constexpr int32 MinSecondsToElapseBeforeCacheWrite = 60;
-	static constexpr uint32 CacheSerializationMagic = 0xCBA78340; // Added integrity checking
+	static constexpr uint32 CacheSerializationMagic = 0x1F20181F; // Versioning and integrity checking
 }
 
 namespace UE
@@ -2549,7 +2549,9 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNames
 {
 	using namespace UE::AssetDataGather::Private;
 
-	bGatherDependsData = (GIsEditor && !FParse::Param(FCommandLine::Get(), TEXT("NoDependsGathering"))) || FParse::Param(FCommandLine::Get(),TEXT("ForceDependsGathering"));
+	bool bForceDependsGathering = FParse::Param(FCommandLine::Get(), TEXT("ForceDependsGathering"));
+	bGatherAssetPackageData = GIsEditor || bForceDependsGathering;
+	bGatherDependsData = (GIsEditor && !FParse::Param(FCommandLine::Get(), TEXT("NoDependsGathering"))) || bForceDependsGathering;
 
 	bCacheEnabled = !FParse::Param(FCommandLine::Get(), TEXT("NoAssetRegistryCache")) && !FParse::Param(FCommandLine::Get(), TEXT("multiprocess"));
 
@@ -2848,16 +2850,19 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 			// Add the valid cached data to our results, and to the map of data we keep to write out the new version of the cache file
 			++NumCachedFiles;
 
+			// Set the transient flags based on whether our current cache has dependency data.
+			// Note that in editor, bGatherAssetPackageData is always true, no way to turn it off,
+			// and in game it is always equal to bGatherDependsData, so it can share the cache with dependency data.
+			DiskCachedAssetData->DependencyData.bHasPackageData = bGatherAssetPackageData;
+			DiskCachedAssetData->DependencyData.bHasDependencyData = bGatherDependsData;
+
 			LocalAssetResults.Reserve(LocalAssetResults.Num() + DiskCachedAssetData->AssetDataList.Num());
 			for (const FAssetData& AssetData : DiskCachedAssetData->AssetDataList)
 			{
 				LocalAssetResults.Add(new FAssetData(AssetData));
 			}
 
-			if (bGatherDependsData)
-			{
-				LocalDependencyResults.Add(DiskCachedAssetData->DependencyData);
-			}
+			LocalDependencyResults.Add(DiskCachedAssetData->DependencyData);
 
 			AddToCache(PackageName, DiskCachedAssetData);
 		}
@@ -2922,14 +2927,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 				}
 
 				// MoveTemp only used if we don't need DependencyData anymore
-				if (bGatherDependsData)
-				{
-					NewData->DependencyData = ReadContext.DependencyData;
-				}
-				else
-				{
-					NewData->DependencyData = MoveTemp(ReadContext.DependencyData);
-				}
+				NewData->DependencyData = ReadContext.DependencyData;
 
 				NewCachedAssetData.Add(NewData);
 				AddToCache(ReadContext.PackageName, NewData);
@@ -2937,10 +2935,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 
 			// Add the results from the package into our output results
 			LocalAssetResults.Append(MoveTemp(ReadContext.AssetDataFromFile));
-			if (bGatherDependsData)
-			{
-				LocalDependencyResults.Add(MoveTemp(ReadContext.DependencyData));
-			}
+			LocalDependencyResults.Add(MoveTemp(ReadContext.DependencyData));
 		}
 		else if (ReadContext.bCanAttemptAssetRetry)
 		{
@@ -3022,41 +3017,39 @@ bool FAssetDataGatherer::ReadAssetFile(const FString& AssetLongPackageName, cons
 	}
 	else
 	{
-		return ReadAssetFile(PackageReader, AssetDataList, (bGatherDependsData ? &DependencyData : nullptr), CookedPackageNamesWithoutAssetData);
+		return ReadAssetFile(PackageReader, AssetDataList, DependencyData, CookedPackageNamesWithoutAssetData,
+			(bGatherAssetPackageData ? FPackageReader::EReadOptions::PackageData : FPackageReader::EReadOptions::PackageData) |
+			(bGatherDependsData ? FPackageReader::EReadOptions::Dependencies : FPackageReader::EReadOptions::PackageData));
 	}
 }
 
-bool FAssetDataGatherer::ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList, FPackageDependencyData* DependencyData, TArray<FString>& CookedPackageNamesWithoutAssetData)
+bool FAssetDataGatherer::ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList,
+	FPackageDependencyData& DependencyData, TArray<FString>& CookedPackageNamesWithoutAssetData, FPackageReader::EReadOptions Options)
 {
-	if (PackageReader.ReadAssetRegistryDataIfCookedPackage(AssetDataList, CookedPackageNamesWithoutAssetData))
+	bool bOutIsCookedWithoutAssetData;
+	if (!PackageReader.ReadAssetRegistryData(AssetDataList, bOutIsCookedWithoutAssetData))
 	{
-		// Cooked data is special. No further data is found in these packages
-		return true;
+		return false;
+	}
+	if (bOutIsCookedWithoutAssetData)
+	{
+		CookedPackageNamesWithoutAssetData.Add(PackageReader.GetLongPackageName());
 	}
 
-	if (!PackageReader.ReadAssetRegistryData(AssetDataList))
+	if (!PackageReader.ReadDependencyData(DependencyData, Options))
 	{
-		if (!PackageReader.ReadAssetDataFromThumbnailCache(AssetDataList))
-		{
-			// It's ok to keep reading even if the asset registry data doesn't exist yet
-			//return false;
-		}
+		return false;
 	}
 
-	if ( DependencyData )
+	if (EnumHasAnyFlags(Options, FPackageReader::EReadOptions::Dependencies))
 	{
-		if ( !PackageReader.ReadDependencyData(*DependencyData) )
-		{
-			return false;
-		}
-
 		// DEPRECATION_TODO: Remove this fixup-on-load once we bump EUnrealEngineObjectUEVersion VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS and therefore all projects will resave each ObjectRedirector
 		// UObjectRedirectors were originally incorrectly marked as having editor-only imports, since UObjectRedirector is an editor-only class. But UObjectRedirectors are followed during cooking
 		// and so their imports should be considered used-in-game. Mark all dependencies in the package as used in game if the package has a UObjectRedirector object
 		FName RedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
 		if (Algo::AnyOf(AssetDataList, [RedirectorClassName](FAssetData* AssetData) { return AssetData->AssetClass == RedirectorClassName; }))
 		{
-			TBitArray<>& ImportUsedInGame = DependencyData->ImportUsedInGame;
+			TBitArray<>& ImportUsedInGame = DependencyData.ImportUsedInGame;
 			for (int32 ImportNum = ImportUsedInGame.Num(), Index = 0; Index < ImportNum; ++Index)
 			{
 				ImportUsedInGame[Index] = true;

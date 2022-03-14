@@ -116,8 +116,8 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 
 	if (PackageFileSummary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion)
 	{
-		UE_LOG(	LogAssetRegistry, Error, TEXT("Package %s is too new. Licensee Version: %i Package Licensee Version: %i"), 
-				*PackageFilename, GPackageFileLicenseeUEVersion, PackageFileSummary.GetFileVersionLicenseeUE());
+		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too new. Licensee Version: %i Package Licensee Version: %i"),
+			*PackageFilename, GPackageFileLicenseeUEVersion, PackageFileSummary.GetFileVersionLicenseeUE());
 
 		SetPackageErrorCode(EOpenPackageResult::VersionTooNew);
 		return false;
@@ -173,6 +173,13 @@ bool FPackageReader::TryGetLongPackageName(FString& OutLongPackageName) const
 	}
 }
 
+FString FPackageReader::GetLongPackageName() const
+{
+	FString Result;
+	verify(TryGetLongPackageName(Result));
+	return Result;
+}
+
 bool FPackageReader::StartSerializeSection(int64 Offset)
 {
 	check(Loader);
@@ -194,11 +201,22 @@ bool FPackageReader::StartSerializeSection(int64 Offset)
 		FMessageLog("AssetRegistry").Warning(FText::Format(NSLOCTEXT("AssetRegistry", MessageKey, "Cannot read AssetRegistry Data in {FileName}, skipping it. Error: " MessageKey "."), CorruptPackageWarningArguments)); \
 	} while (false)
 
-bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList)
+bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList, bool& bOutIsCookedWithoutAssetData)
 {
+	bOutIsCookedWithoutAssetData = false;
+	if (!!(GetPackageFlags() & PKG_FilterEditorOnly))
+	{
+		return ReadAssetRegistryDataFromCookedPackage(AssetDataList, bOutIsCookedWithoutAssetData);
+	}
+
 	if (!StartSerializeSection(PackageFileSummary.AssetRegistryDataOffset))
 	{
-		return false;
+		if (!ReadAssetDataFromThumbnailCache(AssetDataList))
+		{
+			// Legacy files without AR data and without a thumbnail cache are treated as having no assets
+			AssetDataList.Reset();
+		}
+		return true;
 	}
 
 	// Determine the package name and path
@@ -259,34 +277,23 @@ bool FPackageReader::SerializeAssetRegistryDependencyData(FPackageDependencyData
 	return true;
 }
 
-bool FPackageReader::SerializePackageTrailer(FPackageDependencyData& DependencyData)
+bool FPackageReader::SerializePackageTrailer(FAssetPackageData& PackageData)
 {
-	bool bHasVirtualizedPayloads = false;
-
-	if (PackageFileSummary.PayloadTocOffset != INDEX_NONE)
+	if (!StartSerializeSection(PackageFileSummary.PayloadTocOffset))
 	{
-		// Store the original offset in the package being read, since we are about to seek to near the end
-		const int64 InitialOffset = Tell();
-		
-		Seek(PackageFileSummary.PayloadTocOffset);
-
-		if (IsError())
-		{
-			return false;
-		}
-
-		UE::FPackageTrailer Trailer;
-		if (Trailer.TryLoad(*this))
-		{
-			bHasVirtualizedPayloads = Trailer.GetNumPayloads(UE::EPayloadFilter::Virtualized) > 0 ? true : false;
-		}
-
-		// Restore the original offset inside the package
-		Seek(InitialOffset);
+		PackageData.SetHasVirtualizedPayloads(false);
+		return true;
 	}
 
-	DependencyData.PackageData.SetHasVirtualizedPayloads(bHasVirtualizedPayloads);
+	UE::FPackageTrailer Trailer;
+	if (!Trailer.TryLoad(*this))
+	{
+		// This is not necessarily corrupt; TryLoad will return false if the trailer is empty
+		PackageData.SetHasVirtualizedPayloads(false);
+		return true;
+	}
 
+	PackageData.SetHasVirtualizedPayloads(Trailer.GetNumPayloads(UE::EPayloadFilter::Virtualized) > 0);
 	return true;
 }
 
@@ -351,77 +358,69 @@ bool FPackageReader::ReadAssetDataFromThumbnailCache(TArray<FAssetData*>& AssetD
 	return true;
 }
 
-bool FPackageReader::ReadAssetRegistryDataIfCookedPackage(TArray<FAssetData*>& AssetDataList, TArray<FString>& CookedPackageNamesWithoutAssetData)
+bool FPackageReader::ReadAssetRegistryDataFromCookedPackage(TArray<FAssetData*>& AssetDataList, bool& bOutIsCookedWithoutAssetData)
 {
-	if (!!(GetPackageFlags() & PKG_FilterEditorOnly))
+	FString PackageName;
+	if (!TryGetLongPackageName(PackageName))
 	{
-		FString PackageName;
-		if (!TryGetLongPackageName(PackageName))
+		return false;
+	}
+
+	bool bFoundAtLeastOneAsset = false;
+
+	// If the packaged is saved with the right version we have the information
+	// which of the objects in the export map as the asset.
+	// Otherwise we need to store a temp minimal data and then force load the asset
+	// to re-generate its registry data
+	if (UEVer() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
+	{
+		const FString PackagePath = FPackageName::GetLongPackagePath(PackageName);
+
+		TArray<FObjectImport> ImportMap;
+		TArray<FObjectExport> ExportMap;
+		if (!SerializeNameMap())
 		{
 			return false;
 		}
-
-		bool bFoundAtLeastOneAsset = false;
-
-		// If the packaged is saved with the right version we have the information
-		// which of the objects in the export map as the asset.
-		// Otherwise we need to store a temp minimal data and then force load the asset
-		// to re-generate its registry data
-		if (UEVer() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
+		if (!SerializeImportMap(ImportMap))
 		{
-			const FString PackagePath = FPackageName::GetLongPackagePath(PackageName);
-
-			TArray<FObjectImport> ImportMap;
-			TArray<FObjectExport> ExportMap;
-			if (!SerializeNameMap())
+			return false;
+		}
+		if (!SerializeExportMap(ExportMap))
+		{
+			return false;
+		}
+		for (FObjectExport& Export : ExportMap)
+		{
+			if (Export.bIsAsset)
 			{
-				return false;
-			}
-			if (!SerializeImportMap(ImportMap))
-			{
-				return false;
-			}
-			if (!SerializeExportMap(ExportMap))
-			{
-				return false;
-			}
-			for (FObjectExport& Export : ExportMap)
-			{
-				if (Export.bIsAsset)
+				// We need to get the class name from the import/export maps
+				FName ObjectClassName;
+				if (Export.ClassIndex.IsNull())
 				{
-					// We need to get the class name from the import/export maps
-					FName ObjectClassName;
-					if (Export.ClassIndex.IsNull())
-					{
-						ObjectClassName = UClass::StaticClass()->GetFName();
-					}
-					else if (Export.ClassIndex.IsExport())
-					{
-						const FObjectExport& ClassExport = ExportMap[Export.ClassIndex.ToExport()];
-						ObjectClassName = ClassExport.ObjectName;
-					}
-					else if (Export.ClassIndex.IsImport())
-					{
-						const FObjectImport& ClassImport = ImportMap[Export.ClassIndex.ToImport()];
-						ObjectClassName = ClassImport.ObjectName;
-					}
-
-					AssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), Export.ObjectName, ObjectClassName, FAssetDataTagMap(), TArray<int32>(), GetPackageFlags()));
-					bFoundAtLeastOneAsset = true;
+					ObjectClassName = UClass::StaticClass()->GetFName();
 				}
+				else if (Export.ClassIndex.IsExport())
+				{
+					const FObjectExport& ClassExport = ExportMap[Export.ClassIndex.ToExport()];
+					ObjectClassName = ClassExport.ObjectName;
+				}
+				else if (Export.ClassIndex.IsImport())
+				{
+					const FObjectImport& ClassImport = ImportMap[Export.ClassIndex.ToImport()];
+					ObjectClassName = ClassImport.ObjectName;
+				}
+
+				AssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), Export.ObjectName, ObjectClassName, FAssetDataTagMap(), TArray<int32>(), GetPackageFlags()));
+				bFoundAtLeastOneAsset = true;
 			}
 		}
-		if (!bFoundAtLeastOneAsset)
-		{
-			CookedPackageNamesWithoutAssetData.Add(PackageName);
-		}
-		return true;
 	}
-
-	return false;
+	bOutIsCookedWithoutAssetData = !bFoundAtLeastOneAsset;
+	return true;
 }
 
-bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyData)
+bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyData, EReadOptions Options)
 {
 	FString PackageNameString;
 	if (!TryGetLongPackageName(PackageNameString))
@@ -431,15 +430,10 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	}
 
 	OutDependencyData.PackageName = FName(*PackageNameString);
-	FAssetPackageData& PackageData = OutDependencyData.PackageData;
-	PackageData.DiskSize = PackageFileSize;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	PackageData.PackageGuid = PackageFileSummary.Guid;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	PackageData.SetCustomVersions(PackageFileSummary.GetCustomVersionContainer().GetAllVersions());
-	PackageData.FileVersionUE = PackageFileSummary.GetFileVersionUE();
-	PackageData.FileVersionLicenseeUE = PackageFileSummary.GetFileVersionLicenseeUE();
-	PackageData.SetIsLicenseeVersion(PackageFileSummary.SavedByEngineVersion.IsLicenseeVersion());
+	if (!EnumHasAnyFlags(Options, EReadOptions::PackageData | EReadOptions::Dependencies))
+	{
+		return true;
+	}
 
 	if (!SerializeNameMap())
 	{
@@ -449,26 +443,51 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	{
 		return false;
 	}
-	if (!SerializeImportedClasses(OutDependencyData.ImportMap, PackageData.ImportedClasses))
+
+	if (EnumHasAnyFlags(Options, EReadOptions::PackageData))
 	{
-		return false;
+		OutDependencyData.bHasPackageData = true;
+		FAssetPackageData& PackageData = OutDependencyData.PackageData;
+		PackageData.DiskSize = PackageFileSize;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+		PackageData.PackageGuid = PackageFileSummary.Guid;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+		PackageData.SetCustomVersions(PackageFileSummary.GetCustomVersionContainer().GetAllVersions());
+		PackageData.FileVersionUE = PackageFileSummary.GetFileVersionUE();
+		PackageData.FileVersionLicenseeUE = PackageFileSummary.GetFileVersionLicenseeUE();
+		PackageData.SetIsLicenseeVersion(PackageFileSummary.SavedByEngineVersion.IsLicenseeVersion());
+
+		if (!SerializeImportedClasses(OutDependencyData.ImportMap, PackageData.ImportedClasses))
+		{
+			return false;
+		}
+		if (!SerializePackageTrailer(PackageData))
+		{
+			return false;
+		}
 	}
-	if (!SerializeSoftPackageReferenceList(OutDependencyData.SoftPackageReferenceList))
+
+	if (EnumHasAnyFlags(Options, EReadOptions::Dependencies))
 	{
-		return false;
+		OutDependencyData.bHasDependencyData = true;
+		if (!SerializeSoftPackageReferenceList(OutDependencyData.SoftPackageReferenceList))
+		{
+			return false;
+		}
+		if (!SerializeSearchableNamesMap(OutDependencyData))
+		{
+			return false;
+		}
+		if (!SerializeAssetRegistryDependencyData(OutDependencyData))
+		{
+			return false;
+		}
 	}
-	if (!SerializeSearchableNamesMap(OutDependencyData))
+	else
 	{
-		return false;
-	}
-	if (!SerializeAssetRegistryDependencyData(OutDependencyData))
-	{
-		return false;
-	}
-	// Note that the trailer is read from the end of the package file, and so should be the last thing read here
-	if (!SerializePackageTrailer(OutDependencyData))
-	{
-		return false;
+		// We used OutDependencyData.ImportMap to store data for SerializeImportedClasses to use, but 
+		// our contract says we should leave it empty if !EReadOptions::Dependencies
+		OutDependencyData.ImportMap.Reset();
 	}
 
 	checkf(OutDependencyData.IsValid(), TEXT("We should have early exited above rather than creating invalid dependency data"));

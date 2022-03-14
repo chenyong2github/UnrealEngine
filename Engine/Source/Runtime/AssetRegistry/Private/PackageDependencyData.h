@@ -21,6 +21,9 @@ public:
 	TBitArray<> ImportUsedInGame;
 	TBitArray<> SoftPackageUsedInGame;
 
+	bool bHasPackageData = false; // Transient
+	bool bHasDependencyData = false; // Transient
+
 	/**
 	 * Return the package name of the UObject represented by the specified import. 
 	 * 

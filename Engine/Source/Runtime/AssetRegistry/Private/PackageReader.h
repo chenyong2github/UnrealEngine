@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Serialization/ArchiveUObject.h"
+#include "Misc/EnumClassFlags.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageFileSummary.h"
 
 struct FAssetData;
+class FAssetPackageData;
 class FPackageDependencyData;
 
 class FPackageReader : public FArchiveUObject
@@ -42,30 +44,24 @@ public:
 	bool OpenPackageFile(FArchive* Loader, EOpenPackageResult* OutErrorCode = nullptr);
 	bool OpenPackageFile(EOpenPackageResult* OutErrorCode = nullptr);
 
+	/** Returns the LongPackageName from constructor if provided, otherwise calculates it from FPackageName::TryConvertFilenameToLongPackageName. */
+	bool TryGetLongPackageName(FString& OutLongPackageName) const;
+	/** Returns the LongPackageName as in TryGetPackageName; asserts if not found. */
+	FString GetLongPackageName() const;
+
 	/** Reads information from the asset registry data table and converts it to FAssetData */
-	bool ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList);
+	bool ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList, bool& bOutIsCookedWithoutAssetData);
 
-	/** Attempts to get the class name of an object from the thumbnail cache for packages older than VER_UE4_ASSET_REGISTRY_TAGS */
-	bool ReadAssetDataFromThumbnailCache(TArray<FAssetData*>& AssetDataList);
-
-	/** Creates asset data reconstructing all the required data from cooked package info */
-	bool ReadAssetRegistryDataIfCookedPackage(TArray<FAssetData*>& AssetDataList, TArray<FString>& CookedPackageNamesWithoutAssetData);
-
+	/** Options for what to read in functions that read multiple things at once. */
+	enum class EReadOptions
+	{
+		None = 0,
+		PackageData = 1 << 0,
+		Dependencies = 1 << 1,
+		Default = PackageData | Dependencies,
+	};
 	/** Reads information used by the dependency graph */
-	bool ReadDependencyData(FPackageDependencyData& OutDependencyData);
-
-	/** Serializers for different package maps */
-	bool SerializeNameMap();
-	bool SerializeImportMap(TArray<FObjectImport>& OutImportMap);
-	bool SerializeExportMap(TArray<FObjectExport>& OutExportMap);
-	bool SerializeImportedClasses(const TArray<FObjectImport>& ImportMap, TArray<FName>& OutClassNames);
-	bool SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
-	bool SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData);
-	bool SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData);
-	bool SerializePackageTrailer(FPackageDependencyData& DependencyData);
-
-	/** Returns flags the asset package was saved with */
-	uint32 GetPackageFlags() const;
+	bool ReadDependencyData(FPackageDependencyData& OutDependencyData, EReadOptions Options);
 
 	// Farchive implementation to redirect requests to the Loader
 	virtual void Serialize( void* V, int64 Length ) override;
@@ -80,8 +76,24 @@ public:
 	}
 
 private:
-	bool TryGetLongPackageName(FString& OutLongPackageName) const;
+	/** Attempts to get the class name of an object from the thumbnail cache for packages older than VER_UE4_ASSET_REGISTRY_TAGS */
+	bool ReadAssetDataFromThumbnailCache(TArray<FAssetData*>& AssetDataList);
+	/** Creates asset data reconstructing all the required data from cooked package info */
+	bool ReadAssetRegistryDataFromCookedPackage(TArray<FAssetData*>& AssetDataList, bool& bOutIsCookedWithoutAssetData);
 	bool StartSerializeSection(int64 Offset);
+
+	/** Serializers for different package maps */
+	bool SerializeNameMap();
+	bool SerializeImportMap(TArray<FObjectImport>& OutImportMap);
+	bool SerializeExportMap(TArray<FObjectExport>& OutExportMap);
+	bool SerializeImportedClasses(const TArray<FObjectImport>& ImportMap, TArray<FName>& OutClassNames);
+	bool SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
+	bool SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData);
+	bool SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData);
+	bool SerializePackageTrailer(FAssetPackageData& PackageData);
+
+	/** Returns flags the asset package was saved with */
+	uint32 GetPackageFlags() const;
 
 	FString LongPackageName;
 	FString PackageFilename;
@@ -93,3 +105,4 @@ private:
 	int64 AssetRegistryDependencyDataOffset;
 	bool bLoaderOwner;
 };
+ENUM_CLASS_FLAGS(FPackageReader::EReadOptions);

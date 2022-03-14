@@ -19,6 +19,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/Optional.h"
 #include "PackageDependencyData.h"
+#include "PackageReader.h"
 #include "UObject/NameTypes.h"
 #include "Templates/UniquePtr.h"
 
@@ -27,7 +28,6 @@ struct FAssetData;
 class FDiskCachedAssetData;
 class FAssetRegistryReader;
 class FAssetRegistryWriter; // Not defined if !ALLOW_NAME_BATCH_SAVING
-class FPackageReader;
 namespace UE::AssetDataGather::Private
 {
 class FAssetDataDiscovery;
@@ -167,10 +167,13 @@ public:
 	 *
 	 * @param PackageReader the previously opened package reader
 	 * @param AssetDataList the FAssetData for every asset found in the file
-	 * @param DependencyData the FPackageDependencyData for every asset found in the file, can be null
+	 * @param DependencyData the FPackageDependencyData for every asset found in the file
 	 * @param CookedPackagesToLoadUponDiscovery the list of cooked packages to be loaded if any
+	 * @param Options Which bits of data to read
 	 */
-	static bool ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList, FPackageDependencyData* DependencyData, TArray<FString>& CookedPackagesToLoadUponDiscovery);
+	static bool ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList,
+		FPackageDependencyData& DependencyData, TArray<FString>& CookedPackagesToLoadUponDiscovery,
+		FPackageReader::EReadOptions Options);
 
 private:
 
@@ -294,6 +297,8 @@ private:
 	 * added when Wait functions are called. Constant during threading.
 	 */
 	bool bIsSynchronous;
+	/** True if AssetPackageData should be gathered. Constant during threading. */
+	bool bGatherAssetPackageData;
 	/** True if dependency data should be gathered. Constant during threading. */
 	bool bGatherDependsData;
 	/** True if the current process allows reading/writing of AssetDataGatherer cache files. Constant during threading. */
