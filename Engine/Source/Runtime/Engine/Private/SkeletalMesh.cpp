@@ -79,10 +79,10 @@
 #include "IMeshReductionManagerModule.h"
 #include "SkeletalMeshReductionSettings.h"
 #include "Engine/RendererSettings.h"
-#include "UnrealEngine.h"
 
 #endif // #if WITH_EDITOR
 
+#include "UnrealEngine.h"
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
