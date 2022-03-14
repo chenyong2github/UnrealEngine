@@ -2003,19 +2003,23 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 				DenoisedRadianceTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracer.DenoisedRadiance"), ERDGTextureFlags::MultiFrame);
 			}
 
+			// Need to read GPU mask outside Pass function, as the value is not refreshed inside the pass
+			FRHIGPUMask GPUMask = GraphBuilder.RHICmdList.GetGPUMask();
+
 			FDenoiseTextureParameters* DenoiseParameters = GraphBuilder.AllocParameters<FDenoiseTextureParameters>();
 			DenoiseParameters->InputTexture = RadianceTexture;
 			DenoiseParameters->InputAlbedo = AlbedoTexture;
 			DenoiseParameters->InputNormal = NormalTexture;
 			DenoiseParameters->OutputTexture = DenoisedRadianceTexture;
 			GraphBuilder.AddPass(RDG_EVENT_NAME("Path Tracer Denoiser Plugin"), DenoiseParameters, ERDGPassFlags::Readback, 
-				[DenoiseParameters, DenoiserMode](FRHICommandListImmediate& RHICmdList)
+				[DenoiseParameters, DenoiserMode, GPUMask](FRHICommandListImmediate& RHICmdList)
 				{
 					GPathTracingDenoiserFunc(RHICmdList,
 						DenoiseParameters->InputTexture->GetRHI()->GetTexture2D(),
 						DenoiseParameters->InputAlbedo->GetRHI()->GetTexture2D(),
 						DenoiseParameters->InputNormal->GetRHI()->GetTexture2D(),
-						DenoiseParameters->OutputTexture->GetRHI()->GetTexture2D());
+						DenoiseParameters->OutputTexture->GetRHI()->GetTexture2D(),
+						GPUMask);
 				}
 			);
 

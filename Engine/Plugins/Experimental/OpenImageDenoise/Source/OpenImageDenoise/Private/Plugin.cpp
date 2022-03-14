@@ -31,7 +31,7 @@ enum class EDenoiseMode {
 	NO_AOVS = 3,   // denoise beauty only
 };
 
-static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTex, FRHITexture2D* AlbedoTex, FRHITexture2D* NormalTex, FRHITexture2D* OutputTex)
+static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTex, FRHITexture2D* AlbedoTex, FRHITexture2D* NormalTex, FRHITexture2D* OutputTex, FRHIGPUMask GPUMask)
 {
 	static IConsoleVariable* DenoiseModeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.Denoiser"));
 
@@ -50,6 +50,7 @@ static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTe
 	TArray<FLinearColor> RawNormal;
 	FReadSurfaceDataFlags ReadDataFlags(ERangeCompressionMode::RCM_MinMax);
 	ReadDataFlags.SetLinearToGamma(false);
+	ReadDataFlags.SetGPUIndex(GPUMask.GetFirstIndex());
 	RHICmdList.ReadSurfaceData(ColorTex, Rect, RawPixels, ReadDataFlags);
 	if (DenoiseMode == EDenoiseMode::DEFAULT || DenoiseMode == EDenoiseMode::CLEAN_AUX)
 	{
