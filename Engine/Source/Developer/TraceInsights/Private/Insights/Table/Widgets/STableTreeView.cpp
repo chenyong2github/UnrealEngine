@@ -2521,8 +2521,10 @@ void STableTreeView::OnPreAsyncUpdate()
 	AsyncUpdateStopwatch.Restart();
 	bIsUpdateRunning = true;
 
-	ExpandedNodes.Empty();
-	TreeView->GetExpandedItems(ExpandedNodes);
+	if (ExpandedNodes.IsEmpty())
+	{
+		TreeView->GetExpandedItems(ExpandedNodes);
+	}
 
 	TreeView->SetTreeItemsSource(&DummyGroupNodes);
 	TreeView_Refresh();
@@ -2558,6 +2560,7 @@ void STableTreeView::OnPostAsyncUpdate()
 			TreeView->SetItemExpansion(Node, true);
 		}
 		NodesToExpand.Empty();
+		ExpandedNodes.Empty();
 
 		// Expand each group node on the first few depths (if it doesn't have too many children).
 		SetExpandValueForChildGroups(Root.Get(), 1000, 4, true);
