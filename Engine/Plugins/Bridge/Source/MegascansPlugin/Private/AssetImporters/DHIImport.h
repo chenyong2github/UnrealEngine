@@ -26,4 +26,7 @@ private:
 public:
 	static TSharedPtr<FImportDHI> Get();
 	void ImportAsset(TSharedPtr<FJsonObject> AssetImportJson);
+
+private:
+	static void EnableMissingPlugins();
 };
