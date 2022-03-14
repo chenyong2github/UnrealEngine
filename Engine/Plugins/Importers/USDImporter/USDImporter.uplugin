@@ -76,11 +76,19 @@
 	],
 	"Plugins": [
 		{
-			"Name": "GeometryCache",
+			"Name": "AnalyticsBlueprintLibrary",
+			"Enabled": true
+		},
+		{
+			"Name": "ControlRig",
 			"Enabled": true
 		},
 		{
 			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "GeometryCache",
 			"Enabled": true
 		},
 		{
@@ -97,10 +105,6 @@
 		},
 		{
 			"Name": "SequencerScripting",
-			"Enabled": true
-		},
-		{
-			"Name": "AnalyticsBlueprintLibrary",
 			"Enabled": true
 		}
 	]
