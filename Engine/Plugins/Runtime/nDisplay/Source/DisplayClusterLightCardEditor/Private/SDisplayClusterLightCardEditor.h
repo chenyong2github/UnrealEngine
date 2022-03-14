@@ -6,6 +6,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+#include "DisplayClusterLightCardEditorProxyType.h"
+
 class FTabManager;
 class FLayoutExtender;
 class FSpawnTabArgs;
@@ -65,7 +67,7 @@ private:
 	TSharedRef<SWidget> CreateViewportWidget();
 
 	/** Refresh all preview actors. */
-	void RefreshPreviewActors();
+	void RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All);
 
 	/** Bind delegates to when a BP compiles. */
 	void BindCompileDelegates();

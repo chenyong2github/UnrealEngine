@@ -7,6 +7,7 @@
 #include "SEditorViewport.h"
 #include "AdvancedPreviewScene.h"
 
+#include "DisplayClusterLightCardEditorProxyType.h"
 #include "DisplayClusterMeshProjectionRenderer.h"
 
 class ADisplayClusterRootActor;
@@ -44,8 +45,21 @@ public:
 	void SelectActor(AActor* NewActor);
 	void ResetSelection();
 
-	/** Update the spawned preview actor from a root actor in the level. */
-	void UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce = false);
+	/**
+	 * Update the spawned preview actor from a root actor in the level
+	 * 
+	 * @param RootActor The new root actor to use. Accepts nullptr
+	 * @param bForce Force the update even if the RootActor hasn't changed
+	 * @param ProxyType The proxy type to destroy and update
+	 */
+	void UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce = false,
+		EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All);
+
+	/** Only update required transform values of proxies */
+	void UpdateProxyTransforms();
+
+	/** Remove proxies of the specified type */
+	void DestroyProxies(EDisplayClusterLightCardEditorProxyType ProxyType);
 	
 	/** Selects the light card proxies that correspond to the specified light cards */
 	void SelectLightCards(const TArray<AActor*>& LightCardsToSelect);

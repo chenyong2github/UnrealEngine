@@ -150,7 +150,7 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateViewportWidget()
 	return SAssignNew(ViewportView, SDisplayClusterLightCardEditorViewport, SharedThis(this));
 }
 
-void SDisplayClusterLightCardEditor::RefreshPreviewActors()
+void SDisplayClusterLightCardEditor::RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType)
 {
 	RemoveCompileDelegates();
 	
@@ -164,7 +164,7 @@ void SDisplayClusterLightCardEditor::RefreshPreviewActors()
 		if (ViewportView.IsValid())
 		{
 			const bool bForce = true;
-			ViewportView->GetLightCardEditorViewportClient()->UpdatePreviewActor(RootActor, bForce);
+			ViewportView->GetLightCardEditorViewportClient()->UpdatePreviewActor(RootActor, bForce, ProxyType);
 		}
 	}
 	
@@ -208,11 +208,6 @@ void SDisplayClusterLightCardEditor::RemoveCompileDelegates()
 void SDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeingModified,
                                                             FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
-	{
-		return;
-	}
-
 	auto IsOurActor = [ObjectBeingModified] (UObject* ObjectToCompare) -> bool
 	{
 		if (ObjectToCompare)
@@ -230,6 +225,8 @@ void SDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeing
 
 		return false;
 	};
+
+	EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All;
 	
 	bool bIsOurActor = IsOurActor(GetActiveRootActor().Get());
 	if (!bIsOurActor && LightCardList.IsValid())
@@ -239,6 +236,7 @@ void SDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeing
 			bIsOurActor = IsOurActor(LightCard->LightCardActor.Get());
 			if (bIsOurActor)
 			{
+				ProxyType = EDisplayClusterLightCardEditorProxyType::LightCards;
 				break;
 			}
 		}
@@ -246,7 +244,19 @@ void SDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeing
 	
 	if (bIsOurActor)
 	{
-		RefreshPreviewActors();
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+		{
+			// Real-time & efficient update when dragging a slider.
+			if (ViewportView.IsValid())
+			{
+				ViewportView->GetLightCardEditorViewportClient()->UpdateProxyTransforms();
+			}
+		}
+		else
+		{
+			// Full destroy and refresh.
+			RefreshPreviewActors(ProxyType);
+		}
 	}
 }
 
@@ -271,7 +281,7 @@ void SDisplayClusterLightCardEditor::OnLevelActorDeleted(AActor* Actor)
 			{
 				// Schedule for next tick so available selections are properly updated once the
 				// actor is fully deleted.
-				RefreshPreviewActors();
+				RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
 			});
 		}
 	}
@@ -279,7 +289,8 @@ void SDisplayClusterLightCardEditor::OnLevelActorDeleted(AActor* Actor)
 
 void SDisplayClusterLightCardEditor::OnBlueprintCompiled(UBlueprint* Blueprint)
 {
-	RefreshPreviewActors();
+	// Right now only LightCard blueprints are handled here.
+	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
 }
 
 #undef LOCTEXT_NAMESPACE

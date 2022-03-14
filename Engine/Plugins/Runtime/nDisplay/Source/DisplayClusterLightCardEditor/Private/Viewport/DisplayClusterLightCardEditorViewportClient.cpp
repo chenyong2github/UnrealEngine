@@ -514,58 +514,58 @@ void FDisplayClusterLightCardEditorViewportClient::ResetSelection()
 	SetWidgetMode(UE::Widget::WM_None);
 }
 
-void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce)
+void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce,
+                                                                      EDisplayClusterLightCardEditorProxyType ProxyType)
 {
-	UWorld* PreviewWorld = PreviewScene->GetWorld();
-	check (PreviewWorld);
-	
 	if (!bForce && RootActor == RootActorLevelInstance.Get())
 	{
 		return;
 	}
 
-	MeshProjectionRenderer->ClearScene();
-	
-	if (RootActorProxy.IsValid())
+	auto Finalize = [this]()
 	{
-		PreviewWorld->EditorDestroyActor(RootActorProxy.Get(), false);
-		RootActorProxy.Reset();
+		Viewport->InvalidateHitProxy();
+		bShouldCheckHitProxy = true;	
+	};
+	
+	if (RootActor == nullptr)
+	{
+		DestroyProxies(ProxyType);
+		Finalize();
 	}
-	
-	for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+	else
 	{
-		if (LightCardProxy.Proxy.IsValid())
-		{
-			PreviewWorld->EditorDestroyActor(LightCardProxy.Proxy.Get(), false);
-		}
-	}
-
-	RootActorLevelInstance.Reset();
-	LightCardProxies.Empty();
-	
-	if (RootActor)
-	{
+		UWorld* PreviewWorld = PreviewScene->GetWorld();
+		check(PreviewWorld);
+		
 		// Schedule for the next tick so CDO changes get propagated first in the event of config editor skeleton
 		// regeneration & compiles. nDisplay's custom propagation may have issues if the archetype isn't correct.
 		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
 		{
+			DestroyProxies(ProxyType);
 			RootActorLevelInstance = RootActor;
-
+			
+			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
+				ProxyType == EDisplayClusterLightCardEditorProxyType::RootActor)
 			{
-				FObjectDuplicationParameters DupeActorParameters(RootActor, PreviewWorld->GetCurrentLevel());
-				DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional); // Keeps archetypes correct in config data.
-				DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
+				{
+					FObjectDuplicationParameters DupeActorParameters(RootActor, PreviewWorld->GetCurrentLevel());
+					DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional); // Keeps archetypes correct in config data.
+					DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
 			
-				RootActorProxy = CastChecked<ADisplayClusterRootActor>(StaticDuplicateObjectEx(DupeActorParameters));
+					RootActorProxy = CastChecked<ADisplayClusterRootActor>(StaticDuplicateObjectEx(DupeActorParameters));
+				}
+			
+				PreviewWorld->GetCurrentLevel()->AddLoadedActor(RootActorProxy.Get());
+
+				// Spawned actor will take the transform values from the template, so manually reset them to zero here
+				RootActorProxy->SetActorLocation(FVector::ZeroVector);
+				RootActorProxy->SetActorRotation(FRotator::ZeroRotator);
+
+				FindProjectionOriginComponent();
+
+				RootActorProxy->UpdatePreviewComponents();
 			}
-			
-			PreviewWorld->GetCurrentLevel()->AddLoadedActor(RootActorProxy.Get());
-
-			// Spawned actor will take the transform values from the template, so manually reset them to zero here
-			RootActorProxy->SetActorLocation(FVector::ZeroVector);
-			RootActorProxy->SetActorRotation(FRotator::ZeroRotator);
-
-			FindProjectionOriginComponent();
 
 			// Filter out any primitives hidden in game except screen components
 			MeshProjectionRenderer->AddActor(RootActorProxy.Get(), [](const UPrimitiveComponent* PrimitiveComponent)
@@ -573,32 +573,93 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				return !PrimitiveComponent->bHiddenInGame || PrimitiveComponent->IsA<UDisplayClusterScreenComponent>();
 			});
 
-			RootActorProxy->UpdatePreviewComponents();
-
-			TArray<TWeakObjectPtr<AActor>> LightCards;
-			FindLightCardsForRootActor(RootActor, LightCards);
-			
-			for (const TWeakObjectPtr<AActor>& LightCard : LightCards)
+			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
+				ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
 			{
-				FObjectDuplicationParameters DupeActorParameters(LightCard.Get(), PreviewWorld->GetCurrentLevel());
-				DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
-				DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
+				TArray<TWeakObjectPtr<AActor>> LightCards;
+				FindLightCardsForRootActor(RootActor, LightCards);
+			
+				for (const TWeakObjectPtr<AActor>& LightCard : LightCards)
+				{
+					FObjectDuplicationParameters DupeActorParameters(LightCard.Get(), PreviewWorld->GetCurrentLevel());
+					DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
+					DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
 				
-				AActor* LightCardProxy = CastChecked<AActor>(StaticDuplicateObjectEx(DupeActorParameters));
-				PreviewWorld->GetCurrentLevel()->AddLoadedActor(LightCardProxy);
+					AActor* LightCardProxy = CastChecked<AActor>(StaticDuplicateObjectEx(DupeActorParameters));
+					PreviewWorld->GetCurrentLevel()->AddLoadedActor(LightCardProxy);
 				
-				LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActor->GetActorLocation());
-				LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActor->GetActorRotation());
+					LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActor->GetActorLocation());
+					LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActor->GetActorRotation());
 
-				LightCardProxies.Add(FLightCardProxy(LightCard.Get(), LightCardProxy));
-
-				MeshProjectionRenderer->AddActor(LightCardProxy);
+					LightCardProxies.Add(FLightCardProxy(LightCard.Get(), LightCardProxy));
+				}
 			}
+
+			for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+			{
+				MeshProjectionRenderer->AddActor(LightCardProxy.Proxy.Get());
+			}
+
+			Finalize();
 		});
 	}
+}
 
-	Viewport->InvalidateHitProxy();
-	bShouldCheckHitProxy = true;
+void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms()
+{
+	if (RootActorLevelInstance.IsValid())
+	{
+		if (RootActorProxy.IsValid())
+		{
+			// Only update scale for the root actor.
+			RootActorProxy->SetActorScale3D(RootActorLevelInstance->GetActorScale3D());
+		}
+		
+		for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+		{
+			if (LightCardProxy.LevelInstance.IsValid() && LightCardProxy.Proxy.IsValid())
+			{
+				LightCardProxy.Proxy->SetActorLocation(LightCardProxy.LevelInstance->GetActorLocation() - RootActorLevelInstance->GetActorLocation());
+				LightCardProxy.Proxy->SetActorRotation(LightCardProxy.LevelInstance->GetActorRotation() - RootActorLevelInstance->GetActorRotation());
+				LightCardProxy.Proxy->SetActorScale3D(LightCardProxy.LevelInstance->GetActorScale3D());
+			}
+		}
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
+EDisplayClusterLightCardEditorProxyType ProxyType)
+{
+	MeshProjectionRenderer->ClearScene();
+
+	UWorld* PreviewWorld = PreviewScene->GetWorld();
+	check(PreviewWorld);
+	
+	if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
+		ProxyType == EDisplayClusterLightCardEditorProxyType::RootActor)
+	{
+		if (RootActorProxy.IsValid())
+		{
+			PreviewWorld->EditorDestroyActor(RootActorProxy.Get(), false);
+			RootActorProxy.Reset();
+		}
+	
+		RootActorLevelInstance.Reset();
+	}
+	
+	if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
+		ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
+	{
+		for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+		{
+			if (LightCardProxy.Proxy.IsValid())
+			{
+				PreviewWorld->EditorDestroyActor(LightCardProxy.Proxy.Get(), false);
+			}
+		}
+
+		LightCardProxies.Empty();	
+	}
 }
 
 void FDisplayClusterLightCardEditorViewportClient::SelectLightCards(const TArray<AActor*>& LightCardsToSelect)
