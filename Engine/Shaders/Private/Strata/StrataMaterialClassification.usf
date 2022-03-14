@@ -18,7 +18,6 @@ uint EncodeTile(uint2 TileCoord)
 }
 
 #if SHADER_TILE_CATEGORIZATION
-int TileSize;
 int bRectPrimitive;
 int2 ViewResolution;
 uint MaxBytesPerPixel;
