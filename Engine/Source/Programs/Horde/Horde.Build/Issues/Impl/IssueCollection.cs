@@ -55,7 +55,14 @@ namespace HordeServer.Collections.Impl
 
 			public IssueSeverity Severity { get; set; }
 
-			public bool? Promoted { get; set; }
+			[BsonElement("PromotedV2")]
+			public bool Promoted { get; set; }
+
+			[BsonIgnoreIfNull]
+			public bool? ManuallyPromoted { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("Promoted")]
+			public bool? ManuallyPromoted_DEPRECATED { get; set; }
 
 			[BsonIgnoreIfNull]
 			public UserId? OwnerId { get; set; }
@@ -93,9 +100,6 @@ namespace HordeServer.Collections.Impl
 			public int MinSuspectChange { get; set; }
 			public int MaxSuspectChange { get; set; }
 
-			[BsonElement("NotifySuspects"), BsonIgnoreIfDefault(false)]
-			public bool NotifySuspects_DEPRECATED { get; set; }
-
 			[BsonElement("Suspects"), BsonIgnoreIfNull]
 			public List<IssueSuspect>? Suspects_DEPRECATED { get; set; }
 
@@ -104,7 +108,6 @@ namespace HordeServer.Collections.Impl
 
 			public int UpdateIndex { get; set; }
 
-			bool IIssue.Promoted => Promoted ?? NotifySuspects_DEPRECATED;
 			IReadOnlyList<IIssueFingerprint> IIssue.Fingerprints => Fingerprints ?? ((Fingerprint == null)? new List<IssueFingerprint>() : new List<IssueFingerprint> { Fingerprint });
 			UserId? IIssue.OwnerId => OwnerId ?? DefaultOwnerId ?? GetDefaultOwnerId();
 			IReadOnlyList<IIssueStream> IIssue.Streams => Streams;
@@ -753,11 +756,11 @@ namespace HordeServer.Collections.Impl
 			{
 				if (Promoted.Value)
 				{
-					Filter &= Builders<Issue>.Filter.Ne(x => x.Promoted, false) & Builders<Issue>.Filter.Ne(x => x.NotifySuspects_DEPRECATED, false); // Note: may not exist on older issues.
+					Filter &= Builders<Issue>.Filter.Eq(x => x.Promoted, true);
 				}
 				else
 				{
-					Filter &= Builders<Issue>.Filter.Or(Builders<Issue>.Filter.Eq(x => x.Promoted, false), Builders<Issue>.Filter.Eq(x => x.NotifySuspects_DEPRECATED, false));
+					Filter &= Builders<Issue>.Filter.Ne(x => x.Promoted, true); // Handle the field not existing as well as being set to false.
 				}
 			}
 			return await Issues.Find(Filter).SortByDescending(x => x.Id).Range(Index, Count).ToListAsync();
@@ -801,7 +804,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IIssue?> TryUpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, bool? NewPromoted = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, UserId? NewResolvedById = null, List<ObjectId>? NewExcludeSpanIds = null, DateTime? NewLastSeenAt = null)
+		public async Task<IIssue?> TryUpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, bool? NewManuallyPromoted = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, UserId? NewResolvedById = null, List<ObjectId>? NewExcludeSpanIds = null, DateTime? NewLastSeenAt = null)
 		{
 			Issue IssueDocument = (Issue)Issue;
 
@@ -838,9 +841,9 @@ namespace HordeServer.Collections.Impl
 					Updates.Add(Builders<Issue>.Update.Set(x => x.Description, NewDescription));
 				}
 			}
-			if (NewPromoted != null)
+			if (NewManuallyPromoted != null)
 			{
-				Updates.Add(Builders<Issue>.Update.Set(x => x.Promoted, NewPromoted.Value));
+				Updates.Add(Builders<Issue>.Update.Set(x => x.ManuallyPromoted, NewManuallyPromoted.Value));
 			}
 			if (NewOwnerId != null)
 			{
@@ -959,9 +962,35 @@ namespace HordeServer.Collections.Impl
 			List<IssueSuspect> OldSuspectImpls = await IssueSuspects.Find(x => x.IssueId == Issue.Id).ToListAsync();
 			List<IssueSuspect> NewSuspectImpls = await UpdateIssueSuspectsAsync(Issue.Id, OldSuspectImpls, NewSuspects, NewResolvedAt);
 
+			// Find the spans for this issue
+			List<IssueSpan> NewSpans = await IssueSpans.Find(x => x.IssueId == Issue.Id).ToListAsync();
+
+			// Update the resolved time on any issues
+			List<ObjectId> UpdateSpanIds = NewSpans.Where(x => x.ResolvedAt != NewResolvedAt).Select(x => x.Id).ToList();
+			if (UpdateSpanIds.Count > 0)
+			{
+				FilterDefinition<IssueSpan> Filter = Builders<IssueSpan>.Filter.In(x => x.Id, UpdateSpanIds);
+				await IssueSpans.UpdateManyAsync(Filter, Builders<IssueSpan>.Update.Set(x => x.ResolvedAt, NewResolvedAt));
+			}
+
+			// Figure out if this issue should be promoted
+			bool NewPromoted;
+			if (IssueImpl.ManuallyPromoted.HasValue)
+			{
+				NewPromoted = IssueImpl.ManuallyPromoted.Value;
+			}
+			else if (IssueImpl.ManuallyPromoted_DEPRECATED.HasValue)
+			{
+				NewPromoted = IssueImpl.ManuallyPromoted_DEPRECATED.Value;
+			}
+			else
+			{
+				NewPromoted = NewSpans.Any(x => ((IIssueSpan)x).PromoteByDefault);
+			}
+
 			// Find the default owner
 			UserId? NewDefaultOwnerId = null;
-			if (NewSuspectImpls.Count > 0)
+			if (NewPromoted && NewSuspectImpls.Count > 0)
 			{
 				UserId PossibleOwnerId = NewSuspectImpls[0].AuthorId;
 				if (NewSuspectImpls.All(x => x.AuthorId == PossibleOwnerId) && NewSuspectImpls.Any(x => x.DeclinedAt == null))
@@ -969,9 +998,6 @@ namespace HordeServer.Collections.Impl
 					NewDefaultOwnerId = PossibleOwnerId;
 				}
 			}
-
-			// Update all the spans attached to this issue
-			await IssueSpans.UpdateManyAsync(x => x.IssueId == Issue.Id && x.ResolvedAt != NewResolvedAt, Builders<IssueSpan>.Update.Set(x => x.ResolvedAt, NewResolvedAt));
 
 			// Get the range of suspect changes
 			int NewMinSuspectChange = (NewSuspects.Count > 0) ? NewSuspects.Min(x => x.Change) : 0;
@@ -986,6 +1012,10 @@ namespace HordeServer.Collections.Impl
 			if (Issue.Severity != NewSeverity)
 			{
 				Updates.Add(Builders<Issue>.Update.Set(x => x.Severity, NewSeverity));
+			}
+			if (Issue.Promoted != NewPromoted)
+			{
+				Updates.Add(Builders<Issue>.Update.Set(x => x.Promoted, NewPromoted));
 			}
 			if (Issue.Fingerprints.Count != NewFingerprints.Count || !NewFingerprints.Zip(Issue.Fingerprints).All(x => x.First.Equals(x.Second)))
 			{

@@ -175,7 +175,7 @@ namespace HordeServerTests
 			return Node.Object;
 		}
 
-		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph, TimeSpan Time = default)
+		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph, TimeSpan Time = default, bool PromoteByDefault = true)
 		{
 			JobId JobId = JobId.GenerateNewId();
 
@@ -216,8 +216,8 @@ namespace HordeServerTests
 			Job.SetupGet(x => x.TemplateId).Returns(new TemplateRefId("test-template"));
 			Job.SetupGet(x => x.Change).Returns(Change);
 			Job.SetupGet(x => x.Batches).Returns(Batches);
-			Job.SetupGet(x => x.ShowUgsBadges).Returns(true);
-			Job.SetupGet(x => x.ShowUgsAlerts).Returns(true);
+			Job.SetupGet(x => x.ShowUgsBadges).Returns(PromoteByDefault);
+			Job.SetupGet(x => x.ShowUgsAlerts).Returns(PromoteByDefault);
 			Job.SetupGet(x => x.NotificationChannel).Returns("#devtools-horde-slack-testing");
 			return Job.Object;
 		}
@@ -620,6 +620,7 @@ namespace HordeServerTests
 
 				List<IIssue> Issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, Issues.Count);
+				Assert.IsTrue(Issues[0].Promoted);
 
 				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
 
@@ -645,6 +646,49 @@ namespace HordeServerTests
 				// Also check updating an issue doesn't clear the owner
 				Assert.IsTrue(await IssueService.UpdateIssueAsync(Issue.Id));
 				Assert.AreEqual(TimId, Issue!.OwnerId);
+			}
+		}
+
+		[TestMethod]
+		public async Task ManualPromotionTest()
+		{
+			// #1
+			// Scenario: Job step completes successfully at CL 105
+			// Expected: No issues are created
+			{
+				IJob Job = CreateJob(MainStreamId, 105, "Compile Test", Graph);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, Issues.Count);
+			}
+
+			// #2
+			// Scenario: Job step fails at CL 120
+			// Expected: Creates issue, blames submitters at CL 110, 115, 120
+			{
+				string[] Lines =
+				{
+					FileReference.Combine(WorkspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+				};
+
+				Perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
+				Perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
+				Perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+
+				IJob Job = CreateJob(MainStreamId, 120, "Compile Test", Graph, PromoteByDefault: false);
+				await ParseEventsAsync(Job, 0, 0, Lines);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, Issues.Count);
+				Assert.IsFalse(Issues[0].Promoted);
+
+				await IssueService.UpdateIssueAsync(Issues[0].Id, Promoted: true);
+
+				Issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, Issues.Count);
+				Assert.IsTrue(Issues[0].Promoted);
 			}
 		}
 
@@ -1358,7 +1402,7 @@ namespace HordeServerTests
 			}
 		}
 
-		private async Task ParseAsync(LogId LogId, string[] Lines)
+				private async Task ParseAsync(LogId LogId, string[] Lines)
 		{
 			LogParserContext Context = new LogParserContext();
 			Context.WorkspaceDir = DirectoryReference.GetCurrentDirectory();
