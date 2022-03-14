@@ -693,6 +693,7 @@ void USubsurfaceProfile::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 {
 	const FSubsurfaceProfileStruct SettingsLocal = this->Settings;
 	USubsurfaceProfile* Profile = this;
+	GetRendererModule().InvalidatePathTracedOutput();
 	ENQUEUE_RENDER_COMMAND(UpdateSubsurfaceProfile)(
 		[SettingsLocal, Profile](FRHICommandListImmediate& RHICmdList)
 		{
