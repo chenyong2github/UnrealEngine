@@ -62,7 +62,7 @@ namespace EpicGames.Horde.Storage.Impl
 		public Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
 		{
 			FileReference File = GetBlobFile(NamespaceId, Hash);
-			Logger.LogInformation("Reading {File} ({Size} bytes)", File, new FileInfo(File.FullName).Length);
+			Logger.LogInformation("Reading {File} ({Size:n0} bytes)", File, new FileInfo(File.FullName).Length);
 			return Task.FromResult<Stream>(FileReference.Open(File, FileMode.Open, FileAccess.Read, FileShare.Read));
 		}
 
@@ -72,7 +72,7 @@ namespace EpicGames.Horde.Storage.Impl
 			FileReference File = GetBlobFile(NamespaceId, Hash);
 			DirectoryReference.CreateDirectory(File.Directory);
 
-			Logger.LogInformation("Writing {File} ({Size} bytes)", File, Stream.Length);
+			Logger.LogInformation("Writing {File} ({Size:n0} bytes)", File, Stream.Length);
 			using (Stream OutputStream = FileReference.Open(File, FileMode.Create, FileAccess.Write, FileShare.Read))
 			{
 				await Stream.CopyToAsync(OutputStream);
@@ -118,7 +118,7 @@ namespace EpicGames.Horde.Storage.Impl
 		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
 		{
 			FileReference File = GetRefFile(NamespaceId, BucketId, RefId);
-			Logger.LogInformation("Reading {File} ({Size} bytes)", File, new FileInfo(File.FullName).Length);
+			Logger.LogInformation("Reading {File} ({Size:n0} bytes)", File, new FileInfo(File.FullName).Length);
 			byte[] Data = await FileReference.ReadAllBytesAsync(File);
 			return new Ref(NamespaceId, BucketId, RefId, new CbObject(Data));
 		}
@@ -141,7 +141,7 @@ namespace EpicGames.Horde.Storage.Impl
 			FileReference File = GetRefFile(NamespaceId, BucketId, RefId);
 			DirectoryReference.CreateDirectory(File.Directory);
 
-			Logger.LogInformation("Writing {File} ({Size} bytes)", File, Value.GetView().Length);
+			Logger.LogInformation("Writing {File} ({Size:n0} bytes)", File, Value.GetView().Length);
 			await FileReference.WriteAllBytesAsync(File, Value.GetView().ToArray(), CancellationToken);
 			return new List<IoHash>();
 		}

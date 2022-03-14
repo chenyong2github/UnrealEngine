@@ -57,6 +57,42 @@ namespace EpicGames.Horde.Bundles
 	}
 
 	/// <summary>
+	/// Statistics for the state of a bundle
+	/// </summary>
+	public class BundleStats
+	{
+		/// <summary>
+		/// Number of blobs that have been written
+		/// </summary>
+		public int NewBlobCount { get; set; }
+
+		/// <summary>
+		/// Total size of the blobs that have been written
+		/// </summary>
+		public long NewBlobBytes { get; set; }
+
+		/// <summary>
+		/// Number of refs that have been written
+		/// </summary>
+		public int NewRefCount { get; set; }
+
+		/// <summary>
+		/// Total size of the refs that have been written
+		/// </summary>
+		public long NewRefBytes { get; set; }
+
+		/// <summary>
+		/// Number of nodes in the tree that have been written
+		/// </summary>
+		public int NewNodeCount { get; set; }
+
+		/// <summary>
+		/// Total size of the nodes that have been serialized
+		/// </summary>
+		public long NewNodeBytes { get; set; }
+	}
+
+	/// <summary>
 	/// Base class for manipulating bundles
 	/// </summary>
 	public class Bundle
@@ -156,6 +192,12 @@ namespace EpicGames.Horde.Bundles
 		/// </summary>
 		public BundleOptions Options { get; }
 
+		/// <summary>
+		/// Tracks statistics for the size of written data
+		/// </summary>
+		public BundleStats Stats { get; private set; } = new BundleStats();
+
+		BundleStats NextStats = new BundleStats();
 		byte[] BlockBuffer = Array.Empty<byte>();
 		byte[] EncodedBuffer = Array.Empty<byte>();
 
@@ -425,6 +467,9 @@ namespace EpicGames.Horde.Bundles
 
 				Node = new NodeInfo(Hash, Rank, (int)Data.Length);
 				HashToNode[Hash] = Node;
+
+				NextStats.NewNodeCount++;
+				NextStats.NewNodeBytes += Data.Length;
 			}
 
 			Node.SetStandalone(Data, NodeReferences);
@@ -682,6 +727,10 @@ namespace EpicGames.Horde.Bundles
 
 			// Write the final ref
 			await WriteRefAsync(WriteNodes.Slice(MinIdx), BucketId, RefId);
+
+			// Copy the stats over
+			Stats = NextStats;
+			NextStats = new BundleStats();
 		}
 
 		private void FindModifiedLiveSet(NodeInfo Node, HashSet<NodeInfo> Nodes)
@@ -721,12 +770,17 @@ namespace EpicGames.Horde.Bundles
 		{
 			foreach (NodeInfo Node in Nodes)
 			{
-				ReadOnlySequence<byte> Data = await GetDataAsync(Node);
-				Node.SetStandalone(Data, Node.References!);
+				ReadOnlySequence<byte> NodeData = await GetDataAsync(Node);
+				Node.SetStandalone(NodeData, Node.References!);
 			}
 
 			BundleObject Object = await CreateObjectAsync(Nodes);
-			await StorageClient.SetRefAsync(NamespaceId, BucketId, RefId, Object);
+
+			ReadOnlyMemory<byte> Data = EncodeObject(Object);
+			NextStats.NewRefCount++;
+			NextStats.NewRefBytes += Data.Length;
+
+			await StorageClient.SetRefAsync(NamespaceId, BucketId, RefId, new CbField(Data));
 		}
 
 		ReadOnlyMemory<byte> EncodeObject(BundleObject Object)
@@ -744,7 +798,12 @@ namespace EpicGames.Horde.Bundles
 		async Task WriteObjectAsync(IReadOnlyList<NodeInfo> Nodes)
 		{
 			BundleObject Object = await CreateObjectAsync(Nodes);
-			IoHash Hash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, EncodeObject(Object));
+
+			ReadOnlyMemory<byte> Data = EncodeObject(Object);
+			NextStats.NewBlobCount++;
+			NextStats.NewBlobBytes += Data.Length;
+
+			IoHash Hash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, Data);
 
 			BlobInfo Blob = new BlobInfo(Hash, Object.Exports.Sum(x => x.Length));
 			for (int Idx = 0; Idx < Object.Exports.Count; Idx++)

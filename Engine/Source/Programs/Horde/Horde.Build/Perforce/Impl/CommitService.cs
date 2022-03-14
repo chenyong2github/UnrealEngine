@@ -1002,6 +1002,10 @@ namespace HordeServer.Commits.Impl
 			Logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", RefId, Stream.Id, Change);
 			await CommitBundle.WriteAsync(GetStreamBucketId(Stream.Id), RefId, true);
 
+			// Print out stats for the new data
+			BundleStats Stats = CommitBundle.Stats;
+			Logger.LogInformation("Written ref {RefId} for {StreamId} change {Change}. Download: {NewBytes:n0} bytes ({NewRefCount} refs => {NewRefBytes:n0} bytes, {NewBlobCount} blobs => {NewBlobBytes:n0} bytes, {NewNodeCount:n0} nodes => {NewNodeBytes:n0} bytes).", RefId, Stream.Id, Change, Stats.NewRefBytes + Stats.NewBlobBytes, Stats.NewRefCount, Stats.NewRefBytes, Stats.NewBlobCount, Stats.NewBlobBytes, Stats.NewNodeCount, Stats.NewNodeBytes);
+
 			return new CommitTree(Stream.Id, Change, RefId);
 		}
 
