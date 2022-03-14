@@ -17,6 +17,14 @@ static TAutoConsoleVariable<int32> CVarSSProfilesPreIntegratedTextureResolution(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarSSProfilesSamplingChannelSelection(
+	TEXT("r.SSProfilesSamplingChannelSelection"),
+	1,
+	TEXT("0. Select the sampling channel based on max DMFP.\n")
+	TEXT("1. based on max MFP."),
+	ECVF_RenderThreadSafe
+);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<int32> CVarSSProfilesPreIntegratedTextureForceUpdate(
 	TEXT("r.SSProfilesPreIntegratedTextureForceUpdate"),
@@ -68,6 +76,37 @@ void UpgradeSeparableToBurley(FSubsurfaceProfileStruct& Settings)
 	Settings.bEnableBurley = true;
 }
 
+// Match the magic number in BurleyNormalizedSSSCommon.ush
+const float Dmfp2MfpMagicNumber = 0.6f;
+
+void UpgradeDiffuseMeanFreePathToMeanFreePath(FSubsurfaceProfileStruct& Settings)
+{
+	// 1. Update dmfp to mean free path
+	const float CmToMm = 10.0f;
+	
+	FLinearColor OldDmfp = Settings.MeanFreePathColor * Settings.MeanFreePathDistance;
+	
+	FLinearColor Mfp = GetMeanFreePathFromDiffuseMeanFreePath(Settings.SurfaceAlbedo, OldDmfp);
+	Mfp *= Dmfp2MfpMagicNumber;
+
+	Settings.MeanFreePathDistance = FMath::Max3(Mfp.R, Mfp.G, Mfp.B);
+	Settings.MeanFreePathColor = Mfp / Settings.MeanFreePathDistance;
+
+	// Support mfp < 0.1f
+	if (Settings.MeanFreePathDistance < 0.1f)
+	{
+		Settings.MeanFreePathColor = Settings.MeanFreePathColor * (Settings.MeanFreePathDistance / 0.1f);
+		Settings.MeanFreePathDistance = 0.1f;
+	}
+
+	Settings.bEnableMeanFreePath = true;
+
+	//2. Fix scaling
+	// Previously, the scaling is scaled up by 1/(SUBSURFACE_KERNEL_SIZE / BURLEY_CM_2_MM). To maintain the same
+	// visual appearance, apply that scale up to world unit scale
+	Settings.WorldUnitScale /= (SUBSURFACE_KERNEL_SIZE / CmToMm);
+}
+
 FSubsurfaceProfileTexture::FSubsurfaceProfileTexture()
 {
 	check(IsInGameThread());
@@ -76,6 +115,12 @@ FSubsurfaceProfileTexture::FSubsurfaceProfileTexture()
 
 	//The default burley in slot 0 behaves the same as Separable previously
 	UpgradeSeparableToBurley(DefaultSkin);
+
+	//Upgrade DMFP in slot 0 to MFP
+	if (!DefaultSkin.bEnableMeanFreePath)
+	{
+		UpgradeDiffuseMeanFreePathToMeanFreePath(DefaultSkin);
+	}
 
 	// add element 0, it is used as default profile
 	SubsurfaceProfileEntries.Add(FSubsurfaceProfileEntry(DefaultSkin, 0));
@@ -325,14 +370,18 @@ FLinearColor DecodeDiffuseMeanFreePath(FLinearColor EncodedDiffuseMeanFreePath)
 
 void SetupSurfaceAlbedoAndDiffuseMeanFreePath(FLinearColor& SurfaceAlbedo, FLinearColor& Dmfp)
 {
+	int32 SamplingSelectionMethod = FMath::Clamp(CVarSSProfilesSamplingChannelSelection.GetValueOnAnyThread(), 0, 1);
+	FLinearColor Distance = SamplingSelectionMethod == 0 ?
+		Dmfp															// 0: by max diffuse mean free path
+		: GetMeanFreePathFromDiffuseMeanFreePath(SurfaceAlbedo, Dmfp);	// 1: by max mean free path
 	//Store the value that corresponds to the largest Dmfp (diffuse mean free path) channel to A channel.
 	//This is an optimization to shift finding the max correspondence workload
 	//to CPU.
-	const float MaxDmfpComp = FMath::Max3(Dmfp.R, Dmfp.G, Dmfp.B);
-	const uint32 IndexOfMaxDmfp = (Dmfp.R == MaxDmfpComp) ? 0 : ((Dmfp.G == MaxDmfpComp) ? 1 : 2);
+	const float MaxComp = FMath::Max3(Distance.R, Distance.G, Distance.B);
+	const uint32 IndexOfMaxComp = (Distance.R == MaxComp) ? 0 : ((Distance.G == MaxComp) ? 1 : 2);
 
-	SurfaceAlbedo.A = SurfaceAlbedo.Component(IndexOfMaxDmfp);
-	Dmfp.A = MaxDmfpComp;
+	SurfaceAlbedo.A = SurfaceAlbedo.Component(IndexOfMaxComp);
+	Dmfp.A = Dmfp.Component(IndexOfMaxComp);
 }
 
 float Sqrt2(float X)
@@ -378,6 +427,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 	// 0.0001f turned out to be too small to fix the issue (for a small KernelSize)
 	const float Bias = 0.009f;
 	const float CmToMm = 10.f;
+	const float MmToCm = 0.1f;
 	const float FloatScaleInitial = 0x10000;
 	const float FloatScale = GetNextSmallerPositiveFloat(FloatScaleInitial);
 	check((int32)GetNextSmallerPositiveFloat(FloatScaleInitial) == (FloatScaleInitial - 1));
@@ -399,7 +449,18 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		
 		const float UnitToCm = Data.WorldUnitScale;
 
-		FLinearColor DifffuseMeanFreePathInMm = (Data.MeanFreePathColor*Data.MeanFreePathDistance) * CmToMm; // convert cm to mm.
+		FLinearColor DifffuseMeanFreePathInMm;
+
+		if (Data.bEnableMeanFreePath)
+		{
+			DifffuseMeanFreePathInMm = GetDiffuseMeanFreePathFromMeanFreePath(Data.SurfaceAlbedo, Data.MeanFreePathColor * Data.MeanFreePathDistance) * CmToMm / Dmfp2MfpMagicNumber;
+		}
+		else
+		{
+			DifffuseMeanFreePathInMm = (Data.MeanFreePathColor * Data.MeanFreePathDistance) * CmToMm;
+			UE_LOG(LogSubsurfaceProfile, Warning, TEXT("DMFP has already been upgraded to MFP. Should not reach here."));
+		}
+
 		SetupSurfaceAlbedoAndDiffuseMeanFreePath(Data.SurfaceAlbedo, DifffuseMeanFreePathInMm);
 		TextureRow[BSSS_SURFACEALBEDO_OFFSET] = Data.SurfaceAlbedo;
 		TextureRow[BSSS_DMFP_OFFSET] = EncodeDiffuseMeanFreePath(DifffuseMeanFreePathInMm);
@@ -425,20 +486,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 
 		if (Data.bEnableBurley)
 		{
-
-			// When we need performance, we fallback Burley to Separable. In order to achieve that, we estimate Separable parameters
-			// from Burley. This fallback has two two advantages:
-			// 1. Burley Fallback is more expressive than Separable. It can use Burley's scattering profile with hdr dmfp. The original
-			//    separable can only use a fixed dmfp around 2.229 based on the fitting. Because of this, the fallback Separable can be
-			//    used to express any materials. Since we have Burley parameters set, the transmittance profile can also go physically
-			//    more expressive. We can have better transmittance.
-			// 2. It runs faster than Burley. Burley has already been optimized. However, under extreme and rare conditions, it can go slow. 
-			//    If fps is critical even under extreme conditions, we can use Burley Fallback. Under normal setting, it does not have too
-			//    much visual difference. And it looks more appealing than the original one.
-
-			// Estimate the scatter radius based on the mean free path distance and the path color. 0.1f is the minimal value shown in the GUI.
-			// 2.229f is divided because of fitting relationship between falloff color and dmfp that has a scale of 2.229.
-			Data.ScatterRadius = FMath::Max(Data.MeanFreePathDistance*Data.MeanFreePathColor.GetMax()/2.229f, 0.1f);
+			Data.ScatterRadius = FMath::Max(DifffuseMeanFreePathInMm.GetMax()*MmToCm, 0.1f);
 
 			ComputeMirroredBSSSKernel(&TextureRow[SSSS_KERNEL0_OFFSET], SSSS_KERNEL0_SIZE, Data.SurfaceAlbedo,
 				DifffuseMeanFreePathInMm, Data.ScatterRadius);
@@ -447,11 +495,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 			ComputeMirroredBSSSKernel(&TextureRow[SSSS_KERNEL2_OFFSET], SSSS_KERNEL2_SIZE, Data.SurfaceAlbedo,
 				DifffuseMeanFreePathInMm, Data.ScatterRadius);
 
-			// Then, scale up by world unit scale and the fitting parameters to affect screen space sampling location.
-			// For high irradiance, the lose of energy due to insufficient sampling count needs to be compensated to
-			// make Burley fallback looks the same to Burley. Set 1.0f when we have enough samples.
-			const float SamplingCountCompensation = 0.707f;
-			Data.ScatterRadius *= (Data.WorldUnitScale * 10.0f)*2.229f* SamplingCountCompensation;
+			Data.ScatterRadius *= (Data.WorldUnitScale * 10.0f);
 		}
 		else
 		{
@@ -720,5 +764,10 @@ void USubsurfaceProfile::PostLoad()
 		{
 			UpgradeSeparableToBurley(Settings);
 		}
+	}
+
+	if (!Settings.bEnableMeanFreePath)
+	{
+		UpgradeDiffuseMeanFreePathToMeanFreePath(Settings);
 	}
 }

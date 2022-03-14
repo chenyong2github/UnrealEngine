@@ -111,6 +111,16 @@ FVector GetSearchLightDiffuseScalingFactor(FLinearColor SurfaceAlbedo)
 	);
 }
 
+FLinearColor GetMeanFreePathFromDiffuseMeanFreePath(FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePath)
+{
+	return DiffuseMeanFreePath * FLinearColor(GetPerpendicularScalingFactor(SurfaceAlbedo) / GetSearchLightDiffuseScalingFactor(SurfaceAlbedo));
+}
+
+FLinearColor GetDiffuseMeanFreePathFromMeanFreePath(FLinearColor SurfaceAlbedo, FLinearColor MeanFreePath)
+{
+	return MeanFreePath * FLinearColor(GetSearchLightDiffuseScalingFactor(SurfaceAlbedo) / GetPerpendicularScalingFactor(SurfaceAlbedo));
+}
+
 void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSize,
 	FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePath, float ScatterRadius)
 {
@@ -158,8 +168,8 @@ void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSi
 			kernel[i].B = t.Z;
 		}
 
-		// We still need to do a small tweak to get the radius to visually match. Multiplying by 4.0 seems to fix it.
-		const float StepScale = 4.0f;
+		// We still need to do a small tweak to get the radius to visually match. Multiplying by 2.0 seems to fix it.
+		const float StepScale = 2.0f;
 		for (int32 i = 0; i < nTotalSamples; i++)
 		{
 			kernel[i].A *= StepScale;

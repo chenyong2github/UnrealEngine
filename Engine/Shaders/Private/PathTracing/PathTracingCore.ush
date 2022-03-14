@@ -515,7 +515,10 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 		Payload.SetSubsurfaceColor(0.0);
 		return true;
 	}
-	SSSRadius = max(SSSRadius, 0.1); // 1mm minimum to make sure random walk can move forward and to keep SigmaT finite
+	
+	// Support SSS for mfp smaller than 1mm.
+	SSSRadius = max(SSSRadius, 0.0009); // 0.009mm minimum to make sure random walk can move forward and to keep SigmaT finite
+
 
 	// decide randomly to evaluate the SSS part of the material, or keep shading the current part
 	// This also computes the energy conservation to take out the portion of lighting reflected away by the specular layer

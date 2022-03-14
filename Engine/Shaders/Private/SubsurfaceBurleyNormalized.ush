@@ -823,6 +823,9 @@ float2 CalculateBurleyScale(float WorldUnitScale, float DepthAtCenter)
 
 	float SSSScaleX = SubsurfaceParams.x;
 	BurleyScale *= SSSScaleX / DepthAtCenter;
+	
+	// cast from cm to mm for depth, and remove the effect of SUBSURFACE_KERNEL_SIZE. 
+	BurleyScale *= SUBSURFACE_KERNEL_SIZE / BURLEY_CM_2_MM;
 
 	// account for Screen Percentage/Dyanmic Resolution Scaling
 	BurleyScale *= (SubsurfaceInput0_ViewportSize.x * SubsurfaceInput0_ExtentInverse.x);
@@ -861,8 +864,8 @@ float3 CalculateCenterSampleWeight(float Depth, FBurleyParameter BurleyParameter
 
 	float DiffuseMeanFreePath = GetDiffuseMeanFreePathForSampling(BurleyParameter.DiffuseMeanFreePath);
 
-	// To calculate the surface free path from albedo, use diffuse surface scaling.
-	float3 D = DiffuseMeanFreePath / GetDiffuseSurfaceScalingFactor3D(BurleyParameter.SurfaceAlbedo.xyz);
+	// To calculate the surface free path from albedo, use the default scaling.
+	float3 D = DiffuseMeanFreePath / GetScalingFactor3D(BurleyParameter.SurfaceAlbedo.xyz);
 
 	float3 CenterSampleWeight;
 

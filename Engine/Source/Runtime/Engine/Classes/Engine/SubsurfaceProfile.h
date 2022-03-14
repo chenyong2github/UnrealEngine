@@ -44,6 +44,12 @@ struct FSubsurfaceProfileStruct
 	bool  bEnableBurley;
 
 	/**
+	 * Switch to use Mean Free Path, otherwise use diffuse mean free path.
+	 */
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (editcondition = "false", EditConditionHides))
+	bool  bEnableMeanFreePath;
+
+	/**
 	* Specifies the how much of the diffuse light gets into the material,
 	* can be seen as a per-channel mix factor between the original image,
 	* and the SSS-filtered image. It introduces Non-PBR looks.
@@ -124,6 +130,8 @@ struct FSubsurfaceProfileStruct
 		WorldUnitScale = 0.1f;
 		TransmissionTintColor = FLinearColor(1.0f, 1.0f, 1.0f);
 		Tint = FLinearColor(1.0f, 1.0f, 1.0f);
+
+		bEnableMeanFreePath = false;
 	}
 
 	void Invalidate()

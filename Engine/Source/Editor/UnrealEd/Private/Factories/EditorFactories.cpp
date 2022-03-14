@@ -7691,6 +7691,12 @@ UObject* USubsurfaceProfileFactory::FactoryCreateNew(UClass* InClass, UObject* I
 	// the profiles loaded from files to be converted into burley if they
 	// are separable.
 	Object->Settings.bEnableBurley = true;
+
+	// Enable smooth upgrading from DMFP to MFP. This flag change allows
+	// all newly created subsurface profile in MFP, while allowing old profiles
+	// loaded from files to be automatically converted to MFP.
+	Object->Settings.bEnableMeanFreePath = true;
+
 	return Object;
 }
 

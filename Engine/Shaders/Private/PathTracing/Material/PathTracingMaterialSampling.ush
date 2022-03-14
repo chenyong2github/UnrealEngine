@@ -402,13 +402,13 @@ FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload P
 				// Burley parameterization
 				float3 SurfaceAlbedo = View.SSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, ProfileId, 0)).xyz;
 				float3 DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(View.SSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, ProfileId, 0))).xyz;
-				float WorldUnitScale = DecodeWorldUnitScale(View.SSProfilesTexture.Load(int3(SSSS_TINT_SCALE_OFFSET, ProfileId, 0)).a) * BURLEY_MM_2_CM;
+				float WorldUnitScale = DecodeWorldUnitScale(View.SSProfilesTexture.Load(int3(SSSS_TINT_SCALE_OFFSET, ProfileId, 0)).a) * BURLEY_CM_2_MM;
 
 				// Opacity acts as a per-pixel radius multiplier
 				// NOTE: this seems backwards? Opacity=0 acts like default-lit while Opacity=1 acts like SSS?
-				float3 SSSRadius = HitPayload.Opacity * WorldUnitScale * DiffuseMeanFreePath * GetDiffuseSurfaceScalingFactor3D(SurfaceAlbedo);
+				float3 SSSRadius =GetMFPFromDMFPApprox(SurfaceAlbedo, HitPayload.DiffuseColor, HitPayload.Opacity * WorldUnitScale * DiffuseMeanFreePath);
 
-				HitPayload.SetSubsurfaceRadius(SSSRadius);
+				HitPayload.SetSubsurfaceRadius(SSSRadius * BURLEY_MM_2_CM);
 
 				// burley mode doesn't have any diffuse component
 				HitPayload.SetSubsurfaceColor(HitPayload.DiffuseColor);
