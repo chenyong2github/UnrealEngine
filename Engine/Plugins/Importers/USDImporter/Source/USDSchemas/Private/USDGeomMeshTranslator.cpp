@@ -680,9 +680,21 @@ namespace UsdGeomMeshTranslatorImpl
 		}
 
 #endif // WITH_EDITOR
+
+		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable( TEXT( "USD.EnableCollision" ) );
+		bool bEnableCollision = CVar && CVar->GetBool();
+
 		if ( StaticMesh.GetBodySetup())
 		{
-			StaticMesh.GetBodySetup()->CreatePhysicsMeshes();
+			if ( bEnableCollision )
+			{
+				StaticMesh.GetBodySetup()->CreatePhysicsMeshes();
+			}
+			else
+			{
+				StaticMesh.GetBodySetup()->DefaultInstance.SetCollisionEnabled( ECollisionEnabled::NoCollision );
+				StaticMesh.GetBodySetup()->DefaultInstance.SetCollisionProfileName( UCollisionProfile::NoCollision_ProfileName );
+			}
 		}
 		return true;
 	}
