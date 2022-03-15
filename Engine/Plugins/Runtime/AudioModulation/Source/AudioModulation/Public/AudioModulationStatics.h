@@ -72,13 +72,14 @@ public:
 	 * @param Activate - Whether or not to activate bus on creation. If true, deactivation will only occur
 	 * if returned bus is manually deactivated and not referenced or destroyed (i.e. will not deactivate
 	 * when all references become inactive).
+	 * @return Capture this in a Blueprint variable to prevent it from being automatically garbage collected. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus", meta = (
 		AdvancedDisplay = "3",
 		WorldContext = "WorldContextObject",
 		Keywords = "make modulation LPF modulator")
 	)
-	static USoundControlBus* CreateBus(UObject* WorldContextObject, FName Name, USoundModulationParameter* Parameter, bool Activate = true);
+	static UPARAM(DisplayName = "Bus") USoundControlBus* CreateBus(UObject* WorldContextObject, FName Name, USoundModulationParameter* Parameter, bool Activate = true);
 
 	/** Creates a stage used to mix a control bus.
 	 * @param Bus - Bus stage is in charge of applying mix value to.
@@ -104,12 +105,13 @@ public:
 	 * @param Activate - Whether or not to activate mix on creation. If true, deactivation will only occur
 	 * if returned mix is manually deactivated and not referenced or destroyed (i.e. will not deactivate
 	 * when all references become inactive).
+	 * @return Capture this in a Blueprint variable to prevent it from being automatically garbage collected. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
 		Keywords = "make modulation modulator")
 	)
-	static USoundControlBusMix* CreateBusMix(
+	static UPARAM(DisplayName = "BusMix") USoundControlBusMix* CreateBusMix(
 		UObject* WorldContextObject,
 		FName Name, 
 		TArray<FSoundControlBusMixStage> Stages,

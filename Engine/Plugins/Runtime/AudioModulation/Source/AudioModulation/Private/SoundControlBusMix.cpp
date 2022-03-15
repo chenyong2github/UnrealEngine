@@ -39,8 +39,6 @@ void USoundControlBusMix::BeginDestroy()
 {
 	using namespace AudioModulation;
 
-	Super::BeginDestroy();
-
 	if (UWorld* World = GetWorld())
 	{
 		FAudioDeviceHandle AudioDevice = World->GetAudioDevice();
@@ -57,6 +55,9 @@ void USoundControlBusMix::BeginDestroy()
 			}
 		}
 	}
+
+	// Call parent destroy at end to ensure object is in a valid state for the modulation manager to clean up first
+	Super::BeginDestroy();
 }
 
 void USoundControlBusMix::ActivateMix()
