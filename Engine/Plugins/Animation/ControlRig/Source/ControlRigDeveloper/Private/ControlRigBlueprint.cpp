@@ -461,6 +461,7 @@ void UControlRigBlueprint::PostLoad()
 		PatchVariableNodesWithIncorrectType();
 		PatchRigElementKeyCacheOnLoad();
 		PatchBoundVariables();
+		PatchPropagateToChildren();
 #if UE_RIGVM_ENABLE_TEMPLATE_NODES
 		ConvertUnitNodesToTemplateNodes();
 #endif
@@ -576,8 +577,6 @@ void UControlRigBlueprint::PostLoad()
 		}
 	}
 
-	PatchPropagateToChildren();
-	
 #if WITH_EDITOR
 	// delay compilation until the package has been loaded
 	FCoreUObjectDelegates::OnEndLoadPackage.AddUObject(this, &UControlRigBlueprint::HandlePackageDone);
