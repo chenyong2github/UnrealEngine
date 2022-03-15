@@ -601,7 +601,7 @@ void ULiveLinkCameraController::ApplyNodalOffset(ULensFile* SelectedLensFile, UC
 							{
 								if (PlayerCameraManager->GetViewTarget() == CineCameraComponent->GetOuter())
 								{
-									FMinimalViewInfo CameraViewInfo = PlayerCameraManager->GetCameraCachePOV();
+									FMinimalViewInfo CameraViewInfo = PlayerCameraManager->GetCameraCacheView();
 
 									CameraViewInfo.Location = CineCameraComponent->GetComponentLocation();
 									CameraViewInfo.Rotation = CineCameraComponent->GetComponentRotation();
