@@ -439,6 +439,11 @@ namespace UnrealBuildTool
 				}
 			}
 
+			if (Target.WindowsPlatform.Compiler.IsMSVC())
+			{
+				Arguments.Add("/fastfail");
+			}
+
 			// Address sanitizer
 			if (Target.WindowsPlatform.bEnableAddressSanitizer)
 			{
@@ -1026,6 +1031,11 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("/experimental:deterministic");
 				}
+			}
+
+			if (Target.WindowsPlatform.Compiler.IsMSVC())
+			{
+				Arguments.Add("/fastfail");
 			}
 
 			// for monolithic editor builds, add the PDBPAGESIZE option, (VS 16.11, VC toolchain 14.29.30133), but the pdb will be too large without this
