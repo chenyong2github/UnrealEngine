@@ -944,7 +944,7 @@ FStrataData GetStrataSlabBSDF(
 		BSDF_SETHASF90(StrataData.InlinedBSDF, any(EdgeColor < 1.0f));
 
 		const float SafeMetallic = saturate(Metallic);
-		SLAB_DIFFUSEALBEDO(StrataData.InlinedBSDF)			= BaseColor - BaseColor * SafeMetallic;
+		SLAB_DIFFUSEALBEDO(StrataData.InlinedBSDF)			= ComputeDiffuseAlbedo(BaseColor, SafeMetallic);
 		SLAB_F0(StrataData.InlinedBSDF)						= ComputeF0(Specular, BaseColor, SafeMetallic);
 		SLAB_F90(StrataData.InlinedBSDF)					= ComputeF90(F0, EdgeColor, SafeMetallic);
 	}

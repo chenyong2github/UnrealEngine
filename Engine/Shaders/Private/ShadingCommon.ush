@@ -146,6 +146,11 @@ float3 ComputeF90(float3 F0, float3 EdgeColor, float Metallic)
 	return lerp(1.0, EdgeColor, Metallic.xxx);
 }
 
+float3 ComputeDiffuseAlbedo(float3 BaseColor, float Metallic)
+{
+	return BaseColor - BaseColor * Metallic;
+}
+
 float MakeRoughnessSafe(float Roughness, float MinRoughness=0.001f)
 {
 	return clamp(Roughness, MinRoughness, 1.0f);

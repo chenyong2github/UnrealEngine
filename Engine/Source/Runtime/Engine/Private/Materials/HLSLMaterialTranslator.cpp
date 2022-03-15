@@ -10515,6 +10515,7 @@ int32 FHLSLMaterialTranslator::StrataThinFilm(int32 A, int32 Thickness, int32 IO
 	);
 
 }
+
 int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex)
 {
 	if (OutputIndex == INDEX_NONE)
@@ -10537,6 +10538,32 @@ int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor
 		// Thickness to be plugged into other nodes thickness input.
 		// This matches the Slab node default using STRATA_LAYER_DEFAULT_THICKNESS_CM
 		return DesiredThickness == INDEX_NONE ? DefaultThicknessCodechunk : DesiredThickness;
+		break;
+	}
+	return INDEX_NONE;
+}
+
+int32 FHLSLMaterialTranslator::StrataMetalnessToDiffuseAlbedoF0(int32 BaseColor, int32 Specular, int32 Metallic, int32 OutputIndex)
+{
+	if (OutputIndex == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	switch (OutputIndex)
+	{
+	case 0:
+		return AddCodeChunk(MCT_Float3,
+			TEXT("ComputeDiffuseAlbedo(%s, saturate(%s))"),
+			*GetParameterCode(BaseColor),
+			*GetParameterCode(Metallic));
+		break;
+	case 1:
+		return AddCodeChunk(MCT_Float3,
+			TEXT("ComputeF0(%s, %s, saturate(%s))"),
+			*GetParameterCode(Specular),
+			*GetParameterCode(BaseColor),
+			*GetParameterCode(Metallic));
 		break;
 	}
 	return INDEX_NONE;
