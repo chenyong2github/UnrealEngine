@@ -10512,7 +10512,41 @@ int32 FHLSLMaterialTranslator::StrataThinFilm(int32 A, int32 Thickness, int32 IO
 		OperatorIndex,
 		MaxDistanceFromLeaves
 	);
+}
 
+int32 FHLSLMaterialTranslator::StrataThinFilmParameterBlending(int32 A, int32 Thickness, int32 IOR, int32 BSDFNormalCodeChunk, FStrataOperator* PromoteToOperator)
+{
+	if (A == INDEX_NONE || Thickness == INDEX_NONE || IOR == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (PromoteToOperator)
+	{
+		check(PromoteToOperator->Index != INDEX_NONE);
+		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
+		return AddCodeChunk(
+			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataThinFilmParameterBlending(%s, %s, %s, dot(%s, %s)), Parameters.StrataTree, %u, %u, %u, %u)"),
+			*GetParameterCode(A),
+			*GetParameterCode(Thickness),
+			*GetParameterCode(IOR),
+			*GetParameterCode(BSDFNormalCodeChunk),
+			*GetParameterCode(CameraVector()),
+			PromoteToOperator->Index,
+			PromoteToOperator->BSDFIndex,
+			PromoteToOperator->bIsBottom,
+			PromoteToOperator->bIsTop
+		);
+	}
+
+	return AddCodeChunk(
+		MCT_Strata, TEXT("StrataThinFilmParameterBlending(%s, %s, %s, dot(%s, %s))"),
+		*GetParameterCode(A),
+		*GetParameterCode(Thickness),
+		*GetParameterCode(IOR),
+		*GetParameterCode(BSDFNormalCodeChunk),
+		*GetParameterCode(CameraVector())
+	);
 }
 
 int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex)

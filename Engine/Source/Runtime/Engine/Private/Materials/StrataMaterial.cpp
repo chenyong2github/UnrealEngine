@@ -93,9 +93,7 @@ void  StrataCompilationInfoCreateNullBSDF(FMaterialCompiler* Compiler, int32 Cod
 
 FStrataMaterialCompilationInfo StrataCompilationInfoWeight(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
 {
-	// STRATA_TODO: This is not correct. FStrataMaterialCompilationInfo is meant to be removed and replaced with Strata tree / metadata
 	FStrataMaterialCompilationInfo StrataInfo = A;
-	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = true;
 	return StrataInfo;
 }
 
@@ -106,6 +104,14 @@ FStrataMaterialCompilationInfo StrataCompilationInfoWeightParamBlend(FMaterialCo
 }
 
 FStrataMaterialCompilationInfo StrataCompilationInfoThinFilm(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
+{
+	// STRATA_TODO: This is not correct. FStrataMaterialCompilationInfo is meant to be removed and replaced with Strata tree / metadata
+	FStrataMaterialCompilationInfo StrataInfo = A;
+	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = true;
+	return StrataInfo;
+}
+
+FStrataMaterialCompilationInfo StrataCompilationInfoThinFilmParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
 {
 	FStrataMaterialCompilationInfo StrataInfo = A;
 	return StrataInfo;
