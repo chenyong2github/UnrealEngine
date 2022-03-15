@@ -304,9 +304,11 @@ namespace LowLevelTasks
 			FTask* Task = (Queue->*DequeueFunction)(bPermitBackgroundWork, bDisableThrottleStealing);
 			if (Task)
 			{	
-				if (bIsBusyWaiting && !Task->AllowBusyWaiting())
+				FTask::FInitData InitData = Task->GetInitData();
+				bool bAllowBusyWaiting = EnumHasAnyFlags(InitData.Flags, ETaskFlags::AllowBusyWaiting);
+				if (bIsBusyWaiting && !bAllowBusyWaiting)
 				{
-					QueueRegistry.Enqueue(Task, uint32(Task->GetPriority()));
+					QueueRegistry.Enqueue(Task, uint32(InitData.Priority));
 					continue;
 				}
 				if (OutOfWork.Stop())

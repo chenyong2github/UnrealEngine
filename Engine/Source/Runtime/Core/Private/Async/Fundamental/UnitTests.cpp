@@ -491,9 +491,15 @@ namespace Tasks2Tests
 				{
 					TestValue = 42;
 				});
+				verify(Task.TryCancel(ECancellationFlags::PrelaunchCancellation));
+				verify(Task.TryRevive());
 				TryLaunch(Task);
 
 				bool WasCanceled = TestCancel && Task.TryCancel();
+				if(WasCanceled)
+				{
+					WasCanceled = !Task.TryRevive();
+				}	
 				BusyWaitForTask(Task);
 
 				if (WasCanceled)
@@ -530,6 +536,25 @@ namespace Tasks2Tests
 				{
 					verify(TestValue == 42);
 				}
+			}
+
+			//expedite
+			{
+				uint32 TestValue = 1337;
+
+				FTask Task;
+				Task.Init(TEXT("expedite Test"), [&TestValue]()
+				{
+					TestValue = 42;
+				});
+				verify(!Task.TryExpedite());
+				TryLaunch(Task);
+				Task.TryExpedite();
+
+				verify(!Task.TryCancel());
+				BusyWaitForTask(Task);
+
+				verify(TestValue == 42);
 			}
 		}
 
