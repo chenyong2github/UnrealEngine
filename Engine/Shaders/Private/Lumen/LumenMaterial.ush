@@ -278,7 +278,10 @@ FBxDFSample SampleBxDF(const uint TermMask, FLumenMaterialData InMaterial, float
 {
 #if STRATA_ENABLED
 	return SampleStrataBxDF(TermMask, InMaterial, V, E);
-#elif !FRONT_LAYER_TRANSLUCENCY
+#elif FRONT_LAYER_TRANSLUCENCY
+	FBxDFSample Unused = (FBxDFSample)0;
+	return Unused;
+#else
 	FGBufferData InGBufferData;
 	InGBufferData.Roughness = InMaterial.Roughness;
 	InGBufferData.WorldNormal = InMaterial.WorldNormal;
