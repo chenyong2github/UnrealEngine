@@ -4942,16 +4942,16 @@ void CompilerMSL::emit_custom_functions()
 			statement("// Returns buffer coords corresponding to 2D texture coords for emulating 2D texture atomics");
 			// UE Change Begin: Add support for Image2/3D atomic emulation
 			// Take into account the image pitch
-			statement("template<typename T>");
-			statement("inline uint spvImageAtomicCoord(texture2d<T> tex, uint2 tc, uint element_pitch)");
+			statement("template<typename T, access A>");
+			statement("inline uint spvImageAtomicCoord(texture2d<T, A> tex, uint2 tc, uint element_pitch)");
 			begin_scope();
 			statement("const uint aligned_width = element_pitch;");
 			statement("return tc.y * aligned_width + tc.x;");
 			end_scope();
 			statement("");
 
-			statement("template <typename T>");
-			statement("inline uint spvImageAtomicCoord(texture3d<T> tex, uint3 tc, uint element_pitch)");
+			statement("template <typename T, access A>");
+			statement("inline uint spvImageAtomicCoord(texture3d<T, A> tex, uint3 tc, uint element_pitch)");
 			begin_scope();
 			statement("const uint aligned_width = element_pitch;");
 			statement("const uint aligned_height = tex.get_height();");

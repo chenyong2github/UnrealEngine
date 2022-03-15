@@ -643,19 +643,16 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 
 	if (!Texture)
 	{
-		// Non VR/media texture case (i.e. a regular texture).
-		// Create the actual texture resource.
+		// Non VR/media texture case (i.e. a regular texture
+		// Create the actual texture resource. Decide if we need to create from buffer backing
+		const bool bBufferCompatibleOption = 	(CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2D || CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::TextureBuffer) &&
+												CreateDesc.NumMips == 1 && CreateDesc.ArraySize == 1 && CreateDesc.NumSamples == 1 && CreateDesc.Desc.GetDepth() == 1;
 
-		const bool bBufferCompatibleOption = (CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2D || CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::TextureBuffer) && CreateDesc.NumMips == 1;
-		if (!bBufferCompatibleOption || (!EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) && !EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
-		{
-			Texture = GetMetalDeviceContext().CreateTexture(this, CreateDesc.Desc);
-		}
-		else
+		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
 		{
 			mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
 
-			const uint32 MinimumByteAlignment = GetMetalDeviceContext().GetDevice().GetMinimumLinearTextureAlignmentForPixelFormat(CreateDesc.MTLFormat);
+			const uint32 MinimumByteAlignment = Device.GetMinimumLinearTextureAlignmentForPixelFormat(CreateDesc.MTLFormat);
 			const NSUInteger BytesPerRow = Align(CreateDesc.Desc.GetWidth() * GPixelFormats[CreateDesc.Format].BlockBytes, MinimumByteAlignment);
 
 			// Backing buffer resource options must match the texture we are going to create from it
@@ -664,7 +661,14 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 
 			Texture = Buffer.NewTexture(CreateDesc.Desc, 0, BytesPerRow);
 		}
-
+		else
+		{
+			// If we are in here then either the texture description is not buffer compatable or these flags were not set
+			// assert that these flag combinations are not set as they require a buffer backed texture and the texture description is not compatible with that
+			checkf(!(EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)), TEXT("Requested buffer backed texture that breaks Metal linear texture limitations: %s"), *FString([CreateDesc.Desc description]));
+			Texture = GetMetalDeviceContext().CreateTexture(this, CreateDesc.Desc);
+		}
+		
 		METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([CreateDesc.Desc description]));
 	}
 

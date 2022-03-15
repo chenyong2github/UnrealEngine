@@ -617,12 +617,10 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 		// Non VR/media texture case (i.e. a regular texture).
 		// Create the actual texture resource.
 
-		const bool bBufferCompatibleOption = (CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2D || CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::TextureBuffer) && CreateDesc.NumMips == 1;
-		if (!bBufferCompatibleOption || (!EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) && !EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
-		{
-			Texture = GetAGXDeviceContext().CreateTexture(this, CreateDesc.Desc);
-		}
-		else
+		const bool bBufferCompatibleOption = 	(CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2D || CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::TextureBuffer) &&
+												CreateDesc.NumMips == 1 && CreateDesc.ArraySize == 1 && CreateDesc.NumSamples == 1 && CreateDesc.Desc.GetDepth() == 1;
+
+		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
 		{
 			const uint32 MinimumByteAlignment = GMtlppDevice.GetMinimumLinearTextureAlignmentForPixelFormat(CreateDesc.MTLFormat);
 			const NSUInteger BytesPerRow = Align(CreateDesc.Desc.GetWidth() * GPixelFormats[CreateDesc.Format].BlockBytes, MinimumByteAlignment);
@@ -633,7 +631,14 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 
 			Texture = Buffer.NewTexture(CreateDesc.Desc, 0, BytesPerRow);
 		}
-
+		else
+		{
+			// If we are in here then either the texture description is not buffer compatable or these flags were not set
+			// assert that these flag combinations are not set as they require a buffer backed texture and the texture description is not compatible with that
+			checkf(!(EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)), TEXT("Requested buffer backed texture that breaks Metal linear texture limitations: %s"), *FString([CreateDesc.Desc description]));
+			Texture = GetAGXDeviceContext().CreateTexture(this, CreateDesc.Desc);
+		}
+		
 		METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([CreateDesc.Desc description]));
 	}
 
