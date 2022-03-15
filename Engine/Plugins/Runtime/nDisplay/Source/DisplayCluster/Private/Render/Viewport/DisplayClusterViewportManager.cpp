@@ -2,6 +2,7 @@
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
+#include "Render/Viewport/DisplayClusterViewportManagerViewExtension.h"
 
 #include "IDisplayCluster.h"
 #include "Render/IDisplayClusterRenderManager.h"
@@ -379,6 +380,12 @@ void FDisplayClusterViewportManager::ImplUpdateClusterNodeViewports(const EDispl
 bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame)
 {
 	check(IsInGameThread());
+
+	if (!ViewportManagerViewExtension.IsValid())
+	{
+		// Create DC ViewExtension to handle special features
+		ViewportManagerViewExtension = FSceneViewExtensions::NewExtension<FDisplayClusterViewportManagerViewExtension>(this);
+	}
 
 	OutRenderFrame.ViewportManager = this;
 
