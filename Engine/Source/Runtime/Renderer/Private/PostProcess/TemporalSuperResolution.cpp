@@ -767,7 +767,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			RDG_EVENT_NAME("TSR ClearPrevTextures %dx%d", InputRect.Width(), InputRect.Height()),
 			ComputeShader,
 			PassParameters,
-			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
+			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8 * 2));
 	}
 
 	// Dilate the velocity texture & scatter reprojection into previous frame
