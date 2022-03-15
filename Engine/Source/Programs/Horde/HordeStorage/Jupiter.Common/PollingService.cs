@@ -68,7 +68,9 @@ namespace Jupiter
 
             if (shouldPoll)
             {
-                _timer?.Change(TimeSpan.Zero, _pollFrequency);
+                // start at a random time between now and the poll frequency
+                int randomStartOffset = Random.Shared.Next(0, (int)_pollFrequency.TotalSeconds);
+                _timer?.Change(TimeSpan.FromSeconds(randomStartOffset), _pollFrequency);
             }
 
             return Task.CompletedTask;
