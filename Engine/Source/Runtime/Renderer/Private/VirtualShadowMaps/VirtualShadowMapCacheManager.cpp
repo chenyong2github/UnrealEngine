@@ -467,7 +467,6 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 		if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 		{
 			bExtractHzbData = true;
-			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevBuffers.PageFlags);
 		
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevBuffers.PhysicalPageMetaData);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevBuffers.DynamicCasterPageFlags);
@@ -485,6 +484,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 		{
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevBuffers.PageTable);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevBuffers.PageRectBounds);
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevBuffers.PageFlags);
 		}
 
 		// propagate current-frame primitive state to cache entry

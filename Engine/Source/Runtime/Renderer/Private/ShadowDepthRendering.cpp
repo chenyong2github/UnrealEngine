@@ -1682,7 +1682,8 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 					bVSMUseHZB,
 					Scene = Scene,
 					CacheManager = CacheManager,
-					PrevHZBPhysical
+					PrevHZBPhysical,
+					VirtualShadowViewRect
 			](bool bShouldClampToNearPlane, const FString &VirtualFilterName)
 			{
 				TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
@@ -1725,6 +1726,8 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 					CullingConfig.bUpdateStreaming			= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
+					CullingConfig.bTwoPassOcclusion = CVarShadowsVirtualUseHZB.GetValueOnRenderThread() == 2;
+
 					CullingConfig.SetViewFlags(SceneView);
 
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
@@ -1732,7 +1735,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 						SharedContext,
 						*Scene,
 						PrevHZBPhysical,
-						FIntRect(),
+						VirtualShadowViewRect,
 						CullingConfig
 					);
 

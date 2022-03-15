@@ -6,6 +6,7 @@
 #include "../ComputeShaderUtils.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 
+#include "NaniteCullingCommon.ush"
 #include "NaniteCulling.ush"
 #include "NaniteDataDecode.ush"
 #include "NaniteHZBCull.ush"
@@ -171,6 +172,15 @@ RWStructuredBuffer<FQueueState>			OutQueueState;
 RWStructuredBuffer<FStats>				OutStatsBuffer;
 #endif
 
+
+void WriteOccludedInstance(uint ViewId, uint InstanceId)
+{
+	uint OccludedInstanceOffset = 0;
+	WaveInterlockedAddScalarInGroups(OutOccludedInstancesArgs[3], OutOccludedInstancesArgs[0], 64, 1, OccludedInstanceOffset);
+	OutOccludedInstances[OccludedInstanceOffset].ViewId = ViewId;
+	OutOccludedInstances[OccludedInstanceOffset].InstanceId = InstanceId;
+}
+
 [numthreads(64, 1, 1)]
 void InstanceCull(
 	uint3 GroupId : SV_GroupID,
@@ -210,8 +220,8 @@ void InstanceCull(
 			return;
 		}
 
-#if DEBUG_FLAGS
 		const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
+#if DEBUG_FLAGS
 		BRANCH
 		if ((DebugFlags & NANITE_DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING) != 0U && !bHasMoved)
 		{
@@ -271,9 +281,7 @@ void InstanceCull(
 			const bool bSkipBoxCullFrustum = false;
 			const bool bSkipBoxCullHZB     = false;
 #endif
-
-			float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-			float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
+			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 			float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
 			bIsVisible = BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
@@ -285,7 +293,7 @@ void InstanceCull(
 			BRANCH
 			if( bIsVisible )
 			{
-				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum);
 				bIsVisible = Cull.bIsVisible;
 			}
 #endif
@@ -295,24 +303,11 @@ void InstanceCull(
 			BRANCH
 			if( bViewHZB && bIsVisible )
 			{
-				float4x4 LocalToPrevTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PrevPreViewTranslation);
-				float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
-
-				FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
-				
-				BRANCH
-				if ((PrevCull.bIsVisible || PrevCull.bFrustumSideCulled) && !PrevCull.bCrossesNearPlane)
-				{
-					FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
-					bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( PrevRect, true );
-				}
+				TestPrevHZB(NaniteView, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, true, bIsVisible, bWasOccluded);
 
 				if( bWasOccluded )
 				{
-					uint OccludedInstanceOffset = 0;
-					WaveInterlockedAddScalarInGroups( OutOccludedInstancesArgs[3], OutOccludedInstancesArgs[0], 64, 1, OccludedInstanceOffset );
-					OutOccludedInstances[OccludedInstanceOffset].ViewId = ViewId;
-					OutOccludedInstances[OccludedInstanceOffset].InstanceId = InstanceId;
+					WriteOccludedInstance(ViewId, InstanceId);
 				}
 			}
 #endif
@@ -322,14 +317,10 @@ void InstanceCull(
 			BRANCH
 			if( bIsVisible )
 			{
-				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum);
 
-				BRANCH
-				if (Cull.bIsVisible && !Cull.bCrossesNearPlane)
-				{
-					FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
-					bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( Rect, true );
-				}
+				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
+				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, bIsVisible, bWasOccluded);
 			}
 #endif
 
@@ -453,7 +444,6 @@ void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
 	}
 }
 
-
 StructuredBuffer< FCompactedViewInfo > CompactedViewInfo;
 StructuredBuffer< uint > CompactedViewsAllocation;
 
@@ -543,13 +533,8 @@ void InstanceCullVSM(
 			// Depth clipping should only be disabled with orthographic projections
 			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 
-			// NOTE: With view compaction, the "primary view" may be any of the mip levels
-			// const uint2 TargetViewSize = uint2( NaniteView.ViewSizeAndInvSize.xy );
-
-			float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-			float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
-
-			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum );
+			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
 
 			const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
 			
@@ -577,16 +562,23 @@ void InstanceCullVSM(
 				BRANCH
 				if( bViewHZB && bVisible )
 				{
-					float4x4 LocalToPrevTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, MipView.PrevPreViewTranslation);
-					float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, MipView.PrevTranslatedWorldToClip);
+					FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum);
 
-					FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
-				
 					BRANCH
-					if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
+					if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane && !bSkipBoxCullHZB)
 					{
+						bool bShouldSampleStaticHzb = true;//ShouldCacheInstanceAsStatic(InstanceData);
 						FScreenRect PrevRect = GetScreenRect(MipView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-						bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB(MipView.TargetPrevLayerIndex, MipView.TargetMipLevel, PrevRect );
+						bool bWasOccluded = !IsVisibleMaskedHZB(MipView.TargetPrevLayerIndex, MipView.TargetMipLevel, PrevRect, false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, 0U, bShouldSampleStaticHzb);
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+						if (bWasOccluded)
+						{
+							WriteOccludedInstance(MipViewId, InstanceId);
+						}
+#endif
+
+						bVisible = !bWasOccluded;
+
 					}
 				}
 

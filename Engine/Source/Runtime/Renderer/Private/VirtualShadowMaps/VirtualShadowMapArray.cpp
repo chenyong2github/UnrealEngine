@@ -340,6 +340,7 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	UniformParameters.NumDirectionalLights = 0;
 	UniformParameters.MaxPhysicalPages = 0;
 	UniformParameters.StaticCachedPixelOffsetY = 0;
+	UniformParameters.StaticCachedPageOffsetY = 0;
 	UniformParameters.StaticPageIndexOffset = 0;
 	// NOTE: Most uniform values don't matter when VSM is disabled
 
@@ -365,6 +366,7 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 		{
 			// Store the static pages below the dynamic/merged pages
 			UniformParameters.StaticCachedPixelOffsetY = PhysicalPagesY * FVirtualShadowMap::PageSize;
+			UniformParameters.StaticCachedPageOffsetY = PhysicalPagesY;
 			// Offset to static pages in linear page index
 			UniformParameters.StaticPageIndexOffset = PhysicalPagesY * PhysicalPagesX;
 			PhysicalPagesY *= 2;
@@ -1785,6 +1787,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FHZBShaderParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HZBPageTable)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HZBPageFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, HZBPageRectBounds)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
@@ -2163,6 +2166,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	FGPUScene& GPUScene = Scene.GPUScene;
 
 	FRDGBufferSRVRef PrevPageTableRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable"))) : nullptr;
+	FRDGBufferSRVRef PrevPageFlagsRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags"))) : nullptr;
 	FRDGBufferSRVRef PrevPageRectBoundsRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"))) : nullptr;
 
 	int32 HZBMode = CVarNonNaniteVsmUseHzb.GetValueOnRenderThread();
@@ -2316,6 +2320,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	{
 		// Mode 2 uses the current frame HZB  & page table.
 		HZBShaderParameters.HZBPageTable = HZBMode == 2 ? GraphBuilder.CreateSRV(PageTableRDG) : PrevPageTableRDGSRV;
+		HZBShaderParameters.HZBPageFlags = HZBMode == 2 ? GraphBuilder.CreateSRV(PageFlagsRDG) : PrevPageFlagsRDGSRV;
 		HZBShaderParameters.HZBPageRectBounds = HZBMode == 2 ? GraphBuilder.CreateSRV(PageRectBoundsRDG) : PrevPageRectBoundsRDGSRV;
 		HZBShaderParameters.HZBTexture = HZBTexture;
 		HZBShaderParameters.HZBSize = HZBTexture->Desc.Extent;

@@ -150,7 +150,7 @@ void VirtualSmInvalidateInstancePagesCS(
 							if (OverlapsAnyValidPage(ProjectionData.VirtualShadowMapId, MipLevel, RectPages, VSM_ALLOCATED_FLAG))
 							{
 #if USE_HZB_OCCLUSION
-								FPageTestScreenRect HZBTestRect = SetupPageHZBRect(Rect);
+								FPageTestScreenRect HZBTestRect = SetupPageHZBRect(Rect, ProjectionData.VirtualShadowMapId, MipLevel);
 #endif // USE_HZB_OCCLUSION
 
 								// 3. do invalidation

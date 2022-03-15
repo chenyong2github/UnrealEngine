@@ -246,8 +246,10 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 						// In Mode 2 we are using the current-frame HZB and can use any page whether it is cached or not.
 						// TODO: Figure out which flag(s) we actually want here. Also need to check the non-nanite one?
 						// TODO: for mode 1, we need to use the previous view transform and rect.
+						bool bShouldSampleStaticHzb = true;//ShouldCacheInstanceAsStatic(InstanceData);
 						uint VisiblePageMask = HZBMode == 1 ? (VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG) : 0U;
-						if (!IsVisibleValidMaskedHZB(HZBMode == 1 ? MipView.TargetPrevLayerIndex : VirtualShadowMapId, VirtualShadowMapId, MipLevel, RectPages, Rect, VisiblePageMask))
+						if (!IsVisibleMaskedHZB(HZBMode == 1 ? MipView.TargetPrevLayerIndex : VirtualShadowMapId, MipLevel, Rect, true, HZBMode == 2, VisiblePageMask, bShouldSampleStaticHzb))
+
 						{
 							StatsBufferInterlockedInc(VSM_STAT_NON_NANITE_INSTANCES_HZB_CULLED);
 							continue;

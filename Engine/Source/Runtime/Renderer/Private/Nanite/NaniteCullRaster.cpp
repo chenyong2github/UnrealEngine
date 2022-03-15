@@ -263,6 +263,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FVirtualShadowMapUniformParameters, VirtualShadowMap )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	HZBPageTable )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint4 >,	HZBPageRectBounds )
+	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	HZBPageFlags )
 END_SHADER_PARAMETER_STRUCT()
 
 class FRasterTechnique
@@ -370,7 +371,8 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FPrimitiveFilterDim, FDebugFlagsDim, FRasterTechniqueDim>;
+	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FPrimitiveFilterDim, FDebugFlagsDim, FRasterTechniqueDim, FVirtualTextureTargetDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -384,6 +386,11 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		if( !FRasterTechnique::ShouldCompilePermutation( Parameters, PermutationVector.Get<FRasterTechniqueDim>() ) )
 			return false;
 
+		// Skip permutations targeting other culling passes, as they are covered in the specialized VSM instance cull
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() && PermutationVector.Get<FCullingPassDim>() != CULLING_PASS_OCCLUSION_POST)
+		{
+			return false;
+		}
 		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
 	}
 
@@ -424,6 +431,8 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedInstancesArgs )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InPrimitiveFilterBuffer )
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
 
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 
@@ -474,8 +483,9 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 
 	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
+	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN);
 
-	using FPermutationDomain = TShaderPermutationDomain<FPrimitiveFilterDim, FDebugFlagsDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FPrimitiveFilterDim, FDebugFlagsDim, FCullingPassDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -491,7 +501,6 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine( TEXT( "USE_GLOBAL_GPU_SCENE_DATA" ), 1 );
 		OutEnvironment.SetDefine( TEXT( "NANITE_MULTI_VIEW" ), 1 );
-		OutEnvironment.SetDefine( TEXT( "CULLING_PASS" ), CULLING_PASS_NO_OCCLUSION );
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
@@ -502,8 +511,10 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutMainAndPostNodesAndClusterBatches )
-	
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FQueueState >, OutQueueState )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FInstanceDraw >, OutOccludedInstances)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FQueueState >, OutQueueState)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer< uint >, OutOccludedInstancesArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer )
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InOccludedInstances )
@@ -1531,14 +1542,11 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 	checkf(GRHIPersistentThreadGroupCount > 0, TEXT("GRHIPersistentThreadGroupCount must be configured correctly in the RHI."));
 
-	// Currently only occlusion free multi-view routing.
-	ensure(!VirtualShadowMapArray || CullingPass == CULLING_PASS_NO_OCCLUSION);
-
 	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
 	FRDGBufferRef Dummy = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
 
-	if (VirtualShadowMapArray)
+	if (VirtualShadowMapArray && (CullingPass != CULLING_PASS_OCCLUSION_POST))
 	{
 		RDG_GPU_STAT_SCOPE( GraphBuilder, NaniteInstanceCullVSM );
 
@@ -1564,21 +1572,28 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			PassParameters->InPrimitiveFilterBuffer			= GraphBuilder.CreateSRV(CullingContext.PrimitiveFilterBuffer);
 		}
 
-		check( CullingPass == CULLING_PASS_NO_OCCLUSION );
 		check( CullingContext.InstanceDrawsBuffer == nullptr );
 		PassParameters->OutMainAndPostNodesAndClusterBatches = GraphBuilder.CreateUAV( MainAndPostNodesAndClusterBatchesBuffer );
 		
+		if (CullingPass == CULLING_PASS_OCCLUSION_MAIN)
+		{
+			PassParameters->OutOccludedInstances = GraphBuilder.CreateUAV(CullingContext.OccludedInstances);
+			PassParameters->OutOccludedInstancesArgs = GraphBuilder.CreateUAV(CullingContext.OccludedInstancesArgs);
+		}
+
 		check(CullingContext.ViewsBuffer);
 
 		FInstanceCullVSM_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FInstanceCullVSM_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
+		PermutationVector.Set<FInstanceCullVSM_CS::FCullingPassDim>(CullingPass);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCullVSM_CS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME( "Main Pass: InstanceCullVSM - No occlusion" ),
+			CullingPass == CULLING_PASS_OCCLUSION_MAIN ? RDG_EVENT_NAME( "Main Pass: InstanceCullVSM" ) 
+			                                           : RDG_EVENT_NAME( "Main Pass: InstanceCullVSM - No occlusion" ),
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCountWrapped(CullingContext.NumInstancesPreCull, 64)
@@ -1604,6 +1619,16 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 		PassParameters->OutQueueState						= GraphBuilder.CreateUAV( CullingContext.QueueState );
 		
+		if (VirtualShadowMapArray)
+		{
+			check( CullingPass == CULLING_PASS_OCCLUSION_POST );
+			PassParameters->VirtualShadowMap = VirtualTargetParameters;
+			// Set the HZB page table and flags to match the now rebuilt HZB for the current frame
+			PassParameters->VirtualShadowMap.HZBPageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
+			PassParameters->VirtualShadowMap.HZBPageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
+			PassParameters->VirtualShadowMap.HZBPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG);
+		}
+
 		if (CullingContext.StatsBuffer)
 		{
 			PassParameters->OutStatsBuffer					= GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
@@ -1642,6 +1667,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCull_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCull_CS::FRasterTechniqueDim>(int32(RasterContext.RasterTechnique));
+		PermutationVector.Set<FInstanceCull_CS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
 		if( InstanceCullingPass == CULLING_PASS_OCCLUSION_POST )
@@ -1711,6 +1737,14 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		if (VirtualShadowMapArray)
 		{
 			PassParameters->VirtualShadowMap = VirtualTargetParameters;
+			if (CullingPass == CULLING_PASS_OCCLUSION_POST)
+			{
+				PassParameters->VirtualShadowMap = VirtualTargetParameters;
+				// Set the HZB page table and flags to match the now rebuilt HZB for the current frame
+				PassParameters->VirtualShadowMap.HZBPageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
+				PassParameters->VirtualShadowMap.HZBPageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
+				PassParameters->VirtualShadowMap.HZBPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG);
+			}
 		}
 
 		if (CullingContext.StatsBuffer)
@@ -2845,15 +2879,18 @@ void CullRasterize(
 		// HZB (if provided) comes from the previous frame, so we need last frame's page table
 		FRDGBufferRef HZBPageTableRDG = VirtualShadowMapArray->PageTableRDG;	// Dummy data, but matches the expected format
 		FRDGBufferRef HZBPageRectBoundsRDG = VirtualShadowMapArray->PageRectBoundsRDG;	// Dummy data, but matches the expected format
+		FRDGBufferRef HZBPageFlagsRDG = VirtualShadowMapArray->PageFlagsRDG;	// Dummy data, but matches the expected format
 
 		if (CullingContext.PrevHZB)
 		{
 			check( VirtualShadowMapArray->CacheManager );
 			HZBPageTableRDG = GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->CacheManager->PrevBuffers.PageTable, TEXT( "Shadow.Virtual.HZBPageTable" ) );
 			HZBPageRectBoundsRDG = GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->CacheManager->PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.HZBPageRectBounds"));
+			HZBPageFlagsRDG = GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->CacheManager->PrevBuffers.PageFlags, TEXT( "Shadow.Virtual.HZBPageFlags" ) );
 		}
-		VirtualTargetParameters.HZBPageTable = GraphBuilder.CreateSRV( HZBPageTableRDG, PF_R32_UINT );
-		VirtualTargetParameters.HZBPageRectBounds = GraphBuilder.CreateSRV(HZBPageRectBoundsRDG );
+		VirtualTargetParameters.HZBPageTable = GraphBuilder.CreateSRV( HZBPageTableRDG );
+		VirtualTargetParameters.HZBPageRectBounds = GraphBuilder.CreateSRV( HZBPageRectBoundsRDG );
+		VirtualTargetParameters.HZBPageFlags = GraphBuilder.CreateSRV( HZBPageFlagsRDG );
 	}
 	FGPUSceneParameters GPUSceneParameters;
 	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceSceneDataBuffer.SRV;
@@ -3016,6 +3053,13 @@ void CullRasterize(
 	if (CullingContext.Configuration.bTwoPassOcclusion)
 	{
 		// Build a closest HZB with previous frame occluders to test remainder occluders against.
+		if (VirtualShadowMapArray)
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "BuildPreviousOccluderHZB(VSM)");
+			CullingParameters.HZBTexture = VirtualShadowMapArray->BuildHZBFurthest(GraphBuilder);
+			CullingParameters.HZBSize = CullingParameters.HZBTexture->Desc.Extent;
+		}
+		else
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildPreviousOccluderHZB");
 			

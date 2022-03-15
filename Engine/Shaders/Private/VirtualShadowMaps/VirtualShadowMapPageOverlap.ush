@@ -9,6 +9,7 @@
 
 StructuredBuffer<uint> HZBPageTable;
 StructuredBuffer<uint4> HZBPageRectBounds;
+StructuredBuffer<uint> HZBPageFlags;
 
 // NOTE: HMipLevel = 0 means the regular page flags
 uint ShadowGetPageFlags(uint ShadowMapID, uint MipLevel, uint HMipLevel, uint2 PageAddress)
@@ -54,81 +55,14 @@ bool OverlapsAnyValidPage(uint ShadowMapID, uint MipLevel, uint4 RectPages, uint
 	uint HMipLevel = MipLevelForRect(RectPages, 2);
 
 	RectPages >>= HMipLevel;
-	for( uint y = RectPages.y; y <= RectPages.w; y++ )
+	for (uint y = RectPages.y; y <= RectPages.w; y++)
 	{
-		for( uint x = RectPages.x; x <= RectPages.z; x++ )
+		for (uint x = RectPages.x; x <= RectPages.z; x++)
 		{
 			uint PageFlags = ShadowGetPageFlags(ShadowMapID, MipLevel, HMipLevel, uint2(x, y));
 			if ((PageFlags & FlagMask) == FlagMask)
 			{
 				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-static const uint HZB_PAGE_SIZE = VSM_PAGE_SIZE / 2;
-
-bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
-{
-	// Don't have an HZB to test.
-	if( ShadowMapID == ~0u )
-		return true;
-
-	// Can't go past mip level of 4x4 for a 4x4 test without possibly covering more than 4 pages.
-	if( Rect.HZBLevel > VSM_LOG2_PAGE_SIZE - 3 )
-	{
-#if 1
-		return true;
-#else
-		Rect.HZBLevel = VSM_LOG2_PAGE_SIZE - 3;
-		Rect.HZBTexels = int4( Rect.Pixels.xy, max( Rect.Pixels.xy, Rect.Pixels.zw ) );	
-		Rect.HZBTexels >>= Rect.HZBLevel + 1;
-#endif
-	}
-
-	uint PageTableLevelOffset = CalcPageTableLevelOffset( ShadowMapID, MipLevel );
-
-	uint4 RectPages = GetPageRect(Rect);
-
-	// If the clipped page rect is smaller than the unclipped rect, there are unmapped pages in the footprint and we return 
-	// that it is visible.
-	uint4 ClippedRectPages = ClipPageRect(RectPages, ShadowMapID, MipLevel, HZBPageRectBounds);
-	if (any(ClippedRectPages.xy > RectPages.xy) || any(ClippedRectPages.zw < RectPages.zw))
-	{
-		return true;
-	}
-	for( uint y = RectPages.y; y <= RectPages.w; y++ )
-	{
-		for( uint x = RectPages.x; x <= RectPages.z; x++ )
-		{
-			uint2 vPage = uint2(x,y);
-			uint PageOffset = PageTableLevelOffset + CalcPageOffsetInLevel( MipLevel, vPage );
-			FShadowPhysicalPage pPage = ShadowDecodePageTable( HZBPageTable[ PageOffset ] );
-
-			if( !pPage.bThisLODValid )
-			{
-				// If this is a new page we can't consider everything occluded the first time.
-				//if( (VirtualShadowMap.PageFlags[ PageOffset ] & VSM_ALLOCATED_FLAG) != 0 )
-				return true;
-
-				// If the receiver points were projected into prev HZB space we could accurately ignore parts of the HZB that weren't relevent.
-			}
-			else
-			{
-				uint Shift = VSM_LOG2_PAGE_SIZE - 1 - Rect.HZBLevel;
-
-				FScreenRect ClippedRect = Rect;
-				ClippedRect.HZBTexels -= ( vPage << Shift ).xyxy;
-				ClippedRect.HZBTexels = clamp( ClippedRect.HZBTexels, 0, (int)HZB_PAGE_SIZE - 1 );
-				ClippedRect.HZBTexels += ( pPage.PhysicalAddress << Shift ).xyxy;
-
-				if( IsVisibleHZB( ClippedRect, true ) )
-				{
-					return true;
-				}
 			}
 		}
 	}
@@ -144,6 +78,8 @@ struct FPageTestScreenRect
 	FScreenRect ScreenRect;
 	uint HZBLevelPageSizeShift;
 	int HZBLevelPageSizeInclusive;
+	uint4 RectPages;
+	bool bWasPageRectClipped;
 };
 
 
@@ -151,7 +87,7 @@ struct FPageTestScreenRect
  * Set up a screen rect and pre-computed data for testing pages against HZB, this assumes a 4x4-HZB FScreenRect
  * as input. The resulting rect has been clamped to the mip level where a page is 4x4 texels, as higher mips are meaningless.
  */
-FPageTestScreenRect SetupPageHZBRect(FScreenRect ScreenRect)
+FPageTestScreenRect SetupPageHZBRect(FScreenRect ScreenRect, uint ShadowMapID, uint MipLevel)
 {
 	FPageTestScreenRect Result;
 	Result.ScreenRect = ScreenRect;
@@ -163,7 +99,13 @@ FPageTestScreenRect SetupPageHZBRect(FScreenRect ScreenRect)
 		Result.ScreenRect.HZBLevel = VSM_LOG2_PAGE_SIZE - 3U;
 	}
 	Result.HZBLevelPageSizeShift = VSM_LOG2_PAGE_SIZE - 1U - Result.ScreenRect.HZBLevel;
-	Result.HZBLevelPageSizeInclusive = (1 << Result.HZBLevelPageSizeShift) - 1;
+	Result.HZBLevelPageSizeInclusive = (1U << Result.HZBLevelPageSizeShift) - 1;
+	uint4 UnClippedRectPages = GetPageRect(ScreenRect);
+	// If the clipped page rect is smaller than the unclipped rect, there are unmapped pages in the footprint and we return 
+	// that it is visible.
+	Result.RectPages = ClipPageRect(UnClippedRectPages, ShadowMapID, MipLevel, HZBPageRectBounds);
+	Result.bWasPageRectClipped = any(Result.RectPages.xy > UnClippedRectPages.xy) || any(Result.RectPages.zw < UnClippedRectPages.zw);
+
 	return Result;
 }
 
@@ -177,7 +119,7 @@ bool IsPageVisibleHZB(uint2 vPage, uint PageFlagOffset, FPageTestScreenRect Page
 		uint2 PhysicalAddress = pPage.PhysicalAddress;
 		if ( bSampleStaticPage )
 		{
-			PhysicalAddress += GetVirtualShadowMapStaticPixelOffset() >> VSM_LOG2_PAGE_SIZE;
+			PhysicalAddress += GetVirtualShadowMapStaticPageOffset();
 		}
 
 		FScreenRect HZBTestRect = PageTestScreenRect.ScreenRect;
@@ -195,12 +137,13 @@ bool IsPageVisibleHZB(uint2 vPage, uint PageFlagOffset, FPageTestScreenRect Page
 	return true;
 }
 
+
 /**
- * Perform HZB-Test for a rectangle of pages, returning true if the Rect is visible in at least one page. 
- * Skips unallocated pages, and returns 'visible' (true) for any page that contains any bit in the VisiblePageMask. This can be used
- * to default un-cached pages to visible. If the PrevShadowMapID is INDEX_NONE, the function returns visible.
+ * Perform HZB-Test for a rectangle of pages, returning true if the Rect is visible in at least one page.
+ * @param TestPageMask - page flags to inlcude in occlusion test, e.g., VSM_ALLOCATED_FLAG will test any allocated page, but ignore unallocated ones.
+ * @param VisiblePageMask - page flags to treat as un-occluded, teted after the above mask, e.g., use VSM_UNCACHED_FLAG to treat any uncached page as visible. 
  */
-bool IsVisibleValidMaskedHZB(uint PrevShadowMapID, uint VirtualShadowMapId, uint MipLevel, uint4 RectPages, FScreenRect Rect, uint VisiblePageMask)
+bool IsVisibleMaskedHZB(uint PrevShadowMapID, uint MipLevel, FScreenRect Rect, bool bClampToPageLevel, bool bTreatUnmappedAsOccluded, uint VisiblePageMask, bool bSampleStaticPage, uint TestPageMask = 0xFFFFFFFFu)
 {
 	// Don't have an HZB to test.
 	if (PrevShadowMapID == ~0u)
@@ -208,21 +151,36 @@ bool IsVisibleValidMaskedHZB(uint PrevShadowMapID, uint VirtualShadowMapId, uint
 		return true;
 	}
 
-	FPageTestScreenRect HZBTestRect = SetupPageHZBRect(Rect);
-	uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
+	// Don't go past mip level of 4x4 for a 4x4 test without possibly covering more than 4 pages.
+	if (!bClampToPageLevel && Rect.HZBLevel > VSM_LOG2_PAGE_SIZE - 3)
+	{
+		return true;
+	}
+
+	FPageTestScreenRect HZBTestRect = SetupPageHZBRect(Rect, PrevShadowMapID, MipLevel);
+
+	// Allow treating unmapped pages as visible, such that 
+	if (!bTreatUnmappedAsOccluded && HZBTestRect.bWasPageRectClipped)
+	{
+		return true;
+	}
+
+
+	uint4 RectPages = HZBTestRect.RectPages;
+	uint PageTableLevelOffset = CalcPageTableLevelOffset(PrevShadowMapID, MipLevel);
+
 	for (uint y = RectPages.y; y <= RectPages.w; y++)
 	{
 		for (uint x = RectPages.x; x <= RectPages.z; x++)
 		{
 			uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
-			uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
+			uint PageFlag = HZBPageFlags[PageFlagOffset];
 
-			// Skip un-allocated pages as we are not going to draw into them anyway
-			if ((PageFlag & VSM_ALLOCATED_FLAG) != 0)
+			// Skip unallocated pages if bTreatUnmappedAsOccluded is true, otherwise test everything
+			if (!bTreatUnmappedAsOccluded || ((PageFlag & TestPageMask) != 0U))
 			{
 				// Treat pages with the VisiblePageMask as visible - can be used to select only cached pages
-				// Temp "hack": sample the static page HZB (if separate static pages are enabled) as it will tend to cull more things
-				if ((PageFlag & VisiblePageMask) != 0 || IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect, true))
+				if ((PageFlag & VisiblePageMask) != 0U || IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect, bSampleStaticPage))
 				{
 					return true;
 				}
