@@ -116,7 +116,24 @@ static uint32 VectorVMSerializeSetError_(FVectorVMSerializeState *SerializeState
 #define VVMSer_insEndDecodeExp(...)
 #define VVMSer_insEndExp(...)
 #define VVMSer_initSerializationState(...)
+#define VVMSer_instruction(...)
+#define VVMSer_regUsed(...)
 #else //VVM_SERIALIZE_NO_WRITE
+
+#define VVMSer_instruction(Type, NumParams) if (SerializeState)                                                                         \
+                                            {                                                                                           \
+                                                for (int vi = 0; vi <= (int)(NumParams); ++vi)                                          \
+                                                {                                                                                       \
+                                                    if ((VecIndices[vi] & 0x8000) == 0)											        \
+                                                    {                                                                                   \
+                                                        SerializeState->TempRegFlags[VecIndices[vi]] = VVMRegFlag_Clean + (Type);       \
+                                                    }                                                                                   \
+                                                }                                                                                       \
+                                            }
+#define VVMSer_regUsed(RegIdx, Type)        if (SerializeState && RegIdx != 0xFFFF)                                                     \
+                                            {                                                                                           \
+                                                SerializeState->TempRegFlags[RegIdx] = VVMRegFlag_Clean + (Type);                       \
+                                            }
 
 
 #define VVMSer_chunkStartExp(SerializeState, ChunkIdx_, BatchIdx)                   \
@@ -852,6 +869,9 @@ VECTORVM_API uint32 SerializeVectorVMOutputDataSets(FVectorVMSerializeState *Ser
 #define VVMSer_insStartExp(...)
 #define VVMSer_insEndDecodeExp(...)
 #define VVMSer_insEndExp(...)
+
+#define VVMSer_instruction(...)
+#define VVMSer_regUsed(...)
 
 #define VVMSer_initSerializationState(...)
 #define FreeVectorVMSerializeState(...)

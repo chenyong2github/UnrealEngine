@@ -25,7 +25,11 @@ public class VectorVM : ModuleRules
                 "Runtime/Engine/Classes/Curves"
             }
         );
-
-
+        PublicDefinitions.AddRange(
+            new string[]
+            {
+                "NIAGARA_EXP_VM",
+            }
+        );
     }
 }

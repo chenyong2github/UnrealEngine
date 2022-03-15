@@ -325,15 +325,16 @@ VVMSet_m128iConst(  AlmostTwoBits   , 0x3fffffff);
 #define VVM_vecBoolToFloat(v)        VectorSelect(v, VectorSet1(1.f), VectorZeroFloat());
 #define VVM_vecIntToBool(v)          VectorIntCompareGT(v, VectorSetZero())
 #define VVM_vecBoolToInt(v)          VectorIntSelect(v, VectorIntSet1(1), VectorSetZero())
-#define VVM_vecSqrtFast(v)           VectorReciprocal(VectorReciprocalSqrt(v))
-#define VVM_vecACosFast(v)           VectorATan2(VVM_vecSqrtFast(VectorMultiply(VectorSubtract(VVM_m128Const(One), v), VectorAdd(VVM_m128Const(One), v))), v)
+#define VVM_vecACosFast(v)           VectorATan2(VectorSqrt(VectorMultiply(VectorSubtract(VVM_m128Const(One), v), VectorAdd(VVM_m128Const(One), v))), v)
 //safe instructions -- handle divide by zero "gracefully" by returning 0
-#define VVM_safeIns_div(v0, v1)      VectorSelect(VectorCompareGT(VectorAbs(v1), VVM_m128Const(Epsilon)), VectorDivide(v0, v1)    , VectorZeroFloat())
-#define VVM_safeIns_rcp(v)           VectorSelect(VectorCompareGT(VectorAbs(v) , VVM_m128Const(Epsilon)), VectorReciprocal(v)     , VectorZeroFloat())
-#define VVM_safe_sqrt(v)             VectorSelect(VectorCompareGT(VectorAbs(v) , VVM_m128Const(Epsilon)), VVM_vecSqrtFast(v)      , VectorZeroFloat())
-#define VVM_safe_log(v)              VectorSelect(VectorCompareGT(VectorAbs(v) , VectorZeroFloat())     , VectorLog(v)		       , VectorZeroFloat())
-#define VVM_safe_pow(v0, v1)         VectorSelect(VectorCompareGT(VectorAbs(v1), VVM_m128Const(Epsilon)), VectorPow(v0, v1)       , VectorZeroFloat())
-#define VVM_safe_rsq(v)              VectorSelect(VectorCompareGT(VectorAbs(v) , VVM_m128Const(Epsilon)), VectorReciprocalSqrt(v) , VectorZeroFloat())
+#define VVM_safeIns_div(v0, v1)      VectorSelect(VectorCompareGT(VectorAbs(v1), VVM_m128Const(Epsilon)), VectorDivide(v0, v1)                  , VectorZeroFloat())
+#define VVM_safeIns_rcp(v)           VectorSelect(VectorCompareGT(VectorAbs(v) , VVM_m128Const(Epsilon)), VectorDivide(VVM_m128Const(One), v)   , VectorZeroFloat())
+#define VVM_safe_sqrt(v)             VectorSelect(VectorCompareGT(VectorAbs(v) , VVM_m128Const(Epsilon)), VectorSqrt(v)                         , VectorZeroFloat())
+#define VVM_safe_log(v)              VectorSelect(VectorCompareGT(VectorAbs(v) , VectorZeroFloat())     , VectorLog(v)		                    , VectorZeroFloat())
+#define VVM_safe_pow(v0, v1)         VectorSelect(VectorCompareGT(VectorAbs(v1), VVM_m128Const(Epsilon)), VectorPow(v0, v1)                     , VectorZeroFloat())
+#define VVM_safe_rsq(v)              VectorSelect(VectorCompareGT(VectorAbs(v) , VVM_m128Const(Epsilon)), VectorReciprocalSqrt(v)               , VectorZeroFloat())
+
+#define VVMDebugBreakIf(expr)	if ((expr)) { PLATFORM_BREAK(); }
 
 static void VVMMemCpy(void *dst, void *src, size_t bytes)
 {
@@ -442,6 +443,9 @@ static bool AssignInstancesToBatch(FVectorVMState *VVMState, FVectorVMBatchState
 		int NumAssignedInstances    = FPlatformAtomics::InterlockedCompareExchange(&VVMState->NumInstancesAssignedToBatches, OldNumAssignedInstances + MaxInstancesPerBatch, OldNumAssignedInstances);
 		if (NumAssignedInstances == OldNumAssignedInstances)
 		{
+			//we allow "overflow" on the thread-local BatchState to keep access to the contended variable: VVMState->NumInstancesAssignedToBatches 
+			//down to a single atomic.  Letting BatchState->NumInstances go < 0 is fine because this will return false and Exec() will not run
+			//for this BatchState.
 			BatchState->StartInstance = OldNumAssignedInstances;
 			BatchState->NumInstances  = MaxInstancesPerBatch;
 			if (BatchState->StartInstance + BatchState->NumInstances > VVMState->TotalNumInstances) {
@@ -455,6 +459,7 @@ static bool AssignInstancesToBatch(FVectorVMState *VVMState, FVectorVMBatchState
 			return true;
 		}
 	} while (SanityCount++ < (1 << 30));
+	VVMDebugBreakIf(SanityCount > (1 << 30) - 1);
 	return false;
 }
 
@@ -477,19 +482,19 @@ static void SetupRandStateForBatch(FVectorVMBatchState *BatchState)
 	uint64 pcg_state = FPlatformTime::Cycles64();
 	uint64 pcg_inc   = (((uint64)BatchState << 32) ^ 0XCAFEF00DD15EA5E5U) | 1;
 	pcg_state ^= (FPlatformTime::Cycles64() << 32ULL);
-	//use psuedo-pcg to setup a state for xorwow... lol!
-	for (int i = 0; i < 5; ++i)
+	//use psuedo-pcg to setup a state for xorwow
+	for (int i = 0; i < 5; ++i) //loop for xorwow internal state
 	{
-		uint32 values[4];
+		MS_ALIGN(16) uint32 Values[4] GCC_ALIGN(16);
 		for (int j = 0; j < 4; ++j)
 		{
 			uint64 old_state   = pcg_state;
 			pcg_state          = old_state * 6364136223846793005ULL + pcg_inc;
 			uint32 xor_shifted = (uint32)(((old_state >> 18U) ^ old_state) >> 27U);
 			uint32 rot         = old_state >> 59U;
-			values[j]          = (xor_shifted >> rot) | (xor_shifted << ((0U - rot) & 31));
+			Values[j]          = (xor_shifted >> rot) | (xor_shifted << ((0U - rot) & 31));
 		}
-		VectorIntStore(MakeVectorRegisterInt(values[0], values[1], values[2], values[3]), BatchState->RandState + i);
+		VectorIntStore(*(VectorRegister4i *)Values, BatchState->RandState + i);
 	}
 	BatchState->RandCounters = MakeVectorRegisterInt64(pcg_inc, pcg_state);
 	BatchState->RandStream.GenerateNewSeed();
@@ -753,35 +758,7 @@ VECTORVM_API FVectorVMState *InitVectorVMState(FVectorVMInitData *InitData, FVec
 }
 
 
-static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSerializeState *SerializeState, FVectorVMSerializeState *CmpSerializeState)
-{
-#	if defined(VVM_INCLUDE_SERIALIZATION) && !defined(VVM_SERIALIZE_NO_WRITE)
-#		ifdef VVM_SERIALIZE_PERF
-#			define serializeIns(Type, NumParams)	
-#			define serializeRegUsed(RegIdx, Type)
-#		else //VVM_SERIALIZE_PERF
-#			define serializeIns(Type, NumParams)	if (SerializeState)                                                                         \
-													{                                                                                           \
-														for (int vi = 0; vi <= (int)(NumParams); ++vi)                                          \
-														{                                                                                       \
-															if ((VecIndices[vi] & 0x8000) == 0)											        \
-															{                                                                                   \
-																SerializeState->TempRegFlags[VecIndices[vi]] = VVMRegFlag_Clean + (Type);       \
-															}                                                                                   \
-														}                                                                                       \
-													}
-
-#			define serializeRegUsed(RegIdx, Type)	if (SerializeState)                                                                         \
-													{                                                                                           \
-														SerializeState->TempRegFlags[RegIdx] = VVMRegFlag_Clean + (Type);                       \
-													}
-#		endif //VVM_SERIALIZE_PERF
-#	else //VVM_INCLUDE_SERIALIZATION
-#		define serializeIns(Type, NumParams)		
-#		define serializeRegUsed(RegIdx, Type)
-#	endif //VVM_INCLUDE_SERIALIZATION
-
-#	define execVecIns1f(ins_)						serializeIns(0, 1)                                                  \
+#	define execVecIns1f(ins_)						VVMSer_instruction(0, 1)                                            \
 													for (int i = 0; i < NumLoops; ++i)                                  \
 													{                                                                   \
 														VectorRegister4f r0  = VectorLoad(&VecReg[0][i & RegInc[0]].v); \
@@ -790,7 +767,7 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 													}                                                                   \
 													InsPtr += 4;
 
-#	define execVecIns2f(ins_)						serializeIns(0, 2)                                                  \
+#	define execVecIns2f(ins_)						VVMSer_instruction(0, 2)                                            \
 													for (int i = 0; i < NumLoops; ++i)                                  \
 													{                                                                   \
 														VectorRegister4f r0  = VectorLoad(&VecReg[0][i & RegInc[0]].v); \
@@ -800,7 +777,7 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 													}                                                                   \
 													InsPtr += 6;
 
-#	define execVecIns3f(ins_)						serializeIns(0, 3)                                                  \
+#	define execVecIns3f(ins_)						VVMSer_instruction(0, 3)                                            \
 													for (int i = 0; i < NumLoops; ++i)                                  \
 													{                                                                   \
 														VectorRegister4f r0  = VectorLoad(&VecReg[0][i & RegInc[0]].v); \
@@ -811,7 +788,7 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 													}                                                                   \
 													InsPtr += 8;
 
-#	define execVecIns1i(ins_)						serializeIns(1, 1)                                                     \
+#	define execVecIns1i(ins_)						VVMSer_instruction(1, 1)                                               \
 													for (int i = 0; i < NumLoops; ++i)                                     \
 													{                                                                      \
 														VectorRegister4i r0  = VectorIntLoad(&VecReg[0][i & RegInc[0]].v); \
@@ -820,7 +797,7 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 													}                                                                      \
 													InsPtr += 4;
 
-#	define execVecIns2i(ins_)						serializeIns(1, 2)                                                     \
+#	define execVecIns2i(ins_)						VVMSer_instruction(1, 2)                                               \
 													for (int i = 0; i < NumLoops; ++i)                                     \
 													{                                                                      \
 														VectorRegister4i r0  = VectorIntLoad(&VecReg[0][i & RegInc[0]].v); \
@@ -830,7 +807,7 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 													}                                                                      \
 													InsPtr += 6;
 
-#	define execVecIns3i(ins_)						serializeIns(1, 3)                                                     \
+#	define execVecIns3i(ins_)						VVMSer_instruction(1, 3)                                               \
 													for (int i = 0; i < NumLoops; ++i)                                     \
 													{                                                                      \
 														VectorRegister4i r0  = VectorIntLoad(&VecReg[0][i & RegInc[0]].v); \
@@ -841,7 +818,26 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 													}                                                                      \
 													InsPtr += 8;
 
+#		define VVMDecodeInstructionRegisters(Bytecode, RegData, RegIncMask) do {                                                                                                                                                            \
+			uint32 VecOffsets[4];                                                                                                                                                                                                           \
+			VectorRegister4i VecIndicesIn4  = VectorIntLoad(Bytecode);                                                                          /* 16 bit inputs.  15 bits for index, 1 high bit for const/reg flag (0: reg, 1: const) */   \
+			VectorRegister4i VecIndices4    = VectorIntExpandLow16To32(VecIndicesIn4);                                                          /* 4-wide 32 bit version of the inputs, bits 16:31 are 0 */                                 \
+			VectorRegister4i RegIncInv4     = VectorIntSubtract(VectorSetZero(), VectorShiftRightImmArithmetic(VecIndices4, 15));               /* Sets the inverse of what we need: 0xFF... is const, 0 is reg */                          \
+			VectorRegister4i RegInc4        = VectorIntXor(RegIncInv4, VVM_m128iConst(FMask));                                                  /* Whether to increment the index counter: 0xFF... for registers, and 0 for const */        \
+			VectorRegister4i VecRegIndices4 = VectorIntAnd(VecIndices4, VVM_m128iConst(RegOffsetMask));                                         /* Only the register index, the const/reg flag is stripped off */                           \
+			VectorRegister4i ConstOffset4   = VectorIntAnd(VecRegIndices4, RegIncInv4);                                                         /* Only the const offsets, all registers are masked out */                                  \
+			VectorRegister4i TempRegOffset4 = VectorIntAnd(VectorIntAdd(NumConsts4, VectorIntMultiply(VecRegIndices4, NumLoops4)), RegInc4);    /* Only the register offsets, all consts are masked out */                                  \
+			VectorRegister4i OptRegOffset4  = VectorIntOr(ConstOffset4, TempRegOffset4);                                                        /* Blended (sse4 would be nice) const and temp register offsets */                          \
+			VectorIntStore(RegInc4, RegIncMask);                                                                                                                                                                                            \
+			VectorIntStore(OptRegOffset4, VecOffsets);                                                                                                                                                                                      \
+			(RegData)[0] = BatchState->RegisterData + VecOffsets[0];                                                                                                                                                                        \
+			(RegData)[1] = BatchState->RegisterData + VecOffsets[1];                                                                                                                                                                        \
+			(RegData)[2] = BatchState->RegisterData + VecOffsets[2];                                                                                                                                                                        \
+			(RegData)[3] = BatchState->RegisterData + VecOffsets[3];                                                                                                                                                                        \
+		} while (0)
 
+static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSerializeState *SerializeState, FVectorVMSerializeState *CmpSerializeState)
+{
 	FVectorVMBatchState *BatchState = nullptr;
 	int BatchIdx = -1;
 	//check to see if we can reuse a batch's memory that's finished executing
@@ -893,7 +889,6 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 	int NumChunksThisBatch     = (BatchState->NumInstances + VVMState->MaxInstancesPerChunk - 1) / VVMState->MaxInstancesPerChunk;
 	
 	uint32 RegInc[4];
-		
 	VectorRegister4i NumConsts4 = VectorIntSet1(VVMState->NumConstBuffers);
 	
 	for (int ChunkIdxThisBatch = 0; ChunkIdxThisBatch < NumChunksThisBatch; ++ChunkIdxThisBatch, StartInstanceThisChunk += VVMState->MaxInstancesPerChunk)
@@ -912,24 +907,6 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 			BatchState->ChunkLocalData.NumOutputPerDataSet[i] = 0;
 		}
 		
-#		define VVMDecodeInstructionRegisters(Bytecode, RegData, RegIncMask) do {                                                                                                                                                            \
-			uint32 VecOffsets[4];                                                                                                                                                                                                           \
-			VectorRegister4i VecIndicesIn4  = VectorIntLoad(Bytecode);                                                                          /* 16 bit inputs.  15 bits for index, 1 high bit for const/reg flag (0: reg, 1: const) */   \
-			VectorRegister4i VecIndices4    = VectorIntExpandLow16To32(VecIndicesIn4);                                                          /* 4-wide 32 bit version of the inputs, bits 16:31 are 0 */                                 \
-			VectorRegister4i RegIncInv4     = VectorIntSubtract(VectorSetZero(), VectorShiftRightImmArithmetic(VecIndices4, 15));               /* Sets the inverse of what we need: 0xFF... is const, 0 is reg */                          \
-			VectorRegister4i RegInc4        = VectorIntXor(RegIncInv4, VVM_m128iConst(FMask));                                                  /* Whether to increment the index counter: 0xFF... for registers, and 0 for const */        \
-			VectorRegister4i VecRegIndices4 = VectorIntAnd(VecIndices4, VVM_m128iConst(RegOffsetMask));                                         /* Only the register index, the const/reg flag is stripped off */                           \
-			VectorRegister4i ConstOffset4   = VectorIntAnd(VecRegIndices4, RegIncInv4);                                                         /* Only the const offsets, all registers are masked out */                                  \
-			VectorRegister4i TempRegOffset4 = VectorIntAnd(VectorIntAdd(NumConsts4, VectorIntMultiply(VecRegIndices4, NumLoops4)), RegInc4);    /* Only the register offsets, all consts are masked out */                                  \
-			VectorRegister4i OptRegOffset4  = VectorIntOr(ConstOffset4, TempRegOffset4);                                                        /* Blended (sse4 would be nice) const and temp register offsets */                          \
-			VectorIntStore(RegInc4, RegIncMask);                                                                                                                                                                                            \
-			VectorIntStore(OptRegOffset4, VecOffsets);                                                                                                                                                                                      \
-			(RegData)[0] = BatchState->RegisterData + VecOffsets[0];                                                                                                                                                                        \
-			(RegData)[1] = BatchState->RegisterData + VecOffsets[1];                                                                                                                                                                        \
-			(RegData)[2] = BatchState->RegisterData + VecOffsets[2];                                                                                                                                                                        \
-			(RegData)[3] = BatchState->RegisterData + VecOffsets[3];                                                                                                                                                                        \
-		} while (0)
-
 		FVecReg *VecReg[4];
 		
 		while (InsPtr < InsPtrEnd)
@@ -979,7 +956,6 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 				case EVectorVMOp::step:                             execVecIns2f(VVM_vecStep);          break;
 				case EVectorVMOp::random:
 #					if defined(VVM_INCLUDE_SERIALIZATION) && !defined(VVM_SERIALIZE_NO_WRITE)
-#					ifndef VVM_SERIALIZE_PERF
 					if (SerializeState && (SerializeState->Flags & VVMSer_SyncRandom) && CmpSerializeState && CmpSerializeState->NumInstructions >= SerializeState->NumInstructions && CmpSerializeState->NumTempRegisters > VecIndices[1])
 					{
 						FVectorVMSerializeInstruction *CmpIns = nullptr;
@@ -1019,7 +995,6 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 							goto VVM_EndSyncRandom;
 						}
 					}
-#					endif //VVM_SERIALIZE_PERF
 #					endif //VVM_INCLUDE_SERIALIZATION
 					for (int i = 0; i < NumLoops; ++i)
 					{
@@ -1031,7 +1006,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 #					if defined(VVM_INCLUDE_SERIALIZATION) && !defined(VVM_SERIALIZE_NO_WRITE)
 					VVM_EndSyncRandom:
 #					endif //VVM_INCLUDE_SERIALIZATION
-					serializeRegUsed(VecIndices[1], 0);
+					VVMSer_regUsed(VecIndices[1], 0);
 					InsPtr += 4;
 				break;
 				case EVectorVMOp::noise:                            check(false);                       break;
@@ -1046,7 +1021,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 				case EVectorVMOp::subi:                             execVecIns2i(VectorIntSubtract);    break;
 				case EVectorVMOp::muli:                             execVecIns2i(VectorIntMultiply);    break;
 				case EVectorVMOp::divi: {
-					serializeIns(1, 2)
+					VVMSer_instruction(1, 2)
 					//@TODO: convert to double and div 4 wide
 					for (int i = 0; i < NumLoops; ++i)
 					{
@@ -1073,7 +1048,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 				case EVectorVMOp::signi:                            execVecIns1i(VectorIntSign);        break;
 				case EVectorVMOp::randomi: {
 					//@TODO: serialize syncing, no test cases yet
-					serializeIns(1, 1)
+					VVMSer_instruction(1, 1)
 					for (int i = 0; i < NumLoops; ++i)
 					{
 						VecReg[0][i].i = VVMXorwowStep(BatchState);
@@ -1101,7 +1076,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 						((int *)VecReg[2])[(i << 2) + 2] = ((int *)VecReg[0])[idx0 + 2] << ((int *)VecReg[1])[idx1 + 2];
 						((int *)VecReg[2])[(i << 2) + 3] = ((int *)VecReg[0])[idx0 + 3] << ((int *)VecReg[1])[idx1 + 3];
 					}
-					serializeRegUsed(VecIndices[2], 1);
+					VVMSer_regUsed(VecIndices[2], 1);
 					InsPtr += 6;
 					break;
 				case EVectorVMOp::bit_rshift:
@@ -1114,7 +1089,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 						((int *)VecReg[2])[(i << 2) + 2] = ((int *)VecReg[0])[idx0 + 2] >> ((int *)VecReg[1])[idx1 + 2];
 						((int *)VecReg[2])[(i << 2) + 3] = ((int *)VecReg[0])[idx0 + 3] >> ((int *)VecReg[1])[idx1 + 3];
 					}
-					serializeRegUsed(VecIndices[2], 1);
+					VVMSer_regUsed(VecIndices[2], 1);
 					InsPtr += 6;
 					break;
 				case EVectorVMOp::logic_and:                        execVecIns2i(VectorIntAnd);         break;
@@ -1126,7 +1101,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 					{
 						VecReg[1][i].i = VectorFloatToInt(VecReg[0][i & RegInc[0]].v);
 					}
-					serializeRegUsed(VecIndices[1], 1);
+					VVMSer_regUsed(VecIndices[1], 1);
 					InsPtr += 4;
 				break;
 				case EVectorVMOp::i2f:
@@ -1134,7 +1109,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 					{
 						VecReg[1][i].v = VectorIntToFloat(VecReg[0][i & RegInc[0]].i);
 					}
-					serializeRegUsed(VecIndices[1], 0);
+					VVMSer_regUsed(VecIndices[1], 0);
 					InsPtr += 4;
 				break;
 				case EVectorVMOp::f2b:                              execVecIns1f(VVM_vecFloatToBool);   break;
@@ -1143,7 +1118,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 				case EVectorVMOp::b2i:                              execVecIns1i(VVM_vecBoolToInt);     break;
 				case EVectorVMOp::inputdata_float:
 				case EVectorVMOp::inputdata_int32: {
-					uint8 RegType             = (uint8)OpCode - (uint8)EVectorVMOp::inputdata_float;
+					uint8 RegType             = (uint8)OpCode - (uint8)EVectorVMOp::inputdata_float;  //0: float, 1: int, 2: half
 					uint16 DataSetIdx         = *(uint16 *)(InsPtr    );
 					uint16 InputRegIdx        = *(uint16 *)(InsPtr + 2);
 					uint16 DestRegIdx         = *(uint16 *)(InsPtr + 4);
@@ -1152,13 +1127,27 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 					size_t DstIdx             = NumLoops * DestRegIdx;
 					uint32 **InputBuffers     = (uint32 **)VVMState->DataSets[DataSetIdx].InputRegisters.GetData();
 					VVMMemCpy(BatchState->RegisterData + VVMState->NumConstBuffers + DstIdx, InputBuffers[InputRegIdx + InputRegTypeOffset] + StartInstanceThisChunk + InstanceOffset, sizeof(FVecReg) * NumLoops);
-					serializeRegUsed(DestRegIdx, RegType);
+					VVMSer_regUsed(DestRegIdx, RegType);
 					InsPtr += 6;
 				} break;
-				case EVectorVMOp::inputdata_half:                   check(false);                       break;
+				case EVectorVMOp::inputdata_half: {
+					uint8 RegType             = 2;
+					uint16 DataSetIdx         = *(uint16 *)(InsPtr    );
+					uint16 InputRegIdx        = *(uint16 *)(InsPtr + 2);
+					uint16 DestRegIdx         = *(uint16 *)(InsPtr + 4);
+					uint32 InstanceOffset     = VVMState->DataSets[DataSetIdx].InstanceOffset;
+					uint32 InputRegTypeOffset = VVMState->DataSets[DataSetIdx].InputRegisterTypeOffsets[RegType];
+					size_t DstIdx             = NumLoops * DestRegIdx;
+					uint16 **InputBuffers     = (uint16 **)VVMState->DataSets[DataSetIdx].InputRegisters.GetData();
+					for (int i = 0; i < NumLoops; ++i) {
+						FPlatformMath::VectorLoadHalf((float *)(BatchState->RegisterData + VVMState->NumConstBuffers + DstIdx + i), (InputBuffers[InputRegIdx + InputRegTypeOffset] + StartInstanceThisChunk + InstanceOffset + i));
+					}
+					VVMSer_regUsed(DestRegIdx, 0);
+					InsPtr += 6;
+				} break;
 				case EVectorVMOp::inputdata_noadvance_float:
 				case EVectorVMOp::inputdata_noadvance_int32: {
-					uint8 RegType                 = (uint8)OpCode - (uint8)EVectorVMOp::inputdata_noadvance_float;
+					uint8 RegType                 = (uint8)OpCode - (uint8)EVectorVMOp::inputdata_noadvance_float; //0: float, 1: int, 2: half
 					uint16 DataSetIdx             = *(uint16 *)(InsPtr    );
 					uint16 InputRegIdx            = *(uint16 *)(InsPtr + 2);
 					uint16 DestRegIdx             = *(uint16 *)(InsPtr + 4);
@@ -1172,7 +1161,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 					{
 						VectorIntStoreAligned(input_val4, BatchState->RegisterData + VVMState->NumConstBuffers + DstIdx + i);
 					}
-					serializeRegUsed(DestRegIdx, RegType);
+					VVMSer_regUsed(DestRegIdx, RegType);
 					InsPtr += 6;
 				} break;
 				case EVectorVMOp::inputdata_noadvance_half:			check(false);				        break;
@@ -1208,7 +1197,23 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 					}
 					InsPtr += 8;
 				} break;
-				case EVectorVMOp::outputdata_half:					check(false);				        break;
+				case EVectorVMOp::outputdata_half: {
+					uint8 RegType             = 2;
+					uint16 DataSetIdx         = VecIndices[0];
+					int *DstIdxReg            = (int *)VecReg[1];
+					uint32 NumOutputInstances = BatchState->ChunkLocalData.NumOutputPerDataSet[DataSetIdx];
+					uint32 InstanceOffset     = BatchState->ChunkLocalData.StartingOutputIdxPerDataSet[DataSetIdx];
+					uint32 RegTypeOffset      = VVMState->DataSets[DataSetIdx].OutputRegisterTypeOffsets[RegType];
+					uint16 **OutputBuffers    = (uint16 **)VVMState->DataSets[DataSetIdx].OutputRegisters.GetData();
+					uint16 *DstReg            = OutputBuffers[RegTypeOffset + VecIndices[3]] + InstanceOffset;
+					uint32 *SrcReg            = (uint32 *)VecReg[2];
+
+					for (uint32 i = 0; i < NumOutputInstances; ++i) //scalar, not ideal
+					{
+						FPlatformMath::StoreHalf(DstReg + i, ((float *)SrcReg)[DstIdxReg[i & RegInc[1]] & RegInc[2]]);
+					}
+					InsPtr += 8;
+				} break;
 				case EVectorVMOp::acquireindex:
 				{
 					uint32 NumOutputInstances = 0;
@@ -1232,7 +1237,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 					}
 					BatchState->ChunkLocalData.StartingOutputIdxPerDataSet[DataSetIdx] = VVMState->DataSets[DataSetIdx].InstanceOffset + FPlatformAtomics::InterlockedAdd(VVMState->NumOutputPerDataSet + DataSetIdx, NumOutputInstances);
 					BatchState->ChunkLocalData.NumOutputPerDataSet[DataSetIdx] += NumOutputInstances;
-					serializeRegUsed(VecIndices[2], VVMRegFlag_Int | VVMRegFlag_Index);
+					VVMSer_regUsed(VecIndices[2], VVMRegFlag_Int | VVMRegFlag_Index);
 					InsPtr += 8;
 				}
 				break;
@@ -1301,7 +1306,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 						for (int i = 0; i < ExtFnData->NumOutputs; ++i)
 						{
 							uint16 RegIdx = ((uint16 *)(InsPtr + 2))[ExtFnData->NumInputs + i];
-							serializeRegUsed(RegIdx, 0); //assume float
+							VVMSer_regUsed(RegIdx, 0); //assume float
 						}
 					} else {
 #					else //VVM_INCLUDE_SERIALIZATION
@@ -1362,7 +1367,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 				case EVectorVMOp::exec_index:
 				{
 					int RegIdx = NumLoops * *((uint16 *)InsPtr);
-					serializeIns(1, 0);
+					VVMSer_instruction(1, 0);
 					VectorRegister4i StartInstance4 = VectorIntAdd(VectorIntSet1(StartInstanceThisChunk), VVM_m128iConst(ZeroOneTwoThree));
 					for (int i = 0; i < NumLoops; ++i)
 					{
@@ -1379,7 +1384,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 				case EVectorVMOp::exit_stat_scope:                                                  break;
 				case EVectorVMOp::update_id:
 				{
-					serializeIns(1, 2);
+					VVMSer_instruction(1, 2);
 					uint32 DataSetIdx     = VecIndices[0];
 					check(DataSetIdx < (uint32)VVMState->DataSets.Num());
 					FDataSetMeta *DataSet = &VVMState->DataSets[DataSetIdx];
@@ -1459,7 +1464,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 					{
 						int SanityCount = 0;
 						do {
-							int OldMaxID = *DataSet->MaxUsedID;
+							int OldMaxID = FPlatformAtomics::AtomicRead(DataSet->MaxUsedID);
 							if (MaxID <= OldMaxID)
 							{
 								break;
@@ -1470,14 +1475,14 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 								break;
 							}
 						} while (SanityCount++ < (1 << 30));
-						check(SanityCount < (1 << 30) - 1);
+						VVMDebugBreakIf(SanityCount > (1 << 30) - 1);
 					}
 					InsPtr += 6;
 				}
 				break;
 				case EVectorVMOp::acquire_id:
 				{
-					serializeIns(1, 2);
+					VVMSer_instruction(1, 2);
 					uint32 DataSetIdx = VecIndices[0];
 					check(DataSetIdx < (uint32)VVMState->DataSets.Num());
 					FDataSetMeta *DataSet = &VVMState->DataSets[DataSetIdx];
@@ -1502,10 +1507,11 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 								break;
 							}
 						} while (SanityCount++ < (1 << 30));
-						check(SanityCount < (1 << 30) - 1);
+						VVMDebugBreakIf(SanityCount > (1 << 30) - 1);
 					}
 					{ //2. append the IDs we acquired in step 1 to the end of the free table array, representing spawned IDs
-						//FreeID table is write-only as far as this invocation of the VM is concerned.
+						//FreeID table is write-only as far as this invocation of the VM is concerned, so the interlocked add w/o filling
+						//in the data is fine
 						int StartNumSpawned = FPlatformAtomics::InterlockedAdd(DataSet->NumSpawnedIDs, NumInstancesThisChunk) + NumInstancesThisChunk;
 						check(StartNumSpawned <= DataSet->FreeIDTable->Max());
 						VVMMemCpy(DataSet->FreeIDTable->GetData() + DataSet->FreeIDTable->Max() - StartNumSpawned, VecReg[1], sizeof(int32) * NumInstancesThisChunk);

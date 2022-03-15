@@ -10,6 +10,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Async/ParallelFor.h"
+#include "Math/UnrealPlatformMathSSE.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, VectorVM);
 

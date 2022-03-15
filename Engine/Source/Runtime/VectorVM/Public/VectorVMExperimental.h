@@ -287,6 +287,7 @@ struct FVectorVMOptimizeContext
 	uint32                                NumTempRegisters;
 	uint32                                NumExtFns;
 	uint32                                MaxExtFnRegisters;
+	uint32                                NumDummyRegsReq;     //External function "null" registers
 	int32                                 MaxExtFnUsed;
 
 	struct
@@ -361,6 +362,7 @@ struct FVectorVMBatchState
 		struct {
 			FVecReg **        RegData;
 			uint32 *          RegInc;
+			FVecReg *         DummyRegs;
 		} ExtFnDecodedReg;
 		int32 *               RandCounters; //used for external functions only.
 	} ChunkLocalData;
@@ -395,6 +397,7 @@ struct FVectorVMState
 	uint32                      NumOutputDataSets;   //computed in the optimizer
 	uint32                      NumExtFunctions;
 	uint32                      MaxExtFnRegisters;
+	uint32                      NumDummyRegsReq;
 	uint32                      NumUserPtrTable;
 	int32                       TotalNumInstances;
 	volatile int32              NumInstancesAssignedToBatches;

@@ -1936,6 +1936,8 @@ FORCEINLINE VectorRegister4Double VectorReciprocalSqrt(const VectorRegister4Doub
 	return VectorDivide(GlobalVectorConstants::DoubleOne, Result);
 }
 
+#define VectorSqrt(Vec) _mm_sqrt_ps(Vec)
+
 /**
  * Computes an estimate of the reciprocal of a vector (component-wise) and returns the result.
  *

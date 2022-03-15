@@ -67,5 +67,11 @@ public class Niagara : ModuleRules
 				"Slate"
             });
         }
+        PublicDefinitions.AddRange(
+            new string[]
+            {
+                "NIAGARA_EXP_VM",
+            }
+        );
     }
 }

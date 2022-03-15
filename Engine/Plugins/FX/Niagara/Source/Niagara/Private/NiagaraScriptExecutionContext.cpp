@@ -193,8 +193,9 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 		FVectorVMSerializeState UESerializeState = { };
 
 #if defined(NIAGARA_EXP_VM) || defined(VVM_INCLUDE_SERIALIZATION)
-		FVectorVMConstData *VVMConstData = (FVectorVMConstData *)alloca(sizeof(FVectorVMConstData) * ConstantBufferTable.BufferSizes.Num());
+		FVectorVMConstData *VVMConstData = (FVectorVMConstData *)FMemory_Alloca(sizeof(FVectorVMConstData) * ConstantBufferTable.BufferSizes.Num());
 		int NumVVMConstData              = ConstantBufferTable.BufferSizes.Num();
+		CA_ASSUME(VVMConstData != nullptr);
 		for (int i = 0; i < NumVVMConstData; ++i)
 		{
 			int32 NumBytes = ConstantBufferTable.BufferSizes[i];

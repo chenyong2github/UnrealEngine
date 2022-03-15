@@ -72,10 +72,10 @@ FORCEINLINE VectorRegister4Float VectorMoveLh(const VectorRegister4Float& A, con
  * @param A	1st vector
   * @return		VectorRegister4Float( sqrt(A.x), sqrt(A.y), sqrt(A.z), sqrt(A.w))
   */
-FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& A)
-{
-	return vsqrtq_f32(A);
-}
+//FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& A)
+//{
+//	return vsqrtq_f32(A);
+//}
 
 
 #else // PLATFORM_ENABLE_VECTORINTRINSICS_NEON
@@ -110,10 +110,10 @@ FORCEINLINE VectorRegister4Float VectorMoveLh(const VectorRegister4Float& A, con
  * @param A	1st vector
   * @return		VectorRegister4Float( sqrt(A.x), sqrt(A.y), sqrt(A.z), sqrt(A.w))
   */
-FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& A)
-{
-	return _mm_sqrt_ps(A);
-}
+//FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& A)
+//{
+//	return _mm_sqrt_ps(A);
+//}
 
 #endif // PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 

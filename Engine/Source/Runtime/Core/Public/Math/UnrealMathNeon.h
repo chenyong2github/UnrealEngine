@@ -1654,6 +1654,8 @@ FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(const VectorRegist
 	return VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);
 }
 
+#define VectorSqrt(Vec) vsqrtq_f32(Vec)
+
 FORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(const VectorRegister4Double& Vec)
 {
 	// Perform a single pass of Newton-Raphson iteration on the hardware estimate

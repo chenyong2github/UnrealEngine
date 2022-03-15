@@ -1404,7 +1404,8 @@ FGraphEventRef UNiagaraScript::HandleByteCodeOptimization(bool bShouldForceNow)
 #	ifdef NIAGARA_EXP_VM
 	//this is just necessary because VectorVM doesn't know about FVMExternalFunctionBindingInfo
 	int NumExtFns = CachedScriptVM.CalledVMExternalFunctions.Num();
-	FVectorVMExtFunctionData *ExtFnTable = (FVectorVMExtFunctionData *)alloca(32 + sizeof(FVectorVMExtFunctionData) * NumExtFns); //32 is pointless, it just gets around static analysis triggering for unknown reasons
+	FVectorVMExtFunctionData *ExtFnTable = (FVectorVMExtFunctionData *)FMemory_Alloca(sizeof(FVectorVMExtFunctionData) * NumExtFns); //32 is pointless, it just gets around static analysis triggering for unknown reasons
+	CA_ASSUME(ExtFnTable != nullptr);
 	for (int i = 0; i < NumExtFns; ++i) {
 		ExtFnTable[i].NumInputs = CachedScriptVM.CalledVMExternalFunctions[i].GetNumInputs();
 		ExtFnTable[i].NumOutputs = CachedScriptVM.CalledVMExternalFunctions[i].GetNumOutputs();

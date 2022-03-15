@@ -716,9 +716,9 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		EVectorVMOp op		= (EVectorVMOp)*OpPtrIn;
 
 		FVectorVMOptimizeInstruction *Instruction = OptContext->Intermediate.Instructions + OptContext->Intermediate.NumInstructions;
-		Instruction->Index = OptContext->Intermediate.NumInstructions++;
-		Instruction->OpCode = op;
-		Instruction->OpCat = GetOpCategoryFromOp(op);
+		Instruction->Index                   = OptContext->Intermediate.NumInstructions++;
+		Instruction->OpCode                  = op;
+		Instruction->OpCat                   = GetOpCategoryFromOp(op);
 		Instruction->PtrOffsetInOrigBytecode = (uint32)(OpPtrIn - InBytecode);
 		OpPtrIn++;
 		switch (op)
@@ -1153,9 +1153,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 		{
 			FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + i;
-			if (InputIns->OpCode == EVectorVMOp::inputdata_float || 
-				InputIns->OpCode == EVectorVMOp::inputdata_int32 || 
-				InputIns->OpCode == EVectorVMOp::inputdata_half) //noadvance ops can't fuse
+			if (InputIns->OpCode == EVectorVMOp::inputdata_float || InputIns->OpCode == EVectorVMOp::inputdata_int32) //half and no advance ops can't fuse
 			{ 
 				OnePastLastInputIdx = i + 1;
 				bool InputOpCanFuse = true;
@@ -1174,8 +1172,10 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 						case EVectorVMOpCategory::Output:
 							if (OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->Output.RegPtrOffset + 1])
 							{
-								++InputIns->Input.FuseCount;
-								Ins_j->Output.CopyFromInputInsIdx = i;
+								if (Ins_j->OpCode != EVectorVMOp::outputdata_half) {
+									++InputIns->Input.FuseCount;
+									Ins_j->Output.CopyFromInputInsIdx = i;
+								}
 							}
 							break;
 						case EVectorVMOpCategory::Op: {
@@ -1285,8 +1285,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		}
 	}
 
-	if (1)
-	{ //Step 7: remove instructions where outputs are never used 
+	if (1) { //Step 7: remove instructions where outputs are never used 
 		int NumRemovedInstructions = 0;
 		FVectorVMOptimizeInsRegUsage RegUsage;
 		FVectorVMOptimizeInsRegUsage RegUsage2;
@@ -1357,52 +1356,56 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 					for (int j = 0; j < OutputInsRegUse.NumOutputRegisters; ++j)
 					{
 						uint16 OutReg = OptContext->Intermediate.RegisterUsageBuffer[OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j]];
-						OptContext->Intermediate.SSARegisterUsageBuffer[OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j]] = SSARegCount;
-						int LastUsedAsInputInsIdx = -1;
-						for (uint32 k = i + 1; k < OptContext->Intermediate.NumInstructions; ++k)
-						{
-							FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + k;
-							GetRegistersUsedForInstruction(OptContext, InputIns, &InputInsRegUse);
-							for (int ii = 0; ii < InputInsRegUse.NumOutputRegisters; ++ii)
+						if (OutReg != 0xFFFF) {
+							OptContext->Intermediate.SSARegisterUsageBuffer[OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j]] = SSARegCount;
+							int LastUsedAsInputInsIdx = -1;
+							for (uint32 k = i + 1; k < OptContext->Intermediate.NumInstructions; ++k)
 							{
-								if (OptContext->Intermediate.RegisterUsageBuffer[InputInsRegUse.RegIndices[InputInsRegUse.NumInputRegisters + ii]] == OutReg)
+								FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + k;
+								GetRegistersUsedForInstruction(OptContext, InputIns, &InputInsRegUse);
+								for (int ii = 0; ii < InputInsRegUse.NumOutputRegisters; ++ii)
 								{
-									//this register is overwritten, we need to generate a new register
-									++SSARegCount;
-									check(SSARegCount <= (int)OptContext->Intermediate.NumRegistersUsed);
-									goto DoneThisOutput2;
-								}
-							}
-							for (int ii = 0; ii < InputInsRegUse.NumInputRegisters; ++ii)
-							{
-								if (OptContext->Intermediate.RegisterUsageBuffer[InputInsRegUse.RegIndices[ii]] == OutReg)
-								{
-									if (InputIns->OpCat == EVectorVMOpCategory::Output)
+									if (OptContext->Intermediate.RegisterUsageBuffer[InputInsRegUse.RegIndices[InputInsRegUse.NumInputRegisters + ii]] == OutReg)
 									{
-										if (InputIns->OpCode != EVectorVMOp::copy_to_output)
+										//this register is overwritten, we need to generate a new register
+										++SSARegCount;
+										check(SSARegCount <= (int)OptContext->Intermediate.NumRegistersUsed);
+										goto DoneThisOutput2;
+									}
+								}
+								for (int ii = 0; ii < InputInsRegUse.NumInputRegisters; ++ii)
+								{
+									if (OptContext->Intermediate.RegisterUsageBuffer[InputInsRegUse.RegIndices[ii]] == OutReg)
+									{
+										if (InputIns->OpCat == EVectorVMOpCategory::Output)
 										{
-											if (OutputIns->OpCode == EVectorVMOp::acquireindex)
+											if (InputIns->OpCode != EVectorVMOp::copy_to_output)
 											{
-												OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Output.RegPtrOffset] = SSARegCount;
-											}
-											else
-											{
-												OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Output.RegPtrOffset + 1] = SSARegCount;
-												LastUsedAsInputInsIdx = k;
+												if (OutputIns->OpCode == EVectorVMOp::acquireindex)
+												{
+													OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Output.RegPtrOffset] = SSARegCount;
+												}
+												else
+												{
+													OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Output.RegPtrOffset + 1] = SSARegCount;
+													LastUsedAsInputInsIdx = k;
+												}
 											}
 										}
-									}
-									else
-									{
-										LastUsedAsInputInsIdx = k;
-										OptContext->Intermediate.SSARegisterUsageBuffer[InputInsRegUse.RegIndices[ii]] = SSARegCount;
+										else
+										{
+											LastUsedAsInputInsIdx = k;
+											OptContext->Intermediate.SSARegisterUsageBuffer[InputInsRegUse.RegIndices[ii]] = SSARegCount;
+										}
 									}
 								}
 							}
-						}
-						if (LastUsedAsInputInsIdx != -1)
-						{
-							++SSARegCount;
+							if (LastUsedAsInputInsIdx != -1)
+							{
+								++SSARegCount;
+							}
+						} else {
+							OptContext->Intermediate.SSARegisterUsageBuffer[OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j]] = 0xFFFF;
 						}
 						DoneThisOutput2: ;
 					}
