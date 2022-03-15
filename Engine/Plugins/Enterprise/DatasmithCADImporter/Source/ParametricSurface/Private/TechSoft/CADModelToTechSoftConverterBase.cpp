@@ -23,7 +23,9 @@ bool FCADModelToTechSoftConverterBase::RepairTopology()
 
 		A3DRiBrepModel** OutNewBReps;
 		uint32 OutNewBRepCount;
-		CADLibrary::TechSoftInterface::SewBReps((A3DRiBrepModel**) RiRepresentationItems.GetData(), RiRepresentationItems.Num(), 0.01, 1., SewOptionsData.GetPtr(), &OutNewBReps, OutNewBRepCount);
+		const double SewTolerance = CADLibrary::FImportParameters::GStitchingTolerance;
+		const double FileUnit = ImportParameters.GetMetricUnit() * 1000; // ImportParameters MetricUnit is defined in meter, CADLibrary::TechSoftInterface::SewBReps expectes it in mm
+		CADLibrary::TechSoftInterface::SewBReps((A3DRiBrepModel**) RiRepresentationItems.GetData(), RiRepresentationItems.Num(), SewTolerance, FileUnit, SewOptionsData.GetPtr(), &OutNewBReps, OutNewBRepCount);
 
 		RiRepresentationItems.Empty(OutNewBRepCount);
 		for (uint32 Index = 0; Index < OutNewBRepCount; ++Index)
@@ -76,7 +78,8 @@ bool FCADModelToTechSoftConverterBase::Tessellate(const CADLibrary::FMeshParamet
 #ifdef USE_TECHSOFT_SDK
 	for (A3DRiRepresentationItem* Representation : RiRepresentationItems)
 	{
-		CADLibrary::TechSoftUtils::FillBodyMesh(Representation, ImportParameters, 1.0, BodyMesh);
+		const double FileUnit = ImportParameters.GetMetricUnit() * 1000; // ImportParameters MetricUnit is defined in meter, CADLibrary::TechSoftInterface::SewBReps expectes it in mm
+		CADLibrary::TechSoftUtils::FillBodyMesh(Representation, ImportParameters, FileUnit, BodyMesh);
 	}
 #endif
 

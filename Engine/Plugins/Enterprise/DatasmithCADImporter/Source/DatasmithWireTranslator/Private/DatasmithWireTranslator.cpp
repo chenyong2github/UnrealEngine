@@ -227,7 +227,9 @@ public:
 			DatasmithScene->SetProductVersion(TEXT("Alias 2022.2"));
 		}
 
-		CADLibrary::FImportParameters ImportParameters(0.01, 1);
+		const double MetricUnit = 0.001; // ImportParameters MetricUnit is defined in meter
+		const double ScaleFactor = 0.1;  // MetricUnit to UE unit i.e. cm
+		CADLibrary::FImportParameters ImportParameters(MetricUnit, ScaleFactor);
 		if(CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
 			if (CADLibrary::FImportParameters::GCADLibrary == TEXT("KernelIO"))
