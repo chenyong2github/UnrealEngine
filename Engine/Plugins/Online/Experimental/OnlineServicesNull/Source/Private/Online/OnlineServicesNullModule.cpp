@@ -22,9 +22,9 @@ class FOnlineServicesFactoryNull : public IOnlineServicesFactory
 {
 public:
 	virtual ~FOnlineServicesFactoryNull() {}
-	virtual TSharedPtr<IOnlineServices> Create() override
+	virtual TSharedPtr<IOnlineServices> Create(FName InInstanceName) override
 	{
-		return MakeShared<FOnlineServicesNull>();
+		return MakeShared<FOnlineServicesNull>(InInstanceName);
 	}
 protected:
 };

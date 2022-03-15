@@ -45,8 +45,8 @@ END_ONLINE_STRUCT_META()
 
 /* Meta */ }
 
-FOnlineServicesEOS::FOnlineServicesEOS()
-	: FOnlineServicesCommon(TEXT("EOS"))
+FOnlineServicesEOS::FOnlineServicesEOS(FName InInstanceName)
+	: FOnlineServicesCommon(TEXT("EOS"), InInstanceName)
 {
 }
 

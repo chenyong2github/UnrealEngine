@@ -50,7 +50,7 @@ public:
 	 *
 	 */
 	virtual void Destroy() = 0;
-	
+
 	/**
 	 *
 	 */
@@ -97,6 +97,12 @@ public:
 	 * @return provider type
 	 */
 	virtual EOnlineServices GetServicesProvider() const = 0;
+
+	/**
+	 * Get the instance name of this instance. 
+	 * @return instance name
+	 */
+	virtual FName GetInstanceName() const = 0;
 };
 
 /**

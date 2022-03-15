@@ -59,12 +59,12 @@ public:
 	}
 
 	virtual ~FOnlineServicesFactoryOSSAdapter() {}
-	virtual TSharedPtr<IOnlineServices> Create() override
+	virtual TSharedPtr<IOnlineServices> Create(FName InInstanceName) override
 	{
 		IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get(Config.OnlineSubsystem);
 		if (Subsystem != nullptr)
 		{
-			return MakeShared<FOnlineServicesOSSAdapter>(Config.Service, Config.ConfigName, Subsystem);
+			return MakeShared<FOnlineServicesOSSAdapter>(Config.Service, Config.ConfigName, InInstanceName, Subsystem);
 		}
 		else
 		{

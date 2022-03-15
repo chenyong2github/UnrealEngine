@@ -11,9 +11,10 @@ namespace UE::Online {
 
 uint32 FOnlineServicesCommon::NextInstanceIndex = 0;
 
-FOnlineServicesCommon::FOnlineServicesCommon(const FString& InConfigName)
+FOnlineServicesCommon::FOnlineServicesCommon(const FString& InConfigName, FName InInstanceName)
 	: OpCache(InConfigName, *this)
 	, InstanceIndex(NextInstanceIndex++)
+	, InstanceName(InInstanceName)
 	, ConfigProvider(MakeUnique<FOnlineConfigProviderGConfig>(GEngineIni))
 	, ConfigName(InConfigName)
 	, SerialQueue(ParallelQueue)
@@ -77,6 +78,11 @@ IPrivilegesPtr FOnlineServicesCommon::GetPrivilegesInterface()
 TOnlineResult<FGetResolvedConnectString> FOnlineServicesCommon::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
 {
 	return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());
+}
+
+FName FOnlineServicesCommon::GetInstanceName() const
+{
+	return InstanceName;
 }
 
 void FOnlineServicesCommon::RegisterComponents()

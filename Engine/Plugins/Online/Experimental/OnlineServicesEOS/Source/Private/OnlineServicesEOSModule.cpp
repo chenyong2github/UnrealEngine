@@ -22,9 +22,9 @@ class FOnlineServicesFactoryEOS : public IOnlineServicesFactory
 {
 public:
 	virtual ~FOnlineServicesFactoryEOS() {}
-	virtual TSharedPtr<IOnlineServices> Create() override
+	virtual TSharedPtr<IOnlineServices> Create(FName InInstanceName) override
 	{
-		return MakeShared<FOnlineServicesEOS>();
+		return MakeShared<FOnlineServicesEOS>(InInstanceName);
 	}
 protected:
 };

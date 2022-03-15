@@ -22,7 +22,7 @@ class ONLINESERVICESEOS_API FOnlineServicesEOS : public FOnlineServicesCommon
 public:
 	using Super = FOnlineServicesCommon;
 
-	FOnlineServicesEOS();
+	FOnlineServicesEOS(FName InInstanceName);
 	virtual void RegisterComponents() override;
 	virtual void Initialize() override;
 	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;

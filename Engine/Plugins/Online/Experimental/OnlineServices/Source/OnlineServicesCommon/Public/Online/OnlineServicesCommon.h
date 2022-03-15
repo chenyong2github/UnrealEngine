@@ -27,7 +27,7 @@ class ONLINESERVICESCOMMON_API FOnlineServicesCommon
 public:
 	using Super = IOnlineServices;
 
-	FOnlineServicesCommon(const FString& InConfigName);
+	FOnlineServicesCommon(const FString& InConfigName, FName InInstanceName);
 	FOnlineServicesCommon(const FOnlineServicesCommon&) = delete;
 	FOnlineServicesCommon(FOnlineServicesCommon&&) = delete;
 	virtual ~FOnlineServicesCommon() {}
@@ -43,6 +43,7 @@ public:
 	virtual IConnectivityPtr GetConnectivityInterface() override;
 	virtual IPrivilegesPtr GetPrivilegesInterface() override;
 	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
+	virtual FName GetInstanceName() const override;
 
 	// FOnlineServicesCommon
 
@@ -310,6 +311,7 @@ protected:
 
 	static uint32 NextInstanceIndex;
 	uint32 InstanceIndex;
+	FName InstanceName;
 
 	FOnlineComponentRegistry Components;
 	TUniquePtr<IOnlineConfigProvider> ConfigProvider;

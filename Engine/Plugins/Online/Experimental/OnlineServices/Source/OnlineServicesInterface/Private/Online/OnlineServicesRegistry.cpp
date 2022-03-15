@@ -71,7 +71,7 @@ TSharedPtr<IOnlineServices> FOnlineServicesRegistry::GetNamedServicesInstance(EO
 		}
 		else
 		{
-			Services = CreateServices(OnlineServices);
+			Services = CreateServices(OnlineServices, InstanceName);
 			if (Services.IsValid())
 			{
 				NamedServiceInstances.FindOrAdd(OnlineServices).Add(InstanceName, Services.ToSharedRef());
@@ -93,14 +93,14 @@ void FOnlineServicesRegistry::DestroyNamedServicesInstance(EOnlineServices Onlin
 	}
 }
 
-TSharedPtr<IOnlineServices> FOnlineServicesRegistry::CreateServices(EOnlineServices OnlineServices)
+TSharedPtr<IOnlineServices> FOnlineServicesRegistry::CreateServices(EOnlineServices OnlineServices, FName InstanceName)
 {
 	TSharedPtr<IOnlineServices> Services;
 
 	FFactoryAndPriority* FactoryAndPriority = ServicesFactories.Find(OnlineServices);
 	if (FactoryAndPriority != nullptr)
 	{
-		Services = FactoryAndPriority->Factory->Create();
+		Services = FactoryAndPriority->Factory->Create(InstanceName);
 		Services->Init();
 	}
 

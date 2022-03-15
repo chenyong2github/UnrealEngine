@@ -27,7 +27,7 @@ public:
 	 *
 	 * @return Initialized IOnlineServices instance
 	 */
-	virtual TSharedPtr<IOnlineServices> Create() = 0;
+	virtual TSharedPtr<IOnlineServices> Create(FName InstanceName) = 0;
 };
 
 class FOnlineServicesRegistry
@@ -97,7 +97,7 @@ public:
 	 * 
 	 * @return The initialized IOnlineServices instance, or an invalid pointer if the OnlineServices is unavailable
 	 */
-	ONLINESERVICESINTERFACE_API TSharedPtr<IOnlineServices> CreateServices(EOnlineServices OnlineServices);
+	ONLINESERVICESINTERFACE_API TSharedPtr<IOnlineServices> CreateServices(EOnlineServices OnlineServices, FName InstanceName);
 
 	/**
 	 * Get list of all instantiated OnlineServices
