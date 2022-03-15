@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
+#include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
@@ -85,6 +86,47 @@ void ITokenizedMessageErrorHandler::OnInvalidReferenceLevelScriptDataLayers(cons
 		->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_WorldPartition_LevelScriptBlueprintDataLayerReference", "with a non empty set of data layers")));
 
 	AddAdditionalNameToken(Message, FName(TEXT("WorldPartition_LevelScriptBlueprintRefefenceDataLayer_CheckForErrors")));
+
+	HandleTokenizedMessage(MoveTemp(Message));
+}
+
+void ITokenizedMessageErrorHandler::OnInvalidReferenceDataLayerAsset(const UDataLayerInstanceWithAsset* DataLayerInstance)
+{
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error);
+	Message->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_DataLayers_DataLayer", "Data layer")))
+		->AddToken(FUObjectToken::Create(DataLayerInstance))
+		->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_DataLayers_NullAsset", "Does not have Data Layer Asset")));
+
+	AddAdditionalNameToken(Message, FName(TEXT("DataLayers_InvalidAsset_CheckForErrors")));
+
+	HandleTokenizedMessage(MoveTemp(Message));
+}
+
+void ITokenizedMessageErrorHandler::OnDataLayerHierarchyTypeMismatch(const UDataLayerInstance* DataLayerInstance, const UDataLayerInstance* Parent)
+{
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error);
+	Message->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_DataLayers_DataLayer", "Data layer")))
+		->AddToken(FTextToken::Create(FText::FromString(DataLayerInstance->GetDataLayerShortName())))
+		->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_DataLayers_IsRntime", "is Runtime but its parent data layer")))
+		->AddToken(FTextToken::Create(FText::FromString(Parent->GetDataLayerShortName())))
+		->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_DataLayers_IsNot", "is not")));
+
+	AddAdditionalNameToken(Message, FName(TEXT("DataLayers_HierarchyTypeMisMatch_CheckForErrors")));
+
+	HandleTokenizedMessage(MoveTemp(Message));
+}
+
+void ITokenizedMessageErrorHandler::OnDataLayerAssetConflict(const UDataLayerInstanceWithAsset* DataLayerInstance, const UDataLayerInstanceWithAsset* ConflictingDataLayerInstance)
+{
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error);
+	Message->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_DataLayers_DataLayerInstance", "Data layer Instance")))
+		->AddToken(FUObjectToken::Create(DataLayerInstance))
+		->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_DataLayers_AndDataLayerInstance", "and Data Layer Instance")))
+		->AddToken(FUObjectToken::Create(ConflictingDataLayerInstance))
+		->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_DataLayers_BothReferencing", "are both referencing Data Layer Asset")))
+		->AddToken(FUObjectToken::Create(DataLayerInstance->GetAsset()));
+
+	AddAdditionalNameToken(Message, FName(TEXT("DataLayers_AssetConflict_CheckForErrors")));
 
 	HandleTokenizedMessage(MoveTemp(Message));
 }

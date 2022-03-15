@@ -22,7 +22,7 @@
 #include "ActorDescTreeItem.h"
 #include "FolderTreeItem.h"
 #include "WorldTreeItem.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerModule"
@@ -232,7 +232,7 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 	{
 		TStringBuilder<128> Builder;
 
-		TArray<const UDataLayer*> DataLayerObjects;
+		TArray<const UDataLayerInstance*> DataLayerInstances;
 
 		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 		{
@@ -240,12 +240,12 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 
 			if (Actor)
 			{
-				DataLayerObjects = Actor->GetDataLayerObjects();
+				DataLayerInstances = Actor->GetDataLayerInstances();
 			}
 		}
 		else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
 		{
-			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get(); ActorDesc && !ActorDesc->GetDataLayers().IsEmpty())
+			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get(); ActorDesc && !ActorDesc->GetDataLayerInstanceNames().IsEmpty())
 			{
 				const UActorDescContainer* ActorDescContainer = ActorDescItem->ActorDescHandle.Container.Get();
 				const UWorld* World = ActorDescContainer ? ActorDescContainer->GetWorld() : nullptr;
@@ -253,18 +253,18 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 			
 				if (WorldDataLayers)
 				{
-					DataLayerObjects = WorldDataLayers->GetDataLayerObjects(ActorDesc->GetDataLayers());
+					DataLayerInstances = WorldDataLayers->GetDataLayerInstances(ActorDesc->GetDataLayerInstanceNames());
 				}
 			}
 		}
 
-		for (const UDataLayer* DataLayer : DataLayerObjects)
+		for (const UDataLayerInstance* DataLayerInstance : DataLayerInstances)
 		{
 			if (Builder.Len())
 			{
 				Builder += TEXT(", ");
 			}
-			Builder += DataLayer->GetDataLayerLabel().ToString();
+			Builder += DataLayerInstance->GetDataLayerShortName();
 		}
 		
 		return Builder.ToString();

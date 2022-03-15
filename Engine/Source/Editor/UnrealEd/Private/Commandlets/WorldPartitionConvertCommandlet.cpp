@@ -6,6 +6,7 @@
 
 #include "Commandlets/WorldPartitionConvertCommandlet.h"
 #include "Algo/ForEach.h"
+#include "AssetToolsModule.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
@@ -23,6 +24,7 @@
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
 #include "LevelInstance/LevelInstanceActor.h"
+#include "DataLayer/DataLayerFactory.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectHash.h"
 #include "PackageHelperFunctions.h"
@@ -53,7 +55,7 @@
 #include "LandscapeSplinesComponent.h"
 #include "LandscapeSplineControlPoint.h"
 #include "LandscapeGizmoActor.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "ActorFolder.h"
 
@@ -163,6 +165,8 @@ UWorldPartitionConvertCommandlet::UWorldPartitionConvertCommandlet(const FObject
 	, WorldOrigin(FVector::ZeroVector)
 	, WorldExtent(WORLDPARTITION_MAX * 0.5)
 	, LandscapeGridSize(4)
+	, DataLayerAssetFolder(TEXT("Game/DataLayers/"))
+	, DataLayerFactory(NewObject<UDataLayerFactory>())
 {}
 
 UWorld* UWorldPartitionConvertCommandlet::LoadWorld(const FString& LevelToLoad)
@@ -733,6 +737,11 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
+	if (FString* DataLayerAssetFolderValue = Arguments.Find(TEXT("DataLayerAssetFolder")))
+	{
+		DataLayerAssetFolder = *DataLayerAssetFolderValue;
+	}
+
 	ReadAdditionalTokensAndSwitches(Tokens, Switches);
 
 	if (bVerbose)
@@ -1003,7 +1012,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		}
 	};
 
-	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers](ULevel* Level, TArray<AActor*>& Actors, bool bMainLevel) -> bool
+	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers, MainWorld](ULevel* Level, TArray<AActor*>& Actors, bool bMainLevel) -> bool
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareLevelActors);
 
@@ -1011,6 +1020,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		TArray<AInstancedFoliageActor*> IFAs;
 		TSet<ULandscapeInfo*> LandscapeInfos;
+		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		FString DataLayerFolder = DataLayerAssetFolder + MainWorld->GetName() + TEXT("/");
 		for (AActor* Actor: Actors)
 		{
 			if (Actor && IsValidChecked(Actor))
@@ -1049,14 +1060,18 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 					{
 						for (FName Layer : Actor->Layers)
 						{
-							UDataLayer* DataLayer = const_cast<UDataLayer*>(MainWorldDataLayers->GetDataLayerFromLabel(Layer));
-							if (!DataLayer)
+							FName DataLayerAssetFullName(DataLayerAssetFolder + Layer.ToString());
+							UDataLayerInstance* DataLayerInstance = const_cast<UDataLayerInstance*>(MainWorldDataLayers->GetDataLayerInstanceFromAssetName(DataLayerAssetFullName));
+							if (!DataLayerInstance)
 							{
-								DataLayer = MainWorldDataLayers->CreateDataLayer();
-								DataLayer->SetDataLayerLabel(Layer);
-								DataLayer->SetIsRuntime(false);
+								if (UObject* Asset = AssetTools.CreateAsset(Layer.ToString(), DataLayerFolder, UDataLayerAsset::StaticClass(), DataLayerFactory))
+								{
+									UDataLayerAsset* DataLayerAsset = CastChecked<UDataLayerAsset>(Asset);
+									DataLayerAsset->SetType(EDataLayerType::Editor);
+									DataLayerInstance = MainWorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(DataLayerAsset);
+								}
 							}
-							Actor->AddDataLayer(DataLayer);
+							Actor->AddDataLayer(DataLayerInstance);
 						}
 					}
 					// Clear actor layers as they are not supported yet in world partition, keep them if only merging

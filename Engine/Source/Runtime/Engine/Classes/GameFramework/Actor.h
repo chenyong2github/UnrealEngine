@@ -39,7 +39,9 @@ class UPrimitiveComponent;
 struct FAttachedActorInfo;
 struct FNetViewer;
 struct FNetworkObjectInfo;
-class UDataLayer;
+class UDEPRECATED_DataLayer;
+class UDataLayerAsset;
+class UDataLayerInstance;
 class AWorldDataLayers;
 class UActorFolder;
 
@@ -850,10 +852,13 @@ protected:
 	FGuid ActorGuid;
 
 	/** DataLayers the actor belongs to.*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = DataLayers)
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = DataLayers)
 	TArray<FActorDataLayer> DataLayers;
 
-	TArray<FActorDataLayer> PreEditChangeDataLayers;
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = DataLayers)
+	TArray<TObjectPtr<const UDataLayerAsset>> DataLayerAssets;
+
+	TArray<TObjectPtr<const UDataLayerAsset>> PreEditChangeDataLayers;
 
 public:
 	/** The copy/paste id used to remap actors during copy operations */
@@ -1167,22 +1172,52 @@ public:
 #if WITH_EDITOR
 	//~=============================================================================
 	// DataLayers functions.
-	bool AddDataLayer(const UDataLayer* DataLayer);
-	bool RemoveDataLayer(const UDataLayer* DataLayer);
+	bool AddDataLayer(const UDataLayerAsset* DataLayerAsset);
+	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);
+	bool RemoveDataLayer(const UDataLayerAsset* DataLayerAsset);
+	bool RemoveDataLayer(const UDataLayerInstance* DataLayerInstance);
 	bool RemoveAllDataLayers();
-	bool ContainsDataLayer(const UDataLayer* DataLayer) const;
+	bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const;
+	bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const;
 	virtual bool SupportsDataLayer() const { return true; }
 	bool HasDataLayers() const;
 	bool HasValidDataLayers() const;
-	bool HasAllDataLayers(const TArray<const UDataLayer*>& DataLayers) const;
-	bool HasAnyOfDataLayers(const TArray<FName>& DataLayerNames) const;
-	TArray<FName> GetDataLayerNames() const;
-	TArray<const UDataLayer*> GetDataLayerObjects() const;
-	TArray<const UDataLayer*> GetDataLayerObjects(const AWorldDataLayers* WorldDataLayers) const;
+	TArray<FName> GetDataLayerInstanceNames() const;
+	TArray<const UDataLayerInstance*> GetDataLayerInstances() const;
+	TArray<const UDataLayerInstance*> GetDataLayerInstances(const AWorldDataLayers* WorldDataLayers) const;
 	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
 	bool IsValidForDataLayer() const;
 	void FixupDataLayers(bool bRevertChangesOnLockedDataLayer = false);
-	static const FName GetDataLayersPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayers); }
+	static const FName GetDataLayerAssetsPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayerAssets); }
+	static const FName GetDataLayerPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayers); }
+
+	const TArray<TObjectPtr<const UDataLayerAsset>>& GetDataLayerAssets() const { return DataLayerAssets; }
+
+	//~ Begin Deprecated
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use AddDataLayer(UDataLayerInstance*)")
+	bool AddDataLayer(const UDEPRECATED_DataLayer* DataLayer);
+
+	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use RemoveDataLayer(UDataLayerInstance*)")
+	bool RemoveDataLayer(const UDEPRECATED_DataLayer* DataLayer);
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use AddDataLayer(UDataLayerAsset*)")
+	bool AddDataLayer(const FActorDataLayer& ActorDataLayer);
+
+	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use RemoveDataLayer(UDataLayerAsset*)")
+	bool RemoveDataLayer(const FActorDataLayer& ActorDataLayer);
+
+	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use ContainsDataLayer(const UDataLayerAsset*)")
+	bool ContainsDataLayer(const FActorDataLayer& ActorDataLayer) const;
+
+	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use GetDataLayerAssets() instead")
+	TArray<FActorDataLayer> const& GetActorDataLayers() const { return DataLayers; }
+
+	//~ End Deprecated
 #endif
 
 	//~=============================================================================

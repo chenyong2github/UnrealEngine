@@ -4,7 +4,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 DEFINE_LOG_CATEGORY(LogLightWeightInstance);
 
@@ -78,11 +78,11 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 			{
 #if WITH_EDITOR
 				// make sure the data layers match
-				TArray<const UDataLayer*> ManagerLayers = LWInstance->GetDataLayerObjects();
-				const UDataLayer* ManagerLayer = ManagerLayers.Num() > 0 ? ManagerLayers[0] : nullptr;
+				TArray<const UDataLayerInstance*> ManagerLayers = LWInstance->GetDataLayerInstances();
+				const UDataLayerInstance* ManagerLayer = ManagerLayers.Num() > 0 ? ManagerLayers[0] : nullptr;
 
-				TArray<const UDataLayer*> ActorLayers = LWInstance->GetDataLayerObjects();
-				const UDataLayer* ActorLayer = ActorLayers.Num() > 0 ? ActorLayers[0] : nullptr;
+				TArray<const UDataLayerInstance*> ActorLayers = LWInstance->GetDataLayerInstances();
+				const UDataLayerInstance* ActorLayer = ActorLayers.Num() > 0 ? ActorLayers[0] : nullptr;
 
 				if (ManagerLayer == ActorLayer)
 #endif // WITH_EDITOR
@@ -96,7 +96,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 	return nullptr;
 }
 
-ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass* ActorClass, const UDataLayer* Layer) const
+ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* Layer) const
 {
 	if (ActorClass == nullptr)
 	{
@@ -120,7 +120,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 	return nullptr;
 }
 
-ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayer* Layer, UWorld* World)
+ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* Layer, UWorld* World)
 {
 	if (ActorClass == nullptr || World == nullptr)
 	{
@@ -330,7 +330,7 @@ bool FLightWeightInstanceSubsystem::IsInLevel(const FActorInstanceHandle& Handle
 	return false;
 }
 
-FActorInstanceHandle FLightWeightInstanceSubsystem::CreateNewLightWeightInstance(UClass* InActorClass, FLWIData* InitData, UDataLayer* InLayer, UWorld* World)
+FActorInstanceHandle FLightWeightInstanceSubsystem::CreateNewLightWeightInstance(UClass* InActorClass, FLWIData* InitData, UDataLayerInstance* InLayer, UWorld* World)
 {
 	// Get or create a light weight instance for this class and data layer
 	if (ALightWeightInstanceManager* LWIManager = FindOrAddLightWeightInstanceManager(InActorClass, InLayer, World))

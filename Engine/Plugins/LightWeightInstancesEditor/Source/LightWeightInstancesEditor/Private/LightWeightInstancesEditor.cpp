@@ -112,10 +112,10 @@ void FLightWeightInstancesEditorModule::ConvertActorsToLWIsUIAction(const TArray
 	for (AActor* Actor : InActors)
 	{
 		// use the first layer the actor is in if it's in multiple layers
-		TArray<const UDataLayer*> DataLayers = Actor->GetDataLayerObjects();
-		const UDataLayer* Layer = DataLayers.Num() > 0 ? DataLayers[0] : nullptr;
+		TArray<const UDataLayerInstance*> DataLayerInstances = Actor->GetDataLayerInstances();
+		const UDataLayerInstance* DataLayerInstance = DataLayerInstances.Num() > 0 ? DataLayerInstances[0] : nullptr;
 
-		ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindOrAddLightWeightInstanceManager(Actor->GetClass(), Layer, Actor->GetWorld());
+		ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindOrAddLightWeightInstanceManager(Actor->GetClass(), DataLayerInstance, Actor->GetWorld());
 		check(Manager);
 		UDataLayerEditorSubsystem::Get()->OnActorDataLayersChanged().Broadcast(Manager);
 

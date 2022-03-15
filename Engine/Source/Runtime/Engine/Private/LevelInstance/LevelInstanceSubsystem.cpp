@@ -1049,10 +1049,10 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 			return;
 		}
 
-		TArray<const UDataLayer*> LevelInstanceDataLayers = LevelInstanceActor->GetDataLayerObjects();
+		TArray<const UDataLayerInstance*> LevelInstanceDataLayerInstances = LevelInstanceActor->GetDataLayerInstances();
 
 		TSet<AActor*> ActorsToMove;
-		TFunction<bool(AActor*)> AddActorToMove = [this, &ActorsToMove, &AddActorToMove, &LevelInstanceDataLayers](AActor* Actor)
+		TFunction<bool(AActor*)> AddActorToMove = [this, &ActorsToMove, &AddActorToMove, &LevelInstanceDataLayerInstances](AActor* Actor)
 		{
 			if (ActorsToMove.Contains(Actor))
 			{
@@ -1078,9 +1078,9 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 					// Apply the same data layer settings to the actors to move out
 					if (Actor->SupportsDataLayer() && Actor->IsValidForDataLayer())
 					{
-						for (const UDataLayer* DataLayer : LevelInstanceDataLayers)
+						for (const UDataLayerInstance* DataLayerInstance : LevelInstanceDataLayerInstances)
 						{
-							Actor->AddDataLayer(DataLayer);
+							Actor->AddDataLayer(DataLayerInstance);
 						}
 					}
 

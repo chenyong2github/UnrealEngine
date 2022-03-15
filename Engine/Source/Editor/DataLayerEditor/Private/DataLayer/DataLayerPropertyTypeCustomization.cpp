@@ -5,7 +5,7 @@
 #include "DataLayer/DataLayerDragDropOp.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "DataLayerEditorModule.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "DragAndDrop/CompositeDragDropOp.h"
 #include "Algo/Accumulate.h"
 #include "Modules/ModuleManager.h"
@@ -64,7 +64,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 				.IsEnabled_Lambda([this]
 				{
 					FPropertyAccess::Result PropertyAccessResult;
-					const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+					const UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
 					return (!DataLayer || !DataLayer->IsLocked());
 				})
 				.ToolTipText(LOCTEXT("ComboButtonTip", "Drag and drop a Data Layer onto this property, or choose one from the drop down."))
@@ -88,7 +88,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 				.Visibility_Lambda([this] 
 				{
 					FPropertyAccess::Result PropertyAccessResult;
-					const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+					const UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
 					return (DataLayer && DataLayer->IsLocked()) ? EVisibility::Visible : EVisibility::Collapsed;
 				})
 				.ColorAndOpacity(this, &FDataLayerPropertyTypeCustomization::GetForegroundColor)
@@ -124,7 +124,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 void FDataLayerPropertyTypeCustomization::OnBrowse()
 {
 	FPropertyAccess::Result PropertyAccessResult;
-	if (const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult))
+	if (const UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult))
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 		LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("LevelEditorDataLayerBrowser"));
@@ -134,7 +134,7 @@ void FDataLayerPropertyTypeCustomization::OnBrowse()
 	}
 }
 
-UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(FPropertyAccess::Result* OutPropertyAccessResult) const
+UDataLayerInstance* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(FPropertyAccess::Result* OutPropertyAccessResult) const
 {
 	FName DataLayerName;
 	FPropertyAccess::Result Result = PropertyHandle->GetValue(DataLayerName);
@@ -144,8 +144,8 @@ UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(
 	}
 	if (Result == FPropertyAccess::Success)
 	{
-		UDataLayer* DataLayer = UDataLayerEditorSubsystem::Get()->GetDataLayerFromName(DataLayerName);
-		return DataLayer;
+		UDataLayerInstance* DataLayerInstance = UDataLayerEditorSubsystem::Get()->GetDataLayerInstance(DataLayerName);
+		return DataLayerInstance;
 	}
 	return nullptr;
 }
@@ -153,7 +153,7 @@ UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(
 const FSlateBrush* FDataLayerPropertyTypeCustomization::GetDataLayerIcon() const
 {
 	FPropertyAccess::Result PropertyAccessResult;
-	const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+	const UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
 	if (!DataLayer)
 	{
 		return FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
@@ -168,18 +168,18 @@ const FSlateBrush* FDataLayerPropertyTypeCustomization::GetDataLayerIcon() const
 FText FDataLayerPropertyTypeCustomization::GetDataLayerText() const
 {
 	FPropertyAccess::Result PropertyAccessResult;
-	const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+	const UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
 	if (PropertyAccessResult == FPropertyAccess::MultipleValues)
 	{
 		return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
 	}
-	return UDataLayer::GetDataLayerText(DataLayer);
+	return UDataLayerInstance::GetDataLayerText(DataLayer);
 }
 
 FSlateColor FDataLayerPropertyTypeCustomization::GetForegroundColor() const
 {
 	FPropertyAccess::Result PropertyAccessResult;
-	const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+	const UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
 	if (DataLayer && DataLayer->IsLocked())
 	{
 		return FSceneOutlinerCommonLabelData::DarkColor;
@@ -189,18 +189,18 @@ FSlateColor FDataLayerPropertyTypeCustomization::GetForegroundColor() const
 
 TSharedRef<SWidget> FDataLayerPropertyTypeCustomization::OnGetDataLayerMenu()
 {
-	return FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMenu([this](const UDataLayer* DataLayer) { AssignDataLayer(DataLayer); });
+	return FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMenu([this](const UDataLayerInstance* DataLayer) { AssignDataLayer(DataLayer); });
 }
 
 EVisibility FDataLayerPropertyTypeCustomization::GetSelectDataLayerVisibility() const
 {
-	const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle();
+	const UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle();
 	return DataLayer ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply FDataLayerPropertyTypeCustomization::OnSelectDataLayer()
 {
-	if (UDataLayer* DataLayer = GetDataLayerFromPropertyHandle())
+	if (UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle())
 	{
 		GEditor->SelectNone(true, true);
 		UDataLayerEditorSubsystem::Get()->SelectActorsInDataLayer(DataLayer, true, true);
@@ -208,11 +208,11 @@ FReply FDataLayerPropertyTypeCustomization::OnSelectDataLayer()
 	return FReply::Handled();
 }
 
-void FDataLayerPropertyTypeCustomization::AssignDataLayer(const UDataLayer* InDataLayer)
+void FDataLayerPropertyTypeCustomization::AssignDataLayer(const UDataLayerInstance* InDataLayerInstance)
 {
-	if (GetDataLayerFromPropertyHandle() != InDataLayer)
+	if (GetDataLayerFromPropertyHandle() != InDataLayerInstance)
 	{
-		PropertyHandle->SetValue(InDataLayer ? InDataLayer->GetFName() : NAME_None);
+		PropertyHandle->SetValue(InDataLayerInstance ? InDataLayerInstance->GetDataLayerFName() : NAME_None);
 		UDataLayerEditorSubsystem::Get()->OnDataLayerChanged().Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
 	}
 }
@@ -222,10 +222,10 @@ FReply FDataLayerPropertyTypeCustomization::OnDrop(const FGeometry& InGeometry, 
 	TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = GetDataLayerDragDropOp(InDragDropEvent.GetOperation());
 	if (DataLayerDragDropOp.IsValid())
 	{
-		const TArray<FName>& DataLayerLabels = DataLayerDragDropOp->DataLayerLabels;
-		if (ensure(DataLayerLabels.Num() == 1))
+		const TArray<FDataLayerDragDropOp::FDragDropInfo>& DragDropInfos = DataLayerDragDropOp->DataLayerDragDropInfos;
+		if (ensure(DragDropInfos.Num() == 1))
 		{
-			if (const UDataLayer* DataLayerPtr = UDataLayerEditorSubsystem::Get()->GetDataLayerFromLabel(DataLayerLabels[0]))
+			if (const UDataLayerInstance* DataLayerPtr = UDataLayerEditorSubsystem::Get()->GetDataLayerInstance(DragDropInfos[0].DataLayerInstanceName))
 			{
 				AssignDataLayer(DataLayerPtr);
 			}
@@ -237,7 +237,7 @@ FReply FDataLayerPropertyTypeCustomization::OnDrop(const FGeometry& InGeometry, 
 bool FDataLayerPropertyTypeCustomization::OnVerifyDrag(TSharedPtr<FDragDropOperation> InDragDrop)
 {
 	TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = GetDataLayerDragDropOp(InDragDrop);
-	return DataLayerDragDropOp.IsValid() && DataLayerDragDropOp->DataLayerLabels.Num() == 1;
+	return DataLayerDragDropOp.IsValid() && DataLayerDragDropOp->DataLayerDragDropInfos.Num() == 1;
 }
 
 TSharedPtr<const FDataLayerDragDropOp> FDataLayerPropertyTypeCustomization::GetDataLayerDragDropOp(TSharedPtr<FDragDropOperation> InDragDrop)

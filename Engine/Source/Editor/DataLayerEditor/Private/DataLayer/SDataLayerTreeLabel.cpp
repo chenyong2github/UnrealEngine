@@ -38,7 +38,7 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 		.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FSceneOutlinerTreeItemPtr>::IsSelectedExclusively))
 		.IsReadOnly_Lambda([Item = DataLayerItem.AsShared(), this]()
 		{
-			return !CanExecuteRenameRequest(Item.Get());
+			return DataLayerPtr == nullptr || !DataLayerPtr->SupportRelabeling() || !CanExecuteRenameRequest(Item.Get());
 		})
 	]
 
@@ -122,7 +122,7 @@ bool SDataLayerTreeLabel::ShouldBeHighlighted() const
 
 bool SDataLayerTreeLabel::IsInActorEditorContext() const
 {
-	const UDataLayer* DataLayer = DataLayerPtr.Get();
+	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
 	return DataLayer && DataLayer->IsInActorEditorContext();
 }
 
@@ -140,7 +140,7 @@ FSlateFontInfo SDataLayerTreeLabel::GetDisplayNameFont() const
 
 FText SDataLayerTreeLabel::GetDisplayText() const
 {
-	const UDataLayer* DataLayer = DataLayerPtr.Get();
+	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
 	bool bIsDataLayerActive = false;
 	FText DataLayerRuntimeStateText = FText::GetEmpty();
 	if (DataLayer && DataLayer->IsRuntime() && DataLayer->GetWorld()->IsPlayInEditor())
@@ -150,7 +150,7 @@ FText SDataLayerTreeLabel::GetDisplayText() const
 	}
 	
 	static const FText DataLayerDeleted = LOCTEXT("DataLayerLabelForMissingDataLayer", "(Deleted Data Layer)");
-	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromName(DataLayer->GetDataLayerLabel()), DataLayerRuntimeStateText) : DataLayerDeleted;
+	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromString(DataLayer->GetDataLayerShortName()), DataLayerRuntimeStateText) : DataLayerDeleted;
 }
 
 FText SDataLayerTreeLabel::GetTooltipText() const
@@ -165,7 +165,7 @@ FText SDataLayerTreeLabel::GetTooltipText() const
 
 FText SDataLayerTreeLabel::GetTypeText() const
 {
-	const UDataLayer* DataLayer = DataLayerPtr.Get();
+	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
 	return DataLayer ? FText::FromName(DataLayer->GetClass()->GetFName()) : FText();
 }
 
@@ -176,7 +176,7 @@ EVisibility SDataLayerTreeLabel::GetTypeTextVisibility() const
 
 const FSlateBrush* SDataLayerTreeLabel::GetIcon() const
 {
-	const UDataLayer* DataLayer = DataLayerPtr.Get();
+	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
 	if (DataLayer && WeakSceneOutliner.IsValid())
 	{
 		const TCHAR* IconName = DataLayer->GetDataLayerIconName();
@@ -194,7 +194,7 @@ const FSlateBrush* SDataLayerTreeLabel::GetIcon() const
 
 FText SDataLayerTreeLabel::GetIconTooltip() const
 {
-	const UDataLayer* DataLayer = DataLayerPtr.Get();
+	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
 	return DataLayer ? (DataLayer->IsRuntime() ? FText(LOCTEXT("RuntimeDataLayer", "Runtime Data Layer")) : FText(LOCTEXT("EditorDataLayer", "Editor Data Layer"))) : FText();
 }
 
@@ -205,7 +205,7 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 		return BaseColor.GetValue();
 	}
 
-	const UDataLayer* DataLayer = DataLayerPtr.Get();
+	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
 	if (DataLayer)
 	{
 		if (DataLayer->GetWorld()->IsPlayInEditor())
@@ -253,10 +253,19 @@ bool SDataLayerTreeLabel::OnVerifyItemLabelChanged(const FText& InLabel, FText& 
 		return false;
 	}
 
-	UDataLayer* FoundDataLayer;
-	if (UDataLayerEditorSubsystem::Get()->TryGetDataLayerFromLabel(*InLabel.ToString(), FoundDataLayer) && FoundDataLayer != DataLayerPtr.Get())
+	UDataLayerInstance* FoundDataLayerInstance;
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (UDataLayerEditorSubsystem::Get()->TryGetDataLayerFromLabel(*InLabel.ToString(), FoundDataLayerInstance) && FoundDataLayerInstance != DataLayerPtr.Get())
 	{
 		OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "This Data Layer already exists");
+		return false;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	if (FoundDataLayerInstance != nullptr && !FoundDataLayerInstance->SupportRelabeling())
+	{
+		OutErrorMessage = LOCTEXT("RenameFailed_NotPermittedOnDataLayer", "This Data Layer does not support renaming");
 		return false;
 	}
 
@@ -265,11 +274,15 @@ bool SDataLayerTreeLabel::OnVerifyItemLabelChanged(const FText& InLabel, FText& 
 
 void SDataLayerTreeLabel::OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo)
 {
-	UDataLayer* DataLayer = DataLayerPtr.Get();
-	if (DataLayer && !InLabel.ToString().Equals(DataLayer->GetDataLayerLabel().ToString(), ESearchCase::CaseSensitive))
+	UDataLayerInstance* DataLayerInstance = DataLayerPtr.Get();
+	check(DataLayerInstance->SupportRelabeling());
+	if (!InLabel.ToString().Equals(DataLayerInstance->GetDataLayerShortName(), ESearchCase::CaseSensitive))
 	{
-		const FScopedDataLayerTransaction Transaction(LOCTEXT("SceneOutlinerRenameDataLayerTransaction", "Rename Data Layer"), DataLayer->GetWorld());
-		UDataLayerEditorSubsystem::Get()->RenameDataLayer(DataLayer, *InLabel.ToString());
+		const FScopedDataLayerTransaction Transaction(LOCTEXT("SceneOutlinerRenameDataLayerTransaction", "Rename Data Layer"), DataLayerInstance->GetWorld());
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UDataLayerEditorSubsystem::Get()->RenameDataLayer(DataLayerInstance, *InLabel.ToString());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (WeakSceneOutliner.IsValid())
 		{

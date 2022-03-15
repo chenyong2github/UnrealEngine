@@ -8,7 +8,7 @@
 #include "DataLayer/DataLayerAction.h"
 
 class FDataLayerMode;
-class UDataLayer;
+class UDataLayerInstance;
 class UWorld;
 class FWorldPartitionActorDesc;
 
@@ -45,10 +45,10 @@ private:
 	void OnActorDescAdded(FWorldPartitionActorDesc* InActorDesc);
 	void OnActorDescRemoved(FWorldPartitionActorDesc* InActorDesc);
 	void OnActorDataLayersChanged(const TWeakObjectPtr<AActor>& InActor);
-	void OnDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayer>& ChangedDataLayer, const FName& ChangedProperty);
+	void OnDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayerInstance>& ChangedDataLayer, const FName& ChangedProperty);
 	void FullRefreshEvent();
-	FSceneOutlinerTreeItemPtr CreateDataLayerTreeItem(UDataLayer* InDataLayer, bool bInForce = false) const;
-	bool IsDataLayerPartOfSelection(const UDataLayer* DataLayer) const;
+	FSceneOutlinerTreeItemPtr CreateDataLayerTreeItem(UDataLayerInstance* InDataLayer, bool bInForce = false) const;
+	bool IsDataLayerPartOfSelection(const UDataLayerInstance* DataLayer) const;
 
 	TWeakObjectPtr<UWorld> RepresentingWorld;
 	bool bShowEditorDataLayers;

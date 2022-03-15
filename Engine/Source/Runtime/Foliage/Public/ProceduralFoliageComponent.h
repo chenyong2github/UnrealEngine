@@ -11,6 +11,7 @@
 
 class AVolume;
 class UProceduralFoliageSpawner;
+class UDataLayerAsset;
 struct FBodyInstance;
 
 /** Describes the layout of the tiles used for procedural foliage simulation */

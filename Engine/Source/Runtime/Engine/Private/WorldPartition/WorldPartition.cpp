@@ -41,6 +41,7 @@
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -64,9 +65,9 @@ TMap<FName, FString> GetDataLayersDumpString(const UWorldPartition* WorldPartiti
 	TMap<FName, FString> DataLayersDumpString;
 	if (const AWorldDataLayers* WorldDataLayers = WorldPartition->GetWorld()->GetWorldDataLayers())
 	{
-		WorldDataLayers->ForEachDataLayer([&DataLayersDumpString](const UDataLayer* DataLayer)
+		WorldDataLayers->ForEachDataLayer([&DataLayersDumpString](const UDataLayerInstance* DataLayer)
 		{
-			DataLayersDumpString.FindOrAdd(DataLayer->GetFName()) = FString::Format(TEXT("{0}({1})"), { DataLayer->GetDataLayerLabel().ToString(), DataLayer->GetFName().ToString() });
+			DataLayersDumpString.FindOrAdd(DataLayer->GetDataLayerFName()) = FString::Format(TEXT("{0}({1})"), { DataLayer->GetDataLayerShortName(), DataLayer->GetDataLayerFName().ToString() });
 			return true;
 		});
 	}
@@ -107,7 +108,7 @@ FString GetActorDescDumpString(const FWorldPartitionActorDesc* ActorDesc, const 
 		ActorDesc->GetBounds().GetExtent().X,
 		ActorDesc->GetBounds().GetExtent().Y,
 		ActorDesc->GetBounds().GetExtent().Z,
-		*GetDataLayerString(ActorDesc->GetDataLayers())
+		*GetDataLayerString(ActorDesc->GetDataLayerInstanceNames())
 	);
 }
 
@@ -999,10 +1000,10 @@ bool UWorldPartition::ShouldActorBeLoadedByEditorCells(const FWorldPartitionActo
 		if (IsRunningCookCommandlet())
 		{
 			// When running cook commandlet, dont allow loading of actors with dynamically loaded data layers
-			for (const FName& DataLayerName : ActorDescProxy.GetDataLayers())
+			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
 			{
-				const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName);
-				if (DataLayer && DataLayer->IsRuntime())
+				const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName);
+				if (DataLayerInstance && DataLayerInstance->IsRuntime())
 				{
 					return false;
 				}
@@ -1011,11 +1012,11 @@ bool UWorldPartition::ShouldActorBeLoadedByEditorCells(const FWorldPartitionActo
 		else
 		{
 			uint32 NumValidLayers = 0;
-			for (const FName& DataLayerName : ActorDescProxy.GetDataLayers())
+			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
 			{
-				if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
+				if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName))
 				{
-					if (DataLayer->IsEffectiveLoadedInEditor())
+					if (DataLayerInstance->IsEffectiveLoadedInEditor())
 					{
 						return true;
 					}

@@ -11,11 +11,12 @@
 #include "DataLayer/DataLayerPropertyTypeCustomization.h"
 #include "DataLayer/SDataLayerBrowser.h"
 #include "DataLayer/DataLayerNameEditSink.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 IMPLEMENT_MODULE(FDataLayerEditorModule, DataLayerEditor );
 
 static const FName NAME_ActorDataLayer(TEXT("ActorDataLayer"));
+
 
 void FDataLayerEditorModule::StartupModule()
 {
@@ -41,11 +42,11 @@ TSharedRef<SWidget> FDataLayerEditorModule::CreateDataLayerBrowser()
 	return NewDataLayerBrowser;
 }
 
-void FDataLayerEditorModule::SyncDataLayerBrowserToDataLayer(const UDataLayer* DataLayer)
+void FDataLayerEditorModule::SyncDataLayerBrowserToDataLayer(const UDataLayerInstance* DataLayerInstance)
 {
 	if (DataLayerBrowser.IsValid())
 	{
 		TSharedRef<SDataLayerBrowser> Browser = StaticCastSharedRef<SDataLayerBrowser>(DataLayerBrowser.Pin().ToSharedRef());
-		Browser->SyncDataLayerBrowserToDataLayer(DataLayer);
+		Browser->SyncDataLayerBrowserToDataLayer(DataLayerInstance);
 	}
 }

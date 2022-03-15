@@ -9,6 +9,7 @@
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/WorldPartitionActorCluster.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 extern ENGINE_API bool GRuntimeSpatialHashUseAlignedGridLevels;
 extern ENGINE_API bool GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels;
@@ -261,21 +262,21 @@ struct FSquare2DGridHelper
 #if WITH_EDITOR
 		struct FGridCellDataChunk
 		{
-			FGridCellDataChunk(const TArray<const UDataLayer*>& InDataLayers)
+			FGridCellDataChunk(const TArray<const UDataLayerInstance*>& InDataLayers)
 			{
-				Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayer* DataLayer) { return DataLayer->IsRuntime(); }, [](const UDataLayer* DataLayer) { return DataLayer; });
+				Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayerInstance* DataLayer) { return DataLayer->IsRuntime(); }, [](const UDataLayerInstance* DataLayer) { return DataLayer; });
 				DataLayersID = FDataLayersID(DataLayers);
 			}
 
 			void AddActor(FActorInstance ActorInstance) { Actors.Add(MoveTemp(ActorInstance)); }
 			const TSet<FActorInstance>& GetActors() const { return Actors; }
 			bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
-			const TArray<const UDataLayer*>& GetDataLayers() const { return DataLayers; }
+			const TArray<const UDataLayerInstance*>& GetDataLayers() const { return DataLayers; }
 			const FDataLayersID& GetDataLayersID() const { return DataLayersID; }
 
 		private:
 			TSet<FActorInstance> Actors;
-			TArray<const UDataLayer*> DataLayers;
+			TArray<const UDataLayerInstance*> DataLayers;
 			FDataLayersID DataLayersID;
 		};
 
@@ -285,7 +286,7 @@ struct FSquare2DGridHelper
 				: Coords(InCoords)
 			{}
 
-			void AddActors(const TSet<FGuid>& InActors, const FActorContainerInstance* ContainerInstance, const TArray<const UDataLayer*>& InDataLayers)
+			void AddActors(const TSet<FGuid>& InActors, const FActorContainerInstance* ContainerInstance, const TArray<const UDataLayerInstance*>& InDataLayers)
 			{
 				for (const FGuid& Actor : InActors)
 				{

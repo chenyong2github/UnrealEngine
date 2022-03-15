@@ -13,6 +13,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Sections/MovieSceneDataLayerSection.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
@@ -43,11 +44,11 @@ ENUM_CLASS_FLAGS(EDataLayerUpdateFlags)
 /** Traits class governing how pre-animated state is (re)stored for data layers */
 struct FPreAnimatedDataLayerStorageTraits
 {
-	using KeyType = TObjectKey<UDataLayer>;
+	using KeyType = TObjectKey<UDataLayerInstance>;
 	using StorageType = EDataLayerRuntimeState;
 
 	/** Called when a previously animated data layer needs to be restored */
-	static void RestorePreAnimatedValue(const TObjectKey<UDataLayer>& InKey, EDataLayerRuntimeState PreviousState, const FRestoreStateParams& Params);
+	static void RestorePreAnimatedValue(const TObjectKey<UDataLayerInstance>& InKey, EDataLayerRuntimeState PreviousState, const FRestoreStateParams& Params);
 };
 
 /** Container class for all pre-animated data layer state */
@@ -63,14 +64,14 @@ struct FPreAnimatedDataLayerStorage
 	void OnGroupDestroyed(FPreAnimatedStorageGroupHandle Group) override;
 
 	/** Make an entry for the specified data layer */
-	FPreAnimatedStateEntry MakeEntry(UDataLayer* InDataLayer);
+	FPreAnimatedStateEntry MakeEntry(UDataLayerInstance* InDataLayer);
 
 	/** Save the value of a data layer. Should only be used for runtime / PIE worlds */
-	void SavePreAnimatedState(UDataLayer* DataLayer, UDataLayerSubsystem* SubSystem);
+	void SavePreAnimatedState(UDataLayerInstance* DataLayer, UDataLayerSubsystem* SubSystem);
 
 #if WITH_EDITOR
 	/** Save the value of a data layer. Should only be used for editor worlds */
-	void SavePreAnimatedStateInEditor(UDataLayer* DataLayer);
+	void SavePreAnimatedStateInEditor(UDataLayerInstance* DataLayer);
 #endif
 
 private:
@@ -113,9 +114,9 @@ struct FDesiredLayerStates
 
 // ---------------------------------------------------------------------
 // FPreAnimatedDataLayerStorageTraits definitions
-void FPreAnimatedDataLayerStorageTraits::RestorePreAnimatedValue(const TObjectKey<UDataLayer>& InKey, EDataLayerRuntimeState PreviousState, const FRestoreStateParams& Params)
+void FPreAnimatedDataLayerStorageTraits::RestorePreAnimatedValue(const TObjectKey<UDataLayerInstance>& InKey, EDataLayerRuntimeState PreviousState, const FRestoreStateParams& Params)
 {
-	UDataLayer* DataLayer = InKey.ResolveObjectPtr();
+	UDataLayerInstance* DataLayer = InKey.ResolveObjectPtr();
 	if (!DataLayer)
 	{
 		return;
@@ -153,7 +154,7 @@ void FPreAnimatedDataLayerStorage::OnGroupDestroyed(FPreAnimatedStorageGroupHand
 	GroupHandle = FPreAnimatedStorageGroupHandle();
 }
 
-FPreAnimatedStateEntry FPreAnimatedDataLayerStorage::MakeEntry(UDataLayer* InDataLayer)
+FPreAnimatedStateEntry FPreAnimatedDataLayerStorage::MakeEntry(UDataLayerInstance* InDataLayer)
 {
 	if (!GroupHandle)
 	{
@@ -163,7 +164,7 @@ FPreAnimatedStateEntry FPreAnimatedDataLayerStorage::MakeEntry(UDataLayer* InDat
 	return FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
 }
 
-void FPreAnimatedDataLayerStorage::SavePreAnimatedState(UDataLayer* DataLayer, UDataLayerSubsystem* SubSystem)
+void FPreAnimatedDataLayerStorage::SavePreAnimatedState(UDataLayerInstance* DataLayer, UDataLayerSubsystem* SubSystem)
 {
 	FPreAnimatedStateEntry         Entry              = MakeEntry(DataLayer);
 	EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
@@ -179,7 +180,7 @@ void FPreAnimatedDataLayerStorage::SavePreAnimatedState(UDataLayer* DataLayer, U
 }
 
 #if WITH_EDITOR
-void FPreAnimatedDataLayerStorage::SavePreAnimatedStateInEditor(UDataLayer* DataLayer)
+void FPreAnimatedDataLayerStorage::SavePreAnimatedStateInEditor(UDataLayerInstance* DataLayer)
 {
 	FPreAnimatedStateEntry         Entry              = MakeEntry(DataLayer);
 	EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
@@ -278,7 +279,7 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 {
 	EDataLayerUpdateFlags Flags = EDataLayerUpdateFlags::None;
 
-	auto IsDataLayerReady = [WorldPartitionSubsystem](UDataLayer* DataLayer, EDataLayerRuntimeState DesireState, bool bExactState)
+	auto IsDataLayerReady = [WorldPartitionSubsystem](UDataLayerInstance* DataLayer, EDataLayerRuntimeState DesireState, bool bExactState)
 	{
 		EWorldPartitionRuntimeCellState QueryState;
 		switch (DesireState)
@@ -300,7 +301,7 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 		FWorldPartitionStreamingQuerySource QuerySource;
 		QuerySource.bDataLayersOnly = true;
 		QuerySource.bSpatialQuery = false; // @todo_ow: how would we support spatial query from sequencer?
-		QuerySource.DataLayers.Add(DataLayer->GetFName());
+		QuerySource.DataLayers.Add(DataLayer->GetDataLayerFName());
 		return WorldPartitionSubsystem->IsStreamingCompleted(QueryState, { QuerySource }, bExactState);
 	};
 
@@ -315,7 +316,7 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 
 		if (TOptional<EDataLayerRuntimeState> DesiredState = StateValue.ComputeDesiredState())
 		{
-			UDataLayer* DataLayer = DataLayerSubsystem->GetDataLayerFromName(It.Key());
+			UDataLayerInstance* DataLayer = DataLayerSubsystem->GetDataLayerInstance(It.Key());
 			if (DataLayer)
 			{
 				if (PreAnimatedStorage)
@@ -333,22 +334,22 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 					{
 						Flags |= EDataLayerUpdateFlags::FlushStreamingFull;
 						UE_LOG(LogMovieScene, Warning, TEXT("[UMovieSceneDataLayerSystem] Data layer with name '%s' is causing a full streaming flush (%s)"),
-							*DataLayer->GetDataLayerLabel().ToString(),
+							*DataLayer->GetDataLayerShortName(),
 							*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)DesiredStateValue).ToString());
 							
 						CSV_EVENT_GLOBAL(TEXT("SeqDataLayerFlushFull-%s-%s"),
-							*DataLayer->GetDataLayerLabel().ToString(),
+							*DataLayer->GetDataLayerShortName(),
 							*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)DesiredStateValue).ToString());
 					}
 					else
 					{
 						Flags |= EDataLayerUpdateFlags::FlushStreamingVisibility;
 						UE_LOG(LogMovieScene, Log, TEXT("[UMovieSceneDataLayerSystem] Data layer with name '%s' is causing a visibility streaming flush (%s)"),
-							*DataLayer->GetDataLayerLabel().ToString(),
+							*DataLayer->GetDataLayerShortName(),
 							*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)DesiredStateValue).ToString());
 							
 						CSV_EVENT_GLOBAL(TEXT("SeqDataLayerFlushVis-%s-%s"),
-							*DataLayer->GetDataLayerLabel().ToString(),
+							*DataLayer->GetDataLayerShortName(),
 							*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)DesiredStateValue).ToString());
 					}
 				}
@@ -366,9 +367,9 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 #if WITH_EDITOR
 void FDesiredLayerStates::ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimatedStorage, UDataLayerEditorSubsystem* SubSystem)
 {
-	TArray<UDataLayer*> DatalayersNeedingLoad;
-	TArray<UDataLayer*> DatalayersNeedingShow;
-	TArray<UDataLayer*> DatalayersNeedingHide;
+	TArray<UDataLayerInstance*> DatalayersNeedingLoad;
+	TArray<UDataLayerInstance*> DatalayersNeedingShow;
+	TArray<UDataLayerInstance*> DatalayersNeedingHide;
 
 	for (auto It = StatesByLayer.CreateIterator(); It; ++It)
 	{
@@ -381,7 +382,7 @@ void FDesiredLayerStates::ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimate
 
 		if (TOptional<EDataLayerRuntimeState> DesiredState = StateValue.ComputeDesiredState())
 		{
-			UDataLayer* DataLayer = SubSystem->GetDataLayerFromName(It.Key());
+			UDataLayerInstance* DataLayer = SubSystem->GetDataLayerInstance(It.Key());
 			if (DataLayer)
 			{
 				if (PreAnimatedStorage)
@@ -589,6 +590,13 @@ void UMovieSceneDataLayerSystem::UpdateDesiredStates()
 
 	auto GatherDataLayers = [this, BuiltInComponents](FEntityAllocationIteratorItem Item, const FMovieSceneDataLayerComponentData* ComponentData, const int16* OptHBiases)
 	{
+		UWorld* World = GetWorld();
+		UDataLayerSubsystem* DataLayerSubsystem = World ? World->GetSubsystem<UDataLayerSubsystem>() : nullptr;
+		if (!DataLayerSubsystem)
+		{
+			return;
+		}
+
 		const bool bPreroll = Item.GetAllocationType().Contains(BuiltInComponents->Tags.PreRoll);
 		for (int32 Index = 0; Index < Item.GetAllocation()->Num(); ++Index)
 		{
@@ -601,9 +609,13 @@ void UMovieSceneDataLayerSystem::UpdateDesiredStates()
 			EDataLayerRuntimeState DesiredState = bPreroll ? Section->GetPrerollState() : Section->GetDesiredState();
 			const bool bRequiresStreamingFlush = (DesiredState == EDataLayerRuntimeState::Unloaded) ? Section->GetFlushOnUnload() : !bPreroll;
 
-			for (const FActorDataLayer& ActorDataLayer : Section->GetDataLayers())
+			for (const UDataLayerAsset* DataLayerAsset : Section->GetDataLayerAssets())
 			{
-				this->DesiredLayerStates->ApplyNewState(ActorDataLayer.Name, OptHBiases ? OptHBiases[Index] : 0, DesiredState, bRequiresStreamingFlush);
+				const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerFromAsset(DataLayerAsset);
+				if (DataLayerInstance)
+				{
+					this->DesiredLayerStates->ApplyNewState(DataLayerInstance->GetDataLayerFName(), OptHBiases ? OptHBiases[Index] : 0, DesiredState, bRequiresStreamingFlush);
+				}
 			}
 		}
 	};
@@ -653,12 +665,12 @@ void UMovieSceneDataLayerSystem::BeginTrackingEntities()
 				FMovieSceneEntityID EntityID     = EntityIDs[Index];
 				FRootInstanceHandle RootInstance = RootInstanceHandles[Index];
 
-				for (const FActorDataLayer& ActorDataLayer : Section->GetDataLayers())
+				for (const UDataLayerAsset* DataLayerAsset : Section->GetDataLayerAssets())
 				{
-					UDataLayer* DataLayer = DataLayerSubsystem->GetDataLayer(ActorDataLayer);
-					if (DataLayer)
+					UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerFromAsset(DataLayerAsset);
+					if (DataLayerInstance)
 					{
-						FPreAnimatedStateEntry Entry = PreAnimatedStorage->MakeEntry(DataLayer);
+						FPreAnimatedStateEntry Entry = PreAnimatedStorage->MakeEntry(DataLayerInstance);
 						EntityMetaData->BeginTrackingEntity(Entry, EntityID, RootInstance, bRestoreState);
 					}
 				}

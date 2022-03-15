@@ -43,13 +43,13 @@ const TSharedRef<SWidget> FDataLayerOutlinerDeleteButtonColumn::ConstructRowWidg
 			.Visibility_Lambda([this, TreeItem, DataLayerActorItem]()
 			{
 				AActor* Actor = DataLayerActorItem->GetActor();
-				const UDataLayer* DataLayer = DataLayerActorItem->GetDataLayer();
+				const UDataLayerInstance* DataLayer = DataLayerActorItem->GetDataLayer();
 				return (Actor && DataLayer && !DataLayer->IsLocked()) ? EVisibility::Visible : EVisibility::Collapsed;
 			})
 			.OnClicked_Lambda([this, TreeItem, DataLayerActorItem]()
 			{
 				AActor* Actor = DataLayerActorItem->GetActor();
-				const UDataLayer* DataLayer = DataLayerActorItem->GetDataLayer();
+				const UDataLayerInstance* DataLayer = DataLayerActorItem->GetDataLayer();
 				if (Actor && DataLayer)
 				{
 					UDataLayerEditorSubsystem* DataLayerEditorSubsystem = UDataLayerEditorSubsystem::Get();

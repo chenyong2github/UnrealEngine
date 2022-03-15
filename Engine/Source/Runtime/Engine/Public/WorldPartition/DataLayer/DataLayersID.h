@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "CoreMinimal.h"
+
+class UDataLayerInstance;
 
 #if WITH_EDITOR
 class ENGINE_API FDataLayersID
 {
 public:
 	FDataLayersID();
-	FDataLayersID(const TArray<const UDataLayer*>& InDataLayers);
+	FDataLayersID(const TArray<const UDataLayerInstance*>& DataLayerInstance);
 
 	bool operator==(const FDataLayersID& Other) const
 	{

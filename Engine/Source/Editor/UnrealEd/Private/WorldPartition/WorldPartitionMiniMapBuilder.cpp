@@ -20,7 +20,7 @@
 
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
@@ -65,11 +65,11 @@ bool UWorldPartitionMiniMapBuilder::PreRun(UWorld* World, FPackageSourceControlH
 
 	for (const FActorDataLayer& ActorDataLayer : WorldMiniMap->ExcludedDataLayers)
 	{
-		const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(ActorDataLayer.Name);
+		const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(ActorDataLayer.Name);
 
-		if (DataLayer != nullptr)
+		if (DataLayerInstance != nullptr)
 		{
-			ExcludedDataLayerLabels.Add(DataLayer->GetDataLayerLabel());
+			ExcludedDataLayerShortNames.Add(FName(DataLayerInstance->GetDataLayerShortName()));
 		}
 	}
 

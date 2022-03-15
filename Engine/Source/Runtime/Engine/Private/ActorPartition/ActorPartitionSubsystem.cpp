@@ -203,7 +203,7 @@ public:
 				(PartitionActorDesc->GridIndexZ == InCellCoord.Z) &&
 				(PartitionActorDesc->GridSize == InGridSize) &&
 				(PartitionActorDesc->GridGuid == InActorPartitionId.GetGridGuid()) &&
-				(FDataLayerEditorContext(ThisWorld, PartitionActorDesc->GetDataLayers()).GetHash() == InActorPartitionId.GetDataLayerEditorContextHash()))
+				(FDataLayerEditorContext(ThisWorld, PartitionActorDesc->GetDataLayerInstanceNames()).GetHash() == InActorPartitionId.GetDataLayerEditorContextHash()))
 			{
 				AActor* DescActor = ActorDesc->GetActor();
 
@@ -395,7 +395,7 @@ APartitionActor* UActorPartitionSubsystem::GetActor(const TSubclassOf<APartition
 	{
 		if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
 		{
-			for (UDataLayer* DataLayer : WorldDataLayers->GetActorEditorContextDataLayers())
+			for (UDataLayerInstance* DataLayer : WorldDataLayers->GetActorEditorContextDataLayers())
 			{
 				PartitionActor->AddDataLayer(DataLayer);
 			}

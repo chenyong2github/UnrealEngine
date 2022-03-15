@@ -3,12 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
+
 #include "ActorDataLayer.generated.h"
 
+// This class is deprecated and only present for backward compatibility purposes.
+// Instead of using FActorDatalayer, directly save the DataLayerInstance FName if the DataLayer not exposed in data.
+// If the DataLayer is exposed in Data, then use DataLayerAssets.
 USTRUCT(BlueprintType)
 struct ENGINE_API FActorDataLayer
 {
 	GENERATED_USTRUCT_BODY()
+
+	static_assert(DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED, "FActorDataLayer is deprecated and needs to be deleted.");
 
 	FActorDataLayer()
 	: Name(NAME_None)

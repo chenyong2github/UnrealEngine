@@ -7,6 +7,7 @@
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 #include "GameFramework/Actor.h"
+#include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 

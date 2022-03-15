@@ -6,10 +6,15 @@
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Info.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "Engine/World.h"
 #include "WorldDataLayers.generated.h"
 
-class UDataLayer;
+class UDEPRECATED_DataLayer;
+class UDataLayerInstance;
+class UDataLayerInstanceWithAsset;
+class UDataLayerAsset;
 
 USTRUCT()
 struct FActorPlacementDataLayers
@@ -17,11 +22,11 @@ struct FActorPlacementDataLayers
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<FName> DataLayers;
+	TArray<FName> DataLayerInstanceNames;
 
 	void Reset()
 	{
-		DataLayers.Reset();
+		DataLayerInstanceNames.Reset();
 	}
 };
 
@@ -32,6 +37,8 @@ UCLASS(hidecategories = (Actor, HLOD, Cooking, Transform, Advanced, Display, Eve
 class ENGINE_API AWorldDataLayers : public AInfo
 {
 	GENERATED_UCLASS_BODY()
+
+	friend class UDataLayerToAssetCommandlet;
 
 public:
 	virtual void PostLoad() override;
@@ -45,48 +52,55 @@ public:
 	virtual bool IsUserManaged() const override { return false; }
 
 	static AWorldDataLayers* Create(UWorld* World);
-	UDataLayer* CreateDataLayer(FName InName = TEXT("DataLayer"), EObjectFlags InObjectFlags = RF_NoFlags);
-	bool RemoveDataLayer(UDataLayer* InDataLayer);
-	bool RemoveDataLayers(const TArray<UDataLayer*>& InDataLayers);
-	FName GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const;
+
+	bool IsEmpty() const { return DataLayerInstances.IsEmpty(); }
+	bool HasDeprecatedDataLayers() const { return bHasDeprecatedDataLayers; }
+
+	template<class DataLayerInstanceType, typename ...CreationsArgs>
+	DataLayerInstanceType* CreateDataLayer(CreationsArgs... InCreationArgs);
+
+	bool RemoveDataLayer(const UDataLayerInstance* InDataLayer);
+	bool RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances);
 	void SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing);
 	bool GetAllowRuntimeDataLayerEditing() const { return bAllowRuntimeDataLayerEditing; }
 
-	bool IsInActorEditorContext(const UDataLayer* InDataLayer) const;
-	bool AddToActorEditorContext(UDataLayer* InDataLayer);
-	bool RemoveFromActorEditorContext(UDataLayer* InDataLayer);
+	bool IsInActorEditorContext(const UDataLayerInstance* InDataLayerInstance) const;
+	bool AddToActorEditorContext(UDataLayerInstance* InDataLayerInstance);
+	bool RemoveFromActorEditorContext(UDataLayerInstance* InDataLayerInstance);
 	void PushActorEditorContext();
 	void PopActorEditorContext();
-	TArray<UDataLayer*> GetActorEditorContextDataLayers() const;
+	TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
 
 	//~ Begin Helper Functions
-	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FActorDataLayer>& DataLayers) const;
-	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FName>& InDataLayerNames) const;
-	TArray<FName> GetDataLayerNames(const TArray<FActorDataLayer>& DataLayers) const;
+	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const;
+	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const;
+	TArray<FName> GetDataLayerInstanceNames(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const;
 	//~ End Helper Functions
 
 	// Allows overriding of DataLayers with PlayFromHere
-	void OverwriteDataLayerRuntimeStates(TArray<FActorDataLayer>* InActiveDataLayers = nullptr, TArray<FActorDataLayer>* InLoadedDataLayers = nullptr);
+	template<class T>
+	void OverwriteDataLayerRuntimeStates(const TArray<T>* InActiveDataLayers, const TArray<T>* InLoadedDataLayers );
 
 	// Returns the DataLayer user loaded editor states
 	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const;
 #endif
 	
 	void DumpDataLayers(FOutputDevice& OutputDevice) const;
-	bool ContainsDataLayer(const UDataLayer* InDataLayer) const;
-	const UDataLayer* GetDataLayerFromName(const FName& InDataLayerName) const;
-	const UDataLayer* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
-	void ForEachDataLayer(TFunctionRef<bool(UDataLayer*)> Func);
-	void ForEachDataLayer(TFunctionRef<bool(UDataLayer*)> Func) const;
+	bool ContainsDataLayer(const UDataLayerInstance* InDataLayer) const;
+	const UDataLayerInstance* GetDataLayerInstance(const FName& InDataLayerInstanceName) const;
+	const UDataLayerInstance* GetDataLayerInstance(const UDataLayerAsset* InDataLayerAsset) const;
+	const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
+	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func);
+	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func) const;
 
 	// DataLayer Runtime State
-	void SetDataLayerRuntimeState(FActorDataLayer InDataLayer, EDataLayerRuntimeState InState, bool bIsRecursive = false);
+	void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bIsRecursive = false);
 	EDataLayerRuntimeState GetDataLayerRuntimeStateByName(FName InDataLayerName) const;
 	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByName(FName InDataLAyerName) const;
 	const TSet<FName>& GetEffectiveActiveDataLayerNames() const { return EffectiveActiveDataLayerNames; }
 	const TSet<FName>& GetEffectiveLoadedDataLayerNames() const { return EffectiveLoadedDataLayerNames; }
 	UFUNCTION(NetMulticast, Reliable)
-	void OnDataLayerRuntimeStateChanged(const UDataLayer* InDataLayer, EDataLayerRuntimeState InState);
+	void OnDataLayerRuntimeStateChanged(const UDataLayerInstance* InDataLayer, EDataLayerRuntimeState InState);
 	static int32 GetDataLayersStateEpoch() { return DataLayersStateEpoch; }
 
 	//~ Begin Deprecated
@@ -94,18 +108,44 @@ public:
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 
 	UE_DEPRECATED(5.0, "Use SetDataLayerRuntimeState() instead.")
-	void SetDataLayerState(FActorDataLayer InDataLayer, EDataLayerState InState) { SetDataLayerRuntimeState(InDataLayer, (EDataLayerRuntimeState)InState); }
+	void SetDataLayerState(FActorDataLayer InDataLayer, EDataLayerState InState) { SetDataLayerRuntimeState(GetDataLayerInstance(InDataLayer.Name), (EDataLayerRuntimeState)InState); }
 
 	UE_DEPRECATED(5.0, "Use GetDataLayerRuntimeStateByName() instead.")
 	EDataLayerState GetDataLayerStateByName(FName InDataLayerName) const { return (EDataLayerState)GetDataLayerRuntimeStateByName(InDataLayerName); }
-
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UE_DEPRECATED(5.0, "Use GetEffectiveActiveDataLayerNames() instead.")
 	const TSet<FName>& GetActiveDataLayerNames() const { return GetEffectiveActiveDataLayerNames(); }
 
 	UE_DEPRECATED(5.0, "Use GetEffectiveLoadedDataLayerNames() instead.")
 	const TSet<FName>& GetLoadedDataLayerNames() const { return GetEffectiveLoadedDataLayerNames(); }
+
+#if WITH_EDITOR
+	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use UDataLayerInstance* overload instead.")
+	bool RemoveDataLayer(const UDEPRECATED_DataLayer* InDataLayer);
+#endif
+
+	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use UDataLayerInstance* overload instead.")
+	bool ContainsDataLayer(const UDEPRECATED_DataLayer* InDataLayer) const;
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#if WITH_EDITOR
+	UE_DEPRECATED(5.1, "Label usage is deprecated.")
+	FName GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const;
+#endif 
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerInstance with FName or UDataLayerAsset instead")
+	const UDataLayerInstance* GetDataLayerInstance(const FActorDataLayer& InActorDataLayer) const;
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceNames with UDataLayerAsset instead")
+	TArray<FName> GetDataLayerInstanceNames(const TArray<FActorDataLayer>& InActorDataLayers) const;
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerInstances with FName or UDataLayerAsset instead")
+	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<FActorDataLayer>& InActorDataLayers) const;
+
+	UE_DEPRECATED(5.1, "Convert UDataLayers to UDataLayerAsset and UDataLayerInstance using DataLayerToAssetCommandLet")
+	const UDataLayerInstance* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
+
 	//~ End Deprecated
 
 protected:
@@ -125,12 +165,17 @@ protected:
 	void OnRep_EffectiveLoadedDataLayerNames();
 
 private:
-	void ResolveEffectiveRuntimeState(const UDataLayer* InDataLayer, bool bInNotifyChange = true);
-	void DumpDataLayerRecursively(const UDataLayer* DataLayer, FString Prefix, FOutputDevice& OutputDevice) const;
+	void ResolveEffectiveRuntimeState(const UDataLayerInstance* InDataLayer, bool bInNotifyChange = true);
+	void DumpDataLayerRecursively(const UDataLayerInstance* DataLayer, FString Prefix, FOutputDevice& OutputDevice) const;
+
+#if WITH_EDITOR
+	void ConvertDataLayerToInstancces();
+	void UpdateContainsDeprecatedDataLayers();
+#endif
 
 #if !WITH_EDITOR
-	TMap<FName, const UDataLayer*> LabelToDataLayer;
-	TMap<FName, const UDataLayer*> NameToDataLayer;
+	TMap<FName, const UDataLayerInstance*> InstanceNameToInstance;
+	TMap<FString, const UDataLayerInstance*> AssetNameToInstance;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -145,7 +190,16 @@ private:
 #endif
 
 	UPROPERTY()
-	TSet<TObjectPtr<UDataLayer>> WorldDataLayers;
+	TSet<TObjectPtr<UDataLayerInstance>> DataLayerInstances;
+
+	static_assert(DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED, "DeprecatedDataLayerNameToDataLayerInstance Property is deprecated and needs to be deleted.");
+	UPROPERTY()
+	TMap<FName, TWeakObjectPtr<UDataLayerInstance>> DeprecatedDataLayerNameToDataLayerInstance;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Convert Data layers to DataLayerInstances and DataLayerAssets using DataLayerToAsset CommandLet and use DataLayerInstances instead."))
+	TSet<TObjectPtr<UDEPRECATED_DataLayer>> WorldDataLayers_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UPROPERTY(Transient, Replicated, ReplicatedUsing=OnRep_ActiveDataLayerNames)
 	TArray<FName> RepActiveDataLayerNames;
@@ -169,9 +223,82 @@ private:
 
 	static int32 DataLayersStateEpoch;
 
+	static_assert(DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED, "bHasDeprecatedDataLayers is deprecated and needs to be deleted.");
+	bool bHasDeprecatedDataLayers;
+
 public:
 	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FDataLayersFilterDelegate, FName /*DataLayerName*/, EDataLayerRuntimeState /*CurrentState*/, EDataLayerRuntimeState /*TargetState*/);
 
 	UE_DEPRECATED(5.00, "do not use, will be replaced by another mechanism for initial release.")
 	FDataLayersFilterDelegate DataLayersFilterDelegate;
 };
+
+#if WITH_EDITOR
+
+template<class DataLayerInstanceType, typename ...CreationsArgs>
+DataLayerInstanceType* AWorldDataLayers::CreateDataLayer(CreationsArgs... InCreationArgs)
+{
+	Modify();
+
+	DataLayerInstanceType* NewDataLayer = NewObject<DataLayerInstanceType>(this, DataLayerInstanceType::MakeName(Forward<CreationsArgs>(InCreationArgs)...), RF_Transactional | RF_NoFlags);
+	check(NewDataLayer != nullptr);
+	NewDataLayer->OnCreated(Forward<CreationsArgs>(InCreationArgs)...);
+	DataLayerInstances.Add(NewDataLayer);
+
+	UpdateContainsDeprecatedDataLayers();
+
+	return NewDataLayer;
+}
+
+template<class IdentifierType>
+void AWorldDataLayers::OverwriteDataLayerRuntimeStates(const TArray<IdentifierType>* InActiveDataLayers, const TArray<IdentifierType>* InLoadedDataLayers)
+{
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		// This should get called before game starts. It doesn't send out events
+		check(!GetWorld()->bMatchStarted);
+
+		if (InActiveDataLayers)
+		{
+			ActiveDataLayerNames.Empty(InActiveDataLayers->Num());
+			for (const IdentifierType& DataLayerIdentitier : *InActiveDataLayers)
+			{
+				const UDataLayerInstance* DataLayerInstance = GetDataLayerInstance(DataLayerIdentitier);
+				if (DataLayerInstance && DataLayerInstance->IsRuntime())
+				{
+					ActiveDataLayerNames.Add(DataLayerInstance->GetDataLayerFName());
+				}
+			}
+			RepActiveDataLayerNames = ActiveDataLayerNames.Array();
+		}
+		
+
+		if(InLoadedDataLayers)
+		{
+			LoadedDataLayerNames.Empty(InLoadedDataLayers->Num());
+			for (const IdentifierType& DataLayerIdentitier : *InLoadedDataLayers)
+			{
+				const UDataLayerInstance* DataLayerInstance = GetDataLayerInstance(DataLayerIdentitier);
+				if (DataLayerInstance && DataLayerInstance->IsRuntime())
+				{
+					LoadedDataLayerNames.Add(DataLayerInstance->GetDataLayerFName());
+				}
+			}
+			RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
+		}
+
+		ForEachDataLayer([this](class UDataLayerInstance* DataLayer)
+		{
+			if (DataLayer && DataLayer->IsRuntime())
+			{
+				ResolveEffectiveRuntimeState(DataLayer, /*bNotifyChange*/false);
+			}
+			return true;
+		});
+
+		RepEffectiveActiveDataLayerNames = EffectiveActiveDataLayerNames.Array();
+		RepEffectiveLoadedDataLayerNames = EffectiveLoadedDataLayerNames.Array();
+	}
+}
+
+#endif // WITH_EDITOR

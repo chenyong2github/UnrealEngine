@@ -9,6 +9,7 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionActorCluster.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationNullErrorHandler.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationLogErrorHandler.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationMapCheckErrorHandler.h"
@@ -388,6 +389,28 @@ class FWorldPartitionStreamingGenerator
 		}
 	}
 
+	void ValidateDataLayers()
+	{
+		for (auto ContainerIt = ContainerDescriptorsMap.CreateIterator(); ContainerIt; ++ContainerIt)
+		{
+			const FActorContainerID& ContainerID = ContainerIt.Key();
+			FContainerDescriptor& ContainerDescriptor = ContainerIt.Value();
+			if (ContainerID.IsMainContainer() && ContainerDescriptor.Container->GetWorld())
+			{
+				if (AWorldDataLayers* WorldDataLayers = ContainerDescriptor.Container->GetWorld()->GetWorldDataLayers())
+				{
+					WorldDataLayers->ForEachDataLayer([this](const UDataLayerInstance* DataLayerInstance) 
+					{
+						DataLayerInstance->Validate(ErrorHandler);
+						return true;
+					});
+				}
+
+				break;
+			}
+		}
+	}
+
 public:
 	FWorldPartitionStreamingGenerator(FActorDescList* InModifiedActorsDescList, IStreamingGenerationErrorHandler* InErrorHandler)
 	: ModifiedActorsDescList(InModifiedActorsDescList)
@@ -401,6 +424,9 @@ public:
 
 		// Preparation Phase :: Actor Descriptor Views Validation
 		ValidateActorDescriptorViews();
+
+		// Preparation Phase :: Data Layer Validation
+		ValidateDataLayers();
 
 		// Update container descriptors
 		UpdateContainerDescriptors();

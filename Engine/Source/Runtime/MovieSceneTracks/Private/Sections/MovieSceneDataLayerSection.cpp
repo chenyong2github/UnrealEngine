@@ -2,7 +2,7 @@
 
 #include "Sections/MovieSceneDataLayerSection.h"
 #include "MovieSceneTracksComponentTypes.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 UMovieSceneDataLayerSection::UMovieSceneDataLayerSection(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

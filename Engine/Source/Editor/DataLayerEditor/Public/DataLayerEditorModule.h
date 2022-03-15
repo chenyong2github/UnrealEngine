@@ -7,7 +7,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 
-class UDataLayer;
+class UDataLayerInstance;
 
 /**
  * The module holding all of the UI related pieces for DataLayers
@@ -34,14 +34,13 @@ public:
 	/*
 	 * Selected DataLayer in DataLayer Browser widget
 	 */
-	virtual void SyncDataLayerBrowserToDataLayer(const UDataLayer* DataLayer);
+	virtual void SyncDataLayerBrowserToDataLayer(const UDataLayerInstance* DataLayer);
 
 	/** Delegates to be called to extend the DataLayers menus */
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<FExtender>, FDataLayersMenuExtender, const TSharedRef<FUICommandList>);
 	virtual TArray<FDataLayersMenuExtender>& GetAllDataLayersMenuExtenders() {return DataLayersMenuExtenders;}
 
 private:
-
 	TWeakPtr<SWidget> DataLayerBrowser;
 
 	/** All extender delegates for the DataLayers menus */

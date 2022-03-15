@@ -22,5 +22,5 @@ private:
 	bool CanRemoveSelectedActorsFromSelectedDataLayersClicked() const;
 	FReply OnAddSelectedActorsToSelectedDataLayersClicked();
 	FReply OnRemoveSelectedActorsFromSelectedDataLayersClicked();
-	TArray<class UDataLayer*> GetSelectedDataLayers() const;
+	TArray<class UDataLayerInstance*> GetSelectedDataLayers() const;
 };

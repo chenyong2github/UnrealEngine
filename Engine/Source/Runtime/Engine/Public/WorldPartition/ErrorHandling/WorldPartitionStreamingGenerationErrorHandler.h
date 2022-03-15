@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 
+class UDataLayerInstance;
+class UDataLayerInstanceWithAsset;
+
 class ENGINE_API IStreamingGenerationErrorHandler
 {
 public:
@@ -39,5 +42,20 @@ public:
 	 * Called when an actor descriptor references an actor using data layers.
 	 */
 	virtual void OnInvalidReferenceLevelScriptDataLayers(const FWorldPartitionActorDescView& ActorDescView) = 0;
+
+	/**
+	 * Called when a data layer instance does not have a data layer asset
+	 */
+	virtual void OnInvalidReferenceDataLayerAsset(const UDataLayerInstanceWithAsset* DataLayerInstance) = 0;
+
+	/**
+	 * Called when a data layer is not of the same type as its parent
+	 */
+	virtual void OnDataLayerHierarchyTypeMismatch(const UDataLayerInstance* DataLayerInstance, const UDataLayerInstance* Parent) = 0;
+
+	/**
+	 * Called when two data layer instances share the same asset
+	 */
+	virtual void OnDataLayerAssetConflict(const UDataLayerInstanceWithAsset* DataLayerInstance, const UDataLayerInstanceWithAsset* ConflictingDataLayerInstance) = 0;
 };
 #endif

@@ -2,6 +2,8 @@
 
 #include "WorldPartition/DataLayer/DataLayersID.h"
 
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
+
 #include "Algo/Transform.h"
 
 #if WITH_EDITOR
@@ -9,11 +11,11 @@ FDataLayersID::FDataLayersID()
 	: Hash(0)
 {}
 
-FDataLayersID::FDataLayersID(const TArray<const UDataLayer*>& InDataLayers)
+FDataLayersID::FDataLayersID(const TArray<const UDataLayerInstance*>& InDataLayerInstances)
 	: Hash(0)
 {
 	TArray<FName> DataLayers;
-	Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayer* Item) { return Item->IsRuntime(); }, [](const UDataLayer* Item) { return Item->GetFName(); });
+	Algo::TransformIf(InDataLayerInstances, DataLayers, [](const UDataLayerInstance* Item) { return Item->IsRuntime(); }, [](const UDataLayerInstance* Item) { return Item->GetDataLayerFName(); });
 
 	if (DataLayers.Num())
 	{

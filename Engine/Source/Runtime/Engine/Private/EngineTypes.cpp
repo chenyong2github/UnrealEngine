@@ -253,13 +253,13 @@ FActorInstanceHandle::FActorInstanceHandle(AActor* InActor)
 	if (InActor)
 	{
 #if WITH_EDITOR
-		// use the first layer the actor is in if it's in multiple layers
-		TArray<const UDataLayer*> DataLayers = InActor->GetDataLayerObjects();
-		const UDataLayer* Layer = DataLayers.Num() > 0 ? DataLayers[0] : nullptr;
+		// use the first data layer the actor is in if it's in multiple layers
+		TArray<const UDataLayerInstance*> DataLayerInstances = InActor->GetDataLayerInstances();
+		const UDataLayerInstance* DataLayerInstance = DataLayerInstances.Num() > 0 ? DataLayerInstances[0] : nullptr;
 #else
-		const UDataLayer* Layer = nullptr;
+		const UDataLayerInstance* DataLayerInstance = nullptr;
 #endif // WITH_EDITOR
-		Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(InActor->StaticClass(), Layer);
+		Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(InActor->StaticClass(), DataLayerInstance);
 	}
 }
 
@@ -516,13 +516,13 @@ bool FActorInstanceHandle::operator==(const AActor* OtherActor) const
 
 #if WITH_EDITOR
 	// use the first layer the actor is in if it's in multiple layers
-	TArray<const UDataLayer*> DataLayers = OtherActor->GetDataLayerObjects();
-	const UDataLayer* Layer = DataLayers.Num() > 0 ? DataLayers[0] : nullptr;
+	TArray<const UDataLayerInstance*> DataLayerInstances = OtherActor->GetDataLayerInstances();
+	const UDataLayerInstance* DataLayerInstance = DataLayerInstances.Num() > 0 ? DataLayerInstances[0] : nullptr;
 #else
-	const UDataLayer* Layer = nullptr;
+	const UDataLayerInstance* DataLayerInstance = nullptr;
 #endif // WITH_EDITOR
 
-	if (ALightWeightInstanceManager* LWIManager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(OtherActor->StaticClass(), Layer))
+	if (ALightWeightInstanceManager* LWIManager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(OtherActor->StaticClass(), DataLayerInstance))
 	{
 		if (Manager.Get() != LWIManager)
 		{

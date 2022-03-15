@@ -118,20 +118,20 @@ struct FDataLayerSection
 		{
 			FString LayerName;
 
-			const TArray<FActorDataLayer>& DataLayers = Section->GetDataLayers();
-			for (int32 Index = 0; Index < DataLayers.Num(); ++Index)
+			const TArray<UDataLayerAsset*>& DataLayerAssets = Section->GetDataLayerAssets();
+			for (int32 Index = 0; Index < DataLayerAssets.Num(); ++Index)
 			{
-				UDataLayer* DataLayer = SubSystem->GetDataLayer(DataLayers[Index]);
-				if (DataLayer)
+				UDataLayerInstance* DataLayerInstance = SubSystem->GetDataLayerInstance(DataLayerAssets[Index]);
+				if (DataLayerInstance)
 				{
-					LayerName += DataLayer->GetDataLayerLabel().ToString();
+					LayerName += DataLayerInstance->GetDataLayerFullName();
 				}
 				else
 				{
-					LayerName += FText::Format(LOCTEXT("UnknownDataLayer", "**invalid: {0}**"), FText::FromString(DataLayers[Index].Name.ToString())).ToString();
+					LayerName += FText::Format(LOCTEXT("UnknownDataLayer", "**invalid: {0}**"), FText::FromString(DataLayerAssets[Index]->GetFullName())).ToString();
 				}
 
-				if (Index < DataLayers.Num()-1)
+				if (Index < DataLayerAssets.Num()-1)
 				{
 					LayerName += TEXT(", ");
 				}

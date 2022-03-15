@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
 #include "MovieSceneTrackEditor.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 class FMenuBuilder;
 class UMovieSceneDataLayerSection;

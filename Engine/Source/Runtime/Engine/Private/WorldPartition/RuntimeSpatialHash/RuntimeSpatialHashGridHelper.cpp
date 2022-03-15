@@ -3,6 +3,7 @@
 #include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashGridHelper.h"
 #include "Algo/Transform.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 bool GRuntimeSpatialHashUseAlignedGridLevels = true;
 static FAutoConsoleVariableRef CVarRuntimeSpatialHashUseAlignedGridLevels(
@@ -263,7 +264,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 				if (ClusterInstance->DataLayers.Num())
 				{
 					TArray<FString> DataLayers;
-					Algo::Transform(ClusterInstance->DataLayers, DataLayers, [](const UDataLayer* DataLayer) { return DataLayer->GetDataLayerLabel().ToString(); });
+					Algo::Transform(ClusterInstance->DataLayers, DataLayers, [](const UDataLayerInstance* DataLayer) { return DataLayer->GetDataLayerFullName(); });
 					UE_LOG(LogWorldPartition, Verbose, TEXT("   - DataLayers: %s"), *FString::Join(DataLayers, TEXT(", ")));
 				}
 

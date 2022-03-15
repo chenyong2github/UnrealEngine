@@ -11,7 +11,7 @@ class FReply;
 class SWidget;
 class FDragDropOperation;
 class FDataLayerDragDropOp;
-class UDataLayer;
+class UDataLayerInstance;
 struct FSlateColor;
 struct FSlateBrush;
 
@@ -22,9 +22,9 @@ struct FDataLayerPropertyTypeCustomization : public IPropertyTypeCustomization
 
 private:
 
-	void AssignDataLayer(const UDataLayer* InDataLayer);
+	void AssignDataLayer(const UDataLayerInstance* InDataLayer);
 
-	UDataLayer* GetDataLayerFromPropertyHandle(FPropertyAccess::Result* OutPropertyAccessResult = nullptr) const;
+	UDataLayerInstance* GetDataLayerFromPropertyHandle(FPropertyAccess::Result* OutPropertyAccessResult = nullptr) const;
 	FText GetDataLayerText() const;
 	FSlateColor GetForegroundColor() const;
 	const FSlateBrush* GetDataLayerIcon() const;

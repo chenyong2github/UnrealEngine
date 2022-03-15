@@ -9,13 +9,13 @@
 void FDataLayerDragDropOp::Construct()
 {
 	const FSlateBrush* Icon = FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
-	if (DataLayerLabels.Num() == 1)
+	if (DataLayerDragDropInfos.Num() == 1)
 	{
-		SetToolTip(FText::FromName(DataLayerLabels[0]), Icon);
+		SetToolTip(FText::FromString(DataLayerDragDropInfos[0].DataLayerShortName), Icon);
 	}
 	else
 	{
-		FText Text = FText::Format(NSLOCTEXT("FDataLayerDragDropOp", "MultipleFormat", "{0} DataLayerLabels"), DataLayerLabels.Num());
+		FText Text = FText::Format(NSLOCTEXT("FDataLayerDragDropOp", "MultipleFormat", "{0} DataLayers"), DataLayerDragDropInfos.Num());
 		SetToolTip(Text, Icon);
 	}
 

@@ -135,6 +135,7 @@ public class UnrealEd : ModuleRules
 				"CinematicCamera",
 				"CurveEditor",
 				"ContentBrowserData",
+				"DataLayerEditor",
 				"DerivedDataCache",
 				"Zen",
 				"DesktopPlatform",

@@ -4,7 +4,7 @@
 
 #include "Subsystems/WorldSubsystem.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerEditorContext.h"
 #include "DataLayerSubsystem.generated.h"
 
@@ -14,7 +14,7 @@
 
 class UCanvas;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerRuntimeStateChanged, const UDataLayer*, DataLayer, EDataLayerRuntimeState, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerRuntimeStateChanged, const UDataLayerInstance*, DataLayer, EDataLayerRuntimeState, State);
 
 UCLASS()
 class ENGINE_API UDataLayerSubsystem : public UWorldSubsystem
@@ -30,41 +30,19 @@ public:
 
 	//~ Begin Blueprint callable functions
 
-	/** Find a Data Layer by name. */
+	/** Find a Data Layer by its asset. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	UDataLayer* GetDataLayer(const FActorDataLayer& InDataLayer) const;
+	UDataLayerInstance* GetDataLayerFromAsset(const UDataLayerAsset* InDataLayerAsset) const;
 
-	/** Find a Data Layer by label. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	UDataLayer* GetDataLayerFromLabel(FName InDataLayerLabel) const;
+	EDataLayerRuntimeState GetDataLayerInstanceRuntimeState(const UDataLayerAsset* InDataLayerAsset) const;
 
-	/** Find a Data Layer by name. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	UDataLayer* GetDataLayerFromName(FName InDataLayerName) const;
+	EDataLayerRuntimeState GetDataLayerInstanceEffectiveRuntimeState(const UDataLayerAsset* InDataLayerAsset) const;
 
 	/** Set the Data Layer state using its name. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
-	void SetDataLayerRuntimeState(const FActorDataLayer& InDataLayer, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
-
-	/** Set the Data Layer state using its label. */
-	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
-	void SetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
-		
-	/** Get the Data Layer state using its name. */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	EDataLayerRuntimeState GetDataLayerRuntimeState(const FActorDataLayer& InDataLayer) const;
-
-	/** Get the Data Layer state using its label. */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	EDataLayerRuntimeState GetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel) const;
-
-	/** Get the Data Layer effective state using its name. */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const FActorDataLayer& InDataLayer) const;
-
-	/** Get the Data Layer effective state using its label. */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByLabel(const FName& InDataLayerLabel) const;
+	void SetDataLayerInstanceRuntimeState(const UDataLayerAsset* InDataLayerAsset, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 
 	/** Called when a Data Layer changes state. */
 	UPROPERTY(BlueprintAssignable)
@@ -72,11 +50,11 @@ public:
 
 	//~ End Blueprint callable functions
 
-	void SetDataLayerRuntimeState(const UDataLayer* InDataLayer, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
-	void SetDataLayerRuntimeStateByName(const FName& InDataLayerName, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
-	EDataLayerRuntimeState GetDataLayerRuntimeState(const UDataLayer* InDataLayer) const;
+	UDataLayerInstance* GetDataLayerInstance(const FName& InDataLayerInstanceName) const;
+	void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+	EDataLayerRuntimeState GetDataLayerRuntimeState(const UDataLayerInstance* InDataLayer) const;
 	EDataLayerRuntimeState GetDataLayerRuntimeStateByName(const FName& InDataLayerName) const;
-	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const UDataLayer* InDataLayer) const;
+	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const UDataLayerInstance* InDataLayer) const;
 	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByName(const FName& InDataLayerName) const;
 	bool IsAnyDataLayerInEffectiveRuntimeState(const TArray<FName>& InDataLayerNames, EDataLayerRuntimeState InState) const;
 	const TSet<FName>& GetEffectiveActiveDataLayerNames() const;
@@ -84,7 +62,7 @@ public:
 
 	void GetDataLayerDebugColors(TMap<FName, FColor>& OutMapping) const;
 	void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
-	static TArray<UDataLayer*> ConvertArgsToDataLayers(UWorld* World, const TArray<FString>& InArgs);
+	static TArray<UDataLayerInstance*> ConvertArgsToDataLayers(UWorld* World, const TArray<FString>& InArgs);
 
 	void DumpDataLayers(FOutputDevice& OutputDevice) const;
 
@@ -100,12 +78,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly, meta = (DeprecatedFunction, DeprecationMessage = "Use SetDataLayerRuntimeStateByLabel instead"))
 	void SetDataLayerStateByLabel(const FName& InDataLayerLabel, EDataLayerState InState) { SetDataLayerRuntimeStateByLabel(InDataLayerLabel, (EDataLayerRuntimeState)InState); }
 
-	UE_DEPRECATED(5.0, "Use SetDataLayerRuntimeState() instead.")
-	void SetDataLayerState(const UDataLayer* InDataLayer, EDataLayerState InState) { SetDataLayerRuntimeState(InDataLayer, (EDataLayerRuntimeState)InState); }
-
-	UE_DEPRECATED(5.0, "Use SetDataLayerRuntimeStateByName() instead.")
-	void SetDataLayerStateByName(const FName& InDataLayerName, EDataLayerState InState) { SetDataLayerRuntimeStateByName(InDataLayerName, (EDataLayerRuntimeState)InState); }
-
 	UE_DEPRECATED(5.0, "Use GetDataLayerRuntimeState() instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use GetDataLayerRuntimeState instead"))
 	EDataLayerState GetDataLayerState(const FActorDataLayer& InDataLayer) const { return (EDataLayerState)GetDataLayerRuntimeState(InDataLayer); }
@@ -115,7 +87,7 @@ public:
 	EDataLayerState GetDataLayerStateByLabel(const FName& InDataLayerLabel) const { return (EDataLayerState)GetDataLayerRuntimeStateByLabel(InDataLayerLabel); }
 
 	UE_DEPRECATED(5.0, "Use GetDataLayerRuntimeState() instead.")
-	EDataLayerState GetDataLayerState(const UDataLayer* InDataLayer) const { return (EDataLayerState)GetDataLayerRuntimeState(InDataLayer); }
+	EDataLayerState GetDataLayerState(const UDataLayerInstance* InDataLayer) const { return (EDataLayerState)GetDataLayerRuntimeState(InDataLayer); }
 
 	UE_DEPRECATED(5.0, "Use GetDataLayerRuntimeStateByName() instead.")
 	EDataLayerState GetDataLayerStateByName(const FName& InDataLayerName) const { return (EDataLayerState)GetDataLayerRuntimeStateByName(InDataLayerName); }
@@ -132,6 +104,43 @@ public:
 	UE_DEPRECATED(5.0, "GetLoadedDataLayerNames will be removed.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "GetLoadedDataLayerNames will be removed."))
 	const TSet<FName>& GetLoadedDataLayerNames() const { return GetEffectiveLoadedDataLayerNames(); }
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerFromAsset() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UDataLayerInstance* GetDataLayer(const FActorDataLayer& InDataLayer) const;
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerFromAsset() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UDataLayerInstance* GetDataLayerFromName(FName InDataLayerName) const;
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerFromAsset() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UDataLayerInstance* GetDataLayerFromLabel(FName InDataLayerLabel) const;
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceRuntimeState() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	EDataLayerRuntimeState GetDataLayerRuntimeState(const FActorDataLayer& InDataLayer) const;
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceRuntimeState() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	EDataLayerRuntimeState GetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel) const;
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceEffectiveRuntimeState() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const FActorDataLayer& InDataLayer) const;
+
+	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceEffectiveRuntimeState() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByLabel(const FName& InDataLayerLabel) const;
+
+	UE_DEPRECATED(5.1, "Use SetDataLayerRuntimeState() with UDataLayerAsset* overload instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
+	void SetDataLayerRuntimeState(const FActorDataLayer& InDataLayer, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+
+	UE_DEPRECATED(5.1, "Use SetDataLayerInstanceRuntimeState() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
+	void SetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+
 	//~ End Deprecated
 
 #if WITH_EDITOR
@@ -147,7 +156,7 @@ private:
 	static class FAutoConsoleCommand ToggleDataLayerActivation;
 
 	/** Data layers load time */
-	mutable TMap<UDataLayer*, double> ActiveDataLayersLoadTime;
+	mutable TMap<const UDataLayerInstance*, double> ActiveDataLayersLoadTime;
 
 	/** Console command used to set Runtime DataLayer state*/
 	static class FAutoConsoleCommand SetDataLayerRuntimeStateCommand;

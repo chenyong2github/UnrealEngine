@@ -23,14 +23,14 @@ UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer&
 {}
 
 #if WITH_EDITOR
-void UWorldPartitionRuntimeCell::SetDataLayers(const TArray<const UDataLayer*>& InDataLayers)
+void UWorldPartitionRuntimeCell::SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances)
 {
 	check(DataLayers.IsEmpty());
-	DataLayers.Reserve(InDataLayers.Num());
-	for (const UDataLayer* DataLayer : InDataLayers)
+	DataLayers.Reserve(InDataLayerInstances.Num());
+	for (const UDataLayerInstance* DataLayerInstance : InDataLayerInstances)
 	{
-		check(DataLayer->IsRuntime());
-		DataLayers.Add(DataLayer->GetFName());
+		check(DataLayerInstance->IsRuntime());
+		DataLayers.Add(DataLayerInstance->GetDataLayerFName());
 	}
 	DataLayers.Sort([](const FName& A, const FName& B) { return A.ToString() < B.ToString(); });
 	UpdateDebugName();
@@ -52,15 +52,15 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 	int32 DataLayerCount = DataLayers.Num();
 
 	const AWorldDataLayers* WorldDataLayers = GetOuterUWorldPartition()->GetWorld()->GetWorldDataLayers();
-	TArray<const UDataLayer*> DataLayerObjects;
+	TArray<const UDataLayerInstance*> DataLayerObjects;
 	if (WorldDataLayers && (DataLayerCount > 0))
 	{
 		Builder += TEXT(" DL[");
 		for (int i = 0; i < DataLayerCount; ++i)
 		{
-			const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayers[i]);
+			const UDataLayerInstance* DataLayer = WorldDataLayers->GetDataLayerInstance(DataLayers[i]);
 			DataLayerObjects.Add(DataLayer);
-			Builder += DataLayer->GetDataLayerLabel().ToString();
+			Builder += DataLayer->GetDataLayerShortName();
 			Builder += TEXT(",");
 		}
 		Builder += FString::Printf(TEXT("ID:%X]"), FDataLayersID(DataLayerObjects).GetHash());

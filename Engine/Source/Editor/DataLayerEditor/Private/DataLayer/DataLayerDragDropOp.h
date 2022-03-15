@@ -4,11 +4,13 @@
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
 
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
+
 class FDragDropEvent;
 class AActor;
-class UDataLayer;
+class UDataLayerInstance;
 
-typedef TPair< TWeakObjectPtr<AActor>, TWeakObjectPtr<UDataLayer>> FDataLayerActorMoveElement;
+typedef TPair< TWeakObjectPtr<AActor>, TWeakObjectPtr<UDataLayerInstance>> FDataLayerActorMoveElement;
 
 /** Drag/drop operation for dragging layers in the editor */
 class FDataLayerDragDropOp : public FDecoratedDragDropOp
@@ -16,8 +18,19 @@ class FDataLayerDragDropOp : public FDecoratedDragDropOp
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDataLayerDragDropOp, FDecoratedDragDropOp)
 
+	struct FDragDropInfo
+	{
+		FDragDropInfo(const UDataLayerInstance* DataLayerInstance)
+			:DataLayerInstanceName(DataLayerInstance->GetDataLayerFName()),
+			DataLayerShortName(DataLayerInstance->GetDataLayerShortName())
+		{}
+
+		FName DataLayerInstanceName;
+		FString DataLayerShortName;
+	};
+
 	/** The labels of the layers being dragged */
-	TArray<FName> DataLayerLabels;
+	TArray<FDragDropInfo> DataLayerDragDropInfos;
 
 	virtual void Construct() override;
 };

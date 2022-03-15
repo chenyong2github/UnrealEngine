@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "SceneOutlinerFwd.h"
 #include "ActorDescTreeItem.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDataLayerActorTreeItemData
@@ -14,7 +14,7 @@ class FWorldPartitionActorDesc;
 
 struct FDataLayerActorDescTreeItemData
 {
-	FDataLayerActorDescTreeItemData(const FGuid& InActorGuid, UActorDescContainer* InContainer, UDataLayer* InDataLayer)
+	FDataLayerActorDescTreeItemData(const FGuid& InActorGuid, UActorDescContainer* InContainer, UDataLayerInstance* InDataLayer)
 		: ActorGuid(InActorGuid)
 		, Container(InContainer)
 		, DataLayer(InDataLayer)
@@ -22,7 +22,7 @@ struct FDataLayerActorDescTreeItemData
 	
 	const FGuid& ActorGuid;
 	UActorDescContainer* const Container;
-	TWeakObjectPtr<UDataLayer> DataLayer;
+	TWeakObjectPtr<UDataLayerInstance> DataLayer;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -31,8 +31,8 @@ struct FDataLayerActorDescTreeItemData
 struct FDataLayerActorDescTreeItem : public FActorDescTreeItem
 {
 public:
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FFilterPredicate, const FWorldPartitionActorDesc* ActorDesc, const UDataLayer* DataLayer);
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FInteractivePredicate, const FWorldPartitionActorDesc* ActorDesc, const UDataLayer* DataLayer);
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FFilterPredicate, const FWorldPartitionActorDesc* ActorDesc, const UDataLayerInstance* DataLayer);
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FInteractivePredicate, const FWorldPartitionActorDesc* ActorDesc, const UDataLayerInstance* DataLayer);
 
 	FDataLayerActorDescTreeItem(const FDataLayerActorDescTreeItemData& InData)
 		: FActorDescTreeItem(InData.ActorGuid, InData.Container)
@@ -41,9 +41,9 @@ public:
 	{
 	}
 
-	UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
+	UDataLayerInstance* GetDataLayer() const { return DataLayer.Get(); }
 	
-	static uint32 ComputeTreeItemID(const FGuid& InActorGuid, const UDataLayer* InDataLayer)
+	static uint32 ComputeTreeItemID(const FGuid& InActorGuid, const UDataLayerInstance* InDataLayer)
 	{
 		return HashCombine(GetTypeHash(InActorGuid), GetTypeHash(FObjectKey(InDataLayer)));
 	}
@@ -68,6 +68,6 @@ public:
 	/* End ISceneOutlinerTreeItem Implementation */
 
 private:
-	TWeakObjectPtr<UDataLayer> DataLayer;
+	TWeakObjectPtr<UDataLayerInstance> DataLayer;
 	const uint32 IDDataLayerActorDesc;
 };

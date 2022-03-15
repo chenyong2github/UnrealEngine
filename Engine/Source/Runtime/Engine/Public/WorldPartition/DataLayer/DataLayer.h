@@ -8,6 +8,7 @@
 #include "UObject/Object.h"
 #include "ActorDataLayer.h"
 #include "Math/Color.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 #include "DataLayer.generated.h"
 
@@ -18,26 +19,6 @@ enum class UE_DEPRECATED(5.0, "Use EDataLayerRuntimeState instead.") EDataLayerS
 	Loaded,
 	Activated
 };
-
-UENUM(BlueprintType)
-enum class EDataLayerRuntimeState : uint8
-{
-	Unloaded,
-	Loaded,		// Loaded but not in the world
-	Activated	// Loaded and in the world
-};
-
-const inline TCHAR* GetDataLayerRuntimeStateName(EDataLayerRuntimeState State)
-{
-	switch(State)
-	{
-	case EDataLayerRuntimeState::Unloaded: return TEXT("Unloaded");
-	case EDataLayerRuntimeState::Loaded: return TEXT("Loaded");
-	case EDataLayerRuntimeState::Activated: return TEXT("Activated");
-	default: check(0);
-	}
-	return TEXT("Invalid");
-}
 
 // Used for debugging
 bool inline GetDataLayerRuntimeStateFromName(const FString& InStateName, EDataLayerRuntimeState& OutState)
@@ -62,17 +43,22 @@ bool inline GetDataLayerRuntimeStateFromName(const FString& InStateName, EDataLa
 
 static_assert(EDataLayerRuntimeState::Unloaded < EDataLayerRuntimeState::Loaded && EDataLayerRuntimeState::Loaded < EDataLayerRuntimeState::Activated, "Streaming Query code is dependent on this being true");
 
-UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, BlueprintType, AutoCollapseCategories = ("Data Layer|Advanced"), AutoExpandCategories = ("Data Layer|Editor", "Data Layer|Advanced|Runtime"))
-class ENGINE_API UDataLayer : public UObject
+
+static_assert(DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED, "UDEPRECATED_DataLayer class is deprecated and needs to be deleted.");
+class UE_DEPRECATED(5.1, "Use UDataLayerInstance & UDataLayerAsset to create DataLayers") UDEPRECATED_DataLayer;
+
+UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, BlueprintType, Deprecated)
+class ENGINE_API UDEPRECATED_DataLayer : public UObject
 {
 	GENERATED_UCLASS_BODY()
+
+	friend class UDeprecatedDataLayerInstance;
 
 public:
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* Property) const;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	void SetDataLayerLabel(FName DataLayerLabel);
 	void SetVisible(bool bIsVisible);
 	void SetIsInitiallyVisible(bool bIsInitiallyVisible);
 	void SetIsRuntime(bool bIsRuntime);
@@ -86,22 +72,18 @@ public:
 	bool IsLoadedInEditorChangedByUserOperation() const { return bIsLoadedInEditorChangedByUserOperation; }
 	void ClearLoadedInEditorChangedByUserOperation() { bIsLoadedInEditorChangedByUserOperation = false; }
 
-	bool CanParent(const UDataLayer* InParent) const;
-	void SetParent(UDataLayer* InParent);
-	void SetChildParent(UDataLayer* InParent);
+	bool CanParent(const UDEPRECATED_DataLayer* InParent) const;
+	void SetParent(UDEPRECATED_DataLayer* InParent);
+	void SetChildParent(UDEPRECATED_DataLayer* InParent);
 
-	bool IsInActorEditorContext() const;
-	bool AddToActorEditorContext();
-	bool RemoveFromActorEditorContext();
-
-	static FText GetDataLayerText(const UDataLayer* InDataLayer);
+	static FText GetDataLayerText(const UDEPRECATED_DataLayer* InDataLayer);
 	const TCHAR* GetDataLayerIconName() const;
 #endif
-	const TArray<TObjectPtr<UDataLayer>>& GetChildren() const { return Children; }
-	void ForEachChild(TFunctionRef<bool(const UDataLayer*)> Operation) const;
+	const TArray<TObjectPtr<UDEPRECATED_DataLayer>>& GetChildren() const { return Children_DEPRECATED; }
+	void ForEachChild(TFunctionRef<bool(const UDEPRECATED_DataLayer*)> Operation) const;
 
-	const UDataLayer* GetParent() const { return Parent; }
-	UDataLayer* GetParent() { return Parent; }
+	const UDEPRECATED_DataLayer* GetParent() const { return Parent_DEPRECATED; }
+	UDEPRECATED_DataLayer* GetParent() { return Parent_DEPRECATED; }
 
 	virtual void PostLoad() override;
 
@@ -129,9 +111,6 @@ public:
 	UFUNCTION(Category = "Data Layer|Runtime", BlueprintCallable)
 	EDataLayerRuntimeState GetInitialRuntimeState() const { return IsRuntime() ? InitialRuntimeState : EDataLayerRuntimeState::Unloaded; }
 
-	/** Returns a sanitized version of the provided Data Layer Label */
-	static FName GetSanitizedDataLayerLabel(FName DataLayerLabel);
-
 	//~ Begin Deprecated
 
 	UE_DEPRECATED(5.0, "Use IsRuntime() instead.")
@@ -151,9 +130,9 @@ public:
 	//~ End Deprecated
 private:
 
-	void AddChild(UDataLayer* DataLayer);
+	void AddChild(UDEPRECATED_DataLayer* DataLayer);
 #if WITH_EDITOR
-	void RemoveChild(UDataLayer* DataLayer);
+	void RemoveChild(UDEPRECATED_DataLayer* DataLayer);
 	void PropagateIsRuntime();
 #endif
 
@@ -201,8 +180,8 @@ private:
 	FColor DebugColor;
 
 	UPROPERTY()
-	TObjectPtr<UDataLayer> Parent;
+	TObjectPtr<UDEPRECATED_DataLayer> Parent_DEPRECATED;
 
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UDataLayer>> Children;
+	TArray<TObjectPtr<UDEPRECATED_DataLayer>> Children_DEPRECATED;
 };

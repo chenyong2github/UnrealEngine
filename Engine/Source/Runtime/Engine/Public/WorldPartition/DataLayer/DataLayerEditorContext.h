@@ -6,7 +6,7 @@
 
 #if WITH_EDITOR
 
-struct FActorDataLayer;
+class UDataLayerInstance;
 class UWorld;
 
 /**
@@ -18,12 +18,12 @@ struct ENGINE_API FDataLayerEditorContext
 public:
 	static const uint32 EmptyHash = 0;
 	FDataLayerEditorContext() : Hash(FDataLayerEditorContext::EmptyHash) {}
-	FDataLayerEditorContext(UWorld* InWorld, const TArray<FName>& InDataLayers);
-	FORCEINLINE bool IsEmpty() const { return (Hash == FDataLayerEditorContext::EmptyHash) && DataLayers.IsEmpty(); }
+	FDataLayerEditorContext(UWorld* InWorld, const TArray<FName>& InDataLayerInstances);
+	FORCEINLINE bool IsEmpty() const { return (Hash == FDataLayerEditorContext::EmptyHash) && DataLayerInstances.IsEmpty(); }
 	FORCEINLINE uint32 GetHash() const { return Hash; }
-	FORCEINLINE const TArray<FName>& GetDataLayers() const { return DataLayers; }
+	FORCEINLINE const TArray<FName>& GetDataLayerInstanceNames() const { return DataLayerInstances; }
 private:
 	uint32 Hash;
-	TArray<FName> DataLayers;
+	TArray<FName> DataLayerInstances;
 };
 #endif

@@ -4,7 +4,7 @@
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "GameFramework/LightWeightInstanceManager.h"
 
-FActorInstanceHandle ULightWeightInstanceBlueprintFunctionLibrary::CreateNewLightWeightInstance(UClass* InActorClass, FTransform InTransform, UDataLayer* InLayer, UWorld* World)
+FActorInstanceHandle ULightWeightInstanceBlueprintFunctionLibrary::CreateNewLightWeightInstance(UClass* InActorClass, FTransform InTransform, UDataLayerInstance* InLayer, UWorld* World)
 {
 	// set up initialization data
 	FLWIData PerInstanceData;
@@ -23,12 +23,12 @@ FActorInstanceHandle ULightWeightInstanceBlueprintFunctionLibrary::ConvertActorT
 	// Get or create a light weight instance for this class and layer
 	// use the first layer the actor is in if it's in multiple layers
 #if WITH_EDITOR
-	TArray<const UDataLayer*> DataLayers = InActor->GetDataLayerObjects();
-	const UDataLayer* Layer = DataLayers.Num() > 0 ? DataLayers[0] : nullptr;
+	TArray<const UDataLayerInstance*> DataLayerInstances = InActor->GetDataLayerInstances();
+	const UDataLayerInstance* DataLayerInstance = DataLayerInstances.Num() > 0 ? DataLayerInstances[0] : nullptr;
 #else
-	const UDataLayer* Layer = nullptr;
+	const UDataLayerInstance* DataLayerInstance = nullptr;
 #endif // WITH_EDITOR
-	if (ALightWeightInstanceManager* LWIManager = FLightWeightInstanceSubsystem::Get().FindOrAddLightWeightInstanceManager(InActor->GetClass(), Layer, InActor->GetWorld()))
+	if (ALightWeightInstanceManager* LWIManager = FLightWeightInstanceSubsystem::Get().FindOrAddLightWeightInstanceManager(InActor->GetClass(), DataLayerInstance, InActor->GetWorld()))
 	{
 		return LWIManager->ConvertActorToLightWeightInstance(InActor);
 	}

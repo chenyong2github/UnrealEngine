@@ -75,7 +75,7 @@ FName FWorldPartitionActorDescView::GetHLODLayer() const
 const TArray<FName>& FWorldPartitionActorDescView::GetDataLayers() const
 {
 	static TArray<FName> EmptyDataLayers;
-	return bInvalidDataLayers ? EmptyDataLayers : ActorDesc->GetDataLayers();
+	return bInvalidDataLayers ? EmptyDataLayers : ActorDesc->GetDataLayerInstanceNames();
 }
 
 FName FWorldPartitionActorDescView::GetActorPackage() const

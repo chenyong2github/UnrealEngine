@@ -19,7 +19,7 @@
 #include "FolderTreeItem.h"
 #include "LevelTreeItem.h"
 #include "WorldTreeItem.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "Styling/StyleColors.h"

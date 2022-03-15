@@ -49,7 +49,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	bLevelBoundsRelevant = InActor->IsLevelBoundsRelevant();
 	bActorIsHLODRelevant = InActor->IsHLODRelevant();
 	HLODLayer = InActor->GetHLODLayer() ? FName(InActor->GetHLODLayer()->GetPathName()) : FName();
-	DataLayers = InActor->GetDataLayerNames();
+	DataLayers = InActor->GetDataLayerInstanceNames();
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
 	FolderPath = InActor->GetFolderPath();

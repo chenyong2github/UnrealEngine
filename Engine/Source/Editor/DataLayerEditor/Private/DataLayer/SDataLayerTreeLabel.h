@@ -11,7 +11,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 struct FDataLayerTreeItem;
-class UDataLayer;
+class UDataLayerInstance;
 
 struct SDataLayerTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 {
@@ -36,6 +36,6 @@ private:
 	bool IsInActorEditorContext() const;
 
 	TWeakPtr<FDataLayerTreeItem> TreeItemPtr;
-	TWeakObjectPtr<UDataLayer> DataLayerPtr;
+	TWeakObjectPtr<UDataLayerInstance> DataLayerPtr;
 	TAttribute<FText> HighlightText;
 };

@@ -29,8 +29,8 @@ protected:
 		auto TreeItem = WeakTreeItem.Pin();
 		if (FDataLayerTreeItem* DataLayerTreeItem = TreeItem.IsValid() ? TreeItem->CastTo<FDataLayerTreeItem>() : nullptr)
 		{
-			const UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer();
-			const UDataLayer* ParentDataLayer = DataLayer ? DataLayer->GetParent() : nullptr;
+			const UDataLayerInstance* DataLayer = DataLayerTreeItem->GetDataLayer();
+			const UDataLayerInstance* ParentDataLayer = DataLayer ? DataLayer->GetParent() : nullptr;
 			const bool bIsParentVisible = ParentDataLayer ? ParentDataLayer->IsEffectiveVisible() : true;
 			return bIsParentVisible && DataLayer && DataLayer->GetWorld() && !DataLayer->GetWorld()->IsPlayInEditor() && DataLayer->IsEffectiveLoadedInEditor();
 		}
@@ -43,7 +43,7 @@ protected:
 		auto TreeItem = WeakTreeItem.Pin();
 		if (FDataLayerTreeItem* DataLayerTreeItem = TreeItem.IsValid() ? TreeItem->CastTo<FDataLayerTreeItem>() : nullptr)
 		{
-			UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer();
+			UDataLayerInstance* DataLayer = DataLayerTreeItem->GetDataLayer();
 			bIsEffectiveVisible = DataLayer && DataLayer->IsEffectiveVisible();
 		}
 

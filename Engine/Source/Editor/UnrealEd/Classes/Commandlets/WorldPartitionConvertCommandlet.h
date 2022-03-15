@@ -17,6 +17,7 @@ UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionConvertCommandlet, Log
 class ULevelStreaming;
 class UWorldPartition;
 class ULevelStreaming;
+class UDataLayerFactory;
 
 USTRUCT()
 struct FHLODLayerActorMapping
@@ -133,4 +134,10 @@ protected:
 
 	UPROPERTY(Config)
 	uint32 LandscapeGridSize;
+
+	UPROPERTY(Config)
+	FString DataLayerAssetFolder;
+
+	UPROPERTY()
+	TObjectPtr<UDataLayerFactory> DataLayerFactory;
 };

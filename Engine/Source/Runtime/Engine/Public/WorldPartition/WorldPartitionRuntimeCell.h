@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionActorCluster.h"
@@ -159,7 +159,7 @@ class UWorldPartitionRuntimeCell : public UObject
 	void SetClientOnlyVisible(bool bInClientOnlyVisible) { bClientOnlyVisible = bInClientOnlyVisible; }
 	bool GetClientOnlyVisible() const { return bClientOnlyVisible; }
 
-	void SetDataLayers(const TArray<const UDataLayer*>& InDataLayers);
+	void SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances);
 	void SetDebugInfo(FIntVector InCoords, FName InGridName);
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);

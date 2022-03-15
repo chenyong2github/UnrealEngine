@@ -6,19 +6,19 @@
 #include "GameFramework/Actor.h"
 #include "SceneOutlinerFwd.h"
 #include "ActorTreeItem.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDataLayerActorTreeItemData
 
 struct FDataLayerActorTreeItemData
 {
-	FDataLayerActorTreeItemData(AActor* InActor, UDataLayer* InDataLayer)
+	FDataLayerActorTreeItemData(AActor* InActor, UDataLayerInstance* InDataLayerInstance)
 		: Actor(InActor)
-		, DataLayer(InDataLayer)
+		, DataLayerInstance(InDataLayerInstance)
 	{}
 	TWeakObjectPtr<AActor> Actor;
-	TWeakObjectPtr<UDataLayer> DataLayer;
+	TWeakObjectPtr<UDataLayerInstance> DataLayerInstance;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -27,38 +27,38 @@ struct FDataLayerActorTreeItemData
 struct FDataLayerActorTreeItem : public FActorTreeItem
 {
 public:
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FFilterPredicate, const AActor*, const UDataLayer* DataLayer);
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FInteractivePredicate, const AActor*, const UDataLayer* DataLayer);
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FFilterPredicate, const AActor*, const UDataLayerInstance* InDataLayerInstance);
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FInteractivePredicate, const AActor*, const UDataLayerInstance* InDataLayerInstance);
 
 	FDataLayerActorTreeItem(const FDataLayerActorTreeItemData& InData)
 		: FActorTreeItem(InData.Actor.Get())
-		, DataLayer(InData.DataLayer)
-		, IDDataLayerActor(FDataLayerActorTreeItem::ComputeTreeItemID(Actor.Get(), DataLayer.Get()))
+		, DataLayerInstance(InData.DataLayerInstance)
+		, IDDataLayerActor(FDataLayerActorTreeItem::ComputeTreeItemID(Actor.Get(), DataLayerInstance.Get()))
 	{
 	}
 
-	UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
+	UDataLayerInstance* GetDataLayer() const { return DataLayerInstance.Get(); }
 	
 	const AActor* GetActor() const { return Actor.Get(); }
 	AActor* GetActor() { return Actor.Get(); }
 
-	static uint32 ComputeTreeItemID(const AActor* InActor, const UDataLayer* InDataLayer)
+	static uint32 ComputeTreeItemID(const AActor* InActor, const UDataLayerInstance* InDataLayerInstance)
 	{
-		return HashCombine(GetTypeHash(FObjectKey(InActor)), GetTypeHash(FObjectKey(InDataLayer)));
+		return HashCombine(GetTypeHash(FObjectKey(InActor)), GetTypeHash(FObjectKey(InDataLayerInstance)));
 	}
 
 	bool Filter(FFilterPredicate Pred) const
 	{
-		return Pred.Execute(Actor.Get(), DataLayer.Get());
+		return Pred.Execute(Actor.Get(), DataLayerInstance.Get());
 	}
 
 	bool GetInteractiveState(FInteractivePredicate Pred) const
 	{
-		return Pred.Execute(Actor.Get(), DataLayer.Get());
+		return Pred.Execute(Actor.Get(), DataLayerInstance.Get());
 	}
 
 	/* Begin ISceneOutlinerTreeItem Implementation */
-	virtual bool IsValid() const override { return Actor.IsValid() && DataLayer.IsValid(); }
+	virtual bool IsValid() const override { return Actor.IsValid() && DataLayerInstance.IsValid(); }
 	virtual FSceneOutlinerTreeItemID GetID() const override { return IDDataLayerActor; }
 	virtual bool ShouldShowVisibilityState() const { return false; }
 	virtual bool HasVisibilityInfo() const override { return false; }
@@ -67,6 +67,6 @@ public:
 	/* End ISceneOutlinerTreeItem Implementation */
 
 private:
-	TWeakObjectPtr<UDataLayer> DataLayer;
+	TWeakObjectPtr<UDataLayerInstance> DataLayerInstance;
 	const uint32 IDDataLayerActor;
 };

@@ -6,6 +6,7 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
@@ -98,7 +99,7 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<AAc
 	return Ar.GetCrc();
 }
 
-TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayer*>& InDataLayers)
+TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayerInstance*>& InDataLayersInstances)
 {
 	struct FSubActorsInfo
 	{
@@ -159,9 +160,9 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			HLODActor->SetGridIndices(InCreationParams.GridIndexX, InCreationParams.GridIndexY, InCreationParams.GridIndexZ);
 
 			// Make sure the generated HLOD actor has the same data layers as the source actors
-			for (const UDataLayer* DataLayer : InDataLayers)
+			for (const UDataLayerInstance* DataLayerInstance : InDataLayersInstances)
 			{
-				HLODActor->AddDataLayer(DataLayer);
+				HLODActor->AddDataLayer(DataLayerInstance);
 			}
 		}
 		else
@@ -173,7 +174,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			check(GridIndexY == InCreationParams.GridIndexY);
 			check(GridIndexZ == InCreationParams.GridIndexZ);
 			check(HLODActor->GetSubActorsHLODLayer() == HLODLayer);
-			check(FDataLayersID(HLODActor->GetDataLayerObjects()) == InCreationParams.DataLayersID);
+			check(FDataLayersID(HLODActor->GetDataLayerInstances()) == InCreationParams.DataLayersID);
 #endif
 		}
 

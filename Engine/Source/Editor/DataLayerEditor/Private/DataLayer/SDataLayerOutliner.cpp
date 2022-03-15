@@ -7,7 +7,7 @@
 #include "Widgets/Images/SImage.h"
 #include "DataLayer/DataLayerTreeItem.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "DataLayerTransaction.h"
 #include "Algo/Transform.h"
 #include "Editor.h"
@@ -50,12 +50,12 @@ void SDataLayerOutliner::CustomAddToToolbar(TSharedPtr<SHorizontalBox> Toolbar)
 		];
 }
 
-TArray<UDataLayer*> SDataLayerOutliner::GetSelectedDataLayers() const
+TArray<UDataLayerInstance*> SDataLayerOutliner::GetSelectedDataLayers() const
 {
 	FSceneOutlinerItemSelection ItemSelection(GetSelection());
 	TArray<FDataLayerTreeItem*> SelectedDataLayerItems;
 	ItemSelection.Get<FDataLayerTreeItem>(SelectedDataLayerItems);
-	TArray<UDataLayer*> ValidSelectedDataLayers;
+	TArray<UDataLayerInstance*> ValidSelectedDataLayers;
 	Algo::TransformIf(SelectedDataLayerItems, ValidSelectedDataLayers, [](const auto Item) { return Item && Item->GetDataLayer(); }, [](const auto Item) { return Item->GetDataLayer(); });
 	return ValidSelectedDataLayers;
 }
@@ -64,8 +64,8 @@ bool SDataLayerOutliner::CanAddSelectedActorsToSelectedDataLayersClicked() const
 {
 	if (GEditor->GetSelectedActorCount() > 0)
 	{
-		TArray<UDataLayer*> SelectedDataLayers = GetSelectedDataLayers();
-		const bool bSelectedDataLayersContainsLocked = !!SelectedDataLayers.FindByPredicate([](const UDataLayer* DataLayer) { return DataLayer->IsLocked(); });
+		TArray<UDataLayerInstance*> SelectedDataLayers = GetSelectedDataLayers();
+		const bool bSelectedDataLayersContainsLocked = !!SelectedDataLayers.FindByPredicate([](const UDataLayerInstance* DataLayer) { return DataLayer->IsLocked(); });
 		return (!SelectedDataLayers.IsEmpty() && !bSelectedDataLayersContainsLocked);
 	}
 	return false;
@@ -80,7 +80,7 @@ FReply SDataLayerOutliner::OnAddSelectedActorsToSelectedDataLayersClicked()
 {
 	if (CanAddSelectedActorsToSelectedDataLayersClicked())
 	{
-		TArray<UDataLayer*> SelectedDataLayers = GetSelectedDataLayers();
+		TArray<UDataLayerInstance*> SelectedDataLayers = GetSelectedDataLayers();
 		const FScopedDataLayerTransaction Transaction(LOCTEXT("AddSelectedActorsToSelectedDataLayers", "Add Selected Actors to Selected Data Layers"), SelectedDataLayers[0]->GetWorld());
 		UDataLayerEditorSubsystem::Get()->AddSelectedActorsToDataLayers(SelectedDataLayers);
 	}
@@ -91,7 +91,7 @@ FReply SDataLayerOutliner::OnRemoveSelectedActorsFromSelectedDataLayersClicked()
 {
 	if (CanRemoveSelectedActorsFromSelectedDataLayersClicked())
 	{
-		TArray<UDataLayer*> SelectedDataLayers = GetSelectedDataLayers();
+		TArray<UDataLayerInstance*> SelectedDataLayers = GetSelectedDataLayers();
 		const FScopedDataLayerTransaction Transaction(LOCTEXT("RemoveSelectedActorsFromSelectedDataLayers", "Remove Selected Actors from Selected Data Layers"), SelectedDataLayers[0]->GetWorld());
 		UDataLayerEditorSubsystem::Get()->RemoveSelectedActorsFromDataLayers(SelectedDataLayers);
 	}

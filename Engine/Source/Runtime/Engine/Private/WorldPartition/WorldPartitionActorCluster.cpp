@@ -10,25 +10,26 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 template<class LayerNameContainer>
-TSet<const UDataLayer*> GetDataLayers(UWorld* InWorld, const LayerNameContainer& DataLayerNames)
+TSet<const UDataLayerInstance*> GetDataLayers(UWorld* InWorld, const LayerNameContainer& DataLayerInstanceNames)
 {
-	TSet<const UDataLayer*> DataLayers;
+	TSet<const UDataLayerInstance*> DataLayerInstances;
 	if (const AWorldDataLayers* WorldDataLayers = InWorld->GetWorldDataLayers())
 	{
-		for (const FName& DataLayerName : DataLayerNames)
+		for (const FName& DataLayerInstanceName : DataLayerInstanceNames)
 		{
-			if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
+			if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName))
 			{
-				if (DataLayer->IsRuntime())
+				if (DataLayerInstance->IsRuntime())
 				{
-					DataLayers.Add(DataLayer);
+					DataLayerInstances.Add(DataLayerInstance);
 				}
 			}
 		}
 	}
-	return DataLayers;
+	return DataLayerInstances;
 }
 
 FActorCluster::FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView)
@@ -60,7 +61,7 @@ FActorClusterInstance::FActorClusterInstance(const FActorCluster* InCluster, con
 {
 	Bounds = Cluster->Bounds.TransformBy(ContainerInstance->Transform);
 	
-	TSet<const UDataLayer*> DataLayerSet;
+	TSet<const UDataLayerInstance*> DataLayerSet;
 	DataLayerSet.Reserve(Cluster->DataLayers.Num() + ContainerInstance->DataLayers.Num());
 	DataLayerSet.Append(Cluster->DataLayers);
 	DataLayerSet.Append(ContainerInstance->DataLayers);

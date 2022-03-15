@@ -6,9 +6,9 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/SWidget.h"
 
-class UDataLayer;
+class UDataLayerInstance;
 
 struct DATALAYEREDITOR_API FDataLayerPropertyTypeCustomizationHelper
 {
-	static TSharedRef<SWidget> CreateDataLayerMenu(TFunction<void(const UDataLayer* DataLayer)> OnDataLayerSelectedFunction);
+	static TSharedRef<SWidget> CreateDataLayerMenu(TFunction<void(const UDataLayerInstance* DataLayer)> OnDataLayerSelectedFunction);
 };

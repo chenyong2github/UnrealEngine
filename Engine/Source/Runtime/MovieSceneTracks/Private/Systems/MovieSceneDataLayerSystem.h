@@ -5,7 +5,6 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectKey.h"
 #include "Containers/Map.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/MovieSceneCachedEntityFilterResult.h"
 #include "MovieSceneDataLayerSystem.generated.h"

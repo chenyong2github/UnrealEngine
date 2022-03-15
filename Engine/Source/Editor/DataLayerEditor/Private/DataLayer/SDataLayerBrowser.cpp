@@ -9,17 +9,21 @@
 #include "DataLayerTreeItem.h"
 #include "DataLayerMode.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "DataLayerOutlinerIsVisibleColumn.h"
 #include "DataLayerOutlinerIsLoadedInEditorColumn.h"
 #include "DataLayerOutlinerDeleteButtonColumn.h"
+#include "DataLayerOutlinerHasErrorColumn.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "SceneOutlinerTextInfoColumn.h"
 #include "Editor.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "DetailLayoutBuilder.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 
@@ -50,9 +54,9 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	{
 		if (const FDataLayerTreeItem* DataLayerItem = Item.CastTo<FDataLayerTreeItem>())
 		{
-			if (const UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
+			if (const UDataLayerInstance* DataLayerInstance = DataLayerItem->GetDataLayer())
 			{
-				return DataLayer->GetFName().ToString();
+				return DataLayerInstance->GetDataLayerFName().ToString();
 			}
 		}
 		else if (const FDataLayerActorTreeItem* DataLayerActorTreeItem = Item.CastTo<FDataLayerActorTreeItem>())
@@ -76,16 +80,24 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	{
 		if (const FDataLayerTreeItem* DataLayerItem = Item.CastTo<FDataLayerTreeItem>())
 		{
-			if (const UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
+			if (const UDataLayerInstance* DataLayerInstance = DataLayerItem->GetDataLayer())
 			{
-				if (DataLayer->IsRuntime())
+				if (DataLayerInstance->IsRuntime())
 				{
-					return GetDataLayerRuntimeStateName(DataLayer->GetInitialRuntimeState());
+					return GetDataLayerRuntimeStateName(DataLayerInstance->GetInitialRuntimeState());
 				}
 			}
 		}
 		return FString();
 	});
+
+	SAssignNew(DeprecatedDataLayerWarningBox, SMultiLineEditableTextBox)
+		.IsReadOnly(true)
+		.Font(IDetailLayoutBuilder::GetDetailFontBold())
+		.BackgroundColor(FEditorStyle::GetColor("ErrorReporting.WarningBackgroundColor"))
+		.Text(LOCTEXT("Deprecated_DataLayers", "Some data within DataLayers is deprecated. Run DataLayerToAssetCommandlet to create DataLayerInstances and DataLayer Assets for this level."))
+		.AutoWrapText(true)
+		.Visibility_Lambda([]() { return UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers() ? EVisibility::Visible : EVisibility::Collapsed; });
 
 	FSceneOutlinerInitializationOptions InitOptions;
 	InitOptions.bShowHeaderRow = true;
@@ -98,6 +110,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	InitOptions.ColumnMap.Add(FDataLayerOutlinerDeleteButtonColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerDeleteButtonColumn(InSceneOutliner)); })));
 	InitOptions.ColumnMap.Add("ID Name", FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Invisible, 20, FCreateSceneOutlinerColumn::CreateStatic(&FTextInfoColumn::CreateTextInfoColumn, FName("ID Name"), InternalNameInfoText, FText::GetEmpty())));
 	InitOptions.ColumnMap.Add("Initial State", FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Invisible, 20, FCreateSceneOutlinerColumn::CreateStatic(&FTextInfoColumn::CreateTextInfoColumn, FName("Initial State"), InternalInitialRuntimeStateInfoText, FText::FromString("Initial Runtime State"))));
+	InitOptions.ColumnMap.Add(FDataLayerOutlinerHasErrorsColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 100, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerHasErrorsColumn(InSceneOutliner)); }), false));
 	DataLayerOutliner = SNew(SDataLayerOutliner, InitOptions).IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 
 	SAssignNew(DataLayerContentsSection, SBorder)
@@ -105,26 +118,35 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	.BorderImage(FEditorStyle::GetBrush("NoBrush"))
 	.Content()
 	[
-		// Data Layer Outliner
-		SNew(SSplitter)
-		.Orientation(Orient_Vertical)
-		.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-		+ SSplitter::Slot()
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			[
-				DataLayerOutliner.ToSharedRef()
-			]
+			DeprecatedDataLayerWarningBox.ToSharedRef()
 		]
-		// Details
-		+SSplitter::Slot()
+		+ SVerticalBox::Slot()
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.Padding(2, 4, 0, 0)
+			// Data Layer Outliner
+			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+			+ SSplitter::Slot()
 			[
-				DetailsWidget.ToSharedRef()
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				[
+					DataLayerOutliner.ToSharedRef()
+				]
+			]
+			// Details
+			+ SSplitter::Slot()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.Padding(2, 4, 0, 0)
+				[
+					DetailsWidget.ToSharedRef()
+				]
 			]
 		]
 	];
@@ -134,13 +156,13 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SAssignNew(ContentAreaBox, SVerticalBox)
-		.IsEnabled_Lambda([]() { return UWorld::IsPartitionedWorld(GWorld); })
+		.IsEnabled_Lambda([]() { return GWorld ? UWorld::IsPartitionedWorld(GWorld) : false; })
 	];
 
 	InitializeDataLayerBrowser();
 }
 
-void SDataLayerBrowser::SyncDataLayerBrowserToDataLayer(const UDataLayer* DataLayer)
+void SDataLayerBrowser::SyncDataLayerBrowserToDataLayer(const UDataLayerInstance* DataLayer)
 {
 	FSceneOutlinerTreeItemPtr Item = DataLayerOutliner->GetTreeItem(DataLayer);
 	if (Item.IsValid())
@@ -155,7 +177,7 @@ void SDataLayerBrowser::SyncDataLayerBrowserToDataLayer(const UDataLayer* DataLa
 	}
 }
 
-void SDataLayerBrowser::OnSelectionChanged(TSet<TWeakObjectPtr<const UDataLayer>>& InSelectedDataLayersSet)
+void SDataLayerBrowser::OnSelectionChanged(TSet<TWeakObjectPtr<const UDataLayerInstance>>& InSelectedDataLayersSet)
 {
 	SelectedDataLayersSet = InSelectedDataLayersSet;
 	TArray<UObject*> SelectedDataLayers;
@@ -163,7 +185,7 @@ void SDataLayerBrowser::OnSelectionChanged(TSet<TWeakObjectPtr<const UDataLayer>
 	{
 		if (WeakDataLayer.IsValid())
 		{
-			UDataLayer* DataLayer = const_cast<UDataLayer*>(WeakDataLayer.Get());
+			UDataLayerInstance* DataLayer = const_cast<UDataLayerInstance*>(WeakDataLayer.Get());
 			SelectedDataLayers.Add(DataLayer);
 		}
 	}

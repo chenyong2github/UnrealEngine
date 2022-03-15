@@ -130,7 +130,7 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 	});
 	FilterInfoMap.Add(TEXT("HideUnloadedActorsFilter"), HideUnloadedActorsInfo);
 
-	SceneOutliner->AddFilter(MakeShared<TSceneOutlinerPredicateFilter<FDataLayerActorTreeItem>>(FDataLayerActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor, const UDataLayer* DataLayer)
+	SceneOutliner->AddFilter(MakeShared<TSceneOutlinerPredicateFilter<FDataLayerActorTreeItem>>(FDataLayerActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor, const UDataLayerInstance* DataLayer)
 	{
 		return FActorMode::IsActorDisplayable(SceneOutliner, Actor);
 	}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
@@ -148,17 +148,17 @@ FDataLayerMode::~FDataLayerMode()
 
 TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateHideEditorDataLayersFilter()
 {
-	return MakeShareable(new FDataLayerFilter(FDataLayerTreeItem::FFilterPredicate::CreateStatic([](const UDataLayer* DataLayer) { return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+	return MakeShareable(new FDataLayerFilter(FDataLayerTreeItem::FFilterPredicate::CreateStatic([](const UDataLayerInstance* DataLayerInstance) { return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
 TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateHideRuntimeDataLayersFilter()
 {
-	return MakeShareable(new FDataLayerFilter(FDataLayerTreeItem::FFilterPredicate::CreateStatic([](const UDataLayer* DataLayer) { return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+	return MakeShareable(new FDataLayerFilter(FDataLayerTreeItem::FFilterPredicate::CreateStatic([](const UDataLayerInstance* DataLayerInstance) { return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
 TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateHideDataLayerActorsFilter()
 {
-	return MakeShareable(new FDataLayerActorFilter(FDataLayerActorTreeItem::FFilterPredicate::CreateStatic([](const AActor* Actor, const UDataLayer* DataLayer) { return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+	return MakeShareable(new FDataLayerActorFilter(FDataLayerActorTreeItem::FFilterPredicate::CreateStatic([](const AActor* Actor, const UDataLayerInstance* DataDataLayerInstanceLayer) { return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
 TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateHideUnloadedActorsFilter()
@@ -190,7 +190,7 @@ bool FDataLayerMode::CanRenameItem(const ISceneOutlinerTreeItem& Item) const
 	if (Item.IsValid() && (Item.IsA<FDataLayerTreeItem>()))
 	{
 		FDataLayerTreeItem* DataLayerTreeItem = (FDataLayerTreeItem*)&Item;
-		return !DataLayerTreeItem->GetDataLayer()->IsLocked();
+		return !DataLayerTreeItem->GetDataLayer()->IsLocked() && DataLayerTreeItem->GetDataLayer()->SupportRelabeling();
 	}
 	return false;
 }
@@ -282,11 +282,11 @@ void FDataLayerMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
 {
 	if (const FDataLayerTreeItem* DataLayerItem = Item->CastTo<FDataLayerTreeItem>())
 	{
-		if (UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
+		if (UDataLayerInstance* DataLayerInstance = DataLayerItem->GetDataLayer())
 		{
 			const FScopedDataLayerTransaction Transaction(LOCTEXT("SelectActorsInDataLayer", "Select Actors in Data Layer"), RepresentingWorld.Get());
 			GEditor->SelectNone(/*bNoteSelectionChange*/false, true);
-			DataLayerEditorSubsystem->SelectActorsInDataLayer(DataLayer, /*bSelect*/true, /*bNotify*/true, /*bSelectEvenIfHidden*/true);
+			DataLayerEditorSubsystem->SelectActorsInDataLayer(DataLayerInstance, /*bSelect*/true, /*bNotify*/true, /*bSelectEvenIfHidden*/true);
 		}
 	}
 	else if (FDataLayerActorTreeItem* DataLayerActorItem = Item->CastTo<FDataLayerActorTreeItem>())
@@ -305,27 +305,27 @@ void FDataLayerMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
 
 void FDataLayerMode::DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>& Items)
 {
-	TArray<UDataLayer*> DataLayersToDelete;
-	TMap<UDataLayer*, TArray<AActor*>> ActorsToRemoveFromDataLayer;
+	TArray<UDataLayerInstance*> DataLayersToDelete;
+	TMap<UDataLayerInstance*, TArray<AActor*>> ActorsToRemoveFromDataLayer;
 
 	for (const TWeakPtr<ISceneOutlinerTreeItem>& Item : Items)
 	{
 		if (FDataLayerActorTreeItem* DataLayerActorItem = Item.Pin()->CastTo<FDataLayerActorTreeItem>())
 		{
-			UDataLayer* DataLayer = DataLayerActorItem->GetDataLayer();
+			UDataLayerInstance* DataLayerInstance = DataLayerActorItem->GetDataLayer();
 			AActor* Actor = DataLayerActorItem->GetActor();
-			if (DataLayer && !DataLayer->IsLocked() && Actor)
+			if (DataLayerInstance && !DataLayerInstance->IsLocked() && Actor)
 			{
-				ActorsToRemoveFromDataLayer.FindOrAdd(DataLayer).Add(Actor);
+				ActorsToRemoveFromDataLayer.FindOrAdd(DataLayerInstance).Add(Actor);
 			}
 		}
 		else if (FDataLayerTreeItem* DataLayerItem = Item.Pin()->CastTo< FDataLayerTreeItem>())
 		{
-			if (UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
+			if (UDataLayerInstance* DataLayerInstance = DataLayerItem->GetDataLayer())
 			{
-				if (!DataLayer->IsLocked())
+				if (!DataLayerInstance->IsLocked())
 				{
-					DataLayersToDelete.Add(DataLayer);
+					DataLayersToDelete.Add(DataLayerInstance);
 				}
 			}
 		}
@@ -342,7 +342,7 @@ void FDataLayerMode::DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>&
 	else if (!DataLayersToDelete.IsEmpty())
 	{
 		int32 PrevDeleteCount = SelectedDataLayersSet.Num();
-		for (UDataLayer* DataLayerToDelete : DataLayersToDelete)
+		for (UDataLayerInstance* DataLayerToDelete : DataLayersToDelete)
 		{
 			SelectedDataLayersSet.Remove(DataLayerToDelete);
 		}
@@ -404,7 +404,7 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 {
 	if (const FDataLayerTreeItem* DataLayerItem = DropTarget.CastTo<FDataLayerTreeItem>())
 	{
-		const UDataLayer* TargetDataLayer = DataLayerItem->GetDataLayer();
+		const UDataLayerInstance* TargetDataLayer = DataLayerItem->GetDataLayer();
 		if (!TargetDataLayer)
 		{
 			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText());
@@ -427,7 +427,7 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 			}
 		}
 
-		const FText Text = bMoveOperation ? FText::Format(LOCTEXT("MoveToDataLayer", "Move to Data Layer \"{0}\""), FText::FromName(TargetDataLayer->GetDataLayerLabel())) : FText::Format(LOCTEXT("AssignToDataLayer", "Assign to Data Layer \"{0}\""), FText::FromName(TargetDataLayer->GetDataLayerLabel()));
+		const FText Text = bMoveOperation ? FText::Format(LOCTEXT("MoveToDataLayer", "Move to Data Layer \"{0}\""), FText::FromString(TargetDataLayer->GetDataLayerShortName())) : FText::Format(LOCTEXT("AssignToDataLayer", "Assign to Data Layer \"{0}\""), FText::FromString(TargetDataLayer->GetDataLayerShortName()));
 		return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, Text);
 	}
 
@@ -455,47 +455,54 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 	}
 	else // Moving a data layer(s)
 	{
-		TArray<UDataLayer*> PayloadDataLayers = GetDataLayersFromOperation(Payload.SourceOperation);
+		TArray<UDataLayerInstance*> PayloadDataLayers = GetDataLayersFromOperation(Payload.SourceOperation);
 		if (!PayloadDataLayers.IsEmpty())
 		{
 			const FDataLayerTreeItem* DataLayerItem = DropTarget.CastTo<FDataLayerTreeItem>();
 			const FDataLayerActorTreeItem* DataLayerActorTreeItem = DropTarget.CastTo<FDataLayerActorTreeItem>();
-			const UDataLayer* ParentDataLayer = DataLayerItem ? DataLayerItem->GetDataLayer() : nullptr;
+			const UDataLayerInstance* ParentDataLayer = DataLayerItem ? DataLayerItem->GetDataLayer() : nullptr;
 			if (!ParentDataLayer && DataLayerActorTreeItem)
 			{
 				ParentDataLayer = DataLayerActorTreeItem->GetDataLayer();
 			}
 
-			bool bCanSetParent = false;
-			for (UDataLayer* DataLayer : PayloadDataLayers)
+			for (UDataLayerInstance* DataLayerInstance : PayloadDataLayers)
 			{
-				if (DataLayer->IsLocked())
+				if (DataLayerInstance->IsLocked())
 				{
 					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantMoveLockedDataLayer", "Can't move locked Data Layer"));
 				}
 
-				if (DataLayer->CanParent(ParentDataLayer))
+				if (ParentDataLayer != nullptr)
 				{
-					bCanSetParent = true;
+					if (!DataLayerInstance->CanParent(ParentDataLayer))
+					{
+						if (!DataLayerInstance->IsDataLayerTypeValidToParent(ParentDataLayer->GetType()))
+						{
+							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, 
+								FText::Format(LOCTEXT("CantMoveToDataLayerDiffType", "Can't move a {0} Data Layer under a {1} Data Layer"), UEnum::GetDisplayValueAsText(DataLayerInstance->GetType()), UEnum::GetDisplayValueAsText(ParentDataLayer->GetType())));
+						}
+
+						if (ParentDataLayer == DataLayerInstance->GetParent() || ParentDataLayer == DataLayerInstance)
+						{
+							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantMoveToSameDataLayer", "Can't move Data Layer to same Data Layer"));
+						}
+					}
+				
+					if (ParentDataLayer->IsLocked())
+					{
+						return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantMoveDataLayerToLockedDataLayer", "Can't move Data Layer to locked Data Layer"));
+					}
 				}
 			}
 
-			if (bCanSetParent)
+			if (ParentDataLayer != nullptr)
 			{
-				if (ParentDataLayer && ParentDataLayer->IsLocked())
-				{
-					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantMoveDataLayerToLockedDataLayer", "Can't move Data Layer to locked Data Layer"));
-				}
-
-				if (ParentDataLayer)
-				{
-					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, FText::Format(LOCTEXT("MoveDataLayerToDataLayer", "Move to Data Layer \"{0}\""), FText::FromName(ParentDataLayer->GetDataLayerLabel())));
-				}
-				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, LOCTEXT("MoveDataLayerToRoot", "Move to root"));
+				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, FText::Format(LOCTEXT("MoveDataLayerToDataLayer", "Move to Data Layer \"{0}\""), FText::FromString(ParentDataLayer->GetDataLayerShortName())));
 			}
 			else
 			{
-				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantMoveToSameDataLayer", "Can't move Data Layer to same Data Layer"));
+				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, LOCTEXT("MoveDataLayerToRoot", "Move to root"));
 			}
 		}
 	}
@@ -503,18 +510,18 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 	return FSceneOutlinerDragValidationInfo::Invalid();
 }
 
-TArray<UDataLayer*> FDataLayerMode::GetDataLayersFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst /*= false*/) const
+TArray<UDataLayerInstance*> FDataLayerMode::GetDataLayersFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst /*= false*/) const
 {
-	TArray<UDataLayer*> OutDataLayers;
+	TArray<UDataLayerInstance*> OutDataLayers;
 	
 	auto GetDataLayers = [this, &OutDataLayers](const FDataLayerDragDropOp& DataLayerOp)
 	{
-		const TArray<FName>& DataLayerLabels = DataLayerOp.DataLayerLabels;
-		for (FName DataLayerLabel : DataLayerLabels)
+		const TArray<FDataLayerDragDropOp::FDragDropInfo>& DragDropInfos = DataLayerOp.DataLayerDragDropInfos;
+		for (const FDataLayerDragDropOp::FDragDropInfo& DragDropInfo : DragDropInfos)
 		{
-			if (UDataLayer* DataLayer = DataLayerEditorSubsystem->GetDataLayerFromLabel(DataLayerLabel))
+			if (UDataLayerInstance* DataLayerInstance = DataLayerEditorSubsystem->GetDataLayerInstance(DragDropInfo.DataLayerInstanceName))
 			{
-				OutDataLayers.AddUnique(DataLayer);
+				OutDataLayers.AddUnique(DataLayerInstance);
 			}
 		}
 	};
@@ -625,14 +632,14 @@ TArray<AActor*> FDataLayerMode::GetActorsFromOperation(const FDragDropOperation&
 void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutlinerDragDropPayload& Payload, const FSceneOutlinerDragValidationInfo& ValidationInfo) const
 {
 	const FDataLayerTreeItem* DataLayerItem = DropTarget.CastTo<FDataLayerTreeItem>();
-	UDataLayer* TargetDataLayer = DataLayerItem ? DataLayerItem->GetDataLayer() : nullptr;
+	UDataLayerInstance* TargetDataLayer = DataLayerItem ? DataLayerItem->GetDataLayer() : nullptr;
 
 	TArray<AActor*> ActorsToAdd = GetActorsFromOperation(Payload.SourceOperation);
 	if (!ActorsToAdd.IsEmpty()) // Adding actor(s) in data layer(s)
 	{
 		if (SceneOutliner->GetTree().IsItemSelected(const_cast<ISceneOutlinerTreeItem&>(DropTarget).AsShared()))
 		{
-			TArray<UDataLayer*> AllSelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
+			TArray<UDataLayerInstance*> AllSelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
 			if (AllSelectedDataLayers.Num() > 1)
 			{
 				const FScopedDataLayerTransaction Transaction(LOCTEXT("DataLayerOutlinerAddActorsToDataLayers", "Add Actors to Data Layers"), RepresentingWorld.Get());
@@ -667,8 +674,8 @@ void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutl
 	}
 	else // Moving a data layer(s)
 	{
-		TArray<UDataLayer*> DataLayers = GetDataLayersFromOperation(Payload.SourceOperation);
-		SetParentDataLayer(DataLayers, TargetDataLayer);
+		TArray<UDataLayerInstance*> DataLayerInstances = GetDataLayersFromOperation(Payload.SourceOperation);
+		SetParentDataLayer(DataLayerInstances, TargetDataLayer);
 	}
 }
 
@@ -693,26 +700,26 @@ FReply FDataLayerMode::OnDragOverItem(const FDragDropEvent& Event, const ISceneO
 	return FReply::Handled();
 }
 
-void FDataLayerMode::SetParentDataLayer(const TArray<UDataLayer*> DataLayers, UDataLayer* ParentDataLayer) const
+void FDataLayerMode::SetParentDataLayer(const TArray<UDataLayerInstance*> DataLayerInstances, UDataLayerInstance* ParentDataLayer) const
 {
-	if (!DataLayers.IsEmpty())
+	if (!DataLayerInstances.IsEmpty())
 	{
-		TArray<UDataLayer*> ValidDataLayers;
-		ValidDataLayers.Reserve(DataLayers.Num());
-		for (UDataLayer* DataLayer : DataLayers)
+		TArray<UDataLayerInstance*> ValidDataLayers;
+		ValidDataLayers.Reserve(DataLayerInstances.Num());
+		for (UDataLayerInstance* DataLayerInstance : DataLayerInstances)
 		{
-			if (DataLayer->CanParent(ParentDataLayer))
+			if (DataLayerInstance->CanParent(ParentDataLayer))
 			{
-				ValidDataLayers.Add(DataLayer);
+				ValidDataLayers.Add(DataLayerInstance);
 			}
 		}
 
 		if (!ValidDataLayers.IsEmpty())
 		{
 			const FScopedDataLayerTransaction Transaction(LOCTEXT("DataLayerOutlinerChangeDataLayersParent", "Change Data Layers Parent"), RepresentingWorld.Get());
-			for (UDataLayer* DataLayer : ValidDataLayers)
+			for (UDataLayerInstance* DataLayerInstance : ValidDataLayers)
 			{
-				DataLayerEditorSubsystem->SetParentDataLayer(DataLayer, ParentDataLayer);
+				DataLayerEditorSubsystem->SetParentDataLayer(DataLayerInstance, ParentDataLayer);
 			}
 		}
 	}
@@ -759,7 +766,7 @@ struct FDataLayerActorPairSelector
 
 struct FWeakDataLayerSelector
 {
-	bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, TWeakObjectPtr<UDataLayer>& DataOut) const
+	bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, TWeakObjectPtr<UDataLayerInstance>& DataOut) const
 	{
 		if (TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin())
 		{
@@ -782,8 +789,8 @@ TSharedPtr<FDragDropOperation> FDataLayerMode::CreateDragDropOperation(const FPo
 
 	if (DraggedObjects.Has<FDataLayerTreeItem>())
 	{
-		TArray<TWeakObjectPtr<UDataLayer>> DataLayers = DraggedObjects.GetData<TWeakObjectPtr<UDataLayer>>(FWeakDataLayerSelector());
-		if (DataLayers.FindByPredicate([&](const TWeakObjectPtr<UDataLayer>& DataLayer) { return DataLayer.IsValid() && DataLayer->IsLocked(); }))
+		TArray<TWeakObjectPtr<UDataLayerInstance>> DataLayerInstances = DraggedObjects.GetData<TWeakObjectPtr<UDataLayerInstance>>(FWeakDataLayerSelector());
+		if (DataLayerInstances.FindByPredicate([&](const TWeakObjectPtr<UDataLayerInstance>& DataLayer) { return DataLayer.IsValid() && DataLayer->IsLocked(); }))
 		{
 			return TSharedPtr<FDragDropOperation>();
 		}
@@ -792,12 +799,12 @@ TSharedPtr<FDragDropOperation> FDataLayerMode::CreateDragDropOperation(const FPo
 	auto GetDataLayerOperation = [&DraggedObjects]()
 	{
 		TSharedPtr<FDataLayerDragDropOp> DataLayerOperation = MakeShareable(new FDataLayerDragDropOp);
-		TArray<TWeakObjectPtr<UDataLayer>> DataLayers = DraggedObjects.GetData<TWeakObjectPtr<UDataLayer>>(FWeakDataLayerSelector());
-		for (const auto& DataLayer : DataLayers)
+		TArray<TWeakObjectPtr<UDataLayerInstance>> DataLayers = DraggedObjects.GetData<TWeakObjectPtr<UDataLayerInstance>>(FWeakDataLayerSelector());
+		for (const auto& DataLayerInstance : DataLayers)
 		{
-			if (DataLayer.IsValid())
+			if (DataLayerInstance.IsValid())
 			{
-				DataLayerOperation->DataLayerLabels.Add(DataLayer->GetDataLayerLabel());
+				DataLayerOperation->DataLayerDragDropInfos.Emplace(DataLayerInstance.Get());
 			}
 		}
 		DataLayerOperation->Construct();
@@ -857,12 +864,12 @@ TSharedPtr<FDragDropOperation> FDataLayerMode::CreateDragDropOperation(const FPo
 static const FName DefaultContextBaseMenuName("DataLayerOutliner.DefaultContextMenuBase");
 static const FName DefaultContextMenuName("DataLayerOutliner.DefaultContextMenu");
 
-TArray<UDataLayer*> FDataLayerMode::GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const
+TArray<UDataLayerInstance*> FDataLayerMode::GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const
 {
 	FSceneOutlinerItemSelection ItemSelection(InSceneOutliner->GetSelection());
 	TArray<FDataLayerTreeItem*> SelectedDataLayerItems;
 	ItemSelection.Get<FDataLayerTreeItem>(SelectedDataLayerItems);
-	TArray<UDataLayer*> ValidSelectedDataLayers;
+	TArray<UDataLayerInstance*> ValidSelectedDataLayers;
 	Algo::TransformIf(SelectedDataLayerItems, ValidSelectedDataLayers, [](const auto Item) { return Item && Item->GetDataLayer(); }, [](const auto Item) { return Item->GetDataLayer(); });
 	return MoveTemp(ValidSelectedDataLayers);
 }
@@ -897,16 +904,16 @@ void FDataLayerMode::RegisterContextMenu()
 			}
 
 			SSceneOutliner* SceneOutliner = Context->SceneOutliner.Pin().Get();
-			TArray<UDataLayer*> SelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
-			const bool bSelectedDataLayersContainsLocked = !!SelectedDataLayers.FindByPredicate([](const UDataLayer* DataLayer) { return DataLayer->IsLocked(); });
+			TArray<UDataLayerInstance*> SelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
+			const bool bSelectedDataLayersContainsLocked = !!SelectedDataLayers.FindByPredicate([](const UDataLayerInstance* DataLayer) { return DataLayer->IsLocked(); });
 
-			bool bHasActorEditorContextDataLayers = false;
-			TArray<const UDataLayer*> AllDataLayers;
+			bool bHasActorEditorContextDataLayers = false;			
+			TArray<const UDataLayerInstance*> AllDataLayers;
 			if (const AWorldDataLayers* WorldDataLayers = RepresentingWorld.IsValid() ? RepresentingWorld->GetWorldDataLayers() : nullptr)
 			{
-				WorldDataLayers->ForEachDataLayer([&AllDataLayers](UDataLayer* DataLayer)
+				WorldDataLayers->ForEachDataLayer([&AllDataLayers](UDataLayerInstance* DataLayerInstance)
 				{
-					AllDataLayers.Add(DataLayer);
+					AllDataLayers.Add(DataLayerInstance);
 					return true;
 				});
 
@@ -916,27 +923,26 @@ void FDataLayerMode::RegisterContextMenu()
 			{
 				FToolMenuSection& Section = InMenu->AddSection("DataLayers", LOCTEXT("DataLayers", "Data Layers"));
 				
-				auto CreateNewDataLayer = [this, SceneOutliner](UDataLayer* ParentDataLayer = nullptr)
+				auto CreateNewDataLayer = [this, SceneOutliner](UDataLayerInstance* ParentDataLayer = nullptr)
 				{
 					const FScopedDataLayerTransaction Transaction(LOCTEXT("CreateNewDataLayer", "Create New Data Layer"), RepresentingWorld.Get());
 					SelectedDataLayersSet.Empty();
 					SelectedDataLayerActors.Empty();
-					if (UDataLayer* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
+					if (UDataLayerInstance* NewDataLayerInstance = DataLayerEditorSubsystem->CreateDataLayer(ParentDataLayer))
 					{
-						SelectedDataLayersSet.Add(NewDataLayer);
-						DataLayerEditorSubsystem->SetParentDataLayer(NewDataLayer, ParentDataLayer);
+						SelectedDataLayersSet.Add(NewDataLayerInstance);
 						// Select it and open a rename when it gets refreshed
-						SceneOutliner->OnItemAdded(NewDataLayer, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
+						SceneOutliner->OnItemAdded(NewDataLayerInstance, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
 					}
 				};
 
 				Section.AddMenuEntry("CreateNewDataLayer", LOCTEXT("CreateNewDataLayer", "Create New Data Layer"), FText(), FSlateIcon(),
 					FUIAction(FExecuteAction::CreateLambda([this, CreateNewDataLayer]() { CreateNewDataLayer(); })));
 
-				UDataLayer* ParentDataLayer = (SelectedDataLayersSet.Num() == 1) ? const_cast<UDataLayer*>(SelectedDataLayersSet.CreateIterator()->Get()) : nullptr;
+				UDataLayerInstance* ParentDataLayer = (SelectedDataLayersSet.Num() == 1) ? const_cast<UDataLayerInstance*>(SelectedDataLayersSet.CreateIterator()->Get()) : nullptr;
 				if (ParentDataLayer)
 				{
-					Section.AddMenuEntry("CreateNewDataLayerUnderDataLayer", FText::Format(LOCTEXT("CreateNewDataLayerUnderDataLayer", "Create New Data Layer under \"{0}\""), FText::FromName(ParentDataLayer->GetDataLayerLabel())), FText(), FSlateIcon(),
+					Section.AddMenuEntry("CreateNewDataLayerUnderDataLayer", FText::Format(LOCTEXT("CreateNewDataLayerUnderDataLayer", "Create New Data Layer under \"{0}\""), FText::FromString(ParentDataLayer->GetDataLayerShortName())), FText(), FSlateIcon(),
 					FUIAction(FExecuteAction::CreateLambda([this, CreateNewDataLayer, ParentDataLayer]() { CreateNewDataLayer(ParentDataLayer); })));
 				}
 
@@ -944,7 +950,7 @@ void FDataLayerMode::RegisterContextMenu()
 					FUIAction(
 						FExecuteAction::CreateLambda([this]() {
 							const FScopedDataLayerTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"), RepresentingWorld.Get());
-							if (UDataLayer* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
+							if (UDataLayerInstance* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
 							{
 								DataLayerEditorSubsystem->AddSelectedActorsToDataLayer(NewDataLayer);
 							}}),
@@ -967,7 +973,7 @@ void FDataLayerMode::RegisterContextMenu()
 					Section.AddSubMenu("AddSelectedActorsTo", LOCTEXT("AddSelectedActorsTo", "Add Selected Actors To"), FText(),
 						FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InSubMenu)
 						{
-							CreateDataLayerPicker(InSubMenu, FOnDataLayerPicked::CreateLambda([this](UDataLayer* TargetDataLayer)
+							CreateDataLayerPicker(InSubMenu, FOnDataLayerPicked::CreateLambda([this](UDataLayerInstance* TargetDataLayer)
 							{
 								check(TargetDataLayer);
 								TArray<AActor*> Actors;
@@ -985,14 +991,14 @@ void FDataLayerMode::RegisterContextMenu()
 					Section.AddSubMenu("MoveSelectedDataLayersTo", LOCTEXT("MoveSelectedDataLayersTo", "Move Data Layers To"), FText(),
 						FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InSubMenu)
 						{
-							CreateDataLayerPicker(InSubMenu, FOnDataLayerPicked::CreateLambda([this](UDataLayer* TargetDataLayer)
+							CreateDataLayerPicker(InSubMenu, FOnDataLayerPicked::CreateLambda([this](UDataLayerInstance* TargetDataLayer)
 							{
-								TArray<UDataLayer*> DataLayers;
-								for (TWeakObjectPtr<const UDataLayer>& DataLayer : SelectedDataLayersSet)
+								TArray<UDataLayerInstance*> DataLayers;
+								for (TWeakObjectPtr<const UDataLayerInstance>& DataLayer : SelectedDataLayersSet)
 								{
 									if (DataLayer.IsValid() && !DataLayer->IsLocked() && DataLayer != TargetDataLayer)
 									{
-										DataLayers.Add(const_cast<UDataLayer*>(DataLayer.Get()));
+										DataLayers.Add(const_cast<UDataLayerInstance*>(DataLayer.Get()));
 									}
 								}
 								SetParentDataLayer(DataLayers, TargetDataLayer);
@@ -1114,15 +1120,15 @@ void FDataLayerMode::RegisterContextMenu()
 						FExecuteAction::CreateLambda([this, SceneOutliner, SelectedDataLayers]() 
 						{
 							const FScopedDataLayerTransaction Transaction(LOCTEXT("MakeCurrentDataLayers", "Make Current Data Layer(s)"), RepresentingWorld.Get());
-							for (TWeakObjectPtr<const UDataLayer>& DataLayer : SelectedDataLayersSet)
+							for (TWeakObjectPtr<const UDataLayerInstance>& DataLayer : SelectedDataLayersSet)
 							{
 								if (DataLayer.IsValid() && !DataLayer->IsLocked())
 								{
-									DataLayerEditorSubsystem->AddToActorEditorContext(const_cast<UDataLayer*>(DataLayer.Get()));
+									DataLayerEditorSubsystem->AddToActorEditorContext(const_cast<UDataLayerInstance*>(DataLayer.Get()));
 								}
 							}
 						}),
-						FCanExecuteAction::CreateLambda([this] { return Algo::AnyOf(SelectedDataLayersSet, [](const TWeakObjectPtr<const UDataLayer>& DataLayer) { return DataLayer.IsValid() && !DataLayer->IsLocked() && !DataLayer->IsInActorEditorContext(); }); })
+						FCanExecuteAction::CreateLambda([this] { return Algo::AnyOf(SelectedDataLayersSet, [](const TWeakObjectPtr<const UDataLayerInstance>& DataLayer) { return DataLayer.IsValid() && !DataLayer->IsLocked() && !DataLayer->IsInActorEditorContext(); }); })
 					));
 
 				Section.AddMenuEntry("RemoveCurrentDataLayers", LOCTEXT("RemoveCurrentDataLayers", "Remove Current Data Layer(s)"), FText(), FSlateIcon(),
@@ -1130,15 +1136,15 @@ void FDataLayerMode::RegisterContextMenu()
 						FExecuteAction::CreateLambda([this, SceneOutliner, SelectedDataLayers]()
 						{
 							const FScopedDataLayerTransaction Transaction(LOCTEXT("RemoveCurrentDataLayers", "Remove Current Data Layer(s)"), RepresentingWorld.Get());
-							for (TWeakObjectPtr<const UDataLayer>& DataLayer : SelectedDataLayersSet)
+							for (TWeakObjectPtr<const UDataLayerInstance>& DataLayer : SelectedDataLayersSet)
 							{
 								if (DataLayer.IsValid() && !DataLayer->IsLocked())
 								{
-									DataLayerEditorSubsystem->RemoveFromActorEditorContext(const_cast<UDataLayer*>(DataLayer.Get()));
+									DataLayerEditorSubsystem->RemoveFromActorEditorContext(const_cast<UDataLayerInstance*>(DataLayer.Get()));
 								}
 							}
 						}),
-						FCanExecuteAction::CreateLambda([this] { return Algo::AnyOf(SelectedDataLayersSet, [](const TWeakObjectPtr<const UDataLayer>& DataLayer) { return DataLayer.IsValid() && !DataLayer->IsLocked() && DataLayer->IsInActorEditorContext(); }); })
+						FCanExecuteAction::CreateLambda([this] { return Algo::AnyOf(SelectedDataLayersSet, [](const TWeakObjectPtr<const UDataLayerInstance>& DataLayer) { return DataLayer.IsValid() && !DataLayer->IsLocked() && DataLayer->IsInActorEditorContext(); }); })
 					));
 
 				Section.AddMenuEntry("ClearCurrentDataLayers", LOCTEXT("ClearCurrentDataLayers", "Clear Current Data Layers"), FText(), FSlateIcon(),
@@ -1148,9 +1154,9 @@ void FDataLayerMode::RegisterContextMenu()
 							check(!AllDataLayers.IsEmpty());
 							{
 								const FScopedDataLayerTransaction Transaction(LOCTEXT("ClearCurrentDataLayers", "Clear Current Data Layers"), RepresentingWorld.Get());
-								for (const UDataLayer* DataLayer : AllDataLayers)
+								for (const UDataLayerInstance* DataLayer : AllDataLayers)
 								{
-									DataLayerEditorSubsystem->RemoveFromActorEditorContext(const_cast<UDataLayer*>(DataLayer));
+									DataLayerEditorSubsystem->RemoveFromActorEditorContext(const_cast<UDataLayerInstance*>(DataLayer));
 								}
 							}}),
 						FCanExecuteAction::CreateLambda([bHasActorEditorContextDataLayers] { return bHasActorEditorContextDataLayers; })
@@ -1263,10 +1269,10 @@ void FDataLayerMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 		EUserInterfaceActionType::ToggleButton
 	);
 
-	TArray<UDataLayer*> AllDataLayers;
+	TArray<UDataLayerInstance*> AllDataLayers;
 	if (const AWorldDataLayers* WorldDataLayers = RepresentingWorld.IsValid() ? RepresentingWorld->GetWorldDataLayers() : nullptr)
 	{
-		WorldDataLayers->ForEachDataLayer([&AllDataLayers](UDataLayer* DataLayer)
+		WorldDataLayers->ForEachDataLayer([&AllDataLayers](UDataLayerInstance* DataLayer)
 		{
 			AllDataLayers.Add(DataLayer);
 			return true;
@@ -1470,7 +1476,7 @@ void FDataLayerMode::ChooseRepresentingWorld()
 	}
 }
 
-bool FDataLayerMode::ShouldExpandDataLayer(const UDataLayer* DataLayer) const
+bool FDataLayerMode::ShouldExpandDataLayer(const UDataLayerInstance* DataLayer) const
 {
 	if (bHighlightSelectedDataLayers || bShowOnlySelectedActors)
 	{
@@ -1486,12 +1492,12 @@ bool FDataLayerMode::ShouldExpandDataLayer(const UDataLayer* DataLayer) const
 	return false;
 }
 
-bool FDataLayerMode::ContainsSelectedChildDataLayer(const UDataLayer* DataLayer) const
+bool FDataLayerMode::ContainsSelectedChildDataLayer(const UDataLayerInstance* DataLayer) const
 {
 	if (DataLayer)
 	{
 		bool bFoundSelected = false;
-		DataLayer->ForEachChild([this, &bFoundSelected](const UDataLayer* Child)
+		DataLayer->ForEachChild([this, &bFoundSelected](const UDataLayerInstance* Child)
 		{
 			if (DataLayerEditorSubsystem->DoesDataLayerContainSelectedActors(Child) || ContainsSelectedChildDataLayer(Child))
 			{
@@ -1507,7 +1513,7 @@ bool FDataLayerMode::ContainsSelectedChildDataLayer(const UDataLayer* DataLayer)
 
 TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateShowOnlySelectedActorsFilter()
 {
-	auto IsActorSelected = [](const AActor* InActor, const UDataLayer* InDataLayer)
+	auto IsActorSelected = [](const AActor* InActor, const UDataLayerInstance* InDataLayer)
 	{
 		return InActor && InActor->IsSelected();
 	};
@@ -1522,14 +1528,14 @@ void FDataLayerMode::SynchronizeSelection()
 	}
 
 	TArray<AActor*> Actors;
-	TSet<const UDataLayer*> ActorDataLayersIncludingParents;
+	TSet<const UDataLayerInstance*> ActorDataLayersIncludingParents;
 	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(Actors);
 	for (const AActor* Actor : Actors)
 	{
-		TArray<const UDataLayer*> ActorDataLayers = Actor->GetDataLayerObjects();
-		for (const UDataLayer* DataLayer : ActorDataLayers)
+		TArray<const UDataLayerInstance*> ActorDataLayers = Actor->GetDataLayerInstances();
+		for (const UDataLayerInstance* DataLayer : ActorDataLayers)
 		{
-			const UDataLayer* CurrentDataLayer = DataLayer;
+			const UDataLayerInstance* CurrentDataLayer = DataLayer;
 			while (CurrentDataLayer)
 			{
 				bool bIsAlreadyInSet = false;
@@ -1590,7 +1596,7 @@ TSharedRef<SWidget> FDataLayerPickingMode::CreateDataLayerPickerWidget(FOnDataLa
 		return new FDataLayerPickingMode(FDataLayerModeParams(Outliner, nullptr, nullptr, FOnSceneOutlinerItemPicked::CreateLambda([OnDataLayerPicked](const FSceneOutlinerTreeItemRef& NewParent)
 		{
 			FDataLayerTreeItem* DataLayerItem = NewParent->CastTo<FDataLayerTreeItem>();
-			if (UDataLayer* DataLayer = DataLayerItem ? DataLayerItem->GetDataLayer() : nullptr)
+			if (UDataLayerInstance* DataLayer = DataLayerItem ? DataLayerItem->GetDataLayer() : nullptr)
 			{
 				OnDataLayerPicked.ExecuteIfBound(DataLayer);
 			}
@@ -1624,7 +1630,7 @@ void FDataLayerPickingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr Tre
 			{
 				if (const FDataLayerTreeItem* DataLayerItem = FirstItem->CastTo<FDataLayerTreeItem>())
 				{
-					UDataLayer* DataLayer = DataLayerItem->GetDataLayer();
+					UDataLayerInstance* DataLayer = DataLayerItem->GetDataLayer();
 					if (DataLayer && !DataLayer->IsLocked())
 					{
 						OnItemPicked.ExecuteIfBound(FirstItem.ToSharedRef());

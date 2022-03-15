@@ -34,7 +34,7 @@
 #include "Editor/PropertyEditor/Public/VariablePrecisionNumericInterface.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "DataLayer/DataLayerPropertyTypeCustomizationHelper.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FoliageEd_Mode"

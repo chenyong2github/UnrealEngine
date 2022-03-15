@@ -63,6 +63,7 @@
 #include "AssetTypeActions/AssetTypeActions_CurveLinearColor.h"
 #include "AssetTypeActions/AssetTypeActions_CurveLinearColorAtlas.h"
 #include "AssetTypeActions/AssetTypeActions_DataAsset.h"
+#include "AssetTypeActions/AssetTypeActions_DataLayer.h"
 #include "AssetTypeActions/AssetTypeActions_DataTable.h"
 #include "AssetTypeActions/AssetTypeActions_CompositeDataTable.h"
 #include "AssetTypeActions/AssetTypeActions_Enum.h"
@@ -253,6 +254,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveLinearColor));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveLinearColorAtlas));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataAsset));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataLayer));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CompositeDataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Enum));

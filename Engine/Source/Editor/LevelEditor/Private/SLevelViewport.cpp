@@ -86,7 +86,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "SInViewportDetails.h"
 #include "Viewports/InViewportUIDragOperation.h"

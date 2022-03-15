@@ -74,7 +74,7 @@ struct FActorCluster
 	bool						bIsSpatiallyLoaded;
 	FName						RuntimeGrid;
 	FBox						Bounds;
-	TSet<const UDataLayer*>		DataLayers;
+	TSet<const UDataLayerInstance*>		DataLayers;
 	FDataLayersID				DataLayersID;
 
 	FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView);
@@ -94,7 +94,7 @@ struct FActorContainerInstance
 	EContainerClusterMode		ClusterMode;
 	const UActorDescContainer*	Container;
 	TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap;
-	TSet<const UDataLayer*>		DataLayers;
+	TSet<const UDataLayerInstance*>		DataLayers;
 
 	const FWorldPartitionActorDescView& GetActorDescView(const FGuid& InGuid) const;
 };
@@ -109,7 +109,7 @@ struct FActorClusterInstance
 	FBox							Bounds;
 	const FActorCluster*			Cluster;
 	const FActorContainerInstance*	ContainerInstance;
-	TArray<const UDataLayer*>		DataLayers;
+	TArray<const UDataLayerInstance*>		DataLayers;
 };
 
 /**

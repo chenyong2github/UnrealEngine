@@ -21,6 +21,7 @@
 #include "AssetRegistryModule.h"
 #include "DerivedDataCacheInterface.h"
 
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -669,7 +670,7 @@ bool UWorldPartitionHLODsBuilder::DumpStats()
 		HLODStat.RuntimeGrid = HLODActor->GetRuntimeGrid();
 		HLODStat.bIsSpatiallyLoaded = HLODActor->GetIsSpatiallyLoaded();
 		HLODActor->GetGridIndices(HLODStat.GridLocationX, HLODStat.GridLocationY, HLODStat.GridLocationZ);
-		HLODStat.DataLayers = *FString::JoinBy(HLODActor->GetDataLayerObjects(), TEXT("| "), [](const UDataLayer* DataLayer) { return DataLayer->GetDataLayerLabel().ToString(); });
+		HLODStat.DataLayers = *FString::JoinBy(HLODActor->GetDataLayerInstances(), TEXT("| "), [](const UDataLayerInstance* DataLayer) { return DataLayer->GetDataLayerShortName(); });
 		HLODStat.HLODType = HLODActor->GetSubActorsHLODLayer()->GetLayerType();
 
 		HLODActor->ForEachComponent<UInstancedStaticMeshComponent>(false, [&](const UInstancedStaticMeshComponent* ISMC)

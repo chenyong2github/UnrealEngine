@@ -2049,7 +2049,7 @@ void FEdModeFoliage::RemoveSelectedInstances(UWorld* InWorld)
 void FEdModeFoliage::GetFoliageTypeFilters(TArray<const UClass*>& OutFilters) const
 {
 	OutFilters.Add(UFoliageType_InstancedStaticMesh::StaticClass());
-	if (UWorld::IsPartitionedWorld(GetWorld()))
+	if (GetWorld()->HasSubsystem<UWorldPartitionSubsystem>())
 	{
 		return;
 	}

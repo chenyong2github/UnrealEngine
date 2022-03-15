@@ -28,7 +28,7 @@ void FHLODActorDesc::Init(const AActor* InActor)
 		uint64 GridIndexZ;
 		HLODActor->GetGridIndices(GridIndexX, GridIndexY, GridIndexZ);
 
-		FDataLayersID DataLayersID(HLODActor->GetDataLayerObjects());
+		FDataLayersID DataLayersID(HLODActor->GetDataLayerInstances());
 
 		CellHash = ComputeCellHash(SubActorsHLODLayer->GetName(), GridIndexX, GridIndexY, GridIndexZ, DataLayersID);
 	}

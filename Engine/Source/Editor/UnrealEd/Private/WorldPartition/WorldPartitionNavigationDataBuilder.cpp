@@ -29,11 +29,11 @@ bool UWorldPartitionNavigationDataBuilder::PreRun(UWorld* World, FPackageSourceC
 	// Set runtime data layer to be included in the generation.
 	if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
 	{
-		WorldDataLayers->ForEachDataLayer([this](const UDataLayer* DataLayer)
+		WorldDataLayers->ForEachDataLayer([this](const UDataLayerInstance* DataLayer)
 		{
 			if (DataLayer->IsRuntime())
 			{
-				DataLayerLabels.Add(DataLayer->GetDataLayerLabel());
+				DataLayerShortNames.Add(FName(DataLayer->GetDataLayerShortName()));
 			}
 
 			return true;

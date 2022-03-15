@@ -24,7 +24,7 @@ struct FDataLayerModeParams
 	FOnSceneOutlinerItemPicked OnItemPicked;
 };
 
-DECLARE_DELEGATE_OneParam(FOnDataLayerPicked, UDataLayer*);
+DECLARE_DELEGATE_OneParam(FOnDataLayerPicked, UDataLayerInstance*);
 
 class FDataLayerMode : public ISceneOutlinerMode
 {
@@ -101,13 +101,13 @@ private:
 	bool IsWorldChecked(TWeakObjectPtr<UWorld> World) const;
 	TArray<FDataLayerActorMoveElement> GetDataLayerActorPairsFromOperation(const FDragDropOperation& Operation) const;
 	TArray<AActor*> GetActorsFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst = false) const;
-	TArray<UDataLayer*> GetDataLayersFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst = false) const;
-	TArray<UDataLayer*> GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const;
-	void SetParentDataLayer(const TArray<UDataLayer*> DataLayers, UDataLayer* ParentDataLayer) const;
+	TArray<UDataLayerInstance*> GetDataLayersFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst = false) const;
+	TArray<UDataLayerInstance*> GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const;
+	void SetParentDataLayer(const TArray<UDataLayerInstance*> DataLayers, UDataLayerInstance* ParentDataLayer) const;
 	void OnLevelSelectionChanged(UObject* Obj);
 	static void CreateDataLayerPicker(UToolMenu* InMenu, FOnDataLayerPicked OnDataLayerPicked, bool bInShowRoot = false);
-	bool ShouldExpandDataLayer(const UDataLayer* DataLayer) const;
-	bool ContainsSelectedChildDataLayer(const UDataLayer* DataLayer) const;
+	bool ShouldExpandDataLayer(const UDataLayerInstance* DataLayer) const;
+	bool ContainsSelectedChildDataLayer(const UDataLayerInstance* DataLayer) const;
 	void RefreshSelection();
 	FSceneOutlinerDragValidationInfo ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, bool bMoveOperation = false) const;
 
@@ -131,10 +131,10 @@ private:
 	/** Number of datalayers which have passed through the filters */
 	uint32 FilteredDataLayerCount = 0;
 	/** List of datalayers which passed the regular filters and may or may not have passed the search filter */
-	TSet<TWeakObjectPtr<UDataLayer>> ApplicableDataLayers;
+	TSet<TWeakObjectPtr<UDataLayerInstance>> ApplicableDataLayers;
 
-	TSet<TWeakObjectPtr<const UDataLayer>> SelectedDataLayersSet;
-	typedef TPair<TWeakObjectPtr<const UDataLayer>, TWeakObjectPtr<const AActor>> FSelectedDataLayerActor;
+	TSet<TWeakObjectPtr<const UDataLayerInstance>> SelectedDataLayersSet;
+	typedef TPair<TWeakObjectPtr<const UDataLayerInstance>, TWeakObjectPtr<const AActor>> FSelectedDataLayerActor;
 	TSet<FSelectedDataLayerActor> SelectedDataLayerActors;
 };
 

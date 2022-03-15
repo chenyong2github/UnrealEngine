@@ -3,7 +3,7 @@
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #include "Engine/Canvas.h"
@@ -57,10 +57,10 @@ FAutoConsoleCommand FWorldPartitionDebugHelper::DebugFilterByDataLayerCommand(
 			UWorld* World = Context.World();
 			if (World && World->IsGameWorld())
 			{
-				TArray<UDataLayer*> DataLayers = UDataLayerSubsystem::ConvertArgsToDataLayers(World, InArgs);
-				for (UDataLayer* DataLayer : DataLayers)
+				TArray<UDataLayerInstance*> DataLayers = UDataLayerSubsystem::ConvertArgsToDataLayers(World, InArgs);
+				for (UDataLayerInstance* DataLayer : DataLayers)
 				{
-					DebugDataLayerFilter.Add(DataLayer->GetFName());
+					DebugDataLayerFilter.Add(DataLayer->GetDataLayerFName());
 				}
 			}
 		}
