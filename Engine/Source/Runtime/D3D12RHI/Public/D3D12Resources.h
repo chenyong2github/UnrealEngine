@@ -596,7 +596,6 @@ public:
 	// Pool allocation specific functions
 	bool OnAllocationMoved(FRHIPoolAllocationData* InNewData);
 	void UnlockPoolData();
-	bool IsPoolDataLocked();
 
 	const inline bool IsValid() const { return Type != ResourceLocationType::eUndefined; }
 

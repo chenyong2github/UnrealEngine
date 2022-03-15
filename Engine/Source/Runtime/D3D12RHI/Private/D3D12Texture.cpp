@@ -1090,9 +1090,8 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 		// on the GPU before returning here, this protection is safe, even if we end up straddling frame boundaries.
 		TempResourceLocation.GetResource()->AddRef();
 
-		for (FD3D12Texture& CurrentTextureBase : *TextureOut)
+		for (FD3D12Texture& CurrentTexture : *TextureOut)
 		{
-			FD3D12Texture& CurrentTexture = static_cast<FD3D12Texture&>(CurrentTextureBase);
 			FD3D12Device* Device = CurrentTexture.GetParentDevice();
 			FD3D12Resource* Resource = CurrentTexture.GetResource();
 
@@ -1148,6 +1147,9 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 			});
 
 			CommandAllocatorManager.ReleaseCommandAllocator(CurrentCommandAllocator);
+
+			// Blocking update is done
+			CurrentTexture.ResourceLocation.UnlockPoolData();
 		}
 
 		FD3D12TextureStats::D3D12TextureAllocated(*TextureOut);
@@ -1220,12 +1222,6 @@ void FD3D12DynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2DRHI, FRHITe
 				hCommandList.UpdateResidency(DestTexture2D->GetResource());
 				hCommandList.UpdateResidency(SrcTexture2D->GetResource());
 			}
-		}
-
-		if (DestTexture2D->ResourceLocation.IsPoolDataLocked())
-		{
-			// unlock the pool allocated resource because all data has been written
-			DestTexture2D->ResourceLocation.UnlockPoolData();
 		}
 
 		Device->GetDefaultCommandContext().ConditionalFlushCommandList();

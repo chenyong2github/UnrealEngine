@@ -1230,15 +1230,6 @@ void FD3D12ResourceLocation::UnlockPoolData()
 	}
 }
 
-bool FD3D12ResourceLocation::IsPoolDataLocked()
-{
-	if (AllocatorType == AT_Pool)
-	{
-		return GetPoolAllocatorPrivateData().PoolData.IsLocked();
-	}
-	return false;
-}
-
 /////////////////////////////////////////////////////////////////////
 //	FD3D12 Resource Barrier Batcher
 /////////////////////////////////////////////////////////////////////
