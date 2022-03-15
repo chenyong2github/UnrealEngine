@@ -11,6 +11,7 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectGlobals.h"
 #include "HardwareInfo.h"
+#include "IImgMediaModule.h"
 #include "ImgMediaLoader.h"
 #include "ImgMediaMipMapInfo.h"
 
@@ -28,6 +29,9 @@ static TAutoConsoleVariable<bool> CVarEnableUncompressedExrGpuReader(
 
 FExrImgMediaReader::FExrImgMediaReader(const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader)
 	: LoaderPtr(InLoader)
+	, bIsCustomFormat(false)
+	, bIsCustomFormatTiled(false)
+	, CustomFormatTileSize(EForceInit::ForceInitToZero)
 {
 	const UImgMediaSettings* Settings = GetDefault<UImgMediaSettings>();
 	
@@ -230,6 +234,9 @@ void FExrImgMediaReader::CancelFrame(int32 FrameNumber)
 /** Gets reader type (GPU vs CPU) depending on size of EXR and its compression. */
 TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> FExrImgMediaReader::GetReader(const TSharedRef <FImgMediaLoader, ESPMode::ThreadSafe>& InLoader, FString FirstImageInSequencePath)
 {
+	bool bIsCustomFormat = false;
+	FIntPoint TileSize(EForceInit::ForceInitToZero);
+
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
 	FRgbaInputFile InputFile(FirstImageInSequencePath, 2);
 	if (InputFile.HasInputFile() == false)
@@ -244,17 +251,33 @@ TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> FExrImgMediaReader::GetReader(c
 	{
 		return MakeShareable(new FExrImgMediaReader(InLoader));
 	}
-	
+
+	// Is this our custom format?
+	int32 CustomFormat = 0;
+	InputFile.GetIntAttribute(IImgMediaModule::CustomFormatAttributeName.Resolve().ToString(), CustomFormat);
+	bIsCustomFormat = CustomFormat > 0;
+	if (bIsCustomFormat)
+	{
+		// Get tile size.
+		InputFile.GetIntAttribute(IImgMediaModule::CustomFormatTileWidthAttributeName.Resolve().ToString(), TileSize.X);
+		InputFile.GetIntAttribute(IImgMediaModule::CustomFormatTileHeightAttributeName.Resolve().ToString(), TileSize.Y);
+	}
+
 	// Check GetCompressionName of OpenExrWrapper for other compression names.
 	if (GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12
 		&& Info.CompressionName == "Uncompressed" 
 		&& CVarEnableUncompressedExrGpuReader.GetValueOnAnyThread()
 		)
 	{
-		return MakeShared<FExrImgMediaReaderGpu, ESPMode::ThreadSafe>(InLoader);
+		TSharedRef<FExrImgMediaReaderGpu, ESPMode::ThreadSafe> GpuReader = 
+			MakeShared<FExrImgMediaReaderGpu, ESPMode::ThreadSafe>(InLoader);
+		GpuReader->SetCustomFormatInfo(bIsCustomFormat, TileSize);
+		return GpuReader;
 	}
 #endif
-	return MakeShareable(new FExrImgMediaReader(InLoader));
+	FExrImgMediaReader* Reader = new FExrImgMediaReader(InLoader);
+	Reader->SetCustomFormatInfo(bIsCustomFormat, TileSize);
+	return MakeShareable(Reader);
 }
 
 /* FExrImgMediaReader implementation
@@ -276,6 +299,13 @@ bool FExrImgMediaReader::GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& 
 	OutInfo.NumChannels = InputFile.GetNumChannels();
 
 	return (OutInfo.UncompressedSize > 0) && (OutInfo.Dim.GetMin() > 0);
+}
+
+void FExrImgMediaReader::SetCustomFormatInfo(bool bInIsCustomFormat, const FIntPoint& InTileSize)
+{
+	bIsCustomFormat = bInIsCustomFormat;
+	CustomFormatTileSize = InTileSize;
+	bIsCustomFormatTiled = InTileSize.X != 0;
 }
 
 SIZE_T FExrImgMediaReader::GetMipBufferTotalSize(FIntPoint Dim)
