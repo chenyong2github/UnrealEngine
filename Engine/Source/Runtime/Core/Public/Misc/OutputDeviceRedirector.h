@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/OutputDevice.h"
 #include "Templates/PimplPtr.h"
 #include "UObject/NameTypes.h"
@@ -47,6 +48,21 @@ struct CORE_API FBufferedLine
 	~FBufferedLine();
 };
 
+enum class EOutputDeviceRedirectorFlushOptions : uint32
+{
+	None = 0,
+
+	/**
+		* Flush asynchronously when possible.
+		*
+		* When this flag is set and there is a dedicated master thread, the flush function returns immediately.
+		* Otherwise, the flush function does not return until the requested type of flush is complete.
+		*/
+	Async = 1 << 0,
+};
+
+ENUM_CLASS_FLAGS(EOutputDeviceRedirectorFlushOptions);
+
 /**
  * Class used for output redirection to allow logs to show in multiple output devices.
  */
@@ -85,13 +101,9 @@ public:
 	bool IsRedirectingTo(FOutputDevice* OutputDevice);
 
 	/** Flushes lines buffered by secondary threads. */
-	void FlushThreadedLogs();
+	void FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions Options = EOutputDeviceRedirectorFlushOptions::None);
 
-	/**
-	 * Flushes lines buffered by secondary threads.
-	 *
-	 * Only used if a background thread crashed and we needed to push the callstack into the log.
-	 */
+	/** Same as FlushThreadedLogs(). */
 	void PanicFlushThreadedLogs();
 
 	/**
@@ -109,6 +121,15 @@ public:
 
 	/** Sets the current thread to be the master thread redirects logs without buffering. */
 	void SetCurrentThreadAsMasterThread();
+
+	/**
+	 * Starts a dedicated master thread that redirects logs that require buffering.
+	 *
+	 * A thread will not be started for certain configurations or platforms, or when threading is disabled.
+	 *
+	 * @return true if a dedicated master thread is running, false otherwise.
+	 */
+	bool TryStartDedicatedMasterThread();
 
 	/**
 	 * Serializes the passed in data via all current output devices.
@@ -146,12 +167,5 @@ public:
 	bool IsBacklogEnabled() const;
 
 private:
-	/**
-	 * The unsynchronized version of FlushThreadedLogs.
-	 * Assumes that the caller holds a lock on the output devices.
-	 * @param bUseAllDevices   If true, this method will use all buffered output devices.
-	 */
-	void FlushBufferedLines(TConstArrayView<FOutputDevice*> BufferedDevices, bool bUseAllDevices);
-
 	TPimplPtr<UE::Private::FOutputDeviceRedirectorState> State;
 };

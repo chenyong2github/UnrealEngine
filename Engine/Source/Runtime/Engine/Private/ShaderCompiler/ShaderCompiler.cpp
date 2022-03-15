@@ -4062,7 +4062,7 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 				if (++LogCounter > 50)
 				{
 					LogCounter = 0;
-					GLog->FlushThreadedLogs();
+					GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);
 				}
 			}
 		} 

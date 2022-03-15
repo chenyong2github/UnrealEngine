@@ -1503,12 +1503,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInitPreStartupScreen");
 
-	// The GLog singleton is lazy initialised and by default will assume that
-	// its "master thread" is the one it was created on. This lazy initialisation
-	// can happen during the dynamic init (e.g. static) of a DLL which modern
-	// Windows does on a worker thread thus makeing its master thread not this one.
-	// So we make it this one and GLog->TearDown() is happy.
-	if (GLog != nullptr)
+	// GLog is initialized lazily and its default master thread is the thread that initialized it.
+	// This lazy initialization can happen during initialization of a DLL, which Windows does on a
+	// worker thread, which makes that worker thread the master thread. Make this the master thread
+	// until initialization is far enough along to try to start a dedicated master thread.
+	if (GLog)
 	{
 		GLog->SetCurrentThreadAsMasterThread();
 	}
@@ -1657,6 +1656,12 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	// Always enable the backlog so we get all messages, we will disable and clear it in the game
 	// as soon as we determine whether GIsEditor == false
 	GLog->EnableBacklog(true);
+
+	// Try to start the dedicated master thread now that the command line is available.
+	if (!FParse::Param(FCommandLine::Get(), TEXT("NoLogThread")))
+	{
+		GLog->TryStartDedicatedMasterThread();
+	}
 
 	// Initialize std out device as early as possible if requested in the command line
 #if PLATFORM_DESKTOP
@@ -5043,7 +5048,7 @@ void FEngineLoop::Tick()
 		// flush debug output which has been buffered by other threads
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_FlushThreadedLogs); 
-			GLog->FlushThreadedLogs();
+			GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);
 		}
 
 		// exit if frame limit is reached in benchmark mode, or if time limit is reached

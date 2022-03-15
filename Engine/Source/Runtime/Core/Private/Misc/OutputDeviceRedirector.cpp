@@ -4,10 +4,12 @@
 
 #include "Containers/DepletableMpscQueue.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
+#include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
-#include "Misc/ScopeLock.h"
+#include "HAL/Thread.h"
+#include "Misc/App.h"
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include <atomic>
@@ -106,11 +108,12 @@ static constexpr uint64 CalculateRedirectorCacheLinePadding(const uint64 Size)
 
 struct FOutputDeviceRedirectorState
 {
+	/** A custom lock to guard access to both buffered and unbuffered output devices. */
 	FRWLock OutputDevicesLock;
-	std::atomic<uint32> OutputDevicesLockState;
+	std::atomic<uint32> OutputDevicesLockState{0};
 	uint8 OutputDevicesLockPadding[CalculateRedirectorCacheLinePadding(sizeof(OutputDevicesLock) + sizeof(OutputDevicesLockState))]{};
 
-	/** A FIFO of lines logged by non-master threads. */
+	/** A queue of lines logged by non-master threads. */
 	TDepletableMpscQueue<FOutputDeviceLine, FOutputDeviceLinearAllocator> BufferedLines;
 	uint8 BufferedLinesPadding[CalculateRedirectorCacheLinePadding(sizeof(BufferedLines))]{};
 
@@ -120,24 +123,49 @@ struct FOutputDeviceRedirectorState
 	/** Array of output devices to redirect to from the calling thread. */
 	TArray<FOutputDevice*> UnbufferedOutputDevices;
 
-	/** The ID of the master thread. Logging from other threads will be buffered for processing by the master thread. */
-	uint32 MasterThreadID = FPlatformTLS::GetCurrentThreadId();
-
-	/** Objects used for synchronization via a scoped lock. */
-	FCriticalSection SynchronizationObject;
-
-	/** A FIFO backlog of messages logged before the editor had a chance to intercept them. */
+	/** A queue of lines logged before the editor added its output device. */
 	TArray<FBufferedLine> BacklogLines;
+	FRWLock BacklogLock;
 
-	/** Whether backlogging is enabled. */
+	/** An optional dedicated master thread for logging to buffered output devices. */
+	FThread Thread;
+
+	/** A lock to synchronize access to the thread. */
+	FRWLock ThreadLock;
+
+	/** An event to wake the dedicated master thread to process buffered lines. */
+	FEventRef ThreadWakeEvent{EEventMode::AutoReset};
+
+	/** A queue of events to trigger when the dedicated master thread is idle. */
+	TDepletableMpscQueue<FEvent*, FOutputDeviceLinearAllocator> ThreadIdleEvents;
+
+	/** The ID of the master thread. Logging from other threads will be buffered for processing by the master thread. */
+	std::atomic<uint32> MasterThreadId{FPlatformTLS::GetCurrentThreadId()};
+
+	/** Whether to keep the thread running. */
+	std::atomic<bool> bThreadActive{false};
+
+	/** Whether the backlog is enabled. */
 	bool bEnableBacklog = false;
 
-	bool IsInMasterThread() const
+	bool IsMasterThread(const uint32 ThreadId) const
 	{
-		return MasterThreadID == FPlatformTLS::GetCurrentThreadId();
+		return ThreadId == MasterThreadId.load(std::memory_order_relaxed);
 	}
+
+	void ThreadLoop();
+
+	void FlushBufferedLines();
 };
 
+/**
+ * A scoped lock for readers of the OutputDevices arrays.
+ *
+ * The read lock:
+ * - Must be locked to read the OutputDevices arrays.
+ * - Must be locked to write to unbuffered output devices.
+ * - Must not be entered when the thread holds a write or master lock.
+ */
 struct FOutputDevicesReadScopeLock
 {
 	FORCEINLINE explicit FOutputDevicesReadScopeLock(FOutputDeviceRedirectorState& InState)
@@ -170,6 +198,13 @@ struct FOutputDevicesReadScopeLock
 	FOutputDeviceRedirectorState& State;
 };
 
+/**
+ * A scoped lock for writers of the OutputDevices arrays.
+ *
+ * The write lock has the same access as the master lock, and:
+ * - Must be locked to add or remove output devices.
+ * - Must not be entered when the thread holds a read, write, or master lock.
+ */
 struct FOutputDevicesWriteScopeLock
 {
 	FORCEINLINE explicit FOutputDevicesWriteScopeLock(FOutputDeviceRedirectorState& InState)
@@ -203,6 +238,75 @@ struct FOutputDevicesWriteScopeLock
 
 	FOutputDeviceRedirectorState& State;
 };
+
+/**
+ * A scoped lock for readers of the OutputDevices arrays that need to access master thread state.
+ *
+ * The master lock has the same access as the read lock, and:
+ * - Must be locked to write to buffered output devices.
+ * - Must be locked while calling FlushBufferedLines().
+ * - Must not be entered when the thread holds a write or master lock.
+ * - May be locked when the thread holds a read lock.
+ */
+struct FOutputDevicesMasterScopeLock
+{
+	FORCEINLINE explicit FOutputDevicesMasterScopeLock(FOutputDeviceRedirectorState& InState)
+		: State(InState)
+	{
+		State.OutputDevicesLock.WriteLock();
+	}
+
+	FORCEINLINE ~FOutputDevicesMasterScopeLock()
+	{
+		State.OutputDevicesLock.WriteUnlock();
+	}
+
+	FOutputDeviceRedirectorState& State;
+};
+
+void FOutputDeviceRedirectorState::ThreadLoop()
+{
+	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+	{
+		FOutputDevicesMasterScopeLock Lock(*this);
+		MasterThreadId.store(ThreadId, std::memory_order_relaxed);
+	}
+
+	while (IsMasterThread(ThreadId))
+	{
+		ThreadWakeEvent->Wait();
+		do
+		{
+			FOutputDevicesMasterScopeLock Lock(*this);
+			FlushBufferedLines();
+		}
+		while (!BufferedLines.IsEmpty());
+		ThreadIdleEvents.Deplete([](FEvent* Event) { Event->Trigger(); });
+	}
+}
+
+void FOutputDeviceRedirectorState::FlushBufferedLines()
+{
+	if (BufferedLines.IsEmpty())
+	{
+		return;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOutputDeviceRedirector::FlushBufferedLines);
+
+	BufferedLines.Deplete([this](UE::Private::FOutputDeviceLine&& Line)
+	{
+		const double Time = Line.Time;
+		const TCHAR* const Data = Line.Data;
+		const FName Category = Line.Category;
+		const ELogVerbosity::Type Verbosity = Line.Verbosity;
+
+		for (FOutputDevice* OutputDevice : BufferedOutputDevices)
+		{
+			OutputDevice->Serialize(Data, Verbosity, Category, Time);
+		}
+	});
+}
 
 } // UE::Private
 
@@ -249,61 +353,34 @@ bool FOutputDeviceRedirector::IsRedirectingTo(FOutputDevice* OutputDevice)
 	return State->BufferedOutputDevices.Contains(OutputDevice) || State->UnbufferedOutputDevices.Contains(OutputDevice);
 }
 
-void FOutputDeviceRedirector::FlushBufferedLines(TConstArrayView<FOutputDevice*> BufferedDevices, bool bUseAllDevices)
-{	
-	if (State->BufferedLines.IsEmpty())
+void FOutputDeviceRedirector::FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions Options)
+{
+	if (FReadScopeLock Lock(State->ThreadLock); State->bThreadActive.load(std::memory_order_relaxed))
 	{
+		if (!EnumHasAnyFlags(Options, EOutputDeviceRedirectorFlushOptions::Async))
+		{
+			FEventRef IdleEvent(EEventMode::ManualReset);
+			if (State->ThreadIdleEvents.EnqueueAndReturnWasEmpty(IdleEvent.Get()))
+			{
+				State->ThreadWakeEvent->Trigger();
+			}
+			IdleEvent->Wait();
+		}
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOutputDeviceRedirector::FlushBufferedLines);
-
-	State->BufferedLines.Deplete([BufferedDevices, bUseAllDevices](UE::Private::FOutputDeviceLine&& Line)
-	{
-		const double Time = Line.Time;
-		const TCHAR* const Data = Line.Data;
-		const FName Category = Line.Category;
-		const ELogVerbosity::Type Verbosity = Line.Verbosity;
-
-		for (FOutputDevice* OutputDevice : BufferedDevices)
-		{
-			if (bUseAllDevices || OutputDevice->CanBeUsedOnAnyThread())
-			{
-				OutputDevice->Serialize(Data, Verbosity, Category, Time);
-			}
-		}
-	});
-}
-
-void FOutputDeviceRedirector::FlushThreadedLogs()
-{
-	check(State->IsInMasterThread());
-	UE::Private::FOutputDevicesReadScopeLock Lock(*State);
-	FlushBufferedLines(State->BufferedOutputDevices, /*bUseAllDevices*/ true);
+	UE::Private::FOutputDevicesMasterScopeLock Lock(*State);
+	State->FlushBufferedLines();
 }
 
 void FOutputDeviceRedirector::PanicFlushThreadedLogs()
 {
-	UE::Private::FOutputDevicesReadScopeLock Lock(*State);
-	FlushBufferedLines(State->BufferedOutputDevices, /*bUseAllDevices*/ State->IsInMasterThread());
-
-	for (FOutputDevice* OutputDevice : State->BufferedOutputDevices)
-	{
-		if (OutputDevice->CanBeUsedOnAnyThread())
-		{
-			OutputDevice->Flush();
-		}
-	}
-
-	for (FOutputDevice* OutputDevice : State->UnbufferedOutputDevices)
-	{
-		OutputDevice->Flush();
-	}
+	Flush();
 }
 
 void FOutputDeviceRedirector::SerializeBacklog(FOutputDevice* OutputDevice)
 {
-	FScopeLock ScopeLock(&State->SynchronizationObject);
+	FReadScopeLock ScopeLock(State->BacklogLock);
 	for (const FBufferedLine& BacklogLine : State->BacklogLines)
 	{
 		OutputDevice->Serialize(BacklogLine.Data, BacklogLine.Verbosity, BacklogLine.Category, BacklogLine.Time);
@@ -312,7 +389,7 @@ void FOutputDeviceRedirector::SerializeBacklog(FOutputDevice* OutputDevice)
 
 void FOutputDeviceRedirector::EnableBacklog(bool bEnable)
 {
-	FScopeLock ScopeLock(&State->SynchronizationObject);
+	FWriteScopeLock ScopeLock(State->BacklogLock);
 	State->bEnableBacklog = bEnable;
 	if (!bEnable)
 	{
@@ -322,11 +399,40 @@ void FOutputDeviceRedirector::EnableBacklog(bool bEnable)
 
 void FOutputDeviceRedirector::SetCurrentThreadAsMasterThread()
 {
-	UE::Private::FOutputDevicesReadScopeLock Lock(*State);
-	FlushBufferedLines(State->BufferedOutputDevices, /*bUseAllDevices*/ State->IsInMasterThread());
+	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 
-	FScopeLock ScopeLock(&State->SynchronizationObject);
-	State->MasterThreadID = FPlatformTLS::GetCurrentThreadId();
+	if (UE::Private::FOutputDevicesMasterScopeLock Lock(*State); State->MasterThreadId.load(std::memory_order_relaxed) == ThreadId)
+	{
+		return;
+	}
+	else
+	{
+		State->MasterThreadId.store(ThreadId, std::memory_order_relaxed);
+		State->FlushBufferedLines();
+	}
+
+	if (FWriteScopeLock Lock(State->ThreadLock); State->bThreadActive.load(std::memory_order_relaxed))
+	{
+		State->bThreadActive.store(false, std::memory_order_relaxed);
+		State->ThreadWakeEvent->Trigger();
+		State->Thread.Join();
+	}
+}
+
+bool FOutputDeviceRedirector::TryStartDedicatedMasterThread()
+{
+	if (!FApp::ShouldUseThreadingForPerformance())
+	{
+		return false;
+	}
+
+	if (FWriteScopeLock Lock(State->ThreadLock); !State->bThreadActive.load(std::memory_order_relaxed))
+	{
+		State->bThreadActive.store(true, std::memory_order_relaxed);
+		State->ThreadWakeEvent->Trigger();
+		State->Thread = FThread(TEXT("OutputDeviceRedirector"), [State = State.Get()] { State->ThreadLoop(); });
+	}
+	return true;
 }
 
 void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbosity::Type Verbosity, const FName& Category, const double Time)
@@ -357,17 +463,31 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 
 	if (State->bEnableBacklog)
 	{
-		FScopeLock ScopeLock(&State->SynchronizationObject);
-		new(State->BacklogLines)FBufferedLine(Data, Category, Verbosity, RealTime);
+		FWriteScopeLock ScopeLock(State->BacklogLock);
+		State->BacklogLines.Emplace(Data, Category, Verbosity, RealTime);
 	}
 
-	if (!State->IsInMasterThread() || State->BufferedOutputDevices.IsEmpty())
+	const auto EnqueueLine = [this, Data, Category, Verbosity, RealTime]
 	{
-		State->BufferedLines.Enqueue(Data, Category, Verbosity, RealTime);
+		if (State->BufferedLines.EnqueueAndReturnWasEmpty(Data, Category, Verbosity, RealTime) &&
+			State->bThreadActive.load(std::memory_order_relaxed))
+		{
+			State->ThreadWakeEvent->Trigger();
+		}
+	};
+
+	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+	if (!State->IsMasterThread(ThreadId) || State->BufferedOutputDevices.IsEmpty())
+	{
+		EnqueueLine();
+	}
+	else if (UE::Private::FOutputDevicesMasterScopeLock MasterLock(*State); !State->IsMasterThread(ThreadId))
+	{
+		EnqueueLine();
 	}
 	else
 	{
-		FlushBufferedLines(State->BufferedOutputDevices, /*bUseAllDevices*/ true);
+		State->FlushBufferedLines();
 
 		for (FOutputDevice* OutputDevice : State->BufferedOutputDevices)
 		{
@@ -393,16 +513,12 @@ void FOutputDeviceRedirector::RedirectLog(const FLazyName& Category, ELogVerbosi
 
 void FOutputDeviceRedirector::Flush()
 {
-	UE::Private::FOutputDevicesReadScopeLock Lock(*State);
+	UE::Private::FOutputDevicesMasterScopeLock Lock(*State);
+	State->FlushBufferedLines();
 
-	if (State->IsInMasterThread())
+	for (FOutputDevice* OutputDevice : State->BufferedOutputDevices)
 	{
-		FlushBufferedLines(State->BufferedOutputDevices, /*bUseAllDevices*/ true);
-
-		for (FOutputDevice* OutputDevice : State->BufferedOutputDevices)
-		{
-			OutputDevice->Flush();
-		}
+		OutputDevice->Flush();
 	}
 
 	for (FOutputDevice* OutputDevice : State->UnbufferedOutputDevices)
@@ -413,14 +529,14 @@ void FOutputDeviceRedirector::Flush()
 
 void FOutputDeviceRedirector::TearDown()
 {
-	FScopeLock SyncLock(&State->SynchronizationObject);
-	check(State->IsInMasterThread());
+	SetCurrentThreadAsMasterThread();
+
+	Flush();
 
 	TArray<FOutputDevice*> LocalBufferedDevices;
 	TArray<FOutputDevice*> LocalUnbufferedDevices;
 
 	{
-		// We need to lock the mutex here so that it gets unlocked after we empty the devices arrays
 		UE::Private::FOutputDevicesWriteScopeLock Lock(*State);
 		LocalBufferedDevices = MoveTemp(State->BufferedOutputDevices);
 		LocalUnbufferedDevices = MoveTemp(State->UnbufferedOutputDevices);
@@ -428,23 +544,20 @@ void FOutputDeviceRedirector::TearDown()
 		State->UnbufferedOutputDevices.Empty();
 	}
 
-	FlushBufferedLines(LocalBufferedDevices, /*bUseAllDevices*/ true);
-
 	for (FOutputDevice* OutputDevice : LocalBufferedDevices)
 	{
-		OutputDevice->Flush();
 		OutputDevice->TearDown();
 	}
 
 	for (FOutputDevice* OutputDevice : LocalUnbufferedDevices)
 	{
-		OutputDevice->Flush();
 		OutputDevice->TearDown();
 	}
 }
 
 bool FOutputDeviceRedirector::IsBacklogEnabled() const
 {
+	FReadScopeLock Lock(State->BacklogLock);
 	return State->bEnableBacklog;
 }
 

@@ -938,7 +938,7 @@ void CheckRenderingThreadHealth()
 	{
 		if (!GIsCriticalError)
 		{
-			GLog->FlushThreadedLogs();
+			GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);
 		}
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		TGuardValue<TAtomic<bool>, bool> GuardMainThreadBlockedOnRenderThread(GMainThreadBlockedOnRenderThread,true);

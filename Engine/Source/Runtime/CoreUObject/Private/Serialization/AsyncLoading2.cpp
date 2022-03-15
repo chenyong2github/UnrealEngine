@@ -6068,7 +6068,7 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 					// Flush logging when runing cook-on-the-fly and waiting for packages
 					if (IsRunningCookOnTheFly() && FPlatformTime::Seconds() - LogFlushTime > 1.0)
 					{
-						GLog->FlushThreadedLogs();
+						GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);
 						LogFlushTime = FPlatformTime::Seconds();
 					}
 				}
