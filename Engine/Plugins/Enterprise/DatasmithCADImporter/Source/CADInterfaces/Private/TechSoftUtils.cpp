@@ -44,6 +44,14 @@ bool GetBodyFromPcrFile(const FString& Filename, const FImportParameters& Import
 		return false;
 	}
 
+	if(ImportParameters.GetStitchingTechnique() != CADLibrary::EStitchingTechnique::StitchingNone)
+	{
+		CADLibrary::TUniqueTSObj<A3DSewOptionsData> SewData;
+		SewData->m_bComputePreferredOpenShellOrientation = false;
+
+		TechSoftInterface::SewModel(ModelFile.Get(), CADLibrary::FImportParameters::GStitchingTolerance, SewData.GetPtr());
+	}
+
 	TUniqueTSObj<A3DAsmModelFileData> ModelFileData(ModelFile.Get());
 	if (!ModelFileData.IsValid() || ModelFileData->m_uiPOccurrencesSize == 0)
 	{
@@ -161,6 +169,11 @@ bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, doub
 	TessellationParameters->m_eTessellationLevelOfDetail = kA3DTessLODUserDefined; // Enum to specify predefined values for some following members.
 	TessellationParameters->m_bUseHeightInsteadOfRatio = A3D_TRUE;
 	TessellationParameters->m_dMaxChordHeight = ImportParameters.GetChordTolerance() * 10.; // cm to mm
+	if (!FMath::IsNearlyZero(FileUnit))
+	{
+		TessellationParameters->m_dMaxChordHeight /= FileUnit;
+	}
+
 	TessellationParameters->m_dAngleToleranceDeg = ImportParameters.GetMaxNormalAngle();
 	TessellationParameters->m_dMaximalTriangleEdgeLength = 0; //ImportParameters.MaxEdgeLength;
 

@@ -54,8 +54,8 @@ namespace CADLibrary
 		CADTOOLS_API static bool bGEnableCADCache;
 		CADTOOLS_API static bool bGOverwriteCache;
 		CADTOOLS_API static bool bGPreferJtFileEmbeddedTessellation;
+		CADTOOLS_API static float GStitchingTolerance;
 		CADTOOLS_API static FString GCADLibrary;
-
 
 	public:
 		FImportParameters(double InMetricUnit = 0.001, double InScaleFactor = 1., FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
@@ -129,6 +129,7 @@ namespace CADLibrary
 			Ar << ImportParameters.bGEnableTimeControl;
 			Ar << ImportParameters.bGEnableCADCache;
 			Ar << ImportParameters.bGPreferJtFileEmbeddedTessellation;
+			Ar << ImportParameters.GStitchingTolerance;
 			Ar << ImportParameters.GCADLibrary;
 			return Ar;
 		}

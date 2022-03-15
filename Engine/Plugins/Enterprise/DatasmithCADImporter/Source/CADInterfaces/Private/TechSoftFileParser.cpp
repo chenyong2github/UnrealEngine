@@ -12,14 +12,6 @@
 #include "Serialization/JsonWriter.h"
 #include "Templates/UnrealTemplate.h"
 
-float GStitchingTolerance = 0.001f;
-FAutoConsoleVariableRef GCADTranslatorStitchingTolerance(
-	TEXT("ds.CADTranslator.StitchingTolerance"),
-	GStitchingTolerance,
-	TEXT("Welding threshold for Heal/Sew stitching methods in cm\n\
-Default value of StitchingTolerance is 0.001 cm\n"),
-	ECVF_Default);
-
 namespace CADLibrary
 {
 
@@ -352,7 +344,7 @@ void FTechSoftFileParser::SewModel()
 	CADLibrary::TUniqueTSObj<A3DSewOptionsData> SewData;
 	SewData->m_bComputePreferredOpenShellOrientation = false;
 	
-	TechSoftInterface::SewModel(ModelFile.Get(), GStitchingTolerance, SewData.GetPtr());
+	TechSoftInterface::SewModel(ModelFile.Get(), CADLibrary::FImportParameters::GStitchingTolerance, SewData.GetPtr());
 }
 
 
@@ -377,7 +369,8 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 	{
 		TUniqueTSObj<A3DSewOptionsData> SewData;
 		SewData->m_bComputePreferredOpenShellOrientation = false;
-		A3DStatus Status = TechSoftInterface::SewBReps(&Representation, 1, GStitchingTolerance, FileUnit, SewData.GetPtr(), &NewBReps, NewBRepCount);
+		const uint32 BRepCount = 1;
+		A3DStatus Status = TechSoftInterface::SewBReps(&Representation, BRepCount, CADLibrary::FImportParameters::GStitchingTolerance, FileUnit, SewData.GetPtr(), &NewBReps, NewBRepCount);
 		if (Status != A3DStatus::A3D_SUCCESS)
 		{
 			CADFileData.AddWarningMessages(TEXT("A body healing failed. A body could be missing."));

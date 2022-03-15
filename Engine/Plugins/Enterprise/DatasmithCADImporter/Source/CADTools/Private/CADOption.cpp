@@ -64,6 +64,14 @@ FAutoConsoleVariableRef GCADTranslatorJtFileEmbeddedTessellation(
 	TEXT("If both (tessellation and BRep) exist in the file, import embedded tessellation instead of meshing BRep.\n"),
 	ECVF_Default);
 
+float FImportParameters::GStitchingTolerance = 0.001f;
+FAutoConsoleVariableRef GCADTranslatorStitchingTolerance(
+	TEXT("ds.CADTranslator.StitchingTolerance"),
+	FImportParameters::GStitchingTolerance,
+	TEXT("Welding threshold for Heal/Sew stitching methods in cm\n\
+Default value of StitchingTolerance is 0.001 cm\n"),
+ECVF_Default);
+
 uint32 GetTypeHash(const FImportParameters& ImportParameters)
 {
 	uint32 ParametersHash = ::GetTypeHash(ImportParameters.bGDisableCADKernelTessellation);
