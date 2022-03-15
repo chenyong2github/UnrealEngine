@@ -88,5 +88,11 @@ public class MaterialX : ModuleRules
 					Path.Combine(LibDirectory, StaticLibName));
 			}
 		}
+
+		// Install the MaterialX standard data libraries.
+		RuntimeDependencies.Add(
+			Path.Combine(Target.UEThirdPartyBinariesDirectory, "MaterialX", "libraries"),
+			Path.Combine(DeploymentDirectory, "libraries", "...")
+		);
 	}
 }
