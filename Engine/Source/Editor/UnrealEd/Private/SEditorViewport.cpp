@@ -22,6 +22,8 @@
 #include "MaterialShaderQualitySettings.h"
 #include "RHIShaderPlatformDefinitions.inl"
 #include "RayTracingDebugVisualizationMenuCommands.h"
+#include "GPUSkinCacheVisualizationMenuCommands.h"
+#include "GPUSkinCache.h"
 #include "Widgets/Colors/SComplexGradient.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewport"
@@ -431,6 +433,12 @@ void SEditorViewport::BindCommands()
 	MAP_VIEWMODE_ACTION( Commands.VisualizeVirtualShadowMapMode, VMI_VisualizeVirtualShadowMap );
 	MAP_VIEWMODE_ACTION( Commands.CollisionPawn, VMI_CollisionPawn);
 	MAP_VIEWMODE_ACTION( Commands.CollisionVisibility, VMI_CollisionVisibility);
+
+	if (GEnableGPUSkinCache)
+	{
+		MAP_VIEWMODE_ACTION(Commands.VisualizeGPUSkinCacheMode, VMI_VisualizeGPUSkinCache);
+		FGPUSkinCacheVisualizationMenuCommands::Get().BindCommands(CommandListRef, Client);
+	}
 
 	MAP_VIEWMODEPARAM_ACTION( Commands.TexStreamAccMeshUVDensityAll, -1 );
 	for (int32 TexCoordIndex = 0; TexCoordIndex < TEXSTREAM_MAX_NUM_UVCHANNELS; ++TexCoordIndex)

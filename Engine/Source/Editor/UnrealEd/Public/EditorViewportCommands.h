@@ -139,6 +139,9 @@ public:
 	/** Changes the viewport to visualize virtual shadow map content */
 	TSharedPtr< FUICommandInfo > VisualizeVirtualShadowMapMode;
 
+	/** Changes the viewport to Skin Cache mode */
+	TSharedPtr< FUICommandInfo > VisualizeGPUSkinCacheMode;
+
 	/** Collision Draw Mode */
 	TSharedPtr< FUICommandInfo > CollisionPawn;
 	TSharedPtr< FUICommandInfo > CollisionVisibility;

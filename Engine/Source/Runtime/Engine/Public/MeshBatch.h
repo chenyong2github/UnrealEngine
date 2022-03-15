@@ -230,6 +230,8 @@ struct FMeshBatchElement
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Conceptual element index used for debug viewmodes. */
 	int32 VisualizeElementIndex : 8;
+	/** Skin Cache debug visualization color. */
+	FColor SkinCacheDebugColor = FColor::White;
 #endif
 
 	/**

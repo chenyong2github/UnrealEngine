@@ -20,6 +20,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "Algo/Unique.h"
 #include "HAL/IConsoleManager.h"
 #include "RayTracingSkinnedGeometry.h"
+#include "GPUSkinCacheVisualizationData.h"
 #include "Internationalization/Internationalization.h"
 
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumChunks);
@@ -2298,4 +2299,101 @@ FString FGPUSkinCache::GetSkeletalMeshObjectName(const FSkeletalMeshObjectGPUSki
 #endif // !UE_BUILD_SHIPPING
 	}
 	return Name;
+}
+
+FColor FGPUSkinCache::GetVisualizationDebugColor(const FName& GPUSkinCacheVisualizationMode, FGPUSkinCacheEntry* Entry, FGPUSkinCacheEntry* RayTracingEntry, uint32 SectionIndex)
+{
+	const FGPUSkinCacheVisualizationData& VisualizationData = GetGPUSkinCacheVisualizationData();
+	if (VisualizationData.IsActive())
+	{
+		// Color coding should match DrawVisualizationInfoText function
+		FGPUSkinCacheVisualizationData::FModeType ModeType = VisualizationData.GetActiveModeType();
+
+		if (ModeType == FGPUSkinCacheVisualizationData::FModeType::Overview)
+		{
+			bool bRecomputeTangent = Entry && Entry->DispatchData[SectionIndex].IndexBuffer;
+			return Entry ? 
+				   (bRecomputeTangent ? GEngine->GPUSkinCacheVisualizationRecomputeTangentsColor.QuantizeRound() : GEngine->GPUSkinCacheVisualizationIncludedColor.QuantizeRound()) : 
+				   GEngine->GPUSkinCacheVisualizationExcludedColor.QuantizeRound();
+		}
+		else if (ModeType == FGPUSkinCacheVisualizationData::FModeType::Memory)
+		{
+			uint64 MemoryInBytes = (Entry && Entry->PositionAllocation) ? Entry->PositionAllocation->GetNumBytes() : 0;
+#if RHI_RAYTRACING
+			if (RayTracingEntry && RayTracingEntry != Entry)
+			{
+				// Separate ray tracing entry
+				MemoryInBytes += RayTracingEntry->PositionAllocation ? RayTracingEntry->PositionAllocation->GetNumBytes() : 0;
+			}
+#endif
+			float MemoryInMB = MemoryInBytes / MBSize;
+
+			return MemoryInMB < GEngine->GPUSkinCacheVisualizationLowMemoryThresholdInMB ? GEngine->GPUSkinCacheVisualizationLowMemoryColor.QuantizeRound() :
+				  (MemoryInMB < GEngine->GPUSkinCacheVisualizationHighMemoryThresholdInMB ? GEngine->GPUSkinCacheVisualizationMidMemoryColor.QuantizeRound() : GEngine->GPUSkinCacheVisualizationHighMemoryColor.QuantizeRound());
+		}
+		else if (ModeType == FGPUSkinCacheVisualizationData::FModeType::RayTracingLODOffset)
+		{
+	#if RHI_RAYTRACING
+			int32 LODOffset = (Entry && RayTracingEntry) ? (RayTracingEntry->LOD - Entry->LOD) : 0;
+			check (LODOffset >= 0);
+			const TArray<FLinearColor>& VisualizationColors = GEngine->GPUSkinCacheVisualizationRayTracingLODOffsetColors;
+			if (VisualizationColors.Num() > 0)
+			{
+				int32 Index = VisualizationColors.IsValidIndex(LODOffset) ? LODOffset : (VisualizationColors.Num()-1);
+				return VisualizationColors[Index].QuantizeRound();
+			}
+	#endif
+		}
+	}
+
+	return FColor::White;
+}
+
+void FGPUSkinCache::DrawVisualizationInfoText(const FName& GPUSkinCacheVisualizationMode, FScreenMessageWriter& ScreenMessageWriter) const
+{
+	const FGPUSkinCacheVisualizationData& VisualizationData = GetGPUSkinCacheVisualizationData();
+	if (VisualizationData.IsActive())
+	{
+		FGPUSkinCacheVisualizationData::FModeType ModeType = VisualizationData.GetActiveModeType();
+
+		// Color coding should match GetVisualizationDebugColor function
+		auto DrawText = [&ScreenMessageWriter](const FString& Message, const FColor& Color)
+		{
+			ScreenMessageWriter.DrawLine(FText::FromString(Message), 10, Color);
+		};
+
+		if (ModeType == FGPUSkinCacheVisualizationData::FModeType::Overview)
+		{
+			DrawText(TEXT("Skin Cache Visualization - Overview"), FColor::White);
+			DrawText(TEXT("Non SK mesh"), FColor::White);
+			DrawText(TEXT("SK Skin Cache Excluded"), GEngine->GPUSkinCacheVisualizationExcludedColor.QuantizeRound());
+			DrawText(TEXT("SK Skin Cache Included"), GEngine->GPUSkinCacheVisualizationIncludedColor.QuantizeRound());
+			DrawText(TEXT("SK Recompute Tangent ON"), GEngine->GPUSkinCacheVisualizationRecomputeTangentsColor.QuantizeRound());
+		}
+		else if (ModeType == FGPUSkinCacheVisualizationData::FModeType::Memory)
+		{
+			float UsedMemoryInMB = UsedMemoryInBytes / MBSize;
+			float AvailableMemoryInMB = GSkinCacheSceneMemoryLimitInMB - UsedMemoryInMB;
+
+			FString LowMemoryText = FString::Printf(TEXT("0 - %dMB"), GEngine->GPUSkinCacheVisualizationLowMemoryThresholdInMB);
+			DrawText(TEXT("Skin Cache Visualization - Memory"), FColor::White);
+			DrawText(FString::Printf(TEXT("Total Limit: %.2fMB"), GSkinCacheSceneMemoryLimitInMB), FColor::White);
+			DrawText(FString::Printf(TEXT("Total Used: %.2fMB"), UsedMemoryInMB), FColor::White);
+			DrawText(FString::Printf(TEXT("Total Available: %.2fMB"), AvailableMemoryInMB), FColor::White);
+			DrawText(FString::Printf(TEXT("Low: < %.2fMB"), GEngine->GPUSkinCacheVisualizationLowMemoryThresholdInMB), GEngine->GPUSkinCacheVisualizationLowMemoryColor.QuantizeRound());
+			DrawText(FString::Printf(TEXT("Mid: %.2f - %.2fMB"), GEngine->GPUSkinCacheVisualizationLowMemoryThresholdInMB, GEngine->GPUSkinCacheVisualizationHighMemoryThresholdInMB), GEngine->GPUSkinCacheVisualizationMidMemoryColor.QuantizeRound());
+			DrawText(FString::Printf(TEXT("High: > %.2fMB"), GEngine->GPUSkinCacheVisualizationHighMemoryThresholdInMB), GEngine->GPUSkinCacheVisualizationHighMemoryColor.QuantizeRound());
+		}
+		else if (ModeType == FGPUSkinCacheVisualizationData::FModeType::RayTracingLODOffset)
+		{
+	#if RHI_RAYTRACING
+			DrawText(TEXT("Skin Cache Visualization - RayTracingLODOffset"), FColor::White);
+			const TArray<FLinearColor>& VisualizationColors = GEngine->GPUSkinCacheVisualizationRayTracingLODOffsetColors;
+			for (int32 i = 0; i < VisualizationColors.Num(); ++i)
+			{
+				DrawText(FString::Printf(TEXT("RT_LOD == Raster_LOD %s %d"), (i > 0 ? TEXT("+") : TEXT("")), i), VisualizationColors[i].QuantizeRound());
+			}
+	#endif
+		}
+	}
 }

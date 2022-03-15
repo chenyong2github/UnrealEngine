@@ -235,6 +235,7 @@ void FDebugViewModePS::GetElementShaderBindings(
 			ShaderElementData.DebugViewMode,
 			ShaderElementData.ViewOrigin,
 			ShaderElementData.VisualizeLODIndex,
+			ShaderElementData.SkinCacheDebugColor,
 			VisualizeElementIndex,
 			ShaderElementData.NumVSInstructions,
 			ShaderElementData.NumPSInstructions,
@@ -319,6 +320,7 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 		DebugViewMode, 
 		ViewIfDynamicMeshCommand ? ViewIfDynamicMeshCommand->ViewMatrices.GetViewOrigin() : FVector::ZeroVector, 
 		(ViewIfDynamicMeshCommand && ViewIfDynamicMeshCommand->Family->EngineShowFlags.HLODColoration) ? MeshBatch.VisualizeHLODIndex : MeshBatch.VisualizeLODIndex,
+		(ViewIfDynamicMeshCommand && ViewIfDynamicMeshCommand->Family->EngineShowFlags.VisualizeGPUSkinCache) ? MeshBatch.Elements[0].SkinCacheDebugColor : FColor::White,
 		ViewModeParam, 
 		ViewModeParamName);
 
@@ -416,6 +418,7 @@ void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
 	EDebugViewShaderMode DebugViewMode,
 	const FVector& ViewOrigin,
 	int32 VisualizeLODIndex,
+	const FColor& SkinCacheDebugColor,
 	int32 VisualizeElementIndex,
 	int32 NumVSInstructions,
 	int32 NumPSInstructions,
@@ -552,6 +555,7 @@ void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
 	ShaderBindings.Add(Shader.CPULogDistanceParameter, CPULogDistance);
 	ShaderBindings.Add(Shader.ShowQuadOverdraw, bShowQuadOverdraw);
 	ShaderBindings.Add(Shader.LODIndexParameter, LODIndex);
+	ShaderBindings.Add(Shader.SkinCacheDebugColorParameter, FVector3f(SkinCacheDebugColor.R / 255.f, SkinCacheDebugColor.G / 255.f, SkinCacheDebugColor.B / 255.f));
 	ShaderBindings.Add(Shader.OutputQuadOverdrawParameter, boolOutputQuadOverdraw);
 	ShaderBindings.Add(Shader.VisualizeModeParameter, DebugViewMode);
 }

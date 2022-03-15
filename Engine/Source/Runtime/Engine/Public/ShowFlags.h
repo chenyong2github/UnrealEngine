@@ -397,6 +397,7 @@ private:
 		SetLightMapDensity(false);
 		SetLODColoration(false);
 		SetHLODColoration(false);
+		SetVisualizeGPUSkinCache(false);
 		SetStreamingBounds(false);
 		SetHISMCOcclusionBounds(false);
 		SetHISMCClusterTree(false);

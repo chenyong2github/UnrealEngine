@@ -1393,7 +1393,7 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 	FScreenPassTexture SceneColor((*Inputs.SceneTextures)->SceneColorTexture, PrimaryViewRect);
 
 	// Some view modes do not actually output a color so they should not be tonemapped.
-	const bool bTonemapAfter = View.Family->EngineShowFlags.RayTracingDebug;
+	const bool bTonemapAfter = View.Family->EngineShowFlags.RayTracingDebug || View.Family->EngineShowFlags.VisualizeGPUSkinCache;
 	const bool bTonemapBefore = !bTonemapAfter && !View.Family->EngineShowFlags.ShaderComplexity;
 	const bool bViewFamilyOutputInHDR = GRHISupportsHDROutput && IsHDREnabled();
 
@@ -1493,6 +1493,7 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 			break;
 		}
 		case DVSM_RayTracingDebug:
+		case DVSM_VisualizeGPUSkinCache:
 		{
 			FTAAPassParameters Parameters(View);
 			Parameters.SceneDepthTexture = SceneTextureParameters.SceneDepthTexture;

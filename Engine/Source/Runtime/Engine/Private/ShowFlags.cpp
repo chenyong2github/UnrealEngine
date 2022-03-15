@@ -346,6 +346,9 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 		case VMI_VisualizeVirtualShadowMap:
 			bPostProcessing = true;
 			break;
+		case VMI_VisualizeGPUSkinCache:
+			bPostProcessing = true;
+			break;
 		case VMI_ReflectionOverride:
 			bPostProcessing = true;
 			break;
@@ -399,6 +402,7 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 	EngineShowFlags.SetHLODColoration(ViewModeIndex == VMI_HLODColoration);
 	EngineShowFlags.SetRayTracingDebug(ViewModeIndex == VMI_RayTracingDebug);
 	EngineShowFlags.SetPathTracing(ViewModeIndex == VMI_PathTracing);
+	EngineShowFlags.SetVisualizeGPUSkinCache(ViewModeIndex == VMI_VisualizeGPUSkinCache);
 }
 
 void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex ViewModeIndex, FEngineShowFlags& EngineShowFlags, bool bCanDisableTonemapper)
@@ -518,6 +522,7 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			ViewModeIndex == VMI_VirtualTexturePendingMips ||
 			ViewModeIndex == VMI_LODColoration ||
 			ViewModeIndex == VMI_HLODColoration ||
+			ViewModeIndex == VMI_VisualizeGPUSkinCache ||
 			ViewModeIndex == VMI_LightmapDensity)
 		{
 			EngineShowFlags.SetLighting(false);
@@ -557,7 +562,9 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			EngineShowFlags.SetFog(false);
 		}
 
-		if (ViewModeIndex == VMI_LODColoration || ViewModeIndex == VMI_HLODColoration)
+		if (ViewModeIndex == VMI_LODColoration || 
+			ViewModeIndex == VMI_HLODColoration ||
+			ViewModeIndex == VMI_VisualizeGPUSkinCache)
 		{
 			EngineShowFlags.SetDecals(false); // Decals require the use of FDebugPSInLean.
 		}
@@ -802,6 +809,10 @@ EViewModeIndex FindViewMode(const FEngineShowFlags& EngineShowFlags)
 	{
 		return VMI_RayTracingDebug;
 	}
+	else if (EngineShowFlags.VisualizeGPUSkinCache)
+	{
+		return VMI_VisualizeGPUSkinCache;
+	}
 
 	return EngineShowFlags.Lighting ? VMI_Lit : VMI_Unlit;
 }
@@ -840,6 +851,7 @@ const TCHAR* GetViewModeName(EViewModeIndex ViewModeIndex)
 		case VMI_CollisionVisibility:		return TEXT("CollisionVis");
 		case VMI_LODColoration:				return TEXT("LODColoration");
 		case VMI_HLODColoration:			return TEXT("HLODColoration");
+		case VMI_VisualizeGPUSkinCache:		return TEXT("VisualizeGPUSkinCache");
 	}
 	return TEXT("");
 }

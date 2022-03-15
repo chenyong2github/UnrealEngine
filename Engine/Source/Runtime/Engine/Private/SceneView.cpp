@@ -2910,6 +2910,10 @@ EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const
 	{
 		return DVSM_LODColoration;
 	}
+	else if (EngineShowFlags.VisualizeGPUSkinCache)
+	{
+		return DVSM_VisualizeGPUSkinCache;
+	}
 	return DVSM_None;
 }
 

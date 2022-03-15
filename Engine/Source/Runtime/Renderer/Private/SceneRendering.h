@@ -37,6 +37,7 @@
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "HairStrands/HairStrandsData.h"
 #include "GPUScene.h"
+#include "CanvasTypes.h"
 
 // Forward declarations.
 class FScene;
@@ -2009,6 +2010,8 @@ public:
 	void AddOrRemoveSceneHeightFieldPrimitives(const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds, bool bSkipAdd = false);
 	void PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch);
 
+	void DrawGPUSkinCacheVisualizationInfoText();
+
 	virtual bool IsLumenEnabled(const FViewInfo& View) const { return false; }
 	virtual bool AnyViewHasGIMethodSupportingDFAO() const { return false; }
 
@@ -2259,16 +2262,6 @@ private:
 	void DumpPrimitives(const FViewCommands& ViewCommands);
 #endif
 	bool bShadowDepthRenderCompleted;
-
-	struct FScreenMessageWriter
-	{
-		FScreenMessageWriter(FCanvas& InCanvas, int32 InY);
-
-		void DrawLine(const FText& Message, int32 X = 10, const FLinearColor& Color = FLinearColor(1.0, 0.05, 0.05, 1.0));
-
-		FCanvas& Canvas;
-		int32 Y;
-	};
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneOnScreenMessagesDelegate, FScreenMessageWriter&);
 	FSceneOnScreenMessagesDelegate OnGetOnScreenMessages;

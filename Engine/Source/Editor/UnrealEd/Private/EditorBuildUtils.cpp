@@ -1313,6 +1313,8 @@ EDebugViewShaderMode ViewModeIndexToDebugViewShaderMode(EViewModeIndex SelectedV
 	case VMI_LODColoration:
 	case VMI_HLODColoration:
 		return DVSM_LODColoration;
+	case VMI_VisualizeGPUSkinCache:
+		return DVSM_VisualizeGPUSkinCache;
 	case VMI_Unknown:
 	default :
 		return DVSM_None;

@@ -1057,6 +1057,9 @@ public:
 	/** Current visualize calibration custom material name */
 	FName CurrentVisualizeCalibrationCustomMaterialName;
 
+	/** Current GPU Skin Cache visualization mode*/
+	FName CurrentGPUSkinCacheVisualizationMode;
+
 #if WITH_EDITOR
 	/* Whether to use the pixel inspector */
 	bool bUsePixelInspector;

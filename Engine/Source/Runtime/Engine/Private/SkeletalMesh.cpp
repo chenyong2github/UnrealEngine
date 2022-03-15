@@ -6691,6 +6691,7 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			Mesh.bUseWireframeSelectionColoring = bIsSelected;
 
 		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			BatchElement.SkinCacheDebugColor = MeshObject->GetSkinCacheVisualizationDebugColor(View->CurrentGPUSkinCacheVisualizationMode, SectionIndex);
 			BatchElement.VisualizeElementIndex = SectionIndex;
 			Mesh.VisualizeLODIndex = LODIndex;
 		#endif

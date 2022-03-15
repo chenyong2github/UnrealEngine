@@ -11,7 +11,6 @@
 #include "UObject/UObjectIterator.h"
 #include "EngineGlobals.h"
 #include "CanvasItem.h"
-#include "CanvasTypes.h"
 #include "Components/ReflectionCaptureComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SceneCaptureComponentCube.h"
@@ -65,6 +64,7 @@
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 #include "Misc/AutomationTest.h"
 #include "Engine/TextureCube.h"
+#include "GPUSkinCacheVisualizationData.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -3106,19 +3106,6 @@ FSceneRenderer::~FSceneRenderer()
 	Views.Empty();
 }
 
-
-FSceneRenderer::FScreenMessageWriter::FScreenMessageWriter(FCanvas& InCanvas, int32 InY)
-	: Canvas(InCanvas)
-	, Y(InY)
-{
-}
-
-void FSceneRenderer::FScreenMessageWriter::DrawLine(const FText& Message, int32 X, const FLinearColor& Color)
-{
-	Canvas.DrawShadowedText(X, Y, Message, GetStatsFont(), Color);
-	Y += 14;
-}
-
 /** 
 * Finishes the view family rendering.
 */
@@ -3598,6 +3585,19 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 	});
 }
 
+void FSceneRenderer::DrawGPUSkinCacheVisualizationInfoText()
+{
+	FGPUSkinCache* SkinCache = Scene ? Scene->GetGPUSkinCache() : nullptr;
+	if (SkinCache && Views.Num() > 0)
+	{
+		const FName& VisualizationMode = Views[0].CurrentGPUSkinCacheVisualizationMode;
+		OnGetOnScreenMessages.AddLambda([SkinCache, &VisualizationMode](FScreenMessageWriter& ScreenMessageWriter)->void
+		{
+			SkinCache->DrawVisualizationInfoText(VisualizationMode, ScreenMessageWriter);
+		});
+	}
+}
+
 void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands, FInstanceCullingManager& InstanceCullingManager)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SetupMeshPass);
@@ -4063,7 +4063,25 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
 
-	const FSceneViewFamily& ViewFamily = SceneRenderer->ViewFamily;
+	FSceneViewFamily& ViewFamily = SceneRenderer->ViewFamily;
+
+	const bool bAllowGPUSkinCacheVisualization = AllowDebugViewShaderMode(DVSM_VisualizeGPUSkinCache, ViewFamily.GetShaderPlatform(), ViewFamily.GetFeatureLevel());
+	if (bAllowGPUSkinCacheVisualization && SceneRenderer->Views.Num() > 0)
+	{
+		FViewInfo& View = SceneRenderer->Views[0];
+		FGPUSkinCacheVisualizationData& VisualizationData = GetGPUSkinCacheVisualizationData();
+		if (VisualizationData.Update(View.CurrentGPUSkinCacheVisualizationMode))
+		{
+			// When activating visualization from the command line, enable VisualizeGPUSkinCache.
+			ViewFamily.EngineShowFlags.SetVisualizeGPUSkinCache(true);
+			ViewFamily.DebugViewShaderMode = DVSM_VisualizeGPUSkinCache;
+		}
+
+		if (ViewFamily.EngineShowFlags.VisualizeGPUSkinCache)
+		{
+			SceneRenderer->DrawGPUSkinCacheVisualizationInfoText();
+		}
+	}
 
 	{
 		SCOPE_CYCLE_COUNTER_VERBOSE(STAT_TotalSceneRenderingTime, ViewFamily.ProfileDescription.IsEmpty() ? nullptr : *ViewFamily.ProfileDescription);

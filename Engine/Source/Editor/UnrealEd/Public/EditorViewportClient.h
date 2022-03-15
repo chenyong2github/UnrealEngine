@@ -1319,6 +1319,26 @@ public:
 	 */
 	bool IsRayTracingDebugVisualizationModeSelected(FName InName) const;
 
+	/**
+	 * Changes the GPU Skin Cache visualization mode for this viewport
+	 *
+	 * @param InName	The ID of the required GPU Skin Cache visualization mode
+	 */
+	void ChangeGPUSkinCacheVisualizationMode(FName InName);
+
+	/**
+	 * Checks if a GPU Skin Cache visualization mode is selected
+	 *
+	 * @param InName	The ID of the required GPU Skin Cache visualization mode
+	 * @return	true if the supplied GPU Skin Cache visualization mode is checked
+	 */
+	bool IsGPUSkinCacheVisualizationModeSelected(FName InName) const;
+
+	/**
+	* Returns the FText display name associated with CurrentGPUSkinCacheVisualizationMode.
+	*/
+	FText GetCurrentGPUSkinCacheVisualizationModeDisplayName() const;
+
 	/** @return True if PreviewResolutionFraction is supported. */
 	bool SupportsPreviewResolutionFraction() const;
 
@@ -1624,6 +1644,7 @@ public:
 	FName CurrentVirtualShadowMapVisualizationMode;
 
 	FName CurrentRayTracingDebugVisualizationMode;
+	FName CurrentGPUSkinCacheVisualizationMode;
 
 	/** The number of frames since this viewport was last drawn.  Only applies to linked orthographic movement. */
 	int32 FramesSinceLastDraw;

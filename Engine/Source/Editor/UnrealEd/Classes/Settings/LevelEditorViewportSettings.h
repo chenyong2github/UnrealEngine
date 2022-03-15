@@ -89,6 +89,7 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 		, NaniteVisualizationMode()
 		, LumenVisualizationMode()
 		, VirtualShadowMapVisualizationMode()
+		, GPUSkinCacheVisualizationMode()
 		, ExposureSettings()
 		, FOVAngle(EditorViewportDefs::DefaultPerspectiveFOVAngle)
 		, FarViewPlane(0)
@@ -144,6 +145,10 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 	/** The buffer visualization mode for the viewport. */
 	UPROPERTY(config)
 	FName RayTracingDebugVisualizationMode;
+
+	/** The GPU Skin Cache visualization mode for the viewport. */
+	UPROPERTY(config)
+	FName GPUSkinCacheVisualizationMode;
 
 	/** Setting to allow designers to override the automatic expose. */
 	UPROPERTY(config)

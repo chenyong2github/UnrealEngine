@@ -1146,6 +1146,36 @@ public:
 	UPROPERTY(globalconfig)
 	TArray<FLinearColor> StreamingAccuracyColors;
 
+	/** The visualization color when sk mesh not using skin cache. */
+	UPROPERTY(globalconfig)
+	FLinearColor GPUSkinCacheVisualizationExcludedColor;
+
+	/** The visualization color when sk mesh using skin cache. */
+	UPROPERTY(globalconfig)
+	FLinearColor GPUSkinCacheVisualizationIncludedColor;
+
+	/** The visualization color when sk mesh using recompute tangents. */
+	UPROPERTY(globalconfig)
+	FLinearColor GPUSkinCacheVisualizationRecomputeTangentsColor;
+
+	/** The memory visualization threshold in MB for a skin cache entry */
+	UPROPERTY(globalconfig)
+	float GPUSkinCacheVisualizationLowMemoryThresholdInMB;
+	UPROPERTY(globalconfig)
+	float GPUSkinCacheVisualizationHighMemoryThresholdInMB;
+
+	/** The memory visualization colors of skin cache */
+	UPROPERTY(globalconfig)
+	FLinearColor GPUSkinCacheVisualizationLowMemoryColor;
+	UPROPERTY(globalconfig)
+	FLinearColor GPUSkinCacheVisualizationMidMemoryColor;
+	UPROPERTY(globalconfig)
+	FLinearColor GPUSkinCacheVisualizationHighMemoryColor;
+
+	/** The visualization colors of ray tracing LOD index offset from raster LOD */
+	UPROPERTY(globalconfig)
+	TArray<FLinearColor> GPUSkinCacheVisualizationRayTracingLODOffsetColors;
+
 	/**
 	* Complexity limits for the various complexity view mode combinations.
 	* These limits are used to map instruction counts to ShaderComplexityColors.

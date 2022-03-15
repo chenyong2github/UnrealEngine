@@ -167,6 +167,16 @@ const TArray<FSkelMeshRenderSection>& FSkeletalMeshObject::GetRenderSections(int
 	return LOD.RenderSections;
 }
 
+FColor FSkeletalMeshObject::GetSkinCacheVisualizationDebugColor(const FName& GPUSkinCacheVisualizationMode, uint32 SectionIndex) const
+{
+	FGPUSkinCacheEntry* RTEntry = nullptr;
+#if RHI_RAYTRACING
+	RTEntry = GetSkinCacheEntryForRayTracing();
+#endif
+	return FGPUSkinCache::GetVisualizationDebugColor(GPUSkinCacheVisualizationMode, SkinCacheEntry, RTEntry, SectionIndex);
+
+}
+
 /**
  * Update the hidden material section flags for an LOD entry
  *

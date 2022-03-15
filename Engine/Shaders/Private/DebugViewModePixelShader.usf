@@ -34,6 +34,7 @@ float CPULogDistance;
 uint bShowQuadOverdraw;
 uint bOutputQuadOverdraw;
 int LODIndex;
+float3 SkinCacheDebugColor;
 int VisualizeMode;
 
 // Analysis index will be in [0, 31] if analysing a single texture, otherwise -1
@@ -483,9 +484,9 @@ float4 VisualizeShaderComplexityAccumulate(in FDebugPSIn DebugInputs, in bool bI
 	return float4(Result, 1);
 }
 
-float4 VisualizeLODColoration(in FDebugPSIn DebugInputs, in bool bIsFrontFace)
+float4 ApplyDebugColor(in FDebugPSIn DebugInputs, in bool bIsFrontFace, in float3 DebugColor)
 {
-	float3 Result = DebugViewModeStruct.LODColors[LODIndex].rgb;
+	float3 Result = DebugColor;
 
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(DebugInputs, DebugInputs.SvPosition);
 
@@ -524,6 +525,17 @@ float4 VisualizeLODColoration(in FDebugPSIn DebugInputs, in bool bIsFrontFace)
 #endif
 
 	return float4(Result, Opacity);
+}
+
+float4 VisualizeLODColoration(in FDebugPSIn DebugInputs, in bool bIsFrontFace)
+{
+	float3 Color = DebugViewModeStruct.LODColors[LODIndex].rgb;
+	return ApplyDebugColor(DebugInputs, bIsFrontFace, Color);
+}
+
+float4 VisualizeGPUSkinCache(in FDebugPSIn DebugInputs, in bool bIsFrontFace)
+{
+	return ApplyDebugColor(DebugInputs, bIsFrontFace, SkinCacheDebugColor);
 }
 
 void Main(
@@ -570,6 +582,10 @@ void Main(
 	else if (VisualizeMode == DVSM_LODColoration)
 	{
 		VisualizeColor = VisualizeLODColoration(DebugInputs, bIsFrontFace);
+	}
+	else if (VisualizeMode == DVSM_VisualizeGPUSkinCache)
+	{
+		VisualizeColor = VisualizeGPUSkinCache(DebugInputs, bIsFrontFace);
 	}
 
 	OutColor = RETURN_COLOR(VisualizeColor);	

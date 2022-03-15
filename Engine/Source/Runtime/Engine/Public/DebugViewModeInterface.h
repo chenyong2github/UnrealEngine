@@ -58,6 +58,7 @@ public:
 		EDebugViewShaderMode DebugViewMode,
 		const FVector& ViewOrigin,
 		int32 VisualizeLODIndex,
+		const FColor& SkinCacheDebugColor,
 		int32 VisualizeElementIndex,
 		int32 NumVSInstructions,
 		int32 NumPSInstructions,

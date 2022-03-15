@@ -13,6 +13,7 @@
 #include "BatchedElements.h"
 #include "RendererInterface.h"
 #include "StaticMeshResources.h"
+#include "UnrealEngine.h"
 #include "CanvasTypes.generated.h"
 
 class FCanvasRenderContext;
@@ -1300,4 +1301,22 @@ private:
 */
 extern ENGINE_API void StringSize( const UFont* Font, int32& XL, int32& YL, const TCHAR* Text);
 
+/**
+ * Helper class to write a line of texts on screen
+ */
+struct FScreenMessageWriter
+{
+	FScreenMessageWriter(FCanvas& InCanvas, int32 InY)
+		: Canvas(InCanvas)
+		, Y(InY)
+	{}
 
+	void DrawLine(const FText& Message, int32 X = 10, const FLinearColor& Color = FLinearColor(1.0, 0.05, 0.05, 1.0))
+	{
+		Canvas.DrawShadowedText(X, Y, Message, GetStatsFont(), Color);
+		Y += 14;
+	}
+
+	FCanvas& Canvas;
+	int32 Y;
+};

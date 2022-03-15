@@ -8,6 +8,8 @@
 #include "EditorStyleSet.h"
 #include "EditorViewportCommands.h"
 #include "RayTracingDebugVisualizationMenuCommands.h"
+#include "GPUSkinCacheVisualizationMenuCommands.h"
+#include "GPUSkinCache.h"
 #include "RenderResource.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewportViewMenu"
@@ -56,6 +58,10 @@ FText SEditorViewportViewMenu::GetViewMenuLabel() const
 		else if (ViewMode == VMI_VisualizeVirtualShadowMap)
 		{
 			Label = ViewportClient->GetCurrentVirtualShadowMapVisualizationModeDisplayName();
+		}
+		else if (ViewMode == VMI_VisualizeGPUSkinCache)
+		{
+			Label = ViewportClient->GetCurrentGPUSkinCacheVisualizationModeDisplayName();
 		}
 		// For any other category, return its own name
 		else
@@ -269,6 +275,30 @@ void SEditorViewportViewMenu::FillViewMenu(UToolMenu* Menu) const
 						})),
 					EUserInterfaceActionType::RadioButton,
 					/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.GroupLODColorationMode"));
+			}
+
+			if (GEnableGPUSkinCache)
+			{
+				Section.AddSubMenu(
+					"VisualizeGPUSkinCacheViewMode",
+					LOCTEXT("VisualizeGPUSkinCacheViewModeDisplayName", "GPU Skin Cache"),
+					LOCTEXT("GPUSkinCacheVisualizationMenu_ToolTip", "Select a mode for GPU Skin Cache visualization."),
+					FNewMenuDelegate::CreateStatic(&FGPUSkinCacheVisualizationMenuCommands::BuildVisualisationSubMenu),
+					FUIAction(
+						FExecuteAction(),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateLambda([this]()
+						{
+							const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
+							const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
+							check(ViewportClient.IsValid());
+							return ViewportClient->IsViewModeEnabled(VMI_VisualizeGPUSkinCache);
+						})
+					),
+					EUserInterfaceActionType::RadioButton,
+					/* bInOpenSubMenuOnClick = */ false,
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeGPUSkinCacheMode")
+				);
 			}
 		}
 

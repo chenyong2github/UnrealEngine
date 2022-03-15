@@ -41,6 +41,7 @@
 #include "UniformBuffer.h"
 #include "GPUSkinPublicDefs.h"
 #include "VertexFactory.h"
+#include "CanvasTypes.h"
 
 class FGPUSkinPassthroughVertexFactory;
 class FGPUBaseSkinVertexFactory;
@@ -198,6 +199,8 @@ public:
 	}
 
 	static bool IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section);
+	static FColor GetVisualizationDebugColor(const FName& GPUSkinCacheVisualizationMode, FGPUSkinCacheEntry* Entry, FGPUSkinCacheEntry* RayTracingEntry, uint32 SectionIndex);
+	ENGINE_API void DrawVisualizationInfoText(const FName& GPUSkinCacheVisualizationMode, FScreenMessageWriter& ScreenMessageWriter) const;
 
 	ENGINE_API uint64 GetExtraRequiredMemoryAndReset();
 

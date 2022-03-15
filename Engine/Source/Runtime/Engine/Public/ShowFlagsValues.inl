@@ -425,5 +425,8 @@ SHOWFLAG_ALWAYS_ACCESSIBLE(LumenScreenSpaceDirectionalOcclusion, SFG_Lumen, NSLO
 /** Whether to reuse shadowmaps when calculating shadowing.  Can be disabled to debug view dependent lighting from shadowing technique mismatches. */
 SHOWFLAG_ALWAYS_ACCESSIBLE(LumenReuseShadowMaps, SFG_Lumen, NSLOCTEXT("UnrealEd", "LumenReuseShadowMapsSF", "Reuse Shadow Maps"))
 
+/** Visualize Skin Cache */
+SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeGPUSkinCache, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeGPUSkinCache", "Visualize GPU Skin Cache"))
+
 #undef SHOWFLAG_ALWAYS_ACCESSIBLE
 #undef SHOWFLAG_FIXED_IN_SHIPPING

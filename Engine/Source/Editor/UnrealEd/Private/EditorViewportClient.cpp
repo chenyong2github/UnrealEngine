@@ -56,6 +56,7 @@
 #include "NaniteVisualizationData.h"
 #include "LumenVisualizationData.h"
 #include "VirtualShadowMapVisualizationData.h"
+#include "GPUSkinCacheVisualizationData.h"
 #include "UnrealWidget.h"
 #include "EdModeInteractiveToolsContext.h"
 
@@ -388,6 +389,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, CurrentLumenVisualizationMode(NAME_None)
 	, CurrentVirtualShadowMapVisualizationMode(NAME_None)
 	, CurrentRayTracingDebugVisualizationMode(NAME_None)
+	, CurrentGPUSkinCacheVisualizationMode(NAME_None)
 	, FramesSinceLastDraw(0)
 	, ViewIndex(INDEX_NONE)
 	, ViewFOV(EditorViewportDefs::DefaultPerspectiveFOVAngle)
@@ -2685,6 +2687,23 @@ bool FEditorViewportClient::IsRayTracingDebugVisualizationModeSelected(FName InN
 	return IsViewModeEnabled(VMI_RayTracingDebug) && CurrentRayTracingDebugVisualizationMode == InName;
 }
 
+void FEditorViewportClient::ChangeGPUSkinCacheVisualizationMode(FName InName)
+{
+	SetViewMode(VMI_VisualizeGPUSkinCache);
+	CurrentGPUSkinCacheVisualizationMode = InName;
+}
+
+bool FEditorViewportClient::IsGPUSkinCacheVisualizationModeSelected(FName InName) const
+{
+	return IsViewModeEnabled(VMI_VisualizeGPUSkinCache) && CurrentGPUSkinCacheVisualizationMode == InName;
+}
+
+FText FEditorViewportClient::GetCurrentGPUSkinCacheVisualizationModeDisplayName() const
+{
+	checkf(IsViewModeEnabled(VMI_VisualizeGPUSkinCache), TEXT("In order to call GetCurrentGPUSkinCacheVisualizationMode(), first you must set ViewMode to VMI_VisualizeGPUSkinCache."));
+	return GetGPUSkinCacheVisualizationData().GetModeDisplayName(CurrentGPUSkinCacheVisualizationMode);
+}
+
 bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 {
 	// Don't do preview screen percentage for some view mode.
@@ -2704,6 +2723,7 @@ bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 	case VMI_MeshUVDensityAccuracy:
 	case VMI_HLODColoration:
 	case VMI_GroupLODColoration:
+	case VMI_VisualizeGPUSkinCache:
 		return false;
 	}
 
@@ -3774,6 +3794,7 @@ void FEditorViewportClient::SetupViewForRendering(FSceneViewFamily& ViewFamily, 
 	View.CurrentNaniteVisualizationMode = CurrentNaniteVisualizationMode;
 	View.CurrentLumenVisualizationMode = CurrentLumenVisualizationMode;
 	View.CurrentVirtualShadowMapVisualizationMode = CurrentVirtualShadowMapVisualizationMode;
+	View.CurrentGPUSkinCacheVisualizationMode = CurrentGPUSkinCacheVisualizationMode;
 #if RHI_RAYTRACING
 	View.CurrentRayTracingDebugVisualizationMode = CurrentRayTracingDebugVisualizationMode;
 #endif
@@ -3902,7 +3923,8 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	const bool bVisualizeNaniteEnabled = CurrentViewMode == VMI_VisualizeNanite && CurrentNaniteVisualizationMode != NAME_None;
 	const bool bVisualizeVirtualShadowMapEnabled = CurrentViewMode == VMI_VisualizeVirtualShadowMap && CurrentVirtualShadowMapVisualizationMode != NAME_None;
 	const bool bRayTracingDebugEnabled = CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None;
-	const bool bCanDisableTonemapper = bVisualizeBufferEnabled || bVisualizeNaniteEnabled || bVisualizeVirtualShadowMapEnabled || (bRayTracingDebugEnabled && !FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(CurrentRayTracingDebugVisualizationMode));
+	const bool bVisualizeGPUSkinCache = CurrentViewMode == VMI_VisualizeGPUSkinCache && CurrentGPUSkinCacheVisualizationMode != NAME_None;
+	const bool bCanDisableTonemapper = bVisualizeBufferEnabled || bVisualizeNaniteEnabled || bVisualizeVirtualShadowMapEnabled || bVisualizeGPUSkinCache || (bRayTracingDebugEnabled && !FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(CurrentRayTracingDebugVisualizationMode));
 	
 	EngineShowFlagOverride(ESFIM_Editor, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, bCanDisableTonemapper);
 	EngineShowFlagOrthographicOverride(IsPerspective(), ViewFamily.EngineShowFlags);

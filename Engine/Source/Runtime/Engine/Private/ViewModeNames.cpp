@@ -135,6 +135,12 @@ TArray<FText> FillViewModeDisplayNames()
 		{
 			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_RequiredTextureResolution", "Required Texture Resolution"));
 		}
+		// Visualize Skin Cache
+		else if (ViewModeIndex == VMI_VisualizeGPUSkinCache)
+		{
+			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VisualizeGPUSkinCache", "GPU Skin Cache"));
+		}
+
 	
 		// Ray tracing modes
 		// Run path tracing pipeline
@@ -341,6 +347,11 @@ TArray<const FSlateBrush*> FillViewModeDisplayIcons()
 		else if (ViewModeIndex == VMI_RequiredTextureResolution)
 		{
 			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.RequiredTextureResolutionMode"));
+		}
+		// Visualize Skin Cache
+		else if (ViewModeIndex == VMI_VisualizeGPUSkinCache)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeGPUSkinCacheMode"));
 		}
 
 		// Ray tracing modes

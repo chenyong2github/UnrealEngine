@@ -48,6 +48,8 @@ const TCHAR* DebugViewShaderModeToString(EDebugViewShaderMode InShaderMode)
 		return TEXT("DVSM_RayTracingDebug");
 	case DVSM_LODColoration:
 		return TEXT("DVSM_LODColoration");
+	case DVSM_VisualizeGPUSkinCache:
+		return TEXT("DVSM_VisualizeGPUSkinCache");
 	default:
 		return TEXT("DVSM_None");
 	}
@@ -95,6 +97,8 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 		return FeatureLevel >= ERHIFeatureLevel::SM5 && (bForceTextureStreamingBuild || PlatformSupportsDebugViewShaders(Platform));
 	case DVSM_RayTracingDebug:
 		return FeatureLevel >= ERHIFeatureLevel::SM5 ;
+	case DVSM_VisualizeGPUSkinCache:
+		return PlatformSupportsDebugViewShaders(Platform);
 	default:
 		return false;
 	}

@@ -201,6 +201,8 @@ public:
 	/** Get the skeletal mesh resource for which this mesh object was created. */
 	FORCEINLINE FSkeletalMeshRenderData& GetSkeletalMeshRenderData() const { return *SkeletalMeshRenderData; }
 
+	FColor GetSkinCacheVisualizationDebugColor(const FName& GPUSkinCacheVisualizationMode, uint32 SectionIndex) const;
+
 #if RHI_RAYTRACING
 	/** Retrieve ray tracing geometry from the underlying mesh object */
 	virtual FRayTracingGeometry* GetRayTracingGeometry() { return nullptr; }

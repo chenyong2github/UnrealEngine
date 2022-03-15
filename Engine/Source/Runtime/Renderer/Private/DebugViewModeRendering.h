@@ -16,6 +16,7 @@ DebugViewModeRendering.h: Contains definitions for rendering debug viewmodes.
 #include "ShaderBaseClasses.h"
 #include "MeshPassProcessor.h"
 #include "DebugViewModeInterface.h"
+#include "GPUSkinCache.h"
 
 class FPrimitiveSceneProxy;
 struct FMeshBatchElement;
@@ -55,6 +56,7 @@ public:
 		EDebugViewShaderMode InDebugViewMode, 
 		const FVector& InViewOrigin, 
 		int32 InVisualizeLODIndex, 
+		const FColor& InSkinCacheDebugColor,
 		int32 InViewModeParam, 
 		const FName& InViewModeParamName) 
 		: MaterialRenderProxy(InMaterialRenderProxy)
@@ -62,6 +64,7 @@ public:
 		, DebugViewMode(InDebugViewMode)
 		, ViewOrigin(InViewOrigin)
 		, VisualizeLODIndex(InVisualizeLODIndex)
+		, SkinCacheDebugColor(InSkinCacheDebugColor)
 		, ViewModeParam(InViewModeParam)
 		, ViewModeParamName(InViewModeParamName)
 		, NumVSInstructions(0)
@@ -74,6 +77,7 @@ public:
 	EDebugViewShaderMode DebugViewMode;
 	FVector ViewOrigin;
 	int32 VisualizeLODIndex;
+	FColor SkinCacheDebugColor;
 	int32 ViewModeParam;
 	FName ViewModeParamName;
 
@@ -153,6 +157,7 @@ public:
 		ShowQuadOverdraw.Bind(Initializer.ParameterMap, TEXT("bShowQuadOverdraw"));
 		OutputQuadOverdrawParameter.Bind(Initializer.ParameterMap, TEXT("bOutputQuadOverdraw"));
 		LODIndexParameter.Bind(Initializer.ParameterMap, TEXT("LODIndex"));
+		SkinCacheDebugColorParameter.Bind(Initializer.ParameterMap, TEXT("SkinCacheDebugColor"));
 		VisualizeModeParameter.Bind(Initializer.ParameterMap, TEXT("VisualizeMode"));
 		QuadBufferUAV.Bind(Initializer.ParameterMap, TEXT("RWQuadBuffer"));
 	}
@@ -204,6 +209,7 @@ public:
 	LAYOUT_FIELD(FShaderParameter, CPULogDistanceParameter);
 	LAYOUT_FIELD(FShaderParameter, ShowQuadOverdraw);
 	LAYOUT_FIELD(FShaderParameter, LODIndexParameter);
+	LAYOUT_FIELD(FShaderParameter, SkinCacheDebugColorParameter);
 	LAYOUT_FIELD(FShaderParameter, OutputQuadOverdrawParameter);
 	LAYOUT_FIELD(FShaderParameter, VisualizeModeParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, QuadBufferUAV);
@@ -243,6 +249,7 @@ public:
 		EDebugViewShaderMode DebugViewMode,
 		const FVector& ViewOrigin,
 		int32 VisualizeLODIndex,
+		const FColor& SkinCacheDebugColor,
 		int32 VisualizeElementIndex,
 		int32 NumVSInstructions,
 		int32 NumPSInstructions,

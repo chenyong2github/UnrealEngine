@@ -34,6 +34,7 @@ enum EDebugViewShaderMode
 	DVSM_VirtualTexturePendingMips,	// Visualize the pending virtual texture mips.
 	DVSM_RayTracingDebug,			// Visualize ray tracing debug modes.
 	DVSM_LODColoration,				// Visualize primitive LOD .
+	DVSM_VisualizeGPUSkinCache,		// Visualize various properties of Skin Cache.
 	DVSM_MAX
 };
 
