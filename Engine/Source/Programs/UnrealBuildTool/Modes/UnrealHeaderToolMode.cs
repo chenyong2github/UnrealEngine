@@ -1004,7 +1004,7 @@ namespace UnrealBuildTool.Modes
 						}
 					}
 				}
-				int RequiredArgCount = TargetArgumentIndex >= 0 ? 0 : 2;
+				int RequiredArgCount = TargetArgumentIndex >= 0 || Options.bTest ? 0 : 2;
 				if (Arguments.GetPositionalArgumentCount() != RequiredArgCount || Options.bGetHelp)
 				{
 					PrintUsage();

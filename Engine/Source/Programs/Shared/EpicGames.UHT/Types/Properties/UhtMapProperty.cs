@@ -137,7 +137,19 @@ namespace EpicGames.UHT.Types
 					break;
 
 				default:
-					Builder.Append("TMap<").AppendPropertyText(this.KeyProperty, TextType, true).Append(',').AppendPropertyText(this.ValueProperty, TextType, true).Append('>');
+					Builder.Append("TMap<").AppendPropertyText(this.KeyProperty, TextType, true);
+					if (Builder[Builder.Length - 1] == '>')
+					{
+						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
+						Builder.Append(" ");
+					}
+					Builder.Append(',').AppendPropertyText(this.ValueProperty, TextType, true);
+					if (Builder[Builder.Length - 1] == '>')
+					{
+						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
+						Builder.Append(" ");
+					}
+					Builder.Append('>');
 					break;
 			}
 			return Builder;

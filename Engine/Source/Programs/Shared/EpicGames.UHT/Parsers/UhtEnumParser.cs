@@ -170,6 +170,9 @@ namespace EpicGames.UHT.Parsers
 						int EnumIndex = Enum.AddEnumValue(TagToken.Value.ToString(), 0);
 						TopScope.AddFormattedCommentsAsTooltipMetaData(EnumIndex);
 
+						// Skip any deprecation
+						TopScope.TokenReader.SkipDeprecatedMacroIfNecessary();
+
 						// Try to read an optional explicit enum value specification
 						if (TopScope.TokenReader.TryOptional('='))
 						{
