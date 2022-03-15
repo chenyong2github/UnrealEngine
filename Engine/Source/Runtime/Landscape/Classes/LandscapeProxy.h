@@ -17,6 +17,11 @@
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "ActorPartition/PartitionActor.h"
 #include "ILandscapeSplineInterface.h"
+
+#if WITH_EDITOR
+#include "WorldPartition/WorldPartitionHandle.h"
+#endif
+
 #include "LandscapeProxy.generated.h"
 
 class ALandscape;
@@ -343,6 +348,20 @@ public:
 	virtual ~ALandscapeProxy();
 
 protected:
+
+#if WITH_EDITORONLY_DATA
+	/** 
+	* Hard refs to actors that need to be loaded when this proxy is loaded.
+	* It is currently used for 2 cases : 
+	* 1- ALandscapeStreamingProxy forces the loading of its intersecting ALandscapeSplineActor.
+	* 2- ALandscape forces the loading of its child landscape proxies when the Landscape has Layer brushes.
+	*    This is a temporary solution until landscape layer brushes support partial landscape loading.
+	*/
+	TSet<FWorldPartitionReference> ActorDescReferences;
+
+	friend class FLandscapeActorDesc;
+#endif
+
 	UPROPERTY()
 	TObjectPtr<ULandscapeSplinesComponent> SplineComponent;
 

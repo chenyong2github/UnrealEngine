@@ -6,10 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "LandscapeProxy.h"
 
-#if WITH_EDITOR
-#include "WorldPartition/WorldPartitionHandle.h"
-#endif
-
 #include "LandscapeStreamingProxy.generated.h"
 
 class ALandscape;
@@ -25,11 +21,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category=LandscapeProxy)
 	TLazyObjectPtr<ALandscape> LandscapeActor;
-
-#if WITH_EDITORONLY_DATA
-	/** hard refs to actors that need to be loaded when this proxy is loaded */
-	TSet<FWorldPartitionReference> ActorDescReferences;
-#endif
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR

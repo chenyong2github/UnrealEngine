@@ -50,9 +50,9 @@ void FLandscapeActorDesc::Serialize(FArchive& Ar)
 
 void FLandscapeActorDesc::Unload()
 {
-	if (ALandscapeStreamingProxy* LandscapeStreamingProxy = Cast<ALandscapeStreamingProxy>(GetActor()))
+	if (ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(GetActor()))
 	{
-		LandscapeStreamingProxy->ActorDescReferences.Empty();
+		LandscapeProxy->ActorDescReferences.Empty();
 	}
 
 	FPartitionActorDesc::Unload();

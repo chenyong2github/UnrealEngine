@@ -63,6 +63,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "Editor.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
@@ -4104,6 +4105,44 @@ void ALandscape::PostEditUndo()
 	Super::PostEditUndo();
 
 	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
+}
+
+void ALandscape::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+	auto HasValidBrush = [this]()
+	{
+		for (const FLandscapeLayer& Layer : LandscapeLayers)
+		{
+			for (const FLandscapeLayerBrush& Brush : Layer.Brushes)
+			{
+				if (IsValid(Brush.GetBrush()))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+
+	// Until it is properly supported, ALandscape with layer brushes will force all of its proxies to be loaded in editor
+	if (GEditor && !GetWorld()->IsGameWorld() && LandscapeGuid.IsValid() && HasValidBrush())
+	{
+		if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+		{
+			FWorldPartitionHelpers::ForEachActorDesc<ALandscapeProxy>(WorldPartition, [this, WorldPartition](const FWorldPartitionActorDesc* ActorDesc)
+			{
+				FLandscapeActorDesc* LandscapeActorDesc = (FLandscapeActorDesc*)ActorDesc;
+
+				if (LandscapeActorDesc->GridGuid == LandscapeGuid)
+				{
+					ActorDescReferences.Add(FWorldPartitionReference(WorldPartition, ActorDesc->GetGuid()));
+				}
+				return true;
+			});
+		}
+	}
 }
 
 bool ALandscape::ShouldImport(FString* ActorPropString, bool IsMovingLevel)
