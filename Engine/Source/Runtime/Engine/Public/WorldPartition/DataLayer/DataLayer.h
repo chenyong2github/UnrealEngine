@@ -23,8 +23,8 @@ UENUM(BlueprintType)
 enum class EDataLayerRuntimeState : uint8
 {
 	Unloaded,
-	Loaded,
-	Activated
+	Loaded,		// Loaded but not in the world
+	Activated	// Loaded and in the world
 };
 
 const inline TCHAR* GetDataLayerRuntimeStateName(EDataLayerRuntimeState State)
