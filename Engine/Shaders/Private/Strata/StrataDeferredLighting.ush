@@ -28,7 +28,7 @@ float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, 
 
 // Analytical lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
-float4 StrataDeferredLighting(
+FStrataDeferredLighting StrataDeferredLighting(
 	FDeferredLightData LightData,
 	float3 V,
 	float3 L,
@@ -39,7 +39,8 @@ float4 StrataDeferredLighting(
 	FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader)
 {
-	FLightAccumulator Out = (FLightAccumulator)0;
+	FStrataDeferredLighting StrataLighting = GetInitialisedStrataDeferredLighting();
+
 	const bool bForceFullyRough = false;
 
 	FRectTexture RectTexture = InitRectTexture(LightData);
@@ -60,7 +61,7 @@ float4 StrataDeferredLighting(
 			FRect Rect = GetRect(ToLight, LightData);
 			if (!IsRectVisible(Rect))
 			{
-				return 0.0f; // Rect light can be non visible due to barn door occlusion
+				return GetInitialisedStrataDeferredLighting(); // Rect light can be non visible due to barn door occlusion
 			}
 			AreaLightContext = CreateRectIntegrateContext(Roughness, BSDFContext.N, BSDFContext.V, Rect, RectTexture);
 
@@ -79,14 +80,14 @@ float4 StrataDeferredLighting(
 		float3 DiffuseLuminance = BSDFEvaluate.IntegratedDiffuseValue;
 		float3 SpecularLuminance = BSDFEvaluate.IntegratedSpecularValue;
 
-		const bool bNeedsSeparateSubsurfaceLightAccumulation = BSDFEvaluate.bSubsurface;
 		const float3 CommonMultiplier = LightData.Color * LightMask * BSDF.LuminanceWeight;
-		LightAccumulator_AddSplit(Out, DiffuseLuminance, SpecularLuminance, DiffuseLuminance, CommonMultiplier, bNeedsSeparateSubsurfaceLightAccumulation);
+
+		FLightAccumulator Out = (FLightAccumulator)0;
+		LightAccumulator_AddSplit(Out, DiffuseLuminance, SpecularLuminance, DiffuseLuminance, CommonMultiplier, BSDFEvaluate.bSubsurface);
+		AccumulateStrataDeferredLighting(StrataLighting, Out, BSDFEvaluate.bSubsurface, BSDF_GETISTOPLAYER(BSDF));
 	}
 
-	const FDeferredLightingSplit SplitLighting = LightAccumulator_GetResultSplit(Out);
-	const float4 OutRadiance = SplitLighting.SpecularLighting + SplitLighting.DiffuseLighting;
-	return OutRadiance;
+	return StrataLighting;
 }
 
 #endif // STRATA_ENABLED

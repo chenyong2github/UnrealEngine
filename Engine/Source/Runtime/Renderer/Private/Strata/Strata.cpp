@@ -34,7 +34,6 @@ static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
 	TEXT("Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-
 static TAutoConsoleVariable<int32> CVarStrataClassificationDebug(
 	TEXT("r.Strata.Classification.Debug"),
 	0,
@@ -68,8 +67,11 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata
 void FStrataSceneData::Reset()
 {
 	TopLayerTexture = nullptr;
+	TopLayerTextureUAV = nullptr;
 	SSSTexture = nullptr;
 	SSSTextureUAV = nullptr;
+	OpaqueRoughRefractionTexture = nullptr;
+	OpaqueRoughRefractionTextureUAV = nullptr;
 
 	MaterialTextureArray = nullptr;
 	MaterialTextureArrayUAVWithoutRTs = nullptr;
@@ -85,6 +87,13 @@ void FStrataSceneData::Reset()
 		ClassificationTileIndirectBufferUAV[i] = nullptr;
 		ClassificationTileIndirectBufferSRV[i] = nullptr;
 	}
+
+	OpaqueRoughRefractionClassificationTileListBuffer = nullptr;
+	OpaqueRoughRefractionClassificationTileListBufferSRV = nullptr;
+	OpaqueRoughRefractionClassificationTileListBufferUAV = nullptr;
+
+	SeparatedSubSurfaceSceneColor = nullptr;
+	SeparatedOpaqueRoughRefractionSceneColor = nullptr;
 
 	StrataGlobalUniformParameters = nullptr;
 }
@@ -152,10 +161,11 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		const uint32 RoundToValue = 4u;
 		StrataSceneData.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaterialConservativeByteCountPerPixel, RoundToValue) * RoundToValue;
 
+		const int32 TileInPixel = GetStrataBufferTileSize();
+		const FIntPoint TileResolution(FMath::DivideAndRoundUp(SceneTextureExtent.X, TileInPixel), FMath::DivideAndRoundUp(SceneTextureExtent.Y, TileInPixel));
+
 		// Tile classification buffers
 		{
-			const int32 TileInPixel = GetStrataBufferTileSize();
-			const FIntPoint TileResolution(FMath::DivideAndRoundUp(SceneTextureExtent.X, TileInPixel), FMath::DivideAndRoundUp(SceneTextureExtent.Y, TileInPixel));
 
 			const TCHAR* StrataTileResourceNames[EStrataTileMaterialType::ECount][3] =
 			{
@@ -189,6 +199,40 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		{
 			StrataSceneData.SSSTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_DisableDCC | TexCreate_NoFastClear | TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.SSSTexture"));
 			StrataSceneData.SSSTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.SSSTexture);
+		}
+
+		// Separated subsurface and rough refraction textures
+		{
+			const bool bIsStrataOpaqueMaterialRoughRefractionEnabled= IsStrataOpaqueMaterialRoughRefractionEnabled();
+			const int32 TileListBufferElementCount					= bIsStrataOpaqueMaterialRoughRefractionEnabled ? TileResolution.X * TileResolution.Y : 4;
+			const FIntPoint OpaqueRoughRefractionSceneExtent		= bIsStrataOpaqueMaterialRoughRefractionEnabled ? SceneTextureExtent : FIntPoint(4, 4);
+			
+
+			StrataSceneData.OpaqueRoughRefractionClassificationTileListBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TileListBufferElementCount), TEXT("Strata.StrataTileListBuffer(RoughRefrac)"));
+			StrataSceneData.OpaqueRoughRefractionClassificationTileListBufferSRV = GraphBuilder.CreateSRV(StrataSceneData.OpaqueRoughRefractionClassificationTileListBuffer, PF_R32_UINT);
+			StrataSceneData.OpaqueRoughRefractionClassificationTileListBufferUAV = GraphBuilder.CreateUAV(StrataSceneData.OpaqueRoughRefractionClassificationTileListBuffer, PF_R32_UINT);
+
+			StrataSceneData.OpaqueRoughRefractionClassificationTileIndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("Strata.StrataTileIndirectBuffer(RoughRefrac)"));
+			StrataSceneData.OpaqueRoughRefractionClassificationTileIndirectBufferSRV = GraphBuilder.CreateSRV(StrataSceneData.OpaqueRoughRefractionClassificationTileIndirectBuffer, PF_R32_UINT);
+			StrataSceneData.OpaqueRoughRefractionClassificationTileIndirectBufferSRV = GraphBuilder.CreateSRV(StrataSceneData.OpaqueRoughRefractionClassificationTileIndirectBuffer, PF_R32_UINT);
+			StrataSceneData.OpaqueRoughRefractionClassificationTileIndirectBufferUAV = GraphBuilder.CreateUAV(StrataSceneData.OpaqueRoughRefractionClassificationTileIndirectBuffer, PF_R32_UINT);
+
+			StrataSceneData.OpaqueRoughRefractionTexture = GraphBuilder.CreateTexture(
+				FRDGTextureDesc::Create2D(OpaqueRoughRefractionSceneExtent, PF_R8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable), TEXT("Strata.OpaqueRoughRefractionTexture"));
+			StrataSceneData.OpaqueRoughRefractionTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.OpaqueRoughRefractionTexture);
+			
+			StrataSceneData.SeparatedSubSurfaceSceneColor			= GraphBuilder.CreateTexture(
+				FRDGTextureDesc::Create2D(OpaqueRoughRefractionSceneExtent, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable), TEXT("Strata.SeparatedSubSurfaceSceneColor"));
+			StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor= GraphBuilder.CreateTexture(
+				FRDGTextureDesc::Create2D(OpaqueRoughRefractionSceneExtent, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable), TEXT("Strata.SeparatedOpaqueRoughRefractionSceneColor"));
+
+			if (bIsStrataOpaqueMaterialRoughRefractionEnabled)
+			{
+				// Fast clears
+				AddClearRenderTargetPass(GraphBuilder, StrataSceneData.OpaqueRoughRefractionTexture, StrataSceneData.OpaqueRoughRefractionTexture->Desc.ClearValue.GetClearColor());
+				AddClearRenderTargetPass(GraphBuilder, StrataSceneData.SeparatedSubSurfaceSceneColor, StrataSceneData.SeparatedSubSurfaceSceneColor->Desc.ClearValue.GetClearColor());
+				AddClearRenderTargetPass(GraphBuilder, StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor, StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor->Desc.ClearValue.GetClearColor());
+			}
 		}
 	}
 	else
@@ -247,11 +291,15 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 		OutStrataUniformParameters.MaterialTextureArrayUAVWithoutRTs = StrataSceneData->MaterialTextureArrayUAVWithoutRTs;
 		OutStrataUniformParameters.SSSTextureUAV = StrataSceneData->SSSTextureUAV;
+		OutStrataUniformParameters.OpaqueRoughRefractionTextureUAV = StrataSceneData->OpaqueRoughRefractionTextureUAV;
 	}
 	else
 	{
-		FRDGTextureRef DummyWritableTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.DummyWritableTexture"));
-		FRDGTextureUAVRef DummyWritableTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DummyWritableTexture));
+		FRDGTextureRef DummyWritableSSSTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.DummyWritableTexture"));
+		FRDGTextureUAVRef DummyWritableSSSTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DummyWritableSSSTexture));
+
+		FRDGTextureRef DummyWritableRefracTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R8, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.DummyWritableTexture"));
+		FRDGTextureUAVRef DummyWritableRefracTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DummyWritableRefracTexture));
 
 		FRDGTextureRef DummyWritableTextureArray = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2DArray(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV, 1), TEXT("Strata.DummyWritableTexture"));
 		FRDGTextureUAVRef DummyWritableTextureArrayUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DummyWritableTextureArray));
@@ -260,7 +308,8 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 		OutStrataUniformParameters.bRoughDiffuse = 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
 		OutStrataUniformParameters.MaterialTextureArrayUAVWithoutRTs = DummyWritableTextureArrayUAV;
-		OutStrataUniformParameters.SSSTextureUAV = DummyWritableTextureUAV;
+		OutStrataUniformParameters.SSSTextureUAV = DummyWritableSSSTextureUAV;
+		OutStrataUniformParameters.OpaqueRoughRefractionTextureUAV = DummyWritableRefracTextureUAV;
 	}
 }
 
@@ -273,6 +322,7 @@ void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrataSceneDa
 		OutStrataUniformParameters.MaterialTextureArray = StrataSceneData->MaterialTextureArray;
 		OutStrataUniformParameters.TopLayerTexture = StrataSceneData->TopLayerTexture;
 		OutStrataUniformParameters.SSSTexture = StrataSceneData->SSSTexture;
+		OutStrataUniformParameters.OpaqueRoughRefractionTexture = StrataSceneData->OpaqueRoughRefractionTexture;
 	}
 	else
 	{
@@ -283,6 +333,7 @@ void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrataSceneDa
 		OutStrataUniformParameters.MaterialTextureArray = DefaultTextureArray;
 		OutStrataUniformParameters.TopLayerTexture = SystemTextures.DefaultNormal8Bit;
 		OutStrataUniformParameters.SSSTexture = SystemTextures.Black;
+		OutStrataUniformParameters.OpaqueRoughRefractionTexture = SystemTextures.Black;
 	}
 }
 
@@ -436,7 +487,10 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SingleTileListDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileIndirectDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileListDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OpaqueRoughRefractionTileIndirectDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OpaqueRoughRefractionTileListDataBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, SSSTextureUAV)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OpaqueRoughRefractionTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -776,6 +830,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			PassParameters->TopLayerTexture = View.StrataSceneData->TopLayerTexture;
 			PassParameters->MaterialTextureArray = View.StrataSceneData->MaterialTextureArraySRV;
 			PassParameters->SSSTextureUAV = View.StrataSceneData->SSSTextureUAV;
+			PassParameters->OpaqueRoughRefractionTexture = View.StrataSceneData->OpaqueRoughRefractionTexture;
 			// Simple
 			PassParameters->SimpleTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::ESimple];
 			PassParameters->SimpleTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ESimple];
@@ -785,6 +840,9 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			// Complex
 			PassParameters->ComplexTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::EComplex];
 			PassParameters->ComplexTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::EComplex];
+			// Opaque Rough Refraction
+			PassParameters->OpaqueRoughRefractionTileListDataBuffer = View.StrataSceneData->OpaqueRoughRefractionClassificationTileListBufferUAV;
+			PassParameters->OpaqueRoughRefractionTileIndirectDataBuffer = View.StrataSceneData->OpaqueRoughRefractionClassificationTileIndirectBufferUAV;
 
 			const uint32 GroupSize = 8;
 			FComputeShaderUtils::AddPass(

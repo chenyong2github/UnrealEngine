@@ -309,6 +309,11 @@ uint32 GetSubsurfaceRequiredViewMask(TArrayView<const FViewInfo> Views)
 
 bool IsSubsurfaceCheckerboardFormat(EPixelFormat SceneColorFormat)
 {
+	if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+	{
+		// With this mode, specular and subsurface colors are correctly separated so checkboard is not required.
+		return false;
+	}
 	int CVarValue = CVarSSSCheckerboard.GetValueOnRenderThread();
 	if (CVarValue == 0)
 	{
@@ -981,6 +986,11 @@ void AddSubsurfaceViewPass(
 	const FScreenPassTextureViewportParameters SubsurfaceViewportParameters = GetScreenPassTextureViewportParameters(SubsurfaceViewport);
 	const FScreenPassTextureViewportParameters SceneViewportParameters = GetScreenPassTextureViewportParameters(SceneViewport);
 
+	const bool bReadSeparatedSubSurfaceSceneColor = Strata::IsStrataOpaqueMaterialRoughRefractionEnabled();
+	const bool bWriteSeparatedOpaqueRoughRefractionSceneColor = Strata::IsStrataOpaqueMaterialRoughRefractionEnabled();
+	FRDGTextureRef SeparatedSubSurfaceSceneColor = View.StrataSceneData->SeparatedSubSurfaceSceneColor;
+	FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = View.StrataSceneData->SeparatedOpaqueRoughRefractionSceneColor;
+
 	FRDGTextureRef SetupTexture = SceneColorTexture;
 	FRDGTextureRef SubsurfaceSubpassOneTex = nullptr;
 	FRDGTextureRef SubsurfaceSubpassTwoTex = nullptr;
@@ -1066,14 +1076,13 @@ void AddSubsurfaceViewPass(
 
 		// Call the indirect setup (with tile classification)
 		{
-			FRDGTextureSRVDesc SceneColorTextureSRVDesc = FRDGTextureSRVDesc::Create(SceneColorTexture);
 			FRDGTextureUAVDesc SetupTextureOutDesc(SetupTexture, 0);
 
 			typedef FSubsurfaceIndirectDispatchSetupCS SHADER;
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
 			PassParameters->Output = SubsurfaceViewportParameters;
-			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneColorTexture, SceneViewportParameters);
+			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(bReadSeparatedSubSurfaceSceneColor ? SeparatedSubSurfaceSceneColor : SceneColorTexture, SceneViewportParameters);
 			PassParameters->SubsurfaceSampler0 = PointClampSampler;
 			PassParameters->SetupTexture = GraphBuilder.CreateUAV(SetupTextureOutDesc);
 			if (bUseProfileIdCache)
@@ -1310,7 +1319,7 @@ void AddSubsurfaceViewPass(
 				PassParameters->TileParameters = GetSubsurfaceTileParameters(SubsurfaceViewport, Tiles, TileType);
 			}
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SubsurfaceIntermediateTexture, SceneColorTextureLoadAction);
-			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneColorTexture, SceneViewportParameters);
+			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(bReadSeparatedSubSurfaceSceneColor ? SeparatedSubSurfaceSceneColor : SceneColorTexture, SceneViewportParameters);
 			PassParameters->SubsurfaceSampler0 = BilinearBorderSampler;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
@@ -1370,15 +1379,21 @@ void AddSubsurfaceViewPass(
 			{
 				PassParameters->TileParameters = GetSubsurfaceTileParameters(SubsurfaceViewport, Tiles, TileType);
 			}
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, SceneColorTextureLoadAction);
+			PassParameters->RenderTargets[0] = bWriteSeparatedOpaqueRoughRefractionSceneColor ? 
+				FRenderTargetBinding(SeparatedOpaqueRoughRefractionSceneColor, ERenderTargetLoadAction::ELoad) :
+				FRenderTargetBinding(SceneColorTexture, SceneColorTextureLoadAction);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SubsurfaceIntermediateTexture, SceneViewportParameters);
 			PassParameters->SubsurfaceSampler0 = PointClampSampler;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 			TShaderMapRef<FSubsurfaceRecombineCopyPS> PixelShader(View.ShaderMap);			
 			TShaderMapRef<FSubsurfaceTilePassVS> VertexShader(View.ShaderMap);
-			
+
 			FRHIBlendState* BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
+			if (bWriteSeparatedOpaqueRoughRefractionSceneColor)
+			{
+				BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+			}
 			
 			AddSubsurfaceTiledScreenPass(
 				GraphBuilder,

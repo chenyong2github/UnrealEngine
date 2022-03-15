@@ -218,7 +218,7 @@ float4 GetSimpleLightLighting(
 			ShadowTerms,
 			Strata.MaterialTextureArray,
 			StrataAddressing,
-			StrataPixelHeader);
+			StrataPixelHeader).SceneColor;
 	#else
 		FSimpleDeferredLightData SimpleLightData = (FSimpleDeferredLightData)0;
 		SimpleLightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
@@ -368,7 +368,7 @@ float4 GetLightGridLocalLighting(
 			ShadowTerms,
 			Strata.MaterialTextureArray,
 			StrataAddressing,
-			StrataPixelHeader);
+			StrataPixelHeader).SceneColor;
 	#elif 1
 		// NOTE: uses AO data like tiled deferred (as opposed to forward path)
 		// TODO: Passing in 0,0 as SVPos, what is meaning of this? Only used if 'REFERENCE_QUALITY' is on.

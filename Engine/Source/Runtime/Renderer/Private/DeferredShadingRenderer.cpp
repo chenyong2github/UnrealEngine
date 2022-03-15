@@ -2927,6 +2927,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		AddSubsurfacePass(GraphBuilder, SceneTextures, Views);
 
+		Strata::AddStrataOpaqueRoughRefractionPasses(GraphBuilder, SceneTextures, Views);
+
 		{
 			RenderHairStrandsSceneColorScattering(GraphBuilder, SceneTextures.Color.Target, Scene, Views);
 		}

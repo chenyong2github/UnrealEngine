@@ -249,6 +249,10 @@ float GetCloudVolumetricAOShadow(in float3 TranslatedWorldPosition)
 void ReflectionEnvironmentSkyLighting(
 	in float4 SvPosition : SV_Position,
 	out float4 OutColor : SV_Target0
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	, out float3 OutOpaqueRoughRefractionSceneColor : SV_Target1
+	, out float3 OutSubSurfaceSceneColor : SV_Target2
+#endif
 	)
 {
 	uint2 PixelPos = SvPosition.xy;
@@ -256,6 +260,10 @@ void ReflectionEnvironmentSkyLighting(
 	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
 	
 	OutColor = 0.0f;
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	OutOpaqueRoughRefractionSceneColor = 0.0f;
+	OutSubSurfaceSceneColor = 0.0f;
+#endif
 
 #if STRATA_ENABLED
 
@@ -287,7 +295,7 @@ void ReflectionEnvironmentSkyLighting(
 
 		const float CloudVolumetricAOShadow = GetCloudVolumetricAOShadow(TranslatedWorldPosition);
 
-		float4 StrataEnvLighting = StrataEnvironmentLighting(
+		FStrataDeferredLighting StrataLighting = StrataEnvironmentLighting(
 			SvPosition,
 			BufferUV,
 			SceneDepth,
@@ -308,7 +316,11 @@ void ReflectionEnvironmentSkyLighting(
 		// Alpha is 0 to not affect the subsurface diffuse luma information.
 		const float4 SSRColor = float4(SSR.rgb * TopLayerEnvBRDF * SSRReductionFactor, 0.0);
 
-		OutColor += StrataEnvLighting + SSRColor;
+		OutColor += StrataLighting.SceneColor + SSRColor;
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+		OutOpaqueRoughRefractionSceneColor += StrataLighting.OpaqueRoughRefractionSceneColor;
+		OutSubSurfaceSceneColor += StrataLighting.SubSurfaceSceneColor;
+#endif
 	}
 
 #else // STRATA_ENABLED

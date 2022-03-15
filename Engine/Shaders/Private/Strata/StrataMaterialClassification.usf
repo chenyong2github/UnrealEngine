@@ -33,6 +33,15 @@ RWBuffer<uint> SingleTileListDataBuffer;
 RWBuffer<uint> ComplexTileIndirectDataBuffer;
 RWBuffer<uint> ComplexTileListDataBuffer;
 
+// Opaque rough refraction	==> Disabled for now because this brings uav count to >8
+#undef STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+#define STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED 0
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+RWBuffer<uint> OpaqueRoughRefractionTileIndirectDataBuffer;
+RWBuffer<uint> OpaqueRoughRefractionListDataBuffer;
+Texture2D<float> OpaqueRoughRefractionTexture;
+#endif
+
 #if !PERMUTATION_WAVE_OPS
 groupshared uint s_TileFlags[GROUP_THREAD_COUNT];
 #endif
@@ -59,7 +68,9 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	bool bContainsSimpleMaterial  = false;
 	bool bContainsSingleMaterial  = false;
 	bool bContainsStrataMaterial  = false;
+	bool bContainsOpaqueRoughRefraction = false;
 	bool bHasScreenSpaceSubsurfaceScattering = false;
+	FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
 	if (all(PixelCoord < uint2(ViewResolution)))
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
@@ -72,6 +83,11 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		bContainsSingleMaterial  = bIsSingle;
 		bContainsComplexMaterial = !bIsSingle & !bIsSimple;
 		bHasScreenSpaceSubsurfaceScattering = HasSubsurface(StrataPixelHeader);
+
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+		OpaqueRoughRefractionData = StrataUnpackOpaqueRoughRefractionData(OpaqueRoughRefractionTexture[PixelCoord]);
+		bContainsOpaqueRoughRefraction = OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled;
+#endif
 	}
 
 #if PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION
@@ -89,13 +105,15 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 //	const bool bHasAnySimple  = WaveActiveAnyTrue(bContainsSimpleMaterial);
 	const bool bHasAnySingle  = WaveActiveAnyTrue(bContainsSingleMaterial);
 	const bool bHasAnyComplex = WaveActiveAnyTrue(bContainsComplexMaterial);
+	const bool bHasAnyOpaqueRoughRefraction = WaveActiveAnyTrue(bContainsOpaqueRoughRefraction);
 #else // PERMUTATION_WAVE_OPS
 
 	s_TileFlags[LinearIndex] = 
-		(bContainsStrataMaterial  ? 0x1u : 0u) | 
-//		(bContainsSimpleMaterial  ? 0x2u : 0u) | 
-		(bContainsSingleMaterial  ? 0x4u : 0u) | 
-		(bContainsComplexMaterial ? 0x8u : 0u);
+		(bContainsStrataMaterial		? 0x1u	: 0u) | 
+//		(bContainsSimpleMaterial		? 0x2u	: 0u) | 
+		(bContainsSingleMaterial		? 0x4u	: 0u) | 
+		(bContainsComplexMaterial		? 0x8u	: 0u)| 
+		(bContainsOpaqueRoughRefraction ? 0xFu	: 0u);
 
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 32)
@@ -131,6 +149,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 //	const bool bHasAnySimple  = (FinalTileFlags & 0x2u) > 0;
 	const bool bHasAnySingle  = (FinalTileFlags & 0x4u) > 0;
 	const bool bHasAnyComplex = (FinalTileFlags & 0x8u) > 0;
+	const bool bHasAnyOpaqueRoughRefraction = (FinalTileFlags & 0xFu) > 0;
 #endif // PERMUTATION_WAVE_OPS
 
 	if (LinearIndex < 1 && bHasAnyStrata)
@@ -153,6 +172,15 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 			InterlockedAdd(SimpleTileIndirectDataBuffer[1], 1, WriteToIndex);
 			SimpleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
 		}
+
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+		if (bHasAnyOpaqueRoughRefraction)
+		{
+			uint WriteToIndex;
+			InterlockedAdd(OpaqueRoughRefractionTileIndirectDataBuffer[1], 1, WriteToIndex);
+			OpaqueRoughRefractionListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+		}
+#endif
 	}
 }
 #endif // SHADER_TILE_CATEGORIZATION

@@ -895,6 +895,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 StrataBytePerPixel;
 
 	/**
+	"Enable Strata opaque material rough refractions effect from top layers over layers below."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
+		ConsoleVariable = "r.Strata.OpaqueMaterialRoughRefraction", DisplayName = "Strata opaque material rough refraction",
+		ToolTip = "Enable Strata opaque material rough refractions effect from top layers over layers below.",
+		ConfigRestartRequired = true))
+		uint32 StrataOpaqueMaterialRoughRefraction : 1;
+
+	/**
 	"Enable rough diffuse material."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (

@@ -12,7 +12,7 @@
 
 // Env. lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
-float4 StrataEnvironmentLighting(
+FStrataDeferredLighting StrataEnvironmentLighting(
 	float4 SvPosition,
 	float2 BufferUV,
 	float SceneDepth,
@@ -29,7 +29,7 @@ float4 StrataEnvironmentLighting(
 	inout float SSRReductionFactor,
 	inout float3 TopLayerEnvBRDF)
 {
-	FLightAccumulator Out = (FLightAccumulator)0;
+	FStrataDeferredLighting StrataLighting = GetInitialisedStrataDeferredLighting();
 
 	SSRReductionFactor = 1.0f;
 
@@ -182,12 +182,14 @@ float4 StrataEnvironmentLighting(
 
 		// STRATA_TODO ReflectionEnvironment(...) for static reflection volumes.
 
+		FLightAccumulator Out = (FLightAccumulator)0;
 		LightAccumulator_AddSplit(Out, DiffuseLighting, SpecularLighting, DiffuseLighting, View.PreExposure, StrataEnvLight.bSubsurface);
+		AccumulateStrataDeferredLighting(StrataLighting, Out, StrataEnvLight.bSubsurface, BSDF_GETISTOPLAYER(BSDF));
 	}
 
 	SSRReductionFactor = saturate(SSRReductionFactor);
 
-	return LightAccumulator_GetResult(Out);
+	return StrataLighting;
 }
 
 #endif // STRATA_ENABLED

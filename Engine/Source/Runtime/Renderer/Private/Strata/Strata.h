@@ -20,6 +20,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAVWithoutRTs)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, SSSTextureUAV)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, OpaqueRoughRefractionTextureUAV)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataForwardPassUniformParameters, )
@@ -39,6 +40,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_AP
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray<uint>, MaterialTextureArray)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TopLayerTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, SSSTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OpaqueRoughRefractionTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 enum EStrataTileMaterialType : uint32
@@ -70,11 +72,26 @@ struct FStrataSceneData
 	FRDGBufferUAVRef ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ECount];
 	FRDGBufferSRVRef ClassificationTileIndirectBufferSRV[EStrataTileMaterialType::ECount];
 
+	FRDGBufferRef OpaqueRoughRefractionClassificationTileListBuffer;
+	FRDGBufferUAVRef OpaqueRoughRefractionClassificationTileListBufferUAV;
+	FRDGBufferSRVRef OpaqueRoughRefractionClassificationTileListBufferSRV;
+	FRDGBufferRef OpaqueRoughRefractionClassificationTileIndirectBuffer;
+	FRDGBufferUAVRef OpaqueRoughRefractionClassificationTileIndirectBufferUAV;
+	FRDGBufferSRVRef OpaqueRoughRefractionClassificationTileIndirectBufferSRV;
+
 	FRDGTextureRef TopLayerTexture;
 	FRDGTextureRef SSSTexture;
+	FRDGTextureRef OpaqueRoughRefractionTexture;
 
 	FRDGTextureUAVRef TopLayerTextureUAV;
 	FRDGTextureUAVRef SSSTextureUAV;
+	FRDGTextureUAVRef OpaqueRoughRefractionTextureUAV;
+
+	// Used when the subsurface luminance is separated from the scene color
+	FRDGTextureRef SeparatedSubSurfaceSceneColor;
+
+	// Used for Luminance that should go through opaque rough refraction (when under a top layer interface)
+	FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor;
 
 	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters{};
 
@@ -109,6 +126,12 @@ TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformPara
 void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArray<FViewInfo>& Views);
 
 void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, const FMinimalSceneTextures& SceneTextures);
+
+bool IsStrataOpaqueMaterialRoughRefractionEnabled();
+void AddStrataOpaqueRoughRefractionPasses(
+	FRDGBuilder& GraphBuilder,
+	FSceneTextures& SceneTextures,
+	TArrayView<const FViewInfo> Views);
 
 bool ShouldRenderStrataDebugPasses(const FViewInfo& View);
 FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);

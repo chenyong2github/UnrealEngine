@@ -301,6 +301,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 	StrataMaterialExpressionToOperatorIndex.Reserve(STRATA_MAX_OPERATOR_COUNT);
 	StrataMaterialBSDFCount = 0;
 	bStrataUsesConversionFromLegacy = false;
+	bStrataOutputsOpaqueRoughRefractions = false;
 }
 
 FHLSLMaterialTranslator::~FHLSLMaterialTranslator()
@@ -1955,6 +1956,8 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		OutEnvironment.SetDefine(TEXT("MATERIAL_TOPOLOGY_TREE_MAX_DEPTH"), RootMaximumDistanceToLeaves);
 
 		OutEnvironment.SetDefine(TEXT("STRATA_USES_CONVERSION_FROM_LEGACY"), bStrataUsesConversionFromLegacy ? 1 : 0);
+
+		OutEnvironment.SetDefine(TEXT("STRATA_MATERIAL_OUTPUT_OPAQUE_ROUGH_REFRACTIONS"), bStrataOutputsOpaqueRoughRefractions ? 1 : 0);
 
 		/*
 		* The final output code/workflow for shared tangent basis should look like
@@ -9799,6 +9802,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 	{
 		int VOpTopBranchCountTaken = 0;
 		int VOpBottomBranchCountTaken = 0;
+		bool bStrataUsesVerticalLayering = false;
 
 		std::function<void(FStrataOperator&, bool)> WalkOperators = [&](FStrataOperator& CurrentOperator, bool bInsideParameterBlendingSubTree) -> void
 		{
@@ -9849,14 +9853,21 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 				CurrentOperator.LeftIndex = INDEX_NONE;
 				CurrentOperator.RightIndex = INDEX_NONE;
 			}
+
+			// When at least one vertical operator exists that is not parameter blending, we can enabled writing to opaque rough refraction buffer.
+			bStrataUsesVerticalLayering = !CurrentOperator.bUseParameterBlending && CurrentOperator.OperatorType == STRATA_OPERATOR_VERTICAL;
 		};
 
 		WalkOperators(*StrataMaterialRootOperator, false);
+
+		const EStrataBlendMode StrataBlendMode = Material->GetStrataBlendMode();
+		const bool bIsOpaqueOrMasked = StrataBlendMode == EStrataBlendMode::SBM_Opaque || StrataBlendMode == EStrataBlendMode::SBM_Masked;
+		bStrataOutputsOpaqueRoughRefractions = bStrataUsesVerticalLayering && !bStrataUsesConversionFromLegacy && bIsOpaqueOrMasked;
 	}
 
-	// STRATA_TODO: operation using parameter blending are not actually discarded so they still occupy a pot in the opeartion arrays in the compiler and in the shader also.
-	// Even thought the compiler will remove unused operators from the shader code, we will still be limited to STRATA_MAX_OPERATOR_COUNT eve nwith parameter blending.
-	// This can be fixed by remapping all operation index and make sure this is the index that is allways used in the compiler and specified to the shader.
+	// STRATA_TODO: operation using parameter blending are not actually discarded so they still occupy a spot in the operation array in the compiler and in the shader also.
+	// Even thought the compiler will remove unused operators from the shader code, we will still be limited to STRATA_MAX_OPERATOR_COUNT even with parameter blending.
+	// This can be fixed by remapping all operation index and make sure this is the index that is always used in the compiler and specified to the shader.
 
 	//
 	// Make sure all the types have valid children operator indices

@@ -441,6 +441,14 @@ SDiffuseAndSpecular ReconstructLighting(float2 UVSceneColor, uint ReconstructMet
 {
 	SDiffuseAndSpecular Ret;
 
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	// In this mode, we only read isolated diffuse lighting.
+	float3 CenterSample = SubsurfaceInput0_Texture.SampleLevel(SharedSubsurfaceSampler0, UVSceneColor, 0).rgb;
+	Ret.Diffuse = CenterSample;
+	Ret.Specular = 0.0f;
+	return Ret;
+#endif
+
 	// If SUBSURFACE_CHANNEL_MODE is 0, checkerboard is forced on
 #if SUBSURFACE_PROFILE_CHECKERBOARD || SUBSURFACE_CHANNEL_MODE == 0
 	{

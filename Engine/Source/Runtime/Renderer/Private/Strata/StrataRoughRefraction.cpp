@@ -13,11 +13,92 @@
 #include "ShaderCompiler.h"
 
 
+static TAutoConsoleVariable<int32> CVarStrataOpaqueMaterialRoughRefraction(
+	TEXT("r.Strata.OpaqueMaterialRoughRefraction"),
+	0,
+	TEXT("Enable Strata opaque material rough refractions effect from top layers over layers below."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+
 namespace Strata
 {
 
+bool IsStrataOpaqueMaterialRoughRefractionEnabled()
+{
+	return IsStrataEnabled() && CVarStrataOpaqueMaterialRoughRefraction.GetValueOnAnyThread() > 0;
+}
+
+class FOpaqueRoughRefractionPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FOpaqueRoughRefractionPS);
+	SHADER_USE_PARAMETER_STRUCT(FOpaqueRoughRefractionPS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparatedOpaqueRoughRefractionSceneColor)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT();
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("OPAQUE_ROUGH_REFRACTION_PS"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FOpaqueRoughRefractionPS, "/Engine/Private/Strata/StrataRoughRefraction.usf", "OpaqueRoughRefractionPS", SF_Pixel);
+
+
+void AddStrataOpaqueRoughRefractionPasses(
+	FRDGBuilder& GraphBuilder,
+	FSceneTextures& SceneTextures,
+	TArrayView<const FViewInfo> Views)
+{
+	if (!IsStrataOpaqueMaterialRoughRefractionEnabled())
+	{
+		return;
+	}
+
+	const uint32 ViewCount = Views.Num();
+	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+
+		FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = View.StrataSceneData->SeparatedOpaqueRoughRefractionSceneColor;
+		FRDGTextureRef SceneColorTexture = SceneTextures.Color.Target;
+
+
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+
+		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
+		TShaderMapRef<FOpaqueRoughRefractionPS> PixelShader(View.ShaderMap, PermutationVector);
+
+		FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+
+		FPixelShaderUtils::AddFullscreenPass<FOpaqueRoughRefractionPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::VisualizeRoughRefractionPS"),
+			PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
+
+		
+	}
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 // RnD shaders only used when enabled locally
+//////////////////////////////////////////////////////////////////////////
 
 // Keeping it simple: this should always be checked in with a value of 0
 #define STRATA_ROUGH_REFRACTION_RND 0
@@ -30,7 +111,17 @@ static TAutoConsoleVariable<int32> CVarStrataRoughRefractionShadersShowRoughRefr
 	TEXT("Enable strata rough refraction shaders."),
 	ECVF_RenderThreadSafe);
 
+bool ShouldRenderStrataRoughRefractionRnD()
+{
+	return CVarStrataRoughRefractionShadersShowRoughRefractionRnD.GetValueOnAnyThread() > 0;
+}
 
+#else
+bool ShouldRenderStrataRoughRefractionRnD() { return false; }
+#endif
+
+
+#if STRATA_ROUGH_REFRACTION_RND
 
 class FEvaluateRoughRefractionLobeCS : public FGlobalShader
 {
@@ -114,17 +205,7 @@ IMPLEMENT_GLOBAL_SHADER(FVisualizeRoughRefractionPS, "/Engine/Private/Strata/Str
 
 
 #endif // STRATA_ROUGH_REFRACTION_RND
-	
 
-
-bool ShouldRenderStrataRoughRefractionRnD()
-{
-#if STRATA_ROUGH_REFRACTION_RND
-	return CVarStrataRoughRefractionShadersShowRoughRefractionRnD.GetValueOnAnyThread() > 0;
-#else
-	return false;
-#endif
-}
 
 void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor)
 {

@@ -1376,6 +1376,11 @@ static void AddSkyReflectionPass(
 	}
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
+	if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+	{
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[2] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedSubSurfaceSceneColor, ERenderTargetLoadAction::ELoad);
+	}
 
 	// Bind hair data
 	const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(SceneColorTexture.Target->Desc.Format);
@@ -1437,7 +1442,17 @@ static void AddSkyReflectionPass(
 			}
 			else
 			{
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+				if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+				{
+					GraphicsPSOInit.BlendState = TStaticBlendState<
+						CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
+						CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
+						CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+				}
+				else
+				{
+					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+				}
 			}
 		}
 

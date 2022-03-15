@@ -160,3 +160,40 @@ FDeferredLightingSplit LightAccumulator_GetResultSplit(FLightAccumulator In)
 
 	return Ret;
 }
+
+struct FStrataDeferredLighting
+{
+	float4 SceneColor;						// Untouched scene luminance, alpha channel may contain scatterable light luminance.
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	float3 OpaqueRoughRefractionSceneColor;	// Luminance that is going to be blurier by the top layer roughness
+	float3 SubSurfaceSceneColor;			// Scene color that should go through the sub surface post process. There is not alpha: not needed because it is separated from specular already.
+#endif
+};
+
+FStrataDeferredLighting GetInitialisedStrataDeferredLighting()
+{
+	FStrataDeferredLighting Result = (FStrataDeferredLighting)0;
+	return Result;
+}
+
+void AccumulateStrataDeferredLighting(inout FStrataDeferredLighting StrataLighting, FLightAccumulator In, bool bDiffuseIsSubsurface, bool bIsToplayer)
+{
+	FDeferredLightingSplit DiffSpec = LightAccumulator_GetResultSplit(In);
+
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	if (bIsToplayer)
+	{
+		StrataLighting.SceneColor						+= DiffSpec.SpecularLighting + (bDiffuseIsSubsurface ? 0 : DiffSpec.DiffuseLighting);
+		StrataLighting.OpaqueRoughRefractionSceneColor	+= 0.0;
+		StrataLighting.SubSurfaceSceneColor				+=(bDiffuseIsSubsurface ? DiffSpec.DiffuseLighting : 0).rgb;
+	}
+	else // !bIsToplayer
+	{
+		StrataLighting.SceneColor						+= 0.0;
+		StrataLighting.OpaqueRoughRefractionSceneColor	+=(DiffSpec.SpecularLighting +(bDiffuseIsSubsurface ? 0 : DiffSpec.DiffuseLighting)).rgb;
+		StrataLighting.SubSurfaceSceneColor				+=(bDiffuseIsSubsurface ? DiffSpec.DiffuseLighting : 0).rgb;
+	}
+#else
+	StrataLighting.SceneColor += DiffSpec.DiffuseLighting + DiffSpec.SpecularLighting;
+#endif
+}

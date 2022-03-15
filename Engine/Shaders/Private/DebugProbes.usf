@@ -309,6 +309,7 @@ void MainPS(
 
 		FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 		FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
+		FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
 
 		float3 EmissiveLuminance = 0.0f;
 		bool bStrataSubsurfaceEnable = false;
@@ -321,7 +322,7 @@ void MainPS(
 			Dither,
 			StrataAddressing,
 			StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance,
-			SSSData, TopLayerData);
+			SSSData, TopLayerData, OpaqueRoughRefractionData);
 
 		// Write out MRTs. Note: this only works for deferred with basepassvelocity off
 		OutGBufferA = 0;

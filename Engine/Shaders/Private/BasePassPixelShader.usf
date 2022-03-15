@@ -1709,6 +1709,10 @@ void FPixelShaderInOut_MainPS(
 	float3 EmissiveLuminance = 0.0f;
 	FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 	FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
+	FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
+#if STRATA_OUTPUT_ROUGH_REFRACTION
+	OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled = true;
+#endif
 
 	// Generate the strata material data to write out
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);
@@ -1719,14 +1723,17 @@ void FPixelShaderInOut_MainPS(
 		Dither,
 		StrataAddressing,
 		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance,
-		SSSData, TopLayerData);
+		SSSData, TopLayerData, OpaqueRoughRefractionData);
 
 	// Write out MRT data
 	Out.StrataOutput[0] = RWStrataMaterialContainer.MaterialRenderTargets[0];
 	Out.StrataOutput[1] = RWStrataMaterialContainer.MaterialRenderTargets[1];
 	Out.StrataOutput[2] = StrataPackTopLayerData(TopLayerData);
+#if STRATA_OUTPUT_ROUGH_REFRACTION
+	StrataStruct.OpaqueRoughRefractionTextureUAV[PixelPos] = StrataPackOpaqueRoughRefractionData(OpaqueRoughRefractionData);
+#endif
 
-	// Only write SSS datta if needed
+	// Only write SSS data if needed
 	BRANCH
 	if(SSSData.bIsValid)
 	{

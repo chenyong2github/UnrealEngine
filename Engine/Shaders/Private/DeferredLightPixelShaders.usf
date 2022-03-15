@@ -214,10 +214,18 @@ void DeferredLightPixelMain(
 #endif
 	float4 SVPos			: SV_POSITION,
 	out float4 OutColor		: SV_Target0
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	, out float3 OutOpaqueRoughRefractionSceneColor : SV_Target1
+	, out float3 OutSubSurfaceSceneColor : SV_Target2
+#endif
 	)
 {
 	const float2 PixelPos = SVPos.xy;
 	OutColor = 0;
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	OutOpaqueRoughRefractionSceneColor = 0;
+	OutSubSurfaceSceneColor = 0;
+#endif
 
 	// Convert input data (directional/local light)
 	FInputParams InputParams = (FInputParams)0;
@@ -259,7 +267,6 @@ void DeferredLightPixelMain(
 			LightMask = GetLocalLightAttenuation(DerivedParams.TranslatedWorldPosition, LightData, ToLight, L);
 		}
 
-		float4 Radiance = 0;
 		if (LightMask > 0)
 		{
 			FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
@@ -272,7 +279,7 @@ void DeferredLightPixelMain(
 			GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity,
 				LightData, DerivedParams.TranslatedWorldPosition, L, LightAttenuation, Dither, ShadowTerms);
 
-			Radiance = StrataDeferredLighting(
+			FStrataDeferredLighting StrataLighting = StrataDeferredLighting(
 				LightData,
 				V,
 				L,
@@ -282,7 +289,14 @@ void DeferredLightPixelMain(
 				Strata.MaterialTextureArray,
 				StrataAddressing,
 				StrataPixelHeader);
+
+			OutColor += StrataLighting.SceneColor;
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+			OutOpaqueRoughRefractionSceneColor += StrataLighting.OpaqueRoughRefractionSceneColor;
+			OutSubSurfaceSceneColor += StrataLighting.SubSurfaceSceneColor;
+#endif
 		}
+	}
 
 #else // STRATA_ENABLED
 
@@ -313,15 +327,20 @@ void DeferredLightPixelMain(
 
 		float4 Radiance = GetDynamicLighting(DerivedParams.TranslatedWorldPosition, DerivedParams.CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InputParams.ScreenUV), Dither, uint2(InputParams.PixelPos), SurfaceShadow);
 
-#endif // STRATA_ENABLED
-
 		OutColor += Radiance;
 	}
+
+#endif // STRATA_ENABLED
 
 	// RGB:SceneColor Specular and Diffuse
 	// A:Non Specular SceneColor Luminance
 	// So we need PreExposure for both color and alpha
 	OutColor.rgba *= GetExposure();
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED 
+	// Idem
+	OutOpaqueRoughRefractionSceneColor *= GetExposure();
+	OutSubSurfaceSceneColor *= GetExposure();
+#endif
 }
 #endif
 

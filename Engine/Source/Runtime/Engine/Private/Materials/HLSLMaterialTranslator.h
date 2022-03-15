@@ -432,6 +432,7 @@ protected:
 	FStrataOperator* StrataMaterialRootOperator;
 	uint32 StrataMaterialBSDFCount;
 	bool bStrataUsesConversionFromLegacy;
+	bool bStrataOutputsOpaqueRoughRefractions;
 
 	/** Tracks the total number of vt samples in the shader. */
 	uint32 NumVtSamples;

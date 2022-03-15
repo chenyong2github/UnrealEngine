@@ -571,6 +571,30 @@ bool IsStrataMaterial(FStrataTopLayerData In)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Opaque rough refractions
+
+struct FStrataOpaqueRoughRefractionData
+{
+	bool	OpaqueRoughRefractionEnabled;
+	float	Variance;
+};
+
+float StrataPackOpaqueRoughRefractionData(FStrataOpaqueRoughRefractionData In)
+{
+	float Value = In.OpaqueRoughRefractionEnabled && In.Variance > 0.0f ? 128.0f : 0.0f;
+	Value += In.OpaqueRoughRefractionEnabled ? In.Variance * 127.0f : 0.0f;
+	return Value / 255.0f;
+}
+
+FStrataOpaqueRoughRefractionData StrataUnpackOpaqueRoughRefractionData(float In)
+{
+	FStrataOpaqueRoughRefractionData Out = (FStrataOpaqueRoughRefractionData)0;
+	Out.OpaqueRoughRefractionEnabled = In >= 128.0f;
+	Out.Variance = (In) * (1.0f / 255.0f) - (128.0f / 255.0f); 
+	return Out;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Sub-surface 
 
 struct FStrataSubsurfaceData
@@ -2614,7 +2638,8 @@ void PackStrataOut(
 	inout bool bStrataSubsurfaceEnable,
 	inout float3 EmissiveColor,
 	inout FStrataSubsurfaceData SSSData,
-	inout FStrataTopLayerData TopLayerData)
+	inout FStrataTopLayerData TopLayerData,
+	inout FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData)
 {
 	// This only exists with inline shading and when we are going to write out BSDFs (UpdateAllXXX functions needs to be defined)
 #if STRATA_INLINE_SHADING && STRATA_CLAMPED_BSDF_COUNT > 0
@@ -2628,6 +2653,7 @@ void PackStrataOut(
 	// This avoid to run a post-basepass which would re-read all the material data
 	SSSData = (FStrataSubsurfaceData)0;
 	TopLayerData = (FStrataTopLayerData)0;
+	OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
 
 	SetIsSimpleMaterial(StrataPixelHeader, true); // non strata material or sky pixels are considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
 	SetIsSingleMaterial(StrataPixelHeader, true); // non strata material or sky pixels are considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
@@ -2684,6 +2710,8 @@ void PackStrataOut(
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
 
+						OpaqueRoughRefractionData.Variance += BSDF.TopLayerDataWeight * StrataLobeRoughnessToVariance(SLAB_ROUGHNESS(BSDF));
+
 						const bool bIsThin = BSDF_GETISTHIN(BSDF);
 						const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
 						bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (BSDF_GETHASSSS(BSDF) && BSDF.Coverage > 0.0f && !bIsSimpleVolume && !bIsThin); // Should it be coverage>0 or any(LuminanceWeight>0) ?
@@ -2701,6 +2729,8 @@ void PackStrataOut(
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
 
+						OpaqueRoughRefractionData.Variance += BSDF.TopLayerDataWeight * StrataLobeRoughnessToVariance(SLAB_ROUGHNESS(BSDF));
+
 						break;
 					}
 
@@ -2711,6 +2741,8 @@ void PackStrataOut(
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLW_ROUGHNESS(BSDF);
+
+						OpaqueRoughRefractionData.Variance += BSDF.TopLayerDataWeight * StrataLobeRoughnessToVariance(SLAB_ROUGHNESS(BSDF));
 
 						break;
 					}
@@ -2738,6 +2770,8 @@ void PackStrataOut(
 		// Finalize top layer data
 		TopLayerData.WorldNormal= TopLayerTotalWeight > 0.0f	? normalize(TopLayerData.WorldNormal)			: 0.0f;
 		TopLayerData.Roughness	= TopLayerTotalWeight > 0.0f	? TopLayerData.Roughness / TopLayerTotalWeight	: 0.0f;
+
+		OpaqueRoughRefractionData.Variance = TopLayerTotalWeight > 0.0f ? OpaqueRoughRefractionData.Variance / TopLayerTotalWeight : 0.0f;
 
 		// Set storage layout as either: fast(0), single(1), or complex(2)
 		AndIsSimpleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
