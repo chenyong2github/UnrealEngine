@@ -22,9 +22,8 @@ public:
 private:
 
 	TSharedRef<SWidget> MakeToolbar(const TSharedRef<FUICommandList>& UICommandList);
-
-	TObjectPtr<UIKRetargeterController> Controller;
-	void GetAssetController(IDetailLayoutBuilder& DetailBuilder);
+	
+	TObjectPtr<UIKRetargeterController> GetAssetControllerFromSelectedObjects(IDetailLayoutBuilder& DetailBuilder) const;
 
 	TArray<TSharedPtr<FName>> PoseNames;
 };
