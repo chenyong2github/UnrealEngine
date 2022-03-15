@@ -167,7 +167,7 @@ void FRuntimeAssetCacheAsyncWorker::DoWork()
 	bEntryRetrieved = true;
 }
 
-TStatId FRuntimeAssetCacheAsyncWorker::GetStatId()
+TStatId FRuntimeAssetCacheAsyncWorker::GetStatId() const
 {
 	return TStatId();
 }

@@ -36,7 +36,7 @@ public:
 
 	/** Async task interface implementation. */
 	void DoWork();
-	TStatId GetStatId();
+	TStatId GetStatId() const;
 	/** End of async task interface implementation. */
 
 	/** Gets serialized cache data. */
