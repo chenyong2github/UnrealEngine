@@ -893,6 +893,8 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 		}
 
 		// Colors.
+		// @todo fix me : calling Serialize per byte = insanely slow
+		//	BmpImageWrapper now has a good writer, prefer that ; use FImageUtils::SaveImage
 		for( int32 i = SubRectangle->Max.Y - 1; i >= SubRectangle->Min.Y; i-- )
 		{
 			for( int32 j = SubRectangle->Min.X; j < SubRectangle->Max.X; j++ )

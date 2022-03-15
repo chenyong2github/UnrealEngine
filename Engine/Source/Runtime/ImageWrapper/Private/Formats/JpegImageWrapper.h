@@ -36,6 +36,9 @@ public:
 	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow = 0) override;
 	virtual void Uncompress(const ERGBFormat InFormat, int32 InBitDepth) override;
 	virtual void Compress(int32 Quality) override;
+	
+	virtual bool CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const override;
+	virtual ERawImageFormat::Type GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const override;
 
 private:
 

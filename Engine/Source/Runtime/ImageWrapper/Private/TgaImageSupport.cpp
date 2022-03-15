@@ -291,6 +291,8 @@ bool DecompressTGA_helper( const FTGAFileHeader* TgaHeader, const int64 TGABuffe
 	bool bSuccess = false;
 	if ( TgaHeader->ImageTypeCode == 10 ) // 10 = RLE compressed 
 	{
+		check( TextureDataSize == TgaHeader->Width * TgaHeader->Height * 4 );
+
 		// RLE compression: CHUNKS: 1 -byte header, high bit 0 = raw, 1 = compressed
 		// bits 0-6 are a 7-bit count; count+1 = number of raw pixels following, or rle pixels to be expanded. 
 		if(TgaHeader->BitsPerPixel == 32)
@@ -313,6 +315,8 @@ bool DecompressTGA_helper( const FTGAFileHeader* TgaHeader, const int64 TGABuffe
 	}
 	else if(TgaHeader->ImageTypeCode == 2) // 2 = Uncompressed RGB
 	{
+		check( TextureDataSize == TgaHeader->Width * TgaHeader->Height * 4 );
+
 		if(TgaHeader->BitsPerPixel == 32)
 		{
 			bSuccess = TgaImageSupportImpl::DecompressTGA_32bpp(TgaHeader, TGABufferLenght, TextureData);
@@ -334,11 +338,15 @@ bool DecompressTGA_helper( const FTGAFileHeader* TgaHeader, const int64 TGABuffe
 	// Support for alpha stored as pseudo-color 8-bit TgaHeader
 	else if(TgaHeader->ColorMapType == 1 && TgaHeader->ImageTypeCode == 1 && TgaHeader->BitsPerPixel == 8)
 	{
+		check( TextureDataSize == TgaHeader->Width * TgaHeader->Height * 1 );
+
 		bSuccess = TgaImageSupportImpl::DecompressTGA_8bpp(TgaHeader, TGABufferLenght, (uint8*)TextureData);
 	}
 	// standard grayscale
 	else if(TgaHeader->ColorMapType == 0 && TgaHeader->ImageTypeCode == 3 && TgaHeader->BitsPerPixel == 8)
 	{
+		check( TextureDataSize == TgaHeader->Width * TgaHeader->Height * 1 );
+
 		bSuccess = TgaImageSupportImpl::DecompressTGA_8bpp(TgaHeader, TGABufferLenght, (uint8*)TextureData);
 	}
 	else
@@ -364,6 +372,8 @@ bool DecompressTGA_helper( const FTGAFileHeader* TgaHeader, const int64 TGABuffe
 		int32 NumBlocksX = TgaHeader->Width;
 		int32 NumBlocksY = TgaHeader->Height;
 		int32 BlockBytes = TgaHeader->BitsPerPixel == 8 ? 1 : 4;
+		
+		check( TextureDataSize == NumBlocksX * NumBlocksY * BlockBytes );
 
 		uint8* MipData = (uint8*)TextureData;
 

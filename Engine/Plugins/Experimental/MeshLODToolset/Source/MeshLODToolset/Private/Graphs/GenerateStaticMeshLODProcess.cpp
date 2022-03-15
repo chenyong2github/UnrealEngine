@@ -513,7 +513,7 @@ int UGenerateStaticMeshLODProcess::SelectTextureToBake(const TArray<FTextureInfo
 #if WITH_EDITORONLY_DATA
 			// Texture has multiple channels
 			ETextureSourceFormat Format = Tex2D->Source.GetFormat();
-			if (Format == TSF_BGRA8 || Format == TSF_BGRE8 || Format == TSF_RGBA16 || Format == TSF_RGBA16F)
+			if (Format == TSF_BGRA8 || Format == TSF_BGRE8 || Format == TSF_RGBA16 || Format == TSF_RGBA16F || Format == TSF_RGBA32F)
 			{
 				++TextureVotes[TextureIndex];
 			}

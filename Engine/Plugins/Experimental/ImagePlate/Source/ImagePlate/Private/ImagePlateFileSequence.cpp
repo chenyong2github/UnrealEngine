@@ -17,7 +17,7 @@
 #include "Engine/Texture2DDynamic.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Textures/SlateTextureData.h"
-
+#include "ImageUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogImagePlateFileSequence, Log, Warning);
 
@@ -551,47 +551,38 @@ namespace ImagePlateFrameCache
 	/** Load an image file into CPU memory */
 	FImagePlateSourceFrame LoadFileData(FString FilenameToLoad, int32 FrameNumber)
 	{
-		// Start at 100k
-		TArray64<uint8> SourceFileData;
-		SourceFileData.Reserve(1024*100);
-		if (!FFileHelper::LoadFileToArray(SourceFileData, *FilenameToLoad))
+		FImage Image;
+		if ( ! FImageUtils::LoadImage(*FilenameToLoad,Image) )
 		{
 			UE_LOG(LogImagePlateFileSequence, Warning, TEXT("Failed to load file data from '%s'"), *FilenameToLoad);
 			return FImagePlateSourceFrame();
 		}
+		
+		// this module only handles these formats :
+		//case 16: Texture2DDynamic->Format = PF_FloatRGBA; break;
+		//case 8: Texture2DDynamic->Format = PF_R8G8B8A8; break;
+		int BitDepth;
 
-		IImageWrapperModule& ImageWrapperModule = FModuleManager::GetModuleChecked<IImageWrapperModule>("ImageWrapper");
-
-		EImageFormat ImageType = ImageWrapperModule.DetectImageFormat(SourceFileData.GetData(), SourceFileData.Num());
-		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(ImageType);
-
-		if (!ImageWrapper.IsValid())
+		if ( ERawImageFormat::IsHDR(Image.Format) )
 		{
-			UE_LOG(LogImagePlateFileSequence, Warning, TEXT("File '%s' is not a supported image type."), *FilenameToLoad);
-			return FImagePlateSourceFrame();
-		}
-
-		ImageWrapper->SetCompressed(SourceFileData.GetData(), SourceFileData.Num());
-
-		int32 SourceBitDepth = ImageWrapper->GetBitDepth();
-		TArray64<uint8> RawImageData;
-		if (ImageWrapper->GetRaw(ERGBFormat::RGBA, SourceBitDepth, RawImageData))
-		{
-			// BMP image wrappers supply the bitdepth per pixel, rather than per-channel
-			SourceBitDepth = ImageType == EImageFormat::BMP ? ImageWrapper->GetBitDepth() / 4 : ImageWrapper->GetBitDepth();
-
-			return FImagePlateSourceFrame(
-				RawImageData,
-				ImageWrapper->GetWidth(),
-				ImageWrapper->GetHeight(),
-				SourceBitDepth
-			);
+			Image.ChangeFormat(ERawImageFormat::RGBA16F,EGammaSpace::Linear);
+			BitDepth = 16;
 		}
 		else
 		{
-			UE_LOG(LogImagePlateFileSequence, Warning, TEXT("Failed to get raw rgba data from image file '%s'."), *FilenameToLoad);
-			return FImagePlateSourceFrame();
+			Image.ChangeFormat(ERawImageFormat::BGRA8,EGammaSpace::sRGB);
+
+			// this module wants RGBA not BGRA :
+			FImageCore::TransposeImageRGBABGRA(Image);
+
+			BitDepth = 8;
 		}
+
+		return FImagePlateSourceFrame(
+			MoveTemp(Image.RawData),
+			Image.SizeX,
+			Image.SizeY,
+			BitDepth);
 	}
 
 	class FFrameLoadingThread : FRunnable

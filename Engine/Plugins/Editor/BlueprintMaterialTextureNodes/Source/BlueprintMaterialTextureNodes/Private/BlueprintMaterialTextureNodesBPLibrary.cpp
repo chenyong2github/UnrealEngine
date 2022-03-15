@@ -24,6 +24,8 @@
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialShared.h"
+#include "ImageCore.h"
+#include "ImageCoreUtils.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintMaterialTextureLibrary"
 
@@ -80,47 +82,16 @@ FLinearColor UBlueprintMaterialTextureNodesBPLibrary::Texture2D_SampleUV_EditorO
 		{
 			FTextureSource& TextureSource = Texture->Source;
 
+			// gets a copy of the whole mip to sample one pixel :
 			TArray64<uint8> SourceData;
 			Texture->Source.GetMipData(SourceData, Mip);
 			ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
 			int32 Index = ((Y * MipWidth) + X) * TextureSource.GetBytesPerPixel();
-
-			if ((SourceFormat == TSF_BGRA8 || SourceFormat == TSF_BGRE8))
-			{
-				FColor OutSourceColor;
-				const uint8* PixelPtr = SourceData.GetData() + Index;
-				OutSourceColor = *((FColor*)PixelPtr);
-				if (Texture->SRGB)
-				{
-					return	FLinearColor::FromSRGBColor(OutSourceColor);
-				}
-
-				return FLinearColor(float(OutSourceColor.R), float(OutSourceColor.G), float(OutSourceColor.B), float(OutSourceColor.A)) / 255.0f;
-
-			}
-			else if ((SourceFormat == TSF_RGBA16 || SourceFormat == TSF_RGBA16F))
-			{
-				FFloat16Color OutSourceColor;
-				const uint8* PixelPtr = SourceData.GetData() + Index;
-				OutSourceColor = *((FFloat16Color*)PixelPtr);
-
-				return FLinearColor(float(OutSourceColor.R), float(OutSourceColor.G), float(OutSourceColor.B), float(OutSourceColor.A));
-			}
-			else if (SourceFormat == TSF_G8)
-			{
-				FColor OutSourceColor;
-				const uint8* PixelPtr = SourceData.GetData() + Index;
-				const uint8 value = *PixelPtr;
-				if (Texture->SRGB)
-				{
-					return FLinearColor::FromSRGBColor(FColor(float(value), 0, 0, 0));
-				}
-
-				return FLinearColor(float(value), 0, 0, 0);
-
-			}
-
-			FMessageLog("Blueprint").Warning(LOCTEXT("Texture2D_SampleUV_InvalidFormat", "Texture2D_SampleUV_EditorOnly: Source was unavailable or of unsupported format."));
+			const uint8* PixelPtr = SourceData.GetData() + Index;
+			
+			ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(SourceFormat);
+			FLinearColor Color = ERawImageFormat::GetOnePixelLinear(PixelPtr,RawFormat,Texture->SRGB);
+			return Color;
 		}
 
 	}

@@ -183,6 +183,34 @@ int32 GetChannelNames(ERGBFormat InRGBFormat, const char* const*& OutChannelName
 	return ChannelCount;
 }
 
+
+bool FExrImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
+{
+	return (InFormat == ERGBFormat::RGBAF || InFormat == ERGBFormat::GrayF) && (InBitDepth == 16 || InBitDepth == 32);
+}
+
+ERawImageFormat::Type FExrImageWrapper::GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const
+{
+	switch(InFormat)
+	{
+	case ERawImageFormat::RGBA16F:
+	case ERawImageFormat::RGBA32F:
+	case ERawImageFormat::R16F:
+		return InFormat; // directly supported
+	case ERawImageFormat::G8:
+		return ERawImageFormat::R16F; // needs conversion
+	case ERawImageFormat::BGRA8:
+	case ERawImageFormat::BGRE8:
+		return ERawImageFormat::RGBA16F; // needs conversion
+	case ERawImageFormat::G16:
+	case ERawImageFormat::RGBA16:
+		return ERawImageFormat::RGBA32F; // needs conversion
+	default:
+		check(0);
+		return ERawImageFormat::BGRA8;
+	}
+}
+
 bool FExrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
 {
 	check(InRawData);
@@ -190,6 +218,11 @@ bool FExrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int3
 	check(InWidth > 0);
 	check(InHeight > 0);
 	check(InBytesPerRow >= 0);
+
+	// FExrImageWrapper used to take RGBA 8-bit input
+	//	 and write it linearly
+	// the new image path now requires you to convert to float before coming in here
+	// so U8 will be converted to float *with* gamma correction
 
 	switch (InBitDepth)
 	{
@@ -294,6 +327,7 @@ void FExrImageWrapper::Compress(int32 Quality)
 	if (RawBitDepth == 8)
 	{
 		// uint8 channels are linearly converted into FFloat16 channels.
+		// note: NO GAMMA CORRECTION
 		ConvertedRawData.SetNumUninitialized(sizeof(FFloat16) * RawData.Num());
 		FFloat16* Output = reinterpret_cast<FFloat16*>(ConvertedRawData.GetData());
 		for (int64 i = 0; i < RawData.Num(); ++i)
@@ -404,7 +438,7 @@ void FExrImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDe
 
 	const char* const* ChannelNames;
 	int32 ChannelCount = GetChannelNames(InFormat, ChannelNames);
-	check(ChannelCount);
+	check(ChannelCount == 1 || ChannelCount == 4);
 
 	TArray<TArray64<uint8>> ChannelData;
 	ChannelData.SetNum(ChannelCount);

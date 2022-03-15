@@ -1979,17 +1979,15 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 					Size = FIntVector(NewWidth, NewHeight, 0);
 				}
 
-				if (!FPaths::GetExtension(ScreenShotName).IsEmpty())
+				if ( FPaths::GetExtension(ScreenShotName).IsEmpty() )
 				{
-					ScreenShotName = FPaths::GetBaseFilename(ScreenShotName, false);
 					ScreenShotName += TEXT(".png");
 				}
 
 				// Save the contents of the array to a png file.
-				TArray64<uint8> CompressedBitmap;
-				FImageUtils::PNGCompressImageArray(Size.X, Size.Y, Bitmap, CompressedBitmap);
-				bIsScreenshotSaved = FFileHelper::SaveArrayToFile(CompressedBitmap, *ScreenShotName);
-
+				
+				FImageView Image((const FColor *)Bitmap.GetData(),Size.X,Size.Y);
+				bIsScreenshotSaved = FImageUtils::SaveImageByExtension(*ScreenShotName,Image);
 			}
 		}
 

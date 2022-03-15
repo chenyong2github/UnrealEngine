@@ -50,6 +50,7 @@
 #include "EditorLevelUtils.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
+#include "ImageCoreUtils.h"
 
 extern FSwarmDebugOptions GSwarmDebugOptions;
 
@@ -1139,10 +1140,10 @@ void FLightmassExporter::WriteLights( int32 Channel )
 				RectData.SourceTextureSizeX = SizeX;
 				RectData.SourceTextureSizeY = SizeY;
 
-				while( SizeX > 1 || SizeY > 1 )
+				ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(Format);
+
+				if ( SizeX > 1 || SizeY > 1 )
 				{
-					//int32 i = SourceTexture.AddUninitialized( SizeX * SizeY );
-					
 					TArray64< uint8 > MipData;
 					Source.GetMipData( MipData, MipLevel );
 
@@ -1150,45 +1151,13 @@ void FLightmassExporter::WriteLights( int32 Channel )
 					uint8* PixelEnd = Pixel + MipData.Num();
 					while( Pixel < PixelEnd )
 					{
-						if( Format == TSF_RGBA16 || Format == TSF_RGBA16F )
-						{
-							//SourceTexture[ i++ ] = *(FFloat16Color*)Pixel;
-							RectData.SourceTextureAvgColor += FLinearColor( *(FFloat16Color*)Pixel );
-						}
-						else
-						{
-							FColor Color = FColor( Pixel[0], Pixel[0], Pixel[0] );
-							if( Format == TSF_BGRA8 || Format == TSF_BGRE8 )
-							{
-								Color = *(FColor*)Pixel;
-							}
-
-							FLinearColor LinearColor;
-							if( SRGB )
-							{
-								LinearColor = FLinearColor( Color );
-							}
-							else
-							{
-								LinearColor.R = float( Color.R ) / 255.0f;
-								LinearColor.G = float( Color.G ) / 255.0f;
-								LinearColor.B = float( Color.B ) / 255.0f;
-							}
-							
-							//SourceTexture[ i++ ] = FFloat16Color( LinearColor );
-							RectData.SourceTextureAvgColor += LinearColor;
-						}
+						FLinearColor Color = ERawImageFormat::GetOnePixelLinear(Pixel,RawFormat,SRGB);
+						RectData.SourceTextureAvgColor += Color;
 
 						Pixel += BytesPerPixel;
 					}
 
-					// Source doesn't often have mips just average color for now.
 					RectData.SourceTextureAvgColor *= 1.0f / ( SizeX * SizeY );
-					break;
-					
-					SizeX = SizeX > 1 ? SizeX >> 1 : 1;
-					SizeY = SizeY > 1 ? SizeY >> 1 : 1;
-					MipLevel++;
 				}
 			}
 		}

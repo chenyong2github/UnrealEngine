@@ -12,80 +12,6 @@
 #include "Modules/ModuleManager.h"
 #include "IImageWrapperModule.h"
 
-struct FGlobalImageWrappers
-{
-	IImageWrapper* FindOrCreateImageWrapper(EImageFormat InFormat)
-	{
-		FScopeLock ScopeLock(&ImageWrappersCriticalSection);
-
-		// Try and find an available image wrapper of the correct format first
-		for (int32 Index = 0; Index < AvailableImageWrappers.Num(); ++Index)
-		{
-			if (AvailableImageWrappers[Index].Get<0>() == InFormat)
-			{
-				IImageWrapper* Wrapper = AvailableImageWrappers[Index].Get<1>();
-				AvailableImageWrappers.RemoveAtSwap(Index, 1, false);
-				return Wrapper;
-			}
-		}
-
-		// Create a new one if none other could be used
-		IImageWrapperModule* ImageWrapperModule = FModuleManager::GetModulePtr<IImageWrapperModule>("ImageWrapper");
-		if (!ensure(ImageWrapperModule))
-		{
-			return nullptr;
-		}
-
-		TSharedPtr<IImageWrapper> NewImageWrapper = ImageWrapperModule->CreateImageWrapper(InFormat);
-		if (!ensureMsgf(NewImageWrapper.IsValid(), TEXT("Unable to create an image wrapper for the desired format.")))
-		{
-			return nullptr;
-		}
-
-		AllImageWrappers.Add(MakeTuple(InFormat, NewImageWrapper.ToSharedRef()));
-		return NewImageWrapper.Get();
-	}
-
-	void ReturnImageWrapper(IImageWrapper* InWrapper)
-	{
-		FScopeLock ScopeLock(&ImageWrappersCriticalSection);
-
-		// Try and find an available image wrapper of the correct format first
-		for (const TTuple<EImageFormat, TSharedRef<IImageWrapper>>& Pair : AllImageWrappers)
-		{
-			if (&Pair.Get<1>().Get() == InWrapper)
-			{
-				AvailableImageWrappers.Add(MakeTuple(Pair.Get<0>(), InWrapper));
-				return;
-			}
-		}
-
-		checkf(false, TEXT("Unable to find image wrapper in list of owned wrappers - this is invalid"));
-	}
-
-private:
-	FCriticalSection ImageWrappersCriticalSection;
-	TArray< TTuple<EImageFormat, IImageWrapper*> > AvailableImageWrappers;
-	TArray< TTuple<EImageFormat, TSharedRef<IImageWrapper>> > AllImageWrappers;
-} GImageWrappers;
-
-
-
-static const TCHAR* GetFormatExtension(EImageFormat InImageFormat)
-{
-	switch (InImageFormat)
-	{
-	case EImageFormat::PNG:           return TEXT(".png");
-	case EImageFormat::JPEG:          return TEXT(".jpg");
-	case EImageFormat::GrayscaleJPEG: return TEXT(".jpg");
-	case EImageFormat::BMP:           return TEXT(".bmp");
-	case EImageFormat::ICO:           return TEXT(".ico");
-	case EImageFormat::EXR:           return TEXT(".exr");
-	case EImageFormat::ICNS:          return TEXT(".icns");
-	}
-	return nullptr;
-}
-
 bool FImageWriteTask::RunTask()
 {
 	bool bSuccess = WriteToDisk();
@@ -106,46 +32,10 @@ void FImageWriteTask::OnAbandoned()
 	}
 }
 
-bool FImageWriteTask::InitializeWrapper(IImageWrapper* InWrapper, EImageFormat WrapperFormat)
-{
-	const void* RawPtr = nullptr;
-	int64 SizeBytes = 0;
-
-	if (PixelData->GetRawData(RawPtr, SizeBytes))
-	{
-		uint8      BitDepth    = PixelData->GetBitDepth();
-		FIntPoint  Size        = PixelData->GetSize();
-		ERGBFormat PixelLayout = PixelData->GetPixelLayout();
-
-		return InWrapper->SetRaw(RawPtr, SizeBytes, Size.X, Size.Y, PixelLayout, BitDepth);
-	}
-
-	return false;
-}
-
-bool FImageWriteTask::WriteBitmap()
-{
-	uint8      NumChannels = PixelData->GetNumChannels();
-	uint8      BitDepth    = PixelData->GetBitDepth();
-	FIntPoint  Size        = PixelData->GetSize();
-
-	if (BitDepth != 8 || NumChannels != 4)
-	{
-		return false;
-	}
-
-	const void* RawPtr = nullptr;
-	int64 SizeBytes = 0;
-
-	if (PixelData->GetRawData(RawPtr, SizeBytes))
-	{
-		return FFileHelper::CreateBitmap(*Filename, Size.X, Size.Y, static_cast<const FColor*>(RawPtr));
-	}
-	return false;
-}
-
 void FImageWriteTask::PreProcess()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ImageWriteTask.PreProcess);
+	
 	for (const FPixelPreProcessor& PreProcessor : PixelPreProcessors)
 	{
 		// PreProcessors are assumed to be valid. Fetch the Data pointer each time
@@ -157,11 +47,16 @@ void FImageWriteTask::PreProcess()
 
 bool FImageWriteTask::WriteToDisk()
 {
-	// Ensure that the payload filename has the correct extension for the format (have to special case jpeg since they can be both *.jpg and *.jpeg)
-	const TCHAR* FormatExtension = GetFormatExtension(Format);
-	if (FormatExtension && !Filename.EndsWith(FormatExtension) && (Format != EImageFormat::JPEG || !Filename.EndsWith(TEXT(".jpeg"))))
+	TRACE_CPUPROFILER_EVENT_SCOPE(ImageWriteTask.WriteToDisk);
+
+	static FName ImageWrapperName("ImageWrapper");
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(ImageWrapperName);
+		
+	// Ensure that the payload filename has the correct extension for the format
+	if ( ImageWrapperModule.GetImageFormatFromExtension(*Filename) != Format )
 	{
-		Filename = FPaths::GetBaseFilename(Filename, false) + FormatExtension;
+		const TCHAR* FormatExtension = ImageWrapperModule.GetExtension(Format);
+		Filename = FPaths::GetBaseFilename(Filename, false) + TEXT('.') + FormatExtension;
 	}
 
 	bool bSuccess = EnsureWritableFile();
@@ -169,43 +64,41 @@ bool FImageWriteTask::WriteToDisk()
 	if (bSuccess)
 	{
 		PreProcess();
-
-		// bitmap support with IImageWrapper is flaky so it needs its own codepath for now
-		if (Format == EImageFormat::BMP)
+		
+		FImagePixelData* Data = PixelData.Get();
+		FImageView Image = Data->GetImageView();
+		if ( Image.RawData == nullptr )
 		{
-			bSuccess = WriteBitmap();
+			UE_LOG(LogImageWriteQueue, Error, TEXT("Failed to write image to '%s'. Couldn't get pixels."), *Filename);
+			return false;
+		}
+
+		TArray64<uint8> CompressedFile;
+		if ( ! ImageWrapperModule.CompressImage(CompressedFile,Format,Image,CompressionQuality) )
+		{
+			UE_LOG(LogImageWriteQueue, Error, TEXT("Failed to write image to '%s'. CompressImage failed."), *Filename);
+			return false;
+		}
+		
+		uint64 TotalNumberOfBytes, NumberOfFreeBytes;
+		if (FPlatformMisc::GetDiskTotalAndFreeSpace(FPaths::GetPath(Filename), TotalNumberOfBytes, NumberOfFreeBytes))
+		{
+			const uint64 HeadRoom = 1024*1024;
+			if (NumberOfFreeBytes < (uint64)CompressedFile.Num() + HeadRoom)
+			{
+				UE_LOG(LogImageWriteQueue, Error, TEXT("Failed to write image to '%s'. There is not enough free space on the disk."), *Filename);
+				return false;
+			}
 		}
 		else
 		{
-			IImageWrapper* ImageWrapper = GImageWrappers.FindOrCreateImageWrapper(Format);
-			if (ImageWrapper)
-			{
-				if (InitializeWrapper(ImageWrapper, Format))
-				{
-					const TArray64<uint8> CompressedFile = ImageWrapper->GetCompressed(CompressionQuality);
-					uint64 TotalNumberOfBytes, NumberOfFreeBytes;
-					if (FPlatformMisc::GetDiskTotalAndFreeSpace(FPaths::GetPath(Filename), TotalNumberOfBytes, NumberOfFreeBytes))
-					{
-						if (NumberOfFreeBytes < (uint64)CompressedFile.Num() + 4096)
-						{
-							UE_LOG(LogImageWriteQueue, Error, TEXT("Failed to write image to '%s'. There is not enough free space on the disk."), *Filename);
-							return false;
-						}
-					}
-					else
-					{
-						uint32 ErrorCode = FPlatformMisc::GetLastError();
-						TCHAR ErrorBuffer[1024];
-						FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
-						UE_LOG(LogImageWriteQueue, Warning, TEXT("Failed to check free space for %s. Error: %u (%s)"), *FPaths::GetPath(Filename), ErrorCode, ErrorBuffer);
-					}
-					IFileManager* FileManager = &IFileManager::Get();
-					bSuccess = FFileHelper::SaveArrayToFile(CompressedFile, *Filename);
-				}
-
-				GImageWrappers.ReturnImageWrapper(ImageWrapper);
-			}
+			uint32 ErrorCode = FPlatformMisc::GetLastError();
+			TCHAR ErrorBuffer[1024];
+			FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+			UE_LOG(LogImageWriteQueue, Warning, TEXT("Failed to check free space for %s. Error: %u (%s)"), *FPaths::GetPath(Filename), ErrorCode, ErrorBuffer);
 		}
+
+		bSuccess = FFileHelper::SaveArrayToFile(CompressedFile, *Filename);
 	}
 
 	if (!bSuccess)

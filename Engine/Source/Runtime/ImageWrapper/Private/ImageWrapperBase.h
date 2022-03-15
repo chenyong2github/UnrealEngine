@@ -48,6 +48,8 @@ public:
 	 * Compresses the data.
 	 *
 	 * @param Quality The compression quality.
+	 * 
+	 * returns void. call SetError() in your implementation if you fail.
 	 */
 	virtual void Compress(int32 Quality) = 0;
 
@@ -61,12 +63,14 @@ public:
 	 *
 	 * @param ErrorMessage The error message to set.
 	 */
-	virtual void SetError(const TCHAR* ErrorMessage);
+	void SetError(const TCHAR* ErrorMessage);
 
 	/**  
 	 * Function to uncompress our data 
 	 *
 	 * @param InFormat How we want to manipulate the RGB data
+	 * 
+	 * returns void. call SetError() in your implementation if you fail.
 	 */
 	virtual void Uncompress(const ERGBFormat InFormat, int32 InBitDepth) = 0;
 
@@ -98,19 +102,19 @@ public:
 		return Width;
 	}
 
-	virtual int32 GetNumFrames() const override
+	virtual int32 GetNumFrames_DEPRECATED() const override
 	{
-		return NumFrames;
+		return NumFrames_DEPRECATED;
 	}
 	
-	virtual int32 GetFramerate() const override
+	virtual int32 GetFramerate_DEPRECATED() const override
 	{
-		return Framerate;
+		return Framerate_DEPRECATED;
 	}
 
 	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
 	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow = 0) override;
-	virtual bool SetAnimationInfo(int32 InNumFrames, int32 InFramerate) override;
+	virtual bool SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate) override;
 
 protected:
 
@@ -136,8 +140,8 @@ protected:
 	int32 Height;
 	
 	/** Animation information */
-	int32 NumFrames;
-	int32 Framerate;
+	int32 NumFrames_DEPRECATED;
+	int32 Framerate_DEPRECATED;
 
 	/** Last Error Message. */
 	FString LastError;

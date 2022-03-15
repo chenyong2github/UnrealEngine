@@ -8,6 +8,7 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "ImageCore.h"
+#include "ImageCoreUtils.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
 #include "Memory/CompositeBuffer.h"
@@ -176,18 +177,7 @@ static void ReadOutputSettingsFromCompactBinary(const FCbObjectView& Object, int
 
 static ERawImageFormat::Type ComputeRawImageFormat(ETextureSourceFormat SourceFormat)
 {
-	switch (SourceFormat)
-	{
-	case TSF_G8:		return ERawImageFormat::G8;
-	case TSF_G16:		return ERawImageFormat::G16;
-	case TSF_BGRA8:		return ERawImageFormat::BGRA8;
-	case TSF_BGRE8:		return ERawImageFormat::BGRE8;
-	case TSF_RGBA16:	return ERawImageFormat::RGBA16;
-	case TSF_RGBA16F:	return ERawImageFormat::RGBA16F;
-	default:
-		checkf(false, TEXT("Invalid source texture format encountered: %d."), SourceFormat);
-		return ERawImageFormat::G8;
-	}
+	return FImageCoreUtils::ConvertToRawImageFormat(SourceFormat);
 }
 
 static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::DerivedData::FBuildContext& Context, TArray<FImage>& OutMips)

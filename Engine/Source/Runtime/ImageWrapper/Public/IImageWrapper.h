@@ -6,7 +6,7 @@
 #include "Containers/ArrayView.h"
 #include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
-
+#include "ImageCore.h"
 
 /**
  * Enumerates the types of image formats this class can handle.
@@ -79,6 +79,12 @@ enum class ERGBFormat : int8
  * Enumerates available image compression qualities.
  * 
  * JPEG interprets Quality as 1-100
+ * JPEG default quality is 85 , Uncompressed means 100
+ * 
+ * Negative qualities set PNG zlib level
+ * PNG interprets "Uncompressed" as zlib level 0 (none)
+ * 
+ * EXR respects the "Uncompressed" flag
  */
 enum class EImageCompressionQuality : uint8
 {
@@ -89,22 +95,35 @@ enum class EImageCompressionQuality : uint8
 
 /**
  * Interface for image wrappers.
+ *
+ * to Encode:
+ *	SetRaw() then GetCompressed()
+ * to Decode :
+ *  SetCompressed() then GetRaw()
+ *
+ * in general, direct use of the IImageWrapper interface is now discouraged
+ * use ImageWrapperModule CompressImage/DecompressImage instead.
  */
 class IImageWrapper
 {
 public:
 
+
 	/**  
-	 * Sets the compressed data.
+	 * Sets the compressed data.  Can then call GetRaw().
 	 *
 	 * @param InCompressedData The memory address of the start of the compressed data.
 	 * @param InCompressedSize The size of the compressed data parsed.
 	 * @return true if data was the expected format.
+	 * 
+	 * after SetCompressed, image info queries like GetWidth and GetBitDepth are allowed
+	 * call GetRaw to get the decoded bits
+	 * decompression is not done until GetRaw
 	 */
 	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) = 0;
 
 	/**  
-	 * Sets the compressed data.
+	 * Sets the raw image data.  Prepares to call GetCompressed() next.
 	 *
 	 * @param InRawData The memory address of the start of the raw data.
 	 * @param InRawSize The size of the compressed data parsed.
@@ -114,50 +133,59 @@ public:
 	 * @param InBitDepth the bit-depth per channel, normally 8.
 	 * @param InBytesPerRow the number of bytes between rows, 0 = tightly packed rows with no padding.
 	 * @return true if data was the expected format.
+	 * 
+	 * you must not SetRaw() with a format unless it passes CanSetRawFormat()
+	 * deprecated : avoid direct calls to SetRaw(), use ImageWrapperModule CompressImage instead
+	 * do not use InBytesPerRow, it is ignored
+	 * SetRaw does not take gamma information
+	 *  assumes U8 = SRGB and all else = Linear
 	 */
 	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow = 0) = 0;
 
-	/**
-	 * Set information for animated formats
-	 * @param InNumFrames The number of frames in the animation (the RawData from SetRaw will need to be a multiple of NumFrames)
-	 * @param InFramerate The playback rate of the animation
-	 * @return true if successful
+	/* CanSetRawFormat returns true if SetRaw will accept this format */
+	virtual bool CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const = 0;
+
+	/* returns InFormat if supported, else maps to something supported
+	 * the returned format will pass CanSetRawFormat()
 	 */
-	virtual bool SetAnimationInfo(int32 InNumFrames, int32 InFramerate) = 0;
+	virtual ERawImageFormat::Type GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const = 0;
+
 
 	/**
-	 * Gets the compressed data.
+	 * Gets the compressed data.  (call SetRaw first)
 	 * (Note: It may consume the data set in the SetCompressed function if it was set before)
 	 * 
-	 * @return Array of the compressed data.
+	 * @return Array of the compressed data.  returns empty array on failure
+	 * 
 	 */
 	virtual TArray64<uint8> GetCompressed(int32 Quality = 0) = 0;
 
 	/**
-	 * Get the raw version of the image and write to the array view
-	 * (Note: It may consume the data set in the SetRaw function if it was set before)
-	 *
-	 * @param InFormat How we want to manipulate the RGB data.
-	 * @param InBitDepth The output bit-depth per channel, normally 8.
-	 * @param OutRawData Will contain the uncompressed raw data.
-	 * @return true on success, false otherwise.
-	 */
-	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArrayView64<uint8> OutRawData)
+	* GetRaw after SetCompressed
+	* fills the raw data in the native format/depth contained in the file
+	* Do not use the GetRaw() variants that take format/depth arguments.
+	* 
+	* @param OutRawData    Filled with raw image data.
+	*
+	* prefer GetRawImage instead.
+	*/
+	bool GetRaw(TArray64<uint8>& OutRawData)
 	{
-		// Todo We should make this function virtual pure and implement this properly in each ImageWrapper
-		TArray64<uint8> TmpRawData;
-		if (GetRaw(InFormat, InBitDepth, TmpRawData))
-		{
-			if (ensureMsgf(TmpRawData.Num() == OutRawData.Num(), TEXT("The view doesn't have the proper size to receive the texture.")))
-			{
-				FPlatformMemory::Memcpy(OutRawData.GetData(), TmpRawData.GetData(), OutRawData.Num());
-				return true;
-			}
-		}
-
-		return false;
+		ERGBFormat Format = GetFormat();
+		int32 BitDepth = GetBitDepth();
+		return GetRaw(Format,BitDepth,OutRawData);
 	}
+	
+	/* Decode the image file data from SetCompressed() into an FImage
+	* OutImage is allocated and attributes are filled
+	*	 passed-in contents of OutImage are destroyed
+	*	OutImage.Format is ignored
+	*
+	* @param OutImage	 Filled with the image
+	*/
+	bool GetRawImage(FImage & OutImage);
 
+	
 	/**  
 	 * Gets the raw data.
 	 * (Note: It may consume the data set in the SetRaw function if it was set before)
@@ -166,9 +194,12 @@ public:
 	 * @param InBitDepth The output bit-depth per channel, normally 8.
 	 * @param OutRawData Will contain the uncompressed raw data.
 	 * @return true on success, false otherwise.
+	 *
+	 * this is often broken, should only be used with InFormat == GetFormat()
+	 * DEPRECATED , use GetRaw() with 1 argument or GetRawImage()
 	 */
 	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData) = 0;
-
+	
 	/**
 	 * Gets the raw data in a TArray. Only use this if you're certain that the image is less than 2 GB in size.
 	 * Prefer using the overload which takes a TArray64 in general.
@@ -178,6 +209,9 @@ public:
 	 * @param InBitDepth The output bit-depth per channel, normally 8.
 	 * @param OutRawData Will contain the uncompressed raw data.
 	 * @return true on success, false otherwise.
+	 *
+	 * this is often broken, should only be used with InFormat == GetFormat()
+	 * DEPRECATED , use GetRaw() with 1 argument or GetRawImage()
 	 */
 	bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray<uint8>& OutRawData)
 	{
@@ -191,6 +225,33 @@ public:
 		{
 			return false;
 		}
+	}
+	
+	/**
+	 * Get the raw version of the image and write to the array view
+	 * (Note: It may consume the data set in the SetRaw function if it was set before)
+	 *
+	 * @param InFormat How we want to manipulate the RGB data.
+	 * @param InBitDepth The output bit-depth per channel, normally 8.
+	 * @param OutRawData Will contain the uncompressed raw data.
+	 * @return true on success, false otherwise.
+	 *
+	 * this is often broken, should only be used with InFormat == GetFormat()
+	 * DEPRECATED , use GetRaw() with 1 argument or GetRawImage()
+	 */
+	bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArrayView64<uint8> OutRawData)
+	{
+		TArray64<uint8> TmpRawData;
+		if (GetRaw(InFormat, InBitDepth, TmpRawData))
+		{
+			if (ensureMsgf(TmpRawData.Num() == OutRawData.Num(), TEXT("The view doesn't have the proper size to receive the texture.")))
+			{
+				FPlatformMemory::Memcpy(OutRawData.GetData(), TmpRawData.GetData(), OutRawData.Num());
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -213,6 +274,9 @@ public:
 	 * Gets the bit depth of the image.
 	 *
 	 * @return The bit depth per-channel of the image.
+	 *
+	 * Beware several of the old wrappers (BMP,TGA) incorrectly used to return bits per *color* not per channel
+	 * they now correctly return per-channel.
 	 */
 	virtual int32 GetBitDepth() const = 0;
 
@@ -223,16 +287,54 @@ public:
 	 * @return The format the image data is in
 	 */
 	virtual ERGBFormat GetFormat() const = 0;
+	
+	/* Should the pixels be treated as sRGB encoded? (or Linear)
+	* 
+	 * @@!! TODO: implement GetSRGB() on the formats that can report it (eg. DDS?)
+	 */
+	virtual bool GetSRGB() const
+	{
+		// sRGB is guessed from bit depth
+		// 8 = on
+		return GetBitDepth() == 8 && GetFormat() != ERGBFormat::BGRE;
+	}
+
+	// call these from ImageWrapperModule.h , see documentation there
+	IMAGEWRAPPER_API static void ConvertRawImageFormat(ERawImageFormat::Type RawFormat, ERGBFormat & OutFormat,int & OutBitDepth);
+	IMAGEWRAPPER_API static ERawImageFormat::Type ConvertRGBFormat(ERGBFormat RGBFormat,int BitDepth,bool * bIsExactMatch = nullptr);
+	
+	/* get the current image format, mapped to an ERawImageFormat
+	 * if ! *bIsExactMatch , conversion is needed
+	 * can call after SetCompressed()
+	 */
+	ERawImageFormat::Type GetClosestRawImageFormat(bool * bIsExactMatch = nullptr) const
+	{
+		ERGBFormat Format = GetFormat();
+		int BitDepth = GetBitDepth();
+		ERawImageFormat::Type Ret = ConvertRGBFormat(Format,BitDepth,bIsExactMatch);
+		return Ret;
+	}
+
+
+	// @@!! is this animation stuff used at all? -> it seems not
+
+	/**
+	 * Set information for animated formats
+	 * @param InNumFrames The number of frames in the animation (the RawData from SetRaw will need to be a multiple of NumFrames)
+	 * @param InFramerate The playback rate of the animation
+	 * @return true if successful
+	 */
+	virtual bool SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate) = 0;
 
 	/**
 	 * @return The number of frames in an animated image
 	 */
-	virtual int32 GetNumFrames() const = 0;
+	virtual int32 GetNumFrames_DEPRECATED() const = 0;
 
 	/**
 	 * @return The playback framerate of animated images (or 0 for non-animated)
 	 */
-	virtual int32 GetFramerate() const = 0;
+	virtual int32 GetFramerate_DEPRECATED() const = 0;
 
 public:
 

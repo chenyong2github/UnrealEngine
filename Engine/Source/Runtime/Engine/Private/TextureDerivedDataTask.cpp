@@ -37,6 +37,7 @@
 #include "DerivedDataValue.h"
 #include "Engine/TextureCube.h"
 #include "Engine/VolumeTexture.h"
+#include "ImageCoreUtils.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformProcess.h"
@@ -170,21 +171,12 @@ void FTextureSourceData::Init(UTexture& InTexture, TextureMipGenSettings InMipGe
 	for (int LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		FTextureSourceLayerData* LayerData = new(Layers) FTextureSourceLayerData();
-		switch (InTexture.Source.GetFormat(LayerIndex))
-		{
-		case TSF_G8:		LayerData->ImageFormat = ERawImageFormat::G8;		break;
-		case TSF_G16:		LayerData->ImageFormat = ERawImageFormat::G16;		break;
-		case TSF_BGRA8:		LayerData->ImageFormat = ERawImageFormat::BGRA8;	break;
-		case TSF_BGRE8:		LayerData->ImageFormat = ERawImageFormat::BGRE8;	break;
-		case TSF_RGBA16:	LayerData->ImageFormat = ERawImageFormat::RGBA16;	break;
-		case TSF_RGBA16F:	LayerData->ImageFormat = ERawImageFormat::RGBA16F;  break;
-		default:
-			UE_LOG(LogTexture, Fatal, TEXT("Texture %s has source art in an invalid format."), *InTexture.GetName());
-			return;
-		}
+
+		LayerData->ImageFormat = FImageCoreUtils::ConvertToRawImageFormat( InTexture.Source.GetFormat(LayerIndex) );
 
 		FTextureFormatSettings FormatSettings;
 		InTexture.GetLayerFormatSettings(LayerIndex, FormatSettings);
+
 		LayerData->GammaSpace = FormatSettings.SRGB ? (InTexture.bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB) : EGammaSpace::Linear;
 	}
 
@@ -1214,19 +1206,17 @@ public:
 
 		for (int LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 		{
-			switch (Texture.Source.GetFormat(LayerIndex))
+			ETextureSourceFormat TSF = Texture.Source.GetFormat(LayerIndex);
+			ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(TSF);
+
+			if ( RawFormat == ERawImageFormat::Invalid )
 			{
-			case TSF_G8:
-			case TSF_G16:
-			case TSF_BGRA8:
-			case TSF_BGRE8:
-			case TSF_RGBA16:
-			case TSF_RGBA16F:
-				break;
-			default:
-				UE_LOG(LogTexture, Fatal, TEXT("Texture %s has source art in an invalid format."), *Texture.GetPathName());
+				UE_LOG(LogTexture, Error, TEXT("Texture %s has source art in an invalid format."), *Texture.GetPathName());
 				return false;
 			}
+
+			// valid TSF should round-trip :
+			check( FImageCoreUtils::ConvertToTextureSourceFormat( RawFormat ) == TSF );
 		}
 
 		const bool bCompositeTextureViable = Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled;

@@ -21,8 +21,8 @@ enum EPixelFormat : uint8
 	PF_DXT3                 =6,
 	PF_DXT5                 =7,
 	PF_UYVY                 =8,
-	PF_FloatRGB             =9,
-	PF_FloatRGBA            =10,
+	PF_FloatRGB             =9, // 16F
+	PF_FloatRGBA            =10, // 16F
 	PF_DepthStencil         =11,
 	PF_ShadowDepth          =12,
 	PF_R32_FLOAT            =13,

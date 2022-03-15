@@ -150,6 +150,8 @@ UTextureCube* UTextureRenderTargetCube::ConstructTextureCube(
 			case PF_B8G8R8A8:
 				TextureFormat = TSF_BGRA8;
 				break;
+			default:
+				return nullptr;
 		}
 
 		// The r2t resource will be needed to read its surface contents

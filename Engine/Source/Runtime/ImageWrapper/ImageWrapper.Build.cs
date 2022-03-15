@@ -12,11 +12,18 @@ public class ImageWrapper : ModuleRules
 				"Runtime/ImageWrapper/Private/Formats",
 			});
 
+		PublicIncludePathModuleNames.AddRange(new string[] {
+			"ImageCore"
+			}
+		);
+
 		PublicDefinitions.Add("WITH_UNREALPNG=1");
 		PublicDefinitions.Add("WITH_UNREALJPEG=1");
 
 		PrivateDependencyModuleNames.Add("Core");
+
 		PublicDependencyModuleNames.Add("LibTiff");
+		PublicDependencyModuleNames.Add("ImageCore");
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"zlib",

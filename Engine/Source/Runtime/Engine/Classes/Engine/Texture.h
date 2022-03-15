@@ -19,6 +19,7 @@
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
 #include "Misc/FieldAccessor.h"
+#include "ImageCore.h"
 #if WITH_EDITORONLY_DATA
 #include "Misc/TVariant.h"
 #include "DerivedDataCacheKeyProxy.h"
@@ -141,7 +142,14 @@ struct FTextureSource
 	ENGINE_API FTextureSource();
 
 	ENGINE_API static int32 GetBytesPerPixel(ETextureSourceFormat Format);
-	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F); }
+	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F || Format == TSF_RGBA32F); }
+	
+	enum class ELockState : uint8
+	{
+		None,
+		ReadOnly,
+		ReadWrite
+	};
 
 #if WITH_EDITOR
 	// FwdDecl for member structs
@@ -273,6 +281,8 @@ struct FTextureSource
 	/** Force the GUID to change even if mip data has not been modified. */
 	ENGINE_API void ForceGenerateGuid();
 
+	/** Use FMipLock to encapsulate a locked mip */
+
 	/** Lock a mip for reading. */
 	ENGINE_API const uint8* LockMipReadOnly(int32 BlockIndex, int32 LayerIndex, int32 MipIndex);
 
@@ -284,6 +294,21 @@ struct FTextureSource
 
 	/** Retrieve a copy of the data for a particular mip. */
 	ENGINE_API bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, class IImageWrapperModule* ImageWrapperModule = nullptr);
+	
+	/** Legacy API that defaults to LayerIndex 0 */
+	FORCEINLINE bool GetMipData(TArray64<uint8>& OutMipData, int32 MipIndex, class IImageWrapperModule* ImageWrapperModule = nullptr)
+	{
+		return GetMipData(OutMipData, 0, 0, MipIndex, ImageWrapperModule);
+	}
+
+	/** Retrieve a copy of the MipData as an FImage */
+	ENGINE_API bool GetMipImage(FImage & OutImage, int32 BlockIndex, int32 LayerIndex, int32 MipIndex);
+	
+	/** Retrieve a copy of the MipData as an FImage */
+	FORCEINLINE bool GetMipImage(FImage & OutImage, int32 MipIndex)
+	{
+		return GetMipImage(OutImage, 0, 0, MipIndex);
+	}
 
 	/** Returns a FMipData structure that wraps around the entire mip chain for read only operations. This is more efficient than calling the above method once per mip. */
 	ENGINE_API FMipData GetMipData(class IImageWrapperModule* ImageWrapperModule);
@@ -348,12 +373,6 @@ struct FTextureSource
 	
 	/** Sets the GUID to use, and whether that GUID is actually a hash of some data. */
 	ENGINE_API void SetId(const FGuid& InId, bool bInGuidIsHash);
-
-	/** Legacy API that defaults to LayerIndex 0 */
-	FORCEINLINE bool GetMipData(TArray64<uint8>& OutMipData, int32 MipIndex, class IImageWrapperModule* ImageWrapperModule = nullptr)
-	{
-		return GetMipData(OutMipData, 0, 0, MipIndex, ImageWrapperModule);
-	}
 
 	FORCEINLINE int64 CalcMipSize(int32 MipIndex) const { return CalcMipSize(0, 0, MipIndex); }
 	/** Lock a mip for reading. */
@@ -450,6 +469,59 @@ struct FTextureSource
 		const FTextureSource& TextureSource;
 		FSharedBuffer MipData;
 	};
+	
+	/**
+	* FMipLock to encapsulate a locked mip
+	*  acquires the lock in construct and unlocks in destruct
+	*/
+	struct ENGINE_API FMipLock
+	{
+		// constructor locks the mip (can fail, pointer will be null)
+		FMipLock(ELockState InLockState,FTextureSource * InTextureSource,int32 InBlockIndex, int32 InLayerIndex, int32 InMipIndex);
+		FMipLock(ELockState InLockState,FTextureSource * InTextureSource,int32 InMipIndex);
+		
+		// move constructor
+		FMipLock(FMipLock&&);
+
+		// destructor unlocks
+		~FMipLock();
+		
+		ELockState LockState;
+		FTextureSource * TextureSource;
+		int32 BlockIndex;
+		int32 LayerIndex;
+		int32 MipIndex;
+		FImageView Image;
+
+		const void * GetRawData() const
+		{
+			check( LockState != ELockState::None );
+			return Image.RawData;
+		}
+		void * GetMutableData() const
+		{
+			check( LockState == ELockState::ReadWrite );
+			return Image.RawData;
+		}
+		int64 GetDataSize() const { return Image.GetImageSizeBytes(); }
+
+		bool IsValid() const
+		{
+			// two criteria should be the same :
+			bool bNotNull = Image.RawData != nullptr;
+			bool bNotNone = LockState != ELockState::None;
+			check( bNotNull == bNotNone );
+			return bNotNull;
+		}
+
+	private:
+		
+		// no copying or default construct
+		FMipLock() = delete;
+		FMipLock(const FMipLock&) = delete;
+		FMipLock& operator=(const FMipLock&) = delete;
+		FMipLock& operator=(FMipLock&& Other) = delete;
+	};
 #endif // WITH_EDITOR
 
 private:
@@ -473,12 +545,6 @@ private:
 	/** Number of mips that are locked. */
 	uint32 NumLockedMips;
 
-	enum class ELockState : uint8
-	{
-		None,
-		ReadOnly,
-		ReadWrite
-	};
 	/** The state of any lock being held on the mip data */
 	ELockState LockState;
 
@@ -490,11 +556,10 @@ private:
 	uint8* LockMipInternal(int32 BlockIndex, int32 LayerIndex, int32 MipIndex, ELockState RequestedLockState);
 	
 	/** Returns the source data fully decompressed */
-	FSharedBuffer Decompress(class IImageWrapperModule* ImageWrapperModule) const;
-	/** Attempt to decompress the source data from a compressed png format. All failures will be logged and result in the method returning false */
-	FSharedBuffer TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) const;
-	/** Attempt to decompress the source data from Jpeg format. All failures will be logged and result in the method returning false */
-	FSharedBuffer TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) const;
+	// ImageWrapperModule is not used
+	FSharedBuffer Decompress(class IImageWrapperModule* ImageWrapperModule = nullptr) const;
+	/** Attempt to decompress the source data from a compressed format. All failures will be logged and result in the method returning false */
+	FSharedBuffer TryDecompressData() const;
 
 	/** Return true if the source art is not png compressed but could be. */
 	bool CanPNGCompress() const;
@@ -1439,6 +1504,11 @@ public:
 	ENGINE_API void GetDefaultFormatSettings(FTextureFormatSettings& OutSettings) const;
 	
 	ENGINE_API ETextureEncodeSpeed GetDesiredEncodeSpeed() const;
+
+	ENGINE_API EGammaSpace GetGammaSpace() const
+	{
+		return SRGB ? ( bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB ) : EGammaSpace::Linear;
+	}
 #endif
 
 	/** @return the width of the surface represented by the texture. */

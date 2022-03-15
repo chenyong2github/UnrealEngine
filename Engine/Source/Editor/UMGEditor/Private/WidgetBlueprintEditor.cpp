@@ -425,14 +425,13 @@ void FWidgetBlueprintEditor::CaptureThumbnail()
 		return;
 	}
 
-	TArray64<uint8> RawData;
-	FImageUtils::GetRawData(RenderTarget2D, RawData);
-	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
-	TSharedPtr<IImageWrapper> PNGImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
-	PNGImageWrapper->SetRaw(RawData.GetData(), RawData.GetAllocatedSize(), RenderTarget2D->SizeX, RenderTarget2D->SizeY, ERGBFormat::BGRA, 8);
-	const TArray64<uint8> PNGData = PNGImageWrapper->GetCompressed(100);
+	FImage Image;
+	if ( !FImageUtils::GetRenderTargetImage(RenderTarget2D,Image) )
+	{
+		return;
+	}
 
-	UTexture2D* ThumbnailTexture = FImageUtils::ImportBufferAsTexture2D(PNGData);
+	UTexture2D* ThumbnailTexture = FImageUtils::CreateTexture2DFromImage(Image);
 	FWidgetBlueprintEditorUtils::SetTextureAsAssetThumbnail(GetWidgetBlueprintObj(), ThumbnailTexture);
 }
 

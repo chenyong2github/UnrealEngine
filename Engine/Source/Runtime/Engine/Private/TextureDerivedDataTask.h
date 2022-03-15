@@ -83,9 +83,10 @@ struct FTextureSourceData
 
 	void Init(UTexture& InTexture, TextureMipGenSettings InMipGenSettings, bool bInCubeMap, bool bInTextureArray, bool bInVolumeTexture, bool bAllowAsyncLoading);
 	bool IsValid() const { return bValid; }
-
-	void GetSourceMips(FTextureSource& Source, IImageWrapperModule* InImageWrapper);
-	void GetAsyncSourceMips(IImageWrapperModule* InImageWrapper);
+	
+	// ImageWrapperModule is not used
+	void GetSourceMips(FTextureSource& Source, IImageWrapperModule* InImageWrapper = nullptr);
+	void GetAsyncSourceMips(IImageWrapperModule* InImageWrapper = nullptr);
 
 	void ReleaseMemory()
 	{

@@ -14,11 +14,9 @@
 
 // Debugging aid to dump tiles to disc as png files
 #define SAVE_TILES 0
+
 #if SAVE_TILES
-#include "IImageWrapper.h"
-#include "IImageWrapperModule.h"
-#include "HAL/FileManager.h"
-#include "Misc/FileHelper.h"
+#include "ImageUtils.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarVTParallelTileCompression(
@@ -190,7 +188,7 @@ struct FPixelDataRectangle
 		FMemory::Memcpy(DestPixelData, Value, PixelSize);
 	}
 
-	inline void *GetPixel(int32 x, int32 y, size_t PixelSize)
+	inline void *GetPixel(int32 x, int32 y, size_t PixelSize) const
 	{
 		check(x >= 0);
 		check(y >= 0);
@@ -198,57 +196,21 @@ struct FPixelDataRectangle
 		check(y < Height);
 		return Data + (((y * Width) + x) * PixelSize);
 	}
-
+	
 #if SAVE_TILES
+	FImageView GetImageView() const 
+	{
+		ERawImageFormat::Type RawFormat = FImageUtils::ConvertToRawImageFormat(Format);
+		return FImageView(Data,Width,Height,RawFormat);
+	}
+
 	void Save(FString BaseFileName, IImageWrapperModule* ImageWrapperModule)
 	{
-		IFileManager* FileManager = &IFileManager::Get();
-		auto ImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::PNG);
-		int BytesPerPixel = FTextureSource::GetBytesPerPixel(Format);
+		FImageView Image = GetImageView();
 
-		switch (Format)
+		if ( ! FImageUtils::SaveImageAutoFormat(*BaseFileName,Image) )
 		{
-		case TSF_G8:
-			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::Gray, 8);
-			break;
-		case TSF_G16:
-			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::Gray, 16);
-			break;
-		case TSF_BGRA8:
-			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::BGRA, 8);
-			break;
-		case TSF_BGRE8:
-			// This will probably result in bad image. (Should we convert the data or export it in a format that support float(ERGBFormat::BGRE)?)
-			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::BGRA, 8);
-			break;
-		case TSF_RGBA16:
-			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::RGBA, 16);
-			break;
-		case TSF_RGBA16F:
-			// This will probably result in bad image. (Should we convert the data or export it in a format that support float(ERGBFormat::RGBAF)?)
-			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::RGBA, 16);
-			break;
-		case TSF_RGBA8:
-			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::RGBA, 8);
-			break;
-		case TSF_RGBE8:
-			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::RGBA, 8);
-			break;
-		default:
-			return;
-		}
-
-		// Make sure it has the png extension
-		FString NewExtension = TEXT(".png");
-		FString Filename = FPaths::GetBaseFilename(BaseFileName, false) + NewExtension;
-
-		// Compress and write image
-		FArchive* Ar = FileManager->CreateFileWriter(*Filename);
-		if (Ar != nullptr)
-		{
-			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Default);
-			Ar->Serialize((void *)CompressedData.GetData(), CompressedData.Num());
-			delete Ar;
+			UE_LOG(LogVirtualTexturing,Warning,TEXT("Couldn't save to : %s"),*BaseFileName);
 		}
 	}
 #endif

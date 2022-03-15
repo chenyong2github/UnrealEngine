@@ -20,6 +20,8 @@
 #include "OverlappingCorners.h"
 #include "Framework/Commands/UIAction.h"
 #include "HAL/ThreadSafeBool.h"
+#include "ImageCore.h"
+#include "ImageCoreUtils.h"
 
 #include "ObjectTools.h"
 
@@ -3204,11 +3206,10 @@ bool FLODUtilities::StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LO
 		}
 		SkeletalMesh->Modify();
 		
-		const float ThresholdClamp = FMath::Clamp(Threshold, 0.0f, 1.0f);
-		const uint8 Threshold8 = (uint8)FMath::FloorToInt(ThresholdClamp * (float)(0xFF));
-		const uint16 Threshold16 = (uint16)FMath::FloorToInt(ThresholdClamp * (float)(0xFFFF));
+		ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(SourceFormat);
+		bool bSRGB = TextureMask->SRGB;
 
-		auto ShouldStripTriangle = [&InitialSource, &ResX, &ResY, &FormatDataSize, &Ref2DData, &SourceFormat, &Threshold, &Threshold8, &Threshold16](const FVector2D& UvA, const FVector2D& UvB, const FVector2D& UvC)->bool
+		auto ShouldStripTriangle = [&](const FVector2D& UvA, const FVector2D& UvB, const FVector2D& UvC)->bool
 		{
 			FVector2D PixelUvA = FVector2D(FMath::FloorToInt(UvA.X * (float)ResX) % (ResX + 1), FMath::FloorToInt(UvA.Y * (float)ResY) % (ResY + 1));
 			FVector2D PixelUvB = FVector2D(FMath::FloorToInt(UvB.X * (float)ResX) % (ResX + 1), FMath::FloorToInt(UvB.Y * (float)ResY) % (ResY + 1));
@@ -3220,54 +3221,18 @@ bool FLODUtilities::StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LO
 			int32 MaxV = FMath::Clamp(FMath::Max3<int32>(PixelUvA.Y, PixelUvB.Y, PixelUvC.Y), 0, ResY);
 
 			//Do not read the alpha value when testing the texture value
-			auto IsPixelZero = [&Ref2DData, &InitialSource, &SourceFormat, &FormatDataSize, &Threshold, &Threshold8, &Threshold16](int32 PosX, int32 PosY) -> bool
+			auto IsPixelZero = [&](int32 PosX, int32 PosY) -> bool
 			{
-				uint8 CurPos[16];
 				const int32 RefPos = PosX + (PosY * InitialSource.GetSizeX());
-				FMemory::Memcpy(&(CurPos[0]), Ref2DData.GetData() + (RefPos * FormatDataSize), FormatDataSize);
-				bool bPixelIsZero = true;
-				switch (SourceFormat)
-				{
-				case TSF_BGRA8:
-				case TSF_BGRE8:
-				case TSF_RGBA8:
-				case TSF_RGBE8:
-				{
-					
-					if (CurPos[0] > Threshold8 || CurPos[1] > Threshold8 || CurPos[2] > Threshold8)
-					{
-						bPixelIsZero = false;
-					}
-				}
-				break;
-				case TSF_G8:
-				{
-					bPixelIsZero = !(CurPos[0] > Threshold8);
-				}
-				break;
-				case TSF_G16:
-				{
-					bPixelIsZero = !(((uint16*)(&CurPos[0]))[0] > Threshold16);
-				}
-				break;
+				const void * PixelPtr = Ref2DData.GetData() + RefPos * FormatDataSize;
 				
-				break;
-				case TSF_RGBA16:
-				case TSF_RGBA16F:
-				{
-					FFloat16 HalfValueR = *(FFloat16*)(&CurPos[0]);
-					FFloat16 HalfValueG = *(FFloat16*)(&CurPos[2]);
-					FFloat16 HalfValueB = *(FFloat16*)(&CurPos[4]);
-					if ( !FMath::IsNearlyZero(float(HalfValueR), Threshold) || !FMath::IsNearlyZero(float(HalfValueG), Threshold) || !FMath::IsNearlyZero(float(HalfValueB), Threshold) )
-					{
-						bPixelIsZero = false;
-					}
-				}
-				break;
-				default:
-					//Unknown format
-					return false;
-				}
+				FLinearColor Color = ERawImageFormat::GetOnePixelLinear(PixelPtr,RawFormat,bSRGB);	
+
+				bool bPixelIsZero = 
+					FMath::IsNearlyZero(Color.R,Threshold) &&
+					FMath::IsNearlyZero(Color.G,Threshold) &&
+					FMath::IsNearlyZero(Color.B,Threshold);
+
 				return bPixelIsZero;
 			};
 

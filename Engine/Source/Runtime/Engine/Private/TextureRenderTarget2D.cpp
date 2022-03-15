@@ -305,12 +305,19 @@ UTexture2D* UTextureRenderTarget2D::ConstructTexture2D(UObject* Outer, const FSt
 	UpdateTexture2D(Result, TextureFormat, Flags, AlphaOverride);
 
 	// if render target gamma used was 1.0 then disable SRGB for the static texture
-	if (FMath::Abs(RenderTarget->GetDisplayGamma() - 1.0f) < KINDA_SMALL_NUMBER)
+	// @@!! UTextureRenderTarget2D also has an explicit SRGB flag in the UTexture parent class
+	//	  these are NOT correctly kept in sync
+	//		I see SRGB = 1 but Gamma = 1.0
+	//	 see also IsSRGB() which is yet another query that has different ideas
+	//	furthermore, float formats do not support anything but Linear gamma
+	float Gamma = RenderTarget->GetDisplayGamma();
+	if (FMath::Abs(Gamma - 1.0f) < KINDA_SMALL_NUMBER)
 	{
 		Flags &= ~CTF_SRGB;
 	}
 
 	Result->SRGB = (Flags & CTF_SRGB) != 0;
+
 	Result->MipGenSettings = TMGS_FromTextureGroup;
 
 	if ((Flags & CTF_AllowMips) == 0)

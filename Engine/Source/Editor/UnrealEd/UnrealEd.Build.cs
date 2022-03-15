@@ -125,6 +125,7 @@ public class UnrealEd : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"ImageCore",
 				"AssetRegistry",
 				"AssetTagsEditor",
 				"BSPUtils",

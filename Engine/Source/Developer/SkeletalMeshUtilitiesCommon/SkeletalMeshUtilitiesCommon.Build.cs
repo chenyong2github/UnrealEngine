@@ -17,8 +17,9 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"RenderCore",
 					"MeshUtilitiesCommon",
+					"ImageCore",
 					"Engine",
-                    "ClothingSystemRuntimeCommon",
+					"ClothingSystemRuntimeCommon",
 					"Slate",
                 }
             );

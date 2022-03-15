@@ -18,15 +18,14 @@ FBmpImageWrapper::FBmpImageWrapper(bool bInHasHeader, bool bInHalfHeight)
 {
 }
 
-
-void FBmpImageWrapper::Compress(int32 Quality)
-{
-	checkf(false, TEXT("BMP compression not supported"));
-}
-
-
 void FBmpImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDepth)
 {
+	RawData.Empty();
+	if ( CompressedData.IsEmpty() )
+	{
+		return;
+	}
+
 	const uint8* Buffer = CompressedData.GetData();
 
 	if (!bHasHeader || ((CompressedData.Num()>=sizeof(FBitmapFileHeader)+sizeof(FBitmapInfoHeader)) && Buffer[0]=='B' && Buffer[1]=='M'))
@@ -38,6 +37,11 @@ void FBmpImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDe
 
 void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int32 InBitDepth)
 {
+	// always writes BGRA8 :
+	check( InFormat == ERGBFormat::BGRA );
+	check( InBitDepth == 8 );
+	check( ! CompressedData.IsEmpty() );
+
 	const uint8* Buffer = CompressedData.GetData();
 	const FBitmapInfoHeader* bmhdr = nullptr;
 	const uint8* Bits = nullptr;
@@ -241,12 +245,20 @@ bool FBmpImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 {
 	bool bResult = FImageWrapperBase::SetCompressed(InCompressedData, InCompressedSize);
 
-	return bResult && (bHasHeader ? LoadBMPHeader() : LoadBMPInfoHeader());	// Fetch the variables from the header info
+	bResult = bResult && (bHasHeader ? LoadBMPHeader() : LoadBMPInfoHeader());	// Fetch the variables from the header info
+
+	if ( ! bResult )
+	{
+		CompressedData.Reset();
+	}
+
+	return bResult;
 }
 
 
 bool FBmpImageWrapper::LoadBMPHeader()
 {
+	//note: not Endian correct
 	const FBitmapInfoHeader* bmhdr = (FBitmapInfoHeader *)(CompressedData.GetData() + sizeof(FBitmapFileHeader));
 	const FBitmapFileHeader* bmf   = (FBitmapFileHeader *)(CompressedData.GetData() + 0);
 	if ((CompressedData.Num() >= sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader)) && CompressedData.GetData()[0] == 'B' && CompressedData.GetData()[1] == 'M')
@@ -263,7 +275,11 @@ bool FBmpImageWrapper::LoadBMPHeader()
 			Width = bmhdr->biWidth;
 			Height = FMath::Abs(bmhdr->biHeight);
 			Format = ERGBFormat::BGRA;
-			BitDepth = bmhdr->biBitCount;
+			//  YUCK
+			//  BmpImageWrapper was reporting BitDepth *total* not per-channel (eg. 24)
+			//  some legacy code knew that and expected to see the bad values, beware
+			//BitDepth = bmhdr->biBitCount;
+			BitDepth = 8;
 
 			return true;
 		}
@@ -284,6 +300,7 @@ bool FBmpImageWrapper::LoadBMPHeader()
 
 bool FBmpImageWrapper::LoadBMPInfoHeader()
 {
+	//note: not Endian correct
 	const FBitmapInfoHeader* bmhdr = (FBitmapInfoHeader *)CompressedData.GetData();
 
 	if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS)
@@ -298,7 +315,9 @@ bool FBmpImageWrapper::LoadBMPInfoHeader()
 		Width = bmhdr->biWidth;
 		Height = FMath::Abs(bmhdr->biHeight);
 		Format = ERGBFormat::BGRA;
-		BitDepth = bmhdr->biBitCount;
+		//  BmpImageWrapper was reporting BitDepth *total* not per-channel (eg. 24)
+		//BitDepth = bmhdr->biBitCount;
+		BitDepth = 8;
 
 		return true;
 	}
@@ -313,4 +332,245 @@ bool FBmpImageWrapper::LoadBMPInfoHeader()
 	}
 
 	return false;
+}
+
+bool FBmpImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
+{
+	return ((InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::Gray) && InBitDepth == 8);
+}
+
+ERawImageFormat::Type FBmpImageWrapper::GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const
+{
+	switch(InFormat)
+	{
+	case ERawImageFormat::G8:
+	case ERawImageFormat::BGRA8:
+		return InFormat; // directly supported
+	case ERawImageFormat::G16:
+		return ERawImageFormat::G8; // needs conversion
+	case ERawImageFormat::BGRE8:
+	case ERawImageFormat::RGBA16:
+	case ERawImageFormat::RGBA16F:
+	case ERawImageFormat::RGBA32F:
+	case ERawImageFormat::R16F:
+		return ERawImageFormat::BGRA8; // needs conversion
+	default:
+		check(0);
+		return ERawImageFormat::BGRA8;
+	};
+}
+
+
+void FBmpImageWrapper::Compress(int32 Quality)
+{
+	check( RawFormat == ERGBFormat::BGRA || RawFormat == ERGBFormat::Gray );
+	check( RawBitDepth == 8 );
+
+	// write 8,24, or 32 bit bmp
+
+	int64 NumPixels = Width*Height;
+	int64 RawDataSize = RawData.Num();
+
+	int RawBytesPerPel = (RawFormat == ERGBFormat::BGRA) ? 4 : 1;
+
+	check( RawDataSize == NumPixels*RawBytesPerPel );
+
+	int OutputBytesPerPel = RawBytesPerPel;
+
+	if ( RawBytesPerPel == 4 )
+	{
+		// scan for A to choose 24 bit output
+
+		const FColor * RawColors = (const FColor *)RawData.GetData();
+		bool bHasAnyAlpha = false;
+		for(int64 i=0;i<NumPixels;i++)
+		{
+			if ( RawColors[i].A != 255 )
+			{
+				bHasAnyAlpha = true;
+				break;
+			}
+		}
+
+		if ( ! bHasAnyAlpha )
+		{
+			OutputBytesPerPel = 3;
+		}
+	}
+
+	bool bWritePal = (RawBytesPerPel == 1);
+
+	int OutputRowBytes = (Width*OutputBytesPerPel + 3)&(~3);
+	int OutputPalBytes = bWritePal ? 1024 : 0;
+	int64 OutputImageBytes = OutputRowBytes * Height;
+
+	CompressedData.Empty( OutputImageBytes + OutputPalBytes + 1024 );
+
+	// scope to write headers:
+	{
+		// copied from FFileHelper::CreateBitmap
+		// 
+		// Types.
+		#if PLATFORM_SUPPORTS_PRAGMA_PACK
+			#pragma pack (push,1)
+		#endif
+		struct BITMAPFILEHEADER
+		{
+			uint16 bfType GCC_PACK(1);
+			uint32 bfSize GCC_PACK(1);
+			uint16 bfReserved1 GCC_PACK(1); 
+			uint16 bfReserved2 GCC_PACK(1);
+			uint32 bfOffBits GCC_PACK(1);
+		} FH = { };
+		struct BITMAPINFOHEADER
+		{
+			uint32 biSize GCC_PACK(1); 
+			int32  biWidth GCC_PACK(1);
+			int32  biHeight GCC_PACK(1);
+			uint16 biPlanes GCC_PACK(1);
+			uint16 biBitCount GCC_PACK(1);
+			uint32 biCompression GCC_PACK(1);
+			uint32 biSizeImage GCC_PACK(1);
+			int32  biXPelsPerMeter GCC_PACK(1); 
+			int32  biYPelsPerMeter GCC_PACK(1);
+			uint32 biClrUsed GCC_PACK(1);
+			uint32 biClrImportant GCC_PACK(1); 
+		} IH = { };
+		struct BITMAPV4HEADER
+		{
+			uint32 bV4RedMask GCC_PACK(1);
+			uint32 bV4GreenMask GCC_PACK(1);
+			uint32 bV4BlueMask GCC_PACK(1);
+			uint32 bV4AlphaMask GCC_PACK(1);
+			uint32 bV4CSType GCC_PACK(1);
+			uint32 bV4EndpointR[3] GCC_PACK(1);
+			uint32 bV4EndpointG[3] GCC_PACK(1);
+			uint32 bV4EndpointB[3] GCC_PACK(1);
+			uint32 bV4GammaRed GCC_PACK(1);
+			uint32 bV4GammaGreen GCC_PACK(1);
+			uint32 bV4GammaBlue GCC_PACK(1);
+		} IHV4 = { };
+		#if PLATFORM_SUPPORTS_PRAGMA_PACK
+			#pragma pack (pop)
+		#endif
+
+		bool bInWriteAlpha = ( OutputBytesPerPel == 4 );
+		uint32 InfoHeaderSize = sizeof(BITMAPINFOHEADER) + (bInWriteAlpha ? sizeof(BITMAPV4HEADER) : 0);
+
+		// File header.
+		FH.bfType       		= INTEL_ORDER16((uint16) ('B' + 256*'M'));
+		FH.bfSize       		= INTEL_ORDER32((uint32) (sizeof(BITMAPFILEHEADER) + InfoHeaderSize + OutputImageBytes + OutputPalBytes));
+		FH.bfOffBits    		= INTEL_ORDER32((uint32) (sizeof(BITMAPFILEHEADER) + InfoHeaderSize));
+		CompressedData.Append( (const uint8 *) &FH, sizeof(FH) );
+
+		// Info header.
+		IH.biSize               = INTEL_ORDER32((uint32) InfoHeaderSize);
+		IH.biWidth              = INTEL_ORDER32((uint32) Width);
+		IH.biHeight             = INTEL_ORDER32((uint32) Height);
+		IH.biPlanes             = INTEL_ORDER16((uint16) 1);
+		IH.biBitCount           = INTEL_ORDER16((uint16) OutputBytesPerPel * 8);
+		if(bInWriteAlpha)
+		{
+			IH.biCompression    = INTEL_ORDER32((uint32) 3); //BI_BITFIELDS
+		}
+		else
+		{
+			IH.biCompression    = INTEL_ORDER32((uint32) 0); //BI_RGB
+		}
+		IH.biSizeImage          = INTEL_ORDER32((uint32) OutputImageBytes);
+		if ( bWritePal )
+		{
+			IH.biClrUsed            = INTEL_ORDER32((uint32) 256);
+			IH.biClrImportant       = INTEL_ORDER32((uint32) 256);
+		}
+		CompressedData.Append( (const uint8 *) &IH, sizeof(IH) );
+
+		// If we're writing alpha, we need to write the extra portion of the V4 header
+		if (bInWriteAlpha)
+		{
+			IHV4.bV4RedMask     = INTEL_ORDER32((uint32) 0x00ff0000);
+			IHV4.bV4GreenMask   = INTEL_ORDER32((uint32) 0x0000ff00);
+			IHV4.bV4BlueMask    = INTEL_ORDER32((uint32) 0x000000ff);
+			IHV4.bV4AlphaMask   = INTEL_ORDER32((uint32) 0xff000000);
+			IHV4.bV4CSType      = INTEL_ORDER32((uint32) 'Win ');
+			CompressedData.Append( (const uint8 *) &IHV4, sizeof(IHV4) );
+		}
+	}
+
+	if ( bWritePal )
+	{
+		// write palette for G8 :
+		FColor Palette[256];
+
+		for(int i=0;i<256;i++)
+		{
+			Palette[i] = FColor(i,i,i,255);
+		}
+		
+		check( sizeof(Palette) == OutputPalBytes );
+		CompressedData.Append( (const uint8 *)Palette,1024 );
+	}
+
+	int64 HeaderBytes = CompressedData.Num();
+	CompressedData.SetNum( HeaderBytes + OutputImageBytes );
+	uint8 * PayloadPtr = CompressedData.GetData() + HeaderBytes;
+	
+	int OutputRowPadBytes = OutputRowBytes - Width*OutputBytesPerPel;
+	check( OutputRowPadBytes < 4 );
+	uint8 Zero[4] = { };
+
+	// write rows :
+	switch(OutputBytesPerPel)
+	{
+	case 1:
+	{
+		const uint8 * RawPtr = RawData.GetData();
+		for(int y=Height-1;y>=0;y--)
+		{
+			memcpy(PayloadPtr,RawPtr + y * Width,Width);
+			PayloadPtr += Width;
+			memcpy(PayloadPtr,Zero,OutputRowPadBytes);
+			PayloadPtr += OutputRowPadBytes;
+		}
+		break;
+	}
+
+	case 3:
+	{
+		const FColor * RawColors = (const FColor *) RawData.GetData();
+		for(int y=Height-1;y>=0;y--)
+		{
+			const FColor * RawRow = RawColors + y * Width;
+			for(int x=0;x<Width;x++)
+			{
+				*PayloadPtr++ = RawRow[x].B;
+				*PayloadPtr++ = RawRow[x].G;
+				*PayloadPtr++ = RawRow[x].R;
+			}
+			memcpy(PayloadPtr,Zero,OutputRowPadBytes);
+			PayloadPtr += OutputRowPadBytes;
+		}
+		break;
+	}
+
+	case 4:
+	{
+		check( OutputRowBytes == Width * 4 );
+		check( OutputRowPadBytes == 0 );
+
+		const uint8 * RawPtr = RawData.GetData();
+		for(int y=Height-1;y>=0;y--)
+		{
+			memcpy(PayloadPtr,RawPtr + y * OutputRowBytes,OutputRowBytes);
+			PayloadPtr += OutputRowBytes;
+		}
+		break;
+	}
+
+	default:
+		check(0);
+		break;
+	}
+	
+	check( PayloadPtr == CompressedData.GetData() + CompressedData.Num() );
 }

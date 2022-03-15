@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
+					"ImageCore",
 					"CoreUObject",
 					"Engine",
 					"ImageWrapper",

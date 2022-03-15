@@ -5,9 +5,8 @@
 #include "CoreTypes.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/SharedPointer.h"
-
-class IImageWrapper;
-enum class EImageFormat : int8;
+#include "ImageCore.h"
+#include "IImageWrapper.h"
 
 
 /**
@@ -18,11 +17,40 @@ class IImageWrapperModule
 {
 public:
 
+
 	/**  
-	 * Create a helper of a specific type 
+	 * Convert input FImage into a file-format encoded array.
+ 	 * in ImageWrapper land, "Compress" means "put in file format"
+	 * OutData is filled with the file format encoded data
+	 * lossy conversion of the pixel type may be done if necessary
+	 * eg. if you pass F32 float pixels to write to BMP, they will be converted to SRGB U8 BGRA8
+	 * 
+	 * @param OutData		Filled with image-format data
+	 * @param ToFormat		Image format to encode to
+	 * @param InImage		Image to encode
+	 * @param Quality		50-100 for JPEG, or EImageCompressionQuality
+	 * 
+	**/
+	virtual bool CompressImage(TArray64<uint8> & OutData, EImageFormat ToFormat, const FImageView & InImage, int32 Quality = 0) = 0;
+	
+	/* Read an image from file format encoded data.
+	 * ImageWrapper calls this a "decompress"
+	 * OutImage is allocated and filled, any existing contents are discarded
+	 * 
+	 * @param InCompressedData	Image format encoded bytes to read; format is automatically deduced from the content
+	 * @param InCompressedSize	Size of InCompressedData in bytes
+	 * @param OutImage			Filled with Image that is read.  Allocated.
+	 */
+	virtual bool DecompressImage(const void* InCompressedData, int64 InCompressedSize, FImage & OutImage) = 0;
+
+	/**  
+	 * Create an IImageWrapper helper of a specific type 
 	 *
 	 * @param InFormat - The type of image we want to deal with
 	 * @return The helper base class to manage the data
+	 * 
+	 * EImageFormat is a compressor / file format , not a pixel format
+	 * Deprecated.  Prefer CompressImage/DecompressImage.
 	 */
 	virtual TSharedPtr<IImageWrapper> CreateImageWrapper(const EImageFormat InFormat) = 0;
 
@@ -35,6 +63,30 @@ public:
 	 * @return the detected format or EImageFormat::Invalid if the method could not detect the image format.
 	 */
 	virtual EImageFormat DetectImageFormat(const void* InCompressedData, int64 InCompressedSize) = 0;
+
+	/* Name can be a full name like "xx.png" or just the extension part, like "png"
+	 * returns EImageFormat::Invalid if no supported image extension found
+	 */
+	virtual EImageFormat GetImageFormatFromExtension(const TCHAR * Name) = 0;
+
+	/* returns extension, not including the "." , 3 or 4 chars */
+	virtual const TCHAR * GetExtension(EImageFormat Format) = 0;
+
+	/* get a good default output image format for a pixel format */
+	virtual EImageFormat GetDefaultOutputFormat(ERawImageFormat::Type RawFormat) = 0;
+
+	/* Convert an ImageWrapper style {ERGBFormat+BitDepth} into an ERawImageFormat for FImage
+	* returns ERawImageFormat::Invalid if no mapping is possible
+	* bIsExactMatch is filled with whether the formats are an exact match or not
+	*	if not, conversion is needed
+	*/
+	virtual ERawImageFormat::Type ConvertRGBFormat(ERGBFormat Format,int BitDepth,bool * bIsExactMatch = nullptr) = 0;
+	
+	/**
+	* Convert an FImage ERawImageFormat into an ImageWrapper style {ERGBFormat+BitDepth} 
+	* mapping is always possible and requires no conversion
+	*/
+	virtual void ConvertRawImageFormat(ERawImageFormat::Type RawFormat, ERGBFormat & OutFormat,int & OutBitDepth) = 0;
 
 public:
 

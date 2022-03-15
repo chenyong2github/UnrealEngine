@@ -13,7 +13,15 @@ public class Engine : ModuleRules
 
 		SharedPCHHeaderFile = "Public/EngineSharedPCH.h";
 
-		PublicIncludePathModuleNames.AddRange(new string[] { "Renderer", "PacketHandler", "AudioMixer", "AudioMixerCore", "AnimationCore" });
+		PublicIncludePathModuleNames.AddRange(new string[] {
+			"Renderer", 
+			"PacketHandler", 
+			"AudioMixer", 
+			"AudioMixerCore",
+			"AnimationCore",
+			"ImageCore"
+			}
+		);
 
 		PrivateIncludePaths.AddRange(
 			new string[] {

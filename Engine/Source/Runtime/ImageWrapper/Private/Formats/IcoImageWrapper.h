@@ -27,6 +27,9 @@ public:
 	virtual void Uncompress(const ERGBFormat InFormat, int32 InBitDepth) override;
 	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
 	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData) override;
+	
+	virtual bool CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const override;
+	virtual ERawImageFormat::Type GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const override;
 
 protected:
 

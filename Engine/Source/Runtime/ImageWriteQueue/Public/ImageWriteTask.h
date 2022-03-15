@@ -99,88 +99,11 @@ private:
 	 */
 	bool InitializeWrapper(IImageWrapper* InWrapper, EImageFormat WrapperFormat);
 
-	/**
-	 * Special case implementation for writing bitmap data due to deficiencies in the IImageWriter API (it can't set raw pixel data without trying to compress it, which asserts)
-	 *
-	 * @return true a bitmap was written out at the specified filename, false otherwise
-	 */
-	bool WriteBitmap();
-
 
 	/**
 	 * Run over all the processors for the pixel data
 	 */
 	void PreProcess();
-};
-
-
-/**
- * A pixel preprocessor for use with FImageWriteTask::PixelPreProcessor that does gamma correction as part of the threaded work
- */
-template<typename PixelType> struct TAsyncGammaCorrect;
-
-
-template<>
-struct TAsyncGammaCorrect<FColor>
-{
-	float Gamma;
-	TAsyncGammaCorrect(float InGamma) : Gamma(InGamma) {}
-
-	void operator()(FImagePixelData* PixelData)
-	{
-		check(PixelData->GetType() == EImagePixelType::Color);
-
-		TImagePixelData<FColor>* ColorData = static_cast<TImagePixelData<FColor>*>(PixelData);
-		for (FColor& Pixel : ColorData->Pixels)
-		{
-			Pixel.A = (uint8)FMath::RoundToFloat(FMath::Pow(Pixel.A / 255.f, Gamma) * 255.f);
-			Pixel.R = (uint8)FMath::RoundToFloat(FMath::Pow(Pixel.R / 255.f, Gamma) * 255.f);
-			Pixel.G = (uint8)FMath::RoundToFloat(FMath::Pow(Pixel.G / 255.f, Gamma) * 255.f);
-			Pixel.B = (uint8)FMath::RoundToFloat(FMath::Pow(Pixel.B / 255.f, Gamma) * 255.f);
-		}
-	}
-};
-
-template<>
-struct TAsyncGammaCorrect<FFloat16Color>
-{
-	float Gamma;
-	TAsyncGammaCorrect(float InGamma) : Gamma(InGamma) {}
-
-	void operator()(FImagePixelData* PixelData)
-	{
-		check(PixelData->GetType() == EImagePixelType::Float16);
-
-		TImagePixelData<FFloat16Color>* Float16ColorData = static_cast<TImagePixelData<FFloat16Color>*>(PixelData);
-		for (FFloat16Color& Pixel : Float16ColorData->Pixels)
-		{
-			Pixel.A = FMath::Pow(Pixel.A.GetFloat(), Gamma);
-			Pixel.R = FMath::Pow(Pixel.R.GetFloat(), Gamma);
-			Pixel.G = FMath::Pow(Pixel.G.GetFloat(), Gamma);
-			Pixel.B = FMath::Pow(Pixel.B.GetFloat(), Gamma);
-		}
-	}
-};
-
-template<>
-struct TAsyncGammaCorrect<FLinearColor>
-{
-	float Gamma;
-	TAsyncGammaCorrect(float InGamma) : Gamma(InGamma) {}
-
-	void operator()(FImagePixelData* PixelData)
-	{
-		check(PixelData->GetType() == EImagePixelType::Float32);
-
-		TImagePixelData<FLinearColor>* LinearColorData = static_cast<TImagePixelData<FLinearColor>*>(PixelData);
-		for (FLinearColor& Pixel : LinearColorData->Pixels)
-		{
-			Pixel.A = FMath::Pow(Pixel.A, Gamma);
-			Pixel.R = FMath::Pow(Pixel.R, Gamma);
-			Pixel.G = FMath::Pow(Pixel.G, Gamma);
-			Pixel.B = FMath::Pow(Pixel.B, Gamma);
-		}
-	}
 };
 
 

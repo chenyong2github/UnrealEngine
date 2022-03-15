@@ -117,6 +117,34 @@ FPngImageWrapper::FPngImageWrapper()
 
 /* FImageWrapper interface
  *****************************************************************************/
+ 
+// CanSetRawFormat returns true if SetRaw will accept this format
+bool FPngImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
+{
+	return (InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::Gray) && 
+		( InBitDepth == 8 || InBitDepth == 16 );
+}
+
+// returns InFormat if supported, else maps to something supported
+ERawImageFormat::Type FPngImageWrapper::GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const
+{
+	switch(InFormat)
+	{
+	case ERawImageFormat::G8:
+	case ERawImageFormat::BGRA8:
+	case ERawImageFormat::RGBA16:
+	case ERawImageFormat::G16:
+		return InFormat; // directly supported
+	case ERawImageFormat::BGRE8:
+	case ERawImageFormat::RGBA16F:
+	case ERawImageFormat::RGBA32F:
+	case ERawImageFormat::R16F:
+		return ERawImageFormat::RGBA16; // needs conversion
+	default:
+		check(0);
+		return ERawImageFormat::BGRA8;
+	};
+}
 
 void FPngImageWrapper::Compress(int32 Quality)
 {
@@ -156,6 +184,8 @@ void FPngImageWrapper::Compress(int32 Quality)
 		if (setjmp(png_jmpbuf(png_ptr)) != 0)
 #endif
 		{
+			CompressedData.Empty();
+			UE_LOG(LogImageWrapper, Error, TEXT("PNG Compress Error"));
 			return;
 		}
 
@@ -288,6 +318,8 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 		if (setjmp(png_jmpbuf(png_ptr)) != 0)
 #endif
 		{
+			RawData.Empty();
+			UE_LOG(LogImageWrapper, Error, TEXT("PNG Decompress Error"));
 			return;
 		}
 

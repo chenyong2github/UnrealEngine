@@ -30,7 +30,8 @@ public class BlueprintMaterialTextureNodes : ModuleRules
 			new string[]
 			{
 				"Core",
-                "AssetRegistry",
+				"ImageCore",
+				"AssetRegistry",
                 "AssetTools",
                 "RHI",
                 "StaticMeshEditor",

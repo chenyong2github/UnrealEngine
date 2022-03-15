@@ -266,13 +266,14 @@ enum ECompositeTextureMode
 UENUM()
 enum ETextureSourceCompressionFormat
 {
-	TSCF_None	UMETA(DisplayName = "ZLib"),
+	TSCF_None	UMETA(DisplayName = "None"),
 	TSCF_PNG	UMETA(DisplayName = "PNG"),
 	TSCF_JPEG	UMETA(DisplayName = "JPEG"),
 
 	TSCF_MAX
 };
 
+// ETextureSourceFormat should map one-to-one to ImageCore ERawImageFormat::Type
 UENUM()
 enum ETextureSourceFormat
 {
@@ -283,14 +284,21 @@ enum ETextureSourceFormat
 	TSF_RGBA16,
 	TSF_RGBA16F,
 
-	//@todo: Deprecated!
-	TSF_RGBA8,
-	//@todo: Deprecated!
-	TSF_RGBE8,
+	// these are mapped to TSF_BGRA8/TSF_BGRE8 on load, so the runtime will never see them after loading :
+	// keep them here to preserve enum values
+	TSF_RGBA8_DEPRECATED,
+	TSF_RGBE8_DEPRECATED,
 
 	TSF_G16,
+	TSF_RGBA32F,
+	TSF_R16F,
 
-	TSF_MAX
+	TSF_MAX,
+
+	// error in UHT, enable when fixed
+	// provide aliases to the old names with deprecation warnings
+	//TSF_RGBA8 UE_DEPRECATED(5.1,"Legacy ETextureSourceFormat not supported, use BGRA8") = TSF_RGBA8_DEPRECATED,
+	//TSF_RGBE8 UE_DEPRECATED(5.1,"Legacy ETextureSourceFormat not supported, use BGRE8") = TSF_RGBE8_DEPRECATED
 };
 
 // This needs to be mirrored in EditorFactories.cpp.

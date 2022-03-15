@@ -36,6 +36,8 @@
 #include "Engine/TextureCube.h"
 #include "Engine/RendererSettings.h"
 #include "ColorSpace.h"
+#include "ImageCoreUtils.h"
+#include "ImageUtils.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
@@ -692,6 +694,34 @@ void UTexture::PostLoad()
 		Info.Insert(FAssetImportInfo::FSourceFile(SourceFilePath_DEPRECATED));
 		AssetImportData->SourceData = MoveTemp(Info);
 	}
+
+	if ( Source.GetFormat() == TSF_RGBA8_DEPRECATED
+		|| Source.GetFormat() == TSF_RGBE8_DEPRECATED )
+	{
+		// ensure that later code doesn't ever see the _DEPRECATED formats
+
+		// needs RB swap
+		// force BulkData to become resident
+		// do the swap on the bits
+		// change format to swapped version
+		// these formats are incredibly rare and old
+		// just warn and change the enum but don't swap the bits
+		// will appear RB swapped until reimported
+		UE_LOG(LogTexture, Warning, TEXT("TextureSource is a deprecated RB swapped format, needs reimport!: %s"), *GetPathName());
+		
+		for(int i=0;i<Source.LayerFormat.Num();i++)
+		{
+			if ( Source.LayerFormat[i] == TSF_RGBA8_DEPRECATED )
+			{
+				Source.LayerFormat[i] = TSF_BGRA8;
+			}
+			else if ( Source.LayerFormat[i] == TSF_RGBE8_DEPRECATED )
+			{
+				Source.LayerFormat[i] = TSF_BGRE8;
+			}
+		}
+	}
+
 #endif
 
 	if( !IsTemplate() )
@@ -1226,18 +1256,8 @@ FTextureSourceBlock::FTextureSourceBlock()
 
 int32 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
 {
-	int32 BytesPerPixel = 0;
-	switch (Format)
-	{
-	case TSF_G8:		BytesPerPixel = 1; break;
-	case TSF_G16:		BytesPerPixel = 2; break;
-	case TSF_BGRA8:		BytesPerPixel = 4; break;
-	case TSF_BGRE8:		BytesPerPixel = 4; break;
-	case TSF_RGBA16:	BytesPerPixel = 8; break;
-	case TSF_RGBA16F:	BytesPerPixel = 8; break;
-	default:			BytesPerPixel = 0; break;
-	}
-	return BytesPerPixel;
+	ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(Format);
+	return ERawImageFormat::GetBytesPerPixel(RawFormat);
 }
 
 #if WITH_EDITOR
@@ -1475,6 +1495,8 @@ void FTextureSource::Compress()
 
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper( EImageFormat::PNG );
+		
+		// Legacy bug, must be matched in Compress & Decompress
 		// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
 		ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
 		int RawBitsPerChannel = (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8;
@@ -1513,21 +1535,92 @@ void FTextureSource::Compress()
 	}
 }
 
-FSharedBuffer FTextureSource::Decompress(IImageWrapperModule* ImageWrapperModule) const
+FSharedBuffer FTextureSource::Decompress(IImageWrapperModule* ) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureSource::Decompress);
+	
+	// ImageWrapperModule argument ignored, not drilled through DecompressImage
 
-	if (CompressionFormat == TSCF_JPEG)
+	if (CompressionFormat != TSCF_None || bPNGCompressed)
 	{
-		return TryDecompressJpegData(ImageWrapperModule);
-	}
-	else if (bPNGCompressed) // Change to CompressionFormat == TSCF_PNG once bPNGCompressed is deprecated
-	{
-		return TryDecompressPngData(ImageWrapperModule);
+		return TryDecompressData();
 	}
 	else
 	{
 		return BulkData.GetPayload().Get();
+	}
+}
+
+// constructor locks the mip (can fail, pointer will be null)
+FTextureSource::FMipLock::FMipLock(ELockState InLockState,FTextureSource * InTextureSource,int32 InBlockIndex, int32 InLayerIndex, int32 InMipIndex)
+:
+	LockState(InLockState),
+	TextureSource(InTextureSource),
+	BlockIndex(InBlockIndex),
+	LayerIndex(InLayerIndex),
+	MipIndex(InMipIndex)
+{
+	void * Locked = TextureSource->LockMipInternal(BlockIndex, LayerIndex, MipIndex, LockState);
+	if ( Locked )
+	{	
+		FTextureSourceBlock Block;
+		TextureSource->GetBlock(BlockIndex, Block);
+		check(MipIndex < Block.NumMips);
+
+		Image.RawData = Locked;
+		Image.SizeX = FMath::Max(Block.SizeX >> MipIndex, 1);
+		Image.SizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
+		Image.NumSlices = Block.NumSlices;
+		Image.Format = FImageCoreUtils::ConvertToRawImageFormat(TextureSource->Format);
+
+		if ( TextureSource->Owner != nullptr )
+		{
+			Image.GammaSpace = TextureSource->Owner->GetGammaSpace();
+		}
+		else
+		{
+			// TextureSource does not have gamma information, just guess it ?
+			Image.GammaSpace = ERawImageFormat::GetDefaultGammaSpace(Image.Format);
+		}
+		
+		const int64 MipSizeBytes = TextureSource->CalcMipSize(BlockIndex, LayerIndex, MipIndex);
+
+		check( Image.GetImageSizeBytes() == MipSizeBytes );		
+		check( IsValid() );
+	}
+	else
+	{
+		LockState = ELockState::None;
+	}
+}
+
+FTextureSource::FMipLock::FMipLock(ELockState InLockState,FTextureSource * InTextureSource,int32 InMipIndex) :
+	FMipLock(InLockState,InTextureSource,0,0,InMipIndex)
+{
+}
+
+// move constructor :
+FTextureSource::FMipLock::FMipLock(FMipLock&& RHS) :
+	LockState(RHS.LockState),
+	TextureSource(RHS.TextureSource),
+	BlockIndex(RHS.BlockIndex),
+	LayerIndex(RHS.LayerIndex),
+	MipIndex(RHS.MipIndex),
+	Image(RHS.Image)
+{
+	// blank out RHS so he doesn't try to unlock :
+	RHS.LockState = ELockState::None;
+	RHS.Image = FImageView();
+	check( ! RHS.IsValid() );
+}
+
+FTextureSource::FMipLock::~FMipLock()
+{
+	if ( IsValid() )
+	{
+		TextureSource->UnlockMip(BlockIndex,LayerIndex,MipIndex);
+		LockState = ELockState::None;
+		Image.RawData = nullptr;
 	}
 }
 
@@ -1619,7 +1712,42 @@ void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 	}
 }
 
-bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, IImageWrapperModule* ImageWrapperModule)
+bool FTextureSource::GetMipImage(FImage & OutImage, int32 BlockIndex, int32 LayerIndex, int32 MipIndex)
+{
+	TArray64<uint8> MipData;
+	if ( ! GetMipData(MipData,BlockIndex,LayerIndex,MipIndex) )
+	{
+		return false;
+	}
+	
+	const int64 MipSizeBytes = CalcMipSize(BlockIndex, LayerIndex, MipIndex);
+	check( MipData.Num() == MipSizeBytes );
+	
+	FTextureSourceBlock Block;
+	GetBlock(BlockIndex, Block);
+	check(MipIndex < Block.NumMips);
+
+	OutImage.RawData = MoveTemp(MipData);
+	OutImage.SizeX = FMath::Max(Block.SizeX >> MipIndex, 1);
+	OutImage.SizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
+	OutImage.NumSlices = Block.NumSlices;
+	OutImage.Format = FImageCoreUtils::ConvertToRawImageFormat(Format);
+
+	if ( Owner != nullptr )
+	{
+		OutImage.GammaSpace = Owner->GetGammaSpace();
+	}
+	else
+	{
+		// TextureSource does not have gamma information, just guess it ?
+		OutImage.GammaSpace = ERawImageFormat::GetDefaultGammaSpace(OutImage.Format);
+	}
+
+	check( OutImage.GetImageSizeBytes() == MipSizeBytes );
+	return true;
+}
+
+bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, IImageWrapperModule* )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureSource::GetMipData (TArray64));
 
@@ -1638,7 +1766,7 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 		// by the one above. If it fires then it indicates that there is a lock/unlock mismatch as well as invalid access!
 		checkf(LockedMipData.IsNull(), TEXT("Attempting to access mip data while locked mip data is still allocated"));
 
-		FSharedBuffer DecompressedData = Decompress(ImageWrapperModule);
+		FSharedBuffer DecompressedData = Decompress();
 
 		if (!DecompressedData.IsNull())
 		{
@@ -1663,7 +1791,7 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 	return bSuccess;
 }
 
-FTextureSource::FMipData FTextureSource::GetMipData(IImageWrapperModule* ImageWrapperModule)
+FTextureSource::FMipData FTextureSource::GetMipData(IImageWrapperModule* )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureSource::GetMipData (FMipData));
 
@@ -1676,7 +1804,7 @@ FTextureSource::FMipData FTextureSource::GetMipData(IImageWrapperModule* ImageWr
 	FReadScopeLock _(BulkDataLock.Get());
 #endif //WITH_EDITOR
 
-	FSharedBuffer DecompressedData = Decompress(ImageWrapperModule);
+	FSharedBuffer DecompressedData = Decompress();
 	return FMipData(*this, DecompressedData);
 }
 
@@ -1776,6 +1904,7 @@ ETextureSourceCompressionFormat FTextureSource::GetSourceCompression() const
 {
 	// Until we deprecate bPNGCompressed it might not be 100% in sync with CompressionFormat
 	// so if it is set we should use that rather than the enum.
+	// @todo fix this, remove bPNGCompressed
 	if (bPNGCompressed)
 	{
 		return ETextureSourceCompressionFormat::TSCF_PNG;
@@ -1789,84 +1918,46 @@ FString FTextureSource::GetSourceCompressionAsString() const
 	return StaticEnum<ETextureSourceCompressionFormat>()->GetDisplayNameTextByValue(GetSourceCompression()).ToString();
 }
 
-FSharedBuffer FTextureSource::TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) const
-{
-	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
-	check(Blocks.Num() == 0 && NumLayers == 1 && NumSlices == 1 && bCanPngCompressFormat);
-
-	FSharedBuffer Payload = BulkData.GetPayload().Get();
-
-	if (ImageWrapperModule == nullptr) // Optional if called from the gamethread, see FModuleManager::WarnIfItWasntSafeToLoadHere()
-	{
-		ImageWrapperModule = &FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
-	}
-
-	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::PNG);
-	if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(Payload.GetData(), Payload.GetSize()))
-	{
-		Payload.Reset(); // Image wrapper takes a copy so we can discard the payload now
-
-		check(ImageWrapper->GetWidth() == SizeX);
-		check(ImageWrapper->GetHeight() == SizeY);
-
-		TArray64<uint8> RawData;
-		// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
-		ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
-		if (ImageWrapper->GetRaw(RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8, RawData) && RawData.Num() > 0)
-		{		
-			return MakeSharedBufferFromArray(MoveTemp(RawData));
-		}
-		else
-		{
-			UE_LOG(LogTexture, Warning, TEXT("PNG decompression of source art failed"));
-			return FSharedBuffer();
-		}
-	}
-	else
-	{
-		UE_LOG(LogTexture, Log, TEXT("Only pngs are supported"));
-		return FSharedBuffer();
-	}
-}
-
-FSharedBuffer FTextureSource::TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) const
+FSharedBuffer FTextureSource::TryDecompressData() const
 {
 	if (NumLayers == 1 && NumSlices == 1 && Blocks.Num() == 0)
 	{
-		if (!ImageWrapperModule)
-		{
-			ImageWrapperModule = &FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
-		}
-
 		FSharedBuffer Payload = BulkData.GetPayload().Get();
 
-		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::JPEG);
-		if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(Payload.GetData(), Payload.GetSize()))
+		FImage Image;
+		if ( ! FImageUtils::DecompressImage(Payload.GetData(), Payload.GetSize(), Image) )
 		{
-			Payload.Reset(); // Image wrapper takes a copy so we can discard the payload now
-
-			TArray64<uint8> RawData;
-			// The two formats we support for JPEG imports, see UTextureFactory::ImportImage
-			const ERGBFormat JpegFormat = Format == TSF_G8 ? ERGBFormat::Gray : ERGBFormat::BGRA;
-			if (ImageWrapper->GetRaw(JpegFormat, 8, RawData))
-			{
-				return MakeSharedBufferFromArray(MoveTemp(RawData));
-			}
-			else
-			{
-				UE_LOG(LogTexture, Warning, TEXT("JPEG decompression of source art failed to return uncompressed data"));
-				return FSharedBuffer();
-			}
-		}
-		else
-		{
-			UE_LOG(LogTexture, Warning, TEXT("JPEG decompression of source art failed initialization"));
+			UE_LOG(LogTexture, Warning, TEXT("TryDecompressData failed to return uncompressed data"));
 			return FSharedBuffer();
 		}
+
+		// we got data in Image.Format
+		// we expect data in TSF "Format"
+		ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(Format);
+
+		if ( Image.Format != RawFormat )
+		{
+			// this shouldn't ever happen currently
+			UE_LOG(LogTexture, Warning, TEXT("TryDecompressData unexpected format conversion?"));
+
+			// TextureSource does not have gamma information, so just guess:
+			//  (gamma conversion should never actually happen here so this should be unused)
+			Image.ChangeFormat(RawFormat, ERawImageFormat::GetDefaultGammaSpace(RawFormat));
+		}
+			
+		if ( (CompressionFormat == TSCF_PNG || bPNGCompressed) && Image.Format == ERawImageFormat::BGRA8 )
+		{
+			// Legacy bug, must be matched in Compress & Decompress
+			// see FTextureSource::Compress
+			// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
+			FImageCore::TransposeImageRGBABGRA(Image);
+		}
+
+		return MakeSharedBufferFromArray(MoveTemp(Image.RawData));
 	}
 	else
 	{
-		UE_LOG(LogTexture, Warning, TEXT("JPEG compressed source art is in an invalid format NumLayers:(%d) NumSlices:(%d) NumBlocks:(%d)"),
+		UE_LOG(LogTexture, Warning, TEXT("Compressed source art is in an invalid format NumLayers:(%d) NumSlices:(%d) NumBlocks:(%d)"),
 			NumLayers, NumSlices, Blocks.Num());
 		return FSharedBuffer();
 	}	
@@ -1965,7 +2056,7 @@ void FTextureSource::ImportCustomProperties(const TCHAR* SourceText, FFeedbackCo
 
 bool FTextureSource::CanPNGCompress() const
 {
-	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
+	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_BGRA8 || Format == TSF_RGBA16 );
 
 	if (!bPNGCompressed &&
 		NumLayers == 1 &&

@@ -10,6 +10,7 @@ public class ImageWriteQueue : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"ImageCore",
 				"ImageWrapper",
 			}
 		);

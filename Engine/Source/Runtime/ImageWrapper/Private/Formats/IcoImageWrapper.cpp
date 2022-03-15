@@ -65,6 +65,20 @@ FIcoImageWrapper::FIcoImageWrapper()
 
 /* FImageWrapper interface
  *****************************************************************************/
+ 
+// CanSetRawFormat returns true if SetRaw will accept this format
+bool FIcoImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
+{
+	//checkf(false, TEXT("ICO compression not supported"));
+	return false;
+}
+
+// returns InFormat if supported, else maps to something supported
+ERawImageFormat::Type FIcoImageWrapper::GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const
+{
+	//checkf(false, TEXT("ICO compression not supported"));
+	return ERawImageFormat::BGRA8;
+}
 
 void FIcoImageWrapper::Compress( int32 Quality )
 {

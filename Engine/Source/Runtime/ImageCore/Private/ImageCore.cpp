@@ -12,6 +12,8 @@ static constexpr float MAX_HALF_FLOAT16 = 65504.0f;
 
 FORCEINLINE static FLinearColor SaturateToHalfFloat(const FLinearColor& LinearCol)
 {
+	// @@!! vector min+max
+	// @@!! why do we need this at all?
 	FLinearColor Result;
 	Result.R = FMath::Clamp(LinearCol.R, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
 	Result.G = FMath::Clamp(LinearCol.G, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
@@ -33,7 +35,7 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, ImageCore);
  */
 static void InitImageStorage(FImage& Image)
 {
-	int64 NumBytes = int64(Image.SizeX) * Image.SizeY * Image.NumSlices * Image.GetBytesPerPixel();
+	int64 NumBytes = Image.GetImageSizeBytes();
 	Image.RawData.Empty(NumBytes);
 	Image.RawData.AddUninitialized(NumBytes);
 }
@@ -130,48 +132,105 @@ static void ParallelLoop(const TCHAR* DebugName, int32 NumJobs, int64 TexelsPerJ
 }
 
 
+// Copy Image, swapping RB, SrcImage must be BGRA8 or RGBA16
+// Src == Dest is okay
+IMAGECORE_API void FImageCore::CopyImageRGBABGRA(const FImageView & SrcImage,const FImageView & DestImage)
+{
+	check( SrcImage.GetNumPixels() == DestImage.GetNumPixels() );
+	check( SrcImage.Format == DestImage.Format );
+	const int64 NumTexels = SrcImage.GetNumPixels();
+
+	if ( SrcImage.Format == ERawImageFormat::BGRA8 )
+	{	
+		const uint8 * SrcColors = (const uint8 *)SrcImage.RawData;
+		const uint8 * SrcColorsEnd = SrcColors + SrcImage.GetImageSizeBytes();
+		uint8 * DestColors = (uint8 *)DestImage.RawData;
+	
+		for(;SrcColors<SrcColorsEnd;SrcColors+=4,DestColors+=4)
+		{
+			// make it work with Src == Dest
+			uint8 R = SrcColors[0];
+			uint8 B = SrcColors[2];
+			DestColors[0] = B;
+			DestColors[1] = SrcColors[1];
+			DestColors[2] = R;
+			DestColors[3] = SrcColors[3];
+		}
+	}
+	else if ( SrcImage.Format == ERawImageFormat::RGBA16 )
+	{
+		const uint16 * SrcColors = (const uint16 *)SrcImage.RawData;
+		const uint16 * SrcColorsEnd = SrcColors + SrcImage.GetImageSizeBytes()/sizeof(uint16);
+		uint16 * DestColors = (uint16 * )DestImage.RawData;
+	
+		for(;SrcColors<SrcColorsEnd;SrcColors+=4,DestColors+=4)
+		{
+			// make it work with Src == Dest
+			uint16 R = SrcColors[0];
+			uint16 B = SrcColors[2];
+			DestColors[0] = B;
+			DestColors[1] = SrcColors[1];
+			DestColors[2] = R;
+			DestColors[3] = SrcColors[3];
+		}
+	}
+	else
+	{
+		check(0);
+	}
+}
+
+IMAGECORE_API void FImageCore::TransposeImageRGBABGRA(const FImageView & Image)
+{
+	// CopyImageRGBABGRA is okay in place
+	CopyImageRGBABGRA(Image,Image);
+}
+
+static uint8 Requantize16to8(const uint16 In)
+{
+	// same as QuantizeRound(In/65535.f);
+    uint32 Ret = ( (uint32)In * 255 + 32768 + 127 )>>16;
+	checkSlow( Ret <= 255 );
+	return (uint8)Ret;
+}
+
 /**
  * Copies an image accounting for format differences. Sizes must match.
  *
  * @param SrcImage - The source image to copy from.
  * @param DestImage - The destination image to copy to.
  */
-static void CopyImage(const FImage& SrcImage, FImage& DestImage)
+IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImageView & DestImage)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CopyImage);
 
-	check(SrcImage.SizeX == DestImage.SizeX);
-	check(SrcImage.SizeY == DestImage.SizeY);
-	check(SrcImage.NumSlices == DestImage.NumSlices);
+	check(SrcImage.GetNumPixels() == DestImage.GetNumPixels());
 
 	const bool bDestIsGammaCorrected = DestImage.IsGammaCorrected();
-	const int64 NumTexels = int64(SrcImage.SizeX) * SrcImage.SizeY * SrcImage.NumSlices;
+	const int64 NumTexels = SrcImage.GetNumPixels();
 	int64 TexelsPerJob;
 	int32 NumJobs = ImageParallelForComputeNumJobsForPixels(TexelsPerJob,NumTexels);
 
 	if (SrcImage.Format == DestImage.Format &&
 		SrcImage.GammaSpace == DestImage.GammaSpace)
 	{
-		DestImage.RawData = SrcImage.RawData;
+		int64 Bytes = SrcImage.GetImageSizeBytes();
+		check( DestImage.GetImageSizeBytes() == Bytes );
+		memcpy(DestImage.RawData,SrcImage.RawData,Bytes);
 	}
 	else if (SrcImage.Format == ERawImageFormat::RGBA32F)
 	{
 		// Convert from 32-bit linear floating point.
-		const FLinearColor* SrcColors = SrcImage.AsRGBA32F().GetData();
+		const FLinearColor* SrcColors = (const FLinearColor*) SrcImage.RawData;
 	
-		// if gamma correction is done, it's always to sRGB , not to Pow22
-		// so if Pow22 was requested, change to sRGB
-		// so that Float->int->Float roundtrips correctly
-		if ( DestImage.GammaSpace == EGammaSpace::Pow22 )
-		{
-			DestImage.GammaSpace = EGammaSpace::sRGB;
-		}
+		// if gamma correction is done, it's always *TO* sRGB , not to Pow22
+		check( DestImage.GammaSpace != EGammaSpace::Pow22 );
 
 		switch (DestImage.Format)
 		{
 		case ERawImageFormat::G8:
 			{
-				uint8* DestLum = DestImage.AsG8().GetData();
+				uint8* DestLum = (uint8 *) DestImage.RawData;
 				if (bDestIsGammaCorrected)
 				{
 					ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestLum, SrcColors](int64 TexelIndex)
@@ -191,7 +250,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::G16:
 			{
-				uint16* DestLum = DestImage.AsG16().GetData();
+				uint16* DestLum = (uint16 *) DestImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestLum, SrcColors](int64 TexelIndex)
 				{
 					DestLum[TexelIndex] = FColor::QuantizeUNormFloatTo16(SrcColors[TexelIndex].R);
@@ -201,7 +260,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::BGRA8:
 			{
-				FColor* DestColors = DestImage.AsBGRA8().GetData();
+				FColor* DestColors = (FColor *) DestImage.RawData;
 				if (bDestIsGammaCorrected)
 				{
 					ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
@@ -265,7 +324,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		
 		case ERawImageFormat::BGRE8:
 			{
-				FColor* DestColors = DestImage.AsBGRE8().GetData();
+				FColor* DestColors = (FColor*) DestImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
 				{
 					DestColors[TexelIndex] = SrcColors[TexelIndex].ToRGBE();
@@ -275,7 +334,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		
 		case ERawImageFormat::RGBA16:
 			{
-				uint16* DestColors = DestImage.AsRGBA16().GetData();
+				uint16* DestColors = (uint16 *) DestImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
 				{
 					FLinearColor Src = SrcColors[TexelIndex];
@@ -290,7 +349,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		
 		case ERawImageFormat::RGBA16F:
 			{
-				FFloat16Color* DestColors = DestImage.AsRGBA16F().GetData();
+				FFloat16Color* DestColors = (FFloat16Color*) DestImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
 				{
 					DestColors[TexelIndex] = FFloat16Color(SrcColors[TexelIndex]);
@@ -300,24 +359,28 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::R16F:
 			{
-				FFloat16* DestColors = DestImage.AsR16F().GetData();
+				FFloat16* DestColors = (FFloat16*) DestImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
 				{
 					DestColors[TexelIndex] = FFloat16(SrcColors[TexelIndex].R);
 				});
 			}
 			break;
+			
+		default:
+			check(0);
+			break;
 		}
 	}
 	else if (DestImage.Format == ERawImageFormat::RGBA32F)
 	{
 		// Convert to 32-bit linear floating point.
-		FLinearColor* DestColors = DestImage.AsRGBA32F().GetData();
+		FLinearColor* DestColors = (FLinearColor*) DestImage.RawData;
 		switch (SrcImage.Format)
 		{
 		case ERawImageFormat::G8:
 			{
-				const uint8* SrcLum = SrcImage.AsG8().GetData();
+				const uint8* SrcLum = (const uint8*) SrcImage.RawData;
 				switch (SrcImage.GammaSpace)
 				{
 				case EGammaSpace::Linear:
@@ -350,7 +413,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::G16:
 			{
-				const uint16* SrcLum = SrcImage.AsG16().GetData();
+				const uint16* SrcLum = (const uint16*) SrcImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcLum](int64 TexelIndex)
 				{
 					float Value = FColor::DequantizeUNorm16ToFloat(SrcLum[TexelIndex]);
@@ -361,7 +424,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::BGRA8:
 			{
-				const FColor* SrcColors = SrcImage.AsBGRA8().GetData();
+				const FColor* SrcColors = (const FColor*) SrcImage.RawData;
 				switch (SrcImage.GammaSpace)
 				{
 				case EGammaSpace::Linear:
@@ -427,7 +490,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::BGRE8:
 			{
-				const FColor* SrcColors = SrcImage.AsBGRE8().GetData();
+				const FColor* SrcColors = (const FColor*) SrcImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
 				{
 					DestColors[TexelIndex] = SrcColors[TexelIndex].FromRGBE();
@@ -437,7 +500,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::RGBA16:
 			{
-				const uint16* SrcColors = SrcImage.AsRGBA16().GetData();
+				const uint16* SrcColors = (const uint16*) SrcImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
 				{
 					int64 SrcIndex = TexelIndex * 4;
@@ -453,7 +516,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::RGBA16F:
 			{
-				const FFloat16Color* SrcColors = SrcImage.AsRGBA16F().GetData();
+				const FFloat16Color* SrcColors = (const FFloat16Color*) SrcImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
 				{
 					DestColors[TexelIndex] = SrcColors[TexelIndex].GetFloats();
@@ -463,20 +526,24 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::R16F:
 			{
-				const FFloat16* SrcColors = SrcImage.AsR16F().GetData();
+				const FFloat16* SrcColors = (const FFloat16*) SrcImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
 				{
 					DestColors[TexelIndex] = FLinearColor(SrcColors[TexelIndex].GetFloat(), 0, 0, 1);
 				});
 			}
 			break;
+
+		default:
+			check(0);
+			break;
 		}
 	}
-	else if (SrcImage.Format == ERawImageFormat::BGRA8 && SrcImage.GammaSpace == EGammaSpace::Linear &&
-			DestImage.Format == ERawImageFormat::RGBA16 && DestImage.GammaSpace == EGammaSpace::Linear)
+	else if (SrcImage.Format == ERawImageFormat::BGRA8 && DestImage.Format == ERawImageFormat::RGBA16 &&
+		SrcImage.GammaSpace == EGammaSpace::Linear )
 	{
-		const FColor* SrcColors = SrcImage.AsBGRA8().GetData();
-		uint16* DestColors = DestImage.AsRGBA16().GetData();
+		const FColor* SrcColors = (const FColor*) SrcImage.RawData;
+		uint16* DestColors = (uint16*) DestImage.RawData;
 		ParallelLoop<4>(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
 			[DestColors, SrcColors](int64 TexelIndex)
 			{
@@ -512,15 +579,45 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 			}
 		);
 	}
-	else if (SrcImage.Format == ERawImageFormat::BGRA8 && SrcImage.GammaSpace == EGammaSpace::Linear &&
-			DestImage.Format == ERawImageFormat::G8 && DestImage.GammaSpace == EGammaSpace::Linear)
+	else if (SrcImage.Format == ERawImageFormat::RGBA16 && DestImage.Format == ERawImageFormat::BGRA8 &&
+		DestImage.GammaSpace == EGammaSpace::Linear )
 	{
-		const FColor* SrcColors = SrcImage.AsBGRA8().GetData();
-		uint8* DestLum = DestImage.AsG8().GetData();
+		const uint16 * SrcChannels = (const uint16*) SrcImage.RawData;
+		FColor* DestColors = (FColor*) DestImage.RawData;
+		ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
+			[DestColors, SrcChannels](int64 TexelIndex)
+			{
+				const uint16* Src = SrcChannels + TexelIndex * 4;
+				DestColors[TexelIndex] = FColor(
+					Requantize16to8(Src[0]),
+					Requantize16to8(Src[1]),
+					Requantize16to8(Src[2]),
+					Requantize16to8(Src[3]));
+			}
+		);
+	}
+	else if (SrcImage.Format == ERawImageFormat::BGRA8 && DestImage.Format == ERawImageFormat::G8 &&
+		SrcImage.GammaSpace == DestImage.GammaSpace )
+	{
+		const FColor* SrcColors = (const FColor*) SrcImage.RawData;
+		uint8* DestLum = (uint8*) DestImage.RawData;
 		ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
 			[DestLum, SrcColors](int64 TexelIndex)
 			{
 				DestLum[TexelIndex] = SrcColors[TexelIndex].R;
+			}
+		);
+	}
+	else if (SrcImage.Format == ERawImageFormat::G8 && DestImage.Format == ERawImageFormat::BGRA8 &&
+		SrcImage.GammaSpace == DestImage.GammaSpace )
+	{
+		const uint8* SrcLum = (const uint8*) SrcImage.RawData;
+		FColor* DestColors = (FColor*) DestImage.RawData;
+		ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
+			[SrcLum, DestColors](int64 TexelIndex)
+			{
+				uint8 Lum = SrcLum[TexelIndex];
+				DestColors[TexelIndex] = FColor(Lum,Lum,Lum,255);
 			}
 		);
 	}
@@ -529,9 +626,9 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CopyImage.TempLinear);
 
 		// Arbitrary conversion, use 32-bit linear float as an intermediate format.
-		FImage TempImage(SrcImage.SizeX, SrcImage.SizeY, ERawImageFormat::RGBA32F);
-		CopyImage(SrcImage, TempImage);
-		CopyImage(TempImage, DestImage);
+		FImage TempImage(SrcImage.SizeX, SrcImage.SizeY, SrcImage.NumSlices, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+		FImageCore::CopyImage(SrcImage, TempImage);
+		FImageCore::CopyImage(TempImage, DestImage);
 	}
 }
 
@@ -611,28 +708,20 @@ static void ResizeImage(const FImage& SrcImage, FImage& DestImage)
 
 /* FImage constructors
  *****************************************************************************/
-
+ 
 FImage::FImage(int32 InSizeX, int32 InSizeY, int32 InNumSlices, ERawImageFormat::Type InFormat, EGammaSpace InGammaSpace)
-	: SizeX(InSizeX)
-	, SizeY(InSizeY)
-	, NumSlices(InNumSlices)
-	, Format(InFormat)
-	, GammaSpace(InGammaSpace)
+	: FImageInfo(InSizeX,InSizeY,InNumSlices,InFormat,InGammaSpace)
 {
 	InitImageStorage(*this);
 }
 
-
-FImage::FImage(int32 InSizeX, int32 InSizeY, ERawImageFormat::Type InFormat, EGammaSpace InGammaSpace)
-	: SizeX(InSizeX)
-	, SizeY(InSizeY)
-	, NumSlices(1)
-	, Format(InFormat)
-	, GammaSpace(InGammaSpace)
+void FImage::Init(const FImageInfo & Info)
 {
+	// assign the FImageInfo part of this :
+	FImageInfo * MyInfo = this; // implicit cast
+	*MyInfo = Info;
 	InitImageStorage(*this);
 }
-
 
 void FImage::Init(int32 InSizeX, int32 InSizeY, int32 InNumSlices, ERawImageFormat::Type InFormat, EGammaSpace InGammaSpace)
 {
@@ -658,16 +747,54 @@ void FImage::Init(int32 InSizeX, int32 InSizeY, ERawImageFormat::Type InFormat, 
 
 /* FImage interface
  *****************************************************************************/
+ 
+void FImage::Swap(FImage & Other)
+{
+	::Swap(RawData,Other.RawData);
+	// FImageInfo can be moved with assignment
+	FImageInfo * Me = this;
+	FImageInfo * Him = &Other;
+	FImageInfo Temp;
+	Temp = *Me;
+	*Me = *Him;
+	*Him = Temp;
+}
+
+void FImage::ChangeFormat(ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace)
+{
+	if ( Format == DestFormat &&
+		( GammaSpace == DestGammaSpace || ! ERawImageFormat::GetFormatNeedsGammaSpace(Format)) )
+	{
+		// no action needed
+	}
+	else
+	{
+		FImage Temp;
+		CopyTo(Temp,DestFormat,DestGammaSpace);
+		//*this = MoveTemp(Temp); // or swap?
+		Swap(Temp);
+	}
+}
 
 void FImage::CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const
 {
+	// if gamma correction is done, it's always *TO* sRGB , not to Pow22
+	// so if Pow22 was requested, change to sRGB
+	// so that Float->int->Float roundtrips correctly
+	if ( DestGammaSpace == EGammaSpace::Pow22 && GammaSpace != EGammaSpace::Pow22 )
+	{
+		// @@!! todo: log warning and fix call sites that trigger this
+
+		DestGammaSpace = EGammaSpace::sRGB;
+	}
+
 	DestImage.SizeX = SizeX;
 	DestImage.SizeY = SizeY;
 	DestImage.NumSlices = NumSlices;
 	DestImage.Format = DestFormat;
 	DestImage.GammaSpace = DestGammaSpace;
 	InitImageStorage(DestImage);
-	CopyImage(*this, DestImage);
+	FImageCore::CopyImage(*this, DestImage);
 }
 
 void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const
@@ -706,6 +833,27 @@ void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawI
 	}
 }
 
+IMAGECORE_API FImageView FImageView::GetSlice(int32 SliceIndex) const
+{
+	check( SliceIndex >= 0 && SliceIndex < NumSlices );
+	FImageView Ret = *this;
+	Ret.NumSlices = 1;
+	int64 BytesPerSlice = Ret.GetImageSizeBytes();
+	Ret.RawData = (void *)((uint8 *)RawData + SliceIndex * BytesPerSlice);
+	return Ret;
+}	
+
+IMAGECORE_API FImageView FImage::GetSlice(int32 SliceIndex) const
+{
+	check( SliceIndex >= 0 && SliceIndex < NumSlices );
+	FImageView Ret = *this;
+	Ret.NumSlices = 1;
+	int64 BytesPerSlice = Ret.GetImageSizeBytes();
+	check( RawData.Num() == NumSlices * BytesPerSlice );
+	Ret.RawData = (void *)(RawData.GetData() + SliceIndex * BytesPerSlice);
+	return Ret;
+}	
+
 void FImage::Linearize(uint8 SourceEncoding, FImage& DestImage) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Linearize);
@@ -721,29 +869,57 @@ void FImage::Linearize(uint8 SourceEncoding, FImage& DestImage) const
 	check(SrcImage.SizeX == DestImage.SizeX);
 	check(SrcImage.SizeY == DestImage.SizeY);
 	check(SrcImage.NumSlices == DestImage.NumSlices);
+
 	//NOTE: SrcImage has GammaSpace in addition to SourceEncoding
-	// @todo Oodle : the way this function behaves with SrcImage GammaSpace and SourceEncoding is not well defined
+	// if SourceEncoding == None, the SrcImage Gamma is used
+	// else SourceEncoding overrides SrcImage Gamma
+	// note that SrcImage Gamma applies only on U8 formats (GetFormatNeedsGammaSpace)
+	// but SourceEncoding applies on ALL formats (eg. float->float)
 
 	UE::Color::EEncoding SourceEncodingType = static_cast<UE::Color::EEncoding>(SourceEncoding);
 
 	if (SourceEncodingType == UE::Color::EEncoding::None)
 	{
 		// note SrcImage.GammaSpace is decoded by CopyImage, is that intended?
-		CopyImage(SrcImage, DestImage);
+		FImageCore::CopyImage(SrcImage, DestImage);
 		return;
 	}
 	else if (SourceEncodingType >= UE::Color::EEncoding::Max)
 	{
-		// note SrcImage.GammaSpace is decoded by CopyImage, is that intended?
 		UE_LOG(LogImageCore, Warning, TEXT("Invalid encoding %d, falling back to linearization using CopyImage."), SourceEncoding);
-		CopyImage(SrcImage, DestImage);
+		FImageCore::CopyImage(SrcImage, DestImage);
 		return;
 	}
 
-	// @todo Oodle : common case of sRGB decoding, just use CopyImage, it's much faster
-	// SourceEncodingType == UE::Color::EEncoding::sRGB
-	// this function calls a func pointer per pixel
+	// fast path common case of sRGB decoding, just use CopyImage, it's much faster
+	// note that CopyImage only does Gamma on 8-bit formats (GetFormatNeedsGammaSpace)
+	//	but Linearize does it on ALL formats
+	if (SourceEncodingType == UE::Color::EEncoding::sRGB &&
+		ERawImageFormat::GetFormatNeedsGammaSpace(SrcImage.Format) )
+	{
+		FImageView SrcImageView(SrcImage);
+		SrcImageView.GammaSpace = EGammaSpace::sRGB;
+		FImageCore::CopyImage(SrcImageView, DestImage);
+		return;
+	}
+	else if (SourceEncodingType == UE::Color::EEncoding::Gamma22 &&
+		ERawImageFormat::GetFormatNeedsGammaSpace(SrcImage.Format) )
+	{
+		FImageView SrcImageView(SrcImage);
+		SrcImageView.GammaSpace = EGammaSpace::Pow22;
+		FImageCore::CopyImage(SrcImageView, DestImage);
+		return;
+	}
+	else if (SourceEncodingType == UE::Color::EEncoding::Linear )
+	{
+		FImageView SrcImageView(SrcImage);
+		SrcImageView.GammaSpace = EGammaSpace::Linear;
+		FImageCore::CopyImage(SrcImageView, DestImage);
+		return;
+	}
 
+	// slow case
+	// this function calls a func pointer per pixel
 
 	const int64 NumTexels = int64(SrcImage.SizeX) * SrcImage.SizeY * SrcImage.NumSlices;
 
@@ -862,7 +1038,25 @@ void FImage::Linearize(uint8 SourceEncoding, FImage& DestImage) const
 	}
 }
 
-int32 FImage::GetBytesPerPixel() const
+IMAGECORE_API const TCHAR * ERawImageFormat::GetName(Type Format)
+{
+	switch (Format)
+	{
+	case ERawImageFormat::G8:  return TEXT("G8");
+	case ERawImageFormat::G16: return TEXT("G16");
+	case ERawImageFormat::R16F: return TEXT("R16F");
+	case ERawImageFormat::BGRA8: return TEXT("BGRA8");
+	case ERawImageFormat::BGRE8: return TEXT("BGRE8");
+	case ERawImageFormat::RGBA16: return TEXT("RGBA16");
+	case ERawImageFormat::RGBA16F: return TEXT("RGBA16F");
+	case ERawImageFormat::RGBA32F: return TEXT("RGBA32F");
+	default:
+		check(0);
+		return TEXT("invalid");
+	}
+}
+
+IMAGECORE_API int32 ERawImageFormat::GetBytesPerPixel(Type Format)
 {
 	int32 BytesPerPixel = 0;
 	switch (Format)
@@ -889,6 +1083,78 @@ int32 FImage::GetBytesPerPixel() const
 	case ERawImageFormat::RGBA32F:
 		BytesPerPixel = 16;
 		break;
+
+	default:
+		check(0);
+		break;
 	}
 	return BytesPerPixel;
+}
+
+
+IMAGECORE_API bool ERawImageFormat::IsHDR(Type Format)
+{
+	return Format == RGBA16F || Format == RGBA32F || Format == R16F || Format == BGRE8;
+}
+
+IMAGECORE_API FLinearColor ERawImageFormat::GetOnePixelLinear(const void * PixelData,Type Format,bool bSRGB)
+{
+	switch(Format)
+	{
+	case G8:
+	{
+		uint8 Gray = ((const uint8 *)PixelData)[0];
+		FColor Color(Gray,Gray,Gray);
+		if ( bSRGB )
+			return FLinearColor::FromSRGBColor(Color);
+		else
+			return Color.ReinterpretAsLinear();
+	}
+	case BGRA8:
+	{
+		FColor Color = *((const FColor *)PixelData);
+		if ( bSRGB )
+			return FLinearColor::FromSRGBColor(Color);
+		else
+			return Color.ReinterpretAsLinear();
+	}
+	case BGRE8:
+	{
+		FColor Color = *((const FColor *)PixelData);
+		return Color.FromRGBE();
+	}
+	case RGBA16:
+	{
+		const uint16 * Samples = (const uint16 *)PixelData;
+		return FLinearColor(
+			Samples[0]/65535.f, 
+			Samples[1]/65535.f, 
+			Samples[2]/65535.f, 
+			Samples[3]/65535.f);
+	}
+	case RGBA16F:
+	{
+		FFloat16Color Color = *((const FFloat16Color *)PixelData);
+		return Color.GetFloats();
+	}
+	case RGBA32F:
+	{
+		return *((FLinearColor *)PixelData);
+	}
+	case G16:
+	{
+		const uint16 * Samples = (const uint16 *)PixelData;
+		float Gray = Samples[0]/65535.f;
+		return FLinearColor(Gray,Gray,Gray,1.f);
+	}
+	case R16F:
+	{
+		float Gray = FPlatformMath::LoadHalf((const uint16 *)PixelData);
+		return FLinearColor(Gray,Gray,Gray,1.f);
+	}
+	
+	default:
+		check(0);
+		return FLinearColor();
+	}
 }

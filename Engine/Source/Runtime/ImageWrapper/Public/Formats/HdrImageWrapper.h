@@ -9,6 +9,7 @@
 // http://paulbourke.net/dataformats/pic/
 
 /** To load the HDR file image format. Does not support all possible types HDR formats (e.g. xyze is not supported) */
+//  does not use ImageWrapperBase , unlike all other imagewrappers
 class IMAGEWRAPPER_API FHdrImageWrapper : public IImageWrapper
 {
 public:
@@ -19,19 +20,23 @@ public:
 	// IIMageWrapper Interface begin
 	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
 	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow) override;
-	virtual bool SetAnimationInfo(int32 InNumFrames, int32 InFramerate) override;
 	virtual TArray64<uint8> GetCompressed(int32 Quality = 0) override;
 	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData) override;
+	
+	virtual bool CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const override;
+	virtual ERawImageFormat::Type GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const override;
 
 	virtual int32 GetWidth() const override;
 	virtual int32 GetHeight() const override;
 	virtual int32 GetBitDepth() const override;
 	virtual ERGBFormat GetFormat() const override;
 
-	virtual int32 GetNumFrames() const override;
-	virtual int32 GetFramerate() const override;
+	virtual bool SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate) override;
+	virtual int32 GetNumFrames_DEPRECATED() const override;
+	virtual int32 GetFramerate_DEPRECATED() const override;
 	// IImageWrapper Interface end
 
+	// GetErrorMessage : nice idea, but not virtual, never called
 	const FText& GetErrorMessage() const;
 
 	void FreeCompressedData();
@@ -51,6 +56,7 @@ private:
 	const uint8* RGBDataStart = nullptr;
 
 	TArray64<uint8> CompressedDataHolder;
+	TArray64<uint8> RawDataHolder;
 
 	/** INDEX_NONE if not valid */
 	int32 Width = INDEX_NONE;

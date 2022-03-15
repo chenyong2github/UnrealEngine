@@ -15,7 +15,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "RenderUtils.h"
 
-#include "png.h"
+#include "png.h" // todo: remove png.h
 
 #if WITH_EDITORONLY_DATA
 
@@ -29,12 +29,23 @@
 
 bool FGoogleARCoreSessionConfigCookSupport::SaveTextureToPNG(UTexture2D *Tex, const FString &Filename)
 {
+	// todo: use FImageUtils::SaveTexture2D instead
+	//  
+	#if 0
+
+	FImage Image;
+	if ( ! FImageUtils::GetTexture2DSourceImage(Tex,Image) )
+		return false;
+	return FImageUtils::SaveImageByExtension(*FileName,Image);
+
+	#endif
+
 	TArray64<uint8> MipData;
 	bool Ret = true;
 
 	if (Tex->Source.GetMipData(MipData, 0))
 	{
-		if (Tex->Source.GetFormat() != TSF_BGRA8 && Tex->Source.GetFormat() != TSF_RGBA8)
+		if (Tex->Source.GetFormat() != TSF_BGRA8 )
 		{
 			UE_LOG(
 				LogGoogleARCore, Error,

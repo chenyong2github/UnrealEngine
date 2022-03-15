@@ -274,14 +274,8 @@ void AddDumpToFilePass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, cons
 			// Always write full alpha
 			ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
 
-			if (ImageTask->Format == EImageFormat::EXR)
-			{
-				// Write FColors with a gamma curve. This replicates behavior that previously existed in ExrImageWrapper.cpp (see following overloads) that assumed
-				// any 8 bit output format needed linearizing, but this is not a safe assumption to make at such a low level:
-				// void ExtractAndConvertChannel(const uint8*Src, uint32 SrcChannels, uint32 x, uint32 y, float* ChannelOUT)
-				// void ExtractAndConvertChannel(const uint8*Src, uint32 SrcChannels, uint32 x, uint32 y, FFloat16* ChannelOUT)
-				ImageTask->PixelPreProcessors.Add(TAsyncGammaCorrect<FColor>(2.2f));
-			}
+			// ImageTask->PixelData should be sRGB
+			//  it will gamma correct automatically if written to EXR
 		}
 
 		HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));

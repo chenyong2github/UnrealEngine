@@ -24,6 +24,20 @@ bool FIcnsImageWrapper::SetCompressed(const void* InCompressedData, int64 InComp
 }
 
 
+// CanSetRawFormat returns true if SetRaw will accept this format
+bool FIcnsImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
+{
+	//checkf(false, TEXT("ICNS compression not supported"));
+	return false;
+}
+
+// returns InFormat if supported, else maps to something supported
+ERawImageFormat::Type FIcnsImageWrapper::GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const
+{
+	//checkf(false, TEXT("ICNS compression not supported"));
+	return ERawImageFormat::BGRA8;
+}
+
 bool FIcnsImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
 {
 	// Only support tightly packed

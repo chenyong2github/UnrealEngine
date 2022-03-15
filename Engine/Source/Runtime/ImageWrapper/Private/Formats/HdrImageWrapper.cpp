@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Formats/HdrImageWrapper.h"
+#include "ImageWrapperPrivate.h"
 
 #define LOCTEXT_NAMESPACE "HdrImageWrapper"
 
@@ -20,6 +21,7 @@ namespace UE::ImageWrapper::Private::HdrImageWrapper
 
 bool FHdrImageWrapper::SetCompressedFromView(TArrayView64<const uint8> Data)
 {
+	// CompressedData is just a View, does not take a copy
 	CompressedData = Data;
 
 	if (CompressedData.Num() < 11)
@@ -34,7 +36,8 @@ bool FHdrImageWrapper::SetCompressedFromView(TArrayView64<const uint8> Data)
 
 	GetHeaderLine(FileDataPtr, Line);
 
-	if (FCStringAnsi::Strcmp(Line, "#?RADIANCE"))
+	if (FCStringAnsi::Strcmp(Line, "#?RADIANCE") != 0 &&
+		FCStringAnsi::Strcmp(Line, "#?RGBE") != 0)
 	{
 		FreeCompressedData();
 		return false;
@@ -81,6 +84,7 @@ bool FHdrImageWrapper::SetCompressedFromView(TArrayView64<const uint8> Data)
 
 bool FHdrImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
 {
+	// takes copy
 	CompressedDataHolder.Reset(InCompressedSize);
 	CompressedDataHolder.AddUninitialized(InCompressedSize);
 	FMemory::Memcpy(CompressedDataHolder.GetData(), InCompressedData, InCompressedSize);
@@ -88,24 +92,73 @@ bool FHdrImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 	return SetCompressedFromView(MakeArrayView(CompressedDataHolder));
 }
 
-bool FHdrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
+// CanSetRawFormat returns true if SetRaw will accept this format
+bool FHdrImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
 {
-	// Move the code that export hdr here
-	unimplemented();
-	return false;
+	return InFormat == ERGBFormat::BGRE && InBitDepth == 8;
 }
 
-bool FHdrImageWrapper::SetAnimationInfo(int32 InNumFrames, int32 InFramerate)
+// returns InFormat if supported, else maps to something supported
+ERawImageFormat::Type FHdrImageWrapper::GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const
 {
-	unimplemented();
-	return false;
+	// only writes one format :
+	return ERawImageFormat::BGRE8;
+}
+
+bool FHdrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
+{
+	if ( ! CanSetRawFormat(InFormat,InBitDepth) )
+	{
+		UE_LOG(LogImageWrapper, Warning, TEXT("ImageWrapper unsupported format; check CanSetRawFormat; %d x %d"), (int)InFormat,InBitDepth);
+		return false;
+	}
+
+	RawDataHolder.Empty(InRawSize);
+	RawDataHolder.Append((const uint8 *)InRawData,InRawSize);
+	Width = InWidth;
+	Height = InHeight;
+
+	check( InFormat == ERGBFormat::BGRE );
+	check( InBitDepth == 8 );
+
+	return true;
 }
 
 TArray64<uint8> FHdrImageWrapper::GetCompressed(int32 Quality)
 {
-	// Move the code that export hdr here
-	unimplemented();
-	return {};
+	// must have set BGRE8 raw data :
+	int64 NumPixels = Width * Height;
+	check( RawDataHolder.Num() == NumPixels * 4 );
+
+	
+	const int32 MaxHeaderSize = 256;
+	char Header[MAX_SPRINTF];
+	FCStringAnsi::Sprintf(Header, "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y %d +X %d\n", Height,Width);
+	Header[MaxHeaderSize - 1] = 0;
+	int32 HeaderLen = FMath::Min(FCStringAnsi::Strlen(Header), MaxHeaderSize);
+
+	FreeCompressedData();
+	TArray64<uint8> CompressedDataArray;
+	CompressedDataArray.SetNum( HeaderLen + NumPixels * 4 );
+	uint8 * CompressedPtr = CompressedDataArray.GetData();
+
+	memcpy(CompressedPtr,Header,HeaderLen);
+	CompressedPtr += HeaderLen;
+
+	// just put the BGRE8 bytes
+	// but need to swizzle to RGBE8 order :
+
+	FColor * ToColors = (FColor *)CompressedPtr;
+	const FColor * FromColors = (const FColor *)RawDataHolder.GetData();
+	for(int64 i=0;i<NumPixels;i++)
+	{
+		ToColors[i].B = FromColors[i].R;
+		ToColors[i].G = FromColors[i].G;
+		ToColors[i].R = FromColors[i].B;
+		ToColors[i].A = FromColors[i].A;
+	}
+
+	return MoveTemp(CompressedDataArray);
 }
 
 bool FHdrImageWrapper::GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData)
@@ -158,12 +211,18 @@ ERGBFormat FHdrImageWrapper::GetFormat() const
 	return ERGBFormat::BGRE;
 }
 
-int32 FHdrImageWrapper::GetNumFrames() const
+bool FHdrImageWrapper::SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate)
+{
+	unimplemented();
+	return false;
+}
+
+int32 FHdrImageWrapper::GetNumFrames_DEPRECATED() const
 {
 	return INDEX_NONE;
 }
 
-int32 FHdrImageWrapper::GetFramerate() const
+int32 FHdrImageWrapper::GetFramerate_DEPRECATED() const
 {
 	return INDEX_NONE;
 }

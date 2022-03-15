@@ -406,7 +406,22 @@ namespace UE::ImageWrapper::Private
 
 	void FTiffImageWrapper::Compress(int32 Quality)
 	{
+		// should not get here because CanSetRawFormat is false
 		checkf(false, TEXT("TIFF compression not supported"));
+	}
+	
+	// CanSetRawFormat returns true if SetRaw will accept this format
+	bool FTiffImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
+	{
+		//checkf(false, TEXT("TIFF compression not supported"));
+		return false;
+	}
+
+	// returns InFormat if supported, else maps to something supported
+	ERawImageFormat::Type FTiffImageWrapper::GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const
+	{
+		//checkf(false, TEXT("TIFF compression not supported"));
+		return ERawImageFormat::BGRA8;
 	}
 
 	void FTiffImageWrapper::Uncompress(const ERGBFormat InFormat, int32 InBitDepth)

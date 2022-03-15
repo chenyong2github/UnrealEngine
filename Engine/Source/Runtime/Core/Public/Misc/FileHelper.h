@@ -162,6 +162,10 @@ struct CORE_API FFileHelper
 	 *
 	 * @return true if success
 	 */
+	 // DEPRECATED
+	//	BmpImageWrapper now has a good writer, prefer that for general image saving ; use FImageUtils::SaveImage
+	// note this also calls SendDataToPCViaUnrealConsole
+	//   and uses GenerateNextBitmapFilename
 	static bool CreateBitmap( const TCHAR* Pattern, int32 DataWidth, int32 DataHeight, const struct FColor* Data, struct FIntRect* SubRectangle = NULL, IFileManager* FileManager = &IFileManager::Get(), FString* OutFilename = NULL, bool bInWriteAlpha = false, EColorChannel ColorChannel = EColorChannel::All);
 
 	/**

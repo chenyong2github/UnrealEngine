@@ -4,6 +4,7 @@
 
 #include "Math/Color.h"
 #include "Misc/ScopeLock.h"
+#include "ImageWrapperPrivate.h"
 
 #if WITH_UNREALJPEG
 
@@ -133,6 +134,33 @@ bool FJpegImageWrapper::SetCompressed(const void* InCompressedData, int64 InComp
 }
 
 
+// CanSetRawFormat returns true if SetRaw will accept this format
+bool FJpegImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
+{
+	return ((InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::Gray) && InBitDepth == 8);
+}
+
+// returns InFormat if supported, else maps to something supported
+ERawImageFormat::Type FJpegImageWrapper::GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const
+{
+	switch(InFormat)
+	{
+	case ERawImageFormat::G8:
+	case ERawImageFormat::BGRA8:
+		return InFormat; // directly supported
+	case ERawImageFormat::BGRE8:
+	case ERawImageFormat::RGBA16:
+	case ERawImageFormat::RGBA16F:
+	case ERawImageFormat::RGBA32F:
+	case ERawImageFormat::G16:
+	case ERawImageFormat::R16F:
+		return ERawImageFormat::BGRA8; // needs conversion
+	default:
+		check(0);
+		return ERawImageFormat::BGRA8;
+	};
+}
+
 bool FJpegImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
 {
 	check((InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::Gray) && InBitDepth == 8);
@@ -159,7 +187,7 @@ void FJpegImageWrapper::Compress(int32 Quality)
 	{
 		ensure(Quality >= 1 && Quality <= 100);
 
-		#define JPEG_QUALITY_MIN 30
+		#define JPEG_QUALITY_MIN 40
 		// JPEG should not be used below quality JPEG_QUALITY_MIN
 		Quality = FMath::Clamp(Quality, JPEG_QUALITY_MIN, 100);
 	}
@@ -232,6 +260,7 @@ void FJpegImageWrapper::Uncompress(const ERGBFormat InFormat, int32 InBitDepth)
 	else
 	{
 		check(false);
+		return;
 	}
 
 	FScopeLock JPEGLock(&GJPEGSection);
@@ -242,13 +271,17 @@ void FJpegImageWrapper::Uncompress(const ERGBFormat InFormat, int32 InBitDepth)
 	uint8* OutData = jpgd::decompress_jpeg_image_from_memory(
 		CompressedData.GetData(), CompressedData.Num(), &Width, &Height, &NumColors, Channels, (int)InFormat);
 
-
-	RawData.Reset(Width * Height * Channels);
-	RawData.AddUninitialized(Width * Height * Channels);
 	if (OutData)
 	{
+		RawData.Reset(Width * Height * Channels);
+		RawData.AddUninitialized(Width * Height * Channels);
 		FMemory::Memcpy(RawData.GetData(), OutData, RawData.Num());
 		FMemory::Free(OutData);
+	}
+	else
+	{
+		UE_LOG(LogImageWrapper, Error, TEXT("JPEG Decompress Error"));
+		RawData.Empty();
 	}
 #endif
 }
@@ -344,6 +377,8 @@ void FJpegImageWrapper::UncompressTurbo(const ERGBFormat InFormat, int32 InBitDe
 
 	if (tjDecompress2(Decompressor, CompressedData.GetData(), CompressedData.Num(), RawData.GetData(), Width, 0, Height, PixelFormat, Flags) != 0)
 	{
+		UE_LOG(LogImageWrapper, Error, TEXT("JPEG Decompress Error"));
+		RawData.Empty();
 		return;
 	}
 }

@@ -6,11 +6,13 @@
 #include "Math/IntPoint.h"
 #include "IImageWrapper.h"
 #include "Templates/UniquePtr.h"
+#include "ImageCore.h"
 
 class FFloat16Color;
 template<typename PixelType> struct TImagePixelDataTraits;
 
 
+// todo : use ImageCore ERawImageFormat instead
 enum class EImagePixelType
 {
 	Color,
@@ -25,9 +27,16 @@ struct IImagePixelDataPayload
 
 typedef TSharedPtr<IImagePixelDataPayload, ESPMode::ThreadSafe> FImagePixelPayloadPtr;
 
+
+// todo : use ImageCore FImage instead
+//  get rid of this whole class and TImagePixelData too
+//	just use an FImage instead
 struct FImagePixelData
 {
 	virtual ~FImagePixelData() {}
+	
+	// NOTE : before, U8 would be written to EXR *linear*
+	//	now it will get gamma corrected if bSRGB (which is on by default)
 
 	/**
 	 * Retrieve the type of this data
@@ -67,6 +76,52 @@ struct FImagePixelData
 	uint8 GetNumChannels() const
 	{
 		return NumChannels;
+	}
+	
+	/**
+	 * Get the pixel data as an FImage
+	 */
+	FImageView GetImageView() const
+	{
+		const void* RawPtr    = nullptr;
+		int64       SizeBytes = 0;
+
+		FImageView Ret;
+
+		if ( ! GetRawData(RawPtr, SizeBytes) )
+		{
+			return FImageView();
+		}
+		
+		check( NumChannels == 4 );
+
+		switch(Type)
+		{
+		case EImagePixelType::Color:
+			check(PixelLayout == ERGBFormat::BGRA );
+			check(BitDepth == 8 );
+			Ret = FImageView( (const FColor *)RawPtr, Size.X, Size.Y, bSRGB ? EGammaSpace::sRGB : EGammaSpace::Linear );
+			break;
+
+		case EImagePixelType::Float16:
+			check(PixelLayout == ERGBFormat::RGBAF );
+			check(BitDepth == 16 );
+			Ret = FImageView( (const FFloat16Color *)RawPtr, Size.X, Size.Y );
+			break;
+
+		case EImagePixelType::Float32:
+			check(PixelLayout == ERGBFormat::RGBAF );
+			check(BitDepth == 32 );
+			Ret = FImageView( (const FLinearColor *)RawPtr, Size.X, Size.Y );
+			break;
+
+		default:
+			check(0);
+			return FImageView();
+		}
+
+		check( Ret.GetImageSizeBytes() == SizeBytes );
+		return Ret;
 	}
 
 	/**
@@ -140,6 +195,9 @@ struct FImagePixelData
 	template<typename T>
 	const T* GetPayload() const { return static_cast<T*>(Payload.Get()); }
 
+	bool GetSRGB() const { return bSRGB; }
+	void SetSRGB(bool InSRGB) { bSRGB = InSRGB; }
+
 protected:
 
 	FImagePixelData(const FIntPoint& InSize, EImagePixelType InPixelType, ERGBFormat InPixelLayout, uint8 InBitDepth, uint8 InNumChannels, FImagePixelPayloadPtr InPayload)
@@ -149,7 +207,10 @@ protected:
 		, BitDepth(InBitDepth)
 		, NumChannels(InNumChannels)
 		, Payload(InPayload)
-	{}
+	{
+		// FColor is sRGB by default, floats are Linear
+		bSRGB = ( InPixelType == EImagePixelType::Color );
+	}
 
 private:
 
@@ -174,6 +235,9 @@ private:
 
 	/** Number of channels in the data */
 	uint8 NumChannels;
+
+	/** Is FColor SRGB or Linear?  Floats are always Linear and ignore this */
+	bool bSRGB;
 
 	/** Optional user-specified payload */
 	FImagePixelPayloadPtr Payload;

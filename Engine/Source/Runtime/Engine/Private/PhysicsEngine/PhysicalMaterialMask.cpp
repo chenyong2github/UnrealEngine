@@ -375,19 +375,16 @@ void UPhysicalMaterialMask::GenerateMaskData(TArray<uint32>& OutMaskData, int32&
 					break;
 				}
 
-				case TSF_RGBA8:
-				{
-					MaskDataGenerator<uint8, 0, 1, 2, 3> MaskDataGen(OutSizeX, OutSizeY, TextureData);
-					MaskDataGen.GenerateMask(OutMaskData);
-					break;
-				}
-
 				case TSF_RGBA16:
 				{
 					MaskDataGenerator<uint16, 0, 1, 2, 3> MaskDataGen(OutSizeX, OutSizeY, TextureData);
 					MaskDataGen.GenerateMask(OutMaskData);
 					break;
 				}
+
+				default:
+					check(0);
+					break;
 				}
 			}
 		}

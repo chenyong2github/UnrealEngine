@@ -15,7 +15,7 @@ struct FImportImage
 	TArray64<uint8> RawData;
 	ETextureSourceFormat Format = TSF_Invalid;
 	TextureCompressionSettings CompressionSettings = TC_Default;
-	int32 NumMips;
+	int32 NumMips = 0;
 	int32 SizeX = 0;
 	int32 SizeY = 0;
 	bool SRGB = true;
@@ -202,6 +202,9 @@ protected:
 	/** Keep track of if we are doing a reimport */
 	bool bIsDoingAReimport = false;
 
+	/* Store YesAll/NoAll responses: */
+	EAppReturnType::Type HDRImportShouldBeLongLatCubeMap = EAppReturnType::Retry;
+
 private:
 	/** This variable is static because in StaticImportObject() the type of the factory is not known. */
 	static bool bSuppressImportOverwriteDialog;
@@ -219,7 +222,7 @@ private:
 	*
 	*	@return	bool					true if the given height/width represent a supported texture resolution, false if not
 	*/
-	static bool IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FFeedbackContext* Warn);
+	static bool IsImportResolutionValid(int64 Width, int64 Height, bool bAllowNonPowerOfTwo, FFeedbackContext* Warn);
 
 	/** Flags to be used when calling ImportImage */
 	enum class EImageImportFlags
@@ -234,7 +237,7 @@ private:
 	FRIEND_ENUM_CLASS_FLAGS(EImageImportFlags);
 
 	/** Import image file into generic image struct, may be easily copied to FTextureSource */
-	bool ImportImage(const uint8* Buffer, uint32 Length, FFeedbackContext* Warn, EImageImportFlags Flags, FImportImage& OutImage);
+	bool ImportImage(const uint8* Buffer, int64 Length, FFeedbackContext* Warn, EImageImportFlags Flags, FImportImage& OutImage);
 
 	/** used by CreateTexture() */
 	UTexture* ImportTexture(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn);
