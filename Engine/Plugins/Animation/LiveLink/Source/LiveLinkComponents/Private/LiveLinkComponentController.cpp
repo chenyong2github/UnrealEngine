@@ -185,8 +185,12 @@ void ULiveLinkComponentController::OnRegister()
 #if WITH_EDITOR
 void ULiveLinkComponentController::OnEndPIE(bool bIsSimulating)
 {
-	// Cleanup each controller when PIE session is ending
-	CleanupControllersInMap();
+	const UWorld* const World = GetWorld();
+	if (World && World->WorldType == EWorldType::PIE)
+	{
+		// Cleanup each controller when PIE session is ending
+		CleanupControllersInMap();
+	}
 }
 #endif //WITH_EDITOR
 
