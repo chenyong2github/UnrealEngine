@@ -327,8 +327,8 @@ namespace UE::Json
 		{
 			if(InNameToValue.IsEmpty())
 			{
-				UE_LOG(LogWebAPI, Error, TEXT("Tried to convert enum from string, but no lookup was provided."));
-				return bResult;  
+				UE_LOG(LogTemp, Error, TEXT("Tried to convert enum from string, but no lookup was provided."));
+				return bResult;
 			}
 
 			FString StrValue;

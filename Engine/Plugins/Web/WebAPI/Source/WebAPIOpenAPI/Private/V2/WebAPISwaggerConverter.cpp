@@ -909,7 +909,7 @@ namespace UE
 				const TObjectPtr<UWebAPIModelBase> ModelBase = Cast<UWebAPIModelBase>(OutParameter);
 				if (!ConvertModelBase(InParameter, ModelBase))
 				{
-					return nullptr;
+					return false;
 				}
 
 				if(!OutParameter->Type.TypeInfo->bIsBuiltinType)
