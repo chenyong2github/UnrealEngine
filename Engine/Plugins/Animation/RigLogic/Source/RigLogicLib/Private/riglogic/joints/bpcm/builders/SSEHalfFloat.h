@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 // *INDENT-OFF*
-#if defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_SSE)
+#if defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_SSE) && PLATFORM_CPU_X86_FAMILY
 
 #include "riglogic/joints/bpcm/JointsBuilderCommon.h"
 #include "riglogic/types/Aliases.h"
@@ -28,5 +30,5 @@ class SSEJointsBuilder : public JointsBuilderCommon<std::uint16_t> {
 
 }  // namespace rl4
 
-#endif  // defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_SSE)
+#endif  // defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_SSE) && PLATFORM_CPU_X86_FAMILY
 // *INDENT-ON*

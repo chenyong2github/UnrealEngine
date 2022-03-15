@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if !defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_SSE)
-
 #include "riglogic/joints/bpcm/builders/SSE.h"
+
+#if !defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_SSE) && PLATFORM_CPU_X86_FAMILY
 
 #include "riglogic/joints/bpcm/Consts.h"
 #include "riglogic/joints/bpcm/strategies/SSE.h"
@@ -26,4 +26,4 @@ SSEJointsBuilder::~SSEJointsBuilder() = default;
 
 }  // namespace rl4
 
-#endif  // !defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_SSE)
+#endif  // !defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_SSE) && PLATFORM_CPU_X86_FAMILY
