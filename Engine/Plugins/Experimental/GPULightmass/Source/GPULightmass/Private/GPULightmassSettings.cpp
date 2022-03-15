@@ -142,8 +142,8 @@ void UGPULightmassSettings::ApplyImmediateSettingsToRunningInstances()
 		if (GPULightmass)
 		{
 			GPULightmass->Settings->bShowProgressBars = bShowProgressBars;
-			GPULightmass->Settings->TilePassesInSlowMode = TilePassesInSlowMode;
-			GPULightmass->Settings->TilePassesInFullSpeedMode = TilePassesInFullSpeedMode;
+			GPULightmass->Settings->TilePassesInSlowMode = FMath::Min(TilePassesInSlowMode, GISamples - 1);
+			GPULightmass->Settings->TilePassesInFullSpeedMode = FMath::Min(TilePassesInFullSpeedMode, GISamples - 1);
 			GPULightmass->Settings->bVisualizeIrradianceCache = bVisualizeIrradianceCache;
 		}
 	}

@@ -2137,6 +2137,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 	}
 
 	int32 NumSamplesPerFrame = (bInsideBackgroundTick && bIsViewportNonRealtime) ? Scene->Settings->TilePassesInFullSpeedMode : Scene->Settings->TilePassesInSlowMode;
+	NumSamplesPerFrame = FMath::Max(FMath::Min(NumSamplesPerFrame, Scene->Settings->GISamples - 1), 0);
 
 	{
 		auto& PendingGITileRequests = *GraphBuilder.AllocObject<TArray<FLightmapTileRequest>>(
