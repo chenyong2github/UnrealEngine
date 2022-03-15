@@ -148,8 +148,9 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
 		struct FHismInstances
 		{
 			INode* GeometryNode;
-			TArray<Matrix3> Transforms;
+			TMap<Mtl*, TArray<Matrix3>> InstancesTransformsForMaterial;
 		};
+
 
 		TArray<FHismInstances> InstancesForMesh;
 		InstancesForMesh.Reserve(NumInstances); // Reserve to avoid reallocations
@@ -163,7 +164,7 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
 
 				if (int32* RenderableNodeIndexPtr = RenderableNodeIndicesMap.Find(VirtualMaster))
 				{
-					InstancesForMesh[*RenderableNodeIndexPtr].Transforms.Emplace(ForestInstance->tm);
+					InstancesForMesh[*RenderableNodeIndexPtr].InstancesTransformsForMaterial.FindOrAdd(ForestInstance->mtl).Emplace(ForestInstance->tm);
 				}
 				else
 				{
@@ -171,7 +172,7 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
 					FHismInstances& RenderableNode = InstancesForMesh.Emplace_GetRef();
 
 					RenderableNode.GeometryNode = ForestInstance->node;
-					RenderableNode.Transforms.Emplace(ForestInstance->tm);
+					RenderableNode.InstancesTransformsForMaterial.FindOrAdd(ForestInstance->mtl).Emplace(ForestInstance->tm);
 				}
 			}
 		}
@@ -196,7 +197,12 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
 
 			if (RenderMesh.IsValid())
 			{
-				Scene.SetupDatasmithHISMForNode(NodeTracker, GeometryNode, RenderMesh, NodeTracker.Node->GetMtl(), MeshIndex, Instances.Transforms);
+				for(const TPair<Mtl*, TArray<Matrix3>>& MaterialAndTransforms: Instances.InstancesTransformsForMaterial)
+				{
+					Scene.SetupDatasmithHISMForNode(NodeTracker, GeometryNode, RenderMesh, MaterialAndTransforms.Key, MeshIndex, MaterialAndTransforms.Value);
+				}
+
+
 				MeshIndex ++;
 			}
 		}

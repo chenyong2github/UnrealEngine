@@ -910,6 +910,15 @@ public:
 	{
 		ensure(!bUpdateInProgress);
 
+		if (NodeTracker.bDeleted)
+		{
+			// Change events sometimes received for nodes that are already deleted 
+			// skipping processing of node subtree because INode pointer may already be invalid
+			// Test case: create container, add node to it. Close it, open it, close again, then sync
+			// Change event will be received for NodeKey that returns NULL from NodeEventNamespace::GetNodeByKey
+			return;
+		}
+
 		NodeTracker.Invalidate();
 		InvalidatedNodeTrackers.Add(&NodeTracker);
 
@@ -944,7 +953,7 @@ public:
 			}
 			else
 			{
-				// Sometimes note update received without node Delete event
+				// Sometimes node update received without node Delete event
 				// Test case: create container, add node to it. Close it, open it, close again, then sync
 				InvalidatedNodeTrackers.Add(NodeTracker);
 				NodeTracker->bDeleted = true;
@@ -1032,6 +1041,8 @@ public:
 			TUniquePtr<FRailClonesConverted> RailClonesConverted;
 			if (RailClones.RemoveAndCopyValue(&NodeTracker, RailClonesConverted))
 			{
+				UnregisterNodeForMaterial(NodeTracker);
+
 				for (TSharedPtr<IDatasmithMeshElement> Mesh : RailClonesConverted->Meshes)
 				{
 					ReleaseMeshElement(Mesh);
@@ -1385,27 +1396,22 @@ public:
 
 	void RegisterNodeForMaterial(FNodeTracker& NodeTracker, Mtl* Material)
 	{
-		if (!NodeTracker.MaterialTracker || NodeTracker.MaterialTracker->Material != Material)
-		{
-			// Release old material
-			UnregisterNodeForMaterial(NodeTracker);
-
-			NodeTracker.MaterialTracker = MaterialsCollectionTracker.AddMaterial(Material);
-			MaterialsAssignedToNodes.FindOrAdd(NodeTracker.MaterialTracker).Add(&NodeTracker);
-		}
+		FMaterialTracker* MaterialTracker = MaterialsCollectionTracker.AddMaterial(Material);
+		NodeTracker.MaterialTrackers.Add(MaterialTracker);
+		MaterialsAssignedToNodes.FindOrAdd(MaterialTracker).Add(&NodeTracker);
 	}
 
 	void UnregisterNodeForMaterial(FNodeTracker& NodeTracker)
 	{
-		if (NodeTracker.MaterialTracker)
+		for (FMaterialTracker* MaterialTracker: NodeTracker.MaterialTrackers)
 		{
-			MaterialsAssignedToNodes[NodeTracker.MaterialTracker].Remove(&NodeTracker);
-			if (MaterialsAssignedToNodes[NodeTracker.MaterialTracker].IsEmpty())
+			MaterialsAssignedToNodes[MaterialTracker].Remove(&NodeTracker);
+			if (MaterialsAssignedToNodes[MaterialTracker].IsEmpty())
 			{
-				MaterialsCollectionTracker.ReleaseMaterial(*NodeTracker.MaterialTracker);
+				MaterialsCollectionTracker.ReleaseMaterial(*MaterialTracker);
 			}
-			NodeTracker.MaterialTracker = nullptr;
 		}
+		NodeTracker.MaterialTrackers.Reset();
 	}
 
 	void UpdateGeometryNode(FNodeTracker& NodeTracker, FInstances& Instances, bool bMaterialsAssignToStaticMesh)
@@ -1489,7 +1495,18 @@ public:
 		{
 			if (Mtl* Material = NodeTracker.Node->GetMtl())
 			{
-				RegisterNodeForMaterial(NodeTracker, Material);
+				bool bMaterialRegistered = false;
+				for(FMaterialTracker* MaterialTracker: NodeTracker.MaterialTrackers)
+				{
+					bMaterialRegistered = bMaterialRegistered || (MaterialTracker->Material == Material);
+				}
+
+				if (!bMaterialRegistered)
+				{
+					// Release old material
+					UnregisterNodeForMaterial(NodeTracker);
+					RegisterNodeForMaterial(NodeTracker, Material);
+				}
 
 				// Assign materials
 				if (bMaterialsAssignToStaticMesh)

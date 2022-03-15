@@ -26,6 +26,7 @@ MAX_INCLUDES_END
 // #define LOG_DEBUG_HEAVY_ENABLE 1
 // #define LOG_DEBUG_ENABLE 1
 
+
 void AssignMeshMaterials(TSharedPtr<IDatasmithMeshElement>&MeshElement, Mtl * Material, const TSet<uint16>&SupportedChannels);
 
 namespace DatasmithMaxDirectLink
@@ -146,7 +147,7 @@ public:
 
 	TSharedPtr<IDatasmithActorElement> DatasmithActorElement;
 
-	class FMaterialTracker* MaterialTracker = nullptr;
+	TSet<class FMaterialTracker*> MaterialTrackers;
 
 	TSharedPtr<IDatasmithMeshActorElement> DatasmithMeshActor;
 
