@@ -1008,6 +1008,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 					RayTracingInstance.DefaultUserData = PrimitiveIndex;
 					RayTracingInstance.Mask = Instance.Mask;
+					RayTracingInstance.bApplyLocalBoundsTransform = Instance.bApplyLocalBoundsTransform;
 					if (Instance.bForceOpaque)
 					{
 						RayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;

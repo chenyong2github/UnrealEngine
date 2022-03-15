@@ -20,6 +20,7 @@ struct FRayTracingInstanceDescriptorInput
 	uint InstanceId;
 	uint InstanceMaskAndFlags;
 	uint InstanceContributionToHitGroupIndex;
+	uint bApplyLocalBoundsTransform;
 };
 
 uint NumInstances;
@@ -55,19 +56,29 @@ void RayTracingBuildInstanceBufferCS(uint3 DispatchThreadId : SV_DispatchThreadI
 		FInstanceSceneData InstanceSceneData = GetInstanceSceneData(InputDesc.GPUSceneInstanceOrTransformIndex, InstanceSceneDataSOAStride);
 
 		float4x4 LocalToTranslatedWorld4x4 = LWCMultiplyTranslation(InstanceSceneData.LocalToWorld, PreViewTranslation);
+
+		if (InstanceSceneData.Flags & INSTANCE_SCENE_DATA_FLAG_IS_RAYTRACING_FAR_FIELD)
+		{
+			LocalToTranslatedWorld4x4[3].xyz += FarFieldReferencePos;
+		}
+
+		if (InputDesc.bApplyLocalBoundsTransform)
+		{
+			float4x4 ProcT;
+			ProcT[0] = float4(InstanceSceneData.LocalBoundsExtent.x * 2, 0, 0, 0);
+			ProcT[1] = float4(0, InstanceSceneData.LocalBoundsExtent.y * 2, 0, 0);
+			ProcT[2] = float4(0, 0, InstanceSceneData.LocalBoundsExtent.z * 2, 0);
+			ProcT[3] = float4(InstanceSceneData.LocalBoundsCenter, 1);
+
+			LocalToTranslatedWorld4x4 = mul(ProcT, LocalToTranslatedWorld4x4);
+		}
+
 		LocalToTranslatedWorld4x4 = transpose(LocalToTranslatedWorld4x4);
 
 		float3x4 LocalToTranslatedWorld;
 		LocalToTranslatedWorld[0] = LocalToTranslatedWorld4x4[0];
 		LocalToTranslatedWorld[1] = LocalToTranslatedWorld4x4[1];
 		LocalToTranslatedWorld[2] = LocalToTranslatedWorld4x4[2];
-
-		if (InstanceSceneData.Flags & INSTANCE_SCENE_DATA_FLAG_IS_RAYTRACING_FAR_FIELD)
-		{
-			LocalToTranslatedWorld[0].w += FarFieldReferencePos.x;
-			LocalToTranslatedWorld[1].w += FarFieldReferencePos.y;
-			LocalToTranslatedWorld[2].w += FarFieldReferencePos.z;
-		}
 #else
 		float3x4 LocalToTranslatedWorld;
 		LocalToTranslatedWorld[0] = InstanceTransforms[InputDesc.GPUSceneInstanceOrTransformIndex * 3 + 0];

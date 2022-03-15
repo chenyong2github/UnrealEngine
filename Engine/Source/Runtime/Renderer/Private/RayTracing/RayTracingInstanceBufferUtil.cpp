@@ -205,6 +205,7 @@ void FillRayTracingInstanceUploadBuffer(
 				}
 
 				InstanceDesc.AccelerationStructureIndex = AccelerationStructureIndex;
+				InstanceDesc.bApplyLocalBoundsTransform = SceneInstance.bApplyLocalBoundsTransform;
 
 				if (!SceneInstance.ActivationMask.IsEmpty() && (SceneInstance.ActivationMask[TransformIndex / 32] & (1 << (TransformIndex % 32))) == 0)
 				{

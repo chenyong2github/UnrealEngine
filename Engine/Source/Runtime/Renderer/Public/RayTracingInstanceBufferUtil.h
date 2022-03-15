@@ -30,6 +30,7 @@ struct FRayTracingInstanceDescriptorInput
 	uint32 InstanceId;
 	uint32 InstanceMaskAndFlags;
 	uint32 InstanceContributionToHitGroupIndex;
+	uint32 bApplyLocalBoundsTransform;
 };
 
 struct FRayTracingGPUInstance

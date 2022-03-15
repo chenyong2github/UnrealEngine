@@ -64,6 +64,9 @@ struct FRayTracingInstance
 	/** Whether ray hits should be registered for front and back faces. */
 	bool bDoubleSided = false;
 
+	/** Whether local bounds scale and center translation should be applied to the instance transform. */
+	bool bApplyLocalBoundsTransform = false;
+
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
 	uint8 Mask = 0xFF;
 
