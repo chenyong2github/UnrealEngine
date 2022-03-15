@@ -11,9 +11,14 @@ class IDisplayClusterViewportManager;
 struct FDisplayClusterSceneViewExtensionContext : public FSceneViewExtensionContext
 {
 private:
-
 	//~ FSceneViewExtensionContext Interface
 	virtual FName GetRTTI() const override { return TEXT("FDisplayClusterSceneViewExtensionContext"); }
+
+	virtual bool IsHMDSupported() const override
+	{
+		// Disable all HMD extensions for nDisplay render
+		return false;
+	}
 
 public:
 

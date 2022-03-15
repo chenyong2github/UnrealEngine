@@ -63,6 +63,12 @@ public:
 	{
 		return !bStereoDisabled && GEngine && GEngine->IsStereoscopic3D(Viewport);
 	}
+
+	// Return true, if HMD supported
+	virtual bool IsHMDSupported() const
+	{
+		return true;
+	}
 };
 
 

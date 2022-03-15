@@ -93,7 +93,7 @@ bool FWorldSceneViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtens
 
 bool FHMDSceneViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
-	return Context.IsStereoSupported();
+	return Context.IsHMDSupported() && Context.IsStereoSupported();
 }
 
 //
