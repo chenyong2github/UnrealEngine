@@ -194,6 +194,7 @@ public:
 	virtual void BeginDestroy() override;
 
 	virtual void PostRegisterAllComponents() override;
+	virtual void UnregisterAllComponents( bool bForReregister = false ) override;
 	virtual void PostUnregisterAllComponents() override;
 
 	void OnPreUsdImport( FString FilePath );
