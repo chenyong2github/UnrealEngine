@@ -47,7 +47,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Config file version number
 		/// </summary>
-		const int Version = 9;
+		const int Version = 10;
 
 		DatabaseService DatabaseService;
 		ProjectService ProjectService;
