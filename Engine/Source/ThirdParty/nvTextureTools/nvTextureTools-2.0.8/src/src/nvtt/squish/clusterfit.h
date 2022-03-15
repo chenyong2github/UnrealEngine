@@ -37,7 +37,8 @@ class ClusterFit : public ColourFit
 {
 public:
 	ClusterFit();
-
+    ClusterFit( ColourSet const* colours, int flags );
+    
 	void SetColourSet( ColourSet const* colours, int flags );
 
 	void SetMetric(float r, float g, float b);

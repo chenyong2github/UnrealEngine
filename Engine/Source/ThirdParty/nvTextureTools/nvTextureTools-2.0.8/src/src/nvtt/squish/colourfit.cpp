@@ -32,6 +32,11 @@ ColourFit::ColourFit()
 {
 }
 
+ColourFit::ColourFit( ColourSet const* colours, int flags )
+{
+    SetColourSet( colours, flags );
+}
+
 void ColourFit::SetColourSet( ColourSet const* colours, int flags )
 {
 	m_colours = colours; 

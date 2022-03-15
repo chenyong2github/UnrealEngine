@@ -34,6 +34,11 @@ ClusterFit::ClusterFit()
 {
 }
 
+ClusterFit::ClusterFit(ColourSet const* colours, int flags)
+{
+    SetColourSet( colours, flags );
+}
+
 void ClusterFit::SetColourSet( ColourSet const* colours, int flags )
 {
 	ColourFit::SetColourSet( colours, flags );
@@ -394,8 +399,8 @@ Vec4 ClusterFit::SolveLeastSquares( Vec4& start, Vec4& end ) const
 	Vec4 const grid( 31.0f, 63.0f, 31.0f, 0.0f );
 //	Vec4 const gridrcp( 1.0f/31.0f, 1.0f/63.0f, 1.0f/31.0f, 0.0f );
 	Vec4 const gridrcp( 0.03227752766457f, 0.01583151765563f, 0.03227752766457f, 0.0f ); // IC: use approximate grid fitting.
-	Vec4 const onethird = VEC4_CONST( 1.0f/3.0f );
-	Vec4 const twothirds = VEC4_CONST( 2.0f/3.0f );
+	//Vec4 const onethird = VEC4_CONST( 1.0f/3.0f ); // Unused
+	//Vec4 const twothirds = VEC4_CONST( 2.0f/3.0f ); // Unused
 	a = Truncate( MultiplyAdd( grid, a, half ) )*gridrcp;
 	b = Truncate( MultiplyAdd( grid, b, half ) )*gridrcp;
 
