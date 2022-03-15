@@ -21,11 +21,12 @@ void TExtremePoints3<RealType>::Init(int32 NumPoints, TFunctionRef<TVector<RealT
 {
 	TVector<RealType> FirstPoint;
 	int FirstPtIdx = -1;
-	for (FirstPtIdx = 0; FirstPtIdx < NumPoints; FirstPtIdx++)
+	for (int FirstPtIdxTest = 0; FirstPtIdxTest < NumPoints; FirstPtIdxTest++)
 	{
-		if (FilterFunc(FirstPtIdx))
+		if (FilterFunc(FirstPtIdxTest))
 		{
-			FirstPoint = GetPointFunc(FirstPtIdx);
+			FirstPoint = GetPointFunc(FirstPtIdxTest);
+			FirstPtIdx = FirstPtIdxTest;
 			break;
 		}
 	}
