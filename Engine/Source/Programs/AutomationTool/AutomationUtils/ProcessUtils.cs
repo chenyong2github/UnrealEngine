@@ -188,7 +188,7 @@ namespace AutomationTool
 						if (!Proc.HasExited)
 						{
 							CommandUtils.LogLog("Killing process: {0}", ProcName);
-							Proc.StopProcess(false);
+							Proc.StopProcess();
 						}
 					}
 					catch (Exception Ex)
@@ -655,13 +655,9 @@ namespace AutomationTool
 					Proc = null;
 				}
 				// Now actually kill the process and all its descendants if requested
-				if (KillDescendants)
-				{
-					KillAllDescendants(ProcToKill);
-				}
 				try
 				{
-					ProcToKill.Kill();
+					ProcToKill.Kill(KillDescendants);
 					ProcToKill.WaitForExit(60000);
 					if (!ProcToKill.HasExited)
 					{
