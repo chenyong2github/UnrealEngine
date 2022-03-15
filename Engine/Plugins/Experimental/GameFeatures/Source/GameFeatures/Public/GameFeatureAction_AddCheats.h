@@ -33,15 +33,21 @@ public:
 
 private:
 	void OnCheatManagerCreated(UCheatManager* CheatManager);
+	void SpawnCheatManagerExtension(UCheatManager* CheatManager, const TSubclassOf<UCheatManagerExtension>& CheatManagerClass);
 
 public:
 	/** Cheat managers to setup for the game feature plugin */
 	UPROPERTY(EditAnywhere, Category="Cheats")
-	TArray<TSubclassOf<UCheatManagerExtension>> CheatManagers;
+	TArray<TSoftClassPtr<UCheatManagerExtension>> CheatManagers;
+
+	UPROPERTY(EditAnywhere, Category="Cheats")
+	bool bLoadCheatManagersAsync;
 
 private:
 	FDelegateHandle CheatManagerRegistrationHandle;
 
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<UCheatManagerExtension>> SpawnedCheatManagers;
+
+	bool bIsActive = false;
 };
