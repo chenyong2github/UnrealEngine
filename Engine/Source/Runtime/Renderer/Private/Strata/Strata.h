@@ -8,6 +8,7 @@
 #include "MeshPassProcessor.h"
 #include "UnifiedBuffer.h"
 #include "RHIUtilities.h"
+#include "StrataDefinitions.h"
 
 // Forward declarations.
 class FScene;
@@ -43,15 +44,17 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_AP
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OpaqueRoughRefractionTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-enum EStrataTileMaterialType : uint32
+// This must map to the STRATA_TILE_TYPE defines.
+enum EStrataTileType : uint32
 {
-	ESimple  = 0,
-	ESingle  = 1,
-	EComplex = 2,
+	ESimple  = STRATA_TILE_TYPE_SIMPLE,
+	ESingle = STRATA_TILE_TYPE_SINGLE,
+	EComplex = STRATA_TILE_TYPE_COMPLEX,
+	EOpaqueRoughRefraction = STRATA_TILE_TYPE_ROUGH_REFRACT,
 	ECount
 };
 
-const TCHAR* ToString(EStrataTileMaterialType Type);
+const TCHAR* ToString(EStrataTileType Type);
 
 struct FStrataSceneData
 {
@@ -65,19 +68,12 @@ struct FStrataSceneData
 	FRDGTextureUAVRef MaterialTextureArrayUAV;
 	FRDGTextureSRVRef MaterialTextureArraySRV;
 
-	FRDGBufferRef ClassificationTileListBuffer[EStrataTileMaterialType::ECount];
-	FRDGBufferUAVRef ClassificationTileListBufferUAV[EStrataTileMaterialType::ECount];
-	FRDGBufferSRVRef ClassificationTileListBufferSRV[EStrataTileMaterialType::ECount];
-	FRDGBufferRef ClassificationTileIndirectBuffer[EStrataTileMaterialType::ECount];
-	FRDGBufferUAVRef ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ECount];
-	FRDGBufferSRVRef ClassificationTileIndirectBufferSRV[EStrataTileMaterialType::ECount];
+	FRDGBufferRef ClassificationTileListBuffer[STRATA_TILE_TYPE_COUNT];
+	FRDGBufferSRVRef ClassificationTileListBufferSRV[STRATA_TILE_TYPE_COUNT];
+	FRDGBufferUAVRef ClassificationTileListBufferUAV[STRATA_TILE_TYPE_COUNT];
 
-	FRDGBufferRef OpaqueRoughRefractionClassificationTileListBuffer;
-	FRDGBufferUAVRef OpaqueRoughRefractionClassificationTileListBufferUAV;
-	FRDGBufferSRVRef OpaqueRoughRefractionClassificationTileListBufferSRV;
-	FRDGBufferRef OpaqueRoughRefractionClassificationTileIndirectBuffer;
-	FRDGBufferUAVRef OpaqueRoughRefractionClassificationTileIndirectBufferUAV;
-	FRDGBufferSRVRef OpaqueRoughRefractionClassificationTileIndirectBufferSRV;
+	FRDGBufferRef ClassificationTileIndirectBuffer;
+	FRDGBufferUAVRef ClassificationTileIndirectBufferUAV;
 
 	FRDGTextureRef TopLayerTexture;
 	FRDGTextureRef SSSTexture;
@@ -168,9 +164,10 @@ class FStrataTilePassVS : public FGlobalShader
 	}
 };
 
-FStrataTileParameter SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const EStrataTileMaterialType Type);
-FStrataTilePassVS::FParameters SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const EStrataTileMaterialType Type, EPrimitiveType& PrimitiveType);
-FStrataTilePassVS::FParameters SetTileParameters(const FViewInfo& View, const EStrataTileMaterialType Type, EPrimitiveType& PrimitiveType);
+FStrataTileParameter SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const EStrataTileType Type);
+FStrataTilePassVS::FParameters SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const EStrataTileType Type, EPrimitiveType& PrimitiveType);
+FStrataTilePassVS::FParameters SetTileParameters(const FViewInfo& View, const EStrataTileType Type, EPrimitiveType& PrimitiveType);
+uint32 TileTypeDrawIndirectArgOffset(const EStrataTileType Type);
 
 bool ShouldRenderStrataRoughRefractionRnD();
 void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);

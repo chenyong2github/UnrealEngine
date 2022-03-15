@@ -1687,19 +1687,19 @@ static void InternalSetBoundingGeometryRasterizerState(FGraphicsPipelineStateIni
 }
 
 template<ECompareFunction CompareFunction>
-static uint32 InternalSetBoundingGeometryDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, EStrataTileMaterialType TileType)
+static uint32 InternalSetBoundingGeometryDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, EStrataTileType TileType)
 {
 	// bCameraInsideLightGeometry = true  -> CompareFunction = Always
 	// bCameraInsideLightGeometry = false -> CompareFunction = CF_DepthNearOrEqual
 	uint32 StencilRef = 0u;
-	if (TileType != EStrataTileMaterialType::ECount)
+	if (TileType != EStrataTileType::ECount)
 	{
 		check(Strata::IsStrataEnabled());
 		switch (TileType)
 		{
-		case EStrataTileMaterialType::ESimple : StencilRef = Strata::StencilBit_Fast;    GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, Strata::StencilBit_Fast, 0x0>::GetRHI(); break;
-		case EStrataTileMaterialType::ESingle : StencilRef = Strata::StencilBit_Single;  GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, Strata::StencilBit_Single, 0x0>::GetRHI(); break;
-		case EStrataTileMaterialType::EComplex: StencilRef = Strata::StencilBit_Complex; GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, Strata::StencilBit_Complex, 0x0>::GetRHI(); break;
+		case EStrataTileType::ESimple : StencilRef = Strata::StencilBit_Fast;    GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, Strata::StencilBit_Fast, 0x0>::GetRHI(); break;
+		case EStrataTileType::ESingle : StencilRef = Strata::StencilBit_Single;  GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, Strata::StencilBit_Single, 0x0>::GetRHI(); break;
+		case EStrataTileType::EComplex: StencilRef = Strata::StencilBit_Complex; GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, Strata::StencilBit_Complex, 0x0>::GetRHI(); break;
 		default: check(false);
 		}
 	}
@@ -1711,7 +1711,7 @@ static uint32 InternalSetBoundingGeometryDepthState(FGraphicsPipelineStateInitia
 }
 
 /** Sets up rasterizer and depth state for rendering bounding geometry in a deferred pass. */
-static uint32 SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bCameraInsideLightGeometry, EStrataTileMaterialType TileType)
+static uint32 SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bCameraInsideLightGeometry, EStrataTileType TileType)
 {
 	uint32 StencilRef = 0u;
 	InternalSetBoundingGeometryRasterizerState(GraphicsPSOInit, View, bCameraInsideLightGeometry);
@@ -1846,7 +1846,7 @@ static void InternalRenderLight(
 	const FLightSceneInfo* LightSceneInfo,
 	TShaderType& PixelShader,
 	TParametersType* PassParameters,
-	EStrataTileMaterialType StrataTileMaterialType,
+	EStrataTileType StrataTileMaterialType,
 	const TCHAR* ShaderName)
 {
 	const FLightSceneProxy* RESTRICT LightProxy = LightSceneInfo->Proxy;
@@ -1862,8 +1862,8 @@ static void InternalRenderLight(
 	{
 
 		const bool bIsRadial = LightType != LightType_Directional;
-		const bool bEnableStrataTiledPass   = StrataTileMaterialType != EStrataTileMaterialType::ECount;
-		const bool bEnableStrataStencilTest = StrataTileMaterialType != EStrataTileMaterialType::ECount && bIsRadial;
+		const bool bEnableStrataTiledPass   = StrataTileMaterialType != EStrataTileType::ECount;
+		const bool bEnableStrataStencilTest = StrataTileMaterialType != EStrataTileType::ECount && bIsRadial;
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -1915,7 +1915,7 @@ static void InternalRenderLight(
 			{
 				check(Strata::IsStrataEnabled());
 				SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), VSParameters);
-				RHICmdList.DrawPrimitiveIndirect(VSParameters.TileIndirectBuffer->GetIndirectRHICallBuffer(), 0);
+				RHICmdList.DrawPrimitiveIndirect(VSParameters.TileIndirectBuffer->GetIndirectRHICallBuffer(), Strata::TileTypeDrawIndirectArgOffset(StrataTileMaterialType));
 			}
 			else
 			{
@@ -2066,7 +2066,7 @@ static void RenderLight(
 		FDeferredLightOverlapPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FDeferredLightOverlapPS::FRadialAttenuation>(bIsRadial);
 		TShaderMapRef<FDeferredLightOverlapPS> PixelShader(View.ShaderMap, PermutationVector);		
-		InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::ECount, TEXT("Light::StandardDeferred(Overlap)"));
+		InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileType::ECount, TEXT("Light::StandardDeferred(Overlap)"));
 	}
 	// Lighting shader
 	else
@@ -2088,9 +2088,9 @@ static void RenderLight(
 		{
 			// Note: we register all tile types here in order to have all resources tracked properly and being able 
 			//       to create a single pass parameters struct instead of created one for each tile types
-			PassParameters->StrataTileSimple = Strata::SetTileParameters(GraphBuilder, View, EStrataTileMaterialType::ESingle);
-			PassParameters->StrataTileSingle = Strata::SetTileParameters(GraphBuilder, View, EStrataTileMaterialType::ESimple);
-			PassParameters->StrataTileComplex = Strata::SetTileParameters(GraphBuilder, View, EStrataTileMaterialType::EComplex);
+			PassParameters->StrataTileSimple = Strata::SetTileParameters(GraphBuilder, View, EStrataTileType::ESingle);
+			PassParameters->StrataTileSingle = Strata::SetTileParameters(GraphBuilder, View, EStrataTileType::ESimple);
+			PassParameters->StrataTileComplex = Strata::SetTileParameters(GraphBuilder, View, EStrataTileType::EComplex);
 		}
 
 		FDeferredLightPS::FPermutationDomain PermutationVector;
@@ -2128,21 +2128,21 @@ static void RenderLight(
 		{
 			// Simple tiles
 			{
-				const EStrataTileMaterialType TileType = EStrataTileMaterialType::ESimple;
+				const EStrataTileType TileType = EStrataTileType::ESimple;
 				PermutationVector.Set<FDeferredLightPS::FStrataTileType>(TileType);
 				TShaderMapRef< FDeferredLightPS > PixelShader(View.ShaderMap, PermutationVector);
 				InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, TileType, TEXT("Light::StandardDeferred(Simple)"));
 			}
 			// Single tiles
 			{
-				const EStrataTileMaterialType TileType = EStrataTileMaterialType::ESingle;
+				const EStrataTileType TileType = EStrataTileType::ESingle;
 				PermutationVector.Set<FDeferredLightPS::FStrataTileType>(TileType);
 				TShaderMapRef< FDeferredLightPS > PixelShader(View.ShaderMap, PermutationVector);
 				InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, TileType, TEXT("Light::StandardDeferred(Single)"));
 			}
 			// Complex tiles
 			{
-				const EStrataTileMaterialType TileType = EStrataTileMaterialType::EComplex;
+				const EStrataTileType TileType = EStrataTileType::EComplex;
 				PermutationVector.Set<FDeferredLightPS::FStrataTileType>(TileType);
 				TShaderMapRef< FDeferredLightPS > PixelShader(View.ShaderMap, PermutationVector);
 				InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, TileType, TEXT("Light::StandardDeferred(Complex)"));
@@ -2152,7 +2152,7 @@ static void RenderLight(
 		{
 			PermutationVector.Set< FDeferredLightPS::FStrataTileType>(0);
 			TShaderMapRef< FDeferredLightPS > PixelShader(View.ShaderMap, PermutationVector);
-			InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::ECount, TEXT("Light::StandardDeferred"));
+			InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileType::ECount, TEXT("Light::StandardDeferred"));
 		}
 	}
 }
@@ -2401,7 +2401,7 @@ static void InternalRenderSimpleLightsStandardDeferred(
 	const uint32 NumViews,
 	const FMinimalSceneTextures& SceneTextures,
 	const FSimpleLightArray& SimpleLights,
-	EStrataTileMaterialType TileType)
+	EStrataTileType TileType)
 {
 	FSimpleLightsStandardDeferredParameters* PassParameters = GraphBuilder.AllocParameters<FSimpleLightsStandardDeferredParameters>();
 	*PassParameters = GetRenderLightSimpleParameters(
@@ -2422,7 +2422,7 @@ static void InternalRenderSimpleLightsStandardDeferred(
 	PermutationVector.Set< FDeferredLightPS::FHairLighting>(0);
 	PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(false);
 	PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
-	PermutationVector.Set< FDeferredLightPS::FStrataTileType>(TileType != EStrataTileMaterialType::ECount ? TileType : 0);
+	PermutationVector.Set< FDeferredLightPS::FStrataTileType>(TileType != EStrataTileType::ECount ? TileType : 0);
 	TShaderMapRef<FDeferredLightPS> PixelShader(View.ShaderMap, PermutationVector);
 
 	FDeferredLightVS::FPermutationDomain PermutationVectorVS;
@@ -2499,13 +2499,13 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 
 		if (Strata::IsStrataEnabled())
 		{
-			InternalRenderSimpleLightsStandardDeferred(GraphBuilder, Scene, View, ViewIndex, NumViews, SceneTextures, SimpleLights, EStrataTileMaterialType::ESimple);
-			InternalRenderSimpleLightsStandardDeferred(GraphBuilder, Scene, View, ViewIndex, NumViews, SceneTextures, SimpleLights, EStrataTileMaterialType::ESingle);
-			InternalRenderSimpleLightsStandardDeferred(GraphBuilder, Scene, View, ViewIndex, NumViews, SceneTextures, SimpleLights, EStrataTileMaterialType::EComplex);
+			InternalRenderSimpleLightsStandardDeferred(GraphBuilder, Scene, View, ViewIndex, NumViews, SceneTextures, SimpleLights, EStrataTileType::ESimple);
+			InternalRenderSimpleLightsStandardDeferred(GraphBuilder, Scene, View, ViewIndex, NumViews, SceneTextures, SimpleLights, EStrataTileType::ESingle);
+			InternalRenderSimpleLightsStandardDeferred(GraphBuilder, Scene, View, ViewIndex, NumViews, SceneTextures, SimpleLights, EStrataTileType::EComplex);
 		}
 		else
 		{
-			InternalRenderSimpleLightsStandardDeferred(GraphBuilder, Scene, View, ViewIndex, NumViews, SceneTextures, SimpleLights, EStrataTileMaterialType::ECount);
+			InternalRenderSimpleLightsStandardDeferred(GraphBuilder, Scene, View, ViewIndex, NumViews, SceneTextures, SimpleLights, EStrataTileType::ECount);
 		}
 	}
 }

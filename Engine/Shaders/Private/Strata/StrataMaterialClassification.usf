@@ -23,22 +23,16 @@ int2 ViewResolution;
 uint MaxBytesPerPixel;
 Texture2D<uint> TopLayerTexture;
 Texture2DArray<uint> MaterialTextureArray;
-// Fast/Simple
-RWBuffer<uint> SimpleTileIndirectDataBuffer;
+
+// Indirect draw data buffer for all tile types
+RWBuffer<uint> TileIndirectDataBuffer;
+
 RWBuffer<uint> SimpleTileListDataBuffer;
-// Single
-RWBuffer<uint> SingleTileIndirectDataBuffer;
 RWBuffer<uint> SingleTileListDataBuffer;
-// Complex
-RWBuffer<uint> ComplexTileIndirectDataBuffer;
 RWBuffer<uint> ComplexTileListDataBuffer;
 
-// Opaque rough refraction	==> Disabled for now because this brings uav count to >8
-#undef STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
-#define STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED 0
 #if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
-RWBuffer<uint> OpaqueRoughRefractionTileIndirectDataBuffer;
-RWBuffer<uint> OpaqueRoughRefractionListDataBuffer;
+RWBuffer<uint> OpaqueRoughRefractionTileListDataBuffer;
 Texture2D<float> OpaqueRoughRefractionTexture;
 #endif
 
@@ -55,9 +49,11 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 {
 	if (all(DispatchThreadId == 0))
 	{
-		SimpleTileIndirectDataBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
-		SingleTileIndirectDataBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
-		ComplexTileIndirectDataBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
+		const uint IndexCountPerInstance = bRectPrimitive > 0 ? 4 : 6;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)		+ 0] = IndexCountPerInstance;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)		+ 0] = IndexCountPerInstance;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)		+ 0] = IndexCountPerInstance;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT) + 0] = IndexCountPerInstance;
 	}
 
 	// TODO: add a SM6 permutation with ballot?
@@ -112,8 +108,8 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		(bContainsStrataMaterial		? 0x1u	: 0u) | 
 //		(bContainsSimpleMaterial		? 0x2u	: 0u) | 
 		(bContainsSingleMaterial		? 0x4u	: 0u) | 
-		(bContainsComplexMaterial		? 0x8u	: 0u)| 
-		(bContainsOpaqueRoughRefraction ? 0xFu	: 0u);
+		(bContainsComplexMaterial		? 0x8u	: 0u) | 
+		(bContainsOpaqueRoughRefraction ? 0x10u : 0u);
 
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 32)
@@ -149,7 +145,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 //	const bool bHasAnySimple  = (FinalTileFlags & 0x2u) > 0;
 	const bool bHasAnySingle  = (FinalTileFlags & 0x4u) > 0;
 	const bool bHasAnyComplex = (FinalTileFlags & 0x8u) > 0;
-	const bool bHasAnyOpaqueRoughRefraction = (FinalTileFlags & 0xFu) > 0;
+	const bool bHasAnyOpaqueRoughRefraction = (FinalTileFlags & 0x10u) > 0;
 #endif // PERMUTATION_WAVE_OPS
 
 	if (LinearIndex < 1 && bHasAnyStrata)
@@ -157,19 +153,19 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		if (bHasAnyComplex)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(ComplexTileIndirectDataBuffer[1], 1, WriteToIndex);
+			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX) + 1], 1, WriteToIndex);
 			ComplexTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
 		}
 		else if (bHasAnySingle)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(SingleTileIndirectDataBuffer[1], 1, WriteToIndex);
+			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE) + 1], 1, WriteToIndex);
 			SingleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
 		}
 		else // (bHasAnySimple)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(SimpleTileIndirectDataBuffer[1], 1, WriteToIndex);
+			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE) + 1], 1, WriteToIndex);
 			SimpleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
 		}
 
@@ -177,8 +173,8 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		if (bHasAnyOpaqueRoughRefraction)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(OpaqueRoughRefractionTileIndirectDataBuffer[1], 1, WriteToIndex);
-			OpaqueRoughRefractionListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT) + 1], 1, WriteToIndex);
+			OpaqueRoughRefractionTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
 		}
 #endif
 	}

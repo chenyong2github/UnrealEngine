@@ -145,7 +145,7 @@ static void InternalAddClusteredDeferredShadingPass(
 	const FMinimalSceneTextures& SceneTextures,
 	const FSortedLightSetSceneInfo &SortedLightsSet,
 	EClusterPassInputType InputType,
-	EStrataTileMaterialType TileType,
+	EStrataTileType TileType,
 	FRDGTextureRef ShadowMaskBits,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	FRDGBufferSRVRef HairTransmittanceBuffer)
@@ -230,7 +230,7 @@ static void InternalAddClusteredDeferredShadingPass(
 		else if (bStrata)
 		{
 			SetShaderParameters(InRHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), PassParameters->StrataTile);
-			InRHICmdList.DrawPrimitiveIndirect(PassParameters->StrataTile.TileIndirectBuffer->GetIndirectRHICallBuffer(), 0);
+			InRHICmdList.DrawPrimitiveIndirect(PassParameters->StrataTile.TileIndirectBuffer->GetIndirectRHICallBuffer(), Strata::TileTypeDrawIndirectArgOffset(TileType));
 		}
 		else
 		{
@@ -271,7 +271,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					SceneTextures,
 					SortedLightsSet,
 					EClusterPassInputType::Strata,
-					EStrataTileMaterialType::ESimple,
+					EStrataTileType::ESimple,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
 					nullptr);
@@ -282,7 +282,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					SceneTextures,
 					SortedLightsSet,
 					EClusterPassInputType::Strata,
-					EStrataTileMaterialType::ESingle,
+					EStrataTileType::ESingle,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
 					nullptr);
@@ -293,7 +293,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					SceneTextures,
 					SortedLightsSet,
 					EClusterPassInputType::Strata,
-					EStrataTileMaterialType::EComplex,
+					EStrataTileType::EComplex,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
 					nullptr);
@@ -306,7 +306,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					SceneTextures,
 					SortedLightsSet,
 					EClusterPassInputType::GBuffer,
-					EStrataTileMaterialType::ECount,
+					EStrataTileType::ECount,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
 					nullptr);
@@ -321,7 +321,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					SceneTextures,
 					SortedLightsSet,
 					EClusterPassInputType::HairStrands,
-					EStrataTileMaterialType::ECount,
+					EStrataTileType::ECount,
 					HairStrandsShadowMaskBits,
 					VirtualShadowMapArray,
 					GraphBuilder.CreateSRV(TransmittanceMask.TransmittanceMask, FHairStrandsTransmittanceMaskData::Format));
