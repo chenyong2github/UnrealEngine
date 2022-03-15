@@ -410,7 +410,14 @@ namespace Metasound
 		}
 
 		// Seek input to start time.
-		DecoderInput->SeekToTime(InStartTimeInSeconds);
+		const bool bSeekSucceeded = DecoderInput->SeekToTime(InStartTimeInSeconds);
+		if (!bSeekSucceeded)
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Failed to seek decoder input during initialization: (format:%s) for wave (package:%s) to time '%.6f'"),
+				*Format.ToString(),
+				*WaveProxy->GetPackageName().ToString(),
+				InStartTimeInSeconds);
+		}
 		CurrentFrameIndex = InStartTimeInSeconds * GetSampleRate();
 
 		// Get codec ptr by reading the header info from the decoder input.

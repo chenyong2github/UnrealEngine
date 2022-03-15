@@ -34,7 +34,7 @@ namespace Audio
 		bool FindSection(FEncodedSectionBase& OutSection) override;
 		int64 Tell() const override;
 
-		void SeekToTime(const float InSeconds) override;
+		bool SeekToTime(const float InSeconds) override;
 		
 		TArrayView<const uint8> PeekNextPacket(
 			int32 InMaxPacketLength) const override;

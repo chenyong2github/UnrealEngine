@@ -116,7 +116,7 @@ namespace Audio
 
 		virtual int64 Tell() const = 0;
 
-		virtual void SeekToTime(const float InSeconds) { }
+		virtual bool SeekToTime(const float InSeconds) { return false; }
 
 		virtual TArrayView<const uint8> PeekNextPacket(
 			int32 InMaxPacketLength) const = 0;

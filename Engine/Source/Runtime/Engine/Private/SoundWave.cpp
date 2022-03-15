@@ -98,7 +98,6 @@ static void DumpBakedAnalysisData(const TArray<FString>& Args)
 		if (Args.Num() == 1)
 		{
 			const FString& SoundWaveToDump = Args[0];
-			UE_LOG(LogTemp, Log, TEXT("Foo"));
 			for (TObjectIterator<USoundWave> It; It; ++It)
 			{
 				if (It->IsTemplate(RF_ClassDefaultObject))
@@ -108,7 +107,6 @@ static void DumpBakedAnalysisData(const TArray<FString>& Args)
 
 				if (SoundWaveToDump.Equals(It->GetName()))
 				{
-					UE_LOG(LogTemp, Log, TEXT("Foo"));
 #if WITH_EDITOR
 					It->LogBakedData();
 #endif // WITH_EDITOR

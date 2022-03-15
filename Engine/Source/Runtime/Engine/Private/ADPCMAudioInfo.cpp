@@ -485,22 +485,24 @@ bool FADPCMAudioInfo::StreamCompressedInfoInternal(const FSoundWaveProxyPtr& InW
 
 	if (ChunkData == nullptr)
 	{
+		UE_LOG(LogAudio, Warning, TEXT("FADPCMAudioInfo::StreamCompressedInfoInternal: Failed to get loaded chunk at index '%u'"), CurrentChunkIndex);
 		return false;
 	}
 
 	SrcBufferData = nullptr;
 	SrcBufferDataSize = 0;
 
-	void* FormatHeader;
-
-	if (!WaveInfo.ReadWaveInfo((uint8*)ChunkData, CurrentChunkDataSize, nullptr, true, &FormatHeader))
+	void* FormatHeader = nullptr;
+	FString ErrorMsg;
+	constexpr bool bHeaderDataOnly = true;
+	if (!WaveInfo.ReadWaveInfo(static_cast<const uint8*>(ChunkData), CurrentChunkDataSize, &ErrorMsg, bHeaderDataOnly, &FormatHeader))
 	{
-		UE_LOG(LogAudio, Warning, TEXT("WaveInfo.ReadWaveInfo Failed"));
+		UE_LOG(LogAudio, Warning, TEXT("FADPCMAudioInfo::StreamCompressedInfoInternal: Failed to read WaveInfo: %s"), *ErrorMsg);
 		return false;
 	}
 	
 	// if we only included the header in the zeroth chunk, skip to the next chunk.
-	int32 SampleDataOffset = WaveInfo.SampleDataStart - ChunkData;
+	const int32 SampleDataOffset = WaveInfo.SampleDataStart - ChunkData;
 	check(SampleDataOffset > 0);
 	if (((uint32)SampleDataOffset) >= CurrentChunkDataSize)
 	{
@@ -529,6 +531,7 @@ bool FADPCMAudioInfo::StreamCompressedInfoInternal(const FSoundWaveProxyPtr& InW
 
 	if (Format == WAVE_FORMAT_ADPCM)
 	{
+		check(FormatHeader);
 		ADPCM::ADPCMFormatHeader* ADPCMHeader = (ADPCM::ADPCMFormatHeader*)FormatHeader;
 		TotalSamplesPerChannel = ADPCMHeader->SamplesPerChannel;
 		SamplesPerBlock = ADPCMHeader->wSamplesPerBlock;
@@ -561,7 +564,7 @@ bool FADPCMAudioInfo::StreamCompressedInfoInternal(const FSoundWaveProxyPtr& InW
 	}
 	else
 	{
-		UE_LOG(LogAudio, Error, TEXT("Unsupported wave format"));
+		UE_LOG(LogAudio, Error, TEXT("FADPCMAudioInfo::StreamCompressedInfoInternal: Unsupported wave format (Neither ADPCM nor LPCM)"));
 		return false;
 	}
 
