@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Templates/SharedPointer.h"
 #include "Modules/ModuleInterface.h"
 
@@ -37,6 +38,13 @@ public:
 	 * @return Global cache.
 	 */
 	static FImgMediaGlobalCache* GetGlobalCache() { return GlobalCache.Get(); }
+
+	/** Name of attribute in the Exr file that marks it as our custom format. */
+	static FLazyName CustomFormatAttributeName;
+	/** Name of attribute in the Exr file for the tile width for our custom format. */
+	static FLazyName CustomFormatTileWidthAttributeName;
+	/** Name of attribute in the Exr file for the tile height for our custom format. */
+	static FLazyName CustomFormatTileHeightAttributeName;
 
 protected:
 

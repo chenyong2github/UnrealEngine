@@ -8,6 +8,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "IImageWrapperModule.h"
+#include "IImgMediaModule.h"
 #include "ImageWrapperHelper.h"
 #include "ImgMediaEditorModule.h"
 #include "ImgMediaProcessImagesOptions.h"
@@ -279,9 +280,16 @@ void SImgMediaProcessImages::ProcessImageCustom(TSharedPtr<IImageWrapper>& InIma
 	int32 TileHeight = Height / NumTilesY;
 	int32 BytesPerPixel = RawData.Num() / (Width * Height);
 
+	bool bIsTiled = (NumTilesX > 1) || (NumTilesY > 1);
+
 	// Create tiled exr file.
 	FTiledRgbaOutputFile OutFile(FIntPoint(0, 0), FIntPoint(Width - 1, Height - 1),
 		FIntPoint(0, 0), FIntPoint(Width - 1, Height - 1));
+	OutFile.AddIntAttribute(IImgMediaModule::CustomFormatAttributeName.Resolve().ToString(), 1);
+	OutFile.AddIntAttribute(IImgMediaModule::CustomFormatTileWidthAttributeName.Resolve().ToString(),
+		bIsTiled ? TileWidth : 0);
+	OutFile.AddIntAttribute(IImgMediaModule::CustomFormatTileHeightAttributeName.Resolve().ToString(),
+		bIsTiled ? TileHeight : 0);
 	OutFile.CreateOutputFile(InName, TileWidth, TileHeight, 4, false);
 	
 	FIntPoint Stride(1, Width);
