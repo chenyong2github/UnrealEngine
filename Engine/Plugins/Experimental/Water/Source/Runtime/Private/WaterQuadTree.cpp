@@ -567,12 +567,8 @@ void FWaterQuadTree::AddFarMesh(const UMaterialInterface* InFarMeshMaterial, dou
 		TileScale.X = (TileOffets[i].X == 0.0) ? WaterSize.X : InFarDistanceMeshExtent;
 		TileScale.Y = (TileOffets[i].Y == 0.0) ? WaterSize.Y : InFarDistanceMeshExtent;
 
-		// Build instance data
-		FarMeshData.InstanceData[i].Data[0] = FVector4f(FVector4(TilePos, FVector2D(InFarDistanceMeshHeight, 0.0))); // LWC_TODO: precision loss
-		FarMeshData.InstanceData[i].Data[1] = FVector4f(FVector4(FVector2D::ZeroVector, TileScale)); // LWC_TODO: precision loss
-#if WITH_WATER_SELECTION_SUPPORT
-		FarMeshData.InstanceData[i].Data[2] = FVector4f(FHitProxyId::InvisibleHitProxyId.GetColor().ReinterpretAsLinear());
-#endif // WITH_WATER_SELECTION_SUPPORT
+		FarMeshData.InstanceData[i].WorldPosition = FVector(TilePos, InFarDistanceMeshHeight);
+		FarMeshData.InstanceData[i].Scale = FVector2f(TileScale);
 	}
 }
 
@@ -638,7 +634,15 @@ void FWaterQuadTree::BuildWaterTileInstanceData(const FTraversalDesc& InTraversa
 
 		for (int32 i = 0; i < FarMeshTileCount; i++)
 		{
-			Output.StagingInstanceData[StartIndex + i] = FarMeshData.InstanceData[i];
+			// Build instance data
+			// Transform worldposition to Translated World Position
+			const FVector TranslatedWorldPosition(FarMeshData.InstanceData[i].WorldPosition + InTraversalDesc.PreViewTranslation);
+			Output.StagingInstanceData[StartIndex + i].Data[0] = FVector4f(FVector4(TranslatedWorldPosition, 0.0));
+			Output.StagingInstanceData[StartIndex + i].Data[1] = FVector4f(FVector2f::ZeroVector, FarMeshData.InstanceData[i].Scale);
+#if WITH_WATER_SELECTION_SUPPORT
+			Output.StagingInstanceData[StartIndex + i].Data[2] = FHitProxyId::InvisibleHitProxyId.GetColor().ReinterpretAsLinear();
+#endif // WITH_WATER_SELECTION_SUPPORT
+
 			Output.StagingInstanceData[StartIndex + i].BucketIndex = BucketIndex;
 		}
 	}

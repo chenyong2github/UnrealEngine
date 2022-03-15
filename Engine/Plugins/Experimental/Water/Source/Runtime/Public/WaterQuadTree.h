@@ -275,8 +275,14 @@ private:
 	/** Contains everything needed to render the far mesh. This data lives outside the quadtree structure itself */
 	struct FFarMeshData
 	{
-		/** Stored data for rendering all far mesh instances (8 or them if used). This is built oncce when the quadtree is built and then read each time the quadtree is traversed */
-		TArray<FStagingInstanceData> InstanceData;
+		struct FFarMeshInstanceData
+		{
+			FVector WorldPosition = FVector::ZeroVector;
+			FVector2f Scale = FVector2f(1.0f, 1.0f);
+		};
+
+		/** Stored data for rendering all far mesh instances (8 or them if used). This is built once when the quadtree is built and then read and transformed each time the quadtree is traversed */
+		TArray<FFarMeshInstanceData> InstanceData;
 
 		/** Material for the Far Distance Mesh, its material render proxy will be cached in WaterMaterials when BuildMaterialIndices is called */
 		const UMaterialInterface* Material = nullptr;
