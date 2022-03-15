@@ -217,7 +217,8 @@ void FTopologicalFace::ApplyNaturalLoops(const FSurfacicBoundary& Boundaries)
 	TArray<EOrientation> Orientations;
 	Orientations.Init(EOrientation::Front, Edges.Num());
 
-	TSharedPtr<FTopologicalLoop> Loop = FTopologicalLoop::Make(Edges, Orientations, CarrierSurface->Get3DTolerance());
+	const bool bIsExternalLoop = true;
+	TSharedPtr<FTopologicalLoop> Loop = FTopologicalLoop::Make(Edges, Orientations, bIsExternalLoop, CarrierSurface->Get3DTolerance());
 	AddLoop(Loop);
 }
 
@@ -240,10 +241,6 @@ void FTopologicalFace::AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& InLo
 void FTopologicalFace::AddLoop(const TSharedPtr<FTopologicalLoop>& InLoop)
 {
 	InLoop->SetSurface(this);
-	if (Loops.Num() > 0)
-	{
-		InLoop->SetAsInnerBoundary();
-	}
 	Loops.Add(InLoop);
 }
 

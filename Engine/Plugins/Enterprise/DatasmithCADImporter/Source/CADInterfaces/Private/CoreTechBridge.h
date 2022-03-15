@@ -64,7 +64,7 @@ public:
 
 private:
 
-	TSharedPtr<FTopologicalLoop> AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface);
+	TSharedPtr<FTopologicalLoop> AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface, const bool bIsExternalLoop);
 
 	/**
 	 * Build face's links with its neighbor have to be done after the loop is finalize.

@@ -518,22 +518,41 @@ bool FTopologicalEdge::IsSameDirection(const FTopologicalEdge& Edge) const
 		return true;
 	}
 
-	TSharedPtr<const FVertexLink> vertex1Edge = GetStartVertex()->GetLink();
-	TSharedPtr<const FVertexLink> vertex2Edge = GetEndVertex()->GetLink();
+	TSharedPtr<const FVertexLink> Vertex1Edge = GetStartVertex()->GetLink();
+	TSharedPtr<const FVertexLink> Vertex2Edge = GetEndVertex()->GetLink();
 
-	if (vertex1Edge == vertex2Edge)
+	if (Vertex1Edge == Vertex2Edge)
 	{
 		if (Edge.IsDegenerated())
 		{
 			return true;
 		}
+
+		FPoint EdgeStartTangent;
+		FPoint EdgeEndTangent;
+		Edge.GetTangentsAtExtremities(EdgeStartTangent, EdgeEndTangent, true);
+
+		FPoint StartTangent;
+		FPoint EndTangent;
+		GetTangentsAtExtremities(StartTangent, EndTangent, true);
+
+		double StartAngle = StartTangent.ComputeCosinus(EdgeStartTangent);
+		double EndAngle = EndTangent.ComputeCosinus(EdgeEndTangent);
+
+		if (StartAngle >= 0 && EndAngle >= 0)
+		{
+			return true;
+		}
+		if (StartAngle <= 0 && EndAngle <= 0)
+		{
+			return false;
+		}
+
 		Edge.SetAsDegenerated();
 		return true;
-
-		// Todo: Two cycles can have connected extremities but not with the same orientation
 	}
 
-	return vertex1Edge == Edge.GetStartVertex()->GetLink();
+	return Vertex1Edge == Edge.GetStartVertex()->GetLink();
 }
 
 #ifdef CADKERNEL_DEV

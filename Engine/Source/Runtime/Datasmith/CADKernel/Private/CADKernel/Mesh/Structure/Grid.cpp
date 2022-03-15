@@ -932,6 +932,187 @@ void SlightlyDisplacedPolyline(TArray<FPoint2D>& D2Points, const FSurfacicBounda
 	D2Points.Last() += Normal;
 }
 
+void FGrid::GetMeshOfLoop(const FTopologicalLoop& Loop)
+{
+	int32 LoopNodeCount = 0;
+
+	for (const FOrientedEdge& Edge : Loop.GetEdges())
+	{
+		LoopNodeCount += Edge.Entity->GetLinkActiveEdge()->GetMesh()->GetNodeCount() + 2;
+	}
+
+	TArray<FPoint2D>& Loop2D = FaceLoops2D[EGridSpace::Default2D].Emplace_GetRef();
+	Loop2D.Empty(LoopNodeCount);
+
+	TArray<FPoint>& Loop3D = FaceLoops3D.Emplace_GetRef();
+	Loop3D.Reserve(LoopNodeCount);
+
+	TArray<FVector>& LoopNormals = NormalsOfFaceLoops.Emplace_GetRef();
+	LoopNormals.Reserve(LoopNodeCount);
+
+	TArray<int32>& LoopIds = NodeIdsOfFaceLoops.Emplace_GetRef();
+	LoopIds.Reserve(LoopNodeCount);
+
+	for (const FOrientedEdge& OrientedEdge : Loop.GetEdges())
+	{
+		const TSharedPtr<FTopologicalEdge>& Edge = OrientedEdge.Entity;
+		const TSharedRef<FTopologicalEdge>& ActiveEdge = Edge->GetLinkActiveEdge();
+
+		bool bSameDirection = Edge->IsSameDirection(*ActiveEdge);
+
+		TArray<double> EdgeCuttingPointCoordinates;
+		{
+			TArray<FCuttingPoint>& CuttingPoints = Edge->GetCuttingPoints();
+			if (!CuttingPoints.IsEmpty())
+			{
+				GetCuttingPointCoordinates(CuttingPoints, EdgeCuttingPointCoordinates);
+			}
+		}
+
+		FSurfacicPolyline CuttingPolyline(true);
+
+		if (Edge->IsDegenerated())
+		{
+			if (EdgeCuttingPointCoordinates.IsEmpty())
+			{
+				int32 CuttingPointCount = 2;
+				for (const FTopologicalEdge* TwinEdge : Edge->GetTwinEntities())
+				{
+					int32 TwinCuttingPointCount = TwinEdge->GetCuttingPoints().Num();
+					if (TwinCuttingPointCount > CuttingPointCount)
+					{
+						CuttingPointCount = TwinCuttingPointCount;
+					}
+				}
+				FMesherTools::FillCuttingPointCoordinates(Edge->GetBoundary(), CuttingPointCount, EdgeCuttingPointCoordinates);
+			}
+
+			Swap(CuttingPolyline.Coordinates, EdgeCuttingPointCoordinates);
+			Edge->Approximate2DPoints(CuttingPolyline.Coordinates, CuttingPolyline.Points2D);
+
+			CuttingPolyline.Points3D.Init(ActiveEdge->GetStartBarycenter(), CuttingPolyline.Coordinates.Num());
+
+			TArray<FPoint2D> D2Points = CuttingPolyline.Points2D;
+			const FSurfacicBoundary& Boundary = Edge->GetCurve()->GetCarrierSurface()->GetBoundary();
+			// to compute the normals, the 2D points are slightly displaced perpendicular to the curve
+			SlightlyDisplacedPolyline(D2Points, Boundary);
+			Edge->GetCurve()->GetCarrierSurface()->EvaluateNormals(D2Points, CuttingPolyline.Normals);
+		}
+		else
+		{
+			if (EdgeCuttingPointCoordinates.IsEmpty())
+			{
+				TArray<FPoint>& MeshVertex3D = ActiveEdge->GetMesh()->GetNodeCoordinates();
+				TArray<double> ProjectedPointCoords;
+
+				CuttingPolyline.Coordinates.Reserve(MeshVertex3D.Num() + 2);
+				Edge->ProjectTwinEdgePoints(MeshVertex3D, bSameDirection, CuttingPolyline.Coordinates);
+				CuttingPolyline.Coordinates.Insert(Edge->GetBoundary().GetMin(), 0);
+				CuttingPolyline.Coordinates.Add(Edge->GetBoundary().GetMax());
+
+				// check if there are coincident coordinates
+				bool bProjectionFailed = false;
+				for (int32 Index = 0; Index < CuttingPolyline.Coordinates.Num() - 1;)
+				{
+					double Diff = CuttingPolyline.Coordinates[Index++];
+					Diff -= CuttingPolyline.Coordinates[Index];
+					if (Diff > -SMALL_NUMBER)
+					{
+						bProjectionFailed = true;
+						break;
+					}
+				}
+				if (bProjectionFailed)
+				{
+					FMesherTools::FillCuttingPointCoordinates(Edge->GetBoundary(), MeshVertex3D.Num() + 2, CuttingPolyline.Coordinates);
+				}
+			}
+			else
+			{
+				Swap(CuttingPolyline.Coordinates, EdgeCuttingPointCoordinates);
+			}
+
+			Edge->ApproximatePolyline(CuttingPolyline);
+		}
+
+		TArray<int32> EdgeVerticesIndex;
+		if (Edge->IsDegenerated())
+		{
+			EdgeVerticesIndex.Init(ActiveEdge->GetStartVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh(), CuttingPolyline.Coordinates.Num());
+		}
+		else if (Edge->IsVirtuallyMeshed())
+		{
+			// @see FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
+			int32 NodeCount = CuttingPolyline.Coordinates.Num();
+			EdgeVerticesIndex.Reserve(NodeCount);
+			int32 MiddleNodeIndex = NodeCount / 2;
+			int32 Index = 0;
+			{
+				int32 StartVertexMeshId = Edge->GetStartVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh();
+				for (; Index < MiddleNodeIndex; ++Index)
+				{
+					EdgeVerticesIndex.Add(StartVertexMeshId);
+				}
+			}
+			{
+				int32 EndVertexMeshId = Edge->GetEndVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh();
+				for (; Index < NodeCount; ++Index)
+				{
+					EdgeVerticesIndex.Add(EndVertexMeshId);
+				}
+			}
+		}
+		else
+		{
+			EdgeVerticesIndex = ((TSharedRef<FEdgeMesh>)ActiveEdge->GetOrCreateMesh(MeshModel))->EdgeVerticesIndex;
+		}
+
+#ifdef DEBUG_GET_BOUNDARY_MESH
+		if (bDisplay)
+		{
+			F3DDebugSession _(bDisplay, FString::Printf(TEXT("Edge %d cutting points on surface"), ActiveEdge->GetId()));
+			for (const FPoint2D& Point2D : CuttingPolyline.Points2D)
+			{
+				DisplayPoint(Point2D);
+			}
+			//Wait();
+		}
+#endif
+
+		if (OrientedEdge.Direction != EOrientation::Front)
+		{
+			CuttingPolyline.Reverse();
+		}
+
+		if (bSameDirection != (OrientedEdge.Direction == EOrientation::Front))
+		{
+			Algo::Reverse(EdgeVerticesIndex);
+		}
+
+		ensureCADKernel(CuttingPolyline.Size() > 1);
+
+		Loop2D.Append(CuttingPolyline.Points2D);
+		Loop2D.Pop();
+
+		Loop3D.Emplace(ActiveEdge->GetStartVertex((OrientedEdge.Direction == EOrientation::Front) == bSameDirection)->GetLinkActiveEntity()->GetBarycenter());
+		Loop3D.Append(CuttingPolyline.Points3D.GetData() + 1, CuttingPolyline.Points3D.Num() - 2);
+
+		LoopNormals.Append(CuttingPolyline.Normals);
+		LoopNormals.Pop();
+
+		LoopIds.Append(EdgeVerticesIndex);
+		LoopIds.Pop();
+	}
+
+	if (Loop2D.Num() < 3) // degenerated loop
+	{
+		FaceLoops2D[EGridSpace::Default2D].Pop();
+		FaceLoops3D.Pop();
+		NormalsOfFaceLoops.Pop();
+	}
+}
+
+
 //#define DEBUG_GET_BOUNDARY_MESH
 bool FGrid::GetMeshOfLoops()
 {
@@ -952,184 +1133,21 @@ bool FGrid::GetMeshOfLoops()
 	F3DDebugSession _(bDisplay, ("GetLoopMesh"));
 #endif
 
+	// Outer loops is processed first
 	for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 	{
-		int32 LoopNodeCount = 0;
-
-		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		if (Loop->IsExternal())
 		{
-			LoopNodeCount += Edge.Entity->GetLinkActiveEdge()->GetMesh()->GetNodeCount() + 2;
+			GetMeshOfLoop(*Loop);
+			break;
 		}
+	}
 
-		TArray<FPoint2D>& Loop2D = FaceLoops2D[EGridSpace::Default2D].Emplace_GetRef();
-		Loop2D.Empty(LoopNodeCount);
-
-		TArray<FPoint>& Loop3D = FaceLoops3D.Emplace_GetRef();
-		Loop3D.Reserve(LoopNodeCount);
-
-		TArray<FVector>& LoopNormals = NormalsOfFaceLoops.Emplace_GetRef();
-		LoopNormals.Reserve(LoopNodeCount);
-
-		TArray<int32>& LoopIds = NodeIdsOfFaceLoops.Emplace_GetRef();
-		LoopIds.Reserve(LoopNodeCount);
-
-		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
+	{
+		if (!Loop->IsExternal())
 		{
-			const TSharedPtr<FTopologicalEdge>& Edge = OrientedEdge.Entity;
-			const TSharedRef<FTopologicalEdge>& ActiveEdge = Edge->GetLinkActiveEdge();
-
-			bool bSameDirection = Edge->IsSameDirection(*ActiveEdge);
-
-			TArray<double> EdgeCuttingPointCoordinates;
-			{
-				TArray<FCuttingPoint>& CuttingPoints = Edge->GetCuttingPoints();
-				if (!CuttingPoints.IsEmpty())
-				{
-					GetCuttingPointCoordinates(CuttingPoints, EdgeCuttingPointCoordinates);
-				}
-			}
-
-			FSurfacicPolyline CuttingPolyline(true);
-
-			if (Edge->IsDegenerated())
-			{
-				if (EdgeCuttingPointCoordinates.IsEmpty())
-				{
-					int32 CuttingPointCount = 2;
-					for (const FTopologicalEdge* TwinEdge : Edge->GetTwinEntities())
-					{
-						int32 TwinCuttingPointCount = TwinEdge->GetCuttingPoints().Num();
-						if (TwinCuttingPointCount > CuttingPointCount)
-						{
-							CuttingPointCount = TwinCuttingPointCount;
-						}
-					}
-					FMesherTools::FillCuttingPointCoordinates(Edge->GetBoundary(), CuttingPointCount, EdgeCuttingPointCoordinates);
-				}
-
-				Swap(CuttingPolyline.Coordinates, EdgeCuttingPointCoordinates);
-				Edge->Approximate2DPoints(CuttingPolyline.Coordinates, CuttingPolyline.Points2D);
-
-				CuttingPolyline.Points3D.Init(ActiveEdge->GetStartBarycenter(), CuttingPolyline.Coordinates.Num());
-
-				TArray<FPoint2D> D2Points = CuttingPolyline.Points2D;
-				const FSurfacicBoundary& Boundary = Edge->GetCurve()->GetCarrierSurface()->GetBoundary();
-				// to compute the normals, the 2D points are slightly displaced perpendicular to the curve
-				SlightlyDisplacedPolyline(D2Points, Boundary);
-				Edge->GetCurve()->GetCarrierSurface()->EvaluateNormals(D2Points, CuttingPolyline.Normals);
-			}
-			else
-			{
-				if (EdgeCuttingPointCoordinates.IsEmpty())
-				{
-					TArray<FPoint>& MeshVertex3D = ActiveEdge->GetMesh()->GetNodeCoordinates();
-					TArray<double> ProjectedPointCoords;
-
-					CuttingPolyline.Coordinates.Reserve(MeshVertex3D.Num() + 2);
-					Edge->ProjectTwinEdgePoints(MeshVertex3D, bSameDirection, CuttingPolyline.Coordinates);
-					CuttingPolyline.Coordinates.Insert(Edge->GetBoundary().GetMin(), 0);
-					CuttingPolyline.Coordinates.Add(Edge->GetBoundary().GetMax());
-
-					// check if there are coincident coordinates
-					bool bProjectionFailed = false;
-					for (int32 Index = 0; Index < CuttingPolyline.Coordinates.Num() - 1;)
-					{
-						double Diff = CuttingPolyline.Coordinates[Index++];
-						Diff -= CuttingPolyline.Coordinates[Index];
-						if (Diff > -SMALL_NUMBER)
-						{
-							bProjectionFailed = true;
-							break;
-						}
-					}
-					if(bProjectionFailed)
-					{
-						FMesherTools::FillCuttingPointCoordinates(Edge->GetBoundary(), MeshVertex3D.Num() + 2, CuttingPolyline.Coordinates);
-					}
-				}
-				else
-				{
-					Swap(CuttingPolyline.Coordinates, EdgeCuttingPointCoordinates);
-				}
-
-				Edge->ApproximatePolyline(CuttingPolyline);
-			}
-
-			TArray<int32> EdgeVerticesIndex;
-			if (Edge->IsDegenerated())
-			{
-				EdgeVerticesIndex.Init(ActiveEdge->GetStartVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh(), CuttingPolyline.Coordinates.Num());
-			}
-			else if (Edge->IsVirtuallyMeshed())
-			{
-				// @see FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
-				int32 NodeCount = CuttingPolyline.Coordinates.Num();
-				EdgeVerticesIndex.Reserve(NodeCount);
-				int32 MiddleNodeIndex = NodeCount / 2;
-				int32 Index = 0;
-				{
-					int32 StartVertexMeshId = Edge->GetStartVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh();
-					for (; Index < MiddleNodeIndex; ++Index)
-					{
-						EdgeVerticesIndex.Add(StartVertexMeshId);
-					}
-				}
-				{
-					int32 EndVertexMeshId = Edge->GetEndVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh();
-					for (; Index < NodeCount; ++Index)
-					{
-						EdgeVerticesIndex.Add(EndVertexMeshId);
-					}
-				}
-			}
-			else
-			{
-				EdgeVerticesIndex = ((TSharedRef<FEdgeMesh>)ActiveEdge->GetOrCreateMesh(MeshModel))->EdgeVerticesIndex;
-			}
-
-#ifdef DEBUG_GET_BOUNDARY_MESH
-			if (bDisplay)
-			{
-				F3DDebugSession _(bDisplay, FString::Printf(TEXT("Edge %d cutting points on surface"), ActiveEdge->GetId()));
-				for (const FPoint2D& Point2D : CuttingPolyline.Points2D)
-				{
-					DisplayPoint(Point2D);
-				}
-				//Wait();
-			}
-#endif
-
-			if (OrientedEdge.Direction != EOrientation::Front)
-			{
-				CuttingPolyline.Reverse();
-			}
-
-			if (bSameDirection != (OrientedEdge.Direction == EOrientation::Front))
-			{
-				Algo::Reverse(EdgeVerticesIndex);
-			}
-
-			ensureCADKernel(CuttingPolyline.Size() > 1);
-
-			Loop2D.Append(CuttingPolyline.Points2D);
-			Loop2D.Pop();
-
-			Loop3D.Emplace(ActiveEdge->GetStartVertex((OrientedEdge.Direction == EOrientation::Front) == bSameDirection)->GetLinkActiveEntity()->GetBarycenter());
-			Loop3D.Append(CuttingPolyline.Points3D.GetData() + 1, CuttingPolyline.Points3D.Num() - 2);
-
-			LoopNormals.Append(CuttingPolyline.Normals);
-			LoopNormals.Pop();
-
-			LoopIds.Append(EdgeVerticesIndex);
-			LoopIds.Pop();
-		}
-
-		if (Loop2D.Num() < 3) // degenerated loop
-		{
-			FaceLoops2D[EGridSpace::Default2D].Pop();
-			FaceLoops3D.Pop();
-			NormalsOfFaceLoops.Pop();
-			continue;
+			GetMeshOfLoop(*Loop);
 		}
 	}
 

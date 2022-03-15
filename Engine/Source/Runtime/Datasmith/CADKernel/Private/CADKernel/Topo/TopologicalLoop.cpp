@@ -17,9 +17,9 @@
 namespace CADKernel
 {
 
-TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections, double GeometricTolerance)
+TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections, const bool bIsExternalLoop, double GeometricTolerance)
 {
-	TSharedRef<FTopologicalLoop> LoopRef = FEntity::MakeShared<FTopologicalLoop>(InEdges, InEdgeDirections);
+	TSharedRef<FTopologicalLoop> LoopRef = FEntity::MakeShared<FTopologicalLoop>(InEdges, InEdgeDirections, bIsExternalLoop);
 	FTopologicalLoop& Loop = *LoopRef;
 
 	Loop.EnsureLogicalClosing(GeometricTolerance);
@@ -57,9 +57,9 @@ TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTop
 	return LoopRef;
 }
 
-FTopologicalLoop::FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections)
+FTopologicalLoop::FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections, const bool bIsExternalLoop)
 	: Face(nullptr)
-	, bExternalLoop(true)
+	, bIsExternal(bIsExternalLoop)
 {
 	Edges.Reserve(InEdges.Num());
 	for (int32 Index = 0; Index < InEdges.Num(); ++Index)
@@ -466,7 +466,7 @@ bool FTopologicalLoop::Orient()
 		FMessage::Printf(Log, TEXT("WARNING: Loop Orientation of surface %d is doubtful\n"), Face->GetId());
 	}
 
-	if ((WrongOrientationCount > GoodOrientationCount) == bExternalLoop)
+	if ((WrongOrientationCount > GoodOrientationCount) == bIsExternal)
 	{
 		SwapOrientation();
 	}
@@ -959,6 +959,7 @@ FInfoEntity& FTopologicalLoop::GetInfo(FInfoEntity& Info) const
 {
 	return FEntity::GetInfo(Info)
 		.Add(TEXT("Edges"), (TArray<TOrientedEntity<FEntity>>&) Edges)
+		.Add(TEXT("IsExternal"), bIsExternal)
 		.Add(TEXT("Hosted by"), Face);
 }
 #endif

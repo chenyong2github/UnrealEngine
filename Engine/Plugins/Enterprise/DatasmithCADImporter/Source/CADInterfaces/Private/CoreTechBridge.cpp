@@ -224,15 +224,17 @@ void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 
 	TArray<TSharedPtr<FTopologicalLoop>> Loops;
 
+	bool bIsExternalLoop = true;
 	CTLoopIds.IteratorInitialize();
 	CT_OBJECT_ID CTLoopId;
 	while ((CTLoopId = CTLoopIds.IteratorIter()) != 0)
 	{
-		TSharedPtr<FTopologicalLoop> Loop = AddLoop(CTLoopId, Surface);
+		TSharedPtr<FTopologicalLoop> Loop = AddLoop(CTLoopId, Surface, bIsExternalLoop);
 		if (!Loop.IsValid())
 		{
 			continue;
 		}
+		bIsExternalLoop = false;
 
 		LinkEdgesLoop(CTLoopId, *Loop);
 
@@ -287,7 +289,7 @@ void FCoreTechBridge::Get2DCurvesRange(CT_OBJECT_ID CTFaceId, FSurfacicBoundary&
 	CT_FACE_IO::AskUVminmax(CTFaceId, OutBoundary[EIso::IsoU].Min, OutBoundary[EIso::IsoU].Max, OutBoundary[EIso::IsoV].Min, OutBoundary[EIso::IsoV].Max);
 }
 
-TSharedPtr<FTopologicalLoop> FCoreTechBridge::AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface)
+TSharedPtr<FTopologicalLoop> FCoreTechBridge::AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface, const bool bIsExternalLoop)
 {
 	Report.LoopCount++;
 
@@ -322,7 +324,7 @@ TSharedPtr<FTopologicalLoop> FCoreTechBridge::AddLoop(CT_OBJECT_ID CTLoopId, TSh
 		return TSharedPtr<FTopologicalLoop>();
 	}
 
-	return FTopologicalLoop::Make(Edges, Directions, GeometricTolerance);
+	return FTopologicalLoop::Make(Edges, Directions, bIsExternalLoop, GeometricTolerance);
 }
 
 void FCoreTechBridge::LinkEdgesLoop(CT_OBJECT_ID CTLoopId, FTopologicalLoop& Loop)
@@ -404,6 +406,10 @@ TSharedPtr<FTopologicalEdge> FCoreTechBridge::AddEdge(CT_OBJECT_ID CTCoedgeId, T
 		{
 			Weights[IPole] = RawPoles[Index];
 		}
+	}
+	else
+	{
+		Weights.Init(1., PoleNum);
 	}
 
 	const FSurfacicBoundary& SurfaceBounds = Surface->GetBoundary();
@@ -856,6 +862,11 @@ TSharedPtr<FCurve> FCoreTechBridge::AddNurbsCurve(CT_OBJECT_ID CTCurveId)
 			Weights[IPole] = RawPoles[Index];
 		}
 	}
+	else
+	{
+		Weights.Init(1., PoleNum);
+	}
+
 	return FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, Weights);
 }
 

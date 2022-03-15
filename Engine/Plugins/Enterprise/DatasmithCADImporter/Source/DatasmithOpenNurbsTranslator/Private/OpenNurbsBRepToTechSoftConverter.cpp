@@ -65,13 +65,14 @@ struct FOpenNurbsSurfaceInfo
 
 		TArray<A3DDouble>& NodalVector = Axis == EAxis::U ? UNodalVector : VNodalVector;
 		NodalVector.Reserve(KnotSize);
-		NodalVector.Add(OpenNurbsSurface.SuperfluousKnot(Axis, 0));
+		NodalVector.Add(OpenNurbsSurface.Knot(Axis, 0));
 		uint32 KnotCount = OpenNurbsSurface.KnotCount(Axis);
 		for (uint32 i = 0; i < KnotCount; ++i)
 		{
 			NodalVector.Add(OpenNurbsSurface.Knot(Axis, i));
 		}
-		NodalVector.Add(OpenNurbsSurface.SuperfluousKnot(Axis, 1));
+		double LastValue = NodalVector[KnotCount];
+		NodalVector.Add(LastValue);
 
 		A3DDouble*& UKnots = Axis == EAxis::U ? Data.m_pdUKnots : Data.m_pdVKnots;
 		UKnots = NodalVector.GetData();
@@ -154,12 +155,13 @@ A3DCrvBase* FOpenNurbsBRepToTechSoftConverter::CreateCurve(const ON_NurbsCurve& 
 	int32 KnotCount = OpenNurbsCurve.KnotCount();
 	TArray<A3DDouble> NodalVector;
 	NodalVector.Reserve(KnotCount + 2);
-	NodalVector.Emplace(OpenNurbsCurve.SuperfluousKnot(0));
+	NodalVector.Emplace(OpenNurbsCurve.Knot(0));
 	for (int Index = 0; Index < KnotCount; ++Index)
 	{
 		NodalVector.Emplace(OpenNurbsCurve.Knot(Index));
 	}
-	NodalVector.Emplace(OpenNurbsCurve.SuperfluousKnot(1));
+	double LastValue = NodalVector[KnotCount];
+	NodalVector.Emplace(LastValue);
 
 	TArray<A3DVector3dData> ControlPointArray;
 	TArray<A3DDouble> WeightArray;

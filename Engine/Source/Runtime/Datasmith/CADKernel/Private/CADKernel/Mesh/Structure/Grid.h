@@ -277,6 +277,7 @@ protected:
 	 * @ return false if the mesh of the loop is degenerated
 	 */
 	bool GetMeshOfLoops();
+	void GetMeshOfLoop(const FTopologicalLoop& Loop);
 
 public:
 

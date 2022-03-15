@@ -640,6 +640,7 @@ namespace CADLibrary
 
 		int32 BodyIndex = CADFileData.AddBody(BodyId);
 		FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
+		Body.ParentId = ParentId;
 
 		ReadNodeMetaData(BodyId, Body.MetaData);
 
@@ -710,6 +711,8 @@ namespace CADLibrary
 
 		int32 Index = CADFileData.AddBody(BodyId);
 		FArchiveBody& ArchiveBody = CADFileData.GetBodyAt(Index);
+		ArchiveBody.ParentId = ParentId;
+
 		ReadNodeMetaData(BodyId, ArchiveBody.MetaData);
 
 		FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(BodyId, ArchiveBody);
@@ -773,6 +776,7 @@ namespace CADLibrary
 	{
 		int32 Index = CADFileData.AddBody(CADKernelBody.GetHostId());
 		FArchiveBody& ArchiveBody = CADFileData.GetBodyAt(Index);
+		ArchiveBody.ParentId = ParentId;
 
 		CADKernelBody.ExtractMetaData(ArchiveBody.MetaData);
 
