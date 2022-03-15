@@ -37,11 +37,6 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("UnrealEd");
             }
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-			}
-
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {
 				PrivateDependencyModuleNames.AddRange(

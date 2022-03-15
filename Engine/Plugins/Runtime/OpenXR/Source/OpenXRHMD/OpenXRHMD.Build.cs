@@ -59,16 +59,9 @@ namespace UnrealBuildTool.Rules
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
             }
 
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-			}
-
             if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Android)
             {
-                PrivateDependencyModuleNames.AddRange(new string[] {
-                    "OpenGLDrv",
-                });
+                PrivateDependencyModuleNames.Add("OpenGLDrv");
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
 			}
@@ -76,9 +69,7 @@ namespace UnrealBuildTool.Rules
 			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Android  
 			    || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
             {
-                PrivateDependencyModuleNames.AddRange(new string[] {
-                    "VulkanRHI"
-                });
+                PrivateDependencyModuleNames.Add("VulkanRHI");
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 			}

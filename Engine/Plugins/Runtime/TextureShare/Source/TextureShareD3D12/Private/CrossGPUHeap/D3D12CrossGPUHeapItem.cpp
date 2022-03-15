@@ -5,8 +5,7 @@
 #if TEXTURESHARE_CROSSGPUHEAP
 // DX12 Cross GPU heap resource API (experimental)
 #include "TextureShareD3D12Log.h"
-#include "D3D12RHIPrivate.h"
-#include "D3D12Util.h"
+#include "ID3D12DynamicRHI.h"
 
 // macro to deal with COM calls inside a function that returns `{}` on error
 #define CHECK_HR_DEFAULT(COM_call)\

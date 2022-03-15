@@ -24,7 +24,6 @@ namespace UnrealBuildTool.Rules
 					"MediaUtils",
 					"RenderCore",
 					"RHI",
-					"RHICore",
 					"ElectraBase",
 				});
 
