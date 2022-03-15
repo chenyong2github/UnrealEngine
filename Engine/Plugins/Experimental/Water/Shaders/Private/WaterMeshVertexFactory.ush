@@ -250,13 +250,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		Intermediates.MorphedTranslatedWorldPos = TranslatedWorldPosition;
 	}
 
-	Intermediates.MorphedWorldPos = LWCSubtract(Intermediates.MorphedTranslatedWorldPos, ResolvedView.PreViewTranslation);
-
 #if WITH_WATER_SELECTION_SUPPORT_VF
 	float SelectedValue = Input.InstanceData2.w;
 	float IsVisible = WaterVF.bRenderSelected * SelectedValue + WaterVF.bRenderUnselected * (1-SelectedValue);
-	Intermediates.MorphedWorldPos = LWCMultiply(Intermediates.MorphedWorldPos, IsVisible);
+	Intermediates.MorphedTranslatedWorldPos *= IsVisible;
 #endif // WITH_WATER_SELECTION_SUPPORT_VF
+
+	Intermediates.MorphedWorldPos = LWCSubtract(Intermediates.MorphedTranslatedWorldPos, ResolvedView.PreViewTranslation);
 
 	return Intermediates;
 }
