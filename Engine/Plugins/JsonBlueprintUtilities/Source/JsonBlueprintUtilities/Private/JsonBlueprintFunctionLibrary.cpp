@@ -178,6 +178,41 @@ DEFINE_FUNCTION(UJsonBlueprintFunctionLibrary::execSetField)
 	*StaticCast<bool*>(RESULT_PARAM) = bResult;
 }
 
+DEFINE_FUNCTION(UJsonBlueprintFunctionLibrary::execStructToJsonString)
+{
+	Stack.StepCompiledIn<FProperty>(nullptr);
+	FProperty* ValueProperty = Stack.MostRecentProperty;
+	void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	PARAM_PASSED_BY_REF(OutJsonString, FStrProperty, FString);
+
+	P_FINISH;
+
+	if (!ValueProperty || !ValuePtr)
+	{
+		const FBlueprintExceptionInfo ExceptionInfo(
+			EBlueprintExceptionType::AccessViolation,
+			LOCTEXT("StructToJsonString_MissingInputProperty", "Failed to resolve the input parameter for StructToJsonString.")
+		);
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+	}
+
+	bool bResult;
+	FStructProperty* const StructProperty = CastField<FStructProperty>(ValueProperty);
+	if (!StructProperty)
+	{
+		bResult = false;
+		*StaticCast<bool*>(RESULT_PARAM) = bResult;
+		return;
+	}
+	
+	P_NATIVE_BEGIN
+	bResult = FJsonObjectConverter::UStructToJsonObjectString(StructProperty->Struct, ValuePtr, OutJsonString);
+	P_NATIVE_END
+
+	*StaticCast<bool*>(RESULT_PARAM) = bResult;
+}
+
 bool UJsonBlueprintFunctionLibrary::HasField(const FJsonObjectWrapper& JsonObject, const FString& FieldName)
 {
 	return JsonObject.JsonObject->HasField(FieldName);
@@ -218,10 +253,14 @@ bool UJsonBlueprintFunctionLibrary::PropertyToJsonField(
 	const FString& FieldName,
 	FProperty* SourceProperty,
 	const void* SourceValuePtr,
-	const FJsonObjectWrapper& TargetObject)
+	FJsonObjectWrapper& TargetObject)
 {
 	check(SourceProperty && SourceValuePtr);
-	check(TargetObject.JsonObject.IsValid());
+
+	if(!TargetObject.JsonObject.IsValid())
+	{
+		TargetObject.JsonObject = MakeShared<FJsonObject>();
+	}
 
 	TargetObject.JsonObject->SetField(FieldName, FJsonObjectConverter::UPropertyToJsonValue(SourceProperty, SourceValuePtr));
 	return true;

@@ -41,6 +41,10 @@ public:
 	static UPARAM(DisplayName="Success") bool SetField(const FJsonObjectWrapper& JsonObject, const FString& FieldName, const int32& Value);
 	DECLARE_FUNCTION(execSetField);
 
+	UFUNCTION(BlueprintCallable, CustomThunk, BlueprintInternalUseOnly, Category="Json", meta = (DisplayName = "Convert Struct To Json String", CustomStructureParam = "Struct", AutoCreateRefTerm = "Struct"))
+	static UPARAM(DisplayName="Success") bool StructToJsonString(const int32& Struct, FString& OutJsonString);
+	DECLARE_FUNCTION(execStructToJsonString);
+	
 	/** Checks if the field exists on the object. */
 	UFUNCTION(BlueprintCallable, Category="Json")
 	static UPARAM(DisplayName="Success") bool HasField(const FJsonObjectWrapper& JsonObject, const FString& FieldName);
@@ -54,5 +58,5 @@ private:
 	static bool JsonFieldToProperty(const FString& FieldName, const FJsonObjectWrapper& SourceObject, FProperty* TargetProperty, void* TargetValuePtr);
 
 	// If FieldName empty, Object created as root, or created with name "Value" otherwise. 
-	static bool PropertyToJsonField(const FString& FieldName, FProperty* SourceProperty, const void* SourceValuePtr, const FJsonObjectWrapper& TargetObject);
+	static bool PropertyToJsonField(const FString& FieldName, FProperty* SourceProperty, const void* SourceValuePtr, FJsonObjectWrapper& TargetObject);
 };
