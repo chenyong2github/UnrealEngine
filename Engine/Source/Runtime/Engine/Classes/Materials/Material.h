@@ -1739,6 +1739,9 @@ public:
 	ENGINE_API bool HasVertexPositionOffsetConnected() const;
 	ENGINE_API bool HasPixelDepthOffsetConnected() const;
 
+	// Return true if the property is supported
+	ENGINE_API bool IsPropertySupported(EMaterialProperty InProperty) const;
+
 #if WITH_EDITOR
 	static void NotifyCompilationFinished(UMaterialInterface* Material);
 
