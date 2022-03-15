@@ -132,12 +132,9 @@ namespace Horde.Storage
         public ContentIdStoreImplementations ContentIdStoreImplementation { get; set; } = ContentIdStoreImplementations.Memory;
         public BlobIndexImplementations BlobIndexImplementation { get; set; } = BlobIndexImplementations.Memory;
 
-        public List<string> NamespacesThatUseBlobIndexForExistsCheck { get; set; } = new List<string>();
-
         public int? MaxSingleBlobSize { get; set; } = null; // disable blob partitioning
 
         public int LastAccessRollupFrequencySeconds { get; set; } = 900; // 15 minutes
-        public List<string> OnDemandReplicationNamespaces { get; set; } = new List<string> { "*" };
         public bool EnableOnDemandReplication { get; set; } = false;
     }
 
@@ -260,8 +257,6 @@ namespace Horde.Storage
 
         public TimeSpan BlobCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
         public TimeSpan RefCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
-        public List<string> CleanNamespaces { get; set; } = new List<string>();
-        public List<string> CleanNamespacesLegacy { get; set; }  = new List<string>();
 
     }
 

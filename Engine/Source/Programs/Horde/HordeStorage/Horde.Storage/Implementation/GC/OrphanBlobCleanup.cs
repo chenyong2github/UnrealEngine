@@ -10,6 +10,7 @@ using async_enumerable_dotnet;
 using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Jupiter;
+using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using RestSharp;
@@ -29,15 +30,17 @@ namespace Horde.Storage.Implementation
         private readonly IBlobService _blobService;
         private readonly ILeaderElection _leaderElection;
         private readonly IOptionsMonitor<GCSettings> _gcSettings;
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly IRestClient _client;
         private readonly ILogger _logger = Log.ForContext<OrphanBlobCleanup>();
 
         // ReSharper disable once UnusedMember.Global
-        public OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IOptionsMonitor<CallistoTransactionLogSettings> callistoSettings, IOptionsMonitor<GCSettings> gcSettings, IServiceCredentials serviceCredentials)
+        public OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IOptionsMonitor<CallistoTransactionLogSettings> callistoSettings, IOptionsMonitor<GCSettings> gcSettings, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver)
         {
             _blobService = blobService;
             _leaderElection = leaderElection;
             _gcSettings = gcSettings;
+            _namespacePolicyResolver = namespacePolicyResolver;
 
             _client = new RestClient(callistoSettings.CurrentValue.ConnectionString)
             {
@@ -45,12 +48,13 @@ namespace Horde.Storage.Implementation
             }.UseSerializer(() => new JsonNetSerializer());
         }
 
-        internal OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IRestClient callistoClient, IOptionsMonitor<GCSettings> gcSettings)
+        internal OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IRestClient callistoClient, IOptionsMonitor<GCSettings> gcSettings, INamespacePolicyResolver namespacePolicyResolver)
         {
             _blobService = blobService;
             _leaderElection = leaderElection;
             _client = callistoClient;
             _gcSettings = gcSettings;
+            _namespacePolicyResolver = namespacePolicyResolver;
         }
 
         private struct GCRootState
@@ -167,7 +171,9 @@ namespace Horde.Storage.Implementation
 
         private bool NamespaceShouldBeCleaned(NamespaceId ns)
         {
-            return _gcSettings.CurrentValue.CleanNamespacesLegacy.Contains(ns.ToString());
+            NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+
+            return policy.IsLegacyNamespace.HasValue && policy.IsLegacyNamespace.Value;
         }
 
         public virtual async IAsyncEnumerable<NamespaceId> ListNamespaces()

@@ -13,6 +13,7 @@ using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation.Blob;
+using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +58,7 @@ public class BlobService : IBlobService
     private readonly IPeerStatusService _peerStatusService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceCredentials _serviceCredentials;
+    private readonly INamespacePolicyResolver _namespacePolicyResolver;
     private readonly ILogger _logger = Log.ForContext<BlobService>();
 
     internal IEnumerable<IBlobStore> BlobStore
@@ -65,7 +67,7 @@ public class BlobService : IBlobService
         set { _blobStores = value.ToList(); } 
     }
 
-    public BlobService(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials)
+    public BlobService(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver)
     {
         _blobStores = GetBlobStores(provider, settings).ToList();
         _settings = settings;
@@ -73,6 +75,7 @@ public class BlobService : IBlobService
         _peerStatusService = peerStatusService;
         _httpClientFactory = httpClientFactory;
         _serviceCredentials = serviceCredentials;
+        _namespacePolicyResolver = namespacePolicyResolver;
     }
 
     private IEnumerable<IBlobStore> GetBlobStores(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings)
@@ -287,7 +290,7 @@ public class BlobService : IBlobService
 
     public bool ShouldFetchBlobOnDemand(NamespaceId ns)
     {
-        return _settings.CurrentValue.EnableOnDemandReplication && _settings.CurrentValue.OnDemandReplicationNamespaces.Any(s => s.Equals("*") || s.Equals(ns.ToString()));
+        return _settings.CurrentValue.EnableOnDemandReplication && _namespacePolicyResolver.GetPoliciesForNs(ns).OnDemandReplication;
     }
 
     private HttpRequestMessage BuildHttpRequest(HttpMethod httpMethod, string uri)
@@ -301,7 +304,7 @@ public class BlobService : IBlobService
 
     public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob)
     {
-        bool useBlobIndex = _settings.CurrentValue.NamespacesThatUseBlobIndexForExistsCheck.Contains(ns.ToString());
+        bool useBlobIndex = _namespacePolicyResolver.GetPoliciesForNs(ns).UseBlobIndexForExists;
         if (useBlobIndex)
         {
             using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");

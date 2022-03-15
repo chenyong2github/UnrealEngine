@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
+using Jupiter;
 using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
@@ -24,20 +25,24 @@ namespace Horde.Storage.Implementation
         private readonly IRefsStore _refs;
         private readonly IReferencesStore _referencesStore;
         private readonly IReplicationLog _replicationLog;
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly ITransactionLogWriter _transactionLog;
         private readonly ILogger _logger = Log.ForContext<RefCleanup>();
 
-        public RefCleanup(IOptionsMonitor<GCSettings> settings, IRefsStore refs, ITransactionLogWriter transactionLog, IReferencesStore referencesStore, IReplicationLog replicationLog)
+        public RefCleanup(IOptionsMonitor<GCSettings> settings, IRefsStore refs, ITransactionLogWriter transactionLog, IReferencesStore referencesStore, IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver)
         {
             _settings = settings;
             _refs = refs;
             _transactionLog = transactionLog;
             _referencesStore = referencesStore;
             _replicationLog = replicationLog;
+            _namespacePolicyResolver = namespacePolicyResolver;
         }
 
         public Task<List<OldRecord>> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
         {
+            NamespaceSettings.PerNamespaceSettings policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
+
             using IScope scope = Tracer.Instance.StartActive("gc.refs.namespace");
             scope.Span.ResourceName = ns.ToString();
             if (ns == INamespacePolicyResolver.JupiterInternalNamespace)
@@ -45,18 +50,23 @@ namespace Horde.Storage.Implementation
                 // do not apply our cleanup policies to the internal namespace
                 return Task.FromResult(new List<OldRecord>());
             }
-            else if (_settings.CurrentValue.CleanNamespaces.Contains(ns.ToString()))
+            else if (!policies.IsLegacyNamespace.HasValue)
+            {
+                throw new NotImplementedException(
+                    $"Namespace {ns} did not set IsLegacyNamespace, unable to clean it as we do not know which method to use.");
+            }
+            else if (!policies.IsLegacyNamespace.Value)
             {
                 return CleanNamespace(ns, cancellationToken);
             }
-            else if (_settings.CurrentValue.CleanNamespacesLegacy.Contains(ns.ToString()))
+            else if (policies.IsLegacyNamespace.Value)
             {
                 return CleanNamespaceLegacy(ns, cancellationToken);
             }
             else
-                throw new NotImplementedException(
-                    $"Namespace {ns} not present in CleanNamespaces or CleanNamespacesLegacy lists, unable to clean it as we do not know which method to use.");
-           
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private async Task<List<OldRecord>> CleanNamespace(NamespaceId ns, CancellationToken cancellationToken)

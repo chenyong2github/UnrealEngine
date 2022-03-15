@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
+using Jupiter.Common;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -16,16 +18,18 @@ namespace Horde.Storage.Implementation
     {
         private readonly ILastAccessCache<LastAccessRecord> _lastAccessCacheRecord;
         private readonly IReferencesStore _referencesStore;
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly ILogger _logger = Log.ForContext<LastAccessServiceReferences>();
         private Timer? _timer;
         private readonly HordeStorageSettings _settings;
         
         public bool Running { get; private set; }
 
-        public LastAccessServiceReferences(IOptionsMonitor<HordeStorageSettings> settings, ILastAccessCache<LastAccessRecord> lastAccessCache, IReferencesStore referencesStore)
+        public LastAccessServiceReferences(IOptionsMonitor<HordeStorageSettings> settings, ILastAccessCache<LastAccessRecord> lastAccessCache, IReferencesStore referencesStore, INamespacePolicyResolver namespacePolicyResolver)
         {
             _lastAccessCacheRecord = lastAccessCache;
             _referencesStore = referencesStore;
+            _namespacePolicyResolver = namespacePolicyResolver;
             _settings = settings.CurrentValue;
         }
 
@@ -73,6 +77,8 @@ namespace Horde.Storage.Implementation
             List<(LastAccessRecord, DateTime)> records = await _lastAccessCacheRecord.GetLastAccessedRecords();
             foreach ((LastAccessRecord record, DateTime lastAccessTime) in records)
             {
+                if (!ShouldTrackLastAccess(record.Namespace))
+                    continue;
                 using IScope scope = Tracer.Instance.StartActive("lastAccess.update.record");
                 scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.Key}";
                 _logger.Debug("Updating last access time to {LastAccessTime} for {Record}", lastAccessTime, record);
@@ -80,6 +86,11 @@ namespace Horde.Storage.Implementation
             }
 
             return records;
+        }
+
+        private bool ShouldTrackLastAccess(NamespaceId ns)
+        {
+            return _namespacePolicyResolver.GetPoliciesForNs(ns).LastAccessTracking;
         }
 
         public void Dispose()

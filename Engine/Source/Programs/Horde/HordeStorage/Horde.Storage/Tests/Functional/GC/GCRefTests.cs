@@ -20,6 +20,7 @@ using Serilog;
 using Serilog.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
+using Jupiter;
 
 namespace Horde.Storage.FunctionalTests.GC
 {
@@ -41,10 +42,6 @@ namespace Horde.Storage.FunctionalTests.GC
                             // we are not reading the base appSettings here as we want exact control over what runs in the tests
                             .AddJsonFile("appsettings.Testing.json", false)
                             .AddEnvironmentVariables()
-                            .AddInMemoryCollection(new List<KeyValuePair<string, string>>()
-                            {
-                                new KeyValuePair<string, string>("GC:CleanNamespacesLegacy:0", TestNamespace.ToString()),
-                            })
                             .Build();
 
             Logger logger = new LoggerConfiguration()
@@ -70,6 +67,19 @@ namespace Horde.Storage.FunctionalTests.GC
                 {
                     // use our refs mock instead of the actual refs store so we can control which records are invalid
                     collection.AddSingleton<IRefsStore>(_refMock.Object);
+
+                    collection.Configure<NamespaceSettings>(settings =>
+                    {
+                        settings.Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
+                        {
+                            {
+                                TestNamespace.ToString(), new NamespaceSettings.PerNamespaceSettings()
+                                {
+                                    IsLegacyNamespace = true
+                                }
+                            }
+                        };
+                    });
                 })
             );
             _httpClient = server.CreateClient();
@@ -157,7 +167,6 @@ namespace Horde.Storage.FunctionalTests.GC
                 .AddEnvironmentVariables()
                 .AddInMemoryCollection(new List<KeyValuePair<string, string>>()
                 {
-                    new KeyValuePair<string, string>("GC:CleanNamespaces:0", TestNamespace.ToString()),
                     new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", "MemoryBlobStore"),
                     new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", GetImplementation()),
                 })
@@ -170,6 +179,21 @@ namespace Horde.Storage.FunctionalTests.GC
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
+                .ConfigureTestServices(collection =>
+                {
+                    collection.Configure<NamespaceSettings>(settings =>
+                    {
+                        settings.Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
+                        {
+                            {
+                                TestNamespace.ToString(), new NamespaceSettings.PerNamespaceSettings()
+                                {
+                                    IsLegacyNamespace = false
+                                }
+                            }
+                        };
+                    });
+                })
                 .UseStartup<HordeStorageStartup>()
             );
             _httpClient = server.CreateClient();

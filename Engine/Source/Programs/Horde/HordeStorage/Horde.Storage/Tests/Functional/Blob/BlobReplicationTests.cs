@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation.Blob;
+using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -24,7 +25,7 @@ namespace Horde.Storage.FunctionalTests.Storage
     [TestClass]
     public class BlobReplicationTests
     {
-        protected readonly NamespaceId TestNamespaceName = new NamespaceId("blob-replication-ns");
+        protected readonly NamespaceId TestNamespaceName = new NamespaceId("test-namespace");
 
         
         [TestMethod]
@@ -106,6 +107,19 @@ namespace Horde.Storage.FunctionalTests.Storage
 
                         }.ToList();
                     });
+                    collection.Configure<NamespaceSettings>(settings =>
+                    {
+                        settings.Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
+                        {
+                            {
+                                TestNamespaceName.ToString(), new NamespaceSettings.PerNamespaceSettings()
+                                {
+                                    OnDemandReplication = true
+                                }
+                            }
+                        };
+                    });
+
                     collection.AddSingleton<IHttpClientFactory>(handler.CreateClientFactory());
                 })
                 .UseStartup<HordeStorageStartup>()

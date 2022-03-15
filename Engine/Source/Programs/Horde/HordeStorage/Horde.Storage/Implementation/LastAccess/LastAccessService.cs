@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
+using Jupiter.Common;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -16,16 +18,18 @@ namespace Horde.Storage.Implementation
     {
         private readonly ILastAccessCache<RefRecord> _lastAccessCacheRecord;
         private readonly IRefsStore _refsStore;
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly ILogger _logger = Log.ForContext<LastAccessService>();
         private Timer? _timer;
         private readonly HordeStorageSettings _settings;
         
         public bool Running { get; private set; }
 
-        public LastAccessService(IOptionsMonitor<HordeStorageSettings> settings, ILastAccessCache<RefRecord> lastAccessCache, IRefsStore refsStore)
+        public LastAccessService(IOptionsMonitor<HordeStorageSettings> settings, ILastAccessCache<RefRecord> lastAccessCache, IRefsStore refsStore, INamespacePolicyResolver namespacePolicyResolver)
         {
             _lastAccessCacheRecord = lastAccessCache;
             _refsStore = refsStore;
+            _namespacePolicyResolver = namespacePolicyResolver;
             _settings = settings.CurrentValue;
         }
 
@@ -66,6 +70,9 @@ namespace Horde.Storage.Implementation
             List<(RefRecord, DateTime)> records = await _lastAccessCacheRecord.GetLastAccessedRecords();
             foreach ((RefRecord record, DateTime lastAccessTime) in records)
             {
+                if (!ShouldTrackLastAccess(record.Namespace))
+                    continue;
+
                 using IScope scope = Tracer.Instance.StartActive("lastAccess.update.record");
                 scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.RefName}";
                 _logger.Debug("Updating last access time to {LastAccessTime} for {Record}", lastAccessTime, record);
@@ -73,6 +80,11 @@ namespace Horde.Storage.Implementation
             }
 
             return records;
+        }
+
+        private bool ShouldTrackLastAccess(NamespaceId ns)
+        {
+            return _namespacePolicyResolver.GetPoliciesForNs(ns).LastAccessTracking;
         }
 
         public void Dispose()

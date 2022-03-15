@@ -23,6 +23,8 @@ using Serilog.Core;
 using Moq;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
+using Jupiter;
+using Jupiter.Common;
 
 namespace Horde.Storage.FunctionalTests.GC
 {
@@ -84,8 +86,11 @@ namespace Horde.Storage.FunctionalTests.GC
                         };
                         IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
 
+                        NamespacePolicyResolver policyResolver = Mock.Of<NamespacePolicyResolver>();
+
+
                         IBlobService blobService = provider.GetService<IBlobService>()!;
-                        return new OrphanBlobCleanup(blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, gcSettingsMon);
+                        return new OrphanBlobCleanup(blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, gcSettingsMon, policyResolver);
                     });
 
                 })
@@ -171,11 +176,16 @@ namespace Horde.Storage.FunctionalTests.GC
             {
                 CleanOldBlobs = true,
                 CleanOldBlobsLegacy = true,
-                CleanNamespacesLegacy = new List<string> { TestNamespace.ToString() }
             };
             IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
 
-            OrphanBlobCleanup cleanup = new OrphanBlobCleanup(_blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, gcSettingsMon);
+            Mock<INamespacePolicyResolver> policyResolverMock = new Mock<INamespacePolicyResolver>();
+            policyResolverMock.Setup(resolver => resolver.GetPoliciesForNs(TestNamespace)).Returns(new NamespaceSettings.PerNamespaceSettings()
+            {
+                IsLegacyNamespace = true,
+            });
+
+            OrphanBlobCleanup cleanup = new OrphanBlobCleanup(_blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, gcSettingsMon, policyResolverMock.Object);
             List<NamespaceId> namespaces = await cleanup.ListNamespaces().ToListAsync();
             Assert.AreEqual(1, namespaces.Count);
 
@@ -232,7 +242,6 @@ namespace Horde.Storage.FunctionalTests.GC
                 .AddInMemoryCollection(new List<KeyValuePair<string, string>>()
                 {
                     new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", "MemoryBlobStore"),
-                    new KeyValuePair<string, string>("GC:CleanNamespaces:0", TestNamespace.ToString()),
                     new KeyValuePair<string, string>("GC:CleanOldBlobs", true.ToString()),
                     new KeyValuePair<string, string>("GC:CleanOldBlobsLegacy", false.ToString()),
                     new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", GetImplementation()),
@@ -248,6 +257,21 @@ namespace Horde.Storage.FunctionalTests.GC
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
+                .ConfigureTestServices(collection =>
+                {
+                    collection.Configure<NamespaceSettings>(settings =>
+                    {
+                        settings.Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
+                        {
+                            {
+                                TestNamespace.ToString(), new NamespaceSettings.PerNamespaceSettings()
+                                {
+                                    IsLegacyNamespace = false
+                                }
+                            }
+                        };
+                    });
+                })
                 .UseStartup<HordeStorageStartup>()
             );
 

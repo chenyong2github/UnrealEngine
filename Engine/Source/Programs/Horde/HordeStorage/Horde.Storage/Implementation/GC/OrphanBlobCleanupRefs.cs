@@ -145,7 +145,9 @@ namespace Horde.Storage.Implementation
 
         private bool NamespaceShouldBeCleaned(NamespaceId ns)
         {
-            return _gcSettings.CurrentValue.CleanNamespaces.Contains(ns.ToString());
+            NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+
+            return policy.IsLegacyNamespace.HasValue && !policy.IsLegacyNamespace.Value;
         }
 
         private IAsyncEnumerable<NamespaceId> ListNamespaces()

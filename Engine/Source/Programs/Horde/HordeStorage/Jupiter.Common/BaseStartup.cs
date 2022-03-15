@@ -464,6 +464,12 @@ namespace Jupiter
         {
             public string[] Claims { get; set; } = Array.Empty<string>();
             public string StoragePool { get; set; } = "";
+
+            public bool LastAccessTracking { get; set; } = true;
+            public bool OnDemandReplication { get; set; } = false;
+            public bool UseBlobIndexForExists { get; set; } = false;
+            public bool UseBlobIndexForSlowExists { get; set; } = false;
+            public bool? IsLegacyNamespace { get; set; } = null;
         }
     }
 
