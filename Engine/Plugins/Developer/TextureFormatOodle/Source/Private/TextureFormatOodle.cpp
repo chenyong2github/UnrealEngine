@@ -794,7 +794,7 @@ public:
 	}
 	
 	// increment this to invalidate Derived Data Cache to recompress everything
-	#define DDC_OODLE_TEXTURE_VERSION 13
+	#define DDC_OODLE_TEXTURE_VERSION 14
 
 	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* InBuildSettings) const override
 	{
@@ -1111,13 +1111,9 @@ public:
 		// verify OodlePF matches Image :
 		check( Image.GetBytesPerPixel() == (VTable->fp_OodleTex_PixelFormat_BytesPerPixel)(OodlePF) );
 		
-		OodleTex_Surface InSurf = {};
-		InSurf.width  = Image.SizeX;
-		InSurf.height = Image.SizeY;
-		InSurf.pixels = 0;
-		InSurf.rowStrideBytes = Image.GetBytesPerPixel() * Image.SizeX;
+		SSIZE_T InRowStrideBytes = Image.GetBytesPerPixel() * Image.SizeX;
 
-		SSIZE_T InBytesPerSlice = InSurf.rowStrideBytes * Image.SizeY;
+		SSIZE_T InBytesPerSlice = InRowStrideBytes * Image.SizeY;
 		uint8 * ImageBasePtr = (uint8 *) &(Image.RawData[0]);
 
 		SSIZE_T InBytesTotal = InBytesPerSlice * Image.NumSlices;
@@ -1176,7 +1172,7 @@ public:
 					for (SSIZE_T Slice = 0; Slice < NumSlices; Slice++)
 					{
 						float* LineBase = (float*)(ImageBasePtr + InBytesPerSlice * Slice);
-						for (SSIZE_T Y = 0; Y < SizeY; Y++, LineBase += (InSurf.rowStrideBytes / sizeof(float)))
+						for (SSIZE_T Y = 0; Y < SizeY; Y++, LineBase += (InRowStrideBytes / sizeof(float)))
 						{
 							for (SSIZE_T X = 0; X < SizeX; X++)
 							{
@@ -1243,7 +1239,7 @@ public:
 					for (SSIZE_T Slice = 0; Slice < NumSlices; Slice++)
 					{
 						uint8* LineBase = ImageBasePtr + InBytesPerSlice * Slice;;
-						for (SSIZE_T Y = 0; Y < SizeY; Y++, LineBase += InSurf.rowStrideBytes)
+						for (SSIZE_T Y = 0; Y < SizeY; Y++, LineBase += InRowStrideBytes)
 						{
 							for (SSIZE_T X = 0; X < SizeX; X++)
 							{
@@ -1324,7 +1320,7 @@ public:
 		ParallelFor(
 			TEXT("ProcessSlice"),
 			Image.NumSlices, 1,
-			[&, InSurf](int32 Slice) mutable
+			[&](int32 Slice)
 			{
 				// Early out in case another task failed
 				if (!bCompressionSucceeded)
@@ -1332,7 +1328,11 @@ public:
 					return;
 				}
 
+				OodleTex_Surface InSurf = {};
 				InSurf.pixels = ImageBasePtr + Slice * InBytesPerSlice;
+				InSurf.rowStrideBytes = InRowStrideBytes;
+				InSurf.width = Image.SizeX;
+				InSurf.height = Image.SizeY;
 				uint8 * OutSlicePtr = OutBlocksBasePtr + Slice * OutBytesPerSlice;
 
 				OodleTex_RDO_Options OodleOptions = { };
