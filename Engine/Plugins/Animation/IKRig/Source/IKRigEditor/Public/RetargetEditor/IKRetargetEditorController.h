@@ -85,17 +85,32 @@ public:
 	UAnimationAsset* PreviousAsset = nullptr;
 	/** END Sequence Browser */
 
+	// go to retarget pose
+	void HandleGoToRetargetPose() const;
+	
 	/** edit retarget poses */
 	void HandleEditPose() const;
 	bool CanEditPose() const;
 	bool IsEditingPose() const;
-	void HandleNewPose();
-	FReply CreateNewPose() const;
-	void HandleDeletePose() const;
-	bool CanDeletePose() const;
+
 	void HandleResetPose() const;
+	bool CanResetPose() const;
+
+	void HandleNewPose();
+	bool CanNewPose() const;
+	FReply CreateNewPose() const;
 	TSharedPtr<SWindow> NewPoseWindow;
 	TSharedPtr<SEditableTextBox> NewPoseEditableText;
+	
+	void HandleDeletePose() const;
+	bool CanDeletePose() const;
+	
+	void HandleRenamePose();
+	FReply RenamePose() const;
+	bool CanRenamePose() const;
+	TSharedPtr<SWindow> RenamePoseWindow;
+	TSharedPtr<SEditableTextBox> NewNameEditableText;
+	
 	TArray<TSharedPtr<FName>> PoseNames;
 	FText GetCurrentPoseName() const;
 	void OnPoseSelected(TSharedPtr<FName> InPoseName, ESelectInfo::Type SelectInfo) const;

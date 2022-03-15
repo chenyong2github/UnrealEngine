@@ -400,6 +400,34 @@ bool FIKRetargetEditPoseMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, 
 	return GetCustomDrawingCoordinateSystem(InMatrix, InData);
 }
 
+void FIKRetargetEditPoseMode::Enter()
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+
+	// put source mesh in reference pose
+	Controller->SourceSkelMeshComponent->ShowReferencePose(true);
+	// have to move component back to offset position because ShowReferencePose() sets it back to origin
+	Controller->AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, Controller->SourceSkelMeshComponent);
+
+	// put asset in mode where target mesh will output retarget pose (for preview purposes)
+	Controller->AssetController->SetEditRetargetPoseMode(true);
+}
+
+void FIKRetargetEditPoseMode::Exit()
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+
+	Controller->AssetController->SetEditRetargetPoseMode(false);
+}
+
 void FIKRetargetEditPoseMode::UpdateWidgetTransform()
 {
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();

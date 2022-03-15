@@ -9,6 +9,7 @@
 
 #include "IKRetargeterController.generated.h"
 
+class FIKRetargetEditorController;
 class URetargetChainSettings;
 class UIKRigDefinition;
 class UIKRetargeter;
@@ -27,6 +28,10 @@ public:
 	/** Get access to the retargeter asset.
 	 *@warning Do not make modifications to the asset directly. Use this API instead. */
 	UIKRetargeter* GetAsset() const;
+	/** Get access to the editor controller.*/
+	FIKRetargetEditorController* GetEditorController() const;
+	/** Set the currently used editor controller.*/
+	void SetEditorController(FIKRetargetEditorController* InEditorController) { EditorController = InEditorController; };
 
 	/** SOURCE / TARGET
 	* 
@@ -54,7 +59,7 @@ public:
 	/** Get names of all the source bone chains. */
 	void GetSourceChainNames(TArray<FName>& OutNames) const;
 	/** Remove invalid chain mappings (no longer existing in currently referenced source/target IK Rig assets) */
-	void CleanChainMapping();
+	void CleanChainMapping(const bool bForceReinitialization=true);
 	/** Use fuzzy string search to find "best" Source chain to map to each Target chain */
 	void AutoMapChains() const;
 	/** Callback when IK Rig chain is renamed. Retains existing mappings using the new name */
@@ -71,9 +76,11 @@ public:
 	 * 
 	 */
 	/** Remove bones from retarget poses that are no longer in skeleton */
-	void CleanPoseList();
+	void CleanPoseList(const bool bForceReinitialization=true);
 	/** Add new retarget pose. */
 	void AddRetargetPose(FName NewPoseName) const;
+	/** Rename current retarget pose. */
+	void RenameCurrentRetargetPose(FName NewPoseName) const;
 	/** Remove a retarget pose. */
 	void RemoveRetargetPose(FName PoseToRemove) const;
 	/** Reset a retarget pose (removes all stored deltas, returning pose to reference pose */
@@ -90,10 +97,10 @@ public:
 	FQuat GetRotationOffsetForRetargetPoseBone(FName BoneName) const;
 	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
 	void AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const;
-	/** Set whether to output retarget pose. Will output current retarget pose if true, or run retarget otherwise. */
-	void SetEditRetargetPoseMode(bool bOutputRetargetPose, bool bReinitializeAfter=true) const;
 	/** Get whether in mode to output retarget pose (true) or run retarget (false). */
 	bool GetEditRetargetPoseMode() const;
+	/** Set whether retarget asset should be in "Edit Pose" mode. */
+	void SetEditRetargetPoseMode(const bool bMode) const;
 	/** Add a numbered suffix to the given pose name to make it unique. */
 	FName MakePoseNameUnique(FName PoseName) const;
 	/** END RETARGET POSE EDITING */
@@ -121,5 +128,8 @@ private:
 	void SortChainMapping() const;
 
 	/** The actual asset that this Controller modifies. */
-	UIKRetargeter* Asset = nullptr;
+	TObjectPtr<UIKRetargeter> Asset = nullptr;
+
+	/** The editor controller for this asset. */
+	TObjectPtr<FIKRetargetEditorController> EditorController = nullptr;
 };

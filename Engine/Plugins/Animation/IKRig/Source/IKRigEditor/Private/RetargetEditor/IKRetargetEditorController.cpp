@@ -19,6 +19,7 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 {
 	Editor = InEditor;
 	AssetController = UIKRetargeterController::GetController(InAsset);
+	AssetController->SetEditorController(this);
 
 	// bind callbacks when SOURCE or TARGET IK Rigs are modified
 	BindToIKRigAsset(AssetController->GetAsset()->GetSourceIKRigWriteable());
@@ -79,7 +80,6 @@ void FIKRetargetEditorController::OnRetargetChainRemoved(UIKRigDefinition* Modif
 void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetargeter* Retargeter) const
 {
 	// force edit pose mode to be off
-	AssetController->SetEditRetargetPoseMode(false, false); // turn off and don't reinitialize (avoid infinite loop)
 	Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
 	// force reinit the runtime retarget processor
 	TargetAnimInstance->SetProcessorNeedsInitialized();
@@ -209,6 +209,7 @@ const UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() 
 void FIKRetargetEditorController::RefreshAllViews() const
 {
 	Editor.Pin()->RegenerateMenusAndToolbars();
+	DetailsView->ForceRefresh();
 
 	// cannot assume chains view is always available
 	if (ChainsView.IsValid())
@@ -234,23 +235,35 @@ void FIKRetargetEditorController::PlayPreviousAnimationAsset() const
 	}
 }
 
+void FIKRetargetEditorController::HandleGoToRetargetPose() const
+{
+	Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
+	Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
+
+	// put source back in ref pose
+	SourceSkelMeshComponent->ShowReferencePose(true);
+	// have to move component back to offset position because ShowReferencePose() sets it back to origin
+	AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, SourceSkelMeshComponent);
+}
+
 void FIKRetargetEditorController::HandleEditPose() const
 {
-	const bool bEditPoseMode = !AssetController->GetEditRetargetPoseMode();
-	AssetController->SetEditRetargetPoseMode(bEditPoseMode);
-	if (bEditPoseMode)
+	if (IsEditingPose())
 	{
-		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetDefaultMode::ModeName);
-		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetEditPoseMode::ModeName);
-		SourceSkelMeshComponent->ShowReferencePose(true);
-		// have to move component back to offset position because ShowReferencePose() sets it back to origin
-		AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, SourceSkelMeshComponent);
+		// stop pose editing
+		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
+		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
+		
+		// must reinitialize after editing the retarget pose
+		AssetController->BroadcastNeedsReinitialized();
+		// continue playing whatever animation asset was last used
+		PlayPreviousAnimationAsset();
 	}
 	else
 	{
-		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
-		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
-		PlayPreviousAnimationAsset();
+		// start pose editing
+		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetDefaultMode::ModeName);
+		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetEditPoseMode::ModeName);
 	}
 }
 
@@ -335,12 +348,17 @@ void FIKRetargetEditorController::HandleNewPose()
 	NewPoseWindow.Reset();
 }
 
+bool FIKRetargetEditorController::CanNewPose() const
+{
+	return !IsEditingPose();
+}
+
 FReply FIKRetargetEditorController::CreateNewPose() const
 {
 	const FName NewPoseName = FName(NewPoseEditableText.Get()->GetText().ToString());
 	AssetController->AddRetargetPose(NewPoseName);
 	NewPoseWindow->RequestDestroyWindow();
-	Editor.Pin()->RegenerateMenusAndToolbars();
+	DetailsView->ForceRefresh();
 	return FReply::Handled();
 }
 
@@ -348,19 +366,110 @@ void FIKRetargetEditorController::HandleDeletePose() const
 {
 	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName();
 	AssetController->RemoveRetargetPose(CurrentPose);
-	Editor.Pin()->RegenerateMenusAndToolbars();
+	DetailsView->ForceRefresh();
 }
 
 bool FIKRetargetEditorController::CanDeletePose() const
 {	
 	// cannot delete default pose
-	return AssetController->GetCurrentRetargetPoseName() != UIKRetargeter::GetDefaultPoseName();
+	const bool bNotUsingDefaultPose = AssetController->GetCurrentRetargetPoseName() != UIKRetargeter::GetDefaultPoseName();
+	// cannot delete pose while editing
+	return bNotUsingDefaultPose && !IsEditingPose();
 }
 
 void FIKRetargetEditorController::HandleResetPose() const
 {
 	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName();
 	AssetController->ResetRetargetPose(CurrentPose);
+}
+
+bool FIKRetargetEditorController::CanResetPose() const
+{
+	// only allow reseting pose while editing to avoid confusion
+	return IsEditingPose();
+}
+
+void FIKRetargetEditorController::HandleRenamePose()
+{
+	SAssignNew(RenamePoseWindow, SWindow)
+	.Title(LOCTEXT("RenameRetargetPoseOptions", "Rename Retarget Pose"))
+	.ClientSize(FVector2D(250, 80))
+	.HasCloseButton(true)
+	.SupportsMinimize(false) .SupportsMaximize(false)
+	[
+		SNew(SBorder)
+		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.Padding(4)
+			.AutoHeight()
+			[
+				SAssignNew(NewNameEditableText, SEditableTextBox)
+				.Text(GetCurrentPoseName())
+			]
+
+			+ SVerticalBox::Slot()
+			.Padding(4)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Center)
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "Button")
+					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Text(LOCTEXT("OkButtonLabel", "Ok"))
+					.IsEnabled_Lambda([this]()
+					{
+						return !GetCurrentPoseName().EqualTo(NewNameEditableText.Get()->GetText());
+					})
+					.OnClicked(this, &FIKRetargetEditorController::RenamePose)
+				]
+				
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Center)
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "Button")
+					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Text(LOCTEXT("CancelButtonLabel", "Cancel"))
+					.OnClicked_Lambda( [=]()
+					{
+						RenamePoseWindow->RequestDestroyWindow();
+						return FReply::Handled();
+					})
+				]
+			]	
+		]
+	];
+
+	GEditor->EditorAddModalWindow(RenamePoseWindow.ToSharedRef());
+	RenamePoseWindow.Reset();
+}
+
+FReply FIKRetargetEditorController::RenamePose() const
+{
+	const FName NewPoseName = FName(NewNameEditableText.Get()->GetText().ToString());
+	RenamePoseWindow->RequestDestroyWindow();
+	
+	AssetController->RenameCurrentRetargetPose(NewPoseName);
+	DetailsView->ForceRefresh();
+	return FReply::Handled();
+}
+
+bool FIKRetargetEditorController::CanRenamePose() const
+{
+	// cannot rename default pose
+	const bool bNotUsingDefaultPose = AssetController->GetCurrentRetargetPoseName() != UIKRetargeter::GetDefaultPoseName();
+	// cannot rename pose while editing
+	return bNotUsingDefaultPose && !IsEditingPose();
 }
 
 FText FIKRetargetEditorController::GetCurrentPoseName() const

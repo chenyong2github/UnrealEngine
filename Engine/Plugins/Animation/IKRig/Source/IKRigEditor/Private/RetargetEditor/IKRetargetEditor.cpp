@@ -108,6 +108,13 @@ void FIKRetargetEditor::BindCommands()
 	const FIKRetargetCommands& Commands = FIKRetargetCommands::Get();
 
 	ToolkitCommands->MapAction(
+		Commands.GoToRetargetPose,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleGoToRetargetPose),
+		FCanExecuteAction(),
+		FCanExecuteAction(),
+		EUIActionRepeatMode::RepeatDisabled);
+	
+	ToolkitCommands->MapAction(
         Commands.EditRetargetPose,
         FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleEditPose),
         FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanEditPose),
@@ -115,9 +122,15 @@ void FIKRetargetEditor::BindCommands()
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
+		Commands.SetToRefPose,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleResetPose),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanResetPose),
+		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
 		Commands.NewRetargetPose,
 		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleNewPose),
-		FCanExecuteAction(),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanNewPose),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 
@@ -129,8 +142,9 @@ void FIKRetargetEditor::BindCommands()
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
-		Commands.ResetRetargetPose,
-		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleResetPose),
+		Commands.RenameRetargetPose,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleRenamePose),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanRenamePose),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 }
@@ -151,72 +165,14 @@ void FIKRetargetEditor::ExtendToolbar()
 
 void FIKRetargetEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
-	ToolbarBuilder.BeginSection("Retarget Pose");
+	ToolbarBuilder.BeginSection("Go To Retarget Pose");
 	{
-		EditorController->PoseNames.Reset();
-		for (const TTuple<FName, FIKRetargetPose>& Pose : EditorController->AssetController->GetRetargetPoses())
-		{
-			EditorController->PoseNames.Add(MakeShareable(new FName(Pose.Key)));
-		}
-
-		TSharedRef<SWidget> PoseListWidget = SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.Padding(3.0f, 1.0f)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("IKRetargetPoseTitleLabel", "Current Retarget Pose: "))
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.Padding(3.0f, 1.0f)
-		[
-			SNew(SComboBox<TSharedPtr<FName>>)
-			.OptionsSource(&EditorController->PoseNames)
-			.OnGenerateWidget_Lambda([](TSharedPtr<FName> InItem)
-			{
-				return SNew(STextBlock).Text(FText::FromName(*InItem.Get()));
-			})
-			.OnSelectionChanged(EditorController, &FIKRetargetEditorController::OnPoseSelected)
-			[
-				SNew(STextBlock).Text(EditorController, &FIKRetargetEditorController::GetCurrentPoseName)
-			]
-		];
-		ToolbarBuilder.AddWidget(PoseListWidget);
-		
 		ToolbarBuilder.AddToolBarButton(
-			FIKRetargetCommands::Get().EditRetargetPose,
+			FIKRetargetCommands::Get().GoToRetargetPose,
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Edit"));
-
-		ToolbarBuilder.AddToolBarButton(
-			FIKRetargetCommands::Get().NewRetargetPose,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Plus"));
-
-		ToolbarBuilder.AddToolBarButton(
-			FIKRetargetCommands::Get().DeleteRetargetPose,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Delete"));
-
-		ToolbarBuilder.AddToolBarButton(
-			FIKRetargetCommands::Get().ResetRetargetPose,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Refresh"));
+			FSlateIcon(FEditorStyle::GetStyleSetName(),"GenericStop"));
 	}
 	ToolbarBuilder.EndSection();
 }

@@ -12,6 +12,7 @@
 #include "RetargetEditor/AssetTypeActions_IKRetargeter.h"
 #include "RetargetEditor/IKRetargetCommands.h"
 #include "RetargetEditor/IKRetargetDefaultMode.h"
+#include "RetargetEditor/IKRetargetDetails.h"
 #include "RetargetEditor/IKRetargetEditPoseMode.h"
 #include "RigEditor/IKRigCommands.h"
 #include "RigEditor/IKRigEditMode.h"
@@ -53,6 +54,8 @@ void FIKRigEditor::StartupModule()
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FIKRigGenericDetailCustomization::MakeInstance));
 	ClassesToUnregisterOnShutdown.Add(UIKRigEffectorGoal::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FIKRigGenericDetailCustomization::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UIKRetargeter::StaticClass()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FIKRetargeterDetails::MakeInstance));
 }
 
 void FIKRigEditor::ShutdownModule()

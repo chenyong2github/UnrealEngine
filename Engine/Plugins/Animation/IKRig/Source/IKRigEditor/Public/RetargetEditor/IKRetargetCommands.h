@@ -17,9 +17,15 @@ public:
 		FIKRetargetEditorStyle::Get().GetStyleSetName() // Icon Style Set
 	)
 	{}
+
+	/** reset reference pose */
+	TSharedPtr< FUICommandInfo > GoToRetargetPose;
 	
 	/** edit reference pose */
 	TSharedPtr< FUICommandInfo > EditRetargetPose;
+
+	/** reset reference pose */
+	TSharedPtr< FUICommandInfo > SetToRefPose;
 
 	/** new reference pose */
 	TSharedPtr< FUICommandInfo > NewRetargetPose;
@@ -27,8 +33,8 @@ public:
 	/** delete reference pose */
 	TSharedPtr< FUICommandInfo > DeleteRetargetPose;
 
-	/** reset reference pose */
-	TSharedPtr< FUICommandInfo > ResetRetargetPose;
+	/** rename reference pose */
+	TSharedPtr< FUICommandInfo > RenameRetargetPose;
 	
 	/** export animation */
 	TSharedPtr< FUICommandInfo > ExportAnimation;
