@@ -31,8 +31,7 @@ public class ApplicationCore : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"XInput"
 			);
-			// We only enable UIA with Win64
-			if (Target.bCompileWithAccessibilitySupport && !Target.bIsBuildingConsoleApplication && Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.bCompileWithAccessibilitySupport && !Target.bIsBuildingConsoleApplication)
 			{
 				PublicSystemLibraries.Add("uiautomationcore.lib");
 				PublicDefinitions.Add("UE_WINDOWS_USING_UIA=1");
