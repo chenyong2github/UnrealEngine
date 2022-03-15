@@ -1141,8 +1141,8 @@ void FTextureEditorToolkit::CreateInternalWidgets()
 		}
 		else
 		{
-			UE_LOG(LogTextureEditor, Warning, TEXT("No compression block size found in settings - using 256KB"));
-			CompressionBlockSize = 256*1024;
+			UE_LOG(LogTextureEditor, Verbose, TEXT("No compression block size found in settings - using 64KB"));
+			CompressionBlockSize = 64*1024;
 		}
 	}
 
