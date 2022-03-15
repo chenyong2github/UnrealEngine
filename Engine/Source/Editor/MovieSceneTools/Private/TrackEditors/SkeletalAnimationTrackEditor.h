@@ -78,6 +78,9 @@ private:
 	TSharedRef<SWidget> BuildAnimationSubMenu(FGuid ObjectBinding, USkeleton* Skeleton, UMovieSceneTrack* Track);
 	void AddAnimationSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, USkeleton* Skeleton, UMovieSceneTrack* Track);
 
+	/** Filter only compatible skeletons */
+	bool FilterAnimSequences(const FAssetData& AssetData, USkeleton* Skeleton);
+
 	/** Animation sub menu filter function */
 	bool ShouldFilterAsset(const FAssetData& AssetData);
 
@@ -93,7 +96,7 @@ private:
 	/** Construct the binding menu*/
 	void ConstructObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
 
-	/** Callback to Create the Animation Asset, pop open the dialolg*/
+	/** Callback to Create the Animation Asset, pop open the dialog */
 	void HandleCreateAnimationSequence(USkeletalMeshComponent* SkelMeshComp, USkeleton* Skeleton, FGuid Binding, bool bCeateSoftLink);
 
 	/** Callback to Creae the Animation Asset after getting the name*/
