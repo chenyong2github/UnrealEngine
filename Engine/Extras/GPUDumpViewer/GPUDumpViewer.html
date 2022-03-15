@@ -141,6 +141,31 @@ function load_binary_file(relative_path, callback)
 	}
 }
 
+function load_resource_binary_file(relative_path, callback)
+{
+	return load_binary_file(relative_path, function(raw_texture_data)
+	{
+		var compression_type = '';
+		if (g_dump_cvars['r.DumpGPU.CompressResources'] == '1')
+		{
+			compression_type = 'deflate';
+		}
+		else if (g_dump_cvars['r.DumpGPU.CompressResources'] == '2')
+		{
+			compression_type = 'gzip';
+		}
+
+		if (raw_texture_data === null || compression_type == '')
+		{
+			return callback(raw_texture_data);
+		}
+
+		var decompressor = new DecompressionStream(compression_type);
+		var decompressed_stream = new Blob([raw_texture_data]).stream().pipeThrough(decompressor);
+		new Response(decompressed_stream).arrayBuffer().then(callback, function() { callback(null); });
+	});
+}
+
 function load_json(relative_path)
 {
 	var txt = load_text_file(relative_path);
@@ -1474,7 +1499,7 @@ class TextureView extends ResourceView
 
 		var texture_view = this;
 		var subresource_version_name = get_subresource_unique_version_name(this.subresource_version_info);
-		load_binary_file(`Resources/${subresource_version_name}.bin`, function(raw_texture_data)
+		load_resource_binary_file(`Resources/${subresource_version_name}.bin`, function(raw_texture_data)
 		{
 			if (raw_texture_data)
 			{
@@ -3119,7 +3144,7 @@ class GenericBufferView extends ResourceView
 
 		var buffer_view = this;
 		console.assert(this.raw_buffer_data_path);
-		load_binary_file(this.raw_buffer_data_path, function(raw_buffer_data)
+		load_resource_binary_file(this.raw_buffer_data_path, function(raw_buffer_data)
 		{
 			if (raw_buffer_data)
 			{
