@@ -766,7 +766,7 @@ namespace HordeServer.Services
 			
 			int Revision = GetSyncRevision(MetaData.DepotPath.Path, MetaData.HeadAction, MetaData.HeadRev);
 			Md5Hash? Digest = String.IsNullOrEmpty(MetaData.Digest) ? (Md5Hash?)null : Md5Hash.Parse(MetaData.Digest);
-			return new ChangeFile(RelativePath, MetaData.DepotPath.Path, Revision, MetaData.FileSize, Digest, MetaData.HeadType.ToString());
+			return new ChangeFile(RelativePath, MetaData.DepotPath.Path, Revision, MetaData.FileSize, Digest, (MetaData.Type ?? MetaData.HeadType).ToString());
 		}
 
 		/// <summary>
@@ -863,7 +863,7 @@ namespace HordeServer.Services
 			{
 				List<ChangeDetails> Results = new List<ChangeDetails>();
 
-				List<string> Args = new List<string> { "-s", "-S", $"{ChangeNumber}" };
+				List<string> Args = new List<string> { "-s", $"{ChangeNumber}" };
 
 				using (P4.P4Command Command = new P4.P4Command(Repository, "describe", true, Args.ToArray()))
 				{
@@ -891,7 +891,7 @@ namespace HordeServer.Services
 						List<ChangeFile> Files = new List<ChangeFile>();
 
 						P4.Changelist Change = new P4.Changelist();
-						Change.FromChangeCmdTaggedOutput(TaggedObject, true, Offset, DSTMismatch);
+						Change.FromChangeCmdTaggedOutput(TaggedObject, false, Offset, DSTMismatch);
 
 						foreach (P4.FileMetaData DescribeFile in Change.Files)
 						{

@@ -320,7 +320,7 @@ namespace HordeServer.Services
 		/// <param name="UtcNow"></param>
 		/// <param name="CancellationToken"></param>
 		/// <returns>Async task</returns>
-		private async Task<bool> TriggerAsync(StreamId StreamId, TemplateRefId TemplateId, DateTime UtcNow, CancellationToken CancellationToken)
+		internal async Task<bool> TriggerAsync(StreamId StreamId, TemplateRefId TemplateId, DateTime UtcNow, CancellationToken CancellationToken)
 		{
 			IStream? Stream = await StreamService.GetStreamAsync(StreamId);
 			if (Stream == null || !Stream.Templates.TryGetValue(TemplateId, out TemplateRef? TemplateRef))
@@ -469,7 +469,7 @@ namespace HordeServer.Services
 
 				// Adjust the changelist for the desired filter
 				int Change = ChangeDetails.Number;
-				if (ShouldBuildChangeAsync(ChangeDetails, FilterFlags, FileFilter))
+				if (ShouldBuildChange(ChangeDetails, FilterFlags, FileFilter))
 				{
 					int CodeChange = await History.GetCodeChange(Change);
 					if (CodeChange == -1)
@@ -483,7 +483,14 @@ namespace HordeServer.Services
 				// Check we haven't exceeded the time limit
 				if (Timer.Elapsed > TimeSpan.FromMinutes(2.0))
 				{
-					Logger.LogError("Querying for changes to trigger has taken {Time}. Aborting.", Timer.Elapsed);
+					Logger.LogError("Querying for changes to trigger for {StreamId} template {TemplateId} has taken {Time}. Aborting.", Stream.Id, TemplateId, Timer.Elapsed);
+					break;
+				}
+				
+				// Update the remaining range of changes to check for
+				MaxChangeNumber = Change - 1;
+				if(MaxChangeNumber < MinChangeNumber)
+				{
 					break;
 				}
 			}
@@ -533,7 +540,7 @@ namespace HordeServer.Services
 		/// <param name="FilterFlags"></param>
 		/// <param name="FileFilter">Filter for the files to trigger a build</param>
 		/// <returns></returns>
-		private bool ShouldBuildChangeAsync(ChangeDetails Details, ChangeContentFlags? FilterFlags, FileFilter? FileFilter)
+		private bool ShouldBuildChange(ChangeDetails Details, ChangeContentFlags? FilterFlags, FileFilter? FileFilter)
 		{
 			if (Regex.IsMatch(Details.Description, @"^\s*#\s*skipci", RegexOptions.Multiline))
 			{
