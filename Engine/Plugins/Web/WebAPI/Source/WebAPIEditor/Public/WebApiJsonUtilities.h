@@ -956,5 +956,3 @@ namespace UE::Json
 		}
 		*/
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
