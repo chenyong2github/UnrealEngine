@@ -125,8 +125,8 @@
 /* To try this out, write "#define INEXACT volatile" below.  Normally,       */
 /*   however, INEXACT should be defined to be nothing.  ("#define INEXACT".) */
 
-#define INEXACT                          /* Nothing */
-/* #define INEXACT volatile */
+//#define INEXACT                          /* Nothing */
+#define INEXACT volatile
 
 // Note the #define REAL has been moved to Predicates.cpp, to help easily support both float and double
 //#define REAL double                      /* float or double */
