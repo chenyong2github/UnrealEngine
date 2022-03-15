@@ -5047,25 +5047,35 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		}
 	}
 
-	// Cleanup Persistent level outside of following loop because uninitialized worlds don't have a valid Levels array
-	// StreamingLevels are not initialized.
-	if (PersistentLevel)
-	{
-		PersistentLevel->CleanupLevel(bCleanupResources, bUnloadFromEditor);
-		PersistentLevel->CleanupReferences();
-	}
-
-	if (GetNumLevels() > 1)
-	{
-		check(GetLevel(0) == PersistentLevel);
-		for (int32 LevelIndex = 1; LevelIndex < GetNumLevels(); ++LevelIndex)
+		auto CleanupLevelResourcesAndReferences = [](ULevel* Level, bool bCleanupResources, bool bUnloadFromEditor)
 		{
-			ULevel* Level = GetLevel(LevelIndex);
-			Level->CleanupLevel(bCleanupResources, bUnloadFromEditor);
-			Level->CleanupReferences();
-		}
-	}
+			if (Level)
+			{
+				Level->CleanupLevel(bCleanupResources, bUnloadFromEditor);
+				Level->CleanupReferences();
+			}
+		};
 
+		// Cleanup Persistent level outside of following loop because uninitialized worlds don't have a valid Levels array
+		// StreamingLevels are not initialized.
+		CleanupLevelResourcesAndReferences(PersistentLevel, bCleanupResources, bUnloadFromEditor);
+
+		if (GetNumLevels() > 1)
+		{
+			check(GetLevel(0) == PersistentLevel);
+			for (int32 LevelIndex = 1; LevelIndex < GetNumLevels(); ++LevelIndex)
+			{
+				CleanupLevelResourcesAndReferences(GetLevel(LevelIndex), bCleanupResources, bUnloadFromEditor);
+			}
+		}
+
+		// Also cleanup levels pending a GC purge
+		for (int32 LevelIndex = 0; LevelIndex < FLevelStreamingGCHelper::LevelsPendingUnload.Num(); ++LevelIndex)
+		{
+			CleanupLevelResourcesAndReferences(FLevelStreamingGCHelper::LevelsPendingUnload[LevelIndex].Get(), bCleanupResources, bUnloadFromEditor);
+		}
+		FLevelStreamingGCHelper::LevelsPendingUnload.Empty();
+	}
 #else
 	if (PersistentLevel)
 	{

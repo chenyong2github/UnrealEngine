@@ -420,6 +420,8 @@ public:
  */
 struct ENGINE_API FLevelStreamingGCHelper
 {
+	friend UWorld;
+
 	/** Called when streamed out levels are going to be garbage collected  */
 	DECLARE_MULTICAST_DELEGATE(FOnGCStreamedOutLevelsEvent);
 	static FOnGCStreamedOutLevelsEvent OnGCStreamedOutLevels;
