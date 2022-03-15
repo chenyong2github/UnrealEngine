@@ -46,6 +46,8 @@
 #include "UVEditorUXSettings.h"
 #include "UDIMUtilities.h"
 #include "EditorSupportDelegates.h"
+#include "Utilities/MeshUDIMClassifier.h"
+#include "UVEditorLogging.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
 
@@ -991,32 +993,26 @@ void UUVEditorMode::PopulateUDIMsByAsset(int32 AssetId, TArray<FUDIMSpecifier>& 
 	{
 		return;
 	}
-	if (ToolInputObjects[AssetId]->AppliedCanonical->HasAttributes())
+
+	if (ToolInputObjects[AssetId]->AppliedCanonical->HasAttributes() && ToolInputObjects[AssetId]->UVLayerIndex >= 0)
 	{
-		for (int32 GroupLayerIndex = 0; GroupLayerIndex < ToolInputObjects[AssetId]->AppliedCanonical->Attributes()->NumPolygroupLayers(); ++GroupLayerIndex)
+		FDynamicMeshUVOverlay* UVLayer = ToolInputObjects[AssetId]->AppliedCanonical->Attributes()->GetUVLayer(ToolInputObjects[AssetId]->UVLayerIndex);
+		FDynamicMeshUDIMClassifier TileClassifier(UVLayer);
+		TArray<FVector2i> Tiles = TileClassifier.ActiveTiles();
+		for (FVector2i Tile : Tiles)
 		{
-			if (ToolInputObjects[AssetId]->AppliedCanonical->Attributes()->GetPolygroupLayer(GroupLayerIndex)->GetName() == "UDIM")
+			if (Tile.X >= 10 || Tile.X < 0 || Tile.Y < 0)
 			{
-				FDynamicMeshPolygroupAttribute* UDIMPolygroup = ToolInputObjects[AssetId]->AppliedCanonical->Attributes()->GetPolygroupLayer(GroupLayerIndex);
-
-				// This isn't very efficient, as a linear pass over all Tids. But there doesn't seem to be a better way to list all the groups present.
-				for (int32 Tid : ToolInputObjects[AssetId]->AppliedCanonical->TriangleIndicesItr())
-				{
-					int32 UDIMValue = UDIMPolygroup->GetValue(Tid);
-
-					// Discard any invalid UDIM group labels
-					if (UDIMValue < 1001)
-					{
-						continue;
-					}
-					FUDIMSpecifier UDIMSpecifier;
-					UDIMSpecifier.UDIM = UDIMValue;
-					UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(UDIMValue, UDIMSpecifier.UCoord, UDIMSpecifier.VCoord);
-					UDIMsOut.AddUnique(UDIMSpecifier);
-				}
+				UE_LOG(LogUVEditor, Warning, TEXT("Tile <%d,%d> is out of bounds of the UDIM10 convention, skipping..."), Tile.X, Tile.Y);
 			}
-
-			break; // Skip looking at other polygroup layers.
+			else
+			{
+				FUDIMSpecifier UDIMSpecifier;
+				UDIMSpecifier.UCoord = Tile.X;
+				UDIMSpecifier.VCoord = Tile.Y;
+				UDIMSpecifier.UDIM = UE::TextureUtilitiesCommon::GetUDIMIndex(Tile.X, Tile.Y);
+				UDIMsOut.AddUnique(UDIMSpecifier);
+			}
 		}
 	}
 }

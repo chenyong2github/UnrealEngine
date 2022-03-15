@@ -5,11 +5,14 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 
+
 namespace UE
 {
 namespace Geometry
 {
 
+struct FUVOverlayView;
+class FMeshConnectedComponents;
 
 /**
  * FDynamicMeshUVPacker implements various strategies for packing UV islands in a 
@@ -22,6 +25,9 @@ public:
 	/** The UV Overlay we will be repacking */
 	FDynamicMeshUVOverlay* UVOverlay = nullptr;
 
+	/** The explicit triangle ids to repack, repack all triangles if null */
+	TUniquePtr<TArray<int32>> TidsToRepack;
+
 	/** Resolution of the target texture. This is used to convert pixel gutter/border thickness to UV space */
 	int32 TextureResolution = 512;
 
@@ -32,6 +38,7 @@ public:
 	bool bAllowFlips = false;
 
 	explicit FDynamicMeshUVPacker(FDynamicMeshUVOverlay* UVOverlay);
+	explicit FDynamicMeshUVPacker(FDynamicMeshUVOverlay* UVOverlay, TUniquePtr<TArray<int32>>&& TidsToRepackIn);
 
 
 	/**
@@ -47,6 +54,10 @@ public:
 	 * So the islands are "stacked" and all fit in the unit box.
 	 */
 	bool StackPack();
+
+protected:
+
+	FMeshConnectedComponents CollectUVIslandsToPack(const FUVOverlayView& MeshView);
 
 };
 

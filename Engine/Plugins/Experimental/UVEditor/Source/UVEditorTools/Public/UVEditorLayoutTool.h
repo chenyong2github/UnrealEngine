@@ -11,8 +11,8 @@
 #include "UVEditorLayoutTool.generated.h"
 
 class UUVEditorToolMeshInput;
-class UUVLayoutProperties;
-class UUVLayoutOperatorFactory;
+class UUVEditorUVLayoutProperties;
+class UUVEditorUVLayoutOperatorFactory;
 
 UCLASS()
 class UVEDITORTOOLS_API UUVEditorLayoutToolBuilder : public UInteractiveToolBuilder
@@ -62,10 +62,10 @@ protected:
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
 
 	UPROPERTY()
-	TObjectPtr<UUVLayoutProperties> Settings = nullptr;
+	TObjectPtr<UUVEditorUVLayoutProperties> Settings = nullptr;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UUVLayoutOperatorFactory>> Factories;
+	TArray<TObjectPtr<UUVEditorUVLayoutOperatorFactory>> Factories;
 
 	//
 	// Analytics
