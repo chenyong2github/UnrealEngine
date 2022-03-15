@@ -1703,7 +1703,7 @@ bool UControlRig::IsControlSelected(const FName& InControlName)const
 	}
 	return false;
 }
- 
+
 void UControlRig::HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy,
     const FRigBaseElement* InElement)
 {
