@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialShader.h"
+#include "Containers/StringConv.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
 #include "Stats/StatsMisc.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
@@ -10,7 +13,6 @@
 #include "MeshMaterialShaderType.h"
 #include "MaterialShaderMapLayout.h"
 #include "ShaderCompiler.h"
-#include "DerivedDataCacheInterface.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/ReleaseObjectVersion.h"
@@ -185,7 +187,13 @@ static FString GetMaterialShaderMapKeyString(const FMaterialShaderMapId& ShaderM
 	FMaterialAttributeDefinitionMap::AppendDDCKeyString(ShaderMapKeyString);
 	FShaderCompileUtilities::AppendGBufferDDCKeyString(Platform, ShaderMapKeyString);
 
-	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("MATSM"), *GetMaterialShaderMapDDCKey(), *ShaderMapKeyString);
+	return FString::Printf(TEXT("%s_%s_%s"), TEXT("MATSM"), *GetMaterialShaderMapDDCKey(), *ShaderMapKeyString);
+}
+
+static UE::DerivedData::FCacheKey GetMaterialShaderMapKey(const FStringView MaterialShaderMapKey)
+{
+	static UE::DerivedData::FCacheBucket Bucket("MaterialShaderMap");
+	return {Bucket, FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(MaterialShaderMapKey)))};
 }
 
 static FString FSHA1_HashString(const FString& Key)
@@ -1342,7 +1350,6 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 			SCOPE_SECONDS_COUNTER(MaterialDDCTime);
 			COOK_STAT(auto Timer = MaterialShaderCookStats::UsageStats.TimeSyncWork());
 
-			TArray<uint8> CachedData;
 			const FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, InPlatform);
 			OutDDCKeyDesc = FSHA1_HashString(DataKey);
 
@@ -1381,13 +1388,28 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 			// Do not check the DD cache if the material isn't persistent, because
 			//   - this results in a lot of DDC requests when editing materials which are almost always going to return nothing.
 			//   - since the get call is synchronous, this can cause a hitch if there's network latency
-			if (CheckCache && Material->IsPersistent() && GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData, Material->GetFriendlyName()))
+			FSharedBuffer CachedData;
+			if (CheckCache && Material->IsPersistent())
+			{
+				using namespace UE::DerivedData;
+				FCacheGetValueRequest Request;
+				Request.Name = Material->GetFriendlyName();
+				Request.Key = GetMaterialShaderMapKey(DataKey);
+				FRequestOwner BlockingOwner(EPriority::Blocking);
+				GetCache().GetValue({Request}, BlockingOwner, [&CachedData](FCacheGetValueResponse&& Response)
+				{
+					CachedData = Response.Value.GetData().Decompress();
+				});
+				BlockingOwner.Wait();
+			}
+
+			if (CachedData)
 			{
 				TRACE_COUNTER_INCREMENT(Shaders_FMaterialShaderMapDDCHits);
-				TRACE_COUNTER_ADD(Shaders_FMaterialShaderMapDDCBytesReceived, CachedData.Num());
-				COOK_STAT(Timer.AddHit(CachedData.Num()));
+				TRACE_COUNTER_ADD(Shaders_FMaterialShaderMapDDCBytesReceived, int64(CachedData.GetSize()));
+				COOK_STAT(Timer.AddHit(int64(CachedData.GetSize())));
 				InOutShaderMap = new FMaterialShaderMap();
-				FMemoryReader Ar(CachedData, true);
+				FMemoryReaderView Ar(CachedData, /*bIsPersistent*/ true);
 
 				// Deserialize from the cached data
 				InOutShaderMap->Serialize(Ar);
@@ -1429,21 +1451,21 @@ void FMaterialShaderMap::SaveToDerivedDataCache()
 	FMemoryWriter64 Ar(SaveData, true);
 	Serialize(Ar);
 
-	// Refuse to save too large derived data, as it won't get handled by the cache anyway. It appends some metadata, so for safety we use a lower threshold.
-	const int64 kMaxSaveDataForDDC = MAX_int32 - (4 * 1024 * 1024);
-	if (SaveData.Num() >= kMaxSaveDataForDDC)
-	{
-		UE_LOG(LogMaterial, Warning, TEXT("Not saving %s shaders to DDC as its size (%lld MB) is larger than %lld MB, which may cause problems for the legacy DDC API."), 
-			GetMaterialPath(), SaveData.Num() / (1024 * 1024), kMaxSaveDataForDDC / (1024 * 1024));
-		return;
-	}
-
 	TRACE_COUNTER_ADD(Shaders_FMaterialShaderMapDDCBytesSent, SaveData.Num());
-
-	FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, GetShaderPlatform());
-	UE_LOG(LogMaterial, Verbose, TEXT("Saved shaders for %s to DDC (key hash: %s)"), GetMaterialPath(), *FSHA1_HashString(DataKey));
-	GetDerivedDataCacheRef().Put(*DataKey, SaveData, FStringView(GetFriendlyName()));
 	COOK_STAT(Timer.AddMiss(SaveData.Num()));
+
+	const FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, GetShaderPlatform());
+	UE_LOG(LogMaterial, Verbose, TEXT("Saved shaders for %s to DDC (key hash: %s)"), GetMaterialPath(), *FSHA1_HashString(DataKey));
+
+	using namespace UE::DerivedData;
+	FCachePutValueRequest Request;
+	Request.Name = GetFriendlyName();
+	Request.Key = GetMaterialShaderMapKey(DataKey);
+	Request.Value = FValue::Compress(MakeSharedBufferFromArray(MoveTemp(SaveData)));
+	FRequestOwner AsyncOwner(EPriority::Normal);
+	FRequestBarrier AsyncBarrier(AsyncOwner);
+	GetCache().PutValue({Request}, AsyncOwner);
+	AsyncOwner.KeepAlive();
 }
 #endif // WITH_EDITOR
 

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ShaderCompiler.h"
+#include "Containers/StringConv.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
@@ -38,7 +39,8 @@
 #include "EngineModule.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Components/PrimitiveComponent.h"
-#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
 #include "UObject/DevObjectVersion.h"
 #include "Misc/FileHelper.h"
 #include "StaticBoundShaderState.h"
@@ -6625,19 +6627,25 @@ static FString GetGlobalShaderCacheFilename(EShaderPlatform Platform)
 	return FString(TEXT("Engine")) / TEXT("GlobalShaderCache-") + LegacyShaderPlatformToShaderFormat(Platform).ToString() + TEXT(".bin");
 }
 
+#if WITH_EDITOR
 /** Creates a string key for the derived data cache entry for the global shader map. */
-static FString GetGlobalShaderMapKeyString(const FGlobalShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FShaderTypeDependency> const& Dependencies)
+static UE::DerivedData::FCacheKey GetGlobalShaderMapKey(const FGlobalShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FShaderTypeDependency> const& Dependencies)
 {
 	FName Format = LegacyShaderPlatformToShaderFormat(Platform);
 	FString ShaderMapKeyString = Format.ToString() + TEXT("_") + FString(FString::FromInt(GetTargetPlatformManagerRef().ShaderFormatVersion(Format))) + TEXT("_");
 	ShaderMapAppendKeyString(Platform, ShaderMapKeyString);
 	ShaderMapId.AppendKeyString(ShaderMapKeyString, Dependencies);
-	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("GSM"), *GetGlobalShaderMapDDCKey(), *ShaderMapKeyString);
+	const FString DataKey = FString::Printf(TEXT("%s_%s_%s"), TEXT("GSM"), *GetGlobalShaderMapDDCKey(), *ShaderMapKeyString);
+
+	static const UE::DerivedData::FCacheBucket Bucket("GlobalShaderMap");
+	return {Bucket, FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(DataKey)))};
 }
+#endif
 
 /** Saves the platform's shader map to the DDC. It is assumed that the caller will check IsComplete() first before calling the function. */
 static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 {
+#if WITH_EDITOR
 	// We've finally built the global shader map, so we can count the miss as we put it in the DDC.
 	COOK_STAT(auto Timer = GlobalShaderCookStats::UsageStats.TimeSyncWork());
 
@@ -6657,11 +6665,20 @@ static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 			SaveData.Reset();
 			FMemoryWriter Ar(SaveData, true);
 			Section->Serialize(Ar);
-
-			GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value), SaveData, TEXT("GlobalShaderMap"_SV));
 			COOK_STAT(Timer.AddMiss(SaveData.Num()));
+
+			using namespace UE::DerivedData;
+			FCachePutValueRequest Request;
+			Request.Name = TEXTVIEW("GlobalShaderMap");
+			Request.Key = GetGlobalShaderMapKey(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value);
+			Request.Value = FValue::Compress(MakeSharedBufferFromArray(MoveTemp(SaveData)));
+			FRequestOwner AsyncOwner(EPriority::Normal);
+			FRequestBarrier AsyncBarrier(AsyncOwner);
+			GetCache().PutValue({Request}, AsyncOwner);
+			AsyncOwner.KeepAlive();
 		}
 	}
+#endif // WITH_EDITOR
 }
 
 /** Saves the global shader map as a file for the target platform. */
@@ -6914,6 +6931,7 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 				GGlobalShaderMap[Platform]->LoadFromGlobalArchive(MemoryReader);
 			}
 		}
+#if WITH_EDITOR
 		// Uncooked platform
 		else
 		{
@@ -6921,11 +6939,6 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 
 			const int32 ShaderFilenameNum = ShaderMapId.GetShaderFilenameToDependeciesMap().Num();
 			const float ProgressStep = 25.0f / ShaderFilenameNum;
-
-			TArray<uint32> AsyncDDCRequestHandles;
-			AsyncDDCRequestHandles.SetNum(ShaderFilenameNum);
-
-			int32 HandleIndex = 0;
 
 			// If NoShaderDDC then don't check for a material the first time we encounter it to simulate
 			// a cold DDC
@@ -6936,40 +6949,50 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 			}
 			else
 			{
+				using namespace UE::DerivedData;
+
+				int32 BufferIndex = 0;
+				TArray<FCacheGetValueRequest> Requests;
+
 				// Submit DDC requests.
+				SlowTask.EnterProgressFrame(ProgressStep, LOCTEXT("SubmitDDCRequests", "Submitting global shader DDC Requests..."));
 				for (const auto& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 				{
-					SlowTask.EnterProgressFrame(ProgressStep, LOCTEXT("SubmitDDCRequests", "Submitting global shader DDC Requests..."));
-
-					const FString DataKey = GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value);
-
-					AsyncDDCRequestHandles[HandleIndex] = GetDerivedDataCacheRef().GetAsynchronous(*DataKey, TEXT("GlobalShaderMap"_SV));
-
-					++HandleIndex;
+					FCacheGetValueRequest& Request = Requests.AddDefaulted_GetRef();
+					Request.Name = WriteToString<128>(TEXT("GlobalShaderMap "), LegacyShaderPlatformToShaderFormat(Platform));
+					Request.Key = GetGlobalShaderMapKey(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value);
+					Request.UserData = uint64(BufferIndex);
+					++BufferIndex;
 				}
-
-
-				TArray<uint8> CachedData;
-
-				HandleIndex = 0;
 
 				int32 DDCHits = 0;
 				int32 DDCMisses = 0;
 
 				// Process finished DDC requests.
+				SlowTask.EnterProgressFrame(ProgressStep, LOCTEXT("ProcessDDCRequests", "Processing global shader DDC requests..."));
+				TArray<FValue> GlobalShaderMapBuffers;
+				GlobalShaderMapBuffers.SetNum(Requests.Num());
+				{
+					COOK_STAT(auto Timer = GlobalShaderCookStats::UsageStats.TimeSyncWork());
+					COOK_STAT(Timer.TrackCyclesOnly());
+					FRequestOwner BlockingOwner(EPriority::Blocking);
+					GetCache().GetValue(Requests, BlockingOwner, [&GlobalShaderMapBuffers](FCacheGetValueResponse&& Response)
+					{
+						GlobalShaderMapBuffers[int32(Response.UserData)] = MoveTemp(Response.Value);
+					});
+					BlockingOwner.Wait();
+				}
+
+				BufferIndex = 0;
 				for (const auto& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 				{
-					SlowTask.EnterProgressFrame(ProgressStep, LOCTEXT("ProcessDDCRequests", "Processing global shader DDC requests..."));
-					CachedData.Reset();
 					COOK_STAT(auto Timer = GlobalShaderCookStats::UsageStats.TimeSyncWork());
-
-					GetDerivedDataCacheRef().WaitAsynchronousCompletion(AsyncDDCRequestHandles[HandleIndex]);
-					if (GetDerivedDataCacheRef().GetAsynchronousResults(AsyncDDCRequestHandles[HandleIndex], CachedData))
+					if (GlobalShaderMapBuffers[BufferIndex].HasData())
 					{
-						COOK_STAT(Timer.AddHit(CachedData.Num()));
-						FMemoryReader MemoryReader(CachedData);
+						COOK_STAT(Timer.AddHit(int64(GlobalShaderMapBuffers[BufferIndex].GetRawSize())));
+						const FSharedBuffer CachedData = GlobalShaderMapBuffers[BufferIndex].GetData().Decompress();
+						FMemoryReaderView MemoryReader(CachedData);
 						GGlobalShaderMap[Platform]->AddSection(FGlobalShaderMapSection::CreateFromArchive(MemoryReader));
-
 						DDCHits++;
 					}
 					else
@@ -6979,14 +7002,14 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 						bShaderMapIsBeingCompiled = true;
 						DDCMisses++;
 					}
-
-					++HandleIndex;
+					++BufferIndex;
 				}
 
 				GShaderCompilerStats->AddDDCHit(DDCHits);
 				GShaderCompilerStats->AddDDCMiss(DDCMisses);
 			}
 		}
+#endif // WITH_EDITOR
 
 		// If any shaders weren't loaded, compile them now.
 		VerifyGlobalShaders(Platform, TargetPlatform, bLoadedFromCacheFile);
@@ -7793,7 +7816,6 @@ FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Ha
 				TRACE_COUNTER_INCREMENT(Shaders_JobCacheDDCRequests);
 
 				UE::DerivedData::FRequestOwner RequestOwner(UE::DerivedData::EPriority::Blocking);
-				RequestOwner.KeepAlive();
 
 				UE::DerivedData::FCacheGetRequest Request;
 				Request.Name = TEXT("FShaderJobCache");
@@ -7930,6 +7952,7 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 			TRACE_COUNTER_ADD(Shaders_JobCacheDDCBytesSent, Contents.GetAllocatedSize());
 
 			UE::DerivedData::FRequestOwner RequestOwner(UE::DerivedData::EPriority::Normal);
+			UE::DerivedData::FRequestBarrier RequestBarrier(RequestOwner);
 			RequestOwner.KeepAlive();
 			UE::DerivedData::GetCache().Put(
 				{ {{TEXT("FShaderJobCache")}, RecordBuilder.Build(), IsShaderJobCacheDDCRemotePolicyEnabled() ? UE::DerivedData::ECachePolicy::Default : UE::DerivedData::ECachePolicy::Local } },
