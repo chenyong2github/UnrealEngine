@@ -1188,6 +1188,8 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	int64 CurrentEnumValue = 0;
 	while (GetIdentifier(TagToken))
 	{
+		SkipDeprecatedMacroIfNecessary(*this);
+
 		FTokenValue TagIdentifier = TagToken.GetTokenValue();
 		AddFormattedPrevCommentAsTooltipMetaData(TagMetaData);
 
