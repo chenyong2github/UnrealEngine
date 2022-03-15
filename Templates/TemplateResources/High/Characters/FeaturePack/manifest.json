@@ -28,14 +28,14 @@
 			"Text": "Mannequin, Manny, Quinn, SkeletonMesh, Skeleton, Material, Animation, IK, Retargeting"
 		}
 	],	
-	"ClassTypes": "SkeletonMeshes",
+	"ClassTypes": "StaticMesh",
 	"Category": "SharedPack",
 	"Thumbnail": "Characters.png",
 	"Screenshots":
 	[
 		"Characters_preview.png"
 	],
-	"Ident": "MannequinHigh",
+	"Ident": "CharactersHigh",
 	"AdditionalFiles":
 	{
 		"DestinationFilesFolder": "Characters",
