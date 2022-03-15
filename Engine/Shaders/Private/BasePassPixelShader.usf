@@ -1711,9 +1711,6 @@ void FPixelShaderInOut_MainPS(
 	FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 	FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
 	FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
-#if STRATA_OUTPUT_ROUGH_REFRACTION
-	OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled = true;
-#endif
 
 	// Generate the strata material data to write out
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);
