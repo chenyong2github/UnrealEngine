@@ -216,7 +216,6 @@ bool FAnimNode_RetargetPoseFromMesh::EnsureProcessorIsInitialized(const TObjectP
 	{
 		return false; // cannot initialize if components are missing skeletal mesh references
 	}
-
 	// check that both have skeleton assets (shouldn't get this far without a skeleton)
 	const TObjectPtr<USkeleton> SourceSkeleton = SourceMesh->GetSkeleton();
 	const TObjectPtr<USkeleton> TargetSkeleton = TargetMesh->GetSkeleton();
