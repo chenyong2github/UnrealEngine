@@ -15,5 +15,5 @@ public:
 	static FSyntaxTextStyle GetSyntaxTextStyle();
 
 protected:
-	FNiagaraHLSLSyntaxHighlighter(TSharedPtr< FSyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
+	FNiagaraHLSLSyntaxHighlighter(TSharedPtr< ISyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
 };

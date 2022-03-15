@@ -22,7 +22,7 @@ FNiagaraHLSLSyntaxHighlighter::FSyntaxTextStyle FNiagaraHLSLSyntaxHighlighter::G
 }
 
 
-FNiagaraHLSLSyntaxHighlighter::FNiagaraHLSLSyntaxHighlighter(TSharedPtr<FSyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle) :
+FNiagaraHLSLSyntaxHighlighter::FNiagaraHLSLSyntaxHighlighter(TSharedPtr<ISyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle) :
 	FHLSLSyntaxHighlighterMarshaller(MoveTemp(InTokenizer), InSyntaxTextStyle)
 {
 }

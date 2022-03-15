@@ -19,7 +19,7 @@ void FSyntaxHighlighterTextLayoutMarshaller::SetText(const FString& SourceString
 {
 	if(bSyntaxHighlightingEnabled)
 	{
-		TArray<FSyntaxTokenizer::FTokenizedLine> TokenizedLines;
+		TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines;
 		Tokenizer->Process(TokenizedLines, SourceString);
 		ParseTokens(SourceString, TargetTextLayout, TokenizedLines);
 	}
@@ -45,7 +45,7 @@ bool FSyntaxHighlighterTextLayoutMarshaller::IsSyntaxHighlightingEnabled() const
 	return bSyntaxHighlightingEnabled;
 }
 
-FSyntaxHighlighterTextLayoutMarshaller::FSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< FSyntaxTokenizer > InTokenizer)
+FSyntaxHighlighterTextLayoutMarshaller::FSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< ISyntaxTokenizer > InTokenizer)
 	: Tokenizer(MoveTemp(InTokenizer))
 	, bSyntaxHighlightingEnabled(true)
 {
@@ -68,7 +68,7 @@ FRichTextSyntaxHighlighterTextLayoutMarshaller::~FRichTextSyntaxHighlighterTextL
 {
 }
 
-void FRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<FSyntaxTokenizer::FTokenizedLine> TokenizedLines)
+void FRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines)
 {
 	enum class EParseState : uint8
 	{
@@ -90,12 +90,12 @@ void FRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FString& 
 	EParseState ParseState = EParseState::LookingForNode;
 	for (int32 LineIndex = 0; LineIndex < TokenizedLines.Num(); ++LineIndex)
 	{
-		const FSyntaxTokenizer::FTokenizedLine& TokenizedLine = TokenizedLines[LineIndex];
+		const ISyntaxTokenizer::FTokenizedLine& TokenizedLine = TokenizedLines[LineIndex];
 
 		TSharedRef<FString> ModelString = MakeShareable(new FString());
 		TArray< TSharedRef< IRun > > Runs;
 
-		for(const FSyntaxTokenizer::FToken& Token : TokenizedLine.Tokens)
+		for(const ISyntaxTokenizer::FToken& Token : TokenizedLine.Tokens)
 		{
 			const FString TokenText = SourceString.Mid(Token.Range.BeginIndex, Token.Range.Len());
 
@@ -109,7 +109,7 @@ void FRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FString& 
 			if(!bIsWhitespace)
 			{
 				bool bHasMatchedSyntax = false;
-				if(Token.Type == FSyntaxTokenizer::ETokenType::Syntax)
+				if(Token.Type == ISyntaxTokenizer::ETokenType::Syntax)
 				{
 					if(ParseState == EParseState::LookingForNode && TokenText == TEXT("<"))
 					{
@@ -156,7 +156,7 @@ void FRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FString& 
 				
 				// It's possible that we fail to match a syntax token if we're in a state where it isn't parsed
 				// In this case, we treat it as a literal token
-				if(Token.Type == FSyntaxTokenizer::ETokenType::Literal || !bHasMatchedSyntax)
+				if(Token.Type == ISyntaxTokenizer::ETokenType::Literal || !bHasMatchedSyntax)
 				{
 					if(ParseState == EParseState::LookingForNodeName)
 					{
@@ -214,7 +214,7 @@ void FRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FString& 
 	TargetTextLayout.SetLineHighlights(LineHighlightsToAdd);
 }
 
-FRichTextSyntaxHighlighterTextLayoutMarshaller::FRichTextSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< FSyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle)
+FRichTextSyntaxHighlighterTextLayoutMarshaller::FRichTextSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< ISyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle)
 	: FSyntaxHighlighterTextLayoutMarshaller(MoveTemp(InTokenizer))
 	, SyntaxTextStyle(InSyntaxTextStyle)
 {

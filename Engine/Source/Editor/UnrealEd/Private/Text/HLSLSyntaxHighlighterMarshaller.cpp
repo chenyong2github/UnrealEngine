@@ -8,8 +8,8 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 
-// NOTE: Since FSyntaxTokenizer matches on a first-token-encountered basis, it's important that
-// tokens with the same prefix are ordered by longest-prefix-first. Ideally FSyntaxTokenizer 
+// NOTE: Since SyntaxTokenizer matches on a first-token-encountered basis, it's important that
+// tokens with the same prefix are ordered by longest-prefix-first. Ideally SyntaxTokenizer 
 // should be using a prefix tree structure for longest prefix matching.
 
 // Type Keywords are copied from CrossCompiler::EHlslToken
@@ -161,7 +161,7 @@ const TCHAR* HlslKeywords[] =
 	TEXT("Buffer"),
 };
 
-const TCHAR* Operators[] =
+const TCHAR* HlslOperators[] =
 {
 	TEXT("/*"),
 	TEXT("*/"),
@@ -214,7 +214,7 @@ const TCHAR* Operators[] =
 	TEXT("="),
 };
 
-const TCHAR* PreProcessorKeywords[] =
+const TCHAR* HlslPreProcessorKeywords[] =
 {
 	TEXT("#include"),
 	TEXT("#define"),
@@ -225,6 +225,192 @@ const TCHAR* PreProcessorKeywords[] =
 	TEXT("#endif"),
 	TEXT("#pragma"),
 	TEXT("#undef"),
+};
+
+/**
+ * Tokenize the text based on Hlsl tokens
+ */
+class FHlslSyntaxTokenizer : public ISyntaxTokenizer
+{
+public:
+	/** 
+	 * Create a new tokenizer
+	 */
+	static TSharedRef< FHlslSyntaxTokenizer > Create()
+	{
+		return MakeShareable(new FHlslSyntaxTokenizer());
+	};
+
+	virtual ~FHlslSyntaxTokenizer(){};
+
+	virtual void Process(TArray<FTokenizedLine>& OutTokenizedLines, const FString& Input) override
+	{
+#if UE_ENABLE_ICU
+		TArray<FTextRange> LineRanges;
+		FTextRange::CalculateLineRangesFromString(Input, LineRanges);
+		TokenizeLineRanges(Input, LineRanges, OutTokenizedLines);
+#else
+		FTokenizedLine FakeTokenizedLine;
+		FakeTokenizedLine.Range = FTextRange(0, Input.Len());
+		FakeTokenizedLine.Tokens.Emplace(FToken(ETokenType::Literal, FakeTokenizedLine.Range));
+		OutTokenizedLines.Add(FakeTokenizedLine);
+#endif
+	};
+
+private:
+	static FORCEINLINE bool IsAlpha(TCHAR Char)
+	{
+		return (Char >= 'a' && Char <= 'z') || (Char >= 'A' && Char <= 'Z');
+	}
+
+	static FORCEINLINE bool IsDigit(TCHAR Char)
+	{
+		return Char >= '0' && Char <= '9';
+	}
+
+	static FORCEINLINE bool IsAlphaOrDigit(TCHAR Char)
+	{
+		return IsAlpha(Char) || IsDigit(Char);
+	}
+
+	FHlslSyntaxTokenizer()
+	{
+		// operators
+		for(const auto& Operator : HlslOperators)
+		{
+			Operators.Emplace(Operator);
+		}	
+
+		// keywords
+		for(const auto& Keyword : HlslKeywords)
+		{
+			Keywords.Emplace(Keyword);
+		}
+
+		// Pre-processor Keywords
+		for(const auto& PreProcessorKeyword : HlslPreProcessorKeywords)
+		{
+			Keywords.Emplace(PreProcessorKeyword);
+		}
+		
+	};
+
+	void TokenizeLineRanges(const FString& Input, const TArray<FTextRange>& LineRanges, TArray<FTokenizedLine>& OutTokenizedLines)
+	{
+		// Tokenize line ranges
+		for(const FTextRange& LineRange : LineRanges)
+		{
+			FTokenizedLine TokenizedLine;
+			TokenizedLine.Range = LineRange;
+
+			if(TokenizedLine.Range.IsEmpty())
+			{
+				TokenizedLine.Tokens.Emplace(FToken(ETokenType::Literal, TokenizedLine.Range));
+			}
+			else
+			{
+				int32 CurrentOffset = LineRange.BeginIndex;
+				
+				while(CurrentOffset < LineRange.EndIndex)
+				{
+					const TCHAR* CurrentString = &Input[CurrentOffset];
+					const TCHAR CurrentChar = Input[CurrentOffset];
+
+					bool bHasMatchedSyntax = false;
+
+					// Greedy matching for operators
+					for(const FString& Operator : Operators)
+					{
+						if(FCString::Strncmp(CurrentString, *Operator, Operator.Len()) == 0)
+						{
+							const int32 SyntaxTokenEnd = CurrentOffset + Operator.Len();
+							TokenizedLine.Tokens.Emplace(FToken(ETokenType::Syntax, FTextRange(CurrentOffset, SyntaxTokenEnd)));
+						
+							check(SyntaxTokenEnd <= LineRange.EndIndex);
+						
+							bHasMatchedSyntax = true;
+							CurrentOffset = SyntaxTokenEnd;
+							break;
+						}
+					}
+				
+					if(bHasMatchedSyntax)
+					{
+						continue;
+					}
+
+					int32 PeekOffset = CurrentOffset + 1;
+					if (CurrentChar == TEXT('#'))
+					{
+						// Match PreProcessorKeywords
+						// They only contain letters
+						while(PeekOffset < LineRange.EndIndex)
+						{
+							const TCHAR PeekChar = Input[PeekOffset];
+
+							if (!IsAlpha(PeekChar))
+							{
+								break;
+							}
+							
+							PeekOffset++;
+						}
+					}
+					else if (IsAlpha(CurrentChar))
+					{
+						// Match Identifiers,
+						// They start with a letter and contain
+						// letters or numbers
+						while(PeekOffset < LineRange.EndIndex)
+						{
+							const TCHAR PeekChar = Input[PeekOffset];
+
+							if (!IsAlphaOrDigit(PeekChar))
+							{
+								break;
+							}
+							
+							PeekOffset++;
+						}
+					}
+
+					const int32 CurrentStringLength = PeekOffset - CurrentOffset;
+					
+					// Check if it is an reserved keyword
+					for(const FString& Keyword : Keywords)
+					{
+						if(FCString::Strncmp(CurrentString, *Keyword, CurrentStringLength) == 0)
+						{
+							const int32 SyntaxTokenEnd = CurrentOffset + CurrentStringLength;
+							TokenizedLine.Tokens.Emplace(FToken(ETokenType::Syntax, FTextRange(CurrentOffset, SyntaxTokenEnd)));
+						
+							check(SyntaxTokenEnd <= LineRange.EndIndex);
+						
+							bHasMatchedSyntax = true;
+							CurrentOffset = SyntaxTokenEnd;
+							break;
+						}
+					}	
+
+					if (bHasMatchedSyntax)
+					{
+						continue;
+					}
+
+					// If none matched, consume the character(s) as text
+					const int32 TextTokenEnd = CurrentOffset + CurrentStringLength;
+					TokenizedLine.Tokens.Emplace(FToken(ETokenType::Literal, FTextRange(CurrentOffset, TextTokenEnd)));
+					CurrentOffset = TextTokenEnd;
+				}
+			}
+
+			OutTokenizedLines.Add(TokenizedLine);
+		}
+	};
+
+	
+	TArray<FString> Keywords;
+	TArray<FString> Operators;
 };
 
 
@@ -305,39 +491,20 @@ TSharedRef<FHLSLSyntaxHighlighterMarshaller> FHLSLSyntaxHighlighterMarshaller::C
 	return MakeShareable(new FHLSLSyntaxHighlighterMarshaller(CreateTokenizer(), InSyntaxTextStyle));
 }
 
-TSharedPtr<FSyntaxTokenizer> FHLSLSyntaxHighlighterMarshaller::CreateTokenizer()
+TSharedPtr<ISyntaxTokenizer> FHLSLSyntaxHighlighterMarshaller::CreateTokenizer()
 {
-	TArray<FSyntaxTokenizer::FRule> TokenizerRules;
 
-	// operators
-	for(const auto& Operator : Operators)
-	{
-		TokenizerRules.Emplace(FSyntaxTokenizer::FRule(Operator));
-	}	
-
-	// keywords
-	for(const auto& Keyword : HlslKeywords)
-	{
-		TokenizerRules.Emplace(FSyntaxTokenizer::FRule(Keyword));
-	}
-
-	// Pre-processor Keywords
-	for(const auto& PreProcessorKeyword : PreProcessorKeywords)
-	{
-		TokenizerRules.Emplace(FSyntaxTokenizer::FRule(PreProcessorKeyword));
-	}
-
-	return FSyntaxTokenizer::Create(TokenizerRules);
+	return FHlslSyntaxTokenizer::Create();
 }
 
-void FHLSLSyntaxHighlighterMarshaller::ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<FSyntaxTokenizer::FTokenizedLine> TokenizedLines)
+void FHLSLSyntaxHighlighterMarshaller::ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines)
 {
 	TArray<FTextLayout::FNewLineData> LinesToAdd;
 	LinesToAdd.Reserve(TokenizedLines.Num());
 
 	// Parse the tokens, generating the styled runs for each line
 	int32 LineNo = 0;
-	for(const FSyntaxTokenizer::FTokenizedLine& TokenizedLine : TokenizedLines)
+	for(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine : TokenizedLines)
 	{
 		LinesToAdd.Add(ProcessTokenizedLine(TokenizedLine, LineNo, SourceString));
 		LineNo++;
@@ -346,7 +513,7 @@ void FHLSLSyntaxHighlighterMarshaller::ParseTokens(const FString& SourceString, 
 	TargetTextLayout.AddLines(LinesToAdd);
 }
 
-FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine(const FSyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString)
+FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString)
 {
 	enum class EParseState : uint8
 	{
@@ -360,7 +527,7 @@ FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine
 	TSharedRef<FString> ModelString = MakeShareable(new FString());
 	TArray< TSharedRef< IRun > > Runs;
 
-	for(const FSyntaxTokenizer::FToken& Token : TokenizedLine.Tokens)
+	for(const ISyntaxTokenizer::FToken& Token : TokenizedLine.Tokens)
 	{
 		const FString TokenText = SourceString.Mid(Token.Range.BeginIndex, Token.Range.Len());
 
@@ -374,7 +541,7 @@ FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine
 		if(!bIsWhitespace)
 		{
 			bool bHasMatchedSyntax = false;
-			if(Token.Type == FSyntaxTokenizer::ETokenType::Syntax)
+			if(Token.Type == ISyntaxTokenizer::ETokenType::Syntax)
 			{
 				if(ParseState == EParseState::None && TokenText == TEXT("\""))
 				{
@@ -442,7 +609,7 @@ FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine
 			
 			// It's possible that we fail to match a syntax token if we're in a state where it isn't parsed
 			// In this case, we treat it as a literal token
-			if(Token.Type == FSyntaxTokenizer::ETokenType::Literal || !bHasMatchedSyntax)
+			if(Token.Type == ISyntaxTokenizer::ETokenType::Literal || !bHasMatchedSyntax)
 			{
 				if(ParseState == EParseState::LookingForString)
 				{
@@ -480,7 +647,7 @@ FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine
 	return FTextLayout::FNewLineData(MoveTemp(ModelString), MoveTemp(Runs));
 }
 
-FHLSLSyntaxHighlighterMarshaller::FHLSLSyntaxHighlighterMarshaller(TSharedPtr<FSyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle) :
+FHLSLSyntaxHighlighterMarshaller::FHLSLSyntaxHighlighterMarshaller(TSharedPtr<ISyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle) :
 	FSyntaxHighlighterTextLayoutMarshaller(MoveTemp(InTokenizer))
 	, SyntaxTextStyle(InSyntaxTextStyle)
 {

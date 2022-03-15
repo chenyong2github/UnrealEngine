@@ -198,7 +198,7 @@ FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::~FCPPRichTextSyntaxHighlighte
 
 }
 
-void FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<FSyntaxTokenizer::FTokenizedLine> TokenizedLines)
+void FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines)
 {
 	enum class EParseState : uint8
 	{
@@ -214,7 +214,7 @@ void FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FStrin
 
 	// Parse the tokens, generating the styled runs for each line
 	EParseState ParseState = EParseState::None;
-	for(const FSyntaxTokenizer::FTokenizedLine& TokenizedLine : TokenizedLines)
+	for(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine : TokenizedLines)
 	{
 		TSharedRef<FString> ModelString = MakeShareable(new FString());
 		TArray< TSharedRef< IRun > > Runs;
@@ -224,7 +224,7 @@ void FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FStrin
 			ParseState = EParseState::None;
 		}
 
-		for(const FSyntaxTokenizer::FToken& Token : TokenizedLine.Tokens)
+		for(const ISyntaxTokenizer::FToken& Token : TokenizedLine.Tokens)
 		{
 			const FString TokenText = SourceString.Mid(Token.Range.BeginIndex, Token.Range.Len());
 
@@ -238,7 +238,7 @@ void FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FStrin
 			if(!bIsWhitespace)
 			{
 				bool bHasMatchedSyntax = false;
-				if(Token.Type == FSyntaxTokenizer::ETokenType::Syntax)
+				if(Token.Type == ISyntaxTokenizer::ETokenType::Syntax)
 				{
 					if(ParseState == EParseState::None && TokenText == TEXT("\""))
 					{
@@ -306,7 +306,7 @@ void FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FStrin
 				
 				// It's possible that we fail to match a syntax token if we're in a state where it isn't parsed
 				// In this case, we treat it as a literal token
-				if(Token.Type == FSyntaxTokenizer::ETokenType::Literal || !bHasMatchedSyntax)
+				if(Token.Type == ISyntaxTokenizer::ETokenType::Literal || !bHasMatchedSyntax)
 				{
 					if(ParseState == EParseState::LookingForString)
 					{
@@ -347,7 +347,7 @@ void FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::ParseTokens(const FStrin
 	TargetTextLayout.AddLines(LinesToAdd);
 }
 
-FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::FCPPRichTextSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< FSyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle)
+FCPPRichTextSyntaxHighlighterTextLayoutMarshaller::FCPPRichTextSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< ISyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle)
 	: FSyntaxHighlighterTextLayoutMarshaller(MoveTemp(InTokenizer))
 	, SyntaxTextStyle(InSyntaxTextStyle)
 {

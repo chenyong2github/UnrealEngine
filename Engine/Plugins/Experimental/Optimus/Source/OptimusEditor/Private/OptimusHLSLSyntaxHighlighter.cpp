@@ -24,12 +24,12 @@ void FOptimusHLSLSyntaxHighlighter::SetCompilerMessages(const TArray<FOptimusCom
 }
 
 
-FOptimusHLSLSyntaxHighlighter::FOptimusHLSLSyntaxHighlighter(TSharedPtr<FSyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle) :
+FOptimusHLSLSyntaxHighlighter::FOptimusHLSLSyntaxHighlighter(TSharedPtr<ISyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle) :
 	FHLSLSyntaxHighlighterMarshaller(MoveTemp(InTokenizer), InSyntaxTextStyle)
 {
 }
 
-void FOptimusHLSLSyntaxHighlighter::ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout,	TArray<FSyntaxTokenizer::FTokenizedLine> TokenizedLines)
+void FOptimusHLSLSyntaxHighlighter::ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout,	TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines)
 {
 	LineHighlightsToAdd.Empty();
 	FHLSLSyntaxHighlighterMarshaller::ParseTokens(SourceString, TargetTextLayout, TokenizedLines);
@@ -37,7 +37,7 @@ void FOptimusHLSLSyntaxHighlighter::ParseTokens(const FString& SourceString, FTe
 	TargetTextLayout.SetLineHighlights(LineHighlightsToAdd);
 }
 
-FTextLayout::FNewLineData FOptimusHLSLSyntaxHighlighter::ProcessTokenizedLine(const FSyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString)
+FTextLayout::FNewLineData FOptimusHLSLSyntaxHighlighter::ProcessTokenizedLine(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString)
 {
 	FTextLayout::FNewLineData LineData = FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine(TokenizedLine, LineNumber, SourceString);
 
