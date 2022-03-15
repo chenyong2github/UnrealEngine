@@ -17,7 +17,6 @@
 #include "../SHCommon.ush"
 #include "../ShadingModels.ush"
 #include "../ShadingModelsSampling.ush"
-#include "../ThinFilmBSDF.ush"
 #include "../AreaLightCommon.ush"
 
 #include "../HairStrands/HairStrandsCommon.ush"
@@ -327,7 +326,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 			////
 			//// Evaluate the specular component.
-			//// This takes into account multiple scattering, thin film interference, micro occlusion.
+			//// This takes into account multiple scattering, micro occlusion.
 			//// Note: anisotropy completely disables area integrations. Lights fall back to punctual.
 			////
 
@@ -434,23 +433,8 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				}
 			}
 
-			float3 FresnelTerm = 0;
 			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-			#if STRATA_FASTPATH==0
-			const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
-			BRANCH
-			if (bHasThinFilm)
-			{
-				float ThinFilmIOR = SLAB_THINFILM_IOR(BSDFContext.BSDF);
-				float ThinFilmThickness = SLAB_THINFILM_THICKNESS(BSDFContext.BSDF);
-				//  We do not use the MRP NoL here for thin interference.
-				FresnelTerm = SpecularMicroOcclusion * F_ThinFilm(BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
-			}
-			else
-			#endif
-			{
-				FresnelTerm = SpecularMicroOcclusion * F_Schlick(F0, F90, BSDFContext.Context.VoH);
-			}
+			const float3 FresnelTerm = SpecularMicroOcclusion * F_Schlick(F0, F90, BSDFContext.Context.VoH);
 
 			Sample.SpecularPathProbability		= bHaziness	? (1.0f - HazeWeight) : 1.0f;
 			Sample.SpecularHazePathProbability	= bHaziness	? HazeWeight : 0.0f;
@@ -460,9 +444,6 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 			if (bIsRectLight)
 			{
-				// Rect light should not evaluate the Fresnel term which is already part of the LTC integration function.
-				// So we simply disable the Fresnel factor in this case. That does mean that will lose thin film interference on Rect lights.
-
 				Sample.SpecularPathValue     = RectLightSpec     * MSScale     * SpecularMicroOcclusion;
 				Sample.SpecularHazePathValue = RectLightSpecHaze * HazeMSScale * SpecularMicroOcclusion;
 
@@ -929,7 +910,6 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			StrataEnvLightResult.bSubsurface = BSDF_GETHASSSS(BSDFContext.BSDF) > 0;
 
 			float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESS(BSDFContext.BSDF));
-			float3 ThinFilmFresnelWeight = 1;
 
 			float3 EvalEnvBRDF = 0;
 			float3 DirectionalAlbedo_SpecularTransmission = 0;
@@ -946,19 +926,6 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			if (bEnableSpecular)
 			{
 				const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-
-				#if STRATA_FASTPATH==0
-				const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
-				if (bHasThinFilm)
-				{
-					float ThinFilmIOR = SLAB_THINFILM_IOR(BSDFContext.BSDF);
-					float ThinFilmThickness = SLAB_THINFILM_THICKNESS(BSDFContext.BSDF);
-					ThinFilmFresnelWeight = F_ThinFilm(BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
-					F0 = 1.f;
-				}
-				#endif
-				EvalEnvBRDF *= ThinFilmFresnelWeight;
-
 
 				#if STRATA_FASTPATH==0
 				const bool bHasAnisotropy = BSDF_GETHASANISOTROPY(BSDFContext.BSDF);
@@ -996,7 +963,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 					// Compute the directional albedo for hazy specular
 					FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(SafeRoughnessHaze, BSDFContext.Context.NoV, F0, F90);
-					const float3 EvalEnvBRDFHaze = ThinFilmFresnelWeight * EnergyTerms.E;
+					const float3 EvalEnvBRDFHaze = EnergyTerms.E;
 					StrataEnvLightResult.SpecularHazeWeight = lerp(0.0f, HazeWeight, HazinessFadeIn) * EvalEnvBRDFHaze * SpecularMicroOcclusion;
 					StrataEnvLightResult.SpecularHazeSafeRoughness = SafeRoughnessHaze;
 				}

@@ -10498,18 +10498,17 @@ int32 FHLSLMaterialTranslator::StrataWeightParameterBlending(int32 A, int32 Weig
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataThinFilm(int32 A, int32 Thickness, int32 IOR, bool bInlinedEvaluation, int OperatorIndex, uint32 MaxDistanceFromLeaves)
+int32 FHLSLMaterialTranslator::StrataThinFilm(int32 A, int32 Thickness, int32 IOR, int OperatorIndex, uint32 MaxDistanceFromLeaves)
 {
 	if (A == INDEX_NONE || Thickness == INDEX_NONE || IOR == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataThinFilm(%s, %s, %s, %d, Parameters.StrataTree, %u, %u)"),
+		MCT_Strata, TEXT("StrataThinFilm(%s, %s, %s, Parameters.StrataTree, %u, %u)"),
 		*GetParameterCode(A),
 		*GetParameterCode(Thickness),
 		*GetParameterCode(IOR),
-		bInlinedEvaluation ? 1u : 0u,
 		OperatorIndex,
 		MaxDistanceFromLeaves
 	);

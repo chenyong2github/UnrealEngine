@@ -125,11 +125,10 @@ float DielectricIorToF0(float Ior)
 	return F0;
 }
 
-float F0ToMicroOcclusion(float F0)
-{
-	// Anything with Specular less than 2% is physically impossible and is instead considered to be shadowing.
-	return saturate(50.0 * F0);
-}
+// Anything with Specular less than 2% is physically impossible and is instead considered to be shadowing.
+float  GetF0MicroOcclusionThreshold() { return 0.02f; }
+float  F0ToMicroOcclusion(float F0)   { return saturate(50.0 * F0); }
+float3 F0ToMicroOcclusion(float3 F0)  { return saturate(50.0 * F0); }
 
 float F0RGBToMicroOcclusion(float3 F0)
 {

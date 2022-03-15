@@ -401,42 +401,31 @@ void PreUpdateAllBSDFWithBottomUpOperatorVisit_ThinFilm(
 
 	if (bCanReceiveThinFilm && BSDF_GETTYPE(CurrentBSDF) == STRATA_BSDF_TYPE_SLAB)
 	{
-		if (Op.bThinFilmInline)
-		{
-			const float3 F0  = SLAB_F0(CurrentBSDF);
-			const float3 F90 = SLAB_F90(CurrentBSDF);
+		const float3 F0  = SLAB_F0(CurrentBSDF);
+		const float3 F90 = SLAB_F90(CurrentBSDF);
 
-			const float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
-			const float3 N = TangentBasis[2];
-			const float NoV = saturate(dot(N, V));
-			const float NoL = NoV;
-			const float VoH = NoV;
-			float3 RThinFilm = F_ThinFilm(NoV, NoL, VoH, F0, F90, Op.ThinFilmIOR, Op.ThinFilmThickness);
+		const float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
+		const float3 N = TangentBasis[2];
+		const float NoV = saturate(dot(N, V));
+		const float NoL = NoV;
+		const float VoH = NoV;
+		float3 RThinFilm = F_ThinFilm(NoV, NoL, VoH, F0, F90, Op.ThinFilmIOR, Op.ThinFilmThickness);
 
-			// Compute a F0 which match evaluation Thin-Film reflectance for the current view angle using Schlick's Fresnel
-			const float FReference = min(0.99f, F_Schlick(0, 1.0f, NoV).x);
-			RThinFilm = max(RThinFilm, FReference);
+		// Compute a F0 which match evaluation Thin-Film reflectance for the current view angle using Schlick's Fresnel
+		const float FReference = min(0.99f, F_Schlick(0, 1.0f, NoV).x);
+		RThinFilm = max(RThinFilm, FReference);
 
-			float3 F0_Thin = (RThinFilm - F90 * FReference) / (1 - FReference);
+		float3 F0_Thin = (RThinFilm - F90 * FReference) / (1 - FReference);
 
-			// Anything less than 2% is physically impossible and is instead considered to be shadowing
-			// Ensure the generated F0 doesn't cause micro-oclusion
-			const float MicroOcclusionThreshold = 0.02f;
-			F0_Thin = max(MicroOcclusionThreshold, F0_Thin);
+		// Ensure the generated F0 doesn't cause micro-oclusion
+		F0_Thin = max(GetF0MicroOcclusionThreshold(), F0_Thin);
 
-			// If micro-occlusion was set, re-apply it.
-			const float3 MicroOcclusion = saturate(F0 * 50.f);
-			F0_Thin *= MicroOcclusion;
+		// If micro-occlusion was set, re-apply it.		
+		const float3 MicroOcclusion = F0RGBToMicroOcclusion(F0);
+		F0_Thin *= MicroOcclusion;
 
-			SLAB_F0(CurrentBSDF)  = F0_Thin;
-			SLAB_F90(CurrentBSDF) = max(F0_Thin, F90);
-		}
-		else
-		{
-			const uint bHasThinFilm = Op.ThinFilmThickness > 0 ? 1u : 0u;
-			BSDF_SETHASTHINFILM(CurrentBSDF, bHasThinFilm);
-			SLAB_THINFILM_THICKNESS(CurrentBSDF) += Op.ThinFilmThickness;
-		}
+		SLAB_F0(CurrentBSDF)  = F0_Thin;
+		SLAB_F90(CurrentBSDF) = max(F0_Thin, F90);
 	}
 
 #endif // STRATA_INLINE_SHADING
