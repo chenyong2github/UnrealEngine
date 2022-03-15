@@ -70,6 +70,7 @@
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "GPUMessaging.h"
 #include "RectLightTextureManager.h"
+#include "Lumen/LumenFrontLayerTranslucency.h"
 
 extern int32 GNaniteShowStats;
 
@@ -3070,6 +3071,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			EnumRemoveFlags(TranslucencyViewsToRender, ETranslucencyView::RayTracing);
 		}
 #endif
+
+		for (FViewInfo& View : Views)
+		{
+			if (GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen)
+			{
+				RenderLumenFrontLayerTranslucencyReflections(GraphBuilder, View, SceneTextures, LumenFrameTemporaries);
+			}
+		}
+
 		// Sort objects' triangles
 		for (FViewInfo& View : Views)
 		{

@@ -879,7 +879,8 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 					LumenFrameTemporaries,
 					MeshSDFGridParameters,
 					RadianceCacheParameters,
-					false,
+					ELumenReflectionPass::Opaque,
+					nullptr,
 					nullptr,
 					LumenReflectionCompositeParameters);
 			}

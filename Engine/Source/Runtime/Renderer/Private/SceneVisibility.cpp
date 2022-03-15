@@ -2784,6 +2784,7 @@ struct FRelevancePacket
 							if (ViewRelevance.bTranslucentSurfaceLighting)
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::LumenTranslucencyRadianceCacheMark);
+								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::LumenFrontLayerTranslucencyGBuffer);
 							}
 
 							if (ViewRelevance.bDistortion)
@@ -3263,6 +3264,9 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		{
 			PassMask.Set(EMeshPass::LumenTranslucencyRadianceCacheMark);
 			View.NumVisibleDynamicMeshElements[EMeshPass::LumenTranslucencyRadianceCacheMark] += NumElements;
+
+			PassMask.Set(EMeshPass::LumenFrontLayerTranslucencyGBuffer);
+			View.NumVisibleDynamicMeshElements[EMeshPass::LumenFrontLayerTranslucencyGBuffer] += NumElements;
 		}
 
 		if (ViewRelevance.bDistortion)

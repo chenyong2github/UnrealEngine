@@ -15,6 +15,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "SingleLayerWaterRendering.h"
 #include "LumenTracingUtils.h"
+#include "LumenFrontLayerTranslucency.h"
 
 extern FLumenGatherCvarState GLumenGatherCvars;
 
@@ -283,17 +284,19 @@ class FReflectionTileClassificationMarkCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWResolveTileUsed)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenFrontLayerTranslucencyGBufferParameters, FrontLayerTranslucencyGBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenNeedRayTracedReflectionsParameters, NeedRayTracedReflectionsParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FFrontLayerTranslucency : SHADER_PERMUTATION_BOOL("FRONT_LAYER_TRANSLUCENCY");
+	using FPermutationDomain = TShaderPermutationDomain<FFrontLayerTranslucency>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -358,6 +361,7 @@ class FReflectionGenerateRaysCS : public FGlobalShader
 		SHADER_PARAMETER(float, RadianceCacheAngleThresholdScale)
 		SHADER_PARAMETER(float, GGXSamplingBias)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenFrontLayerTranslucencyGBufferParameters, FrontLayerTranslucencyGBufferParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
@@ -365,7 +369,8 @@ class FReflectionGenerateRaysCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
-	using FPermutationDomain = TShaderPermutationDomain<FRadianceCache>;
+	class FFrontLayerTranslucency : SHADER_PERMUTATION_BOOL("FRONT_LAYER_TRANSLUCENCY");
+	using FPermutationDomain = TShaderPermutationDomain<FRadianceCache, FFrontLayerTranslucency>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -399,6 +404,7 @@ class FReflectionResolveCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenFrontLayerTranslucencyGBufferParameters, FrontLayerTranslucencyGBufferParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -409,7 +415,8 @@ class FReflectionResolveCS : public FGlobalShader
 
 	class FSpatialReconstruction : SHADER_PERMUTATION_BOOL("USE_SPATIAL_RECONSTRUCTION");
 	class FBilateralFilter : SHADER_PERMUTATION_BOOL("USE_BILATERAL_FILTER");
-	using FPermutationDomain = TShaderPermutationDomain<FSpatialReconstruction, FBilateralFilter>;
+	class FFrontLayerTranslucency : SHADER_PERMUTATION_BOOL("FRONT_LAYER_TRANSLUCENCY");
+	using FPermutationDomain = TShaderPermutationDomain<FSpatialReconstruction, FBilateralFilter, FFrontLayerTranslucency>;
 };
 
 IMPLEMENT_GLOBAL_SHADER(FReflectionResolveCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionResolveCS", SF_Compute);
@@ -546,7 +553,8 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 	const FViewInfo& View,
 	const FMinimalSceneTextures& SceneTextures,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
-	const FLumenNeedRayTracedReflectionsParameters& NeedRayTracedReflectionsParameters)
+	const FLumenNeedRayTracedReflectionsParameters& NeedRayTracedReflectionsParameters,
+	const FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer)
 {
 	FLumenReflectionTileParameters ReflectionTileParameters;
 
@@ -586,18 +594,25 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 		PassParameters->RWResolveTileUsed = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolveTileUsed));
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+
+		if (FrontLayerReflectionGBuffer)
+		{
+			PassParameters->FrontLayerTranslucencyGBufferParameters = *FrontLayerReflectionGBuffer;
+		}
+		
 		PassParameters->NeedRayTracedReflectionsParameters = NeedRayTracedReflectionsParameters;
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 
 		FReflectionTileClassificationMarkCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set< FReflectionTileClassificationMarkCS::FFrontLayerTranslucency >(FrontLayerReflectionGBuffer != nullptr);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTileClassificationMarkCS>(PermutationVector);
 
 		checkf(ResolveTileViewportDimensions.X > 0 && ResolveTileViewportDimensions.Y > 0, TEXT("FReflectionTileClassificationMarkCS needs non-zero dispatch to clear next pass's indirect args"));
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TileClassificationMark"),
+			RDG_EVENT_NAME("TileClassificationMark %dx%d", View.ViewRect.Size().X, View.ViewRect.Size().Y),
 			ComputeShader,
 			PassParameters,
 			FIntVector(ResolveTileViewportDimensions.X, ResolveTileViewportDimensions.Y, 1));
@@ -801,16 +816,19 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& ScreenProbeRadianceCacheParameters,
-	bool bSingleLayerWater,
+	ELumenReflectionPass ReflectionPass,
 	const FTiledReflection* ExternalTiledReflection,
+	const FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
 	FLumenReflectionCompositeParameters& OutCompositeParameters)
 {
 	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
 
-	const bool bDenoise = !bSingleLayerWater;
+	const bool bDenoise = ReflectionPass == ELumenReflectionPass::Opaque;
 
 	check(ShouldRenderLumenReflections(View));
+	check(ReflectionPass != ELumenReflectionPass::FrontLayerTranslucency 
+		|| (FrontLayerReflectionGBuffer && FrontLayerReflectionGBuffer->FrontLayerTranslucencySceneDepth->Desc.Extent == SceneTextures.Config.Extent));
 
 	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters = ScreenProbeRadianceCacheParameters;
 	RadianceCacheParameters.RadianceCacheInputs.ReprojectionRadiusScale = FMath::Clamp<float>(GLumenReflectionRadianceCacheReprojectionRadiusScale, 1.0f, 100000.0f);
@@ -823,7 +841,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 
 	FRDGBufferRef VisualizeTracesData = nullptr;
 	
-	if (!bSingleLayerWater)
+	if (ReflectionPass == ELumenReflectionPass::Opaque)
 	{
 		VisualizeTracesData = SetupVisualizeReflectionTraces(GraphBuilder, ReflectionTracingParameters.VisualizeTracesParameters);
 	}
@@ -834,7 +852,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.ReflectionTracingBufferSize = FIntPoint::DivideAndRoundUp(SceneTextures.Config.Extent, (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
 	ReflectionTracingParameters.MaxRayIntensity = GLumenReflectionMaxRayIntensity;
 	ReflectionTracingParameters.ReflectionSmoothBias = GLumenReflectionSmoothBias;
-	ReflectionTracingParameters.SingleLayerWaterReflections = bSingleLayerWater ? 1 : 0;
+	ReflectionTracingParameters.ReflectionPass = (uint32)ReflectionPass;
 	ReflectionTracingParameters.UseJitter = bDenoise && GLumenReflectionTemporalFilter ? 1 : 0;
 
 	FRDGTextureDesc RayBufferDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
@@ -870,7 +888,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	}
 	else
 	{
-		ReflectionTileParameters = ReflectionTileClassification(GraphBuilder, View, SceneTextures, ReflectionTracingParameters, NeedRayTracedReflectionsParameters);
+		ReflectionTileParameters = ReflectionTileClassification(GraphBuilder, View, SceneTextures, ReflectionTracingParameters, NeedRayTracedReflectionsParameters, FrontLayerReflectionGBuffer);
 	}
 
 	const bool bUseRadianceCache = GLumenReflectionsUseRadianceCache != 0 && RadianceCacheParameters.RadianceProbeIndirectionTexture != nullptr;
@@ -886,6 +904,12 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		PassParameters->RadianceCacheAngleThresholdScale = FMath::Clamp<float>(GLumenReflectionRadianceCacheAngleThresholdScale, .05f, 4.0f);
 		PassParameters->GGXSamplingBias = GLumenReflectionGGXSamplingBias;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+
+		if (FrontLayerReflectionGBuffer)
+		{
+			PassParameters->FrontLayerTranslucencyGBufferParameters = *FrontLayerReflectionGBuffer;
+		}
+
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
@@ -893,6 +917,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 
 		FReflectionGenerateRaysCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FReflectionGenerateRaysCS::FRadianceCache>(bUseRadianceCache);
+		PermutationVector.Set<FReflectionGenerateRaysCS::FFrontLayerTranslucency>(FrontLayerReflectionGBuffer != nullptr);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionGenerateRaysCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -916,8 +941,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 
 	const bool bTraceMeshObjects = GLumenReflectionTraceMeshSDFs != 0 
 		&& Lumen::UseMeshSDFTracing(ViewFamily) 
-		// HZB is not rebuilt to include water but is used to cull Mesh SDFs
-		&& !bSingleLayerWater;
+		// HZB is only built to include opaque but is used to cull Mesh SDFs
+		&& ReflectionPass == ELumenReflectionPass::Opaque;
 
 	TraceReflections(
 		GraphBuilder, 
@@ -960,12 +985,19 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+
+		if (FrontLayerReflectionGBuffer)
+		{
+			PassParameters->FrontLayerTranslucencyGBufferParameters = *FrontLayerReflectionGBuffer;
+		}
+
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 		FReflectionResolveCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FReflectionResolveCS::FSpatialReconstruction >(bUseSpatialReconstruction);
 		PermutationVector.Set< FReflectionResolveCS::FBilateralFilter >(bUseBilaterialFilter);
+		PermutationVector.Set< FReflectionResolveCS::FFrontLayerTranslucency >(FrontLayerReflectionGBuffer != nullptr);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionResolveCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

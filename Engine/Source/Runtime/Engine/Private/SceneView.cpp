@@ -1604,6 +1604,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.LumenRayLightingMode = Src.LumenRayLightingMode;
 		}
 
+		if (Src.bOverride_LumenFrontLayerTranslucencyReflections)
+		{
+			Dest.LumenFrontLayerTranslucencyReflections = Src.LumenFrontLayerTranslucencyReflections;
+		}
+
 		if (Src.bOverride_ReflectionMethod)
 		{
 			Dest.ReflectionMethod = Src.ReflectionMethod;
@@ -1896,6 +1901,11 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 		{
 			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ReflectionMethod"));
 			FinalPostProcessSettings.ReflectionMethod = (EReflectionMethod::Type)CVar->GetValueOnGameThread();
+		}
+
+		{
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Lumen.TranslucencyReflections.FrontLayer.EnableForProject"));
+			FinalPostProcessSettings.LumenFrontLayerTranslucencyReflections = CVar->GetValueOnGameThread() != 0;
 		}
 	}
 

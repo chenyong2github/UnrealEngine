@@ -189,6 +189,13 @@ public:
 #endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 };
 
+enum class ELumenReflectionPass
+{
+	Opaque,
+	SingleLayerWater,
+	FrontLayerTranslucency
+};
+
 /**
  * Scene renderer that implements a deferred shading pipeline and associated features.
  */
@@ -584,9 +591,16 @@ private:
 		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		const class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-		bool bSingleLayerWater,
+		ELumenReflectionPass ReflectionPass,
 		const FTiledReflection* TiledReflectionInput,
+		const class FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
 		FLumenReflectionCompositeParameters& OutCompositeParameters);
+
+	void RenderLumenFrontLayerTranslucencyReflections(
+		FRDGBuilder& GraphBuilder,
+		FViewInfo& View,
+		const FSceneTextures& SceneTextures,
+		FLumenSceneFrameTemporaries& LumenFrameTemporaries);
 
 	void RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);

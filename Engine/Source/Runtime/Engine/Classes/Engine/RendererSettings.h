@@ -483,6 +483,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip="Controls how Lumen Reflection rays are lit when Lumen is using Hardware Ray Tracing.  By default, Lumen uses the Surface Cache for best performance, but can be set to 'Hit Lighting' for higher quality."))
 	ELumenRayLightingMode LumenRayLightingMode;
 
+	UPROPERTY(config, EditAnywhere, Category = Lumen, meta = (
+		ConsoleVariable = "r.Lumen.TranslucencyReflections.FrontLayer.EnableForProject", DisplayName = "High Quality Translucency Reflections",
+		ToolTip = "Whether to use high quality mirror reflections on the front layer of translucent surfaces.  Other layers will use the lower quality Radiance Cache method that can only produce glossy reflections.  Increases GPU cost when enabled."))
+	uint32 LumenFrontLayerTranslucencyReflections : 1;
+
 	UPROPERTY(config, EditAnywhere, Category=Lumen, meta=(
 		EditCondition = "bGenerateMeshDistanceFields",
 		ConsoleVariable="r.Lumen.TraceMeshSDFs", DisplayName = "Software Ray Tracing Mode",

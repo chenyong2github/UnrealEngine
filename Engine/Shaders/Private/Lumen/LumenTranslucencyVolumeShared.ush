@@ -55,3 +55,25 @@ FTwoBandSHVectorRGB GetTranslucencyGIVolumeLighting(FLWCVector3 WorldPosition, F
 	return TranslucentLighting;
 }
 
+bool UseFrontLayerReflection(float2 BufferUV, float SceneDepth)
+{
+	bool bValid = false;
+
+	if (FrontLayerTranslucencyReflectionsStruct.Enabled > 0)
+	{
+		float SingleLayerDeviceZ = Texture2DSampleLevel(FrontLayerTranslucencyReflectionsStruct.SceneDepth, GlobalPointClampedSampler, BufferUV, 0.0f).x;
+		float DeviceZ = ConvertToDeviceZ(SceneDepth);
+		
+		if (abs(SingleLayerDeviceZ - DeviceZ) < FrontLayerTranslucencyReflectionsStruct.RelativeDepthThreshold)
+		{
+			bValid = true;
+		}
+	}
+
+	return bValid;
+}
+
+float3 SampleFrontLayerReflection(float2 BufferUV)
+{
+	return Texture2DSampleLevel(FrontLayerTranslucencyReflectionsStruct.Radiance, GlobalPointClampedSampler, BufferUV, 0.0f).xyz * View.OneOverPreExposure;
+}

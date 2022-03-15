@@ -14,6 +14,21 @@
 #include "LumenRadianceCacheMarkCommon.ush"
 #include "LumenTranslucencyVolumeLightingShared.ush"
 
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 1
+#endif
+
+void LumenFrontLayerTranslucencyClearGBufferPS(
+	  in  float4 SvPosition		: SV_Position
+	, out float4 OutColor		: SV_Target0
+	, out float  OutDepth		: SV_DEPTH)
+{
+	const uint2 PixelCoord = uint2(SvPosition.xy);
+
+	OutColor = 0;
+	OutDepth = SceneTexturesStruct.SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
+}
+
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void MarkRadianceProbesUsedByTranslucencyVolumeCS(
 	uint3 GroupId : SV_GroupID,

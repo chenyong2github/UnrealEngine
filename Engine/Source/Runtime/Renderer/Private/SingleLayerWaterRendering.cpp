@@ -460,8 +460,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				LumenFrameTemporaries,
 				MeshSDFGridParameters,
 				RadianceCacheParameters,
-				true,
+				ELumenReflectionPass::SingleLayerWater,
 				&TiledScreenSpaceReflection,
+				nullptr,
 				LumenReflectionCompositeParameters);
 		}
 		else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::RTR 

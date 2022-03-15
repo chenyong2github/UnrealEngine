@@ -1461,6 +1461,7 @@ public:
 
 	FShaderPrintData ShaderPrintData;
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
+	FLumenFrontLayerTranslucency LumenFrontLayerTranslucency;
 
 #if RHI_RAYTRACING
 	bool HasRayTracingScene() const;

@@ -28,11 +28,12 @@ struct FLumenMaterialData
 	bool   bRequiresBxDFImportanceSampling;
 	bool   bIsHair;
 	bool   bIsFoliage;
+	bool   bIsFrontLayerTranslucency;
 	float  Anisotropy;
 
 #if STRATA_ENABLED
 	float3x3 TangentBasis;
-#else
+#elif !FRONT_LAYER_TRANSLUCENCY
 	FGBufferData GBufferData;
 #endif
 };
@@ -78,6 +79,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.bIsHair = StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
 	Out.bIsFoliage = false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
 	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;// || StrataPixelHeader.BSDFCount > 1u || GetDiffuseLerp(Out.Roughness) < 1.0f;
+	Out.bIsFrontLayerTranslucency = false;
 
 	Out.Anisotropy = 0;
 	Out.TangentBasis = (float3x3)0;
@@ -95,11 +97,36 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	return Out;
 }
 
+Texture2D FrontLayerTranslucencySceneDepth;
+Texture2D FrontLayerTranslucencyNormal;
+
+FLumenMaterialData InternalReadMaterialData_FrontLayerTranslucency(uint2 InPixelPos)
+{
+	FLumenMaterialData Out = (FLumenMaterialData)0;
+#if !STRATA_ENABLED
+	Out.SceneDepth = ConvertFromDeviceZ(FrontLayerTranslucencySceneDepth[InPixelPos].x);
+	float4 NormalEncoded = FrontLayerTranslucencyNormal[InPixelPos];
+	Out.WorldNormal = DecodeNormal(NormalEncoded.xyz);
+	Out.Roughness = 0.0f;
+	Out.Anisotropy = 0;
+	Out.TopLayerRoughness = 0.0f;
+	Out.MaterialAO = 1.0f;
+	Out.ShadingID = NormalEncoded.w > 0.0f ? SHADINGMODELID_DEFAULT_LIT : SHADINGMODELID_UNLIT;
+	Out.DiffuseIndirectSampleOcclusion = 0;
+	Out.bNeedsSeparateLightAccumulation = false;
+	Out.bIsHair = false;
+	Out.bIsFoliage = false;
+	Out.bRequiresBxDFImportanceSampling = false;
+	Out.bIsFrontLayerTranslucency = NormalEncoded.w > 0.0f;
+#endif
+	return Out;
+}
+
 // GBuffer material internal read function
 FLumenMaterialData InternalReadMaterialData_GBuffer(const FGBufferData GBufferData)
 {
 	FLumenMaterialData Out = (FLumenMaterialData)0;
-#if !STRATA_ENABLED
+#if !STRATA_ENABLED && !FRONT_LAYER_TRANSLUCENCY
 	Out.SceneDepth = GBufferData.Depth;
 	Out.WorldNormal = GBufferData.WorldNormal;
 	Out.Roughness = GBufferData.Roughness;
@@ -112,6 +139,7 @@ FLumenMaterialData InternalReadMaterialData_GBuffer(const FGBufferData GBufferDa
 	Out.bIsHair = GBufferData.ShadingModelID == SHADINGMODELID_HAIR;
 	Out.bIsFoliage = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
 	Out.bRequiresBxDFImportanceSampling = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID); // || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT || GetDiffuseLerp(GBufferData.Roughness) < 1.0f;
+	Out.bIsFrontLayerTranslucency = false;
 
 	Out.GBufferData = GBufferData;
 #endif
@@ -125,6 +153,8 @@ FLumenMaterialData ReadMaterialData(uint2 InPixelPos)
 {
 #if STRATA_ENABLED
 	return InternalReadMaterialData_Strata(InPixelPos);
+#elif FRONT_LAYER_TRANSLUCENCY
+	return InternalReadMaterialData_FrontLayerTranslucency(InPixelPos);
 #else
 	return InternalReadMaterialData_GBuffer(InPixelPos);
 #endif
@@ -134,6 +164,8 @@ FLumenMaterialData ReadMaterialData(uint2 InPixelPos, float2 InBufferUV)
 {
 #if STRATA_ENABLED
 	return InternalReadMaterialData_Strata(InPixelPos);
+#elif FRONT_LAYER_TRANSLUCENCY
+	return InternalReadMaterialData_FrontLayerTranslucency(InPixelPos);
 #else
 	return InternalReadMaterialData_GBuffer(InBufferUV);
 #endif
@@ -164,6 +196,11 @@ bool IsClearCoat(FLumenMaterialData In)
 bool IsSingleLayerWater(FLumenMaterialData In)
 {
 	return In.ShadingID == SHADINGMODELID_SINGLELAYERWATER;
+}
+
+bool IsFrontLayerTranslucency(FLumenMaterialData In)
+{
+	return In.bIsFrontLayerTranslucency;
 }
 
 bool bIsUnlit(FLumenMaterialData In)
@@ -241,7 +278,7 @@ FBxDFSample SampleBxDF(const uint TermMask, FLumenMaterialData InMaterial, float
 {
 #if STRATA_ENABLED
 	return SampleStrataBxDF(TermMask, InMaterial, V, E);
-#else
+#elif !FRONT_LAYER_TRANSLUCENCY
 	FGBufferData InGBufferData;
 	InGBufferData.Roughness = InMaterial.Roughness;
 	InGBufferData.WorldNormal = InMaterial.WorldNormal;

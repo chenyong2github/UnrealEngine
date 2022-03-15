@@ -89,6 +89,7 @@
 
 #if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
 #define LumenGIVolumeStruct TranslucentBasePass
+#define FrontLayerTranslucencyReflectionsStruct TranslucentBasePass
 // Reroute for LumenRadianceCacheInterpolation.ush
 #define RadianceCacheInterpolation TranslucentBasePass
 #include "Lumen/LumenTranslucencyVolumeShared.ush"

@@ -188,6 +188,12 @@ extern bool CanMaterialRenderInLumenTranslucencyRadianceCacheMarkPass(
 	const FPrimitiveSceneProxy& PrimitiveSceneProxy,
 	const FMaterial& Material);
 
+extern bool CanMaterialRenderInLumenFrontLayerTranslucencyGBufferPass(
+	const FScene& Scene,
+	const FSceneViewFamily& ViewFamily,
+	const FPrimitiveSceneProxy& PrimitiveSceneProxy,
+	const FMaterial& Material);
+
 extern void LumenTranslucencyReflectionsMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FSceneRenderer& SceneRenderer,

@@ -21,7 +21,9 @@ bool FFXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
 	// When rendering Lumen, it's possible a translucent material might render in the LumenTranslucencyRadianceCacheMark pass,
 	// which happens before PostRenderOpaque.
 	const FScene* Scene = SceneProxy.GetScene().GetRenderScene();
-	if (Scene && CanMaterialRenderInLumenTranslucencyRadianceCacheMarkPass(*Scene, ViewFamily, SceneProxy, Material))
+	if (Scene 
+		&& (CanMaterialRenderInLumenTranslucencyRadianceCacheMarkPass(*Scene, ViewFamily, SceneProxy, Material)
+			|| CanMaterialRenderInLumenFrontLayerTranslucencyGBufferPass(*Scene, ViewFamily, SceneProxy, Material)))
 	{
 		return true;
 	}

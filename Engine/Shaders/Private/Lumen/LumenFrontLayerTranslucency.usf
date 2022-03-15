@@ -1,0 +1,78 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenFrontLayerTranslucency.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "../BRDF.ush"
+
+// Material pass reroutes
+#define SceneTexturesStruct LumenFrontLayerTranslucencyGBufferPass.SceneTextures
+#define StrataStruct LumenFrontLayerTranslucencyGBufferPass.Strata
+
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+
+struct FLumenFrontLayerTranslucencyGBufferInterpolantsVSToPS
+{
+
+};
+
+struct FLumenFrontLayerTranslucencyGBufferVSToPS
+{
+	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
+	FLumenFrontLayerTranslucencyGBufferInterpolantsVSToPS PassInterpolants;
+	float4 Position : SV_POSITION;
+};
+
+void MainVS(
+	FVertexFactoryInput Input,
+	out FLumenFrontLayerTranslucencyGBufferVSToPS Output
+	)
+{	
+	uint EyeIndex = 0;
+	ResolvedView = ResolveView();
+
+	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+	float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+	float4 WorldPosition = WorldPositionExcludingWPO;
+	float4 ClipSpacePosition;
+
+	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
+	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
+
+	ISOLATE
+	{
+		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
+		ClipSpacePosition = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
+		Output.Position = INVARIANT(ClipSpacePosition);
+	}
+
+	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+}
+
+void MainPS(
+	FVertexFactoryInterpolantsVSToPS Interpolants,
+	FLumenFrontLayerTranslucencyGBufferInterpolantsVSToPS PassInterpolants,
+	in INPUT_POSITION_QUALIFIERS float4 SvPosition : SV_Position		
+	OPTIONAL_IsFrontFace,
+	out float4 OutTarget0 : SV_Target0
+	OPTIONAL_OutDepthConservative)
+{
+	ResolvedView = ResolveView();
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+
+	FPixelMaterialInputs PixelMaterialInputs;
+	
+	{
+		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+	}
+
+	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
+
+	OutTarget0 = float4(EncodeNormal(MaterialParameters.WorldNormal), 1.0f);
+}

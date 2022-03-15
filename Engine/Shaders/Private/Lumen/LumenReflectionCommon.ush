@@ -15,7 +15,9 @@ uint2 ReflectionTracingBufferSize;
 uint ReflectionDownsampleFactor;
 float MaxRayIntensity;
 float ReflectionSmoothBias;
-uint SingleLayerWaterReflections;
+
+// 0: Opaque, 1: SingleLayerWater, 2: FrontLayerTranslucency
+uint ReflectionPass;
 uint UseJitter;
 
 // Note: negative if invalid ray
@@ -184,5 +186,6 @@ float ApplySmoothBias(float Roughness)
 		NewRoughness = Roughness * X * X * (3.0 - 2.0 * X);
 	}
 
-	return SingleLayerWaterReflections == 1 ? 0.0f : NewRoughness;
+	// Only opaque reflections get the denoiser, force to mirror
+	return ReflectionPass == 0 ? NewRoughness : 0.0f;
 }

@@ -14,10 +14,10 @@
 #include "LumenTranslucencyVolumeLighting.h"
 #include "LumenRadianceCache.h"
 
-int32 GLumenTranslucencyReflections = 1;
+int32 GLumenTranslucencyRadianceCacheReflections = 1;
 FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCache(
-	TEXT("r.Lumen.TranslucencyReflections.Enable"),
-	GLumenTranslucencyReflections,
+	TEXT("r.Lumen.TranslucencyReflections.RadianceCache"),
+	GLumenTranslucencyRadianceCacheReflections,
 	TEXT("Whether to use the Radiance Cache to provide Lumen Reflections on Translucent Surfaces."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -48,9 +48,9 @@ FAutoConsoleVariableRef CVarLumenTranslucencyVolumeRadianceCacheClipmapFadeSize(
 
 namespace Lumen
 {
-	bool UseLumenTranslucencyReflections(const FViewInfo& View)
+	bool UseLumenTranslucencyRadianceCacheReflections(const FViewInfo& View)
 	{
-		return GLumenTranslucencyReflections != 0 && View.Family->EngineShowFlags.LumenReflections;
+		return GLumenTranslucencyRadianceCacheReflections != 0 && View.Family->EngineShowFlags.LumenReflections;
 	}
 
 	bool ShouldRenderInTranslucencyRadianceCacheMarkPass(const FPrimitiveSceneProxy& PrimitiveSceneProxy, const FMaterial& Material)
@@ -268,7 +268,7 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 	const FSceneTextures& SceneTextures,
 	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 {
-	check(GLumenTranslucencyReflections != 0);
+	check(GLumenTranslucencyRadianceCacheReflections != 0);
 
 	const EMeshPass::Type MeshPass = EMeshPass::LumenTranslucencyRadianceCacheMark;
 	const float ViewportScale = 1.0f / GLumenTranslucencyReflectionsMarkDownsampleFactor;
@@ -326,10 +326,8 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 
 	View.ParallelMeshDrawCommandPasses[MeshPass].BuildRenderingCommands(GraphBuilder, SceneRenderer.Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 
-	RDG_EVENT_SCOPE(GraphBuilder, "TranslucentSurfacesMarkPass");
-
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("TranslucencyReflectionsRadianceCacheMark"),
+		RDG_EVENT_NAME("TranslucentSurfacesMarkPass"),
 		PassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandListImmediate& RHICmdList)

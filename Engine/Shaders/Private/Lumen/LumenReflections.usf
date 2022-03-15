@@ -46,13 +46,17 @@ bool NeedRayTracedReflections(float InRoughness, const FLumenMaterialData In)
 {
 	bool bNeedReflections = false;
 
-	if (SingleLayerWaterReflections)
+	if (ReflectionPass == 0)
+	{
+		bNeedReflections = IsValid(In) && (InRoughness <= MaxRoughnessToTrace || IsClearCoat(In));
+	}
+	else if (ReflectionPass == 1)
 	{
 		bNeedReflections = IsSingleLayerWater(In);
 	}
 	else
 	{
-		bNeedReflections = IsValid(In) && (InRoughness <= MaxRoughnessToTrace || IsClearCoat(In));
+		bNeedReflections = IsFrontLayerTranslucency(In);
 	}
 
 	return bNeedReflections;
@@ -384,17 +388,16 @@ void ReflectionResolveCS(
 {
 	uint2 ScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
 	float2 ScreenUV = (ScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
-	float SceneDepth = CalcSceneDepth(ScreenUV);
-
+	
 	float3 ReflectionLighting = 0;
 	float ResolveVariance = 0;
-	float DepthForReprojection = SceneDepth;
+	float DepthForReprojection = 0;
 
 	const bool bUseCenterSample = ReflectionDownsampleFactor == 1;
 
-	if (SceneDepth < 1000000.0f)
 	{
 		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(ScreenCoord), true /*bTopLayerRoughness*/);
+		DepthForReprojection = Material.SceneDepth;
 
 		if (NeedRayTracedReflections(Material.TopLayerRoughness, Material))
 		{
@@ -404,7 +407,7 @@ void ReflectionResolveCS(
 
 		#if USE_SPATIAL_RECONSTRUCTION
 			{
-				const float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+				const float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, Material.SceneDepth);
 				const float3 V = -normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 				const float3x3 TangentBasis = GetTangentBasis(Material);
 				const float3 TangentV = mul(TangentBasis, V);
@@ -556,7 +559,7 @@ void ReflectionResolveCS(
 			}
 		#endif // USE_SPATIAL_RECONSTRUCTION
 
-			DepthForReprojection = SceneDepth + ClosestHitDepth;
+			DepthForReprojection = Material.SceneDepth + ClosestHitDepth;
 		}
 	}
 
