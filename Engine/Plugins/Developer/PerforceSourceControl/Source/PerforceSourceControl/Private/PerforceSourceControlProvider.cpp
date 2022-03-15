@@ -27,7 +27,7 @@ static FName ProviderName("Perforce");
 
 FPerforceSourceControlProvider::FPerforceSourceControlProvider()
 	: PerforceSCCSettings(*this, FStringView())
-	, InitialSettings(FSourceControlInitSettings::EBehavior::OverrideAll)
+	, InitialSettings(FSourceControlInitSettings::EBehavior::OverrideExisting)
 	, OwnerName(TEXT("Default"))
 	, bServerAvailable(false)
 	, bLoginError(false)
@@ -36,18 +36,18 @@ FPerforceSourceControlProvider::FPerforceSourceControlProvider()
 	auto ParseCmdLineSetting = [this](const TCHAR* SettingKey) -> void
 	{
 		FString SettingValue;
-		if (FParse::Value(FCommandLine::Get(), SettingKey, SettingValue))
+		if (FParse::Value(FCommandLine::Get(), *WriteToString<64>(SettingKey, TEXT("=")), SettingValue))
 		{
 			InitialSettings.AddSetting(SettingKey, SettingValue);
 		}
 	};
 
-	ParseCmdLineSetting(TEXT("P4Port="));
-	ParseCmdLineSetting(TEXT("P4User="));
-	ParseCmdLineSetting(TEXT("P4Client="));
-	ParseCmdLineSetting(TEXT("P4Host="));
-	ParseCmdLineSetting(TEXT("P4Passwd="));
-	ParseCmdLineSetting(TEXT("P4Changelist="));
+	ParseCmdLineSetting(TEXT("P4Port"));
+	ParseCmdLineSetting(TEXT("P4User"));
+	ParseCmdLineSetting(TEXT("P4Client"));
+	ParseCmdLineSetting(TEXT("P4Host"));
+	ParseCmdLineSetting(TEXT("P4Passwd"));
+	ParseCmdLineSetting(TEXT("P4Changelist"));
 
 	AccessSettings().LoadSettings();
 }
