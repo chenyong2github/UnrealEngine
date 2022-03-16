@@ -28,6 +28,7 @@ public class BlueprintHeaderView : ModuleRules
 				"UnrealEd",
 				"BlueprintGraph",
 				"ApplicationCore",
+				"DeveloperSettings",
 			}
 			);
 		

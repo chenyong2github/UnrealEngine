@@ -7,12 +7,14 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
+#include "Misc/NotifyHook.h"
 
 class SComboButton;
 class UBlueprint;
 class ITableRow;
 class STableViewBase;
 class FUICommandList;
+class UEdGraph;
 
 /** rich text decorators for BlueprintHeaderView Syntax Highlighting */
 namespace HeaderViewSyntaxDecorators
@@ -67,7 +69,7 @@ protected:
 
 using FHeaderViewListItemPtr = TSharedPtr<FHeaderViewListItem>;
 
-class SBlueprintHeaderView : public SCompoundWidget
+class SBlueprintHeaderView : public SCompoundWidget, public FNotifyHook
 {
 public:
 	SLATE_BEGIN_ARGS(SBlueprintHeaderView)
@@ -82,12 +84,20 @@ public:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	//~ End SWidget interface
 
+	//~ FNotifyHook interface
+		/** Handles when the settings have changed, saves to config */
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
+	//~ End FNotifyHook interface
+
 private:
 	/** Gets the text for the class picker combo button */
 	FText GetClassPickerText() const;
 
 	/** Constructs a Blueprint Class picker menu widget */
 	TSharedRef<SWidget> GetClassPickerMenuContent();
+
+	/** Constructs a DetailsView widget for the settings menu */
+	TSharedRef<SWidget> GetSettingsMenuContent();
 
 	/** Callback for class picker menu selecting a blueprint asset */
 	void OnAssetSelected(const FAssetData& SelectedAsset);
@@ -101,8 +111,14 @@ private:
 	/** Adds items to the list view representing all functions present in the given blueprint */
 	void PopulateFunctionItems(const UBlueprint* Blueprint);
 
+	/** Gathers all function graphs from the blueprint and sorts them according to the selected method from config */
+	void GatherFunctionGraphs(const UBlueprint* Blueprint, TArray<const UEdGraph*>& OutFunctionGraphs);
+
 	/** Adds items to the list view representing all variables present in the given blueprints */
 	void PopulateVariableItems(const UBlueprint* Blueprint);
+	
+	/** Gathers all properties from the blueprint and sorts them according to the selected method from config */
+	void GatherProperties(const UBlueprint* Blueprint, TArray<const FProperty*>& OutProperties);
 
 	/** Creates a context menu for the list view */
 	TSharedPtr<SWidget> OnContextMenuOpening();
