@@ -231,6 +231,13 @@ public:
 	 */
 	bool QuickPack(int32 TargetTextureResolution = 512, float GutterSize = 1.0f);
 
+	/**
+    * Pack specific UVs triangles into the specific unit rectangle at the specified index
+	* @param UDIMCoordsIn Which unit rectangle tile should the UVs be packed in, indicated by the coordinate of it's lower left hand corner
+	* @param Triangles Which UV triangles to pack, all triangles if nullptr
+    */
+	bool UDIMPack(int32 TargetTextureResolution = 512, float GutterSize = 1.0f, const FVector2i& UDIMCoordsIn = FVector2i(0,0), const TArray<int32>* Triangles = nullptr);
+
 
 	//
 	// Utility functions that could maybe go elsewhere but are mainly useful in parameterization context

@@ -20,7 +20,7 @@ namespace UE
 		class UVEDITORTOOLS_API FDynamicMeshUDIMClassifier
 		{
 		public:
-			explicit FDynamicMeshUDIMClassifier(FDynamicMeshUVOverlay* UVOverlay);
+			explicit FDynamicMeshUDIMClassifier(const FDynamicMeshUVOverlay* UVOverlay);
 
 			TArray<FVector2i> ActiveTiles() const;
 			TArray<int32> TidsForTile(FVector2i TileIndexIn) const;
@@ -30,7 +30,7 @@ namespace UE
 			void ClassifyUDIMs();
 
 			/** The UV Overlay to analyze for UDIMs */
-			FDynamicMeshUVOverlay* UVOverlay = nullptr;
+			const FDynamicMeshUVOverlay* UVOverlay = nullptr;
 
 			TMap<FVector2i, TArray<int32> > UDIMs;
 		};

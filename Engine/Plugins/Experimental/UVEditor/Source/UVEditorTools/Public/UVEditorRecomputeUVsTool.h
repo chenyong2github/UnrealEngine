@@ -6,7 +6,6 @@
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "PropertySets/PolygroupLayersProperties.h"
-#include "Properties/RecomputeUVsProperties.h"
 #include "Polygroups/PolygroupSet.h"
 #include "Drawing/UVLayoutPreview.h"
 #include "UVEditorToolAnalyticsUtils.h"
@@ -19,7 +18,8 @@ class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UUVEditorToolMeshInput;
-class URecomputeUVsOpFactory;
+class UUVEditorRecomputeUVsToolProperties;
+class UUVEditorRecomputeUVsOpFactory;
 
 /**
  *
@@ -75,13 +75,13 @@ protected:
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
 
 	UPROPERTY()
-	TObjectPtr<URecomputeUVsToolProperties> Settings = nullptr;
+	TObjectPtr<UUVEditorRecomputeUVsToolProperties> Settings = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
 
 	UPROPERTY()
-	TArray<TObjectPtr<URecomputeUVsOpFactory>> Factories;
+	TArray<TObjectPtr<UUVEditorRecomputeUVsOpFactory>> Factories;
 
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();

@@ -5,13 +5,14 @@
 #include "ToolBuilderUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Polygroups/PolygroupUtil.h"
-#include "ParameterizationOps/RecomputeUVsOp.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "ContextObjects/UVToolContextObjects.h"
 #include "ContextObjectStore.h"
 #include "MeshOpPreviewHelpers.h"
 #include "UVEditorToolAnalyticsUtils.h"
 #include "EngineAnalytics.h"
+#include "Operators/UVEditorRecomputeUVsOp.h"
+#include "UVEditorUXSettings.h"
 
 using namespace UE::Geometry;
 
@@ -49,8 +50,9 @@ void UUVEditorRecomputeUVsTool::Setup()
 
 	// initialize our properties
 
-	Settings = NewObject<URecomputeUVsToolProperties>(this);
+	Settings = NewObject<UUVEditorRecomputeUVsToolProperties>(this);
 	Settings->RestoreProperties(this);
+	Settings->bUDIMCVAREnabled = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 	AddToolPropertySource(Settings);
 	Factories.SetNum(Targets.Num());
 
@@ -66,14 +68,14 @@ void UUVEditorRecomputeUVsTool::Setup()
 	else
 	{
 		Settings->bEnablePolygroupSupport = false;
-		Settings->IslandGeneration = ERecomputeUVsPropertiesIslandMode::ExistingUVs;
+		Settings->IslandGeneration = EUVEditorRecomputeUVsPropertiesIslandMode::ExistingUVs;
 	}
 
 	
 	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
 	{
 		TObjectPtr<UUVEditorToolMeshInput> Target = Targets[TargetIndex];
-		Factories[TargetIndex] = NewObject<URecomputeUVsOpFactory>();
+		Factories[TargetIndex] = NewObject<UUVEditorRecomputeUVsOpFactory>();
 		Factories[TargetIndex]->TargetTransform = (FTransform3d)Target->AppliedPreview->PreviewMesh->GetTransform();
 		Factories[TargetIndex]->Settings = Settings;
 		Factories[TargetIndex]->OriginalMesh = Target->AppliedCanonical;
@@ -264,23 +266,23 @@ void UUVEditorRecomputeUVsTool::RecordAnalytics()
 	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.AutoRotation"), Settings->AutoRotation));
 	
 	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.UnwrapType"), Settings->UnwrapType));
-	if (Settings->UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging || Settings->UnwrapType == ERecomputeUVsPropertiesUnwrapType::ExpMap)
+	if (Settings->UnwrapType == EUVEditorRecomputeUVsPropertiesUnwrapType::IslandMerging || Settings->UnwrapType == EUVEditorRecomputeUVsPropertiesUnwrapType::ExpMap)
 	{
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.SmoothingSteps"), Settings->SmoothingSteps));
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.SmoothingAlpha"), Settings->SmoothingAlpha));
 	}
-	if (Settings->UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging)
+	if (Settings->UnwrapType == EUVEditorRecomputeUVsPropertiesUnwrapType::IslandMerging)
 	{
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MergingDistortionThreshold"), Settings->MergingDistortionThreshold));
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MergingAngleThreshold"), Settings->MergingAngleThreshold));
 	}
 	
 	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.LayoutType"), Settings->LayoutType));
-	if (Settings->LayoutType == ERecomputeUVsPropertiesLayoutType::Repack)
+	if (Settings->LayoutType == EUVEditorRecomputeUVsPropertiesLayoutType::Repack)
 	{
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.TextureResolution"), Settings->TextureResolution));
 	}
-	if (Settings->LayoutType == ERecomputeUVsPropertiesLayoutType::NormalizeToBounds || Settings->LayoutType == ERecomputeUVsPropertiesLayoutType::NormalizeToWorld)
+	if (Settings->LayoutType == EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToBounds || Settings->LayoutType == EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToWorld)
 	{
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.NormalizeScale"), Settings->NormalizeScale));
 	}

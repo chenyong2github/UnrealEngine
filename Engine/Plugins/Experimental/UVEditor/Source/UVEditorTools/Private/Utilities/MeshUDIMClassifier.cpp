@@ -7,7 +7,7 @@
 
 using namespace UE::Geometry;
 
-FDynamicMeshUDIMClassifier::FDynamicMeshUDIMClassifier(FDynamicMeshUVOverlay* UVOverlayIn)
+FDynamicMeshUDIMClassifier::FDynamicMeshUDIMClassifier(const FDynamicMeshUVOverlay* UVOverlayIn)
 {
 	UVOverlay = UVOverlayIn;
 	ClassifyUDIMs();
@@ -35,7 +35,7 @@ TArray<int32> FDynamicMeshUDIMClassifier::TidsForTile(FVector2i TileIndexIn) con
 void FDynamicMeshUDIMClassifier::ClassifyUDIMs()
 {
 	int32 CurrentUDIMIndex = 0;
-	FDynamicMesh3* Mesh = UVOverlay->GetParentMesh();
+	const FDynamicMesh3* Mesh = UVOverlay->GetParentMesh();
 
 	auto UVIslandPredicate = [this](int32 Triangle0, int32 Triangle1)
 	{

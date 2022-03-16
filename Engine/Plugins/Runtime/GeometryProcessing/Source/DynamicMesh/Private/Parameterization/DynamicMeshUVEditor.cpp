@@ -1419,6 +1419,63 @@ bool FDynamicMeshUVEditor::QuickPack(int32 TargetTextureResolution, float Gutter
 	return bOK;
 }
 
+bool FDynamicMeshUVEditor::UDIMPack(int32 TargetTextureResolution, float GutterSize, const FVector2i& UDIMCoordsIn, const TArray<int32>* Triangles)
+{
+	TUniquePtr<TArray<int32>> TileTids;
+	if (Triangles)
+	{
+		TileTids = MakeUnique<TArray<int32>>(*Triangles);
+	}
+	else
+	{
+		// Add all set UV triangles
+		TileTids = MakeUnique<TArray<int32>>();
+		TileTids->Reserve(Mesh->TriangleCount());
+		for (int32 TriangleID : Mesh->TriangleIndicesItr())
+		{
+			TileTids->Add(TriangleID);
+		}
+	}
+
+	// Do this first, so we don't need to keep the TileTids around after moving it into the packer.
+	TSet<int32> ElementsToMove;
+	ElementsToMove.Reserve(TileTids->Num() * 3);
+	for (int Tid : *TileTids)
+	{
+		// If the triangle is unset, we will skip it here, before moving on.
+		if (UVOverlay->IsSetTriangle(Tid))
+		{
+			FIndex3i Elements = UVOverlay->GetTriangle(Tid);
+			ElementsToMove.Add(Elements[0]);
+			ElementsToMove.Add(Elements[1]);
+			ElementsToMove.Add(Elements[2]);
+		}
+	}
+	// Final check to make sure we didn't let any invalid element IDs from sneaking through.
+	// This should never happen, since we are filtering potentially unset UV triangles above
+	check(!ElementsToMove.Contains(IndexConstants::InvalidID));
+
+	// TODO: There is a second connected components call inside the packer that might be unnessessary. Could be a future optimization.
+	FDynamicMeshUVPacker Packer(UVOverlay, MoveTemp(TileTids));
+	Packer.TextureResolution = TargetTextureResolution;
+	Packer.GutterSize = GutterSize;
+	Packer.bAllowFlips = false;
+	bool bOK = Packer.StandardPack();
+
+	// Transform this to match the internal UV storage layout of negative Y
+	FVector2i TransformedUDIMCoords(UDIMCoordsIn.X, -UDIMCoordsIn.Y);
+
+	for (int32 Element : ElementsToMove)
+	{
+		FVector2f UV = UVOverlay->GetElement(Element);
+		UV = (UV)+(FVector2f)(TransformedUDIMCoords);
+		UVOverlay->SetElement(Element, UV);
+	}
+
+	return bOK;
+}
+
+
 double  FDynamicMeshUVEditor::DetermineAreaFromUVs(const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& Triangles, FAxisAlignedBox2f* BoundingBox)
 {
 	if (BoundingBox)
