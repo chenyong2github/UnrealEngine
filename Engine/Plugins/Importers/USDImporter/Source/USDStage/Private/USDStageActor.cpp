@@ -1433,9 +1433,9 @@ FString AUsdStageActor::GetSourcePrimPath( UObject* Object )
 
 	if ( AssetCache )
 	{
-		for ( const TPair<FString, UObject*>& PrimPathToAsset : AssetCache->GetAssetPrimLinks() )
+		for ( const TPair<FString, TWeakObjectPtr<UObject>>& PrimPathToAsset : AssetCache->GetAssetPrimLinks() )
 		{
-			if ( PrimPathToAsset.Value == Object )
+			if ( PrimPathToAsset.Value.Get() == Object )
 			{
 				return PrimPathToAsset.Key;
 			}
@@ -2081,6 +2081,10 @@ void AUsdStageActor::PostDuplicate( bool bDuplicateForPIE )
 	{
 		OpenUsdStage();
 	}
+	else
+	{
+		LoadUsdStage();
+	}
 }
 
 void AUsdStageActor::Serialize(FArchive& Ar)
@@ -2637,7 +2641,7 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 	{
 		FString StartPrimPath = StartPrim.GetPrimPath().GetString();
 		TSet<FString> PrimPathsToRemove;
-		for ( const TPair< FString, UObject* >& PrimPathToAssetIt : AssetCache->GetAssetPrimLinks() )
+		for ( const TPair< FString, TWeakObjectPtr<UObject> >& PrimPathToAssetIt : AssetCache->GetAssetPrimLinks() )
 		{
 			const FString& PrimPath = PrimPathToAssetIt.Key;
 			if ( PrimPath.StartsWith( StartPrimPath ) || PrimPath == StartPrimPath )

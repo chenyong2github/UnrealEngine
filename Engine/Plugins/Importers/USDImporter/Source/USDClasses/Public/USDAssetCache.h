@@ -32,7 +32,7 @@ public:
 	/** Returns the first prim path associated with an asset (see TMap::FindKey) */
 	FString GetPrimForAsset( UObject* Asset ) const;
 
-	TMap< FString, UObject* > GetAssetPrimLinks() const { return PrimPathToAssets; }; // Can't return a reference as it wouldn't be thread-safe
+	TMap< FString, TWeakObjectPtr<UObject> > GetAssetPrimLinks() const { return PrimPathToAssets; }; // Can't return a reference as it wouldn't be thread-safe
 
 	bool IsAssetOwnedByCache( UObject* Asset ) const { return OwnedAssets.Contains( Asset ); }
 
@@ -56,22 +56,25 @@ public:
 	virtual void Serialize( FArchive& Ar ) override;
 
 private:
-	UPROPERTY( Transient, VisibleAnywhere, Category = "Assets" )
+	// For now everything is NonPIEDuplicateTransient as this is mostly a subobject of AUsdStageActor. When the actor is duplicated
+	// it will need to reload the stage anyway to rebuild its prim links to components and assets, so there is no point in duplicating
+	// the properties here just yet. Obviously we want to duplicate these properties
+	UPROPERTY( NonPIEDuplicateTransient, Transient, VisibleAnywhere, Category = "Assets" )
 	TMap< FString, UObject* > TransientStorage;
 
-	UPROPERTY( VisibleAnywhere, Category = "Assets" )
+	UPROPERTY( NonPIEDuplicateTransient, VisibleAnywhere, Category = "Assets" )
 	TMap< FString, UObject* > PersistentStorage;
 
 	UPROPERTY( EditAnywhere, Category = "Assets", AdvancedDisplay )
 	bool bAllowPersistentStorage;
 
 	// Points to the assets in primary storage, used to quickly check if we own an asset
-	UPROPERTY()
-	TSet< UObject* > OwnedAssets;
+	UPROPERTY( NonPIEDuplicateTransient )
+	TSet< TWeakObjectPtr<UObject> > OwnedAssets;
 
 	// Keeps associations from prim paths to assets that we own in primary storage
-	UPROPERTY()
-    TMap< FString, UObject* > PrimPathToAssets;
+	UPROPERTY( NonPIEDuplicateTransient )
+    TMap< FString, TWeakObjectPtr<UObject> > PrimPathToAssets;
 
 	// Assets that were added/retrieved since the last call to MarkAssetsAsSlate();
 	mutable TSet<UObject*> ActiveAssets;

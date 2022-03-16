@@ -91,9 +91,9 @@ void UUsdAssetCache::DiscardAsset( const FString& Hash )
 
 	if ( FoundObject )
 	{
-		for ( TMap< FString, UObject* >::TIterator PrimPathToAssetIt = PrimPathToAssets.CreateIterator(); PrimPathToAssetIt; ++PrimPathToAssetIt )
+		for ( TMap< FString, TWeakObjectPtr<UObject> >::TIterator PrimPathToAssetIt = PrimPathToAssets.CreateIterator(); PrimPathToAssetIt; ++PrimPathToAssetIt )
 		{
-			if ( *FoundObject == PrimPathToAssetIt.Value() )
+			if ( *FoundObject == PrimPathToAssetIt.Value().Get() )
 			{
 				PrimPathToAssetIt.RemoveCurrent();
 			}
@@ -163,10 +163,13 @@ UObject* UUsdAssetCache::GetAssetForPrim( const FString& PrimPath ) const
 {
 	FScopeLock Lock( &CriticalSection );
 
-	if ( UObject* const* FoundObject = PrimPathToAssets.Find( PrimPath ) )
+	if ( TWeakObjectPtr<UObject> const* FoundObjectPtr = PrimPathToAssets.Find( PrimPath ) )
 	{
-		ActiveAssets.Add( *FoundObject );
-		return *FoundObject;
+		if ( UObject* FoundObject = FoundObjectPtr->Get() )
+		{
+			ActiveAssets.Add( FoundObject );
+			return FoundObject;
+		}
 	}
 
 	return nullptr;
