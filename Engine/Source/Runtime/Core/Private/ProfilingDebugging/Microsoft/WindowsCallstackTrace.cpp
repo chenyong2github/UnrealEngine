@@ -648,8 +648,9 @@ uint32 FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 
 #if BACKTRACE_LOCK_FREE
 		{
+			int32 StoreBias = Function->RspBias < 0 ? -1 : Function->RspBias;
 			TGuardValue<bool> ReentranceGuard(bReentranceCheck, true);
-			FunctionLookups.Emplace(RetAddr, Function->RspBias);
+			FunctionLookups.Emplace(RetAddr, StoreBias);
 		}
 #endif
 
