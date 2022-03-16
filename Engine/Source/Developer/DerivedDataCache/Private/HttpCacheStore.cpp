@@ -3426,6 +3426,7 @@ TArray<FValue> FHttpCacheStore::RefCachedDataProbablyExistsBatch(
 		Bucket.ToLowerInline();
 		RequestWriter.AddString("bucket"_ASV, Bucket);
 		RequestWriter.AddString("key"_ASV, LexToString(Key.Hash));
+		RequestWriter.AddBool("resolveAttachments"_ASV, true);
 		RequestWriter.EndObject();
 		++OpIndex;
 	}
