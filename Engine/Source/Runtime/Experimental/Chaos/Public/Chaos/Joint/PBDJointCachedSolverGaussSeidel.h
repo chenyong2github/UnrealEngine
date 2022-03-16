@@ -294,6 +294,36 @@ struct FAxisConstraintDatas
 			const int32 ConstraintIndex,
 			const FReal Dt);
 		
+		void InitPositionConstraintDatas(
+			const int32 ConstraintIndex,
+			const FVec3& ConstraintAxis,
+			const FReal& ConstraintDelta,
+			const FReal ConstraintRestitution,
+			const FReal Dt,
+			const FReal ConstraintLimit,
+			const EJointMotionType JointType,
+			const FVec3& ConstraintArm0,
+			const FVec3& ConstraintArm1);
+
+		void InitLockedPositionConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt,
+			const TVec3<EJointMotionType>& LinearMotion);
+
+		void InitSphericalPositionConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt);
+		
+		void InitCylindricalPositionConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt,
+			const int32 AxisIndex);
+
+		void InitPlanarPositionConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt,
+			const int32 AxisIndex);
+		
 		/** Apply Position constraints */
 
 		void ApplyPositionConstraints(
