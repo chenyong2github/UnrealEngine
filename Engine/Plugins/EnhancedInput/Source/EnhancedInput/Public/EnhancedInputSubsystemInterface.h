@@ -215,6 +215,14 @@ public:
 	/** Removes all the input mapping contexts inside of this mappable config. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta=(AutoCreateRefTerm = "Options"))
 	virtual void RemovePlayerMappableConfig(const UPlayerMappableInputConfig* Config, const FModifyContextOptions& Options = FModifyContextOptions());
+
+protected:
+
+	/**
+	 * Ticks any forced/injected input to the subsystem's player input. If you want support for ApplyForcedInput
+	 * in a subsytem implementing this interface, then you must call this function.
+	 */
+	void TickForcedInput(float DeltaTime);
 	
 private:
 
@@ -223,7 +231,6 @@ private:
 	void ApplyForcedInput(FKey Key, FInputActionValue Value);
 	void RemoveForcedInput(const UInputAction* Action);
 	void RemoveForcedInput(FKey Key);
-	void TickForcedInput(float DeltaTime);
 
 	void InjectChordBlockers(const TArray<int32>& ChordedMappings);
 	bool HasTriggerWith(TFunctionRef<bool(const class UInputTrigger*)> TestFn, const TArray<class UInputTrigger*>& Triggers);
