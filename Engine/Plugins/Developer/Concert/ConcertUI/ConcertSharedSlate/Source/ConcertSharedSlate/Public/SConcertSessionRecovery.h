@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SConcertSessionActivities.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -17,13 +18,6 @@ class FConcertSessionActivitiesOptions;
  */
 class CONCERTSHAREDSLATE_API SConcertSessionRecovery : public SCompoundWidget
 {
-public:
-	/** Used to pull activities from a session. Used to fetch and display the activities of an archived session. */
-	using FFetchActivitiesFunc = TFunction<bool(TArray<TSharedPtr<FConcertSessionActivity>>& /*InOutActivities*/, int32& /*OutFetchedCount*/, FText& /*ErrorMsg*/)>;
-
-	/** Used to map an activity to its client. */
-	using FGetActivityClientInfoFunc = TFunction<const FConcertClientInfo*(FGuid /*ClientId*/)>;
-
 public:
 	SLATE_BEGIN_ARGS(SConcertSessionRecovery)
 		: _ClientAvatarColorColumnVisibility(EVisibility::Collapsed)
@@ -46,10 +40,10 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
 
 		/** If bound, invoked iteratively to populate the activity list. */
-		SLATE_ARGUMENT(FFetchActivitiesFunc, OnFetchActivities)
+		SLATE_EVENT(SConcertSessionActivities::FFetchActivitiesFunc, OnFetchActivities)
 
 		/** If bound, invoked to map an activity to a client info. */
-		SLATE_ARGUMENT(FGetActivityClientInfoFunc, OnMapActivityToClient)
+		SLATE_EVENT(SConcertSessionActivities::FGetActivityClientInfoFunc, OnMapActivityToClient)
 
 		/** Invoked when the user clicks the 'recover' button. */
 		SLATE_ARGUMENT(TFunction<bool(TSharedPtr<FConcertSessionActivity>)>, OnRestore)

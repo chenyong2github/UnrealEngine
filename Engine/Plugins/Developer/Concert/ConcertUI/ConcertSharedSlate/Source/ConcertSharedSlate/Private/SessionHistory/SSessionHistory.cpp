@@ -49,7 +49,7 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 	SAssignNew(ActivityListView, SConcertSessionActivities)
 		.OnGetPackageEvent(InArgs._GetPackageEvent)
 		.OnGetTransactionEvent(InArgs._GetTransactionEvent)
-		.OnMapActivityToClient([this](FGuid ClientId){ return EndpointClientInfoMap.Find(ClientId); })
+		.OnMapActivityToClient(this, &SSessionHistory::GetClientInfo)
 		.HighlightText(this, &SSessionHistory::HighlightSearchedText)
 		.TimeFormat(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
 		.ClientNameColumnVisibility(EVisibility::Visible)
@@ -104,7 +104,7 @@ void SSessionHistory::ReloadActivities(TMap<FGuid, FConcertClientInfo> InEndpoin
 {
 	EndpointClientInfoMap = MoveTemp(InEndpointClientInfoMap);
 	ActivityMap.Reset();
-	ActivityListView->Reset(); // Careful, don't reset the shared ptr.
+	ActivityListView->ResetActivityList(); 
 
 	for (FConcertSessionActivity& FetchedActivity : InFetchedActivities)
 	{
@@ -161,6 +161,15 @@ void SSessionHistory::OnSearchTextCommitted(const FText& InSearchText, ETextComm
 FText SSessionHistory::HighlightSearchedText() const
 {
 	return SearchedText;
+}
+
+TOptional<FConcertClientInfo> SSessionHistory::GetClientInfo(FGuid Guid) const
+{
+	if (const FConcertClientInfo* ClientInfo = EndpointClientInfoMap.Find(Guid))
+	{
+		return *ClientInfo;
+	}
+	return {};
 }
 
 #undef LOCTEXT_NAMESPACE /* SSessionHistory */

@@ -596,7 +596,7 @@ void SDisasterRecoveryHub::OnSessionSelectionChanged(TSharedPtr<FDisasterRecover
 TSharedRef<SWidget> SDisasterRecoveryHub::MakeSessionActivityView()
 {
 	return SAssignNew(ActivityView, SConcertSessionRecovery)
-		.OnFetchActivities([this](TArray<TSharedPtr<FConcertSessionActivity>>& InOutActivities, int32& OutFetchedCount, FText& ErrorMsg) { return FetchActivities(InOutActivities, OutFetchedCount, ErrorMsg); })
+		.OnFetchActivities(this, &SDisasterRecoveryHub::FetchActivities)
 		.ClientAvatarColorColumnVisibility(EVisibility::Hidden) // Disaster recovery has only one user, the local one.
 		.ClientNameColumnVisibility(EVisibility::Hidden)
 		.OperationColumnVisibility(EVisibility::Visible)

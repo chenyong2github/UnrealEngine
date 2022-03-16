@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ServerSessionHistoryController.h"
 
+class FConcertSessionPackageViewerController;
 class IConcertSyncServer;
 class FServerSessionHistoryController;
 class IConcertServerSession;
@@ -28,8 +29,11 @@ private:
 
 	/** The session being inspected */
 	const TSharedRef<IConcertServerSession> InspectedSession;
-	
+
+	/** Manages the session history widget */
 	const TSharedRef<FServerSessionHistoryController> SessionHistoryController;
+	/** Manages the package viewer widget */
+	const TSharedRef<FConcertSessionPackageViewerController> PackageViewerController;
 	
 	/** The tab containing the UI for InspectedSession */
 	const TSharedRef<SDockTab> DockTab;

@@ -9,7 +9,22 @@
 FServerSessionHistoryController::FServerSessionHistoryController(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer)
 	: InspectedSession(MoveTemp(InspectedSession))
 	, SyncServer(MoveTemp(SyncServer))
-{}
+{
+	ReloadActivities();
+
+	if (const TOptional<FConcertSyncSessionDatabaseNonNullPtr> Database = SyncServer->GetLiveSessionDatabase(InspectedSession->GetId()))
+	{
+		Database->OnActivityProduced().AddRaw(this, &FServerSessionHistoryController::OnSessionProduced);
+	}
+}
+
+FServerSessionHistoryController::~FServerSessionHistoryController()
+{
+	if (const TOptional<FConcertSyncSessionDatabaseNonNullPtr> Database = SyncServer->GetLiveSessionDatabase(InspectedSession->GetId()))
+	{
+		Database->OnActivityProduced().RemoveAll(this);
+	}
+}
 
 void FServerSessionHistoryController::GetActivities(int64 MaximumNumberOfActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertSessionActivity>& OutFetchedActivities) const
 {
@@ -38,7 +53,7 @@ void FServerSessionHistoryController::GetActivities(int64 MaximumNumberOfActivit
 				OutFetchedActivities.Emplace(MoveTemp(InActivity), MoveTemp(ActivitySummary));
 			}
 
-			return true;
+			return EBreakBehavior::Continue;
 		});
 	}
 }
@@ -69,4 +84,9 @@ TFuture<TOptional<FConcertSyncTransactionEvent>> FServerSessionHistoryController
 	return Database.GetTransactionEvent(TransactionEventId, TransactionEvent, false)
 		?	MakeFulfilledPromise<TOptional<FConcertSyncTransactionEvent>>(MoveTemp(TransactionEvent)).GetFuture()
 		:	MakeFulfilledPromise<TOptional<FConcertSyncTransactionEvent>>().GetFuture();
+}
+
+void FServerSessionHistoryController::OnSessionProduced(const FConcertSyncActivity& ProducedActivity)
+{
+	ReloadActivities();
 }

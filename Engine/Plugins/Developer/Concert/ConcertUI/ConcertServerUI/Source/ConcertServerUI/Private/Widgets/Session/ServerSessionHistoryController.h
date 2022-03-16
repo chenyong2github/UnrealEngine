@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "SessionHistory/AbstractSessionHistoryController.h"
 
+struct FConcertSyncActivity;
 class FConcertSyncSessionDatabase;
 class IConcertSyncServer;
 class IConcertServerSession;
@@ -14,6 +15,7 @@ class FServerSessionHistoryController : public FAbstractSessionHistoryController
 public:
 
 	FServerSessionHistoryController(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer);
+	virtual ~FServerSessionHistoryController() override;
 	
 protected:
 
@@ -29,4 +31,6 @@ private:
 	TSharedRef<IConcertSyncServer> SyncServer;
 
 	TFuture<TOptional<FConcertSyncTransactionEvent>> FindOrRequestTransactionEvent(const FConcertSyncSessionDatabase& Database, const int64 TransactionEventId) const;
+	
+	void OnSessionProduced(const FConcertSyncActivity& ProducedActivity);
 };

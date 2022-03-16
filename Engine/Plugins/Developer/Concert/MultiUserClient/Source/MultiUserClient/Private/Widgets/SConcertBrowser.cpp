@@ -363,7 +363,8 @@ void FConcertClientSessionBrowserController::RestoreSession(const FGuid& ServerA
 	// The UI uses this function to map an activity ID from the stream to a client info.
 	auto GetActivityClientInfoFn = [ActivityStream](FGuid EndpointID)
 	{
-		return ActivityStream->GetActivityClientInfo(EndpointID);
+		const FConcertClientInfo* Result = ActivityStream->GetActivityClientInfo(EndpointID);
+		return Result ? TOptional<FConcertClientInfo>{ *Result } : TOptional<FConcertClientInfo>{};
 	};
 
 	// Invoked if the client selects a point in time to recover.
@@ -411,15 +412,14 @@ void FConcertClientSessionBrowserController::RestoreSession(const FGuid& ServerA
 			FAsyncTaskNotification Notification(NotificationConfig);
 			Notification.SetComplete(LOCTEXT("RecoveryError", "Failed to recover the session"), LOCTEXT("ClientUnavailable", "Concert client unavailable"), /*Success*/ false);
 		}
-
 		return bDismissRecoveryWindow;
 	};
 
 	TSharedRef<SConcertSessionRecovery> RestoreWidget = SNew(SConcertSessionRecovery)
 		.ParentWindow(NewWindow)
 		.IntroductionText(LOCTEXT("RecoverSessionIntroductionText", "Select the point in time at which the session should be restored"))
-		.OnFetchActivities(ReadActivitiesFn)
-		.OnMapActivityToClient(GetActivityClientInfoFn)
+		.OnFetchActivities_Lambda(ReadActivitiesFn)
+		.OnMapActivityToClient_Lambda(GetActivityClientInfoFn)
 		.OnRestore(OnAcceptRestoreFn)
 		.ClientNameColumnVisibility(EVisibility::Visible)
 		.ClientAvatarColorColumnVisibility(EVisibility::Visible)

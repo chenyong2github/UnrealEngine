@@ -20,8 +20,8 @@ public:
 	
 	SLATE_BEGIN_ARGS(SSessionHistory) {}
 		SLATE_ARGUMENT(FName, PackageFilter)
-		SLATE_ARGUMENT(SConcertSessionActivities::FGetPackageEvent, GetPackageEvent)
-		SLATE_ARGUMENT(SConcertSessionActivities::FGetTransactionEvent, GetTransactionEvent)
+		SLATE_EVENT(SConcertSessionActivities::FGetPackageEvent, GetPackageEvent)
+		SLATE_EVENT(SConcertSessionActivities::FGetTransactionEvent, GetTransactionEvent)
 	SLATE_END_ARGS()
 
 	/**
@@ -50,12 +50,6 @@ private:
 	/** Returns the text to highlight when the search bar has a text set. */
 	FText HighlightSearchedText() const;
 
-	/** Returns the specified package event (without the package data itself) if available. */
-	bool GetPackageEvent(const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) const;
-
-	/** Returns the specified package event if available. */
-	TFuture<TOptional<FConcertSyncTransactionEvent>> GetTransactionEvent(const FConcertSessionActivity& Activity) const;
-
 private:
 	
 	/** Holds the map of endpoint IDs to client info. */
@@ -78,4 +72,6 @@ private:
 
 	/** Used to limit activities to a given package only. */
 	FName PackageNameFilter;
+
+	TOptional<FConcertClientInfo> GetClientInfo(FGuid Guid) const;
 };

@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ServerSessionHistoryController.h"
+#include "SessionHistory/SSessionHistory.h"
+#include "PackageViewer/SConcertSessionPackageViewer.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
@@ -27,12 +28,16 @@ public:
 	{
 		TSharedRef<SDockTab> ConstructUnderMajorTab;
 		TSharedRef<SWindow> ConstructUnderWindow;
-		TSharedRef<FServerSessionHistoryController> SessionHistoryController;
+		TSharedRef<SSessionHistory> SessionHistory;
+		TSharedRef<SConcertSessionPackageViewer> PackageViewer;
 
-		FRequiredArgs(TSharedRef<SDockTab> ConstructUnderMajorTab, TSharedRef<SWindow> ConstructUnderWindow,TSharedRef<FServerSessionHistoryController> SessionHistoryController)
+		FRequiredArgs(TSharedRef<SDockTab> ConstructUnderMajorTab, TSharedRef<SWindow> ConstructUnderWindow,
+				TSharedRef<SSessionHistory> SessionHistoryController,
+				TSharedRef<SConcertSessionPackageViewer> PackageViewerController)
 			: ConstructUnderMajorTab(MoveTemp(ConstructUnderMajorTab))
 			, ConstructUnderWindow(MoveTemp(ConstructUnderWindow))
-			, SessionHistoryController(MoveTemp(SessionHistoryController))
+			, SessionHistory(MoveTemp(SessionHistoryController))
+			, PackageViewer(MoveTemp(PackageViewerController))
 		{}
 	};
 
@@ -53,7 +58,7 @@ private:
 
 	// Spawn tabs
 	TSharedRef<SWidget> CreateTabs(const FArguments& InArgs, const FRequiredArgs& RequiredArgs);
-	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args, TSharedRef<FServerSessionHistoryController> SessionHistoryController);
-	TSharedRef<SDockTab> SpawnSessionContent(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args, TSharedRef<SSessionHistory> SessionHistory);
+	TSharedRef<SDockTab> SpawnSessionContent(const FSpawnTabArgs& Args, TSharedRef<SConcertSessionPackageViewer> PackageViewer);
 	TSharedRef<SDockTab> SpawnConnectionMonitor(const FSpawnTabArgs& Args);
 };

@@ -1060,6 +1060,8 @@ void FConcertServerWorkspace::PostActivityAdded(const int64 InActivityId)
 	FConcertSyncActivity Activity;
 	if (LiveSession->GetSessionDatabase().GetActivity(InActivityId, Activity))
 	{
+		LiveSession->GetSessionDatabase().OnActivityProduced().Broadcast(Activity);
+		
 		FConcertSyncEndpointData EndpointData;
 		if (LiveSession->GetSessionDatabase().GetEndpoint(Activity.EndpointId, EndpointData))
 		{

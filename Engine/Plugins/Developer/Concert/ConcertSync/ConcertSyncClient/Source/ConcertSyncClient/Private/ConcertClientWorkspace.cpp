@@ -425,7 +425,7 @@ void FConcertClientWorkspace::GetActivities(const int64 FirstActivityIdToFetch, 
 			OutActivities.Emplace(MoveTemp(InActivity), MoveTemp(ActivitySummary));
 		}
 
-		return true;
+		return EBreakBehavior::Continue;
 	});
 }
 

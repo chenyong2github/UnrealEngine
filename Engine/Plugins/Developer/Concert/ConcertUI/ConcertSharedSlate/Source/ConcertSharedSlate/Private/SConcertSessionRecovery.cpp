@@ -36,7 +36,7 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 	SAssignNew(ActivityView, SConcertSessionActivities)
 	.OnFetchActivities(InArgs._OnFetchActivities)
 	.OnMapActivityToClient(InArgs._OnMapActivityToClient)
-	.OnMakeColumnOverlayWidget([this](TWeakPtr<FConcertSessionActivity> Activity, const FName& ColumnId) { return MakeRecoverThroughWidget(Activity, ColumnId); })
+	.OnMakeColumnOverlayWidget_Lambda([this](TWeakPtr<FConcertSessionActivity> Activity, const FName& ColumnId) { return MakeRecoverThroughWidget(Activity, ColumnId); })
 	.HighlightText(this, &SConcertSessionRecovery::HighlightSearchText)
 	.TimeFormat(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
 	.ClientAvatarColorColumnVisibility(InArgs._ClientAvatarColorColumnVisibility)
@@ -172,7 +172,7 @@ TSharedPtr<SWidget> SConcertSessionRecovery::MakeRecoverThroughWidget(TWeakPtr<F
 
 void SConcertSessionRecovery::Reset()
 {
-	ActivityView->Reset();
+	ActivityView->ResetActivityList();
 }
 
 int32 SConcertSessionRecovery::GetTotalActivityNum() const

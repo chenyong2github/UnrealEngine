@@ -37,6 +37,7 @@ ENUM_CLASS_FLAGS(EConcertActivityFilterFlags);
 class CONCERTSHAREDSLATE_API SConcertSessionActivities : public SCompoundWidget
 {
 public:
+	
 	/** Defines how the time should be displayed in the date/time column. */
 	enum class ETimeFormat
 	{
@@ -45,19 +46,20 @@ public:
 	};
 
 	/** Used to pull activities from a session. Used to fetch and display the activities of an archived session. */
-	using FFetchActivitiesFunc = TFunction<bool(TArray<TSharedPtr<FConcertSessionActivity>>& /*InOutActivities*/, int32& /*OutFetchedCount*/, FText& /*ErrorMsg*/)>;
-
+	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FFetchActivitiesFunc, TArray<TSharedPtr<FConcertSessionActivity>>& /*InOutActivities*/, int32& /*OutFetchedCount*/, FText& /*ErrorMsg*/);
+	
 	/** Used to map an activity to its client. */
-	using FGetActivityClientInfoFunc = TFunction<const FConcertClientInfo*(FGuid /*ClientId*/)>;
+	DECLARE_DELEGATE_RetVal_OneParam(TOptional<FConcertClientInfo>, FGetActivityClientInfoFunc, FGuid /*ClientId*/);
 
 	/** Returns the transaction event corresponding the specified activity.*/
-	using FGetTransactionEvent = TFunction<TFuture<TOptional<FConcertSyncTransactionEvent>>(const FConcertSessionActivity& /*Activity*/)>;
+	DECLARE_DELEGATE_RetVal_OneParam(TFuture<TOptional<FConcertSyncTransactionEvent>>, FGetTransactionEvent, const FConcertSessionActivity& /*Activity*/)
+	
 
 	/** Returns the package event corresponding to the package activity. */
-	using FGetPackageEvent = TFunction<bool(const FConcertSessionActivity& /*Activity*/, FConcertSyncPackageEventMetaData& /*OutEvent*/)>;
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FGetPackageEvent, const FConcertSessionActivity& /*Activity*/, FConcertSyncPackageEventMetaData& /*OutEvent*/);
 
 	/** Used to overlay a widget over a column widget to add custom functionalities to a row. */
-	using FMakeColumnOverlayWidgetFunc = TFunction<TSharedPtr<SWidget>(TWeakPtr<FConcertSessionActivity> /*ThisRowActivity*/, const FName& /*ColumnId*/)>;
+	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FMakeColumnOverlayWidgetFunc, TWeakPtr<FConcertSessionActivity> /*ThisRowActivity*/, const FName& /*ColumnId*/);
 
 public:
 	SLATE_BEGIN_ARGS(SConcertSessionActivities)
@@ -78,19 +80,19 @@ public:
 		, _IsAutoScrollEnabled(false){ }
 
 		/** If bound, invoked to populate the view. */
-		SLATE_ARGUMENT(FFetchActivitiesFunc, OnFetchActivities)
+		SLATE_EVENT(FFetchActivitiesFunc, OnFetchActivities)
 
 		/** If bound, invoked to map an activity to a client.*/
-		SLATE_ARGUMENT(FGetActivityClientInfoFunc, OnMapActivityToClient)
+		SLATE_EVENT(FGetActivityClientInfoFunc, OnMapActivityToClient)
 
 		/** If bound, invoked to fill up the package activity details panel. */
-		SLATE_ARGUMENT(FGetPackageEvent, OnGetPackageEvent)
+		SLATE_EVENT(FGetPackageEvent, OnGetPackageEvent)
 
 		/** If bound, invoked to fill up the transaction activity details panel. */
-		SLATE_ARGUMENT(FGetTransactionEvent, OnGetTransactionEvent)
+		SLATE_EVENT(FGetTransactionEvent, OnGetTransactionEvent)
 
 		/** If bound, invoked when generating a row to add an overlay to a column. */
-		SLATE_ARGUMENT(FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget)
+		SLATE_EVENT(FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget)
 
 		/** Highlight the returned text in the view. */
 		SLATE_ATTRIBUTE(FText, HighlightText)
@@ -163,7 +165,7 @@ public:
 	bool IsLastColumn(const FName& ColumnId) const;
 
 	/** Clears all activities displayed. */
-	void Reset();
+	void ResetActivityList();
 
 	/** Append an activity to the view. Used to populate the view from a live session. */
 	void Append(TSharedPtr<FConcertSessionActivity> Activity);

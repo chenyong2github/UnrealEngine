@@ -12,6 +12,18 @@ class FConcertSyncSessionDatabaseStatements;
 class FSQLiteDatabase;
 enum class ESQLiteDatabaseOpenMode : uint8;
 
+enum class EBreakBehavior
+{
+	Break,
+	Continue
+};
+
+using FConsumePackageActivityFunc = TFunctionRef<void(FConcertSyncActivity&&/*BasePart*/, FConcertSyncPackageEventData& /*EventPart*/)>;
+using FIteratePackageActivityFunc = TFunctionRef<EBreakBehavior(FConcertSyncActivity&&/*BasePart*/, FConcertSyncPackageEventData& /*EventPart*/)>;
+using FIterateActivityFunc = TFunctionRef<EBreakBehavior(FConcertSyncActivity&&)>;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnActivityProduced, const FConcertSyncActivity&);
+
 /**
  * Database of activities that have happened in a Concert Sync Session.
  * Stores the activity index and their associated data.
@@ -19,6 +31,7 @@ enum class ESQLiteDatabaseOpenMode : uint8;
 class CONCERTSYNCCORE_API FConcertSyncSessionDatabase
 {
 public:
+	
 	FConcertSyncSessionDatabase();
 	~FConcertSyncSessionDatabase();
 
@@ -220,7 +233,7 @@ public:
 	 *
 	 * @return True if the package activity was found, false otherwise.
 	 */
-	bool GetPackageActivity(const int64 InActivityId, const TFunctionRef<void(FConcertSyncActivity&& /*BasePart*/, FConcertSyncPackageEventData& /*EventPart*/)>& PackageActivityFn) const;
+	bool GetPackageActivity(const int64 InActivityId, FConsumePackageActivityFunc PackageActivityFn) const;
 
 	/**
 	 * Get the type of an activity in this database.
@@ -282,7 +295,7 @@ public:
 	 *
 	 * @return True if the package activity was found, false otherwise.
 	 */
-	bool GetPackageActivityForEvent(const int64 InPackageEventId, const TFunctionRef<void(FConcertSyncActivity&& /*BasePart*/, FConcertSyncPackageEventData& /*EventPart*/)>& PackageActivityFn) const;
+	bool GetPackageActivityForEvent(const int64 InPackageEventId, FIteratePackageActivityFunc PackageActivityFn) const;
 
 	/**
 	 * Enumerate the generic part of the activities in this database.
@@ -291,7 +304,7 @@ public:
 	 *
 	 * @return True if the activities were enumerated without error, false otherwise.
 	 */
-	bool EnumerateActivities(TFunctionRef<bool(FConcertSyncActivity&&)> InCallback) const;
+	bool EnumerateActivities(FIterateActivityFunc InCallback) const;
 
 	/**
 	 * Enumerate all the connection activities in this database.
@@ -327,7 +340,7 @@ public:
 	 *
 	 * @return True if the package activities were enumerated without error, false otherwise.
 	 */
-	bool EnumeratePackageActivities(const TFunctionRef<bool(FConcertSyncActivity&&/*BasePart*/, FConcertSyncPackageEventData& /*EventPart*/)>& InCallback) const;
+	bool EnumeratePackageActivities(FIteratePackageActivityFunc InCallback) const;
 
 	/**
 	 * Enumerate all the activities in this database of the given type.
@@ -337,7 +350,7 @@ public:
 	 *
 	 * @return True if the activities were enumerated without error, false otherwise.
 	 */
-	bool EnumerateActivitiesForEventType(const EConcertSyncActivityEventType InEventType, TFunctionRef<bool(FConcertSyncActivity&&)> InCallback) const;
+	bool EnumerateActivitiesForEventType(const EConcertSyncActivityEventType InEventType, FIterateActivityFunc InCallback) const;
 
 	/**
 	 * Enumerate all the activities in this database in the given range.
@@ -348,7 +361,7 @@ public:
 	 *
 	 * @return True if the activities were enumerated without error, false otherwise.
 	 */
-	bool EnumerateActivitiesInRange(const int64 InFirstActivityId, const int64 InMaxNumActivities, TFunctionRef<bool(FConcertSyncActivity&&)> InCallback) const;
+	bool EnumerateActivitiesInRange(const int64 InFirstActivityId, const int64 InMaxNumActivities, FIterateActivityFunc InCallback) const;
 
 	/**
 	 * Enumerate the IDs and event types of all the activities in this database.
@@ -665,6 +678,8 @@ public:
 	 */
 	void FlushAsynchronousTasks();
 
+	FOnActivityProduced& OnActivityProduced() { return ActivityProducedEvent; }
+	
 private:
 	/**
 	 * Schedule an asynchronous write for the given Package Stream.  The stream must be in-memory. File sharing
@@ -918,7 +933,10 @@ private:
 	 * @return True if the package data was loaded, false otherwise.
 	 */
 	bool LoadPackage(const FString& InPackageBlobFilename, const TFunctionRef<void(FConcertPackageDataStream&)>& PackageDataStreamFn) const;
-
+	
+	/** Called when an activity is produced */
+	FOnActivityProduced ActivityProducedEvent;
+	
 	/** Root path to store all session data under */
 	FString SessionPath;
 

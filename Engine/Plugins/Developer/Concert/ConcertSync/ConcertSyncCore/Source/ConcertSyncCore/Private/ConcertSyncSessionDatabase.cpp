@@ -1166,7 +1166,7 @@ public:
 	}
 
 	/** Get the activity data from activities for all activities of event_type */
-	SQLITE_PREPARED_STATEMENT(FGetAllActivityDataForEventType, "SELECT activity_id, endpoint_id, event_time, event_type, event_id, event_summary_type, event_summary_flags, event_summary_size_bytes, event_summary_data FROM activities WHERE event_type = ?1 ORDER BY activity_id;", SQLITE_PREPARED_STATEMENT_COLUMNS(int64, FGuid, FDateTime, int64, FName, int32, int32, TArray<uint8>), SQLITE_PREPARED_STATEMENT_BINDINGS(EConcertSyncActivityEventType));
+	SQLITE_PREPARED_STATEMENT(FGetAllActivityDataForEventType, "SELECT activity_id, endpoint_id, event_time, event_id, event_summary_type, event_summary_flags, event_summary_size_bytes, event_summary_data FROM activities WHERE event_type = ?1 ORDER BY activity_id;", SQLITE_PREPARED_STATEMENT_COLUMNS(int64, FGuid, FDateTime, int64, FName, int32, int32, TArray<uint8>), SQLITE_PREPARED_STATEMENT_BINDINGS(EConcertSyncActivityEventType));
 	FGetAllActivityDataForEventType Statement_GetAllActivityDataForEventType;
 	bool GetAllActivityDataForEventType(const EConcertSyncActivityEventType InEventType, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(int64, const FGuid&, FDateTime, int64, FConcertSessionSerializedPayload&&)> InCallback)
 	{
@@ -1796,7 +1796,7 @@ bool FConcertSyncSessionDatabase::GetTransactionActivity(const int64 InActivityI
 		&& GetTransactionEvent(OutTransactionActivity.EventId, OutTransactionActivity.EventData);
 }
 
-bool FConcertSyncSessionDatabase::GetPackageActivity(const int64 InActivityId, const TFunctionRef<void(FConcertSyncActivity&&, FConcertSyncPackageEventData&)>& PackageActivityFn) const
+bool FConcertSyncSessionDatabase::GetPackageActivity(const int64 InActivityId, FConsumePackageActivityFunc PackageActivityFn) const
 {
 	FConcertSyncActivity PackageActivityBasePart;
 
@@ -1844,7 +1844,7 @@ bool FConcertSyncSessionDatabase::GetTransactionActivityForEvent(const int64 InT
 		&& GetTransactionEvent(InTransactionEventId, OutTransactionActivity.EventData);
 }
 
-bool FConcertSyncSessionDatabase::GetPackageActivityForEvent(const int64 InPackageEventId, const TFunctionRef<void(FConcertSyncActivity&&, FConcertSyncPackageEventData&)>& PackageActivityFn) const
+bool FConcertSyncSessionDatabase::GetPackageActivityForEvent(const int64 InPackageEventId, FIteratePackageActivityFunc PackageActivityFn) const
 {
 	FConcertSyncActivity PackageActivityBasePart;
 
@@ -1857,7 +1857,7 @@ bool FConcertSyncSessionDatabase::GetPackageActivityForEvent(const int64 InPacka
 		&& GetPackageEvent(InPackageEventId, GetPackageActivityEventFn); // Pull the package specific part and callback
 }
 
-bool FConcertSyncSessionDatabase::EnumerateActivities(TFunctionRef<bool(FConcertSyncActivity&&)> InCallback) const
+bool FConcertSyncSessionDatabase::EnumerateActivities(FIterateActivityFunc InCallback) const
 {
 	return Statements->GetAllActivityData([this, &InCallback](const int64 InActivityId, const FGuid& InEndpointId, const FDateTime InEventTime, const EConcertSyncActivityEventType InEventType, const int64 InEventId, FConcertSessionSerializedPayload&& InEventSummary)
 	{
@@ -1869,7 +1869,7 @@ bool FConcertSyncSessionDatabase::EnumerateActivities(TFunctionRef<bool(FConcert
 		Activity.EventType = InEventType;
 		Activity.EventId = InEventId;
 		Activity.EventSummary = MoveTemp(InEventSummary);
-		return InCallback(MoveTemp(Activity))
+		return InCallback(MoveTemp(Activity)) == EBreakBehavior::Continue
 			? ESQLitePreparedStatementExecuteRowResult::Continue
 			: ESQLitePreparedStatementExecuteRowResult::Stop;
 	});
@@ -1941,7 +1941,7 @@ bool FConcertSyncSessionDatabase::EnumerateTransactionActivities(TFunctionRef<bo
 	});
 }
 
-bool FConcertSyncSessionDatabase::EnumeratePackageActivities(const TFunctionRef<bool(FConcertSyncActivity&&, FConcertSyncPackageEventData&)>& InCallback) const
+bool FConcertSyncSessionDatabase::EnumeratePackageActivities(FIteratePackageActivityFunc InCallback) const
 {
 	return Statements->GetAllActivityDataForEventType(EConcertSyncActivityEventType::Package, [this, &InCallback](const int64 InActivityId, const FGuid& InEndpointId, const FDateTime InEventTime, const int64 InEventId, FConcertSessionSerializedPayload&& InEventSummary)
 	{
@@ -1957,7 +1957,7 @@ bool FConcertSyncSessionDatabase::EnumeratePackageActivities(const TFunctionRef<
 		ESQLitePreparedStatementExecuteRowResult Result = ESQLitePreparedStatementExecuteRowResult::Error;
 		GetPackageEvent(PackageActivity.EventId, [&InCallback, &Result, BasePart = MoveTemp(PackageActivity)](FConcertSyncPackageEventData& PackageEventPart) mutable
 		{
-			Result = InCallback(MoveTemp(BasePart), PackageEventPart)
+			Result = InCallback(MoveTemp(BasePart), PackageEventPart) == EBreakBehavior::Continue
 				? ESQLitePreparedStatementExecuteRowResult::Continue
 				: ESQLitePreparedStatementExecuteRowResult::Stop;
 		});
@@ -1965,7 +1965,7 @@ bool FConcertSyncSessionDatabase::EnumeratePackageActivities(const TFunctionRef<
 	});
 }
 
-bool FConcertSyncSessionDatabase::EnumerateActivitiesForEventType(const EConcertSyncActivityEventType InEventType, TFunctionRef<bool(FConcertSyncActivity&&)> InCallback) const
+bool FConcertSyncSessionDatabase::EnumerateActivitiesForEventType(const EConcertSyncActivityEventType InEventType, FIterateActivityFunc InCallback) const
 {
 	return Statements->GetAllActivityDataForEventType(InEventType, [this, InEventType, &InCallback](const int64 InActivityId, const FGuid& InEndpointId, const FDateTime InEventTime, const int64 InEventId, FConcertSessionSerializedPayload&& InEventSummary)
 	{
@@ -1977,13 +1977,13 @@ bool FConcertSyncSessionDatabase::EnumerateActivitiesForEventType(const EConcert
 		Activity.EventType = InEventType;
 		Activity.EventId = InEventId;
 		Activity.EventSummary = MoveTemp(InEventSummary);
-		return InCallback(MoveTemp(Activity))
+		return InCallback(MoveTemp(Activity)) == EBreakBehavior::Continue
 			? ESQLitePreparedStatementExecuteRowResult::Continue
 			: ESQLitePreparedStatementExecuteRowResult::Stop;
 	});
 }
 
-bool FConcertSyncSessionDatabase::EnumerateActivitiesInRange(const int64 InFirstActivityId, const int64 InMaxNumActivities, TFunctionRef<bool(FConcertSyncActivity&&)> InCallback) const
+bool FConcertSyncSessionDatabase::EnumerateActivitiesInRange(const int64 InFirstActivityId, const int64 InMaxNumActivities, FIterateActivityFunc InCallback) const
 {
 	return Statements->GetActivityDataInRange(InFirstActivityId, InMaxNumActivities, [this, &InCallback](const int64 InActivityId, const FGuid& InEndpointId, const FDateTime InEventTime, const EConcertSyncActivityEventType InEventType, const int64 InEventId, FConcertSessionSerializedPayload&& InEventSummary)
 	{
@@ -1995,7 +1995,7 @@ bool FConcertSyncSessionDatabase::EnumerateActivitiesInRange(const int64 InFirst
 		Activity.EventType = InEventType;
 		Activity.EventId = InEventId;
 		Activity.EventSummary = MoveTemp(InEventSummary);
-		return InCallback(MoveTemp(Activity))
+		return InCallback(MoveTemp(Activity)) == EBreakBehavior::Continue
 			? ESQLitePreparedStatementExecuteRowResult::Continue
 			: ESQLitePreparedStatementExecuteRowResult::Stop;
 	});

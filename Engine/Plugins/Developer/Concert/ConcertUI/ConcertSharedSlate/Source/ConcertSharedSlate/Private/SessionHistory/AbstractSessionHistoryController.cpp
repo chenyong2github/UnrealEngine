@@ -27,6 +27,6 @@ TSharedRef<SSessionHistory> FAbstractSessionHistoryController::MakeSessionHistor
 {
 	return SNew(SSessionHistory)
 		.PackageFilter(PackageFilter)
-		.GetPackageEvent([this](const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) { return GetPackageEvent(Activity, OutPackageEvent); })
-		.GetTransactionEvent([this](const FConcertSessionActivity& Activity) { return GetTransactionEvent(Activity); });
+		.GetPackageEvent_Raw(this, &FAbstractSessionHistoryController::GetPackageEvent)
+		.GetTransactionEvent_Raw(this, &FAbstractSessionHistoryController::GetTransactionEvent);
 }

@@ -131,6 +131,11 @@ FText GetSummary(const FConcertSessionActivity& Activity, const FText& ClientNam
 	return FText::GetEmpty();
 }
 
+FText GetClientName(const TOptional<FConcertClientInfo>& InActivityClient)
+{
+	return InActivityClient ? FText::AsCultureInvariant(InActivityClient->DisplayName) : FText::GetEmpty();
+}
+	
 FText GetClientName(const FConcertClientInfo* InActivityClient)
 {
 	return InActivityClient ? FText::AsCultureInvariant(InActivityClient->DisplayName) : FText::GetEmpty();
@@ -165,7 +170,7 @@ public:
 	 * @param InActivityClient The client who produced this activity. Can be null if unknown or not desirable.
 	 * @param InOwnerTableView The table view that will own this row.
 	 */
-	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionActivity> InActivity, const FConcertClientInfo* InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView);
+	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionActivity> InActivity, const TOptional<FConcertClientInfo>& InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView);
 
 	/** Generates the widget representing this row. */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
@@ -194,7 +199,7 @@ private:
 };
 
 
-void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionActivity> InActivity, const FConcertClientInfo* InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView)
+void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionActivity> InActivity, const TOptional<FConcertClientInfo>& InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	Activity = InActivity;
 	TimeFormat = InArgs._TimeFormat;
@@ -284,9 +289,9 @@ TSharedRef<SWidget> SConcertSessionActivityRow::GenerateWidgetForColumn(const FN
 		];
 	}
 
-	if (OnMakeColumnOverlayWidget)
+	if (OnMakeColumnOverlayWidget.IsBound())
 	{
-		if (TSharedPtr<SWidget> OverlayedWidget = OnMakeColumnOverlayWidget(ActivityPin, ColumnId))
+		if (TSharedPtr<SWidget> OverlayedWidget = OnMakeColumnOverlayWidget.Execute(ActivityPin, ColumnId))
 		{
 			Overlay->AddSlot()
 			[
@@ -572,7 +577,7 @@ void SConcertSessionActivities::OnListViewScrolled(double InScrollOffset)
 {
 	bActivityViewScrolled = true;
 
-	if (FetchActivitiesFn) // This widget is responsible to populate the view.
+	if (FetchActivitiesFn.IsBound()) // This widget is responsible to populate the view.
 	{
 		if (!bAllActivitiesFetched && ActivityView->GetScrollDistance().Y > 0.7) // Should fetch more?
 		{
@@ -629,11 +634,11 @@ void SConcertSessionActivities::UpdateDetailArea(TSharedPtr<FConcertSessionActiv
 			SetDetailsPanelVisibility(NoDetailsPanel.Get());
 		}
 	}
-	else if (InSelectedActivity->Activity.EventType == EConcertSyncActivityEventType::Transaction && GetTransactionEventFn) // A function is bound to get the transaction event?
+	else if (InSelectedActivity->Activity.EventType == EConcertSyncActivityEventType::Transaction && GetTransactionEventFn.IsBound()) // A function is bound to get the transaction event?
 	{
 		SetDetailsPanelVisibility(LoadingDetailsPanel.Get());
 		TWeakPtr<SConcertSessionActivities> WeakSelf = SharedThis(this);
-		GetTransactionEventFn(*InSelectedActivity).Next([WeakSelf, InSelectedActivity](const TOptional<FConcertSyncTransactionEvent>& TransactionEvent)
+		GetTransactionEventFn.Execute(*InSelectedActivity).Next([WeakSelf, InSelectedActivity](const TOptional<FConcertSyncTransactionEvent>& TransactionEvent)
 		{
 			if (TSharedPtr<SConcertSessionActivities> Self = WeakSelf.Pin()) // If 'this' object hasn't been deleted.
 			{
@@ -653,11 +658,11 @@ void SConcertSessionActivities::UpdateDetailArea(TSharedPtr<FConcertSessionActiv
 			// else -> The widget was deleted.
 		});
 	}
-	else if (InSelectedActivity->Activity.EventType == EConcertSyncActivityEventType::Package && GetPackageEventFn) // A function is bound to get the package event?
+	else if (InSelectedActivity->Activity.EventType == EConcertSyncActivityEventType::Package && GetPackageEventFn.IsBound()) // A function is bound to get the package event?
 	{
 		SetDetailsPanelVisibility(LoadingDetailsPanel.Get());
 		FConcertSyncPackageEventMetaData PackageEventMetaData;
-		if (GetPackageEventFn(*InSelectedActivity, PackageEventMetaData))
+		if (GetPackageEventFn.Execute(*InSelectedActivity, PackageEventMetaData))
 		{
 			DisplayPackageDetails(*InSelectedActivity, PackageEventMetaData.PackageRevision, PackageEventMetaData.PackageInfo);
 		}
@@ -734,7 +739,7 @@ void SConcertSessionActivities::OnActivityFilterUpdated()
 
 void SConcertSessionActivities::FetchActivities()
 {
-	if (!FetchActivitiesFn) // Not bound?
+	if (!FetchActivitiesFn.IsBound()) // Not bound?
 	{
 		return; // The widget is expected to be populated/cleared externally using Append()/Reset()
 	}
@@ -748,7 +753,7 @@ void SConcertSessionActivities::FetchActivities()
 		int32 FetchCount = 0; // The number of activities fetched in this iteration.
 		int32 StartInsertPos = AllActivities.Num();
 
-		bAllActivitiesFetched = FetchActivitiesFn(AllActivities, FetchCount, ErrorMsg);
+		bAllActivitiesFetched = FetchActivitiesFn.Execute(AllActivities, FetchCount, ErrorMsg);
 		if (ErrorMsg.IsEmpty())
 		{
 			if (FetchCount) // New activities appended?
@@ -822,7 +827,7 @@ void SConcertSessionActivities::RequestRefresh()
 	ActivityView->RequestListRefresh();
 }
 
-void SConcertSessionActivities::Reset()
+void SConcertSessionActivities::ResetActivityList()
 {
 	Activities.Reset();
 	AllActivities.Reset();
@@ -867,7 +872,8 @@ FText SConcertSessionActivities::UpdateTextFilter(const FText& InFilterText)
 
 void SConcertSessionActivities::PopulateSearchStrings(const FConcertSessionActivity& Activity, TArray<FString>& OutSearchStrings) const
 {
-	FText ClientName = GetActivityUserFn ? ConcertSessionActivityUtils::GetClientName(GetActivityUserFn(Activity.Activity.EndpointId)) : FText::GetEmpty();
+	FText ClientName = GetActivityUserFn.IsBound()
+		? ConcertSessionActivityUtils::GetClientName(GetActivityUserFn.Execute(Activity.Activity.EndpointId)) : FText::GetEmpty();
 
 	OutSearchStrings.Add(ConcertSessionActivityUtils::GetActivityDateTime(Activity, TimeFormat.Get()).ToString());
 	OutSearchStrings.Add(ConcertSessionActivityUtils::GetSummary(Activity, ClientName, /*bAsRichText*/false).ToString());
@@ -890,7 +896,8 @@ void SConcertSessionActivities::PopulateSearchStrings(const FConcertSessionActiv
 
 TSharedRef<ITableRow> SConcertSessionActivities::OnGenerateActivityRowWidget(TSharedPtr<FConcertSessionActivity> Activity, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(SConcertSessionActivityRow, Activity, GetActivityUserFn ? GetActivityUserFn(Activity->Activity.EndpointId) : nullptr, OwnerTable)
+	const TOptional<FConcertClientInfo> ActivityClient = GetActivityUserFn.IsBound() ? GetActivityUserFn.Execute(Activity->Activity.EndpointId) : TOptional<FConcertClientInfo>{};
+	return SNew(SConcertSessionActivityRow, Activity, ActivityClient, OwnerTable)
 		.TimeFormat(TimeFormat)
 		.HighlightText(HighlightText)
 		.OnMakeColumnOverlayWidget(MakeColumnOverlayWidgetFn);
@@ -959,12 +966,8 @@ void SConcertSessionActivities::DisplayTransactionDetails(const FConcertSessionA
 
 void SConcertSessionActivities::DisplayPackageDetails(const FConcertSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo)
 {
-	const FConcertClientInfo* ClientInfo = nullptr;
-	if (GetActivityUserFn)
-	{
-		ClientInfo = GetActivityUserFn(Activity.Activity.EndpointId);
-	}
-
+	const TOptional<FConcertClientInfo> ClientInfo = GetActivityUserFn.IsBound()
+		? GetActivityUserFn.Execute(Activity.Activity.EndpointId) : TOptional<FConcertClientInfo>{};
 	PackageDetailsPanel->SetPackageInfo(PackageInfo, PackageRevision, ClientInfo ? ClientInfo->DisplayName : FString());
 	SetDetailsPanelVisibility(PackageDetailsPanel.Get());
 }
