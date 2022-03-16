@@ -9,18 +9,19 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Exporters/Exporter.h"
+#include "Exporters/TextureExporterGeneric.h"
 #include "TextureExporterHDR.generated.h"
 
 UCLASS()
-class UNREALED_API UTextureExporterHDR : public UExporter
+class UTextureExporterHDR : public UTextureExporterGeneric
 {
 	GENERATED_UCLASS_BODY()
-
-	//~ Begin UExporter Interface
-	virtual bool SupportsObject(UObject* Object) const override;
-	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex = 0, uint32 PortFlags = 0) override;
-	//~ End UExporter Interface
+	
+	virtual bool SupportsTexture(UTexture2D* Texture) const override;
 };
 
-
-
+UCLASS()
+class UVirtualTextureBuilderExporterHDR : public UTextureExporterHDR
+{
+	GENERATED_UCLASS_BODY()
+};
