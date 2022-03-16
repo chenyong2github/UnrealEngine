@@ -68,5 +68,6 @@ void UMovieSceneGenericBoundObjectInstantiator::OnRun(FSystemTaskPrerequisites& 
 	.Read(Components->InstanceHandle)
 	.Read(Components->GenericObjectBinding)
 	.FilterAny({ Components->Tags.NeedsLink, Components->Tags.HasUnresolvedBinding })
+	.FilterNone({ Components->Tags.NeedsUnlink })
 	.RunInline_PerAllocation(&Linker->EntityManager, BoundObjectTask);
 }

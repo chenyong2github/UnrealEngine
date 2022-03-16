@@ -91,5 +91,6 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 	.Read(Components->InstanceHandle)
 	.Read(Components->SceneComponentBinding)
 	.FilterAny({ Components->Tags.NeedsLink, Components->Tags.HasUnresolvedBinding })
+	.FilterNone({ Components->Tags.NeedsUnlink })
 	.RunInline_PerAllocation(&Linker->EntityManager, ObjectBindingTask);
 }
