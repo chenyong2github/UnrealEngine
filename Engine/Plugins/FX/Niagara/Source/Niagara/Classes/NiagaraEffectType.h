@@ -407,7 +407,7 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 
 	/** A set of rules to apply when checking content. To create your own rules, write a custom class that extends UNiagaraValidationRule. */
 	UPROPERTY(EditAnywhere, Category = "Validation", Instanced)
-	TArray<UNiagaraValidationRule*> ValidationRules;
+	TArray<TObjectPtr<UNiagaraValidationRule>> ValidationRules;
 
 	FORCEINLINE const FNiagaraSystemScalabilitySettingsArray& GetSystemScalabilitySettings()const { return SystemScalabilitySettings; }
 	FORCEINLINE const FNiagaraEmitterScalabilitySettingsArray& GetEmitterScalabilitySettings()const { return EmitterScalabilitySettings; }

@@ -57,7 +57,7 @@ public:
 	FNiagaraPlatformSet Platforms;
 
 	UPROPERTY(EditAnywhere, Category = Validation)
-	TArray<UNiagaraScript*> BannedModules;
+	TArray<TObjectPtr<UNiagaraScript>> BannedModules;
 
 	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
