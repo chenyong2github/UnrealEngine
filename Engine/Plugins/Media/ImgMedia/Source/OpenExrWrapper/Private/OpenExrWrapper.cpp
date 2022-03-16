@@ -9,11 +9,14 @@
 PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 	#include "Imath/ImathBox.h"
+	#include "OpenEXR/ImfChannelList.h"
 	#include "OpenEXR/ImfCompressionAttribute.h"
 	#include "OpenEXR/ImfHeader.h"
 	#include "OpenEXR/ImfIntAttribute.h"
 	#include "OpenEXR/ImfRgbaFile.h"
 	#include "OpenEXR/ImfStandardAttributes.h"
+	#include "OpenEXR/ImfTiledInputFile.h"
+	#include "OpenEXR/ImfTiledOutputFile.h"
 	#include "OpenEXR/ImfTiledRgbaFile.h"
 THIRD_PARTY_INCLUDES_END
 PRAGMA_DEFAULT_VISIBILITY_END
@@ -234,7 +237,7 @@ bool FRgbaInputFile::GetIntAttribute(const FString& Name, int32& Value)
 	return bIsAttributeFound;
 }
 
-FTiledRgbaOutputFile::FTiledRgbaOutputFile(
+FBaseOutputFile::FBaseOutputFile(
 	const FIntPoint& DisplayWindowMin,
 	const FIntPoint& DisplayWindowMax,
 	const FIntPoint& DataWindowMin,
@@ -251,7 +254,7 @@ FTiledRgbaOutputFile::FTiledRgbaOutputFile(
 		Imf::NO_COMPRESSION);
 }
 
-FTiledRgbaOutputFile::~FTiledRgbaOutputFile()
+FBaseOutputFile::~FBaseOutputFile()
 {
 	if (Header != nullptr)
 	{
@@ -263,18 +266,28 @@ FTiledRgbaOutputFile::~FTiledRgbaOutputFile()
 	}
 }
 
-void FTiledRgbaOutputFile::AddIntAttribute(const FString& Name, int32 Value)
+void FBaseOutputFile::AddIntAttribute(const FString& Name, int32 Value)
 {
 	// Make sure we don't have an output file yet.
 	if (OutputFile == nullptr)
 	{
-		((Imf::Header*)Header)->insert(std::string(TCHAR_TO_ANSI(*Name)), Imf::IntAttribute(Value));
+		((Imf::Header*)Header)->insert(std::string(StringCast<ANSICHAR>(*Name).Get()), Imf::IntAttribute(Value));
 	}
 	else
 	{
 		UE_LOG(LogOpenEXRWrapper, Error, TEXT("Attribute %s added after calling CreateOutputFile."),
 			*Name);
 	}
+}
+
+
+FTiledRgbaOutputFile::FTiledRgbaOutputFile(
+	const FIntPoint& DisplayWindowMin,
+	const FIntPoint& DisplayWindowMax,
+	const FIntPoint& DataWindowMin,
+	const FIntPoint& DataWindowMax)
+	: FBaseOutputFile(DisplayWindowMin, DisplayWindowMax, DataWindowMin, DataWindowMax)
+{
 }
 
 void FTiledRgbaOutputFile::CreateOutputFile(const FString& FilePath, 
@@ -308,7 +321,7 @@ void FTiledRgbaOutputFile::CreateOutputFile(const FString& FilePath,
 			}
 
 			// Create output file.
-			OutputFile = new Imf::TiledRgbaOutputFile(TCHAR_TO_ANSI(*FilePath),
+			OutputFile = new Imf::TiledRgbaOutputFile(StringCast<ANSICHAR>(*FilePath).Get(),
 				*((Imf::Header*)Header),
 				Channels,
 				TileWidth, TileHeight,
@@ -362,6 +375,98 @@ void FTiledRgbaOutputFile::WriteTile(int32 TileX, int32 TileY, int32 MipLevel)
 		try
 		{
 			((Imf::TiledRgbaOutputFile*)OutputFile)->writeTile(TileX, TileY, MipLevel);
+		}
+		catch (std::exception const& Exception)
+		{
+			UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot write EXR file: %s"),
+				StringCast<TCHAR>(Exception.what()).Get());
+		}
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("WriteTile failed: CreateOutputFile has not been called yet."));
+	}
+}
+
+FTiledOutputFile::FTiledOutputFile(
+	const FIntPoint& DisplayWindowMin,
+	const FIntPoint& DisplayWindowMax,
+	const FIntPoint& DataWindowMin,
+	const FIntPoint& DataWindowMax)
+	: FBaseOutputFile(DisplayWindowMin, DisplayWindowMax, DataWindowMin, DataWindowMax)
+{
+	FrameBuffer = new Imf::FrameBuffer;
+}
+
+FTiledOutputFile::~FTiledOutputFile()
+{
+	if (FrameBuffer != nullptr)
+	{
+		delete (Imf::FrameBuffer*)FrameBuffer;
+	}
+}
+
+void FTiledOutputFile::AddChannel(const FString& Name)
+{
+	((Imf::Header*)Header)->channels().insert(StringCast<ANSICHAR>(*Name).Get(), Imf::Channel(Imf::HALF));
+}
+
+void FTiledOutputFile::CreateOutputFile(const FString& FilePath,
+	int32 TileWidth, int32 TileHeight, bool bIsMipsEnabled)
+{
+	if (OutputFile == nullptr)
+	{
+		try
+		{
+			((Imf::Header*)Header)->setTileDescription(Imf::TileDescription(TileWidth, TileHeight,
+				bIsMipsEnabled ? Imf::MIPMAP_LEVELS : Imf::ONE_LEVEL));
+
+
+			// Create output file.
+			OutputFile = new Imf::TiledOutputFile(StringCast<ANSICHAR>(*FilePath).Get(),
+				*((Imf::Header*)Header));
+		}
+		catch (std::exception const& Exception)
+		{
+			UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot write EXR file: %s (%s)"),
+				*FilePath, StringCast<TCHAR>(Exception.what()).Get());
+		}
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("Cannot create output file as it has already been created."));
+	}
+}
+
+void FTiledOutputFile::AddFrameBufferChannel(const FString& Name, void* Base,
+	const FIntPoint& Stride)
+{
+	((Imf::FrameBuffer*)FrameBuffer)->insert(StringCast<ANSICHAR>(*Name).Get(),
+		Imf::Slice(Imf::HALF, (char*)Base, Stride.X, Stride.Y));
+}
+
+void FTiledOutputFile::SetFrameBuffer()
+{
+	if (OutputFile != nullptr)
+	{
+		((Imf::TiledOutputFile*)OutputFile)->setFrameBuffer(*((Imf::FrameBuffer*)FrameBuffer));
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("Cannot set frame buffer as there is no output file."));
+	}
+}
+
+void FTiledOutputFile::WriteTile(int32 TileX, int32 TileY, int32 MipLevel)
+{
+	if (OutputFile != nullptr)
+	{
+		try
+		{
+			((Imf::TiledOutputFile*)OutputFile)->writeTile(TileX, TileY, MipLevel);
 		}
 		catch (std::exception const& Exception)
 		{

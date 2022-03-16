@@ -54,13 +54,54 @@ private:
 };
 
 /**
+ * Base class for our classes that output EXR files.
+ */
+class OPENEXRWRAPPER_API FBaseOutputFile
+{
+public:
+	/**
+	 * Constructor.
+	 *
+	 * @param DisplayWindowMin		Normally (0, 0).
+	 * @param DisplayWindowMax		Normally (width - 1, height - 1).
+	 * @param DataWindowMin			Normally (0, 0).
+	 * @param DataWindowMax			Normally (width - 1, height - 1).
+	 */
+	FBaseOutputFile(
+		const FIntPoint& DisplayWindowMin,
+		const FIntPoint& DisplayWindowMax,
+		const FIntPoint& DataWindowMin,
+		const FIntPoint& DataWindowMax);
+
+	/**
+	 * Destructor.
+	 */
+	virtual ~FBaseOutputFile();
+
+	/**
+	 * Call this to add an attribute to the EXR file.
+	 * This MUST be called before CreateOutputFile.
+	 *
+	 * @param Name		Name for this attribute.
+	 * @param Value		Value for this attribute.
+	 */
+	void AddIntAttribute(const FString& Name, int32 Value);
+
+protected:
+	/** Stores the EXR header object. */
+	void* Header;
+	/** Stores the EXR object. */
+	void* OutputFile;
+};
+
+/**
  * Use this to write out tiled EXR images.
  * 
  * Add any attributes after construction.
  * Then you can call CreateOutputFile.
  * After that, you can write out data to the file.
  */
-class OPENEXRWRAPPER_API FTiledRgbaOutputFile
+class OPENEXRWRAPPER_API FTiledRgbaOutputFile : public FBaseOutputFile
 {
 public:
 	/**
@@ -76,20 +117,6 @@ public:
 		const FIntPoint& DisplayWindowMax,
 		const FIntPoint& DataWindowMin,
 		const FIntPoint& DataWindowMax);
-
-	/**
-	 * Destructor.
-	 */
-	~FTiledRgbaOutputFile();
-
-	/**
-	 * Call this to add an attribute to the EXR file.
-	 * This MUST be called before CreateOutputFile.
-	 * 
-	 * @param Name		Name for this attribute.
-	 * @param Value		Value for this attribute.
-	 */
-	void AddIntAttribute(const FString& Name, int32 Value);
 
 	/**
 	 * Call this after adding any attributes BUT before doing anything else.
@@ -124,10 +151,85 @@ public:
 	 * @param MipLevel		Mipmap level of tile.
 	 */
 	void WriteTile(int32 TileX, int32 TileY, int32 MipLevel);
+};
+
+/**
+ * Use this to write out tiled EXR images using the general interface.
+ *
+ * Add any attributes and AddChannel after construction.
+ * Then you can call CreateOutputFile.
+ * Then you can call AddFrameBufferChannel for each channel, and then SetFrameBuffer.
+ * After that, you can write out data to the file.
+ */
+class OPENEXRWRAPPER_API FTiledOutputFile : public FBaseOutputFile
+{
+public:
+	/**
+	 * Constructor.
+	 *
+	 * @param DisplayWindowMin		Normally (0, 0).
+	 * @param DisplayWindowMax		Normally (width - 1, height - 1).
+	 * @param DataWindowMin			Normally (0, 0).
+	 * @param DataWindowMax			Normally (width - 1, height - 1).
+	 */
+	FTiledOutputFile(
+		const FIntPoint& DisplayWindowMin,
+		const FIntPoint& DisplayWindowMax,
+		const FIntPoint& DataWindowMin,
+		const FIntPoint& DataWindowMax);
+
+	/**
+	 * Destructor.
+	 */
+	virtual ~FTiledOutputFile();
+
+	/**
+	 * Call this before CreateOutputFile for each channel in the image.
+	 *
+	 * @param Name		Name of channel (e.g. R, G, B, or A). 
+	 */
+	void AddChannel(const FString& Name);
+
+	/**
+	 * Call this after adding any attributes or channels BUT before doing anything else.
+	 *
+	 * @param FilePath			Filename to save to.
+	 * @param TileWidth			Width of a tile.
+	 * @param TileHeight		Height of a tile.
+	 * @param bIsMipsEnabled	True to enable mip mapping.
+	 */
+	void CreateOutputFile(const FString& FilePath,
+		int32 TileWidth, int32 TileHeight, bool bIsMipsEnabled);
+
+	/**
+	 * Call this before SetFrameBuffer for each channel in the frame buffer.
+	 *
+	 * @param Name			Name of channel (e.g. R, G, B, or A).
+	 * @param Base			Address of the start of the data.
+	 * @param Stride		A pixels location is calculated by Base + x * StrideX + y * StrideY.
+	 */
+	void AddFrameBufferChannel(const FString& Name, void* Base,
+		const FIntPoint& Stride);
+	/**
+	 * Call this prior to WriteTile to set where the data is coming from.
+	 *
+	 * @param Buffer		Source of data.
+	 * @param Stride		A pixels location is calculated by Buffer + x * StrideX + y * StrideY.
+	 */
+	void SetFrameBuffer();
+
+	/**
+	 * Call this to write data to a specific tile.
+	 *
+	 * @param TileX			X coordinate of tile.
+	 * @param TileY			Y coordinate of tile.
+	 * @param MipLevel		Mipmap level of tile.
+	 */
+	void WriteTile(int32 TileX, int32 TileY, int32 MipLevel);
 
 private:
-	/** Stores the EXR header object. */
-	void* Header;
-	/** Stores the EXR object. */
-	void* OutputFile;
+
+	/** Stores the EXR frame buffer object. */
+	void* FrameBuffer;
 };
+
