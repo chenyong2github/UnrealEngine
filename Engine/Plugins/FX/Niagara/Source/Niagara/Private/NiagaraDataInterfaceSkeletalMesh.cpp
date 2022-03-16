@@ -828,16 +828,48 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 	// Also see https://jira.it.epicgames.net/browse/UE-69376 : we would need to know if GPU sampling of the mesh surface is needed or not on the mesh to be able to do that.
 	// ALso today we do not know if an interface is create from a CPU or GPU emitter. So always allocate for now. Follow up in https://jira.it.epicgames.net/browse/UE-69375.
 
-	MeshIndexBufferSRV = FNiagaraRenderer::GetSrvOrDefaultUInt(LODRenderData->MultiSizeIndexContainer.GetIndexBuffer()->GetSRV());
-	MeshVertexBufferSRV = FNiagaraRenderer::GetSrvOrDefaultFloat(LODRenderData->StaticVertexBuffers.PositionVertexBuffer.GetSRV());
-	MeshTangentBufferSRV = FNiagaraRenderer::GetSrvOrDefaultFloat4(LODRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTangentsSRV());
-	MeshTexCoordBufferSRV = FNiagaraRenderer::GetSrvOrDefaultFloat2(LODRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV());
-	MeshColorBufferSRV = FNiagaraRenderer::GetSrvOrDefaultFloat4(LODRenderData->StaticVertexBuffers.ColorVertexBuffer.GetColorComponentsSRV());
-	NumTexCoord = LODRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-
+	MeshIndexBufferSRV = LODRenderData->MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
+	MeshVertexBufferSRV = LODRenderData->StaticVertexBuffers.PositionVertexBuffer.GetSRV();
+	MeshTangentBufferSRV = LODRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTangentsSRV();
+	bMeshValid = MeshIndexBufferSRV.IsValid() && MeshVertexBufferSRV.IsValid() && MeshTangentBufferSRV.IsValid();
 	NumWeights = LODRenderData->SkinWeightVertexBuffer.GetMaxBoneInfluences();
 
-	uint32 SectionCount = LODRenderData->RenderSections.Num();
+	if ( bMeshValid == false )
+	{
+		MeshIndexBufferSRV = FNiagaraRenderer::GetDummyUIntBuffer();
+		MeshVertexBufferSRV = FNiagaraRenderer::GetDummyFloatBuffer();
+		MeshTangentBufferSRV = FNiagaraRenderer::GetDummyFloat4Buffer();
+		NumWeights = 0;
+		TriangleCount = 0;
+		VertexCount = 0;
+		bUseGpuUniformlyDistributedSampling = false;
+		NumSamplingRegionTriangles = 0;
+		bSamplingRegionsAllAreaWeighted = false;
+
+		SampleRegionsProbAlias.Empty();
+		SampleRegionsTriangleIndicies.Empty();
+		SampleRegionsVertices.Empty();
+	}
+
+	MeshColorBufferSRV = LODRenderData->StaticVertexBuffers.ColorVertexBuffer.GetColorComponentsSRV();
+	bHasMeshColors = bMeshValid && MeshColorBufferSRV.IsValid();
+	if (bHasMeshColors == false)
+	{
+		MeshColorBufferSRV = FNiagaraRenderer::GetDummyFloat4Buffer();
+	}
+
+	MeshTexCoordBufferSRV = LODRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
+	if (MeshTexCoordBufferSRV.IsValid())
+	{
+		NumTexCoord = LODRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	}
+	else
+	{
+		MeshTexCoordBufferSRV = FNiagaraRenderer::GetDummyFloat2Buffer();
+		NumTexCoord = 0;
+	}
+
+	const uint32 SectionCount = LODRenderData->RenderSections.Num();
 
 #if STATS
 	ensure(GPUMemoryUsage == 0);
@@ -880,6 +912,11 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 			GPUMemoryUsage += SampleRegionsProbAlias.Num() * SampleRegionsProbAlias.GetTypeSize();
 #endif
 		}
+		else
+		{
+			SampleRegionsProbAliasSRV = FNiagaraRenderer::GetDummyUIntBuffer();
+		}
+
 		CreateInfo.DebugName = (TEXT("SampleRegionsTriangleIndicesBuffer"));
 		CreateInfo.ResourceArray = &SampleRegionsTriangleIndicies;
 		SampleRegionsTriangleIndicesBuffer = RHICreateVertexBuffer(SampleRegionsTriangleIndicies.Num() * SampleRegionsTriangleIndicies.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
@@ -896,10 +933,17 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 		GPUMemoryUsage += SampleRegionsVertices.Num() * SampleRegionsVertices.GetTypeSize();
 #endif
 	}
+	else
+	{
+		SampleRegionsProbAliasSRV = FNiagaraRenderer::GetDummyUIntBuffer();
+		SampleRegionsTriangleIndicesSRV = FNiagaraRenderer::GetDummyUIntBuffer();
+		SampleRegionsVerticesSRV = FNiagaraRenderer::GetDummyUIntBuffer();
+	}
 
 	// Prepare the vertex matrix lookup offset for each of the sections. This is needed because per vertex BlendIndicies are stored relatively to each Section used matrices.
 	// And these offset per section need to point to the correct matrix according to each section BoneMap.
 	// There is not section selection/culling in the interface so technically we could compute that array in the pipeline.
+	if ( bMeshValid )
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSkeletalMeshGpuSpawnStaticBuffers"));
 		BufferTriangleMatricesOffsetRHI = RHICreateBuffer(VertexCount * sizeof(uint32), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
@@ -921,6 +965,10 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 #if STATS
 		GPUMemoryUsage += VertexCount * sizeof(uint32);
 #endif
+	}
+	else
+	{
+		BufferTriangleMatricesOffsetSRV = FNiagaraRenderer::GetDummyUIntBuffer();
 	}
 
 	// Create arrays for filtered bones / sockets
@@ -1398,17 +1446,18 @@ public:
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxySkeletalMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxySkeletalMesh*>(Context.DataInterface);
 		FNiagaraDataInterfaceProxySkeletalMeshData* InstanceData = InterfaceProxy->SystemInstancesToData.Find(Context.SystemInstanceID);
-		if (InstanceData && InstanceData->StaticBuffers && InstanceData->StaticBuffers->GetBufferPositionSRV())
+		if (InstanceData && InstanceData->StaticBuffers)
 		{
 			FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers = InstanceData->StaticBuffers;
 
+			// Bind mesh buffers
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshVertexBuffer, StaticBuffers->GetBufferPositionSRV());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshIndexBuffer, StaticBuffers->GetBufferIndexSRV());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTangentBuffer, StaticBuffers->GetBufferTangentSRV());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumTexCoord, StaticBuffers->GetNumTexCoord());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, StaticBuffers->GetBufferTexCoordSRV());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, StaticBuffers->GetBufferColorSRV());
+
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumTexCoord, StaticBuffers->GetNumTexCoord());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshTriangleCount, StaticBuffers->GetTriangleCount());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshVertexCount, StaticBuffers->GetVertexCount());
 
@@ -1433,7 +1482,8 @@ public:
 			uint32 EnabledFeaturesBits = 0;
 			EnabledFeaturesBits |= StaticBuffers->IsUseGpuUniformlyDistributedSampling() ? 1 : 0;
 			EnabledFeaturesBits |= StaticBuffers->IsSamplingRegionsAllAreaWeighted() ? 2 : 0;
-			EnabledFeaturesBits |= (InstanceData->bUnlimitedBoneInfluences ? 4 : 0);
+			EnabledFeaturesBits |= InstanceData->bUnlimitedBoneInfluences ? 4 : 0;
+			EnabledFeaturesBits |= StaticBuffers->HasMeshColors() ? 8 : 0;
 
 			FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffers = InstanceData->DynamicBuffer;
 			check(DynamicBuffers);
@@ -1508,11 +1558,11 @@ public:
 			// Bind dummy buffers
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshVertexBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshIndexBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTangentBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTangentBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumTexCoord, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloat2Buffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshTriangleCount, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshVertexCount, 0);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());

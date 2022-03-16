@@ -455,6 +455,9 @@ public:
 	FRHIShaderResourceView* GetSampleRegionsTriangleIndicesSRV() const { return SampleRegionsTriangleIndicesSRV; }
 	FRHIShaderResourceView* GetSampleRegionsVerticesSRV() const { return SampleRegionsVerticesSRV; }
 
+	bool IsMeshValid() const { return bMeshValid; }
+	bool HasMeshColors() const { return bHasMeshColors; }
+
 	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSRV; }
 	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSRV; }
 	FRHIShaderResourceView* GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
@@ -503,6 +506,8 @@ protected:
 	int32 FilteredSocketBoneOffset = 0;
 
 	/** Cached SRV to gpu buffers of the mesh we spawn from */
+	bool bMeshValid = false;
+	bool bHasMeshColors = false;
 	FShaderResourceViewRHIRef MeshVertexBufferSRV;
 	FShaderResourceViewRHIRef MeshIndexBufferSRV;
 	FShaderResourceViewRHIRef MeshTangentBufferSRV;

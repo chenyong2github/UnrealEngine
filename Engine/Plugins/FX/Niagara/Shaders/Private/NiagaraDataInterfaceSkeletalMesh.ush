@@ -75,6 +75,7 @@ struct FDISkelMeshContext
 	bool			UniformTriangleSamplingEnable;
 	bool			UniformSamplingRegionEnabled;
 	bool			UnlimitedBoneInfluences;
+	bool			bHasMeshColors;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -146,6 +147,18 @@ float4 DISkelMesh_UnpackWeights4(uint Packed)
 
 void DISkelMesh_GetVertex(in FDISkelMeshContext DIContext, uint VertexIndex, out float3 OutPosition, out float3 OutTangentX, out float3 OutTangentY, out float3 OutTangentZ)
 {
+	// Early out for bad data
+	if ( DIContext.MeshVertexCount == 0 )
+	{
+		OutPosition = float3(0.0f, 0.0f, 0.0f);
+		OutTangentX = float3(1.0f, 0.0f, 0.0f);
+		OutTangentY = float3(0.0f, 1.0f, 0.0f);
+		OutTangentZ = float3(0.0f, 0.0f, 1.0f);
+		return;
+	}
+
+	VertexIndex = clamp(VertexIndex, 0, DIContext.MeshVertexCount - 1);
+
 	//-TODO: Use a R32G32B32 format
 	float3 Position = float3(DIContext.MeshVertexBuffer[VertexIndex * 3], DIContext.MeshVertexBuffer[VertexIndex * 3 + 1], DIContext.MeshVertexBuffer[VertexIndex * 3 + 2]);
 	float3 TangentX = TangentBias(DIContext.MeshTangentBuffer[VertexIndex * 2    ].xyz);
@@ -160,6 +173,18 @@ void DISkelMesh_GetVertex(in FDISkelMeshContext DIContext, uint VertexIndex, out
 
 void DISkelMesh_GetPointOnTriangle(in FDISkelMeshContext DIContext, uint TriangleIndex, float3 BaryCoord, out float3 OutPosition, out float3 OutTangentX, out float3 OutTangentY, out float3 OutTangentZ)
 {
+	// Early out for bad data
+	if ( DIContext.MeshTriangleCount == 0 )
+	{
+		OutPosition = float3(0.0f, 0.0f, 0.0f);
+		OutTangentX = float3(1.0f, 0.0f, 0.0f);
+		OutTangentY = float3(0.0f, 1.0f, 0.0f);
+		OutTangentZ = float3(0.0f, 0.0f, 1.0f);
+		return;
+	}
+
+	TriangleIndex = clamp(TriangleIndex, 0, DIContext.MeshTriangleCount - 1);
+
 	uint IndexBufferOffset = TriangleIndex * 3;
 	uint VertexIndex0 = DIContext.MeshIndexBuffer[IndexBufferOffset];
 	uint VertexIndex1 = DIContext.MeshIndexBuffer[IndexBufferOffset + 1];
@@ -177,6 +202,20 @@ void DISkelMesh_GetPointOnTriangle(in FDISkelMeshContext DIContext, uint Triangl
 
 FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedVertex(in FDISkelMeshContext DIContext, uint VertexIndex)
 {
+	// Early out for bad data
+	if ( DIContext.MeshVertexCount == 0 )
+	{
+		FDISkelMeshSkinnedVertex SkinnedVertex;
+		SkinnedVertex.Position = float3(0.0f, 0.0f, 0.0f);
+		SkinnedVertex.PrevPosition = float3(0.0f, 0.0f, 0.0f);
+		SkinnedVertex.TangentX = float3(1.0f, 0.0f, 0.0f);
+		SkinnedVertex.TangentY = float3(0.0f, 1.0f, 0.0f);
+		SkinnedVertex.TangentZ = float3(0.0f, 0.0f, 1.0f);
+		return SkinnedVertex;
+	}
+
+	VertexIndex = clamp(VertexIndex, 0, DIContext.MeshVertexCount - 1);
+
 	//-TODO: Use a R32G32B32 format
 	float3 CurrPosition = float3(DIContext.MeshVertexBuffer[VertexIndex * 3], DIContext.MeshVertexBuffer[VertexIndex * 3 + 1], DIContext.MeshVertexBuffer[VertexIndex * 3 + 2]);
 	float3 PrevPosition = CurrPosition;
@@ -267,6 +306,20 @@ FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedVertex(in FDISkelMeshContext DICon
 
 FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedPointOnTriangle(in FDISkelMeshContext DIContext, uint TriangleIndex, float3 BaryCoord)
 {
+	// Early out for bad data
+	if ( DIContext.MeshTriangleCount == 0 )
+	{
+		FDISkelMeshSkinnedVertex SkinnedVertex;
+		SkinnedVertex.Position = float3(0.0f, 0.0f, 0.0f);
+		SkinnedVertex.PrevPosition = float3(0.0f, 0.0f, 0.0f);
+		SkinnedVertex.TangentX = float3(1.0f, 0.0f, 0.0f);
+		SkinnedVertex.TangentY = float3(0.0f, 1.0f, 0.0f);
+		SkinnedVertex.TangentZ = float3(0.0f, 0.0f, 1.0f);
+		return SkinnedVertex;
+	}
+
+	TriangleIndex = clamp(TriangleIndex, 0, DIContext.MeshTriangleCount - 1);
+
 	uint IndexBufferOffset = TriangleIndex * 3;
 	uint VertexIndex0 = DIContext.MeshIndexBuffer[IndexBufferOffset];
 	uint VertexIndex1 = DIContext.MeshIndexBuffer[IndexBufferOffset + 1];
@@ -300,6 +353,14 @@ FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedPointOnTriangleWS(in FDISkelMeshCo
 
 void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutTriangle, out float3 OutBaryCoord)
 {
+	// Early out for bad data
+	if (DIContext.MeshTriangleCount == 0)
+	{
+		OutTriangle = -1;
+		OutBaryCoord = 1.0f / 3.0f;
+		return;
+	}
+
 	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
 
 	[branch]
@@ -442,6 +503,14 @@ void DISKelMesh_GetTriangleCount(in FDISkelMeshContext DIContext, out int OutCou
 
 void DISKelMesh_RandomFilteredTriangle(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutTriangle, out float3 OutBaryCoord)
 {
+	// Early out for bad data
+	if (DIContext.MeshNumSamplingRegionTriangles == 0)
+	{
+		OutTriangle = -1;
+		OutBaryCoord = 1.0f / 3.0f;
+		return;
+	}
+
 	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
 	uint RegionTriangle = min(uint(RandT0 * float(DIContext.MeshNumSamplingRegionTriangles)), DIContext.MeshNumSamplingRegionTriangles - 1); // avoid % by using mul/min to Tri = MeshTriangleCountName
 
@@ -745,6 +814,17 @@ float4 DISKelMesh_QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
 
 void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bone, in float Interp, in bool bWorldSpace, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
 {
+	// Early out for bad data
+	if ( DIContext.NumBones == 0 )
+	{
+		OutPosition = float3(0.0f, 0.0f, 0.0f);
+		OutRotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		OutVelocity = float3(0.0f, 0.0f, 0.0f);
+		return;
+	}
+
+	Bone = clamp(Bone, 0, DIContext.NumBones - 1);
+
     float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 3].xyz;
     float4 PrevRotation = DIContext.MeshPrevSamplingBonesBuffer[Bone * 3 + 1];
     float3 CurrPosition = DIContext.MeshCurrSamplingBonesBuffer[Bone * 3].xyz;
@@ -789,6 +869,16 @@ void DISkelMesh_GetSkinnedBoneInterpolatedWS(in FDISkelMeshContext DIContext, in
 
 void DISkelMesh_GetTriVertices(in FDISkelMeshContext DIContext, in uint TriangleIndex, out int VertexIndex0, out int VertexIndex1, out int VertexIndex2)
 {
+	// Early out for bad data
+	if ( DIContext.MeshTriangleCount == 0 )
+	{
+		VertexIndex0 = 0;
+		VertexIndex1 = 0;
+		VertexIndex2 = 0;
+		return;
+	}
+
+	TriangleIndex = clamp(TriangleIndex, 0, DIContext.MeshTriangleCount - 1);
     uint IndexBufferOffset = TriangleIndex * 3;
     VertexIndex0 = DIContext.MeshIndexBuffer[IndexBufferOffset];
     VertexIndex1 = DIContext.MeshIndexBuffer[IndexBufferOffset + 1];
@@ -797,6 +887,14 @@ void DISkelMesh_GetTriVertices(in FDISkelMeshContext DIContext, in uint Triangle
 
 void DISkelMesh_GetTriColor(in FDISkelMeshContext DIContext, in uint TriangleIndex, in float3 BaryCoord, out float4 OutColor)
 {
+	// Early out for bad data
+	if ( DIContext.bHasMeshColors == false )
+	{
+		OutColor = float4(1, 1, 1, 1);
+		return;
+	}
+	TriangleIndex = clamp(TriangleIndex, 0, DIContext.MeshTriangleCount - 1);
+
     uint IndexBufferOffset = TriangleIndex * 3;
     uint VertexIndex0 = DIContext.MeshIndexBuffer[IndexBufferOffset];
     uint VertexIndex1 = DIContext.MeshIndexBuffer[IndexBufferOffset + 1];
@@ -827,7 +925,7 @@ void DISkelMesh_GetSkinnedVertexWS(in FDISkelMeshContext DIContext, in int Verte
 
 void DISkelMesh_GetVertexColor(in FDISkelMeshContext DIContext, in int VertexIndex, out float4 OutColor)
 {
-    OutColor = DIContext.MeshColorBuffer[VertexIndex] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
+    OutColor = DIContext.bHasMeshColors ? DIContext.MeshColorBuffer[VertexIndex] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE : float4(1, 1, 1, 1);
 }
 
 void DISkelMesh_GetVertexUV(in FDISkelMeshContext DIContext, in int VertexIndex, in int UVSet, out float2 OutUV)
@@ -867,6 +965,13 @@ void DISkelMesh_IsValidFilteredVertex(in FDISkelMeshContext DIContext, int Filte
 
 void DISkelMesh_GetRandomFilteredVertex(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutVertex)
 {
+	// Early out for bad data
+	if ( DIContext.MeshNumSamplingRegionVertices == 0 )
+	{
+		OutVertex = -1;
+		return;
+	}
+
 	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
 	int FilteredIndex = (int)min(uint(RandT0 * float(DIContext.MeshNumSamplingRegionVertices)), DIContext.MeshNumSamplingRegionVertices - 1); // avoid % by using mul/min to Tri = MeshVertexCount
 	OutVertex = (int)DIContext.MeshSampleRegionsVertices[FilteredIndex];
@@ -879,6 +984,13 @@ void DISkelMesh_GetFilteredVertexCount(in FDISkelMeshContext DIContext, out int 
 
 void DISkelMesh_GetFilteredVertexAt(in FDISkelMeshContext DIContext, int FilteredIndex, out int VertexIndex)
 {
+	// Early out for bad data
+	if ( DIContext.MeshNumSamplingRegionVertices == 0 )
+	{
+		VertexIndex = -1;
+		return;
+	}
+
 	FilteredIndex = clamp(FilteredIndex, 0, (int)DIContext.MeshNumSamplingRegionVertices - 1);
 	VertexIndex = (int)DIContext.MeshSampleRegionsVertices[FilteredIndex];
 }
@@ -920,14 +1032,14 @@ void DISkelMesh_GetFilteredBoneCount(in FDISkelMeshContext DIContext, out int Co
 void DISkelMesh_GetFilteredBoneAt(in FDISkelMeshContext DIContext, in int InBoneIndex, out int Bone)
 {
     int BoneIndex = min(InBoneIndex, DIContext.NumFilteredBones - 1);
-    Bone = (int)DIContext.FilteredAndUnfilteredBones[BoneIndex];
+    Bone = DIContext.NumFilteredBones > 0 ? (int)DIContext.FilteredAndUnfilteredBones[BoneIndex] : -1;
 }
 
 void DISkelMesh_RandomFilteredBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
 {
 	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
     int FilteredBone = min(int(RandT0 * float(DIContext.NumFilteredBones)), DIContext.NumFilteredBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
-    Bone = (int)DIContext.FilteredAndUnfilteredBones[FilteredBone];
+    Bone = DIContext.NumFilteredBones > 0 ? (int)DIContext.FilteredAndUnfilteredBones[FilteredBone] : -1;
 }
 
 void DISkelMesh_GetUnfilteredBoneCount(in FDISkelMeshContext DIContext, out int Count)
@@ -1231,3 +1343,4 @@ void DISkelMesh_GetTriangleNeighbor(in FDISkelMeshContext DIContext, int Triangl
 	DIContext.UniformTriangleSamplingEnable = EnabledFeatures_ ## NAME & 0x1; \
 	DIContext.UniformSamplingRegionEnabled = EnabledFeatures_ ## NAME & 0x2; \
 	DIContext.UnlimitedBoneInfluences = EnabledFeatures_ ## NAME & 0x4; \
+	DIContext.bHasMeshColors = EnabledFeatures_ ## NAME & 0x8; \
