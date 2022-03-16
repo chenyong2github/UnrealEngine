@@ -5,11 +5,10 @@
 #include "CoreMinimal.h"
 #include "NiagaraValidationRule.h"
 #include "NiagaraPlatformSet.h"
+#include "NiagaraRendererProperties.h"
 #include "NiagaraValidationRules.generated.h"
 
 class UNiagaraScript;
-class UNiagaraRendererProperties;
-
 
 UCLASS(Category = "Validation", DisplayName = "No Warmup Time")
 class UNiagaraValidationRule_NoWarmupTime : public UNiagaraValidationRule
