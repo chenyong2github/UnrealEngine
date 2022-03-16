@@ -45,10 +45,9 @@ inline bool CanCompilePlatform(EShaderPlatform ShaderPlatform)
 		|| ShaderPlatform == SP_VULKAN_SM5_ANDROID;
 }
 
-inline bool ShouldStripReflection(EShaderPlatform ShaderPlatform)
+inline bool IsAndroidShaderPlatform(EShaderPlatform ShaderPlatform)
 {
-	return ShaderPlatform == SP_VULKAN_PCES3_1
-		|| ShaderPlatform == SP_VULKAN_ES3_1_ANDROID
+	return ShaderPlatform == SP_VULKAN_ES3_1_ANDROID
 		|| ShaderPlatform == SP_VULKAN_SM5_ANDROID;
 }
 
@@ -2219,7 +2218,14 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5);
 	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID);
-	const bool bStripReflect = SupportsOfflineCompiler(Input.Target.GetPlatform()) || Input.IsRayTracingShader();
+	bool bStripReflect = Input.IsRayTracingShader();
+	// By default we strip reflecion information for Android platform to avoid issues with older drivers
+	if (IsAndroidShaderPlatform(Input.Target.GetPlatform()))
+	{
+		const FString* StripReflect_Android = Input.Environment.GetDefinitions().Find(TEXT("STRIP_REFLECT_ANDROID"));
+		bStripReflect = !(StripReflect_Android && *StripReflect_Android == TEXT("0"));
+	}
+
 	const CrossCompiler::FShaderConductorOptions::ETargetEnvironment TargetEnvironment = GetMinimumTargetEnvironment(Input.Target.GetPlatform());
 
 	const EHlslShaderFrequency FrequencyTable[] =

@@ -5467,6 +5467,16 @@ void GlobalBeginCompileShader(
 		const bool bIsMobileMultiViewCVar = CVarMobileMultiView && CVarMobileHDR ?
 			(CVarMobileMultiView->GetValueOnAnyThread() != 0 && CVarMobileHDR->GetValueOnAnyThread() == 0) : false;
 		const bool bIsODSCapture = CVarODSCapture && (CVarODSCapture->GetValueOnAnyThread() != 0);
+		
+		if (ShaderPlatform == SP_VULKAN_ES3_1_ANDROID || ShaderPlatform == SP_VULKAN_SM5_ANDROID)
+		{
+			bool bIsStripReflect = true;
+			GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bStripShaderReflection"), bIsStripReflect, GEngineIni);
+			if (!bIsStripReflect)
+			{
+				Input.Environment.SetDefine(TEXT("STRIP_REFLECT_ANDROID"), false);
+			}
+		}
 
 		bool bIsInstancedStereo = !bUsingMobileRenderer && bIsInstancedStereoCVar && RHISupportsInstancedStereo(ShaderPlatform);
 		bool bIsMobileMultiview = bUsingMobileRenderer && bIsMobileMultiViewCVar;
