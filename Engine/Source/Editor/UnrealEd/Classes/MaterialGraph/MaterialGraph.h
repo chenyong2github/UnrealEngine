@@ -11,8 +11,6 @@
 
 class UMaterialExpressionComment;
 class UMaterialExpressionComposite;
-struct FMaterialGraphCachedConnections;
-struct FMaterialConnectionKey;
 
 namespace UE::Shader
 {
@@ -215,7 +213,7 @@ public:
 	 */
 	void GetUnusedExpressions(TArray<class UEdGraphNode*>& UnusedNodes) const;
 
-	UE::Shader::EValueType GetConnectionType(const FMaterialConnectionKey& Key);
+	void UpdatePinTypes();
 
 private:
 	/**
@@ -231,6 +229,4 @@ private:
 	 * @param	Input	Input we are finding an output index for
 	 */
 	int32 GetValidOutputIndex(FExpressionInput* Input) const;
-
-	TUniquePtr<FMaterialGraphCachedConnections> CachedConnections;
 };

@@ -703,39 +703,42 @@ public:
 		Material->ErrorExpressions.Reset();
 	}
 
-	virtual void AddErrorInternal(UObject* InOwner, FStringView InError) override
+	virtual void AddErrorInternal(TConstArrayView<UObject*> InOwners, FStringView InError) override
 	{
-		UMaterialExpression* MaterialExpressionOwner = Cast<UMaterialExpression>(InOwner);
-		UMaterialExpression* ExpressionToError = nullptr;
-		TStringBuilder<1024> FormattedError;
-
-		if (MaterialExpressionOwner)
+		for (UObject* Owner : InOwners)
 		{
-			if (MaterialExpressionOwner->GetClass() != UMaterialExpressionMaterialFunctionCall::StaticClass()
-				&& MaterialExpressionOwner->GetClass() != UMaterialExpressionFunctionInput::StaticClass()
-				&& MaterialExpressionOwner->GetClass() != UMaterialExpressionFunctionOutput::StaticClass())
+			UMaterialExpression* MaterialExpressionOwner = Cast<UMaterialExpression>(Owner);
+			UMaterialExpression* ExpressionToError = nullptr;
+			TStringBuilder<1024> FormattedError;
+
+			if (MaterialExpressionOwner)
 			{
-				// Add the expression currently being compiled to ErrorExpressions so we can draw it differently
-				ExpressionToError = MaterialExpressionOwner;
+				if (MaterialExpressionOwner->GetClass() != UMaterialExpressionMaterialFunctionCall::StaticClass()
+					&& MaterialExpressionOwner->GetClass() != UMaterialExpressionFunctionInput::StaticClass()
+					&& MaterialExpressionOwner->GetClass() != UMaterialExpressionFunctionOutput::StaticClass())
+				{
+					// Add the expression currently being compiled to ErrorExpressions so we can draw it differently
+					ExpressionToError = MaterialExpressionOwner;
 
-				const int32 ChopCount = FCString::Strlen(TEXT("MaterialExpression"));
-				const FString ErrorClassName = MaterialExpressionOwner->GetClass()->GetName();
+					const int32 ChopCount = FCString::Strlen(TEXT("MaterialExpression"));
+					const FString ErrorClassName = MaterialExpressionOwner->GetClass()->GetName();
 
-				// Add the node type to the error message
-				FormattedError.Appendf(TEXT("(Node %s) "), *ErrorClassName.Right(ErrorClassName.Len() - ChopCount));
+					// Add the node type to the error message
+					FormattedError.Appendf(TEXT("(Node %s) "), *ErrorClassName.Right(ErrorClassName.Len() - ChopCount));
+				}
 			}
-		}
 
-		FormattedError.Append(InError);
-		const FString Error(FormattedError.ToView());
+			FormattedError.Append(InError);
+			const FString Error(FormattedError.ToView());
 
-		// Standard error handling, immediately append one-off errors and signal failure
-		Material->CompileErrors.AddUnique(Error);
+			// Standard error handling, immediately append one-off errors and signal failure
+			Material->CompileErrors.AddUnique(Error);
 
-		if (ExpressionToError)
-		{
-			Material->ErrorExpressions.Add(ExpressionToError);
-			ExpressionToError->LastErrorText = Error;
+			if (ExpressionToError)
+			{
+				Material->ErrorExpressions.Add(ExpressionToError);
+				ExpressionToError->LastErrorText = Error;
+			}
 		}
 	}
 
@@ -806,7 +809,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		FEmitScope* EmitResultScope = EmitContext.PrepareScope(CachedTree->GetResultScope());
 
 		// Prepare all fields *except* normal
-		FRequestedType RequestedPixelAttributesType;
+		FRequestedType RequestedPixelAttributesType(CachedTree->GetMaterialAttributesType(), false);
 		CachedTree->SetRequestedFields(SF_Pixel, RequestedPixelAttributesType);
 		RequestedPixelAttributesType.SetFieldRequested(NormalField, false);
 
@@ -881,7 +884,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	// Prepare vertex shader code
 	FStringBuilderMemstack VertexCode(Allocator, 128 * 1024);
 	{
-		FRequestedType RequestedVertexAttributesType;
+		FRequestedType RequestedVertexAttributesType(CachedTree->GetMaterialAttributesType(), false);
 		CachedTree->SetRequestedFields(SF_Vertex, RequestedVertexAttributesType);
 		RequestedVertexAttributesType.SetFieldRequested(CachedTree->GetMaterialAttributesType()->FindFieldByName(TEXT("PrevWorldPositionOffset")));
 
@@ -910,7 +913,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		CachedTree->GetTree().EmitShader(EmitContext, VertexCode);
 	}
 
-	if (EmitContext.Errors->HasErrors())
+	if (EmitContext.NumErrors > 0)
 	{
 		return false;
 	}

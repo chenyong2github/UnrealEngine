@@ -285,6 +285,18 @@ public:
 	const Shader::FStructType* OutputStructType = nullptr;
 };
 
+class FStatementError : public FStatement
+{
+public:
+	explicit FStatementError(FStringView InErrorMessage)
+		: ErrorMessage(InErrorMessage)
+	{}
+
+	virtual bool Prepare(FEmitContext& Context, FEmitScope& Scope) const override;
+
+	FStringView ErrorMessage;
+};
+
 class FStatementBreak : public FStatement
 {
 public:

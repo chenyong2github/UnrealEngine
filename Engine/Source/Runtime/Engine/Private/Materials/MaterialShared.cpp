@@ -309,11 +309,11 @@ const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMateri
 		}
 		if (!LocalInputName.IsNone())
 		{
-			Generator.Errorf(TEXT("Missing input '%s'"), *LocalInputName.ToString());
+			return Generator.NewErrorExpressionf(TEXT("Missing input '%s'"), *LocalInputName.ToString());
 		}
 		else
 		{
-			Generator.Error(TEXT("Missing input"));
+			Generator.NewErrorExpression(TEXT("Missing input"));
 		}
 		return nullptr;
 	}
@@ -325,14 +325,34 @@ const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMateri
 	return AcquireHLSLExpression(Generator, Scope, Generator.FindInputIndex(this));
 }
 
-const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionOrConstant(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& ConstantValue) const
+const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionOrConstant(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& ConstantValue, int32 InputIndex) const
 {
 	const FExpressionInput TracedInput = GetTracedInput();
 	if (!TracedInput.Expression)
 	{
-		return Generator.NewConstant(ConstantValue);
+		return Generator.NewDefaultInputConstant(InputIndex, ConstantValue);
 	}
-	return TryAcquireHLSLExpression(Generator, Scope);
+	return TryAcquireHLSLExpression(Generator, Scope, InputIndex);
+}
+
+const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionOrConstant(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& ConstantValue) const
+{
+	return AcquireHLSLExpressionOrConstant(Generator, Scope, ConstantValue, Generator.FindInputIndex(this));
+}
+
+const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionOrExternalInput(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::Material::EExternalInput Input, int32 InputIndex) const
+{
+	const FExpressionInput TracedInput = GetTracedInput();
+	if (!TracedInput.Expression)
+	{
+		return Generator.NewDefaultInputExternal(InputIndex, Input);
+	}
+	return TryAcquireHLSLExpression(Generator, Scope, InputIndex);
+}
+
+const UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionOrExternalInput(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::Material::EExternalInput Input) const
+{
+	return AcquireHLSLExpressionOrExternalInput(Generator, Scope, Input, Generator.FindInputIndex(this));
 }
 
 void FExpressionInput::Connect( int32 InOutputIndex, class UMaterialExpression* InExpression )

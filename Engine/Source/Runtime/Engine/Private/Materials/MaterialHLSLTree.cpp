@@ -605,7 +605,7 @@ bool FExpressionMaterialLayers::PrepareValue(FEmitContext& Context, FEmitScope& 
 
 bool FExpressionSceneTexture::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	Context.PrepareExpression(TexCoordExpression, Scope, ERequestedType::Vector2);
+	Context.PrepareExpression(TexCoordExpression, Scope, Shader::EValueType::Float2);
 	if (Context.bMarkLiveValues)
 	{
 		Context.MaterialCompilationOutput->bNeedsSceneTextures = true;
@@ -652,8 +652,9 @@ void FExpressionSceneTexture::EmitValueShader(FEmitContext& Context, FEmitScope&
 
 bool FExpressionNoise::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPreparedType& PositionType = Context.PrepareExpression(PositionExpression, Scope, ERequestedType::Vector3);
-	const FPreparedType& FilterWidthType = Context.PrepareExpression(FilterWidthExpression, Scope, ERequestedType::Scalar);
+	// TODO - we support Float3 or Double3 position input
+	const FPreparedType& PositionType = Context.PrepareExpression(PositionExpression, Scope, Shader::EValueType::Float3);
+	const FPreparedType& FilterWidthType = Context.PrepareExpression(FilterWidthExpression, Scope, Shader::EValueType::Float1);
 	if (PositionType.IsVoid() || FilterWidthType.IsVoid())
 	{
 		return false;
@@ -741,6 +742,8 @@ void FExpressionVertexInterpolator::EmitValueShader(FEmitContext& Context, FEmit
 		const FVertexInterpolator& Interpolator = EmitMaterialData.VertexInterpolators[InterpolatorIndex];
 
 		FRequestedType RequestedPreshaderType;
+		RequestedPreshaderType.ValueComponentType = RequestedType.ValueComponentType;
+		RequestedPreshaderType.StructType = RequestedType.StructType;
 		for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
 		{
 			// Requested components that are *not* requested by the interpolator will be either constant or preshader evaluation

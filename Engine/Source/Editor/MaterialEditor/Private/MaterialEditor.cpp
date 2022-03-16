@@ -2500,6 +2500,8 @@ void FMaterialEditor::UpdatePreviewMaterial( bool bForce )
 		Material->PostEditChange();
 	}
 
+	Material->MaterialGraph->UpdatePinTypes();
+
 	if (!PreviewExpression)
 	{
 		UpdateStatsMaterials();
@@ -5760,6 +5762,8 @@ void FMaterialEditor::UpdateMaterialAfterGraphChange()
 
 		HideUnrelatedNodes();
 	}
+
+	Material->MaterialGraph->UpdatePinTypes();
 }
 
 void FMaterialEditor::JumpToHyperlink(const UObject* ObjectReference)

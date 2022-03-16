@@ -60,6 +60,17 @@ UMaterialExpression* FMaterialHLSLGenerator::GetCurrentExpression() const
 
 bool FMaterialHLSLGenerator::Generate()
 {
+	const bool bResult = InternalGenerate();
+	if (!bResult)
+	{
+		CachedTree.ResultScope = &GetTree().GetRootScope();
+		CachedTree.ResultExpression = GetTree().NewExpression<UE::HLSLTree::FExpressionError>(AcquireError());
+	}
+	return bResult;
+}
+
+bool FMaterialHLSLGenerator::InternalGenerate()
+{
 	using namespace UE::HLSLTree;
 
 	FScope& RootScope = CachedTree.GetTree().GetRootScope();
@@ -164,7 +175,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 		for (int32 OutputIndex = 0; OutputIndex < FunctionEntry->FunctionOutputs.Num(); ++OutputIndex)
 		{
 			UMaterialExpressionFunctionOutput* ExpressionOutput = FunctionEntry->FunctionOutputs[OutputIndex];
-			FOwnerScope TreeOwnerScope(GetTree(), ExpressionOutput);
+			//FOwnerScope TreeOwnerScope(GetTree(), ExpressionOutput);
 			HLSLFunction->OutputExpressions.Add(ExpressionOutput->A.TryAcquireHLSLExpression(*this, Scope, 0));
 		}
 		FunctionEntry->bGeneratedResult = true;
@@ -229,7 +240,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 								InputExpression);
 							if (Property == MP_WorldPositionOffset)
 							{
-								const FExpression* PrevWPOExpression = GetTree().GetPreviousFrame(InputExpression, ERequestedType::Vector3);
+								const FExpression* PrevWPOExpression = GetTree().GetPreviousFrame(InputExpression, EValueType::Float3);
 								ensure(PrevWPOExpression);
 								AttributesExpression = GetTree().NewExpression<FExpressionSetStructField>(CachedTree.GetMaterialAttributesType(), PrevWPOField, AttributesExpression, PrevWPOExpression);
 							}
@@ -364,6 +375,11 @@ const UE::Shader::FTextureValue* FMaterialHLSLGenerator::AcquireTextureValue(con
 	return Value;
 }
 
+const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::InternalNewErrorExpression(FStringView Error)
+{
+	return GetTree().NewExpression<UE::HLSLTree::FExpressionError>(UE::MemStack::AllocateStringView(GetTree().GetAllocator(), Error));
+}
+
 bool FMaterialHLSLGenerator::InternalError(FStringView ErrorMessage)
 {
 	if (CurrentErrorMessage.Len() > 0)
@@ -372,6 +388,13 @@ bool FMaterialHLSLGenerator::InternalError(FStringView ErrorMessage)
 	}
 	CurrentErrorMessage.Append(ErrorMessage);
 	return false;
+}
+
+FStringView FMaterialHLSLGenerator::AcquireError()
+{
+	const FStringView ErrorMessage = UE::MemStack::AllocateStringView(GetTree().GetAllocator(), CurrentErrorMessage);
+	CurrentErrorMessage.Reset();
+	return ErrorMessage;
 }
 
 int32 FMaterialHLSLGenerator::FindInputIndex(const FExpressionInput* Input) const
@@ -386,6 +409,36 @@ int32 FMaterialHLSLGenerator::FindInputIndex(const FExpressionInput* Input) cons
 	return Index;
 }
 
+const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewDefaultInputConstant(int32 InputIndex, const UE::Shader::FValue& Value)
+{
+	using namespace UE::HLSLTree;
+	
+	const FExpression* Expression = GetTree().NewConstant(Value);
+
+	UObject* InputOwner = GetTree().GetCurrentOwner();
+	if (InputOwner && InputIndex != INDEX_NONE)
+	{
+		const FMaterialConnectionKey Key{ InputOwner, nullptr, InputIndex, INDEX_NONE };
+		CachedTree.ConnectionMap.Add(Key, Expression);
+	}
+	return Expression;
+}
+
+const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewDefaultInputExternal(int32 InputIndex, UE::HLSLTree::Material::EExternalInput Input)
+{
+	using namespace UE::HLSLTree;
+	
+	const FExpression* Expression = NewExternalInput(Input);
+
+	UObject* InputOwner = GetTree().GetCurrentOwner();
+	if (InputOwner && InputIndex != INDEX_NONE)
+	{
+		const FMaterialConnectionKey Key{ InputOwner, nullptr, InputIndex, INDEX_NONE };
+		CachedTree.ConnectionMap.Add(Key, Expression);
+	}
+	return Expression;
+}
+
 const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::HLSLTree::FScope& Scope,
 	int32 InputIndex,
 	UMaterialExpression* MaterialExpression,
@@ -394,7 +447,7 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::H
 {
 	using namespace UE::HLSLTree;
 	UObject* InputOwner = GetTree().GetCurrentOwner();
-	FOwnerScope TreeOwnerScope(GetTree(), MaterialExpression);
+	FOwnerScope OwnerScope(GetTree(), MaterialExpression, NeedToPushOwnerExpression());
 
 	const FExpression* Expression = nullptr;
 	if (MaterialExpression->GenerateHLSLExpression(*this, Scope, OutputIndex, Expression))
@@ -410,14 +463,14 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::H
 			const FMaterialConnectionKey Key{ InputOwner, MaterialExpression, InputIndex, OutputIndex };
 			CachedTree.ConnectionMap.Add(Key, Expression);
 		}
-
-		return Expression;
 	}
-	
-	check(!Expression);
-	const FStringView ErrorMessage = UE::MemStack::AllocateStringView(GetTree().GetAllocator(), CurrentErrorMessage);
-	CurrentErrorMessage.Reset();
-	return GetTree().NewExpression<UE::HLSLTree::FExpressionError>(ErrorMessage);
+	else
+	{
+		check(!Expression);
+		Expression = GetTree().NewExpression<UE::HLSLTree::FExpressionError>(AcquireError());
+	}
+
+	return Expression;
 }
 
 const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireFunctionInputExpression(UE::HLSLTree::FScope& Scope, const UMaterialExpressionFunctionInput* MaterialExpression)
@@ -517,8 +570,12 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 			}
 		}
 
-		FOwnerScope TreeOwnerScope(GetTree(), MaterialExpression);
+		FOwnerScope OwnerScope(GetTree(), MaterialExpression, NeedToPushOwnerExpression());
 		bResult = MaterialExpression->GenerateHLSLStatements(*this, *ScopeToUse);
+		if (!bResult)
+		{
+			GetTree().NewStatement<FStatementError>(*ScopeToUse, AcquireError());
+		}
 	}
 
 	return bResult;

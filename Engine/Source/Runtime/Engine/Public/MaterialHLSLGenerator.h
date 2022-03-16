@@ -87,7 +87,7 @@ public:
 	template<typename FormatType, typename... Types>
 	inline bool Errorf(const FormatType& Format, Types... Args)
 	{
-		TStringBuilder<2048> String;
+		TStringBuilder<1024> String;
 		String.Appendf(Format, Forward<Types>(Args)...);
 		return InternalError(FStringView(String.ToString(), String.Len()));
 	}
@@ -106,9 +106,26 @@ public:
 	const UE::HLSLTree::FExpression* NewExternalInput(UE::HLSLTree::Material::EExternalInput Input);
 	const UE::HLSLTree::FExpression* NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, const UE::HLSLTree::FExpression* Input);
 
+	template<typename StringType>
+	inline const UE::HLSLTree::FExpression* NewErrorExpression(const StringType& InError)
+	{
+		return InternalNewErrorExpression(FStringView(InError));
+	}
+
+	template<typename FormatType, typename... Types>
+	const UE::HLSLTree::FExpression* NewErrorExpressionf(const FormatType& Format, Types... Args)
+	{
+		TStringBuilder<1024> String;
+		String.Appendf(Format, Forward<Types>(Args)...);
+		return InternalNewErrorExpression(String.ToView());
+	}
+
 	const UE::Shader::FTextureValue* AcquireTextureValue(const UE::Shader::FTextureValue& Value);
 
 	int32 FindInputIndex(const FExpressionInput* Input) const;
+
+	const UE::HLSLTree::FExpression* NewDefaultInputConstant(int32 InputIndex, const UE::Shader::FValue& Value);
+	const UE::HLSLTree::FExpression* NewDefaultInputExternal(int32 InputIndex, UE::HLSLTree::Material::EExternalInput Input);
 
 	/**
 	 * Returns the appropriate HLSLNode representing the given UMaterialExpression.
@@ -206,10 +223,25 @@ private:
 		int32 NumInputs = 0;
 	};
 
+	bool InternalGenerate();
+
+	const UE::HLSLTree::FExpression* InternalNewErrorExpression(FStringView Error);
 	bool InternalError(FStringView ErrorMessage);
 
 	void InternalRegisterExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression, void* Data);
 	void* InternalFindExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression);
+
+	FStringView AcquireError();
+
+	bool NeedToPushOwnerExpression() const
+	{
+		// If we're inside a material function, don't change the owner to the current expression
+		// Instead, we let the initial UMaterialExpressionFunctionCall own *all* the expressions generated within the function call
+		// This allows errors generated within the function to be attributed back to the function call,
+		// as well as allow wire types to be properly tracked for wires going into the function
+		const FFunctionCallEntry* FunctionEntry = FunctionCallStack.Last();
+		return !FunctionEntry->MaterialFunction;
+	}
 
 	UMaterial* TargetMaterial;
 	const FMaterialLayersFunctions* LayerOverrides;

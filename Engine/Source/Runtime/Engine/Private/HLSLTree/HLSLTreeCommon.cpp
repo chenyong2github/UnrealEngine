@@ -72,7 +72,7 @@ FSwizzleParameters MakeSwizzleMask(bool bInR, bool bInG, bool bInB, bool bInA)
 
 bool FExpressionError::PrepareValue(FEmitContext& Context, FEmitScope&, const FRequestedType&, FPrepareValueResult&) const
 {
-	return Context.Errors->AddError(ErrorMessage);
+	return Context.Error(ErrorMessage);
 }
 
 void FExpressionForward::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -87,7 +87,8 @@ const FExpression* FExpressionForward::ComputePreviousFrame(FTree& Tree, const F
 
 bool FExpressionForward::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	return Expression->PrepareValue(Context, Scope, RequestedType, OutResult);
+	const FPreparedType& PreparedType = Context.PrepareExpression(Expression, Scope, RequestedType);
+	return OutResult.SetType(Context, RequestedType, PreparedType);
 }
 
 void FExpressionForward::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
@@ -163,10 +164,11 @@ Shader::EValueType GetTexCoordType(Shader::EValueType TextureType)
 
 bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPreparedType& TextureType = Context.PrepareExpression(TextureExpression, Scope, ERequestedType::Texture);
+	// TODO - need the correct texture type?
+	const FPreparedType& TextureType = Context.PrepareExpression(TextureExpression, Scope, Shader::EValueType::Texture2D);
 	if (!Shader::IsTextureType(TextureType.ValueComponentType))
 	{
-		return Context.Errors->AddError(TEXT("Expected texture"));
+		return Context.Error(TEXT("Expected texture"));
 	}
 
 	const FRequestedType RequestedTexCoordType = Private::GetTexCoordType(TextureType.GetType());
@@ -184,7 +186,7 @@ bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& S
 	}
 	else if (MipValueMode == TMVM_MipLevel || MipValueMode == TMVM_MipBias)
 	{
-		Context.PrepareExpression(MipValueExpression, Scope, ERequestedType::Scalar);
+		Context.PrepareExpression(MipValueExpression, Scope, Shader::EValueType::Float1);
 	}
 
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float4);
@@ -309,20 +311,20 @@ void FExpressionGetStructField::ComputeAnalyticDerivatives(FTree& Tree, FExpress
 
 const FExpression* FExpressionGetStructField::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
-	FRequestedType RequestedStructType;
+	FRequestedType RequestedStructType(StructType, false);
 	RequestedStructType.SetField(Field, RequestedType);
 	return Tree.NewExpression<FExpressionGetStructField>(StructType, Field, Tree.GetPreviousFrame(StructExpression, RequestedStructType));
 }
 
 bool FExpressionGetStructField::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	FRequestedType RequestedStructType;
+	FRequestedType RequestedStructType(StructType, false);
 	RequestedStructType.SetField(Field, RequestedType);
 
 	FPreparedType StructPreparedType = Context.PrepareExpression(StructExpression, Scope, RequestedStructType);
 	if (!StructPreparedType.IsVoid() && StructPreparedType.StructType != StructType)
 	{
-		return Context.Errors->AddErrorf(TEXT("Expected type %s"), StructType->Name);
+		return Context.Errorf(TEXT("Expected type %s"), StructType->Name);
 	}
 
 	return OutResult.SetType(Context, RequestedType, StructPreparedType.GetFieldType(Field));
@@ -330,7 +332,7 @@ bool FExpressionGetStructField::PrepareValue(FEmitContext& Context, FEmitScope& 
 
 void FExpressionGetStructField::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	FRequestedType RequestedStructType;
+	FRequestedType RequestedStructType(StructType, false);
 	RequestedStructType.SetField(Field, RequestedType);
 
 	FEmitShaderExpression* StructValue = StructExpression->GetValueShader(Context, Scope, RequestedStructType);
@@ -342,7 +344,7 @@ void FExpressionGetStructField::EmitValueShader(FEmitContext& Context, FEmitScop
 
 void FExpressionGetStructField::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	FRequestedType RequestedStructType;
+	FRequestedType RequestedStructType(StructType, false);
 	RequestedStructType.SetField(Field, RequestedType);
 
 	StructExpression->GetValuePreshader(Context, Scope, RequestedStructType, OutResult.Preshader);
@@ -387,7 +389,7 @@ bool FExpressionSetStructField::PrepareValue(FEmitContext& Context, FEmitScope& 
 	FPreparedType StructPreparedType = Context.PrepareExpression(StructExpression, Scope, RequestedStructType);
 	if (!StructPreparedType.IsVoid() && StructPreparedType.StructType != StructType)
 	{
-		return Context.Errors->AddErrorf(TEXT("Expected type %s"), StructType->Name);
+		return Context.Errorf(TEXT("Expected type %s"), StructType->Name);
 	}
 
 	const FRequestedType RequestedFieldType = RequestedType.GetField(Field);
@@ -467,15 +469,15 @@ void FExpressionSelect::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeriv
 const FExpression* FExpressionSelect::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	return Tree.NewExpression<FExpressionSelect>(
-		Tree.GetPreviousFrame(ConditionExpression, ERequestedType::Scalar),
+		Tree.GetPreviousFrame(ConditionExpression, Shader::EValueType::Bool1),
 		Tree.GetPreviousFrame(TrueExpression, RequestedType),
 		Tree.GetPreviousFrame(FalseExpression, RequestedType));
 }
 
 bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPreparedType& ConditionType = Context.PrepareExpression(ConditionExpression, Scope, ERequestedType::Scalar);
-	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, ERequestedType::Scalar);
+	const FPreparedType& ConditionType = Context.PrepareExpression(ConditionExpression, Scope, Shader::EValueType::Bool1);
+	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, Shader::EValueType::Bool1);
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
 		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, ConditionType, Shader::EValueType::Bool1).AsBoolScalar();
@@ -490,7 +492,7 @@ bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 	if (LhsType.ValueComponentType != RhsType.ValueComponentType ||
 		LhsType.StructType != RhsType.StructType)
 	{
-		return Context.Errors->AddError(TEXT("Type mismatch"));
+		return Context.Error(TEXT("Type mismatch"));
 	}
 
 	FPreparedType ResultType = MergePreparedTypes(LhsType, RhsType);
@@ -502,7 +504,7 @@ bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 void FExpressionSelect::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const FPreparedType& ConditionType = Context.GetPreparedType(ConditionExpression);
-	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, ERequestedType::Scalar);
+	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, Shader::EValueType::Bool1);
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
 		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, ConditionType, Shader::EValueType::Bool1).AsBoolScalar();
@@ -585,6 +587,7 @@ namespace Private
 FRequestedType GetRequestedSwizzleType(const FSwizzleParameters& Params, const FRequestedType& RequestedType)
 {
 	FRequestedType RequestedInputType;
+	RequestedInputType.ValueComponentType = RequestedType.ValueComponentType;
 	for (int32 Index = 0; Index < Params.NumComponents; ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
@@ -667,6 +670,7 @@ void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 
 	const int32 NumComponents = FMath::Min<int32>(RequestedType.GetNumComponents(), Parameters.NumComponents);
 	FRequestedType RequestedInputType;
+	RequestedInputType.ValueComponentType = RequestedType.ValueComponentType;
 	for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 	{
 		// If component wasn't requested, we just refer to 'x' component of input, since that should always be present
@@ -746,6 +750,50 @@ void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, FEmitScope& S
 	}
 }
 
+namespace Private
+{
+struct FAppendTypes
+{
+	Shader::EValueType ResultType;
+	Shader::EValueType LhsType;
+	Shader::EValueType RhsType;
+	FRequestedType LhsRequestedType;
+	FRequestedType RhsRequestedType;
+	bool bIsLWC;
+};
+FAppendTypes GetAppendTypes(const FRequestedType& RequestedType, Shader::EValueType LhsType, Shader::EValueType RhsType)
+{
+	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsType);
+	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsType);
+	const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(LhsTypeDesc.ComponentType, RhsTypeDesc.ComponentType);
+	const int32 NumComponents = FMath::Min(LhsTypeDesc.NumComponents + RhsTypeDesc.NumComponents, 4);
+
+	FAppendTypes Types;
+	Types.LhsRequestedType.ValueComponentType = ComponentType;
+	Types.RhsRequestedType.ValueComponentType = ComponentType;
+	for (int32 Index = 0; Index < LhsTypeDesc.NumComponents; ++Index)
+	{
+		if (RequestedType.IsComponentRequested(Index))
+		{
+			Types.LhsRequestedType.SetComponentRequest(Index);
+		}
+	}
+	for (int32 Index = LhsTypeDesc.NumComponents; Index < NumComponents; ++Index)
+	{
+		if (RequestedType.IsComponentRequested(Index))
+		{
+			Types.RhsRequestedType.SetComponentRequest(Index - LhsTypeDesc.NumComponents);
+		}
+	}
+
+	Types.ResultType = Shader::MakeValueType(ComponentType, NumComponents);
+	Types.LhsType = Shader::MakeValueType(ComponentType, LhsTypeDesc.NumComponents);
+	Types.RhsType = Shader::MakeValueType(ComponentType, NumComponents - LhsTypeDesc.NumComponents);
+	Types.bIsLWC = ComponentType == Shader::EValueComponentType::Double;
+	return Types;
+}
+} // namespace Private
+
 void FExpressionAppend::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
 {
 	const FExpressionDerivatives LhsDerivatives = Tree.GetAnalyticDerivatives(Lhs);
@@ -776,17 +824,19 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 	}
 
 	FRequestedType RhsRequestedType;
+	RhsRequestedType.ValueComponentType = RequestedType.ValueComponentType;
 	for (int32 Index = NumLhsComponents; Index < NumRequestedComponents; ++Index)
 	{
 		RhsRequestedType.SetComponentRequest(Index - NumLhsComponents, RequestedType.IsComponentRequested(Index));
 	}
 
+	FPreparedType RhsType;
 	if (!RhsRequestedType.IsVoid())
 	{
-		const FPreparedType& RhsType = Context.PrepareExpression(Rhs, Scope, RhsRequestedType);
+		RhsType = Context.PrepareExpression(Rhs, Scope, RhsRequestedType);
 		if (LhsType.ValueComponentType != RhsType.ValueComponentType)
 		{
-			return Context.Errors->AddError(TEXT("Type mismatch"));
+			return Context.Error(TEXT("Type mismatch"));
 		}
 
 		const int32 NumRhsComponents = FMath::Min(RhsType.GetNumComponents(), NumRequestedComponents - NumLhsComponents);
@@ -796,50 +846,12 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 		}
 	}
 
+	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, LhsType.GetType(), RhsType.GetType());
+	Context.MarkInputType(Lhs, Types.LhsType);
+	Context.MarkInputType(Rhs, Types.RhsType);
+
 	return OutResult.SetType(Context, RequestedType, ResultType);
 }
-
-namespace Private
-{
-struct FAppendTypes
-{
-	Shader::EValueType ResultType;
-	Shader::EValueType LhsType;
-	Shader::EValueType RhsType;
-	FRequestedType LhsRequestedType;
-	FRequestedType RhsRequestedType;
-	bool bIsLWC;
-};
-FAppendTypes GetAppendTypes(const FRequestedType& RequestedType, Shader::EValueType LhsType, Shader::EValueType RhsType)
-{
-	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsType);
-	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsType);
-	const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(LhsTypeDesc.ComponentType, RhsTypeDesc.ComponentType);
-	const int32 NumComponents = FMath::Min(LhsTypeDesc.NumComponents + RhsTypeDesc.NumComponents, 4);
-
-	FAppendTypes Types;
-	for (int32 Index = 0; Index < LhsTypeDesc.NumComponents; ++Index)
-	{
-		if (RequestedType.IsComponentRequested(Index))
-		{
-			Types.LhsRequestedType.SetComponentRequest(Index);
-		}
-	}
-	for (int32 Index = LhsTypeDesc.NumComponents; Index < NumComponents; ++Index)
-	{
-		if (RequestedType.IsComponentRequested(Index))
-		{
-			Types.RhsRequestedType.SetComponentRequest(Index - LhsTypeDesc.NumComponents);
-		}
-	}
-
-	Types.ResultType = Shader::MakeValueType(ComponentType, NumComponents);
-	Types.LhsType = Shader::MakeValueType(ComponentType, LhsTypeDesc.NumComponents);
-	Types.RhsType = Shader::MakeValueType(ComponentType, NumComponents - LhsTypeDesc.NumComponents);
-	Types.bIsLWC = ComponentType == Shader::EValueComponentType::Double;
-	return Types;
-}
-} // namespace Private
 
 void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
@@ -995,7 +1007,8 @@ bool FExpressionCustomHLSL::PrepareValue(FEmitContext& Context, FEmitScope& Scop
 {
 	for (const FCustomHLSLInput& Input : Inputs)
 	{
-		const FPreparedType& InputType = Context.PrepareExpression(Input.Expression, Scope, ERequestedType::Vector4);
+		// TODO - do we need to support untyped input here?  Add explicit custom input types?
+		const FPreparedType& InputType = Context.PrepareExpression(Input.Expression, Scope, Shader::EValueType::Float4);
 		if (InputType.IsVoid())
 		{
 			return false;
@@ -1008,6 +1021,11 @@ bool FExpressionCustomHLSL::PrepareValue(FEmitContext& Context, FEmitScope& Scop
 void FExpressionCustomHLSL::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	OutResult.Code = Context.EmitCustomHLSL(Scope, DeclarationCode, FunctionCode, Inputs, OutputStructType);
+}
+
+bool FStatementError::Prepare(FEmitContext& Context, FEmitScope& Scope) const
+{
+	return Context.Error(ErrorMessage);
 }
 
 bool FStatementBreak::Prepare(FEmitContext& Context, FEmitScope& Scope) const
@@ -1030,13 +1048,13 @@ void FStatementBreak::EmitPreshader(FEmitContext& Context, FEmitScope& Scope, co
 
 bool FStatementIf::Prepare(FEmitContext& Context, FEmitScope& Scope) const
 {
-	const FPreparedType& ConditionType = Context.PrepareExpression(ConditionExpression, Scope, ERequestedType::Scalar);
+	const FPreparedType& ConditionType = Context.PrepareExpression(ConditionExpression, Scope, Shader::EValueType::Bool1);
 	if (ConditionType.IsVoid())
 	{
 		return false;
 	}
 
-	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, ERequestedType::Scalar);
+	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, Shader::EValueType::Bool1);
 	check(ConditionEvaluation != EExpressionEvaluation::None);
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
@@ -1065,7 +1083,7 @@ void FStatementIf::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
 {
 	FEmitShaderNode* Dependency = nullptr;
 	const FPreparedType& ConditionType = Context.GetPreparedType(ConditionExpression);
-	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, ERequestedType::Scalar);
+	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, Shader::EValueType::Bool1);
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
 		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, ConditionType, Shader::EValueType::Bool1).AsBoolScalar();
@@ -1089,7 +1107,7 @@ void FStatementIf::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
 
 void FStatementIf::EmitPreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> Scopes, Shader::FPreshaderData& OutPreshader) const
 {
-	ConditionExpression->GetValuePreshader(Context, Scope, ERequestedType::Scalar, OutPreshader);
+	ConditionExpression->GetValuePreshader(Context, Scope, Shader::EValueType::Bool1, OutPreshader);
 
 	check(Context.PreshaderStackPosition > 0);
 	Context.PreshaderStackPosition--;

@@ -213,6 +213,21 @@ FEmitContext::~FEmitContext()
 	}
 }
 
+bool FEmitContext::InternalError(FStringView ErrorMessage)
+{
+	if (Errors)
+	{
+		TConstArrayView<UObject*> CurrentOwners;
+		if (OwnerStack.Num() > 0)
+		{
+			CurrentOwners = OwnerStack.Last()->GetOwners();
+		}
+		Errors->AddError(CurrentOwners, ErrorMessage);
+	}
+	NumErrors++;
+	return false;
+}
+
 void FEmitContext::InternalRegisterData(FXxHash64 Hash, FCustomDataWrapper* Data)
 {
 	CustomDataMap.Add(Hash, Data);
@@ -416,9 +431,12 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 		return Result->PreparedType;
 	}
 
+	MarkInputType(InExpression, RequestedType.GetType());
+
 	bool bResult = false;
 	{
-		FOwnerScope OwnerScope(*Errors, InExpression->GetOwner());
+		FEmitOwnerScope OwnerScope(*this, InExpression);
+
 		Result->bPreparingValue = true;
 		bResult = InExpression->PrepareValue(*this, Scope, RequestedType, *Result);
 		Result->bPreparingValue = false;
@@ -431,6 +449,19 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 		check(!ResultType.IsVoid());
 	}
 	return ResultType;
+}
+
+void FEmitContext::MarkInputType(const FExpression* InExpression, const Shader::FType& Type)
+{
+	if (OwnerStack.Num() > 0)
+	{
+		const FOwnedNode* InputOwner = OwnerStack.Last();
+		for (UObject* InputObject : InputOwner->GetOwners())
+		{
+			const FConnectionKey Key(InputObject, InExpression);
+			ConnectionMap.Add(Key, Type);
+		}
+	}
 }
 
 FEmitScope* FEmitContext::InternalPrepareScope(FScope* InScope, FScope* InParentScope)
@@ -500,11 +531,14 @@ FEmitScope* FEmitContext::InternalPrepareScope(FScope* InScope, FScope* InParent
 		}
 		else if (EmitScope->State == EEmitScopeState::Initializing)
 		{
-			if (EmitScope->OwnerStatement)
+			FStatement* Statement = EmitScope->OwnerStatement;
+			if (Statement)
 			{
+				FEmitOwnerScope OwnerScope(*this, Statement);
+
 				FEmitScope* EmitParentScope = EmitScope->ParentScope;
 				check(EmitParentScope);
-				if (EmitScope->OwnerStatement->Prepare(*this, *EmitParentScope))
+				if (Statement->Prepare(*this, *EmitParentScope))
 				{
 					if (EmitScope->State == EEmitScopeState::Initializing)
 					{
@@ -1205,7 +1239,7 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 	}
 	else
 	{
-		Errors->AddErrorf(TEXT("Cannot cast between non-numeric types %s to %s."), SourceTypeDesc.Name, DestTypeDesc.Name);
+		Errorf(TEXT("Cannot cast between non-numeric types %s to %s."), SourceTypeDesc.Name, DestTypeDesc.Name);
 		FormattedCode.Appendf(TEXT("((%s)0)"), DestType.GetName());
 	}
 

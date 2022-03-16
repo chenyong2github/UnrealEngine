@@ -3930,7 +3930,7 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 	// not interested in PostEditChange calls though as the graph may have instigated it
 	if (PropertyThatChanged && MaterialGraph)
 	{
-		MaterialGraph->NotifyGraphChanged();
+		MaterialGraph->RebuildGraph();
 	}
 } 
 

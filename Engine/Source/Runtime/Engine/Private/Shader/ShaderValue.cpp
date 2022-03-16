@@ -666,6 +666,20 @@ FValueTypeDescription GetValueTypeDescription(EValueType Type)
 	}
 }
 
+EValueType FindValueType(FName Name)
+{
+	for (int32 TypeIndex = 1; TypeIndex < NumValueTypes; ++TypeIndex)
+	{
+		const EValueType Type = (EValueType)TypeIndex;
+		const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+		if (Name == TypeDesc.Name)
+		{
+			return Type;
+		}
+	}
+	return EValueType::Void;
+}
+
 EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 {
 	if (ComponentType == EValueComponentType::Void || NumComponents == 0)

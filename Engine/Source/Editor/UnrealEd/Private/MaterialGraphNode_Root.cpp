@@ -45,16 +45,21 @@ void UMaterialGraphNode_Root::PostPlacedNewNode()
 	}
 }
 
-int32 UMaterialGraphNode_Root::GetInputIndexForPin(const UEdGraphPin* Pin) const
+UObject* UMaterialGraphNode_Root::GetMaterialNodeOwner() const
 {
-	if (Pin)
+	return Material;
+}
+
+int32 UMaterialGraphNode_Root::GetSourceIndexForInputIndex(int32 InputIndex) const
+{
+	const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
+	for (int32 SourceIndex = 0; SourceIndex < MaterialGraph->MaterialInputs.Num(); ++SourceIndex)
 	{
-		// Pin->SourceIndex will be an index into the graph's MaterialInputs array
-		// the 'InputIndex' for root nodes is equal to the material property value
-		const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
-		if (MaterialGraph->MaterialInputs.IsValidIndex(Pin->SourceIndex))
+		// InputIndex will be the EMaterialProperty of the input
+		// SourceIndex will be an index into the 'MaterialInputs' array
+		if (InputIndex == (int32)MaterialGraph->MaterialInputs[SourceIndex].GetProperty())
 		{
-			return (int32)MaterialGraph->MaterialInputs[Pin->SourceIndex].GetProperty();
+			return SourceIndex;
 		}
 	}
 	return INDEX_NONE;

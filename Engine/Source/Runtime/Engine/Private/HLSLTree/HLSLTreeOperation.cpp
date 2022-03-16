@@ -114,10 +114,10 @@ const FExpression* FTree::NewCross(const FExpression* Lhs, const FExpression* Rh
 	//c_P[0] = v_A[1] * v_B[2] - v_A[2] * v_B[1];
 	//c_P[1] = -(v_A[0] * v_B[2] - v_A[2] * v_B[0]);
 	//c_P[2] = v_A[0] * v_B[1] - v_A[1] * v_B[0];
-	const FExpression* Lhs0 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(1, 0, 0), Lhs);
-	const FExpression* Lhs1 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(2, 2, 1), Lhs);
-	const FExpression* Rhs0 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(2, 2, 1), Rhs);
-	const FExpression* Rhs1 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(1, 0, 0), Rhs);
+	const FExpression* Lhs0 = NewSwizzle(FSwizzleParameters(1, 0, 0), Lhs);
+	const FExpression* Lhs1 = NewSwizzle(FSwizzleParameters(2, 2, 1), Lhs);
+	const FExpression* Rhs0 = NewSwizzle(FSwizzleParameters(2, 2, 1), Rhs);
+	const FExpression* Rhs1 = NewSwizzle(FSwizzleParameters(1, 0, 0), Rhs);
 	return NewSub(NewMul(NewMul(Lhs0, Rhs0), NewConstant(FVector3f(1.0f, -1.0f, 1.0f))), NewMul(Lhs1, Rhs1));
 }
 
@@ -161,24 +161,24 @@ FOperationRequestedTypes GetOperationRequestedTypes(EOperation Op, const FReques
 	case EOperation::Length:
 	case EOperation::Normalize:
 	case EOperation::Sum:
-		Types.InputType[0] = ERequestedType::Vector4;
+		Types.InputType[0] = Shader::MakeValueType(RequestedType.ValueComponentType, 4);
 		break;
 	case EOperation::VecMulMatrix3:
 		Types.bIsMatrixOperation = true;
-		Types.InputType[0] = ERequestedType::Vector3;
-		Types.InputType[1] = ERequestedType::Matrix4x4;
+		Types.InputType[0] = Shader::MakeValueType(RequestedType.ValueComponentType, 3);
+		Types.InputType[1] = Shader::MakeValueType(RequestedType.ValueComponentType, 16);
 		break;
 	case EOperation::VecMulMatrix4:
 		Types.bIsMatrixOperation = true;
-		Types.InputType[0] = ERequestedType::Vector3;
-		Types.InputType[1] = ERequestedType::Matrix4x4;
+		Types.InputType[0] = Shader::MakeValueType(RequestedType.ValueComponentType, 3);
+		Types.InputType[1] = Shader::MakeValueType(RequestedType.ValueComponentType, 16);
 		break;
 	case EOperation::Matrix3MulVec:
 	case EOperation::Matrix4MulVec:
 		// No LWC for transpose matrices
 		Types.bIsMatrixOperation = true;
-		Types.InputType[0] = ERequestedType::Matrix4x4;
-		Types.InputType[1] = ERequestedType::Vector3;
+		Types.InputType[0] = Shader::MakeValueType(RequestedType.ValueComponentType, 16);
+		Types.InputType[1] = Shader::MakeValueType(RequestedType.ValueComponentType, 3);
 		break;
 	default:
 		break;
@@ -253,7 +253,8 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 					break;
 				}
 			}
-			Types.InputType[Index] = Shader::MakeValueType(InputComponentType, NumIntermediateComponents);
+			const int32 NumInputComponents = InputPreparedType[Index].GetNumComponents();
+			Types.InputType[Index] = Shader::MakeValueType(InputComponentType, (NumInputComponents == 1) ? 1 : NumIntermediateComponents);
 		}
 		Types.ResultType = IntermediateType;
 		Types.bIsLWC = (IntermediateComponentType == Shader::EValueComponentType::Double);
@@ -557,7 +558,7 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 
 		if (!InputPreparedType[Index].IsNumeric())
 		{
-			return Context.Errors->AddError(TEXT("Invalid arithmetic between non-numeric types"));
+			return Context.Error(TEXT("Invalid arithmetic between non-numeric types"));
 		}
 		
 		const EExpressionEvaluation InputEvaluation = InputPreparedType[Index].GetEvaluation(Scope, RequestedType);
@@ -573,6 +574,11 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 	{
 		// No preshader support
 		Types.ResultType.SetEvaluation(EExpressionEvaluation::Shader);
+	}
+
+	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
+	{
+		Context.MarkInputType(Inputs[Index], Types.InputType[Index]);
 	}
 
 	switch (Op)

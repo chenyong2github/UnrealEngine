@@ -39,6 +39,7 @@
 #include "ScopedTransaction.h"
 #include "MaterialEditorUtilities.h"
 #include "GraphEditorActions.h"
+#include "GraphEditorSettings.h"
 #include "AssetRegistryModule.h"
 #include "MaterialEditorActions.h"
 #include "MaterialGraphNode_Knot.h"
@@ -229,6 +230,8 @@ const FName UMaterialGraphSchema::PC_Required(TEXT("required"));
 const FName UMaterialGraphSchema::PC_Optional(TEXT("optional"));
 const FName UMaterialGraphSchema::PC_MaterialInput(TEXT("materialinput"));
 const FName UMaterialGraphSchema::PC_Exec(TEXT("exec"));
+const FName UMaterialGraphSchema::PC_Void(TEXT("void"));
+const FName UMaterialGraphSchema::PC_ValueType(TEXT("value"));
 
 const FName UMaterialGraphSchema::PSC_Red(TEXT("red"));
 const FName UMaterialGraphSchema::PSC_Green(TEXT("green"));
@@ -621,6 +624,50 @@ bool UMaterialGraphSchema::TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) c
 	return bModified;
 }
 
+namespace Private
+{
+FLinearColor GetColorForConnectionType(const UGraphEditorSettings* Settings, UE::Shader::EValueType ConnectionType)
+{
+	if (ConnectionType == UE::Shader::EValueType::Struct)
+	{
+		return Settings->StructPinTypeColor;
+	}
+	else
+	{
+		const UE::Shader::FValueTypeDescription TypeDesc = UE::Shader::GetValueTypeDescription(ConnectionType);
+		if (UE::Shader::IsTextureType(TypeDesc.ComponentType))
+		{
+			return Settings->ObjectPinTypeColor;
+		}
+		else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Float)
+		{
+			if (TypeDesc.NumComponents == 1)
+			{
+				return Settings->FloatPinTypeColor;
+			}
+			else
+			{
+				return Settings->VectorPinTypeColor;
+			}
+		}
+		else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Double)
+		{
+			return Settings->DoublePinTypeColor;
+		}
+		else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Bool)
+		{
+			return Settings->BooleanPinTypeColor;
+		}
+		else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Int)
+		{
+			return Settings->IntPinTypeColor;
+		}
+	}
+
+	return Settings->DefaultPinTypeColor;
+}
+} // namespace Private
+
 FLinearColor UMaterialGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
 	if (PinType.PinCategory == PC_Mask)
@@ -647,6 +694,16 @@ FLinearColor UMaterialGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinTyp
 		return ActivePinColor;
 	}
 	else if (PinType.PinCategory == PC_Optional)
+	{
+		return InactivePinColor;
+	}
+	else if (PinType.PinCategory == PC_ValueType)
+	{
+		const UE::Shader::EValueType ValueType = UE::Shader::FindValueType(PinType.PinSubCategory);
+		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+		return Private::GetColorForConnectionType(Settings, ValueType);
+	}
+	else if (PinType.PinCategory == PC_Void)
 	{
 		return InactivePinColor;
 	}

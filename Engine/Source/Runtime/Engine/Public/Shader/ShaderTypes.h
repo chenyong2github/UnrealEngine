@@ -69,7 +69,10 @@ enum class EValueComponentType : uint8
 	TextureCubeArray,
 	Texture3D,
 	TextureExternal,
+
+	Num,
 };
+static constexpr int32 NumValueComponentTypes = (int32)EValueComponentType::Num;
 
 struct FValueComponentTypeDescription
 {
@@ -133,7 +136,10 @@ enum class EValueType : uint8
 	TextureCubeArray,
 	Texture3D,
 	TextureExternal,
+
+	Num,
 };
+static constexpr int32 NumValueTypes = (int32)EValueType::Num;
 
 struct FValueTypeDescription
 {
@@ -146,6 +152,7 @@ struct FValueTypeDescription
 };
 
 ENGINE_API FValueTypeDescription GetValueTypeDescription(EValueType Type);
+ENGINE_API EValueType FindValueType(FName Name);
 inline bool IsLWCType(EValueType Type) { return IsLWCType(GetValueTypeDescription(Type).ComponentType); }
 ENGINE_API EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents);
 ENGINE_API EValueType MakeValueType(EValueType BaseType, int32 NumComponents);

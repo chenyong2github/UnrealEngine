@@ -183,6 +183,8 @@ class UMaterialGraphSchema : public UEdGraphSchema
 	UNREALED_API static const FName PC_Optional;
 	UNREALED_API static const FName PC_MaterialInput;
 	UNREALED_API static const FName PC_Exec;
+	UNREALED_API static const FName PC_Void;
+	UNREALED_API static const FName PC_ValueType;
 
 	// Common PinType.PinSubCategory values
 	UNREALED_API static const FName PSC_Red;

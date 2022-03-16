@@ -28,6 +28,7 @@ namespace UE::HLSLTree
 
 class FErrorHandlerInterface;
 class FNode;
+class FOwnedNode;
 class FScope;
 class FExpression;
 class FFunction;
@@ -264,6 +265,28 @@ struct FTargetParameters
 	const ITargetPlatform* TargetPlatform = nullptr;
 };
 
+struct FConnectionKey
+{
+	FConnectionKey() = default;
+	FConnectionKey(const UObject* InInputObject, const FExpression* InOutputExpression) : InputObject(InInputObject), OutputExpression(InOutputExpression) {}
+
+	const UObject* InputObject = nullptr;
+	const FExpression* OutputExpression = nullptr;
+};
+inline uint32 GetTypeHash(const FConnectionKey& Key)
+{
+	return HashCombine(::GetTypeHash(Key.InputObject), ::GetTypeHash(Key.OutputExpression));
+}
+inline bool operator==(const FConnectionKey& Lhs, const FConnectionKey& Rhs)
+{
+	return Lhs.InputObject == Rhs.InputObject &&
+		Lhs.OutputExpression == Rhs.OutputExpression;
+}
+inline bool operator!=(const FConnectionKey& Lhs, const FConnectionKey& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
 /** Tracks shared state while emitting HLSL code */
 class ENGINE_API FEmitContext
 {
@@ -274,6 +297,20 @@ public:
 		const Shader::FStructTypeRegistry& InTypeRegistry);
 
 	~FEmitContext();
+
+	template<typename StringType>
+	inline bool Error(const StringType& InError)
+	{
+		return InternalError(FStringView(InError));
+	}
+
+	template<typename FormatType, typename... Types>
+	inline bool Errorf(const FormatType& Format, Types... Args)
+	{
+		TStringBuilder<1024> String;
+		String.Appendf(Format, Forward<Types>(Args)...);
+		return InternalError(FStringView(String.ToString(), String.Len()));
+	}
 
 	template<typename T>
 	T& AcquireData()
@@ -314,6 +351,7 @@ public:
 	EExpressionEvaluation GetEvaluation(const FExpression* Expression, const FEmitScope& Scope, const FRequestedType& RequestedType) const;
 
 	FPreparedType PrepareExpression(const FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
+	void MarkInputType(const FExpression* InExpression, const Shader::FType& Type);
 
 	FEmitScope* InternalPrepareScope(FScope* Scope, FScope* ParentScope);
 	FEmitScope* PrepareScope(FScope* Scope);
@@ -494,6 +532,7 @@ public:
 		T Data;
 	};
 
+	bool InternalError(FStringView ErrorMessage);
 	void InternalRegisterData(FXxHash64 Hash, FCustomDataWrapper* Data);
 	FCustomDataWrapper* InternalFindData(FXxHash64 Hash) const;
 
@@ -505,6 +544,7 @@ public:
 	bool bMarkLiveValues = false;
 	bool bUseAnalyticDerivatives = false;
 
+	TArray<const FOwnedNode*, TInlineAllocator<32>> OwnerStack;
 	TArray<FEmitShaderNode*> EmitNodes;
 	TMap<const FScope*, FEmitScope*> EmitScopeMap;
 	TMap<const FExpression*, FPrepareValueResult*> PrepareValueMap;
@@ -517,7 +557,9 @@ public:
 	TArray<struct FPreshaderLoopScope*> PreshaderLoopScopes;
 	TArray<const FPreshaderLocalPHIScope*> PreshaderLocalPHIScopes;
 	TMap<FXxHash64, FCustomDataWrapper*> CustomDataMap;
+	TMap<FConnectionKey, Shader::FType> ConnectionMap;
 	int32 PreshaderStackPosition = 0;
+	int32 NumErrors = 0;
 
 	int32 NumExpressionLocals = 0;
 	int32 NumExpressionLocalPHIs = 0;
@@ -528,6 +570,22 @@ public:
 	uint32 UniformPreshaderOffset = 0u;
 	uint32 CurrentBoolUniformOffset = ~0u;
 	uint32 CurrentNumBoolComponents = 32u;
+};
+
+struct FEmitOwnerScope
+{
+	FEmitOwnerScope(FEmitContext& InContext, const FOwnedNode* InNode) : Context(InContext), Node(InNode)
+	{
+		InContext.OwnerStack.Add(InNode);
+	}
+
+	~FEmitOwnerScope()
+	{
+		verify(Context.OwnerStack.Pop(false) == Node);
+	}
+
+	FEmitContext& Context;
+	const FOwnedNode* Node;
 };
 
 } // namespace UE::HLSLTree

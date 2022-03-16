@@ -104,15 +104,18 @@ bool FMaterialGraphConnectionDrawingPolicy::ShouldChangeTangentForKnot(UMaterial
 		return bPinReversed;
 	}
 }
+
 void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params)
 {
 	Params.AssociatedPin1 = OutputPin;
 	Params.AssociatedPin2 = InputPin;
 	Params.WireColor = MaterialGraphSchema->ActivePinColor;
 
-	FMaterialConnectionKey ConnectionKey;
+	UE::Shader::EValueType InputType = UE::Shader::EValueType::Void;
+	UE::Shader::EValueType OutputType = UE::Shader::EValueType::Void;
 	bool bInactivePin = false;
 	bool bExecPin = false;
+	bool bValueTypePin = false;
 
 	// Have to consider both pins as the input will be an 'output' when previewing a connection
 	if (OutputPin)
@@ -121,9 +124,19 @@ void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Ou
 		{
 			bInactivePin = true;
 		}
+
 		if (OutputPin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 		{
 			bExecPin = true;
+		}
+		else if (OutputPin->PinType.PinCategory == UMaterialGraphSchema::PC_Void)
+		{
+			bValueTypePin = true;
+		}
+		else if (OutputPin->PinType.PinCategory == UMaterialGraphSchema::PC_ValueType)
+		{
+			OutputType = UE::Shader::FindValueType(OutputPin->PinType.PinSubCategory);
+			bValueTypePin = true;
 		}
 
 		UEdGraphNode* OutputNode = OutputPin->GetOwningNode();
@@ -138,11 +151,6 @@ void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Ou
 		{
 			bInactivePin = true;
 		}
-		else if(UMaterialGraphNode_Base* OutputMaterialNode = Cast<UMaterialGraphNode_Base>(OutputNode))
-		{
-			ConnectionKey.OutputObject = OutputMaterialNode->GetMaterialNodeOwner();
-			ConnectionKey.OutputIndex = OutputPin->SourceIndex;
-		}
 	}
 	if (InputPin)
 	{
@@ -150,9 +158,19 @@ void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Ou
 		{
 			bInactivePin = true;
 		}
+
 		if (InputPin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 		{
 			bExecPin = true;
+		}
+		else if (InputPin->PinType.PinCategory == UMaterialGraphSchema::PC_Void)
+		{
+			bValueTypePin = true;
+		}
+		else if (InputPin->PinType.PinCategory == UMaterialGraphSchema::PC_ValueType)
+		{
+			InputType = UE::Shader::FindValueType(InputPin->PinType.PinSubCategory);
+			bValueTypePin = true;
 		}
 
 		UEdGraphNode* InputNode = InputPin->GetOwningNode();
@@ -167,11 +185,6 @@ void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Ou
 		{
 			bInactivePin = true;
 		}
-		else if (UMaterialGraphNode_Base* InputMaterialNode = Cast<UMaterialGraphNode_Base>(InputNode))
-		{
-			ConnectionKey.InputObject = InputMaterialNode->GetMaterialNodeOwner();
-			ConnectionKey.InputIndex = InputMaterialNode->GetInputIndexForPin(InputPin);
-		}
 	}
 
 	if (bInactivePin)
@@ -183,43 +196,12 @@ void FMaterialGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Ou
 		Params.WireColor = Settings->ExecutionPinTypeColor;
 		Params.WireThickness = Settings->DefaultExecutionWireThickness;
 	}
-	else
+	else if (bValueTypePin)
 	{
-		const UE::Shader::EValueType ConnectionType = MaterialGraph->GetConnectionType(ConnectionKey);
-		if (ConnectionType == UE::Shader::EValueType::Struct)
+		// TODO - how to handle InputPin being nullptr, when does this occur?
+		if (InputPin)
 		{
-			Params.WireColor = Settings->StructPinTypeColor;
-		}
-		else
-		{
-			const UE::Shader::FValueTypeDescription TypeDesc = UE::Shader::GetValueTypeDescription(ConnectionType);
-			if (UE::Shader::IsTextureType(TypeDesc.ComponentType))
-			{
-				Params.WireColor = Settings->ObjectPinTypeColor;
-			}
-			else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Float)
-			{
-				if (TypeDesc.NumComponents == 1)
-				{
-					Params.WireColor = Settings->FloatPinTypeColor;
-				}
-				else
-				{
-					Params.WireColor = Settings->VectorPinTypeColor;
-				}
-			}
-			else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Double)
-			{
-				Params.WireColor = Settings->DoublePinTypeColor;
-			}
-			else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Bool)
-			{
-				Params.WireColor = Settings->BooleanPinTypeColor;
-			}
-			else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Int)
-			{
-				Params.WireColor = Settings->IntPinTypeColor;
-			}
+			Params.WireColor = MaterialGraphSchema->GetPinTypeColor(InputPin->PinType);
 		}
 	}
 

@@ -31,11 +31,6 @@
 
 #define LOCTEXT_NAMESPACE "MaterialGraph"
 
-struct FMaterialGraphCachedConnections
-{
-	TMap<FMaterialConnectionKey, UE::Shader::EValueType> ConnectionMap;
-};
-
 UMaterialGraph::UMaterialGraph(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -99,7 +94,16 @@ static UMaterialGraphNode* InitExpressionNewNode(UMaterialGraph* Graph, UMateria
 
 namespace Private
 {
+class FOwnedNodeMaterial : public UE::HLSLTree::FOwnedNode
+{
+public:
+	FOwnedNodeMaterial(UObject* InMaterial) : Material(InMaterial) {}
+	virtual TConstArrayView<UObject*> GetOwners() const final { return MakeArrayView(&Material, 1); }
+	UObject* Material;
+};
+
 void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
+	UMaterial* Material,
 	const FMaterialCachedHLSLTree& CachedTree,
 	EShaderFrequency ShaderFrequency)
 {
@@ -111,57 +115,107 @@ void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
 	EmitContext.bMarkLiveValues = false;
 	FEmitScope* EmitResultScope = EmitContext.PrepareScope(CachedTree.GetResultScope());
 
-	FRequestedType RequestedAttributesType;
+	FRequestedType RequestedAttributesType(CachedTree.GetMaterialAttributesType(), false);
 	CachedTree.SetRequestedFields(ShaderFrequency, RequestedAttributesType);
 
+	FOwnedNodeMaterial MaterialOwner(Material);
+	FEmitOwnerScope OwnerScope(EmitContext, &MaterialOwner);
 	const FPreparedType& ResultType = EmitContext.PrepareExpression(CachedTree.GetResultExpression(), *EmitResultScope, RequestedAttributesType);
 }
 
-FMaterialGraphCachedConnections* CreateConnections(const FMaterialCachedHLSLTree& CachedTree)
+UMaterialGraphNode_Base* FindGraphNodeForObject(const UObject* Object)
+{
+	if (const UMaterialExpression* MaterialExpression = Cast<UMaterialExpression>(Object))
+	{
+		return CastChecked<UMaterialGraphNode_Base>(MaterialExpression->GraphNode);
+	}
+	else if (const UMaterial* Material = Cast<UMaterial>(Object))
+	{
+		const UMaterialGraph* MaterialGraph = Material->MaterialGraph;
+		if (MaterialGraph)
+		{
+			return MaterialGraph->RootNode;
+		}
+	}
+	return nullptr;
+}
+} // namespace Private
+
+void UMaterialGraph::UpdatePinTypes()
 {
 	using namespace UE::HLSLTree;
 
+	if (!Material->IsUsingNewHLSLGenerator())
+	{
+		return;
+	}
+
+	for (UEdGraphNode* Node : Nodes)
+	{
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
+			{
+				Pin->PinType.PinCategory = UMaterialGraphSchema::PC_Void;
+			}
+		}
+	}
+
 	FNullErrorHandler NullErrorHandler;
 	FMemStackBase Allocator;
+	const FMaterialCachedHLSLTree& CachedTree = Material->GetCachedHLSLTree();
 	FEmitContext EmitContext(Allocator, FTargetParameters(), NullErrorHandler, CachedTree.GetTypeRegistry());
 
 	Material::FEmitData& EmitMaterialData = EmitContext.AcquireData<Material::FEmitData>();
 
-	PrepareHLSLTree(EmitContext, CachedTree, SF_Pixel);
-	PrepareHLSLTree(EmitContext, CachedTree, SF_Vertex);
+	::Private::PrepareHLSLTree(EmitContext, Material, CachedTree, SF_Pixel);
+	::Private::PrepareHLSLTree(EmitContext, Material, CachedTree, SF_Vertex);
 
-	FMaterialGraphCachedConnections* Connections = new FMaterialGraphCachedConnections();
 	for (const auto& It : CachedTree.GetConnections())
 	{
-		const UE::Shader::FType Type = EmitContext.GetType(It.Value);
-		if (!Type.IsVoid())
+		const FMaterialConnectionKey& Key = It.Key;
+		const FExpression* OutputExpression = It.Value;
+		const UE::Shader::FType OutputType = EmitContext.GetType(OutputExpression);
+		if (!OutputType.IsVoid())
 		{
-			Connections->ConnectionMap.Add(It.Key, Type.ValueType);
+			const FConnectionKey InputKey(Key.InputObject, OutputExpression);
+			const UE::Shader::FType* InputType = EmitContext.ConnectionMap.Find(InputKey);
+			if (Cast<UMaterialExpressionMaterialFunctionCall>(Key.InputObject) || Cast<UMaterialExpressionMaterialFunctionCall>(Key.OutputObject))
+			{
+				int a = 0;
+			}
+
+			if (InputType)
+			{
+				UMaterialGraphNode_Base* InputNode = ::Private::FindGraphNodeForObject(Key.InputObject);
+				if (InputNode)
+				{
+					const int32 InputIndex = InputNode->GetSourceIndexForInputIndex(Key.InputIndex);
+					UEdGraphPin* InputPin = InputNode->GetInputPin(InputIndex);
+					if (InputPin)
+					{
+						const UE::Shader::FValueTypeDescription InputTypeDesc = UE::Shader::GetValueTypeDescription(*InputType);
+						ensure(InputPin->PinType.PinCategory == UMaterialGraphSchema::PC_Void);
+						InputPin->PinType.PinCategory = UMaterialGraphSchema::PC_ValueType;
+						InputPin->PinType.PinSubCategory = InputTypeDesc.Name;
+					}
+				}
+			}
+
+			UMaterialGraphNode_Base* OutputNode = ::Private::FindGraphNodeForObject(Key.OutputObject);
+			if (OutputNode)
+			{
+				UEdGraphPin* OutputPin = OutputNode->GetOutputPin(Key.OutputIndex);
+				if (OutputPin)
+				{
+					// A single output pin may connect to multiple inputs, so it's possible to set the same value multiple times here
+					const UE::Shader::FValueTypeDescription OutputTypeDesc = UE::Shader::GetValueTypeDescription(OutputType);
+					OutputPin->PinType.PinCategory = UMaterialGraphSchema::PC_ValueType;
+					OutputPin->PinType.PinSubCategory = OutputTypeDesc.Name;
+				}
+			}
 		}
 	}
-
-	return Connections;
-}
-
-} // namespace Private
-
-UE::Shader::EValueType UMaterialGraph::GetConnectionType(const FMaterialConnectionKey& Key)
-{
-	FMaterialGraphCachedConnections* LocalConnections = CachedConnections.Get();
-	if (!LocalConnections && Material->IsUsingNewHLSLGenerator())
-	{
-		LocalConnections = Private::CreateConnections(Material->GetCachedHLSLTree());
-		CachedConnections.Reset(LocalConnections);
-	}
-	if (LocalConnections)
-	{
-		const UE::Shader::EValueType* Result = LocalConnections->ConnectionMap.Find(Key);
-		if (Result)
-		{
-			return *Result;
-		}
-	}
-	return UE::Shader::EValueType::Void;
 }
 
 void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArray<UMaterialExpression*>>& SubgraphExpressionMap, const TMap<UMaterialExpression*, TArray<UMaterialExpressionComment*>>& SubgraphCommentMap)
@@ -287,6 +341,7 @@ UMaterialGraphNode* UMaterialGraph::AddExpression(UMaterialExpression* Expressio
 {
 	// Node for UMaterialExpressionExecBegin is explicitly placed if needed
 	// We don't created any node for UMaterialExpressionExecEnd, it's handled as part of the root node
+	UMaterialGraphNode* Node = nullptr;
 	if (Expression &&
 		!Expression->IsA(UMaterialExpressionExecBegin::StaticClass()) &&
 		!Expression->IsA(UMaterialExpressionExecEnd::StaticClass()))
@@ -295,23 +350,28 @@ UMaterialGraphNode* UMaterialGraph::AddExpression(UMaterialExpression* Expressio
 
 		if (Expression->IsA(UMaterialExpressionReroute::StaticClass()))
 		{
-			return InitExpressionNewNode<UMaterialGraphNode_Knot>(this, Expression, false);
+			Node = InitExpressionNewNode<UMaterialGraphNode_Knot>(this, Expression, false);
 		}
 		else if (Expression->IsA(UMaterialExpressionComposite::StaticClass()))
 		{
-			return InitExpressionNewNode<UMaterialGraphNode_Composite>(this, Expression, false);
+			Node = InitExpressionNewNode<UMaterialGraphNode_Composite>(this, Expression, false);
 		}
 		else if (Expression->IsA(UMaterialExpressionPinBase::StaticClass()))
 		{
-			return InitExpressionNewNode<UMaterialGraphNode_PinBase>(this, Expression, false);
+			Node = InitExpressionNewNode<UMaterialGraphNode_PinBase>(this, Expression, false);
 		}
 		else 
 		{
-			return InitExpressionNewNode<UMaterialGraphNode>(this, Expression, bUserInvoked);
+			Node = InitExpressionNewNode<UMaterialGraphNode>(this, Expression, bUserInvoked);
 		}
 	}
 
-	return nullptr;
+	if (Node && bUserInvoked)
+	{
+		UpdatePinTypes();
+	}
+
+	return Node;
 }
 
 UMaterialGraphNode_Comment* UMaterialGraph::AddComment(UMaterialExpressionComment* Comment, bool bIsUserInvoked)
@@ -495,6 +555,8 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 	}
 
 	NotifyGraphChanged();
+
+	UpdatePinTypes();
 }
 
 void UMaterialGraph::LinkMaterialExpressionsFromGraph()
@@ -674,9 +736,6 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 	{
 		CastChecked<UMaterialGraph>(SubGraph)->LinkMaterialExpressionsFromGraph();
 	}
-
-	// This is called when graph connections have been modified, so we need to reset any cached connection types
-	CachedConnections.Reset();
 }
 
 bool UMaterialGraph::IsInputActive(UEdGraphPin* GraphPin) const
@@ -808,13 +867,11 @@ void UMaterialGraph::GetUnusedExpressions(TArray<UEdGraphNode*>& UnusedNodes) co
 
 void UMaterialGraph::NotifyGraphChanged(const FEdGraphEditAction& Action)
 {
-	CachedConnections.Reset();
 	Super::NotifyGraphChanged(Action);
 }
 
 void UMaterialGraph::NotifyGraphChanged()
 {
-	CachedConnections.Reset();
 	Super::NotifyGraphChanged();
 }
 
