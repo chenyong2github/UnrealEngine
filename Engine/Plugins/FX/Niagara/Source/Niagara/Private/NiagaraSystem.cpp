@@ -2717,6 +2717,10 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 				TestVar.SetName(NewName);
 			}
 
+			auto TestVarNameAndAssignableTypeMatchPred = [&TestVar](const FNiagaraVariableBase& ComparisonVar)->bool {
+				return TestVar.GetName() == ComparisonVar.GetName() && FNiagaraUtilities::AreTypesAssignable(TestVar.GetType(), ComparisonVar.GetType());
+			};
+
 			bool bDependencyMet = false;
 			for (const int32 TestIndex : ValidationInfo.ParentIndices)
 			{
@@ -2726,12 +2730,12 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 				}
 
 				const FScriptCompileResultValidationInfo& TestInfo = ScriptCompilesToValidate[TestIndex];
-				if (TestVar.GetType().IsStatic() && TestInfo.CompileResults->StaticVariablesWritten.Contains(TestVar))
+				if (TestVar.GetType().IsStatic() && TestInfo.CompileResults->StaticVariablesWritten.ContainsByPredicate(TestVarNameAndAssignableTypeMatchPred))
 				{
 					bDependencyMet = true;
 					break;
 				}
-				else if (TestInfo.CompileResults->AttributesWritten.Contains(TestVar))
+				else if (TestInfo.CompileResults->AttributesWritten.ContainsByPredicate(TestVarNameAndAssignableTypeMatchPred))
 				{
 					bDependencyMet = true;
 					break;

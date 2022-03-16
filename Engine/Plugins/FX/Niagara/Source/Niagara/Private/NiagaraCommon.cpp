@@ -8,6 +8,7 @@
 #include "NiagaraCustomVersion.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraScriptSourceBase.h"
+#include "NiagaraSettings.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraWorldManager.h"
@@ -1402,6 +1403,19 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 		}
 	}
 }
+
+bool FNiagaraUtilities::AreTypesAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB)
+{
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	if (Settings->bEnforceStrictStackTypes)
+	{
+		return TypeA == TypeB;
+	}
+	return (TypeA == TypeB)
+		|| (TypeA == FNiagaraTypeDefinition::GetPositionDef() && TypeB == FNiagaraTypeDefinition::GetVec3Def())
+		|| (TypeB == FNiagaraTypeDefinition::GetPositionDef() && TypeA == FNiagaraTypeDefinition::GetVec3Def());
+}
+
 #endif
 
 //////////////////////////////////////////////////////////////////////////
