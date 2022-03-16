@@ -9,6 +9,7 @@
 #include "LocalPcTargetDevice.h"
 #endif
 #include "Serialization/MemoryLayout.h"
+#include "SteamDeckDevice.h"
 
 #if WITH_ENGINE
 	#include "Sound/SoundWave.h"
@@ -45,6 +46,9 @@ public:
 #if PLATFORM_WINDOWS
 		// only add local device if actually running on Windows
 		LocalDevice = MakeShareable(new TTargetDevice(*this));
+
+		// Check if we have any SteamDeck devices around
+		SteamDevices = FSteamDeckDevice::DiscoverDevices(*this);
 #endif
 
 	#if WITH_ENGINE
@@ -91,6 +95,7 @@ public:
 		bRequiresEncodedHDRReflectionCaptures =	TargetedShaderFormats.Contains(NAME_SF_VULKAN_ES31)
 												|| TargetedShaderFormats.Contains(NAME_OPENGL_150_ES3_1)
 												|| TargetedShaderFormats.Contains(NAME_PCD3D_ES3_1);
+
 	#endif
 	}
 
@@ -106,6 +111,14 @@ public:
 		if (LocalDevice.IsValid())
 		{
 			OutDevices.Add(LocalDevice);
+		}
+
+		for (const ITargetDevicePtr& SteamDeck : SteamDevices)
+		{
+			if (SteamDeck.IsValid())
+			{
+				OutDevices.Add(SteamDeck);
+			}
 		}
 	}
 
@@ -129,6 +142,14 @@ public:
 		if (LocalDevice.IsValid() && (DeviceId == LocalDevice->GetId()))
 		{
 			return LocalDevice;
+		}
+
+		for (const ITargetDevicePtr& SteamDeck : SteamDevices)
+		{
+			if (SteamDeck.IsValid() && DeviceId == SteamDeck->GetId())
+			{
+				return SteamDeck;
+			}
 		}
 
 		return nullptr;
@@ -361,6 +382,8 @@ private:
 
 	// Holds the local device.
 	ITargetDevicePtr LocalDevice;
+
+	TArray<ITargetDevicePtr> SteamDevices;
 
 #if WITH_ENGINE
 	// Holds the texture LOD settings.
