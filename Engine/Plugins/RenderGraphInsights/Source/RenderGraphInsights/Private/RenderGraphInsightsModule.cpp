@@ -32,4 +32,4 @@ void FRenderGraphInsightsModule::ShutdownModule()
 } //namespace SlateInsights
 } //namespace UE
 
-IMPLEMENT_MODULE((UE::RenderGraphInsights::FRenderGraphInsightsModule), RenderGraphInsights);
+IMPLEMENT_MODULE(UE::RenderGraphInsights::FRenderGraphInsightsModule, RenderGraphInsights);

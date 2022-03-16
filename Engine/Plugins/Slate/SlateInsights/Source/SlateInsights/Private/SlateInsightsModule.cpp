@@ -105,6 +105,6 @@ void FSlateInsightsModule::RegisterTimingProfilerLayoutExtensions(FInsightsMajor
 } //namespace UE
 
 
-IMPLEMENT_MODULE((UE::SlateInsights::FSlateInsightsModule), SlateInsights);
+IMPLEMENT_MODULE(UE::SlateInsights::FSlateInsightsModule, SlateInsights);
 
 #undef LOCTEXT_NAMESPACE
