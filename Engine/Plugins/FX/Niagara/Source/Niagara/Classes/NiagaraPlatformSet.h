@@ -192,7 +192,7 @@ struct NIAGARA_API FNiagaraPlatformSetCVarCondition
 	FNiagaraPlatformSetCVarCondition();
 
 	/** Return true if this condition is met for the given device profile. */
-	bool Evaluate(const UDeviceProfile* DeviceProfile, bool& bOutCanEverPass, bool& bOutCanEverFail)const;
+	bool Evaluate(const UDeviceProfile* DeviceProfile, int32 QualityLevel, bool bCheckCurrentStateOnly, bool& bOutCanEverPass, bool& bOutCanEverFail)const;
 
 	/** Returns the CVar for this condition. Can be null if the name give is not a valid CVar or the CVar is removed. */
 	IConsoleVariable* GetCVar()const;
@@ -248,7 +248,7 @@ struct NIAGARA_API FNiagaraPlatformSetCVarCondition
 	uint32 bUseMaxFloat : 1;
 
 	template<typename T>
-	bool Evaluate_Internal(const UDeviceProfile* DeviceProfile, bool& bOutCanEverPass, bool& bOutCanEverFail)const;
+	bool Evaluate_Internal(const UDeviceProfile* DeviceProfile, int32 QualityLevel, bool bCheckCurrentStateOnly, bool& bOutCanEverPass, bool& bOutCanEverFail)const;
 
 	FORCEINLINE bool CheckValue(bool CVarValue)const { return CVarValue == Value; }
 	FORCEINLINE bool CheckValue(int32 CVarValue)const { return (!bUseMinInt || CVarValue >= MinInt) && (!bUseMaxInt || CVarValue <= MaxInt); }
@@ -365,7 +365,7 @@ public:
 	/** Returns true if the passed platform can modify it's niagara scalability settings at runtime. */
 	static bool CanChangeScalabilityAtRuntime(const UDeviceProfile* DeviceProfile);
 
-	FNiagaraPlatformSetEnabledState IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel, FNiagaraPlatformSetEnabledStateDetails* OutDetails=nullptr)const;
+	FNiagaraPlatformSetEnabledState IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel, bool bCheckCurrentStateOnly, FNiagaraPlatformSetEnabledStateDetails* OutDetails=nullptr)const;
 
 	bool CanConsiderDeviceProfile(const UDeviceProfile* Profile)const;
 

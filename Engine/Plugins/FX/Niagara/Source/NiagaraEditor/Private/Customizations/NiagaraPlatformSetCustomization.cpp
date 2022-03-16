@@ -24,6 +24,7 @@
 #include "NiagaraSettings.h"
 #include "IDetailPropertyRow.h"
 
+
 #define LOCTEXT_NAMESPACE "FNiagaraPlatformSetCustomization"
 
 void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
@@ -740,7 +741,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 	SAssignNew(RowContainer, SHorizontalBox);
 
 	FNiagaraPlatformSetEnabledStateDetails Details;
-	FNiagaraPlatformSetEnabledState EnabledState = TargetPlatformSet->IsEnabled(InItem->Profile, QualityLevel, &Details);
+	FNiagaraPlatformSetEnabledState EnabledState = TargetPlatformSet->IsEnabled(InItem->Profile, QualityLevel, false, &Details);
 
 	FText NameTooltip = FText::Format(LOCTEXT("ProfileQLTooltipFmt", "Effects Quality: {0}"), FNiagaraPlatformSet::GetQualityLevelMaskText(QualityLevel));
 
