@@ -795,21 +795,22 @@ enum class EPixelFormatCapabilities : uint32
 	TextureGather    = 1ull << 10,
 	TextureAtomics   = 1ull << 11,
 	TextureBlendable = 1ull << 12,
+	TextureStore     = 1ull << 13,
 
-	Buffer           = 1ull << 13,
-    VertexBuffer     = 1ull << 14,
-    IndexBuffer      = 1ull << 15,
-	BufferLoad       = 1ull << 16,
-    BufferStore      = 1ull << 17,
-    BufferAtomics    = 1ull << 18,
+	Buffer           = 1ull << 14,
+    VertexBuffer     = 1ull << 15,
+    IndexBuffer      = 1ull << 16,
+	BufferLoad       = 1ull << 17,
+    BufferStore      = 1ull << 18,
+    BufferAtomics    = 1ull << 19,
 
-	UAV              = 1ull << 19,
-    TypedUAVLoad     = 1ull << 20,
-	TypedUAVStore    = 1ull << 21,
+	UAV              = 1ull << 20,
+    TypedUAVLoad     = 1ull << 21,
+	TypedUAVStore    = 1ull << 22,
 
 	AnyTexture       = Texture1D | Texture2D | Texture3D | TextureCube,
 
-	AllTextureFlags  = AnyTexture | RenderTarget | DepthStencil | TextureMipmaps | TextureLoad | TextureSample | TextureGather | TextureAtomics | TextureBlendable,
+	AllTextureFlags  = AnyTexture | RenderTarget | DepthStencil | TextureMipmaps | TextureLoad | TextureSample | TextureGather | TextureAtomics | TextureBlendable | TextureStore,
 	AllBufferFlags   = Buffer | VertexBuffer | IndexBuffer | BufferLoad | BufferStore | BufferAtomics,
 	AllUAVFlags      = UAV | TypedUAVLoad | TypedUAVStore,
 
