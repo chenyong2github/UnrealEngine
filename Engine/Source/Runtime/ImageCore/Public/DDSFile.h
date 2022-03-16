@@ -11,7 +11,7 @@
 // to be useful for any assets
 //
 // fields: name, ID, bytes per unit (unit=1 texel for RGB, 1 block for BCN)
-#define OODLE_DXGI_FORMAT_LIST \
+#define UE_DXGI_FORMAT_LIST \
 	RGBFMT(UNKNOWN,						0,	0) \
 	RGBFMT(R32G32B32A32_TYPELESS,		1,	16) \
 	RGBFMT(R32G32B32A32_FLOAT,			2,	16) \
@@ -133,7 +133,7 @@
 	ODDFMT(V408,						132) \
 	/* end */
 
-namespace OodleDDS // @@!!
+namespace UE { namespace DDS
 {
 	// Complete list of formats
 	enum class EDXGIFormat 
@@ -141,7 +141,7 @@ namespace OodleDDS // @@!!
 	#define RGBFMT(name,id,bypu) name = id,
 	#define BCNFMT(name,id,bypu) name = id,
 	#define ODDFMT(name,id) name = id,
-		OODLE_DXGI_FORMAT_LIST
+		UE_DXGI_FORMAT_LIST
 	#undef RGBFMT
 	#undef BCNFMT
 	#undef ODDFMT
@@ -303,4 +303,5 @@ namespace OodleDDS // @@!!
 
 	// Return the corresponding sRGB version of a pixel format if there is one
 	IMAGECORE_API EDXGIFormat DXGIFormatAddSRGB(EDXGIFormat InFormat);
-}
+
+} }

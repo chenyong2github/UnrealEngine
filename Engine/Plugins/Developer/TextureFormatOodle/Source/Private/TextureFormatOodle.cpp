@@ -3,6 +3,7 @@
 #include "TextureFormatOodlePCH.h"
 #include "CoreMinimal.h"
 #include "ImageCore.h"
+#include "DDSFile.h"
 #include "Modules/ModuleManager.h"
 #include "TextureCompressorModule.h"
 #include "Interfaces/ITextureFormat.h"
@@ -25,8 +26,6 @@
 #include "TextureBuildFunction.h"
 #include "HAL/FileManager.h"
 #include "Misc/WildcardString.h"
-
-#include "DDSFile.h"
 
 #include "oodle2tex.h"
 
@@ -324,7 +323,7 @@ class FOodleTextureBuildFunction final : public FTextureBuildFunction
 
 struct FOodlePixelFormatMapping 
 {
-	OodleDDS::EDXGIFormat DXGIFormat;
+	UE::DDS::EDXGIFormat DXGIFormat;
 	OodleTex_PixelFormat OodlePF;
 	bool bHasAlpha;
 };
@@ -335,26 +334,26 @@ struct FOodlePixelFormatMapping
 static FOodlePixelFormatMapping PixelFormatMap[] = 
 {
 	// dxgi											ootex								has_alpha
-	{ OodleDDS::EDXGIFormat::R32G32B32A32_FLOAT,	OodleTex_PixelFormat_4_F32_RGBA,	true },
-	{ OodleDDS::EDXGIFormat::R32G32B32_FLOAT,		OodleTex_PixelFormat_3_F32_RGB,		true },
-	{ OodleDDS::EDXGIFormat::R16G16B16A16_FLOAT,	OodleTex_PixelFormat_4_F16_RGBA,	true },
-	{ OodleDDS::EDXGIFormat::R8G8B8A8_UNORM,		OodleTex_PixelFormat_4_U8_RGBA,		true },
-	{ OodleDDS::EDXGIFormat::R16G16B16A16_UNORM,	OodleTex_PixelFormat_4_U16,			true },
-	{ OodleDDS::EDXGIFormat::R16G16_UNORM,			OodleTex_PixelFormat_2_U16,			false },
-	{ OodleDDS::EDXGIFormat::R16G16_SNORM,			OodleTex_PixelFormat_2_S16,			false },
-	{ OodleDDS::EDXGIFormat::R8G8_UNORM,			OodleTex_PixelFormat_2_U8,			false },
-	{ OodleDDS::EDXGIFormat::R8G8_SNORM,			OodleTex_PixelFormat_2_S8,			false },
-	{ OodleDDS::EDXGIFormat::R16_UNORM,				OodleTex_PixelFormat_1_U16,			false },
-	{ OodleDDS::EDXGIFormat::R16_SNORM,				OodleTex_PixelFormat_1_S16,			false },
-	{ OodleDDS::EDXGIFormat::R8_UNORM,				OodleTex_PixelFormat_1_U8,			false },
-	{ OodleDDS::EDXGIFormat::R8_SNORM,				OodleTex_PixelFormat_1_S8,			false },
-	{ OodleDDS::EDXGIFormat::B8G8R8A8_UNORM,		OodleTex_PixelFormat_4_U8_BGRA,		true },
-	{ OodleDDS::EDXGIFormat::B8G8R8X8_UNORM,		OodleTex_PixelFormat_4_U8_BGRx,		false },
+	{ UE::DDS::EDXGIFormat::R32G32B32A32_FLOAT,	OodleTex_PixelFormat_4_F32_RGBA,	true },
+	{ UE::DDS::EDXGIFormat::R32G32B32_FLOAT,	OodleTex_PixelFormat_3_F32_RGB,		true },
+	{ UE::DDS::EDXGIFormat::R16G16B16A16_FLOAT,	OodleTex_PixelFormat_4_F16_RGBA,	true },
+	{ UE::DDS::EDXGIFormat::R8G8B8A8_UNORM,		OodleTex_PixelFormat_4_U8_RGBA,		true },
+	{ UE::DDS::EDXGIFormat::R16G16B16A16_UNORM,	OodleTex_PixelFormat_4_U16,			true },
+	{ UE::DDS::EDXGIFormat::R16G16_UNORM,		OodleTex_PixelFormat_2_U16,			false },
+	{ UE::DDS::EDXGIFormat::R16G16_SNORM,		OodleTex_PixelFormat_2_S16,			false },
+	{ UE::DDS::EDXGIFormat::R8G8_UNORM,			OodleTex_PixelFormat_2_U8,			false },
+	{ UE::DDS::EDXGIFormat::R8G8_SNORM,			OodleTex_PixelFormat_2_S8,			false },
+	{ UE::DDS::EDXGIFormat::R16_UNORM,			OodleTex_PixelFormat_1_U16,			false },
+	{ UE::DDS::EDXGIFormat::R16_SNORM,			OodleTex_PixelFormat_1_S16,			false },
+	{ UE::DDS::EDXGIFormat::R8_UNORM,			OodleTex_PixelFormat_1_U8,			false },
+	{ UE::DDS::EDXGIFormat::R8_SNORM,			OodleTex_PixelFormat_1_S8,			false },
+	{ UE::DDS::EDXGIFormat::B8G8R8A8_UNORM,		OodleTex_PixelFormat_4_U8_BGRA,		true },
+	{ UE::DDS::EDXGIFormat::B8G8R8X8_UNORM,		OodleTex_PixelFormat_4_U8_BGRx,		false },
 };
 
-static OodleTex_PixelFormat OodlePFFromDXGIFormat(OodleDDS::EDXGIFormat InFormat) 
+static OodleTex_PixelFormat OodlePFFromDXGIFormat(UE::DDS::EDXGIFormat InFormat) 
 {
-	InFormat = OodleDDS::DXGIFormatRemoveSRGB(InFormat);
+	InFormat = UE::DDS::DXGIFormatRemoveSRGB(InFormat);
 	for (size_t i = 0; i < sizeof(PixelFormatMap) / sizeof(*PixelFormatMap); ++i) 
 	{
 		if (PixelFormatMap[i].DXGIFormat == InFormat) 
@@ -366,9 +365,9 @@ static OodleTex_PixelFormat OodlePFFromDXGIFormat(OodleDDS::EDXGIFormat InFormat
 }
 
 // don't need this for all DXGI formats, just the ones we can translate to Oodle Texture formats
-static bool DXGIFormatHasAlpha(OodleDDS::EDXGIFormat InFormat)
+static bool DXGIFormatHasAlpha(UE::DDS::EDXGIFormat InFormat)
 {
-	InFormat = OodleDDS::DXGIFormatRemoveSRGB(InFormat);
+	InFormat = UE::DDS::DXGIFormatRemoveSRGB(InFormat);
 	for (size_t i = 0; i < sizeof(PixelFormatMap) / sizeof(*PixelFormatMap); ++i) 
 	{
 		if (PixelFormatMap[i].DXGIFormat == InFormat)
@@ -380,7 +379,7 @@ static bool DXGIFormatHasAlpha(OodleDDS::EDXGIFormat InFormat)
 	return true;
 }
 
-static OodleDDS::EDXGIFormat DXGIFormatFromOodlePF(OodleTex_PixelFormat pf) 
+static UE::DDS::EDXGIFormat DXGIFormatFromOodlePF(OodleTex_PixelFormat pf) 
 {
 	for (size_t i = 0; i < sizeof(PixelFormatMap) / sizeof(*PixelFormatMap); ++i) 
 	{
@@ -389,34 +388,34 @@ static OodleDDS::EDXGIFormat DXGIFormatFromOodlePF(OodleTex_PixelFormat pf)
 			return PixelFormatMap[i].DXGIFormat;
 		}
 	}
-	return OodleDDS::EDXGIFormat::UNKNOWN;
+	return UE::DDS::EDXGIFormat::UNKNOWN;
 }
 
 struct FOodleBCMapping 
 {
-	OodleDDS::EDXGIFormat DXGIFormat;
+	UE::DDS::EDXGIFormat DXGIFormat;
 	OodleTex_BC OodleBC;
 };
 
 static FOodleBCMapping BCFormatMap[] = 
 {
-	{ OodleDDS::EDXGIFormat::BC1_UNORM, OodleTex_BC1 },
-	{ OodleDDS::EDXGIFormat::BC1_UNORM, OodleTex_BC1_WithTransparency },
-	{ OodleDDS::EDXGIFormat::BC2_UNORM, OodleTex_BC2 },
-	{ OodleDDS::EDXGIFormat::BC3_UNORM, OodleTex_BC3 },
-	{ OodleDDS::EDXGIFormat::BC4_UNORM, OodleTex_BC4U },
-	{ OodleDDS::EDXGIFormat::BC4_SNORM, OodleTex_BC4S },
-	{ OodleDDS::EDXGIFormat::BC5_UNORM, OodleTex_BC5U },
-	{ OodleDDS::EDXGIFormat::BC5_SNORM, OodleTex_BC5S },
-	{ OodleDDS::EDXGIFormat::BC6H_UF16, OodleTex_BC6U },
-	{ OodleDDS::EDXGIFormat::BC6H_SF16, OodleTex_BC6S },
-	{ OodleDDS::EDXGIFormat::BC7_UNORM, OodleTex_BC7RGBA },
-	{ OodleDDS::EDXGIFormat::BC7_UNORM, OodleTex_BC7RGB },
+	{ UE::DDS::EDXGIFormat::BC1_UNORM, OodleTex_BC1 },
+	{ UE::DDS::EDXGIFormat::BC1_UNORM, OodleTex_BC1_WithTransparency },
+	{ UE::DDS::EDXGIFormat::BC2_UNORM, OodleTex_BC2 },
+	{ UE::DDS::EDXGIFormat::BC3_UNORM, OodleTex_BC3 },
+	{ UE::DDS::EDXGIFormat::BC4_UNORM, OodleTex_BC4U },
+	{ UE::DDS::EDXGIFormat::BC4_SNORM, OodleTex_BC4S },
+	{ UE::DDS::EDXGIFormat::BC5_UNORM, OodleTex_BC5U },
+	{ UE::DDS::EDXGIFormat::BC5_SNORM, OodleTex_BC5S },
+	{ UE::DDS::EDXGIFormat::BC6H_UF16, OodleTex_BC6U },
+	{ UE::DDS::EDXGIFormat::BC6H_SF16, OodleTex_BC6S },
+	{ UE::DDS::EDXGIFormat::BC7_UNORM, OodleTex_BC7RGBA },
+	{ UE::DDS::EDXGIFormat::BC7_UNORM, OodleTex_BC7RGB },
 };
 
-static OodleTex_BC OodleBCFromDXGIFormat(OodleDDS::EDXGIFormat InFormat) 
+static OodleTex_BC OodleBCFromDXGIFormat(UE::DDS::EDXGIFormat InFormat) 
 {
-	InFormat = OodleDDS::DXGIFormatRemoveSRGB(InFormat);
+	InFormat = UE::DDS::DXGIFormatRemoveSRGB(InFormat);
 	for (size_t i = 0; i < sizeof(BCFormatMap) / sizeof(*BCFormatMap); ++i) 
 	{
 		if (BCFormatMap[i].DXGIFormat == InFormat)
@@ -427,7 +426,7 @@ static OodleTex_BC OodleBCFromDXGIFormat(OodleDDS::EDXGIFormat InFormat)
 	return OodleTex_BC_Invalid;
 }
 
-static OodleDDS::EDXGIFormat DXGIFormatFromOodleBC(OodleTex_BC InBC) 
+static UE::DDS::EDXGIFormat DXGIFormatFromOodleBC(OodleTex_BC InBC) 
 {
 	for (size_t i = 0; i < sizeof(BCFormatMap) / sizeof(*BCFormatMap); ++i) 
 	{
@@ -436,7 +435,7 @@ static OodleDDS::EDXGIFormat DXGIFormatFromOodleBC(OodleTex_BC InBC)
 			return BCFormatMap[i].DXGIFormat;
 		}
 	}
-	return OodleDDS::EDXGIFormat::UNKNOWN;
+	return UE::DDS::EDXGIFormat::UNKNOWN;
 }
 
 
@@ -902,12 +901,12 @@ public:
 	}
 
 	static void DebugDumpDDS(const FStringView & DebugTexturePathName,
-			int32 SizeX,int32 SizeY,int32 Slice, OodleDDS::EDXGIFormat DebugFormat, const TCHAR * InOrOut,
+			int32 SizeX,int32 SizeY,int32 Slice, UE::DDS::EDXGIFormat DebugFormat, const TCHAR * InOrOut,
 			const void * PixelData, size_t PixelDataSize)
 	{
-		if (DebugFormat != OodleDDS::EDXGIFormat::UNKNOWN)
+		if (DebugFormat != UE::DDS::EDXGIFormat::UNKNOWN)
 		{
-			OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateEmpty2D(SizeX, SizeY, 1, DebugFormat, OodleDDS::FDDSFile::CREATE_FLAG_NONE);
+			UE::DDS::FDDSFile* DDS = UE::DDS::FDDSFile::CreateEmpty2D(SizeX, SizeY, 1, DebugFormat, UE::DDS::FDDSFile::CREATE_FLAG_NONE);
 
 			if ( DDS->Mips[0].DataSize != PixelDataSize )
 			{
@@ -927,7 +926,7 @@ public:
 			if (Ar != nullptr)
 			{
 				TArray64<uint8> DdsBytes;
-				if (DDS->WriteDDS(DdsBytes) == OodleDDS::EDDSError::OK)
+				if (DDS->WriteDDS(DdsBytes) == UE::DDS::EDDSError::OK)
 				{
 					Ar->Serialize(DdsBytes.GetData(), DdsBytes.Num());
 				}

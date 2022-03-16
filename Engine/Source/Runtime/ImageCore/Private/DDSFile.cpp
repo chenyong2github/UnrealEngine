@@ -3,9 +3,9 @@
 #include "DDSFile.h"
 #include "Logging/LogMacros.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogOodleDDS, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogDDSFile, Log, All);
 
-namespace OodleDDS
+namespace UE { namespace DDS
 {
 
 constexpr uint32 MakeFOURCC(uint32 a, uint32 b, uint32 c, uint32 d) { return ((a) | ((b) << 8) | ((c) << 16) | ((d) << 24)); }
@@ -95,7 +95,7 @@ const TCHAR * DXGIFormatGetName(EDXGIFormat fmt)
 #define RGBFMT(name,id,bypu) { EDXGIFormat::name, TEXT(#name) },
 #define BCNFMT(name,id,bypu) { EDXGIFormat::name, TEXT(#name) },
 #define ODDFMT(name,id) { EDXGIFormat::name, TEXT(#name) },
-		OODLE_DXGI_FORMAT_LIST
+		UE_DXGI_FORMAT_LIST
 #undef RGBFMT
 #undef BCNFMT
 #undef ODDFMT
@@ -214,7 +214,7 @@ static const FDXGIFormatInfo SupportedFormatList[] =
 #define RGBFMT(name,id,bypu) { EDXGIFormat::name, 1,1, bypu },
 #define BCNFMT(name,id,bypu) { EDXGIFormat::name, 4,4, bypu },
 #define ODDFMT(name,id) // these are not supported for reading so they're intentionally not on the list
-	OODLE_DXGI_FORMAT_LIST
+	UE_DXGI_FORMAT_LIST
 #undef RGBFMT
 #undef BCNFMT
 #undef ODDFMT
@@ -358,7 +358,7 @@ EDDSError FDDSFile::Validate() const
 	const FDXGIFormatInfo* FormatInfo = DXGIFormatGetInfo(DXGIFormat);
 	if (!FormatInfo)
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Unsupported format %d (%s)"), DXGIFormat, DXGIFormatGetName(DXGIFormat));
+		UE_LOG(LogDDSFile, Error, TEXT("Unsupported format %d (%s)"), DXGIFormat, DXGIFormatGetName(DXGIFormat));
 		return EDDSError::BadPixelFormat;
 	}
 
@@ -368,7 +368,7 @@ EDDSError FDDSFile::Validate() const
 	case 1:
 		if (Height != 1 || Depth != 1)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("1D textures must have height and depth of 1."));
+			UE_LOG(LogDDSFile, Error, TEXT("1D textures must have height and depth of 1."));
 			return EDDSError::BadImageDimension;
 		}
 		break;
@@ -376,7 +376,7 @@ EDDSError FDDSFile::Validate() const
 	case 2:
 		if (Depth != 1)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("2D textures must have depth of 1."));
+			UE_LOG(LogDDSFile, Error, TEXT("2D textures must have depth of 1."));
 			return EDDSError::BadImageDimension;
 		}
 		break;
@@ -384,19 +384,19 @@ EDDSError FDDSFile::Validate() const
 	case 3:
 		if (ArraySize != 1)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("3D textures must have array size of 1."));
+			UE_LOG(LogDDSFile, Error, TEXT("3D textures must have array size of 1."));
 			return EDDSError::BadImageDimension;
 		}
 
 	default:
-		UE_LOG(LogOodleDDS, Error, TEXT("DDS textures must be 1D, 2D or 3D."));
+		UE_LOG(LogDDSFile, Error, TEXT("DDS textures must be 1D, 2D or 3D."));
 		return EDDSError::BadResourceDimension;
 	}
 
 	// All dimensions must be non-zero
 	if (Width == 0 || Height == 0 || Depth == 0 || MipCount == 0 || ArraySize == 0)
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("One or more image dimensions are zero."));
+		UE_LOG(LogDDSFile, Error, TEXT("One or more image dimensions are zero."));
 		return EDDSError::BadImageDimension;
 	}
 
@@ -404,14 +404,14 @@ EDDSError FDDSFile::Validate() const
 	const uint32 MaxDimension = (1 << MAX_MIPS_SUPPORTED) - 1; // 1<<k is when we tip over into needing k+1 mip levels, (1<<k)-1 needs just k.
 	if (Width > MaxDimension || Height > MaxDimension || Depth > MaxDimension)
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Image dimensions %ux%ux%u of DDS exceed maximum of %u."), Width, Height, Depth, MaxDimension);
+		UE_LOG(LogDDSFile, Error, TEXT("Image dimensions %ux%ux%u of DDS exceed maximum of %u."), Width, Height, Depth, MaxDimension);
 		return EDDSError::BadImageDimension;
 	}
 
 	// Check that mipmap count is supported and makes sense for the image dimensions.
 	if (MipCount > MAX_MIPS_SUPPORTED)
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Invalid mipmap count of %u."), MipCount);
+		UE_LOG(LogDDSFile, Error, TEXT("Invalid mipmap count of %u."), MipCount);
 		return EDDSError::BadMipmapCount;
 	}
 
@@ -423,7 +423,7 @@ EDDSError FDDSFile::Validate() const
 		(Height >> FinalMip) == 0 &&
 		(Depth >> FinalMip) == 0)
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Invalid mipmap count of %u for %ux%ux%u image."), MipCount, Width, Height, Depth);
+		UE_LOG(LogDDSFile, Error, TEXT("Invalid mipmap count of %u for %ux%ux%u image."), MipCount, Width, Height, Depth);
 		return EDDSError::BadMipmapCount;
 	}
 
@@ -432,13 +432,13 @@ EDDSError FDDSFile::Validate() const
 	{
 		if (Width != Height || Depth != 1)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("Cubemap has non-square faces or non-1 depth!"));
+			UE_LOG(LogDDSFile, Error, TEXT("Cubemap has non-square faces or non-1 depth!"));
 			return EDDSError::BadCubemap;
 		}
 
 		if ((ArraySize % 6) != 0)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("Cubemap or cubemap array doesn't have a multiple of 6 faces."));
+			UE_LOG(LogDDSFile, Error, TEXT("Cubemap or cubemap array doesn't have a multiple of 6 faces."));
 			return EDDSError::BadCubemap;
 		}
 	}
@@ -552,7 +552,7 @@ static EDDSError ParseHeader(FDDSFile* InDDS, FDDSHeaderWithMagic const* InHeade
 		}
 		else
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("D3D10 resource dimension in DDS is neither 1D, 2D, nor 3D."));
+			UE_LOG(LogDDSFile, Error, TEXT("D3D10 resource dimension in DDS is neither 1D, 2D, nor 3D."));
 			return EDDSError::BadResourceDimension;
 		}
 		InDDS->DXGIFormat = (EDXGIFormat)InDX10Header->dxgi_format;
@@ -606,7 +606,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 	{
 		if (InReadEnd - InReadCursor < Mip.DataSize)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("Error reading texture data."));
+			UE_LOG(LogDDSFile, Error, TEXT("Error reading texture data."));
 			return EDDSError::IoError;
 		}
 
@@ -634,7 +634,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 	// definitely a bad file.
 	if (InDDSSize < sizeof(DDSHeader))
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Failed to read DDS header"));
+		UE_LOG(LogDDSFile, Error, TEXT("Failed to read DDS header"));
 		*OutError = EDDSError::IoError;
 		return nullptr;
 	}
@@ -650,7 +650,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 
 	if (DDSHeader.Magic != DDS_MAGIC)
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Not a DDS file."));
+		UE_LOG(LogDDSFile, Error, TEXT("Not a DDS file."));
 		*OutError = EDDSError::NotADds;
 		return nullptr;
 	}
@@ -661,7 +661,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 	{
 		if (ReadEnd - ReadCursor < sizeof(DDS10Header))
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("Failed to read DX10 DDS header"));
+			UE_LOG(LogDDSFile, Error, TEXT("Failed to read DX10 DDS header"));
 			*OutError = EDDSError::IoError;
 			return nullptr;
 		}
@@ -773,13 +773,13 @@ EDDSError FDDSFile::WriteDDS(TArray64<uint8>& OutDDS, EDDSFormatVersion InFormat
 		// If we found neither a bitmask format nor FourCC, we don't know how to save this pixel format for D3D9.
 		if (!D3d9BitmaskFormat && !D3d9FourCC)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("Unsupported pixel format %s for D3D9 DDS."), DXGIFormatGetName(EffectiveFormat));
+			UE_LOG(LogDDSFile, Error, TEXT("Unsupported pixel format %s for D3D9 DDS."), DXGIFormatGetName(EffectiveFormat));
 			return EDDSError::BadPixelFormat;
 		}
 
 		if (ArraySize != 1)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("D3D9 .DDS does not support arrays."));
+			UE_LOG(LogDDSFile, Error, TEXT("D3D9 .DDS does not support arrays."));
 			return EDDSError::BadImageDimension;
 		}
 
@@ -924,4 +924,4 @@ void FDDSFile::ConvertChannelOrder(EChannelOrder InTargetOrder)
 	}
 }
 
-} // end OodleDDS namespace
+} } // end UE::DDS namespace
