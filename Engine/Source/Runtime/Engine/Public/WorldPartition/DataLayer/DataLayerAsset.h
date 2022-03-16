@@ -19,10 +19,9 @@ class ENGINE_API UDataLayerAsset : public UObject
 	friend class UDataLayerConversionInfo;
 
 public:
-	virtual void PostLoad() override;
-
 #if WITH_EDITOR
 	void SetType(EDataLayerType Type) { DataLayerType = Type; }
+	void SetDebugColor(FColor InDebugColor) { DebugColor = InDebugColor; }
 #endif
 
 	UFUNCTION(Category = "Data Layer", BlueprintCallable)
@@ -39,6 +38,6 @@ private:
 	UPROPERTY(Category = "Data Layer", EditAnywhere)
 	EDataLayerType DataLayerType;
 
-	UPROPERTY(Category = "Data Layer|Runtime", EditAnywhere, meta = (EditConditionHides, EditCondition = "DataLayerType == EDataLayerType::Runtime"))
+	UPROPERTY(Category = "Data Layer|Runtime", EditAnywhere)
 	FColor DebugColor;
 };
