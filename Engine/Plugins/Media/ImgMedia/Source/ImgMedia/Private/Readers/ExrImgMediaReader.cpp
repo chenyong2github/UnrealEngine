@@ -297,6 +297,11 @@ bool FExrImgMediaReader::GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& 
 	OutInfo.Srgb = false;
 	OutInfo.UncompressedSize = InputFile.GetUncompressedSize();
 	OutInfo.NumChannels = InputFile.GetNumChannels();
+	OutInfo.bHasTiles = InputFile.GetTileSize(OutInfo.TileDimensions);
+	if (OutInfo.bHasTiles)
+	{
+		OutInfo.NumTiles = FIntPoint(OutInfo.Dim.X / OutInfo.TileDimensions.X, OutInfo.Dim.Y / OutInfo.TileDimensions.Y);
+	}
 
 	return (OutInfo.UncompressedSize > 0) && (OutInfo.Dim.GetMin() > 0);
 }

@@ -33,6 +33,9 @@ public:
 	int32 GetUncompressedSize() const;
 	int32 GetNumChannels() const;
 
+	// Gets tile dimensions. Returns false if image has no tiles.
+	bool GetTileSize(FIntPoint& OutTileSize) const;
+
 	bool IsComplete() const;
 	bool HasInputFile() const;
 	void ReadPixels(int32 StartY, int32 EndY);

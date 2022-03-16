@@ -37,6 +37,15 @@ struct FImgMediaFrameInfo
 
 	/** Number of channels (RGB - 3 or RGBA - 4). */
 	SIZE_T NumChannels;
+
+	/** Does this frame have tiles?. */
+	bool bHasTiles;
+
+	/** Number of tiles in X and Y direction. */
+	FIntPoint NumTiles;
+
+	/** Tile dimensions. */
+	FIntPoint TileDimensions;
 };
 
 

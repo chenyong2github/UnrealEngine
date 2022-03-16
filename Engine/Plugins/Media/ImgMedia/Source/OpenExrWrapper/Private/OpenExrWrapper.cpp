@@ -13,6 +13,7 @@ THIRD_PARTY_INCLUDES_START
 	#include "OpenEXR/ImfCompressionAttribute.h"
 	#include "OpenEXR/ImfHeader.h"
 	#include "OpenEXR/ImfIntAttribute.h"
+	#include "OpenEXR/ImfTileDescriptionAttribute.h"
 	#include "OpenEXR/ImfRgbaFile.h"
 	#include "OpenEXR/ImfStandardAttributes.h"
 	#include "OpenEXR/ImfTiledInputFile.h"
@@ -168,6 +169,18 @@ int32 FRgbaInputFile::GetNumChannels() const
 		break;
 	}
 	return NumChannels;
+}
+
+bool FRgbaInputFile::GetTileSize(FIntPoint& OutTileSize) const
+{
+	const Imf::TileDescriptionAttribute* TileDescAttr = ((Imf::RgbaInputFile*)InputFile)->header().findTypedAttribute<Imf::TileDescriptionAttribute>("tiles");
+	if (TileDescAttr)
+	{
+		Imf::TileDescription TileDesc = TileDescAttr->value();
+		OutTileSize = FIntPoint(TileDesc.xSize, TileDesc.ySize);
+	}
+	return TileDescAttr != nullptr;
+	
 }
 
 int32 FRgbaInputFile::GetUncompressedSize() const
