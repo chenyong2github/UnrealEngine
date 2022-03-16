@@ -1585,8 +1585,36 @@ public:
 	}
 };
 
+#if RHI_RAYTRACING
+
+class FUnitCubeAABBVertexBuffer : public FVertexBuffer
+{
+public:
+	/**
+	* Initialize the RHI for this rendering resource
+	*/
+	void InitRHI() override
+	{
+		const int32 NumVerts = 2;
+		TResourceArray<FVector3f, VERTEXBUFFER_ALIGNMENT> Verts;
+		Verts.SetNumUninitialized(NumVerts);
+		Verts[0] = FVector3f(-0.5f, -0.5f, -0.5f);
+		Verts[1] = FVector3f(0.5f, 0.5f, 0.5f);
+
+		uint32 Size = Verts.GetResourceDataSize();
+
+		// Create vertex buffer. Fill buffer with initial data upon creation
+		FRHIResourceCreateInfo CreateInfo(TEXT("FUnitCubeAABBVertexBuffer"), &Verts);
+		VertexBufferRHI = RHICreateVertexBuffer(Size, BUF_Static, CreateInfo);
+	}
+};
+#endif // RHI_RAYTRACING
+
 static TGlobalResource<FUnitCubeVertexBuffer> GUnitCubeVertexBuffer;
 static TGlobalResource<FUnitCubeIndexBuffer> GUnitCubeIndexBuffer;
+#if RHI_RAYTRACING
+static TGlobalResource<FUnitCubeAABBVertexBuffer> GUnitCubeAABBVertexBuffer;
+#endif // RHI_RAYTRACING
 
 RENDERCORE_API FBufferRHIRef& GetUnitCubeVertexBuffer()
 {
@@ -1597,6 +1625,13 @@ RENDERCORE_API FBufferRHIRef& GetUnitCubeIndexBuffer()
 {
 	return GUnitCubeIndexBuffer.IndexBufferRHI;
 }
+
+#if RHI_RAYTRACING
+RENDERCORE_API FBufferRHIRef& GetUnitCubeAABBVertexBuffer()
+{
+	return GUnitCubeAABBVertexBuffer.VertexBufferRHI;
+}
+#endif // RHI_RAYTRACING
 
 RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntPoint& OutBufferSize)
 {

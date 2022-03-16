@@ -161,6 +161,8 @@ static FAutoConsoleVariableRef CVarStaticMeshMinLodQualityLevel(
 	FConsoleVariableDelegate::CreateStatic(&UStaticMesh::OnLodStrippingQualityLevelChanged),
 	ECVF_Scalability);
 
+bool GetSupportsRaytracingNaniteProceduralPrimitive(EShaderPlatform InShaderPlatform);
+
 #if ENABLE_COOK_STATS
 namespace StaticMeshCookStats
 {
@@ -1330,11 +1332,19 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && Parent->bSupportRayTracing)
 	{
+		const bool bProceduralPrimitive = Parent->HasValidNaniteData() && GetSupportsRaytracingNaniteProceduralPrimitive(GMaxRHIShaderPlatform);
 		ENQUEUE_RENDER_COMMAND(InitStaticMeshRayTracingGeometry)(
-			[this, DebugName = Parent->GetFName()](FRHICommandListImmediate& RHICmdList)
+			[this, DebugName = Parent->GetFName(), bProceduralPrimitive](FRHICommandListImmediate& RHICmdList)
 			{
 				FRayTracingGeometryInitializer Initializer;
-				SetupRayTracingGeometryInitializer(Initializer, DebugName);
+				if (bProceduralPrimitive)
+				{
+					SetupRayTracingProceduralGeometryInitializer(Initializer, DebugName);
+				}
+				else
+				{
+					SetupRayTracingGeometryInitializer(Initializer, DebugName);
+				}
 				RayTracingGeometry.SetInitializer(Initializer);
 			}
 		);
@@ -1377,6 +1387,28 @@ void FStaticMeshLODResources::SetupRayTracingGeometryInitializer(FRayTracingGeom
 		Initializer.TotalPrimitiveCount += Section.NumTriangles;
 	}
 	Initializer.Segments = GeometrySections;
+}
+
+void FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(FRayTracingGeometryInitializer& Initializer, const FName& DebugName)
+{
+	Initializer.DebugName = DebugName;
+	Initializer.IndexBuffer = nullptr;
+	Initializer.TotalPrimitiveCount = 1; // one AABB
+	Initializer.GeometryType = RTGT_Procedural;
+	Initializer.bFastBuild = false;
+
+	FRayTracingGeometrySegment Segment;
+	Segment.bForceOpaque = false;
+	Segment.bAllowDuplicateAnyHitShaderInvocation = false;
+	Segment.FirstPrimitive = 0;
+	Segment.NumPrimitives = 1;
+	Segment.VertexBuffer = GetUnitCubeAABBVertexBuffer();
+	Segment.VertexBufferElementType = VET_Float3;
+	Segment.VertexBufferStride = sizeof(FVector3f) * 2;
+	Segment.VertexBufferOffset = 0;
+	Segment.MaxVertices = 2;
+
+	Initializer.Segments.Add(Segment);
 }
 #endif // RHI_RAYTRACING
 

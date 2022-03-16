@@ -668,6 +668,11 @@ RENDERCORE_API FBufferRHIRef& GetUnitCubeVertexBuffer();
 /** Unit cube index buffer */
 RENDERCORE_API FBufferRHIRef& GetUnitCubeIndexBuffer();
 
+#if RHI_RAYTRACING
+/** Unit cube AABB vertex buffer (useful to create procedural raytracing geometry) */
+RENDERCORE_API FBufferRHIRef& GetUnitCubeAABBVertexBuffer();
+#endif
+
 /**
 * Takes the requested buffer size and quantizes it to an appropriate size for the rest of the
 * rendering pipeline. Currently ensures that sizes are multiples of 4 so that they can safely

@@ -21,6 +21,8 @@ static FAutoConsoleVariableRef CVarStreamingMaxReferenceChecksBeforeStreamOut(
 	ECVF_Default
 );
 
+bool GetSupportsRaytracingNaniteProceduralPrimitive(EShaderPlatform InShaderPlatform);
+
 // Instantiate TRenderAssetUpdate for FStaticMeshUpdateContext
 template class TRenderAssetUpdate<FStaticMeshUpdateContext>;
 
@@ -175,7 +177,14 @@ void FStaticMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 				LODResource.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 			{
 				FRayTracingGeometryInitializer Initializer;
-				Context.LODResourcesView[LODIdx]->SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+				if (Context.Mesh->HasValidNaniteData() && GetSupportsRaytracingNaniteProceduralPrimitive(GMaxRHIShaderPlatform))
+				{
+					FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(Initializer, Context.Mesh->GetFName());
+				}
+				else
+				{
+					Context.LODResourcesView[LODIdx]->SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+				}
 				Initializer.Type = ERayTracingGeometryInitializerType::StreamingSource;
 				IntermediateRayTracingGeometry[LODIdx].SetInitializer(Initializer);
 				IntermediateRayTracingGeometry[LODIdx].CreateRayTracingGeometryFromCPUData(LODResource.RayTracingGeometry.RawData);
@@ -256,7 +265,14 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 				{
 					// Rebuild the initializer because it could have been reset during a previous release
 					FRayTracingGeometryInitializer Initializer;
-					LODResource.SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+					if (Context.Mesh->HasValidNaniteData() && GetSupportsRaytracingNaniteProceduralPrimitive(GMaxRHIShaderPlatform))
+					{
+						FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(Initializer, Context.Mesh->GetFName());
+					}
+					else
+					{
+						LODResource.SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+					}
 					LODResource.RayTracingGeometry.SetInitializer(Initializer);
 
 					LODResource.RayTracingGeometry.RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority::Normal);

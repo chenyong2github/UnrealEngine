@@ -105,6 +105,20 @@ FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
 	ECVF_RenderThreadSafe
 );
 
+#define VF_NANITE_PROCEDURAL_INTERSECTOR 1
+
+static int32 GNaniteRaytracingProceduralPrimitive = 0;
+static FAutoConsoleVariableRef CVarNaniteRaytracingProceduralPrimitive(
+	TEXT("r.RayTracing.Nanite.ProceduralPrimitive"),
+	GNaniteRaytracingProceduralPrimitive,
+	TEXT("Whether to raytrace nanite meshes using procedural primitives instead of a proxy."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+bool GetSupportsRaytracingNaniteProceduralPrimitive(EShaderPlatform InShaderPlatform)
+{
+	return GNaniteRaytracingProceduralPrimitive && VF_NANITE_PROCEDURAL_INTERSECTOR && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(InShaderPlatform);
+}
+
 namespace Nanite
 {
 
@@ -557,7 +571,16 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque;
 
 #if RHI_RAYTRACING
-	CachedRayTracingMaterials.SetNum(MaterialSections.Num());
+	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
+	if (ValidLODIndex != INDEX_NONE && RenderData->LODResources[ValidLODIndex].RayTracingGeometry.Initializer.GeometryType == RTGT_Procedural)
+	{
+		// Currently we only support 1 material when using procedural ray tracing primitive
+		CachedRayTracingMaterials.SetNum(1);
+	}
+	else
+	{
+		CachedRayTracingMaterials.SetNum(MaterialSections.Num());
+	}
 
 	if (IsRayTracingEnabled())
 	{
@@ -1191,8 +1214,8 @@ int32 FSceneProxy::GetFirstValidRaytracingGeometryLODIndex() const
 
 void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials) const
 {
-	check(Materials.Num() == MaterialSections.Num());
-	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+	check(Materials.Num() <= MaterialSections.Num());
+	for (int32 SectionIndex = 0; SectionIndex < Materials.Num(); ++SectionIndex)
 	{
 		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
 		FMeshBatch& MeshBatch = Materials[SectionIndex];
@@ -1223,7 +1246,8 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 	// Setup a new instance
 	FRayTracingInstance& RayTracingInstance = OutRayTracingInstances.Emplace_GetRef();
-	RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;;
+	RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;
+	RayTracingInstance.bApplyLocalBoundsTransform = RayTracingInstance.Geometry->RayTracingGeometryRHI->GetInitializer().GeometryType == RTGT_Procedural;
 
 	const int32 InstanceCount = InstanceSceneData.Num();
 	if (CachedRayTracingInstanceTransforms.Num() != InstanceCount || !bCachedRayTracingInstanceTransformsValid)
@@ -1247,7 +1271,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	// Setup the cached materials again when the LOD changes
 	if (ValidLODIndex != CachedRayTracingMaterialsLODIndex)
 	{
-		SetupRayTracingMaterials(ValidLODIndex, CachedRayTracingMaterials);		
+		SetupRayTracingMaterials(ValidLODIndex, CachedRayTracingMaterials);
 		CachedRayTracingMaterialsLODIndex = ValidLODIndex;
 
 		// Request rebuild
@@ -1282,6 +1306,7 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	}
 
 	RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;
+	RayTracingInstance.bApplyLocalBoundsTransform = RayTracingInstance.Geometry->RayTracingGeometryRHI->GetInitializer().GeometryType == RTGT_Procedural;
 
 	checkf(SupportsInstanceDataBuffer() && InstanceSceneData.Num() <= GetPrimitiveSceneInfo()->GetNumInstanceSceneDataEntries(),
 		TEXT("Primitives using ERayTracingPrimitiveFlags::CacheInstances require instance transforms available in GPUScene"));
@@ -1289,7 +1314,16 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	RayTracingInstance.NumTransforms = InstanceSceneData.Num();
 	// When ERayTracingPrimitiveFlags::CacheInstances is used, instance transforms are copied from GPUScene while building ray tracing instance buffer.
 
-	RayTracingInstance.Materials.SetNum(MaterialSections.Num());
+	if (RayTracingInstance.Geometry->Initializer.GeometryType == RTGT_Procedural)
+	{
+		// Currently we only support 1 material when using procedural ray tracing primitive
+		RayTracingInstance.Materials.SetNum(1);
+	}
+	else
+	{
+		RayTracingInstance.Materials.SetNum(MaterialSections.Num());
+	}
+
 	SetupRayTracingMaterials(ValidLODIndex, RayTracingInstance.Materials);
 
 	const bool bIsRayTracingFarField = IsRayTracingFarField();
