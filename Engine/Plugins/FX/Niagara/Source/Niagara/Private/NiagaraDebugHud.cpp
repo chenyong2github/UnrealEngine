@@ -947,7 +947,6 @@ FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* Sy
 	// For GPU context we need to readback and cache the data
 	if (EmitterInstance->GetGPUContext())
 	{
-#if UE_ENABLE_DEBUG_DRAWING
 		if (!Settings.bEnableGpuParticleReadback)
 		{
 			return nullptr;
@@ -993,7 +992,6 @@ FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* Sy
 		{
 			return &GpuCachedData->CurrentEmitterData[iEmitter]->Frame;
 		}
-#endif
 		return nullptr;
 	}
 
