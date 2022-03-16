@@ -119,7 +119,7 @@ PACKAGE_SCOPE:
 	 * @param TalkerIndex the talker that needs the mute list checked for
 	 * @param PlayerController the player controller associated with this talker
 	 */
-	virtual void UpdateMuteListForLocalTalker(int32 TalkerIndex, class APlayerController* PlayerController);
+	virtual void UpdateMuteListForLocalTalker(int32 TalkerIndex);
 
 public:
 
