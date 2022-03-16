@@ -140,53 +140,37 @@ FString FPartyInvitationRecipient::ToDebugString() const
 	return FString::Printf(TEXT("Id=[%s], PlatformData=[%s]"), *Id->ToDebugString(), *PlatformData);
 }
 
-FDelegateHandle IOnlinePartySystem::AddOnPartyJIPDelegate_Handle(const FOnPartyJIPDelegate& Delegate)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FDelegateHandle IOnlinePartySystem::AddOnPartyInviteReceivedDelegate_Handle(const FOnPartyInviteReceivedDelegate& Delegate)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 {
-	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool Success, int32 /*DeniedResultCode*/)
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invitation)
 	{
-		Delegate.ExecuteIfBound(LocalUserId, PartyId, Success);
+		Delegate.ExecuteIfBound(LocalUserId, *Invitation.GetPartyId(), *Invitation.GetSourceUserId());
 	};
-	return OnPartyJIPResponseDelegates.Add(FOnPartyJIPResponseDelegate::CreateLambda(DeprecationHelperLambda));
+	return OnPartyInviteReceivedExDelegates.Add(FOnPartyInviteReceivedExDelegate::CreateLambda(DeprecationHelperLambda));
 }
 
-FDelegateHandle IOnlinePartySystem::AddOnPartyDataReceivedDelegate_Handle(const FOnPartyDataReceivedConstDelegate& Delegate)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FDelegateHandle IOnlinePartySystem::AddOnPartyInviteRemovedDelegate_Handle(const FOnPartyInviteRemovedDelegate& Delegate)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 {
-	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FName& Namespace, const FOnlinePartyData& PartyData)
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invitation, EPartyInvitationRemovedReason Reason)
 	{
-		// For backwards compatibility, only forward the default namespace
-		if (Namespace == DefaultPartyDataNamespace)
-		{
-			Delegate.ExecuteIfBound(LocalUserId, PartyId, PartyData);
-		}
+		Delegate.ExecuteIfBound(LocalUserId, *Invitation.GetPartyId(), *Invitation.GetSourceUserId(), Reason);
 	};
-	return OnPartyDataReceivedDelegates.Add(FOnPartyDataReceivedDelegate::CreateLambda(DeprecationHelperLambda));
+	return OnPartyInviteRemovedExDelegates.Add(FOnPartyInviteRemovedExDelegate::CreateLambda(DeprecationHelperLambda));
 }
 
-FDelegateHandle IOnlinePartySystem::AddOnPartyMemberDataReceivedDelegate_Handle(const FOnPartyMemberDataReceivedConstDelegate& Delegate)
-{
-	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, const FName& Namespace, const FOnlinePartyData& PartyData)
-	{
-		// For backwards compatibility, only forward the default namespace
-		if (Namespace == DefaultPartyDataNamespace)
-		{
-			Delegate.ExecuteIfBound(LocalUserId, PartyId, MemberId, PartyData);
-		}
-	};
-	return OnPartyMemberDataReceivedDelegates.Add(FOnPartyMemberDataReceivedDelegate::CreateLambda(DeprecationHelperLambda));
-}
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void IOnlinePartySystem::QueryPartyJoinability(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& OnlinePartyJoinInfo, const FOnQueryPartyJoinabilityComplete& Delegate)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 {
 	// Default implementation will call the ex version.
 	QueryPartyJoinability(LocalUserId, OnlinePartyJoinInfo, FOnQueryPartyJoinabilityCompleteEx::CreateLambda([Delegate](const FUniqueNetId& LambdaLocalUserId, const FOnlinePartyId& LambdaPartyId, const FQueryPartyJoinabilityResult& QueryPartyJoinabilityResult)
 	{
 		Delegate.ExecuteIfBound(LambdaLocalUserId, LambdaPartyId, QueryPartyJoinabilityResult.EnumResult, QueryPartyJoinabilityResult.SubCode);
 	}));
-}
-
-void IOnlinePartySystem::RespondToQueryJoinability(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bCanJoin, int32 DeniedResultCode)
-{
-	RespondToQueryJoinability(LocalUserId, PartyId, RecipientId, bCanJoin, DeniedResultCode, FOnlinePartyDataConstPtr());
 }
 
 bool FPartyConfiguration::operator==(const FPartyConfiguration& Other) const

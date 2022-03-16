@@ -662,7 +662,7 @@ void USocialDebugTools::FInstanceContext::Init()
 		IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
 		if (OnlineParty.IsValid())
 		{
-			PartyInviteReceivedDelegateHandle = OnlineParty->AddOnPartyInviteReceivedDelegate_Handle(FOnPartyInviteReceivedDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyInviteReceived));
+			PartyInviteReceivedDelegateHandle = OnlineParty->AddOnPartyInviteReceivedExDelegate_Handle(FOnPartyInviteReceivedExDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyInviteReceived));
 			PartyJoinRequestReceivedDelegateHandle = OnlineParty->AddOnPartyJoinRequestReceivedDelegate_Handle(FOnPartyJoinRequestReceivedDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyJoinRequestReceived));
 		}
 	}
@@ -709,7 +709,7 @@ void USocialDebugTools::HandleFriendInviteReceived(const FUniqueNetId& LocalUser
 	}
 }
 
-void USocialDebugTools::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId)
+void USocialDebugTools::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invitation)
 {
 	if (bAutoAcceptPartyInvites)
 	{
@@ -719,32 +719,23 @@ void USocialDebugTools::HandlePartyInviteReceived(const FUniqueNetId& LocalUserI
 			IOnlinePartyPtr OnlineParty = Context->GetOSS()->GetPartyInterface();
 			if (OnlineParty.IsValid())
 			{
-				TArray<TSharedRef<const IOnlinePartyJoinInfo>> PartyInvites;
-				OnlineParty->GetPendingInvites(LocalUserId, PartyInvites);
-				for (const TSharedRef<const IOnlinePartyJoinInfo>& Invite : PartyInvites)
+				const FString Instance = Context->Name;
+				OnlineParty->JoinParty(LocalUserId, Invitation, FOnJoinPartyComplete::CreateLambda([this, Instance, OnlineParty](const FUniqueNetId& UserId, const FOnlinePartyId& PartyIdTmp, const EJoinPartyCompletionResult Result, const int32 NotApprovedReason)
 				{
-					if (*Invite->GetPartyId() == PartyId)
-					{						
-						const FString Instance = Context->Name;
-						OnlineParty->JoinParty(LocalUserId, *Invite, FOnJoinPartyComplete::CreateLambda([this, Instance, OnlineParty](const FUniqueNetId& UserId, const FOnlinePartyId& PartyIdTmp, const EJoinPartyCompletionResult Result, const int32 NotApprovedReason)
+					bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
+					if (bSuccess)
+					{
+						FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
+						if (PartyMemberData.IsValid())
 						{
-							bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
-							if (bSuccess)
-							{
-								FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
-								if (PartyMemberData.IsValid())
-								{
-									OnlineParty->UpdatePartyMemberData(UserId, PartyIdTmp, DefaultPartyDataNamespace, *PartyMemberData);
-								}
-							}
-							else
-							{
-								UE_LOG(LogParty, Warning, TEXT("Party context[%s] invite join attempt denied for reason [%d]"), *Instance, (int32)Result);
-							}
-						}));
-						break;
+							OnlineParty->UpdatePartyMemberData(UserId, PartyIdTmp, DefaultPartyDataNamespace, *PartyMemberData);
+						}
 					}
-				}
+					else
+					{
+						UE_LOG(LogParty, Warning, TEXT("Party context[%s] invite join attempt denied for reason [%d]"), *Instance, (int32)Result);
+					}
+				}));
 			}
 		}
 	}
