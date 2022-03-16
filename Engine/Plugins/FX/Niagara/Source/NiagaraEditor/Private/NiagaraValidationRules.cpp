@@ -17,6 +17,10 @@
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "ViewModels/Stack/NiagaraStackSystemPropertiesItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+
+#include "AssetToolsModule.h"
+#include "Toolkits/AssetEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraValidationRules"
 
@@ -71,10 +75,40 @@ T* GetStackEntry(UNiagaraStackViewModel* StackViewModel, bool bRefresh = false)
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
+// Common fixes and links
 
-TArray<FNiagaraValidationResult> UNiagara_NoWarmupTime::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const
+void AddGoToFXTypeLink(FNiagaraValidationResult& Result, UNiagaraEffectType* FXType)
 {
-	TArray<FNiagaraValidationResult> Results;
+	if (FXType == nullptr)
+	{
+		return;
+	}
+
+	FNiagaraValidationFix& GoToValidationRulesLink = Result.Links.AddDefaulted_GetRef();
+	GoToValidationRulesLink.Description = LOCTEXT("GoToValidationRulesFix", "Go To Validation Rules");
+	TWeakObjectPtr<UNiagaraEffectType> WeakFXType = FXType;
+	GoToValidationRulesLink.FixDelegate = FNiagaraValidationFixDelegate::CreateLambda([WeakFXType]
+		{
+			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+			TWeakPtr<IAssetTypeActions> WeakAssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(UNiagaraEffectType::StaticClass());
+
+			if (UNiagaraEffectType* FXType = WeakFXType.Get())
+			{
+				if (TSharedPtr<IAssetTypeActions> AssetTypeActions = WeakAssetTypeActions.Pin())
+				{
+					TArray<UObject*> AssetsToEdit;
+					AssetsToEdit.Add(FXType);
+					AssetTypeActions->OpenAssetEditor(AssetsToEdit);
+					//TODO: Is there a way for us to auto navigate to and open up the validation rules inside FXType?
+				}
+			}
+		});
+}
+
+// --------------------------------------------------------------------------------------------------------------------------------------------
+
+void UNiagaraValidationRule_NoWarmupTime::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results)  const
+{
 	UNiagaraSystem& System = ViewModel->GetSystem();
 	if (System.NeedsWarmup())
 	{
@@ -82,17 +116,14 @@ TArray<FNiagaraValidationResult> UNiagara_NoWarmupTime::CheckValidity(TSharedPtr
 		FNiagaraValidationResult Result(ENiagaraValidationSeverity::Error, LOCTEXT("WarumupSummary", "Warmuptime > 0 is not allowed"), LOCTEXT("WarmupDescription", "Systems with the chosen effect type do not allow warmup time, as it costs too much performance.\nPlease set the warmup time to 0 in the system properties."), SystemProperties);
 		Results.Add(Result);
 	}
-	return Results;
 }
 
-TArray<FNiagaraValidationResult> UNiagara_FixedGPUBoundsSet::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const
+void UNiagaraValidationRule_FixedGPUBoundsSet::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results)  const
 {
-	TArray<FNiagaraValidationResult> Results;
-
 	// if the system has fixed bounds set then it overrides the emitter settings
 	if (ViewModel->GetSystem().bFixedBounds)
 	{
-		return Results;
+		return;
 	}
 
 	// check that all the gpu emitters have fixed bounds set
@@ -107,7 +138,6 @@ TArray<FNiagaraValidationResult> UNiagara_FixedGPUBoundsSet::CheckValidity(TShar
 			Results.Add(Result);
 		}
 	}
-	return Results;
 }
 
 bool IsEnabledForMaxQualityLevel(FNiagaraPlatformSet Platforms, int32 MaxQualityLevel)
@@ -122,54 +152,141 @@ bool IsEnabledForMaxQualityLevel(FNiagaraPlatformSet Platforms, int32 MaxQuality
 	return false;
 }
 
-TArray<FNiagaraValidationResult> UNiagara_NoComponentRendererOnLowSettings::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const
+void UNiagaraValidationRule_BannedRenderers::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results)  const
 {
-	TArray<FNiagaraValidationResult> Results;
-
-	// check that component renderers are only active for high and cinematic settings 
+	UNiagaraSystem& System = ViewModel->GetSystem();
 	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandleViewModels = ViewModel->GetEmitterHandleViewModels();
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel : EmitterHandleViewModels)
 	{
 		int32 MaxQualityLevel = 3;
 		UNiagaraEmitter* NiagaraEmitter = EmitterHandleModel.Get().GetEmitterHandle()->GetInstance();
-		NiagaraEmitter->ForEachRenderer([&Results, EmitterHandleModel, MaxQualityLevel](UNiagaraRendererProperties* RendererProperties)
+		NiagaraEmitter->ForEachRenderer([&Results, EmitterHandleModel, MaxQualityLevel, this, &System](UNiagaraRendererProperties* RendererProperties)
 		{
-			if (Cast<UNiagaraComponentRendererProperties>(RendererProperties) && RendererProperties->GetIsEnabled() && IsEnabledForMaxQualityLevel(RendererProperties->Platforms, MaxQualityLevel))
+			if (RendererProperties->GetIsEnabled() && BannedRenderers.Contains(RendererProperties->GetClass()))
 			{
-				TArray<UNiagaraStackRendererItem*> RendererItems = GetStackEntries<UNiagaraStackRendererItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
-				for (UNiagaraStackRendererItem* Item : RendererItems)
+				TArray<const FNiagaraPlatformSet*> CheckSets;
+				CheckSets.Add(&Platforms);
+				CheckSets.Add(&RendererProperties->Platforms);
+
+				TArray<FNiagaraPlatformSetConflictInfo> Conflicts;
+				FNiagaraPlatformSet::GatherConflicts(CheckSets, Conflicts);
+				if (Conflicts.Num() > 0)
 				{
-					if (Item->GetRendererProperties() != RendererProperties)
+					TArray<UNiagaraStackRendererItem*> RendererItems = GetStackEntries<UNiagaraStackRendererItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
+					for (UNiagaraStackRendererItem* Item : RendererItems)
 					{
-						continue;
+						if (Item->GetRendererProperties() != RendererProperties)
+						{
+							continue;
+						}						
+						FNiagaraValidationResult Result = Results.AddDefaulted_GetRef();
+						
+						Result.Severity = ENiagaraValidationSeverity::Warning;
+						Result.SummaryText = LOCTEXT("BannedRenderSummary", "Banned renderers used.");
+						Result.Description = LOCTEXT("BannedRenderDescription", "Please ensure only allowed renderers are used for each platform according to the validation rules in the System's Effect Type.");
+						Result.SourceObject = Item;
+						
+						AddGoToFXTypeLink(Result, System.GetEffectType());
+
+						//Add autofix to disable the module
+						FNiagaraValidationFix& DisableRendererFix = Result.Fixes.AddDefaulted_GetRef();
+						DisableRendererFix.Description = LOCTEXT("DisableBannedRendererFix", "Disable Banned Renderer");
+						TWeakObjectPtr<UNiagaraStackRendererItem> WeakRendererItem = Item;
+						DisableRendererFix.FixDelegate = FNiagaraValidationFixDelegate::CreateLambda(
+							[WeakRendererItem]()
+							{
+								if (UNiagaraStackRendererItem* RendererItem = WeakRendererItem.Get())
+								{
+									RendererItem->SetIsEnabled(false);
+								}
+							});
+
+						Results.Add(Result);
 					}
-					FNiagaraValidationResult Result(ENiagaraValidationSeverity::Warning, LOCTEXT("ComponentRenderSummary", "Component renderers should not be used for low-level platforms"), LOCTEXT("ComponentRenderDescription", "Please disable low level platforms in the renderer's scalability settings."), Item);
-					Results.Add(Result);
 				}
 			}
 		});
 	}
-	return Results;
+} 
+
+void UNiagaraValidationRule_BannedModules::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results)  const
+{
+	UNiagaraSystem& System = ViewModel->GetSystem();
+
+	TArray<UNiagaraStackModuleItem*> StackModuleItems =	GetAllStackEntriesInSystem<UNiagaraStackModuleItem>(ViewModel);
+
+	for (UNiagaraStackModuleItem* Item : StackModuleItems)
+	{
+		if (Item && Item->GetIsEnabled())
+		{
+			UNiagaraNodeFunctionCall& FuncCall = Item->GetModuleNode();
+
+			for (UNiagaraScript* BannedModule : BannedModules)
+			{
+				if (BannedModule == FuncCall.FunctionScript)
+				{
+					UNiagaraEmitter* Emitter = Item->GetEmitterViewModel().IsValid() ? Item->GetEmitterViewModel()->GetEmitter() : nullptr;
+
+					bool bApplyBan = true;
+					if (Emitter)
+					{
+						//If we're on an emitter, this emitter may be culled on the platforms the rule applies to.
+						TArray<const FNiagaraPlatformSet*> CheckSets;
+						CheckSets.Add(&Platforms);
+						CheckSets.Add(&Emitter->Platforms);
+						TArray<FNiagaraPlatformSetConflictInfo> Conflicts;
+						FNiagaraPlatformSet::GatherConflicts(CheckSets, Conflicts);
+						bApplyBan = Conflicts.Num() > 0;
+					}
+
+					if (!bApplyBan)
+					{
+						continue;
+					}
+
+					const FTextFormat Format(LOCTEXT("BannedModuleFormat", "Module {0} is banned on some currently enabled platforms"));
+					const FText WarningMessage = FText::Format(Format, FText::FromString(FuncCall.FunctionScript->GetName()));
+
+					FNiagaraValidationResult& Result = Results.AddDefaulted_GetRef();
+					Result.Severity = ENiagaraValidationSeverity::Warning;
+					Result.SummaryText = WarningMessage;
+					Result.Description = LOCTEXT("BanndeModulesDescription", "Check this module against the Effect Type's Banned Modules validators");
+					Result.SourceObject = Item;
+
+					AddGoToFXTypeLink(Result, System.GetEffectType());
+
+					//Add autofix to disable the module
+					FNiagaraValidationFix& DisableModuleFix = Result.Fixes.AddDefaulted_GetRef();
+					DisableModuleFix.Description = LOCTEXT("DisableBannedModuleFix", "Disable Banned Module");					
+					TWeakObjectPtr<UNiagaraStackModuleItem> WeakModuleItem = Item;
+					DisableModuleFix.FixDelegate = FNiagaraValidationFixDelegate::CreateLambda([WeakModuleItem]()
+					{
+						if (UNiagaraStackModuleItem* ModuleItem = WeakModuleItem.Get())
+						{
+							ModuleItem->SetEnabled(false);
+						}
+					});
+				}
+			}
+		}
+	}
 }
 
-TArray<FNiagaraValidationResult> UNiagara_InvalidEffectType::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const
+void UNiagaraValidationRule_InvalidEffectType::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results)  const
 {
-	TArray<FNiagaraValidationResult> Results;
 	UNiagaraStackSystemPropertiesItem* SystemProperties = GetStackEntry<UNiagaraStackSystemPropertiesItem>(ViewModel->GetSystemStackViewModel());
 	FNiagaraValidationResult Result(ENiagaraValidationSeverity::Error, LOCTEXT("InvalidEffectSummary", "Invalid Effect Type"), LOCTEXT("InvalidEffectDescription", "The effect type on this system was marked as invalid for production content and should only be used as placeholder."), SystemProperties);
 	Results.Add(Result);
-	return Results;
 }
 
-TArray<FNiagaraValidationResult> UNiagara_LWC_Validator::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const
+void UNiagaraValidationRule_LWC::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results)  const
 {
-	TArray<FNiagaraValidationResult> Results;
 
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	UNiagaraSystem& System = ViewModel->GetSystem();
 	if (!System.SupportsLargeWorldCoordinates())
 	{
-		return Results;
+		return;
 	}
 
 	// gather all the modules in the system, excluding localspace emitters
@@ -235,8 +352,6 @@ TArray<FNiagaraValidationResult> UNiagara_LWC_Validator::CheckValidity(TSharedPt
 			}
 		}
 	}
-	
-	return Results;
 }
 
 #undef LOCTEXT_NAMESPACE

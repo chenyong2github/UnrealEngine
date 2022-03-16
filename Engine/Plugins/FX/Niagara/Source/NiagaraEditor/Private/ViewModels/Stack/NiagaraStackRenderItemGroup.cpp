@@ -14,6 +14,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Styling/CoreStyle.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackRenderItemGroup"
 
@@ -209,6 +210,7 @@ void UNiagaraStackRenderItemGroup::OnRendererAdded(UNiagaraRendererProperties* R
 {
 	GetSystemViewModel()->GetSelectionViewModel()->EmptySelection();
 	GetSystemViewModel()->GetSelectionViewModel()->AddEntryToSelectionByDisplayedObjectKeyDeferred(FObjectKey(RendererProperties));
+	GetSystemViewModel()->GetSystemStackViewModel()->RequestValidationUpdate();
 }
 
 void UNiagaraStackRenderItemGroup::FinalizeInternal()

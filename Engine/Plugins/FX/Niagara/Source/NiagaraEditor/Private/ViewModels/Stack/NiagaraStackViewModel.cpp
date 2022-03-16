@@ -87,26 +87,32 @@ void UNiagaraStackViewModel::UpdateStackWithValidationResults()
 		Entry->ClearExternalIssues();
 		Entry->GetUnfilteredChildren(EntriesToClear);
 	}
+	
+	TSharedPtr<FNiagaraSystemViewModel> SysViewModel = SystemViewModel.Pin();
+	if (SysViewModel == nullptr)
+	{
+		return;
+	}
 
-	UNiagaraSystem& NiagaraSystem = SystemViewModel.Pin()->GetSystem();
+	UNiagaraSystem& NiagaraSystem = SysViewModel->GetSystem();
 	if (NiagaraSystem.GetEffectType())
 	{
 		// go over the validation rules
-		for (TSubclassOf<UNiagaraValidationRule> ValidationClass : NiagaraSystem.GetEffectType()->ValidationRules)
+		for (UNiagaraValidationRule* ValidationRule : NiagaraSystem.GetEffectType()->ValidationRules)
 		{
-			if (UNiagaraValidationRule* ValidationRule = Cast<UNiagaraValidationRule>(ValidationClass->GetDefaultObject()))
+			if (ValidationRule)
 			{
-				TArray<FNiagaraValidationResult> NiagaraValidationResults = ValidationRule->CheckValidity(SystemViewModel.Pin());
+				TArray<FNiagaraValidationResult> NiagaraValidationResults;
+				ValidationRule->CheckValidity(SystemViewModel.Pin(), NiagaraValidationResults);
 				for (const FNiagaraValidationResult& Result : NiagaraValidationResults)
 				{
 					EStackIssueSeverity Severity = (Result.Severity == ENiagaraValidationSeverity::Error) ? EStackIssueSeverity::Error : (Result.Severity == ENiagaraValidationSeverity::Warning ? EStackIssueSeverity::Warning : EStackIssueSeverity::Info);
 					if (UNiagaraStackEntry* SourceEntry = Cast<UNiagaraStackEntry>(Result.SourceObject.Get()))
 					{
-						SourceEntry->AddExternalIssue(Severity, Result.SummaryText, Result.Description, Result.Severity == ENiagaraValidationSeverity::Info);
+						SourceEntry->AddValidationIssue(Severity, Result.SummaryText, Result.Description, Result.Severity == ENiagaraValidationSeverity::Info, Result.Fixes, Result.Links);
 					}
 				}
 			}
-			
 		}
 	}
 }
@@ -246,6 +252,7 @@ void UNiagaraStackViewModel::Tick()
 			RootEntry->RefreshChildren();
 			bRefreshPending = false;
 			InvalidateSearchResults();
+			bValidatorUpdatePending = true;
 		}
 
 		if (bValidatorUpdatePending)

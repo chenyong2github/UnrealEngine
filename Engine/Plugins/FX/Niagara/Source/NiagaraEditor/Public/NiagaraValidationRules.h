@@ -4,47 +4,77 @@
 
 #include "CoreMinimal.h"
 #include "NiagaraValidationRule.h"
+#include "NiagaraPlatformSet.h"
 #include "NiagaraValidationRules.generated.h"
 
+class UNiagaraScript;
+class UNiagaraRendererProperties;
 
-UCLASS(Category = "Validation")
-class UNiagara_NoWarmupTime : public UNiagaraValidationRule
+
+UCLASS(Category = "Validation", DisplayName = "No Warmup Time")
+class UNiagaraValidationRule_NoWarmupTime : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
 public:
-	virtual TArray<FNiagaraValidationResult> CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const override;
+	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
 
-UCLASS(Category = "Validation")
-class UNiagara_FixedGPUBoundsSet : public UNiagaraValidationRule
+UCLASS(Category = "Validation", DisplayName = "Fixed GPU Bounds Set")
+class UNiagaraValidationRule_FixedGPUBoundsSet : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
 public:
-	virtual TArray<FNiagaraValidationResult> CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const override;
+	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
 
-UCLASS(Category = "Validation")
-class UNiagara_NoComponentRendererOnLowSettings : public UNiagaraValidationRule
+UCLASS(Category = "Validation", DisplayName = "Banned Renderers")
+class UNiagaraValidationRule_BannedRenderers : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
+
 public:
-	virtual TArray<FNiagaraValidationResult> CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const override;
+
+	//Platforms this validation rule will apply to.
+	UPROPERTY(EditAnywhere, Category = Validation)
+	FNiagaraPlatformSet Platforms;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
+	TArray<TSubclassOf<UNiagaraRendererProperties>> BannedRenderers;
+
+	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
-UCLASS(Category = "Validation")
-class UNiagara_InvalidEffectType : public UNiagaraValidationRule
+UCLASS(Category = "Validation", DisplayName = "Banned Modules")
+class UNiagaraValidationRule_BannedModules : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
+
 public:
-	virtual TArray<FNiagaraValidationResult> CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const override;
+
+	//Platforms this validation rule will apply to.
+	UPROPERTY(EditAnywhere, Category=Validation)
+	FNiagaraPlatformSet Platforms;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
+	TArray<UNiagaraScript*> BannedModules;
+
+	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
-UCLASS(Category = "Validation")
-class UNiagara_LWC_Validator : public UNiagaraValidationRule
+UCLASS(Category = "Validation", DisplayName = "Invalid Effect Type")
+class UNiagaraValidationRule_InvalidEffectType : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
 public:
-	virtual TArray<FNiagaraValidationResult> CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const override;
+	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+};
+
+UCLASS(Category = "Validation", DisplayName = "Large World Coordinates")
+class UNiagaraValidationRule_LWC : public UNiagaraValidationRule
+{
+	GENERATED_BODY()
+public:
+	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
 };

@@ -362,6 +362,11 @@ void UNiagaraStackRendererItem::SetIsEnabledInternal(bool bInIsEnabled)
 	ChangedObjects.Add(RendererProperties.Get());
 	OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Changed);
 	RefreshChildren();
+
+	if (GetEmitterViewModel().IsValid())
+	{
+		GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(GetEmitterViewModel()->GetEmitter()).Get()->GetEmitterStackViewModel()->RequestValidationUpdate();
+	}
 }
 
 const FSlateBrush* UNiagaraStackRendererItem::GetIconBrush() const

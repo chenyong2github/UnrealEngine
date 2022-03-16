@@ -598,6 +598,30 @@ const TArray<UNiagaraStackEntry*>& UNiagaraStackEntry::GetAllChildrenWithIssues(
 	return GetCollectedIssueData().ChildrenWithIssues;
 }
 
+void UNiagaraStackEntry::AddValidationIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed, const TArray<FNiagaraValidationFix>& Fixes, const TArray<FNiagaraValidationFix>& Links)
+{
+	TArray<FStackIssueFix> StackFixes;
+	for (const FNiagaraValidationFix& Fix : Fixes)
+	{
+		StackFixes.Add(FStackIssueFix(Fix.Description, Fix.FixDelegate, EStackIssueFixStyle::Fix));
+	}
+	for (const FNiagaraValidationFix& Link : Links)
+	{
+		StackFixes.Add(FStackIssueFix(Link.Description, Link.FixDelegate, EStackIssueFixStyle::Link));
+	}
+
+	FStackIssue NewIssue(Severity, SummaryText, Description, GetStackEditorDataKey(), bCanBeDismissed, StackFixes);
+	for (const FStackIssue& ExistingIssue : ExternalStackIssues)
+	{
+		if (ExistingIssue.GetUniqueIdentifier().Equals(NewIssue.GetUniqueIdentifier()))
+		{
+			return;
+		}
+	}
+	ExternalStackIssues.Add(NewIssue);
+	RefreshChildren();
+}
+
 void UNiagaraStackEntry::AddExternalIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed)
 {
 	FStackIssue NewIssue(Severity, SummaryText, Description, GetStackEditorDataKey(), bCanBeDismissed);

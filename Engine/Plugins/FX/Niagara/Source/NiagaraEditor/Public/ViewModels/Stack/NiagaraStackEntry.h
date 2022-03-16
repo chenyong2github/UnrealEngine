@@ -469,7 +469,8 @@ public:
 	const TArray<FStackIssue>& GetIssues() const;
 
 	const TArray<UNiagaraStackEntry*>& GetAllChildrenWithIssues() const;
-
+	
+	void AddValidationIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed, const TArray<FNiagaraValidationFix>& Fixes, const TArray<FNiagaraValidationFix>& Links);
 	void AddExternalIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed);
 	void ClearExternalIssues();
 
