@@ -279,7 +279,7 @@ private:
 	void CreateTimeTrack(const FUsdLevelSequenceHelperImpl::FLayerTimeInfo& Info);
 	void RemoveTimeTrack(const FUsdLevelSequenceHelperImpl::FLayerTimeInfo* Info);
 
-	void AddCommonTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim );
+	void AddCommonTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim, bool bForceVisibilityTracks = false );
 	void AddCameraTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim );
 	void AddLightTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim, const TSet<FName>& PropertyPathsToRead = {} );
 	void AddSkeletalTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim );
@@ -291,7 +291,10 @@ private:
 
 // Prims handling
 public:
-	void AddPrim( UUsdPrimTwin& PrimTwin );
+	// If bForceVisibilityTracks is true, we'll add and bake the visibility tracks for this prim even if the
+	// prim itself doesn't have animated visibility (so that we can handle its visibility in case one of its
+	// parents does have visibility animations)
+	void AddPrim( UUsdPrimTwin& PrimTwin, bool bForceVisibilityTracks = false );
 	void RemovePrim(const UUsdPrimTwin& PrimTwin);
 
 private:
@@ -1065,7 +1068,7 @@ void FUsdLevelSequenceHelperImpl::RemoveTimeTrack(const FLayerTimeInfo* LayerTim
 	}
 }
 
-void FUsdLevelSequenceHelperImpl::AddCommonTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim )
+void FUsdLevelSequenceHelperImpl::AddCommonTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim, bool bForceVisibilityTracks )
 {
 	USceneComponent* ComponentToBind = PrimTwin.GetSceneComponent();
 	if ( !ComponentToBind )
@@ -1121,31 +1124,92 @@ void FUsdLevelSequenceHelperImpl::AddCommonTracks( const UUsdPrimTwin& PrimTwin,
 	if ( Attrs.Num() > 0 )
 	{
 		UE::FUsdAttribute VisibilityAttribute = Attrs[ 0 ];
-		if ( VisibilityAttribute && VisibilityAttribute.ValueMightBeTimeVarying() )
+		if ( VisibilityAttribute )
 		{
-			if ( ULevelSequence* AttributeSequence = FindOrAddSequenceForAttribute( VisibilityAttribute ) )
-			{
-				const bool bIsMuted = UsdUtils::IsAttributeMuted( VisibilityAttribute, UsdStage );
+			const bool bAttrMightBeTimeVarying = VisibilityAttribute.ValueMightBeTimeVarying();
 
-				FMovieSceneSequenceTransform SequenceTransform;
-				FMovieSceneSequenceID SequenceID = SequencesID.FindRef( AttributeSequence );
-				if ( FMovieSceneSubSequenceData* SubSequenceData = SequenceHierarchyCache.FindSubData( SequenceID ) )
+			// Collect all the time samples we'll need to sample our visibility at (USD has inherited visibilities, so every time
+			// a parent has a key, we need to recompute the child visibility at that moment too)
+			TArray<double> TotalVisibilityTimeSamples;
+
+			// If we're adding a visibility track because a parent has visibility animations, we want to write our baked visibility
+			// tracks on the same layer as the first one of our parents that actually has animated visibility.
+			// There's no ideal place for this because it's essentially a fake track that we're creating, and we may have arbitrarily
+			// many parents and specs on multiple layers, but this is hopefully at least *a* reasonable answer.
+			UE::FUsdAttribute FirstAnimatedVisibilityParentAttr;
+
+			if ( bAttrMightBeTimeVarying || bForceVisibilityTracks )
+			{
+				VisibilityAttribute.GetTimeSamples( TotalVisibilityTimeSamples );
+
+				// TODO: Improve this, as this is extremely inefficient since we'll be parsing this tree for the root down and repeatedly
+				// redoing this one child at a time...
+				UE::FUsdPrim ParentPrim = Prim.GetParent();
+				while ( ParentPrim && !ParentPrim.IsPseudoRoot() )
 				{
-					SequenceTransform = SubSequenceData->RootToSequenceTransform;
+					if ( UsdUtils::HasAnimatedVisibility( ParentPrim ) )
+					{
+						TArray<UE::FUsdAttribute> ParentAttrs = UnrealToUsd::GetAttributesForProperty( ParentPrim, UnrealIdentifiers::HiddenInGamePropertyName );
+						if ( ParentAttrs.Num() > 0 )
+						{
+							UE::FUsdAttribute ParentVisAttr = ParentAttrs[ 0 ];
+							if ( ParentVisAttr && ParentVisAttr.ValueMightBeTimeVarying() )
+							{
+								if ( !FirstAnimatedVisibilityParentAttr )
+								{
+									FirstAnimatedVisibilityParentAttr = ParentVisAttr;
+								}
+
+								TArray<double> TimeSamples;
+								if ( ParentVisAttr.GetTimeSamples( TimeSamples ) )
+								{
+									TotalVisibilityTimeSamples.Append( TimeSamples );
+								}
+							}
+						}
+					}
+
+					ParentPrim = ParentPrim.GetParent();
 				}
 
-				if ( UMovieScene* MovieScene = AttributeSequence->GetMovieScene() )
-				{
-					const bool bReadonly = false;
-					UsdLevelSequenceHelperImpl::FMovieSceneReadonlyGuard MovieSceneReadonlyGuard{ *MovieScene, bReadonly };
+				// Put these in order for the sampling below, but don't worry about duplicates: The baking process already skips
+				// consecutive duplicates anyway
+				TotalVisibilityTimeSamples.Sort();
+			}
 
-					TArray<double> TimeSamples;
-					if ( VisibilityAttribute.GetTimeSamples( TimeSamples ) )
+			// Pick which attribute we will use to fetch the target LevelSequence to put our baked tracks
+			UE::FUsdAttribute AttributeForSequence;
+			if ( bAttrMightBeTimeVarying )
+			{
+				AttributeForSequence = VisibilityAttribute;
+			}
+			if ( !AttributeForSequence && bForceVisibilityTracks && FirstAnimatedVisibilityParentAttr )
+			{
+				AttributeForSequence = FirstAnimatedVisibilityParentAttr;
+			}
+
+			if ( AttributeForSequence && TotalVisibilityTimeSamples.Num() > 0 )
+			{
+				if ( ULevelSequence* AttributeSequence = FindOrAddSequenceForAttribute( AttributeForSequence ) )
+				{
+					const bool bIsMuted = UsdUtils::IsAttributeMuted( AttributeForSequence, UsdStage );
+
+					FMovieSceneSequenceTransform SequenceTransform;
+					FMovieSceneSequenceID SequenceID = SequencesID.FindRef( AttributeSequence );
+					if ( FMovieSceneSubSequenceData* SubSequenceData = SequenceHierarchyCache.FindSubData( SequenceID ) )
 					{
+						SequenceTransform = SubSequenceData->RootToSequenceTransform;
+					}
+
+					if ( UMovieScene* MovieScene = AttributeSequence->GetMovieScene() )
+					{
+						const bool bReadonly = false;
+						UsdLevelSequenceHelperImpl::FMovieSceneReadonlyGuard MovieSceneReadonlyGuard{ *MovieScene, bReadonly };
+
 						if ( UMovieSceneVisibilityTrack* VisibilityTrack = AddTrack<UMovieSceneVisibilityTrack>( UnrealIdentifiers::HiddenInGamePropertyName, PrimTwin, *ComponentToBind, *AttributeSequence, bIsMuted ) )
 						{
 							UsdToUnreal::FPropertyTrackReader Reader = UsdToUnreal::CreatePropertyTrackReader( Prim, UnrealIdentifiers::HiddenInGamePropertyName );
-							UsdToUnreal::ConvertBoolTimeSamples( UsdStage, TimeSamples, Reader.BoolReader, *VisibilityTrack, SequenceTransform );
+							UsdToUnreal::ConvertBoolTimeSamples( UsdStage, TotalVisibilityTimeSamples, Reader.BoolReader, *VisibilityTrack, SequenceTransform );
 						}
 
 						PrimPathByLevelSequenceName.AddUnique( AttributeSequence->GetFName(), Prim.GetPrimPath().GetString() );
@@ -1477,7 +1541,7 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks( const UUsdPrimTwin& PrimTwi
 	PrimPathByLevelSequenceName.AddUnique( SkelAnimationSequence->GetFName(), PrimPath );
 }
 
-void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin )
+void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin, bool bForceVisibilityTracks )
 {
 	if ( !UsdStage )
 	{
@@ -1525,7 +1589,7 @@ void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin )
 		AddSkeletalTracks( PrimTwin, UsdPrim );
 	}
 
-	AddCommonTracks( PrimTwin, UsdPrim );
+	AddCommonTracks( PrimTwin, UsdPrim, bForceVisibilityTracks );
 
 	RefreshSequencer();
 }
@@ -2584,7 +2648,7 @@ public:
 	void UnbindFromUsdStageActor() {}
 	void OnStageActorRenamed() {};
 
-	void AddPrim( UUsdPrimTwin& PrimTwin ) {}
+	void AddPrim( UUsdPrimTwin& PrimTwin, bool bForceVisibilityTracks ) {}
 	void RemovePrim(const UUsdPrimTwin& PrimTwin) {}
 
 	void StartMonitoringChanges() {}
@@ -2701,11 +2765,11 @@ void FUsdLevelSequenceHelper::UnbindFromUsdStageActor()
 	}
 }
 
-void FUsdLevelSequenceHelper::AddPrim(UUsdPrimTwin& PrimTwin)
+void FUsdLevelSequenceHelper::AddPrim(UUsdPrimTwin& PrimTwin, bool bForceVisibilityTracks)
 {
 	if (UsdSequencerImpl.IsValid())
 	{
-		UsdSequencerImpl->AddPrim(PrimTwin);
+		UsdSequencerImpl->AddPrim(PrimTwin, bForceVisibilityTracks);
 	}
 }
 

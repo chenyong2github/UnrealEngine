@@ -55,6 +55,7 @@
 	#include "pxr/usd/usd/stage.h"
 	#include "pxr/usd/usd/variantSets.h"
 	#include "pxr/usd/usdGeom/camera.h"
+	#include "pxr/usd/usdGeom/imageable.h"
 	#include "pxr/usd/usdGeom/mesh.h"
 	#include "pxr/usd/usdGeom/metrics.h"
 	#include "pxr/usd/usdGeom/primvar.h"
@@ -751,6 +752,30 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 			}
 
 			if ( AnimQuery.JointTransformsMightBeTimeVarying() || AnimQuery.BlendShapeWeightsMightBeTimeVarying() )
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UsdUtils::HasAnimatedVisibility( const pxr::UsdPrim& Prim )
+{
+	if ( !Prim || !Prim.IsActive() )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdGeomImageable Imageable( Prim );
+	if ( Imageable )
+	{
+		if ( pxr::UsdAttribute Attr = Imageable.GetVisibilityAttr() )
+		{
+			if ( Attr.ValueMightBeTimeVarying() )
 			{
 				return true;
 			}

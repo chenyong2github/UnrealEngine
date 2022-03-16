@@ -536,8 +536,16 @@ bool UsdToUnreal::ConvertBoolTimeSamples( const UE::FUsdStage& Stage, const TArr
 	const double StageTimeCodesPerSecond = UsdStage->GetTimeCodesPerSecond();
 	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
 
+	double LastTimeSample = TNumericLimits<double>::Lowest();
 	for ( const double UsdTimeSample : UsdTimeSamples )
 	{
+		// We never want to evaluate the same time twice
+		if ( FMath::IsNearlyEqual( UsdTimeSample, LastTimeSample ) )
+		{
+			continue;
+		}
+		LastTimeSample = UsdTimeSample;
+
 		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
 		float SubFrameNumber = UsdTimeSample - FrameNumber;
 
@@ -599,8 +607,16 @@ bool UsdToUnreal::ConvertFloatTimeSamples( const UE::FUsdStage& Stage, const TAr
 
 	const ERichCurveInterpMode InterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
 
+	double LastTimeSample = TNumericLimits<double>::Lowest();
 	for ( const double UsdTimeSample : UsdTimeSamples )
 	{
+		// We never want to evaluate the same time twice
+		if ( FMath::IsNearlyEqual( UsdTimeSample, LastTimeSample ) )
+		{
+			continue;
+		}
+		LastTimeSample = UsdTimeSample;
+
 		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
 		float SubFrameNumber = UsdTimeSample - FrameNumber;
 
@@ -667,8 +683,16 @@ bool UsdToUnreal::ConvertColorTimeSamples( const UE::FUsdStage& Stage, const TAr
 
 	const ERichCurveInterpMode InterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
 
+	double LastTimeSample = TNumericLimits<double>::Lowest();
 	for ( const double UsdTimeSample : UsdTimeSamples )
 	{
+		// We never want to evaluate the same time twice
+		if ( FMath::IsNearlyEqual( UsdTimeSample, LastTimeSample ) )
+		{
+			continue;
+		}
+		LastTimeSample = UsdTimeSample;
+
 		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
 		float SubFrameNumber = UsdTimeSample - FrameNumber;
 
@@ -758,8 +782,16 @@ bool UsdToUnreal::ConvertTransformTimeSamples( const UE::FUsdStage& Stage, const
 
 	const ERichCurveInterpMode InterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
 
+	double LastTimeSample = TNumericLimits<double>::Lowest();
 	for ( const double UsdTimeSample : UsdTimeSamples )
 	{
+		// We never want to evaluate the same time twice
+		if ( FMath::IsNearlyEqual( UsdTimeSample, LastTimeSample ) )
+		{
+			continue;
+		}
+		LastTimeSample = UsdTimeSample;
+
 		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
 		float SubFrameNumber = UsdTimeSample - FrameNumber;
 

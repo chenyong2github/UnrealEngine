@@ -269,7 +269,7 @@ namespace UsdStageImporterImpl
 #endif // #if USE_USD_SDK
 	}
 
-	void ImportAnimation(FUsdStageImportContext& ImportContext, UE::FUsdPrim& Prim, USceneComponent* SceneComponent)
+	void ImportAnimation(FUsdStageImportContext& ImportContext, UE::FUsdPrim& Prim, bool bAnimatedVisibility, USceneComponent* SceneComponent)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( ImportAnimation );
 
@@ -282,10 +282,10 @@ namespace UsdStageImporterImpl
 		UsdPrimTwin->PrimPath = Prim.GetPrimPath().GetString();
 		UsdPrimTwin->SceneComponent = SceneComponent;
 
-		ImportContext.LevelSequenceHelper.AddPrim( *UsdPrimTwin );
+		ImportContext.LevelSequenceHelper.AddPrim( *UsdPrimTwin, bAnimatedVisibility );
 	}
 
-	void ImportActor(FUsdStageImportContext& ImportContext, UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext)
+	void ImportActor(FUsdStageImportContext& ImportContext, UE::FUsdPrim& Prim, bool bForceVisibilityAnimationTracks, FUsdSchemaTranslationContext& TranslationContext)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( ImportActor );
 
@@ -304,6 +304,12 @@ namespace UsdStageImporterImpl
 			bExpandChilren = !SchemaTranslator->CollapsesChildren(ECollapsingType::Components);
 		}
 
+		// In USD if a parent prim has animated visibility, it will affect the entire subtree. In UE this doesn't
+		// happen by default, so if our visibility is animated (or if we're forced to animate visibility from a parent prim),
+		// then we must ensure that we generate visibility tracks for our child prims that don't collapse either, so that
+		// they get the chance to bake their "computed visibilities" and e.g. be hidden whenever a parent prim goes invisible
+		const bool bAnimatedVisibility = bForceVisibilityAnimationTracks || UsdUtils::HasAnimatedVisibility( Prim );
+
 		SlowTask.EnterProgressFrame();
 		// Recurse to children
 		if (bExpandChilren)
@@ -312,9 +318,9 @@ namespace UsdStageImporterImpl
 			TGuardValue<USceneComponent*> ParentComponentGuard(TranslationContext.ParentComponent, ContextParentComponent);
 
 			const bool bTraverseInstanceProxies = true;
-			for (UE::FUsdPrim ChildStore : Prim.GetFilteredChildren(bTraverseInstanceProxies))
+			for (UE::FUsdPrim Child : Prim.GetFilteredChildren(bTraverseInstanceProxies))
 			{
-				ImportActor(ImportContext, ChildStore, TranslationContext);
+				ImportActor(ImportContext, Child, bAnimatedVisibility, TranslationContext);
 			}
 		}
 		SlowTask.EnterProgressFrame();
@@ -329,9 +335,9 @@ namespace UsdStageImporterImpl
 			}
 
 #if USE_USD_SDK
-			if (UsdUtils::IsAnimated(Prim))
+			if ( bAnimatedVisibility || UsdUtils::IsAnimated( Prim ) )
 			{
-				ImportAnimation(ImportContext, Prim, Component);
+				ImportAnimation(ImportContext, Prim, bAnimatedVisibility, Component);
 			}
 #endif // USE_USD_SDK
 		}
@@ -345,8 +351,9 @@ namespace UsdStageImporterImpl
 			return;
 		}
 
+		const bool bForceVisibilityAnimationTracks = false;
 		UE::FUsdPrim RootPrim = ImportContext.Stage.GetPseudoRoot();
-		ImportActor(ImportContext, RootPrim, TranslationContext);
+		ImportActor(ImportContext, RootPrim, bForceVisibilityAnimationTracks, TranslationContext);
 	}
 
 	// Assets coming out of USDSchemas module have default names, so here we do our best to provide them with

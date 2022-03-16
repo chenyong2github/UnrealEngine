@@ -54,8 +54,14 @@ public:
 	void BindToUsdStageActor(AUsdStageActor* StageActor);
 	void UnbindFromUsdStageActor();
 
-	/** Adds the necessary tracks for a given prim to the level sequence */
-	void AddPrim(UUsdPrimTwin& PrimTwin);
+	/**
+	 * Adds the necessary tracks for a given prim to the level sequence.
+	 * If bForceVisibilityTracks is true, will add visibility tracks even if this prim
+	 * doesn't actually have timeSamples on its visibility attribute (use this when
+	 * a parent does have animated visibility, and we need to "bake" that out to a dedicated
+	 * visibility track so that the standalone LevelSequence asset behaves as expected)
+	 */
+	void AddPrim(UUsdPrimTwin& PrimTwin, bool bForceVisibilityTracks = false);
 
 	/** Removes any track associated with this prim */
 	void RemovePrim(const UUsdPrimTwin& PrimTwin);

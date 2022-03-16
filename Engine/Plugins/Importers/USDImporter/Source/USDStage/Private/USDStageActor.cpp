@@ -1129,6 +1129,32 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 	{
 		if ( !PrimsToAnimate.Contains( UsdPrimTwin->PrimPath ) )
 		{
+			// Unfortunately if we have animated visibility we need to be ready to update the visibility
+			// of all components that we spawned for child prims whenever this prim's visibility updates.
+			// We can't just have this prim's FUsdGeomXformableTranslator::UpdateComponents ->
+			// -> UsdToUnreal::ConvertXformable call use SetHiddenInGame recursively, because we may have
+			// child prims that are themselves also invisible, and so their own subtrees should be invisible
+			// even if this prim goes visible. Also keep in mind that technically we'll always update each
+			// prim in the order that they are within PrimsToAnimate, but that order is not strictly enforced
+			// to be e.g. a breadth first traversal on the prim tree or anything like this, so these updates
+			// need to be order-independent, which means we really should add the entire subtree to the list
+			// and have UpdateComponents called on all components.
+			if ( UsdUtils::HasAnimatedVisibility( Prim ) )
+			{
+				const bool bRecursive = true;
+				UsdPrimTwin->Iterate(
+					[this]( UUsdPrimTwin& Twin )
+					{
+						if ( !PrimsToAnimate.Contains( Twin.PrimPath ) )
+						{
+							PrimsToAnimate.Add( Twin.PrimPath );
+							LevelSequenceHelper.AddPrim( Twin );
+						}
+					},
+					bRecursive
+				);
+			}
+
 			PrimsToAnimate.Add( UsdPrimTwin->PrimPath );
 			LevelSequenceHelper.AddPrim( *UsdPrimTwin );
 		}
