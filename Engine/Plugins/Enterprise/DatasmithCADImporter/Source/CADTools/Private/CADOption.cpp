@@ -27,11 +27,13 @@ Default is MaxImportThreads = 0\n\
 	ECVF_Default);
 
 bool FImportParameters::bGDisableCADKernelTessellation = true;
+#ifdef ENABLE_IN_5_0_1
 FAutoConsoleVariableRef GCADTranslatorDisableCADKernelTessellation(
 	TEXT("ds.CADTranslator.DisableCADKernelTessellation"),
 	FImportParameters::bGDisableCADKernelTessellation,
 	TEXT("Disable to use CAD import library tessellator.\n"),
 	ECVF_Default);
+#endif
 
 bool FImportParameters::bGEnableCADCache = true;
 FAutoConsoleVariableRef GCADTranslatorEnableCADCache(
