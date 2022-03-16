@@ -5,6 +5,7 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMDeveloperModule.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/Interface.h"
 #include "Stats/StatsHierarchical.h"
 #include "RigVMTypeUtils.h"
 
