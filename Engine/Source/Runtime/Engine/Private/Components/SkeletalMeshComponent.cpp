@@ -808,6 +808,14 @@ void USkeletalMeshComponent::ApplyEditedComponentSpaceTransforms()
 	UpdateBounds();
 	MarkRenderTransformDirty();
 	MarkRenderDynamicDataDirty();
+
+	for (auto& SlaveComponent : GetSlavePoseComponents())
+	{
+		if (SlaveComponent.IsValid())
+		{
+			SlaveComponent->UpdateSlaveComponent();
+		}
+	}
 }
 #endif
 
