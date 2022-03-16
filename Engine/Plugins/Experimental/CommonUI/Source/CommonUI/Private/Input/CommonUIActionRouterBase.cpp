@@ -1115,7 +1115,7 @@ FActivatableTreeNodePtr UCommonUIActionRouterBase::FindNode(const UCommonActivat
 		{
 			for (const TPair<TObjectPtr<UCommonInputActionDomain>, FActionDomainSortedRootList>& Pair : ActionDomainRootNodes)
 			{
-				for (const FActivatableTreeRootRef RootNode : Pair.Value.RootList)
+				for (const FActivatableTreeRootRef& RootNode : Pair.Value.RootList)
 				{
 					if (Widget == RootNode->GetWidget())
 					{
