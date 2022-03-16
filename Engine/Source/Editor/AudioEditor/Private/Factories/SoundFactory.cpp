@@ -574,7 +574,7 @@ UObject* USoundFactory::CreateObject
 		// If stream caching is enabled, we need to make sure this asset is ready for playback.
 		if (bRebuildStreamingChunks && Sound->IsStreaming(nullptr))
 		{
-			Sound->EnsureZerothChunkIsLoaded();
+			Sound->LoadZerothChunk();
 		}
 
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, Sound);

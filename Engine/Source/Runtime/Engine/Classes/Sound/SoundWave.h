@@ -792,8 +792,10 @@ public:
 	virtual void FinishDestroy() override;
 	virtual void PostLoad() override;
 
-	// When stream caching is enabled, this is called after we've successfully compressed and split the streamed audio for this file.
-	void EnsureZerothChunkIsLoaded();
+	// Returns true if the zeroth chunk is loaded, or attempts to load it if not already loaded,
+	// returning true if the load was successful. Can return false if either an error was encountered
+	// in attempting to load the chunk or if stream caching is not enabled for the given sound.
+	bool LoadZerothChunk();
 
 	// Returns the amount of chunks this soundwave contains if it's streaming,
 	// or zero if it is not a streaming source.
@@ -1203,7 +1205,11 @@ public:
  
  	bool IsZerothChunkDataLoaded() const;
  	const TArrayView<uint8> GetZerothChunkDataView() const;
- 	void EnsureZerothChunkIsLoaded();
+
+	// Returns true if the zeroth chunk is loaded, or attempts to load it if not already loaded,
+	// returning true if the load was successful. Can return false if either an error was encountered
+	// in attempting to load the chunk or if stream caching is not enabled for the given sound.
+	bool LoadZerothChunk();
  
  #if WITH_EDITOR
  	int32 GetCurrentChunkRevision() const;
@@ -1287,7 +1293,11 @@ public:
 
 	// USoundWave Interface
 	void ReleaseCompressedAudio();
-	void EnsureZerothChunkIsLoaded();
+
+	// Returns true if the zeroth chunk is loaded, or attempts to load it if not already loaded,
+	// returning true if the load was successful. Can return false if either an error was encountered
+	// in attempting to load the chunk or if stream caching is not enabled for the given sound.
+	bool LoadZerothChunk();
 	bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
 
 	// Getters
@@ -1310,7 +1320,6 @@ public:
 	bool IsLooping() const;
 	bool IsTemplate() const;
 	bool IsStreaming() const;
-	bool UseBinkAudio() const;
 	bool IsRetainingAudio() const;
 	bool ShouldUseStreamCaching() const;
 	bool IsSeekable() const;
