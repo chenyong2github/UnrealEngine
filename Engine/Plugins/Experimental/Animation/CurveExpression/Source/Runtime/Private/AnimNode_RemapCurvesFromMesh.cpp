@@ -1,0 +1,288 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AnimNode_RemapCurvesFromMesh.h"
+
+#include "ExpressionEvaluator.h"
+
+void FAnimNode_RemapCurvesFromMesh::Initialize_AnyThread(
+	const FAnimationInitializeContext& Context
+	)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
+	Super::Initialize_AnyThread(Context);
+	SourcePose.Initialize(Context);
+}
+
+
+void FAnimNode_RemapCurvesFromMesh::CacheBones_AnyThread(
+	const FAnimationCacheBonesContext& Context
+	)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
+	Super::CacheBones_AnyThread(Context);
+	SourcePose.CacheBones(Context);
+}
+	
+
+void FAnimNode_RemapCurvesFromMesh::Update_AnyThread(
+	const FAnimationUpdateContext& Context
+	)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
+
+	// Run update on input pose nodes
+	SourcePose.Update(Context);
+
+	// Evaluate any BP logic plugged into this node
+	GetEvaluateGraphExposedInputs().Execute(Context);
+	
+	if (bExpressionsImmutable && ExpressionEngine.IsSet() && !CurveExpressions.IsEmpty() && CachedExpressions.IsEmpty())
+	{
+		CachedExpressions.Reset();
+		for (const TPair<FName, FString>& ExpressionPair: CurveExpressions)
+		{
+			if (CurveNameToUIDMap.Contains(ExpressionPair.Key))
+			{
+				using namespace CurveExpression::Evaluator;
+
+				TVariant<FExpressionObject, FParseError> Result = ExpressionEngine->Parse(ExpressionPair.Value);
+				if (const FExpressionObject* Expression = Result.TryGet<FExpressionObject>())
+				{
+					CachedExpressions.Add(ExpressionPair.Key, *Expression);
+				}
+				// Parse errors we deal with in the animgraph node.
+			}
+		}
+	}			
+}
+
+
+void FAnimNode_RemapCurvesFromMesh::Evaluate_AnyThread(
+	FPoseContext& Output
+	)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+
+	FPoseContext SourceData(Output);
+	SourcePose.Evaluate(SourceData);
+	
+	Output = SourceData;
+	
+	// If we have an expression engine, evaluate the expressions that have a matching target curve.
+	// If the expressions are not immutable between compiles, then we need to reparse them each time. 
+	if (ExpressionEngine.IsSet())
+	{
+		if (bExpressionsImmutable)
+		{
+			for (const TTuple<FName, CurveExpression::Evaluator::FExpressionObject>& ExpressionItem: CachedExpressions)
+			{
+				if (const SmartName::UID_Type* UID = CurveNameToUIDMap.Find(ExpressionItem.Key))
+				{
+					Output.Curve.Set(*UID, ExpressionEngine->Execute(ExpressionItem.Value));
+				}
+			}
+		}
+		else
+		{
+			for (const TTuple<FName, FString>& ExpressionItem: CurveExpressions)
+			{
+				if (const SmartName::UID_Type* UID = CurveNameToUIDMap.Find(ExpressionItem.Key))
+				{
+					TOptional<float> Result = ExpressionEngine->Evaluate(ExpressionItem.Value);
+					if (Result.IsSet())
+					{
+						Output.Curve.Set(*UID, *Result);
+					}
+				}
+			}
+		}
+	}
+}
+
+
+void FAnimNode_RemapCurvesFromMesh::GatherDebugData(
+	FNodeDebugData& DebugData
+	)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
+	FString DebugLine = DebugData.GetNodeName(this);
+
+	DebugLine += FString::Printf(TEXT("('%s')"), *GetNameSafe(CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get()->SkeletalMesh : nullptr));
+	DebugData.AddDebugItem(DebugLine, true);
+}
+
+
+void FAnimNode_RemapCurvesFromMesh::PreUpdate(
+	const UAnimInstance* InAnimInstance
+	)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(FAnimNode_RemapCurvesFromMesh_PreUpdate);
+
+	// Make sure we're using the correct source and target skeleton components, since they
+	// may have changed from underneath us.
+	RefreshMeshComponent(InAnimInstance->GetSkelMeshComponent());
+
+	const USkeletalMeshComponent* CurrentMeshComponent = CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get() : nullptr;
+
+	if (CurrentMeshComponent && CurrentMeshComponent->SkeletalMesh && CurrentMeshComponent->IsRegistered())
+	{
+		// If our source is running under master-pose, then get bone data from there
+		if(USkeletalMeshComponent* MasterPoseComponent = Cast<USkeletalMeshComponent>(CurrentMeshComponent->MasterPoseComponent.Get()))
+		{
+			CurrentMeshComponent = MasterPoseComponent;
+		}
+
+		// re-check mesh component validity as it may have changed to master
+		if(CurrentMeshComponent->SkeletalMesh && CurrentMeshComponent->IsRegistered())
+		{
+			if (ExpressionEngine.IsSet())
+			{
+				if (const UAnimInstance* SourceAnimInstance = CurrentMeshComponent->GetAnimInstance())
+				{
+					ExpressionEngine->UpdateConstantValues(SourceAnimInstance->GetAnimationCurveList(EAnimCurveType::AttributeCurve));
+				}
+				else
+				{
+					ExpressionEngine.Reset();
+				}
+			}
+		}
+		else
+		{
+			ExpressionEngine.Reset();
+		}
+	}
+}
+
+
+void FAnimNode_RemapCurvesFromMesh::ReinitializeMeshComponent(
+	USkeletalMeshComponent* InNewSkeletalMeshComponent, 
+	USkeletalMeshComponent* InTargetMeshComponent
+	)
+{
+	CurrentlyUsedSourceMeshComponent.Reset();
+	CurrentlyUsedSourceMesh.Reset();
+	CurrentlyUsedTargetMesh.Reset();
+	
+	ExpressionEngine.Reset();
+	CurveNameToUIDMap.Reset();
+	CachedExpressions.Reset();
+
+	if (InTargetMeshComponent && IsValid(InNewSkeletalMeshComponent) && InNewSkeletalMeshComponent->SkeletalMesh)
+	{
+		USkeletalMesh* SourceSkelMesh = InNewSkeletalMeshComponent->SkeletalMesh;
+		USkeletalMesh* TargetSkelMesh = InTargetMeshComponent->SkeletalMesh;
+		
+		if (IsValid(SourceSkelMesh) && !SourceSkelMesh->HasAnyFlags(RF_NeedPostLoad) &&
+			IsValid(TargetSkelMesh) && !TargetSkelMesh->HasAnyFlags(RF_NeedPostLoad))
+		{
+			CurrentlyUsedSourceMeshComponent = InNewSkeletalMeshComponent;
+			CurrentlyUsedSourceMesh = SourceSkelMesh;
+			CurrentlyUsedTargetMesh = TargetSkelMesh;
+
+			// Grab the source curves and use their names to seed the expression evaluation engine.
+			const USkeleton* SourceSkeleton = SourceSkelMesh->GetSkeleton();
+			if (ensureMsgf(SourceSkeleton, TEXT("Invalid null source skeleton : %s"), *GetNameSafe(TargetSkelMesh)))
+			{
+				const FSmartNameMapping* SourceContainer = SourceSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+
+				TMap<FName, float> SourceCurves;
+				
+				SourceContainer->Iterate([&SourceCurves](const FSmartNameMapping* Mapping, const SmartName::UID_Type ID)
+				{
+					if (FName CurveName; Mapping->GetName(ID, CurveName))
+					{
+						const FCurveMetaData* MetaData = Mapping->GetCurveMetaData(CurveName);
+						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("CURVE[%s] - Morph: %d - Mat: %d\n"), *CurveName.ToString(), MetaData->Type.bMaterial, MetaData->Type.bMorphtarget);
+						SourceCurves.Add(CurveName, 0.0f);
+					}
+				});
+
+				ExpressionEngine.Emplace(MoveTemp(SourceCurves));
+			}
+
+			// Grab the target curves and build the Name -> UID mapping so that we can call
+			// FBlendCurve::Set in Evalute_AnyThread 
+			const USkeleton* TargetSkeleton = TargetSkelMesh->GetSkeleton();
+
+			if (ensureMsgf(TargetSkeleton, TEXT("Invalid null target skeleton : %s"), *GetNameSafe(TargetSkelMesh)))
+			{
+				const FSmartNameMapping* TargetContainer = TargetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+
+				// CurveExpressions isn't filled in here, since we haven't evaluated BP downstream.
+				// So instead, we just take a full copy of the smart mapping.
+				TargetContainer->Iterate([this](const FSmartNameMapping* Mapping, const SmartName::UID_Type ID)
+				{
+					if (FName CurveName; Mapping->GetName(ID, CurveName))
+					{
+						CurveNameToUIDMap.Add(CurveName, ID);
+					}
+				});
+			}
+		}
+	}
+}
+	
+
+void FAnimNode_RemapCurvesFromMesh::RefreshMeshComponent(
+	USkeletalMeshComponent* InTargetMeshComponent
+	)
+{
+	auto ResetMeshComponent = [this](USkeletalMeshComponent* InMeshComponent, USkeletalMeshComponent* InTargetMeshComponent)
+	{
+		// if current mesh exists, but not same as input mesh
+		if (const USkeletalMeshComponent* CurrentMeshComponent = CurrentlyUsedSourceMeshComponent.Get())
+		{
+			// if component has been changed, reinitialize
+			if (CurrentMeshComponent != InMeshComponent)
+			{
+				ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
+			}
+			// if component is still same but mesh has been changed, we have to reinitialize
+			else if (CurrentMeshComponent->SkeletalMesh != CurrentlyUsedSourceMesh.Get())
+			{
+				ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
+			}
+			else if (InTargetMeshComponent)
+			{
+				// see if target mesh has changed
+				if (InTargetMeshComponent->SkeletalMesh != CurrentlyUsedTargetMesh.Get())
+				{
+					ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
+				}
+			}
+		}
+		// if not valid, but input mesh is
+		else if (!CurrentMeshComponent && InMeshComponent)
+		{
+			ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
+		}
+	};
+
+	if(SourceMeshComponent.IsValid())
+	{
+		ResetMeshComponent(SourceMeshComponent.Get(), InTargetMeshComponent);
+	}
+	else if (bUseAttachedParent)
+	{
+		if (InTargetMeshComponent)
+		{
+			if (USkeletalMeshComponent* ParentComponent = Cast<USkeletalMeshComponent>(InTargetMeshComponent->GetAttachParent()))
+			{
+				ResetMeshComponent(ParentComponent, InTargetMeshComponent);
+			}
+			else
+			{
+				CurrentlyUsedSourceMeshComponent.Reset();
+			}
+		}
+		else
+		{
+			CurrentlyUsedSourceMeshComponent.Reset();
+		}
+	}
+	else
+	{
+		CurrentlyUsedSourceMeshComponent.Reset();
+	}
+}
