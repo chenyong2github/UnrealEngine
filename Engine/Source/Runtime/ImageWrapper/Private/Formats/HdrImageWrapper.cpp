@@ -211,22 +211,6 @@ ERGBFormat FHdrImageWrapper::GetFormat() const
 	return ERGBFormat::BGRE;
 }
 
-bool FHdrImageWrapper::SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate)
-{
-	unimplemented();
-	return false;
-}
-
-int32 FHdrImageWrapper::GetNumFrames_DEPRECATED() const
-{
-	return INDEX_NONE;
-}
-
-int32 FHdrImageWrapper::GetFramerate_DEPRECATED() const
-{
-	return INDEX_NONE;
-}
-
 const FText& FHdrImageWrapper::GetErrorMessage() const
 {
 	return ErrorMessage;

@@ -517,7 +517,6 @@ void FBmpImageWrapper::Compress(int32 Quality)
 	
 	int OutputRowPadBytes = OutputRowBytes - Width*OutputBytesPerPel;
 	check( OutputRowPadBytes < 4 );
-	uint8 Zero[4] = { };
 
 	// write rows :
 	switch(OutputBytesPerPel)
@@ -529,7 +528,7 @@ void FBmpImageWrapper::Compress(int32 Quality)
 		{
 			memcpy(PayloadPtr,RawPtr + y * Width,Width);
 			PayloadPtr += Width;
-			memcpy(PayloadPtr,Zero,OutputRowPadBytes);
+			memset(PayloadPtr,0,OutputRowPadBytes);
 			PayloadPtr += OutputRowPadBytes;
 		}
 		break;
@@ -547,7 +546,7 @@ void FBmpImageWrapper::Compress(int32 Quality)
 				*PayloadPtr++ = RawRow[x].G;
 				*PayloadPtr++ = RawRow[x].R;
 			}
-			memcpy(PayloadPtr,Zero,OutputRowPadBytes);
+			memset(PayloadPtr,0,OutputRowPadBytes);
 			PayloadPtr += OutputRowPadBytes;
 		}
 		break;

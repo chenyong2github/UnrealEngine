@@ -102,19 +102,8 @@ public:
 		return Width;
 	}
 
-	virtual int32 GetNumFrames_DEPRECATED() const override
-	{
-		return NumFrames_DEPRECATED;
-	}
-	
-	virtual int32 GetFramerate_DEPRECATED() const override
-	{
-		return Framerate_DEPRECATED;
-	}
-
 	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
 	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow = 0) override;
-	virtual bool SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate) override;
 
 protected:
 
@@ -139,10 +128,6 @@ protected:
 	int32 Width;
 	int32 Height;
 	
-	/** Animation information */
-	int32 NumFrames_DEPRECATED;
-	int32 Framerate_DEPRECATED;
-
 	/** Last Error Message. */
 	FString LastError;
 };

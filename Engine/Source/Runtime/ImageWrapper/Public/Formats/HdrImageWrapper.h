@@ -31,12 +31,9 @@ public:
 	virtual int32 GetBitDepth() const override;
 	virtual ERGBFormat GetFormat() const override;
 
-	virtual bool SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate) override;
-	virtual int32 GetNumFrames_DEPRECATED() const override;
-	virtual int32 GetFramerate_DEPRECATED() const override;
 	// IImageWrapper Interface end
 
-	// GetErrorMessage : nice idea, but not virtual, never called
+	// GetErrorMessage : nice idea, but not virtual, never called by the standard import path
 	const FText& GetErrorMessage() const;
 
 	void FreeCompressedData();

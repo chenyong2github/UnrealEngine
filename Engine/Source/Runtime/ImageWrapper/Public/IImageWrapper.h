@@ -315,27 +315,6 @@ public:
 		return Ret;
 	}
 
-
-	// @@!! is this animation stuff used at all? -> it seems not
-
-	/**
-	 * Set information for animated formats
-	 * @param InNumFrames The number of frames in the animation (the RawData from SetRaw will need to be a multiple of NumFrames)
-	 * @param InFramerate The playback rate of the animation
-	 * @return true if successful
-	 */
-	virtual bool SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate) = 0;
-
-	/**
-	 * @return The number of frames in an animated image
-	 */
-	virtual int32 GetNumFrames_DEPRECATED() const = 0;
-
-	/**
-	 * @return The playback framerate of animated images (or 0 for non-animated)
-	 */
-	virtual int32 GetFramerate_DEPRECATED() const = 0;
-
 public:
 
 	/** Virtual destructor. */

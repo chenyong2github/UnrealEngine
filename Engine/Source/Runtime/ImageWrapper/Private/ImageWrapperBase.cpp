@@ -15,8 +15,6 @@ FImageWrapperBase::FImageWrapperBase()
 	, BitDepth(0)
 	, Width(0)
 	, Height(0)
-	, NumFrames_DEPRECATED(1)
-	, Framerate_DEPRECATED(0)
 { }
 
 
@@ -38,8 +36,6 @@ void FImageWrapperBase::Reset()
 	BitDepth = 0;
 	Width = 0;
 	Height = 0;
-	NumFrames_DEPRECATED = 1;
-	Framerate_DEPRECATED = 0;
 }
 
 
@@ -128,13 +124,6 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int
 	return true;
 }
 
-bool FImageWrapperBase::SetAnimationInfo_DEPRECATED(int32 InNumFrames, int32 InFramerate)
-{
-	NumFrames_DEPRECATED = InNumFrames;
-	Framerate_DEPRECATED = InFramerate;
-	
-	return true;
-}
 
 
 ERawImageFormat::Type IImageWrapper::ConvertRGBFormat(ERGBFormat RGBFormat,int BitDepth,bool * bIsExactMatch)
