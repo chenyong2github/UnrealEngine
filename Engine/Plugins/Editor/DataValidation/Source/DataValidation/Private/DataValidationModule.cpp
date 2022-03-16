@@ -147,7 +147,7 @@ void FDataValidationModule::Menu_ValidateData()
 	}
 
 	// validate the data
-	bool bSuccess = UDataValidationCommandlet::ValidateData();
+	bool bSuccess = UDataValidationCommandlet::ValidateData(FString());
 
 	// display an error if the task failed
 	if (!bSuccess)

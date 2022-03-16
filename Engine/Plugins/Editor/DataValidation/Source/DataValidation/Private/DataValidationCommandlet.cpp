@@ -16,13 +16,9 @@ int32 UDataValidationCommandlet::Main(const FString& FullCommandLine)
 {
 	UE_LOG(LogDataValidation, Log, TEXT("--------------------------------------------------------------------------------------------"));
 	UE_LOG(LogDataValidation, Log, TEXT("Running DataValidation Commandlet"));
-	TArray<FString> Tokens;
-	TArray<FString> Switches;
-	TMap<FString, FString> Params;
-	ParseCommandLine(*FullCommandLine, Tokens, Switches, Params);
 
 	// validate data
-	if (!ValidateData())
+	if (!ValidateData(FullCommandLine))
 	{
 		UE_LOG(LogDataValidation, Warning, TEXT("Errors occurred while validating data"));
 		return 2; // return something other than 1 for error since the engine will return 1 if any other system (possibly unrelated) logged errors during execution.
@@ -34,12 +30,26 @@ int32 UDataValidationCommandlet::Main(const FString& FullCommandLine)
 }
 
 //static
-bool UDataValidationCommandlet::ValidateData()
+bool UDataValidationCommandlet::ValidateData(const FString& FullCommandLine)
 {
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName);
+	TArray<FString> Tokens;
+	TArray<FString> Switches;
+	TMap<FString, FString> Params;
+	ParseCommandLine(*FullCommandLine, Tokens, Switches, Params);
 
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName);
 	TArray<FAssetData> AssetDataList;
-	AssetRegistryModule.Get().GetAllAssets(AssetDataList);
+	FString AssetTypeString;
+	if (FParse::Value(*FullCommandLine, TEXT("AssetType="), AssetTypeString) && !AssetTypeString.IsEmpty())
+	{
+		const FName AssetType = *AssetTypeString;
+		const bool bSearchSubClasses = true;
+		AssetRegistryModule.Get().GetAssetsByClass(AssetType, AssetDataList, bSearchSubClasses);
+	}
+	else
+	{
+		AssetRegistryModule.Get().GetAllAssets(AssetDataList);
+	}
 
 	UEditorValidatorSubsystem* EditorValidationSubsystem = GEditor->GetEditorSubsystem<UEditorValidatorSubsystem>();
 	check(EditorValidationSubsystem);
