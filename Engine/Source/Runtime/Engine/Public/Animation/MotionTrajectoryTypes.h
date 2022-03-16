@@ -10,7 +10,7 @@
 UENUM(BlueprintType, Category="Motion Trajectory", meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class ETrajectorySampleDomain : uint8
 {
-	None = 0 UMETA(Hidden),
+	None = 0,
 	Time = 1 << 0, // Seconds
 	Distance = 1 << 1 // Centimeters (Unreal units)
 };
@@ -92,6 +92,9 @@ struct ENGINE_API FTrajectorySampleRange
 
 	// Rotates all samples in the trajectory
 	void Rotate(const FQuat& Rotation);
+
+	// Interpolates transform over time
+	void TransformOverTime(const FTransform& Transform, float StartTime, float DeltaTime);
 
 	// Rotates all samples in the trajectory
 	void TransformReferenceFrame(const FTransform& Transform);

@@ -152,6 +152,10 @@ public:
 	 * @param Trajectory				Trajectory being evaluated.
 	 * @param MinSharpTurnAngleDegrees	How many degrees of turning must be in the trajectory that can't be explained by 
 	 *									extrapolating the angular velocity at the end of the trajectory.
+	 * @param RotationConstraintDomain	Specifies if the turn must happen unconstrained, within a given distance or
+	 *									within a given time
+	 * @param RotationConstraintValue	If RotationConstraintDomain is not None, this value will specify the constraint
+	 *									threshold
 	 * @param MaxAlignmentAngleDegrees	If the current trajectory sample velocity and facing are well aligned with the 
 	 *									last point in the trajectory future, there's no turn.
 	 * @param MinLinearSpeed			Minimum linear speed at the end points of the trajectory required for this
@@ -165,6 +169,8 @@ public:
 	static bool IsSharpVelocityDirChange(
 		const FTrajectorySampleRange& Trajectory,
 		float MinSharpTurnAngleDegrees = 45.0f,
+		ETrajectorySampleDomain RotationConstraintDomain = ETrajectorySampleDomain::None,
+		float RotationConstraintValue = 0.0f,
 		float MaxAlignmentAngleDegrees = 5.0f,
 		float MinLinearSpeed = 1.0f,
 		FVector TurnAxis = FVector::UpVector,
