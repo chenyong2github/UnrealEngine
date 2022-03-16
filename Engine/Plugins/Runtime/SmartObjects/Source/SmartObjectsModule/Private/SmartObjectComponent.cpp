@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectComponent.h"
+
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "GameFramework/Actor.h"
 #include "SmartObjectSubsystem.h"
-#include "VisualLogger/VisualLogger.h"
 
 #if WITH_EDITOR
 #include "Engine/World.h"
@@ -92,6 +94,9 @@ void USmartObjectComponent::OnUnregister()
 	{
 		Subsystem->UnregisterSmartObject(*this);
 	}
+
+	ensureMsgf(!OnComponentTagsModifiedHandle.IsValid(), TEXT("AbilitySystemComponent delegate is expected to be unbound after unregistration"));
+	ensureMsgf(!bInstanceTagsDelegateBound, TEXT("SmartObject runtime instance delegate is expected to be unbound after unregistration"));
 }
 
 FBox USmartObjectComponent::GetSmartObjectBounds() const
@@ -105,6 +110,118 @@ FBox USmartObjectComponent::GetSmartObjectBounds() const
 	}
 
 	return BoundingBox;
+}
+
+void USmartObjectComponent::OnRuntimeInstanceCreated(FSmartObjectRuntime& RuntimeInstance)
+{
+	// A new runtime instance is always created from a collection entry which was initialized with
+	// the list of tags provided by the IGameplayTagAssetInterface of the SmartObjectComponent owning actor.
+	// This means that at this point both are already in sync and we simply need to register our delegates
+	// to synchronize changes coming from either the AbilitySystemComponent or the SmartObjectRuntime.
+	if (UAbilitySystemComponent* AbilityComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
+	{
+		BindTagsDelegates(RuntimeInstance, *AbilityComponent);
+	}
+}
+
+void USmartObjectComponent::OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeInstance)
+{
+	if (UAbilitySystemComponent* AbilityComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
+	{
+		BindTagsDelegates(RuntimeInstance, *AbilityComponent);
+
+		// Update component using the tags from the instance since the component might get reloaded while the instance
+		// was still part of the simulation (i.e. persistent). In this case we need to apply the most up to date
+		// tag counts to the component. Unfortunately there is no way at the moment to replace all tags in one go
+		// so update each tag count individually.
+		const FGameplayTagContainer& InstanceTags = RuntimeInstance.GetTags();
+		FGameplayTagContainer AbilityComponentTags;
+		AbilityComponent->GetOwnedGameplayTags(AbilityComponentTags);
+
+		// Adjust count of any existing and add the missing ones
+		for (auto It(InstanceTags.CreateConstIterator()); It; ++It)
+		{
+			AbilityComponentTags.RemoveTag(*It);
+			AbilityComponent->SetTagMapCount(*It, 1);
+		}
+
+		// Remove all remaining tags that are no longer valid
+		for (auto It(AbilityComponentTags.CreateConstIterator()); It; ++It)
+		{
+			AbilityComponent->SetTagMapCount(*It, 0);
+		}
+	}
+}
+
+void USmartObjectComponent::OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance)
+{
+	UnbindComponentTagsDelegate();
+	UnbindRuntimeInstanceTagsDelegate(RuntimeInstance);
+}
+
+void USmartObjectComponent::OnRuntimeInstanceDestroyed()
+{
+	UnbindComponentTagsDelegate();
+
+	// No need to try to unbind the Runtime instance delegate since it was destroyed.
+	// Simply invalidate our handle.
+	bInstanceTagsDelegateBound = false;
+}
+
+void USmartObjectComponent::BindTagsDelegates(FSmartObjectRuntime& RuntimeInstance, UAbilitySystemComponent& AbilitySystemComponent)
+{
+	USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(GetWorld());
+
+	if (Subsystem != nullptr)
+	{
+		// Register callback when Tags in the component are modified to mirror the change in the Runtime instance
+		// The lambda capture assumes that the RuntimeInstance will be valid as long as
+		// OnRuntimeInstanceUnbound or OnRuntimeInstanceDestroyed are not called
+		OnComponentTagsModifiedHandle = AbilitySystemComponent.RegisterGenericGameplayTagEvent().AddLambda
+		([Subsystem, &RuntimeInstance](const FGameplayTag Tag, const int32 NewCount)
+		{
+			// This specific delegate is only invoked whenever a tag is added or removed (but not if just count is increased)
+			// so we can add or remove the tag on the instance (no reference counting)
+			if (NewCount)
+			{
+				Subsystem->AddTagToInstance(RuntimeInstance, Tag);
+			}
+			else
+			{
+				Subsystem->RemoveTagFromInstance(RuntimeInstance, Tag);
+			}
+		});
+
+		// Register callback when Tags in the Runtime instance are modified to mirror the change in the component
+		// The lambda capture assumes that the AbilitySystemComponent has the same lifetime as the current SmartObjectComponent
+		RuntimeInstance.GetTagChangedDelegate().BindLambda
+		([&AbilitySystemComponent](const FGameplayTag Tag, const int32 NewCount)
+		{
+			AbilitySystemComponent.SetTagMapCount(Tag, NewCount);
+		});
+		bInstanceTagsDelegateBound = true;
+	}
+}
+
+void USmartObjectComponent::UnbindComponentTagsDelegate()
+{
+	if (OnComponentTagsModifiedHandle.IsValid())
+	{
+		if (UAbilitySystemComponent* AbilityComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
+		{
+			AbilityComponent->RegisterGenericGameplayTagEvent().Remove(OnComponentTagsModifiedHandle);
+		}
+		OnComponentTagsModifiedHandle.Reset();
+	}
+}
+
+void USmartObjectComponent::UnbindRuntimeInstanceTagsDelegate(FSmartObjectRuntime& RuntimeInstance)
+{
+	if (bInstanceTagsDelegateBound)
+	{
+		RuntimeInstance.GetTagChangedDelegate().Unbind();
+		bInstanceTagsDelegateBound = false;
+	}
 }
 
 TStructOnScope<FActorComponentInstanceData> USmartObjectComponent::GetComponentInstanceData() const
@@ -124,7 +241,9 @@ void FSmartObjectComponentInstanceData::ApplyToComponent(UActorComponent* Compon
 	if (CacheApplyPhase == ECacheApplyPhase::PostUserConstructionScript)
 	{
 		USmartObjectComponent* SmartObjectComponent = CastChecked<USmartObjectComponent>(Component);
-		if (SmartObjectComponent->DefinitionAsset != DefinitionAsset)
+		// We only need to force a register if DefinitionAsset is currently null and a valid one was backed up.
+		// Reason is that our registration to the Subsystem depends on a valid definition so it can be skipped.
+		if (SmartObjectComponent->DefinitionAsset != DefinitionAsset && SmartObjectComponent->DefinitionAsset == nullptr)
 		{
 			SmartObjectComponent->DefinitionAsset = DefinitionAsset;
 			// Registering to the subsystem should only be attempted on registered component

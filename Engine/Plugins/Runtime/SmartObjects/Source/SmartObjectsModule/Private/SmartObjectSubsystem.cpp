@@ -109,27 +109,64 @@ USmartObjectSubsystem* USmartObjectSubsystem::GetCurrent(const UWorld* World)
 	return UWorld::GetSubsystem<USmartObjectSubsystem>(World);
 }
 
-void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle Handle, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds)
+FSmartObjectRuntime* USmartObjectSubsystem::AddComponentToSimulation(USmartObjectComponent& SmartObjectComponent, const FSmartObjectCollectionEntry& NewEntry)
 {
+	checkf(SmartObjectComponent.GetDefinition() != nullptr, TEXT("Shouldn't reach this point with an invalid definition asset"));
+	FSmartObjectRuntime* SmartObjectRuntime = AddCollectionEntryToSimulation(NewEntry, *SmartObjectComponent.GetDefinition());
+	if (SmartObjectRuntime != nullptr)
+	{
+		SmartObjectComponent.OnRuntimeInstanceCreated(*SmartObjectRuntime);
+	}
+	return SmartObjectRuntime;
+}
+
+void USmartObjectSubsystem::BindComponentToSimulation(USmartObjectComponent& SmartObjectComponent)
+{
+	// Notify the component to bind to its runtime counterpart
+	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(SmartObjectComponent.GetRegisteredHandle());
+	if (ensureMsgf(SmartObjectRuntime != nullptr, TEXT("Binding a component should only be used when an associated runtime instance exists.")))
+	{
+		SmartObjectComponent.OnRuntimeInstanceBound(*SmartObjectRuntime);
+	}
+}
+
+void USmartObjectSubsystem::UnbindComponentFromSimulation(USmartObjectComponent& SmartObjectComponent)
+{
+	// Notify the component to unbind from its runtime counterpart
+	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(SmartObjectComponent.GetRegisteredHandle());
+	if (ensureMsgf(SmartObjectRuntime != nullptr, TEXT("Unbinding a component should only be used when an associated runtime instance exists.")))
+	{
+		SmartObjectComponent.OnRuntimeInstanceUnbound(*SmartObjectRuntime);
+	}
+}
+
+FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition)
+{
+	const FSmartObjectHandle Handle = Entry.GetHandle();
+	const FTransform& Transform = Entry.GetTransform();
+	const FBox& Bounds = Entry.GetBounds();
+	const FGameplayTagContainer& Tags = Entry.GetTags();
+
 	if (!ensureMsgf(Handle.IsValid(), TEXT("SmartObject needs a valid Handle to be added to the simulation")))
 	{
-		return;
+		return nullptr;
 	}
 
 	if (!ensureMsgf(RuntimeSmartObjects.Find(Handle) == nullptr, TEXT("Handle '%s' already registered in runtime simulation"), *LexToString(Handle)))
 	{
-		return;
+		return nullptr;
 	}
 
 	if (!ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to add a smartobject to the simulation")))
 	{
-		return;
+		return nullptr;
 	}
 
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding SmartObject '%s' to runtime simulation."), *LexToString(Handle));
 
 	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(Handle, FSmartObjectRuntime(Definition));
 	Runtime.SetRegisteredHandle(Handle);
+	Runtime.Tags = Tags;
 
 #if UE_ENABLE_DEBUG_DRAWING
 	Runtime.Bounds = Bounds;
@@ -172,29 +209,17 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle Handle, con
 	// Insert to the spatial representation structure and store associated data
 	checkfSlow(SpacePartition != nullptr, TEXT("Space partition is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
 	Runtime.SpatialEntryData = SpacePartition->Add(Handle, Bounds);
+
+	return &Runtime;
 }
 
-void USmartObjectSubsystem::AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition)
-{
-	AddToSimulation(Entry.GetHandle(), Definition, Entry.GetTransform(), Entry.GetBounds());
-}
-
-void USmartObjectSubsystem::AddToSimulation(const USmartObjectComponent& Component)
-{
-	if (ensureMsgf(Component.GetDefinition() != nullptr, TEXT("Component must have a valid definition asset to register to the simulation")))
-	{
-		AddToSimulation(Component.GetRegisteredHandle(), *Component.GetDefinition(), Component.GetComponentTransform(), Component.GetSmartObjectBounds());
-	}
-}
-
-void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle Handle)
+void USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle)
 {
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing SmartObject '%s' from runtime simulation."), *LexToString(Handle));
 
 	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(Handle);
-	if (SmartObjectRuntime == nullptr)
+	if (!ensureMsgf(SmartObjectRuntime != nullptr, TEXT("RemoveFromSimulation is an internal call and should only be used for objects still part of the simulation")))
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Failed to remove SmartObject '%s' from runtime simulation. No entry found."), *LexToString(Handle));
 		return;
 	}
 
@@ -204,7 +229,7 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle Handle
 	}
 
 	// Abort everything before removing since abort flow may require access to runtime data
-	AbortAll(*SmartObjectRuntime);
+	AbortAll(*SmartObjectRuntime, ESmartObjectSlotState::Free);
 
 	// Remove from space partition
 	checkfSlow(SpacePartition != nullptr, TEXT("Space partition is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
@@ -225,17 +250,18 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle Handle
 	RuntimeSmartObjects.Remove(Handle);
 }
 
-void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry)
+void USmartObjectSubsystem::RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry)
 {
-	RemoveFromSimulation(Entry.GetHandle());
+	RemoveRuntimeInstanceFromSimulation(Entry.GetHandle());
 }
 
-void USmartObjectSubsystem::RemoveFromSimulation(const USmartObjectComponent& SmartObjectComponent)
+void USmartObjectSubsystem::RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent)
 {
-	RemoveFromSimulation(SmartObjectComponent.GetRegisteredHandle());
+	RemoveRuntimeInstanceFromSimulation(SmartObjectComponent.GetRegisteredHandle());
+	SmartObjectComponent.OnRuntimeInstanceDestroyed();
 }
 
-void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
+void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectSlotState NewState)
 {
 	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime.SlotHandles)
 	{
@@ -246,14 +272,17 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
 		case ESmartObjectSlotState::Occupied:
 			{
 				FSmartObjectClaimHandle ClaimHandle(SmartObjectRuntime.GetRegisteredHandle(), SlotHandle, SlotState.User);
-				SlotState.Release(ClaimHandle, /* bAborted */ true);
+				SlotState.Release(ClaimHandle, NewState, /* bAborted */ true);
 				break;
 			}
+		case ESmartObjectSlotState::Disabled:
 		case ESmartObjectSlotState::Free: // falling through on purpose
-			default:
-				UE_CVLOG_UELOG(SlotState.User.IsValid(), this, LogSmartObject, Warning,
-					TEXT("Smart object %s used by %s while the slot it's assigned to is not marked Claimed nor Occupied"),
-					*LexToString(SmartObjectRuntime.GetDefinition()), *LexToString(SlotState.User));
+		default:
+			SlotState.State = NewState;
+			UE_CVLOG_UELOG(SlotState.User.IsValid(), this, LogSmartObject, Warning,
+				TEXT("Smart object %s used by %s while the slot it's assigned to is not marked Claimed nor Occupied"),
+				*LexToString(SmartObjectRuntime.GetDefinition()),
+				*LexToString(SlotState.User));
 			break;
 		}
 	}
@@ -261,6 +290,10 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
 
 bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
+	UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("Registering %s using definition %s."),
+		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
+		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
+
 	// Main collection may not assigned until world components are updated (active level set and actors registered)
 	// In this case objects will be part of the loaded collection or collection will be rebuilt from registered components
 	if (IsValid(MainCollection))
@@ -288,20 +321,30 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 
 		if (bAddToCollection)
 		{
-			const bool bIsNewEntry = MainCollection->AddSmartObject(SmartObjectComponent);
+			bool bAlreadyInCollection = false;
+			const FSmartObjectCollectionEntry* Entry = MainCollection->AddSmartObject(SmartObjectComponent, bAlreadyInCollection);
 
 #if WITH_EDITOR
-			if (bIsNewEntry)
+			if (Entry != nullptr && !bAlreadyInCollection)
 			{
 				OnMainCollectionDirtied.Broadcast();
 			}
 #endif
 
-			// At runtime we only add new collection entries to the simulation. All existing entries were added on WorldBeginPlay
-			if (World.IsGameWorld() && bInitialCollectionAddedToSimulation && bIsNewEntry)
+			// At runtime we only consider registrations after collection was pushed to the simulation. All existing entries were added on WorldBeginPlay
+			if (World.IsGameWorld() && bInitialCollectionAddedToSimulation && Entry != nullptr)
 			{
-				RuntimeCreatedEntries.Add(SmartObjectComponent.GetRegisteredHandle());
-				AddToSimulation(SmartObjectComponent);
+				if (bAlreadyInCollection)
+				{
+					// Simply bind the newly available component to its active runtime instance
+					BindComponentToSimulation(SmartObjectComponent);
+				}
+				else
+				{
+					// This is a new entry added after runtime initialization, mark it as a runtime entry (lifetime is tied to the component)
+					AddComponentToSimulation(SmartObjectComponent, *Entry);
+					RuntimeCreatedEntries.Add(SmartObjectComponent.GetRegisteredHandle());
+				}
 			}
 		}
 	}
@@ -310,24 +353,18 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set."), *GetNameSafe(SmartObjectComponent.GetOwner()));
 	}
 
-#if WITH_EDITOR
-	if (RegisteredSOComponents.Find(&SmartObjectComponent) != INDEX_NONE)
-	{
-		UE_VLOG_UELOG(SmartObjectComponent.GetOwner(), LogSmartObject, Error, TEXT("Trying to register SmartObject %s more than once."), *GetNameSafe(SmartObjectComponent.GetOwner()));
-		return false;
-	}
+	check(RegisteredSOComponents.Find(&SmartObjectComponent) == INDEX_NONE);
 	RegisteredSOComponents.Add(&SmartObjectComponent);
-#endif // WITH_EDITOR
-
-#if WITH_SMARTOBJECT_DEBUG
-	DebugRegisteredComponents.Add(&SmartObjectComponent);
-#endif
 
 	return true;
 }
 
 bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
+	UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("Unregistering %s using definition %s."),
+		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
+		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
+
 	if (IsValid(MainCollection))
 	{
 		const UWorld& World = GetWorldRef();
@@ -354,10 +391,15 @@ bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartOb
 		// At runtime, only entries created outside the initial collection are removed from simulation and collection
 		if (World.IsGameWorld() && bInitialCollectionAddedToSimulation)
 		{
-			bRemoveFromCollection = RuntimeCreatedEntries.Find(SmartObjectComponent.GetRegisteredHandle()) != INDEX_NONE;
+			bRemoveFromCollection = RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle()) != 0;
 			if (bRemoveFromCollection)
 			{
-				RemoveFromSimulation(SmartObjectComponent);
+				RemoveComponentFromSimulation(SmartObjectComponent);
+			}
+			else
+			{
+				// Unbind the component from its associated runtime instance
+				UnbindComponentFromSimulation(SmartObjectComponent);
 			}
 		}
 
@@ -367,17 +409,7 @@ bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartOb
 		}
 	}
 
-#if WITH_EDITOR
-	if (RegisteredSOComponents.Remove(&SmartObjectComponent) == 0)
-	{
-		UE_VLOG_UELOG(SmartObjectComponent.GetOwner(), LogSmartObject, Error, TEXT("Trying to unregister SmartObject %s but it wasn't registered."), *GetNameSafe(SmartObjectComponent.GetOwner()));
-		return false;
-	}
-#endif // WITH_EDITOR
-
-#if WITH_SMARTOBJECT_DEBUG
-	DebugRegisteredComponents.Remove(&SmartObjectComponent);
-#endif // WITH_SMARTOBJECT_DEBUG
+	RegisteredSOComponents.Remove(&SmartObjectComponent);
 
 	return true;
 }
@@ -408,19 +440,14 @@ bool USmartObjectSubsystem::UnregisterSmartObjectActor(const AActor& SmartObject
 
 FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter)
 {
-	if (!ensureMsgf(Handle.IsValid(), TEXT("SmartObject handle should be valid: %s"), *LexToString(Handle)))
-	{
-		return FSmartObjectClaimHandle::InvalidHandle;
-	}
-
-	FSmartObjectRuntime* SORuntime = RuntimeSmartObjects.Find(Handle);
-	if (!ensureMsgf(SORuntime != nullptr, TEXT("A SmartObjectRuntime must be created for handle %s"), *LexToString(Handle)))
+	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(Handle, ANSI_TO_TCHAR(__FUNCTION__));
+	if (SmartObjectRuntime == nullptr)
 	{
 		return FSmartObjectClaimHandle::InvalidHandle;
 	}
 
 	TArray<FSmartObjectSlotHandle> SlotHandles;
-	FindSlots(*SORuntime, Filter, SlotHandles);
+	FindSlots(*SmartObjectRuntime, Filter, SlotHandles);
 	if (SlotHandles.IsEmpty())
 	{
 		return FSmartObjectClaimHandle::InvalidHandle;
@@ -441,6 +468,16 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectRequestRe
 
 FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Handle, const FSmartObjectSlotHandle SlotHandle)
 {
+	if (!ensureMsgf(Handle.IsValid(), TEXT("Must provide a valid smart object handle")))
+	{
+		return FSmartObjectClaimHandle::InvalidHandle;
+	}
+
+	if (!ensureMsgf(SlotHandle.IsValid(), TEXT("Must provide a valid slot handle")))
+	{
+		return FSmartObjectClaimHandle::InvalidHandle;
+	}
+
 	// Slot might be unregistered by the time a result is used so it is possible that it can no longer be found
 	if (FSmartObjectSlotClaimState* SlotState = RuntimeSlotStates.Find(SlotHandle))
 	{
@@ -448,7 +485,10 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Ha
 		const bool bClaimed = SlotState->Claim(User);
 
 		const FSmartObjectClaimHandle ClaimHandle(Handle, SlotHandle, User);
-		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Claim %s for handle %s"), bClaimed ? TEXT("SUCCEEDED") : TEXT("FAILED"), *LexToString(ClaimHandle));
+		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Claim %s for handle %s. Slot State is '%s'"),
+			bClaimed ? TEXT("SUCCEEDED") : TEXT("FAILED"),
+			*LexToString(ClaimHandle),
+			*UEnum::GetValueAsString(SlotState->GetState()));
 		UE_CVLOG_LOCATION(bClaimed, this, LogSmartObject, Display, GetSlotLocation(ClaimHandle).GetValue(), 50.f, FColor::Yellow, TEXT("Claim"));
 
 		if (bClaimed)
@@ -460,21 +500,20 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Ha
 	return FSmartObjectClaimHandle::InvalidHandle;
 }
 
+bool USmartObjectSubsystem::IsClaimedObjectValid(const FSmartObjectClaimHandle ClaimHandle) const
+{
+	return ClaimHandle.IsValid() && RuntimeSmartObjects.Find(ClaimHandle.SmartObjectHandle) != nullptr;
+}
+
+bool USmartObjectSubsystem::IsSlotValid(const FSmartObjectSlotHandle SlotHandle) const
+{
+	return SlotHandle.IsValid() && RuntimeSlotStates.Find(SlotHandle) != nullptr;
+}
+
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
-	if (!ClaimHandle.IsValid())
-	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Must provide a valid claim handle"));
-		return nullptr;
-	}
-
-	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(ClaimHandle.SmartObjectHandle);
-	if (!ensureMsgf(SmartObjectRuntime != nullptr, TEXT("A SmartObjectRuntime must be created for %s"), *LexToString(ClaimHandle.SmartObjectHandle)))
-	{
-		return nullptr;
-	}
-
-	return GetBehaviorDefinition(*SmartObjectRuntime, ClaimHandle, DefinitionClass);
+	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(ClaimHandle.SmartObjectHandle, ANSI_TO_TCHAR(__FUNCTION__));
+	return SmartObjectRuntime != nullptr ? GetBehaviorDefinition(*SmartObjectRuntime, ClaimHandle, DefinitionClass) : nullptr;
 }
 
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
@@ -487,24 +526,15 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefiniti
 
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
-	if (!ClaimHandle.IsValid())
-	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Must use with a valid claim handle"));
-		return nullptr;
-	}
-
-	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(ClaimHandle.SmartObjectHandle);
-	if (!ensureMsgf(SmartObjectRuntime != nullptr, TEXT("A SmartObjectRuntime must be created for %s"), *LexToString(ClaimHandle.SmartObjectHandle)))
-	{
-		return nullptr;
-	}
-
-	return Use(*SmartObjectRuntime, ClaimHandle, DefinitionClass);
+	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(ClaimHandle.SmartObjectHandle, ANSI_TO_TCHAR(__FUNCTION__));
+	return SmartObjectRuntime != nullptr ? Use(*SmartObjectRuntime, ClaimHandle, DefinitionClass) : nullptr;
 }
 
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
-	if (!ensureMsgf(ClaimHandle.IsValid(), TEXT("A valid claim handle is required to use a slot: %s"), *LexToString(ClaimHandle)))
+	checkf(ClaimHandle.IsValid(), TEXT("This is an internal method that should only be called with valid claim handle"));
+
+	if (SmartObjectRuntime.IsDisabled())
 	{
 		return nullptr;
 	}
@@ -536,9 +566,8 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(const FSmartObj
 
 bool USmartObjectSubsystem::Release(const FSmartObjectClaimHandle& ClaimHandle)
 {
-	if (!ClaimHandle.IsValid())
+	if (!ensureMsgf(ClaimHandle.IsValid(), TEXT("Must provide a valid claim handle.")))
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Must release slot using a valid handle"));
 		return false;
 	}
 
@@ -548,7 +577,16 @@ bool USmartObjectSubsystem::Release(const FSmartObjectClaimHandle& ClaimHandle)
 		return false;
 	}
 
-	const bool bSuccess = SlotState->Release(ClaimHandle, /*bAborted*/ false);
+	if (SlotState->GetState() == ESmartObjectSlotState::Disabled)
+	{
+		// We don't consider this case as an error since the user is simply attempting to release a slot
+		// that was disabled internally.
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Skipped Release using claim handle '%s'. "
+			"Slot was disabled. Consider using RegisterSlotInvalidationCallback to get notification when a slot gets invalidated."), *LexToString(ClaimHandle));
+		return false;
+	}
+
+	const bool bSuccess = SlotState->Release(ClaimHandle, ESmartObjectSlotState::Free, /*bAborted*/ false);
 	UE_CVLOG_UELOG(bSuccess, this, LogSmartObject, Verbose, TEXT("Released using handle %s"), *LexToString(ClaimHandle));
 	UE_CVLOG_LOCATION(bSuccess, this, LogSmartObject, Display, GetSlotLocation(ClaimHandle).GetValue(), 50.f, FColor::Red, TEXT("Release"));
 	return bSuccess;
@@ -568,11 +606,11 @@ TOptional<FVector> USmartObjectSubsystem::GetSlotLocation(const FSmartObjectSlot
 
 TOptional<FVector> USmartObjectSubsystem::GetSlotLocation(const FSmartObjectClaimHandle& ClaimHandle) const
 {
-	if (ensureMsgf(ClaimHandle.IsValid(), TEXT("Requesting slot location from an invalid claim handle.")))
+	if (!ensureMsgf(ClaimHandle.IsValid(), TEXT("Must provide a valid claim handle.")))
 	{
-		return GetSlotLocation(ClaimHandle.SlotHandle);
+		return TOptional<FVector>();
 	}
-	return TOptional<FVector>();
+	return GetSlotLocation(ClaimHandle.SlotHandle);
 }
 
 bool USmartObjectSubsystem::GetSlotLocation(const FSmartObjectClaimHandle& ClaimHandle, FVector& OutSlotLocation) const
@@ -595,7 +633,7 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 {
 	TOptional<FTransform> Transform;
 
-	if (!ensureMsgf(SlotHandle.IsValid(), TEXT("Requesting slot transform for an invalid slot handle")))
+	if (!ensureMsgf(SlotHandle.IsValid(), TEXT("Must provide a valid slot handle.")))
 	{
 		return Transform;
 	}
@@ -612,11 +650,11 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 
 TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObjectClaimHandle& ClaimHandle) const
 {
-	if (ensureMsgf(ClaimHandle.IsValid(), TEXT("Requesting slot transform from an invalid claim handle.")))
+	if (!ensureMsgf(ClaimHandle.IsValid(), TEXT("Must provide a valid claim handle.")))
 	{
-		return GetSlotTransform(ClaimHandle.SlotHandle);
+		return TOptional<FTransform>();
 	}
-	return TOptional<FTransform>();
+	return GetSlotTransform(ClaimHandle.SlotHandle);
 }
 
 bool USmartObjectSubsystem::GetSlotTransform(const FSmartObjectClaimHandle& ClaimHandle, FTransform& OutSlotTransform) const
@@ -633,6 +671,92 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 		return GetSlotTransform(Result.SlotHandle);
 	}
 	return TOptional<FTransform>();
+}
+
+FSmartObjectRuntime* USmartObjectSubsystem::GetValidatedMutableRuntime(const FSmartObjectHandle& Handle, const TCHAR* Context)
+{
+	return const_cast<FSmartObjectRuntime*>(GetValidatedRuntime(Handle, Context));
+}
+
+const FSmartObjectRuntime* USmartObjectSubsystem::GetValidatedRuntime(const FSmartObjectHandle& Handle, const TCHAR* Context) const
+{
+	if (!ensureMsgf(Handle.IsValid(), TEXT("Must provide a valid smart object handle.")))
+	{
+		return nullptr;
+	}
+
+	const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(Handle);
+	if (SmartObjectRuntime == nullptr)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("%s failed using handle '%s'. SmartObject is no longer part of the simulation."), Context, *LexToString(Handle));
+	}
+	return SmartObjectRuntime;
+}
+
+const FGameplayTagContainer& USmartObjectSubsystem::GetInstanceTags(const FSmartObjectHandle Handle) const
+{
+	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(Handle, ANSI_TO_TCHAR(__FUNCTION__));
+	return SmartObjectRuntime != nullptr ? SmartObjectRuntime->GetTags() : FGameplayTagContainer::EmptyContainer;
+}
+
+void USmartObjectSubsystem::AddTagToInstance(const FSmartObjectHandle Handle, const FGameplayTag& Tag)
+{
+	if (FSmartObjectRuntime* SmartObjectRuntime = GetValidatedMutableRuntime(Handle, ANSI_TO_TCHAR(__FUNCTION__)))
+	{
+		AddTagToInstance(*SmartObjectRuntime, Tag);
+	}
+}
+
+void USmartObjectSubsystem::RemoveTagFromInstance(const FSmartObjectHandle Handle, const FGameplayTag& Tag)
+{
+	if (FSmartObjectRuntime* SmartObjectRuntime = GetValidatedMutableRuntime(Handle, ANSI_TO_TCHAR(__FUNCTION__)))
+	{
+		RemoveTagFromInstance(*SmartObjectRuntime, Tag);
+	}
+}
+
+void USmartObjectSubsystem::AddTagToInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag)
+{
+	if (!SmartObjectRuntime.Tags.HasTag(Tag))
+	{
+		SmartObjectRuntime.Tags.AddTagFast(Tag);
+		SmartObjectRuntime.OnTagChangedDelegate.ExecuteIfBound(Tag, 1);
+		UpdateRuntimeInstanceStatus(SmartObjectRuntime);
+	}
+}
+
+void USmartObjectSubsystem::RemoveTagFromInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag)
+{
+	if (SmartObjectRuntime.Tags.RemoveTag(Tag))
+	{
+		SmartObjectRuntime.OnTagChangedDelegate.ExecuteIfBound(Tag, 0);
+		UpdateRuntimeInstanceStatus(SmartObjectRuntime);
+	}
+}
+
+void USmartObjectSubsystem::UpdateRuntimeInstanceStatus(FSmartObjectRuntime& SmartObjectRuntime)
+{
+	const FGameplayTagQuery& Requirements = SmartObjectRuntime.GetDefinition().GetObjectTagFilter();
+	const bool bDisabledByTags = !(Requirements.IsEmpty() || Requirements.Matches(SmartObjectRuntime.Tags));
+
+	if (SmartObjectRuntime.bDisabledByTags != bDisabledByTags)
+	{
+		if (bDisabledByTags)
+		{
+			// Newly disabled so abort any active interaction (keep registered in space partition but filter results)
+			AbortAll(SmartObjectRuntime, ESmartObjectSlotState::Disabled);
+		}
+		else
+		{
+			// Restore slots availability
+			for (const FSmartObjectSlotHandle SlotHandle : SmartObjectRuntime.SlotHandles)
+			{
+				RuntimeSlotStates.FindChecked(SlotHandle).State = ESmartObjectSlotState::Free;
+			}
+		}
+
+		SmartObjectRuntime.bDisabledByTags = bDisabledByTags;
+	}
 }
 
 FSmartObjectSlotClaimState* USmartObjectSubsystem::GetMutableSlotState(const FSmartObjectClaimHandle& ClaimHandle)
@@ -693,20 +817,6 @@ void USmartObjectSubsystem::AddSlotDataDeferred(const FSmartObjectClaimHandle& C
 	}
 }
 
-FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectRequestResult& FindResult) const
-{
-	return (ensureMsgf(FindResult.IsValid(), TEXT("Provided RequestResult is not valid. SlotView can't be created.")))
-			   ? GetSlotView(FindResult.SlotHandle)
-			   : FSmartObjectSlotView();
-}
-
-FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectClaimHandle& ClaimHandle) const
-{
-	return (ensureMsgf(ClaimHandle.IsValid(), TEXT("Provided ClaimHandle is not valid. SlotView can't be created.")))
-			   ? GetSlotView(ClaimHandle.SlotHandle)
-			   : FSmartObjectSlotView();
-}
-
 FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectSlotHandle& SlotHandle) const
 {
 	if (ensureMsgf(SlotHandle.IsValid(), TEXT("Provided SlotHandle is not valid. SlotView can't be created.")))
@@ -722,20 +832,21 @@ FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectSlotHa
 
 void USmartObjectSubsystem::FindSlots(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutSlots) const
 {
-	UE_CVLOG_UELOG(!Handle.IsValid(), this, LogSmartObject, Error, TEXT("Trying to find slots using an invalid smart object handle."));
-	const FSmartObjectRuntime* SmartObjectRuntime = Handle.IsValid() ? RuntimeSmartObjects.Find(Handle) : nullptr;
-	// Runtime data may no longer be available (i.e. removed from simulation)
-	if (SmartObjectRuntime == nullptr)
+	if (const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(Handle, ANSI_TO_TCHAR(__FUNCTION__)))
 	{
-		return;
+		FindSlots(*SmartObjectRuntime, Filter, OutSlots);
 	}
-
-	FindSlots(*SmartObjectRuntime, Filter, OutSlots);
 }
 
 void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FilterSlots");
+
+	// Use the high level flag, no need to dig into each slot state since they are also all disabled.
+	if (SmartObjectRuntime.IsDisabled())
+	{
+		return;
+	}
 
 	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
 	const int32 NumSlots = Definition.GetSlots().Num();
@@ -854,13 +965,15 @@ bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request,
 	for (const FSmartObjectHandle SmartObjectHandle : QueryResults)
 	{
 		const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(SmartObjectHandle);
-		if (SmartObjectRuntime == nullptr || !Request.QueryBox.IsInside(SmartObjectRuntime->GetTransform().GetLocation()))
+		checkf(SmartObjectRuntime != nullptr, TEXT("Results returned by the space partition are expected to be valid."));
+
+		if (!Request.QueryBox.IsInside(SmartObjectRuntime->GetTransform().GetLocation()))
 		{
 			continue;
 		}
 
 			TArray<FSmartObjectSlotHandle> SlotHandles;
-		FindSlots(SmartObjectHandle, Filter, SlotHandles);
+		FindSlots(*SmartObjectRuntime, Filter, SlotHandles);
 		OutResults.Reserve(OutResults.Num() + SlotHandles.Num());
 			for (FSmartObjectSlotHandle SlotHandle: SlotHandles)
 			{
@@ -938,6 +1051,11 @@ void USmartObjectSubsystem::UnregisterCollection(ASmartObjectCollection& InColle
 		return;
 	}
 
+	if (bInitialCollectionAddedToSimulation)
+	{
+		CleanupRuntime();
+	}
+
 	MainCollection = nullptr;
 	InCollection.OnUnregistered();
 }
@@ -991,13 +1109,17 @@ void USmartObjectSubsystem::InitializeRuntime()
 			continue;
 		}
 
-		// Create a runtime instance of that definition using that handle
 		if (Component != nullptr)
 		{
+			// When component is available we add it to the simulation along with its collection entry to create the runtime instance and bound them together.
 			Component->SetRegisteredHandle(Entry.GetHandle());
+			AddComponentToSimulation(*Component, Entry);
 		}
-
-		AddToSimulation(Entry, *Definition);
+		else
+		{
+			// Otherwise we create the runtime instance based on the information from the collection and component will be bound later (e.g. on load)
+			AddCollectionEntryToSimulation(Entry, *Definition);
+		}
 	}
 
 	// Until this point all runtime entries were created from the collection, start tracking newly created
@@ -1029,9 +1151,19 @@ void USmartObjectSubsystem::CleanupRuntime()
 		return;
 	}
 
+	// Process component list first so they can be notified before we destroy their associated runtime instance
+	for (USmartObjectComponent* Component : RegisteredSOComponents)
+	{
+		if (Component != nullptr)
+		{
+			RemoveComponentFromSimulation(*Component);
+		}
+	}
+
+	// Cleanup all remaining entries (e.g. associated to unloaded entries)
 	for (auto It(RuntimeSmartObjects.CreateIterator()); It; ++It)
 	{
-		RemoveFromSimulation(It.Key());
+		RemoveRuntimeInstanceFromSimulation(It.Key());
 	}
 
 	RuntimeCreatedEntries.Reset();
@@ -1091,7 +1223,7 @@ void USmartObjectSubsystem::RebuildCollection(ASmartObjectCollection& InCollecti
 	InCollection.RebuildCollection(RegisteredSOComponents);
 }
 
-void USmartObjectSubsystem::SpawnMissingCollection()
+void USmartObjectSubsystem::SpawnMissingCollection() const
 {
 	if (IsValid(MainCollection))
 	{
@@ -1114,22 +1246,38 @@ void USmartObjectSubsystem::SpawnMissingCollection()
 #if WITH_SMARTOBJECT_DEBUG
 void USmartObjectSubsystem::DebugUnregisterAllSmartObjects()
 {
-	for (TWeakObjectPtr<USmartObjectComponent>& WeakComponent : DebugRegisteredComponents)
+	for (USmartObjectComponent* Cmp : RegisteredSOComponents)
 	{
-		if (const USmartObjectComponent* Cmp = WeakComponent.Get())
+		if (Cmp != nullptr && RuntimeSmartObjects.Find(Cmp->GetRegisteredHandle()) != nullptr)
 		{
-			RemoveFromSimulation(*Cmp);
+			RemoveComponentFromSimulation(*Cmp);
 		}
 	}
 }
 
 void USmartObjectSubsystem::DebugRegisterAllSmartObjects()
 {
-	for (TWeakObjectPtr<USmartObjectComponent>& WeakComponent : DebugRegisteredComponents)
+	if (MainCollection == nullptr)
 	{
-		if (const USmartObjectComponent* Cmp = WeakComponent.Get())
+		return;
+	}
+	for (USmartObjectComponent* Cmp : RegisteredSOComponents)
+	{
+		if (Cmp != nullptr)
 		{
-			AddToSimulation(*Cmp);
+			const FSmartObjectCollectionEntry* Entry = MainCollection->GetEntries().FindByPredicate(
+				[Handle=Cmp->GetRegisteredHandle()](const FSmartObjectCollectionEntry& CollectionEntry)
+				{
+					return CollectionEntry.GetHandle() == Handle;
+				});
+
+			// In this debug command we register back components that were already part of the simulation but
+			// removed using debug command 'ai.debug.so.UnregisterAllSmartObjects'.
+			// We need to find associated collection entry and pass it back so the callbacks can be bound properly
+			if (Entry && RuntimeSmartObjects.Find(Entry->GetHandle()) == nullptr)
+			{
+				AddComponentToSimulation(*Cmp, *Entry);
+			}
 		}
 	}
 }

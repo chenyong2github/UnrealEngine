@@ -150,7 +150,7 @@ public:
 	/**
 	 * Spatial lookup
 	 * @return First valid smart object in range. Not the closest one, just the one
-	 *		that happens to be retrieved first from the octree
+	 *		that happens to be retrieved first from space partition
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request) const;
@@ -167,32 +167,70 @@ public:
 	 * @param Handle Handle to the SmartObject
 	 * @param Filter Filter to apply on object and slots
 	 * @param OutSlots Available slots found that match the filter
+	 * @note Method will ensure on invalid Handle.
 	 */
 	void FindSlots(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutSlots) const;
 
 	/**
-	 *	Claim smart object from a valid request result.
-	 *	@param RequestResult Valid request result for given smart object and slot index. Ensure when called with an invalid result.
-	 *	@return A claim handle binding the claimed smart object, its use index and a user id.
+	 * Claim smart object from a valid request result.
+	 * @param RequestResult Valid request result for given smart object and slot index.
+	 * @return A claim handle binding the claimed smart object, its slot and a user id.
+	 * @note Method will ensure on invalid RequestResult.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult);
 
+	/**
+	 * Claim smart object from valid object and slot handles.
+	 * @param Handle Handle to the SmartObject
+	 * @param SlotHandle Handle to the SmartObject
+	 * @return A claim handle binding the claimed smart object, its slot and a user id.
+	 * @note Method will ensure on invalid Handle or SlotHandle.
+	 */
+	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle);
+
+	/**
+	 * Claim smart object from valid object and slot handles.
+	 * @param Handle Handle to the SmartObject
+	 * @param Filter Optional filter to apply on object and slots
+	 * @return A claim handle binding the claimed smart object, its slot and a user id.
+	 * @note Method will ensure on invalid Handle.
+	 */
 	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter = {});
 
 	/**
-	 *	Start using a claimed smart object slot.
-	 *	@param ClaimHandle Handle for given pair of user and smart object. Error will be reported if the handle is invalid.
-	 *	@param DefinitionClass The type of behavior definition the user wants to use.
-	 *	@return The base class pointer of the requested behavior definition class associated to the slot
+	 * Indicates if the object/slot referred to by the given handle are still accessible in the simulation.
+	 * This should only be required when a handle is stored and later needed to access slot or object information (e.g. SlotView)
+	 * Otherwise a valid ClaimHandle can be use directly after calling 'Claim'.
+	 * @param ClaimHandle Handle to the claimed slot
+	 * @return True if the claim handle is valid and associated object is accessible, false otherwise
+	 */
+	bool IsClaimedObjectValid(FSmartObjectClaimHandle ClaimHandle) const;
+
+	/**
+	 * Indicates if the slot referred to by the given handle is still accessible in the simulation.
+	 * This should only be required when a handle is stored and later needed to access slot information (e.g. SlotView)
+	 * Otherwise a valid SlotHandle can be use directly after calling any of the 'Find' or 'Claim' methods.
+	 * @param SlotHandle Handle to the slot
+	 * @return True if the handle is valid and associated slot is accessible, false otherwise
+	 */
+	bool IsSlotValid(FSmartObjectSlotHandle SlotHandle) const;
+
+	/**
+	 * Start using a claimed smart object slot.
+	 * @param ClaimHandle Handle for given pair of user and smart object.
+	 * @param DefinitionClass The type of behavior definition the user wants to use.
+	 * @return The base class pointer of the requested behavior definition class associated to the slot
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	const USmartObjectBehaviorDefinition* Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	/**
-	 *	Start using a claimed smart object slot.
-	 *	@param ClaimHandle Handle for given pair of user and smart object. Error will be reported if the handle is invalid.
-	 *	@return The requested behavior definition class pointer associated to the slot
+	 * Start using a claimed smart object slot.
+	 * @param ClaimHandle Handle for given pair of user and smart object.
+	 * @return The requested behavior definition class pointer associated to the slot
+	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
 	 */
 	template <typename DefinitionType>
 	const DefinitionType* Use(const FSmartObjectClaimHandle& ClaimHandle)
@@ -202,26 +240,29 @@ public:
 	}
 
 	/**
-	 *	Release claim on a smart object.
-	 *	@param ClaimHandle Handle for given pair of user and smart object. Does nothing if the handle is invalid.
-	 *	@return Whether the claim was successfully released or not
+	 * Release claim on a smart object.
+	 * @param ClaimHandle Handle for given pair of user and smart object.
+	 * @return Whether the claim was successfully released or not
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	bool Release(const FSmartObjectClaimHandle& ClaimHandle);
 
 	/**
-	 *	Return the behavior definition of a given type from a claimed object.
-	 *	@param ClaimHandle Handle for given pair of user and smart object. Error will be reported if the handle is invalid.
-	 *	@param DefinitionClass The type of behavior definition.
-	 *	@return The base class pointer of the requested behavior definition class associated to the slotClaim handle
+	 * Return the behavior definition of a given type from a claimed object.
+	 * @param ClaimHandle Handle for given pair of user and smart object.
+	 * @param DefinitionClass The type of behavior definition.
+	 * @return The base class pointer of the requested behavior definition class associated to the slotClaim handle
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	/**
-	 *	Return the behavior definition of a given type from a claimed object.
-	 *	@param ClaimHandle Handle for given pair of user and smart object. Error will be reported if the handle is invalid.
-	 *	@return The requested behavior definition class pointer associated to the Claim handle
+	 * Return the behavior definition of a given type from a claimed object.
+	 * @param ClaimHandle Handle for given pair of user and smart object.
+	 * @return The requested behavior definition class pointer associated to the Claim handle
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	template <typename DefinitionType>
 	const DefinitionType* GetBehaviorDefinition(const FSmartObjectClaimHandle& ClaimHandle)
@@ -237,24 +278,24 @@ public:
 	 * from FSmartObjectSlotStateData and passed as a struct view (e.g. FConstStructView::Make(FSomeStruct))
 	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @param InData A view on the struct to add
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	void AddSlotDataDeferred(const FSmartObjectClaimHandle& ClaimHandle, FConstStructView InData) const;
 	// @todo this comment is here just to keep the swarm comments easily accessible. Will remove pre submit.
 
-	/** Returns a view to the data associated to a valid slot handle (SlotHandle.IsValid() returns true) */
+	/**
+	 * Returns a view to the data associated to a valid slot handle (SlotHandle.IsValid() returns true)
+	 * In case the SlotHandle is not immediately used after a call to any of the 'Find' or 'Claim' methods then
+	 * user must validate that the handle still refers to a slot that is part of the simulation by calling 'IsSlotValid'.
+	 * @note Method will ensure on invalid SlotHandle and fail a check if associated slot is no longer part of the simulation.
+	 */
 	FSmartObjectSlotView GetSlotView(const FSmartObjectSlotHandle& SlotHandle) const;
-
-	/** Returns a view to the data associated to a valid request result (Result.IsValid() returns true) */
-	FSmartObjectSlotView GetSlotView(const FSmartObjectRequestResult& Result) const;
-
-	/** Returns a view to the data associated to a valid claim handle (ClaimHandle.IsValid() returns true) */
-	FSmartObjectSlotView GetSlotView(const FSmartObjectClaimHandle& ClaimHandle) const;
 
 	/**
 	 * Returns the position (in world space) of the slot associated to the given claim handle.
 	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @return Position (in world space) of the slot associated to ClaimHandle.
-	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	TOptional<FVector> GetSlotLocation(const FSmartObjectClaimHandle& ClaimHandle) const;
 
@@ -263,7 +304,7 @@ public:
 	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @param OutSlotLocation Position (in world space) of the slot associated to ClaimHandle.
 	 * @return Whether the location was found and assigned to 'OutSlotLocation'
-	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	bool GetSlotLocation(const FSmartObjectClaimHandle& ClaimHandle, FVector& OutSlotLocation) const;
@@ -272,7 +313,7 @@ public:
 	 * Returns the position (in world space) of the slot associated to the given request result.
 	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
 	 * @return Position (in world space) of the slot associated to Result.
-	 * @note Method will ensure on invalid FSmartObjectRequestResult.
+	 * @note Method will ensure on invalid Result.
 	 */
 	TOptional<FVector> GetSlotLocation(const FSmartObjectRequestResult& Result) const;
 
@@ -280,7 +321,7 @@ public:
 	 * Returns the position (in world space) of the slot represented by the provided slot handle.
 	 * @param SlotHandle Handle to a smart object slot.
 	 * @return Position (in world space) of the slot associated to SlotHandle.
-	 * @note Method will ensure on invalid slot handle.
+	 * @note Method will ensure on invalid SlotHandle.
 	 */
 	TOptional<FVector> GetSlotLocation(FSmartObjectSlotHandle SlotHandle) const;
 
@@ -288,7 +329,7 @@ public:
 	 * Returns the transform (in world space) of the slot associated to the given claim handle.
 	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @return Transform (in world space) of the slot associated to ClaimHandle.
-	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	TOptional<FTransform> GetSlotTransform(const FSmartObjectClaimHandle& ClaimHandle) const;
 
@@ -297,7 +338,7 @@ public:
 	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @param OutSlotTransform Transform (in world space) of the slot associated to ClaimHandle.
 	 * @return Whether the transform was found and assigned to 'OutSlotTransform'
-	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
+	 * @note Method will ensure on invalid ClaimHandle.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	bool GetSlotTransform(const FSmartObjectClaimHandle& ClaimHandle, FTransform& OutSlotTransform) const;
@@ -306,7 +347,7 @@ public:
 	 * Returns the transform (in world space) of the slot associated to the given request result.
 	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
 	 * @return Transform (in world space) of the slot associated to Result.
-	 * @note Method will ensure on invalid FSmartObjectRequestResult.
+	 * @note Method will ensure on invalid Result.
 	 */
 	TOptional<FTransform> GetSlotTransform(const FSmartObjectRequestResult& Result) const;
 
@@ -314,20 +355,47 @@ public:
 	 * Returns the transform (in world space) of the slot represented by the provided slot handle.
 	 * @param SlotHandle Handle to a smart object slot.
 	 * @return Transform (in world space) of the slot associated to SlotHandle.
-	 * @note Method will ensure on invalid slot handle.
+	 * @note Method will ensure on invalid SlotHandle.
 	 */
 	TOptional<FTransform> GetSlotTransform(FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
-	 *	Register a callback to be notified if the claimed slot is no longer available and user need to perform cleanup.
-	 *	@param ClaimHandle Handle to identify the object and slot. Error will be reported if the handle is invalid.
-	 *	@param Callback Delegate that will be called to notify that a slot gets invalidated and can no longer be used.
+	 * Returns the list of tags associated to the smartobject instance represented by the provided handle.
+	 * @param Handle Handle to the SmartObject.
+	 * @return Container of tags associated to the SmartObject instance.
+	 * @note Method will ensure on invalid Handle.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	const FGameplayTagContainer& GetInstanceTags(const FSmartObjectHandle Handle) const;
+
+	/**
+	 * Adds a single tag to the smartobject instance represented by the provided handle.
+	 * @param Handle Handle to the SmartObject.
+	 * @param Tag Tag to add to the SmartObject instance.
+	 * @note Method will ensure on invalid Handle.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	void AddTagToInstance(const FSmartObjectHandle Handle, const FGameplayTag& Tag);
+
+	/**
+	 * Removes a single tag from the smartobject instance represented by the provided handle.
+	 * @param Handle Handle to the SmartObject.
+	 * @param Tag Tag to remove from the SmartObject instance.
+	 * @note Method will ensure on invalid Handle.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	void RemoveTagFromInstance(const FSmartObjectHandle Handle, const FGameplayTag& Tag);
+
+	/**
+	 * Register a callback to be notified if the claimed slot is no longer available and user need to perform cleanup.
+	 * @param ClaimHandle Handle to identify the object and slot. Error will be reported if the handle is invalid.
+	 * @param Callback Delegate that will be called to notify that a slot gets invalidated and can no longer be used.
 	 */
 	void RegisterSlotInvalidationCallback(const FSmartObjectClaimHandle& ClaimHandle, const FOnSlotInvalidated& Callback);
 
 	/**
-	 *	Unregisters a callback to be notified if the claimed slot is no longer available and user need to perform cleanup.
-	 *	@param ClaimHandle Handle to identify the object and slot. Error will be reported if the handle is invalid.
+	 * Unregisters a callback to be notified if the claimed slot is no longer available and user need to perform cleanup.
+	 * @param ClaimHandle Handle to identify the object and slot. Error will be reported if the handle is invalid.
 	 */
 	void UnregisterSlotInvalidationCallback(const FSmartObjectClaimHandle& ClaimHandle);
 
@@ -342,6 +410,7 @@ public:
 #endif
 
 protected:
+	friend class USmartObjectComponent;
 
 	/**
 	 * Callback overriden to gather loaded collections, spawn missing one and set the main collection.
@@ -361,31 +430,70 @@ protected:
 	/** Removes all runtime data */
 	void CleanupRuntime();
 
+	/** Returns the runtime instance associated to the provided handle */
+	FSmartObjectRuntime* GetRuntimeInstance(const FSmartObjectHandle& SmartObjectHandle) { return RuntimeSmartObjects.Find(SmartObjectHandle); }
+
+	/**
+	 * Returns the const runtime instance associated to the provided handle.
+	 * Method ensures on invalid handle and produces log message with provided context if instance can't be found.
+	 */
+	const FSmartObjectRuntime* GetValidatedRuntime(const FSmartObjectHandle& Handle, const TCHAR* Context) const;
+
+	/**
+	 * Returns the mutable runtime instance associated to the provided handle
+	 * Method ensures on invalid handle and produces log message with provided context if instance can't be found.
+	 */
+	FSmartObjectRuntime* GetValidatedMutableRuntime(const FSmartObjectHandle& Handle, const TCHAR* Context);
+
+	void AddTagToInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
+	void RemoveTagFromInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
+	void UpdateRuntimeInstanceStatus(FSmartObjectRuntime& SmartObjectRuntime);
+
 	/** Goes through all defined slots of smart object represented by SmartObjectRuntime and finds the ones matching the filter. */
 	void FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults) const;
 
 	/** Applies filter on provided definition and fills OutValidIndices with indices of all valid slots. */
 	static void FindMatchingSlotDefinitionIndices(const USmartObjectDefinition& Definition, const FSmartObjectRequestFilter& Filter, TArray<int32>& OutValidIndices);
 
-	FSmartObjectClaimHandle Claim(FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle);
-
 	static const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	const USmartObjectBehaviorDefinition* Use(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
-	void AbortAll(FSmartObjectRuntime& SmartObjectRuntime);
+	void AbortAll(FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectSlotState NewState);
 
 	FSmartObjectSlotClaimState* GetMutableSlotState(const FSmartObjectClaimHandle& ClaimHandle);
 
 	/** Make sure that all SmartObjectCollection actors from our associated world are registered. */
 	void RegisterCollectionInstances();
 
-	void AddToSimulation(const FSmartObjectHandle Handle, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds);
-	void AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition);
-	void AddToSimulation(const USmartObjectComponent&);
-	void RemoveFromSimulation(const FSmartObjectHandle Handle);
-	void RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry);
-	void RemoveFromSimulation(const USmartObjectComponent& SmartObjectComponent);
+	/**
+	 * Registers a collection entry to the simulation and creates its associated runtime instance.
+	 * This method must be used only when the associated actor component is not available (e.g. not loaded).
+	 */
+	FSmartObjectRuntime* AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition);
+
+	/**
+	 * Registers a collection entry to the simulation and creates its associated runtime instance.
+	 * @param SmartObjectComponent The component to add to the simulation and for which a runtime entry might be created or an existing one found
+	 * @param CollectionEntry The associated collection entry that got created to add the component to the simulation.
+	 */
+	FSmartObjectRuntime* AddComponentToSimulation(USmartObjectComponent& SmartObjectComponent, const FSmartObjectCollectionEntry& CollectionEntry);
+
+	/**
+	 * Binds a smartobject component to an existing instance in the simulation.
+	 * @param SmartObjectComponent The component to add to the simulation and for which a runtime instance must exist
+	 */
+	void BindComponentToSimulation(USmartObjectComponent& SmartObjectComponent);
+
+	/**
+	 * Unbinds a smartobject component from an existing instance in the simulation.
+	 * @param SmartObjectComponent The component to remove from the simulation
+	 */
+	void UnbindComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
+
+	void RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle);
+	void RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry);
+	void RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
 
 	/**
 	 * Name of the Space partition class to use.
@@ -417,6 +525,10 @@ protected:
 	/** Keep track of Ids associated to objects entirely created at runtime (i.e. not part of the initial collection) */
 	TArray<FSmartObjectHandle> RuntimeCreatedEntries;
 
+	/** List of registered components. */
+	UPROPERTY(Transient)
+	TArray<USmartObjectComponent*> RegisteredSOComponents;
+
 	uint32 NextFreeUserID = 1;
 
 	/** Flag to indicate that all entries from the baked collection are registered and new registrations will be considered runtime entries (i.e. no persistence) */
@@ -425,7 +537,7 @@ protected:
 #if WITH_EDITOR
 	friend class ASmartObjectCollection;
 	void RebuildCollection(ASmartObjectCollection& InCollection);
-	void SpawnMissingCollection();
+	void SpawnMissingCollection() const;
 
 	/**
 	 * Compute bounds from given world and store result in provided collection
@@ -435,18 +547,12 @@ protected:
 	void ComputeBounds(const UWorld& World, ASmartObjectCollection& Collection) const;
 #endif // WITH_EDITOR
 
-#if WITH_EDITORONLY_DATA
-	/** List of registered used to rebuild collection on demand */
-	UPROPERTY(Transient)
-	TArray<USmartObjectComponent*> RegisteredSOComponents;
-#endif // WITH_EDITORONLY_DATA
-
 #if WITH_SMARTOBJECT_DEBUG
 public:
 	uint32 DebugGetNumRuntimeObjects() const { return RuntimeSmartObjects.Num(); }
 	const TMap<FSmartObjectHandle, FSmartObjectRuntime>& DebugGetRuntimeObjects() const { return RuntimeSmartObjects; }
 	const TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState>& DebugGetRuntimeSlots() const { return RuntimeSlotStates; }
-	uint32 DebugGetNumRegisteredComponents() const { return DebugRegisteredComponents.Num(); }
+	uint32 DebugGetNumRegisteredComponents() const { return RegisteredSOComponents.Num(); }
 
 	/** Debugging helper to remove all registered smart objects from the simulation */
 	void DebugUnregisterAllSmartObjects();
@@ -459,8 +565,5 @@ public:
 
 	/** Debugging helper to emulate the stop of the simulation to destroy all runtime data */
 	void DebugCleanupRuntime();
-
-private:
-	TArray<TWeakObjectPtr<USmartObjectComponent>> DebugRegisteredComponents;
 #endif // WITH_SMARTOBJECT_DEBUG
 };

@@ -345,8 +345,9 @@ struct FSlotCustomData : FSmartObjectTestBase
 		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", FindResult.SmartObjectHandle.IsValid());
 		AITEST_TRUE("Result.SlotHandle.IsValid()", FindResult.SlotHandle.IsValid());
 
-		const FSmartObjectSlotView SlotView = Subsystem->GetSlotView(FindResult);
-		AITEST_TRUE("SlotHandle.IsValid()", SlotView.GetSlotHandle().IsValid());
+		const FSmartObjectSlotView SlotView = Subsystem->GetSlotView(FindResult.SlotHandle);
+		AITEST_TRUE("SlotView.IsValid()", SlotView.IsValid());
+		AITEST_TRUE("SlotView.SlotHandle.IsValid()", SlotView.GetSlotHandle().IsValid());
 
 		const FSmartObjectSlotTestDefinitionData* DefinitionData = SlotView.GetDefinitionDataPtr<FSmartObjectSlotTestDefinitionData>();
 		AITEST_NOT_NULL("Data definition pointer (for cooldown)", DefinitionData);
@@ -372,7 +373,7 @@ struct FSlotCustomData : FSmartObjectTestBase
 		}
 
 		// Fetch a fresh slot view
-		const FSmartObjectSlotView SlotViewAfter = Subsystem->GetSlotView(ClaimHandle);
+		const FSmartObjectSlotView SlotViewAfter = Subsystem->GetSlotView(ClaimHandle.SlotHandle);
 		const FSmartObjectSlotTestRuntimeData* RuntimeDataAfter = SlotViewAfter.GetStateDataPtr<FSmartObjectSlotTestRuntimeData>();
 		AITEST_NOT_NULL("Runtime data pointer", RuntimeDataAfter);
 		AITEST_EQUAL("Runtime data float from SlotView", RuntimeDataAfter->SomePerInstanceSharedFloat, SomeFloatConstant);
@@ -421,7 +422,6 @@ struct FActivityTagsMergingPolicyCombine : FActivityTagsMergingPolicy
 
 	virtual bool InstantTest() override
 	{
-#if WITH_SMARTOBJECT_DEBUG
 		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
 		{
@@ -471,7 +471,6 @@ struct FActivityTagsMergingPolicyCombine : FActivityTagsMergingPolicy
 			// (Slot 1 & 2) = 2 matching slots / object
 			AITEST_EQUAL("Results.Num() using 'Combine' policy with AllMatch(TestTag1, TestTag2)", Results.Num(), SOList.Num() * 2);
 		}
-#endif // WITH_SMARTOBJECT_DEBUG
 
 		return true;
 	}
@@ -493,7 +492,6 @@ struct FActivityTagsMergingPolicyOverride : FActivityTagsMergingPolicy
 
 	virtual bool InstantTest() override
 	{
-#if WITH_SMARTOBJECT_DEBUG
 		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
 		{
@@ -529,7 +527,6 @@ struct FActivityTagsMergingPolicyOverride : FActivityTagsMergingPolicy
 			// (Slot 2) = 1 matching slot / object
 			AITEST_EQUAL("Results.Num() using 'Override' policy with AllMatch(TestTag1, TestTag2)", Results.Num(), SOList.Num() * 1);
 		}
-#endif // WITH_SMARTOBJECT_DEBUG
 
 		return true;
 	}
@@ -595,8 +592,6 @@ struct FUserTagsFilterPolicyNoFilter : FUserTagsFilterPolicy
 
 	virtual bool InstantTest() override
 	{
-#if WITH_SMARTOBJECT_DEBUG
-
 		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 		{
 			// Providing user tags to the query
@@ -606,7 +601,6 @@ struct FUserTagsFilterPolicyNoFilter : FUserTagsFilterPolicy
 			Subsystem->FindSmartObjects(ModifiedRequest, Results);
 			AITEST_EQUAL("Results.Num() using 'NoFilter' policy with user tags = TestTag2", Results.Num(), NumCreatedSlots);
 		}
-#endif // WITH_SMARTOBJECT_DEBUG
 		return true;
 	}
 };
@@ -627,7 +621,6 @@ struct FUserTagsFilterPolicyCombine : FUserTagsFilterPolicy
 
 	virtual bool InstantTest() override
 	{
-#if WITH_SMARTOBJECT_DEBUG
 		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
 		{
@@ -660,7 +653,7 @@ struct FUserTagsFilterPolicyCombine : FUserTagsFilterPolicy
 			Subsystem->FindSmartObjects(ModifiedRequest, Results);
 			AITEST_EQUAL("Results.Num() using 'Combine' policy with user tags = TestTag3", Results.Num(), 0);
 		}
-#endif // WITH_SMARTOBJECT_DEBUG
+
 		return true;
 	}
 };
@@ -681,7 +674,6 @@ struct FUserTagsFilterPolicyOverride : FUserTagsFilterPolicy
 
 	virtual bool InstantTest() override
 	{
-#if WITH_SMARTOBJECT_DEBUG
 		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
 		{
@@ -716,11 +708,102 @@ struct FUserTagsFilterPolicyOverride : FUserTagsFilterPolicy
 			// (Slot 1 & 2) = 2 matching slots / object
 			AITEST_EQUAL("Results.Num() using 'Override' policy with user tags = TestTag3", Results.Num(), SOList.Num() * 2);
 		}
-#endif // WITH_SMARTOBJECT_DEBUG
+
 		return true;
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FUserTagsFilterPolicyOverride, "System.AI.SmartObjects.Filter policy 'Override' on UserTags");
+
+struct FInstanceTagsFilter : FSmartObjectTestBase
+{
+	virtual bool SetUp() override
+	{
+		if (!FSmartObjectTestBase::SetUp())
+		{
+			return false;
+		}
+
+		// Tags setup looks like:
+		// Object:	ObjectTagFilter:	NoMatch(TestTag1)
+
+		// Set first slot user tag filter
+		Definition->SetObjectTagFilter(FGameplayTagQuery::BuildQuery(
+			FGameplayTagQueryExpression()
+			.NoTagsMatch()
+			.AddTag(FNativeGameplayTags::Get().TestTag1)
+		));
+
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+		const FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
+
+		FSmartObjectRequestResult SingleResult = Subsystem->FindSmartObject(DefaultRequest);
+		AITEST_TRUE("SingleResult.IsValid()", SingleResult.IsValid());
+
+		TArray<FSmartObjectRequestResult> Results;
+		Subsystem->FindSmartObjects(DefaultRequest, Results);
+		AITEST_EQUAL("Results.Num() for objects without instance tags", Results.Num(), NumCreatedSlots);
+
+		AITEST_NOT_EQUAL("Num results", Results.Num(), 0);
+		const FSmartObjectHandle ObjectToDeactivate = Results.Top().SmartObjectHandle;
+
+		// Find candidate slots
+		TArray<FSmartObjectSlotHandle> SlotHandles;
+		Subsystem->FindSlots(ObjectToDeactivate, TestFilter, SlotHandles);
+		AITEST_TRUE("Num slot handles", SlotHandles.Num() >= 3);
+
+		// Claim first slot
+		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->Claim(ObjectToDeactivate, SlotHandles[0]);
+		AITEST_TRUE("FirstClaimHandle.IsValid()", FirstClaimHandle.IsValid());
+
+		// Use First slot
+		const USmartObjectBehaviorDefinition* BehaviorDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(FirstClaimHandle);
+		AITEST_NOT_NULL("Behavior definition pointer for first slot before activation", BehaviorDefinition);
+
+		// Claim second slot
+		const FSmartObjectClaimHandle SecondClaimHandle = Subsystem->Claim(ObjectToDeactivate, SlotHandles[1]);
+		AITEST_TRUE("SecondClaimHandle.IsValid()", SecondClaimHandle.IsValid());
+
+		// Apply tag that will invalid our results
+		Subsystem->AddTagToInstance(ObjectToDeactivate, FNativeGameplayTags::Get().TestTag1);
+
+		FSmartObjectRequestResult SingleResultAfter = Subsystem->FindSmartObject(DefaultRequest);
+		AITEST_FALSE("SingleResult == SingleResultAfter", SingleResult == SingleResultAfter);
+
+		TArray<FSmartObjectRequestResult> ResultsAfter;
+		Subsystem->FindSmartObjects(DefaultRequest, ResultsAfter);
+		// (Slot 1 & 2 & 3) = 3 matching slots / object
+		AITEST_EQUAL("Results.Num() for 1 objects with instance tags (InstanceTags=TestTag1)", ResultsAfter.Num(), (SOList.Num()-1) * 3);
+
+		// Find candidate slots from deactivate object
+		TArray<FSmartObjectSlotHandle> SlotHandlesAfter;
+		Subsystem->FindSlots(ObjectToDeactivate, TestFilter, SlotHandlesAfter);
+		AITEST_EQUAL("Num slot handles from deactivated object", SlotHandlesAfter.Num(), 0);
+
+		// Try to claim 3rd slot with previously valid stored results
+		const FSmartObjectClaimHandle ThirdClaimHandle = Subsystem->Claim(ObjectToDeactivate, SlotHandles[2]);
+		AITEST_FALSE("ThirdClaimHandle.IsValid()", ThirdClaimHandle.IsValid());
+
+		// Try to use previously claimed 1st slot with previously valid claim handle
+		const USmartObjectBehaviorDefinition* BehaviorDefinitionAfter = Subsystem->Use<USmartObjectBehaviorDefinition>(SecondClaimHandle);
+		AITEST_NULL("Behavior definition pointer for second slot after deactivation", BehaviorDefinitionAfter);
+
+		// Release all valid claim handles
+		const bool bFirstSlotReleaseSuccess = Subsystem->Release(FirstClaimHandle);
+		AITEST_FALSE("bFirstSlotReleaseSuccess", bFirstSlotReleaseSuccess);
+		const bool bSecondSlotReleaseSuccess = Subsystem->Release(SecondClaimHandle);
+		AITEST_FALSE("bSecondSlotReleaseSuccess", bSecondSlotReleaseSuccess);
+
+		// Remove tag
+		Subsystem->RemoveTagFromInstance(ObjectToDeactivate, FNativeGameplayTags::Get().TestTag1);
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FInstanceTagsFilter, "System.AI.SmartObjects.Filter policy on InstanceTags");
 
 } // namespace FSmartObjectTest
 

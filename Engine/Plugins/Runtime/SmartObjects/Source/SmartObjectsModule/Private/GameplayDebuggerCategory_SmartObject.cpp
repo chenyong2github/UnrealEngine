@@ -29,23 +29,47 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		return;
 	}
 
-	const uint32 NumRuntimeObjects = Subsystem->DebugGetNumRuntimeObjects();
-	const uint32 NumRegisteredComponents = Subsystem->DebugGetNumRegisteredComponents();
-
-	ASmartObjectCollection* MainCollection = Subsystem->GetMainCollection();
-	const uint32 NumCollectionEntries = MainCollection != nullptr ? MainCollection->GetEntries().Num() : 0;
-	AddTextLine(FString::Printf(TEXT("{White}Collection entries = {Green}%d\n{White}Runtime objects = {Green}%s\n{White}Registered components = {Green}%s"),
-		NumCollectionEntries, *LexToString(NumRuntimeObjects), *LexToString(NumRegisteredComponents)));
-
 	FVector ViewLocation = FVector::ZeroVector;
 	FVector ViewDirection = FVector::ForwardVector;
 	bool bApplyCulling = GetViewPoint(OwnerPC, ViewLocation, ViewDirection);
 
 	FColor DebugColor = FColor::Yellow;
+	const uint32 NumRuntimeObjects = Subsystem->DebugGetNumRuntimeObjects();
+	const uint32 NumRegisteredComponents = Subsystem->DebugGetNumRegisteredComponents();
 
-	const FColor FreeColor = FColorList::Grey;
-	const FColor ClaimedColor = FColor::Yellow;
-	const FColor OccupiedColor = FColor::Red;
+	ASmartObjectCollection* MainCollection = Subsystem->GetMainCollection();
+	const uint32 NumCollectionEntries = MainCollection != nullptr ? MainCollection->GetEntries().Num() : 0;
+
+	uint32 NumActiveObjects = 0;
+
+	const TMap<FSmartObjectHandle, FSmartObjectRuntime>& SmartObjectInstances = Subsystem->DebugGetRuntimeObjects();
+	for (auto& LookupEntry : SmartObjectInstances)
+	{
+		const FSmartObjectRuntime& Instance = LookupEntry.Value;
+		NumActiveObjects += Instance.IsDisabled() ? 0 : 1;
+
+		FVector Location = Instance.GetTransform().GetLocation();
+		if (bApplyCulling && !IsLocationInViewCone(ViewLocation, ViewDirection, Location))
+		{
+			continue;
+		}
+
+		FString TagsAsString = Instance.GetTags().ToStringSimple();
+		if (!TagsAsString.IsEmpty())
+		{
+			// Using small dummy shape to display tags
+			AddShape(FGameplayDebuggerShape::MakePoint(Location, /*Radius*/ 1.0f, FColorList::White, TagsAsString));
+		}
+	}
+
+
+	AddTextLine(FString::Printf(TEXT("{White}Collection entries = {Green}%d\n{White}Runtime objects (Active / Inactive) = {Green}%s {White}/ {Grey}%s\n{White}Registered components = {Green}%s"),
+		NumCollectionEntries, *LexToString(NumActiveObjects), *LexToString(NumRuntimeObjects-NumActiveObjects),  *LexToString(NumRegisteredComponents)));
+
+	const FColor FreeColor = FColorList::SeaGreen;
+	const FColor ClaimedColor = FColorList::Gold;
+	const FColor OccupiedColor = FColorList::Red;
+	const FColor DisabledColor = FColorList::Grey;
 
 	const TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState>& Entries = Subsystem->DebugGetRuntimeSlots();
 	for (auto& LookupEntry : Entries)
@@ -77,6 +101,7 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		case ESmartObjectSlotState::Free:		StateColor = FreeColor;		break;
 		case ESmartObjectSlotState::Claimed:	StateColor = ClaimedColor;	break;
 		case ESmartObjectSlotState::Occupied:	StateColor = OccupiedColor;	break;
+		case ESmartObjectSlotState::Disabled:	StateColor = DisabledColor;	break;
 		default:
 			ensureMsgf(false, TEXT("Unsupported value: %s"), *UEnum::GetValueAsString(SlotState.GetState()));
 		}

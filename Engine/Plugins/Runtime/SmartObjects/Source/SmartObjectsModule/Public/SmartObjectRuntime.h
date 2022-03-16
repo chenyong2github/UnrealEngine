@@ -2,12 +2,16 @@
 
 #pragma once
 
+#include "GameplayEffectTypes.h"
 #include "MassEntityTypes.h"
 #include "MassEntityView.h"
 #include "Delegates/DelegateCombinations.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectDefinition.h"
 #include "SmartObjectRuntime.generated.h"
+
+/** Delegate fired when a given tag is added or removed. Tags on smart object are not using reference counting so count will be 0 or 1 */
+DECLARE_DELEGATE_TwoParams(FOnSmartObjectTagChanged, const FGameplayTag, int32);
 
 /**
  * Enumeration to represent the runtime state of a slot
@@ -16,9 +20,14 @@ UENUM()
 enum class ESmartObjectSlotState : uint8
 {
 	Invalid,
+	/** Slot is available */
 	Free,
+	/** Slot is claimed but interaction is not active yet */
 	Claimed,
-	Occupied
+	/** Slot is claimed and interaction is active */
+	Occupied,
+	/** Slot can no longer be claimed or used since the parent object and its slot are disabled (e.g. instance tags) */
+	Disabled
 };
 
 /**
@@ -55,6 +64,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 	}
 
 	void Invalidate() { *this = InvalidHandle; }
+
+	/**
+	 * Note that this method only indicates that the handle was setup by a call to 'Claim'.
+	 * It doesn't indicate that the associated object/slot are still valid in the simulation.
+	 * This information must be retrieved using 'IsClaimedObjectValid' from the SmartObjectSubsystem.
+	 */
 	bool IsValid() const
 	{
 		return SmartObjectHandle.IsValid()
@@ -117,7 +132,7 @@ protected:
 	friend struct FSmartObjectRuntime;
 
 	bool Claim(const FSmartObjectUserHandle& InUser);
-	bool Release(const FSmartObjectClaimHandle& ClaimHandle, const bool bAborted);
+	bool Release(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState NewState, const bool bAborted);
 	
 	friend FString LexToString(const FSmartObjectSlotClaimState& ClaimState)
 	{
@@ -146,7 +161,15 @@ public:
 	const FSmartObjectHandle& GetRegisteredHandle() const { return RegisteredHandle; }
 	const FTransform& GetTransform() const { return Transform; }
 	const USmartObjectDefinition& GetDefinition() const { checkf(Definition != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Definition; }
+	
+	/** Returns all tags assigned to the smart object instance */
 	const FGameplayTagContainer& GetTags() const { return Tags; }
+
+	/** Returns delegate that is invoked whenever a tag is added or removed */
+	FOnSmartObjectTagChanged& GetTagChangedDelegate() { return OnTagChangedDelegate; }
+
+	/** Indicates that this instance is still part of the simulation (space partition) but should not be considered valid by queries */
+	uint32 IsDisabled() const { return bDisabledByTags; }
 
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
@@ -175,6 +198,9 @@ private:
 	/** Tags applied to the current instance */
 	FGameplayTagContainer Tags;
 
+	/** Delegate fired whenever a new tag is added or an existing one gets removed */
+	FOnSmartObjectTagChanged OnTagChangedDelegate;
+
 	/** RegisteredHandle != FSmartObjectHandle::Invalid when registered with SmartObjectSubsystem */
 	FSmartObjectHandle RegisteredHandle;
 
@@ -185,6 +211,9 @@ private:
 #if UE_ENABLE_DEBUG_DRAWING
 	FBox Bounds = FBox(EForceInit::ForceInit);
 #endif
+
+	/** Each slot has its own disable state but keeping it also in the parent instance allow faster validation in some cases. */
+	bool bDisabledByTags = false;
 };
 
 USTRUCT()
@@ -194,6 +223,8 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotView
 
 public:
 	FSmartObjectSlotView() = default;
+
+	bool IsValid() const { return EntityView.IsSet(); }
 
 	FSmartObjectSlotHandle GetSlotHandle() const { return EntityView.GetEntity(); }
 

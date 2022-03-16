@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectCollection.h"
+
+#include "GameplayTagAssetInterface.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectComponent.h"
@@ -11,12 +13,16 @@
 // FSmartObjectCollectionEntry 
 //----------------------------------------------------------------------//
 FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectHandle& SmartObjectHandle, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex)
-	: Handle(SmartObjectHandle)
-	, Path(&SmartObjectComponent)
+	: Path(&SmartObjectComponent)
 	, Transform(SmartObjectComponent.GetComponentTransform())
 	, Bounds(SmartObjectComponent.GetSmartObjectBounds())
+	, Handle(SmartObjectHandle)
 	, DefinitionIdx(DefinitionIndex)
 {
+	if (const IGameplayTagAssetInterface* TagInterface = Cast<IGameplayTagAssetInterface>(SmartObjectComponent.GetOwner()))
+	{
+		TagInterface->GetOwnedGameplayTags(Tags);
+	}
 }
 
 USmartObjectComponent* FSmartObjectCollectionEntry::GetComponent() const
@@ -139,14 +145,17 @@ bool ASmartObjectCollection::UnregisterWithSubsystem(const FString& Context)
 	return true;
 }
 
-bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
+FSmartObjectCollectionEntry* ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent, bool& bAlreadyInCollection)
 {
+	FSmartObjectCollectionEntry* Entry = nullptr;
+	bAlreadyInCollection = false;
+
 	const UWorld* World = GetWorld();
 	if (World == nullptr)
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' can't be registered to collection '%s': no associated world"),
 			*GetNameSafe(SOComponent.GetOwner()), *GetFullName());
-		return false;
+		return Entry;
 	}
 
 	const FSoftObjectPath ObjectPath = &SOComponent;
@@ -169,16 +178,17 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 	FSmartObjectHandle Handle = FSmartObjectHandle(HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString())));
 	SOComponent.SetRegisteredHandle(Handle);
 
-	const FSmartObjectCollectionEntry* ExistingEntry = CollectionEntries.FindByPredicate([Handle](const FSmartObjectCollectionEntry& Entry)
+	Entry = CollectionEntries.FindByPredicate([Handle](const FSmartObjectCollectionEntry& ExistingEntry)
 	{
-		return Entry.Handle == Handle;
+		return ExistingEntry.Handle == Handle;
 	});
 
-	if (ExistingEntry != nullptr)
+	if (Entry != nullptr)
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("'%s[%s]' already registered to collection '%s'"),
 			*GetNameSafe(SOComponent.GetOwner()), *LexToString(Handle), *GetFullName());
-		return false;
+		bAlreadyInCollection = true;
+		return Entry;
 	}
 
 	const USmartObjectDefinition* Definition = SOComponent.GetDefinition();
@@ -186,9 +196,10 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 	uint32 DefinitionIndex = Definitions.AddUnique(Definition);
 
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding '%s[%s]' to collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *LexToString(Handle), *GetFullName());
-	CollectionEntries.Emplace(Handle, SOComponent, DefinitionIndex);
+	const int32 NewEntryIndex = CollectionEntries.Emplace(Handle, SOComponent, DefinitionIndex);
 	RegisteredIdToObjectMap.Add(Handle, ObjectPath);
-	return true;
+
+	return &CollectionEntries[NewEntryIndex];
 }
 
 bool ASmartObjectCollection::RemoveSmartObject(USmartObjectComponent& SOComponent)
@@ -312,11 +323,12 @@ void ASmartObjectCollection::RebuildCollection(const TConstArrayView<USmartObjec
 
 	ResetCollection(Components.Num());
 
+	bool bAlreadyInCollection = false;
 	for (USmartObjectComponent* const Component : Components)
 	{
 		if (Component != nullptr)
 		{
-			AddSmartObject(*Component);
+			AddSmartObject(*Component, bAlreadyInCollection);
 		}
 	}
 

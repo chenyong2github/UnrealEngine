@@ -7,6 +7,9 @@
 #include "SmartObjectDefinition.h"
 #include "SmartObjectComponent.generated.h"
 
+class UAbilitySystemComponent;
+struct FSmartObjectRuntime;
+
 UCLASS(Blueprintable, ClassGroup = Gameplay, meta = (BlueprintSpawnableComponent), config = Game, HideCategories = (Activation, AssetUserData, Collision, Cooking, HLOD, Lighting, LOD, Mobile, Mobility, Navigation, Physics, RayTracing, Rendering, Tags, TextureStreaming))
 class SMARTOBJECTSMODULE_API USmartObjectComponent : public USceneComponent
 {
@@ -23,6 +26,11 @@ public:
 	FSmartObjectHandle GetRegisteredHandle() const { return RegisteredHandle; }
 	void SetRegisteredHandle(const FSmartObjectHandle Value) { RegisteredHandle = Value; }
 
+	void OnRuntimeInstanceCreated(FSmartObjectRuntime& RuntimeInstance);
+	void OnRuntimeInstanceDestroyed();
+	void OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeInstance);
+	void OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance);
+
 protected:
 	friend struct FSmartObjectComponentInstanceData;
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
@@ -32,12 +40,19 @@ protected:
 
 	void RegisterToSubsystem();
 
+	void BindTagsDelegates(FSmartObjectRuntime& RuntimeInstance, UAbilitySystemComponent& AbilitySystemComponent);
+	void UnbindComponentTagsDelegate();
+	void UnbindRuntimeInstanceTagsDelegate(FSmartObjectRuntime& RuntimeInstance);
+
 	UPROPERTY(EditAnywhere, Category = SmartObject, BlueprintReadWrite)
 	TObjectPtr<USmartObjectDefinition> DefinitionAsset;
 
 	/** RegisteredHandle != FSmartObjectHandle::Invalid when registered into a collection by SmartObjectSubsystem */
 	UPROPERTY(Transient, VisibleAnywhere, Category = SmartObject)
 	FSmartObjectHandle RegisteredHandle;
+
+	FDelegateHandle OnComponentTagsModifiedHandle;
+	bool bInstanceTagsDelegateBound = false;
 };
 
 

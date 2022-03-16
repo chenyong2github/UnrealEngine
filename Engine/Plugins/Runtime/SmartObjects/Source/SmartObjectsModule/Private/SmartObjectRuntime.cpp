@@ -31,7 +31,7 @@ bool FSmartObjectSlotClaimState::Claim(const FSmartObjectUserHandle& InUser)
 	return false;
 }
 
-bool FSmartObjectSlotClaimState::Release(const FSmartObjectClaimHandle& ClaimHandle, const bool bAborted)
+bool FSmartObjectSlotClaimState::Release(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState NewState, const bool bAborted)
 {
 	if (!ensureMsgf(ClaimHandle.IsValid(), TEXT("Attempting to release a slot using an invalid handle: %s"), *LexToString(ClaimHandle)))
 	{
@@ -58,7 +58,7 @@ bool FSmartObjectSlotClaimState::Release(const FSmartObjectClaimHandle& ClaimHan
 			UE_LOG(LogSmartObject, Verbose, TEXT("Slot invalidated callback was%scalled for %s"), bFunctionWasExecuted ? TEXT(" ") : TEXT(" not "), *LexToString(ClaimHandle));
 		}
 
-		State = ESmartObjectSlotState::Free;
+		State = NewState;
 		User.Reset();
 		bReleased = true;
 	}

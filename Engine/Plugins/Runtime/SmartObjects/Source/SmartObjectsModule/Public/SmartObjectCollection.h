@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GameplayTagContainer.h"
 #include "GameFramework/Actor.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectCollection.generated.h"
@@ -24,6 +25,7 @@ public:
 	FTransform GetTransform() const { return Transform; }
 	const FBox& GetBounds() const { return Bounds; }
 	uint32 GetDefinitionIndex() const { return DefinitionIdx; }
+	const FGameplayTagContainer& GetTags() const { return Tags; }
 
 	friend FString LexToString(const FSmartObjectCollectionEntry& CollectionEntry)
 	{
@@ -35,8 +37,8 @@ protected:
 	// might change to better support streaming so keeping this as encapsulated as possible
 	friend class ASmartObjectCollection;
 
-	UPROPERTY(VisibleAnywhere, Category = SmartObject, meta = (ShowOnlyInnerProperties))
-	FSmartObjectHandle Handle;
+	UPROPERTY(VisibleAnywhere, Category = SmartObject)
+	FGameplayTagContainer Tags;
 
 	UPROPERTY()
 	FSoftObjectPath Path;
@@ -46,6 +48,9 @@ protected:
 
 	UPROPERTY()
 	FBox Bounds = FBox(ForceInitToZero);
+
+	UPROPERTY(VisibleAnywhere, Category = SmartObject, meta = (ShowOnlyInnerProperties))
+	FSmartObjectHandle Handle;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	uint32 DefinitionIdx = INDEX_NONE;
@@ -100,7 +105,13 @@ protected:
 	bool IsRegistered() const { return bRegistered; }
 	void OnUnregistered();
 
-	bool AddSmartObject(USmartObjectComponent& SOComponent);
+	/**
+	 * Creates a new entry for a given component.
+	 * @param SOComponent SmartObject Component for which a new entry must be created
+	 * @param bAlreadyInCollection Output parameter to indicate if an existing entry was returned instead of a newly created one.
+	 * @return Pointer to the created or existing entry. An unset value indicates a registration error.
+	 */
+	FSmartObjectCollectionEntry* AddSmartObject(USmartObjectComponent& SOComponent, bool& bAlreadyInCollection);
 	bool RemoveSmartObject(USmartObjectComponent& SOComponent);
 	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectHandle& SmartObjectHandle) const;
 
