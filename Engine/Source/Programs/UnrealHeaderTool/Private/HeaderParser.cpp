@@ -6449,6 +6449,13 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 			LogError(TEXT("RigVM Struct '%s' - Member '%s' is editor only - WITH_EDITORONLY_DATA not allowed on structs with RIGVM_METHOD."), *StructDef.GetName(), *Parameter.Name, *MemberCPPType);
 		}
 
+#if !UE_RIGVM_UOBJECT_PROPERTIES_ENABLED
+		if(PropertyDef->GetPropertyBase().IsObjectOrInterface())
+		{
+			LogError(TEXT("RigVM Struct '%s' - Member '%s' is a UObject or interface - object types are not allowed on structs with RIGVM_METHOD."), *StructDef.GetName(), *Parameter.Name);
+		}
+#endif
+
 		if (!ExtendedCPPType.IsEmpty())
 		{
 			// we only support arrays - no maps or similar data structures

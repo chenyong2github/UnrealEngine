@@ -855,7 +855,7 @@ bool UControlRigGraphSchema::SupportsPinType(UScriptStruct* ScriptStruct) const
 				continue;
 			}
 		}
-		else if (CastField<FObjectProperty>(Property))
+		else if (CastField<FObjectProperty>(Property) && RigVMCore::SupportsUObjects())
 		{
 			continue;
 		}
@@ -885,13 +885,16 @@ bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction
 		return true;
 	}
 
-	if (PinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
-		PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject ||
-		PinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes)
+	if(RigVMCore::SupportsUObjects())
 	{
-		if (PinType.PinSubCategoryObject.IsValid())
+		if (PinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
+			PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject ||
+			PinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes)
 		{
-			return PinType.PinSubCategoryObject->IsA<UClass>();
+			if (PinType.PinSubCategoryObject.IsValid())
+			{
+				return PinType.PinSubCategoryObject->IsA<UClass>();
+			}
 		}
 	}
 

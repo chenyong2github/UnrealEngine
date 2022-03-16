@@ -10,3 +10,8 @@
 #include "RigVMDefines.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRigVM, Log, All);
+
+namespace RigVMCore
+{
+	RIGVM_API bool SupportsUObjects();
+}

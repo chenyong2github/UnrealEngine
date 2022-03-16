@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "RigVMTraits.h"
+#include "RigVMDefines.h"
 #include "RigVMMemory.h"
+#include "RigVMModule.h"
 #include "UObject/UnrealType.h"
 
 /**
@@ -78,10 +80,18 @@ struct RIGVM_API FRigVMExternalVariable
 		}
 		else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
 		{
-			OutTypeName = *FString::Printf(TEXT("TObjectPtr<%s%s>"),
-				ObjectProperty->PropertyClass->GetPrefixCPP(),
-				*ObjectProperty->PropertyClass->GetName());
-			OutTypeObject = ObjectProperty->PropertyClass;
+			if(RigVMCore::SupportsUObjects())
+			{
+				OutTypeName = *FString::Printf(TEXT("TObjectPtr<%s%s>"),
+					ObjectProperty->PropertyClass->GetPrefixCPP(),
+					*ObjectProperty->PropertyClass->GetName());
+				OutTypeObject = ObjectProperty->PropertyClass;
+			}
+			else
+			{
+				OutTypeName = NAME_None;
+				OutTypeObject = nullptr;
+			}
 		}
 		else
 		{

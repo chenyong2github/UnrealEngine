@@ -27,6 +27,13 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FProperty* InProperty
 	const FProperty* ChildProperty = InProperty;
 	do
 	{
+		if(ChildProperty->IsA<FObjectProperty>() ||
+			ChildProperty->IsA<FSoftObjectProperty>() ||
+			ChildProperty->IsA<FInterfaceProperty>())
+		{
+			checkf(RigVMCore::SupportsUObjects(), TEXT("UClass / UInterface types are not supported."));
+		}
+
 		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ChildProperty))
 		{
 			Containers.Add(EPinContainerType::Array);
@@ -61,6 +68,15 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FName& InName, const 
 	if(RequiresCPPTypeObject(CPPType))
 	{
 		checkf(CPPTypeObject != nullptr, TEXT("CPPType '%s' requires the CPPTypeObject to be provided."), *CPPType);
+	}
+
+	if(CPPTypeObject)
+	{
+		if(CPPTypeObject->IsA<UClass>() ||
+			CPPTypeObject->IsA<UInterface>())
+		{
+			checkf(RigVMCore::SupportsUObjects(), TEXT("UClass / UInterface types are not supported."));
+		}
 	}
 
 	// only allow valid names
@@ -494,6 +510,8 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 			}
 			else if(UClass* PropertyClass = Cast<UClass>(InProperty.CPPTypeObject))
 			{
+				check(RigVMCore::SupportsUObjects());
+
 				FObjectProperty* ObjectProperty = new FObjectProperty(PropertyOwner, InProperty.Name, RF_Public);
 				ObjectProperty->SetPropertyClass(PropertyClass);
 				(*ValuePropertyPtr) = ObjectProperty;

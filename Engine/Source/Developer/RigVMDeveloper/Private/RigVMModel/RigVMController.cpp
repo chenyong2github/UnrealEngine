@@ -11443,7 +11443,16 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 	}
 	else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(PropertyForType))
 	{
-		InOutPin->CPPTypeObject = ObjectProperty->PropertyClass;
+		if(RigVMCore::SupportsUObjects())
+		{
+			InOutPin->CPPTypeObject = ObjectProperty->PropertyClass;
+		}
+		else
+		{
+			ReportErrorf(TEXT("Unsupported type '%s' for pin."), *ObjectProperty->PropertyClass->GetName(), *InOutPin->GetName());
+			InOutPin->CPPType = FString();
+			InOutPin->CPPTypeObject = nullptr;
+		}
 	}
 	else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(PropertyForType))
 	{

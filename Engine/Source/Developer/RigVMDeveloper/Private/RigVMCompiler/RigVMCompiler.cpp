@@ -281,6 +281,17 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 						}
 					}
 				}
+
+				if(VariableDescription.CPPTypeObject && !RigVMCore::SupportsUObjects())
+				{
+					if(VariableDescription.CPPTypeObject->IsA<UClass>() ||
+						VariableDescription.CPPTypeObject->IsA<UInterface>())
+					{
+						static const FString InvalidObjectTypeMessage = TEXT("Variable Node @@ uses an unsupported UClass / UInterface type.");
+						Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, InvalidObjectTypeMessage);
+						bEncounteredGraphError = true;
+					}
+				}
 			}
 
 			for(URigVMPin* Pin : ModelNode->Pins)
