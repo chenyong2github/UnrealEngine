@@ -9,173 +9,161 @@
     ".NETCoreApp,Version=v3.1/osx-x64": {
       "GitDependencies/1.0.0": {
         "dependencies": {
-          "runtimepack.Microsoft.NETCore.App.Runtime.osx-x64": "3.1.9"
+          "runtimepack.Microsoft.NETCore.App.Runtime.osx-x64": "3.1.23"
         },
         "runtime": {
           "GitDependencies.dll": {}
         }
       },
-      "runtimepack.Microsoft.NETCore.App.Runtime.osx-x64/3.1.9": {
+      "runtimepack.Microsoft.NETCore.App.Runtime.osx-x64/3.1.23": {
         "runtime": {
           "Microsoft.Win32.Primitives.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Collections.Concurrent.dll": {
             "assemblyVersion": "4.0.15.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Collections.NonGeneric.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Collections.Specialized.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Collections.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Console.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Diagnostics.DiagnosticSource.dll": {
             "assemblyVersion": "4.0.5.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Diagnostics.Tools.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Diagnostics.TraceSource.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.IO.Compression.Brotli.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.IO.Compression.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.IO.FileSystem.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Linq.Expressions.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Linq.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.Http.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.NameResolution.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.NetworkInformation.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.Primitives.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.Requests.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.Security.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.ServicePoint.dll": {
             "assemblyVersion": "4.0.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.Sockets.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.WebHeaderCollection.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Net.WebProxy.dll": {
             "assemblyVersion": "4.0.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.ObjectModel.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Private.Uri.dll": {
             "assemblyVersion": "4.0.6.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Private.Xml.dll": {
             "assemblyVersion": "4.0.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Runtime.Extensions.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Runtime.Numerics.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Runtime.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
-          },
-          "System.Security.Claims.dll": {
-            "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Security.Cryptography.Algorithms.dll": {
             "assemblyVersion": "4.3.2.0",
-            "fileVersion": "4.700.20.47203"
-          },
-          "System.Security.Cryptography.Cng.dll": {
-            "assemblyVersion": "4.3.3.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Security.Cryptography.Csp.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Security.Cryptography.Encoding.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Security.Cryptography.Primitives.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Security.Cryptography.X509Certificates.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
-          },
-          "System.Security.Principal.Windows.dll": {
-            "assemblyVersion": "4.1.3.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Security.Principal.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           },
           "System.Text.RegularExpressions.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.20.47203"
+            "fileVersion": "4.700.22.12208"
           }
         },
         "native": {
@@ -211,7 +199,7 @@
           },
           "System.Private.CoreLib.dll": {
             "assemblyVersion": "4.0.0.0",
-            "fileVersion": "4.700.20.47201"
+            "fileVersion": "4.700.22.11601"
           },
           "System.Security.Cryptography.Native.Apple.a": {
             "fileVersion": "0.0.0.0"
@@ -256,7 +244,7 @@
       "serviceable": false,
       "sha512": ""
     },
-    "runtimepack.Microsoft.NETCore.App.Runtime.osx-x64/3.1.9": {
+    "runtimepack.Microsoft.NETCore.App.Runtime.osx-x64/3.1.23": {
       "type": "runtimepack",
       "serviceable": false,
       "sha512": ""
