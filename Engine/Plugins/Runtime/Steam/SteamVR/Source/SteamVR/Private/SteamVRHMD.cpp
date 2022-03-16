@@ -1486,8 +1486,8 @@ FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const int32 StereoViewIndex) cons
 
 	if (StereoViewIndex == EStereoscopicEye::eSSE_MONOSCOPIC)
 	{
-		float Dummy;
-		VRSystem->GetProjectionRaw(vr::Eye_Right, &Right, &Dummy, &Dummy, &Dummy);
+		float DummyLeft, DummyTop, DummyBottom;
+		VRSystem->GetProjectionRaw(vr::Eye_Right, &Right, &DummyLeft, &DummyTop, &DummyBottom);
 		Right *= -1.0f;
 	}
 
