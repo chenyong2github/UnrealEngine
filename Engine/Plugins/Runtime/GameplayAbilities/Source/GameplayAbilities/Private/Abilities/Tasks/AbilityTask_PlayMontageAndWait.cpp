@@ -184,8 +184,13 @@ void UAbilityTask_PlayMontageAndWait::OnDestroy(bool AbilityEnded)
 
 bool UAbilityTask_PlayMontageAndWait::StopPlayingMontage()
 {
+	if (Ability == nullptr)
+	{
+		return false;
+	}
+
 	const FGameplayAbilityActorInfo* ActorInfo = Ability->GetCurrentActorInfo();
-	if (!ActorInfo)
+	if (ActorInfo == nullptr)
 	{
 		return false;
 	}
