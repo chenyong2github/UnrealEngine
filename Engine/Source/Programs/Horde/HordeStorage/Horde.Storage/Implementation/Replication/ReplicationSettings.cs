@@ -75,7 +75,7 @@ namespace Horde.Storage
         /// <summary>
         /// The replication will stop its run after this many events have been processed, yielding its time until the next time a replication is triggered.
         /// </summary>
-        public int MaxReplicationsPerRun { get; set; } = 1000;
+        public int MaxReplicationsPerRun { get; set; } = 5000;
 
         /// <summary>
         /// Max number of offsets to skip when finding broken events in the transaction logs, higher value means we scan further increasing the likelihood of finding a valid entry, but also means risk that we skip records you would want.

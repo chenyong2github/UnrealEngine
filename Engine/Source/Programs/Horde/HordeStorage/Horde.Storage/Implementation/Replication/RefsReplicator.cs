@@ -41,6 +41,7 @@ namespace Horde.Storage.Implementation
         private readonly HttpClient _httpClient;
         private RefsState _refsState;
         private bool _replicationRunning;
+        private bool _disposed = false;
 
         public RefsReplicator(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials)
         {
@@ -83,9 +84,15 @@ namespace Horde.Storage.Implementation
 
         public void Dispose()
         {
+            if (_disposed)
+                return;
+
             SaveState(_stateFile, _refsState);
 
+            _replicationFinishedEvent.Wait();
             _replicationTokenSource.Dispose();
+
+            _disposed = true;
         }
 
         private static RefsState ReadState(FileInfo stateFile)
@@ -373,6 +380,9 @@ namespace Horde.Storage.Implementation
             CancellationTokenSource linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token, replicationToken);
             ISpanContext parentSpanContext = Tracer.Instance.ActiveScope.Span.Context;
 
+            if (replicationToken.IsCancellationRequested)
+                return countOfReplicationsDone;
+
             await GetRefEvents(ns, lastBucket, lastEvent, replicationToken).ParallelForEachAsync(async (ReplicationLogEvent @event) =>
             {
                 // if we have done all the replication events we should do in a single run we abort
@@ -591,6 +601,9 @@ namespace Horde.Storage.Implementation
 
         public async Task StopReplicating()
         {
+            if (_disposed)
+                return;
+
             _replicationTokenSource.Cancel(true);
             await _replicationFinishedEvent.WaitAsync();
         }

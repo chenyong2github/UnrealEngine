@@ -16,7 +16,7 @@ using Serilog;
 namespace Horde.Storage.Implementation
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class ReplicationService : PollingService<ReplicationService.ReplicationState>, IDisposable
+    public class ReplicationService : PollingService<ReplicationService.ReplicationState>
     {
         private readonly IOptionsMonitor<ReplicationSettings> _settings;
         private readonly ILeaderElection _leaderElection;
@@ -64,10 +64,8 @@ namespace Horde.Storage.Implementation
                 return;
 
             // if we are no longer the leader cancel any pending replications
-            foreach (IReplicator replicator in State.Replicators)
-            {
-                //TODO: Cancel replications
-            }
+            Task[] stopReplicatingTasks = State.Replicators.Select(replicator => replicator.StopReplicating()).ToArray();
+            Task.WaitAll(stopReplicatingTasks);
         }
 
         private static IReplicator CreateReplicator(ReplicatorSettings replicatorSettings, IServiceProvider provider)
@@ -143,17 +141,14 @@ namespace Horde.Storage.Implementation
         protected override async Task OnStopping(ReplicationState state)
         {
             await Task.WhenAll(state.Replicators.Select(replicator => replicator.StopReplicating()).ToArray());
-        }
 
-        public void Dispose()
-        {
             // we should have been stopped first so this should not be needed, but to make sure state is stored we dispose of it again
             foreach (IReplicator replicator in State.Replicators)
             {
                 replicator.Dispose();
             }
         }
-
+        
         public IEnumerable<IReplicator> GetReplicators(NamespaceId ns)
         {
             return State.Replicators

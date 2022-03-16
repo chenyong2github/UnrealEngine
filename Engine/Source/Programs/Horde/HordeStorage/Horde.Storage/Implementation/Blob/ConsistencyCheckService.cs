@@ -19,7 +19,7 @@ using Serilog;
 namespace Horde.Storage.Implementation
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class ConsistencyCheckService : PollingService<ConsistencyCheckService.ConsistencyState>, IDisposable
+    public class ConsistencyCheckService : PollingService<ConsistencyCheckService.ConsistencyState>
     {
         private readonly IOptionsMonitor<ConsistencyCheckSettings> _settings;
         private readonly IServiceProvider _provider;
@@ -125,11 +125,6 @@ namespace Horde.Storage.Implementation
         protected override Task OnStopping(ConsistencyState state)
         {
             return Task.CompletedTask;
-        }
-
-        public void Dispose()
-        {
-
         }
     }
 

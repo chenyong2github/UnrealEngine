@@ -9,7 +9,7 @@ using Serilog;
 
 namespace Jupiter
 {
-    public abstract class PollingService<T> : IHostedService
+    public abstract class PollingService<T> : IHostedService, IAsyncDisposable
     {
         private struct ThreadState
         {
@@ -29,6 +29,7 @@ namespace Jupiter
         private readonly ManualResetEvent _hasFinishedRunning = new ManualResetEvent(true);
         private volatile bool _alreadyRunning = false;
         private Timer? _timer;
+        private bool _disposed = false;
 
         protected PollingService(string serviceName, TimeSpan pollFrequency, T state)
         {
@@ -147,13 +148,23 @@ namespace Jupiter
         {
             _logger.Information("{Service} poll service stopping.", _serviceName);
 
+            if (_timer != null)
+                await _timer.DisposeAsync();
+            _timer = null;
+
             await OnStopping(_state);
 
             _stopPolling.Cancel();
             _hasFinishedRunning.WaitOne();
-            if (_timer != null)
-                await _timer.DisposeAsync();
-            _timer = null;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            await StopAsync(CancellationToken.None);
         }
     }
 }
