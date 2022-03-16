@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
 #include "Interfaces/OnlineTitleFileInterface.h"
-#include "OnlineSubsystemEOSPackage.h"
 #include "OnlineSubsystemEOSTypes.h"
 
 class FOnlineSubsystemEOS;
@@ -49,7 +48,6 @@ public:
 	virtual bool ReadFile(const FString& FileName) override;
 //~IOnlineTitleFile
 
-PACKAGE_SCOPE:
 	FOnlineTitleFileEOS(FOnlineSubsystemEOS* InSubsystem)
 		: EOSSubsystem(InSubsystem)
 	{

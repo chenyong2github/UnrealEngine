@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
 #include "Interfaces/OnlineAchievementsInterface.h"
-#include "OnlineSubsystemEOSPackage.h"
 #include "OnlineSubsystemEOSTypes.h"
 
 class FOnlineSubsystemEOS;
@@ -36,7 +35,6 @@ public:
 #endif
 // ~IOnlineAchievements Interface
 
-PACKAGE_SCOPE:
 	FOnlineAchievementsEOS(FOnlineSubsystemEOS* InSubsystem)
 		: EOSSubsystem(InSubsystem)
 	{

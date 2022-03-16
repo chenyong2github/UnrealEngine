@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Interfaces/OnlineLeaderboardInterface.h"
-#include "OnlineSubsystemEOSPackage.h"
 #include "OnlineSubsystemEOSTypes.h"
 
 class FOnlineSubsystemEOS;
@@ -35,7 +34,6 @@ public:
 	virtual bool WriteOnlinePlayerRatings(const FName& SessionName, int32 LeaderboardId, const TArray<FOnlinePlayerScore>& PlayerScores) override;
 // ~IOnlineLeaderboards Interface
 
-PACKAGE_SCOPE:
 	FOnlineLeaderboardsEOS(FOnlineSubsystemEOS* InSubsystem)
 		: EOSSubsystem(InSubsystem)
 	{

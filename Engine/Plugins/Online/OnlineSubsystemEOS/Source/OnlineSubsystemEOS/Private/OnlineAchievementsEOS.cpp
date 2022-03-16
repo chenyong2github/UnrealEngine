@@ -3,10 +3,10 @@
 #include "OnlineAchievementsEOS.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemEOS.h"
+#include "OnlineSubsystemEOSPrivate.h"
 #include "OnlineSubsystemEOSTypes.h"
 #include "OnlineStatsEOS.h"
 #include "UserManagerEOS.h"
-
 
 #if WITH_EOS_SDK
 #include "eos_achievements.h"

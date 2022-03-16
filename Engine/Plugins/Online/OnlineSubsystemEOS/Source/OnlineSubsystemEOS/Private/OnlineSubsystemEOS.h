@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IOnlineSubsystemEOS.h"
 #include "OnlineSubsystemNames.h"
-#include "OnlineSubsystemImpl.h"
 
 #include COMPILED_PLATFORM_HEADER(EOSHelpers.h)
 
@@ -53,7 +53,7 @@ typedef TSharedPtr<FPlatformEOSHelpers, ESPMode::ThreadSafe> FPlatformEOSHelpers
  *	OnlineSubsystemEOS - Implementation of the online subsystem for EOS services
  */
 class ONLINESUBSYSTEMEOS_API FOnlineSubsystemEOS : 
-	public FOnlineSubsystemImpl
+	public IOnlineSubsystemEOS
 {
 public:
 	virtual ~FOnlineSubsystemEOS() = default;
@@ -62,8 +62,11 @@ public:
 	static void ModuleInit();
 	static void ModuleShutdown();
 
-
 	FPlatformEOSHelpersPtr GetEOSHelpers() { return EOSHelpersPtr; };
+
+// IOnlineSubsystemEOS
+	virtual IVoiceChatUser* GetVoiceChatUserInterface(const FUniqueNetId& LocalUserId) override;
+	virtual IEOSPlatformHandlePtr GetEOSPlatformHandle() const override { return EOSPlatformHandle; };
 
 // IOnlineSubsystem
 	virtual IOnlineSessionPtr GetSessionInterface() const override;
@@ -104,10 +107,6 @@ public:
 // FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
-	IVoiceChatUser* GetVoiceChatUserInterface(const FUniqueNetId& LocalUserId);
-	IEOSPlatformHandlePtr GetEOSPlatformHandle() { return EOSPlatformHandle; };
-
-PACKAGE_SCOPE:
 	/** Only the factory makes instances */
 	FOnlineSubsystemEOS() = delete;
 	explicit FOnlineSubsystemEOS(FName InInstanceName);

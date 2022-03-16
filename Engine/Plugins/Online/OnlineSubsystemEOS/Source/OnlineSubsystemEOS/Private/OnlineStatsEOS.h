@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Interfaces/OnlineStatsInterface.h"
-#include "OnlineSubsystemEOSPackage.h"
 #include "OnlineSubsystemEOSTypes.h"
 
 class FOnlineSubsystemEOS;
@@ -32,7 +31,6 @@ public:
 #endif
 // ~IOnlineStats Interface
 
-PACKAGE_SCOPE:
 	FOnlineStatsEOS(FOnlineSubsystemEOS* InSubsystem)
 		: EOSSubsystem(InSubsystem)
 	{

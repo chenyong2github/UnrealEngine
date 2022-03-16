@@ -7,6 +7,7 @@
 #include "IEOSSDKManager.h"
 #include "OnlineError.h"
 #include "OnlineSubsystemEOS.h"
+#include "OnlineSubsystemEOSPrivate.h"
 #include "UserManagerEOS.h"
 
 void FEOSHelpers::PlatformAuthCredentials(EOS_Auth_Credentials &Credentials)

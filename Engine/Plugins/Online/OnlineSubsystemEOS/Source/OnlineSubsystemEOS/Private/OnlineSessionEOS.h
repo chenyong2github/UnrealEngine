@@ -5,7 +5,6 @@
 #include "Misc/ScopeLock.h"
 #include "OnlineSessionSettings.h"
 #include "Interfaces/OnlineSessionInterface.h"
-#include "OnlineSubsystemEOSPackage.h"
 #include "LANBeacon.h"
 #include "OnlineSubsystemEOSTypes.h"
 
@@ -137,7 +136,6 @@ public:
 	virtual void DumpSessionState() override;
 // ~IOnlineSession Interface
 
-PACKAGE_SCOPE:
 	/** Critical sections for thread safe operation of session lists */
 	mutable FCriticalSection SessionLock;
 

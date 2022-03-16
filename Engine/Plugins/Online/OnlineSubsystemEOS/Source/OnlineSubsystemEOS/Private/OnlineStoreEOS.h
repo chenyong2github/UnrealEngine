@@ -6,7 +6,6 @@
 #include "Online/CoreOnline.h"
 #include "Interfaces/OnlineStoreInterfaceV2.h"
 #include "Interfaces/OnlinePurchaseInterface.h"
-#include "OnlineSubsystemEOSPackage.h"
 #include "OnlineSubsystemEOSTypes.h"
 
 #if WITH_EOS_SDK
@@ -44,7 +43,6 @@ public:
 	virtual void FinalizeReceiptValidationInfo(const FUniqueNetId& UserId, FString& InReceiptValidationInfo, const FOnFinalizeReceiptValidationInfoComplete& Delegate) override;
 // End IOnlinePurchase
 
-PACKAGE_SCOPE:
 	FOnlineStoreEOS(FOnlineSubsystemEOS* InSubsystem);
 
 	bool HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);

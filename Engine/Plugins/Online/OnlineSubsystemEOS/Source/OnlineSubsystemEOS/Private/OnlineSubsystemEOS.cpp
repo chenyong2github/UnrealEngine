@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemEOS.h"
+#include "OnlineSubsystemEOSPrivate.h"
 #include "OnlineSubsystemUtils.h"
 #include "UserManagerEOS.h"
 #include "OnlineSessionEOS.h"
@@ -541,7 +542,7 @@ FText FOnlineSubsystemEOS::GetOnlineServiceName() const
 }
 
 FOnlineSubsystemEOS::FOnlineSubsystemEOS(FName InInstanceName) :
-	FOnlineSubsystemImpl(EOS_SUBSYSTEM, InInstanceName)
+	IOnlineSubsystemEOS(EOS_SUBSYSTEM, InInstanceName)
 	, EOSSDKManager(nullptr)
 	, AuthHandle(nullptr)
 	, UIHandle(nullptr)

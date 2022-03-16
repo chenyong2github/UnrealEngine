@@ -337,7 +337,6 @@ public:
 	virtual FUniqueNetIdPtr GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) override;
 // ~IOnlineUser Interface
 
-PACKAGE_SCOPE:
 	EOS_EpicAccountId GetLocalEpicAccountId(int32 LocalUserNum) const;
 	EOS_EpicAccountId GetLocalEpicAccountId() const;
 	EOS_ProductUserId GetLocalProductUserId(int32 LocalUserNum) const;

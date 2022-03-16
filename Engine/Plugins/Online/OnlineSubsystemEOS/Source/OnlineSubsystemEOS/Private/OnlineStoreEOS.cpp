@@ -5,6 +5,7 @@
 #if WITH_EOS_SDK
 
 #include "OnlineSubsystemEOS.h"
+#include "OnlineSubsystemEOSPrivate.h"
 #include "UserManagerEOS.h"
 #include "eos_ecom.h"
 

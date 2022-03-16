@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
 #include "Interfaces/OnlineUserCloudInterface.h"
-#include "OnlineSubsystemEOSPackage.h"
 #include "OnlineSubsystemEOSTypes.h"
 
 class FOnlineSubsystemEOS;
@@ -54,7 +53,6 @@ public:
 	virtual void DumpCloudFileState(const FUniqueNetId& UserId, const FString& FileName) override;
 //~ IOnlineUserCloud
 
-PACKAGE_SCOPE:
 	FOnlineUserCloudEOS(FOnlineSubsystemEOS* InSubsystem)
 		: EOSSubsystem(InSubsystem)
 	{

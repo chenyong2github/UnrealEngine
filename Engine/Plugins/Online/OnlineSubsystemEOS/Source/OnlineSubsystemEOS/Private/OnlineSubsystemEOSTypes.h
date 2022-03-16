@@ -12,8 +12,6 @@
 #include "EOSShared.h"
 #include "IPAddress.h"
 
-#include "OnlineSubsystemEOSPackage.h"
-
 #define EOS_OSS_STRING_BUFFER_LENGTH 256 + 1 // 256 plus null terminator
 
 class FOnlineSubsystemEOS;
@@ -80,7 +78,6 @@ public:
 		return EOS_ID_BYTE_SIZE;
 	}
 
-PACKAGE_SCOPE:
 	void UpdateNetIdStr(const FString& InNetIdStr)
 	{
 		UniqueNetIdStr = InNetIdStr;
