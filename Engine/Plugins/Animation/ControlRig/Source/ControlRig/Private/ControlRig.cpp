@@ -663,7 +663,12 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.FramesPerSecond = GetCurrentFramesPerSecond();
 	Context.bDuringInteraction = IsInteracting();
 	Context.State = InState;
+	
 	Context.Hierarchy = GetHierarchy();
+	check(Context.Hierarchy);
+
+	// for now we'll disable any controller access during the run of a control rig
+	FRigHierarchyEnableControllerBracket DisableHierarchyController(Context.Hierarchy, false);
 
 	Context.ToWorldSpaceTransform = FTransform::Identity;
 	Context.OwningComponent = nullptr;

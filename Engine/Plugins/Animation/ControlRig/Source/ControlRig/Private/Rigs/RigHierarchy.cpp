@@ -102,6 +102,7 @@ URigHierarchy::URigHierarchy()
 , LastInteractedKey()
 , bSuspendNotifications(false)
 , HierarchyController(nullptr)
+, bIsControllerAvailable(true)
 , ResetPoseHash(INDEX_NONE)
 #if WITH_EDITOR
 , bPropagatingChange(false)
@@ -1586,6 +1587,8 @@ bool URigHierarchy::SwitchToParent(FRigElementKey InChild, FRigElementKey InPare
 bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial,
 	bool bAffectChildren, const TElementDependencyMap& InDependencyMap, FString* OutFailureReason)
 {
+	FRigHierarchyEnableControllerBracket EnableController(this, true);
+	
 	if(InChild && InParent)
 	{
 		if(!CanSwitchToParent(InChild->GetKey(), InParent->GetKey(), InDependencyMap, OutFailureReason))
@@ -1655,6 +1658,8 @@ bool URigHierarchy::SwitchToWorldSpace(FRigBaseElement* InChild, bool bInitial, 
 
 FRigElementKey URigHierarchy::GetOrAddWorldSpaceReference()
 {
+	FRigHierarchyEnableControllerBracket EnableController(this, true);
+
 	const FRigElementKey WorldSpaceReferenceKey = GetWorldSpaceReferenceKey();
 
 	FRigBaseElement* Parent = Find(WorldSpaceReferenceKey);
@@ -1944,8 +1949,17 @@ void URigHierarchy::SendAutoKeyEvent(FRigElementKey InElement, float InOffsetInS
 	SendEvent(Context, bAsynchronous);
 }
 
+bool URigHierarchy::IsControllerAvailable() const
+{
+	return bIsControllerAvailable;
+}
+
 URigHierarchyController* URigHierarchy::GetController(bool bCreateIfNeeded)
 {
+	if(!IsControllerAvailable())
+	{
+		return nullptr;
+	}
 	if(HierarchyController)
 	{
 		return HierarchyController;

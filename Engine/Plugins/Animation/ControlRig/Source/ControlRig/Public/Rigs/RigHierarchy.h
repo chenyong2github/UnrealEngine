@@ -1986,9 +1986,20 @@ public:
 	 * @return The delegate to listen to for events coming from this hierarchy
 	 */
 	FORCEINLINE FRigEventDelegate& OnEventReceived() { return EventDelegate; }
+	
+	/**
+	 * Returns true if the hierarchy controller is currently available
+	 * The controller may not be available during certain events.
+	 * If the controller is not available then GetController() will return nullptr.
+	 */ 
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	bool IsControllerAvailable() const;
 
 	/**
-	 * Returns a controller for this hierarchy
+	 * Returns a controller for this hierarchy.
+	 * Note: If the controller is not available this will return nullptr 
+	 * even if the bCreateIfNeeded flag is set to true. You can check the 
+	 * controller's availability with IsControllerAvailable().
 	 * @param bCreateIfNeeded Creates a controller if needed
 	 * @return The Controller for this hierarchy
 	 */
@@ -2698,6 +2709,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<URigHierarchyController> HierarchyController;
+	bool bIsControllerAvailable;
 
 	TMap<FRigElementKey, FRigElementKey> PreviousParentMap;
 
@@ -2982,6 +2994,22 @@ private:
 	friend struct FRigHierarchyValidityBracket;
 	friend struct FRigHierarchyGlobalValidityBracket;
 	friend struct FControlRigVisualGraphUtils;
+	friend struct FRigHierarchyEnableControllerBracket;
+};
+
+struct CONTROLRIG_API FRigHierarchyEnableControllerBracket : public TGuardValue<bool>
+{
+private:
+	FRigHierarchyEnableControllerBracket(URigHierarchy* InHierarchy, bool bEnable)
+		: TGuardValue<bool>(InHierarchy->bIsControllerAvailable, bEnable)
+	{
+	}
+
+	friend class URigHierarchy;
+	friend class UControlRig;
+
+	// certain units are allowed to use this
+	friend struct FRigUnit_AddParent;
 };
 
 struct CONTROLRIG_API FRigHierarchyValidityBracket

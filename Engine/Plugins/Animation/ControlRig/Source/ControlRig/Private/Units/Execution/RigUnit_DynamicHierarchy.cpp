@@ -26,6 +26,7 @@ FRigUnit_AddParent_Execute()
 		return;
 	}
 
+	FRigHierarchyEnableControllerBracket EnableController(ExecuteContext.Hierarchy, true);
 	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
 	{
 		Controller->AddParent(ChildElement, ParentElement, 0.f, true, false);
