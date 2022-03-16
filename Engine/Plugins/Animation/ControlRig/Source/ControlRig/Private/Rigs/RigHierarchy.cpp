@@ -1588,10 +1588,25 @@ bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* In
 	bool bAffectChildren, const TElementDependencyMap& InDependencyMap, FString* OutFailureReason)
 {
 	FRigHierarchyEnableControllerBracket EnableController(this, true);
+
+	// rely on the VM's dependency map if there's currently an available context.
+	const TElementDependencyMap* DependencyMapPtr = &InDependencyMap;
+
+#if WITH_EDITOR
+	TElementDependencyMap DependencyMapFromVM;
+	if(ExecuteContext != nullptr && DependencyMapPtr->IsEmpty())
+	{
+		if(ExecuteContext->VM)
+		{
+			DependencyMapFromVM = GetDependenciesForVM(ExecuteContext->VM);
+			DependencyMapPtr = &DependencyMapFromVM;
+		}
+	}
+#endif
 	
 	if(InChild && InParent)
 	{
-		if(!CanSwitchToParent(InChild->GetKey(), InParent->GetKey(), InDependencyMap, OutFailureReason))
+		if(!CanSwitchToParent(InChild->GetKey(), InParent->GetKey(), *DependencyMapPtr, OutFailureReason))
 		{
 			return false;
 		}

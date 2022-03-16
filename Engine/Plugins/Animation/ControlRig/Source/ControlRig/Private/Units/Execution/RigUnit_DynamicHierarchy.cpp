@@ -97,14 +97,8 @@ FRigUnit_SwitchParent_Execute()
 		default:
 		{
 			FString FailureReason;
-			URigHierarchy::TElementDependencyMap DependencyMap;
-#if WITH_EDITOR
-			if(ExecuteContext.VM)
-			{
-				DependencyMap = ExecuteContext.Hierarchy->GetDependenciesForVM(ExecuteContext.VM);
-			}
-#endif
-			if(!ExecuteContext.Hierarchy->SwitchToParent(ChildElement, ParentElement, false, true, DependencyMap, &FailureReason))
+			static const URigHierarchy::TElementDependencyMap EmptyDependencyMap;
+			if(!ExecuteContext.Hierarchy->SwitchToParent(ChildElement, ParentElement, false, true, EmptyDependencyMap, &FailureReason))
 			{
 				if(!FailureReason.IsEmpty())
 				{
