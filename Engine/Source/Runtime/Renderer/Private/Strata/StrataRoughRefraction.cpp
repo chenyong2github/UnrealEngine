@@ -33,11 +33,15 @@ class FOpaqueRoughRefractionPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FOpaqueRoughRefractionPS);
 	SHADER_USE_PARAMETER_STRUCT(FOpaqueRoughRefractionPS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FEnableBlur : SHADER_PERMUTATION_BOOL("PERMUTATION_ENABLE_BLUR");
+	using FPermutationDomain = TShaderPermutationDomain<FEnableBlur>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(Strata::FStrataTilePassVS::FParameters, StrataTile)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparatedOpaqueRoughRefractionSceneColor)
+		SHADER_PARAMETER(FVector2f, BlurDirection)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT();
 
@@ -63,35 +67,188 @@ void AddStrataOpaqueRoughRefractionPasses(
 	FSceneTextures& SceneTextures,
 	TArrayView<const FViewInfo> Views)
 {
-	if (!IsStrataOpaqueMaterialRoughRefractionEnabled())
+	const uint32 ViewCount = Views.Num();
+	const bool bOpaqueRoughRefractionEnabled = IsStrataOpaqueMaterialRoughRefractionEnabled() && ViewCount > 0;
+	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, bOpaqueRoughRefractionEnabled, "StrataOpaqueRoughRefraction");
+	if (!bOpaqueRoughRefractionEnabled)
 	{
 		return;
 	}
 
-	const uint32 ViewCount = Views.Num();
+	FRDGTextureRef SceneColorTexture = SceneTextures.Color.Target;
+	FRDGTextureRef TempTexture = nullptr;
+	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::EClear;
+
+	//
+	// 1. First blur pass into temporary buffer. This only blurs tiles containing pixels with rough refractions.
+	//
+	EStrataTileType StrataTileType = EStrataTileType::EOpaqueRoughRefraction;
+	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+
+		if (TempTexture == nullptr)
+		{
+			TempTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(GetSceneTextureExtent(), PF_FloatRGBA, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Strata.RoughRefrac.TempTexture"));
+		}
+
+		FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = View.StrataSceneData->SeparatedOpaqueRoughRefractionSceneColor;
+
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(TempTexture, LoadAction);
+		PassParameters->BlurDirection = FVector2f(1.0f, 0.0f);
+
+		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(true);
+		TShaderMapRef<FOpaqueRoughRefractionPS> PixelShader(View.ShaderMap, PermutationVector);
+
+		Strata::FStrataTilePassVS::FPermutationDomain VSPermutationVector;
+		VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableDebug >(false);
+		VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableTexCoordScreenVector >(false);
+		TShaderMapRef<Strata::FStrataTilePassVS> TileVertexShader(View.ShaderMap, VSPermutationVector);
+
+		EPrimitiveType PrimitiveType = PT_TriangleList;
+		PassParameters->StrataTile = Strata::SetTileParameters(GraphBuilder, View, StrataTileType, PrimitiveType);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("OpaqueRoughRefraction - Pass0"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[&View, TileVertexShader, PixelShader, PassParameters, StrataTileType, PrimitiveType](FRHICommandList& RHICmdList)
+			{
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				// Set the device viewport for the view.
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI(); // no blend
+				GraphicsPSOInit.PrimitiveType = PrimitiveType;
+				GraphicsPSOInit.bDepthBounds = false;
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = TileVertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0x0);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), PassParameters->StrataTile);
+				RHICmdList.DrawPrimitiveIndirect(PassParameters->StrataTile.TileIndirectBuffer->GetIndirectRHICallBuffer(), Strata::TileTypeDrawIndirectArgOffset(StrataTileType));
+			});
+
+		LoadAction = ERenderTargetLoadAction::ELoad;
+	}
+
+	//
+	// 2. second blur pass into temporary buffer. This only blurs tiles containing pixels with rough refractions.
+	//
+	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = TempTexture;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->BlurDirection = FVector2f(0.0f, 1.0f);
+
+		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(true);
+		TShaderMapRef<FOpaqueRoughRefractionPS> PixelShader(View.ShaderMap, PermutationVector);
+
+		Strata::FStrataTilePassVS::FPermutationDomain VSPermutationVector;
+		VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableDebug >(false);
+		VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableTexCoordScreenVector >(false);
+		TShaderMapRef<Strata::FStrataTilePassVS> TileVertexShader(View.ShaderMap, VSPermutationVector);
+
+		EPrimitiveType PrimitiveType = PT_TriangleList;
+		PassParameters->StrataTile = Strata::SetTileParameters(GraphBuilder, View, StrataTileType, PrimitiveType);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("OpaqueRoughRefraction - Pass2)"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[&View, TileVertexShader, PixelShader, PassParameters, StrataTileType, PrimitiveType](FRHICommandList& RHICmdList)
+			{
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				// Set the device viewport for the view.
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI(); // Additive blend
+				GraphicsPSOInit.PrimitiveType = PrimitiveType;
+				GraphicsPSOInit.bDepthBounds = false;
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = TileVertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0x0);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), PassParameters->StrataTile);
+				RHICmdList.DrawPrimitiveIndirect(PassParameters->StrataTile.TileIndirectBuffer->GetIndirectRHICallBuffer(), Strata::TileTypeDrawIndirectArgOffset(StrataTileType));
+			});
+	}
+
+	//
+	// 3. Add remaining tiles with subsurface scattering that did not have rough refractions on them, resulting in a complete scene color texture.
+	//
+	StrataTileType = EStrataTileType::ESSSWithoutOpaqueRoughRefraction;
 	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
 	{
 		const FViewInfo& View = Views[ViewIndex];
 
 		FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = View.StrataSceneData->SeparatedOpaqueRoughRefractionSceneColor;
-		FRDGTextureRef SceneColorTexture = SceneTextures.Color.Target;
-
 
 		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
 		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->BlurDirection = FVector2f(0.0f, 0.0f);
 
 		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(false);
 		TShaderMapRef<FOpaqueRoughRefractionPS> PixelShader(View.ShaderMap, PermutationVector);
 
-		FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+		Strata::FStrataTilePassVS::FPermutationDomain VSPermutationVector;
+		VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableDebug >(false);
+		VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableTexCoordScreenVector >(false);
+		TShaderMapRef<Strata::FStrataTilePassVS> TileVertexShader(View.ShaderMap, VSPermutationVector);
 
-		FPixelShaderUtils::AddFullscreenPass<FOpaqueRoughRefractionPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::VisualizeRoughRefractionPS"),
-			PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
+		EPrimitiveType PrimitiveType = PT_TriangleList;
+		PassParameters->StrataTile = Strata::SetTileParameters(GraphBuilder, View, StrataTileType, PrimitiveType);
 
-		
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("OpaqueRoughRefraction - Add SSSOnly tiles"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[&View, TileVertexShader, PixelShader, PassParameters, StrataTileType, PrimitiveType](FRHICommandList& RHICmdList)
+			{
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				// Set the device viewport for the view.
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI(); // Additive blend
+				GraphicsPSOInit.PrimitiveType = PrimitiveType;
+				GraphicsPSOInit.bDepthBounds = false;
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = TileVertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0x0);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), PassParameters->StrataTile);
+				RHICmdList.DrawPrimitiveIndirect(PassParameters->StrataTile.TileIndirectBuffer->GetIndirectRHICallBuffer(), Strata::TileTypeDrawIndirectArgOffset(StrataTileType));
+			});
 	}
 }
 

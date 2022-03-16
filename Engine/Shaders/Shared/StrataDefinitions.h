@@ -54,11 +54,12 @@
 #define STRATA_OPERATOR_THINFILM		6
 
 // This must map directly to EStrataTileMaterialType
-#define STRATA_TILE_TYPE_SIMPLE			0
-#define STRATA_TILE_TYPE_SINGLE			1
-#define STRATA_TILE_TYPE_COMPLEX		2
-#define STRATA_TILE_TYPE_ROUGH_REFRACT	3
-#define STRATA_TILE_TYPE_COUNT			4
+#define STRATA_TILE_TYPE_SIMPLE						0
+#define STRATA_TILE_TYPE_SINGLE						1
+#define STRATA_TILE_TYPE_COMPLEX					2
+#define STRATA_TILE_TYPE_ROUGH_REFRACT				3
+#define STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT	4
+#define STRATA_TILE_TYPE_COUNT						5
 
 // sizeof(FRHIDrawIndirectParameters) = 4 uints = 16 bytes
 #define GetStrataTileTypeDrawIndirectArgOffset_Byte(x)  (x * 16)

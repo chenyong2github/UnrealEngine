@@ -8,7 +8,10 @@
 
 #if OPAQUE_ROUGH_REFRACTION_PS
 
+#include "/Engine/Private/Strata/Strata.ush"
+
 Texture2D<float4> SeparatedOpaqueRoughRefractionSceneColor;
+float2 BlurDirection;
 
 void OpaqueRoughRefractionPS(
 	float4 SVPos : SV_POSITION,
@@ -17,9 +20,27 @@ void OpaqueRoughRefractionPS(
 	float2 PixelPos = SVPos.xy;
 	float2 UvBuffer = PixelPos * View.BufferSizeAndInvSize.zw;
 
-	float4 SourceData = SeparatedOpaqueRoughRefractionSceneColor[PixelPos];
+#if PERMUTATION_ENABLE_BLUR && STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	FStrataOpaqueRoughRefractionData ORRData = StrataUnpackOpaqueRoughRefractionData(Strata.OpaqueRoughRefractionTexture[PixelPos]);
 
-	OutColor = SourceData;
+	if (ORRData.OpaqueRoughRefractionEnabled)
+	{
+		// BAD placeholder blur
+		float4 SourceData = 0.0f;
+		float SampleCount = 0.0f;
+		for (float u = -4.5f; u <= 4.5f; u += 1.0f)
+		{
+			SourceData += SeparatedOpaqueRoughRefractionSceneColor[PixelPos + BlurDirection * u * ORRData.Variance * 10.0];
+			SampleCount++;
+		}
+		OutColor = SourceData / SampleCount;
+	}
+	else
+#endif
+	{
+		OutColor = SeparatedOpaqueRoughRefractionSceneColor[PixelPos];
+	}
+
 }
 
 #endif

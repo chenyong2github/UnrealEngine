@@ -581,7 +581,7 @@ FStrataOpaqueRoughRefractionData StrataUnpackOpaqueRoughRefractionData(float In)
 {
 	FStrataOpaqueRoughRefractionData Out = (FStrataOpaqueRoughRefractionData)0;
 	Out.OpaqueRoughRefractionEnabled = (In * 255.0) >= 128.0f;
-	Out.Variance = In * (127.0f / 255.0f) + (- 128.0f / 255.0f);
+	Out.Variance = In * (255.0f / 127.0f) + (- 128.0f / 127.0f); // = (In * 255 - 128) / 127
 	return Out;
 }
 

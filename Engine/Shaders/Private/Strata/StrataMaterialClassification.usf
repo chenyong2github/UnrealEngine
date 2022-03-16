@@ -33,6 +33,7 @@ RWBuffer<uint> ComplexTileListDataBuffer;
 
 #if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
 RWBuffer<uint> OpaqueRoughRefractionTileListDataBuffer;
+RWBuffer<uint> SSSWithoutOpaqueRoughRefractionTileListDataBuffer;
 Texture2D<float> OpaqueRoughRefractionTexture;
 #endif
 
@@ -50,10 +51,11 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	if (all(DispatchThreadId == 0))
 	{
 		const uint IndexCountPerInstance = bRectPrimitive > 0 ? 4 : 6;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)		+ 0] = IndexCountPerInstance;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)		+ 0] = IndexCountPerInstance;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)		+ 0] = IndexCountPerInstance;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT) + 0] = IndexCountPerInstance;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)					+ 0] = IndexCountPerInstance;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)					+ 0] = IndexCountPerInstance;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)					+ 0] = IndexCountPerInstance;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT)				+ 0] = IndexCountPerInstance;
+		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT) + 0] = IndexCountPerInstance;
 	}
 
 	// TODO: add a SM6 permutation with ballot?
@@ -65,7 +67,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	bool bContainsSingleMaterial  = false;
 	bool bContainsStrataMaterial  = false;
 	bool bContainsOpaqueRoughRefraction = false;
-	bool bHasScreenSpaceSubsurfaceScattering = false;
+	bool bContainsScreenSpaceSubsurfaceScattering = false;
 	FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
 	if (all(PixelCoord < uint2(ViewResolution)))
 	{
@@ -78,7 +80,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		bContainsSimpleMaterial  = bIsSimple;
 		bContainsSingleMaterial  = bIsSingle;
 		bContainsComplexMaterial = !bIsSingle & !bIsSimple;
-		bHasScreenSpaceSubsurfaceScattering = HasSubsurface(StrataPixelHeader);
+		bContainsScreenSpaceSubsurfaceScattering = HasSubsurface(StrataPixelHeader);
 
 #if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
 		OpaqueRoughRefractionData = StrataUnpackOpaqueRoughRefractionData(OpaqueRoughRefractionTexture[PixelCoord]);
@@ -88,7 +90,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 #if PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION
 	BRANCH
-	if (!bHasScreenSpaceSubsurfaceScattering)
+	if (!bContainsScreenSpaceSubsurfaceScattering)
 	{
 		// We must fill all the pixel which doe not hav subsurface scattering with default so that the SSS code is not executed where it should not.
 		FStrataSubsurfaceData StrataSubsurfaceData = (FStrataSubsurfaceData)0;
@@ -97,19 +99,21 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 #endif
 
 #if PERMUTATION_WAVE_OPS
-	const bool bHasAnyStrata  = WaveActiveAnyTrue(bContainsStrataMaterial);
-//	const bool bHasAnySimple  = WaveActiveAnyTrue(bContainsSimpleMaterial);
-	const bool bHasAnySingle  = WaveActiveAnyTrue(bContainsSingleMaterial);
-	const bool bHasAnyComplex = WaveActiveAnyTrue(bContainsComplexMaterial);
-	const bool bHasAnyOpaqueRoughRefraction = WaveActiveAnyTrue(bContainsOpaqueRoughRefraction);
+	const bool bTileContainsStrata							= WaveActiveAnyTrue(bContainsStrataMaterial);
+//	const bool bTileContainsSimple							= WaveActiveAnyTrue(bContainsSimpleMaterial);
+	const bool bTileContainsSingle							= WaveActiveAnyTrue(bContainsSingleMaterial);
+	const bool bTileContainsComplex							= WaveActiveAnyTrue(bContainsComplexMaterial);
+	const bool bTileContainsOpaqueRoughRefraction			= WaveActiveAnyTrue(bContainsOpaqueRoughRefraction);
+	const bool bTileContainsScreenSpaceSubsurfaceScattering	= WaveActiveAnyTrue(bHasScreenSpaceSubsurfaceScattering);
 #else // PERMUTATION_WAVE_OPS
 
 	s_TileFlags[LinearIndex] = 
-		(bContainsStrataMaterial		? 0x1u	: 0u) | 
-//		(bContainsSimpleMaterial		? 0x2u	: 0u) | 
-		(bContainsSingleMaterial		? 0x4u	: 0u) | 
-		(bContainsComplexMaterial		? 0x8u	: 0u) | 
-		(bContainsOpaqueRoughRefraction ? 0x10u : 0u);
+		(bContainsStrataMaterial					? 0x1u	: 0u) | 
+//		(bContainsSimpleMaterial					? 0x2u	: 0u) | 
+		(bContainsSingleMaterial					? 0x4u	: 0u) | 
+		(bContainsComplexMaterial					? 0x8u	: 0u) | 
+		(bContainsOpaqueRoughRefraction				? 0x10u : 0u) |
+		(bContainsScreenSpaceSubsurfaceScattering	? 0x20u : 0u);
 
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 32)
@@ -141,40 +145,49 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 	const uint FinalTileFlags = s_TileFlags[LinearIndex] | s_TileFlags[LinearIndex + 1];
 
-	const bool bHasAnyStrata  = (FinalTileFlags & 0x1u) > 0;
-//	const bool bHasAnySimple  = (FinalTileFlags & 0x2u) > 0;
-	const bool bHasAnySingle  = (FinalTileFlags & 0x4u) > 0;
-	const bool bHasAnyComplex = (FinalTileFlags & 0x8u) > 0;
-	const bool bHasAnyOpaqueRoughRefraction = (FinalTileFlags & 0x10u) > 0;
+	const bool bTileContainsStrata							= (FinalTileFlags & 0x1u) > 0;
+//	const bool bTileContainsSimple							= (FinalTileFlags & 0x2u) > 0;
+	const bool bTileContainsSingle							= (FinalTileFlags & 0x4u) > 0;
+	const bool bTileContainsComplex							= (FinalTileFlags & 0x8u) > 0;
+	const bool bTileContainsOpaqueRoughRefraction			= (FinalTileFlags & 0x10u) > 0;
+	const bool bTileContainsScreenSpaceSubsurfaceScattering	= (FinalTileFlags & 0x20u) > 0;
 #endif // PERMUTATION_WAVE_OPS
 
-	if (LinearIndex < 1 && bHasAnyStrata)
+	if (LinearIndex < 1 && bTileContainsStrata)
 	{
-		if (bHasAnyComplex)
+		uint EncodedTile = EncodeTile(GroupId.xy);
+
+		if (bTileContainsComplex)
 		{
 			uint WriteToIndex;
 			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX) + 1], 1, WriteToIndex);
-			ComplexTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+			ComplexTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
-		else if (bHasAnySingle)
+		else if (bTileContainsSingle)
 		{
 			uint WriteToIndex;
 			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE) + 1], 1, WriteToIndex);
-			SingleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+			SingleTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
-		else // (bHasAnySimple)
+		else // (bTileContainsSimple)
 		{
 			uint WriteToIndex;
 			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE) + 1], 1, WriteToIndex);
-			SimpleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+			SimpleTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
 
 #if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
-		if (bHasAnyOpaqueRoughRefraction)
+		if (bTileContainsOpaqueRoughRefraction)
 		{
 			uint WriteToIndex;
 			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT) + 1], 1, WriteToIndex);
-			OpaqueRoughRefractionTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+			OpaqueRoughRefractionTileListDataBuffer[WriteToIndex] = EncodedTile;
+		}
+		if(bTileContainsScreenSpaceSubsurfaceScattering && !bTileContainsOpaqueRoughRefraction)
+		{
+			uint WriteToIndex;
+			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT) + 1], 1, WriteToIndex);
+			SSSWithoutOpaqueRoughRefractionTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
 #endif
 	}

@@ -51,6 +51,7 @@ enum EStrataTileType : uint32
 	ESingle = STRATA_TILE_TYPE_SINGLE,
 	EComplex = STRATA_TILE_TYPE_COMPLEX,
 	EOpaqueRoughRefraction = STRATA_TILE_TYPE_ROUGH_REFRACT,
+	ESSSWithoutOpaqueRoughRefraction = STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT,
 	ECount
 };
 
