@@ -32,7 +32,6 @@ ASmartObjectCollection::ASmartObjectCollection(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
-	bLockLocation = true;
 	bActorLabelEditable = false;
 #endif
 
