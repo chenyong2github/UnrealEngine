@@ -725,7 +725,7 @@ TSharedRef<ISceneOutliner> SLevelEditor::CreateSceneOutliner(FName TabIdentifier
 
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 	TSharedRef<ISceneOutliner> SceneOutlinerRef = SceneOutlinerModule.CreateActorBrowser(
-		InitOptions, GetWorld());
+		InitOptions);
 
 	// Update the most recently created outliner
 	SceneOutlinerPtr = SceneOutlinerRef;
