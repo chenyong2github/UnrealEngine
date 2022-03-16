@@ -18,6 +18,7 @@ namespace UE::DerivedData { struct FLegacyCacheGetRequest; }
 namespace UE::DerivedData { struct FLegacyCacheGetResponse; }
 namespace UE::DerivedData { struct FLegacyCachePutRequest; }
 namespace UE::DerivedData { struct FLegacyCachePutResponse; }
+namespace UE::DerivedData::Private { class FLegacyCacheKeyShared; }
 namespace UE::DerivedData::Private { class FLegacyCacheValueShared; }
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDerivedDataCache, Log, All);
@@ -52,24 +53,56 @@ public:
 	virtual bool LegacyDebugOptions(FBackendDebugOptions& Options) = 0;
 };
 
+class Private::FLegacyCacheKeyShared final
+{
+public:
+	FLegacyCacheKeyShared(FStringView FullKey, int32 MaxKeyLength);
+
+	FLegacyCacheKeyShared(const FLegacyCacheKeyShared&) = delete;
+	FLegacyCacheKeyShared& operator=(const FLegacyCacheKeyShared&) = delete;
+
+	inline bool HasShortKey() const { return FullKey.Len() > MaxKeyLength; }
+	inline const FSharedString& GetFullKey() const { return FullKey; }
+	const FSharedString& GetShortKey();
+
+	inline void AddRef()
+	{
+		ReferenceCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	inline void Release()
+	{
+		if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			delete this;
+		}
+	}
+
+private:
+	FSharedString FullKey;
+	FSharedString ShortKey;
+	int32 MaxKeyLength;
+	std::atomic<uint32> ReferenceCount{0};
+	FRWLock Lock;
+};
+
 class FLegacyCacheKey
 {
 public:
 	FLegacyCacheKey() = default;
 	FLegacyCacheKey(FStringView FullKey, int32 MaxKeyLength);
 
-	const FCacheKey& GetKey() const { return Key; }
-	const FSharedString& GetFullKey() const { return FullKey; }
-	const FSharedString& GetShortKey() const { return ShortKey.IsEmpty() ? FullKey : ShortKey; }
-	bool HasShortKey() const { return !ShortKey.IsEmpty(); }
+	[[nodiscard]] inline const FCacheKey& GetKey() const { return Key; }
+	[[nodiscard]] inline const FSharedString& GetFullKey() const { return Shared ? Shared->GetFullKey() : FSharedString::Empty; }
+	[[nodiscard]] inline const FSharedString& GetShortKey() const { return Shared ? Shared->GetShortKey() : FSharedString::Empty; }
+	[[nodiscard]] inline bool HasShortKey() const { return Shared ? Shared->HasShortKey() : false; }
 
-	bool ReadValueTrailer(FCompositeBuffer& Value) const;
+	[[nodiscard]] bool ReadValueTrailer(FCompositeBuffer& Value) const;
 	void WriteValueTrailer(FCompositeBuffer& Value) const;
 
 private:
 	FCacheKey Key;
-	FSharedString FullKey;
-	FSharedString ShortKey;
+	TRefCountPtr<Private::FLegacyCacheKeyShared> Shared;
 };
 
 class Private::FLegacyCacheValueShared final
@@ -77,6 +110,9 @@ class Private::FLegacyCacheValueShared final
 public:
 	explicit FLegacyCacheValueShared(const FValue& Value);
 	explicit FLegacyCacheValueShared(const FCompositeBuffer& RawData);
+
+	FLegacyCacheValueShared(const FLegacyCacheValueShared&) = delete;
+	FLegacyCacheValueShared& operator=(const FLegacyCacheValueShared&) = delete;
 
 	inline bool HasData() const { return Value.HasData() || RawData; }
 	const FValue& GetValue();
@@ -116,9 +152,9 @@ public:
 	[[nodiscard]] inline explicit operator bool() const { return !IsNull(); }
 	[[nodiscard]] inline bool IsNull() const { return !Shared; }
 
-	[[nodiscard]] bool HasData() const { return Shared ? Shared->HasData() : false; }
-	[[nodiscard]] const FValue& GetValue() const { return Shared ? Shared->GetValue() : FValue::Null; }
-	[[nodiscard]] const FCompositeBuffer& GetRawData() const { return Shared ? Shared->GetRawData() : FCompositeBuffer::Null; }
+	[[nodiscard]] inline bool HasData() const { return Shared ? Shared->HasData() : false; }
+	[[nodiscard]] inline const FValue& GetValue() const { return Shared ? Shared->GetValue() : FValue::Null; }
+	[[nodiscard]] inline const FCompositeBuffer& GetRawData() const { return Shared ? Shared->GetRawData() : FCompositeBuffer::Null; }
 	[[nodiscard]] inline FIoHash GetRawHash() const { return Shared ? Shared->GetRawHash() : FIoHash(); }
 	[[nodiscard]] inline uint64 GetRawSize() const { return Shared ? Shared->GetRawSize() : 0; }
 

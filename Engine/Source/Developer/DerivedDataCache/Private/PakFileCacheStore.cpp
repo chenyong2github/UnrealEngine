@@ -121,7 +121,7 @@ public:
 
 	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final { return false; }
 
-	EBackendLegacyMode GetLegacyMode() const final { return EBackendLegacyMode::ValueWithLegacyFallback; }
+	EBackendLegacyMode GetLegacyMode() const final { return EBackendLegacyMode::ValueOnly; }
 
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,

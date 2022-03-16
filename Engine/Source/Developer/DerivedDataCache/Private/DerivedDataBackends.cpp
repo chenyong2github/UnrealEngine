@@ -1164,7 +1164,7 @@ public:
 		return *StaticGraph;
 	}
 
-	virtual FDerivedDataBackendInterface* MountPakFile(const TCHAR* PakFilename) override
+	virtual ILegacyCacheStore* MountPakFile(const TCHAR* PakFilename) override
 	{
 		// Assumptions: there's at least one read-only pak backend in the hierarchy
 		// and its parent is a hierarchical backend.
@@ -1313,8 +1313,8 @@ void FDerivedDataBackendInterface::LegacyPut(
 
 		checkf(CompositeValue.GetSize() < MAX_int32,
 			TEXT("Value is 2 GiB or greater, which is not supported for put of '%s' from '%s'"),
-			*Request.Key.GetFullKey(), *Request.Name);
-	
+			*Request.Key.GetShortKey(), *Request.Name);
+
 		UE_CLOG(Request.Key.HasShortKey(), LogDerivedDataCache, VeryVerbose,
 			TEXT("ShortenKey %s -> %s"), *Request.Key.GetFullKey(), *Request.Key.GetShortKey());
 

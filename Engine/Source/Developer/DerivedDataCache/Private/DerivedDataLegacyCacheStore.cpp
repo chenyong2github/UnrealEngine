@@ -2,12 +2,15 @@
 
 #include "DerivedDataLegacyCacheStore.h"
 
+#include "Algo/AllOf.h"
 #include "Containers/StringConv.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCacheInterface.h"
 #include "Misc/Crc.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/SecureHash.h"
 #include "Misc/StringBuilder.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "String/BytesToHex.h"
 #include "String/Find.h"
 
@@ -82,51 +85,82 @@ void ILegacyCacheStore::LegacyDelete(
 	CompleteWithStatus(Requests, OnComplete, EStatus::Error);
 }
 
-FLegacyCacheKey::FLegacyCacheKey(const FStringView InFullKey, const int32 MaxKeyLength)
+Private::FLegacyCacheKeyShared::FLegacyCacheKeyShared(const FStringView InFullKey, const int32 InMaxKeyLength)
 	: FullKey(InFullKey)
+	, MaxKeyLength(InMaxKeyLength)
 {
-	if (InFullKey.Len() > MaxKeyLength)
+}
+
+const FSharedString& Private::FLegacyCacheKeyShared::GetShortKey()
+{
+	if (FReadScopeLock ReadLock(Lock); !ShortKey.IsEmpty())
 	{
-		const auto FullKeyUCS2 = StringCast<UCS2CHAR>(InFullKey.GetData(), InFullKey.Len());
-		const int32 FullKeyLength = FullKeyUCS2.Length();
-		const uint32 CRCofPayload(FCrc::MemCrc32(FullKeyUCS2.Get(), FullKeyLength * sizeof(UCS2CHAR)));
-
-		uint8 Hash[FSHA1::DigestSize];
-		FSHA1 HashState;
-		HashState.Update((const uint8*)&FullKeyLength, sizeof(int32));
-		HashState.Update((const uint8*)&CRCofPayload, sizeof(uint32));
-		HashState.Update((const uint8*)FullKeyUCS2.Get(), FullKeyLength * sizeof(UCS2CHAR));
-		HashState.Final();
-		HashState.GetHash(Hash);
-
-		TStringBuilder<128> ShortKeyBuilder;
-		ShortKeyBuilder << InFullKey.Left(MaxKeyLength - FSHA1::DigestSize * 2 - 2) << TEXT("__");
-		String::BytesToHex(Hash, ShortKeyBuilder);
-
-		check(ShortKeyBuilder.Len() == MaxKeyLength && ShortKeyBuilder.Len() > 0);
-		ShortKey = ShortKeyBuilder;
+		return ShortKey;
 	}
 
-	TStringBuilder<64> Bucket;
-	Bucket << TEXT("Legacy");
-	if (const int32 BucketEnd = String::FindFirstChar(InFullKey, TEXT('_')); BucketEnd != INDEX_NONE)
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLegacyCacheKey::GetShortKey);
+
+	FWriteScopeLock WriteLock(Lock);
+	if (!ShortKey.IsEmpty())
 	{
-		Bucket << InFullKey.Left(BucketEnd);
+		return ShortKey;
+	}
+
+	const FStringView LocalFullKey = FullKey;
+	checkf(Algo::AllOf(LocalFullKey, FDerivedDataCacheInterface::IsValidCacheChar),
+		TEXT("Invalid characters in cache key %s. Use SanitizeCacheKey or BuildCacheKey to create valid keys."), *FullKey);
+
+	if (LocalFullKey.Len() <= MaxKeyLength)
+	{
+		ShortKey = FullKey;
+		return ShortKey;
+	}
+
+	const auto FullKeyUCS2 = StringCast<UCS2CHAR>(LocalFullKey.GetData(), LocalFullKey.Len());
+	const int32 FullKeyLength = FullKeyUCS2.Length();
+	const uint32 CRCofPayload(FCrc::MemCrc32(FullKeyUCS2.Get(), FullKeyLength * sizeof(UCS2CHAR)));
+
+	uint8 Hash[FSHA1::DigestSize];
+	FSHA1 HashState;
+	HashState.Update((const uint8*)&FullKeyLength, sizeof(int32));
+	HashState.Update((const uint8*)&CRCofPayload, sizeof(uint32));
+	HashState.Update((const uint8*)FullKeyUCS2.Get(), FullKeyLength * sizeof(UCS2CHAR));
+	HashState.Final();
+	HashState.GetHash(Hash);
+
+	TStringBuilder<256> ShortKeyBuilder;
+	ShortKeyBuilder << LocalFullKey.Left(MaxKeyLength - FSHA1::DigestSize * 2 - 2) << TEXT("__");
+	String::BytesToHex(Hash, ShortKeyBuilder);
+
+	check(ShortKeyBuilder.Len() == MaxKeyLength && ShortKeyBuilder.Len() > 0);
+	ShortKey = ShortKeyBuilder;
+	return ShortKey;
+}
+
+FLegacyCacheKey::FLegacyCacheKey(const FStringView FullKey, const int32 MaxKeyLength)
+	: Shared(new Private::FLegacyCacheKeyShared(FullKey, MaxKeyLength))
+{
+	FTCHARToUTF8 FullKeyUtf8(FullKey);
+	TUtf8StringBuilder<64> Bucket;
+	Bucket << "Legacy";
+	if (const int32 BucketEnd = String::FindFirstChar(FullKeyUtf8, '_'); BucketEnd != INDEX_NONE)
+	{
+		Bucket << FUtf8StringView(FullKeyUtf8).Left(BucketEnd);
 	}
 	Key.Bucket = FCacheBucket(Bucket);
-	Key.Hash = FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(InFullKey)));
+	Key.Hash = FIoHash::HashBuffer(MakeMemoryView(FullKeyUtf8));
 }
 
 bool FLegacyCacheKey::ReadValueTrailer(FCompositeBuffer& Value) const
 {
-	if (!ShortKey.IsEmpty())
+	if (HasShortKey())
 	{
-		TUtf8StringBuilder<256> FullKeyUtf8;
-		FullKeyUtf8 << FullKey;
-		const FMemoryView CompareKey(FullKeyUtf8.ToString(), (FullKeyUtf8.Len() + 1) * sizeof(UTF8CHAR));
+		FUtf8StringBuilderBase FullKey;
+		FullKey << GetFullKey();
+		const FMemoryView CompareKey(FullKey.ToString(), (FullKey.Len() + 1) * sizeof(UTF8CHAR));
 		if (Value.GetSize() < CompareKey.GetSize())
 		{
-			UE_LOG(LogDerivedDataCache, Display, TEXT("FLegacyCacheKey: Hash collision or short value for key %s."), *FullKey);
+			UE_LOG(LogDerivedDataCache, Display, TEXT("FLegacyCacheKey: Hash collision or short value for key %s."), *GetFullKey());
 			return false;
 		}
 		FUniqueBuffer CopyBuffer;
@@ -134,7 +168,7 @@ bool FLegacyCacheKey::ReadValueTrailer(FCompositeBuffer& Value) const
 		const FMemoryView ValueKey = Value.ViewOrCopyRange(KeyOffset, CompareKey.GetSize(), CopyBuffer);
 		if (!CompareKey.EqualBytes(ValueKey))
 		{
-			UE_LOG(LogDerivedDataCache, Display, TEXT("FLegacyCacheKey: Hash collision for key %s."), *FullKey);
+			UE_LOG(LogDerivedDataCache, Display, TEXT("FLegacyCacheKey: Hash collision for key %s."), *GetFullKey());
 			return false;
 		}
 		Value = Value.Mid(0, KeyOffset);
@@ -144,11 +178,11 @@ bool FLegacyCacheKey::ReadValueTrailer(FCompositeBuffer& Value) const
 
 void FLegacyCacheKey::WriteValueTrailer(FCompositeBuffer& Value) const
 {
-	if (!ShortKey.IsEmpty())
+	if (HasShortKey())
 	{
-		TUtf8StringBuilder<256> FullKeyUtf8;
-		FullKeyUtf8 << FullKey;
-		Value = FCompositeBuffer(Value, FSharedBuffer::Clone(FullKeyUtf8.ToString(), (FullKeyUtf8.Len() + 1) * sizeof(UTF8CHAR)));
+		FUtf8StringBuilderBase FullKey;
+		FullKey << GetFullKey();
+		Value = FCompositeBuffer(Value, FSharedBuffer::Clone(FullKey.ToString(), (FullKey.Len() + 1) * sizeof(UTF8CHAR)));
 	}
 }
 

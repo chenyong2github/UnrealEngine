@@ -560,7 +560,6 @@ public:
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_GetSynchronous_Data);
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetSynchronous %s from '%.*s'"), CacheKey, DebugContext.Len(), DebugContext.GetData());
-		ValidateCacheKey(CacheKey);
 		FAsyncTask<FBuildAsyncWorker> PendingTask(Backend, nullptr, CacheKey, DebugContext, true);
 		AddToAsyncCompletionCounter(1);
 		PendingTask.StartSynchronousTask();
@@ -584,7 +583,6 @@ public:
 		FScopeLock ScopeLock(&SynchronizationObject);
 		const uint32 Handle = NextHandle();
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetAsynchronous %s from '%.*s', Handle %d"), CacheKey, DebugContext.Len(), DebugContext.GetData(), Handle);
-		ValidateCacheKey(CacheKey);
 		FAsyncTask<FBuildAsyncWorker>* AsyncTask = new FAsyncTask<FBuildAsyncWorker>(Backend, nullptr, CacheKey, DebugContext, false);
 		check(!PendingTasks.Contains(Handle));
 		PendingTasks.Add(Handle, AsyncTask);
@@ -598,7 +596,6 @@ public:
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_Put);
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Put %s from '%.*s'"), CacheKey, DebugContext.Len(), DebugContext.GetData());
-		ValidateCacheKey(CacheKey);
 		STAT(double ThisTime = 0);
 		{
 			SCOPE_SECONDS_COUNTER(ThisTime);
@@ -616,7 +613,7 @@ public:
 
 	virtual void MarkTransient(const TCHAR* CacheKey) override
 	{
-		ValidateCacheKey(CacheKey);
+		DDC_SCOPE_CYCLE_COUNTER(DDC_MarkTransient);
 		FLegacyCacheDeleteRequest LegacyRequest;
 		LegacyRequest.Key = FLegacyCacheKey(CacheKey, Backend->GetMaxKeyLength());
 		LegacyRequest.Name = LegacyRequest.Key.GetFullKey();
@@ -629,7 +626,6 @@ public:
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_CachedDataProbablyExists);
-		ValidateCacheKey(CacheKey);
 		bool bResult;
 		INC_DWORD_STAT(STAT_DDC_NumExist);
 		STAT(double ThisTime = 0);
@@ -830,12 +826,6 @@ private:
 		return Result;
 	}
 
-	static void ValidateCacheKey(const TCHAR* CacheKey)
-	{
-		checkf(Algo::AllOf(FStringView(CacheKey), IsValidCacheChar),
-			TEXT("Invalid characters in cache key %s. Use SanitizeCacheKey or BuildCacheKey to create valid keys."), CacheKey);
-	}
-
 	FDerivedDataBackend*		Backend;
 	/** Counter used to produce unique handles **/
 	FThreadSafeCounter			CurrentHandle;
@@ -855,6 +845,7 @@ public:
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) final
 	{
+		DDC_SCOPE_CYCLE_COUNTER(DDC_Put);
 		return Backend->GetRoot().Put(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
 	}
 
@@ -863,6 +854,7 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) final
 	{
+		DDC_SCOPE_CYCLE_COUNTER(DDC_Get);
 		return Backend->GetRoot().Get(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
 	}
 
@@ -871,6 +863,7 @@ public:
 		IRequestOwner& Owner,
 		FOnCachePutValueComplete&& OnComplete) final
 	{
+		DDC_SCOPE_CYCLE_COUNTER(DDC_PutValue);
 		return Backend->GetRoot().PutValue(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
 	}
 
@@ -879,6 +872,7 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetValueComplete&& OnComplete) final
 	{
+		DDC_SCOPE_CYCLE_COUNTER(DDC_GetValue);
 		return Backend->GetRoot().GetValue(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
 	}
 
@@ -887,6 +881,7 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) final
 	{
+		DDC_SCOPE_CYCLE_COUNTER(DDC_GetChunks);
 		return Backend->GetRoot().GetChunks(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
 	}
 

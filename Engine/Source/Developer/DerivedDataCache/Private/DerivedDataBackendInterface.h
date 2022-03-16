@@ -281,7 +281,7 @@ public:
 	 *
 	 * @param PakFilename Pak filename
 	 */
-	virtual FDerivedDataBackendInterface* MountPakFile(const TCHAR* PakFilename) = 0;
+	virtual ILegacyCacheStore* MountPakFile(const TCHAR* PakFilename) = 0;
 
 	/**
 	 * Unmounts a read-only pak file.

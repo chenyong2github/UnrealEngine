@@ -42,6 +42,8 @@ public:
 	[[nodiscard]] inline int32 Len() const { return Chars ? reinterpret_cast<const int32*>(Chars)[-1] : 0; }
 	[[nodiscard]] inline const CharType* operator*() const { return Chars ? Chars : &NullChar; }
 
+	static const TSharedString Empty;
+
 private:
 	static inline void AddRef(CharType* Chars);
 	static inline void Release(CharType* Chars);
@@ -50,6 +52,9 @@ private:
 
 	static constexpr inline CharType NullChar{};
 };
+
+template <typename CharType>
+inline const TSharedString<CharType> TSharedString<CharType>::Empty;
 
 template <typename CharType>
 constexpr inline const CharType* GetData(const TSharedString<CharType> String)
