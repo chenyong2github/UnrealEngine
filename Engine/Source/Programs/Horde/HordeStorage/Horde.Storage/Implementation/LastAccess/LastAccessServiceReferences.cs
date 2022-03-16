@@ -83,6 +83,8 @@ namespace Horde.Storage.Implementation
                 scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.Key}";
                 _logger.Debug("Updating last access time to {LastAccessTime} for {Record}", lastAccessTime, record);
                 await _referencesStore.UpdateLastAccessTime(record.Namespace, record.Bucket, record.Key, lastAccessTime);
+                // delay 10ms between each record to distribute the load more evenly for the db
+                await Task.Delay(10);
             }
 
             return records;
