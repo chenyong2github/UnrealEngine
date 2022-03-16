@@ -104,6 +104,7 @@ namespace PluginUtils
 				NameReplacementFileTypes.Add(TEXT("cpp"));
 				NameReplacementFileTypes.Add(TEXT("h"));
 				NameReplacementFileTypes.Add(TEXT("vcxproj"));
+				NameReplacementFileTypes.Add(TEXT("uplugin"));
 
 				// Which file types do we want to ignore
 				IgnoredFileTypes.Add(TEXT("opensdf"));
