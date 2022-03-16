@@ -9,6 +9,11 @@
 /*
  *	struct FFieldNotificationClassDescriptor : Super::FFieldNotificationClassDescriptor
  *	{
+ *	private:
+ *		using SuperDescriptor = Super::FFieldNotificationClassDescriptor;
+ *		static const ::UE::FieldNotification::FFieldId* AllFields[];
+ *		friend ThisClass;
+ *	public:
  *		static const ::UE::FieldNotification::FFieldId FieldA;
  *		static const ::UE::FieldNotification::FFieldId FieldB;
  *		enum
@@ -17,13 +22,17 @@
  *			IndexOf_FieldB,
  *			Max_IndexOf_,
  *		};
- *		virtual int32 GetNumberOfField() const override { reutrn Max_IndexOf_; }
- *		virtual ::UE::FieldNotification::FFieldId GetField(FName InFieldName) const override;
- *		virtual ::UE::FieldNotification::FFieldId GetField(int32 InFieldNumber) const override;
- *		virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const override;
+ * 	virtual void ForEachField(const UClass* Class, TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback) const override;
  *	};
+ * virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const override;
  */
 
+#define UE_FIELD_NOTIFICATION_OVERRIDE_GET_FIELD_NOTIFICATION_DESCRIPTOR() \
+	virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const \
+	{ \
+ 		static FFieldNotificationClassDescriptor Instance; \
+ 		return Instance; \
+ 	}
 
 #define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	struct FFieldNotificationClassDescriptor : public Super::FFieldNotificationClassDescriptor \
@@ -36,36 +45,19 @@
 
 
 #define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END() \
-		virtual int32 GetNumberOfField() const override \
-		{ \
-			return Max_IndexOf_; \
-		} \
-		virtual ::UE::FieldNotification::FFieldId GetField(FName InFieldName) const override \
+		virtual void ForEachField(const UClass* Class, TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback) const override \
 		{ \
 			for (int32 Index = 0; Index < Max_IndexOf_-SuperDescriptor::Max_IndexOf_; ++Index) \
 			{ \
-				if (AllFields[Index]->GetName() == InFieldName) \
+				if (!Callback(*AllFields[Index])) \
 				{ \
-					return *(AllFields[Index]); \
+					return; \
 				} \
 			} \
-			return SuperDescriptor::GetField(InFieldName); \
-		} \
-		virtual ::UE::FieldNotification::FFieldId GetField(int32 InFieldNumber) const override \
-		{ \
-			check(InFieldNumber >= 0 && InFieldNumber < Max_IndexOf_); \
-			if (InFieldNumber < SuperDescriptor::Max_IndexOf_) \
-			{ \
-				return SuperDescriptor::GetField(InFieldNumber); \
-			} \
-			return *(AllFields[InFieldNumber - SuperDescriptor::Max_IndexOf_]); \
+			SuperDescriptor::ForEachField(Class, Callback); \
 		} \
 	}; \
-	virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const override \
- 	{ \
- 		static FFieldNotificationClassDescriptor Instance; \
- 		return Instance; \
- 	}
+	UE_FIELD_NOTIFICATION_OVERRIDE_GET_FIELD_NOTIFICATION_DESCRIPTOR()
 
 
 #define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_BEGIN() \
@@ -79,32 +71,9 @@
 
 
 #define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_END() \
-		virtual int32 GetNumberOfField() const override \
-		{ \
-			return Max_IndexOf_; \
-		} \
-		virtual ::UE::FieldNotification::FFieldId GetField(FName InFieldName) const override \
-		{ \
-			for (int32 Index = 0; Index < Max_IndexOf_; ++Index) \
-			{ \
-				if (AllFields[Index]->GetName() == InFieldName) \
-				{ \
-					return *(AllFields[Index]); \
-				} \
-			} \
-			return ::UE::FieldNotification::FFieldId(); \
-		} \
-		virtual ::UE::FieldNotification::FFieldId GetField(int32 InFieldNumber) const override \
-		{ \
-			check(InFieldNumber >= 0 && InFieldNumber < Max_IndexOf_); \
-			return *(AllFields[InFieldNumber]); \
-		} \
+		virtual void ForEachField(const UClass* Class, TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback) const override; \
 	}; \
-	virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const \
-	{ \
- 		static FFieldNotificationClassDescriptor Instance; \
- 		return Instance; \
- 	}
+	UE_FIELD_NOTIFICATION_OVERRIDE_GET_FIELD_NOTIFICATION_DESCRIPTOR()
 
 
 #define UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(Name) \

@@ -117,6 +117,7 @@ namespace
 // UWidgetBlueprintGeneratedClass
 
 UWidgetBlueprintGeneratedClass::UWidgetBlueprintGeneratedClass()
+	: FieldNotifyStartBitNumber(INDEX_NONE)
 {
 #if WITH_EDITORONLY_DATA
 	{
@@ -349,6 +350,12 @@ void UWidgetBlueprintGeneratedClass::PostLoad()
 #endif
 }
 
+void UWidgetBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
+{
+	Super::PostLoadDefaultObject(Object);
+	InitializeFieldNotification(Cast<UUserWidget>(Object));
+}
+
 void UWidgetBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)
 {
 	Super::PurgeClass(bRecompilingOnLoad);
@@ -433,6 +440,33 @@ UWidgetBlueprintGeneratedClass* UWidgetBlueprintGeneratedClass::FindWidgetTreeOw
 	return nullptr;
 }
 
+void UWidgetBlueprintGeneratedClass::InitializeFieldNotification(const UUserWidget* UserWidget)
+{
+	FieldNotifyStartBitNumber = 0;
+	if (UserWidget && FieldNotifyNames.Num())
+	{
+		int32 NumberOfField = 0;
+		UserWidget->GetFieldNotificationDescriptor().ForEachField(this, [&NumberOfField](::UE::FieldNotification::FFieldId FielId)
+			{
+				++NumberOfField;
+				return true;
+			});
+		FieldNotifyStartBitNumber = NumberOfField - FieldNotifyNames.Num();
+		ensureMsgf(FieldNotifyStartBitNumber >= 0, TEXT("The FieldNotifyStartIndex is negative. The number of field should be positive."));
+	}
+}
+
+void UWidgetBlueprintGeneratedClass::ForEachField(TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback) const
+{
+	ensureMsgf(FieldNotifyStartBitNumber >= 0, TEXT("The FieldNotifyStartIndex is negative. The number of field should be positive."));
+	for (int32 Index = 0; Index < FieldNotifyNames.Num(); ++Index)
+	{
+		if (!Callback(UE::FieldNotification::FFieldId(FieldNotifyNames[Index].GetFieldName(), Index + FieldNotifyStartBitNumber)))
+		{
+			break;
+		}
+	}
+}
 
 UWidgetBlueprintGeneratedClassExtension* UWidgetBlueprintGeneratedClass::GetExtension(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType)
 {

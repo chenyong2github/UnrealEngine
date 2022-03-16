@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Binding/DynamicPropertyPath.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "FieldNotification/FieldId.h"
 
 #include "WidgetBlueprintGeneratedClass.generated.h"
 
@@ -73,20 +74,21 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UWidgetBlueprintGeneratedClassExtension>> Extensions;
 
-#if WITH_EDITORONLY_DATA
+	/** List Field Notifies. No index here on purpose to prevent saving them. */
+	UPROPERTY()
+	TArray<FFieldNotificationId> FieldNotifyNames;
 
-public:
-
-	UPROPERTY(Transient)
-	uint32 bCanCallPreConstruct:1;
-
-#endif
-
-private:
+	int32 FieldNotifyStartBitNumber;
 
 	/** The classes native parent requires a native tick */
 	UPROPERTY()
-	uint32 bClassRequiresNativeTick:1;
+	uint32 bClassRequiresNativeTick :1;
+
+#if WITH_EDITORONLY_DATA
+public:
+	UPROPERTY(Transient)
+	uint32 bCanCallPreConstruct : 1;
+#endif
 
 public:
 	UPROPERTY()
@@ -99,19 +101,21 @@ public:
 	TArray< FName > NamedSlots;
 
 public:
-
 	UWidgetTree* GetWidgetTreeArchetype() const { return WidgetTree; }
 	void SetWidgetTreeArchetype(UWidgetTree* InWidgetTree);
 
 	// Walks up the hierarchy looking for a valid widget tree.
 	UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass();
 
-	// UObject interface
-	virtual void Serialize(FArchive& Ar) override;
+	// Execute the callback for every FieldId defined in the BP class
+	void ForEachField(TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback) const;
 
+	//~ Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual bool NeedsLoadForServer() const override;
-	// End UObject interface
+	virtual void PostLoadDefaultObject(UObject* Object) override;
+	//~ End UObject interface
 
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;
 
@@ -160,4 +164,5 @@ public:
 private:
 	static void InitializeBindingsStatic(UUserWidget* UserWidget, const TArray< FDelegateRuntimeBinding >& InBindings);
 	static void BindAnimations(UUserWidget* Instance, const TArray< UWidgetAnimation* >& InAnimations);
+	void InitializeFieldNotification(const UUserWidget*);
 };
