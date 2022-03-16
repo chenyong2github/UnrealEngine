@@ -1704,6 +1704,11 @@ void FAndroidInputInterface::QueueMotionData(const FVector& Tilt, const FVector&
 			break;
 		}
 
+		if (AndroidUnifyMotionSpace == 2)
+		{
+			TempRotationRate = -TempRotationRate;
+		}
+
 		FAndroidInputInterface::MotionDataStack.Push(
 			MotionData{ TempTilt, TempRotationRate, TempGravity, TempAcceleration });
 	}
