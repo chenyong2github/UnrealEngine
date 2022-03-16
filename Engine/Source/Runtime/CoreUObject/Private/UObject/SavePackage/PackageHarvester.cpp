@@ -200,11 +200,16 @@ void FPackageHarvester::ProcessExport(const FExportWithContext& InProcessContext
 	FExportScope HarvesterScope(*this, InProcessContext, bReferencerIsEditorOnly);
 	
 	// The export scope set the current harvesting context
-	check(SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).IsExport(Export));
+	FHarvestedRealm& HarvestedRealm = SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm);
+	check(HarvestedRealm.IsExport(Export));
 
 	// Harvest its class 
 	UClass* Class = Export->GetClass();
 	*this << Class;
+	if (!HarvestedRealm.IsIncluded(Class))
+	{
+		SaveContext.RecordIllegalReference(Export, Class, EIllegalRefReason::UnsaveableClass, GetUnsaveableReason(Class));
+	}
 
 	// Harvest the export outer
 	if (UObject* Outer = Export->GetOuter())
@@ -226,6 +231,14 @@ void FPackageHarvester::ProcessExport(const FExportWithContext& InProcessContext
 			// Legacy behavior does not add an export outer as a preload dependency if that outer is also an export since those are handled already by the EDL
 			FIgnoreDependenciesScope IgnoreDependencies(*this);
 			*this << Outer;
+		}
+		if (!HarvestedRealm.IsIncluded(Outer))
+		{
+			// Only packages or object having the currently saved package as outer are allowed to have no outer
+			if (!Export->IsA<UPackage>() && Outer != SaveContext.GetPackage())
+			{
+				SaveContext.RecordIllegalReference(Export, Outer, EIllegalRefReason::UnsaveableOuter, GetUnsaveableReason(Outer));
+			}
 		}
 	}
 
@@ -657,4 +670,55 @@ void FPackageHarvester::AppendCurrentExportDependencies()
 	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetObjectDependencies().Add(CurrentExportDependencies.CurrentExport, MoveTemp(CurrentExportDependencies.ObjectReferences));
 	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetNativeObjectDependencies().Add(CurrentExportDependencies.CurrentExport, MoveTemp(CurrentExportDependencies.NativeObjectReferences));
 	CurrentExportDependencies.CurrentExport = nullptr;
+}
+
+FString FPackageHarvester::GetUnsaveableReason(UObject* Required)
+{
+	// Copy some of the code from operator<<(UObject*), TryHarvestExport, TryHarvestImport to find out why the Required object was not included
+	FString ReasonText(TEXTVIEW("It should be included but was excluded for an unknown reason."));
+	EIllegalRefReason UnusedRealmReason = EIllegalRefReason::None;
+	ESaveRealm HarvestContext = GetObjectHarvestingRealm(Required, UnusedRealmReason);
+	bool bShouldBeExport = Required->IsInPackage(SaveContext.GetPackage());
+
+	FSaveContext::ESaveableStatus CulpritStatus;
+	UObject* Culprit;
+	FSaveContext::ESaveableStatus Status = SaveContext.GetSaveableStatus(Required, &Culprit, &CulpritStatus);
+	if (Status != FSaveContext::ESaveableStatus::Success)
+	{
+		if (Status == FSaveContext::ESaveableStatus::OuterUnsaveable)
+		{
+			check(Culprit);
+			ReasonText = FString::Printf(TEXT("It has outer %s which %s."), *Culprit->GetPathName(), LexToString(CulpritStatus));
+		}
+		else
+		{
+			ReasonText =  FString::Printf(TEXT("It %s"), *LexToString(Status));
+		}
+	}
+	else if (ConditionallyExcludeObjectForTarget(SaveContext, Required, HarvestContext))
+	{
+		ReasonText = TEXTVIEW("It is excluded for the current cooking target.");
+	}
+	else if (bShouldBeExport)
+	{
+		// The class is in the package and so should be an export; we don't know of any other reasons why it would be excluded
+		ReasonText = TEXTVIEW("It should be an export but was excluded for an unknown reason.");
+	}
+	else
+	{
+		// The class is not in the package and so should be an import
+		bool bExcludePackageFromCook = FCoreUObjectDelegates::ShouldCookPackageForPlatform.IsBound() ?
+			!FCoreUObjectDelegates::ShouldCookPackageForPlatform.Execute(Required->GetOutermost(), CookingTarget()) : false;
+		if (bExcludePackageFromCook)
+		{
+			ReasonText = FString::Printf(TEXT("It is in package %s which is excluded from the cook by FCoreUObjectDelegates::ShouldCookPackageForPlatform."),
+				*Required->GetOutermost()->GetName());
+		}
+		else
+		{
+			// We don't know of any other reasons why it would be excluded
+			ReasonText = TEXTVIEW("It should be an import but was excluded for an unknown reason.");
+		}
+	}
+	return ReasonText;
 }

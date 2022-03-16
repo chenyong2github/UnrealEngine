@@ -80,6 +80,8 @@ enum class EIllegalRefReason : uint8
 	None = 0,
 	ReferenceToOptional,
 	ReferenceFromOptionalToMissingGameExport,
+	UnsaveableClass,
+	UnsaveableOuter,
 };
 
 /** Small struct to store illegal references harvested during save */
@@ -88,6 +90,7 @@ struct FIllegalReference
 	UObject* From = nullptr;
 	UObject* To = nullptr;
 	EIllegalRefReason Reason;
+	FString FormatStringArg;
 };
 
 /** Hold the harvested exports and imports for a realm */
@@ -663,10 +666,23 @@ public:
 	void MarkUnsaveable(UObject* InObject);
 
 	bool IsUnsaveable(UObject* InObject, bool bEmitWarning = true) const;
-
-	void RecordIllegalReference(UObject* InFrom, UObject* InTo, EIllegalRefReason InReason)
+	enum class ESaveableStatus
 	{
-		HarvestedIllegalReferences.Add({ InFrom, InTo, InReason });
+		Success,
+		PendingKill,
+		Transient,
+		AbstractClass,
+		DeprecatedClass,
+		NewerVersionExistsClass,
+		OuterUnsaveable,
+		__Count,
+	};
+	ESaveableStatus GetSaveableStatus(UObject* InObject, UObject** OutCulprit = nullptr, ESaveableStatus* OutCulpritStatus = nullptr) const;
+	ESaveableStatus GetSaveableStatusNoOuter(UObject* InObject) const;
+
+	void RecordIllegalReference(UObject* InFrom, UObject* InTo, EIllegalRefReason InReason, FString&& InOptionalReasonText = FString())
+	{
+		HarvestedIllegalReferences.Add({ InFrom, InTo, InReason, MoveTemp(InOptionalReasonText) });
 	}
 
 	const TArray<FIllegalReference>& GetIllegalReferences() const
@@ -1017,3 +1033,5 @@ private:
 	// Set of harvested prestream packages, should be deprecated
 	TSet<UPackage*> PrestreamPackages;
 };
+
+const TCHAR* LexToString(FSaveContext::ESaveableStatus Status);

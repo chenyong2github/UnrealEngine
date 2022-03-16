@@ -96,6 +96,8 @@ private:
 	void HarvestImport(UObject* InObject);
 
 	void AppendCurrentExportDependencies();
+	FString GetUnsaveableReason(UObject* Required);
+
 
 	struct FExportDependencies
 	{

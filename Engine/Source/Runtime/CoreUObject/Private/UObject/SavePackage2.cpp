@@ -437,6 +437,20 @@ ESavePackageResult ValidateRealms(FSaveContext& SaveContext)
 					Reference.From ? *Reference.From->GetPathName() : TEXT("Unknown"),
 					Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"));
 				break;
+			case EIllegalRefReason::UnsaveableClass:
+				ErrorMessage = FString::Printf(TEXT("Can't save %s: Object (%s) is an export but is an instance of class (%s) which is unsaveable: %s"),
+					SaveContext.GetFilename(),
+					Reference.From ? *Reference.From->GetPathName() : TEXT("Unknown"),
+					Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"),
+					*Reference.FormatStringArg);
+				break;
+			case EIllegalRefReason::UnsaveableOuter:
+				ErrorMessage = FString::Printf(TEXT("Can't save %s: Object (%s) is an export but is a subobject of (%s) which is unsaveable: %s"),
+					SaveContext.GetFilename(),
+					Reference.From ? *Reference.From->GetPathName() : TEXT("Unknown"),
+					Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"),
+					*Reference.FormatStringArg);
+				break;
 			default:
 				ErrorMessage = FString::Printf(TEXT("Can't save %s: Unknown Illegal reference from object (%s) to object (%s)"),
 					SaveContext.GetFilename(),
@@ -1135,6 +1149,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 			if (ObjClass != UClass::StaticClass())
 			{
 				Export.ClassIndex = Linker->MapObject(ObjClass);
+				// The class should be mappable because it was checked in FPackageHarvester::ProcessExport and the save early-exited if not
 				checkf(!Export.ClassIndex.IsNull(), TEXT("Export %s class is not mapped when saving %s"), *Export.Object->GetFullName(), *Linker->LinkerRoot->GetName());
 			}
 			else

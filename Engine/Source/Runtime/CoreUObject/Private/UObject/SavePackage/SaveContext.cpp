@@ -28,6 +28,8 @@ void FSaveContext::MarkUnsaveable(UObject* InObject)
 {
 	if (IsUnsaveable(InObject))
 	{
+		// TODO: We should not be modifying objects during the save. Besides interfering with the objects outside of the save,
+		// it also prevents us from gathering reasons about why an object was marked unsaveable.
 		InObject->SetFlags(RF_Transient);
 	}
 
@@ -41,41 +43,100 @@ void FSaveContext::MarkUnsaveable(UObject* InObject)
 
 bool FSaveContext::IsUnsaveable(UObject* InObject, bool bEmitWarning) const
 {
+	UObject* Culprit;
+	ESaveableStatus CulpritStatus;
+	ESaveableStatus Status = GetSaveableStatus(InObject, &Culprit, &CulpritStatus);
+	if (Status == ESaveableStatus::Success)
+	{
+		return false;
+	}
+	if (Status == ESaveableStatus::OuterUnsaveable && bEmitWarning &&
+		(CulpritStatus == ESaveableStatus::AbstractClass || CulpritStatus == ESaveableStatus::DeprecatedClass || CulpritStatus == ESaveableStatus::NewerVersionExistsClass))
+	{
+		check(Culprit);
+		// Only warn if the base object is fine but the outer is invalid. If an object is itself unsaveable, the old behavior is to ignore it
+		if (InObject->GetOutermost() == GetPackage())
+		{
+			UE_LOG(LogSavePackage, Warning, TEXT("%s has a deprecated or abstract class outer %s, so it will not be saved"),
+				*InObject->GetFullName(), *Culprit->GetFullName());
+		}
+	}
+	return true;
+}
+
+FSaveContext::ESaveableStatus FSaveContext::GetSaveableStatus(UObject* InObject, UObject** OutCulprit, ESaveableStatus* OutCulpritStatus) const
+{
 	UObject* Obj = InObject;
 	while (Obj)
 	{
-		// pending kill object are unsaveable
-		if (!IsValidChecked(Obj))
+		ESaveableStatus Status = GetSaveableStatusNoOuter(Obj);
+		if (Status != ESaveableStatus::Success)
 		{
-			return true;
-		}
-
-		// transient object are considered unsaveable if non native
-		if (Obj->HasAnyFlags(RF_Transient) && !Obj->IsNative())
-		{
-			return true;
-		}
-
-		// if the object class is abstract, has been marked as deprecated, there is a newer version that exist, or the class is marked transient, then the object is unsaveable
-		// @note: Although object instances of a transient class should definitely be unsaveable, it results in discrepancies with the old save algorithm and currently load problems
-		if (Obj->GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists /*| CLASS_Transient*/) 
-			&& !Obj->HasAnyFlags(RF_ClassDefaultObject))
-		{
-			// only warn if the base object is fine but the outer is invalid. If an object is itself unsaveable, the old behavior is to ignore it
-			if (bEmitWarning
-				&& IsValidChecked(Obj)
-				&& InObject->GetOutermost() == GetPackage()
-				&& Obj != InObject)
+			if (OutCulprit)
 			{
-				UE_LOG(LogSavePackage, Warning, TEXT("%s has a deprecated or abstract class outer %s, so it will not be saved"), *InObject->GetFullName(), *Obj->GetFullName());
+				*OutCulprit = Obj;
 			}
-
-			// there used to be a check for reference if the class had the CLASS_HasInstancedReference,
-			// those reference were outer-ed to the object being flagged as unsaveable, making them unsaveable as well without having to look for them
-			return true;
+			if (OutCulpritStatus)
+			{
+				*OutCulpritStatus = Status;
+			}
+			return Obj == InObject ? Status : ESaveableStatus::OuterUnsaveable;
 		}
-
 		Obj = Obj->GetOuter();
 	}
-	return false;	
+	if (OutCulprit)
+	{
+		*OutCulprit = InObject;
+	}
+	if (OutCulpritStatus)
+	{
+		*OutCulpritStatus = ESaveableStatus::Success;
+	}
+	return ESaveableStatus::Success;
+}
+
+FSaveContext::ESaveableStatus FSaveContext::GetSaveableStatusNoOuter(UObject* Obj) const
+{
+	// pending kill object are unsaveable
+	if (!IsValidChecked(Obj))
+	{
+		return ESaveableStatus::PendingKill;
+	}
+
+	// transient object are considered unsaveable if non native
+	if (Obj->HasAnyFlags(RF_Transient) && !Obj->IsNative())
+	{
+		return ESaveableStatus::Transient;
+	}
+
+	UClass* Class = Obj->GetClass();
+	// if the object class is abstract, has been marked as deprecated, there is a newer version that exist, or the class is marked transient, then the object is unsaveable
+	// @note: Although object instances of a transient class should definitely be unsaveable, it results in discrepancies with the old save algorithm and currently load problems
+	if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists /*| CLASS_Transient*/)
+		&& !Obj->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// There used to be a check for reference if the class had the CLASS_HasInstancedReference,
+		// but we don't need it because those references are outer-ed to the object being flagged as unsaveable, making them unsaveable as well without having to look for them
+		return Class->HasAnyClassFlags(CLASS_Abstract) ? ESaveableStatus::AbstractClass :
+			Class->HasAnyClassFlags(CLASS_Deprecated) ? ESaveableStatus::DeprecatedClass :
+			ESaveableStatus::NewerVersionExistsClass;
+	}
+
+	return ESaveableStatus::Success;
+}
+
+const TCHAR* LexToString(FSaveContext::ESaveableStatus Status)
+{
+	static_assert(static_cast<int32>(FSaveContext::ESaveableStatus::__Count) == 7);
+	switch (Status)
+	{
+	case FSaveContext::ESaveableStatus::Success: return TEXT("is saveable");
+	case FSaveContext::ESaveableStatus::PendingKill: return TEXT("is pendingkill");
+	case FSaveContext::ESaveableStatus::Transient: return TEXT("is transient");
+	case FSaveContext::ESaveableStatus::AbstractClass: return TEXT("has a Class with CLASS_Abstract");
+	case FSaveContext::ESaveableStatus::DeprecatedClass: return TEXT("has a Class with CLASS_Deprecated");
+	case FSaveContext::ESaveableStatus::NewerVersionExistsClass: return TEXT("has a Class with CLASS_NewerVersionExists");
+	case FSaveContext::ESaveableStatus::OuterUnsaveable: return TEXT("has an unsaveable Outer");
+	default: return TEXT("Unknown");
+	}
 }
