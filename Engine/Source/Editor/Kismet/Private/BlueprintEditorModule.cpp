@@ -421,6 +421,24 @@ void FBlueprintEditorModule::UnregisterGraphCustomization(const UEdGraphSchema* 
 	GraphCustomizations.Remove(InGraphSchema);
 }
 
+FDelegateHandle FBlueprintEditorModule::RegisterFunctionCustomization(TSubclassOf<UK2Node_EditablePinBase> InFieldClass, FOnGetFunctionCustomizationInstance InOnGetFunctionCustomization)
+{
+	FDelegateHandle Result = InOnGetFunctionCustomization.GetHandle();
+	FunctionCustomizations.Add(InFieldClass, InOnGetFunctionCustomization);
+	return Result;
+}
+
+void FBlueprintEditorModule::UnregisterFunctionCustomization(TSubclassOf<UK2Node_EditablePinBase> InFieldClass, FDelegateHandle InHandle)
+{
+	for (TMultiMap<TSubclassOf<UK2Node_EditablePinBase>, FOnGetFunctionCustomizationInstance>::TKeyIterator It = FunctionCustomizations.CreateKeyIterator(InFieldClass); It; ++It)
+	{
+		if (It.Value().GetHandle() == InHandle)
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
 TArray<TSharedPtr<IDetailCustomization>> FBlueprintEditorModule::CustomizeVariable(FFieldClass* InFieldClass, TSharedPtr<IBlueprintEditor> InBlueprintEditor)
 {
 	TArray<TSharedPtr<IDetailCustomization>> DetailsCustomizations;
@@ -483,6 +501,43 @@ TArray<TSharedPtr<IDetailCustomization>> FBlueprintEditorModule::CustomizeGraph(
 				if(Customization.IsValid())
 				{ 
 					DetailsCustomizations.Add(Customization);
+				}
+			}
+		}
+	}
+
+	return DetailsCustomizations;
+}
+
+TArray<TSharedPtr<IDetailCustomization>> FBlueprintEditorModule::CustomizeFunction(const TSubclassOf<UK2Node_EditablePinBase> InFunctionClass, TSharedPtr<IBlueprintEditor> InBlueprintEditor)
+{
+	TArray<TSharedPtr<IDetailCustomization>> DetailsCustomizations;
+	TArray<UClass*> ParentPinClassesToQuery;
+	if (InFunctionClass)
+	{
+		UClass* FunctionClass = InFunctionClass.Get();
+		ParentPinClassesToQuery.Add(FunctionClass);
+
+		UClass* ParentSchemaClass = FunctionClass->GetSuperClass();
+		while (ParentSchemaClass && ParentSchemaClass->IsChildOf(UK2Node_EditablePinBase::StaticClass()))
+		{
+			ParentPinClassesToQuery.Add(ParentSchemaClass);
+			ParentSchemaClass = ParentSchemaClass->GetSuperClass();
+		}
+
+		for (UClass* ClassToQuery : ParentPinClassesToQuery)
+		{
+			TArray<FOnGetFunctionCustomizationInstance*, TInlineAllocator<4>> CustomizationDelegates;
+			FunctionCustomizations.MultiFindPointer(ClassToQuery, CustomizationDelegates, false);
+			for (FOnGetFunctionCustomizationInstance* CustomizationDelegate : CustomizationDelegates)
+			{
+				if (CustomizationDelegate && CustomizationDelegate->IsBound())
+				{
+					TSharedPtr<IDetailCustomization> Customization = CustomizationDelegate->Execute(InBlueprintEditor);
+					if (Customization.IsValid())
+					{
+						DetailsCustomizations.Add(Customization);
+					}
 				}
 			}
 		}

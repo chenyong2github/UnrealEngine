@@ -22,12 +22,16 @@ class IDetailCustomization;
 class FKismetCompilerContext;
 struct FBlueprintDebugger;
 class FSubobjectEditorTreeNode;
+class UK2Node_EditablePinBase;
 
 /** Delegate used to customize variable display */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IDetailCustomization>, FOnGetVariableCustomizationInstance, TSharedPtr<IBlueprintEditor> /*BlueprintEditor*/);
 
 /** Delegate used to customize local variable display */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IDetailCustomization>, FOnGetLocalVariableCustomizationInstance, TSharedPtr<IBlueprintEditor> /*BlueprintEditor*/);
+
+/** Delegate used to customize function display */
+DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IDetailCustomization>, FOnGetFunctionCustomizationInstance, TSharedPtr<IBlueprintEditor> /*BlueprintEditor*/);
 
 /** Delegate used to customize graph display */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IDetailCustomization>, FOnGetGraphCustomizationInstance, TSharedPtr<IBlueprintEditor> /*BlueprintEditor*/);
@@ -259,6 +263,20 @@ public:
 	 */
 	virtual void UnregisterGraphCustomization(const UEdGraphSchema* InGraphSchema);
 
+	/**
+	 * Register a customization for for Blueprint functions
+	 * @param	InStruct				The type of the pin to create the customization for
+	 * @param	InOnGetFunctionCustomization	The delegate used to create customization instances
+	 */
+	virtual FDelegateHandle RegisterFunctionCustomization(TSubclassOf<UK2Node_EditablePinBase> InFieldClass, FOnGetFunctionCustomizationInstance InOnGetFunctionCustomization);
+
+	/**
+	 * Unregister a previously registered customization for BP functions
+	 * @param	InStruct				The type to create the customization for
+	 * @param	InHandle				The handle returned by UnregisterFunctionCustomization
+	 */
+	virtual void UnregisterFunctionCustomization(TSubclassOf<UK2Node_EditablePinBase> InFieldClass, FDelegateHandle InHandle);
+
 
 	/** 
 	 * Build a set of details customizations for the passed-in type, if possible.
@@ -273,6 +291,13 @@ public:
 	 * @param	InBlueprintEditor		The Blueprint Editor the customization will be created for
 	 */
 	virtual TArray<TSharedPtr<IDetailCustomization>> CustomizeGraph(const UEdGraphSchema* InGraphSchema, TSharedPtr<IBlueprintEditor> InBlueprintEditor);
+
+	/** 
+	 * Build a set of details customizations for function with the passed-in type, if possible.
+	 * @param	InFunctionClass		The type to create the customization for
+	 * @param	InBlueprintEditor		The Blueprint Editor the customization will be created for
+	 */
+	virtual TArray<TSharedPtr<IDetailCustomization>> CustomizeFunction(TSubclassOf<UK2Node_EditablePinBase> InFunctionClass, TSharedPtr<IBlueprintEditor> InBlueprintEditor);
 
 	/** Delegate for binding functions to be called when the blueprint editor finishes getting created */
 	DECLARE_EVENT_OneParam( FBlueprintEditorModule, FBlueprintEditorOpenedEvent, EBlueprintType );
@@ -319,6 +344,9 @@ private:
 
 	/** Customizations for Blueprint graphs */
 	TMap<const UEdGraphSchema*, FOnGetGraphCustomizationInstance> GraphCustomizations;
+
+	/** Customizations for Blueprint functions */
+	TMultiMap<TSubclassOf<UK2Node_EditablePinBase>, FOnGetFunctionCustomizationInstance> FunctionCustomizations;
 
 	/** Root customization for the BP editor details panel. */
 	TSharedPtr<class IDetailRootObjectCustomization> DetailsRootCustomization;

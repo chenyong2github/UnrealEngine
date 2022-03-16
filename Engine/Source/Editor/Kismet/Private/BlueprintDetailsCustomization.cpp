@@ -4051,6 +4051,19 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				];
 			OutputsCategory.HeaderContent(OutputsHeaderContentWidget);
 		}
+
+		// See if anything else wants to customize our details
+		TWeakPtr<FBlueprintEditor> BlueprintEditor = MyBlueprint.Pin()->GetBlueprintEditor();
+		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
+		TArray<TSharedPtr<IDetailCustomization>> Customizations = BlueprintEditorModule.CustomizeFunction(FunctionEntryNode->GetClass(), BlueprintEditor.Pin());
+		ExternalDetailCustomizations.Append(Customizations);
+		if (ExternalDetailCustomizations.Num() > 0)
+		{
+			for (TSharedPtr<IDetailCustomization> ExternalDetailCustomization : ExternalDetailCustomizations)
+			{
+				ExternalDetailCustomization->CustomizeDetails(DetailLayout);
+			}
+		}
 	}
 	else if (bHasAGraph)
 	{
