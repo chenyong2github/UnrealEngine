@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "PCGContext.h"
 #include "PCGData.h"
 #include "PCGPoint.h"
 
