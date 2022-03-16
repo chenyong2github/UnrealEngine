@@ -4,10 +4,10 @@ using EpicGames.Core;
 using EpicGames.Horde.Compute;
 using EpicGames.Redis;
 using EpicGames.Serialization;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Storage;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Storage;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
@@ -20,7 +20,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace HordeServer.Compute.Impl
+namespace Horde.Build.Compute.Impl
 {
 	using Condition = StackExchange.Redis.Condition;
 

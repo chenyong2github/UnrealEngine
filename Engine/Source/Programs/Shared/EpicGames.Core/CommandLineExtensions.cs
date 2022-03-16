@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace HordeAgent.Utility
+namespace EpicGames.Core
 {
 	/// <summary>
 	/// Extensions to StringBuilder for building command lines

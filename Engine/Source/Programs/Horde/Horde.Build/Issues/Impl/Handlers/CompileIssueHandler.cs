@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeCommon;
-using HordeServer.Collections;
+using Horde.Build.Collections;
 using HordeCommon.Rpc;
-using HordeServer.Services;
-using HordeServer.Utilities;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -18,10 +18,10 @@ using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
-using HordeServer.Models;
+using Horde.Build.Models;
 using EpicGames.Core;
 
-namespace HordeServer.IssueHandlers.Impl
+namespace Horde.Build.IssueHandlers.Impl
 {
 	/// <summary>
 	/// Instance of a particular compile error

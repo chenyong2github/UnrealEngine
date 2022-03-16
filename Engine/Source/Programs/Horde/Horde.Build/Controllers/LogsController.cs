@@ -11,12 +11,12 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using HordeServer.Api;
-using HordeServer.Collections;
-using HordeServer.Logs;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Collections;
+using Horde.Build.Logs;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +24,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MongoDB.Bson;
 
-namespace HordeServer.Controllers
+namespace Horde.Build.Controllers
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

@@ -2,7 +2,7 @@
 
 using HordeCommon;
 using HordeCommon.Rpc;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	using LogId = ObjectId<ILogFile>;
 

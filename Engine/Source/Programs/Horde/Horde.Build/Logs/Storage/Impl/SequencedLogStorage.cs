@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeServer.Logs.Storage.Impl
+namespace Horde.Build.Logs.Storage.Impl
 {
 	using LogId = ObjectId<ILogFile>;
 

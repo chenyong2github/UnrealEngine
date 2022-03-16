@@ -2,12 +2,12 @@
 
 using EpicGames.Core;
 using HordeCommon;
-using HordeServer.Api;
-using HordeServer.Collections;
-using HordeServer.Logs;
-using HordeServer.Models;
-using HordeServer.Storage;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Collections;
+using Horde.Build.Logs;
+using Horde.Build.Models;
+using Horde.Build.Storage;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
@@ -35,7 +35,7 @@ using OpenTracing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

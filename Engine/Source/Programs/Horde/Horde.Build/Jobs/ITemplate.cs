@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Api;
+using Horde.Build.Api;
 using HordeCommon;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
@@ -13,7 +13,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	/// <summary>
 	/// Base class for parameters used to configure templates via the new build dialog

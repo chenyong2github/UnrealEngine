@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Commands.Workspace
+namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Dump", "Dumps the contents of the repository to the log for analysis")]
 	class Dump : WorkspaceCommand

@@ -16,7 +16,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
-namespace HordeAgent.Commands.Certs
+namespace Horde.Agent.Commands.Certs
 {
 	/// <summary>
 	/// Creates a certificate that can be used for server/agent SSL connections

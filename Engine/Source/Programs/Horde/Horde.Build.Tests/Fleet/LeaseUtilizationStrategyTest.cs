@@ -8,9 +8,9 @@ using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Fleet.Autoscale;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
-using HordeServer.Models;
-using HordeServer.Utilities;
-using HordeServerTests;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Horde.Build.Tests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Fleet

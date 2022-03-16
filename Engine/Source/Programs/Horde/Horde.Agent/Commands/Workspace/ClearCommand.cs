@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Commands.Workspace
+namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Clear", "Empties the staging directory of any files, returning them to the cache")]
 	class ClearCommand : WorkspaceCommand

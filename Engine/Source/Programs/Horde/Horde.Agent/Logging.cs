@@ -20,7 +20,7 @@ using System.Text.Json;
 using System.Buffers;
 using MessageTemplate = EpicGames.Core.MessageTemplate;
 
-namespace HordeAgent
+namespace Horde.Agent
 {
 	static class Logging
 	{

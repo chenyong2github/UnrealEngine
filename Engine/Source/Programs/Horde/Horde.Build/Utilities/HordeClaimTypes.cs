@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Collections;
-using HordeServer.Models;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-namespace HordeServer.Utilities
+namespace Horde.Build.Utilities
 {
 	using UserId = ObjectId<IUser>;
 

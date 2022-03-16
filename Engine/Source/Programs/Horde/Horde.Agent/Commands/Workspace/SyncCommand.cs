@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
 
-namespace HordeAgent.Commands.Workspace
+namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Sync", "Syncs the files for a particular stream and changelist")]
 	class SyncCommand : WorkspaceCommand

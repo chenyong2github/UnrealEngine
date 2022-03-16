@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Models;
+using Horde.Build.Models;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace HordeServer.Api
+namespace Horde.Build.Api
 {
 	/// <summary>
 	/// Response from creating an artifact

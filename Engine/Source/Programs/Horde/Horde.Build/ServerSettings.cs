@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Logs.Readers;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Storage;
-using HordeServer.Storage.Backends;
-using HordeServer.Utilities;
+using Horde.Build.Logs.Readers;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Storage;
+using Horde.Build.Storage.Backends;
+using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -17,7 +17,7 @@ using Horde.Build.Fleet.Autoscale;
 using TimeZoneConverter;
 using EpicGames.Horde.Storage;
 
-namespace HordeServer
+namespace Horde.Build
 {
 	/// <summary>
 	/// Types of storage to use for log data

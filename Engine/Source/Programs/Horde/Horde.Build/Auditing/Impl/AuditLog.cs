@@ -4,9 +4,9 @@ using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -20,7 +20,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace HordeServer.Collections.Impl
+namespace Horde.Build.Collections.Impl
 {
 	class AuditLog<TSubject> : IAuditLog<TSubject>, IAsyncDisposable, IDisposable
 	{

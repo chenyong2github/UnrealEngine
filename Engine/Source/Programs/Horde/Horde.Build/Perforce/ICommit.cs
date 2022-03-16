@@ -3,8 +3,8 @@
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Perforce;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HordeServer.Commits
+namespace Horde.Build.Commits
 {
 	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;

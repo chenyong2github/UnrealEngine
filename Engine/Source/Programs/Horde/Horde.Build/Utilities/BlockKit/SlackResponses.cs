@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Drawing;
-using HordeServer.Utilities.Slack.BlockKit;
+using Horde.Build.Utilities.Slack.BlockKit;
 
-namespace HordeServer.Utilities.BlockKit
+namespace Horde.Build.Utilities.BlockKit
 {
 	/// <summary>
 	/// Helper methods for creating <see cref="BlockKitMessage"/> responses to send

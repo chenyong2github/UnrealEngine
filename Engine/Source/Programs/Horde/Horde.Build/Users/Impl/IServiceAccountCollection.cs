@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Models;
+using Horde.Build.Models;
 using MongoDB.Bson;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace HordeServer.Collections
+namespace Horde.Build.Collections
 {
 	/// <summary>
 	/// Interface for a collection of service account documents

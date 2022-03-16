@@ -4,16 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using HordeServer;
-using HordeServer.Services;
-using HordeServer.Utilities;
+using Horde.Build;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Driver;
 using StackExchange.Redis;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
     // Stub for fulfilling IOptionsMonitor interface during testing
     public class TestOptionsMonitor<T> : IOptionsMonitor<T>, IDisposable

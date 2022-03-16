@@ -3,10 +3,10 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Fleet.Autoscale;
-using HordeServer.Api;
-using HordeServer.Models;
-using HordeServer.Utilities;
-using HordeServerTests;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Horde.Build.Tests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -36,7 +36,7 @@ namespace Horde.Build.Tests
 		        ScaleOutCooldown = 111,
 		        ScaleInCooldown = 222,
 		        SizeStrategy = PoolSizeStrategy.JobQueue,
-		        JobQueueSettings = new HordeServer.Api.JobQueueSettings(new Horde.Build.Fleet.Autoscale.JobQueueSettings(0.35, 0.85))
+		        JobQueueSettings = new Horde.Build.Api.JobQueueSettings(new Horde.Build.Fleet.Autoscale.JobQueueSettings(0.35, 0.85))
 	        };
 	        
 	        ActionResult<CreatePoolResponse> Result = await PoolsController.CreatePoolAsync(Request);

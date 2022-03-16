@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeAgent.Services;
-using HordeAgent.Utility;
+using Horde.Agent.Services;
+using Horde.Agent.Utility;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -18,7 +18,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 
-namespace HordeAgent.Commands
+namespace Horde.Agent.Commands
 {
 	/// <summary>
 	/// Upgrades a running service to the current application

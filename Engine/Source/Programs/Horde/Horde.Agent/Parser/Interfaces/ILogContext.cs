@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace HordeAgent.Parser.Interfaces
+namespace Horde.Agent.Parser.Interfaces
 {
 	/// <summary>
 	/// Interface for context on the log being parsed

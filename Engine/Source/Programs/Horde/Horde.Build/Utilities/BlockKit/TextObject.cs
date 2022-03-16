@@ -3,7 +3,7 @@
 using System;
 using System.Text.Json;
 
-namespace HordeServer.Utilities.Slack.BlockKit
+namespace Horde.Build.Utilities.Slack.BlockKit
 {
 	/// <summary>
 	/// Represents a BlockKit TextObject which is used to present markdown or plain text

@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Services;
+using Horde.Build.Services;
 using MongoDB.Bson.Serialization.Attributes;
 using System.Threading.Tasks;
 
-using HordeServer.Models;
+using Horde.Build.Models;
 using MongoDB.Driver;
 using System;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using System.Linq;
 
 using MongoDB.Bson;
 using System.Collections.Generic;
 
-namespace HordeServer.Collections.Impl
+namespace Horde.Build.Collections.Impl
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;

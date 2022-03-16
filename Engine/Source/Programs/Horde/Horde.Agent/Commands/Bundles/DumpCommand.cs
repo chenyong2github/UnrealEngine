@@ -15,7 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Commands.Bundles
+namespace Horde.Agent.Commands.Bundles
 {
 	[Command("bundle", "dump", "Indexes a tree and creates a table of contents for each blob describing the contents")]
 	class DumpCommand : BundleCommandBase

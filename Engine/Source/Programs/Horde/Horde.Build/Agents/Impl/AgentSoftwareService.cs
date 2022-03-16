@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeCommon;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -23,7 +23,7 @@ using System.IO.Compression;
 using System.Security.Cryptography.X509Certificates;
 using Horde.Build.Commands;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 

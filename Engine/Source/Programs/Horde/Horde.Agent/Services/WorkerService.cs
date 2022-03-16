@@ -8,10 +8,10 @@ using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
-using HordeAgent.Execution;
-using HordeAgent.Execution.Interfaces;
-using HordeAgent.Parser;
-using HordeAgent.Utility;
+using Horde.Agent.Execution;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Parser;
+using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
@@ -44,7 +44,7 @@ using System.Net;
 using EpicGames.Horde.Storage.Impl;
 using System.Text.RegularExpressions;
 
-namespace HordeAgent.Services
+namespace Horde.Agent.Services
 {
 	/// <summary>
 	/// Implements the message handling loop for an agent. Runs asynchronously until disposed.

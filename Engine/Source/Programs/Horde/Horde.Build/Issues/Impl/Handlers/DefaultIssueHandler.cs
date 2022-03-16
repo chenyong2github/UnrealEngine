@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Collections;
-using HordeServer.Models;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeServer.IssueHandlers.Impl
+namespace Horde.Build.IssueHandlers.Impl
 {
 	/// <summary>
 	/// Instance of a particular compile error

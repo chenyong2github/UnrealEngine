@@ -2,7 +2,7 @@
 
 using Amazon.Runtime;
 using EpicGames.Core;
-using HordeServer.Logs;
+using Horde.Build.Logs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing.Constraints;
 using System;
@@ -12,7 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
-namespace HordeServer.Logs
+namespace Horde.Build.Logs
 {
 	/// <summary>
 	/// Structure used for generating prefix trees

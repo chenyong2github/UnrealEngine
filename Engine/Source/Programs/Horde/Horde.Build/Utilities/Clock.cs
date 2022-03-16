@@ -2,7 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Redis.Utility;
-using HordeServer.Services;
+using Horde.Build.Services;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System;

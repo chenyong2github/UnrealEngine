@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Horde.Common;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using Horde.Build.Fleet.Autoscale;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	using PoolId = StringId<IPool>;
 

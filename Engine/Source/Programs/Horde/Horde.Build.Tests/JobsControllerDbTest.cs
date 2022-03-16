@@ -4,14 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using HordeServer.Api;
+using Horde.Build.Api;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using HordeServer.Controllers;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Controllers;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Mvc;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
     /// <summary>
     /// Database-only test for testing the Job controller. Different from the JobsController test that set up

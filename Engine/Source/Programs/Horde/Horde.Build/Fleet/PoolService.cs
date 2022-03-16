@@ -2,9 +2,9 @@
 
 using EpicGames.Horde.Common;
 using HordeCommon;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Fleet.Autoscale;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using PoolId = StringId<IPool>;
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using OpenTracing;
 using OpenTracing.Util;
 using System;
@@ -12,7 +12,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HordeServer.Logs
+namespace Horde.Build.Logs
 {
 	/// <summary>
 	/// Contains a source block of text to be indexed

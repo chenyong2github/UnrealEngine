@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeAgent.Commands;
-using HordeAgent.Services;
-using HordeAgent.Utility;
+using Horde.Agent.Commands;
+using Horde.Agent.Services;
+using Horde.Agent.Utility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -27,7 +27,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Impl;
 using EpicGames.Horde.Compute;
 
-namespace HordeAgent.Modes.Service
+namespace Horde.Agent.Modes.Service
 {
 	/// <summary>
 	/// 

@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Fleet.Autoscale;
-using HordeServer.Api;
-using HordeServer.Models;
-using HordeServer.Utilities;
-using HordeServerTests;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Horde.Build.Tests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Fleet

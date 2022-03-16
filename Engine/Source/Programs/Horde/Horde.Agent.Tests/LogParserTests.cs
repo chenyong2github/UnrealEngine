@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeAgent.Parser;
-using HordeAgent.Utility;
+using Horde.Agent.Parser;
+using Horde.Agent.Utility;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,7 +20,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace HordeAgentTests
+namespace Horde.Agent.Tests
 {
 	[TestClass]
 	public class LogParserTests

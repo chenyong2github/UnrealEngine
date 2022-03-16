@@ -3,11 +3,11 @@
 using EpicGames.Core;
 using EpicGames.Redis.Utility;
 using HordeCommon;
-using HordeServer.Collections;
-using HordeServer.IssueHandlers;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.IssueHandlers;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
@@ -26,12 +26,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using HordeServer.IssueHandlers.Impl;
-using HordeServer.Notifications;
+using Horde.Build.IssueHandlers.Impl;
+using Horde.Build.Notifications;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace HordeServer.Services.Impl
+namespace Horde.Build.Services.Impl
 {
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;

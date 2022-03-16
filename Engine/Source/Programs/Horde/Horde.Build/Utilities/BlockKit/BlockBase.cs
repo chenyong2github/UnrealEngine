@@ -4,7 +4,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace HordeServer.Utilities.Slack.BlockKit
+namespace Horde.Build.Utilities.Slack.BlockKit
 {
 	/// <summary>
 	/// Converter for overriding default Json serialization/deserialization for BlockKit blocks.

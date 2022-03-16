@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace HordeAgent
+namespace Horde.Agent
 {
 	static class Tracing
 	{

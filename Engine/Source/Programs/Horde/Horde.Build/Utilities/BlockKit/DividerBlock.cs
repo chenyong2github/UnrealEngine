@@ -2,7 +2,7 @@
 
 using System.Text.Json;
 
-namespace HordeServer.Utilities.Slack.BlockKit
+namespace Horde.Build.Utilities.Slack.BlockKit
 {
 	/// <summary>
 	/// Wrapper for a BlockKit Divider block that is used to add a divider between two blocks.

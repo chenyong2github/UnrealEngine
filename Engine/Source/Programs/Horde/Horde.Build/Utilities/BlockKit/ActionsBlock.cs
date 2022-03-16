@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 
-namespace HordeServer.Utilities.Slack.BlockKit
+namespace Horde.Build.Utilities.Slack.BlockKit
 {
 	/// <summary>
 	/// Wrapper for a BlockKit Actions block that contains interactive elements.

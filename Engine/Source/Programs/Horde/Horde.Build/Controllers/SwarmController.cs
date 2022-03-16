@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeServer.Controllers
+namespace Horde.Build.Controllers
 {
 	/// <summary>
 	/// Controller for the /api/v1/swarm endpoint

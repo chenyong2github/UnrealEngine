@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
 
-namespace HordeAgent.Commands.Workspace
+namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "PurgeCache", "Shrink the size of the cache to the given size")]
 	class PurgeCacheCommand : WorkspaceCommand

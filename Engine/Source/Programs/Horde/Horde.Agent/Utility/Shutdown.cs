@@ -9,7 +9,7 @@ using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace HordeAgent.Utility
+namespace Horde.Agent.Utility
 {
 	static class Shutdown
 	{

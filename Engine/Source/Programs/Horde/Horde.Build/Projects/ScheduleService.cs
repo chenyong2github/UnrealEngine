@@ -3,11 +3,10 @@
 using Amazon.S3.Model.Internal.MarshallTransformations;
 using EpicGames.Core;
 using HordeCommon;
-using HordeServer.Api;
-using HordeServer.Collections;
-using HordeServer.Controllers;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Collections;
+using Horde.Build.Controllers;
+using Horde.Build.Models;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Features;
 using Microsoft.Extensions.Hosting;
@@ -31,7 +30,7 @@ using EpicGames.Serialization;
 using System.Text.RegularExpressions;
 using EpicGames.Redis.Utility;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;

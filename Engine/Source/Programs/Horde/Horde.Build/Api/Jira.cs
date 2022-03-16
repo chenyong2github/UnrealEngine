@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Models;
+using Horde.Build.Services;
 
-namespace HordeServer.Api
+namespace Horde.Build.Api
 {
 
 	/// <summary>

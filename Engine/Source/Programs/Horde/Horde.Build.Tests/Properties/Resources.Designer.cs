@@ -10,7 +10,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace HordeServer.Compute.Tests.Properties {
+namespace Horde.Build.Compute.Tests.Properties {
     using System;
     
     

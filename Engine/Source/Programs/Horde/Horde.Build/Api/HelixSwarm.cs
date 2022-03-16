@@ -3,7 +3,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 
-namespace HordeServer.Api
+namespace Horde.Build.Api
 {
 	/// <summary>
 	/// Request sent by the Helix Swarm project

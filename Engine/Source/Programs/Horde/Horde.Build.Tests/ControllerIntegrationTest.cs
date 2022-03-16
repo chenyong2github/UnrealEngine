@@ -6,11 +6,11 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using HordeServer;
-using HordeServer.Collections;
-using HordeServer.Collections.Impl;
-using HordeServer.Jobs;
-using HordeServer.Services;
+using Horde.Build;
+using Horde.Build.Collections;
+using Horde.Build.Collections.Impl;
+using Horde.Build.Jobs;
+using Horde.Build.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -19,7 +19,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartup> where TStartup : class
     {

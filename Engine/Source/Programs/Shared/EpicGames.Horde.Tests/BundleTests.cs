@@ -16,7 +16,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HordeServerTests
+namespace EpicGames.Horde.Tests
 {
 	[TestClass]
 	public class BundleTests : IDisposable

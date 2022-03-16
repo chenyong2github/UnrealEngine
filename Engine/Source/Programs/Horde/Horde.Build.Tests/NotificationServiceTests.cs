@@ -4,19 +4,19 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using HordeCommon;
-using HordeServer.Api;
-using HordeServer.Models;
-using HordeServer.Notifications;
-using HordeServer.Notifications.Impl;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Notifications;
+using Horde.Build.Notifications.Impl;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using StackExchange.Redis;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
+using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 

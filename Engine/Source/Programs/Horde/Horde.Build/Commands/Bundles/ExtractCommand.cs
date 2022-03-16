@@ -16,7 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeServer.Commands.Bundles
+namespace Horde.Build.Commands.Bundles
 {
 	[Command("bundle", "extract", "Extracts data from a bundle to the local hard drive")]
 	class ExtractCommand : BundleCommandBase

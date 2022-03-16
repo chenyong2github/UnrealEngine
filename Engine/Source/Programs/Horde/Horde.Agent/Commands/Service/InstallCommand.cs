@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeAgent.Utility;
+using Horde.Agent.Utility;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
-namespace HordeAgent.Commands.Service
+namespace Horde.Agent.Commands.Service
 {
 	/// <summary>
 	/// Installs the agent as a service

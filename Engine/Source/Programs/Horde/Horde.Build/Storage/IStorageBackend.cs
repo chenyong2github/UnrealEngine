@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeServer.Storage
+namespace Horde.Build.Storage
 {
 	/// <summary>
 	/// Interface for a traditional location-addressed storage provider

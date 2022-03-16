@@ -21,8 +21,8 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
 using HordeCommon;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
@@ -46,7 +46,7 @@ using OpenTracing.Propagation;
 using Microsoft.Extensions.DependencyInjection;
 using Horde.Build.Commands;
 
-namespace HordeServer
+namespace Horde.Build
 {
 	static class LoggerExtensions
 	{

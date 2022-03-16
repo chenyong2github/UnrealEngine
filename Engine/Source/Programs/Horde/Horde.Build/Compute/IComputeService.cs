@@ -4,10 +4,10 @@ using EpicGames.Core;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
-using HordeServer.Models;
-using HordeServer.Storage;
-using HordeServer.Tasks;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Storage;
+using Horde.Build.Tasks;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Hosting;
 using MongoDB.Bson;
 using System;
@@ -17,7 +17,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeServer.Compute
+namespace Horde.Build.Compute
 {
 	using LeaseId = ObjectId<ILease>;
 

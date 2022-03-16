@@ -3,7 +3,7 @@
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
     [TestClass]
     public class DatabaseRunnerTest

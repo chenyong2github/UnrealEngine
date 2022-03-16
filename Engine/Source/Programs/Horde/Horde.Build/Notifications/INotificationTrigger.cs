@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Api;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System.Collections.Generic;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	using UserId = ObjectId<IUser>;
 

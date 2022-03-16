@@ -6,19 +6,19 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using HordeCommon;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServerTests.Stubs.Services;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Tests.Stubs.Services;
 using MongoDB.Bson;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using HordeServer.Api;
-using HordeServer.Jobs;
-using HordeServer.Utilities;
+using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
+using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
+using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
+using Horde.Build.Api;
+using Horde.Build.Jobs;
+using Horde.Build.Utilities;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 

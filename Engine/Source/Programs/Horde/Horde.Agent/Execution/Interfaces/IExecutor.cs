@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeAgent.Parser.Interfaces;
-using HordeAgent.Utility;
+using Horde.Agent.Parser.Interfaces;
+using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Execution.Interfaces
+namespace Horde.Agent.Execution.Interfaces
 {
 	interface IExecutor
 	{

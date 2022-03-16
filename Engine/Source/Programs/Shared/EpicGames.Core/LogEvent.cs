@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeAgent.Utility;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;

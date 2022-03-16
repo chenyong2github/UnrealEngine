@@ -13,13 +13,13 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using HordeServer.Api;
-using HordeServer.Collections;
+using Horde.Build.Api;
+using Horde.Build.Collections;
 using HordeCommon;
-using HordeServer.Models;
-using HordeServer.Utilities;
-using HordeServer.Utilities.BlockKit;
-using HordeServer.Utilities.Slack.BlockKit;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Horde.Build.Utilities.BlockKit;
+using Horde.Build.Utilities.Slack.BlockKit;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,11 +29,11 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StatsdClient;
 using JsonSerializer = System.Text.Json.JsonSerializer;
-using HordeServer.Notifications;
-using HordeServer.Services;
+using Horde.Build.Notifications;
+using Horde.Build.Services;
 using StackExchange.Redis;
 
-namespace HordeServer.Notifications.Impl
+namespace Horde.Build.Notifications.Impl
 {
 	using UserId = ObjectId<IUser>;
 

@@ -4,24 +4,24 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using HordeCommon;
-using HordeServer.Collections.Impl;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Collections.Impl;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-using HordeServer.Api;
+using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
+using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
+using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
+using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
+using Horde.Build.Api;
 using MongoDB.Bson;
 using System.Linq;
-using HordeServerTests.Stubs.Services;
-using HordeServer.Collections;
-using HordeServer.Utilities;
+using Horde.Build.Tests.Stubs.Services;
+using Horde.Build.Collections;
+using Horde.Build.Utilities;
 using System.Threading;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

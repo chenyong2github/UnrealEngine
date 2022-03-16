@@ -1,30 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Collections;
+using Horde.Build.Collections;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
+using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
+using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
+using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
+using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using EpicGames.Core;
 using Moq;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using System.Threading.Tasks;
-using HordeServer.Api;
+using Horde.Build.Api;
 using System.Linq;
 using HordeCommon;
-using HordeServer.Collections.Impl;
+using Horde.Build.Collections.Impl;
 using Microsoft.Extensions.Logging.Abstractions;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;

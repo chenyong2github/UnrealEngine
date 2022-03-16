@@ -9,11 +9,11 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
-using HordeServer.Collections;
-using HordeServer.Models;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 using Microsoft.Net.Http.Headers;
 
-namespace HordeServer.Authentication
+namespace Horde.Build.Authentication
 {
 	class ServiceAccountAuthOptions : AuthenticationSchemeOptions
 	{

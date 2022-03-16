@@ -2,7 +2,7 @@
 
 using System.Text.Json;
 
-namespace HordeServer.Utilities.Slack.BlockKit
+namespace Horde.Build.Utilities.Slack.BlockKit
 {
 	/// <summary>
 	/// Represents a BlockKit Section block

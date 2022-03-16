@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeAgent.Parser.Interfaces;
+using Horde.Agent.Parser.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace HordeAgent.Parser
+namespace Horde.Agent.Parser
 {
 	/// <summary>
 	/// Extension methods to allow adding markup to log event spans

@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Google.Protobuf.WellKnownTypes;
-using HordeServer.Api;
+using Horde.Build.Api;
 using HordeCommon;
-using HordeServer.Models;
+using Horde.Build.Models;
 using HordeCommon.Rpc.Tasks;
-using HordeServer.Services;
-using HordeServer.Utilities;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -22,7 +22,7 @@ using System.Text.Json;
 using System.Text;
 using System.IO.Pipelines;
 
-namespace HordeServer.Collections
+namespace Horde.Build.Collections
 {
 	/// <summary>
 	/// Message from an audit log

@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Commands.Workspace
+namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "RepairCache", "Checks the integrity of the cache, and removes any invalid files")]
 	class RepairCommand : WorkspaceCommand

@@ -13,7 +13,7 @@ using System.Runtime.InteropServices;
 using Castle.Core.Internal;
 using EpicGames.Core;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	public abstract class DatabaseRunner
 	{

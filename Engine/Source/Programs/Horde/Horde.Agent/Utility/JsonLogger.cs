@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeAgent.Parser;
+using Horde.Agent.Parser;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using System;
@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 
-namespace HordeAgent.Utility
+namespace Horde.Agent.Utility
 {
 	/// <summary>
 	/// Class to handle uploading log data to the server in the background

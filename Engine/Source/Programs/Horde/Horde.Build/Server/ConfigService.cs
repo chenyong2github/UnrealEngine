@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Api;
-using HordeServer.Collections;
-using HordeServer.Controllers;
-using HordeServer.Models;
-using HordeServer.Notifications;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Collections;
+using Horde.Build.Controllers;
+using Horde.Build.Models;
+using Horde.Build.Notifications;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -25,12 +25,12 @@ using System.Threading.Tasks;
 using System.Reflection;
 
 using System.Globalization;
-using HordeServer.Storage;
+using Horde.Build.Storage;
 using System.Text.Json.Serialization;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;

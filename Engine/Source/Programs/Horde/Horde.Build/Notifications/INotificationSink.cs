@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeCommon;
-using HordeServer.Api;
-using HordeServer.Models;
+using Horde.Build.Api;
+using Horde.Build.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace HordeServer.Notifications
+namespace Horde.Build.Notifications
 {
 	/// <summary>
 	/// Implements a notification method

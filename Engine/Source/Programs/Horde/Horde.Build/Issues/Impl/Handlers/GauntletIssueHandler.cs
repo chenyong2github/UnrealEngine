@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeCommon;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Logging;
@@ -14,10 +14,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
-using HordeServer.Collections;
+using Horde.Build.Collections;
 using EpicGames.Core;
 
-namespace HordeServer.IssueHandlers.Impl
+namespace Horde.Build.IssueHandlers.Impl
 {
 	/// <summary>
 	/// Instance of a particular Gauntlet error

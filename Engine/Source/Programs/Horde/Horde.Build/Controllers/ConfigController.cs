@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Api;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 
-namespace HordeServer.Controllers
+namespace Horde.Build.Controllers
 {
 
 	/// <summary>

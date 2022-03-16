@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Api;
-using HordeServer.Models;
+using Horde.Build.Api;
+using Horde.Build.Models;
 using MongoDB.Bson;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-namespace HordeServer.Notifications
+namespace Horde.Build.Notifications
 {
 	/// <summary>
 	/// Marker interface for (serializable) notifications

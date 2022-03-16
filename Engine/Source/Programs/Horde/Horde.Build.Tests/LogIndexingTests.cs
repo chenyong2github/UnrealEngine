@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Api;
-using HordeServer.Collections;
-using HordeServer.Logs;
-using HordeServer.Logs.Builder;
-using HordeServer.Logs.Storage;
-using HordeServer.Logs.Storage.Impl;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Utilities;
-using HordeServer.Compute.Tests.Properties;
+using Horde.Build.Api;
+using Horde.Build.Collections;
+using Horde.Build.Logs;
+using Horde.Build.Logs.Builder;
+using Horde.Build.Logs.Storage;
+using Horde.Build.Logs.Storage.Impl;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using Horde.Build.Compute.Tests.Properties;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -21,11 +21,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using HordeServer.Collections.Impl;
+using Horde.Build.Collections.Impl;
 using HordeCommon;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 

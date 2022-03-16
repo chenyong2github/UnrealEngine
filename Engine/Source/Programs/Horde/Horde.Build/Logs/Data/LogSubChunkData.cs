@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Api;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Utilities;
 using ICSharpCode.SharpZipLib.BZip2;
 using Microsoft.AspNetCore.Routing.Constraints;
 using System;
@@ -13,7 +13,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HordeServer.Logs
+namespace Horde.Build.Logs
 {
 	/// <summary>
 	/// Pending data for a sub-chunk

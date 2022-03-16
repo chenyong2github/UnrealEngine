@@ -2,9 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using HordeServer.Models;
+using Horde.Build.Models;
 
-namespace HordeServer.Api
+namespace Horde.Build.Api
 {
 	/// <summary>
 	/// Server settings 

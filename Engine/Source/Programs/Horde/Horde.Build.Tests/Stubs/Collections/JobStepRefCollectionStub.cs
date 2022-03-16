@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Collections;
+using Horde.Build.Collections;
 using HordeCommon;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using Moq;
 using System;
@@ -11,11 +11,11 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
+using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
+using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
 
-namespace HordeServerTests.Stubs.Collections
+namespace Horde.Build.Tests.Stubs.Collections
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

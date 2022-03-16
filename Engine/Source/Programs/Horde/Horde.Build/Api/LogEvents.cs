@@ -2,7 +2,7 @@
 
 using EpicGames.Core;
 using HordeCommon;
-using HordeServer.Models;
+using Horde.Build.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace HordeServer.Api
+namespace Horde.Build.Api
 {
 	/// <summary>
 	/// Information about an uploaded event

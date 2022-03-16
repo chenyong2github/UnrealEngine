@@ -13,7 +13,7 @@ using System.Text.Json;
 using System.Net.Http.Headers;
 using System.Collections.Concurrent;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	/// <summary>
 	/// Jira service functinality

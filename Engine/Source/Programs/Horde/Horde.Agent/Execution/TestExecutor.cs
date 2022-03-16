@@ -11,15 +11,15 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using HordeAgent.Execution.Interfaces;
-using HordeAgent.Parser;
-using HordeAgent.Parser.Interfaces;
-using HordeAgent.Utility;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Parser;
+using Horde.Agent.Parser.Interfaces;
+using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
 
-namespace HordeAgent.Execution
+namespace Horde.Agent.Execution
 {
 	class TestExecutor : BuildGraphExecutor
 	{

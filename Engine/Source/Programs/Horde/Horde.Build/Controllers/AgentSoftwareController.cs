@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Api;
-using HordeServer.Services;
+using Horde.Build.Api;
+using Horde.Build.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,11 +11,11 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using HordeServer.Models;
+using Horde.Build.Models;
 using MongoDB.Bson;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 
-namespace HordeServer.Controllers
+namespace Horde.Build.Controllers
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 

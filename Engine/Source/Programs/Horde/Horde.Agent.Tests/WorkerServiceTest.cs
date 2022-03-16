@@ -5,10 +5,10 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
-using HordeAgent;
-using HordeAgent.Execution.Interfaces;
-using HordeAgent.Services;
-using HordeAgent.Utility;
+using Horde.Agent;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Services;
+using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
@@ -18,7 +18,7 @@ using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace HordeAgentTests
+namespace Horde.Agent.Tests
 {
 	[TestClass]
 	public class WorkerServiceTest

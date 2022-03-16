@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeAgent.Commands;
-using HordeAgent.Services;
-using HordeAgent.Utility;
+using Horde.Agent.Commands;
+using Horde.Agent.Services;
+using Horde.Agent.Utility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -30,7 +30,7 @@ using System.Text;
 using EpicGames.Perforce;
 using System.Security.Cryptography;
 
-namespace HordeAgent
+namespace Horde.Agent
 {
 	/// <summary>
 	/// Entry point
@@ -91,7 +91,7 @@ namespace HordeAgent
 
 			// Execute all the commands
 			IServiceProvider ServiceProvider = Services.BuildServiceProvider();
-			return await CommandHost.RunAsync(new CommandLineArguments(Args), ServiceProvider, typeof(HordeAgent.Modes.Service.RunCommand));
+			return await CommandHost.RunAsync(new CommandLineArguments(Args), ServiceProvider, typeof(Horde.Agent.Modes.Service.RunCommand));
 		}
 
 		/// <summary>

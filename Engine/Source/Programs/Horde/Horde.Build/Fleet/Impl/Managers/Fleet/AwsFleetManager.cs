@@ -3,18 +3,18 @@
 using Amazon;
 using Amazon.EC2;
 using Amazon.EC2.Model;
-using HordeServer.Collections;
-using HordeServer.Models;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace HordeServer.Services.Impl
+namespace Horde.Build.Services.Impl
 {
 	/// <summary>
 	/// Fleet manager for handling AWS EC2 instances

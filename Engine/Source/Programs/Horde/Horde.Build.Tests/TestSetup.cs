@@ -10,26 +10,26 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using HordeCommon;
 using Horde.Build.Storage.Services;
-using HordeServer;
-using HordeServer.Collections;
-using HordeServer.Collections.Impl;
-using HordeServer.Controllers;
-using HordeServer.Jobs;
-using HordeServer.Logs;
-using HordeServer.Logs.Builder;
-using HordeServer.Logs.Readers;
-using HordeServer.Logs.Storage.Impl;
-using HordeServer.Models;
-using HordeServer.Notifications;
-using HordeServer.Notifications.Impl;
-using HordeServer.Services;
-using HordeServer.Services.Impl;
-using HordeServer.Storage;
-using HordeServer.Storage.Backends;
-using HordeServer.Tasks.Impl;
-using HordeServer.Utilities;
-using HordeServerTests.Stubs.Collections;
-using HordeServerTests.Stubs.Services;
+using Horde.Build;
+using Horde.Build.Collections;
+using Horde.Build.Collections.Impl;
+using Horde.Build.Controllers;
+using Horde.Build.Jobs;
+using Horde.Build.Logs;
+using Horde.Build.Logs.Builder;
+using Horde.Build.Logs.Readers;
+using Horde.Build.Logs.Storage.Impl;
+using Horde.Build.Models;
+using Horde.Build.Notifications;
+using Horde.Build.Notifications.Impl;
+using Horde.Build.Services;
+using Horde.Build.Services.Impl;
+using Horde.Build.Storage;
+using Horde.Build.Storage.Backends;
+using Horde.Build.Tasks.Impl;
+using Horde.Build.Utilities;
+using Horde.Build.Tests.Stubs.Collections;
+using Horde.Build.Tests.Stubs.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -42,7 +42,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using StatsdClient;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	/// <summary>
 	/// Handles set up of collections, services, fixtures etc during testing

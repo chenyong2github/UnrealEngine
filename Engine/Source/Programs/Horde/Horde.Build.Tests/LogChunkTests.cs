@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Api;
-using HordeServer.Logs;
+using Horde.Build.Api;
+using Horde.Build.Logs;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	[TestClass]
 	public class LogChunkTests

@@ -2,9 +2,9 @@
 
 using EpicGames.Core;
 using EpicGames.Perforce;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using P4 = Perforce.P4;
 	using UserId = ObjectId<IUser>;

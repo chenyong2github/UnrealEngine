@@ -3,7 +3,7 @@
 using System;
 using MongoDB.Driver;
 
-namespace HordeServer.Utilities
+namespace Horde.Build.Utilities
 {
 	/// <summary>
 	/// Base class for keeping track of indexes in MongoDB

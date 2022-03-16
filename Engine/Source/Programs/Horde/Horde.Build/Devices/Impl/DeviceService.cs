@@ -2,10 +2,10 @@
 
 using System.Threading.Tasks;
 
-using HordeServer.Models;
-using HordeServer.Collections;
+using Horde.Build.Models;
+using Horde.Build.Collections;
 using System;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using System.Threading;
 
 using Microsoft.Extensions.Logging;
@@ -14,12 +14,12 @@ using MongoDB.Bson;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Diagnostics.CodeAnalysis;
-using HordeServer.Notifications;
+using Horde.Build.Notifications;
 using System.Linq;
-using HordeServer.Api;
+using Horde.Build.Api;
 using Microsoft.Extensions.Hosting;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;

@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Models;
-using HordeServer.Collections;
+using Horde.Build.Models;
+using Horde.Build.Collections;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
 
-namespace HordeServer.IssueHandlers
+namespace Horde.Build.IssueHandlers
 {
 	/// <summary>
 	/// Information about a changelist and a value ranking the likelihood that it caused an issue

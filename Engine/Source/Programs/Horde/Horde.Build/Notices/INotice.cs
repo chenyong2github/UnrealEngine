@@ -2,10 +2,10 @@
 
 using System;
 using MongoDB.Bson.Serialization.Attributes;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	using UserId = ObjectId<IUser>;
 

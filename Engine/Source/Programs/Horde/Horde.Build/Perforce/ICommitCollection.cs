@@ -1,15 +1,15 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Models;
+using Horde.Build.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using MongoDB.Bson;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 
-namespace HordeServer.Commits
+namespace Horde.Build.Commits
 {
 	using StreamId = StringId<IStream>;
 	using CommitId = ObjectId<ICommit>;

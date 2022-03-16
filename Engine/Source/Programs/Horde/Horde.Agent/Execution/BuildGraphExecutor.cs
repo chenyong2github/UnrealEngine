@@ -2,9 +2,9 @@
 
 using EpicGames.Core;
 using Grpc.Core;
-using HordeAgent.Execution.Interfaces;
-using HordeAgent.Parser;
-using HordeAgent.Utility;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Parser;
+using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
@@ -26,7 +26,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Execution
+namespace Horde.Agent.Execution
 {
 	abstract class BuildGraphExecutor : IExecutor
 	{

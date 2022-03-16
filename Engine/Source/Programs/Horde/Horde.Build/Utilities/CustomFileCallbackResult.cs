@@ -13,7 +13,7 @@ using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeServer.Utilities
+namespace Horde.Build.Utilities
 {
     /// <summary>
     /// Class deriving from a FileResult that allows custom file types (used for zip file creation)

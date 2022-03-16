@@ -16,7 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeServer.Commands.Bundles
+namespace Horde.Build.Commands.Bundles
 {
 	abstract class BundleCommandBase : Command
 	{

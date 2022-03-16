@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using HordeServer.Authentication;
-using HordeServer.Collections;
-using HordeServer.Collections.Impl;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Authentication;
+using Horde.Build.Collections;
+using Horde.Build.Collections.Impl;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -17,7 +17,7 @@ using Microsoft.Extensions.WebEncoders.Testing;
 using Microsoft.Net.Http.Headers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	[TestClass]
 	public class ServiceAccountAuthTest : DatabaseIntegrationTest

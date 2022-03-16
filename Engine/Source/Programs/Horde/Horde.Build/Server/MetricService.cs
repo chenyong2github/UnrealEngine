@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
@@ -9,7 +9,7 @@ using StatsdClient;
 using Microsoft.Extensions.Hosting;
 using HordeCommon;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	/// <summary>
 	/// Periodically send metrics for the CLR and other services that cannot be collected on a per-request basis

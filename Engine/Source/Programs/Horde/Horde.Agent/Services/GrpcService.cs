@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Grpc.Net.Client;
-using HordeAgent.Utility;
+using Horde.Agent.Utility;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,7 +15,7 @@ using System.Text;
 using Grpc.Core;
 using HordeCommon.Rpc;
 
-namespace HordeAgent.Services
+namespace Horde.Agent.Services
 {
 	/// <summary>
 	/// Service which creates a configured Grpc channel

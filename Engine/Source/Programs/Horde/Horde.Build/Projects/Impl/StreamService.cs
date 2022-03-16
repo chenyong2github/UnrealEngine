@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Api;
+using Horde.Build.Api;
 using HordeCommon;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -14,10 +14,10 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using System.Linq.Expressions;
-using HordeServer.Collections;
+using Horde.Build.Collections;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;

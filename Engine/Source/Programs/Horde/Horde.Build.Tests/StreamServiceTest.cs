@@ -3,11 +3,11 @@
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
-using HordeServer.Models;
+using Horde.Build.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
     [TestClass]
     public class StreamServiceTests : TestSetup

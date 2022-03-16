@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using HordeServer.Models;
+using Horde.Build.Models;
 
-namespace HordeServer.Api
+namespace Horde.Build.Api
 {
 
 	/// <summary>

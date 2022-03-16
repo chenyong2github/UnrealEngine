@@ -16,7 +16,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace HordeAgent
+namespace Horde.Agent
 {
 	/// <summary>
 	/// The type of executor to use

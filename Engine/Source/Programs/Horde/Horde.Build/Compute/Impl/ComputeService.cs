@@ -7,9 +7,9 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
-using HordeServer.Api;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
@@ -21,9 +21,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-using HordeServer.Tasks;
-using HordeServer.Utilities;
-using HordeServer.Storage;
+using Horde.Build.Tasks;
+using Horde.Build.Utilities;
+using Horde.Build.Storage;
 using StackExchange.Redis;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization;
@@ -33,12 +33,12 @@ using EpicGames.Horde.Compute;
 using Microsoft.Extensions.Hosting;
 using System.Threading.Channels;
 using EpicGames.Redis;
-using HordeServer.Collections;
+using Horde.Build.Collections;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Common;
 using System.Text.Json;
 
-namespace HordeServer.Compute.Impl
+namespace Horde.Build.Compute.Impl
 {
 	using LeaseId = ObjectId<ILease>;
 

@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Api;
-using HordeServer.Collections;
+using Horde.Build.Api;
+using Horde.Build.Collections;
 using HordeCommon;
-using HordeServer.Models;
+using Horde.Build.Models;
 using HordeCommon.Rpc;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
@@ -23,12 +23,11 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Globalization;
-using Horde.Build.Utilities;
-using HordeServer.Tasks.Impl;
+using Horde.Build.Tasks.Impl;
 using OpenTracing.Util;
 using OpenTracing;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
@@ -269,7 +268,7 @@ namespace HordeServer.Services
 			if (UpdateIssues != null) TraceScope.Span.SetTag("UpdateIssues", UpdateIssues.Value);
 			if (JobTriggers != null) TraceScope.Span.SetTag("JobTriggers.Count", JobTriggers.Count);
 
-			JobId JobIdValue = JobId ?? HordeServer.Utilities.ObjectId<IJob>.GenerateNewId();
+			JobId JobIdValue = JobId ?? Horde.Build.Utilities.ObjectId<IJob>.GenerateNewId();
 			using IDisposable Scope = Logger.BeginScope("CreateJobAsync({JobId})", JobIdValue);
 
 			if (PreflightChange != null && ShouldClonePreflightChange(Stream.Id))

@@ -5,16 +5,16 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using HordeCommon;
-using HordeServer.Api;
+using Horde.Build.Api;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Microsoft.AspNetCore.Mvc;
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-using HordeServer.Utilities;
+using AgentSoftwareVersion = Horde.Build.Utilities.StringId<Horde.Build.Collections.IAgentSoftwareCollection>;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
     /// <summary>
     /// Testing the agent service

@@ -2,20 +2,20 @@
 
 using System;
 using HordeCommon;
-using HordeServer.Api;
-using HordeServer.Models;
+using Horde.Build.Api;
+using Horde.Build.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-using HordeServer.Utilities;
+using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
+using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
+using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
+using Horde.Build.Utilities;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeAgent.Parser;
+using Horde.Agent.Parser;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Commands.Parse
+namespace Horde.Agent.Commands.Parse
 {
 	/// <summary>
 	/// Installs the agent as a service

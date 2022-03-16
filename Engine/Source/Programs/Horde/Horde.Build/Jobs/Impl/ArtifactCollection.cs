@@ -4,11 +4,11 @@ using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
-using HordeServer.Api;
-using HordeServer.Jobs;
-using HordeServer.Models;
-using HordeServer.Storage;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Jobs;
+using Horde.Build.Models;
+using Horde.Build.Storage;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -25,7 +25,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using JobId = ObjectId<IJob>;
 

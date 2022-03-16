@@ -11,28 +11,28 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using HordeCommon;
-using HordeServer;
-using HordeServer.Api;
-using HordeServer.Collections.Impl;
-using HordeServer.Logs;
-using HordeServer.Logs.Builder;
-using HordeServer.Logs.Readers;
-using HordeServer.Logs.Storage;
-using HordeServer.Logs.Storage.Impl;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Storage;
-using HordeServer.Storage.Backends;
-using HordeServer.Utilities;
+using Horde.Build;
+using Horde.Build.Api;
+using Horde.Build.Collections.Impl;
+using Horde.Build.Logs;
+using Horde.Build.Logs.Builder;
+using Horde.Build.Logs.Readers;
+using Horde.Build.Logs.Storage;
+using Horde.Build.Logs.Storage.Impl;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Storage;
+using Horde.Build.Storage.Backends;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using StackExchange.Redis;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

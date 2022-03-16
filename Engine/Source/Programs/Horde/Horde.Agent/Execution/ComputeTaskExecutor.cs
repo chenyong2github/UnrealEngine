@@ -18,7 +18,7 @@ using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Hosting;
 using System.Collections.Concurrent;
 using Grpc.Net.Client;
-using HordeAgent.Utility;
+using Horde.Agent.Utility;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using HordeCommon.Rpc;
@@ -26,7 +26,7 @@ using EpicGames.Serialization;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Common;
 
-namespace HordeAgent
+namespace Horde.Agent.Execution
 {
 	/// <summary>
 	/// Executes remote actions in a sandbox

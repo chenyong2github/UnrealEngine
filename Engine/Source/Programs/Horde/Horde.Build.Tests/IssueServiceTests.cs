@@ -1,24 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeAgent.Parser;
-using HordeAgent.Utility;
+using Horde.Agent.Parser;
+using Horde.Agent.Utility;
 using HordeCommon;
-using HordeServer;
-using HordeServer.Collections;
-using HordeServer.Collections.Impl;
-using HordeServer.IssueHandlers.Impl;
-using HordeServer.Logs;
-using HordeServer.Logs.Builder;
-using HordeServer.Logs.Storage;
-using HordeServer.Logs.Storage.Impl;
-using HordeServer.Models;
-using HordeServer.Notifications;
-using HordeServer.Services;
-using HordeServer.Services.Impl;
-using HordeServer.Utilities;
-using HordeServerTests.Stubs.Collections;
-using HordeServerTests.Stubs.Services;
+using Horde.Build;
+using Horde.Build.Collections;
+using Horde.Build.Collections.Impl;
+using Horde.Build.IssueHandlers.Impl;
+using Horde.Build.Logs;
+using Horde.Build.Logs.Builder;
+using Horde.Build.Logs.Storage;
+using Horde.Build.Logs.Storage.Impl;
+using Horde.Build.Models;
+using Horde.Build.Notifications;
+using Horde.Build.Services;
+using Horde.Build.Services.Impl;
+using Horde.Build.Utilities;
+using Horde.Build.Tests.Stubs.Collections;
+using Horde.Build.Tests.Stubs.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -34,11 +34,11 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
+using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
+using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
+using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
@@ -189,7 +189,7 @@ namespace HordeServerTests
 				{
 					SubResourceId StepId = new SubResourceId((ushort)((GroupIdx * 100) + NodeIdx));
 
-					ILogFile LogFile = LogFileService.CreateLogFileAsync(JobId, null, HordeServer.Api.LogType.Json).Result;
+					ILogFile LogFile = LogFileService.CreateLogFileAsync(JobId, null, Horde.Build.Api.LogType.Json).Result;
 
 					Mock<IJobStep> Step = new Mock<IJobStep>(MockBehavior.Strict);
 					Step.SetupGet(x => x.Id).Returns(StepId);

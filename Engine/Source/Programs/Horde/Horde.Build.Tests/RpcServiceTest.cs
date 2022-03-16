@@ -11,13 +11,13 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Grpc.Core;
-using HordeServer;
-using HordeServer.Collections;
+using Horde.Build;
+using Horde.Build.Collections;
 using HordeCommon.Rpc;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Utilities;
-using HordeServerTests.Stubs.Collections;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using Horde.Build.Tests.Stubs.Collections;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Configuration;
@@ -27,10 +27,10 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using AgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
 using ISession = Microsoft.AspNetCore.Http.ISession;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
 
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
@@ -406,7 +406,7 @@ namespace HordeServerTests
 
 			// Set the session ID on the job batch to pass auth later
 			Deref(await JobCollection.TryAssignLeaseAsync(Fixture.Job1, 0, new PoolId("foo"),
-				new AgentId("test"), new ObjectId<HordeServer.Models.ISession>(SessionId),
+				new AgentId("test"), new ObjectId<Horde.Build.Models.ISession>(SessionId),
 				LeaseId.GenerateNewId(), LogId.GenerateNewId()));
 /*
 			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);

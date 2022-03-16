@@ -23,7 +23,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Utility
+namespace Horde.Agent.Utility
 {
 	/// <summary>
 	/// Ref-counted reference to a HordeRpcClient. Must be disposed after use.

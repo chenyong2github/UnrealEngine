@@ -4,12 +4,12 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Impl;
 using EpicGames.Serialization;
-using HordeServer.Collections;
-using HordeServer.Commits;
-using HordeServer.Commits.Impl;
-using HordeServer.Controllers;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.Commits;
+using Horde.Build.Commits.Impl;
+using Horde.Build.Controllers;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,7 +18,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeServer.Commands
+namespace Horde.Build.Commands
 {
 	using StreamId = StringId<IStream>;
 

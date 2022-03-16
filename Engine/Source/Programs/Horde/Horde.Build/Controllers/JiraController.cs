@@ -3,12 +3,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using HordeServer.Services;
+using Horde.Build.Services;
 using Microsoft.Extensions.Logging;
-using HordeServer.Api;
+using Horde.Build.Api;
 using System.Collections.Generic;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 
 namespace Horde.Build
 {

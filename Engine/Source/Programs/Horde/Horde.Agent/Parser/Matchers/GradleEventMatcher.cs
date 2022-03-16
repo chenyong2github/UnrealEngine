@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeAgent.Parser.Interfaces;
+using Horde.Agent.Parser.Interfaces;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
-namespace HordeAgent.Parser.Matchers
+namespace Horde.Agent.Parser.Matchers
 {
 	/// <summary>
 	/// Matcher for Gradle errors

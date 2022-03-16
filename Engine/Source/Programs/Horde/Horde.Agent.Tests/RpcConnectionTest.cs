@@ -5,14 +5,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Net.Client;
-using HordeAgent.Utility;
+using Horde.Agent.Utility;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 
-namespace HordeAgentTests
+namespace Horde.Agent.Tests
 {
 #if false
 	[TestClass]

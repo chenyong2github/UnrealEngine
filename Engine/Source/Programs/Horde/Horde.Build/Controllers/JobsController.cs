@@ -2,12 +2,11 @@
 
 using EpicGames.Core;
 using Horde.Build.Utilities;
-using HordeServer.Api;
-using HordeServer.Collections;
+using Horde.Build.Api;
+using Horde.Build.Collections;
 using HordeCommon;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
@@ -21,13 +20,13 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
-using HordeServer.Notifications;
+using Horde.Build.Notifications;
 using OpenTracing.Util;
 using OpenTracing;
-using HordeServer.Jobs;
+using Horde.Build.Jobs;
 using EpicGames.Perforce;
 
-namespace HordeServer.Controllers
+namespace Horde.Build.Controllers
 {
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;

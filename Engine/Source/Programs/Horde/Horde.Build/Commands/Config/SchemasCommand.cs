@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Controllers;
-using HordeServer.Utilities;
+using Horde.Build.Controllers;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
-namespace HordeServer.Commands.Config
+namespace Horde.Build.Commands.Config
 {
 	[Command("config", "schemas", "Writes JSON schemas for server settings")]
 	class SchemasCommand : Command

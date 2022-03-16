@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
-namespace HordeAgent.Utility
+namespace Horde.Agent.Utility
 {
 	/// <summary>
 	/// Native methods for manipulating services on Windows

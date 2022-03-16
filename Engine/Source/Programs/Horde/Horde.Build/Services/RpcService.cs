@@ -5,9 +5,9 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using HordeCommon;
 using HordeCommon.Rpc;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
@@ -21,15 +21,15 @@ using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
-using HordeServer.Tasks.Impl;
+using Horde.Build.Tasks.Impl;
 using System.Threading;
-using HordeServer.Jobs;
+using Horde.Build.Jobs;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
-	using IStream = HordeServer.Models.IStream;
+	using IStream = Horde.Build.Models.IStream;
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using SessionId = ObjectId<ISession>;
@@ -865,7 +865,7 @@ namespace HordeServer.Services
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Resource not found");
 			}
-			if (!HordeServer.Services.LogFileService.AuthorizeForSession(LogFile, Context.GetHttpContext().User))
+			if (!Horde.Build.Services.LogFileService.AuthorizeForSession(LogFile, Context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access denied");
 			}

@@ -2,14 +2,14 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using HordeServer.Collections;
-using HordeServer.Collections.Impl;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Collections;
+using Horde.Build.Collections.Impl;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	[TestClass]
 	public class ServiceAccountCollectionTests : DatabaseIntegrationTest

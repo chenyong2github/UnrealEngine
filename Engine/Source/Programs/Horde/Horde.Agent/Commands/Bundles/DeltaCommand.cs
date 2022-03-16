@@ -15,7 +15,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Commands.Bundles
+namespace Horde.Agent.Commands.Bundles
 {
 	[Command("bundle", "delta", "Desribe the delta between two bundles")]
 	class DeltaCommand : BundleCommandBase

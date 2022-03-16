@@ -11,11 +11,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using StackExchange.Redis;
 using System.Diagnostics;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	/// <summary>
 	/// Service containing an async task that allows long polling operations to complete early if the server is shutting down

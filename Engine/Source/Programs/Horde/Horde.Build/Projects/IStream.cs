@@ -2,9 +2,9 @@
 
 using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
-using HordeServer.Api;
+using Horde.Build.Api;
 using HordeCommon;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -19,7 +19,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;

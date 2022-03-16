@@ -9,7 +9,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace HordeServer.Utilities
+namespace Horde.Build.Utilities
 {
 	using P4 = Perforce.P4;
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Redis;
-using HordeServer.Compute.Impl;
+using Horde.Build.Compute.Impl;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System;
@@ -11,7 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeServer.Compute.Impl
+namespace Horde.Build.Compute.Impl
 {
 	/// <summary>
 	/// Interface for a distributed message queue

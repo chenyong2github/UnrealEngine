@@ -3,7 +3,7 @@
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;
-using HordeServerTests;
+using Horde.Build.Tests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests

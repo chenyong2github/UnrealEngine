@@ -16,7 +16,7 @@ using EpicGames.Core;
 using EpicGames.Perforce;
 using System.Linq;
 
-namespace HordeAgent.Utility
+namespace Horde.Agent.Utility
 {
 	/// <summary>
 	/// Stores information about a managed Perforce workspace

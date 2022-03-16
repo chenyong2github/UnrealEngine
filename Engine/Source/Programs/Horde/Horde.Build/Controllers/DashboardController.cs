@@ -2,14 +2,14 @@
 
 // Copyright Epic Games, Inc. All Rights Reserved.	
 
-using HordeServer.Authentication;
+using Horde.Build.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using HordeServer;
-using HordeServer.Controllers;
+using Horde.Build;
+using Horde.Build.Controllers;
 using Microsoft.Extensions.Options;
 using System;
 using System.Text;

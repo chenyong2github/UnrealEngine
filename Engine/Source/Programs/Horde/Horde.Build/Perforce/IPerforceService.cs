@@ -2,7 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Perforce;
-using HordeServer.Models;
+using Horde.Build.Models;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Extensions.Http;
@@ -21,7 +21,7 @@ using System.Threading.Tasks;
 
 using P4 = Perforce.P4;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	/// <summary>
 	/// Information about a Perforce user

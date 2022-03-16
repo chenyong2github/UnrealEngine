@@ -12,7 +12,7 @@ using EpicGames.Core;
 using EpicGames.Perforce.Managed;
 using EpicGames.Perforce;
 
-namespace HordeAgent.Commands.Workspace
+namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Clean", "Cleans all modified files from the workspace.")]
 	class CleanCommand : WorkspaceCommand

@@ -12,7 +12,7 @@ using System.Diagnostics;
 
 #nullable disable
 
-namespace HordeServer.Utilities
+namespace Horde.Build.Utilities
 {
 	static class AgentUtilities
 	{

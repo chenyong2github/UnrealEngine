@@ -12,7 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Transactions;
 
-namespace HordeServer.Utilities
+namespace Horde.Build.Utilities
 {
 	/// <summary>
 	/// Allows building a transactional MongoDB update of several fields, and applying those to an in-memory object. Useful for transactional updates.

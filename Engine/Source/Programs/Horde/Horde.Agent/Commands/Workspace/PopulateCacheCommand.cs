@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
 
-namespace HordeAgent.Commands.Workspace
+namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "PopulateCache", "Populates the cache with the head revision of the given streams")]
 	class PopulateCacheCommand : WorkspaceCommand

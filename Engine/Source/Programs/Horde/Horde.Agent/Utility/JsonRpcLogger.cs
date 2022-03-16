@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeAgent.Parser.Interfaces;
-using HordeAgent.Utility;
+using Horde.Agent.Parser.Interfaces;
+using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
@@ -18,7 +18,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Parser
+namespace Horde.Agent.Parser
 {
 	/// <summary>
 	/// Class to handle uploading log data to the server in the background

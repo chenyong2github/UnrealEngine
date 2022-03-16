@@ -10,7 +10,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
-namespace HordeServer.Storage.Backends
+namespace Horde.Build.Storage.Backends
 {
 	/// <summary>
 	/// Implementation of ILogFileStorage which forwards requests to another server

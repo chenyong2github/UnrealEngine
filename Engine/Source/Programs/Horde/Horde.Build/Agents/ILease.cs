@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Api;
+using Horde.Build.Api;
 using HordeCommon;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using Serilog;
@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
 using Google.Protobuf;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;

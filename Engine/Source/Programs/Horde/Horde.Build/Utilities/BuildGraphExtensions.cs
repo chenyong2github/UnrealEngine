@@ -2,8 +2,8 @@
 
 using EpicGames.BuildGraph;
 using EpicGames.Perforce;
-using HordeServer.Collections;
-using HordeServer.Models;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

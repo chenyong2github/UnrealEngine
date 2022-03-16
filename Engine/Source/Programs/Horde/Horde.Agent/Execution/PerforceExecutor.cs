@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Perforce.Managed;
-using HordeAgent.Execution.Interfaces;
-using HordeAgent.Parser;
-using HordeAgent.Parser.Interfaces;
-using HordeAgent.Utility;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Parser;
+using Horde.Agent.Parser.Interfaces;
+using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
@@ -30,7 +30,7 @@ using Google.Protobuf.WellKnownTypes;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace HordeAgent.Execution
+namespace Horde.Agent.Execution
 {
 	class PerforceExecutor : BuildGraphExecutor
 	{

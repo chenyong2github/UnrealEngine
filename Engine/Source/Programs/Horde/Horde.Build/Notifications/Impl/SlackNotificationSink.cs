@@ -2,13 +2,13 @@
 
 using EpicGames.Core;
 using HordeCommon;
-using HordeServer.Api;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Utilities;
-using HordeServer.Utilities.BlockKit;
-using HordeServer.Utilities.Slack.BlockKit;
+using Horde.Build.Api;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using Horde.Build.Utilities.BlockKit;
+using Horde.Build.Utilities.Slack.BlockKit;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -34,7 +34,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HordeServer.Notifications.Impl
+namespace Horde.Build.Notifications.Impl
 {
 	using UserId = ObjectId<IUser>;
 

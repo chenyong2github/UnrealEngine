@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Api;
+using Horde.Build.Api;
 using HordeCommon;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -26,18 +26,18 @@ using System.Threading.Tasks;
 using System.Net.Sockets;
 using MongoDB.Driver.Core.Events;
 using System.Threading;
-using HordeServer.Collections;
+using Horde.Build.Collections;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Net.NetworkInformation;
 using OpenTracing.Util;
 using OpenTracing;
-using HordeServer.Utiltiies;
+using Horde.Build.Utiltiies;
 using System.Globalization;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
-	using IStream = HordeServer.Models.IStream;
+	using IStream = Horde.Build.Models.IStream;
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
 	using TemplateRefId = StringId<TemplateRef>;

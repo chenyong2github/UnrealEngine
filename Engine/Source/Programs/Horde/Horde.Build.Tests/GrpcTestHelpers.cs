@@ -25,7 +25,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Grpc.Core;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	public class TestServerStreamWriter<T> : IServerStreamWriter<T> where T : class
 	{

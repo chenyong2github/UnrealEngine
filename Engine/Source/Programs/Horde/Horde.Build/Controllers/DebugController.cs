@@ -4,13 +4,13 @@
 //#define ENABLE_SECURE_DEBUG_CONTROLLER
 
 using EpicGames.Core;
-using HordeServer.Api;
+using Horde.Build.Api;
 using HordeCommon;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Services;
-using HordeServer.Tasks.Impl;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Tasks.Impl;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
@@ -31,9 +31,9 @@ using System.Web;
 using MongoDB.Driver;
 using System.Text.Json;
 using System.Threading;
-using HordeServer.Services.Impl;
+using Horde.Build.Services.Impl;
 using Microsoft.Net.Http.Headers;
-using HordeServer.Storage;
+using Horde.Build.Storage;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using StatsdClient;
@@ -41,14 +41,14 @@ using StatsdClient;
 using Amazon.S3;
 using JetBrains.Profiler.SelfApi;
 
-namespace HordeServer.Controllers
+namespace Horde.Build.Controllers
 {
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
-	using IStream = HordeServer.Models.IStream;
+	using IStream = Horde.Build.Models.IStream;
 	using P4Debugging = Perforce.P4.P4Debugging;
 
 #if ENABLE_PUBLIC_DEBUG_CONTROLLER

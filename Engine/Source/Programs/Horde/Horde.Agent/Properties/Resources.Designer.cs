@@ -10,7 +10,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace HordeAgent.Properties {
+namespace Horde.Agent.Properties {
     using System;
     
     

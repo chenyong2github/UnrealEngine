@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Grpc.Health.V1;
 using static Grpc.Health.V1.HealthCheckResponse.Types;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	/// <summary>
 	/// Implements the gRPC health checking protocol

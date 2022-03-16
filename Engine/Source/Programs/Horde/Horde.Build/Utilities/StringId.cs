@@ -3,7 +3,7 @@
 using EpicGames.Core;
 using EpicGames.Serialization;
 using EpicGames.Serialization.Converters;
-using HordeServer.Models;
+using Horde.Build.Models;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Serializers;
@@ -18,7 +18,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace HordeServer.Utilities
+namespace Horde.Build.Utilities
 {
 	/// <summary>
 	/// Normalized string identifier for a resource

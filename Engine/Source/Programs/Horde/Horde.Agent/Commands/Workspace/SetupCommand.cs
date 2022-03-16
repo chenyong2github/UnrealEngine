@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 using EpicGames.Core;
 using EpicGames.Perforce;
 
-namespace HordeAgent.Commands.Workspace
+namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Setup", "Creates or updates a client to use a given stream")]
 	class SetupCommand : WorkspaceCommand

@@ -5,9 +5,9 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 using System.Collections.Generic;
-using HordeServer.Utilities;
+using Horde.Build.Utilities;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;

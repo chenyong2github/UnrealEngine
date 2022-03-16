@@ -5,14 +5,14 @@ using EpicGames.Horde.Common;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
-using HordeServer.Api;
-using HordeServer.Collections;
+using Horde.Build.Api;
+using Horde.Build.Collections;
 using HordeCommon;
-using HordeServer.Models;
+using Horde.Build.Models;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Tasks;
-using HordeServer.Tasks;
-using HordeServer.Utilities;
+using Horde.Build.Tasks;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -27,11 +27,11 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using HordeServer.Services;
+using Horde.Build.Services;
 using EpicGames.Horde.Compute;
 using System.Globalization;
 
-namespace HordeServer.Tasks.Impl
+namespace Horde.Build.Tasks.Impl
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;

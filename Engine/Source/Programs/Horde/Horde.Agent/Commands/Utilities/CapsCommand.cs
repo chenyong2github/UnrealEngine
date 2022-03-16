@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Grpc.Net.Client;
-using HordeAgent.Utility;
+using Horde.Agent.Utility;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -17,9 +17,9 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using HordeCommon.Rpc.Messages;
-using HordeAgent.Services;
+using Horde.Agent.Services;
 
-namespace HordeAgent.Commands.Utilities
+namespace Horde.Agent.Commands.Utilities
 {
 	/// <summary>
 	/// Shows capabilities of this agent

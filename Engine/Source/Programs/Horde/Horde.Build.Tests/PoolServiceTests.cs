@@ -4,13 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using HordeCommon;
-using HordeServer.Collections.Impl;
-using HordeServer.Models;
-using HordeServer.Services;
+using Horde.Build.Collections.Impl;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
     [TestClass]
     public class PoolServiceTests : TestSetup

@@ -7,9 +7,9 @@ using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using Google.Protobuf.WellKnownTypes;
 using HordeCommon.Rpc.Tasks;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
@@ -27,7 +27,7 @@ using OpenTracing.Util;
 using StatsdClient;
 using Microsoft.Extensions.Hosting;
 
-namespace HordeServer.Services
+namespace Horde.Build.Services
 {
 	using PoolId = StringId<IPool>;
 

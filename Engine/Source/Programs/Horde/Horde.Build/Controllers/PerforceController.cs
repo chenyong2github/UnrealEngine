@@ -5,11 +5,11 @@ using System.Net;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using HordeServer.Services;
+using Horde.Build.Services;
 using Microsoft.AspNetCore.Authorization;
-using HordeServer.Models;
+using Horde.Build.Models;
 
-namespace HordeServer.Controllers
+namespace Horde.Build.Controllers
 {
 	/// <summary>
 	/// Controller for Perforce triggers and callbacks

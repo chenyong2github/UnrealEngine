@@ -18,7 +18,7 @@ using EpicGames.Serialization;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 
-namespace HordeAgent.Commands
+namespace Horde.Agent.Commands
 {
 	/// <summary>
 	/// Installs the agent as a service

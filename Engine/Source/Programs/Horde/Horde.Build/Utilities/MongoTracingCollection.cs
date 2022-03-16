@@ -9,7 +9,7 @@ using MongoDB.Driver;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace HordeServer.Utiltiies
+namespace Horde.Build.Utiltiies
 {
 	/// <summary>
 	/// Wrap a IMongoCollection with trace scopes

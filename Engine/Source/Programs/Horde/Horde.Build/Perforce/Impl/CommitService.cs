@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Collections;
-using HordeServer.Models;
-using HordeServer.Utilities;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Perforce;
@@ -13,8 +13,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using HordeServer.Storage;
-using HordeServer.Services;
+using Horde.Build.Storage;
+using Horde.Build.Services;
 using EpicGames.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using System.Collections.Concurrent;
@@ -32,13 +32,12 @@ using HordeCommon;
 using EpicGames.Horde.Storage;
 using System.Text;
 using Microsoft.Extensions.Options;
-using Horde.Build.Utilities;
 using EpicGames.Horde.Bundles;
 using EpicGames.Horde.Bundles.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using System.Runtime;
 
-namespace HordeServer.Commits.Impl
+namespace Horde.Build.Commits.Impl
 {
 	using P4 = Perforce.P4;
 	using CommitId = ObjectId<ICommit>;
@@ -842,6 +841,21 @@ namespace HordeServer.Commits.Impl
 		}
 
 		/// <summary>
+		/// Creates a new bundle or reads an existing one
+		/// </summary>
+		async ValueTask<Bundle<DirectoryNode>> CreateOrReadBundle(StreamId StreamId, int? BaseChange, string? Filter, bool RevisionsOnly)
+		{
+			if (BaseChange == null)
+			{
+				return Bundle.Create<DirectoryNode>(StorageClient, Options.NamespaceId, Options.Bundle, MemoryCache);
+			}
+			else
+			{
+				return await Bundle.ReadAsync<DirectoryNode>(StorageClient, Options.NamespaceId, GetStreamBucketId(StreamId), new CommitKey(StreamId, BaseChange.Value, Filter, RevisionsOnly).GetRefId(), Options.Bundle, MemoryCache);
+			}
+		}
+
+		/// <summary>
 		/// Replicates the contents of a stream to Horde storage, optionally using the given change as a starting point
 		/// </summary>
 		/// <param name="Stream">The stream to replicate</param>
@@ -852,22 +866,15 @@ namespace HordeServer.Commits.Impl
 		/// <returns>Root tree object</returns>
 		public async Task WriteCommitTreeAsync(IStream Stream, int Change, int? BaseChange, string? Filter, bool RevisionsOnly)
 		{
-			// Create a client to replicate from this stream, and connect to the server
+			// Create a client to replicate from this stream
 			ReplicationClient ClientInfo = await FindOrAddReplicationClientAsync(Stream);
-			using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(ClientInfo.Settings, Logger);
 
-			// Get the initial directory state
-			Bundle<DirectoryNode> CommitBundle;
-			if (BaseChange == null)
-			{
-				await FlushWorkspaceAsync(ClientInfo, Perforce, 0);
-				CommitBundle = Bundle.Create<DirectoryNode>(StorageClient, Options.NamespaceId, Options.Bundle, MemoryCache);
-			}
-			else
-			{
-				await FlushWorkspaceAsync(ClientInfo, Perforce, BaseChange.Value);
-				CommitBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, Options.NamespaceId, GetStreamBucketId(Stream.Id), new CommitKey(Stream.Id, BaseChange.Value, Filter, RevisionsOnly).GetRefId(), Options.Bundle, MemoryCache);
-			}
+			// Connect to the server and flush the workspace
+			using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(ClientInfo.Settings, Logger);
+			await FlushWorkspaceAsync(ClientInfo, Perforce, BaseChange ?? 0);
+
+			// Get the initial bundle state
+			using Bundle<DirectoryNode> CommitBundle = await CreateOrReadBundle(Stream.Id, BaseChange, Filter, RevisionsOnly);
 
 			// Apply all the updates
 			Logger.LogInformation("Updating client {Client} to changelist {Change}", ClientInfo.Client.Name, Change);

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Api;
-using HordeServer.Utilities;
+using Horde.Build.Api;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using MongoDB.Bson;
@@ -15,9 +15,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using OpenTracing;
 using OpenTracing.Util;
-using HordeServer.Models;
+using Horde.Build.Models;
 
-namespace HordeServer.Logs.Builder
+namespace Horde.Build.Logs.Builder
 {
 	using LogId = ObjectId<ILogFile>;
 	using Condition = StackExchange.Redis.Condition;

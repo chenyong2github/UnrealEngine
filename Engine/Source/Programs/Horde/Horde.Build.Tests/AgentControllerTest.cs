@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Threading.Tasks;
-using HordeServer.Api;
+using Horde.Build.Api;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using HordeServer.Controllers;
-using HordeServer.Models;
+using Horde.Build.Controllers;
+using Horde.Build.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace HordeServerTests
+namespace Horde.Build.Tests
 {
 	[TestClass]
     public class AgentControllerDbTest : TestSetup

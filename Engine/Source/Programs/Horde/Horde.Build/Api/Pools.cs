@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Horde.Common;
-using HordeServer.Models;
+using Horde.Build.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Horde.Build.Fleet.Autoscale;
 
-namespace HordeServer.Api
+namespace Horde.Build.Api
 {
 	/// <see cref="Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings" />
 	public class LeaseUtilizationSettings

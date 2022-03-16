@@ -2,11 +2,11 @@
 
 using Google.Protobuf.WellKnownTypes;
 using EpicGames.Core;
-using HordeServer.Api;
+using Horde.Build.Api;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
-using HordeServer.Services;
-using HordeServer.Utilities;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
@@ -19,11 +19,11 @@ using System.Security.Cryptography;
 using Serilog;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using HordeServer.Collections;
+using Horde.Build.Collections;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Common;
 
-namespace HordeServer.Models
+namespace Horde.Build.Models
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
