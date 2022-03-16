@@ -69,7 +69,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 {
 	const uint32 ViewCount = Views.Num();
 	const bool bOpaqueRoughRefractionEnabled = IsStrataOpaqueMaterialRoughRefractionEnabled() && ViewCount > 0;
-	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, bOpaqueRoughRefractionEnabled, "StrataOpaqueRoughRefraction");
+	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, bOpaqueRoughRefractionEnabled, "Strata::OpaqueRoughRefraction");
 	if (!bOpaqueRoughRefractionEnabled)
 	{
 		return;
