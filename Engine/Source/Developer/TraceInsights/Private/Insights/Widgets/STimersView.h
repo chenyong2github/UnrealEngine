@@ -139,7 +139,8 @@ private:
 	bool ContextMenu_ExportTimers_CanExecute() const;
 	void ContextMenu_ExportTimers_Execute() const;
 
-	class IFileHandle* OpenSaveTextFileDialog(const FString& InDialogTitle, const FString& InDefaultFile, FString& OutFilename) const;
+	bool OpenSaveTextFileDialog(const FString& InDialogTitle, const FString& InDefaultFile, FString& OutFilename) const;
+	class IFileHandle* OpenExportFile(const TCHAR* InFilename) const;
 
 	bool ContextMenu_OpenSource_CanExecute() const;
 	void ContextMenu_OpenSource_Execute() const;

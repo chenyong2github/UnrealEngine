@@ -38,6 +38,7 @@
 #include "Insights/ViewModels/TimerAggregation.h"
 #include "Insights/ViewModels/TimerNodeHelper.h"
 #include "Insights/ViewModels/TimersViewColumnFactory.h"
+#include "Insights/ViewModels/TimingExporter.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
 #include "Insights/Widgets/SAsyncOperationStatus.h"
 #include "Insights/Widgets/STimersViewTooltip.h"
@@ -2260,8 +2261,12 @@ void STimersView::ContextMenu_Export_Execute()
 	const FString DialogTitle = LOCTEXT("Export_Title", "Export Aggregated Timer Stats").ToString();
 	const FString DefaultFile = TEXT("TimerStats.tsv");
 	FString Filename;
-	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
+	{
+		return;
+	}
 
+	IFileHandle* ExportFileHandle = OpenExportFile(*Filename);
 	if (!ExportFileHandle)
 	{
 		return;
@@ -2282,7 +2287,7 @@ void STimersView::ContextMenu_Export_Execute()
 	constexpr TCHAR QuotationMarkBegin = TEXT('\"');
 	constexpr TCHAR QuotationMarkEnd = TEXT('\"');
 
-	TStringBuilder<512> StringBuilder;
+	TStringBuilder<1024> StringBuilder;
 
 	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
 	Table->GetVisibleColumns(VisibleColumns);
@@ -2369,120 +2374,6 @@ void STimersView::ContextMenu_Export_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace Insights {
-
-struct FExportTimingEventsHeaderParams
-{
-	IFileHandle* ExportFileHandle;
-	const UTF8CHAR Separator;
-	const UTF8CHAR LineEnd;
-	TUtf8StringBuilder<512>& StringBuilder;
-};
-
-void ExportTimingEventsHeader(FExportTimingEventsHeaderParams& Params)
-{
-	Params.StringBuilder.Append(UTF8TEXT("ThreadId"));
-	Params.StringBuilder.AppendChar(Params.Separator);
-	Params.StringBuilder.Append(UTF8TEXT("TimerId"));
-	Params.StringBuilder.AppendChar(Params.Separator);
-	Params.StringBuilder.Append(UTF8TEXT("StartTime"));
-	Params.StringBuilder.AppendChar(Params.Separator);
-	Params.StringBuilder.Append(UTF8TEXT("EndTime"));
-	Params.StringBuilder.AppendChar(Params.Separator);
-	Params.StringBuilder.Append(UTF8TEXT("Depth"));
-	Params.StringBuilder.AppendChar(Params.LineEnd);
-
-	Params.ExportFileHandle->Write((const uint8*)Params.StringBuilder.ToString(), Params.StringBuilder.Len() * sizeof(UTF8CHAR));
-}
-
-struct FExportTimingEventsEnumerateParams
-{
-	TSharedPtr<const TraceServices::IAnalysisSession> Session;
-	IFileHandle* ExportFileHandle;
-	const UTF8CHAR Separator;
-	const UTF8CHAR LineEnd;
-	TUtf8StringBuilder<512>& StringBuilder;
-	double IntervalStartTime;
-	double IntervalEndTime;
-	TFunction<bool(uint32 ThreadId)> ThreadFilter;
-	TFunction<bool(double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event)> TimingEventFilter;
-	uint32 ThreadId;
-};
-
-void ExportTimingEventsEnumerate(FExportTimingEventsEnumerateParams& Params)
-{
-	if (Params.Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Params.Session.Get()))
-	{
-		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Params.Session.Get());
-
-		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Params.Session.Get());
-
-		auto TimelineEnumerator = [&Params](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
-		{
-			// Iterate timing events.
-			Timeline.EnumerateEvents(Params.IntervalStartTime, Params.IntervalEndTime,
-				[&Params](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event)
-				{
-					if (!Params.TimingEventFilter || Params.TimingEventFilter(EventStartTime, EventEndTime, EventDepth, Event))
-					{
-						Params.StringBuilder.Reset();
-						Params.StringBuilder.Appendf(UTF8TEXT("%u"), Params.ThreadId);
-						Params.StringBuilder.AppendChar(Params.Separator);
-						Params.StringBuilder.Appendf(UTF8TEXT("%u"), Event.TimerIndex);
-						Params.StringBuilder.AppendChar(Params.Separator);
-						Params.StringBuilder.Appendf(UTF8TEXT("%.9g"), EventStartTime);
-						Params.StringBuilder.AppendChar(Params.Separator);
-						Params.StringBuilder.Appendf(UTF8TEXT("%.9g"), EventEndTime);
-						Params.StringBuilder.AppendChar(Params.Separator);
-						Params.StringBuilder.Appendf(UTF8TEXT("%u"), EventDepth);
-						Params.StringBuilder.AppendChar(Params.LineEnd);
-
-						Params.ExportFileHandle->Write((const uint8*)Params.StringBuilder.ToString(), Params.StringBuilder.Len() * sizeof(UTF8CHAR));
-					}
-
-					return TraceServices::EEventEnumerate::Continue;
-				});
-		};
-
-		// Iterate the GPU timelines.
-		{
-			if (!Params.ThreadFilter || Params.ThreadFilter(FGpuTimingTrack::Gpu1ThreadId))
-			{
-				Params.ThreadId = FGpuTimingTrack::Gpu1ThreadId;
-				uint32 GpuTimelineIndex1 = 0;
-				TimingProfilerProvider.GetGpuTimelineIndex(GpuTimelineIndex1);
-				TimingProfilerProvider.ReadTimeline(GpuTimelineIndex1, TimelineEnumerator);
-			}
-
-			if (!Params.ThreadFilter || Params.ThreadFilter(FGpuTimingTrack::Gpu2ThreadId))
-			{
-				Params.ThreadId = FGpuTimingTrack::Gpu2ThreadId;
-				uint32 GpuTimelineIndex2 = 0;
-				TimingProfilerProvider.GetGpu2TimelineIndex(GpuTimelineIndex2);
-				TimingProfilerProvider.ReadTimeline(GpuTimelineIndex2, TimelineEnumerator);
-			}
-		}
-
-		// Iterate the CPU threads and their corresponding timelines.
-		const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Params.Session.Get());
-		ThreadProvider.EnumerateThreads(
-			[&TimelineEnumerator, &Params, &TimingProfilerProvider](const TraceServices::FThreadInfo& ThreadInfo)
-			{
-				if (!Params.ThreadFilter || Params.ThreadFilter(ThreadInfo.Id))
-				{
-					Params.ThreadId = ThreadInfo.Id;
-					uint32 CpuTimelineIndex = 0;
-					TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, CpuTimelineIndex);
-					TimingProfilerProvider.ReadTimeline(CpuTimelineIndex, TimelineEnumerator);
-				}
-			});
-	}
-}
-
-} // namespace Insights
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 bool STimersView::ContextMenu_ExportTimingEventsSelection_CanExecute() const
 {
 	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
@@ -2511,181 +2402,115 @@ void STimersView::AddTimerNodeRecursive(FTimerNodePtr InNode, TSet<uint32>& InOu
 
 void STimersView::ContextMenu_ExportTimingEventsSelection_Execute() const
 {
-	const FString DialogTitle = LOCTEXT("ExportTimingEventsSelection_Title", "Export Timing Events (Selection)").ToString();
-	const FString DefaultFile = TEXT("TimingEvents.tsv");
-	FString Filename;
-	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
-
-	if (!ExportFileHandle)
+	if (!Session.IsValid())
 	{
 		return;
 	}
 
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
-	UTF8CHAR Separator = UTF8CHAR('\t');
-	if (Filename.EndsWith(TEXT(".csv")))
+	const FString DialogTitle = LOCTEXT("ExportTimingEventsSelection_Title", "Export Timing Events (Selection)").ToString();
+	const FString DefaultFile = TEXT("TimingEvents.tsv");
+	FString Filename;
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
 	{
-		Separator = UTF8CHAR(',');
-	}
-	const UTF8CHAR LineEnd = UTF8CHAR('\n');
-
-	TUtf8StringBuilder<512> StringBuilder;
-
-	// Write header.
-	{
-		Insights::FExportTimingEventsHeaderParams HeaderParams = { ExportFileHandle, Separator, LineEnd, StringBuilder };
-		Insights::ExportTimingEventsHeader(HeaderParams);
+		return;
 	}
 
-	// Write values.
-	if (Session.IsValid())
+	Insights::FTimingExporter Exporter(*Session.Get());
+	Insights::FTimingExporter::FExportTimingEventsParams Params; // default columns, all timing events
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+	TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Filter by thread (visible Gpu/Cpu tracks in TimingView).
+
+	// These variables needs to be in the same scope with the call to Exporter.ExportTimingEventsAsText()
+	// (becasue they are referenced in the ThreadFilter lambda function).
+	TSet<uint32> IncludedThreads;
+	TSet<uint32> ExcludedThreads;
+
+	if (TimingView.IsValid())
 	{
-		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+		// Add available Gpu threads to the ExcludedThreads list.
+		ExcludedThreads.Add(FGpuTimingTrack::Gpu1ThreadId);
+		ExcludedThreads.Add(FGpuTimingTrack::Gpu2ThreadId);
 
-		Insights::FExportTimingEventsEnumerateParams EnumerateParams = { Session, ExportFileHandle, Separator, LineEnd, StringBuilder, 0.0, 0.0, nullptr, nullptr, 0 };
-
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		// Filter by thread (visible Gpu/Cpu tracks in TimingView).
-
-		// Filter sets to be used in ExportTimingEventsEnumerate.
-		// It needs to be in the same scope (as it is referenced in the lambda filter)!
-		TSet<uint32> IncludedThreads;
-		TSet<uint32> ExcludedThreads;
-
-		if (TimingView.IsValid())
+		// Add available Cpu threads to the ExcludedThreads list.
 		{
-			// Add available Gpu threads to the ExcludedThreads list.
-			ExcludedThreads.Add(FGpuTimingTrack::Gpu1ThreadId);
-			ExcludedThreads.Add(FGpuTimingTrack::Gpu2ThreadId);
-
-			// Add available Cpu threads to the ExcludedThreads list.
-			{
-				TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-				const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
-				ThreadProvider.EnumerateThreads(
-					[&ExcludedThreads](const TraceServices::FThreadInfo& ThreadInfo)
-					{
-						ExcludedThreads.Add(ThreadInfo.Id);
-					});
-			}
-
-			// Move the threads corresponding to visible Cpu/Gpu tracks to the IncludedThreads list.
-			TimingView->EnumerateAllTracks([&IncludedThreads, &ExcludedThreads](TSharedPtr<FBaseTimingTrack>& Track) -> bool
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
+			ThreadProvider.EnumerateThreads(
+				[&ExcludedThreads](const TraceServices::FThreadInfo& ThreadInfo)
 				{
-					if (Track->IsVisible() && Track->Is<FThreadTimingTrack>())
-					{
-						const uint32 ThreadId = Track->As<FThreadTimingTrack>().GetThreadId();
-						ExcludedThreads.Remove(ThreadId);
-						IncludedThreads.Add(ThreadId);
-					}
-					return true;
+					ExcludedThreads.Add(ThreadInfo.Id);
 				});
-
-			if (IncludedThreads.Num() < ExcludedThreads.Num())
-			{
-				if (IncludedThreads.Num() == 1)
-				{
-					const uint32 IncludedThreadId = IncludedThreads[FSetElementId::FromInteger(0)];
-					EnumerateParams.ThreadFilter = [IncludedThreadId](uint32 ThreadId) -> bool
-					{
-						return ThreadId == IncludedThreadId;
-					};
-				}
-				else
-				{
-					EnumerateParams.ThreadFilter = [&IncludedThreads](uint32 ThreadId) -> bool
-					{
-						return IncludedThreads.Contains(ThreadId);
-					};
-				}
-			}
-			else
-			{
-				if (ExcludedThreads.Num() == 1)
-				{
-					const uint32 ExcludedThreadId = ExcludedThreads[FSetElementId::FromInteger(0)];
-					EnumerateParams.ThreadFilter = [ExcludedThreadId](uint32 ThreadId) -> bool
-					{
-						return ThreadId != ExcludedThreadId;
-					};
-				}
-				else
-				{
-					EnumerateParams.ThreadFilter = [&ExcludedThreads](uint32 ThreadId) -> bool
-					{
-						return !ExcludedThreads.Contains(ThreadId);
-					};
-				}
-			}
 		}
 
-		// Debug/test filters.
-		//EnumerateParams.ThreadFilter = [](uint32 ThreadId) -> bool { return ThreadId == 2; };
-
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		// Filter by timing event (e.g.: by timer, by duration, by depth).
-
-		// Filter set to be used in ExportTimingEventsEnumerate.
-		// It needs to be in the same scope (as it is referenced in the lambda filter)!
-		TSet<uint32> IncludedTimers;
-
-		TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
-		for (FTimerNodePtr Node : SelectedNodes)
-		{
-			AddTimerNodeRecursive(Node, IncludedTimers);
-		}
-
-		if (IncludedTimers.Num() == 1)
-		{
-			const uint32 IncludedTimerId = IncludedTimers[FSetElementId::FromInteger(0)];
-			EnumerateParams.TimingEventFilter = [IncludedTimerId](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool
+		// Move the threads corresponding to visible Cpu/Gpu tracks to the IncludedThreads list.
+		TimingView->EnumerateAllTracks([&IncludedThreads, &ExcludedThreads](TSharedPtr<FBaseTimingTrack>& Track) -> bool
 			{
-				return Event.TimerIndex == IncludedTimerId;
-			};
+				if (Track->IsVisible() && Track->Is<FThreadTimingTrack>())
+				{
+					const uint32 ThreadId = Track->As<FThreadTimingTrack>().GetThreadId();
+					ExcludedThreads.Remove(ThreadId);
+					IncludedThreads.Add(ThreadId);
+				}
+				return true;
+			});
+
+		if (IncludedThreads.Num() < ExcludedThreads.Num())
+		{
+			Params.ThreadFilter = Insights::FTimingExporter::MakeThreadFilterInclusive(IncludedThreads);
 		}
 		else
 		{
-			EnumerateParams.TimingEventFilter = [&IncludedTimers](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool
-			{
-				return IncludedTimers.Contains(Event.TimerIndex);
-			};
+			Params.ThreadFilter = Insights::FTimingExporter::MakeThreadFilterExclusive(ExcludedThreads);
 		}
-
-		// Debug/test filters.
-		//EnumerateParams.TimingEventFilter = [](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool { return Event.TimerIndex < 100; };
-		//EnumerateParams.TimingEventFilter = [](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool { return EventEndTime - EventStartTime > 0.001; };
-
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		// Limit the time interval for enumeration (if a time range selection is made in Timing view).
-
-		EnumerateParams.IntervalStartTime = -std::numeric_limits<double>::infinity();
-		EnumerateParams.IntervalEndTime = +std::numeric_limits<double>::infinity();
-		if (TimingView.IsValid())
-		{
-			const double SelectionStartTime = TimingView->GetSelectionStartTime();
-			const double SelectionEndTime = TimingView->GetSelectionEndTime();
-			if (SelectionStartTime < SelectionEndTime)
-			{
-				EnumerateParams.IntervalStartTime = SelectionStartTime;
-				EnumerateParams.IntervalEndTime = SelectionEndTime;
-			}
-		}
-
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-
-		ExportTimingEventsEnumerate(EnumerateParams);
 	}
 
-	ExportFileHandle->Flush();
-	delete ExportFileHandle;
-	ExportFileHandle = nullptr;
+	// Debug/test filters.
+	//Params.ThreadFilter = [](uint32 ThreadId) -> bool { return ThreadId == 2; };
 
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	UE_LOG(TraceInsights, Log, TEXT("Exported selected timing events to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Filter by timing event (e.g.: by timer, by duration, by depth).
+
+	// This variable needs to be in the same scope with the call to Exporter.ExportTimingEventsAsText()
+	// (becasue it is referenced in the TimingEventFilter lambda function).
+	TSet<uint32> IncludedTimers;
+
+	TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	for (FTimerNodePtr Node : SelectedNodes)
+	{
+		AddTimerNodeRecursive(Node, IncludedTimers);
+	}
+
+	Params.TimingEventFilter = Insights::FTimingExporter::MakeTimingEventFilterByTimersInclusive(IncludedTimers);
+
+	// Debug/test filters.
+	//Params.TimingEventFilter = [](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool { return Event.TimerIndex < 100; };
+	//Params.TimingEventFilter = [](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool { return EventEndTime - EventStartTime > 0.001; };
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Limit the time interval for enumeration (if a time range selection is made in Timing view).
+
+	Params.IntervalStartTime = -std::numeric_limits<double>::infinity();
+	Params.IntervalEndTime = +std::numeric_limits<double>::infinity();
+	if (TimingView.IsValid())
+	{
+		const double SelectionStartTime = TimingView->GetSelectionStartTime();
+		const double SelectionEndTime = TimingView->GetSelectionEndTime();
+		if (SelectionStartTime < SelectionEndTime)
+		{
+			Params.IntervalStartTime = SelectionStartTime;
+			Params.IntervalEndTime = SelectionEndTime;
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	Exporter.ExportTimingEventsAsText(*Filename, Params);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2699,52 +2524,22 @@ bool STimersView::ContextMenu_ExportTimingEvents_CanExecute() const
 
 void STimersView::ContextMenu_ExportTimingEvents_Execute() const
 {
-	const FString DialogTitle = LOCTEXT("ExportTimingEvents_Title", "Export Timing Events (All)").ToString();
-	const FString DefaultFile = TEXT("TimingEvents.tsv");
-	FString Filename;
-	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
-
-	if (!ExportFileHandle)
+	if (!Session.IsValid())
 	{
 		return;
 	}
 
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
-	UTF8CHAR Separator = UTF8CHAR('\t');
-	if (Filename.EndsWith(TEXT(".csv")))
+	const FString DialogTitle = LOCTEXT("ExportTimingEvents_Title", "Export Timing Events (All)").ToString();
+	const FString DefaultFile = TEXT("TimingEvents.tsv");
+	FString Filename;
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
 	{
-		Separator = UTF8CHAR(',');
-	}
-	const UTF8CHAR LineEnd = UTF8CHAR('\n');
-
-	TUtf8StringBuilder<512> StringBuilder;
-
-	// Write header.
-	{
-		Insights::FExportTimingEventsHeaderParams HeaderParams = { ExportFileHandle, Separator, LineEnd, StringBuilder };
-		Insights::ExportTimingEventsHeader(HeaderParams);
+		return;
 	}
 
-	// Write values.
-	if (Session.IsValid())
-	{
-		Insights::FExportTimingEventsEnumerateParams EnumerateParams = { Session, ExportFileHandle, Separator, LineEnd, StringBuilder, 0.0, 0.0, nullptr, nullptr, 0 };
-
-		EnumerateParams.IntervalStartTime = -std::numeric_limits<double>::infinity();
-		EnumerateParams.IntervalEndTime = +std::numeric_limits<double>::infinity();
-
-		Insights::ExportTimingEventsEnumerate(EnumerateParams);
-	}
-
-	ExportFileHandle->Flush();
-	delete ExportFileHandle;
-	ExportFileHandle = nullptr;
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	UE_LOG(TraceInsights, Log, TEXT("Exported all timing events to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+	Insights::FTimingExporter Exporter(*Session.Get());
+	Insights::FTimingExporter::FExportTimingEventsParams Params; // default columns, all timing events
+	Exporter.ExportTimingEventsAsText(*Filename, Params);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2758,87 +2553,22 @@ bool STimersView::ContextMenu_ExportThreads_CanExecute() const
 
 void STimersView::ContextMenu_ExportThreads_Execute() const
 {
-	const FString DialogTitle = LOCTEXT("ExportThreads_Title", "Export Threads").ToString();
-	const FString DefaultFile = TEXT("Threads.tsv");
-	FString Filename;
-	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
-
-	if (!ExportFileHandle)
+	if (!Session.IsValid())
 	{
 		return;
 	}
 
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
-	UTF8CHAR Separator = UTF8CHAR('\t');
-	if (Filename.EndsWith(TEXT(".csv")))
+	const FString DialogTitle = LOCTEXT("ExportThreads_Title", "Export Threads").ToString();
+	const FString DefaultFile = TEXT("Threads.tsv");
+	FString Filename;
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
 	{
-		Separator = UTF8CHAR(',');
-	}
-	const UTF8CHAR LineEnd = UTF8CHAR('\n');
-
-	TUtf8StringBuilder<512> StringBuilder;
-
-	// Write header.
-	{
-		StringBuilder.Append(UTF8TEXT("ThreadId"));
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("Name"));
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("GroupName"));
-		StringBuilder.AppendChar(LineEnd);
-
-		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+		return;
 	}
 
-	// Write values.
-	if (Session.IsValid())
-	{
-		StringBuilder.Reset();
-		StringBuilder.Appendf(UTF8TEXT("%u"), FGpuTimingTrack::Gpu1ThreadId);
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("GPU1"));
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("GPU"));
-		StringBuilder.AppendChar(LineEnd);
-		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
-
-		StringBuilder.Reset();
-		StringBuilder.Appendf(UTF8TEXT("%u"), FGpuTimingTrack::Gpu2ThreadId);
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("GPU2"));
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("GPU"));
-		StringBuilder.AppendChar(LineEnd);
-		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
-
-		// Iterate the CPU threads.
-		{
-			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
-			ThreadProvider.EnumerateThreads(
-				[&](const TraceServices::FThreadInfo& ThreadInfo)
-				{
-					StringBuilder.Reset();
-					StringBuilder.Appendf(UTF8TEXT("%u"), ThreadInfo.Id);
-					StringBuilder.AppendChar(Separator);
-					StringBuilder.Append(TCHAR_TO_UTF8(ThreadInfo.Name));
-					StringBuilder.AppendChar(Separator);
-					StringBuilder.Append(TCHAR_TO_UTF8(ThreadInfo.GroupName));
-					StringBuilder.AppendChar(LineEnd);
-					ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
-				});
-		}
-	}
-
-	ExportFileHandle->Flush();
-	delete ExportFileHandle;
-	ExportFileHandle = nullptr;
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	UE_LOG(TraceInsights, Log, TEXT("Exported the thread list to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+	Insights::FTimingExporter Exporter(*Session.Get());
+	Insights::FTimingExporter::FExportThreadsParams Params; // default
+	Exporter.ExportThreadsAsText(*Filename, Params);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2852,85 +2582,27 @@ bool STimersView::ContextMenu_ExportTimers_CanExecute() const
 
 void STimersView::ContextMenu_ExportTimers_Execute() const
 {
-	const FString DialogTitle = LOCTEXT("ExportTimers_Title", "Export Timers").ToString();
-	const FString DefaultFile = TEXT("Timers.tsv");
-	FString Filename;
-	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
-
-	if (!ExportFileHandle)
+	if (!Session.IsValid())
 	{
 		return;
 	}
 
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
-	UTF8CHAR Separator = UTF8CHAR('\t');
-	if (Filename.EndsWith(TEXT(".csv")))
+	const FString DialogTitle = LOCTEXT("ExportTimers_Title", "Export Timers").ToString();
+	const FString DefaultFile = TEXT("Timers.tsv");
+	FString Filename;
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
 	{
-		Separator = UTF8CHAR(',');
-	}
-	const UTF8CHAR LineEnd = UTF8CHAR('\n');
-
-	TUtf8StringBuilder<512> StringBuilder;
-
-	// Write header.
-	{
-		StringBuilder.Append(UTF8TEXT("TimerId"));
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("Type"));
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("Name"));
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("File"));
-		StringBuilder.AppendChar(Separator);
-		StringBuilder.Append(UTF8TEXT("Line"));
-		StringBuilder.AppendChar(LineEnd);
-
-		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+		return;
 	}
 
-	// Write values.
-	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
-	{
-		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
-
-		const TraceServices::ITimingProfilerTimerReader* TimerReader;
-		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
-
-		const uint32 TimerCount = TimerReader->GetTimerCount();
-		for (uint32 TimerIndex = 0; TimerIndex < TimerCount; ++TimerIndex)
-		{
-			const TraceServices::FTimingProfilerTimer& Timer = *(TimerReader->GetTimer(TimerIndex));
-			StringBuilder.Reset();
-			StringBuilder.Appendf(UTF8TEXT("%u"), Timer.Id);
-			StringBuilder.AppendChar(Separator);
-			StringBuilder.Append(Timer.IsGpuTimer ? UTF8TEXT("GPU") : UTF8TEXT("CPU"));
-			StringBuilder.AppendChar(Separator);
-			StringBuilder.Append(TCHAR_TO_UTF8(Timer.Name));
-			StringBuilder.AppendChar(Separator);
-			StringBuilder.Append(Timer.File ? (const UTF8CHAR*)TCHAR_TO_UTF8(Timer.File) : UTF8TEXT(""));
-			StringBuilder.AppendChar(Separator);
-			StringBuilder.Appendf(UTF8TEXT("%u"), Timer.Line);
-			StringBuilder.AppendChar(LineEnd);
-			ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
-		}
-	}
-
-	ExportFileHandle->Flush();
-	delete ExportFileHandle;
-	ExportFileHandle = nullptr;
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	UE_LOG(TraceInsights, Log, TEXT("Exported the timers list to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+	Insights::FTimingExporter Exporter(*Session.Get());
+	Insights::FTimingExporter::FExportTimersParams Params; // default
+	Exporter.ExportTimersAsText(*Filename, Params);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IFileHandle* STimersView::OpenSaveTextFileDialog(const FString& InDialogTitle, const FString& InDefaultFile, FString& OutFilename) const
+bool STimersView::OpenSaveTextFileDialog(const FString& InDialogTitle, const FString& InDefaultFile, FString& OutFilename) const
 {
 	TArray<FString> SaveFilenames;
 	bool bDialogResult = false;
@@ -2952,12 +2624,18 @@ IFileHandle* STimersView::OpenSaveTextFileDialog(const FString& InDialogTitle, c
 
 	if (!bDialogResult || SaveFilenames.Num() == 0)
 	{
-		return nullptr;
+		return false;
 	}
 
 	OutFilename = SaveFilenames[0];
+	return true;
+}
 
-	IFileHandle* ExportFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*OutFilename);
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+IFileHandle* STimersView::OpenExportFile(const TCHAR* InFilename) const
+{
+	IFileHandle* ExportFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenWrite(InFilename);
 
 	if (ExportFileHandle == nullptr)
 	{

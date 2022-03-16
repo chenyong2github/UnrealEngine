@@ -14,6 +14,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/ViewModels/TimerButterflyAggregation.h"
+#include "Insights/ViewModels/TimingExporter.h"
 #include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/SLogView.h"
 #include "Insights/Widgets/SStatsView.h"
@@ -623,6 +624,120 @@ void FTimingProfilerManager::OnWindowClosedEvent()
 			TimingView->CloseQuickFindTab();
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTimingProfilerManager::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	if (FParse::Command(&Cmd, TEXT("TimingInsights.ExportThreads")))
+	{
+		Ar.Logf(TEXT("TimingInsights.ExportThreads %s"), Cmd);
+		check(FInsightsManager::Get().IsValid() && FInsightsManager::Get()->GetSession().IsValid());
+		Insights::FTimingExporter Exporter(*FInsightsManager::Get()->GetSession().Get());
+		Insights::FTimingExporter::FExportThreadsParams Params; // default
+		Exporter.ExportThreadsAsText(Cmd, Params);
+		return true;
+	}
+
+	if (FParse::Command(&Cmd, TEXT("TimingInsights.ExportTimers")))
+	{
+		Ar.Logf(TEXT("TimingInsights.ExportTimers %s"), Cmd);
+		check(FInsightsManager::Get().IsValid() && FInsightsManager::Get()->GetSession().IsValid());
+		Insights::FTimingExporter Exporter(*FInsightsManager::Get()->GetSession().Get());
+		Insights::FTimingExporter::FExportTimersParams Params; // default
+		Exporter.ExportTimersAsText(Cmd, Params);
+		return true;
+	}
+
+	if (FParse::Command(&Cmd, TEXT("TimingInsights.ExportTimingEvents")))
+	{
+		Ar.Logf(TEXT("TimingInsights.ExportTimingEvents %s"), Cmd);
+
+		check(FInsightsManager::Get().IsValid() && FInsightsManager::Get()->GetSession().IsValid());
+		Insights::FTimingExporter Exporter(*FInsightsManager::Get()->GetSession().Get());
+		Insights::FTimingExporter::FExportTimingEventsParams Params; // default (all timing events)
+
+		// These variables needs to be in the same scope with the call to Exporter.ExportTimingEventsAsText().
+		TArray<FName> Columns; // referenced by Params.Columns
+		TSet<uint32> IncludedThreads; // referenced in Params.ThreadFilter lambda function
+		TSet<uint32> IncludedTimers; // referenced in Params.TimingEventFilter lambda function
+
+		//////////////////////////////////////////////////
+
+		const bool bUseEscape = true;
+		FString Filename = FParse::Token(Cmd, bUseEscape);
+		Ar.Logf(TEXT("  Filename: %s"), *Filename);
+
+		while (Cmd && Cmd[0] != TEXT('\0'))
+		{
+			FString Token;
+			if (FParse::Token(Cmd, Token, bUseEscape))
+			{
+				Ar.Logf(TEXT("  Token: %s"), *Token);
+
+				static constexpr TCHAR ColumnsToken[] = TEXT("-columns=");
+				static constexpr TCHAR ThreadsToken[] = TEXT("-threads=");
+				static constexpr TCHAR TimersToken[] = TEXT("-timers=");
+				static constexpr TCHAR StartTimeToken[] = TEXT("-startTime=");
+				static constexpr TCHAR EndTimeToken[] = TEXT("-endTime=");
+
+				if (Token.StartsWith(ColumnsToken))
+				{
+					// Comma-delimited list of column names. Supports *?-type wildcard.
+					// Default: -columns="ThreadId,TimerId,StartTime,EndTime,Depth"
+					// Example: -columns="*" -columns="TimerName,Duration"
+					Token.RightChopInline(UE_ARRAY_COUNT(ColumnsToken) - 1);
+					Token.TrimQuotesInline();
+					Exporter.MakeExportTimingEventsColumnList(Token, Columns);
+					Params.Columns = &Columns;
+				}
+				else if (Token.StartsWith(ThreadsToken))
+				{
+					// Comma-delimited list of thread names. Supports *?-type wildcard.
+					// Default: -threads="*" (all threads; no filter)
+					// Example: -threads="GameThread" -threads="GPU1,GPU2,GameThread,Render*"
+					Token.RightChopInline(UE_ARRAY_COUNT(ThreadsToken) - 1);
+					Token.TrimQuotesInline();
+					Params.ThreadFilter = Exporter.MakeThreadFilterInclusive(Token, IncludedThreads);
+				}
+				else if (Token.StartsWith(TimersToken))
+				{
+					// Comma-delimited list of timer names. Supports *?-type wildcard.
+					// Default: -timers="*" (all timers; no filter)
+					// Example: -timers="A,B,*z"
+					Token.RightChopInline(UE_ARRAY_COUNT(TimersToken) - 1);
+					Token.TrimQuotesInline();
+					Params.TimingEventFilter = Exporter.MakeTimingEventFilterByTimersInclusive(Token, IncludedTimers);
+				}
+				else if (Token.StartsWith(StartTimeToken))
+				{
+					// Default: -startTime=-infinte
+					// Example: -startTime=10.0
+					Token.RightChopInline(UE_ARRAY_COUNT(StartTimeToken) - 1);
+					Params.IntervalStartTime = atof(TCHAR_TO_ANSI(*Token));
+				}
+				else if (Token.StartsWith(EndTimeToken))
+				{
+					// Default: -endTime=+infinte
+					// Example: -endTime=20.0
+					Token.RightChopInline(UE_ARRAY_COUNT(EndTimeToken) - 1);
+					Params.IntervalEndTime = atof(TCHAR_TO_ANSI(*Token));
+				}
+				else
+				{
+					Ar.Logf(ELogVerbosity::Warning, TEXT("Unknown Cmd Param: %s"), *Token);
+				}
+			}
+		}
+
+		//////////////////////////////////////////////////
+
+		Exporter.ExportTimingEventsAsText(Filename, Params);
+		return true;
+	}
+
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
