@@ -662,5 +662,8 @@ private:
 	/** Delegate used to notify changes to ActorEditorContextSubsystem */
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
 
+	/** The path at which the "Pick A Data Layer Asset" will be opened*/
+	mutable FString PickDataLayerDialogPath;
+
 	friend class FDataLayersBroadcast;
 };

@@ -1112,11 +1112,14 @@ bool UDataLayerEditorSubsystem::PromptDataLayerAssetSelection(FAssetData& OutAss
 	FOpenAssetDialogConfig Config;
 	Config.bAllowMultipleSelection = false;
 	Config.AssetClassNames.Add(UDataLayerAsset::StaticClass()->GetFName());
+	Config.DefaultPath = PickDataLayerDialogPath;
+	Config.DialogTitleOverride = LOCTEXT("PickDataLayerAssetDialogTitle", "Pick A Data Layer Asset");
 
 	TArray<FAssetData> Assets = ContentBrowserSingleton.CreateModalOpenAssetDialog(Config);
 	if (Assets.Num() == 1)
 	{
 		OutAsset = Assets[0];
+		OutAsset.PackagePath.ToString(PickDataLayerDialogPath);
 		return true;
 	}
 
