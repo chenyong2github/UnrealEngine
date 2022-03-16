@@ -631,11 +631,18 @@ namespace Horde.Storage.Controllers
                         throw new Exception();
 
                     CbObject cb = new CbObject(await blob.Stream.ToByteArray());
+
+                    if (op.ResolveAttachments ?? false)
+                    {
+                        IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, cb);
+                        List<BlobIdentifier>? _ = await references.ToListAsync();
+                    }
+
                     return (cb, HttpStatusCode.OK);
                 }
-                catch (ObjectNotFoundException e)
+                catch (Exception ex) when( ex is ObjectNotFoundException or PartialReferenceResolveException or ReferenceIsMissingBlobsException)
                 {
-                    return ToErrorResult(e, HttpStatusCode.NotFound);
+                    return ToErrorResult(ex, HttpStatusCode.NotFound);
                 }
                 catch (Exception e)
                 {
@@ -656,20 +663,22 @@ namespace Horde.Storage.Controllers
 
                     blob ??= await _blobStore.GetObject(ns, record.BlobIdentifier);
 
-                    // we have to verify the blobs are available locally, as the record of the key is replicated a head of the content
-                    // TODO: Once we support inline replication this step is not needed as at least one region as this blob, just maybe not this current one
-                    byte[] blobContents = await blob.Stream.ToByteArray();
-                    CbObject cb = new CbObject(blobContents);
-                    // the reference resolver will throw if any blob is missing, so no need to do anything other then process each reference
-                    IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, cb);
-                    List<BlobIdentifier>? _ = await references.ToListAsync();
+                    if (op.ResolveAttachments ?? false)
+                    {
+                        byte[] blobContents = await blob.Stream.ToByteArray();
+                        CbObject cb = new CbObject(blobContents);
+                        // the reference resolver will throw if any blob is missing, so no need to do anything other then process each reference
+                        IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, cb);
+                        List<BlobIdentifier>? _ = await references.ToListAsync();
+                    }
+
 
                     if (blob == null)
                         throw new Exception();
 
                     return (CbObject.Build(writer => writer.WriteBool("exists", true)), HttpStatusCode.OK);
                 }
-                catch (Exception ex) when( ex is ObjectNotFoundException || ex is PartialReferenceResolveException || ex is ReferenceIsMissingBlobsException)
+                catch (Exception ex) when( ex is ObjectNotFoundException or PartialReferenceResolveException or ReferenceIsMissingBlobsException)
                 {
                     return (CbObject.Build(writer => writer.WriteBool("exists", false)), HttpStatusCode.NotFound);
                 }
@@ -933,6 +942,9 @@ namespace Horde.Storage.Controllers
             [Required]
             [CbField("key")]
             public IoHashKey Key { get; set; }
+
+            [CbField("resolveAttachments")]
+            public bool? ResolveAttachments { get; set; } = null;
 
             [CbField("payload")]
             public CbObject? Payload { get; set; } = null;

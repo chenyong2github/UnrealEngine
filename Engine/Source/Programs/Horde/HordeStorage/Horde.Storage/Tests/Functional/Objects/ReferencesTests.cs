@@ -1511,6 +1511,21 @@ namespace Horde.Storage.FunctionalTests.References
                 result.EnsureSuccessStatusCode();
             }
 
+            byte[] blobContentsMissing = Encoding.ASCII.GetBytes("This contents will not be submitted");
+            CbObject missingAttachmentObject = CbObject.Build(writer => writer.WriteBinaryAttachment("Attachment", IoHash.Compute(blobContentsMissing)));
+            IoHashKey missingAttachmentKey = IoHashKey.FromName("blobMissingAttachment");
+
+            {
+                BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobContents);
+
+                HttpContent requestContent = new ByteArrayContent(blobContents);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/blobs/{TestNamespace}/{blobHash}", requestContent);
+                result.EnsureSuccessStatusCode();
+            }
+
             {
                 byte[] cbObjectBytes = newReferenceObject.GetView().ToArray();
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
@@ -1543,10 +1558,21 @@ namespace Horde.Storage.FunctionalTests.References
             getObjectOp2.WriteString("key", newReferenceObjectKey.ToString());
             getObjectOp2.EndObject();
 
+            
+            CbWriter getObjectOp3 = new CbWriter();
+            getObjectOp3.BeginObject();
+            getObjectOp3.WriteInteger("opId", 2);
+            getObjectOp3.WriteString("op", BatchOps.BatchOp.Operation.GET.ToString());
+            getObjectOp3.WriteString("bucket", bucket.ToString());
+            getObjectOp3.WriteString("key", missingAttachmentKey.ToString());
+            getObjectOp3.WriteBool("resolveAttachments", true);
+            getObjectOp3.EndObject();
+
             CbObject[] ops = new[]
             {
                 getObjectOp.ToObject(),
                 getObjectOp2.ToObject(),
+                getObjectOp3.ToObject(),
             };
 
             CbWriter batchRequestWriter = new CbWriter();
@@ -1572,7 +1598,7 @@ namespace Horde.Storage.FunctionalTests.References
                 byte[] roundTrippedBuffer = ms.ToArray();
 
                 BatchOpsResponse response = CbSerializer.Deserialize<BatchOpsResponse>(roundTrippedBuffer);
-                Assert.AreEqual(2, response.Results.Count);
+                Assert.AreEqual(3, response.Results.Count);
                 
                 BatchOpsResponse.OpResponses op0 = response.Results.First(r => r.OpId == 0);
                 Assert.IsNotNull(op0.Response);
@@ -1583,6 +1609,11 @@ namespace Horde.Storage.FunctionalTests.References
                 Assert.IsNotNull(op1.Response);
                 Assert.AreEqual(200, op1.StatusCode);
                 Assert.AreEqual(newReferenceObject, op1.Response);
+
+                BatchOpsResponse.OpResponses op2 = response.Results.First(r => r.OpId == 2);
+                Assert.IsNotNull(op2.Response);
+                Assert.AreEqual(404, op2.StatusCode);
+                Assert.AreNotEqual(missingAttachmentObject, op2.Response);
             }
         }
 
