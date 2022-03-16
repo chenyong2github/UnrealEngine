@@ -4,6 +4,7 @@
 #include "Units/Math/RigUnit_MathTransform.h"
 #include "Units/RigUnitContext.h"
 #include "AnimationCoreLibrary.h"
+#include "Math/ControlRigMathLibrary.h"
 
 FRigUnit_MathQuaternionFromAxisAndAngle_Execute()
 {
@@ -53,7 +54,7 @@ FRigUnit_MathQuaternionFromTwoVectors_Execute()
 		Result = FQuat::Identity;
 		return;
 	}
-	Result = FQuat::FindBetweenVectors(A, B).GetNormalized();
+	Result = FControlRigMathLibrary::FindQuatBetweenVectors(A, B);
 }
 
 FRigUnit_MathQuaternionToAxisAndAngle_Execute()

@@ -2,6 +2,7 @@
 
 #include "Units/Highlevel/Hierarchy/RigUnit_AimBone.h"
 #include "Units/RigUnitContext.h"
+#include "Math/ControlRigMathLibrary.h"
 
 FRigUnit_AimBoneMath_Execute()
 {
@@ -26,7 +27,7 @@ FRigUnit_AimBoneMath_Execute()
 	{
 		return;
 	}
-
+	
 	if (Primary.Weight > SMALL_NUMBER)
 	{
 		FVector Target = Primary.Target;
@@ -72,7 +73,7 @@ FRigUnit_AimBoneMath_Execute()
 			{
 				Target = FMath::Lerp<FVector>(Axis, Target, T).GetSafeNormal();
 			}
-			FQuat Rotation = FQuat::FindBetweenNormals(Axis, Target);
+			FQuat Rotation = FControlRigMathLibrary::FindQuatBetweenVectors(Axis, Target);
 			Result.SetRotation((Rotation * Result.GetRotation()).GetNormalized());
 		}
 		else
@@ -133,7 +134,7 @@ FRigUnit_AimBoneMath_Execute()
 			{
 				Target = FMath::Lerp<FVector>(Axis, Target, T).GetSafeNormal();
 			}
-			FQuat Rotation = FQuat::FindBetweenNormals(Axis, Target);
+			FQuat Rotation = FControlRigMathLibrary::FindQuatBetweenVectors(Axis, Target);
 			Result.SetRotation((Rotation * Result.GetRotation()).GetNormalized());
 		}
 		else

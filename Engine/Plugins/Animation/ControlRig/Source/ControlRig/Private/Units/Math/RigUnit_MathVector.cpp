@@ -341,7 +341,7 @@ FRigUnit_MathVectorAngle_Execute()
 		Result = 0.f;
 		return;
 	}
-	Result = FQuat::FindBetween(A, B).GetAngle();
+	Result = FControlRigMathLibrary::FindQuatBetweenVectors(A, B).GetAngle();
 }
 
 FRigUnit_MathVectorParallel_Execute()

@@ -75,4 +75,6 @@ public:
 	static FTransform LerpTransform(const FTransform& A, const FTransform& B, float T);
 	static void SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& BoneB, FTransform& Effector, const FVector& PoleVector, const FVector& PrimaryAxis, const FVector& SecondaryAxis, float SecondaryAxisWeight, float BoneALength, float BoneBLength, bool bEnableStretch, float StretchStartRatio, float StretchMaxRatio);
 	static FVector ClampSpatially(const FVector& Value, EAxis::Type Axis, EControlRigClampSpatialMode::Type Type, float Minimum, float Maximum, FTransform Space);
+	static FQuat FindQuatBetweenVectors(const FVector& A, const FVector& B);
+	static FQuat FindQuatBetweenNormals(const FVector& A, const FVector& B);
 };
