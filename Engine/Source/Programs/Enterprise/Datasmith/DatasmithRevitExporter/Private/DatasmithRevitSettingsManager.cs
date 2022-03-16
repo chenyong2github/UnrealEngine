@@ -11,6 +11,13 @@ namespace DatasmithRevitExporter
 {
 	public class FSettings
 	{
+		public enum EInsertionPoint
+		{
+			Default,
+			BasePoint,
+			SurveyPoint
+		};
+
 		private IList<string> _MetadataParamNamesFilter = new List<string>();
 		private IList<int> _MetadataParamGroupsFilter = new List<int>();
 
@@ -19,6 +26,7 @@ namespace DatasmithRevitExporter
 		private HashSet<int> MetadataParamGroupsSet;
 
 		public int LevelOfTesselation { get; set; } = 8;
+		public EInsertionPoint InsertionPoint { get; set; } = EInsertionPoint.Default;
 
 		public IList<string> MetadataParamNamesFilter 
 		{
@@ -77,11 +85,12 @@ namespace DatasmithRevitExporter
 	{
 		static class FSettingsSchema
 		{
-			readonly static Guid SchemaGuid = new Guid("{EAFD9DF3-1E44-4B16-B9DF-E7DD404729A3}");
+			readonly static Guid SchemaGuid = new Guid("{F910B32B-32C6-4BD1-BFD1-7DBF81FFC41B}");
 			
 			public readonly static string MetadataParamNamesField = "MetadataParamNames";
 			public readonly static string MetadataParamGroupsField = "MetadataParamGroups";
 			public readonly static string LevelOfTesselationField = "LevelOfTesselation";
+			public readonly static string InsertionPointField = "InsertionPoint";
 
 			public static Schema GetSchema()
 			{
@@ -97,6 +106,7 @@ namespace DatasmithRevitExporter
 				SchemaBuilder.AddArrayField(MetadataParamNamesField, typeof(string));
 				SchemaBuilder.AddArrayField(MetadataParamGroupsField, typeof(int));
 				SchemaBuilder.AddSimpleField(LevelOfTesselationField, typeof(int));
+				SchemaBuilder.AddSimpleField(InsertionPointField, typeof(int));
 
 				return SchemaBuilder.Finish();
 			}
@@ -148,12 +158,11 @@ namespace DatasmithRevitExporter
 		{
 			FSettings Settings = new FSettings();
 
-			Entity SettingsEntity = GetSettingsEntity(Doc);
-
-			if (SettingsEntity == null || !SettingsEntity.IsValid())
+			void InitDefaultSettings()
 			{
 				// No settings in document, create defaults
 				Settings.LevelOfTesselation = 8;
+				Settings.InsertionPoint = 0;
 				Settings.MetadataParamGroupsFilter.Add((int)Autodesk.Revit.DB.BuiltInParameterGroup.PG_GEOMETRY);
 				Settings.MetadataParamGroupsFilter.Add((int)Autodesk.Revit.DB.BuiltInParameterGroup.PG_IDENTITY_DATA);
 				Settings.MetadataParamGroupsFilter.Add((int)Autodesk.Revit.DB.BuiltInParameterGroup.PG_MATERIALS);
@@ -162,11 +171,26 @@ namespace DatasmithRevitExporter
 
 				WriteSettings(Doc, Settings);
 			}
+
+			Entity SettingsEntity = GetSettingsEntity(Doc);
+
+			if (SettingsEntity == null || !SettingsEntity.IsValid())
+			{
+				InitDefaultSettings();
+			}
 			else
 			{
-				Settings.MetadataParamNamesFilter = SettingsEntity.Get<IList<string>>(FSettingsSchema.MetadataParamNamesField);
-				Settings.MetadataParamGroupsFilter = SettingsEntity.Get<IList<int>>(FSettingsSchema.MetadataParamGroupsField);
-				Settings.LevelOfTesselation = SettingsEntity.Get<int>(FSettingsSchema.LevelOfTesselationField);
+				try
+				{
+					Settings.MetadataParamNamesFilter = SettingsEntity.Get<IList<string>>(FSettingsSchema.MetadataParamNamesField);
+					Settings.MetadataParamGroupsFilter = SettingsEntity.Get<IList<int>>(FSettingsSchema.MetadataParamGroupsField);
+					Settings.LevelOfTesselation = SettingsEntity.Get<int>(FSettingsSchema.LevelOfTesselationField);
+					Settings.InsertionPoint = (FSettings.EInsertionPoint)SettingsEntity.Get<int>(FSettingsSchema.InsertionPointField);
+				}
+				catch
+				{
+					InitDefaultSettings();
+				}
 			}
 
 			return Settings;
@@ -190,6 +214,7 @@ namespace DatasmithRevitExporter
 					SettingsEntity.Set(FSettingsSchema.MetadataParamNamesField, Settings.MetadataParamNamesFilter);
 					SettingsEntity.Set(FSettingsSchema.MetadataParamGroupsField, Settings.MetadataParamGroupsFilter);
 					SettingsEntity.Set(FSettingsSchema.LevelOfTesselationField, Settings.LevelOfTesselation);
+					SettingsEntity.Set(FSettingsSchema.InsertionPointField, (int)Settings.InsertionPoint);
 
 					// Identify settings data storage
 					Entity IdEntity = new Entity(DataStorageUniqueIdSchema.GetSchema());

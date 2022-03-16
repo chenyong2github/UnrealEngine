@@ -331,6 +331,24 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Insertion Point.
+        /// </summary>
+        public static string SettingsDialog_InsertionPoint {
+            get {
+                return ResourceManager.GetString("SettingsDialog_InsertionPoint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Change world origin for all exported elements.
+        /// </summary>
+        public static string SettingsDialog_InsertionPointTooltip {
+            get {
+                return ResourceManager.GetString("SettingsDialog_InsertionPointTooltip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Metadata Export Filter.
         /// </summary>
         public static string SettingsDialog_LabelMatchGroups {

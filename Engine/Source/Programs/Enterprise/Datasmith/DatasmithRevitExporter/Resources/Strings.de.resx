@@ -207,6 +207,12 @@
   <data name="SettingsDialog_DialogTitle" xml:space="preserve">
     <value>Datasmith Export Settings</value>
   </data>
+  <data name="SettingsDialog_InsertionPoint" xml:space="preserve">
+    <value>Insertion Point</value>
+  </data>
+  <data name="SettingsDialog_InsertionPointTooltip" xml:space="preserve">
+    <value>Change world origin for all exported elements</value>
+  </data>
   <data name="SettingsDialog_LabelMatchGroups" xml:space="preserve">
     <value>Metadata Export Filter</value>
   </data>

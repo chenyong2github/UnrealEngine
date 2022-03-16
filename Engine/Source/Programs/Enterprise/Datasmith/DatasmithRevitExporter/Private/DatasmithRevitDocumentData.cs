@@ -581,7 +581,7 @@ namespace DatasmithRevitExporter
 				LightActor.SetLabel(GetActorLabel());
 
 				// Set the world transform of the Datasmith light actor.
-				FDocumentData.SetActorTransform(InWorldTransform, LightActor);
+				DocumentData.SetActorTransform(InWorldTransform, LightActor);
 
 				// Set the base properties of the Datasmith light actor.
 				string LayerName = Category.GetCategory(CurrentElement.Document, BuiltInCategory.OST_LightingFixtureSource)?.Name ?? "Light Sources";
@@ -730,7 +730,7 @@ namespace DatasmithRevitExporter
 				FacadeActor.SetLabel(GetActorLabel());
 
 				// Set the world transform of the Datasmith RPC mesh actor.
-				FDocumentData.SetActorTransform(InWorldTransform, FacadeActor);
+				DocumentData.SetActorTransform(InWorldTransform, FacadeActor);
 
 				// Set the base properties of the Datasmith RPC mesh actor.
 				string LayerName = GetCategoryName();
@@ -812,7 +812,7 @@ namespace DatasmithRevitExporter
 				}
 
 				// Set the world transform of the Datasmith mesh actor.
-				FDocumentData.SetActorTransform(InWorldTransform, InElement.ElementActor);
+				DocumentData.SetActorTransform(InWorldTransform, InElement.ElementActor);
 
 				// Set the base properties of the Datasmith mesh actor.
 				string LayerName = GetCategoryName();
@@ -1062,7 +1062,13 @@ namespace DatasmithRevitExporter
 		private string									CurrentMaterialName = null;
 		private List<string>							MessageList = null;
 
-		public  string									DocumentId { get; private set; } = "";
+		// Apply world offset to elements
+		public	FSettings.EInsertionPoint				InsertionPoint { get; set; } = FSettings.EInsertionPoint.Default;
+
+		private XYZ										ProjectSurveyPoint = null;
+		private XYZ										ProjectBasePoint = null;
+
+		public string									DocumentId { get; private set; } = "";
 
 		public bool										bSkipMetadataExport { get; private set; } = false;
 		public Document									CurrentDocument { get; private set; } = null;
@@ -1077,6 +1083,8 @@ namespace DatasmithRevitExporter
 			string InLinkedDocumentId
 		)
 		{
+			InsertionPoint = FSettingsManager.CurrentSettings?.InsertionPoint ?? FSettings.EInsertionPoint.Default;
+
 			DirectLink = InDirectLink;
 			CurrentDocument = InDocument;
 			MessageList = InMessageList;
@@ -1850,8 +1858,17 @@ namespace DatasmithRevitExporter
 					// Set the world transform of the Datasmith placeholder actor.
 					XYZ BasePointPosition = BasePointBoundingBox.Min;
 
+					if (BasePointLocation.IsShared)
+					{
+						ProjectSurveyPoint = BasePointPosition;
+					}
+					else
+					{
+						ProjectBasePoint = BasePointPosition;
+					}
+
 					Transform TranslationMatrix = Transform.CreateTranslation(BasePointPosition);
-					FDocumentData.SetActorTransform(TranslationMatrix.Multiply(InWorldTransform), BasePointActor);
+					SetActorTransform(TranslationMatrix.Multiply(InWorldTransform), BasePointActor);
 
 					// Set the Datasmith placeholder actor layer to the base point category name.
 					BasePointActor.SetLayer(BasePointLocation.Category.Name);
@@ -2173,7 +2190,7 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private static void SetActorTransform(
+		private void SetActorTransform(
 			Transform InWorldTransform,
 			FDatasmithFacadeActor IOActor
 		)
@@ -2182,6 +2199,16 @@ namespace DatasmithRevitExporter
 			XYZ transformBasisY = InWorldTransform.BasisY;
 			XYZ transformBasisZ = InWorldTransform.BasisZ;
 			XYZ transformOrigin = InWorldTransform.Origin;
+
+			// Check if need to apply world offset to element transform
+			if (InsertionPoint != FSettings.EInsertionPoint.Default)
+			{
+				switch (InsertionPoint)
+				{
+					case FSettings.EInsertionPoint.BasePoint: transformOrigin -= ProjectBasePoint; break;
+					case FSettings.EInsertionPoint.SurveyPoint: transformOrigin -= ProjectSurveyPoint; break;
+				}
+			}
 
 			float[] worldMatrix = new float[16];
 
