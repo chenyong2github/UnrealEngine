@@ -3,11 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/OptionalFwd.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
-
-// Forward declaration
-template<typename OptionalType>
-struct TOptional;
 
 // So we can construct TNonNullPtrs
 enum class EDefaultConstructNonNullPtr { UnsafeDoNotUse };

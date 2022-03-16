@@ -5,15 +5,13 @@
 
 #include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "Misc/OptionalFwd.h"
 
 struct FMath;
 struct FUnitConversion;
 enum class EUnit : uint8;
 enum class EUnitType;
 template<typename NumericType> struct FNumericUnit;
-/// @cond DOXYGEN_WARNINGS
-template<typename OptionalType> struct TOptional;
-/// @endcond
 template<typename ValueType, typename ErrorType> class TValueOrError;
 
 namespace UnitConversion

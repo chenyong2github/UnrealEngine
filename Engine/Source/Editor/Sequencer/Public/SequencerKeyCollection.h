@@ -2,17 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/ContainersFwd.h"
-#include "Misc/Guid.h"
-#include "Templates/SharedPointer.h"
+#include "CoreTypes.h"
 #include "Misc/FrameNumber.h"
+#include "Misc/Guid.h"
+#include "Misc/OptionalFwd.h"
+#include "Templates/SharedPointer.h"
 
 class UMovieSceneSection;
 class FSequencerDisplayNode;
 class IKeyArea;
 
-template<typename> struct TOptional;
 template<typename> class TRange;
 
 /** Enumeration used to define how to search for keys */

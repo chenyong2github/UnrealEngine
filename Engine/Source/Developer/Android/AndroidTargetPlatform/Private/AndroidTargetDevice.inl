@@ -12,8 +12,6 @@ class FAndroidTargetDevice;
 struct FTargetDeviceProcessInfo;
 enum class ETargetDeviceFeatures;
 
-template<typename OptionalType> struct TOptional;
-
 inline FString FAndroidTargetDevice::GetOperatingSystemName()
 {
 	if (!AndroidVersionString.IsEmpty())
