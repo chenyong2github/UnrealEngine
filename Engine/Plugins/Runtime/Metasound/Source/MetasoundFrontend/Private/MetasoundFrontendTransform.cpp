@@ -16,6 +16,24 @@ namespace Metasound
 {
 	namespace Frontend
 	{
+		namespace DocumentTransform
+		{
+#if WITH_EDITOR
+			FGetNodeDisplayNamePredicate NodeDisplayNamePredicate;
+
+			void RegisterNodeDisplayNamePredicate(FGetNodeDisplayNamePredicate&& InNamePredicate)
+			{
+				NodeDisplayNamePredicate = MoveTemp(InNamePredicate);
+			}
+
+			FGetNodeDisplayNamePredicateRef GetNodeDisplayNamePredicate()
+			{
+				return NodeDisplayNamePredicate;
+			}
+#endif // WITH_EDITOR
+		} // namespace DocumentTransform
+
+
 		FModifyRootGraphInterfaces::FModifyRootGraphInterfaces(const TArray<FMetasoundFrontendInterface>& InInterfacesToRemove, const TArray<FMetasoundFrontendInterface>& InInterfacesToAdd)
 			: InterfacesToRemove(InInterfacesToRemove)
 			, InterfacesToAdd(InInterfacesToAdd)
@@ -693,8 +711,8 @@ namespace Metasound
 			ReferencedClassMetadata.SetType(EMetasoundFrontendClassType::External);
 
 			FNodeHandle ReferencedNodeHandle = PresetGraphHandle->AddNode(ReferencedClassMetadata, PresetNodeID);
-#if WITH_EDITOR
 
+#if WITH_EDITOR
 			// Set node location.
 			FMetasoundFrontendNodeStyle RefNodeStyle;
 
@@ -738,7 +756,8 @@ namespace Metasound
 			// inputs/outputs are added but before setting locations to propagate effectively)
 			FMetasoundFrontendInterfaceStyle Style = ReferencedGraphHandle->GetInputStyle();
 			InPresetGraphHandle->SetInputStyle(Style);
-			Style.SortDefaults(NodeHandles);
+
+			Style.SortDefaults(NodeHandles, DocumentTransform::GetNodeDisplayNamePredicate());
 
 			for (const FNodeHandle& InputNode : NodeHandles)
 			{
@@ -777,11 +796,12 @@ namespace Metasound
 			// inputs/outputs are added but before setting locations to propagate effectively)
 			FMetasoundFrontendInterfaceStyle Style = ReferencedGraphHandle->GetOutputStyle();
 			InPresetGraphHandle->SetOutputStyle(Style);
-			Style.SortDefaults(NodeHandles);
 
+			Style.SortDefaults(NodeHandles, DocumentTransform::GetNodeDisplayNamePredicate());
+
+			// Set input node location
 			for (const FNodeHandle& OutputNode : NodeHandles)
 			{
-				// Set input node location
 				FMetasoundFrontendNodeStyle NodeStyle;
 				NodeStyle.Display.Locations.Add(FGuid(), OutputNodeLocation);
 				OutputNode->SetNodeStyle(NodeStyle);

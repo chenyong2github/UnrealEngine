@@ -1260,6 +1260,7 @@ namespace Metasound
 			check(ReferencedAsset);
 
 			FRebuildPresetRootGraph(ReferencedAsset->GetDocumentHandle()).Transform(PresetAsset->GetDocumentHandle());
+
 			PresetAsset->ConformObjectDataToInterfaces();
 		}
 
@@ -1377,7 +1378,7 @@ namespace Metasound
 			}
 
 			TArray<FInputHandle> InputHandles = NodeHandle->GetInputs();
-			NodeHandle->GetInputStyle().SortDefaults(InputHandles);
+			NodeHandle->GetInputStyle().SortDefaults(InputHandles, [](const Frontend::FInputHandle& Handle) { return FGraphBuilder::GetDisplayName(*Handle); });
 			for (const FInputHandle& InputHandle : InputHandles)
 			{
 				// Only add pins of the node if the connection is user modifiable. 
@@ -1389,7 +1390,7 @@ namespace Metasound
 			}
 
 			TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputs();
-			NodeHandle->GetOutputStyle().SortDefaults(OutputHandles);
+			NodeHandle->GetOutputStyle().SortDefaults(OutputHandles, [](const Frontend::FOutputHandle& Handle) { return FGraphBuilder::GetDisplayName(*Handle); });
 			for (const FOutputHandle& OutputHandle : OutputHandles)
 			{
 				// Only add pins of the node if the connection is user modifiable. 
@@ -1959,20 +1960,22 @@ namespace Metasound
 
 		bool FGraphBuilder::SynchronizeNodePins(UMetasoundEditorGraphNode& InEditorNode, Frontend::FConstNodeHandle InNode, bool bRemoveUnusedPins, bool bLogChanges)
 		{
+			using namespace Frontend;
+
 			bool bIsNodeDirty = false;
 
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 
-			TArray<Frontend::FConstInputHandle> InputHandles;
-			TArray<Frontend::FConstOutputHandle> OutputHandles;
-			auto GetUserModifiableHandles = [InNode](TArray<Frontend::FConstInputHandle>& InHandles, TArray<Frontend::FConstOutputHandle>& OutHandles)
+			TArray<FConstInputHandle> InputHandles;
+			TArray<FConstOutputHandle> OutputHandles;
+			auto GetUserModifiableHandles = [InNode](TArray<FConstInputHandle>& InHandles, TArray<FConstOutputHandle>& OutHandles)
 			{
 				InHandles = InNode->GetConstInputs();
 				OutHandles = InNode->GetConstOutputs();
 
 				// Remove input and output handles which are not user modifiable
-				InHandles.RemoveAll([](const Frontend::FConstInputHandle& FrontendInput) { return !FrontendInput->IsConnectionUserModifiable(); });
-				OutHandles.RemoveAll([](const Frontend::FConstOutputHandle& FrontendOutput) { return !FrontendOutput->IsConnectionUserModifiable(); });
+				InHandles.RemoveAll([](const FConstInputHandle& FrontendInput) { return !FrontendInput->IsConnectionUserModifiable(); });
+				OutHandles.RemoveAll([](const FConstOutputHandle& FrontendOutput) { return !FrontendOutput->IsConnectionUserModifiable(); });
 			};
 			GetUserModifiableHandles(InputHandles, OutputHandles);
 
@@ -1982,12 +1985,12 @@ namespace Metasound
 			{
 				UEdGraphPin* Pin = EditorPins[i];
 
-				auto IsMatchingInputHandle = [&](const Frontend::FConstInputHandle& InputHandle) -> bool
+				auto IsMatchingInputHandle = [&](const FConstInputHandle& InputHandle) -> bool
 				{
 					return IsMatchingInputHandleAndPin(InputHandle, *Pin);
 				};
 
-				auto IsMatchingOutputHandle = [&](const Frontend::FConstOutputHandle& OutputHandle) -> bool
+				auto IsMatchingOutputHandle = [&](const FConstOutputHandle& OutputHandle) -> bool
 				{
 					return IsMatchingOutputHandleAndPin(OutputHandle, *Pin);
 				};
@@ -2040,7 +2043,7 @@ namespace Metasound
 			if (!InputHandles.IsEmpty())
 			{
 				bIsNodeDirty = true;
-				for (Frontend::FConstInputHandle& InputHandle : InputHandles)
+				for (FConstInputHandle& InputHandle : InputHandles)
 				{
 					if (bLogChanges)
 					{
@@ -2056,7 +2059,7 @@ namespace Metasound
 			if (!OutputHandles.IsEmpty())
 			{
 				bIsNodeDirty = true;
-				for (Frontend::FConstOutputHandle& OutputHandle : OutputHandles)
+				for (FConstOutputHandle& OutputHandle : OutputHandles)
 				{
 					if (bLogChanges)
 					{
@@ -2071,8 +2074,9 @@ namespace Metasound
 
 			// Order pins
 			GetUserModifiableHandles(InputHandles, OutputHandles);
-			InNode->GetInputStyle().SortDefaults(InputHandles);
-			InNode->GetOutputStyle().SortDefaults(OutputHandles);
+
+			InNode->GetInputStyle().SortDefaults(InputHandles, [](const FConstInputHandle& Handle) { return FGraphBuilder::GetDisplayName(*Handle); });
+			InNode->GetOutputStyle().SortDefaults(OutputHandles, [](const FConstOutputHandle& Handle) { return FGraphBuilder::GetDisplayName(*Handle); });
 
 			auto SwapAndDirty = [&](int32 IndexA, int32 IndexB)
 			{
@@ -2092,7 +2096,7 @@ namespace Metasound
 					if (!InputHandles.IsEmpty())
 					{
 						constexpr bool bAllowShrinking = false;
-						Frontend::FConstInputHandle InputHandle = InputHandles.Pop(bAllowShrinking);
+						FConstInputHandle InputHandle = InputHandles.Pop(bAllowShrinking);
 						for (int32 j = i; j >= 0; --j)
 						{
 							if (IsMatchingInputHandleAndPin(InputHandle, *InEditorNode.Pins[j]))
@@ -2108,7 +2112,7 @@ namespace Metasound
 					if (!OutputHandles.IsEmpty())
 					{
 						constexpr bool bAllowShrinking = false;
-						Frontend::FConstOutputHandle OutputHandle = OutputHandles.Pop(bAllowShrinking);
+						FConstOutputHandle OutputHandle = OutputHandles.Pop(bAllowShrinking);
 						for (int32 j = i; j >= 0; --j)
 						{
 							if (IsMatchingOutputHandleAndPin(OutputHandle, *InEditorNode.Pins[j]))

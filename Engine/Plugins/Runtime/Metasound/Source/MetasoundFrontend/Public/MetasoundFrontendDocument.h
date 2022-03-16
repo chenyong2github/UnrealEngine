@@ -12,6 +12,8 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundVertex.h"
 #include "Misc/Guid.h"
+#include "Templates/Function.h"
+#include "Templates/Invoke.h"
 #include "Templates/TypeHash.h"
 
 #include "MetasoundFrontendDocument.generated.h"
@@ -781,8 +783,8 @@ struct FMetasoundFrontendInterfaceStyle
 	UPROPERTY()
 	TMap<FName, FText> RequiredMembers;
 
-	template <typename HandleType>
-	void SortDefaults(TArray<HandleType>& OutHandles) const
+	template <typename HandleType, typename NamePredicateType>
+	void SortDefaults(TArray<HandleType>& OutHandles, NamePredicateType InGetDisplayNamePredicate) const
 	{
 		TMap<FGuid, int32> NodeIDToSortIndex;
 		int32 HighestSortOrder = TNumericLimits<int32>::Min();
@@ -802,11 +804,19 @@ struct FMetasoundFrontendInterfaceStyle
 			NodeIDToSortIndex.Add(HandleID, SortIndex);
 		}
 
-		OutHandles.Sort([&NodeIDToSortIndex](const HandleType& HandleA, const HandleType& HandleB)
+		OutHandles.Sort([&NodeIDToSortIndex, &InGetDisplayNamePredicate](const HandleType& HandleA, const HandleType& HandleB) -> bool
 		{
 			const FGuid HandleAID = HandleA->GetID();
 			const FGuid HandleBID = HandleB->GetID();
-			return NodeIDToSortIndex[HandleAID] < NodeIDToSortIndex[HandleBID];
+			const int32 AID = NodeIDToSortIndex[HandleAID];
+			const int32 BID = NodeIDToSortIndex[HandleBID];
+
+			// If IDs are equal, sort alphabetically using provided name predicate
+			if (AID == BID)
+			{
+				return Invoke(InGetDisplayNamePredicate, HandleA).CompareTo(Invoke(InGetDisplayNamePredicate, HandleB)) < 0;
+			}
+			return AID < BID;
 		});
 	}
 #endif // #if WITH_EDITORONLY_DATA

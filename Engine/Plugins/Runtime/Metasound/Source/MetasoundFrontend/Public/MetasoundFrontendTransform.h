@@ -13,6 +13,18 @@ namespace Metasound
 {
 	namespace Frontend
 	{
+
+		namespace DocumentTransform
+		{
+#if WITH_EDITOR
+			using FGetNodeDisplayNamePredicate = TFunction<FText(const FNodeHandle&)>;
+			using FGetNodeDisplayNamePredicateRef = TFunctionRef<FText(const FNodeHandle&)>;
+
+			METASOUNDFRONTEND_API void RegisterNodeDisplayNamePredicate(FGetNodeDisplayNamePredicate&& InNamePredicate);
+			METASOUNDFRONTEND_API FGetNodeDisplayNamePredicateRef GetNodeDisplayNamePredicate();
+#endif // WITH_EDITOR
+		}
+
 		/** Interface for transforms applied to documents. */
 		class IDocumentTransform
 		{
