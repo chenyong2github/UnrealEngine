@@ -64,7 +64,8 @@ public:
 	int TriangleCountHint = 0;
 	float SmoothingStrength, TargetEdgeLength;
 	ERemeshSmoothingType SmoothingType;
-	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips;
+	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips, bPreventTinyTriangles;
+
 	// When true, result will have attributes object regardless of whether attributes 
 	// were discarded or present initially.
 	bool bResultMustHaveAttributesEnabled = false;

@@ -63,6 +63,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints")
 	bool bPreventNormalFlips = false;
 
+	/** Prevent introduction of tiny triangles or slivers */
+	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints")
+	bool bPreventTinyTriangles = false;
 };
 
 UCLASS()

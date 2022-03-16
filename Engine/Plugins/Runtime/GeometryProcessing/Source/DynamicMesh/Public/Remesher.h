@@ -59,6 +59,11 @@ public:
 	 */
 	bool bPreventNormalFlips = false;
 
+	/** Controls whether we disallow creation of triangles with small areas inside edge operations.
+	 * This is moderately expensive and in some cases can result in lower-quality meshes. Disabled by default.
+	 */
+	bool bPreventTinyTriangles = false;
+
 	/** Available Edge Flip metrics */
 	enum class EFlipMetric
 	{

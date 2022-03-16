@@ -211,6 +211,15 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 			}
 		}
 
+		if (bPreventTinyTriangles)
+		{
+			if (CheckIfCollapseCreatesTinyTriangle(a, b, vNewPos, t0, t1) || CheckIfCollapseCreatesTinyTriangle(b, a, vNewPos, t0, t1))
+			{
+				goto abort_collapse;
+			}
+		}
+
+
 		// lots of cases where we cannot collapse, but we should just let
 		// mesh sort that out, right?
 		SaveEdgeBeforeModify(edgeID);
@@ -281,6 +290,11 @@ abort_collapse:
 		}
 
 		if (bTryFlip && bPreventNormalFlips && CheckIfFlipInvertsNormals(a, b, c, d, t0))
+		{
+			bTryFlip = false;
+		}
+
+		if (bTryFlip && bPreventTinyTriangles && CheckIfFlipCreatesTinyTriangle(a, b, c, d, t0))
 		{
 			bTryFlip = false;
 		}

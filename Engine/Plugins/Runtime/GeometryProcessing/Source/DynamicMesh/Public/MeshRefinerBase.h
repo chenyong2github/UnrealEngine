@@ -176,6 +176,24 @@ protected:
 	 */
 	bool CheckIfCollapseCreatesFlipOrInvalid(int vid, int vother, const FVector3d& newv, int tc, int td) const;
 
+	/** Avoid creation of triangles smaller than this value. 
+	 * We compare the triangle cross product's norm squared to this value since it's cheaper to compute than the triangle area. So the actual
+	 * area threshold is sqrt(TinyTriangleThreshold)/2.
+	 * Default is based on the threshold for creating triangles in a simulation mesh 
+	 */
+	double TinyTriangleThreshold = SMALL_NUMBER;
+
+	/**
+	 * Check if edge collapse will create a triangle with small area (either all vertices are close together, or in a sliver configuration)
+	 * This only checks one-ring of vid, so you have to call it twice, with vid and vother reversed, to check both one-rings
+	 * @param vid first vertex of edge
+	 * @param vother other vertex of edge
+	 * @param newv new vertex position after collapse
+	 * @param tc triangle on one side of edge
+	 * @param td triangle on other side of edge
+	 */
+	bool CheckIfCollapseCreatesTinyTriangle(int vid, int vother, const FVector3d& newv, int tc, int td) const;
+
 	/**
 	 * Check if edge flip might reverse normal direction.
 	 * Not entirely clear on how to best implement this test. Currently checking if any normal-pairs are reversed.
@@ -186,6 +204,16 @@ protected:
 	 * @param t0 index of triangle containing [a,b,c]
 	 */
 	bool CheckIfFlipInvertsNormals(int a, int b, int c, int d, int t0) const;
+
+	/**
+	 * Check if edge flip might create a triangle with small area (either all vertices are close together, or in a sliver configuration)
+	 * @param a first vertex of edge
+	 * @param b second vertex of edge
+	 * @param c opposing vertex 1
+	 * @param d opposing vertex 2
+	 * @param t0 index of triangle containing [a,b,c]
+	 */
+	bool CheckIfFlipCreatesTinyTriangle(int OriginalEdgeVertexA, int OriginalEdgeVertexB, int OppositeEdgeVertexC, int OppositeEdgeVertexD, int OriginalTriangleIndex) const;
 
 	/**
 	 * Figure out if we can collapse edge eid=[a,b] under current constraint set.

@@ -58,7 +58,41 @@ bool FMeshRefinerBase::CheckIfCollapseCreatesFlipOrInvalid(int vid, int vother, 
 }
 
 
+bool FMeshRefinerBase::CheckIfCollapseCreatesTinyTriangle(int VertexID, int OtherVertexID, const FVector3d& NewVertexPosition, int IncidentTriangleC, int IncidentTriangleD) const
+{
+	for (int TriangleID : Mesh->VtxTrianglesItr(VertexID))
+	{
+		if (TriangleID == IncidentTriangleC || TriangleID == IncidentTriangleD)
+		{
+			continue;
+		}
+		FIndex3i CurrentTriangle = Mesh->GetTriangle(TriangleID);
+		if (CurrentTriangle[0] == OtherVertexID || CurrentTriangle[1] == OtherVertexID || CurrentTriangle[2] == OtherVertexID)
+		{
+			return true;		// invalid nbrhood for collapse
+		}
 
+		FVector3d TriangleVertices[3];
+		Mesh->GetTriVertices(TriangleID, TriangleVertices[0], TriangleVertices[1], TriangleVertices[2]);
+
+		// If the current triangle is already tiny, *do* allow the creation of a new tiny triangle (to allow remeshing to continue and hopefully improve things)
+		FVector3d CurrentNormal = (TriangleVertices[1] - TriangleVertices[0]).Cross(TriangleVertices[2] - TriangleVertices[0]);
+		if (CurrentNormal.SquaredLength() < TinyTriangleThreshold)
+		{
+			continue;
+		}
+
+		// Now find the size of the triangle that would result
+		TriangleVertices[CurrentTriangle.IndexOf(VertexID)] = NewVertexPosition;
+		FVector3d NewNormal = (TriangleVertices[1] - TriangleVertices[0]).Cross(TriangleVertices[2] - TriangleVertices[0]);
+		if (NewNormal.SquaredLength() < TinyTriangleThreshold)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 /**
  * Check if edge flip might reverse normal direction.
@@ -93,7 +127,41 @@ bool FMeshRefinerBase::CheckIfFlipInvertsNormals(int a, int b, int c, int d, int
 }
 
 
+bool FMeshRefinerBase::CheckIfFlipCreatesTinyTriangle(int OriginalEdgeVertexA, int OriginalEdgeVertexB, int OppositeEdgeVertexC, int OppositeEdgeVertexD, int OriginalTriangleIndex) const
+{
+	FVector3d vC = Mesh->GetVertex(OppositeEdgeVertexC);
+	FVector3d vD = Mesh->GetVertex(OppositeEdgeVertexD);
+	FVector3d vA = Mesh->GetVertex(OriginalEdgeVertexA);
+	FVector3d vB = Mesh->GetVertex(OriginalEdgeVertexB);
 
+	// If the current triangles are already tiny, allow new triangles to be tiny as well
+	double CurrNormalSquaredLen = (vA - vC).Cross(vB - vC).SquaredLength();
+	if (CurrNormalSquaredLen < TinyTriangleThreshold)
+	{
+		return false;
+	}
+
+	CurrNormalSquaredLen = (vA - vD).Cross(vB - vD).SquaredLength();
+	if (CurrNormalSquaredLen < TinyTriangleThreshold)
+	{
+		return false;
+	}
+
+	// Now check triangle area of potential new triangle
+	double NewNormalSquaredLen = (vD - vC).Cross(vD - vB).SquaredLength();
+	if (NewNormalSquaredLen < TinyTriangleThreshold)
+	{
+		return true;
+	}
+
+	NewNormalSquaredLen = (vD - vC).Cross(vD - vA).SquaredLength();
+	if (NewNormalSquaredLen < TinyTriangleThreshold)
+	{
+		return true;
+	}
+
+	return false;
+}
 
 
 

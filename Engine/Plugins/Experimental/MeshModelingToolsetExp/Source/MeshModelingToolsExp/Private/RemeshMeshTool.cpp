@@ -65,6 +65,7 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	bCollapses = true;
 	bReproject = true;
 	bPreventNormalFlips = true;
+	bPreventTinyTriangles = true;
 	bUseTargetEdgeLength = false;
 }
 
@@ -216,6 +217,7 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	Op->GroupBoundaryConstraint = (EEdgeRefineFlags)BasicProperties->GroupBoundaryConstraint;
 	Op->MaterialBoundaryConstraint = (EEdgeRefineFlags)BasicProperties->MaterialBoundaryConstraint;
 	Op->bPreventNormalFlips = BasicProperties->bPreventNormalFlips;
+	Op->bPreventTinyTriangles = BasicProperties->bPreventTinyTriangles;
 	Op->bReproject = BasicProperties->bReproject;
 	Op->bSplits = BasicProperties->bSplits;
 	Op->RemeshIterations = BasicProperties->RemeshIterations;

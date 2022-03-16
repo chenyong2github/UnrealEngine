@@ -114,6 +114,7 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 	bool bIsUniformSmooth = (Remesher->SmoothType == FRemesher::ESmoothTypes::Uniform);
 
 	Remesher->bPreventNormalFlips = bPreventNormalFlips;
+	Remesher->bPreventTinyTriangles = bPreventTinyTriangles;
 
 	Remesher->DEBUG_CHECK_LEVEL = 0;
 
