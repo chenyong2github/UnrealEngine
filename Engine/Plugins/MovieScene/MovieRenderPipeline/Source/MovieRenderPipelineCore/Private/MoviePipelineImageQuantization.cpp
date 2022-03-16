@@ -14,6 +14,10 @@ namespace MoviePipeline
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_ImageQuantization"), STAT_ImageQuantization, STATGROUP_MoviePipeline);
 
 
+// @@!! TODO: get rid of this whole file
+//		use FImage, just call CopyImage
+
+
 template<class TToColorBitDepthType, typename TFromColorBitDepthType, typename TColorChannelNumericType>
 TArray<TToColorBitDepthType> ConvertLinearToLinearBitDepth(TFromColorBitDepthType* InColor, const int32 InCount)
 {

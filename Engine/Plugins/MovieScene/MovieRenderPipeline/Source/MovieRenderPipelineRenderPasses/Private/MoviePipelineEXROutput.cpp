@@ -24,6 +24,8 @@ THIRD_PARTY_INCLUDES_END
 
 #if WITH_UNREALEXR
 
+// NOTE: see also ExrImageWrapper
+
 class FExrMemStreamOut : public Imf::OStream
 {
 public:

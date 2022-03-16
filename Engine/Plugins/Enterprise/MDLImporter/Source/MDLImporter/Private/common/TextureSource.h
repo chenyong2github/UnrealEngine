@@ -6,6 +6,11 @@
 #include "Math/NumericLimits.h"
 #include "common/Utility.h"
 
+/**
+* TextureSource.h in the MDL importer ; not in the Engine
+* 
+*/
+
 namespace Common
 {
 	FORCEINLINE bool IsValueInRange(float Value)
@@ -16,6 +21,10 @@ namespace Common
 	// Converts a float texture to a corresponding texture source.
 	inline FTextureSource* CreateTextureSource(const float* InData, int InWidth, int InHeight, int InChannels, bool bFlipY)
 	{
+		// @@!! TODO use FImage / CopyImage
+		//	also why are we converting to G8 or RGBA16 here ?
+		// just use F32 ETextureSourceFormat ?
+
 		// use 16 bpp for linear textures support(i.e. if more than 1 channel)
 		const ETextureSourceFormat Format = InChannels == 1 ? TSF_G8 : TSF_RGBA16;
 		const int                  Size   = InWidth * InHeight * InChannels;
@@ -76,6 +85,8 @@ namespace Common
 						int DstOffset = Y * InWidth * 4 + X * 4;
 						int SrcOffset = SrcY * InWidth * 4 + X * 4;
 
+						// @@!! use FColor::QuantizeUNormFloatTo16
+						//	or just use FImage
 						check(IsValueInRange(InData[SrcOffset]));
 						check(IsValueInRange(InData[SrcOffset + 1]));
 						check(IsValueInRange(InData[SrcOffset + 2]));
