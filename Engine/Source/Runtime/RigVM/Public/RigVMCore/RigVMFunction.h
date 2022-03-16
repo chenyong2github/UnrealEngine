@@ -10,7 +10,7 @@
 typedef TArrayView<FRigVMMemoryHandle> FRigVMMemoryHandleArray;
 typedef TArrayView<void*> FRigVMUserDataArray;
 
-typedef void (*FRigVMFunctionPtr)(FRigVMExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles);
+typedef void (*FRigVMFunctionPtr)(FRigVMExtendedExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles);
 
 struct FRigVMTemplate;
 

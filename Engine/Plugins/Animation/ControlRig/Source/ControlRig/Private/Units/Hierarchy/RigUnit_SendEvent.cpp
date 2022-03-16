@@ -31,7 +31,7 @@ FRigUnit_SendEvent_Execute()
 				FRigEventContext EventContext;
 				EventContext.Key = Item;
 				EventContext.Event = Event;
-				EventContext.SourceEventName = ExecuteContext.EventName;
+				EventContext.SourceEventName = ExecuteContext.GetEventName();
 				EventContext.LocalTime = Context.AbsoluteTime + OffsetInSeconds;
 				Hierarchy->SendEvent(EventContext, false /* async */); //needs to be false for sequencer keying to work
 				break;

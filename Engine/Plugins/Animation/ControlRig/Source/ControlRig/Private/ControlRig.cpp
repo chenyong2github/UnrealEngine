@@ -577,14 +577,14 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			{
 				HierarchyController->LogFunction = [this](EMessageSeverity::Type InSeverity, const FString& Message)
 				{
-					const FRigVMExecuteContext& Context = GetVM()->GetContext();
+					const FRigVMExtendedExecuteContext& Context = GetVM()->GetContext();
 					if(ControlRigLog)
 					{
-						ControlRigLog->Report(InSeverity, Context.FunctionName, Context.InstructionIndex, Message);
+						ControlRigLog->Report(InSeverity, Context.PublicData.FunctionName, Context.PublicData.InstructionIndex, Message);
 					}
 					else
 					{
-						LogOnce(InSeverity, Context.InstructionIndex, Message);
+						LogOnce(InSeverity, Context.PublicData.InstructionIndex, Message);
 					}
 				};
 			}
@@ -1236,7 +1236,7 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 			Hierarchy->WrittenTransformsPerInstructionPerSlice.Reset();
 			Hierarchy->ReadTransformsPerInstructionPerSlice.AddZeroed(VM->GetByteCode().GetNumInstructions());
 			Hierarchy->WrittenTransformsPerInstructionPerSlice.AddZeroed(VM->GetByteCode().GetNumInstructions());
-			TGuardValue<const FRigVMExecuteContext*> HierarchyContextGuard(Hierarchy->ExecuteContext, &VM->GetContext());
+			TGuardValue<const FRigVMExtendedExecuteContext*> HierarchyContextGuard(Hierarchy->ExecuteContext, &VM->GetContext());
 #endif
 
 			VM->Execute(LocalMemory, AdditionalArguments, InEventName);

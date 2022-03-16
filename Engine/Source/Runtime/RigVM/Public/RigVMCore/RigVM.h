@@ -618,7 +618,7 @@ public:
 #endif
 
 	uint32 GetNumExecutions() const { return NumExecutions; }
-	const FRigVMExecuteContext& GetContext() const { return Context; }
+	const FRigVMExtendedExecuteContext& GetContext() const { return Context; }
 
 private:
 
@@ -635,7 +635,7 @@ private:
 	FRigVMInstructionArray Instructions;
 
 	UPROPERTY(transient)
-	FRigVMExecuteContext Context;
+	FRigVMExtendedExecuteContext Context;
 
 	UPROPERTY(transient)
 	uint32 NumExecutions;

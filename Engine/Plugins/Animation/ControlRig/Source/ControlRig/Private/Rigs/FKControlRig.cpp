@@ -50,8 +50,6 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 
 	if (InEventName == FRigUnit_BeginExecution::EventName)
 	{
-		FRigVMExecuteContext VMContext;
-
 		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
         {
 			const FName ControlName = GetControlName(BoneElement->GetName());
@@ -120,7 +118,6 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 	}
 	else if (InEventName == FRigUnit_InverseExecution::EventName)
 	{
-		FRigVMExecuteContext VMContext;
 		const bool bNotify = true;
 		const FRigControlModifiedContext Context = FRigControlModifiedContext();
 		const bool bSetupUndo = false;

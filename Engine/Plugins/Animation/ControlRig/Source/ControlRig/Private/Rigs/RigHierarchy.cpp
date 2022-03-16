@@ -2179,7 +2179,7 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 
 	if(bRecordTransformsPerInstruction && ExecuteContext)
 	{
-		TArray<TArray<int32>>& ReadTransformsPerSlice = ReadTransformsPerInstructionPerSlice[ExecuteContext->InstructionIndex];
+		TArray<TArray<int32>>& ReadTransformsPerSlice = ReadTransformsPerInstructionPerSlice[ExecuteContext->PublicData.GetInstructionIndex()];
 		while(ReadTransformsPerSlice.Num() < ExecuteContext->GetSlice().TotalNum())
 		{
 			ReadTransformsPerSlice.Add(TArray<int32>());
@@ -2284,7 +2284,7 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 
 	if(bRecordTransformsPerInstruction && ExecuteContext)
 	{
-		TArray<TArray<int32>>& WrittenTransformsPerSlice = WrittenTransformsPerInstructionPerSlice[ExecuteContext->InstructionIndex];
+		TArray<TArray<int32>>& WrittenTransformsPerSlice = WrittenTransformsPerInstructionPerSlice[ExecuteContext->PublicData.GetInstructionIndex()];
 		while(WrittenTransformsPerSlice.Num() < ExecuteContext->GetSlice().TotalNum())
 		{
 			WrittenTransformsPerSlice.Add(TArray<int32>());
@@ -2412,7 +2412,7 @@ FTransform URigHierarchy::GetControlOffsetTransform(FRigControlElement* InContro
 
 	if(bRecordTransformsPerInstruction && ExecuteContext)
 	{
-		TArray<TArray<int32>>& ReadTransformsPerSlice = ReadTransformsPerInstructionPerSlice[ExecuteContext->InstructionIndex];
+		TArray<TArray<int32>>& ReadTransformsPerSlice = ReadTransformsPerInstructionPerSlice[ExecuteContext->PublicData.GetInstructionIndex()];
 		while(ReadTransformsPerSlice.Num() < ExecuteContext->GetSlice().TotalNum())
 		{
 			ReadTransformsPerSlice.Add(TArray<int32>());
@@ -2495,7 +2495,7 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 
 	if(bRecordTransformsPerInstruction && ExecuteContext)
 	{
-		TArray<TArray<int32>>& WrittenTransformsPerSlice = WrittenTransformsPerInstructionPerSlice[ExecuteContext->InstructionIndex];
+		TArray<TArray<int32>>& WrittenTransformsPerSlice = WrittenTransformsPerInstructionPerSlice[ExecuteContext->PublicData.GetInstructionIndex()];
 		while(WrittenTransformsPerSlice.Num() < ExecuteContext->GetSlice().TotalNum())
 		{
 			WrittenTransformsPerSlice.Add(TArray<int32>());
@@ -4038,7 +4038,7 @@ void URigHierarchy::EnsureCacheValidityImpl()
 
 #if WITH_EDITOR
 
-URigHierarchy::TElementDependencyMap URigHierarchy::GetDependenciesForVM(URigVM* InVM, FName InEventName)
+URigHierarchy::TElementDependencyMap URigHierarchy::GetDependenciesForVM(const URigVM* InVM, FName InEventName) const
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	check(InVM);

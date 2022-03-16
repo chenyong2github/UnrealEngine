@@ -2973,14 +2973,14 @@ private:
 	void EnsureCacheValidityImpl();
 
 #if WITH_EDITOR
-	const FRigVMExecuteContext* ExecuteContext;
+	const FRigVMExtendedExecuteContext* ExecuteContext;
 	mutable bool bRecordTransformsPerInstruction;
 	mutable TArray<TArray<TArray<int32>>> ReadTransformsPerInstructionPerSlice;
 	mutable TArray<TArray<TArray<int32>>> WrittenTransformsPerInstructionPerSlice;
 
 public:
 
-	TElementDependencyMap GetDependenciesForVM(URigVM* InVM, FName InEventName = NAME_None);
+	TElementDependencyMap GetDependenciesForVM(const URigVM* InVM, FName InEventName = NAME_None) const;
 
 private:
 	

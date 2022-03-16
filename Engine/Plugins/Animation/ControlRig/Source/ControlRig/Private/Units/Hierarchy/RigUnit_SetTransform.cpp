@@ -47,7 +47,7 @@ FRigUnit_SetTransform_Execute()
 						FTransform TransformMutable = Value;
 						FRigUnit_SetControlOffset::StaticExecute(RigVMExecuteContext, CachedIndex.GetKey().Name, TransformMutable, Space, CachedIndex, ExecuteContext, Context);
 						
-						if (ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
+						if (ExecuteContext.GetEventName() == FRigUnit_PrepareForExecution::EventName)
 						{
 							Hierarchy->SetLocalTransformByIndex(CachedIndex, FTransform::Identity, true, bPropagateToChildren);
 							Hierarchy->SetLocalTransformByIndex(CachedIndex, FTransform::Identity, false, bPropagateToChildren);
@@ -85,7 +85,7 @@ FRigUnit_SetTransform_Execute()
 						{
 							Hierarchy->SetGlobalTransformByIndex(CachedIndex, WeightedTransform, bInitial, bPropagateToChildren);
 
-							if (bInitial && ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
+							if (bInitial && ExecuteContext.GetEventName() == FRigUnit_PrepareForExecution::EventName)
 							{
 								Hierarchy->SetGlobalTransformByIndex(CachedIndex, WeightedTransform, false, bPropagateToChildren);
 							}
@@ -95,7 +95,7 @@ FRigUnit_SetTransform_Execute()
 						{
 							Hierarchy->SetLocalTransformByIndex(CachedIndex, WeightedTransform, bInitial, bPropagateToChildren);
 
-							if (bInitial && ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
+							if (bInitial && ExecuteContext.GetEventName() == FRigUnit_PrepareForExecution::EventName)
 							{
 								Hierarchy->SetLocalTransformByIndex(CachedIndex, WeightedTransform, false, bPropagateToChildren);
 							}

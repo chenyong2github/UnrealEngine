@@ -9,6 +9,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "RigVMExecuteContext.generated.h"
 
+struct FRigVMExtendedExecuteContext;
 struct FRigVMExecuteContext;
 class URigVM;
 
@@ -200,20 +201,52 @@ struct RIGVM_API FRigVMExecuteContext
 		: EventName(NAME_None)
 		, FunctionName(NAME_None)
 		, InstructionIndex(0)
-		, VM(nullptr)
 		, RuntimeSettings()
-		, LastExecutionMicroSeconds() 
 	{
 		Reset();
 	}
 
+	FORCEINLINE void Log(EMessageSeverity::Type InSeverity, const FString& InMessage) const
+	{
+		if(RuntimeSettings.LogFunction)
+		{
+			RuntimeSettings.LogFunction(InSeverity, this, InMessage);
+		}
+		else
+		{
+			if(InSeverity == EMessageSeverity::Error)
+			{
+				UE_LOG(LogRigVM, Error, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
+			}
+			else if(InSeverity == EMessageSeverity::Warning)
+			{
+				UE_LOG(LogRigVM, Warning, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
+			}
+			else
+			{
+				UE_LOG(LogRigVM, Display, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
+			}
+		}
+	}
+
+	template <typename FmtType, typename... Types>
+	FORCEINLINE void Logf(EMessageSeverity::Type InSeverity, const FmtType& Fmt, Types... Args) const
+	{
+		Log(InSeverity, FString::Printf(Fmt, Args...));
+	}
+
+	FORCEINLINE uint16 GetInstructionIndex() const { return InstructionIndex; }
+
+	FORCEINLINE FName GetFunctionName() const { return FunctionName; }
+	
+	FORCEINLINE FName GetEventName() const { return EventName; }
+
+
+private:
+
 	FORCEINLINE void Reset()
 	{
-		Slices.Reset();
-		Slices.Add(FRigVMSlice());
-		SliceOffsets.Reset();
 		InstructionIndex = 0;
-		VM = nullptr;
 	}
 
 	FORCEINLINE void CopyFrom(const FRigVMExecuteContext& Other)
@@ -221,8 +254,57 @@ struct RIGVM_API FRigVMExecuteContext
 		EventName = Other.EventName;
 		FunctionName = Other.FunctionName;
 		InstructionIndex = Other.InstructionIndex;
-		VM = Other.VM;
 		RuntimeSettings = Other.RuntimeSettings;
+	}
+	
+	FName EventName;
+	
+	FName FunctionName;
+	
+	uint16 InstructionIndex;
+
+	FRigVMRuntimeSettings RuntimeSettings;
+
+	friend struct FRigVMExtendedExecuteContext;
+	friend class URigVM;
+	friend class UControlRig;
+	friend class UAdditiveControlRig;
+	friend struct FRigUnit_BeginExecution;
+	friend struct FRigUnit_InverseExecution;
+	friend struct FRigUnit_PrepareForExecution;
+	friend struct FEngineTestRigVM_Begin;
+	friend struct FEngineTestRigVM_Setup; 
+};
+
+/**
+ * The execute context is used for mutable nodes to
+ * indicate execution order.
+ */
+USTRUCT()
+struct RIGVM_API FRigVMExtendedExecuteContext
+{
+	GENERATED_BODY()
+
+	FORCEINLINE FRigVMExtendedExecuteContext()
+		: VM(nullptr)
+		, LastExecutionMicroSeconds() 
+	{
+		Reset();
+	}
+
+	FORCEINLINE void Reset()
+	{
+		PublicData.Reset();
+		VM = nullptr;
+		Slices.Reset();
+		Slices.Add(FRigVMSlice());
+		SliceOffsets.Reset();
+	}
+
+	FORCEINLINE void CopyFrom(const FRigVMExtendedExecuteContext& Other)
+	{
+		PublicData = Other.PublicData;
+		VM = Other.VM;
 		OpaqueArguments = Other.OpaqueArguments;
 		Slices = Other.Slices;
 		SliceOffsets = Other.SliceOffsets;
@@ -230,7 +312,7 @@ struct RIGVM_API FRigVMExecuteContext
 
 	FORCEINLINE const FRigVMSlice& GetSlice() const
 	{
-		const int32 SliceOffset = (int32)SliceOffsets[InstructionIndex];
+		const int32 SliceOffset = (int32)SliceOffsets[PublicData.InstructionIndex];
 		if (SliceOffset == 0)
 		{
 			return Slices.Last();
@@ -263,41 +345,12 @@ struct RIGVM_API FRigVMExecuteContext
 		return GetSlice().IsComplete();
 	}
 
-	FORCEINLINE void Log(EMessageSeverity::Type InSeverity, const FString& InMessage) const
-	{
-		if(RuntimeSettings.LogFunction)
-		{
-			RuntimeSettings.LogFunction(InSeverity, this, InMessage);
-		}
-		else
-		{
-			if(InSeverity == EMessageSeverity::Error)
-			{
-				UE_LOG(LogRigVM, Error, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
-			}
-			else if(InSeverity == EMessageSeverity::Warning)
-			{
-				UE_LOG(LogRigVM, Warning, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
-			}
-			else
-			{
-				UE_LOG(LogRigVM, Display, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
-			}
-		}
-	}
-
-	template <typename FmtType, typename... Types>
-	FORCEINLINE void Logf(EMessageSeverity::Type InSeverity, const FmtType& Fmt, Types... Args) const
-	{
-		Log(InSeverity, FString::Printf(Fmt, Args...));
-	}
-
 	FORCEINLINE bool IsValidArrayIndex(int32 InIndex, int32 InArraySize)
 	{
 		if(InIndex < 0 || InIndex >= InArraySize)
 		{
 			static const TCHAR OutOfBoundsFormat[] = TEXT("Array Index (%d) out of bounds (count %d).");
-			Logf(EMessageSeverity::Error, OutOfBoundsFormat, InIndex, InArraySize);
+			PublicData.Logf(EMessageSeverity::Error, OutOfBoundsFormat, InIndex, InArraySize);
 			return false;
 		}
 		return true;
@@ -305,10 +358,10 @@ struct RIGVM_API FRigVMExecuteContext
 
 	FORCEINLINE bool IsValidArraySize(int32 InSize) const
 	{
-		if(InSize < 0 || InSize > RuntimeSettings.MaximumArraySize)
+		if(InSize < 0 || InSize > PublicData.RuntimeSettings.MaximumArraySize)
 		{
 			static const TCHAR OutOfBoundsFormat[] = TEXT("Array Size (%d) larger than allowed maximum (%d).\nCheck VMRuntimeSettings in class settings.");
-			Logf(EMessageSeverity::Error, OutOfBoundsFormat, InSize, RuntimeSettings.MaximumArraySize);
+			PublicData.Logf(EMessageSeverity::Error, OutOfBoundsFormat, InSize, PublicData.RuntimeSettings.MaximumArraySize);
 			return false;
 		}
 		return true;
@@ -316,15 +369,12 @@ struct RIGVM_API FRigVMExecuteContext
 
 	FORCEINLINE void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
 	{
-		RuntimeSettings = InRuntimeSettings;
-		check(RuntimeSettings.MaximumArraySize > 0);
+		PublicData.RuntimeSettings = InRuntimeSettings;
+		check(PublicData.RuntimeSettings.MaximumArraySize > 0);
 	}
 
-	FName EventName;
-	FName FunctionName;
-	uint16 InstructionIndex;
+	FRigVMExecuteContext PublicData;
 	URigVM* VM;
-	FRigVMRuntimeSettings RuntimeSettings;
 	TArrayView<void*> OpaqueArguments;
 	TArray<FRigVMSlice> Slices;
 	TArray<uint16> SliceOffsets;

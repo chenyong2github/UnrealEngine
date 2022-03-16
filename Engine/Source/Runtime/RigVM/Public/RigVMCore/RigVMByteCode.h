@@ -956,7 +956,7 @@ public:
 	static uint32 GetCallstackHash(const TArrayView<UObject* const>& InCallstack);
 
 	// returns the input operands of a given instruction
-	FORCEINLINE_DEBUGGABLE FRigVMOperandArray GetInputOperands(int32 InInstructionIndex)
+	FORCEINLINE_DEBUGGABLE FRigVMOperandArray GetInputOperands(int32 InInstructionIndex) const
 	{
 		if(InputOperandsPerInstruction.IsValidIndex(InInstructionIndex))
 		{
@@ -969,7 +969,7 @@ public:
 	}
 
 	// returns the output operands of a given instruction
-	FORCEINLINE_DEBUGGABLE FRigVMOperandArray GetOutputOperands(int32 InInstructionIndex)
+	FORCEINLINE_DEBUGGABLE FRigVMOperandArray GetOutputOperands(int32 InInstructionIndex) const
 	{
 		if(OutputOperandsPerInstruction.IsValidIndex(InInstructionIndex))
 		{
