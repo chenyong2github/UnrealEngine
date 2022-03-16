@@ -862,9 +862,9 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 		if (FSendingRepState* SendingRepState = RepState.IsValid() ? RepState->GetSendingRepState() : nullptr)
 		{
 			// Go over properties tracked with histories, and mark them as needing to be resent.
-			for (uint16 i = SendingRepState->HistoryStart; i < SendingRepState->HistoryEnd; ++i)
+			for (int32 i = SendingRepState->HistoryStart; i < SendingRepState->HistoryEnd; ++i)
 			{
-				const uint16 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
+				const int32 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
 
 				FRepChangedHistory& HistoryItem = SendingRepState->ChangeHistory[HistoryIndex];
 
@@ -884,7 +884,7 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 
 				// If this is a dynamic array property, we have to look through the list of retirement records to see if we need to reset the base state
 				FPropertyRetirement* Rec = Retirement.Next; // Retirement[i] is head and not actually used in this case
-				uint16 LastAcknowledged = 0;
+				uint32 LastAcknowledged = 0;
 				while (Rec != nullptr)
 				{
 					if (NakPacketId > Rec->OutPacketIdRange.Last)
@@ -1504,7 +1504,7 @@ void FObjectReplicator::PostReceivedBunch()
 
 static FORCEINLINE FPropertyRetirement** UpdateAckedRetirements(
 	FPropertyRetirement& Retire,
-	uint16& LastAcknowledged,
+	uint32& LastAcknowledged,
 	const int32 OutAckPacketId,
 	const UObject* Object)
 {
@@ -1641,7 +1641,7 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 			// Update Retirement records with this new state so we can handle packet drops.
 			// LastNext will be pointer to the last "Next" pointer in the list (so pointer to a pointer)
-			uint16 LastAcknowledged = 0;
+			uint32 LastAcknowledged = 0;
 			LastNext = UpdateAckedRetirements(Retire, LastAcknowledged, Connection->OutAckPacketId, Object);
 
 			if (LastAcknowledged != 0 && OldState.IsValid())
@@ -1895,9 +1895,9 @@ void FObjectReplicator::PostSendBunch( FPacketIdRange & PacketRange, uint8 bReli
 			// Don't call if reliable, since the bunch will be resent. We dont want this to end up in the changelist history
 			// But is that enough? How does it know to delta against this latest state?
 
-			for (uint16 i = SendingRepState->HistoryStart; i < SendingRepState->HistoryEnd; ++i)
+			for (int32 i = SendingRepState->HistoryStart; i < SendingRepState->HistoryEnd; ++i)
 			{
-				const uint16 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
+				const int32 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
 
 				FRepChangedHistory & HistoryItem = SendingRepState->ChangeHistory[HistoryIndex];
 
@@ -1926,7 +1926,7 @@ void FObjectReplicator::PostSendBunch( FPacketIdRange & PacketRange, uint8 bReli
 			// possible that we either didn't send anything, or the last thing we sent wasn't reliable.
 			if (SendingRepState->HistoryEnd > SendingRepState->HistoryStart)
 			{
-				const uint16 HistoryIndex = (SendingRepState->HistoryEnd - 1) % FSendingRepState::MAX_CHANGE_HISTORY;
+				const int32 HistoryIndex = (SendingRepState->HistoryEnd - 1) % FSendingRepState::MAX_CHANGE_HISTORY;
 				FRepChangedHistory& HistoryItem = SendingRepState->ChangeHistory[HistoryIndex];
 	
 				if (!HistoryItem.WasSent())

@@ -233,7 +233,7 @@ struct FPropertyRetirement
 	TSharedPtr<class INetDeltaBaseState> DynamicState;
 
 	FPacketIdRange OutPacketIdRange;
-	uint16 FastArrayChangelistHistory;
+	uint32 FastArrayChangelistHistory;
 
 	FPropertyRetirement() :
 		 Next(nullptr)
@@ -426,15 +426,15 @@ public:
 	 */
 	virtual void CountBytes(FArchive& Ar) const {}
 
-	uint16 GetLastAckedHistory() const { return LastAckedHistory; }
-	void SetLastAckedHistory(uint16 InAckedHistory) { LastAckedHistory = InAckedHistory; }
+	uint32 GetLastAckedHistory() const { return LastAckedHistory; }
+	void SetLastAckedHistory(uint32 InAckedHistory) { LastAckedHistory = InAckedHistory; }
 
-	uint16 GetChangelistHistory() const { return ChangelistHistory; }
-	void SetChangelistHistory(uint16 InChangelistHistory) { ChangelistHistory = InChangelistHistory; }
+	uint32 GetChangelistHistory() const { return ChangelistHistory; }
+	void SetChangelistHistory(uint32 InChangelistHistory) { ChangelistHistory = InChangelistHistory; }
 
 private:
-	uint16 LastAckedHistory;
-	uint16 ChangelistHistory;
+	uint32 LastAckedHistory;
+	uint32 ChangelistHistory;
 };
 
 struct FNetDeltaSerializeInfo;
