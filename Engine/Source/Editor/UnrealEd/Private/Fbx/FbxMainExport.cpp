@@ -94,9 +94,9 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
+#include "DynamicMeshBuilder.h"
 
 #if PHYSICS_INTERFACE_PHYSX
-#include "DynamicMeshBuilder.h"
 #include "PhysXPublic.h"
 #include "geometry/PxConvexMesh.h"
 #include "PhysicsEngine/BodySetup.h"

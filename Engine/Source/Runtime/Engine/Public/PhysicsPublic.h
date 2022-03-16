@@ -11,10 +11,8 @@
 #include "Stats/Stats.h"
 #include "Engine/EngineTypes.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/App.h"
 #include "EngineDefines.h"
-#include "RenderResource.h"
-#include "LocalVertexFactory.h"
-#include "DynamicMeshBuilder.h"
 #include "PhysicsPublicCore.h"
 //#include "StaticMeshResources.h"
 
@@ -28,6 +26,8 @@ struct FConstraintInstance;
 struct FBodyInstance;
 struct FStaticMeshVertexBuffers;
 class FPhysScene_PhysX;
+class FLocalVertexFactory;
+class FDynamicMeshIndexBuffer32;
 
 /** Delegate for applying custom physics forces upon the body. Can be passed to "AddCustomPhysics" so 
 * custom forces and torques can be calculated individually for every physics substep.
