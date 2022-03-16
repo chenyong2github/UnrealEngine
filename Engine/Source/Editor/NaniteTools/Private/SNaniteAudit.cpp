@@ -633,6 +633,12 @@ void SNaniteAudit::PostAudit(TSharedPtr<FNaniteAuditRegistry> AuditRegistry)
 				{
 					for (const Nanite::FMaterialAuditEntry& MaterialEntry : SMCRecord.MaterialAudit.Entries)
 					{
+						if (MaterialEntry.bHasNullMaterial)
+						{
+							// Skip null materials
+							continue;
+						}
+
 						const bool bUnsupportedBlendModeError	= (AuditErrorArguments->ProhibitUnsupportedBlendMode	&& MaterialEntry.bHasUnsupportedBlendMode);
 						const bool bVertexInterpolatorError		= (AuditErrorArguments->ProhibitVertexInterpolator		&& MaterialEntry.bHasVertexInterpolator);
 						const bool bPixelDepthOffsetError		= (AuditErrorArguments->ProhibitPixelDepthOffset		&& MaterialEntry.bHasPixelDepthOffset);
