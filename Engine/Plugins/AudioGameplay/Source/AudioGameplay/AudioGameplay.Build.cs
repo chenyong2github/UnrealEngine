@@ -24,6 +24,7 @@ public class AudioGameplay : ModuleRules
 			new string[]
 			{
 				"Core",
+				"GameplayTags",
 			}
 			);
 			
