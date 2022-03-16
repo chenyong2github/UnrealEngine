@@ -15,6 +15,7 @@
 #include "PlaneTypes.h"
 #include "LineTypes.h"
 #include "Polygon2.h"
+#include "Curve/GeneralPolygon2.h"
 
 
 namespace UE {
@@ -28,6 +29,20 @@ struct FDelaunay2Connectivity;
 class GEOMETRYCORE_API FDelaunay2
 {
 public:
+
+	// Options for selecting what triangles to include in the output, for constrained Delaunay triangulation of polygons
+	enum class EFillMode
+	{
+		// Fastest/simplest option: Keep all triangles if you'd have to cross a constrained edge to reach it from outside, ignoring edge orientation
+		Solid,
+		// Winding-number based fill options: Keep triangles based on the winding number
+		PositiveWinding,
+		NonZeroWinding,
+		NegativeWinding,
+		OddWinding
+	};
+
+
 	//
 	// Inputs
 	//
@@ -38,25 +53,99 @@ public:
 	// Option to keep extra vertex->edge adjacency data; useful if you will call ConstrainEdges many times on the same triangulation
 	bool bKeepFastEdgeAdjacencyData = false;
 
+	// Option to validate that edges remain in the triangulation after multiple constraint edges passed in
+	// Only validates for the edges in the current call; if separate calls constrain additional edges, set this to 'false' and call HasEdges() on the full edge set
+	// TODO: Consider having the internal mesh remember what edges have been constrained, so we can set an error flag when constrained edges cross previous constrained edges
+	bool bValidateEdges = true;
+
 	// TODO: it would often be useful to pass in sparse vertex data
 	//// Optional function to allow Triangulate to skip vertices
 	//TFunction<bool(int32)> SkipVertexFn = nullptr;
 
 	/**
-	 * Compute an (optionally constrained) Delaunay triangulation
+	 * Compute an (optionally constrained) Delaunay triangulation.
+	 * Note this clears any previously-held triangulation data, and triangulates the passed-in vertices (and optional edges) from scratch
 	 *
 	 * @return false if triangulation failed
 	 */
 	bool Triangulate(TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges = TArrayView<const FIndex2i>());
 	bool Triangulate(TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges = TArrayView<const FIndex2i>());
 
+	// Triangulate a polygon, and optionally pass back the resulting triangles
+	// Uses the 'solid' fill mode, and fills the polygon regardless of the edge orientation
+	// Note: TrianglesOut may be empty or incomplete if the input is self-intersecting.
+	// Note this clears any previously-held triangulation data, and triangulates the passed-in polygon from scratch
+	template<typename RealType>
+	bool Triangulate(const TPolygon2<RealType>& Polygon, TArray<FIndex3i>* TrianglesOut = nullptr)
+	{
+		int32 NumVertices = Polygon.VertexCount();
+		TArray<FIndex2i> Edges;
+		Edges.Reserve(NumVertices - 1);
+		for (int32 Last = NumVertices - 1, Idx = 0; Idx < NumVertices; Last = Idx++)
+		{
+			Edges.Add(FIndex2i(Last, Idx));
+		}
+		bool bSuccess = Triangulate(Polygon.GetVertices(), Edges);
+		if (TrianglesOut)
+		{
+			*TrianglesOut = GetFilledTriangles(Edges, EFillMode::Solid);
+		}
+		return bSuccess;
+	}
+
+	// Triangulate a polygon, and optionally pass back the resulting triangles
+	// Uses a winding-number-based fill mode, and relies on the general polygon having correct orientations
+	// (Uses TGeneralPolygon2's OuterIsClockwise() to automatically choose between positive or negative winding)
+	// Note: TrianglesOut may be empty or incomplete if the input is self-intersecting.
+	// Note this clears any previously-held triangulation data, and triangulates the passed-in general polygon from scratch
+	template<typename RealType>
+	bool Triangulate(const TGeneralPolygon2<RealType>& GeneralPolygon, TArray<FIndex3i>* TrianglesOut = nullptr, TArray<TVector2<RealType>>* VerticesOut = nullptr)
+	{
+		TArray<TVector2<RealType>> AllVertices;
+		TArray<FIndex2i> AllEdges;
+
+		auto AppendVertices = [&AllVertices, &AllEdges](const TArray<TVector2<RealType>>& Vertices)
+		{
+			if (Vertices.IsEmpty())
+			{
+				return;
+			}
+
+			int32 StartIdx = AllVertices.Num();
+			AllVertices.Append(Vertices);
+			AllEdges.Reserve(AllEdges.Num() + Vertices.Num() - 1);
+			int32 NumVertices = Vertices.Num();
+			for (int32 Last = NumVertices - 1, Idx = 0; Idx < NumVertices; Last = Idx++)
+			{
+				AllEdges.Add(FIndex2i(StartIdx + Last, StartIdx + Idx));
+			}
+		};
+		AppendVertices(GeneralPolygon.GetOuter().GetVertices());
+		for (int32 HoleIdx = 0; HoleIdx < GeneralPolygon.GetHoles().Num(); HoleIdx++)
+		{
+			AppendVertices(GeneralPolygon.GetHoles()[HoleIdx].GetVertices());
+		}
+		
+		bool bSuccess = Triangulate(AllVertices, AllEdges);
+		if (TrianglesOut)
+		{
+			*TrianglesOut = GetFilledTriangles(AllEdges, GeneralPolygon.OuterIsClockwise() ? EFillMode::NegativeWinding : EFillMode::PositiveWinding);
+		}
+		if (VerticesOut)
+		{
+			*VerticesOut = MoveTemp(AllVertices);
+		}
+		return bSuccess;
+	}
+
 	/**
 	 * Update an already-computed triangulation so the given edges are in the triangulation.
 	 * Note: Assumes the edges do not intersect other constrained edges OR existing vertices in the triangulation
-	 * TODO: track at least whether any easy-to-detect failures occur (at least an edge intersecting a vertex and never being inserted)
+	 * @return true if edges were successfully inserted.
+	 * Note: Will not detect failure due to intersection of constrained edges unless member bValidateEdges == true.
 	 */
-	void ConstrainEdges(TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges);
-	void ConstrainEdges(TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges);
+	bool ConstrainEdges(TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges);
+	bool ConstrainEdges(TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges);
 
 	// TODO: Support incremental vertex insertion
 	// Update the triangulation incrementally, assuming Vertices are unchanged before FirstNewIndex, and nothing after FirstNewIndex has been inserted yet
@@ -70,6 +159,12 @@ public:
 	// Get the triangulation as an array with a corresponding adjacency array, indicating the adjacent triangle on each triangle edge (-1 if no adjacent triangle)
 	void GetTrianglesAndAdjacency(TArray<FIndex3i>& Triangles, TArray<FIndex3i>& Adjacency) const;
 
+	/**
+	 * Return the triangles that are inside the given edges, removing the outer boundary triangles
+	 * If a Winding-Number-based fill mode is used, assumes edges are oriented and tracks the winding number across edges
+	 */
+	TArray<FIndex3i> GetFilledTriangles(TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding);
+
 	// @return true if this is a constrained Delaunay triangulation
 	bool IsConstrained() const
 	{
@@ -77,13 +172,22 @@ public:
 	}
 
 	// @return true if triangulation is Delaunay, useful for validating results (note: likely to be false if edges are constrained)
-	bool IsDelaunay(TArrayView<const FVector2f> Vertices) const;
-	bool IsDelaunay(TArrayView<const FVector2d> Vertices) const;
+	bool IsDelaunay(TArrayView<const FVector2f> Vertices, TArrayView<const FIndex2i> SkipEdges = TArrayView<const FIndex2i>()) const;
+	bool IsDelaunay(TArrayView<const FVector2d> Vertices, TArrayView<const FIndex2i> SkipEdges = TArrayView<const FIndex2i>()) const;
+
+	// @return true if triangulation has the given edges, useful for validating results
+	bool HasEdges(TArrayView<const FIndex2i> Edges) const;
 
 protected:
 	TPimplPtr<FDelaunay2Connectivity> Connectivity;
 
 	bool bIsConstrained = false;
+
+	// helper to perform standard validation on results after Triangulate or ConstrainEdges calls
+	bool ValidateResult(TArrayView<const FIndex2i> Edges) const
+	{
+		return !bValidateEdges || HasEdges(Edges);
+	}
 };
 
 } // end namespace UE::Geometry

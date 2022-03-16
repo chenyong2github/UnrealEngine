@@ -206,8 +206,12 @@ public:
 		}
     }
 
+	bool OuterIsClockwise() const
+	{
+		return bOuterIsCW;
+	}
 
-	bool Contains(TVector2<T> vTest)
+	bool Contains(TVector2<T> vTest) const
 	{
 		if (Outer.Contains(vTest) == false)
 		{
@@ -223,7 +227,7 @@ public:
 		return true;
 	}
 
-    bool Contains(TPolygon2<T> Poly) {
+    bool Contains(TPolygon2<T> Poly) const {
 		if (Outer.Contains(Poly) == false)
 		{
 			return false;
@@ -239,7 +243,7 @@ public:
     }
 
 
-    bool Intersects(TPolygon2<T> Poly)
+    bool Intersects(TPolygon2<T> Poly) const
     {
 		if (Outer.Intersects(Poly))
 		{
@@ -256,7 +260,7 @@ public:
     }
 
 
-    TVector2<T> GetSegmentPoint(int iSegment, double fSegT, int iHoleIndex = -1)
+    TVector2<T> GetSegmentPoint(int iSegment, double fSegT, int iHoleIndex = -1) const
 	{
 		if (iHoleIndex == -1)
 		{
@@ -265,7 +269,7 @@ public:
 		return Holes[iHoleIndex].GetSegmentPoint(iSegment, fSegT);
 	}
 
-	TSegment2<T> Segment(int iSegment, int iHoleIndex = -1)
+	TSegment2<T> Segment(int iSegment, int iHoleIndex = -1) const
 	{
 		if (iHoleIndex == -1)
 		{
@@ -274,7 +278,7 @@ public:
 		return Holes[iHoleIndex].Segment(iSegment);			
 	}
 
-	TVector2<T> GetNormal(int iSegment, double segT, int iHoleIndex = -1)
+	TVector2<T> GetNormal(int iSegment, double segT, int iHoleIndex = -1) const
 	{
 		if (iHoleIndex == -1)
 		{
@@ -284,7 +288,7 @@ public:
 	}
 
 	// this should be more efficient when there are Holes...
-	double DistanceSquared(TVector2<T> p, int &iHoleIndex, int &iNearSeg, double &fNearSegT)
+	double DistanceSquared(TVector2<T> p, int &iHoleIndex, int &iNearSeg, double &fNearSegT) const
 	{
 		iNearSeg = iHoleIndex = -1;
 		fNearSegT = TMathUtil<T>::MaxReal;
