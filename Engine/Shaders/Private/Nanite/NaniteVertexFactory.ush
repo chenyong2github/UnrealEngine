@@ -188,7 +188,7 @@ void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParam
 }
 
 // Shared function (for Nanite raster and shading passes) to fetch a valid FMaterialPixelParameters struct, which is used by material inputs.
-FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, float3 HWBarycentrics, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, FBarycentrics Barycentrics, bool bCalcBarycentrics, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
 	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
 
@@ -271,18 +271,11 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 		const float2 PixelClip = (SvPosition.xy - NaniteView.ViewRect.xy) * NaniteView.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
-#if NANITE_USE_HW_BARYCENTRICS
-		// HW Nanite rasterizer (not shading) passes can provide triangle barycentrics
-		FBarycentrics Barycentrics = (FBarycentrics)0;
-		Barycentrics.UVW = HWBarycentrics;
-	#if USE_ANALYTIC_DERIVATIVES
-		Barycentrics.UVW_dx = ddx(HWBarycentrics);
-		Barycentrics.UVW_dy = ddy(HWBarycentrics);
-	#endif
-#else
-		// Calculate perspective correct barycentric coordinates with screen derivatives
-		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, NaniteView.ViewSizeAndInvSize.zw);
-#endif
+		if (bCalcBarycentrics)
+		{
+			// Calculate perspective correct barycentric coordinates with screen derivatives
+			Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, NaniteView.ViewSizeAndInvSize.zw);
+		}
 
 		const FNaniteAttributeData AttributeData = GetAttributeData(
 			RawAttributeData,
@@ -451,8 +444,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 {
 	const uint2 PixelPos = SvPosition.xy - float2(0.5f, 0.5f);
 	const UlongType PackedPixel = Nanite.VisBuffer64[PixelPos];
-	const float3 HWBarycentrics = float3(0.0f, 0.0f, 0.0f); // Unused for shading pass (barycentrics are invalid here for full screen tile grid)
-	return FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, HWBarycentrics, Interpolants, SvPosition);
+	const FBarycentrics Barycentrics = (FBarycentrics)0; // Unused for shading pass (barycentrics are invalid here for full screen tile grid)
+	return FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, true, Interpolants, SvPosition);
 }
 
 FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)

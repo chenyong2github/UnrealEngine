@@ -118,13 +118,12 @@ struct FRaster
 	WritePixelPageTranslation PageTranslation;
 };
 
-void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, bool bDepthClamp, FRaster Raster )
+void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, FBarycentrics Barycentrics, bool bDepthClamp, FRaster Raster )
 {
 	float MaterialMask = 1.0f; // TODO: PROG_RASTER
 	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
 #if IS_NANITE_PROGRAMMABLE
-	// TODO: PROG_RASTER - Optimize (Barycentrics could be pre-calculated and passed through)
 	const uint DepthInt = asuint(DeviceZ);
 	const UlongType PackedPixel = PackUlongType(uint2(PixelValue, DepthInt));
 
@@ -137,9 +136,8 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, bool bDepthCl
 #endif
 
 	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
-	const float3 HWBarycentrics = float3(0.0, 0.0f, 0.0f); // unused for SW raster
 	
-	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, HWBarycentrics, Interpolants, SvPosition);
+	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, false, Interpolants, SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
@@ -177,16 +175,26 @@ struct FRasterTri
 
 	float3	DepthPlane;
 
+	float3	InvW;
+
 	bool	bIsValid;
 };
 
-FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
+struct FRasterVert
+{
+	float3 SubpixelPos;
+#if IS_NANITE_PROGRAMMABLE
+	float InvW;
+#endif
+};
+
+FRasterTri SetupTriangle( FRaster Raster, FRasterVert Verts[3] )
 {
 	FRasterTri Tri;
 	Tri.bIsValid = true;
 
-	float3 v01 = Verts[1] - Verts[0];
-	float3 v02 = Verts[2] - Verts[0];
+	float3 v01 = Verts[1].SubpixelPos - Verts[0].SubpixelPos;
+	float3 v02 = Verts[2].SubpixelPos - Verts[0].SubpixelPos;
 
 	const bool bIsTwoSided = (RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
 
@@ -202,9 +210,9 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 	GradZ.y = ( v01.x * v02.z - v01.z * v02.x ) * InvDet;
 
 	// 16.8 fixed point
-	float2 Vert0 = Verts[0].xy;
-	float2 Vert1 = Verts[1].xy;
-	float2 Vert2 = Verts[2].xy;
+	float2 Vert0 = Verts[0].SubpixelPos.xy;
+	float2 Vert1 = Verts[1].SubpixelPos.xy;
+	float2 Vert2 = Verts[2].SubpixelPos.xy;
 
 	// Bounding rect
 	const float2 MinSubpixel = min3( Vert0, Vert1, Vert2 );
@@ -258,23 +266,23 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 
 	// Half-edge constants
 	// 8.16 fixed point
-	Tri.C0 = Tri.Edge01.y * Vert0.x - Tri.Edge01.x * Vert0.y;
-	Tri.C1 = Tri.Edge12.y * Vert1.x - Tri.Edge12.x * Vert1.y;
-	Tri.C2 = Tri.Edge20.y * Vert2.x - Tri.Edge20.x * Vert2.y;
+	Tri.C0 = Tri.Edge12.y * Vert1.x - Tri.Edge12.x * Vert1.y;
+	Tri.C1 = Tri.Edge20.y * Vert2.x - Tri.Edge20.x * Vert2.y;
+	Tri.C2 = Tri.Edge01.y * Vert0.x - Tri.Edge01.x * Vert0.y;
 
 	// Correct for fill convention
 	// Top left rule for CCW
 #if 1
-	Tri.C0 -= saturate( Tri.Edge01.y + saturate( 1.0f - Tri.Edge01.x ) );
-	Tri.C1 -= saturate( Tri.Edge12.y + saturate( 1.0f - Tri.Edge12.x ) );
-	Tri.C2 -= saturate( Tri.Edge20.y + saturate( 1.0f - Tri.Edge20.x ) );
+	Tri.C0 -= saturate( Tri.Edge12.y + saturate( 1.0f - Tri.Edge12.x ) );
+	Tri.C1 -= saturate( Tri.Edge20.y + saturate( 1.0f - Tri.Edge20.x ) );
+	Tri.C2 -= saturate( Tri.Edge01.y + saturate( 1.0f - Tri.Edge01.x ) );
 #else
-	Tri.C0 -= ( Tri.Edge01.y < 0 || ( Tri.Edge01.y == 0 && Tri.Edge01.x > 0 ) ) ? 0 : 1;
-	Tri.C1 -= ( Tri.Edge12.y < 0 || ( Tri.Edge12.y == 0 && Tri.Edge12.x > 0 ) ) ? 0 : 1;
-	Tri.C2 -= ( Tri.Edge20.y < 0 || ( Tri.Edge20.y == 0 && Tri.Edge20.x > 0 ) ) ? 0 : 1;
+	Tri.C0 -= ( Tri.Edge12.y < 0 || ( Tri.Edge12.y == 0 && Tri.Edge12.x > 0 ) ) ? 0 : 1;
+	Tri.C1 -= ( Tri.Edge20.y < 0 || ( Tri.Edge20.y == 0 && Tri.Edge20.x > 0 ) ) ? 0 : 1;
+	Tri.C2 -= ( Tri.Edge01.y < 0 || ( Tri.Edge01.y == 0 && Tri.Edge01.x > 0 ) ) ? 0 : 1;
 #endif
 
-	float Z0 = Verts[0].z - ( GradZ.x * Vert0.x + GradZ.y * Vert0.y );
+	float Z0 = Verts[0].SubpixelPos.z - ( GradZ.x * Vert0.x + GradZ.y * Vert0.y );
 	GradZ *= SUBPIXEL_SAMPLES;
 	
 	Tri.DepthPlane = float3( GradZ, Z0 );
@@ -292,7 +300,43 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 	Tri.C2 *= (1.0f / SUBPIXEL_SAMPLES);
 #endif
 
+	// Cache 1/w for each point to calculate perspective-correct barycentrics
+#if IS_NANITE_PROGRAMMABLE
+	const float3 InvW = float3(Verts[0].InvW, Verts[1].InvW, Verts[2].InvW);
+#else
+	const float3 InvW = (float3)1.0f;
+#endif
+	Tri.InvW = InvW;
+
 	return Tri;
+}
+
+float3 GetPerspectiveCorrectBarycentrics(float3 C, float3 InvW)
+{
+	float3 CInvW = C * InvW; // Perspective weighting by (1/w0, 1/w1, 1/w2)
+	float3 UVW = CInvW * rcp(CInvW.x + CInvW.y + CInvW.z); // renormalize
+
+	return UVW;
+}
+
+FBarycentrics CalculateBarycentrics(FRasterTri Tri, float3 C)
+{
+	FBarycentrics Barycentrics = (FBarycentrics)0;
+
+	// For now, micropoly barycentrics are only required for the programmable raster path, so help DCE out as much as possible
+#if IS_NANITE_PROGRAMMABLE
+	const float3 OffsetX	= { -Tri.Edge12.y, -Tri.Edge20.y, -Tri.Edge01.y };
+	const float3 OffsetY	= {  Tri.Edge12.x,  Tri.Edge20.x,  Tri.Edge01.x };
+	const float3 UVW		= GetPerspectiveCorrectBarycentrics(C, Tri.InvW);
+	const float3 UVW_X		= GetPerspectiveCorrectBarycentrics(C + OffsetX, Tri.InvW);
+	const float3 UVW_Y		= GetPerspectiveCorrectBarycentrics(C + OffsetY, Tri.InvW);
+
+	Barycentrics.UVW 	= UVW;
+	Barycentrics.UVW_dx	= UVW_X - UVW;
+	Barycentrics.UVW_dy	= UVW_Y - UVW;
+#endif
+
+	return Barycentrics;
 }
 
 void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
@@ -310,14 +354,15 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		int x = Tri.MinPixel.x;
 		if (min3(CY0, CY1, CY2) >= 0)
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZY, bDepthClamp, Raster );
+			FBarycentrics Barycentrics = CalculateBarycentrics(Tri, float3(CY0, CY1, CY2));
+			WritePixelSW( PixelValue, uint2(x,y), ZY, Barycentrics, bDepthClamp, Raster );
 		}
 
 		if (x < Tri.MaxPixel.x)
 		{
-			float CX0 = CY0 - Tri.Edge01.y;
-			float CX1 = CY1 - Tri.Edge12.y;
-			float CX2 = CY2 - Tri.Edge20.y;
+			float CX0 = CY0 - Tri.Edge12.y;
+			float CX1 = CY1 - Tri.Edge20.y;
+			float CX2 = CY2 - Tri.Edge01.y;
 			float ZX  = ZY  + Tri.DepthPlane.x;
 			x++;
 
@@ -326,15 +371,16 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 			{
 				if (min3(CX0, CX1, CX2) >= 0)
 				{
-					WritePixelSW( PixelValue, uint2(x,y), ZX, bDepthClamp, Raster );
+					FBarycentrics Barycentrics = CalculateBarycentrics(Tri, float3(CX0, CX1, CX2));
+					WritePixelSW( PixelValue, uint2(x,y), ZX, Barycentrics, bDepthClamp, Raster );
 				}
 
 				if (x >= Tri.MaxPixel.x)
 					break;
 
-				CX0 -= Tri.Edge01.y;
-				CX1 -= Tri.Edge12.y;
-				CX2 -= Tri.Edge20.y;
+				CX0 -= Tri.Edge12.y;
+				CX1 -= Tri.Edge20.y;
+				CX2 -= Tri.Edge01.y;
 				ZX  += Tri.DepthPlane.x;
 				x++;
 			}
@@ -343,9 +389,9 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		if (y >= Tri.MaxPixel.y)
 			break;
 
-		CY0 += Tri.Edge01.x;
-		CY1 += Tri.Edge12.x;
-		CY2 += Tri.Edge20.x;
+		CY0 += Tri.Edge12.x;
+		CY1 += Tri.Edge20.x;
+		CY2 += Tri.Edge01.x;
 		ZY  += Tri.DepthPlane.y;
 		y++;
 	}
@@ -373,22 +419,23 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	{
 		if( min3( CX0, CX1, CX2 ) >= 0 )
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZX, bDepthClamp, Raster );
+			FBarycentrics Barycentrics = CalculateBarycentrics(Tri, float3(CX0, CX1, CX2));
+			WritePixelSW( PixelValue, uint2(x,y), ZX, Barycentrics, bDepthClamp, Raster );
 		}
 
 		if( x < Tri.MaxPixel.x )
 		{
-			CX0 -= Tri.Edge01.y;
-			CX1 -= Tri.Edge12.y;
-			CX2 -= Tri.Edge20.y;
+			CX0 -= Tri.Edge12.y;
+			CX1 -= Tri.Edge20.y;
+			CX2 -= Tri.Edge01.y;
 			ZX  += Tri.DepthPlane.x;
 			x++;
 		}
 		else if( y < Tri.MaxPixel.y )
 		{
-			CY0 += Tri.Edge01.x;
-			CY1 += Tri.Edge12.x;
-			CY2 += Tri.Edge20.x;
+			CY0 += Tri.Edge12.x;
+			CY1 += Tri.Edge20.x;
+			CY2 += Tri.Edge01.x;
 			ZY  += Tri.DepthPlane.y;
 			y++;
 			
@@ -412,7 +459,7 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	float CY2 = Tri.C2;
 	float ZY  = Tri.DepthPlane.z;
 
-	float3 Edge012 = { Tri.Edge01.y, Tri.Edge12.y, Tri.Edge20.y };
+	float3 Edge012 = { Tri.Edge12.y, Tri.Edge20.y, Tri.Edge01.y };
 	bool3 bOpenEdge = Edge012 < 0;
 	float3 InvEdge012 = Edge012 == 0 ? 1e8 : rcp( Edge012 );
 
@@ -421,14 +468,14 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	int y = Tri.MinPixel.y;
 	while( true )
 	{
-		//float CX0 = CY0 - Edge01.y * (x - MinPixel.x);
-		// Edge01.y * (x - MinPixel.x) <= CY0;
+		//float CX0 = CY0 - Edge12.y * (x - MinPixel.x);
+		// Edge12.y * (x - MinPixel.x) <= CY0;
 
 		/*
-		if( Edge01.y > 0 )
-			x <= CY0 / Edge01.y + MinPixel.x;	// Closing edge
+		if( Edge12.y > 0 )
+			x <= CY0 / Edge12.y + MinPixel.x;	// Closing edge
 		else
-			x >= CY0 / Edge01.y + MinPixel.x;	// Opening edge
+			x >= CY0 / Edge12.y + MinPixel.x;	// Opening edge
 		*/
 			
 		// No longer fixed point
@@ -439,32 +486,39 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 
 		float x0 = ceil( max3( MinX.x, MinX.y, MinX.z ) );
 		float x1 = min3( MaxX.x, MaxX.y, MaxX.z );
+		float CX0 = CY0 - x0 * Tri.Edge12.y;
+		float CX1 = CY1 - x0 * Tri.Edge20.y;
+		float CX2 = CY2 - x0 * Tri.Edge01.y;
 		float ZX = ZY + Tri.DepthPlane.x * x0;
 
 		x0 += Tri.MinPixel.x;
 		x1 += Tri.MinPixel.x;
 		for( float x = x0; x <= x1; x++ )
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZX, bDepthClamp, Raster );
+			FBarycentrics Barycentrics = CalculateBarycentrics(Tri, float3(CX0, CX1, CX2));
+			WritePixelSW( PixelValue, uint2(x,y), ZX, Barycentrics, bDepthClamp, Raster );
 
-			ZX += Tri.DepthPlane.x;
+			CX0 -= Tri.Edge12.y;
+			CX1 -= Tri.Edge20.y;
+			CX2 -= Tri.Edge01.y;
+			ZX  += Tri.DepthPlane.x;
 		}
 
 		if( y >= Tri.MaxPixel.y )
 			break;
 
-		CY0 += Tri.Edge01.x;
-		CY1 += Tri.Edge12.x;
-		CY2 += Tri.Edge20.x;
+		CY0 += Tri.Edge12.x;
+		CY1 += Tri.Edge20.x;
+		CY2 += Tri.Edge01.x;
 		ZY  += Tri.DepthPlane.y;
 		y++;
 	}
 }
 
 #if NANITE_USE_CONSTRAINED_CLUSTERS
-groupshared float3 GroupVerts[256];
+groupshared FRasterVert GroupVerts[256];
 #else
-groupshared float3 GroupVerts[384];
+groupshared FRasterVert GroupVerts[384];
 #endif
 
 uint EdgeToTileMask( float2 Edge, float C, int2 TileOffset )
@@ -480,14 +534,14 @@ uint EdgeToTileMask( float2 Edge, float C, int2 TileOffset )
 	UNROLL
 	for( uint y = 0; y < 4; y++ )
 	{
-		//float CX0 = CY0 - Edge01.y * (x - MinPixel.x);
-		// Edge01.y * (x - MinPixel.x) <= CY0;
+		//float CX0 = CY0 - Edge12.y * (x - MinPixel.x);
+		// Edge12.y * (x - MinPixel.x) <= CY0;
 
 		/*
-		if( Edge01.y > 0 )
-			x <= CY0 / Edge01.y + MinPixel.x;	// Closing edge
+		if( Edge12.y > 0 )
+			x <= CY0 / Edge12.y + MinPixel.x;	// Closing edge
 		else
-			x >= CY0 / Edge01.y + MinPixel.x;	// Opening edge
+			x >= CY0 / Edge12.y + MinPixel.x;	// Opening edge
 		*/
 		
 		// No longer fixed point
@@ -561,9 +615,9 @@ uint GenerateWork( inout FWorkContext Context, uint GroupIndex, inout FWorkSourc
 		WorkSource.TileID |= Context.TilePos.x << 8;
 		WorkSource.TileID |= Context.TilePos.y << 20;
 
-		WorkSource.TileMask  = EdgeToTileMask( Context.Tri.Edge01, Context.Tri.C0, Context.TilePos );
-		WorkSource.TileMask &= EdgeToTileMask( Context.Tri.Edge12, Context.Tri.C1, Context.TilePos );
-		WorkSource.TileMask &= EdgeToTileMask( Context.Tri.Edge20, Context.Tri.C2, Context.TilePos );
+		WorkSource.TileMask  = EdgeToTileMask( Context.Tri.Edge12, Context.Tri.C0, Context.TilePos );
+		WorkSource.TileMask &= EdgeToTileMask( Context.Tri.Edge20, Context.Tri.C1, Context.TilePos );
+		WorkSource.TileMask &= EdgeToTileMask( Context.Tri.Edge01, Context.Tri.C2, Context.TilePos );
 
 		if( Context.TilePos.x < Context.MaxTile.x )
 		{
@@ -597,7 +651,7 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 	TilePos.x += BitIndex & 7;
 	TilePos.y += BitIndex / 8;
 	
-	uint MinPixelPack = asuint( GroupVerts[ TriIndex + 128 ].x );
+	uint MinPixelPack = asuint( GroupVerts[ TriIndex + 128 ].SubpixelPos.x );
 	int2 MinPixel;
 	MinPixel.x = MinPixelPack & 0xffff;
 	MinPixel.y = MinPixelPack >> 16;
@@ -605,13 +659,19 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 	uint2 PixelPos = TilePos + MinPixel;
 	if( all( PixelPos >= Context.Raster.ViewRect.xy && PixelPos < Context.Raster.ViewRect.zw ) )
 	{
-		float3 DepthPlane = GroupVerts[ TriIndex ];
+		float3 DepthPlane = GroupVerts[ TriIndex ].SubpixelPos;
 		float ZX = dot( DepthPlane, float3( TilePos, 1 ) );
 		
 		uint PixelValue = Context.PixelValue | TriIndex;
 
 		const bool bDepthClamp = (Context.Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
-		WritePixelSW( PixelValue, PixelPos, ZX, bDepthClamp, Context.Raster );
+
+		const float CX0 = Context.Tri.C0 - TilePos.x * Context.Tri.Edge12.y + TilePos.y * Context.Tri.Edge12.x;
+		const float CX1 = Context.Tri.C1 - TilePos.x * Context.Tri.Edge20.y + TilePos.y * Context.Tri.Edge20.x;
+		const float CX2 = Context.Tri.C2 - TilePos.x * Context.Tri.Edge01.y + TilePos.y * Context.Tri.Edge01.x;
+
+		FBarycentrics Barycentrics = CalculateBarycentrics(Context.Tri, float3(CX0, CX1, CX2));
+		WritePixelSW( PixelValue, PixelPos, ZX, Barycentrics, bDepthClamp, Context.Raster );
 	}
 }
 
@@ -636,8 +696,8 @@ void RasterizeTri_Distribute( FRaster Raster, FRasterTri Tri, uint PixelValue, u
 	if( Tri.bIsValid )
 	{
 		uint MinPixel = Tri.MinPixel.x | ( Tri.MinPixel.y << 16 );
-		GroupVerts[ GroupIndex ] = Tri.DepthPlane;
-		GroupVerts[ GroupIndex + 128 ].x = asfloat( MinPixel );
+		GroupVerts[ GroupIndex ].SubpixelPos = Tri.DepthPlane;
+		GroupVerts[ GroupIndex + 128 ].SubpixelPos.x = asfloat( MinPixel );
 	}
 
 #ifdef GENERATE_WORK
@@ -753,10 +813,16 @@ void MicropolyRasterize(
 			float3 PointLocal = DecodePosition( VertIndex, Cluster );
 			float4 PointClipSubpixel = mul( mul( float4( PointLocal, 1 ), InstanceDynamicData.LocalToTranslatedWorld ), NaniteView.TranslatedWorldToClip );
 
-			float3 Subpixel = PointClipSubpixel.xyz / PointClipSubpixel.w;
+			float InvW = rcp(PointClipSubpixel.w);
+			float3 Subpixel = PointClipSubpixel.xyz * InvW;
 			Subpixel.xy = Subpixel.xy * SubpixelScale.xy + SubpixelBias.xy;
 
-			GroupVerts[ VertIndex ] = float3(floor(Subpixel.xy), Subpixel.z);
+			FRasterVert Vertex;
+			Vertex.SubpixelPos	= float3(floor(Subpixel.xy), Subpixel.z);
+		#if IS_NANITE_PROGRAMMABLE
+			Vertex.InvW			= InvW;
+		#endif
+			GroupVerts[ VertIndex ] = Vertex;
 		}
 	}
 	
@@ -802,7 +868,7 @@ void MicropolyRasterize(
 			}
 		}
 	
-		float3 Verts[3];
+		FRasterVert Verts[3];
 		Verts[0] = GroupVerts[ VertIndexes.x ];
 		Verts[1] = GroupVerts[ VertIndexes.y ];
 		Verts[2] = GroupVerts[ VertIndexes.z ];
@@ -1476,14 +1542,19 @@ void HWRasterizePS(VSOut In)
 		FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 
 		// Material parameter inputs
+		FBarycentrics Barycentrics = (FBarycentrics)0;
+		bool bCalcBarycentrics = true;
 		
-	#if NANITE_USE_HW_BARYCENTRICS
-		const float3 HWBarycentrics = In.HWBarycentrics;
-	#else
-		const float3 HWBarycentrics = float3(0.0, 0.0f, 0.0f);
-	#endif
+		#if NANITE_USE_HW_BARYCENTRICS
+			Barycentrics.UVW = In.HWBarycentrics;
+			#if USE_ANALYTIC_DERIVATIVES
+				Barycentrics.UVW_dx = ddx(Barycentrics.UVW);
+				Barycentrics.UVW_dy = ddy(Barycentrics.UVW);
+			#endif
+			bCalcBarycentrics = false;
+		#endif
 
-		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, HWBarycentrics, Interpolants, In.Position /*SvPosition*/);
+		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, bCalcBarycentrics, Interpolants, In.Position /*SvPosition*/);
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /*bIsFrontFace*/);
 
