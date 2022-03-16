@@ -2247,6 +2247,12 @@ namespace AutomationTool
 		public static IEnumerable<FileReference> UnzipFiles(FileReference ZipFileName, DirectoryReference BaseDirectory)
 		{
 			List<FileReference> OutputFiles = new List<FileReference>();
+
+			if (!FileReference.Exists(ZipFileName))
+			{
+				throw new AutomationException("Cannot unzip {0}. File not found", ZipFileName);
+			}
+
 			using (ZipArchive ZipArchive = ZipFile.Open(ZipFileName.FullName, ZipArchiveMode.Read))
 			{
 				foreach (ZipArchiveEntry Entry in ZipArchive.Entries)
