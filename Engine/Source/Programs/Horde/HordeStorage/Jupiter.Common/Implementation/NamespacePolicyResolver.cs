@@ -50,7 +50,7 @@ namespace Jupiter.Common
                 return defaultSettings;
             }
 
-            throw new ArgumentException($"Unable to find a valid policy for namespace {ns}");
+            throw new UnknownNamespaceException($"Unable to find a valid policy for namespace {ns}");
         }
     }
 }
