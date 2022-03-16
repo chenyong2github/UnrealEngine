@@ -284,8 +284,7 @@ TFieldType* FindRemappedFieldImpl(FName FieldClassOutermostName, FName FieldClas
 	FMemberReference::InitFieldRedirectMap();
 
 	// In the case of a bifurcation of a variable (e.g. moved from a parent into certain children), verify that we don't also define the variable in the current scope first
-	FFieldVariant ExistingField = FindUFieldOrFProperty(InitialScope, InitialName);
-	if (ExistingField.Get<TFieldType>())
+	if (FindUFieldOrFProperty<TFieldType>(InitialScope, InitialName))
 	{
 		return nullptr;
 	}
@@ -329,7 +328,7 @@ TFieldType* FindRemappedFieldImpl(FName FieldClassOutermostName, FName FieldClas
 		if (NewFieldName != NAME_None)
 		{
 			// Find the actual field specified by the redirector, so we can return it and update the node that uses it
-			TFieldType* NewField = FindUFieldOrFProperty(SearchClass, NewFieldName).Get<TFieldType>();
+			TFieldType* NewField = FindUFieldOrFProperty<TFieldType>(SearchClass, NewFieldName);
 			if (NewField != nullptr)
 			{
 				if (bInitialScopeMustBeOwnerOfField && !InitialScope->IsChildOf(SearchClass))

@@ -6701,6 +6701,30 @@ inline FFieldVariant FindUFieldOrFProperty(const UStruct* Owner, const TCHAR* Fi
 	return FindUFieldOrFProperty(Owner, Name, IterationFlags);
 }
 
+template <class T>
+typename TEnableIf<TIsDerivedFrom<T, UField>::IsDerived, T*>::Type FindUFieldOrFProperty(const UStruct* Owner, FName FieldName, EFieldIterationFlags IterationFlags = EFieldIterationFlags::Default)
+{
+	return FindUField<T>(Owner, FieldName, IterationFlags);
+}
+
+template <class T>
+typename TEnableIf<TIsDerivedFrom<T, UField>::IsDerived, T*>::Type FindUFieldOrFProperty(const UStruct* Owner, const TCHAR* FieldName, EFieldIterationFlags IterationFlags = EFieldIterationFlags::Default)
+{
+	return FindUField<T>(Owner, FieldName, IterationFlags);
+}
+
+template <class T>
+typename TEnableIf<TIsDerivedFrom<T, FField>::IsDerived, T*>::Type FindUFieldOrFProperty(const UStruct* Owner, FName FieldName, EFieldIterationFlags IterationFlags = EFieldIterationFlags::Default)
+{
+	return FindFProperty<T>(Owner, FieldName, IterationFlags);
+}
+
+template <class T>
+typename TEnableIf<TIsDerivedFrom<T, FField>::IsDerived, T*>::Type FindUFieldOrFProperty(const UStruct* Owner, const TCHAR* FieldName, EFieldIterationFlags IterationFlags = EFieldIterationFlags::Default)
+{
+	return FindFProperty<T>(Owner, FieldName, IterationFlags);
+}
+
 /**
  * Search for the named field within the specified scope, including any Outer classes; assert on failure.
  *

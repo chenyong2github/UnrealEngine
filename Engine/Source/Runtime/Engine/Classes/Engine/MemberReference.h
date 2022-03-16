@@ -372,7 +372,7 @@ public:
 			UStruct* MemberScopeStruct = FindUField<UStruct>(SelfScope, *MemberScope);
 
 			// Find in target scope
-			ReturnField = FindUFieldOrFProperty(MemberScopeStruct, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
+			ReturnField = FindUFieldOrFProperty<TFieldType>(MemberScopeStruct, MemberName, EFieldIterationFlags::IncludeAll);
 
 #if WITH_EDITOR
 			if(ReturnField == nullptr)
@@ -381,7 +381,7 @@ public:
 				const FName RenamedMemberName = RefreshLocalVariableName(SelfScope);
 				if (RenamedMemberName != NAME_None)
 				{
-					ReturnField = FindUFieldOrFProperty(MemberScopeStruct, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
+					ReturnField = FindUFieldOrFProperty<TFieldType>(MemberScopeStruct, MemberName, EFieldIterationFlags::IncludeAll);
 				}
 			}
 #endif
@@ -428,12 +428,12 @@ public:
 #endif
 				{
 					// Find in target scope or in the sparse class data
-					ReturnField = FindUFieldOrFProperty(TargetScope, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
+					ReturnField = FindUFieldOrFProperty<TFieldType>(TargetScope, MemberName, EFieldIterationFlags::IncludeAll);
 					if (!ReturnField)
 					{
 						if (UScriptStruct* SparseClassDataStruct = TargetScope->GetSparseClassDataStruct())
 						{
-							ReturnField = FindUFieldOrFProperty(SparseClassDataStruct, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
+							ReturnField = FindUFieldOrFProperty<TFieldType>(SparseClassDataStruct, MemberName, EFieldIterationFlags::IncludeAll);
 						}
 					}
 				}
@@ -453,7 +453,7 @@ public:
 					if (RenamedMemberName != NAME_None)
 					{
 						MemberName = RenamedMemberName;
-						ReturnField = FindUFieldOrFProperty(TargetScope, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
+						ReturnField = FindUFieldOrFProperty<TFieldType>(TargetScope, MemberName, EFieldIterationFlags::IncludeAll);
 					}
 				}
 #endif
