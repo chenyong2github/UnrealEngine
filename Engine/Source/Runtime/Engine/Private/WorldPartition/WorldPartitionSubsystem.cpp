@@ -202,6 +202,7 @@ bool UWorldPartitionSubsystem::UnregisterStreamingSourceProvider(IWorldPartition
 	return !!StreamingSourceProviders.Remove(StreamingSource);
 }
 
+
 void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);

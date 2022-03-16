@@ -71,7 +71,7 @@ namespace FHLODSubsystem
 		{
 			return LevelStreaming->GetWorldPartitionRuntimeCell()->GetTypedOuter<UWorldPartition>();
 		}
-		
+
 		return nullptr;
 	}
 };
