@@ -1223,20 +1223,26 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		LDS.VertexToTriangleMasks[GroupThreadID][2] = 0;
 		LDS.VertexToTriangleMasks[GroupThreadID][3] = 0;
 	}
-	GroupMemoryBarrierWithGroupSync();
-
-	const uint TriangleID = FirstExportTriangle + GroupThreadID;
-	const uint DwordIndex = (TriangleID >> 5) & 3;
-	const uint TriangleMask = 1 << (TriangleID & 31);
-	InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.x][DwordIndex], TriangleMask);
-	InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.y][DwordIndex], TriangleMask);
-	InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.z][DwordIndex], TriangleMask);
 
 	GroupMemoryBarrierWithGroupSync();
-	PrimOutput.Out.ToTriangleMasks = uint4(	LDS.VertexToTriangleMasks[GroupThreadID][0],
-											LDS.VertexToTriangleMasks[GroupThreadID][1],
-											LDS.VertexToTriangleMasks[GroupThreadID][2],
-											LDS.VertexToTriangleMasks[GroupThreadID][3]);
+	if (GroupThreadID < NumExportTriangles)
+	{
+		const uint TriangleID = FirstExportTriangle + GroupThreadID;
+		const uint DwordIndex = (TriangleID >> 5) & 3;
+		const uint TriangleMask = 1 << (TriangleID & 31);
+		InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.x][DwordIndex], TriangleMask);
+		InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.y][DwordIndex], TriangleMask);
+		InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.z][DwordIndex], TriangleMask);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+	if (GroupThreadID < NumExportVertices)
+	{
+		PrimOutput.Out.ToTriangleMasks = uint4(	LDS.VertexToTriangleMasks[GroupThreadID][0],
+												LDS.VertexToTriangleMasks[GroupThreadID][1],
+												LDS.VertexToTriangleMasks[GroupThreadID][2],
+												LDS.VertexToTriangleMasks[GroupThreadID][3]);
+	}
 #endif
 
 	return PrimOutput;
