@@ -178,6 +178,15 @@ bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& S
 		return false;
 	}
 
+	if (AutomaticMipBiasExpression)
+	{
+		const FPreparedType& AutomaticMipBiasType = Context.PrepareExpression(AutomaticMipBiasExpression, Scope, Shader::EValueType::Bool1);
+		if (!IsConstantEvaluation(AutomaticMipBiasType.GetEvaluation(Scope, Shader::EValueType::Bool1)))
+		{
+			return Context.Error(TEXT("Automatic Mip Bias input must be constant"));
+		}
+	}
+
 	const bool bUseAnalyticDerivatives = Context.bUseAnalyticDerivatives && (MipValueMode != TMVM_MipLevel) && TexCoordDerivatives.IsValid();
 	if (MipValueMode == TMVM_Derivative || bUseAnalyticDerivatives)
 	{
@@ -227,7 +236,7 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope
 		break;
 	}
 
-	const bool AutomaticViewMipBias = false; // TODO
+	const bool AutomaticViewMipBias = AutomaticMipBiasExpression ? AutomaticMipBiasExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar() : false;
 	TStringBuilder<256> FormattedSampler;
 	switch (SamplerSource)
 	{

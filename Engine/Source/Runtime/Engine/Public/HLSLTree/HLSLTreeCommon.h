@@ -59,12 +59,14 @@ public:
 	FExpressionTextureSample(const FExpression* InTextureExpression,
 		const FExpression* InTexCoordExpression,
 		const FExpression* InMipValueExpression,
+		const FExpression* InAutomaticMipBiasExpression,
 		const FExpressionDerivatives& InTexCoordDerivatives,
 		ESamplerSourceMode InSamplerSource,
 		ETextureMipValueMode InMipValueMode)
 		: TextureExpression(InTextureExpression)
 		, TexCoordExpression(InTexCoordExpression)
 		, MipValueExpression(InMipValueExpression)
+		, AutomaticMipBiasExpression(InAutomaticMipBiasExpression)
 		, TexCoordDerivatives(InTexCoordDerivatives)
 		, SamplerSource(InSamplerSource)
 		, MipValueMode(InMipValueMode)
@@ -73,6 +75,7 @@ public:
 	const FExpression* TextureExpression;
 	const FExpression* TexCoordExpression;
 	const FExpression* MipValueExpression;
+	const FExpression* AutomaticMipBiasExpression;
 	FExpressionDerivatives TexCoordDerivatives;
 	ESamplerSourceMode SamplerSource;
 	ETextureMipValueMode MipValueMode;
