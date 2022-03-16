@@ -6,6 +6,10 @@ VirtualShadowMapSMRTCommon.ush:
 
 #pragma once
 
+#ifndef SMRT_EXTRAPOLATE_WITH_SLOPE
+#define SMRT_EXTRAPOLATE_WITH_SLOPE 1
+#endif
+
 struct FSMRTSample
 {
 	bool bValid;	

@@ -26,10 +26,10 @@
 #include "VirtualShadowMapClipmap.h"
 #include "HairStrands/HairStrandsData.h"
 
-static TAutoConsoleVariable<float> CVarContactShadowLength(
-	TEXT( "r.Shadow.Virtual.ContactShadowLength" ),
-	0.02f,
-	TEXT( "Length of the screen space contact shadow trace (smart shadow bias) before the virtual shadow map lookup." ),
+static TAutoConsoleVariable<float> CVarScreenRayLength(
+	TEXT( "r.Shadow.Virtual.ScreenRayLength" ),
+	0.01f,
+	TEXT( "Length of the screen space shadow trace (smart shadow bias) before the virtual shadow map lookup." ),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -106,6 +106,13 @@ static TAutoConsoleVariable<float> CVarSMRTTexelDitherScale(
 	2.0f,
 	TEXT( "Applies a dither to the shadow map ray casts to help hide aliasing due to insufficient shadow resolution.\n" )
 	TEXT( "This is usually desirable, but it can occasionally cause shadows from thin geometry to separate from their casters at shallow light angles." ),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarSMRTExtrapolateWithSlope(
+	TEXT("r.Shadow.Virtual.SMRT.ExtrapolateWithSlope"),
+	1,
+	TEXT("Use slope-based extrapolation behind occluders. This can increase the quality of shadow penumbra on surfaces aligned with the light direction."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -193,6 +200,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	
 	class FDirectionalLightDim		: SHADER_PERMUTATION_BOOL("DIRECTIONAL_LIGHT");
 	class FSMRTAdaptiveRayCountDim	: SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
+	class FSMRTExtrapolateSlopeDim	: SHADER_PERMUTATION_BOOL("SMRT_EXTRAPOLATE_WITH_SLOPE");
 	class FOnePassProjectionDim		: SHADER_PERMUTATION_BOOL("ONE_PASS_PROJECTION");
 	class FHairStrandsDim			: SHADER_PERMUTATION_BOOL("HAS_HAIR_STRANDS");
 	class FVisualizeOutputDim		: SHADER_PERMUTATION_BOOL("VISUALIZE_OUTPUT");
@@ -202,7 +210,8 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		FOnePassProjectionDim,
 		FSMRTAdaptiveRayCountDim,
 		FHairStrandsDim,
-		FVisualizeOutputDim>;
+		FVisualizeOutputDim,
+		FSMRTExtrapolateSlopeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
@@ -212,7 +221,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(FIntVector4, ProjectionRect)
-		SHADER_PARAMETER(float, ContactShadowLength)
+		SHADER_PARAMETER(float, ScreenRayLength)
 		SHADER_PARAMETER(float, NormalBias)
 		SHADER_PARAMETER(uint32, SMRTRayCount)
 		SHADER_PARAMETER(uint32, SMRTSamplesPerRay)
@@ -293,7 +302,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->ProjectionRect = FIntVector4(ProjectionRect.Min.X, ProjectionRect.Min.Y, ProjectionRect.Max.X, ProjectionRect.Max.Y);
-	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
+	PassParameters->ScreenRayLength = CVarScreenRayLength.GetValueOnRenderThread();
 	PassParameters->NormalBias = GetNormalBiasForShader();
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;
@@ -357,7 +366,8 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDirectionalLightDim >( bDirectionalLight );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FOnePassProjectionDim >( bOnePassProjection );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( bAdaptiveRayCount );
-	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >( bHasHairStrandsData ? 1 : 0 );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTExtrapolateSlopeDim >( CVarSMRTExtrapolateWithSlope.GetValueOnRenderThread() != 0 );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >( bHasHairStrandsData );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FVisualizeOutputDim >( bDebugOutput );
 
 	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );

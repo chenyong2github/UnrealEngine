@@ -36,7 +36,7 @@ float ComputeOptimalSlopeBiasDirectional(
 	float2 DepthSlopeUV = -NormalPlaneUV.xy / NormalPlaneUV.z;
 
 	// Clamp to avoid excessive degenerate slope biases causing flickering lit pixels
-	float2 Clamp = 20.0f;
+	float2 Clamp = 0.1f;
 	DepthSlopeUV = bClamp ? clamp(DepthSlopeUV, -Clamp, Clamp) : DepthSlopeUV;
 		
 	float2 OffsetUV = TexelOffset / float(CalcLevelDimsTexels(0));

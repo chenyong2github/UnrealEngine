@@ -51,6 +51,13 @@ void FVirtualShadowMapVisualizationData::Initialize()
 			VIRTUAL_SHADOW_MAP_VISUALIZE_SMRT_RAY_COUNT);
 
 		AddVisualizationMode(
+			TEXT("debug"),
+			LOCTEXT("GeneralDebug", "General Debug"),
+			LOCTEXT("GeneralDebugDesc", "General-purpose debug for use during shader development"),
+			FModeType::Advanced,
+			VIRTUAL_SHADOW_MAP_VISUALIZE_GENERAL_DEBUG);
+
+		AddVisualizationMode(
 			TEXT("clipmapvirtual"),
 			LOCTEXT("ClipmapVirtualSpace", "Clipmap Virtual Address Space"),
 			LOCTEXT("ClipmapVirtualSpaceDesc", "Visualization of the clipmap virtual address space and mapped pages"),

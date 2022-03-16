@@ -156,7 +156,7 @@ FSMRTResult ShadowRayCastSpotLight(
 	float3 RayStartShadowTranslatedWorld,
 	float3 RayEndShadowTranslatedWorld,
 	int NumSteps,
-	half StepOffset,
+	float StepOffset,
 	// To get debug data out
 	inout FSMRTSingleRayState OutRayState)
 {
@@ -169,14 +169,14 @@ FSMRTResult ShadowRayCastPointLight(
 	float3 RayStartShadowTranslatedWorld,
 	float3 RayEndShadowTranslatedWorld,
 	int NumSteps,
-	half StepOffset,
+	float StepOffset,
 	// To get debug data out
 	inout FSMRTSingleRayState OutRayState)
 {
 	uint RayStartFace = VirtualShadowMapGetCubeFace(RayStartShadowTranslatedWorld);
 	uint RayEndFace   = VirtualShadowMapGetCubeFace(RayEndShadowTranslatedWorld);
 		
-	FSMRTResult Result;	
+	FSMRTResult Result;
 	if (RayStartFace != RayEndFace)
 	{
 		FSMRTTwoCubeFaceRayState RayState = SMRTTwoCubeFaceRayInitialize(
@@ -233,11 +233,11 @@ float4 SobolSampler(uint SampleIndex, inout uint Seed, uint MaxBits)
 // Normal should be normalized
 bool IsBackfaceToLocalLight(
 	float3 ToLight,
-	half3 Normal,
-	half LightSourceRadius,
-	out half3 OutConeAxis,
-	out half OutConeSin,
-	out half OutDistToLight)
+	float3 Normal,
+	float LightSourceRadius,
+	out float3 OutConeAxis,
+	out float OutConeSin,
+	out float OutDistToLight)
 {
 	float DistSqr = dot(ToLight, ToLight);
 	float Falloff = rcp(DistSqr + 1);
@@ -247,19 +247,19 @@ bool IsBackfaceToLocalLight(
 	OutConeSin = LightSourceRadius * InvDist;
 	OutDistToLight = DistSqr * InvDist;
 
-	half SinAlphaSqr = saturate(Pow2(LightSourceRadius) * Falloff);
-	half SinAlpha = sqrt(SinAlphaSqr);
+	float SinAlphaSqr = saturate(Pow2(LightSourceRadius) * Falloff);
+	float SinAlpha = sqrt(SinAlphaSqr);
 	bool bBackface = dot(Normal, OutConeAxis) < -SinAlpha;
 
 	return bBackface;
 }
 
 // Version without outputs
-bool IsBackfaceToLocalLight(float3 ToLight, half3 Normal, half LightSourceRadius)
+bool IsBackfaceToLocalLight(float3 ToLight, float3 Normal, float LightSourceRadius)
 {
-	half3 Dummy1;
-	half Dummy2;
-	half Dummy3;
+	float3 Dummy1;
+	float Dummy2;
+	float Dummy3;
 	return IsBackfaceToLocalLight(ToLight, Normal, LightSourceRadius, Dummy1, Dummy2, Dummy3);
 }
 
@@ -273,16 +273,16 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 	uint MaxRayCount,
 	uint SamplesPerRay,
 	float CotMaxRayAngleFromLight,
-	const half Noise,
+	const float Noise,
 	const bool bCullBackface,
-	half3 WorldNormal)
+	float3 WorldNormal)
 {
 	const uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
 	const float3 ToLight = Light.TranslatedWorldPosition - TranslatedWorldPosition;
 
-	half3 ConeAxis;
-	half ConeSin;
-	half DistToLight;
+	float3 ConeAxis;
+	float ConeSin;
+	float DistToLight;
 	bool bBackface = IsBackfaceToLocalLight(ToLight, WorldNormal, Light.SourceRadius, ConeAxis, ConeSin, DistToLight);
 
 	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
@@ -318,14 +318,14 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			float4 RandSample = SobolSampler( RandSequence.SampleIndex, RandSequence.SampleSeed, 8 );
 #endif
 
-			half2 LightUV = UniformSampleDiskConcentricApprox( RandSample.xy ).xy;
+			float2 LightUV = UniformSampleDiskConcentricApprox( RandSample.xy ).xy;
 			LightUV *= ConeSin;
 
-			half SinTheta2 = dot( LightUV, LightUV );
-			half SinTheta = sqrt( SinTheta2 );
-			half CosTheta = sqrt( 1 - SinTheta2 );
+			float SinTheta2 = dot( LightUV, LightUV );
+			float SinTheta = sqrt( SinTheta2 );
+			float CosTheta = sqrt( 1 - SinTheta2 );
 
-			half3 Dir = TangentToWorld( half3( LightUV, CosTheta ), ConeAxis );
+			float3 Dir = TangentToWorld( float3( LightUV, CosTheta ), ConeAxis );
 
 			// The further afield our rays go the poorer our approximation is as the "bend" due to our testing
 			// against a shadow map instead of along the ray increases. Thus we avoid going all the way to the light
@@ -423,7 +423,7 @@ bool GenerateRayLocalLight(
 	FLightShaderParameters Light,
 	uint2 PixelPos,
 	float3 TranslatedWorldPosition,
-	half3 WorldNormal,
+	float3 WorldNormal,
 	float CotMaxRayAngleFromLight,
 	uint RayIndex,
 	uint RayCount,
@@ -432,9 +432,9 @@ bool GenerateRayLocalLight(
 {
 	const float3 ToLight = Light.TranslatedWorldPosition - TranslatedWorldPosition;
 
-	half3 ConeAxis;
-	half ConeSin;
-	half DistToLight;
+	float3 ConeAxis;
+	float ConeSin;
+	float DistToLight;
 	bool bBackface = IsBackfaceToLocalLight(ToLight, WorldNormal, Light.SourceRadius, ConeAxis, ConeSin, DistToLight);
 	
 	if (!bBackface)
@@ -446,14 +446,14 @@ bool GenerateRayLocalLight(
 		RandSequence.SampleSeed = 0; // always use the same sequence
 
 		float2 E = SobolSampler(RandSequence.SampleIndex, RandSequence.SampleSeed, 8).xy;
-		half2 LightUV = UniformSampleDiskConcentricApprox(E).xy;
+		float2 LightUV = UniformSampleDiskConcentricApprox(E).xy;
 		LightUV *= ConeSin;
 
-		half SinTheta2 = dot(LightUV, LightUV);
-		half SinTheta = sqrt(SinTheta2);
-		half CosTheta = sqrt(1 - SinTheta2);
+		float SinTheta2 = dot(LightUV, LightUV);
+		float SinTheta = sqrt(SinTheta2);
+		float CosTheta = sqrt(1 - SinTheta2);
 
-		half3 Dir = TangentToWorld(half3(LightUV, CosTheta), ConeAxis);
+		float3 Dir = TangentToWorld(float3(LightUV, CosTheta), ConeAxis);
 
 		// The further afield our rays go the poorer our approximation is as the "bend" due to our testing
 		// against a shadow map instead of along the ray increases. Thus we avoid going all the way to the light

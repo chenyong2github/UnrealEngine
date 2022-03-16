@@ -298,6 +298,7 @@ struct FVirtualShadowMapSampleResult
 	uint RayCount;
 	uint2 VirtualTexelAddress;
 	uint2 PhysicalTexelAddress;
+	float3 GeneralDebug;		// General purpose debug output during shader development
 };
 
 
@@ -311,6 +312,7 @@ FVirtualShadowMapSampleResult InitVirtualShadowMapSampleResult()
 	Result.VirtualTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	Result.PhysicalTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	Result.RayCount = 0;
+	Result.GeneralDebug = float3(0, 0, 0);
 	return Result;
 }
 
