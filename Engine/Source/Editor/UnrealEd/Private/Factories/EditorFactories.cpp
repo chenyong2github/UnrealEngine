@@ -2724,7 +2724,8 @@ UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	Formats.Add( TEXT( "jpg;Texture" ) );
 	Formats.Add( TEXT( "jpeg;Texture" ) );
 	// note: conflicts with .exr ImgMedia import in the import dialog
-	Formats.Add( TEXT( "exr;Texture (HDR)" ) );
+	// alphabetic order affects the select when you enter "*.exr" in the import dialog box
+	Formats.Add( TEXT( "exr;EXR image HDR Texture2d" ) );
 	Formats.Add( TEXT( "tif;Texture (TIFF)" ) );
 	Formats.Add( TEXT( "tiff;Texture (TIFF)" ) );
 

@@ -11,6 +11,8 @@
 UImgMediaSourceFactory::UImgMediaSourceFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// note: conflicts with .exr image import by TextureFactory in the import dialog
+	// if you filter for *.exr it chooses the first extension alphabetically
 	Formats.Add(TEXT("exr;EXR ImgMedia Image Sequence"));
 
 	SupportedClass = UImgMediaSource::StaticClass();
