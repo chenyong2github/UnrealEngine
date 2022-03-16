@@ -6,6 +6,7 @@ using EpicGames.Horde.Bundles.Nodes;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Impl;
 using EpicGames.Serialization;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Buffers.Binary;
@@ -18,11 +19,22 @@ using System.Threading.Tasks;
 namespace HordeServerTests
 {
 	[TestClass]
-	public class BundleTests
+	public class BundleTests : IDisposable
 	{
+		MemoryCache Cache;
 		MemoryStorageClient StorageClient = new MemoryStorageClient();
 		NamespaceId NamespaceId = new NamespaceId("namespace");
 		BucketId BucketId = new BucketId("bucket");
+
+		public BundleTests()
+		{
+			Cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50 * 1024 * 1024 });
+		}
+
+		public void Dispose()
+		{
+			Cache.Dispose();
+		}
 
 		[TestMethod]
 		public void BuzHashTests()
@@ -144,7 +156,7 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task BasicTestDirectory()
 		{
-			Bundle<DirectoryNode> NewBundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), new BundleOptions(), null);
+			using Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), new BundleOptions(), Cache);
 			DirectoryNode Node = NewBundle.Root.AddDirectory("hello");
 			DirectoryNode Node2 = Node.AddDirectory("world");
 
@@ -156,18 +168,19 @@ namespace HordeServerTests
 			Assert.AreEqual(0, StorageClient.Blobs.Count);
 
 			// Check the ref
-			BundleObject RootObject = await StorageClient.GetRefAsync<BundleObject>(NamespaceId, BucketId, RefId);
+			BundleRoot Root = await StorageClient.GetRefAsync<BundleRoot>(NamespaceId, BucketId, RefId);
+			BundleObject RootObject = Root.Object;
 			Assert.AreEqual(3, RootObject.Exports.Count);
 			Assert.AreEqual(0, RootObject.Exports[0].Rank);
 			Assert.AreEqual(1, RootObject.Exports[1].Rank);
 			Assert.AreEqual(2, RootObject.Exports[2].Rank);
 
 			// Create a new bundle and read it back in again
-			NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, new BundleOptions(), null);
+			using Bundle<DirectoryNode> NewBundle2 = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, new BundleOptions(), Cache);
 
-			Assert.AreEqual(0, NewBundle.Root.Files.Count);
-			Assert.AreEqual(1, NewBundle.Root.Directories.Count);
-			DirectoryNode? OutputNode = await NewBundle.FindDirectoryAsync(NewBundle.Root, "hello");
+			Assert.AreEqual(0, NewBundle2.Root.Files.Count);
+			Assert.AreEqual(1, NewBundle2.Root.Directories.Count);
+			DirectoryNode? OutputNode = await NewBundle.FindDirectoryAsync(NewBundle2.Root, "hello");
 			Assert.IsNotNull(OutputNode);
 
 			Assert.AreEqual(0, OutputNode!.Files.Count);
@@ -186,17 +199,17 @@ namespace HordeServerTests
 			Options.MaxBlobSize = 1;
 			Options.MaxInlineBlobSize = 1;
 
-			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, null);
+			using Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, Cache);
 
-			Bundle.Root.AddDirectory("node1");
-			Bundle.Root.AddDirectory("node2");
-			Bundle.Root.AddDirectory("node3");
+			NewBundle.Root.AddDirectory("node1");
+			NewBundle.Root.AddDirectory("node2");
+			NewBundle.Root.AddDirectory("node3");
 
 			Assert.AreEqual(0, StorageClient.Refs.Count);
 			Assert.AreEqual(0, StorageClient.Blobs.Count);
 
 			RefId RefId = new RefId("ref");
-			await Bundle.WriteAsync(BucketId, RefId, CbObject.Empty, false);
+			await NewBundle.WriteAsync(BucketId, RefId, CbObject.Empty, false);
 
 			Assert.AreEqual(1, StorageClient.Refs.Count);
 			Assert.AreEqual(1, StorageClient.Blobs.Count);
@@ -209,7 +222,7 @@ namespace HordeServerTests
 			Options.MaxBlobSize = 1;
 			Options.MaxInlineBlobSize = 1;
 
-			Bundle<DirectoryNode> InitialBundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, null);
+			using Bundle<DirectoryNode> InitialBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, Cache);
 
 			DirectoryNode Node1 = InitialBundle.Root.AddDirectory("node1");
 			DirectoryNode Node2 = Node1.AddDirectory("node2");
@@ -222,7 +235,7 @@ namespace HordeServerTests
 			Assert.AreEqual(1, StorageClient.Refs.Count);
 			Assert.AreEqual(4, StorageClient.Blobs.Count);
 
-			Bundle<DirectoryNode> NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, Options, null);
+			using Bundle<DirectoryNode> NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, Options, Cache);
 
 			DirectoryNode? NewNode1 = await NewBundle.FindDirectoryAsync(NewBundle.Root, "node1");
 			Assert.IsNotNull(NewNode1);
@@ -244,22 +257,23 @@ namespace HordeServerTests
 			Options.MaxBlobSize = 1024 * 1024;
 			Options.MaxInlineBlobSize = 1;
 
-			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, null);
+			using Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, Cache);
 
-			DirectoryNode Node1 = Bundle.Root.AddDirectory("node1");
+			DirectoryNode Node1 = NewBundle.Root.AddDirectory("node1");
 			DirectoryNode Node2 = Node1.AddDirectory("node2");
 			DirectoryNode Node3 = Node2.AddDirectory("node3");
-			DirectoryNode Node4 = Bundle.Root.AddDirectory("node4"); // same contents as node 3
+			DirectoryNode Node4 = NewBundle.Root.AddDirectory("node4"); // same contents as node 3
 
 			RefId RefId1 = new RefId("ref1");
-			await Bundle.WriteAsync(BucketId, RefId1, CbObject.Empty, false);
+			await NewBundle.WriteAsync(BucketId, RefId1, CbObject.Empty, false);
 
 			Assert.AreEqual(1, StorageClient.Refs.Count);
 			Assert.AreEqual(1, StorageClient.Blobs.Count);
 
 			IRef Ref1 = StorageClient.Refs[(NamespaceId, BucketId, RefId1)];
 
-			BundleObject RootObject1 = CbSerializer.Deserialize<BundleObject>(Ref1.Value);
+			BundleRoot Root1 = CbSerializer.Deserialize<BundleRoot>(Ref1.Value);
+			BundleObject RootObject1 = Root1.Object;
 			Assert.AreEqual(1, RootObject1.Exports.Count);
 			Assert.AreEqual(1, RootObject1.ImportObjects.Count);
 
@@ -269,14 +283,15 @@ namespace HordeServerTests
 			Assert.AreEqual(0, LeafObject1.ImportObjects.Count);
 
 			// Remove one of the nodes from the root without compacting. the existing blob should be reused.
-			Bundle.Root.DeleteDirectory("node1");
+			NewBundle.Root.DeleteDirectory("node1");
 
 			RefId RefId2 = new RefId("ref2");
-			await Bundle.WriteAsync(BucketId, RefId2, CbObject.Empty, false);
+			await NewBundle.WriteAsync(BucketId, RefId2, CbObject.Empty, false);
 
 			IRef Ref2 = StorageClient.Refs[(NamespaceId, BucketId, RefId2)];
 
-			BundleObject RootObject2 = CbSerializer.Deserialize<BundleObject>(Ref2.Value);
+			BundleRoot Root2 = CbSerializer.Deserialize<BundleRoot>(Ref2.Value);
+			BundleObject RootObject2 = Root2.Object;
 			Assert.AreEqual(1, RootObject2.Exports.Count);
 			Assert.AreEqual(1, RootObject2.ImportObjects.Count);
 
@@ -287,11 +302,12 @@ namespace HordeServerTests
 
 			// Repack it and check that we make a new object
 			RefId RefId3 = new RefId("ref3");
-			await Bundle.WriteAsync(BucketId, RefId3, CbObject.Empty, true);
+			await NewBundle.WriteAsync(BucketId, RefId3, CbObject.Empty, true);
 
 			IRef Ref3 = StorageClient.Refs[(NamespaceId, BucketId, RefId3)];
 
-			BundleObject RootObject3 = CbSerializer.Deserialize<BundleObject>(Ref3.Value);
+			BundleRoot Root3 = CbSerializer.Deserialize<BundleRoot>(Ref3.Value);
+			BundleObject RootObject3 = Root3.Object;
 			Assert.AreEqual(1, RootObject3.Exports.Count);
 			Assert.AreEqual(1, RootObject3.ImportObjects.Count);
 
@@ -352,8 +368,8 @@ namespace HordeServerTests
 				Data[Idx] = (byte)Idx;
 			}
 
-			Bundle<FileNode> Bundle = new Bundle<FileNode>(StorageClient, NamespaceId, new FileNode(), new BundleOptions(), null);
-			FileNode Root = Bundle.Root;
+			Bundle<FileNode> NewBundle = Bundle.Create<FileNode>(StorageClient, NamespaceId, new FileNode(), new BundleOptions(), Cache);
+			FileNode Root = NewBundle.Root;
 
 			const int NumIterations = 100;
 			for (int Idx = 0; Idx < NumIterations; Idx++)
@@ -370,7 +386,7 @@ namespace HordeServerTests
 				Assert.IsTrue(SpanData.Span.SequenceEqual(Data));
 			}
 
-			await CheckSizes(Bundle, Root, Options, true);
+			await CheckSizes(NewBundle, Root, Options, true);
 		}
 
 		async Task CheckSizes(Bundle Bundle, FileNode Node, ChunkingOptions Options, bool Rightmost)
@@ -400,8 +416,8 @@ namespace HordeServerTests
 			BundleOptions Options = new BundleOptions();
 			Options.MaxBlobSize = 1;
 
-			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, null);
-			DirectoryNode Root = Bundle.Root;
+			using Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, Cache);
+			DirectoryNode Root = NewBundle.Root;
 
 			long TotalLength = 0;
 			for (int IdxA = 0; IdxA < 10; IdxA++)
@@ -422,9 +438,9 @@ namespace HordeServerTests
 						}
 					}
 
-					int OldWorkingSetSize = GetWorkingSetSize(Bundle.Root);
-					await Bundle.TrimAsync(20);
-					int NewWorkingSetSize = GetWorkingSetSize(Bundle.Root);
+					int OldWorkingSetSize = GetWorkingSetSize(NewBundle.Root);
+					await NewBundle.TrimAsync(20);
+					int NewWorkingSetSize = GetWorkingSetSize(NewBundle.Root);
 					Assert.IsTrue(NewWorkingSetSize <= OldWorkingSetSize);
 					Assert.IsTrue(NewWorkingSetSize <= 20);
 				}
@@ -434,7 +450,7 @@ namespace HordeServerTests
 			Assert.IsTrue(StorageClient.Refs.Count == 0);
 
 			RefId RefId = new RefId("ref");
-			await Bundle.WriteAsync(BucketId, RefId, CbObject.Empty, true);
+			await NewBundle.WriteAsync(BucketId, RefId, CbObject.Empty, true);
 
 			Assert.AreEqual(TotalLength, Root.Length);
 

@@ -6,6 +6,7 @@ using EpicGames.Horde.Bundles.Nodes;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Impl;
 using EpicGames.Serialization;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -47,10 +48,14 @@ namespace HordeServer.Commands.Bundles
 		public override async Task<int> ExecuteAsync(ILogger Logger)
 		{
 			IStorageClient StorageClient = base.CreateStorageClient(Logger);
-
-			Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), null);
-			await NewBundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), Logger);
-			await NewBundle.WriteAsync(BucketId, RefId, CbObject.Empty, false);
+			using (MemoryCache Cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50 * 1024 * 1024 }))
+			{
+				using (Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), Cache))
+				{
+					await NewBundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), Logger);
+					await NewBundle.WriteAsync(BucketId, RefId, CbObject.Empty, false);
+				}
+			}
 
 			return 0;
 		}
