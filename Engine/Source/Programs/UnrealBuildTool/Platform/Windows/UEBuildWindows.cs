@@ -832,6 +832,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly VersionNumberRange[] PreferredClangVersions =
 		{
+			VersionNumberRange.Parse("13.0.0", "13.999"),
+			VersionNumberRange.Parse("12.0.0", "12.999"),
 			VersionNumberRange.Parse("11.0.0", "11.999"),
 			VersionNumberRange.Parse("10.0.0", "10.999")
 		};
