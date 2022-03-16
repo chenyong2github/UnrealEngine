@@ -153,7 +153,7 @@ public:
 	void PostLoad() override;
 	
 	// resets the container and maintains all memory
-	void Reset();
+	void Reset(bool IsIgnoringArchetypeRef = false);
 
 	// resets the container and removes all memory
 	void Empty();
