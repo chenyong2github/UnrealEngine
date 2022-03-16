@@ -4,6 +4,7 @@
 #include "UObject/EnumProperty.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
+#include "Misc/DefaultValueHelper.h"
 
 namespace UE::PropertyAccessUtil::Private
 {
@@ -639,6 +640,51 @@ FProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct)
 	}
 
 	return Prop;
+}
+
+void ImportDefaultPropertyValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue)
+{
+	if (InDefaultValue.IsEmpty())
+	{
+		return;
+	}
+
+	bool bDoImportText = true;
+
+	// Certain struct types export using a non-standard default value, so we have to import them manually rather than use ImportText
+	if (const FStructProperty* StructProp = CastField<FStructProperty>(InProp))
+	{
+		if (StructProp->Struct == TBaseStructure<FVector>::Get())
+		{
+			FVector* Vector = (FVector*)InPropValue;
+			bDoImportText = !FDefaultValueHelper::ParseVector(InDefaultValue, *Vector);
+		}
+		else if (StructProp->Struct == TBaseStructure<FVector2D>::Get())
+		{
+			FVector2D* Vector2D = (FVector2D*)InPropValue;
+			bDoImportText = !FDefaultValueHelper::ParseVector2D(InDefaultValue, *Vector2D);
+		}
+		else if (StructProp->Struct == TBaseStructure<FRotator>::Get())
+		{
+			FRotator* Rotator = (FRotator*)InPropValue;
+			bDoImportText = !FDefaultValueHelper::ParseRotator(InDefaultValue, *Rotator);
+		}
+		else if (StructProp->Struct == TBaseStructure<FColor>::Get())
+		{
+			FColor* Color = (FColor*)InPropValue;
+			bDoImportText = !FDefaultValueHelper::ParseColor(InDefaultValue, *Color);
+		}
+		else if (StructProp->Struct == TBaseStructure<FLinearColor>::Get())
+		{
+			FLinearColor* LinearColor = (FLinearColor*)InPropValue;
+			bDoImportText = !FDefaultValueHelper::ParseLinearColor(InDefaultValue, *LinearColor);
+		}
+	}
+
+	if (bDoImportText)
+	{
+		InProp->ImportText_Direct(*InDefaultValue, InPropValue, nullptr, PPF_None);
+	}
 }
 
 }

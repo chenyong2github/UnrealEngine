@@ -483,45 +483,7 @@ bool IsOutputParameter(const FProperty* InParam)
 
 void ImportDefaultValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue)
 {
-	if (!InDefaultValue.IsEmpty())
-	{
-		// Certain struct types export using a non-standard default value, so we have to import them manually rather than use ImportText
-		if (const FStructProperty* StructProp = CastField<FStructProperty>(InProp))
-		{
-			if (StructProp->Struct == TBaseStructure<FVector>::Get())
-			{
-				FVector* Vector = (FVector*)InPropValue;
-				FDefaultValueHelper::ParseVector(InDefaultValue, *Vector);
-				return;
-			}
-			else if (StructProp->Struct == TBaseStructure<FVector2D>::Get())
-			{
-				FVector2D* Vector2D = (FVector2D*)InPropValue;
-				FDefaultValueHelper::ParseVector2D(InDefaultValue, *Vector2D);
-				return;
-			}
-			else if (StructProp->Struct == TBaseStructure<FRotator>::Get())
-			{
-				FRotator* Rotator = (FRotator*)InPropValue;
-				FDefaultValueHelper::ParseRotator(InDefaultValue, *Rotator);
-				return;
-			}
-			else if (StructProp->Struct == TBaseStructure<FColor>::Get())
-			{
-				FColor* Color = (FColor*)InPropValue;
-				FDefaultValueHelper::ParseColor(InDefaultValue, *Color);
-				return;
-			}
-			else if (StructProp->Struct == TBaseStructure<FLinearColor>::Get())
-			{
-				FLinearColor* LinearColor = (FLinearColor*)InPropValue;
-				FDefaultValueHelper::ParseLinearColor(InDefaultValue, *LinearColor);
-				return;
-			}
-		}
-
-		InProp->ImportText_Direct(*InDefaultValue, InPropValue, nullptr, PPF_None);
-	}
+	PropertyAccessUtil::ImportDefaultPropertyValue(InProp, InPropValue, InDefaultValue);
 }
 
 bool InvokeFunctionCall(UObject* InObj, const UFunction* InFunc, void* InBaseParamsAddr, const TCHAR* InErrorCtxt)

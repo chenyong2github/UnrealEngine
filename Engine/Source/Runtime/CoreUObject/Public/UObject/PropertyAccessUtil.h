@@ -293,6 +293,17 @@ namespace PropertyAccessUtil
 	COREUOBJECT_API FProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct);
 
 	/**
+	 * Low-level function to import a default value to the given property.
+	 * @note This is useful for applying defaults to function properties (eg, parameter data from UEdGraphSchema_K2::FindFunctionParameterDefaultValue, or local data from 
+	 *       FBlueprintEditorUtils::FindLocalVariable), as these may have come from UHT which can sometimes have a slightly different form than ImportText can handle natively.
+	 *
+	 * @param InProp The property to import the default value for.
+	 * @param InPropValue The destination location to receive the imported value.
+	 * @param InDefaultValue The default value to import.
+	 */
+	COREUOBJECT_API void ImportDefaultPropertyValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue);
+
+	/**
 	 * Low-level function to determine if two properties are compatible with each other (for use by CopySinglePropertyValue/CopyCompletePropertyValue).
 	 * 
 	 * @param InSrcProp Source property being compared.
