@@ -540,6 +540,12 @@ protected:
 	virtual void FinishRestartPlayer(AController* NewPlayer, const FRotator& StartRotation);
 
 	/**
+	 * Called in the event that we fail to spawn a controller's pawn, which maybe it didn't have one or maybe it tried
+	 * to spawn and was destroyed due to collision.
+	 */
+	virtual void FailedToRestartPlayer(AController* NewPlayer);
+
+	/**
 	 * Notifies all clients to travel to the specified URL.
 	 *
 	 * @param	URL				a string containing the mapname (or IP address) to travel to, along with option key/value pairs

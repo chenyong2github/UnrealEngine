@@ -1246,12 +1246,16 @@ void AGameModeBase::RestartPlayerAtPlayerStart(AController* NewPlayer, AActor* S
 	else if (GetDefaultPawnClassForController(NewPlayer) != nullptr)
 	{
 		// Try to create a pawn to use of the default class for this player
-		NewPlayer->SetPawn(SpawnDefaultPawnFor(NewPlayer, StartSpot));
+		APawn* NewPawn = SpawnDefaultPawnFor(NewPlayer, StartSpot);
+		if (IsValid(NewPawn))
+		{
+			NewPlayer->SetPawn(NewPawn);
+		}
 	}
-
-	if (NewPlayer->GetPawn() == nullptr)
+	
+	if (!IsValid(NewPlayer->GetPawn()))
 	{
-		NewPlayer->FailedToSpawnPawn();
+		FailedToRestartPlayer(NewPlayer);
 	}
 	else
 	{
@@ -1287,12 +1291,16 @@ void AGameModeBase::RestartPlayerAtTransform(AController* NewPlayer, const FTran
 	else if (GetDefaultPawnClassForController(NewPlayer) != nullptr)
 	{
 		// Try to create a pawn to use of the default class for this player
-		NewPlayer->SetPawn(SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform));
+		APawn* NewPawn = SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
+		if (IsValid(NewPawn))
+		{
+			NewPlayer->SetPawn(NewPawn);
+		}
 	}
 
-	if (NewPlayer->GetPawn() == nullptr)
+	if (IsValid(NewPlayer->GetPawn()))
 	{
-		NewPlayer->FailedToSpawnPawn();
+		FailedToRestartPlayer(NewPlayer);
 	}
 	else
 	{
@@ -1300,14 +1308,19 @@ void AGameModeBase::RestartPlayerAtTransform(AController* NewPlayer, const FTran
 	}
 }
 
+void AGameModeBase::FailedToRestartPlayer(AController* NewPlayer)
+{
+	NewPlayer->FailedToSpawnPawn();
+}
+
 void AGameModeBase::FinishRestartPlayer(AController* NewPlayer, const FRotator& StartRotation)
 {
 	NewPlayer->Possess(NewPlayer->GetPawn());
 
 	// If the Pawn is destroyed as part of possession we have to abort
-	if (NewPlayer->GetPawn() == nullptr)
+	if (!IsValid(NewPlayer->GetPawn()))
 	{
-		NewPlayer->FailedToSpawnPawn();
+		FailedToRestartPlayer(NewPlayer);
 	}
 	else
 	{
