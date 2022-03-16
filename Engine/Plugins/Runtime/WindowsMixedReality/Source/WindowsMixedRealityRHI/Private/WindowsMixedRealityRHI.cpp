@@ -295,8 +295,8 @@ FWindowsMixedRealityViewport::FWindowsMixedRealityViewport(FD3D11DynamicRHI* InD
 
 void FWindowsMixedRealityViewport::UpdateBackBuffer()
 {
-	FTexture2DRHIRef OutShaderResourceTexture;
-	FTexture2DRHIRef OutTargetableTexture;
+	FTextureRHIRef OutShaderResourceTexture;
+	FTextureRHIRef OutTargetableTexture;
 
 	BackBuffer = nullptr;
 	if (GEngine && GEngine->StereoRenderingDevice && GEngine->StereoRenderingDevice->GetRenderTargetManager())
@@ -306,7 +306,7 @@ void FWindowsMixedRealityViewport::UpdateBackBuffer()
 			->GetRenderTargetManager()
 			->AllocateRenderTargetTexture(0, SizeX, SizeY, PixelFormat, 1, TexCreate_None, TexCreate_RenderTargetable, OutTargetableTexture, OutShaderResourceTexture))
 		{
-			BackBuffer = (FD3D11Texture2D*)(OutTargetableTexture.GetReference());
+			BackBuffer = (FD3D11Texture*)(OutTargetableTexture.GetReference());
 		}
 	}
 

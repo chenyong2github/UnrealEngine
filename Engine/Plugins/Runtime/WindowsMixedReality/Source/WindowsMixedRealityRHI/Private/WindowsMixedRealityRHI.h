@@ -78,5 +78,5 @@ public:
 	void Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat PreferredPixelFormat);
 
 private:
-	TRefCountPtr<FD3D11Texture2D> OffscreenBackBuffer;
+	TRefCountPtr<FD3D11Texture> OffscreenBackBuffer;
 };
