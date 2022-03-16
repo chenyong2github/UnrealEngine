@@ -1071,6 +1071,16 @@ void FD3D12Adapter::InitializeDevices()
 				{
 					UE_LOG(LogD3D12RHI, Log, TEXT("AtomicInt64OnDescriptorHeapResource is supported"));
 				}
+
+				if (D3D12Caps9.AtomicInt64OnTypedResourceSupported && D3D12Caps11.AtomicInt64OnDescriptorHeapResourceSupported)
+				{
+					GRHISupportsDX12AtomicUInt64 = true;
+					UE_LOG(LogD3D12RHI, Log, TEXT("Shader Model 6.6 atomic64 is supported"));
+				}
+				else
+				{
+					UE_LOG(LogD3D12RHI, Log, TEXT("Shader Model 6.6 atomic64 is not supported"));
+				}
 			}
 #endif // PLATFORM_WINDOWS && D3D12_CORE_ENABLED
 		}

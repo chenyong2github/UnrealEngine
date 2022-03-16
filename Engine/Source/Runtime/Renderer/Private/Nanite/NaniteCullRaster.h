@@ -21,28 +21,28 @@ namespace Nanite
 
 enum class ERasterTechnique : uint8
 {
-	// Use fallback lock buffer approach without 64-bit atomics (has race conditions).
+	// [DEPRECATED] Use fallback lock buffer approach without 64-bit atomics (has race conditions).
 	LockBufferFallback = 0,
 
 	// Use 64-bit atomics provided by the platform.
 	PlatformAtomics = 1,
 
-	// Use 64-bit atomics provided by Nvidia vendor extension.
+	// [DEPRECATED] Use 64-bit atomics provided by Nvidia vendor extension.
 	NVAtomics = 2,
 
-	// Use 64-bit atomics provided by AMD vendor extension [Direct3D 11].
+	// [DEPRECATED] Use 64-bit atomics provided by AMD vendor extension [Direct3D 11].
 	AMDAtomicsD3D11 = 3,
 
-	// Use 64-bit atomics provided by AMD vendor extension [Direct3D 12].
+	// [DEPRECATED] Use 64-bit atomics provided by AMD vendor extension [Direct3D 12].
 	AMDAtomicsD3D12 = 4,
 
 	// Use 32-bit atomics for depth, no payload.
 	DepthOnly = 5,
 
-	// Use 64-bit atomics provided by Intel vendor extension [Direct3D 11].
+	// [DEPRECATED] Use 64-bit atomics provided by Intel vendor extension [Direct3D 11].
 	INTCAtomicsD3D11 = 6,
 
-	// Use 64-bit atomics provided by Intel vendor extension [Direct3D 12].
+	// [DEPRECATED] Use 64-bit atomics provided by Intel vendor extension [Direct3D 12].
 	INTCAtomicsD3D12 = 7,
 
 	// Add before this.

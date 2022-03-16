@@ -683,50 +683,77 @@ RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel
 
 RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCheckForProjectSetting = true);
 
+inline bool NaniteAtomicsSupported()
+{
+	// Are 64bit image atomics supported by the GPU/Driver/OS/API?
+	bool bAtomicsSupported = GRHISupportsAtomicUInt64;
+
+#if PLATFORM_WINDOWS
+	const ERHIInterfaceType RHIInterface = RHIGetInterfaceType();
+	const bool bIsDx11 = RHIInterface == ERHIInterfaceType::D3D11;
+	const bool bIsDx12 = RHIInterface == ERHIInterfaceType::D3D12;
+
+	static const auto NaniteRequireDX12CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.RequireDX12"));
+	static const uint32 NaniteRequireDX12 = (NaniteRequireDX12CVar != nullptr) ? NaniteRequireDX12CVar->GetInt() : 1;
+	
+	if (bAtomicsSupported && NaniteRequireDX12 != 0)
+	{
+		// Only allow Vulkan or D3D12
+		bAtomicsSupported = !bIsDx11;
+
+		// Disable DX12 vendor extensions unless DX12 SM6.6 is supported
+		if (NaniteRequireDX12 == 1 && bIsDx12 && !GRHISupportsDX12AtomicUInt64)
+		{
+			// Vendor extensions currently support atomic64, but SM 6.6 and the DX12 Agility SDK are reporting that atomics are not supported.
+			// Likely due to a pre-1909 Windows 10 version, or outdated drivers without SM 6.6 support.
+			// See: https://devblogs.microsoft.com/directx/gettingstarted-dx12agility/
+			bAtomicsSupported = false;
+		}
+	}
+#endif
+
+	return bAtomicsSupported;
+}
+
+inline bool DoesRuntimeSupportNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport, bool bCheckForProjectSetting)
+{
+	// Does the platform support Nanite?
+	const bool bSupportedPlatform = DoesPlatformSupportNanite(ShaderPlatform, bCheckForProjectSetting);
+
+	// Nanite is not supported with forward shading at this time.
+	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
+
+	return bSupportedPlatform && (!bCheckForAtomicSupport || NaniteAtomicsSupported()) && !bForwardShadingEnabled;
+}
 
 /**
  * Returns true if Nanite rendering should be used for the given shader platform.
  */
 inline bool UseNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport = true, bool bCheckForProjectSetting = true)
 {
-	// Does the platform support Nanite?
-	const bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform, bCheckForProjectSetting);
-
-	// Is Nanite currently enabled?
 	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
 	const bool bNaniteEnabled   = (EnableNaniteCVar != nullptr) ? (EnableNaniteCVar->GetInt() != 0) : true;
-
-	// Are 64bit image atomics supported by the GPU/Driver/OS/API?
-	static const auto NaniteAtomic64CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.RequireAtomic64Support"));
-	const bool bRequireAtomics = (NaniteAtomic64CVar != nullptr) ? (NaniteAtomic64CVar->GetInt() != 0) : false;
-	const bool bAtomicsSupported = GRHISupportsAtomicUInt64 || !bRequireAtomics;
-	
-	// Nanite is not supported with forward shading at this time.
-	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
-
-	return bNaniteSupported && bNaniteEnabled && (!bCheckForAtomicSupport || bAtomicsSupported) && !bForwardShadingEnabled;
+	return bNaniteEnabled && DoesRuntimeSupportNanite(ShaderPlatform, bCheckForAtomicSupport, bCheckForProjectSetting);
 }
 
+/**
+ * Returns true if Virtual Shadow Maps should be used for the given shader platform.
+ * Note: Virtual Shadow Maps require Nanite support.
+ */
 inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
 {
 	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Enable"));
 	const bool bVirtualShadowMapsEnabled = EnableVirtualSMCVar ? (EnableVirtualSMCVar->GetInt() != 0) : false;
-
-	const bool bUseGPUScene = UseGPUScene(ShaderPlatform, FeatureLevel);
-	const bool bPlatformSupportsNanite = DoesPlatformSupportNanite(ShaderPlatform);
-	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
-
-	return bVirtualShadowMapsEnabled && bPlatformSupportsNanite && bUseGPUScene && !bForwardShadingEnabled;
+	return bVirtualShadowMapsEnabled && DoesRuntimeSupportNanite(ShaderPlatform, true /* check for atomics */, true /* check project setting */);
 }
 
 /**
-* Returns true if non-nanite virtual shadow maps are enbled by CVar r.Shadow.Virtual.NonNaniteVSM 
+* Returns true if non-Nanite virtual shadow maps are enabled by CVar r.Shadow.Virtual.NonNaniteVSM 
 * and UseVirtualShadowMaps is true for the given platform and feature level.
 */
 inline bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
 {
 	static const auto EnableCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.NonNaniteVSM"));
-
 	return EnableCVar->GetInt() != 0 && UseVirtualShadowMaps(ShaderPlatform, FeatureLevel);
 }
 

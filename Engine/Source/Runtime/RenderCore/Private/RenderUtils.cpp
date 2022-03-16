@@ -1699,6 +1699,7 @@ RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCh
 	const bool bFullCheck = bValidPlatform && bSupportGPUScene && bSupportNanite;
 	return bFullCheck;
 }
+
 /** Returns whether DBuffer decals are enabled for a given shader platform */
 RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
 {

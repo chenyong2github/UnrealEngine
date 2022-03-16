@@ -42,13 +42,6 @@ static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
 	TEXT("")
 );
 
-int32 GNaniteAtomicRasterization = 1;
-FAutoConsoleVariableRef CVarNaniteEnableAtomicRasterization(
-	TEXT("r.Nanite.AtomicRasterization"),
-	GNaniteAtomicRasterization,
-	TEXT("")
-);
-
 int32 GNaniteComputeRasterization = 1;
 static FAutoConsoleVariableRef CVarNaniteComputeRasterization(
 	TEXT("r.Nanite.ComputeRasterization"),
@@ -64,18 +57,18 @@ static TAutoConsoleVariable<int32> CVarNaniteFilterPrimitives(
 );
 
 #if PLATFORM_WINDOWS
-// TODO: Off by default on Windows due to lack of atomic64 vendor extension interop.
+// TODO: Currently disabled on Windows due to lack of atomic64 vendor extension interop.
+// This will be resolved with upcoming DX12 shader model 6.6 atomic support
 int32 GNaniteMeshShaderRasterization = 0;
 #else
 int32 GNaniteMeshShaderRasterization = 1;
-#endif
 FAutoConsoleVariableRef CVarNaniteMeshShaderRasterization(
 	TEXT("r.Nanite.MeshShaderRasterization"),
 	GNaniteMeshShaderRasterization,
 	TEXT("")
 );
+#endif
 
-// TODO: Temporary workaround for broken raster on some platforms
 // Support disabling mesh shader raster for VSMs
 int32 GNaniteVSMMeshShaderRasterization = 0;
 FAutoConsoleVariableRef CVarNaniteVSMMeshShaderRasterization(
@@ -155,19 +148,16 @@ static FAutoConsoleVariableRef CVarNaniteProgrammableRaster(
 	TEXT("")
 );
 
-// Specifies if Nanite should require atomic64 support, or fallback to traditional mesh rendering using the proxies.
-// 0: Nanite will run without atomic support, but use the lockbuffer fallback, with known race conditions and corruption. (unshippable, but useful for debugging and platform bring-up).
-// 1: Nanite will not run without atomic support, instead causing legacy scene proxies to be created instead.
-int32 GNaniteRequireAtomic64Support = 1;
-FAutoConsoleVariableRef CVarNaniteRequireAtomic64Support(
-	TEXT("r.Nanite.RequireAtomic64Support"),
-	GNaniteRequireAtomic64Support,
+// Nanite DX11 support is deprecated, and will be deleted in UE 5.1
+// Only DX12 with SM 6.6 atomic64 support will be supported going forward.
+int32 GNaniteRequireDX12 = 1;
+static FAutoConsoleVariableRef CVarNaniteRequireDX12(
+	TEXT("r.Nanite.RequireDX12"),
+	GNaniteRequireDX12,
 	TEXT(""),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		FGlobalComponentRecreateRenderStateContext Context;
-	})
+	ECVF_ReadOnly
 );
+
 
 int32 GNaniteBoxCullingHZB = 1;
 static FAutoConsoleVariableRef CVarNaniteBoxCullingHZB(
@@ -286,6 +276,15 @@ public:
 			 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
 		{
 			// Only supporting vendor extensions on PC D3D SM5+
+			return false;
+		}
+
+		if (GNaniteRequireDX12 != 0 &&
+			(RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
+			 RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11)))
+		{
+			// DX11 support is disabled, don't build vendor extension shaders for it.
+			// NOTE: NVAtomics are the same DXBC for DX11 and DX12 - we aren't forcing DXC yet, so keep those permutations
 			return false;
 		}
 
@@ -2552,11 +2551,6 @@ FRasterContext InitRasterContext(
 	{
 		RasterContext.RasterTechnique = ERasterTechnique::DepthOnly;
 	}
-	else if (!GRHISupportsAtomicUInt64 || GNaniteAtomicRasterization == 0)
-	{
-		// No 64-bit atomic support, or it is disabled.
-		RasterContext.RasterTechnique = ERasterTechnique::LockBufferFallback;
-	}
 	else
 	{
 		// Determine what is providing support for atomics.
@@ -2566,12 +2560,6 @@ FRasterContext InitRasterContext(
 		if (!FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(GShaderPlatformForFeatureLevel[SharedContext.FeatureLevel]))
 		{
 			RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
-		}
-		else if (UseMeshShader(SharedContext.Pipeline) && GNaniteAtomicRasterization != 0)
-		{
-			// TODO: Currently, atomic64 vendor extensions and mesh shaders don't interop.
-			// Mesh shaders require PSO stream support, and vendor extensions require legacy PSO create.
-			RasterContext.RasterTechnique = ERasterTechnique::LockBufferFallback;
 		}
 		else if (IsRHIDeviceNVIDIA())
 		{

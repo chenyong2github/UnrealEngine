@@ -1352,6 +1352,7 @@ bool GRHISupportsQuadTopology = false;
 bool GRHISupportsRectTopology = false;
 bool GRHISupportsPrimitiveShaders = false;
 bool GRHISupportsAtomicUInt64 = false;
+bool GRHISupportsDX12AtomicUInt64 = false;
 bool GRHISupportsPipelineStateSortKey = false;
 bool GRHISupportsResummarizeHTile = false;
 bool GRHISupportsExplicitHTile = false;

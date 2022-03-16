@@ -377,6 +377,9 @@ extern RHI_API bool GRHISupportsPrimitiveShaders;
 /** true if the RHI supports 64 bit uint atomics. */
 extern RHI_API bool GRHISupportsAtomicUInt64;
 
+/** true if the RHI supports 64 bit uint atomics using DX12 SM6.6 - TEMP / DEPRECATED - DO NOT USE */
+extern RHI_API bool GRHISupportsDX12AtomicUInt64;
+
 /** true if the RHI supports optimal low level pipeline state sort keys. */
 extern RHI_API bool GRHISupportsPipelineStateSortKey;
 
