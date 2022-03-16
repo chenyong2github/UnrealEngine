@@ -289,6 +289,28 @@ namespace CrossCompiler
 				InsertToken(TEXT("uint3x4"), EHlslToken::Uint3x4);
 				InsertToken(TEXT("uint4x4"), EHlslToken::Uint4x4);
 
+				InsertToken(TEXT("uint64_t"), EHlslToken::Uint64_t);
+				InsertToken(TEXT("uint64_t1"), EHlslToken::Uint64_t1);
+				InsertToken(TEXT("uint64_t2"), EHlslToken::Uint64_t2);
+				InsertToken(TEXT("uint64_t3"), EHlslToken::Uint64_t3);
+				InsertToken(TEXT("uint64_t4"), EHlslToken::Uint64_t4);
+				InsertToken(TEXT("uint64_t1x1"), EHlslToken::Uint64_t1x1);
+				InsertToken(TEXT("uint64_t2x1"), EHlslToken::Uint64_t2x1);
+				InsertToken(TEXT("uint64_t3x1"), EHlslToken::Uint64_t3x1);
+				InsertToken(TEXT("uint64_t4x1"), EHlslToken::Uint64_t4x1);
+				InsertToken(TEXT("uint64_t1x2"), EHlslToken::Uint64_t1x2);
+				InsertToken(TEXT("uint64_t2x2"), EHlslToken::Uint64_t2x2);
+				InsertToken(TEXT("uint64_t3x2"), EHlslToken::Uint64_t3x2);
+				InsertToken(TEXT("uint64_t4x2"), EHlslToken::Uint64_t4x2);
+				InsertToken(TEXT("uint64_t1x3"), EHlslToken::Uint64_t1x3);
+				InsertToken(TEXT("uint64_t2x3"), EHlslToken::Uint64_t2x3);
+				InsertToken(TEXT("uint64_t3x3"), EHlslToken::Uint64_t3x3);
+				InsertToken(TEXT("uint64_t4x3"), EHlslToken::Uint64_t4x3);
+				InsertToken(TEXT("uint64_t1x4"), EHlslToken::Uint64_t1x4);
+				InsertToken(TEXT("uint64_t2x4"), EHlslToken::Uint64_t2x4);
+				InsertToken(TEXT("uint64_t3x4"), EHlslToken::Uint64_t3x4);
+				InsertToken(TEXT("uint64_t4x4"), EHlslToken::Uint64_t4x4);
+
 				InsertToken(TEXT("half"), EHlslToken::Half);
 				InsertToken(TEXT("half1"), EHlslToken::Half1);
 				InsertToken(TEXT("half2"), EHlslToken::Half2);

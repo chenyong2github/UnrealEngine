@@ -269,6 +269,28 @@ namespace CrossCompiler
 		case EHlslToken::Uint4x3:
 		case EHlslToken::Uint4x4:
 
+		case EHlslToken::Uint64_t:
+		case EHlslToken::Uint64_t1:
+		case EHlslToken::Uint64_t2:
+		case EHlslToken::Uint64_t3:
+		case EHlslToken::Uint64_t4:
+		case EHlslToken::Uint64_t1x1:
+		case EHlslToken::Uint64_t1x2:
+		case EHlslToken::Uint64_t1x3:
+		case EHlslToken::Uint64_t1x4:
+		case EHlslToken::Uint64_t2x1:
+		case EHlslToken::Uint64_t2x2:
+		case EHlslToken::Uint64_t2x3:
+		case EHlslToken::Uint64_t2x4:
+		case EHlslToken::Uint64_t3x1:
+		case EHlslToken::Uint64_t3x2:
+		case EHlslToken::Uint64_t3x3:
+		case EHlslToken::Uint64_t3x4:
+		case EHlslToken::Uint64_t4x1:
+		case EHlslToken::Uint64_t4x2:
+		case EHlslToken::Uint64_t4x3:
+		case EHlslToken::Uint64_t4x4:
+
 		case EHlslToken::Half:
 		case EHlslToken::Half1:
 		case EHlslToken::Half2:

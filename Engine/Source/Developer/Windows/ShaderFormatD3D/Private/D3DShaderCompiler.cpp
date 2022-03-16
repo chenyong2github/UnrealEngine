@@ -1020,10 +1020,12 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 						else
 						{
 							UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("Failed to remove unused inputs from shader: %s"), *Input.GenerateShaderName());
-							for (int32 Index = 0; Index < RemoveErrors.Num(); ++Index)
+							for (const FString& ErrorMessage : RemoveErrors)
 							{
+								// Add error to shader output but also make sure the error shows up on build farm by emitting a log entry
+								UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("%s"), *ErrorMessage);
 								FShaderCompilerError NewError;
-								NewError.StrippedErrorMessage = RemoveErrors[Index];
+								NewError.StrippedErrorMessage = ErrorMessage;
 								Output.Errors.Add(NewError);
 							}
 							Output.bFailedRemovingUnused = true;
@@ -1240,12 +1242,13 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		TArray<FString> Errors;
 		if (!RemoveUnusedOutputs(PreprocessedShaderSource, UsedOutputs, Exceptions, EntryPointName, Errors))
 		{
-			DumpDebugShaderUSF(PreprocessedShaderSource, Input);
 			UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("Failed to remove unused outputs from shader: %s"), *Input.GenerateShaderName());
-			for (int32 Index = 0; Index < Errors.Num(); ++Index)
+			for (const FString& ErrorReport : Errors)
 			{
+				// Add error to shader output but also make sure the error shows up on build farm by emitting a log entry
+				UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("%s"), *ErrorReport);
 				FShaderCompilerError NewError;
-				NewError.StrippedErrorMessage = Errors[Index];
+				NewError.StrippedErrorMessage = ErrorReport;
 				Output.Errors.Add(NewError);
 			}
 			Output.bFailedRemovingUnused = true;
