@@ -53,6 +53,7 @@ float RelativeDepthThickness;
 float HistoryDepthTestRelativeThickness;
 float NumThicknessStepsToDetermineCertainty;
 uint MinimumTracingThreadOccupancy;
+uint SkipFoliageHits;
 
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
 void ScreenProbeTraceScreenTexturesCS(
@@ -280,6 +281,16 @@ void ScreenProbeTraceScreenTexturesCS(
 						float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalPointClampedSampler, HitHistoryScreenUVForDepth, 0).x);
 
 						bHit = abs(HistoryDepth - PrevSceneDepth) < HistoryDepthTestRelativeThickness * lerp(.5f, 2.0f, Noise) * PrevSceneDepth;
+					}
+
+					if (bHit && SkipFoliageHits > 0)
+					{
+						int ShadingModel = GetGBufferDataFromSceneTextures(HitScreenUV).ShadingModelID;
+						
+						if (ShadingModel == SHADINGMODELID_SUBSURFACE || ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+						{
+							bHit = false;
+						}
 					}
 
 					if (bHit)
