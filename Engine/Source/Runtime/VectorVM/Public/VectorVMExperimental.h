@@ -374,7 +374,7 @@ struct FVectorVMBatchState
 	int                       NumInstances;
 
 	VectorRegister4i          RandState[5]; //xorwor state for random/randomi instructions.  DIs use RandomStream.
-	VectorRegister4i          RandCounters;
+	VectorRegister2Int64      RandCounters;
 
 	FRandomStream             RandStream;
 	int                       UseCount;

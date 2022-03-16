@@ -1000,7 +1000,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 					{
 						VectorRegister4i RandReg = VVMXorwowStep(BatchState);
 						VectorRegister4i IntPart = VectorIntOr(VectorShiftRightImmLogical(RandReg, 9), VectorIntSet1(0x3F800000));
-						VectorRegister4f FltPart = VectorCastIntToFloat(IntPart);
+						VectorRegister4f FltPart = VectorRegister4f(VectorCastIntToFloat(IntPart));
 						VecReg[1][i].v = VectorMultiply(VectorSubtract(FltPart, VectorSet1(1.f)), VecReg[0][i & RegInc[0]].v);
 					}
 #					if defined(VVM_INCLUDE_SERIALIZATION) && !defined(VVM_SERIALIZE_NO_WRITE)

@@ -76,6 +76,9 @@ typedef __m128	VectorRegister4Float;
 // 4 int32s
 typedef __m128i VectorRegister4Int;
 
+// 2 int64s
+typedef __m128i VectorRegister2Int64;
+
 // 2 doubles
 typedef __m128d	VectorRegister2Double;
 
@@ -380,7 +383,7 @@ FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, 
 	return _mm_setr_epi32(X, Y, Z, W);
 }
 
-FORCEINLINE VectorRegister4Int MakeVectorRegisterInt64(int64 X, int64 Y) {
+FORCEINLINE VectorRegister2Int64 MakeVectorRegisterInt64(int64 X, int64 Y) {
 	return _mm_set_epi64x(Y, X);
 }
 
