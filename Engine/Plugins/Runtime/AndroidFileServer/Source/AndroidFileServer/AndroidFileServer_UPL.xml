@@ -127,9 +127,26 @@
 					<true>
 						<copyFile src="$S(PluginDir)/Android/java/com/epicgames/unreal/RemoteFileManagerReceiver.java" dst="$S(BuildDir)/src/com/epicgames/unreal/RemoteFileManagerReceiver.java" />
 					</true>
+					<false>
+						<isArch arch="arm64-v8a">
+							<deleteFiles filespec="arm64/src/com/epicgames/unreal/RemoteFileManagerReceiver.java" />
+						</isArch>
+						<isArch arch="x86_64">
+							<deleteFiles filespec="x64/src/com/epicgames/unreal/RemoteFileManagerReceiver.java" />
+						</isArch>
+					</false>
 				</if>
-<!--				<copyDir src="$S(PluginDir)/Android/libs" dst="$S(BuildDir)/libs" /> -->
 			</true>
+			<false>
+				<isArch arch="arm64-v8a">
+					<deleteFiles filespec="arm64/src/com/epicgames/unreal/RemoteFileManager.java" />
+					<deleteFiles filespec="arm64/src/com/epicgames/unreal/RemoteFileManagerReceiver.java" />
+				</isArch>
+				<isArch arch="x86_64">
+					<deleteFiles filespec="x64/src/com/epicgames/unreal/RemoteFileManager.java" />
+					<deleteFiles filespec="x64/src/com/epicgames/unreal/RemoteFileManagerReceiver.java" />
+				</isArch>
+			</false>
 		</if>
 	</resourceCopies>
 
