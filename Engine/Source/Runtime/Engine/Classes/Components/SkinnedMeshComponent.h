@@ -280,7 +280,7 @@ protected:
 
 protected:
 	/** The bounds radius at the point we last notified the streamer of a bounds radius change */
-	double LastStreamerUpdateBoundsRadius;
+	float LastStreamerUpdateBoundsRadius;
 
 	/** The index for the ComponentSpaceTransforms buffer we can currently write to */
 	int32 CurrentEditableComponentTransforms;
