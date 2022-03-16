@@ -508,7 +508,11 @@ namespace Chaos
 				Handle->SetR(Handle->Q());
 				
 				Handle->UpdateWorldSpaceState(WorldTransform, FVec3(0));
-				Solver->GetEvolution()->DirtyParticle(*Handle);
+
+				if(!Handle->Disabled())
+				{
+					Solver->GetEvolution()->DirtyParticle(*Handle);
+				}
 
 				if(FRigidParticle* ClusterParent = Handle->ClusterIds().Id)
 				{
@@ -530,8 +534,12 @@ namespace Chaos
 							Parent->SetQ(Result.GetRotation());
 							Parent->SetR(Result.GetRotation());
 
-							Parent->UpdateWorldSpaceState(WorldTransform, FVec3(0));
-							Solver->GetEvolution()->DirtyParticle(*Parent);
+							Parent->UpdateWorldSpaceState(Result, FVec3(0));
+
+							if(!Parent->Disabled())
+							{
+								Solver->GetEvolution()->DirtyParticle(*Parent);
+							}
 						}
 					}
 				}
