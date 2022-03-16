@@ -329,10 +329,17 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 
 void UNiagaraDataInterfaceCurveBase::CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const struct FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo, bool bUsedByCPU, bool bUsedByGPU)
 {
+	const uint32 PrevLUTOffset = LUTOffset;
+
 	LUTOffset = INDEX_NONE;
 	if (bUsedByGPU && DataInterfaceInfo.IsUserDataInterface() == false)
 	{
 		LUTOffset = StaticBuffers.AddGpuData(ShaderLUT);
+	}
+
+	if (PrevLUTOffset != LUTOffset)
+	{
+		MarkRenderDataDirty();
 	}
 }
 
