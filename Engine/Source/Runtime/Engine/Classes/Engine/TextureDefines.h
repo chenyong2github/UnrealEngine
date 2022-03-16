@@ -295,10 +295,10 @@ enum ETextureSourceFormat
 
 	TSF_MAX,
 
-	// error in UHT, enable when fixed
 	// provide aliases to the old names with deprecation warnings
-	//TSF_RGBA8 UE_DEPRECATED(5.1,"Legacy ETextureSourceFormat not supported, use BGRA8") = TSF_RGBA8_DEPRECATED,
-	//TSF_RGBE8 UE_DEPRECATED(5.1,"Legacy ETextureSourceFormat not supported, use BGRE8") = TSF_RGBE8_DEPRECATED
+	//  remove these someday
+	TSF_RGBA8 UE_DEPRECATED(5.1,"Legacy ETextureSourceFormat not supported, use BGRA8") = TSF_RGBA8_DEPRECATED,
+	TSF_RGBE8 UE_DEPRECATED(5.1,"Legacy ETextureSourceFormat not supported, use BGRE8") = TSF_RGBE8_DEPRECATED
 };
 
 // This needs to be mirrored in EditorFactories.cpp.

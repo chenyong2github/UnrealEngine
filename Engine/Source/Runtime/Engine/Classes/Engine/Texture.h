@@ -79,18 +79,6 @@ enum ETextureMipCount
 	TMC_MAX,
 };
 
-UENUM()
-enum ETextureSourceArtType
-{
-	/** FColor Data[SrcWidth * SrcHeight]. */
-	TSAT_Uncompressed,
-	/** PNG compresed version of FColor Data[SrcWidth * SrcHeight]. */
-	TSAT_PNGCompressed,
-	/** DDS file with header. */
-	TSAT_DDSFile,
-	TSAT_MAX,
-};
-
 // TextureCompressionQuality is used for ASTC
 UENUM()
 enum ETextureCompressionQuality
@@ -341,7 +329,10 @@ struct FTextureSource
 	FString GetSourceCompressionAsString() const;
 
 	/** Returns the compression format of the source data in enum format. */
-	ETextureSourceCompressionFormat GetSourceCompression() const;
+	FORCEINLINE ETextureSourceCompressionFormat GetSourceCompression() const { return CompressionFormat; }
+	
+	/** Get GammaSpace for this Format */
+	ENGINE_API EGammaSpace GetGammaSpace() const;
 
 	/** Support for copy/paste */
 	void ExportCustomProperties(FOutputDevice& Out, uint32 Indent);
@@ -357,7 +348,7 @@ struct FTextureSource
 	FORCEINLINE int32 GetNumLayers() const { return NumLayers; }
 	FORCEINLINE int32 GetNumBlocks() const { return Blocks.Num() + 1; }
 	FORCEINLINE ETextureSourceFormat GetFormat(int32 LayerIndex = 0) const { return (LayerIndex == 0) ? Format : LayerFormat[LayerIndex]; }
-	FORCEINLINE bool IsPNGCompressed() const { return bPNGCompressed; }
+	FORCEINLINE bool IsPNGCompressed() const { return GetSourceCompression() == ETextureSourceCompressionFormat::TSCF_PNG; }
 	FORCEINLINE bool IsLongLatCubemap() const { return bLongLatCubemap; }
 	FORCEINLINE int64 GetSizeOnDisk() const { return BulkData.GetPayloadSize(); }
 	inline bool HasPayloadData() const { return BulkData.HasPayloadData(); }
@@ -632,9 +623,10 @@ private:
 	int32 NumLayers;
 
 	/** RGBA8 source data is optionally compressed as PNG. 
-	Deprecated, use CompressionFormat instead.  To be removed. */
-	UPROPERTY(VisibleAnywhere, Category=TextureSource)
-	bool bPNGCompressed;
+	Deprecated, use CompressionFormat instead.  To be removed.
+	Deprecated uproperties are loaded but not saved. */
+	UPROPERTY()
+	bool bPNGCompressed_DEPRECATED;
 
 	/**
 	 * Source represents a cubemap in long/lat format, will have only 1 slice per cube, rather than 6 slices.
