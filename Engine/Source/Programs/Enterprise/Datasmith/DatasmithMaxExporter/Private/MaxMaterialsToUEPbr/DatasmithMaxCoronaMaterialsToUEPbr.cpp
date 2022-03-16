@@ -1429,6 +1429,28 @@ void FDatasmithMaxCoronaPhysicalMaterialToUEPbr::Convert(TSharedRef<IDatasmithSc
 	}
 	Connect(PbrMaterialElement->GetBaseColor(), BaseColorExpression);
 
+
+	// Clear Coat
+	if (MaterialProperties.ClearcoatAmount > 0 || MaterialProperties.ClearcoatAmountTexmap.IsMapPresentAndEnabled())
+	{
+		IDatasmithMaterialExpression* ClearCoatExpression = TextureOrScalar(TEXT("Clear Coat Amount"), MaterialProperties.ClearcoatAmountTexmap, MaterialProperties.ClearcoatAmount);
+
+		if (ClearCoatExpression)
+		{
+			if (MaterialProperties.ClearcoatIorTexmap.IsMapPresentAndEnabled())
+			{
+				IDatasmithMaterialExpression* ClearCoatIorExpression = TextureOrScalar(TEXT("Clear Coat Ior"), MaterialProperties.ClearcoatIorTexmap, MaterialProperties.ClearcoatIor);
+				Connect(PbrMaterialElement->GetClearCoat(), CalcIORComplex(*ClearCoatIorExpression, Scalar(0), *ClearCoatExpression, Multiply(*ClearCoatExpression, Scalar(0.1))));
+			}
+			else
+			{
+				Connect(PbrMaterialElement->GetClearCoat(), CalcIORComplex(MaterialProperties.ClearcoatIor, 0, *ClearCoatExpression, Multiply(*ClearCoatExpression, Scalar(0.1))));
+			}
+		}
+		Connect(PbrMaterialElement->GetClearCoatRoughness(), TextureOrScalar(TEXT("Clear Coat Roughness"), MaterialProperties.ClearcoatRoughnessTexmap, MaterialProperties.ClearcoatRoughness));
+		PbrMaterialElement->SetShadingModel(EDatasmithShadingModel::ClearCoat);
+	}
+
 	if (MaterialProperties.BaseBumpTexmap.IsMapPresentAndEnabled())
 	{
 		ConvertState.DefaultTextureMode = EDatasmithTextureMode::Bump; // Will change to normal if we pass through a normal map texmap

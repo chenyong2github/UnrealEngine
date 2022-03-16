@@ -201,28 +201,18 @@ IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbrExpressions::ApplyWei
 	return COMPOSE_OR_DEFAULT2(ValueExpression, Multiply, ValueExpression, WeightExpression);
 }
 
-IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::CalcIORComplex(double IORn, double IORk,
-	IDatasmithMaterialExpression& ToBeConnected90, IDatasmithMaterialExpression& ToBeConnected0)
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::CalcIORComplex(IDatasmithMaterialExpression& IORn, IDatasmithMaterialExpression& IORk, IDatasmithMaterialExpression& ToBeConnected90, IDatasmithMaterialExpression& ToBeConnected0)
 {
-	if (IORn >= 16)
-	{
-		return ToBeConnected90;
-	}
-
-	IORn = FMath::Max(IORn, 1.0f);
-
 	IDatasmithMaterialExpression& FresnelOrig = Fresnel(&Scalar(1.0), &Scalar(0.0));
 	IDatasmithMaterialExpression& Fresnel = OneMinus(FresnelOrig);
 	IDatasmithMaterialExpression& Fresnel2 = Multiply(Fresnel, Fresnel);
 
-	IDatasmithMaterialExpression& ConstantIORn = Scalar(IORn);
-	// ConstantIORn->Desc = TEXT("IOR Value");
-	IDatasmithMaterialExpression& ConstantIORn2 = Multiply(ConstantIORn, ConstantIORn);
+	// IORn->Desc = TEXT("IOR Value");
+	IDatasmithMaterialExpression& ConstantIORn2 = Multiply(IORn, IORn);
 
-	IDatasmithMaterialExpression& ConstantIORk = Scalar(IORk);
-	IDatasmithMaterialExpression& AddN2K2 = (IORk == 0) ? ConstantIORn2 : Add(ConstantIORn2, Multiply(ConstantIORk, ConstantIORk));
+	IDatasmithMaterialExpression& AddN2K2 = Add(ConstantIORn2, Multiply(IORk, IORk));
 
-	IDatasmithMaterialExpression& Mul2NCPre = Multiply(ConstantIORn, Scalar(2.0));
+	IDatasmithMaterialExpression& Mul2NCPre = Multiply(IORn, Scalar(2.0));
 	IDatasmithMaterialExpression& Mul2NC = Multiply(Mul2NCPre, Fresnel);
 
 	IDatasmithMaterialExpression& RsNumPre = Subtract(AddN2K2, Mul2NC);
@@ -242,6 +232,21 @@ IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::CalcIORC
 	IDatasmithMaterialExpression& Res = Multiply(Add(Rp, Rs), Scalar(0.5));
 
 	return Lerp(ToBeConnected0, ToBeConnected90, Power(Res, Scalar(0.5)));
+}
+
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::CalcIORComplex(double IORn, double IORk,
+                                                                                       IDatasmithMaterialExpression& ToBeConnected90, IDatasmithMaterialExpression& ToBeConnected0)
+{
+	if (IORn >= 16)
+	{
+		return ToBeConnected90;
+	}
+
+	IORn = FMath::Max(IORn, 1.0f);
+	IDatasmithMaterialExpression& ConstantIORn = Scalar(IORn);
+	IDatasmithMaterialExpression& ConstantIORk = Scalar(IORk);
+
+	return CalcIORComplex(ConstantIORn, ConstantIORk, ToBeConnected90, ToBeConnected0);
 }
 
 void FDatasmithMaxMaterialsToUEPbrExpressions::Connect(IDatasmithExpressionInput& Input, IDatasmithMaterialExpression& ValueExpression)
