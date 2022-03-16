@@ -150,7 +150,7 @@ private:
 	void ProcessRebuiltWidgets();
 	void AssembleTreeRecursive(const FActivatableTreeNodeRef& CurNode, TMap<UCommonActivatableWidget*, TArray<UCommonActivatableWidget*>>& WidgetsByDirectParent);
 
-	void HandleRootWidgetSlateReleased(UCommonActivatableWidget* ActivatableWidget);
+	void HandleRootWidgetSlateReleased(TWeakPtr<FActivatableTreeRoot> WeakRoot);
 	void HandleRootNodeActivated(TWeakPtr<FActivatableTreeRoot> WeakActivatedRoot);
 	void HandleRootNodeDeactivated(TWeakPtr<FActivatableTreeRoot> WeakDeactivatedRoot);
 	void HandleLeafmostActiveNodeChanged();
@@ -159,8 +159,6 @@ private:
 
 	void HandlePostGarbageCollect();
 
-	void AddToActionDomain(FActivatableTreeRootRef RootNode);
-	void RemoveFromActionDomain(FActivatableTreeRootRef RootNode);
 	bool ProcessInputOnActionDomains(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const;
 	EProcessHoldActionResult ProcessHoldInputOnActionDomains(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const;
 
@@ -209,7 +207,7 @@ private:
 	mutable TArray<FKey> HeldKeys;
 
 	/** A wrapper around TArray that keeps RootList sorted by PaintLayer during insertion */
-	struct FActionDomainSortedRootList 
+	struct FActionDomainSortedRootList
 	{
 		TArray<FActivatableTreeRootRef> RootList;
 
