@@ -2319,7 +2319,12 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 		case PPI_Metallic:
 			return ScreenSpaceData.GBuffer.Metallic;
 		case PPI_WorldNormal:
+#if IS_DBUFFER_DECAL
+			// DBuffer uses depth buffer gradients or reprojection of last frame normal.
+			return GetDBufferReprojectedWorldNormal(UV);
+#else
 			return float4(ScreenSpaceData.GBuffer.WorldNormal, 0);
+#endif
 		case PPI_SeparateTranslucency:
 			return float4(1, 1, 1, 1);	// todo
 		case PPI_Opacity:

@@ -65,7 +65,7 @@ float3 ReconstructNormalFromDepthBuffer(int2 BaseCoord)
 	return normalize(cross(Right, Down));
 }
 
-float4 GetDBufferReprojectedWorldNormal(float2 UV, float3 FallbackNormal)
+float4 GetDBufferReprojectedWorldNormal(float2 UV)
 {
 	int2 BaseCoord = (int2)trunc(UV * View.BufferSizeAndInvSize.xy);
 
@@ -115,12 +115,12 @@ float4 GetDBufferReprojectedWorldNormal(float2 UV, float3 FallbackNormal)
 	return float4(N,1.0f);
 }
 
-#else
+#else // IS_DBUFFER_DECAL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 
-// for mobile, just return the geometry normal of the surface on top as a fallback
-float4 GetDBufferReprojectedWorldNormal(float2 UV, float3 FallbackNormal)
+float4 GetDBufferReprojectedWorldNormal(float2 UV)
 {
-	return float4(FallbackNormal.xyz,1.0);
+	// Stub function. Shouldn't ever be called.
+	return float4(0, 0, 1, 1);
 }
 
-#endif
+#endif // IS_DBUFFER_DECAL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5

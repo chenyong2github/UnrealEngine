@@ -6603,71 +6603,10 @@ int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSce
 		// we can relax this later if needed
 		return NonPixelShaderExpressionError();
 	}
-		
-	// Special case for DBuffer normals.
-	// Note that full reprojection only happens with r.Decal.NormalReprojectionEnabled 1.
-	// Otherwise we use a depth buffer approximation.
-	bool bIsUsingReprojectedNormal = false;
-	if (Material->GetMaterialDomain() == MD_DeferredDecal)
-	{
-		if (SceneTextureId == PPI_WorldNormal)
-		{
-			const bool bUsingDBuffer = IsUsingDBuffers(Platform);
-			const bool bIsDBufferOutput = 
-				MaterialProperty == MP_BaseColor ||
-				MaterialProperty == MP_Normal || 
-				MaterialProperty == MP_Roughness || 
-				MaterialProperty == MP_Specular || 
-				MaterialProperty == MP_Metallic ||
-				MaterialProperty == MP_Opacity;
-
-			if (bUsingDBuffer && bIsDBufferOutput)
-			{
-				bIsUsingReprojectedNormal = true;
-			}
-		}
-	}
-
-	if (bIsUsingReprojectedNormal)
-	{
-		int32 BufferUV;
-		if (ViewportUV != INDEX_NONE)
-		{
-			BufferUV = AddCodeChunk(MCT_Float2,
-				TEXT("ClampSceneTextureUV(ViewportUVToSceneTextureUV(%s, %d), %d)"),
-				*CoerceParameter(ViewportUV, MCT_Float2), (int)SceneTextureId, (int)SceneTextureId);
-		}
-		else
-		{
-			BufferUV = AddInlinedCodeChunk(MCT_Float2, TEXT("GetDefaultSceneTextureUV(Parameters, %d)"), (int)SceneTextureId);
-		}
-
-		int32 PixelNormal = PixelNormalWS();
-		if (PixelNormal == INDEX_NONE)
-		{
-			return INDEX_NONE;
-		}
-
-		if (FeatureLevel >= ERHIFeatureLevel::SM5)
-		{
-			return AddCodeChunk(MCT_Float4,
-				TEXT("GetDBufferReprojectedWorldNormal(%s,%s)"),
-				*CoerceParameter(BufferUV, MCT_Float2),
-				*CoerceParameter(PixelNormalWS(),MCT_Float3));
-		}
-		else
-		{
-			// Return the original geometry normal as a fall back.
-			// Shouldn't get here since DBuffer isn't enabled on mobile rendering paths?
-			return AddCodeChunk(MCT_Float4,
-				TEXT("float4(%s,1.0f)"),
-				*CoerceParameter(PixelNormalWS(),MCT_Float3));
-		}
-	}
 
 	if (SceneTextureId == PPI_DecalMask)
 	{
-		return Error(TEXT("Decal Mask bit was move out of GBuffer to the stencil buffer for performance optimisation and is therefor no longer available"));
+		return Error(TEXT("Decal Mask bit was moved from GBuffer to the Stencil Buffer for performance optimisation so therefore no longer available."));
 	}
 
 	UseSceneTextureId(SceneTextureId, true);
