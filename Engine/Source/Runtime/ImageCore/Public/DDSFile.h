@@ -133,7 +133,7 @@
 	ODDFMT(V408,						132) \
 	/* end */
 
-namespace OodleDDS
+namespace OodleDDS // @@!!
 {
 	// Complete list of formats
 	enum class EDXGIFormat 
@@ -244,7 +244,7 @@ namespace OodleDDS
 		// The latter is somewhat arbitrary. D3D9 DDS files don't store whether pixels for a texture are meant
 		// to be interpreted as sRGB or not. This reader treats the resulting formats as non-sRGB UNORM,
 		// so the writer does the same for symmetry.
-		EDDSError WriteDDS(TArray64<uint8>& OutDDS, EDDSFormatVersion InFormatVersion=EDDSFormatVersion::D3D10);
+		IMAGECORE_API EDDSError WriteDDS(TArray64<uint8>& OutDDS, EDDSFormatVersion InFormatVersion=EDDSFormatVersion::D3D10);
 
 		// 20 mips means 512k x 512k pixels max, should be sufficient for now.
 		// It's 512k not 1M because the final 1x1 pixel mip counts; i.e. a mip chain
@@ -264,26 +264,26 @@ namespace OodleDDS
 		//
 		// On error, returns nullptr. If a non-null OutError is supplied, error information
 		// is written there.
-		static FDDSFile* CreateEmpty(int32 InDimension, uint32 InWidth, uint32 InHeight, uint32 InDepth, uint32 InMipCount, uint32 InArraySize, EDXGIFormat InFormat, uint32 InCreateFlags, EDDSError *OutError=nullptr);
+		IMAGECORE_API static FDDSFile* CreateEmpty(int32 InDimension, uint32 InWidth, uint32 InHeight, uint32 InDepth, uint32 InMipCount, uint32 InArraySize, EDXGIFormat InFormat, uint32 InCreateFlags, EDDSError *OutError=nullptr);
 
 		// Convenience version of the above to create a basic 2D texture with mip chain
-		static FDDSFile* CreateEmpty2D(uint32 InWidth, uint32 InHeight, uint32 InMipCount, EDXGIFormat InFormat, uint32 InCreateFlags, EDDSError* OutError=nullptr);
+		IMAGECORE_API static FDDSFile* CreateEmpty2D(uint32 InWidth, uint32 InHeight, uint32 InMipCount, EDXGIFormat InFormat, uint32 InCreateFlags, EDDSError* OutError=nullptr);
 
 		// Sanity-check that all members make sense and return an error code.
-		EDDSError Validate() const;
+		IMAGECORE_API EDDSError Validate() const;
 
 		// Used for loading from a DDS file image in memory.
 		// 
 		// On error, returns nullptr. If a non-null OutError is supplied, error information
 		// is written there.
-		static FDDSFile* CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError* OutError=nullptr);
+		IMAGECORE_API static FDDSFile* CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError* OutError=nullptr);
 
 		// For 8-bit UNorm formats, both RGBA and BGRA channel order variants exist and
 		// are popular. This function does the trivial conversion between the two, updating
 		// both the DXGI Format and the pixel data to do so. When the channel order is already
 		// correct or the pixel format is not one of the few formats that exist in both RGBA
 		// and BGRA variants, this function does nothing.
-		void ConvertChannelOrder(EChannelOrder InTargetOrder);
+		IMAGECORE_API void ConvertChannelOrder(EChannelOrder InTargetOrder);
 
 		// Bit flags
 		static constexpr uint32 CREATE_FLAG_NONE = 0;
@@ -293,14 +293,14 @@ namespace OodleDDS
 	};
 
 	// Returns the name of a DXGI format
-	const TCHAR *DXGIFormatGetName(EDXGIFormat InFormat);
+	IMAGECORE_API const TCHAR *DXGIFormatGetName(EDXGIFormat InFormat);
 
 	// Returns whether a given pixel format is sRGB
-	bool DXGIFormatIsSRGB(EDXGIFormat InFormat);
+	IMAGECORE_API bool DXGIFormatIsSRGB(EDXGIFormat InFormat);
 
 	// Return the corresponding non-sRGB version of a pixel format if there is one
-	EDXGIFormat DXGIFormatRemoveSRGB(EDXGIFormat InFormat);
+	IMAGECORE_API EDXGIFormat DXGIFormatRemoveSRGB(EDXGIFormat InFormat);
 
 	// Return the corresponding sRGB version of a pixel format if there is one
-	EDXGIFormat DXGIFormatAddSRGB(EDXGIFormat InFormat);
+	IMAGECORE_API EDXGIFormat DXGIFormatAddSRGB(EDXGIFormat InFormat);
 }
