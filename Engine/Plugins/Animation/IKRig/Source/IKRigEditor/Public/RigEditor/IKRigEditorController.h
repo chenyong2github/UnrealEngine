@@ -54,13 +54,12 @@ public:
 	UPROPERTY()
 	TWeakObjectPtr<UIKRigDefinition> AssetPtr;
 
+#if WITH_EDITOR
+
 	TOptional<FTransform> GetTransform(EIKRigTransformType::Type TransformType) const;
 	bool IsComponentRelative(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType) const;
 	void OnComponentRelativeChanged(ESlateTransformComponent::Type Component, bool bIsRelative, EIKRigTransformType::Type TransformType);
-
-#if WITH_EDITOR
-
-	void OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType);
+	void OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType) const;
 	void OnPasteFromClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType);
 
 #endif
@@ -87,9 +86,9 @@ public:
 	/** clear all selected objects */
 	void ClearSelection();
 	/** callback when goal is selected in the viewport */
-	void HandleGoalSelectedInViewport(const FName& GoalName, bool bReplace);
+	void HandleGoalSelectedInViewport(const FName& GoalName, bool bReplace) const;
 	/** callback when bone is selected in the viewport */
-	void HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace);
+	void HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace) const;
 	/** reset all goals to initial transforms */
 	void Reset() const;
 	/** refresh all views */
@@ -123,20 +122,20 @@ public:
 	/** determine if the element is an excluded bone*/
 	bool IsElementExcludedBone(TSharedRef<FIKRigTreeElement> TreeElement);
 	
-	/** show transform of bone in details view */
-	void ShowDetailsForBone(const FName BoneName);
-	/** show BONE settings in details view */
-	void ShowDetailsForBoneSettings(const FName BoneName, int32 SolverIndex);
-	/** show GOAL settings in details view */
-	void ShowDetailsForGoal(const FName GoalName);
-	/** show EFFECTOR settings in details view */
-	void ShowDetailsForGoalSettings(const FName GoalName, const int32 SolverIndex);
-	/** show SOLVER settings in details view */
-	void ShowDetailsForSolver(const int32 SolverIndex);
+	/** show single transform of bone in details view */
+	void ShowDetailsForBone(const FName BoneName) const;
+	/** show single BONE settings in details view */
+	void ShowDetailsForBoneSettings(const FName& BoneName, int32 SolverIndex) const;
+	/** show single GOAL settings in details view */
+	void ShowDetailsForGoal(const FName& GoalName) const;
+	/** show single EFFECTOR settings in details view */
+	void ShowDetailsForGoalSettings(const FName GoalName, const int32 SolverIndex) const;
+	/** show single SOLVER settings in details view */
+	void ShowDetailsForSolver(const int32 SolverIndex) const;
 	/** show nothing in details view */
-	void ShowEmptyDetails();
+	void ShowEmptyDetails() const;
 	/** show selected items in details view */
-	void ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems);
+	void ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems) const;
 	
 	/** set details tab view */
 	void SetDetailsView(const TSharedPtr<class IDetailsView>& InDetailsView){ DetailsView = InDetailsView; };
@@ -185,6 +184,9 @@ public:
 	};
 	/** END FGCObject interface */
 
+	/** UIKRigBoneDetails factory **/
+	TObjectPtr<UIKRigBoneDetails> CreateBoneDetails(const TSharedPtr<FIKRigTreeElement const>& InItem) const;
+	
 private:
 	/** right after importing a skeleton, we ask user what solver they want to use */
 	bool PromptToAddSolver() const;

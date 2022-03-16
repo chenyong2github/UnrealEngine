@@ -125,7 +125,18 @@ void UIKRigBoneDetails::OnComponentRelativeChanged(
 
 #if WITH_EDITOR
 
-void UIKRigBoneDetails::OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType)
+namespace
+{
+
+template<typename DataType>
+void GetContentFromData(const DataType& InData, FString& Content)
+{
+	TBaseStructure<DataType>::Get()->ExportText(Content, &InData, &InData, nullptr, PPF_None, nullptr);
+}
+	
+}
+
+void UIKRigBoneDetails::OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType) const
 {
 	TOptional<FTransform> Optional = GetTransform(TransformType);
 	if(!Optional.IsSet())
@@ -140,25 +151,23 @@ void UIKRigBoneDetails::OnCopyToClipboard(ESlateTransformComponent::Type Compone
 	{
 	case ESlateTransformComponent::Location:
 		{
-			const FVector Data = Xfo.GetLocation();
-			TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			GetContentFromData(Xfo.GetLocation(), Content);
 			break;
 		}
 	case ESlateTransformComponent::Rotation:
 		{
-			const FRotator Data = Xfo.Rotator();
-			TBaseStructure<FRotator>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			GetContentFromData(Xfo.Rotator(), Content);
 			break;
 		}
 	case ESlateTransformComponent::Scale:
 		{
-			const FVector Data = Xfo.GetScale3D();
-			TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			GetContentFromData(Xfo.GetScale3D(), Content);
 			break;
 		}
 	case ESlateTransformComponent::Max:
 	default:
 		{
+			GetContentFromData(Xfo, Content);
 			TBaseStructure<FTransform>::Get()->ExportText(Content, &Xfo, &Xfo, nullptr, PPF_None, nullptr);
 			break;
 		}
@@ -306,21 +315,25 @@ void FIKRigEditorController::ClearSelection()
 	ShowEmptyDetails();
 }
 
-void FIKRigEditorController::HandleGoalSelectedInViewport(const FName& GoalName, bool bReplace)
+void FIKRigEditorController::HandleGoalSelectedInViewport(const FName& GoalName, bool bReplace) const
 {
 	if (SkeletonView.IsValid())
 	{
 		SkeletonView->AddSelectedItemFromViewport(GoalName, IKRigTreeElementType::GOAL, bReplace);
+		ShowDetailsForElements(SkeletonView->GetSelectedItems());
+		return;
 	}
-	
+
 	ShowDetailsForGoal(GoalName);
 }
 
-void FIKRigEditorController::HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace)
+void FIKRigEditorController::HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace) const
 {
 	if (SkeletonView.IsValid())
 	{
 		SkeletonView->AddSelectedItemFromViewport(BoneName, IKRigTreeElementType::BONE, bReplace);
+		ShowDetailsForElements(SkeletonView->GetSelectedItems());
+		return;
 	}
 	
 	ShowDetailsForBone(BoneName);
@@ -557,13 +570,13 @@ bool FIKRigEditorController::IsElementExcludedBone(TSharedRef<FIKRigTreeElement>
 	return AssetController->GetBoneExcluded(TreeElement->BoneName);
 }
 
-void FIKRigEditorController::ShowDetailsForBone(const FName BoneName)
+void FIKRigEditorController::ShowDetailsForBone(const FName BoneName) const
 {
 	BoneDetails->SetBone(BoneName);
 	DetailsView->SetObject(BoneDetails);
 }
 
-void FIKRigEditorController::ShowDetailsForBoneSettings(const FName BoneName, int32 SolverIndex)
+void FIKRigEditorController::ShowDetailsForBoneSettings(const FName& BoneName, int32 SolverIndex) const
 {
 	if (UObject* BoneSettings = AssetController->GetSettingsForBone(BoneName, SolverIndex))
 	{
@@ -571,12 +584,12 @@ void FIKRigEditorController::ShowDetailsForBoneSettings(const FName BoneName, in
 	}
 }
 
-void FIKRigEditorController::ShowDetailsForGoal(const FName GoalName)
+void FIKRigEditorController::ShowDetailsForGoal(const FName& GoalName) const
 {
 	DetailsView->SetObject(AssetController->GetGoal(GoalName));
 }
 
-void FIKRigEditorController::ShowDetailsForGoalSettings(const FName GoalName, const int32 SolverIndex)
+void FIKRigEditorController::ShowDetailsForGoalSettings(const FName GoalName, const int32 SolverIndex) const
 {
 	// get solver that owns this effector
 	if (const UIKRigSolver* SolverWithEffector = AssetController->GetSolver(SolverIndex))
@@ -588,49 +601,70 @@ void FIKRigEditorController::ShowDetailsForGoalSettings(const FName GoalName, co
 	}
 }
 
-void FIKRigEditorController::ShowDetailsForSolver(const int32 SolverIndex)
+void FIKRigEditorController::ShowDetailsForSolver(const int32 SolverIndex) const
 {
 	DetailsView->SetObject(AssetController->GetSolver(SolverIndex));
 }
 
-void FIKRigEditorController::ShowEmptyDetails()
+void FIKRigEditorController::ShowEmptyDetails() const
 {
 	DetailsView->SetObject(AssetController->GetAsset());
 }
 
-void FIKRigEditorController::ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems)
+void FIKRigEditorController::ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems) const
 {
-	// TODO
-	// this function is currently only dealing with displaying a single element in the details panel (the last one)
-	// as this is the current state of the details panel in the IKRig editor. However, it should be able to handle
-	// multiple items. This is a new feature that has to be done that's why this function's interface takes an array
-	// of items as parameter for future implementation.
-	
-	if (InItems.Num() > 0)
+	if (!InItems.Num())
 	{
-		const TSharedPtr<FIKRigTreeElement>& LastItem = InItems.Last();
-		switch (LastItem->ElementType)
+		ShowEmptyDetails();
+		return;
+	}
+
+	const TSharedPtr<FIKRigTreeElement>& LastItem = InItems.Last();
+
+	// check is the items are all of the same type
+	const bool bContainsSeveralTypes = InItems.ContainsByPredicate( [LastItem](const TSharedPtr<FIKRigTreeElement>& Item)
+	{
+		return Item->ElementType != LastItem->ElementType;
+	});
+
+	// if all elements are similar then treat them once
+	if (!bContainsSeveralTypes)
+	{
+		TArray<TWeakObjectPtr<>> Objects;
+		for (const TSharedPtr<FIKRigTreeElement>& Item: InItems)
 		{
-			case IKRigTreeElementType::BONE:
-				ShowDetailsForBone(LastItem->BoneName);
-				break;
-			
-			case IKRigTreeElementType::GOAL:
-				ShowDetailsForGoal(LastItem->GoalName);
-				break;
-			
-			case IKRigTreeElementType::SOLVERGOAL:
-				ShowDetailsForGoalSettings(LastItem->SolverGoalName, LastItem->SolverGoalIndex);
-				break;
-			
-			case IKRigTreeElementType::BONE_SETTINGS:
-				ShowDetailsForBoneSettings(LastItem->BoneSettingBoneName, LastItem->BoneSettingsSolverIndex);
-				break;
-			
-			default:
-				ensure(false);
-				break;
+			TWeakObjectPtr<> Object = Item->GetObject();
+			if (Object.IsValid())
+			{
+				Objects.Add(Object);
+			}
 		}
+		DetailsView->SetObjects(Objects);
+		return;
+	}
+
+	// fallback to the last selected element
+	switch (LastItem->ElementType)
+	{
+	case IKRigTreeElementType::BONE:
+		ShowDetailsForBone(LastItem->BoneName);
+		break;
+		
+	case IKRigTreeElementType::GOAL:
+		ShowDetailsForGoal(LastItem->GoalName);
+		break;
+		
+	case IKRigTreeElementType::SOLVERGOAL:
+		ShowDetailsForGoalSettings(LastItem->SolverGoalName, LastItem->SolverGoalIndex);
+		break;
+		
+	case IKRigTreeElementType::BONE_SETTINGS:
+		ShowDetailsForBoneSettings(LastItem->BoneSettingBoneName, LastItem->BoneSettingsSolverIndex);
+		break;
+		
+	default:
+		ensure(false);
+		break;
 	}
 }
 
@@ -685,6 +719,23 @@ void FIKRigEditorController::InitializeSolvers() const
 			Solver->Initialize(IKRigSkeleton);
 		}
 	}
+}
+
+TObjectPtr<UIKRigBoneDetails> FIKRigEditorController::CreateBoneDetails(const TSharedPtr<FIKRigTreeElement const>& InBoneItem) const
+{
+	// ensure that the element is related to a bone
+	if (InBoneItem->ElementType != IKRigTreeElementType::BONE)
+	{
+		return nullptr;
+	}
+	
+	// create and store a new one
+	UIKRigBoneDetails* NewBoneDetails = NewObject<UIKRigBoneDetails>();
+	NewBoneDetails->SelectedBone = InBoneItem->BoneName;
+	NewBoneDetails->AnimInstancePtr = AnimInstance;
+	NewBoneDetails->AssetPtr = AssetController->GetAsset();
+	
+	return NewBoneDetails;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -20,11 +20,13 @@
 
 #define LOCTEXT_NAMESPACE "SIKRigSkeleton"
 
-FIKRigTreeElement::FIKRigTreeElement(const FText& InKey, IKRigTreeElementType InType)
-{
-	Key = InKey;
-	ElementType = InType;
-}
+FIKRigTreeElement::FIKRigTreeElement(const FText& InKey, IKRigTreeElementType InType,
+									 const TSharedRef<FIKRigEditorController>& InEditorController)
+	: Key(InKey)
+	, ElementType(InType)
+	, EditorController(InEditorController)
+	, OptionalBoneDetails(nullptr)
+{}
 
 TSharedRef<ITableRow> FIKRigTreeElement::MakeTreeRowWidget(
 	TSharedRef<FIKRigEditorController> InEditorController,
@@ -39,6 +41,48 @@ TSharedRef<ITableRow> FIKRigTreeElement::MakeTreeRowWidget(
 void FIKRigTreeElement::RequestRename()
 {
 	OnRenameRequested.ExecuteIfBound();
+}
+
+TWeakObjectPtr< UObject > FIKRigTreeElement::GetObject() const
+{
+	const TSharedPtr<FIKRigEditorController>& Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return nullptr; 
+	}
+
+	if (Controller->AssetController == nullptr)
+	{
+		return nullptr;
+	}
+
+	switch(ElementType)
+	{
+	case IKRigTreeElementType::BONE:
+		if (OptionalBoneDetails == nullptr)
+		{
+			OptionalBoneDetails = Controller->CreateBoneDetails(AsShared());
+		}
+		return OptionalBoneDetails;
+		break;
+	case IKRigTreeElementType::BONE_SETTINGS:
+		return Controller->AssetController->GetSettingsForBone(BoneSettingBoneName, BoneSettingsSolverIndex);
+		break;
+	case IKRigTreeElementType::GOAL:
+		return Controller->AssetController->GetGoal(GoalName);
+		break;
+	case IKRigTreeElementType::SOLVERGOAL:
+		if (const UIKRigSolver* SolverWithEffector = Controller->AssetController->GetSolver(SolverGoalIndex))
+		{
+			return SolverWithEffector->GetGoalSettings(SolverGoalName);
+		}
+		break;
+	default:
+		return nullptr;
+		break;
+	}
+	
+	return nullptr;
 }
 
 void SIKRigSkeletonItem::Construct(
@@ -166,6 +210,7 @@ void SIKRigSkeletonItem::Construct(
 		    .Text(this, &SIKRigSkeletonItem::GetName)
 		    .Font(TextFont)
 			.ColorAndOpacity(TextColor)
+			.OnVerifyTextChanged(this, &SIKRigSkeletonItem::OnVerifyNameChanged)
 		    .OnTextCommitted(this, &SIKRigSkeletonItem::OnNameCommitted)
 		    .MultiLine(false)
         ];
@@ -200,6 +245,12 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 	
 	Controller->RefreshAllViews();
 	SkeletonView.Pin()->ReplaceItemInSelection(OldText, WeakRigTreeElement.Pin()->Key);
+}
+
+bool SIKRigSkeletonItem::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage) const
+{
+	// TODO let the user know when/why the goal can't be renamed 
+	return true;
 }
 
 FText SIKRigSkeletonItem::GetName() const
@@ -391,6 +442,11 @@ void SIKRigSkeleton::GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChain
 	}
 	
 	return Skeleton.GetChainsInList(SelectedBones, OutChains);
+}
+
+TArray<TSharedPtr<FIKRigTreeElement>> SIKRigSkeleton::GetSelectedItems() const
+{
+	return TreeView->GetSelectedItems();
 }
 
 bool SIKRigSkeleton::HasSelectedItems() const
@@ -1224,17 +1280,19 @@ bool SIKRigSkeleton::CanRenameGoal() const
 	return SelectedGoals.Num() == 1;
 }
 
-void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
+void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup /*=false*/)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
 	{
 		return;
 	}
+
+	const TSharedRef<FIKRigEditorController> ControllerRef = Controller.ToSharedRef();
 	
 	// save expansion and selection state
 	TreeView->SaveAndClearState();
-	
+
 	// reset all tree items
 	RootElements.Reset();
 	AllElements.Reset();
@@ -1261,7 +1319,7 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 	{
 		// create "Bone" tree element for this bone
 		const FText BoneDisplayName = FText::FromName(BoneName);
-		TSharedPtr<FIKRigTreeElement> BoneElement = MakeShared<FIKRigTreeElement>(BoneDisplayName, IKRigTreeElementType::BONE);
+		TSharedPtr<FIKRigTreeElement> BoneElement = MakeShared<FIKRigTreeElement>(BoneDisplayName, IKRigTreeElementType::BONE, ControllerRef);
 		BoneElement.Get()->BoneName = BoneName;
 		const int32 BoneElementIndex = AllElements.Add(BoneElement);
 		BoneTreeElementIndices.Add(BoneName, BoneElementIndex);
@@ -1273,7 +1331,7 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 			{
 				const FText SolverDisplayName = FText::FromString(AssetController->GetSolverUniqueName(SolverIndex));
 				const FText BoneSettingDisplayName = FText::Format(LOCTEXT("BoneSettings", "{0} settings for {1}"), BoneDisplayName, SolverDisplayName);
-				TSharedPtr<FIKRigTreeElement> SettingsItem = MakeShared<FIKRigTreeElement>(BoneSettingDisplayName, IKRigTreeElementType::BONE_SETTINGS);
+				TSharedPtr<FIKRigTreeElement> SettingsItem = MakeShared<FIKRigTreeElement>(BoneSettingDisplayName, IKRigTreeElementType::BONE_SETTINGS, ControllerRef);
 				SettingsItem->BoneSettingBoneName = BoneName;
 				SettingsItem->BoneSettingsSolverIndex = SolverIndex;
 				AllElements.Add(SettingsItem);
@@ -1293,7 +1351,7 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 			
 			// make new element for goal
 			const FText GoalDisplayName = FText::FromName(Goal->GoalName);
-			TSharedPtr<FIKRigTreeElement> GoalItem = MakeShared<FIKRigTreeElement>(GoalDisplayName, IKRigTreeElementType::GOAL);
+			TSharedPtr<FIKRigTreeElement> GoalItem = MakeShared<FIKRigTreeElement>(GoalDisplayName, IKRigTreeElementType::GOAL, ControllerRef);
 			GoalItem->GoalName = Goal->GoalName;
 			AllElements.Add(GoalItem);
 
@@ -1309,7 +1367,7 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 					// make new element for solver goal
 					const FText SolverDisplayName = FText::FromString(AssetController->GetSolverUniqueName(SolverIndex));
 					const FText SolverGoalDisplayName = FText::Format(LOCTEXT("GoalSettingsForSolver", "{0} settings for solver {1}"), FText::FromName(Goal->GoalName), SolverDisplayName);
-					TSharedPtr<FIKRigTreeElement> SolverGoalItem = MakeShared<FIKRigTreeElement>(SolverGoalDisplayName, IKRigTreeElementType::SOLVERGOAL);
+					TSharedPtr<FIKRigTreeElement> SolverGoalItem = MakeShared<FIKRigTreeElement>(SolverGoalDisplayName, IKRigTreeElementType::SOLVERGOAL, ControllerRef);
 					SolverGoalItem->SolverGoalIndex = SolverIndex;
 					SolverGoalItem->SolverGoalName = Goal->GoalName;
 					AllElements.Add(SolverGoalItem);

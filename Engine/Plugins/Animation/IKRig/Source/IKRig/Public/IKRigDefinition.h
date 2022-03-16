@@ -107,17 +107,18 @@ public:
 		ESlateTransformSubComponent::Type SubComponent,
 		EIKRigTransformType::Type TransformType
 	) const;
-	
-	void OnNumericValueChanged(
+
+	TTuple<FTransform, FTransform> PrepareNumericValueChanged(
 		ESlateTransformComponent::Type Component,
 		ESlateRotationRepresentation::Type Representation,
 		ESlateTransformSubComponent::Type SubComponent,
 		FTransform::FReal Value,
-		ETextCommit::Type CommitType,
 		EIKRigTransformType::Type TransformType
-	);
+	) const;
 
-	void OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType);
+	void SetTransform( const FTransform& InTransform, EIKRigTransformType::Type InTransformType);
+
+	void OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType) const;
 	void OnPasteFromClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType);
 
 	bool TransformDiffersFromDefault(ESlateTransformComponent::Type Component, TSharedPtr<IPropertyHandle> PropertyHandle) const;

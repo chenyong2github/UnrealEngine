@@ -47,75 +47,94 @@ TOptional<FTransform::FReal> UIKRigEffectorGoal::GetNumericValue(
 	return TOptional<FTransform::FReal>();
 }
 
-void UIKRigEffectorGoal::OnNumericValueChanged(ESlateTransformComponent::Type Component,
-	ESlateRotationRepresentation::Type Representation, ESlateTransformSubComponent::Type SubComponent,
-	FTransform::FReal Value, ETextCommit::Type CommitType, EIKRigTransformType::Type TransformType)
+TTuple<FTransform, FTransform> UIKRigEffectorGoal::PrepareNumericValueChanged( ESlateTransformComponent::Type Component,
+																			ESlateRotationRepresentation::Type Representation,
+																			ESlateTransformSubComponent::Type SubComponent,
+																			FTransform::FReal Value,
+																			EIKRigTransformType::Type TransformType) const
 {
-	Modify();
-
-	switch(TransformType)
-	{
-		case EIKRigTransformType::Current:
-		{
-			SAdvancedTransformInputBox<FTransform>::ApplyNumericValueChange(
-				CurrentTransform,
-				Value,
-				Component,
-				Representation,
-				SubComponent);
-			break;
-		}
-		case EIKRigTransformType::Reference:
-		{
-			SAdvancedTransformInputBox<FTransform>::ApplyNumericValueChange(
-				InitialTransform,
-				Value,
-				Component,
-				Representation,
-				SubComponent);
-			break;
-		}
-		default:
-		{
-			break;
-		}
-	}
+	const FTransform& InTransform = TransformType == EIKRigTransformType::Current ? CurrentTransform : InitialTransform;
+	FTransform OutTransform = InTransform;
+	SAdvancedTransformInputBox<FTransform>::ApplyNumericValueChange(OutTransform, Value, Component, Representation, SubComponent);
+	return MakeTuple(InTransform, OutTransform);
 }
 
-void UIKRigEffectorGoal::OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType)
+void UIKRigEffectorGoal::SetTransform(const FTransform& InTransform, EIKRigTransformType::Type InTransformType)
 {
-	const FTransform Xfo = TransformType == EIKRigTransformType::Current ? CurrentTransform : InitialTransform;
+	// we assume that InTransform is not equal to the one it's being assigned to
+	Modify();
+
+	FTransform& TransformChanged = InTransformType == EIKRigTransformType::Current ? CurrentTransform : InitialTransform;
+	TransformChanged = InTransform;
+}
+
+namespace
+{
 	
+template<typename DataType>
+void GetContentFromData(const DataType& InData, FString& Content)
+{
+	TBaseStructure<DataType>::Get()->ExportText(Content, &InData, &InData, nullptr, PPF_None, nullptr);
+}
+
+class FIKRigEffectorGoalErrorPipe : public FOutputDevice
+{
+public:
+	int32 NumErrors;
+
+	FIKRigEffectorGoalErrorPipe()
+		: FOutputDevice()
+		, NumErrors(0)
+	{}
+
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+	{
+		NumErrors++;
+	}
+};
+
+template<typename DataType>
+bool GetDataFromContent(const FString& Content, DataType& OutData)
+{
+	FIKRigEffectorGoalErrorPipe ErrorPipe;
+	static UScriptStruct* DataStruct = TBaseStructure<DataType>::Get();
+	DataStruct->ImportText(*Content, &OutData, nullptr, PPF_None, &ErrorPipe, DataStruct->GetName(), true);
+	return (ErrorPipe.NumErrors == 0);
+}
+	
+}
+
+void UIKRigEffectorGoal::OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType) const
+{
+	const FTransform& Xfo = TransformType == EIKRigTransformType::Current ? CurrentTransform : InitialTransform;
+
 	FString Content;
 	switch(Component)
 	{
 	case ESlateTransformComponent::Location:
 		{
-			const FVector Data = Xfo.GetLocation();
-			TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			GetContentFromData(Xfo.GetLocation(), Content);
 			break;
 		}
 	case ESlateTransformComponent::Rotation:
 		{
-			const FRotator Data = Xfo.Rotator();
-			TBaseStructure<FRotator>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			GetContentFromData(Xfo.Rotator(), Content);
 			break;
 		}
 	case ESlateTransformComponent::Scale:
 		{
-			const FVector Data = Xfo.GetScale3D();
-			TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			GetContentFromData(Xfo.GetScale3D(), Content);
 			break;
 		}
 	case ESlateTransformComponent::Max:
 	default:
 		{
-			TBaseStructure<FTransform>::Get()->ExportText(Content, &Xfo, &Xfo, nullptr, PPF_None, nullptr);
+			GetContentFromData(Xfo, Content);
 			break;
 		}
 	}
 
-	if(!Content.IsEmpty())
+	if (!Content.IsEmpty())
 	{
 		FPlatformApplicationMisc::ClipboardCopy(*Content);
 	}
@@ -126,42 +145,20 @@ void UIKRigEffectorGoal::OnPasteFromClipboard(ESlateTransformComponent::Type Com
 	FString Content;
 	FPlatformApplicationMisc::ClipboardPaste(Content);
 
-	if(Content.IsEmpty())
+	if (Content.IsEmpty())
 	{
 		return;
 	}
 
 	FTransform& Xfo = TransformType == EIKRigTransformType::Current ? CurrentTransform : InitialTransform;
-	
 	Modify();
-
-	class FIKRigEffectorGoalErrorPipe : public FOutputDevice
-	{
-	public:
-
-		int32 NumErrors;
-
-		FIKRigEffectorGoalErrorPipe()
-			: FOutputDevice()
-			, NumErrors(0)
-		{
-		}
-
-		virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
-		{
-			NumErrors++;
-		}
-	};
-
-	FIKRigEffectorGoalErrorPipe ErrorPipe;
-				
+	
 	switch(Component)
 	{
 		case ESlateTransformComponent::Location:
 		{
 			FVector Data = Xfo.GetLocation();
-			TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
-			if(ErrorPipe.NumErrors == 0)
+			if (GetDataFromContent(Content, Data))
 			{
 				Xfo.SetLocation(Data);
 			}
@@ -170,8 +167,7 @@ void UIKRigEffectorGoal::OnPasteFromClipboard(ESlateTransformComponent::Type Com
 		case ESlateTransformComponent::Rotation:
 		{
 			FRotator Data = Xfo.Rotator();
-			TBaseStructure<FRotator>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FRotator>::Get()->GetName(), true);
-			if(ErrorPipe.NumErrors == 0)
+			if (GetDataFromContent(Content, Data))
 			{
 				Xfo.SetRotation(FQuat(Data));
 			}
@@ -180,8 +176,7 @@ void UIKRigEffectorGoal::OnPasteFromClipboard(ESlateTransformComponent::Type Com
 		case ESlateTransformComponent::Scale:
 		{
 			FVector Data = Xfo.GetScale3D();
-			TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
-			if(ErrorPipe.NumErrors == 0)
+			if (GetDataFromContent(Content, Data))
 			{
 				Xfo.SetScale3D(Data);
 			}
@@ -191,8 +186,7 @@ void UIKRigEffectorGoal::OnPasteFromClipboard(ESlateTransformComponent::Type Com
 		default:
 		{
 			FTransform Data = Xfo;
-			TBaseStructure<FTransform>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FTransform>::Get()->GetName(), true);
-			if(ErrorPipe.NumErrors == 0)
+			if (GetDataFromContent(Content, Data))
 			{
 				Xfo = Data;
 			}
@@ -221,6 +215,10 @@ bool UIKRigEffectorGoal::TransformDiffersFromDefault(
 			{
 				return !(CurrentTransform.GetScale3D() - InitialTransform.GetScale3D()).IsNearlyZero();
 			}
+			default:
+			{
+				return false;
+			}
 		}
 	}
 	return false;
@@ -245,6 +243,10 @@ void UIKRigEffectorGoal::ResetTransformToDefault(
 		case ESlateTransformComponent::Scale:
 		{
 			CurrentTransform.SetScale3D(InitialTransform.GetScale3D());
+			break;
+		}
+		default:
+		{
 			break;
 		}
 	}

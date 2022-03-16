@@ -16,6 +16,7 @@ class FIKRigEditorController;
 class SIKRigSkeleton;
 class FIKRigEditorToolkit;
 class USkeletalMesh;
+class UIKRigBoneDetails;
 
 enum class IKRigTreeElementType { BONE, GOAL, SOLVERGOAL, BONE_SETTINGS };
 
@@ -23,7 +24,7 @@ class FIKRigTreeElement : public TSharedFromThis<FIKRigTreeElement>
 {
 public:
 	
-	FIKRigTreeElement(const FText& InKey, IKRigTreeElementType InType);
+	FIKRigTreeElement(const FText& InKey, IKRigTreeElementType InType, const TSharedRef<FIKRigEditorController>& InEditorController);
 
 	TSharedRef<ITableRow> MakeTreeRowWidget(
 		TSharedRef<FIKRigEditorController> InEditorController,
@@ -54,7 +55,17 @@ public:
 	/** delegate for when the context menu requests a rename */
 	void RequestRename();
 	DECLARE_DELEGATE(FOnRenameRequested);
-	FOnRenameRequested OnRenameRequested;	
+	FOnRenameRequested OnRenameRequested;
+
+	/** get the underlying object */
+	TWeakObjectPtr< UObject > GetObject() const;
+
+private:
+	/** centralized editor controls */
+	TWeakPtr<FIKRigEditorController> EditorController;
+
+	/** on demand bone details object */	
+	mutable TObjectPtr<UIKRigBoneDetails> OptionalBoneDetails = nullptr;
 };
 
 class SIKRigSkeletonItem : public STableRow<TSharedPtr<FIKRigTreeElement>>
@@ -70,7 +81,8 @@ public:
 		TSharedPtr<SIKRigSkeleton> InHierarchy);
 
 private:
-	
+
+	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage) const;
 	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 	FText GetName() const;
 
@@ -196,6 +208,7 @@ public:
 		IKRigTreeElementType ItemType,
 		const bool bReplace);
 	void GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains);
+	TArray<TSharedPtr<FIKRigTreeElement>> GetSelectedItems() const;
 	bool HasSelectedItems() const;
 	/** END selection state queries */
 

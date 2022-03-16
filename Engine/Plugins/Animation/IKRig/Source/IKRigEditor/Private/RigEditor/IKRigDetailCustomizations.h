@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "ScopedTransaction.h"
 #include "RigEditor/IKRigEditorController.h"
 
 class FIKRigGenericDetailCustomization : public IDetailCustomization
@@ -18,13 +19,22 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
+private:
+
+	/** Labels and transform types used by the transform widget */
+	static const TArray<FText>& GetButtonLabels();
+	static const TArray<EIKRigTransformType::Type>& GetTransformTypes();
+
 	/** Per class customization */
 	template<typename ClassToCustomize>
-	void CustomizeDetailsForClass(IDetailLayoutBuilder& DetailBuilder, TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized) {}
+	void CustomizeDetailsForClass(IDetailLayoutBuilder& DetailBuilder, const TArray<TWeakObjectPtr<UObject>>& ObjectsBeingCustomized) {}
 
 	/** Template specializations */
 	template<>
-	void CustomizeDetailsForClass<UIKRigBoneDetails>(IDetailLayoutBuilder& DetailBuilder, TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized);
+	void CustomizeDetailsForClass<UIKRigBoneDetails>(IDetailLayoutBuilder& DetailBuilder, const TArray<TWeakObjectPtr<UObject>>& ObjectsBeingCustomized);
 	template<>
-	void CustomizeDetailsForClass<UIKRigEffectorGoal>(IDetailLayoutBuilder& DetailBuilder, TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized);
+	void CustomizeDetailsForClass<UIKRigEffectorGoal>(IDetailLayoutBuilder& DetailBuilder, const TArray<TWeakObjectPtr<UObject>>& ObjectsBeingCustomized);
+
+	/** Transaction to handle value changed. It's being effective once the value committed */
+	TSharedPtr<FScopedTransaction> ValueChangedTransaction;
 };
