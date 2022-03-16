@@ -1781,6 +1781,11 @@ struct FReplicationGraphCSVTracker
 		UntrackedReplications.CountBytes(Ar);
 	}
 
+	void SetReportUntrackedClasses(bool bReport)
+	{
+		bReportUntrackedClasses = bReport;
+	}
+
 public:
 
 	struct FVisibleLevelData
