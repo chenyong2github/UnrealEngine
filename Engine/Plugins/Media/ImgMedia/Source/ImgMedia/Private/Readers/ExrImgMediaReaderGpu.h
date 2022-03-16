@@ -92,7 +92,17 @@ protected:
 	 * @param Dim Dimensions of the image.
 	 * @param NumChannels Number of channels in the image.
 	 */
-	static SIZE_T GetBufferSize(const FIntPoint& Dim, int32 NumChannels);
+	static SIZE_T GetBufferSize(const FIntPoint& Dim, int32 NumChannels, bool bHasTiles, const FIntPoint& TileNum);
+
+
+	TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> CreateSampleConverter
+		( TArray<FStructuredBufferPoolItemSharedPtr>&& BufferDataArray
+		, const FIntPoint& FullResolution
+		, const FIntPoint& TileDim
+		, const FIntRect& TopMipViewport
+		, const int32 NumChannels
+		, const int32 NumMipLevels
+		, const bool bHasTiles);
 
 public:
 

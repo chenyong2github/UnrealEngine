@@ -216,7 +216,7 @@ bool FExrReader::ReadLineOffsets(FILE* FileHandle, ELineOrder LineOrder, TArray<
 	return true;
 }
 
-bool FExrReader::GenerateTextureData(uint16* Buffer, FString FilePath, int32 TextureWidth, int32 TextureHeight, int32 PixelSize, int32 NumChannels)
+bool FExrReader::GenerateTextureData(uint16* Buffer, int32 BufferSize, FString FilePath, int32 NumberOfScanlines, int32 NumChannels)
 {
 	check(Buffer != nullptr);
 
@@ -237,7 +237,7 @@ bool FExrReader::GenerateTextureData(uint16* Buffer, FString FilePath, int32 Tex
 	{
 		ReadMagicNumberAndVersionField(FileHandle);
 		ReadHeaderData(FileHandle);
-		LineOffsets.SetNum(TextureHeight);
+		LineOffsets.SetNum(NumberOfScanlines);
 
 		// At the moment we support only increasing Y.
 		ELineOrder LineOrder = INCREASING_Y;
@@ -245,7 +245,7 @@ bool FExrReader::GenerateTextureData(uint16* Buffer, FString FilePath, int32 Tex
 	}
 
 	fseek(FileHandle, LineOffsets[0], SEEK_SET);
-	fread(Buffer, TextureWidth * PixelSize + PLANAR_RGB_SCANLINE_PADDING, TextureHeight, FileHandle);
+	fread(Buffer, BufferSize, 1 /*NumOfElements*/, FileHandle);
 
 	fclose(FileHandle);
 	return true;

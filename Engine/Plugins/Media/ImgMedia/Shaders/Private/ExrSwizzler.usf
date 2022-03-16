@@ -82,13 +82,19 @@ void GetStartScanlinePosition(in int2 PixelPos, out float2 SampleSize, out int S
 	int MaxTilesX = TextureSize.x / TileSize.x;
 	int MaxTilesY = TextureSize.y / TileSize.y;
 
-	// Current scanline position.
-	int TileBufferStride = TileSize.x * TileSize.y * Channels + TileSize.y * 4;
-	int PreviousTilesOffset = (MaxTilesX * (TileY)+TileX) * TileBufferStride;
-	StartPosition = PreviousTilesOffset + yCoord * TileSize.x * Channels + xCoord + (yCoord + 1) * 4;
+	// Padding in bytes
+	const int TilePadding = 10;
+
+	// Current tile position.
+	int TileBufferStride = TileSize.x * TileSize.y * Channels;
+	int PreviousTilesOffset = (MaxTilesX * TileY + TileX) * TileBufferStride;
+	StartPosition = PreviousTilesOffset + yCoord * TileSize.x * Channels + xCoord + (TileY * MaxTilesX + TileX + 1) * TilePadding;
 #else
 	SampleSize.x = TextureSize.x;
 	SampleSize.y = TextureSize.y;
+
+	// Padding in bytes
+	const int TilePadding = 4;
 
 	// Current scanline position.
 	StartPosition = PixelPos.y * TextureSize.x * Channels + PixelPos.x + (PixelPos.y + 1) * 4;
