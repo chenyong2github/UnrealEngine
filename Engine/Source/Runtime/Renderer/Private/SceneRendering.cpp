@@ -1998,7 +1998,21 @@ void FViewInfo::InitRHIResources(uint32 OverrideNumMSAASamples)
 		CachedViewUniformShaderParameters->NumSceneColorMSAASamples = OverrideNumMSAASamples;
 	}
 
-	ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+	CreateViewUniformBuffers(*CachedViewUniformShaderParameters);
+
+	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
+
+	for (int32 CascadeIndex = 0; CascadeIndex < TVC_MAX; CascadeIndex++)
+	{
+		TranslucencyLightingVolumeMin[CascadeIndex] = VolumeBounds[CascadeIndex].Min;
+		TranslucencyVolumeVoxelSize[CascadeIndex] = (VolumeBounds[CascadeIndex].Max.X - VolumeBounds[CascadeIndex].Min.X) / TranslucencyLightingVolumeDim;
+		TranslucencyLightingVolumeSize[CascadeIndex] = VolumeBounds[CascadeIndex].Max - VolumeBounds[CascadeIndex].Min;
+	}
+}
+
+void FViewInfo::CreateViewUniformBuffers(const FViewUniformShaderParameters& Params)
+{
+	ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(Params, UniformBuffer_SingleFrame);
 	if (bShouldBindInstancedViewUB)
 	{
 		if (const FViewInfo* InstancedView = GetInstancedView())
@@ -2012,18 +2026,9 @@ void FViewInfo::InitRHIResources(uint32 OverrideNumMSAASamples)
 		{
 			// If we don't render this view in stereo, we simply initialize with the existing contents.
 			InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
-				reinterpret_cast<FInstancedViewUniformShaderParameters&>(*CachedViewUniformShaderParameters),
+				reinterpret_cast<const FInstancedViewUniformShaderParameters&>(Params),
 				UniformBuffer_SingleFrame);
 		}
-	}
-
-	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
-
-	for (int32 CascadeIndex = 0; CascadeIndex < TVC_MAX; CascadeIndex++)
-	{
-		TranslucencyLightingVolumeMin[CascadeIndex] = VolumeBounds[CascadeIndex].Min;
-		TranslucencyVolumeVoxelSize[CascadeIndex] = (VolumeBounds[CascadeIndex].Max.X - VolumeBounds[CascadeIndex].Min.X) / TranslucencyLightingVolumeDim;
-		TranslucencyLightingVolumeSize[CascadeIndex] = VolumeBounds[CascadeIndex].Max - VolumeBounds[CascadeIndex].Min;
 	}
 }
 

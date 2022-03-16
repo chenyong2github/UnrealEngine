@@ -1565,6 +1565,9 @@ public:
 	/** Initializes the RHI resources used by this view. OverrideNumMSAASamples can optionally override NumSceneColorMSAASamples (needed for editor views) */
 	void InitRHIResources(uint32 OverrideNumMSAASamples = 0);
 
+	/** Creates both ViewUniformBuffer and InstancedViewUniformBuffer (if needed). */
+	void CreateViewUniformBuffers(const FViewUniformShaderParameters& Params);
+
 	/** Determines distance culling and fades if the state changes */
 	bool IsDistanceCulled(float DistanceSquared, float MinDrawDistance, float InMaxDrawDistance, const FPrimitiveSceneInfo* PrimitiveSceneInfo);
 
