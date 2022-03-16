@@ -837,8 +837,7 @@ namespace UnrealBuildTool
 					Log.TraceLog("  {0}", NewFile);
 				}
 
-				Descriptor.SpecificFilesToCompile.AddRange(NewFiles.Except(Descriptor.SpecificFilesToCompile));
-
+				Descriptor.OptionalFilesToCompile.AddRange(NewFiles.Except(Descriptor.SpecificFilesToCompile));
 			}
 
 			// If we're compiling a plugin, and this target is monolithic, just create the object files
@@ -1903,33 +1902,15 @@ namespace UnrealBuildTool
 			}
 
 			// Find the set of binaries to build. If we're compiling only specific files, filter the list of binaries to only include the files we're interested in.
-			List<UEBuildBinary> BuildBinaries = Binaries;
-
+			if (TargetDescriptor.SpecificFilesToCompile.Count > 0 && !BuildConfiguration.bIgnoreInvalidFiles)
 			{
-				// If we've been asked to ignore invalid files, don't build anything if there are no valid individual files to build
-				bool bBuildShouldContinue = !BuildConfiguration.bIgnoreInvalidFiles;
-
 				foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
 				{
 					UEBuildBinary? Binary = Binaries.Find(x => x.Modules.Any(y => y.ContainsFile(SpecificFile)));
-
 					if (Binary == null)
 					{
-						if (!BuildConfiguration.bIgnoreInvalidFiles)
-						{
-							throw new BuildException("Couldn't find any module containing {0} in {1}.", SpecificFile, TargetName);
-						}
+						throw new BuildException("Couldn't find any module containing {0} in {1}.", SpecificFile, TargetName);
 					}
-					else if (!BuildBinaries.Contains(Binary))
-					{
-						bBuildShouldContinue = true;
-						BuildBinaries.Add(Binary);
-					}
-				}
-
-				if (!bBuildShouldContinue)
-				{
-					return Makefile;
 				}
 			}
 
@@ -1937,7 +1918,7 @@ namespace UnrealBuildTool
 			DirectoryReference ExeDir = GetExecutableDir();
 			using (GlobalTracer.Instance.BuildSpan("UEBuildBinary.Build()").StartActive())
 			{
-				foreach (UEBuildBinary Binary in BuildBinaries)
+				foreach (UEBuildBinary Binary in Binaries)
 				{
 					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, TargetDescriptor.SpecificFilesToCompile, WorkingSet, ExeDir, Makefile);
 					Makefile.OutputItems.AddRange(BinaryOutputItems);

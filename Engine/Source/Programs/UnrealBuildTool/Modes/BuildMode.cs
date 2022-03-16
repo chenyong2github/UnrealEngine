@@ -485,12 +485,13 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
+						HashSet<FileReference> ForceBuildFiles = new HashSet<FileReference>();
+						ForceBuildFiles.UnionWith(TargetDescriptor.SpecificFilesToCompile);
+						ForceBuildFiles.UnionWith(TargetDescriptor.OptionalFilesToCompile);
+
+						foreach (LinkedAction PrerequisiteAction in PrerequisiteActions.Where(x => x.PrerequisiteItems.Any(y => ForceBuildFiles.Contains(y.Location))))
 						{
-							foreach (LinkedAction PrerequisiteAction in PrerequisiteActions.Where(x => x.PrerequisiteItems.Any(y => y.Location == SpecificFile)))
-							{
-								ActionToOutdatedFlag[PrerequisiteAction] = true;
-							}
+							ActionToOutdatedFlag[PrerequisiteAction] = true;
 						}
 					}
 				}
@@ -810,7 +811,7 @@ namespace UnrealBuildTool
 			if(TargetDescriptor.SpecificFilesToCompile.Count > 0)
 			{
 				// If we're just compiling a specific files, set the target items to be all the derived items
-				List<FileItem> FilesToCompile = TargetDescriptor.SpecificFilesToCompile.ConvertAll(x => FileItem.GetItemByFileReference(x));
+				List<FileItem> FilesToCompile = TargetDescriptor.SpecificFilesToCompile.Union(TargetDescriptor.OptionalFilesToCompile).Select(x => FileItem.GetItemByFileReference(x)).ToList();
 				OutputItems.UnionWith(
 					Makefile.Actions.Where(x => x.PrerequisiteItems.Any(y => FilesToCompile.Contains(y)))
 					.SelectMany(x => x.ProducedItems));
