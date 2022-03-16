@@ -1047,6 +1047,7 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 	const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex,
 	FMeshDescription& OutMeshDescription,
 	UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
+	bool bSkipRootPrimTransformAndVisibility,
 	bool bCombineIdenticalMaterialSlots
 )
 {
@@ -1054,10 +1055,6 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 
 	FStaticMeshAttributes StaticMeshAttributes( OutMeshDescription );
 	StaticMeshAttributes.Register();
-
-	// Skip the first transform, because if we're parsing Prim's mesh we don't want to bake its own transform into the vertices,
-	// as that transform will be used on components instead
-	const bool bIsFirstPrim = true;
 
 	return UE::UsdGeomMeshConversion::Private::RecursivelyCollapseChildMeshes(
 		Prim,
@@ -1068,7 +1065,7 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 		MaterialToPrimvarToUVIndex,
 		OutMeshDescription,
 		OutMaterialAssignments,
-		bIsFirstPrim,
+		bSkipRootPrimTransformAndVisibility,
 		bCombineIdenticalMaterialSlots
 	);
 }

@@ -14,6 +14,7 @@
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -95,6 +96,9 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 				RenderContextToken = UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
 			}
 
+			// We're going to put Prim's transform and visibility on the component, so we don't need to bake it into the combined mesh
+			const bool bSkipRootPrimTransformAndVis = true;
+
 			UsdToUnreal::ConvertGeomMeshHierarchy(
 				GetPrim(),
 				pxr::UsdTimeCode( Context->Time ),
@@ -103,6 +107,7 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 				*MaterialToPrimvarToUVIndex,
 				AddedMeshDescription,
 				AssignmentInfo,
+				bSkipRootPrimTransformAndVis,
 				Context->bMergeIdenticalMaterialSlots
 			);
 
@@ -389,7 +394,12 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 			SceneComponent->UnregisterComponent();
 		}
 
-		UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( GetPrim() ), *SceneComponent, Context->Time );
+		// Don't convert transform/visibility for HISM components as we only create these for point instancer prototype prims,
+		// and we don't want the actual prototype prim transform/visibility on the component itself: It will always be baked into the mesh
+		if ( !SceneComponent->IsA< UHierarchicalInstancedStaticMeshComponent >() )
+		{
+			UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( GetPrim() ), *SceneComponent, Context->Time );
+		}
 
 		// If the user modified a mesh parameter (e.g. vertex color), the hash will be different and it will become a separate asset
 		// so we must check for this and assign the new StaticMesh

@@ -2,16 +2,21 @@
 
 #pragma once
 
+#include "USDGeomMeshTranslator.h"
 #include "USDGeomXformableTranslator.h"
 
 #if USE_USD_SDK
 
-#include "USDIncludesStart.h"
-	#include "pxr/pxr.h"
-	#include "pxr/usd/usdGeom/pointInstancer.h"
-#include "USDIncludesEnd.h"
-
 struct FUsdSchemaTranslationContext;
+
+class FUsdGeomPointInstancerCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
+{
+public:
+	explicit FUsdGeomPointInstancerCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& InPrimPath );
+
+protected:
+	virtual void SetupTasks() override;
+};
 
 class USDSCHEMAS_API FUsdGeomPointInstancerTranslator : public FUsdGeomXformableTranslator
 {
@@ -19,8 +24,11 @@ public:
 	using Super = FUsdGeomXformableTranslator;
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
 
+	virtual void CreateAssets() override;
+	virtual USceneComponent* CreateComponents() override;
 	virtual void UpdateComponents( USceneComponent* SceneComponent ) override;
-	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return CollapsingType == ECollapsingType::Components; }
+
+	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return true; }
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return false; }
 };
 

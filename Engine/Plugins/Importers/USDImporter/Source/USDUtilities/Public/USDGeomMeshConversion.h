@@ -73,9 +73,10 @@ namespace UsdToUnreal
 	 * @param OutMeshDescription - Output parameter that will be filled with the converted mesh data
 	 * @param OutMaterialAssignments - Output parameter that will be filled with the material data extracted from UsdSchema
 	 * @param bCombineIdenticalMaterialSlots - Whether to try reusing material slots (both local and the ones already in MaterialAssignments) when converting the material assignments from the mesh
+	 * @param bSkipRootPrimTransformAndVisibility - Whether to ignore Prim's transform and visibility when generating the combined mesh. This is useful if you plan on displaying that data on a component with the resulting mesh instead.
 	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertGeomMeshHierarchy( const pxr::UsdPrim& Prim, const pxr::UsdTimeCode& TimeCode, const EUsdPurpose PurposesToLoad, const pxr::TfToken& RenderContext, const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex, FMeshDescription& OutMeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments, bool bCombineIdenticalMaterialSlots = true );
+	USDUTILITIES_API bool ConvertGeomMeshHierarchy( const pxr::UsdPrim& Prim, const pxr::UsdTimeCode& TimeCode, const EUsdPurpose PurposesToLoad, const pxr::TfToken& RenderContext, const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex, FMeshDescription& OutMeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments, bool bSkipRootPrimTransformAndVisibility = false, bool bCombineIdenticalMaterialSlots = true );
 
 	/** Configure Material to become a vertex color/displayColor material, according to the given description */
 	USDUTILITIES_API bool ConvertDisplayColor( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription, UMaterialInstanceConstant& Material );
