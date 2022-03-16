@@ -133,8 +133,8 @@ struct FStrataBSDF
 	// STRATA_TODO pack the following
 	int					OperatorIndex;
 	float3				LuminanceWeight;
-	int					bIsBottom;		// STRATA TODO use thet state one or set only when inline
-	int					bIsTop;			// STRATA TODO use thet state one or set only when inline
+	int					bIsBottom;
+	int					bIsTop;
 
 #if STRATA_INLINE_SHADING
 
@@ -566,22 +566,22 @@ bool IsStrataMaterial(FStrataTopLayerData In)
 
 struct FStrataOpaqueRoughRefractionData
 {
-	bool	OpaqueRoughRefractionEnabled;
-	float	Variance;
+	float	OpaqueRoughRefractionEnabled;
+	float	Coverage;
+	float	VarianceCm;
 };
 
-float StrataPackOpaqueRoughRefractionData(FStrataOpaqueRoughRefractionData In)
+float3 StrataPackOpaqueRoughRefractionData(FStrataOpaqueRoughRefractionData In)
 {
-	float Value = In.Variance > 0.0f ? 128.0f : 0.0f;
-	Value += In.Variance * 127.0f;
-	return Value / 255.0f;
+	return float3(In.Coverage, In.VarianceCm, In.OpaqueRoughRefractionEnabled);
 }
 
-FStrataOpaqueRoughRefractionData StrataUnpackOpaqueRoughRefractionData(float In)
+FStrataOpaqueRoughRefractionData StrataUnpackOpaqueRoughRefractionData(float3 In)
 {
 	FStrataOpaqueRoughRefractionData Out = (FStrataOpaqueRoughRefractionData)0;
-	Out.OpaqueRoughRefractionEnabled = (In * 255.0) >= 128.0f;
-	Out.Variance = In * (255.0f / 127.0f) + (- 128.0f / 127.0f); // = (In * 255 - 128) / 127
+	Out.Coverage = In.r;
+	Out.VarianceCm = In.g;
+	Out.OpaqueRoughRefractionEnabled = In.b;
 	return Out;
 }
 
@@ -747,9 +747,9 @@ struct FStrataOperator
 	FStrataLobeStatistic TopDownRefractionLobeStat;		// The lobe used for the scene rough refraction from front to back, e.g. used for translucent rough refraciton
 	FStrataLobeStatistic BottomUpRefractionLobeStat;	// The lobe used for the scene rough refraction from back to front, e.g. used for opaque rough refraction of incoming light within sub layers
 
-	// Thickness
-	float				 ThicknessCm;					// The thickness of the layer
-	float				 VerticalTop_ThicknessCm;		// Only used by vertical layering operators. It represent the thickness that is used to drive the roughness propagation from top layers to sub layers.
+	// Opaque rough refraction
+	float				 OpaqueRoughRefractThicknessCm;	// The thickness of stack material from the top layer to the bottom layer.
+	float				 OpaqueRoughRefractTopRoughness;// The roughness of the top layer. This is enough because we currently assume all the bottom layers have a constant IOR, so eta will after that always be 1 and no refraction will occur after.
 
 	// Thin film
 	float ThinFilmThickness;							// Thickness of thin-film coating layer. In micro-meters (1um == 1000nm).  Merge with regular ThicknessCm?
@@ -2677,6 +2677,15 @@ void PackStrataOut(
 		FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 		const float3 NullLightDir = float3(0.0, 0.0, 1.0);
 		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, NullLightDir, false /*bRoughDiffuseEnabled*/);
+
+		// Process the rough refraction data (this code is only used, and not culled out, if effectively used in base pass for instance)
+		{
+			uint RootOperatorIndex = Strata.OperatorIndex;
+			const FStrataOperator RootOperator = StrataTree.Operators[Strata.OperatorIndex];
+			OpaqueRoughRefractionData.Coverage = RootOperator.Coverage;
+			// STRATA_TODO Fake variance place holder for now
+			OpaqueRoughRefractionData.VarianceCm = RootOperator.OpaqueRoughRefractTopRoughness * RootOperator.OpaqueRoughRefractThicknessCm;
+		}
 		
 		int SimpleMaterial_BSDFIndex = 0;
 		float TopLayerTotalWeight = 0.0f;
@@ -2718,8 +2727,6 @@ void PackStrataOut(
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
 
-						OpaqueRoughRefractionData.Variance += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
-
 						const bool bIsThin = BSDF_GETISTHIN(BSDF);
 						const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
 						bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (BSDF_GETHASSSS(BSDF) && BSDF.Coverage > 0.0f && !bIsSimpleVolume && !bIsThin); // Should it be coverage>0 or any(LuminanceWeight>0) ?
@@ -2737,8 +2744,6 @@ void PackStrataOut(
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
 
-						OpaqueRoughRefractionData.Variance += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
-
 						break;
 					}
 
@@ -2749,8 +2754,6 @@ void PackStrataOut(
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLW_ROUGHNESS(BSDF);
-
-						OpaqueRoughRefractionData.Variance += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
 
 						break;
 					}
@@ -2778,11 +2781,6 @@ void PackStrataOut(
 		// Finalize top layer data
 		TopLayerData.WorldNormal= TopLayerTotalWeight > 0.0f	? normalize(TopLayerData.WorldNormal)			: 0.0f;
 		TopLayerData.Roughness	= TopLayerTotalWeight > 0.0f	? TopLayerData.Roughness / TopLayerTotalWeight	: 0.0f;
-
-#if STRATA_OUTPUT_ROUGH_REFRACTION
-		OpaqueRoughRefractionData.Variance = TopLayerTotalWeight > 0.0f ? OpaqueRoughRefractionData.Variance / TopLayerTotalWeight : 0.0f;
-		OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled = OpaqueRoughRefractionData.Variance > 0.0f;
-#endif
 
 		// Set storage layout as either: fast(0), single(1), or complex(2)
 		AndIsSimpleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);

@@ -34,7 +34,7 @@ RWBuffer<uint> ComplexTileListDataBuffer;
 #if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
 RWBuffer<uint> OpaqueRoughRefractionTileListDataBuffer;
 RWBuffer<uint> SSSWithoutOpaqueRoughRefractionTileListDataBuffer;
-Texture2D<float> OpaqueRoughRefractionTexture;
+Texture2D<float3> OpaqueRoughRefractionTexture;
 #endif
 
 #if !PERMUTATION_WAVE_OPS
@@ -84,7 +84,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 #if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
 		OpaqueRoughRefractionData = StrataUnpackOpaqueRoughRefractionData(OpaqueRoughRefractionTexture[PixelCoord]);
-		bContainsOpaqueRoughRefraction = OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled;
+		bContainsOpaqueRoughRefraction = OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled > 0.0f;
 #endif
 	}
 

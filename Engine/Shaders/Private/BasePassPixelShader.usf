@@ -1728,6 +1728,7 @@ void FPixelShaderInOut_MainPS(
 	Out.StrataOutput[1] = RWStrataMaterialContainer.MaterialRenderTargets[1];
 	Out.StrataOutput[2] = StrataPackTopLayerData(TopLayerData);
 #if STRATA_OUTPUT_ROUGH_REFRACTION
+	OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled = true; // As long as we output to rough refraction, we want it to be enabled for the tiling process.
 	StrataStruct.OpaqueRoughRefractionTextureUAV[PixelPos] = StrataPackOpaqueRoughRefractionData(OpaqueRoughRefractionData);
 #endif
 

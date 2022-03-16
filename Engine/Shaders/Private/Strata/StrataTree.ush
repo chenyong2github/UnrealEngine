@@ -75,8 +75,12 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 
 #define Op StrataTree.Operators[CurrentBSDF.OperatorIndex]
 
+	const float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
+
 	// Extract the true thickness of the BSDF before it is cast into the normalised Slab thickness we used.
-	Op.ThicknessCm = CurrentBSDF.ThicknessCm;
+	// for opaque rough refraction, we are only interested in thickness of non bottom layers.
+	Op.OpaqueRoughRefractThicknessCm  = CurrentBSDF.bIsBottom ? 0.0f : CurrentBSDF.ThicknessCm;
+	Op.OpaqueRoughRefractTopRoughness = CurrentBSDF.bIsTop    ? Roughness : 0.0f;
 
 	PostProcessBSDFBeforeLighting(CurrentBSDF);
 
@@ -100,7 +104,6 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	Op.Transmittance = CurrentBSDFTransmittance;
 
 	// Evaluate refraction lobes.
-	const float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
 	const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(Roughness, StrataBSDFContext.SatNoV, StrataGetBSDFSpecularColor(CurrentBSDF), StrataGetBSDFSpecularF90(CurrentBSDF));
 	{
 		const float TopDownInterfaceEta = CurrentBSDF.bIsTop ? AIR_IOR / WATER_IOR : 1.0f;
@@ -163,8 +166,9 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 		Op.BottomUpRefractionLobeStat = StrataWeightLobe(OpA.BottomUpRefractionLobeStat, Weight);
 
-		// Coverage should not affect thickness
-		Op.ThicknessCm = OpA.ThicknessCm;
+		// Coverage does not affect rough refraction data
+		Op.OpaqueRoughRefractThicknessCm = OpA.OpaqueRoughRefractThicknessCm;
+		Op.OpaqueRoughRefractTopRoughness = OpA.OpaqueRoughRefractTopRoughness;
 		break;
 	}
 
@@ -218,8 +222,9 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 			Op.BottomUpRefractionLobeStat.E *= saturate(OpA.Transmittance + (1.0f - OpA.Coverage)); // Combine with top layer medium and specular transmittance
 		}
 
-		// Vertical layering accumulates both operators thickness
-		Op.ThicknessCm = OpA.ThicknessCm + OpB.ThicknessCm;
+		// Vertical layering accumulates both operators thickness and only keep the top layer roughness, see OpaqueRoughRefractTopRoughness declaration for the details.
+		Op.OpaqueRoughRefractThicknessCm  = OpA.OpaqueRoughRefractThicknessCm + OpB.OpaqueRoughRefractThicknessCm;
+		Op.OpaqueRoughRefractTopRoughness = OpA.OpaqueRoughRefractTopRoughness;
 
 		Op.VerticalTop_TopDownRefractionLobeStat = OpA.TopDownRefractionLobeStat;
 		Op.VerticalTop_BottomUpRefractionLobeStat = OpA.BottomUpRefractionLobeStat;
@@ -241,7 +246,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		Op.BottomUpRefractionLobeStat = StrataHorizontalMixLobes(OpA.BottomUpRefractionLobeStat, OpB.BottomUpRefractionLobeStat, BMix);
 
 		// Horizontal mixes both operators thickness
-		Op.ThicknessCm = lerp(OpA.ThicknessCm, OpB.ThicknessCm, BMix);
+		Op.OpaqueRoughRefractThicknessCm  = lerp(OpA.OpaqueRoughRefractThicknessCm, OpB.OpaqueRoughRefractThicknessCm, BMix);
+		Op.OpaqueRoughRefractTopRoughness = lerp(OpA.OpaqueRoughRefractTopRoughness, OpB.OpaqueRoughRefractTopRoughness, BMix);
 		break;
 	}
 
@@ -259,7 +265,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 		Op.BottomUpRefractionLobeStat = StrataHorizontalMixLobes(OpA.BottomUpRefractionLobeStat, OpB.BottomUpRefractionLobeStat, 0.5f);
 
-		Op.ThicknessCm = lerp(OpA.ThicknessCm, OpB.ThicknessCm, 0.5f);
+		Op.OpaqueRoughRefractThicknessCm  = lerp(OpA.OpaqueRoughRefractThicknessCm, OpB.OpaqueRoughRefractThicknessCm, 0.5f);
+		Op.OpaqueRoughRefractTopRoughness = lerp(OpA.OpaqueRoughRefractTopRoughness, OpB.OpaqueRoughRefractTopRoughness, 0.5f);
 		break;
 	}
 
@@ -271,7 +278,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		Op.TopDownRefractionLobeStat = OpA.TopDownRefractionLobeStat;
 		Op.TopDownRefractionWorldNormal = OpA.TopDownRefractionWorldNormal;
 		Op.BottomUpRefractionLobeStat = OpA.BottomUpRefractionLobeStat;
-		Op.ThicknessCm = OpA.ThicknessCm;
+		Op.OpaqueRoughRefractThicknessCm = OpA.OpaqueRoughRefractThicknessCm;
+		Op.OpaqueRoughRefractTopRoughness = OpA.OpaqueRoughRefractTopRoughness;
 		break;
 	}
 

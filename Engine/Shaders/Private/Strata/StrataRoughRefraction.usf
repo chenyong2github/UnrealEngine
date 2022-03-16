@@ -30,7 +30,7 @@ void OpaqueRoughRefractionPS(
 		float SampleCount = 0.0f;
 		for (float u = -4.5f; u <= 4.5f; u += 1.0f)
 		{
-			SourceData += SeparatedOpaqueRoughRefractionSceneColor[PixelPos + BlurDirection * u * ORRData.Variance * 10.0];
+			SourceData += SeparatedOpaqueRoughRefractionSceneColor[PixelPos + BlurDirection * u * ORRData.VarianceCm * 10000.0];
 			SampleCount++;
 		}
 		OutColor = SourceData / SampleCount;
