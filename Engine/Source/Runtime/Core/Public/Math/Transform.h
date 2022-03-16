@@ -27,11 +27,21 @@ DECLARE_INTRINSIC_TYPE_LAYOUT(FTransform3d);
 template<>
 inline bool FTransform3f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
 {
+	// FTransform3f/d are immutable, but FTransform is not and needs a per-property conversion
+	if(StructTag == NAME_Transform)
+	{
+		return false;
+	}
 	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Transform, Transform3f, Transform3d);
 }
 
 template<>
 inline bool FTransform3d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
 {
+	// FTransform3f/d are immutable, but FTransform is not and needs a per-property conversion
+	if(StructTag == NAME_Transform)
+	{
+		return false;
+	}
 	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Transform, Transform3d, Transform3f);
 }

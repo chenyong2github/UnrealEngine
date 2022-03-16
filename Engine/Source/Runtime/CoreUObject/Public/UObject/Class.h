@@ -858,6 +858,9 @@ public:
 		/** return true if this struct is one of the UE Core types (and is include in CoreMinimal.h) **/
 		virtual bool IsUECoreType() = 0;
 
+		/** return true if this struct is one of the UE Core types (and is include in CoreMinimal.h) **/
+		virtual bool IsUECoreVariant() = 0;		
+
 		/** return true if this struct can copy **/
 		virtual bool HasCopy() = 0;
 		/** 
@@ -1100,6 +1103,10 @@ public:
 		{
 			return TIsUECoreType<CPPSTRUCT>::Value;
 		}
+		virtual bool IsUECoreVariant() override
+		{
+			return TIsUECoreVariant<CPPSTRUCT>::Value;
+		}		
 		virtual bool HasCopy() override
 		{
 			return TTraits::WithCopy;

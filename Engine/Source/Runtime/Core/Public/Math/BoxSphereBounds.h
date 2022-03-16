@@ -498,11 +498,13 @@ template <> struct TIsUECoreVariant<FCompactBoxSphereBounds3d> { enum { Value = 
 template<>
 inline bool FBoxSphereBounds3f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
 {
-	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, BoxSphereBounds, BoxSphereBounds3f, BoxSphereBounds3d);
+	// Falls back to UseSerializeItem to convert per property.
+	return false;
 }
 
 template<>
 inline bool FBoxSphereBounds3d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
 {
-	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, BoxSphereBounds, BoxSphereBounds3d, BoxSphereBounds3f);
+	// Falls back to UseSerializeItem to convert per property.
+	return false;
 }

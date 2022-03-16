@@ -435,8 +435,19 @@ EConvertFromTypeResult FStructProperty::ConvertFromType(const FPropertyTag& Tag,
 				FArchive& Ar = Adapter.GetArchive();
 				if (CppStructOps->HasSerializeFromMismatchedTag() && CppStructOps->SerializeFromMismatchedTag(Tag, Ar, DestAddress))
 				{
-
 					return EConvertFromTypeResult::Converted;
+				}
+				else if(((Struct->StructFlags & STRUCT_SerializeNative) == 0) && CppStructOps->HasSerializeFromMismatchedTag() && CppStructOps->IsUECoreVariant())
+				{
+					// Special case for Transform, as the f/d variants are immutable whilst the default is not, so we must call SerializeTaggedProperties directly to perform the conversion.
+					if(Tag.StructName == NAME_Transform)
+					{
+						Struct->SerializeTaggedProperties(Slot, (uint8*)DestAddress, Struct, nullptr);
+						return EConvertFromTypeResult::Converted;
+					}
+					// If a core variant without a native serializer returns false from SerializeFromMismatchedTag fall back to standard SerializeItem.
+					// We rely on all properties within the variant supporting SerializeFromMismatchedTag to perform the conversion per property.
+					return EConvertFromTypeResult::UseSerializeItem;
 				}
 				else
 				{
