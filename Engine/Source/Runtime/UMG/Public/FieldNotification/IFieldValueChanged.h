@@ -10,6 +10,9 @@
 #include "IFieldValueChanged.generated.h"
 
 
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FFieldValueChangedDynamicDelegate, UObject*, Object, FFieldNotificationId, Field);
+
+
 UINTERFACE(MinimalAPI, NotBlueprintable)
 class UNotifyFieldValueChanged : public UInterface
 {

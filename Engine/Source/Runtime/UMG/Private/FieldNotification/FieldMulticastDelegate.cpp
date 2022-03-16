@@ -8,8 +8,13 @@ namespace UE::FieldNotification
 
 FDelegateHandle FFieldMulticastDelegate::Add(const UObject* InObject, FFieldId InFieldId, FDelegate InNewDelegate)
 {
+	if (!InNewDelegate.IsBound())
+	{
+		return FDelegateHandle();
+	}
+
 	FDelegateHandle Result = InNewDelegate.GetHandle();
-	FInvocationKey InvocationKey{ InObject, InFieldId };
+	FInvocationKey InvocationKey{ InObject, InFieldId, NAME_None };
 	if (DelegateLockCount > 0)
 	{
 		const int32 Index = Delegates.Emplace(FInvocationElement{ InvocationKey, MoveTemp(InNewDelegate) });
@@ -24,31 +29,49 @@ FDelegateHandle FFieldMulticastDelegate::Add(const UObject* InObject, FFieldId I
 }
 
 
-FFieldMulticastDelegate::FRemoveResult FFieldMulticastDelegate::Remove(FDelegateHandle InDelegate)
+FDelegateHandle FFieldMulticastDelegate::Add(const UObject* InObject, FFieldId InFieldId, const FDynamicDelegate& InDynamicDelegate)
 {
-	FRemoveResult Result;
-
-	for (int32 Index = Delegates.Num() - 1; Index >= 0; --Index)
+	if (!InDynamicDelegate.IsBound())
 	{
-		FInvocationElement& Element = Delegates[Index];
-		if (Element.Delegate.GetHandle() == InDelegate)
-		{
-			Result.Object = Element.Key.Object.Get();
-			Result.FieldId = Element.Key.Id;
-			Result.bRemoved = Element.Delegate.IsBound();
-			if (DelegateLockCount > 0)
-			{
-				Element.Delegate.Unbind();
-				++CompactionCount;
-			}
-			else
-			{
-				Delegates.RemoveAt(Index);
-			}
-			break;
-		}
+		return FDelegateHandle();
 	}
 
+	FDelegate NewDelegate = FDelegate::CreateUFunction(const_cast<UObject*>(InDynamicDelegate.GetUObject()), InDynamicDelegate.GetFunctionName());
+	FDelegateHandle Result = NewDelegate.GetHandle();
+	FInvocationKey InvocationKey{ InObject, InFieldId, InDynamicDelegate.GetFunctionName()};
+	if (DelegateLockCount > 0)
+	{
+		const int32 Index = Delegates.Emplace(FInvocationElement{ InvocationKey, MoveTemp(NewDelegate) });
+		AddedEmplaceAt = FMath::Min(AddedEmplaceAt, (uint16)Index);
+	}
+	else
+	{
+		const int32 FoundIndex = UpperBound(InvocationKey);
+		Delegates.EmplaceAt(FoundIndex, FInvocationElement{ InvocationKey, MoveTemp(NewDelegate) });
+	}
+	return Result;
+}
+
+
+void FFieldMulticastDelegate::RemoveElement(FInvocationElement& Element, int32 Index, FRemoveResult& Result)
+{
+	Result.Object = Element.Key.Object.Get();
+	Result.FieldId = Element.Key.Id;
+	Result.bRemoved = Element.Delegate.IsBound();
+	if (DelegateLockCount > 0)
+	{
+		Element.Delegate.Unbind();
+		++CompactionCount;
+	}
+	else
+	{
+		Delegates.RemoveAt(Index);
+	}
+}
+
+
+void FFieldMulticastDelegate::CompleteRemove(FRemoveResult& Result) const
+{
 	if (Result.FieldId.IsValid())
 	{
 		// Search in the normal sorted list
@@ -83,43 +106,72 @@ FFieldMulticastDelegate::FRemoveResult FFieldMulticastDelegate::Remove(FDelegate
 			}
 		}
 	}
+}
+
+
+FFieldMulticastDelegate::FRemoveResult FFieldMulticastDelegate::Remove(FDelegateHandle InDelegate)
+{
+	FRemoveResult Result;
+
+	if (!InDelegate.IsValid())
+	{
+		return Result;
+	}
+
+	for (int32 Index = Delegates.Num() - 1; Index >= 0; --Index)
+	{
+		FInvocationElement& Element = Delegates[Index];
+		if (Element.Delegate.GetHandle() == InDelegate)
+		{
+			RemoveElement(Element, Index, Result);
+			break;
+		}
+	}
+
+	CompleteRemove(Result);
 
 	return Result;
 }
 
 
-FFieldMulticastDelegate::FRemoveFromResult FFieldMulticastDelegate::RemoveFrom(const UObject* InObject, FFieldId InFieldId, FDelegateHandle InDelegate)
+FFieldMulticastDelegate::FRemoveResult FFieldMulticastDelegate::Remove(const FDynamicDelegate& InDynamicDelegate)
 {
-	bool bRemoved = false;
-	bool bFieldPresent = false;
+	FRemoveResult Result;
 
-	FFieldMulticastDelegate* Self = this;
-	auto RemoveOrUnbind = [Self, &InDelegate, &bRemoved, &bFieldPresent, InObject](FInvocationElement& Element, int32 Index)
+	if (!InDynamicDelegate.IsBound())
 	{
-		if (Element.Delegate.GetHandle() == InDelegate)
-		{
-			if (Self->DelegateLockCount > 0)
-			{
-				Element.Delegate.Unbind();
-				++Self->CompactionCount;
-			}
-			else
-			{
-				Self->Delegates.RemoveAt(Index);
-			}
-			bRemoved = true;
-			return !bFieldPresent;
-		}
-		else if (Element.Key.Object == InObject && Element.Delegate.IsBound())
-		{
-			bFieldPresent = true;
-			return !bRemoved;
-		}
-		return true;
-	};
+		// The UObject may be GCed. We would like to compact the list but there is not way to know which one (since HasSameObject will return false).
+		//Result may indicate that it was not remove even if it will be removed later when we finally compact.
+		return Result;
+	}
 
+	for (int32 Index = Delegates.Num() - 1; Index >= 0; --Index)
+	{
+		FInvocationElement& Element = Delegates[Index];
+		if (Element.Key.DynamicName == InDynamicDelegate.GetFunctionName())
+		{
+			if (const IDelegateInstance* DelegateInstance = GetDelegateInstance(Element.Delegate))
+			{
+				if (DelegateInstance->HasSameObject(InDynamicDelegate.GetUObject()))
+				{
+					RemoveElement(Element, Index, Result);
+					break;
+				}
+			}
+		}
+	}
+
+	CompleteRemove(Result);
+
+	return Result;
+}
+
+
+template<typename TRemoveOrUnbind>
+void FFieldMulticastDelegate::RemoveFrom(TRemoveOrUnbind& RemoveOrUnbind, FFieldId InFieldId, bool& bFieldPresent)
+{
 	// Search in the normal sorted list
-	const int32 FoundIndex = UpperBound(InFieldId)-1;
+	const int32 FoundIndex = UpperBound(InFieldId) - 1;
 	if (Delegates.IsValidIndex(FoundIndex))
 	{
 		for (int32 Index = FoundIndex; Index >= 0; --Index)
@@ -151,6 +203,92 @@ FFieldMulticastDelegate::FRemoveFromResult FFieldMulticastDelegate::RemoveFrom(c
 			}
 		}
 	}
+}
+
+
+FFieldMulticastDelegate::FRemoveFromResult FFieldMulticastDelegate::RemoveFrom(const UObject* InObject, FFieldId InFieldId, FDelegateHandle InDelegate)
+{
+	bool bRemoved = false;
+	bool bFieldPresent = false;
+
+	if (!InDelegate.IsValid())
+	{
+		return FRemoveFromResult{ bRemoved, bFieldPresent };
+	}
+
+	FFieldMulticastDelegate* Self = this;
+	auto RemoveOrUnbind = [Self, &InDelegate, &bRemoved, &bFieldPresent, InObject](FInvocationElement& Element, int32 Index)
+	{
+		if (Element.Delegate.GetHandle() == InDelegate)
+		{
+			if (Self->DelegateLockCount > 0)
+			{
+				Element.Delegate.Unbind();
+				++Self->CompactionCount;
+			}
+			else
+			{
+				Self->Delegates.RemoveAt(Index);
+			}
+			bRemoved = true;
+			return !bFieldPresent;
+		}
+		if (Element.Key.Object == InObject && Element.Delegate.IsBound())
+		{
+			bFieldPresent = true;
+			return !bRemoved;
+		}
+		return true;
+	};
+
+	RemoveFrom(RemoveOrUnbind, InFieldId, bFieldPresent);
+
+	return FRemoveFromResult{ bRemoved, bFieldPresent };
+}
+
+
+FFieldMulticastDelegate::FRemoveFromResult FFieldMulticastDelegate::RemoveFrom(const UObject* InObject, FFieldId InFieldId, const FDynamicDelegate& InDynamicDelegate)
+{
+	bool bRemoved = false;
+	bool bFieldPresent = false;
+
+	if (!InDynamicDelegate.IsBound())
+	{
+		return FRemoveFromResult{ bRemoved, bFieldPresent };
+	}
+
+	FFieldMulticastDelegate* Self = this;
+	auto RemoveOrUnbind = [Self, &InDynamicDelegate, &bRemoved, &bFieldPresent, InObject](FInvocationElement& Element, int32 Index)
+	{
+		if (Element.Key.DynamicName == InDynamicDelegate.GetFunctionName())
+		{
+			if (const IDelegateInstance* DelegateInstance = Self->GetDelegateInstance(Element.Delegate))
+			{
+				if (DelegateInstance->HasSameObject(InDynamicDelegate.GetUObject()))
+				{
+					if (Self->DelegateLockCount > 0)
+					{
+						Element.Delegate.Unbind();
+						++Self->CompactionCount;
+					}
+					else
+					{
+						Self->Delegates.RemoveAt(Index);
+					}
+					bRemoved = true;
+					return !bFieldPresent;
+				}
+			}
+		}
+		if (Element.Key.Object == InObject && Element.Delegate.IsBound())
+		{
+			bFieldPresent = true;
+			return !bRemoved;
+		}
+		return true;
+	};
+
+	RemoveFrom(RemoveOrUnbind, InFieldId, bFieldPresent);
 
 	return FRemoveFromResult{ bRemoved, bFieldPresent };
 }

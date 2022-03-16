@@ -28,9 +28,19 @@ public:
 		return Delegates.Add(InObject, InFieldId, MoveTemp(InNewDelegate));
 	}
 
+	FDelegateHandle AddFieldValueChangedDelegate(const UVisual* InObject, FFieldId InFieldId, const FFieldValueChangedDynamicDelegate& InDelegate)
+	{
+		return Delegates.Add(InObject, InFieldId, InDelegate);
+	}
+
 	FRemoveFromResult RemoveFieldValueChangedDelegate(const UVisual* InObject, FFieldId InFieldId, FDelegateHandle InDelegateHandle)
 	{
 		return Delegates.RemoveFrom(InObject, InFieldId, InDelegateHandle);
+	}
+
+	FRemoveFromResult RemoveFieldValueChangedDelegate(const UVisual* InObject, FFieldId InFieldId, const FFieldValueChangedDynamicDelegate& InDelegate)
+	{
+		return Delegates.RemoveFrom(InObject, InFieldId, InDelegate);
 	}
 
 	FRemoveAllResult RemoveAllFieldValueChangedDelegates(const UVisual* InObject, const void* InUserObject)

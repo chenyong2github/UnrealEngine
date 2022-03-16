@@ -6,6 +6,8 @@
 #include "FieldNotification/FieldVariant.h"
 #include "UObject/Object.h"
 
+#include "FieldId.generated.h"
+
 
 namespace UE::FieldNotification
 {
@@ -77,3 +79,49 @@ private:
 };
 
 } //namespace
+
+
+USTRUCT(BlueprintType)
+struct FFieldNotificationId
+{
+	GENERATED_BODY()
+
+public:
+	FFieldNotificationId() = default;
+
+	explicit FFieldNotificationId(FName InFieldName)
+		: FieldName(InFieldName)
+	{
+
+	}
+
+public:
+	bool IsValid() const
+	{
+		return FieldName.IsNone();
+	}
+
+	FName GetFieldName() const
+	{
+		return FieldName;
+	}
+
+	bool operator== (const FFieldNotificationId& Other) const
+	{
+		return FieldName == Other.FieldName;
+	}
+
+	bool operator!= (const FFieldNotificationId& Other) const
+	{
+		return FieldName != Other.FieldName;
+	}
+
+	friend int32 GetTypeHash(const FFieldNotificationId& Value)
+	{
+		return GetTypeHash(Value.FieldName);
+	}
+
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "FieldNotify")
+	FName FieldName;
+};

@@ -16,6 +16,7 @@ class UMG_API FFieldMulticastDelegate
 {
 public:
 	using FDelegate = INotifyFieldValueChanged::FFieldValueChangedDelegate;
+	using FDynamicDelegate = FFieldValueChangedDynamicDelegate;
 
 private:
 	struct FInstanceProtectedDelegate : public TDelegateBase<FDefaultDelegateUserPolicy>
@@ -28,6 +29,7 @@ private:
 	{
 		TWeakObjectPtr<const UObject> Object;
 		FFieldId Id;
+		FName DynamicName;
 		bool operator<(const FInvocationKey& Element) const
 		{
 			return Id.GetName().FastLess(Element.Id.GetName());
@@ -65,6 +67,7 @@ private:
 
 public:
 	FDelegateHandle Add(const UObject* InObject, FFieldId InFieldId, FDelegate InNewDelegate);
+	FDelegateHandle Add(const UObject* InObject, FFieldId InFieldId, const FDynamicDelegate& InDynamicDelegate);
 
 	struct FRemoveResult
 	{
@@ -74,6 +77,7 @@ public:
 		FFieldId FieldId;
 	};
 	FRemoveResult Remove(FDelegateHandle InDelegate);
+	FRemoveResult Remove(const FDynamicDelegate& InDynamicDelegate);
 
 	struct FRemoveFromResult
 	{
@@ -81,6 +85,7 @@ public:
 		bool bHasOtherBoundDelegates = false;
 	};
 	FRemoveFromResult RemoveFrom(const UObject* InObject, FFieldId InFieldId, FDelegateHandle InDelegate);
+	FRemoveFromResult RemoveFrom(const UObject* InObject, FFieldId InFieldId, const FDynamicDelegate& InDynamicDelegate);
 
 	struct FRemoveAllResult
 	{
@@ -125,6 +130,10 @@ private:
 	}
 
 	void ExecuteLockOperations();
+	void RemoveElement(FInvocationElement& Element, int32 Index, FRemoveResult& Result);
+	void CompleteRemove(FRemoveResult& Result) const;
+	template<typename TRemoveOrUnbind>
+	void RemoveFrom(TRemoveOrUnbind& RemoveOrUnbind, FFieldId FieldId, bool& bFieldPresent);
 
 private:
 	InvocationListType Delegates;
