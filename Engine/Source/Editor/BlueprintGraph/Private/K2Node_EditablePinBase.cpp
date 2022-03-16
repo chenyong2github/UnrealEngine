@@ -16,6 +16,65 @@
 //        with a version check and not have to do this anymore for updated assets
 #define ALWAYS_VALIDATE_DESIRED_PIN_DIRECTION_ON_LOAD 1
 
+
+//////////////////////////////////////////////////////////////////////////
+// FKismetUserDeclaredFunctionMetadata
+
+bool FKismetUserDeclaredFunctionMetadata::HasMetaData(FName Key) const
+{
+	const FString* ValuePtr = nullptr;
+	if (!Key.IsNone())
+	{
+		ValuePtr = MetaDataMap.Find(Key);
+	}
+	return ValuePtr != nullptr;
+}
+
+const FString& FKismetUserDeclaredFunctionMetadata::GetMetaData(FName Key) const
+{
+	// if not found, return a static empty string
+	static FString EmptyString;
+
+	if (Key.IsNone())
+	{
+		return EmptyString;
+	}
+	const FString* ValuePtr = MetaDataMap.Find(Key);
+	return ValuePtr ? *ValuePtr : EmptyString;
+}
+
+void FKismetUserDeclaredFunctionMetadata::SetMetaData(FName Key, FString&& Value)
+{
+	if (!Key.IsNone())
+	{
+		MetaDataMap.Add(Key, MoveTempIfPossible(Value));
+	}
+}
+
+void FKismetUserDeclaredFunctionMetadata::SetMetaData(FName Key, const FStringView Value)
+{
+	if (!Key.IsNone())
+	{
+		MetaDataMap.Add(Key, FString(Value));
+	}
+}
+
+void FKismetUserDeclaredFunctionMetadata::RemoveMetaData(FName Key)
+{
+	if (!Key.IsNone())
+	{
+		MetaDataMap.Remove(Key);
+	}
+}
+
+const TMap<FName, FString>& FKismetUserDeclaredFunctionMetadata::GetMetaDataMap() const
+{
+	return MetaDataMap;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FUserPinInfo
+
 FArchive& operator<<(FArchive& Ar, FUserPinInfo& Info)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
@@ -75,6 +134,8 @@ FArchive& operator<<(FArchive& Ar, FUserPinInfo& Info)
 	return Ar;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// UK2Node_EditablePinBase
 
 UK2Node_EditablePinBase::UK2Node_EditablePinBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

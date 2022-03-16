@@ -45,7 +45,7 @@ struct FUserPinInfo
 USTRUCT()
 struct FKismetUserDeclaredFunctionMetadata
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
 	FText ToolTip;
@@ -87,6 +87,23 @@ public:
 		, HasLatentFunctions(INDEX_NONE)
 	{
 	}
+
+	/** Set a metadata value on the function */
+	BLUEPRINTGRAPH_API void SetMetaData(FName Key, FString&& Value);
+	/** Set a metadata value on the function */
+	BLUEPRINTGRAPH_API void SetMetaData(FName Key, const FStringView Value);
+	/** Gets a metadata value on the function; asserts if the value isn't present. */
+	BLUEPRINTGRAPH_API const FString& GetMetaData(FName Key) const;
+	/** Clear metadata value on the function */
+	BLUEPRINTGRAPH_API void RemoveMetaData(FName Key);
+	/** Checks if there is metadata for a key */
+	BLUEPRINTGRAPH_API bool HasMetaData(FName Key) const;
+	/** Gets all metadata associated with this function */
+	BLUEPRINTGRAPH_API const TMap<FName, FString>& GetMetaDataMap() const;
+
+private:
+	UPROPERTY()
+	TMap<FName, FString> MetaDataMap;
 };
 
 UCLASS(abstract, MinimalAPI)

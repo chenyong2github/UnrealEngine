@@ -174,7 +174,7 @@ void FBPVariableDescription::RemoveMetaData(const FName Key)
 	int32 EntryIndex = FindMetaDataEntryIndexForKey(Key);
 	if(EntryIndex != INDEX_NONE)
 	{
-		MetaDataArray.RemoveAt(EntryIndex);
+		MetaDataArray.RemoveAtSwap(EntryIndex);
 	}
 }
 

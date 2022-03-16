@@ -2770,6 +2770,11 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 			Function->SetMetaData(FBlueprintMetadata::MD_ThreadSafe, TEXT("true"));
 		}
 	}
+
+	for (const TPair<FName, FString>& Entry : FunctionMetaData.GetMetaDataMap())
+	{
+		Function->SetMetaData(Entry.Key, *Entry.Value);
+	}
 }
 
 void FKismetCompilerContext::SetDefaultInputValueMetaData(UFunction* Function, const TArray< TSharedPtr<FUserPinInfo> >& InputData)
