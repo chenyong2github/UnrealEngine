@@ -530,6 +530,12 @@ namespace RHIValidation
 
 	struct FView
 	{
+		FView()
+		{
+			ViewIdentity.Resource = nullptr;
+			ViewIdentity.SubresourceRange = FSubresourceRange(0, 0, 0, 0, 0, 0);
+		}
+
 		FResourceIdentity ViewIdentity;
 	};
 
