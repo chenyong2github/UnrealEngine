@@ -5044,6 +5044,12 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 
 void FKismetCompilerContext::PostCDOCompiled(const UObject::FPostCDOCompiledContext& Context)
 {
+	// Exit now if we did not create a new class.
+	if (!NewClass)
+	{
+		return;
+	}
+
 	// Notify the CDO that it has finished compiling
 	NewClass->ClassDefaultObject->PostCDOCompiled(Context);
 	if (!Context.bIsSkeletonOnly)
