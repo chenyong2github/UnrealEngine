@@ -113,7 +113,7 @@ static EHairInterpolationType ToHairInterpolationType(EGroomInterpolationType In
 
 static FHairGroupDesc GetGroomGroupsDesc(const UGroomAsset* Asset, UGroomComponent* Component, uint32 GroupIndex)
 {
-	if (!Asset)
+	if (!Asset || GroupIndex >= uint32(Component->GroomGroupsDesc.Num()))
 	{
 		return FHairGroupDesc();
 	}
