@@ -1586,7 +1586,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual uint64 ProcessThreadUntilIdle(ENamedThreads::Type CurrentThread) final override
 	{
-		SCOPED_NAMED_EVENT(ProcessThreadUntilIdle, FColor::Red);
 		int32 QueueIndex = ENamedThreads::GetQueueIndex(CurrentThread);
 		CurrentThread = ENamedThreads::GetThreadIndex(CurrentThread);
 		check(CurrentThread >= 0 && CurrentThread < NumNamedThreads);
@@ -2107,7 +2106,6 @@ private:
 
 	uint64 ProcessThreadUntilIdle(ENamedThreads::Type CurrentThread) final override
 	{
-		SCOPED_NAMED_EVENT(ProcessThreadUntilIdle, FColor::Red);
 		int32 QueueIndex = ENamedThreads::GetQueueIndex(CurrentThread);
 		CurrentThread = ENamedThreads::GetThreadIndex(CurrentThread);
 		check(CurrentThread >= 0 && CurrentThread < NumNamedThreads);

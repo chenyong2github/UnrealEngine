@@ -640,7 +640,6 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 		{
 			if (!bIsInGameThread && !FTaskGraphInterface::Get().IsThreadProcessingTasks(RenderThread_Local))
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandListExecutor_ExecuteInner_DoTasksBeforeDispatch);
 				// move anything down the pipe that needs to go
 				FTaskGraphInterface::Get().ProcessThreadUntilIdle(RenderThread_Local);
 			}
@@ -671,7 +670,6 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 			FGraphEventArray Prereq;
 			Exchange(Prereq, CmdList.RTTasks); 
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandListExecutor_SwapCmdLists);
 				SwapCmdList = new FRHICommandList(CmdList.GetGPUMask());
 
 				// Super scary stuff here, but we just want the swap command list to inherit everything and leave the immediate command list wiped.
@@ -687,7 +685,6 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 				CmdList.Data.bInsideRenderPass = SwapCmdList->Data.bInsideRenderPass;
 				CmdList.Data.bInsideComputePass = SwapCmdList->Data.bInsideComputePass;
 			}
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandListExecutor_SubmitTasks);
 
 			//if we use a FDispatchRHIThreadTask, we must have it pass an event along to the FExecuteRHIThreadTask it will spawn so that fences can know which event to wait on for execution completion
 			//before the dispatch completes.
