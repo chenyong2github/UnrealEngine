@@ -18,6 +18,13 @@ namespace UE
 		template< typename PtrType > class FUsdStageImpl;
 	}
 
+	/** Corresponds to pxr::UsdLoadPolicy, refer to the USD SDK documentation */
+	enum class EUsdLoadPolicy
+	{
+		UsdLoadWithDescendants,    // Load a prim plus all its descendants.
+		UsdLoadWithoutDescendants  // Load a prim by itself with no descendants.
+	};
+
 	/**
 	 * Minimal pxr::UsdStage pointer wrapper for Unreal that can be used from no-rtti modules.
 	 * Use the aliases FUsdStage and FUsdStageWeak instead (defined on ForwardDeclarations.h)
@@ -63,6 +70,8 @@ namespace UE
 
 	// Wrapped pxr::UsdStage functions, refer to the USD SDK documentation
 	public:
+		void LoadAndUnload( const TSet<UE::FSdfPath>& LoadSet, const TSet<UE::FSdfPath>& UnloadSet, EUsdLoadPolicy Policy = EUsdLoadPolicy::UsdLoadWithDescendants );
+
 		/**
 		 * Saves a flattened copy of the stage to the given path (e.g. "C:/Folder/FlattenedStage.usda"). Will use the corresponding file writer depending on FilePath extension.
 		 * Will not alter the current stage.

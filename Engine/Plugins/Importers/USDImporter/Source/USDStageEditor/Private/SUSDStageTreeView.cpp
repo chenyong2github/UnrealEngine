@@ -12,6 +12,7 @@
 
 #include "UsdWrappers/SdfChangeBlock.h"
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -872,30 +873,50 @@ void SUsdStageTreeView::RestoreExpansionStates()
 
 void SUsdStageTreeView::OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger )
 {
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	// Ideally we'd just use a UE::FSdfChangeBlock here, but for whatever reason this doesn't seem to affect the
+	// notices USD emits when loading/unloading prim payloads, so we must do this via the UsdStage directly
+
+	TSet<UE::FSdfPath> PrimsToLoad;
+	TSet<UE::FSdfPath> PrimsToUnload;
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
 		if ( SelectedItem->UsdPrim )
 		{
 			TFunction< void( FUsdPrimViewModelRef ) > RecursiveTogglePayloads;
-			RecursiveTogglePayloads = [ &RecursiveTogglePayloads, PayloadsTrigger ]( FUsdPrimViewModelRef InSelectedItem ) -> void
+			RecursiveTogglePayloads = [ &RecursiveTogglePayloads, PayloadsTrigger, &PrimsToLoad, &PrimsToUnload ]( FUsdPrimViewModelRef InSelectedItem ) -> void
 			{
 				UE::FUsdPrim& UsdPrim = InSelectedItem->UsdPrim;
 
 				if ( UsdPrim.HasPayload() )
 				{
+					bool bPrimIsLoaded = UsdPrim.IsLoaded();
+
 					if ( PayloadsTrigger == EPayloadsTrigger::Toggle )
 					{
-						InSelectedItem->TogglePayload();
+						if ( bPrimIsLoaded )
+						{
+							PrimsToUnload.Add( UsdPrim.GetPrimPath() );
+						}
+						else
+						{
+							PrimsToLoad.Add( UsdPrim.GetPrimPath() );
+						}
 					}
-					else if ( PayloadsTrigger == EPayloadsTrigger::Load && !UsdPrim.IsLoaded() )
+					else if ( PayloadsTrigger == EPayloadsTrigger::Load && !bPrimIsLoaded )
 					{
-						InSelectedItem->TogglePayload();
+						PrimsToLoad.Add( UsdPrim.GetPrimPath() );
 					}
-					else if ( PayloadsTrigger == EPayloadsTrigger::Unload && UsdPrim.IsLoaded() )
+					else if ( PayloadsTrigger == EPayloadsTrigger::Unload && bPrimIsLoaded )
 					{
-						InSelectedItem->TogglePayload();
+						PrimsToUnload.Add( UsdPrim.GetPrimPath() );
 					}
 				}
 				else
@@ -909,6 +930,14 @@ void SUsdStageTreeView::OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger )
 
 			RecursiveTogglePayloads( SelectedItem );
 		}
+	}
+
+	if ( PrimsToLoad.Num() + PrimsToUnload.Num() > 0 )
+	{
+		UE::FSdfChangeBlock GroupNotices;
+
+		UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+		UsdStage.LoadAndUnload( PrimsToLoad, PrimsToUnload );
 	}
 }
 

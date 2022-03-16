@@ -201,6 +201,37 @@ namespace UE
 #endif // USE_USD_SDK
 
 	template<typename PtrType>
+	void FUsdStageBase<PtrType>::LoadAndUnload( const TSet<FSdfPath>& LoadSet, const TSet<FSdfPath>& UnloadSet, EUsdLoadPolicy Policy )
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs Allocs;
+
+			pxr::SdfPathSet UsdLoadSet;
+			for ( const FSdfPath& Path : LoadSet )
+			{
+				UsdLoadSet.insert( static_cast< pxr::SdfPath >( Path ) );
+			}
+
+			pxr::SdfPathSet UsdUnloadSet;
+			for ( const FSdfPath& Path : UnloadSet )
+			{
+				UsdUnloadSet.insert( static_cast< pxr::SdfPath >( Path ) );
+			}
+
+			Ptr->LoadAndUnload(
+				UsdLoadSet,
+				UsdUnloadSet,
+				Policy == EUsdLoadPolicy::UsdLoadWithDescendants
+					? pxr::UsdLoadPolicy::UsdLoadWithDescendants
+					: pxr::UsdLoadPolicy::UsdLoadWithoutDescendants
+			);
+		}
+#endif
+	}
+
+	template<typename PtrType>
 	FSdfLayer FUsdStageBase<PtrType>::GetRootLayer() const
 	{
 #if USE_USD_SDK
