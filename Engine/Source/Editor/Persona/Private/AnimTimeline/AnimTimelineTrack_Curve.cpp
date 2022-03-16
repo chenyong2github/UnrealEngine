@@ -324,6 +324,7 @@ void FAnimTimelineTrack_Curve::AddToContextMenu(FMenuBuilder& InMenuBuilder, TSe
 		{
 			InMenuBuilder.AddMenuEntry(FAnimSequenceTimelineCommands::Get().EditSelectedCurves);
 			InMenuBuilder.AddMenuEntry(FAnimSequenceTimelineCommands::Get().RemoveSelectedCurves);
+			InMenuBuilder.AddMenuEntry(FAnimSequenceTimelineCommands::Get().CopySelectedCurveNames);
 		}
 		InMenuBuilder.EndSection();
 

@@ -74,6 +74,7 @@ private:
 	void EditSelectedCurves();
 	bool CanEditSelectedCurves() const;
 	void RemoveSelectedCurves();
+	void CopySelectedCurveNamesToClipboard();
 	void SetDisplayFormat(EFrameNumberDisplayFormats InFormat);
 	bool IsDisplayFormatChecked(EFrameNumberDisplayFormats InFormat) const;
 	void ToggleDisplayPercentage();

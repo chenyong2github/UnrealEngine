@@ -26,7 +26,6 @@ public:
 	TSharedPtr<FUICommandInfo> EditSelectedCurves;
 
 	TSharedPtr<FUICommandInfo> RemoveSelectedCurves;
-
 	TSharedPtr<FUICommandInfo> AddNotifyTrack;
 
 	TSharedPtr<FUICommandInfo> InsertNotifyTrack;
@@ -49,6 +48,8 @@ public:
 
 	TSharedPtr<FUICommandInfo> RemoveAllCurves;
 
+	TSharedPtr<FUICommandInfo> CopySelectedCurveNames;
+	
 	TSharedPtr<FUICommandInfo> DisplaySeconds;
 
 	TSharedPtr<FUICommandInfo> DisplayFrames;
@@ -64,7 +65,6 @@ public:
 	TSharedPtr<FUICommandInfo> SnapToMontageSections;
 
 	TSharedPtr<FUICommandInfo> SnapToCompositeSegments;
-
 public:
 	virtual void RegisterCommands() override;
 };

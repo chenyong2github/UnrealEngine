@@ -22,6 +22,7 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "ScopedTransaction.h"
 
 
@@ -92,6 +93,10 @@ void FAnimModel_AnimSequenceBase::Initialize()
 		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::RemoveSelectedCurves));
 
 	CommandList->MapAction(
+		Commands.CopySelectedCurveNames,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::CopySelectedCurveNamesToClipboard));
+	
+	CommandList->MapAction(
 		Commands.DisplayFrames,
 		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::SetDisplayFormat, EFrameNumberDisplayFormats::Frames),
 		FCanExecuteAction(),
@@ -143,6 +148,7 @@ void FAnimModel_AnimSequenceBase::Initialize()
 		FIsActionChecked::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapChecked, FAnimModel::FSnapType::MontageSection.Type),
 		FIsActionButtonVisible::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapAvailable, FAnimModel::FSnapType::MontageSection.Type));
 }
+
 
 void FAnimModel_AnimSequenceBase::RefreshTracks()
 {
@@ -484,6 +490,31 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 		}
 	}
 }
+
+
+void FAnimModel_AnimSequenceBase::CopySelectedCurveNamesToClipboard()
+{
+	TArray<FString> TrackNames; 
+	for(TSharedRef<FAnimTimelineTrack>& SelectedTrack : SelectedTracks)
+	{
+		if(SelectedTrack->IsA<FAnimTimelineTrack_FloatCurve>())
+		{
+			TSharedRef<FAnimTimelineTrack_FloatCurve> FloatCurveTrack = StaticCastSharedRef<FAnimTimelineTrack_FloatCurve>(SelectedTrack);
+			TrackNames.Add(FloatCurveTrack->GetName().DisplayName.ToString());
+		}
+		else if(SelectedTrack->IsA<FAnimTimelineTrack_TransformCurve>())
+		{
+			TSharedRef<FAnimTimelineTrack_TransformCurve> TransformCurveTrack = StaticCastSharedRef<FAnimTimelineTrack_TransformCurve>(SelectedTrack);
+			TrackNames.Add(TransformCurveTrack->GetName().DisplayName.ToString());
+		}
+
+	}
+	if (!TrackNames.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*FString::Join(TrackNames, TEXT("\n")));
+	}
+}
+
 
 void FAnimModel_AnimSequenceBase::SetDisplayFormat(EFrameNumberDisplayFormats InFormat)
 {
