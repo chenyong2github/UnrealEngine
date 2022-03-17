@@ -120,6 +120,7 @@ public:
 public:
 	/** Map of filenames to perforce state */
 	TMap<FString, EPerforceState::Type> OutResults;
+	FPerforceSourceControlChangelist Changelist;
 };
 
 class FPerforceRevertWorker final : public IPerforceSourceControlWorker

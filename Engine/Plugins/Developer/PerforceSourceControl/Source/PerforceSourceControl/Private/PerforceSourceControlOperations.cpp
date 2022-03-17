@@ -774,7 +774,18 @@ bool FPerforceDeleteWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		TArray<FString> Parameters;
 
-		AppendChangelistParameter(GetSCCProvider(), Parameters);
+		if ((!AppendChangelistParameter(GetSCCProvider(), Parameters)) && InCommand.Changelist.IsInitialized())
+		{
+			FString ChangelistNumber = InCommand.Changelist.ToString();
+
+			if (!ChangelistNumber.IsEmpty())
+			{
+				Parameters.Add(TEXT("-c"));
+				Parameters.Add(ChangelistNumber);
+				Changelist = InCommand.Changelist;
+			}
+		}
+
 		Parameters.Append(InCommand.Files);
 
 		FP4RecordSet Records;
@@ -786,6 +797,9 @@ bool FPerforceDeleteWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 bool FPerforceDeleteWorker::UpdateStates() const
 {
+	// If files have been checkedout directly to a CL, modify the cached state to reflect it.
+	UpdateChangelistState(GetSCCProvider(), Changelist, OutResults);
+
 	return UpdateCachedStates(GetSCCProvider(), OutResults);
 }
 
