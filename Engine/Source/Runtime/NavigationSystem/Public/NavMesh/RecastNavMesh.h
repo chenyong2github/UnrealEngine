@@ -868,6 +868,7 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void PostRegisterAllComponents() override;
+	virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -1233,6 +1234,8 @@ protected:
 	/** created a new FRecastNavMeshGenerator instance. Overrider to supply your
 	 *	own extentions. Note: needs to derive from FRecastNavMeshGenerator */
 	virtual FRecastNavMeshGenerator* CreateGeneratorInstance();
+
+	void CheckToDiscardSubLevelNavData(const UNavigationSystemBase& NavSys);
 
 private:
 	friend struct FRecastGraphWrapper;

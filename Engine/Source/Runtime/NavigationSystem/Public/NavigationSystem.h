@@ -73,7 +73,6 @@ namespace FNavigationSystem
 	};
 
 	bool NAVIGATIONSYSTEM_API ShouldLoadNavigationOnClient(ANavigationData& NavData);
-	bool NAVIGATIONSYSTEM_API ShouldDiscardSubLevelNavData(ANavigationData& NavData);
 
 	void NAVIGATIONSYSTEM_API MakeAllComponentsNeverAffectNav(AActor& Actor);
 }

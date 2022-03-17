@@ -202,7 +202,7 @@ namespace FNavigationSystem
 	DECLARE_DELEGATE_RetVal_OneParam(INavigationDataInterface*, FNavDataForActorSignature, const AActor& /*Actor*/);
 	DECLARE_DELEGATE_RetVal(TSubclassOf<AActor>, FNavDataClassFetchSignature);
 	DECLARE_DELEGATE_TwoParams(FWorldBoolBasedSignature, UWorld& /*World*/, const bool /*bShow*/);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNavigationInitDoneSignature, const UNavigationSystemBase&);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNavigationInitSignature, const UNavigationSystemBase&);
 }
 
 
@@ -254,7 +254,8 @@ public:
 
 	virtual bool IsWorldInitDone() const PURE_VIRTUAL(UNavigationSystemBase::IsWorldInitDone, return false;);
 
-	static FNavigationSystem::FOnNavigationInitDoneSignature& OnNavigationInitDoneStaticDelegate();
+	static FNavigationSystem::FOnNavigationInitSignature& OnNavigationInitStartStaticDelegate();
+	static FNavigationSystem::FOnNavigationInitSignature& OnNavigationInitDoneStaticDelegate();
 
 protected:
 	/**	Sets the Transform the Navigation System will use when converting from FromCoordType

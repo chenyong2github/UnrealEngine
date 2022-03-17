@@ -501,13 +501,58 @@ void ARecastNavMesh::CleanUp()
 
 void ARecastNavMesh::PostLoad()
 {
+	UE_LOG(LogNavigation, Verbose, TEXT("%s %s"), ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(this));
+	
 	Super::PostLoad();
+	
+	if (const UWorld* World = GetWorld())
+	{
+		const UNavigationSystemBase* NavSys = World->GetNavigationSystem();
+		if (NavSys && NavSys->IsWorldInitDone())
+		{
+			CheckToDiscardSubLevelNavData(*NavSys);
+		}
+		else
+		{
+			UNavigationSystemBase::OnNavigationInitStartStaticDelegate().AddUObject(this, &ARecastNavMesh::CheckToDiscardSubLevelNavData);
+		}
+	}
 
 	UE_CLOG(TileSizeUU < CellSize, LogNavigation, Error, TEXT("%s: TileSizeUU (%f) being less than CellSize (%f) is an invalid case and will cause navmesh generation issues.")
 		, *GetName(), TileSizeUU, CellSize);
 
 	RecreateDefaultFilter();
 	UpdatePolyRefBitsPreview();
+}
+
+void ARecastNavMesh::BeginDestroy()
+{
+	UNavigationSystemBase::OnNavigationInitStartStaticDelegate().RemoveAll(this);
+
+	Super::BeginDestroy();
+}
+
+void ARecastNavMesh::CheckToDiscardSubLevelNavData(const UNavigationSystemBase& BaseNavSys)
+{
+	// This used to be in ARecastNavMesh::PostInitProperties() but the OwningWorld is not always available, it might be too soon to query it.
+	// Moved here so sublevel data can be discarded when requested.
+	const UWorld* OwningWorld = GetWorld();
+	const UNavigationSystemV1* NavSys = Cast<UNavigationSystemV1>(&BaseNavSys);
+	if (OwningWorld && NavSys->ShouldDiscardSubLevelNavData(this))
+	{
+		// Get rid of instances saved within levels that are streamed-in
+		if ((GEngine->IsSettingUpPlayWorld() == false) // this is a @HACK
+			&& (OwningWorld->GetOutermost() != GetOutermost())
+			// If we are cooking, then let them all pass.
+			// They will be handled at load-time when running.
+			&& (IsRunningCommandlet() == false))
+		{
+			UE_LOG(LogNavigation, Verbose, TEXT("%s Discarding %s due to it not being part of PersistentLevel."), ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(this));
+
+			// Marking self for deletion 
+			CleanUpAndMarkPendingKill();
+		}
+	}
 }
 
 void ARecastNavMesh::PostRegisterAllComponents()
@@ -528,26 +573,6 @@ void ARecastNavMesh::PostInitProperties()
 
 		static const FNavMeshConfig::FRecastNamedFiltersCreator RecastNamedFiltersCreator(bUseVirtualFilters);
 		NavLinkFlag = FNavMeshConfig::NavLinkFlag;
-	}
-
-	UWorld* MyWorld = GetWorld();
-	if (MyWorld != nullptr 
-		&& HasAnyFlags(RF_NeedLoad) //  was loaded
-		&& FNavigationSystem::ShouldDiscardSubLevelNavData(*this))
-	{
-		// get rid of instances saved within levels that are streamed-in
-		if ((GEngine->IsSettingUpPlayWorld() == false) // this is a @HACK
-			&&	(MyWorld->GetOutermost() != GetOutermost())
-			// If we are cooking, then let them all pass.
-			// They will be handled at load-time when running.
-			&&	(IsRunningCommandlet() == false))
-		{
-			UE_LOG(LogNavigation, Log, TEXT("Discarding %s due to it not being part of PersistentLevel")
-				, *GetNameSafe(this));
-			
-			// marking self for deletion 
-			CleanUpAndMarkPendingKill();
-		}
 	}
 	
 	Super::PostInitProperties();

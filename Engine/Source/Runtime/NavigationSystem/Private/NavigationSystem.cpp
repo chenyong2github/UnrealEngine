@@ -192,25 +192,6 @@ namespace FNavigationSystem
 		return false;
 	}
 
-	bool ShouldDiscardSubLevelNavData(ANavigationData& NavData)
-	{
-		const UWorld* World = NavData.GetWorld();
-
-		if (World && World->GetNavigationSystem())
-		{
-			const UNavigationSystemV1* NavSys = Cast<UNavigationSystemV1>(World->GetNavigationSystem());
-			if (NavSys)
-			{
-				return NavSys->ShouldDiscardSubLevelNavData(&NavData);
-			}
-		}
-
-		const UNavigationSystemV1* NavSysCDO = (*GEngine->NavigationSystemClass != nullptr)
-			? (GEngine->NavigationSystemClass->GetDefaultObject<const UNavigationSystemV1>())
-			: (const UNavigationSystemV1*)nullptr;
-		return NavSysCDO == nullptr || NavSysCDO->ShouldDiscardSubLevelNavData(&NavData);
-	}
-
 	void MakeAllComponentsNeverAffectNav(AActor& Actor)
 	{
 		const TSet<UActorComponent*> Components = Actor.GetComponents();
@@ -872,6 +853,8 @@ void UNavigationSystemV1::OnBeginTearingDown(UWorld* World)
 
 void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 {
+	UNavigationSystemBase::OnNavigationInitStartStaticDelegate().Broadcast(*this);
+	
 	OperationMode = Mode;
 	DoInitialSetup();
 	
@@ -2252,6 +2235,8 @@ void UNavigationSystemV1::ProcessCustomLinkPendingRegistration()
 
 UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(ANavigationData* NavData)
 {
+	UE_LOG(LogNavigation, Verbose, TEXT("%s %s"), ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(NavData));
+	
 	if (NavData == NULL)
 	{
 		return RegistrationError;
@@ -2371,6 +2356,8 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 
 void UNavigationSystemV1::UnregisterNavData(ANavigationData* NavData)
 {
+	UE_LOG(LogNavigation, Verbose, TEXT("%s %s"), ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(NavData));
+	
 	NavDataSet.RemoveSingle(NavData);
 
 	if (NavData == NULL)
