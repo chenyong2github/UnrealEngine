@@ -2043,7 +2043,8 @@ void SProjectDialog::UpdateProjectFileValidity()
 					}
 					else
 					{
-						LastGlobalValidityErrorText = FText::Format(LOCTEXT("NoCompilerFound", "In order to use a C++ template, you must first install or disable {0}."), FSourceCodeNavigation::GetSuggestedSourceCodeIDE());
+						LastGlobalValidityErrorText = FText::Format(LOCTEXT("NoCompilerFoundProjectDialog", "Your IDE {0} is missing or incorrectly configured, please consider using {1}"),
+			FSourceCodeNavigation::GetSelectedSourceCodeIDE(), FSourceCodeNavigation::GetSuggestedSourceCodeIDE());
 					}
 				}
 				else if (!FDesktopPlatformModule::Get()->IsUnrealBuildToolAvailable())
