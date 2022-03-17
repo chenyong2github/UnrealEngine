@@ -8581,6 +8581,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			const bool bShouldIncludeDefaultObjects = FParse::Param(Cmd, TEXT("INCLUDEDEFAULTS"));
 			const bool bOnlyListDefaultObjects = FParse::Param(Cmd, TEXT("DEFAULTSONLY"));
 			const bool bShowDetailedObjectInfo = FParse::Param(Cmd, TEXT("NODETAILEDINFO")) == false && bTrackDetailedObjectInfo;
+			const bool bOnlyShowDisregardGC = FParse::Param(Cmd, TEXT("GCDISREGARDONLY"));
 
 			for( FThreadSafeObjectIterator It; It; ++It )
 			{
@@ -8596,6 +8597,11 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 					}
 				}
 				else if( bOnlyListDefaultObjects )
+				{
+					continue;
+				}
+
+				if ( bOnlyShowDisregardGC && !GUObjectArray.IsDisregardForGC(*It))
 				{
 					continue;
 				}
