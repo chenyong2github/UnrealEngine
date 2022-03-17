@@ -25,16 +25,18 @@ unzip "v2.1.0.zip" -d .
 
 pushd $OCIO_LIB_NAME
 
-CXX_FLAGS="-mmacosx-version-min=10.9 -arch x86_64 -arch arm64"
-IMATH_CMAKE_LOCATION="$UE_THIRD_PARTY_DIR/Imath/Deploy/Imath-3.1.3/Mac/lib/cmake/Imath"
+UE_C_FLAGS="-mmacosx-version-min=10.9 -arch x86_64 -arch arm64"
+UE_CXX_FLAGS="-mmacosx-version-min=10.9 -arch x86_64 -arch arm64"
+
+#IMATH_CMAKE_LOCATION="$UE_THIRD_PARTY_DIR/Imath/Deploy/Imath-3.1.3/Mac/lib/cmake/Imath"
 
 # Configure OCIO cmake and launch a release build
 echo "Configuring build..."
 cmake -S . -B build \
-    #-DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+    -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="10.9" \
     -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_PREFIX_PATH="$IMATH_CMAKE_LOCATION" \
+    -DCMAKE_MACOSX_RPATH=TRUE \
     -DBUILD_SHARED_LIBS=ON \
     -DCMAKE_CXX_STANDARD=11 \
     -DCMAKE_CXX_FLAGS="$CXX_FLAGS" \
@@ -46,16 +48,24 @@ cmake -S . -B build \
     -DOCIO_BUILD_PYTHON=OFF \
     -DOCIO_INSTALL_EXT_PACKAGES=ALL \
     -Dexpat_STATIC_LIBRARY=ON \
-    -Dexpat_CXX_FLAGS="$CXX_FLAGS" \
+    -DEXPAT_C_FLAGS="${UE_C_FLAGS}" \
+    -DEXPAT_CXX_FLAGS="${UE_CXX_FLAGS}" \
+    -DImath_STATIC_LIBRARY=ON \
+    -DImath_C_FLAGS="${UE_C_FLAGS}" \
+    -DImath_CXX_FLAGS="${UE_CXX_FLAGS}" \
     -Dyaml-cpp_STATIC_LIBRARY=ON \
-    -Dyaml-cpp_CXX_FLAGS="$CXX_FLAGS" \
+    -Dyaml-cpp_C_FLAGS="${UE_C_FLAGS}" \
+    -Dyaml-cpp_CXX_FLAGS="${UE_CXX_FLAGS}" \
     -Dpystring_STATIC_LIBRARY=ON \
-    -Dpystring_CXX_FLAGS="$CXX_FLAGS"
+    -Dpystring_C_FLAGS="${UE_C_FLAGS}" \
+    -Dpystring_CXX_FLAGS="${UE_CXX_FLAGS}"
 
 echo "Building Release build..."
 cmake --build build --config Release
 
-#echo "Copying library build files..."
+echo "Copying library build files..."
 cp build/src/OpenColorIO/libOpenColorIO.2.1.0.dylib ../../../../Binaries/ThirdParty/Mac/libOpenColorIO.2.1.dylib
+cp build/src/OpenColorIO/libOpenColorIO.2.1.0.dylib ../../../../Binaries/ThirdParty/Mac/libOpenColorIO.dylib
+install_name_tool -id @rpath/libOpenColorIO.dylib ../../../../Binaries/ThirdParty/Mac/libOpenColorIO.dylib
 
 popd
