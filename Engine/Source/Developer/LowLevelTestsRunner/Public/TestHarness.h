@@ -11,6 +11,11 @@
 #include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
 
+#if PLATFORM_MAC
+// Fix type redefinition error of FVector
+#include "HAL/PlatformMath.h"
+#endif // PLATFORM_MAC
+
 #include <ostream>
 
 std::ostream& operator<<(std::ostream& Stream, const TCHAR* Value);

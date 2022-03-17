@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformTLS.h"
 
+#include "LowLevelTestModule.h"
 #include "TestCommon/CoreUtilities.h"
 
 // Test run interceptor
@@ -36,6 +37,52 @@ void UnloadBaseTestModule(FString BaseModuleName)
 	if (!BaseModuleName.IsEmpty())
 	{
 		FModuleManager::Get().UnloadModule(*BaseModuleName);
+	}
+}
+
+void GlobalModuleSetup()
+{
+	// Search for all low level test modules
+	TArray<FName> ModuleNames;
+	FModuleManager::Get().FindModules(TEXT("*GlobalLowLevelTests"), ModuleNames);
+
+	if (ModuleNames.Num() <= 0)
+	{
+		return;
+	}
+
+	for (FName ModuleName : ModuleNames)
+	{
+		ILowLevelTestsModule* Module = FModuleManager::LoadModulePtr<ILowLevelTestsModule>(ModuleName);
+		if (Module != nullptr)
+		{
+			Module->GlobalSetup();
+		}
+	}
+}
+
+void GlobalModuleTeardown()
+{
+	// Search for all low level test modules
+	TArray<FName> ModuleNames;
+	FModuleManager::Get().FindModules(TEXT("*GlobalLowLevelTests"), ModuleNames);
+
+	if (ModuleNames.Num() <= 0)
+	{
+		return;
+	}
+
+	for (FName ModuleName : ModuleNames)
+	{
+		ILowLevelTestsModule* Module = FModuleManager::GetModulePtr<ILowLevelTestsModule>(ModuleName);
+		if (Module != nullptr)
+		{
+			Module->GlobalTeardown();
+			if (Module->SupportsAutomaticShutdown())
+			{
+				Module->ShutdownModule();
+			}
+		}
 	}
 }
 
@@ -112,6 +159,7 @@ int RunTests(int argc, const char* argv[])
 	}
 
 	LoadBaseTestModule(LoadModuleName);
+	GlobalModuleSetup();
 
 	int SessionResult = 0;
 	{
@@ -120,6 +168,7 @@ int RunTests(int argc, const char* argv[])
 		CatchArgv.Reset();
 	}
 
+	GlobalModuleTeardown();
 	UnloadBaseTestModule(LoadModuleName);
 
 	// Required, will crash on exit otherwise...
