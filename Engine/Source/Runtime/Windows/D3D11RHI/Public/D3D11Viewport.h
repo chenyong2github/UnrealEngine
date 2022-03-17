@@ -10,12 +10,6 @@
 #include "RenderResource.h"
 #include "RenderUtils.h"
 
-#if PLATFORM_HOLOLENS
-#include "AllowWindowsPlatformTypes.h"
-#include <dxgi1_2.h>
-#include "HideWindowsPlatformTypes.h"
-#endif
-
 /** A D3D event query resource. */
 class D3D11RHI_API FD3D11EventQuery
 {

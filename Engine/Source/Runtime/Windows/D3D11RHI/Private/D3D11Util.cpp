@@ -8,10 +8,6 @@
 #include "EngineModule.h"
 #include "RendererInterface.h"
 
-THIRD_PARTY_INCLUDES_START
-#include "dxgi1_4.h"
-THIRD_PARTY_INCLUDES_END
-
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
 

@@ -5,7 +5,6 @@
 
 #include "AllowWindowsPlatformTypes.h"
 	#include <DirectXMath.h>
-	#include <dxgi1_2.h>
 #include "HideWindowsPlatformTypes.h"
 
 #pragma warning(disable : 4946)	// reinterpret_cast used between related classes: 'Platform::Object' and ...

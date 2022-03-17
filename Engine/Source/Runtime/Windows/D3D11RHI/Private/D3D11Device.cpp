@@ -15,9 +15,6 @@
 	#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
-#include "dxgi1_5.h"
-
-
 bool D3D11RHI_ShouldCreateWithD3DDebug()
 {
 	// Use a debug device if specified on the command line.

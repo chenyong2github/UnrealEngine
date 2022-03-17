@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "DynamicRHI.h"
+#include "RHI.h"
 
 #if PLATFORM_WINDOWS
 	#include "Windows/D3D11ThirdParty.h"
