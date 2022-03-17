@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/ExtractLocResCommandlet.h"
+#include "Commandlets/GatherTextCommandletBase.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "HAL/FileManager.h"
@@ -23,15 +24,7 @@ int32 UExtractLocResCommandlet::Main(const FString& Params)
 		TArray<FString> PotentialLocResFileNames;
 		LocResParamPtr->ParseIntoArray(PotentialLocResFileNames, TEXT(";"));
 
-		FString ProjectBasePath;
-		if (!FPaths::ProjectDir().IsEmpty())
-		{
-			ProjectBasePath = FPaths::ProjectDir();
-		}
-		else
-		{
-			ProjectBasePath = FPaths::EngineDir();
-		}
+		const FString& ProjectBasePath = UGatherTextCommandletBase::GetProjectBasePath();
 
 		for (FString& PotentialLocResFileName : PotentialLocResFileNames)
 		{

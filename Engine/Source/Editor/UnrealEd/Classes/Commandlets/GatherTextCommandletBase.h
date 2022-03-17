@@ -79,6 +79,9 @@ public:
 	bool ShouldSplitPlatformForPath(const FString& InPath, FName* OutPlatformName = nullptr) const;
 	FName GetSplitPlatformNameFromPath(const FString& InPath) const;
 
+	// Utility to get the correct base path (engine or project) for the current environment
+	static const FString& GetProjectBasePath();
+
 protected:
 	TSharedPtr< FLocTextHelper > GatherManifestHelper;
 

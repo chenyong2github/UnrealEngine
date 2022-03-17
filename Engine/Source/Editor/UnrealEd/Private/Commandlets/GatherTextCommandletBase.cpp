@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/GatherTextCommandletBase.h"
+#include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
@@ -108,7 +109,6 @@ bool UGatherTextCommandletBase::GetStringFromConfig( const TCHAR* Section, const
 
 void ResolveLocalizationPath(FString& InOutPath)
 {
-	static const bool bIsEngineTarget = FPaths::ProjectDir().IsEmpty();
 	static const FString AbsoluteEnginePath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir()) / FString();
 	static const FString AbsoluteProjectPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()) / FString();
 
@@ -117,7 +117,9 @@ void ResolveLocalizationPath(FString& InOutPath)
 
 	if (FPaths::IsRelative(InOutPath))
 	{
-		InOutPath.InsertAt(0, bIsEngineTarget ? AbsoluteEnginePath : AbsoluteProjectPath);
+		static const FString AbsoluteTargetPath = FPaths::ConvertRelativePathToFull(UGatherTextCommandletBase::GetProjectBasePath()) / FString();
+
+		InOutPath.InsertAt(0, AbsoluteTargetPath);
 	}
 
 	FPaths::CollapseRelativeDirectories(InOutPath);
@@ -154,6 +156,12 @@ int32 UGatherTextCommandletBase::GetPathArrayFromConfig( const TCHAR* Section, c
 	}
 
 	return count;
+}
+
+const FString& UGatherTextCommandletBase::GetProjectBasePath()
+{
+	static const FString ProjectBasePath = FApp::HasProjectName() ? FPaths::ProjectDir() : FPaths::EngineDir();
+	return ProjectBasePath;
 }
 
 

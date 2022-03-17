@@ -42,15 +42,7 @@ int32 UGatherTextCommandlet::Main( const FString& Params )
 	{
 		ConfigParamPtr->ParseIntoArray(GatherTextConfigPaths, TEXT(";"));
 
-		FString ProjectBasePath;
-		if (!FPaths::ProjectDir().IsEmpty())
-		{
-			ProjectBasePath = FPaths::ProjectDir();
-		}
-		else
-		{
-			ProjectBasePath = FPaths::EngineDir();
-		}
+		const FString& ProjectBasePath = UGatherTextCommandletBase::GetProjectBasePath();
 
 		for (FString& GatherTextConfigPath : GatherTextConfigPaths)
 		{

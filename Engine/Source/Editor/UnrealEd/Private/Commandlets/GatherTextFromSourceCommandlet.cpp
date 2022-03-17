@@ -280,15 +280,7 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 	// Parse all source files for macros and add entries to SourceParsedEntries
 	for ( FString& SourceFile : FilesToProcess)
 	{
-		FString ProjectBasePath;
-		if (!FPaths::ProjectDir().IsEmpty())
-		{
-			ProjectBasePath = FPaths::ProjectDir();
-		}
-		else
-		{
-			ProjectBasePath = FPaths::EngineDir();
-		}
+		const FString& ProjectBasePath = UGatherTextCommandletBase::GetProjectBasePath();
 
 		ParseCtxt.Filename = SourceFile;
 		ParseCtxt.FileTypes = ParseCtxt.Filename.EndsWith(TEXT(".ini")) ? EGatherTextSourceFileTypes::Ini : EGatherTextSourceFileTypes::Cpp;
