@@ -43,6 +43,12 @@ namespace Horde.Storage.Controllers
                 return defaultContentType;
             }
 
+            // */* means to accept anything, so we use the default content type
+            if (acceptHeader == "*/*")
+            {
+                return defaultContentType;
+            }
+
             foreach (string header in acceptHeader)
             {
                 string s = header.ToLowerInvariant();
