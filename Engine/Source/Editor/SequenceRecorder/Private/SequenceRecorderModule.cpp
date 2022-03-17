@@ -39,6 +39,7 @@
 #include "ActorRecordingDetailsCustomization.h"
 #include "SequenceRecorderDetailsCustomization.h"
 #include "PropertiesToRecordForClassDetailsCustomization.h"
+#include "TimecodeBoneMethodCustomization.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "IStructureDetailsView.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
@@ -198,6 +199,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 			PropertyModule.RegisterCustomClassLayout(USequenceRecorderSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSequenceRecorderDetailsCustomization::MakeInstance));
 			PropertyModule.RegisterCustomPropertyTypeLayout(FPropertiesToRecordForClass::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPropertiesToRecordForClassDetailsCustomization::MakeInstance));
 			PropertyModule.RegisterCustomPropertyTypeLayout(FPropertiesToRecordForActorClass::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPropertiesToRecordForActorClassDetailsCustomization::MakeInstance));
+			PropertyModule.RegisterCustomPropertyTypeLayout("TimecodeBoneMethod", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FTimecodeBoneMethodCustomization::MakeInstance));
 		}
 #endif
 	}
@@ -245,6 +247,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 					PropertyModule.UnregisterCustomClassLayout(UActorRecording::StaticClass()->GetFName());
 					PropertyModule.UnregisterCustomClassLayout(USequenceRecorderSettings::StaticClass()->GetFName());
 					PropertyModule.UnregisterCustomPropertyTypeLayout(FPropertiesToRecordForClass::StaticStruct()->GetFName());
+					PropertyModule.UnregisterCustomPropertyTypeLayout("TimecodeBoneMethod");
 				}
 			}
 		}

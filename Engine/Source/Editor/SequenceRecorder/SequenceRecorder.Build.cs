@@ -53,6 +53,7 @@ namespace UnrealBuildTool.Rules
                     "Kismet",
                     "LiveLinkInterface",
                     "SerializedRecorderInterface",
+					"SceneOutliner",
                 }
                 );
 
