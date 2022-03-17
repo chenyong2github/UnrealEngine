@@ -373,11 +373,11 @@ FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, 
 	return Tmp.V;
 }
 
-FORCEINLINE VectorRegister2Int64 MakeVectorRegisterInt64(int64 X, int64 Y)
+FORCEINLINE VectorRegister4Int MakeVectorRegisterInt64(int64 X, int64 Y)
 {
 	union U
 	{
-		VectorRegister2Int64 V; int64 I[2];
+		VectorRegister4Int V; int64 I[2];
 		FORCEINLINE U() : V() {}
 	} Tmp;
 	Tmp.I[0] = X;
