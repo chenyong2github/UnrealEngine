@@ -657,7 +657,10 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 
 		FFrameRate TickResolution = MovieScene->GetTickResolution();
 		float Duration = AnimSequence->GetPlayLength();
-		LevelSequence->GetMovieScene()->SetPlaybackRange(0, (Duration * TickResolution).FloorToFrame().Value);
+		MovieScene->SetPlaybackRange(0, (Duration * TickResolution).FloorToFrame().Value);
+		FFrameRate SequenceFrameRate = AnimSequence->GetSamplingFrameRate();
+		MovieScene->SetDisplayRate(SequenceFrameRate);
+
 
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelSequence);
 
@@ -665,8 +668,11 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 		ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
 		TWeakPtr<ISequencer> WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
 
+
+
 		if (WeakSequencer.IsValid())
 		{
+
 			ASkeletalMeshActor* MeshActor = World->SpawnActor<ASkeletalMeshActor>(ASkeletalMeshActor::StaticClass(), FTransform::Identity);
 			MeshActor->SetActorLabel(AnimSequence->GetName());
 
