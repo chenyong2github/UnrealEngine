@@ -5,6 +5,7 @@
 #include "DMXProtocolConstants.h"
 #include "DMXStats.h"
 
+#include "Engine/Texture2D.h"
 #include "Rendering/Texture2DResource.h"
 #include "Components/StaticMeshComponent.h"
 
