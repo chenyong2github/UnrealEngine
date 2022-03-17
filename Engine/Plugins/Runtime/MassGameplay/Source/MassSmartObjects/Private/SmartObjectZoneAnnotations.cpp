@@ -2,7 +2,7 @@
 
 #include "SmartObjectZoneAnnotations.h"
 #include "MassSmartObjectSettings.h"
-#include "SmartObjectCollection.h"
+//#include "SmartObjectCollection.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectSubsystem.h"
 #include "ZoneGraphAnnotationSubsystem.h"
@@ -134,7 +134,7 @@ const FSmartObjectAnnotationData* USmartObjectZoneAnnotations::GetAnnotationData
 	return &SmartObjectAnnotationDataArray[Index];
 }
 
-TOptional<FSmartObjectLaneLocation> USmartObjectZoneAnnotations::GetSmartObjectLaneLocation(const FZoneGraphDataHandle& DataHandle, const FSmartObjectHandle& SmartObjectHandle) const
+TOptional<FSmartObjectLaneLocation> USmartObjectZoneAnnotations::GetSmartObjectLaneLocation(const FZoneGraphDataHandle DataHandle, const FSmartObjectHandle SmartObjectHandle) const
 {
 	TOptional<FSmartObjectLaneLocation> SmartObjectLaneLocation;
 	if (const FSmartObjectAnnotationData* AnnotationData = GetAnnotationData(DataHandle))

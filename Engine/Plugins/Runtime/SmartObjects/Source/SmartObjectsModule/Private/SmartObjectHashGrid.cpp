@@ -3,14 +3,14 @@
 #include "SmartObjectHashGrid.h"
 #include "DebugRenderSceneProxy.h"
 
-FInstancedStruct USmartObjectHashGrid::Add(const FSmartObjectHandle& Handle, const FBox& Bounds)
+FInstancedStruct USmartObjectHashGrid::Add(const FSmartObjectHandle Handle, const FBox& Bounds)
 {
 	FSmartObjectHashGridEntryData GridEntryData;
 	GridEntryData.CellLoc = HashGrid.Add(Handle, Bounds);
 	return FInstancedStruct::Make(GridEntryData);
 }
 
-void USmartObjectHashGrid::Remove(const FSmartObjectHandle& Handle, const FStructView& EntryData)
+void USmartObjectHashGrid::Remove(const FSmartObjectHandle Handle, const FStructView& EntryData)
 {
 	FSmartObjectHashGridEntryData& GridEntryData = EntryData.GetMutable<FSmartObjectHashGridEntryData>();
 	HashGrid.Remove(Handle, GridEntryData.CellLoc);

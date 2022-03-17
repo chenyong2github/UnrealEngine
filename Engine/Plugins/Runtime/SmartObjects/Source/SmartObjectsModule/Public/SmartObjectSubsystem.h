@@ -72,7 +72,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestResult
 {
 	GENERATED_BODY()
 
-	FSmartObjectRequestResult(const FSmartObjectHandle& InSmartObjectHandle, const FSmartObjectSlotHandle InSlotHandle = {})
+	explicit FSmartObjectRequestResult(const FSmartObjectHandle InSmartObjectHandle, const FSmartObjectSlotHandle InSlotHandle = {})
 		: SmartObjectHandle(InSmartObjectHandle)
 		, SlotHandle(InSlotHandle)
 	{}
@@ -187,7 +187,7 @@ public:
 	 * @return A claim handle binding the claimed smart object, its slot and a user id.
 	 * @note Method will ensure on invalid Handle or SlotHandle.
 	 */
-	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle);
+	UE_NODISCARD FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle);
 
 	/**
 	 * Claim smart object from valid object and slot handles.
@@ -196,7 +196,7 @@ public:
 	 * @return A claim handle binding the claimed smart object, its slot and a user id.
 	 * @note Method will ensure on invalid Handle.
 	 */
-	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter = {});
+	UE_NODISCARD FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter = {});
 
 	/**
 	 * Indicates if the object/slot referred to by the given handle are still accessible in the simulation.
@@ -205,7 +205,7 @@ public:
 	 * @param ClaimHandle Handle to the claimed slot
 	 * @return True if the claim handle is valid and associated object is accessible, false otherwise
 	 */
-	bool IsClaimedObjectValid(FSmartObjectClaimHandle ClaimHandle) const;
+	bool IsClaimedObjectValid(const FSmartObjectClaimHandle& ClaimHandle) const;
 
 	/**
 	 * Indicates if the slot referred to by the given handle is still accessible in the simulation.
@@ -271,7 +271,7 @@ public:
 		return Cast<const DefinitionType>(GetBehaviorDefinition(ClaimHandle, DefinitionType::StaticClass()));
 	}
 
-	ESmartObjectSlotState GetSlotState(FSmartObjectSlotHandle SlotHandle) const;
+	ESmartObjectSlotState GetSlotState(const FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
 	 * Adds state data (through a deferred command) to a slot instance. Data must be a struct that inherits
@@ -289,7 +289,7 @@ public:
 	 * user must validate that the handle still refers to a slot that is part of the simulation by calling 'IsSlotValid'.
 	 * @note Method will ensure on invalid SlotHandle and fail a check if associated slot is no longer part of the simulation.
 	 */
-	FSmartObjectSlotView GetSlotView(const FSmartObjectSlotHandle& SlotHandle) const;
+	FSmartObjectSlotView GetSlotView(const FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
 	 * Returns the position (in world space) of the slot associated to the given claim handle.
@@ -323,7 +323,7 @@ public:
 	 * @return Position (in world space) of the slot associated to SlotHandle.
 	 * @note Method will ensure on invalid SlotHandle.
 	 */
-	TOptional<FVector> GetSlotLocation(FSmartObjectSlotHandle SlotHandle) const;
+	TOptional<FVector> GetSlotLocation(const FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
 	 * Returns the transform (in world space) of the slot associated to the given claim handle.
@@ -357,7 +357,7 @@ public:
 	 * @return Transform (in world space) of the slot associated to SlotHandle.
 	 * @note Method will ensure on invalid SlotHandle.
 	 */
-	TOptional<FTransform> GetSlotTransform(FSmartObjectSlotHandle SlotHandle) const;
+	TOptional<FTransform> GetSlotTransform(const FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
 	 * Returns the list of tags associated to the smartobject instance represented by the provided handle.
@@ -431,19 +431,19 @@ protected:
 	void CleanupRuntime();
 
 	/** Returns the runtime instance associated to the provided handle */
-	FSmartObjectRuntime* GetRuntimeInstance(const FSmartObjectHandle& SmartObjectHandle) { return RuntimeSmartObjects.Find(SmartObjectHandle); }
+	FSmartObjectRuntime* GetRuntimeInstance(const FSmartObjectHandle SmartObjectHandle) { return RuntimeSmartObjects.Find(SmartObjectHandle); }
 
 	/**
 	 * Returns the const runtime instance associated to the provided handle.
 	 * Method ensures on invalid handle and produces log message with provided context if instance can't be found.
 	 */
-	const FSmartObjectRuntime* GetValidatedRuntime(const FSmartObjectHandle& Handle, const TCHAR* Context) const;
+	const FSmartObjectRuntime* GetValidatedRuntime(const FSmartObjectHandle Handle, const TCHAR* Context) const;
 
 	/**
 	 * Returns the mutable runtime instance associated to the provided handle
 	 * Method ensures on invalid handle and produces log message with provided context if instance can't be found.
 	 */
-	FSmartObjectRuntime* GetValidatedMutableRuntime(const FSmartObjectHandle& Handle, const TCHAR* Context);
+	FSmartObjectRuntime* GetValidatedMutableRuntime(const FSmartObjectHandle Handle, const TCHAR* Context);
 
 	void AddTagToInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
 	void RemoveTagFromInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);

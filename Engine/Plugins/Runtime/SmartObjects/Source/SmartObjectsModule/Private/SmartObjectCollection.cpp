@@ -12,7 +12,7 @@
 //----------------------------------------------------------------------//
 // FSmartObjectCollectionEntry 
 //----------------------------------------------------------------------//
-FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectHandle& SmartObjectHandle, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex)
+FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectHandle SmartObjectHandle, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex)
 	: Path(&SmartObjectComponent)
 	, Transform(SmartObjectComponent.GetComponentTransform())
 	, Bounds(SmartObjectComponent.GetSmartObjectBounds())
@@ -228,7 +228,7 @@ bool ASmartObjectCollection::RemoveSmartObject(USmartObjectComponent& SOComponen
 	return Index != INDEX_NONE;
 }
 
-USmartObjectComponent* ASmartObjectCollection::GetSmartObjectComponent(const FSmartObjectHandle& SmartObjectHandle) const
+USmartObjectComponent* ASmartObjectCollection::GetSmartObjectComponent(const FSmartObjectHandle SmartObjectHandle) const
 {
 	const FSoftObjectPath* Path = RegisteredIdToObjectMap.Find(SmartObjectHandle);
 	return Path != nullptr ? CastChecked<USmartObjectComponent>(Path->ResolveObject(), ECastCheckedType::NullAllowed) : nullptr;

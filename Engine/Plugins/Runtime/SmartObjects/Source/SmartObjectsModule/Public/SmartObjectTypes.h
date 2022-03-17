@@ -88,15 +88,15 @@ public:
 	bool IsValid() const { return *this != Invalid; }
 	void Reset() { *this = Invalid; }
 
-	friend FString LexToString(const FSmartObjectHandle& Handle)
+	friend FString LexToString(const FSmartObjectHandle Handle)
 	{
 		return LexToString(Handle.ID);
 	}
 
-	bool operator==(const FSmartObjectHandle& Other) const { return ID == Other.ID; }
-	bool operator!=(const FSmartObjectHandle& Other) const { return !(*this == Other); }
+	bool operator==(const FSmartObjectHandle Other) const { return ID == Other.ID; }
+	bool operator!=(const FSmartObjectHandle Other) const { return !(*this == Other); }
 
-	friend uint32 GetTypeHash(const FSmartObjectHandle& Handle)
+	friend uint32 GetTypeHash(const FSmartObjectHandle Handle)
 	{
 		return Handle.ID;
 	}
@@ -130,15 +130,15 @@ public:
 		return EntityHandle.IsValid();
 	}
 
-	bool operator==(const FSmartObjectSlotHandle& Other) const { return EntityHandle == Other.EntityHandle; }
-	bool operator!=(const FSmartObjectSlotHandle& Other) const { return !(*this == Other); }
+	bool operator==(const FSmartObjectSlotHandle Other) const { return EntityHandle == Other.EntityHandle; }
+	bool operator!=(const FSmartObjectSlotHandle Other) const { return !(*this == Other); }
 
-	friend uint32 GetTypeHash(const FSmartObjectSlotHandle& SlotHandle)
+	friend uint32 GetTypeHash(const FSmartObjectSlotHandle SlotHandle)
 	{
 		return GetTypeHash(SlotHandle.EntityHandle);
 	}
 
-	friend FString LexToString(const FSmartObjectSlotHandle& SlotHandle)
+	friend FString LexToString(const FSmartObjectSlotHandle SlotHandle)
 	{
 		return LexToString(SlotHandle.EntityHandle.Index);
 	}
@@ -200,8 +200,8 @@ class SMARTOBJECTSMODULE_API USmartObjectSpacePartition : public UObject
 
 public:
 	virtual void SetBounds(const FBox& Bounds) {}
-	virtual FInstancedStruct Add(const FSmartObjectHandle& Handle, const FBox& Bounds) { return FInstancedStruct(); }
-	virtual void Remove(const FSmartObjectHandle& Handle, const FStructView& EntryData) {}
+	virtual FInstancedStruct Add(const FSmartObjectHandle Handle, const FBox& Bounds) { return FInstancedStruct(); }
+	virtual void Remove(const FSmartObjectHandle Handle, const FStructView& EntryData) {}
 	virtual void Find(const FBox& QueryBox, TArray<FSmartObjectHandle>& OutResults) {}
 
 #if UE_ENABLE_DEBUG_DRAWING

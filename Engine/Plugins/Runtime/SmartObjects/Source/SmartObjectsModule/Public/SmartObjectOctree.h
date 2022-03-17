@@ -20,7 +20,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectOctreeElement
 	FSmartObjectHandle SmartObjectHandle;
 	FSmartObjectOctreeIDSharedRef SharedOctreeID;
 
-	FSmartObjectOctreeElement(const FBoxCenterAndExtent& Bounds, const FSmartObjectHandle& SmartObjectHandle, const FSmartObjectOctreeIDSharedRef& SharedOctreeID);
+	FSmartObjectOctreeElement(const FBoxCenterAndExtent& Bounds, const FSmartObjectHandle SmartObjectHandle, const FSmartObjectOctreeIDSharedRef& SharedOctreeID);
 };
 
 struct FSmartObjectOctreeSemantics
@@ -52,7 +52,7 @@ public:
 	virtual ~FSmartObjectOctree();
 
 	/** Add new node and initialize using SmartObject runtime data */
-	void AddNode(const FBoxCenterAndExtent& Bounds, const FSmartObjectHandle& SmartObjectHandle, const FSmartObjectOctreeIDSharedRef& SharedOctreeID);
+	void AddNode(const FBoxCenterAndExtent& Bounds, const FSmartObjectHandle SmartObjectHandle, const FSmartObjectOctreeIDSharedRef& SharedOctreeID);
 	
 	/** Updates element bounds remove/add operation */
 	void UpdateNode(const FOctreeElementId2& Id, const FBox& NewBounds);
@@ -77,8 +77,8 @@ class SMARTOBJECTSMODULE_API USmartObjectOctree : public USmartObjectSpacePartit
 	GENERATED_BODY()
 
 protected:
-	virtual FInstancedStruct Add(const FSmartObjectHandle& Handle, const FBox& Bounds) override;
-	virtual void Remove(const FSmartObjectHandle& Handle, const FStructView& EntryData) override;
+	virtual FInstancedStruct Add(const FSmartObjectHandle Handle, const FBox& Bounds) override;
+	virtual void Remove(const FSmartObjectHandle Handle, const FStructView& EntryData) override;
 	virtual void Find(const FBox& QueryBox, TArray<FSmartObjectHandle>& OutResults) override;
 	virtual void SetBounds(const FBox& Bounds) override;
 

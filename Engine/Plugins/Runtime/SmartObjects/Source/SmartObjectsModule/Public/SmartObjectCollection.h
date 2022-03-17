@@ -17,9 +17,9 @@ struct SMARTOBJECTSMODULE_API FSmartObjectCollectionEntry
 	GENERATED_BODY()
 public:
 	FSmartObjectCollectionEntry() = default;
-	explicit FSmartObjectCollectionEntry(const FSmartObjectHandle& SmartObjectHandle, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex);
+	explicit FSmartObjectCollectionEntry(const FSmartObjectHandle SmartObjectHandle, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex);
 
-	const FSmartObjectHandle& GetHandle() const { return Handle; }
+	FSmartObjectHandle GetHandle() const { return Handle; }
 	const FSoftObjectPath& GetPath() const	{ return Path; }
 	USmartObjectComponent* GetComponent() const;
 	FTransform GetTransform() const { return Transform; }
@@ -113,7 +113,7 @@ protected:
 	 */
 	FSmartObjectCollectionEntry* AddSmartObject(USmartObjectComponent& SOComponent, bool& bAlreadyInCollection);
 	bool RemoveSmartObject(USmartObjectComponent& SOComponent);
-	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectHandle& SmartObjectHandle) const;
+	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectHandle SmartObjectHandle) const;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	FBox Bounds = FBox(ForceInitToZero);

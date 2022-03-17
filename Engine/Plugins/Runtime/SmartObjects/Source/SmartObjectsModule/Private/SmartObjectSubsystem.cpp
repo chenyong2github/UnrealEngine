@@ -238,7 +238,7 @@ void USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObje
 	// Destroy entities associated to slots
 	TArray<FMassEntityHandle> EntitiesToDestroy;
 	EntitiesToDestroy.Reserve(SmartObjectRuntime->SlotHandles.Num());
-	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime->SlotHandles)
+	for (const FSmartObjectSlotHandle SlotHandle : SmartObjectRuntime->SlotHandles)
 	{
 		RuntimeSlotStates.Remove(SlotHandle);
 		EntitiesToDestroy.Add(SlotHandle);
@@ -263,7 +263,7 @@ void USmartObjectSubsystem::RemoveComponentFromSimulation(USmartObjectComponent&
 
 void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectSlotState NewState)
 {
-	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime.SlotHandles)
+	for (const FSmartObjectSlotHandle SlotHandle : SmartObjectRuntime.SlotHandles)
 	{
 		FSmartObjectSlotClaimState& SlotState = RuntimeSlotStates.FindChecked(SlotHandle);
 		switch (SlotState.State)
@@ -271,7 +271,7 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime, co
 		case ESmartObjectSlotState::Claimed:
 		case ESmartObjectSlotState::Occupied:
 			{
-				FSmartObjectClaimHandle ClaimHandle(SmartObjectRuntime.GetRegisteredHandle(), SlotHandle, SlotState.User);
+				const FSmartObjectClaimHandle ClaimHandle(SmartObjectRuntime.GetRegisteredHandle(), SlotHandle, SlotState.User);
 				SlotState.Release(ClaimHandle, NewState, /* bAborted */ true);
 				break;
 			}
@@ -500,7 +500,7 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Ha
 	return FSmartObjectClaimHandle::InvalidHandle;
 }
 
-bool USmartObjectSubsystem::IsClaimedObjectValid(const FSmartObjectClaimHandle ClaimHandle) const
+bool USmartObjectSubsystem::IsClaimedObjectValid(const FSmartObjectClaimHandle& ClaimHandle) const
 {
 	return ClaimHandle.IsValid() && RuntimeSmartObjects.Find(ClaimHandle.SmartObjectHandle) != nullptr;
 }
@@ -673,12 +673,12 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 	return TOptional<FTransform>();
 }
 
-FSmartObjectRuntime* USmartObjectSubsystem::GetValidatedMutableRuntime(const FSmartObjectHandle& Handle, const TCHAR* Context)
+FSmartObjectRuntime* USmartObjectSubsystem::GetValidatedMutableRuntime(const FSmartObjectHandle Handle, const TCHAR* Context)
 {
 	return const_cast<FSmartObjectRuntime*>(GetValidatedRuntime(Handle, Context));
 }
 
-const FSmartObjectRuntime* USmartObjectSubsystem::GetValidatedRuntime(const FSmartObjectHandle& Handle, const TCHAR* Context) const
+const FSmartObjectRuntime* USmartObjectSubsystem::GetValidatedRuntime(const FSmartObjectHandle Handle, const TCHAR* Context) const
 {
 	if (!ensureMsgf(Handle.IsValid(), TEXT("Must provide a valid smart object handle.")))
 	{
@@ -817,7 +817,7 @@ void USmartObjectSubsystem::AddSlotDataDeferred(const FSmartObjectClaimHandle& C
 	}
 }
 
-FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectSlotHandle& SlotHandle) const
+FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectSlotHandle SlotHandle) const
 {
 	if (ensureMsgf(SlotHandle.IsValid(), TEXT("Provided SlotHandle is not valid. SlotView can't be created.")))
 	{

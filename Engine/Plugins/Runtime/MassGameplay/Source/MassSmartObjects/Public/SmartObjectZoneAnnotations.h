@@ -95,7 +95,7 @@ class MASSSMARTOBJECTS_API USmartObjectZoneAnnotations : public UZoneGraphAnnota
 
 public:
 	const FSmartObjectAnnotationData* GetAnnotationData(FZoneGraphDataHandle DataHandle) const;
-	TOptional<FSmartObjectLaneLocation> GetSmartObjectLaneLocation(const FZoneGraphDataHandle& DataHandle, const FSmartObjectHandle& SmartObjectHandle) const;
+	TOptional<FSmartObjectLaneLocation> GetSmartObjectLaneLocation(const FZoneGraphDataHandle DataHandle, const FSmartObjectHandle SmartObjectHandle) const;
 
 protected:
 	virtual void PostSubsystemsInitialized() override;

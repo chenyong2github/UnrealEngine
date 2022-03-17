@@ -158,7 +158,7 @@ struct FSmartObjectRuntime
 	GENERATED_BODY()
 
 public:
-	const FSmartObjectHandle& GetRegisteredHandle() const { return RegisteredHandle; }
+	FSmartObjectHandle GetRegisteredHandle() const { return RegisteredHandle; }
 	const FTransform& GetTransform() const { return Transform; }
 	const USmartObjectDefinition& GetDefinition() const { checkf(Definition != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Definition; }
 	
