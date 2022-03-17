@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using UnrealBuildBase;
 
 namespace EpicGames.UHT.Utils
 {
@@ -66,26 +67,12 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		private void Initialize()
 		{
-			IEnumerable<Assembly> LoadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-				// Exclude the AutomationTool driver assembly - it contains no tasks, and trying to load it in the context of
-				// BuildGraph can result in an exception if Microsoft.Build.Framework is not able to be loaded
-				.Where(A => !String.Equals("AutomationTool", A.GetName().Name));
+			IEnumerable<Assembly> LoadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
 
 			// Collect all of the types from the loaded assemblies
 			foreach (Assembly LoadedAssembly in LoadedAssemblies)
 			{
-				Type[] Types;
-				try
-				{
-					Types = LoadedAssembly.GetTypes();
-				}
-				catch (ReflectionTypeLoadException ex)
-				{
-					Log.TraceWarning("Exception {0} while trying to get types from assembly {1}. LoaderExceptions: {2}", 
-						ex, LoadedAssembly, string.Join("\n", ex.LoaderExceptions.Select(x => x?.Message)));
-					continue;
-				}
-
+				Type[] Types = LoadedAssembly.SafeGetLoadedTypes();
 				foreach (Type Type in Types)
 				{
 					CheckForAttributes(Type);

@@ -9,6 +9,7 @@ using System.Runtime.Serialization;
 using System.Net;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using UnrealBuildBase;
 using UnrealBuildTool;
 using EpicGames.MCP.Automation;
 
@@ -19,23 +20,6 @@ namespace EpicGames.MCP.Automation
 	using EpicGames.Core;
 	using System.ComponentModel;
 	using System.Globalization;
-
-	public static class Extensions
-	{
-		public static Type[] SafeGetLoadedTypes(this Assembly Dll)
-		{
-			Type[] AllTypes;
-			try
-			{
-				AllTypes = Dll.GetTypes();
-			}
-			catch (ReflectionTypeLoadException e)
-			{
-				AllTypes = e.Types.Where(x => x != null).ToArray();
-			}
-			return AllTypes;
-		}
-	}
 
     /// <summary>
     /// Utility class to provide commit/rollback functionality via an RAII-like functionality.
@@ -2472,7 +2456,7 @@ namespace EpicGames.MCP.Automation
 				Assembly[] LoadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
 				foreach (var Dll in LoadedAssemblies)
 				{
-					Type[] AllTypes = Dll.GetTypes();
+					Type[] AllTypes = Dll.SafeGetLoadedTypes();
 					foreach (var PotentialConfigType in AllTypes)
 					{
 						if (PotentialConfigType != typeof(CatalogServiceBase) && typeof(CatalogServiceBase).IsAssignableFrom(PotentialConfigType))
