@@ -172,8 +172,11 @@ namespace UE::DatasmithImporter
 		}
 		else if (RegisteredExternalSourcesInfo.Num() > 0)
 		{
-			FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
-			DirectLink::FRawInfo::FDataPointInfo* SourceDataPointInfo = RawInfoCache.DataPointsInfo.Find(SourceHandle);
+			DirectLink::FRawInfo::FDataPointInfo* SourceDataPointInfo;
+			{
+				FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
+				SourceDataPointInfo = RawInfoCache.DataPointsInfo.Find(SourceHandle);
+			}
 			FSourceUri ExternalSourceUri(GetUriFromSourceHandle(SourceHandle));
 
 			if (SourceDataPointInfo && ExternalSourceUri.IsValid())
