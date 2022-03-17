@@ -45,6 +45,10 @@ public:
 	UPROPERTY()
 	FName EnabledBinding;
 
+	/** Optional binding to manually specify the element count. */
+	UPROPERTY()
+	FName ElementCountBinding;
+
 	/** The Data Interface that we iterate over for this stage. If None, then use particles.*/
 	UPROPERTY()
 	FName IterationSource;

@@ -64,6 +64,7 @@ bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisito
 	Super::AppendCompileHash(InVisitor);
 
 	InVisitor->UpdateString(TEXT("EnabledBinding"), EnabledBinding.GetDataSetBindableVariable().GetName().ToString());
+	InVisitor->UpdateString(TEXT("ElementCountBinding"), ElementCountBinding.GetDataSetBindableVariable().GetName().ToString());
 	InVisitor->UpdatePOD(TEXT("Iterations"), Iterations);
 	InVisitor->UpdateString(TEXT("NumIterationsBinding"), NumIterationsBinding.GetDataSetBindableVariable().GetName().ToString());
 	InVisitor->UpdatePOD(TEXT("IterationSource"), (int32)IterationSource);
@@ -90,6 +91,12 @@ void UNiagaraSimulationStageGeneric::PostInitProperties()
 		EnabledBinding.Setup(
 			FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), NAME_None),
 			FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), NAME_None),
+			ENiagaraRendererSourceDataMode::Emitter
+		);
+
+		ElementCountBinding.Setup(
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
 			ENiagaraRendererSourceDataMode::Emitter
 		);
 
@@ -126,6 +133,10 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 
 	bool bNeedsRecompile = false;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, EnabledBinding))
+	{
+		bNeedsRecompile = true;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ElementCountBinding))
 	{
 		bNeedsRecompile = true;
 	}

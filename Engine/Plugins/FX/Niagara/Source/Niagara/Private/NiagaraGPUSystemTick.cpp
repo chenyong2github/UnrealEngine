@@ -191,10 +191,11 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 			// Gather number of iterations for each stage, and if the stage should run or not
 			InstanceData->bHasMultipleStages = false;
-			InstanceData->NumIterationsPerStage.Reserve(GPUContext->SimStageInfo.Num());
+			InstanceData->PerStageInfo.Reserve(GPUContext->SimStageInfo.Num());
 			for ( FSimulationStageMetaData& SimStageMetaData : GPUContext->SimStageInfo )
 			{
 				int32 NumIterations = SimStageMetaData.NumIterations;
+				int32 UserElementCount = -1;
 				if (SimStageMetaData.ShouldRunStage(InstanceData->bResetData))
 				{
 					InstanceData->bHasMultipleStages = true;
@@ -216,6 +217,14 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 							NumIterations = StageEnabled.GetValue() ? NumIterations : 0;
 						}
 					}
+					if (!SimStageMetaData.ElementCountBinding.IsNone())
+					{
+						FNiagaraParameterStore& BoundParamStore = EmitterInstance->GetRendererBoundVariables();
+						if (const uint8* ParameterData = BoundParamStore.GetParameterData(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountBinding)))
+						{
+							UserElementCount = FMath::Max(*reinterpret_cast<const int32*>(ParameterData), 0);
+						}
+					}
 				}
 				else
 				{
@@ -223,7 +232,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				}
 
 				InstanceData->TotalDispatches += NumIterations;
-				InstanceData->NumIterationsPerStage.Add(NumIterations);
+				InstanceData->PerStageInfo.Emplace(NumIterations, UserElementCount);
 			}
 			TotalDispatches += InstanceData->TotalDispatches;
 		}

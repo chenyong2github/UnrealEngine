@@ -688,6 +688,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 					SimStageData.StageGuid				= GenericStage->Script->GetUsageId();
 					SimStageData.StageName				= GenericStage->SimulationStageName;
 					SimStageData.EnabledBinding			= GenericStage->EnabledBinding.GetName();
+					SimStageData.ElementCountBinding	= GenericStage->ElementCountBinding.GetName();
 					SimStageData.NumIterations			= GenericStage->Iterations;
 					SimStageData.NumIterationsBinding	= GenericStage->NumIterationsBinding.GetName();
 					SimStageData.IterationSource		= GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();

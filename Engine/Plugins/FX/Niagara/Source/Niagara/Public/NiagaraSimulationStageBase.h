@@ -52,28 +52,52 @@ class NIAGARA_API UNiagaraSimulationStageGeneric : public UNiagaraSimulationStag
 	GENERATED_BODY()
 
 public:
-	/** Binding to a bool parameter which dynamically controls if the simulation stage is enabled or not. */
+	/** Optional bool binding allowing scripts to control if the simulation stage is enabled or not. */
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FNiagaraVariableAttributeBinding EnabledBinding;
 
-	/** Determine which elements this script is iterating over. You are not allowed to */
+	/**
+	Optional integer binding to override the number of elements the stage will execute on per dispatch.
+	For example, if you want to iterate over a custom source such as triangles on a mesh you can
+	set an int to the triangle count in an emitter script and bind that as the element count.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
+	FNiagaraVariableAttributeBinding ElementCountBinding;
+	
+	/**
+	Select what we should be iterating over, particles or data interfaces.
+	The source provides things such as element count (when not overriden) and stack context variables (i.e. attributes on grids)
+	*/
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	ENiagaraIterationSource IterationSource;
 
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (NoSpinbox = "true", ClampMin = 1, DisplayName = "Num Iterations", Tooltip = "The number of times we run this simulation stage before moving to the next stage."))
+	/**
+	Number of times (or iterations) the simulation stage will execute in a row.
+	For example, setting this to 10 will mean this simulation stage runs 10 times in a row before the next stage.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (NoSpinbox = "true", ClampMin = 1, DisplayName = "Num Iterations"))
 	int32 Iterations = 1;
 
-	/** Binding to an int parameter which dynamically controls the number of times the simulation stage runs. */
+	/**
+	Optional integer binding allowing scripts to control the number of iterations.
+	*/
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FNiagaraVariableAttributeBinding NumIterationsBinding;
 
 	UPROPERTY()
 	uint32 bSpawnOnly_DEPRECATED : 1;
 
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (Tooltip = "Controls when the simulation stage should execute, only valid for data interface iteration stages", EditCondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
+	/**
+	Controls when the simulation stage should execute, only valid for data interface iteration stages
+	*/
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (EditCondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
 	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
 
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stage", meta = (Tooltip = "Disables the ability to read / write from the same particle buffer, i.e. only update position and no other attributes.  By default this should not be changed and is a debugging tool.", EditCondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	/**
+	Disables the ability to read / write from the same particle buffer, i.e. only update position and no other attributes.
+	By default this should not be changed, but can be used to debug issues.
+	*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stage", meta = (EditCondition = "IterationSource == ENiagaraIterationSource::Particles"))
 	uint32 bDisablePartialParticleUpdate : 1;
 
 	/** Source data interface to use for the simulation stage. The data interface needs to be a subclass of UNiagaraDataInterfaceRWBase, for example the Grid2D and Grid3D data interfaces. */

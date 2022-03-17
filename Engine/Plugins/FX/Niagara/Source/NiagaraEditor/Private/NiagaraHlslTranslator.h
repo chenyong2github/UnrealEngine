@@ -92,6 +92,7 @@ public:
 		FGuid							StageGuid;
 		FName							StageName;
 		FName							EnabledBinding;
+		FName							ElementCountBinding;
 		uint32							NumIterations = 1;
 		FName							NumIterationsBinding;
 		FName							IterationSource;
@@ -372,6 +373,7 @@ public:
 	FName IterationSource;
 	int32 SimulationStageIndex = -1;
 	FName EnabledBinding;
+	FName ElementCountBinding;
 	int32 NumIterations = 1;
 	FName NumIterationsBinding;
 	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;

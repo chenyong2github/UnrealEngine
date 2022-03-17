@@ -15,6 +15,17 @@ struct FNiagaraComputeDataInterfaceInstanceData
 
 struct FNiagaraComputeInstanceData
 {
+	struct FPerStageInfo
+	{
+		FPerStageInfo() {}
+		FPerStageInfo(int32 InNumIterations, int32 InUserElementCount) : NumIterations(InNumIterations), UserElementCount(InUserElementCount) {}
+
+		int32	NumIterations = 0;
+		int32	UserElementCount = -1;
+
+		bool ShouldRunStage() const { return NumIterations > 0 && (UserElementCount != 0); }
+	};
+
 	FNiagaraComputeInstanceData()
 	{
 		bResetData = false;
@@ -28,7 +39,7 @@ struct FNiagaraComputeInstanceData
 	FNiagaraComputeExecutionContext* Context = nullptr;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
 	TArray<FNiagaraDataInterfaceProxyRW*> IterationDataInterfaceProxies;
-	TArray<int32, TInlineAllocator<1>> NumIterationsPerStage;
+	TArray<FPerStageInfo, TInlineAllocator<1>> PerStageInfo;
 	uint32 ParticleCountFence = INDEX_NONE;
 	uint32 TotalDispatches = 0;
 	uint32 bResetData : 1;
