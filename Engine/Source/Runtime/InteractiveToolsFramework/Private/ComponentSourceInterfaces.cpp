@@ -4,6 +4,7 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "Containers/Array.h"
+#include "TargetInterfaces/MaterialProvider.h"
 
 
 namespace

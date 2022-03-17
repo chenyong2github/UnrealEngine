@@ -6,6 +6,7 @@
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Async/ParallelFor.h"
 #include "ComponentSourceInterfaces.h"
+#include "TargetInterfaces/MaterialProvider.h"
 
 using namespace UE::Geometry;
 

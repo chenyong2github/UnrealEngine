@@ -10,6 +10,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "TargetInterfaces/MaterialProvider.h"
 
 static void DisplayCriticalWarningMessage(const FString& Message)
 {

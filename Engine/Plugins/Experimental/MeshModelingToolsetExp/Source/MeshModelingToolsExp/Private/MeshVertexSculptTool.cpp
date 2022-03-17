@@ -31,6 +31,7 @@
 #include "Sculpting/MeshSculptUtil.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/MaterialProvider.h"
 
 using namespace UE::Geometry;
 

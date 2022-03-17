@@ -11,6 +11,7 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "StaticMeshAttributes.h"
 #include "ToolSetupUtil.h"
+#include "TargetInterfaces/MaterialProvider.h"
 
 using namespace UE::Geometry;
 

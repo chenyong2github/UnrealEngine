@@ -6,8 +6,6 @@
 #include "Math/UnrealMath.h"
 #include "Misc/Optional.h"
 #include "Templates/Function.h"
-#include "TargetInterfaces/MaterialProvider.h" // FComponentMaterialSet
-#include "Engine/EngineTypes.h"    // FHitResult
 
 // predeclarations
 class AActor;
@@ -15,7 +13,8 @@ class UActorComponent;
 class UPrimitiveComponent;
 struct FMeshDescription;
 class UMaterialInterface;
-
+struct FHitResult;
+struct FComponentMaterialSet;
 
 /**
  * @deprecated Use tool targets instead, such as UPrimitiveComponentToolTarget

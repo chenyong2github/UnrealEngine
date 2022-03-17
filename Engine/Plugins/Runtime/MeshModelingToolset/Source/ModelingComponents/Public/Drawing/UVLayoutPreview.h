@@ -6,6 +6,7 @@
 #include "PreviewMesh.h"
 #include "TriangleSetComponent.h"
 #include "InteractiveTool.h"
+#include "TargetInterfaces/MaterialProvider.h"
 #include "UVLayoutPreview.generated.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
