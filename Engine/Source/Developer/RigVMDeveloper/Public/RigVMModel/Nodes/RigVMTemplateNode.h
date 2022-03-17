@@ -41,7 +41,7 @@ public:
 	bool GetTypeMapForNewPinType(const URigVMPin* InPin, const FString& InCPPType, UObject* InCPPTypeObject, FRigVMTemplate::FTypeMap& OutTypes) const;
 
 	// returns the index of the resolved RigVM function (or INDEX_NONE)
-	TArray<int32> GetResolvedPermutationIndices(FRigVMTemplate::FTypeMap* OutTypes = nullptr) const;
+	const TArray<int32>& GetResolvedPermutationIndices(FRigVMTemplate::FTypeMap* OutTypes = nullptr) const;
 
 	// returns the resolved functions for the template
 	TArray<const FRigVMFunction*> GetResolvedPermutations(FRigVMTemplate::FTypeMap* OutTypes = nullptr) const;
@@ -74,6 +74,9 @@ public:
 	// returns a default value for pin if it is known
 	FString GetInitialDefaultValueForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
+	// returns the display name for a pin
+	FName GetDisplayNameForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
+
 private:
 
 	void InvalidateCache();
@@ -88,6 +91,7 @@ private:
 
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable const FRigVMFunction* CachedFunction;
+	mutable TArray<int32> ResolvedPermutations;
 
 	friend class URigVMController;
 };

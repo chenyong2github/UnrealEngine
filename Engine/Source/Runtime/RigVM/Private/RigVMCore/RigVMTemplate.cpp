@@ -417,6 +417,60 @@ FText FRigVMTemplate::GetTooltipText(const TArray<int32>& InPermutationIndices) 
 	return ResolvedTooltipText;
 }
 
+FText FRigVMTemplate::GetDisplayNameForArgument(const FName& InArgumentName, const TArray<int32>& InPermutationIndices) const
+{
+	if(const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))
+	{
+		FText ResolvedDisplayName;
+
+		auto VisitPermutation = [InArgumentName, &ResolvedDisplayName, this](int32 InPermutationIndex) -> bool
+		{
+			const FRigVMFunction* ResolvedFunction = GetPermutation(InPermutationIndex);
+			if(const FProperty* Property = ResolvedFunction->Struct->FindPropertyByName(InArgumentName))
+			{
+				const FText DisplayName = Property->GetDisplayNameText();
+				if (!ResolvedDisplayName.IsEmpty())
+				{
+					if(!ResolvedDisplayName.EqualTo(DisplayName))
+					{
+						ResolvedDisplayName = FText::FromName(InArgumentName);
+						return false;
+					}
+				}
+				else
+				{
+					ResolvedDisplayName = DisplayName;
+				}
+			}
+			return true;
+		};
+
+		if(InPermutationIndices.IsEmpty())
+		{
+			for(int32 PermutationIndex = 0; PermutationIndex < Permutations.Num(); PermutationIndex++)
+			{
+				if(!VisitPermutation(PermutationIndex))
+				{
+					break;
+				}
+			}
+		}
+		else
+		{
+			for(const int32 PermutationIndex : InPermutationIndices)
+			{
+				if(!VisitPermutation(PermutationIndex))
+				{
+					break;
+				}
+			}
+		}
+
+		return ResolvedDisplayName;
+	}
+	return FText();
+}
+
 #endif
 
 bool FRigVMTemplate::IsCompatible(const FRigVMTemplate& InOther) const

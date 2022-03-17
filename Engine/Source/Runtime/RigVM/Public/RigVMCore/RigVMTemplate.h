@@ -235,6 +235,9 @@ public:
 	// Returns the tooltip based on the permutation's metadata
 	FText GetTooltipText(const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
+	// Returns the display name text for an argument 
+	FText GetDisplayNameForArgument(const FName& InArgumentName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
+
 	FString GetCategory() const;
 	FString GetKeywords() const;
 

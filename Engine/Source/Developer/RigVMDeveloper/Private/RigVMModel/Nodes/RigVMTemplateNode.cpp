@@ -211,22 +211,23 @@ bool URigVMTemplateNode::GetTypeMapForNewPinType(const URigVMPin* InPin, const F
 	return false;
 }
 
-TArray<int32> URigVMTemplateNode::GetResolvedPermutationIndices(FRigVMTemplate::FTypeMap* OutTypes) const
+const TArray<int32>& URigVMTemplateNode::GetResolvedPermutationIndices(FRigVMTemplate::FTypeMap* OutTypes) const
 {
+	if(!ResolvedPermutations.IsEmpty())
+	{
+		return ResolvedPermutations;
+	}
 	if (const FRigVMTemplate* Template = GetTemplate())
 	{
 		FRigVMTemplate::FTypeMap Types = GetResolvedTypes();
-		TArray<int32> PermutationIndices;
-		Template->Resolve(Types, PermutationIndices, false);
+		Template->Resolve(Types, ResolvedPermutations, false);
 
 		if (OutTypes)
 		{
 			*OutTypes = Types;
 		}
-
-		return PermutationIndices;
 	}
-	return TArray<int32>();
+	return ResolvedPermutations;
 }
 
 TArray<const FRigVMFunction*> URigVMTemplateNode::GetResolvedPermutations(FRigVMTemplate::FTypeMap* OutTypes) const
@@ -348,10 +349,40 @@ FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinN
 	return DefaultValue;
 }
 
+FName URigVMTemplateNode::GetDisplayNameForPin(const FName& InRootPinName,
+	const TArray<int32>& InPermutationIndices) const
+{
+#if WITH_EDITOR
+	if(const FRigVMTemplate* Template = GetTemplate())
+	{
+		const TArray<int32>* PermutationIndicesPtr = &InPermutationIndices;
+		if(PermutationIndicesPtr->IsEmpty())
+		{
+			PermutationIndicesPtr = &GetResolvedPermutationIndices();
+		}
+
+		const FText DisplayNameText = Template->GetDisplayNameForArgument(InRootPinName, *PermutationIndicesPtr);
+		if(DisplayNameText.IsEmpty())
+		{
+			return InRootPinName;
+		}
+
+		const FName DisplayName = *DisplayNameText.ToString();
+		if(DisplayName.IsEqual(InRootPinName))
+		{
+			return NAME_None;
+		}
+		return DisplayName;
+	}
+#endif
+	return NAME_None;
+}
+
 void URigVMTemplateNode::InvalidateCache()
 {
 	SupportedTypesCache.Reset();
 	CachedFunction = nullptr;
+	ResolvedPermutations.Reset();
 
 	for(URigVMPin* Pin : GetPins())
 	{

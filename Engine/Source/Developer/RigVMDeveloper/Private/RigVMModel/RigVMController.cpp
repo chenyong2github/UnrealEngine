@@ -13051,6 +13051,16 @@ void URigVMController::ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode, b
 	}
 #endif
 
+	for(URigVMPin* Pin : InNode->GetPins())
+	{
+		const FName DisplayName = InNode->GetDisplayNameForPin(Pin->GetFName());
+		if(Pin->DisplayName != DisplayName)
+		{
+			Pin->DisplayName = DisplayName;
+			Notify(ERigVMGraphNotifType::PinRenamed, Pin);
+		}
+	}
+
 	if(InNode->IsResolved())
 	{
 		for(URigVMPin* Pin : InNode->GetPins())
