@@ -51,6 +51,7 @@ class FLightmapPathTracingRGS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
 		OutEnvironment.SetDefine(TEXT("LIGHTMAP_PATH_TRACING_MAIN_RG"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -107,6 +108,7 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 	{
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -163,6 +165,7 @@ class FStationaryLightShadowTracingRGS : public FGlobalShader
 	{
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -200,6 +203,7 @@ class FFirstBounceRayGuidingCDFBuildCS : public FGlobalShader
 	{
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
 		OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )

@@ -375,6 +375,8 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		InitialBrickAllocatorParams.Add(0);
 		InitialBrickAllocatorParams.Add(0);
 		BrickAllocatorParameters.Initialize(TEXT("VolumetricLightmapBrickAllocatorParameters"), 4, 2, PF_R32_SINT, BUF_UnorderedAccess | BUF_SourceCopy, &InitialBrickAllocatorParams);
+
+		RHICmdList.Transition(FRHITransitionInfo(BrickAllocatorParameters.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	}
 
 	for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)
@@ -523,6 +525,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 		}
 		);
 
+		FVolumetricLightmapPathTracingRGS::FParameters* PreviousPassParameters = nullptr;
 		for (int32 SampleIndex = 0; SampleIndex < NumSamplesThisFrame; SampleIndex++)
 		{
 			int32 MaxBricksPerFrame = FMath::Min(512, NumTotalBricks);
@@ -559,10 +562,25 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 					PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 
-					SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, *Scene->ReferenceView, PassParameters);
-
-
-					PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+					if (PreviousPassParameters == nullptr)
+					{
+						SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, *Scene->ReferenceView, PassParameters);
+						PreviousPassParameters = PassParameters;
+					}
+					else
+					{
+						PassParameters->LightGridParameters = PreviousPassParameters->LightGridParameters;
+						PassParameters->SceneLightCount = PreviousPassParameters->SceneLightCount;
+						PassParameters->SceneVisibleLightCount = PreviousPassParameters->SceneVisibleLightCount;
+						PassParameters->SceneLights = PreviousPassParameters->SceneLights;
+						PassParameters->SkylightTexture = PreviousPassParameters->SkylightTexture;
+						PassParameters->SkylightTextureSampler = PreviousPassParameters->SkylightTextureSampler;
+						PassParameters->SkylightPdf = PreviousPassParameters->SkylightPdf;
+						PassParameters->SkylightInvResolution = PreviousPassParameters->SkylightInvResolution;
+						PassParameters->SkylightMipCount = PreviousPassParameters->SkylightMipCount;
+						PassParameters->IESTexture = PreviousPassParameters->IESTexture;
+						PassParameters->IESTextureSampler = PreviousPassParameters->IESTextureSampler;
+					}
 
 					PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();
 

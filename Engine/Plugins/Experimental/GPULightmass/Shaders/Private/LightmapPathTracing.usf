@@ -811,7 +811,7 @@ void LightmapPathTracingMainRG()
 						if (BatchedTiles[TileIndex].RenderPassIndex < NumRayGuidingTrialSamples)
 						{
 							int2 ClusterPosition = clamp((int2)LaunchIndex - int2(2, 2), int2(0, 0), int2(63, 63)) / TEXEL_CLUSTER_SIZE;
-							float2 JitteredBin = PrimaryRandSample * DIRECTIONAL_BINS_ONE_DIM;// - float2(0.5f, 0.5f) + PrimaryRandSample.zw;
+							float2 JitteredBin = PrimaryRandSample.xy * DIRECTIONAL_BINS_ONE_DIM;// - float2(0.5f, 0.5f) + PrimaryRandSample.zw;
 							int2 PositionInBin = clamp(JitteredBin, float2(0, 0), float2(DIRECTIONAL_BINS_ONE_DIM - 1, DIRECTIONAL_BINS_ONE_DIM - 1));
 							int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + PositionInBin;
 							float Illuminance = Luminance(RadianceValue) * saturate(dot(RadianceDirection, ShadingNormal));
@@ -1080,8 +1080,8 @@ void VolumetricLightmapPathTracingMainRG()
 	#endif		
 	
 	float3 JitteredCellPosInVLM = (BrickRequests[BrickIndex].xyz * 4 + CellPosInBrick + Jitter - float3(0.5, 0.5, 0.5)) * BrickRequests[BrickIndex].w;	
-	float DetailCellSize = VolumeSize.xyz / IndirectionTextureDim / 4;
-	float3 WorldPosition = VolumeMin + DetailCellSize * JitteredCellPosInVLM; // RT_LWC_TODO
+	float3 DetailCellSize = VolumeSize.xyz / IndirectionTextureDim / 4;
+	float3 WorldPosition = VolumeMin.xyz + DetailCellSize * JitteredCellPosInVLM; // RT_LWC_TODO
 	float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 	float3 ShadingNormal = float3(0, 0, (FrameNumber % 2 == 0) ? 1 : -1);
 

@@ -104,7 +104,7 @@ uint EncodeNormalBits(float3 WorldNormal)
 void EmitGeometryHitPoint(FIrradianceCacheRecord HitPoint, uint Size)
 {
 	uint3 Key = EncodeVoxelKey(floor(HitPoint.WorldPosition.xyz / Size));
-	uint NormalDirectionBits = EncodeNormalBits(HitPoint.WorldNormal);
+	uint NormalDirectionBits = EncodeNormalBits(HitPoint.WorldNormal.xyz);
 	
 	uint HashKey = 0;
 	HashKey = MurmurAdd( HashKey, Key.x );

@@ -136,7 +136,7 @@ class FMultiTileClearCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, NumTiles)
 		SHADER_PARAMETER(int32, TileSize)
-		SHADER_PARAMETER_SRV(Buffer<int2>, TilePositions)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int2>, TilePositions)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, TilePool)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -2151,6 +2151,10 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 				return !Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, NumGISamples) && Tile.RenderState->GeometryInstanceRef.LODIndex == MostCommonLODIndex;
 			}));
 
+#if RHI_RAYTRACING
+		FLightmapPathTracingRGS::FParameters* PreviousPassParameters[MAX_NUM_GPUS] = {};
+#endif
+
 		// Render GI
 		for (int32 SampleIndex = 0; SampleIndex < NumSamplesPerFrame; SampleIndex++)
 		{
@@ -2177,13 +2181,13 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 							TilePositionsToClear.Add(ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch));
 						}
 
-						FRWBuffer TilePositionsBuffer;
-						TilePositionsBuffer.Initialize(TEXT("TilePositionsBufferForClear"), TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num(), PF_R32G32_UINT, BUF_None, &TilePositionsToClear);
-
+						FRDGBufferDesc TilePositionsBufferDesc = FRDGBufferDesc::CreateBufferDesc(TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num());
+						FRDGBufferRef TilePositionsBuffer = CreateVertexBuffer(GraphBuilder, TEXT("TilePositionsBufferForClear"), TilePositionsBufferDesc, TilePositionsToClear.GetData(), TilePositionsToClear.GetResourceDataSize());
+						FRDGBufferSRVRef TilePositionsBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TilePositionsBuffer, PF_R32_UINT));
 						FMultiTileClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMultiTileClearCS::FParameters>();
 						Parameters->NumTiles = TilePositionsToClear.Num();
 						Parameters->TileSize = GPreviewLightmapPhysicalTileSize;
-						Parameters->TilePositions = HoldReference(GraphBuilder, TilePositionsBuffer.SRV);
+						Parameters->TilePositions = TilePositionsBufferSRV;
 						Parameters->TilePool = ScratchTilePoolLayerUAVs[ScratchLayerIndex];
 
 						TShaderMapRef<FMultiTileClearCS> ComputeShader(GlobalShaderMap);
@@ -2345,11 +2349,26 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 									PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 
-									SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, *Scene->ReferenceView, PassParameters);
-
-									// TODO: find a way to share IES atlas with path tracer ...
-									PassParameters->IESTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy, TEXT("IESTexture"));
-									PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+									if (PreviousPassParameters[GPUIndex] == nullptr)
+									{
+										SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, *Scene->ReferenceView, PassParameters);
+										// store the first pass parameters so we don't have to re-create certain resources constantly
+										PreviousPassParameters[GPUIndex] = PassParameters;
+									}
+									else
+									{
+										PassParameters->LightGridParameters = PreviousPassParameters[GPUIndex]->LightGridParameters;
+										PassParameters->SceneLightCount = PreviousPassParameters[GPUIndex]->SceneLightCount;
+										PassParameters->SceneVisibleLightCount = PreviousPassParameters[GPUIndex]->SceneVisibleLightCount;
+										PassParameters->SceneLights = PreviousPassParameters[GPUIndex]->SceneLights;
+										PassParameters->SkylightTexture = PreviousPassParameters[GPUIndex]->SkylightTexture;
+										PassParameters->SkylightTextureSampler = PreviousPassParameters[GPUIndex]->SkylightTextureSampler;
+										PassParameters->SkylightPdf = PreviousPassParameters[GPUIndex]->SkylightPdf;
+										PassParameters->SkylightInvResolution = PreviousPassParameters[GPUIndex]->SkylightInvResolution;
+										PassParameters->SkylightMipCount = PreviousPassParameters[GPUIndex]->SkylightMipCount;
+										PassParameters->IESTexture = PreviousPassParameters[GPUIndex]->IESTexture;
+										PassParameters->IESTextureSampler = PreviousPassParameters[GPUIndex]->IESTextureSampler;
+									}
 
 									PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();
 
@@ -2434,16 +2453,14 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 							TilePositionsToClear.Add(ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch));
 						}
 
-						FRHIResourceCreateInfo CreateInfo(TEXT("TilePositionsBufferForClear"));
-						CreateInfo.ResourceArray = &TilePositionsToClear;
-						CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
-						FBufferRHIRef TilePositionsBuffer = RHICreateVertexBuffer(TilePositionsToClear.GetTypeSize() * TilePositionsToClear.Num(), BUF_ShaderResource, CreateInfo);
-						FShaderResourceViewRHIRef TilePositionsBufferSRV = RHICreateShaderResourceView(TilePositionsBuffer, TilePositionsToClear.GetTypeSize(), PF_R32G32_UINT);
+						FRDGBufferDesc TilePositionsBufferDesc = FRDGBufferDesc::CreateBufferDesc(TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num());
+						FRDGBufferRef TilePositionsBuffer = CreateVertexBuffer(GraphBuilder, TEXT("TilePositionsBufferForClear"), TilePositionsBufferDesc, TilePositionsToClear.GetData(), TilePositionsToClear.GetResourceDataSize());
+						FRDGBufferSRVRef TilePositionsBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TilePositionsBuffer, PF_R32_UINT));
 
 						FMultiTileClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMultiTileClearCS::FParameters>();
 						Parameters->NumTiles = TilePositionsToClear.Num();
 						Parameters->TileSize = GPreviewLightmapPhysicalTileSize;
-						Parameters->TilePositions = HoldReference(GraphBuilder, TilePositionsBufferSRV);
+						Parameters->TilePositions = TilePositionsBufferSRV;
 						Parameters->TilePool = ScratchTilePoolLayerUAVs[ScratchLayerIndex];
 
 						TShaderMapRef<FMultiTileClearCS> ComputeShader(GlobalShaderMap);
