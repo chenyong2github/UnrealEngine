@@ -670,12 +670,15 @@ namespace Metasound
 		{
 			if (Metasound)
 			{
-				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
-				check(MetasoundAsset);
-
-				if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetasoundAsset->GetGraph()))
+				if (const UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
 				{
-					return Graph->IsPreviewing();
+					if (PreviewComponent->IsPlaying())
+					{
+						if (const USoundBase* Sound = PreviewComponent->Sound)
+						{
+							return Sound->GetUniqueID() == Metasound->GetUniqueID();
+						}
+					}
 				}
 			}
 
@@ -744,9 +747,18 @@ namespace Metasound
 			FGraphEditorCommands::Register();
 			FEditorCommands::Register();
 
-			constexpr bool bForceRefreshNodes = true;
-			FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
-			FGraphBuilder::SynchronizeGraph(*Metasound, bForceRefreshNodes);
+			// If sound was already playing in the editor (ex. from ContentBrowser),
+			// restart to synchronize visual state of editor (ex. volume meter analysis
+			// via transient AudioBus, PlayTime, etc.). If playing, registration is not
+			// required here as it will be handled in play call below after UI is initialized
+			const bool bRestartSound = IsPlaying();
+			if (!bRestartSound)
+			{
+				constexpr bool bForceRefreshNodes = true;
+				FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+				FGraphBuilder::SynchronizeGraph(*Metasound, bForceRefreshNodes);
+			}
+
 
 			BindGraphCommands();
 			CreateInternalWidgets();
@@ -809,14 +821,21 @@ namespace Metasound
 					)
 				);
 
-			const bool bCreateDefaultStandaloneMenu = true;
-			const bool bCreateDefaultToolbar = true;
-			FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, TEXT("MetasoundEditorApp"), StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectToEdit, false);
+			constexpr bool bCreateDefaultStandaloneMenu = true;
+			constexpr bool bCreateDefaultToolbar = true;
+			constexpr bool bToolbarFocusable = false;
+			constexpr bool bUseSmallToolbarIcons = true;
+			FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, TEXT("MetasoundEditorApp"), StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectToEdit, bToolbarFocusable, bUseSmallToolbarIcons);
 
 			ExtendToolbar();
 			RegenerateMenusAndToolbars();
 
 			NotifyDocumentVersioned();
+
+			if (bRestartSound)
+			{
+				Play();
+			}
 		}
 
 		UObject* FEditor::GetMetasoundObject() const
@@ -855,7 +874,54 @@ namespace Metasound
 
 		FLinearColor FEditor::GetWorldCentricTabColorScale() const
 		{
+			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+			{
+				if (UMetaSoundSource* MetaSoundSource = Cast<UMetaSoundSource>(Metasound))
+				{
+					return MetasoundStyle->GetColor("MetasoundSource.Color");
+				}
+
+				if (UMetaSound* MetaSound = Cast<UMetaSound>(Metasound))
+				{
+					return MetasoundStyle->GetColor("Metasound.Color");
+				}
+			}
+
 			return FLinearColor(0.3f, 0.2f, 0.5f, 0.5f);
+		}
+
+		const FSlateBrush* FEditor::GetDefaultTabIcon() const
+		{
+			if (IsPlaying())
+			{
+				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+				{
+					return MetasoundStyle->GetBrush("MetasoundEditor.Play");
+				}
+			}
+
+			return FAssetEditorToolkit::GetDefaultTabIcon();
+		}
+
+		FLinearColor FEditor::GetDefaultTabColor() const
+		{
+			if (IsPlaying())
+			{
+				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+				{
+					if (UMetaSoundSource* MetaSoundSource = Cast<UMetaSoundSource>(Metasound))
+					{
+						return MetasoundStyle->GetColor("MetasoundSource.Color");
+					}
+
+					if (UMetaSound* MetaSound = Cast<UMetaSound>(Metasound))
+					{
+						return MetasoundStyle->GetColor("Metasound.Color");
+					}
+				}
+			}
+
+			return FAssetEditorToolkit::GetDefaultTabColor();
 		}
 
 		FName FEditor::GetEditorName() const 

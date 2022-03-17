@@ -98,6 +98,9 @@ namespace Metasound
 
 				// Metasound Editor
 				{
+					Set("Metasound.Color", FColor(13, 55, 13));
+					Set("MetasoundSource.Color", FColor(103, 214, 66));
+
 					// Actions
 					Set("MetasoundEditor.Play", new FSlateImageBrush(RootToContentDir(TEXT("Icons/play_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Play.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/play_40x.png")), Icon20x20));

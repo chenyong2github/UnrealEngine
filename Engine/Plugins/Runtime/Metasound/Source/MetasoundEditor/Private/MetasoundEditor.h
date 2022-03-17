@@ -110,6 +110,8 @@ namespace Metasound
 			virtual FText GetBaseToolkitName() const override;
 			virtual FString GetWorldCentricTabPrefix() const override;
 			virtual FLinearColor GetWorldCentricTabColorScale() const override;
+			virtual const FSlateBrush* GetDefaultTabIcon() const override;
+			virtual FLinearColor GetDefaultTabColor() const override;
 
 			/** IAssetEditorInstance interface */
 			virtual FName GetEditorName() const override;

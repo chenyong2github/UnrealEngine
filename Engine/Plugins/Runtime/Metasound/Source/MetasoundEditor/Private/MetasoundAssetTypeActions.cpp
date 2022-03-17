@@ -2,11 +2,11 @@
 
 #include "MetasoundAssetTypeActions.h"
 
-#include "ContentBrowserModule.h"
+#include "Components/AudioComponent.h"
 #include "ContentBrowserMenuContexts.h"
+#include "ContentBrowserModule.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "IContentBrowserSingleton.h"
-#include "ObjectEditorUtils.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundSource.h"
@@ -15,8 +15,12 @@
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFactory.h"
 #include "MetasoundUObjectRegistry.h"
+#include "ObjectEditorUtils.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
+#include "EditorStyleSet.h"
 
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
@@ -106,11 +110,75 @@ namespace Metasound
 					InSection.AddMenuEntry(*PresetEntryName, Label, ToolTip, Icon, UIExecuteAction);
 				}));
 			}
+
+			bool IsPlaying(const FSoftObjectPath& InSourcePath)
+			{
+				check(GEditor);
+				if (const UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
+				{
+					if (PreviewComponent->IsPlaying())
+					{
+						if (const USoundBase* Sound = PreviewComponent->Sound)
+						{
+							const FName SoundName = *Sound->GetPathName();
+							return SoundName == InSourcePath.GetAssetPathName();
+						}
+					}
+				}
+
+				return false;
+			}
+
+			void PlaySound(UMetaSoundSource& InSource)
+			{
+				// If editor is open, call into it to play to start all visualization requirements therein
+				// specific to auditioning MetaSounds (ex. priming audio bus used for volume metering, playtime
+				// widget, etc.)
+				TSharedPtr<FEditor> Editor = FGraphBuilder::GetEditorForMetasound(InSource);
+				if (Editor.IsValid())
+				{
+					Editor->Play();
+					return;
+				}
+
+				check(GEditor);
+				FGraphBuilder::RegisterGraphWithFrontend(InSource);
+				GEditor->PlayPreviewSound(&InSource);
+			}
+
+			void StopSound(const UMetaSoundSource& InSource)
+			{
+				// If editor is open, call into it to play to start all visualization requirements therein
+				// specific to auditioning MetaSounds (ex. priming audio bus used for volume metering, playtime
+				// widget, etc.)
+				TSharedPtr<FEditor> Editor = FGraphBuilder::GetEditorForMetasound(InSource);
+				if (Editor.IsValid())
+				{
+					Editor->Stop();
+					return;
+				}
+
+				check(GEditor);
+				if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
+				{
+					PreviewComponent->Stop();
+				}
+			}
 		} // namespace AssetTypeActionsPrivate
 
 		UClass* FAssetTypeActions_MetaSound::GetSupportedClass() const
 		{
 			return UMetaSound::StaticClass();
+		}
+
+		FColor FAssetTypeActions_MetaSound::GetTypeColor() const
+		{
+			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+			{
+				return MetasoundStyle->GetColor("Metasound.Color").ToFColorSRGB();
+			}
+
+			return FColor::White;
 		}
 
 		void FAssetTypeActions_MetaSound::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
@@ -154,6 +222,16 @@ namespace Metasound
 			return UMetaSoundSource::StaticClass();
 		}
 
+		FColor FAssetTypeActions_MetaSoundSource::GetTypeColor() const
+		{
+			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+			{
+				return MetasoundStyle->GetColor("MetasoundSource.Color").ToFColorSRGB();
+			}
+
+			return FColor::White;
+		}
+
 		void FAssetTypeActions_MetaSoundSource::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
 		{
 			const EToolkitMode::Type Mode = ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
@@ -195,6 +273,95 @@ namespace Metasound
 			};
 
 			return SubMenus;
+		}
+
+		TSharedPtr<SWidget> FAssetTypeActions_MetaSoundSource::GetThumbnailOverlay(const FAssetData& AssetData) const
+		{
+			auto OnGetDisplayBrushLambda = [Path = AssetData.ToSoftObjectPath()]()
+			{
+				using namespace AssetTypeActionsPrivate;
+
+				if (IsPlaying(Path))
+				{
+					return FEditorStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
+				}
+
+				return FEditorStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
+			};
+
+			auto OnClickedLambda = [Path = AssetData.ToSoftObjectPath()]()
+			{
+				using namespace AssetTypeActionsPrivate;
+				// Load and play sound
+				if (UMetaSoundSource* MetaSoundSource = Cast<UMetaSoundSource>(Path.TryLoad()))
+				{
+					if (IsPlaying(Path))
+					{
+						StopSound(*MetaSoundSource);
+					}
+					else
+					{
+						PlaySound(*MetaSoundSource);
+					}
+				}
+
+				return FReply::Handled();
+			};
+
+			auto OnToolTipTextLambda = [Path = AssetData.ToSoftObjectPath()]()
+			{
+				using namespace AssetTypeActionsPrivate;
+
+				FText Format;
+				if (IsPlaying(Path))
+				{
+					Format = LOCTEXT("PreviewMetaSoundFromIconToolTip", "Stop Previewing {0}");
+				}
+				else
+				{
+					Format = LOCTEXT("PreviewMetaSoundFromIconToolTip", "Preview {0}");
+				}
+
+				FName TypeName = UMetaSoundSource::StaticClass()->GetFName();
+				return FText::Format(Format, FText::FromName(TypeName));
+			};
+
+			TSharedPtr<SBox> Box;
+			SAssignNew(Box, SBox)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(2));
+
+			auto OnGetVisibilityLambda = [Box, Path = AssetData.ToSoftObjectPath()]()
+			{
+				using namespace AssetTypeActionsPrivate;
+
+				if (Box.IsValid() && (Box->IsHovered() || IsPlaying(Path)))
+				{
+					return EVisibility::Visible;
+				}
+
+				return EVisibility::Hidden;
+			};
+
+			TSharedPtr<SButton> Widget;
+			SAssignNew(Widget, SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ToolTipText_Lambda(OnToolTipTextLambda)
+				.Cursor(EMouseCursor::Default) // The outer widget can specify a DragHand cursor, so overriden here
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsFocusable(false)
+				.OnClicked_Lambda(OnClickedLambda)
+				.Visibility_Lambda(OnGetVisibilityLambda)
+				[
+					SNew(SImage)
+					.Image_Lambda(OnGetDisplayBrushLambda)
+				];
+
+			Box->SetContent(Widget.ToSharedRef());
+			Box->SetVisibility(EVisibility::Visible);
+
+			return Box;
 		}
 	} // namespace Editor
 } // namespace Metasound
