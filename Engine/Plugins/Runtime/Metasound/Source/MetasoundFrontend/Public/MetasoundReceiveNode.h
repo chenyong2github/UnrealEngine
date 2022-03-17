@@ -9,6 +9,7 @@
 #include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundRouter.h"
 
 #include <type_traits>
@@ -20,9 +21,11 @@ namespace Metasound
 {
 	namespace ReceiveNodeInfo
 	{
-		METASOUNDFRONTEND_API const FVertexName& GetAddressInputName();
-		METASOUNDFRONTEND_API const FVertexName& GetDefaultDataInputName();
-		METASOUNDFRONTEND_API const FVertexName& GetOutputName();
+		METASOUND_PARAM(AddressInput, "Address", "Address")
+		METASOUND_PARAM(DefaultDataInput, "Default", "Default")
+		METASOUND_PARAM(Output, "Out", "Out")
+
+
 		METASOUNDFRONTEND_API FNodeClassName GetClassNameForDataType(const FName& InDataTypeName);
 		METASOUNDFRONTEND_API int32 GetCurrentMajorVersion();
 		METASOUNDFRONTEND_API int32 GetCurrentMinorVersion();
@@ -34,13 +37,29 @@ namespace Metasound
 	public:
 		static FVertexInterface DeclareVertexInterface()
 		{
+			using namespace ReceiveNodeInfo;
+			static const FDataVertexMetadata AddressInputMetadata
+			{
+				  FText::GetEmpty() // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AddressInput) // display name
+			};
+			static const FDataVertexMetadata DefaultDataInputMetadata
+			{
+				  FText::GetEmpty() // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(DefaultDataInput) // display name
+			};
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  FText::GetEmpty() // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(Output) // display name
+			};
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FSendAddress>(ReceiveNodeInfo::GetAddressInputName(), FText::GetEmpty()),
-					TInputDataVertexModel<TDataType>(ReceiveNodeInfo::GetDefaultDataInputName(), FText::GetEmpty())
+					TInputDataVertexModel<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), AddressInputMetadata),
+					TInputDataVertexModel<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput), DefaultDataInputMetadata)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataType>(ReceiveNodeInfo::GetOutputName(), FText::GetEmpty())
+					TOutputDataVertexModel<TDataType>(METASOUND_GET_PARAM_NAME(Output), OutputMetadata)
 				)
 			);
 		}
@@ -99,18 +118,22 @@ namespace Metasound
 
 				virtual FDataReferenceCollection GetInputs() const override
 				{
+					using namespace ReceiveNodeInfo; 
+
 					FDataReferenceCollection Inputs;
 
-					Inputs.AddDataReadReference<TDataType>(ReceiveNodeInfo::GetDefaultDataInputName(), DefaultData);
-					Inputs.AddDataReadReference<FSendAddress>(ReceiveNodeInfo::GetAddressInputName(), SendAddress);
+					Inputs.AddDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput), DefaultData);
+					Inputs.AddDataReadReference<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), SendAddress);
 
 					return Inputs;
 				}
 
 				virtual FDataReferenceCollection GetOutputs() const override
 				{
+					using namespace ReceiveNodeInfo;
+
 					FDataReferenceCollection Outputs;
-					Outputs.AddDataReadReference<TDataType>(ReceiveNodeInfo::GetOutputName(), TDataReadReference<TDataType>(OutputData));
+					Outputs.AddDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(Output), TDataReadReference<TDataType>(OutputData));
 					return Outputs;
 				}
 
@@ -191,17 +214,19 @@ namespace Metasound
 
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
+					using namespace ReceiveNodeInfo; 
+
 					TDataReadReference<TDataType> DefaultReadRef = TDataReadReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings);
 
-					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(ReceiveNodeInfo::GetDefaultDataInputName()))
+					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput)))
 					{
-						DefaultReadRef = InParams.InputDataReferences.GetDataReadReference<TDataType>(ReceiveNodeInfo::GetDefaultDataInputName());
+						DefaultReadRef = InParams.InputDataReferences.GetDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput));
 					}
 
 					return MakeUnique<TReceiverOperator>(
 						DefaultReadRef,
 						TDataWriteReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings, *DefaultReadRef),
-						InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(ReceiveNodeInfo::GetAddressInputName()),
+						InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput)),
 						InParams.OperatorSettings
 						);
 				}

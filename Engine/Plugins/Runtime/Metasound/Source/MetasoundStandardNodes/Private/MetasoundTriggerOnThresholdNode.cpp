@@ -32,7 +32,15 @@ namespace Metasound
 		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::RisingEdge, "RisingEdgeDescription", "Rising Edge", "RisingEdgeDescriptionTT", ""),
 		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::FallingEdge, "FallingEdgeDescription", "Falling Edge", "FallingEdgeDescriptionTT", ""),
 		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::AbsThreshold, "AbsThresholdDescription", "Abs Threshold", "AbsThresholdDescriptionTT", "")
-		DEFINE_METASOUND_ENUM_END()
+	DEFINE_METASOUND_ENUM_END()
+
+	namespace TriggerOnThresholdVertexNames
+	{
+		METASOUND_PARAM(OutPin, "Out", "Output");
+		METASOUND_PARAM(InPin, "In", "Input");
+		METASOUND_PARAM(InThresholdPin, "Threshold", "Trigger Threshold");
+		METASOUND_PARAM(InTriggerType, "Type", "Trigger Threshold Type");
+	}
 
 	class FTriggerOnThresholdOperator : public IOperator
 	{
@@ -54,11 +62,6 @@ namespace Metasound
 		FTriggerWriteRef Out;
 		bool bTriggered = false;
 		float LastSample = 0.f;
-
-		static constexpr const TCHAR* OutPinName = TEXT("Out");
-		static constexpr const TCHAR* InPinName = TEXT("In");
-		static constexpr const TCHAR* ThresholdPinName = TEXT("Threshold");
-		static constexpr const TCHAR* TriggerType = TEXT("Type");
 	};
 
 	// Mac Clang requires linkage on constexpr
@@ -166,29 +169,35 @@ namespace Metasound
 
 	FDataReferenceCollection FTriggerOnThresholdOperator::GetInputs() const
 	{
+		using namespace TriggerOnThresholdVertexNames;
+		
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(ThresholdPinName, FFloatReadRef(Threshold));
-		InputDataReferences.AddDataReadReference(InPinName, FAudioBufferReadRef(In));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InThresholdPin), FFloatReadRef(Threshold));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InPin), FAudioBufferReadRef(In));
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FTriggerOnThresholdOperator::GetOutputs() const
 	{
+		using namespace TriggerOnThresholdVertexNames; 
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(OutPinName, FTriggerWriteRef(Out));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutPin), FTriggerWriteRef(Out));
 		return OutputDataReferences;
 	}
 
 	FVertexInterface FTriggerOnThresholdOperator::DeclareVertexInterface()
 	{
+		using namespace TriggerOnThresholdVertexNames; 
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(InPinName, METASOUND_LOCTEXT("BufferInDescription", "Input")),
-				TInputDataVertexModel<float>(ThresholdPinName, METASOUND_LOCTEXT("ThresholdDescription", "Trigger Threshold"), DefaultThreshold),
-				TInputDataVertexModel<FEnumBufferTriggerType>(TriggerType, METASOUND_LOCTEXT("ThresholdDescription", "Trigger Threshold"))
+				TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InPin)),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InThresholdPin), DefaultThreshold),
+				TInputDataVertexModel<FEnumBufferTriggerType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InTriggerType))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(OutPinName, METASOUND_LOCTEXT("TriggerOutDescription", "Output"))
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutPin))
 			)
 		);
 		return Interface;
@@ -228,16 +237,18 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FTriggerOnThresholdOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
+		using namespace TriggerOnThresholdVertexNames; 
+
 		const FTriggerOnThresholdNode& Node = static_cast<const FTriggerOnThresholdNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
 		const FOperatorSettings& Settings = InParams.OperatorSettings;
 		const FInputVertexInterface& InputInterface = DeclareVertexInterface().GetInputInterface();
 		
 		// Static property pin, only used for factory.
-		FBufferTriggerTypeReadRef Type = InputCol.GetDataReadReferenceOrConstruct<FEnumBufferTriggerType>(TriggerType);
+		FBufferTriggerTypeReadRef Type = InputCol.GetDataReadReferenceOrConstruct<FEnumBufferTriggerType>(METASOUND_GET_PARAM_NAME(InTriggerType));
 
-		FAudioBufferReadRef InputBuffer = InputCol.GetDataReadReferenceOrConstruct<FAudioBuffer>(InPinName, Settings);
-		FFloatReadRef Threshold = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, ThresholdPinName, Settings);
+		FAudioBufferReadRef InputBuffer = InputCol.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InPin), Settings);
+		FFloatReadRef Threshold = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InThresholdPin), Settings);
 
 		switch (*Type)
 		{

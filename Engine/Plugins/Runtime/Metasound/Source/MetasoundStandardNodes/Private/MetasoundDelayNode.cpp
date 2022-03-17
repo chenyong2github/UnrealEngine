@@ -3,6 +3,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
@@ -18,12 +19,12 @@ namespace Metasound
 {
 	namespace Delay
 	{
-		static const FName InParamNameAudioInput = "In";
-		static const FName InParamNameDelayTime = "Delay Time";
-		static const FName InParamNameDryLevel = "Dry Level";
-		static const FName InParamNameWetLevel = "Wet Level";
-		static const FName InParamNameFeedbackAmount = "Feedback";
-		static const FName OutParamNameAudio = "Out";
+		METASOUND_PARAM(InParamAudioInput, "In", "Audio input.")
+		METASOUND_PARAM(InParamDelayTime, "Delay Time", "The amount of time to delay the audio, in seconds.")
+		METASOUND_PARAM(InParamDryLevel, "Dry Level", "The dry level of the delay.")
+		METASOUND_PARAM(InParamWetLevel, "Wet Level", "The wet level of the delay.")
+		METASOUND_PARAM(InParamFeedbackAmount, "Feedback", "Feedback amount.")
+		METASOUND_PARAM(OutParamAudio, "Out", "Audio output.")
 
 		// TODO: make this a static vertex
 		static float MaxDelaySeconds = 5.0f;
@@ -101,20 +102,24 @@ namespace Metasound
 
 	FDataReferenceCollection FDelayOperator::GetInputs() const
 	{
+		using namespace Delay;
+
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(Delay::InParamNameAudioInput, FAudioBufferReadRef(AudioInput));
-		InputDataReferences.AddDataReadReference(Delay::InParamNameDelayTime, FTimeReadRef(DelayTime));
-		InputDataReferences.AddDataReadReference(Delay::InParamNameDryLevel, FFloatReadRef(DryLevel));
-		InputDataReferences.AddDataReadReference(Delay::InParamNameWetLevel, FFloatReadRef(WetLevel));
-		InputDataReferences.AddDataReadReference(Delay::InParamNameFeedbackAmount, FFloatReadRef(Feedback));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamAudioInput), FAudioBufferReadRef(AudioInput));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamDelayTime), FTimeReadRef(DelayTime));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamDryLevel), FFloatReadRef(DryLevel));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamWetLevel), FFloatReadRef(WetLevel));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamFeedbackAmount), FFloatReadRef(Feedback));
 
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FDelayOperator::GetOutputs() const
 	{
+		using namespace Delay;
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(Delay::OutParamNameAudio, FAudioBufferReadRef(AudioOutput));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutParamAudio), FAudioBufferReadRef(AudioOutput));
 		return OutputDataReferences;
 	}
 
@@ -168,16 +173,18 @@ namespace Metasound
 
 	const FVertexInterface& FDelayOperator::GetVertexInterface()
 	{
+		using namespace Delay;
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(Delay::InParamNameAudioInput, METASOUND_LOCTEXT("DelayNode_AudioInputTooltip", "Audio input.")),
-				TInputDataVertexModel<FTime>(Delay::InParamNameDelayTime, METASOUND_LOCTEXT("DelayNode_DelayTimeTooltip", "The amount of time to delay the audio, in seconds."), 1.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameDryLevel, METASOUND_LOCTEXT("DelayNode_DryLevelTooltip", "The dry level of the delay."), 0.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameWetLevel, METASOUND_LOCTEXT("DelayNode_WetlevelTooltip", "The wet level of the delay."), 1.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameFeedbackAmount, METASOUND_LOCTEXT("DelayNode_FeedbackTooltip", "Feedback amount."), 0.0f)
+				TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamAudioInput)),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamDelayTime), 1.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamDryLevel), 0.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamWetLevel), 1.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamFeedbackAmount), 0.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(Delay::OutParamNameAudio, METASOUND_LOCTEXT("DelayNode_DelayOutputTooltip", "Audio output."))
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutParamAudio))
 			)
 		);
 
@@ -208,14 +215,16 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FDelayOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
+		using namespace Delay; 
+
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(Delay::InParamNameAudioInput, InParams.OperatorSettings);
-		FTimeReadRef DelayTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, Delay::InParamNameDelayTime, InParams.OperatorSettings);
-		FFloatReadRef DryLevel = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, Delay::InParamNameDryLevel, InParams.OperatorSettings);
-		FFloatReadRef WetLevel = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, Delay::InParamNameWetLevel, InParams.OperatorSettings);
-		FFloatReadRef Feedback = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, Delay::InParamNameFeedbackAmount, InParams.OperatorSettings);
+		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InParamAudioInput), InParams.OperatorSettings);
+		FTimeReadRef DelayTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InParamDelayTime), InParams.OperatorSettings);
+		FFloatReadRef DryLevel = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InParamDryLevel), InParams.OperatorSettings);
+		FFloatReadRef WetLevel = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InParamWetLevel), InParams.OperatorSettings);
+		FFloatReadRef Feedback = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InParamFeedbackAmount), InParams.OperatorSettings);
 
 		return MakeUnique<FDelayOperator>(InParams.OperatorSettings, AudioIn, DelayTime, DryLevel, WetLevel, Feedback);
 	}

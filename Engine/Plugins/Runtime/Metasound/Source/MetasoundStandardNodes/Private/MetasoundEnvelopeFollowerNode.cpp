@@ -24,15 +24,15 @@
 
 namespace Metasound
 {
-	namespace EnvelopeFollower
+	namespace EnvelopeFollowerVertexNames
 	{
-		static const TCHAR* InParamNameAudioInput = TEXT("In");
-		static const TCHAR* InParamNameAttackTime = TEXT("Attack Time");
-		static const TCHAR* InParamNameReleaseTime = TEXT("Release Time");
-		static const TCHAR* InParamNameFollowMode = TEXT("Peak Mode");
-		static const TCHAR* OutParamNameEnvelope = TEXT("Envelope");
+		METASOUND_PARAM(InParamAudioInput, "In", "Audio input.")
+		METASOUND_PARAM(InParamAttackTime, "Attack Time", "The attack time of the envelope follower.")
+		METASOUND_PARAM(InParamReleaseTime,"Release Time" , "The release time of the envelope follower.")
+		METASOUND_PARAM(InParamFollowMode, "Peak Mode", "The following-method of the envelope follower.")
+		METASOUND_PARAM(OutParamEnvelope, "Envelope", "The output envelope value of the audio signal.")
+		METASOUND_PARAM(OutputAudioEnvelope, "Audio Envelope", "The output envelope value of the audio signal (audio rate).");
 	}
-	METASOUND_PARAM(OutputAudioEnvelope, "Audio Envelope", "The output envelope value of the audio signal (audio rate).");
 
 	class FEnvelopeFollowerOperator : public TExecutableOperator<FEnvelopeFollowerOperator>
 	{
@@ -104,19 +104,23 @@ namespace Metasound
 
 	FDataReferenceCollection FEnvelopeFollowerOperator::GetInputs() const
 	{
+		using namespace EnvelopeFollowerVertexNames;
+
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(EnvelopeFollower::InParamNameAudioInput, AudioInput);
-		InputDataReferences.AddDataReadReference(EnvelopeFollower::InParamNameAttackTime, AttackTimeInput);
-		InputDataReferences.AddDataReadReference(EnvelopeFollower::InParamNameReleaseTime, ReleaseTimeInput);
-		InputDataReferences.AddDataReadReference(EnvelopeFollower::InParamNameFollowMode, FollowModeInput);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamAudioInput), AudioInput);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamAttackTime), AttackTimeInput);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamReleaseTime), ReleaseTimeInput);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamFollowMode), FollowModeInput);
 
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FEnvelopeFollowerOperator::GetOutputs() const
 	{
+		using namespace EnvelopeFollowerVertexNames;
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(EnvelopeFollower::OutParamNameEnvelope, EnvelopeFloatOutput);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutParamEnvelope), EnvelopeFloatOutput);
 		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioEnvelope), EnvelopeAudioOutput);
 		return OutputDataReferences;
 	}
@@ -170,16 +174,18 @@ namespace Metasound
 
 	const FVertexInterface& FEnvelopeFollowerOperator::GetVertexInterface()
 	{
+		using namespace EnvelopeFollowerVertexNames;
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(EnvelopeFollower::InParamNameAudioInput, METASOUND_LOCTEXT("AudioInputToolTT", "Audio input.")),
-				TInputDataVertexModel<FTime>(EnvelopeFollower::InParamNameAttackTime, METASOUND_LOCTEXT("AttackTimeTT", "The attack time of the envelope follower."), 0.01f),
-				TInputDataVertexModel<FTime>(EnvelopeFollower::InParamNameReleaseTime, METASOUND_LOCTEXT("ReleaseTimeTT", "The release time of the envelope follower."), 0.1f),
-				TInputDataVertexModel<FEnumEnvelopePeakMode>(EnvelopeFollower::InParamNameFollowMode, METASOUND_LOCTEXT("FollowModeTT", "The following-method of the envelope follower."))
+				TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamAudioInput)),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamAttackTime), 0.01f),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamReleaseTime), 0.1f),
+				TInputDataVertexModel<FEnumEnvelopePeakMode>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamFollowMode))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<float>(EnvelopeFollower::OutParamNameEnvelope, METASOUND_LOCTEXT("EnvelopeFollowerOutputTT", "The output envelope value of the audio signal.")),
-				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(OutputAudioEnvelope))
+				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutParamEnvelope)),
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioEnvelope))
 			)
 		);
 
@@ -210,14 +216,16 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FEnvelopeFollowerOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
+		using namespace EnvelopeFollowerVertexNames;
+
 		const FEnvelopeFollowerNode& EnvelopeFollowerNode = static_cast<const FEnvelopeFollowerNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(EnvelopeFollower::InParamNameAudioInput, InParams.OperatorSettings);
-		FTimeReadRef AttackTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, EnvelopeFollower::InParamNameAttackTime, InParams.OperatorSettings);
-		FTimeReadRef ReleaseTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, EnvelopeFollower::InParamNameReleaseTime, InParams.OperatorSettings);
-		FEnvelopePeakModeReadRef EnvelopeModeIn = InputCollection.GetDataReadReferenceOrConstruct<FEnumEnvelopePeakMode>(EnvelopeFollower::InParamNameFollowMode);
+		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InParamAudioInput), InParams.OperatorSettings);
+		FTimeReadRef AttackTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InParamAttackTime), InParams.OperatorSettings);
+		FTimeReadRef ReleaseTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InParamReleaseTime), InParams.OperatorSettings);
+		FEnvelopePeakModeReadRef EnvelopeModeIn = InputCollection.GetDataReadReferenceOrConstruct<FEnumEnvelopePeakMode>(METASOUND_GET_PARAM_NAME(InParamFollowMode));
 
 
 		return MakeUnique<FEnvelopeFollowerOperator>(InParams.OperatorSettings, AudioIn, AttackTime, ReleaseTime, EnvelopeModeIn);

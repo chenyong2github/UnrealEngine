@@ -11,6 +11,7 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundLog.h"
 #include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
@@ -24,47 +25,26 @@ namespace Metasound
 {
 	namespace WavePlayerVertexNames
 	{
-		static const TCHAR* InputTriggerPlayName = TEXT("Play");
-		static const TCHAR* InputTriggerStopName = TEXT("Stop");
-		static const TCHAR* InputWaveAssetName = TEXT("Wave Asset");
-		static const TCHAR* InputStartTimeName = TEXT("Start Time");
-		static const TCHAR* InputPitchShiftName = TEXT("Pitch Shift");
-		static const TCHAR* InputLoopName = TEXT("Loop");
-		static const TCHAR* InputLoopStartName = TEXT("Loop Start");
-		static const TCHAR* InputLoopDurationName = TEXT("Loop Duration");
-
-		static const TCHAR* OutputTriggerOnPlayName = TEXT("On Play");
-		static const TCHAR* OutputTriggerOnDoneName = TEXT("On Finished");
-		static const TCHAR* OutputTriggerOnNearlyDoneName = TEXT("On Nearly Finished");
-		static const TCHAR* OutputTriggerOnLoopedName = TEXT("On Looped");
-		static const TCHAR* OutputTriggerOnCuePointName = TEXT("On Cue Point");
-		static const TCHAR* OutputCuePointIDName = TEXT("Cue Point ID");
-		static const TCHAR* OutputCuePointLabelName = TEXT("Cue Point Label");
-		static const TCHAR* OutputLoopPercentName = TEXT("Loop Percent");
-		static const TCHAR* OutputPlaybackLocationName = TEXT("Playback Location");
-		static const TCHAR* OutputAudioLeftName = TEXT("Out Left");
-		static const TCHAR* OutputAudioRightName = TEXT("Out Right");
-
-		static FText InputTriggerPlayTT = METASOUND_LOCTEXT("PlayTT", "Play the wave player.");
-		static FText InputTriggerStopTT = METASOUND_LOCTEXT("StopTT", "Stop the wave player.");
-		static FText InputWaveAssetTT = METASOUND_LOCTEXT("WaveTT", "The wave asset to be real-time decoded.");
-		static FText InputStartTimeTT = METASOUND_LOCTEXT("StartTimeTT", "Time into the wave asset to start (seek) the wave asset. For real-time decoding, the wave asset must be set to seekable!)");
-		static FText InputPitchShiftTT = METASOUND_LOCTEXT("PitchShiftTT", "The pitch shift to use for the wave asset in semitones.");
-		static FText InputLoopTT = METASOUND_LOCTEXT("LoopTT", "Whether or not to loop between the start and specified end times.");
-		static FText InputLoopStartTT = METASOUND_LOCTEXT("LoopStartTT", "When to start the loop.");
-		static FText InputLoopDurationTT = METASOUND_LOCTEXT("LoopDurationTT", "The duration of the loop when wave player is enabled for looping. A negative value will loop the whole wave asset.");
-
-		static FText OutputTriggerOnPlayTT = METASOUND_LOCTEXT("OnPlayTT", "Triggers when Play is triggered.");
-		static FText OutputTriggerOnDoneTT = METASOUND_LOCTEXT("OnDoneTT", "Triggers when the wave played has finished playing.");
-		static FText OutputTriggerOnNearlyDoneTT = METASOUND_LOCTEXT("OnNearlyDoneTT", "Triggers when the wave played has almost finished playing (the block before it finishes). Allows time for logic to trigger different variations to play seamlessly.");
-		static FText OutputTriggerOnLoopedTT = METASOUND_LOCTEXT("OnLoopedTT", "Triggers when the wave player has looped.");
-		static FText OutputTriggerOnCuePointTT = METASOUND_LOCTEXT("OnCuePointTT", "Triggers when a wave cue point was hit during playback.");
-		static FText OutputCuePointIDTT = METASOUND_LOCTEXT("CuePointIDTT", "The cue point ID that was triggered.");
-		static FText OutputCuePointLabelTT = METASOUND_LOCTEXT("CuePointLabelTT", "The cue point label that was triggered (if there was a label parsed in the imported .wav file).");
-		static FText OutputLoopPercentTT = METASOUND_LOCTEXT("LoopPercentTT", "Returns the current loop percent if looping is enabled.");
-		static FText OutputPlaybackLocationTT = METASOUND_LOCTEXT("PlaybackLocationTT", "Returns the absolute position of the wave playback as a precentage of wave duration.");
-		static FText OutputAudioLeftNameTT = METASOUND_LOCTEXT("AudioLeftTT", "The left channel audio output. Mono wave assets will be upmixed to dual stereo.");
-		static FText OutputAudioRightNameTT = METASOUND_LOCTEXT("AudioRightTT", "The right channel audio output. Mono wave assets will be upmixed to dual stereo.");
+		METASOUND_PARAM(InputTriggerPlay, "Play", "Play the wave player.")
+		METASOUND_PARAM(InputTriggerStop, "Stop", "Stop the wave player.")
+		METASOUND_PARAM(InputWaveAsset, "Wave Asset", "The wave asset to be real-time decoded.")
+		METASOUND_PARAM(InputStartTime, "Start Time", "Time into the wave asset to start (seek) the wave asset.")
+		METASOUND_PARAM(InputPitchShift, "Pitch Shift", "The pitch shift to use for the wave asset in semitones.")
+		METASOUND_PARAM(InputLoop, "Loop", "Whether or not to loop between the start and specified end times.")
+		METASOUND_PARAM(InputLoopStart, "Loop Start", "When to start the loop.")
+		METASOUND_PARAM(InputLoopDuration, "Loop Duration", "The duration of the loop when wave player is enabled for looping. A negative value will loop the whole wave asset.")
+		
+		METASOUND_PARAM(OutputTriggerOnPlay, "On Play", "Triggers when Play is triggered.")
+		METASOUND_PARAM(OutputTriggerOnDone, "On Finished", "Triggers when the wave played has finished playing.")
+		METASOUND_PARAM(OutputTriggerOnNearlyDone, "On Nearly Finished", "Triggers when the wave played has almost finished playing (the block before it finishes). Allows time for logic to trigger different variations to play seamlessly. playing.")
+		METASOUND_PARAM(OutputTriggerOnLooped, "On Looped", "Triggers when the wave player has looped.")
+		METASOUND_PARAM(OutputTriggerOnCuePoint, "On Cue Point", "Triggers when a wave cue point was hit during playback.")
+		METASOUND_PARAM(OutputCuePointID, "Cue Point ID", "The cue point ID that was triggered.")
+		METASOUND_PARAM(OutputCuePointLabel, "Cue Point Label", "The cue point label that was triggered (if there was a label parsed in the imported .wav file).")
+		METASOUND_PARAM(OutputLoopRatio, "Loop Ratio", "Returns the current playback location as a ratio of the loop (0-1) if looping is enabled.")
+		METASOUND_PARAM(OutputPlaybackLocation, "OutputPlaybackLocation", "Returns the absolute position of the wave playback as a ratio of wave duration (0-1).")
+		METASOUND_PARAM(OutputAudioLeft, "Out Left", "The left channel audio output. Mono wave assets will be upmixed to dual stereo.")
+		METASOUND_PARAM(OutputAudioRight, "Out Right", "The right channel audio output. Mono wave assets will be upmixed to dual stereo.")
 	}
 
 	class FWavePlayerNode : public FNode
@@ -390,14 +370,14 @@ namespace Metasound
 			using namespace WavePlayerVertexNames;
 
 			FDataReferenceCollection InputDataReferences;
-			InputDataReferences.AddDataReadReference(InputTriggerPlayName, PlayTrigger);
-			InputDataReferences.AddDataReadReference(InputTriggerStopName, StopTrigger);
-			InputDataReferences.AddDataReadReference(InputWaveAssetName, WaveAsset);
-			InputDataReferences.AddDataReadReference(InputStartTimeName, StartTime);
-			InputDataReferences.AddDataReadReference(InputPitchShiftName, PitchShift);
-			InputDataReferences.AddDataReadReference(InputLoopName, bLoop);
-			InputDataReferences.AddDataReadReference(InputLoopStartName, LoopStartTime);
-			InputDataReferences.AddDataReadReference(InputLoopDurationName, LoopDuration);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerPlay), PlayTrigger);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerStop), StopTrigger);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputWaveAsset), WaveAsset);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputStartTime), StartTime);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputPitchShift), PitchShift);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputLoop), bLoop);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputLoopStart), LoopStartTime);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputLoopDuration), LoopDuration);
 			return InputDataReferences;
 		}
 
@@ -406,17 +386,17 @@ namespace Metasound
 			using namespace WavePlayerVertexNames;
 
 			FDataReferenceCollection OutputDataReferences;
-			OutputDataReferences.AddDataReadReference(OutputTriggerOnPlayName, PlayTrigger);
-			OutputDataReferences.AddDataReadReference(OutputTriggerOnDoneName, TriggerOnDone);
-			OutputDataReferences.AddDataReadReference(OutputTriggerOnNearlyDoneName, TriggerOnNearlyDone);
-			OutputDataReferences.AddDataReadReference(OutputTriggerOnLoopedName, TriggerOnLooped);
-			OutputDataReferences.AddDataReadReference(OutputTriggerOnCuePointName, TriggerOnCuePoint);
-			OutputDataReferences.AddDataReadReference(OutputCuePointIDName, CuePointID);
-			OutputDataReferences.AddDataReadReference(OutputCuePointLabelName, CuePointLabel);
-			OutputDataReferences.AddDataReadReference(OutputLoopPercentName, LoopPercent);
-			OutputDataReferences.AddDataReadReference(OutputPlaybackLocationName, PlaybackLocation);
-			OutputDataReferences.AddDataReadReference(OutputAudioLeftName, AudioBufferL);
-			OutputDataReferences.AddDataReadReference(OutputAudioRightName, AudioBufferR);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnPlay), PlayTrigger);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnDone), TriggerOnDone);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnNearlyDone), TriggerOnNearlyDone);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnLooped), TriggerOnLooped);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnCuePoint), TriggerOnCuePoint);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputCuePointID), CuePointID);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputCuePointLabel), CuePointLabel);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputLoopRatio), LoopPercent);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputPlaybackLocation), PlaybackLocation);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioLeft), AudioBufferL);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioRight), AudioBufferR);
 			return OutputDataReferences;
 		}
 
@@ -1016,14 +996,14 @@ namespace Metasound
 		FWavePlayerOpArgs Args =
 		{
 			InParams.OperatorSettings,
-			Inputs.GetDataReadReferenceOrConstruct<FTrigger>(InputTriggerPlayName, InParams.OperatorSettings),
-			Inputs.GetDataReadReferenceOrConstruct<FTrigger>(InputTriggerStopName, InParams.OperatorSettings),
-			Inputs.GetDataReadReferenceOrConstruct<FWaveAsset>(InputWaveAssetName),
-			Inputs.GetDataReadReferenceOrConstruct<FTime>(InputStartTimeName),
-			Inputs.GetDataReadReferenceOrConstruct<float>(InputPitchShiftName),
-			Inputs.GetDataReadReferenceOrConstruct<bool>(InputLoopName),
-			Inputs.GetDataReadReferenceOrConstruct<FTime>(InputLoopStartName),
-			Inputs.GetDataReadReferenceOrConstruct<FTime>(InputLoopDurationName)
+			Inputs.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputTriggerPlay), InParams.OperatorSettings),
+			Inputs.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputTriggerStop), InParams.OperatorSettings),
+			Inputs.GetDataReadReferenceOrConstruct<FWaveAsset>(METASOUND_GET_PARAM_NAME(InputWaveAsset)),
+			Inputs.GetDataReadReferenceOrConstruct<FTime>(METASOUND_GET_PARAM_NAME(InputStartTime)),
+			Inputs.GetDataReadReferenceOrConstruct<float>(METASOUND_GET_PARAM_NAME(InputPitchShift)),
+			Inputs.GetDataReadReferenceOrConstruct<bool>(METASOUND_GET_PARAM_NAME(InputLoop)),
+			Inputs.GetDataReadReferenceOrConstruct<FTime>(METASOUND_GET_PARAM_NAME(InputLoopStart)),
+			Inputs.GetDataReadReferenceOrConstruct<FTime>(METASOUND_GET_PARAM_NAME(InputLoopDuration))
 		};
 
 		return MakeUnique<FWavePlayerOperator>(Args);
@@ -1035,27 +1015,27 @@ namespace Metasound
 
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTrigger>(InputTriggerPlayName, InputTriggerPlayTT),
-				TInputDataVertexModel<FTrigger>(InputTriggerStopName, InputTriggerStopTT),
-				TInputDataVertexModel<FWaveAsset>(InputWaveAssetName, InputWaveAssetTT),
-				TInputDataVertexModel<FTime>(InputStartTimeName, InputStartTimeTT, 0.0f),
-				TInputDataVertexModel<float>(InputPitchShiftName, InputPitchShiftTT, 0.0f),
-				TInputDataVertexModel<bool>(InputLoopName, InputLoopTT, false),
-				TInputDataVertexModel<FTime>(InputLoopStartName, InputLoopStartTT, 0.0f),
-				TInputDataVertexModel<FTime>(InputLoopDurationName, InputLoopDurationTT, -1.0f)
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTriggerPlay)),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTriggerStop)),
+				TInputDataVertexModel<FWaveAsset>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputWaveAsset)),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputStartTime), 0.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputPitchShift), 0.0f),
+				TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLoop), false),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLoopStart), 0.0f),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLoopDuration), -1.0f)
 				),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(OutputTriggerOnPlayName, OutputTriggerOnPlayTT),
-				TOutputDataVertexModel<FTrigger>(OutputTriggerOnDoneName, OutputTriggerOnDoneTT),
-				TOutputDataVertexModel<FTrigger>(OutputTriggerOnNearlyDoneName, OutputTriggerOnNearlyDoneTT),
-				TOutputDataVertexModel<FTrigger>(OutputTriggerOnLoopedName, OutputTriggerOnLoopedTT),
-				TOutputDataVertexModel<FTrigger>(OutputTriggerOnCuePointName, OutputTriggerOnCuePointTT),
-				TOutputDataVertexModel<int32>(OutputCuePointIDName, OutputCuePointIDTT),
-				TOutputDataVertexModel<FString>(OutputCuePointLabelName, OutputCuePointLabelTT),
-				TOutputDataVertexModel<float>(OutputLoopPercentName, OutputLoopPercentTT),
-				TOutputDataVertexModel<float>(OutputPlaybackLocationName, OutputPlaybackLocationTT),
-				TOutputDataVertexModel<FAudioBuffer>(OutputAudioLeftName, OutputAudioLeftNameTT),
-				TOutputDataVertexModel<FAudioBuffer>(OutputAudioRightName, OutputAudioRightNameTT)
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnPlay)),
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnDone)),
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnNearlyDone)),
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnLooped)),
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnCuePoint)),
+				TOutputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputCuePointID)),
+				TOutputDataVertexModel<FString>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputCuePointLabel)),
+				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputLoopRatio)),
+				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputPlaybackLocation)),
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioLeft)),
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioRight))
 			)
 		);
 	}

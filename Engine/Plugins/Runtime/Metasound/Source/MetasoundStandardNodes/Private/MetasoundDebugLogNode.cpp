@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundFacade.h"
+#include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
+#include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundSourceInterface.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
-#include "MetasoundPrimitives.h"
+
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_DebugLogNode"
 
@@ -39,29 +41,9 @@ namespace Metasound
 	//Getters for the name of each parameter used in Print Log
 	namespace PrintLogVertexNames
 	{
-		const FVertexName& GetInputTriggerName()
-		{
-			static const FVertexName Name = TEXT("Trigger");
-			return Name;
-		}
-
-		const FVertexName& GetLabelPrintLogName()
-		{
-			static const FVertexName Name = TEXT("Label");
-			return Name;
-		}
-
-		const FVertexName& GetToLogPrintLogName()
-		{
-			static const FVertexName Name = TEXT("Value To Log");
-			return Name;
-		}
-
-		const FVertexName& GetOutputPrintLogName()
-		{
-			static const FVertexName Name = TEXT("Was Successful");
-			return Name;
-		}
+		METASOUND_PARAM(InputTrigger, "Trigger", "Trigger to write the set value to the log.")
+		METASOUND_PARAM(InputLabel, "Label", "The label to attach to the value that will be logged.")
+		METASOUND_PARAM(InputValueToLog, "Value To Log", "The value to record to the log when triggered.")
 	}
 
 
@@ -73,12 +55,13 @@ namespace Metasound
 
 			static const FVertexInterface& GetDefaultInterface()
 			{
+				using namespace PrintLogVertexNames;
 				static const FVertexInterface DefaultInterface(
 					FInputVertexInterface(
 
-						TInputDataVertexModel<FTrigger>(PrintLogVertexNames::GetInputTriggerName(), METASOUND_LOCTEXT("PrintLogTrigger", "Trigger to write the set value to the log.")),
-						TInputDataVertexModel<FString>(PrintLogVertexNames::GetLabelPrintLogName(), METASOUND_LOCTEXT("PrintLogLabel", "The label to attach to the value that will be logged")),
-						TInputDataVertexModel<PrintLogType>(PrintLogVertexNames::GetToLogPrintLogName(), METASOUND_LOCTEXT("PrintLogValueToLog", "The value to record to the log when triggered"))
+						TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTrigger)),
+						TInputDataVertexModel<FString>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLabel)),
+						TInputDataVertexModel<PrintLogType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueToLog))
 					),
 					FOutputVertexInterface(
 					)
@@ -106,13 +89,15 @@ namespace Metasound
 
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors)
 			{
+				using namespace PrintLogVertexNames;
+
 				const FInputVertexInterface& InputInterface = InParams.Node.GetVertexInterface().GetInputInterface();
 				const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
-				FTriggerReadRef Trigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(PrintLogVertexNames::GetInputTriggerName(), InParams.OperatorSettings);
+				FTriggerReadRef Trigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputTrigger), InParams.OperatorSettings);
 
-				TDataReadReference<FString> Label = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, PrintLogVertexNames::GetLabelPrintLogName(), InParams.OperatorSettings);
-				TDataReadReference<PrintLogType> ValueToLog = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<PrintLogType>(InputInterface, PrintLogVertexNames::GetToLogPrintLogName(), InParams.OperatorSettings);
+				TDataReadReference<FString> Label = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, METASOUND_GET_PARAM_NAME(InputLabel), InParams.OperatorSettings);
+				TDataReadReference<PrintLogType> ValueToLog = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<PrintLogType>(InputInterface, METASOUND_GET_PARAM_NAME(InputValueToLog), InParams.OperatorSettings);
 
 				FString GraphNameFull = InParams.Environment.GetValue<FString>(Frontend::SourceInterface::Environment::GraphName);
 				TArray<FString> ParsedString;
@@ -137,11 +122,12 @@ namespace Metasound
 
 			virtual FDataReferenceCollection GetInputs() const override
 			{
+				using namespace PrintLogVertexNames;
 				FDataReferenceCollection Inputs;
 
-				Inputs.AddDataReadReference(PrintLogVertexNames::GetInputTriggerName(), Trigger);
-				Inputs.AddDataReadReference(PrintLogVertexNames::GetLabelPrintLogName(), Label);
-				Inputs.AddDataReadReference(PrintLogVertexNames::GetToLogPrintLogName(), ValueToLog);
+				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTrigger), Trigger);
+				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputLabel), Label);
+				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputValueToLog), ValueToLog);
 
 				return Inputs;
 			}

@@ -12,6 +12,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
@@ -52,9 +53,11 @@ namespace Metasound
 {
 	namespace MathOpNames
 	{
-		static const FVertexName PrimaryOperandName = TEXT("PrimaryOperand");
+		METASOUND_PARAM(PrimaryOperand, "Primary Operand", "Initial operand")
+		METASOUND_PARAM(AdditionalOperands, "Additional Operand", "Additional operand(s)")
 
-		static const FVertexName AdditionalOperandsName = TEXT("AdditionalOperands");
+		METASOUND_PARAM(OutMath, "Out", "Math operation result.")
+		METASOUND_PARAM(OutAudio, "Out", "Resulting buffer.")
 
 		static const TArray<FText> AddKeywords = { METASOUND_LOCTEXT("AddMathKeyword", "+") };
 		static const TArray<FText> SubtractKeywords = { METASOUND_LOCTEXT("SubtractMathKeyword", "-") };
@@ -238,20 +241,21 @@ namespace Metasound
 
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 			{
+				using namespace MathOpNames;
+
 				const TMathOpNode& MathOpNode = static_cast<const TMathOpNode&>(InParams.Node);
 
 				const FInputVertexInterface& InputInterface = MathOpNode.GetVertexInterface().GetInputInterface();
 
 				FLiteral DefaultValue = FLiteral::CreateInvalid();
-				const FVertexName& PrimaryOperandName = MathOpNames::PrimaryOperandName;
-				if (InputInterface.Contains(PrimaryOperandName))
+				if (InputInterface.Contains(METASOUND_GET_PARAM_NAME(PrimaryOperand)))
 				{
-					DefaultValue = InputInterface[PrimaryOperandName].GetDefaultLiteral();
+					DefaultValue = InputInterface[METASOUND_GET_PARAM_NAME(PrimaryOperand)].GetDefaultLiteral();
 				}
-				TDataClassReadRef PrimaryOperand = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TDataClass>(MathOpNames::PrimaryOperandName, TMathOpClass::GetDefault(InParams.OperatorSettings, DefaultValue));
+				TDataClassReadRef PrimaryOperand = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TDataClass>(METASOUND_GET_PARAM_NAME(PrimaryOperand), TMathOpClass::GetDefault(InParams.OperatorSettings, DefaultValue));
 
 				// TODO: Support dynamic number of inputs
-				const FVertexName& OpName = MathOpNames::AdditionalOperandsName;
+				const FVertexName& OpName = METASOUND_GET_PARAM_NAME(AdditionalOperands);
 				if (InputInterface.Contains(OpName))
 				{
 					DefaultValue = InputInterface[OpName].GetDefaultLiteral();
@@ -273,16 +277,20 @@ namespace Metasound
 
 			virtual FDataReferenceCollection GetInputs() const override
 			{
+				using namespace MathOpNames; 
+
 				FDataReferenceCollection InputDataReferences;
-				InputDataReferences.AddDataReadReference(MathOpNames::PrimaryOperandName, PrimaryOperandRef);
-				InputDataReferences.AddDataReadReference(MathOpNames::AdditionalOperandsName, AdditionalOperandRefs[0]);
+				InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandRef);
+				InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandRefs[0]);
 				return InputDataReferences;
 			}
 
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
+				using namespace MathOpNames;
+				
 				FDataReferenceCollection OutputDataReferences;
-				OutputDataReferences.AddDataReadReference(TEXT("Out"), TDataClassReadRef(ValueRef));
+				OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutMath), TDataClassReadRef(ValueRef));
 
 				return OutputDataReferences;
 			}
@@ -307,13 +315,33 @@ namespace Metasound
 
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddNode_InitialTooltip", "Initial addend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalAddendsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddNode_AddendsTooltip", "Additional addend(s).") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddNode_OutTooltip", "Math operation result") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<TDataClass>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpAddNode_InitialTooltip", "Initial addend."), static_cast<TDataClass>(0)),
-					TInputDataVertexModel<TOperandDataClass>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpAddNode_AddendsTooltip", "Additional addend(s)."), static_cast<TOperandDataClass>(0))
+					TInputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, static_cast<TDataClass>(0)),
+					TInputDataVertexModel<TOperandDataClass>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalAddendsMetadata, static_cast<TOperandDataClass>(0))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataClass>(TEXT("Out"), METASOUND_LOCTEXT("MathOpAddNode_OutTooltip", "Math operation result"))
+					TOutputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -356,13 +384,33 @@ namespace Metasound
 
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames; 
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpSubtractNode_MinuendTooltip", "Minuend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpSubtractNode_SubtrahendsTooltip", "Subtrahend(s).") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpSubtractNode_OutTooltip", "Subtraction result") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<TDataClass>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpSubtractNode_MinuendTooltip", "Minuend."), static_cast<TDataClass>(0)),
-					TInputDataVertexModel<TOperandDataClass>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpSubtractNode_SubtrahendsTooltip", "Subtrahend(s)."), static_cast<TOperandDataClass>(0))
+					TInputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, static_cast<TDataClass>(0)),
+					TInputDataVertexModel<TOperandDataClass>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, static_cast<TOperandDataClass>(0))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataClass>(TEXT("Out"), METASOUND_LOCTEXT("MathOpSubtractNode_OutTooltip", "Subtraction result"))
+					TOutputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -405,13 +453,33 @@ namespace Metasound
 
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpMultiplyNode_InitMultiplicandTooltip", "Initial multiplicand.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				 METASOUND_LOCTEXT("MathOpMultiplyNode_MultiplicandsTooltip", "Additional multiplicand(s).") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpMultiplyNode_ResultTooltip", "Multiplication result") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<TDataClass>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpMultiplyNode_InitMultiplicandTooltip", "Initial multiplicand."), static_cast<TDataClass>(1)),
-					TInputDataVertexModel<TOperandDataClass>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpMultiplyNode_MultiplicandsTooltip", "Additional multiplicand(s)."), static_cast<TOperandDataClass>(1))
+					TInputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, static_cast<TDataClass>(1)),
+					TInputDataVertexModel<TOperandDataClass>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, static_cast<TOperandDataClass>(1))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataClass>(TEXT("Out"), METASOUND_LOCTEXT("MathOpMultiplyNode_ResultTooltip", "Multiplication result"))
+					TOutputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -454,13 +522,33 @@ namespace Metasound
 
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpDivideNode_DividendTooltip", "Dividend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpDivideNode_DivisorsTooltip", "Divisor(s).") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpDivideNode_OutTooltip", "Division result") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<TDataClass>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpDivideNode_DividendTooltip", "Dividend."), static_cast<TDataClass>(1)),
-					TInputDataVertexModel<TOperandDataClass>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpDivideNode_DivisorsTooltip", "Divisor(s)."), static_cast<TOperandDataClass>(1))
+					TInputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, static_cast<TDataClass>(1)),
+					TInputDataVertexModel<TOperandDataClass>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, static_cast<TOperandDataClass>(1))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataClass>(TEXT("Out"), METASOUND_LOCTEXT("MathOpDivideNode_OutTooltip", "Division result"))
+					TOutputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -510,13 +598,33 @@ namespace Metasound
 
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpModuloNode_DividendTooltip", "Dividend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpModuloNode_DivisorsTooltip", "Divisor(s).") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpModuloNode_OutTooltip", "Modulo result") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<TDataClass>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpModuloNode_DividendTooltip", "Dividend."), static_cast<TDataClass>(1)),
-					TInputDataVertexModel<TOperandDataClass>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpModuloNode_DivisorsTooltip", "Divisor(s)."), static_cast<TOperandDataClass>(1))
+					TInputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, static_cast<TDataClass>(1)),
+					TInputDataVertexModel<TOperandDataClass>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, static_cast<TOperandDataClass>(1))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataClass>(TEXT("Out"), METASOUND_LOCTEXT("MathOpModuloNode_OutTooltip", "Modulo result"))
+					TOutputDataVertexModel<TDataClass>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -568,13 +676,33 @@ namespace Metasound
 
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpPowerNode_Base", "The base of the power") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpPowerNode_Exponent", "The exponent to take the base to the power of") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+					  };
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpPowerNode_Result", "Returns Base to the Exponent power") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<float>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpPowerNode_Base", "The base of the power")),
-					TInputDataVertexModel<float>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpPowerNode_Exponent", "The exponent to take the base to the power of"))
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<float>(TEXT("Out"), METASOUND_LOCTEXT("MathOpPowerNode_Result", "Returns Base to the Exponent power"))
+					TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -620,13 +748,33 @@ namespace Metasound
 
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				   METASOUND_LOCTEXT("MathOpLogarithmNode_Base", "The base of the logarithm") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpLogarithmNode_Value", "The value to find the logarithm of") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpLogarithmNode_Result", "The logarithm of the inputted value") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<float>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpLogarithmNode_Base", "The base of the logarithm")),
-					TInputDataVertexModel<float>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpLogarithmNode_Value", "The value to find the logarithm of"))
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<float>(TEXT("Out"), METASOUND_LOCTEXT("MathOpLogarithmNode_Result", "The logarithm of the inputted value"))
+					TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -669,13 +817,27 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames; 
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddAudioBufferNameTooltip", "First addend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddAudioBufferAdditionalTooltip", "Additional addends.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpAddAudioBufferNameTooltip", "First addend.")),
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpAddAudioBufferAdditionalTooltip", "Additional addends."))
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata),
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), METASOUND_LOCTEXT("MathOpOutTooltip", "Math operation result"))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudio))
 				)
 			);
 
@@ -746,13 +908,33 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddTimeTooltip", "First addend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddTimeAdditionalalTooltip", "Additional addends.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpOutTooltip", "Math operation result") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTime>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpAddTimeTooltip", "First addend."), 0.0f),
-					TInputDataVertexModel<FTime>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpAddTimeAdditionalalTooltip", "Additional addends."), 0.0f)
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, 0.0f),
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, 0.0f)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FTime>(TEXT("Out"), METASOUND_LOCTEXT("MathOpOutTooltip", "Math operation result"))
+					TOutputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -790,13 +972,27 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames; 
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddAudioTooltip", "Audio Buffer to add offset(s) to.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAddAdditionalTooltip", "Float addends of which to offset buffer samples.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpAddAudioTooltip", "Audio Buffer to add offset(s) to.")),
-					TInputDataVertexModel<float>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpAddAdditionalTooltip", "Float addends of which to offset buffer samples."), 0.0f)
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, 0.0f)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), METASOUND_LOCTEXT("MathOpAudioFloatAddOutTooltip", "Resulting buffer"))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudio))
 				)
 			);
 
@@ -838,13 +1034,27 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpBuffersMinuendTooltip", "Initial buffer to act as minuend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalAddendsMetadata
+			{
+				 METASOUND_LOCTEXT("MathOpSubtractBuffersSubtrahendsTooltip", "Additional buffers to act as subtrahend(s).") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpBuffersMinuendTooltip", "Initial buffer to act as minuend.")),
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpSubtractBuffersSubtrahendsTooltip", "Additional buffers to act as subtrahend(s)."))
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata),
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalAddendsMetadata)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), METASOUND_LOCTEXT("MathOpSubtractBuffersOutTooltip", "Resulting buffer"))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudio))
 				)
 			);
 
@@ -913,13 +1123,33 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+			
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				 METASOUND_LOCTEXT("MathOpTimeNode_MinuendTooltip", "Time minuend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalAddendsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpTimeNode_SubtrahendsTooltip", "Time subtrahends.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpTimeNode_SubtractOutTooltip", "Resulting time value") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTime>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpTimeNode_MinuendTooltip", "Time minuend."), 0.0f),
-					TInputDataVertexModel<FTime>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpTimeNode_SubtrahendsTooltip", "Time subtrahends."), 0.0f)
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, 0.0f),
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalAddendsMetadata, 0.0f)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FTime>(TEXT("Out"), METASOUND_LOCTEXT("MathOpTimeNode_SubtractOutTooltip", "Resulting time value"))
+					TOutputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -957,13 +1187,27 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAudioMultiplyNode_InitMultiplicandTooltip", "Initial audio to multiply.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalAddendsMetadata
+			{
+				 METASOUND_LOCTEXT("MathOpAudioMultiplyNode_MultiplicandsTooltip", "Additional audio to multiply sample-by-sample.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpAudioMultiplyNode_InitMultiplicandTooltip", "Initial audio to multiply.")),
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpAudioMultiplyNode_MultiplicandsTooltip", "Additional audio to multiply sample-by-sample."))
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata),
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalAddendsMetadata)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), METASOUND_LOCTEXT("MathOpAudioMultiplyNode_OutTooltip", "Resulting buffer"))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudio))
 				)
 			);
 
@@ -1035,13 +1279,27 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames; 
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAudioFloatMultiplyNode_FloatTooltip", "Audio multiplicand.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpAudioFloatMultiplyNode_MultiplicandTooltip", "Float multiplicand to apply sample-by-sample to audio. Interpolates over buffer size on value change.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpAudioFloatMultiplyNode_FloatTooltip", "Audio multiplicand.")),
-					TInputDataVertexModel<float>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpAudioFloatMultiplyNode_MultiplicandTooltip", "Float multiplicand to apply sample-by-sample to audio. Interpolates over buffer size on value change."), 1.0f)
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, 1.0f)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), METASOUND_LOCTEXT("MathOpAudioFloatMultiplyNode_OutTooltip", "Resulting buffer"))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudio))
 				)
 			);
 
@@ -1099,13 +1357,33 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames;
+			
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpTimeFloatMultiplyNode_MultiplyFloatTooltip", "Time multiplicand.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpTimeFloatMultiplyNode_MultiplicandsTooltip", "Float multiplicand(s).") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpTimeFloatMultiplyNode_OutTooltip", "Time float multiplication output") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTime>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpTimeFloatMultiplyNode_MultiplyFloatTooltip", "Time multiplicand."), 1.0f),
-					TInputDataVertexModel<float>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpTimeFloatMultiplyNode_MultiplicandsTooltip", "Float multiplicand(s)."), 1.0f)
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, 1.0f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, 1.0f)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FTime>(TEXT("Out"), METASOUND_LOCTEXT("MathOpTimeFloatMultiplyNode_OutTooltip", "Time float multiplication output"))
+					TOutputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 
@@ -1145,13 +1423,33 @@ namespace Metasound
 	public:
 		static const FVertexInterface& GetVertexInterface()
 		{
+			using namespace MathOpNames; 
+
+			static const FDataVertexMetadata PrimaryOperandMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpTimeFloatDivideNode_DividendFloatTooltip", "Time dividend.") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(PrimaryOperand) // display name
+			};
+
+			static const FDataVertexMetadata AdditionalOperandsMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpTimeFloatDivideNode_DivisorsTooltip", "Float divisor(s).") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AdditionalOperands) // display name
+			};
+
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  METASOUND_LOCTEXT("MathOpTimeFloatDivideNode_OutTooltip", "Time divide-by-float output") // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutMath) // display name
+			};
+
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTime>(MathOpNames::PrimaryOperandName, METASOUND_LOCTEXT("MathOpTimeFloatDivideNode_DividendFloatTooltip", "Time dividend."), 1.0f),
-					TInputDataVertexModel<float>(MathOpNames::AdditionalOperandsName, METASOUND_LOCTEXT("MathOpTimeFloatDivideNode_DivisorsTooltip", "Float divisor(s)."), 1.0f)
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(PrimaryOperand), PrimaryOperandMetadata, 1.0f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(AdditionalOperands), AdditionalOperandsMetadata, 1.0f)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FTime>(TEXT("Out"), METASOUND_LOCTEXT("MathOpTimeFloatDivideNode_OutTooltip", "Time divide-by-float output"))
+					TOutputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(OutMath), OutputMetadata)
 				)
 			);
 

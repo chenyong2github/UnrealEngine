@@ -12,6 +12,7 @@
 #include "MetasoundLog.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundSourceInterface.h"
 #include "MetasoundTrigger.h"
@@ -28,19 +29,18 @@ namespace Metasound
 	/** Shuffle Node Vertex Names */
 	namespace ArrayNodeShuffleVertexNames
 	{
-		/** Input Vertex Names */
-		METASOUNDFRONTEND_API const FVertexName& GetInputTriggerNextName();
-		METASOUNDFRONTEND_API const FVertexName& GetInputTriggerShuffleName();
-		METASOUNDFRONTEND_API const FVertexName& GetInputTriggerResetName();
-		METASOUNDFRONTEND_API const FVertexName& GetInputShuffleArrayName();
-		METASOUNDFRONTEND_API const FVertexName& GetInputSeedName();
-		METASOUNDFRONTEND_API const FVertexName& GetInputAutoShuffleName();
-		METASOUNDFRONTEND_API const FVertexName& GetInputEnableSharedStateName();
+		METASOUND_PARAM(InputTriggerNext, "Next", "Trigger to get the next value in the shuffled array.")
+		METASOUND_PARAM(InputTriggerShuffle, "Shuffle", "Trigger to shuffle the array manually.")
+		METASOUND_PARAM(InputTriggerReset, "Reset Seed", "Trigger to reset the random seed stream of the shuffle node.")
+		METASOUND_PARAM(InputShuffleArray, "In Array", "Input Array.")
+		METASOUND_PARAM(InputShuffleSeed, "Seed", "Seed to use for the the random shuffle.")
+		METASOUND_PARAM(InputAutoShuffle, "Auto Shuffle", "Set to true to automatically shuffle when the array has been read.")
+		METASOUND_PARAM(InputShuffleEnableSharedState, "Enable Shared State", "Set to enabled shared state across instances of this metasound.")
 
-		METASOUNDFRONTEND_API const FVertexName& GetOutputTriggerOnNextName();
-		METASOUNDFRONTEND_API const FVertexName& GetOutputTriggerOnShuffleName();
-		METASOUNDFRONTEND_API const FVertexName& GetOutputTriggerOnResetName();
-		METASOUNDFRONTEND_API const FVertexName& GetOutputValueName();
+		METASOUND_PARAM(OutputTriggerOnNext, "On Next", "Triggers when the \"Next\" input is triggered.")
+		METASOUND_PARAM(OutputTriggerOnShuffle, "On Shuffle", "Triggers when the \"Shuffle\" input is triggered or if the array is auto-shuffled.")
+		METASOUND_PARAM(OutputTriggerOnResetSeed, "On Reset Seed", "Triggers when the \"Reset Seed\" input is triggered.")
+		METASOUND_PARAM(OutputShuffledValue, "Value", "Value of the current shuffled element.")
 	}
 
 	class METASOUNDFRONTEND_API FArrayIndexShuffler
@@ -147,19 +147,19 @@ namespace Metasound
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTrigger>(GetInputTriggerNextName(), METASOUND_LOCTEXT("ShuffleOpInputTriggerNextTT", "Trigger to get the next value in the shuffled array.")),
-					TInputDataVertexModel<FTrigger>(GetInputTriggerShuffleName(), METASOUND_LOCTEXT("ShuffleOpInputTriggerShuffleTT", "Trigger to shuffle the array manually.")),
-					TInputDataVertexModel<FTrigger>(GetInputTriggerResetName(), METASOUND_LOCTEXT("ShuffleOpInputTriggerResetTT", "Trigger to reset the random seed stream of the shuffle node.")),
-					TInputDataVertexModel<ArrayType>(GetInputShuffleArrayName(), METASOUND_LOCTEXT("ShuffleOpInputShuffleArrayTT", "Input Array.")),
-					TInputDataVertexModel<int32>(GetInputSeedName(), METASOUND_LOCTEXT("ShuffleOpInputSeedTT", "Seed to use for the the random shuffle."), -1),
-					TInputDataVertexModel<bool>(GetInputAutoShuffleName(), METASOUND_LOCTEXT("ShuffleOpInputAutoShuffleTT", "Set to true to automatically shuffle when the array has been read."), true),
-					TInputDataVertexModel<bool>(GetInputEnableSharedStateName(), METASOUND_LOCTEXT("ShuffleOpInputEnableSharedStatTT", "Set to enabled shared state across instances of this metasound."), false)
+					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTriggerNext)),
+					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTriggerShuffle)),
+					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTriggerReset)),
+					TInputDataVertexModel<ArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputShuffleArray)),
+					TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputShuffleSeed), -1),
+					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAutoShuffle), true),
+					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputShuffleEnableSharedState), false)
 					),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnNextName(), METASOUND_LOCTEXT("ShuffleOpOutputTriggerOnNextNameTT", "Triggers when the \"Next\" input is triggered.")),
-					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnShuffleName(), METASOUND_LOCTEXT("ShuffleOpOutputTriggerOnShuffleNameTT", "Triggers when the \"Shuffle\" input is triggered or if the array is auto-shuffled.")),
-					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnResetName(), METASOUND_LOCTEXT("ShuffleOpOutputTriggerOnResetNameTT", "Triggers when the \"Reset Seed\" input is triggered.")),
-					TOutputDataVertexModel<ElementType>(GetOutputValueName(), METASOUND_LOCTEXT("ShuffleOpOutputValueTT", "Value of the current shuffled element."))
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnNext)),
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnShuffle)),
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnResetSeed)),
+					TOutputDataVertexModel<ElementType>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputShuffledValue))
 				)
 			);
 
@@ -191,13 +191,13 @@ namespace Metasound
 
 			const FInputVertexInterface& Inputs = InParams.Node.GetVertexInterface().GetInputInterface();
 
-			TDataReadReference<FTrigger> InTriggerNext = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, GetInputTriggerNextName(), InParams.OperatorSettings);
-			TDataReadReference<FTrigger> InTriggerShuffle = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, GetInputTriggerShuffleName(), InParams.OperatorSettings);
-			TDataReadReference<FTrigger> InTriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, GetInputTriggerResetName(), InParams.OperatorSettings);
-			FArrayDataReadReference InInputArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, GetInputShuffleArrayName(), InParams.OperatorSettings);
-			TDataReadReference<int32> InSeedValue = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, GetInputSeedName(), InParams.OperatorSettings);
-			TDataReadReference<bool> bInAutoShuffle = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, GetInputAutoShuffleName(), InParams.OperatorSettings);
-			TDataReadReference<bool> bInEnableSharedState = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, GetInputEnableSharedStateName(), InParams.OperatorSettings);
+			TDataReadReference<FTrigger> InTriggerNext = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, METASOUND_GET_PARAM_NAME(InputTriggerNext), InParams.OperatorSettings);
+			TDataReadReference<FTrigger> InTriggerShuffle = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, METASOUND_GET_PARAM_NAME(InputTriggerShuffle), InParams.OperatorSettings);
+			TDataReadReference<FTrigger> InTriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, METASOUND_GET_PARAM_NAME(InputTriggerReset), InParams.OperatorSettings);
+			FArrayDataReadReference InInputArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, METASOUND_GET_PARAM_NAME(InputShuffleArray), InParams.OperatorSettings);
+			TDataReadReference<int32> InSeedValue = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, METASOUND_GET_PARAM_NAME(InputShuffleSeed), InParams.OperatorSettings);
+			TDataReadReference<bool> bInAutoShuffle = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, METASOUND_GET_PARAM_NAME(InputAutoShuffle), InParams.OperatorSettings);
+			TDataReadReference<bool> bInEnableSharedState = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, METASOUND_GET_PARAM_NAME(InputShuffleEnableSharedState), InParams.OperatorSettings);
 
 			return MakeUnique<TArrayShuffleOperator>(InParams, InTriggerNext, InTriggerShuffle, InTriggerReset, InInputArray, InSeedValue, bInAutoShuffle, bInEnableSharedState);
 		}
@@ -261,13 +261,13 @@ namespace Metasound
 			using namespace ArrayNodeShuffleVertexNames;
 
 			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference(GetInputTriggerNextName(), TriggerNext);
-			Inputs.AddDataReadReference(GetInputTriggerShuffleName(), TriggerShuffle);
-			Inputs.AddDataReadReference(GetInputTriggerResetName(), TriggerReset);
-			Inputs.AddDataReadReference(GetInputShuffleArrayName(), InputArray);
-			Inputs.AddDataReadReference(GetInputSeedName(), SeedValue);
-			Inputs.AddDataReadReference(GetInputAutoShuffleName(), bAutoShuffle);
-			Inputs.AddDataReadReference(GetInputEnableSharedStateName(), bEnableSharedState);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerNext), TriggerNext);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerShuffle), TriggerShuffle);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerReset), TriggerReset);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputShuffleArray), InputArray);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputShuffleSeed), SeedValue);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAutoShuffle), bAutoShuffle);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputShuffleEnableSharedState), bEnableSharedState);
 
 			return Inputs;
 		}
@@ -277,10 +277,10 @@ namespace Metasound
 			using namespace ArrayNodeShuffleVertexNames;
 
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(GetOutputTriggerOnNextName(), TriggerOnNext);
-			Outputs.AddDataReadReference(GetOutputTriggerOnShuffleName(), TriggerOnShuffle);
-			Outputs.AddDataReadReference(GetOutputTriggerOnResetName(), TriggerOnReset);
-			Outputs.AddDataReadReference(GetOutputValueName(), OutValue);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnNext), TriggerOnNext);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnShuffle), TriggerOnShuffle);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnResetSeed), TriggerOnReset);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputShuffledValue), OutValue);
 
 			return Outputs;
 		}

@@ -5,6 +5,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
@@ -15,11 +16,11 @@
 
 namespace Metasound
 {
-	namespace InterpTo
+	namespace InterpToVertexNames
 	{
-		static const TCHAR* InParamNameTarget = TEXT("Target");
-		static const TCHAR* InParamNameInterpTime = TEXT("Interp Time");
-		static const TCHAR* OutParamNameValue = TEXT("Value");
+		METASOUND_PARAM(InParamTarget, "Target", "Target value.")
+		METASOUND_PARAM(InParamInterpTime, "Interp Time", "The time to interpolate from the current value to the target value.")
+		METASOUND_PARAM(OutParamValue, "Value", "The current value.")
 	}
 
 	/** FInterpToNode
@@ -87,17 +88,21 @@ namespace Metasound
 
 	FDataReferenceCollection FInterpToOperator::GetInputs() const
 	{
+		using namespace InterpToVertexNames;
+
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(InterpTo::InParamNameTarget, FFloatReadRef(TargetValue));
-		InputDataReferences.AddDataReadReference(InterpTo::InParamNameInterpTime, FTimeReadRef(InterpTime));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamTarget), FFloatReadRef(TargetValue));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamInterpTime), FTimeReadRef(InterpTime));
 
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FInterpToOperator::GetOutputs() const
 	{
+		using namespace InterpToVertexNames;
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(InterpTo::OutParamNameValue, FFloatReadRef(ValueOutput));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutParamValue), FFloatReadRef(ValueOutput));
 		return OutputDataReferences;
 	}
 
@@ -124,13 +129,15 @@ namespace Metasound
 
 	const FVertexInterface& FInterpToOperator::GetVertexInterface()
 	{
+		using namespace InterpToVertexNames;
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTime>(InterpTo::InParamNameInterpTime, METASOUND_LOCTEXT("InterpTimeTooltip", "The time to interpolate from the current value to the target value."), 0.1f),
-				TInputDataVertexModel<float>(InterpTo::InParamNameTarget, METASOUND_LOCTEXT("TargetValueTooltip", "Target value."), 1.0f)
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamInterpTime), 0.1f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InParamTarget), 1.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<float>(InterpTo::OutParamNameValue, METASOUND_LOCTEXT("ValueTooltip", "The current value."))
+				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutParamValue))
 			)
 		);
 
@@ -167,12 +174,14 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FInterpToOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
+		using namespace InterpToVertexNames; 
+
 		const FInterpToNode& InterpToNode = static_cast<const FInterpToNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FFloatReadRef TargetValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, InterpTo::InParamNameTarget, InParams.OperatorSettings);
-		FTimeReadRef InterpTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, InterpTo::InParamNameInterpTime, InParams.OperatorSettings);
+		FFloatReadRef TargetValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InParamTarget), InParams.OperatorSettings);
+		FTimeReadRef InterpTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InParamInterpTime), InParams.OperatorSettings);
 
 		return MakeUnique<FInterpToOperator>(InParams.OperatorSettings, TargetValue, InterpTime);
 	}

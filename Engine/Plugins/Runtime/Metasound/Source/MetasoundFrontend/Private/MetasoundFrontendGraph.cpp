@@ -589,6 +589,7 @@ namespace Metasound
 	bool FFrontendGraphBuilder::AddDefaultInputLiterals(FBuildGraphContext& InGraphContext)
 	{
 		using namespace Metasound::Frontend;
+		using namespace LiteralNodeNames; 
 
 		using FIterator = FDefaultInputByIDMap::TIterator;
 
@@ -610,7 +611,7 @@ namespace Metasound
 				UE_LOG(LogMetaSound, Error, TEXT("MetaSound '%s': Failed to find node in graph [NodeID:%s]"), *InGraphContext.BuildContext.DebugAssetName, *LiteralNodeID.ToString());
 				return false;
 			}
-			const FVertexName& FromVertexName = LiteralNodeNames::GetOutputDataName();
+			const FVertexName& FromVertexName = METASOUND_GET_PARAM_NAME(OutputValue);
 
 			const INode* ToNode = InGraphContext.Graph->FindNode(LiteralData.DestinationNodeID);
 			if (nullptr == ToNode)

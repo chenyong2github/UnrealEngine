@@ -8,6 +8,7 @@
 #include "MetasoundLog.h"
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundVariable.h"
 #include "MetasoundVertex.h"
 
@@ -18,17 +19,34 @@ namespace Metasound
 {
 	namespace VariableNames
 	{
-		/** Input vertex name for data */
-		METASOUNDGRAPHCORE_API const FVertexName& GetInputDataName();
+		METASOUND_PARAM(InputData, "Value", "Value")
+		METASOUND_PARAM(OutputData, "Value", "Value")
+		METASOUND_PARAM(InputVariable, "Variable", "Variable")
+		METASOUND_PARAM(OutputVariable, "Variable", "Variable")
 
-		/** Output vertex name for data */
-		METASOUNDGRAPHCORE_API const FVertexName& GetOutputDataName();
+		static const FDataVertexMetadata InputDataMetadata
+		{
+			  FText::GetEmpty() // description
+			, METASOUND_GET_PARAM_DISPLAYNAME(InputData) // display name
+		};
 
-		/** Input vertex name for variables */
-		METASOUNDGRAPHCORE_API const FVertexName& GetInputVariableName();
-		
-		/** Output vertex name for variables */
-		METASOUNDGRAPHCORE_API const FVertexName& GetOutputVariableName();
+		static const FDataVertexMetadata OutputDataMetadata
+		{
+			  FText::GetEmpty() // description
+			, METASOUND_GET_PARAM_DISPLAYNAME(OutputData) // display name
+		};
+
+		static const FDataVertexMetadata InputVariableMetadata
+		{
+			  FText::GetEmpty() // description
+			, METASOUND_GET_PARAM_DISPLAYNAME(InputVariable) // display name
+		};
+
+		static const FDataVertexMetadata OutputVariableMetadata
+		{
+			  FText::GetEmpty() // description
+			, METASOUND_GET_PARAM_DISPLAYNAME(OutputVariable) // display name
+		};
 
 		/** Class name for variable node. */
 		METASOUNDGRAPHCORE_API FNodeClassName GetVariableNodeClassName(const FName& InDataTypeName);
@@ -104,8 +122,10 @@ namespace Metasound
 
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
+				using namespace VariableNames; 
+
 				FDataReferenceCollection Collection;
-				Collection.AddDataWriteReference(VariableNames::GetOutputVariableName(), Variable);
+				Collection.AddDataWriteReference(METASOUND_GET_PARAM_NAME(OutputVariable), Variable);
 				return Collection;
 			}
 
@@ -165,11 +185,13 @@ namespace Metasound
 
 		static FVertexInterface DeclareVertexInterface()
 		{
+			using namespace VariableNames; 
+
 			return FVertexInterface(
 				FInputVertexInterface(
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FVariable>(VariableNames::GetOutputVariableName(), FText::GetEmpty())
+					TOutputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
 				)
 			);
 		}
@@ -251,8 +273,10 @@ namespace Metasound
 
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
+				using namespace VariableNames; 
+
 				FDataReferenceCollection Collection;
-				Collection.AddDataReadReference<FVariable>(VariableNames::GetOutputVariableName(), Variable);
+				Collection.AddDataReadReference<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), Variable);
 				return Collection;
 			}
 
@@ -278,23 +302,23 @@ namespace Metasound
 
 		const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
 
-		if (Inputs.ContainsDataWriteReference<FVariable>(GetInputVariableName()))
+		if (Inputs.ContainsDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable)))
 		{
 			// If a variable is provided, set the reference to read.
-			TDataWriteReference<FVariable> Variable = Inputs.GetDataWriteReference<FVariable>(GetInputVariableName());
-			if (Inputs.ContainsDataReadReference<DataType>(GetInputDataName()))
+			TDataWriteReference<FVariable> Variable = Inputs.GetDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable));
+			if (Inputs.ContainsDataReadReference<DataType>(METASOUND_GET_PARAM_NAME(InputData)))
 			{
 				// Update the input variable with the data reference to copy from.
-				TDataReadReference InputData = Inputs.GetDataReadReference<DataType>(GetInputDataName());
+				TDataReadReference InputData = Inputs.GetDataReadReference<DataType>(METASOUND_GET_PARAM_NAME(InputData));
 				Variable->SetDataReference(InputData);
 			}
 
 			return MakeUnique<FOperator>(Variable);
 		}
-		else if (Inputs.ContainsDataReadReference<DataType>(GetInputDataName()))
+		else if (Inputs.ContainsDataReadReference<DataType>(METASOUND_GET_PARAM_NAME(InputData)))
 		{
 			// If no input variable is provided create Variable with input variable
-			TDataReadReference<DataType> InputData = Inputs.GetDataReadReference<DataType>(GetInputDataName());
+			TDataReadReference<DataType> InputData = Inputs.GetDataReadReference<DataType>(METASOUND_GET_PARAM_NAME(InputData));
 			TDataWriteReference<DataType> InitData = TDataWriteReference<DataType>::CreateNew(*InputData);
 			TDataWriteReference<FVariable> Variable = TDataWriteReference<FVariable>::CreateNew(InitData);
 			Variable->SetDataReference(InputData);
@@ -310,13 +334,15 @@ namespace Metasound
 	template<typename DataType>
 	FVertexInterface TVariableMutatorNode<DataType>::FOperator::DeclareVertexInterface()
 	{
+		using namespace VariableNames;
+
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<DataType>(VariableNames::GetInputDataName(), FText::GetEmpty()), 
-				TInputDataVertexModel<FVariable>(VariableNames::GetInputVariableName(), FText::GetEmpty())
+				TInputDataVertexModel<DataType>(METASOUND_GET_PARAM_NAME(InputData), InputDataMetadata),
+				TInputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputVariableMetadata)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FVariable>(VariableNames::GetOutputVariableName(), FText::GetEmpty())
+				TOutputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
 			)
 		);
 	}
@@ -375,9 +401,11 @@ namespace Metasound
 
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
+				using namespace VariableNames; 
+
 				FDataReferenceCollection Collection;
-				Collection.AddDataWriteReference<FVariable>(VariableNames::GetOutputVariableName(), DelayedVariable);
-				Collection.AddDataReadReference<DataType>(VariableNames::GetOutputDataName(), DelayedVariable->GetDelayedDataReference());
+				Collection.AddDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), DelayedVariable);
+				Collection.AddDataReadReference<DataType>(METASOUND_GET_PARAM_NAME(OutputData), DelayedVariable->GetDelayedDataReference());
 				return Collection;
 			}
 
@@ -405,9 +433,9 @@ namespace Metasound
 
 		const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
 
-		if (ensure(Inputs.ContainsDataWriteReference<FVariable>(GetInputVariableName())))
+		if (ensure(Inputs.ContainsDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable))))
 		{
-			TDataWriteReference<FVariable> DelayedVariable = Inputs.GetDataWriteReference<FVariable>(GetInputVariableName());
+			TDataWriteReference<FVariable> DelayedVariable = Inputs.GetDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable));
 
 			return MakeUnique<FOperator>(DelayedVariable);
 		}
@@ -422,13 +450,15 @@ namespace Metasound
 	template<typename DataType>
 	FVertexInterface TVariableDeferredAccessorNode<DataType>::FOperator::DeclareVertexInterface()
 	{
+		using namespace VariableNames; 
+
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FVariable>(VariableNames::GetInputVariableName(), FText::GetEmpty())
+				TInputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputVariableMetadata)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FVariable>(VariableNames::GetOutputVariableName(), FText::GetEmpty()),
-				TOutputDataVertexModel<DataType>(VariableNames::GetOutputDataName(), FText::GetEmpty())
+				TOutputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata),
+				TOutputDataVertexModel<DataType>(METASOUND_GET_PARAM_NAME(OutputData), OutputDataMetadata)
 			)
 		);
 	}
@@ -482,9 +512,11 @@ namespace Metasound
 
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
+				using namespace VariableNames; 
+
 				FDataReferenceCollection Collection;
-				Collection.AddDataReadReference<DataType>(VariableNames::GetOutputDataName(), Variable->GetDataReference());
-				Collection.AddDataReadReference<FVariable>(VariableNames::GetOutputVariableName(), Variable);
+				Collection.AddDataReadReference<DataType>(METASOUND_GET_PARAM_NAME(OutputData), Variable->GetDataReference());
+				Collection.AddDataReadReference<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), Variable);
 				return Collection;
 			}
 
@@ -511,14 +543,14 @@ namespace Metasound
 		const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
 
 		// Update delayed variable.
-		if (Inputs.ContainsDataReadReference<FVariable>(GetInputVariableName()))
+		if (Inputs.ContainsDataReadReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable)))
 		{
-			TDataReadReference<FVariable> Variable = Inputs.GetDataReadReference<FVariable>(GetInputVariableName());
+			TDataReadReference<FVariable> Variable = Inputs.GetDataReadReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable));
 			return MakeUnique<FOperator>(Variable);
 		}
-		else if (Inputs.ContainsDataWriteReference<FVariable>(GetInputVariableName()))
+		else if (Inputs.ContainsDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable)))
 		{
-			TDataReadReference<FVariable> Variable = Inputs.GetDataWriteReference<FVariable>(GetInputVariableName());
+			TDataReadReference<FVariable> Variable = Inputs.GetDataWriteReference<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable));
 			return MakeUnique<FOperator>(Variable);
 		}
 		else 
@@ -532,13 +564,15 @@ namespace Metasound
 	template<typename DataType>
 	FVertexInterface TVariableAccessorNode<DataType>::FOperator::DeclareVertexInterface()
 	{
+		using namespace VariableNames; 
+
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FVariable>(VariableNames::GetInputVariableName(), FText::GetEmpty())
+				TInputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputDataMetadata)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<DataType>(VariableNames::GetOutputDataName(), FText::GetEmpty()),
-				TOutputDataVertexModel<FVariable>(VariableNames::GetOutputVariableName(), FText::GetEmpty())
+				TOutputDataVertexModel<DataType>(METASOUND_GET_PARAM_NAME(OutputData), OutputDataMetadata),
+				TOutputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
 			)
 		);
 	}

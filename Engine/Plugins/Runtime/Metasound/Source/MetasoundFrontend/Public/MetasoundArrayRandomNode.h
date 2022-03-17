@@ -8,6 +8,7 @@
 #include "MetasoundFacade.h"
 #include "MetasoundSourceInterface.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundTrigger.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundFrontend"
@@ -16,27 +17,16 @@ namespace Metasound
 {
 	namespace ArrayNodeRandomGetVertexNames
 	{
-		static const FName InputTriggerNextName = "Next";
-		static const FName InputTriggerResetName = "Reset";
-		static const FName InputRandomArrayName = "In Array";
-		static const FName InputWeightsName = "Weights";
-		static const FName InputSeedName = "Seed";
-		static const FName InputNoRepeatOrderName = "No Repeats";
-		static const FName InputEnableSharedStateName = "Enable Shared State";
-		static const FName OutputTriggerOnNextName = "On Next";
-		static const FName OutputTriggerOnResetName = "On Reset";
-		static const FName OutputValueName = "Value";
-
-		static const FText InputTriggerNextTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_TriggerNextTooltip", "Trigger to get the next value in the randomized array.");
-		static const FText InputTriggerResetTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_TriggerResetTooltip", "Trigger to reset the seed for the randomized array.");
-		static const FText InputRandomArrayTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_RandomArrayTooltip", "Input array to randomized.");
-		static const FText InputWeightsTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_WeightsTooltip", "Input array of weights to use for random selection. Will repeat if this array is shorter than the input array to select from.");
-		static const FText InputSeedTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_SeedTooltip", "Seed to use for the random shuffle.");
-		static const FText InputNoRepeatOrderTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_NoRepeatOrderTooltip", "The number of elements to track to avoid repeating in a row.");
-		static const FText InputEnableSharedStateTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_EnableSharedStateTooltip", "Set to enabled to share state across instances of this MetaSound.");
-		static const FText OutputTriggerOnNextTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_TriggerOnNextTooltip", "Triggers when the \"Next\" input is triggered.");
-		static const FText OutputTriggerOnResetTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_TriggerOnResetTooltip", "Triggers when the \"Shuffle\" input is triggered or if the array is auto-shuffled.");
-		static const FText OutputValueTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_ValueTooltip", "Value of the current shuffled element.");
+		METASOUND_PARAM(InputTriggerNextValue, "Next", "Trigger to get the next value in the randomized array.")
+		METASOUND_PARAM(InputTriggerResetSeed, "Reset", "Trigger to reset the seed for the randomized array.")
+		METASOUND_PARAM(InputRandomArray, "In Array", "Input array to randomized.")
+		METASOUND_PARAM(InputWeights, "Weights", "Input array of weights to use for random selection. Will repeat if this array is shorter than the input array to select from.")
+		METASOUND_PARAM(InputSeed, "Seed", "Seed to use for the random shuffle.")
+		METASOUND_PARAM(InputNoRepeatOrder, "No Repeats", "The number of elements to track to avoid repeating in a row.")
+		METASOUND_PARAM(InputEnableSharedState, "Enable Shared State", "Set to enabled to share state across instances of this MetaSound.")
+		METASOUND_PARAM(OutputTriggerOnNext, "On Next", "Triggers when the \"Next\" input is triggered.")
+		METASOUND_PARAM(OutputTriggerOnReset, "On Reset", "Triggers when the \"Shuffle\" input is triggered or if the array is auto-shuffled.")
+		METASOUND_PARAM(ShuffleOutputValue, "Value", "Value of the current shuffled element.")
 	}
 
 	class METASOUNDFRONTEND_API FArrayRandomGet
@@ -119,18 +109,18 @@ namespace Metasound
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTrigger>(InputTriggerNextName, InputTriggerNextTooltip),
-					TInputDataVertexModel<FTrigger>(InputTriggerResetName, InputTriggerResetTooltip),
-					TInputDataVertexModel<ArrayType>(InputRandomArrayName, InputRandomArrayTooltip),
-					TInputDataVertexModel<WeightsArrayType>(InputWeightsName, InputWeightsTooltip),
-					TInputDataVertexModel<int32>(InputSeedName, InputSeedTooltip, -1),
-					TInputDataVertexModel<int32>(InputNoRepeatOrderName, InputNoRepeatOrderTooltip, 1),
-					TInputDataVertexModel<bool>(InputEnableSharedStateName, InputEnableSharedStateTooltip, false)
+					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTriggerNextValue)),
+					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTriggerResetSeed)),
+					TInputDataVertexModel<ArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputRandomArray)),
+					TInputDataVertexModel<WeightsArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputWeights)),
+					TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputSeed), -1),
+					TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputNoRepeatOrder), 1),
+					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputEnableSharedState), false)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FTrigger>(OutputTriggerOnNextName, OutputTriggerOnNextTooltip),
-					TOutputDataVertexModel<FTrigger>(OutputTriggerOnResetName, OutputTriggerOnResetTooltip),
-					TOutputDataVertexModel<ElementType>(OutputValueName, OutputValueTooltip)
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnNext)),
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTriggerOnReset)),
+					TOutputDataVertexModel<ElementType>(METASOUND_GET_PARAM_NAME_AND_METADATA(ShuffleOutputValue))
 				)
 			);
 
@@ -162,13 +152,13 @@ namespace Metasound
 
 			const FInputVertexInterface& Inputs = InParams.Node.GetVertexInterface().GetInputInterface();
 
-			FTriggerReadRef InTriggerNext = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, InputTriggerNextName, InParams.OperatorSettings);
-			FTriggerReadRef InTriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, InputTriggerResetName, InParams.OperatorSettings);
-			FArrayDataReadReference InInputArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, InputRandomArrayName, InParams.OperatorSettings);
-			FArrayWeightReadReference InInputWeightsArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<WeightsArrayType>(Inputs, InputWeightsName, InParams.OperatorSettings);
-			FInt32ReadRef InSeedValue = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, InputSeedName, InParams.OperatorSettings);
-			FInt32ReadRef InNoRepeatOrder = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, InputNoRepeatOrderName, InParams.OperatorSettings);
-			FBoolReadRef bInEnableSharedState = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, InputEnableSharedStateName, InParams.OperatorSettings);
+			FTriggerReadRef InTriggerNext = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, METASOUND_GET_PARAM_NAME(InputTriggerNextValue), InParams.OperatorSettings);
+			FTriggerReadRef InTriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, METASOUND_GET_PARAM_NAME(InputTriggerResetSeed), InParams.OperatorSettings);
+			FArrayDataReadReference InInputArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, METASOUND_GET_PARAM_NAME(InputRandomArray), InParams.OperatorSettings);
+			FArrayWeightReadReference InInputWeightsArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<WeightsArrayType>(Inputs, METASOUND_GET_PARAM_NAME(InputWeights), InParams.OperatorSettings);
+			FInt32ReadRef InSeedValue = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, METASOUND_GET_PARAM_NAME(InputSeed), InParams.OperatorSettings);
+			FInt32ReadRef InNoRepeatOrder = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, METASOUND_GET_PARAM_NAME(InputNoRepeatOrder), InParams.OperatorSettings);
+			FBoolReadRef bInEnableSharedState = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, METASOUND_GET_PARAM_NAME(InputEnableSharedState), InParams.OperatorSettings);
 
 			return MakeUnique<TArrayRandomGetOperator<ArrayType>>(InParams, InTriggerNext, InTriggerReset, InInputArray, InInputWeightsArray, InSeedValue, InNoRepeatOrder, bInEnableSharedState);
 		}
@@ -251,13 +241,13 @@ namespace Metasound
 			using namespace ArrayNodeRandomGetVertexNames;
 
 			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference(InputTriggerNextName, TriggerNext);
-			Inputs.AddDataReadReference(InputTriggerResetName, TriggerReset);
-			Inputs.AddDataReadReference(InputRandomArrayName, InputArray);
-			Inputs.AddDataReadReference(InputWeightsName, InputWeightsArray);
-			Inputs.AddDataReadReference(InputSeedName, SeedValue);
-			Inputs.AddDataReadReference(InputNoRepeatOrderName, NoRepeatOrder);
-			Inputs.AddDataReadReference(InputEnableSharedStateName, bEnableSharedState);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerNextValue), TriggerNext);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerResetSeed), TriggerReset);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputRandomArray), InputArray);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputWeights), InputWeightsArray);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputSeed), SeedValue);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputNoRepeatOrder), NoRepeatOrder);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputEnableSharedState), bEnableSharedState);
 
 			return Inputs;
 		}
@@ -267,9 +257,9 @@ namespace Metasound
 			using namespace ArrayNodeRandomGetVertexNames;
 
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(OutputTriggerOnNextName, TriggerOnNext);
-			Outputs.AddDataReadReference(OutputTriggerOnResetName, TriggerOnReset);
-			Outputs.AddDataReadReference(OutputValueName, OutValue);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnNext), TriggerOnNext);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnReset), TriggerOnReset);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(ShuffleOutputValue), OutValue);
 
 			return Outputs;
 		}

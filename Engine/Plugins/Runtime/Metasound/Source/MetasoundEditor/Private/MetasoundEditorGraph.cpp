@@ -1131,6 +1131,7 @@ void UMetasoundEditorGraphVariable::ResetToClassDefault()
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
+	using namespace Metasound::VariableNames; 
 
 	FMetasoundFrontendLiteral DefaultLiteral;
 	DefaultLiteral.SetFromLiteral(IDataTypeRegistry::Get().CreateDefaultLiteral(GetDataType()));
@@ -1144,7 +1145,7 @@ void UMetasoundEditorGraphVariable::ResetToClassDefault()
 	FNodeHandle MutatorNode = VariableHandle->FindMutatorNode();
 	if (MutatorNode->IsValid())
 	{
-		FInputHandle InputHandle = MutatorNode->GetInputWithVertexName(VariableNames::GetInputDataName());
+		FInputHandle InputHandle = MutatorNode->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputData));
 		if (ensure(InputHandle->IsValid()))
 		{
 			InputHandle->ClearLiteral();
@@ -1162,6 +1163,7 @@ void UMetasoundEditorGraphVariable::UpdateFrontendDefaultLiteral(bool bPostTrans
 	using namespace Metasound;
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
+	using namespace Metasound::VariableNames;
 
 	UObject* Metasound = nullptr;
 	UMetasoundEditorGraph* MetaSoundGraph = GetOwningGraph();
@@ -1190,7 +1192,7 @@ void UMetasoundEditorGraphVariable::UpdateFrontendDefaultLiteral(bool bPostTrans
 	FNodeHandle MutatorNode = VariableHandle->FindMutatorNode();
 	if (MutatorNode->IsValid())
 	{
-		FInputHandle InputHandle = MutatorNode->GetInputWithVertexName(VariableNames::GetInputDataName());
+		FInputHandle InputHandle = MutatorNode->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputData));
 		if (ensure(InputHandle->IsValid()))
 		{
 			GraphPrivate::SetLiteralOrClearIfMatchesDefault(InputHandle, DefaultLiteral);

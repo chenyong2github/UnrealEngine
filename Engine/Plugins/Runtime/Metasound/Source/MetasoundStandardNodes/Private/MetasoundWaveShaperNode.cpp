@@ -5,6 +5,7 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundAudioBuffer.h"
@@ -16,12 +17,12 @@ namespace Metasound
 {
 	namespace WaveShaperNode
 	{
-		static const TCHAR* InParamNameAudioInput = TEXT("In");
-		static const TCHAR* InParamNameWaveShapeAmount = TEXT("Amount");
-		static const TCHAR* InParamNameWaveShapeBias = TEXT("Bias");
-		static const TCHAR* InParamNameOutputGain = TEXT("OutputGain");
-		static const TCHAR* InParamNameType = TEXT("Type");
-		static const TCHAR* OutParamNameAudio = TEXT("Out");
+		METASOUND_PARAM(InAudioInput, "In", "Audio input.");
+		METASOUND_PARAM(InWaveShapeAmount, "Amount", "The amount of wave shaping to apply.");
+		METASOUND_PARAM(InWaveShapeBias, "Bias", "DC offset to apply before wave shaping.");
+		METASOUND_PARAM(InOutputGain, "OutputGain", "The amount of gain to apply after processing.");
+		METASOUND_PARAM(InType, "Type", "Algorithm to use to process the audio.");
+		METASOUND_PARAM(OutAudio, "Out", "Audio output.");
 	}
 
 	using namespace WaveShaperNode;
@@ -96,20 +97,24 @@ namespace Metasound
 
 	FDataReferenceCollection FWaveShaperOperator::GetInputs() const
 	{
+		using namespace WaveShaperNode;
+		
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(InParamNameAudioInput, AudioInput);
-		InputDataReferences.AddDataReadReference(InParamNameWaveShapeAmount, Amount);
-		InputDataReferences.AddDataReadReference(InParamNameWaveShapeBias, Bias);
-		InputDataReferences.AddDataReadReference(InParamNameOutputGain, OutputGain);
-		InputDataReferences.AddDataReadReference(InParamNameType, Type);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InAudioInput), AudioInput);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InWaveShapeAmount), Amount);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InWaveShapeBias), Bias);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InOutputGain), OutputGain);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InType), Type);
 
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FWaveShaperOperator::GetOutputs() const
 	{
+		using namespace WaveShaperNode; 
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(OutParamNameAudio, AudioOutput);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutAudio), AudioOutput);
 		return OutputDataReferences;
 	}
 
@@ -132,14 +137,14 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(InParamNameAudioInput, METASOUND_LOCTEXT("AudioInputTT", "Audio input.")),
-				TInputDataVertexModel<float>(InParamNameWaveShapeAmount, METASOUND_LOCTEXT("WaveShapeAmountTT", "The amount of wave shaping to apply."), 1.0f),
-				TInputDataVertexModel<float>(InParamNameWaveShapeBias, METASOUND_LOCTEXT("WaveShaperBiasTT", "DC offset to apply before wave shaping."), 0.0f),
-				TInputDataVertexModel<float>(InParamNameOutputGain, METASOUND_LOCTEXT("WaveShaperGainTT", "The amount of gain to apply after processing."), 1.0f),
-				TInputDataVertexModel<FEnumEWaveShaperType>(InParamNameType, METASOUND_LOCTEXT("WaveShaperTypeTT", "Algorithm to use to process the audio."))
+				TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InAudioInput)),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InWaveShapeAmount), 1.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InWaveShapeBias), 0.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InOutputGain), 1.0f),
+				TInputDataVertexModel<FEnumEWaveShaperType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InType))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(OutParamNameAudio, METASOUND_LOCTEXT("WaveShaperOutputTT", "Audio output."))
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudio))
 			)
 		);
 
@@ -173,11 +178,11 @@ namespace Metasound
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(InParamNameAudioInput, InParams.OperatorSettings);
-		FFloatReadRef InAmount = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, InParamNameWaveShapeAmount, InParams.OperatorSettings);
-		FFloatReadRef InBias = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, InParamNameWaveShapeBias, InParams.OperatorSettings);
-		FFloatReadRef OutGain = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, InParamNameOutputGain, InParams.OperatorSettings);
-		FEnumWaveShaperReadRef InType = InputCollection.GetDataReadReferenceOrConstruct<FEnumEWaveShaperType>(InParamNameType);
+		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InAudioInput), InParams.OperatorSettings);
+		FFloatReadRef InAmount = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InWaveShapeAmount), InParams.OperatorSettings);
+		FFloatReadRef InBias = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InWaveShapeBias), InParams.OperatorSettings);
+		FFloatReadRef OutGain = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InOutputGain), InParams.OperatorSettings);
+		FEnumWaveShaperReadRef InType = InputCollection.GetDataReadReferenceOrConstruct<FEnumEWaveShaperType>(METASOUND_GET_PARAM_NAME(InType));
 
 		return MakeUnique<FWaveShaperOperator>(InParams.OperatorSettings, AudioIn, InAmount, InBias, OutGain, InType);
 	}

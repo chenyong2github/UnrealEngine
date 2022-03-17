@@ -4,6 +4,7 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
@@ -22,77 +23,12 @@ namespace Metasound
 {
 	namespace ITDPannerVertexNames
 	{
-		const FVertexName& GetInputAudioName()
-		{
-			static FVertexName Name = TEXT("In");
-			return Name;
-		}
-
-		const FText& GetInputAudioDescription()
-		{
-			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeInDesc", "The input audio to spatialize.");
-			return Desc;
-		}
-
-		const FVertexName& GetInputPanAngleName()
-		{
-			static FVertexName Name = TEXT("Angle");
-			return Name;
-		}
-
-		const FText& GetInputPanAngleDescription()
-		{
-			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodePanAngleDesc", "The sound source angle in degrees. 90 degrees is in front, 0 degrees is to the right, 270 degrees is behind, 180 degrees is to the left.");
-			return Desc;
-		}
-
-		const FVertexName& GetInputDistanceFactorName()
-		{
-			static FVertexName Name = TEXT("Distance Factor");
-			return Name;
-		}
-
-		const FText& GetInputDistanceFactorDescription()
-		{
-			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeDistanceFactorDesc", "The normalized distance factor (0.0 to 1.0) to use for ILD (Inter-aural level difference) calculations. 0.0 is near, 1.0 is far. The further away something is the less there is a difference in levels (gain) between the ears.");
-			return Desc;
-		}
-
-		const FVertexName& GetInputHeadWidthName()
-		{
-			static FVertexName Name = TEXT("Head Width");
-			return Name;
-		}
-
-		const FText& GetInputHeadWidthDescription()
-		{
-			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeHeadWidthDesc", "The width of the listener head to use for ITD calculations in centimeters.");
-			return Desc;
-		}
-
-		const FVertexName& GetOutputAudioLeftName()
-		{
-			static FVertexName Name = TEXT("Out Left");
-			return Name;
-		}
-
-		const FText& GetOutputAudioLeftDescription()
-		{
-			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeOutputLeftDescription", "Left channel audio output.");
-			return Desc;
-		}
-
-		const FVertexName& GetOutputAudioRightName()
-		{
-			static FVertexName Name = TEXT("Out Right");
-			return Name;
-		}
-
-		const FText& GetOutputAudioRightDescription()
-		{
-			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeOutputRightDescription", "Right channel audio output.");
-			return Desc;
-		}
+		METASOUND_PARAM(InputAudio, "In", "The input audio to spatialize.")
+		METASOUND_PARAM(InputPanAngle, "Angle", "The sound source angle in degrees. 90 degrees is in front, 0 degrees is to the right, 270 degrees is behind, 180 degrees is to the left.")
+		METASOUND_PARAM(InputDistanceFactor, "Distance Factor", "The normalized distance factor (0.0 to 1.0) to use for ILD (Inter-aural level difference) calculations. 0.0 is near, 1.0 is far. The further away something is the less there is a difference in levels (gain) between the ears.")
+		METASOUND_PARAM(InputHeadWidth, "Head Width", "The width of the listener head to use for ITD calculations in centimeters.")
+		METASOUND_PARAM(OutputAudioLeft, "Out Left", "Left channel audio output.")
+		METASOUND_PARAM(OutputAudioRight, "Out Right", "Right channel audio output.")
 	}
 
 	class FITDPannerOperator : public TExecutableOperator<FITDPannerOperator>
@@ -175,10 +111,10 @@ namespace Metasound
 		using namespace ITDPannerVertexNames;
 
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(GetInputAudioName(), AudioInput);
-		InputDataReferences.AddDataReadReference(GetInputPanAngleName(), PanningAngle);
-		InputDataReferences.AddDataReadReference(GetInputDistanceFactorName(), DistanceFactor);
-		InputDataReferences.AddDataReadReference(GetInputHeadWidthName(), HeadWidth);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputPanAngle), PanningAngle);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDistanceFactor), DistanceFactor);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputHeadWidth), HeadWidth);
 
 		return InputDataReferences;
 	}
@@ -188,8 +124,8 @@ namespace Metasound
 		using namespace ITDPannerVertexNames;
 
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(GetOutputAudioLeftName(), AudioLeftOutput);
-		OutputDataReferences.AddDataReadReference(GetOutputAudioRightName(), AudioRightOutput);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioLeft), AudioLeftOutput);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioRight), AudioRightOutput);
 
 		return OutputDataReferences;
 	}
@@ -292,14 +228,14 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(GetInputAudioName(), GetInputAudioDescription()),
-				TInputDataVertexModel<float>(GetInputPanAngleName(), GetInputPanAngleDescription(), 90.0f),
-				TInputDataVertexModel<float>(GetInputDistanceFactorName(), GetInputDistanceFactorDescription(), 0.0f),
-				TInputDataVertexModel<float>(GetInputHeadWidthName(), GetInputHeadWidthDescription(), 34.0f)
+				TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAudio)),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputPanAngle), 90.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputDistanceFactor), 0.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputHeadWidth), 34.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(GetOutputAudioLeftName(), GetOutputAudioLeftDescription()),
-				TOutputDataVertexModel<FAudioBuffer>(GetOutputAudioRightName(), GetOutputAudioRightDescription())
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioLeft)),
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioRight))
 			)
 		);
 
@@ -335,10 +271,10 @@ namespace Metasound
 
 		using namespace ITDPannerVertexNames;
 
-		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(GetInputAudioName(), InParams.OperatorSettings);
-		FFloatReadRef PanningAngle = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, GetInputPanAngleName(), InParams.OperatorSettings);
-		FFloatReadRef DistanceFactor = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, GetInputDistanceFactorName(), InParams.OperatorSettings);
-		FFloatReadRef HeadWidth = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, GetInputHeadWidthName(), InParams.OperatorSettings);
+		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InputAudio), InParams.OperatorSettings);
+		FFloatReadRef PanningAngle = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputPanAngle), InParams.OperatorSettings);
+		FFloatReadRef DistanceFactor = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputDistanceFactor), InParams.OperatorSettings);
+		FFloatReadRef HeadWidth = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputHeadWidth), InParams.OperatorSettings);
 
 		return MakeUnique<FITDPannerOperator>(InParams.OperatorSettings, AudioIn, PanningAngle, DistanceFactor, HeadWidth);
 	}

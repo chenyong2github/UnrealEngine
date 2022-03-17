@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MetasoundFacade.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
@@ -19,27 +20,15 @@ namespace Metasound
 {
 	namespace RandomNodeNames
 	{
-		/** Input vertex names. */
-		const FVertexName& GetInputNextTriggerName();
-		const FVertexName& GetInputResetTriggerName();
-		const FVertexName& GetInputSeedName();
-		const FVertexName& GetInputMinName();
-		const FVertexName& GetInputMaxName();
-
-		/** Output vertex names. */
-		const FVertexName& GetOutputOnNextTriggerName();
-		const FVertexName& GetOutputOnResetTriggerName();
-		const FVertexName& GetOutputValueName();
-
-		/** Descriptions. */
-		static FText GetNextTriggerDescription();
-		static FText GetResetDescription();
-		static FText GetSeedDescription();
-		static FText GetMinDescription();
-		static FText GetMaxDescription();
-		static FText GetOutputDescription();
-		static FText GetOutputOnNextDescription();
-		static FText GetOutputOnResetDescription();
+		METASOUND_PARAM(InputNextTrigger, "Next", "Trigger to generate the next random integer.")
+		METASOUND_PARAM(InputResetTrigger, "Reset", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition.")
+		METASOUND_PARAM(InputSeed, "Seed", "The seed value to use for the random node. Set to -1 to use a random seed.")
+		METASOUND_PARAM(InputMin, "Min", "Min random value.")
+		METASOUND_PARAM(InputMax, "Max", "Max random value.")
+		
+		METASOUND_PARAM(OutputOnNextTrigger, "On Next", "Triggers when next is triggered.")
+		METASOUND_PARAM(OutputOnResetTrigger, "On Reset", "Triggers when reset is triggered.")
+		METASOUND_PARAM(OutputValue, "Value", "The randomly generated value.")
 	}
 
 	template<typename ValueType>
@@ -88,12 +77,16 @@ namespace Metasound
 
 		static TDataReadReference<int32> CreateMinValueRef(const FDataReferenceCollection& InputCollection, const FInputVertexInterface& InputInterface, const FOperatorSettings& InOperatorSettings)
 		{
-			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, RandomNodeNames::GetInputMinName(), InOperatorSettings);
+			using namespace RandomNodeNames; 
+
+			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, METASOUND_GET_PARAM_NAME(InputMin), InOperatorSettings);
 		}
 
 		static TDataReadReference<int32> CreateMaxValueRef(const FDataReferenceCollection& InputCollection, const FInputVertexInterface& InputInterface, const FOperatorSettings& InOperatorSettings)
 		{
-			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, RandomNodeNames::GetInputMaxName(), InOperatorSettings);
+			using namespace RandomNodeNames; 
+
+			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, METASOUND_GET_PARAM_NAME(InputMax), InOperatorSettings);
 		}
 	};
 
@@ -137,12 +130,16 @@ namespace Metasound
 
 		static TDataReadReference<float> CreateMinValueRef(const FDataReferenceCollection& InputCollection, const FInputVertexInterface& InputInterface, const FOperatorSettings& InOperatorSettings)
 		{
-			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, RandomNodeNames::GetInputMinName(), InOperatorSettings);
+			using namespace RandomNodeNames;
+
+			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputMin), InOperatorSettings);
 		}
 
 		static TDataReadReference<float> CreateMaxValueRef(const FDataReferenceCollection& InputCollection, const FInputVertexInterface& InputInterface, const FOperatorSettings& InOperatorSettings)
 		{
-			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, RandomNodeNames::GetInputMaxName(), InOperatorSettings);
+			using namespace RandomNodeNames;
+			
+			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputMax), InOperatorSettings);
 		}
 	};
 
@@ -237,12 +234,16 @@ namespace Metasound
 
 		static TDataReadReference<FTime> CreateMinValueRef(const FDataReferenceCollection& InputCollection, const FInputVertexInterface& InputInterface, const FOperatorSettings& InOperatorSettings)
 		{
-			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, RandomNodeNames::GetInputMinName(), InOperatorSettings);
+			using namespace RandomNodeNames; 
+
+			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputMin), InOperatorSettings);
 		}
 
 		static TDataReadReference<FTime> CreateMaxValueRef(const FDataReferenceCollection& InputCollection, const FInputVertexInterface& InputInterface, const FOperatorSettings& InOperatorSettings)
 		{
-			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, RandomNodeNames::GetInputMaxName(), InOperatorSettings);
+			using namespace RandomNodeNames;
+
+			return InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputMax), InOperatorSettings);
 		}
 	};
 
@@ -262,16 +263,16 @@ namespace Metasound
 			{
 				static const FVertexInterface DefaultInterface(
 					FInputVertexInterface(
-						TInputDataVertexModel<FTrigger>(GetInputNextTriggerName(), GetNextTriggerDescription()),
-						TInputDataVertexModel<FTrigger>(GetInputResetTriggerName(), GetResetDescription()),
-						TInputDataVertexModel<int32>(GetInputSeedName(), GetSeedDescription(), DefaultSeed),
-						TInputDataVertexModel<ValueType>(GetInputMinName(), GetMinDescription(), TRandomNodeSpecialization<ValueType>::GetDefaultMin()),
-						TInputDataVertexModel<ValueType>(GetInputMaxName(), GetMaxDescription(), TRandomNodeSpecialization<ValueType>::GetDefaultMax())
+						TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputNextTrigger)),
+						TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputResetTrigger)),
+						TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputSeed), DefaultSeed),
+						TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputMin), TRandomNodeSpecialization<ValueType>::GetDefaultMin()),
+						TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputMax), TRandomNodeSpecialization<ValueType>::GetDefaultMax())
 					),
 					FOutputVertexInterface(
-						TOutputDataVertexModel<FTrigger>(GetOutputOnNextTriggerName(), GetOutputOnNextDescription()),
-						TOutputDataVertexModel<FTrigger>(GetOutputOnResetTriggerName(), GetOutputOnResetDescription()),
-						TOutputDataVertexModel<ValueType>(GetOutputValueName(), GetOutputDescription())
+						TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnNextTrigger)),
+						TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnResetTrigger)),
+						TOutputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValue))
 					)
 				);
 
@@ -281,14 +282,14 @@ namespace Metasound
 			{
 				static const FVertexInterface DefaultInterface(
 					FInputVertexInterface(
-						TInputDataVertexModel<FTrigger>(GetInputNextTriggerName(), GetNextTriggerDescription()),
-						TInputDataVertexModel<FTrigger>(GetInputResetTriggerName(), GetResetDescription()),
-						TInputDataVertexModel<int32>(GetInputSeedName(), GetSeedDescription(), DefaultSeed)
+						TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputNextTrigger)),
+						TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputResetTrigger)),
+						TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputSeed), DefaultSeed)
 					),
 					FOutputVertexInterface(
-						TOutputDataVertexModel<FTrigger>(GetOutputOnNextTriggerName(), GetOutputOnNextDescription()),
-						TOutputDataVertexModel<FTrigger>(GetOutputOnResetTriggerName(), GetOutputOnResetDescription()),
-						TOutputDataVertexModel<ValueType>(GetOutputValueName(), GetOutputDescription())
+						TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnNextTrigger)),
+						TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnResetTrigger)),
+						TOutputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValue))
 					)
 				);
 
@@ -324,9 +325,9 @@ namespace Metasound
  			const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 			using namespace RandomNodeNames;
 
- 			FTriggerReadRef InNextTrigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(GetInputNextTriggerName(), InParams.OperatorSettings);
-			FTriggerReadRef InResetTrigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(GetInputResetTriggerName(), InParams.OperatorSettings);
-			FInt32ReadRef InSeedValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, GetInputSeedName(), InParams.OperatorSettings);
+ 			FTriggerReadRef InNextTrigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputNextTrigger), InParams.OperatorSettings);
+			FTriggerReadRef InResetTrigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputResetTrigger), InParams.OperatorSettings);
+			FInt32ReadRef InSeedValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, METASOUND_GET_PARAM_NAME(InputSeed), InParams.OperatorSettings);
 
 			// note: random bool does not have a range
 			if (TRandomNodeSpecialization<ValueType>::HasRange())
@@ -397,15 +398,15 @@ namespace Metasound
 			using namespace RandomNodeNames;
 
 			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference(GetInputNextTriggerName(), NextTrigger);
- 			Inputs.AddDataReadReference(GetInputResetTriggerName(), ResetTrigger);
- 			Inputs.AddDataReadReference(GetInputSeedName(), SeedValue);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputNextTrigger), NextTrigger);
+ 			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputResetTrigger), ResetTrigger);
+ 			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputSeed), SeedValue);
 
 			// If the type doesn't have a range no need for input pins to define it
 			if (TRandomNodeSpecialization<ValueType>::HasRange())
 			{
-				Inputs.AddDataReadReference(GetInputMinName(), MinValue);
-				Inputs.AddDataReadReference(GetInputMaxName(), MinValue);
+				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputMin), MinValue);
+				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputMax), MinValue);
 			}
 			return Inputs;
 		}
@@ -415,9 +416,9 @@ namespace Metasound
 			using namespace RandomNodeNames;
 
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(GetOutputOnNextTriggerName(), TriggerOutOnNext);
-			Outputs.AddDataReadReference(GetOutputOnResetTriggerName(), TriggerOutOnReset);
-			Outputs.AddDataReadReference(GetOutputValueName(), OutputValue);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnNextTrigger), TriggerOutOnNext);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnResetTrigger), TriggerOutOnReset);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputValue), OutputValue);
 			return Outputs;
 		}
 

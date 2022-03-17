@@ -406,6 +406,8 @@ namespace Metasound
 
 		FNodeHandle FGraphController::FindOrAddVariableMutatorNode(const FGuid& InVariableID)
 		{
+			using namespace VariableNames; 
+
 			if (FMetasoundFrontendVariable* Variable = FindFrontendVariable(InVariableID))
 			{
 				FNodeHandle SetNode = GetNodeWithID(Variable->MutatorNodeID);
@@ -418,7 +420,7 @@ namespace Metasound
 						if (SetNode->IsValid())
 						{
 							// Initialize set default literal value to that of the variable
-							FInputHandle InputHandle = SetNode->GetInputWithVertexName(VariableNames::GetInputDataName());
+							FInputHandle InputHandle = SetNode->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputData));
 							if (ensure(InputHandle->IsValid()))
 							{
 								InputHandle->SetLiteral(Variable->Literal);
@@ -436,8 +438,8 @@ namespace Metasound
 
 							if (ensure(SourceVariableNode->IsValid()))
 							{
-								FInputHandle SetNodeInput = SetNode->GetInputWithVertexName(VariableNames::GetInputVariableName());
-								FOutputHandle SourceVariableNodeOutput = SourceVariableNode->GetOutputWithVertexName(VariableNames::GetOutputVariableName());
+								FInputHandle SetNodeInput = SetNode->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputVariable));
+								FOutputHandle SourceVariableNodeOutput = SourceVariableNode->GetOutputWithVertexName(METASOUND_GET_PARAM_NAME(OutputVariable));
 
 								ensure(SetNodeInput->Connect(*SourceVariableNodeOutput));
 							}
@@ -448,8 +450,8 @@ namespace Metasound
 								FNodeHandle HeadGetNode = GetNodeWithID(Variable->AccessorNodeIDs[0]);
 								if (HeadGetNode->IsValid())
 								{
-									FOutputHandle SetNodeOutput = SetNode->GetOutputWithVertexName(VariableNames::GetOutputVariableName());
-									FInputHandle GetNodeInput = HeadGetNode->GetInputWithVertexName(VariableNames::GetInputVariableName());
+									FOutputHandle SetNodeOutput = SetNode->GetOutputWithVertexName(METASOUND_GET_PARAM_NAME(OutputVariable));
+									FInputHandle GetNodeInput = HeadGetNode->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputVariable));
 
 									ensure(SetNodeOutput->Connect(*GetNodeInput));
 								}
@@ -469,6 +471,8 @@ namespace Metasound
 
 		FNodeHandle FGraphController::AddVariableAccessorNode(const FGuid& InVariableID)
 		{
+			using namespace VariableNames;
+			
 			if (FMetasoundFrontendVariable* Variable = FindFrontendVariable(InVariableID))
 			{
 				FMetasoundFrontendClass NodeClass;
@@ -479,7 +483,7 @@ namespace Metasound
 					if (NewNode->IsValid())
 					{
 						// Connect new node.
-						FInputHandle NewInput = NewNode->GetInputWithVertexName(VariableNames::GetInputVariableName());
+						FInputHandle NewInput = NewNode->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputVariable));
 						FNodeHandle TailNode = FindTailNodeInVariableStack(InVariableID);
 						
 						if (!TailNode->IsValid())
@@ -491,7 +495,7 @@ namespace Metasound
 						if (ensure(TailNode->IsValid()))
 						{
 							// connect new node to the last "get" node.
-							FOutputHandle TailNodeOutput = TailNode->GetOutputWithVertexName(VariableNames::GetOutputVariableName());
+							FOutputHandle TailNodeOutput = TailNode->GetOutputWithVertexName(METASOUND_GET_PARAM_NAME(OutputVariable));
 							check(!TailNodeOutput->IsConnected());
 							const bool bSuccess = TailNodeOutput->Connect(*NewInput);
 							check(bSuccess);
@@ -516,6 +520,8 @@ namespace Metasound
 
 		FNodeHandle FGraphController::AddVariableDeferredAccessorNode(const FGuid& InVariableID)
 		{
+			using namespace VariableNames;
+
 			if (FMetasoundFrontendVariable* Variable = FindFrontendVariable(InVariableID))
 			{
 				FMetasoundFrontendClass NodeClass;
@@ -526,20 +532,20 @@ namespace Metasound
 					if (NewNode->IsValid())
 					{
 						// Connect new node.
-						FOutputHandle NewNodeOutput = NewNode->GetOutputWithVertexName(VariableNames::GetOutputVariableName());
+						FOutputHandle NewNodeOutput = NewNode->GetOutputWithVertexName(METASOUND_GET_PARAM_NAME(OutputVariable));
 						FNodeHandle HeadNode = FindHeadNodeInVariableStack(InVariableID);
 						if (HeadNode->IsValid())
 						{
-							FInputHandle HeadNodeInput = HeadNode->GetInputWithVertexName(VariableNames::GetInputVariableName());
+							FInputHandle HeadNodeInput = HeadNode->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputVariable));
 							const bool bSuccess = HeadNodeInput->Connect(*NewNodeOutput);
 							check(bSuccess);
 						}
 
-						FInputHandle NewNodeInput = NewNode->GetInputWithVertexName(VariableNames::GetInputVariableName());
+						FInputHandle NewNodeInput = NewNode->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputVariable));
 						FNodeHandle VariableNode = GetNodeWithID(Variable->VariableNodeID);
 						if (ensure(VariableNode->IsValid()))
 						{
-							FOutputHandle VariableNodeOutput = VariableNode->GetOutputWithVertexName(VariableNames::GetOutputVariableName());
+							FOutputHandle VariableNodeOutput = VariableNode->GetOutputWithVertexName(METASOUND_GET_PARAM_NAME(OutputVariable));
 							const bool bSuccess = VariableNodeOutput->Connect(*NewNodeInput);
 							check(bSuccess);
 						}
@@ -700,12 +706,14 @@ namespace Metasound
 			// removes a node while maintaining the daisy-chain.
 			check(InNode.IsValid());
 
-			FInputHandle InputToSpliceOut = InNode.GetInputWithVertexName(VariableNames::GetInputVariableName());
+			using namespace VariableNames;
+
+			FInputHandle InputToSpliceOut = InNode.GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputVariable));
 			FOutputHandle OutputToReroute = InputToSpliceOut->GetConnectedOutput();
 
 			if (OutputToReroute->IsValid())
 			{
-				FOutputHandle OutputToSpliceOut = InNode.GetOutputWithVertexName(VariableNames::GetOutputVariableName());
+				FOutputHandle OutputToSpliceOut = InNode.GetOutputWithVertexName(METASOUND_GET_PARAM_NAME(OutputVariable));
 				for (const FInputHandle& InputToReroute : OutputToSpliceOut->GetConnectedInputs())
 				{
 					ensure(InputToReroute->Connect(*OutputToReroute));

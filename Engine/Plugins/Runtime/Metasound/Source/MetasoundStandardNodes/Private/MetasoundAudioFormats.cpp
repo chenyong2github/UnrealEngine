@@ -88,8 +88,8 @@ namespace Metasound
 	// Special vertex keys for stereo input/output nodes.
 	namespace StereoAudioFormatVertexKeys
 	{
-		static const FVertexName LeftChannelVertexKey = "Left";
-		static const FVertexName RightChannelVertexKey = "Right";
+		METASOUND_PARAM(LeftChannelVertex, "Left", "Left channel audio output.")
+		METASOUND_PARAM(RightChannelVertex, "Right", "Right channel audio output.")
 	}
 
 	// Specialization of TOutputNode<FStereoAudio> to support direct connection
@@ -113,10 +113,12 @@ namespace Metasound
 
 			virtual FDataReferenceCollection GetInputs() const override
 			{
+				using namespace StereoAudioFormatVertexKeys;
+
 				FDataReferenceCollection Inputs;
 
-				Inputs.AddDataReadReference(StereoAudioFormatVertexKeys::LeftChannelVertexKey, Left);
-				Inputs.AddDataReadReference(StereoAudioFormatVertexKeys::RightChannelVertexKey, Right);
+				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(LeftChannelVertex), Left);
+				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(RightChannelVertex), Right);
 
 				return Inputs;
 			}
@@ -153,9 +155,11 @@ namespace Metasound
 
 			TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 			{
+				using namespace StereoAudioFormatVertexKeys;
+
 				// Construct stereo from left and right audio buffers. 
-				TDataReadReference<FAudioBuffer> Left = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FAudioBuffer>(StereoAudioFormatVertexKeys::LeftChannelVertexKey, InParams.OperatorSettings);
-				TDataReadReference<FAudioBuffer> Right = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FAudioBuffer>(StereoAudioFormatVertexKeys::RightChannelVertexKey, InParams.OperatorSettings);
+				TDataReadReference<FAudioBuffer> Left = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(LeftChannelVertex), InParams.OperatorSettings);
+				TDataReadReference<FAudioBuffer> Right = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(RightChannelVertex), InParams.OperatorSettings);
 
 				TDataReadReference<FStereoAudioFormat> Stereo = TDataReadReferenceFactory<FStereoAudioFormat>::CreateExplicitArgs(InParams.OperatorSettings, WriteCast(Left), WriteCast(Right));
 
@@ -168,10 +172,12 @@ namespace Metasound
 
 		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
 		{
+			using namespace StereoAudioFormatVertexKeys; 
+
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(StereoAudioFormatVertexKeys::LeftChannelVertexKey, METASOUND_LOCTEXT("Metasound_LeftStereoOutputVertexDescription", "Left channel audio output.")),
-					TInputDataVertexModel<FAudioBuffer>(StereoAudioFormatVertexKeys::RightChannelVertexKey, METASOUND_LOCTEXT("Metasound_RightStereoOutputVertexDescription", "Right channel audio output."))
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(LeftChannelVertex)),
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(RightChannelVertex))
 				),
 				FOutputVertexInterface(
 					TOutputDataVertexModel<FStereoAudioFormat>(InVertexName, METASOUND_LOCTEXT("Metasound_StereoOutputVertexDescription", "Stereo Output."))
@@ -263,9 +269,10 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
 				FDataReferenceCollection Outputs;
+				using namespace StereoAudioFormatVertexKeys;
 
-				Outputs.AddDataReadReference(StereoAudioFormatVertexKeys::LeftChannelVertexKey, Left);
-				Outputs.AddDataReadReference(StereoAudioFormatVertexKeys::RightChannelVertexKey, Right);
+				Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(LeftChannelVertex), Left);
+				Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(RightChannelVertex), Right);
 
 				return Outputs;
 			}
@@ -307,13 +314,15 @@ namespace Metasound
 
 		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
 		{
+			using namespace StereoAudioFormatVertexKeys;
+			
 			return FVertexInterface(
 				FInputVertexInterface(
 					TInputDataVertexModel<FStereoAudioFormat>(InVertexName, METASOUND_LOCTEXT("Metasound_StereoInputVertexDescription", "Stereo Input."))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(StereoAudioFormatVertexKeys::LeftChannelVertexKey, METASOUND_LOCTEXT("Metasound_LeftStereoInputVertexDescription", "Left channel audio output.")),
-					TOutputDataVertexModel<FAudioBuffer>(StereoAudioFormatVertexKeys::RightChannelVertexKey, METASOUND_LOCTEXT("Metasound_RightStereoInputVertexDescription", "Right channel audio output."))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(LeftChannelVertex)),
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(RightChannelVertex))
 				)
 			);
 		}

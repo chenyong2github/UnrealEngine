@@ -5,11 +5,4 @@
 
 namespace Metasound
 {
-	namespace LiteralNodeNames
-	{
-		const TCHAR* GetOutputDataName()
-		{
-			return TEXT("Value");
-		}
-	}
 }

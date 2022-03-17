@@ -9,31 +9,6 @@ namespace Metasound
 {
 	namespace VariableNames
 	{
-		const FVertexName& GetInputDataName()
-		{
-			static const FVertexName Name = TEXT("Value");
-			return Name;
-		}
-
-		const FVertexName& GetOutputDataName()
-		{
-			static const FVertexName Name = TEXT("Value");
-			return Name;
-		}
-
-		const FVertexName& GetInputVariableName()
-		{
-			static const FVertexName Name = TEXT("Variable");
-			return Name;
-		}
-
-		const FVertexName& GetOutputVariableName()
-		{
-			static const FVertexName Name = TEXT("Variable");
-			return Name;
-		}
-
-
 		FNodeClassName GetVariableNodeClassName(const FName& InDataTypeName)
 		{
 			static const FName NodeNamespace = "InitVariable";

@@ -11,6 +11,7 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundStandardNodesCategories.h"
@@ -22,11 +23,11 @@ namespace Metasound
 {
 	namespace TriggerToggle
 	{
-		const FVertexName GetInputOnTriggerName() { return TEXT("On"); }
-		const FVertexName GetInputOffTriggerName() { return TEXT("Off"); }
-		const FVertexName GetInputInitName() { return TEXT("Init"); }
-		const FVertexName GetOutputTriggerName() { return TEXT("Out"); }
-		const FVertexName GetOutputValueName() { return TEXT("Value"); }
+		METASOUND_PARAM(InputOnTrigger, "On", "Trigger to toggle gate output to 1.")
+		METASOUND_PARAM(InputOffTrigger, "Off", "Trigger to toggle gate output to 0.")
+		METASOUND_PARAM(InputInit, "Init", "Initial value of the output gate.")
+		METASOUND_PARAM(OutputTrigger, "Out", "Triggers output when gate is toggled.")
+		METASOUND_PARAM(OutputValue, "Value", "Current output value of the toggle.")
 	}
 
 	class FTriggerToggleOperator : public TExecutableOperator<FTriggerToggleOperator>
@@ -66,9 +67,9 @@ namespace Metasound
 		using namespace TriggerToggle;
 
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(GetInputOnTriggerName(), TriggerOn);
-		InputDataReferences.AddDataReadReference(GetInputOffTriggerName(), TriggerOff);
-		InputDataReferences.AddDataReadReference(GetInputInitName(), InitValue);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOnTrigger), TriggerOn);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOffTrigger), TriggerOff);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInit), InitValue);
 		return InputDataReferences;
 	}
 
@@ -77,8 +78,8 @@ namespace Metasound
 		using namespace TriggerToggle;
 
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(GetOutputTriggerName(), TriggerOutput);
-		OutputDataReferences.AddDataReadReference(GetOutputValueName(), ValueOutput);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTrigger), TriggerOutput);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputValue), ValueOutput);
 
 		return OutputDataReferences;
 	}
@@ -115,9 +116,9 @@ namespace Metasound
 		using namespace TriggerToggle;
 
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
-		FTriggerReadRef InTriggerOn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(GetInputOnTriggerName(), InParams.OperatorSettings);
-		FTriggerReadRef InTriggerOff = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(GetInputOffTriggerName(), InParams.OperatorSettings);
-		FBoolReadRef InInitValue = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, GetInputInitName(), InParams.OperatorSettings);
+		FTriggerReadRef InTriggerOn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputOnTrigger), InParams.OperatorSettings);
+		FTriggerReadRef InTriggerOff = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputOffTrigger), InParams.OperatorSettings);
+		FBoolReadRef InInitValue = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InputInit), InParams.OperatorSettings);
 
 		return MakeUnique<FTriggerToggleOperator>(InParams.OperatorSettings, InTriggerOn, InTriggerOff, InInitValue);
 	}
@@ -128,13 +129,13 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTrigger>(GetInputOnTriggerName(), METASOUND_LOCTEXT("TriggerGateOnTT", "Trigger to toggle gate output to 1.")),
-				TInputDataVertexModel<FTrigger>(GetInputOffTriggerName(), METASOUND_LOCTEXT("TriggerGateOffTT", "Trigger to toggle gate output to 0.")),
-				TInputDataVertexModel<bool>(GetInputInitName(), METASOUND_LOCTEXT("TriggerGateInitTT", "Initial value of the output gate."))
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOnTrigger)),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOffTrigger)),
+				TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInit))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(GetOutputTriggerName(), METASOUND_LOCTEXT("TriggerGateOutputTriggerTT", "Triggers output when gate is toggled.")),
-				TOutputDataVertexModel<bool>(GetOutputValueName(), METASOUND_LOCTEXT("BoolOutputTT", "Current output value of the toggle."))
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTrigger)),
+				TOutputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValue))
 			)
 		);
 

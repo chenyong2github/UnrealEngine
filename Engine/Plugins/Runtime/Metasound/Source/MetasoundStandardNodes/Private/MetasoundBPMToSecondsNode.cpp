@@ -5,6 +5,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTime.h"
@@ -15,29 +16,10 @@ namespace Metasound
 {
 	namespace BPMToSecondsVertexNames
 	{
-		const FVertexName& GetInputBPMTempoName()
-		{
-			static FVertexName Name = TEXT("BPM");
-			return Name;
-		}
-
-		const FVertexName& GetInputBeatMultiplierName()
-		{
-			static FVertexName Name = TEXT("Beat Multiplier");
-			return Name;
-		}
-
-		const FVertexName& GetInputDivisionsOfWholeNoteName()
-		{
-			static FVertexName Name = TEXT("Divisions of Whole Note");
-			return Name;
-		}
-
-		const FVertexName& GetOutputTimeSecondsName()
-		{
-			static FVertexName Name = TEXT("Seconds");
-			return Name;
-		}
+		METASOUND_PARAM(InputBPM, "BPM", "Beats Per Minute.")
+		METASOUND_PARAM(InputBeatMultiplier, "Beat Multiplier", "The multiplier of the BPM.")
+		METASOUND_PARAM(InputDivOfWholeNote, "Divisions of Whole Note", "Divisions of a whole note.")
+		METASOUND_PARAM(OutputTimeSeconds, "Seconds", "The output time in seconds.")
 	}
 
 	class FBPMToSecondsOperator : public TExecutableOperator<FBPMToSecondsOperator>
@@ -84,9 +66,9 @@ namespace Metasound
 		using namespace BPMToSecondsVertexNames;
 
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(GetInputBPMTempoName(), BPM);
-		InputDataReferences.AddDataReadReference(GetInputBeatMultiplierName(), BeatMultiplier);
-		InputDataReferences.AddDataReadReference(GetInputDivisionsOfWholeNoteName(), DivOfWholeNote);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputBPM), BPM);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputBeatMultiplier), BeatMultiplier);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDivOfWholeNote), DivOfWholeNote);
 
 		return InputDataReferences;
 	}
@@ -96,7 +78,7 @@ namespace Metasound
 		using namespace BPMToSecondsVertexNames;
 
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(GetOutputTimeSecondsName(), TimeSeconds);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTimeSeconds), TimeSeconds);
 		return OutputDataReferences;
 	}
 
@@ -134,12 +116,12 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<float>(GetInputBPMTempoName(), METASOUND_LOCTEXT("BPMToSecondsNode_BPMTT", "Beats Per Minute."), 90.0f),
-				TInputDataVertexModel<float>(GetInputBeatMultiplierName(), METASOUND_LOCTEXT("BPMToSecondsNode_BeatMultiplierTT", "The multiplier of the BPM."), 1.0f),
-				TInputDataVertexModel<float>(GetInputDivisionsOfWholeNoteName(), METASOUND_LOCTEXT("BPMToSecondsNode_DivOfWholeNoteTT", "Divisions of a whole note."), 4.0f)
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputBPM), 90.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputBeatMultiplier), 1.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputDivOfWholeNote), 4.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTime>(GetOutputTimeSecondsName(), METASOUND_LOCTEXT("BPMToSecondsNode_OutputTimeTT", "The output time in seconds."))
+				TOutputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTimeSeconds))
 			)
 		);
 
@@ -175,9 +157,9 @@ namespace Metasound
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FFloatReadRef InBPM = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, GetInputBPMTempoName(), InParams.OperatorSettings);
-		FFloatReadRef InBeatMultiplier = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, GetInputBeatMultiplierName(), InParams.OperatorSettings);
-		FFloatReadRef InDivOfWholeNote = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, GetInputDivisionsOfWholeNoteName(), InParams.OperatorSettings);
+		FFloatReadRef InBPM = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputBPM), InParams.OperatorSettings);
+		FFloatReadRef InBeatMultiplier = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputBeatMultiplier), InParams.OperatorSettings);
+		FFloatReadRef InDivOfWholeNote = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputDivOfWholeNote), InParams.OperatorSettings);
 
 		return MakeUnique<FBPMToSecondsOperator>(InParams.OperatorSettings, InBPM, InBeatMultiplier, InDivOfWholeNote);
 	}

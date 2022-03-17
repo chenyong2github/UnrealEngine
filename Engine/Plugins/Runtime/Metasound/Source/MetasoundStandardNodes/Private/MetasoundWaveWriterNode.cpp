@@ -5,6 +5,7 @@
 #include "MetasoundEnumRegistrationMacro.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
@@ -17,6 +18,12 @@
 
 namespace Metasound
 {
+	namespace WaveWriterVertexNames
+	{
+		METASOUND_PARAM(InEnabledPin, "Enabled", "If this wave writer is enabled or not.");
+		METASOUND_PARAM(InFilenamePrefixPin, "Filename Prefix", "Filename Prefix of file you are writing.");
+	}
+
 	// Incremental wave writer class.
 	class FWaveWriter
 	{
@@ -210,16 +217,6 @@ namespace Metasound
 			static const FString DefaultFileName = TEXT("Output");
 			return DefaultFileName;
 		}
-		static const TCHAR* GetEnabledPinName()
-		{
-			static const TCHAR* EnabledPinName = TEXT("Enabled");
-			return EnabledPinName;
-		}
-		static const TCHAR* GetFilenamePrefixPinName()
-		{
-			static const TCHAR* FilenamePrefixPinName = TEXT("Filename Prefix");
-			return FilenamePrefixPinName;
-		}
 	}
 
 	template<int32 NumInputChannels>
@@ -270,17 +267,25 @@ namespace Metasound
 			auto CreateDefaultInterface = []()-> FVertexInterface
 			{
 				using namespace WaveWriterOperatorPrivate;
+				using namespace WaveWriterVertexNames;
 
 				// inputs
 				FInputVertexInterface InputInterface(
-					TInputDataVertexModel<FString>(GetFilenamePrefixPinName(), METASOUND_LOCTEXT("WaveWriterFilenamePrefixDescription", "Filename Prefix of file you are writing."), GetDefaultFileName()),
-					TInputDataVertexModel<bool>(GetEnabledPinName(), METASOUND_LOCTEXT("WaveWriterEnabledDescription", "If this wave writer is enabled or not."), true)
+					TInputDataVertexModel<FString>(METASOUND_GET_PARAM_NAME_AND_METADATA(InFilenamePrefixPin), GetDefaultFileName()),
+					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InEnabledPin), true)
 				);
+
 
 				// For backwards compatibility with previous (mono) node, in the case of 1 channels, just provide the old interface.
 				for (int32 InputIndex = 0; InputIndex < NumInputChannels; ++InputIndex)
 				{
-					InputInterface.Add(TInputDataVertexModel<FAudioBuffer>(GetAudioInputName(InputIndex), GetAudioInputDescription(InputIndex)));
+					const FDataVertexMetadata AudioInputMetadata
+					{
+						  GetAudioInputDescription(InputIndex) // description
+						, GetAudioInputDisplayName(InputIndex) // display name
+					};
+
+					InputInterface.Add(TInputDataVertexModel<FAudioBuffer>(GetAudioInputName(InputIndex), AudioInputMetadata));
 				}
 				FOutputVertexInterface OutputInterface;
 
@@ -380,6 +385,28 @@ namespace Metasound
 			return *FString::Printf(TEXT("In %d"), InInputIndex);
 		}
 
+		static const FText GetAudioInputDisplayName(int32 InInputIndex)
+		{
+			if (NumInputChannels == 1)
+			{
+				// To maintain backwards compatibility with previous implementation keep the pin name the same.
+				static const FText AudioInputPinName = METASOUND_LOCTEXT("AudioInputPinNameIn", "In");
+				return AudioInputPinName;
+			}
+			else if (NumInputChannels == 2)
+			{
+				if (InInputIndex == 0)
+				{
+					return METASOUND_LOCTEXT_FORMAT("AudioInputIn2ChannelName", "In {0} L", InInputIndex);
+				}
+				else
+				{
+					return METASOUND_LOCTEXT_FORMAT("AudioInputIn2ChannelName", "In {0} R", InInputIndex);
+				}
+			}
+			return METASOUND_LOCTEXT_FORMAT("AudioInputInChannelName", "In {0}", InInputIndex);
+		}
+
 		static const FText GetAudioInputDescription(int32 InputIndex)
 		{
 			return METASOUND_LOCTEXT_FORMAT("WaveWriterAudioInputDescription", "Audio Input #: {0}", InputIndex);
@@ -453,12 +480,13 @@ namespace Metasound
 	TUniquePtr<Metasound::IOperator> TWaveWriterOperator<NumInputChannels>::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
 		using namespace WaveWriterOperatorPrivate;
+		using namespace WaveWriterVertexNames;
 
 		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
 		const FOperatorSettings& Settings = InParams.OperatorSettings;
 		const FInputVertexInterface& InputInterface = DeclareVertexInterface().GetInputInterface();
 
-		FStringReadRef FilenamePrefix = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, GetFilenamePrefixPinName(), Settings);
+		FStringReadRef FilenamePrefix = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, METASOUND_GET_PARAM_NAME(InFilenamePrefixPin), Settings);
 
 		int32 NumConnectedAudioPins = 0;
 		TArray<FAudioBufferReadRef> InputBuffers;
@@ -475,7 +503,7 @@ namespace Metasound
 			return MakeUnique<TWaveWriterOperator>(
 				Settings,
 				MoveTemp(InputBuffers),
-				InputCol.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, GetEnabledPinName(), Settings),
+				InputCol.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InEnabledPin), Settings),
 				GetNameCache(),
 				*FilenamePrefix
 			);

@@ -201,6 +201,8 @@ namespace Metasound
 
 		FName FGraphBuilder::GetPinName(const Frontend::IOutputController& InFrontendOutput)
 		{
+			using namespace VariableNames; 
+
 			Frontend::FConstNodeHandle OwningNode = InFrontendOutput.GetOwningNode();
 			EMetasoundFrontendClassType OwningNodeClassType = OwningNode->GetClassMetadata().GetType();
 
@@ -215,7 +217,7 @@ namespace Metasound
 					// inputs and outputs and the editor does not display the pin's name. The
 					// editor instead displays the variable's name in place of the pin name to
 					// maintain a consistent look and behavior to input and output nodes.
-					return VariableNames::GetOutputDataName();
+					return METASOUND_GET_PARAM_NAME(OutputData);
 				}
 				case EMetasoundFrontendClassType::Input:
 				case EMetasoundFrontendClassType::Output:
@@ -232,6 +234,8 @@ namespace Metasound
 
 		FName FGraphBuilder::GetPinName(const Frontend::IInputController& InFrontendInput)
 		{
+			using namespace VariableNames;
+			
 			Frontend::FConstNodeHandle OwningNode = InFrontendInput.GetOwningNode();
 			EMetasoundFrontendClassType OwningNodeClassType = OwningNode->GetClassMetadata().GetType();
 
@@ -246,7 +250,7 @@ namespace Metasound
 					// inputs and outputs and the editor does not display the pin's name. The
 					// editor instead displays the variable's name in place of the pin name to
 					// maintain a consistent look and behavior to input and output nodes.
-					return VariableNames::GetInputDataName();
+					return METASOUND_GET_PARAM_NAME(InputData);
 				}
 
 				case EMetasoundFrontendClassType::Input:
@@ -577,6 +581,7 @@ namespace Metasound
 		Frontend::FInputHandle FGraphBuilder::GetInputHandleFromPin(const UEdGraphPin* InPin)
 		{
 			using namespace Frontend;
+			using namespace VariableNames;
 
 			if (InPin && ensure(InPin->Direction == EGPD_Input))
 			{
@@ -586,7 +591,7 @@ namespace Metasound
 					// purposes instead of the underlying vertex's name. The frontend vertices
 					// of a variable node have consistent names no matter what the 
 					// variable is named.
-					return EdVariableNode->GetNodeHandle()->GetInputWithVertexName(VariableNames::GetInputDataName());
+					return EdVariableNode->GetNodeHandle()->GetInputWithVertexName(METASOUND_GET_PARAM_NAME(InputData));
 				}
 				else if (UMetasoundEditorGraphNode* EdNode = CastChecked<UMetasoundEditorGraphNode>(InPin->GetOwningNode()))
 				{
@@ -605,6 +610,7 @@ namespace Metasound
 		Frontend::FOutputHandle FGraphBuilder::GetOutputHandleFromPin(const UEdGraphPin* InPin)
 		{
 			using namespace Frontend;
+			using namespace VariableNames; 
 
 			if (InPin && ensure(InPin->Direction == EGPD_Output))
 			{
@@ -614,7 +620,7 @@ namespace Metasound
 					// purposes instead of the underlying vertex's name. The frontend vertices
 					// of a variable node have consistent names no matter what the 
 					// variable is named.
-					return EdVariableNode->GetNodeHandle()->GetOutputWithVertexName(VariableNames::GetOutputDataName());
+					return EdVariableNode->GetNodeHandle()->GetOutputWithVertexName(METASOUND_GET_PARAM_NAME(OutputData));
 				}
 				else if (UMetasoundEditorGraphNode* EdNode = CastChecked<UMetasoundEditorGraphNode>(InPin->GetOwningNode()))
 				{

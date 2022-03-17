@@ -5,6 +5,7 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
@@ -20,16 +21,16 @@ namespace Metasound
 {
 	namespace StereoDelay
 	{
-		static const TCHAR* InParamNameAudioInputLeft = TEXT("In Left");
-		static const TCHAR* InParamNameAudioInputRight = TEXT("In Right");
-		static const TCHAR* InParamNameDelayMode = TEXT("Delay Mode");
-		static const TCHAR* InParamNameDelayTime = TEXT("Delay Time");
-		static const TCHAR* InParamNameDelayRatio = TEXT("Delay Ratio");
-		static const TCHAR* InParamNameDryLevel = TEXT("Dry Level");
-		static const TCHAR* InParamNameWetLevel = TEXT("Wet Level");
-		static const TCHAR* InParamNameFeedbackAmount = TEXT("Feedback");
-		static const TCHAR* OutParamNameAudioLeft = TEXT("Out Left");
-		static const TCHAR* OutParamNameAudioRight = TEXT("Out Right");
+		METASOUND_PARAM(InAudioInputLeft, "In Left", "Left channel audio input.")
+		METASOUND_PARAM(InAudioInputRight, "In Right", "Right channel audio input.")
+		METASOUND_PARAM(InDelayMode, "Delay Mode", "Delay mode.")
+		METASOUND_PARAM(InDelayTime, "Delay Time", "The amount of time to delay the audio.")
+		METASOUND_PARAM(InDelayRatio, "Delay Ratio", "Delay spread for left and right channels. Allows left and right channels to have differential delay amounts. Useful for stereo channel decorrelation")
+		METASOUND_PARAM(InDryLevel, "Dry Level", "The dry level of the delay.")
+		METASOUND_PARAM(InWetLevel, "Wet Level", "The wet level of the delay.")
+		METASOUND_PARAM(InFeedbackAmount, "Feedback", "Feedback amount.")
+		METASOUND_PARAM(OutAudioLeft, "Out Left", "Left channel audio output.")
+		METASOUND_PARAM(OutAudioRight, "Out Right", "Right channel audio output.")
 
 		static float MaxDelaySeconds = 5.0f;
 	}
@@ -142,24 +143,28 @@ namespace Metasound
 
 	FDataReferenceCollection FStereoDelayOperator::GetInputs() const
 	{
+		using namespace StereoDelay; 
+
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(StereoDelay::InParamNameAudioInputLeft, FAudioBufferReadRef(LeftAudioInput));
-		InputDataReferences.AddDataReadReference(StereoDelay::InParamNameAudioInputRight, FAudioBufferReadRef(RightAudioInput));
-		InputDataReferences.AddDataReadReference(StereoDelay::InParamNameDelayMode, FStereoDelayModeReadRef(StereoDelayMode));
-		InputDataReferences.AddDataReadReference(StereoDelay::InParamNameDelayTime, FTimeReadRef(DelayTime));
-		InputDataReferences.AddDataReadReference(StereoDelay::InParamNameDelayRatio, FFloatReadRef(DelayRatio));
-		InputDataReferences.AddDataReadReference(StereoDelay::InParamNameDryLevel, FFloatReadRef(DryLevel));
-		InputDataReferences.AddDataReadReference(StereoDelay::InParamNameWetLevel, FFloatReadRef(WetLevel));
-		InputDataReferences.AddDataReadReference(StereoDelay::InParamNameFeedbackAmount, FFloatReadRef(Feedback));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InAudioInputLeft), FAudioBufferReadRef(LeftAudioInput));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InAudioInputRight), FAudioBufferReadRef(RightAudioInput));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InDelayMode), FStereoDelayModeReadRef(StereoDelayMode));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InDelayTime), FTimeReadRef(DelayTime));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InDelayRatio), FFloatReadRef(DelayRatio));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InDryLevel), FFloatReadRef(DryLevel));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InWetLevel), FFloatReadRef(WetLevel));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InFeedbackAmount), FFloatReadRef(Feedback));
 
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FStereoDelayOperator::GetOutputs() const
 	{
+		using namespace StereoDelay; 
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(StereoDelay::OutParamNameAudioLeft, FAudioBufferReadRef(LeftAudioOutput));
-		OutputDataReferences.AddDataReadReference(StereoDelay::OutParamNameAudioRight, FAudioBufferReadRef(RightAudioOutput));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutAudioLeft), FAudioBufferReadRef(LeftAudioOutput));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutAudioRight), FAudioBufferReadRef(RightAudioOutput));
 		return OutputDataReferences;
 	}
 
@@ -282,20 +287,22 @@ namespace Metasound
 
 	const FVertexInterface& FStereoDelayOperator::GetVertexInterface()
 	{
+		using namespace StereoDelay; 
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(StereoDelay::InParamNameAudioInputLeft, METASOUND_LOCTEXT("LeftAudioInputTooltip", "Left channel audio input.")),
-				TInputDataVertexModel<FAudioBuffer>(StereoDelay::InParamNameAudioInputRight, METASOUND_LOCTEXT("RightAudioInputTooltip", "Right channel audio input.")),
-				TInputDataVertexModel<FEnumStereoDelayMode>(StereoDelay::InParamNameDelayMode, METASOUND_LOCTEXT("DelayModeTooltip", "Delay mode.")),
-				TInputDataVertexModel<FTime>(StereoDelay::InParamNameDelayTime, METASOUND_LOCTEXT("DelayTimeTooltip", "The amount of time to delay the audio."), 1.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameDelayRatio, METASOUND_LOCTEXT("DelayRatioTooltip", "Delay spread for left and right channels. Allows left and right channels to have differential delay amounts. Useful for stereo channel decorrelation"), 0.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameDryLevel, METASOUND_LOCTEXT("DryLevelTooltip", "The dry level of the delay."), 0.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameWetLevel, METASOUND_LOCTEXT("WetLevelTooltip", "The wet level of the delay."), 1.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameFeedbackAmount, METASOUND_LOCTEXT("FeedbackTooltip", "Feedback amount."), 0.0f)
+				TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InAudioInputLeft)),
+				TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InAudioInputRight)),
+				TInputDataVertexModel<FEnumStereoDelayMode>(METASOUND_GET_PARAM_NAME_AND_METADATA(InDelayMode)),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InDelayTime), 1.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InDelayRatio), 0.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InDryLevel), 0.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InWetLevel), 1.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InFeedbackAmount), 0.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(StereoDelay::OutParamNameAudioLeft, METASOUND_LOCTEXT("LeftDelayOutputTooltip", "Left channel audio output.")),
-				TOutputDataVertexModel<FAudioBuffer>(StereoDelay::OutParamNameAudioRight, METASOUND_LOCTEXT("RightDelayOutputTooltip", "Right channel audio output."))
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudioLeft)),
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudioRight))
 			)
 		);
 
@@ -326,17 +333,19 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FStereoDelayOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
+		using namespace StereoDelay; 
+
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FAudioBufferReadRef LeftAudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(StereoDelay::InParamNameAudioInputLeft, InParams.OperatorSettings);
-		FAudioBufferReadRef RightAudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(StereoDelay::InParamNameAudioInputRight, InParams.OperatorSettings);
-		FStereoDelayModeReadRef StereoDelayMode = InputCollection.GetDataReadReferenceOrConstruct<FEnumStereoDelayMode>(StereoDelay::InParamNameDelayMode);
-		FTimeReadRef DelayTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, StereoDelay::InParamNameDelayTime, InParams.OperatorSettings);
-		FFloatReadRef DelayRatio = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, StereoDelay::InParamNameDelayRatio, InParams.OperatorSettings);
-		FFloatReadRef DryLevel = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, StereoDelay::InParamNameDryLevel, InParams.OperatorSettings);
-		FFloatReadRef WetLevel = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, StereoDelay::InParamNameWetLevel, InParams.OperatorSettings);
-		FFloatReadRef Feedback = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, StereoDelay::InParamNameFeedbackAmount, InParams.OperatorSettings);
+		FAudioBufferReadRef LeftAudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InAudioInputLeft), InParams.OperatorSettings);
+		FAudioBufferReadRef RightAudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InAudioInputRight), InParams.OperatorSettings);
+		FStereoDelayModeReadRef StereoDelayMode = InputCollection.GetDataReadReferenceOrConstruct<FEnumStereoDelayMode>(METASOUND_GET_PARAM_NAME(InDelayMode));
+		FTimeReadRef DelayTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InDelayTime), InParams.OperatorSettings);
+		FFloatReadRef DelayRatio = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InDelayRatio), InParams.OperatorSettings);
+		FFloatReadRef DryLevel = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InDryLevel), InParams.OperatorSettings);
+		FFloatReadRef WetLevel = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InWetLevel), InParams.OperatorSettings);
+		FFloatReadRef Feedback = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InFeedbackAmount), InParams.OperatorSettings);
 
 		return MakeUnique<FStereoDelayOperator>(InParams.OperatorSettings, LeftAudioIn, RightAudioIn, StereoDelayMode, DelayTime, DelayRatio, DryLevel, WetLevel, Feedback);
 	}

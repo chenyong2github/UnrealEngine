@@ -6,6 +6,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 
@@ -43,6 +44,8 @@ namespace Metasound
 
 	namespace TriggerAnyVertexNames
 	{
+		METASOUND_PARAM(OutputTrigger, "Out", "Triggered when any of the input triggers have been triggered. ")
+
 		METASOUNDSTANDARDNODES_API const FVertexName GetInputTriggerName(uint32 InIndex)
 		{
 			return *FString::Format(TEXT("In {0}"), { InIndex });
@@ -53,16 +56,9 @@ namespace Metasound
 			return METASOUND_LOCTEXT_FORMAT("TriggerAnyInputTriggerDesc", "Trigger {0} input. The output trigger is hit when any of the input triggers are hit.", InIndex);
 		}
 
-		METASOUNDSTANDARDNODES_API const FVertexName& GetOutputTriggerName()
+		METASOUNDSTANDARDNODES_API const FText GetInputTriggerDisplayName(uint32 InIndex)
 		{
-			static const FVertexName Name = TEXT("Out");
-			return Name;
-		}
-
-		METASOUNDSTANDARDNODES_API const FText& GetOutputTriggerDescription()
-		{
-			static const FText Desc = METASOUND_LOCTEXT("TriggerAnyOutputTriggerDesc", "Triggered when any of the input triggers have been triggered. ");
-			return Desc;
+			return METASOUND_LOCTEXT_FORMAT("TriggerAnyInputTriggerDisplayName", "In {0}", InIndex);
 		}
 	}
 
@@ -80,11 +76,17 @@ namespace Metasound
 
 				for (uint32 i = 0; i < NumInputs; ++i)
 				{
-					InputInterface.Add(TInputDataVertexModel<FTrigger>(GetInputTriggerName(i), GetInputTriggerDescription(i)));
+					const FDataVertexMetadata InputTriggerMetadata
+					{
+						  GetInputTriggerDescription(i) // description
+						, GetInputTriggerDisplayName(i) // display name
+					};
+
+					InputInterface.Add(TInputDataVertexModel<FTrigger>(GetInputTriggerName(i), InputTriggerMetadata));
 				}
 
 				FOutputVertexInterface OutputInterface;
-				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(GetOutputTriggerName(), GetOutputTriggerDescription()));
+				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTrigger)));
 
 				return FVertexInterface(InputInterface, OutputInterface);
 			};
@@ -153,7 +155,7 @@ namespace Metasound
 			using namespace TriggerAnyVertexNames;
 
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(GetOutputTriggerName(), OutputTrigger);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTrigger), OutputTrigger);
 
 			return Outputs;
 		}

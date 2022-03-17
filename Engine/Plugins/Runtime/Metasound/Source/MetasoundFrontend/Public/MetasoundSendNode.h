@@ -7,6 +7,7 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundRouter.h"
 #include "MetasoundVertex.h"
 
@@ -17,16 +18,15 @@
 
 namespace Metasound
 {
+	namespace SendVertexNames
+	{
+		METASOUND_PARAM(AddressInput, "Address", "Address")
+	}
+
 	template<typename TDataType>
 	class TSendNode : public FNode
 	{
 	public:
-		static const FVertexName& GetAddressInputName()
-		{
-			static const FVertexName InputName = TEXT("Address");
-			return InputName;
-		}
-
 		static const FVertexName& GetSendInputName()
 		{
 			static const FVertexName& SendInput = GetMetasoundDataTypeName<TDataType>();
@@ -35,9 +35,16 @@ namespace Metasound
 
 		static FVertexInterface DeclareVertexInterface()
 		{
+			using namespace SendVertexNames; 
+			static const FDataVertexMetadata AddressInputMetadata
+			{
+				  FText::GetEmpty() // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(AddressInput) // display name
+			};
+
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FSendAddress>(GetAddressInputName(), FText::GetEmpty()),
+					TInputDataVertexModel<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), AddressInputMetadata),
 					TInputDataVertexModel<TDataType>(GetSendInputName(), FText::GetEmpty())
 				),
 				FOutputVertexInterface(
@@ -99,8 +106,10 @@ namespace Metasound
 
 				virtual FDataReferenceCollection GetInputs() const override
 				{
+					using namespace SendVertexNames; 
+
 					FDataReferenceCollection Inputs;
-					Inputs.AddDataReadReference<FSendAddress>(GetAddressInputName(), SendAddress);
+					Inputs.AddDataReadReference<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), SendAddress);
 					Inputs.AddDataReadReference<TDataType>(GetSendInputName(), TDataReadReference<TDataType>(InputData));
 					return Inputs;
 				}
@@ -162,10 +171,12 @@ namespace Metasound
 
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
+					using namespace SendVertexNames; 
+
 					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(GetSendInputName()))
 					{
 						return MakeUnique<TSendOperator>(InParams.InputDataReferences.GetDataReadReference<TDataType>(GetSendInputName()),
-							InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(GetAddressInputName()),
+							InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput)),
 							InParams.OperatorSettings
 						);
 					}

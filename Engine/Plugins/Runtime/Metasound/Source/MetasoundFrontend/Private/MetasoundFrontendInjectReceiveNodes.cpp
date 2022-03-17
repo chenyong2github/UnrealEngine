@@ -5,11 +5,16 @@
 #include "MetasoundFacade.h"
 #include "MetasoundFrontendGraph.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundReceiveNode.h"
 #include "MetasoundVertex.h"
 
+#define LOCTEXT_NAMESPACE "MetasoundFrontend"
+
 namespace Metasound
 {
+	METASOUND_PARAM(OutputAddress, "Address", "Address")
+
 	namespace Frontend 
 	{
 		namespace MetasoundFrontendInjectReceiveNodesPrivate
@@ -18,7 +23,6 @@ namespace Metasound
 			class FAddressOperator : public FNoOpOperator
 			{
 			public:
-				static const TCHAR* GetAddressVertexKey();
 				static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams&, TArray<TUniquePtr<IOperatorBuildError>>&);
 				static const FNodeClassMetadata& GetNodeInfo();
 
@@ -32,7 +36,7 @@ namespace Metasound
 				virtual FDataReferenceCollection GetOutputs() const override
 				{
 					FDataReferenceCollection Outputs;
-					Outputs.AddDataReadReference(GetAddressVertexKey(), Address);
+					Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAddress), Address);
 					return Outputs;
 				}
 
@@ -63,8 +67,6 @@ namespace Metasound
 				FReceiveNodeAddressFunction AddressFunction;
 			};
 
-			const TCHAR* FAddressOperator::GetAddressVertexKey() { return TEXT("Address"); }
-
 			TUniquePtr<IOperator> FAddressOperator::CreateOperator(const FCreateOperatorParams& InParams, TArray<TUniquePtr<IOperatorBuildError>>& OutBuildErrors)
 			{
 				const FAddressNode& AddressNode = static_cast<const FAddressNode&>(InParams.Node);
@@ -81,7 +83,7 @@ namespace Metasound
 						FInputVertexInterface{},
 						FOutputVertexInterface
 						{
-							TOutputDataVertexModel<FSendAddress>(FAddressOperator::GetAddressVertexKey(), FText::GetEmpty())
+							TOutputDataVertexModel<FSendAddress>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAddress))
 						}
 					};
 
@@ -126,6 +128,8 @@ namespace Metasound
 		bool InjectReceiveNode(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressFunction, const FInputDataDestination& InputDestination)
 		{
 			using namespace MetasoundFrontendInjectReceiveNodesPrivate;
+			using namespace ReceiveNodeInfo; 
+
 			// should never contain null nodes for input destination.
 			check(InputDestination.Node != nullptr);
 
@@ -156,7 +160,7 @@ namespace Metasound
 			InGraph.AddNode(ReceiveNodeID, ReceiveNode);
 			InGraph.AddNode(AddressNodeID, AddressNode);
 
-			bool bDataEdgeAdded = InGraph.AddDataEdge(*AddressNode, FAddressOperator::GetAddressVertexKey(), *ReceiveNode, ReceiveNodeInfo::GetAddressInputName());
+			bool bDataEdgeAdded = InGraph.AddDataEdge(*AddressNode, METASOUND_GET_PARAM_NAME(OutputAddress), *ReceiveNode, METASOUND_GET_PARAM_NAME(AddressInput));
 			ensureAlways(bDataEdgeAdded);
 
 			auto IsEdgeConnectedToCurrentInput = [&InputDestination](const FDataEdge& InEdge)
@@ -170,7 +174,7 @@ namespace Metasound
 			InGraph.RemoveDataEdgeByPredicate(IsEdgeConnectedToCurrentInput);
 
 			// Connect previous connections to receive node output.
-			FOutputDataSource ReceiveOutputSource { *ReceiveNode, ReceiveNode->GetVertexInterface().GetOutputVertex(ReceiveNodeInfo::GetOutputName()) };
+			FOutputDataSource ReceiveOutputSource { *ReceiveNode, ReceiveNode->GetVertexInterface().GetOutputVertex(METASOUND_GET_PARAM_NAME(Output)) };
 			for (const FDataEdge& Edge : EdgesFromInput)
 			{
 				FDataEdge NewEdge { ReceiveOutputSource, Edge.To };
@@ -178,7 +182,7 @@ namespace Metasound
 			}
 
 			// Connect input node to receive node.
-			bDataEdgeAdded = InGraph.AddDataEdge(*InputDestination.Node, VertexKey, *ReceiveNode, ReceiveNodeInfo::GetDefaultDataInputName());
+			bDataEdgeAdded = InGraph.AddDataEdge(*InputDestination.Node, VertexKey, *ReceiveNode, METASOUND_GET_PARAM_NAME(DefaultDataInput));
 			ensureAlways(bDataEdgeAdded);
 
 			return true;
@@ -214,3 +218,4 @@ namespace Metasound
 	}
 }
 
+#undef LOCTEXT_NAMESPACE

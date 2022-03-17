@@ -8,6 +8,7 @@
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphCore"
@@ -17,7 +18,7 @@ namespace Metasound
 {
 	namespace LiteralNodeNames
 	{
-		METASOUNDGRAPHCORE_API const TCHAR* GetOutputDataName();
+		METASOUND_PARAM(OutputValue, "Value", "Value")
 	}
 
 	template<typename DataType>
@@ -44,8 +45,10 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
+			using namespace LiteralNodeNames;
+
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference<DataType>(LiteralNodeNames::GetOutputDataName(), OutputValue);
+			Outputs.AddDataReadReference<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputValue);
 			return Outputs;
 		}
 
@@ -101,10 +104,16 @@ namespace Metasound
 
 		static FVertexInterface DeclareVertexInterface()
 		{
+			using namespace LiteralNodeNames; 
+			static const FDataVertexMetadata OutputMetadata
+			{
+				  FText::GetEmpty() // description
+				, METASOUND_GET_PARAM_DISPLAYNAME(OutputValue) // display name
+			};
 			return FVertexInterface(
 				FInputVertexInterface(),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<DataType>(LiteralNodeNames::GetOutputDataName(), FText::GetEmpty())
+					TOutputDataVertexModel<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputMetadata)
 				)
 			);
 		}
