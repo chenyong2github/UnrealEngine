@@ -342,6 +342,11 @@ namespace CADLibrary
 	{
 		ModelMesh.GetNodeCoordinates(OutBodyMesh.VertexArray);
 
+		for (FVector& Vertex : OutBodyMesh.VertexArray)
+		{
+			Vertex *= 0.1;
+		}
+
 		uint32 FaceSize = Body.FaceCount();
 
 		// Allocate memory space for tessellation data

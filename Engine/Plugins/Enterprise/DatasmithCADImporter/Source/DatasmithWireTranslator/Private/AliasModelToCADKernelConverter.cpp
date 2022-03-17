@@ -89,6 +89,15 @@ namespace AliasToCADKernelUtils
 			AliasSurface.CVsUnaffectedPositionInclMultiples(NURBSData.HomogeneousPoles.GetData());
 		}
 
+		// convert cm to mm
+		double* Poles = NURBSData.HomogeneousPoles.GetData();
+		for (int32 Index = 0; Index < NURBSData.HomogeneousPoles.Num(); Index +=4)
+		{
+			Poles[Index + 0] *= 10.;
+			Poles[Index + 1] *= 10.;
+			Poles[Index + 2] *= 10.;
+		}
+
 		return CADKernel::FEntity::MakeShared<CADKernel::FNURBSSurface>(GeometricTolerance, NURBSData);
 	}
 }
