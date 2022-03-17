@@ -234,7 +234,7 @@ public:
 
 				// Look for submix or source preset classes
 				UClass* ParentClass = ChildClass->GetSuperClass();
-				if (ParentClass->IsChildOf(USoundEffectSourcePreset::StaticClass()) || ParentClass->IsChildOf(USoundEffectSubmixPreset::StaticClass()))
+				if (ParentClass && (ParentClass->IsChildOf(USoundEffectSourcePreset::StaticClass()) || ParentClass->IsChildOf(USoundEffectSubmixPreset::StaticClass())))
 				{
 					USoundEffectPreset* EffectPreset = ChildClass->GetDefaultObject<USoundEffectPreset>();
 					if (!RegisteredActions.Contains(EffectPreset) && EffectPreset->HasAssetActions())

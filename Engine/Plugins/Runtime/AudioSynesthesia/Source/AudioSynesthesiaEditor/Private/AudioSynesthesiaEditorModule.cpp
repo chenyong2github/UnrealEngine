@@ -58,7 +58,7 @@ private:
 
 			// look for Synesthesia classes 
 			UClass* ParentClass = ChildClass->GetSuperClass();
-			if (ParentClass->IsChildOf(SynesthesiaAssetType::StaticClass()))
+			if (ParentClass && ParentClass->IsChildOf(SynesthesiaAssetType::StaticClass()))
 			{
 				SynesthesiaAssetType* Synesthesia = ChildClass->GetDefaultObject<SynesthesiaAssetType>();
 				check(Synesthesia);
