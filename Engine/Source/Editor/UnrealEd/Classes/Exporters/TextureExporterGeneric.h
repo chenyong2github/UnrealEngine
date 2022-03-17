@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Exporters/Exporter.h"
+#include "Engine/Texture2D.h"
 #include "TextureExporterGeneric.generated.h"
 
 UCLASS()
