@@ -36,7 +36,7 @@ struct FTimecodeBoneMethod
 	GENERATED_USTRUCT_BODY()
 
 	/** Default constructor, initializing with default values */
-	FTimecodeBoneMethod() { }
+	FTimecodeBoneMethod() : BoneMode(ETimecodeBoneMode::Root) { }
 
 	/** The timecode bone mode */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Timecode")
