@@ -50,7 +50,7 @@ FString FConcertSyncWorldRemapper::RemapObjectPathName(const FString& InObjectPa
 {
 	if (RemapDelegate.IsBound())
 	{
-		FString Result;
+		FString Result = InObjectPathName;
 		RemapDelegate.Execute(Result);
 		return MoveTemp(Result);
 	}
