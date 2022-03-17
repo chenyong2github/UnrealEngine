@@ -19,6 +19,78 @@
 #include "UObject/StrongObjectPtr.h"
 
 
+FString FDatasmithNativeTranslator::ResolveFilePath(const FString& FilePath, const TArray<FString>& ResourcePaths)
+{
+	if (FPaths::IsRelative(FilePath) && !FPaths::FileExists(FilePath))
+	{
+		for (const FString& ResourcePath : ResourcePaths)
+		{
+			if (ResourcePath.IsEmpty())
+			{
+				continue;
+			}
+
+			FString NewFilePath = ResourcePath / FilePath;
+			if (FPaths::FileExists(NewFilePath))
+			{
+				return NewFilePath;
+			}
+		}
+	}
+	return FilePath;
+}
+
+void FDatasmithNativeTranslator::ResolveSceneFilePaths(TSharedRef<IDatasmithScene> Scene, const TArray<FString>& ResourcePaths)
+{
+	for (int32 Index = 0; Index < Scene->GetMeshesCount(); ++Index)
+	{
+		const TSharedPtr<IDatasmithMeshElement>& Mesh = Scene->GetMesh(Index);
+		const TCHAR* Path = Mesh->GetFile();
+		Mesh->SetFile(*ResolveFilePath(Path, ResourcePaths));
+	}
+
+	for (int32 Index = 0; Index < Scene->GetTexturesCount(); ++Index)
+	{
+		const TSharedPtr<IDatasmithTextureElement>& Tex = Scene->GetTexture(Index);
+		const TCHAR* Path = Tex->GetFile();
+		Tex->SetFile(*ResolveFilePath(Path, ResourcePaths));
+	}
+
+	for (int32 Index = 0; Index < Scene->GetLevelSequencesCount(); ++Index)
+	{
+		const TSharedPtr<IDatasmithLevelSequenceElement>& Sequence = Scene->GetLevelSequence(Index);
+		const TCHAR* Path = Sequence->GetFile();
+		Sequence->SetFile(*ResolveFilePath(Path, ResourcePaths));
+	}
+
+	TFunction<void (const TSharedPtr<IDatasmithActorElement> Actor)> VisitActorTree;
+	VisitActorTree = [&](const TSharedPtr<IDatasmithActorElement> Actor) -> void
+	{
+		if (Actor->IsA(EDatasmithElementType::Landscape))
+		{
+			const TSharedPtr<IDatasmithLandscapeElement>& LandscapeActor = StaticCastSharedPtr<IDatasmithLandscapeElement>(Actor);
+			const TCHAR* Path = LandscapeActor->GetHeightmap();
+			LandscapeActor->SetHeightmap(*ResolveFilePath(Path, ResourcePaths));
+		}
+		else if (Actor->IsA(EDatasmithElementType::Light))
+		{
+			const TSharedPtr<IDatasmithLightActorElement>& Light = StaticCastSharedPtr<IDatasmithLightActorElement>(Actor);
+			const TCHAR* Path = Light->GetIesFile();
+			Light->SetIesFile(*ResolveFilePath(Path, ResourcePaths));
+		}
+
+		for (int32 ChildIndex = 0; ChildIndex < Actor->GetChildrenCount(); ++ChildIndex)
+		{
+			VisitActorTree(Actor->GetChild(ChildIndex));
+		}
+	};
+
+	for (int32 Index = 0; Index < Scene->GetActorsCount(); ++Index)
+	{
+		VisitActorTree(Scene->GetActor(Index));
+	}
+}
+
 void FDatasmithNativeTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	OutCapabilities.SupportedFileFormats.Emplace(TEXT("udatasmith"), TEXT("Datasmith files"));
@@ -28,9 +100,22 @@ void FDatasmithNativeTranslator::Initialize(FDatasmithTranslatorCapabilities& Ou
 bool FDatasmithNativeTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 {
 	FDatasmithSceneXmlReader XmlParser;
-	return XmlParser.ParseFile(GetSource().GetSourceFile(), OutScene);
-}
 
+	bool bParsingResult = XmlParser.ParseFile(GetSource().GetSourceFile(), OutScene);
+	if (bParsingResult)
+	{
+		TArray<FString> ResourcePaths;
+		FString ResourcePath = OutScene->GetResourcePath();
+		ResourcePath.ParseIntoArray(ResourcePaths, TEXT(";"));
+
+		FString ProjectPath = FPaths::GetPath(GetSource().GetSourceFile());
+		ResourcePaths.Insert(ProjectPath, 0);
+
+		ResolveSceneFilePaths(OutScene, ResourcePaths);
+	}
+
+	return bParsingResult;
+}
 
 namespace DatasmithNativeTranslatorImpl
 {
@@ -40,11 +125,11 @@ namespace DatasmithNativeTranslatorImpl
 		TArray< FDatasmithMeshSourceModel > SourceModels;
 	};
 
-	TArray< FDatasmithMeshInternal > GetDatasmithMeshFromMeshElement( const TSharedRef< IDatasmithMeshElement > MeshElement )
+	TArray< FDatasmithMeshInternal > GetDatasmithMeshFromMeshPath( const TCHAR* MeshPath )
 	{
 		TArray< FDatasmithMeshInternal > Result;
 
-		TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileReader(MeshElement->GetFile()) );
+		TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileReader(MeshPath) );
 		if ( !Archive.IsValid() )
 		{
 			return Result;
@@ -141,13 +226,14 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 
 	using namespace DatasmithNativeTranslatorImpl;
 
-	if (MeshElement->GetFile() == nullptr || !FPaths::FileExists( MeshElement->GetFile() ))
+	FString FilePath = MeshElement->GetFile();
+	if (!FPaths::FileExists(FilePath))
 	{
 		return false;
 	}
 
 	int32 ExtractionFailure = 0;
-	for (FDatasmithMeshInternal& DatasmithMesh : GetDatasmithMeshFromMeshElement( MeshElement ))
+	for (FDatasmithMeshInternal& DatasmithMesh : GetDatasmithMeshFromMeshPath( *FilePath ))
 	{
 		if (DatasmithMesh.bIsCollisionMesh)
 		{

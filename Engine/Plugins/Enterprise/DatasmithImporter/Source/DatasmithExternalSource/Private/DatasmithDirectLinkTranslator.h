@@ -9,8 +9,8 @@ namespace UE::DatasmithImporter
 {
 	/**
 	 * Due to the way the Editor's import/reimport utilities currently work, we must provide a path to an existing file.
-	 * The FDatasmithDirecTLinkTranslator is a workaround used to be directed to the DatasmithImportFactory when the 
-	 * source file has a ".directlink" extention. In that case, the actual scene is loaded using the FExternalSource 
+	 * The FDatasmithDirecTLinkTranslator is a workaround used to be directed to the DatasmithImportFactory when the
+	 * source file has a ".directlink" extention. In that case, the actual scene is loaded using the FExternalSource
 	 * generated from the directlink URI.
 	 */
 	class FDatasmithDirectLinkTranslator : public FDatasmithNativeTranslator
@@ -20,10 +20,6 @@ namespace UE::DatasmithImporter
 
 		virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
 
-		virtual bool LoadScene(TSharedRef<IDatasmithScene> OutScene) override
-		{
-			// With DirectLink the scene is already translated by the SceneReceiver, don't override the scene.
-			return true;
-		}
+		virtual bool LoadScene(TSharedRef<IDatasmithScene> OutScene) override;
 	};
 }

@@ -104,24 +104,6 @@ T FDatasmithSceneXmlReader::ValueFromString( const FString& InString ) const
 	return DatasmithSceneXmlReaderImpl::ValueFromString<T>(InString);
 }
 
-FString FDatasmithSceneXmlReader::ResolveFilePath(const FString& AssetFile) const
-{
-	if ( !FPaths::IsRelative( AssetFile ) )
-	{
-		return AssetFile;
-	}
-
-	FString FullAssetPath = FPaths::Combine(ProjectPath, AssetFile);
-
-	if ( FPaths::FileExists(FullAssetPath) )
-	{
-		return FullAssetPath;
-	}
-	else
-	{
-		return AssetFile;
-	}
-}
 
 void FDatasmithSceneXmlReader::PatchUpVersion(TSharedRef< IDatasmithScene >& OutScene)
 {
@@ -166,7 +148,7 @@ void FDatasmithSceneXmlReader::ParseLevelSequence(FXmlNode* InNode, const TShare
 	{
 		if (ChildrenNodes[j]->GetTag() == TEXT("file"))
 		{
-			OutElement->SetFile( *ResolveFilePath(ChildrenNodes[j]->GetAttribute(TEXT("path"))) );
+			OutElement->SetFile( *ChildrenNodes[j]->GetAttribute(TEXT("path")) );
 		}
 		else if (ChildrenNodes[j]->GetTag() == DATASMITH_HASH)
 		{
@@ -366,7 +348,7 @@ void FDatasmithSceneXmlReader::ParseMesh(FXmlNode* InNode, TSharedPtr<IDatasmith
 	{
 		if (MeshNodes[j]->GetTag() == TEXT("file"))
 		{
-			OutElement->SetFile( *ResolveFilePath(MeshNodes[j]->GetAttribute(TEXT("path"))) );
+			OutElement->SetFile(*MeshNodes[j]->GetAttribute(TEXT("path"))) ;
 		}
 		else if (MeshNodes[j]->GetTag() == TEXT("Size"))
 		{
@@ -438,7 +420,7 @@ void FDatasmithSceneXmlReader::ParseTextureElement(FXmlNode* InNode, TSharedPtr<
 	{
 		OutElement->SetTextureAddressY((EDatasmithTextureAddress)ValueFromString<int32>(StrValue));
 	}
-	OutElement->SetFile(*ResolveFilePath(InNode->GetAttribute(TEXT("file"))));
+	OutElement->SetFile(*InNode->GetAttribute(TEXT("file")));
 
 	const TArray<FXmlNode*>& TexNode = InNode->GetChildrenNodes();
 	for (int i = 0; i < TexNode.Num(); ++i)
@@ -911,7 +893,7 @@ void FDatasmithSceneXmlReader::ParseLight(FXmlNode* InNode, TSharedPtr<IDatasmit
 		else if (ChildNode->GetTag() == DATASMITH_LIGHTIESNAME)
 		{
 			OutElement->SetUseIes(true);
-			OutElement->SetIesFile( *ResolveFilePath(ChildNode->GetAttribute(TEXT("file"))) );
+			OutElement->SetIesFile( *ChildNode->GetAttribute(TEXT("file")) );
 		}
 		else if (ChildNode->GetTag() == DATASMITH_LIGHTIESTEXTURENAME)
 		{
@@ -2075,7 +2057,7 @@ void FDatasmithSceneXmlReader::ParseLandscape(FXmlNode* InNode, TSharedRef< IDat
 	{
 		if ( ChildNode->GetTag() == DATASMITH_HEIGHTMAPNAME )
 		{
-			OutElement->SetHeightmap( *ResolveFilePath( ChildNode->GetAttribute( TEXT("value") ) ) );
+			OutElement->SetHeightmap( *ChildNode->GetAttribute( TEXT("value") ) );
 		}
 		else if ( ChildNode->GetTag() == DATASMITH_MATERIAL )
 		{

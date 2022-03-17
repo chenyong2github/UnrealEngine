@@ -1505,16 +1505,14 @@ public:
 	 */
 	virtual void SetProductVersion(const TCHAR*) = 0;
 
-	/** Returns the original path resources were stored */
+	/** Returns the ';' separated list of paths where resources are stored */
 	virtual const TCHAR* GetResourcePath() const = 0;
 
 	/**
-	 * Sets the original path resources were stored.
+	 * Similar to how the PATH environment variable works, sets list of paths where resources can be stored.
 	 *
-	 * @param InResoucePath	The original path
+	 * @param InResoucePath	The ';' separated list of paths
 	 */
-	// #ue_directlink_design: Find a better way to allow DirectLink clients to retrieve assets
-	// associated with elements. Assets will have to be passed over network too
 	virtual void SetResourcePath(const TCHAR*) = 0;
 
 	/** Returns the user identifier who exported the scene */
