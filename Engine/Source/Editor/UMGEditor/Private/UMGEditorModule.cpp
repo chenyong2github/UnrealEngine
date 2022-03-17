@@ -10,6 +10,8 @@
 #include "Settings/WidgetDesignerSettings.h"
 #include "WidgetBlueprint.h"
 #include "Animation/WidgetAnimation.h"
+#include "Graph/GraphVariableDetailsCustomization.h"
+#include "Graph/GraphFunctionDetailsCustomization.h"
 
 #include "AssetToolsModule.h"
 #include "IAssetTypeActions.h"
@@ -86,6 +88,17 @@ public:
 		IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
 		KismetCompilerModule.GetCompilers().Add(&WidgetBlueprintCompiler);
 
+		// Add Customization for variable in Graph editor
+		if (FBlueprintEditorModule* BlueprintEditorModule = FModuleManager::GetModulePtr<FBlueprintEditorModule>("Kismet"))
+		{
+			BlueprintVariableCustomizationHandle = BlueprintEditorModule->RegisterVariableCustomization(FProperty::StaticClass(), FOnGetVariableCustomizationInstance::CreateStatic(&FGraphVariableDetailsCustomization::MakeInstance));
+			BlueprintFunctionCustomizationHandle = BlueprintEditorModule->RegisterFunctionCustomization(UK2Node_FunctionEntry::StaticClass(), FOnGetFunctionCustomizationInstance::CreateStatic(&FGraphFunctionDetailsCustomization::MakeInstance));
+		}
+		else
+		{
+			ModuleChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FUMGEditorModule::HandleModuleChanged);
+		}
+
 		// Register asset types
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 		RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_SlateVectorArtData()));
@@ -117,6 +130,7 @@ public:
 	virtual void ShutdownModule() override
 	{
 		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+		FModuleManager::Get().OnModulesChanged().Remove(ModuleChangedHandle);
 
 		if (UObjectInitialized() && bThumbnailRenderersRegistered && IConsoleManager::Get().FindConsoleVariable(TEXT("UMGEditor.ThumbnailRenderer.Enable"))->GetBool())
 		{
@@ -126,8 +140,20 @@ public:
 		MenuExtensibilityManager.Reset();
 		ToolBarExtensibilityManager.Reset();
 
-		IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
-		KismetCompilerModule.GetCompilers().Remove(&WidgetBlueprintCompiler); 
+		if (IKismetCompilerInterface* KismetCompilerModule = FModuleManager::GetModulePtr<IKismetCompilerInterface>("KismetCompiler"))
+		{
+			KismetCompilerModule->GetCompilers().Remove(&WidgetBlueprintCompiler);
+		}
+
+		// Remove Customization for variable in Graph editor
+		if (BlueprintVariableCustomizationHandle.IsValid() || BlueprintFunctionCustomizationHandle.IsValid())
+		{
+			if (FBlueprintEditorModule* BlueprintEditorModule = FModuleManager::GetModulePtr<FBlueprintEditorModule>("Kismet"))
+			{
+				BlueprintEditorModule->UnregisterVariableCustomization(FProperty::StaticClass(), BlueprintVariableCustomizationHandle);
+				BlueprintEditorModule->UnregisterFunctionCustomization(UK2Node_FunctionEntry::StaticClass(), BlueprintFunctionCustomizationHandle);
+			}
+		}
 
 		// Unregister all the asset types that we registered
 		if ( FModuleManager::Get().IsModuleLoaded("AssetTools") )
@@ -249,6 +275,24 @@ private:
 		CreatedAssetTypeActions.Add(Action);
 	}
 
+	void HandleModuleChanged(FName ModuleName, EModuleChangeReason ChangeReason)
+	{
+		const FName KismetModule = "Kismet";
+		if (ModuleName == KismetModule && ChangeReason == EModuleChangeReason::ModuleLoaded)
+		{
+			if (!BlueprintVariableCustomizationHandle.IsValid())
+			{
+				if (FBlueprintEditorModule* BlueprintEditorModule = FModuleManager::GetModulePtr<FBlueprintEditorModule>(KismetModule))
+				{
+					BlueprintVariableCustomizationHandle = BlueprintEditorModule->RegisterVariableCustomization(FProperty::StaticClass(), FOnGetVariableCustomizationInstance::CreateStatic(&FGraphVariableDetailsCustomization::MakeInstance));
+					BlueprintFunctionCustomizationHandle = BlueprintEditorModule->RegisterFunctionCustomization(UK2Node_FunctionEntry::StaticClass(), FOnGetFunctionCustomizationInstance::CreateStatic(&FGraphFunctionDetailsCustomization::MakeInstance));
+				}
+			}
+			FModuleManager::Get().OnModulesChanged().Remove(ModuleChangedHandle);
+			ModuleChangedHandle.Reset();
+		}
+	}
+
 	void OnPostEngineInit()
 	{
 		if (GIsEditor)
@@ -305,6 +349,13 @@ private:
 
 	/** Support layout extensions */
 	FOnRegisterLayoutExtensions	RegisterLayoutExtensions;
+
+	/** Handle for the FModuleManager::OnModulesChanged */
+	FDelegateHandle ModuleChangedHandle;
+	/** Handle for FBlueprintEditorModule::RegisterVariableCustomization */
+	FDelegateHandle BlueprintVariableCustomizationHandle;
+	/** Handle for FBlueprintEditorModule::RegisterFunctionCustomization */
+	FDelegateHandle BlueprintFunctionCustomizationHandle;
 
 	bool bThumbnailRenderersRegistered;
 	bool bOnPostEngineInitHandled;

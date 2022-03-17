@@ -11,6 +11,8 @@
 #include "Animation/WidgetAnimation.h"
 #include "MovieScene.h"
 
+#include "FieldNotification/CustomizationHelper.h"
+#include "FieldNotification/FieldNotificationHelpers.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -373,6 +375,7 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 	NewWidgetBlueprintClass->Animations.Empty();
 	NewWidgetBlueprintClass->Bindings.Empty();
 	NewWidgetBlueprintClass->Extensions.Empty();
+	NewWidgetBlueprintClass->FieldNotifyNames.Empty();
 
 	if (UWidgetBlueprintGeneratedClass* WidgetClassToClean = Cast<UWidgetBlueprintGeneratedClass>(ClassToClean))
 	{
@@ -551,6 +554,16 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		{
 			InExtension->CreateClassVariablesFromBlueprint();
 		});
+
+	//Add FieldNotifyNames
+	for (TFieldIterator<const FProperty> PropertyIt(NewClass, EFieldIterationFlags::None); PropertyIt; ++PropertyIt)
+	{
+		const FProperty* Property = *PropertyIt;
+		if (Property->HasMetaData(UE::FieldNotification::FCustomizationHelper::MetaData_FieldNotify))
+		{
+			NewWidgetBlueprintClass->FieldNotifyNames.Emplace(Property->GetFName());
+		}
+	}
 }
 
 void FWidgetBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* DefaultObject)
@@ -1068,6 +1081,25 @@ void FWidgetBlueprintCompilerContext::VerifyEventReplysAreNotEmpty(FKismetFuncti
 				}
 			}
 		}
+	}
+}
+
+void FWidgetBlueprintCompilerContext::PostcompileFunction(FKismetFunctionContext& Context)
+{
+	Super::PostcompileFunction(Context);
+
+	VerifyFieldNotifyFunction(Context);
+}
+
+void FWidgetBlueprintCompilerContext::VerifyFieldNotifyFunction(FKismetFunctionContext& Context)
+{
+	if (Context.Function && Context.Function->HasMetaData(UE::FieldNotification::FCustomizationHelper::MetaData_FieldNotify))
+	{
+		if (!UE::FieldNotification::Helpers::IsValidAsField(Context.Function))
+		{
+			MessageLog.Error(*LOCTEXT("FieldNotify_IsEventGraph", "Function @@ cannot be a FieldNotify. A function needs to be const, returns a single properties, has no inputs, not be an event or a net function.").ToString(), Context.EntryPoint);
+		}
+		NewWidgetBlueprintClass->FieldNotifyNames.Emplace(Context.Function->GetFName());
 	}
 }
 

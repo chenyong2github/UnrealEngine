@@ -62,6 +62,7 @@ protected:
 	virtual void SpawnNewClass(const FString& NewClassName) override;
 	virtual void OnNewClassSet(UBlueprintGeneratedClass* ClassToUse) override;
 	virtual void PrecompileFunction(FKismetFunctionContext& Context, EInternalCompilerFlags InternalFlags) override;
+	virtual void PostcompileFunction(FKismetFunctionContext& Context) override;
 	virtual void CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOutOldCDO) override;
 	virtual void SaveSubObjectsFromCleanAndSanitizeClass(FSubobjectCollection& SubObjectsToSave, UBlueprintGeneratedClass* ClassToClean) override;
 	virtual void EnsureProperGeneratedClass(UClass*& TargetClass) override;
@@ -75,6 +76,7 @@ protected:
 	void SanitizeBindings(UBlueprintGeneratedClass* Class);
 
 	void VerifyEventReplysAreNotEmpty(FKismetFunctionContext& Context);
+	void VerifyFieldNotifyFunction(FKismetFunctionContext& Context);
 
 public:
 	void AddExtension(UWidgetBlueprintGeneratedClass* Class, UWidgetBlueprintGeneratedClassExtension* Extension);
