@@ -34,8 +34,11 @@ void UEnhancedInputEditorSubsystem::Initialize(FSubsystemCollectionBase& Collect
 	
 	// Create and register the input preprocessor, this is what will call our "InputKey"
 	// function to drive input instead of a player controller
-	InputPreprocessor = MakeShared<FEnhancedInputEditorProcessor>();
-	FSlateApplication::Get().RegisterInputPreProcessor(InputPreprocessor, 0);
+	if (ensure(FSlateApplication::IsInitialized()))
+	{
+		InputPreprocessor = MakeShared<FEnhancedInputEditorProcessor>();
+		FSlateApplication::Get().RegisterInputPreProcessor(InputPreprocessor, 0);	
+	}
 
 	if (GetDefault<UEnhancedInputEditorSettings>()->bAutomaticallyStartConsumingInput)
 	{
@@ -55,6 +58,23 @@ void UEnhancedInputEditorSubsystem::Deinitialize()
 	InputPreprocessor.Reset();
 	CurrentInputStack.Empty();
 	PlayerInput = nullptr;
+}
+
+bool UEnhancedInputEditorSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+	// We don't ever want to create this subsystem outside of the editor
+	// If you are outside the editor, then your input delegates would be driven by
+	// the regular Enhanced Input subsystem.
+#if !WITH_EDITOR
+	return false;
+#endif
+	
+	if (!FSlateApplication::IsInitialized())
+	{
+		return false;
+	}
+	
+	return Super::ShouldCreateSubsystem(Outer);
 }
 
 UWorld* UEnhancedInputEditorSubsystem::GetTickableGameObjectWorld() const

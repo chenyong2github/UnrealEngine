@@ -33,6 +33,7 @@ public:
 	//~ Begin USubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	//~ End USubsystem interface
 	
 	//~ Begin FTickableGameObject interface
