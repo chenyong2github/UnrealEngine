@@ -2,7 +2,12 @@
 
 #pragma once
 
-#define INLINE_RAY_TRACING_MAX_ITERATIONS 0xFFFFFFFF
+struct FTraceRayInlineTraversalStatistics
+{
+	uint NodeIntersectionCount;
+	uint TriangleIntersectionCount;
+	uint IterationCount;
+};
 
 struct FTraceRayInlineResult
 {
@@ -26,15 +31,30 @@ struct FTraceRayInlineResult
 	// Can be false only if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS is 1
 	bool bIsCompleted;
 
+	// Only valid if shader was compiled with ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS
+	FTraceRayInlineTraversalStatistics TraversalStatistics;
+
 	bool IsMiss() { return HitT < 0; }
 	bool IsHit() { return !IsMiss(); }
 
 	void SetMiss() { HitT = -1; }
 };
 
-struct FTraceRayInlineTraversalStatistics
+struct FTraceRayInlineContext
 {
-	uint NodeIntersectionCount;
-	uint TriangleIntersectionCount;
-	uint IterationCount;
+	// Only used if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS is 1
+	uint MaxIterations;
+
+	// Only used if shader was compiled with ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE
+	bool bProcedural;
+	float NaniteCutError;
 };
+
+FTraceRayInlineContext CreateTraceRayInlineContext()
+{
+	FTraceRayInlineContext Context;
+	Context.bProcedural = false;
+	Context.MaxIterations = 0xFFFFFFFF;
+	Context.NaniteCutError = 0.0f;
+	return Context;
+}

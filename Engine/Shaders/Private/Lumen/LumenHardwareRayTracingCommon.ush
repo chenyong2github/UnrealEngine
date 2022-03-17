@@ -269,8 +269,10 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 	RayFlags |= Context.bAcceptFirstHitAndEndSearch ? RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH : 0;
 	RayFlags |= Context.bSkipClosestHitShader ? RAY_FLAG_SKIP_CLOSEST_HIT_SHADER : 0;
 
-#if LUMEN_HARDWARE_INLINE_RAYTRACING	
-	FTraceRayInlineResult TraceResult = TraceRayInline(Context.TLAS, RayFlags, Context.InstanceMask, Ray, Context.MaxTraversalIterations);
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+	FTraceRayInlineContext TraceRayInlineContext = CreateTraceRayInlineContext();
+	TraceRayInlineContext.MaxIterations = Context.MaxTraversalIterations;
+	FTraceRayInlineResult TraceResult = TraceRayInline(Context.TLAS, RayFlags, Context.InstanceMask, Ray, TraceRayInlineContext);
 	if (TraceResult.IsHit())
 	{
 		Payload.HitT = TraceResult.HitT;

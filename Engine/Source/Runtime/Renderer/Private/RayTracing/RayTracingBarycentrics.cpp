@@ -11,6 +11,17 @@
 #include "RHI/Public/PipelineStateCache.h"
 #include "RayTracing/RaytracingOptions.h"
 
+#include "Rendering/NaniteStreamingManager.h"
+
+int32 GVisualizeProceduralPrimitives = 0;
+FAutoConsoleVariableRef CVarVisualizeProceduralPrimitives(
+	TEXT("r.RayTracing.DebugVisualizationMode.ProceduralPrimitives"),
+	GVisualizeProceduralPrimitives,
+	TEXT("Whether to include procedural primitives in visualization modes.\n")
+	TEXT("Currently only supports Nanite primitives in inline barycentrics mode."),
+	ECVF_RenderThreadSafe
+);
+
 class FRayTracingBarycentricsRGS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingBarycentricsRGS)
@@ -60,7 +71,13 @@ class FRayTracingBarycentricsCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FNaniteUniformParameters, NaniteUniformBuffer)
+
+		SHADER_PARAMETER(float, RTDebugVisualizationNaniteCutError)
 	END_SHADER_PARAMETER_STRUCT()
+
+	class FSupportProceduralPrimitive : SHADER_PERMUTATION_BOOL("ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE");
+	using FPermutationDomain = TShaderPermutationDomain<FSupportProceduralPrimitive>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -69,6 +86,9 @@ class FRayTracingBarycentricsCS : public FGlobalShader
 
 		OutEnvironment.SetDefine(TEXT("INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X"), ThreadGroupSizeX);
 		OutEnvironment.SetDefine(TEXT("INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y"), ThreadGroupSizeY);
+
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -82,40 +102,34 @@ class FRayTracingBarycentricsCS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingBarycentricsCS, "/Engine/Private/RayTracing/RayTracingBarycentrics.usf", "RayTracingBarycentricsMainCS", SF_Compute);
 
-void RenderRayTracingBarycentricsCS(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor, FGlobalShaderMap* ShaderMap)
+void RenderRayTracingBarycentricsCS(FRDGBuilder& GraphBuilder, const FScene& Scene, const FViewInfo& View, FRDGTextureRef SceneColor)
 {
 	FRayTracingBarycentricsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingBarycentricsCS::FParameters>();
 
 	PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
-	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->Output = GraphBuilder.CreateUAV(SceneColor);
+	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	PassParameters->NaniteUniformBuffer = Scene.UniformBuffers.NaniteUniformBuffer;
+	
+	PassParameters->RTDebugVisualizationNaniteCutError = 0.0f;
 
 	FIntRect ViewRect = View.ViewRect;	
 
-	auto ComputeShader = ShaderMap->GetShader<FRayTracingBarycentricsCS>();
-	ClearUnusedGraphResources(ComputeShader, PassParameters);
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("Barycentrics"),
-		PassParameters,
-		ERDGPassFlags::Compute,
-		[PassParameters, ComputeShader, &View, ViewRect](FRHIRayTracingCommandList& RHICmdList)
-		{
-			FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
-			SetComputePipelineState(RHICmdList, ShaderRHI);
-			SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, *PassParameters);
+	FRayTracingBarycentricsCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FRayTracingBarycentricsCS::FSupportProceduralPrimitive>((bool)GVisualizeProceduralPrimitives);
 
-			const FIntPoint GroupSize(FRayTracingBarycentricsCS::ThreadGroupSizeX, FRayTracingBarycentricsCS::ThreadGroupSizeY);
-			const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ViewRect.Size(), GroupSize);
-			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupCount.X, GroupCount.Y, 1);
+	auto ComputeShader = View.ShaderMap->GetShader<FRayTracingBarycentricsCS>(PermutationVector);
 
-			UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
-		});
+	const FIntPoint GroupSize(FRayTracingBarycentricsCS::ThreadGroupSizeX, FRayTracingBarycentricsCS::ThreadGroupSizeY);
+	const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ViewRect.Size(), GroupSize);
+
+	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Barycentrics"), ComputeShader, PassParameters, GroupCount);
 }
 
-void RenderRayTracingBarycentricsRGS(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor, FGlobalShaderMap* ShaderMap)
+void RenderRayTracingBarycentricsRGS(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor)
 {
-	auto RayGenShader = ShaderMap->GetShader<FRayTracingBarycentricsRGS>();
-	auto ClosestHitShader = ShaderMap->GetShader<FRayTracingBarycentricsCHS>();
+	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingBarycentricsRGS>();
+	auto ClosestHitShader = View.ShaderMap->GetShader<FRayTracingBarycentricsCHS>();
 
 	FRayTracingPipelineStateInitializer Initializer;
 
@@ -152,18 +166,16 @@ void RenderRayTracingBarycentricsRGS(FRDGBuilder& GraphBuilder, const FViewInfo&
 
 void FDeferredShadingSceneRenderer::RenderRayTracingBarycentrics(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor)
 {
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
-
 	const bool bRayTracingInline = ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::Inline);
 	const bool bRayTracingPipeline = ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::FullPipeline);
 
 	if (bRayTracingInline)
 	{
-		RenderRayTracingBarycentricsCS(GraphBuilder, View, SceneColor, ShaderMap);
+		RenderRayTracingBarycentricsCS(GraphBuilder, *Scene, View, SceneColor);
 	}
 	else if (bRayTracingPipeline)
 	{
-		RenderRayTracingBarycentricsRGS(GraphBuilder, View, SceneColor, ShaderMap);
+		RenderRayTracingBarycentricsRGS(GraphBuilder, View, SceneColor);
 	}
 }
 #endif
