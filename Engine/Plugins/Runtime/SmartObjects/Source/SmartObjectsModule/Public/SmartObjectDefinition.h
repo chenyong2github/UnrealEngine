@@ -71,7 +71,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FRotator Rotation = FRotator::ZeroRotator;
 
-	/** Custom data that can be added to the slot definition and access through a FSmartObjectSlotView */
+	/** Custom data (struct inheriting from SmartObjectSlotDefinitionData) that can be added to the slot definition and accessed through a FSmartObjectSlotView */
 	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (BaseStruct = "SmartObjectSlotDefinitionData", ExcludeBaseStruct))
 	TArray<FInstancedStruct> Data;
 
@@ -242,12 +242,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
 	TArray<USmartObjectBehaviorDefinition*> DefaultBehaviorDefinitions;
 
-	/** This object is available only for users matching this query. */
+	/** This object is available if user tags match this query; always available if query is empty. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FGameplayTagQuery UserTagFilter;
 
-	/** This object is available only when instance matches this query. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	/** This object is available if instance tags match this query; always available if query is empty. */
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject, meta = (DisplayName = "Object Activation Tag Filter"))
 	FGameplayTagQuery ObjectTagFilter;
 
 	/** Tags identifying this Smart Object's use case. Can be used while looking for objects supporting given activity */
