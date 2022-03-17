@@ -568,16 +568,17 @@ void UPoseSearchSchema::ResolveBoneReferences()
 		Bone.Reference.Initialize(Skeleton);
 	}
 
-	// Fill out bone index array and sort by bone index
+	// Fill out bone index array
 	BoneIndices.SetNum(SampledBones.Num());
 	for (int32 Index = 0; Index != SampledBones.Num(); ++Index)
 	{
 		BoneIndices[Index] = SampledBones[Index].Reference.BoneIndex;
 	}
-	BoneIndices.Sort();
 
-	// Build separate index array with parent indices guaranteed to be present
+	// Build separate index array with parent indices guaranteed to be present. Sort for EnsureParentsPresent.
 	BoneIndicesWithParents = BoneIndices;
+	BoneIndicesWithParents.Sort();
+
 	if (Skeleton)
 	{
 		FAnimationRuntime::EnsureParentsPresent(BoneIndicesWithParents, Skeleton->GetReferenceSkeleton());
