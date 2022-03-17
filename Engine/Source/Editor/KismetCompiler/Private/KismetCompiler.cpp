@@ -128,7 +128,7 @@ namespace UE::KismetCompiler::Private
 	// When we change pins back to real/float types, we also expect that the series of pin types matches that of the UFunction.
 	// If there's ever a discrepancy, then there's not much we can do other than log a warning.
 	// It typically means that the BP is in a bad state, which prevents us from deducing the corresponding pin.
-	static void RestoreFloatPinsToNode(UK2Node_EditablePinBase* Node, const UFunction* FunctionSignature, bool bOutputParamsOnly = false)
+	static void RestoreFloatPinsToNode(UK2Node_EditablePinBase* Node, const UFunction* FunctionSignature, bool bProcessOutputParamsOnly = false)
 	{
 		check(Node);
 		check(FunctionSignature);
@@ -147,6 +147,12 @@ namespace UE::KismetCompiler::Private
 			for (int i = 0; i < Node->Pins.Num(); ++i)
 			{
 				check(Node->Pins[i]);
+
+				// Subpins aren't a part of the function signature, so we need to skip them.
+				if (Node->Pins[i]->ParentPin)
+				{
+					continue;
+				}
 
 				if (Node->Pins[i]->PinName == UserPinName)
 				{
@@ -199,23 +205,26 @@ namespace UE::KismetCompiler::Private
 			return false;
 		};
 
-		auto IsValidParameter = [bOutputParamsOnly](FProperty* Property)
+		auto IsValidParameter = [bProcessOutputParamsOnly](FProperty* Property)
 		{
 			check(Property);
 
-			if (bOutputParamsOnly)
+			bool bIsOutputParameter =
+				(Property->HasAnyPropertyFlags(CPF_OutParm) && !Property->HasAnyPropertyFlags(CPF_ConstParm));
+
+			if (bProcessOutputParamsOnly)
 			{
-				return Property->HasAnyPropertyFlags(CPF_OutParm);
+				return bIsOutputParameter;
 			}
 			else
 			{
 				// HACK: We still have to reckon with arrays that are implicitly copy-by-ref.
 				// Ideally, we should be excluding all output params.
-				bool bIsValidInput =
+				bool bIsInputParameter =
 					(Property->IsA<FArrayProperty>() && Property->HasAnyPropertyFlags(CPF_Parm)) ||
-					(Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_OutParm));
+					!bIsOutputParameter;
 
-				return bIsValidInput;
+				return bIsInputParameter;
 			}
 		};
 
@@ -243,6 +252,19 @@ namespace UE::KismetCompiler::Private
 								*UserPin->PinName.ToString(),
 								*Node->GetFullName(),
 								*UserPin->PinType.PinCategory.ToString());
+						}
+
+						// Subpins aren't a part of the function signature, so we need to skip them.
+						while (PinCursor < Node->Pins.Num())
+						{
+							UEdGraphPin* Pin = Node->Pins[PinCursor];
+							check(Pin);
+							if (Pin->ParentPin == nullptr)
+							{
+								break;
+							}
+
+							++PinCursor;
 						}
 
 						if (PinCursor < Node->Pins.Num())
