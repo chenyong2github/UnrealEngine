@@ -203,7 +203,7 @@ bool FManifestModule::NeedsRegeneration() const
 		return true;
 	}
 	FString Timestamp;
-	TCHAR TimestampText[] = TEXT("Timestamp");
+	const auto& TimestampText = TEXT("Timestamp");
 	Timestamp.Empty(GeneratedIncludeDirectory.Len() + UE_ARRAY_COUNT(TimestampText));
 	Timestamp += GeneratedIncludeDirectory;
 	Timestamp += TEXT("Timestamp");

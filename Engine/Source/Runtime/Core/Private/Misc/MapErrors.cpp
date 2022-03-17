@@ -66,8 +66,8 @@ FLazyName FMapErrors::InvalidVirtualTextureUsage(TEXT("InvalidVirtualTextureUsag
 
 namespace
 {
-	constexpr TCHAR MapErrorsURLPath[] = TEXT("BuildingWorlds/LevelEditor/MapErrors");
-	constexpr TCHAR MapErrorsLocalPath[] = TEXT("Shared/Editor/MapErrors");
+	const TCHAR* MapErrorsURLPath = TEXT("BuildingWorlds/LevelEditor/MapErrors");
+	const TCHAR* MapErrorsLocalPath = TEXT("Shared/Editor/MapErrors");
 }
 
 FMapErrorToken::FMapErrorToken(const FName& InErrorName)

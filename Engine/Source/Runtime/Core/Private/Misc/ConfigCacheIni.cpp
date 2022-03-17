@@ -1230,13 +1230,13 @@ void FConfigFile::AppendExportedPropertyLine(FString& Out, const FString& Proper
 namespace CommandlineOverrideSpecifiers
 {
 	// -ini:IniName:[Section1]:Key1=Value1,[Section2]:Key2=Value2
-	const TCHAR	IniFileOverrideIdentifier[] = TEXT("-iniFile=");
-	const TCHAR IniSwitchIdentifier[]     = TEXT("-ini:");
-	const TCHAR IniNameEndIdentifier[]    = TEXT(":[");
-	const TCHAR SectionStartIdentifier[]  = TEXT("[");
-	const TCHAR PropertyStartIdentifier[] = TEXT("]:");
-	const TCHAR PropertySeperator[]       = TEXT(",");
-	const TCHAR CustomConfigIdentifier[] = TEXT("-CustomConfig=");
+	const auto& IniFileOverrideIdentifier = TEXT("-iniFile=");
+	const auto& IniSwitchIdentifier       = TEXT("-ini:");
+	const auto& IniNameEndIdentifier      = TEXT(":[");
+	const auto& SectionStartIdentifier    = TEXT("[");
+	const auto& PropertyStartIdentifier   = TEXT("]:");
+	const auto& PropertySeperator         = TEXT(",");
+	const auto& CustomConfigIdentifier    = TEXT("-CustomConfig=");
 }
 
 #endif
@@ -2100,14 +2100,14 @@ void FConfigFile::SetText( const TCHAR* Section, const TCHAR* Key, const FText& 
 
 void FConfigFile::SetFloat(const TCHAR* Section, const TCHAR* Key, float Value)
 {
-	TCHAR Text[MAX_SPRINTF] = TEXT("");
+	TCHAR Text[MAX_SPRINTF];
 	FCString::Sprintf(Text, TEXT("%.*g"), std::numeric_limits<float>::max_digits10, Value);
 	SetString(Section, Key, Text);
 }
 
 void FConfigFile::SetDouble(const TCHAR* Section, const TCHAR* Key, double Value)
 {
-	TCHAR Text[MAX_SPRINTF] = TEXT("");
+	TCHAR Text[MAX_SPRINTF];
 	FCString::Sprintf(Text, TEXT("%.*g"), std::numeric_limits<double>::max_digits10, Value);
 	SetString(Section, Key, Text);
 }
@@ -2119,7 +2119,7 @@ void FConfigFile::SetBool(const TCHAR* Section, const TCHAR* Key, bool Value)
 
 void FConfigFile::SetInt64( const TCHAR* Section, const TCHAR* Key, int64 Value )
 {
-	TCHAR Text[MAX_SPRINTF]=TEXT("");
+	TCHAR Text[MAX_SPRINTF];
 	FCString::Sprintf( Text, TEXT("%lld"), Value );
 	SetString( Section, Key, Text );
 }
@@ -3236,7 +3236,7 @@ void FConfigCacheIni::SetInt
 	const FString&	Filename
 )
 {
-	TCHAR Text[MAX_SPRINTF]=TEXT("");
+	TCHAR Text[MAX_SPRINTF];
 	FCString::Sprintf( Text, TEXT("%i"), Value );
 	SetString( Section, Key, Text, Filename );
 }

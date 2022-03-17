@@ -20,7 +20,7 @@ FWindowsSystemWideCriticalSection::FWindowsSystemWideCriticalSection(const FStri
 	FString NormalizedMutexName(InName);
 	NormalizedMutexName.ReplaceInline(TEXT("\\"), TEXT("/"));
 
-	TCHAR MutexName[MAX_PATH] = TEXT("");
+	TCHAR MutexName[MAX_PATH] = {};
 	FCString::Strcpy(MutexName, *NormalizedMutexName);
 
 	// Attempt to create and take ownership of a named mutex

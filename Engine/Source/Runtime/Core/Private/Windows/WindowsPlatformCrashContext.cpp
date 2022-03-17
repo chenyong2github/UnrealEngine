@@ -409,13 +409,13 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 	};
 
 #if WITH_EDITOR
-	const TCHAR CrashReportClientShippingName[] = TEXT("CrashReportClientEditor.exe");
-	const TCHAR CrashReportClientDevelopmentName[] = TEXT("CrashReportClientEditor-Win64-Development.exe");
-	const TCHAR CrashReportClientDebugName[] = TEXT("CrashReportClientEditor-Win64-Debug.exe");
+	const TCHAR* CrashReportClientShippingName = TEXT("CrashReportClientEditor.exe");
+	const TCHAR* CrashReportClientDevelopmentName = TEXT("CrashReportClientEditor-Win64-Development.exe");
+	const TCHAR* CrashReportClientDebugName = TEXT("CrashReportClientEditor-Win64-Debug.exe");
 #else
-	const TCHAR CrashReportClientShippingName[] = TEXT("CrashReportClient.exe");
-	const TCHAR CrashReportClientDevelopmentName[] = TEXT("CrashReportClient-Win64-Development.exe");
-	const TCHAR CrashReportClientDebugName[] = TEXT("CrashReportClient-Win64-Debug.exe");
+	const TCHAR* CrashReportClientShippingName = TEXT("CrashReportClient.exe");
+	const TCHAR* CrashReportClientDevelopmentName = TEXT("CrashReportClient-Win64-Development.exe");
+	const TCHAR* CrashReportClientDebugName = TEXT("CrashReportClient-Win64-Debug.exe");
 #endif
 
 	if (CreateCrashReportClientPathImpl(CrashReportClientShippingName))

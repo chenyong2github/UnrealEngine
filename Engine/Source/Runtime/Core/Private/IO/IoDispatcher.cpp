@@ -35,6 +35,27 @@ TUniquePtr<FIoDispatcher> GIoDispatcher;
 CSV_DEFINE_CATEGORY(IoDispatcher, true);
 CSV_DEFINE_STAT(IoDispatcher, PendingIoRequests);
 
+static const TCHAR* const GetIoErrorText_ErrorCodeTextArray[] =
+{
+	TEXT("OK"),
+	TEXT("Unknown Status"),
+	TEXT("Invalid Code"),
+	TEXT("Cancelled"),
+	TEXT("FileOpen Failed"),
+	TEXT("File Not Open"),
+	TEXT("Read Error"),
+	TEXT("Write Error"),
+	TEXT("Not Found"),
+	TEXT("Corrupt Toc"),
+	TEXT("Unknown ChunkID"),
+	TEXT("Invalid Parameter"),
+	TEXT("Signature Error"),
+	TEXT("Invalid Encryption Key"),
+	TEXT("Compression Error")
+};
+
+CORE_API const TCHAR* const* GetIoErrorText_ErrorCodeText = GetIoErrorText_ErrorCodeTextArray;
+
 #if UE_IODISPATCHER_STATS_ENABLED
 class FIoRequestStats
 {

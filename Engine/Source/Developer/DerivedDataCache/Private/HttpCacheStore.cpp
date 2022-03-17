@@ -1552,7 +1552,7 @@ private:
 		// The expected data stream is structured accordingly
 		// {"JPTR"} {PayloadCount:uint32} {{"JPEE"} {Name:cstr} {Result:uint8} {Hash:IoHash} {Size:uint64} {Payload...}} ...
 
-		const TCHAR ResponseErrorMessage[] = TEXT("Malformed response from server.");
+		const auto& ResponseErrorMessage = TEXT("Malformed response from server.");
 		const ANSICHAR* ProtocolMagic = "JPTR";
 		const ANSICHAR* PayloadMagic = "JPEE";
 		const uint32 MagicSize = 4;

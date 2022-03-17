@@ -22,7 +22,7 @@ CORE_API bool GAlwaysReportCrash = false;
 /** Whether to use ClientReportClient rather than the old AutoReporter. */
 CORE_API bool GUseCrashReportClient = true;
 
-CORE_API TCHAR MiniDumpFilenameW[1024] = TEXT("");
+CORE_API TCHAR MiniDumpFilenameW[1024] = {};
 
 
 bool GEnsureShowsCRC = false;

@@ -48,7 +48,7 @@ void FMessageDialog::ShowLastError()
 {
 	uint32 LastError = FPlatformMisc::GetLastError();
 
-	TCHAR TempStr[MAX_SPRINTF]=TEXT("");
+	TCHAR TempStr[MAX_SPRINTF] = {};
 	TCHAR ErrorBuffer[1024];
 	FCString::Sprintf( TempStr, TEXT("GetLastError : %d\n\n%s"), LastError, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0) );
 	if( FApp::IsUnattended() == true )

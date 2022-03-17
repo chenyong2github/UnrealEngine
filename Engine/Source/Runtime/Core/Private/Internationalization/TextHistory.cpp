@@ -94,8 +94,8 @@ const TCHAR* SkipWhitespaceAndCharacter(const TCHAR* Buffer, const TCHAR InChar)
 
 const TCHAR* ReadNumberFromBuffer(const TCHAR* Buffer, FFormatArgumentValue& OutValue)
 {
-	static const TCHAR ValidNumericChars[] = TEXT("+-0123456789.ful");
-	static const TCHAR SuffixNumericChars[] = TEXT("ful");
+	static const TCHAR* ValidNumericChars = TEXT("+-0123456789.ful");
+	static const TCHAR* SuffixNumericChars = TEXT("ful");
 
 	FString NumericString;
 	while (*Buffer && FCString::Strchr(ValidNumericChars, *Buffer))

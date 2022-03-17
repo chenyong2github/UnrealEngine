@@ -39,7 +39,7 @@ static bool TestInterlockedAnd(FAutomationTestBase& Test)
 {
 	bool bSuccess = true;
 
-	constexpr TCHAR FunctionName[] = TEXT("And");
+	const TCHAR* FunctionName = TEXT("And");
 	{
 		// Test and with value where some bits are set and some aren't set in the current value.
 		volatile int8 Value0 = 0x30;
@@ -103,7 +103,7 @@ static bool TestInterlockedOr(FAutomationTestBase& Test)
 {
 	bool bSuccess = true;
 
-	constexpr TCHAR FunctionName[] = TEXT("Or");
+	const TCHAR* FunctionName = TEXT("Or");
 	{
 		// Test or with value where some bits are set and some aren't set in the current value.
 		volatile int8 Value0 = 0x30;
@@ -167,7 +167,7 @@ static bool TestInterlockedXor(FAutomationTestBase& Test)
 {
 	bool bSuccess = true;
 
-	constexpr TCHAR FunctionName[] = TEXT("Xor");
+	const TCHAR* FunctionName = TEXT("Xor");
 	{
 		// Test xor with value where some bits are set and some aren't set in the current value.
 		volatile int8 Value0 = 0x30;
@@ -231,7 +231,7 @@ static bool TestInterlockedAdd(FAutomationTestBase& Test)
 {
 	bool bSuccess = true;
 
-	constexpr TCHAR FunctionName[] = TEXT("Add");
+	const TCHAR* FunctionName = TEXT("Add");
 	{
 		// Test adding positive value
 		volatile int8 Value0 = 0x0F;
@@ -311,7 +311,7 @@ static bool TestInterlockedIncrement(FAutomationTestBase& Test)
 {
 	bool bSuccess = true;
 
-	constexpr TCHAR FunctionName[] = TEXT("Increment");
+	const TCHAR* FunctionName = TEXT("Increment");
 	{
 		volatile int8 Value0 = 0x0F;
 		bSuccess = TestInterlocked<int8>(&Value0, 0x10, 0x10, [](volatile int8* Dest) { return FPlatformAtomics::InterlockedIncrement(Dest); }, Test, FunctionName, TEXT("int8")) && bSuccess;
@@ -355,7 +355,7 @@ static bool TestInterlockedDecrement(FAutomationTestBase& Test)
 {
 	bool bSuccess = true;
 
-	constexpr TCHAR FunctionName[] = TEXT("Decrement");
+	const TCHAR* FunctionName = TEXT("Decrement");
 	{
 		volatile int8 Value0 = 0x10;
 		bSuccess = TestInterlocked<int8>(&Value0, 0x0F, 0x0F, [](volatile int8* Dest) { return FPlatformAtomics::InterlockedDecrement(Dest); }, Test, FunctionName, TEXT("int8")) && bSuccess;
@@ -399,7 +399,7 @@ static bool TestInterlockedExchange(FAutomationTestBase& Test)
 {
 	bool bSuccess = true;
 
-	constexpr TCHAR FunctionName[] = TEXT("Exchange");
+	const TCHAR* FunctionName = TEXT("Exchange");
 	{
 		volatile int8 Value = 0x10;
 		bSuccess = TestInterlocked<int8>(&Value, 0x10, 0x01, [](volatile int8* Dest) { return FPlatformAtomics::InterlockedExchange(Dest, 0x01); }, Test, FunctionName, TEXT("int8")) && bSuccess;
@@ -446,7 +446,7 @@ static bool TestInterlockedCompareExchange(FAutomationTestBase& Test)
 {
 	bool bSuccess = true;
 
-	constexpr TCHAR FunctionName[] = TEXT("CompareExchange");
+	const TCHAR* FunctionName = TEXT("CompareExchange");
 	{
 		volatile int8 Value = 0x10;
 

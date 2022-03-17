@@ -1373,19 +1373,52 @@ const TCHAR* FGenericPlatformMisc::GetUBTTarget()
 	return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
 }
 
-/** The name of the UBT target that the current executable was built from. Defaults to the UE4 default target for this type to make content only projects work, 
-	but will be overridden by the primary game module if it exists */
-TCHAR GUBTTargetName[128] = TEXT("Unreal" PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
+using FUBTTargetNameArrayType = TCHAR[128];
+
+#if PLATFORM_TCHAR_IS_UTF8CHAR
+
+	// We can't initialize a sized UTF8CHAR static array with a UTF8TEXT until we have char8_t in C++20,
+	// so we use a constructor to copy the value in.
+	static FUBTTargetNameArrayType& GetStaticUBTTargetName()
+	{
+		static struct FInitializer
+		{
+			FInitializer()
+			{
+				/** The name of the UBT target that the current executable was built from. Defaults to the UE default target for this type to make content only projects work,
+					but will be overridden by the primary game module if it exists */
+				FCString::Strcpy(UBTTargetName, TEXT("Unreal" PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET)));
+			}
+
+			TCHAR UBTTargetName[128];
+		} Initializer;
+
+		return Initializer.UBTTargetName;
+	}
+
+#else
+
+	static FUBTTargetNameArrayType& GetStaticUBTTargetName()
+	{
+		/** The name of the UBT target that the current executable was built from. Defaults to the UE default target for this type to make content only projects work,
+			but will be overridden by the primary game module if it exists */
+		static FUBTTargetNameArrayType GUBTTargetName = TEXT("Unreal" PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
+
+		return GUBTTargetName;
+	}
+
+#endif
 
 void FGenericPlatformMisc::SetUBTTargetName(const TCHAR* InTargetName)
 {
-	check(FCString::Strlen(InTargetName) < (UE_ARRAY_COUNT(GUBTTargetName) - 1));
-	FCString::Strcpy(GUBTTargetName, InTargetName);
+	FUBTTargetNameArrayType& UBTTargetName = GetStaticUBTTargetName();
+	check(FCString::Strlen(InTargetName) < (UE_ARRAY_COUNT(UBTTargetName) - 1));
+	FCString::Strcpy(UBTTargetName, InTargetName);
 }
 
 const TCHAR* FGenericPlatformMisc::GetUBTTargetName()
 {
-	return GUBTTargetName;
+	return GetStaticUBTTargetName();
 }
 
 const TCHAR* FGenericPlatformMisc::GetDefaultDeviceProfileName()

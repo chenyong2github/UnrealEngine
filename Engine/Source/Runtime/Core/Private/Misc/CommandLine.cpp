@@ -13,10 +13,10 @@
 -----------------------------------------------------------------------------*/
 
 bool FCommandLine::bIsInitialized = false;
-TCHAR FCommandLine::CmdLine[FCommandLine::MaxCommandLineSize] = TEXT("");
-TCHAR FCommandLine::OriginalCmdLine[FCommandLine::MaxCommandLineSize] = TEXT("");
-TCHAR FCommandLine::LoggingCmdLine[FCommandLine::MaxCommandLineSize] = TEXT("");
-TCHAR FCommandLine::LoggingOriginalCmdLine[FCommandLine::MaxCommandLineSize] = TEXT("");
+TCHAR FCommandLine::CmdLine[FCommandLine::MaxCommandLineSize] = {};
+TCHAR FCommandLine::OriginalCmdLine[FCommandLine::MaxCommandLineSize] = {};
+TCHAR FCommandLine::LoggingCmdLine[FCommandLine::MaxCommandLineSize] = {};
+TCHAR FCommandLine::LoggingOriginalCmdLine[FCommandLine::MaxCommandLineSize] = {};
 
 FString& FCommandLine::GetSubprocessCommandLine_Internal()
 {

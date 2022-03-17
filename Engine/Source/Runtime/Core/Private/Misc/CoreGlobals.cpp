@@ -48,10 +48,10 @@ CORE_API FMalloc**			GFixedMallocLocationPtr = nullptr;		/* Memory allocator poi
 class FPropertyWindowManager*	GPropertyWindowManager	= nullptr;		/* Manages and tracks property editing windows */
 
 /** For building call stack text dump in guard/unguard mechanism. */
-TCHAR GErrorHist[16384]	= TEXT("");
+TCHAR GErrorHist[16384] = {};
 
 /** For building exception description text dump in guard/unguard mechanism. */
-TCHAR GErrorExceptionDescription[4096] = TEXT( "" );
+TCHAR GErrorExceptionDescription[4096] = {};
 
 // We define our texts like this so that the header only needs to refer to references to FTexts,
 // as FText is only forward-declared there.

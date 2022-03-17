@@ -1112,7 +1112,7 @@ const TCHAR* FWindowsPlatformProcess::ApplicationSettingsDir()
 
 const TCHAR* FWindowsPlatformProcess::ComputerName()
 {
-	static TCHAR Result[256]=TEXT("");
+	static TCHAR Result[256] = {};
 	if( !Result[0] )
 	{
 		uint32 Size=UE_ARRAY_COUNT(Result);
@@ -1123,8 +1123,8 @@ const TCHAR* FWindowsPlatformProcess::ComputerName()
 
 const TCHAR* FWindowsPlatformProcess::UserName(bool bOnlyAlphaNumeric/* = true*/)
 {
-	static TCHAR Result[256]=TEXT("");
-	static TCHAR ResultAlpha[256]=TEXT("");
+	static TCHAR Result[256] = {};
+	static TCHAR ResultAlpha[256] = {};
 	if( bOnlyAlphaNumeric )
 	{
 		if( !ResultAlpha[0] )
@@ -1202,7 +1202,7 @@ const FString FWindowsPlatformProcess::ShaderWorkingDir()
 
 const TCHAR* FWindowsPlatformProcess::ExecutablePath()
 {
-	static TCHAR Result[512]=TEXT("");
+	static TCHAR Result[512] = {};
 	if( !Result[0] )
 	{
 		if ( !GetModuleFileName( hInstance, Result, UE_ARRAY_COUNT(Result) ) )
@@ -1215,8 +1215,8 @@ const TCHAR* FWindowsPlatformProcess::ExecutablePath()
 
 const TCHAR* FWindowsPlatformProcess::ExecutableName(bool bRemoveExtension)
 {
-	static TCHAR Result[512]=TEXT("");
-	static TCHAR ResultWithExt[512]=TEXT("");
+	static TCHAR Result[512] = {};
+	static TCHAR ResultWithExt[512] = {};
 	if( !Result[0] )
 	{
 		// Get complete path for the executable

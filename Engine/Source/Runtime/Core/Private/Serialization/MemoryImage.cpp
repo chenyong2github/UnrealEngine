@@ -2004,7 +2004,7 @@ uint8 Freeze::FindFieldNameLength(const TCHAR* Name)
 
 		if (Ch == TEXT('_'))
 		{
-			static TCHAR DeprecatedName[] = TEXT("DEPRECATED");
+			static const TCHAR* DeprecatedName = TEXT("DEPRECATED");
 
 			const TCHAR* DepIter = DeprecatedName;
 			for (;;)

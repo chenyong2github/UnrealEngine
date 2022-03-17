@@ -127,7 +127,7 @@ void FBitWriter::SerializeInt(uint32& Value, uint32 ValueMax)
 
 	if (WriteValue >= ValueMax)
 	{
-		const TCHAR Msg[] = TEXT("FBitWriter::SerializeInt(): Value out of bounds (Value: %u, ValueMax: %u)");
+		const auto& Msg = TEXT("FBitWriter::SerializeInt(): Value out of bounds (Value: %u, ValueMax: %u)");
 
 		UE_LOG(LogSerialization, Error, Msg, WriteValue, ValueMax);
 		ensureMsgf(false, Msg, WriteValue, ValueMax);

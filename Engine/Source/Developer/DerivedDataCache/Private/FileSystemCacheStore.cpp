@@ -69,8 +69,8 @@ TRACE_DECLARE_INT_COUNTER(FileSystemDDC_BytesWritten, TEXT("FileSystemDDC Bytes 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static const TCHAR GBucketsDirectoryName[] = TEXT("Buckets");
-static const TCHAR GContentDirectoryName[] = TEXT("Content");
+static const TCHAR* GBucketsDirectoryName = TEXT("Buckets");
+static const TCHAR* GContentDirectoryName = TEXT("Content");
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

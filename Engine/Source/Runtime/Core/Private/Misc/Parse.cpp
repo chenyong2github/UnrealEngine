@@ -517,7 +517,8 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, uint64& Value )
 //
 bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, int64& Value )
 {
-	TCHAR Temp[4096]=TEXT(""), *Ptr=Temp;
+	TCHAR Temp[4096] = {};
+	TCHAR* Ptr = Temp;
 	if( FParse::Value( Stream, Match, Temp, UE_ARRAY_COUNT(Temp) ) )
 	{
 		Value = 0;

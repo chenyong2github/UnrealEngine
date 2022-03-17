@@ -43,7 +43,8 @@ bool FPlatformStringTestStrnlen::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Strnlen(\"1\", 1)"), FPlatformString::Strnlen(TEXT("1"), 1), 1);
 	TestEqual(TEXT("Strnlen(\"1\", 2)"), FPlatformString::Strnlen(TEXT("1"), 2), 1);
 	TestEqual(TEXT("Strnlen(\"123\", 2)"), FPlatformString::Strnlen(TEXT("123"), 2), 2);
-	TCHAR Buffer[128] = TEXT("123456789");
+	TCHAR Buffer[128] = {};
+	FCString::Strcpy(Buffer, TEXT("123456789"));
 	TestEqual(TEXT("Strnlen(PaddedBuffer)"), FPlatformString::Strnlen(Buffer, UE_ARRAY_COUNT(Buffer)), 9);
 
 	return true;

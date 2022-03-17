@@ -377,7 +377,7 @@ void FJsonArchiveInputFormatter::Serialize(FSoftObjectPtr& Value)
 void FJsonArchiveInputFormatter::Serialize(FSoftObjectPath& Value)
 {
 	FString StringValue;
-	const TCHAR Prefix[] = TEXT("Object:");
+	const auto& Prefix = TEXT("Object:");
 	if (ValueStack.Top()->TryGetString(StringValue) && StringValue.StartsWith(Prefix))
 	{
 		Value.SetPath(*StringValue + UE_ARRAY_COUNT(Prefix) - 1);
@@ -391,7 +391,7 @@ void FJsonArchiveInputFormatter::Serialize(FSoftObjectPath& Value)
 void FJsonArchiveInputFormatter::Serialize(FLazyObjectPtr& Value)
 {
 	FString StringValue;
-	const TCHAR Prefix[] = TEXT("Lazy:");
+	const auto& Prefix = TEXT("Lazy:");
 	if (ValueStack.Top()->TryGetString(StringValue) && StringValue.StartsWith(Prefix))
 	{
 		FUniqueObjectGuid Guid;

@@ -1089,7 +1089,7 @@ void FPaths::NormalizeDirectoryName(FString& InPath)
 
 bool FPaths::CollapseRelativeDirectories(FString& InPath)
 {
-	const TCHAR ParentDir[] = TEXT("/..");
+	const auto& ParentDir = TEXT("/..");
 	const int32 ParentDirLength = UE_ARRAY_COUNT( ParentDir ) - 1; // To avoid hardcoded values
 
 	for (;;)
@@ -1397,7 +1397,7 @@ FString FPaths::GetInvalidFileSystemChars()
 	// # isn't legal. Used for revision specifiers in P4/SVN, and also not allowed on Windows anyway
 	// @ isn't legal. Used for revision/label specifiers in P4/SVN
 	// ^ isn't legal. While the file-system won't complain about this character, Visual Studio will			
-	static const TCHAR RestrictedChars[] = TEXT("/?:&\\*\"<>|%#@^");
+	static const TCHAR* RestrictedChars = TEXT("/?:&\\*\"<>|%#@^");
 	return RestrictedChars;
 }
 

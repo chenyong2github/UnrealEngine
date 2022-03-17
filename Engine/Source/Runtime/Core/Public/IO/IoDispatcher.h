@@ -66,26 +66,9 @@ enum class EIoErrorCode
  */
 static const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
 {
-	static constexpr const TCHAR* ErrorCodeText[]
-	{
-		TEXT("OK"),
-		TEXT("Unknown Status"),
-		TEXT("Invalid Code"),
-		TEXT("Cancelled"),
-		TEXT("FileOpen Failed"),
-		TEXT("File Not Open"),
-		TEXT("Read Error"),
-		TEXT("Write Error"),
-		TEXT("Not Found"),
-		TEXT("Corrupt Toc"),
-		TEXT("Unknown ChunkID"),
-		TEXT("Invalid Parameter"),
-		TEXT("Signature Error"),
-		TEXT("Invalid Encryption Key"),
-		TEXT("Compression Error")
-	};
+	extern CORE_API const TCHAR* const* GetIoErrorText_ErrorCodeText;
 
-	return ErrorCodeText[static_cast<uint32>(ErrorCode)];
+	return GetIoErrorText_ErrorCodeText[static_cast<uint32>(ErrorCode)];
 }
 
 /**

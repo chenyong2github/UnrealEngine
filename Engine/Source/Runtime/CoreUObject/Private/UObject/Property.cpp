@@ -991,7 +991,7 @@ void FProperty::ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::T
 		NameCpp = FString(TEXT(", ")) + NameCpp;
 	}
 
-	TCHAR ArrayStr[MAX_SPRINTF]=TEXT("");
+	TCHAR ArrayStr[MAX_SPRINTF] = {};
 	const bool bExportStaticArray = 0 == (CPPF_NoStaticArray & AdditionalExportCPPFlags);
 	if ((ArrayDim != 1) && bExportStaticArray)
 	{

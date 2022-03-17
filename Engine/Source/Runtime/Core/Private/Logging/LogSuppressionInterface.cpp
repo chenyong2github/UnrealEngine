@@ -132,7 +132,7 @@ class FLogSuppressionImplementation: public FLogSuppressionInterface, private FS
 		Cmds.ParseIntoArray(SubCmds, TEXT(","), true);
 		for (int32 Index = 0; Index < SubCmds.Num(); Index++)
 		{
-			static constexpr TCHAR LogString[] = TEXT("Log ");
+			static const auto& LogString = TEXT("Log ");
 			FString Command = SubCmds[Index].TrimStart();
 			if (Command.StartsWith(LogString))
 			{

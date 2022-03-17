@@ -2726,7 +2726,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 			}
 			else
 			{
-				TCHAR TempKey[MAX_SPRINTF]=TEXT("");
+				TCHAR TempKey[MAX_SPRINTF] = {};
 				for( int32 Index=0; Index<Property->ArrayDim; Index++ )
 				{
 					if( Property->ArrayDim!=1 )
@@ -4339,7 +4339,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 				// check if we want to ignore references from any packages
 				for( int32 i=0; i<16; i++ )
 				{
-					TCHAR Temp[MAX_SPRINTF]=TEXT("");
+					TCHAR Temp[MAX_SPRINTF] = {};
 					FCString::Sprintf( Temp, TEXT("EXCLUDE%i="), i );
 					FName F;
 					if (FParse::Value(Str, Temp, F))

@@ -975,7 +975,7 @@ void FUnrealPropertyDefinitionInfo::ExportCppDeclaration(FOutputDevice& Out, EEx
 		NameCpp = FString(TEXT(", ")) + NameCpp;
 	}
 
-	TCHAR ArrayStr[MAX_SPRINTF] = TEXT("");
+	TCHAR ArrayStr[MAX_SPRINTF] = {};
 	const bool bExportStaticArray = 0 == (CPPF_NoStaticArray & AdditionalExportCPPFlags);
 	if (ArrayDimOverride != nullptr && bExportStaticArray)
 	{

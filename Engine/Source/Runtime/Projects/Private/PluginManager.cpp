@@ -35,7 +35,7 @@ namespace PluginSystemDefs
 {
 	/** File extension of plugin descriptor files.
 	    NOTE: This constant exists in UnrealBuildTool code as well. */
-	static const TCHAR PluginDescriptorFileExtension[] = TEXT( ".uplugin" );
+	static const TCHAR* PluginDescriptorFileExtension = TEXT( ".uplugin" );
 
 	/**
 	 * Parsing the command line and loads any foreign plugins that were
