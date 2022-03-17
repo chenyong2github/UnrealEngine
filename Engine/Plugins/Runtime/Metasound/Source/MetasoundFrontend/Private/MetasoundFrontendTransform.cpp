@@ -19,16 +19,16 @@ namespace Metasound
 		namespace DocumentTransform
 		{
 #if WITH_EDITOR
-			FGetNodeDisplayNamePredicate NodeDisplayNamePredicate;
+			FGetNodeDisplayNameProjection NodeDisplayNameProjection;
 
-			void RegisterNodeDisplayNamePredicate(FGetNodeDisplayNamePredicate&& InNamePredicate)
+			void RegisterNodeDisplayNameProjection(FGetNodeDisplayNameProjection&& InNameProjection)
 			{
-				NodeDisplayNamePredicate = MoveTemp(InNamePredicate);
+				NodeDisplayNameProjection = MoveTemp(InNameProjection);
 			}
 
-			FGetNodeDisplayNamePredicateRef GetNodeDisplayNamePredicate()
+			FGetNodeDisplayNameProjectionRef GetNodeDisplayNameProjection()
 			{
-				return NodeDisplayNamePredicate;
+				return NodeDisplayNameProjection;
 			}
 #endif // WITH_EDITOR
 		} // namespace DocumentTransform
@@ -757,7 +757,7 @@ namespace Metasound
 			FMetasoundFrontendInterfaceStyle Style = ReferencedGraphHandle->GetInputStyle();
 			InPresetGraphHandle->SetInputStyle(Style);
 
-			Style.SortDefaults(NodeHandles, DocumentTransform::GetNodeDisplayNamePredicate());
+			Style.SortDefaults(NodeHandles, DocumentTransform::GetNodeDisplayNameProjection());
 
 			for (const FNodeHandle& InputNode : NodeHandles)
 			{
@@ -797,7 +797,7 @@ namespace Metasound
 			FMetasoundFrontendInterfaceStyle Style = ReferencedGraphHandle->GetOutputStyle();
 			InPresetGraphHandle->SetOutputStyle(Style);
 
-			Style.SortDefaults(NodeHandles, DocumentTransform::GetNodeDisplayNamePredicate());
+			Style.SortDefaults(NodeHandles, DocumentTransform::GetNodeDisplayNameProjection());
 
 			// Set input node location
 			for (const FNodeHandle& OutputNode : NodeHandles)

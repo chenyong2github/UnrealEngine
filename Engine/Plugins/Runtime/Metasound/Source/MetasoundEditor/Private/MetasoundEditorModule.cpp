@@ -713,7 +713,7 @@ namespace Metasound
 
 				// Required to ensure logic to order nodes for presets exclusive to
 				// editor is propagated to transform instances while editing in editor.
-				Frontend::DocumentTransform::RegisterNodeDisplayNamePredicate([](const Frontend::FNodeHandle& NodeHandle)
+				Frontend::DocumentTransform::RegisterNodeDisplayNameProjection([](const Frontend::FNodeHandle& NodeHandle)
 				{
 					constexpr bool bIncludeNamespace = false;
 					return FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);

@@ -17,11 +17,11 @@ namespace Metasound
 		namespace DocumentTransform
 		{
 #if WITH_EDITOR
-			using FGetNodeDisplayNamePredicate = TFunction<FText(const FNodeHandle&)>;
-			using FGetNodeDisplayNamePredicateRef = TFunctionRef<FText(const FNodeHandle&)>;
+			using FGetNodeDisplayNameProjection = TFunction<FText(const FNodeHandle&)>;
+			using FGetNodeDisplayNameProjectionRef = TFunctionRef<FText(const FNodeHandle&)>;
 
-			METASOUNDFRONTEND_API void RegisterNodeDisplayNamePredicate(FGetNodeDisplayNamePredicate&& InNamePredicate);
-			METASOUNDFRONTEND_API FGetNodeDisplayNamePredicateRef GetNodeDisplayNamePredicate();
+			METASOUNDFRONTEND_API void RegisterNodeDisplayNameProjection(FGetNodeDisplayNameProjection&& InNameProjection);
+			METASOUNDFRONTEND_API FGetNodeDisplayNameProjectionRef GetNodeDisplayNameProjection();
 #endif // WITH_EDITOR
 		}
 
