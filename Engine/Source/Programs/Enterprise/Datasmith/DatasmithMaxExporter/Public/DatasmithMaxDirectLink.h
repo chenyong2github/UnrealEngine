@@ -48,6 +48,10 @@ public:
 	// Whether to export animation or not
 	virtual void SetAnimatedTransforms(bool) = 0;
 	virtual bool GetAnimatedTransforms() = 0;
+
+	// Whether to output export statistics to listener/log
+	virtual void SetStatSync(bool) = 0;
+	virtual bool GetStatSync() = 0;
 };
 
 //---- Main class for export/change tracking
@@ -452,9 +456,13 @@ void LogInfo(const FString& Msg);
 void LogDebugNode(const FString& Name, class INode* Node);
 void LogNodeEvent(const MCHAR* Name, INodeEventCallback::NodeKeyTab& nodes);
 void LogFlush();
+void LogWarning(const TCHAR* Msg);
+void LogWarning(const FString& Msg);
 
 void LogWarningDialog(const TCHAR* Msg);
 void LogWarningDialog(const FString& Msg);
+void LogInfoDialog(const TCHAR* Msg);
+
 
 }
 

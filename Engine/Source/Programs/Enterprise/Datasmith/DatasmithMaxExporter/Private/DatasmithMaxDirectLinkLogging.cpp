@@ -40,12 +40,15 @@ void LogDebug(const TCHAR* Msg)
 
 void LogInfo(const TCHAR* Msg)
 {
-	mprintf(L"[%s]%s\n", *FDateTime::UtcNow().ToString(TEXT("%Y.%m.%d-%H.%M.%S:%s")), Msg);
-	UE_LOG(LogDatasmithMaxExporter, Error, TEXT("%s"), Msg);
+	UE_LOG(LogDatasmithMaxExporter, Display, TEXT("%s"), Msg);
+	LogInfoDialog(Msg);
 }
 
-
-
+void LogWarning(const TCHAR* Msg)
+{
+	UE_LOG(LogDatasmithMaxExporter, Warning, TEXT("%s"), Msg);
+	LogWarningDialog(Msg);
+}
 
 void LogFlush()
 {
@@ -68,6 +71,10 @@ void LogInfo(const FString& Msg)
 	LogInfo(*Msg);
 }
 
+void LogWarning(const FString& Msg)
+{
+	LogWarning(*Msg);
+}
 void LogDebugNode(const FString& Name, INode* Node)
 {
 #ifdef LOG_DEBUG_HEAVY_ENABLE

@@ -268,6 +268,8 @@ Primitive SetExportOption_##name##_pf(_M("Datasmith_SetExportOption_" #name), Se
 //////////////////////////////////////////
 DefinePersistentExportOption(SelectedOnly)
 DefinePersistentExportOption(AnimatedTransforms)
+
+DefinePersistentExportOption(StatSync)
 //////////////////////////////////////////
 
 #undef DefinePersistentExportOption
@@ -415,6 +417,11 @@ public:
 
 	void AddWarning(const TCHAR* Message)
 	{
+		Messages.Enqueue(FString(TEXT("WARNING:")) + Message);
+	}
+
+	void AddInfo(const TCHAR* Message)
+	{
 		Messages.Enqueue(Message);
 	}
 
@@ -427,6 +434,11 @@ public:
 };
 
 TUniquePtr<FMessagesDialog> MessagesDialog;
+
+void LogInfoDialog(const TCHAR* Msg)
+{
+	MessagesDialog->AddInfo(Msg);
+}
 
 void LogWarningDialog(const FString& Msg)
 {
