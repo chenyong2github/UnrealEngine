@@ -157,7 +157,8 @@ void FControlRigEditModeGenericDetails::CustomizeDetails(class IDetailLayoutBuil
 				{
 					if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 					{
-						if (UObject* NestedProxy = EditMode->ControlProxy->FindProxy(ControlElement->GetName()))
+						UControlRig* ControlRig = Proxy->ControlRig.Get();
+						if (UObject* NestedProxy = EditMode->ControlProxy->FindProxy(ControlRig,ControlElement->GetName()))
 						{
 							FName PropertyName(NAME_None);
 							switch (ControlElement->Settings.ControlType)

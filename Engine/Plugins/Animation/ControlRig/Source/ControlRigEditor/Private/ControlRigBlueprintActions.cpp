@@ -399,7 +399,7 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 				}
 				if (ControlRigEditMode)
 				{
-					ControlRigEditMode->SetObjects(ControlRig, nullptr, WeakSequencer.Pin());
+					ControlRigEditMode->AddControlRigObject(ControlRig, WeakSequencer.Pin());
 				}
 			}
 		}

@@ -9,6 +9,7 @@
 #include "Rigs/RigControlHierarchy.h"
 #include "ControlRigGizmoActor.generated.h"
 
+class UControlRig;
 struct FActorSpawnParameters;
 
 USTRUCT()
@@ -19,6 +20,7 @@ struct FControlShapeActorCreationParam
 	FControlShapeActorCreationParam()
 		: ManipObj(nullptr)
 		, ControlRigIndex(INDEX_NONE)
+		, ControlRig(nullptr)
 		, ControlName(NAME_None)
 		, ShapeName(NAME_None)
 		, SpawnTransform(FTransform::Identity)
@@ -34,6 +36,7 @@ struct FControlShapeActorCreationParam
 
 	UObject*	ManipObj;
 	int32		ControlRigIndex;
+	UControlRig* ControlRig;
 	FName		ControlName;
 	FName		ShapeName;
 	FTransform	SpawnTransform;
@@ -66,6 +69,10 @@ public:
 	// the name of the control this actor is referencing
 	UPROPERTY()
 	uint32 ControlRigIndex;
+
+	//  control rig this actor is referencing we can have multiple control rig's visible
+	UPROPERTY()
+	TWeakObjectPtr<UControlRig> ControlRig;
 
 	// the name of the control this actor is referencing
 	UPROPERTY()

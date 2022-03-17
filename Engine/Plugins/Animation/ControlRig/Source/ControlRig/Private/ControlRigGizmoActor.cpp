@@ -11,6 +11,7 @@
 AControlRigShapeActor::AControlRigShapeActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ControlRigIndex(INDEX_NONE)
+	, ControlRig(nullptr)
 	, ControlName(NAME_None)
 	, ShapeName(NAME_None)
 	, bEnabled(true)
@@ -246,6 +247,7 @@ namespace FControlRigShapeHelper
 		if (ShapeActor)
 		{
 			ShapeActor->ControlRigIndex = CreationParam.ControlRigIndex;
+			ShapeActor->ControlRig = CreationParam.ControlRig;
 			ShapeActor->ControlName = CreationParam.ControlName;
 			ShapeActor->ShapeName = CreationParam.ShapeName;
 			ShapeActor->SetSelectable(CreationParam.bSelectable);

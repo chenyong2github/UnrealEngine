@@ -227,9 +227,23 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 				{
 					TMap<UControlRig*, UControlRig*> OldToNewControlRigs;
 					FControlRigEditMode* ControlRigEditMode = GetEditMode();
-					if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true) && ControlRigEditMode->GetControlRig(true)->GetObjectBinding())
+					if (ControlRigEditMode) 
 					{
-						if (ControlRigEditMode->GetControlRig(true)->GetObjectBinding()->GetBoundObject() == nullptr)
+						TArrayView<TWeakObjectPtr<UControlRig>> ControlRigs = ControlRigEditMode->GetControlRigs();
+						bool bRequestEvaluate = false;
+						for (TWeakObjectPtr<UControlRig>& ControlRigPtr : ControlRigs)
+						{
+							if (UControlRig* ControlRig = ControlRigPtr.Get())
+							{
+								if (ControlRig->GetObjectBinding() && ControlRig->GetObjectBinding()->GetBoundObject() == nullptr)
+								{
+									bRequestEvaluate = true;
+									break;
+								}
+							}
+						}
+
+						if (bRequestEvaluate)
 						{
 							GetSequencer()->RequestEvaluate();
 						}
@@ -243,7 +257,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 							if (OldControlRigComponent->GetControlRig())
 							{
 								UControlRig* NewControlRig = nullptr;
-							if(NewControlRigComponent)
+								if(NewControlRigComponent)
 								{
 									NewControlRig = NewControlRigComponent->GetControlRig();
 								}
@@ -284,10 +298,9 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 								}
 								if (ControlRigEditMode)
 								{
-									if (ControlRigEditMode->GetControlRig(false) == OldControlRig)
-									{
-										ControlRigEditMode->SetObjects(*NewControlRig, nullptr, GetSequencer());
-									}
+									ControlRigEditMode->ReplaceControlRig(OldControlRig, *NewControlRig);
+									ControlRigEditMode->AddControlRigObject(*NewControlRig, GetSequencer());
+									
 									UControlRig* PtrNewControlRig = *NewControlRig;
 
 									auto UpdateSelectionDelegate = [this, SelectedControls, PtrNewControlRig]()
@@ -996,11 +1009,13 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 					}
 					else
 					{
+						/* mz todo we don't unbind  will test more
 						UControlRig* OldControlRig = ControlRigEditMode->GetControlRig(false);
 						if (OldControlRig)
 						{
 							UnbindControlRig(OldControlRig);
 						}
+						*/
 					}
 
 					if (bReuseControlRig == false)
@@ -1055,7 +1070,7 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 					//Finish Setup
 					if (ControlRigEditMode)
 					{
-						ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
+						ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer());
 					}
 					BindControlRig(ControlRig);
 
@@ -1354,7 +1369,7 @@ void FControlRigParameterTrackEditor::AddControlRig(UClass* InClass, UObject* Bo
 
 			if (ControlRigEditMode)
 			{
-				ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
+				ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer());
 			}
 			BindControlRig(ControlRig);
 
@@ -1424,16 +1439,11 @@ bool FControlRigParameterTrackEditor::CanAddTransformKeysForSelectedObjects() co
 	}
 
 	FControlRigEditMode* ControlRigEditMode = GetEditMode();
-	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(false))
+	if (ControlRigEditMode)
 	{
-		UControlRig* ControlRig = ControlRigEditMode->GetControlRig(false);
-		FString OurName = ControlRig->GetName();
-		FName Name(*OurName);
-		if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
-		{
-			TArray<FName> ControlNames = ControlRig->CurrentControlSelection();
-			return (ControlNames.Num() > 0);
-		}
+		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
+		ControlRigEditMode->GetAllSelectedControls(SelectedControls);
+		return (SelectedControls.Num() > 0);
 	}
 	return false;
 }
@@ -1446,20 +1456,26 @@ void FControlRigParameterTrackEditor::OnAddTransformKeysForSelectedObjects(EMovi
 	}
 
 	FControlRigEditMode* ControlRigEditMode = GetEditMode();
-	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(false))
+	if (ControlRigEditMode)
 	{
-		UControlRig* ControlRig = ControlRigEditMode->GetControlRig(false);
-		FString OurName = ControlRig->GetName();
-		FName Name(*OurName);
-		if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
+		ControlRigEditMode->GetAllSelectedControls(SelectedControls);
+
+		for (TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
 		{
-			TArray<FName> ControlNames = ControlRig->CurrentControlSelection();
-			for (const FName& ControlName : ControlNames)
+			UControlRig* ControlRig = Selection.Key;
+			FString OurName = ControlRig->GetName();
+			FName Name(*OurName);
+			if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
 			{
-				USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
-				if (Component)
+				TArray<FName> ControlNames = ControlRig->CurrentControlSelection();
+				for (const FName& ControlName : ControlNames)
 				{
-					AddControlKeys(Component, ControlRig, Name, ControlName, (EControlRigContextChannelToKey) Channel, ESequencerKeyMode::ManualKeyForced, FLT_MAX);
+					USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
+					if (Component)
+					{
+						AddControlKeys(Component, ControlRig, Name, ControlName, (EControlRigContextChannelToKey)Channel, ESequencerKeyMode::ManualKeyForced, FLT_MAX);
+					}
 				}
 			}
 		}
@@ -1714,27 +1730,40 @@ void FControlRigParameterTrackEditor::OnSequencerDataChanged(EMovieSceneDataChan
 
 	//if we have a valid control rig edit mode need to check and see the control rig in that mode is still in a track
 	//if not we get rid of it.
-	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(false) != nullptr && MovieScene && (DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemRemoved ||
+	if (ControlRigEditMode && ControlRigEditMode->GetControlRigsArray(false /*bIsVisible*/).Num() != 0 && MovieScene && (DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemRemoved ||
 		DataChangeType == EMovieSceneDataChangeType::Unknown))
 	{
+		TArray<UControlRig*> ControlRigs = ControlRigEditMode->GetControlRigsArray(false /*bIsVisible*/);
 		float FPS = 1.f / (float)GetSequencer()->GetFocusedDisplayRate().AsInterval();
-		ControlRigEditMode->GetControlRig(false)->SetFramesPerSecond(FPS);
-
-		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-		for (const FMovieSceneBinding& Binding : Bindings)
+		for (UControlRig* ControlRig : ControlRigs)
 		{
-			UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
-			if (Track && Track->GetControlRig() == ControlRigEditMode->GetControlRig(false))
+			if (ControlRig)
 			{
-				return; //just exit out we still have a good track
+				ControlRig->SetFramesPerSecond(FPS);
+
+				const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+				bool bControlRigInTrack = false;
+				for (const FMovieSceneBinding& Binding : Bindings)
+				{
+					UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
+					if (Track && Track->GetControlRig() == ControlRig)
+					{
+						bControlRigInTrack = true;
+						break;; //continue, we still have a good track
+					}
+				}
+				/* Nope don't do this anymore, todo mz
+				if (FEditorModeTools* Tools = GetEditorModeTools())
+				{
+					Tools->DeactivateMode(FControlRigEditMode::ModeName);
+				}
+				*/
+				if (bControlRigInTrack == false)
+				{
+					ControlRigEditMode->RemoveControlRig(ControlRig);
+				}
 			}
 		}
-		//okay no good track so deactive it and delete it's Control Rig and bindings.
-		if (FEditorModeTools* Tools = GetEditorModeTools())
-		{
-			Tools->DeactivateMode(FControlRigEditMode::ModeName);
-		}
-		ControlRigEditMode->SetObjects(nullptr, nullptr, GetSequencer());
 	}
 }
 
@@ -1767,15 +1796,16 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 				{
 					if (ControlRigEditMode)
 					{
-						ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
+						ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer());
 					}
 				}
 			}
 			else
 			{
-				if (ControlRigEditMode->GetControlRig(false) != ControlRig)
+				TArray<UControlRig*> ControlRigs = ControlRigEditMode->GetControlRigsArray(false /*bIsVisible*/);
+				if (ControlRigs.Contains(ControlRig)== false)
 				{
-					ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
+					ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer());
 				}
 			}
 			//Not 100% safe but for now it is since that's all we show in the curve editor
@@ -1892,10 +1922,14 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	{
 		if (ControlRigEditMode)
 		{
-			ControlRig = ControlRigEditMode->GetControlRig(false);
-			if (ControlRig)
+			TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
+			for (TPair<UControlRig*, TArray<FRigElementKey>>& SelectedControl : AllSelectedControls)
 			{
-				ControlRig->ClearControlSelection();
+				ControlRig = SelectedControl.Key;
+				if (ControlRig)
+				{
+					ControlRig->ClearControlSelection();
+				}
 			}
 		}
 		for (UMovieSceneTrack* Track : InTracks)
@@ -1908,11 +1942,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 				{
 					if (ControlRigEditMode)
 					{
-						ControlRig = ControlRigEditMode->GetControlRig(false);
-						if (ControlRig != TrackControlRig)
-						{
-							ControlRigEditMode->SetObjects(TrackControlRig, nullptr, GetSequencer());
-						}
+						ControlRigEditMode->AddControlRigObject(TrackControlRig, GetSequencer());
 						break;
 					}
 					else
@@ -1922,7 +1952,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 						{
 							if (ControlRigEditMode)
 							{
-								ControlRigEditMode->SetObjects(TrackControlRig, nullptr, GetSequencer());
+								ControlRigEditMode->AddControlRigObject(TrackControlRig, GetSequencer());
 							}
 						}
 					}
@@ -1955,19 +1985,14 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 				{
 					if (ControlRigEditMode)
 					{
-						ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
+						ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer());
 					}
 				}
 			}
 			else
 			{
-				if (ControlRigEditMode->GetControlRig(false) != ControlRig)
+				if (ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer()))
 				{
-					if (ControlRigEditMode->GetControlRig(false))
-					{
-						ControlRigEditMode->GetControlRig(false)->ClearControlSelection();
-					}
-					ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
 					//force an evaluation, this will get the control rig setup so edit mode looks good.
 					if (GetSequencer().IsValid())
 					{
@@ -1995,10 +2020,15 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 	//Always clear the control rig(s) in the edit mode.
 	if (ControlRigEditMode)
 	{
-		ControlRig = ControlRigEditMode->GetControlRig(false);
-		if (ControlRig)
+		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
+		ControlRigEditMode->GetAllSelectedControls(SelectedControls);
+		for (TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
 		{
-			ControlRig->ClearControlSelection();
+			ControlRig = Selection.Key;
+			if (ControlRig)
+			{
+				ControlRig->ClearControlSelection();
+			}
 		}
 	}
 	for (TPair<UControlRig *, TSet<FName>> Pair : RigsAndControls)
@@ -2252,19 +2282,25 @@ void FControlRigParameterTrackEditor::SetUpEditModeIfNeeded(UControlRig* Control
 		{
 			if (ControlRigEditMode)
 			{
-				ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
+				ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer());
 			}
 		}
 	}
 	else
 	{
-		if (ControlRigEditMode->GetControlRig(false) != ControlRig)
+
+		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
+		ControlRigEditMode->GetAllSelectedControls(SelectedControls);
+		for (TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
 		{
-			if (ControlRigEditMode->GetControlRig(false))
+			if(Selection.Key)
 			{
-				ControlRigEditMode->GetControlRig(false)->ClearControlSelection();
+				Selection.Key->ClearControlSelection();
 			}
-			ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
+		}
+		
+		if (ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer()))
+		{
 			//force an evaluation, this will get the control rig setup so edit mode looks good.
 			if (GetSequencer().IsValid())
 			{

@@ -79,11 +79,13 @@ void FAssetTypeActions_ControlRigPose::GetActions(const TArray<UObject*>& InObje
 		if (PoseAsset)
 		{
 			FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-			if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+			if (ControlRigEditMode)
 			{ 
-				UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true);
-
-				Section.AddDynamicEntry("Control Rig Pose Actions", FNewToolMenuSectionDelegate::CreateLambda([ControlRig,PoseAsset](FToolMenuSection& InSection)
+				TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
+				ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
+				TArray<UControlRig*> ControlRigs;
+				AllSelectedControls.GenerateKeyArray(ControlRigs);
+				Section.AddDynamicEntry("Control Rig Pose Actions", FNewToolMenuSectionDelegate::CreateLambda([ControlRigs,PoseAsset](FToolMenuSection& InSection)
 					{
 						{
 							const FText Label = LOCTEXT("PastePoseButton", "Paste Pose");
@@ -94,9 +96,12 @@ void FAssetTypeActions_ControlRigPose::GetActions(const TArray<UObject*>& InObje
 								ToolTipText,
 								FSlateIcon(),
 								FUIAction(
-									FExecuteAction::CreateLambda([ControlRig,PoseAsset]()
+									FExecuteAction::CreateLambda([ControlRigs,PoseAsset]()
 										{
-											PoseAsset->PastePose(ControlRig, false, false);
+											for (UControlRig* ControlRig : ControlRigs)
+											{
+												PoseAsset->PastePose(ControlRig, false, false);
+											}
 										})));
 						}
 						{
@@ -108,24 +113,30 @@ void FAssetTypeActions_ControlRigPose::GetActions(const TArray<UObject*>& InObje
 								ToolTipText,
 								FSlateIcon(),
 								FUIAction(
-									FExecuteAction::CreateLambda([ControlRig, PoseAsset]()
+									FExecuteAction::CreateLambda([ControlRigs, PoseAsset]()
 										{
-											PoseAsset->SelectControls(ControlRig);
+											for (UControlRig* ControlRig : ControlRigs)
+											{
+												PoseAsset->SelectControls(ControlRig);
+											}
 										})));
 						}
 						{
-							const FText Label = LOCTEXT("UpdatePose", "Update Pose");
-							const FText ToolTipText = LOCTEXT("UpdatePoseTooltip", "Update the pose based upon current control rig pose and selected controls");
-							InSection.AddMenuEntry(
-								"UpdatePose",
-								Label,
-								ToolTipText,
-								FSlateIcon(),
-								FUIAction(
-									FExecuteAction::CreateLambda([ControlRig,PoseAsset]()
-										{
-											PoseAsset->SavePose(ControlRig,false);
-										})));
+							if (ControlRigs.Num() == 1)
+							{
+								const FText Label = LOCTEXT("UpdatePose", "Update Pose");
+								const FText ToolTipText = LOCTEXT("UpdatePoseTooltip", "Update the pose based upon current control rig pose and selected controls");
+								InSection.AddMenuEntry(
+									"UpdatePose",
+									Label,
+									ToolTipText,
+									FSlateIcon(),
+									FUIAction(
+										FExecuteAction::CreateLambda([ControlRigs, PoseAsset]()
+											{
+												PoseAsset->SavePose(ControlRigs[0], false);
+											})));
+							}
 						}
 						{
 

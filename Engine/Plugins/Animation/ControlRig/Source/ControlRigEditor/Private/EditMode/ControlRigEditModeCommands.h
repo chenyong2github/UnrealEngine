@@ -20,8 +20,11 @@ public:
 	{}
 	
 
-	/** Toggles hiding all manipulators in the viewport */
+	/** Toggles hiding all manipulators on active control rig in the viewport */
 	TSharedPtr< FUICommandInfo > ToggleManipulators;
+
+	/** Toggles hiding all manipulators on all control rigsin the viewport */
+	TSharedPtr< FUICommandInfo > ToggleAllManipulators;
 
 	/** Reset Transforms for Controls */
 	TSharedPtr< FUICommandInfo > ResetTransforms;

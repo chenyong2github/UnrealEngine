@@ -73,11 +73,19 @@ void SControlRigTweenWidget::Construct(const FArguments& InArgs)
 
 void SControlRigTweenWidget::OnPoseBlendChanged(float ChangedVal)
 {
-	UControlRig* ControlRig = GetControlRig();
-	if (ControlRig  && WeakSequencer.IsValid() && bIsBlending)
+	TArray<UControlRig*> ControlRigs = GetControlRigs();
+	bool bWeBlended = false;
+	for (UControlRig* ControlRig : ControlRigs)
 	{
-		PoseBlendValue = ChangedVal;
-		ControlsToTween.Blend(WeakSequencer, ChangedVal);
+		if (ControlRig && WeakSequencer.IsValid() && bIsBlending)
+		{
+			PoseBlendValue = ChangedVal;
+			ControlsToTween.Blend(WeakSequencer, ChangedVal);
+			bWeBlended = true;
+		}
+	}
+	if(bWeBlended)
+	{
 		WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 	}
 }
@@ -99,13 +107,16 @@ void SControlRigTweenWidget::SetupControls()
 	IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LevelSequence, false);
 	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
 	WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
-	UControlRig* ControlRig = GetControlRig();
-	if (ControlRig && WeakSequencer.IsValid())
+	TArray<UControlRig*> ControlRigs = GetControlRigs();
+	for (UControlRig* ControlRig : ControlRigs)
 	{
-		WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
-		TArray<UControlRig*> SelectedControlRigs;
-		SelectedControlRigs.Add(ControlRig);
-		ControlsToTween.Setup(SelectedControlRigs, WeakSequencer);
+		if (ControlRig && WeakSequencer.IsValid() && bIsBlending)
+		{
+			WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
+			TArray<UControlRig*> SelectedControlRigs;
+			SelectedControlRigs.Add(ControlRig);
+			ControlsToTween.Setup(SelectedControlRigs, WeakSequencer);
+		}
 	}
 }
 
@@ -154,8 +165,8 @@ void SControlRigTweenWidget::FinishDraggingWidget(const FVector2D InLocation)
 
 void SControlRigTweenWidget::OnPoseBlendCommited(float ChangedVal, ETextCommit::Type Type)
 {
-	UControlRig* ControlRig = GetControlRig();
-	if (ControlRig)
+	TArray<UControlRig*> ControlRigs = GetControlRigs();
+	if (ControlRigs.Num() > 0)
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("TweenTransaction", "Tween"));
 		if (bIsBlending == false)
@@ -170,13 +181,14 @@ void SControlRigTweenWidget::OnPoseBlendCommited(float ChangedVal, ETextCommit::
 	}
 }
 
-UControlRig* SControlRigTweenWidget::GetControlRig()
+TArray<UControlRig*>SControlRigTweenWidget::GetControlRigs()
 {
+	TArray<UControlRig*> ControlRigs;
 	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 	{
-		return EditMode->GetControlRig(true);
+		ControlRigs = EditMode->GetControlRigsArray(true /*bIsVisible*/);
 	}
-	return nullptr;
+	return ControlRigs;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -758,7 +758,7 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 					}
 					if (ControlRigEditMode)
 					{
-						ControlRigEditMode->SetObjects(ControlRig, nullptr, WeakSequencer.Pin());
+						ControlRigEditMode->AddControlRigObject(ControlRig, WeakSequencer.Pin());
 					}
 
 					//create soft links to each other

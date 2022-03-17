@@ -43,10 +43,9 @@ TArray<UControlRig*> UControlRigSequencerEditorLibrary::GetVisibleControlRigs()
 {
 	TArray<UControlRig*> ControlRigs;
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true) && ControlRigEditMode->GetControlRig(true)->GetObjectBinding() &&\
-		ControlRigEditMode->GetControlRig(true)->GetObjectBinding()->GetBoundObject())
+	if (ControlRigEditMode)
 	{
-		ControlRigs.Add(ControlRigEditMode->GetControlRig(true));
+		ControlRigs = ControlRigEditMode->GetControlRigsArray(true /*bIsVisible*/);
 	}
 	return ControlRigs;
 }
@@ -250,7 +249,7 @@ static UMovieSceneControlRigParameterTrack* AddControlRig(ULevelSequence* LevelS
 			}
 			if (ControlRigEditMode)
 			{
-				ControlRigEditMode->SetObjects(ControlRig, nullptr, SharedSequencer);
+				ControlRigEditMode->AddControlRigObject(ControlRig, SharedSequencer);
 			}
 			return Track;
 		}
@@ -733,11 +732,13 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 						}
 						else
 						{
+							/* mz todo we don't unbind  will test more
 							UControlRig* OldControlRig = ControlRigEditMode->GetControlRig(false);
 							if (OldControlRig)
 							{
 								WeakSequencer.Pin()->ObjectImplicitlyRemoved(OldControlRig);
 							}
+							*/
 						}
 					}
 
@@ -787,7 +788,7 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 					//Finish Setup
 					if (ControlRigEditMode)
 					{
-						ControlRigEditMode->SetObjects(ControlRig, nullptr, WeakSequencer.Pin());
+						ControlRigEditMode->AddControlRigObject(ControlRig, WeakSequencer.Pin());
 					}
 
 					TempAnimSequence->MarkAsGarbage();

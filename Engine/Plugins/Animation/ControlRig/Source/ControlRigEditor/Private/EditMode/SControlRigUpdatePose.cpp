@@ -52,6 +52,7 @@ class SControlRigUpdatePoseDialog : public SCompoundWidget
 						.ContentPadding(FMargin(10, 5))
 						.Text(NSLOCTEXT("ControlRig", "Yes", "Yes"))
 						.OnClicked(this, &SControlRigUpdatePoseDialog::UpdatePose)
+						.IsEnabled(this, &SControlRigUpdatePoseDialog::CanUpdatePose)
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -74,16 +75,38 @@ class SControlRigUpdatePoseDialog : public SCompoundWidget
 
 private:
 
+	bool CanUpdatePose() const
+	{
+		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+		if (PoseAsset.IsValid() && ControlRigEditMode)
+		{
+			TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
+			ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
+		}
+		return false;
+
+	}
 	FReply UpdatePose()
 	{
 		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared());
 
 		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-		if (PoseAsset.IsValid() && ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+		if (PoseAsset.IsValid() && ControlRigEditMode)
 		{
-			const FScopedTransaction Transaction(NSLOCTEXT("ControlRig", "UpdatePose", "Update Pose"));
-			PoseAsset->Modify();
-			PoseAsset->SavePose(ControlRigEditMode->GetControlRig(true), false);
+			TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
+			ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
+			if (AllSelectedControls.Num() == 1)
+			{
+				TArray<UControlRig*> ControlRigs;
+				AllSelectedControls.GenerateKeyArray(ControlRigs);
+				const FScopedTransaction Transaction(NSLOCTEXT("ControlRig", "UpdatePose", "Update Pose"));
+				PoseAsset->Modify();
+				PoseAsset->SavePose(ControlRigs[0], false);
+			}
+			else
+			{
+
+			}
 		}
 		if (Window.IsValid())
 		{

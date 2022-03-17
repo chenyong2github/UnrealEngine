@@ -11,13 +11,48 @@
 #include "ControlRig.h"
 #include "Rigs/RigHierarchy.h"
 #include "SRigHierarchyTreeView.h"
+#include "Widgets/SBoxPanel.h"
 
 
 class ISequencer;
 class SExpandableArea;
 class SSearchableRigHierarchyTreeView;
+class UControlRig;
 
-class SControlRigOutliner: public SCompoundWidget, public FControlRigBaseDockableView
+class SControlRigOutlinerItem : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SControlRigOutlinerItem){}
+	SLATE_ARGUMENT(UControlRig*, ControlRig)
+	SLATE_END_ARGS()
+	SControlRigOutlinerItem();
+	~SControlRigOutlinerItem();
+
+	void Construct(const FArguments& InArgs);
+private:
+	void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected);
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	void NewControlRigSet(UControlRig* ControlRig);
+
+	const URigHierarchy* GetHierarchy() const;
+	void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
+
+	//visibility button
+	const FSlateBrush* GetVisibilityBrushForElement() const;
+	FReply OnToggleVisibility();
+	bool VisibilityToggleEnabled() const;
+
+
+	/** Hierarchy picker for controls*/
+	TSharedPtr<SSearchableRigHierarchyTreeView> HierarchyTreeView;
+	FRigTreeDisplaySettings DisplaySettings;
+	const FRigTreeDisplaySettings& GetDisplaySettings() const { return DisplaySettings; }
+	bool bIsChangingRigHierarchy = false;
+	TSharedPtr<SExpandableArea> PickerExpander;
+
+	TWeakObjectPtr<UControlRig> CurrentControlRig;
+};
+
+class SControlRigOutliner: public SCompoundWidget
 {
 
 	SLATE_BEGIN_ARGS(SControlRigOutliner)
@@ -26,20 +61,13 @@ class SControlRigOutliner: public SCompoundWidget, public FControlRigBaseDockabl
 	~SControlRigOutliner();
 
 	void Construct(const FArguments& InArgs, FControlRigEditMode& InEditMode);
+	void SetEditMode(FControlRigEditMode& InEditMode);
 
 private:
-	virtual void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected) override;
-	virtual void HandleControlAdded(UControlRig* ControlRig, bool bIsAdded) override;
-	virtual void NewControlRigSet(UControlRig* ControlRig) override;
+	void HandleControlAdded(UControlRig* ControlRig, bool bIsAdded);
+	void Rebuild();
+	TSharedPtr<SVerticalBox> MainBoxPtr;
+	FEditorModeTools* ModeTools = nullptr;
 
-	const URigHierarchy* GetHierarchy() const;
-	void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
-
-	/** Hierarchy picker for controls*/
-	TSharedPtr<SSearchableRigHierarchyTreeView> HierarchyTreeView;
-	FRigTreeDisplaySettings DisplaySettings;
-	const FRigTreeDisplaySettings& GetDisplaySettings() const { return DisplaySettings; }
-	bool bIsChangingRigHierarchy = false;
-	TSharedPtr<SExpandableArea> PickerExpander;
 };
 

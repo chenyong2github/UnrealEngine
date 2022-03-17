@@ -34,7 +34,7 @@ class SControlRigTweenWidget : public SCompoundWidget
 
 private:
 
-	UControlRig* GetControlRig();
+	TArray<UControlRig*> GetControlRigs();
 
 	/*
 	* Delegates and Helpers

@@ -723,6 +723,10 @@ private:
 	UPROPERTY(transient)
 	bool bIsInDebugMode;
 
+	/** Whether controls are visible */
+	UPROPERTY(transient)
+	bool bControlsVisible;
+
 #endif
 
 	float DebugBoneRadiusMultiplier;
@@ -749,6 +753,10 @@ public:
 
 	/** Creates the snapshot VM if required and returns it */
 	URigVM* GetSnapshotVM(bool bCreateIfNeeded = true);
+
+	void ToggleControlsVisible() { bControlsVisible = !bControlsVisible; }
+	void SetControlsVisible(const bool bIsVisible) { bControlsVisible = bIsVisible; }
+	bool GetControlsVisible()const { return bControlsVisible;}
 #endif	
 
 private:

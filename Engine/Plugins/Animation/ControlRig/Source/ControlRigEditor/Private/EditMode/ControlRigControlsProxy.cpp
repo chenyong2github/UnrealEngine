@@ -100,20 +100,6 @@ void UControlRigControlsProxy::SelectionChanged(bool bInSelected)
 	}
 }
 
-void UControlRigControlsProxy::CheckEditModeOnSelectionChange(UControlRig *InControlRig)
-{
-#if WITH_EDITOR
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-	if (ControlRigEditMode)
-	{
-		if (ControlRigEditMode->GetControlRig(false) != InControlRig)
-		{
-			ControlRigEditMode->SetObjects(InControlRig, nullptr, nullptr);
-		}
-	}
-#endif
-}
-
 void UControlRigControlsProxy::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -122,10 +108,6 @@ void UControlRigControlsProxy::PostEditChangeProperty(struct FPropertyChangedEve
 		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
-			if (bSelected)
-			{
-				CheckEditModeOnSelectionChange(ControlRig.Get());
-			}
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
 			ControlRig->SelectControl(ControlName, bSelected);
 			ControlRig->Evaluate_AnyThread();
@@ -139,10 +121,6 @@ void UControlRigControlsProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 	}
 }
@@ -196,10 +174,6 @@ void UControlRigTransformControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		FTransform RealTransform = Transform; //Transform is FEulerTransform
 		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::Never,false);
@@ -254,10 +228,6 @@ void UControlRigTransformNoScaleControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ControlName, Transform, true, EControlRigSetKey::Never,false);
 	}
@@ -313,10 +283,6 @@ void UControlRigEulerTransformControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Transform, true, EControlRigSetKey::Never,false);
 	}
@@ -368,10 +334,6 @@ void UControlRigFloatControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<float>(ControlName, Float, true, EControlRigSetKey::Never,false);
 	}
@@ -423,10 +385,6 @@ void UControlRigIntegerControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<int32>(ControlName, Integer, true, EControlRigSetKey::Never,false);
 	}
@@ -482,10 +440,6 @@ void UControlRigEnumControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<int32>(ControlName, Enum.EnumIndex, true, EControlRigSetKey::Never,false);
 	}
@@ -538,10 +492,6 @@ void UControlRigVectorControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Vector, true, EControlRigSetKey::Never,false);
 	}
@@ -596,10 +546,6 @@ void UControlRigVector2DControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FVector3f>(ControlName, FVector3f(Vector2D.X, Vector2D.Y, 0.f), true, EControlRigSetKey::Never,false);
 	}
@@ -652,10 +598,6 @@ void UControlRigBoolControlProxy::PostEditUndo()
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
-		if (bSelected)
-		{
-			CheckEditModeOnSelectionChange(ControlRig.Get());
-		}
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<bool>(ControlName, Bool, true, EControlRigSetKey::Never,false);
 	}
@@ -675,19 +617,23 @@ void UControlRigBoolControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHan
 
 //////UControlDetailPanelControlProxies////////
 
-UControlRigControlsProxy* UControlRigDetailPanelControlProxies::FindProxy(const FName& Name) const
+UControlRigControlsProxy* UControlRigDetailPanelControlProxies::FindProxy(UControlRig* ControlRig, const FName& Name) const
 {
-	TObjectPtr<UControlRigControlsProxy> const* Proxy = AllProxies.Find(Name);
-	if (Proxy &&  Proxy[0])
+	const FControlToProxyMap* ControlRigProxies = AllProxies.Find(ControlRig);
+	if (ControlRigProxies)
 	{
-		return Proxy[0];
+		TObjectPtr<UControlRigControlsProxy> const* Proxy = ControlRigProxies->ControlToProxy.Find(Name);
+		if (Proxy && Proxy[0])
+		{
+			return Proxy[0];
+		}
 	}
 	return nullptr;
 }
 
-void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlRig* ControlRig, FRigControlElement* ControlElement)
+void UControlRigDetailPanelControlProxies::AddProxy(UControlRig* ControlRig, const FName& Name,  FRigControlElement* ControlElement)
 {
-	UControlRigControlsProxy* Proxy = FindProxy(Name);
+	UControlRigControlsProxy* Proxy = FindProxy(ControlRig,Name);
 	if (!Proxy && ControlElement != nullptr)
 	{
 		switch(ControlElement->Settings.ControlType)
@@ -774,54 +720,94 @@ void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlR
 			Proxy->SetName(Name);
 			Proxy->ControlRig = ControlRig;
 			Proxy->ValueChanged();
-			AllProxies.Add(Name, Proxy);
-		}
 
+			FControlToProxyMap* ControlRigProxies = AllProxies.Find(ControlRig);
+			if (ControlRigProxies)
+			{
+				ControlRigProxies->ControlToProxy.Add(Name, Proxy);
+			}
+			else
+			{
+				FControlToProxyMap NewControlRigProxies;
+				NewControlRigProxies.ControlToProxy.Add(Name, Proxy);
+				AllProxies.Add(ControlRig, NewControlRigProxies);
+			}
+		}
 	}
 }
 
-void UControlRigDetailPanelControlProxies::RemoveProxy(const FName& Name)
+void UControlRigDetailPanelControlProxies::RemoveProxy(UControlRig* ControlRig, const FName& Name)
 {
-	UControlRigControlsProxy* ExistingProxy = FindProxy(Name);
+	UControlRigControlsProxy* ExistingProxy = FindProxy(ControlRig,Name);
 	if (ExistingProxy)
 	{
 		ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
 		ExistingProxy->MarkAsGarbage();
 	}
-	AllProxies.Remove(Name);
+	FControlToProxyMap* ControlRigProxies = AllProxies.Find(ControlRig);
+	if (ControlRigProxies)
+	{
+		ControlRigProxies->ControlToProxy.Remove(Name);
+	}
 }
 
-void UControlRigDetailPanelControlProxies::RemoveAllProxies()
+void UControlRigDetailPanelControlProxies::RemoveAllProxies(UControlRig* ControlRig)
 {
-	for (TPair<FName, TObjectPtr<UControlRigControlsProxy> >Pair : AllProxies)
+	//no control rig remove all
+	if (ControlRig == nullptr)
 	{
-		UControlRigControlsProxy* ExistingProxy = Pair.Value;
-		if (ExistingProxy)
+		for (TPair<UControlRig*, FControlToProxyMap>& ControlRigProxies : AllProxies)
 		{
-			ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-			ExistingProxy->MarkAsGarbage();
+			for (TPair<FName, TObjectPtr<UControlRigControlsProxy> >& Pair : ControlRigProxies.Value.ControlToProxy)
+			{
+				UControlRigControlsProxy* ExistingProxy = Pair.Value;
+				if (ExistingProxy)
+				{
+					ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
+					ExistingProxy->MarkAsGarbage();
+				}
+			}
+		}
+		AllProxies.Empty();
+		SelectedProxies.SetNum(0);
+	}
+	else
+	{
+		FControlToProxyMap* ControlRigProxies = AllProxies.Find(ControlRig);
+		if (ControlRigProxies)
+		{
+			for (TPair<FName, TObjectPtr<UControlRigControlsProxy>>& Pair : ControlRigProxies->ControlToProxy)
+			{
+				UControlRigControlsProxy* ExistingProxy = Pair.Value;
+				if (ExistingProxy)
+				{
+					SelectedProxies.Remove(ExistingProxy);
+					ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
+					ExistingProxy->MarkAsGarbage();
+				}
+			}
+
+			AllProxies.Remove(ControlRig);
 		}
 	}
-	AllProxies.Empty();
-	SelectedProxies.SetNum(0);
 }
 
-void UControlRigDetailPanelControlProxies::RecreateAllProxies(UControlRig* InControlRig)
+void UControlRigDetailPanelControlProxies::RecreateAllProxies(UControlRig* ControlRig)
 {
-	RemoveAllProxies();
-	TArray<FRigControlElement*> Controls = InControlRig->AvailableControls();
+	RemoveAllProxies(ControlRig);
+	TArray<FRigControlElement*> Controls = ControlRig->AvailableControls();
 	for (FRigControlElement* ControlElement : Controls)
 	{
 		if(ControlElement->Settings.bShapeEnabled && ControlElement->Settings.bAnimatable)
 		{
-			AddProxy(ControlElement->GetName(), InControlRig, ControlElement);
+			AddProxy(ControlRig,ControlElement->GetName(), ControlElement);
 		}
 	}
 }
 
-void UControlRigDetailPanelControlProxies::ProxyChanged(const FName& Name)
+void UControlRigDetailPanelControlProxies::ProxyChanged(UControlRig* ControlRig, const FName& Name)
 {
-	UControlRigControlsProxy* Proxy = FindProxy(Name);
+	UControlRigControlsProxy* Proxy = FindProxy(ControlRig,Name);
 	if (Proxy)
 	{
 		Modify();
@@ -829,9 +815,9 @@ void UControlRigDetailPanelControlProxies::ProxyChanged(const FName& Name)
 	}
 }
 
-void UControlRigDetailPanelControlProxies::SelectProxy(const FName& Name, bool bSelected)
+void UControlRigDetailPanelControlProxies::SelectProxy(UControlRig* ControlRig,const FName& Name, bool bSelected)
 {
-	UControlRigControlsProxy* Proxy = FindProxy(Name);
+	UControlRigControlsProxy* Proxy = FindProxy(ControlRig,Name);
 	if (Proxy)
 	{
 		Modify();

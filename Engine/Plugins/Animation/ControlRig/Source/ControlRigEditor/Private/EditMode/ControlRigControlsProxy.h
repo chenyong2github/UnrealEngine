@@ -53,7 +53,6 @@ public:
 protected:
 	bool bIsMultiple = 0;
 	FName Name;
-	void CheckEditModeOnSelectionChange(UControlRig* InControlRig);
 };
 
 UCLASS()
@@ -298,7 +297,14 @@ public:
 	bool Bool;
 };
 
+USTRUCT()
+struct FControlToProxyMap
+{
+	GENERATED_BODY();
 
+	UPROPERTY()
+	TMap <FName, TObjectPtr<UControlRigControlsProxy>> ControlToProxy;
+};
 /** Proxy in Details Panel */
 UCLASS()
 class UControlRigDetailPanelControlProxies :public UObject
@@ -309,20 +315,20 @@ class UControlRigDetailPanelControlProxies :public UObject
 protected:
 
 	UPROPERTY()
-	TMap<FName, TObjectPtr<UControlRigControlsProxy>> AllProxies;
+	TMap<UControlRig*, FControlToProxyMap> AllProxies; //proxies themselves contain weakobjectptr to the controlrig
 
 	UPROPERTY()
 	TArray< TObjectPtr<UControlRigControlsProxy>> SelectedProxies;
 
 
 public:
-	UControlRigControlsProxy* FindProxy(const FName& Name) const;
-	void AddProxy(const FName& Name, UControlRig* InControlRig, FRigControlElement* ControlElement);
-	void RemoveProxy(const FName& Name );
-	void ProxyChanged(const FName& Name);
-	void RemoveAllProxies();
+	UControlRigControlsProxy* FindProxy(UControlRig* InControlRig, const FName& Name) const;
+	void AddProxy(UControlRig* InControlRig, const FName& Name,  FRigControlElement* ControlElement);
+	void RemoveProxy(UControlRig* InControlRig, const FName& Name );
+	void ProxyChanged(UControlRig* InControlRig, const FName& Name);
+	void RemoveAllProxies(UControlRig* InControlRig);
 	void RecreateAllProxies(UControlRig* InControlRig);
-	void SelectProxy(const FName& Name, bool bSelected);
+	void SelectProxy(UControlRig* InControlRig, const FName& Name, bool bSelected);
 	const TArray<UControlRigControlsProxy*>& GetSelectedProxies() const { return SelectedProxies;}
 
 };

@@ -31,7 +31,7 @@ class SControlRigSnapper : public SCompoundWidget
 
 private:
 
-	UControlRig* GetControlRig() const;
+	void GetControlRigs(TArray<UControlRig*>& OutControlRigs) const;
 
 	/*
 	* Delegates and Helpers

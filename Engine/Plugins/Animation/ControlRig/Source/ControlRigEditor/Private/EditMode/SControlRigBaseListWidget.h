@@ -54,7 +54,6 @@ public:
 	~SControlRigBaseListWidget();
 
 	FControlRigEditMode* GetEditMode();
-	UControlRig* GetControlRig(); 
 
 	/*Notification that filter has changed, this includes new folder selected*/
 	void FilterChanged();

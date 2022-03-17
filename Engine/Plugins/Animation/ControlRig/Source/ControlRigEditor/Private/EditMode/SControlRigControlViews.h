@@ -43,8 +43,6 @@ class SControlRigPoseView : public SCompoundWidget, public FNotifyHook
 private:
 	void UpdateStatusBlocks();
 
-	UControlRig* GetControlRig();
-
 	/*
 	* Delegates and Helpers
 	*/
@@ -63,6 +61,7 @@ private:
 	FReply OnCaptureThumbnail();
 	void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected);
 	void HandleControlAdded(UControlRig* ControlRig, bool bIsAdded);
+	TArray<UControlRig*> GetControlRigs();
 
 	static bool bIsKey;
 	static bool bIsMirror;
@@ -74,7 +73,7 @@ private:
 	TSharedRef<SWidget> GetThumbnailWidget();
 
 	TWeakObjectPtr<UControlRigPoseAsset> PoseAsset;
-	TWeakObjectPtr<UControlRig> CurrentControlRig;
+	TArray<TWeakObjectPtr<UControlRig>> CurrentControlRigs;
 
 	TSharedPtr<STextBlock> TextStatusBlock1;
 	TSharedPtr<STextBlock> TextStatusBlock2;
@@ -100,6 +99,5 @@ private:
 
 public:
 	static bool IsMirror() { return bIsMirror; }
-	static UControlRig* GetFirstControlRigInLevelSequence(UControlRig* ControlRig);
 };
 

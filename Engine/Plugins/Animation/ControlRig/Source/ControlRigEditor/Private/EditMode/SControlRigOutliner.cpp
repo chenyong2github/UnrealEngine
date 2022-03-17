@@ -31,11 +31,14 @@
 #include "TimerManager.h"
 #include "SRigHierarchyTreeView.h"
 #include "Rigs/RigHierarchyController.h"
+#include "ControlRigObjectBinding.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigOutliner"
 
-void SControlRigOutliner::Construct(const FArguments& InArgs, FControlRigEditMode& InEditMode)
+
+void SControlRigOutlinerItem::Construct(const FArguments& InArgs)
 {
+
 	bIsChangingRigHierarchy = false;
 
 	DisplaySettings.bShowBones = false;
@@ -47,10 +50,28 @@ void SControlRigOutliner::Construct(const FArguments& InArgs, FControlRigEditMod
 	DisplaySettings.bFlattenHierarchyOnFilter = true;
 
 	FRigTreeDelegates RigTreeDelegates;
-	RigTreeDelegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SControlRigOutliner::GetHierarchy);
-	RigTreeDelegates.OnGetDisplaySettings = FOnGetRigTreeDisplaySettings::CreateSP(this, &SControlRigOutliner::GetDisplaySettings);
-	RigTreeDelegates.OnSelectionChanged = FOnRigTreeSelectionChanged::CreateSP(this, &SControlRigOutliner::HandleSelectionChanged);
+	RigTreeDelegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SControlRigOutlinerItem::GetHierarchy);
+	RigTreeDelegates.OnGetDisplaySettings = FOnGetRigTreeDisplaySettings::CreateSP(this, &SControlRigOutlinerItem::GetDisplaySettings);
+	RigTreeDelegates.OnSelectionChanged = FOnRigTreeSelectionChanged::CreateSP(this, &SControlRigOutlinerItem::HandleSelectionChanged);
 
+	FText AreaTitle;
+	if (InArgs._ControlRig)
+	{
+		FString ControlRigName = InArgs._ControlRig->GetName();
+		FString BoundObjectName;
+		if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = InArgs._ControlRig->GetObjectBinding())
+		{
+			if (ObjectBinding->GetBoundObject())
+			{
+				AActor* Actor = ObjectBinding->GetBoundObject()->GetTypedOuter<AActor>();
+				if (Actor)
+				{
+					BoundObjectName = Actor->GetActorLabel();
+				}
+			}
+		}
+		AreaTitle = FText::Format(LOCTEXT("ControlTitle", "{0}  ({1})"), FText::AsCultureInvariant(ControlRigName), FText::AsCultureInvariant((BoundObjectName)));
+	}
 	ChildSlot
 		[
 			SNew(SScrollBox)
@@ -62,43 +83,118 @@ void SControlRigOutliner::Construct(const FArguments& InArgs, FControlRigEditMod
 				[
 					SAssignNew(PickerExpander, SExpandableArea)
 					.InitiallyCollapsed(false)
-					.AreaTitle(LOCTEXT("Picker_Header", "Controls"))
-					.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					//.AreaTitle(AreaTitle)
+					//.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 					.BodyContent()
 					[
 						SAssignNew(HierarchyTreeView, SSearchableRigHierarchyTreeView)
 						.RigTreeDelegates(RigTreeDelegates)
 					]
+					.HeaderContent()
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							[
+								SNew(SButton)
+								.ContentPadding(2)
+								.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+								.OnClicked(this, &SControlRigOutlinerItem::OnToggleVisibility)
+								.ToolTipText(LOCTEXT("ControlRigShapesVisibility", "Control Rig Shapes Visibility"))
+								.IsEnabled(this, &SControlRigOutlinerItem::VisibilityToggleEnabled)
+								.HAlign(HAlign_Center)
+								.VAlign(VAlign_Center)
+								.Content()
+								[
+									SNew(SImage)
+									.Image(this, &SControlRigOutlinerItem::GetVisibilityBrushForElement)
+								]
+							]
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+								.Text(AreaTitle)
+								.Justification(ETextJustify::Left)
+								//.TextStyle(FSourceFilterStyle::Get(), "SourceFilter.TextStyle")
+							]
+						]
 				]
 		
 			]
 		];
+	NewControlRigSet(InArgs._ControlRig);
+}
 
-	SetEditMode(InEditMode);
+FReply SControlRigOutlinerItem::OnToggleVisibility()
+{
+	if (UControlRig *ControlRig  = CurrentControlRig.Get())
+	{
+		ControlRig->ToggleControlsVisible();
+	}
+	return FReply::Handled();
+}
+
+bool SControlRigOutlinerItem::VisibilityToggleEnabled() const
+{
+	return CurrentControlRig.IsValid();
+}
+
+const FSlateBrush* SControlRigOutlinerItem::GetVisibilityBrushForElement() const
+{
+	if (UControlRig* ControlRig = CurrentControlRig.Get())
+	{
+		if (ControlRig->GetControlsVisible())
+		{
+			return IsHovered() ? FEditorStyle::GetBrush("Level.VisibleHighlightIcon16x") :
+				FEditorStyle::GetBrush("Level.VisibleIcon16x");
+		}
+	}
+	return IsHovered() ? FEditorStyle::GetBrush("Level.NotVisibleHighlightIcon16x") :
+		FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
+}
+
+void SControlRigOutlinerItem::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	if (CurrentControlRig.IsValid())
+	{
+		UObject* OldObject = CurrentControlRig.Get();
+		UObject* NewObject = OldToNewInstanceMap.FindRef(OldObject);
+		if (NewObject)
+		{
+			if (UControlRig* ControlRig = Cast<UControlRig>(NewObject))
+			{
+				NewControlRigSet(ControlRig);
+			}
+		}
+	}
+}
+
+void SControlRigOutlinerItem::NewControlRigSet(UControlRig* ControlRig)
+{
+	if (CurrentControlRig.IsValid())
+	{
+		(CurrentControlRig.Get())->ControlSelected().RemoveAll(this);
+	}
+	CurrentControlRig = ControlRig;
+	if (ControlRig)
+	{
+		ControlRig->ControlSelected().RemoveAll(this);
+		ControlRig->ControlSelected().AddRaw(this, &SControlRigOutlinerItem::HandleControlSelected);
+	}
 	HierarchyTreeView->GetTreeView()->RefreshTreeView(true);
 }
 
-SControlRigOutliner::~SControlRigOutliner()
+SControlRigOutlinerItem::SControlRigOutlinerItem()
 {
-	//base class handles control rig related cleanup
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &SControlRigOutlinerItem::OnObjectsReplaced);
 }
 
-
-void SControlRigOutliner::HandleControlAdded(UControlRig* ControlRig, bool bIsAdded)
+void SControlRigOutlinerItem::HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
-	FControlRigBaseDockableView::HandleControlAdded(ControlRig, bIsAdded);
-	HierarchyTreeView->GetTreeView()->RefreshTreeView(true);
-}
-
-void SControlRigOutliner::NewControlRigSet(UControlRig* ControlRig)
-{
-	FControlRigBaseDockableView::NewControlRigSet(ControlRig);
-	HierarchyTreeView->GetTreeView()->RefreshTreeView(true);
-}
-void SControlRigOutliner::HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
-{
-	FControlRigBaseDockableView::HandleControlSelected(Subject, ControlElement, bSelected);
 	const FRigElementKey Key = ControlElement->GetKey();
 	for (int32 RootIndex = 0; RootIndex < HierarchyTreeView->GetTreeView()->GetRootElements().Num(); ++RootIndex)
 	{
@@ -121,7 +217,7 @@ void SControlRigOutliner::HandleControlSelected(UControlRig* Subject, FRigContro
 	}
 }
 
-const URigHierarchy* SControlRigOutliner::GetHierarchy() const
+const URigHierarchy* SControlRigOutlinerItem::GetHierarchy() const
 {
 	if (CurrentControlRig.IsValid())
 	{
@@ -130,7 +226,7 @@ const URigHierarchy* SControlRigOutliner::GetHierarchy() const
 	return nullptr;
 }
 
-void SControlRigOutliner::HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
+void SControlRigOutlinerItem::HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
 {
 	if (bIsChangingRigHierarchy)
 	{
@@ -151,6 +247,76 @@ void SControlRigOutliner::HandleSelectionChanged(TSharedPtr<FRigTreeElement> Sel
 			return;
 		}
 	}
+}
+
+SControlRigOutlinerItem::~SControlRigOutlinerItem()
+{
+	if (CurrentControlRig.IsValid())
+	{
+		(CurrentControlRig.Get())->ControlSelected().RemoveAll(this);
+	}
+	CurrentControlRig = nullptr;
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+}
+
+void SControlRigOutliner::SetEditMode(FControlRigEditMode& InEditMode)
+{
+	ModeTools = InEditMode.GetModeManager();
+	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
+	{
+		EditMode->OnControlRigAddedOrRemoved().AddRaw(this, &SControlRigOutliner::HandleControlAdded);
+	}
+}
+void SControlRigOutliner::Construct(const FArguments& InArgs, FControlRigEditMode& InEditMode)
+{
+	ChildSlot
+		[
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+			[
+				SAssignNew(MainBoxPtr, SVerticalBox)
+			]
+		];
+
+	SetEditMode(InEditMode);
+	Rebuild();
+}
+
+SControlRigOutliner::~SControlRigOutliner()
+{
+	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
+	{
+		EditMode->OnControlRigAddedOrRemoved().RemoveAll(this);
+	}
+	//base class handles control rig related cleanup
+}
+
+
+void SControlRigOutliner::HandleControlAdded(UControlRig* ControlRig, bool bIsAdded)
+{
+	Rebuild();
+
+}
+void SControlRigOutliner::Rebuild()
+{
+	MainBoxPtr->ClearChildren();
+	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
+	{
+		TArray<UControlRig*> ControlRigs = EditMode->GetControlRigsArray(false /*bIsVisible*/);
+		for (UControlRig* ControlRig : ControlRigs)
+		{
+			if (ControlRig)
+			{
+				MainBoxPtr->AddSlot()
+				.AutoHeight()
+				[
+					SNew(SControlRigOutlinerItem)
+					.ControlRig(ControlRig)
+				];
+			}
+		}
+	}
+
 }
 
 

@@ -49,7 +49,7 @@ public:
 	void SetSequencer(TWeakPtr<ISequencer> InSequencer);
 
 	/** Set The Control Rig we are using*/
-	void SetControlRig(UControlRig* ControlRig);
+	void SetControlRigs(const TArrayView<TWeakObjectPtr<UControlRig>>& InControlRigs);
 
 	/** Returns the hierarchy currently being used */
 	const URigHierarchy* GetHierarchy() const;
@@ -88,9 +88,8 @@ private:
 	TSharedPtr<SExpandableArea> PickerExpander;
 	TSharedPtr<SRigSpacePickerWidget> SpacePickerWidget;
 
-	/** Storage for both sequencer and viewport rigs */
-	TWeakObjectPtr<UControlRig> SequencerRig;
-	TWeakObjectPtr<UControlRig> ViewportRig;
+	/** Storage for control rigs */
+	TArray<TWeakObjectPtr<UControlRig>> ControlRigs;
 
 	/** Display or edit set up for property */
 	bool ShouldShowPropertyOnDetailCustomization(const struct FPropertyAndParent& InPropertyAndParent) const;

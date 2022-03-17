@@ -35,9 +35,13 @@ FControlRigBaseDockableView::~FControlRigBaseDockableView()
 	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 	{
 		EditMode->OnControlRigAddedOrRemoved().RemoveAll(this);
-		if (EditMode->GetControlRig(true))
+		TArrayView<TWeakObjectPtr<UControlRig>> Controls = EditMode->GetControlRigs();
+		for (TWeakObjectPtr<UControlRig>& ControlRigPtr : Controls)
 		{
-			EditMode->GetControlRig(true)->ControlSelected().RemoveAll(this);
+			if (UControlRig* ControlRig = ControlRigPtr.Get())
+			{
+				ControlRig->ControlSelected().RemoveAll(this);
+			}
 		}
 	}
 	else
@@ -58,7 +62,16 @@ UControlRig* FControlRigBaseDockableView::GetControlRig()
 	UControlRig* NewControlRig = nullptr;
 	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 	{
-		NewControlRig = EditMode->GetControlRig(true);
+		//just get first one, should only be one for control rig editor
+		TArrayView<TWeakObjectPtr<UControlRig>> Controls = EditMode->GetControlRigs();
+		for (TWeakObjectPtr<UControlRig>& ControlRigPtr : Controls)
+		{
+			if (UControlRig* ControlRig = ControlRigPtr.Get())
+			{
+				NewControlRig = ControlRig;
+				break;
+			}
+		}
 	}
 	bool bNewControlRig = NewControlRig != CurrentControlRig;
 	if (bNewControlRig)

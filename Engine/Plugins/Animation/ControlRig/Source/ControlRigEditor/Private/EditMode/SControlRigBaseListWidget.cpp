@@ -417,15 +417,16 @@ void SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog(FControlRigA
 	{
 		return;
 	}
+
+	TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
+	ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
 	
-	UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true);
-	if (!ControlRig)
+	if (AllSelectedControls.Num() > 1)
 	{
 		return;
 	}
 
-	TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
-	if (SelectedControls.Num() <= 0)
+	if (AllSelectedControls.Num() <= 0)
 	{
 		FText ConfirmDelete = LOCTEXT("ConfirmNoSelectedControls", "You are saving a Pose with no selected Controls - are you sure?");
 
@@ -447,26 +448,34 @@ void SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog(FControlRigA
 			FString Path = OwningControlRigWidget->GetCurrentlySelectedPath();
 
 			FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-			if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
-			{	
-				UObject* NewAsset = nullptr;
-				switch (Type)
+			if (ControlRigEditMode )
+			{
+				TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
+				ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
+				if (AllSelectedControls.Num() == 1)
 				{
-				case FControlRigAssetType::ControlRigPose:
-					NewAsset = FControlRigToolAsset::SaveAsset<UControlRigPoseAsset>(ControlRigEditMode->GetControlRig(true), Path, AssetName, bSelectAll);
+					TArray<UControlRig*> ControlRigs;
+					AllSelectedControls.GenerateKeyArray(ControlRigs);
+					UControlRig* ControlRig =ControlRigs[0];
+					UObject* NewAsset = nullptr;
+					switch (Type)
+					{
+					case FControlRigAssetType::ControlRigPose:
+						NewAsset = FControlRigToolAsset::SaveAsset<UControlRigPoseAsset>(ControlRig, Path, AssetName, bSelectAll);
 
-					break;
-				case FControlRigAssetType::ControlRigAnimation:
-					break;
-				case FControlRigAssetType::ControlRigSelectionSet:
-					break;
-				default:
-					break;
-				};
-				if (NewAsset)
-				{
-					FControlRigView::CaptureThumbnail(NewAsset);
-					OwningControlRigWidget->SelectThisAsset(NewAsset);
+						break;
+					case FControlRigAssetType::ControlRigAnimation:
+						break;
+					case FControlRigAssetType::ControlRigSelectionSet:
+						break;
+					default:
+						break;
+					};
+					if (NewAsset)
+					{
+						FControlRigView::CaptureThumbnail(NewAsset);
+						OwningControlRigWidget->SelectThisAsset(NewAsset);
+					}
 				}
 			}
 		}
@@ -483,8 +492,10 @@ bool SControlRigPoseAnimSelectionToolbar::CanExecuteMakeControlRigAsset()
 		return false;
 	}
 	
-	UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true);
-	if (!ControlRig)
+	TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
+	ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
+
+	if (AllSelectedControls.Num() != 1)
 	{
 		return false;
 	}
@@ -828,14 +839,6 @@ void SControlRigBaseListWidget::NotifyUser(FNotificationInfo& NotificationInfo)
 	}
 }
 
-UControlRig* SControlRigBaseListWidget::GetControlRig()
-{
-	if (FControlRigEditMode* EditMode = GetEditMode())
-	{
-		return EditMode->GetControlRig(true);
-	}
-	return nullptr;
-}
 FControlRigEditMode* SControlRigBaseListWidget::GetEditMode()
 {
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
@@ -958,10 +961,19 @@ void SControlRigBaseListWidget::OnAssetsActivated(const TArray<FAssetData>& Sele
 				// If alt is down, select controls
 				if (FSlateApplication::Get().GetModifierKeys().IsAltDown())
 				{
-					UControlRig* ControlRig = SControlRigPoseView::GetFirstControlRigInLevelSequence(GetControlRig());
-					if (ControlRig)
+					FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+					if (ControlRigEditMode)
 					{
-						PoseAsset->SelectControls(ControlRig, SControlRigPoseView::IsMirror());
+						TArray<UControlRig*> ControlRigs = ControlRigEditMode->GetControlRigsArray(true /*bIsVisible*/);
+						if (ControlRigs.Num() > 0)
+						{
+							const FScopedTransaction Transaction(LOCTEXT("SelectControls", "Select Controls"));
+							for (UControlRig* ControlRig : ControlRigs)
+							{
+								ControlRig->Modify();
+								PoseAsset->SelectControls(ControlRig, SControlRigPoseView::IsMirror());
+							}
+						}
 					}
 				}
 			}
@@ -1328,11 +1340,18 @@ void SControlRigBaseListWidget::ExecutePastePose(UControlRigPoseAsset* PoseAsset
 	if (PoseAsset)
 	{
 		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-		if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+		if (ControlRigEditMode)
 		{
-			const FScopedTransaction Transaction(LOCTEXT("PastePose", "Paste Pose"));
-			ControlRigEditMode->GetControlRig(true)->Modify();
-			PoseAsset->PastePose(ControlRigEditMode->GetControlRig(true));
+			TArray<UControlRig*> ControlRigs = ControlRigEditMode->GetControlRigsArray(true /*bIsVisible*/);
+			if (ControlRigs.Num() > 0)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("PastePose", "Paste Pose"));
+				for (UControlRig* ControlRig : ControlRigs)
+				{
+					ControlRig->Modify();
+					PoseAsset->PastePose(ControlRig);
+				}
+			}
 		}
 	}
 }
@@ -1350,24 +1369,32 @@ void SControlRigBaseListWidget::ExecuteUpdatePose(UControlRigPoseAsset* PoseAsse
 void SControlRigBaseListWidget::ExecuteSelectControls(UControlRigPoseAsset* PoseAsset)
 {
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+	if (ControlRigEditMode)
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SelectControls", "Select Controls"));
-		ControlRigEditMode->GetControlRig(true)->Modify();
-		PoseAsset->SelectControls(ControlRigEditMode->GetControlRig(true));
+		TArray<UControlRig*> ControlRigs = ControlRigEditMode->GetControlRigsArray(true /*bIsVisible*/);
+		if (ControlRigs.Num() > 0)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("SelectControls", "Select Controls"));
+			for (UControlRig* ControlRig : ControlRigs)
+			{
+				ControlRig->Modify();
+				PoseAsset->SelectControls(ControlRig);
+			}
+		}
 	}
 	else
 	{
 		ULevelSequence *LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
 		if (LevelSequence)
 		{
+			const FScopedTransaction Transaction(LOCTEXT("SelectControls", "Select Controls"));
 			TArray<FControlRigSequencerBindingProxy> Proxies = UControlRigSequencerEditorLibrary::GetControlRigs(LevelSequence);
-			if (Proxies.Num() > 0)
+			for (FControlRigSequencerBindingProxy& Proxy: Proxies)
 			{
-				//MZ TODO when we have Mutliple Control Rig's active select more than one.
-				if (Proxies[0].ControlRig)
+				if (Proxy.ControlRig)
 				{
-					PoseAsset->SelectControls(Proxies[0].ControlRig);
+					Proxy.ControlRig->Modify();
+					PoseAsset->SelectControls(Proxy.ControlRig);
 				}
 			}
 		}
@@ -1379,11 +1406,18 @@ void SControlRigBaseListWidget::ExecutePasteMirrorPose(UControlRigPoseAsset* Pos
 	if (PoseAsset)
 	{
 		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-		if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+		if (ControlRigEditMode)
 		{
-			const FScopedTransaction Transaction(LOCTEXT("PasteMirrorPose", "Paste Mirror Pose"));
-			ControlRigEditMode->GetControlRig(true)->Modify();
-			PoseAsset->PastePose(ControlRigEditMode->GetControlRig(true), false, true);
+			TArray<UControlRig*> ControlRigs = ControlRigEditMode->GetControlRigsArray(true /*bIsVisible*/);
+			if (ControlRigs.Num() > 0)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("PasteMirrorPose", "Paste Mirror Pose"));
+				for (UControlRig* ControlRig : ControlRigs)
+				{
+					ControlRig->Modify();
+					PoseAsset->PastePose(ControlRig, false, true);
+				}
+			}
 		}
 	}
 }
