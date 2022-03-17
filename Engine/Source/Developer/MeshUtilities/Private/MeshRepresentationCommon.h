@@ -83,6 +83,7 @@ class FEmbreeScene
 public:
 	bool bUseEmbree = false;
 	int32 NumIndices = 0;
+	bool bMostlyTwoSided = false;
 
 	// Embree
 	RTCDevice EmbreeDevice = nullptr;

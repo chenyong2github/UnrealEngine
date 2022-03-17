@@ -305,6 +305,29 @@ void MeshRepresentation::SetupEmbreeScene(
 	{
 		EmbreeScene.kDopTree.Build(BuildTriangles);
 	}
+
+	// bMostlyTwoSided
+	{
+		uint32 NumTrianglesTotal = 0;
+		uint32 NumTwoSidedTriangles = 0;
+
+		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+		{
+			const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+
+			if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
+			{
+				NumTrianglesTotal += Section.NumTriangles;
+
+				if (MaterialBlendModes[Section.MaterialIndex].bTwoSided)
+				{
+					NumTwoSidedTriangles += Section.NumTriangles;
+				}
+			}
+		}
+
+		EmbreeScene.bMostlyTwoSided = NumTwoSidedTriangles * 4 >= NumTrianglesTotal || bGenerateAsIfTwoSided;
+	}
 }
 
 void MeshRepresentation::DeleteEmbreeScene(FEmbreeScene& EmbreeScene)

@@ -609,7 +609,7 @@ void GenerateSurfelsForDirection(
 	}
 }
 
-void InitClusteringParams(FClusteringParams& ClusteringParams, const FBox& MeshCardsBounds, int32 MaxVoxels, int32 MaxLumenMeshCards, float MinClusterCoverage)
+void InitClusteringParams(FClusteringParams& ClusteringParams, const FBox& MeshCardsBounds, int32 MaxVoxels, int32 MaxLumenMeshCards, int32 LODLevel)
 {
 	const float TargetVoxelSize = 20.0f;
 
@@ -689,8 +689,8 @@ void InitClusteringParams(FClusteringParams& ClusteringParams, const FBox& MeshC
 
 	ClusteringParams.VoxelSize = VoxelSize;
 	ClusteringParams.MaxSurfelDistanceXY = MeshCardRepresentation::GetMaxSurfelDistanceXY();
-	ClusteringParams.MinClusterCoverage = MinClusterCoverage;
-	ClusteringParams.MinDensityPerCluster = MeshCardRepresentation::GetMinDensity();
+	ClusteringParams.MinClusterCoverage = LODLevel == 0 ? 0.5f : 10.0f;
+	ClusteringParams.MinDensityPerCluster = MeshCardRepresentation::GetMinDensity() * (LODLevel == 0 ? 0.1f : 1.0f);
 	ClusteringParams.MaxLumenMeshCards = MaxLumenMeshCards;
 	ClusteringParams.bDebug = MeshCardRepresentation::IsDebugMode();
 	ClusteringParams.bSingleThreadedBuild = CVarCardRepresentationParallelBuild.GetValueOnAnyThread() == 0;
@@ -700,8 +700,6 @@ void InitSurfelScene(
 	const FGenerateCardMeshContext& Context,
 	const FBox& MeshCardsBounds,
 	int32 MaxLumenMeshCards,
-	float MinClusterCoverageLOD0,
-	float MinClusterCoverageLOD1,
 	FSurfelScene& SurfelScene,
 	FClusteringParams& ClusteringParamsLOD0,
 	FClusteringParams& ClusteringParamsLOD1)
@@ -733,8 +731,8 @@ void InitSurfelScene(
 
 	do
 	{
-		InitClusteringParams(ClusteringParamsLOD0, MeshCardsBounds, MaxVoxels, MaxLumenMeshCards, MinClusterCoverageLOD0);
-		InitClusteringParams(ClusteringParamsLOD1, MeshCardsBounds, MaxVoxels, MaxLumenMeshCards, MinClusterCoverageLOD1);
+		InitClusteringParams(ClusteringParamsLOD0, MeshCardsBounds, MaxVoxels, MaxLumenMeshCards, 0);
+		InitClusteringParams(ClusteringParamsLOD1, MeshCardsBounds, MaxVoxels, MaxLumenMeshCards, 1);
 
 		ParallelFor(TEXT("InitSurfelScene.PF"), MeshCardGen::NumAxisAlignedDirections, 1,
 			[&](int32 AxisAlignedDirectionIndex)
@@ -978,7 +976,7 @@ void BuildMeshCardsLOD0(const FBox& MeshBounds, const FGenerateCardMeshContext& 
 			LODLevel.Directions[AxisAlignedDirectionIndex].Clusters.Add(TempCluster);
 		}
 	}
-
+	
 	UpdateLODLevelCoverage(SurfelScene, ClusteringParams, LODLevel);
 }
 
@@ -1369,13 +1367,17 @@ void BuildMeshCards(const FBox& MeshBounds, const FGenerateCardMeshContext& Cont
 	FSurfelScene SurfelScene;
 	FClusteringParams ClusteringParamsLOD0;
 	FClusteringParams ClusteringParamsLOD1;
-	InitSurfelScene(Context, MeshCardsBounds, MaxLumenMeshCards, /*MinClusterCoverageLOD0*/ 0.5f, /*MinClusterCoverageLOD1*/ 10.0f, SurfelScene, ClusteringParamsLOD0, ClusteringParamsLOD1);
+	InitSurfelScene(Context, MeshCardsBounds, MaxLumenMeshCards, SurfelScene, ClusteringParamsLOD0, ClusteringParamsLOD1);
 
 	FMeshCardsLODLevel MeshCardsLOD0;
 	BuildMeshCardsLOD0(MeshBounds, Context, SurfelScene, ClusteringParamsLOD0, MeshCardsLOD0);
 
+	// Assume that two sided is foliage and revert to a simpler and more reliable box projection
 	FMeshCardsLODLevel MeshCardsLOD1;
-	BuildMeshCardsLOD1(MeshBounds, Context, SurfelScene, ClusteringParamsLOD1, MeshCardsLOD1);
+	if (!Context.EmbreeScene.bMostlyTwoSided)
+	{
+		BuildMeshCardsLOD1(MeshBounds, Context, SurfelScene, ClusteringParamsLOD1, MeshCardsLOD1);
+	}
 
 	OutData.MeshCardsBuildData.Bounds = MeshCardsBounds;
 	OutData.MeshCardsBuildData.MaxLODLevel = 0;
