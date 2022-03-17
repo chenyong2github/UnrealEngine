@@ -1,10 +1,11 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 using System.Collections.Generic;
+using Horde.Build.Acls;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Models

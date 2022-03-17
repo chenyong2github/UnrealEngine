@@ -1,9 +1,10 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Redis;
 using Google.Protobuf.WellKnownTypes;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
+using Horde.Build.Acls;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;

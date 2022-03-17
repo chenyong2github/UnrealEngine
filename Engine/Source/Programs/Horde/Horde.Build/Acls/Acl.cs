@@ -1,8 +1,6 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using Horde.Build.Api;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
@@ -13,7 +11,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Security.Claims;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Acls
 {
 	/// <summary>
 	/// Set of actions that can be performed by a user. NOTE: This enum is sensitive to ordering. Do not change values.
@@ -22,10 +20,12 @@ namespace Horde.Build.Models
 	{
 		//// PROJECTS ////
 
-		/// <summary>
-		/// Allows the creation of new projects
-		/// </summary>
-		CreateProject,
+        #region Projects
+
+        /// <summary>
+        /// Allows the creation of new projects
+        /// </summary>
+        CreateProject,
 
 		/// <summary>
 		/// Allows deletion of projects.
@@ -42,15 +42,16 @@ namespace Horde.Build.Models
 		/// </summary>
 		ViewProject,
 
-
-
+        #endregion
 
 		//// STREAMS ////
 
-		/// <summary>
-		/// Allows the creation of new streams within a project
-		/// </summary>
-		CreateStream,
+        #region Streams
+
+        /// <summary>
+        /// Allows the creation of new streams within a project
+        /// </summary>
+        CreateStream,
 
 		/// <summary>
 		/// Allows updating a stream (agent types, templates, schedules)
@@ -82,21 +83,16 @@ namespace Horde.Build.Models
 		/// </summary>
 		ViewCommitQueues,
 
-
-
-
-
-
-
-
-
+        #endregion
 
 		//// JOBS ////
 
-		/// <summary>
-		/// Ability to start new jobs
-		/// </summary>
-		CreateJob,
+        #region Jobs
+
+        /// <summary>
+        /// Ability to start new jobs
+        /// </summary>
+        CreateJob,
 
 		/// <summary>
 		/// Rename a job, modify its priority, etc...
@@ -123,31 +119,32 @@ namespace Horde.Build.Models
 		/// </summary>
 		ViewJob,
 
-
-
-
-
+        #endregion
 
 		//// EVENTS ////
-		
-		/// <summary>
-		/// Ability to create events
-		/// </summary>
-		CreateEvent,
+
+        #region Events
+
+        /// <summary>
+        /// Ability to create events
+        /// </summary>
+        CreateEvent,
 
 		/// <summary>
 		/// Ability to view events
 		/// </summary>
 		ViewEvent,
 
-
+        #endregion
 
 		//// AGENTS ////
 
-		/// <summary>
-		/// Ability to create an agent. This may be done explicitly, or granted to agents to allow them to self-register.
-		/// </summary>
-		CreateAgent,
+        #region Agents
+
+        /// <summary>
+        /// Ability to create an agent. This may be done explicitly, or granted to agents to allow them to self-register.
+        /// </summary>
+        CreateAgent,
 
 		/// <summary>
 		/// Update an agent's name, pools, etc...
@@ -169,15 +166,16 @@ namespace Horde.Build.Models
 		/// </summary>
 		ListAgents,
 
-
-
+        #endregion
 
 		//// POOLS ////
 
-		/// <summary>
-		/// Create a global pool of agents
-		/// </summary>
-		CreatePool,
+        #region Pools
+
+        /// <summary>
+        /// Create a global pool of agents
+        /// </summary>
+        CreatePool,
 
 		/// <summary>
 		/// Modify an agent pool
@@ -199,30 +197,32 @@ namespace Horde.Build.Models
 		/// </summary>
 		ListPools,
 
-
-
+        #endregion
 
 		//// SESSIONS ////
 
-		/// <summary>
-		/// Granted to agents to call CreateSession, which returns a bearer token identifying themselves valid to call UpdateSesssion via gRPC.
-		/// </summary>
-		CreateSession,
+        #region Sessions
+
+        /// <summary>
+        /// Granted to agents to call CreateSession, which returns a bearer token identifying themselves valid to call UpdateSesssion via gRPC.
+        /// </summary>
+        CreateSession,
 
 		/// <summary>
 		/// Allows viewing information about an agent session
 		/// </summary>
 		ViewSession,
 
+        #endregion
 
+        //// CREDENTIALS ////
 
+        #region Credentials
 
-		//// CREDENTIALS ////
-
-		/// <summary>
-		/// Create a new credential
-		/// </summary>
-		CreateCredential,
+        /// <summary>
+        /// Create a new credential
+        /// </summary>
+        CreateCredential,
 
 		/// <summary>
 		/// Delete a credential
@@ -244,29 +244,27 @@ namespace Horde.Build.Models
 		/// </summary>
 		ViewCredential,
 
+        #endregion
 
+        //// LEASES ////
 
+        #region Leases
 
+        /// <summary>
+        /// View all the leases that an agent has worked on
+        /// </summary>
+        ViewLeases,
 
+        #endregion
 
+        //// COMMITS ////
 
-		//// LEASES ////
+        #region Commits
 
-		/// <summary>
-		/// View all the leases that an agent has worked on
-		/// </summary>
-		ViewLeases,
-
-
-
-
-
-		//// COMMITS ////
-
-		/// <summary>
-		/// Add a new commit
-		/// </summary>
-		AddCommit,
+        /// <summary>
+        /// Add a new commit
+        /// </summary>
+        AddCommit,
 
 		/// <summary>
 		/// List all the commits that have been added
@@ -278,38 +276,38 @@ namespace Horde.Build.Models
 		/// </summary>
 		ViewCommits,
 
+        #endregion
 
+        //// ISSUES ////
 
+        #region Issues
 
+        /// <summary>
+        /// View a build health issue
+        /// </summary>
+        ViewIssue,
 
+        #endregion
 
-		/// <summary>
-		/// View a build health issue
-		/// </summary>
-		ViewIssue,
+        //// TEMPLATES ////
 
+        #region Templates
 
+        /// <summary>
+        /// View template associated with a stream
+        /// </summary>
+        ViewTemplate,
 
+        #endregion
 
+        //// LOGS ////
 
-		//// TEMPLATES ////
+        #region Logs
 
-		/// <summary>
-		/// View template associated with a stream
-		/// </summary>
-		ViewTemplate,
-
-
-
-
-
-
-		//// LOGS ////
-
-		/// <summary>
-		/// Ability to create a log. Implicitly granted to agents.
-		/// </summary>
-		CreateLog,
+        /// <summary>
+        /// Ability to create a log. Implicitly granted to agents.
+        /// </summary>
+        CreateLog,
 
 		/// <summary>
 		/// Ability to update log metadata
@@ -326,30 +324,32 @@ namespace Horde.Build.Models
 		/// </summary>
 		WriteLogData,
 
+        #endregion
 
+        //// ARTIFACTS ////
 
+        #region Artifacts
 
-		//// ARTIFACTS ////
-
-		/// <summary>
-		/// Ability to create an artifact. Typically just for debugging; agents have this access for a particular session.
-		/// </summary>
-		UploadArtifact,
+        /// <summary>
+        /// Ability to create an artifact. Typically just for debugging; agents have this access for a particular session.
+        /// </summary>
+        UploadArtifact,
 
 		/// <summary>
 		/// Ability to download an artifact
 		/// </summary>
 		DownloadArtifact,
 
+        #endregion
 
+        //// SOFTWARE ////
 
+        #region Software
 
-		//// SOFTWARE ////
-
-		/// <summary>
-		/// Ability to upload new versions of the agent software
-		/// </summary>
-		UploadSoftware,
+        /// <summary>
+        /// Ability to upload new versions of the agent software
+        /// </summary>
+        UploadSoftware,
 
 		/// <summary>
 		/// Ability to download the agent software
@@ -361,15 +361,16 @@ namespace Horde.Build.Models
 		/// </summary>
 		DeleteSoftware,
 
+        #endregion
 
+        //// ADMIN ////
 
+        #region Admin
 
-		//// ADMIN ////
-
-		/// <summary>
-		/// Ability to read any data from the server. Always inherited.
-		/// </summary>
-		AdminRead,
+        /// <summary>
+        /// Ability to read any data from the server. Always inherited.
+        /// </summary>
+        AdminRead,
 
 		/// <summary>
 		/// Ability to write any data to the server.
@@ -386,15 +387,16 @@ namespace Horde.Build.Models
 		/// </summary>
 		ViewCosts,
 
+        #endregion
 
+        //// PERMISSIONS ////
 
+        #region Permissions
 
-		//// PERMISSIONS ////
-
-		/// <summary>
-		/// Ability to view permissions on an object
-		/// </summary>
-		ViewPermissions,
+        /// <summary>
+        /// Ability to view permissions on an object
+        /// </summary>
+        ViewPermissions,
 
 		/// <summary>
 		/// Ability to change permissions on an object
@@ -406,64 +408,59 @@ namespace Horde.Build.Models
 		/// </summary>
 		IssueBearerToken,
 
+        #endregion
 
+        //// NOTIFICATIONS ////
 
+        #region Notifications
 
+        /// <summary>
+        /// Ability to subscribe to notifications
+        /// </summary>
+        CreateSubscription,
 
-		//// NOTIFICATIONS ////
+        #endregion
 
-		/// <summary>
-		/// Ability to subscribe to notifications
-		/// </summary>
-		CreateSubscription,
+        //// DEVICES ////
 
+        #region Devices
 
-
-
-
-		//// DEVICES ////
-		
-		/// <summary>
-		/// Ability to read devices
-		/// </summary>
-		DeviceRead,
+        /// <summary>
+        /// Ability to read devices
+        /// </summary>
+        DeviceRead,
 
 		/// <summary>
 		/// Ability to write devices
 		/// </summary>
 		DeviceWrite,
 
+        #endregion
 
+        //// COMPUTE ////
 
+        #region Compute
 
-
-
-
-		//// COMPUTE ////
-
-		/// <summary>
-		/// User can add tasks to the compute cluster
-		/// </summary>
-		AddComputeTasks,
+        /// <summary>
+        /// User can add tasks to the compute cluster
+        /// </summary>
+        AddComputeTasks,
 
 		/// <summary>
 		/// User can poll for compute results
 		/// </summary>
 		ViewComputeTasks,
 
+        #endregion
 
+        //// STORAGE ////
 
+        #region Storage
 
-
-
-
-
-		//// STORAGE ////
-
-		/// <summary>
-		/// Ability to read blobs from the storage service
-		/// </summary>
-		ReadBlobs,
+        /// <summary>
+        /// Ability to read blobs from the storage service
+        /// </summary>
+        ReadBlobs,
 
 		/// <summary>
 		/// Ability to write blobs to the storage service
@@ -484,12 +481,14 @@ namespace Horde.Build.Models
 		/// Ability to delete refs
 		/// </summary>
 		DeleteRefs,
-	}
 
-	/// <summary>
-	/// Stores information about a claim
-	/// </summary>
-	public class AclClaim
+        #endregion
+    }
+
+    /// <summary>
+    /// Stores information about a claim
+    /// </summary>
+    public class AclClaim
 	{
 		/// <summary>
 		/// The claim type, typically a URI
@@ -504,29 +503,29 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Claim">The claim object</param>
-		public AclClaim(Claim Claim)
-			: this(Claim.Type, Claim.Value)
+		/// <param name="claim">The claim object</param>
+		public AclClaim(Claim claim)
+			: this(claim.Type, claim.Value)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type">The claim type</param>
-		/// <param name="Value">The claim value</param>
-		public AclClaim(string Type, string Value)
+		/// <param name="type">The claim type</param>
+		/// <param name="value">The claim value</param>
+		public AclClaim(string type, string value)
 		{
-			this.Type = Type;
-			this.Value = Value;
+			Type = type;
+			Value = value;
 		}
 
 		/// <summary>
 		/// Constructs a claim from a request object
 		/// </summary>
-		/// <param name="Request">The request object</param>
-		public AclClaim(CreateAclClaimRequest Request)
-			: this(Request.Type, Request.Value)
+		/// <param name="request">The request object</param>
+		public AclClaim(CreateAclClaimRequest request)
+			: this(request.Type, request.Value)
 		{
 		}
 	}
@@ -560,56 +559,56 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Claim">The claim this entry applies to</param>
-		/// <param name="Actions">List of allowed operations</param>
-		internal AclEntry(AclClaim Claim, IEnumerable<AclAction> Actions)
+		/// <param name="claim">The claim this entry applies to</param>
+		/// <param name="actions">List of allowed operations</param>
+		internal AclEntry(AclClaim claim, IEnumerable<AclAction> actions)
 		{
-			this.Claim = Claim;
-			this.Actions = new HashSet<AclAction>(Actions);
+			Claim = claim;
+			Actions = new HashSet<AclAction>(actions);
 		}
 
 		/// <summary>
 		/// Constructs an ACL entry from a request
 		/// </summary>
-		/// <param name="Request">Request instance</param>
+		/// <param name="request">Request instance</param>
 		/// <returns>New ACL entry</returns>
-		public static AclEntry FromRequest(CreateAclEntryRequest Request)
+		public static AclEntry FromRequest(CreateAclEntryRequest request)
 		{
-			return new AclEntry(new AclClaim(Request.Claim.Type, Request.Claim.Value), ParseActionNames(Request.Actions).ToArray());
+			return new AclEntry(new AclClaim(request.Claim.Type, request.Claim.Value), ParseActionNames(request.Actions).ToArray());
 		}
 
 		/// <summary>
 		/// Parses a list of names as an AclAction bitmask
 		/// </summary>
-		/// <param name="ActionNames">Array of names</param>
+		/// <param name="actionNames">Array of names</param>
 		/// <returns>Action bitmask</returns>
-		public static List<AclAction> ParseActionNames(string[]? ActionNames)
+		public static List<AclAction> ParseActionNames(string[]? actionNames)
 		{
-			List<AclAction> Actions = new List<AclAction>();
-			if (ActionNames != null)
+			List<AclAction> actions = new();
+			if (actionNames != null)
 			{
-				foreach (string Name in ActionNames)
+				foreach (string name in actionNames)
 				{
-					Actions.Add(Enum.Parse<AclAction>(Name, true));
+					actions.Add(Enum.Parse<AclAction>(name, true));
 				}
 			}
-			return Actions;
+			return actions;
 		}
 
 		/// <summary>
 		/// Build a list of action names from an array of flags
 		/// </summary>
-		/// <param name="Actions"></param>
+		/// <param name="actions"></param>
 		/// <returns></returns>
-		public static List<string> GetActionNames(IEnumerable<AclAction> Actions)
+		public static List<string> GetActionNames(IEnumerable<AclAction> actions)
 		{
-			List<string> ActionNames = new List<string>();
-			foreach(AclAction Action in Actions)
+            List<string> actionNames = new();
+            foreach(AclAction action in actions)
 			{
-				string Name = Enum.GetName(typeof(AclAction), Action)!;
-				ActionNames.Add(Name);
+				string name = Enum.GetName(typeof(AclAction), action)!;
+				actionNames.Add(name);
 			}
-			return ActionNames;
+			return actionNames;
 		}
 	}
 
@@ -633,7 +632,6 @@ namespace Horde.Build.Models
 		/// </summary>
 		public List<AclAction>? Exceptions { get; set; }
 
-
 		/// <summary>
 		/// Default constructor
 		/// </summary>
@@ -646,35 +644,35 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Entries">List of entries for this ACL</param>
-		/// <param name="bInheritPermissions">Whether to inherit permissions from the parent object by default</param>
-		public Acl(List<AclEntry> Entries, bool bInheritPermissions)
+		/// <param name="entries">List of entries for this ACL</param>
+		/// <param name="inherit">Whether to inherit permissions from the parent object by default</param>
+		public Acl(List<AclEntry> entries, bool inherit)
 		{
-			this.Entries = Entries;
-			this.Inherit = bInheritPermissions;
+			Entries = entries;
+			Inherit = inherit;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Entries">List of entries for this ACL</param>
-		public Acl(params AclEntry[] Entries)
-			: this(Entries.ToList(), true)
+		/// <param name="entries">List of entries for this ACL</param>
+		public Acl(params AclEntry[] entries)
+			: this(entries.ToList(), true)
 		{
 		}
 
 		/// <summary>
 		/// Tests whether a user is authorized to perform the given actions
 		/// </summary>
-		/// <param name="Action">Action that is being performed. This should be a single flag.</param>
-		/// <param name="User">The principal to authorize</param>
+		/// <param name="action">Action that is being performed. This should be a single flag.</param>
+		/// <param name="user">The principal to authorize</param>
 		/// <returns>True/false if the action is allowed or denied, null if there is no specific setting for this user</returns>
-		public bool? Authorize(AclAction Action, ClaimsPrincipal User)
+		public bool? Authorize(AclAction action, ClaimsPrincipal user)
 		{
 			// Check if there's a specific entry for this action
-			foreach (AclEntry Entry in Entries)
+			foreach (AclEntry entry in Entries)
 			{
-				if(Entry.Actions.Contains(Action) && User.HasClaim(Entry.Claim.Type, Entry.Claim.Value))
+				if(entry.Actions.Contains(action) && user.HasClaim(entry.Claim.Type, entry.Claim.Value))
 				{
 					return true;
 				}
@@ -683,14 +681,14 @@ namespace Horde.Build.Models
 			// Otherwise check if we're prevented from inheriting permissions
 			if(Inherit)
 			{
-				if(Exceptions != null && Exceptions.Contains(Action))
+				if(Exceptions != null && Exceptions.Contains(action))
 				{
 					return false;
 				}
 			}
 			else
 			{
-				if (Exceptions == null || !Exceptions.Contains(Action))
+				if (Exceptions == null || !Exceptions.Contains(action))
 				{
 					return false;
 				}
@@ -703,53 +701,53 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Merge new settings into an ACL
 		/// </summary>
-		/// <param name="BaseAcl">The current acl</param>
-		/// <param name="Update">The update to apply</param>
+		/// <param name="baseAcl">The current acl</param>
+		/// <param name="update">The update to apply</param>
 		/// <returns>The new ACL value. Null if the ACL has all default settings.</returns>
-		public static Acl? Merge(Acl? BaseAcl, UpdateAclRequest? Update)
+		public static Acl? Merge(Acl? baseAcl, UpdateAclRequest? update)
 		{
-			Acl? NewAcl = null;
-			if(Update != null)
+			Acl? newAcl = null;
+			if(update != null)
 			{
-				NewAcl = new Acl();
+				newAcl = new Acl();
 
-				if(Update.Entries != null)
+				if(update.Entries != null)
 				{
-					NewAcl.Entries = Update.Entries.ConvertAll(x => AclEntry.FromRequest(x));
+					newAcl.Entries = update.Entries.ConvertAll(x => AclEntry.FromRequest(x));
 				}
-				else if(BaseAcl != null)
+				else if(baseAcl != null)
 				{
-					NewAcl.Entries = BaseAcl.Entries;
+					newAcl.Entries = baseAcl.Entries;
 				}
 
-				if(Update.Inherit != null)
+				if(update.Inherit != null)
 				{
-					NewAcl.Inherit = Update.Inherit.Value;
+					newAcl.Inherit = update.Inherit.Value;
 				}
-				else if(BaseAcl != null)
+				else if(baseAcl != null)
 				{
-					NewAcl.Inherit = BaseAcl.Inherit;
+					newAcl.Inherit = baseAcl.Inherit;
 				}
 			}
-			return NewAcl;
+			return newAcl;
 		}
 
 		/// <summary>
 		/// Creates an update definition for the given ACL. Clears the ACL property if it's null.
 		/// </summary>
 		/// <typeparam name="T">Type of document containing the ACL</typeparam>
-		/// <param name="Field">Selector for the ACL property</param>
-		/// <param name="NewAcl">The new ACL value</param>
+		/// <param name="field">Selector for the ACL property</param>
+		/// <param name="newAcl">The new ACL value</param>
 		/// <returns>Update definition for the document</returns>
-		public static UpdateDefinition<T> CreateUpdate<T>(Expression<Func<T, object>> Field, Acl NewAcl)
+		public static UpdateDefinition<T> CreateUpdate<T>(Expression<Func<T, object>> field, Acl newAcl)
 		{
-			if (NewAcl.Entries.Count == 0 && NewAcl.Inherit)
+			if (newAcl.Entries.Count == 0 && newAcl.Inherit)
 			{
-				return Builders<T>.Update.Unset(Field);
+				return Builders<T>.Update.Unset(field);
 			}
 			else
 			{
-				return Builders<T>.Update.Set(Field, NewAcl);
+				return Builders<T>.Update.Set(field, newAcl);
 			}
 		}
 	}
@@ -760,55 +758,52 @@ namespace Horde.Build.Models
 	public sealed class AclActionSetSerializer : IBsonSerializer<HashSet<AclAction>>
 	{
 		/// <inheritdoc/>
-		public Type ValueType
+		public Type ValueType => typeof(HashSet<AclAction>);
+
+		/// <inheritdoc/>
+		void IBsonSerializer.Serialize(BsonSerializationContext context, BsonSerializationArgs args, object value)
 		{
-			get { return typeof(HashSet<AclAction>); }
+			Serialize(context, args, (HashSet<AclAction>)value);
 		}
 
 		/// <inheritdoc/>
-		void IBsonSerializer.Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, object Value)
+		object IBsonSerializer.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			Serialize(Context, Args, (HashSet<AclAction>)Value);
+			return ((IBsonSerializer<HashSet<AclAction>>)this).Deserialize(context, args);
 		}
 
 		/// <inheritdoc/>
-		object IBsonSerializer.Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
+		public HashSet<AclAction> Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			return ((IBsonSerializer<HashSet<AclAction>>)this).Deserialize(Context, Args);
-		}
+            HashSet<AclAction> values = new();
 
-		/// <inheritdoc/>
-		public HashSet<AclAction> Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
-		{
-			HashSet<AclAction> Values = new HashSet<AclAction>();
-
-			Context.Reader.ReadStartArray();
+			context.Reader.ReadStartArray();
 			for(; ;)
 			{
-				BsonType Type = Context.Reader.ReadBsonType();
-				if(Type == BsonType.EndOfDocument)
+				BsonType type = context.Reader.ReadBsonType();
+				if(type == BsonType.EndOfDocument)
 				{
 					break;
 				}
 				else
 				{
-					Values.Add((AclAction)Enum.Parse(typeof(AclAction), Context.Reader.ReadString()));
+					values.Add((AclAction)Enum.Parse(typeof(AclAction), context.Reader.ReadString()));
 				}
 			}
-			Context.Reader.ReadEndArray();
+			context.Reader.ReadEndArray();
 
-			return Values;
+			return values;
 		}
 
 		/// <inheritdoc/>
-		public void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, HashSet<AclAction> Values)
+		public void Serialize(BsonSerializationContext context, BsonSerializationArgs args, HashSet<AclAction> values)
 		{
-			Context.Writer.WriteStartArray();
-			foreach (AclAction Value in Values)
+			context.Writer.WriteStartArray();
+			foreach (AclAction value in values)
 			{
-				Context.Writer.WriteString(Value.ToString());
+				context.Writer.WriteString(value.ToString());
 			}
-			Context.Writer.WriteEndArray();
+			context.Writer.WriteEndArray();
 		}
 	}
 }

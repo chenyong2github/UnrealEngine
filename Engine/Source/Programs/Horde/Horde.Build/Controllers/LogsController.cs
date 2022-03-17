@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Buffers;
@@ -11,6 +11,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Logs;

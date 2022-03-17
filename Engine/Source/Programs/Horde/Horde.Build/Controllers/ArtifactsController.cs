@@ -1,6 +1,7 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using Amazon.S3.Transfer;
+using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Jobs;
 using Horde.Build.Models;

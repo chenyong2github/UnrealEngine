@@ -1,10 +1,11 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Horde.Build.Acls;
 using Horde.Build.Services;
 using Microsoft.AspNetCore.Authorization;
 using Horde.Build.Models;

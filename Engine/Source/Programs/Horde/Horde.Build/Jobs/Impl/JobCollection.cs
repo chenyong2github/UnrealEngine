@@ -1,6 +1,7 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Horde.Build.Acls;
 using Horde.Build.Api;
 using HordeCommon;
 using Horde.Build.Models;

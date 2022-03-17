@@ -1,9 +1,10 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using Horde.Build.Services;
 using MongoDB.Bson.Serialization.Attributes;
 using System.Threading.Tasks;
 
+using Horde.Build.Acls;
 using Horde.Build.Models;
 using MongoDB.Driver;
 using System;

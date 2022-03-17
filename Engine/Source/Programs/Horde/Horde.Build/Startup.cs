@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -35,6 +35,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 using Microsoft.AspNetCore.HttpOverrides;
+using Horde.Build.Acls;
 using Horde.Build.Utilities;
 using Grpc.Core.Interceptors;
 using Grpc.Core;
