@@ -220,6 +220,7 @@ namespace WindowsMixedReality
 		bool bIsMobileMultiViewEnabled = false;
 
 		float ScreenScalePercentage = 1.0f;
+		float ScreenScalePercentage_RenderThread = 1.0f;
 		float CachedWorldToMetersScale = 100.0f;
 
 		TRefCountPtr<ID3D11Device> D3D11Device = nullptr;

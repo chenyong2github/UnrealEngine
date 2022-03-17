@@ -43,6 +43,16 @@ struct FPointerPoseInfo
 {
 	GENERATED_USTRUCT_BODY()
 
+public:
+
+	FPointerPoseInfo()
+		: Origin(FVector::ZeroVector)
+		, Direction(FVector::ZeroVector)
+		, Up(FVector::ZeroVector)
+		, TrackingStatus(EHMDTrackingStatus::NotTracked)
+	{
+	}
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WindowsMixedRealityHMD")
 	FVector Origin;
 

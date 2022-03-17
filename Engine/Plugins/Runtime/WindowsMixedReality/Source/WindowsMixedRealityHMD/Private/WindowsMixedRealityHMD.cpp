@@ -703,6 +703,8 @@ namespace WindowsMixedReality
 		}
 		InitTrackingFrame();
 
+		ScreenScalePercentage_RenderThread = ScreenScalePercentage;
+
 		if (SpectatorScreenController)
 		{
 			SpectatorScreenController->UpdateSpectatorScreenMode_RenderThread();
@@ -1521,8 +1523,20 @@ namespace WindowsMixedReality
 	//TODO: Spelling is intentional, overridden from IHeadMountedDisplay.h
 	float FWindowsMixedRealityHMD::GetPixelDenity() const
 	{
-		check(IsInGameThread());
-		return ScreenScalePercentage;
+		if (IsInGameThread())
+		{
+			return ScreenScalePercentage;
+
+		}
+		else if (IsInRenderingThread())
+		{
+			return ScreenScalePercentage_RenderThread;
+		}
+		else
+		{
+			check(false);
+			return ScreenScalePercentage_RenderThread; // Not the game or render thread, so ??? Maybe rhi?
+		}
 	}
 
 	void FWindowsMixedRealityHMD::SetPixelDensity(const float NewDensity)
@@ -2019,7 +2033,6 @@ namespace WindowsMixedReality
 		: FHeadMountedDisplayBase(InARSystem)
 		, FHMDSceneViewExtension(AutoRegister)
 		, HMD(InHMD)
-		, ScreenScalePercentage(1.0f)
 		, mCustomPresent(nullptr)
 	{
 		static const FName RendererModuleName("Renderer");
