@@ -9,6 +9,8 @@
 UControlRigSkeletalMeshComponent::UControlRigSkeletalMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DebugDrawSkeleton(false)
+	, HierarchyInteractionBracket(0)
+	, bRebuildDebugDrawSkeletonRequired(false)
 {
 	SetDisablePostProcessBlueprint(true);
 }
@@ -54,6 +56,8 @@ void UControlRigSkeletalMeshComponent::SetCustomDefaultPose()
 
 void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 {
+	bRebuildDebugDrawSkeletonRequired = false;
+ 
 	UControlRigLayerInstance* ControlRigInstance = Cast<UControlRigLayerInstance>(GetAnimInstance());
 
 	if (ControlRigInstance)
@@ -186,7 +190,28 @@ void UControlRigSkeletalMeshComponent::OnHierarchyModified(ERigHierarchyNotifica
 		case ERigHierarchyNotification::ParentChanged:
 		case ERigHierarchyNotification::HierarchyReset:
 		{
-			RebuildDebugDrawSkeleton();
+			bRebuildDebugDrawSkeletonRequired = true;
+			if(HierarchyInteractionBracket == 0)
+			{
+				RebuildDebugDrawSkeleton();
+			}
+			break;
+		}
+		case ERigHierarchyNotification::InteractionBracketOpened:
+		{
+			HierarchyInteractionBracket++;
+			break;
+		}
+		case ERigHierarchyNotification::InteractionBracketClosed:
+		{
+			HierarchyInteractionBracket = FMath::Max(HierarchyInteractionBracket - 1, 0);
+			if(HierarchyInteractionBracket == 0)
+			{
+				if(bRebuildDebugDrawSkeletonRequired)
+				{
+					RebuildDebugDrawSkeleton();
+				}
+			}
 			break;
 		}
 		default:

@@ -112,8 +112,8 @@ URigHierarchy::URigHierarchy()
 #endif
 , bEnableCacheValidityCheck(bEnableValidityCheckbyDefault)
 , HierarchyForCacheValidation()
-#if WITH_EDITOR
 , ExecuteContext(nullptr)
+#if WITH_EDITOR
 , bRecordTransformsPerInstruction(true)
 #endif
 {
@@ -2127,7 +2127,23 @@ void URigHierarchy::Notify(ERigHierarchyNotification InNotifType, const FRigBase
 	{
 		return;
 	}
-	ModifiedEvent.Broadcast(InNotifType, this, InElement);
+
+	// if we are running a VM right now
+	if(ExecuteContext != nullptr)
+	{
+		QueueNotification(InNotifType, InElement);
+		return;
+	}
+
+	if(QueuedNotifications.IsEmpty())
+	{
+		ModifiedEvent.Broadcast(InNotifType, this, InElement);
+	}
+	else
+	{
+		QueueNotification(InNotifType, InElement);
+		SendQueuedNotifications();
+	}
 
 #if WITH_EDITOR
 
@@ -2164,6 +2180,148 @@ void URigHierarchy::Notify(ERigHierarchyNotification InNotifType, const FRigBase
 	}
 
 #endif
+}
+
+void URigHierarchy::QueueNotification(ERigHierarchyNotification InNotification, const FRigBaseElement* InElement)
+{
+	FQueuedNotification Entry;
+	Entry.Type = InNotification;
+	Entry.Key = InElement ? InElement->GetKey() : FRigElementKey();
+	QueuedNotifications.Enqueue(Entry);
+}
+
+void URigHierarchy::SendQueuedNotifications()
+{
+	if(bSuspendNotifications)
+	{
+		QueuedNotifications.Empty();
+		return;
+	}
+
+	if(QueuedNotifications.IsEmpty())
+	{
+		return;
+	}
+
+	if(ExecuteContext != nullptr)
+	{
+		return;
+	}
+
+	// enable access to the controller during this method
+	FRigHierarchyEnableControllerBracket EnableController(this, true);
+
+	// we'll collect all notifications and will clean them up
+	// to guard against notification storms.
+	TArray<FQueuedNotification> AllNotifications;
+	FQueuedNotification EntryFromQueue;
+	while(QueuedNotifications.Dequeue(EntryFromQueue))
+	{
+		AllNotifications.Add(EntryFromQueue);
+	}
+	QueuedNotifications.Empty();
+
+	// now we'll filter the notifications. we'll go through them in
+	// reverse and will skip any aggregates (like change color multiple times on the same thing)
+	// as well as collapse pairs such as select and deselect
+	TArray<FQueuedNotification> FilteredNotifications;
+	TArray<FQueuedNotification> UniqueNotifications;
+	for(int32 Index = AllNotifications.Num() - 1; Index >= 0; Index--)
+	{
+		const FQueuedNotification& Entry = AllNotifications[Index];
+
+		bool bSkipNotification = false;
+		switch(Entry.Type)
+		{
+			case ERigHierarchyNotification::HierarchyReset:
+			case ERigHierarchyNotification::ElementRemoved:
+			case ERigHierarchyNotification::ElementRenamed:
+			{
+				// we don't allow these to happen during the run of a VM
+				if(const URigHierarchyController* Controller = GetController())
+				{
+					static constexpr TCHAR InvalidNotificationReceivedMessage[] =
+						TEXT("Found invalid queued notification %s - %s. Skipping notification.");
+					const FString NotificationText = StaticEnum<ERigHierarchyNotification>()->GetNameStringByValue((int64)Entry.Type);
+					
+					Controller->ReportErrorf(InvalidNotificationReceivedMessage, *NotificationText, *Entry.Key.ToString());	
+				}
+				bSkipNotification = true;
+				break;
+			}
+			case ERigHierarchyNotification::ControlSettingChanged:
+			case ERigHierarchyNotification::ControlVisibilityChanged:
+			case ERigHierarchyNotification::ControlShapeTransformChanged:
+			case ERigHierarchyNotification::ParentChanged:
+			case ERigHierarchyNotification::ParentWeightsChanged:
+			{
+				// these notifications are aggregates - they don't need to happen
+				// more than once during an update
+				bSkipNotification = UniqueNotifications.Contains(Entry);
+				break;
+			}
+			case ERigHierarchyNotification::ElementSelected:
+			case ERigHierarchyNotification::ElementDeselected:
+			{
+				FQueuedNotification OppositeEntry;
+				OppositeEntry.Type = (Entry.Type == ERigHierarchyNotification::ElementSelected) ?
+					ERigHierarchyNotification::ElementDeselected :
+					ERigHierarchyNotification::ElementSelected;
+				OppositeEntry.Key = Entry.Key;
+
+				// we don't need to add this if we already performed the selection or
+				// deselection of the same item before
+				bSkipNotification = UniqueNotifications.Contains(Entry) ||
+					UniqueNotifications.Contains(OppositeEntry);
+				break;
+			}
+			case ERigHierarchyNotification::Max:
+			{
+				bSkipNotification = true;
+				break;
+			}
+			case ERigHierarchyNotification::ElementAdded:
+			case ERigHierarchyNotification::InteractionBracketOpened:
+			case ERigHierarchyNotification::InteractionBracketClosed:
+			default:
+			{
+				break;
+			}
+		}
+
+		UniqueNotifications.AddUnique(Entry);
+		if(!bSkipNotification)
+		{
+			FilteredNotifications.Add(Entry);
+		}
+
+		// if we ever hit a reset then we don't need to deal with
+		// any previous notifications.
+		if(Entry.Type == ERigHierarchyNotification::HierarchyReset)
+		{
+			break;
+		}
+	}
+
+	if(FilteredNotifications.IsEmpty())
+	{
+		return;
+	}
+
+	ModifiedEvent.Broadcast(ERigHierarchyNotification::InteractionBracketOpened, this, nullptr);
+
+	// finally send all of the notifications
+	// (they have been added in the reverse order to the array)
+	for(int32 Index = FilteredNotifications.Num() - 1; Index >= 0; Index--)
+	{
+		const FQueuedNotification& Entry = FilteredNotifications[Index];
+		// we expect all elements to still exist, removal /rename
+		// // is not allowed during the run of a VM
+		const FRigBaseElement* Element = FindChecked(Entry.Key); 
+		ModifiedEvent.Broadcast(Entry.Type, this, Element);
+	}
+
+	ModifiedEvent.Broadcast(ERigHierarchyNotification::InteractionBracketClosed, this, nullptr);
 }
 
 FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,

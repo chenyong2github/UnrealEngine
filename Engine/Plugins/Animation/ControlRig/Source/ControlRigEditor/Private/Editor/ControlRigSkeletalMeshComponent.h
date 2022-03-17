@@ -59,4 +59,6 @@ private:
 	TArray<FBoneIndexType> DebugDrawBones;
 	TArray<int32> DebugDrawBoneIndexInHierarchy;
 	TWeakObjectPtr<UControlRig> ControlRigBeingDebuggedPtr;
+	int32 HierarchyInteractionBracket;
+	bool bRebuildDebugDrawSkeletonRequired;
 };

@@ -20,6 +20,7 @@ struct FControlShapeActorCreationParam
 		: ManipObj(nullptr)
 		, ControlRigIndex(INDEX_NONE)
 		, ControlName(NAME_None)
+		, ShapeName(NAME_None)
 		, SpawnTransform(FTransform::Identity)
 		, ShapeTransform(FTransform::Identity)
 		, MeshTransform(FTransform::Identity)
@@ -34,6 +35,7 @@ struct FControlShapeActorCreationParam
 	UObject*	ManipObj;
 	int32		ControlRigIndex;
 	FName		ControlName;
+	FName		ShapeName;
 	FTransform	SpawnTransform;
 	FTransform  ShapeTransform;
 	FTransform  MeshTransform;
@@ -68,6 +70,10 @@ public:
 	// the name of the control this actor is referencing
 	UPROPERTY()
 	FName ControlName;
+
+	// the name of the shape to use on this actor
+   	UPROPERTY()
+   	FName ShapeName;
 
 	// the name of the color parameter on the material
 	UPROPERTY()
@@ -137,6 +143,15 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ControlRig|Shape")
 	FTransform GetGlobalTransform() const;
+
+	// try to update the actor with the latest settings
+	bool UpdateControlSettings(
+		ERigHierarchyNotification InNotif,
+		UControlRig* InControlRig,
+		const FRigControlElement* InControlElement,
+		bool bHideManipulators,
+		bool bIsInLevelEditor);
+	
 private:
 	/** Whether this control is enabled */
 	UPROPERTY(BlueprintGetter = IsEnabled, BlueprintSetter= SetEnabled, Category = "ControlRig|Shape")

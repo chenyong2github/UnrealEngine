@@ -1230,14 +1230,14 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 			}
 #endif
 
-#if WITH_EDITOR
 			URigHierarchy* Hierarchy = GetHierarchy();
+#if WITH_EDITOR
 			Hierarchy->ReadTransformsPerInstructionPerSlice.Reset();
 			Hierarchy->WrittenTransformsPerInstructionPerSlice.Reset();
 			Hierarchy->ReadTransformsPerInstructionPerSlice.AddZeroed(VM->GetByteCode().GetNumInstructions());
 			Hierarchy->WrittenTransformsPerInstructionPerSlice.AddZeroed(VM->GetByteCode().GetNumInstructions());
-			TGuardValue<const FRigVMExtendedExecuteContext*> HierarchyContextGuard(Hierarchy->ExecuteContext, &VM->GetContext());
 #endif
+			FRigHierarchyExecuteContextBracket HierarchyContextGuard(Hierarchy, &VM->GetContext());
 
 			VM->Execute(LocalMemory, AdditionalArguments, InEventName);
 		}

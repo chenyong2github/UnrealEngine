@@ -1043,7 +1043,9 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 	{
 		KeyMap.Add(Element->GetKey(), Element->GetKey());
 	}
-	
+
+	FRigHierarchyInteractionBracket InteractionBracket(Hierarchy.Get());
+
 	for(const FRigHierarchyCopyPasteContentPerElement& PerElementData : Data.Elements)
 	{
 		ErrorPipe.NumErrors = 0;
@@ -1222,6 +1224,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(const FRigHierarchyContainer& InContainer, bool bIsCopyAndPaste)
 {
 	TMap<FRigElementKey, FRigElementKey> KeyMap;;
+	FRigHierarchyInteractionBracket InteractionBracket(Hierarchy.Get());
 
 	for(const FRigBone& Bone : InContainer.BoneHierarchy)
 	{
@@ -2426,6 +2429,8 @@ TArray<FRigElementKey> URigHierarchyController::DuplicateElements(TArray<FRigEle
 
 TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElementKey> InKeys, FRigMirrorSettings InSettings, bool bSelectNewElements, bool bSetupUndo, bool bPrintPythonCommands)
 {
+	FRigHierarchyInteractionBracket InteractionBracket(Hierarchy.Get());
+
 	TArray<FRigElementKey> OriginalKeys = Hierarchy->SortKeys(InKeys);
 	TArray<FRigElementKey> DuplicatedKeys = DuplicateElements(OriginalKeys, bSelectNewElements, bSetupUndo);
 

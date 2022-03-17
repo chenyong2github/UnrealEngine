@@ -13,6 +13,7 @@
 #if WITH_EDITOR
 #include "RigVMPythonUtils.h"
 #endif
+#include "Containers/Queue.h"
 #include "RigHierarchy.generated.h"
 
 class URigHierarchy;
@@ -2546,7 +2547,7 @@ private:
 	/*
 	* Helper function to create an element for a given type
 	*/
-	static void DestroyElement(FRigBaseElement*& InElement); 
+	static void DestroyElement(FRigBaseElement*& InElement);
 
 	/*
 	 * Templated helper function to create an element
@@ -2972,8 +2973,9 @@ private:
 	
 	void EnsureCacheValidityImpl();
 
-#if WITH_EDITOR
 	const FRigVMExtendedExecuteContext* ExecuteContext;
+
+#if WITH_EDITOR
 	mutable bool bRecordTransformsPerInstruction;
 	mutable TArray<TArray<TArray<int32>>> ReadTransformsPerInstructionPerSlice;
 	mutable TArray<TArray<TArray<int32>>> WrittenTransformsPerInstructionPerSlice;
@@ -2988,6 +2990,21 @@ private:
 
 	static const TArray<FString>& GetTransformTypeStrings();
 
+	struct FQueuedNotification
+	{
+		ERigHierarchyNotification Type;
+		FRigElementKey Key;
+		
+		FORCEINLINE bool operator == (const FQueuedNotification& InOther) const
+		{
+			return Type == InOther.Type && Key == InOther.Key;
+		}
+	};
+	TQueue<FQueuedNotification> QueuedNotifications;
+
+	void QueueNotification(ERigHierarchyNotification InNotification, const FRigBaseElement* InElement);
+	void SendQueuedNotifications();
+	
 	friend class URigHierarchyController;
 	friend class UControlRig;
 	friend class FControlRigEditor;
@@ -2995,6 +3012,28 @@ private:
 	friend struct FRigHierarchyGlobalValidityBracket;
 	friend struct FControlRigVisualGraphUtils;
 	friend struct FRigHierarchyEnableControllerBracket;
+	friend struct FRigHierarchyExecuteContextBracket;
+};
+
+struct CONTROLRIG_API FRigHierarchyInteractionBracket
+{
+public:
+	
+	FRigHierarchyInteractionBracket(URigHierarchy* InHierarchy)
+		: Hierarchy(InHierarchy)
+	{
+		check(Hierarchy);
+		Hierarchy->Notify(ERigHierarchyNotification::InteractionBracketOpened, nullptr);
+	}
+
+	~FRigHierarchyInteractionBracket()
+	{
+		Hierarchy->Notify(ERigHierarchyNotification::InteractionBracketClosed, nullptr);
+	}
+
+private:
+
+	URigHierarchy* Hierarchy;
 };
 
 struct CONTROLRIG_API FRigHierarchyEnableControllerBracket : public TGuardValue<bool>
@@ -3010,6 +3049,29 @@ private:
 
 	// certain units are allowed to use this
 	friend struct FRigUnit_AddParent;
+};
+
+struct CONTROLRIG_API FRigHierarchyExecuteContextBracket
+{
+private:
+
+	FRigHierarchyExecuteContextBracket(URigHierarchy* InHierarchy, const FRigVMExtendedExecuteContext* InContext)
+		: Hierarchy(InHierarchy)
+		, PreviousContext(InHierarchy->ExecuteContext)
+	{
+		Hierarchy->ExecuteContext = InContext;
+	}
+
+	~FRigHierarchyExecuteContextBracket()
+	{
+		Hierarchy->ExecuteContext = PreviousContext;
+		Hierarchy->SendQueuedNotifications();
+	}
+
+	URigHierarchy* Hierarchy;
+	const FRigVMExtendedExecuteContext* PreviousContext;
+
+	friend class UControlRig;
 };
 
 struct CONTROLRIG_API FRigHierarchyValidityBracket

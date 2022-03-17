@@ -1471,6 +1471,8 @@ void SRigHierarchy::HandleDeleteItem()
  		// clear selection early here to make sure ControlRigEditMode can react to this deletion
  		// it cannot react to it during Controller->RemoveElement() later because bSuspendAllNotifications is true
  		Controller->ClearSelection();
+
+ 		FRigHierarchyInteractionBracket InteractionBracket(Hierarchy);
  		
 		for (const FRigElementKey& SelectedKey : SelectedKeys)
 		{
@@ -2475,6 +2477,7 @@ FReply SRigHierarchy::ReparentOrMatchTransform(const TArray<FRigElementKey>& Dra
 		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
 		FScopedTransaction Transaction(LOCTEXT("HierarchyDragAndDrop", "Drag & Drop"));
+		FRigHierarchyInteractionBracket InteractionBracket(Hierarchy);
 
 		FTransform TargetGlobalTransform = DebuggedHierarchy->GetGlobalTransform(TargetKey);
 
@@ -2679,6 +2682,9 @@ void SRigHierarchy::HandleSetShapeTransformFromCurrent()
 			if (URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
 			{
 				FScopedTransaction Transaction(LOCTEXT("HierarchySetShapeTransforms", "Set Shape Transforms"));
+
+				FRigHierarchyInteractionBracket InteractionBracket(GetHierarchy());
+				FRigHierarchyInteractionBracket DebuggedInteractionBracket(DebuggedHierarchy);
 
 				TArray<TSharedPtr<FRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 				for (const TSharedPtr<FRigTreeElement>& SelectedItem : SelectedItems)

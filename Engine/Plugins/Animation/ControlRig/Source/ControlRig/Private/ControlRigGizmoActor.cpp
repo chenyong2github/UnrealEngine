@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigGizmoActor.h"
+#include "ControlRig.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
@@ -11,6 +12,7 @@ AControlRigShapeActor::AControlRigShapeActor(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 	, ControlRigIndex(INDEX_NONE)
 	, ControlName(NAME_None)
+	, ShapeName(NAME_None)
 	, bEnabled(true)
 	, bSelected(false)
 	, bSelectable(true)
@@ -108,6 +110,86 @@ void AControlRigShapeActor::SetShapeColor(const FLinearColor& InColor)
 	}
 }
 
+bool AControlRigShapeActor::UpdateControlSettings(
+	ERigHierarchyNotification InNotif,
+	UControlRig* InControlRig,
+	const FRigControlElement* InControlElement,
+	bool bHideManipulators,
+	bool bIsInLevelEditor)
+{
+	check(InControlElement);
+
+	const FRigControlSettings& ControlSettings = InControlElement->Settings;
+	
+	// if this actor is not supposed to exist
+	if(!ControlSettings.bShapeEnabled)
+	{
+		return false;
+	}
+
+	const bool bShapeNameUpdated = ShapeName != ControlSettings.ShapeName;
+	bool bShapeTransformChanged = InNotif == ERigHierarchyNotification::ControlShapeTransformChanged;
+	const bool bLookupShape = bShapeNameUpdated || bShapeTransformChanged;
+	
+	FTransform MeshTransform = FTransform::Identity;
+
+	// update the shape used for the control
+	if(bLookupShape)
+	{
+		const TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries = InControlRig->GetShapeLibraries();
+		if (const FControlRigShapeDefinition* ShapeDef = UControlRigShapeLibrary::GetShapeByName(ControlSettings.ShapeName, ShapeLibraries))
+		{
+			MeshTransform = ShapeDef->Transform;
+
+			if(bShapeNameUpdated)
+			{
+				if(ShapeDef->StaticMesh.IsValid())
+				{
+					if(UStaticMesh* StaticMesh = ShapeDef->StaticMesh.Get())
+					{
+						if(StaticMesh != StaticMeshComponent->GetStaticMesh())
+						{
+							StaticMeshComponent->SetStaticMesh(StaticMesh);
+							bShapeTransformChanged = true;
+						}
+					}
+					else
+					{
+						return false;
+					}
+				}
+				else
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	// update the shape transform
+	if(bShapeTransformChanged)
+	{
+		const FTransform ShapeTransform = InControlElement->Shape.Get(ERigTransformType::InitialLocal);
+		StaticMeshComponent->SetRelativeTransform(MeshTransform * ShapeTransform);
+	}
+	
+	// update the shape color
+	SetShapeColor(ControlSettings.ShapeColor);
+
+#if WITH_EDITOR
+	// update visibility
+	SetIsTemporarilyHiddenInEditor(!ControlSettings.bShapeVisible || bHideManipulators);
+#endif
+	
+	// update selectability state
+	if (!bIsInLevelEditor) //don't change this in level editor otherwise we can never select it
+	{
+		SetSelectable(ControlSettings.bShapeVisible && !bHideManipulators && ControlSettings.bAnimatable);
+	}
+
+	return true;
+}
+
 // FControlRigShapeHelper START
 
 namespace FControlRigShapeHelper
@@ -165,6 +247,7 @@ namespace FControlRigShapeHelper
 		{
 			ShapeActor->ControlRigIndex = CreationParam.ControlRigIndex;
 			ShapeActor->ControlName = CreationParam.ControlName;
+			ShapeActor->ShapeName = CreationParam.ShapeName;
 			ShapeActor->SetSelectable(CreationParam.bSelectable);
 			ShapeActor->SetActorTransform(CreationParam.SpawnTransform);
 
@@ -215,4 +298,5 @@ FTransform AControlRigShapeActor::GetGlobalTransform() const
 
 	return FTransform::Identity;
 }
+
 // FControlRigShapeHelper END

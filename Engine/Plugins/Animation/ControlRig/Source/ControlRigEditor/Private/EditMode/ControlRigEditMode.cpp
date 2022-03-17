@@ -2623,6 +2623,10 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 		case ERigHierarchyNotification::ElementRemoved:
 		case ERigHierarchyNotification::ElementRenamed:
 		case ERigHierarchyNotification::HierarchyReset:
+		{
+			RequestToRecreateControlShapeActors();
+			break;
+		}
 		case ERigHierarchyNotification::ControlSettingChanged:
 		case ERigHierarchyNotification::ControlShapeTransformChanged:
 		{
@@ -2634,6 +2638,25 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 					bIsChangingControlShapeTransform = false;
 				} 
 			}
+
+			const FRigElementKey Key = InElement->GetKey();
+			if(Key.Type == ERigElementType::Control)
+			{
+				if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
+				{
+					if (AControlRigShapeActor* ShapeActor = GetControlShapeFromControlName(Key.Name))
+					{
+						// try to lazily apply the changes to the actor
+						const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
+						if(ShapeActor->UpdateControlSettings(InNotif, GetControlRig(true), ControlElement, Settings->bHideControlShapes, IsInLevelEditor()))
+						{
+							break;
+						}
+					}
+				}
+			}
+
+			// if we can't deal with this lazily, let's fall back to recreating all control shape actors
 			RequestToRecreateControlShapeActors();
 			break;
 		}
@@ -2698,6 +2721,8 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 				}
 			}
 		}
+		case ERigHierarchyNotification::InteractionBracketOpened:
+		case ERigHierarchyNotification::InteractionBracketClosed:
 		default:
 		{
 			break;
@@ -3267,6 +3292,7 @@ bool FControlRigEditMode::CreateShapeActors(UWorld* World)
 				Param.ManipObj = ControlRig;
 				Param.ControlRigIndex = ControlRigIndex;
 				Param.ControlName = ControlElement->GetName();
+				Param.ShapeName = ControlElement->Settings.ShapeName;
 				Param.SpawnTransform = ControlRig->GetControlGlobalTransform(ControlElement->GetName());
 				Param.ShapeTransform = ControlRig->GetHierarchy()->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
 				Param.bSelectable = ControlElement->Settings.bAnimatable;
