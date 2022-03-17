@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"InterchangeFactoryNodes",
 					"InterchangeNodes",
 					"Json",
+					"Kismet",
 					"Landscape",
 					"LandscapeEditor",
 					"LandscapeEditorUtilities",

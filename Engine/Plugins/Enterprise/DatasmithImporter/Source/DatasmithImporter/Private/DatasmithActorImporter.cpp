@@ -25,6 +25,7 @@
 #include "CineCameraComponent.h"
 #include "Components/DecalComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "DiffUtils.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/DecalActor.h"
@@ -384,13 +385,40 @@ AActor* FDatasmithActorImporter::ImportCustomActor(FDatasmithImportContext& Impo
 
 	for ( int32 i = 0; i < InCustomActorElement->GetPropertiesCount(); ++i )
 	{
-		TSharedPtr< IDatasmithKeyValueProperty > KeyValueProperty = InCustomActorElement->GetProperty( i );
+		const TSharedPtr< IDatasmithKeyValueProperty >& KeyValueProperty = InCustomActorElement->GetProperty( i );
 
-		FProperty* Property = FindFProperty< FProperty >( Actor->GetClass(), KeyValueProperty->GetName() );
+		FString PropStr = KeyValueProperty->GetName();
 
-		if ( Property )
+		TArray<FString> PropNamesStr;
+		PropStr.ParseIntoArray(PropNamesStr, TEXT("."));
+
+		TArray<FName> PropNames;
+		for (auto&& Str : PropNamesStr)
 		{
-			Property->ImportText_InContainer( KeyValueProperty->GetValue(), Actor, nullptr, PPF_None );
+			PropNames.Add(FName(*Str));
+		}
+
+		FPropertySoftPath PropertyPath(PropNames);
+		FResolvedProperty ResolvedProperty = PropertyPath.Resolve(Actor);
+
+		void* Container = const_cast<void*>(ResolvedProperty.Object);
+		if (!ResolvedProperty.Property || !Container)
+		{
+			ImportContext.LogWarning(FText::Format(LOCTEXT("BadPropertyKey", "Cannot find Property '{0}' on actor {1}.")
+				, FText::FromString(PropStr)
+				, FText::FromString(InCustomActorElement->GetName() )) 
+			);
+			continue;
+		}
+
+		const TCHAR* Remaining = ResolvedProperty.Property->ImportText_InContainer( KeyValueProperty->GetValue(), Container, nullptr, PPF_None );
+		if (Remaining && Remaining[0] != 0)
+		{
+			ImportContext.LogWarning(FText::Format(LOCTEXT("BadPropertyValue", "Cannot properly load value '{0}' on property '{1}' for actor {2}.")
+				, FText::FromStringView(KeyValueProperty->GetValue())
+				, FText::FromString(PropStr)
+				, FText::FromStringView(InCustomActorElement->GetName())) 
+			);
 		}
 	}
 

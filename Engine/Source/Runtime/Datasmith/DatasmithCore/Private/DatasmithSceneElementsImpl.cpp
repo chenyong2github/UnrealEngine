@@ -112,8 +112,8 @@ TSharedPtr< IDatasmithKeyValueProperty > FDatasmithKeyValuePropertyImpl::NullPro
 FDatasmithKeyValuePropertyImpl::FDatasmithKeyValuePropertyImpl(const TCHAR* InName)
 	: FDatasmithElementImpl(InName, EDatasmithElementType::KeyValueProperty)
 	, PropertyType(EDatasmithKeyValuePropertyType::String)
-	, Value(InName)
 {
+	FDatasmithKeyValuePropertyImpl::SetName(InName);
 	Store.RegisterParameter(Value, "Value");
 	Store.RegisterParameter(PropertyType, "PropertyType");
 }

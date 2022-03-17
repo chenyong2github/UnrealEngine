@@ -72,6 +72,7 @@ class FDatasmithKeyValuePropertyImpl : public FDatasmithElementImpl< IDatasmithK
 {
 public:
 	FDatasmithKeyValuePropertyImpl(const TCHAR* InName);
+	virtual void SetName(const TCHAR* InName) override { Name = InName; }
 
 	EDatasmithKeyValuePropertyType GetPropertyType() const override { return PropertyType; }
 	void SetPropertyType( EDatasmithKeyValuePropertyType InType ) override;
