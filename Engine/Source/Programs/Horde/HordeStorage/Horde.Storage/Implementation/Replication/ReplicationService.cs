@@ -64,8 +64,10 @@ namespace Horde.Storage.Implementation
                 return;
 
             // if we are no longer the leader cancel any pending replications
-            Task[] stopReplicatingTasks = State.Replicators.Select(replicator => replicator.StopReplicating()).ToArray();
-            Task.WaitAll(stopReplicatingTasks);
+            // TODO: Reset replication token if we are the new leader
+            /*Task[] stopReplicatingTasks = State.Replicators.Select(replicator => replicator.StopReplicating()).ToArray();
+            Task.WaitAll(stopReplicatingTasks);*/
+
         }
 
         private static IReplicator CreateReplicator(ReplicatorSettings replicatorSettings, IServiceProvider provider)
