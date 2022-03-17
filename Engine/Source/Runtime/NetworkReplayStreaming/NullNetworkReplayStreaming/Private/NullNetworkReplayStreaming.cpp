@@ -216,7 +216,7 @@ void FNullNetworkReplayStreamer::StartStreaming(const FStartStreamingParameters&
 		// Open file for reading
 		ReopenStreamFileForReading();
 		HeaderAr.Reset( IFileManager::Get().CreateFileReader( *FullHeaderFilename, FILEREAD_AllowWrite ) );
-		StreamerState = EStreamerState::Playback;
+		StreamerState = EReplayStreamerState::Playback;
 	}
 	else
 	{
@@ -229,7 +229,7 @@ void FNullNetworkReplayStreamer::StartStreaming(const FStartStreamingParameters&
 		// Open file for writing
 		FileAr.Reset( IFileManager::Get().CreateFileWriter( *FullDemoFilename, FILEWRITE_AllowRead ) );
 		HeaderAr.Reset( IFileManager::Get().CreateFileWriter( *FullHeaderFilename, FILEWRITE_AllowRead ) );
-		StreamerState = EStreamerState::Recording;
+		StreamerState = EReplayStreamerState::Recording;
 
 		CurrentCheckpointIndex = 0;
 
@@ -251,7 +251,7 @@ void FNullNetworkReplayStreamer::StartStreaming(const FStartStreamingParameters&
 
 void FNullNetworkReplayStreamer::StopStreaming()
 {
-	if (StreamerState == EStreamerState::Recording)
+	if (StreamerState == EReplayStreamerState::Recording)
 	{
 		WriteReplayInfo(CurrentStreamName, ReplayInfo);
 	}
@@ -262,7 +262,7 @@ void FNullNetworkReplayStreamer::StopStreaming()
 	FileAr.Reset();
 
 	CurrentStreamName.Empty();
-	StreamerState = EStreamerState::Idle;
+	StreamerState = EReplayStreamerState::Idle;
 }
 
 FArchive* FNullNetworkReplayStreamer::GetHeaderArchive()
@@ -277,14 +277,14 @@ FArchive* FNullNetworkReplayStreamer::GetStreamingArchive()
 
 void FNullNetworkReplayStreamer::UpdateTotalDemoTime(uint32 TimeInMS)
 {
-	check(StreamerState == EStreamerState::Recording);
+	check(StreamerState == EReplayStreamerState::Recording);
 
 	ReplayInfo.LengthInMS = TimeInMS;
 }
 
 bool FNullNetworkReplayStreamer::IsDataAvailable() const
 {
-	check(StreamerState == EStreamerState::Playback);
+	check(StreamerState == EReplayStreamerState::Playback);
 
 	return FileAr.IsValid() && FileAr->Tell() < ReplayInfo.DemoFileLastOffset;
 }
@@ -517,7 +517,7 @@ FArchive* FNullNetworkReplayStreamer::GetCheckpointArchive()
 	if ( CheckpointAr.Get() == nullptr )
 	{
 		// Create a file writer for the next checkpoint index.
-		check(StreamerState != EStreamerState::Playback);
+		check(StreamerState != EReplayStreamerState::Playback);
 
 		FString NextCheckpointFileName = FString::Printf( TEXT( "checkpoint%d" ), CurrentCheckpointIndex );
 
@@ -712,7 +712,7 @@ void FNullNetworkReplayStreamer::Tick(float DeltaSeconds)
 {
 	// This relies on the fact that the DemoNetDriver isn't currently in the middle of its own tick,
 	// and has either read or written a whole demo frame.
-	if (StreamerState == EStreamerState::Playback)
+	if (StreamerState == EReplayStreamerState::Playback)
 	{
 		// Re-read replay info
 		UpdateReplayInfoIfValid();
@@ -728,7 +728,7 @@ void FNullNetworkReplayStreamer::Tick(float DeltaSeconds)
 			}
 		}
 	}
-	else if (StreamerState == EStreamerState::Recording)
+	else if (StreamerState == EReplayStreamerState::Recording)
 	{
 		// Note the size of the file between demo frames
 		if (FileAr.IsValid() && ReplayInfo.DemoFileLastOffset < FileAr->Tell())

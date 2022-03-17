@@ -55,7 +55,7 @@ void FInMemoryNetworkReplayStreamer::StartStreaming(const FStartStreamingParamet
 		FileAr->SetIsSaving(Params.bRecord);
 		FileAr->SetIsLoading(!Params.bRecord);
 		HeaderAr.Reset(new FMemoryReader(FoundReplay->Header));
-		StreamerState = EStreamerState::Playback;
+		StreamerState = EReplayStreamerState::Playback;
 	}
 	else
 	{
@@ -77,7 +77,7 @@ void FInMemoryNetworkReplayStreamer::StartStreaming(const FStartStreamingParamet
 
 		OwningFactory->Replays.Add(CurrentStreamName, MoveTemp(NewReplay));
 		
-		StreamerState = EStreamerState::Recording;
+		StreamerState = EReplayStreamerState::Recording;
 	}
 
 	// Notify immediately
@@ -91,7 +91,7 @@ void FInMemoryNetworkReplayStreamer::StartStreaming(const FStartStreamingParamet
 
 void FInMemoryNetworkReplayStreamer::StopStreaming()
 {
-	if (StreamerState == EStreamerState::Recording)
+	if (StreamerState == EReplayStreamerState::Recording)
 	{
 		FInMemoryReplay* FoundReplay = GetCurrentReplayChecked();
 
@@ -108,7 +108,7 @@ void FInMemoryNetworkReplayStreamer::StopStreaming()
 	FileAr.Reset();
 
 	CurrentStreamName.Empty();
-	StreamerState = EStreamerState::Idle;
+	StreamerState = EReplayStreamerState::Idle;
 }
 
 FArchive* FInMemoryNetworkReplayStreamer::GetHeaderArchive()
@@ -123,7 +123,7 @@ FArchive* FInMemoryNetworkReplayStreamer::GetStreamingArchive()
 
 void FInMemoryNetworkReplayStreamer::UpdateTotalDemoTime(uint32 TimeInMS)
 {
-	check(StreamerState == EStreamerState::Recording);
+	check(StreamerState == EReplayStreamerState::Recording);
 
 	FInMemoryReplay* FoundReplay = GetCurrentReplayChecked();
 
@@ -132,7 +132,7 @@ void FInMemoryNetworkReplayStreamer::UpdateTotalDemoTime(uint32 TimeInMS)
 
 uint32 FInMemoryNetworkReplayStreamer::GetTotalDemoTime() const
 {
-	check(StreamerState != EStreamerState::Idle);
+	check(StreamerState != EReplayStreamerState::Idle);
 
 	const FInMemoryReplay* FoundReplay = GetCurrentReplayChecked();
 
@@ -144,7 +144,7 @@ bool FInMemoryNetworkReplayStreamer::IsDataAvailable() const
 	// Assumptions:
 	// 1. All streamer instances run on the same thread, not simultaneously
 	// 2. A recording DemoNetDriver will write either no frames or entire frames each time it ticks
-	return StreamerState == EStreamerState::Playback && FileAr.IsValid() && FileAr->Tell() < FileAr->TotalSize();
+	return StreamerState == EReplayStreamerState::Playback && FileAr.IsValid() && FileAr->Tell() < FileAr->TotalSize();
 }
 
 bool FInMemoryNetworkReplayStreamer::IsLive() const
@@ -337,7 +337,7 @@ FArchive* FInMemoryNetworkReplayStreamer::GetCheckpointArchive()
 	// If the archive is null, and the API is being used properly, the caller is writing a checkpoint...
 	if ( CheckpointAr.Get() == nullptr )
 	{
-		check(StreamerState != EStreamerState::Playback);
+		check(StreamerState != EReplayStreamerState::Playback);
 
 		UE_LOG(LogMemoryReplay, Log, TEXT("FInMemoryNetworkReplayStreamer::GetCheckpointArchive. Creating new checkpoint."));
 

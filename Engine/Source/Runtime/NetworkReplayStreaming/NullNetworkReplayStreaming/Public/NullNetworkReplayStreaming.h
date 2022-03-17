@@ -38,7 +38,7 @@ class FNullNetworkReplayStreamer : public INetworkReplayStreamer, public FTickab
 {
 public:
 	FNullNetworkReplayStreamer() :
-		StreamerState( EStreamerState::Idle ),
+		StreamerState(EReplayStreamerState::Idle),
 		CurrentCheckpointIndex( 0 ),
 		LastKnownFileSize( 0 )
 	{}
@@ -87,6 +87,7 @@ public:
 	virtual void RenameReplay(const FString& ReplayName, const FString& NewName, const FRenameReplayCallback& Delegate) override;
 	virtual void RenameReplay(const FString& ReplayName, const FString& NewName, const int32 UserIndex, const FRenameReplayCallback& Delegate) override;
 	virtual FString	GetReplayID() const override { return CurrentStreamName; }
+	virtual EReplayStreamerState GetReplayStreamerState() const override { return StreamerState; }
 	virtual void SetTimeBufferHintSeconds(const float InTimeBufferHintSeconds) override {}
 	virtual void RefreshHeader() override {};
 	virtual void DownloadHeader(const FDownloadHeaderCallback& Delegate) override
@@ -136,16 +137,8 @@ private:
 	/* Handle to the archive that will read/write checkpoint files */
 	TUniquePtr<FArchive> CheckpointAr;
 
-	/** EStreamerState - Overall state of the streamer */
-	enum class EStreamerState
-	{
-		Idle,					// The streamer is idle. Either we haven't started streaming yet, or we are done
-		Recording,				// We are in the process of recording a replay to disk
-		Playback,				// We are in the process of playing a replay from disk
-	};
-
 	/** Overall state of the streamer */
-	EStreamerState StreamerState;
+	EReplayStreamerState StreamerState;
 
 	/** Remember the name of the current stream, if any. */
 	FString CurrentStreamName;

@@ -208,7 +208,7 @@ FHttpNetworkReplayStreamer::FHttpNetworkReplayStreamer() :
 	LastChunkTime( 0 ), 
 	LastRefreshViewerTime( 0 ),
 	LastRefreshCheckpointTime( 0 ),
-	StreamerState( EStreamerState::Idle ), 
+	StreamerState(EReplayStreamerState::Idle),
 	bStopStreamingCalled( false ), 
 	bStreamIsLive( false ),
 	NumTotalStreamChunks( 0 ),
@@ -302,7 +302,7 @@ void FHttpNetworkReplayStreamer::StartStreaming(const FStartStreamingParameters&
 	if ( !Params.bRecord )
 	{
 		// We are streaming down
-		StreamerState = EStreamerState::StreamingDown;
+		StreamerState = EReplayStreamerState::Playback;
 
 		SessionName = Params.CustomName;
 
@@ -335,7 +335,7 @@ void FHttpNetworkReplayStreamer::StartStreaming(const FStartStreamingParameters&
 	else
 	{
 		// We are streaming up
-		StreamerState = EStreamerState::StreamingUp;
+		StreamerState = EReplayStreamerState::Recording;
 
 		SessionName.Empty();
 
@@ -553,12 +553,12 @@ void FHttpNetworkReplayStreamer::StopStreaming()
 
 	bStopStreamingCalled = true;
 
-	if ( StreamerState == EStreamerState::StreamingDown )
+	if ( StreamerState == EReplayStreamerState::Playback )
 	{
 		// Refresh one last time, pasing in bFinal == true, this will notify the server we're done (remove us from viewers list)
 		RefreshViewer( true );
 	}
-	else if ( StreamerState == EStreamerState::StreamingUp )
+	else if ( StreamerState == EReplayStreamerState::Recording )
 	{
 		// Flush any final pending stream
 		FlushStream();
@@ -1009,7 +1009,7 @@ void FHttpNetworkReplayStreamer::GotoTimeInMS( const uint32 TimeInMS, const FGot
 
 void FHttpNetworkReplayStreamer::FlushCheckpointInternal( uint32 TimeInMS )
 {
-	if ( SessionName.IsEmpty() || StreamerState != EStreamerState::StreamingUp || CheckpointArchive.Buffer.Num() == 0 )
+	if ( SessionName.IsEmpty() || StreamerState != EReplayStreamerState::Recording || CheckpointArchive.Buffer.Num() == 0 )
 	{
 		// If there is no active session, or we are not recording, we don't need to flush
 		CheckpointArchive.Buffer.Empty();
@@ -1090,7 +1090,7 @@ bool FQueuedHttpRequestAddEvent::PreProcess( FHttpNetworkReplayStreamer* Streame
 
 void FHttpNetworkReplayStreamer::AddOrUpdateEvent( const FString& Name, const uint32 TimeInMS, const FString& Group, const FString& Meta, const TArray<uint8>& Data )
 {
-	if ( StreamerState != EStreamerState::StreamingUp && StreamerState != EStreamerState::StreamingDown )
+	if ( StreamerState != EReplayStreamerState::Recording && StreamerState != EReplayStreamerState::Playback )
 	{
 		UE_LOG( LogHttpReplay, Warning, TEXT( "FHttpNetworkReplayStreamer::AddOrUpdateEvent. Not streaming." ) );
 		return;
@@ -1110,13 +1110,13 @@ void FHttpNetworkReplayStreamer::AddOrUpdateEvent( const FString& Name, const ui
 
 void FHttpNetworkReplayStreamer::AddEvent( const uint32 TimeInMS, const FString& Group, const FString& Meta, const TArray<uint8>& Data )
 {
-	if (StreamerState != EStreamerState::StreamingUp && StreamerState != EStreamerState::StreamingDown)
+	if (StreamerState != EReplayStreamerState::Recording && StreamerState != EReplayStreamerState::Playback)
 	{
 		UE_LOG( LogHttpReplay, Warning, TEXT( "FHttpNetworkReplayStreamer::AddEvent. Not streaming." ) );
 		return;
 	}
 
-	if ( StreamerState == EStreamerState::StreamingUp && !EventGroupSet.Contains( Group ) )
+	if ( StreamerState == EReplayStreamerState::Recording && !EventGroupSet.Contains( Group ) )
 	{
 		// Add the group as a user, so we can quickly find replays that have these event types in them
 		EventGroupSet.Add( Group );
@@ -1406,7 +1406,7 @@ void FHttpNetworkReplayStreamer::CancelStreamingRequests()
 	// Empty the request queue
 	QueuedHttpRequests.Empty();
 
-	StreamerState			= EStreamerState::Idle;
+	StreamerState			= EReplayStreamerState::Idle;
 	bStopStreamingCalled	= false;
 }
 
@@ -1620,7 +1620,7 @@ bool FQueuedHttpRequestAddUser::PreProcess( FHttpNetworkReplayStreamer* Streamer
 
 void FHttpNetworkReplayStreamer::AddUserToReplay(const FString& UserString)
 {
-	if ( StreamerState != EStreamerState::StreamingUp )
+	if ( StreamerState != EReplayStreamerState::Recording )
 	{
 		return;
 	}
@@ -1707,7 +1707,7 @@ void FHttpNetworkReplayStreamer::EnumerateEvents(const FString& ReplayName, cons
 	AddRequestToQueue( EQueuedHttpRequestType::EnumeratingCustomEvent, HttpRequest );
 }
 
-void FHttpNetworkReplayStreamer::RequestFinished( EStreamerState ExpectedStreamerState, EQueuedHttpRequestType::Type ExpectedType, FHttpRequestPtr HttpRequest )
+void FHttpNetworkReplayStreamer::RequestFinished(EReplayStreamerState ExpectedStreamerState, EQueuedHttpRequestType::Type ExpectedType, FHttpRequestPtr HttpRequest )
 {
 	check( StreamerState == ExpectedStreamerState );
 	check( InFlightHttpRequest.IsValid() );
@@ -1721,7 +1721,7 @@ void FHttpNetworkReplayStreamer::HttpStartUploadingFinished( FHttpRequestPtr Htt
 {
 	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
-	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::StartUploading, HttpRequest );
+	RequestFinished(EReplayStreamerState::Recording, EQueuedHttpRequestType::StartUploading, HttpRequest );
 
 	if ( bSucceeded && HttpResponse->GetResponseCode() == EHttpResponseCodes::Ok )
 	{
@@ -1759,7 +1759,7 @@ void FHttpNetworkReplayStreamer::HttpStopUploadingFinished( FHttpRequestPtr Http
 {
 	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
-	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::StopUploading, HttpRequest );
+	RequestFinished(EReplayStreamerState::Recording, EQueuedHttpRequestType::StopUploading, HttpRequest );
 
 	if ( bSucceeded && HttpResponse->GetResponseCode() == EHttpResponseCodes::NoContent )
 	{
@@ -1788,7 +1788,7 @@ void FHttpNetworkReplayStreamer::HttpHeaderUploadFinished( FHttpRequestPtr HttpR
 {
 	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
-	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::UploadingHeader, HttpRequest );
+	RequestFinished(EReplayStreamerState::Recording, EQueuedHttpRequestType::UploadingHeader, HttpRequest );
 
 	FStartStreamingResult Result;
 	Result.bRecording = true;
@@ -1822,7 +1822,7 @@ void FHttpNetworkReplayStreamer::HttpUploadStreamFinished( FHttpRequestPtr HttpR
 {
 	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
-	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::UploadingStream, HttpRequest );
+	RequestFinished(EReplayStreamerState::Recording, EQueuedHttpRequestType::UploadingStream, HttpRequest );
 
 	if ( bSucceeded && HttpResponse->GetResponseCode() == EHttpResponseCodes::NoContent )
 	{
@@ -1844,7 +1844,7 @@ void FHttpNetworkReplayStreamer::HttpUploadCheckpointFinished( FHttpRequestPtr H
 {
 	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
-	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::UploadingCheckpoint, HttpRequest );
+	RequestFinished(EReplayStreamerState::Recording, EQueuedHttpRequestType::UploadingCheckpoint, HttpRequest );
 
 	if ( bSucceeded && ( HttpResponse->GetResponseCode() == EHttpResponseCodes::Ok || HttpResponse->GetResponseCode() == EHttpResponseCodes::NoContent ) )
 	{
@@ -1888,7 +1888,7 @@ void FHttpNetworkReplayStreamer::HttpUploadCustomEventFinished(FHttpRequestPtr H
 
 void FHttpNetworkReplayStreamer::HttpStartDownloadingFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
-	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::StartDownloading, HttpRequest );
+	RequestFinished(EReplayStreamerState::Playback, EQueuedHttpRequestType::StartDownloading, HttpRequest );
 
 	if ( bSucceeded && HttpResponse->GetResponseCode() == EHttpResponseCodes::Ok )
 	{
@@ -1942,7 +1942,7 @@ void FHttpNetworkReplayStreamer::HttpStartDownloadingFinished( FHttpRequestPtr H
 
 void FHttpNetworkReplayStreamer::HttpDownloadHeaderFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FDownloadHeaderCallback Delegate)
 {
-	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::DownloadingHeader, HttpRequest );
+	RequestFinished(EReplayStreamerState::Playback, EQueuedHttpRequestType::DownloadingHeader, HttpRequest );
 
 	check( StreamArchive.IsLoading() );
 
@@ -2002,7 +2002,7 @@ void FHttpNetworkReplayStreamer::HttpDownloadFinished( FHttpRequestPtr HttpReque
 {
 	LLM_SCOPE(ELLMTag::Replays);
 
-	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::DownloadingStream, HttpRequest );
+	RequestFinished(EReplayStreamerState::Playback, EQueuedHttpRequestType::DownloadingStream, HttpRequest );
 
 	check( StreamArchive.IsLoading() );
 
@@ -2112,7 +2112,7 @@ void FHttpNetworkReplayStreamer::HttpDownloadCheckpointFinished( FHttpRequestPtr
 {
 	UE_LOG( LogHttpReplay, Verbose, TEXT( "FHttpNetworkReplayStreamer::HttpDownloadCheckpointFinished." ) );
 
-	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::DownloadingCheckpoint, HttpRequest );
+	RequestFinished(EReplayStreamerState::Playback, EQueuedHttpRequestType::DownloadingCheckpoint, HttpRequest );
 
 	check( StreamArchive.IsLoading() );
 	check( GotoCheckpointDelegate.IsBound() );
@@ -2222,7 +2222,7 @@ void FHttpNetworkReplayStreamer::HttpRefreshViewerFinished( FHttpRequestPtr Http
 {
 	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
-	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::RefreshingViewer, HttpRequest );
+	RequestFinished(EReplayStreamerState::Playback, EQueuedHttpRequestType::RefreshingViewer, HttpRequest );
 
 	if ( !bSucceeded || HttpResponse->GetResponseCode() != EHttpResponseCodes::NoContent )
 	{
@@ -2298,7 +2298,7 @@ void FHttpNetworkReplayStreamer::HttpEnumerateSessionsFinished( FHttpRequestPtr 
 
 void FHttpNetworkReplayStreamer::HttpEnumerateCheckpointsFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
-	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::EnumeratingCheckpoints, HttpRequest );
+	RequestFinished(EReplayStreamerState::Playback, EQueuedHttpRequestType::EnumeratingCheckpoints, HttpRequest );
 
 	FStartStreamingResult Result;
 	Result.bRecording = false;
@@ -2374,7 +2374,7 @@ void FHttpNetworkReplayStreamer::HttpEnumerateEventsFinished(FHttpRequestPtr Htt
 
 void FHttpNetworkReplayStreamer::HttpAddUserFinished(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
 {
-	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::AddingUser, HttpRequest );
+	RequestFinished(EReplayStreamerState::Recording, EQueuedHttpRequestType::AddingUser, HttpRequest );
 
 	if ( bSucceeded && HttpResponse->GetResponseCode() == EHttpResponseCodes::NoContent )
 	{		
@@ -2424,7 +2424,7 @@ bool FHttpNetworkReplayStreamer::ProcessNextHttpRequest()
 		else if ( QueuedRequest->Type == EQueuedHttpRequestType::StopStreaming )
 		{
 			check( IsStreaming() );
-			StreamerState = EStreamerState::Idle;
+			StreamerState = EReplayStreamerState::Idle;
 			bStopStreamingCalled = false;
 			ensure( QueuedHttpRequests.Num() == 0 );
 			return ProcessNextHttpRequest();
@@ -2493,11 +2493,11 @@ void FHttpNetworkReplayStreamer::Tick( const float DeltaTime )
 		return;
 	}
 
-	if ( StreamerState == EStreamerState::StreamingUp )
+	if ( StreamerState == EReplayStreamerState::Recording )
 	{
 		ConditionallyFlushStream();
 	}
-	else if ( StreamerState == EStreamerState::StreamingDown )
+	else if ( StreamerState == EReplayStreamerState::Playback )
 	{
 		if ( IsTaskPendingOrInFlight( EQueuedHttpRequestType::StartDownloading ) )
 		{
@@ -2538,14 +2538,14 @@ bool FHttpNetworkReplayStreamer::HasPendingHttpRequests() const
 
 bool FHttpNetworkReplayStreamer::IsStreaming() const
 {
-	return StreamerState != EStreamerState::Idle;
+	return StreamerState != EReplayStreamerState::Idle;
 }
 
 void FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
 	UE_LOG( LogHttpReplay, Verbose, TEXT( "FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished." ) );
 
-	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::DownloadingCheckpoint, HttpRequest );
+	RequestFinished(EReplayStreamerState::Playback, EQueuedHttpRequestType::DownloadingCheckpoint, HttpRequest );
 
 	check( StreamArchive.IsLoading() );
 	check( GotoCheckpointDelegate.IsBound() );

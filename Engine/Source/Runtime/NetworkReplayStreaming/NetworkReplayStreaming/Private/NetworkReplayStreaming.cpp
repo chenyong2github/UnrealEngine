@@ -7,6 +7,8 @@
 
 IMPLEMENT_MODULE( FNetworkReplayStreaming, NetworkReplayStreaming );
 
+FOnReplayGetAnalyticsAttributes INetworkReplayStreamer::OnReplayGetAnalyticsAttributes;
+
 INetworkReplayStreamingFactory& FNetworkReplayStreaming::GetFactory(const TCHAR* FactoryNameOverride)
 {
 	static const FString DefaultFactoryName = TEXT("LocalFileNetworkReplayStreaming");
@@ -127,4 +129,46 @@ bool FNetworkReplayStreaming::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 	}
 
 	return false;
+}
+
+FString LexToString(const EReplayStreamerState State)
+{
+	FString Str;
+
+	switch (State)
+	{
+	case EReplayStreamerState::Idle:
+		Str = TEXT("Idle");
+		break;
+	case EReplayStreamerState::Recording:
+		Str = TEXT("Recording");
+		break;
+	case EReplayStreamerState::Playback:
+		Str = TEXT("Playback");
+		break;
+	default:
+		Str = TEXT("Unknown");
+		break;
+	}
+
+	return Str;
+}
+
+TArray<FAnalyticsEventAttribute> INetworkReplayStreamer::AppendCommonReplayAttributes(TArray<FAnalyticsEventAttribute>&& Attrs) const
+{
+	static const FString Attrib_StreamerState = TEXT("StreamerState");
+	static const FString Attrib_ReplayName = TEXT("ReplayName");
+	static const FString Attrib_LengthInMS = TEXT("LengthInMS");
+
+	TArray<FAnalyticsEventAttribute> CommonAttributes = MoveTemp(Attrs);
+
+	AppendAnalyticsEventAttributeArray(CommonAttributes,
+		Attrib_StreamerState, LexToString(GetReplayStreamerState()),
+		Attrib_ReplayName, GetReplayID(),
+		Attrib_LengthInMS, GetTotalDemoTime()
+	);
+
+	INetworkReplayStreamer::OnReplayGetAnalyticsAttributes.Broadcast(this, CommonAttributes);
+
+	return CommonAttributes;
 }

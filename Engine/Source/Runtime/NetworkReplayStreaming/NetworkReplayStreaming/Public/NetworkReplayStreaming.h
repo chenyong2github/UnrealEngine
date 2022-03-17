@@ -9,6 +9,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/JsonSerializerMacros.h"
+#include "AnalyticsEventAttribute.h"
 
 class IAnalyticsProvider;
 
@@ -473,6 +474,17 @@ struct FStartStreamingParameters
 	bool bRecord;
 };
 
+enum class EReplayStreamerState : uint8
+{
+	Idle,					// The streamer is idle. Either we haven't started activity yet, or we are done
+	Recording,				// We are in the process of recording a replay
+	Playback,				// We are in the process of playing a replay
+};
+
+FString NETWORKREPLAYSTREAMING_API LexToString(const EReplayStreamerState State);
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayGetAnalyticsAttributes, const class INetworkReplayStreamer* /*Streamer*/, TArray<FAnalyticsEventAttribute>& /*Attributes*/);
+
 /**
  * Generic interface for network replay streaming
  *
@@ -502,7 +514,9 @@ public:
 	virtual void UpdateTotalDemoTime(uint32 TimeInMS) = 0;
 	virtual void UpdatePlaybackTime(uint32 TimeInMS) = 0;
 
+	/** Time in milliseconds */
 	virtual uint32 GetTotalDemoTime() const = 0;
+
 	virtual bool IsDataAvailable() const = 0;
 	virtual void SetHighPriorityTimeRange(const uint32 StartTimeInMS, const uint32 EndTimeInMS) = 0;
 	virtual bool IsDataAvailableForTimeRange(const uint32 StartTimeInMS, const uint32 EndTimeInMS) = 0;
@@ -563,6 +577,9 @@ public:
 	/** Returns the active replay name */
 	virtual FString	GetReplayID() const = 0;
 
+	/** Return current recording/playback state */
+	virtual EReplayStreamerState GetReplayStreamerState() const { return EReplayStreamerState::Idle; };
+
 	/**
 	 * Attempts to delete the stream with the specified name. May execute asynchronously.
 	 *
@@ -621,7 +638,12 @@ public:
 
 	virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider>& InProvider) {}
 
+	virtual TArray<FAnalyticsEventAttribute> AppendCommonReplayAttributes(TArray<FAnalyticsEventAttribute>&& Attrs) const;
+
 	virtual void Exec(const TCHAR* Cmd, FOutputDevice& Ar) {}
+
+	/** Called from base streamer interface AppendCommonReplayAttributes to set common attributes */
+	static FOnReplayGetAnalyticsAttributes OnReplayGetAnalyticsAttributes;
 };
 
 /** Replay streamer factory */

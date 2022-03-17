@@ -146,7 +146,7 @@ FLocalFileNetworkReplayStreamer::FLocalFileNetworkReplayStreamer()
 	, bStopStreamingCalled(false)
 	, HighPriorityEndTime(0)
 	, LastGotoTimeInMS(-1)
-	, StreamerState(EStreamerState::Idle)
+	, StreamerState(EReplayStreamerState::Idle)
 	, StreamerLastError(ENetworkReplayError::None)
 	, DemoSavePath(GetDefaultDemoSavePath())
 	, bCacheFileReadsInMemory(false)
@@ -162,7 +162,7 @@ FLocalFileNetworkReplayStreamer::FLocalFileNetworkReplayStreamer(const FString& 
 	, bStopStreamingCalled(false)
 	, HighPriorityEndTime(0)
 	, LastGotoTimeInMS(-1)
-	, StreamerState(EStreamerState::Idle)
+	, StreamerState(EReplayStreamerState::Idle)
 	, StreamerLastError(ENetworkReplayError::None)
 	, DemoSavePath(InDemoSavePath.EndsWith(TEXT("/")) ? InDemoSavePath : InDemoSavePath + FString("/"))
 	, bCacheFileReadsInMemory(false)
@@ -701,7 +701,7 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 	if (!Params.bRecord)
 	{
 		// We are playing
-		StreamerState = EStreamerState::Playback;
+		StreamerState = EReplayStreamerState::Playback;
 
 		// Add the request to start loading
 		AddDelegateFileRequestToQueue<FStartStreamingResult>(EQueuedLocalFileRequestType::StartPlayback, 
@@ -760,7 +760,7 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 	else
 	{
 		// We are recording
-		StreamerState = EStreamerState::Recording;
+		StreamerState = EReplayStreamerState::Recording;
 
 		uint64 TotalDiskFreeSpace = 0;
 		if (GetDemoFreeStorageSpace(TotalDiskFreeSpace, GetDemoPath()))
@@ -848,7 +848,7 @@ void FLocalFileNetworkReplayStreamer::CancelStreamingRequests()
 	// Empty the request queue
 	QueuedRequests.Empty();
 
-	StreamerState = EStreamerState::Idle;
+	StreamerState = EReplayStreamerState::Idle;
 	bStopStreamingCalled = false;
 }
 
@@ -888,7 +888,7 @@ void FLocalFileNetworkReplayStreamer::StopStreaming()
 
 	bStopStreamingCalled = true;
 
-	if (StreamerState == EStreamerState::Recording)
+	if (StreamerState == EReplayStreamerState::Recording)
 	{
 		// Flush any final pending stream
 		int32 TotalLengthInMS = CurrentReplayInfo.LengthInMS;
@@ -930,7 +930,7 @@ void FLocalFileNetworkReplayStreamer::StopStreaming()
 			StreamDataOffset = 0;
 			StreamChunkIndex = 0;
 			CurrentStreamName.Empty();
-			StreamerState = EStreamerState::Idle;
+			StreamerState = EReplayStreamerState::Idle;
 		});
 }
 
@@ -946,7 +946,7 @@ FArchive* FLocalFileNetworkReplayStreamer::GetStreamingArchive()
 
 void FLocalFileNetworkReplayStreamer::UpdateTotalDemoTime(uint32 TimeInMS)
 {
-	check(StreamerState == EStreamerState::Recording);
+	check(StreamerState == EReplayStreamerState::Recording);
 
 	CurrentReplayInfo.LengthInMS = TimeInMS;
 }
@@ -1103,7 +1103,7 @@ void FLocalFileNetworkReplayStreamer::AddUserToReplay(const FString& UserString)
 
 void FLocalFileNetworkReplayStreamer::AddEvent(const uint32 TimeInMS, const FString& Group, const FString& Meta, const TArray<uint8>& Data)
 {
-	if (StreamerState != EStreamerState::Recording)
+	if (StreamerState != EReplayStreamerState::Recording)
 	{
 		UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::AddEvent. Not recording."));
 		return;
@@ -1114,7 +1114,7 @@ void FLocalFileNetworkReplayStreamer::AddEvent(const uint32 TimeInMS, const FStr
 
 void FLocalFileNetworkReplayStreamer::AddOrUpdateEvent(const FString& Name, const uint32 TimeInMS, const FString& Group, const FString& Meta, const TArray<uint8>& Data)
 {
-	if (StreamerState != EStreamerState::Recording)
+	if (StreamerState != EReplayStreamerState::Recording)
 	{
 		UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::AddOrUpdateEvent. Not recording."));
 		return;
@@ -1803,7 +1803,7 @@ void FLocalFileNetworkReplayStreamer::FlushCheckpoint(const uint32 TimeInMS)
 
 void FLocalFileNetworkReplayStreamer::FlushCheckpointInternal(const uint32 TimeInMS)
 {
-	if (StreamerState != EStreamerState::Recording || CheckpointAr.Buffer.Num() == 0)
+	if (StreamerState != EReplayStreamerState::Recording || CheckpointAr.Buffer.Num() == 0)
 	{
 		// If there is no active session, or we are not recording, we don't need to flush
 		CheckpointAr.Buffer.Empty();
@@ -2495,11 +2495,11 @@ void FLocalFileNetworkReplayStreamer::Tick(float DeltaSeconds)
 		return;
 	}
 
-	if (StreamerState == EStreamerState::Recording)
+	if (StreamerState == EReplayStreamerState::Recording)
 	{
 		ConditionallyFlushStream();
 	}
-	else if (StreamerState == EStreamerState::Playback)
+	else if (StreamerState == EReplayStreamerState::Playback)
 	{
 		if (IsFileRequestPendingOrInProgress(EQueuedLocalFileRequestType::StartPlayback))
 		{
@@ -3025,7 +3025,7 @@ void FLocalFileNetworkReplayStreamer::OnFileRequestComplete(const TSharedPtr<FQu
 
 bool FLocalFileNetworkReplayStreamer::IsStreaming() const
 {
-	return (StreamerState != EStreamerState::Idle);
+	return (StreamerState != EReplayStreamerState::Idle);
 }
 
 void FLocalFileNetworkReplayStreamer::ConditionallyFlushStream()

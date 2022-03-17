@@ -246,6 +246,7 @@ public:
 
 	virtual ENetworkReplayError::Type GetLastError() const override;
 	virtual FString		GetReplayID() const override { return SessionName; }
+	virtual EReplayStreamerState GetReplayStreamerState() const override { return StreamerState; }
 	virtual void		SetTimeBufferHintSeconds(const float InTimeBufferHintSeconds) override {}
 	virtual void		RefreshHeader() override;
 	virtual void		DownloadHeader(const FDownloadHeaderCallback& Delegate);
@@ -298,16 +299,8 @@ public:
 	void InternalGotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate, bool bDelta);
 	void InternalGotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate, const FHttpRequestCompleteDelegate& RequestDelegate);
 
-	/** EStreamerState - Overall state of the streamer */
-	enum class EStreamerState
-	{
-		Idle,						// The streamer is idle. Either we haven't started streaming yet, or we are done
-		StreamingUp,				// We are in the process of streaming a replay to the http server
-		StreamingDown				// We are in the process of streaming a replay from the http server
-	};
-
 	/** Delegates */
-	void RequestFinished( EStreamerState ExpectedStreamerState, EQueuedHttpRequestType::Type ExpectedType, FHttpRequestPtr HttpRequest );
+	void RequestFinished(EReplayStreamerState ExpectedStreamerState, EQueuedHttpRequestType::Type ExpectedType, FHttpRequestPtr HttpRequest );
 
 	void HttpStartDownloadingFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded );
 	void HttpDownloadHeaderFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FDownloadHeaderCallback Delegate);
@@ -347,7 +340,7 @@ public:
 	double					LastChunkTime;			// The last time we uploaded/downloaded a chunk
 	double					LastRefreshViewerTime;	// The last time we refreshed ourselves as an active viewer
 	double					LastRefreshCheckpointTime;
-	EStreamerState			StreamerState;			// Overall state of the streamer
+	EReplayStreamerState	StreamerState;			// Overall state of the streamer
 	bool					bStopStreamingCalled;
 	bool					bStreamIsLive;			// If true, we are viewing a live stream
 	FString					StreamMetadata;

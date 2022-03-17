@@ -13,7 +13,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
                     "Json",
-                    // ... add other public dependencies that you statically link with here ...
+					"Analytics",
 				}
 			);
 		}
