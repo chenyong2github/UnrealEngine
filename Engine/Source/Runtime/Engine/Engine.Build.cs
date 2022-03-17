@@ -18,8 +18,7 @@ public class Engine : ModuleRules
 			"PacketHandler", 
 			"AudioMixer", 
 			"AudioMixerCore",
-			"AnimationCore",
-			"ImageCore"
+			"AnimationCore"
 			}
 		);
 
@@ -79,6 +78,7 @@ public class Engine : ModuleRules
 				"CoreUObject",
 				"NetCore",
 				"ApplicationCore",
+				"ImageCore",
 				"Json",
 				"JsonUtilities",
 				"SlateCore",
@@ -259,7 +259,6 @@ public class Engine : ModuleRules
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"ImageCore",
 					"RawMesh"
 				}
 			);
