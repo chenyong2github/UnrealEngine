@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import * as Sentry from '@sentry/node';
 import * as fs from 'fs';
-import * as marked from 'marked';
+import {marked} from 'marked';
 import * as querystring from 'querystring';
 import { Arg, readProcessArgs } from '../common/args';
 import { ContextualLogger } from '../common/logger';
@@ -241,7 +241,7 @@ class RoboWebApp implements AppInterface {
 			const generatedTOC = toc(markdown).content
 			markdown = markdown.replace(/<!--\s*toc\s*-->/ig, generatedTOC)
 
-			marked(markdown, {renderer: RoboWebApp.getMarkdownRenderer()}, (error, parseResult) => {
+			marked.parse(markdown, {renderer: RoboWebApp.getMarkdownRenderer()}, (error, parseResult) => {
 				if (error) {
 					fail(error)
 					return
