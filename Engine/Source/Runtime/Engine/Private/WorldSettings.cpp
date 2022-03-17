@@ -227,7 +227,14 @@ void AWorldSettings::SetWorldPartition(UWorldPartition* InWorldPartition)
 	check(!IsValid(WorldPartition));
 	check(InWorldPartition);
 	WorldPartition = InWorldPartition;
+	ApplyWorldPartitionForcedSettings();
+}
+
+void AWorldSettings::ApplyWorldPartitionForcedSettings()
+{
 	bEnableWorldComposition = false;
+	bForceNoPrecomputedLighting = true;
+	bPrecomputeVisibility = false;
 }
 
 float AWorldSettings::GetGravityZ() const
@@ -543,6 +550,11 @@ void AWorldSettings::PostLoad()
 		Entry.MergeSetting.PostLoadDeprecated();
 	}
 
+	if (WorldPartition)
+	{
+		// Force to re-apply WorldPartition restrictions on WorldSettings (in case they changed)
+		ApplyWorldPartitionForcedSettings();
+	}
 #endif// WITH_EDITOR
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -599,24 +611,26 @@ void AWorldSettings::CheckForErrors()
 			->AddToken(FMapErrorToken::Create(FMapErrors::DuplicateLevelInfo));
 	}
 
-	int32 NumLightingScenariosEnabled = 0;
-
-	for (int32 LevelIndex = 0; LevelIndex < World->GetNumLevels(); LevelIndex++)
+	if (!World->GetWorldSettings()->bForceNoPrecomputedLighting)
 	{
-		ULevel* Level = World->GetLevels()[LevelIndex];
+		int32 NumLightingScenariosEnabled = 0;
 
-		if (Level->bIsLightingScenario && Level->bIsVisible)
+		for (int32 LevelIndex = 0; LevelIndex < World->GetNumLevels(); LevelIndex++)
 		{
-			NumLightingScenariosEnabled++;
-		}
-	}
+			ULevel* Level = World->GetLevels()[LevelIndex];
 
-	if( World->NumLightingUnbuiltObjects > 0 && NumLightingScenariosEnabled <= 1 )
-	{
-		FMessageLog("MapCheck").Error()
-			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(LOCTEXT( "MapCheck_Message_RebuildLighting", "Maps need lighting rebuilt" ) ))
-			->AddToken(FMapErrorToken::Create(FMapErrors::RebuildLighting));
+			if (Level->bIsLightingScenario && Level->bIsVisible)
+			{
+				NumLightingScenariosEnabled++;
+			}
+		}
+		if( World->NumLightingUnbuiltObjects > 0 && NumLightingScenariosEnabled <= 1 )
+		{
+			FMessageLog("MapCheck").Error()
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(LOCTEXT( "MapCheck_Message_RebuildLighting", "Maps need lighting rebuilt" ) ))
+				->AddToken(FMapErrorToken::Create(FMapErrors::RebuildLighting));
+		}
 	}
 }
 
@@ -657,7 +671,9 @@ bool AWorldSettings::CanEditChange(const FProperty* InProperty) const
 				return LightmassSettings.EnvironmentIntensity > 0;
 			}
 		}
-		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bEnableWorldComposition))
+		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bEnableWorldComposition ) ||
+				 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bForceNoPrecomputedLighting ) ||
+				 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bPrecomputeVisibility))
 		{
 			return !IsPartitionedWorld();
 		}

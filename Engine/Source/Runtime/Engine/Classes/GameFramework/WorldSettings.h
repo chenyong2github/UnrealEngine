@@ -792,6 +792,7 @@ public:
 	UWorldPartition* GetWorldPartition() const;
 	bool IsPartitionedWorld() const { return GetWorldPartition() != nullptr; }
 	void SetWorldPartition(UWorldPartition* InWorldPartition);
+	void ApplyWorldPartitionForcedSettings();
 
 	/**
 	 * Returns the Z component of the current world gravity and initializes it to the default
