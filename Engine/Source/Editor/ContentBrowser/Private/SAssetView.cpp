@@ -1782,8 +1782,7 @@ FContentBrowserDataFilter SAssetView::CreateBackendDataFilter() const
 		|| OnGetCustomAssetToolTip.IsBound()
 		|| OnVisualizeAssetToolTip.IsBound()
 		|| OnAssetToolTipClosing.IsBound()
-		|| OnShouldFilterAsset.IsBound()
-		|| OnShouldFilterItem.IsBound();
+		|| OnShouldFilterAsset.IsBound();
 
 	FContentBrowserDataFilter DataFilter;
 	DataFilter.bRecursivePaths = bRecurse || !bUsingFolders || bHasCollections;
