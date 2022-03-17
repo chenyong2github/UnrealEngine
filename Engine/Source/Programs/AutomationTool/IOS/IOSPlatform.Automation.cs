@@ -537,12 +537,12 @@ public class IOSPlatform : Platform
 
 			if (UnparsedUDID.Contains("Network"))
 			{
-				CurrentDevice.SubType = "Network";
+				CurrentDevice.PlatformValues["Connection"] = "Network";
 				IdeviceInfoArgs = "-n " + IdeviceInfoArgs;
 			}
 			else
 			{
-				CurrentDevice.SubType = "USB";
+				CurrentDevice.PlatformValues["Connection"] = "USB";
 			}
 
 			string OutputInfo = Utils.RunLocalProcessAndReturnStdOut(IdeviceInfoPath, IdeviceInfoArgs);
@@ -1739,7 +1739,7 @@ public class IOSPlatform : Platform
 	{
 		DeviceInfo[] CachedDevices = GetDevices();
 
-		if (CachedDevices.Where(CachedDevice => CachedDevice.Id == UDID && CachedDevice.SubType == "Network").Count() > 0)
+		if (CachedDevices.Where(CachedDevice => CachedDevice.Id == UDID && CachedDevice.PlatformValues["Connection"] == "Network").Count() > 0)
 		{
 			return EntryArguments + " -n";
 		}

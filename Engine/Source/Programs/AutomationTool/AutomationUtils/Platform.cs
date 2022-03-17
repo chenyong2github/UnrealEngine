@@ -35,16 +35,19 @@ namespace AutomationTool
 			this.Platform = Platform;
 		}
 
-		public DeviceInfo(UnrealTargetPlatform Platform, string Name, string Id, string SoftwareVersion, string Type, bool bIsDefault, bool bCanConnect, string SubType = "")
+		public DeviceInfo(UnrealTargetPlatform Platform, string Name, string Id, string SoftwareVersion, string Type, bool bIsDefault, bool bCanConnect, Dictionary<string, string> PlatformValues=null)
 		{
 			this.Platform = Platform;
 			this.Name = Name;
 			this.Id = Id;
 			this.SoftwareVersion = SoftwareVersion;
 			this.Type = Type;
-			this.SubType = SubType;
 			this.bIsDefault = bIsDefault;
 			this.bCanConnect = bCanConnect;
+			if (PlatformValues != null)
+			{
+				this.PlatformValues = new Dictionary<string, string>(PlatformValues);
+			}
 		}
 
 		public UnrealTargetPlatform Platform;
@@ -52,11 +55,13 @@ namespace AutomationTool
 		public string Id;
 		public string SoftwareVersion;
 		public string Type;
-		public string SubType;
 		public bool bIsDefault = false;
 		// is the device able to be connected to (this is more about able to flash SDK or run, not about matching SDK version)
 		// if false, any of the above fields are suspect, especually SoftwareVersion
 		public bool bCanConnect = true;
+
+		// case insesitive platform value dictionary. turnkey doesn't use this, but the platform can look up the device during deployment, etc to get this out
+		public Dictionary<string, string> PlatformValues = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 	}
 
 	/// <summary>
@@ -80,7 +85,7 @@ namespace AutomationTool
 
 		public override string ToString()
 		{
-			return Type.ToString();
+			return Type.ToString() + CookFlavor;
 		}
 	}
 

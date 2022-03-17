@@ -78,6 +78,10 @@ namespace Turnkey.Commands
 						TurnkeyUtils.Log("    Name: {0}{1}", Device.Name, Device.bIsDefault ? "*" : "");
 						TurnkeyUtils.Log("      Id: {0}", Device.Id);
 						TurnkeyUtils.Log("      Type: {0}", Device.Type);
+						foreach (KeyValuePair<string, string> Pair in Device.PlatformValues)
+						{
+							TurnkeyUtils.Log("      {0}: {1}", Pair.Key, Pair.Value);
+						}
 						TurnkeyUtils.Log("      Installed Software Version: {0}", Device.SoftwareVersion);
 						TurnkeyUtils.Log("      Valid Software Installed?: {0}", bIsSoftwareValid);
 
