@@ -16,7 +16,7 @@
 THIRD_PARTY_INCLUDES_START
 	#include <d3d12.h>
 	#include <d3dx12.h>
-	#include <dxgi.h>
+	#include <dxgi1_6.h>
 	#include <dxgidebug.h>
 THIRD_PARTY_INCLUDES_END
 #include "Microsoft/HideMicrosoftPlatformTypes.h"

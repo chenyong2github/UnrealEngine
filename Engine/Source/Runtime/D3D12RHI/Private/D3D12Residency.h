@@ -26,7 +26,6 @@ namespace D3DX12Residency
 #include "Windows/AllowWindowsPlatformAtomics.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "dxgi1_6.h"
 #pragma warning(push)
 #pragma warning(disable: 6031)
 	#include <D3DX12Residency.h>
