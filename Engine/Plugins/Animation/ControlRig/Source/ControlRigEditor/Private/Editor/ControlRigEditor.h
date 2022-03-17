@@ -247,6 +247,7 @@ protected:
 	virtual void OnActiveTabChanged( TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated ) override;
 	virtual void OnSelectedNodesChangedImpl(const TSet<class UObject*>& NewSelection) override;
 	virtual void OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled) override;
+	virtual void RefreshEditors(ERefreshBlueprintEditorReason::Type Reason = ERefreshBlueprintEditorReason::UnknownReason) override;
 	virtual void SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::FGraphEditorEvents& InEvents) override;
 	virtual void FocusInspectorOnGraphSelection(const TSet<class UObject*>& NewSelection, bool bForceRefresh = false) override;
 
@@ -468,6 +469,9 @@ protected:
 
 	/** Are we currently in setup mode */
 	bool bSetupModeEnabled;
+
+	/** Are we currently compiling through the user interface */
+	bool bIsCompilingThroughUI;
 
 	FPreviewControlRigUpdated PreviewControlRigUpdated;
 

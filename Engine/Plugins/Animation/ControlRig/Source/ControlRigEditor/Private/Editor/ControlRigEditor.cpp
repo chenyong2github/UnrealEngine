@@ -209,6 +209,7 @@ FControlRigEditor::FControlRigEditor()
 	, bIsSettingObjectBeingDebugged(false)
 	, bExecutionControlRig(true)
 	, bSetupModeEnabled(false)
+	, bIsCompilingThroughUI(false)
 	, bAnyErrorsLeft(false)
 	, LastEventQueue(EControlRigEditorEventQueue::Setup)
 	, ExecutionMode(EControlRigExecutionModeType::EControlRigExecutionModeType_Release)
@@ -1932,6 +1933,7 @@ void FControlRigEditor::Compile()
 		ResetAllBoneModification(); 
 		
 		{
+			TGuardValue<bool> GuardCompileReEntry(bIsCompilingThroughUI, true);
 			FBlueprintEditor::Compile();
 		}
 
@@ -3281,6 +3283,17 @@ void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIs
 	}
 }
 
+void FControlRigEditor::RefreshEditors(ERefreshBlueprintEditorReason::Type Reason)
+{
+	if(Reason == ERefreshBlueprintEditorReason::UnknownReason)
+	{
+		// we mark the reason as just compiled since we don't want to
+		// update the graph(s) all the time during compilation
+		Reason = ERefreshBlueprintEditorReason::BlueprintCompiled;
+	}
+	IControlRigEditor::RefreshEditors(Reason);
+}
+
 void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -4021,9 +4034,12 @@ void FControlRigEditor::UpdateControlRig()
 				EditMode->SetObjects(ControlRig, EditorSkelComp,nullptr);
 			}
 
-			Blueprint->SetFlags(RF_Transient);
-			Blueprint->RecompileVM();
-			Blueprint->ClearFlags(RF_Transient);
+			if(!bIsCompilingThroughUI)
+			{
+				Blueprint->SetFlags(RF_Transient);
+				Blueprint->RecompileVM();
+				Blueprint->ClearFlags(RF_Transient);
+			}
 
 			ControlRig->OnInitialized_AnyThread().AddSP(this, &FControlRigEditor::HandleControlRigExecutedEvent);
 			ControlRig->OnExecuted_AnyThread().AddSP(this, &FControlRigEditor::HandleControlRigExecutedEvent);
