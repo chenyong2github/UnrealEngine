@@ -20,6 +20,7 @@
 #include "UObject/AnimPhysObjectVersion.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/FortniteNCBranchObjectVersion.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "UObject/ReflectionCaptureObjectVersion.h"
 #include "UObject/LoadTimesObjectVersion.h"
@@ -254,6 +255,12 @@ const FGuid FFortniteMainBranchObjectVersion::GUID(0x601D1886, 0xAC644F84, 0xAA1
 // Register Fortnite Main custom version with Core
 FDevVersionRegistration GRegisterFortniteMainBranchObjectVersion(FFortniteMainBranchObjectVersion::GUID, FFortniteMainBranchObjectVersion::LatestVersion, TEXT("FortniteMain"));
 FDevSystemGuidRegistration GRegisterFortniteMainBranchSystemGuids(FFortniteMainBranchObjectVersion::GetSystemGuids());
+
+// Unique Fortnite NC Object version id
+const FGuid FFortniteNCBranchObjectVersion::GUID(0x5B4C06B7, 0x24634AF8, 0x805BBF70, 0xCDF5D0DD);
+// Register Fortnite NC version with Core
+FDevVersionRegistration GRegisterFortniteNCBranchObjectVersion(FFortniteNCBranchObjectVersion::GUID, FFortniteNCBranchObjectVersion::LatestVersion, TEXT("FortniteNC"));
+FDevSystemGuidRegistration GRegisterFortniteNCBranchSystemGuids(FFortniteNCBranchObjectVersion::GetSystemGuids());
 
 // Unique Fortnite Release Object version id
 const FGuid FFortniteReleaseBranchCustomObjectVersion::GUID(0xE7086368, 0x6B234C58, 0x84391B70, 0x16265E91);
