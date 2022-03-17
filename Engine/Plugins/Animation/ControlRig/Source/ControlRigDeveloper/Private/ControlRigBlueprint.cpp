@@ -3849,6 +3849,10 @@ void UControlRigBlueprint::ConvertUnitNodesToTemplateNodes()
 		TArray<URigVMNode*> Nodes = Graph->GetNodes();
 		for (URigVMNode* Node : Nodes)
 		{
+			if(Node->IsInjected())
+			{
+				continue;
+			}
 			Controller->ReplaceUnitNodeWithTemplateNode(Node->GetFName(), false);
 		}
 	}
