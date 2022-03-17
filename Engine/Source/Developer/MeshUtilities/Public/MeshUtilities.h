@@ -51,8 +51,9 @@ namespace ETangentOptions
 class FSignedDistanceFieldBuildMaterialData
 {
 public:
-	EBlendMode BlendMode;
-	bool bTwoSided;
+	EBlendMode BlendMode = BLEND_Opaque;
+	bool bTwoSided = false;
+	bool bAffectDistanceFieldLighting = true;
 };
 
 struct FOverlappingCorners;

@@ -152,6 +152,7 @@ FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDerivedDataKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided)
 {
 	FString DistanceFieldKey = BuildDistanceFieldDerivedDataKey(InStaticMeshDerivedDataKey);
+	const FMeshSectionInfoMap& SectionInfoMap = Mesh->GetSectionInfoMap();
 
 	for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
 	{
@@ -159,6 +160,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 		// Default material blend mode
 		MaterialData.BlendMode = BLEND_Opaque;
 		MaterialData.bTwoSided = false;
+		MaterialData.bAffectDistanceFieldLighting = SectionInfoMap.IsValidSection(0, MaterialIndex) ? SectionInfoMap.Get(0, MaterialIndex).bAffectDistanceFieldLighting : true;
 
 		UMaterialInterface* MaterialInterface = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface;
 		if (MaterialInterface)
@@ -167,7 +169,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 			MaterialData.bTwoSided = MaterialInterface->IsTwoSided();
 		}
 
-		DistanceFieldKey += FString::Printf(TEXT("_M%u_%u"), (uint32)MaterialData.BlendMode, MaterialData.bTwoSided ? 1 : 0);
+		DistanceFieldKey += FString::Printf(TEXT("_M%u_%u_%u"), (uint32)MaterialData.BlendMode, MaterialData.bTwoSided ? 1 : 0, MaterialData.bAffectDistanceFieldLighting ? 1 : 0);
 	}
 
 	TArray<uint8> DerivedData;
@@ -203,6 +205,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 			// Default material blend mode
 			MaterialData.BlendMode = BLEND_Opaque;
 			MaterialData.bTwoSided = false;
+			MaterialData.bAffectDistanceFieldLighting = SectionInfoMap.IsValidSection(0, MaterialIndex) ? SectionInfoMap.Get(0, MaterialIndex).bAffectDistanceFieldLighting : true;
 
 			if (Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface)
 			{

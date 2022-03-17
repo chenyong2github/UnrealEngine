@@ -2173,6 +2173,19 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 		.Padding(2, 0, 2, 0)
 		[
 			SNew(SCheckBox)
+			.IsChecked(this, &FMeshSectionSettingsLayout::DoesSectionAffectDistanceFieldLighting, SectionIndex)
+			.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionAffectDistanceFieldLightingChanged, SectionIndex)
+			[
+				SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text(LOCTEXT("AffectDistanceFieldLighting", "Affect Distance Field Lighting"))
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2, 0, 2, 0)
+		[
+			SNew(SCheckBox)
 			.IsChecked(this, &FMeshSectionSettingsLayout::IsSectionOpaque, SectionIndex)
 			.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionForceOpaqueFlagChanged, SectionIndex)
 			[
@@ -2211,6 +2224,37 @@ void FMeshSectionSettingsLayout::OnSectionVisibleInRayTracingChanged(ECheckBoxSt
 	StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 	CallPostEditChange();
 }
+
+
+ECheckBoxState FMeshSectionSettingsLayout::DoesSectionAffectDistanceFieldLighting(int32 SectionIndex) const
+{
+	UStaticMesh& StaticMesh = GetStaticMesh();
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
+	return Info.bAffectDistanceFieldLighting ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FMeshSectionSettingsLayout::OnSectionAffectDistanceFieldLightingChanged(ECheckBoxState NewState, int32 SectionIndex)
+{
+	UStaticMesh& StaticMesh = GetStaticMesh();
+
+	FText TransactionTest = LOCTEXT("StaticMeshEditorSetAffectDistanceFieldLightingSectionFlag", "Staticmesh editor: Set AffectDistanceFieldLighting For section, the section will be affect distance field lighting");
+	if (NewState == ECheckBoxState::Unchecked)
+	{
+		TransactionTest = LOCTEXT("StaticMeshEditorClearAffectDistanceFieldLightingSectionFlag", "Staticmesh editor: Clear AffectDistanceFieldLighting For section");
+	}
+	FScopedTransaction Transaction(TransactionTest);
+
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetSectionInfoMapName());
+
+	StaticMesh.PreEditChange(Property);
+	StaticMesh.Modify();
+
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
+	Info.bAffectDistanceFieldLighting = (NewState == ECheckBoxState::Checked) ? true : false;
+	StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
+	CallPostEditChange();
+}
+
 
 ECheckBoxState FMeshSectionSettingsLayout::IsSectionOpaque(int32 SectionIndex) const
 {

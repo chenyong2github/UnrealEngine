@@ -351,6 +351,10 @@ struct FMeshSectionInfo
 	UPROPERTY()
 	bool bVisibleInRayTracing;
 
+	/** If true, this section will affect lighting methods that use Distance Fields. */
+	UPROPERTY()
+	bool bAffectDistanceFieldLighting;
+
 	/** If true, this section will always considered opaque in ray tracing Geometry. */
 	UPROPERTY()
 	bool bForceOpaque;
@@ -361,6 +365,7 @@ struct FMeshSectionInfo
 		, bEnableCollision(true)
 		, bCastShadow(true)
 		, bVisibleInRayTracing(true)
+		, bAffectDistanceFieldLighting(true)
 		, bForceOpaque(false)
 	{
 	}
@@ -371,6 +376,7 @@ struct FMeshSectionInfo
 		, bEnableCollision(true)
 		, bCastShadow(true)
 		, bVisibleInRayTracing(true)
+		, bAffectDistanceFieldLighting(true)
 		, bForceOpaque(false)
 	{
 	}

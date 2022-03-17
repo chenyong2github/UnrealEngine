@@ -280,6 +280,7 @@ void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::ReleaseRHI()
 
 FArchive& operator<<(FArchive& Ar, FStaticMeshSection& Section)
 {
+	// Note: this is all derived data, native versioning is not needed, but be sure to bump STATICMESH_DERIVEDDATA_VER when modifying!
 	Ar << Section.MaterialIndex;
 	Ar << Section.FirstIndex;
 	Ar << Section.NumTriangles;
@@ -308,6 +309,8 @@ FArchive& operator<<(FArchive& Ar, FStaticMeshSection& Section)
 #endif
 
 	Ar << Section.bVisibleInRayTracing;
+	Ar << Section.bAffectDistanceFieldLighting;
+
 
 	return Ar;
 }
@@ -1972,6 +1975,7 @@ void FStaticMeshRenderData::ResolveSectionInfo(UStaticMesh* Owner)
 			Section.bEnableCollision = Info.bEnableCollision;
 			Section.bCastShadow = Info.bCastShadow;
 			Section.bVisibleInRayTracing = Info.bVisibleInRayTracing;
+			Section.bAffectDistanceFieldLighting = Info.bAffectDistanceFieldLighting;
 			Section.bForceOpaque = Info.bForceOpaque;
 		}
 

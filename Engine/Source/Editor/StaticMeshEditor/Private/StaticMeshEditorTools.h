@@ -393,6 +393,9 @@ private:
 	ECheckBoxState IsSectionVisibleInRayTracing(int32 SectionIndex) const;
 	void OnSectionVisibleInRayTracingChanged(ECheckBoxState NewState, int32 SectionIndex);
 
+	ECheckBoxState DoesSectionAffectDistanceFieldLighting(int32 SectionIndex) const;
+	void OnSectionAffectDistanceFieldLightingChanged(ECheckBoxState NewState, int32 SectionIndex);
+
 	ECheckBoxState IsSectionOpaque(int32 SectionIndex) const;
 	void OnSectionForceOpaqueFlagChanged(ECheckBoxState NewState, int32 SectionIndex);
 	

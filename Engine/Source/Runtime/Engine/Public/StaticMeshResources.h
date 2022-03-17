@@ -196,6 +196,8 @@ struct FStaticMeshSection
 	bool bCastShadow;
 	/** If true, this section will be visible in ray tracing effects. */
 	bool bVisibleInRayTracing;
+	/** If true, this section will affect lighting methods that use Distance Fields. */
+	bool bAffectDistanceFieldLighting;
 	/** If true, this section will be considered opaque in ray tracing effects. */
 	bool bForceOpaque;
 #if WITH_EDITORONLY_DATA
@@ -216,6 +218,7 @@ struct FStaticMeshSection
 		, bEnableCollision(false)
 		, bCastShadow(true)
 		, bVisibleInRayTracing(true)
+		, bAffectDistanceFieldLighting(true)
 		, bForceOpaque(false)
 	{
 #if WITH_EDITORONLY_DATA

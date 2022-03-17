@@ -138,7 +138,7 @@ FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for card representation data, must be changed when modifying the generation code or data format
-#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("69E68026-A68B-A031-A3DF-E7901648DB72")
+#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("69E68026-A68B-A032-A3DF-E7901648DB72")
 
 FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey, int32 MaxLumenMeshCards)
 {
@@ -214,12 +214,15 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const IT
 		NewTask->MaxLumenMeshCards = MaxLumenMeshCards;
 		NewTask->bGenerateDistanceFieldAsIfTwoSided = bGenerateDistanceFieldAsIfTwoSided;
 
+		const FMeshSectionInfoMap& SectionInfoMap = Mesh->GetSectionInfoMap();
+
 		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
 		{
 			FSignedDistanceFieldBuildMaterialData MaterialData;
 			// Default material blend mode
 			MaterialData.BlendMode = BLEND_Opaque;
 			MaterialData.bTwoSided = false;
+			MaterialData.bAffectDistanceFieldLighting = SectionInfoMap.IsValidSection(0, MaterialIndex) ? SectionInfoMap.Get(0, MaterialIndex).bAffectDistanceFieldLighting : true;
 
 			if (Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface)
 			{
