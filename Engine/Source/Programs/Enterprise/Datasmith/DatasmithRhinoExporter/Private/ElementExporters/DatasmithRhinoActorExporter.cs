@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using DatasmithRhino.ExportContext;
 using DatasmithRhino.Properties.Localization;
 using DatasmithRhino.Utils;
 
@@ -115,7 +116,7 @@ namespace DatasmithRhino.ElementExporters
 					}
 				}
 			}
-			else if(Node is DatasmithActorCameraInfo ActorCameraInfo)
+			else if(Node is DatasmithCameraActorInfo ActorCameraInfo)
 			{
 				ExportedActor = CreateCameraActor(ActorCameraInfo);
 			}
@@ -239,7 +240,7 @@ namespace DatasmithRhino.ElementExporters
 			}
 		}
 
-		private static FDatasmithFacadeActorCamera CreateCameraActor(DatasmithActorCameraInfo InCameraInfo)
+		private static FDatasmithFacadeActorCamera CreateCameraActor(DatasmithCameraActorInfo InCameraInfo)
 		{
 			string HashedName = FDatasmithFacadeElement.GetStringHash(InCameraInfo.Name);
 			return new FDatasmithFacadeActorCamera(HashedName);

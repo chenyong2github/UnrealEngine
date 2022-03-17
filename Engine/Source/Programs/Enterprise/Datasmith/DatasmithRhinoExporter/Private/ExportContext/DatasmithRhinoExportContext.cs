@@ -7,647 +7,12 @@ using Rhino.DocObjects;
 using Rhino.DocObjects.Tables;
 using Rhino.Geometry;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace DatasmithRhino
+namespace DatasmithRhino.ExportContext
 {
-	public enum DirectLinkSynchronizationStatus
-	{
-		None = 0,
-		Created = 1 << 0,
-		Modified = 1 << 1,
-		Deleted = 1 << 2,
-		Synced = 1 << 3,
-		PendingDeletion = 1 << 4, 
-		PendingHidding = 1 << 5, 
-		//Same as Deleted, except we do not clean up the object afterward.
-		Hidden = 1 << 6, 
-	}
-
-	public abstract class DatasmithInfoBase
-	{
-		public Rhino.Runtime.CommonObject RhinoCommonObject { get; protected set; }
-		
-		/// <summary>
-		/// Used as a unique ID corresponding to the IDatasmithElement::Name field.
-		/// </summary>
-		public string Name { get; private set; }
-		
-		/// <summary>
-		/// Label corresponding to the IDatasmithElement::Label field. It is generated from the BaseLabel to ensure its unicity.
-		/// </summary>
-		public string UniqueLabel { get; private set; }
-		
-		/// <summary>
-		/// BaseLabel is used to generate the UniqueLabel. Changes to the BaseLabel are reflected on the UniqueLabel.
-		/// </summary>
-		public string BaseLabel { get; private set; }
-
-		private DirectLinkSynchronizationStatus InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Created;
-		private DirectLinkSynchronizationStatus PreviousDirectLinkStatus { get; set; } = DirectLinkSynchronizationStatus.None;
-		public virtual DirectLinkSynchronizationStatus DirectLinkStatus 
-		{
-			get => InternalDirectLinkStatus;
-		}
-		public FDatasmithFacadeElement ExportedElement { get; private set; } = null;
-
-		public DatasmithInfoBase(Rhino.Runtime.CommonObject InRhinoObject, string InName, string InUniqueLabel, string InBaseLabel)
-		{
-			RhinoCommonObject = InRhinoObject;
-			Name = InName;
-			UniqueLabel = InUniqueLabel;
-			BaseLabel = InBaseLabel;
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void ApplyModifiedStatus()
-		{
-			SetDirectLinkStatus(DirectLinkSynchronizationStatus.Modified);
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void ApplyHiddenStatus()
-		{
-			SetDirectLinkStatus(DirectLinkSynchronizationStatus.PendingHidding);
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void ApplyDeletedStatus()
-		{
-			SetDirectLinkStatus(DirectLinkSynchronizationStatus.PendingDeletion);
-		}
-		
-		private void SetDirectLinkStatus(DirectLinkSynchronizationStatus Status)
-		{
-			// We ignore the "modified" status if the current status is "created", "deleted" or "hidden".
-			// To "undelete" or unhide an element use RestorePreviousDirectLinkStatus().
-			const DirectLinkSynchronizationStatus UnmodifiableStates = DirectLinkSynchronizationStatus.Created | DirectLinkSynchronizationStatus.Deleted
-				| DirectLinkSynchronizationStatus.PendingDeletion | DirectLinkSynchronizationStatus.PendingHidding | DirectLinkSynchronizationStatus.Hidden;
-
-			if (InternalDirectLinkStatus != Status
-				&& (Status != DirectLinkSynchronizationStatus.Modified
-				|| (InternalDirectLinkStatus & UnmodifiableStates) == DirectLinkSynchronizationStatus.None))
-			{
-				PreviousDirectLinkStatus = InternalDirectLinkStatus;
-				InternalDirectLinkStatus = Status;
-			}
-		}
-
-		public void ApplySyncedStatus()
-		{
-			// Since the Delete and Hide status have a pending phase, we should not override the PreviousDirectLinkStatus in those cases.
-			if (InternalDirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion)
-			{
-				InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Deleted;
-			}
-			else if (InternalDirectLinkStatus == DirectLinkSynchronizationStatus.PendingHidding)
-			{
-				InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Hidden;
-			}
-			//If we are not hidden or deleted
-			else if ((InternalDirectLinkStatus & ~(DirectLinkSynchronizationStatus.Deleted | DirectLinkSynchronizationStatus.Hidden)) != DirectLinkSynchronizationStatus.None)
-			{
-				PreviousDirectLinkStatus = InternalDirectLinkStatus;
-				InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
-			}
-		}
-
-		/// <summary>
-		/// Used to undo the last change to the DirectLinkStatus property. It is intended to be used mainly for "undeleted" objects for which the deletion was not synced.
-		/// </summary>
-		/// <returns></returns>
-		public bool RestorePreviousDirectLinkStatus()
-		{
-			if (InternalDirectLinkStatus == DirectLinkSynchronizationStatus.Hidden)
-			{
-				// We are in hidden state, that means if we want to restore the DatasmithElement it must be flagged as "created".
-				InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Created;
-				PreviousDirectLinkStatus = DirectLinkSynchronizationStatus.None;
-				return true;
-			}
-			else if (PreviousDirectLinkStatus != DirectLinkSynchronizationStatus.None)
-			{
-				InternalDirectLinkStatus = PreviousDirectLinkStatus;
-				PreviousDirectLinkStatus = DirectLinkSynchronizationStatus.None;
-				return true;
-			}
-
-			return false;
-		}
-
-		public void SetExportedElement(FDatasmithFacadeElement InExportedElement)
-		{
-			ExportedElement = InExportedElement;
-		}
-
-		public virtual void ApplyDiffs(DatasmithInfoBase OtherInfo)
-		{
-			SetDirectLinkStatus(DirectLinkSynchronizationStatus.Modified);
-
-			if (BaseLabel != OtherInfo.BaseLabel)
-			{
-				BaseLabel = OtherInfo.BaseLabel;
-				UniqueLabel = OtherInfo.UniqueLabel;
-			}
-		}
-	}
-
-	public class DatasmithActorInfo : DatasmithInfoBase
-	{
-		public override DirectLinkSynchronizationStatus DirectLinkStatus {
-			get 
-			{
-				DirectLinkSynchronizationStatus Status = base.DirectLinkStatus;
-
-				if (DefinitionNode != null)
-				{
-					DirectLinkSynchronizationStatus DefinitionStatus = DefinitionNode.DirectLinkStatus;
-
-					// Use the Definition status when the instanced actor is synced.
-					// Deleting a definition also takes priority on the instance status.
-					if (Status == DirectLinkSynchronizationStatus.Synced || DefinitionStatus == DirectLinkSynchronizationStatus.PendingDeletion)
-					{
-						return DefinitionStatus;
-					}
-				}
-				return Status;
-			}
-		}
-
-		public FDatasmithFacadeActor DatasmithActor { get { return ExportedElement as FDatasmithFacadeActor; } }
-		
-		public virtual Guid RhinoObjectId 
-		{
-			get
-			{
-				if (RhinoCommonObject is ModelComponent RhinoModelComponent)
-				{
-					return RhinoModelComponent.Id;
-				}
-				else if (RhinoCommonObject is ViewportInfo RhinoViewportInfo)
-				{
-					return RhinoViewportInfo.Id;
-				}
-				return Guid.Empty;
-			}
-		}
-
-		public Transform WorldTransform { get; private set; } = Transform.Identity;
-		public int MaterialIndex { get; set; } = -1;
-		public bool bOverrideMaterial { get; private set; } = false;
-
-		public bool bIsRoot { get; private set; } = true;
-		public DatasmithActorInfo Parent { get; private set; } = null;
-		private LinkedList<DatasmithActorInfo> ChildrenInternal = new LinkedList<DatasmithActorInfo>();
-		public ICollection<DatasmithActorInfo> Children { get => ChildrenInternal; }
-
-		public bool bIsInstanceDefinition { get; private set; } = false;
-		public DatasmithActorInfo DefinitionNode { get; private set; } = null;
-		private LinkedList<DatasmithActorInfo> InstanceNodesInternal = new LinkedList<DatasmithActorInfo>();
-		public ICollection<DatasmithActorInfo> InstanceNodes { get => InstanceNodesInternal; }
-
-		public HashSet<int> LayerIndices { get; private set; } = new HashSet<int>();
-		/// <summary>
-		/// Used to determine variation occurring in the Layer hierarchy for that node.
-		/// </summary>
-		private List<int> RelativeLayerIndices = new List<int>();
-		public Layer VisibilityLayer { get; private set; } = null;
-
-		public bool bIsVisible
-		{
-			get
-			{
-				bool bVisibleLocally = true;
-				if (RhinoCommonObject is Layer RhinoLayer)
-				{
-					// This recursion ensure that only layer actors with an actual exported object under them are considered visible.
-					// ie. Layers containing no mesh are not visible.
-					return RhinoLayer.IsVisible
-						&& ChildrenInternal.Any(Child => Child.bIsVisible);
-				}
-				else if (RhinoCommonObject is RhinoObject CurrentRhinoObject)
-				{
-					bVisibleLocally = CurrentRhinoObject.Visible;
-				}
-				else if (bIsRoot)
-				{
-					return true;
-				}
-
-				return bVisibleLocally
-					&& (VisibilityLayer == null || VisibilityLayer.IsVisible)
-					&& (DefinitionNode == null || DefinitionNode.bIsVisible);
-			}
-		}
-
-		public DatasmithActorInfo(Transform NodeTransform, string InName, string InUniqueLabel, string InBaseLabel)
-			: base(null, InName, InUniqueLabel, InBaseLabel)
-		{
-			WorldTransform = NodeTransform;
-		}
-
-		public DatasmithActorInfo(ModelComponent InModelComponent, string InName, string InUniqueLabel, string InBaseLabel, int InMaterialIndex, bool bInOverrideMaterial, Layer InVisibilityLayer, IEnumerable<int> InLayerIndices = null)
-			: base(InModelComponent, InName, InUniqueLabel, InBaseLabel)
-		{
-			bIsInstanceDefinition = RhinoCommonObject is InstanceDefinition;
-			MaterialIndex = InMaterialIndex;
-			bOverrideMaterial = bInOverrideMaterial;
-			VisibilityLayer = InVisibilityLayer;
-
-			if (InLayerIndices != null)
-			{
-				LayerIndices.UnionWith(InLayerIndices);
-				RelativeLayerIndices.AddRange(InLayerIndices);
-			}
-
-			WorldTransform = DatasmithRhinoUtilities.GetCommonObjectTransform(InModelComponent);
-		}
-
-		protected DatasmithActorInfo(Rhino.Runtime.CommonObject InModelComponent, string InName, string InUniqueLabel, string InBaseLabel)
-			: base(InModelComponent, InName, InUniqueLabel, InBaseLabel)
-		{}
-
-		public override void ApplyDiffs(DatasmithInfoBase OtherInfo)
-		{
-			base.ApplyDiffs(OtherInfo);
-
-			if (OtherInfo is DatasmithActorInfo OtherActorInfo)
-			{
-				//Rhino "replaces" object instead of modifying them, we must update the our reference to the object.
-				RhinoCommonObject = OtherActorInfo.RhinoCommonObject;
-
-				MaterialIndex = OtherActorInfo.MaterialIndex;
-				bOverrideMaterial = OtherActorInfo.bOverrideMaterial;
-				RelativeLayerIndices = OtherActorInfo.RelativeLayerIndices;
-				LayerIndices = OtherActorInfo.LayerIndices;
-				VisibilityLayer = OtherActorInfo.VisibilityLayer;
-
-				MaterialIndex = OtherActorInfo.MaterialIndex;
-				bOverrideMaterial = OtherActorInfo.bOverrideMaterial;
-
-				//Update world transform, if it has changed we need to modify transform of children as well.
-				Transform NewWorldTransform = Parent != null 
-					? Transform.Multiply(Parent.WorldTransform, OtherActorInfo.WorldTransform)
-					: OtherActorInfo.WorldTransform;
-				if (NewWorldTransform != WorldTransform)
-				{
-					Transform InverseTransform;
-					if (WorldTransform.TryGetInverse(out InverseTransform) || InverseTransform.IsValid)
-					{
-						Transform DiffTransform = NewWorldTransform * InverseTransform;
-						ApplyTransform(DiffTransform);
-					}
-					else
-					{
-						WorldTransform = NewWorldTransform;
-						foreach (DatasmithActorInfo Descendant in GetDescendantEnumerator())
-						{
-							Descendant.ApplyModifiedStatus();
-							Descendant.WorldTransform = Transform.Multiply(Descendant.Parent.WorldTransform, DatasmithRhinoUtilities.GetCommonObjectTransform(Descendant.RhinoCommonObject));		
-						}
-					}
-				}
-			}
-			else
-			{
-				System.Diagnostics.Debug.Fail("OtherInfo does not derive from DatasmithActorInfo");
-			}
-		}
-
-		public void UpdateRhinoObject(Rhino.Runtime.CommonObject InCommonObject)
-		{
-			// We are not flagging the info as modified, this will be done by other operations.
-			// This is to allow the case to update a reference to an immuable object.
-			RhinoCommonObject = InCommonObject;
-		}
-
-		public List<string> GetTags(DatasmithRhinoExportContext ExportContext)
-		{
-			List<string> Tags = new List<string>();
-
-			if (RhinoCommonObject != null)
-			{
-				Tags.Add(string.Format("Rhino.ID: {0}", RhinoObjectId));
-				string ComponentTypeString = DatasmithRhinoUniqueNameGenerator.GetDefaultTypeName(RhinoCommonObject);
-				Tags.Add(string.Format("Rhino.Entity.Type: {0}", ComponentTypeString));
-
-				//Add the groups this object belongs to.
-				RhinoObject InRhinoObject = RhinoCommonObject as RhinoObject;
-				if (InRhinoObject != null && InRhinoObject.GroupCount > 0)
-				{
-					int[] GroupIndices = InRhinoObject.GetGroupList();
-					for (int GroupArrayIndex = 0; GroupArrayIndex < GroupIndices.Length; ++GroupArrayIndex)
-					{
-						string GroupName = ExportContext.GroupIndexToName[GroupIndices[GroupArrayIndex]];
-						if (GroupName != null)
-						{
-							Tags.Add(GroupName);
-						}
-					}
-				}
-			}
-
-			return Tags;
-		}
-
-		private void SetParent(DatasmithActorInfo InParent)
-		{
-			if (Parent != null)
-			{
-				// Reset the absolute transform and layer to their relative values.
-				WorldTransform = DatasmithRhinoUtilities.GetCommonObjectTransform(RhinoCommonObject);
-				LayerIndices = new HashSet<int>(RelativeLayerIndices);
-			}
-
-			bIsRoot = false;
-			Parent = InParent;
-
-			if (InParent != null)
-			{
-				bIsInstanceDefinition = InParent.bIsInstanceDefinition;
-				WorldTransform = Transform.Multiply(InParent.WorldTransform, WorldTransform);
-				LayerIndices.UnionWith(InParent.LayerIndices);
-			}
-		}
-
-		public void ApplyTransform(Transform InTransform)
-		{
-			foreach (DatasmithActorInfo ActorInfo in GetEnumerator())
-			{
-				ActorInfo.ApplyModifiedStatus();
-				ActorInfo.WorldTransform = InTransform * ActorInfo.WorldTransform;
-			}
-		}
-
-		public void SetDefinitionNode(DatasmithActorInfo InDefinitionNode)
-		{
-			System.Diagnostics.Debug.Assert(InDefinitionNode.bIsInstanceDefinition, "Trying to create an instance from a node belonging in the root tree");
-			DefinitionNode = InDefinitionNode;
-			InDefinitionNode.InstanceNodesInternal.AddLast(this);
-			LayerIndices.UnionWith(InDefinitionNode.LayerIndices);
-		}
-
-		public void AddChild(DatasmithActorInfo ChildHierarchyNodeInfo)
-		{
-			ChildHierarchyNodeInfo.SetParent(this);
-			ChildrenInternal.AddLast(ChildHierarchyNodeInfo);
-		}
-
-		/// <summary>
-		/// Returns the number of hierarchical descendants this nodes has.
-		/// </summary>
-		/// <returns></returns>
-		public int GetDescendantsCount()
-		{
-			int DescendantCount = ChildrenInternal.Count;
-
-			foreach (DatasmithActorInfo CurrentChild in ChildrenInternal)
-			{
-				DescendantCount += CurrentChild.GetDescendantsCount();
-			}
-
-			return DescendantCount;
-		}
-
-		public void Reparent(DatasmithActorInfo NewParent)
-		{
-			Parent.ChildrenInternal.Remove(this);
-			NewParent.AddChild(this);
-		}
-
-		/// <summary>
-		/// Remove all actor infos with the Deleted DirectLinkStatus from the hierarchy.
-		/// </summary>
-		public void PurgeDeleted()
-		{
-			LinkedListNode<DatasmithActorInfo> CurrentNode = ChildrenInternal.First;
-			while (CurrentNode != null)
-			{
-				if (CurrentNode.Value.DirectLinkStatus != DirectLinkSynchronizationStatus.Deleted)
-				{
-					CurrentNode.Value.PurgeDeleted();
-					CurrentNode = CurrentNode.Next;
-				}
-				else
-				{
-					LinkedListNode<DatasmithActorInfo> NodeToDelete = CurrentNode;
-					CurrentNode = CurrentNode.Next;
-					ChildrenInternal.Remove(NodeToDelete);
-				}
-			}
-
-			CurrentNode = InstanceNodesInternal.First;
-			while (CurrentNode != null)
-			{
-				if (CurrentNode.Value.DirectLinkStatus == DirectLinkSynchronizationStatus.Deleted)
-				{
-					LinkedListNode<DatasmithActorInfo> NodeToDelete = CurrentNode;
-					CurrentNode = CurrentNode.Next;
-					InstanceNodesInternal.Remove(NodeToDelete);
-				}
-				else
-				{
-					CurrentNode = CurrentNode.Next;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Custom enumerator implementation returning this Actor and all its descendant.
-		/// </summary>
-		/// <returns></returns>
-		public IEnumerable<DatasmithActorInfo> GetEnumerator()
-		{
-			yield return this;
-
-			foreach (var Child in ChildrenInternal)
-			{
-				foreach (var ChildEnumValue in Child.GetEnumerator())
-				{
-					yield return ChildEnumValue;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Custom enumerator implementation for returning all descendants of this Actor.
-		/// </summary>
-		/// <returns></returns>
-		public IEnumerable<DatasmithActorInfo> GetDescendantEnumerator()
-		{
-			foreach (var Child in ChildrenInternal)
-			{
-				foreach (var ChildEnumValue in Child.GetEnumerator())
-				{
-					yield return ChildEnumValue;
-				}
-			}
-		}
-	}
-
-	public class DatasmithActorCameraInfo : DatasmithActorInfo
-	{
-		public override Guid RhinoObjectId 
-		{
-			get
-			{
-				if (RhinoCommonObject is ViewportInfo RhinoViewportInfo)
-				{
-					return RhinoViewportInfo.Id;
-				}
-
-				return Guid.Empty;
-			}
-		}
-
-		public FDatasmithFacadeActorCamera ExportedCameraActor { get { return ExportedElement as FDatasmithFacadeActorCamera; } }
-
-		/// <summary>
-		/// Returns a hash of the properties of the ViewportInfo relevant for Datasmith export.
-		/// We use this because Rhino does not provide an event for when the named view table is modified.
-		/// That means every time the document is modified we must check for named view changes, the hash allows us to avoid false-positives modifications.
-		/// </summary>
-		public String NamedViewHash { get; private set; }
-
-		public DatasmithActorCameraInfo(ViewportInfo InViewportInfo, string InName, string InUniqueLabel, string InBaseLabel, string InHash)
-			: base(InViewportInfo, InName, InUniqueLabel, InBaseLabel)
-		{
-			NamedViewHash = InHash;
-		}
-
-		public override void ApplyDiffs(DatasmithInfoBase OtherInfo)
-		{
-			base.ApplyDiffs(OtherInfo);
-
-			if (OtherInfo is DatasmithActorCameraInfo OtherActorCameraInfo)
-			{
-				NamedViewHash = OtherActorCameraInfo.NamedViewHash;
-			}
-			else
-			{
-				System.Diagnostics.Debug.Fail("OtherInfo does not derive from DatasmithActorCameraInfo");
-			}
-		}
-	}
-
-	public class DatasmithMaterialInfo : DatasmithInfoBase
-	{
-		public Material RhinoMaterial { get { return RhinoCommonObject as Material; } }
-		public FDatasmithFacadeUEPbrMaterial ExportedMaterial { get { return ExportedElement as FDatasmithFacadeUEPbrMaterial; } }
-
-		/// <summary>
-		/// Set of rhino material indexes that are represented by this DatasmithMaterialInfo
-		/// </summary>
-		public HashSet<int> MaterialIndexes { get; } = new HashSet<int>();
-
-		private List<string> InternalTextureHashes;
-		public IReadOnlyList<string> TextureHashes { get => InternalTextureHashes; }
-
-		public DatasmithMaterialInfo(Material InRhinoMaterial, string InName, string InUniqueLabel, string InBaseLabel, List<string> InTextureHashes)
-			: base(InRhinoMaterial, InName, InUniqueLabel, InBaseLabel)
-		{
-			InternalTextureHashes = new List<string>(InTextureHashes);
-		}
-
-		public override void ApplyDiffs(DatasmithInfoBase OtherInfo)
-		{
-			base.ApplyDiffs(OtherInfo);
-
-			if (OtherInfo is DatasmithMaterialInfo OtherMaterialInfo)
-			{
-				//Rhino "replaces" object instead of modifying them, we must update the our reference to the object.
-				RhinoCommonObject = OtherMaterialInfo.RhinoCommonObject;
-
-				MaterialIndexes.Clear();
-				MaterialIndexes.UnionWith(OtherMaterialInfo.MaterialIndexes);
-
-				InternalTextureHashes.Clear();
-				InternalTextureHashes.AddRange(OtherMaterialInfo.TextureHashes);
-			}
-			else
-			{
-				System.Diagnostics.Debug.Fail("OtherInfo does not derive from DatasmithMaterialInfo");
-			}
-		}
-	}
-
-	public class DatasmithTextureInfo : DatasmithInfoBase
-	{
-		public Texture RhinoTexture { get { return RhinoCommonObject as Texture; } }
-		public FDatasmithFacadeTexture ExportedTexture { get { return ExportedElement as FDatasmithFacadeTexture; } }
-		public string FilePath { get; private set; }
-		
-		/// <summary>
-		/// Holds the Ids of all the Rhino `Texture` objects using that DatasmithTexture.
-		/// </summary>
-		public HashSet<Guid> TextureIds { get; } = new HashSet<Guid>();
-
-		public DatasmithTextureInfo(Texture InRhinoTexture, string InName, string InFilePath)
-			: base(InRhinoTexture, FDatasmithFacadeElement.GetStringHash(InName), InName, InName)
-		{
-			FilePath = InFilePath;
-		}
-
-		public bool IsSupported()
-		{
-			return DatasmithRhinoUtilities.IsTextureSupported(RhinoTexture);
-		}
-	}
-	public class DatasmithTextureMappingData
-	{
-		public int ChannelId;
-		public Rhino.Render.TextureMapping RhinoTextureMapping;
-		public Transform ObjectTransform;
-
-		public DatasmithTextureMappingData(int InChannelId, Rhino.Render.TextureMapping InTextureMapping, Transform InTransform)
-		{
-			ChannelId = InChannelId;
-			RhinoTextureMapping = InTextureMapping;
-			ObjectTransform = InTransform;
-		}
-	}
-
-	public class DatasmithMeshInfo : DatasmithInfoBase
-	{
-		public FDatasmithFacadeMeshElement ExportedMesh { get { return ExportedElement as FDatasmithFacadeMeshElement; } }
-
-		public List<Mesh> RhinoMeshes { get; private set; }
-		public Transform OffsetTransform { get; set; }
-		public List<int> MaterialIndices { get; set; }
-		public List<DatasmithTextureMappingData> TextureMappings { get; set; }
-
-		public DatasmithMeshInfo(IEnumerable<Mesh> InRhinoMeshes, Transform InOffset, List<int> InMaterialIndexes, List<DatasmithTextureMappingData> InTextureMappings, string InName, string InUniqueLabel, string InBaseLabel)
-			: base(null, InName, InUniqueLabel, InBaseLabel)
-		{
-			RhinoMeshes = new List<Mesh>(InRhinoMeshes);
-			OffsetTransform = InOffset;
-			MaterialIndices = InMaterialIndexes;
-			TextureMappings = InTextureMappings;
-		}
-
-		public override void ApplyDiffs(DatasmithInfoBase OtherInfo)
-		{
-			base.ApplyDiffs(OtherInfo);
-
-			if (OtherInfo is DatasmithMeshInfo OtherMeshInfo)
-			{
-				RhinoMeshes = OtherMeshInfo.RhinoMeshes;
-				OffsetTransform = OtherMeshInfo.OffsetTransform;
-				MaterialIndices = OtherMeshInfo.MaterialIndices;
-				TextureMappings = OtherMeshInfo.TextureMappings;
-			}
-			else
-			{
-				System.Diagnostics.Debug.Fail("OtherInfo does not derive from DatasmithMeshInfo");
-			}
-		}
-	}
-
-
 	public class DatasmithRhinoExportContext
 	{
 		public RhinoDoc RhinoDocument { get => ExportOptions.RhinoDocument; }
@@ -674,7 +39,7 @@ namespace DatasmithRhino
 		public Dictionary<InstanceDefinition, DatasmithActorInfo> InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, DatasmithActorInfo>();
 		public Dictionary<Guid, DatasmithActorInfo> ObjectIdToHierarchyActorNodeDictionary = new Dictionary<Guid, DatasmithActorInfo>();
 		public Dictionary<Guid, DatasmithMeshInfo> ObjectIdToMeshInfoDictionary = new Dictionary<Guid, DatasmithMeshInfo>();
-		public Dictionary<string, DatasmithActorCameraInfo> NamedViewNameToCameraInfo = new Dictionary<string, DatasmithActorCameraInfo>();
+		public Dictionary<string, DatasmithCameraActorInfo> NamedViewNameToCameraInfo = new Dictionary<string, DatasmithCameraActorInfo>();
 		public Dictionary<string, DatasmithMaterialInfo> MaterialHashToMaterialInfo = new Dictionary<string, DatasmithMaterialInfo>();
 		public Dictionary<string, DatasmithTextureInfo> TextureHashToTextureInfo = new Dictionary<string, DatasmithTextureInfo>();
 		public Dictionary<int, string> GroupIndexToName = new Dictionary<int, string>();
@@ -763,7 +128,7 @@ namespace DatasmithRhino
 			InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, DatasmithActorInfo>();
 			ObjectIdToHierarchyActorNodeDictionary = new Dictionary<Guid, DatasmithActorInfo>();
 			ObjectIdToMeshInfoDictionary = new Dictionary<Guid, DatasmithMeshInfo>();
-			NamedViewNameToCameraInfo = new Dictionary<string, DatasmithActorCameraInfo>();
+			NamedViewNameToCameraInfo = new Dictionary<string, DatasmithCameraActorInfo>();
 			MaterialHashToMaterialInfo = new Dictionary<string, DatasmithMaterialInfo>();
 			TextureHashToTextureInfo = new Dictionary<string, DatasmithTextureInfo>();
 			GroupIndexToName = new Dictionary<int, string>();
@@ -1993,14 +1358,14 @@ namespace DatasmithRhino
 			{
 				string NamedViewHash = DatasmithRhinoUtilities.GetNamedViewHash(NamedView);
 				
-				if (NamedViewNameToCameraInfo.TryGetValue(NamedView.Name, out DatasmithActorCameraInfo ExistingCameraInfo))
+				if (NamedViewNameToCameraInfo.TryGetValue(NamedView.Name, out DatasmithCameraActorInfo ExistingCameraInfo))
 				{
 					// Named view exists in DatasmithScene, check if it has changed.
 					ViewsToRemove.Remove(NamedView.Name);
 					
 					if (NamedViewHash != ExistingCameraInfo.NamedViewHash)
 					{
-						DatasmithActorCameraInfo DiffInfo = GenerateActorCameraInfo(NamedView, NamedViewHash);
+						DatasmithCameraActorInfo DiffInfo = GenerateActorCameraInfo(NamedView, NamedViewHash);
 						ExistingCameraInfo.ApplyDiffs(DiffInfo);
 						bHasChanged = true;
 					}
@@ -2008,7 +1373,7 @@ namespace DatasmithRhino
 				else
 				{
 					// Named view does not exists in DatasmithScene, create a new one and add it to scene root actor.
-					DatasmithActorCameraInfo CameraInfo = GenerateActorCameraInfo(NamedView, NamedViewHash);
+					DatasmithCameraActorInfo CameraInfo = GenerateActorCameraInfo(NamedView, NamedViewHash);
 
 					NamedViewNameToCameraInfo.Add(NamedView.Name, CameraInfo);
 					SceneRoot.AddChild(CameraInfo);
@@ -2019,7 +1384,7 @@ namespace DatasmithRhino
 			// Mark for removal all the named views that were not
 			foreach (string ViewToRemoveName in ViewsToRemove)
 			{
-				if (NamedViewNameToCameraInfo.TryGetValue(ViewToRemoveName, out DatasmithActorCameraInfo ViewToRemove))
+				if (NamedViewNameToCameraInfo.TryGetValue(ViewToRemoveName, out DatasmithCameraActorInfo ViewToRemove))
 				{
 					ViewToRemove.ApplyDeletedStatus();
 				}
@@ -2029,14 +1394,14 @@ namespace DatasmithRhino
 			bIsDirty |= bHasChanged;
 		}
 
-		private DatasmithActorCameraInfo GenerateActorCameraInfo(ViewInfo NamedView, string NamedViewHash)
+		private DatasmithCameraActorInfo GenerateActorCameraInfo(ViewInfo NamedView, string NamedViewHash)
 		{
 			string BaseLabel = DatasmithRhinoUniqueNameGenerator.GetTargetName(NamedView);
 			string UniqueLabel = ActorLabelGenerator.GenerateUniqueNameFromBaseName(BaseLabel);
 			//We can't use the NamedView.Viewport.Id, as it may be unset.
 			string Name = UniqueLabel;
 
-			return new DatasmithActorCameraInfo(NamedView.Viewport, Name, UniqueLabel, BaseLabel, NamedViewHash);
+			return new DatasmithCameraActorInfo(NamedView.Viewport, Name, UniqueLabel, BaseLabel, NamedViewHash);
 		}
 
 		private void ParseAllRhinoMeshes()

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using DatasmithRhino.ElementExporters;
+using DatasmithRhino.ExportContext;
 using DatasmithRhino.Properties.Localization;
 using DatasmithRhino.Utils;
 

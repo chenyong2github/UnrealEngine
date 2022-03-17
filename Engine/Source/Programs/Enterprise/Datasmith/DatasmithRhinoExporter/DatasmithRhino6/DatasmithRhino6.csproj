@@ -112,6 +112,9 @@
     <Compile Include="..\Private\ElementExporters\*.cs">
       <Link>DatasmithRhinoExporter\ElementExporters\%(Filename)%(Extension)</Link>
     </Compile>
+	<Compile Include="..\Private\ExportContext\*.cs">
+      <Link>DatasmithRhinoExporter\ExportContext\%(Filename)%(Extension)</Link>
+    </Compile>
     <Compile Include="..\Private\Utils\*.cs">
       <Link>DatasmithRhinoExporter\Utils\%(Filename)%(Extension)</Link>
     </Compile>
