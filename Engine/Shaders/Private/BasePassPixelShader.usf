@@ -1729,6 +1729,17 @@ void FPixelShaderInOut_MainPS(
 	Out.StrataOutput[2] = StrataPackTopLayerData(TopLayerData);
 #if STRATA_OUTPUT_ROUGH_REFRACTION
 	OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled = true; // As long as we output to rough refraction, we want it to be enabled for the tiling process.
+#if STRATA_USES_CONVERSION_FROM_LEGACY
+	// When running legacy support, we want to only enable rough refraction for multi layered materials (eye, clear coat) or SSS.
+	// This is because the compiler will always see a vertical layer. But we do not want to enable opaque rough refraction for all the legacy materials.
+	if (StrataPixelHeader.StrataTree.BSDFCount > 1)
+	{
+		// We only enable opaque rough refraction if the material is coated or has SSS.
+		// BSDFs and Operators indices must match StrataLegacyConversion.ush.
+		OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled = (StrataPixelHeader.StrataTree.Operators[2].Weight > 0.0f && StrataPixelHeader.StrataTree.Operators[3].Weight > 0.0f) 
+			|| BSDF_GETHASSSS(StrataPixelHeader.StrataTree.BSDFs[0]) || BSDF_GETHASSSS(StrataPixelHeader.StrataTree.BSDFs[1]);
+	}
+#endif
 	StrataStruct.OpaqueRoughRefractionTextureUAV[PixelPos] = StrataPackOpaqueRoughRefractionData(OpaqueRoughRefractionData);
 #endif
 

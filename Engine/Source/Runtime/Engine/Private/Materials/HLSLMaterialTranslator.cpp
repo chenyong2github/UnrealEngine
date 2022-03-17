@@ -9801,7 +9801,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 		const EStrataBlendMode StrataBlendMode = Material->GetStrataBlendMode();
 		const bool bIsOpaqueOrMasked = StrataBlendMode == EStrataBlendMode::SBM_Opaque || StrataBlendMode == EStrataBlendMode::SBM_Masked;
-		bStrataOutputsOpaqueRoughRefractions = bStrataUsesVerticalLayering && !bStrataUsesConversionFromLegacy && bIsOpaqueOrMasked;
+		bStrataOutputsOpaqueRoughRefractions = bStrataUsesVerticalLayering && bIsOpaqueOrMasked;
 	}
 
 	// STRATA_TODO: operation using parameter blending are not actually discarded so they still occupy a spot in the operation array in the compiler and in the shader also.

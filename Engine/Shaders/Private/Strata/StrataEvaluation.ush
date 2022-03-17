@@ -577,7 +577,8 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				Sample.ThinTransmissionPathValue = Diffuse_Lambert(BackFaceWhiteDiffuseColor) * SlabTransmittance * DirectionalAlbedo_SpecularTransmission;
 				Sample.ThinTransmissionPathPDF = BackFaceNoLSat / PI;
 
-				// At this stage, Sample.bSubsurface should have been setup correctly already if SSS is enabled with two-sided lighting.
+				// We do not want thin (a.k.a. two sided lighting) contribution to go the SSS post process path.
+				Sample.bSubsurface = false;
 
 				Sample.IntegratedDiffuseValue += ShadowTerms.TransmissionShadow * Sample.ThinTransmissionPathValue * BackFaceNoLSat * AreaLightContext.Falloff * AreaLightContext.AreaLight.FalloffColor;
 			}
@@ -1028,7 +1029,8 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				// The diffuse is attenuated by the slab transmittance and the GGX interface SpecularTransmission.
 				StrataEnvLightResult.DiffuseBackFaceWeight = Diffuse_Lambert(BackFaceWhiteDiffuseColor) * SlabTransmittance * DirectionalAlbedo_SpecularTransmission;
 
-				// At this stage, StrataEnvLightResult.bSubsurface should have been setup correctly already if SSS is enabled to be applied on a thin surface.
+				// We do not want thin (a.k.a. two sided lighting) contribution to go the SSS post process path.
+				StrataEnvLightResult.bSubsurface = false;
 			}
 			#endif
 
