@@ -6,6 +6,7 @@
 
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"
+#include "RemoteControlModels.h"
 #include "RemoteControlPreset.h"
 
 
@@ -35,12 +36,36 @@ public:
 	void NotifyPropertyChangedRemotely(const FGuid& OriginClientId, const FGuid& PresetId, const FGuid& ExposedPropertyId);
 
 private:
+
+	/** Data about a watched actor so we know who to notify and what to send if the actor is garbage-collected before we know it's been deleted. */
+	struct FWatchedActorData
+	{
+		FWatchedActorData(AActor* InActor)
+			: Description(InActor)
+		{
+		}
+
+		/** Description of the actor. */
+		FRCActorDescription Description;
+
+		/** Which clients are listening for events about this actor. */
+		TArray<FGuid> Clients;
+	};
+
+	/** Register handlers for actors being added/deleted (must happen after engine init). */
+	void RegisterActorHandlers();
 	
 	/** Handles registration to callbacks to a given preset */
 	void HandleWebSocketPresetRegister(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	/** Handles unregistration to callbacks to a given preset */
 	void HandleWebSocketPresetUnregister(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	/** Handles registration to callbacks for creation/destruction/rename of a given actor type */
+	void HandleWebSocketActorRegister(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	/** Handles registration to callbacks for creation/destruction/rename of a given actor type */
+	void HandleWebSocketActorUnregister(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	//Preset callbacks
 	void OnPresetExposedPropertiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedPropertyIds);
@@ -79,11 +104,14 @@ private:
 	/** If a preset layout is modified, notify listeners. */
 	void ProcessModifiedPresetLayouts();
 
+	/** If actors were added/removed/renamed, notify listeners. */
+	void ProcessActorChanges();
+
 	/** 
 	 * Send a payload to all clients bound to a certain preset.
-	 * @note: TargetPresetName must be in the WebSocketNotificationMap.
+	 * @note: TargetPresetName must be in the PresetNotificationMap.
 	 */
-	void BroadcastToListeners(const FGuid& TargetPresetId, const TArray<uint8>& Payload);
+	void BroadcastToPresetListeners(const FGuid& TargetPresetId, const TArray<uint8>& Payload);
 
 	/**
 	 * Returns whether an event targeting a particular preset should be processed.
@@ -100,6 +128,46 @@ private:
 	 */
 	bool WriteActorPropertyChangePayload(URemoteControlPreset* InPreset, const TMap<FRemoteControlActor, TArray<FRCObjectReference>>& InModifications, FMemoryWriter& InWriter);
 
+	/**
+	 * Called when an actor is added to the current world.
+	 */
+	void OnActorAdded(AActor* Actor);
+
+	/**
+	 * Called when an actor is deleted from the current world.
+	 */
+	void OnActorDeleted(AActor* Actor);
+
+	/**
+	 * Called when an untracked change to the actor list happens in the editor.
+	 */
+	void OnActorListChanged();
+
+	/**
+	 * Called when an object's property is changed in the editor. Used to detect name changes on subscribed actors.
+	 */
+	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
+
+	/**
+	 * Called when an object is affected by an editor transaction. Used to detect undo/redo of creating/deleting subscribed actors.
+	 */
+	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& TransactionEvent);
+
+	/**
+	 * Start watching an actor for the given client.
+	 */
+	void StartWatchingActor(AActor* Actor, FGuid ClientId);
+
+	/**
+	 * Stop watching an actor for the given client.
+	 */
+	void StopWatchingActor(AActor* Actor, FGuid ClientId);
+
+	/**
+	 * Update our cache of watched actor's name and notify any subscribers.
+	 */
+	void UpdateWatchedActorName(AActor* Actor, FWatchedActorData& ActorData);
+
 private:
 
 	/** Web Socket server. */
@@ -108,7 +176,11 @@ private:
 	TArray<TUniquePtr<FRemoteControlWebsocketRoute>> Routes;
 
 	/** All websockets connections associated to a preset notifications */
-	TMap<FGuid, TArray<FGuid>> WebSocketNotificationMap;
+	TMap<FGuid, TArray<FGuid>> PresetNotificationMap;
+
+	/** All websocket client IDs associated with an actor class. */
+	typedef TMap<TWeakObjectPtr<UClass>, TArray<FGuid>, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UClass>, TArray<FGuid>>> FActorNotificationMap;
+	FActorNotificationMap ActorNotificationMap;
 
 	/** Configuration for a given client related to how events should be handled. */
 	struct FRCClientConfig
@@ -141,6 +213,18 @@ private:
 	/** Fields that were renamed for a frame, per preset */
 	TMap<FGuid, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
 
+	/** Actors that were added for a frame, per subscribed client. */
+	TMap<FGuid, TArray<TWeakObjectPtr<AActor>>> PerFrameActorsAdded;
+
+	/** Actors that were renamed for a frame, per subscribed client. */
+	TMap<FGuid, TArray<TWeakObjectPtr<AActor>>> PerFrameActorsRenamed;
+
+	/**
+	 * Actors that were removed for a frame, per subscribed client.
+	 * Stored by description in case the actor is garbage collected before its name and path can be collected.
+	 */
+	TMap<FGuid, TArray<FRCActorDescription>> PerFrameActorsDeleted;
+
 	/** Presets that had their metadata modified for a frame */
 	TSet<FGuid> PerFrameModifiedMetadata;
 
@@ -152,4 +236,19 @@ private:
 	
 	/** Frame counter for delaying property change checks. */
 	int32 PropertyNotificationFrameCounter = 0;
+
+	/** Handle for when an actor is added to the world. */
+	FDelegateHandle OnActorAddedHandle;
+
+	/** Handle for when an actor is deleted from the world. */
+	FDelegateHandle OnActorDeletedHandle;
+
+	/** Handle for when the list of actors changes. */
+	FDelegateHandle OnActorListChangedHandle;
+
+	/**
+	 * Actors that we are actively watching to send events to subscribers.
+	 * The key is not a weak pointer, so it shouldn't be accessed in case it's stale. Use the value instead.
+	 */
+	TMap<AActor*, FWatchedActorData> WatchedActors;
 };

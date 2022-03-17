@@ -525,7 +525,7 @@ struct FRCWebSocketRequest : public FRCRequest
 };
 
 /**
- * Holds a request made for web socket.
+ * Holds a request made via websocket to register for events about a given preset.
  */
 USTRUCT()
 struct FRCWebSocketPresetRegisterBody : public FRCRequest
@@ -552,3 +552,29 @@ struct FRCWebSocketPresetRegisterBody : public FRCRequest
 	UPROPERTY()
 	bool IgnoreRemoteChanges = false;
 };
+
+/**
+ * Holds a request made via websocket to register for spawn/destroy events about a given actor type.
+ */
+USTRUCT()
+struct FRCWebSocketActorRegisterBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketActorRegisterBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * Name of the actor class to register for.
+	 */
+	UPROPERTY()
+	FName ClassName;
+};
+

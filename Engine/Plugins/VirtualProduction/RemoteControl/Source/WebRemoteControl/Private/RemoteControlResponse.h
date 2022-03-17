@@ -397,3 +397,35 @@ struct FRCPresetEntitiesModifiedEvent
 	UPROPERTY()
 	FRCPresetModifiedEntitiesDescription ModifiedEntities;
 };
+
+/**
+ * Event triggered when the list of actors in the current scene (or their names) changes.
+ */
+USTRUCT()
+struct FRCActorsChangedEvent
+{
+	GENERATED_BODY()
+
+	FRCActorsChangedEvent()
+		: Type(TEXT("ActorsChanged"))
+	{
+	}
+
+	/**
+	 * Type of the event.
+	 */
+	UPROPERTY()
+	FString Type;
+
+	/** Actors that were added. */
+	UPROPERTY()
+	TArray<FRCActorDescription> AddedActors;
+
+	/** Actors that were renamed. */
+	UPROPERTY()
+	TArray<FRCActorDescription> RenamedActors;
+
+	/** Actors that were deleted. */
+	UPROPERTY()
+	TArray<FRCActorDescription> DeletedActors;
+};

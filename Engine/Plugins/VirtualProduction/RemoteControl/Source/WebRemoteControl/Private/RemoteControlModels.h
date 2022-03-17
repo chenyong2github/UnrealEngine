@@ -686,3 +686,32 @@ struct FRCAssetFilter
 	bool EnableBlueprintNativeClassFiltering = false;
 };
 
+/**
+ * A description of an actor that can both uniquely identify it and provide a user-friendly name.
+ */
+USTRUCT()
+struct FRCActorDescription
+{
+	GENERATED_BODY()
+
+	FRCActorDescription() = default;
+
+	FRCActorDescription(const AActor* InActor)
+		: Name(InActor->GetActorNameOrLabel())
+		, Path(InActor->GetPathName())
+	{
+	}
+
+	inline bool operator==(const FRCActorDescription& Other) const
+	{
+		return Path == Other.Path && Name == Other.Name;
+	}
+
+	/** A user-friendly name for the actor. */
+	UPROPERTY()
+	FString Name;
+
+	/** The path to the actor. */
+	UPROPERTY()
+	FString Path;
+};
