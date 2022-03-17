@@ -433,6 +433,13 @@ private:
 	// Maintain a quick lookup for loaded levels directly to LevelStatus
 	TMap<const ULevel*, int32> LevelStatusIndexByLevel;
 
+	// Map of ULevel GetFName to weak object pointer to the level
+	// Populated during playback, not using NetworkRemapPath because it is never serialized
+	TMap<FName, TWeakObjectPtr<ULevel>> WeakLevelsByName;
+
+	void ResetLevelMap();
+	void ClearLevelMap();
+
 	// List of seen level statuses indices (in AllLevelStatuses).
 	TArray<int32> SeenLevelStatuses;
 

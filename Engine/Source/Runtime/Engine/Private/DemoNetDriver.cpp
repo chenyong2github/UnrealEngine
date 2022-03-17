@@ -696,6 +696,7 @@ void UDemoNetDriver::InitDefaults()
 	MaxArchiveReadPos = 0;
 	bNeverApplyNetworkEmulationSettings = true;
 	bSkipServerReplicateActors = true;
+	bSkipStartupActorRollback = false;
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -825,6 +826,11 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 		bPrioritizeActors				= false;
 		PlaybackPacketIndex				= 0;
 		CheckpointSaveMaxMSPerFrame		= -1.0f;
+
+		if (FParse::Param(FCommandLine::Get(), TEXT("skipreplayrollback")))
+		{
+			bSkipStartupActorRollback = true;
+		}
 
 		RecordBuildConsiderAndPrioritizeTimeSlice = CVarDemoMaximumRepPrioritizeTime.GetValueOnAnyThread();
 		RecordDestructionInfoReplicationTimeSlice = DemoNetDriverRecordingPrivate::CVarDemoMaximumRecDestructionInfoTime.GetValueOnAnyThread();
@@ -1056,6 +1062,7 @@ bool UDemoNetDriver::InitConnectInternal(FString& Error)
 	else
 	{
 		ReplayHelper.ResetLevelStatuses();
+		ReplayHelper.ResetLevelMap();
 	}
 
 	return true;
@@ -1100,10 +1107,12 @@ void UDemoNetDriver::NotifyStreamingLevelUnload( ULevel* InLevel )
 {
 	if (InLevel && !InLevel->bClientOnlyVisible && HasLevelStreamingFixes() && IsPlaying())
 	{
+		const FName FilterLevelName = InLevel->GetOutermost()->GetFName();
+
 		// We can't just iterate over the levels actors, because the ones in the queue will already have been destroyed.
 		for (TMap<FString, FRollbackNetStartupActorInfo>::TIterator RollbackIt = RollbackNetStartupActors.CreateIterator(); RollbackIt; ++RollbackIt)
 		{
-			if (RollbackIt.Value().Level == InLevel)
+			if (RollbackIt.Value().LevelName == FilterLevelName)
 			{
 				RollbackIt.RemoveCurrent();
 			}
@@ -1115,15 +1124,27 @@ void UDemoNetDriver::NotifyStreamingLevelUnload( ULevel* InLevel )
 
 void UDemoNetDriver::OnPostLoadMapWithWorld(UWorld* InWorld)
 {
-	if (InWorld != nullptr && InWorld == World && HasLevelStreamingFixes())
+	if (InWorld != nullptr && InWorld == World)
 	{
+		if (HasLevelStreamingFixes())
+		{
+			if (IsPlaying())
+			{
+				ReplayHelper.ResetLevelStatuses();
+			}
+			else
+			{
+				ReplayHelper.ClearLevelStreamingState();
+			}
+		}
+
 		if (IsPlaying())
 		{
-			ReplayHelper.ResetLevelStatuses();
+			ReplayHelper.ResetLevelMap();
 		}
 		else
 		{
-			ReplayHelper.ClearLevelStreamingState();
+			ReplayHelper.ClearLevelMap();
 		}
 	}
 }
@@ -3183,7 +3204,11 @@ bool UDemoNetDriver::SetExternalDataForObject(UObject* OwningObject, const uint8
 
 void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedActors, ULevel* Level /* = nullptr */)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RespawnNecessaryNetStartupActors);
+
 	TGuardValue<bool> RestoringStartupActors(bIsRestoringStartupActors, true);
+
+	const FName FilterLevelName = Level ? Level->GetOutermost()->GetFName() : NAME_None;
 
 	for (auto RollbackIt = RollbackNetStartupActors.CreateIterator(); RollbackIt; ++RollbackIt)
 	{
@@ -3196,19 +3221,14 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 		FRollbackNetStartupActorInfo& RollbackActor = RollbackIt.Value();
 
 		// filter to a specific level
-		if ((Level != nullptr) && (RollbackActor.Level != Level))
+		if ((Level != nullptr) && (RollbackActor.LevelName != FilterLevelName))
 		{
 			continue;
 		}
 
 		if (HasLevelStreamingFixes())
 		{
-			if (!ensureMsgf(RollbackActor.Level, TEXT("RespawnNecessaryNetStartupActors: Rollback actor level is nullptr: %s"), *RollbackActor.Name.ToString()))
-			{
-				continue;
-			}
-
-			const FString LevelPackageName = ReplayHelper.GetLevelPackageName(*RollbackActor.Level);
+			const FString LevelPackageName = UWorld::RemovePIEPrefix(RollbackActor.LevelName.ToString());
 
 			// skip rollback actors in streamed out levels (pending gc)
 			if (!ReplayHelper.LevelStatusesByName.Contains(LevelPackageName))
@@ -3223,7 +3243,14 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 			}
 		}
 
-		AActor* ExistingActor = FindObjectFast<AActor>(RollbackActor.Level, RollbackActor.Name);
+		ULevel* RollbackActorLevel = ReplayHelper.WeakLevelsByName.FindRef(RollbackActor.LevelName).Get();
+
+		if (!ensureMsgf(RollbackActorLevel, TEXT("RespawnNecessaryNetStartupActors: Rollback actor level is nullptr: %s"), *RollbackActor.Name.ToString()))
+		{
+			continue;
+		}
+
+		AActor* ExistingActor = FindObjectFast<AActor>(RollbackActorLevel, RollbackActor.Name);
 		if (ExistingActor)
 		{
 			ensureMsgf((!IsValidChecked(ExistingActor) || ExistingActor->IsUnreachable()), TEXT("RespawnNecessaryNetStartupActors: Renaming rollback actor that wasn't destroyed: %s"), *GetFullNameSafe(ExistingActor));
@@ -3236,7 +3263,7 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 		SpawnInfo.SpawnCollisionHandlingOverride	= ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnInfo.bNoFail							= true;
 		SpawnInfo.Name								= RollbackActor.Name;
-		SpawnInfo.OverrideLevel						= RollbackActor.Level;
+		SpawnInfo.OverrideLevel						= RollbackActorLevel;
 		SpawnInfo.bDeferConstruction				= true;
 
 		const FTransform SpawnTransform = FTransform(RollbackActor.Rotation, RollbackActor.Location, RollbackActor.Scale3D);
@@ -3822,6 +3849,8 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 		ReplayHelper.ResetLevelStatuses();
 	}
+
+	ReplayHelper.ResetLevelMap();
 
 	LastProcessedPacketTime = 0.f;
 	ReplayHelper.LatestReadFrameTime = 0.f;
@@ -5101,6 +5130,11 @@ void UDemoNetDriver::QueueNetStartupActorForRollbackViaDeletion(AActor* Actor)
 		return;		// We should only be doing this at runtime while playing a replay
 	}
 
+	if (bSkipStartupActorRollback)
+	{
+		return;
+	}
+
 	check(Actor != nullptr);
 
 	if (!Actor->IsNetStartupActor())
@@ -5127,7 +5161,11 @@ void UDemoNetDriver::QueueNetStartupActorForRollbackViaDeletion(AActor* Actor)
 	RollbackActor.Location	= Actor->GetActorLocation();
 	RollbackActor.Rotation	= Actor->GetActorRotation();
 	RollbackActor.Scale3D	= Actor->GetActorScale3D();
-	RollbackActor.Level		= Actor->GetLevel();
+
+	if (ULevel* ActorLevel = Actor->GetLevel())
+	{
+		RollbackActor.LevelName = ActorLevel->GetOutermost()->GetFName();
+	}
 
 	if (GDemoSaveRollbackActorState != 0)
 	{

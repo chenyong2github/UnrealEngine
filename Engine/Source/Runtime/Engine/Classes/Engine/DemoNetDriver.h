@@ -68,8 +68,7 @@ struct FRollbackNetStartupActorInfo
 	FVector		Location;
 	FRotator	Rotation;
 	FVector		Scale3D;
-	UPROPERTY()
-	TObjectPtr<ULevel>		Level = nullptr;
+	FName		LevelName;
 
 	TSharedPtr<FRepState> RepState;
 	TMap<FString, TSharedPtr<FRepState>> SubObjRepState;
@@ -719,6 +718,9 @@ private:
 	TAtomic<float> LastReplayFrameFidelity{ 0 };
 
 	FReplayHelper ReplayHelper;
+
+	/** Enabled via -skipreplayrollback and causes rollback data to not be generated, with the assumption that there will be no scrubbing. */
+	bool bSkipStartupActorRollback = false;
 
 	friend class UDemoNetConnection;
 };

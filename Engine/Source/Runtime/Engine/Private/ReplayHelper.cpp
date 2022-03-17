@@ -1208,6 +1208,31 @@ void FReplayHelper::ResetLevelStatuses()
 	}
 }
 
+void FReplayHelper::ClearLevelMap()
+{
+	WeakLevelsByName.Reset();
+}
+
+void FReplayHelper::ResetLevelMap()
+{
+	ClearLevelMap();
+
+	check(World.Get());
+
+	WeakLevelsByName.Add(World->PersistentLevel->GetOutermost()->GetFName(), World->PersistentLevel);
+
+	for (ULevelStreaming* LevelStreaming : World->GetStreamingLevels())
+	{
+		if (LevelStreaming && LevelStreaming->IsLevelVisible())
+		{
+			if (ULevel* Level = LevelStreaming->GetLoadedLevel())
+			{
+				WeakLevelsByName.Add(Level->GetOutermost()->GetFName(), Level);
+			}
+		}
+	}
+}
+
 void FReplayHelper::WriteDemoFrame(UNetConnection* Connection, FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime, EWriteDemoFrameFlags Flags)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Replay write frame time"), STAT_ReplayWriteDemoFrame, STATGROUP_Net);
@@ -1729,6 +1754,8 @@ void FReplayHelper::Serialize(FArchive& Ar)
 				Ar << ActorString;
 			}
 		);
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("WeakLevelsByName", WeakLevelsByName.CountBytes(Ar));
 	}
 }
 
@@ -2119,9 +2146,9 @@ void FReplayHelper::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 {
 	LLM_SCOPE(ELLMTag::Replays);
 
-	if (InLevel && !InLevel->bClientOnlyVisible && (World == InWorld) && HasLevelStreamingFixes() && InWorld->IsPlayingReplay())
+	if (InLevel && !InLevel->bClientOnlyVisible && (World == InWorld) && InWorld->IsPlayingReplay())
 	{
-		if (!NewStreamingLevelsThisFrame.Contains(InLevel) && !LevelsPendingFastForward.Contains(InLevel))
+		if (HasLevelStreamingFixes() && !NewStreamingLevelsThisFrame.Contains(InLevel) && !LevelsPendingFastForward.Contains(InLevel))
 		{
 			FLevelStatus& LevelStatus = FindOrAddLevelStatus(*InLevel);
 
@@ -2138,23 +2165,30 @@ void FReplayHelper::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 				NewStreamingLevelsThisFrame.Add(InLevel);
 			}
 		}
+
+		WeakLevelsByName.Add(InLevel->GetOutermost()->GetFName(), InLevel);
 	}
 }
 
 void FReplayHelper::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 {
-	if (InLevel && !InLevel->bClientOnlyVisible && (World == InWorld) && HasLevelStreamingFixes() && InWorld->IsPlayingReplay())
+	if (InLevel && !InLevel->bClientOnlyVisible && (World == InWorld) && InWorld->IsPlayingReplay())
 	{
-		const FString LevelPackageName = GetLevelPackageName(*InLevel);
-		if (LevelStatusesByName.Contains(LevelPackageName))
+		if (HasLevelStreamingFixes())
 		{
-			FLevelStatus& LevelStatus = GetLevelStatus(LevelPackageName);
-			LevelStatus.bIsReady = false;
+			const FString LevelPackageName = GetLevelPackageName(*InLevel);
+			if (LevelStatusesByName.Contains(LevelPackageName))
+			{
+				FLevelStatus& LevelStatus = GetLevelStatus(LevelPackageName);
+				LevelStatus.bIsReady = false;
 
-			// Make sure we don't try to fast-forward this level later.
-			LevelsPendingFastForward.Remove(InLevel);
-			NewStreamingLevelsThisFrame.Remove(InLevel);
+				// Make sure we don't try to fast-forward this level later.
+				LevelsPendingFastForward.Remove(InLevel);
+				NewStreamingLevelsThisFrame.Remove(InLevel);
+			}
 		}
+
+		WeakLevelsByName.Remove(InLevel->GetOutermost()->GetFName());
 	}
 
 	// always invalidate cache since it uses pointers
