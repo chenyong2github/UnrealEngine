@@ -305,7 +305,7 @@ namespace UnrealBuildTool
 				{
 					// an Engine target is required in order to be able to get Xcode to sign blueprint projects
 					// always include the engine target for installed builds.
-					IncludeEnginePrograms = true;
+					bIncludeEnginePrograms = true;
 				}
 				bIncludeEngineSource = true;
 			}

@@ -294,7 +294,7 @@ namespace UnrealBuildTool
 		/// True if we should include program projects in the generated solution.
 		/// </summary>
 		[XmlConfigFile]
-		protected bool IncludeEnginePrograms = true;
+		protected bool bIncludeEnginePrograms = true;
 
 		/// <summary>
 		/// Whether to include C++ targets
@@ -940,7 +940,7 @@ namespace UnrealBuildTool
 						if (bIncludeConfigFiles)
 						{
 							AddEngineConfigFiles(EngineProject);
-							if (IncludeEnginePrograms)
+							if (bIncludeEnginePrograms)
 							{
 								AddUnrealHeaderToolConfigFiles(EngineProject);
 								AddUBTConfigFilesToEngineProject(EngineProject);
@@ -1038,10 +1038,14 @@ namespace UnrealBuildTool
 						RootFolder.AddSubFolder(DebugProjectFile.Item2).ChildProjects.Add(DebugProjectFile.Item1);
 					}
 
-
 					foreach (KeyValuePair<FileReference, ProjectFile> CurProgramProject in ProgramProjects)
 					{
+						FileReference UnrealProjectFile = CurProgramProject.Value.ProjectTargets.First().UnrealProjectFilePath!;
 						Project Target = CurProgramProject.Value.ProjectTargets.FirstOrDefault(t => !String.IsNullOrEmpty(t.TargetRules!.SolutionDirectory));
+						if (!bIncludeEnginePrograms && UnrealProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
+						{
+							continue;
+						}
 
 						if (Target != null)
 						{
@@ -1285,7 +1289,7 @@ namespace UnrealBuildTool
 							case "-GAME":
 								// Generates project files for a single game
 								bIncludeDotNetPrograms = false;
-								IncludeEnginePrograms = false;
+								bIncludeEnginePrograms = false;
 								bGeneratingGameProjectFiles = true;
 								break;
 
@@ -1368,13 +1372,13 @@ namespace UnrealBuildTool
 
 				bool bInstalledEngineWithSource = Unreal.IsEngineInstalled() && DirectoryReference.Exists(UnrealBuildTool.EngineSourceDirectory);
 
-				bIncludeEngineSource = bAlwaysIncludeEngineModules || bInstalledEngineWithSource;
+				bIncludeEngineSource = !Unreal.IsEngineInstalled() || bInstalledEngineWithSource;
 				bIncludeDocumentation = false;
 				bIncludeBuildSystemFiles = false;
 				bIncludeShaderSource = true;
 				bIncludeTemplateFiles = false;
 				bIncludeConfigFiles = true;
-				IncludeEnginePrograms = bAlwaysIncludeEngineModules;
+				bIncludeEnginePrograms = bAlwaysIncludeEngineModules;
 				bIncludeDotNetPrograms = bIncludeDotNetPrograms || bAlwaysIncludeDotNetPrograms;
 			}
 			else
@@ -1556,7 +1560,7 @@ namespace UnrealBuildTool
 			List<string> UnsupportedPlatformNameStrings = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms, bIncludeUnbuildablePlatforms: true);
 
 			// Locate all targets (*.Target.cs files)
-			List<FileReference> FoundTargetFiles = Rules.FindAllRulesSourceFiles(Rules.RulesFileType.Target, AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: null, AdditionalSearchPaths: null, bIncludeEngine: IncludeEnginePrograms, bIncludeTempTargets: bIncludeTempTargets);
+			List<FileReference> FoundTargetFiles = Rules.FindAllRulesSourceFiles(Rules.RulesFileType.Target, AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: null, AdditionalSearchPaths: null, bIncludeEngine: bIncludeEngineSource, bIncludeTempTargets: bIncludeTempTargets);
 			foreach (FileReference CurTargetFile in FoundTargetFiles)
 			{
 				string CleanTargetFileName = Utils.CleanDirectorySeparators(CurTargetFile.FullName);
@@ -2362,7 +2366,7 @@ namespace UnrealBuildTool
 
 					if (Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{
-						WantProjectFileForTarget = IncludeEnginePrograms;
+						WantProjectFileForTarget = bIncludeEnginePrograms;
 					}
 					else if (Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{

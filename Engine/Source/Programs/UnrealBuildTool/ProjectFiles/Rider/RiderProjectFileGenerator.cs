@@ -81,7 +81,7 @@ namespace UnrealBuildTool
 			bGenerateProjectFiles = true;
 			bIncludeTemplateFiles = false;
 			bIncludeTestAndShippingConfigs = true;
-			IncludeEnginePrograms = true; // It's true by default, but I like to have things explicit
+			bIncludeEnginePrograms = true; // It's true by default, but I like to have things explicit
 		}
 
 		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
@@ -196,7 +196,7 @@ namespace UnrealBuildTool
 
 					if (TargetFilePath.IsUnderDirectory(EngineSourceProgramsDirectory))
 					{
-						WantProjectFileForTarget = IncludeEnginePrograms;
+						WantProjectFileForTarget = bIncludeEnginePrograms;
 					}
 					else if (TargetFilePath.IsUnderDirectory(UnrealBuildTool.EngineSourceDirectory))
 					{
