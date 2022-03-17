@@ -376,6 +376,9 @@ int32 FBinkAudioInfo::GetFrameSize()
 	uint32 BlockSize;
 	if (BinkAudioBlockSize(MaxCompSpaceNeeded, SrcBufferData + SrcBufferOffset, SrcBufferDataSize - SrcBufferOffset, &BlockSize) == false)
 	{
+		// Flag this as error so that the owning logic can clean up this decode.
+		bErrorStateLatch = true;
+		
 		// Either malformed data, or not enough data.
 		return 0;
 	}
@@ -496,6 +499,7 @@ FDecodeResult FBinkAudioInfo::Decode(const uint8* CompressedData, const int32 Co
 			if (BlockSize > MaxCompSpaceNeeded + 8) // +8 for max block header size
 			{
 				UE_LOG(LogBinkAudioDecoder, Error, TEXT("BAD! Validated block exceeds header max block size (%d vs %d)"), BlockSize, MaxCompSpaceNeeded);
+				bErrorStateLatch = true;
 				break;
 			}
 
@@ -528,6 +532,8 @@ FDecodeResult FBinkAudioInfo::Decode(const uint8* CompressedData, const int32 Co
 			check(DecodedBytes);
 			if (DecodedBytes == 0)
 			{
+				bErrorStateLatch = true;
+
 				// This means that our block check above succeeded and we still failed - corrupted data!
 				return FDecodeResult();
 			}
@@ -548,6 +554,8 @@ FDecodeResult FBinkAudioInfo::Decode(const uint8* CompressedData, const int32 Co
 			check(DecodedBytes);
 			if (DecodedBytes == 0)
 			{
+				bErrorStateLatch = true;
+
 				// This means that our block check above succeeded and we still failed - corrupted data!
 				return FDecodeResult();
 			}
@@ -644,6 +652,11 @@ FDecodeResult FBinkAudioInfo::Decode(const uint8* CompressedData, const int32 Co
 	Result.NumAudioFramesProduced = Result.NumPcmBytesProduced / (sizeof(int16) * NumChannels);	
 	Result.NumCompressedBytesConsumed = CompressedDataSize - RemnCompressedDataSize;
 	return Result;
+}
+
+bool FBinkAudioInfo::HasError() const
+{
+	return bErrorStateLatch;
 }
 
 IMPLEMENT_MODULE(FBinkAudioDecoderModule, BinkAudioDecoder)

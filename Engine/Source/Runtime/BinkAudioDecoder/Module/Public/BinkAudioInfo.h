@@ -22,6 +22,7 @@ public:
 	virtual bool CreateDecoder() override;
 	virtual void SeekToTime(const float SeekToTimeSeconds) override;
 	virtual FDecodeResult Decode(const uint8* CompressedData, const int32 CompressedDataSize, uint8* OutPCMData, const int32 OutputPCMDataSize) override;
+	virtual bool HasError() const override;
 	//~ End IStreamedCompressedInfo Interface
 
 protected:
@@ -32,4 +33,5 @@ protected:
 
 	struct BinkAudioDecoder* Decoder = 0;
 	uint8* RawMemory = 0;
+	bool bErrorStateLatch = false;
 };
