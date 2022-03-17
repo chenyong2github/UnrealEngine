@@ -2395,7 +2395,7 @@ FTransform FSequenceSampler::ExtrapolateRootMotion(float SampleStart, float Samp
 		ExtrapolatedRootMotion = AbsTimeSampleToExtrapolate * ExtrapolatedRootMotion;
 	}
 	
-	// and a blend with identify for whatever is left
+	// and a blend with identity for whatever is left
 	FTransform RemainingExtrapolatedRootMotion;
 	RemainingExtrapolatedRootMotion.Blend(
 		FTransform::Identity, 
@@ -4136,11 +4136,17 @@ void ComputePoseCostAddends(
 }
 
 
-FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, int32 GroupIdx /* = INDEX_NONE */)
+FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, int32 GroupIdx)
 {
 	FPoseCost Result;
 
-	TArrayView<const float> PoseValues = SearchContext.GetSearchIndex()->GetPoseValues(PoseIdx);
+	const FPoseSearchIndex* SearchIndex = SearchContext.GetSearchIndex();
+	if (!ensure(SearchIndex))
+	{
+		return Result;
+	}
+
+	TArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
 	if (!ensure(PoseValues.Num() == SearchContext.QueryValues.Num()))
 	{
 		return Result;
@@ -4148,6 +4154,17 @@ FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, int32 Group
 
 	if (SearchContext.WeightsContext)
 	{
+		if (GroupIdx == INDEX_NONE)
+		{
+			const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex->FindAssetForPose(PoseIdx);
+			if (!ensure(SearchIndexAsset))
+			{
+				return Result;
+			}
+
+			GroupIdx = SearchIndexAsset->SourceGroupIdx;
+		}
+
 		const FPoseSearchWeights* WeightsSet =
 			SearchContext.WeightsContext->GetGroupWeights(GroupIdx);
 		Result.Dissimilarity = CompareFeatureVectors(

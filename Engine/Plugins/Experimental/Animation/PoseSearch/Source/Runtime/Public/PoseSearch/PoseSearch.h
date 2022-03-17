@@ -437,8 +437,7 @@ struct FPoseSearchBlockTransitionParameters
 	// Excluding the end of sequences help ensure an exact future trajectory, and also prevents the selection of
 	// a sequence which will end too soon to be worth selecting.
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	float SequenceEndInterval = 0.2f;
-
+	float SequenceEndInterval = 0.0f;
 };
 
 /** Animation metadata object for indexing a single animation. */
@@ -706,7 +705,7 @@ public:
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
 	UPROPERTY(EditAnywhere, Category = "Database")
-	FPoseSearchBlockTransitionParameters BlockTransitionParameters;
+	FPoseSearchBlockTransitionParameters BlockTransitionParameters = {0.0f, 0.2f};
 
 	UPROPERTY(EditAnywhere, Category = "Database")
 	TArray<FPoseSearchDatabaseGroup> Groups;
@@ -944,6 +943,7 @@ struct FPoseCost
 	float CostAddend = 0.0f;
 	float TotalCost = MAX_flt;
 	bool operator<(const FPoseCost& Other) const { return TotalCost < Other.TotalCost; }
+	bool IsValid() const { return TotalCost != MAX_flt; }
 
 };
 
@@ -1022,12 +1022,12 @@ POSESEARCH_API FSearchResult Search(FSearchContext& SearchContext);
 *
 * @param PoseIdx			The index of the pose in the search index to compare to the query
 * @param SearchContext		Structure containing search parameters
-* @param GroupIdx			Indicated which weight to use when evaluating dissimilarity
+* @param GroupIdx			Indicates the group for this pose's source asset. Specify INDEX_NONE to lookup the pose's group.
 *
 * @return Dissimilarity between the two poses
 */
 
-POSESEARCH_API FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, int32 GroupIdx = INDEX_NONE);
+POSESEARCH_API FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, int32 GroupIdx);
 
 /**
  * Cost details for pose analysis in the rewind debugger
