@@ -756,7 +756,7 @@ void UControlRigDetailPanelControlProxies::RemoveAllProxies(UControlRig* Control
 	//no control rig remove all
 	if (ControlRig == nullptr)
 	{
-		for (TPair<UControlRig*, FControlToProxyMap>& ControlRigProxies : AllProxies)
+		for (TPair<TObjectPtr<UControlRig>, FControlToProxyMap>& ControlRigProxies : AllProxies)
 		{
 			for (TPair<FName, TObjectPtr<UControlRigControlsProxy> >& Pair : ControlRigProxies.Value.ControlToProxy)
 			{
