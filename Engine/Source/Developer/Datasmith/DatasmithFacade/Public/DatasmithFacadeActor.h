@@ -24,6 +24,7 @@ public:
 		StaticMeshActor,
 		Camera,
 		Actor,
+		Decal,
 		Unsupported,
 	};
 

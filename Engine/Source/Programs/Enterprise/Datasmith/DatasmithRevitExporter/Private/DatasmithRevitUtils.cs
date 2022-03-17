@@ -107,5 +107,46 @@ namespace DatasmithRevitExporter
 				}
 			}
 		}
+
+		public static void GetDecalSpatialParams(Element InDecalElement, ref Transform OutDecalTransform, ref XYZ OutDecalDimensions)
+		{
+			List<Line> DecalQuad = new List<Line>();
+
+			GeometryElement GeomElement = InDecalElement.get_Geometry(new Options());
+
+			foreach (GeometryObject GeomObj in GeomElement)
+			{
+				if (GeomObj is Line QuadLine)
+				{
+					DecalQuad.Add(QuadLine);
+				}
+			}
+
+			if (DecalQuad.Count != 4)
+			{
+				return;
+			}
+
+			XYZ TopLeft = DecalQuad[0].Origin;
+			XYZ TopRight = DecalQuad[1].Origin;
+			XYZ BottomRight = DecalQuad[2].Origin;
+			XYZ BottomLeft = DecalQuad[3].Origin;
+
+			XYZ BasisY = (TopRight - TopLeft).Normalize();
+			XYZ BasisZ = (TopLeft - BottomLeft).Normalize();
+			XYZ BasisX = BasisZ.CrossProduct(BasisY).Normalize();
+
+			XYZ Origin = (TopLeft + BottomRight) * 0.5f;
+
+			OutDecalTransform = Transform.Identity;
+			OutDecalTransform.BasisX = BasisX;
+			OutDecalTransform.BasisY = BasisZ;
+			OutDecalTransform.BasisZ = BasisY;
+			OutDecalTransform.Origin = Origin;
+
+			const float CENTIMETERS_PER_FOOT = 30.48F;
+
+			OutDecalDimensions = new XYZ(DecalQuad[0].Length * CENTIMETERS_PER_FOOT * 0.5, DecalQuad[1].Length * CENTIMETERS_PER_FOOT * 0.5, 2.0);
+		}
 	}
 }

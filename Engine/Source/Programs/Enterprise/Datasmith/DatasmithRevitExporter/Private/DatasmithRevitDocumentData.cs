@@ -114,6 +114,7 @@ namespace DatasmithRevitExporter
 			public bool							bOptimizeHierarchy = true;
 			public bool							bIsModified = true;
 			public bool							bAllowMeshInstancing = true;
+			public bool							bIsDecalElement = false;
 
 			public Dictionary<string, int>		MeshMaterialsMap = new Dictionary<string, int>();
 
@@ -807,8 +808,18 @@ namespace DatasmithRevitExporter
 					// Create a new Datasmith mesh actor.
 					// Hash the Datasmith mesh actor name to shorten it.
 					string HashedActorName = FDatasmithFacadeElement.GetStringHash("A:" + GetActorName(true));
-					InElement.ElementActor = new FDatasmithFacadeActorMesh(HashedActorName);
-					InElement.ElementActor.SetLabel(GetActorLabel());
+
+					if (BaseElementType.FamilyName == "Decal")
+					{
+						bOptimizeHierarchy = false;
+						bIsDecalElement = true;
+						InElement.ElementActor = new FDatasmithFacadeActorDecal(HashedActorName);
+					}
+					else
+					{
+						InElement.ElementActor = new FDatasmithFacadeActorMesh(HashedActorName);
+						InElement.ElementActor.SetLabel(GetActorLabel());
+					}
 				}
 
 				// Set the world transform of the Datasmith mesh actor.
@@ -1058,6 +1069,9 @@ namespace DatasmithRevitExporter
 		public Dictionary<string, FMaterialData>		MaterialDataMap = null;
 		public Dictionary<string, FMaterialData>		NewMaterialsMap = new Dictionary<string, FMaterialData>();
 
+		public Dictionary<ElementId, FElementData>		DecalElementsMap = new Dictionary<ElementId, FElementData>();
+		public Dictionary<ElementId, FDecalMaterial>	DecalMaterialsMap = new Dictionary<ElementId, FDecalMaterial>();
+
 		private Stack<FElementData>						ElementDataStack = new Stack<FElementData>();
 		private string									CurrentMaterialName = null;
 		private List<string>							MessageList = null;
@@ -1226,6 +1240,11 @@ namespace DatasmithRevitExporter
 				else
 				{
 					ElementData = new FElementData(InElement, InWorldTransform, this);
+
+					if (ElementData.bIsDecalElement)
+					{
+						DecalElementsMap.Add(InElement.Id, ElementData);
+					}
 				}
 			}
 
@@ -1442,6 +1461,21 @@ namespace DatasmithRevitExporter
 		{
 			Material CurrentMaterial = GetElement(InMaterialNode.MaterialId) as Material;
 
+			if (InMaterialNode.HasOverriddenAppearance)
+			{
+				ElementId ReferencingDecalId = FDecalMaterial.GetDecalElementId(InMaterialNode);
+
+				if (ReferencingDecalId != ElementId.InvalidElementId)
+				{
+					FDecalMaterial DecalMaterial = FDecalMaterial.Create(InMaterialNode, CurrentMaterial);
+
+					if (DecalMaterial != null)
+					{
+						DecalMaterialsMap.Add(ReferencingDecalId, DecalMaterial);
+					}
+				}
+			}
+
 			CurrentMaterialName = FMaterialData.GetMaterialName(InMaterialNode, CurrentMaterial);
 
 			if (!MaterialDataMap.ContainsKey(CurrentMaterialName) || (CurrentMaterial != null && DirectLink != null && DirectLink.IsMaterialDirty(CurrentMaterial)))
@@ -1655,6 +1689,8 @@ namespace DatasmithRevitExporter
 			HashSet<string> UniqueTextureNameSet
 		)
 		{
+			AddCollectedDecals(InDatasmithScene);
+
 			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
 			AddCollectedMeshes(InDatasmithScene);
 
@@ -1997,6 +2033,54 @@ namespace DatasmithRevitExporter
 			}
 		
 			return DatasmithMesh;
+		}
+
+		private void AddCollectedDecals(FDatasmithFacadeScene InDatasmithScene)
+		{
+			foreach (KeyValuePair<ElementId, FDecalMaterial> DecalMaterialPair in DecalMaterialsMap)
+			{
+				FElementData DecalElement = null;
+				if (!DecalElementsMap.TryGetValue(DecalMaterialPair.Key, out DecalElement))
+				{
+					continue;
+				}
+
+				FDecalMaterial DecalMaterial = DecalMaterialPair.Value;
+
+				FDatasmithFacadeDecalMaterial DatasmithMaterial = new FDatasmithFacadeDecalMaterial(DecalMaterial.MaterialName);
+
+				if (!string.IsNullOrEmpty(DecalMaterial.DiffuseTexturePath))
+				{
+					FDatasmithFacadeTexture DiffuseTexture = FDatasmithFacadeMaterialsUtils.CreateSimpleTextureElement(DecalMaterial.DiffuseTexturePath);
+					DiffuseTexture.SetSRGB(FDatasmithFacadeTexture.EColorSpace.sRGB);
+					DiffuseTexture.SetTextureMode(FDatasmithFacadeTexture.ETextureMode.Diffuse);
+					DiffuseTexture.SetFile(DecalMaterial.DiffuseTexturePath);
+					DatasmithMaterial.SetDiffuseTexturePathName(DiffuseTexture.GetName());
+					InDatasmithScene.AddTexture(DiffuseTexture);
+				}
+
+				if (!string.IsNullOrEmpty(DecalMaterial.BumpTexturePath))
+				{
+					FDatasmithFacadeTexture BumpTexture = FDatasmithFacadeMaterialsUtils.CreateSimpleTextureElement(DecalMaterial.BumpTexturePath);
+					BumpTexture.SetSRGB(FDatasmithFacadeTexture.EColorSpace.sRGB);
+					BumpTexture.SetTextureMode(FDatasmithFacadeTexture.ETextureMode.Bump);
+					BumpTexture.SetFile(DecalMaterial.BumpTexturePath);
+					DatasmithMaterial.SetDiffuseTexturePathName(BumpTexture.GetName());
+					InDatasmithScene.AddTexture(BumpTexture);
+				}
+
+				InDatasmithScene.AddMaterial(DatasmithMaterial);
+
+				Transform DecalTransform = null;
+				XYZ DecalDimensions = null;
+				FUtils.GetDecalSpatialParams(DecalElement.CurrentElement, ref DecalTransform, ref DecalDimensions);
+
+				FDatasmithFacadeActorDecal DecalActor = DecalElement.ElementActor as FDatasmithFacadeActorDecal;
+				DecalActor.SetDimensions(DecalDimensions.Z, DecalDimensions.X, DecalDimensions.Y);
+				DecalActor.SetDecalMaterialPathName(DatasmithMaterial.GetName());
+
+				SetActorTransform(DecalTransform, DecalActor);
+			}
 		}
 
 		private void AddCollectedMeshes(

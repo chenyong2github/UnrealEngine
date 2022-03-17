@@ -64,6 +64,9 @@
     <Compile Include="..\Private\DatasmithRevitDirectLink.cs">
       <Link>DatasmithRevitExporter\DatasmithRevitDirectLink.cs</Link>
     </Compile>
+    <Compile Include="..\Private\DatasmithRevitDecal.cs">
+      <Link>DatasmithRevitExporter\DatasmithRevitDecal.cs</Link>
+    </Compile>
     <Compile Include="..\Private\DatasmithRevitApplication.cs">
       <Link>DatasmithRevitExporter\DatasmithRevitApplication.cs</Link>
     </Compile>

@@ -149,6 +149,8 @@ public class FDatasmithFacadeActor : FDatasmithFacadeElement {
 			return new FDatasmithFacadeActorMesh(objectPtr, true);
 		case FDatasmithFacadeActor.EActorType.Camera:
 			return new FDatasmithFacadeActorCamera(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.Decal:
+			return new FDatasmithFacadeActorDecal(objectPtr, true);
 		case FDatasmithFacadeActor.EActorType.Actor:
 			return new FDatasmithFacadeActor(objectPtr, true);
 		case FDatasmithFacadeActor.EActorType.Unsupported:
@@ -188,6 +190,8 @@ public class FDatasmithFacadeActor : FDatasmithFacadeElement {
 			return new FDatasmithFacadeActorMesh(objectPtr, true);
 		case FDatasmithFacadeActor.EActorType.Camera:
 			return new FDatasmithFacadeActorCamera(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.Decal:
+			return new FDatasmithFacadeActorDecal(objectPtr, true);
 		case FDatasmithFacadeActor.EActorType.Actor:
 			return new FDatasmithFacadeActor(objectPtr, true);
 		case FDatasmithFacadeActor.EActorType.Unsupported:
@@ -230,6 +234,7 @@ public class FDatasmithFacadeActor : FDatasmithFacadeElement {
     StaticMeshActor,
     Camera,
     Actor,
+    Decal,
     Unsupported
   }
 

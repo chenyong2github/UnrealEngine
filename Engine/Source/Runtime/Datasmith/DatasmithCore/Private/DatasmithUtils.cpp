@@ -954,6 +954,18 @@ namespace DatasmithSceneUtilsImpl
 			ScanMaterialIDElement( LightActorElement->GetLightFunctionMaterial().Get() );
 		}
 
+		void ScanDecalActorElement(IDatasmithDecalActorElement* DecalActorElement)
+		{
+			if (const TCHAR* DecalMaterialName = DecalActorElement->GetDecalMaterialPathName())
+			{
+				if (TSharedPtr<IDatasmithElement>* MaterialElementPtr = AssetElementMapping.Find(MaterialPrefix + DecalMaterialName))
+				{
+					TSharedPtr<IDatasmithBaseMaterialElement> MaterialElement = StaticCastSharedPtr<IDatasmithBaseMaterialElement>(*MaterialElementPtr);
+					ReferencedMaterials.Add(MaterialElement);
+				}
+			}
+		}
+
 		void ParseSceneActor( const TSharedPtr<IDatasmithActorElement>& ActorElement )
 		{
 			if (!ActorElement.IsValid())
@@ -970,6 +982,10 @@ namespace DatasmithSceneUtilsImpl
 			else if (ActorElement->IsA(EDatasmithElementType::Light))
 			{
 				ScanLightActorElement(static_cast<IDatasmithLightActorElement*>(ActorElement.Get()));
+			}
+			else if (ActorElement->IsA(EDatasmithElementType::Decal))
+			{
+				ScanDecalActorElement(static_cast<IDatasmithDecalActorElement*>(ActorElement.Get()));
 			}
 
 			for (int32 Index = 0; Index < ActorElement->GetChildrenCount(); ++Index)
@@ -1000,6 +1016,24 @@ namespace DatasmithSceneUtilsImpl
 					{
 						ReferencedTextures.Add(TexturePathName);
 					}
+				}
+			}
+		}
+
+		void ScanDecalMaterialElement(IDatasmithDecalMaterialElement* MaterialElement)
+		{
+			if (const TCHAR* DiffuseTextureName = MaterialElement->GetDiffuseTexturePathName())
+			{
+				if (DiffuseTextureName[0] != '/')
+				{
+					ReferencedTextures.Add(DiffuseTextureName);
+				}
+			}
+			if (const TCHAR* NormalTextureName = MaterialElement->GetNormalTexturePathName())
+			{
+				if (NormalTextureName[0] != '/')
+				{
+					ReferencedTextures.Add(NormalTextureName);
 				}
 			}
 		}
@@ -1235,6 +1269,10 @@ namespace DatasmithSceneUtilsImpl
 				else if ( MaterialElement->IsA( EDatasmithElementType::MasterMaterial ) )
 				{
 					ScanMasterMaterialElement(static_cast< IDatasmithMasterMaterialElement* >( MaterialElement.Get() ));
+				}
+				else if (MaterialElement->IsA(EDatasmithElementType::DecalMaterial))
+				{
+					ScanDecalMaterialElement(static_cast<IDatasmithDecalMaterialElement*>(MaterialElement.Get()));
 				}
 				else if ( MaterialElement->IsA( EDatasmithElementType::Material ) )
 				{

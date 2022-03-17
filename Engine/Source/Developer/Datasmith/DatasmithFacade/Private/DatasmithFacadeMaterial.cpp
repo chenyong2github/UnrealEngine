@@ -5,6 +5,7 @@
 #include "DatasmithFacadeKeyValueProperty.h"
 #include "DatasmithFacadeScene.h"
 #include "DatasmithFacadeUEPbrMaterial.h"
+#include "DatasmithFacadeDecal.h"
 
 #include "DatasmithDefinitions.h"
 #include "DatasmithUtils.h"
@@ -34,6 +35,10 @@ FDatasmithFacadeBaseMaterial::EDatasmithMaterialType FDatasmithFacadeBaseMateria
 	{
 		return EDatasmithMaterialType::MasterMaterial;
 	}
+	else if (InMaterial->IsA(EDatasmithElementType::DecalMaterial))
+	{
+		return EDatasmithMaterialType::DecalMaterial;
+	}
 
 	return EDatasmithMaterialType::Unsupported;
 }
@@ -58,6 +63,8 @@ FDatasmithFacadeBaseMaterial* FDatasmithFacadeBaseMaterial::GetNewFacadeBaseMate
 			return new FDatasmithFacadeUEPbrMaterial(StaticCastSharedRef<IDatasmithUEPbrMaterialElement>(MaterialRef));
 		case EDatasmithMaterialType::MasterMaterial:
 			return new FDatasmithFacadeMasterMaterial(StaticCastSharedRef<IDatasmithMasterMaterialElement>(MaterialRef));
+		case EDatasmithMaterialType::DecalMaterial:
+			return new FDatasmithFacadeDecalMaterial(StaticCastSharedRef<IDatasmithDecalMaterialElement>(MaterialRef));
 		case EDatasmithMaterialType::Unsupported:
 		default:
 			return nullptr;

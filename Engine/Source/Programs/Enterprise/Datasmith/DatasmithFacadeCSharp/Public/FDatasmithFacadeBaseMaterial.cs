@@ -43,6 +43,7 @@ public class FDatasmithFacadeBaseMaterial : FDatasmithFacadeElement {
   public enum EDatasmithMaterialType {
     MasterMaterial,
     UEPbrMaterial,
+    DecalMaterial,
     Unsupported
   }
 

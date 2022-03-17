@@ -16,6 +16,7 @@ public:
 	{
 		MasterMaterial,
 		UEPbrMaterial,
+		DecalMaterial,
 		Unsupported,
 	};
 
