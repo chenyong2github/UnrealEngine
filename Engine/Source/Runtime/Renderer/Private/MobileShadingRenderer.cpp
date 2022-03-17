@@ -58,6 +58,7 @@
 #include "VariableRateShadingImageManager.h"
 #include "SceneTextureReductions.h"
 #include "GPUMessaging.h"
+#include "Strata/Strata.h"
 
 uint32 GetShadowQuality();
 
@@ -724,6 +725,9 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
+
+	// Strata initialisation is always run even when not enabled.
+	Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
 
 	// Force the subsurface profile texture to be updated.
 	UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);

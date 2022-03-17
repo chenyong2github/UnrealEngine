@@ -404,10 +404,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				Parameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 			}
 			Parameters.ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
-			if (Strata::IsStrataEnabled())
-			{
-				Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
-			}
+			Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		};
 
 		const bool bRunTiled = UseSingleLayerWaterIndirectDraw(View.GetShaderPlatform()) && CVarWaterSingleLayerTiledComposite.GetValueOnRenderThread();
