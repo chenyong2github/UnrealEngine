@@ -8,6 +8,7 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "PerPlatformProperties.h"
+#include "Serialization/BulkData.h"
 #include "LandscapePhysicalMaterial.h"
 #include "LandscapeWeightmapUsage.h"
 #include "Containers/ArrayView.h"

@@ -11,6 +11,7 @@
 #include "Mechanics/CurveControlPointsMechanic.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "ModelingObjectsCreationAPI.h"
+#include "SceneManagement.h" // FPrimitiveDrawInterface
 #include "Selection/ToolSelectionUtil.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"

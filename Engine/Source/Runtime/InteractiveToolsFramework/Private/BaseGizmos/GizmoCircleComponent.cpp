@@ -5,6 +5,7 @@
 #include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoViewContext.h"
 #include "PrimitiveSceneProxy.h"
+#include "SceneManagement.h" // FMeshElementCollector, FPrimitiveDrawInterface
 
 namespace GizmoCircleComponentLocals
 {

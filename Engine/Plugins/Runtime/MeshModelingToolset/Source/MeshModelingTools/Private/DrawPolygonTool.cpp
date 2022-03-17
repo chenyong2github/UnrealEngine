@@ -20,6 +20,7 @@
 #include "Distance/DistLine3Ray3.h"
 #include "Intersection/IntrSegment2Segment2.h"
 #include "ToolSceneQueriesUtil.h"
+#include "SceneManagement.h" // FPrimitiveDrawInterface
 #include "SceneQueries/SceneSnappingManager.h"
 #include "ConstrainedDelaunay2.h"
 #include "Arrangement2d.h"

@@ -8,6 +8,7 @@
 #include "CompositionOps/CurveSweepOp.h"
 #include "InteractiveToolManager.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
+#include "SceneManagement.h" // FPrimitiveDrawInterface
 #include "Selection/PolygonSelectionMechanic.h"
 #include "GroupTopology.h"
 #include "ToolBuilderUtil.h"

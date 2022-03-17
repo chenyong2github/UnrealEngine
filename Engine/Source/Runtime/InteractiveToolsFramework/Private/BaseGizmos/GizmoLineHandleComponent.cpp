@@ -4,7 +4,7 @@
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseGizmos/GizmoMath.h"
 #include "PrimitiveSceneProxy.h"
-
+#include "SceneManagement.h" // FMeshElementCollector, FPrimitiveDrawInterface
 
 
 
