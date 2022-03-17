@@ -744,6 +744,11 @@ bool FOpenXRInputPlugin::FOpenXRInput::SupportsForceFeedback(int32 ControllerId)
 
 void FOpenXRInputPlugin::FOpenXRInput::SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property)
 {
+	if (OpenXRHMD == nullptr)
+	{
+		return;
+	}
+
 	for (IOpenXRExtensionPlugin* Module : OpenXRHMD->GetExtensionPlugins())
 	{
 		Module->OnSetDeviceProperty(OpenXRHMD->GetSession(), ControllerId, Property);
