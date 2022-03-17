@@ -1427,6 +1427,7 @@ private:
 	TArray<URigVMLink*> LinksToSkip;
 
 	FRigVMParserASTSettings Settings;
+	mutable TMap<TTuple<const FRigVMExprAST*,const FRigVMExprAST*>, int32> MinIndexOfChildWithinParent;
 
 	friend class FRigVMExprAST;
 	friend class URigVMCompiler;
