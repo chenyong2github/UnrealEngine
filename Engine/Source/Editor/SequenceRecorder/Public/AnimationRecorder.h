@@ -11,6 +11,7 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "Serializers/MovieSceneAnimationSerialization.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "AnimationRecorder.generated.h"
 
 class UAnimBoneCompressionSettings;
 class UAnimNotify;
@@ -19,6 +20,32 @@ class UAnimSequence;
 class USkeletalMeshComponent;
 
 DECLARE_LOG_CATEGORY_EXTERN(AnimationSerialization, Verbose, All);
+
+UENUM(BlueprintType)
+enum class ETimecodeBoneMode : uint8
+{
+	All,
+	Root,
+	UserDefined,
+	MAX UMETA(Hidden)
+};
+
+USTRUCT(BlueprintType)
+struct FTimecodeBoneMethod
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Default constructor, initializing with default values */
+	FTimecodeBoneMethod() { }
+
+	/** The timecode bone mode */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Timecode")
+	ETimecodeBoneMode BoneMode;
+
+	/** Name of the bone to assign timecode values to */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Timecode")
+	FName BoneName;
+};
 
 //////////////////////////////////////////////////////////////////////////
 // FAnimationRecorder
@@ -90,7 +117,7 @@ public:
 
 	const FTransform& GetInitialRootTransform() const { return InitialRootTransform; }
 
-	void ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate);
+	void ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate, const FTimecodeBoneMethod& TimecodeBoneMethod);
 
 	/** If true, it will record root to include LocalToWorld */
 	uint8 bRecordLocalToWorld :1;
@@ -160,7 +187,7 @@ public:
 	bool BeginRecording();
 	void Update(float DeltaTime);
 	void FinishRecording(bool bShowMessage = true);
-	void ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate);
+	void ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate, const FTimecodeBoneMethod& TimecodeBoneMethod);
 
 private:
 	void InitInternal(USkeletalMeshComponent* InComponent, const FAnimationRecordingSettings& Settings, FAnimationSerializer *InAnimationSerializer = nullptr);

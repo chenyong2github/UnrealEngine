@@ -6,6 +6,7 @@
 #include "Misc/FrameRate.h"
 #include "MovieSceneTrackRecorderSettings.h"
 #include "Curves/RichCurve.h"
+#include "AnimationRecorder.h"
 #include "MovieSceneAnimationTrackRecorderSettings.generated.h"
 
 UCLASS(Abstract, BlueprintType, config=EditorSettings, DisplayName="Animation Recorder")
@@ -20,6 +21,7 @@ public:
 	, AnimationSubDirectory(TEXT("Animation"))
 	, bRemoveRootAnimation(true)
 	{
+		TimecodeBoneMethod.BoneMode = ETimecodeBoneMode::Root;
 	}
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -48,7 +50,9 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Animation Recorder Settings")
 	bool bRemoveRootAnimation;
 
-
+	/** The method to record timecode values onto bones */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Animation Recorder Settings", meta = (ShowOnlyInnerProperties))
+	FTimecodeBoneMethod TimecodeBoneMethod;
 };
 
 UCLASS(BlueprintType, config = EditorSettings, DisplayName = "Animation Recorder Settings")

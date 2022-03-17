@@ -507,7 +507,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 	return nullptr;
 }
 
-void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate)
+void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate, const FTimecodeBoneMethod& TimecodeBoneMethod)
 {
 	if (!AnimSequence || !SkeletalMeshComponent)
 	{
@@ -576,6 +576,30 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 	IAnimationDataController& Controller = AnimSequence->GetController();
 	IAnimationDataController::FScopedBracket(Controller, LOCTEXT("AddTimeCodeAttributesBracket", "Adding Time Code attributes"));
 
+	// If the user defined bone doesn't exist, fallback to writing timecodes to the root
+	bool bHasUserDefinedBone = false;
+	if (TimecodeBoneMethod.BoneMode == ETimecodeBoneMode::UserDefined)
+	{
+		for (int32 BoneIndex = 0; BoneIndex < SpaceBases->Num(); ++BoneIndex)
+		{
+			const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkeletalMeshComponent->MasterPoseComponent != nullptr ? SkeletalMeshComponent->MasterPoseComponent->SkeletalMesh : SkeletalMeshComponent->SkeletalMesh, BoneIndex);
+			if (BoneTreeIndex != INDEX_NONE)
+			{
+				FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
+				if (BoneTreeName == TimecodeBoneMethod.BoneName)
+				{
+					bHasUserDefinedBone = true;
+					break;
+				}
+			}
+		}
+
+		if (!bHasUserDefinedBone)
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("User defined bone name: %s not found. Falling back to assigning timecodes to root bone"), *TimecodeBoneMethod.BoneName.ToString());
+		}
+	}
+
 	for (int32 BoneIndex = 0; BoneIndex < SpaceBases->Num(); ++BoneIndex)
 	{
 		// verify if this bone exists in skeleton
@@ -585,6 +609,17 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 			// add tracks for the bone existing
 			FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
 			
+			const bool bUseThisBone = 
+				TimecodeBoneMethod.BoneMode == ETimecodeBoneMode::All ||
+				(TimecodeBoneMethod.BoneMode == ETimecodeBoneMode::Root && BoneIndex == 0) ||
+				(TimecodeBoneMethod.BoneMode == ETimecodeBoneMode::UserDefined && BoneTreeName == TimecodeBoneMethod.BoneName) ||
+				(bHasUserDefinedBone == false && BoneIndex == 0);
+
+			if (!bUseThisBone)
+			{
+				continue;
+			}
+
 			UE::Anim::AddTypedCustomAttribute<FIntegerAnimationAttribute, int32>(FName(*HoursName), BoneTreeName, AnimSequence, MakeArrayView(Times), MakeArrayView(Hours));
 			UE::Anim::AddTypedCustomAttribute<FIntegerAnimationAttribute, int32>(FName(*MinutesName), BoneTreeName, AnimSequence, MakeArrayView(Times), MakeArrayView(Minutes));
 			UE::Anim::AddTypedCustomAttribute<FIntegerAnimationAttribute, int32>(FName(*SecondsName), BoneTreeName, AnimSequence, MakeArrayView(Times), MakeArrayView(Seconds));
@@ -1098,11 +1133,11 @@ void FAnimRecorderInstance::FinishRecording(bool bShowMessage)
 	}
 }
 
-void FAnimRecorderInstance::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate)
+void FAnimRecorderInstance::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate, const FTimecodeBoneMethod& TimecodeBoneMethod)
 {
 	if (Recorder.IsValid())
 	{
-		Recorder->ProcessRecordedTimes(AnimSequence, SkeletalMeshComponent, HoursName, MinutesName, SecondsName, FramesName, SubFramesName, SlateName, Slate);
+		Recorder->ProcessRecordedTimes(AnimSequence, SkeletalMeshComponent, HoursName, MinutesName, SecondsName, FramesName, SubFramesName, SlateName, Slate, TimecodeBoneMethod);
 	}
 }
 
