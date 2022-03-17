@@ -77,12 +77,6 @@ namespace EpicGames.UHT.Types
 			return Builder;
 		}
 
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return $"TSoftClassPtr<{this.MetaClass?.SourceName}>";
-		}
-
 		#region Keyword
 		[UhtPropertyType(Keyword = "TSoftClassPtr")]
 		private static UhtProperty? SoftClassPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)

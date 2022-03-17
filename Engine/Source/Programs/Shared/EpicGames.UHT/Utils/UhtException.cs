@@ -62,6 +62,9 @@ namespace EpicGames.UHT.Utils
 			}
 			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, MessageSite.MessageSource, null, MessageSite.GetLineNumber(LineNumber), Message);
 		}
+
+		/// <inheritdoc/>
+		public override string Message { get => this.UhtMessage.Message; }
 	}
 
 	/// <summary>

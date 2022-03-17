@@ -70,6 +70,11 @@ namespace EpicGames.UHT.Types
 		/// If true, the property has a setter function
 		/// </summary>
 		SetterFound = 0x00000200,
+
+		/// <summary>
+		/// Property is marked as a field notify
+		/// </summary>
+		FieldNotify = 0x00000400,
 	};
 
 	/// <summary>
@@ -1751,6 +1756,21 @@ namespace EpicGames.UHT.Types
 			if (ExposeOnSpawnValue.Equals("true", StringComparison.OrdinalIgnoreCase) && !this.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanExposeOnSpawn))
 			{
 				this.LogError("ExposeOnSpawn - Property cannot be exposed");
+			}
+
+			if (this.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify))
+			{
+				if (this.Outer is UhtClass Class)
+				{
+					if (Class.ClassType != UhtClassType.Class)
+					{
+						this.LogError("FieldNofity are not valid on UInterface.");
+					}
+				}	
+				else
+				{
+					this.LogError("FieldNofity property are only valid as UClass member variable.");
+				}
 			}
 		}
 

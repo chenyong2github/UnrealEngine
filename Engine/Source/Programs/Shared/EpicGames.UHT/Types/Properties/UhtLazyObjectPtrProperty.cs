@@ -104,12 +104,6 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return $"TLazyObjectPtr<{this.Class.SourceName}>";
-		}
-
 		#region Keyword
 		[UhtPropertyType(Keyword = "TLazyObjectPtr")]
 		private static UhtProperty? LazyObjectPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)

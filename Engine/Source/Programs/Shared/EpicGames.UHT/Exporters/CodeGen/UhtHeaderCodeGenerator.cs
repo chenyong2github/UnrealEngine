@@ -25,6 +25,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		public const string GeneratedBodyMacroSuffix = "GENERATED_BODY";
 		public const string GeneratedBodyLegacyMacroSuffix = "GENERATED_BODY_LEGACY";
 		public const string GeneratedUInterfaceBodyMacroSuffix = "GENERATED_UINTERFACE_BODY()";
+		public const string FieldNotifyMacroSuffix = "FIELDNOTIFY";
 		public const string InClassMacroSuffix = "INCLASS";
 		public const string InClassNoPureDeclsMacroSuffix = "INCLASS_NO_PURE_DECLS";
 		public const string InClassIInterfaceMacroSuffix = "INCLASS_IINTERFACE";
@@ -466,6 +467,123 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		{
 			string ReturnType = Function.FunctionFlags.HasAnyFlags(EFunctionFlags.MulticastDelegate) ? "FMulticastScriptDelegate" : "FScriptDelegate";
 			return $"const {ReturnType}& {Function.SourceName.Substring(1)}";
+		}
+		#endregion
+
+		#region Field notify support
+		protected bool NeedFieldNotifyCodeGen(UhtClass Class)
+		{
+			return 
+				!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasCustomFieldNotify) &&
+				Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasFieldNotify);
+		}
+
+		protected void GetFieldNotifyStats(UhtClass Class, out bool bHasProperties, out bool bHasFunctions, out bool bHasEditorFields, out bool bAllEditorFields)
+		{
+			// Scan the children to see what we have
+			bHasProperties = false;
+			bHasFunctions = false;
+			bHasEditorFields = false;
+			bAllEditorFields = true;
+			foreach (UhtType Type in Class.Children)
+			{
+				if (Type is UhtProperty Property)
+				{
+					if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify))
+					{
+						bHasProperties = true;
+						bHasEditorFields |= Property.bIsEditorOnlyProperty;
+						bAllEditorFields &= Property.bIsEditorOnlyProperty;
+					}
+				}
+				else if (Type is UhtFunction Function)
+				{
+					if (Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify))
+					{
+						bHasFunctions = true;
+						bHasEditorFields |= Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly);
+						bAllEditorFields &= Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly);
+					}
+				}
+			}
+
+			// If we have no editor fields, then by definition, all fields can't be editor fields
+			bAllEditorFields &= bHasEditorFields;
+		}
+
+		protected StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class,
+			bool bHasProperties, bool bHasFunctions, bool bHasEditorFields, bool bAllEditorFields,
+			bool bIncludeEditorOnlyFields, bool bAppendDefine, Action<StringBuilder, UhtClass, string> AppendAction)
+		{
+			if (bHasProperties && !bAllEditorFields)
+			{
+				foreach (UhtType Child in Class.Children)
+				{
+					if (Child is UhtProperty Property)
+					{
+						if (!Property.bIsEditorOnlyProperty)
+						{
+							AppendAction(Builder, Class, Property.SourceName);
+						}
+					}
+				}
+			}
+
+			if (bHasFunctions && !bAllEditorFields)
+			{
+				foreach (UhtType Child in Class.Children)
+				{
+					if (Child is UhtFunction Function)
+					{
+						if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
+						{
+							AppendAction(Builder, Class, Function.CppImplName);
+						}
+					}
+				}
+			}
+
+			if (bHasEditorFields && bIncludeEditorOnlyFields)
+			{
+				if (!bAllEditorFields && bAppendDefine)
+				{
+					Builder.Append("#if WITH_EDITORONLY_DATA\r\n");
+				}
+
+				if (bHasProperties)
+				{
+					foreach (UhtType Child in Class.Children)
+					{
+						if (Child is UhtProperty Property)
+						{
+							if (Property.bIsEditorOnlyProperty)
+							{
+								AppendAction(Builder, Class, Property.SourceName);
+							}
+						}
+					}
+				}
+
+				if (bHasFunctions)
+				{
+					foreach (UhtType Child in Class.Children)
+					{
+						if (Child is UhtFunction Function)
+						{
+							if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
+							{
+								AppendAction(Builder, Class, Function.CppImplName);
+							}
+						}
+					}
+				}
+
+				if (!bAllEditorFields && bAppendDefine)
+				{
+					Builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
+				}
+			}
+			return Builder;
 		}
 		#endregion
 	}

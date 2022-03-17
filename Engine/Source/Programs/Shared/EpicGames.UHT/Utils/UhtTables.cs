@@ -152,7 +152,7 @@ namespace EpicGames.UHT.Utils
 				}
 				else
 				{
-					throw new UhtIceException($"The '{Suffix}' attribute on the {ClassType.Name}.{MethodInfo.Name} method doesn't have a name specified or the method name doesn't end in '{2}'.");
+					throw new UhtIceException($"The '{Suffix}' attribute on the {ClassType.Name}.{MethodInfo.Name} method doesn't have a name specified or the method name doesn't end in '{Suffix}'.");
 				}
 			}
 			return Name;

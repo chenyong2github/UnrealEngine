@@ -299,6 +299,13 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
+		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.None)]
+		private static void FieldNotifySpecifier(UhtSpecifierContext SpecifierContext)
+		{
+			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
+			Function.FunctionExportFlags |= UhtFunctionExportFlags.FieldNotify;
+		}
+
 		[UhtSpecifierValidator(Extends = UhtTableNames.Function)]
 		private static void BlueprintProtectedSpecifierValidator(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value)
 		{

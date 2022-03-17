@@ -135,6 +135,12 @@ namespace EpicGames.UHT.Types
 			return this.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
 		}
 
+		/// <inheritdoc/>
+		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
+		{
+			return null;
+		}
+
 		#region Parsing support methods
 		/// <summary>
 		/// Parse a template type

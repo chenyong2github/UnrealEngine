@@ -80,11 +80,5 @@ namespace EpicGames.UHT.Types
 				OuterStruct.LogError("UFunctions cannot take a TObjectPtr as a parameter.");
 			}
 		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return $"TObjectPtr<{this.MetaClass?.SourceName}>";
-		}
 	}
 }

@@ -103,6 +103,11 @@ namespace EpicGames.UHT.Types
 		/// Final flag was set automatically and should not be considered for validation
 		/// </summary>
 		AutoFinal = 1 << 15,
+
+		/// <summary>
+		/// Generate the entry for the FieldNotificationClassDescriptor
+		/// </summary>
+		FieldNotify = 1 << 16,
 	}
 
 	/// <summary>
@@ -666,6 +671,35 @@ namespace EpicGames.UHT.Types
 							}
 						}
 					}
+
+					// Validate field notify
+					if (this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify))
+					{
+						if (OuterClass == null)
+						{
+							this.LogError($"FieldNofity function '{this.SourceName}' are only valid as UClass member function.");
+						}
+
+						if (this.ParameterProperties.Length != 0)
+						{
+							this.LogError($"FieldNotify function '{this.SourceName}' must not have parameters.");
+						}
+
+						if (this.ReturnProperty == null)
+						{
+							this.LogError($"FieldNotify function '{this.SourceName}' must return a value.");
+						}
+
+						if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
+						{
+							this.LogError($"FieldNotify function '{this.SourceName}' cannot be a blueprint event.");
+						}
+
+						if (!this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure))
+						{
+							this.LogError($"FieldNotify function '{this.SourceName}' must be pure.");
+						}
+					}
 					break;
 
 				case UhtFunctionType.Delegate:
@@ -728,6 +762,10 @@ namespace EpicGames.UHT.Types
 			if (!this.bDeprecated)
 			{
 				Options |= UhtValidationOptions.Deprecated;
+			}
+			else
+			{
+				Options &= ~UhtValidationOptions.Deprecated;
 			}
 			return Options;
 		}

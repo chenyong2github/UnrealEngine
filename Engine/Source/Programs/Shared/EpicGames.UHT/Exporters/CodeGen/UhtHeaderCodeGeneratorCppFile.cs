@@ -924,9 +924,53 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				AppendSerializer(Builder, Class, UhtSerializerArchiveType.StructuredArchiveRecord, "IMPLEMENT_FSTRUCTUREDARCHIVE_SERIALIZER");
 			}
 
+			AppendFieldNotify(Builder, Class);
+
 			if (Class.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 			{
 				AppendInterfaceCallFunctions(Builder, Class, CallbackFunctions);
+			}
+			return Builder;
+		}
+
+		private StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class)
+		{
+			if (!NeedFieldNotifyCodeGen(Class))
+			{
+				return Builder;
+			}
+
+			// Scan the children to see what we have
+			bool bHasProperties;
+			bool bHasFunctions;
+			bool bHasEditorFields;
+			bool bAllEditorFields;
+			GetFieldNotifyStats(Class, out bHasProperties, out bHasFunctions, out bHasEditorFields, out bAllEditorFields);
+
+			if (bAllEditorFields)
+			{
+				Builder.Append("#if WITH_EDITORONLY_DATA\r\n");
+			}
+
+			//UE_FIELD_NOTIFICATION_DECLARE_FIELD
+			AppendFieldNotify(Builder, Class, bHasProperties, bHasFunctions, bHasEditorFields, bAllEditorFields, true, true,
+				(StringBuilder Builder, UhtClass Class, string Name) =>
+				{
+					Builder.Append($"\tUE_FIELD_NOTIFICATION_IMPLEMENT_FIELD({Class.SourceName}, {Name})\r\n");
+				});
+
+			//UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD
+			Builder.Append($"\tUE_FIELD_NOTIFICATION_IMPLEMENTATION_BEGIN({Class.SourceName})\r\n"); 
+			AppendFieldNotify(Builder, Class, bHasProperties, bHasFunctions, bHasEditorFields, bAllEditorFields, true, true,
+				(StringBuilder Builder, UhtClass Class, string Name) =>
+				{
+					Builder.Append($"\tUE_FIELD_NOTIFICATION_IMPLEMENT_ENUM_FIELD({Class.SourceName}, {Name})\r\n");
+				});
+			Builder.Append($"\tUE_FIELD_NOTIFICATION_IMPLEMENTATION_END({Class.SourceName});\r\n");
+
+			if (bAllEditorFields)
+			{
+				Builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
 			}
 			return Builder;
 		}

@@ -74,6 +74,16 @@ namespace EpicGames.UHT.Types
 		/// Class should not be exported
 		/// </summary>
 		NoExport = 1 << 8,
+
+		/// <summary>
+		/// Class has a custom field notify
+		/// </summary>
+		HasCustomFieldNotify = 1 << 9,
+
+		/// <summary>
+		/// Class has a field notify
+		/// </summary>
+		HasFieldNotify = 1 << 10,
 	}
 
 	/// <summary>
@@ -569,6 +579,11 @@ namespace EpicGames.UHT.Types
 					{
 						if (Child is UhtProperty Property)
 						{
+							if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify))
+							{
+								this.ClassExportFlags |= UhtClassExportFlags.HasFieldNotify;
+							}
+
 							if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 							{
 								this.ClassExportFlags |= UhtClassExportFlags.SelfHasReplicatedProperties;
@@ -597,6 +612,13 @@ namespace EpicGames.UHT.Types
 								{
 									GSToResolve = AddGetterSetter(GSToResolve, $"Set{Property.SourceName}", Property, true);
 								}
+							}
+						}
+						else if (Child is UhtFunction Function)
+						{
+							if (Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify))
+							{
+								this.ClassExportFlags |= UhtClassExportFlags.HasFieldNotify;
 							}
 						}
 					}
@@ -944,6 +966,18 @@ namespace EpicGames.UHT.Types
 			{
 				// CLASS_NeedsDeferredDependencyLoading can only be set on classes derived from UClass
 				this.LogError($"'NeedsDeferredDependencyLoading' is set on '{this.SourceName}' but the flag can only be used with classes derived from UClass.");
+			}
+
+			if (this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasFieldNotify))
+			{
+				if (this.Session.INotifyFieldValueChanged == null)
+				{
+					this.LogError($"UClass '{this.SourceName}' has FieldNotify elements but the interface 'INotifyFieldValueChanged' is not defined.");
+				}
+				else if (!ImplementsInterface(this.Session.INotifyFieldValueChanged))
+				{
+					this.LogError($"UClass '{this.SourceName}' need to implement the interface INotifyFieldValueChanged' to support FieldNotify.");
+				}
 			}
 
 			ValidateProperties();
@@ -1362,6 +1396,24 @@ namespace EpicGames.UHT.Types
 					Collector.AddExportType(this);
 					break;
 			}
+		}
+
+		private bool ImplementsInterface(UhtClass Interface)
+		{
+			for (UhtClass? SuperClass = this; SuperClass != null; SuperClass = SuperClass.SuperClass)
+			{
+				if (SuperClass.Bases != null)
+				{
+					foreach (UhtStruct Struct in SuperClass.Bases)
+					{
+						if (Struct.IsChildOf(Interface))
+						{
+							return true;
+						}
+					}
+				}
+			}
+			return false;
 		}
 	}
 }

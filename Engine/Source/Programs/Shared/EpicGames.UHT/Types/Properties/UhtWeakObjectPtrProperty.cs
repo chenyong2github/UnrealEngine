@@ -93,19 +93,6 @@ namespace EpicGames.UHT.Types
 			return false;
 		}
 
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak))
-			{
-				return $"TAutoWeakObjectPtr<{this.Class.SourceName}>";
-			}
-			else
-			{
-				return $"TWeakObjectPtr<{this.Class.SourceName}>";
-			}
-		}
-
 		#region Keywords
 		private static UhtProperty CreateWeakProperty(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtClass Class, EPropertyFlags ExtraFlags = EPropertyFlags.None)
 		{

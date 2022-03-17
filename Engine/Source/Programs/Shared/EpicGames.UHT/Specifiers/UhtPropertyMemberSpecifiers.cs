@@ -444,5 +444,12 @@ namespace EpicGames.UHT.Parsers
 				}
 			}
 		}
+
+		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.None)]
+		private static void FieldNotifySpecifier(UhtSpecifierContext SpecifierContext)
+		{
+			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
+			Context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.FieldNotify;
+		}
 	}
 }

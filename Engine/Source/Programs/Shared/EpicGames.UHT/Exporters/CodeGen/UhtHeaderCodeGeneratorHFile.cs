@@ -14,7 +14,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 	internal class UhtHeaderCodeGeneratorHFile
 		: UhtHeaderCodeGenerator
 	{
-		public static string RigVMParameterPrefix = "FRigVMExecuteContext& RigVMExecuteContext";
+		public static string RigVMExecuteContextDeclaration = "FRigVMExtendedExecuteContext& RigVMExecuteContext";
+		public static string RigVMExecuteContextPublicDeclaration = "FRigVMExecuteContext& RigVMExecuteContext";
 
 		/// <summary>
 		/// Construct an instance of this generator object
@@ -117,14 +118,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		{
 			if (ScriptStruct.RigVMStructInfo != null)
 			{
-				const string RigVMParameterPrefix = "FRigVMExecuteContext& RigVMExecuteContext";
-
 				Builder.Append("\r\n");
 				foreach (UhtRigVMMethodInfo MethodInfo in ScriptStruct.RigVMStructInfo.Methods)
 				{
 					Builder.Append("#define ").Append(ScriptStruct.SourceName).Append('_').Append(MethodInfo.Name).Append("() \\\r\n");
 					Builder.Append("\t").Append(MethodInfo.ReturnType).Append(' ').Append(ScriptStruct.SourceName).Append("::Static").Append(MethodInfo.Name).Append("( \\\r\n");
-					Builder.Append("\t\t").Append(RigVMParameterPrefix);
+					Builder.Append("\t\t").Append(RigVMExecuteContextPublicDeclaration);
 					Builder.AppendParameterDecls(ScriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
 					Builder.AppendParameterDecls(MethodInfo.Parameters, true, ", \\\r\n\t\t", false, false);
 					Builder.Append(" \\\r\n");
@@ -152,14 +151,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						foreach (UhtRigVMMethodInfo MethodInfo in ScriptStruct.RigVMStructInfo.Methods)
 						{
 							Builder.Append("\tstatic ").Append(MethodInfo.ReturnType).Append(" Static").Append(MethodInfo.Name).Append("( \\\r\n");
-							Builder.Append("\t\t").Append(RigVMParameterPrefix);
+							Builder.Append("\t\t").Append(RigVMExecuteContextPublicDeclaration);
 							Builder.AppendParameterDecls(ScriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
 							Builder.AppendParameterDecls(MethodInfo.Parameters, true, ", \\\r\n\t\t", false, false);
 							Builder.Append(" \\\r\n");
 							Builder.Append("\t); \\\r\n");
 
 							Builder.Append("\tFORCEINLINE_DEBUGGABLE static ").Append(MethodInfo.ReturnType).Append(" RigVM").Append(MethodInfo.Name).Append("( \\\r\n");
-							Builder.Append("\t\t").Append(RigVMParameterPrefix).Append(", \\\r\n");
+							Builder.Append("\t\t").Append(RigVMExecuteContextDeclaration).Append(", \\\r\n");
 							Builder.Append("\t\tFRigVMMemoryHandleArray RigVMMemoryHandles \\\r\n");
 							Builder.Append("\t) \\\r\n");
 							Builder.Append("\t{ \\\r\n");
@@ -230,7 +229,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							}
 
 							Builder.Append("\t\t").Append(MethodInfo.ReturnPrefix()).Append("Static").Append(MethodInfo.Name).Append("( \\\r\n");
-							Builder.Append("\t\t\tRigVMExecuteContext");
+							Builder.Append("\t\t\tRigVMExecuteContext.PublicData");
 							Builder.AppendParameterNames(ScriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t\t", false);
 							Builder.AppendParameterNames(MethodInfo.Parameters, true, ", \\\r\n\t\t\t");
 							Builder.Append(" \\\r\n");
@@ -406,6 +405,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				AppendStandardConstructors(Builder, Class, Api);
 				AppendEnhancedConstructors(Builder, Class, Api);
+				AppendFieldNotify(Builder, Class);
 			}
 
 			using (UhtMacroCreator Macro = new UhtMacroCreator(Builder, this, Class.PrologLineNumber, PrologMacroSuffix))
@@ -434,6 +434,79 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			// Forward declare the StaticClass specialization in the header
 			Builder.Append("template<> ").Append(this.PackageApi).Append("UClass* StaticClass<class ").Append(Class.SourceName).Append(">();\r\n");
 			Builder.Append("\r\n");
+			return Builder;
+		}
+
+		private StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class)
+		{
+			if (!NeedFieldNotifyCodeGen(Class))
+			{
+				return Builder;
+			}
+
+			// Scan the children to see what we have
+			bool bHasProperties;
+			bool bHasFunctions;
+			bool bHasEditorFields;
+			bool bAllEditorFields;
+			GetFieldNotifyStats(Class, out bHasProperties, out bHasFunctions, out bHasEditorFields, out bAllEditorFields);
+
+			// If we only have editor fields or no editor fields, then we only emit one block
+			if (bHasEditorFields)
+			{
+				Builder.Append("#if WITH_EDITORONLY_DATA\r\n");
+				using (UhtMacroCreator Macro = new UhtMacroCreator(Builder, this, Class, FieldNotifyMacroSuffix))
+				{
+					AppendFieldNotify(Builder, Class, bHasProperties, bHasFunctions, bHasEditorFields, bAllEditorFields, true);
+				}
+				Builder.Append("#else //WITH_EDITORONLY_DATA\r\n");
+				using (UhtMacroCreator Macro = new UhtMacroCreator(Builder, this, Class, FieldNotifyMacroSuffix))
+				{
+					AppendFieldNotify(Builder, Class, bHasProperties, bHasFunctions, bHasEditorFields, bAllEditorFields, false);
+				}
+				Builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
+			}
+			else
+			{
+				using (UhtMacroCreator Macro = new UhtMacroCreator(Builder, this, Class, FieldNotifyMacroSuffix))
+				{
+					AppendFieldNotify(Builder, Class, bHasProperties, bHasFunctions, bHasEditorFields, bAllEditorFields, false);
+				}
+			}
+			return Builder;
+		}
+
+		private StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class, 
+			bool bHasProperties, bool bHasFunctions, bool bHasEditorFields, bool bAllEditorFields,
+			bool bIncludeEditorOnlyFields)
+		{
+			Builder.Append("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \\\r\n");
+
+			//UE_FIELD_NOTIFICATION_DECLARE_FIELD
+			AppendFieldNotify(Builder, Class, bHasProperties, bHasFunctions, bHasEditorFields, bAllEditorFields, 
+				bIncludeEditorOnlyFields, false, (StringBuilder Builder, UhtClass Class, string Name) =>
+			{
+				Builder.Append($"\tUE_FIELD_NOTIFICATION_DECLARE_FIELD({Name}) \\\r\n");
+			});
+
+			//UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD
+			bool bIsFirst = true;
+			AppendFieldNotify(Builder, Class, bHasProperties, bHasFunctions, bHasEditorFields, bAllEditorFields, 
+				bIncludeEditorOnlyFields, false, (StringBuilder Builder, UhtClass Class, string Name) =>
+			{
+				if (bIsFirst)
+				{
+					bIsFirst = false;
+					Builder.Append($"\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN({Name}) \\\r\n");
+				}
+				else
+				{
+					Builder.Append($"\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD({Name}) \\\r\n");
+				}
+			});
+
+			Builder.Append("\tUE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_END() \\\r\n");
+			Builder.Append($"\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END(); \\\r\n");
 			return Builder;
 		}
 
@@ -1274,6 +1347,10 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					else
 					{
 						Builder.Append('\t').AppendMacroName(this, Class, EnchancedConstructorsMacroSuffix).Append(" \\\r\n");
+					}
+					if (NeedFieldNotifyCodeGen(Class))
+					{
+						Builder.Append('\t').AppendMacroName(this, Class, FieldNotifyMacroSuffix).Append(" \\\r\n");
 					}
 				}
 				if (bIsLegacy)

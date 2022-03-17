@@ -340,5 +340,12 @@ namespace EpicGames.UHT.Parsers
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
 			Class.AddClassFlags(EClassFlags.Interface);
 		}
+
+		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.None)]
+		private static void CustomFieldNotifySpecifier(UhtSpecifierContext SpecifierContext)
+		{
+			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
+			Class.ClassExportFlags |= UhtClassExportFlags.HasCustomFieldNotify;
+		}
 	}
 }

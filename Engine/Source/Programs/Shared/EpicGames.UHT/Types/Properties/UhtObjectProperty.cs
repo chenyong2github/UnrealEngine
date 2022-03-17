@@ -112,11 +112,5 @@ namespace EpicGames.UHT.Types
 			}
 			return false;
 		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return $"{this.Class}*";
-		}
 	}
 }

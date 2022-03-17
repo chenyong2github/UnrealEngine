@@ -952,6 +952,12 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public UhtClass? AActor = null;
 
+		/// <summary>
+		/// After headers are parsed, return the INotifyFieldValueChanged interface.  There is no requirement 
+		/// that this interface be defined.
+		/// </summary>
+		public UhtClass? INotifyFieldValueChanged = null;
+
 		private List<UhtPackage> PackagesInternal = new List<UhtPackage>();
 		private List<UhtHeaderFile> HeaderFilesInternal = new List<UhtHeaderFile>();
 		private List<UhtHeaderFile> SortedHeaderFilesInternal = new List<UhtHeaderFile>();
@@ -2038,6 +2044,7 @@ namespace EpicGames.UHT.Utils
 				this.UInterfaceInternal = (UhtClass?)FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, "UInterface");
 				this.IInterfaceInternal = (UhtClass?)FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, "IInterface");
 				this.AActor = (UhtClass?)FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, "AActor");
+				this.INotifyFieldValueChanged = (UhtClass?)FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, "INotifyFieldValueChanged");
 			});
 		}
 

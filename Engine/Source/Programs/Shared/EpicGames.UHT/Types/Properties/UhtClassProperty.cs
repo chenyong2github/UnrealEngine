@@ -142,19 +142,6 @@ namespace EpicGames.UHT.Types
 			return Builder;
 		}
 
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.UObjectWrapper))
-			{
-				return $"TSubclassOf<{this.MetaClass?.SourceName}> "; //COMPATIBILITY-TODO - Extra space in old UHT
-			}
-			else
-			{
-				return $"{this.Class}*";
-			}
-		}
-
 		#region Keyword
 		[UhtPropertyType(Keyword = "TSubclassOf")]
 		private static UhtProperty? SubclassOfProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
