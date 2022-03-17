@@ -640,27 +640,25 @@ void UBlendSpace::ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimat
 	Super::ReplaceReferredAnimations(ReplacementMap);
 
 	TArray<FBlendSample> NewSamples;
-	for (auto Iter = SampleData.CreateIterator(); Iter; ++Iter)
+	for (FBlendSample& Sample : SampleData)
 	{
-		FBlendSample& Sample = (*Iter);
-		UAnimSequence* Anim = Sample.Animation;
-
-		if (Anim)
+		// replace the referenced animation sequence (if there was one)
+		if (Sample.Animation)
 		{
-			UAnimSequence* const* ReplacementAsset = (UAnimSequence* const*)ReplacementMap.Find(Anim);
-			if (ReplacementAsset)
+			if (UAnimSequence* const* ReplacementAsset = (UAnimSequence* const*)ReplacementMap.Find(Sample.Animation))
 			{
 				Sample.Animation = *ReplacementAsset;
 				Sample.Animation->ReplaceReferredAnimations(ReplacementMap);
-				NewSamples.Add(Sample);
 			}
 		}
+
+		NewSamples.Add(Sample);
 	}
 
+	// replace preview base pose sequence asset (if there was one)
 	if (PreviewBasePose)
 	{
-		UAnimSequence* const* ReplacementAsset = (UAnimSequence* const*)ReplacementMap.Find(PreviewBasePose);
-		if (ReplacementAsset)
+		if (UAnimSequence* const* ReplacementAsset = (UAnimSequence* const*)ReplacementMap.Find(PreviewBasePose))
 		{
 			PreviewBasePose = *ReplacementAsset;
 			PreviewBasePose->ReplaceReferredAnimations(ReplacementMap);

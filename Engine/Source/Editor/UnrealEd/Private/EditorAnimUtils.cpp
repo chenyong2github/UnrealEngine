@@ -515,6 +515,14 @@ namespace EditorAnimUtils
 				FFindAnimAssetRefs AnimRefFinderBlueprint(Node, AnimationAssets);
 			}
 		}
+		
+		// removes blendspaces that are embedded in the graph so that we don't duplicate them to make new assets
+		AnimationAssets.RemoveAll([](UAnimationAsset*& AnimationAsset)
+		{
+			const bool bIsBlendspace = IsValid(Cast<UBlendSpace>(AnimationAsset));
+			const bool bIsEmbedded = !AnimationAsset->GetSkeleton();
+			return bIsBlendspace && bIsEmbedded;
+		});
 	}
 
 	void ReplaceReferredAnimationsInBlueprint(UAnimBlueprint* AnimBlueprint, const TMap<UAnimationAsset*, UAnimationAsset*>& AnimAssetReplacementMap)
