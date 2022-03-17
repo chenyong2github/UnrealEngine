@@ -1348,6 +1348,12 @@ namespace Chaos
 			FConstGenericParticleHandle Particle = Constraints.GetConstrainedParticles(ConstraintIndex)[0];
 			const FPBDSuspensionSettings& ConstraintSettings = Constraints.GetSettings(ConstraintIndex);
 			const FPBDSuspensionResults& ConstraintResults = Constraints.GetResults(ConstraintIndex);
+			
+			if (!ConstraintSettings.Enabled)
+			{
+				return;
+			}
+			
 			const FVec3& PLocal = Constraints.GetConstraintPosition(ConstraintIndex);
 			const FRigidTransform3 ParticleTransform = FParticleUtilitiesPQ::GetActorWorldTransform(Particle);
 
@@ -1355,6 +1361,8 @@ namespace Chaos
 			const FVec3 AxisWorld = ParticleTransform.TransformVector(ConstraintSettings.Axis);
 			const FReal AxisLen = ConstraintResults.Length;
 			const FVec3 PushOutWorld = ConstraintResults.NetPushOut;
+			const FVec3 HardStopPushOutWorld = ConstraintResults.HardStopNetPushOut;
+			const FVec3 HardStopImpulseWorld = ConstraintResults.HardStopNetImpulse;
 
 			FDebugDrawQueue::GetInstance().DrawDebugLine(
 				SpaceTransform.TransformPosition(PWorld), 
@@ -1363,10 +1371,34 @@ namespace Chaos
 
 			if (Settings.PushOutScale > 0)
 			{
+				// Make the shorter line wider
+				const FReal SpringPushOutLen = PushOutWorld.Size();
+				const FReal HardStopPushOutLen = HardStopPushOutWorld.Size();
+				const FRealSingle SpringWidthScale = (SpringPushOutLen > HardStopPushOutLen) ? FRealSingle(1) : FRealSingle(2);
+				const FRealSingle HardStopWidthScale = (SpringPushOutLen > HardStopPushOutLen) ? FRealSingle(2) : FRealSingle(1);
+
+				const FColor HardStopPushOutColor = FColor(0, 200, 100);
+				const FColor SpringPushOutColor = FColor(0, 200, 0);
+
 				FDebugDrawQueue::GetInstance().DrawDebugLine(
 					SpaceTransform.TransformPosition(PWorld),
 					SpaceTransform.TransformPosition(PWorld + Settings.PushOutScale * PushOutWorld),
-					FColor::Blue, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+					SpringPushOutColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, SpringWidthScale * Settings.LineThickness);
+
+				FDebugDrawQueue::GetInstance().DrawDebugLine(
+					SpaceTransform.TransformPosition(PWorld),
+					SpaceTransform.TransformPosition(PWorld + Settings.PushOutScale * HardStopPushOutWorld),
+					HardStopPushOutColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, HardStopWidthScale * Settings.LineThickness);
+			}
+
+			if (Settings.ImpulseScale > 0)
+			{
+				const FColor HardStopImpulseColor = FColor(200, 200, 0);
+
+				FDebugDrawQueue::GetInstance().DrawDebugLine(
+					SpaceTransform.TransformPosition(PWorld),
+					SpaceTransform.TransformPosition(PWorld + Settings.PushOutScale * HardStopImpulseWorld),
+					HardStopImpulseColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * FRealSingle(0.5));
 			}
 		}
 

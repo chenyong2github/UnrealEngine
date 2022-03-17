@@ -154,8 +154,11 @@ void DebugDrawChaos(AActor* DebugDrawActor, const TArray<Chaos::FLatentDrawComma
 				UE_VLOG(Command.TestBaseActor, LogChaos, Log, TEXT("%s"), *Command.Text);
 				break;
 			case FLatentDrawCommand::EDrawType::Circle:
-				//	UE_VLOG_CONE(Actor, LogChaos, Log, Command.Center, Command.ZAxis, 0.1f, PI, Command.Color, TEXT_EMPTY);
+			{
+				const FMatrix M = FRotationMatrix::MakeFromYZ(Command.YAxis, Command.ZAxis);
+				UE_VLOG_CIRCLE(Actor, LogChaos, Log, Command.Center, M.GetUnitAxis(EAxis::X), Command.Radius, Command.Color, TEXT_EMPTY);
 				break;
+			}
 			case FLatentDrawCommand::EDrawType::Capsule:
 			{
 				// VLOG Capsule uses the bottom end as the origin (though the variable is named Center)
