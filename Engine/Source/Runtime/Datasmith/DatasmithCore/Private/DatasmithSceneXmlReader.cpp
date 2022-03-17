@@ -1910,6 +1910,8 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 	TryConnectMaterialInput(OutElement->GetNormal());
 	TryConnectMaterialInput(OutElement->GetRefraction());
 	TryConnectMaterialInput(OutElement->GetAmbientOcclusion());
+	TryConnectMaterialInput(OutElement->GetClearCoat());
+	TryConnectMaterialInput(OutElement->GetClearCoatRoughness());
 	TryConnectMaterialInput(OutElement->GetMaterialAttributes());
 
 	for ( const FXmlNode* ChildNode : InNode->GetChildrenNodes() )
