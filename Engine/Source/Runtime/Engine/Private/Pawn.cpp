@@ -710,7 +710,8 @@ class UPlayer* APawn::GetNetOwningPlayer()
 UInputComponent* APawn::CreatePlayerInputComponent()
 {
 	static const FName InputComponentName(TEXT("PawnInputComponent0"));
-	return NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), InputComponentName);
+	const UClass* OverrideClass = OverrideInputComponentClass.Get();
+	return NewObject<UInputComponent>(this, OverrideClass ? OverrideClass : UInputSettings::GetDefaultInputComponentClass(), InputComponentName);
 }
 
 void APawn::DestroyPlayerInputComponent()
@@ -728,6 +729,10 @@ bool APawn::IsMoveInputIgnored() const
 	return Controller != nullptr && Controller->IsMoveInputIgnored();
 }
 
+TSubclassOf<UInputComponent> APawn::GetOverrideInputComponentClass() const
+{
+	return OverrideInputComponentClass;	
+}
 
 void APawn::AddMovementInput(FVector WorldDirection, float ScaleValue, bool bForce /*=false*/)
 {

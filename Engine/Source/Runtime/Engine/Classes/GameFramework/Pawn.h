@@ -512,6 +512,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Pawn|Input")
 	virtual bool IsMoveInputIgnored() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Pawn|Input")
+	TSubclassOf<UInputComponent> GetOverrideInputComponentClass() const;
+
 protected:
 	/**
 	 * Accumulated control input vector, stored in world space. This is the pending input, which is cleared (zeroed) once consumed.
@@ -526,6 +529,10 @@ protected:
 	 */
 	UPROPERTY(Transient)
 	FVector LastControlInputVector;
+
+	/** If set, then this InputComponent class will be used instead of the Input Settings' DefaultInputComponentClass */
+	UPROPERTY(EditDefaultsOnly, Category = "Pawn|Input")
+	TSubclassOf<UInputComponent> OverrideInputComponentClass = nullptr;
 
 public:
 	/** Internal function meant for use only within Pawn or by a PawnMovementComponent. Adds movement input if not ignored, or if forced. */

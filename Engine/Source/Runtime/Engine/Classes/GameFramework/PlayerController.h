@@ -1613,6 +1613,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<class UTouchInterface> CurrentTouchInterface;
 
+	/** If set, then this UPlayerInput class will be used instead of the Input Settings' DefaultPlayerInputClass */
+	UPROPERTY(EditDefaultsOnly, Category = Input)
+	TSubclassOf<UPlayerInput> OverridePlayerInputClass;
+
 	/** Handle for efficient management of UnFreeze timer */
 	FTimerHandle TimerHandle_UnFreeze;
 
@@ -1632,6 +1636,9 @@ public:
 
 	/** Flushes the current key state. */
 	virtual void FlushPressedKeys();
+
+	UFUNCTION(BlueprintCallable, Category = Input)
+	TSubclassOf<UPlayerInput> GetOverridePlayerInputClass() const;
 
 	/** Handles a key press */
 	UE_DEPRECATED(5.0, "This version of InputKey has been deprecated, please use the version that takes FInputKeyParams instead")

@@ -641,9 +641,11 @@ void APlayerController::SmoothTargetViewRotation(APawn* TargetPawn, float DeltaS
 
 void APlayerController::InitInputSystem()
 {
-	if (PlayerInput == NULL)
+	if (PlayerInput == nullptr)
 	{
-		PlayerInput = NewObject<UPlayerInput>(this, UInputSettings::GetDefaultPlayerInputClass());
+		const UClass* OverrideClass = OverridePlayerInputClass.Get();
+		
+		PlayerInput = NewObject<UPlayerInput>(this, OverrideClass ? OverrideClass : UInputSettings::GetDefaultPlayerInputClass());
 	}
 
 	SetupInputComponent();
@@ -2280,6 +2282,11 @@ void APlayerController::FlushPressedKeys()
 	{
 		PlayerInput->FlushPressedKeys();
 	}
+}
+
+TSubclassOf<UPlayerInput> APlayerController::GetOverridePlayerInputClass() const
+{
+	return OverridePlayerInputClass;
 }
 
 bool APlayerController::InputKey(FKey Key, EInputEvent EventType, float AmountDepressed, bool bGamepad)
