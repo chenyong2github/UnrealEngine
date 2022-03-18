@@ -20,12 +20,16 @@
 
 #define TEST_BBOX (1 && INTERSECTION_LOCAL_SPACE)
 
-struct FNaniteIntersectionAttributes
+struct FNaniteIntersectionResult
 {
 	float2 Barycentrics;
 	uint PageIndex;
 	uint ClusterIndex;
 	uint TriIndex;
+
+	uint NodeIntersectionCount;
+	uint ClusterIntersectionCount;
+	uint TriangleIntersectionCount;
 };
 
 #define STACK_SIZE 32
@@ -89,7 +93,7 @@ bool RayAABBIntersection(float3 RayOrigin, float3 RayDirection, float3 BoxCenter
 bool NaniteClustersIntersection(
 	uint PageIndex, uint BaseClusterIndex, uint NumClusters, float CutError,
 	float3 Origin, float3 Direction, float4x4 LocalToTranslatedWorld, float3 InvScale, float3 BoundsCenter,
-	inout float RayTCurrent, out FNaniteIntersectionAttributes NaniteIntersectionAttributes)
+	inout float RayTCurrent, inout FNaniteIntersectionResult NaniteIntersectionResult)
 {
 	bool bIntersection = false;
 	for (int ClusterIndex = 0; ClusterIndex < NumClusters; ++ClusterIndex)
@@ -107,8 +111,12 @@ bool NaniteClustersIntersection(
 		const bool bBoxIntersection = true;
 #endif
 
+		++NaniteIntersectionResult.ClusterIntersectionCount;
+
 		if ((!bSmallEnoughToDraw && !(Cluster.Flags & NANITE_CLUSTER_FLAG_LEAF)) || !bBoxIntersection)
 			continue;
+
+		NaniteIntersectionResult.TriangleIntersectionCount += Cluster.NumTris;
 
 		for (int TriIndex = 0; TriIndex < Cluster.NumTris; ++TriIndex)
 		{
@@ -140,20 +148,21 @@ bool NaniteClustersIntersection(
 			
 			if (bHit && IntersectionT < RayTCurrent)
 			{
-				NaniteIntersectionAttributes.Barycentrics = Barycentrics;
-				NaniteIntersectionAttributes.TriIndex = TriIndex;
-				NaniteIntersectionAttributes.PageIndex = PageIndex;
-				NaniteIntersectionAttributes.ClusterIndex = BaseClusterIndex + ClusterIndex;
+				NaniteIntersectionResult.Barycentrics = Barycentrics;
+				NaniteIntersectionResult.TriIndex = TriIndex;
+				NaniteIntersectionResult.PageIndex = PageIndex;
+				NaniteIntersectionResult.ClusterIndex = BaseClusterIndex + ClusterIndex;
 
 				bIntersection = true;
 				RayTCurrent = IntersectionT;
 			}
 		}
 	}
+
 	return bIntersection;
 }
 
-bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData InstanceData, FPrimitiveSceneData PrimitiveData, float CutError, inout float RayTCurrent, out FNaniteIntersectionAttributes NaniteIntersectionAttributes)
+bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData InstanceData, FPrimitiveSceneData PrimitiveData, float CutError, inout float RayTCurrent, out FNaniteIntersectionResult NaniteIntersectionResult)
 {
 	float4x4 LocalToTranslatedWorld = LWCHackToFloat(InstanceData.LocalToWorld);
 	float4x4 TranslatedWorldToLocal = LWCHackToFloat(InstanceData.WorldToLocal);
@@ -176,6 +185,10 @@ bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData Inst
 
 	bool bIntersection = false;
 
+	NaniteIntersectionResult.NodeIntersectionCount = 0;
+	NaniteIntersectionResult.ClusterIntersectionCount = 0;
+	NaniteIntersectionResult.TriangleIntersectionCount = 0;
+
 	FSimpleStack Stack;
 	Stack.Init();
 	Stack.Push(0);
@@ -197,6 +210,8 @@ bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData Inst
 			const bool bBoxIntersection = true;
 #endif
 
+			++NaniteIntersectionResult.NodeIntersectionCount;
+
 			bool bVisible = HierarchyNodeSlice.bEnabled;
 			bool bLoaded = HierarchyNodeSlice.bLoaded;
 			bool bShouldVisitChild = CutError < HierarchyNodeSlice.MaxParentLODError;
@@ -210,7 +225,7 @@ bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData Inst
 				const uint PageIndex = HierarchyNodeSlice.ChildStartReference >> NANITE_MAX_CLUSTERS_PER_PAGE_BITS;
 				const uint BaseClusterIndex = HierarchyNodeSlice.ChildStartReference & NANITE_MAX_CLUSTERS_PER_PAGE_MASK;
 
-				if (NaniteClustersIntersection(PageIndex, BaseClusterIndex, NumClusters, CutError, Origin, Direction, LocalToTranslatedWorld, InvScale, BoundsCenter, RayTCurrent, NaniteIntersectionAttributes))
+				if (NaniteClustersIntersection(PageIndex, BaseClusterIndex, NumClusters, CutError, Origin, Direction, LocalToTranslatedWorld, InvScale, BoundsCenter, RayTCurrent, NaniteIntersectionResult))
 				{
 					bIntersection = true;
 				}

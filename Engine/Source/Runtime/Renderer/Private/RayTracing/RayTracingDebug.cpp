@@ -44,10 +44,25 @@ static TAutoConsoleVariable<float> CVarRayTracingDebugTraversalBoxScale(
 	TEXT("Scaling factor for box traversal heat map visualization. (default = 150)\n")
 );
 
+static TAutoConsoleVariable<float> CVarRayTracingDebugTraversalClusterScale(
+	TEXT("r.RayTracing.DebugTraversalScale.Cluster"),
+	2500.0f,
+	TEXT("Scaling factor for cluster traversal heat map visualization. (default = 2500)\n")
+);
+
 static TAutoConsoleVariable<float> CVarRayTracingDebugTraversalTriangleScale(
 	TEXT("r.RayTracing.DebugTraversalScale.Triangle"),
 	30.0f,
 	TEXT("Scaling factor for triangle traversal heat map visualization. (default = 30)\n")
+);
+
+static int32 GVisualizeProceduralPrimitives = 0;
+static FAutoConsoleVariableRef CVarVisualizeProceduralPrimitives(
+	TEXT("r.RayTracing.DebugVisualizationMode.ProceduralPrimitives"),
+	GVisualizeProceduralPrimitives,
+	TEXT("Whether to include procedural primitives in visualization modes.\n")
+	TEXT("Currently only supports Nanite primitives in inline barycentrics mode."),
+	ECVF_RenderThreadSafe
 );
 
 class FRayTracingDebugRGS : public FGlobalShader
@@ -104,13 +119,21 @@ class FRayTracingDebugTraversalCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FRayTracingDebugTraversalCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
+		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FNaniteUniformParameters, NaniteUniformBuffer)
+
 		SHADER_PARAMETER(uint32, VisualizationMode)
 		SHADER_PARAMETER(float, TraversalBoxScale)
+		SHADER_PARAMETER(float, TraversalClusterScale)
 		SHADER_PARAMETER(float, TraversalTriangleScale)
-		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+
+		SHADER_PARAMETER(float, RTDebugVisualizationNaniteCutError)
 	END_SHADER_PARAMETER_STRUCT()
+
+	class FSupportProceduralPrimitive : SHADER_PERMUTATION_BOOL("ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE");
+	using FPermutationDomain = TShaderPermutationDomain<FSupportProceduralPrimitive>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -120,6 +143,9 @@ class FRayTracingDebugTraversalCS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X"), ThreadGroupSizeX);
 		OutEnvironment.SetDefine(TEXT("INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y"), ThreadGroupSizeY);
 		OutEnvironment.SetDefine(TEXT("ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS"), 1);
+
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -140,8 +166,9 @@ static bool RequiresRayTracingDebugCHS(uint32 DebugVisualizationMode)
 
 static bool IsRayTracingDebugTraversalMode(uint32 DebugVisualizationMode)
 {
-	return DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRAVERSAL_NODE || 
-		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRAVERSAL_TRIANGLE || 
+	return DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRAVERSAL_NODE ||
+		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRAVERSAL_CLUSTER ||
+		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRAVERSAL_TRIANGLE ||
 		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRAVERSAL_ALL;
 }
 
@@ -188,6 +215,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Triangles", "Triangles").ToString()),											RAY_TRACING_DEBUG_VIZ_TRIANGLES);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("FarField", "FarField").ToString()),											RAY_TRACING_DEBUG_VIZ_FAR_FIELD);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Traversal Node", "Traversal Node").ToString()),								RAY_TRACING_DEBUG_VIZ_TRAVERSAL_NODE);
+		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Traversal Cluster", "Traversal Cluster").ToString()),							RAY_TRACING_DEBUG_VIZ_TRAVERSAL_CLUSTER);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Traversal Triangle", "Traversal Triangle").ToString()),						RAY_TRACING_DEBUG_VIZ_TRAVERSAL_TRIANGLE);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Traversal All", "Traversal All").ToString()),									RAY_TRACING_DEBUG_VIZ_TRAVERSAL_ALL);
 	}
@@ -212,19 +240,23 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 
 	if (DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_BARYCENTRICS)
 	{
-		return RenderRayTracingBarycentrics(GraphBuilder, View, SceneColorTexture);
+		return RenderRayTracingBarycentrics(GraphBuilder, View, SceneColorTexture, (bool)GVisualizeProceduralPrimitives);
 	}
 
 	if (IsRayTracingDebugTraversalMode(DebugVisualizationMode) && ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::Inline))
 	{
 		FRayTracingDebugTraversalCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingDebugTraversalCS::FParameters>();
+		PassParameters->Output = GraphBuilder.CreateUAV(SceneColorTexture);
+		PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->NaniteUniformBuffer = Scene->UniformBuffers.NaniteUniformBuffer;
 
 		PassParameters->VisualizationMode = DebugVisualizationMode;
 		PassParameters->TraversalBoxScale = CVarRayTracingDebugTraversalBoxScale.GetValueOnAnyThread();
+		PassParameters->TraversalClusterScale = CVarRayTracingDebugTraversalClusterScale.GetValueOnAnyThread();
 		PassParameters->TraversalTriangleScale = CVarRayTracingDebugTraversalTriangleScale.GetValueOnAnyThread();
-		PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
-		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-		PassParameters->Output = GraphBuilder.CreateUAV(SceneColorTexture);
+
+		PassParameters->RTDebugVisualizationNaniteCutError = 0.0f;
 
 		FIntRect ViewRect = View.ViewRect;
 
@@ -232,8 +264,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 
 		const FIntPoint GroupSize(FRayTracingDebugTraversalCS::ThreadGroupSizeX, FRayTracingDebugTraversalCS::ThreadGroupSizeY);
 		const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ViewRect.Size(), GroupSize);
+
+		FRayTracingDebugTraversalCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FRayTracingDebugTraversalCS::FSupportProceduralPrimitive>((bool)GVisualizeProceduralPrimitives);
 		
-		TShaderRef<FRayTracingDebugTraversalCS> ComputeShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FRayTracingDebugTraversalCS>();
+		TShaderRef<FRayTracingDebugTraversalCS> ComputeShader = View.ShaderMap->GetShader<FRayTracingDebugTraversalCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("RayTracingDebug"), ComputeShader, PassParameters, GroupCount);
 		return;

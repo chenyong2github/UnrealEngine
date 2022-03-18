@@ -49,7 +49,7 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 	TraceRayResult.SetMiss();
 
 #if ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE
-	FNaniteIntersectionAttributes NaniteIntersectionAttributes;
+	FNaniteIntersectionResult NaniteIntersectionResult;
 
 	RayQuery<RAY_FLAG_FORCE_OPAQUE> RayQ;
 #else 
@@ -82,7 +82,7 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 
 					float IntersectionT = TMax;
 					
-					if (NaniteIntersection(RayOrg, RayDir, InstanceData, PrimitiveData, TraceRayInlineContext.NaniteCutError, IntersectionT, NaniteIntersectionAttributes))
+					if (NaniteIntersection(RayOrg, RayDir, InstanceData, PrimitiveData, TraceRayInlineContext.NaniteCutError, IntersectionT, NaniteIntersectionResult))
 					{
 						if (IntersectionT <= TMax && IntersectionT >= TMin)
 						{
@@ -116,9 +116,13 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 		TraceRayResult.Bookmark[0] = asuint(TraceRayResult.HitT);
 		TraceRayResult.Bookmark[1] = asuint(TraceRayResult.HitT);
 
-	#if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
+#if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
 		TraceRayResult.ObjectToWorld3x4 = RayQ.CommittedObjectToWorld3x4();
-	#endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
+#endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
+
+#if ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS
+		// statistics?
+#endif // ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS
 		break;
 	}
 #if ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE
@@ -129,7 +133,7 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 		TraceRayResult.InstanceIndex = RayQ.CommittedInstanceIndex();
 		TraceRayResult.PrimitiveIndex = RayQ.CommittedPrimitiveIndex();
 		TraceRayResult.GeometryIndex = RayQ.CommittedGeometryIndex();
-		TraceRayResult.Barycentrics = NaniteIntersectionAttributes.Barycentrics;
+		TraceRayResult.Barycentrics = NaniteIntersectionResult.Barycentrics;
 		TraceRayResult.bIsFrontFace = true; // TODO
 		TraceRayResult.InstanceContributionToHitGroupIndex = RayQ.CommittedInstanceContributionToHitGroupIndex();
 
@@ -142,14 +146,17 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 #if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
 		TraceRayResult.ObjectToWorld3x4 = RayQ.CommittedObjectToWorld3x4();
 #endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
+
+#if ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS
+		TraceRayResult.TraversalStatistics.NodeIntersectionCount = NaniteIntersectionResult.NodeIntersectionCount;
+		TraceRayResult.TraversalStatistics.ClusterIntersectionCount = NaniteIntersectionResult.ClusterIntersectionCount;
+		TraceRayResult.TraversalStatistics.TriangleIntersectionCount = NaniteIntersectionResult.TriangleIntersectionCount;
+		TraceRayResult.TraversalStatistics.IterationCount = 0; // TODO
+#endif // ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS
 		break;
 	}
 #endif // ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE
 	}
-
-#if ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS
-	// statistics?
-#endif 
 
 	return TraceRayResult;
 }

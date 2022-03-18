@@ -13,15 +13,6 @@
 
 #include "Rendering/NaniteStreamingManager.h"
 
-int32 GVisualizeProceduralPrimitives = 0;
-FAutoConsoleVariableRef CVarVisualizeProceduralPrimitives(
-	TEXT("r.RayTracing.DebugVisualizationMode.ProceduralPrimitives"),
-	GVisualizeProceduralPrimitives,
-	TEXT("Whether to include procedural primitives in visualization modes.\n")
-	TEXT("Currently only supports Nanite primitives in inline barycentrics mode."),
-	ECVF_RenderThreadSafe
-);
-
 class FRayTracingBarycentricsRGS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingBarycentricsRGS)
@@ -102,7 +93,7 @@ class FRayTracingBarycentricsCS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingBarycentricsCS, "/Engine/Private/RayTracing/RayTracingBarycentrics.usf", "RayTracingBarycentricsMainCS", SF_Compute);
 
-void RenderRayTracingBarycentricsCS(FRDGBuilder& GraphBuilder, const FScene& Scene, const FViewInfo& View, FRDGTextureRef SceneColor)
+void RenderRayTracingBarycentricsCS(FRDGBuilder& GraphBuilder, const FScene& Scene, const FViewInfo& View, FRDGTextureRef SceneColor, bool bVisualizeProceduralPrimitives)
 {
 	FRayTracingBarycentricsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingBarycentricsCS::FParameters>();
 
@@ -110,13 +101,13 @@ void RenderRayTracingBarycentricsCS(FRDGBuilder& GraphBuilder, const FScene& Sce
 	PassParameters->Output = GraphBuilder.CreateUAV(SceneColor);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->NaniteUniformBuffer = Scene.UniformBuffers.NaniteUniformBuffer;
-	
+
 	PassParameters->RTDebugVisualizationNaniteCutError = 0.0f;
 
-	FIntRect ViewRect = View.ViewRect;	
+	FIntRect ViewRect = View.ViewRect;
 
 	FRayTracingBarycentricsCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FRayTracingBarycentricsCS::FSupportProceduralPrimitive>((bool)GVisualizeProceduralPrimitives);
+	PermutationVector.Set<FRayTracingBarycentricsCS::FSupportProceduralPrimitive>(bVisualizeProceduralPrimitives);
 
 	auto ComputeShader = View.ShaderMap->GetShader<FRayTracingBarycentricsCS>(PermutationVector);
 
@@ -164,14 +155,14 @@ void RenderRayTracingBarycentricsRGS(FRDGBuilder& GraphBuilder, const FViewInfo&
 	});
 }
 
-void FDeferredShadingSceneRenderer::RenderRayTracingBarycentrics(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor)
+void FDeferredShadingSceneRenderer::RenderRayTracingBarycentrics(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor, bool bVisualizeProceduralPrimitives)
 {
 	const bool bRayTracingInline = ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::Inline);
 	const bool bRayTracingPipeline = ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::FullPipeline);
 
 	if (bRayTracingInline)
 	{
-		RenderRayTracingBarycentricsCS(GraphBuilder, *Scene, View, SceneColor);
+		RenderRayTracingBarycentricsCS(GraphBuilder, *Scene, View, SceneColor, bVisualizeProceduralPrimitives);
 	}
 	else if (bRayTracingPipeline)
 	{

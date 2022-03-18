@@ -5,6 +5,7 @@
 struct FTraceRayInlineTraversalStatistics
 {
 	uint NodeIntersectionCount;
+	uint ClusterIntersectionCount;
 	uint TriangleIntersectionCount;
 	uint IterationCount;
 };

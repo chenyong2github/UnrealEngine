@@ -16,6 +16,7 @@ RaytracingAccelerationStructure TLAS;
 
 uint VisualizationMode;
 float TraversalBoxScale;
+float TraversalClusterScale;
 float TraversalTriangleScale;
 
 [numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]
@@ -30,16 +31,21 @@ void RayTracingDebugTraversalCS(uint3 DispatchThread : SV_DispatchThreadID)
 	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_FORCE_OPAQUE;
 
 	FTraceRayInlineContext TraceRayInlineContext = CreateTraceRayInlineContext();
+	TraceRayInlineContext.bProcedural = ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE;
+	TraceRayInlineContext.NaniteCutError = 0.0f;
 	FTraceRayInlineResult TraceResult = TraceRayInline(TLAS, RayFlags, RAY_TRACING_MASK_ALL, Ray, TraceRayInlineContext);
 
 	float4 Result = 0;
 
-	const uint Intersections = TraceResult.TraversalStatistics.NodeIntersectionCount + TraceResult.TraversalStatistics.TriangleIntersectionCount;
+	const uint Intersections = TraceResult.TraversalStatistics.NodeIntersectionCount + TraceResult.TraversalStatistics.ClusterIntersectionCount + TraceResult.TraversalStatistics.TriangleIntersectionCount;
 	switch (VisualizationMode)
 	{
 	default:
 	case RAY_TRACING_DEBUG_VIZ_TRAVERSAL_ALL:
 		Result.rgb = ColorMapTurbo(Intersections / (TraversalBoxScale + TraversalTriangleScale));
+		break;
+	case RAY_TRACING_DEBUG_VIZ_TRAVERSAL_CLUSTER:
+		Result.rgb = ColorMapTurbo(TraceResult.TraversalStatistics.ClusterIntersectionCount / TraversalClusterScale);
 		break;
 	case RAY_TRACING_DEBUG_VIZ_TRAVERSAL_NODE:
 		Result.rgb = ColorMapTurbo(TraceResult.TraversalStatistics.NodeIntersectionCount / TraversalBoxScale);
