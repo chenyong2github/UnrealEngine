@@ -8,13 +8,13 @@
 #if ANIM_TRACE_ENABLED
 
 struct FAnimationBaseContext;
-struct FAnimNode_BlendSpacePlayer;
+struct FAnimNode_BlendSpacePlayerBase;
 struct FAnimNode_BlendSpaceGraphBase;
 
 struct FAnimGraphRuntimeTrace
 {
 	/** Helper function to output debug info for blendspace player nodes */
-	ANIMGRAPHRUNTIME_API static void OutputBlendSpacePlayer(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpacePlayer& InNode);
+	ANIMGRAPHRUNTIME_API static void OutputBlendSpacePlayer(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpacePlayerBase& InNode);
 
 	/** Helper function to output debug info for blendspace nodes */
 	ANIMGRAPHRUNTIME_API static void OutputBlendSpace(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpaceGraphBase& InNode);

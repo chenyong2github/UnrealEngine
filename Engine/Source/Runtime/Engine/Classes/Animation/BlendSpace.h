@@ -518,6 +518,9 @@ public:
 	*/
 	ENGINE_API bool GetSamplesFromBlendInput(const FVector &BlendInput, TArray<FBlendSampleData> & OutSampleDataList, int32& InOutCachedTriangulationIndex, bool bCombineAnimations) const;
 
+	/** Utility function to calculate animation length from sample data list **/
+	ENGINE_API float GetAnimationLengthFromSampleData(const TArray<FBlendSampleData>& SampleDataList) const;
+
 	/** 
 	 * Initialize BlendSpace filtering for runtime. Filtering supports multiple dimensions, defaulting to
 	 * two (since we don't have 3D BlendSpaces yet) 
@@ -644,9 +647,6 @@ protected:
 	void InitializePerBoneBlend();
 
 	void TickFollowerSamples(TArray<FBlendSampleData> &SampleDataList, const int32 HighestWeightIndex, FAnimAssetTickContext &Context, bool bResetMarkerDataOnFollowers, const UMirrorDataTable* MirrorDataTable = nullptr) const;
-
-	/** Utility function to calculate animation length from sample data list **/
-	float GetAnimationLengthFromSampleData(const TArray<FBlendSampleData> & SampleDataList) const;
 
 	/** Returns the blend input clamped to the valid range, unless that axis has been set to wrap in which case no clamping is done **/
 	FVector GetClampedBlendInput(const FVector& BlendInput) const;

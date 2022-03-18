@@ -4,6 +4,7 @@
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "AnimNodes/AnimNode_BlendSpacePlayer.h"
 #include "AnimNodes/AnimNode_Mirror.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "DynamicPlayRate/DynamicPlayRateLibrary.h"
@@ -69,12 +70,19 @@ private:
 	// Embedded sequence player node for playing animations from the motion matching database
 	FAnimNode_SequencePlayer_Standalone SequencePlayerNode;
 
+	// Embedded blendspace player node for playing blendspaces from the motion matching database
+	FAnimNode_BlendSpacePlayer_Standalone BlendSpacePlayerNode;
+
 	// Embedded mirror node to handle mirroring if the pose search results in a mirrored sequence
-	FAnimNode_Mirror MirrorNode;
+	FAnimNode_Mirror_Standalone MirrorNode;
 
 	// Encapsulated motion matching algorithm and internal state
 	FMotionMatchingState MotionMatchingState;
-	
+
+	// Current Asset Player Node
+	FAnimNode_AssetPlayerBase* CurrentAssetPlayerNode = &SequencePlayerNode;
+
+
 	// FAnimNode_AssetPlayerBase
 protected:
 	// FAnimNode_AssetPlayerBase interface

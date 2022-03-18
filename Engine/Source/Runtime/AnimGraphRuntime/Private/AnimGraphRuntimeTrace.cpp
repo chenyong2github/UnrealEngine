@@ -23,7 +23,7 @@ UE_TRACE_EVENT_BEGIN(Animation, BlendSpacePlayer)
 	UE_TRACE_EVENT_FIELD(float, FilteredPositionZ)
 	UE_TRACE_EVENT_END()
 
-void FAnimGraphRuntimeTrace::OutputBlendSpacePlayer(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpacePlayer& InNode)
+void FAnimGraphRuntimeTrace::OutputBlendSpacePlayer(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpacePlayerBase& InNode)
 {
 	bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
 	if (!bEventEnabled)

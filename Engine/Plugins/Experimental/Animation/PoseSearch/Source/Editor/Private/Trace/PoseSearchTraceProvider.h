@@ -37,6 +37,7 @@ struct FTraceMotionMatchingStateMessage : FTraceMessage
 	float AnimLinearVelocity = 0.0f;
 	float AnimAngularVelocity = 0.0f;
 	TArray<bool> DatabaseSequenceFilter;
+	TArray<bool> DatabaseBlendSpaceFilter;
 };
 
 

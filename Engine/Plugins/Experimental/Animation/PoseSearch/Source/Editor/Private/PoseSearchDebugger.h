@@ -13,7 +13,9 @@
 #include "PoseSearchDebugger.generated.h"
 
 struct FPoseSearchDatabaseSequence;
+struct FPoseSearchDatabaseBlendSpace;
 class UAnimSequence;
+class UBlendSpace;
 
 namespace TraceServices { class IAnalysisSession; }
 enum class EPoseSearchFeatureDomain;
@@ -47,11 +49,14 @@ public:
 
 	struct FUpdateContext
 	{
+		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
 		const UAnimSequence* Sequence = nullptr;
-		float SequenceStartTime = 0.0f;
-		float SequenceTime = 0.0f;
+		const UBlendSpace* BlendSpace = nullptr;
+		float StartTime = 0.0f;
+		float Time = 0.0f;
 		bool bLoop = false;
 		bool bMirrored = false;
+		FVector BlendParameters = FVector::Zero();
 		const UMirrorDataTable* MirrorDataTable = nullptr;
 		TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex>* CompactPoseMirrorBones = nullptr;
 		TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex>* ComponentSpaceRefRotations = nullptr;
@@ -172,8 +177,8 @@ public:
 	UPROPERTY(VisibleAnywhere, Category="Motion Matching State")
 	bool bFollowUpAnimation = false;
 	
-	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State", Meta = (DisplayName = "Asset Player Sequence"))
-	FString AssetPlayerSequenceName = "";
+	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
+	FString AssetPlayerAssetName = "";
 
 	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
 	float AssetPlayerTime = 0.0f;
@@ -229,10 +234,10 @@ namespace UE::PoseSearch {
 /** Draw flags for the view's debug draw */
 enum class ESkeletonDrawFlags : uint32
 {
-	None              = 0,
-	ActivePose	  = 1 << 0,
-	SelectedPose  = 1 << 1,
-	AnimSequence  = 1 << 2
+	None			= 0,
+	ActivePose		= 1 << 0,
+	SelectedPose	= 1 << 1,
+	Asset			= 1 << 2,
 };
 ENUM_CLASS_FLAGS(ESkeletonDrawFlags)
 
@@ -306,11 +311,11 @@ private:
 	/** Row selection to update model view */
 	void OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDatabaseRowData> Row, ESelectInfo::Type SelectInfo);
 
-	/** Informs the widget if sequence filtering is enabled */
-	ECheckBoxState IsSequenceFilterEnabled() const;
+	/** Informs the widget if asset filtering is enabled */
+	ECheckBoxState IsAssetFilterEnabled() const;
 
-	/** Updates the state of sequence filtering */
-	void OnSequenceFilterEnabledChanged(ECheckBoxState NewState);
+	/** Updates the state of asset filtering */
+	void OnAssetFilterEnabledChanged(ECheckBoxState NewState);
 
 	/** Generates a database row widget for the given data */
 	TSharedRef<ITableRow> HandleGenerateDatabaseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
@@ -361,6 +366,7 @@ private:
 
 	TWeakObjectPtr<const UPoseSearchDatabase> RowsSourceDatabase = nullptr;
 	TArrayView<const bool> DatabaseSequenceFilter;
+	TArrayView<const bool> DatabaseBlendSpaceFilter;
 
 	/** Database listing for filtered poses */
 	FTable FilteredDatabaseView;
@@ -371,8 +377,8 @@ private:
 	/** Text used to filter DatabaseView */
 	FText FilterText;
 
-	/** True if only sequences that pass the sequence group query are being displayed */
-	bool bSequenceFilterEnabled = true;
+	/** True if only asets that pass the asset group query are being displayed */
+	bool bAssetFilterEnabled = true;
 };
 
 /**
@@ -450,8 +456,8 @@ private:
 
 	void OnPoseSelectionChanged(int32 PoseIdx, float Time);
 
-	/** Button interaction to toggle play / stop of the anim sequence */
-	FReply TogglePlaySelectedSequences() const;
+	/** Button interaction to toggle play / stop of the asset */
+	FReply TogglePlaySelectedAssets() const;
 
 	/** Generates the message view relaying that there is no data */
 	TSharedRef<SWidget> GenerateNoDataMessageView();
@@ -549,6 +555,9 @@ public:
 	/** Get an animation sequence from the sequence ID of the active database */
 	const FPoseSearchDatabaseSequence* GetAnimSequence(int32 SequenceIdx) const;
 	
+	/** Get a blendspace from the blend space ID of the active database */
+	const FPoseSearchDatabaseBlendSpace* GetBlendSpace(int32 BlendSpaceIdx) const;
+
 	/** Sets the selected pose skeleton*/
 	void ShowSelectedSkeleton(int32 PoseIdx, float Time);
 	
@@ -561,20 +570,20 @@ public:
 	/** Stops the playing selection upon button press */
 	void StopSelection();
 	
-	/** If there is a sequence selection playing */
-	bool IsPlayingSelections() const { return SequenceData.bActive; }
+	/** If there is an asset selection playing */
+	bool IsPlayingSelections() const { return AssetData.bActive; }
 	
-	/** Play Rate of the sequence selection player */
-	void ChangePlayRate(float PlayRate) { SequencePlayRate = PlayRate; }
+	/** Play Rate of the asset selection player */
+	void ChangePlayRate(float PlayRate) { AssetPlayRate = PlayRate; }
 	
-	/** Current play rate of the sequence selection player */
-	float GetPlayRate() const { return SequencePlayRate; }
+	/** Current play rate of the asset selection player */
+	float GetPlayRate() const { return AssetPlayRate; }
 	
 	/** Callback to reset debug skeletons for the active world */
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
 
-	/** Updates the current playing sequence */
-	void UpdateAnimSequence();
+	/** Updates the current playing asset */
+	void UpdateAsset();
 
 private:
 	/** Update the list of states for this frame */
@@ -620,14 +629,21 @@ private:
 
 		/** Derived skeletal mesh for setting the skeleton in the scene */
 		UPoseSearchMeshComponent* Component = nullptr;
-	
-		/** Active sequence index being used for this setting this skeleton */
-		int32 SequenceIdx = 0;
+		
+		/** Type of the asset being played */
+		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
+
+		/** Active asset index being used for this setting this skeleton */
+		int32 AssetIdx = 0;
 		
 		/** Time in the sequence this skeleton is accessing */
 		float Time = 0.0f;
 
+		/** If this asset should be mirrored */
 		bool bMirrored = false;
+
+		/** Blend Parameters if asset is a BlendSpace */
+		FVector BlendParameters = FVector::Zero();
 	};
 	
 	/** Index for each type of skeleton we store for debug visualization */
@@ -635,7 +651,7 @@ private:
 	{
 		ActivePose = 0,
 		SelectedPose,
-		AnimSequence,
+		Asset,
 
 		Num
 	};
@@ -649,23 +665,25 @@ private:
 	/** If we currently have a selection active in the view */
 	bool bSelecting = false;
 	
-	/** Data of the active playing sequence */
-	struct FSequence
+	/** Data of the active playing asset */
+	struct FAsset
 	{
 		/** How long to stop upon reaching target */
 		static constexpr float StopDuration = 2.0f;
+
 		/** Time since the start of play */
 		float AccumulatedTime = 0.0f;
 
-		/** Start time of the sequence */
+		/** Start time of the asset */
 		float StartTime = 0.0f;
-		/** If we are currently playing a sequence */
+
+		/** If we are currently playing a asset */
 		bool bActive = false;
 
-	} SequenceData;
+	} AssetData;
 	
-	/** Current play rate of the sequence selection player */
-	float SequencePlayRate = 1.0f;
+	/** Current play rate of the asset selection player */
+	float AssetPlayRate = 1.0f;
 
 	/** Limits some public API */
 	friend class FDebugger;

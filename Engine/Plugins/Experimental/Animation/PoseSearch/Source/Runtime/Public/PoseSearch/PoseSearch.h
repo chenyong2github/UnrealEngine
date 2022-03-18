@@ -21,6 +21,7 @@
 #include "PoseSearch.generated.h"
 
 class UAnimSequence;
+class UBlendSpace;
 struct FCompactPose;
 struct FPoseContext;
 struct FReferenceSkeleton;
@@ -317,6 +318,15 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 	float CostAddend = 0.0f;
 };
 
+
+UENUM()
+enum class ESearchIndexAssetType : int32
+{
+	Invalid,
+	Sequence,
+	BlendSpace,
+};
+
 /**
 * Information about a source animation asset used by a search index.
 * Some source animation entries may generate multiple FPoseSearchIndexAsset entries.
@@ -330,15 +340,24 @@ public:
 	{}
 
 	FPoseSearchIndexAsset(
+		ESearchIndexAssetType InType,
 		int32 InSourceGroupIdx, 
 		int32 InSourceAssetIdx, 
 		bool bInMirrored, 
-		const FFloatInterval& InSamplingInterval)
-		: SourceGroupIdx(InSourceGroupIdx)
+		const FFloatInterval& InSamplingInterval,
+		FVector InBlendParameters = FVector::Zero())
+		: Type(InType)
+		, SourceGroupIdx(InSourceGroupIdx)
 		, SourceAssetIdx(InSourceAssetIdx)
 		, bMirrored(bInMirrored)
+		, BlendParameters(InBlendParameters)
 		, SamplingInterval(InSamplingInterval)
 	{}
+
+	// Default to Sequence for now for backward compatibility but
+	// at some point we might want to change this to Invalid.
+	UPROPERTY()
+	ESearchIndexAssetType Type = ESearchIndexAssetType::Sequence;
 
 	UPROPERTY()
 	int32 SourceGroupIdx = INDEX_NONE;
@@ -349,6 +368,9 @@ public:
 
 	UPROPERTY()
 	bool bMirrored = false;
+
+	UPROPERTY()
+	FVector BlendParameters = FVector::Zero();
 
 	UPROPERTY()
 	FFloatInterval SamplingInterval;
@@ -398,7 +420,7 @@ struct POSESEARCH_API FPoseSearchIndex
 
 	int32 FindAssetIndex(const FPoseSearchIndexAsset* Asset) const;
 	const FPoseSearchIndexAsset* FindAssetForPose(int32 PoseIdx) const;
-	float GetTimeOffset(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
+	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
 
 	void Reset();
 
@@ -667,6 +689,46 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	FFloatInterval GetEffectiveSamplingRange() const;
 };
 
+/** An blend space entry in a UPoseSearchDatabase. */
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
+struct POSESEARCH_API FPoseSearchDatabaseBlendSpace
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	TObjectPtr<UBlendSpace> BlendSpace = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	bool bLoopAnimation = false;
+
+	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
+
+	// If to use the blendspace grid locations as parameter sample locations.
+	// When enabled, NumberOfHorizontalSamples and NumberOfVerticalSamples are ignored.
+	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	bool bUseGridForSampling = true;
+
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (ClampMin = "1", UIMin = "1", UIMax = "25"))
+	int32 NumberOfHorizontalSamples = 5;
+
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (ClampMin = "1", UIMin = "1", UIMax = "25"))
+	int32 NumberOfVerticalSamples = 5;
+
+	UPROPERTY(EditAnywhere, Category = "Group")
+	FGameplayTagContainer GroupTags;
+
+public:
+
+	void GetBlendSpaceParameterSampleRanges(
+		int32& HorizontalBlendNum,
+		int32& VerticalBlendNum,
+		float& HorizontalBlendMin,
+		float& HorizontalBlendMax,
+		float& VerticalBlendMin,
+		float& VerticalBlendMax) const;
+};
+
 USTRUCT()
 struct POSESEARCH_API FPoseSearchDatabaseGroup
 {
@@ -705,7 +767,7 @@ public:
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
 	UPROPERTY(EditAnywhere, Category = "Database")
-	FPoseSearchBlockTransitionParameters BlockTransitionParameters = {0.0f, 0.2f};
+	FPoseSearchBlockTransitionParameters BlockTransitionParameters = { 0.0f, 0.2f };
 
 	UPROPERTY(EditAnywhere, Category = "Database")
 	TArray<FPoseSearchDatabaseGroup> Groups;
@@ -717,19 +779,27 @@ public:
 	UPROPERTY(EditAnywhere, Category="Database")
 	TArray<FPoseSearchDatabaseSequence> Sequences;
 
+	// Drag and drop blendspaces here to add them in bulk to Blend Spaces
+	UPROPERTY(EditAnywhere, Category = "Database", DisplayName = "Drag And Drop Blend Spaces Here")
+	TArray<TObjectPtr<UBlendSpace>> SimpleBlendSpaces;
+
+	UPROPERTY(EditAnywhere, Category = "Database")
+	TArray<FPoseSearchDatabaseBlendSpace> BlendSpaces;
+
 	UPROPERTY()
 	FPoseSearchIndex SearchIndex;
-
-	int32 FindSequenceForPose(int32 PoseIdx) const;
-	float GetSequenceLength(int32 DbSequenceIdx) const;
-	bool DoesSequenceLoop(int32 DbSequenceIdx) const;
 
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
 
-	int32 GetPoseIndexFromAssetTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const;
-	float GetTimeOffset(int32 PoseIdx, const FPoseSearchIndexAsset* SearchIndexAsset = nullptr) const;
-	const FPoseSearchDatabaseSequence& GetSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* SearchIndexAsset = nullptr) const;
+
+	const FPoseSearchDatabaseSequence& GetSequenceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	const FPoseSearchDatabaseBlendSpace& GetBlendSpaceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	const FGameplayTagContainer* GetSourceAssetGroupTags(const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	const FString GetSourceAssetName(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
@@ -740,6 +810,7 @@ public: // UObject
 
 private:
 	void CollectSimpleSequences();
+	void CollectSimpleBlendSpaces();
 
 public:
 	// Populates the FPoseSearchIndex::Assets array by evaluating the data in the Sequences array
@@ -952,9 +1023,9 @@ struct FSearchResult
 	FPoseCost PoseCost;
 	int32 PoseIdx = INDEX_NONE;
 	const FPoseSearchIndexAsset* SearchIndexAsset = nullptr;
-	float TimeOffsetSeconds = 0.0f;
+	float AssetTime = 0.0f;
 
-	bool IsValid() const { return PoseIdx >= 0; }
+	bool IsValid() const { return PoseIdx != INDEX_NONE; }
 };
 
 struct POSESEARCH_API FSearchContext

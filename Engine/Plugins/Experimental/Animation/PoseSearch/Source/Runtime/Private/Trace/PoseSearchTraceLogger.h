@@ -50,6 +50,9 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	/** If true, groups are being filtered by DatabaseGroupQuery */
 	TArrayView<const bool> DatabaseSequenceFilter;
 
+	/** If true, groups are being filtered by DatabaseGroupQuery */
+	TArrayView<const bool> DatabaseBlendSpaceFilter;
+
 	/** Index of the pose in our database */
 	int32 DbPoseIdx = 0;
 

@@ -9,9 +9,9 @@
 #include "Animation/AnimSyncScope.h"
 
 /////////////////////////////////////////////////////
-// FAnimNode_BlendSpacePlayer
+// FAnimNode_BlendSpacePlayerBase
 
-float FAnimNode_BlendSpacePlayer::GetCurrentAssetTime() const
+float FAnimNode_BlendSpacePlayerBase::GetCurrentAssetTime() const
 {
 	if(const FBlendSampleData* HighestWeightedSample = GetHighestWeightedSample())
 	{
@@ -22,13 +22,13 @@ float FAnimNode_BlendSpacePlayer::GetCurrentAssetTime() const
 	return 0.0f;
 }
 
-float FAnimNode_BlendSpacePlayer::GetCurrentAssetTimePlayRateAdjusted() const
+float FAnimNode_BlendSpacePlayerBase::GetCurrentAssetTimePlayRateAdjusted() const
 {
 	float Length = GetCurrentAssetLength();
 	return GetPlayRate() < 0.0f ? Length - InternalTimeAccumulator * Length : Length * InternalTimeAccumulator;
 }
 
-float FAnimNode_BlendSpacePlayer::GetCurrentAssetLength() const
+float FAnimNode_BlendSpacePlayerBase::GetCurrentAssetLength() const
 {
 	if(const FBlendSampleData* HighestWeightedSample = GetHighestWeightedSample())
 	{
@@ -44,7 +44,7 @@ float FAnimNode_BlendSpacePlayer::GetCurrentAssetLength() const
 	return 0.0f;
 }
 
-void FAnimNode_BlendSpacePlayer::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+void FAnimNode_BlendSpacePlayerBase::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_AssetPlayerBase::Initialize_AnyThread(Context);
@@ -56,19 +56,19 @@ void FAnimNode_BlendSpacePlayer::Initialize_AnyThread(const FAnimationInitialize
 	PreviousBlendSpace = GetBlendSpace();
 }
 
-void FAnimNode_BlendSpacePlayer::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+void FAnimNode_BlendSpacePlayerBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 }
 
-void FAnimNode_BlendSpacePlayer::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
+void FAnimNode_BlendSpacePlayerBase::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
 {
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	UpdateInternal(Context);
 }
 
-void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& Context)
+void FAnimNode_BlendSpacePlayerBase::UpdateInternal(const FAnimationUpdateContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateInternal)
 
@@ -114,7 +114,7 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Playback Time"), InternalTimeAccumulator);
 }
 
-void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
+void FAnimNode_BlendSpacePlayerBase::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread) 
 
@@ -130,7 +130,7 @@ void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
 	}
 }
 
-void FAnimNode_BlendSpacePlayer::GatherDebugData(FNodeDebugData& DebugData)
+void FAnimNode_BlendSpacePlayerBase::GatherDebugData(FNodeDebugData& DebugData)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
@@ -144,19 +144,19 @@ void FAnimNode_BlendSpacePlayer::GatherDebugData(FNodeDebugData& DebugData)
 	}
 }
 
-float FAnimNode_BlendSpacePlayer::GetTimeFromEnd(float CurrentTime) const
+float FAnimNode_BlendSpacePlayerBase::GetTimeFromEnd(float CurrentTime) const
 {
 	// Blend-spaces use normalized time value
 	const float PlayLength = 1.0f;
 	return GetBlendSpace() != nullptr ? PlayLength - CurrentTime : 0.0f;
 }
 
-UAnimationAsset* FAnimNode_BlendSpacePlayer::GetAnimAsset() const
+UAnimationAsset* FAnimNode_BlendSpacePlayerBase::GetAnimAsset() const
 {
 	return GetBlendSpace();
 }
 
-const FBlendSampleData* FAnimNode_BlendSpacePlayer::GetHighestWeightedSample() const
+const FBlendSampleData* FAnimNode_BlendSpacePlayerBase::GetHighestWeightedSample() const
 {
 	if(BlendSampleDataCache.Num() == 0)
 	{
@@ -176,7 +176,7 @@ const FBlendSampleData* FAnimNode_BlendSpacePlayer::GetHighestWeightedSample() c
 	return HighestSample;
 }
 
-void FAnimNode_BlendSpacePlayer::Reinitialize(bool bResetTime)
+void FAnimNode_BlendSpacePlayerBase::Reinitialize(bool bResetTime)
 {
 	BlendSampleDataCache.Empty();
 	if(bResetTime)
@@ -198,51 +198,8 @@ void FAnimNode_BlendSpacePlayer::Reinitialize(bool bResetTime)
 	}
 }
 
-bool FAnimNode_BlendSpacePlayer::SetBlendSpace(UBlendSpace* InBlendSpace)
-{
-#if WITH_EDITORONLY_DATA
-	BlendSpace = InBlendSpace;
-	GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace) = InBlendSpace;
-#endif
-	
-	if(TObjectPtr<UBlendSpace>* BlendSpacePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(TObjectPtr<UBlendSpace>, BlendSpace))
-	{
-		*BlendSpacePtr = InBlendSpace;
-		return true;
-	}
-
-	return false;
-}
-
-FVector FAnimNode_BlendSpacePlayer::GetPosition() const
-{
-	return FVector(GET_ANIM_NODE_DATA(float, X), GET_ANIM_NODE_DATA(float, Y), 0.0f);
-}
-
-float FAnimNode_BlendSpacePlayer::GetPlayRate() const
-{
-	return GET_ANIM_NODE_DATA(float, PlayRate);
-}
-
-bool FAnimNode_BlendSpacePlayer::GetLoop() const
-{
-	return GET_ANIM_NODE_DATA(bool, bLoop);
-}
-
-bool FAnimNode_BlendSpacePlayer::ShouldResetPlayTimeWhenBlendSpaceChanges() const
-{
-	return GET_ANIM_NODE_DATA(bool, bResetPlayTimeWhenBlendSpaceChanges);
-}
-
-float FAnimNode_BlendSpacePlayer::GetStartPosition() const
-{
-	return GET_ANIM_NODE_DATA(float, StartPosition);
-}
-
-UBlendSpace* FAnimNode_BlendSpacePlayer::GetBlendSpace() const
-{
-	return GET_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace);
-}
+/////////////////////////////////////////////////////
+// FAnimNode_BlendSpacePlayer
 
 FName FAnimNode_BlendSpacePlayer::GetGroupName() const
 {
@@ -322,4 +279,106 @@ bool FAnimNode_BlendSpacePlayer::SetIgnoreForRelevancyTest(bool bInIgnoreForRele
 	}
 
 	return false;
+}
+
+
+bool FAnimNode_BlendSpacePlayer::SetBlendSpace(UBlendSpace* InBlendSpace)
+{
+#if WITH_EDITORONLY_DATA
+	BlendSpace = InBlendSpace;
+	GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace) = InBlendSpace;
+#endif
+
+	if (TObjectPtr<UBlendSpace>* BlendSpacePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(TObjectPtr<UBlendSpace>, BlendSpace))
+	{
+		*BlendSpacePtr = InBlendSpace;
+		return true;
+	}
+
+	return false;
+}
+
+FVector FAnimNode_BlendSpacePlayer::GetPosition() const
+{
+	return FVector(GET_ANIM_NODE_DATA(float, X), GET_ANIM_NODE_DATA(float, Y), 0.0f);
+}
+
+bool FAnimNode_BlendSpacePlayer::SetPosition(FVector InPosition)
+{
+#if WITH_EDITORONLY_DATA
+	X = InPosition[0];
+	Y = InPosition[1];
+	GET_MUTABLE_ANIM_NODE_DATA(float, X) = InPosition[0];
+	GET_MUTABLE_ANIM_NODE_DATA(float, Y) = InPosition[1];
+#endif
+
+	float* XPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(float, X);
+	float* YPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(float, Y);
+
+	if (XPtr && YPtr)
+	{
+		*XPtr = InPosition[0];
+		*YPtr = InPosition[1];
+		return true;
+	}
+
+	return false;
+}
+
+
+float FAnimNode_BlendSpacePlayer::GetPlayRate() const
+{
+	return GET_ANIM_NODE_DATA(float, PlayRate);
+}
+
+bool FAnimNode_BlendSpacePlayer::SetPlayRate(float InPlayRate)
+{
+#if WITH_EDITORONLY_DATA
+	PlayRate = InPlayRate;
+	GET_MUTABLE_ANIM_NODE_DATA(float, PlayRate) = InPlayRate;
+#endif
+
+	if (float* PlayRatePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(float, PlayRate))
+	{
+		*PlayRatePtr = InPlayRate;
+		return true;
+	}
+
+	return false;
+}
+
+bool FAnimNode_BlendSpacePlayer::GetLoop() const
+{
+	return GET_ANIM_NODE_DATA(bool, bLoop);
+}
+
+bool FAnimNode_BlendSpacePlayer::SetLoop(bool bInLoop)
+{
+#if WITH_EDITORONLY_DATA
+	bLoop = bInLoop;
+	GET_MUTABLE_ANIM_NODE_DATA(bool, bLoop) = bInLoop;
+#endif
+
+	if (bool* bLoopPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bLoop))
+	{
+		*bLoopPtr = bInLoop;
+		return true;
+	}
+
+	return false;
+}
+
+bool FAnimNode_BlendSpacePlayer::ShouldResetPlayTimeWhenBlendSpaceChanges() const
+{
+	return GET_ANIM_NODE_DATA(bool, bResetPlayTimeWhenBlendSpaceChanges);
+}
+
+float FAnimNode_BlendSpacePlayer::GetStartPosition() const
+{
+	return GET_ANIM_NODE_DATA(float, StartPosition);
+}
+
+UBlendSpace* FAnimNode_BlendSpacePlayer::GetBlendSpace() const
+{
+	return GET_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace);
 }

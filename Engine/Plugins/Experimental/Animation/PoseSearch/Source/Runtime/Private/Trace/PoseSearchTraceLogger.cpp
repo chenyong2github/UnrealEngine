@@ -31,7 +31,8 @@ UE_TRACE_EVENT_BEGIN(PoseSearch, MotionMatchingState)
 	UE_TRACE_EVENT_FIELD(float, AnimLinearVelocity)
 	UE_TRACE_EVENT_FIELD(float, AnimAngularVelocity)
 	UE_TRACE_EVENT_FIELD(bool[], DatabaseSequenceFilter)
-UE_TRACE_EVENT_END()
+	UE_TRACE_EVENT_FIELD(bool[], DatabaseBlendSpaceFilter)
+	UE_TRACE_EVENT_END()
 
 namespace UE { namespace PoseSearch {
 
@@ -105,7 +106,8 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, c
 		<< MotionMatchingState.SimAngularVelocity(State.SimAngularVelocity)
 		<< MotionMatchingState.AnimLinearVelocity(State.AnimLinearVelocity)
 		<< MotionMatchingState.AnimAngularVelocity(State.AnimAngularVelocity)
-		<< MotionMatchingState.DatabaseSequenceFilter(State.DatabaseSequenceFilter.GetData(), State.DatabaseSequenceFilter.Num());
+		<< MotionMatchingState.DatabaseSequenceFilter(State.DatabaseSequenceFilter.GetData(), State.DatabaseSequenceFilter.Num())
+		<< MotionMatchingState.DatabaseBlendSpaceFilter(State.DatabaseBlendSpaceFilter.GetData(), State.DatabaseBlendSpaceFilter.Num());
 }
 
 }}

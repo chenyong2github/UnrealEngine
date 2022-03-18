@@ -123,6 +123,11 @@ struct POSESEARCH_API FMotionMatchingState
 	// Evaluation flags relevant to the state of motion matching
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=State)
 	EMotionMatchingFlags Flags = EMotionMatchingFlags::None;
+
+	// Root motion delta for currently playing animation. Only required
+	// when UE_POSE_SEARCH_TRACE_ENABLED is active
+	UPROPERTY(Transient)
+	FTransform RootMotionTransformDelta = FTransform::Identity;
 };
 
 /**
@@ -141,22 +146,3 @@ POSESEARCH_API void UpdateMotionMatchingState(const FAnimationUpdateContext& Con
 	, const FMotionMatchingSettings& Settings
 	, FMotionMatchingState& InOutMotionMatchingState
 );
-
-// Exposes common pose search operations to Blueprint and native code
-UCLASS(Category="Animation|Pose Search")
-class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
-{
-	GENERATED_BODY()
-
-public:
-
-	// Encapsulates and computes the motion matching algorithm for a sequence player
-	UFUNCTION(BlueprintPure, Category="Pose Search", meta=(BlueprintThreadSafe, AutoCreateRefTerm="Trajectory, Settings"))
-	static void UpdateMotionMatchingForSequencePlayer(const FAnimUpdateContext& AnimUpdateContext
-		, const FSequencePlayerReference& SequencePlayer
-		, const UPoseSearchDatabase* Database
-		, const FTrajectorySampleRange& Trajectory
-		, const FMotionMatchingSettings& Settings
-		, UPARAM(ref) FMotionMatchingState& InOutMotionMatchingState
-	);
-};

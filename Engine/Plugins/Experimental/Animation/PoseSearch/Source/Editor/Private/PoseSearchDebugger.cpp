@@ -6,7 +6,9 @@
 #include "PoseSearch/PoseSearch.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/MirrorDataTable.h"
+#include "Animation/AnimRootMotionProvider.h"
 #include "RewindDebuggerInterface/Public/IRewindDebugger.h"
 #include "ObjectTrace.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -26,7 +28,6 @@
 #include "Algo/AllOf.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchDebugger"
-
 
 void FPoseSearchDebuggerPoseVectorChannel::Reset()
 {
@@ -144,17 +145,74 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 	UE::Anim::FStackAttributeContainer Attributes;
 	FAnimationPoseData PoseData(CompactPose, Curve, Attributes);
 
-	float AdvancedTime = UpdateContext.SequenceStartTime;
-	FAnimationRuntime::AdvanceTime(
-		UpdateContext.bLoop,
-		UpdateContext.SequenceTime - UpdateContext.SequenceStartTime,
-		AdvancedTime,
-		UpdateContext.Sequence->GetPlayLength());
+	if (UpdateContext.Type == ESearchIndexAssetType::Sequence)
+	{
+		float AdvancedTime = UpdateContext.StartTime;
 
-	FAnimExtractContext ExtractionCtx;
-	ExtractionCtx.CurrentTime = AdvancedTime;
+		FAnimationRuntime::AdvanceTime(
+			UpdateContext.bLoop,
+			UpdateContext.Time - UpdateContext.StartTime,
+			AdvancedTime,
+			UpdateContext.Sequence->GetPlayLength());
 
-	UpdateContext.Sequence->GetAnimationPose(PoseData, ExtractionCtx);
+		FAnimExtractContext ExtractionCtx;
+		ExtractionCtx.CurrentTime = AdvancedTime;
+
+		UpdateContext.Sequence->GetAnimationPose(PoseData, ExtractionCtx);
+	}
+	else if (UpdateContext.Type == ESearchIndexAssetType::BlendSpace)
+	{
+		TArray<FBlendSampleData> BlendSamples;
+		int32 TriangulationIndex = 0;
+		UpdateContext.BlendSpace->GetSamplesFromBlendInput(UpdateContext.BlendParameters, BlendSamples, TriangulationIndex, true);
+		
+		float PlayLength = UpdateContext.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+		
+		float PreviousTime = UpdateContext.StartTime * PlayLength;
+		float CurrentTime = UpdateContext.Time * PlayLength;
+
+		float AdvancedTime = PreviousTime;
+		FAnimationRuntime::AdvanceTime(
+			UpdateContext.bLoop,
+			CurrentTime - PreviousTime,
+			CurrentTime,
+			PlayLength);
+		
+		FDeltaTimeRecord DeltaTimeRecord;
+		DeltaTimeRecord.Set(PreviousTime, AdvancedTime - PreviousTime);
+		FAnimExtractContext ExtractionCtx(AdvancedTime, true, DeltaTimeRecord, UpdateContext.bLoop);
+
+		for (int32 BlendSampleIdex = 0; BlendSampleIdex < BlendSamples.Num(); BlendSampleIdex++)
+		{
+			float Scale = BlendSamples[BlendSampleIdex].Animation->GetPlayLength() / PlayLength;
+
+			FDeltaTimeRecord BlendSampleDeltaTimeRecord;
+			BlendSampleDeltaTimeRecord.Set(DeltaTimeRecord.GetPrevious() * Scale, DeltaTimeRecord.Delta * Scale);
+
+			BlendSamples[BlendSampleIdex].DeltaTimeRecord = BlendSampleDeltaTimeRecord;
+			BlendSamples[BlendSampleIdex].PreviousTime = PreviousTime * Scale;
+			BlendSamples[BlendSampleIdex].Time = AdvancedTime * Scale;
+		}
+
+		UpdateContext.BlendSpace->GetAnimationPose(BlendSamples, ExtractionCtx, PoseData);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+
+	LastRootMotionDelta = FTransform::Identity;
+
+	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
+
+	if (ensureMsgf(RootMotionProvider, TEXT("Could not get Root Motion Provider.")))
+	{
+		if (ensureMsgf(RootMotionProvider->HasRootMotion(Attributes), TEXT("Blend Space had no Root Motion Attribute.")))
+		{
+			RootMotionProvider->ExtractRootMotion(Attributes, LastRootMotionDelta);
+		}
+	}
+
 	if (UpdateContext.bMirrored)
 	{
 		FAnimationRuntime::MirrorPose(
@@ -178,11 +236,6 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 			RequiredBones.GetSkeletonAsset()->GetReferenceSkeleton().GetBoneName(SkeletonBoneIndex.GetInt());
 		SetBoneTransformByName(BoneName, BoneTransform, EBoneSpaces::ComponentSpace);
 	}
-
-	LastRootMotionDelta = UpdateContext.Sequence->ExtractRootMotion(
-		UpdateContext.SequenceStartTime, 
-		UpdateContext.SequenceTime - UpdateContext.SequenceStartTime,
-		UpdateContext.bLoop);
 
 	if (UpdateContext.bMirrored)
 	{
@@ -215,13 +268,15 @@ public:
 	float GetTrajectoryCost() const { return PoseCostDetails.ChannelCosts.Num() >= 3 ? PoseCostDetails.ChannelCosts[1] + PoseCostDetails.ChannelCosts[2] : 0.0f; }
 	float GetAddendsCost() const { return PoseCostDetails.NotifyCostAddend + PoseCostDetails.MirrorMismatchCostAddend; }
 
+	ESearchIndexAssetType AssetType = ESearchIndexAssetType::Invalid;
 	int32 PoseIdx = 0;
-	FString AnimSequenceName = "";
-	FString AnimSequencePath = "";
-	int32 DbSequenceIdx = 0;
+	FString AssetName = "";
+	FString AssetPath = "";
+	int32 DbAssetIdx = 0;
 	int32 AnimFrame = 0;
-	float Time = 0.0f;
+	float AssetTime = 0.0f;
 	bool bMirrored = false;
+	FVector BlendParameters = FVector::Zero();
 	FPoseCostDetails PoseCostDetails;
 };
 
@@ -297,7 +352,7 @@ namespace DebuggerDatabaseColumns
 	};
 	const FName FPoseIdx::Name = "Pose Index";
 
-	struct FAnimSequenceName : IColumn
+	struct FAssetName : IColumn
 	{
 		using IColumn::IColumn;
 		static const FName Name;
@@ -305,28 +360,57 @@ namespace DebuggerDatabaseColumns
 		
 		virtual FSortPredicate GetSortPredicate() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AnimSequenceName < Row1->AnimSequenceName; };
-			return Predicate;
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AssetName < Row1->AssetName; };
 		}
 
 		virtual TSharedRef<SWidget> GenerateWidget(const FRowDataRef& RowData) const override
 		{
 			return SNew(SHyperlink)
-				.Text_Lambda([RowData]() -> FText { return FText::FromString(RowData->AnimSequenceName); })
+				.Text_Lambda([RowData]() -> FText { return FText::FromString(RowData->AssetName); })
 				.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
 				.ToolTipText_Lambda([RowData]() -> FText 
 					{ 
 						return FText::Format(
 							LOCTEXT("AssetHyperlinkTooltipFormat", "Open asset '{0}'"), 
-							FText::FromString(RowData->AnimSequencePath)); 
+							FText::FromString(RowData->AssetPath)); 
 					})
 				.OnNavigate_Lambda([RowData]()
 					{
-						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RowData->AnimSequencePath);
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RowData->AssetPath);
 					});
 		}
 	};
-	const FName FAnimSequenceName::Name = "Sequence";
+	const FName FAssetName::Name = "Asset";
+
+	struct FAssetType : ITextColumn
+	{
+		using ITextColumn::ITextColumn;
+		static const FName Name;
+		virtual FName GetName() const override { return Name; }
+
+		virtual FSortPredicate GetSortPredicate() const override
+		{
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AssetType < Row1->AssetType; };
+		}
+
+		virtual FText GetRowText(const FRowDataRef& Row) const override
+		{
+			if (Row->AssetType == ESearchIndexAssetType::Sequence)
+			{
+				return FText::FromString(TEXT("Sequence"));
+			}
+			else if (Row->AssetType == ESearchIndexAssetType::BlendSpace)
+			{
+				return FText::FromString(TEXT("BlendSpace"));
+			}
+			else
+			{
+				checkNoEntry();
+				return FText::FromString(TEXT(""));
+			}
+		}
+	};
+	const FName FAssetType::Name = "Type";
 
 	struct FFrame : ITextColumn
 	{
@@ -336,8 +420,7 @@ namespace DebuggerDatabaseColumns
 		
 		virtual FSortPredicate GetSortPredicate() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->Time < Row1->Time; };
-			return Predicate;
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AssetTime < Row1->AssetTime; };
 		}
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
@@ -346,11 +429,25 @@ namespace DebuggerDatabaseColumns
 				.SetUseGrouping(false)
 				.SetMaximumFractionalDigits(2);
 
-			return FText::Format(
-				FText::FromString("{0} ({1})"),
-				FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
-				FText::AsNumber(Row->Time, &TimeFormattingOptions)
-			);
+			if (Row->AssetType == ESearchIndexAssetType::Sequence)
+			{
+				return FText::Format(
+					FText::FromString("{0} ({1})"),
+					FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
+					FText::AsNumber(Row->AssetTime, &TimeFormattingOptions));
+			}
+			else if (Row->AssetType == ESearchIndexAssetType::BlendSpace)
+			{
+				// There is no frame index associated with a blendspace
+				return FText::Format(
+					FText::FromString("({0})"),
+					FText::AsNumber(Row->AssetTime, &TimeFormattingOptions));
+			}
+			else
+			{
+				checkNoEntry();
+				return FText();
+			}
 		}
 	};
 	const FName FFrame::Name = "Frame";
@@ -419,10 +516,7 @@ namespace DebuggerDatabaseColumns
 
 		virtual FSortPredicate GetSortPredicate() const override
 		{
-			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
-			{ 
-				return Row0->GetAddendsCost() < Row1->GetAddendsCost();
-			};
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetAddendsCost() < Row1->GetAddendsCost(); };
 		}
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
@@ -440,10 +534,7 @@ namespace DebuggerDatabaseColumns
 
 		virtual FSortPredicate GetSortPredicate() const override
 		{
-			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
-			{ 
-				return Row0->bMirrored < Row1->bMirrored; 
-			};
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->bMirrored < Row1->bMirrored; };
 		}
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
@@ -452,6 +543,45 @@ namespace DebuggerDatabaseColumns
 		}
 	};
 	const FName FMirrored::Name = "Mirrored";
+
+	struct FBlendParameters : ITextColumn
+	{
+		using ITextColumn::ITextColumn;
+		static const FName Name;
+		virtual FName GetName() const override { return Name; }
+
+		virtual FSortPredicate GetSortPredicate() const override
+		{
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool
+			{
+				return (
+					Row0->BlendParameters[0] < Row1->BlendParameters[0] ||
+					Row0->BlendParameters[1] < Row1->BlendParameters[1]);
+			};
+		}
+
+		virtual FText GetRowText(const FRowDataRef& Row) const override
+		{
+			if (Row->AssetType == ESearchIndexAssetType::Sequence)
+			{
+				return FText::FromString(TEXT("-"));
+			}
+			else if (Row->AssetType == ESearchIndexAssetType::BlendSpace)
+			{
+				return FText::Format(
+					LOCTEXT("Blend Parameters", "({0}, {1})"),
+					FText::AsNumber(Row->BlendParameters[0]),
+					FText::AsNumber(Row->BlendParameters[1]));
+			}
+			else
+			{
+				checkNoEntry();
+				return FText();
+			}
+		}
+	};
+	const FName FBlendParameters::Name = "Blend Parameters";
+
 }
 
 
@@ -656,18 +786,18 @@ void SDebuggerDatabaseView::OnDatabaseRowSelectionChanged(
 {
 	if (Row.IsValid())
 	{
-		OnPoseSelectionChanged.ExecuteIfBound(Row->PoseIdx, Row->Time);
+		OnPoseSelectionChanged.ExecuteIfBound(Row->PoseIdx, Row->AssetTime);
 	}
 }
 
-ECheckBoxState SDebuggerDatabaseView::IsSequenceFilterEnabled() const
+ECheckBoxState SDebuggerDatabaseView::IsAssetFilterEnabled() const
 {
-	return bSequenceFilterEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return bAssetFilterEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void SDebuggerDatabaseView::OnSequenceFilterEnabledChanged(ECheckBoxState NewState)
+void SDebuggerDatabaseView::OnAssetFilterEnabledChanged(ECheckBoxState NewState)
 {
-	bSequenceFilterEnabled = NewState == ECheckBoxState::Checked;
+	bAssetFilterEnabled = NewState == ECheckBoxState::Checked;
 	FilterDatabaseRows();
 }
 
@@ -700,7 +830,9 @@ void SDebuggerDatabaseView::FilterDatabaseRows()
 	{
 		for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
 		{
-			if (!bSequenceFilterEnabled || DatabaseSequenceFilter[UnfilteredRow->DbSequenceIdx])
+			if (!bAssetFilterEnabled || 
+				(UnfilteredRow->AssetType == ESearchIndexAssetType::Sequence && DatabaseSequenceFilter[UnfilteredRow->DbAssetIdx]) ||
+				(UnfilteredRow->AssetType == ESearchIndexAssetType::BlendSpace && DatabaseBlendSpaceFilter[UnfilteredRow->DbAssetIdx]))
 			{
 				FilteredDatabaseView.Rows.Add(UnfilteredRow);
 			}
@@ -710,13 +842,15 @@ void SDebuggerDatabaseView::FilterDatabaseRows()
 	{
 		for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
 		{
-			if (!bSequenceFilterEnabled || DatabaseSequenceFilter[UnfilteredRow->DbSequenceIdx])
+			if (!bAssetFilterEnabled ||
+				(UnfilteredRow->AssetType == ESearchIndexAssetType::Sequence && DatabaseSequenceFilter[UnfilteredRow->DbAssetIdx]) ||
+				(UnfilteredRow->AssetType == ESearchIndexAssetType::BlendSpace && DatabaseBlendSpaceFilter[UnfilteredRow->DbAssetIdx]))
 			{
 				bool bMatchesAllTokens = Algo::AllOf(
 					Tokens,
 					[&](FString Token)
 				{
-					return UnfilteredRow->AnimSequenceName.Contains(Token);
+					return UnfilteredRow->AssetName.Contains(Token);
 				});
 
 				if (bMatchesAllTokens)
@@ -740,21 +874,51 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 	// Build database rows
 	for(const FPoseSearchIndexAsset& SearchIndexAsset : Database.SearchIndex.Assets)
 	{
-		const FPoseSearchDatabaseSequence& DbSequence = Database.GetSourceAsset(&SearchIndexAsset);
-		const int32 LastPoseIdx = SearchIndexAsset.FirstPoseIdx + SearchIndexAsset.NumPoses;
-		for (int32 PoseIdx = SearchIndexAsset.FirstPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
+		if (SearchIndexAsset.Type == ESearchIndexAssetType::Sequence)
 		{
-			float Time = Database.GetTimeOffset(PoseIdx);
+			const FPoseSearchDatabaseSequence& DbSequence = Database.GetSequenceSourceAsset(&SearchIndexAsset);
+			const int32 LastPoseIdx = SearchIndexAsset.FirstPoseIdx + SearchIndexAsset.NumPoses;
+			for (int32 PoseIdx = SearchIndexAsset.FirstPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
+			{
+				float Time = Database.GetAssetTime(PoseIdx);
 
-			TSharedRef<FDebuggerDatabaseRowData> Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
-			Row->PoseIdx = PoseIdx;
-			Row->AnimSequenceName = DbSequence.Sequence->GetName();
-			Row->AnimSequencePath = DbSequence.Sequence->GetPathName();
-			Row->DbSequenceIdx = SearchIndexAsset.SourceAssetIdx;
-			Row->Time = Time;
-			Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
-			Row->bMirrored = SearchIndexAsset.bMirrored;
+				TSharedRef<FDebuggerDatabaseRowData> Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
+				Row->PoseIdx = PoseIdx;
+				Row->AssetType = ESearchIndexAssetType::Sequence;
+				Row->AssetName = DbSequence.Sequence->GetName();
+				Row->AssetPath = DbSequence.Sequence->GetPathName();
+				Row->DbAssetIdx = SearchIndexAsset.SourceAssetIdx;
+				Row->AssetTime = Time;
+				Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
+				Row->bMirrored = SearchIndexAsset.bMirrored;
+				Row->BlendParameters = FVector::Zero();
+			}
 		}
+		else if (SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace)
+		{
+			const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database.GetBlendSpaceSourceAsset(&SearchIndexAsset);
+			const int32 LastPoseIdx = SearchIndexAsset.FirstPoseIdx + SearchIndexAsset.NumPoses;
+			for (int32 PoseIdx = SearchIndexAsset.FirstPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
+			{
+				float Time = Database.GetAssetTime(PoseIdx);
+
+				TSharedRef<FDebuggerDatabaseRowData> Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
+				Row->PoseIdx = PoseIdx;
+				Row->AssetType = ESearchIndexAssetType::BlendSpace;
+				Row->AssetName = DbBlendSpace.BlendSpace->GetName();
+				Row->AssetPath = DbBlendSpace.BlendSpace->GetPathName();
+				Row->DbAssetIdx = SearchIndexAsset.SourceAssetIdx;
+				Row->AssetTime = Time;
+				Row->AnimFrame = 0; // There is no frame index associated with a blendspace
+				Row->bMirrored = SearchIndexAsset.bMirrored;
+				Row->BlendParameters = SearchIndexAsset.BlendParameters;
+			}
+		}
+		else
+		{
+			checkNoEntry();
+		}
+
 	}
 
 	ActiveView.Rows.Reset();
@@ -798,6 +962,7 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	}
 
 	DatabaseSequenceFilter = State.DatabaseSequenceFilter;
+	DatabaseBlendSpaceFilter = State.DatabaseBlendSpaceFilter;
 
 	SortDatabaseRows();
 	FilterDatabaseRows();
@@ -833,14 +998,16 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 
 	// @TODO: Support runtime reordering of these indices
 	// Construct all column types
-	AddColumn(MakeShared<FAnimSequenceName>(0));
-	AddColumn(MakeShared<FCost>(1));
-	AddColumn(MakeShared<FPoseCostColumn>(2));
-	AddColumn(MakeShared<FTrajectoryCost>(3));
-	AddColumn(MakeShared<FCostModifier>(4));
-	AddColumn(MakeShared<FFrame>(5));
-	AddColumn(MakeShared<FMirrored>(6));
-	AddColumn(MakeShared<FPoseIdx>(7));
+	AddColumn(MakeShared<FAssetName>(0));
+	AddColumn(MakeShared<FAssetType>(1));
+	AddColumn(MakeShared<FCost>(2));
+	AddColumn(MakeShared<FPoseCostColumn>(3));
+	AddColumn(MakeShared<FTrajectoryCost>(4));
+	AddColumn(MakeShared<FCostModifier>(5));
+	AddColumn(MakeShared<FFrame>(6));
+	AddColumn(MakeShared<FMirrored>(7));
+	AddColumn(MakeShared<FBlendParameters>(8));
+	AddColumn(MakeShared<FPoseIdx>(9));
 
 	// Active Row
 	ActiveView.HeaderRow = SNew(SHeaderRow);
@@ -1006,8 +1173,8 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				.Padding(10, 5, 10, 5)
 				[
 					SNew(SCheckBox)
-					.IsChecked(this, &SDebuggerDatabaseView::IsSequenceFilterEnabled)
-					.OnCheckStateChanged(this, &SDebuggerDatabaseView::OnSequenceFilterEnabledChanged)
+					.IsChecked(this, &SDebuggerDatabaseView::IsAssetFilterEnabled)
+					.OnCheckStateChanged(this, &SDebuggerDatabaseView::OnAssetFilterEnabledChanged)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("PoseSearchDebuggerGroupFiltering", "Apply Group Filtering"))
@@ -1100,10 +1267,10 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	Reflection->ElapsedPoseJumpTime = State.ElapsedPoseJumpTime;
 	Reflection->bFollowUpAnimation = EnumHasAnyFlags(State.Flags, FTraceMotionMatchingState::EFlags::FollowupAnimation);
 
-	Reflection->AssetPlayerSequenceName = FString();
+	Reflection->AssetPlayerAssetName = FString();
 	if (const FPoseSearchIndexAsset* IndexAsset = Database.SearchIndex.FindAssetForPose(State.DbPoseIdx))
 	{
-		Reflection->AssetPlayerSequenceName = Database.GetSourceAsset(IndexAsset).Sequence->GetName();
+		Reflection->AssetPlayerAssetName = Database.GetSourceAssetName(IndexAsset);
 	}
 
 	Reflection->AssetPlayerTime = State.AssetPlayerTime;
@@ -1288,7 +1455,7 @@ void SDebuggerView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 		bUpdated = true;
 	}
 
-	Model->UpdateAnimSequence();
+	Model->UpdateAsset();
 	
 	// Draw visualization every tick
 	DrawVisualization();
@@ -1467,7 +1634,7 @@ void SDebuggerView::DrawFeatures(
 		SkeletonDrawParams.Flags |= ESkeletonDrawFlags::ActivePose;
 	}
 
-	SkeletonDrawParams.Flags |= ESkeletonDrawFlags::AnimSequence;
+	SkeletonDrawParams.Flags |= ESkeletonDrawFlags::Asset;
 
 	ViewModel.Get()->OnDraw(SkeletonDrawParams);
 }
@@ -1525,7 +1692,7 @@ void SDebuggerView::OnPoseSelectionChanged(int32 PoseIdx, float Time)
 	else
 	{
 		Model->ShowSelectedSkeleton(PoseIdx, Time);
-		// Stop sequence player when switching selections
+		// Stop asset player when switching selections
 		Model->StopSelection();
 	}
 }
@@ -1538,7 +1705,7 @@ FReply SDebuggerView::OnUpdateNodeSelection(int32 InSelectedNodeId)
 	return FReply::Handled();
 }
 
-FReply SDebuggerView::TogglePlaySelectedSequences() const
+FReply SDebuggerView::TogglePlaySelectedAssets() const
 {
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& DatabaseRows = DatabaseView->GetDatabaseRows();
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> Selected = DatabaseRows->GetSelectedItems();
@@ -1548,7 +1715,7 @@ FReply SDebuggerView::TogglePlaySelectedSequences() const
 		if (!Selected.IsEmpty())
 		{
 			// @TODO: Make functional with multiple poses being selected
-			ViewModel.Get()->PlaySelection(Selected[0]->PoseIdx, Selected[0]->Time);
+			ViewModel.Get()->PlaySelection(Selected[0]->PoseIdx, Selected[0]->AssetTime);
 		}
 	}
 	else
@@ -1640,7 +1807,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 		.HAlign(HAlign_Fill)
 		.ButtonStyle(FEditorStyle::Get(), "Button")
 		.ContentPadding( FMargin(5, 0) )
-		.OnClicked(this, &SDebuggerView::TogglePlaySelectedSequences)
+		.OnClicked(this, &SDebuggerView::TogglePlaySelectedAssets)
 		[
 			SNew(SHorizontalBox)
 			// Icon
@@ -1660,7 +1827,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text_Lambda([this] { return ViewModel.Get()->IsPlayingSelections() ? FText::FromString("Stop Selected Sequence") : FText::FromString("Play Selected Sequence"); })
+				.Text_Lambda([this] { return ViewModel.Get()->IsPlayingSelections() ? FText::FromString("Stop Selected Asset") : FText::FromString("Play Selected Asset"); })
 				.Justification(ETextJustify::Center)
 			]
 		]
@@ -1679,7 +1846,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 		.Padding(0, 5, 0, 0)
 		[
 			SNew(STextBlock)
-			.Text(FText::FromString("Sequence Play Rate: "))
+			.Text(FText::FromString("Asset Play Rate: "))
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -1816,6 +1983,20 @@ const FPoseSearchDatabaseSequence* FDebuggerViewModel::GetAnimSequence(int32 Seq
 	return nullptr;
 }
 
+const FPoseSearchDatabaseBlendSpace* FDebuggerViewModel::GetBlendSpace(int32 BlendSpaceIdx) const
+{
+	const UPoseSearchDatabase* Database = GetPoseSearchDatabase();
+	if (Database && Database->BlendSpaces.IsValidIndex(BlendSpaceIdx))
+	{
+		const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = &Database->BlendSpaces[BlendSpaceIdx];
+		if (DatabaseBlendSpace)
+		{
+			return DatabaseBlendSpace;
+		}
+	}
+	return nullptr;
+}
+
 void FDebuggerViewModel::ShowSelectedSkeleton(int32 PoseIdx, float Time)
 {
 	const UPoseSearchDatabase* Database = GetPoseSearchDatabase();
@@ -1831,10 +2012,12 @@ void FDebuggerViewModel::ShowSelectedSkeleton(int32 PoseIdx, float Time)
 
 	Component->ResetToStart();
 	bSelecting = true;
-	const FPoseSearchIndexAsset* Asset = Database->SearchIndex.FindAssetForPose(PoseIdx);
-	Skeletons[SelectedPose].SequenceIdx = Asset->SourceAssetIdx;
+	const FPoseSearchIndexAsset* IndexAsset = Database->SearchIndex.FindAssetForPose(PoseIdx);
+	Skeletons[SelectedPose].Type = IndexAsset->Type;
 	Skeletons[SelectedPose].Time = Time;
-	Skeletons[SelectedPose].bMirrored = Asset->bMirrored;
+	Skeletons[SelectedPose].bMirrored = IndexAsset->bMirrored;
+	Skeletons[SelectedPose].AssetIdx = IndexAsset->SourceAssetIdx;
+	Skeletons[SelectedPose].BlendParameters = IndexAsset->BlendParameters;
 }
 
 void FDebuggerViewModel::ClearSelectedSkeleton()
@@ -1911,12 +2094,15 @@ void FDebuggerViewModel::OnUpdateNodeSelection(int32 InNodeId)
 
 	if (ActiveMotionMatchingState)
 	{
-		//todo: this seems wrong, sequenceidx == poseidx? let's test doing it right
-		//Skeletons[ActivePose].SequenceIdx = ActiveMotionMatchingState->DbPoseIdx;
+		const FPoseSearchIndexAsset* IndexAsset = NewDatabase->SearchIndex.FindAssetForPose(ActiveMotionMatchingState->DbPoseIdx);
 
-		const FPoseSearchIndexAsset* Asset = 
-			NewDatabase->SearchIndex.FindAssetForPose(ActiveMotionMatchingState->DbPoseIdx);
-		Skeletons[ActivePose].SequenceIdx = Asset->SourceAssetIdx;
+		if (IndexAsset)
+		{
+			Skeletons[Asset].Type = IndexAsset->Type;
+			Skeletons[Asset].bMirrored = IndexAsset->bMirrored;
+			Skeletons[Asset].AssetIdx = IndexAsset->SourceAssetIdx;
+			Skeletons[Asset].BlendParameters = IndexAsset->BlendParameters;
+		}
 	}
 
 	if (NewDatabase != CurrentDatabase)
@@ -1954,33 +2140,71 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 	if (bDrawSelectedPose)
 	{
 		UPoseSearchMeshComponent* Component = Skeletons[SelectedPose].Component;
-		const FPoseSearchDatabaseSequence* DatabaseSequence = GetAnimSequence(Skeletons[SelectedPose].SequenceIdx);
-		UAnimSequence* Sequence = DatabaseSequence->Sequence;
 
-		UpdateContext.Sequence = Sequence;
-		UpdateContext.SequenceStartTime = Skeletons[SelectedPose].Time;
-		UpdateContext.SequenceTime = Skeletons[SelectedPose].Time;
-		UpdateContext.bMirrored = Skeletons[SelectedPose].bMirrored;
-		UpdateContext.bLoop = DatabaseSequence->bLoopAnimation;
+		if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::Sequence)
+		{
+			const FPoseSearchDatabaseSequence* DatabaseSequence = GetAnimSequence(Skeletons[SelectedPose].AssetIdx);
+
+			UpdateContext.Type = ESearchIndexAssetType::Sequence;
+			UpdateContext.Sequence = DatabaseSequence->Sequence;
+			UpdateContext.StartTime = Skeletons[SelectedPose].Time;
+			UpdateContext.Time = Skeletons[SelectedPose].Time;
+			UpdateContext.bMirrored = Skeletons[SelectedPose].bMirrored;
+			UpdateContext.bLoop = DatabaseSequence->bLoopAnimation;
+		}
+		else if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::BlendSpace)
+		{
+			const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = GetBlendSpace(Skeletons[SelectedPose].AssetIdx);
+
+			UpdateContext.Type = ESearchIndexAssetType::BlendSpace;
+			UpdateContext.BlendSpace = DatabaseBlendSpace->BlendSpace;
+			UpdateContext.StartTime = Skeletons[SelectedPose].Time;
+			UpdateContext.Time = Skeletons[SelectedPose].Time;
+			UpdateContext.bMirrored = Skeletons[SelectedPose].bMirrored;
+			UpdateContext.bLoop = DatabaseBlendSpace->bLoopAnimation;
+			UpdateContext.BlendParameters = Skeletons[SelectedPose].BlendParameters;
+		}
+		else
+		{
+			checkNoEntry();
+		}
 
 		Component->UpdatePose(UpdateContext);
 	}
 
-	const bool bDrawSequence = EnumHasAnyFlags(DrawParams.Flags, ESkeletonDrawFlags::AnimSequence);
-	if (bDrawSequence && SequenceData.bActive)
+	const bool bDrawAsset = EnumHasAnyFlags(DrawParams.Flags, ESkeletonDrawFlags::Asset);
+	if (bDrawAsset && AssetData.bActive)
 	{
-		UPoseSearchMeshComponent* Component = Skeletons[AnimSequence].Component;
+		UPoseSearchMeshComponent* Component = Skeletons[Asset].Component;
 		SetDrawSkeleton(Component, true);
 
-		const FPoseSearchDatabaseSequence* DatabaseSequence = GetAnimSequence(Skeletons[AnimSequence].SequenceIdx);
-		UAnimSequence* Sequence = DatabaseSequence->Sequence;
+		if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::Sequence)
+		{
+			const FPoseSearchDatabaseSequence* DatabaseSequence = GetAnimSequence(Skeletons[Asset].AssetIdx);
 
-		UpdateContext.Sequence = Sequence;
-		UpdateContext.SequenceStartTime = SequenceData.StartTime;
-		UpdateContext.SequenceTime = Skeletons[AnimSequence].Time;
-		UpdateContext.bMirrored = Skeletons[SelectedPose].bMirrored;
-		UpdateContext.bLoop = DatabaseSequence->bLoopAnimation;
+			UpdateContext.Type = ESearchIndexAssetType::Sequence;
+			UpdateContext.Sequence = DatabaseSequence->Sequence;
+			UpdateContext.StartTime = Skeletons[Asset].Time;
+			UpdateContext.Time = Skeletons[Asset].Time;
+			UpdateContext.bMirrored = Skeletons[Asset].bMirrored;
+			UpdateContext.bLoop = DatabaseSequence->bLoopAnimation;
+		}
+		else if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::BlendSpace)
+		{
+			const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = GetBlendSpace(Skeletons[Asset].AssetIdx);
 
+			UpdateContext.Type = ESearchIndexAssetType::BlendSpace;
+			UpdateContext.BlendSpace = DatabaseBlendSpace->BlendSpace;
+			UpdateContext.StartTime = Skeletons[Asset].Time;
+			UpdateContext.Time = Skeletons[Asset].Time;
+			UpdateContext.bMirrored = Skeletons[Asset].bMirrored;
+			UpdateContext.bLoop = DatabaseBlendSpace->bLoopAnimation;
+			UpdateContext.BlendParameters = Skeletons[Asset].BlendParameters;
+		}
+		else
+		{
+			checkNoEntry();
+		}
 
 		Component->UpdatePose(UpdateContext);
 	}
@@ -2042,13 +2266,13 @@ void FDebuggerViewModel::UpdateFromTimeline()
 			}
 			UPoseSearchMeshComponent* ActiveComponent = Skeletons[ActivePose].Component;
 			UPoseSearchMeshComponent* SelectedComponent = Skeletons[SelectedPose].Component;
-			UPoseSearchMeshComponent* SequenceComponent = Skeletons[AnimSequence].Component;
+			UPoseSearchMeshComponent* AssetComponent = Skeletons[Asset].Component;
 			USkeletalMesh* SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(SkeletalMeshObjectInfo->PathName)).LoadSynchronous();
 			if (SkeletalMesh)
 			{
 				ActiveComponent->SetSkeletalMesh(SkeletalMesh);
 				SelectedComponent->SetSkeletalMesh(SkeletalMesh);
-				SequenceComponent->SetSkeletalMesh(SkeletalMesh);
+				AssetComponent->SetSkeletalMesh(SkeletalMesh);
 			}
 			FTransform ComponentWorldTransform;
 			// Active skeleton is simply the traced bone transforms
@@ -2057,15 +2281,15 @@ void FDebuggerViewModel::UpdateFromTimeline()
 			ActiveComponent->SetDebugDrawColor(FLinearColor::Green);
 			SelectedComponent->SetDebugDrawColor(FLinearColor::Blue);
 			SelectedComponent->Initialize(ComponentWorldTransform);
-			SequenceComponent->SetDebugDrawColor(FLinearColor::Red);
-			SequenceComponent->Initialize(ComponentWorldTransform);
+			AssetComponent->SetDebugDrawColor(FLinearColor::Red);
+			AssetComponent->Initialize(ComponentWorldTransform);
 
 			return TraceServices::EEventEnumerate::Stop;
 		});
 	});
 }
 
-void FDebuggerViewModel::UpdateAnimSequence()
+void FDebuggerViewModel::UpdateAsset()
 {
 	if (!IsPlayingSelections())
 	{
@@ -2073,71 +2297,89 @@ void FDebuggerViewModel::UpdateAnimSequence()
 	}
 
 	const UPoseSearchDatabase* Database = GetPoseSearchDatabase();
-	const FPoseSearchDatabaseSequence* DatabaseSequence = GetAnimSequence(Skeletons[AnimSequence].SequenceIdx);
-	UAnimSequence* Sequence = DatabaseSequence->Sequence;
-	FSkeleton& SequenceSkeleton = Skeletons[AnimSequence];
-	UPoseSearchMeshComponent* Component = SequenceSkeleton.Component;
-	auto RestartSequence = [&]()
+
+	FSkeleton& AssetSkeleton = Skeletons[Asset];
+	UPoseSearchMeshComponent* Component = AssetSkeleton.Component;
+
+	auto RestartAsset = [&]()
 	{
 		Component->ResetToStart();
-		SequenceData.AccumulatedTime = 0.0;
-		SequenceSkeleton.Time = SequenceData.StartTime;
+		AssetData.AccumulatedTime = 0.0;
+		AssetSkeleton.Time = AssetData.StartTime;
 	};
 
-	if (Sequence)
+	UAnimationAsset* AnimAsset = nullptr;
+	bool bAssetLooping = false;
 
-
+	if (AssetSkeleton.Type == ESearchIndexAssetType::Sequence)
 	{
-		const float DT = static_cast<float>(FApp::GetDeltaTime()) * SequencePlayRate;
-		const float PlayLength = Sequence->GetPlayLength();
+		const FPoseSearchDatabaseSequence* DatabaseSequence = GetAnimSequence(AssetSkeleton.AssetIdx);
+		AnimAsset = DatabaseSequence->Sequence;
+		bAssetLooping = DatabaseSequence->bLoopAnimation;
+	}
+	else if (AssetSkeleton.Type == ESearchIndexAssetType::BlendSpace)
+	{
+		const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = GetBlendSpace(AssetSkeleton.AssetIdx);
+		AnimAsset = DatabaseBlendSpace->BlendSpace;
+		bAssetLooping = DatabaseBlendSpace->bLoopAnimation;
+	}
+	else
+	{
+		checkNoEntry();
+	}
+
+	if (AnimAsset)
+	{
+		const float DT = static_cast<float>(FApp::GetDeltaTime()) * AssetPlayRate;
+		const float PlayLength = AnimAsset->GetPlayLength();
 
 		const float DistanceHorizon = Database->Schema->GetTrajectoryFutureDistanceHorizon();
 		const bool bExceededDistanceHorizon = Component->LastRootMotionDelta.GetTranslation().Size() > DistanceHorizon;
 		const float TimeHorizon = Database->Schema->GetTrajectoryFutureTimeHorizon();
-		const bool bExceededTimeHorizon = (SequenceSkeleton.Time - SequenceData.StartTime) > TimeHorizon;
+		const bool bExceededTimeHorizon = (AssetSkeleton.Time - AssetData.StartTime) > TimeHorizon;
 		const bool bExceededHorizon = bExceededDistanceHorizon && bExceededTimeHorizon;
-		if (DatabaseSequence->bLoopAnimation)
+		if (bAssetLooping)
 		{
 			if (bExceededHorizon)
 			{
-				// Delay before restarting the sequence to give the user some idea of where it would land
-				if (SequenceData.AccumulatedTime > SequenceData.StopDuration)
+				// Delay before restarting the asset to give the user some idea of where it would land
+				if (AssetData.AccumulatedTime > AssetData.StopDuration)
 				{
-					RestartSequence();
+					RestartAsset();
 				}
 				else
 				{
-					SequenceData.AccumulatedTime += DT;
+					AssetData.AccumulatedTime += DT;
 				}
 				return;
 			}
 
-			SequenceSkeleton.Time += DT;
-			SequenceData.AccumulatedTime += DT;
+			AssetSkeleton.Time += DT;
+			AssetData.AccumulatedTime += DT;
 		}
 		else
 		{
-			// Used to cap the sequence, but avoid modding when updating the pose
+			// Used to cap the asset, but avoid modding when updating the pose
 			static constexpr float LengthOffset = 0.001f;
-			const bool bFinishedSequence = SequenceSkeleton.Time >= PlayLength - LengthOffset;
+			const bool bFinishedAsset = AssetSkeleton.Time >= PlayLength - LengthOffset;
 
-			// Sequence player reached end of clip or reached distance horizon of trajectory vector
-			if (bFinishedSequence || bExceededHorizon)
+			// Asset player reached end of clip or reached distance horizon of trajectory vector
+			if (bFinishedAsset || bExceededHorizon)
 			{
-				// Delay before restarting the sequence to give the user some idea of where it would land
-				if (SequenceData.AccumulatedTime > SequenceData.StopDuration)
+				// Delay before restarting the asset to give the user some idea of where it would land
+				if (AssetData.AccumulatedTime > AssetData.StopDuration)
 				{
-					RestartSequence();
+					RestartAsset();
 				}
 				else
 				{
-					SequenceData.AccumulatedTime += DT;
+					AssetData.AccumulatedTime += DT;
 				}
 			}
 			else
 			{
-				// If we haven't finished, update the play time capped by the anim sequence (not looping)
-				SequenceSkeleton.Time += DT;
+				// If we haven't finished, update the play time capped by the anim asset (not looping)
+				AssetSkeleton.Time += DT;
 			}
 		}
 	}
@@ -2174,31 +2416,36 @@ void FDebuggerViewModel::PlaySelection(int32 PoseIdx, float Time)
 	{
 		return;
 	}
-	UPoseSearchMeshComponent* Component = Skeletons[AnimSequence].Component;
+	UPoseSearchMeshComponent* Component = Skeletons[Asset].Component;
 	if (!Component)
 	{
 		return;
 	}
 
-	const FPoseSearchIndexAsset* Asset = Database->SearchIndex.FindAssetForPose(PoseIdx);
-
 	Component->ResetToStart();
-	Skeletons[AnimSequence].SequenceIdx = Asset->SourceAssetIdx;
-	Skeletons[AnimSequence].Time = SequenceData.StartTime = Time;
-	Skeletons[AnimSequence].bMirrored = Asset->bMirrored;
-	SequenceData.AccumulatedTime = 0.0f;
-	SequenceData.bActive = true;
+	
+	const FPoseSearchIndexAsset* IndexAsset = Database->SearchIndex.FindAssetForPose(PoseIdx);
+
+	Skeletons[Asset].Type = IndexAsset->Type;
+	Skeletons[Asset].AssetIdx = IndexAsset->SourceAssetIdx;
+	Skeletons[Asset].Time = Time;
+	Skeletons[Asset].bMirrored = IndexAsset->bMirrored;
+	Skeletons[Asset].BlendParameters = IndexAsset->BlendParameters;
+
+	AssetData.StartTime = Time;
+	AssetData.AccumulatedTime = 0.0f;
+	AssetData.bActive = true;
 }
 void FDebuggerViewModel::StopSelection()
 {
-	UPoseSearchMeshComponent* Component = Skeletons[AnimSequence].Component;
+	UPoseSearchMeshComponent* Component = Skeletons[Asset].Component;
 	if (!Component)
 	{
 		return;
 	}
 
-	SequenceData = {};
-	// @TODO: Make more functionality rely on checking if it should draw the sequence
+	AssetData = {};
+	// @TODO: Make more functionality rely on checking if it should draw the asset
 	Component->SetDrawDebugSkeleton(false);
 }
 void FDebuggerViewModel::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
