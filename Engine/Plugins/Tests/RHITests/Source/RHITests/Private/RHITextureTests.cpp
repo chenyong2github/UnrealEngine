@@ -43,7 +43,7 @@ bool FRHITextureTests::VerifyTextureContents(const TCHAR* TestName, FRHICommandL
 					RHICmdList.WriteGPUFence(GPUFence);
 
 					RHICmdList.SubmitCommandsAndFlushGPU(); // @todo - refactor RHI readback API. This shouldn't be necessary
-					RHICmdList.BlockUntilGPUIdle();
+					RHICmdList.FlushResources();
 
 					int32 Width, Height;
 					void* Ptr;

@@ -14,7 +14,7 @@ bool FRHIBufferTests::VerifyBufferContents(const TCHAR* TestName, FRHICommandLis
 
 		// @todo - readback API is inconsistent across RHIs
 		RHICmdList.SubmitCommandsAndFlushGPU();
-		RHICmdList.BlockUntilGPUIdle();
+		RHICmdList.FlushResources();
 
 		void* Memory = RHILockStagingBuffer(StagingBuffer, 0, NumBytes);
 		Result = VerifyCallback(Memory, NumBytes);
