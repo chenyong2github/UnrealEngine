@@ -1022,7 +1022,9 @@ void DeclPrinter::PrintTemplateParameters(const TemplateParameterList *Params,
     }
   }
 
-  Out << "> ";
+  // UE Change Begin: Append newline to avoid conflict with '#line'-directives
+  Out << ">\n";
+  // UE Change End: Append newline to avoid conflict with '#line'-directives
 }
 
 void DeclPrinter::VisitTemplateDecl(const TemplateDecl *D) {
