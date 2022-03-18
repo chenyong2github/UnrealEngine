@@ -232,11 +232,91 @@ namespace UE
 
 				return NewOp;
 			}
+
+			// Turns OutTransform into the UE-space relative (local to parent) transform for Xformable, paying attention to if it
+			// or any of its ancestors has the '!resetXformStack!' xformOp.
+			void GetPrimConvertedRelativeTransform( pxr::UsdGeomXformable Xformable, double UsdTimeCode, FTransform& OutTransform )
+			{
+				if ( !Xformable )
+				{
+					return;
+				}
+
+				FScopedUsdAllocs Allocs;
+
+				pxr::UsdPrim UsdPrim = Xformable.GetPrim();
+				pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
+
+				bool bResetTransformStack = false;
+				UsdToUnreal::ConvertXformable( UsdStage, Xformable, OutTransform, UsdTimeCode, &bResetTransformStack );
+
+				// If we have the resetXformStack op on this prim's xformOpOrder we have to essentially use its transform
+				// as the world transform (i.e. we have to discard the parent transforms). We won't do this here, and will instead
+				// keep relative transforms everywhere for consistency, which means we must manually invert the ParentToWorld transform
+				// and compute our relative transform ourselves.
+				//
+				// Ideally we'd query the components for this for performance reasons, but not only we don't have access to them here,
+				// but neither the stage actor's PrimsToAnimate nor the sequencer guarantee a particular evaluation order anyway,
+				// which means that if our parent is also animated, we could end up computing our relative transforms using the outdated
+				// parent's transform instead. This means we must compute our relative transform using the actual prim hierarchy.
+				//
+				// Additionally, our parent prims may be animated, so we must query all of our ancestors for a new world matrix every frame.
+				//
+				// We could use UsdGeomXformCache for this, but given that we won't actually cache anything (since we'll have to resample
+				// all ancestors every frame anyway) and that we would have to manually handle the camera/light compensation at least for
+				// our immediate parent, it's simpler to just recursively call our own UsdToUnreal::ConvertXformable and concatenate the
+				// results. Its not as fast, but we'll only do this on the initial read for prims with `resetXformStack`, so it should
+				// be very rare. We don't ever write out the resetXformStack either, so after that initial read this op should just disappear.
+				//
+				// Note that, alternatively, we could also handle this whole situation by having the scene components specify their transforms
+				// as absolute, and the Sequencer would work with that as well. However that would spread out the handling of
+				// resetXformStack through all USD workflows, and mean we'd have to *write out* resetXformStack when writing/exporting
+				// absolute transform components, and also convert between them when the user toggles between relative/absolute manually,
+				// which is probably worse than just baking it as relative transforms on first read and forgetting about it.
+				if ( bResetTransformStack )
+				{
+					FTransform ParentToWorld = FTransform::Identity;
+
+					pxr::UsdPrim AncestorPrim = UsdPrim.GetParent();
+					while ( AncestorPrim && !AncestorPrim.IsPseudoRoot() )
+					{
+						FTransform AncestorTransform = FTransform::Identity;
+						bool bAncestorResetTransformStack = false;
+						UsdToUnreal::ConvertXformable( UsdStage, pxr::UsdGeomXformable{ AncestorPrim }, AncestorTransform, UsdTimeCode, &bAncestorResetTransformStack );
+
+						ParentToWorld = ParentToWorld * AncestorTransform;
+
+						// If we find a parent that also has the resetXformStack, then we're in luck: That transform value will be its world
+						// transform already, so we can stop concatenating stuff. Yes, on the component-side of things we'd have done the same
+						// thing of making a fake relative transform for it, but the end result would have been the same final world transform
+						if ( bAncestorResetTransformStack )
+						{
+							break;
+						}
+
+						AncestorPrim = AncestorPrim.GetParent();
+					}
+
+					const FVector& Scale = ParentToWorld.GetScale3D();
+					if ( !FMath::IsNearlyEqual( Scale.X, Scale.Y ) || !FMath::IsNearlyEqual( Scale.X, Scale.Z ) )
+					{
+						UE_LOG( LogUsd, Warning, TEXT( "Inverting transform with non-uniform scaling '%s' when computing relative transform for prim '%s'! Result will likely be incorrect, since FTransforms can't invert non-uniform scalings. You can work around this by baking your non-uniform scaling transform into the vertices, or by not using the !resetXformStack! Xform op." ),
+							*Scale.ToString(),
+							*UsdToUnreal::ConvertPath( UsdPrim.GetPrimPath() )
+						);
+					}
+
+					// Multiplying with matrices here helps mitigate the issues encountered with non-uniform scaling, however it will stil
+					// never be perfect, as it is not possible to generate an FTransform that can properly invert a complex transform with non-uniform
+					// scaling when just multiplying them (which is what downstream code within USceneComponent will do).
+					OutTransform = FTransform{ OutTransform.ToMatrixWithScale() * ParentToWorld.ToInverseMatrixWithScale() };
+				}
+			}
 		}
 	}
 }
 
-bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime )
+bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime, bool* bOutResetTransformStack )
 {
 	pxr::UsdGeomXformable Xformable( Schema );
 	if ( !Xformable )
@@ -248,21 +328,24 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	// Transform
 	pxr::GfMatrix4d UsdMatrix;
-	bool bResetXFormStack = false;
-	Xformable.GetLocalTransformation( &UsdMatrix, &bResetXFormStack, EvalTime );
+	bool bResetXformStack = false;
+	bool* bResetXformStackPtr = bOutResetTransformStack ? bOutResetTransformStack : &bResetXformStack;
+	Xformable.GetLocalTransformation( &UsdMatrix, bResetXformStackPtr, EvalTime );
 
 	FUsdStageInfo StageInfo( Stage );
 	OutTransform = UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
 
+	const bool bPrimIsLight = 
+#if defined(HAS_USDLUX_LIGHTAPI)
+			Xformable.GetPrim().HasAPI< pxr::UsdLuxLightAPI >();
+#else
+			Xformable.GetPrim().IsA< pxr::UsdLuxLight >();
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
+
 	// Extra rotation to match different camera facing direction convention
 	// Note: The camera space is always Y-up, yes, but this is not what this is: This is the camera's transform wrt the stage,
 	// which follows the stage up axis
-	if ( Xformable.GetPrim().IsA< pxr::UsdGeomCamera >() ||
-#if defined(HAS_USDLUX_LIGHTAPI)
-			Xformable.GetPrim().HasAPI< pxr::UsdLuxLightAPI >() )
-#else
-			Xformable.GetPrim().IsA< pxr::UsdLuxLight >() )
-#endif // #if defined(HAS_USDLUX_LIGHTAPI)
+	if ( Xformable.GetPrim().IsA< pxr::UsdGeomCamera >() || bPrimIsLight )
 	{
 		if ( StageInfo.UpAxis == EUsdUpAxis::YAxis )
 		{
@@ -276,12 +359,17 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	// Invert the compensation applied to our parents, in case they're a camera or a light
 	if ( pxr::UsdPrim Parent = Xformable.GetPrim().GetParent() )
 	{
-		if ( Parent.IsA< pxr::UsdGeomCamera >() ||
+		const bool bParentIsLight = 
 #if defined(HAS_USDLUX_LIGHTAPI)
-				Parent.HasAPI< pxr::UsdLuxLightAPI >() )
+				Parent.HasAPI< pxr::UsdLuxLightAPI >();
 #else
-				Parent.IsA< pxr::UsdLuxLight >() )
+				Parent.IsA< pxr::UsdLuxLight >();
 #endif // #if defined(HAS_USDLUX_LIGHTAPI)
+
+		// If bResetXFormStack is true, then the prim's local transform will be used directly as the world transform, and we will
+		// already invert the parent transform fully, regardless of what it is. This means it doesn't really matter if our parent
+		// has a camera/light compensation or not, and so we don't have to have the explicit inverse compensation here anyway!
+		if ( !(*bResetXformStackPtr) && ( Parent.IsA< pxr::UsdGeomCamera >() || bParentIsLight ) )
 		{
 			if ( StageInfo.UpAxis == EUsdUpAxis::YAxis )
 			{
@@ -311,8 +399,7 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	// Transform
 	FTransform Transform;
-	UsdToUnreal::ConvertXformable( Stage, Xformable, Transform, EvalTime );
-
+	UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, EvalTime, Transform );
 	SceneComponent.SetRelativeTransform( Transform );
 
 	SceneComponent.Modify();
@@ -860,12 +947,12 @@ UsdToUnreal::FPropertyTrackReader UsdToUnreal::CreatePropertyTrackReader( const 
 		if ( PropertyPath == UnrealIdentifiers::TransformPropertyName )
 		{
 			FTransform Default = FTransform::Identity;
-			UsdToUnreal::ConvertXformable( UsdStage, Xformable, Default, UsdUtils::GetDefaultTimeCode() );
+			UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, UsdUtils::GetDefaultTimeCode(), Default );
 
 			Reader.TransformReader = [UsdStage, Xformable, Default]( double UsdTimeCode )
 			{
 				FTransform Result = Default;
-				UsdToUnreal::ConvertXformable( UsdStage, Xformable, Result, UsdTimeCode );
+				UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, UsdTimeCode, Result );
 				return Result;
 			};
 			return Reader;
@@ -2351,10 +2438,6 @@ bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::Us
 	pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( StageInfo, RelativeTransform );
 
 	const pxr::UsdTimeCode UsdTimeCode( TimeCode );
-
-	pxr::GfMatrix4d UsdMatrix;
-	bool bResetXFormStack = false;
-	XForm.GetLocalTransformation( &UsdMatrix, &bResetXFormStack, UsdTimeCode );
 
 	if ( pxr::UsdGeomXformOp MatrixXform = UE::USDPrimConversionImpl::Private::ForceMatrixXform( XForm ) )
 	{

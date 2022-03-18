@@ -1080,7 +1080,47 @@ void FUsdLevelSequenceHelperImpl::AddCommonTracks( const UUsdPrimTwin& PrimTwin,
 	ULevelSequence* PrimSequence = FindSequenceForIdentifier( PrimLayer.GetIdentifier() );
 
 	UE::FUsdGeomXformable Xformable( Prim );
-	if ( Xformable.TransformMightBeTimeVarying() ) // Test that transform might be time varying and not TransformAttribute since it will check each xform ops
+
+	// If this xformable has an op to reset the xform stack and one of its ancestors is animated, then we need to make
+	// a transform track for it even if its transform is not animated by itself. This because that op effectively means
+	// "discard the parent transform and treat this as a direct world transform", but when reading we'll manually recompute
+	// the relative transform to its parent anyway (for simplicity's sake). If that parent (or any of its ancestors) is
+	// being animated, we'll need to recompute this for every animation keyframe
+	TArray<double> AncestorTimeSamples;
+	bool bNeedTrackToCompensateResetXformOp = false;
+	if ( Xformable.GetResetXformStack() )
+	{
+		UE::FUsdPrim AncestorPrim = Prim.GetParent();
+		while ( AncestorPrim && !AncestorPrim.IsPseudoRoot() )
+		{
+			if ( UE::FUsdGeomXformable AncestorXformable{ AncestorPrim } )
+			{
+				if ( AncestorXformable.TransformMightBeTimeVarying() )
+				{
+					bNeedTrackToCompensateResetXformOp = true;
+
+					TArray<double> TimeSamples;
+					if ( AncestorXformable.GetTimeSamples( &TimeSamples ) )
+					{
+						AncestorTimeSamples.Append( TimeSamples );
+					}
+				}
+
+				// The exception is if our ancestor also wants to reset its xform stack (i.e. its transform is meant to be
+				// used as the world transform). In this case we don't need to care about higher up ancestors anymore, as
+				// their transforms wouldn't affect below this prim anyway
+				if ( AncestorXformable.GetResetXformStack() )
+				{
+					break;
+				}
+			}
+
+			AncestorPrim = AncestorPrim.GetParent();
+		}
+	}
+
+	// Test that transform might be time varying and not TransformAttribute since it will check each xform ops
+	if ( Xformable.TransformMightBeTimeVarying() || bNeedTrackToCompensateResetXformOp )
 	{
 		TArray<UE::FUsdAttribute> Attrs = UnrealToUsd::GetAttributesForProperty( Prim, UnrealIdentifiers::TransformPropertyName );
 		if ( Attrs.Num() > 0 )
@@ -1106,6 +1146,12 @@ void FUsdLevelSequenceHelperImpl::AddCommonTracks( const UUsdPrimTwin& PrimTwin,
 						TArray<double> TimeSamples;
 						if ( Xformable.GetTimeSamples( &TimeSamples ) )
 						{
+							if ( bNeedTrackToCompensateResetXformOp )
+							{
+								TimeSamples.Append( AncestorTimeSamples );
+								TimeSamples.Sort();
+							}
+
 							if ( UMovieScene3DTransformTrack* TransformTrack = AddTrack<UMovieScene3DTransformTrack>( UnrealIdentifiers::TransformPropertyName, PrimTwin, *ComponentToBind, *AttributeSequence, bIsMuted ) )
 							{
 								UsdToUnreal::FPropertyTrackReader Reader = UsdToUnreal::CreatePropertyTrackReader( Prim, UnrealIdentifiers::TransformPropertyName );

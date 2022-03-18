@@ -60,6 +60,8 @@ namespace UE
 
 		// Wrapped pxr::UsdGeomXformable functions, refer to the USD SDK documentation
 	public:
+		bool GetResetXformStack() const;
+
 		bool TransformMightBeTimeVarying() const;
 		bool GetTimeSamples( TArray< double >* Times) const;
 

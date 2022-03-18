@@ -113,7 +113,7 @@ namespace UE
 	}
 
 #if USE_USD_SDK
-	FUsdGeomXformable::FUsdGeomXformable( const pxr::UsdGeomXformable& InUsdGeomXformable )		
+	FUsdGeomXformable::FUsdGeomXformable( const pxr::UsdGeomXformable& InUsdGeomXformable )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique< Internal::FUsdGeomXformableImpl >( InUsdGeomXformable );
@@ -141,6 +141,15 @@ namespace UE
 		return Impl->PxrUsdGeomXformable.Get();
 	}
 #endif // #if USE_USD_SDK
+
+	bool FUsdGeomXformable::GetResetXformStack() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdGeomXformable.Get().GetResetXformStack();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
 
 	bool FUsdGeomXformable::TransformMightBeTimeVarying() const
 	{

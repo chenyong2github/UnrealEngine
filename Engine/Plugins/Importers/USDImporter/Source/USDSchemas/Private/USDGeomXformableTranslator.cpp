@@ -364,10 +364,13 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 			SceneComponent->Mobility = UsdUtils::IsAnimated( Prim ) ? EComponentMobility::Movable : EComponentMobility::Static;
 		}
 
-		UpdateComponents( SceneComponent );
-
 		// Attach to parent
+		// Do this before UpdatingComponents as we may need to use the parent transform to set a world transform directly
+		// (in case of resetXformStack). Besides, this is more consistent anyway as during stage updates we'll call
+		// UpdateComponents with all the components already attached
 		SceneComponent->AttachToComponent( Context->ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
+
+		UpdateComponents( SceneComponent );
 
 		if ( !SceneComponent->IsRegistered() )
 		{
