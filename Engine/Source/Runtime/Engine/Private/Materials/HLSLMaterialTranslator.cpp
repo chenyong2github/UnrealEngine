@@ -1392,7 +1392,7 @@ bool FHLSLMaterialTranslator::Translate()
 				}
 			}
 
-			if (!bStrataUsesConversionFromLegacy)
+			if (!bStrataUsesConversionFromLegacy && StrataMaterialRootOperator)
 			{
 				// Now implement the functions needed to process the material topology
 
@@ -9660,12 +9660,23 @@ FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int3
 FStrataOperator& FHLSLMaterialTranslator::StrataCompilationGetOperator(UMaterialExpression* Expression)
 {
 	auto* OperatorIndex = StrataMaterialExpressionToOperatorIndex.Find(Expression);
-	check(OperatorIndex && *OperatorIndex >= 0 && *OperatorIndex < STRATA_MAX_OPERATOR_COUNT);
+	if (!(OperatorIndex && *OperatorIndex >= 0 && *OperatorIndex < STRATA_MAX_OPERATOR_COUNT))
+	{
+		UE_LOG(LogMaterial, Error, TEXT("Could not find operator for a BSDF in Material %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+		static FStrataOperator DefaultOperator = FStrataOperator();
+		return DefaultOperator;
+	};
 	return StrataMaterialExpressionRegisteredOperators[*OperatorIndex];
 }
 
 bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 {
+	if (StrataMaterialExpressionRegisteredOperators.IsEmpty())
+	{
+		UE_LOG(LogMaterial, Error, TEXT("Could not find any strata operators or BSDFs in Material %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+		return false;
+	}
+
 	//
 	// Evaluate the one and only root node
 	//
@@ -9952,8 +9963,14 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 void FHLSLMaterialTranslator::StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo)
 {
-	check(CodeChunk != INDEX_NONE);
-	CodeChunkToStrataCompilationInfoMap.Add(CodeChunk, StrataMaterialCompilationInfo);
+	if (CodeChunk != INDEX_NONE)
+	{
+		CodeChunkToStrataCompilationInfoMap.Add(CodeChunk, StrataMaterialCompilationInfo);
+	}
+	else
+	{
+		UE_LOG(LogMaterial, Error, TEXT("Invalid Strata CodeChunk registered in Material %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+	}
 }
 
 bool FHLSLMaterialTranslator::StrataCompilationInfoContainsCodeChunk(int32 CodeChunk)
@@ -9963,8 +9980,12 @@ bool FHLSLMaterialTranslator::StrataCompilationInfoContainsCodeChunk(int32 CodeC
 
 const FStrataMaterialCompilationInfo& FHLSLMaterialTranslator::GetStrataCompilationInfo(int32 CodeChunk)
 {
-	check(CodeChunk != INDEX_NONE);
-	return CodeChunkToStrataCompilationInfoMap[CodeChunk];
+	if (CodeChunk != INDEX_NONE)
+	{
+		return CodeChunkToStrataCompilationInfoMap[CodeChunk];
+	}
+	static FStrataMaterialCompilationInfo InvalidInfo;
+	return InvalidInfo;
 }
 
 FStrataRegisteredSharedLocalBasis FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk)
@@ -10098,11 +10119,13 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	const FString NormalCode = GetParameterCode(Normal);
 	const FString TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE");
 
-
 	if (PromoteToOperator)
 	{
-		check(PromoteToOperator->Index != INDEX_NONE);
-		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
+		if (PromoteToOperator->Index == INDEX_NONE || PromoteToOperator->BSDFIndex == INDEX_NONE)
+		{
+			UE_LOG(LogMaterial, Error, TEXT("Invalid StrataSlabBSDF operator and BSDF indices during promotion in Material %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+			return INDEX_NONE;
+		}
 		return AddCodeChunk(
 			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */, Parameters.StrataTree, %u, %u, %u, %u)"),
 			*GetParameterCode(UseMetalness),

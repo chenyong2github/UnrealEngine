@@ -1580,6 +1580,17 @@ bool UMaterialExpression::IsUsingNewHLSLGenerator() const
 	return false;
 }
 
+FStrataOperator* UMaterialExpression::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	Compiler->Errorf(TEXT("Missing StrataGenerateMaterialTopologyTree implementation for node %s."), *GetClass()->GetName());
+	return nullptr;
+}
+
+static void AssignOperatorIndexIfNotNull(int32& NextOperatorPin, FStrataOperator* Operator)
+{
+	NextOperatorPin = Operator ? Operator->Index : INDEX_NONE;
+}
+
 #endif // WITH_EDITOR
 
 UMaterialExpressionTextureBase::UMaterialExpressionTextureBase(const FObjectInitializer& ObjectInitializer)
@@ -6889,11 +6900,11 @@ FStrataOperator* UMaterialExpressionBlendMaterialAttributes::StrataGenerateMater
 	UMaterialExpression* ChildBExpression = B.GetTracedInput().Expression;
 	if (ChildAExpression)
 	{
-		StrataOperator.LeftIndex = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex));
 	}
 	if (ChildBExpression)
 	{
-		StrataOperator.RightIndex = ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, B.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, B.OutputIndex));
 	}
 
 	return &StrataOperator;
@@ -20729,8 +20740,9 @@ FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMateri
 	// with fake addresses for BSDF defined in shader code.
 	UMaterialExpression* ChildAExpression = reinterpret_cast<UMaterialExpression*>(0);
 	UMaterialExpression* ChildBExpression = reinterpret_cast<UMaterialExpression*>(1);
-	StrataOperator.LeftIndex = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildAExpression, this).Index;
-	StrataOperator.RightIndex = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildBExpression, this).Index;
+
+	AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildAExpression, this));
+	AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildBExpression, this));
 
 	return &StrataOperator;
 }
@@ -21593,7 +21605,7 @@ FStrataOperator* UMaterialExpressionStrataConvertToDecal::StrataGenerateMaterial
 	UMaterialExpression* ChildDecalMaterialExpression = DecalMaterial.GetTracedInput().Expression;
 	if (ChildDecalMaterialExpression)
 	{
-		StrataOperator.LeftIndex = ChildDecalMaterialExpression->StrataGenerateMaterialTopologyTree(Compiler, this, DecalMaterial.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildDecalMaterialExpression->StrataGenerateMaterialTopologyTree(Compiler, this, DecalMaterial.OutputIndex));
 	}
 
 	return &StrataOperator;
@@ -22049,11 +22061,11 @@ FStrataOperator* UMaterialExpressionStrataHorizontalMixing::StrataGenerateMateri
 	UMaterialExpression* ChildBExpression = Foreground.GetTracedInput().Expression;
 	if (ChildAExpression)
 	{
-		StrataOperator.LeftIndex = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Background.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Background.OutputIndex));
 	}
 	if (ChildBExpression)
 	{
-		StrataOperator.RightIndex = ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Foreground.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Foreground.OutputIndex));
 	}
 
 	return &StrataOperator;
@@ -22211,11 +22223,11 @@ FStrataOperator* UMaterialExpressionStrataVerticalLayering::StrataGenerateMateri
 	UMaterialExpression* ChildBExpression = Base.GetTracedInput().Expression;
 	if (ChildAExpression)
 	{
-		StrataOperator.LeftIndex = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Top.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Top.OutputIndex));
 	}
 	if (ChildBExpression)
 	{
-		StrataOperator.RightIndex = ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Base.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Base.OutputIndex));
 	}
 
 	return &StrataOperator;
@@ -22372,11 +22384,11 @@ FStrataOperator* UMaterialExpressionStrataAdd::StrataGenerateMaterialTopologyTre
 	UMaterialExpression* ChildBExpression = B.GetTracedInput().Expression;
 	if (ChildAExpression)
 	{
-		StrataOperator.LeftIndex = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex));
 	}
 	if (ChildBExpression)
 	{
-		StrataOperator.RightIndex = ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, B.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, B.OutputIndex));
 	}
 
 	return &StrataOperator;
@@ -22476,7 +22488,7 @@ FStrataOperator* UMaterialExpressionStrataWeight::StrataGenerateMaterialTopology
 	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
 	if (ChildAExpression)
 	{
-		StrataOperator.LeftIndex = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex));
 	}
 
 	return &StrataOperator;
@@ -22578,7 +22590,7 @@ FStrataOperator* UMaterialExpressionStrataThinFilm::StrataGenerateMaterialTopolo
 	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
 	if (ChildAExpression)
 	{
-		StrataOperator.LeftIndex = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex)->Index;
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex));
 	}
 
 	return &StrataOperator;

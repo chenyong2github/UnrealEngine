@@ -427,7 +427,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	 * This recursively parse nodes outputing strata material in order to gather the maximum distance to any leaves. 
 	 * This is used to drive the bottom up order processing of those nodes.
 	 */
-	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex) { return nullptr; }
+	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex);
 
 	/**
 	 * If true, discards the output index when caching this expression which allows more cases to re-use the output instead of adding a separate instruction
