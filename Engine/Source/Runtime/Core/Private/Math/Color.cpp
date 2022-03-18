@@ -88,9 +88,14 @@ FLinearColor FLinearColor::FromPow22Color(const FColor& Color)
 	return LinearColor;
 }
 
-static inline uint8 ClampU8(int Value)
+// For pixel format conversions. Clamps to [0,1], but for consistency with
+// GPU conversions, also define behavior for NaNs and make them map to 0.
+static inline float Clamp01(float Value)
 {
-	return (uint8) FMath::Clamp(Value,0,255);
+	// Write this explicitly instead of using FMath::Clamp so we have
+	// control over what happens with NaNs.
+	const float ClampedLo = (Value > 0.0f) ? Value : 0.0f; // Also turns NaNs into 0.
+	return (ClampedLo < 1.0f) ? ClampedLo : 1.0f;
 }
 
 /**
@@ -190,12 +195,15 @@ static uint8 stbir__linear_to_srgb_uchar_fast(float in)
 /** Quantizes the linear color and returns the result as a FColor with optional sRGB conversion and quality as goal. */
 FColor FLinearColor::ToFColorSRGB() const
 {
+	// The convention used here in all channels is that NaNs
+	// convert to 0, as do negative values, and out-of-range
+	// positive values convert to 255.
 	return FColor(
 		stbir__linear_to_srgb_uchar_fast(R),
 		stbir__linear_to_srgb_uchar_fast(G),
 		stbir__linear_to_srgb_uchar_fast(B),
-		ClampU8( (int)(0.5f + A*255.f) )
-		);
+		(uint8)(0.5f + Clamp01(A)*255.f)
+	);
 }
 
 
@@ -213,10 +221,10 @@ FColor FLinearColor::QuantizeFloor() const
 	// replicates behavior of old Quantize() which is deprecated
 	// restoration should be done to bucket centers (+0.5 on dequantize)
 	return FColor(
-		ClampU8( (int)(R*255.f) ),
-		ClampU8( (int)(G*255.f) ),
-		ClampU8( (int)(B*255.f) ),
-		ClampU8( (int)(A*255.f) )
+		(uint8)(Clamp01(R)*255.f),
+		(uint8)(Clamp01(G)*255.f),
+		(uint8)(Clamp01(B)*255.f),
+		(uint8)(Clamp01(A)*255.f)
 		);
 }
 
@@ -224,10 +232,10 @@ FColor FLinearColor::QuantizeRound() const
 {
 	// do not use FMath::RoundToInt because it call floorf
 	return FColor(
-		ClampU8( (int)(0.5f + R*255.f) ),
-		ClampU8( (int)(0.5f + G*255.f) ),
-		ClampU8( (int)(0.5f + B*255.f) ),
-		ClampU8( (int)(0.5f + A*255.f) )
+		(uint8)(0.5f + Clamp01(R)*255.f),
+		(uint8)(0.5f + Clamp01(G)*255.f),
+		(uint8)(0.5f + Clamp01(B)*255.f),
+		(uint8)(0.5f + Clamp01(A)*255.f)
 		);
 }
 

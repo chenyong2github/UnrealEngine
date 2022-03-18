@@ -288,7 +288,7 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 							Pixel2 = _mm_shuffle_ps(Pixel2, Pixel2, _MM_SHUFFLE(3, 0, 1, 2));
 							Pixel3 = _mm_shuffle_ps(Pixel3, Pixel3, _MM_SHUFFLE(3, 0, 1, 2));
 
-							// scale to [0,255]
+							// Scale to [0,255]
 							__m128 Mul = _mm_set_ps1(255.f);
 							__m128 Add = _mm_set_ps1(0.5f);
 							Pixel0 = _mm_add_ps(_mm_mul_ps(Pixel0, Mul), Add);
@@ -296,7 +296,17 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 							Pixel2 = _mm_add_ps(_mm_mul_ps(Pixel2, Mul), Add);
 							Pixel3 = _mm_add_ps(_mm_mul_ps(Pixel3, Mul), Add);
 
-							// cast float to 32-bit components
+							// Clamp large values at 255. Must be first arg: SSE min_ps(255, NaN) = NaN,
+							// but min_ps(NaN, 255) = 255, and we want the NaNs to turn into 0 not 255,
+							// for consistency with QuantizeRound.
+							Pixel0 = _mm_min_ps(Mul, Pixel0);
+							Pixel1 = _mm_min_ps(Mul, Pixel1);
+							Pixel2 = _mm_min_ps(Mul, Pixel2);
+							Pixel3 = _mm_min_ps(Mul, Pixel3);
+
+							// Convert float to 32-bit integer
+							// values are <=255 so no overflow; NaNs and too-large negative values
+							// convert to INT_MIN, all saturate to 0 during pack (no special clamp necessary)
 							__m128i Pixel0i = _mm_cvttps_epi32(Pixel0);
 							__m128i Pixel1i = _mm_cvttps_epi32(Pixel1);
 							__m128i Pixel2i = _mm_cvttps_epi32(Pixel2);
