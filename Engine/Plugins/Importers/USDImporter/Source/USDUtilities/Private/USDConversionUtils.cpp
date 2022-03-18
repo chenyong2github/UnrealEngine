@@ -785,6 +785,10 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 			{
 				return true;
 			}
+
+			// We only parse Skeletons and SkelAnimations from the first skeletal binding of a SkelRoot, so
+			// if that one is not animated then this entire SkelRoot is not animated to us either (for now)
+			break;
 		}
 	}
 

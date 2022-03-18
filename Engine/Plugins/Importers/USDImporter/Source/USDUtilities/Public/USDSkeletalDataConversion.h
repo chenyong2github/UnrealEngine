@@ -110,8 +110,16 @@ namespace UsdUtils
 	 */
 	USDUTILITIES_API void BindAnimationSource( pxr::UsdPrim& Prim, const pxr::UsdPrim& AnimationSource );
 
-	// Finds the strongest SkelAnimation prim that is bound to SkelRootPrim as its animation source
-	USDUTILITIES_API UE::FUsdPrim FindAnimationSource( const UE::FUsdPrim& SkelRootPrim );
+	// Finds the SkelAnimation prim that is bound to Prim as its animationSource, if Prim has the UsdSkelBindingAPI. Returns an invalid prim otherwise.
+	UE_DEPRECATED( 5.1, "Prefer UsdUtils::FindFirstAnimationSource instead" )
+	USDUTILITIES_API UE::FUsdPrim FindAnimationSource( const UE::FUsdPrim& Prim );
+
+	/**
+	 * Returns the SkelAnimation prim that is resolved for the first skeletal binding of SkelRootPrim, if it is a SkelRoot.
+	 * We use this as we currently only parse a single Skeleton per SkelRoot (and so a single SkelAnimation), but in the future we may
+	 * decide to do something else.
+	 */
+	USDUTILITIES_API UE::FUsdPrim FindFirstAnimationSource( const UE::FUsdPrim& SkelRootPrim );
 #endif // USE_USD_SDK
 }
 

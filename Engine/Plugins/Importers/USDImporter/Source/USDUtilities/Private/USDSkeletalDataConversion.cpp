@@ -2387,28 +2387,44 @@ void UsdUtils::BindAnimationSource( pxr::UsdPrim& Prim, const pxr::UsdPrim& Anim
 	SkelBindingAPI.CreateAnimationSourceRel().SetTargets( pxr::SdfPathVector( { AnimationSource.GetPath() } ) );
 }
 
-UE::FUsdPrim UsdUtils::FindAnimationSource( const UE::FUsdPrim& SkelRootPrim )
+UE::FUsdPrim UsdUtils::FindAnimationSource( const UE::FUsdPrim& Prim )
 {
-	if ( !SkelRootPrim )
+	if ( !Prim )
 	{
 		return {};
 	}
 
 	FScopedUsdAllocs UsdAllocs;
 
-	const pxr::UsdPrim UsdSkelRootPrim{ SkelRootPrim };
-	if ( !UsdSkelRootPrim.IsA<pxr::UsdSkelRoot>() )
+	pxr::UsdPrim UsdPrim{ Prim };
+	if ( !UsdPrim.HasAPI<pxr::UsdSkelBindingAPI>() )
+	{
+		UE_LOG( LogUsd, Warning, TEXT( "Failed to find animation source for prim '%s' because it doesn't have a UsdSkelBindingAPI!" ), *Prim.GetPrimPath().GetString() );
+		return {};
+	}
+
+	// According to https://graphics.pixar.com/usd/release/api/_usd_skel__schemas.html#UsdSkel_BindingAPI_Skeletons,
+	// "Since a UsdSkelRoot primitive provides encapsulation of skeletal data, bindings defined on any primitives
+	// that do not have a UsdSkelRoot primitive as one of their ancestors have no meaning, and should be ignored."
+	// So here we make sure that Prim has at least one SkelRoot ancestor
+	bool bFoundSkelRoot = false;
+	pxr::UsdPrim Parent = UsdPrim.GetParent();
+	while ( Parent && !Parent.IsPseudoRoot() )
+	{
+		if ( Parent.IsA<pxr::UsdSkelRoot>() )
+		{
+			bFoundSkelRoot = true;
+			break;
+		}
+
+		Parent = Parent.GetParent();
+	}
+	if ( !bFoundSkelRoot )
 	{
 		return {};
 	}
 
-	if ( !UsdSkelRootPrim.HasAPI<pxr::UsdSkelBindingAPI>() )
-	{
-		UE_LOG( LogUsd, Warning, TEXT( "Failed to find animation source for prim '%s' because it is a SkelRoot without a UsdSkelBindingAPI!" ), *SkelRootPrim.GetPrimPath().GetString() );
-		return {};
-	}
-
-	pxr::UsdSkelBindingAPI SkelBindingAPI{ UsdSkelRootPrim };
+	pxr::UsdSkelBindingAPI SkelBindingAPI{ Prim };
 
 	pxr::SdfPathVector AnimationSources;
 	const bool bSuccess = SkelBindingAPI.GetAnimationSourceRel().GetTargets( &AnimationSources );
@@ -2418,9 +2434,48 @@ UE::FUsdPrim UsdUtils::FindAnimationSource( const UE::FUsdPrim& SkelRootPrim )
 	}
 
 	const pxr::SdfPath& FirstSource = AnimationSources[ 0 ];
-	pxr::UsdStageRefPtr UsdStage = UsdSkelRootPrim.GetStage();
+	pxr::UsdStageRefPtr UsdStage = Prim.GetStage();
 
 	return UE::FUsdPrim{ UsdStage->GetPrimAtPath( FirstSource ) };
+}
+
+UE::FUsdPrim UsdUtils::FindFirstAnimationSource( const UE::FUsdPrim& SkelRootPrim )
+{
+	if ( !SkelRootPrim )
+	{
+		return {};
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	// For now we really only parse the first skeletal binding of a SkelRoot (check USDSkelRootTranslator.cpp,
+	// LoadAllSkeletalData) and its SkelAnimation, if any.
+	// Note that we don't check the SkelRoot prim directly for the SkelAnimation binding: If it has a valid one
+	// it will propagate down to child namespaces and affect our first skeletal binding anyway
+
+	if ( pxr::UsdSkelRoot SkeletonRoot{ pxr::UsdPrim{ SkelRootPrim } } )
+	{
+		std::vector< pxr::UsdSkelBinding > SkeletonBindings;
+
+		pxr::UsdSkelCache SkeletonCache;
+		SkeletonCache.Populate( SkeletonRoot, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.ComputeSkelBindings( SkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+
+		for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
+		{
+			const pxr::UsdSkelSkeleton& Skeleton = Binding.GetSkeleton();
+			pxr::UsdSkelSkeletonQuery SkelQuery = SkeletonCache.GetSkelQuery( Skeleton );
+			pxr::UsdSkelAnimQuery AnimQuery = SkelQuery.GetAnimQuery();
+			if ( !AnimQuery )
+			{
+				continue;
+			}
+
+			return UE::FUsdPrim{ AnimQuery.GetPrim() };
+		}
+	}
+
+	return {};
 }
 
 #endif // USE_USD_SDK

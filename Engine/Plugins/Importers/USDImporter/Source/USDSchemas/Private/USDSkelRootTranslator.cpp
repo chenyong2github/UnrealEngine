@@ -926,6 +926,12 @@ namespace UsdSkelRootTranslatorImpl
 						{
 							Context->AssetCache->LinkAssetToPrim( SkelAnimationPrimPath, AnimSequence );
 						}
+
+						// For now we shouldn't try to parse the SkelAnimations from skeletal bindings other than the first one as we only
+						// ever actually parse the first skeleton from the SkelRoot (check LoadAllSkeletalData). This is not only a matter of
+						// not wasting time, because as we would try reusing the first generated USkeleton for all other UAnimSequences,
+						// they'd likely end up not being usable or crash due to unexpected number of joints/blend shapes/etc.
+						break;
 					}
 				}
 
@@ -967,7 +973,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	UE::FUsdPrim SkelAnimPrim;
 	if ( SkeletalMeshComponent->AnimationData.AnimToPlay == nullptr )
 	{
-		SkelAnimPrim = UsdUtils::FindAnimationSource( GetPrim() );
+		SkelAnimPrim = UsdUtils::FindFirstAnimationSource( GetPrim() );
 		if ( SkelAnimPrim )
 		{
 			if ( UAnimSequence* TargetAnimSequence = Cast< UAnimSequence >( Context->AssetCache->GetAssetForPrim( SkelAnimPrim.GetPrimPath().GetString() ) ) )
@@ -1021,7 +1027,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 			UE::FSdfLayerOffset CombinedOffset;
 			if ( !SkelAnimPrim )
 			{
-				SkelAnimPrim = UsdUtils::FindAnimationSource( GetPrim() );
+				SkelAnimPrim = UsdUtils::FindFirstAnimationSource( GetPrim() );
 			}
 			if ( SkelAnimPrim )
 			{

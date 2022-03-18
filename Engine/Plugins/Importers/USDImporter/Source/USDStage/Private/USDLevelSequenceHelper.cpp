@@ -1515,7 +1515,7 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks( const UUsdPrimTwin& PrimTwi
 
 	// We'll place the skeletal animation track wherever the SkelAnimation prim is defined (not necessarily the
 	// same layer as the skel root)
-	UE::FUsdPrim SkelAnimationPrim = UsdUtils::FindAnimationSource( Prim );
+	UE::FUsdPrim SkelAnimationPrim = UsdUtils::FindFirstAnimationSource( Prim );
 	if ( !SkelAnimationPrim )
 	{
 		return;
@@ -2380,7 +2380,7 @@ void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange( UMovieScene& MovieScen
 				{
 					if ( !MovieScene.FindTrack( UMovieSceneSkeletalAnimationTrack::StaticClass(), Guid ) )
 					{
-						if ( UE::FUsdPrim SkelAnimationPrim = UsdUtils::FindAnimationSource( UsdPrim ) )
+						if ( UE::FUsdPrim SkelAnimationPrim = UsdUtils::FindFirstAnimationSource( UsdPrim ) )
 						{
 							if ( UE::FSdfLayer SkelAnimationLayer = UsdUtils::FindLayerForPrim( SkelAnimationPrim ) )
 							{
@@ -2529,7 +2529,7 @@ void FUsdLevelSequenceHelperImpl::HandleTrackChange( const UMovieSceneTrack& Tra
 					bAllSectionsMuted &= !Section->IsActive();
 				}
 
-				if ( UE::FUsdPrim SkelAnimationPrim = UsdUtils::FindAnimationSource( UsdPrim ) )
+				if ( UE::FUsdPrim SkelAnimationPrim = UsdUtils::FindFirstAnimationSource( UsdPrim ) )
 				{
 					UE::FUsdAttribute TranslationsAttr = SkelAnimationPrim.GetAttribute( TEXT( "translations" ) );
 					UE::FUsdAttribute RotationsAttr = SkelAnimationPrim.GetAttribute( TEXT( "rotations" ) );
