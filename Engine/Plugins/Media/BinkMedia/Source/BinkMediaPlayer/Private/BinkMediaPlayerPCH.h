@@ -2,10 +2,6 @@
 //   Licenced under the Unreal Engine EULA 
 #pragma once
 
-#if defined WINAPI_FAMILY && !defined PLATFORM_WINGDK && !defined _GAMING_XBOX_XBOXONE
-#include "MinWindows.h"
-#endif
-
 #include "binkplugin.h"
 
 #include "HAL/PlatformFilemanager.h"
@@ -37,6 +33,7 @@ extern BINKMEDIAPLAYER_API unsigned bink_gpu_api;
 extern BINKMEDIAPLAYER_API unsigned bink_gpu_api_hdr;
 extern BINKMEDIAPLAYER_API EPixelFormat bink_force_pixel_format;
 extern BINKMEDIAPLAYER_API FString BinkUE4CookOnTheFlyPath(FString path, const TCHAR *filename);
+extern BINKMEDIAPLAYER_API TArray< FTexture2DRHIRef > BinkActiveTextureRefs;
 
 static int GetNumSpeakers() 
 {

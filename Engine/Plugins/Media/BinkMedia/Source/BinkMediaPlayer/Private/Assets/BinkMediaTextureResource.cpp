@@ -79,12 +79,6 @@ void FBinkMediaTextureResource::InitDynamicRHI()
 		RHICmdList.EndRenderPass();
 		RHICmdList.SetViewport(0, 0, 0, w, h, 1);
 		RHICmdList.Transition(FRHITransitionInfo(TextureRHI.GetReference(), ERHIAccess::Unknown, ERHIAccess::EReadable));
-
-		// Work-around for UE4 bug when playing a chunk loaded video while also streaming a movie
-		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-		RHIFlushResources();
-		RHICmdList.SubmitCommandsHint();
-		FPlatformMisc::MemoryBarrier();
 	}
 }
 
@@ -93,31 +87,25 @@ void FBinkMediaTextureResource::ReleaseDynamicRHI()
 	ReleaseRHI();
 	RenderTargetTextureRHI.SafeRelease();
 	RemoveFromDeferredUpdateList();
-
-	// Work-around for UE4 bug when playing a chunk loaded video while also streaming a movie
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-	RHIFlushResources();
-	RHICmdList.SubmitCommandsHint();
-	FPlatformMisc::MemoryBarrier();
 }
 
 void FBinkMediaTextureResource::UpdateDeferredResource(FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget) 
 {
+	check(IsInRenderingThread());
 	auto Player = Owner->MediaPlayer;
 	if (!Player || (!Player->IsPlaying() && !Player->IsPaused()) || !TextureRHI) 
 	{
 		return;
 	}
-	FRHITexture2D * tex = TextureRHI->GetTexture2D();
-	if (!tex) 
+	FTexture2DRHIRef tex = TextureRHI->GetTexture2D();
+	if (!tex.GetReference()) 
 	{
 		return;
 	}
 	uint32 width = tex->GetSizeX();
 	uint32 height = tex->GetSizeY();
 	bool is_hdr = PixelFormat != PF_B8G8R8A8;
-	Player->UpdateTexture(RHICmdList, TextureRHI, tex->GetNativeResource(), width, height, false, Owner->Tonemap, Owner->OutputNits, Owner->Alpha, Owner->DecodeSRGB, is_hdr);
+	Player->UpdateTexture(RHICmdList, tex, tex->GetNativeResource(), width, height, false, Owner->Tonemap, Owner->OutputNits, Owner->Alpha, Owner->DecodeSRGB, is_hdr);
 }
 
 void FBinkMediaTextureResource::Clear() 

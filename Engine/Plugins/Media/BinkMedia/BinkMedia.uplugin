@@ -11,26 +11,26 @@
 	"MarketplaceURL" : "",
 	"SupportURL" : "",
 	"EnabledByDefault" : false,
-	"CanContainContent" : false,
+	"CanContainContent" : true,
 	"IsBetaVersion" : false,
 	"Installed" : false,
     "Modules" :
 	[
 		{
 			"Name" : "BinkMediaPlayer",
-			"Type" : "RuntimeNoCommandlet",
+			"Type" : "Runtime",
 			"LoadingPhase" : "PreLoadingScreen",
 			"BlacklistTargets": [ "Server" ],
 			"BlacklistPlatforms": [ 
 				"HoloLens",
 				"Lumin",
-				"tvOS",
-				"XboxOne"
+				"tvOS"
 			]
 		},
 		{
 			"Name" : "BinkMediaPlayerEditor",
 			"Type" : "Editor",
+			"LoadingPhase" : "PostEngineInit",
 			"BlacklistTargets": [ "Server" ]
 		}
     ]
