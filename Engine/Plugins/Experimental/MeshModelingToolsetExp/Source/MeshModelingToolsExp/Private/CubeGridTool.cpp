@@ -1403,7 +1403,7 @@ bool UCubeGridTool::GetHitGridFace(const FRay& WorldRay, FCubeGrid::FCubeFace& F
 	if (MeshSpatial)
 	{
 		FRay3d LocalRay(CurrentMeshTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
-			CurrentMeshTransform.InverseTransformVectorNoScale((FVector3d)WorldRay.Direction));
+			CurrentMeshTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 
 		int32 Tid;
 		double LocalHitT = TNumericLimits<double>::Max();

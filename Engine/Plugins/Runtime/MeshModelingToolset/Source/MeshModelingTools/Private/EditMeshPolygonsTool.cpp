@@ -730,7 +730,7 @@ FBox UEditMeshPolygonsTool::GetWorldSpaceFocusBox()
 bool UEditMeshPolygonsTool::GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut)
 {
 	FRay3d LocalRay(WorldTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
-		WorldTransform.InverseTransformNormal((FVector3d)WorldRay.Direction));
+		WorldTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
 	int32 HitTID = GetSpatial().FindNearestHitTriangle(LocalRay);
