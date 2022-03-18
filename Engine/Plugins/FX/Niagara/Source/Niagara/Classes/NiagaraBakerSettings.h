@@ -20,7 +20,7 @@ enum class ENiagaraBakerViewMode
 	OrthoRight,
 	OrthoTop,
 	OrthoBottom,
-	Num
+	Num UMETA(Hidden)
 };
 
 USTRUCT()
@@ -86,14 +86,14 @@ public:
 	UNiagaraBakerSettings(const FObjectInitializer& Init);
 
 	/**
-	This is the start time of the simultion where we being the capture.
+	This is the start time of the simulation where we begin the capture.
 	I.e. 2.0 would mean the simulation warms up by 2 seconds before we begin capturing.
 	*/
-	UPROPERTY(EditAnywhere, Category="Timeline")
+	UPROPERTY(EditAnywhere, Category="Settings")
 	float StartSeconds = 0.0f;
 
 	/** Duration in seconds to take the capture over. */
-	UPROPERTY(EditAnywhere, Category = "Timeline")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	float DurationSeconds = 4.0f;
 
 	/**
@@ -101,54 +101,54 @@ public:
 	This is only used for the preview view and calculating the number of ticks to execute
 	as we capture the generated texture.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Timeline", meta = (ClampMin=1, ClampMax=480))
+	UPROPERTY(EditAnywhere, Category = "Settings", AdvancedDisplay, meta = (ClampMin=1, ClampMax=480))
 	int FramesPerSecond = 60;
 
 	/** Should the preview playback as looping or not. */
-	UPROPERTY(EditAnywhere, Category = "Preview")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	uint8 bPreviewLooping : 1;
 
 	/** Number of frames in each dimension. */
-	UPROPERTY(EditAnywhere, Category = "Texture")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FIntPoint FramesPerDimension = FIntPoint(8, 8);
 
 	/** List of output textures we will generated. */
-	UPROPERTY(EditAnywhere, Category = "Texture")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<FNiagaraBakerTextureSettings> OutputTextures;
 
 	/** Current active viewport we will render from. */
-	UPROPERTY(EditAnywhere, Category = "Camera")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	ENiagaraBakerViewMode CameraViewportMode = ENiagaraBakerViewMode::Perspective;
 
 	/** Per viewport camera position.. */
-	UPROPERTY(EditAnywhere, Category = "Camera")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FVector CameraViewportLocation[(int)ENiagaraBakerViewMode::Num];
 
 	/** Per viewport camera rotation.. */
-	UPROPERTY(EditAnywhere, Category = "Camera")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FRotator CameraViewportRotation[(int)ENiagaraBakerViewMode::Num];
 
 	/** Perspective camera orbit distance. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "CameraViewportMode == ENiagaraBakerViewMode::Perspective", ClampMin = "0.01"))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditConditionHides, EditCondition="CameraViewportMode == ENiagaraBakerViewMode::Perspective", ClampMin = "0.01"))
 	float CameraOrbitDistance = 200.f;
 
 	/** Camera FOV to use when in perspective mode. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta=(EditCondition="CameraViewportMode == ENiagaraBakerViewMode::Perspective", ClampMin="1.0", ClampMax="180.0"))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditConditionHides, EditCondition="CameraViewportMode == ENiagaraBakerViewMode::Perspective", ClampMin="1.0", ClampMax="179.0"))
 	float CameraFOV = 90.0f;
 
 	/** Camera Orthographic width to use with in orthographic mode. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "CameraViewportMode != ENiagaraBakerViewMode::Perspective", ClampMin="1.0"))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditConditionHides, EditCondition = "CameraViewportMode != ENiagaraBakerViewMode::Perspective", ClampMin="1.0"))
 	float CameraOrthoWidth = 512.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bUseCameraAspectRatio : 1;
 
 	/** Custom aspect ratio to use rather than using the width & height to automatically calculate. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "bUseCameraAspectRatio", ClampMin="0.01"))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditCondition = "bUseCameraAspectRatio", ClampMin="0.01"))
 	float CameraAspectRatio = 1.0f;
 
 	/** Should we render just the component or the whole scene. */
-	UPROPERTY(EditAnywhere, Category = "Environment")
+	UPROPERTY(EditAnywhere, Category = "Settings", AdvancedDisplay)
 	uint8 bRenderComponentOnly : 1;
 
 	///** Type of level setup to use. */

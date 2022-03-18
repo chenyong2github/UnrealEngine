@@ -16,11 +16,12 @@
 
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
-#include "EngineModule.h"
+#include "AdvancedPreviewScene.h"
 #include "AssetToolsModule.h"
+#include "EngineModule.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "PackageTools.h"
-#include "AdvancedPreviewScene.h"
+#include "ScopedTransaction.h"
 
 #include "Factories/Texture2dFactoryNew.h"
 
@@ -119,21 +120,266 @@ const UNiagaraBakerSettings* FNiagaraBakerViewModel::GetBakerGeneratedSettings()
 	return nullptr;
 }
 
-const FNiagaraBakerTextureSettings* FNiagaraBakerViewModel::GetPreviewTextureSettings() const
-{
-	if ( UNiagaraBakerSettings* Settings = GetBakerSettings() )
-	{
-		if ( Settings->OutputTextures.IsValidIndex(PreviewTextureIndex) )
-		{
-			return &Settings->OutputTextures[PreviewTextureIndex];
-		}
-	}
-	return nullptr;
-}
-
 TSharedPtr<class SWidget> FNiagaraBakerViewModel::GetWidget()
 {
 	return Widget;
+}
+
+void FNiagaraBakerViewModel::SetCameraViewMode(ENiagaraBakerViewMode ViewMode)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("SetCameraViewMode", "Set Camera View Mode"));
+		BakerSettings->CameraViewportMode = ViewMode;
+		BakerSettings->Modify();
+	}
+}
+
+bool FNiagaraBakerViewModel::IsCameraViewMode(ENiagaraBakerViewMode ViewMode)
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->CameraViewportMode == ViewMode : false;
+}
+
+FText FNiagaraBakerViewModel::GetCurrentCameraModeText() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? GetCameraModeText(BakerSettings->CameraViewportMode) : FText::GetEmpty();
+}
+
+FName FNiagaraBakerViewModel::GetCurrentCameraModeIconName() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return GetCameraModeIconName(BakerSettings ? BakerSettings->CameraViewportMode : ENiagaraBakerViewMode::Perspective);
+}
+
+FSlateIcon FNiagaraBakerViewModel::GetCurrentCameraModeIcon() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return GetCameraModeIcon(BakerSettings ? BakerSettings->CameraViewportMode : ENiagaraBakerViewMode::Perspective);
+}
+
+FText FNiagaraBakerViewModel::GetCameraModeText(ENiagaraBakerViewMode Mode)
+{
+	switch (Mode)
+	{
+		case ENiagaraBakerViewMode::Perspective:	return LOCTEXT("Perspective", "Perspective");
+		case ENiagaraBakerViewMode::OrthoFront:		return LOCTEXT("OrthoFront", "Front");
+		case ENiagaraBakerViewMode::OrthoBack:		return LOCTEXT("OrthoBack", "Back");
+		case ENiagaraBakerViewMode::OrthoLeft:		return LOCTEXT("OrthoLeft", "Left");
+		case ENiagaraBakerViewMode::OrthoRight:		return LOCTEXT("OrthoRight", "Right");
+		case ENiagaraBakerViewMode::OrthoTop:		return LOCTEXT("OrthoTop", "Top");
+		case ENiagaraBakerViewMode::OrthoBottom:	return LOCTEXT("OrthoBottom", "Bottom");
+		default:									return LOCTEXT("Error", "Error");
+	}
+}
+
+FName FNiagaraBakerViewModel::GetCameraModeIconName(ENiagaraBakerViewMode Mode)
+{
+	static FName PerspectiveIcon("EditorViewport.Perspective");
+	static FName TopIcon("EditorViewport.Top");
+	static FName LeftIcon("EditorViewport.Left");
+	static FName FrontIcon("EditorViewport.Front");
+	static FName BottomIcon("EditorViewport.Bottom");
+	static FName RightIcon("EditorViewport.Right");
+	static FName BackIcon("EditorViewport.Back");
+
+	switch (Mode)
+	{
+		case ENiagaraBakerViewMode::Perspective:	return PerspectiveIcon;
+		case ENiagaraBakerViewMode::OrthoFront:		return FrontIcon;
+		case ENiagaraBakerViewMode::OrthoBack:		return BackIcon;
+		case ENiagaraBakerViewMode::OrthoLeft:		return LeftIcon;
+		case ENiagaraBakerViewMode::OrthoRight:		return RightIcon;
+		case ENiagaraBakerViewMode::OrthoTop:		return TopIcon;
+		case ENiagaraBakerViewMode::OrthoBottom:	return BottomIcon;
+		default:									return PerspectiveIcon;
+	}
+}
+
+FSlateIcon FNiagaraBakerViewModel::GetCameraModeIcon(ENiagaraBakerViewMode Mode)
+{
+	return FSlateIcon(FEditorStyle::GetStyleSetName(), GetCameraModeIconName(Mode));
+}
+
+FVector FNiagaraBakerViewModel::GetCurrentCameraLocation() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->CameraViewportLocation[int(BakerSettings->CameraViewportMode)] : FVector::ZeroVector;
+}
+
+void FNiagaraBakerViewModel::SetCurrentCameraLocation(const FVector Value)
+{
+	if ( UNiagaraBakerSettings* BakerSettings = GetBakerSettings() )
+	{
+		BakerSettings->CameraViewportLocation[int(BakerSettings->CameraViewportMode)] = Value;
+	}
+}
+
+FRotator FNiagaraBakerViewModel::GetCurrentCameraRotation() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->CameraViewportRotation[int(BakerSettings->CameraViewportMode)] : FRotator::ZeroRotator;
+}
+
+void FNiagaraBakerViewModel::SetCurrentCameraRotation(const FRotator Value) const
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		BakerSettings->CameraViewportRotation[int(BakerSettings->CameraViewportMode)] = Value;
+	}
+}
+
+float FNiagaraBakerViewModel::GetCameraFOV() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->CameraFOV : 0.0f;
+}
+
+void FNiagaraBakerViewModel::SetCameraFOV(float InFOV)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("SetCameraFOV", "Set Camera FOV"));
+		BakerSettings->CameraFOV = InFOV;
+		BakerSettings->Modify();
+	}
+}
+
+float FNiagaraBakerViewModel::GetCameraOrbitDistance() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->CameraOrbitDistance : 0.0f;
+}
+
+void FNiagaraBakerViewModel::SetCameraOrbitDistance(float InOrbitDistance)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("SetCameraOrbitDistance", "Set Camera Orbit Distance"));
+		BakerSettings->CameraOrbitDistance = InOrbitDistance;
+		BakerSettings->Modify();
+	}
+}
+
+float FNiagaraBakerViewModel::GetCameraOrthoWidth() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->CameraOrthoWidth : 0.0f;
+}
+
+void FNiagaraBakerViewModel::SetCameraOrthoWidth(float InOrthoWidth)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("SetCameraOrthoWidth", "Set Camera Ortho Width"));
+		BakerSettings->CameraOrthoWidth = InOrthoWidth;
+		BakerSettings->Modify();
+	}
+}
+
+void FNiagaraBakerViewModel::ToggleCameraAspectRatioEnabled()
+{
+	if ( UNiagaraBakerSettings* BakerSettings = GetBakerSettings() )
+	{
+		const FScopedTransaction Transaction(LOCTEXT("ToggleUseCameraAspectRatio", "Toggle Use Camera Aspect Ratio"));
+		BakerSettings->bUseCameraAspectRatio = !BakerSettings->bUseCameraAspectRatio;
+		BakerSettings->Modify();
+	}
+}
+
+bool FNiagaraBakerViewModel::IsCameraAspectRatioEnabled() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->bUseCameraAspectRatio : false;
+}
+
+float FNiagaraBakerViewModel::GetCameraAspectRatio() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->CameraAspectRatio : 0.0f;
+}
+
+void FNiagaraBakerViewModel::SetCameraAspectRatio(float InAspectRatio)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("SetCameraAspectRatio", "Set Camera Aspect Ratio"));
+		BakerSettings->CameraAspectRatio = InAspectRatio;
+		BakerSettings->Modify();
+	}
+}
+
+void FNiagaraBakerViewModel::AddOutput()
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("AddOutput", "Add Output"));
+		BakerSettings->OutputTextures.AddDefaulted();
+		BakerSettings->Modify();
+
+		CurrentOutputIndex = BakerSettings->OutputTextures.Num() - 1;
+		OnCurrentOutputChanged.Broadcast();
+	}
+}
+
+void FNiagaraBakerViewModel::RemoveCurrentOutput()
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		if (BakerSettings->OutputTextures.IsValidIndex(CurrentOutputIndex))
+		{
+			const FScopedTransaction Transaction(LOCTEXT("RemoveOutput", "Remove Output"));
+			BakerSettings->OutputTextures.RemoveAt(CurrentOutputIndex);
+			BakerSettings->Modify();
+			CurrentOutputIndex = FMath::Max(0, CurrentOutputIndex - 1);
+			OnCurrentOutputChanged.Broadcast();
+		}
+	}
+}
+
+bool FNiagaraBakerViewModel::CanRemoveCurrentOutput() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings && BakerSettings->OutputTextures.IsValidIndex(CurrentOutputIndex);
+}
+
+void FNiagaraBakerViewModel::SetCurrentOutputIndex(int32 OutputIndex)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		if (BakerSettings->OutputTextures.Num() > 0)
+		{
+			CurrentOutputIndex = FMath::Clamp(OutputIndex, 0, BakerSettings->OutputTextures.Num() - 1);
+		}
+		else
+		{
+			CurrentOutputIndex = 0;
+		}
+		OnCurrentOutputChanged.Broadcast();
+	}
+}
+
+FText FNiagaraBakerViewModel::GetOutputText(int32 OutputIndex) const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	if ( BakerSettings && BakerSettings->OutputTextures.IsValidIndex(OutputIndex) )
+	{
+		if ( BakerSettings->OutputTextures[OutputIndex].OutputName.IsNone() )
+		{
+			return FText::Format(LOCTEXT("OutputFormat", "Output {0}"), FText::AsNumber(OutputIndex));
+		}
+		else
+		{
+			return FText::FromName(BakerSettings->OutputTextures[OutputIndex].OutputName);
+		}
+	}
+	return FText::GetEmpty();
+}
+
+FText FNiagaraBakerViewModel::GetCurrentOutputText() const
+{
+	return GetOutputText(CurrentOutputIndex);
 }
 
 void FNiagaraBakerViewModel::AddReferencedObjects(FReferenceCollector& Collector)

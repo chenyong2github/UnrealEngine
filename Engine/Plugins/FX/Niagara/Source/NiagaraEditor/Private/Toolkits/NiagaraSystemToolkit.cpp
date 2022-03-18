@@ -1276,9 +1276,4 @@ void FNiagaraSystemToolkit::OnViewModelRequestFocusTab(FName TabName)
 	GetTabManager()->TryInvokeTab(TabName);
 }
 
-void FNiagaraSystemToolkit::RenderBaker()
-{
-	BakerViewModel->RenderBaker();
-}
-
 #undef LOCTEXT_NAMESPACE

@@ -547,7 +547,7 @@ void FNiagaraEditorStyle::InitDebuggerStyle()
 
 void FNiagaraEditorStyle::InitBakerStyle()
 {
-	Set("NiagaraEditor.Baker", new IMAGE_BRUSH("Icons/Baker/BakerIcon", Icon40x40));
+	Set("NiagaraEditor.BakerIcon", new IMAGE_BRUSH("Icons/Baker/BakerIcon", Icon40x40));
 }
 
 void FNiagaraEditorStyle::InitCommonColors()

@@ -20,7 +20,7 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	TSharedRef<SWidget> GenerateOptionsMenu() const;
+	const FSlateBrush* GetCurrentCameraModeBrush() const;
 	TSharedRef<SWidget> GenerateCameraMenu() const;
 
 private:

@@ -4,11 +4,13 @@
 #include "ViewModels/NiagaraBakerViewModel.h"
 #include "SNiagaraBakerViewportToolbar.h"
 #include "NiagaraBakerRenderer.h"
+#include "NiagaraBatchedElements.h"
 #include "NiagaraComponent.h"
 
 #include "Engine/Font.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
+#include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "EditorViewportCommands.h"
 #include "EngineModule.h"
@@ -34,7 +36,7 @@ public:
 		// Only allow movement when in preview mode
 		auto ViewModel = WeakViewModel.Pin();
 		UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
-		if ( bShowPreview && BakerSettings )
+		if ( ViewModel->ShowRealtimePreview() && BakerSettings )
 		{
 			bool bForwardKeyState = false;
 			bool bBackwardKeyState = false;
@@ -100,7 +102,7 @@ public:
 		// Viewport movement only enabled when preview is enabled otherwise there is no feedback
 		auto ViewModel = WeakViewModel.Pin();
 		UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
-		if ( bShowPreview && BakerSettings && (Key == EKeys::MouseX || Key == EKeys::MouseY) )
+		if ( ViewModel->ShowRealtimePreview() && BakerSettings && (Key == EKeys::MouseX || Key == EKeys::MouseY) )
 		{
 			if (BakerSettings->IsOrthographic())
 			{
@@ -246,7 +248,7 @@ public:
 
 		const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
 		const UNiagaraBakerSettings* BakerGeneratedSettings = ViewModel->GetBakerGeneratedSettings();
-		const int32 PreviewTextureIndex = ViewModel->GetPreviewTextureIndex();
+		const int32 CurrentOutputIndex = ViewModel->GetCurrentOutputIndex();
 		const float TimelineDurationSeconds = BakerSettings->DurationSeconds;
 
 		// Determine view rects
@@ -255,13 +257,13 @@ public:
 		{
 			const FIntRect ViewRect = Canvas->GetViewRect();
 			const int32 Border = 3;
-			const int32 ViewWidth = bShowPreview && bShowBaker ? (ViewRect.Width() >> 1) - Border : ViewRect.Width();
+			const int32 ViewWidth = ViewModel->ShowRealtimePreview() && ViewModel->ShowBakedView() ? (ViewRect.Width() >> 1) - Border : ViewRect.Width();
 
-			if (bShowPreview)
+			if (ViewModel->ShowRealtimePreview())
 			{
-				if (BakerSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
+				if (BakerSettings->OutputTextures.IsValidIndex(CurrentOutputIndex))
 				{
-					PreviewViewRect = ConstrainRect(FIntRect(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Min.X + ViewWidth, ViewRect.Max.Y), BakerSettings->OutputTextures[PreviewTextureIndex].FrameSize);
+					PreviewViewRect = ConstrainRect(FIntRect(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Min.X + ViewWidth, ViewRect.Max.Y), BakerSettings->OutputTextures[CurrentOutputIndex].FrameSize);
 				}
 				else
 				{
@@ -269,11 +271,11 @@ public:
 				}
 			}
 
-			if ( bShowBaker )
+			if (ViewModel->ShowBakedView())
 			{
-				if (BakerGeneratedSettings && BakerGeneratedSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
+				if (BakerGeneratedSettings && BakerGeneratedSettings->OutputTextures.IsValidIndex(CurrentOutputIndex))
 				{
-					BakerViewRect = ConstrainRect(FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y), BakerGeneratedSettings->OutputTextures[PreviewTextureIndex].FrameSize);
+					BakerViewRect = ConstrainRect(FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y), BakerGeneratedSettings->OutputTextures[CurrentOutputIndex].FrameSize);
 				}
 				else
 				{
@@ -282,16 +284,33 @@ public:
 			}
 		}
 
+		const bool bRGBEnabled = ViewModel->IsChannelEnabled(ENiagaraBakerColorChannel::Red) || ViewModel->IsChannelEnabled(ENiagaraBakerColorChannel::Green) || ViewModel->IsChannelEnabled(ENiagaraBakerColorChannel::Blue);
+		const bool bAEnabled = ViewModel->IsChannelEnabled(ENiagaraBakerColorChannel::Alpha);
+		const bool bAlphaBlend = bAEnabled && bRGBEnabled;
+		FMatrix ColorTransform;
+		{
+			FPlane RPlane = ViewModel->IsChannelEnabled(ENiagaraBakerColorChannel::Red)   ? FPlane(1.0f, 0.0f, 0.0f, 0.0f) : FPlane(0.0f, 0.0f, 0.0f, 0.0f);
+			FPlane GPlane = ViewModel->IsChannelEnabled(ENiagaraBakerColorChannel::Green) ? FPlane(0.0f, 1.0f, 0.0f, 0.0f) : FPlane(0.0f, 0.0f, 0.0f, 0.0f);
+			FPlane BPlane = ViewModel->IsChannelEnabled(ENiagaraBakerColorChannel::Blue)  ? FPlane(0.0f, 0.0f, 1.0f, 0.0f) : FPlane(0.0f, 0.0f, 0.0f, 0.0f);
+			if (bAEnabled && !bRGBEnabled)
+			{
+				RPlane = FPlane(0.0f, 0.0f, 0.0f, 1.0f);
+				GPlane = FPlane(0.0f, 0.0f, 0.0f, 1.0f);
+				BPlane = FPlane(0.0f, 0.0f, 0.0f, 1.0f);
+			}
+			ColorTransform = FMatrix(RPlane, GPlane, BPlane, FPlane(0.0f, 0.0f, 0.0f, 1.0f));
+		}
+
 		// Render World Preview
-		if ( bShowPreview )
+		if (ViewModel->ShowRealtimePreview())
 		{
 			ClearViewArea(Canvas, PreviewViewRect);
 
 			const float WorldTime = RelativeTime + BakerSettings->StartSeconds;
 			FVector2D TextPosition(PreviewViewRect.Min.X + TextStartOffset.X, PreviewViewRect.Min.Y + TextStartOffset.Y);
-			if (BakerSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
+			if (BakerSettings->OutputTextures.IsValidIndex(CurrentOutputIndex))
 			{
-				const FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[PreviewTextureIndex];
+				const FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[CurrentOutputIndex];
 				if ( OutputTexture.IsValidForBake() )
 				{
 					// Ensure render target is the correct size
@@ -312,24 +331,27 @@ public:
 					PreviewComponent->SeekToDesiredAge(WorldTime);
 					PreviewComponent->TickComponent(BakerSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
 
-					BakerRenderer.RenderView(PreviewComponent, BakerSettings, WorldTime, RealtimeRenderTarget, PreviewTextureIndex);
+					BakerRenderer.RenderView(PreviewComponent, BakerSettings, WorldTime, RealtimeRenderTarget, CurrentOutputIndex);
 
 					const FVector2D HalfPixel(0.5f / float(OutputTexture.FrameSize.X), 0.5f / float(OutputTexture.FrameSize.Y));
-					Canvas->DrawTile(
-						PreviewViewRect.Min.X, PreviewViewRect.Min.Y, PreviewViewRect.Width(), PreviewViewRect.Height(),
-						HalfPixel.X, HalfPixel.Y, 1.0f - HalfPixel.X, 1.0f - HalfPixel.Y,
-						FLinearColor::White,
+					FCanvasTileItem TileItem(
+						FVector2D(PreviewViewRect.Min.X, PreviewViewRect.Min.Y),
 						RealtimeRenderTarget->GetResource(),
-						bAlphaBlend ? SE_BLEND_AlphaComposite : SE_BLEND_Opaque
+						FVector2D(PreviewViewRect.Width(), PreviewViewRect.Height()),
+						FVector2D(HalfPixel.X, HalfPixel.Y),
+						FVector2D(1.0f - HalfPixel.X, 1.0f - HalfPixel.Y),
+						FLinearColor::White
 					);
+					TileItem.BatchedElementParameters = new FBatchedElementNiagaraSimple(ColorTransform, bAlphaBlend);
+					Canvas->DrawItem(TileItem);
 
 					// Display info text
-					if (bShowInfoText)
+					if (ViewModel->ShowInfoText())
 					{
 						Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Live Preview"), DisplayFont, FLinearColor::White);
 						TextPosition.Y += FontHeight;
 
-						Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y), DisplayFont, FLinearColor::White);
+						Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d)"), CurrentOutputIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y), DisplayFont, FLinearColor::White);
 						TextPosition.Y += FontHeight;
 					}
 				}
@@ -338,7 +360,7 @@ public:
 					Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Live Preview"), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
 
-					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) Is Invalid For Baking FrameSize(%d x %d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y), DisplayFont, FLinearColor::White);
+					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) Is Invalid For Baking FrameSize(%d x %d)"), CurrentOutputIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y), DisplayFont, FLinearColor::White);
 				}
 			}
 			else
@@ -351,21 +373,21 @@ public:
 		}
 
 		// Render Baker
-		if ( bShowBaker)
+		if (ViewModel->ShowBakedView())
 		{
 			ClearViewArea(Canvas, BakerViewRect);
 
 			const bool bTimelineValid = BakerGeneratedSettings ? FMath::IsNearlyEqual(BakerGeneratedSettings->DurationSeconds, TimelineDurationSeconds) : false;
 			const bool bBakerValid =
 				(BakerGeneratedSettings != nullptr) &&
-				BakerGeneratedSettings->OutputTextures.IsValidIndex(PreviewTextureIndex) &&
-				(BakerGeneratedSettings->OutputTextures[PreviewTextureIndex].GeneratedTexture != nullptr);
+				BakerGeneratedSettings->OutputTextures.IsValidIndex(CurrentOutputIndex) &&
+				(BakerGeneratedSettings->OutputTextures[CurrentOutputIndex].GeneratedTexture != nullptr);
 			FVector2D TextPosition(BakerViewRect.Min.X + TextStartOffset.X, BakerViewRect.Min.Y + TextStartOffset.Y);
 
 			if (bBakerValid && bTimelineValid)
 			{
 				const auto DisplayData = BakerGeneratedSettings->GetDisplayInfo(RelativeTime, BakerGeneratedSettings->bPreviewLooping);
-				const FNiagaraBakerTextureSettings& OutputTexture = BakerGeneratedSettings->OutputTextures[PreviewTextureIndex];
+				const FNiagaraBakerTextureSettings& OutputTexture = BakerGeneratedSettings->OutputTextures[CurrentOutputIndex];
 
 				const FIntPoint TextureSize = FIntPoint(FMath::Max(OutputTexture.GeneratedTexture->GetSizeX(), 1), FMath::Max(OutputTexture.GeneratedTexture->GetSizeY(), 1));
 				const FIntPoint FramesPerDimension = BakerGeneratedSettings->FramesPerDimension;
@@ -374,21 +396,24 @@ public:
 				const FIntPoint FramePixelA = FIntPoint(FrameIndexA.X * OutputTexture.FrameSize.X, FrameIndexA.Y * OutputTexture.FrameSize.Y);
 				const FIntPoint FramePixelB = FIntPoint(FrameIndexB.X * OutputTexture.FrameSize.X, FrameIndexB.Y * OutputTexture.FrameSize.Y);
 
-				Canvas->DrawTile(
-					BakerViewRect.Min.X, BakerViewRect.Min.Y, BakerViewRect.Width(), BakerViewRect.Height(),
-					(float(FramePixelA.X) + 0.5f) / float(TextureSize.X), (float(FramePixelA.Y) + 0.5f) / float(TextureSize.Y), (float(FramePixelA.X + OutputTexture.FrameSize.X) - 0.5f) / float(TextureSize.X), (float(FramePixelA.Y + OutputTexture.FrameSize.Y) - 0.5f) / float(TextureSize.Y),
-					FLinearColor::White,
+				FCanvasTileItem TileItem(
+					FVector2D(BakerViewRect.Min.X, BakerViewRect.Min.Y),
 					OutputTexture.GeneratedTexture->GetResource(),
-					bAlphaBlend ? SE_BLEND_AlphaComposite : SE_BLEND_Opaque
+					FVector2D(BakerViewRect.Width(), BakerViewRect.Height()),
+					FVector2D((float(FramePixelA.X) + 0.5f) / float(TextureSize.X), (float(FramePixelA.Y) + 0.5f) / float(TextureSize.Y)),
+					FVector2D((float(FramePixelA.X + OutputTexture.FrameSize.X) - 0.5f) / float(TextureSize.X), (float(FramePixelA.Y + OutputTexture.FrameSize.Y) - 0.5f) / float(TextureSize.Y)),
+					FLinearColor::White
 				);
+				TileItem.BatchedElementParameters = new FBatchedElementNiagaraSimple(ColorTransform, bAlphaBlend);
+				Canvas->DrawItem(TileItem);
 
 				// Display info text
-				if (bShowInfoText)
+				if (ViewModel->ShowInfoText())
 				{
 					Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Baker"), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
 
-					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d) Frame(%d/%d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, DisplayData.FrameIndexA, BakerGeneratedSettings->GetNumFrames()), DisplayFont, FLinearColor::White);
+					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d) Frame(%d/%d)"), CurrentOutputIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, DisplayData.FrameIndexA, BakerGeneratedSettings->GetNumFrames()), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
 
 					if (!BakerGeneratedSettings->Equals(*BakerSettings))
@@ -429,7 +454,7 @@ public:
 		FLinearColor Color = ClearColor;
 		FVector2D EndUV(1.0f, 1.0f);
 
-		if (bShowCheckerboard)
+		if (WeakViewModel.Pin()->IsCheckerboardEnabled())
 		{
 			Texture = GetCheckerboardTexture();
 			Color = FLinearColor::White;
@@ -474,7 +499,7 @@ public:
 		auto ViewModel = WeakViewModel.Pin();
 		UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
 		UNiagaraComponent* NiagaraComponent = ViewModel->GetPreviewComponent();
-		if ( bShowPreview && BakerSettings && NiagaraComponent )
+		if (ViewModel->ShowRealtimePreview() && BakerSettings && NiagaraComponent )
 		{
 			//-TODO: Should take aspect ratio into account here
 			const FBoxSphereBounds ComponentBounds = NiagaraComponent->CalcBounds(NiagaraComponent->GetComponentTransform());
@@ -503,7 +528,7 @@ public:
 		const UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
 		if (BakerSettings && (PreviewViewRect.Area() > 0))
 		{
-			OrthoUnits = BakerSettings->GetOrthoSize(ViewModel->GetPreviewTextureIndex());
+			OrthoUnits = BakerSettings->GetOrthoSize(ViewModel->GetCurrentOutputIndex());
 			OrthoUnits.X = OrthoUnits.X / float(PreviewViewRect.Width());
 			OrthoUnits.Y = OrthoUnits.Y / float(PreviewViewRect.Height());
 		}
@@ -532,19 +557,12 @@ public:
 	FIntRect									PreviewViewRect;
 	FIntRect									BakerViewRect;
 
-	bool										bAlphaBlend = false;
-
-	bool										bShowCheckerboard = true;
 	UTexture2D*									CheckerboardTexture = nullptr;
 	FColor										CheckerboardColorOne = FColor(128, 128, 128);
 	FColor										CheckerboardColorTwo = FColor(64, 64, 64);
 	int32										CheckerSize = 32;
 
 	FLinearColor								ClearColor = FColor::Black;
-
-	bool										bShowInfoText = true;
-	bool										bShowPreview = true;
-	bool										bShowBaker = true;
 
 	TWeakPtr<FNiagaraBakerViewModel>			WeakViewModel;
 	float										RelativeTime = 0.0f;
@@ -610,134 +628,10 @@ void SNiagaraBakerViewport::OnFloatingButtonClicked()
 {
 }
 
-bool SNiagaraBakerViewport::IsAlphaBlendEnabled() const
-{
-	return ViewportClient->bAlphaBlend;
-}
-
-void SNiagaraBakerViewport::SetAlphaBlendEnabled(bool bEnabled)
-{
-	ViewportClient->bAlphaBlend = bEnabled;
-}
-
-bool SNiagaraBakerViewport::IsCheckerboardEnabled() const
-{
-	return ViewportClient->bShowCheckerboard;
-}
-
-void SNiagaraBakerViewport::SetCheckerboardEnabled(bool bEnabled)
-{
-	ViewportClient->bShowCheckerboard = bEnabled;
-}
-
-bool SNiagaraBakerViewport::IsInfoTextEnabled() const
-{
-	return ViewportClient->bShowInfoText;
-}
-
-void SNiagaraBakerViewport::SetInfoTextEnabled(bool bEnabled)
-{
-	ViewportClient->bShowInfoText = bEnabled;
-}
-
-bool SNiagaraBakerViewport::IsPreviewViewEnabled() const
-{
-	return ViewportClient->bShowPreview;
-}
-
-void SNiagaraBakerViewport::SetPreviewViewEnabled(bool bEnabled)
-{
-	ViewportClient->bShowPreview = bEnabled;
-}
-
-bool SNiagaraBakerViewport::IsBakerViewEnabled() const
-{
-	return ViewportClient->bShowBaker;
-}
-
-void SNiagaraBakerViewport::SetBakerViewEnabled(bool bEnabled)
-{
-	ViewportClient->bShowBaker = bEnabled;
-}
-
 void SNiagaraBakerViewport::RefreshView(const float RelativeTime, const float DeltaTime)
 {
 	ViewportClient->RelativeTime = RelativeTime;
 	ViewportClient->DeltaTime = DeltaTime;
-}
-
-ENiagaraBakerViewMode SNiagaraBakerViewport::GetCameraMode() const
-{
-	if ( auto ViewModel = WeakViewModel.Pin() )
-	{
-		const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
-		return BakerSettings->CameraViewportMode;
-	}
-	// Should never happen
-	checkf(false, TEXT("No ViewModel present"));
-	return ENiagaraBakerViewMode::Perspective;
-}
-
-void SNiagaraBakerViewport::SetCameraMode(ENiagaraBakerViewMode Mode)
-{
-	if (auto ViewModel = WeakViewModel.Pin())
-	{
-		UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
-		BakerSettings->CameraViewportMode = Mode;
-	}
-}
-
-bool SNiagaraBakerViewport::IsCameraMode(ENiagaraBakerViewMode Mode) const
-{
-	if (auto ViewModel = WeakViewModel.Pin())
-	{
-		const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
-		return BakerSettings->CameraViewportMode == Mode;
-	}
-	return false;
-}
-
-FText SNiagaraBakerViewport::GetCameraModeText(ENiagaraBakerViewMode Mode) const
-{
-	switch (Mode)
-	{
-		case ENiagaraBakerViewMode::Perspective:		return LOCTEXT("Perspective", "Perspective");
-		case ENiagaraBakerViewMode::OrthoFront:		return LOCTEXT("OrthoFront", "Front");
-		case ENiagaraBakerViewMode::OrthoBack:		return LOCTEXT("OrthoBack", "Back");
-		case ENiagaraBakerViewMode::OrthoLeft:		return LOCTEXT("OrthoLeft", "Left");
-		case ENiagaraBakerViewMode::OrthoRight:		return LOCTEXT("OrthoRight", "Right");
-		case ENiagaraBakerViewMode::OrthoTop:		return LOCTEXT("OrthoTop", "Top");
-		case ENiagaraBakerViewMode::OrthoBottom:		return LOCTEXT("OrthoBottom", "Bottom");
-		default:										return LOCTEXT("Error", "Error");
-	}
-}
-
-FName SNiagaraBakerViewport::GetCameraModeIconName(ENiagaraBakerViewMode Mode) const
-{
-	static FName PerspectiveIcon("EditorViewport.Perspective");
-	static FName TopIcon("EditorViewport.Top");
-	static FName LeftIcon("EditorViewport.Left");
-	static FName FrontIcon("EditorViewport.Front");
-	static FName BottomIcon("EditorViewport.Bottom");
-	static FName RightIcon("EditorViewport.Right");
-	static FName BackIcon("EditorViewport.Back");
-
-	switch (Mode)
-	{
-		case ENiagaraBakerViewMode::Perspective:		return PerspectiveIcon;
-		case ENiagaraBakerViewMode::OrthoFront:		return FrontIcon;
-		case ENiagaraBakerViewMode::OrthoBack:		return BackIcon;
-		case ENiagaraBakerViewMode::OrthoLeft:		return LeftIcon;
-		case ENiagaraBakerViewMode::OrthoRight:		return RightIcon;
-		case ENiagaraBakerViewMode::OrthoTop:		return TopIcon;
-		case ENiagaraBakerViewMode::OrthoBottom:		return BottomIcon;
-		default:										return PerspectiveIcon;
-	}
-}
-
-const struct FSlateBrush* SNiagaraBakerViewport::GetActiveCameraModeIcon() const
-{
-	return FEditorStyle::GetBrush(GetCameraModeIconName(GetCameraMode()));
 }
 
 #undef LOCTEXT_NAMESPACE

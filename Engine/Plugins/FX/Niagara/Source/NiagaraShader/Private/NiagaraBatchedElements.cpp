@@ -91,6 +91,10 @@ class FNiagaraSimpleElementPS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FMatrix44f, InColorWeights)
+		SHADER_PARAMETER(float, InGamma)
+		SHADER_PARAMETER_TEXTURE(Texture2D, InTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InTextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -113,5 +117,33 @@ void FBatchedElementNiagaraInvertColorChannel::BindShaders(FRHICommandList& RHIC
 	VertexShader->SetParameters(RHICmdList, InTransform);
 
 	FNiagaraSimpleElementPS::FParameters PassParameters;
+	PassParameters.InColorWeights	= FMatrix44f::Identity;
+	PassParameters.InGamma			= 1.0f;
+	PassParameters.InTexture		= GWhiteTexture->TextureRHI;
+	PassParameters.InTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
+}
+
+void FBatchedElementNiagaraSimple::BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture)
+{
+	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(InFeatureLevel));
+	TShaderMapRef<FNiagaraSimpleElementPS> PixelShader(GetGlobalShaderMap(InFeatureLevel));
+
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GSimpleElementVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+	GraphicsPSOInit.BlendState = bAlphaBlend ? TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI() : TStaticBlendState<>::GetRHI();
+
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+	VertexShader->SetParameters(RHICmdList, InTransform);
+
+	FNiagaraSimpleElementPS::FParameters PassParameters;
+	PassParameters.InColorWeights = ColorTransform;
+	PassParameters.InGamma = 1.0f;
+	PassParameters.InTexture = Texture ? Texture->TextureRHI : GWhiteTexture->TextureRHI;
+	PassParameters.InTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
 }

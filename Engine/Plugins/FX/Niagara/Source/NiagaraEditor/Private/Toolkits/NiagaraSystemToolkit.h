@@ -107,7 +107,6 @@ public:
 	void SetScriptScratchpad(const TSharedPtr<SWidget>& ScriptScratchpad);
 	
 	/** Mode exposed functions */
-	void RenderBaker();
 	TSharedRef<SWidget> GenerateCompileMenuContent();
 	TSharedRef<SWidget> GenerateBoundsMenuContent(TSharedRef<FUICommandList> InCommandList);
 	TSharedRef<SWidget> GenerateStatConfigMenuContent(TSharedRef<FUICommandList> InCommandList);

@@ -95,27 +95,6 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 			return MenuBuilder.MakeWidget();
 		}
 
-		static TSharedRef<SWidget> GenerateBakerMenu(FNiagaraSystemToolkit* Toolkit)
-		{
-			FMenuBuilder MenuBuilder(true, Toolkit->GetToolkitCommands());
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("BakerTab", "Open Baker Tab"),
-				LOCTEXT("BakerTabTooltip", "Opens the flip book tab."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda([TabManager=Toolkit->GetTabManager()]() { TabManager->TryInvokeTab(FNiagaraSystemToolkitModeBase::BakerTabID); }))
-			);
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("RunBaker", "Bake"),
-				LOCTEXT("RunBakerTooltip", "Runs the bake process."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(Toolkit, &FNiagaraSystemToolkit::RenderBaker))
-			);
-
-			return MenuBuilder.MakeWidget();
-		}
-
 		static TSharedRef<SWidget> FillDebugOptionsMenu(FNiagaraSystemToolkit* Toolkit)
 		{
 			FMenuBuilder MenuBuilder(true, Toolkit->GetToolkitCommands());
@@ -228,12 +207,37 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 
 			ToolbarBuilder.BeginSection("Baker");
 			{
-				ToolbarBuilder.AddComboButton(
-					FUIAction(),
-					FOnGetContent::CreateStatic(Local::GenerateBakerMenu, Toolkit),
-					LOCTEXT("Baker", "Baker"),
-					LOCTEXT("BakerTooltip", "Options for Baker rendering."),
-					FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Baker")
+				FUIAction BakerToggleAction(
+					FExecuteAction::CreateLambda(
+						[TabManager = Toolkit->GetTabManager()]()
+						{
+							TSharedPtr<SDockTab> ExistingTab = TabManager->FindExistingLiveTab(FNiagaraSystemToolkitModeBase::BakerTabID);
+							if (ExistingTab)
+							{
+								ExistingTab->RequestCloseTab();
+							}
+							else
+							{
+								TabManager->TryInvokeTab(FNiagaraSystemToolkitModeBase::BakerTabID);
+							}
+						}
+					),
+					nullptr,
+					FIsActionChecked::CreateLambda(
+						[TabManager = Toolkit->GetTabManager()]()
+						{
+							return TabManager->FindExistingLiveTab(FNiagaraSystemToolkitModeBase::BakerTabID).IsValid();
+						}
+					)
+				);
+
+				ToolbarBuilder.AddToolBarButton(
+					BakerToggleAction,
+					NAME_None,
+					LOCTEXT("BakerLabel", "Baker"),
+					LOCTEXT("BakerTooltip", "Toggles the baker tab."),
+					FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.BakerIcon"),
+					EUserInterfaceActionType::ToggleButton
 				);
 			}
 			ToolbarBuilder.EndSection();

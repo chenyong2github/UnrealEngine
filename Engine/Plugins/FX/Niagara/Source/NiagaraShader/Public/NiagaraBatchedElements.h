@@ -27,7 +27,7 @@ private:
 };
 
 /**
- * Batched element parameters for gathering attributes from different slices into a single color
+ * Batched element parameters for inverting a color channel
  */
 class NIAGARASHADER_API FBatchedElementNiagaraInvertColorChannel : public FBatchedElementParameters
 {
@@ -42,4 +42,24 @@ public:
 
 private:
 	uint32	ChannelMask;
+};
+
+/**
+ * Simple batched element using a 2d texture
+ */
+class NIAGARASHADER_API FBatchedElementNiagaraSimple : public FBatchedElementParameters
+{
+public:
+	FBatchedElementNiagaraSimple(FMatrix InColorTransform = FMatrix::Identity, bool InAlphaBlend = false)
+		: ColorTransform(InColorTransform)
+		, bAlphaBlend(InAlphaBlend)
+	{
+	}
+
+	/** Binds vertex and pixel shaders for this element */
+	virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
+
+private:
+	FMatrix	ColorTransform;
+	bool	bAlphaBlend;
 };
