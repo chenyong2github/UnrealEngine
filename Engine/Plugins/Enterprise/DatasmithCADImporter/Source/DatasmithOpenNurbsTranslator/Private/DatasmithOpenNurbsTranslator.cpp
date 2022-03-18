@@ -647,8 +647,9 @@ public:
 			TranslationCache = MakeShared<FTranslationCache>();
 		}
 
-		CADLibrary::FImportParameters ImportParameters(0.001, 0.1, FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
-		ImportParameters.SwitchOffUVMapScaling();
+		const double IPMetricUnit = 0.001; // CAD Tools works in mm
+		const double IPScaleFactor = 1.;
+		CADLibrary::FImportParameters ImportParameters(IPMetricUnit, IPScaleFactor, FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
 
 		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
@@ -751,7 +752,22 @@ private:
 
 	double GetScaleFactor() const
 	{
-		return CADModelConverter->GetScaleFactor();
+		return ScaleFactor;
+	}
+
+	/**
+	 * @param NewMetricUnit compare to mm
+	 */
+	void SetMetricUnit(const double NewMetricUnit)
+	{
+		if (FMath::IsNearlyZero(NewMetricUnit))
+		{
+			return;
+		}
+
+		// default unit is mm
+		ScaleFactor = 0.1 / NewMetricUnit;
+		OpenNurbsBRepConverter->SetScaleFactor(1 / NewMetricUnit);
 	}
 
 private:
@@ -764,6 +780,9 @@ private:
 	FDatasmithOpenNurbsOptions OpenNurbsOptions;
 	uint32 OpenNurbsOptionsHash;
 	FDatasmithImportBaseOptions BaseOptions;
+
+	// default unit is mm
+	double ScaleFactor = 0.1;
 
 private:
 	// For OpenNurbs archive parsing
@@ -2345,8 +2364,8 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		bResult = false;
 	}
 
-	double MetricUnit = 1 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
-	CADModelConverter->SetMetricUnit(MetricUnit);
+	const double MetricUnit = Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Millimeters);
+	SetMetricUnit(MetricUnit);
 
 	// Step 4: REQUIRED - Read bitmap table (it can be empty)
 	int Count = 0;

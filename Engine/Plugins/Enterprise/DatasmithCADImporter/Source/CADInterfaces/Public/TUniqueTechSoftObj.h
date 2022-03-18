@@ -262,6 +262,8 @@ CADINTERFACES_API void TUniqueTSObj<A3DCrvPolyLineData>::InitializeData();
 template<>
 CADINTERFACES_API void TUniqueTSObj<A3DCrvTransformData>::InitializeData();
 template<>
+CADINTERFACES_API void TUniqueTSObj<A3DDomainData>::InitializeData();
+template<>
 CADINTERFACES_API void TUniqueTSObj<A3DGlobalData>::InitializeData();
 template<>
 CADINTERFACES_API void TUniqueTSObj<A3DGraphicsData>::InitializeData();
@@ -363,6 +365,10 @@ template<>
 CADINTERFACES_API void TUniqueTSObj<A3DTopoUniqueVertexData>::InitializeData();
 template<>
 CADINTERFACES_API void TUniqueTSObj<A3DTopoWireEdgeData>::InitializeData();
+template<>
+CADINTERFACES_API void TUniqueTSObj<A3DVector2dData>::InitializeData();
+template<>
+CADINTERFACES_API void TUniqueTSObj<A3DVector3dData>::InitializeData();
 
 template<>
 CADINTERFACES_API A3DStatus TUniqueTSObj<A3DAsmModelFileData>::GetData(const A3DEntity* InEntityPtr);
@@ -400,6 +406,8 @@ template<>
 CADINTERFACES_API A3DStatus TUniqueTSObj<A3DCrvPolyLineData>::GetData(const A3DEntity* InEntityPtr);
 template<>
 CADINTERFACES_API A3DStatus TUniqueTSObj<A3DCrvTransformData>::GetData(const A3DEntity* InEntityPtr);
+template<>
+CADINTERFACES_API A3DStatus TUniqueTSObj<A3DDomainData>::GetData(const A3DEntity* InEntityPtr);
 template<>
 CADINTERFACES_API A3DStatus TUniqueTSObj<A3DGlobalData>::GetData(const A3DEntity* InEntityPtr);
 template<>
@@ -502,6 +510,10 @@ template<>
 CADINTERFACES_API A3DStatus TUniqueTSObj<A3DTopoUniqueVertexData>::GetData(const A3DEntity* InEntityPtr);
 template<>
 CADINTERFACES_API A3DStatus TUniqueTSObj<A3DTopoWireEdgeData>::GetData(const A3DEntity* InEntityPtr);
+template<>
+CADINTERFACES_API A3DStatus TUniqueTSObj<A3DVector2dData>::GetData(const A3DEntity* InEntityPtr);
+template<>
+CADINTERFACES_API A3DStatus TUniqueTSObj<A3DVector3dData>::GetData(const A3DEntity* InEntityPtr);
 
 template<>
 CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DAsmModelFileData>::GetDefaultIndexerValue() const;
@@ -539,6 +551,8 @@ template<>
 CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DCrvPolyLineData>::GetDefaultIndexerValue() const;
 template<>
 CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DCrvTransformData>::GetDefaultIndexerValue() const;
+template<>
+CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DDomainData>::GetDefaultIndexerValue() const;
 template<>
 CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DGlobalData>::GetDefaultIndexerValue() const;
 template<>
@@ -641,6 +655,10 @@ template<>
 CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DTopoUniqueVertexData>::GetDefaultIndexerValue() const;
 template<>
 CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DTopoWireEdgeData>::GetDefaultIndexerValue() const;
+template<>
+CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DVector2dData>::GetDefaultIndexerValue() const;
+template<>
+CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DVector3dData>::GetDefaultIndexerValue() const;
 
 // TUniqueTSObjFromIndex -----------------------------------
 

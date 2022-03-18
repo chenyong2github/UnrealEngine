@@ -156,6 +156,16 @@ A3DStatus GetSurfaceAsNurbs(const A3DSurfBase* SurfacePtr, A3DSurfNurbsData* Out
 	return A3DSurfBaseGetAsNurbs(SurfacePtr, Tolerance, bUseSameParameterization, OutDataPtr);
 }
 
+A3DStatus GetSurfaceDomain(const A3DSurfBase* SurfacePtr, A3DDomainData& OutDomain)
+{
+	return A3DSrfGetDomain(SurfacePtr, &OutDomain);
+}
+
+A3DStatus Evaluate(const A3DSurfBase* SurfacePtr, const A3DVector2dData& UVParameter, A3DUns32 Derivatives, A3DVector3dData* OutPointAndDerivatives)
+{
+	return A3DSurfEvaluate(SurfacePtr, &UVParameter, Derivatives, OutPointAndDerivatives);
+}
+
 A3DStatus GetCurveAsNurbs(const A3DCrvBase* CurvePtr, A3DCrvNurbsData* OutDataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization)
 {
 	return A3DCrvBaseGetAsNurbs(CurvePtr, Tolerance, bUseSameParameterization, OutDataPtr);
@@ -432,6 +442,11 @@ double GetModelFileUnit(const A3DAsmModelFile* ModelFile)
 	return FileUnit * 0.1;
 }
 
+A3DStatus AddAttribute(A3DEntity* EntityPtr, const TCHAR* Title, const TCHAR* Value)
+{
+	return A3DRootBaseAttributeAdd(EntityPtr, TCHAR_TO_UTF8(Title), TCHAR_TO_UTF8(Value));
+}
+
 A3DStatus SewModel(A3DAsmModelFile* ModelPtr, double ToleranceInCM, A3DSewOptionsData const* SewOptions)
 {
 	const double ToleranceInMM = ToleranceInCM * 10.; // cm => mm
@@ -539,6 +554,11 @@ template<>
 void TUniqueTSObj<A3DCrvPolyLineData>::InitializeData()
 {
 	A3D_INITIALIZE_DATA(A3DCrvPolyLineData, Data);
+}
+template<>
+void TUniqueTSObj<A3DDomainData>::InitializeData()
+{
+	A3D_INITIALIZE_DATA(A3DDomainData, Data);
 }
 template<>
 void TUniqueTSObj<A3DCrvTransformData>::InitializeData()
@@ -805,7 +825,16 @@ void TUniqueTSObj<A3DUTF8Char*>::InitializeData()
 {
 	Data = nullptr;
 }
-
+template<>
+void TUniqueTSObj<A3DVector2dData>::InitializeData()
+{
+	A3D_INITIALIZE_DATA(A3DVector2dData, Data);
+}
+template<>
+void TUniqueTSObj<A3DVector3dData>::InitializeData()
+{
+	A3D_INITIALIZE_DATA(A3DVector3dData, Data);
+}
 
 
 // TUniqueTSObjFromIndex InitializeData -----------------------------------
@@ -944,6 +973,12 @@ template<>
 A3DStatus TUniqueTSObj<A3DCrvPolyLineData>::GetData(const A3DEntity* InEntityPtr)
 {
 	return A3DCrvPolyLineGet(InEntityPtr, &Data);
+}
+
+template<>
+A3DStatus TUniqueTSObj<A3DDomainData>::GetData(const A3DEntity* InEntityPtr)
+{
+	return A3DStatus::A3D_ERROR;
 }
 
 template<>
@@ -1264,6 +1299,18 @@ A3DStatus TUniqueTSObj<A3DUTF8Char*>::GetData(const A3DEntity* InEntityPtr)
 	return A3DStatus::A3D_ERROR;
 }
 
+template<>
+A3DStatus TUniqueTSObj<A3DVector2dData>::GetData(const A3DEntity* InEntityPtr)
+{
+	return A3DStatus::A3D_ERROR;
+}
+
+template<>
+A3DStatus TUniqueTSObj<A3DVector3dData>::GetData(const A3DEntity* InEntityPtr)
+{
+	return A3DStatus::A3D_ERROR;
+}
+
 
 // TUniqueTSObjFromIndex GetData -----------------------------------
 template<>
@@ -1332,6 +1379,8 @@ template<>
 const A3DEntity* TUniqueTSObj<A3DCrvParabolaData>::GetDefaultIndexerValue() const { return nullptr; }
 template<>
 const A3DEntity* TUniqueTSObj<A3DCrvPolyLineData>::GetDefaultIndexerValue() const { return nullptr; }
+template<>
+const A3DEntity* TUniqueTSObj<A3DDomainData>::GetDefaultIndexerValue() const { return nullptr; }
 template<>
 const A3DEntity* TUniqueTSObj<A3DCrvTransformData>::GetDefaultIndexerValue() const { return nullptr; }
 template<>
@@ -1436,6 +1485,10 @@ template<>
 const A3DEntity* TUniqueTSObj<A3DTopoUniqueVertexData>::GetDefaultIndexerValue() const { return nullptr; }
 template<>
 const A3DEntity* TUniqueTSObj<A3DTopoWireEdgeData>::GetDefaultIndexerValue() const { return nullptr; }
+template<>
+const A3DEntity* TUniqueTSObj<A3DVector2dData>::GetDefaultIndexerValue() const { return nullptr; }
+template<>
+const A3DEntity* TUniqueTSObj<A3DVector3dData>::GetDefaultIndexerValue() const { return nullptr; }
 
 template<>
 uint32 TUniqueTSObjFromIndex<A3DGraphMaterialData>::GetDefaultIndexerValue() const { return A3D_DEFAULT_MATERIAL_INDEX; }

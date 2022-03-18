@@ -74,7 +74,7 @@ bool GetBodyFromPcrFile(const FString& Filename, const FImportParameters& Import
 	if (JsonObject.IsValid())
 	{
 		double BodyUnit = 1.0;
-		JsonObject->TryGetNumberField(JSON_ENTRY_FILE_UNIT, BodyUnit);
+		JsonObject->TryGetNumberField(JSON_ENTRY_BODY_UNIT, BodyUnit);
 
 		for (A3DUns32 Index = 0; Index < PartDefinitionData->m_uiRepItemsSize; ++Index)
 		{
@@ -149,7 +149,7 @@ FUniqueTechSoftModelFile SaveBodiesToPrcFile(void** Bodies, uint32 BodyCount, co
 #endif
 }
 
-bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh)
+bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, double BodyUnit, FBodyMesh& BodyMesh)
 {
 #if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	A3DRiRepresentationItem* RepresentationItemPtr = (A3DRiRepresentationItem*)BodyPtr;
@@ -158,9 +158,8 @@ bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, doub
 	A3DEntityGetType(RepresentationItemPtr, &Type);
 	if (Type == kA3DTypeRiPolyBrepModel)
 	{
-		TUniqueTSObj<A3DRiRepresentationItemData> RepresentationItemData(RepresentationItemPtr);
-		TechSoftInterfaceUtils::FTechSoftTessellationExtractor Extractor(RepresentationItemData->m_pTessBase);
-		return Extractor.FillBodyMesh(BodyMesh, FileUnit);
+		TechSoftInterfaceUtils::FTechSoftTessellationExtractor Extractor(RepresentationItemPtr, BodyUnit);
+		return Extractor.FillBodyMesh(BodyMesh);
 	}
 
 	// TUniqueTechSoftObj does not work in this case
@@ -169,9 +168,9 @@ bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, doub
 	TessellationParameters->m_eTessellationLevelOfDetail = kA3DTessLODUserDefined; // Enum to specify predefined values for some following members.
 	TessellationParameters->m_bUseHeightInsteadOfRatio = A3D_TRUE;
 	TessellationParameters->m_dMaxChordHeight = ImportParameters.GetChordTolerance() * 10.; // cm to mm
-	if (!FMath::IsNearlyZero(FileUnit))
+	if (!FMath::IsNearlyZero(BodyUnit))
 	{
-		TessellationParameters->m_dMaxChordHeight /= FileUnit;
+		TessellationParameters->m_dMaxChordHeight /= BodyUnit;
 	}
 
 	TessellationParameters->m_dAngleToleranceDeg = ImportParameters.GetMaxNormalAngle();
@@ -199,8 +198,9 @@ bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, doub
 		}
 	}
 
-	TechSoftInterfaceUtils::FTechSoftTessellationExtractor Extractor(RepresentationItemData->m_pTessBase);
-	return Extractor.FillBodyMesh(BodyMesh, FileUnit);
+	TechSoftInterfaceUtils::FTechSoftTessellationExtractor Extractor(RepresentationItemPtr, BodyUnit);
+	return Extractor.FillBodyMesh(BodyMesh);
+
 #else
 	return false;
 #endif

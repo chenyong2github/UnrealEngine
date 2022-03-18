@@ -53,7 +53,7 @@ namespace CADLibrary
 
 		for (FVector& Vertex : VertexArray)
 		{
-			Vertex *= Context.ImportParams.GetScaleFactor();
+			Vertex *= 0.1; // mm (CADKernel unit) to cm (UE unit)
 		}
 
 		int32 VertexCount = VertexArray.Num();
@@ -206,13 +206,17 @@ namespace CADLibrary
 					// Set patch id attribute
 					PatchGroups[PolygonID] = Face.GetPatchId();
 				}
-
+				
 				for (int32 IndexFace = 0; IndexFace < MeshVertexInstanceIDs.Num(); IndexFace += 3)
 				{
 					for (int32 Index = 0; Index < TriangleCount; Index++)
 					{
 						const FVertexInstanceID VertexInstanceID = MeshVertexInstanceIDs[IndexFace + Index];
-						VertexInstanceUVs.Set(VertexInstanceID, UVChannel, FVector2f(FaceMesh->UVMap[TriangleVertexIndices[IndexFace + Orientation[Index]]]));
+
+						// TODO
+						// The UV scaling should be done in CADKernel
+						const double ScaleUV = 0.001; // mm to m
+						VertexInstanceUVs.Set(VertexInstanceID, UVChannel, FVector2f(FaceMesh->UVMap[TriangleVertexIndices[IndexFace + Orientation[Index]]] * ScaleUV));
 
 						VertexInstanceColors[VertexInstanceID] = FLinearColor::White;
 						VertexInstanceTangents[VertexInstanceID] = FVector3f(ForceInitToZero);

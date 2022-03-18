@@ -228,7 +228,7 @@ public:
 		}
 
 		const double MetricUnit = 0.001; // ImportParameters MetricUnit is defined in meter
-		const double ScaleFactor = 0.1;  // MetricUnit to UE unit i.e. cm
+		const double ScaleFactor = 1;    // MetricUnit to Modeler unit i.e. mm
 		CADLibrary::FImportParameters ImportParameters(MetricUnit, ScaleFactor);
 		if(CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{

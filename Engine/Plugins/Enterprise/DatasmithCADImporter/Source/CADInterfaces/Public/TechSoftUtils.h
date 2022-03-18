@@ -6,10 +6,6 @@
 #include "CADData.h"
 #include "TechSoftInterface.h"
 
-#define JSON_ENTRY_BODY_UNIT		TEXT("BodyUnit")
-#define JSON_ENTRY_COLOR_NAME		TEXT("ColorName")
-#define JSON_ENTRY_MATERIAL_NAME	TEXT("MaterialName")
-
 struct FColor;
 
 typedef void A3DAsmPartDefinition;

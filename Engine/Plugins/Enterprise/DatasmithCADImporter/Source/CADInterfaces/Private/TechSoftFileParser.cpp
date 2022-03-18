@@ -434,9 +434,9 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 		{
 			TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
 
-			// Save file unit and default color and material attributes in a json string
+			// Save body unit and default color and material attributes in a json string
 			// This will be used when the file is reloaded
-			JsonObject->SetNumberField(JSON_ENTRY_FILE_UNIT, Body.BodyUnit);
+			JsonObject->SetNumberField(JSON_ENTRY_BODY_UNIT, Body.BodyUnit);
 			JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorName);
 			JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialName);
 

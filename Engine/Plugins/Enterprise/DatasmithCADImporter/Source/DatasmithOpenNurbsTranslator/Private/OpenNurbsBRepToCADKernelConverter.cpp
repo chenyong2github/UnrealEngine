@@ -84,6 +84,18 @@ TSharedRef<CADKernel::FSurface> FOpenNurbsBRepToCADKernelConverter::AddSurface(O
 		}
 	}
 
+	// Scale ControlPoints into mm
+	if(!FMath::IsNearlyEqual(ScaleFactor, 1.))
+	{
+		int32 Offset = NurbsData.bIsRational ? 4 : 3;
+		for (int32 Index = 0; Index < NurbsData.HomogeneousPoles.Num(); Index += Offset)
+		{
+			ControlPoints[Index + 0] *= ScaleFactor;
+			ControlPoints[Index + 1] *= ScaleFactor;
+			ControlPoints[Index + 2] *= ScaleFactor;
+		}
+	}
+
 #ifdef REMOVE_NEGATIVE_WEIGHT
 	if (NurbsData.bIsRational)
 	{

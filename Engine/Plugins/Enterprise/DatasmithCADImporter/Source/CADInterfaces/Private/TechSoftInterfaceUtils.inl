@@ -5,749 +5,944 @@
 #include "CADSceneGraph.h"
 
 #include "TUniqueTechSoftObj.h"
+#include "TechSoftInterface.h"
 
 #ifdef USE_TECHSOFT_SDK
 
 namespace TechSoftInterfaceUtils
 {
-	class FTechSoftTessellationExtractor
+
+class FTechSoftTessellationExtractor
+{
+public:
+	FTechSoftTessellationExtractor(const A3DRiRepresentationItem* RepresentationItemPtr, const double InBodyUnit)
+		: BodyUnit(InBodyUnit)
+		, TextureUnit(InBodyUnit)
 	{
-	public:
-		FTechSoftTessellationExtractor(const A3DTess3D* InTessellationPtr)
-			: TessellationPtr(InTessellationPtr)
+		CADLibrary::TUniqueTSObj<A3DRiRepresentationItemData> RepresentationItemData(RepresentationItemPtr);
+		if (!RepresentationItemData.IsValid())
 		{
+			return;
 		}
 
-		bool  FillBodyMesh(CADLibrary::FBodyMesh& BodyMesh, double FileUnit)
+		A3DEEntityType Type;
+		A3DEntityGetType(RepresentationItemData->m_pTessBase, &Type);
+		if (Type != kA3DTypeTess3D)
 		{
-			int32 VertexOffset = BodyMesh.VertexArray.Num();
-			FillVertexArray(FileUnit, BodyMesh.VertexArray);
-
-			if (BodyMesh.VertexArray.Num() == VertexOffset)
-			{
-				return false;
-			}
-
-			FillFaceArray(BodyMesh, VertexOffset);
-
-			return BodyMesh.Faces.Num() > 0 ? true : false;
+			return;
 		}
 
-	private:
-		void FillVertexArray(double FileUnit, TArray<FVector>& VertexArray)
+		TessellationPtr = RepresentationItemData->m_pTessBase;
+
+		A3DEntityGetType(RepresentationItemPtr, &Type);
+		if (Type == kA3DTypeRiBrepModel)
 		{
-			using namespace CADLibrary;
-
-			TUniqueTSObj<A3DTessBaseData> TessellationBaseData(TessellationPtr);
-
-			if (!TessellationBaseData.IsValid() || TessellationBaseData->m_uiCoordSize == 0)
+			CADLibrary::TUniqueTSObj<A3DRiBrepModelData> BRepModelData(RepresentationItemPtr);
+			if (BRepModelData.IsValid())
 			{
-				return;
+				A3DBrepData = BRepModelData->m_pBrepData;
 			}
+		}
+	}
 
-			int32 VertexCount = TessellationBaseData->m_uiCoordSize / 3;
-			VertexArray.Reserve(VertexArray.Num() + VertexCount);
+	bool FillBodyMesh(CADLibrary::FBodyMesh& BodyMesh)
+	{
+		if (TessellationPtr == nullptr)
+		{
+			return false;
+		}
 
-			double* Coordinates = TessellationBaseData->m_pdCoords;
-			for (unsigned int Index = 0; Index < TessellationBaseData->m_uiCoordSize; ++Index)
+		int32 VertexOffset = BodyMesh.VertexArray.Num();
+		FillVertexArray(BodyMesh.VertexArray);
+
+		if (BodyMesh.VertexArray.Num() == VertexOffset)
+		{
+			return false;
+		}
+
+		BodyFaces.Empty();
+		GetBRepFaces();
+		FillFaceArray(BodyMesh, VertexOffset);
+
+		return BodyMesh.Faces.Num() > 0 ? true : false;
+	}
+
+private:
+	void FillVertexArray(TArray<FVector>& VertexArray)
+	{
+		using namespace CADLibrary;
+
+		CADLibrary::TUniqueTSObj<A3DTessBaseData> TessellationBaseData(TessellationPtr);
+
+		if (!TessellationBaseData.IsValid() || TessellationBaseData->m_uiCoordSize == 0)
+		{
+			return;
+		}
+
+		int32 VertexCount = TessellationBaseData->m_uiCoordSize / 3;
+		VertexArray.Reserve(VertexArray.Num() + VertexCount);
+
+		double* Coordinates = TessellationBaseData->m_pdCoords;
+		for (unsigned int Index = 0; Index < TessellationBaseData->m_uiCoordSize; ++Index)
+		{
+			Coordinates[Index] *= BodyUnit;
+		}
+
+		for (unsigned int Index = 0; Index < TessellationBaseData->m_uiCoordSize; Index += 3)
+		{
+			VertexArray.Emplace(Coordinates[Index], Coordinates[Index + 1], Coordinates[Index + 2]);
+		}
+	}
+
+	// #ueent_techsoft: TODO: Make it more in line with the actual implementation of FillFaceArray
+	uint32 CountTriangles(const A3DTessFaceData& FaceTessData)
+	{
+		const int32 TessellationFaceDataWithTriangle = 0x2222;
+		const int32 TessellationFaceDataWithFan = 0x4444;
+		const int32 TessellationFaceDataWithStripe = 0x8888;
+		const int32 TessellationFaceDataWithOneNormal = 0xE0E0;
+
+		uint32 UsedEntitiesFlags = FaceTessData.m_usUsedEntitiesFlags;
+
+		uint32 TriangleCount = 0;
+		uint32 FaceSetIndex = 0;
+		if (UsedEntitiesFlags & TessellationFaceDataWithTriangle)
+		{
+			TriangleCount += FaceTessData.m_puiSizesTriangulated[FaceSetIndex];
+			FaceSetIndex++;
+		}
+
+		if (FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex)
+		{
+			if (UsedEntitiesFlags & TessellationFaceDataWithFan)
 			{
-				Coordinates[Index] *= FileUnit;
-			}
-
-			for (unsigned int Index = 0; Index < TessellationBaseData->m_uiCoordSize; Index += 3)
-			{
-				VertexArray.Emplace(Coordinates[Index], Coordinates[Index + 1], Coordinates[Index + 2]);
+				uint32 LastFanIndex = 1 + FaceSetIndex + FaceTessData.m_puiSizesTriangulated[FaceSetIndex];
+				FaceSetIndex++;
+				for (; FaceSetIndex < LastFanIndex; FaceSetIndex++)
+				{
+					uint32 FanSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
+					TriangleCount += (FanSize - 2);
+				}
 			}
 		}
 
-		// #ueent_techsoft: TODO: Make it more in line with the actual implementation of FillFaceArray
-		uint32 CountTriangles(const A3DTessFaceData& FaceTessData)
+		if (FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex)
 		{
-			const int32 TessellationFaceDataWithTriangle = 0x2222;
-			const int32 TessellationFaceDataWithFan = 0x4444;
-			const int32 TessellationFaceDataWithStripe = 0x8888;
-			const int32 TessellationFaceDataWithOneNormal = 0xE0E0;
+			FaceSetIndex++;
+			for (; FaceSetIndex < FaceTessData.m_uiSizesTriangulatedSize; FaceSetIndex++)
+			{
+				uint32 StripeSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
+				TriangleCount += (StripeSize - 2);
+			}
+		}
+		return TriangleCount;
+	}
+
+	void FillFaceArray(CADLibrary::FBodyMesh& BodyMesh, int32 VertexOffset = 0)
+	{
+		using namespace CADLibrary;
+
+		TArray<FTessellationData>& Faces = BodyMesh.Faces;
+
+		CADLibrary::TUniqueTSObj<A3DTess3DData> A3DTessellationData(TessellationPtr);
+
+		if (!A3DTessellationData.IsValid() || A3DTessellationData->m_uiFaceTessSize == 0)
+		{
+			return;
+		}
+
+		TessellationNormals = A3DTessellationData->m_pdNormals;
+		TessellationTexCoords = A3DTessellationData->m_pdTextureCoords;
+		TriangulatedIndexes = A3DTessellationData->m_puiTriangulatedIndexes;
+
+		if (A3DTessellationData->m_uiFaceTessSize != BodyFaces.Num())
+		{
+			BodyFaces.Empty();
+			A3DBrepData = nullptr;
+		}
+
+		for (unsigned int Index = 0; Index < A3DTessellationData->m_uiFaceTessSize; ++Index)
+		{
+			const A3DTessFaceData& FaceTessData = A3DTessellationData->m_psFaceTessData[Index];
+			FTessellationData& Tessellation = Faces.Emplace_GetRef();
+
+			Tessellation.MaterialName = FTechSoftInterface::InvalidScriptIndex;
+			if (FaceTessData.m_uiStyleIndexesSize > 0)
+			{
+				// Store the StyleIndex on the MaterialName. It will be processed after tessellation
+				Tessellation.MaterialName = FaceTessData.m_puiStyleIndexes[0];
+			}
+
+			// Pre-allocate memory for triangles' data
+			uint32 TriangleCount = CountTriangles(FaceTessData);
+			Tessellation.PositionIndices.Reserve(3 * TriangleCount);
+			Tessellation.VertexIndices.Reserve(3 * TriangleCount);
+			Tessellation.NormalArray.Reserve(3 * TriangleCount);
+			if (FaceTessData.m_uiTextureCoordIndexesSize > 0)
+			{
+				Tessellation.TexCoordArray.Reserve(3 * TriangleCount);
+			}
 
 			uint32 UsedEntitiesFlags = FaceTessData.m_usUsedEntitiesFlags;
 
-			uint32 TriangleCount = 0;
+			uint32 LastTrianguleIndex = FaceTessData.m_uiStartTriangulated;
+			LastVertexIndex = 0;
+
 			uint32 FaceSetIndex = 0;
-			if (UsedEntitiesFlags & TessellationFaceDataWithTriangle)
+			bool bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangle)
 			{
-				TriangleCount += FaceTessData.m_puiSizesTriangulated[FaceSetIndex];
-				FaceSetIndex++;
+				AddFaceTriangle(Tessellation, FaceTessData.m_puiSizesTriangulated[FaceSetIndex++], LastTrianguleIndex, LastVertexIndex);
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
 			}
 
-			if (FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleOneNormal)
 			{
-				if (UsedEntitiesFlags & TessellationFaceDataWithFan)
-				{
-					uint32 LastFanIndex = 1 + FaceSetIndex + FaceTessData.m_puiSizesTriangulated[FaceSetIndex];
-					FaceSetIndex++;
-					for (; FaceSetIndex < LastFanIndex; FaceSetIndex++)
-					{
-						uint32 FanSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
-						TriangleCount += (FanSize - 2);
-					}
-				}
+				AddFaceTriangleWithUniqueNormal(Tessellation, FaceTessData.m_puiSizesTriangulated[FaceSetIndex++], LastTrianguleIndex, LastVertexIndex);
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
 			}
 
-			if (FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleTextured)
 			{
-				FaceSetIndex++;
-				for (; FaceSetIndex < FaceTessData.m_uiSizesTriangulatedSize; FaceSetIndex++)
-				{
-					uint32 StripeSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
-					TriangleCount += (StripeSize - 2);
-				}
-			}
-			return TriangleCount;
-		}
-
-		void FillFaceArray(CADLibrary::FBodyMesh& BodyMesh, int32 VertexOffset = 0)
-		{
-			using namespace CADLibrary;
-
-			TArray<FTessellationData>& Faces = BodyMesh.Faces;
-
-			TUniqueTSObj<A3DTess3DData> TessellationData(TessellationPtr);
-
-			if (!TessellationData.IsValid() || TessellationData->m_uiFaceTessSize == 0)
-			{
-				return;
+				AddFaceTriangleWithTexture(Tessellation, FaceTessData.m_puiSizesTriangulated[FaceSetIndex++], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
 			}
 
-			TessellationNormals = TessellationData->m_pdNormals;
-			TessellationTexCoords = TessellationData->m_pdTextureCoords;
-			TriangulatedIndexes = TessellationData->m_puiTriangulatedIndexes;
-
-			for (unsigned int Index = 0; Index < TessellationData->m_uiFaceTessSize; ++Index)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleOneNormalTextured)
 			{
-				const A3DTessFaceData& FaceTessData = TessellationData->m_psFaceTessData[Index];
-				FTessellationData& Tessellation = Faces.Emplace_GetRef();
+				AddFaceTriangleWithUniqueNormalAndTexture(Tessellation, FaceTessData.m_puiSizesTriangulated[FaceSetIndex++], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
 
-				Tessellation.MaterialName = FTechSoftInterface::InvalidScriptIndex;
-				if (FaceTessData.m_uiStyleIndexesSize > 0)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleFan)
+			{
+				uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+				for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
 				{
-					// Store the StyleIndex on the MaterialName. It will be processed after tessellation
-					Tessellation.MaterialName = FaceTessData.m_puiStyleIndexes[0];
+					uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+					AddFaceTriangleFan(Tessellation, VertexCount, LastTrianguleIndex, LastVertexIndex);
 				}
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
 
-				// Pre-allocate memory for triangles' data
-				uint32 TriangleCount = CountTriangles(FaceTessData);
-				Tessellation.PositionIndices.Reserve(3 * TriangleCount);
-				Tessellation.VertexIndices.Reserve(3 * TriangleCount);
-				Tessellation.NormalArray.Reserve(3 * TriangleCount);
-				if (FaceTessData.m_uiTextureCoordIndexesSize > 0)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleFanOneNormal)
+			{
+				uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+				for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
 				{
-					Tessellation.TexCoordArray.Reserve(3 * TriangleCount);
+					ensure((FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle) != 0);
+
+					uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+					AddFaceTriangleFanWithUniqueNormal(Tessellation, VertexCount, LastTrianguleIndex, LastVertexIndex);
 				}
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
 
-				uint32 UsedEntitiesFlags = FaceTessData.m_usUsedEntitiesFlags;
-
-				LastTrianguleIndex = FaceTessData.m_uiStartTriangulated;
-				LastVertexIndex = 0;
-
-				uint32 FaceSetIndex = 0;
-				bool bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
-
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangle)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleFanTextured)
+			{
+				uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+				for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
 				{
-					AddFaceTriangle(Tessellation, FaceTessData.m_puiSizesTriangulated[FaceSetIndex++], LastTrianguleIndex, LastVertexIndex);
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+					uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+					AddFaceTriangleFanWithTexture(Tessellation, VertexCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
 				}
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
 
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleOneNormal)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleFanOneNormalTextured)
+			{
+				uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+				for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
 				{
-					AddFaceTriangleWithUniqueNormal(Tessellation, FaceTessData.m_puiSizesTriangulated[FaceSetIndex++], LastTrianguleIndex, LastVertexIndex);
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+					ensure((FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle) != 0);
+
+					uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+					AddFaceTriangleFanWithUniqueNormalAndTexture(Tessellation, VertexCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
 				}
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
 
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleTextured)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleStripe)
+			{
+				A3DUns32 StripeSize = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+				for (A3DUns32 StripeIndex = 0; StripeIndex < StripeSize; ++StripeIndex)
 				{
-					AddFaceTriangleWithTexture(Tessellation, FaceTessData.m_puiSizesTriangulated[FaceSetIndex++], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+					A3DUns32 PointCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+					AddFaceTriangleStripe(Tessellation, PointCount, LastTrianguleIndex, LastVertexIndex);
 				}
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
 
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleOneNormalTextured)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleStripeOneNormal)
+			{
+				A3DUns32 StripeSize = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+				for (A3DUns32 StripeIndex = 0; StripeIndex < StripeSize; ++StripeIndex)
 				{
-					AddFaceTriangleWithUniqueNormalAndTexture(Tessellation, FaceTessData.m_puiSizesTriangulated[FaceSetIndex++], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
-				}
+					bool bIsOneNormal = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle) != 0;
+					A3DUns32 PointCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
 
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleFan)
-				{
-					uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
-					for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
+					// Is there only one normal for the entire stripe?
+					if (bIsOneNormal == false)
 					{
-						uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
-						AddFaceTriangleFan(Tessellation, VertexCount, LastTrianguleIndex, LastVertexIndex);
-					}
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
-				}
-
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleFanOneNormal)
-				{
-					uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
-					for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
-					{
-						ensure((FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle) != 0);
-
-						uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
-						AddFaceTriangleFanWithUniqueNormal(Tessellation, VertexCount, LastTrianguleIndex, LastVertexIndex);
-					}
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
-				}
-
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleFanTextured)
-				{
-					uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
-					for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
-					{
-						uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
-						AddFaceTriangleFanWithTexture(Tessellation, VertexCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
-					}
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
-				}
-
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleFanOneNormalTextured)
-				{
-					uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
-					for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
-					{
-						ensure((FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle) != 0);
-
-						uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
-						AddFaceTriangleFanWithUniqueNormalAndTexture(Tessellation, VertexCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
-					}
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
-				}
-
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleStripe)
-				{
-					A3DUns32 StripeSize = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
-					for (A3DUns32 StripeIndex = 0; StripeIndex < StripeSize; ++StripeIndex)
-					{
-						A3DUns32 PointCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
 						AddFaceTriangleStripe(Tessellation, PointCount, LastTrianguleIndex, LastVertexIndex);
+						continue;
 					}
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
-				}
 
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleStripeOneNormal)
+					AddFaceTriangleStripeWithUniqueNormal(Tessellation, PointCount, LastTrianguleIndex, LastVertexIndex);
+				}
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
+
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleStripeTextured)
+			{
+				A3DUns32 StripeSize = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+				for (A3DUns32 StripeIndex = 0; StripeIndex < StripeSize; ++StripeIndex)
 				{
-					A3DUns32 StripeSize = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
-					for (A3DUns32 StripeIndex = 0; StripeIndex < StripeSize; ++StripeIndex)
-					{
-						bool bIsOneNormal = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle) != 0;
-						A3DUns32 PointCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
-
-						// Is there only one normal for the entire stripe?
-						if (bIsOneNormal == false)
-						{
-							AddFaceTriangleStripe(Tessellation, PointCount, LastTrianguleIndex, LastVertexIndex);
-							continue;
-						}
-
-						AddFaceTriangleStripeWithUniqueNormal(Tessellation, PointCount, LastTrianguleIndex, LastVertexIndex);
-					}
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+					A3DUns32 PointCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+					AddFaceTriangleStripeWithTexture(Tessellation, PointCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
 				}
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
 
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleStripeTextured)
+			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleStripeOneNormalTextured)
+			{
+				A3DUns32 StripeSize = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+				for (A3DUns32 StripeIndex = 0; StripeIndex < StripeSize; ++StripeIndex)
 				{
-					A3DUns32 StripeSize = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
-					for (A3DUns32 StripeIndex = 0; StripeIndex < StripeSize; ++StripeIndex)
-					{
-						A3DUns32 PointCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
-						AddFaceTriangleStripeWithTexture(Tessellation, PointCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
-					}
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+					A3DUns32 PointCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+					AddFaceTriangleStripeWithUniqueNormalAndTexture(Tessellation, PointCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
 				}
+				bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+			}
 
-				if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangleStripeOneNormalTextured)
+			if (VertexOffset > 0)
+			{
+				for (int32& PositionIndex : Tessellation.PositionIndices)
 				{
-					A3DUns32 StripeSize = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
-					for (A3DUns32 StripeIndex = 0; StripeIndex < StripeSize; ++StripeIndex)
-					{
-						A3DUns32 PointCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
-						AddFaceTriangleStripeWithUniqueNormalAndTexture(Tessellation, PointCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
-					}
-					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+					PositionIndex += VertexOffset;
 				}
-				
-				if (VertexOffset > 0)
-				{
-					for (int32& PositionIndex : Tessellation.PositionIndices)
-					{
-						PositionIndex += VertexOffset;
-					}
-				}
+			}
 
-				ensure(!bMustProcess);
+			ensure(!bMustProcess);
+
+			if (!BodyFaces.IsEmpty())
+			{
+				const A3DTopoFace* TopoFace = BodyFaces[Index];
+				ScaleUV(TopoFace, Tessellation.TexCoordArray);
 			}
 		}
+	}
 
-		typedef double A3DDouble;
-		bool AddFace(int32 FaceIndex[3], CADLibrary::FTessellationData& Tessellation, int32& InOutVertexIndex)
+	typedef double A3DDouble;
+	bool AddFace(int32 FaceIndex[3], CADLibrary::FTessellationData& Tessellation, int32& InOutVertexIndex)
+	{
+		if (FaceIndex[0] == FaceIndex[1] || FaceIndex[0] == FaceIndex[2] || FaceIndex[1] == FaceIndex[2])
 		{
-			if (FaceIndex[0] == FaceIndex[1] || FaceIndex[0] == FaceIndex[2] || FaceIndex[1] == FaceIndex[2])
-			{
-				return false;
-			}
-
-			for (int32 Index = 0; Index < 3; ++Index)
-			{
-				Tessellation.VertexIndices.Add(InOutVertexIndex++);
-			}
-			Tessellation.PositionIndices.Append(FaceIndex, 3);
-			return true;
-		};
-
-		void AddNormals(const A3DDouble* Normals, const int32 Indices[3], TArray<FVector>& NormalsArray)
-		{
-			for (int32 Index = 0; Index < 3; ++Index)
-			{
-				int32 NormalIndex = Indices[Index];
-				NormalsArray.Emplace(Normals[NormalIndex], Normals[NormalIndex + 1], Normals[NormalIndex + 2]);
-			}
-		};
-
-		void AddTextureCoordinates(const A3DDouble* TextureCoords, const int32 Indices[3], TArray<FVector2D>& TessellationTextures)
-		{
-			for (int32 Index = 0; Index < 3; ++Index)
-			{
-				int32 TextureIndex = Indices[Index];
-				TessellationTextures.Emplace(TextureCoords[TextureIndex], TextureCoords[TextureIndex + 1]);
-			}
-		};
-
-		void AddFaceTriangle(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutStartIndex, int32& InOutLastVertexIndex)
-		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
-
-			// Get Triangles
-			for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
-			{
-				NormalIndex[0] = TriangulatedIndexes[InOutStartIndex++];
-				FaceIndex[0] = TriangulatedIndexes[InOutStartIndex++] / 3;
-				NormalIndex[1] = TriangulatedIndexes[InOutStartIndex++];
-				FaceIndex[1] = TriangulatedIndexes[InOutStartIndex++] / 3;
-				NormalIndex[2] = TriangulatedIndexes[InOutStartIndex++];
-				FaceIndex[2] = TriangulatedIndexes[InOutStartIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-			}
+			return false;
 		}
 
-		void AddFaceTriangleWithUniqueNormal(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+		for (int32 Index = 0; Index < 3; ++Index)
 		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
+			Tessellation.VertexIndices.Add(InOutVertexIndex++);
+		}
+		Tessellation.PositionIndices.Append(FaceIndex, 3);
+		return true;
+	};
 
-			// Get Triangles
-			for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+	void AddNormals(const A3DDouble* Normals, const int32 Indices[3], TArray<FVector>& NormalsArray)
+	{
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			int32 NormalIndex = Indices[Index];
+			NormalsArray.Emplace(Normals[NormalIndex], Normals[NormalIndex + 1], Normals[NormalIndex + 2]);
+		}
+	};
+
+	void AddTextureCoordinates(const A3DDouble* TextureCoords, const int32 Indices[3], TArray<FVector2D>& TessellationTextures)
+	{
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			int32 TextureIndex = Indices[Index];
+			TessellationTextures.Emplace(TextureCoords[TextureIndex], TextureCoords[TextureIndex + 1]);
+		}
+	};
+
+	void AddFaceTriangle(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutStartIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+
+		// Get Triangles
+		for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+		{
+			NormalIndex[0] = TriangulatedIndexes[InOutStartIndex++];
+			FaceIndex[0] = TriangulatedIndexes[InOutStartIndex++] / 3;
+			NormalIndex[1] = TriangulatedIndexes[InOutStartIndex++];
+			FaceIndex[1] = TriangulatedIndexes[InOutStartIndex++] / 3;
+			NormalIndex[2] = TriangulatedIndexes[InOutStartIndex++];
+			FaceIndex[2] = TriangulatedIndexes[InOutStartIndex++] / 3;
+
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 			{
-				NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-				NormalIndex[1] = NormalIndex[0];
-				NormalIndex[2] = NormalIndex[0];
-
-				FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-				FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (!AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					continue;
-				}
-
 				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
 			}
 		}
+	}
 
-		void AddFaceTriangleWithUniqueNormalAndTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutStartIndex, int32& InOutLastVertexIndex)
+	void AddFaceTriangleWithUniqueNormal(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+
+		// Get Triangles
+		for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
 		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
-			int32 TextureIndex[3] = { 0, 0, 0 };
+			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+			NormalIndex[1] = NormalIndex[0];
+			NormalIndex[2] = NormalIndex[0];
 
-			// Get Triangles
-			for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+			if (!AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 			{
-				NormalIndex[0] = TriangulatedIndexes[InOutStartIndex++];
-				NormalIndex[1] = NormalIndex[0];
-				NormalIndex[2] = NormalIndex[0];
+				continue;
+			}
 
-				TextureIndex[0] = TriangulatedIndexes[InOutStartIndex];
-				InOutStartIndex += TextureCount;
-				FaceIndex[0] = TriangulatedIndexes[InOutStartIndex++] / 3;
-				TextureIndex[1] = TriangulatedIndexes[InOutStartIndex];
-				InOutStartIndex += TextureCount;
-				FaceIndex[1] = TriangulatedIndexes[InOutStartIndex++] / 3;
-				TextureIndex[2] = TriangulatedIndexes[InOutStartIndex];
-				InOutStartIndex += TextureCount;
-				FaceIndex[2] = TriangulatedIndexes[InOutStartIndex++] / 3;
+			AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+		}
+	}
 
-				if (!AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					continue;
-				}
+	void AddFaceTriangleWithUniqueNormalAndTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutStartIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+		int32 TextureIndex[3] = { 0, 0, 0 };
 
+		// Get Triangles
+		for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+		{
+			NormalIndex[0] = TriangulatedIndexes[InOutStartIndex++];
+			NormalIndex[1] = NormalIndex[0];
+			NormalIndex[2] = NormalIndex[0];
+
+			TextureIndex[0] = TriangulatedIndexes[InOutStartIndex];
+			InOutStartIndex += TextureCount;
+			FaceIndex[0] = TriangulatedIndexes[InOutStartIndex++] / 3;
+			TextureIndex[1] = TriangulatedIndexes[InOutStartIndex];
+			InOutStartIndex += TextureCount;
+			FaceIndex[1] = TriangulatedIndexes[InOutStartIndex++] / 3;
+			TextureIndex[2] = TriangulatedIndexes[InOutStartIndex];
+			InOutStartIndex += TextureCount;
+			FaceIndex[2] = TriangulatedIndexes[InOutStartIndex++] / 3;
+
+			if (!AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+			{
+				continue;
+			}
+
+			AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+			AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
+		}
+	}
+
+	void AddFaceTriangleWithTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 InTextureCount, uint32& InOutStartIndex, int32& inOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+		int32 TextureIndex[3] = { 0, 0, 0 };
+
+		// Get Triangles
+		for (uint64 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+		{
+			NormalIndex[0] = TriangulatedIndexes[InOutStartIndex++];
+			TextureIndex[0] = TriangulatedIndexes[InOutStartIndex];
+			InOutStartIndex += InTextureCount;
+			FaceIndex[0] = TriangulatedIndexes[InOutStartIndex++] / 3;
+			NormalIndex[1] = TriangulatedIndexes[InOutStartIndex++];
+			TextureIndex[1] = TriangulatedIndexes[InOutStartIndex];
+			InOutStartIndex += InTextureCount;
+			FaceIndex[1] = TriangulatedIndexes[InOutStartIndex++] / 3;
+			NormalIndex[2] = TriangulatedIndexes[InOutStartIndex++];
+			TextureIndex[2] = TriangulatedIndexes[InOutStartIndex];
+			InOutStartIndex += InTextureCount;
+			FaceIndex[2] = TriangulatedIndexes[InOutStartIndex++] / 3;
+
+			if (AddFace(FaceIndex, Tessellation, inOutLastVertexIndex))
+			{
 				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
 				AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
 			}
 		}
+	}
 
-		void AddFaceTriangleWithTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 InTextureCount, uint32& InOutStartIndex, int32& inOutLastVertexIndex)
+	void AddFaceTriangleFan(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+
+		NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		NormalIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
 		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
-			int32 TextureIndex[3] = { 0, 0, 0 };
+			NormalIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++];
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-			// Get Triangles
-			for (uint64 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 			{
-				NormalIndex[0] = TriangulatedIndexes[InOutStartIndex++];
-				TextureIndex[0] = TriangulatedIndexes[InOutStartIndex];
-				InOutStartIndex += InTextureCount;
-				FaceIndex[0] = TriangulatedIndexes[InOutStartIndex++] / 3;
-				NormalIndex[1] = TriangulatedIndexes[InOutStartIndex++];
-				TextureIndex[1] = TriangulatedIndexes[InOutStartIndex];
-				InOutStartIndex += InTextureCount;
-				FaceIndex[1] = TriangulatedIndexes[InOutStartIndex++] / 3;
-				NormalIndex[2] = TriangulatedIndexes[InOutStartIndex++];
-				TextureIndex[2] = TriangulatedIndexes[InOutStartIndex];
-				InOutStartIndex += InTextureCount;
-				FaceIndex[2] = TriangulatedIndexes[InOutStartIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, inOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-					AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
-				}
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
 			}
-		}
 
-		void AddFaceTriangleFan(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+			NormalIndex[1] = NormalIndex[2];
+			FaceIndex[1] = FaceIndex[2];
+		}
+	}
+
+	void AddFaceTriangleFanWithUniqueNormal(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& /*LastVertexIndex*/)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+
+		NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		NormalIndex[1] = NormalIndex[0];
+		NormalIndex[2] = NormalIndex[0];
+
+		FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		// Get Triangles
+		for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
 		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+			if (AddFace(FaceIndex, Tessellation, LastVertexIndex))
+			{
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+			}
+
+			FaceIndex[1] = FaceIndex[2];
+		}
+	}
+
+	void AddFaceTriangleFanWithUniqueNormalAndTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+		int32 TextureIndex[3] = { 0, 0, 0 };
+
+		NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		NormalIndex[1] = NormalIndex[0];
+		NormalIndex[2] = NormalIndex[0];
+
+		TextureIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		TextureIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+		{
+			TextureIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex];
+			InOutLastTriangleIndex += TextureCount;
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+			{
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+				AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
+			}
+
+			FaceIndex[1] = FaceIndex[2];
+			TextureIndex[1] = TextureIndex[2];
+		}
+	}
+
+	void AddFaceTriangleFanWithTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+		int32 TextureIndex[3] = { 0, 0, 0 };
+
+		NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		TextureIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		NormalIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		TextureIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+		{
+			NormalIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++];
+			TextureIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex];
+			InOutLastTriangleIndex += TextureCount;
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+			{
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+				AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
+			}
+
+			NormalIndex[1] = NormalIndex[2];
+			TextureIndex[1] = TextureIndex[2];
+			FaceIndex[1] = FaceIndex[2];
+		}
+	}
+
+	void AddFaceTriangleStripe(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& /*LastVertexIndex*/)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+
+		NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		NormalIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+		{
+			NormalIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++];
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+			if (AddFace(FaceIndex, Tessellation, LastVertexIndex))
+			{
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+			}
+
+			TriangleIndex++;
+			if (TriangleIndex == InTriangleCount)
+			{
+				break;
+			}
+
+			Swap(FaceIndex[1], FaceIndex[2]);
+			Swap(NormalIndex[1], NormalIndex[2]);
 
 			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
 			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-			NormalIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-			for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+			if (AddFace(FaceIndex, Tessellation, LastVertexIndex))
 			{
-				NormalIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++];
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-
-				NormalIndex[1] = NormalIndex[2];
-				FaceIndex[1] = FaceIndex[2];
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
 			}
+
+			Swap(FaceIndex[0], FaceIndex[1]);
+			Swap(NormalIndex[0], NormalIndex[1]);
 		}
+	}
 
-		void AddFaceTriangleFanWithUniqueNormal(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& /*LastVertexIndex*/)
+	void AddFaceTriangleStripeWithTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+		int32 TextureIndex[3] = { 0, 0, 0 };
+
+		NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		TextureIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		NormalIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		TextureIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
 		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
+			NormalIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++];
+			TextureIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex];
+			InOutLastTriangleIndex += TextureCount;
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			NormalIndex[1] = NormalIndex[0];
-			NormalIndex[2] = NormalIndex[0];
-
-			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-			// Get Triangles
-			for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 			{
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, LastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-
-				FaceIndex[1] = FaceIndex[2];
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+				AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
 			}
-		}
 
-		void AddFaceTriangleFanWithUniqueNormalAndTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
-		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
-			int32 TextureIndex[3] = { 0, 0, 0 };
-
-			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			NormalIndex[1] = NormalIndex[0];
-			NormalIndex[2] = NormalIndex[0];
-
-			TextureIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex];
-			InOutLastTriangleIndex += TextureCount;
-			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-			TextureIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex];
-			InOutLastTriangleIndex += TextureCount;
-			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-			for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+			TriangleIndex++;
+			if (TriangleIndex == InTriangleCount)
 			{
-				TextureIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex];
-				InOutLastTriangleIndex += TextureCount;
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-					AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
-				}
-
-				FaceIndex[1] = FaceIndex[2];
-				TextureIndex[1] = TextureIndex[2];
+				break;
 			}
-		}
 
-		void AddFaceTriangleFanWithTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
-		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
-			int32 TextureIndex[3] = { 0, 0, 0 };
-
-			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			TextureIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex];
-			InOutLastTriangleIndex += TextureCount;
-			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-			NormalIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			TextureIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex];
-			InOutLastTriangleIndex += TextureCount;
-			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-			for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
-			{
-				NormalIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++];
-				TextureIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex];
-				InOutLastTriangleIndex += TextureCount;
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-					AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
-				}
-
-				NormalIndex[1] = NormalIndex[2];
-				TextureIndex[1] = TextureIndex[2];
-				FaceIndex[1] = FaceIndex[2];
-			}
-		}
-
-		void AddFaceTriangleStripe(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& /*LastVertexIndex*/)
-		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
+			Swap(FaceIndex[1], FaceIndex[2]);
+			Swap(NormalIndex[1], NormalIndex[2]);
+			Swap(TextureIndex[1], TextureIndex[2]);
 
 			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
 			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-			NormalIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-			for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 			{
-				NormalIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++];
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, LastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-
-				TriangleIndex++;
-				if (TriangleIndex == InTriangleCount)
-				{
-					break;
-				}
-
-				Swap(FaceIndex[1], FaceIndex[2]);
-				Swap(NormalIndex[1], NormalIndex[2]);
-
-				NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-				FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, LastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-
-				Swap(FaceIndex[0], FaceIndex[1]);
-				Swap(NormalIndex[0], NormalIndex[1]);
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
 			}
-		}
 
-		void AddFaceTriangleStripeWithTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+			Swap(FaceIndex[0], FaceIndex[1]);
+			Swap(NormalIndex[0], NormalIndex[1]);
+			Swap(TextureIndex[0], TextureIndex[1]);
+		}
+	}
+
+	void AddFaceTriangleStripeWithUniqueNormal(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+
+		NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		NormalIndex[1] = NormalIndex[0];
+		NormalIndex[2] = NormalIndex[0];
+
+		FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
 		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
-			int32 TextureIndex[3] = { 0, 0, 0 };
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+			{
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+			}
+
+			TriangleIndex++;
+			if (TriangleIndex == InTriangleCount)
+			{
+				break;
+			}
+
+			Swap(FaceIndex[1], FaceIndex[2]);
 
 			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			TextureIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex];
-			InOutLastTriangleIndex += TextureCount;
 			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-			NormalIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			TextureIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex];
-			InOutLastTriangleIndex += TextureCount;
-			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-			for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 			{
-				NormalIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++];
-				TextureIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex];
-				InOutLastTriangleIndex += TextureCount;
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-					AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
-				}
-
-				TriangleIndex++;
-				if (TriangleIndex == InTriangleCount)
-				{
-					break;
-				}
-
-				Swap(FaceIndex[1], FaceIndex[2]);
-				Swap(NormalIndex[1], NormalIndex[2]);
-				Swap(TextureIndex[1], TextureIndex[2]);
-
-				NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-				FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-
-				Swap(FaceIndex[0], FaceIndex[1]);
-				Swap(NormalIndex[0], NormalIndex[1]);
-				Swap(TextureIndex[0], TextureIndex[1]);
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
 			}
-		}
 
-		void AddFaceTriangleStripeWithUniqueNormal(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+			Swap(FaceIndex[0], FaceIndex[1]);
+		}
+	}
+
+	void AddFaceTriangleStripeWithUniqueNormalAndTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+	{
+		int32 FaceIndex[3] = { 0, 0, 0 };
+		int32 NormalIndex[3] = { 0, 0, 0 };
+		int32 TextureIndex[3] = { 0, 0, 0 };
+
+		NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
+		NormalIndex[1] = NormalIndex[0];
+		NormalIndex[2] = NormalIndex[0];
+
+		TextureIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		TextureIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
 		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
+			TextureIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex];
+			InOutLastTriangleIndex += TextureCount;
+			FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			NormalIndex[1] = NormalIndex[0];
-			NormalIndex[2] = NormalIndex[0];
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+			{
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
+				AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
+			}
+
+			TriangleIndex++;
+			if (TriangleIndex == InTriangleCount)
+			{
+				break;
+			}
+
+			Swap(FaceIndex[1], FaceIndex[2]);
+			Swap(TextureIndex[1], TextureIndex[2]);
 
 			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-			for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+			if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 			{
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-
-				TriangleIndex++;
-				if (TriangleIndex == InTriangleCount)
-				{
-					break;
-				}
-
-				Swap(FaceIndex[1], FaceIndex[2]);
-
-				NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-				FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-
-				Swap(FaceIndex[0], FaceIndex[1]);
+				AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
 			}
-		}
 
-		void AddFaceTriangleStripeWithUniqueNormalAndTexture(CADLibrary::FTessellationData& Tessellation, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+			Swap(FaceIndex[0], FaceIndex[1]);
+			Swap(TextureIndex[0], TextureIndex[1]);
+		}
+	}
+
+	void ScaleUV(const A3DTopoFace* TopoFace, TArray<FVector2D>& TexCoordArray)
+	{
+		CADLibrary::TUniqueTSObj<A3DTopoFaceData> TopoFaceData(TopoFace);
+		if (!TopoFaceData.IsValid())
 		{
-			int32 FaceIndex[3] = { 0, 0, 0 };
-			int32 NormalIndex[3] = { 0, 0, 0 };
-			int32 TextureIndex[3] = { 0, 0, 0 };
+			return;
+		}
 
-			NormalIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++];
-			NormalIndex[1] = NormalIndex[0];
-			NormalIndex[2] = NormalIndex[0];
+		CADLibrary::TUniqueTSObj<A3DDomainData> Domain;
+		if (TopoFaceData->m_bHasTrimDomain)
+		{
+			*Domain = TopoFaceData->m_sSurfaceDomain;
+		}
+		else
+		{
+			CADLibrary::TechSoftInterface::GetSurfaceDomain(TopoFaceData->m_pSurface, *Domain);
+		}
 
-			TextureIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex];
-			InOutLastTriangleIndex += TextureCount;
-			FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		const int32 IsoCurveCount = 7;
+		const double DeltaU = (Domain->m_sMax.m_dX - Domain->m_sMin.m_dX) / (IsoCurveCount - 1.);
+		const double DeltaV = (Domain->m_sMax.m_dY - Domain->m_sMin.m_dY) / (IsoCurveCount - 1.);
 
-			TextureIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex];
-			InOutLastTriangleIndex += TextureCount;
-			FaceIndex[1] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		const A3DSurfBase* A3DSurface = TopoFaceData->m_pSurface;
 
-			for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+		FVector NodeMatrix[IsoCurveCount * IsoCurveCount];
+
+		CADLibrary::TUniqueTSObj<A3DVector3dData> Point3D;
+		CADLibrary::TUniqueTSObj<A3DVector2dData> CoordinateObj;
+		A3DVector2dData& Coordinate = *CoordinateObj;
+		Coordinate.m_dX = Domain->m_sMin.m_dX;
+		Coordinate.m_dY = Domain->m_sMin.m_dY;
+
+		for (int32 IndexI = 0; IndexI < IsoCurveCount; IndexI++)
+		{
+			for (int32 IndexJ = 0; IndexJ < IsoCurveCount; IndexJ++)
 			{
-				TextureIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex];
-				InOutLastTriangleIndex += TextureCount;
-				FaceIndex[2] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+				CADLibrary::TechSoftInterface::Evaluate(A3DSurface, Coordinate, 0, Point3D.GetPtr());
+				NodeMatrix[IndexI * IsoCurveCount + IndexJ].X = Point3D->m_dX;
+				NodeMatrix[IndexI * IsoCurveCount + IndexJ].Y = Point3D->m_dY;
+				NodeMatrix[IndexI * IsoCurveCount + IndexJ].Z = Point3D->m_dZ;
+				Coordinate.m_dY += DeltaV;
+			}
+			Coordinate.m_dX += DeltaU;
+			Coordinate.m_dY = Domain->m_sMin.m_dY;
+		}
 
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		// Compute length of 7 iso V line
+		double LengthU[IsoCurveCount];
+		double LengthUMax = 0;
+		double LengthUMed = 0;
+
+		for (int32 IndexJ = 0; IndexJ < IsoCurveCount; IndexJ++)
+		{
+			LengthU[IndexJ] = 0;
+			for (int32 IndexI = 0; IndexI < (IsoCurveCount - 1); IndexI++)
+			{
+				LengthU[IndexJ] += FVector::Distance(NodeMatrix[IndexI * IsoCurveCount + IndexJ], NodeMatrix[(IndexI + 1) * IsoCurveCount + IndexJ]);
+			}
+			LengthUMed += LengthU[IndexJ];
+			LengthUMax = FMath::Max(LengthU[IndexJ], LengthUMax);
+		}
+		LengthUMed /= IsoCurveCount;
+		LengthUMed = LengthUMed * 2 / 3 + LengthUMax / 3;
+
+		// Compute length of 7 iso U line
+		double LengthV[IsoCurveCount];
+		double LengthVMax = 0;
+		double LengthVMed = 0;
+
+		for (int32 IndexI = 0; IndexI < IsoCurveCount; IndexI++)
+		{
+			LengthV[IndexI] = 0;
+			for (int32 IndexJ = 0; IndexJ < (IsoCurveCount - 1); IndexJ++)
+			{
+				LengthV[IndexI] += FVector::Distance(NodeMatrix[IndexI * IsoCurveCount + IndexJ], NodeMatrix[IndexI * IsoCurveCount + IndexJ + 1]);
+			}
+			LengthVMed += LengthV[IndexI];
+			LengthVMax = FMath::Max(LengthV[IndexI], LengthVMax);
+		}
+		LengthVMed /= IsoCurveCount;
+		LengthVMed = LengthVMed * 2 / 3 + LengthVMax / 3;
+
+		// Texture unit is meter, Coord unit from TechSoft is mm, so TextureScale = 0.001 to convert mm into m
+		const double TextureScale = 0.01;
+		const double UScale = TextureUnit * TextureScale * LengthUMed / (Domain->m_sMax.m_dX - Domain->m_sMin.m_dX);
+		const double VScale = TextureUnit * TextureScale * LengthVMed / (Domain->m_sMax.m_dY - Domain->m_sMin.m_dY);
+
+		for (FVector2D& TexCoord : TexCoordArray)
+		{
+			TexCoord[0] *= UScale;
+			TexCoord[1] *= VScale;
+		}
+	}
+
+	void GetBRepFaces()
+	{
+		if (A3DBrepData == nullptr)
+		{
+			return;
+		}
+
+		CADLibrary::TUniqueTSObj<A3DTopoBodyData> TopoBodyData(A3DBrepData);
+		if (TopoBodyData.IsValid())
+		{
+			if (TopoBodyData->m_pContext)
+			{
+				CADLibrary::TUniqueTSObj<A3DTopoContextData> TopoContextData(TopoBodyData->m_pContext);
+				if (TopoContextData.IsValid())
 				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-					AddTextureCoordinates(TessellationTexCoords, TextureIndex, Tessellation.TexCoordArray);
+					if (TopoContextData->m_bHaveScale)
+					{
+						TextureUnit *= TopoContextData->m_dScale;
+					}
 				}
-
-				TriangleIndex++;
-				if (TriangleIndex == InTriangleCount)
-				{
-					break;
-				}
-
-				Swap(FaceIndex[1], FaceIndex[2]);
-				Swap(TextureIndex[1], TextureIndex[2]);
-
-				FaceIndex[0] = TriangulatedIndexes[InOutLastTriangleIndex++] / 3;
-
-				if (AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
-				{
-					AddNormals(TessellationNormals, NormalIndex, Tessellation.NormalArray);
-				}
-
-				Swap(FaceIndex[0], FaceIndex[1]);
-				Swap(TextureIndex[0], TextureIndex[1]);
 			}
 		}
 
-	private:
-		const A3DTess3D* TessellationPtr;
+		CADLibrary::TUniqueTSObj<A3DTopoBrepDataData> TopoBrepData(A3DBrepData);
+		if (TopoBrepData.IsValid())
+		{
 
-		uint32 LastTrianguleIndex = 0;
-		int32 LastVertexIndex = 0;
-		A3DUns32* TriangulatedIndexes = nullptr;
-		A3DDouble* TessellationNormals;
-		A3DDouble* TessellationTexCoords;				/*!< Array of \ref A3DDouble, as texture coordinates. */
-	};
+
+			for (A3DUns32 Index = 0; Index < TopoBrepData->m_uiConnexSize; ++Index)
+			{
+				CADLibrary::TUniqueTSObj<A3DTopoConnexData> TopoConnexData(TopoBrepData->m_ppConnexes[Index]);
+				if (TopoConnexData.IsValid())
+				{
+					for (A3DUns32 Sndex = 0; Sndex < TopoConnexData->m_uiShellSize; ++Sndex)
+					{
+						CADLibrary::TUniqueTSObj<A3DTopoShellData> ShellData(TopoConnexData->m_ppShells[Sndex]);
+						if (ShellData.IsValid())
+						{
+							for (A3DUns32 Fndex = 0; Fndex < ShellData->m_uiFaceSize; ++Fndex)
+							{
+								const A3DTopoFace* A3DFace = ShellData->m_ppFaces[Fndex];
+								BodyFaces.Add(A3DFace);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+private:
+	const A3DTess3D* TessellationPtr = nullptr;
+	const A3DTopoBrepData* A3DBrepData = nullptr;
+	const double BodyUnit = 1;
+	double TextureUnit = 1;
+
+	TArray<const A3DTopoFace*> BodyFaces;
+
+	int32 LastVertexIndex = 0;
+	A3DUns32* TriangulatedIndexes = nullptr;
+	A3DDouble* TessellationNormals;
+	A3DDouble* TessellationTexCoords;				/*!< Array of \ref A3DDouble, as texture coordinates. */
+};
+
 } // ns TechSoftUtils
 
 #endif

@@ -26,7 +26,7 @@ THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-#define JSON_ENTRY_FILE_UNIT		TEXT("FileUnit")
+#define JSON_ENTRY_BODY_UNIT		TEXT("BodyUnit")
 #define JSON_ENTRY_COLOR_NAME		TEXT("ColorName")
 #define JSON_ENTRY_MATERIAL_NAME	TEXT("MaterialName")
 
@@ -89,6 +89,16 @@ CADINTERFACES_API A3DGlobal* GetGlobalPointer();
 CADINTERFACES_API A3DEntity* GetPointerFromIndex(const uint32 Index, const A3DEEntityType Type);
 
 CADINTERFACES_API A3DStatus GetSurfaceAsNurbs(const A3DSurfBase* SurfacePtr, A3DSurfNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization);
+CADINTERFACES_API A3DStatus GetSurfaceDomain(const A3DSurfBase* SurfacePtr, A3DDomainData& OutDomain);
+
+/**
+ * @param OutPointAndDerivatives size must be equal to (Derivatives+1)*(Derivatives+1)
+ * @param Derivatives The number of derivatives must be less or equal to 2
+ * @param OutPointAndDerivatives = Point, Derivatives=1 OutPointAndDerivatives = Point + dU + dV, ...
+ * @see A3DSDKAdvancedTools.h for more details
+ */
+CADINTERFACES_API A3DStatus Evaluate(const A3DSurfBase* SurfacePtr, const A3DVector2dData& UVParameter, A3DUns32 Derivatives, A3DVector3dData* OutPointAndDerivatives);
+
 CADINTERFACES_API A3DStatus GetCurveAsNurbs(const A3DCrvBase* A3DCurve, A3DCrvNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization);
 
 CADINTERFACES_API A3DStatus GetOriginalFilePathName(const A3DAsmProductOccurrence* A3DOccurrencePtr, A3DUTF8Char** FilePathUTF8Ptr);
@@ -135,6 +145,8 @@ CADINTERFACES_API A3DUns32 InsertGraphMaterial(const A3DGraphMaterialData& InMat
 CADINTERFACES_API A3DUns32 InsertGraphStyle(const A3DGraphStyleData& InStyleData);
 
 CADINTERFACES_API double GetModelFileUnit(const A3DAsmModelFile* pModelFile);
+
+CADINTERFACES_API A3DStatus AddAttribute(A3DEntity* EntityPtr, const TCHAR*, const TCHAR*);
 
 /**
  * @param ToleranceInCM : The maximum tolerance for the sewing (in cm).

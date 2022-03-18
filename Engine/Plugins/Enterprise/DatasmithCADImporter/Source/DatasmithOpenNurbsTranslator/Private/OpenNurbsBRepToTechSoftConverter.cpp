@@ -19,38 +19,39 @@ namespace OpenNurbsUtils
 {
 enum EAxis { U, V };
 
-template<typename PointType>
-void SetA3DVector(const PointType& OpenNurbsPoint, A3DVector3dData& OutTSPoint)
-{
-	OutTSPoint.m_dX = OpenNurbsPoint.x;
-	OutTSPoint.m_dY = OpenNurbsPoint.y;
-	OutTSPoint.m_dZ = OpenNurbsPoint.z;
-};
-
-template<typename PointType>
-void SetA3DVectorAndWeight(const PointType& OpenNurbsPoint, A3DVector3dData& OutTSPoint, A3DDouble& OutWeight)
-{
-	SetA3DVector(OpenNurbsPoint, OutTSPoint);
-	OutWeight = OpenNurbsPoint.w;
-};
-
-
 struct FOpenNurbsSurfaceInfo
 {
-	FOpenNurbsSurfaceInfo(const ON_NurbsSurface& InOpenNurbsSurface, A3DSurfNurbsData& InData)
+	FOpenNurbsSurfaceInfo(const ON_NurbsSurface& InOpenNurbsSurface, A3DSurfNurbsData& InData, const double InScale)
 		: OpenNurbsSurface(InOpenNurbsSurface)
 		, Data(InData)
+		, Scale(InScale)
 	{
 	}
 
 	const ON_NurbsSurface& OpenNurbsSurface;
 	A3DSurfNurbsData& Data;
+	const double Scale;
 
 	TArray<A3DDouble> UNodalVector;
 	TArray<A3DDouble> VNodalVector;
 
 	TArray<A3DDouble> Weights;
 	TArray<A3DVector3dData> ControlPoints;
+
+	template<typename PointType>
+	void SetA3DVector(const PointType& OpenNurbsPoint, A3DVector3dData& OutTSPoint)
+	{
+		OutTSPoint.m_dX = OpenNurbsPoint.x * Scale;
+		OutTSPoint.m_dY = OpenNurbsPoint.y * Scale;
+		OutTSPoint.m_dZ = OpenNurbsPoint.z * Scale;
+	};
+
+	template<typename PointType>
+	void SetA3DVectorAndWeight(const PointType& OpenNurbsPoint, A3DVector3dData& OutTSPoint, A3DDouble& OutWeight)
+	{
+		SetA3DVector(OpenNurbsPoint, OutTSPoint);
+		OutWeight = OpenNurbsPoint.w;
+	};
 
 	void FillPerAxisInfo(EAxis Axis)
 	{
@@ -134,7 +135,7 @@ A3DSurfBase* FOpenNurbsBRepToTechSoftConverter::CreateSurface(const ON_NurbsSurf
 {
 	CADLibrary::TUniqueTSObj<A3DSurfNurbsData> NurbsSurfaceData;
 
-	OpenNurbsUtils::FOpenNurbsSurfaceInfo NurbsInfo(OpenNurbsSurface, *NurbsSurfaceData);
+	OpenNurbsUtils::FOpenNurbsSurfaceInfo NurbsInfo(OpenNurbsSurface, *NurbsSurfaceData, ScaleFactor);
 	NurbsInfo.Populate();
 
 	return CADLibrary::TechSoftInterface::CreateSurfaceNurbs(*NurbsSurfaceData);

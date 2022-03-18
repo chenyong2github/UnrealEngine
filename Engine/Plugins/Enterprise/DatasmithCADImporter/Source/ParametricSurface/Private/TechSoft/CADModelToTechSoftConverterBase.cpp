@@ -51,10 +51,10 @@ bool FCADModelToTechSoftConverterBase::SaveModel(const TCHAR* InFolderPath, TSha
 
 	FString JsonString;
 	{
-		// Save file unit and default color and material attributes in a json string
+		// Save body unit and default color and material attributes in a json string
 		// This will be used when the file is reloaded
 		TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
-		JsonObject->SetNumberField(JSON_ENTRY_FILE_UNIT, 1);
+		JsonObject->SetNumberField(JSON_ENTRY_BODY_UNIT, 0.1); // ALL BRep from Alias or Rhino are defined in mm
 		JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, 0);
 		JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, 0);
 
@@ -78,8 +78,8 @@ bool FCADModelToTechSoftConverterBase::Tessellate(const CADLibrary::FMeshParamet
 #ifdef USE_TECHSOFT_SDK
 	for (A3DRiRepresentationItem* Representation : RiRepresentationItems)
 	{
-		const double FileUnit = ImportParameters.GetMetricUnit() * 1000; // ImportParameters MetricUnit is defined in meter, CADLibrary::TechSoftInterface::SewBReps expectes it in mm
-		CADLibrary::TechSoftUtils::FillBodyMesh(Representation, ImportParameters, FileUnit, BodyMesh);
+		const double BodyUnit = 0.1; // CAD Models from (Wire or Rhino) imported in TechSoft are imported in mm so BodyUnit = 0.1 
+		CADLibrary::TechSoftUtils::FillBodyMesh(Representation, ImportParameters, BodyUnit, BodyMesh);
 	}
 #endif
 
