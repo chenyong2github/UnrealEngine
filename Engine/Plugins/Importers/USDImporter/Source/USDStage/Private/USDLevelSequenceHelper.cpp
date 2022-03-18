@@ -1849,8 +1849,13 @@ void FUsdLevelSequenceHelperImpl::RefreshSequencer()
 
 	if ( TSharedPtr< ISequencer > Sequencer = WeakSequencer.Pin() )
 	{
-		Sequencer->RefreshTree();
-		Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
+		// Don't try refreshing the sequencer if its displaying a stale sequence (e.g. during busy transitions like import) as it
+		// can crash
+		if ( UMovieSceneSequence* FocusedSequence = Sequencer->GetFocusedMovieSceneSequence() )
+		{
+			Sequencer->RefreshTree();
+			Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
+		}
 	}
 #endif // WITH_EDITOR
 }
