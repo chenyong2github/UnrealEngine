@@ -9,8 +9,8 @@
 float4x4 c_Transform;
 
 void Main( float4 InPosition : ATTRIBUTE0,
-		   float2 InCloneTextureCoordinates : ATTRIBUTE1,
-		   float3 InWorldSpaceVertexPosition : ATTRIBUTE2,
+		   float2 InCloneTextureCoordinates : ATTRIBUTE2,
+		   float3 InWorldSpaceVertexPosition : ATTRIBUTE3,
 		   out float4 OutPosition : SV_POSITION,
 		   out float2 OutCloneTextureCoordinates: TEXCOORD0,
 		   out float3 OutWorldSpaceVertexPosition : TEXCOORD1 )
