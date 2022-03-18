@@ -1157,6 +1157,7 @@ namespace UE
 					TextureFactory->SuppressImportOverwriteDialog();
 					TextureFactory->bUseHashAsGuid = true;
 					TextureFactory->LODGroup = LODGroup;
+					TextureFactory->HDRImportShouldBeLongLatCubeMap = EAppReturnType::YesAll;
 
 					if ( bIsSupportedUdimTexture )
 					{

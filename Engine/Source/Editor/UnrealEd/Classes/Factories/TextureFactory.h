@@ -148,6 +148,10 @@ class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsPars
 	UPROPERTY(Transient)
 	ETextureSourceColorSpace ColorSpaceMode;
 
+	/* Store YesAll/NoAll responses: */
+	UPROPERTY(Transient)
+	TEnumAsByte<EAppReturnType::Type> HDRImportShouldBeLongLatCubeMap = EAppReturnType::Retry;
+
 public:
 	UTextureFactory(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
@@ -201,9 +205,6 @@ public:
 protected:
 	/** Keep track of if we are doing a reimport */
 	bool bIsDoingAReimport = false;
-
-	/* Store YesAll/NoAll responses: */
-	EAppReturnType::Type HDRImportShouldBeLongLatCubeMap = EAppReturnType::Retry;
 
 private:
 	/** This variable is static because in StaticImportObject() the type of the factory is not known. */
