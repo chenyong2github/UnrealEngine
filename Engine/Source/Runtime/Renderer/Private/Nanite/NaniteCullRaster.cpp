@@ -1106,10 +1106,7 @@ public:
 		FVirtualTextureTargetDim
 	>;
 
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizePassParameters, Common)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
+	using FParameters = FRasterizePassParameters;
 
 	FHWRasterizePS() = default;
 	FHWRasterizePS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
@@ -2076,74 +2073,27 @@ void AddPass_Rasterize(
 
 	FRDGBufferRef BinIndirectArgs = bProgrammableRaster ? BinningData.IndirectArgs : IndirectArgs;
 
-	auto ConstructRasterBinPassParameters = [&](bool bIsTwoSided) -> FHWRasterizePS::FParameters*
-	{
-		auto* RasterPassParameters = GraphBuilder.AllocParameters<FHWRasterizePS::FParameters>();
-		auto* CommonPassParameters = &RasterPassParameters->Common;
-
-		CommonPassParameters->RenderFlags = RenderFlags;
-		if (RasterState.CullMode == CM_CCW)
-		{
-			CommonPassParameters->RenderFlags |= NANITE_RENDER_FLAG_REVERSE_CULLING;
-		}
-		
-		// Support CM_None for all rasterizer bins, or for specific two-sided material rasterizer bins
-		if (RasterState.CullMode == CM_None || bIsTwoSided)
-		{
-			CommonPassParameters->RenderFlags |= NANITE_RENDER_FLAG_TWO_SIDED;
-		}
-
-		CommonPassParameters->View = Scene.UniformBuffers.ViewUniformBuffer;
-		CommonPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
-		CommonPassParameters->GPUSceneParameters = GPUSceneParameters;
-		CommonPassParameters->RasterParameters = RasterContext.Parameters;
-		CommonPassParameters->VisualizeModeBitMask = RasterContext.VisualizeModeBitMask;
-		CommonPassParameters->PageConstants = PageConstants;
-		CommonPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
-		CommonPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-
-		CommonPassParameters->InViews = ViewsBuffer != nullptr ? GraphBuilder.CreateSRV(ViewsBuffer) : nullptr;
-		CommonPassParameters->InClusterOffsetSWHW = GraphBuilder.CreateSRV(ClusterOffsetSWHW);
-		CommonPassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
-
-		if (VirtualShadowMapArray != nullptr)
-		{
-			CommonPassParameters->VirtualShadowMap = VirtualTargetParameters;
-		}
-
-		CommonPassParameters->MaterialSlotTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
-		CommonPassParameters->RasterizerBinData = GraphBuilder.CreateSRV(BinningData.DataBuffer);
-		CommonPassParameters->RasterizerBinHeaders = GraphBuilder.CreateSRV(BinningData.HeaderBuffer);
-
-		return RasterPassParameters;
-	};
-
 	const ERasterTechnique Technique = RasterContext.RasterTechnique;
 	const ERasterScheduling Scheduling = RasterContext.RasterScheduling;
 	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
-	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute;
-
-	if (Scheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
+	const auto CreateSkipBarrierUAV = [&](auto& InOutUAV)
 	{
-		const auto CreateSkipBarrierUAV = [&](auto& InOutUAV)
+		if (InOutUAV)
 		{
-			if (InOutUAV)
-			{
-				InOutUAV = GraphBuilder.CreateUAV(InOutUAV->Desc, ERDGUnorderedAccessViewFlags::SkipBarrier);
-			}
-		};
+			InOutUAV = GraphBuilder.CreateUAV(InOutUAV->Desc, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		}
+	};
 
-		// Create a new set of UAVs with the SkipBarrier flag enabled to allow software / hardware overlap.
-		FRasterParameters RasterParameters = RasterContext.Parameters;
-		CreateSkipBarrierUAV(RasterParameters.OutDepthBuffer);
-		CreateSkipBarrierUAV(RasterParameters.OutVisBuffer64);
-		CreateSkipBarrierUAV(RasterParameters.OutDbgBuffer64);
-		CreateSkipBarrierUAV(RasterParameters.OutDbgBuffer32);
-		CreateSkipBarrierUAV(RasterParameters.LockBuffer);
+	// Create a new set of UAVs with the SkipBarrier flag enabled to avoid barriers between dispatches.
+	FRasterParameters RasterParameters = RasterContext.Parameters;
+	CreateSkipBarrierUAV(RasterParameters.OutDepthBuffer);
+	CreateSkipBarrierUAV(RasterParameters.OutVisBuffer64);
+	CreateSkipBarrierUAV(RasterParameters.OutDbgBuffer64);
+	CreateSkipBarrierUAV(RasterParameters.OutDbgBuffer32);
+	CreateSkipBarrierUAV(RasterParameters.LockBuffer);
 
-		ComputePassFlags = ERDGPassFlags::AsyncCompute;
-	}
+	const ERDGPassFlags ComputePassFlags = (Scheduling == ERasterScheduling::HardwareAndSoftwareOverlap) ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
 
 	FIntRect ViewRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);
 	if (bMultiView)
@@ -2227,7 +2177,8 @@ void AddPass_Rasterize(
 		uint32 RasterizerBin = ~uint32(0u);
 	};
 
-	TArray<FRasterizerPass, SceneRenderingAllocator> RasterizerPasses;
+	auto& RasterizerPasses = GraphBuilder.AllocArray<FRasterizerPass>();
+
 	if (bProgrammableRaster)
 	{
 		const auto& Pipelines = RasterPipelines.GetRasterPipelineMap();
@@ -2382,42 +2333,79 @@ void AddPass_Rasterize(
 		check(RasterizerPass.ComputeMaterial);
 	}
 
-	// TODO: PROG_RASTER: Optimization (Fold multiple HW rasterizer calls into combined RDG pass to reduce overhead)
-	for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
+	auto* RasterPassParameters = GraphBuilder.AllocParameters<FRasterizePassParameters>();
+	RasterPassParameters->RenderFlags = RenderFlags;
+	if (RasterState.CullMode == CM_CCW)
 	{
-		FHWRasterizePS::FParameters* RasterBinPassParameters = ConstructRasterBinPassParameters(RasterizerPass.RasterPipeline.bIsTwoSided);
-		RasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
-		RasterBinPassParameters->Common.IndirectArgs = BinIndirectArgs;
+		RasterPassParameters->RenderFlags |= NANITE_RENDER_FLAG_REVERSE_CULLING;
+	}
 
-		GraphBuilder.AddPass(
-			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
-			RasterBinPassParameters,
-			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[RasterBinPassParameters, RasterizerPass, ViewRect, &SceneView, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
+	RasterPassParameters->View = Scene.UniformBuffers.ViewUniformBuffer;
+	RasterPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
+	RasterPassParameters->GPUSceneParameters = GPUSceneParameters;
+	RasterPassParameters->RasterParameters = RasterParameters;
+	RasterPassParameters->VisualizeModeBitMask = RasterContext.VisualizeModeBitMask;
+	RasterPassParameters->PageConstants = PageConstants;
+	RasterPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
+	RasterPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
+	RasterPassParameters->IndirectArgs = BinIndirectArgs;
+	RasterPassParameters->InViews = ViewsBuffer != nullptr ? GraphBuilder.CreateSRV(ViewsBuffer) : nullptr;
+	RasterPassParameters->InClusterOffsetSWHW = GraphBuilder.CreateSRV(ClusterOffsetSWHW);
+	RasterPassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
+	RasterPassParameters->MaterialSlotTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+	RasterPassParameters->RasterizerBinData = GraphBuilder.CreateSRV(BinningData.DataBuffer);
+	RasterPassParameters->RasterizerBinHeaders = GraphBuilder.CreateSRV(BinningData.HeaderBuffer);
+
+	if (VirtualShadowMapArray != nullptr)
+	{
+		RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
+	}
+
+	const auto PatchRasterizePassParameters = [](FRasterizePassParameters& Parameters, const FRasterizerPass& RasterizerPass, ERasterizerCullMode CullMode)
+	{
+		// Support CM_None for all rasterizer bins, or for specific two-sided material rasterizer bins
+		if (CullMode == CM_None || RasterizerPass.RasterPipeline.bIsTwoSided)
 		{
-			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
-			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
-			RHICmdList.SetStreamSource(0, nullptr, 0);
+			Parameters.RenderFlags |= NANITE_RENDER_FLAG_TWO_SIDED;
+		}
+		else
+		{
+			Parameters.RenderFlags &= ~NANITE_RENDER_FLAG_TWO_SIDED;
+		}
 
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
+	};
 
-			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI(); // TODO: PROG_RASTER - Support depth clip as a rasterizer bin and remove shader permutations
+	GraphBuilder.AddPass(
+		bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
+		RasterPassParameters,
+		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+		[RasterPassParameters, PatchRasterizePassParameters, &RasterizerPasses, ViewRect, &SceneView, RPInfo, CullMode = RasterState.CullMode, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
+	{
+		RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
+		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
+		RHICmdList.SetStreamSource(0, nullptr, 0);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI(); // TODO: PROG_RASTER - Support depth clip as a rasterizer bin and remove shader permutations
+		GraphicsPSOInit.PrimitiveType = bUsePrimitiveShader || bUseMeshShader ? PT_PointList : PT_TriangleList;
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseMeshShader ? nullptr : GEmptyVertexDeclaration.VertexDeclarationRHI;
+
+		FHWRasterizePS::FParameters Parameters = *RasterPassParameters;
+
+		Parameters.IndirectArgs->MarkResourceAsUsed();
+
+		for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
+		{
+			PatchRasterizePassParameters(Parameters, RasterizerPass, CullMode);
 
 			// NOTE: We do *not* use RasterState.CullMode here because HWRasterize[VS/MS] already
 			// changes the index order in cases where the culling should be flipped.
 			// The exception is if CM_None is specified for two sided materials, or if the entire raster pass has CM_None specified.
-			const bool bCullModeNone = (RasterBinPassParameters->Common.RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
+			const bool bCullModeNone = (Parameters.RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
 			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bCullModeNone ? CM_None : CM_CW);
-
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-			if (bUsePrimitiveShader || bUseMeshShader)
-			{
-				GraphicsPSOInit.PrimitiveType = PT_PointList;
-			}
-
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseMeshShader ? nullptr : GEmptyVertexDeclaration.VertexDeclarationRHI;
 
 			if (bUseMeshShader)
 			{
@@ -2445,55 +2433,60 @@ void AddPass_Rasterize(
 
 			if (bUseMeshShader)
 			{
-				SetShaderParameters(RHICmdList, RasterizerPass.RasterMeshShader, RasterizerPass.RasterMeshShader.GetMeshShader(), RasterBinPassParameters->Common);
+				SetShaderParameters(RHICmdList, RasterizerPass.RasterMeshShader, RasterizerPass.RasterMeshShader.GetMeshShader(), Parameters);
 			}
 			else
 			{
-				SetShaderParameters(RHICmdList, RasterizerPass.RasterVertexShader, RasterizerPass.RasterVertexShader.GetVertexShader(), RasterBinPassParameters->Common);
+				SetShaderParameters(RHICmdList, RasterizerPass.RasterVertexShader, RasterizerPass.RasterVertexShader.GetVertexShader(), Parameters);
 			}
 
-			SetShaderParameters(RHICmdList, RasterizerPass.RasterPixelShader, RasterizerPass.RasterPixelShader.GetPixelShader(), *RasterBinPassParameters);
+			SetShaderParameters(RHICmdList, RasterizerPass.RasterPixelShader, RasterizerPass.RasterPixelShader.GetPixelShader(), Parameters);
 
 			if (bUseMeshShader)
 			{
-				RHICmdList.DispatchIndirectMeshShader(RasterBinPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset + 16);
+				RHICmdList.DispatchIndirectMeshShader(Parameters.IndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset + 16);
 			}
 			else
 			{
-				RHICmdList.DrawPrimitiveIndirect(RasterBinPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset + 16);
-			}	
+				RHICmdList.DrawPrimitiveIndirect(Parameters.IndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset + 16);
+			}
+		}
 
-			RHICmdList.EndRenderPass();
-		});
-	}
+		RHICmdList.EndRenderPass();
+	});
 
 	if (Scheduling != ERasterScheduling::HardwareOnly)
 	{
-		// TODO: PROG_RASTER: Optimization (Fold multiple SW rasterizer calls into combined RDG pass to reduce overhead)
-		for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
+		GraphBuilder.AddPass(
+			bMainPass ? RDG_EVENT_NAME("Main Pass: SW Rasterize") : RDG_EVENT_NAME("Post Pass: SW Rasterize"),
+			RasterPassParameters,
+			ComputePassFlags,
+			[RasterPassParameters, &RasterizerPasses, PatchRasterizePassParameters, &SceneView, CullMode = RasterState.CullMode](FRHIComputeCommandList& RHICmdList)
 		{
-			FHWRasterizePS::FParameters* SWRasterBinPassParameters = ConstructRasterBinPassParameters(RasterizerPass.RasterPipeline.bIsTwoSided);
-			SWRasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
-			SWRasterBinPassParameters->Common.IndirectArgs = BinIndirectArgs;
+			FRasterizePassParameters Parameters = *RasterPassParameters;
+			Parameters.IndirectArgs->MarkResourceAsUsed();
 
-			FComputeShaderUtils::ValidateIndirectArgsBuffer(BinIndirectArgs, RasterizerPass.IndirectOffset);
-			ClearUnusedGraphResources(RasterizerPass.RasterComputeShader, &SWRasterBinPassParameters->Common, { BinIndirectArgs });
-
-			GraphBuilder.AddPass(
-				bMainPass ? RDG_EVENT_NAME("Main Pass: SW Rasterize") : RDG_EVENT_NAME("Post Pass: SW Rasterize"),
-				&SWRasterBinPassParameters->Common,
-				ComputePassFlags,
-				[SWRasterBinPassParameters, RasterizerPass, &SceneView, BinIndirectArgs](FRHIComputeCommandList& RHICmdList)
+			for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 			{
-				// Marks the indirect draw parameter as used by the pass manually, given it can't be bound directly by any of the shader,
-				// meaning SetShaderParameters() won't be able to do it.
-				BinIndirectArgs->MarkResourceAsUsed();
+				PatchRasterizePassParameters(Parameters, RasterizerPass, CullMode);
 
-				RasterizerPass.RasterComputeShader->SetParameters(RHICmdList, RasterizerPass.RasterComputeShader.GetComputeShader(), SceneView, RasterizerPass.ComputeMaterialProxy, *RasterizerPass.ComputeMaterial);
+				RasterizerPass.RasterComputeShader->SetParameters(
+					RHICmdList,
+					RasterizerPass.RasterComputeShader.GetComputeShader(),
+					SceneView,
+					RasterizerPass.ComputeMaterialProxy,
+					*RasterizerPass.ComputeMaterial
+				);
 
-				FComputeShaderUtils::DispatchIndirect(RHICmdList, RasterizerPass.RasterComputeShader, SWRasterBinPassParameters->Common, BinIndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset);
-			});
-		}
+				FComputeShaderUtils::DispatchIndirect(
+					RHICmdList,
+					RasterizerPass.RasterComputeShader,
+					Parameters,
+					Parameters.IndirectArgs->GetIndirectRHICallBuffer(),
+					RasterizerPass.IndirectOffset
+				);
+			}
+		});
 	}
 }
 

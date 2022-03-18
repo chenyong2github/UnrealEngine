@@ -1184,7 +1184,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		}
 
 		GroupMemoryBarrierWithGroupSync();
-		if(GroupThreadID < NumExportTriangles)
+		if (GroupThreadID < NumExportTriangles)
 		{
 			// Remap triangles to new vertex indices
 			TriangleIndices = uint3(LDS.S.OldToNewVertex[TriangleIndices.x], LDS.S.OldToNewVertex[TriangleIndices.y], LDS.S.OldToNewVertex[TriangleIndices.z]);
@@ -1200,7 +1200,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	PrimOutput.VertCount = NumExportVertices;
 	PrimOutput.PrimCount = NumExportTriangles;
 
-	if(GroupThreadID < NumExportTriangles)
+	if (GroupThreadID < NumExportTriangles)
 	{
 		PrimOutput.PrimExport = PackTriangleExport(TriangleIndices);
 	}

@@ -123,9 +123,17 @@ public:
 	template <typename ObjectType, typename... TArgs>
 	ObjectType* AllocObject(TArgs&&... Args);
 
+	/** Allocates a C++ array where both the array and the data are tied to the lifetime of the graph. The array itself is safe to pass into an RDG lambda. */
+	template <typename ObjectType>
+	TArray<ObjectType, FRDGArrayAllocator>& AllocArray();
+
 	/** Allocates a parameter struct with a lifetime tied to graph execution. */
 	template <typename ParameterStructType>
 	ParameterStructType* AllocParameters();
+
+	/** Allocates a parameter struct with a lifetime tied to graph execution, and copies contents from an existing parameters struct. */
+	template <typename ParameterStructType>
+	ParameterStructType* AllocParameters(ParameterStructType* StructToCopy);
 
 	//////////////////////////////////////////////////////////////////////////
 

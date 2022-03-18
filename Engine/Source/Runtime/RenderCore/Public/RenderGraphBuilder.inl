@@ -133,10 +133,24 @@ FORCEINLINE ObjectType* FRDGBuilder::AllocObject(TArgs&&... Args)
 	return Allocator.Alloc<ObjectType>(Forward<TArgs&&>(Args)...);
 }
 
+template <typename ObjectType>
+FORCEINLINE TArray<ObjectType, FRDGArrayAllocator>& FRDGBuilder::AllocArray()
+{
+	return *Allocator.Alloc<TArray<ObjectType, FRDGArrayAllocator>>();
+}
+
 template <typename ParameterStructType>
 FORCEINLINE ParameterStructType* FRDGBuilder::AllocParameters()
 {
 	return Allocator.Alloc<ParameterStructType>();
+}
+
+template <typename ParameterStructType>
+FORCEINLINE ParameterStructType* FRDGBuilder::AllocParameters(ParameterStructType* StructToCopy)
+{
+	ParameterStructType* Struct = Allocator.Alloc<ParameterStructType>();
+	*Struct = *StructToCopy;
+	return Struct;
 }
 
 FORCEINLINE FRDGSubresourceState* FRDGBuilder::AllocSubresource(const FRDGSubresourceState& Other)
