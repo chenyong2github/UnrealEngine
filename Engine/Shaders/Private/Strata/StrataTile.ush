@@ -1,0 +1,19 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Shared/StrataDefinitions.h"   
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Tile
+
+uint2 StrataUnpackTile(uint In)
+{
+	return uint2(In & 0xFFFF, In >> 16);
+}
+
+uint StrataPackTile(uint2 TileCoord)
+{
+	return TileCoord.x | (TileCoord.y << 16); // assumes 16bit is enough to represent a tiled resolution up to 65,535 :)
+}

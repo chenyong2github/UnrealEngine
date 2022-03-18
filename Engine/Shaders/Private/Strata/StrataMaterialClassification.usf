@@ -5,17 +5,11 @@
 #define STRATA_INLINE_SHADING 0
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
 #include "/Engine/Private/Strata/Strata.ush"
+#include "StrataTile.ush"
 
-#define STRATA_TILE_SIZE 8
 #define GROUP_THREAD_COUNT (STRATA_TILE_SIZE * STRATA_TILE_SIZE)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// DecodeTile is in StrataTiling.usf.
-uint EncodeTile(uint2 TileCoord)
-{
-	return TileCoord.x | (TileCoord.y << 16); // assumes 16bit is enough to represent a tiled resolution up to 65,535 :)
-}
 
 #if SHADER_TILE_CATEGORIZATION
 int bRectPrimitive;
@@ -155,7 +149,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 	if (LinearIndex < 1 && bTileContainsStrata)
 	{
-		uint EncodedTile = EncodeTile(GroupId.xy);
+		uint EncodedTile = StrataPackTile(GroupId.xy);
 
 		if (bTileContainsComplex)
 		{
