@@ -172,7 +172,7 @@ private:
 		bool CanReceiveAudioSamples(int32 NumFrames) override;
 		void PrepareForDecoderShutdown() override;
 		FString GetVideoAdapterName() const override;
-		IElectraPlayerResourceDelegate* GetResourceDelegate() const override;
+		TSharedPtr<IElectraPlayerResourceDelegate, ESPMode::ThreadSafe> GetResourceDelegate() const override;
 
 	private:
 		TWeakPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> Host;
@@ -198,9 +198,9 @@ private:
 	TSharedPtr<IElectraPlayerInterface, ESPMode::ThreadSafe> Player;
 
 	/** Output sample pools */
-	FElectraTextureSamplePool OutputTexturePool;
+	TSharedPtr<FElectraTextureSamplePool, ESPMode::ThreadSafe> OutputTexturePool;
 	FElectraPlayerAudioSamplePool OutputAudioPool;
 
-	TUniquePtr<IElectraPlayerResourceDelegate> PlayerResourceDelegate;
+	TSharedPtr<IElectraPlayerResourceDelegate,ESPMode::ThreadSafe> PlayerResourceDelegate;
 };
 

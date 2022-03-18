@@ -14,7 +14,7 @@ public:
 
 	virtual jobject GetCodecSurface() override
 	{
-		return (jobject)Owner->OutputTexturePool.GetCodecSurface();
+		return (jobject)Owner->OutputTexturePool->GetCodecSurface();
 	}
 
 private:

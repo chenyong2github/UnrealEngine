@@ -71,9 +71,11 @@ bool FElectraPlayerPlugin::Initialize(IMediaEventSink& InEventSink,
 	EventSink = &InEventSink;
 	CallbackPointerLock.Unlock();
 
+	OutputTexturePool = MakeShareable(new FElectraTextureSamplePool);
+
 	MediaSamples.Reset(new FMediaSamples);
 
-	PlayerResourceDelegate.Reset(PlatformCreatePlayerResourceDelegate());
+	PlayerResourceDelegate = MakeShareable(PlatformCreatePlayerResourceDelegate());
 
 	PlayerDelegate = MakeShareable(new FPlayerAdapterDelegate(AsShared()));
 	Player = MakeShareable(FElectraPlayerRuntimeFactory::CreatePlayer(PlayerDelegate, InSendAnalyticMetricsDelegate, InSendAnalyticMetricsPerMinuteDelegate, InReportVideoStreamingErrorDelegate, InReportSubtitlesFileMetricsDelegate));
@@ -363,7 +365,7 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentVideoFrame(const FVide
 	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
 	if (PinnedHost.IsValid())
 	{
-		FElectraTextureSampleRef TextureSample = PinnedHost->OutputTexturePool.AcquireShared();
+		FElectraTextureSampleRef TextureSample = PinnedHost->OutputTexturePool->AcquireShared();
 		TextureSample->Initialize(InVideoFrame.Get());
 		PinnedHost->MediaSamples->AddVideo(TextureSample);
 	}
@@ -431,7 +433,7 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PrepareForDecoderShutdown()
 	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
 	if (PinnedHost.IsValid())
 	{
-		PinnedHost->OutputTexturePool.PrepareForDecoderShutdown();
+		PinnedHost->OutputTexturePool->PrepareForDecoderShutdown();
 	}
 }
 
@@ -442,12 +444,12 @@ FString FElectraPlayerPlugin::FPlayerAdapterDelegate::GetVideoAdapterName() cons
 }
 
 
-IElectraPlayerResourceDelegate* FElectraPlayerPlugin::FPlayerAdapterDelegate::GetResourceDelegate() const
+TSharedPtr<IElectraPlayerResourceDelegate, ESPMode::ThreadSafe> FElectraPlayerPlugin::FPlayerAdapterDelegate::GetResourceDelegate() const
 {
 	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
 	if (PinnedHost.IsValid())
 	{
-		return PinnedHost->PlayerResourceDelegate.Get();
+		return PinnedHost->PlayerResourceDelegate;
 	}
 	return nullptr;
 }
@@ -645,7 +647,7 @@ void FElectraPlayerPlugin::Close()
  */
 void FElectraPlayerPlugin::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 {
-	OutputTexturePool.Tick();
+	OutputTexturePool->Tick();
 	Player->Tick(DeltaTime, Timecode);
 }
 

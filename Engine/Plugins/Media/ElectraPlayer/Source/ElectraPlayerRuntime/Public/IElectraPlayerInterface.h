@@ -79,7 +79,7 @@ public:
 
 	virtual FString GetVideoAdapterName() const = 0;
 
-	virtual IElectraPlayerResourceDelegate* GetResourceDelegate() const = 0;
+	virtual TSharedPtr<IElectraPlayerResourceDelegate, ESPMode::ThreadSafe> GetResourceDelegate() const = 0;
 };
 
 // Container class to be passed through options as shared pointer to allow passing any non-standard ref-counted entities to the player

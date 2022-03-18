@@ -49,7 +49,7 @@ public:
 	{
 		if (const TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe>& PinnedAdapterDelegate = PlayerAdapterDelegate.Pin())
 		{
-			IElectraPlayerResourceDelegate* ResourceDelegate = PinnedAdapterDelegate->GetResourceDelegate();
+			TSharedPtr<IElectraPlayerResourceDelegate, ESPMode::ThreadSafe> ResourceDelegate = PinnedAdapterDelegate->GetResourceDelegate();
 			if (ResourceDelegate)
 			{
 				return ResourceDelegate->GetCodecSurface();
