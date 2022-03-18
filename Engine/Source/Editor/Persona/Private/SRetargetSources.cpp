@@ -102,6 +102,30 @@ void SRetargetSources::Construct(
 			// construct retarget source window
 			SNew(SRetargetSourceWindow, InEditableSkeleton, InOnPostUndo)
 		]
+
+		+SVerticalBox::Slot()
+		.Padding(5, 5)
+		.AutoHeight()
+		[
+			SNew(SSeparator)
+			.Orientation(Orient_Horizontal)
+		]
+
+		+ SVerticalBox::Slot()
+		.Padding(5, 5)
+		.AutoHeight()
+		[
+			SNew(STextBlock)
+			.TextStyle(FEditorStyle::Get(), "Persona.RetargetManager.ImportantText")
+			.Text(LOCTEXT("CompatibleSkeletons_Title", "Manage Compatible Skeletons"))
+		]
+
+		+ SVerticalBox::Slot()
+		.Padding(5, 5)
+		.FillHeight(0.5)
+		[
+			SNew(SCompatibleSkeletons, InEditableSkeleton, InOnPostUndo)
+		]
 	];
 }
 

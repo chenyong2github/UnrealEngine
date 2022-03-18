@@ -150,6 +150,12 @@ public:
 	/** Refresh retarget sources */
 	virtual void RefreshRetargetSources(const TArray<FName>& InRetargetSourceNames) = 0;
 
+	/** Add a compatible skeleton */
+	virtual void AddCompatibleSkeleton(const USkeleton* InCompatibleSkeleton) = 0;
+
+	/** Remove a compatible skeleton */
+	virtual void RemoveCompatibleSkeleton(const USkeleton* InCompatibleSkeleton) = 0;
+
 	/** Refreshes the rig config, validating the mappings */
 	virtual void RefreshRigConfig() = 0;
 

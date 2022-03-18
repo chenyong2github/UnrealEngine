@@ -1493,6 +1493,22 @@ void FEditableSkeleton::RefreshRetargetSources(const TArray<FName>& InRetargetSo
 	}
 }
 
+void FEditableSkeleton::AddCompatibleSkeleton(const USkeleton* InCompatibleSkeleton)
+{
+	const FScopedTransaction Transaction(LOCTEXT("AddedCompatibleSkeletons", "Add Compatible Skeleton"));
+	Skeleton->Modify();
+
+	Skeleton->AddCompatibleSkeleton(InCompatibleSkeleton);
+}
+
+void FEditableSkeleton::RemoveCompatibleSkeleton(const USkeleton* InCompatibleSkeleton)
+{
+	const FScopedTransaction Transaction(LOCTEXT("RemoveCompatibleSkeletons", "Remove Compatible Skeleton"));
+	Skeleton->Modify();
+
+	Skeleton->RemoveCompatibleSkeleton(InCompatibleSkeleton);
+}
+
 void FEditableSkeleton::RefreshRigConfig()
 {
 	Skeleton->RefreshRigConfig();

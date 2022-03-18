@@ -62,6 +62,8 @@ public:
 	virtual void AddRetargetSource(const FName& InName, USkeletalMesh* InReferenceMesh) override;
 	virtual void DeleteRetargetSources(const TArray<FName>& InRetargetSourceNames) override;
 	virtual void RefreshRetargetSources(const TArray<FName>& InRetargetSourceNames) override;
+	virtual void AddCompatibleSkeleton(const USkeleton* InCompatibleSkeleton) override;
+	virtual void RemoveCompatibleSkeleton(const USkeleton* InCompatibleSkeleton) override;
 	virtual void RefreshRigConfig() override;
 	virtual void SetRigConfig(URig* InRig) override;
 	virtual void SetRigBoneMapping(const FName& InNodeName, const FName& InBoneName) override;

@@ -18,7 +18,7 @@ template <typename ItemType> class SListView;
 //////////////////////////////////////////////////////////////////////////
 // FDisplayedRetargetSourceInfo
 
-class FDisplayedRetargetSourceInfo
+class  FDisplayedRetargetSourceInfo
 {
 public:
 	FName Name;
@@ -225,4 +225,30 @@ private:
 	/** Button handler **/
 	FReply OnAddRetargetSourceButtonClicked();
 	FReply OnUpdateAllRetargetSourceButtonClicked();
+};
+
+class SCompatibleSkeletons : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS( SCompatibleSkeletons ){}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, FSimpleMulticastDelegate& InOnPostUndo);
+
+	FReply OnAddSkeletonClicked();
+
+	FReply OnRemoveSkeletonClicked();
+
+	TSharedRef<ITableRow> GenerateRowForItem(TSharedRef<FSoftObjectPath> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
+
+	void OnAssetSelectedFromSkeletonPicker(const FAssetData& AssetData);
+
+private:
+	void UpdateCompatibleSkeletonAssets(const USkeleton& Skeleton);
+	
+	TArray<TSharedRef<FSoftObjectPath>> CompatibleSkeletonAssets;
+
+	TSharedPtr<SListView<TSharedRef<FSoftObjectPath>>> CompatibleSkeletonListView;
+	
+	TWeakPtr<IEditableSkeleton> EditableSkeletonPtr;
 };

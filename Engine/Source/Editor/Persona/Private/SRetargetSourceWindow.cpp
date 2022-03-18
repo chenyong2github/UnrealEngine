@@ -169,9 +169,7 @@ void SRetargetSourceWindow::Construct(const FArguments& InArgs, const TSharedRef
 	EditableSkeletonPtr = InEditableSkeleton;
 
 	InOnPostUndo.Add(FSimpleDelegate::CreateSP( this, &SRetargetSourceWindow::PostUndo ) );
-
-	FText SkeletonName = FText::FromString(InEditableSkeleton->GetSkeleton().GetName());
-
+	
 	ChildSlot
 	[
 		SNew( SVerticalBox )
@@ -601,5 +599,163 @@ FReply SRetargetSourceWindow::OnUpdateAllRetargetSourceButtonClicked()
 	OnRefreshRetargetSource(true);
 	return FReply::Handled();
 }
+
+void SCompatibleSkeletons::Construct(
+	const FArguments& InArgs,
+	const TSharedRef<IEditableSkeleton>& InEditableSkeleton,
+	FSimpleMulticastDelegate& InOnPostUndo)
+{
+	EditableSkeletonPtr = InEditableSkeleton;
+	UpdateCompatibleSkeletonAssets(InEditableSkeleton->GetSkeleton());
+
+	ChildSlot
+	[
+		SNew( SVerticalBox )
+		
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew( SHorizontalBox )
+
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			.Padding(2, 0)
+			[
+				SNew(SButton)
+				.OnClicked(FOnClicked::CreateSP(this, &SCompatibleSkeletons::OnAddSkeletonClicked))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Text(LOCTEXT("AddCompatibleSkeletonButton_Label", "Add Skeleton"))
+				.ToolTipText(LOCTEXT("AddCompatibleSkeletonButton_ToolTip", "When Skeleton assets share an identical hierarchy, bone names and orientations they can be added to the Compatible Skeletons list. Animation assets authored on Compatible Skeletons can then be used in this Skeleton's Animation Blueprints."))
+			]
+
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			.Padding(2, 0)
+			[
+				SNew(SButton)
+				.OnClicked(FOnClicked::CreateSP(this, &SCompatibleSkeletons::OnRemoveSkeletonClicked))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Text(LOCTEXT("RemoveCompatibleSkeletonButton_Label", "Remove Selected"))
+				.ToolTipText(LOCTEXT("RemoveCompatibleSkeletonButton_ToolTip", "Remove the selected skeleton assets from the list of Compatible Skeletons."))
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.FillHeight( 1.0f )
+		.Padding(2.0f)
+		[
+			SAssignNew(CompatibleSkeletonListView, SListView<TSharedRef<FSoftObjectPath>>)
+			.ListItemsSource(&CompatibleSkeletonAssets)
+			.OnGenerateRow(this, &SCompatibleSkeletons::GenerateRowForItem)
+			.ItemHeight( 22.0f )
+		]
+	];
+}
+
+void SCompatibleSkeletons::UpdateCompatibleSkeletonAssets(const USkeleton& Skeleton)
+{
+	CompatibleSkeletonAssets.Empty();
+
+	const TArray<TSoftObjectPtr<USkeleton>>& CompatibleSkeletons = Skeleton.GetCompatibleSkeletons();
+	for (const TSoftObjectPtr<USkeleton>& SoftCompatibleSkeleton : CompatibleSkeletons)
+	{
+		TSharedRef<FSoftObjectPath> AssetPath = MakeShareable(new FSoftObjectPath(SoftCompatibleSkeleton.ToSoftObjectPath()));
+		CompatibleSkeletonAssets.Add(AssetPath);
+	}
+}
+
+FReply SCompatibleSkeletons::OnAddSkeletonClicked()
+{
+	// show list of skeletalmeshes that they can choose from
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+
+	FAssetPickerConfig AssetPickerConfig;
+	AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
+	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SCompatibleSkeletons::OnAssetSelectedFromSkeletonPicker);
+	AssetPickerConfig.bAllowNullSelection = false;
+	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Tile;
+
+	const TSharedRef<SWidget> Widget = SNew(SBox)
+		.WidthOverride(384)
+		.HeightOverride(768)
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.25f, 0.25f, 0.25f, 1.f))
+			.Padding( 2 )
+			[
+				SNew(SBorder)
+				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.Padding( 8 )
+				[
+					ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+				]
+			]
+		];
+
+	FSlateApplication::Get().PushMenu(
+		AsShared(),
+		FWidgetPath(),
+		Widget,
+		FSlateApplication::Get().GetCursorPos(),
+		FPopupTransitionEffect( FPopupTransitionEffect::TopMenu )
+		);
+	
+	return FReply::Handled();
+}
+
+FReply SCompatibleSkeletons::OnRemoveSkeletonClicked()
+{
+	TArray<TSharedRef<FSoftObjectPath>> SelectedAssets = CompatibleSkeletonListView->GetSelectedItems();
+	for (TSharedRef<FSoftObjectPath>& SkeletonAssetPath : SelectedAssets)
+	{
+		USkeleton* SkeletonToRemove = Cast<USkeleton>(SkeletonAssetPath.Get().TryLoad());
+		EditableSkeletonPtr.Pin()->RemoveCompatibleSkeleton(SkeletonToRemove);
+	}
+
+	UpdateCompatibleSkeletonAssets(EditableSkeletonPtr.Pin()->GetSkeleton());
+	CompatibleSkeletonListView->RequestListRefresh();
+
+	FAssetNotifications::SkeletonNeedsToBeSaved(&EditableSkeletonPtr.Pin()->GetSkeleton());
+	
+	return FReply::Handled();
+}
+
+TSharedRef<ITableRow> SCompatibleSkeletons::GenerateRowForItem(TSharedRef<FSoftObjectPath> Item, const TSharedRef<STableViewBase>& OwnerTable) const
+{
+	return SNew(STableRow<TSharedPtr<USkeleton>>, OwnerTable)
+		.Content()
+		[
+			SNew(STextBlock).Text(FText::FromString(Item.Get().GetAssetName()))
+		];
+}
+
+void SCompatibleSkeletons::OnAssetSelectedFromSkeletonPicker(const FAssetData& AssetData)
+{
+	// make sure we haven't already added this asset as a compatible skeleton
+	const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
+	const FString AssetFullPath = AssetData.ToSoftObjectPath().ToString();
+	const TArray<TSoftObjectPtr<USkeleton>>& CompatibleSkeletons = Skeleton.GetCompatibleSkeletons();
+	for (const TSoftObjectPtr<USkeleton>& CompatibleSkeleton : CompatibleSkeletons)
+	{
+		if (CompatibleSkeleton.ToSoftObjectPath() == AssetData.ToSoftObjectPath())
+		{
+			FSlateApplication::Get().DismissAllMenus();
+			return;
+		}
+	}
+
+	const USkeleton* CompatibleSkeleton = CastChecked<USkeleton>(AssetData.GetAsset());
+	EditableSkeletonPtr.Pin()->AddCompatibleSkeleton(CompatibleSkeleton);
+	FAssetNotifications::SkeletonNeedsToBeSaved(&EditableSkeletonPtr.Pin()->GetSkeleton());
+	FSlateApplication::Get().DismissAllMenus();
+
+	UpdateCompatibleSkeletonAssets(EditableSkeletonPtr.Pin()->GetSkeleton());
+	CompatibleSkeletonListView->RequestListRefresh();
+}
+
 #undef LOCTEXT_NAMESPACE
 
