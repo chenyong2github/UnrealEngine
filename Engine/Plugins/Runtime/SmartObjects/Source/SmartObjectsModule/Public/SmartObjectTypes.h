@@ -49,7 +49,7 @@ public:
 	FSmartObjectUserHandle() = default;
 
 	bool IsValid() const { return *this != Invalid; }
-	void Reset() { *this = Invalid; }
+	void Invalidate() { *this = Invalid; }
 
 	bool operator==(const FSmartObjectUserHandle& Other) const { return ID == Other.ID; }
 	bool operator!=(const FSmartObjectUserHandle& Other) const { return !(*this == Other); }
@@ -85,8 +85,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectHandle
 public:
 	FSmartObjectHandle() {}
 
+	/**
+	 * Indicates that the handle was properly assigned but doesn't guarantee that the associated object is still accessible.
+	 * This information requires a call to `USmartObjectSubsystem::IsObjectValid` using the handle.
+	 */
 	bool IsValid() const { return *this != Invalid; }
-	void Reset() { *this = Invalid; }
+	void Invalidate() { *this = Invalid; }
 
 	friend FString LexToString(const FSmartObjectHandle Handle)
 	{
@@ -125,10 +129,13 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotHandle
 
 public:
 	FSmartObjectSlotHandle() = default;
-	bool IsValid() const
-	{
-		return EntityHandle.IsValid();
-	}
+
+	/**
+	 * Indicates that the handle was properly assigned but doesn't guarantee that the associated slot is still accessible.
+	 * This information requires a call to `USmartObjectSubsystem::IsSlotValid` using the handle.
+	 */
+	bool IsValid() const { return EntityHandle.IsValid(); }
+	void Invalidate() { EntityHandle.Reset(); }
 
 	bool operator==(const FSmartObjectSlotHandle Other) const { return EntityHandle == Other.EntityHandle; }
 	bool operator!=(const FSmartObjectSlotHandle Other) const { return !(*this == Other); }

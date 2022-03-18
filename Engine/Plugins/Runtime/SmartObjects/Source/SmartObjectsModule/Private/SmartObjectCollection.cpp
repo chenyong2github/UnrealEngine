@@ -207,6 +207,8 @@ bool ASmartObjectCollection::RemoveSmartObject(USmartObjectComponent& SOComponen
 	FSmartObjectHandle Handle = SOComponent.GetRegisteredHandle();
 	if (!Handle.IsValid())
 	{
+		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Skipped removal of '%s[%s]' from collection '%s'. Handle is not valid"),
+			*GetNameSafe(SOComponent.GetOwner()), *LexToString(Handle), *GetFullName());
 		return false;
 	}
 

@@ -47,8 +47,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 
 	bool operator==(const FSmartObjectClaimHandle& Other) const
 	{
-		return IsValid() && Other.IsValid()
-			&& SmartObjectHandle == Other.SmartObjectHandle
+		return SmartObjectHandle == Other.SmartObjectHandle
 			&& SlotHandle == Other.SlotHandle
 			&& UserHandle == Other.UserHandle;
 	}
@@ -66,9 +65,9 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 	void Invalidate() { *this = InvalidHandle; }
 
 	/**
-	 * Note that this method only indicates that the handle was setup by a call to 'Claim'.
-	 * It doesn't indicate that the associated object/slot are still valid in the simulation.
-	 * This information must be retrieved using 'IsClaimedObjectValid' from the SmartObjectSubsystem.
+	 * Indicates that the handle was properly assigned by a call to 'Claim' but doesn't guarantee that the associated
+	 * object and slot are still registered in the simulation.
+	 * This information requires a call to `USmartObjectSubsystem::IsClaimedObjectValid` using the handle.
 	 */
 	bool IsValid() const
 	{

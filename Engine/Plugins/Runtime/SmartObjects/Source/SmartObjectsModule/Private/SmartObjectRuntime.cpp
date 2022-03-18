@@ -59,7 +59,7 @@ bool FSmartObjectSlotClaimState::Release(const FSmartObjectClaimHandle& ClaimHan
 		}
 
 		State = NewState;
-		User.Reset();
+		User.Invalidate();
 		bReleased = true;
 	}
 
