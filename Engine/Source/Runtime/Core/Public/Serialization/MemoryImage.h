@@ -162,7 +162,7 @@ struct FMemoryImageNamePointer
 };
 inline bool operator==(const FMemoryImageNamePointer& Lhs, const FMemoryImageNamePointer& Rhs)
 {
-	return Lhs.Offset == Rhs.Offset && Lhs.Name == Rhs.Name;
+	return Lhs.Offset == Rhs.Offset && Lhs.Name.Compare(Rhs.Name) == 0;
 }
 inline bool operator!=(const FMemoryImageNamePointer& Lhs, const FMemoryImageNamePointer& Rhs)
 {

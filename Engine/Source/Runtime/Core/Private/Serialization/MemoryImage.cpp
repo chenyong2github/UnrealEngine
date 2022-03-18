@@ -1360,7 +1360,7 @@ static void CountNumNames(const TArray<FMemoryImageNamePointer>& Names, TArray<u
 	uint32 CurrentNumPatches = 0u;
 	for (const FMemoryImageNamePointer& Patch : Names)
 	{
-		if (Patch.Name != CurrentName)
+		if (Patch.Name.Compare(CurrentName) != 0)
 		{
 			if (CurrentNumPatches > 0u)
 			{
@@ -1389,7 +1389,7 @@ static void SerializeNames(const TArray<FMemoryImageNamePointer>& Names, const T
 		for (uint32 i = 0; i < Num; ++i)
 		{
 			const FMemoryImageNamePointer& Patch = Names[NameIndex++];
-			check(Patch.Name == Name);
+			check(Patch.Name.Compare(Name) == 0);
 
 			uint32 Offset = Patch.Offset;
 			Ar << Offset;
@@ -1774,7 +1774,7 @@ static void UpdateHashNamePatches(const TArray< FMemoryImageNamePointer>& Names,
 {
 	for (const FMemoryImageNamePointer& NamePatch : Names)
 	{
-		const FNameEntry* NameEntry = NamePatch.Name.GetComparisonNameEntry();
+		const FNameEntry* NameEntry = NamePatch.Name.GetDisplayNameEntry();
 		TCHAR NameBuffer[NAME_SIZE];
 		NameEntry->GetName(NameBuffer);
 		const int32 Number = NamePatch.Name.GetNumber();

@@ -5037,8 +5037,6 @@ uint32 Freeze::IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, cons
 	{
 		if (!TargetLayoutParameters.WithCasePreservingFName())
 		{
-			ensureMsgf(!WITH_CASE_PRESERVING_NAME, TEXT("Unfreezing memory images containing non-case preserving names when WITH_CASE_PRESERVING_NAME is true can lead to casing cook determinism."));
-
 			const TMemoryImageNameLayout<0>& Loaded = reinterpret_cast<const TMemoryImageNameLayout<0>&>(Object);
 			FMemoryImageName* Dest = new(OutDst) FMemoryImageName();
 			Dest->ComparisonIndex = Loaded.ComparisonIndex;
