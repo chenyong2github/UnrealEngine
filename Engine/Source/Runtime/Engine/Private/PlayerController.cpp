@@ -1671,7 +1671,7 @@ void APlayerController::ServerRecvClientInputFrame_Implementation(int32 InRecvCl
 	for (int32 DroppedFrame = InputBuffer.HeadFrame()+1; DroppedFrame < InRecvClientInputFrame && DroppedFrame > 0; ++DroppedFrame)
 	{
 		UE_LOG(LogPlayerController, Warning, TEXT( "ClientInput Gap in frames (Dropped). %s [%s]. DroppedFrame: %d. RecvFrame: %d. LastProcessInputFrame: %d" ), *GetName(), PlayerState ? *PlayerState->GetPlayerName() : TEXT("???"), DroppedFrame, InRecvClientInputFrame, ServerFrameInfo.LastProcessedInputFrame);
-		ServerFrameInfo.LastProcessedInputFrame++; // Ehh lets try this for now
+		//ServerFrameInfo.LastProcessedInputFrame++; // Ehh lets try this for now
 		InputBuffer.Write(DroppedFrame) = InputBuffer.Get(DroppedFrame-1);
 	}
 
