@@ -344,7 +344,7 @@ namespace UnrealBuildTool
 				{
 					Executor = new HybridExecutor(TargetDescriptors, BuildConfiguration.MaxParallelActions);
 				}
-				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable())
+				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable() && ActionsToExecute.Count >= XGE.MinActions)
 				{
 					Executor = new XGE();
 				}

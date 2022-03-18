@@ -64,6 +64,19 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "XGE")]
 		static bool bUseVCCompilerMode = false;
 
+		/// <summary>
+		/// Minimum number of actions to use XGE execution.
+		/// </summary>
+		[XmlConfigFile(Category = "XGE")]
+		static public int MinActions = 2;
+
+		/// <summary>
+		/// Check for a concurrent XGE build and treat the XGE executor as unavailable if it's in use.
+		/// This will allow UBT to fall back to another executor such as the parallel executor. 
+		/// </summary>
+		[XmlConfigFile(Category = "XGE")]
+		static bool bUnavailableIfInUse = false;
+
 		private const string ProgressMarkupPrefix = "@action";
 
 		public XGE()
@@ -312,6 +325,26 @@ namespace UnrealBuildTool
 				if (TryGetCoordinatorHost(out CoordinatorHost) && IsHostOnVpn(CoordinatorHost))
 				{
 					return false;
+				}
+			}
+
+			// Check if there's an XGE build already running 
+			if (bUnavailableIfInUse)
+			{
+				Process XGEProcess = new Process()
+				{
+					StartInfo = new ProcessStartInfo(
+					XgConsoleExe,
+					"/Command=Unused /nowait /silent")  // The actual command here doesn't matter - it will fail with a different error code (1) than "in use" (4)
+					{
+						UseShellExecute = false
+					}
+				};
+				if (Utils.RunLocalProcess(XGEProcess) == 4)
+				{
+					Log.TraceWarning("Unable to use Incredibuild executor because a build is already in progress");
+					return false;
+
 				}
 			}
 
