@@ -915,6 +915,7 @@ void SerializeUnversionedProperties(const UStruct* Struct, FStructuredArchive::F
 			{
 				if (It.IsNonZero())
 				{
+					FSerializedPropertyScope SerializedProperty(UnderlyingArchive, It.GetSerializer().GetProperty());
 					It.GetSerializer().Serialize(ValueStream.EnterElement(), Data, Defaults);
 				}
 			}
