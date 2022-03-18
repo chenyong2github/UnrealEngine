@@ -265,7 +265,7 @@ static TAutoConsoleVariable<int32> CVarUseFastIntersect(
 
 static TAutoConsoleVariable<int32> CVarUseVisibilityOctree(
 	TEXT("r.UseVisibilityOctree"), 
-	1, 
+	0, 
 	TEXT("Use the octree for visibility calculations."), 
 	ECVF_RenderThreadSafe);
 
