@@ -511,4 +511,15 @@ public:
 	/** Returns all Animation Graph Nodes of the provided Node Class contained by the Animation Blueprint */
 	UFUNCTION(BlueprintCallable, Category=Animation, meta=(ScriptMethod))
 	static void GetNodesOfClass(UAnimBlueprint* AnimationBlueprint, TSubclassOf<UAnimGraphNode_Base> NodeClass, TArray<UAnimGraphNode_Base*>& GraphNodes, bool bIncludeChildClasses = true);
+
+	/**
+	 * Adds an Animation Asset override for the provided AnimationBlueprint, replacing any instance of Target with Override
+	 *
+	 * @param AnimBlueprint					The Animation Blueprint to add/set the Override for
+	 * @param Target						The Animation Asset to add an override for (overrides all instances of the asset)
+	 * @param Override						The Animation Asset to used to override the Target with (types have to match)
+	 * @param bPrintAppliedOverrides		Flag whether or not to print the applied overrides
+	 */
+	UFUNCTION(BlueprintCallable, Category=Animation, meta = (ScriptMethod))
+	static void AddNodeAssetOverride(UAnimBlueprint* AnimBlueprint, const UAnimationAsset* Target, UAnimationAsset* Override, bool bPrintAppliedOverrides = false);
 };
