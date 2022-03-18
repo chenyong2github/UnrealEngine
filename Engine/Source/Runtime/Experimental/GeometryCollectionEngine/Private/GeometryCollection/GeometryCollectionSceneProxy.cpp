@@ -1435,11 +1435,8 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		const FGeometryCollectionSection& MeshSection = SectionsArray[SectionIndex];
 		const bool bValidMeshSection = MeshSection.MaterialID != INDEX_NONE;
 
-		if (MeshSection.MaterialID > MaterialMaxIndex)
-		{
-			// Keep track of highest observed material index.
-			MaterialMaxIndex = MeshSection.MaterialID;
-		}
+		// Keep track of highest observed material index.
+		MaterialMaxIndex = FMath::Max(MeshSection.MaterialID, MaterialMaxIndex);
 
 		UMaterialInterface* MaterialInterface = bValidMeshSection ? Component->GetMaterial(MeshSection.MaterialID) : nullptr;
 
