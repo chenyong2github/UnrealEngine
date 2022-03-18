@@ -2039,8 +2039,8 @@ bool FPImplRecastNavMesh::FindPolysAroundCircle(const FVector& CenterPos, const 
 
 		if (OutPolysCost)
 		{
-			OutPolysCost->Reset();
-			OutPolysCost->AddUninitialized(MaxSearchNodes);
+			PolysCost.Reset();
+			PolysCost.AddUninitialized(MaxSearchNodes);
 		}
 
 		FVector::FReal RecastLoc[3];
