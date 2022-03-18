@@ -113,7 +113,10 @@ void FMovieSceneNiagaraParameterSectionTemplate::Initialize(const FMovieSceneEva
 			const uint8* ParameterData = NiagaraComponent->GetOverrideParameters().GetParameterData(Parameter);
 			if (ParameterData == nullptr)
 			{
-				ParameterData = NiagaraComponent->GetAsset()->GetExposedParameters().GetParameterData(Parameter);
+				if (UNiagaraSystem* NiagaraSystem = NiagaraComponent->GetAsset())
+				{
+					ParameterData = NiagaraSystem->GetExposedParameters().GetParameterData(Parameter);
+				}
 			}
 
 			TArray<uint8> CurrentValueData;
