@@ -462,7 +462,7 @@ AActor* UAIPerceptionComponent::GetMutableBodyActor()
 
 void UAIPerceptionComponent::RegisterStimulus(AActor* Source, const FAIStimulus& Stimulus)
 {
-	FStimulusToProcess& StimulusToProcess = StimuliToProcess[StimuliToProcess.Add(FStimulusToProcess(Source, Stimulus))];
+	FStimulusToProcess& StimulusToProcess = StimuliToProcess.Add_GetRef(FStimulusToProcess(Source, Stimulus));
 	StimulusToProcess.Stimulus.SetExpirationAge(MaxActiveAge[int32(Stimulus.Type)]);
 }
 
@@ -479,13 +479,14 @@ void UAIPerceptionComponent::ProcessStimuli()
 	const bool bBroadcastEveryTargetUpdate = OnTargetPerceptionUpdated.IsBound();
 	const bool bBroadcastEveryTargetInfoUpdate = OnTargetPerceptionInfoUpdated.IsBound();
 	
+	TArray<FStimulusToProcess> ProcessingStimuli = MoveTemp(StimuliToProcess);
 	TArray<AActor*> UpdatedActors;
-	UpdatedActors.Reserve(StimuliToProcess.Num());
+	UpdatedActors.Reserve(ProcessingStimuli.Num());
 	TArray<AActor*> ActorsToForget;
-	ActorsToForget.Reserve(StimuliToProcess.Num());
+	ActorsToForget.Reserve(ProcessingStimuli.Num());
 	TArray<TObjectKey<AActor>, TInlineAllocator<8>> DataToRemove;
 
-	for (FStimulusToProcess& SourcedStimulus : StimuliToProcess)
+	for (FStimulusToProcess& SourcedStimulus : ProcessingStimuli)
 	{
 		const TObjectKey<AActor>& SourceKey = SourcedStimulus.Source;
 
@@ -582,8 +583,6 @@ void UAIPerceptionComponent::ProcessStimuli()
 			}
 		}
 	}
-
-	StimuliToProcess.Reset();
 
 	if (UpdatedActors.Num() > 0)
 	{
