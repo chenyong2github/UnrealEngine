@@ -133,7 +133,7 @@ namespace UE::DatasmithImporter
 			.Padding(2.f)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SListView< TSharedRef<FDirectLinkExternalSourceInfo>>)
+				SAssignNew(SourceListView, SListView< TSharedRef<FDirectLinkExternalSourceInfo>>)
 				.Visibility(this, &SDirectLinkAvailableSource::GetConnectionViewVisibility)
 				.ListItemsSource(&DirectLinkExternalSourceInfos)
 				.OnGenerateRow(this, &SDirectLinkAvailableSource::OnGenerateRow)
@@ -156,7 +156,7 @@ namespace UE::DatasmithImporter
 					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 					.ContentPadding(1)
 					.ToolTipText(LOCTEXT("RefreshSourceListButtonTooltip", "Refresh the list of Direct Link sources."))
-					.OnClicked_Lambda([this]() { GenerateDirectLinkExternalSourceInfos(); return FReply::Handled(); })
+					.OnClicked_Lambda([this]() { GenerateDirectLinkExternalSourceInfos(); SourceListView->RequestListRefresh(); return FReply::Handled(); })
 					[
 						SNew(SImage)
 						.Image(FEditorStyle::GetBrush("Icons.Refresh"))

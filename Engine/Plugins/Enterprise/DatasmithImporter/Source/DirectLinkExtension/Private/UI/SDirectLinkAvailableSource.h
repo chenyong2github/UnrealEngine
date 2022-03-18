@@ -84,6 +84,8 @@ namespace UE::DatasmithImporter
 
 		TSharedPtr<FDirectLinkExternalSource> SelectedSource;
 
+		TSharedPtr<SListView<TSharedRef<struct FDirectLinkExternalSourceInfo>>> SourceListView;
+
 		TArray<TSharedRef<struct FDirectLinkExternalSourceInfo>> DirectLinkExternalSourceInfos;
 	};
 }
