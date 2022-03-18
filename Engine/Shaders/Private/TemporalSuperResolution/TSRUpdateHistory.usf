@@ -40,10 +40,12 @@
 #if DIM_HIGH_FREQUENCY_ONLY == 1
 	#define CONFIG_HIGH_FREQUENCY_ONLY 1
 	#define CONFIG_HIGH_FREQUENCY_YCOCG 0
+	#define CONFIG_OUTPUT_HALFRES_HISTORY 1
 
 #else
 	#define CONFIG_HIGH_FREQUENCY_ONLY 0
 	#define CONFIG_HIGH_FREQUENCY_YCOCG 1
+	#define CONFIG_OUTPUT_HALFRES_HISTORY 0
 
 #endif
 
@@ -116,6 +118,7 @@ uint bHasSeparateTranslucency;
 
 Texture2D<tsr_halfC> PrevHistory_LowFrequency;
 Texture2D<tsr_halfC> PrevHistory_HighFrequency;
+Texture2D<tsr_halfC> PrevHistory_HighFrequencyHalfRes;
 Texture2D<tsr_half2> PrevHistory_Metadata;
 Texture2D<tsr_half3> PrevHistory_Translucency;
 Texture2D<tsr_half>  PrevHistory_TranslucencyAlpha;
@@ -123,6 +126,7 @@ Texture2D<tsr_subpixel_details> PrevHistory_SubpixelDetails;
 
 RWTexture2D<tsr_halfC> HistoryOutput_LowFrequency;
 RWTexture2D<tsr_halfC> HistoryOutput_HighFrequency;
+RWTexture2D<tsr_halfC> HistoryOutput_HighFrequencyHalfRes;
 RWTexture2D<tsr_half2> HistoryOutput_Metadata;
 RWTexture2D<tsr_half3> HistoryOutput_Translucency;
 RWTexture2D<tsr_half>  HistoryOutput_TranslucencyAlpha;
@@ -1538,6 +1542,10 @@ void MainCS(
 			
 		LocalHistoryPixelPos = InvalidateOutputPixelPos(LocalHistoryPixelPos, HistoryInfo_ViewportMax);
 		
+		tsr_short2x2 HalfResOutputPixelPos;
+		HalfResOutputPixelPos[0] = (LocalHistoryPixelPos[0] >> tsr_short(1)) | (((LocalHistoryPixelPos[0] & tsr_short(0x1))) * tsr_short(~0));
+		HalfResOutputPixelPos[1] = (LocalHistoryPixelPos[1] >> tsr_short(1)) | (((LocalHistoryPixelPos[1] & tsr_short(0x1))) * tsr_short(~0));
+
 		// Premultiply FinalHighFrequencyColor to have validity weighted average in next frame history reprojection.
 		#if CONFIG_HIGH_FREQUENCY_ONLY
 			tsr_half2 FinalHistoryWeight = max(FinalHistoryValidity, MIN_IMPLICIT_HISTORY_WEIGHT);
@@ -1576,41 +1584,110 @@ void MainCS(
 			#endif
 		}
 
-		// Output final history lo pixel.
+		// Output full res history
 		{
-			#if CONFIG_HIGH_FREQUENCY_ONLY
-				HistoryOutput_HighFrequency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(PremultipliedHighFrequencyColor);
-				HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]      = tsr_half2(dpv_lo(FinalHistoryWeight), dpv_lo(FinalHistoryValidity));
-			#else
-				HistoryOutput_LowFrequency[dpv_lo(LocalHistoryPixelPos)]  = dpv_lo(FinalLowFrequencyColor);
-				HistoryOutput_HighFrequency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(PremultipliedHighFrequencyColor);
-				HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]      = tsr_half2(dpv_lo(FinalLowFrequencyWeight), dpv_lo(FinalHistoryValidity));
-			#endif
-			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-				HistoryOutput_Translucency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).rgb;
-				HistoryOutput_TranslucencyAlpha[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).a;
-			#endif
-			HistoryOutput_SubpixelDetails[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalSubpixelDetails);
+			// Output final history lo pixel.
+			{
+				#if CONFIG_HIGH_FREQUENCY_ONLY
+					HistoryOutput_HighFrequency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(PremultipliedHighFrequencyColor);
+					HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]      = tsr_half2(dpv_lo(FinalHistoryWeight), dpv_lo(FinalHistoryValidity));
+				#else
+					HistoryOutput_LowFrequency[dpv_lo(LocalHistoryPixelPos)]  = dpv_lo(FinalLowFrequencyColor);
+					HistoryOutput_HighFrequency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(PremultipliedHighFrequencyColor);
+					HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]      = tsr_half2(dpv_lo(FinalLowFrequencyWeight), dpv_lo(FinalHistoryValidity));
+				#endif
+				#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
+					HistoryOutput_Translucency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).rgb;
+					HistoryOutput_TranslucencyAlpha[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).a;
+				#endif
+				HistoryOutput_SubpixelDetails[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalSubpixelDetails);
+			}
+		
+			// Output final history hi pixel.
+			#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+			{
+				#if CONFIG_HIGH_FREQUENCY_ONLY
+					HistoryOutput_HighFrequency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(PremultipliedHighFrequencyColor);
+					HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)]      = tsr_half2(dpv_hi(FinalHistoryWeight), dpv_hi(FinalHistoryValidity));
+				#else
+					HistoryOutput_LowFrequency[dpv_hi(LocalHistoryPixelPos)]  = dpv_hi(FinalLowFrequencyColor);
+					HistoryOutput_HighFrequency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(PremultipliedHighFrequencyColor);
+					HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)]      = tsr_half2(dpv_hi(FinalLowFrequencyWeight), dpv_hi(FinalHistoryValidity));
+				#endif
+				#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
+					HistoryOutput_Translucency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).rgb;
+					HistoryOutput_TranslucencyAlpha[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).a;
+				#endif
+				HistoryOutput_SubpixelDetails[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalSubpixelDetails);
+			}
+			#endif // !CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
 		}
 		
-		// Output final history hi pixel.
-		#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+		// Output half res history
+		#if CONFIG_OUTPUT_HALFRES_HISTORY
 		{
-			#if CONFIG_HIGH_FREQUENCY_ONLY
-				HistoryOutput_HighFrequency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(PremultipliedHighFrequencyColor);
-				HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)]      = tsr_half2(dpv_hi(FinalHistoryWeight), dpv_hi(FinalHistoryValidity));
+			#if CONFIG_SCENE_COLOR_APLHA
+				tsr_half4x2 HalfResFinalHighFrequencyColor = FinalHighFrequencyColor * tsr_half(0.25);
 			#else
-				HistoryOutput_LowFrequency[dpv_hi(LocalHistoryPixelPos)]  = dpv_hi(FinalLowFrequencyColor);
-				HistoryOutput_HighFrequency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(PremultipliedHighFrequencyColor);
-				HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)]      = tsr_half2(dpv_hi(FinalLowFrequencyWeight), dpv_hi(FinalHistoryValidity));
+				tsr_half4x2 HalfResFinalHighFrequencyColor = tsr_half4x2(FinalHighFrequencyColor[0], FinalHighFrequencyColor[1], FinalHighFrequencyColor[2], tsr_half(0.0).xx) * tsr_half(0.25);
 			#endif
-			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-				HistoryOutput_Translucency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).rgb;
-				HistoryOutput_TranslucencyAlpha[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).a;
+
+			#if PLATFORM_SUPPORTS_WAVE_BROADCAST && 0 // Support WaveBroadcast with halfs
+			{
+				FWaveBroadcastSettings Horizontal = InitWaveXorButterfly(/* XorButterFly = */ 0x1);
+				FWaveBroadcastSettings Vertical = InitWaveXorButterfly(/* XorButterFly = */ 0x2);
+
+				HalfResFinalHighFrequencyColor += WaveBroadcast(Horizontal, HalfResFinalHighFrequencyColor);
+				HalfResFinalHighFrequencyColor += WaveBroadcast(Vertical, HalfResFinalHighFrequencyColor);
+			}
+			#else
+			{
+				SharedArray0[LocalGroupThreadIndex] = dpv_lo(HalfResFinalHighFrequencyColor);
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					SharedArray1[LocalGroupThreadIndex] = dpv_hi(HalfResFinalHighFrequencyColor);
+				#endif
+
+				SharedArray0[LocalGroupThreadIndex] += SharedArray0[LocalGroupThreadIndex ^ 0x1];
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					SharedArray1[LocalGroupThreadIndex] += SharedArray1[LocalGroupThreadIndex ^ 0x1];
+				#endif
+					
+				SharedArray0[LocalGroupThreadIndex] += SharedArray0[LocalGroupThreadIndex ^ 0x2];
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					SharedArray1[LocalGroupThreadIndex] += SharedArray1[LocalGroupThreadIndex ^ 0x2];
+				#endif
+					
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					HalfResFinalHighFrequencyColor = dpv_interleave_registers(SharedArray0[LocalGroupThreadIndex], SharedArray1[LocalGroupThreadIndex]);
+				#else
+					HalfResFinalHighFrequencyColor = dpv_interleave_mono_registers(SharedArray0[LocalGroupThreadIndex]);
+				#endif
+
+			}
 			#endif
-			HistoryOutput_SubpixelDetails[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalSubpixelDetails);
+			
+			//HalfResFinalHighFrequencyColor[0] = 1.0;
+			//HalfResFinalHighFrequencyColor[1] = 0.0;
+			//HalfResFinalHighFrequencyColor[2] = 0.0;
+
+			//HalfResOutputPixelPos = LocalHistoryPixelPos;
+
+			#if CONFIG_SCENE_COLOR_APLHA
+				HistoryOutput_HighFrequencyHalfRes[dpv_lo(HalfResOutputPixelPos)] = dpv_lo(HalfResFinalHighFrequencyColor);
+			
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					HistoryOutput_HighFrequencyHalfRes[dpv_hi(HalfResOutputPixelPos)] = dpv_hi(HalfResFinalHighFrequencyColor);
+				#endif
+			#else
+				HistoryOutput_HighFrequencyHalfRes[dpv_lo(HalfResOutputPixelPos)] = dpv_lo(HalfResFinalHighFrequencyColor).rgb;
+			
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					HistoryOutput_HighFrequencyHalfRes[dpv_hi(HalfResOutputPixelPos)] = dpv_hi(HalfResFinalHighFrequencyColor).rgb;
+				#endif
+			#endif
 		}
-		#endif
+		#endif // !CONFIG_OUTPUT_HALFRES_HISTORY
+
 
 		// Output final scene color Mip0
 		tsr_halfCx2 OutputColor;
@@ -1631,10 +1708,6 @@ void MainCS(
 		#if !DEBUG_OUTPUT // running out of UAVs
 		{
 			tsr_halfCx2 HalfResOutput = OutputColor * tsr_half(0.25);
-			//tsr_short2x2 HalfResOutputPixelPos = (LocalHistoryPixelPos >> tsr_short(1)) | (((LocalHistoryPixelPos & tsr_short(0x1)) | !bGenerateOutputMip1) * tsr_short(~0));
-			tsr_short2x2 HalfResOutputPixelPos;
-			HalfResOutputPixelPos[0] = (LocalHistoryPixelPos[0] >> tsr_short(1)) | (((LocalHistoryPixelPos[0] & tsr_short(0x1)) | tsr_short(!bGenerateOutputMip1)) * tsr_short(~0));
-			HalfResOutputPixelPos[1] = (LocalHistoryPixelPos[1] >> tsr_short(1)) | (((LocalHistoryPixelPos[1] & tsr_short(0x1)) | tsr_short(!bGenerateOutputMip1)) * tsr_short(~0));
 			
 			#if PLATFORM_SUPPORTS_WAVE_BROADCAST && 0 // Support WaveBroadcast with halfs
 			BRANCH
@@ -1687,6 +1760,9 @@ void MainCS(
 				#endif
 			}
 			#endif
+
+			tsr_short2x2 SceneColorOutputMip1PixelPos = HalfResOutputPixelPos;
+			SceneColorOutputMip1PixelPos[0] = select(bGenerateOutputMip1 != 0, SceneColorOutputMip1PixelPos[0], tsr_short(~0));
 
 			SceneColorOutputMip1[dpv_lo(HalfResOutputPixelPos)] = dpv_lo(HalfResOutput);
 			
