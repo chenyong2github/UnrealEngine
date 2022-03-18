@@ -15,6 +15,11 @@
 #include "UObject/UnrealType.h"
 #include "HAL/PlatformStackWalk.h"
 
+#if WITH_EDITORONLY_DATA
+#include "DerivedDataValueId.h"
+#include "IO/IoDispatcher.h"
+#endif
+
 /*----------------------------------------------------------------------------
 	FLinkerSave.
 ----------------------------------------------------------------------------*/
@@ -459,3 +464,35 @@ void FLinkerSave::SetUseUnversionedPropertySerialization(bool bInUseUnversioned)
 		}
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+
+static FIoChunkId CreateDerivedDataChunkId(const FPackageId PackageId, const int32 ChunkIndex)
+{
+	checkf(ChunkIndex >= 0 && ChunkIndex < (1 << 24), TEXT("ChunkIndex %d is out of range."), ChunkIndex);
+
+	// PackageId                 ChunkIndex Type
+	// [00 01 02 03 04 05 06 07] [08 09 10] [11]
+	uint8 Data[12]{};
+	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(EIoChunkType::DerivedData);
+	*reinterpret_cast<uint32*>(&Data[7]) = NETWORK_ORDER32(ChunkIndex);
+	*reinterpret_cast<uint64*>(&Data[0]) = PackageId.Value();
+
+	FIoChunkId ChunkId;
+	ChunkId.Set(Data, 12);
+	return ChunkId;
+}
+
+FIoChunkId FLinkerSave::AddDerivedData(const FCompressedBuffer& Data)
+{
+	UE_LOG(LogLinker, Warning, TEXT("Data will not be able to load because derived data is not saved yet."));
+	return CreateDerivedDataChunkId(LinkerRoot->GetPackageId(), ++LastDerivedDataIndex);
+}
+
+FIoChunkId FLinkerSave::AddDerivedData(const UE::DerivedData::FCacheKey& Key, const UE::DerivedData::FValueId& ValueId)
+{
+	UE_LOG(LogLinker, Warning, TEXT("Data will not be able to load because derived data is not saved yet."));
+	return CreateDerivedDataChunkId(LinkerRoot->GetPackageId(), ++LastDerivedDataIndex);
+}
+
+#endif // WITH_EDITORONLY_DATA

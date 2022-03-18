@@ -12,8 +12,12 @@
 #include "UObject/PackageTrailer.h"
 #include "UObject/UObjectThreadContext.h"
 
+class FIoChunkId;
 class FObjectPostSaveContext;
 struct FUntypedBulkData;
+
+namespace UE::DerivedData { struct FCacheKey; }
+namespace UE::DerivedData { struct FValueId; }
 
 /*----------------------------------------------------------------------------
 	FLinkerSave.
@@ -207,6 +211,33 @@ public:
 	{
 		return LogOutput;
 	}
+
+#if WITH_EDITORONLY_DATA
+
+	/**
+	 * Adds the derived data to the package.
+	 *
+	 * This is only supported when saving a cooked package.
+	 *
+	 * @return An ID that can be used to load the derived data from the cooked package.
+	 */
+	FIoChunkId AddDerivedData(const FCompressedBuffer& Data);
+
+	/**
+	 * Adds the derived data value referenced by the cache key and ID.
+	 *
+	 * This is only supported when saving a cooked package.
+	 * The key and a null ID must reference a value that was saved using ICache::PutValue.
+	 * The key and a non-null ID must reference a value in a record that was saved using ICache::Put.
+	 *
+	 * @param Key       Reference to a record or value in the cache.
+	 * @param ValueId   Reference to a value within a record, otherwise FValueId::Null.
+	 * @return An ID that can be used to load the derived data from the cooked package.
+	 */
+	FIoChunkId AddDerivedData(const UE::DerivedData::FCacheKey& Key, const UE::DerivedData::FValueId& ValueId);
+
+#endif // WITH_EDITORONLY_DATA
+
 protected:
 	/** Set the filename being saved to */
 	void SetFilename(FStringView InFilename);
@@ -214,4 +245,9 @@ protected:
 private:
 	/** Optional log output to bubble errors back up. */
 	FOutputDevice* LogOutput = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	/** The index of the last derived data chunk added to the package. */
+	int32 LastDerivedDataIndex = -1;
+#endif
 };

@@ -7,10 +7,12 @@
 #if WITH_EDITORONLY_DATA
 
 #include "DerivedDataBuildDefinition.h"
+#include "DerivedDataCacheKey.h"
 #include "DerivedDataValueId.h"
 #include "Serialization/EditorDerivedData.h"
 #include "Serialization/EditorDerivedDataIoStore.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/LinkerSave.h"
 
 namespace UE::DerivedData::IoStore
 {
@@ -28,7 +30,24 @@ namespace UE
 
 void FDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 {
-	unimplemented();
+	if (Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData())
+	{
+#if WITH_EDITORONLY_DATA
+		if (Ar.IsSaving())
+		{
+			checkf(Ar.IsCooking(), TEXT("Serializing FDerivedData is only supported for cooked packages."));
+			FLinkerSave* const Linker = Cast<FLinkerSave>(Ar.GetLinker());
+			checkf(Linker, TEXT("Serializing FDerivedData requires a linker."));
+			FIoChunkId SaveId = EditorData->Save(*Linker);
+			Ar << SaveId;
+		}
+		else
+#endif
+		{
+			Ar << ChunkId;
+		}
+		Ar << Flags;
+	}
 }
 
 FUniqueBuffer FDerivedData::LoadData(FArchive& Ar, FDerivedDataBufferAllocator Allocator)
@@ -101,14 +120,26 @@ FDerivedData::FDerivedData(const FCompressedBuffer& Data)
 {
 }
 
-FDerivedData::FDerivedData(FStringView CacheKey, FStringView CacheContext)
-	: EditorData(DerivedData::Private::MakeEditorDerivedData(CacheKey, CacheContext))
+FDerivedData::FDerivedData(const DerivedData::FSharedString& Name, const DerivedData::FCacheKey& Key)
+	: EditorData(DerivedData::Private::MakeEditorDerivedData(Name, Key, DerivedData::FValueId::Null))
+	, ChunkId(DerivedData::IoStore::GEditorDerivedDataIoStore->AddData(EditorData.Get()))
+{
+}
+
+FDerivedData::FDerivedData(const DerivedData::FSharedString& Name, const DerivedData::FCacheKey& Key, const DerivedData::FValueId& ValueId)
+	: EditorData(DerivedData::Private::MakeEditorDerivedData(Name, Key, ValueId))
 	, ChunkId(DerivedData::IoStore::GEditorDerivedDataIoStore->AddData(EditorData.Get()))
 {
 }
 
 FDerivedData::FDerivedData(const DerivedData::FBuildDefinition& BuildDefinition, const DerivedData::FValueId& ValueId)
 	: EditorData(DerivedData::Private::MakeEditorDerivedData(BuildDefinition, ValueId))
+	, ChunkId(DerivedData::IoStore::GEditorDerivedDataIoStore->AddData(EditorData.Get()))
+{
+}
+
+FDerivedData::FDerivedData(FStringView CacheKey, FStringView CacheContext)
+	: EditorData(DerivedData::Private::MakeEditorDerivedData(CacheKey, CacheContext))
 	, ChunkId(DerivedData::IoStore::GEditorDerivedDataIoStore->AddData(EditorData.Get()))
 {
 }

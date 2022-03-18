@@ -17,7 +17,10 @@ class UObject;
 template <typename FuncType> class TFunctionRef;
 
 namespace UE::DerivedData { class FBuildDefinition; }
+namespace UE::DerivedData { struct FCacheKey; }
 namespace UE::DerivedData { struct FValueId; }
+namespace UE::DerivedData { template <typename CharType> class TSharedString; }
+namespace UE::DerivedData { using FSharedString = TSharedString<TCHAR>; }
 namespace UE::DerivedData::Private { class FEditorDerivedData; }
 
 namespace UE
@@ -59,14 +62,22 @@ public:
 	UE_API FDerivedData& operator=(FDerivedData&& Other);
 	UE_API FDerivedData& operator=(const FDerivedData& Other);
 
+	/** Reference a value that is stored in a buffer. */
 	UE_API explicit FDerivedData(const FSharedBuffer& Data);
 	UE_API explicit FDerivedData(const FCompositeBuffer& Data);
 	UE_API explicit FDerivedData(const FCompressedBuffer& Data);
 
-	UE_API FDerivedData(FStringView CacheKey, FStringView CacheContext);
-
+	/** Reference a value that was saved using ICache::PutValue. */
+	UE_API FDerivedData(const DerivedData::FSharedString& Name, const DerivedData::FCacheKey& Key);
+	/** Reference a value in a record that was saved using ICache::Put. */
+	UE_API FDerivedData(const DerivedData::FSharedString& Name, const DerivedData::FCacheKey& Key, const DerivedData::FValueId& ValueId);
+	/** Reference a value in the output from the build function for the build definition. */
 	UE_API FDerivedData(const DerivedData::FBuildDefinition& BuildDefinition, const DerivedData::FValueId& ValueId);
 
+	/** Reference a value that was saved using FDerivedDataCacheInterface::Put. */
+	UE_API FDerivedData(FStringView CacheKey, FStringView CacheContext);
+
+	/** Overwrite the existing flags. */
 	UE_API void SetFlags(EDerivedDataFlags Flags);
 
 private:

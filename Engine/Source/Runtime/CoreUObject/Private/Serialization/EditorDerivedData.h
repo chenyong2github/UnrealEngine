@@ -7,14 +7,17 @@
 #if WITH_EDITORONLY_DATA
 
 #include "Containers/StringFwd.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "Memory/MemoryFwd.h"
 #include "Templates/UniquePtr.h"
 
 class FCompressedBuffer;
+class FIoChunkId;
 class FIoRequestImpl;
 
 namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FRequestOwner; }
+namespace UE::DerivedData { struct FCacheKey; }
 namespace UE::DerivedData { struct FValueId; }
 namespace UE::DerivedData::IoStore { class FDerivedDataIoRequestQueue; }
 
@@ -55,17 +58,17 @@ public:
 	virtual TUniquePtr<FEditorDerivedData> Clone() const = 0;
 	virtual void Read(IoStore::FDerivedDataIoRequest Request) const = 0;
 	virtual bool TryGetSize(uint64& OutSize) const = 0;
+	virtual FIoChunkId Save(FLinkerSave& Linker) const = 0;
 };
 
 TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(const FSharedBuffer& Data);
 TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(const FCompositeBuffer& Data);
 TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(const FCompressedBuffer& Data);
 
-TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(FStringView CacheKey, FStringView CacheContext);
+TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(const FSharedString& Name, const FCacheKey& Key, const FValueId& ValueId);
+TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(const FBuildDefinition& BuildDefinition, const FValueId& ValueId);
 
-TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(
-	const DerivedData::FBuildDefinition& BuildDefinition,
-	const DerivedData::FValueId& ValueId);
+TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(FStringView CacheKey, FStringView CacheContext);
 
 } // UE::DerivedData::Private
 

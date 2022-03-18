@@ -7,12 +7,18 @@
 #include "Compression/CompressedBuffer.h"
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildSession.h"
+#include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheKey.h"
+#include "DerivedDataRequestOwner.h"
+#include "DerivedDataSharedString.h"
+#include "DerivedDataValue.h"
 #include "DerivedDataValueId.h"
+#include "IO/IoDispatcher.h"
 #include "Memory/CompositeBuffer.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/CoreMisc.h"
-#include "Serialization/BulkDataRegistry.h"
+#include "UObject/LinkerSave.h"
 
 namespace UE::DerivedData::Private
 {
@@ -34,6 +40,7 @@ public:
 
 	void Read(IoStore::FDerivedDataIoRequest Request) const final;
 	bool TryGetSize(uint64& OutSize) const final;
+	FIoChunkId Save(FLinkerSave& Linker) const final;
 
 private:
 	FCompositeBuffer Data;
@@ -61,6 +68,11 @@ bool FEditorDerivedDataBuffer::TryGetSize(uint64& OutSize) const
 	return true;
 }
 
+FIoChunkId FEditorDerivedDataBuffer::Save(FLinkerSave& Linker) const
+{
+	return Linker.AddDerivedData(FValue::Compress(Data).GetData());
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FEditorDerivedDataCompressedBuffer final : public FEditorDerivedData
@@ -75,6 +87,7 @@ public:
 
 	void Read(IoStore::FDerivedDataIoRequest Request) const final;
 	bool TryGetSize(uint64& OutSize) const final;
+	FIoChunkId Save(FLinkerSave& Linker) const final;
 
 private:
 	FCompressedBuffer Data;
@@ -109,14 +122,20 @@ bool FEditorDerivedDataCompressedBuffer::TryGetSize(uint64& OutSize) const
 	return true;
 }
 
+FIoChunkId FEditorDerivedDataCompressedBuffer::Save(FLinkerSave& Linker) const
+{
+	return Linker.AddDerivedData(Data);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FEditorDerivedDataCache final : public FEditorDerivedData
 {
 public:
-	FEditorDerivedDataCache(FStringView InCacheKey, FStringView InCacheContext)
-		: CacheKey(InCacheKey)
-		, CacheContext(InCacheContext)
+	FEditorDerivedDataCache(const FSharedString& InName, const FCacheKey& InKey, const FValueId& InValueId)
+		: Name(InName)
+		, Key(InKey)
+		, ValueId(InValueId)
 	{
 	}
 
@@ -124,22 +143,28 @@ public:
 
 	void Read(IoStore::FDerivedDataIoRequest Request) const final;
 	bool TryGetSize(uint64& OutSize) const final;
+	FIoChunkId Save(FLinkerSave& Linker) const final;
 
 private:
-	FString CacheKey;
-	FString CacheContext;
+	FSharedString Name;
+	FCacheKey Key;
+	FValueId ValueId;
 };
 
 void FEditorDerivedDataCache::Read(IoStore::FDerivedDataIoRequest Request) const
 {
-	TArray<uint8> Data;
-	if (GetDerivedDataCacheRef().GetSynchronous(*CacheKey, Data, CacheContext))
+	FSharedBuffer Data;
+
+	FRequestOwner Owner(EPriority::Blocking);
+	GetCache().GetChunks({{Name, Key, ValueId, Request.GetOffset(), Request.GetSize()}}, Owner, [&Data](FCacheGetChunkResponse&& Response)
 	{
-		const FMemoryView DataView = MakeMemoryView(Data);
-		const uint64 DataSize = DataView.GetSize();
-		const uint64 RequestOffset = Request.GetOffset();
-		const uint64 RequestSize = FMath::Min(Request.GetSize(), RequestOffset <= DataSize ? DataSize - RequestOffset : 0);
-		Request.CreateBuffer(RequestSize).CopyFrom(DataView.Mid(RequestOffset, RequestSize));
+		Data = MoveTemp(Response.RawData);
+	});
+	Owner.Wait();
+
+	if (Data)
+	{
+		Request.CreateBuffer(Data.GetSize()).CopyFrom(Data);
 		Request.SetComplete();
 	}
 	else
@@ -150,16 +175,25 @@ void FEditorDerivedDataCache::Read(IoStore::FDerivedDataIoRequest Request) const
 
 bool FEditorDerivedDataCache::TryGetSize(uint64& OutSize) const
 {
-	TArray<uint8> Data;
-	if (GetDerivedDataCacheRef().GetSynchronous(*CacheKey, Data, CacheContext))
+	bool bOk = false;
+	FRequestOwner Owner(EPriority::Blocking);
+	FCacheGetChunkRequest Request{Name, Key, ValueId};
+	Request.Policy |= ECachePolicy::SkipData;
+	GetCache().GetChunks({Request}, Owner, [&bOk, &OutSize](FCacheGetChunkResponse&& Response)
 	{
-		OutSize = MakeMemoryView(Data).GetSize();
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+		if (Response.Status == EStatus::Ok)
+		{
+			bOk = true;
+			OutSize = Response.RawSize;
+		}
+	});
+	Owner.Wait();
+	return bOk;
+}
+
+FIoChunkId FEditorDerivedDataCache::Save(FLinkerSave& Linker) const
+{
+	return Linker.AddDerivedData(Key, ValueId);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -178,6 +212,7 @@ public:
 
 	void Read(IoStore::FDerivedDataIoRequest Request) const final;
 	bool TryGetSize(uint64& OutSize) const final;
+	FIoChunkId Save(FLinkerSave& Linker) const final;
 
 private:
 	FBuildDefinition BuildDefinition;
@@ -192,6 +227,74 @@ void FEditorDerivedDataBuild::Read(IoStore::FDerivedDataIoRequest Request) const
 bool FEditorDerivedDataBuild::TryGetSize(uint64& OutSize) const
 {
 	return false;
+}
+
+FIoChunkId FEditorDerivedDataBuild::Save(FLinkerSave& Linker) const
+{
+	unimplemented();
+	return FIoChunkId::InvalidChunkId;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FEditorDerivedDataLegacyCache final : public FEditorDerivedData
+{
+public:
+	FEditorDerivedDataLegacyCache(FStringView InCacheKey, FStringView InCacheContext)
+		: CacheKey(InCacheKey)
+		, CacheContext(InCacheContext)
+	{
+	}
+
+	TUniquePtr<FEditorDerivedData> Clone() const final { return MakeUnique<FEditorDerivedDataLegacyCache>(*this); }
+
+	void Read(IoStore::FDerivedDataIoRequest Request) const final;
+	bool TryGetSize(uint64& OutSize) const final;
+	FIoChunkId Save(FLinkerSave& Linker) const final;
+
+private:
+	FString CacheKey;
+	FString CacheContext;
+};
+
+void FEditorDerivedDataLegacyCache::Read(IoStore::FDerivedDataIoRequest Request) const
+{
+	TArray64<uint8> Data;
+	if (GetDerivedDataCacheRef().GetSynchronous(*CacheKey, Data, CacheContext))
+	{
+		const FMemoryView DataView = MakeMemoryView(Data);
+		const uint64 DataSize = DataView.GetSize();
+		const uint64 RequestOffset = Request.GetOffset();
+		const uint64 RequestSize = FMath::Min(Request.GetSize(), RequestOffset <= DataSize ? DataSize - RequestOffset : 0);
+		Request.CreateBuffer(RequestSize).CopyFrom(DataView.Mid(RequestOffset, RequestSize));
+		Request.SetComplete();
+	}
+	else
+	{
+		Request.SetFailed();
+	}
+}
+
+bool FEditorDerivedDataLegacyCache::TryGetSize(uint64& OutSize) const
+{
+	TArray<uint8> Data;
+	if (GetDerivedDataCacheRef().GetSynchronous(*CacheKey, Data, CacheContext))
+	{
+		OutSize = MakeMemoryView(Data).GetSize();
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+FIoChunkId FEditorDerivedDataLegacyCache::Save(FLinkerSave& Linker) const
+{
+	TArray64<uint8> Data;
+	const bool bOk = GetDerivedDataCacheRef().GetSynchronous(*CacheKey, Data, CacheContext);
+	checkf(bOk, TEXT("Failed to fetch %s from the cache for '%s'"), *CacheKey, *CacheContext);
+	return Linker.AddDerivedData(FValue::Compress(MakeSharedBufferFromArray(MoveTemp(Data))).GetData());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -211,16 +314,19 @@ TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(const FCompressedBuffer& Da
 	return MakeUnique<FEditorDerivedDataCompressedBuffer>(Data);
 }
 
-TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(FStringView CacheKey, FStringView CacheContext)
+TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(const FSharedString& Name, const FCacheKey& Key, const FValueId& ValueId)
 {
-	return MakeUnique<FEditorDerivedDataCache>(CacheKey, CacheContext);
+	return MakeUnique<FEditorDerivedDataCache>(Name, Key, ValueId);
 }
 
-TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(
-	const FBuildDefinition& BuildDefinition,
-	const FValueId& ValueId)
+TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(const FBuildDefinition& BuildDefinition, const FValueId& ValueId)
 {
 	return MakeUnique<FEditorDerivedDataBuild>(BuildDefinition, ValueId);
+}
+
+TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(FStringView CacheKey, FStringView CacheContext)
+{
+	return MakeUnique<FEditorDerivedDataLegacyCache>(CacheKey, CacheContext);
 }
 
 } // UE::DerivedData::Private
