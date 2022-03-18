@@ -574,6 +574,7 @@ void UAnimPreviewInstance::RestartMontage(UAnimMontage* Montage, FName FromSecti
 		// just hard stop here
 		Montage_Stop(0.0f, Montage);
 		Montage_Play(Montage, Proxy.GetPlayRate());
+		MontagePreview_RemoveBlendOut();
 		if (FromSection != NAME_None)
 		{
 			Montage_JumpToSection(FromSection);
