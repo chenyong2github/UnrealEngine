@@ -729,6 +729,12 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InOverrideC
 			// add this pakfilelist to our master list of pakfilelists
 			FString PakChunkListLine = FString::Printf(TEXT("%s%s\r\n"), *PakChunkFilename, *PakChunkOptions);
 			PakChunkListFile->Serialize(TCHAR_TO_ANSI(*PakChunkListLine), PakChunkListLine.Len());
+
+			// Add layer information for this subchunk (we serialize it for the main chunk outside of this loop, hence the check).
+			if (SubChunkIndex > 0)
+			{
+				ChunkLayerFile->Serialize(TCHAR_TO_ANSI(*LayerString), LayerString.Len());
+			}
 		}
 	}
 
