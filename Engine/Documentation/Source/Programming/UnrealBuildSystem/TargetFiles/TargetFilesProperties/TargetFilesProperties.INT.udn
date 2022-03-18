@@ -266,6 +266,8 @@ $ bCreateMapFile (Boolean): Outputs a map file as part of the build.
 
 $ bAllowRuntimeSymbolFiles (Boolean): True if runtime symbols files should be generated as a post build step for some platforms. These files are used by the engine to resolve symbol names of callstack backtraces in logs.
 
+$ PackagePath (String): Package full path (directory + filename) where to store input files used at link time Normally used to debug a linker crash for platforms that support it
+
 $ BundleVersion (String): Bundle version for Mac apps.
 
 $ bDeployAfterCompile (Boolean): Whether to deploy the executable after compilation on platforms that require deployment.

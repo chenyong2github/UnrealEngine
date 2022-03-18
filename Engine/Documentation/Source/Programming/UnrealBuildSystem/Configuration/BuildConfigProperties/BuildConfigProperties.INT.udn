@@ -126,6 +126,8 @@ $ bCreateMapFile : Outputs a map file as part of the build.
 
 $ bAllowRuntimeSymbolFiles : True if runtime symbols files should be generated as a post build step for some platforms. These files are used by the engine to resolve symbol names of callstack backtraces in logs.
 
+$ PackagePath : Package full path (directory + filename) where to store input files used at link time Normally used to debug a linker crash for platforms that support it
+
 $ bCheckSystemHeadersForModification : Whether headers in system paths should be checked for modification when determining outdated actions.
 
 $ bFlushBuildDirOnRemoteMac : Whether to clean Builds directory on a remote Mac before building.
