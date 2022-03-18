@@ -159,8 +159,8 @@ static TAutoConsoleVariable<int32> CVarShadingQuality_NumLevels(
 
 namespace Scalability
 {
-static FQualityLevels GScalabilityBackupQualityLevels;
-static FQualityLevels GScalabilityQualityLevelsOverride;
+static FQualityLevels GScalabilityBackupQualityLevels(false);
+static FQualityLevels GScalabilityQualityLevelsOverride(false);
 static bool GScalabilityUsingTemporaryQualityLevels = false;
 
 // Select a the correct quality level for the given benchmark value and thresholds

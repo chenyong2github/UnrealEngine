@@ -41,11 +41,15 @@ namespace Scalability
 		TArray<float> CPUBenchmarkSteps;
 		TArray<float> GPUBenchmarkSteps;
 
-		FQualityLevels()
+		// Allows us to avoid SetDefaults for static init variables, as SetDefaults is not defined to call during static int
+		FQualityLevels(bool bSetDefaults = true)
 			: CPUBenchmarkResults(-1.0f)
 			, GPUBenchmarkResults(-1.0f)
 		{
-			SetDefaults();
+			if (bSetDefaults)
+			{
+				SetDefaults();
+			}
 		}
 		
 		bool operator==(const FQualityLevels& Other ) const
