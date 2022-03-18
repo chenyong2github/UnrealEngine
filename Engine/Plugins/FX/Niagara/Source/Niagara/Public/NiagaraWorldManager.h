@@ -155,8 +155,8 @@ public:
 
 	//Various helper functions for scalability culling.
 	
-	void RegisterWithScalabilityManager(UNiagaraComponent* Component);
-	void UnregisterWithScalabilityManager(UNiagaraComponent* Component);
+	void RegisterWithScalabilityManager(UNiagaraComponent* Component, UNiagaraEffectType* EffectType);
+	void UnregisterWithScalabilityManager(UNiagaraComponent* Component, UNiagaraEffectType* EffectType);
 
 	/** Should we cull an instance of this system at the passed location before it's even been spawned? */
 	NIAGARA_API bool ShouldPreCull(UNiagaraSystem* System, UNiagaraComponent* Component);

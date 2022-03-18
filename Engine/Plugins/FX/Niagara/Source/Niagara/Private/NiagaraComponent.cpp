@@ -1322,7 +1322,8 @@ void UNiagaraComponent::RegisterWithScalabilityManager()
 			{
 				if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(GetWorld()))
 				{
-					WorldMan->RegisterWithScalabilityManager(this);
+					ScalabilityEffectType = EffectType;
+					WorldMan->RegisterWithScalabilityManager(this, ScalabilityEffectType);
 				}
 			}
 		}
@@ -1335,10 +1336,11 @@ void UNiagaraComponent::UnregisterWithScalabilityManager()
 	{
 		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(GetWorld()))
 		{
-			WorldMan->UnregisterWithScalabilityManager(this);
+			WorldMan->UnregisterWithScalabilityManager(this, ScalabilityEffectType);
 		}
 	}
 	bIsCulledByScalability = false;
+	ScalabilityEffectType = nullptr;
 	ScalabilityManagerHandle = INDEX_NONE;//Just to be sure our state is unregistered.
 }
 

@@ -1171,7 +1171,7 @@ void FNiagaraWorldManager::UpdateScalabilityManagers(float DeltaSeconds, bool bN
 	}
 }
 
-void FNiagaraWorldManager::RegisterWithScalabilityManager(UNiagaraComponent* Component)
+void FNiagaraWorldManager::RegisterWithScalabilityManager(UNiagaraComponent* Component, UNiagaraEffectType* EffectType)
 {
 	if (GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Disabled)
 	{
@@ -1179,7 +1179,7 @@ void FNiagaraWorldManager::RegisterWithScalabilityManager(UNiagaraComponent* Com
 	}
 
 	check(Component);
-	if (UNiagaraEffectType* EffectType = Component->GetAsset()->GetEffectType())
+	if ( EffectType )
 	{
 		FNiagaraScalabilityManager* ScalabilityManager = ScalabilityManagers.Find(EffectType);
 
@@ -1193,10 +1193,10 @@ void FNiagaraWorldManager::RegisterWithScalabilityManager(UNiagaraComponent* Com
 	}
 }
 
-void FNiagaraWorldManager::UnregisterWithScalabilityManager(UNiagaraComponent* Component)
+void FNiagaraWorldManager::UnregisterWithScalabilityManager(UNiagaraComponent* Component, UNiagaraEffectType* EffectType)
 {
 	check(Component);
-	if (UNiagaraEffectType* EffectType = Component->GetAsset()->GetEffectType())
+	if ( EffectType )
 	{
 		//Possibly the manager has been GCd.
 		if (FNiagaraScalabilityManager* ScalabilityManager = ScalabilityManagers.Find(EffectType))

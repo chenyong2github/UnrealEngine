@@ -764,6 +764,7 @@ private:
 
 	FDelegateHandle AssetExposedParametersChangedHandle;
 
+	UNiagaraEffectType* ScalabilityEffectType = nullptr;
 	int32 ScalabilityManagerHandle;
 
 	float ForceUpdateTransformTime;
