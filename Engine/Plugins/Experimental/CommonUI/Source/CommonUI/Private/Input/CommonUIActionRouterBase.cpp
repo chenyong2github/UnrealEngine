@@ -678,6 +678,11 @@ bool UCommonUIActionRouterBase::ProcessInputOnActionDomains(ECommonInputMode Act
 	UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
 	UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable();
 
+	if (!ActionDomainTable)
+	{
+		return false;
+	}
+
 	bool bInputEventHandledAtLeastOnce = false;
 
 	for (const UCommonInputActionDomain* ActionDomain : ActionDomainTable->ActionDomains)
@@ -722,6 +727,11 @@ EProcessHoldActionResult UCommonUIActionRouterBase::ProcessHoldInputOnActionDoma
 {
 	UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
 	UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable();
+
+	if (!ActionDomainTable)
+	{
+		return EProcessHoldActionResult::Unhandled;
+	}
 
 	EProcessHoldActionResult OutHoldActionResult = EProcessHoldActionResult::Unhandled;
 
@@ -920,7 +930,10 @@ bool UCommonUIActionRouterBase::Tick(float DeltaTime)
 		{
 			if (ActiveRootNode->ProcessHoldInput(ActiveMode, HeldKey, EInputEvent::IE_Repeat) == EProcessHoldActionResult::Unhandled)
 			{
-				ProcessHoldInputOnActionDomains(ActiveMode, HeldKey, EInputEvent::IE_Repeat);
+				if (bEnableActionDomainRouting)
+				{
+					ProcessHoldInputOnActionDomains(ActiveMode, HeldKey, EInputEvent::IE_Repeat);
+				}
 			}
 		}
 	}
