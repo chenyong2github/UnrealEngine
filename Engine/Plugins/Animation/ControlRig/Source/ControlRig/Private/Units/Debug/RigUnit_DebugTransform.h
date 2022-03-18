@@ -156,7 +156,7 @@ struct CONTROLRIG_API FRigUnit_DebugTransformMutableItemSpace : public FRigUnit_
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant))
+	UPROPERTY(meta = (Input))
 	bool bEnabled;
 };
 
@@ -264,6 +264,6 @@ struct CONTROLRIG_API FRigUnit_DebugTransformArrayMutableItemSpace : public FRig
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant))
+	UPROPERTY(meta = (Input))
 	bool bEnabled;
 };
