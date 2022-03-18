@@ -294,6 +294,13 @@ public:
 		}
 		return FoundClass;
 	}
+	
+	/** Returns whether the Asset's class is equal to or a child class of the given class. Returns false if the Asset's class can not be loaded. */
+	bool IsInstanceOf(const UClass* BaseClass) const
+	{
+		UClass* ClassPointer = GetClass();
+		return ClassPointer && ClassPointer->IsChildOf(BaseClass);
+	}
 
 	/** Convert to a SoftObjectPath for loading */
 	FSoftObjectPath ToSoftObjectPath() const
@@ -453,8 +460,7 @@ public:
 		for(int32 AssetIdx=0; AssetIdx<Assets.Num(); AssetIdx++)
 		{
 			const FAssetData& Data = Assets[AssetIdx];
-			UClass* AssetClass = Data.GetClass();
-			if( AssetClass != NULL && AssetClass->IsChildOf(DesiredClass) )
+			if (Data.IsInstanceOf(DesiredClass))
 			{
 				return Data;
 			}

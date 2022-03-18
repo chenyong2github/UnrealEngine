@@ -893,7 +893,8 @@ bool UCookOnTheFlyServer::ContainsMap(const FName& PackageName) const
 
 	for (const FAssetData& Asset : Assets)
 	{
-		if (Asset.GetClass()->IsChildOf(UWorld::StaticClass()) || Asset.GetClass()->IsChildOf(ULevel::StaticClass()))
+		UClass* AssetClass = Asset.GetClass();
+		if (AssetClass && (AssetClass->IsChildOf(UWorld::StaticClass()) || AssetClass->IsChildOf(ULevel::StaticClass())))
 		{
 			return true;
 		}
