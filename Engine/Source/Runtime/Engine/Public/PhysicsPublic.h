@@ -13,6 +13,7 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/App.h"
 #include "EngineDefines.h"
+#include "PhysicsInterfaceDeclaresCore.h"
 #include "PhysicsPublicCore.h"
 //#include "StaticMeshResources.h"
 
