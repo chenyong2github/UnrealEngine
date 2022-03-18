@@ -8356,6 +8356,8 @@ void UWorld::ChangeFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel, bool bSho
 			SlowTask.EnterProgressFrame(10.0f);
 			RecreateScene(InFeatureLevel);
 
+			InvalidateAllSkyCaptures();
+
 			OnFeatureLevelChanged.Broadcast(FeatureLevel);
 
 			SlowTask.EnterProgressFrame(10.0f);

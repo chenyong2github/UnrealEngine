@@ -133,10 +133,8 @@ void FSkyTextureCubeResource::Release()
 	}
 }
 
-void UWorld::UpdateAllSkyCaptures()
+void UWorld::InvalidateAllSkyCaptures()
 {
-	TArray<USkyLightComponent*> UpdatedComponents;
-
 	for (TObjectIterator<USkyLightComponent> It; It; ++It)
 	{
 		USkyLightComponent* CaptureComponent = *It;
@@ -145,10 +143,13 @@ void UWorld::UpdateAllSkyCaptures()
 		{
 			// Purge cached derived data and force an update
 			CaptureComponent->SetCaptureIsDirty();
-			UpdatedComponents.Add(CaptureComponent);
 		}
 	}
+}
 
+void UWorld::UpdateAllSkyCaptures()
+{
+	InvalidateAllSkyCaptures();
 	USkyLightComponent::UpdateSkyCaptureContents(this);
 }
 
@@ -306,7 +307,7 @@ FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
 
 void USkyLightComponent::SetCaptureIsDirty()
 { 
-	if (GetVisibleFlag() && bAffectsWorld && !SkipStaticSkyLightCapture(*this) && !IsRealTimeCaptureEnabled())
+	if (GetVisibleFlag() && bAffectsWorld && !SkipStaticSkyLightCapture(*this))
 	{
 		FScopeLock Lock(&SkyCapturesToUpdateLock);
 
@@ -422,7 +423,7 @@ void USkyLightComponent::PostLoad()
 	if (!GIsCookerLoadingPackage)
 	{
 		// All components are queued for update on creation by default. But we do not want this top happen in some cases.
-		if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || SkipStaticSkyLightCapture(*this) || IsRealTimeCaptureEnabled())
+		if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || SkipStaticSkyLightCapture(*this))
 		{
 			FScopeLock Lock(&SkyCapturesToUpdateLock);
 			SkyCapturesToUpdate.Remove(this);
@@ -893,6 +894,8 @@ void USkyLightComponent::UpdateSkyCaptureContents(UWorld* WorldToUpdate)
 		if (SkyCapturesToUpdate.Num() > 0)
 		{
 			FScopeLock Lock(&SkyCapturesToUpdateLock);
+			// Remove the sky captures if real time capture is enabled. 
+			SkyCapturesToUpdate.RemoveAll([](const USkyLightComponent* CaptureComponent) { return CaptureComponent->IsRealTimeCaptureEnabled(); });
 			UpdateSkyCaptureContentsArray(WorldToUpdate, SkyCapturesToUpdate, true);
 		}
 		
@@ -1088,6 +1091,7 @@ bool USkyLightComponent::IsRealTimeCaptureEnabled() const
 	FSceneInterface* LocalScene = GetScene();
 	// We currently disable realtime capture on mobile, OGL requires an additional texture to read SkyIrradianceEnvironmentMap which can break materials already at the texture limit.
 	// See FORT-301037, FORT-302324	
+	// Don't call in PostLoad and SetCaptureIsDirty, because the LocalScene could be null and sky wouldn't be updated on mobile.
 	const bool bIsMobile = LocalScene && LocalScene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1;
 	return bRealTimeCapture && (Mobility == EComponentMobility::Movable || Mobility == EComponentMobility::Stationary) && GSkylightRealTimeReflectionCapture >0 && !bIsMobile;
 }

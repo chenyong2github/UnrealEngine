@@ -2915,6 +2915,9 @@ public:
 	 */
 	void CommitModelSurfaces();
 
+	/** Purges all sky capture cached derived data. */
+	void InvalidateAllSkyCaptures();
+
 	/** Purges all sky capture cached derived data and forces a re-render of captured scene data. */
 	void UpdateAllSkyCaptures();
 

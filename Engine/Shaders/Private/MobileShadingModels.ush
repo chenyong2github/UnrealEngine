@@ -239,7 +239,7 @@ half Vis_SmithJointApprox_Mobile(half a, half NoV, half NoL)
 {
 	float Vis_SmithV = NoL * (NoV * (1 - a) + a);
 	float Vis_SmithL = NoV * (NoL * (1 - a) + a);
-	return 0.5f * rcp(max(Vis_SmithV + Vis_SmithL, 0.0000153f));
+	return 0.5f * rcp(max(Vis_SmithV + Vis_SmithL, 0.0001f));
 }
 
 // [Schlick 1994, "An Inexpensive BRDF Model for Physically-Based Rendering"]
