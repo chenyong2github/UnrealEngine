@@ -1077,6 +1077,7 @@ struct FStrataAddressing
 
 	uint  ReadBytes;
 };
+
 FStrataAddressing GetStrataPixelDataByteOffset(uint2 PixelPos, uint2 ViewBufferSize, uint StrataMaxBytesPerPixel)
 {
 	FStrataAddressing StrataAddressing = (FStrataAddressing)0;
@@ -1953,6 +1954,11 @@ void EnableSlabBSDFIsThin(inout FStrataBSDF BSDF)
 
 ///////////////////////////////////////////////////////////////////////////////
 // Generic BSDF accessors
+
+uint StrataGetBSDFType(in FStrataBSDF BSDF)
+{
+	return BSDF_GETTYPE(BSDF);
+}
 
 float3 StrataGetBSDFBaseColor(in FStrataBSDF BSDF)
 {
