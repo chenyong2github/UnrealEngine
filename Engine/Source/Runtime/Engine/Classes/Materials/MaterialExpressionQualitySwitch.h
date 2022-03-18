@@ -32,7 +32,16 @@ class UMaterialExpressionQualitySwitch : public UMaterialExpression
 	virtual bool IsInputConnectionRequired(int32 InputIndex) const override;
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override {return MCT_Unknown;}
-	virtual uint32 GetOutputType(int32 InputIndex) override {return MCT_Unknown;}
+	virtual uint32 GetOutputType(int32 InputIndex) override { return MCT_Unknown; }
+
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
+	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
+	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex) override;
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
+
+#if WITH_EDITOR
+protected:
+	FExpressionInput* GetEffectiveInput(class FMaterialCompiler* Compiler);
+#endif
 };

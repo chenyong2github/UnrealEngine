@@ -13,13 +13,13 @@ class UMaterialExpressionRayTracingQualitySwitch : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
-		/** Used for standard rasterization */
-		UPROPERTY()
-		FExpressionInput Normal;
+	/** Used for standard rasterization */
+	UPROPERTY()
+	FExpressionInput Normal;
 
 	/** Used for simplified ray trace eval */
 	UPROPERTY()
-		FExpressionInput RayTraced;
+	FExpressionInput RayTraced;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -28,6 +28,10 @@ class UMaterialExpressionRayTracingQualitySwitch : public UMaterialExpression
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override { return MCT_Unknown; }
+
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
+	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
+	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

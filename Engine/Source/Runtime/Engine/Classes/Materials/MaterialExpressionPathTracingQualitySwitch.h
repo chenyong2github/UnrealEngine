@@ -13,13 +13,13 @@ class UMaterialExpressionPathTracingQualitySwitch : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
-		/** Used for non-path traced modes */
-		UPROPERTY()
-		FExpressionInput Normal;
+	/** Used for non-path traced modes */
+	UPROPERTY()
+	FExpressionInput Normal;
 
 	/** Used by the path tracer */
 	UPROPERTY()
-		FExpressionInput PathTraced;
+	FExpressionInput PathTraced;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -28,6 +28,10 @@ class UMaterialExpressionPathTracingQualitySwitch : public UMaterialExpression
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override { return MCT_Unknown; }
+
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
+	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
+	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

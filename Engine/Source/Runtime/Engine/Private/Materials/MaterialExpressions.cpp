@@ -8453,7 +8453,7 @@ FStrataOperator* UMaterialExpressionStaticSwitchParameter::StrataGenerateMateria
 	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
 	if (EffectiveInput && EffectiveInput->Expression)
 	{
-		return EffectiveInput->Expression->StrataGenerateMaterialTopologyTree(Compiler, Parent, 0);
+		return EffectiveInput->Expression->StrataGenerateMaterialTopologyTree(Compiler, Parent, EffectiveInput->OutputIndex);
 	}
 	return nullptr;
 }
@@ -8691,7 +8691,7 @@ FStrataOperator* UMaterialExpressionStaticSwitch::StrataGenerateMaterialTopology
 	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
 	if (EffectiveInput && EffectiveInput->Expression)
 	{
-		return EffectiveInput->Expression->StrataGenerateMaterialTopologyTree(Compiler, Parent, 0);
+		return EffectiveInput->Expression->StrataGenerateMaterialTopologyTree(Compiler, Parent, EffectiveInput->OutputIndex);
 	}
 	return nullptr;
 }
@@ -8796,27 +8796,32 @@ UMaterialExpressionQualitySwitch::UMaterialExpressionQualitySwitch(const FObject
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionQualitySwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+FExpressionInput* UMaterialExpressionQualitySwitch::GetEffectiveInput(class FMaterialCompiler* Compiler)
 {
 	const EMaterialQualityLevel::Type QualityLevelToCompile = Compiler->GetQualityLevel();
-	FExpressionInput DefaultTraced = Default.GetTracedInput();
+	if (QualityLevelToCompile != EMaterialQualityLevel::Num)
+	{
+		check(QualityLevelToCompile < UE_ARRAY_COUNT(Inputs));
+		FExpressionInput QualityInputTraced = Inputs[QualityLevelToCompile].GetTracedInput();
+		if (QualityInputTraced.Expression)
+		{
+			return &Inputs[QualityLevelToCompile];
+		}
+	}
+	return &Default;
+}
 
+int32 UMaterialExpressionQualitySwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	FExpressionInput DefaultTraced = Default.GetTracedInput();
 	if (!DefaultTraced.Expression)
 	{
 		return Compiler->Errorf(TEXT("Quality switch missing default input"));
 	}
 
-	if (QualityLevelToCompile != EMaterialQualityLevel::Num)
-	{
-		check(QualityLevelToCompile < UE_ARRAY_COUNT(Inputs));
-		FExpressionInput QualityInput = Inputs[QualityLevelToCompile].GetTracedInput();
-		if (QualityInput.Expression)
-		{
-			return QualityInput.Compile(Compiler);
-		}
-	}
-
-	return DefaultTraced.Compile(Compiler);
+	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
+	check(EffectiveInput);
+	return EffectiveInput->Compile(Compiler);
 }
 
 void UMaterialExpressionQualitySwitch::GetCaption(TArray<FString>& OutCaptions) const
@@ -8878,6 +8883,47 @@ bool UMaterialExpressionQualitySwitch::IsResultMaterialAttributes(int32 OutputIn
 	}
 
 	return false;
+}
+
+bool UMaterialExpressionQualitySwitch::IsResultStrataMaterial(int32 OutputIndex)
+{
+	// Return strata only if all inputs are strata
+	bool bResultStrataMaterial = Default.GetTracedInput().Expression && Default.GetTracedInput().Expression->IsResultStrataMaterial(Default.OutputIndex);
+	for (int i = 0; i < EMaterialQualityLevel::Num; ++i)
+	{
+		bResultStrataMaterial = bResultStrataMaterial && Inputs[i].GetTracedInput().Expression && Inputs[i].GetTracedInput().Expression->IsResultStrataMaterial(Inputs[i].OutputIndex);
+	}
+	return bResultStrataMaterial;
+}
+
+void UMaterialExpressionQualitySwitch::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// STRATA_TODO: this is incorrect because we should only use a single input based on GetEffectiveInput, but we have no compiler at this stage so we just gather all.
+	if (Default.GetTracedInput().Expression)
+	{
+		Default.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, Default.OutputIndex);
+	}
+	for (int i = 0; i < EMaterialQualityLevel::Num; ++i)
+	{
+		Inputs[i].GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, Inputs[i].OutputIndex);
+	}
+}
+
+FStrataOperator* UMaterialExpressionQualitySwitch::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FExpressionInput DefaultTraced = Default.GetTracedInput();
+	if (!DefaultTraced.Expression)
+	{
+		Compiler->Errorf(TEXT("Quality switch missing default input"));
+		return nullptr;
+	}
+
+	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
+	if (EffectiveInput && EffectiveInput->Expression)
+	{
+		return EffectiveInput->Expression->StrataGenerateMaterialTopologyTree(Compiler, Parent, EffectiveInput->OutputIndex);
+	}
+	return nullptr;
 }
 #endif // WITH_EDITOR
 
@@ -9035,7 +9081,7 @@ UMaterialExpressionShadingPathSwitch::UMaterialExpressionShadingPathSwitch(const
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionShadingPathSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+FExpressionInput* UMaterialExpressionShadingPathSwitch::GetEffectiveInput(class FMaterialCompiler* Compiler)
 {
 	const EShaderPlatform ShaderPlatform = Compiler->GetShaderPlatform();
 	ERHIShadingPath::Type ShadingPathToCompile = ERHIShadingPath::Deferred;
@@ -9051,19 +9097,24 @@ int32 UMaterialExpressionShadingPathSwitch::Compile(class FMaterialCompiler* Com
 
 	check(ShadingPathToCompile < UE_ARRAY_COUNT(Inputs));
 	FExpressionInput ShadingPathInput = Inputs[ShadingPathToCompile].GetTracedInput();
-	FExpressionInput DefaultTraced = Default.GetTracedInput();
+	if (ShadingPathInput.Expression)
+	{
+		return &Inputs[ShadingPathToCompile];
+	}
+	return &Default;
+}
 
+int32 UMaterialExpressionShadingPathSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	FExpressionInput DefaultTraced = Default.GetTracedInput();
 	if (!DefaultTraced.Expression)
 	{
 		return Compiler->Errorf(TEXT("Shading path switch missing default input"));
 	}
 
-	if (ShadingPathInput.Expression)
-	{
-		return ShadingPathInput.Compile(Compiler);
-	}
-
-	return DefaultTraced.Compile(Compiler);
+	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
+	check(EffectiveInput);
+	return EffectiveInput->Compile(Compiler);
 }
 
 void UMaterialExpressionShadingPathSwitch::GetCaption(TArray<FString>& OutCaptions) const
@@ -9127,6 +9178,47 @@ bool UMaterialExpressionShadingPathSwitch::IsResultMaterialAttributes(int32 Outp
 	}
 
 	return false;
+}
+
+bool UMaterialExpressionShadingPathSwitch::IsResultStrataMaterial(int32 OutputIndex)
+{
+	// Return strata only if all inputs are strata
+	bool bResultStrataMaterial = Default.GetTracedInput().Expression && Default.GetTracedInput().Expression->IsResultStrataMaterial(Default.OutputIndex);
+	for (int i = 0; i < ERHIShadingPath::Num; ++i)
+	{
+		bResultStrataMaterial = bResultStrataMaterial && Inputs[i].GetTracedInput().Expression && Inputs[i].GetTracedInput().Expression->IsResultStrataMaterial(Inputs[i].OutputIndex);
+	}
+	return bResultStrataMaterial;
+}
+
+void UMaterialExpressionShadingPathSwitch::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// STRATA_TODO: this is incorrect because we should only use a single input based on GetEffectiveInput, but we have no compiler at this stage so we just gather all.
+	if (Default.GetTracedInput().Expression)
+	{
+		Default.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, Default.OutputIndex);
+	}
+	for (int i = 0; i < EMaterialQualityLevel::Num; ++i)
+	{
+		Inputs[i].GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, Inputs[i].OutputIndex);
+	}
+}
+
+FStrataOperator* UMaterialExpressionShadingPathSwitch::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FExpressionInput DefaultTraced = Default.GetTracedInput();
+	if (!DefaultTraced.Expression)
+	{
+		Compiler->Errorf(TEXT("Shading path switch missing default input"));
+		return nullptr;
+	}
+
+	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
+	if (EffectiveInput && EffectiveInput->Expression)
+	{
+		return EffectiveInput->Expression->StrataGenerateMaterialTopologyTree(Compiler, Parent, EffectiveInput->OutputIndex);
+	}
+	return nullptr;
 }
 #endif // WITH_EDITOR
 
@@ -15886,6 +15978,21 @@ int32 UMaterialExpressionShaderStageSwitch::Compile(class FMaterialCompiler* Com
 	}
 }
 
+bool UMaterialExpressionShaderStageSwitch::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return false; // Not supported
+}
+
+void UMaterialExpressionShaderStageSwitch::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// Not supported
+}
+
+FStrataOperator* UMaterialExpressionShaderStageSwitch::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	Compiler->Errorf(TEXT("Strata materials are only supported in pixel shaders: ShaderStageSwitch thus should not be plugged to convey Strata material informations."));
+	return nullptr;
+}
 
 void UMaterialExpressionShaderStageSwitch::GetCaption(TArray<FString>& OutCaptions) const
 {
@@ -16076,6 +16183,22 @@ uint32 UMaterialExpressionRayTracingQualitySwitch::GetInputType(int32 InputIndex
 {
 	return MCT_Unknown;
 }
+
+bool UMaterialExpressionRayTracingQualitySwitch::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return false; // Not supported
+}
+
+void UMaterialExpressionRayTracingQualitySwitch::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// Not supported
+}
+
+FStrataOperator* UMaterialExpressionRayTracingQualitySwitch::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	Compiler->Errorf(TEXT("Strata material topology must be statically define. We do not support topology update via dynamic evaluation such as `is raytracing or not`. Only input to BSDFs or Operators can be controled this way."));
+	return nullptr;
+}
 #endif // WITH_EDITOR
 
 //
@@ -16151,6 +16274,22 @@ void UMaterialExpressionPathTracingQualitySwitch::GetCaption(TArray<FString>& Ou
 uint32 UMaterialExpressionPathTracingQualitySwitch::GetInputType(int32 InputIndex)
 {
 	return MCT_Unknown;
+}
+
+bool UMaterialExpressionPathTracingQualitySwitch::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return false; // Not supported
+}
+
+void UMaterialExpressionPathTracingQualitySwitch::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// Not supported
+}
+
+FStrataOperator* UMaterialExpressionPathTracingQualitySwitch::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	Compiler->Errorf(TEXT("Strata material topology must be statically define. We do not support topology update via dynamic evaluation such as `is pathtracing or not`. Only input to BSDFs or Operators can be controled this way."));
+	return nullptr;
 }
 #endif // WITH_EDITOR
 
@@ -20069,6 +20208,22 @@ void UMaterialExpressionReflectionCapturePassSwitch::GetCaption(TArray<FString>&
 void UMaterialExpressionReflectionCapturePassSwitch::GetExpressionToolTip(TArray<FString>& OutToolTip)
 {
 	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior when being rendered into reflection capture views."), 40, OutToolTip);
+}
+
+bool UMaterialExpressionReflectionCapturePassSwitch::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return false; // Not supported
+}
+
+void UMaterialExpressionReflectionCapturePassSwitch::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// Not supported
+}
+
+FStrataOperator* UMaterialExpressionReflectionCapturePassSwitch::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	Compiler->Errorf(TEXT("Strata material topology must be statically define. We do not support topology update via dynamic evaluation such as `is reflection or not`. Only input to BSDFs or Operators can be controled this way."));
+	return nullptr;
 }
 #endif // WITH_EDITOR
 
