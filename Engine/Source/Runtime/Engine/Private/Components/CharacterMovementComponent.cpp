@@ -8055,7 +8055,7 @@ bool UCharacterMovementComponent::ClientUpdatePositionAfterServerUpdate()
 	const float SavedAnalogInputModifier = AnalogInputModifier;
 	const FRootMotionMovementParams BackupRootMotionParams = RootMotionParams; // For animation root motion
 	const FRootMotionSourceGroup BackupRootMotion = CurrentRootMotion;
-	const bool bRealJump = CharacterOwner->bPressedJump;
+	const bool bRealPressedJump = CharacterOwner->bPressedJump;
 	const bool bRealCrouch = bWantsToCrouch;
 	const bool bRealForceMaxAccel = bForceMaxAccel;
 	CharacterOwner->bClientWasFalling = (MovementMode == MOVE_Falling);
@@ -8085,6 +8085,7 @@ bool UCharacterMovementComponent::ClientUpdatePositionAfterServerUpdate()
 		CurrentMove->PostUpdate(CharacterOwner, FSavedMove_Character::PostUpdate_Replay);
 		SetCurrentNetworkMoveData(nullptr);
 	}
+	const bool bPostReplayPressedJump = CharacterOwner->bPressedJump;
 
 	if (FSavedMove_Character* const PendingMove = ClientData->PendingMove.Get())
 	{
@@ -8107,7 +8108,7 @@ bool UCharacterMovementComponent::ClientUpdatePositionAfterServerUpdate()
 	CharacterOwner->SavedRootMotion.Clear();
 	CharacterOwner->bClientResimulateRootMotion = false;
 	CharacterOwner->bClientUpdating = false;
-	CharacterOwner->bPressedJump = bRealJump;
+	CharacterOwner->bPressedJump = bRealPressedJump || bPostReplayPressedJump;
 	bWantsToCrouch = bRealCrouch;
 	bForceMaxAccel = bRealForceMaxAccel;
 	bForceNextFloorCheck = true;
