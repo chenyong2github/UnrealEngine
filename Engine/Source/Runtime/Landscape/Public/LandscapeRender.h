@@ -362,8 +362,8 @@ public:
 
 public:
 	uint32		LandscapeKey;
-	FIntPoint	ComponentBase;
-	bool		bRegistered;
+	FIntPoint				ComponentBase;
+	bool					bRegistered;
 };
 
 struct FLandscapeRenderSystem
@@ -422,8 +422,6 @@ struct FLandscapeRenderSystem
 
 	TMap<FViewKey, TResourceArray<float>> CachedSectionLODValues;
 
-	FGraphEventRef FetchHeightmapLODBiasesEventRef;
-	
 	FLandscapeRenderSystem();
 	~FLandscapeRenderSystem();
 
@@ -460,18 +458,9 @@ struct FLandscapeRenderSystem
 	}
 
 	const TResourceArray<float>& ComputeSectionsLODForView(const FSceneView& InView);
-
-	void BeginRender();
-
-	void BeginFrame();
-
 	void FetchHeightmapLODBiases();
-
 	void UpdateBuffers();
-
-	void EndFrame();
-
-	void WaitForTasksCompletion();
+	void PreRenderViewFamily_RenderThread();
 
 private:
 	void CreateResources_Internal(FLandscapeSectionInfo* InSectionInfo);
@@ -488,7 +477,6 @@ public:
 	FLandscapeSceneViewExtension(const FAutoRegister& AutoReg);
 	virtual ~FLandscapeSceneViewExtension();
 
-	void BeginFrame_RenderThread();
 	void EndFrame_RenderThread();
 
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
