@@ -127,6 +127,11 @@ namespace Gauntlet.SelfTest
 		{
 		}
 
+		public virtual void AddTestEvent(UnrealTestEvent InEvent)
+		{ 
+		
+		}
+
 		public BaseTestNode()
 		{
 			TestFailures = new List<string>();

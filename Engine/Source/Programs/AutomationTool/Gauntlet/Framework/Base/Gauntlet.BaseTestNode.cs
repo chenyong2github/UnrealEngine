@@ -80,6 +80,13 @@ namespace Gauntlet
 		public abstract void SetTestResult(TestResult testResult);
 
 		/// <summary>
+		/// Add a new test event to be rolled up into the summary at the end of this test.
+		/// </summary>
+		public virtual void AddTestEvent(UnrealTestEvent InEvent)
+		{
+		}
+
+		/// <summary>
 		/// Summarize the result of the test
 		/// </summary>
 		/// <returns></returns>

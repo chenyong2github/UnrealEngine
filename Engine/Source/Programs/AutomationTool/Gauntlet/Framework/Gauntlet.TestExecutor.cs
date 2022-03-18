@@ -226,7 +226,7 @@ namespace Gauntlet
 							catch (System.Exception ex)
 							{
 								Log.Error("Test {0} threw an exception during ready check. Ex: {1}", Node, ex);
-
+								Node.AddTestEvent(new UnrealTestEvent(EventSeverity.Error, "Test Failed to Start", new List<string> {ex.Message}));
 								PendingTests[i] = null;
 								NodeInfo.TimeSetupBegan = NodeInfo.TimeSetupEnded = NodeInfo.TimeTestEnded = DateTime.Now;
 								CompletedTests.Add(NodeInfo);
@@ -261,6 +261,7 @@ namespace Gauntlet
 									if (TimeWaiting >= Options.Wait)
 									{
 										Log.Warning("Test {0} has been waiting to run resource-free for {1:00} seconds. Removing from wait list", Node, TimeWaiting);
+										Node.AddTestEvent(new UnrealTestEvent(EventSeverity.Error, "Insufficient devices found", new List<string> {string.Format("Test {0} was unable to find enough devices after trying for {1:00} seconds.", Node, TimeWaiting), "This is not a test-related failure."}));
 										PendingTests[i] = null;
 										NodeInfo.TimeSetupBegan = NodeInfo.TimeSetupEnded = NodeInfo.TimeTestEnded = DateTime.Now;
 										NodeInfo.Result = TestExecutionInfo.ExecutionResult.TimedOut;

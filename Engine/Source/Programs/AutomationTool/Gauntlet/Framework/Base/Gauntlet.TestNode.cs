@@ -189,11 +189,16 @@ namespace Gauntlet
 		/// times.
 		/// </summary>
 		TestResult GetTestResult();
-
+		
 		/// <summary>
 		/// Set the Test Result value
 		/// </summary>
 		void SetTestResult(TestResult testResult);
+
+		/// <summary>
+		/// Add a new Test Event to be rolled up and summarized at the end of this test.
+		/// </summary>
+		void AddTestEvent(UnrealTestEvent InEvent);
 
 		/// <summary>
 		/// Summary of the test. Only called once GetTestStatus() returns complete, but may be called multiple

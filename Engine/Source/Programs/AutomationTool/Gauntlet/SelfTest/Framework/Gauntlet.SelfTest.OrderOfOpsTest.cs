@@ -104,6 +104,10 @@ namespace Gauntlet.SelfTest
 			return "";
 		}
 
+		public virtual void AddTestEvent(UnrealTestEvent InEvent)
+		{
+
+		}
 
 		public TestStatus GetTestStatus()
 		{
