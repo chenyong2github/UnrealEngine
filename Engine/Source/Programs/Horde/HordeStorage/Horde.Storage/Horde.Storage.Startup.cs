@@ -288,8 +288,11 @@ namespace Horde.Storage
             services.AddSingleton<ReplicationSnapshotService>();
             services.AddHostedService<ReplicationSnapshotService>(p => p.GetService<ReplicationSnapshotService>()!);
 
-            services.AddSingleton<ConsistencyCheckService>();
-            services.AddHostedService<ConsistencyCheckService>(p => p.GetService<ConsistencyCheckService>()!);
+            services.AddSingleton<BlobStoreConsistencyCheckService>();
+            services.AddHostedService<BlobStoreConsistencyCheckService>(p => p.GetService<BlobStoreConsistencyCheckService>()!);
+
+            services.AddSingleton<BlobIndexConsistencyCheckService>();
+            services.AddHostedService<BlobIndexConsistencyCheckService>(p => p.GetService<BlobIndexConsistencyCheckService>()!);
 
             services.AddSingleton(typeof(IPeerStatusService), typeof(PeerStatusService));
             services.AddHostedService<PeerStatusService>(p => (PeerStatusService)p.GetService<IPeerStatusService>()!);

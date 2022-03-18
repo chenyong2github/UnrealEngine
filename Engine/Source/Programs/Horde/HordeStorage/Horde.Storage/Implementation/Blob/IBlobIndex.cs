@@ -26,5 +26,6 @@ namespace Horde.Storage.Implementation.Blob
 
         Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier);
         Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs);
+        IAsyncEnumerable<BlobInfo> GetAllBlobs();
     }
 }

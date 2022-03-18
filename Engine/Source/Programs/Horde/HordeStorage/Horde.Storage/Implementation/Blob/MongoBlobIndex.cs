@@ -116,6 +116,19 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         await Task.WhenAll(refUpdateTasks);
     }
 
+    public async IAsyncEnumerable<IBlobIndex.BlobInfo> GetAllBlobs()
+    {
+        IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
+        IAsyncCursor<MongoBlobIndexModelV0>? cursor = await collection.FindAsync(FilterDefinition<MongoBlobIndexModelV0>.Empty);
+
+        while (await cursor.MoveNextAsync())
+        {
+            foreach (MongoBlobIndexModelV0 model in cursor.Current)
+            {
+                yield return model.ToBlobInfo();
+            }
+        }
+    }
 }
 
 [BsonDiscriminator("blob-index.v0")]

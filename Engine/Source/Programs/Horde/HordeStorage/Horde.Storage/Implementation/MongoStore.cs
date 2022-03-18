@@ -77,7 +77,7 @@ public class MongoStore
         return _client.GetDatabase(dbName).GetCollection<T>(collectionName);
     }
 
-    private string GetDatabaseName()
+    internal string GetDatabaseName()
     {
         return _overrideDatabaseName ?? "HordeStorage";
     }

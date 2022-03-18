@@ -66,4 +66,9 @@ public class CachedBlobIndex : IBlobIndex
         // We do not actually track any blob information when running in cached mode
         await Task.CompletedTask;
     }
+
+    public IAsyncEnumerable<IBlobIndex.BlobInfo> GetAllBlobs()
+    {
+        throw new NotImplementedException();
+    }
 }

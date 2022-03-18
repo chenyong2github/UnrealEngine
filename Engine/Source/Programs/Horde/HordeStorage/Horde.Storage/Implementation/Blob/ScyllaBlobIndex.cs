@@ -57,13 +57,7 @@ public class ScyllaBlobIndex : IBlobIndex
         if (blobIndex == null)
             return null;
 
-        return new IBlobIndex.BlobInfo
-        {
-            Regions = blobIndex.Regions ?? new HashSet<string>(),
-            BlobIdentifier = id,
-            Namespace = new NamespaceId(blobIndex.Namespace),
-            References = blobIndex.References != null ? blobIndex.References.Select(reference => reference.AsTuple()).ToList() : new List<(BucketId, IoHashKey)>()
-        };
+        return blobIndex.ToBlobInfo();
     }
 
     public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
@@ -92,7 +86,7 @@ public class ScyllaBlobIndex : IBlobIndex
         return blobInfo?.Regions.Contains(_jupiterSettings.CurrentValue.CurrentSite) ?? false;
     }
 
-    public Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs)
+    public async Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs)
     {
         using IScope _ = Tracer.Instance.StartActive("scylla.add_ref_blobs");
 
@@ -109,9 +103,18 @@ public class ScyllaBlobIndex : IBlobIndex
                 new ScyllaBlobIdentifier(id));
         }
 
-        return Task.WhenAll(refUpdateTasks);
+        await Task.WhenAll(refUpdateTasks);
     }
 
+    public async IAsyncEnumerable<IBlobIndex.BlobInfo> GetAllBlobs()
+    {
+        using IScope _ = Tracer.Instance.StartActive("scylla.get_all_blobs");
+
+        foreach (ScyllaBlobIndexTable blobIndex in await _mapper.FetchAsync<ScyllaBlobIndexTable>("BYPASS CACHE"))
+        {
+            yield return blobIndex.ToBlobInfo();
+        }
+    }
 }
 
 
@@ -146,4 +149,15 @@ class ScyllaBlobIndexTable
 
     [Cassandra.Mapping.Attributes.Column("references")]
     public List<ScyllaObjectReference>? References { get; set; }
+
+    public IBlobIndex.BlobInfo ToBlobInfo()
+    {
+        return new IBlobIndex.BlobInfo
+        {
+            Regions = Regions ?? new HashSet<string>(),
+            BlobIdentifier = BlobId.AsBlobIdentifier(),
+            Namespace = new NamespaceId(Namespace),
+            References = References != null ? References.Select(reference => reference.AsTuple()).ToList() : new List<(BucketId, IoHashKey)>()
+        };
+    }
 }

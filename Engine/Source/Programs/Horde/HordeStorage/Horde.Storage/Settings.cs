@@ -285,4 +285,11 @@ namespace Horde.Storage
 
         public bool IsInternal { get; set; } = false;
     }
+
+    public class ConsistencyCheckSettings
+    {
+        public bool EnableBlobStoreChecks { get; set; } = false;
+        public bool EnableBlobIndexChecks { get; set; } = false;
+        public double ConsistencyCheckPollFrequencySeconds { get; set; } = TimeSpan.FromHours(2).TotalSeconds;
+    }
 }

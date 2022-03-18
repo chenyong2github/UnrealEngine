@@ -31,9 +31,17 @@ public interface IBlobService
 
     Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob);
 
-    Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob);
+    Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob, bool force = false);
 
     Task<bool> Exists(NamespaceId ns, BlobIdentifier blob);
+
+    /// <summary>
+    /// Checks that the blob exists in the root store, the store which is last in the list and thus is intended to have every blob in it
+    /// </summary>
+    /// <param name="ns">The namespace</param>
+    /// <param name="blob">The identifier of the blob</param>
+    /// <returns></returns>
+    Task<bool> ExistsInRootStore(NamespaceId ns, BlobIdentifier blob);
 
     // Delete a object
     Task DeleteObject(NamespaceId ns, BlobIdentifier blob);
@@ -248,9 +256,9 @@ public class BlobService : IBlobService
         return blobContents;
     }
 
-    public async Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob)
+    public async Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob, bool force = false)
     {
-        if (!ShouldFetchBlobOnDemand(ns))
+        if (!force && !ShouldFetchBlobOnDemand(ns))
             throw new NotSupportedException($"Replication is not allowed in namespace {ns}");
 
         using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.Replicate");
@@ -258,6 +266,9 @@ public class BlobService : IBlobService
         IBlobIndex.BlobInfo? blobInfo = await _blobIndex.GetBlobInfo(ns, blob);
         if (blobInfo == null)
             throw new BlobNotFoundException(ns, blob);
+
+        if (!blobInfo.Regions.Any())
+            throw new BlobReplicationException(ns, blob, "Blob not found in any region");
 
         _logger.Information("On-demand replicating blob {Blob} in Namespace {Ns}", blob, ns);
         SortedList<int, string> possiblePeers = _peerStatusService.GetPeersByLatency(blobInfo.Regions.ToList());
@@ -338,7 +349,23 @@ public class BlobService : IBlobService
             return false;
         }
     }
-    
+
+    public async Task<bool> ExistsInRootStore(NamespaceId ns, BlobIdentifier blob)
+    {
+        IBlobStore store = _blobStores.Last();
+
+        using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
+        scope.Span.ResourceName = blob.ToString();
+        scope.Span.SetTag("BlobStore", store.GetType().Name);
+        if (await store.Exists(ns, blob))
+        {
+            scope.Span.SetTag("ObjectFound", true.ToString());
+            return true;
+        }
+        scope.Span.SetTag("ObjectFound", false.ToString());
+        return false;
+    }
+
     public async Task DeleteObject(NamespaceId ns, BlobIdentifier blob)
     {
         bool blobNotFound = false;

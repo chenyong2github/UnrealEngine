@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
@@ -105,7 +104,7 @@ namespace Horde.Storage.Implementation
 
             while (await cursor.MoveNextAsync())
             {
-                await foreach (MongoReferencesModelV0 model in cursor.Current)
+                foreach (MongoReferencesModelV0 model in cursor.Current)
                 {
                     yield return (new BucketId(model.Bucket), new IoHashKey(model.Key), model.LastAccessTime);
                 }

@@ -3,11 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
+using async_enumerable_dotnet;
 using Cassandra;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
@@ -19,7 +21,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using MongoDB.Driver;
 using Serilog;
 using Logger = Serilog.Core.Logger;
 
@@ -150,6 +154,54 @@ namespace Horde.Storage.FunctionalTests.Storage
             Assert.IsNull(deletedBlobInfo);
         }
 
+
+        [TestMethod]
+        public async Task EnumerateAllBlobs()
+        {
+            IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
+            Assert.IsNotNull(index);
+            {
+                // verify the blob info list is empty at the start
+                IBlobIndex.BlobInfo[]? blobInfos =  await index.GetAllBlobs().ToArrayAsync();
+                Assert.AreEqual(0, blobInfos.Length);
+            }
+
+            // upload a blob
+            BlobIdentifier contentHash;
+            {
+                byte[] payload = Encoding.ASCII.GetBytes("I am a blob with contents");
+                contentHash = BlobIdentifier.FromBlob(payload);
+
+                {
+                    using ByteArrayContent requestContent = new ByteArrayContent(payload);
+                    requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+                    HttpResponseMessage response = await _httpClient!.PutAsync(requestUri: $"api/v1/blobs/{TestNamespaceName}/{contentHash}", requestContent);
+                    response.EnsureSuccessStatusCode();
+                }
+            }
+
+            // upload a compressed blob
+            BlobIdentifier compressedPayloadIdentifier;
+            {
+                byte[] texturePayload = await File.ReadAllBytesAsync($"ContentId/Payloads/UncompressedTexture_CAS_dea81b6c3b565bb5089695377c98ce0f1c13b0c3.udd");
+                compressedPayloadIdentifier = BlobIdentifier.FromBlob(texturePayload);
+                BlobIdentifier uncompressedPayloadIdentifier = new BlobIdentifier("DEA81B6C3B565BB5089695377C98CE0F1C13B0C3");
+
+                ByteArrayContent content = new ByteArrayContent(texturePayload);
+                content.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompressedBuffer);
+                HttpResponseMessage result = await _httpClient!.PutAsync($"api/v1/compressed-blobs/{TestNamespaceName}/{uncompressedPayloadIdentifier}", content);
+                result.EnsureSuccessStatusCode();
+            }
+
+            {
+                IBlobIndex.BlobInfo[]? blobInfos =  await index.GetAllBlobs().ToArrayAsync();
+                Assert.AreEqual(2, blobInfos.Length);
+
+                Assert.IsNotNull(blobInfos.FirstOrDefault(info => info.BlobIdentifier.Equals(compressedPayloadIdentifier)));
+                Assert.IsNotNull(blobInfos.FirstOrDefault(info => info.BlobIdentifier.Equals(contentHash)));
+            }
+        }
+
      
     }
 
@@ -202,9 +254,25 @@ namespace Horde.Storage.FunctionalTests.Storage
             return new[] { new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", HordeStorageSettings.BlobIndexImplementations.Mongo.ToString()) };
         }
 
-        protected override Task Seed(IServiceProvider serverServices)
+        protected override async Task Seed(IServiceProvider provider)
         {
-            return Task.CompletedTask;
+            IOptionsMonitor<MongoSettings> mongoSettings = provider.GetService<IOptionsMonitor<MongoSettings>>()!;
+
+            IBlobIndex blobIndex = provider.GetService<IBlobIndex>()!;
+            Assert.IsTrue(blobIndex is MongoBlobIndex);
+
+            MongoBlobIndex mongoBlobIndex = (MongoBlobIndex)blobIndex;
+            
+            MongoClient client = GetMongoClient(mongoSettings);
+            string dbName = mongoBlobIndex.GetDatabaseName();
+            if (client.GetDatabase(dbName) != null)
+            {
+                await client.DropDatabaseAsync(dbName);
+            }
+        }
+        private static MongoClient GetMongoClient(IOptionsMonitor<MongoSettings> mongoSettings)
+        {
+            return new MongoClient(mongoSettings.CurrentValue.ConnectionString);
         }
 
         protected override async Task Teardown(IServiceProvider provider)

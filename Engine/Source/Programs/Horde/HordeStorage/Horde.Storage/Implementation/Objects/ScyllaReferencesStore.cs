@@ -50,7 +50,7 @@ namespace Horde.Storage.Implementation
             );"
             ));
 
-            // BYPASS CACHE is a scylla specific extension to disable populating the cache, should be disabled by other cassandra dbs
+            // BYPASS CACHE is a scylla specific extension to disable populating the cache, should be ignored by other cassandra dbs
             _getObjectsStatement = _session.Prepare("SELECT bucket, name, last_access_time FROM objects WHERE namespace = ? ALLOW FILTERING BYPASS CACHE");
             _getNamespacesStatement = _session.Prepare("SELECT DISTINCT namespace FROM buckets");
         }

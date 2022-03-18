@@ -328,7 +328,7 @@ namespace Jupiter
             OnConfigureApp(app, env);
         }
 
-        public virtual bool UseDeveloperExceptionPage { get; } = true;
+        public virtual bool UseDeveloperExceptionPage { get; } = false;
 
         protected virtual void OnConfigureAppEarly(IApplicationBuilder app, IWebHostEnvironment env)
         {

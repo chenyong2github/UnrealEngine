@@ -100,6 +100,19 @@ public class MemoryBlobIndex : IBlobIndex
         return Task.CompletedTask;
     }
 
+    public async IAsyncEnumerable<IBlobIndex.BlobInfo> GetAllBlobs()
+    {
+        await Task.CompletedTask;
+
+        foreach (KeyValuePair<NamespaceId, ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo>> pair in _index)
+        {
+            foreach ((BlobIdentifier? blobIdentifier, MemoryBlobInfo? blobInfo) in pair.Value)
+            {
+                yield return blobInfo;
+            }
+        }
+    }
+
     private MemoryBlobInfo NewBlobInfo(NamespaceId ns, BlobIdentifier blob, string region)
     {
         MemoryBlobInfo info = new MemoryBlobInfo

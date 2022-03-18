@@ -1,11 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Cassandra;
 using Dasync.Collections;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
@@ -19,7 +18,7 @@ using Serilog;
 namespace Horde.Storage.Implementation
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class ConsistencyCheckService : PollingService<ConsistencyCheckService.ConsistencyState>
+    public class BlobStoreConsistencyCheckService : PollingService<BlobStoreConsistencyCheckService.ConsistencyState>
     {
         private readonly IOptionsMonitor<ConsistencyCheckSettings> _settings;
         private readonly IServiceProvider _provider;
@@ -27,7 +26,7 @@ namespace Horde.Storage.Implementation
         private readonly IRefsStore _refsStore;
         private readonly IReferencesStore _referencesStore;
         private readonly IBlobIndex _blobIndex;
-        private readonly ILogger _logger = Log.ForContext<ConsistencyCheckService>();
+        private readonly ILogger _logger = Log.ForContext<BlobStoreConsistencyCheckService>();
 
         public class ConsistencyState
         {
@@ -35,11 +34,11 @@ namespace Horde.Storage.Implementation
 
         protected override bool ShouldStartPolling()
         {
-            return _settings.CurrentValue.Enabled;
+            return _settings.CurrentValue.EnableBlobStoreChecks;
         }
 
-        public ConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IServiceProvider provider, ILeaderElection leaderElection, IRefsStore refsStore, IReferencesStore referencesStore, IBlobIndex blobIndex) :
-            base(serviceName: nameof(ConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
+        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IServiceProvider provider, ILeaderElection leaderElection, IRefsStore refsStore, IReferencesStore referencesStore, IBlobIndex blobIndex) :
+            base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
         {
             _settings = settings;
             _provider = provider;
@@ -51,19 +50,19 @@ namespace Horde.Storage.Implementation
 
         public override async Task<bool> OnPoll(ConsistencyState state, CancellationToken cancellationToken)
         {
-            if (!_settings.CurrentValue.Enabled)
+            if (!_settings.CurrentValue.EnableBlobStoreChecks)
             {
-                _logger.Information("Skipped running consistency check as it is disabled");
+                _logger.Information("Skipped running blob store consistency check as it is disabled");
                 return false;
             }
 
             if (!_leaderElection.IsThisInstanceLeader())
             {
-                _logger.Information("Skipped running consistency check because this instance was not the leader");
+                _logger.Information("Skipped running blob store consistency check because this instance was not the leader");
                 return false;
             }
 
-            using IScope scope = Tracer.Instance.StartActive("consistency_check.poll");
+            using IScope scope = Tracer.Instance.StartActive("blob_store.consistency_check.poll");
 
             await RunConsistencyCheck();
 
@@ -126,11 +125,5 @@ namespace Horde.Storage.Implementation
         {
             return Task.CompletedTask;
         }
-    }
-
-    public class ConsistencyCheckSettings
-    {
-        public bool Enabled { get; set; } = false;
-        public double ConsistencyCheckPollFrequencySeconds { get; set; } = TimeSpan.FromHours(2).TotalSeconds;
     }
 }
