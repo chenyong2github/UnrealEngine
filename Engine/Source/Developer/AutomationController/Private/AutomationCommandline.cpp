@@ -478,10 +478,6 @@ public:
 					}
 					UE_LOG(LogAutomationCommandLine, Log, TEXT("Shutting down. GIsCriticalError=%d"), GIsCriticalError);
 					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
-
-					// Lets flush here as we are about to request exit force=true, which on some platforms may not have flushed the UE_LOG buffer
-					GLog->Flush();
-
 					FPlatformMisc::RequestExitWithStatus(true, GIsCriticalError ? -1 : 0);
 					AutomationTestState = EAutomationTestState::Complete;
 				}
