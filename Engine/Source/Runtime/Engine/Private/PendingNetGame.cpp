@@ -220,7 +220,7 @@ void UPendingNetGame::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 					Connection->OwningActor ? *Connection->OwningActor->GetName() : TEXT("No Owner"),
 					*ConnectionError);
 
-				Connection->Close();
+				Connection->Close(ENetCloseResult::FailureReceived);
 			}
 
 			break;

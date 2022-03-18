@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "OnlineBeacon.h"
+#include "Net/Core/Connection/NetCloseResult.h"
 #include "OnlineBeaconHost.generated.h"
 
 class AOnlineBeaconClient;
@@ -24,6 +25,8 @@ struct FOnlineError;
 UCLASS(transient, notplaceable, config=Engine)
 class ONLINESUBSYSTEMUTILS_API AOnlineBeaconHost : public AOnlineBeacon
 {
+	using FNetCloseResult = UE::Net::FNetCloseResult;
+
 	GENERATED_UCLASS_BODY()
 
 public:
@@ -157,7 +160,11 @@ private:
 	void OnConnectionClosed(UNetConnection* Connection);
 
 	bool HandleControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch);
+	void SendFailurePacket(UNetConnection* Connection, FNetCloseResult&& CloseReason, const FText& ErrorText);
+
+	UE_DEPRECATED(5.1, "SendFailurePacket without CloseReason is deprecated. Use the version which takes CloseReason.")
 	void SendFailurePacket(UNetConnection* Connection, const FText& ErrorMsg);
+
 	void CloseHandshakeConnection(UNetConnection* Connection);
 
 	bool GetConnectionDataForUniqueNetId(const FUniqueNetId& UniqueNetId, UNetConnection*& OutConnection, FConnectionState*& OutConnectionState);

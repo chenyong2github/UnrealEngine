@@ -1306,6 +1306,8 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 
 		// Bail out, we can't recover from this (without increasing RELIABLE_BUFFER)
 		FString ErrorMsg = NSLOCTEXT("NetworkErrors", "ClientReliableBufferOverflow", "Outgoing reliable buffer overflow").ToString();
+
+		Connection->SendCloseReason(ENetCloseResult::ReliableBufferOverflow);
 		FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
 		Connection->FlushNet(true);
 		Connection->Close(ENetCloseResult::ReliableBufferOverflow);
@@ -1765,6 +1767,17 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 		else if (MessageType == NMT_DestructionInfo)
 		{
 			ReceiveDestructionInfo(Bunch);
+		}
+		else if (MessageType == NMT_CloseReason)
+		{
+			FString CloseReasonList;
+
+			if (FNetControlMessage<NMT_CloseReason>::Receive(Bunch, CloseReasonList) && !CloseReasonList.IsEmpty())
+			{
+				Connection->HandleReceiveCloseReason(CloseReasonList);
+			}
+
+			break;
 		}
 		else if (MessageType == NMT_NetPing)
 		{

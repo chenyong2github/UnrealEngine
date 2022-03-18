@@ -1694,6 +1694,25 @@ public:
 	}
 
 	/**
+	 * Sends an NMT_CloseReason message, with the specified close reason or close reason chain.
+	 * Called automatically by UNetConnection::Close, but should be called beforehand if sending a packet that will trigger a remote close.
+	 *
+	 * @param CloseReason	The close reason or close reason chain to send
+	 */
+	void SendCloseReason(FNetCloseResult&& CloseReason)
+	{
+		SendCloseReason(static_cast<FNetResult&&>(MoveTemp(CloseReason)));
+	}
+
+	/**
+	 * Sends an NMT_CloseReason message, with the specified close reason or close reason chain.
+	 * Called automatically by UNetConnection::Close, but should be called beforehand if sending a packet that will trigger a remote close.
+	 *
+	 * @param CloseReason	The close reason or close reason chain to send
+	 */
+	ENGINE_API void SendCloseReason(FNetResult&& CloseReason);
+
+	/**
 	 * Handles parsing/validation and logging of NMT_CloseReason messages
 	 *
 	 * @param CloseReasonList	Delimited list of close reasons

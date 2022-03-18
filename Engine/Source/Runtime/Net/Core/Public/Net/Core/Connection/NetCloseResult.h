@@ -79,6 +79,27 @@ enum class ENetCloseResult : uint32
 	Extended,
 
 
+	/** NetDriver Error result types */
+
+	/** Host closed the connection */
+	HostClosedConnection,
+
+	/** Disconnected remotely */
+	Disconnect,
+
+	/** Client needs to upgrade */
+	Upgrade,
+
+	/** PreLogin failed */
+	PreLoginFailure,
+
+	/** Join failed */
+	JoinFailure,
+
+	/** JoinSplit failed */
+	JoinSplitFailure,
+
+
 	/** NetConnection Error result types */
 
 	/** RPC DoS Detection kicked the player */
@@ -153,6 +174,9 @@ enum class ENetCloseResult : uint32
 	/** Log limiting repeated threshold hits kicked the player */
 	LogLimitSustained,
 
+	/** Encryption failure */
+	EncryptionFailure,
+
 
 	/** Channel Error result types */
 
@@ -194,6 +218,9 @@ enum class ENetCloseResult : uint32
 
 	/** Reliable buffer overflowed when attempting to send */
 	ReliableBufferOverflow,
+
+	/** Reliable buffer overflowed when attempting to send RPC */
+	RPCReliableBufferOverflow,
 
 
 	/** Control Channel result types */
@@ -287,6 +314,45 @@ enum class ENetCloseResult : uint32
 
 	/** Field payload serialization failed */
 	FieldPayloadFail,
+
+
+	/** Beacon Error result types */
+
+	/** Control flow error */
+	BeaconControlFlowError,
+
+	/** Unable to parse expected packet structure */
+	BeaconUnableToParsePacket,
+
+	/** Failed to verify user authentication */
+	BeaconAuthenticationFailure,
+
+	/** Login Failure, invalid ID */
+	BeaconLoginInvalidIdError,
+
+	/** Login Failure, unable to process authentication */
+	BeaconLoginInvalidAuthHandlerError,
+
+	/** Unable to authenticate for beacon, wrong PlayerId */
+	BeaconAuthError,
+
+	/** Join failure, existing ClientWorldPackageName */
+	BeaconSpawnClientWorldPackageNameError,
+
+	/** Join failure, existing beacon actor */
+	BeaconSpawnExistingActorError,
+
+	/** Join failure, couldn't spawn client beacon actor */
+	BeaconSpawnFailureError,
+
+	/** Join failure, no actor at NetGUIDAck */
+	BeaconSpawnNetGUIDAckNoActor,
+
+	/** Join failure, no host object at NetGUIDAck */
+	BeaconSpawnNetGUIDAckNoHost,
+
+	/** Join failure, unexpected control message */
+	BeaconSpawnUnexpectedError,
 
 
 	/** Fault Handler Error result types */

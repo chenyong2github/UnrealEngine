@@ -5815,10 +5815,16 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 						ErrorMsg = NSLOCTEXT("NetworkErrors", "GenericConnectionFailed", "Connection Failed.").ToString();
 					}
 
-					GEngine->BroadcastNetworkFailure(this, NetDriver, ENetworkFailure::FailureReceived, ErrorMsg);
-					if (Connection)
+					if (Connection != nullptr)
 					{
-						Connection->Close();
+						Connection->SendCloseReason(ENetCloseResult::FailureReceived);
+					}
+
+					GEngine->BroadcastNetworkFailure(this, NetDriver, ENetworkFailure::FailureReceived, ErrorMsg);
+
+					if (Connection != nullptr)
+					{
+						Connection->Close(ENetCloseResult::FailureReceived);
 					}
 				}
 
@@ -5884,7 +5890,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 						UE_LOG(LogNet, Log, TEXT("NotifyControlMessage: Client connecting with invalid version. LocalNetworkVersion: %i, RemoteNetworkVersion: %i"), LocalNetworkVersion, RemoteNetworkVersion);
 						FNetControlMessage<NMT_Upgrade>::Send(Connection, LocalNetworkVersion);
 						Connection->FlushNet(true);
-						Connection->Close();
+						Connection->Close(ENetCloseResult::Upgrade);
 #if USE_SERVER_PERF_COUNTERS
 						PerfCountersIncrement(TEXT("ClosedConnectionsDueToIncompatibleVersion"));
 #endif
@@ -5904,7 +5910,11 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 							else
 							{
 								FString FailureMsg(TEXT("Encryption failure"));
-								UE_LOG(LogNet, Warning, TEXT("%s: No delegate available to handle encryption token, disconnecting."), *Connection->GetName());
+
+								UE_LOG(LogNet, Warning, TEXT("%s: No delegate available to handle encryption token, disconnecting."),
+										ToCStr(Connection->GetName()));
+
+								Connection->SendCloseReason(ENetCloseResult::EncryptionFailure);
 								FNetControlMessage<NMT_Failure>::Send(Connection, FailureMsg);
 								Connection->FlushNet(true);
 							}
@@ -6005,11 +6015,13 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					{
 						UE_LOG(LogNet, Log, TEXT("PreLogin failure: %s"), *ErrorMsg);
 						NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("PRELOGIN FAILURE"), *ErrorMsg, Connection));
+
+						Connection->SendCloseReason(ENetCloseResult::PreLoginFailure);
 						FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
 						Connection->FlushNet(true);
 						//@todo sz - can't close the connection here since it will leave the failure message 
 						// in the send buffer and just close the socket. 
-						//Connection->Close();
+						//Connection->Close(ENetCloseResult::PreLoginFailure);
 					}
 					else
 					{
@@ -6047,11 +6059,13 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 						// Failed to connect.
 						UE_LOG(LogNet, Log, TEXT("Join failure: %s"), *ErrorMsg);
 						NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("JOIN FAILURE"), *ErrorMsg, Connection));
+
+						Connection->SendCloseReason(ENetCloseResult::JoinFailure);
 						FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
 						Connection->FlushNet(true);
 						//@todo sz - can't close the connection here since it will leave the failure message 
 						// in the send buffer and just close the socket. 
-						//Connection->Close();
+						//Connection->Close(ENetCloseResult::JoinFailure);
 					}
 					else
 					{
@@ -6145,11 +6159,13 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 						// if any splitscreen viewport fails to join, all viewports on that client also fail
 						UE_LOG(LogNet, Log, TEXT("PreLogin failure: %s"), *ErrorMsg);
 						NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("PRELOGIN FAILURE"), *ErrorMsg, Connection));
+
+						Connection->SendCloseReason(ENetCloseResult::PreLoginFailure);
 						FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
 						Connection->FlushNet(true);
 						//@todo sz - can't close the connection here since it will leave the failure message 
 						// in the send buffer and just close the socket. 
-						//Connection->Close();
+						//Connection->Close(ENetCloseResult::PreLoginFailure);
 					}
 					else
 					{
@@ -6179,12 +6195,14 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 							NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("JOINSPLIT FAILURE"), *ErrorMsg, Connection));
 							// remove the child connection
 							Connection->Children.Remove(ChildConn);
+
 							// if any splitscreen viewport fails to join, all viewports on that client also fail
+							Connection->SendCloseReason(ENetCloseResult::JoinSplitFailure);
 							FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
 							Connection->FlushNet(true);
 							//@todo sz - can't close the connection here since it will leave the failure message 
 							// in the send buffer and just close the socket. 
-							//Connection->Close();
+							//Connection->Close(ENetCloseResult::JoinSplitFailure);
 						}
 						else
 						{
@@ -6235,18 +6253,6 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					UE_LOG(LogNet, Log, TEXT("%s received NMT_DebugText Text=[%s] Desc=%s DescRemote=%s"),
 							*Connection->Driver->GetDescription(), *Text, *Connection->LowLevelDescribe(),
 							ToCStr(Connection->LowLevelGetRemoteAddress(true)));
-				}
-
-				break;
-			}
-
-			case NMT_CloseReason:
-			{
-				FString CloseReasonList;
-
-				if (FNetControlMessage<NMT_CloseReason>::Receive(Bunch, CloseReasonList) && !CloseReasonList.IsEmpty())
-				{
-					Connection->HandleReceiveCloseReason(CloseReasonList);
 				}
 
 				break;

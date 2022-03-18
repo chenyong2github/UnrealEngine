@@ -67,6 +67,24 @@ const TCHAR* LexToString(ENetCloseResult InResult)
 	case ENetCloseResult::Extended:
 		return TEXT("Extended");
 
+	case ENetCloseResult::HostClosedConnection:
+		return TEXT("HostClosedConnection");
+
+	case ENetCloseResult::Disconnect:
+		return TEXT("Disconnect");
+
+	case ENetCloseResult::Upgrade:
+		return TEXT("Upgrade");
+
+	case ENetCloseResult::PreLoginFailure:
+		return TEXT("PreLoginFailure");
+
+	case ENetCloseResult::JoinFailure:
+		return TEXT("JoinFailure");
+
+	case ENetCloseResult::JoinSplitFailure:
+		return TEXT("JoinSplitFailure");
+
 	case ENetCloseResult::RPCDoS:
 		return TEXT("RPCDoS");
 
@@ -139,6 +157,9 @@ const TCHAR* LexToString(ENetCloseResult InResult)
 	case ENetCloseResult::LogLimitSustained:
 		return TEXT("LogLimitSustained");
 
+	case ENetCloseResult::EncryptionFailure:
+		return TEXT("EncryptionFailure");
+
 	case ENetCloseResult::ReceivedNetGUIDBunchFail:
 		return TEXT("ReceivedNetGUIDBunchFail");
 
@@ -177,6 +198,9 @@ const TCHAR* LexToString(ENetCloseResult InResult)
 
 	case ENetCloseResult::ReliableBufferOverflow:
 		return TEXT("ReliableBufferOverflow");
+
+	case ENetCloseResult::RPCReliableBufferOverflow:
+		return TEXT("RPCReliableBufferOverflow");
 
 	case ENetCloseResult::ControlChannelClose:
 		return TEXT("ControlChannelClose");
@@ -264,6 +288,42 @@ const TCHAR* LexToString(ENetCloseResult InResult)
 
 	case ENetCloseResult::FieldPayloadFail:
 		return TEXT("FieldPayloadFail");
+
+	case ENetCloseResult::BeaconControlFlowError:
+		return TEXT("BeaconControlFlowError");
+
+	case ENetCloseResult::BeaconAuthenticationFailure:
+		return TEXT("BeaconAuthenticationFailure");
+
+	case ENetCloseResult::BeaconUnableToParsePacket:
+		return TEXT("BeaconUnableToParsePacket");
+
+	case ENetCloseResult::BeaconLoginInvalidIdError:
+		return TEXT("BeaconLoginInvalidIdError");
+
+	case ENetCloseResult::BeaconLoginInvalidAuthHandlerError:
+		return TEXT("BeaconLoginInvalidAuthHandlerError");
+
+	case ENetCloseResult::BeaconAuthError:
+		return TEXT("BeaconAuthError");
+
+	case ENetCloseResult::BeaconSpawnClientWorldPackageNameError:
+		return TEXT("BeaconSpawnClientWorldPackageNameError");
+
+	case ENetCloseResult::BeaconSpawnExistingActorError:
+		return TEXT("BeaconSpawnExistingActorError");
+
+	case ENetCloseResult::BeaconSpawnFailureError:
+		return TEXT("BeaconSpawnFailureError");
+
+	case ENetCloseResult::BeaconSpawnNetGUIDAckNoActor:
+		return TEXT("BeaconSpawnNetGUIDAckNoActor");
+
+	case ENetCloseResult::BeaconSpawnNetGUIDAckNoHost:
+		return TEXT("BeaconSpawnNetGUIDAckNoHost");
+
+	case ENetCloseResult::BeaconSpawnUnexpectedError:
+		return TEXT("BeaconSpawnUnexpectedError");
 
 	case ENetCloseResult::FaultDisconnect:
 		return TEXT("FaultDisconnect");

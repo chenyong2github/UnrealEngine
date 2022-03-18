@@ -924,8 +924,6 @@ const TCHAR* LexToString(const EConnectionState Value)
 
 void UNetConnection::Close(FNetResult&& CloseReason)
 {
-	using namespace UE::Net;
-
 	if (IsInternalAck())
 	{
 		SetReserveDestroyedChannels(false);
@@ -939,39 +937,16 @@ void UNetConnection::Close(FNetResult&& CloseReason)
 		UE_LOG(LogNet, Log, TEXT("UNetConnection::Close: %s, Channels: %i, Time: %s"), *Describe(), OpenChannels.Num(),
 				*FDateTime::UtcNow().ToString(TEXT("%Y.%m.%d-%H.%M.%S")));
 
-		FString CloseReasonsStr;
-		FNetCloseResult* CastedCloseReason = Cast<ENetCloseResult>(&CloseReason);
-
-		if (CastedCloseReason == nullptr || *CastedCloseReason != ENetCloseResult::Unknown)
-		{
-			UE_LOG(LogNet, Log, TEXT("UNetConnection::Close: CloseReason:"));
-
-			for (FNetCloseResult::FConstIterator It(CloseReason); It; ++It)
-			{
-				if (CloseReasonsStr.Len() > 0)
-				{
-					CloseReasonsStr += TEXT(',');
-				}
-
-				CloseReasonsStr += It->DynamicToString(ENetResultString::ResultEnumOnly);
-
-				UE_LOG(LogNet, Log, TEXT(" - %s"), ToCStr(It->DynamicToString()));
-			}
-		}
-
-		const bool bReadyToSend = (Handler == nullptr || Handler->IsFullyInitialized()) && HasReceivedClientPacket();
+		SendCloseReason(MoveTemp(CloseReason));
 
 		if (Channels[0] != nullptr)
 		{
-			if (bReadyToSend && Driver->ServerConnection != nullptr && !CloseReasonsStr.IsEmpty())
-			{
-				FNetControlMessage<NMT_CloseReason>::Send(this, CloseReasonsStr);
-			}
-
 			Channels[0]->Close(EChannelCloseReason::Destroyed);
 		}
 
 		SetConnectionState(EConnectionState::USOCK_Closed);
+
+		const bool bReadyToSend = (Handler == nullptr || Handler->IsFullyInitialized()) && HasReceivedClientPacket();
 
 		if (bReadyToSend)
 		{
@@ -980,11 +955,6 @@ void UNetConnection::Close(FNetResult&& CloseReason)
 
 		if (NetAnalyticsData.IsValid())
 		{
-			if (!AnalyticsVars.CloseReason.IsValid())
-			{
-				AnalyticsVars.CloseReason = MakeUnique<FNetResult>(MoveTemp(CloseReason));
-			}
-
 			NetAnalyticsData->CommitAnalytics(AnalyticsVars);
 		}
 
@@ -1014,8 +984,54 @@ void UNetConnection::HandleNetResultOrClose(ENetCloseResult InResult)
 	}
 }
 
+void UNetConnection::SendCloseReason(FNetResult&& CloseReason)
+{
+	using namespace UE::Net;
+
+	FString CloseReasonsStr;
+	FNetCloseResult* CastedCloseReason = Cast<ENetCloseResult>(&CloseReason);
+
+	if (CastedCloseReason == nullptr || *CastedCloseReason != ENetCloseResult::Unknown)
+	{
+		UE_LOG(LogNet, Log, TEXT("UNetConnection::SendCloseReason:"));
+
+		for (FNetCloseResult::FConstIterator It(CloseReason); It; ++It)
+		{
+			if (CloseReasonsStr.Len() > 0)
+			{
+				CloseReasonsStr += TEXT(',');
+			}
+
+			CloseReasonsStr += It->DynamicToString(ENetResultString::ResultEnumOnly);
+
+			UE_LOG(LogNet, Log, TEXT(" - %s"), ToCStr(It->DynamicToString()));
+		}
+	}
+
+	const bool bReadyToSend = (Handler == nullptr || Handler->IsFullyInitialized()) && HasReceivedClientPacket();
+
+	if (Channels.Num() > 0 && Channels[0] != nullptr && bReadyToSend && !CloseReasonsStr.IsEmpty())
+	{
+		FNetControlMessage<NMT_CloseReason>::Send(this, CloseReasonsStr);
+	}
+
+	if (NetAnalyticsData.IsValid())
+	{
+		if (!AnalyticsVars.CloseReason.IsValid())
+		{
+			AnalyticsVars.CloseReason = MakeUnique<FNetResult>(MoveTemp(CloseReason));
+		}
+		// Sometimes SendCloseReason is called separately to Close, both with the same CloseReason, when remote disconnect is anticipated
+		else if (*AnalyticsVars.CloseReason != CloseReason)
+		{
+			AnalyticsVars.CloseReason->AddChainResult(MoveTemp(CloseReason));
+		}
+	}
+}
+
 void UNetConnection::HandleReceiveCloseReason(const FString& CloseReasonList)
 {
+	// Multiple NMT_CloseReason's can be received in some circumstances, but only process the first to limit spam potential.
 	if (!bReceivedCloseReason)
 	{
 		bool bValid = true;
@@ -1036,23 +1052,26 @@ void UNetConnection::HandleReceiveCloseReason(const FString& CloseReasonList)
 
 		if (bValid)
 		{
+			const bool bRemoteIsServer = Driver && Driver->ServerConnection;
 			TArray<FString> CloseReasonsAlloc;
-			TArray<FString>& ClientCloseReasons = (NetAnalyticsData.IsValid() ? AnalyticsVars.ClientCloseReasons : CloseReasonsAlloc);
+			TArray<FString>& CloseReasonsArray = ((!bRemoteIsServer && NetAnalyticsData.IsValid()) ?
+													AnalyticsVars.ClientCloseReasons : CloseReasonsAlloc);
 
-			CloseReasonList.ParseIntoArray(ClientCloseReasons, TEXT(","));
+			CloseReasonList.ParseIntoArray(CloseReasonsArray, TEXT(","));
 
-			if (ClientCloseReasons.Num() < 128)
+			if (CloseReasonsArray.Num() < 128)
 			{
-				UE_LOG(LogNet, Log, TEXT("NMT_CloseReason: (Client Disconnect Reasons) %s"), ToCStr(LowLevelGetRemoteAddress(true)));
+				UE_LOG(LogNet, Log, TEXT("NMT_CloseReason: (%s Disconnect Reasons) %s"), (bRemoteIsServer ? TEXT("Server") : TEXT("Client")),
+						ToCStr(LowLevelGetRemoteAddress(true)));
 
-				for (const FString& CurReason : ClientCloseReasons)
+				for (const FString& CurReason : CloseReasonsArray)
 				{
 					UE_LOG(LogNet, Log, TEXT(" - %s"), ToCStr(CurReason));
 				}
 			}
 			else
 			{
-				ClientCloseReasons.Empty();
+				CloseReasonsArray.Empty();
 			}
 
 			bReceivedCloseReason = true;
@@ -4937,10 +4956,12 @@ void UNetConnection::SendChallengeControlMessage(const FEncryptionKeyResponse& R
 		{
 			FString ResponseStr(LexToString(Response.Response));
 			UE_LOG(LogNet, Warning, TEXT("UWorld::SendChallengeControlMessage: encryption failure [%s] %s"), *ResponseStr, *Response.ErrorMsg);
+
+			SendCloseReason(ENetCloseResult::EncryptionFailure);
 			FNetControlMessage<NMT_Failure>::Send(this, ResponseStr);
 			FlushNet();
 			// Can't close the connection here since it will leave the failure message in the send buffer and just close the socket. 
-			// Close();
+			// Close(ENetCloseResult::EncryptionFailure);
 		}
 	}
 	else

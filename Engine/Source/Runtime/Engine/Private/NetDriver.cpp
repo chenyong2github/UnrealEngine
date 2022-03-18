@@ -1795,11 +1795,13 @@ void UNetDriver::Shutdown()
 	// Server closing connections with clients
 	if (ClientConnections.Num() > 0)
 	{
-		for (int32 ClientIndex = 0; ClientIndex < ClientConnections.Num(); ClientIndex++)
+		FString ErrorMsg = NSLOCTEXT("NetworkErrors", "HostClosedConnection", "Host closed the connection.").ToString();
+
+		for (UNetConnection* CurClient : ClientConnections)
 		{
-			FString ErrorMsg = NSLOCTEXT("NetworkErrors", "HostClosedConnection", "Host closed the connection.").ToString();
-			FNetControlMessage<NMT_Failure>::Send(ClientConnections[ClientIndex], ErrorMsg);
-			ClientConnections[ClientIndex]->FlushNet(true);
+			CurClient->SendCloseReason(ENetCloseResult::HostClosedConnection);
+			FNetControlMessage<NMT_Failure>::Send(CurClient, ErrorMsg);
+			CurClient->FlushNet(true);
 		}
 
 		for (int32 ClientIndex = ClientConnections.Num() - 1; ClientIndex >= 0; ClientIndex--)
@@ -2306,9 +2308,11 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 			UE_LOG(LogNet, Warning, TEXT("Closing connection. Can't send function '%s' on '%s': Reliable buffer overflow. FieldCache->FieldNetIndex: %d Max %d. Ch MaxPacket: %d."), *GetNameSafe(Function), *GetFullNameSafe(TargetObj), FieldCache->FieldNetIndex, ClassCache->GetMaxIndex(), Ch->Connection->MaxPacket );
 
 			FString ErrorMsg = NSLOCTEXT("NetworkErrors", "ClientReliableBufferOverflow", "Outgoing reliable buffer overflow").ToString();
+
+			Connection->SendCloseReason(ENetCloseResult::RPCReliableBufferOverflow);
 			FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
 			Connection->FlushNet(true);
-			Connection->Close();
+			Connection->Close(ENetCloseResult::RPCReliableBufferOverflow);
 #if USE_SERVER_PERF_COUNTERS
 			PerfCountersIncrement(TEXT("ClosedConnectionsDueToReliableBufferOverflow"));
 #endif
@@ -2919,6 +2923,7 @@ bool UNetDriver::HandleNetDisconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar
 		UE_LOG(LogNet, Log, TEXT("%s disconnecting connection from host [%s]"), 
 			*GetDescription(),*ServerConnection->LowLevelDescribe());
 
+		ServerConnection->SendCloseReason(ENetCloseResult::Disconnect);
 		FNetControlMessage<NMT_Failure>::Send(ServerConnection, Msg);
 	}
 #if WITH_SERVER_CODE
@@ -2932,6 +2937,7 @@ bool UNetDriver::HandleNetDisconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar
 				UE_LOG(LogNet, Log, TEXT("%s disconnecting from client [%s]"), 
 					*GetDescription(),*Connection->LowLevelDescribe());
 
+				Connection->SendCloseReason(ENetCloseResult::Disconnect);
 				FNetControlMessage<NMT_Failure>::Send(Connection, Msg);
 				Connection->FlushNet(true);
 			}
