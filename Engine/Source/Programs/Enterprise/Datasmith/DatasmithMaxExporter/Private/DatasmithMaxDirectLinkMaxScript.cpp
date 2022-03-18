@@ -540,8 +540,7 @@ public:
 			{
 				if (GetExporter())
 				{
-					GetExporter()->UpdateScene(false);
-					GetExporter()->UpdateDirectLinkScene();
+					GetExporter()->PerformSync(false);
 				}
 				return true;
 			}

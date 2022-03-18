@@ -85,6 +85,8 @@ class IExporter
 	virtual bool IsAutoSyncEnabled() = 0;
 	virtual void SetAutoSyncDelay(float Seconds) = 0;
 	virtual void SetAutoSyncIdleDelay(float Seconds) = 0;
+
+	virtual void PerformSync(bool bQuiet) = 0;
 };
 
 bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath); // Create exporter with ability for DirectLink change tracking
