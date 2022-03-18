@@ -78,7 +78,7 @@ struct FIOSPlatformProperties
 	}
 	static FORCEINLINE bool SupportsMemoryMappedAnimation()
 	{
-		return true;
+		return false;
 	}
 	static FORCEINLINE int64 GetMemoryMappingAlignment()
 	{
