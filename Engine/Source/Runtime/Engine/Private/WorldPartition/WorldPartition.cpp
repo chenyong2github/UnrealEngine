@@ -256,7 +256,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
 	, EditorHash(nullptr)
-	, bIsEditorLevelAlwaysLoaded(false)
 	, WorldPartitionEditor(nullptr)
 	, bEnableStreaming(true)
 	, bStreamingWasEnabled(true)
@@ -358,27 +357,6 @@ FName UWorldPartition::GetWorldPartitionEditorName() const
 		return EditorHash->GetWorldPartitionEditorName();
 	}
 	return NAME_None;
-}
-
-void UWorldPartition::SetIsEditorLevelAlwaysLoaded(bool bIsAlwaysLoaded)
-{
-	if (bIsEditorLevelAlwaysLoaded != bIsAlwaysLoaded)
-	{
-		bIsEditorLevelAlwaysLoaded = bIsAlwaysLoaded;
-		UpdateEditorLevelAlwaysLoaded();
-	}
-}
-
-void UWorldPartition::UpdateEditorLevelAlwaysLoaded()
-{
-	// Can be called if SetIsEditorLevelAlwaysLoaded is called on a freshly created UWorldPartition.
-	if (IsInitialized() && EditorHash && bIsEditorLevelAlwaysLoaded)
-	{
-		EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
-		{
-			UpdateLoadingEditorCell(Cell, true, false);
-		});
-	}
 }
 #endif
 
@@ -530,11 +508,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	InitState = EWorldPartitionInitState::Initialized;
 
 #if WITH_EDITOR
-	if (bIsEditor)
-	{
-		UpdateEditorLevelAlwaysLoaded();
-	}
-	else
+	if (!bIsEditor)
 	{
 		if (bIsGame || bPIEWorldTravel || bIsDedicatedServer)
 		{
@@ -593,13 +567,13 @@ void UWorldPartition::Uninitialize()
 				// Unload all Editor cells
 				if (EditorHash)
 				{
-				// @todo_ow: Once Metadata is removed from external actor's package, this won't be necessary anymore.
-				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
-				{
-					UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false, /*bIsFromUserChange*/false);
-				});
+					// @todo_ow: Once Metadata is removed from external actor's package, this won't be necessary anymore.
+					EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
+					{
+						UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false, /*bIsFromUserChange*/false);
+					});
+				}
 			}
-		}
 		}
 
 		WorldDataLayersActor = FWorldPartitionReference();
@@ -1569,9 +1543,9 @@ FBox UWorldPartition::GetWorldBounds() const
 	for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
 		if (ActorDescIterator->GetIsSpatiallyLoaded())
-			{
-				WorldBounds += ActorDescIterator->GetBounds();
-			}
+		{
+			WorldBounds += ActorDescIterator->GetBounds();
+		}
 	}
 	return WorldBounds;
 }

@@ -134,7 +134,6 @@ public:
 
 #if WITH_EDITOR
 	FName GetWorldPartitionEditorName() const;
-	void SetIsEditorLevelAlwaysLoaded(bool bIsAlwaysLoaded);
 
 	void LoadEditorCells(const FBox& Box, bool bIsFromUserChange);
 	void LoadEditorCells(const TArray<FName>& CellNames, bool bIsFromUserChange);
@@ -201,9 +200,6 @@ public:
 	UPROPERTY(DuplicateTransient)
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
 
-	UPROPERTY()
-	bool bIsEditorLevelAlwaysLoaded;
-
 	IWorldPartitionEditor* WorldPartitionEditor;
 
 	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
@@ -259,7 +255,6 @@ private:
 	void UnregisterDelegates();	
 
 #if WITH_EDITOR
-	void UpdateEditorLevelAlwaysLoaded();
 	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded, bool bFromUserOperation);
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
