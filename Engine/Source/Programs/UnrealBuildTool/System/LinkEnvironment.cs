@@ -267,6 +267,12 @@ namespace UnrealBuildTool
 		public bool bPrintTimingInfo;
 
 		/// <summary>
+		/// Package full path (directory + filename) where to store input files used at link time 
+		/// Normally used to debug a linker crash for platforms that support it
+		/// </summary>
+		public string? PackagePath;
+
+		/// <summary>
 		/// Bundle version for Mac apps
 		/// </summary>
 		public string? BundleVersion;
@@ -369,6 +375,7 @@ namespace UnrealBuildTool
 			bUseFastPDBLinking = Other.bUseFastPDBLinking;
 			bIgnoreUnresolvedSymbols = Other.bIgnoreUnresolvedSymbols;
 			bPrintTimingInfo = Other.bPrintTimingInfo;
+			PackagePath = Other.PackagePath;
 			BundleVersion = Other.BundleVersion;
 			InstallName = Other.InstallName;
 			InputFiles.AddRange(Other.InputFiles);

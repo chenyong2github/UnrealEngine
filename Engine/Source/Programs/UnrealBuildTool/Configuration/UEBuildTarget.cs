@@ -3712,6 +3712,7 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.bCreateMapFile = Rules.bCreateMapFile;
 			GlobalLinkEnvironment.bHasExports = Rules.bHasExports;
 			GlobalLinkEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
+			GlobalLinkEnvironment.PackagePath = Rules.PackagePath;
 			GlobalLinkEnvironment.BundleDirectory = BuildPlatform.GetBundleDirectory(Rules, Binaries[0].OutputFilePaths);
 			GlobalLinkEnvironment.BundleVersion = Rules.BundleVersion;
 			GlobalLinkEnvironment.bAllowLTCG = Rules.bAllowLTCG;

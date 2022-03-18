@@ -1331,6 +1331,14 @@ namespace UnrealBuildTool
 		public bool bAllowRuntimeSymbolFiles = true;
 
 		/// <summary>
+		/// Package full path (directory + filename) where to store input files used at link time 
+		/// Normally used to debug a linker crash for platforms that support it
+		/// </summary>
+		[CommandLine("-PackagePath")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public string? PackagePath = null;
+
+		/// <summary>
 		/// Bundle version for Mac apps.
 		/// </summary>
 		[CommandLine("-BundleVersion")]
@@ -2786,6 +2794,11 @@ namespace UnrealBuildTool
 		public bool bAllowRuntimeSymbolFiles
 		{
 			get { return Inner.bAllowRuntimeSymbolFiles; }
+		}
+
+		public string? PackagePath
+		{
+			get { return Inner.PackagePath; }
 		}
 
 		public string? BundleVersion
