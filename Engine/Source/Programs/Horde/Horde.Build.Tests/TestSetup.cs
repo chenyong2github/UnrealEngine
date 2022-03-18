@@ -9,6 +9,7 @@ using Datadog.Trace;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using HordeCommon;
+using Horde.Build.Acls;
 using Horde.Build.Storage.Services;
 using Horde.Build;
 using Horde.Build.Collections;
