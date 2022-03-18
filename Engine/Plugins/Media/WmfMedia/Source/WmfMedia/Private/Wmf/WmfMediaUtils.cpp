@@ -928,11 +928,14 @@ namespace WmfMedia
 		const GUID SymbolicLinkAttribute = IsAudioDevice ? MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_ENDPOINT_ID : MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK;
 		const FString UrlScheme = IsAudioDevice ? TEXT("audcap://") : TEXT("vidcap://");
 
+#pragma warning(push)
+#pragma warning(disable: 6388) // CA Warning: OutLength may not be NULL - According to MS documentation the initial value does not matter & we are sure to query a string type
 		if (SUCCEEDED(Device.GetAllocatedString(SymbolicLinkAttribute, &OutString, &OutLength)))
 		{
 			OutUrl = UrlScheme + OutString;
 			::CoTaskMemFree(OutString);
 		}
+#pragma warning(pop)
 
 		return true;
 	}

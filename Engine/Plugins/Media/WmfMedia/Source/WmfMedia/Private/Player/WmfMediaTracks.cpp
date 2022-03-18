@@ -1901,11 +1901,14 @@ bool FWmfMediaTracks::AddStreamToTracks(uint32 StreamIndex, bool IsVideoDevice, 
 		::CoTaskMemFree(OutString);
 	}
 
+#pragma warning(push)
+#pragma warning(disable: 6388) // CA Warning: OutLength may not be NULL - According to MS documentation the initial value does not matter & we are sure to query a string type
 	if (SUCCEEDED(StreamDescriptor->GetAllocatedString(MF_SD_STREAM_NAME, &OutString, &OutLength)))
 	{
 		Track->Name = OutString;
 		::CoTaskMemFree(OutString);
 	}
+#pragma warning(pop)
 
 	Track->DisplayName = (Track->Name.IsEmpty())
 		? FText::Format(LOCTEXT("UnnamedStreamFormat", "Unnamed Track (Stream {0})"), FText::AsNumber((uint32)StreamIndex))
