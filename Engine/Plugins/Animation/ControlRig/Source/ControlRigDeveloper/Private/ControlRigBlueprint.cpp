@@ -2214,6 +2214,25 @@ TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
 
 #if WITH_EDITOR
 
+TArray<FRigVMGraphVariableDescription> UControlRigBlueprint::GetMemberVariables() const
+{
+	TArray<FRigVMGraphVariableDescription> Variables;
+	for (const FBPVariableDescription& BPVariable : NewVariables)
+	{
+		FRigVMGraphVariableDescription NewVariable;
+		NewVariable.Name = BPVariable.VarName;
+		NewVariable.DefaultValue = BPVariable.DefaultValue;
+		FString CPPType;
+		UObject* CPPTypeObject;
+		RigVMTypeUtils::CPPTypeFromPinType(BPVariable.VarType, CPPType, &CPPTypeObject);
+		NewVariable.CPPType = CPPType;
+		NewVariable.CPPTypeObject = CPPTypeObject;
+		Variables.Add(NewVariable);
+	}
+
+	return Variables;
+}
+
 FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
 {
 	FRigVMExternalVariable Variable = RigVMTypeUtils::ExternalVariableFromCPPTypePath(InName, InCPPType, bIsPublic, bIsReadOnly);

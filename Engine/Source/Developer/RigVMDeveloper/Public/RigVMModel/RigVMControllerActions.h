@@ -1002,7 +1002,7 @@ public:
 /**
  * An action renaming a variable in the graph.
  */
-USTRUCT()
+USTRUCT(meta=(Deprecated = "5.1"))
 struct FRigVMRenameVariableAction : public FRigVMBaseAction
 {
 	GENERATED_BODY()

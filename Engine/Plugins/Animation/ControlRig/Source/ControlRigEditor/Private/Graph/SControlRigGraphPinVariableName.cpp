@@ -113,6 +113,25 @@ TArray<TSharedPtr<FString>>& SControlRigGraphPinVariableName::GetVariableNames()
 					VariableNames.Add(MakeShared<FString>(VariableDescription.Name.ToString()));
 				}
 			}
+
+			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(ModelNode->GetGraph()->GetOuter()))
+			{
+				for (FBPVariableDescription& BPVariable : Blueprint->NewVariables)
+				{
+					FRigVMGraphVariableDescription* Found = VariableDescriptions.FindByPredicate([&BPVariable](const FRigVMGraphVariableDescription& Description) {
+						if (Description.Name == BPVariable.VarName)
+						{
+							return true;
+						}
+						return false;
+					});
+
+					if (!Found)
+					{
+						VariableNames.Add(MakeShared<FString>(BPVariable.VarName.ToString()));
+					}
+				}
+			}
 		}
 	}
 

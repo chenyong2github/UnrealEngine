@@ -411,6 +411,9 @@ public:
 
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = "Variables")
+	TArray<FRigVMGraphVariableDescription> GetMemberVariables() const;
+	
+	UFUNCTION(BlueprintCallable, Category = "Variables")
 	FName AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false, FString InDefaultValue = TEXT(""));
 
 	UFUNCTION(BlueprintCallable, Category = "Variables")

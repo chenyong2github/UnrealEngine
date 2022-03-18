@@ -1207,12 +1207,12 @@ bool FRigVMRenameVariableAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	return InController->RenameVariable(*NewVariableName, *OldVariableName, false);
+	return InController->OnExternalVariableRenamed(*NewVariableName, *OldVariableName, false);
 }
 
 bool FRigVMRenameVariableAction::Redo(URigVMController* InController)
 {
-	if(!InController->RenameVariable(*OldVariableName, *NewVariableName, false))
+	if(!InController->OnExternalVariableRenamed(*OldVariableName, *NewVariableName, false))
 	{
 		return false;
 	}

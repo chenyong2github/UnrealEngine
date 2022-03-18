@@ -1188,16 +1188,16 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 	}
 }
 
-void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bSetupUndoRedo)
+bool URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
 	{
-		return;
+		return false;
 	}
 
 	if (!InOldVarName.IsValid() || !InNewVarName.IsValid())
 	{
-		return;
+		return false;
 	}
 
 	URigVMGraph* Graph = GetGraph();
@@ -1207,7 +1207,7 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 	{
 		if (InOldVarName == LocalVariable.Name)
 		{
-			return;
+			return false;
 		}
 	}
 
@@ -1274,6 +1274,8 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 	{
 		CloseUndoBracket();
 	}
+
+	return true;
 }
 
 void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo)
@@ -9901,20 +9903,23 @@ bool URigVMController::SetVariableName(URigVMVariableNode* InVariableNode, const
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	TArray<FRigVMGraphVariableDescription> Descriptions = Graph->GetVariableDescriptions();
+	TArray<FRigVMExternalVariable> Descriptions = GetAllVariables();
 	TMap<FName, int32> NameToIndex;
 	for (int32 VariableIndex = 0; VariableIndex < Descriptions.Num(); VariableIndex++)
 	{
 		NameToIndex.Add(Descriptions[VariableIndex].Name, VariableIndex);
 	}
 
-	FName VariableName = GetUniqueName(InVariableName, [Descriptions, NameToIndex, InVariableNode](const FName& InName) {
+	const FRigVMExternalVariable VariableType = RigVMTypeUtils::ExternalVariableFromCPPType(InVariableName, InVariableNode->GetCPPType(), InVariableNode->GetCPPTypeObject());
+	FName VariableName = GetUniqueName(InVariableName, [Descriptions, NameToIndex, VariableType](const FName& InName) {
 		const int32* FoundIndex = NameToIndex.Find(InName);
 		if (FoundIndex == nullptr)
 		{
 			return true;
 		}
-		return InVariableNode->GetCPPType() == Descriptions[*FoundIndex].CPPType;
+		return VariableType.TypeName == Descriptions[*FoundIndex].TypeName &&
+				VariableType.TypeObject == Descriptions[*FoundIndex].TypeObject &&
+				VariableType.bIsArray == Descriptions[*FoundIndex].bIsArray;
 	}, false, true);
 
 	int32 NodesSharingName = 0;
