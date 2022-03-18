@@ -20,7 +20,10 @@ FMockedEnhancedInputSubsystem::FMockedEnhancedInputSubsystem(const UControllable
 
 UWorld* AnEmptyWorld()
 {
+#if WITH_AUTOMATION_TESTS
 	return FAutomationEditorCommonUtils::CreateNewMap();
+#endif
+	return nullptr;
 }
 
 UControllablePlayer& AControllablePlayer(UWorld* World)
