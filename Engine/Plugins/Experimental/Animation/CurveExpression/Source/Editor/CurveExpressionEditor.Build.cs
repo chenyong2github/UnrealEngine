@@ -6,31 +6,18 @@ public class CurveExpressionEditor : ModuleRules
 {
 	public CurveExpressionEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicDependencyModuleNames.AddRange(
+		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"AnimGraph",
-				"AnimationCore",
+				"BlueprintGraph",
 				"Core",
 				"CoreUObject",
 				"CurveExpression",
 				"Engine",
-				
-				// UI 
-				"PropertyEditor",
+				"KismetCompiler",
 				"Slate",
 				"SlateCore",
-				"RewindDebuggerInterface",
-				"EditorStyle",
-				"UnrealEd",
-				"InputCore"
-			}
-		);
-
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"BlueprintGraph"
 			}
 		);
 	}
