@@ -6541,6 +6541,17 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 
 	if (!bOperationCanceled)
 	{
+		// Replacing the skeleton requires setting up a fresh editor
+		const bool bReplacingSkeleton = ImportOptions->SkeletonForAnimation != SkeletalMesh->GetSkeleton();
+		bool bShouldReopenAsset = false;
+		if (bReplacingSkeleton)
+		{
+			if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+			{
+				bShouldReopenAsset = AssetEditorSubsystem->CloseAllEditorsForAsset(SkeletalMesh) != 0;
+			}
+		}
+		
 		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinWeightPreview(SkeletalMesh);
 		{
 			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
@@ -6603,6 +6614,15 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 				TArray<FSkinWeightProfileInfo>&SkinWeightsProfile = SkeletalMesh->GetSkinWeightProfiles();
 				SkinWeightsProfile = ExistingSkinWeightProfileInfos;
 				FSkinWeightsUtilities::ReimportAlternateSkinWeight(SkeletalMesh, 0);
+			}
+
+			// Reopen asset if it was open previously
+			if (bShouldReopenAsset)
+			{
+				if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+				{
+					AssetEditorSubsystem->OpenEditorForAsset(SkeletalMesh);
+				}
 			}
 
 			// Reimporting can have dangerous effects if the mesh is still in the transaction buffer.  Reset the transaction buffer if this is the case
