@@ -153,7 +153,7 @@ struct FNDIRigidMeshCollisionData
 	FNDIRigidMeshCollisionArrays *AssetArrays = nullptr;
 
 	/** Static Mesh Components **/
-	TArray<AActor*> Actors;
+	TArray<TWeakObjectPtr<AActor>> Actors;
 };
 
 /** Data Interface used to collide against static meshes - whether it is the mesh distance field or a physics asset's collision primitive */
