@@ -12,6 +12,8 @@
 #if PLATFORM_ANDROID
 #include <android_native_app_glue.h>
 extern struct android_app* GNativeAndroidApp;
+
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
 static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
@@ -466,6 +468,19 @@ bool FOpenXRHMDModule::InitInstance()
 {
 	// This should only ever be called if we don't already have an instance.
 	check(!Instance);
+
+#if PLATFORM_ANDROID
+	// TODO: Allow OpenXR on non-Oculus Android platforms
+	if (AndroidThunkCpp_IsOculusMobileApplication())
+	{
+		UE_LOG(LogHMD, Log, TEXT("OpenXRHMDModule: App is packaged for Oculus Mobile"));
+	}
+	else
+	{
+		UE_LOG(LogHMD, Log, TEXT("OpenXRHMDModule: App is not packaged for Oculus Mobile"));
+		return false;
+	}
+#endif
 
 	// Get all extension plugins
 	TSet<const ANSICHAR*, AnsiKeyFunc> ExtensionSet;
