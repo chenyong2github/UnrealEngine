@@ -8374,18 +8374,18 @@ bool UMaterialExpressionStaticSwitchParameter::IsResultMaterialAttributes(int32 
 	}
 }
 
-int32 UMaterialExpressionStaticSwitchParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+FExpressionInput* UMaterialExpressionStaticSwitchParameter::GetEffectiveInput(class FMaterialCompiler* Compiler)
 {
 	bool bSucceeded;
-	const bool bValue = Compiler->GetStaticBoolValue(Compiler->StaticBoolParameter(ParameterName,DefaultValue), bSucceeded);
-	
+	const bool bValue = Compiler->GetStaticBoolValue(Compiler->StaticBoolParameter(ParameterName, DefaultValue), bSucceeded);
+
 	//Both A and B must be connected in a parameter. 
-	if( !A.GetTracedInput().IsConnected() )
+	if (!A.GetTracedInput().IsConnected())
 	{
 		Compiler->Errorf(TEXT("Missing A input"));
 		bSucceeded = false;
 	}
-	if( !B.GetTracedInput().IsConnected() )
+	if (!B.GetTracedInput().IsConnected())
 	{
 		Compiler->Errorf(TEXT("Missing B input"));
 		bSucceeded = false;
@@ -8393,17 +8393,19 @@ int32 UMaterialExpressionStaticSwitchParameter::Compile(class FMaterialCompiler*
 
 	if (!bSucceeded)
 	{
-		return INDEX_NONE;
+		return nullptr;
 	}
+	return bValue ? &A : &B;
+}
 
-	if (bValue)
+int32 UMaterialExpressionStaticSwitchParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
+	if (EffectiveInput)
 	{
-		return A.Compile(Compiler);
+		return EffectiveInput->Compile(Compiler);
 	}
-	else
-	{
-		return B.Compile(Compiler);
-	}
+	return INDEX_NONE;
 }
 
 void UMaterialExpressionStaticSwitchParameter::GetCaption(TArray<FString>& OutCaptions) const
@@ -8422,6 +8424,38 @@ FName UMaterialExpressionStaticSwitchParameter::GetInputName(int32 InputIndex) c
 	{
 		return TEXT("False");
 	}
+}
+
+bool UMaterialExpressionStaticSwitchParameter::IsResultStrataMaterial(int32 OutputIndex)
+{
+	if (A.GetTracedInput().Expression && B.GetTracedInput().Expression)
+	{
+		return A.GetTracedInput().Expression->IsResultStrataMaterial(A.OutputIndex) && B.GetTracedInput().Expression->IsResultStrataMaterial(B.OutputIndex);
+	}
+	return false;
+}
+
+void UMaterialExpressionStaticSwitchParameter::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// STRATA_TODO: this is incorrect because we should only use A or B based on GetEffectiveInput, but we have no compiler at this stage so we just gather both.
+	if (A.GetTracedInput().Expression)
+	{
+		A.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, A.OutputIndex);
+	}
+	if (B.GetTracedInput().Expression)
+	{
+		B.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, B.OutputIndex);
+	}
+}
+
+FStrataOperator* UMaterialExpressionStaticSwitchParameter::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
+	if (EffectiveInput && EffectiveInput->Expression)
+	{
+		return EffectiveInput->Expression->StrataGenerateMaterialTopologyTree(Compiler, Parent, 0);
+	}
+	return nullptr;
 }
 #endif // WITH_EDITOR
 
@@ -8572,30 +8606,29 @@ bool UMaterialExpressionStaticSwitch::IsResultMaterialAttributes(int32 OutputInd
 	}
 }
 
-int32 UMaterialExpressionStaticSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+FExpressionInput* UMaterialExpressionStaticSwitch::GetEffectiveInput(class FMaterialCompiler* Compiler)
 {
 	bool bValue = DefaultValue;
-
 	if (Value.GetTracedInput().Expression)
 	{
 		bool bSucceeded;
 		bValue = Compiler->GetStaticBoolValue(Value.Compile(Compiler), bSucceeded);
-
 		if (!bSucceeded)
 		{
-			return INDEX_NONE;
+			return nullptr;
 		}
 	}
-	
-	// We only call Compile on the branch that is taken to avoid compile errors in the disabled branch.
-	if (bValue)
+	return bValue ? &A : &B;
+}
+
+int32 UMaterialExpressionStaticSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
+	if (EffectiveInput)
 	{
-		return A.Compile(Compiler);
+		return EffectiveInput->Compile(Compiler);
 	}
-	else
-	{
-		return B.Compile(Compiler);
-	}
+	return INDEX_NONE;
 }
 
 void UMaterialExpressionStaticSwitch::GetCaption(TArray<FString>& OutCaptions) const
@@ -8629,6 +8662,38 @@ uint32 UMaterialExpressionStaticSwitch::GetInputType(int32 InputIndex)
 	{
 		return MCT_StaticBool;
 	}
+}
+
+bool UMaterialExpressionStaticSwitch::IsResultStrataMaterial(int32 OutputIndex)
+{
+	if (A.GetTracedInput().Expression && B.GetTracedInput().Expression)
+	{
+		return A.GetTracedInput().Expression->IsResultStrataMaterial(A.OutputIndex) && B.GetTracedInput().Expression->IsResultStrataMaterial(B.OutputIndex);
+	}
+	return false;
+}
+
+void UMaterialExpressionStaticSwitch::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// STRATA_TODO: this is incorrect because we should only use A or B based on GetEffectiveInput, but we have no compiler at this stage so we just gather both.
+	if (A.GetTracedInput().Expression)
+	{
+		A.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, A.OutputIndex);
+	}
+	if (B.GetTracedInput().Expression)
+	{
+		B.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, B.OutputIndex);
+	}
+}
+
+FStrataOperator* UMaterialExpressionStaticSwitch::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FExpressionInput* EffectiveInput = GetEffectiveInput(Compiler);
+	if (EffectiveInput && EffectiveInput->Expression)
+	{
+		return EffectiveInput->Expression->StrataGenerateMaterialTopologyTree(Compiler, Parent, 0);
+	}
+	return nullptr;
 }
 #endif
 

@@ -703,7 +703,11 @@ bool FHLSLMaterialTranslator::Translate()
 		UMaterialExpression* FrontMaterialExpr = FrontMaterialInput ? FrontMaterialInput->GetTracedInput().Expression : nullptr;
 		if (bStrataEnabled && FrontMaterialExpr)
 		{
-			FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, 0);
+			// Temp code chunk scope (e.g.needed for the creation of static booleans from static switch parameter node, see UMaterialExpressionStaticSwitch::GetEffectiveInput).
+			TArray<FShaderCodeChunk> TempChunks;
+			AssignTempScope(TempChunks);
+
+			FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, 0); 
 			if (!StrataGenerateDerivedMaterialOperatorData())
 			{
 				Errorf(TEXT("Strata material errors encountered."));
