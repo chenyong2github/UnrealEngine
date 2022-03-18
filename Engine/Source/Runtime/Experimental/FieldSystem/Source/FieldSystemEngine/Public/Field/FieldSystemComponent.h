@@ -192,8 +192,6 @@ public:
 	*    for examples of how to recreate variations of the above generic
 	*    fields using field networks
 	*
-	*    (https://wiki.it.epicgames.net/display/~Brice.Criswell/Fields)
-	*
 	*    @param Enabled Is this force enabled for evaluation.
 	*    @param Target Type of field supported by the solver.
 	*    @param MetaData Meta data used to assist in evaluation
@@ -217,8 +215,6 @@ public:
 	*    the component is destroyed or until the RemovePersistenFields function is called. See documentation,
 	*    for examples of how to recreate variations of the above generic
 	*    fields using field networks
-	*
-	*    (https://wiki.it.epicgames.net/display/~Brice.Criswell/Fields)
 	*
 	*    @param Enabled Is this force enabled for evaluation.
 	*    @param Target Type of field supported by the solver.
@@ -251,8 +247,6 @@ public:
 	*    construction script to setup some particles properties (anchors...). See documentation,
 	*    for examples of how to recreate variations of the above generic
 	*    fields using field networks
-	*
-	*    (https://wiki.it.epicgames.net/display/~Brice.Criswell/Fields)
 	*
 	*    @param Enabled Is this force enabled for evaluation.
 	*    @param Target Type of field supported by the solver.

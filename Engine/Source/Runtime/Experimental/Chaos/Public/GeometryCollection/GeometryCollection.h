@@ -24,9 +24,6 @@ namespace GeometryCollectionUV
 
 /**
 * FGeometryCollection (FTransformCollection)
-*  
-*    see : https://wiki.it.epicgames.net/display/~Brice.Criswell/Geometry+Collections
-*
 */
 class CHAOS_API FGeometryCollection : public FTransformCollection, 
 	public FGeometryCollectionConvexPropertiesInterface
