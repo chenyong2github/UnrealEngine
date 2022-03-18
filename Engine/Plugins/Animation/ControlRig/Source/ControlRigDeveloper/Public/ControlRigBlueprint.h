@@ -112,7 +112,8 @@ struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
 	GENERATED_BODY();
 
 	FRigGraphDisplaySettings()
-		: bShowNodeRunCounts(false)
+		: bShowNodeInstructionIndex(false)
+		, bShowNodeRunCounts(false)
 		, NodeRunLowerBound(1)
 		, NodeRunLimit(64)
 		, MinMicroSeconds(0.0)
@@ -125,6 +126,11 @@ struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
 		, MaxDurationColor(FLinearColor::Red)
 	{
 	}
+
+	// When enabled shows the first node instruction index
+	// matching the execution stack window.
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
+	bool bShowNodeInstructionIndex;
 
 	// When enabled shows the node counts both in the graph view as
 	// we as in the execution stack window.
