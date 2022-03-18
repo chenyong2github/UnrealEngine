@@ -345,12 +345,20 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		return GetSlice().IsComplete();
 	}
 
-	FORCEINLINE bool IsValidArrayIndex(int32 InIndex, int32 InArraySize)
+	FORCEINLINE bool IsValidArrayIndex(int32& InOutIndex, const FScriptArrayHelper& InArrayHelper) const
 	{
-		if(InIndex < 0 || InIndex >= InArraySize)
+		const int32 InOriginalIndex = InOutIndex;
+
+		// we support wrapping the index around similar to python
+		if(InOutIndex < 0)
+		{
+			InOutIndex = InArrayHelper.Num() + InOutIndex;
+		}
+
+		if(!InArrayHelper.IsValidIndex(InOutIndex))
 		{
 			static const TCHAR OutOfBoundsFormat[] = TEXT("Array Index (%d) out of bounds (count %d).");
-			PublicData.Logf(EMessageSeverity::Error, OutOfBoundsFormat, InIndex, InArraySize);
+			PublicData.Logf(EMessageSeverity::Error, OutOfBoundsFormat, InOriginalIndex, InArrayHelper.Num());
 			return false;
 		}
 		return true;
