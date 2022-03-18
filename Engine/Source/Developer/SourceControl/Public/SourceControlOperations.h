@@ -585,6 +585,12 @@ public:
 		bUpdateAllChangelists = false;
 	}
 
+	void SetChangelistsToUpdate(const TArrayView<FSourceControlChangelistRef>& InChangelistsToUpdate)
+	{
+		ChangelistsToUpdate = InChangelistsToUpdate;
+		bUpdateAllChangelists = false;
+	}
+
 	const TArray<FSourceControlChangelistRef>& GetChangelistsToUpdate() const
 	{
 		return ChangelistsToUpdate;
