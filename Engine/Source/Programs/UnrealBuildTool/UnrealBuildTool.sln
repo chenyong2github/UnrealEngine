@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{46FDC7
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Core", "..\Shared\EpicGames.Core\EpicGames.Core.csproj", "{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.UHT", "..\Shared\EpicGames.UHT\EpicGames.UHT.csproj", "{8A25F394-428F-4A1B-AEE9-06EAE7D8DF92}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,12 @@ Global
 		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Development|Any CPU.Build.0 = Development|Any CPU
 		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A25F394-428F-4A1B-AEE9-06EAE7D8DF92}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A25F394-428F-4A1B-AEE9-06EAE7D8DF92}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A25F394-428F-4A1B-AEE9-06EAE7D8DF92}.Development|Any CPU.ActiveCfg = Development|Any CPU
+		{8A25F394-428F-4A1B-AEE9-06EAE7D8DF92}.Development|Any CPU.Build.0 = Development|Any CPU
+		{8A25F394-428F-4A1B-AEE9-06EAE7D8DF92}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A25F394-428F-4A1B-AEE9-06EAE7D8DF92}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -51,6 +59,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{75882F88-8F4E-469A-B74A-8A7E0C0E1A88} = {46FDC727-E9B0-4447-952A-03AD8073600F}
 		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74} = {46FDC727-E9B0-4447-952A-03AD8073600F}
+		{8A25F394-428F-4A1B-AEE9-06EAE7D8DF92} = {46FDC727-E9B0-4447-952A-03AD8073600F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {56720C8D-2BBE-45D5-85A3-8E12E06D51DC}
