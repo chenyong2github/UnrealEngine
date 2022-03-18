@@ -11,8 +11,7 @@ public class WebRTC : ModuleRules
 	protected virtual bool bShouldUseWebRTC
 	{
 		get =>
-			Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"));
 	}
 
@@ -44,10 +43,11 @@ public class WebRTC : ModuleRules
 			string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "third_party", "abseil-cpp");
 			PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
-			if (Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				PublicDefinitions.Add("WEBRTC_WIN=1");
 
+				PlatformSubdir = "Win64"; // windows-based platform extensions can share this library
 				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, ConfigPath);
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
 

@@ -49,7 +49,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("HeadMountedDisplay");
 			}
 
-			if (Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				PrivateDependencyModuleNames.Add("D3D11RHI");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");

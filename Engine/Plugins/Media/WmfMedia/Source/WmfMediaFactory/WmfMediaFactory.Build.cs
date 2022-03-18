@@ -41,7 +41,7 @@ namespace UnrealBuildTool.Rules
 				PrivateIncludePathModuleNames.Add("Settings");
 			}
 
-			if (Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				DynamicallyLoadedModuleNames.Add("WmfMedia");
 			}

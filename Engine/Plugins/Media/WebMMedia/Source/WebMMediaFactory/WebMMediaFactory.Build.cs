@@ -32,7 +32,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 				});
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
 				DynamicallyLoadedModuleNames.Add("WebMMedia");
 			}

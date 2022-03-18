@@ -42,12 +42,12 @@ namespace UnrealBuildTool.Rules
 				string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
 				PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
-				if (Target.Platform == UnrealTargetPlatform.Win64)
+				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 				{
 					DirectXSDKDir += "/Lib/x64/";
 				}
 
-				if (Target.Platform == UnrealTargetPlatform.Win64)
+				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 				{
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
 

@@ -125,6 +125,7 @@ public:
 		SupportedPlatforms.Add(TEXT("Linux"));
 		SupportedPlatforms.Add(TEXT("Mac"));
 		SupportedPlatforms.Add(TEXT("Windows"));
+		AddSupportedPlatform(FGuid(0x5636fbc1, 0xd2b54f62, 0xac8e7d4f, 0xb184b45a));
 		SupportedPlatforms.AddUnique(FPlatformProperties::IniPlatformName());
 
 		// supported schemes
@@ -151,6 +152,18 @@ public:
 	}
 
 private:
+	void AddSupportedPlatform(const FGuid& PlatformGuid)
+	{
+		auto MediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media");
+		if (MediaModule)
+		{
+			FName PlatformName = MediaModule->GetPlatformName(PlatformGuid);
+			if (!PlatformName.IsNone())
+			{
+				SupportedPlatforms.Add(PlatformName.ToString());
+			}
+		}
+	}
 
 	/** List of supported media file types. */
 	TArray<FString> SupportedFileExtensions;
