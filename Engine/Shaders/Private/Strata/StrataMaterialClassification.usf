@@ -19,7 +19,7 @@ Texture2D<uint> TopLayerTexture;
 Texture2DArray<uint> MaterialTextureArray;
 
 // Indirect draw data buffer for all tile types
-RWBuffer<uint> TileIndirectDataBuffer;
+RWBuffer<uint> TileDrawIndirectDataBuffer;
 
 RWBuffer<uint> SimpleTileListDataBuffer;
 RWBuffer<uint> SingleTileListDataBuffer;
@@ -45,11 +45,11 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	if (all(DispatchThreadId == 0))
 	{
 		const uint IndexCountPerInstance = bRectPrimitive > 0 ? 4 : 6;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)					+ 0] = IndexCountPerInstance;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)					+ 0] = IndexCountPerInstance;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)					+ 0] = IndexCountPerInstance;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT)				+ 0] = IndexCountPerInstance;
-		TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT) + 0] = IndexCountPerInstance;
+		TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)					+ 0] = IndexCountPerInstance;
+		TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)					+ 0] = IndexCountPerInstance;
+		TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)					+ 0] = IndexCountPerInstance;
+		TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT)				+ 0] = IndexCountPerInstance;
+		TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT) + 0] = IndexCountPerInstance;
 	}
 
 	// TODO: add a SM6 permutation with ballot?
@@ -154,39 +154,73 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		if (bTileContainsComplex)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX) + 1], 1, WriteToIndex);
+			InterlockedAdd(TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX) + 1], 1, WriteToIndex);
 			ComplexTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
 		else if (bTileContainsSingle)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE) + 1], 1, WriteToIndex);
+			InterlockedAdd(TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE) + 1], 1, WriteToIndex);
 			SingleTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
 		else // (bTileContainsSimple)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE) + 1], 1, WriteToIndex);
+			InterlockedAdd(TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE) + 1], 1, WriteToIndex);
 			SimpleTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
 
-#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
 		if (bTileContainsOpaqueRoughRefraction)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT) + 1], 1, WriteToIndex);
+			InterlockedAdd(TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT) + 1], 1, WriteToIndex);
 			OpaqueRoughRefractionTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
 		if(bTileContainsScreenSpaceSubsurfaceScattering && !bTileContainsOpaqueRoughRefraction)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT) + 1], 1, WriteToIndex);
+			InterlockedAdd(TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT) + 1], 1, WriteToIndex);
 			SSSWithoutOpaqueRoughRefractionTileListDataBuffer[WriteToIndex] = EncodedTile;
 		}
-#endif
+	#endif
 	}
 }
 #endif // SHADER_TILE_CATEGORIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_TILE_PREPARE_ARGS
+
+Buffer<uint>   TileDrawIndirectDataBuffer;
+RWBuffer<uint> TileDispatchIndirectDataBuffer;
+
+[numthreads(1, 1, 1)]
+void ArgsMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (all(DispatchThreadId == 0))
+	{
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)					+ 0] = TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)						+ 1];
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)					+ 0] = TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)						+ 1];
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)					+ 0] = TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)					+ 1];
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT)				+ 0] = TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT)				+ 1];
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT)	+ 0] = TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT)	+ 1];
+
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)					+ 1] = 1;
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)					+ 1] = 1;
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)					+ 1] = 1;
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT)				+ 1] = 1;
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT) + 1] = 1;
+
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SIMPLE)					+ 2] = 1;
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SINGLE)					+ 2] = 1;
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX)					+ 2] = 1;
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_ROUGH_REFRACT)				+ 2] = 1;
+		TileDispatchIndirectDataBuffer[GetStrataTileTypeDispatchIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT)	+ 2] = 1;
+	}
+}
+
+#endif // SHADER_TILE_PREPARE_ARGS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -223,3 +257,122 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if SHADER_BSDF_TILE
+
+int2 ViewResolution;
+uint MaxBytesPerPixel;
+uint TileSizeLog2;
+int2 TileCount_Primary;
+
+Texture2D<uint> TopLayerTexture;
+Texture2DArray<uint> MaterialTextureArray;
+
+Buffer<uint> TileListBuffer;
+
+RWTexture2D<uint> RWBSDFTileTexture;
+RWTexture2D<uint> RWBSDFOffsetTexture;
+RWBuffer<uint>    RWBSDFTileCountBuffer;
+
+#if !PERMUTATION_WAVE_OPS
+groupshared uint s_TileBSDFCount[GROUP_THREAD_COUNT];
+#endif
+
+[numthreads(STRATA_TILE_SIZE, STRATA_TILE_SIZE, 1)]
+void BSDFTileMainCS(uint2 GroupThreadId : SV_GroupThreadID, uint2 GroupId : SV_GroupID, uint LinearIndex : SV_GroupIndex)
+{
+	const uint2 TileCoord = StrataUnpackTile(TileListBuffer[GroupId.x]);
+	const uint2 PixelCoord = TileCoord * STRATA_TILE_SIZE + GroupThreadId;
+
+	uint BSDFCount = 0;
+	if (all(PixelCoord < uint2(ViewResolution)))
+	{
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialTextureArray, StrataAddressing, TopLayerTexture);
+		BSDFCount = StrataPixelHeader.BSDFCount;
+
+		if (BSDFCount > 0)
+		{
+			FStrataBSDFOffset Offsets = (FStrataBSDFOffset)0;
+			Offsets.BSDFCount = BSDFCount;
+
+			for (uint BSDFIndex = 0; BSDFIndex < BSDFCount; ++BSDFIndex)
+			{
+				Offsets.BSDFOffsets[BSDFIndex] = StrataAddressing.CurrentIndex;
+				UnpackStrataBSDFIn(MaterialTextureArray, StrataAddressing, StrataPixelHeader);
+			}
+
+			RWBSDFOffsetTexture[PixelCoord] = PackBSDFOffset(Offsets);
+		}
+	}
+
+#if PERMUTATION_WAVE_OPS
+
+	const uint TileBSDFCount = WaveActiveMax(BSDFCount);
+
+#else // PERMUTATION_WAVE_OPS
+
+	s_TileBSDFCount[LinearIndex] = BSDFCount;
+
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 32)
+	{
+		s_TileBSDFCount[LinearIndex] = max(s_TileBSDFCount[LinearIndex], s_TileBSDFCount[LinearIndex + 32]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 16)
+	{
+		s_TileBSDFCount[LinearIndex] = max(s_TileBSDFCount[LinearIndex], s_TileBSDFCount[LinearIndex + 16]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 8)
+	{
+		s_TileBSDFCount[LinearIndex] = max(s_TileBSDFCount[LinearIndex], s_TileBSDFCount[LinearIndex + 8]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 4)
+	{
+		s_TileBSDFCount[LinearIndex] = max(s_TileBSDFCount[LinearIndex], s_TileBSDFCount[LinearIndex + 4]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 2)
+	{
+		s_TileBSDFCount[LinearIndex] = max(s_TileBSDFCount[LinearIndex], s_TileBSDFCount[LinearIndex + 2]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	const uint TileBSDFCount = max(s_TileBSDFCount[LinearIndex], s_TileBSDFCount[LinearIndex + 1]);
+
+#endif // PERMUTATION_WAVE_OPS
+
+	if (LinearIndex < 1)
+	{
+		if (TileBSDFCount > 1)
+		{
+			uint LinearTileCoord = 0;
+			InterlockedAdd(RWBSDFTileCountBuffer[0], TileBSDFCount - 1, LinearTileCoord);
+
+			FStrataBSDFTile Tile;
+			Tile.Count = TileBSDFCount;
+			Tile.Index = 0;
+
+			// For first/parent tile, set TileCoord to point towards the first 'overflow' tile
+			Tile.TileCoord = uint2(LinearTileCoord % TileCount_Primary.x, TileCount_Primary.y + LinearTileCoord / TileCount_Primary.y);
+			RWBSDFTileTexture[TileCoord] = PackBSDFTile(Tile);
+
+			// For 'overflow' tiles, set TileCoord to point towards the first/parent tile
+			Tile.TileCoord = TileCoord;
+
+			for (uint BSDFIndex = 1; BSDFIndex < TileBSDFCount; ++BSDFIndex)
+			{
+				Tile.Index = BSDFIndex;
+				RWBSDFTileTexture[Tile.TileCoord] = PackBSDFTile(Tile);
+			}
+		}
+		else
+		{
+			RWBSDFTileTexture[GroupId] = 0;
+		}
+	}
+}
+#endif // SHADER_BSDF_TILE

@@ -64,3 +64,7 @@
 // sizeof(FRHIDrawIndirectParameters) = 4 uints = 16 bytes
 #define GetStrataTileTypeDrawIndirectArgOffset_Byte(x)  (x * 16)
 #define GetStrataTileTypeDrawIndirectArgOffset_DWord(x) (x * 4)
+
+// sizeof(FRHIDispatchIndirectParameters) = 3 uints = 12 bytes
+#define GetStrataTileTypeDispatchIndirectArgOffset_Byte(x)  (x * 12)
+#define GetStrataTileTypeDispatchIndirectArgOffset_DWord(x) (x * 3)

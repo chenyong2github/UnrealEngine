@@ -38,10 +38,15 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_API)
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
+	SHADER_PARAMETER(uint32, TileSize)
+	SHADER_PARAMETER(uint32, TileSizeLog2)
+	SHADER_PARAMETER(FIntPoint, TileCount)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray<uint>, MaterialTextureArray)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TopLayerTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, SSSTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, OpaqueRoughRefractionTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, BSDFOffsetTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, BSDFTileTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 // This must map to the STRATA_TILE_TYPE defines.
@@ -62,6 +67,10 @@ struct FStrataSceneData
 	uint32 MaxBytesPerPixel;
 	bool bRoughDiffuse;
 
+	FIntPoint TileCount_Primary;
+	FIntPoint TileCount_Overflow;
+	FIntPoint TileCount_Total;
+
 	// Resources allocated and updated each frame
 
 	FRDGTextureRef MaterialTextureArray;
@@ -73,8 +82,11 @@ struct FStrataSceneData
 	FRDGBufferSRVRef ClassificationTileListBufferSRV[STRATA_TILE_TYPE_COUNT];
 	FRDGBufferUAVRef ClassificationTileListBufferUAV[STRATA_TILE_TYPE_COUNT];
 
-	FRDGBufferRef ClassificationTileIndirectBuffer;
-	FRDGBufferUAVRef ClassificationTileIndirectBufferUAV;
+	FRDGBufferRef    ClassificationTileDrawIndirectBuffer;
+	FRDGBufferUAVRef ClassificationTileDrawIndirectBufferUAV;
+
+	FRDGBufferRef    ClassificationTileDispatchIndirectBuffer;
+	FRDGBufferUAVRef ClassificationTileDispatchIndirectBufferUAV;
 
 	FRDGTextureRef TopLayerTexture;
 	FRDGTextureRef SSSTexture;
@@ -83,6 +95,9 @@ struct FStrataSceneData
 	FRDGTextureUAVRef TopLayerTextureUAV;
 	FRDGTextureUAVRef SSSTextureUAV;
 	FRDGTextureUAVRef OpaqueRoughRefractionTextureUAV;
+
+	FRDGTextureRef BSDFOffsetTexture;
+	FRDGTextureRef BSDFTileTexture;
 
 	// Used when the subsurface luminance is separated from the scene color
 	FRDGTextureRef SeparatedSubSurfaceSceneColor;
@@ -108,6 +123,8 @@ constexpr uint32 StencilBit_Single = 0x10; // In sync with SceneRenderTargets.h 
 constexpr uint32 StencilBit_Complex= 0x20; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_COMPLEX)
 
 bool IsStrataEnabled();
+
+FIntPoint GetStrataTextureResolution(const FIntPoint& InResolution);
 
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder);
 
@@ -169,6 +186,7 @@ FStrataTileParameter SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInf
 FStrataTilePassVS::FParameters SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const EStrataTileType Type, EPrimitiveType& PrimitiveType);
 FStrataTilePassVS::FParameters SetTileParameters(const FViewInfo& View, const EStrataTileType Type, EPrimitiveType& PrimitiveType);
 uint32 TileTypeDrawIndirectArgOffset(const EStrataTileType Type);
+uint32 TileTypeDispatchIndirectArgOffset(const EStrataTileType Type);
 
 bool ShouldRenderStrataRoughRefractionRnD();
 void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);
