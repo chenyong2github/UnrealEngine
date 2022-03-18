@@ -1077,6 +1077,7 @@ namespace
 		UPackage* NewPackage = CreatePackage( *PIEPackageName);
 		if (NewPackage != nullptr && WorldContext.WorldType == EWorldType::PIE)
 		{
+			NewPackage->SetPIEInstanceID(WorldContext.PIEInstance);
 			NewPackage->SetPackageFlags(PKG_PlayInEditor);
 			LoadFlags |= LOAD_PackageForPIE;
 		}
