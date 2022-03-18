@@ -20,6 +20,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
+#include "Widgets/Input/SButton.h"
 #include "EditorStyleSet.h"
 
 
