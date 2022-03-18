@@ -2185,7 +2185,6 @@ FGuid FTextureSource::GetId() const
 
 	UE::DerivedData::FBuildVersionBuilder IdBuilder;
 	IdBuilder << BaseBlockX;
-	IdBuilder << BaseBlockX;
 	IdBuilder << BaseBlockY;
 	IdBuilder << SizeX;
 	IdBuilder << SizeY;
