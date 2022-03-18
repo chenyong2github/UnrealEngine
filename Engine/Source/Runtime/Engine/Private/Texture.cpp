@@ -2192,7 +2192,6 @@ FGuid FTextureSource::GetId() const
 	IdBuilder << NumSlices;
 	IdBuilder << NumMips;
 	IdBuilder << NumLayers;
-	IdBuilder << bPNGCompressed;
 	IdBuilder << bLongLatCubemap;
 	IdBuilder << CompressionFormat;
 	IdBuilder << bGuidIsHash;
