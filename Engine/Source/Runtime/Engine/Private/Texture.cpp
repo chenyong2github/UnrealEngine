@@ -40,6 +40,7 @@
 #include "ImageUtils.h"
 
 #if WITH_EDITOR
+#include "DerivedDataBuildVersion.h"
 #include "TextureCompiler.h"
 #include "Misc/ScopeRWLock.h"
 #endif
@@ -1878,7 +1879,7 @@ FIntPoint FTextureSource::GetSizeInBlocks() const
 
 FString FTextureSource::GetIdString() const
 {
-	FString GuidString = Id.ToString();
+	FString GuidString = GetId().ToString();
 	if (bGuidIsHash)
 	{
 		GuidString += TEXT("X");
@@ -2173,6 +2174,34 @@ void FTextureSource::UseHashAsGuid()
 	{
 		Id.Invalidate();
 	}
+}
+
+FGuid FTextureSource::GetId() const
+{
+	if (!bGuidIsHash)
+	{
+		return Id;
+	}
+
+	UE::DerivedData::FBuildVersionBuilder IdBuilder;
+	IdBuilder << BaseBlockX;
+	IdBuilder << BaseBlockX;
+	IdBuilder << BaseBlockY;
+	IdBuilder << SizeX;
+	IdBuilder << SizeY;
+	IdBuilder << NumSlices;
+	IdBuilder << NumMips;
+	IdBuilder << NumLayers;
+	IdBuilder << bPNGCompressed;
+	IdBuilder << bLongLatCubemap;
+	IdBuilder << CompressionFormat;
+	IdBuilder << bGuidIsHash;
+	IdBuilder << static_cast<uint8>(Format.GetValue());
+	IdBuilder.Serialize(const_cast<void*>(static_cast<const void*>(LayerFormat.GetData())), LayerFormat.Num());
+	IdBuilder.Serialize(const_cast<void*>(static_cast<const void*>(Blocks.GetData())), Blocks.Num());
+	IdBuilder.Serialize(const_cast<void*>(static_cast<const void*>(BlockDataOffsets.GetData())), BlockDataOffsets.Num());
+	IdBuilder << const_cast<FGuid&>(Id);
+	return IdBuilder.Build();
 }
 
 void FTextureSource::OperateOnLoadedBulkData(TFunctionRef<void(const FSharedBuffer& BulkDataBuffer)> Operation)
