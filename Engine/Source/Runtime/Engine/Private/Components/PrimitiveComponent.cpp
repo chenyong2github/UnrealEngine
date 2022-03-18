@@ -558,20 +558,6 @@ void UPrimitiveComponent::GetUsedTextures(TArray<UTexture*>& OutTextures, EMater
 //////////////////////////////////////////////////////////////////////////
 // Render
 
-// Helper to access the level bStaticComponentsRegisteredInStreamingManager flag.
-FORCEINLINE_DEBUGGABLE bool OwnerLevelHasRegisteredStaticComponentsInStreamingManager(const AActor* Owner)
-{
-	if (Owner)
-	{
-		const ULevel* Level = Owner->GetLevel();
-		if (Level)
-		{
-			return Level->bStaticComponentsRegisteredInStreamingManager;
-		}
-	}
-	return false;
-}
-
 void UPrimitiveComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	// Make sure cached cull distance is up-to-date if its zero and we have an LD cull distance

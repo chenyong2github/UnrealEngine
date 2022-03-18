@@ -448,3 +448,16 @@ int64 GetAverageRequiredTexturePoolSize()
 	return 0;
 #endif
 }
+
+bool OwnerLevelHasRegisteredStaticComponentsInStreamingManager(const AActor* Owner)
+{
+	if (Owner)
+	{
+		const ULevel* Level = Owner->GetLevel();
+		if (Level)
+		{
+			return Level->bStaticComponentsRegisteredInStreamingManager;
+		}
+	}
+	return false;
+}

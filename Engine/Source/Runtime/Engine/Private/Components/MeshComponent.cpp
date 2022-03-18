@@ -65,7 +65,12 @@ void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Materia
 
 			// Set the material and invalidate things
 			OverrideMaterials[ElementIndex] = Material;
-			MarkRenderStateDirty();			
+			MarkRenderStateDirty();
+			// If MarkRenderStateDirty didn't notify the streamer, do it now
+			if (!bIgnoreStreamingManagerUpdate && OwnerLevelHasRegisteredStaticComponentsInStreamingManager(GetOwner()))
+			{
+				IStreamingManager::Get().NotifyPrimitiveUpdated_Concurrent(this);
+			}
 			if (Material)
 			{
 				Material->AddToCluster(this, true);

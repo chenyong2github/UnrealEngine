@@ -181,3 +181,6 @@ struct FRenderAssetStreamingStats
 	int64 ResidentMeshMem;		// Total memory in bytes of resident mesh LODs
 	int64 EvictedMeshMem;		// Total memory in bytes of evicted mesh LODs
 };
+
+// Helper to access the level bStaticComponentsRegisteredInStreamingManager flag.
+extern bool OwnerLevelHasRegisteredStaticComponentsInStreamingManager(const AActor* Owner);
