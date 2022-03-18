@@ -1975,7 +1975,9 @@ public:
 	virtual void PostLoad() override;
 	virtual void PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph ) override;
 	virtual void BeginDestroy() override;
+#if !UE_STRIP_DEPRECATED_PROPERTIES
 	virtual bool IsReadyForFinishDestroy() override;
+#endif
 	virtual bool Rename( const TCHAR* NewName=nullptr, UObject* NewOuter=nullptr, ERenameFlags Flags=REN_None ) override;
 	virtual void PostRename( UObject* OldOuter, const FName OldName ) override;
 	virtual bool CanBeInCluster() const override;
@@ -3750,8 +3752,11 @@ public:
 	static FOnProcessEvent ProcessEventDelegate;
 #endif
 
+#if !UE_STRIP_DEPRECATED_PROPERTIES
 	/** A fence to track when the primitive is detached from the scene in the rendering thread. */
+	UE_DEPRECATED(5.1, "AActor::DetachFence has been deprecated. If you are relying on it for render thread synchronization in a subclass of actor, add your own fence to that class instead.")
 	FRenderCommandFence DetachFence;
+#endif
 
 private:
 	/** Helper that already assumes the Hit info is reversed, and avoids creating a temp FHitResult if possible. */

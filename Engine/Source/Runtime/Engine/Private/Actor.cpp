@@ -759,10 +759,14 @@ void AActor::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+#if !UE_STRIP_DEPRECATED_PROPERTIES
 bool AActor::IsReadyForFinishDestroy()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return Super::IsReadyForFinishDestroy() && DetachFence.IsFenceComplete();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
+#endif
 
 void AActor::Serialize(FArchive& Ar)
 {

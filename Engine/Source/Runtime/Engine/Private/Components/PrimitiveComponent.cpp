@@ -1396,11 +1396,16 @@ void UPrimitiveComponent::BeginDestroy()
 
 	// Use a fence to keep track of when the rendering thread executes this scene detachment.
 	DetachFence.BeginFence();
+	
+#if !UE_STRIP_DEPRECATED_PROPERTIES
 	AActor* Owner = GetOwner();
 	if(Owner)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Owner->DetachFence.BeginFence();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
+#endif
 }
 
 void UPrimitiveComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
