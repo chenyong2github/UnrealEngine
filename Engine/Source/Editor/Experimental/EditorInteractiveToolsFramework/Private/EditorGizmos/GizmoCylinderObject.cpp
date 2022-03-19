@@ -5,6 +5,7 @@
 #include "BaseGizmos/GizmoMath.h"
 #include "InputState.h"
 #include "Materials/MaterialInterface.h"
+#include "SceneManagement.h"
 
 void UGizmoCylinderObject::Render(IToolsContextRenderAPI* RenderAPI)
 {
