@@ -5,6 +5,7 @@
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "Materials/MaterialInterface.h"
 #include "InputState.h"
+#include "SceneManagement.h"
 
 void UGizmoBoxObject::Render(IToolsContextRenderAPI* RenderAPI)
 {
