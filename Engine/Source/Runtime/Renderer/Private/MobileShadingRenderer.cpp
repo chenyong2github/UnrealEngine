@@ -274,6 +274,30 @@ void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthSte
 			ViewCommands.MeshCommands[EMeshPass::BasePass],
 			BasePassCSMMeshPassProcessor,
 			&ViewCommands.MeshCommands[EMeshPass::MobileBasePassCSM]);
+
+		{
+			PassProcessorCreateFunction TranslucencyStandardCreateFunction = FPassProcessorManager::GetCreateFunction(EShadingPath::Mobile, EMeshPass::TranslucencyStandard);
+			FMeshPassProcessor* TranslucencyStandardMeshPassProcessor = TranslucencyStandardCreateFunction(Scene, &View, nullptr);
+
+			PassProcessorCreateFunction TranslucencyStandardCSMCreateFunction = FPassProcessorManager::GetCreateFunction(EShadingPath::Mobile, EMeshPass::TranslucencyStandardCSM);
+			FMeshPassProcessor* TranslucencyStandardCSMMeshPassProcessor = TranslucencyStandardCSMCreateFunction(Scene, &View, nullptr);
+
+			FParallelMeshDrawCommandPass& TranslucencyStandardPass = View.ParallelMeshDrawCommandPasses[EMeshPass::TranslucencyStandard];
+			TranslucencyStandardPass.DispatchPassSetup(
+				Scene,
+				View,
+				EMeshPass::TranslucencyStandard,
+				BasePassDepthStencilAccess,
+				TranslucencyStandardMeshPassProcessor,
+				View.DynamicMeshElements,
+				&View.DynamicMeshElementsPassRelevance,
+				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyStandard],
+				ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::TranslucencyStandard],
+				ViewCommands.NumDynamicMeshCommandBuildRequestElements[EMeshPass::TranslucencyStandard],
+				ViewCommands.MeshCommands[EMeshPass::TranslucencyStandard],
+				TranslucencyStandardCSMMeshPassProcessor,
+				&ViewCommands.MeshCommands[EMeshPass::TranslucencyStandardCSM]);
+		}
 	}
 }
 
@@ -1421,6 +1445,8 @@ void FMobileSceneRenderer::UpdateTranslucentBasePassUniformBuffer(FRHICommandLis
 	FMobileBasePassUniformParameters Parameters;
 	SetupMobileBasePassUniformParameters(RHICmdList, View, true, false, Parameters);
 	Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	SetupMobileBasePassUniformParameters(RHICmdList, View, true, true, Parameters);
+	Scene->UniformBuffers.MobileCSMTranslucentBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
 }
 
 void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)

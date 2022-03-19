@@ -2382,6 +2382,10 @@ struct FRelevancePacket
 								if (ViewRelevance.bNormalTranslucency)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyStandard);
+									if (ShadingPath == EShadingPath::Mobile)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyStandardCSM);
+									}
 								}
 
 								if (ViewRelevance.bSeparateTranslucency)

@@ -266,7 +266,7 @@ static uint64 GetMobileBasePassSortKey_ByState(bool bMasked, bool bBackground, i
 /**
 * Merge mobile BasePass with BasePassCSM based on CSM visibility in order to select appropriate shader for given command.
 */
-void MergeMobileBasePassMeshDrawCommands(
+void MergeMobileCSMMeshDrawCommands(
 	const FMobileCSMVisibilityInfo& MobileCSMVisibilityInfo,
 	int32 ScenePrimitiveNum,
 	FMeshCommandOneFrameArray& MeshCommands,
@@ -723,12 +723,12 @@ void GenerateDynamicMeshDrawCommands(
  * Special version of GenerateDynamicMeshDrawCommands for the mobile base pass.
  * Based on CSM visibility it will generate mesh draw commands using either normal base pass processor or CSM base pass processor.
 */
-void GenerateMobileBasePassDynamicMeshDrawCommands(
+void GenerateMobileCSMDynamicMeshDrawCommands(
 	const FViewInfo& View,
 	EShadingPath ShadingPath,
 	EMeshPass::Type PassType,
 	FMeshPassProcessor* PassMeshProcessor,
-	FMeshPassProcessor* MobilePassCSMPassMeshProcessor,
+	FMeshPassProcessor* CSMPassMeshProcessor,
 	const TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>& DynamicMeshElements,
 	const TArray<FMeshPassMask, SceneRenderingAllocator>* DynamicMeshElementsPassRelevance,
 	int32 MaxNumDynamicMeshElements,
@@ -741,7 +741,7 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 )
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_GenerateMobileBasePassDynamicMeshDrawCommands);
-	check(PassMeshProcessor && MobilePassCSMPassMeshProcessor);
+	check(PassMeshProcessor && CSMPassMeshProcessor);
 	check((PassType == EMeshPass::Num) == (DynamicMeshElementsPassRelevance == nullptr));
 
 	FDynamicPassMeshDrawListContext DynamicPassMeshDrawListContext(
@@ -751,7 +751,7 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 		NeedsShaderInitialisation
 	);
 	PassMeshProcessor->SetDrawListContext(&DynamicPassMeshDrawListContext);
-	MobilePassCSMPassMeshProcessor->SetDrawListContext(&DynamicPassMeshDrawListContext);
+	CSMPassMeshProcessor->SetDrawListContext(&DynamicPassMeshDrawListContext);
 
 	const FMobileCSMVisibilityInfo& MobileCSMVisibilityInfo = View.MobileCSMVisibilityInfo;
 	
@@ -770,7 +770,7 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 				if (MobileCSMVisibilityInfo.bMobileDynamicCSMInUse
 					&& (MobileCSMVisibilityInfo.bAlwaysUseCSM || MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap[PrimitiveIndex]))
 				{
-					MobilePassCSMPassMeshProcessor->AddMeshBatch(*MeshAndRelevance.Mesh, BatchElementMask, MeshAndRelevance.PrimitiveSceneProxy);
+					CSMPassMeshProcessor->AddMeshBatch(*MeshAndRelevance.Mesh, BatchElementMask, MeshAndRelevance.PrimitiveSceneProxy);
 				}
 				else
 				{
@@ -797,7 +797,7 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 				&& (MobileCSMVisibilityInfo.bAlwaysUseCSM || MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap[PrimitiveIndex]))
 			{
 				const uint64 DefaultBatchElementMask = ~0ul;
-				MobilePassCSMPassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
+				CSMPassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
 			}
 			else
 			{
@@ -920,24 +920,25 @@ public:
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshDrawCommandPassSetupTask);
 		// Mobile base pass is a special case, as final lists is created from two mesh passes based on CSM visibility.
 		const bool bMobileShadingBasePass = Context.ShadingPath == EShadingPath::Mobile && Context.PassType == EMeshPass::BasePass;
+		const bool bMobileTranslucencyStandardPass = Context.ShadingPath == EShadingPath::Mobile && Context.PassType == EMeshPass::TranslucencyStandard;
 		// On SM5 Mobile platform, still want the same sorting
 		const bool bMobileVulkanSM5BasePass = IsVulkanMobileSM5Platform(Context.ShaderPlatform) && Context.PassType == EMeshPass::BasePass;
 
-		if (bMobileShadingBasePass)
+		if (bMobileShadingBasePass || bMobileTranslucencyStandardPass)
 		{
-			MergeMobileBasePassMeshDrawCommands(
+			MergeMobileCSMMeshDrawCommands(
 				Context.View->MobileCSMVisibilityInfo,
 				Context.PrimitiveBounds->Num(),
 				Context.MeshDrawCommands,
-				Context.MobileBasePassCSMMeshDrawCommands
+				Context.CSMMeshDrawCommands
 			);
 
-			GenerateMobileBasePassDynamicMeshDrawCommands(
+			GenerateMobileCSMDynamicMeshDrawCommands(
 				*Context.View,
 				Context.ShadingPath,
 				Context.PassType,
 				Context.MeshPassProcessor,
-				Context.MobileBasePassCSMMeshPassProcessor,
+				Context.CSMMeshPassProcessor,
 				*Context.DynamicMeshElements,
 				Context.DynamicMeshElementsPassRelevance,
 				Context.NumDynamicMeshElements,
@@ -1172,8 +1173,8 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	TArray<const FStaticMeshBatch*, SceneRenderingAllocator>& InOutDynamicMeshCommandBuildRequests,
 	int32 NumDynamicMeshCommandBuildRequestElements,
 	FMeshCommandOneFrameArray& InOutMeshDrawCommands,
-	FMeshPassProcessor* MobileBasePassCSMMeshPassProcessor,
-	FMeshCommandOneFrameArray* InOutMobileBasePassCSMMeshDrawCommands
+	FMeshPassProcessor* CSMMeshPassProcessor,
+	FMeshCommandOneFrameArray* InOutCSMMeshDrawCommands
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParallelMdcDispatchPassSetup);
@@ -1183,7 +1184,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	MaxNumDraws = InOutMeshDrawCommands.Num() + NumDynamicMeshElements + NumDynamicMeshCommandBuildRequestElements;
 
 	TaskContext.MeshPassProcessor = MeshPassProcessor;
-	TaskContext.MobileBasePassCSMMeshPassProcessor = MobileBasePassCSMMeshPassProcessor;
+	TaskContext.CSMMeshPassProcessor = CSMMeshPassProcessor;
 	TaskContext.DynamicMeshElements = &DynamicMeshElements;
 	TaskContext.DynamicMeshElementsPassRelevance = DynamicMeshElementsPassRelevance;
 
@@ -1224,13 +1225,13 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	FMemory::Memswap(&TaskContext.MeshDrawCommands, &InOutMeshDrawCommands, sizeof(InOutMeshDrawCommands));
 	FMemory::Memswap(&TaskContext.DynamicMeshCommandBuildRequests, &InOutDynamicMeshCommandBuildRequests, sizeof(InOutDynamicMeshCommandBuildRequests));
 
-	if (TaskContext.ShadingPath == EShadingPath::Mobile && TaskContext.PassType == EMeshPass::BasePass)
+	if (TaskContext.ShadingPath == EShadingPath::Mobile && (TaskContext.PassType == EMeshPass::BasePass || TaskContext.PassType == EMeshPass::TranslucencyStandard))
 	{
-		FMemory::Memswap(&TaskContext.MobileBasePassCSMMeshDrawCommands, InOutMobileBasePassCSMMeshDrawCommands, sizeof(*InOutMobileBasePassCSMMeshDrawCommands));
+		FMemory::Memswap(&TaskContext.CSMMeshDrawCommands, InOutCSMMeshDrawCommands, sizeof(*InOutCSMMeshDrawCommands));
 	}
 	else
 	{
-		check(MobileBasePassCSMMeshPassProcessor == nullptr && InOutMobileBasePassCSMMeshDrawCommands == nullptr);
+		check(CSMMeshPassProcessor == nullptr && InOutCSMMeshDrawCommands == nullptr);
 	}
 
 	if (MaxNumDraws > 0)
@@ -1297,10 +1298,10 @@ void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty()
 		TaskContext.MeshPassProcessor->~FMeshPassProcessor();
 		TaskContext.MeshPassProcessor = nullptr;
 	}
-	if (TaskContext.MobileBasePassCSMMeshPassProcessor)
+	if (TaskContext.CSMMeshPassProcessor)
 	{
-		TaskContext.MobileBasePassCSMMeshPassProcessor->~FMeshPassProcessor();
-		TaskContext.MobileBasePassCSMMeshPassProcessor = nullptr;
+		TaskContext.CSMMeshPassProcessor->~FMeshPassProcessor();
+		TaskContext.CSMMeshPassProcessor = nullptr;
 	}
 
 	if (MaxNumDraws > 0)
@@ -1332,7 +1333,7 @@ void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty()
 	TaskContext.MeshDrawCommandStorage.MeshDrawCommands.Empty();
 	FGraphicsMinimalPipelineStateId::AddSizeToLocalPipelineIdTableSize(TaskContext.MinimalPipelineStatePassSet.GetAllocatedSize());
 	TaskContext.MinimalPipelineStatePassSet.Empty();
-	TaskContext.MobileBasePassCSMMeshDrawCommands.Empty();
+	TaskContext.CSMMeshDrawCommands.Empty();
 	TaskContext.DynamicMeshCommandBuildRequests.Empty();
 	TaskContext.TempVisibleMeshDrawCommands.Empty();
 	TaskContext.PrimitiveIdBufferData = nullptr;

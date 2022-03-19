@@ -60,7 +60,7 @@ public:
 		, bRenderSceneTwoSided(false)
 		, BasePassDepthStencilAccess(FExclusiveDepthStencil::DepthNop_StencilNop)
 		, MeshPassProcessor(nullptr)
-		, MobileBasePassCSMMeshPassProcessor(nullptr)
+		, CSMMeshPassProcessor(nullptr)
 		, DynamicMeshElements(nullptr)
 		, InstanceFactor(1)
 		, NumDynamicMeshElements(0)
@@ -88,7 +88,7 @@ public:
 
 	// Mesh pass processor.
 	FMeshPassProcessor* MeshPassProcessor;
-	FMeshPassProcessor* MobileBasePassCSMMeshPassProcessor;
+	FMeshPassProcessor* CSMMeshPassProcessor;
 	const TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>* DynamicMeshElements;
 	const TArray<FMeshPassMask, SceneRenderingAllocator>* DynamicMeshElementsPassRelevance;
 
@@ -97,7 +97,7 @@ public:
 	int32 NumDynamicMeshElements;
 	int32 NumDynamicMeshCommandBuildRequestElements;
 	FMeshCommandOneFrameArray MeshDrawCommands;
-	FMeshCommandOneFrameArray MobileBasePassCSMMeshDrawCommands;
+	FMeshCommandOneFrameArray CSMMeshDrawCommands;
 	TArray<const FStaticMeshBatch*, SceneRenderingAllocator> DynamicMeshCommandBuildRequests;
 	TArray<const FStaticMeshBatch*, SceneRenderingAllocator> MobileBasePassCSMDynamicMeshCommandBuildRequests;
 	FDynamicMeshDrawCommandStorage MeshDrawCommandStorage;
@@ -154,8 +154,8 @@ public:
 		TArray<const FStaticMeshBatch*, SceneRenderingAllocator>& InOutDynamicMeshCommandBuildRequests,
 		int32 NumDynamicMeshCommandBuildRequestElements,
 		FMeshCommandOneFrameArray& InOutMeshDrawCommands,
-		FMeshPassProcessor* MobileBasePassCSMMeshPassProcessor = nullptr, // Required only for the mobile base pass.
-		FMeshCommandOneFrameArray* InOutMobileBasePassCSMMeshDrawCommands = nullptr // Required only for the mobile base pass.
+		FMeshPassProcessor* CSMMeshPassProcessor = nullptr, // Required only for the mobile base pass.
+		FMeshCommandOneFrameArray* InOutCSMMeshDrawCommands = nullptr // Required only for the mobile base pass.
 	);
 
 	/**

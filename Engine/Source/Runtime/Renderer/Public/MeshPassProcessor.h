@@ -34,6 +34,7 @@ namespace EMeshPass
 		TranslucencyAfterDOF,
 		TranslucencyAfterDOFModulate,
 		TranslucencyAll, /** Drawing all translucency, regardless of separate or standard.  Used when drawing translucency outside of the main renderer, eg FRendererModule::DrawTile. */
+		TranslucencyStandardCSM,
 		LightmapDensity,
 		DebugViewMode, /** Any of EDebugViewShaderMode */
 		CustomDepth,
