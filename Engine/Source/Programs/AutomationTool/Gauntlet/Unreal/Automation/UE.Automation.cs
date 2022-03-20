@@ -423,7 +423,24 @@ namespace UE
 		/// <summary>
 		/// Override the Type
 		/// </summary>
-		public override string Type { get { return "UE.Automation"; } }
+		public override string Type
+		{
+			get
+			{
+				string Base = "UE.Automation";
+				var Config = GetConfiguration();
+				if (Config is AutomationTestConfig)
+				{
+					var AutomationConfig = Config as AutomationTestConfig;
+					if (!string.IsNullOrEmpty(AutomationConfig.RunTest))
+					{
+						return string.Format("{0}({1}) {2}", Base, AutomationConfig.RunTest, Context.BuildInfo.ProjectName);
+					}
+				}
+
+				return string.Format("{0}({1})", Base, Suite);
+			}
+		}
 
 		/// <summary>
 		/// Called when a test is starting

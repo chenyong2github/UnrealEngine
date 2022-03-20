@@ -45,7 +45,7 @@ namespace Gauntlet
 		/// <summary>
 		///Returns an identifier for this type of test
 		/// </summary>
-		public virtual string Type { get { return this.GetType().FullName; } }
+		public virtual string Type { get { return string.Format("{0}({1})", this.GetType().FullName, Suite); } }
 
 		/// <summary>
 		/// This class will log its own warnings and errors as part of its summary
@@ -1327,7 +1327,7 @@ namespace Gauntlet
 				GetCachedConfiguration().HordeTestDataKey = HordeTestDataKey;
 				// Convert test results for Horde
 				HordeReport.AutomatedTestSessionData HordeTestPassResults = HordeReport.AutomatedTestSessionData.FromUnrealAutomatedTests(
-					JsonTestPassResults, string.Format("{0}({1})", Type, Suite), Suite, UnrealAutomatedTestReportPath, HordeArtifactPath
+					JsonTestPassResults, Type, Suite, UnrealAutomatedTestReportPath, HordeArtifactPath
 				);
 				// Make a copy of the report in the old way - until we decide the transition is over
 				HordeReport.UnrealEngineTestPassResults CopyTestPassResults = HordeReport.UnrealEngineTestPassResults.FromUnrealAutomatedTests(JsonTestPassResults, ReportURL);
