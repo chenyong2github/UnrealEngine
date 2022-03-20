@@ -218,8 +218,8 @@ export class TestDataCollection {
     items?: Map<string, TestDataWrapper>;
     itemsByChange?: Map<number, TestDataWrapper[]>;
     cursor?: TestDataWrapper;
-    private nextPageIndex: number = 0;
-    private fetchCount: number = 100;
+    private nextIndex: number = 0;
+    private fetchCount: number = 20;
     private fetchMaxCount: number = 1000;
 
     desactivate() {
@@ -344,13 +344,28 @@ export class TestDataCollection {
             return [];
         }
 
-        if (!this.itemsByChange || this.itemsByChange.size === 1) {
-            await this.queueFetchItems(onFetch, filter, maxCount??this.fetchCount);
-        }
+        await this.fetchCursorHistory(onFetch, filter, maxCount, selector);
 
         const mapper = selector? (items: TestDataWrapper[]) => items.find(selector) as TestDataWrapper : (items: TestDataWrapper[]) => items[0];
 
         return Array.from(this.iterItemsByChange()).map(mapper);
+    }
+
+    async fetchCursorHistory(onFetch?: OnFetchTestData, filter?: string, maxCount?: number, selector?: SelectorTestData) {
+        if (!this.cursor) {
+            return;
+        }
+
+        if (!this.itemsByChange || this.itemsByChange.size === 1) {
+            const key = `cursorHistory-${this.key}`;
+            if(this.isLoading(key)) {
+                await when(() => !this.loadingNotice.has(key));
+                return;
+            }
+            this.acquireLoadingNotice(key);
+            await this.queueFetchItems(onFetch, filter, maxCount??this.fetchCount);
+            this.releaseLoadingNotice(key);
+        }
     }
 
     async queueFetchItems(onFetch?: OnFetchTestData, filter?: string, maxCount? : number) {
@@ -373,7 +388,7 @@ export class TestDataCollection {
             this.items = undefined;
             this.itemsByChange = undefined;
             this.cursor = undefined;
-            this.nextPageIndex = 0;
+            this.nextIndex = 0;
             this.fetchMaxCount = 1000; // the default
             this.releaseAllLoadingNotice();
         }
@@ -407,7 +422,8 @@ export class TestDataCollection {
         const streamId = this.streamId;
         let count = 0;
         try {
-            const pageData = await backend.getTestDataHistory(streamId, key, undefined, this.fetchCount, this.nextPageIndex++, filter);
+            const pageData = await backend.getTestDataHistory(streamId, key, undefined, this.fetchCount, this.nextIndex, filter);
+            this.nextIndex += this.fetchCount; 
 
             // Are we still fetching for the same collection?
             if(key === this.key && streamId === this.streamId) {
