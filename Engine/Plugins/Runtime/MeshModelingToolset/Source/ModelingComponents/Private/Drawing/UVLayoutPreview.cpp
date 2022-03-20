@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Drawing/UVLayoutPreview.h"
+#include "SceneManagement.h"
 #include "ToolSetupUtil.h"
 
 using namespace UE::Geometry;

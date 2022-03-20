@@ -6,6 +6,7 @@
 
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "SceneInterface.h"
 
 using namespace UE::Geometry;
 
