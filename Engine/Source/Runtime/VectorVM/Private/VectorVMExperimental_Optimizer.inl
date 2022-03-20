@@ -666,7 +666,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 													VVMOptimizeWriteRegIndex(3, 1);		\
 													OpPtrIn += 9;
 	FreeVectorVMOptimizeContext(OptContext);
-	if (InBytecode == nullptr || InBytecodeLen == 0)
+	if (InBytecode == nullptr || InBytecodeLen <= 1)
 	{
 		return 0;
 	}

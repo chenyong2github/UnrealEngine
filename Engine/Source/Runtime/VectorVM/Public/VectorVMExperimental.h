@@ -374,11 +374,13 @@ struct FVectorVMBatchState
 	int                       NumInstances;
 
 	VectorRegister4i          RandState[5]; //xorwor state for random/randomi instructions.  DIs use RandomStream.
-	VectorRegister2Int64      RandCounters;
+	VectorRegister4i          RandCounters;
 
 	FRandomStream             RandStream;
 	int                       UseCount;
 };
+
+static_assert((sizeof(FVectorVMBatchState) & 0xF) == 0, "FVectorVMBatchState must be 16 byte aligned");
 
 struct FVectorVMState
 {

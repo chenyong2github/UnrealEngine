@@ -613,7 +613,7 @@ VECTORVM_API FVectorVMState *InitVectorVMState(FVectorVMInitData *InitData, FVec
 
 	{ //compute the number of overhead bytes for this VVM State
 		size_t NumDataSetOutputBytesRequired            = sizeof(volatile long)            * InitData->OptimizeContext->NumOutputDataSets;
-		size_t NumBatchStateBytesRequired               = sizeof(FVectorVMBatchState)      * NumBatches; //this is *NOT* the memory per batch, just the overhead stored in VVMState
+		size_t NumBatchStateBytesRequired               = sizeof(FVectorVMBatchState)      * NumBatches + 16; //this is *NOT* the memory per batch, just the overhead stored in VVMState
 		size_t NumExtFnBytesRequired                    = sizeof(FVectorVMExtFunctionData) * InitData->ExtFunctionTable.Num();
 		NumVVMStateBytesRequired                        = VVM_ALIGN_64(NumDataSetOutputBytesRequired +
 			                                                           NumExtFnBytesRequired +
@@ -682,6 +682,7 @@ VECTORVM_API FVectorVMState *InitVectorVMState(FVectorVMInitData *InitData, FVec
 		}
 		uint8 *StateAfterExtFnPtr = VVMStatePtr;
 		VVMState->NumOutputPerDataSet  = (volatile int32 *)VVMStatePtr;                  IncVVMStatePtr(sizeof(volatile int32) * InitData->OptimizeContext->NumOutputDataSets, 0);
+		VVMStatePtr = (uint8 *)VVM_ALIGN_16(VVMStatePtr);
 		VVMState->BatchStates          = (FVectorVMBatchState *)VVMStatePtr;             IncVVMStatePtr(sizeof(volatile FVectorVMBatchState) * NumBatches, 0);
 		FMemory::Memset(StateAfterExtFnPtr, 0, (size_t)(VVMStatePtr - StateAfterExtFnPtr));
 	}
@@ -857,6 +858,7 @@ static void ExecVVMBatch(FVectorVMState *VVMState, int ExecIdx, FVectorVMSeriali
 		check(false);
 		return;
 	}
+	check((((size_t)BatchState) & 0xF) == 0); //must be 16 byte aligned
 	if (BatchState->RegisterData == nullptr)
 	{
 		check(BatchIdx != 0); //first batch state should have set the pointers in init()
