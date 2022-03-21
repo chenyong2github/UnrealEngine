@@ -164,8 +164,10 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 		const float3 OpticalDepth = ExtinctionCoeff * BehindWaterDeltaDepth;
 		float3 Transmittance = exp(-OpticalDepth);
-		float3 ScatteredLuminance = ScatteringCoeff * (AmbScattLuminance + SunScattLuminance * DirectionalLightShadow);
-		ScatteredLuminance = (ScatteredLuminance - ScatteredLuminance * Transmittance) / ExtinctionCoeffSafe;
+		float3 IncomingLuminance = (AmbScattLuminance + SunScattLuminance * DirectionalLightShadow);
+		// The SafeScatteringAmount should be in 0~1, add saturate to fix an artifact caused by half precision on mobile.
+		float3 SafeScatteringAmount = saturate(ScatteringCoeff * (1.0f - Transmittance) / ExtinctionCoeffSafe);
+		float3 ScatteredLuminance = IncomingLuminance * SafeScatteringAmount;
 
 #else
 		// TODO Make the volumetric shadow part work again
