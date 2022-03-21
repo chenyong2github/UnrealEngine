@@ -5,7 +5,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
-using Horde.Agent;
 using Horde.Agent.Execution.Interfaces;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
@@ -15,7 +14,6 @@ using HordeCommon.Rpc.Messages;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -24,132 +22,134 @@ namespace Horde.Agent.Tests
 	[TestClass]
 	public class WorkerServiceTest
 	{
-		private readonly ILogger<WorkerService> WorkerLogger;
+		private readonly ILogger<WorkerService> _workerLogger;
 
 		public WorkerServiceTest()
 		{
-			WorkerLogger = NullLogger<WorkerService>.Instance;
+			_workerLogger = NullLogger<WorkerService>.Instance;
 		}
 
 		private WorkerService GetWorkerService(
-			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? CreateExecutor = null)
+			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null)
 		{
-			AgentSettings Settings = new AgentSettings();
-			ServerProfile Profile = new ServerProfile();
-			Profile.Name = "test";
-			Profile.Environment = "test-env";
-			Profile.Token = "bogus-token";
-			Profile.Url = "http://localhost";
-			Settings.ServerProfiles.Add(Profile);
-			Settings.Server = "test";
-			Settings.WorkingDir = Path.GetTempPath();
-			Settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
-			IOptions<AgentSettings> SettingsMonitor = new TestOptionsMonitor<AgentSettings>(Settings);
+			AgentSettings settings = new AgentSettings();
+			ServerProfile profile = new ServerProfile();
+			profile.Name = "test";
+			profile.Environment = "test-env";
+			profile.Token = "bogus-token";
+			profile.Url = "http://localhost";
+			settings.ServerProfiles.Add(profile);
+			settings.Server = "test";
+			settings.WorkingDir = Path.GetTempPath();
+			settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
+			IOptions<AgentSettings> settingsMonitor = new TestOptionsMonitor<AgentSettings>(settings);
 
-			return new WorkerService(WorkerLogger, SettingsMonitor, null!, null!, CreateExecutor);
+			return new WorkerService(_workerLogger, settingsMonitor, null!, null!, createExecutor);
 		}
 
 		[TestMethod]
 		public async Task AbortExecuteStepTest()
 		{
-			WorkerService Ws = GetWorkerService();
+			WorkerService ws = GetWorkerService();
 
-			CancellationTokenSource CancelSource = new CancellationTokenSource();
-			CancellationTokenSource StepCancelSource = new CancellationTokenSource();
-			JobStepOutcome StepOutcome;
-			JobStepState StepState;
-
-			IExecutor Executor = new SimpleTestExecutor(async (StepResponse, Logger, CancelToken) =>
 			{
-				CancelSource.CancelAfter(10);
-				await Task.Delay(5000, CancelToken);
-				return JobStepOutcome.Success;
-			});
-			await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => Ws.ExecuteStepAsync(Executor,
-				new BeginStepResponse(), WorkerLogger, CancelSource.Token, StepCancelSource.Token));
+				using CancellationTokenSource cancelSource = new CancellationTokenSource();
+				using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
 
-			CancelSource = new CancellationTokenSource();
-			StepCancelSource = new CancellationTokenSource();
+				IExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
+				{
+					cancelSource.CancelAfter(10);
+					await Task.Delay(5000, cancelToken);
+					return JobStepOutcome.Success;
+				});
+				await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => ws.ExecuteStepAsync(executor,
+					new BeginStepResponse(), _workerLogger, cancelSource.Token, stepCancelSource.Token));
+			}
 
-			Executor = new SimpleTestExecutor(async (StepResponse, Logger, CancelToken) =>
 			{
-				StepCancelSource.CancelAfter(10);
-				await Task.Delay(5000, CancelToken);
-				return JobStepOutcome.Success;
-			});
-			(StepOutcome, StepState) = await Ws.ExecuteStepAsync(Executor, new BeginStepResponse(), WorkerLogger,
-				CancelSource.Token, StepCancelSource.Token);
-			Assert.AreEqual(JobStepOutcome.Failure, StepOutcome);
-			Assert.AreEqual(JobStepState.Aborted, StepState);
+				using CancellationTokenSource cancelSource = new CancellationTokenSource();
+				using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
+
+				IExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
+				{
+					stepCancelSource.CancelAfter(10);
+					await Task.Delay(5000, cancelToken);
+					return JobStepOutcome.Success;
+				});
+				(JobStepOutcome stepOutcome, JobStepState stepState) = await ws.ExecuteStepAsync(executor, new BeginStepResponse(), _workerLogger,
+					cancelSource.Token, stepCancelSource.Token);
+				Assert.AreEqual(JobStepOutcome.Failure, stepOutcome);
+				Assert.AreEqual(JobStepState.Aborted, stepState);
+			}
 		}
 
 		[TestMethod]
 		public async Task AbortExecuteJobTest()
 		{
-			CancellationTokenSource Source = new CancellationTokenSource();
-			CancellationToken Token = Source.Token;
+			using CancellationTokenSource source = new CancellationTokenSource();
+			CancellationToken token = source.Token;
 
-			ExecuteJobTask ExecuteJobTask = new ExecuteJobTask();
-			ExecuteJobTask.JobId = "jobId1";
-			ExecuteJobTask.BatchId = "batchId1";
-			ExecuteJobTask.LogId = "logId1";
-			ExecuteJobTask.JobName = "jobName1";
-			ExecuteJobTask.AutoSdkWorkspace = new AgentWorkspace();
-			ExecuteJobTask.Workspace = new AgentWorkspace();
+			ExecuteJobTask executeJobTask = new ExecuteJobTask();
+			executeJobTask.JobId = "jobId1";
+			executeJobTask.BatchId = "batchId1";
+			executeJobTask.LogId = "logId1";
+			executeJobTask.JobName = "jobName1";
+			executeJobTask.AutoSdkWorkspace = new AgentWorkspace();
+			executeJobTask.Workspace = new AgentWorkspace();
 
-			HordeRpcClientStub Client = new HordeRpcClientStub(WorkerLogger);
-			RpcConnectionStub RpcConnection = new RpcConnectionStub(null!, Client);
+			HordeRpcClientStub client = new HordeRpcClientStub(_workerLogger);
+			RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
 
-			Client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName1", StepId = "stepId1"});
-			Client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName2", StepId = "stepId2"});
-			Client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName3", StepId = "stepId3"});
+			client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName1", StepId = "stepId1"});
+			client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName2", StepId = "stepId2"});
+			client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName3", StepId = "stepId3"});
 
-			GetStepRequest Step2Req = new GetStepRequest(ExecuteJobTask.JobId, ExecuteJobTask.BatchId, "stepId2");
-			GetStepResponse Step2Res = new GetStepResponse(JobStepOutcome.Unspecified, JobStepState.Unspecified, true);
-			Client.GetStepResponses[Step2Req] = Step2Res;
+			GetStepRequest step2Req = new GetStepRequest(executeJobTask.JobId, executeJobTask.BatchId, "stepId2");
+			GetStepResponse step2Res = new GetStepResponse(JobStepOutcome.Unspecified, JobStepState.Unspecified, true);
+			client.GetStepResponses[step2Req] = step2Res;
 
-			IExecutor Executor = new SimpleTestExecutor(async (Step, Logger, CancelToken) =>
+			IExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
 			{
-				await Task.Delay(50, CancelToken);
+				await Task.Delay(50, cancelToken);
 				return JobStepOutcome.Success;
 			});
 
-			WorkerService Ws = GetWorkerService((a, b, c) => Executor);
-			Ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(1);
-			LeaseOutcome Outcome = (await Ws.ExecuteJobAsync(RpcConnection, "agentId1", "leaseId1", ExecuteJobTask,
-				WorkerLogger, Token)).Outcome;
+			WorkerService ws = GetWorkerService((a, b, c) => executor);
+			ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(1);
+			LeaseOutcome outcome = (await ws.ExecuteJobAsync(rpcConnection, "agentId1", "leaseId1", executeJobTask,
+				_workerLogger, token)).Outcome;
 
-			Assert.AreEqual(LeaseOutcome.Success, Outcome);
-			Assert.AreEqual(4, Client.UpdateStepRequests.Count);
+			Assert.AreEqual(LeaseOutcome.Success, outcome);
+			Assert.AreEqual(4, client.UpdateStepRequests.Count);
 			// An extra UpdateStep request is sent by JsonRpcLogger on failures which is why four requests
 			// are returned instead of three.
-			Assert.AreEqual(JobStepOutcome.Success, Client.UpdateStepRequests[0].Outcome);
-			Assert.AreEqual(JobStepState.Completed, Client.UpdateStepRequests[0].State);
-			Assert.AreEqual(JobStepOutcome.Failure, Client.UpdateStepRequests[1].Outcome);
-			Assert.AreEqual(JobStepState.Unspecified, Client.UpdateStepRequests[1].State);
-			Assert.AreEqual(JobStepOutcome.Failure, Client.UpdateStepRequests[2].Outcome);
-			Assert.AreEqual(JobStepState.Aborted, Client.UpdateStepRequests[2].State);
-			Assert.AreEqual(JobStepOutcome.Success, Client.UpdateStepRequests[3].Outcome);
-			Assert.AreEqual(JobStepState.Completed, Client.UpdateStepRequests[3].State);
+			Assert.AreEqual(JobStepOutcome.Success, client.UpdateStepRequests[0].Outcome);
+			Assert.AreEqual(JobStepState.Completed, client.UpdateStepRequests[0].State);
+			Assert.AreEqual(JobStepOutcome.Failure, client.UpdateStepRequests[1].Outcome);
+			Assert.AreEqual(JobStepState.Unspecified, client.UpdateStepRequests[1].State);
+			Assert.AreEqual(JobStepOutcome.Failure, client.UpdateStepRequests[2].Outcome);
+			Assert.AreEqual(JobStepState.Aborted, client.UpdateStepRequests[2].State);
+			Assert.AreEqual(JobStepOutcome.Success, client.UpdateStepRequests[3].Outcome);
+			Assert.AreEqual(JobStepState.Completed, client.UpdateStepRequests[3].State);
 		}
 		
 		[TestMethod]
 		public async Task PollForStepAbortFailureTest()
 		{
-			IExecutor Executor = new SimpleTestExecutor(async (Step, Logger, CancelToken) =>
+			IExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
 			{
-				await Task.Delay(50, CancelToken);
+				await Task.Delay(50, cancelToken);
 				return JobStepOutcome.Success;
 			});
 
-			WorkerService Ws = GetWorkerService((a, b, c) => Executor);
-			Ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(5);
+			WorkerService ws = GetWorkerService((a, b, c) => executor);
+			ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(5);
 			
-			HordeRpcClientStub Client = new HordeRpcClientStub(WorkerLogger);
-			RpcConnectionStub RpcConnection = new RpcConnectionStub(null!, Client);
+			HordeRpcClientStub client = new HordeRpcClientStub(_workerLogger);
+			RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
 
 			int c = 0;
-			Client.GetStepFunc = (Request) =>
+			client._getStepFunc = (request) =>
 			{
 				return ++c switch
 				{
@@ -160,12 +160,12 @@ namespace Horde.Agent.Tests
 				};
 			};
 
-			using CancellationTokenSource StepPollCancelSource = new CancellationTokenSource();
-			using CancellationTokenSource StepCancelSource = new CancellationTokenSource();
-			TaskCompletionSource<bool> StepFinishedSource = new TaskCompletionSource<bool>();
+			using CancellationTokenSource stepPollCancelSource = new CancellationTokenSource();
+			using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
+			TaskCompletionSource<bool> stepFinishedSource = new TaskCompletionSource<bool>();
 
-			await Ws.PollForStepAbort(RpcConnection, "jobId1", "batchId1", "logId1", StepPollCancelSource.Token, StepCancelSource, StepFinishedSource.Task);
-			Assert.IsTrue(StepCancelSource.IsCancellationRequested);
+			await ws.PollForStepAbort(rpcConnection, "jobId1", "batchId1", "logId1", stepPollCancelSource.Token, stepCancelSource, stepFinishedSource.Task);
+			Assert.IsTrue(stepCancelSource.IsCancellationRequested);
 		}
 	}
 }

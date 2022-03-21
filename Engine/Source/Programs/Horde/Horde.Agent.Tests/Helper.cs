@@ -23,7 +23,7 @@ namespace Horde.Agent.Tests
 	{
 		public TestOptionsMonitor(T value)
 		{
-			this.Value = value;
+			Value = value;
 		}
 
 		public T Value { get; }
@@ -35,10 +35,10 @@ namespace Horde.Agent.Tests
 		public HordeRpc.HordeRpcClient Client { get; }
 		public Task DisposingTask { get; }
 
-		public RpcClientRefStub(GrpcChannel Channel, HordeRpc.HordeRpcClient Client)
+		public RpcClientRefStub(GrpcChannel channel, HordeRpc.HordeRpcClient client)
 		{
-			this.Channel = Channel;
-			this.Client = Client;
+			Channel = channel;
+			Client = client;
 			DisposingTask = new TaskCompletionSource<bool>().Task;
 		}
 
@@ -49,48 +49,48 @@ namespace Horde.Agent.Tests
 
 	class RpcConnectionStub : IRpcConnection
 	{
-		private readonly GrpcChannel GrpcChannel;
-		private readonly HordeRpc.HordeRpcClient HordeRpcClient;
+		private readonly GrpcChannel _grpcChannel;
+		private readonly HordeRpc.HordeRpcClient _hordeRpcClient;
 
-		public RpcConnectionStub(GrpcChannel GrpcChannel, HordeRpc.HordeRpcClient HordeRpcClient)
+		public RpcConnectionStub(GrpcChannel grpcChannel, HordeRpc.HordeRpcClient hordeRpcClient)
 		{
-			this.GrpcChannel = GrpcChannel;
-			this.HordeRpcClient = HordeRpcClient;
+			_grpcChannel = grpcChannel;
+			_hordeRpcClient = hordeRpcClient;
 		}
 
-		public IRpcClientRef? TryGetClientRef(RpcContext Context)
+		public IRpcClientRef? TryGetClientRef(RpcContext context)
 		{
-			return new RpcClientRefStub(GrpcChannel, HordeRpcClient);
+			return new RpcClientRefStub(_grpcChannel, _hordeRpcClient);
 		}
 
-		public Task<IRpcClientRef> GetClientRef(RpcContext Context, CancellationToken CancellationToken)
+		public Task<IRpcClientRef> GetClientRef(RpcContext context, CancellationToken cancellationToken)
 		{
-			IRpcClientRef RpcClientRefStub = new RpcClientRefStub(GrpcChannel, HordeRpcClient);
-			return Task.FromResult(RpcClientRefStub);
+			IRpcClientRef rpcClientRefStub = new RpcClientRefStub(_grpcChannel, _hordeRpcClient);
+			return Task.FromResult(rpcClientRefStub);
 		}
 
-		public Task<T> InvokeOnceAsync<T>(Func<HordeRpc.HordeRpcClient, Task<T>> Func, RpcContext Context,
-			CancellationToken CancellationToken)
+		public Task<T> InvokeOnceAsync<T>(Func<HordeRpc.HordeRpcClient, Task<T>> func, RpcContext context,
+			CancellationToken cancellationToken)
 		{
-			return Func(HordeRpcClient);
+			return func(_hordeRpcClient);
 		}
 
-		public Task<T> InvokeOnceAsync<T>(Func<HordeRpc.HordeRpcClient, AsyncUnaryCall<T>> Func, RpcContext Context,
-			CancellationToken CancellationToken)
+		public Task<T> InvokeOnceAsync<T>(Func<HordeRpc.HordeRpcClient, AsyncUnaryCall<T>> func, RpcContext context,
+			CancellationToken cancellationToken)
 		{
-			return Func(HordeRpcClient).ResponseAsync;
+			return func(_hordeRpcClient).ResponseAsync;
 		}
 
-		public Task<T> InvokeAsync<T>(Func<HordeRpc.HordeRpcClient, Task<T>> Func, RpcContext Context,
-			CancellationToken CancellationToken)
+		public Task<T> InvokeAsync<T>(Func<HordeRpc.HordeRpcClient, Task<T>> func, RpcContext context,
+			CancellationToken cancellationToken)
 		{
-			return Func(HordeRpcClient);
+			return func(_hordeRpcClient);
 		}
 
-		public Task<T> InvokeAsync<T>(Func<HordeRpc.HordeRpcClient, AsyncUnaryCall<T>> Func, RpcContext Context,
-			CancellationToken CancellationToken)
+		public Task<T> InvokeAsync<T>(Func<HordeRpc.HordeRpcClient, AsyncUnaryCall<T>> func, RpcContext context,
+			CancellationToken cancellationToken)
 		{
-			return Func(HordeRpcClient).ResponseAsync;
+			return func(_hordeRpcClient).ResponseAsync;
 		}
 
 		public ValueTask DisposeAsync()
@@ -104,127 +104,127 @@ namespace Horde.Agent.Tests
 		public readonly Queue<BeginStepResponse> BeginStepResponses = new Queue<BeginStepResponse>();
 		public readonly List<UpdateStepRequest> UpdateStepRequests = new List<UpdateStepRequest>();
 		public readonly Dictionary<GetStepRequest, GetStepResponse> GetStepResponses = new Dictionary<GetStepRequest, GetStepResponse>();
-		public Func<GetStepRequest, GetStepResponse>? GetStepFunc = null;
-		private readonly ILogger Logger;
+		public Func<GetStepRequest, GetStepResponse>? _getStepFunc = null;
+		private readonly ILogger _logger;
 
-		public HordeRpcClientStub(ILogger Logger)
+		public HordeRpcClientStub(ILogger logger)
 		{
-			this.Logger = Logger;
+			_logger = logger;
 		}
 
-		public override AsyncUnaryCall<BeginBatchResponse> BeginBatchAsync(BeginBatchRequest Request,
-			CallOptions Options)
+		public override AsyncUnaryCall<BeginBatchResponse> BeginBatchAsync(BeginBatchRequest request,
+			CallOptions options)
 		{
-			Logger.LogDebug("HordeRpcClientStub.BeginBatchAsync()");
-			BeginBatchResponse Res = new BeginBatchResponse();
+			_logger.LogDebug("HordeRpcClientStub.BeginBatchAsync()");
+			BeginBatchResponse res = new BeginBatchResponse();
 
-			Res.AgentType = "agentType1";
-			Res.LogId = "logId1";
+			res.AgentType = "agentType1";
+			res.LogId = "logId1";
 
-			return Wrap(Res);
+			return Wrap(res);
 		}
 
-		public override AsyncUnaryCall<Empty> FinishBatchAsync(FinishBatchRequest Request, CallOptions Options)
+		public override AsyncUnaryCall<Empty> FinishBatchAsync(FinishBatchRequest request, CallOptions options)
 		{
-			Empty Res = new Empty();
-			return Wrap(Res);
+			Empty res = new Empty();
+			return Wrap(res);
 		}
 
-		public override AsyncUnaryCall<GetStreamResponse> GetStreamAsync(GetStreamRequest Request, CallOptions Options)
+		public override AsyncUnaryCall<GetStreamResponse> GetStreamAsync(GetStreamRequest request, CallOptions options)
 		{
-			GetStreamResponse Res = new GetStreamResponse();
-			return Wrap(Res);
+			GetStreamResponse res = new GetStreamResponse();
+			return Wrap(res);
 		}
 
-		public override AsyncUnaryCall<GetJobResponse> GetJobAsync(GetJobRequest Request, CallOptions Options)
+		public override AsyncUnaryCall<GetJobResponse> GetJobAsync(GetJobRequest request, CallOptions options)
 		{
-			GetJobResponse Res = new GetJobResponse();
-			return Wrap(Res);
+			GetJobResponse res = new GetJobResponse();
+			return Wrap(res);
 		}
 
-		public override AsyncUnaryCall<BeginStepResponse> BeginStepAsync(BeginStepRequest Request, CallOptions Options)
+		public override AsyncUnaryCall<BeginStepResponse> BeginStepAsync(BeginStepRequest request, CallOptions options)
 		{
 			if (BeginStepResponses.Count == 0)
 			{
-				BeginStepResponse CompleteRes = new BeginStepResponse();
-				CompleteRes.State = BeginStepResponse.Types.Result.Complete;
-				return Wrap(CompleteRes);
+				BeginStepResponse completeRes = new BeginStepResponse();
+				completeRes.State = BeginStepResponse.Types.Result.Complete;
+				return Wrap(completeRes);
 			}
 
-			BeginStepResponse Res = BeginStepResponses.Dequeue();
-			Res.State = BeginStepResponse.Types.Result.Ready;
-			return Wrap(Res);
+			BeginStepResponse res = BeginStepResponses.Dequeue();
+			res.State = BeginStepResponse.Types.Result.Ready;
+			return Wrap(res);
 		}
 
-		public override AsyncUnaryCall<Empty> WriteOutputAsync(WriteOutputRequest Request, CallOptions Options)
+		public override AsyncUnaryCall<Empty> WriteOutputAsync(WriteOutputRequest request, CallOptions options)
 		{
-			Logger.LogDebug("WriteOutputAsync: " + Request.Data);
-			Empty Res = new Empty();
-			return Wrap(Res);
+			_logger.LogDebug("WriteOutputAsync: " + request.Data);
+			Empty res = new Empty();
+			return Wrap(res);
 		}
 
-		public override AsyncUnaryCall<Empty> UpdateStepAsync(UpdateStepRequest Request, CallOptions Options)
+		public override AsyncUnaryCall<Empty> UpdateStepAsync(UpdateStepRequest request, CallOptions options)
 		{
-			Logger.LogDebug($"UpdateStepAsync(Request: {Request})");
-			UpdateStepRequests.Add(Request);
-			Empty Res = new Empty();
-			return Wrap(Res);
+			_logger.LogDebug($"UpdateStepAsync(Request: {request})");
+			UpdateStepRequests.Add(request);
+			Empty res = new Empty();
+			return Wrap(res);
 		}
 
-		public override AsyncUnaryCall<Empty> CreateEventsAsync(CreateEventsRequest Request, CallOptions Options)
+		public override AsyncUnaryCall<Empty> CreateEventsAsync(CreateEventsRequest request, CallOptions options)
 		{
-			Logger.LogDebug("CreateEventsAsync: " + Request);
-			Empty Res = new Empty();
-			return Wrap(Res);
+			_logger.LogDebug("CreateEventsAsync: " + request);
+			Empty res = new Empty();
+			return Wrap(res);
 		}
 
-		public override AsyncUnaryCall<GetStepResponse> GetStepAsync(GetStepRequest Request, CallOptions Options)
+		public override AsyncUnaryCall<GetStepResponse> GetStepAsync(GetStepRequest request, CallOptions options)
 		{
-			if (GetStepFunc != null)
+			if (_getStepFunc != null)
 			{
-				return Wrap(GetStepFunc(Request));
+				return Wrap(_getStepFunc(request));
 			}
 		
-			if (GetStepResponses.TryGetValue(Request, out GetStepResponse? Res))
+			if (GetStepResponses.TryGetValue(request, out GetStepResponse? res))
 			{
-				return Wrap(Res);
+				return Wrap(res);
 			}
 			
 			return Wrap(new GetStepResponse());
 		}
 
-		private AsyncUnaryCall<T> Wrap<T>(T Res)
+		private AsyncUnaryCall<T> Wrap<T>(T res)
 		{
-			return new AsyncUnaryCall<T>(Task.FromResult(Res), Task.FromResult(Metadata.Empty),
+			return new AsyncUnaryCall<T>(Task.FromResult(res), Task.FromResult(Metadata.Empty),
 				() => Status.DefaultSuccess, () => Metadata.Empty, null!);
 		}
 	}
 
 	class SimpleTestExecutor : IExecutor
 	{
-		private Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> Func;
+		private readonly Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> _func;
 
-		public SimpleTestExecutor(Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> Func)
+		public SimpleTestExecutor(Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> func)
 		{
-			this.Func = Func;
+			_func = func;
 		}
 
-		public Task InitializeAsync(ILogger Logger, CancellationToken CancellationToken)
+		public Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
-			Logger.LogDebug("SimpleTestExecutor.InitializeAsync()");
+			logger.LogDebug("SimpleTestExecutor.InitializeAsync()");
 			return Task.CompletedTask;
 		}
 
-		public Task<JobStepOutcome> RunAsync(BeginStepResponse Step, ILogger Logger,
-			CancellationToken CancellationToken)
+		public Task<JobStepOutcome> RunAsync(BeginStepResponse step, ILogger logger,
+			CancellationToken cancellationToken)
 		{
-			Logger.LogDebug($"SimpleTestExecutor.RunAsync(Step: {Step})");
-			return Func(Step, Logger, CancellationToken);
+			logger.LogDebug($"SimpleTestExecutor.RunAsync(Step: {step})");
+			return _func(step, logger, cancellationToken);
 		}
 
-		public Task FinalizeAsync(ILogger Logger, CancellationToken CancellationToken)
+		public Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
-			Logger.LogDebug("SimpleTestExecutor.FinalizeAsync()");
+			logger.LogDebug("SimpleTestExecutor.FinalizeAsync()");
 			return Task.CompletedTask;
 		}
 	}

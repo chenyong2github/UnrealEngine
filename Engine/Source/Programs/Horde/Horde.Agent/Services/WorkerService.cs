@@ -789,7 +789,7 @@ namespace Horde.Agent.Services
 			if (leaseInfo.Lease.Payload.TryUnpack(out shutdownTask))
 			{
 				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Shutdown");
-				Task<LeaseResult> Handler(ILogger newLogger) => ShutdownAsync(rpcConnection, agentId, shutdownTask, newLogger, leaseInfo.CancellationTokenSource.Token);
+				Task<LeaseResult> Handler(ILogger newLogger) => ShutdownAsync(newLogger);
 				return await HandleLeasePayloadWithLogAsync(rpcConnection, shutdownTask.LogId, null, null, Handler, leaseInfo.CancellationTokenSource.Token);
 			}
 
@@ -797,7 +797,7 @@ namespace Horde.Agent.Services
 			if (leaseInfo.Lease.Payload.TryUnpack(out restartTask))
 			{
 				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Restart");
-				Task<LeaseResult> Handler(ILogger newLogger) => RestartAsync(rpcConnection, agentId, restartTask, newLogger, leaseInfo.CancellationTokenSource.Token);
+				Task<LeaseResult> Handler(ILogger newLogger) => RestartAsync(newLogger);
 				return await HandleLeasePayloadWithLogAsync(rpcConnection, restartTask.LogId, null, null, Handler, leaseInfo.CancellationTokenSource.Token);
 			}
 
@@ -1440,13 +1440,9 @@ namespace Horde.Agent.Services
 		/// <summary>
 		/// Check for an update of the agent software
 		/// </summary>
-		/// <param name="rpcClient">RPC client for communicating with the server</param>
-		/// <param name="agentId">The current agent id</param>
-		/// <param name="restartTask">The restart task parameters</param>
 		/// <param name="logger">Logging device</param>
-		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Outcome of this operation</returns>
-		Task<LeaseResult> RestartAsync(IRpcConnection rpcClient, string agentId, RestartTask restartTask, ILogger logger, CancellationToken cancellationToken)
+		Task<LeaseResult> RestartAsync(ILogger logger)
 		{
 			logger.LogInformation("Setting restart flag");
 			_requestShutdown = true;
@@ -1457,13 +1453,9 @@ namespace Horde.Agent.Services
 		/// <summary>
 		/// Shutdown the agent
 		/// </summary>
-		/// <param name="rpcClient">RPC client for communicating with the server</param>
-		/// <param name="agentId">The current agent id</param>
-		/// <param name="shutdownTask">The restart task parameters</param>
 		/// <param name="logger">Logging device</param>
-		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Outcome of this operation</returns>
-		Task<LeaseResult> ShutdownAsync(IRpcConnection rpcClient, string agentId, ShutdownTask shutdownTask, ILogger logger, CancellationToken cancellationToken)
+		Task<LeaseResult> ShutdownAsync(ILogger logger)
 		{
 			logger.LogInformation("Setting shutdown flag");
 			_requestShutdown = true;
