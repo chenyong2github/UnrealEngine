@@ -662,6 +662,9 @@ export type GetAgentResponse = {
 	/** Whether agent is pending conform */
 	pendingConform: boolean;
 
+	/** Whether a full conform job is pending */
+	pendingFullConform: boolean;
+
 	/** Conform attempt count */
 	conformAttemptCount?: number;
 
