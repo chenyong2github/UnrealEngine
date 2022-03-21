@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using Horde.Build.Acls;
 using Horde.Build.Api;
@@ -192,7 +192,11 @@ namespace Horde.Build.Controllers
 				}
 				if (Agent.RequestConform != NewAgent.RequestConform)
 				{
-					Logger.LogInformation("Setting changed: RequestConfig = {State} ({UserName})", NewAgent.RequestConform, UserName);
+					Logger.LogInformation("Setting changed: RequestConform = {State} ({UserName})", NewAgent.RequestConform, UserName);
+				}
+				if (Agent.RequestFullConform != NewAgent.RequestFullConform)
+				{
+					Logger.LogInformation("Setting changed: RequestFullConform = {State} ({UserName})", NewAgent.RequestFullConform, UserName);
 				}
 				if (Agent.RequestRestart != NewAgent.RequestRestart)
 				{

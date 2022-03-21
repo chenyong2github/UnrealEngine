@@ -165,18 +165,16 @@ namespace Horde.Build.Tasks.Impl
 				if (await GetWorkspacesAsync(Agent, Task.Workspaces))
 				{
 					LeaseId LeaseId = LeaseId.GenerateNewId();
-					if (!await AllocateConformLeaseAsync(Agent.Id, Task.Workspaces, LeaseId))
+					if (await AllocateConformLeaseAsync(Agent.Id, Task.Workspaces, LeaseId))
 					{
-						return null;
+						ILogFile Log = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
+						Task.LogId = Log.Id.ToString();
+						Task.RemoveUntrackedFiles = Agent.RequestFullConform;
+
+						byte[] Payload = Any.Pack(Task).ToByteArray();
+
+						return new AgentLease(LeaseId, "Updating workspaces", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
 					}
-
-					ILogFile Log = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
-					Task.LogId = Log.Id.ToString();
-					Task.RemoveUntrackedFiles = Agent.RequestFullConform;
-
-					byte[] Payload = Any.Pack(Task).ToByteArray();
-
-					return new AgentLease(LeaseId, "Updating workspaces", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
 				}
 			}
 
@@ -186,6 +184,12 @@ namespace Horde.Build.Tasks.Impl
 			}
 
 			return null;
+		}
+
+		/// <inheritdoc/>
+		public override Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, ConformTask Payload)
+		{
+			return ReleaseConformLeaseAsync(LeaseId);
 		}
 
 		/// <inheritdoc/>
