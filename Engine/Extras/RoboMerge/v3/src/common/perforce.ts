@@ -1334,7 +1334,7 @@ export class PerforceContext {
 			args = ['-p', opts.edgeServerAddress, ...args]
 		}
 
-		args = ['-zprog=robomerge', '-zversion=' + robomergeVersion, ...args]
+		args = ['-zprog=robomerge', '-zversion=' + robomergeVersion, '-zmaxscanrows=200000000', ...args]
 
 		// log what we're running
 		let cmd_rec = new CommandRecord('p4 ' + args.join(' '));
