@@ -190,7 +190,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if SHADER_TILE_PREPARE_ARGS
+#if SHADER_MATERIAL_TILE_PREPARE_ARGS
 
 Buffer<uint>   TileDrawIndirectDataBuffer;
 RWBuffer<uint> TileDispatchIndirectDataBuffer;
@@ -220,7 +220,29 @@ void ArgsMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 
-#endif // SHADER_TILE_PREPARE_ARGS
+#endif // SHADER_MATERIAL_TILE_PREPARE_ARGS
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_BSDF_TILE_PREPARE_ARGS
+
+uint2 TileCount_Primary;
+Buffer<uint>   TileDrawIndirectDataBuffer;
+RWBuffer<uint> TileDispatchIndirectDataBuffer;
+
+[numthreads(1, 1, 1)]
+void ArgsMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (all(DispatchThreadId == 0))
+	{
+		const uint TileCount = TileDrawIndirectDataBuffer[0].x;
+		TileDispatchIndirectDataBuffer[0] = TileCount >= TileCount_Primary.x ? TileCount_Primary.x : TileCount % TileCount_Primary.x;
+		TileDispatchIndirectDataBuffer[1] = (TileCount + TileCount_Primary.x-1) / TileCount_Primary.x;
+		TileDispatchIndirectDataBuffer[2] = 1;
+	}
+}
+
+#endif // SHADER_BSDF_TILE_PREPARE_ARGS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -276,6 +298,11 @@ RWBuffer<uint>    RWBSDFTileCountBuffer;
 #if !PERMUTATION_WAVE_OPS
 groupshared uint s_TileBSDFCount[GROUP_THREAD_COUNT];
 #endif
+
+uint2 WrapCoord(uint InLinear)
+{
+	return uint2(InLinear % TileCount_Primary.x, InLinear / TileCount_Primary.x + TileCount_Primary.y);
+}
 
 [numthreads(STRATA_TILE_SIZE, STRATA_TILE_SIZE, 1)]
 void BSDFTileMainCS(uint2 GroupThreadId : SV_GroupThreadID, uint2 GroupId : SV_GroupID, uint LinearIndex : SV_GroupIndex)
@@ -357,16 +384,17 @@ void BSDFTileMainCS(uint2 GroupThreadId : SV_GroupThreadID, uint2 GroupId : SV_G
 			Tile.Index = 0;
 
 			// For first/parent tile, set TileCoord to point towards the first 'overflow' tile
-			Tile.TileCoord = uint2(LinearTileCoord % TileCount_Primary.x, TileCount_Primary.y + LinearTileCoord / TileCount_Primary.y);
+			Tile.TileCoord = WrapCoord(LinearTileCoord);
 			RWBSDFTileTexture[TileCoord] = PackBSDFTile(Tile);
 
 			// For 'overflow' tiles, set TileCoord to point towards the first/parent tile
 			Tile.TileCoord = TileCoord;
-
 			for (uint BSDFIndex = 1; BSDFIndex < TileBSDFCount; ++BSDFIndex)
 			{
+				const uint2 OverflowCoord = WrapCoord(LinearTileCoord + BSDFIndex - 1);
+
 				Tile.Index = BSDFIndex;
-				RWBSDFTileTexture[Tile.TileCoord] = PackBSDFTile(Tile);
+				RWBSDFTileTexture[OverflowCoord] = PackBSDFTile(Tile);
 			}
 		}
 		else

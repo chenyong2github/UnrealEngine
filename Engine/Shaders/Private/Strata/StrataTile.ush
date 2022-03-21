@@ -57,7 +57,7 @@ struct FStrataBSDFTile
 uint PackBSDFTile(FStrataBSDFTile In)
 {
 	// Tile coord are encoded onto 10bits. Max resolution 8k x 8k. Max 8 tiles.
-	return (In.TileCoord.x & 0x3FF) | ((In.TileCoord.y & 0x3FF) << 10) | ((In.Index & 0x7) << 20) | ((In.Index & 0x7) << 23);
+	return (In.TileCoord.x & 0x3FF) | ((In.TileCoord.y & 0x3FF) << 10) | ((In.Index & 0x7) << 20) | ((In.Count & 0x7) << 23);
 }
 
 FStrataBSDFTile UnpackBSDFTile(uint In)

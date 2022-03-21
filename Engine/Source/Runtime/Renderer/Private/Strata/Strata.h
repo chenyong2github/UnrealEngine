@@ -98,6 +98,7 @@ struct FStrataSceneData
 
 	FRDGTextureRef BSDFOffsetTexture;
 	FRDGTextureRef BSDFTileTexture;
+	FRDGBufferRef  BSDFTileDispatchIndirectBuffer;
 
 	// Used when the subsurface luminance is separated from the scene color
 	FRDGTextureRef SeparatedSubSurfaceSceneColor;
