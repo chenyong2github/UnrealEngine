@@ -2,8 +2,10 @@
 
 #include "DisplayClusterLightCardActor.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
 
 ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitializer& ObjectInitializer)
