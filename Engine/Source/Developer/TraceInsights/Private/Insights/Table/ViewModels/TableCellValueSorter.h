@@ -153,6 +153,8 @@ class FSorterByTextValue : public FBaseTableColumnSorter
 {
 public:
 	FSorterByTextValue(TSharedRef<FTableColumn> InColumnRef);
+
+	virtual void Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
