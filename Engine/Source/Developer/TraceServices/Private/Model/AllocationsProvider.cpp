@@ -2,16 +2,16 @@
 
 #include "AllocationsProvider.h"
 
+#include <limits>
+
 #include "AllocationsQuery.h"
 #include "SbTree.h"
-#include "Algo/ForEach.h"
 #include "Common/Utils.h"
 #include "Containers/ArrayView.h"
+#include "Misc/PathViews.h"
 #include "ProfilingDebugging/MemoryTrace.h"
 #include "TraceServices/Containers/Allocators.h"
 #include "TraceServices/Model/Callstack.h"
-
-#include <limits>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -122,14 +122,76 @@ void FAllocationsProviderLock::EndWrite()
 // FTagTracker
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FTagTracker::FTagTracker(IAnalysisSession& InSession)
+	: Session(InSession)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTagTracker::AddTagSpec(TagIdType InTag, TagIdType InParentTag, const TCHAR* InDisplay)
 {
 	if (ensure(!TagMap.Contains(InTag)))
 	{
-		TagMap.Emplace(InTag, TagEntry{ InDisplay, InParentTag });
+		FStringView Display(InDisplay);
+		FString DisplayName;
+		TStringBuilder<128> FullName;
+		if (Display.Contains(TEXT("/")))
+		{
+			DisplayName = FPathViews::GetPathLeaf(Display);
+			FullName = Display;
+			// It is possible to define a child tag in runtime using only a string, even if the parent tag does not yet
+			// exist. We need to find the correct parent or store it to the side until the parent tag is announced.
+			if (InParentTag == ~0)
+			{
+				const FStringView Parent = FPathViews::GetPathLeaf(FPathViews::GetPath(Display));
+				for (auto EntryPair : TagMap)
+				{
+					const auto Entry = EntryPair.Get<1>();
+					const uint32 Id = EntryPair.Get<0>();
+					if (Parent.Equals(Entry.Display))
+					{
+						InParentTag = Id;
+						break;
+					}
+				}
+				// If parent tag is still unknown here, create a temporary entry here
+				if (InParentTag == ~0)
+				{
+					PendingTags.Emplace(InTag, Parent);
+				}
+			}
+		}
+		else
+		{
+			DisplayName = Display;
+			BuildTagPath(FullName, Display, InParentTag);
+		}
+
+		const FTagEntry& Entry = TagMap.Emplace(InTag, FTagEntry{
+			Session.StoreString(DisplayName),
+			Session.StoreString(FullName.ToString()),
+			InParentTag
+		});
+
+		// Check if this new tag has been referenced before by a child tag
+		for (auto Pending : PendingTags)
+		{
+			const FString& Name = Pending.Get<1>();
+			const TagIdType ReferencingId = Pending.Get<0>();
+			if (Name.Equals(DisplayName))
+			{
+				TagMap[ReferencingId].ParentTag = InTag;
+			}
+		}
+		
 		if (!InDisplay || *InDisplay == TEXT('\0'))
 		{
 			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Tag with id %u has invalid display name (ParentTag=%u)!"), InTag, InParentTag);
+		}
+		else
+		{
+			UE_LOG(LogTraceServices, Verbose, TEXT("[MemAlloc] Added Tag '%s' ('%s')"), Entry.Display, Entry.FullPath);
 		}
 	}
 	else
@@ -144,10 +206,22 @@ void FTagTracker::AddTagSpec(TagIdType InTag, TagIdType InParentTag, const TCHAR
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTagTracker::BuildTagPath(FStringBuilderBase& OutString, FStringView Name, TagIdType ParentTagId)
+{
+	if (const FTagEntry* ParentEntry = TagMap.Find(ParentTagId))
+	{
+		BuildTagPath(OutString, ParentEntry->Display, ParentEntry->ParentTag);
+		OutString << TEXT("/");
+	}
+	OutString << Name;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTagTracker::PushTag(uint32 InThreadId, uint8 InTracker, TagIdType InTag)
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
-	ThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
+	FThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
 	State.TagStack.Push(InTag);
 }
 
@@ -156,7 +230,7 @@ void FTagTracker::PushTag(uint32 InThreadId, uint8 InTracker, TagIdType InTag)
 void FTagTracker::PopTag(uint32 InThreadId, uint8 InTracker)
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
-	ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	FThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
 	if (State && !State->TagStack.IsEmpty())
 	{
 		INSIGHTS_SLOW_CHECK((State->TagStack.Top() & 0x80000000) == 0);
@@ -177,7 +251,7 @@ void FTagTracker::PopTag(uint32 InThreadId, uint8 InTracker)
 TagIdType FTagTracker::GetCurrentTag(uint32 InThreadId, uint8 InTracker) const
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
-	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	const FThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
 	if (!State || State->TagStack.IsEmpty())
 	{
 		return 0; // Untagged
@@ -189,8 +263,20 @@ TagIdType FTagTracker::GetCurrentTag(uint32 InThreadId, uint8 InTracker) const
 
 const TCHAR* FTagTracker::GetTagString(TagIdType InTag) const
 {
-	const TagEntry* Entry = TagMap.Find(InTag);
+	const FTagEntry* Entry = TagMap.Find(InTag);
 	return Entry ? Entry->Display : TEXT("Unknown");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTagTracker::EnumerateTags(TFunctionRef<void (const TCHAR*, const TCHAR*, TagIdType, TagIdType)> Callback) const
+{
+	for(const auto& EntryPair : TagMap)
+	{
+		const TagIdType Id = EntryPair.Get<0>();
+		const FTagEntry& Entry = EntryPair.Get<1>();
+		Callback(Entry.Display, Entry.FullPath, Id, Entry.ParentTag);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -198,7 +284,7 @@ const TCHAR* FTagTracker::GetTagString(TagIdType InTag) const
 void FTagTracker::PushTagFromPtr(uint32 InThreadId, uint8 InTracker, TagIdType InTag)
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
-	ThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
+	FThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
 	State.TagStack.Push(InTag | PtrTagMask);
 }
 
@@ -207,7 +293,7 @@ void FTagTracker::PushTagFromPtr(uint32 InThreadId, uint8 InTracker, TagIdType I
 void FTagTracker::PopTagFromPtr(uint32 InThreadId, uint8 InTracker)
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
-	ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	FThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
 	if (State && !State->TagStack.IsEmpty())
 	{
 		INSIGHTS_SLOW_CHECK((State->TagStack.Top() & PtrTagMask) != 0);
@@ -228,7 +314,7 @@ void FTagTracker::PopTagFromPtr(uint32 InThreadId, uint8 InTracker)
 bool FTagTracker::HasTagFromPtrScope(uint32 InThreadId, uint8 InTracker) const
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
-	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
+	const FThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
 	return State && (State->TagStack.Num() > 0) && ((State->TagStack.Top() & PtrTagMask) != 0);
 }
 
@@ -1029,6 +1115,7 @@ void FLiveAllocCollection::Enumerate(TFunctionRef<void(const FAllocationItem& Al
 
 FAllocationsProvider::FAllocationsProvider(IAnalysisSession& InSession)
 	: Session(InSession)
+	, TagTracker(InSession)
 	, Timeline(Session.GetLinearAllocator(), 1024)
 	, MinTotalAllocatedMemoryTimeline(Session.GetLinearAllocator(), 1024)
 	, MaxTotalAllocatedMemoryTimeline(Session.GetLinearAllocator(), 1024)
@@ -1934,6 +2021,13 @@ void FAllocationsProvider::EnumerateFreeEventsTimeline(int32 StartIndex, int32 E
 			Callback(PrevTime, std::numeric_limits<double>::infinity(), PrevValue);
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAllocationsProvider::EnumerateTags(TFunctionRef<void(const TCHAR*, const TCHAR*, TagIdType, TagIdType)> Callback) const
+{
+	TagTracker.EnumerateTags(Callback);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

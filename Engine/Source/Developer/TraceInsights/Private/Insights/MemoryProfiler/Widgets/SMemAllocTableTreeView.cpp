@@ -24,6 +24,7 @@
 #include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByCallstack.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByHeap.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingBySize.h"
+#include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByTag.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocTable.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
@@ -363,6 +364,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Address = Allocation->GetAddress();
 					Alloc.Size = int64(Allocation->GetSize());
 					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
+					Alloc.TagId = Allocation->GetTag();
 					if (CallstacksProvider)
 					{
 						Alloc.Callstack = CallstacksProvider->GetCallstack(Allocation->GetCallstackId());
@@ -746,8 +748,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 			const TSharedPtr<FTreeNodeGrouping>* TagGrouping = InAvailableGroupings.FindByPredicate(
 				[](TSharedPtr<FTreeNodeGrouping>& Grouping)
 				{
-					return Grouping->Is<FTreeNodeGroupingByUniqueValue>() &&
-						   Grouping->As<FTreeNodeGroupingByUniqueValue>().GetColumnId() == FMemAllocTableColumns::TagColumnId;
+					return Grouping->Is<FMemAllocGroupingByTag>();
 				});
 			if (TagGrouping)
 			{
@@ -1091,6 +1092,7 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 		if (AllocationsProvider)
 		{
 			AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByHeap>(*AllocationsProvider), Index++);
+			AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByTag>(*AllocationsProvider), Index++);
 		}
 	}
 }

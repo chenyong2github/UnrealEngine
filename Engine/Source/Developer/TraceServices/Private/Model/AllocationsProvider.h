@@ -43,23 +43,26 @@ private:
 	static constexpr uint32 TrackerIdMask = 0xFF000000;
 	static constexpr uint32 PtrTagMask = 0x80000000;
 
-	struct ThreadState
+	struct FThreadState
 	{
 		TArray<TagIdType> TagStack;
 	};
 
-	struct TagEntry
+	struct FTagEntry
 	{
 		const TCHAR* Display;
+		const TCHAR* FullPath;
 		TagIdType ParentTag;
 	};
 
 public:
+	explicit FTagTracker(IAnalysisSession& Session);
 	void AddTagSpec(TagIdType Tag, TagIdType ParentTag, const TCHAR* Display);
 	void PushTag(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
 	void PopTag(uint32 ThreadId, uint8 Tracker);
 	TagIdType GetCurrentTag(uint32 ThreadId, uint8 Tracker) const;
 	const TCHAR* GetTagString(TagIdType Tag) const;
+	void EnumerateTags(TFunctionRef<void(const TCHAR*, const TCHAR*, TagIdType, TagIdType)> Callback) const;
 
 	void PushTagFromPtr(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
 	void PopTagFromPtr(uint32 ThreadId, uint8 Tracker);
@@ -68,13 +71,16 @@ public:
 	uint32 GetNumErrors() const { return NumErrors; }
 
 private:
-	inline uint32 GetTrackerThreadId(uint32 ThreadId, uint8 Tracker) const
+	void BuildTagPath(FStringBuilderBase& OutString, FStringView Name, TagIdType ParentTagId);
+	static inline uint32 GetTrackerThreadId(uint32 ThreadId, uint8 Tracker)
 	{
 		return (Tracker << TrackerIdShift) | (~TrackerIdMask & ThreadId);
 	}
 
-	TMap<uint32, ThreadState> TrackerThreadStates;
-	TMap<TagIdType, TagEntry> TagMap;
+	IAnalysisSession& Session;
+	TMap<uint32, FThreadState> TrackerThreadStates;
+	TMap<TagIdType, FTagEntry> TagMap;
+	TArray<TTuple<TagIdType, FString>> PendingTags;
 	uint32 NumErrors = 0;
 };
 
@@ -330,6 +336,7 @@ public:
 	virtual void EnumerateMaxLiveAllocationsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const override;
 	virtual void EnumerateAllocEventsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const override;
 	virtual void EnumerateFreeEventsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const override;
+	virtual void EnumerateTags(TFunctionRef<void(const TCHAR*, const TCHAR*, TagIdType, TagIdType)> Callback) const override;
 
 	virtual FQueryHandle StartQuery(const FQueryParams& Params) const override;
 	virtual void CancelQuery(FQueryHandle Query) const override;

@@ -30,6 +30,7 @@ public:
 	uint64 GetPage() const { return Address & ~(4llu*1024-1); }
 	int64 GetSize() const { return Size; }
 	const TCHAR* GetTag() const { return Tag; }
+	TraceServices::TagIdType GetTagId() const { return TagId; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }
 	FText GetFullCallstack() const;
 	HeapId GetRootHeap() const { return RootHeap; };
@@ -42,6 +43,7 @@ private:
 	uint64 Address;
 	int64 Size;
 	const TCHAR* Tag;
+	TraceServices::TagIdType TagId;
 	const TraceServices::FCallstack* Callstack;
 	const TraceServices::FCallstack* FreeCallstack;
 	HeapId RootHeap;
