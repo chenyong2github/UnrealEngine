@@ -34,16 +34,6 @@ const FColor FColor::Turquoise(26, 188, 156);
 const FColor FColor::Silver(189, 195, 199);
 const FColor FColor::Emerald(46, 204, 113);
 
-// FLinearColor(FColor) does sRGB -> Linear conversion.
-// to get direct conversion use ReinterpretAsLinear
-FLinearColor::FLinearColor(const FColor& Color)
-{
-	R = sRGBToLinearTable[Color.R];
-	G = sRGBToLinearTable[Color.G];
-	B =	sRGBToLinearTable[Color.B];
-	A =	float(Color.A) * (1.0f / 255.0f);
-}
-
 FLinearColor::FLinearColor(const FVector3f& Vector) :
 	R(Vector.X),
 	G(Vector.Y),
@@ -86,16 +76,6 @@ FLinearColor FLinearColor::FromPow22Color(const FColor& Color)
 	LinearColor.A =	float(Color.A) * (1.0f / 255.0f);
 
 	return LinearColor;
-}
-
-// For pixel format conversions. Clamps to [0,1], but for consistency with
-// GPU conversions, also define behavior for NaNs and make them map to 0.
-static inline float Clamp01(float Value)
-{
-	// Write this explicitly instead of using FMath::Clamp so we have
-	// control over what happens with NaNs.
-	const float ClampedLo = (Value > 0.0f) ? Value : 0.0f; // Also turns NaNs into 0.
-	return (ClampedLo < 1.0f) ? ClampedLo : 1.0f;
 }
 
 /**
@@ -192,51 +172,113 @@ static uint8 stbir__linear_to_srgb_uchar_fast(float in)
     return (uint8) ((bias + scale*t) >> 16);
 }
 
+#if PLATFORM_CPU_X86_FAMILY
+
+static FColor ConvertLinearToSRGBSSE2(const FLinearColor& InColor)
+{
+	const VectorRegister4Float InRGBA = VectorLoad(&InColor.Component(0));
+
+	// Clamp to [2^(-13), 1-eps]; these two values map to 0 and 1, respectively.
+	// This clamping logic is carefully written so that NaNs map to 0.
+	//
+	// We do this clamping on all four color channels, even though we later handle
+	// A differently; this does not change the results for A: 2^(-13) rounds to 0 in
+	// U8, and 1-eps rounds to 255 in U8, so these are OK endpoints to use.
+	const VectorRegister4Float AlmostOne = VectorCastIntToFloat(VectorIntSet1(0x3f7fffff)); // 1-eps
+	const VectorRegister4Int MinValInt = VectorIntSet1((127 - 13) << 23);
+	const VectorRegister4Float MinValFlt = VectorCastIntToFloat(MinValInt);
+
+	const VectorRegister4Float InClamped = VectorMin(VectorMax(InRGBA, MinValFlt), AlmostOne);
+
+	// Set up for the table lookup
+	// This computes a 3-vector of table indices. The above clamping
+	// ensures that the values in question are in [0,13*8-1]=[0,103].
+	const VectorRegister4Int TabIndexVec = _mm_srli_epi32(_mm_sub_epi32(_mm_castps_si128(InClamped), MinValInt), 20);
+
+	// Do the 4 table lookups with regular loads. We can use PEXTRW (SSE2)
+	// to grab the 3 indices from lanes 1-3, lane 0 we can just get via MOVD.
+	// The latter gives us a full 32 bits, not 16 like the other ones, but given
+	// our value range either works.
+	const VectorRegister4Int TabValR = _mm_cvtsi32_si128(stb_fp32_to_srgb8_tab4[(uint32)_mm_cvtsi128_si32(TabIndexVec)]);
+	const VectorRegister4Int TabValG = _mm_cvtsi32_si128(stb_fp32_to_srgb8_tab4[(uint32)_mm_extract_epi16(TabIndexVec, 2)]);
+	const VectorRegister4Int TabValB = _mm_cvtsi32_si128(stb_fp32_to_srgb8_tab4[(uint32)_mm_extract_epi16(TabIndexVec, 4)]);
+
+	// Merge the four values we just loaded back into a 3-vector (gather complete!)
+	const VectorRegister4Int TabValRG = _mm_unpacklo_epi32(TabValR, TabValG);
+	const VectorRegister4Int TabValsRGB = _mm_unpacklo_epi64(TabValRG, TabValB); // This leaves A=0, which suits us
+
+	// Grab the mantissa bits into the low 16 bits of each 32b lane, and set up 512 in the high
+	// 16 bits of each 32b lane, which is how the bias values in the table are meant to be scaled.
+	//
+	// We grab mantissa bits [12,19] for the lerp.
+	const VectorRegister4Int MantissaLerpFactor = _mm_and_si128(_mm_srli_epi32(_mm_castps_si128(InClamped), 12), _mm_set1_epi32(0xff));
+	const VectorRegister4Int FinalMultiplier = _mm_or_si128(MantissaLerpFactor, _mm_set1_epi32(512 << 16));
+
+	// In the table:
+	//    (bias>>9) was stored in the high 16 bits
+	//    scale was stored in the low 16 bits
+	//    t = (mantissa >> 12) & 0xff
+	//
+	// then we want ((bias + scale*t) >> 16).
+	// Except for the final shift, that's a single PMADDWD:
+	const VectorRegister4Int InterpolatedRGB = _mm_srli_epi32(_mm_madd_epi16(TabValsRGB, FinalMultiplier), 16);
+
+	// Finally, A gets done directly, via (int)(A * 255.f + 0.5f)
+	// We zero out the non-A channels by multiplying by 0; our clamping earlier
+	// took care of NaNs/infinites, so this is fine
+	const VectorRegister4Float ScaledBiasedA = _mm_add_ps(_mm_mul_ps(InClamped, _mm_setr_ps(0.f, 0.f, 0.f, 255.f)), _mm_set1_ps(0.5f));
+	const VectorRegister4Int FinalA  = _mm_cvttps_epi32(ScaledBiasedA);
+
+	// Merge A into the result, reorder to BGRA, then pack down to bytes and store!
+	// InterpolatedRGB has lane 3=0, and ComputedA has the first three lanes zero,
+	// so we can just OR them together.
+	const VectorRegister4Int FinalRGBA = _mm_or_si128(InterpolatedRGB, FinalA);
+	const VectorRegister4Int FinalBGRA = _mm_shuffle_epi32(FinalRGBA, _MM_SHUFFLE(3, 0, 1, 2));
+
+	const VectorRegister4Int Packed16 = _mm_packs_epi32(FinalBGRA, FinalBGRA);
+	const VectorRegister4Int Packed8 = _mm_packus_epi16(Packed16, Packed16);
+
+	return FColor((uint32)_mm_cvtsi128_si32(Packed8));
+}
+
+#endif
+
 /** Quantizes the linear color and returns the result as a FColor with optional sRGB conversion and quality as goal. */
 FColor FLinearColor::ToFColorSRGB() const
 {
 	// The convention used here in all channels is that NaNs
 	// convert to 0, as do negative values, and out-of-range
 	// positive values convert to 255.
+
+#if PLATFORM_CPU_X86_FAMILY
+	return ConvertLinearToSRGBSSE2(*this);
+#else
 	return FColor(
 		stbir__linear_to_srgb_uchar_fast(R),
 		stbir__linear_to_srgb_uchar_fast(G),
 		stbir__linear_to_srgb_uchar_fast(B),
-		(uint8)(0.5f + Clamp01(A)*255.f)
+		(uint8)(0.5f + Clamp01NansTo0(A)*255.f)
 	);
+#endif
 }
 
-
-FColor FLinearColor::Quantize() const
+/**
+ * Convert multiple FLinearColors to sRGB FColor; array version of FLinearColor::ToFColorSRGB.
+ * 
+ * @param	InLinearColors	Pointer to one or more FLinearColors to convert.
+ * @param	OutColorsSRGB	Pointer to one or more FColors that receive the results.
+ * @param	InCount			Number of colors to convert.
+ */
+void ConvertFLinearColorsToFColorSRGB(const FLinearColor* InLinearColors, FColor* OutColorsSRGB, int64 InCount)
 {
-	// Quantize is deprecated
-	// almost all callers should use QuantizeRound instead
-	// QuantizeFloor maintains old Quantize behavior
-	return QuantizeFloor();
-}
-
-FColor FLinearColor::QuantizeFloor() const
-{
-	// Do not use this for graphics or textures or images, they should use QuantizeRound
-	// replicates behavior of old Quantize() which is deprecated
-	// restoration should be done to bucket centers (+0.5 on dequantize)
-	return FColor(
-		(uint8)(Clamp01(R)*255.f),
-		(uint8)(Clamp01(G)*255.f),
-		(uint8)(Clamp01(B)*255.f),
-		(uint8)(Clamp01(A)*255.f)
-		);
-}
-
-FColor FLinearColor::QuantizeRound() const
-{
-	// do not use FMath::RoundToInt because it call floorf
-	return FColor(
-		(uint8)(0.5f + Clamp01(R)*255.f),
-		(uint8)(0.5f + Clamp01(G)*255.f),
-		(uint8)(0.5f + Clamp01(B)*255.f),
-		(uint8)(0.5f + Clamp01(A)*255.f)
-		);
+	// This function exists because calling FLinearColor::ToFColorSRGB()
+	// from another module is not cheap. However, we're in the same module
+	// as the definition here, so inlining works fine, and we can just
+	// implement this as the straightforward loop.
+	for (int64 Index = 0; Index < InCount; ++Index)
+	{
+		OutColorsSRGB[Index] = InLinearColors[Index].ToFColorSRGB();
+	}
 }
 
 /**

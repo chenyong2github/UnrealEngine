@@ -263,10 +263,12 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 				FColor* DestColors = (FColor *) DestImage.RawData;
 				if (bDestIsGammaCorrected)
 				{
-					ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
-						[DestColors, SrcColors](int64 TexelIndex)
+					ParallelFor(TEXT("Texture.CopyImage.PF"), NumJobs, 1,
+						[DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 						{
-							DestColors[TexelIndex] = SrcColors[TexelIndex].ToFColorSRGB();
+							const int64 StartIndex = JobIndex * TexelsPerJob;
+							const int64 Count = FMath::Min(TexelsPerJob, NumTexels - StartIndex);
+							ConvertFLinearColorsToFColorSRGB(&SrcColors[StartIndex], &DestColors[StartIndex], Count);
 						}
 					);
 				}
@@ -277,10 +279,10 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 						{
 #if PLATFORM_CPU_X86_FAMILY
 							// load 4x RGBA32F
-							__m128 Pixel0 = _mm_loadu_ps((const float*)&SrcColors[TexelIndex + 0]);
-							__m128 Pixel1 = _mm_loadu_ps((const float*)&SrcColors[TexelIndex + 1]);
-							__m128 Pixel2 = _mm_loadu_ps((const float*)&SrcColors[TexelIndex + 2]);
-							__m128 Pixel3 = _mm_loadu_ps((const float*)&SrcColors[TexelIndex + 3]);
+							__m128 Pixel0 = _mm_loadu_ps(&SrcColors[TexelIndex + 0].Component(0));
+							__m128 Pixel1 = _mm_loadu_ps(&SrcColors[TexelIndex + 1].Component(0));
+							__m128 Pixel2 = _mm_loadu_ps(&SrcColors[TexelIndex + 2].Component(0));
+							__m128 Pixel3 = _mm_loadu_ps(&SrcColors[TexelIndex + 3].Component(0));
 
 							// RGBA -> BGRA
 							Pixel0 = _mm_shuffle_ps(Pixel0, Pixel0, _MM_SHUFFLE(3, 0, 1, 2));
@@ -467,11 +469,11 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 							Out2 = _mm_shuffle_ps(Out2, Out2, _MM_SHUFFLE(3, 0, 1, 2));
 							Out3 = _mm_shuffle_ps(Out3, Out3, _MM_SHUFFLE(3, 0, 1, 2));
 
-							// store 4x RGBAF pixels
-							_mm_storeu_ps((float*)&DestColors[TexelIndex + 0], Out0);
-							_mm_storeu_ps((float*)&DestColors[TexelIndex + 1], Out1);
-							_mm_storeu_ps((float*)&DestColors[TexelIndex + 2], Out2);
-							_mm_storeu_ps((float*)&DestColors[TexelIndex + 3], Out3);
+							// Store 4 pixels
+							_mm_storeu_ps(&DestColors[TexelIndex + 0].Component(0), Out0);
+							_mm_storeu_ps(&DestColors[TexelIndex + 1].Component(0), Out1);
+							_mm_storeu_ps(&DestColors[TexelIndex + 2].Component(0), Out2);
+							_mm_storeu_ps(&DestColors[TexelIndex + 3].Component(0), Out3);
 #else
 							check(false); // not supported for other platforms, see ParallelLoop
 #endif

@@ -16,7 +16,10 @@
 #include "Math/RotationMatrix.h"
 #include "Math/Quat.h"
 #include "Math/QuatRotationTranslationMatrix.h"
+#include "Math/Color.h"
 #include "Misc/AutomationTest.h"
+#include "Async/ParallelFor.h"
+#include "Misc/ScopeLock.h"
 #include <limits>
 #include <cmath>
 
@@ -4141,6 +4144,257 @@ bool FInitVectorTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("InitFromCompactString BadString1"), FVector().InitFromCompactString(TEXT("W(0)")));
 	TestFalse(TEXT("InitFromCompactString BadString2"), FVector().InitFromCompactString(TEXT("V(XYZ)")));
 	
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColorConversionTest, "System.Core.Math.ColorConversion", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FColorConversionTest::RunTest(const FString& Parameters)
+{
+	// Round-trip conversion tests check that converting from uint8 color formats
+	// to float and back gives the original value. We not only want to guarantee
+	// this on its own, it also gives us useful coverage of the [0,1] value range.
+
+	// Test that sRGB<->Linear conversions round-trip
+	for (int Index = 0; Index < 256; ++Index)
+	{
+		// Make the inputs in R,G,B not the same in cases channels get swapped or similar
+		// Alpha channel is already special because it gets treated differently
+		FColor OriginalColor((uint8)Index, (uint8)(Index ^ 1), (uint8)(Index ^ 123), (uint8)Index);
+
+		FLinearColor SRGBToLinear = FLinearColor::FromSRGBColor(OriginalColor);
+		FColor SRGBConvertedBack = SRGBToLinear.ToFColorSRGB();
+		TestEqual(FString::Printf(TEXT("sRGB to linear to sRGB round-trip: %d"), Index), OriginalColor, SRGBConvertedBack);
+
+		FLinearColor UNORMToLinear = OriginalColor.ReinterpretAsLinear();
+		FColor UNORMConvertedBack = UNORMToLinear.QuantizeRound();
+		TestEqual(FString::Printf(TEXT("UNORM to linear to UNORM round-trip: %d"), Index), OriginalColor, UNORMConvertedBack);
+	}
+
+	// Test values near breakpoints/bucket boundaries to make sure they end up
+	// on the intended side. Since we are interested in the boundaries between
+	// values, this loop only goes to 255.
+	auto ReferenceSRGBToLinear = [](float InValue) -> float
+	{
+		if (InValue < 0.04045f)
+		{
+			return InValue / 12.92f;
+		}
+		else
+		{
+			return (float)FMath::Pow((InValue + 0.055) / 1.055, 2.4); // Compute in doubles
+		}
+	};
+	
+	for (int Index = 0; Index < 255; ++Index)
+	{
+		float BucketMidpoint = float(Index) + 0.5f;
+
+		// Worst-case error in the integer [0,255] sRGB scale is guaranteed to be below
+		// 0.544403 by the conversion we use. (The minimum reachable is 0.5, because
+		// we're quantizing to integers). That means that as long as we stay about
+		// 0.045f units away from a breakpoint, we should always get the exact value.
+		const float DistanceToMidpoint = 0.045f;
+
+		float BelowBoundaryUNORM = (BucketMidpoint - DistanceToMidpoint) / 255.f;
+		float BelowBoundarySRGB = ReferenceSRGBToLinear(BelowBoundaryUNORM);
+		uint8 IndexU8 = (uint8)Index;
+		FColor BelowExpected(IndexU8, IndexU8, IndexU8, IndexU8);
+		FColor BelowConverted = FLinearColor(BelowBoundarySRGB, BelowBoundarySRGB, BelowBoundarySRGB, BelowBoundaryUNORM).ToFColorSRGB();
+		TestEqual(FString::Printf(TEXT("sRGB Boundary below: %d"), Index), BelowConverted, BelowExpected);
+
+		float AboveBoundaryUNORM = (BucketMidpoint + DistanceToMidpoint) / 255.f;
+		float AboveBoundarySRGB = ReferenceSRGBToLinear(AboveBoundaryUNORM);
+		uint8 IndexPlus1U8 = (uint8)(Index + 1);
+		FColor AboveExpected(IndexPlus1U8, IndexPlus1U8, IndexPlus1U8, IndexPlus1U8);
+		FColor AboveConverted = FLinearColor(AboveBoundarySRGB, AboveBoundarySRGB, AboveBoundarySRGB, AboveBoundaryUNORM).ToFColorSRGB();
+		TestEqual(FString::Printf(TEXT("sRGB Boundary above: %d"), Index), AboveConverted, AboveExpected);
+	}
+
+	// Between the two tests above, we have good coverage of what happens inside [0,1];
+	// for values outside, we expect the sRGB and UNORM paths to give the same results.
+	// Just test a few values in interesting parts of the range.
+	const float NaN = FPlatformMath::AsFloat((uint32)0x7fc00000u);
+	const float PosInf = FPlatformMath::AsFloat((uint32)0x7f800000u);
+	const float PosSubnormal = FPlatformMath::AsFloat((uint32)0x20000u);
+	const float MediumLarge = 10.f; // Outside the range, but not hugely so
+	const float VeryLarge = 1e+7f; // Far outside the range
+
+	auto TestExtremalValue = [this](const TCHAR* InTestName, const float InValue, uint8 InExpected)
+	{
+		FLinearColor LinColor(InValue, InValue, InValue, InValue);
+		FColor ConvertedColor = LinColor.ToFColorSRGB();
+		FColor ExpectedColor(InExpected, InExpected, InExpected, InExpected);
+
+		TestEqual(InTestName, ConvertedColor, ExpectedColor);
+	};
+
+	TestExtremalValue(TEXT("Extremal NaN"), NaN, 0);
+	TestExtremalValue(TEXT("Extremal -Inf"), -PosInf, 0);
+	TestExtremalValue(TEXT("Extremal -MediumLarge"), -MediumLarge, 0);
+	TestExtremalValue(TEXT("Extremal 0"), 0.0f, 0);
+	TestExtremalValue(TEXT("Extremal +subnorm"), PosSubnormal, 0);
+	TestExtremalValue(TEXT("Extremal 1"), 1.0f, 255);
+	TestExtremalValue(TEXT("Extremal Mediumlarge"), MediumLarge, 255);
+	TestExtremalValue(TEXT("Extremal VeryLarge"), VeryLarge, 255);
+	TestExtremalValue(TEXT("Extremal +Inf"), PosInf, 255);
+
+	return true;
+}
+
+// This is repeating the reference (scalar) linear->sRGB conversion from Color.cpp, 
+// because the reference version is not necessarily exposed; we can end up using a different
+// implementation depending on the platform (as of this writing, we have SSE2 implementation
+// too), but we want them all to match.
+
+typedef union
+{
+	uint32 u;
+	float f;
+} stbir__FP32;
+
+static const uint32 stb_fp32_to_srgb8_tab4[104] = {
+	0x0073000d, 0x007a000d, 0x0080000d, 0x0087000d, 0x008d000d, 0x0094000d, 0x009a000d, 0x00a1000d,
+	0x00a7001a, 0x00b4001a, 0x00c1001a, 0x00ce001a, 0x00da001a, 0x00e7001a, 0x00f4001a, 0x0101001a,
+	0x010e0033, 0x01280033, 0x01410033, 0x015b0033, 0x01750033, 0x018f0033, 0x01a80033, 0x01c20033,
+	0x01dc0067, 0x020f0067, 0x02430067, 0x02760067, 0x02aa0067, 0x02dd0067, 0x03110067, 0x03440067,
+	0x037800ce, 0x03df00ce, 0x044600ce, 0x04ad00ce, 0x051400ce, 0x057b00c5, 0x05dd00bc, 0x063b00b5,
+	0x06970158, 0x07420142, 0x07e30130, 0x087b0120, 0x090b0112, 0x09940106, 0x0a1700fc, 0x0a9500f2,
+	0x0b0f01cb, 0x0bf401ae, 0x0ccb0195, 0x0d950180, 0x0e56016e, 0x0f0d015e, 0x0fbc0150, 0x10630143,
+	0x11070264, 0x1238023e, 0x1357021d, 0x14660201, 0x156601e9, 0x165a01d3, 0x174401c0, 0x182401af,
+	0x18fe0331, 0x1a9602fe, 0x1c1502d2, 0x1d7e02ad, 0x1ed4028d, 0x201a0270, 0x21520256, 0x227d0240,
+	0x239f0443, 0x25c003fe, 0x27bf03c4, 0x29a10392, 0x2b6a0367, 0x2d1d0341, 0x2ebe031f, 0x304d0300,
+	0x31d105b0, 0x34a80555, 0x37520507, 0x39d504c5, 0x3c37048b, 0x3e7c0458, 0x40a8042a, 0x42bd0401,
+	0x44c20798, 0x488e071e, 0x4c1c06b6, 0x4f76065d, 0x52a50610, 0x55ac05cc, 0x5892058f, 0x5b590559,
+	0x5e0c0a23, 0x631c0980, 0x67db08f6, 0x6c55087f, 0x70940818, 0x74a007bd, 0x787d076c, 0x7c330723,
+};
+
+static uint8 stbir__linear_to_srgb_uchar_fast(float in)
+{
+	static const stbir__FP32 almostone = { 0x3f7fffff }; // 1-eps
+	static const stbir__FP32 minval = { (127 - 13) << 23 };
+	uint32 tab, bias, scale, t;
+	stbir__FP32 f;
+
+	// Clamp to [2^(-13), 1-eps]; these two values map to 0 and 1, respectively.
+	// The tests are carefully written so that NaNs map to 0, same as in the reference
+	// implementation.
+	if (!(in > minval.f)) // written this way to catch NaNs
+		in = minval.f;
+	if (in > almostone.f)
+		in = almostone.f;
+
+	// Do the table lookup and unpack bias, scale
+	f.f = in;
+
+	tab = stb_fp32_to_srgb8_tab4[(f.u - minval.u) >> 20];
+	bias = (tab >> 16) << 9;
+	scale = tab & 0xffff;
+
+	// Grab next-highest mantissa bits and perform linear interpolation
+	t = (f.u >> 12) & 0xff;
+	return (uint8)((bias + scale * t) >> 16);
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColorConversionHeavyTest, "System.Core.Math.ColorConversionHeavy", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FColorConversionHeavyTest::RunTest(const FString& Parameters)
+{
+	// WARNING: This test runs for a good while (at time of writing, ~90s when using
+	// a single core, proportionately less on many-core machines) with no user
+	// feedback other than log messages being printed. You've been warned.
+
+	// Chop up the 32-bit value range into pow2-sized buckets so we
+	// give at least regular progress updates in the log
+	const int BucketShift = 8;
+	const int BucketCount = 1 << BucketShift;
+	const uint32 ItemsInBucket = 1u << (32 - BucketShift);
+
+	struct FSharedData
+	{
+		FCriticalSection Lock; // Protects everything in here
+		bool Failed = false;
+		int32 CompletionCounter = 0;
+
+		// These are set at most once (when Failed is first set)
+		uint32 FailedValue = 0; // Value we first noticed a mismatch on
+		FColor FailedConverted;
+		FColor FailedExpected;
+	};
+
+	FSharedData Shared;
+
+	// Test that the platform specialization for ToFColorSRGB agrees with the reference
+	// implementation. As of this writing, we have a vectorized version for SSE2 targets.
+	ParallelFor(BucketCount,
+		[BucketCount, ItemsInBucket, &Shared](int32 BucketIndex)
+		{
+			for (uint32 WithinBucketIndex = 0; WithinBucketIndex < ItemsInBucket; ++WithinBucketIndex)
+			{
+				uint32 CurrentBits = BucketIndex * ItemsInBucket + WithinBucketIndex;
+
+				// Don't put the same value in every color channel; we want to make sure we catch
+				// accidental channel swaps too! Three different inputs only; A is special anyway.
+				float R = FPlatformMath::AsFloat(CurrentBits);
+				float G = FPlatformMath::AsFloat(CurrentBits ^ 1234567u);
+				float B = FPlatformMath::AsFloat(CurrentBits ^ 89376762u);
+				FLinearColor LinearInput(R, G, B, R);
+				FColor Converted = LinearInput.ToFColorSRGB();
+
+				// Reference conversion
+				uint8 RgbResult[3];
+				for (int Channel = 0; Channel < 3; ++Channel)
+				{
+					float Value = LinearInput.Component(Channel);
+					RgbResult[Channel] = stbir__linear_to_srgb_uchar_fast(Value);
+				}
+
+				// Clamp A, mapping NaNs to 0
+				float ClampedALo = (LinearInput.A > 0.0f) ? LinearInput.A : 0.0f;
+				float ClampedA = (ClampedALo < 1.0f) ? ClampedALo : 1.0f;
+				uint8 FinalA = (uint8)(ClampedA * 255.f + 0.5f);
+
+				FColor Expected{ RgbResult[0], RgbResult[1], RgbResult[2], FinalA };
+
+				// Test and note failures (get reported outside)
+				if (Converted != Expected)
+				{
+					FScopeLock LockHolder(&Shared.Lock);
+
+					// If we are the first to fail, set failure info
+					if (!Shared.Failed)
+					{
+						Shared.Failed = true;
+						Shared.FailedValue = CurrentBits;
+						Shared.FailedConverted = Converted;
+						Shared.FailedExpected = Expected;
+					}
+				}
+			}
+
+			// Check status and update count
+			bool Failed = false;
+			int32 Completed = 0;
+
+			// Scope lock access to just grabbing the few values, not the log too
+			{
+				FScopeLock LockHolder(&Shared.Lock);
+				Failed = Shared.Failed;
+				Completed = ++Shared.CompletionCounter;
+			}
+
+			// If another instance failed, stop
+			if (Failed)
+				return;
+
+			UE_LOG(LogUnrealMathTest, Log, TEXT("Conversion heavy sRGB %d/%d buckets completed (%.2f%%)"), Completed, BucketCount, double(Completed) * 100.0 / double(BucketCount));
+		}
+	);
+
+	if (Shared.Failed)
+	{
+		TestEqual(FString::Printf(TEXT("Conversion heavy sRGB CurrentBits=0x%08x"), Shared.FailedValue), Shared.FailedConverted, Shared.FailedExpected);
+		return false;
+	}
+
 	return true;
 }
 
