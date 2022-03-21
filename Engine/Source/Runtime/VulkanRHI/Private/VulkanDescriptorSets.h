@@ -1139,14 +1139,14 @@ protected:
 		if (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 		{
 			checkf(WriteDescriptors[DescriptorIndex].descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER || WriteDescriptors[DescriptorIndex].descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-				TEXT("DescriptorType mismatch at index %d: called WriteBuffer<%d> and was expecting %d."), 
-				DescriptorIndex, (uint32)DescriptorType, (uint32)WriteDescriptors[DescriptorIndex].descriptorType);
+				TEXT("DescriptorType mismatch at index %d: called WriteBuffer<%s> and was expecting %s."), 
+				DescriptorIndex, VK_TYPE_TO_STRING(VkDescriptorType, DescriptorType), VK_TYPE_TO_STRING(VkDescriptorType, WriteDescriptors[DescriptorIndex].descriptorType));
 		}
 		else
 		{
 			checkf(WriteDescriptors[DescriptorIndex].descriptorType == DescriptorType,
-				TEXT("DescriptorType mismatch at index %d: called WriteBuffer<%d> and was expecting %d."),
-				DescriptorIndex, (uint32)DescriptorType, (uint32)WriteDescriptors[DescriptorIndex].descriptorType);
+				TEXT("DescriptorType mismatch at index %d: called WriteBuffer<%s> and was expecting %s."),
+				DescriptorIndex, VK_TYPE_TO_STRING(VkDescriptorType, DescriptorType), VK_TYPE_TO_STRING(VkDescriptorType, WriteDescriptors[DescriptorIndex].descriptorType));
 		}
 		VkDescriptorBufferInfo* BufferInfo = const_cast<VkDescriptorBufferInfo*>(WriteDescriptors[DescriptorIndex].pBufferInfo);
 		check(BufferInfo);
@@ -1206,13 +1206,14 @@ protected:
 				  Layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL ||
 				  Layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL || 
 				  Layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ||
-				  Layout == VK_IMAGE_LAYOUT_GENERAL, TEXT("Invalid Layout %d, Index %d, Type %d\n"), Layout, DescriptorIndex, WriteDescriptors[DescriptorIndex].descriptorType);
+				  Layout == VK_IMAGE_LAYOUT_GENERAL, TEXT("Invalid Layout %s, Index %d, Type %s\n"), 
+				VK_TYPE_TO_STRING(VkImageLayout, Layout), DescriptorIndex, VK_TYPE_TO_STRING(VkDescriptorType, WriteDescriptors[DescriptorIndex].descriptorType));
 		}
 		else
 		{
 			checkf(WriteDescriptors[DescriptorIndex].descriptorType == DescriptorType,
-				TEXT("DescriptorType mismatch at index %d: called WriteTextureView<%d> and was expecting %d."),
-				DescriptorIndex, (uint32)DescriptorType, (uint32)WriteDescriptors[DescriptorIndex].descriptorType);
+				TEXT("DescriptorType mismatch at index %d: called WriteTextureView<%s> and was expecting %s."),
+				DescriptorIndex, VK_TYPE_TO_STRING(VkDescriptorType, DescriptorType), VK_TYPE_TO_STRING(VkDescriptorType, WriteDescriptors[DescriptorIndex].descriptorType));
 		}
 		VkDescriptorImageInfo* ImageInfo = const_cast<VkDescriptorImageInfo*>(WriteDescriptors[DescriptorIndex].pImageInfo);
 		check(ImageInfo);

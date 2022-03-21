@@ -21,6 +21,12 @@
 #	define UE_VK_API_VERSION						VK_API_VERSION_1_1
 #endif // VULKAN_RHI_RAYTRACING
 
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+#	include "vk_enum_string_helper.h"
+#	define VK_TYPE_TO_STRING(Type, Value) ANSI_TO_TCHAR(string_##Type(Value))
+#	define VK_FLAGS_TO_STRING(Type, Value) ANSI_TO_TCHAR(string_##Type(Value).c_str())
+#endif
+
 #define ENUM_VK_ENTRYPOINTS_PLATFORM_BASE(EnumMacro)
 
 #define ENUM_VK_ENTRYPOINTS_PLATFORM_INSTANCE(EnumMacro) \
