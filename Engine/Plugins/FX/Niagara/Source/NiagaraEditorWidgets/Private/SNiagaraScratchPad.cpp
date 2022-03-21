@@ -118,7 +118,7 @@ private:
 	{
 		return IsPinned.Get(false) 
 			? TOptional<FSlateRenderTransform>()
-			: FSlateRenderTransform(FQuat2D(PI / 2));
+			: TOptional<FSlateRenderTransform>(FSlateRenderTransform(FQuat2D(PI / 2)));
 	}
 
 private:

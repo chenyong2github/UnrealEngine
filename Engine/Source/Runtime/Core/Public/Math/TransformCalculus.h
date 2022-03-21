@@ -391,40 +391,13 @@ template <typename TransformType, typename PositionType>
 inline PositionType TransformPoint(const TransformType& Transform, const PositionType& Point)
 {
 	return Transform.TransformPoint(Point);
-}
+} 
 
 /**
  * Generic implementation of TransformVector. Attempts to use a member function of the TransformType.
  */
 template <typename TransformType, typename VectorType>
 inline VectorType TransformVector(const TransformType& Transform, const VectorType& Vector)
-{
-	return Transform.TransformVector(Vector);
-}
-
-/**
- * Generic implementation of TransformPoint for 2D vectors with double precision. Attempts to use a member function of the TransformType.
- */
-template<typename TransformType>
-inline FVector2D TransformPoint(const TransformType& Transform, const FVector2D& Point)
-{
-	return Transform.TransformPoint(Point);
-}
-
-/**
- * Generic implementation of TransformPoint for 2D vectors with float precision. Attempts to use a member function of the TransformType.
- */
-template<typename TransformType>
-inline FVector2f TransformPoint(const TransformType& Transform, const FVector2f& Point)
-{
-	return FVector2f(Transform.TransformPoint(FVector2D(Point)));
-}
-
-/**
- * Generic implementation of TransformVector for 2D vectors. Attempts to use a member function of the TransformType.
- */
-template<typename TransformType>
-inline FVector2D TransformVector(const TransformType& Transform, const FVector2D& Vector)
 {
 	return Transform.TransformVector(Vector);
 }
@@ -444,7 +417,8 @@ inline FVector2D TransformVector(const TransformType& Transform, const FVector2D
  * @param RHS Scale that goes from space B to space C.
  * @return a new Scale representing the transformation from the input space of LHS to the output space of RHS.
  */
-inline float Concatenate(float LHS, float RHS)
+template<typename FloatType, TEMPLATE_REQUIRES(TIsFloatingPoint<FloatType>::Value)>
+inline FloatType Concatenate(FloatType LHS, FloatType RHS)
 {
 	return LHS * RHS;
 }
@@ -456,7 +430,8 @@ inline float Concatenate(float LHS, float RHS)
  * @param Transform Input transform from space A to space B.
  * @return Inverted transform from space B to space A.
  */
-inline float Inverse(float Scale)
+template<typename FloatType, TEMPLATE_REQUIRES(TIsFloatingPoint<FloatType>::Value)>
+inline FloatType Inverse(FloatType Scale)
 {
 	return 1.0f / Scale;
 }
@@ -464,7 +439,14 @@ inline float Inverse(float Scale)
 /**
  * Specialization for uniform Scale.
  */
-inline FVector TransformPoint(float Transform, const FVector& Point)
+template<typename PositionType>
+inline UE::Math::TVector<PositionType> TransformPoint(float Transform, const UE::Math::TVector<PositionType>& Point)
+{
+	return Transform * Point;
+}
+
+template<typename PositionType>
+inline UE::Math::TVector<PositionType> TransformPoint(double Transform, const UE::Math::TVector<PositionType>& Point)
 {
 	return Transform * Point;
 }
@@ -472,7 +454,14 @@ inline FVector TransformPoint(float Transform, const FVector& Point)
 /**
  * Specialization for uniform Scale.
  */
-inline FVector TransformVector(float Transform, const FVector& Vector)
+template<typename VectorType>
+inline UE::Math::TVector<VectorType> TransformVector(float Transform, const UE::Math::TVector<VectorType>& Vector)
+{
+	return Transform * Vector;
+}
+
+template<typename VectorType>
+inline UE::Math::TVector<VectorType> TransformVector(double Transform, const UE::Math::TVector<VectorType>& Vector)
 {
 	return Transform * Vector;
 }

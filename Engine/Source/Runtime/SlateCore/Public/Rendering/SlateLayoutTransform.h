@@ -18,17 +18,25 @@
 class FSlateLayoutTransform
 {
 public:
+	FSlateLayoutTransform(float InScale = 1.0f)
+		: Scale(InScale)
+		, Translation(FVector2f(ForceInit))
+	{
+	}
+
 	/** Ctor from a scale followed by translate. Shortcut to Concatenate(InScale, InTranslation). */
-	explicit FSlateLayoutTransform(float InScale = 1.0f, const FVector2D& InTranslation = FVector2D(ForceInit))
+	template<typename VType>
+	explicit FSlateLayoutTransform(float InScale, const UE::Math::TVector2<VType>& InTranslation)
 		:Scale(InScale)
 		,Translation(FVector2f(InTranslation))
 	{
 	}
 
 	/** Ctor from a 2D translation followed by a scale. Shortcut to Concatenate(InTranslation, InScale). While this is the opposite order we internally store them, we can represent this correctly. */
-	explicit FSlateLayoutTransform(const FVector2D& InTranslation/*, float InScale = 1.0f*/)
-		:Scale(1.0f/*InScale*/)
-		,Translation(FVector2f(InTranslation)/**InScale*/)
+	template<typename VType>
+	explicit FSlateLayoutTransform(const UE::Math::TVector2<VType>& InTranslation)
+		:Scale(1.0f)
+		,Translation(FVector2f(InTranslation))
 	{
 	}
 
@@ -53,15 +61,17 @@ public:
 	}
 
 	/** 2D transform support. */
-	FVector2D TransformPoint(const FVector2D& Point) const
+	template<typename VType>
+	UE::Math::TVector2<VType> TransformPoint(const UE::Math::TVector2<VType>& Point) const
 	{
-		return ::TransformPoint(GetTranslation(), ::TransformPoint(Scale, Point));
+		return ::TransformPoint((UE::Math::TVector2<VType>)Translation, ::TransformPoint(Scale, Point));
 	}
 
 	/** 2D transform support. */
-	FVector2D TransformVector(const FVector2D& Vector) const
+	template<typename VType>
+	UE::Math::TVector2<VType> TransformVector(const UE::Math::TVector2<VType>& Vector) const
 	{
-		return ::TransformVector(GetTranslation(), ::TransformVector(Scale, Vector));
+		return ::TransformVector((UE::Math::TVector2<VType>)Translation, ::TransformVector(Scale, Vector));
 	}
 
 	/**
@@ -75,13 +85,13 @@ public:
 	{
 		// New Translation is essentially: RHS.TransformPoint(TransformPoint(FVector2D::ZeroVector))
 		// Since Zero through LHS -> Translation we optimize it slightly to skip the zero multiplies.
-		return FSlateLayoutTransform(::Concatenate(Scale, RHS.Scale), RHS.TransformPoint(GetTranslation()));
+		return FSlateLayoutTransform(::Concatenate(Scale, RHS.Scale), RHS.TransformPoint(Translation));
 	}
 
 	/** Invert the transform/scale. */
 	FSlateLayoutTransform Inverse() const
 	{
-		return FSlateLayoutTransform(::Inverse(Scale), ::Inverse(FVector2D(Translation)) * ::Inverse(Scale));
+		return FSlateLayoutTransform(::Inverse(Scale), ::Inverse(Translation) * ::Inverse(Scale));
 	}
 
 	/** Equality. */
@@ -102,48 +112,63 @@ private:
 };
 
 /** Specialization for concatenating a uniform scale and 2D Translation. */
-inline FSlateLayoutTransform Concatenate(float Scale, const FVector2D& Translation)
+template<typename T>
+inline FSlateLayoutTransform Concatenate(float Scale, const UE::Math::TVector2<T>& Translation)
 {
 	return FSlateLayoutTransform(Scale, Translation);
 }
 
+template<typename T>
+inline FSlateLayoutTransform Concatenate(double Scale, const UE::Math::TVector2<T>& Translation)
+{
+	return FSlateLayoutTransform((float)Scale, Translation);
+}
+
 /** Specialization for concatenating a 2D Translation and uniform scale. */
-inline FSlateLayoutTransform Concatenate(const FVector2D& Translation, float Scale)
+template<typename T>
+inline FSlateLayoutTransform Concatenate(const UE::Math::TVector2<T>& Translation, float Scale)
 {
 	return FSlateLayoutTransform(Scale, TransformPoint(Scale, Translation));
 }
 
-/** concatenation rules for LayoutTransform. */
-template<> struct ConcatenateRules<FSlateLayoutTransform, float                > { typedef FSlateLayoutTransform ResultType; };
-/** concatenation rules for LayoutTransform. */
-template<> struct ConcatenateRules<float                , FSlateLayoutTransform> { typedef FSlateLayoutTransform ResultType; };
-/** concatenation rules for LayoutTransform. */
-template<> struct ConcatenateRules<FSlateLayoutTransform, FVector2D            > { typedef FSlateLayoutTransform ResultType; };
-/** concatenation rules for LayoutTransform. */
-template<> struct ConcatenateRules<FVector2D            , FSlateLayoutTransform> { typedef FSlateLayoutTransform ResultType; };
+template<typename T>
+inline FSlateLayoutTransform Concatenate(const UE::Math::TVector2<T>& Translation, double Scale)
+{
+	return FSlateLayoutTransform((float)Scale, TransformPoint(Scale, Translation));
+}
 
 /** concatenation rules for LayoutTransform. */
-template<> struct ConcatenateRules<FSlateLayoutTransform, FMatrix              > { typedef FMatrix ResultType; };
-/** concatenation rules for LayoutTransform. */
-template<> struct ConcatenateRules<FMatrix              , FSlateLayoutTransform> { typedef FMatrix ResultType; };
+template<> struct ConcatenateRules<FSlateLayoutTransform, float					> { typedef FSlateLayoutTransform ResultType; };
+template<> struct ConcatenateRules<FSlateLayoutTransform, double				> { typedef FSlateLayoutTransform ResultType; };
+template<> struct ConcatenateRules<float				, FSlateLayoutTransform	> { typedef FSlateLayoutTransform ResultType; };
+template<> struct ConcatenateRules<double				, FSlateLayoutTransform	> { typedef FSlateLayoutTransform ResultType; };
+template<typename T> struct ConcatenateRules<FSlateLayoutTransform, UE::Math::TVector2<T>	> { typedef FSlateLayoutTransform ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TVector2<T>, FSlateLayoutTransform	> { typedef FSlateLayoutTransform ResultType; };
+template<typename T> struct ConcatenateRules<FSlateLayoutTransform	, UE::Math::TMatrix<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TMatrix<T>	, FSlateLayoutTransform	> { typedef UE::Math::TMatrix<T> ResultType; };
 
 /** concatenation rules for layout transforms and 2x2 generalized transforms. Need to be upcast to FTransform2D. */
-template<> struct ConcatenateRules<FScale2D             , FSlateLayoutTransform> { typedef FTransform2D ResultType; };
-template<> struct ConcatenateRules<FShear2D             , FSlateLayoutTransform> { typedef FTransform2D ResultType; };
-template<> struct ConcatenateRules<FQuat2D              , FSlateLayoutTransform> { typedef FTransform2D ResultType; };
-template<> struct ConcatenateRules<FMatrix2x2           , FSlateLayoutTransform> { typedef FTransform2D ResultType; };
-template<> struct ConcatenateRules<FSlateLayoutTransform, FScale2D             > { typedef FTransform2D ResultType; };
-template<> struct ConcatenateRules<FSlateLayoutTransform, FShear2D             > { typedef FTransform2D ResultType; };
-template<> struct ConcatenateRules<FSlateLayoutTransform, FQuat2D              > { typedef FTransform2D ResultType; };
-template<> struct ConcatenateRules<FSlateLayoutTransform, FMatrix2x2           > { typedef FTransform2D ResultType; };
+template<typename T> struct ConcatenateRules<TScale2<T>				, FSlateLayoutTransform	> { typedef TTransform2<T> ResultType; };
+template<typename T> struct ConcatenateRules<TShear2<T>				, FSlateLayoutTransform	> { typedef TTransform2<T> ResultType; };
+template<typename T> struct ConcatenateRules<TQuat2<T>				, FSlateLayoutTransform	> { typedef TTransform2<T> ResultType; };
+template<typename T> struct ConcatenateRules<TMatrix2x2<T>			, FSlateLayoutTransform	> { typedef TTransform2<T> ResultType; };
+template<typename T> struct ConcatenateRules<FSlateLayoutTransform	, TScale2<T>			> { typedef TTransform2<T> ResultType; };
+template<typename T> struct ConcatenateRules<FSlateLayoutTransform	, TShear2<T>			> { typedef TTransform2<T> ResultType; };
+template<typename T> struct ConcatenateRules<FSlateLayoutTransform	, TQuat2<T>				> { typedef TTransform2<T> ResultType; };
+template<typename T> struct ConcatenateRules<FSlateLayoutTransform	, TMatrix2x2<T>			> { typedef TTransform2<T> ResultType; };
 
 //////////////////////////////////////////////////////////////////////////
 // FSlateLayoutTransform adapters.
 // 
 // Adapt FTransform2D to accept FSlateLayoutTransforms as well.
 //////////////////////////////////////////////////////////////////////////
-template<> template<> inline FTransform2D TransformConverter<FTransform2D>::Convert<FSlateLayoutTransform>(const FSlateLayoutTransform& Transform)
+template<> template<> inline TTransform2<float> TransformConverter<TTransform2<float>>::Convert<FSlateLayoutTransform>(const FSlateLayoutTransform& Transform)
 {
-	return FTransform2D(FScale2D(Transform.GetScale()), Transform.GetTranslation());
+	return TTransform2<float>(TScale2<float>((float)Transform.GetScale()), Transform.GetTranslation());
+}
+
+template<> template<> inline TTransform2<double> TransformConverter<TTransform2<double>>::Convert<FSlateLayoutTransform>(const FSlateLayoutTransform& Transform)
+{
+	return TTransform2<double>(TScale2<double>(Transform.GetScale()), Transform.GetTranslation());
 }
 

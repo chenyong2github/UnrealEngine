@@ -19,55 +19,70 @@
 // requires by the transform calculus framework.
 //
 // The following types are adapted.
-// * float           -> represents a uniform scale.
-// * FScale          -> represents a 3D non-uniform scale.
-// * FVector         -> represents a 3D translation.
-// * FRotator        -> represents a pure rotation.
-// * FQuat           -> represents a pure rotation.
-// * FMatrix         -> represents a general 3D homogeneous transform.
+// * float/double			-> represents a uniform scale.
+// * TScale<T>				-> represents a 3D non-uniform scale.
+// * UE::Math::TVector<T>	-> represents a 3D translation.
+// * UE::Math::TRotator<T>	-> represents a pure rotation.
+// * UE::Math::TQuat<T>		-> represents a pure rotation.
+// * UE::Math::TMatrix<T>	-> represents a general 3D homogeneous transform.
 //
 //////////////////////////////////////////////////////////////////////////
 
 /**
- * Represents a 3D non-uniform scale (to disambiguate from an FVector, which is used for translation).
+ * Represents a 3D non-uniform scale (to disambiguate from an UE::Math::TVector<T>, which is used for translation).
  * 
  * Serves as a good base example of how to write a class that supports the basic transform calculus
  * operations.
  */
-class FScale
+template<typename T>
+class TScale
 {
+	static_assert(std::is_floating_point_v<T>, "T must be floating point");
+
 public:
+	using Vector3Type = UE::Math::TVector<T>;
+
 	/** Ctor. initialize to an identity scale, 1.0. */
-	FScale() :Scale(1.0f) {}
+	TScale() :Scale(1.0f) {}
 	/** Ctor. initialize from a uniform scale. */
-	explicit FScale(float InScale) :Scale(InScale) {}
-	/** Ctor. initialize from an FVector defining the 3D scale. */
-	explicit FScale(const FVector& InScale) :Scale(InScale) {}
-	/** Access to the underlying FVector that stores the scale. */
-	const FVector& GetVector() const { return Scale; }
+	explicit TScale(T InScale) :Scale(InScale) {}
+	/** Ctor. initialize from an UE::Math::TVector<T> defining the 3D scale. */
+	template<typename VType>
+	explicit TScale(const UE::Math::TVector<VType>& InScale) : Scale((Vector3Type)InScale) {}
+	/** Access to the underlying UE::Math::TVector<T> that stores the scale. */
+	const Vector3Type& GetVector() const { return Scale; }
 	/** Concatenate two scales. */
-	const FScale Concatenate(const FScale& RHS) const
+	const TScale Concatenate(const TScale& RHS) const
 	{
-		return FScale(Scale * RHS.GetVector());
+		return TScale(Scale * RHS.GetVector());
 	}
 	/** Invert the scale. */
-	const FScale Inverse() const
+	const TScale Inverse() const
 	{
-		return FScale(FVector(1.0f / Scale.X, 1.0f / Scale.Y, 1.0f / Scale.Z));
+		return TScale(Vector3Type(1.0f / Scale.X, 1.0f / Scale.Y, 1.0f / Scale.Z));
 	}
 private:
 	/** Underlying storage of the 3D scale. */
-	FVector Scale;
+	Vector3Type Scale;
 };
 
+/** Core typedefs */
+typedef TScale<float> FScale3f;
+typedef TScale<double> FScale3d;
+typedef FScale3f FScale3D; // Default type, for backwards compat
+
 /** Specialization for converting a FMatrix to an FRotator. It uses a non-standard explicit conversion function. */
-template<> template<> inline FRotator TransformConverter<FRotator>::Convert<FMatrix>(const FMatrix& Transform)
+template<> template<> inline FRotator3f TransformConverter<FRotator3f>::Convert<FMatrix44f>(const FMatrix44f& Transform)
+{
+	return Transform.Rotator();
+}
+template<> template<> inline FRotator3d TransformConverter<FRotator3d>::Convert<FMatrix44d>(const FMatrix44d& Transform)
 {
 	return Transform.Rotator();
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FMatrix Support
+// UE::Math::TMatrix<T> Support
 //////////////////////////////////////////////////////////////////////////
 
 /**
@@ -75,7 +90,7 @@ template<> template<> inline FRotator TransformConverter<FRotator>::Convert<FMat
  * Uses decltype to allow some classes to return const-ref types for efficiency.
  * 
  * @param Transform
- * @return the FMatrix stored by the Transform.
+ * @return the UE::Math::TMatrix<T> stored by the Transform.
  */
 template<typename TransformType>
 inline auto ToMatrix(const TransformType& Transform) -> decltype(Transform.ToMatrix())
@@ -89,7 +104,12 @@ inline auto ToMatrix(const TransformType& Transform) -> decltype(Transform.ToMat
  * @param Scale Uniform Scale
  * @return Matrix that represents the uniform Scale space.
  */
-inline const FMatrix& ToMatrix(const FMatrix& Transform)
+inline const UE::Math::TMatrix<float>& ToMatrix(const UE::Math::TMatrix<float>& Transform)
+{
+	return Transform;
+}
+
+inline const UE::Math::TMatrix<double>& ToMatrix(const UE::Math::TMatrix<double>& Transform)
 {
 	return Transform;
 }
@@ -100,9 +120,14 @@ inline const FMatrix& ToMatrix(const FMatrix& Transform)
  * @param Scale Uniform Scale
  * @return Matrix that represents the uniform Scale space.
  */
-inline FMatrix ToMatrix(float Scale)
+inline UE::Math::TMatrix<float> ToMatrix(float Scale)
 {
-	return FScaleMatrix(Scale);
+	return UE::Math::TScaleMatrix<float>(Scale);
+}
+
+inline UE::Math::TMatrix<double> ToMatrix(double Scale)
+{
+	return UE::Math::TScaleMatrix<double>(Scale);
 }
 
 /**
@@ -111,9 +136,13 @@ inline FMatrix ToMatrix(float Scale)
  * @param Scale Non-uniform Scale
  * @return Matrix that represents the non-uniform Scale space.
  */
-inline FMatrix ToMatrix(const FScale& Scale)
+inline UE::Math::TMatrix<float> ToMatrix(const TScale<float>& Scale)
 {
-	return FScaleMatrix(Scale.GetVector());
+	return UE::Math::TScaleMatrix<float>(UE::Math::TVector<float>(Scale.GetVector()));
+}
+inline UE::Math::TMatrix<double> ToMatrix(const TScale<double>& Scale)
+{
+	return UE::Math::TScaleMatrix<double>(UE::Math::TVector<double>(Scale.GetVector()));
 }
 
 /**
@@ -122,9 +151,13 @@ inline FMatrix ToMatrix(const FScale& Scale)
  * @param Translation Translation
  * @return Matrix that represents the translated space.
  */
-inline FMatrix ToMatrix(const FVector& Translation)
+inline UE::Math::TMatrix<float> ToMatrix(const UE::Math::TVector<float>& Translation)
 {
-	return FTranslationMatrix(Translation);
+	return UE::Math::TTranslationMatrix<float>(UE::Math::TVector<float>(Translation));
+}
+inline UE::Math::TMatrix<double> ToMatrix(const UE::Math::TVector<double>& Translation)
+{
+	return UE::Math::TTranslationMatrix<double>(UE::Math::TVector<double>(Translation));
 }
 
 /**
@@ -133,9 +166,13 @@ inline FMatrix ToMatrix(const FVector& Translation)
  * @param Rotation Rotation
  * @return Matrix that represents the rotated space.
  */
-inline FMatrix ToMatrix(const FRotator& Rotation)
+inline UE::Math::TMatrix<float> ToMatrix(const UE::Math::TRotator<float>& Rotation)
 {
-	return FRotationMatrix(Rotation);
+	return UE::Math::TRotationMatrix<float>(UE::Math::TRotator<float>(Rotation));
+}
+inline UE::Math::TMatrix<double> ToMatrix(const UE::Math::TRotator<double>& Rotation)
+{
+	return UE::Math::TRotationMatrix<double>(UE::Math::TRotator<double>(Rotation));
 }
 
 /**
@@ -144,58 +181,82 @@ inline FMatrix ToMatrix(const FRotator& Rotation)
  * @param Rotation Rotation
  * @return Matrix that represents the rotated space.
  */
-inline FMatrix ToMatrix(const FQuat& Rotation)
+inline UE::Math::TMatrix<float> ToMatrix(const UE::Math::TQuat<float>& Rotation)
 {
-	return FRotationMatrix::Make(Rotation);
+	return UE::Math::TRotationMatrix<float>::Make(UE::Math::TQuat<float>(Rotation));
+}
+inline UE::Math::TMatrix<double> ToMatrix(const UE::Math::TQuat<double>& Rotation)
+{
+	return UE::Math::TRotationMatrix<double>::Make(UE::Math::TQuat<double>(Rotation));
 }
 
 /**
- * Specialization of TransformConverter for FMatrix. Calls ToMatrix() by default.
+ * Specialization of TransformConverter for UE::Math::TMatrix<T>. Calls ToMatrix() by default.
  * Allows custom types to easily provide support via a ToMatrix() overload or a ToMatrix() member function.
- * Uses decltype to support efficient passthrough of classes that can convert to a FMatrix without creating
+ * Uses decltype to support efficient passthrough of classes that can convert to a UE::Math::TMatrix<T> without creating
  * a new instance.
  */
 template<>
-struct TransformConverter<FMatrix>
+struct TransformConverter<FMatrix44f>
 {
 	template<typename OtherTransformType>
-	static auto Convert(const OtherTransformType& Transform) -> decltype(ToMatrix(Transform))
+	static auto Convert(const OtherTransformType& Transform) -> decltype((FMatrix44f)ToMatrix(Transform))
 	{
-		return ToMatrix(Transform);
+		return (FMatrix44f)ToMatrix(Transform);
+	}
+};
+
+template<>
+struct TransformConverter<FMatrix44d>
+{
+	template<typename OtherTransformType>
+	static auto Convert(const OtherTransformType& Transform) -> decltype((FMatrix44d)ToMatrix(Transform))
+	{
+		return (FMatrix44d)ToMatrix(Transform);
 	}
 };
 
 /** concatenation rules for basic UE4 types. */
-template<> struct ConcatenateRules<float        , FScale       > { typedef FScale ResultType; };
-template<> struct ConcatenateRules<FScale       , float        > { typedef FScale ResultType; };
-template<> struct ConcatenateRules<float        , FVector      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FVector      , float        > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<float        , FRotator     > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FRotator     , float        > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<float        , FQuat        > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FQuat        , float        > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<float        , FMatrix      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FMatrix      , float        > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FScale       , FVector      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FVector      , FScale       > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FScale       , FRotator     > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FRotator     , FScale       > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FScale       , FQuat        > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FQuat        , FScale       > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FScale       , FMatrix      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FMatrix      , FScale       > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FVector      , FRotator     > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FRotator     , FVector      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FVector      , FQuat        > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FQuat        , FVector      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FVector      , FMatrix      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FMatrix      , FVector      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FRotator     , FQuat        > { typedef FQuat ResultType; };
-template<> struct ConcatenateRules<FQuat        , FRotator     > { typedef FQuat ResultType; };
-template<> struct ConcatenateRules<FRotator     , FMatrix      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FMatrix      , FRotator     > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FQuat        , FMatrix      > { typedef FMatrix ResultType; };
-template<> struct ConcatenateRules<FMatrix      , FQuat        > { typedef FMatrix ResultType; };
+template<typename T> struct ConcatenateRules<float					, TScale<T>				> { typedef TScale<T> ResultType; };
+template<typename T> struct ConcatenateRules<double					, TScale<T>				> { typedef TScale<T> ResultType; };
+template<typename T> struct ConcatenateRules<TScale<T>				, float					> { typedef TScale<T> ResultType; };
+template<typename T> struct ConcatenateRules<TScale<T>				, double				> { typedef TScale<T> ResultType; };
+template<typename T> struct ConcatenateRules<float					, UE::Math::TVector<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<double					, UE::Math::TVector<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TVector<T>	, float					> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TVector<T>	, double				> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<float					, UE::Math::TRotator<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<double					, UE::Math::TRotator<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TRotator<T>	, float					> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TRotator<T>	, double				> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<float					, UE::Math::TQuat<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<double					, UE::Math::TQuat<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TQuat<T>		, float					> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TQuat<T>		, double				> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<float					, UE::Math::TMatrix<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<double					, UE::Math::TMatrix<T>	> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TMatrix<T>	, float					> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TMatrix<T>	, double				> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<TScale<T>				, UE::Math::TVector<T>  > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TVector<T>	, TScale<T>				> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<TScale<T>				, UE::Math::TRotator<T> > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TRotator<T>	, TScale<T>				> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<TScale<T>				, UE::Math::TQuat<T>    > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TQuat<T>		, TScale<T>				> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<TScale<T>				, UE::Math::TMatrix<T>  > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TMatrix<T>	, TScale<T>				> { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TVector<T>	, UE::Math::TRotator<T> > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TRotator<T>	, UE::Math::TVector<T>  > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TVector<T>	, UE::Math::TQuat<T>    > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TQuat<T>		, UE::Math::TVector<T>  > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TVector<T>	, UE::Math::TMatrix<T>  > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TMatrix<T>	, UE::Math::TVector<T>  > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TRotator<T>	, UE::Math::TQuat<T>    > { typedef UE::Math::TQuat<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TQuat<T>		, UE::Math::TRotator<T> > { typedef UE::Math::TQuat<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TRotator<T>	, UE::Math::TMatrix<T>  > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TMatrix<T>	, UE::Math::TRotator<T> > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TQuat<T>		, UE::Math::TMatrix<T>  > { typedef UE::Math::TMatrix<T> ResultType; };
+template<typename T> struct ConcatenateRules<UE::Math::TMatrix<T>	, UE::Math::TQuat<T>    > { typedef UE::Math::TMatrix<T> ResultType; };
 
 //////////////////////////////////////////////////////////////////////////
 // Concatenate overloads. 
@@ -217,7 +278,8 @@ namespace Math
  * @param RHS rotation that goes from space B to space C.
  * @return a new rotation representing the transformation from the input space of LHS to the output space of RHS.
  */
-inline FMatrix Concatenate(const FMatrix& LHS, const FMatrix& RHS)
+template<typename T>
+inline UE::Math::TMatrix<T> Concatenate(const UE::Math::TMatrix<T>& LHS, const UE::Math::TMatrix<T>& RHS)
 {
 	return LHS * RHS;
 }
@@ -230,7 +292,8 @@ inline FMatrix Concatenate(const FMatrix& LHS, const FMatrix& RHS)
 * @param RHS Translation that goes from space B to space C.
 * @return a new Translation representing the transformation from the input space of LHS to the output space of RHS.
 */
-inline FVector Concatenate(const FVector& LHS, const FVector& RHS)
+template<typename T>
+inline UE::Math::TVector<T> Concatenate(const UE::Math::TVector<T>& LHS, const UE::Math::TVector<T>& RHS)
 {
 	return LHS + RHS;
 }
@@ -239,14 +302,15 @@ inline FVector Concatenate(const FVector& LHS, const FVector& RHS)
 /**
  * Specialization for concatenating two rotations.
  *
- * NOTE: FQuat concatenates right to left, opposite of how FMatrix implements it.
+ * NOTE: UE::Math::TQuat<T> concatenates right to left, opposite of how UE::Math::TMatrix<T> implements it.
  *       Confusing, no? That's why we have these high level functions!
  * 
  * @param LHS rotation that goes from space A to space B
  * @param RHS rotation that goes from space B to space C.
  * @return a new rotation representing the transformation from the input space of LHS to the output space of RHS.
  */
-inline FQuat Concatenate(const FQuat& LHS, const FQuat& RHS)
+template<typename T>
+inline UE::Math::TQuat<T> Concatenate(const UE::Math::TQuat<T>& LHS, const UE::Math::TQuat<T>& RHS)
 {
 	return RHS * LHS;
 }
@@ -261,10 +325,11 @@ inline FQuat Concatenate(const FQuat& LHS, const FQuat& RHS)
  * @param RHS rotation that goes from space B to space C.
  * @return a new rotation representing the transformation from the input space of LHS to the output space of RHS.
  */
-inline FRotator Concatenate(const FRotator& LHS, const FRotator& RHS)
+template<typename T>
+inline UE::Math::TRotator<T> Concatenate(const UE::Math::TRotator<T>& LHS, const UE::Math::TRotator<T>& RHS)
 {
 	//@todo implement a more efficient way to do this.
-	return TransformCast<FRotator>(Concatenate(TransformCast<FMatrix>(LHS), TransformCast<FMatrix>(RHS)));
+	return TransformCast<UE::Math::TRotator<T>>(Concatenate(TransformCast<UE::Math::TMatrix<T>>(LHS), TransformCast<UE::Math::TMatrix<T>>(RHS)));
 }
 
 
@@ -277,37 +342,40 @@ inline FRotator Concatenate(const FRotator& LHS, const FRotator& RHS)
 
 /**
  * Inverts a transform from space A to space B so it transforms from space B to space A.
- * Specialization for FMatrix.
+ * Specialization for UE::Math::TMatrix<T>.
  * 
  * @param Transform Input transform from space A to space B.
  * @return Inverted transform from space B to space A.
  */
-inline FMatrix Inverse(const FMatrix& Transform)
+template<typename T>
+inline UE::Math::TMatrix<T> Inverse(const UE::Math::TMatrix<T>& Transform)
 {
 	return Transform.Inverse();
 }
 
 /**
  * Inverts a transform from space A to space B so it transforms from space B to space A.
- * Specialization for FRotator.
+ * Specialization for UE::Math::TRotator<T>.
  * 
  * @param Transform Input transform from space A to space B.
  * @return Inverted transform from space B to space A.
  */
-inline FRotator Inverse(const FRotator& Transform)
+template<typename T>
+inline UE::Math::TRotator<T> Inverse(const UE::Math::TRotator<T>& Transform)
 {
-	FVector EulerAngles = Transform.Euler();
-	return FRotator::MakeFromEuler(FVector(-EulerAngles.Z, -EulerAngles.Y, -EulerAngles.X));
+	UE::Math::TVector<T> EulerAngles = Transform.Euler();
+	return UE::Math::TRotator<T>::MakeFromEuler(UE::Math::TVector<T>(-EulerAngles.Z, -EulerAngles.Y, -EulerAngles.X));
 }
 
 /**
  * Inverts a transform from space A to space B so it transforms from space B to space A.
- * Specialization for FQuat.
+ * Specialization for UE::Math::TQuat<T>.
  * 
  * @param Transform Input transform from space A to space B.
  * @return Inverted transform from space B to space A.
  */
-inline FQuat Inverse(const FQuat& Transform)
+template<typename T>
+inline UE::Math::TQuat<T> Inverse(const UE::Math::TQuat<T>& Transform)
 {
 	return Transform.Inverse();
 }
@@ -319,7 +387,8 @@ inline FQuat Inverse(const FQuat& Transform)
  * @param Transform Input transform from space A to space B.
  * @return Inverted transform from space B to space A.
  */
-inline FVector Inverse(const FVector& Transform)
+template<typename T>
+inline UE::Math::TVector<T> Inverse(const UE::Math::TVector<T>& Transform)
 {
 	return -Transform;
 }
@@ -332,57 +401,64 @@ inline FVector Inverse(const FVector& Transform)
 //////////////////////////////////////////////////////////////////////////
 
 /**
- * Specialization for FMatrix as it's member function is called something slightly different.
+ * Specialization for UE::Math::TMatrix<T> as it's member function is called something slightly different.
  */
-inline FVector TransformPoint(const FMatrix& Transform, const FVector& Point)
+template<typename T>
+inline UE::Math::TVector<T> TransformPoint(const UE::Math::TMatrix<T>& Transform, const UE::Math::TVector<T>& Point)
 {
 	return Transform.TransformPosition(Point);
 }
 
 /**
- * Specialization for FQuat as it's member function is called something slightly different.
+ * Specialization for UE::Math::TQuat<T> as it's member function is called something slightly different.
  */
-inline FVector TransformPoint(const FQuat& Transform, const FVector& Point)
+template<typename T>
+inline UE::Math::TVector<T> TransformPoint(const UE::Math::TQuat<T>& Transform, const UE::Math::TVector<T>& Point)
 {
 	return Transform.RotateVector(Point);
 }
 
 /**
- * Specialization for FQuat as it's member function is called something slightly different.
+ * Specialization for UE::Math::TQuat<T> as it's member function is called something slightly different.
  */
-inline FVector TransformVector(const FQuat& Transform, const FVector& Vector)
+template<typename T>
+inline UE::Math::TVector<T> TransformVector(const UE::Math::TQuat<T>& Transform, const UE::Math::TVector<T>& Vector)
 {
 	return Transform.RotateVector(Vector);
 }
 
 /**
- * Specialization for FRotator as it's member function is called something slightly different.
+ * Specialization for UE::Math::TRotator<T> as it's member function is called something slightly different.
  */
-inline FVector TransformPoint(const FRotator& Transform, const FVector& Point)
+template<typename T>
+inline UE::Math::TVector<T> TransformPoint(const UE::Math::TRotator<T>& Transform, const UE::Math::TVector<T>& Point)
 {
 	return Transform.RotateVector(Point);
 }
 
 /**
- * Specialization for FRotator as it's member function is called something slightly different.
+ * Specialization for UE::Math::TRotator<T> as it's member function is called something slightly different.
  */
-inline FVector TransformVector(const FRotator& Transform, const FVector& Vector)
+template<typename T>
+inline UE::Math::TVector<T> TransformVector(const UE::Math::TRotator<T>& Transform, const UE::Math::TVector<T>& Vector)
 {
 	return Transform.RotateVector(Vector);
 }
 
 /**
- * Specialization for FVector Translation.
+ * Specialization for UE::Math::TVector<T> Translation.
  */
-inline FVector TransformPoint(const FVector& Transform, const FVector& Point)
+template<typename T>
+inline UE::Math::TVector<T> TransformPoint(const UE::Math::TVector<T>& Transform, const UE::Math::TVector<T>& Point)
 {
 	return Transform + Point;
 }
 
 /**
- * Specialization for FVector Translation (does nothing).
+ * Specialization for UE::Math::TVector<T> Translation (does nothing).
  */
-inline const FVector& TransformVector(const FVector& Transform, const FVector& Vector)
+template<typename T>
+inline const UE::Math::TVector<T>& TransformVector(const UE::Math::TVector<T>& Transform, const UE::Math::TVector<T>& Vector)
 {
 	return Vector;
 }
@@ -390,7 +466,8 @@ inline const FVector& TransformVector(const FVector& Transform, const FVector& V
 /**
  * Specialization for Scale.
  */
-inline FVector TransformPoint(const FScale& Transform, const FVector& Point)
+template<typename T>
+inline UE::Math::TVector<T> TransformPoint(const TScale<T>& Transform, const UE::Math::TVector<T>& Point)
 {
 	return Transform.GetVector() * Point;
 }
@@ -398,7 +475,8 @@ inline FVector TransformPoint(const FScale& Transform, const FVector& Point)
 /**
  * Specialization for Scale.
  */
-inline FVector TransformVector(const FScale& Transform, const FVector& Vector)
+template<typename T>
+inline UE::Math::TVector<T> TransformVector(const TScale<T>& Transform, const UE::Math::TVector<T>& Vector)
 {
 	return Transform.GetVector() * Vector;
 }
