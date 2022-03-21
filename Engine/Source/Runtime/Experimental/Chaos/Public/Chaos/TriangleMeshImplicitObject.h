@@ -29,6 +29,228 @@ namespace Chaos
 	struct FMTDInfo;
 	class FContactPoint;
 
+	struct CHAOS_API FTrimeshBVH
+	{
+		using FAABBType = TAABB<FRealSingle, 3>;
+
+		enum class EVisitorResult
+		{
+			Stop = 0,
+			Continue,
+		};
+
+		enum class EFilterResult
+		{
+			Skip = 0,
+			Keep,
+		};
+		
+		struct FChildData
+		{
+			FChildData()
+				: ChildOrFaceIndex(INDEX_NONE)
+				, FaceCount(0)
+			{}
+			FAABBType Bounds;
+			int32 ChildOrFaceIndex;
+			int32 FaceCount;
+
+			bool HasFaces() const { return (FaceCount > 0); }
+
+			void Serialize(FArchive& Ar)
+			{
+				TBox<FRealSingle, 3>::SerializeAsAABB(Ar, Bounds);
+
+				Ar << ChildOrFaceIndex;
+				Ar << FaceCount;
+			}
+		};
+		
+		struct FNode
+		{
+			FNode() {}
+
+			void Serialize(FArchive& Ar)
+			{
+				Children[0].Serialize(Ar);
+				Children[1].Serialize(Ar);
+			}
+			FChildData Children[2];
+		};
+
+		template <typename SQVisitor>
+		FORCEINLINE_DEBUGGABLE void Raycast(const FVec3& Start, const FVec3& Dir, const FReal Length, SQVisitor& Visitor) const
+		{
+			FQueryFastData QueryFastData(Dir, Length);
+			const auto BoundsFilter = [&QueryFastData, &Start](const FAABBType& Bounds) -> EFilterResult
+			{
+				FReal HitTime;
+				FVec3 HitPosition;
+
+				bool bCulled = true;
+				const bool bHit = Bounds.RaycastFast(Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, HitTime, HitPosition);
+				if (bHit)
+				{
+					// avoid going down teh nodes that are further than the current hit distance
+					bCulled = (QueryFastData.CurrentLength < HitTime);
+				}
+				
+				return (!bCulled) ? EFilterResult::Keep: EFilterResult::Skip;
+			};
+
+			const auto FaceVisitor = [&Visitor, &QueryFastData](int32 FaceIndex)
+			{
+				const bool bContinueVisiting = Visitor.VisitRaycast(FaceIndex, QueryFastData);
+				return bContinueVisiting? EVisitorResult::Continue: EVisitorResult::Stop;
+			};
+
+			VisitTree(BoundsFilter, FaceVisitor);
+		}
+
+		template <typename SQVisitor>
+		FORCEINLINE_DEBUGGABLE void Sweep(const FVec3& Start, const FVec3& Dir, const FReal Length, const FVec3& QueryHalfExtents, SQVisitor& Visitor) const
+		{
+			FQueryFastData QueryFastData(Dir, Length);
+			const auto BoundsFilter = [&QueryFastData, &Start, &QueryHalfExtents](const FAABBType& Bounds) -> EFilterResult
+			{
+				FReal HitTime;
+				FVec3 HitPosition;
+
+				bool bCulled = true;
+				const FAABB3 SweepBounds(Bounds.Min() - QueryHalfExtents, Bounds.Max() + QueryHalfExtents);
+				const bool bHit = SweepBounds.RaycastFast(Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, HitTime, HitPosition);
+				if (bHit)
+				{
+					// avoid going down the nodes that are further than the current hit distance
+					bCulled = (QueryFastData.CurrentLength < HitTime);
+				}
+
+				return (!bCulled) ? EFilterResult::Keep : EFilterResult::Skip;
+			};
+
+			const auto FaceVisitor = [&Visitor, &QueryFastData](int32 FaceIndex)
+			{
+				const bool bContinueVisiting = Visitor.VisitSweep(FaceIndex, QueryFastData);
+				return bContinueVisiting ? EVisitorResult::Continue : EVisitorResult::Stop;
+			};
+
+			VisitTree(BoundsFilter, FaceVisitor);
+		}
+
+		template <typename SQVisitor>
+		FORCEINLINE_DEBUGGABLE void Overlap(const FAABB3& AABB, SQVisitor& Visitor) const
+		{
+			const auto BoundsFilter = [&AABB](const FAABBType& Bounds) -> EFilterResult
+			{
+				const bool bHit = Bounds.Intersects(AABB);
+				return bHit ? EFilterResult::Keep : EFilterResult::Skip;
+			};
+
+			const auto FaceVisitor = [&Visitor](int32 FaceIndex)
+			{
+				const bool bContinueVisiting = Visitor.VisitOverlap(FaceIndex);
+				return bContinueVisiting ? EVisitorResult::Continue : EVisitorResult::Stop;
+			};
+
+			VisitTree(BoundsFilter, FaceVisitor);
+		}
+
+		TArray<int32> FindAllIntersections(const FAABB3& Intersection) const;
+
+
+		template <typename BoundsFilterType, typename FaceVisitorType>
+		FORCEINLINE_DEBUGGABLE EVisitorResult VisitFaces(int32 StartIndex, int32 IndexCount, BoundsFilterType& BoundsFilter, FaceVisitorType& FaceVisitor) const
+		{
+			const int32 EndIndex = (StartIndex + IndexCount);  
+			for (int32 FaceIndex = StartIndex; FaceIndex < EndIndex; ++FaceIndex)
+			{
+				if (BoundsFilter(FaceBounds[FaceIndex]) == EFilterResult::Keep)
+				{
+					if (FaceVisitor(Faces[FaceIndex]) == EVisitorResult::Stop)
+					{
+						return EVisitorResult::Stop;
+					}
+				}
+			}
+			return EVisitorResult::Continue;
+		}
+		
+		template <typename BoundsFilterType, typename FaceVisitorType>
+		FORCEINLINE_DEBUGGABLE void VisitTree(BoundsFilterType& BoundsFilter, FaceVisitorType& FaceVisitor) const
+		{
+			if (Nodes.Num() == 0)
+			{
+				return;
+			}
+			TArray<int32> NodeIndexStack;
+			NodeIndexStack.Reserve(16);
+			NodeIndexStack.Push(0);
+			while (NodeIndexStack.Num())
+			{
+				const int32 NodeIndex = NodeIndexStack.Pop(false);
+				check(Nodes.IsValidIndex(NodeIndex));
+				const FNode& Node = Nodes[NodeIndex];
+
+				for (int32 ChildIndex = 0; ChildIndex < 2; ++ChildIndex)
+				{
+					const FChildData& ChildData = Node.Children[ChildIndex]; 
+					if (ChildData.ChildOrFaceIndex != INDEX_NONE)
+					{
+						if (BoundsFilter(ChildData.Bounds) == EFilterResult::Keep)
+						{
+							if (ChildData.HasFaces())
+							{
+								if (EVisitorResult::Stop == VisitFaces(ChildData.ChildOrFaceIndex, ChildData.FaceCount, BoundsFilter, FaceVisitor))
+								{
+									return;
+								}
+							}
+							else
+							{
+								NodeIndexStack.Push(ChildData.ChildOrFaceIndex);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		void Serialize(FChaosArchive& Ar)
+		{
+			Ar << Nodes;
+			Ar << FaceBounds;
+			Ar << Faces;
+		}
+		
+		TArray<FNode> Nodes;
+		TArray<FAABBType> FaceBounds;
+		TArray<int32> Faces;
+	};
+
+	FORCEINLINE_DEBUGGABLE FChaosArchive& operator<<(FChaosArchive& Ar, FTrimeshBVH::FChildData& ChildData)
+	{
+		ChildData.Serialize(Ar);
+		return Ar;
+	}
+	
+	FORCEINLINE_DEBUGGABLE FChaosArchive& operator<<(FChaosArchive& Ar, FTrimeshBVH::FNode& Node)
+	{
+		Node.Serialize(Ar);
+		return Ar;
+	}
+
+	FORCEINLINE_DEBUGGABLE FChaosArchive& operator<<(FChaosArchive& Ar, FTrimeshBVH::FAABBType& Bounds)
+	{
+		TBox<FRealSingle, 3>::SerializeAsAABB(Ar, Bounds);
+		return Ar;
+	}
+
+	FORCEINLINE_DEBUGGABLE FChaosArchive& operator<<(FChaosArchive& Ar, FTrimeshBVH& TrimeshBVH)
+	{
+		TrimeshBVH.Serialize(Ar);
+		return Ar;
+	}
+	
 	class CHAOS_API FTrimeshIndexBuffer
 	{
 	public:
@@ -126,7 +348,7 @@ namespace Chaos
 		bool bRequiresLargeIndices;
 	};
 
-	FORCEINLINE FArchive& operator<<(FArchive& Ar, FTrimeshIndexBuffer& Buffer)
+	FORCEINLINE_DEBUGGABLE FArchive& operator<<(FArchive& Ar, FTrimeshIndexBuffer& Buffer)
 	{
 		Buffer.Serialize(Ar);
 		return Ar;
@@ -191,7 +413,7 @@ namespace Chaos
 				}
 			}
 			
-			RebuildBV();
+			RebuildFastBVH();
 		}
 
 		FTriangleMeshImplicitObject(const FTriangleMeshImplicitObject& Other) = delete;
@@ -287,18 +509,31 @@ namespace Chaos
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesBV)
 			{
 				// Should now only hit when loading older trimeshes
-				RebuildBV();
+				RebuildFastBVH();
 			}
 			else if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesAABBTree)
 			{
 				TBoundingVolume<int32> Dummy;
 				Ar << Dummy;
-				RebuildBV();
+				RebuildFastBVH();
+			}
+			else if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FUE5MainStreamObjectVersion::UseTriangleMeshBVH)
+			{
+				// Serialize acceleration
+				BVHType BVH;
+				Ar << BVH;
+				if (BVH.GetNodes().IsEmpty())
+				{
+					RebuildFastBVH();
+				}
+				else
+				{
+					RebuildFastBVHFromTree(BVH);
+				}
 			}
 			else
 			{
-				// Serialize acceleration
-				Ar << BVH;
+				Ar << FastBVH;
 			}
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddTrimeshMaterialIndices)
@@ -395,12 +630,13 @@ namespace Chaos
 		*/
 		void FindOverlappingTriangles(const FAABB3& QueryBounds, TArray<int32>& OutTriangleIndices) const
 		{
-			OutTriangleIndices = BVH.FindAllIntersections(QueryBounds);
+			OutTriangleIndices = FastBVH.FindAllIntersections(QueryBounds);
 		}
 
 	private:
-
-		void RebuildBV();
+		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, /*bComputeBounds=*/ false, FRealSingle>, /*bMutable=*/false, FRealSingle>;
+		void RebuildFastBVHFromTree(const BVHType& BVH);
+		void RebuildFastBVH();
 
 		ParticlesType MParticles;
 		FTrimeshIndexBuffer MElements;
@@ -409,8 +645,6 @@ namespace Chaos
 		TUniquePtr<TArray<int32>> ExternalFaceIndexMap;
 		TUniquePtr<TArray<int32>> ExternalVertexIndexMap;
 		bool bCullsBackFaceRaycast;
-
-		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, /*bComputeBounds=*/false, FRealSingle>, /*bMutable=*/false, FRealSingle>;
 
 		// Initialising constructor privately declared for use in CopySlow to copy the underlying BVH
 		template <typename IdxType>
@@ -443,7 +677,7 @@ namespace Chaos
 				}
 			}
 			
-			BVH.CopyFrom(InBvhToCopy);
+			RebuildFastBVHFromTree(InBvhToCopy);
 		}
 
 		template<typename InStorageType, typename InRealType>
@@ -491,7 +725,7 @@ namespace Chaos
 			}
 		};
 
-		BVHType BVH;
+		FTrimeshBVH FastBVH;
 
 		template<typename Geom, typename IdxType>
 		friend struct FTriangleMeshSweepVisitor;
@@ -524,7 +758,7 @@ namespace Chaos
 		int32 FindMostOpposingFace(const TArray<TVec3<IdxType>>& Elements, const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const;
 
 		template <typename IdxType>
-		void RebuildBVImp(const TArray<TVec3<IdxType>>& Elements);
+		void RebuildBVImp(const TArray<TVec3<IdxType>>& Elements, BVHType& BVH);
 
 		template <typename IdxType>
 		TUniquePtr<FTriangleMeshImplicitObject> CopySlowImpl(const TArray < TVector<IdxType, 3>>& InElements) const;

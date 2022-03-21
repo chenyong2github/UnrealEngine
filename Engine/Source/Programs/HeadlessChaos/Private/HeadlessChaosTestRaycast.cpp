@@ -431,6 +431,28 @@ namespace ChaosTest
 		EXPECT_FLOAT_EQ(Position.Z, 1);
 	}
 
+	void TriangleRaycastDenegerated()
+	{
+		FReal Time;
+		FVec3 Position;
+		FVec3 Normal;
+		TArray<uint16> DummyMaterials;
+		int32 FaceIndex;
+
+		FTriangleMeshImplicitObject::ParticlesType Particles;
+		Particles.AddParticles(3);
+		Particles.X(0) = FVec3(1, 1, 1);
+		Particles.X(1) = FVec3(1, 1, 2);
+		Particles.X(2) = FVec3(1, 1, 3);
+		TArray<TVec3<int32>> Indices;
+		Indices.Emplace(0, 1, 2);
+		FTriangleMeshImplicitObject Tri(MoveTemp(Particles), MoveTemp(Indices), MoveTemp(DummyMaterials));
+
+		//simple into the triangle
+		bool bHit = Tri.Raycast(FVec3(1, -1, 1.5), FVec3(0, 1, 0), 2, 0, Time, Position, Normal, FaceIndex);
+		EXPECT_FALSE(bHit);
+	}
+
 	void BoxRaycast()
 	{
 		FReal Time;

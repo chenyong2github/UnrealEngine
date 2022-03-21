@@ -23,6 +23,8 @@ namespace ChaosTest {
 
 	void TriangleRaycast();
 
+	void TriangleRaycastDenegerated();
+
 	void BoxRaycast();
 
 	void VectorizedAABBRaycast();

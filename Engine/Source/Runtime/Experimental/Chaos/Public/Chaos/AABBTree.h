@@ -2174,6 +2174,9 @@ public:
 		}
 	}
 
+	const TArray<TAABBTreeNode<T>>& GetNodes() const { return Nodes; }
+	const TArray<TLeafType>& GetLeaves() const { return Leaves; }
+
 private:
 
 	using FElement = TPayloadBoundsElement<TPayloadType, T>;

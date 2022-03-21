@@ -12,7 +12,6 @@
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/Utilities.h"
 
-//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
@@ -135,20 +134,64 @@ struct FTriangleMeshRaycastVisitor
 		return nullptr;
 	}
 
-	template <ERaycastType SQType>
-	bool Visit(int32 TriIdx, FQueryFastData& CurData)
+	/**
+	 * find the intersection of a ray and the triangle at index TriIdx
+	 * @return true if the search should continue otherwise false to stop the search through the mesh 
+	 */
+	bool VisitRaycast(TSpatialVisitorData<int32> TriIdx, FQueryFastData& CurData)
+	{
+		constexpr FReal Epsilon = 1e-4f;
+
+		const int32 FaceIndex = TriIdx.Payload;
+		const FVec3& A = Particles.X(Elements[FaceIndex][0]);
+		const FVec3& B = Particles.X(Elements[FaceIndex][1]);
+		const FVec3& C = Particles.X(Elements[FaceIndex][2]);
+
+		// Note: the math here needs to match FTriangleMeshImplicitObject::GetFaceNormal
+		// @todo(chaos) we should really preprocess the face and remove the degenerated ones to avoid paying this runtime cost
+		const FVec3 AB = B - A;
+		const FVec3 AC = C - A;
+		FVec3 TriNormal = FVec3::CrossProduct(AB, AC);
+
+		if (bCullsBackFaceRaycast)
+		{
+			const bool bBackFace = (FVec3::DotProduct(Dir, TriNormal) > 0.0f);
+			if (bBackFace)
+			{
+				// skip this traingle and continue the visit
+				return true;
+			}
+	}
+
+		FVec3 HitNormal;
+		FReal HitTime;
+		if (RayTriangleIntersection(StartPoint, Dir, CurData.CurrentLength, A, B, C, HitTime, HitNormal))
+		{
+			OutPosition = StartPoint + (Dir * HitTime);
+			OutNormal = HitNormal;
+			OutTime = HitTime;
+			OutFaceIndex = FaceIndex;
+			CurData.SetLength(HitTime);	//prevent future rays from going any farther
+		}
+		// continue the visit
+		return true;
+	}
+	
+	bool VisitSweep(TSpatialVisitorData<int32> TriIdx, FQueryFastData& CurData)
 	{
 		constexpr FReal Epsilon = 1e-4f;
 		constexpr FReal Epsilon2 = Epsilon * Epsilon;
-		const FReal Thickness2 = SQType == ERaycastType::Sweep ? Thickness * Thickness : 0;
+		
+		const FReal Thickness2 = Thickness * Thickness;
 		FReal MinTime = 0;	//no need to initialize, but fixes warning
 
 		const FReal R = Thickness + Epsilon;
 		const FReal R2 = R * R;
 
-		const FVec3& A = Particles.X(Elements[TriIdx][0]);
-		const FVec3& B = Particles.X(Elements[TriIdx][1]);
-		const FVec3& C = Particles.X(Elements[TriIdx][2]);
+		const int32 FaceIndex = TriIdx.Payload;		
+		const FVec3& A = Particles.X(Elements[FaceIndex][0]);
+		const FVec3& B = Particles.X(Elements[FaceIndex][1]);
+		const FVec3& C = Particles.X(Elements[FaceIndex][2]);
 
 		// Note: the math here needs to match FTriangleMeshImplicitObject::GetFaceNormal
 		const FVec3 AB = B - A;
@@ -187,9 +230,7 @@ struct FTriangleMeshRaycastVisitor
 				if (DistToTriangle2 <= R2)
 				{
 					OutTime = 0;
-					OutFaceIndex = TriIdx;
-					//OutPosition = IntersectionPosition;
-					//OutNormal = RaycastNormal;	//We use the plane normal even when hitting triangle edges. This is to deal with triangles that approximate a single flat surface.
+					OutFaceIndex = FaceIndex;
 					return false; //no one will beat Time == 0
 				}
 			}
@@ -200,7 +241,7 @@ struct FTriangleMeshRaycastVisitor
 				bTriangleIntersects = DistToTriangle2 <= Epsilon2;	//raycast gave us the intersection point so sphere radius is already accounted for
 			}
 
-			if (SQType == ERaycastType::Sweep && !bTriangleIntersects)
+			if (!bTriangleIntersects)
 			{
 				//sphere is not immediately touching the triangle, but it could start intersecting the perimeter as it sweeps by
 				FVec3 BorderPositions[3];
@@ -267,22 +308,12 @@ struct FTriangleMeshRaycastVisitor
 					OutNormal = RaycastNormal;	//We use the plane normal even when hitting triangle edges. This is to deal with triangles that approximate a single flat surface.
 					OutTime = Time;
 					CurData.SetLength(Time);	//prevent future rays from going any farther
-					OutFaceIndex = TriIdx;
+					OutFaceIndex = FaceIndex;
 				}
 			}
 		}
 
 		return true;
-	}
-
-	bool VisitRaycast(TSpatialVisitorData<int32> TriIdx, FQueryFastData& CurData)
-	{
-		return Visit<ERaycastType::Raycast>(TriIdx.Payload, CurData);
-	}
-
-	bool VisitSweep(TSpatialVisitorData<int32> TriIdx, FQueryFastData& CurData)
-	{
-		return Visit<ERaycastType::Sweep>(TriIdx.Payload, CurData);
 	}
 
 	bool VisitOverlap(TSpatialVisitorData<int32> TriIdx)
@@ -301,7 +332,40 @@ struct FTriangleMeshRaycastVisitor
 	FVec3 OutNormal;
 	int32 OutFaceIndex;
 	bool bCullsBackFaceRaycast;
+	TArray<int32> RaycastTriangles;
 };
+
+struct FTriangleMeshOverlapVisitor
+{
+	FTriangleMeshOverlapVisitor(TArray<int32>& InResults) : CollectedResults(InResults) {}
+	bool VisitOverlap(int32 Instance)
+	{
+		CollectedResults.Add(Instance);
+		return true;
+	}
+	bool VisitSweep(int32 Instance, FQueryFastData& CurData)
+	{
+		check(false);
+		return true;
+	}
+	bool VisitRaycast(int32 Instance, FQueryFastData& CurData)
+	{
+		check(false);
+		return true;
+	}
+
+	TArray<int32>& CollectedResults;
+};
+
+TArray<int32> FTrimeshBVH::FindAllIntersections (const FAABB3& Intersection) const
+{
+	TArray<int32> Results;
+	FTriangleMeshOverlapVisitor Visitor(Results);
+	Overlap(Intersection, Visitor);
+
+	return Results;
+}
+
 
 FReal FTriangleMeshImplicitObject::PhiWithNormal(const FVec3& x, FVec3& Normal) const
 {
@@ -320,11 +384,12 @@ bool FTriangleMeshImplicitObject::RaycastImp(const TArray<TVector<IdxType, 3>>& 
 
 	if (Thickness > 0)
 	{
-		BVH.Sweep(StartPoint, Dir, Length, FVec3(Thickness), SQVisitor);
+		FVec3 QueryHalfExtents = FVec3(Thickness) * 0.5f;
+		FastBVH.Sweep(StartPoint, Dir, Length, QueryHalfExtents, SQVisitor);
 	}
 	else
 	{
-		BVH.Raycast(StartPoint, Dir, Length, SQVisitor);
+		FastBVH.Raycast(StartPoint, Dir, Length, SQVisitor);
 	}
 
 	if (SQVisitor.OutTime <= Length)
@@ -421,7 +486,7 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 		FReal LocalContactPhi = FLT_MAX;
 		FVec3 LocalContactLocation, LocalContactNormal;
 
-		const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+		const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
 
 		// MakeTriangleHelper get rid of the scale wrapper if necessary as MakeTriangle will try to infer properties from it 
 		FPBDCollisionConstraint Constraint = MakeTriangleHelper(WorldScaleGeom);
@@ -520,7 +585,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 		FReal LocalContactPhi = FLT_MAX;
 		FVec3 LocalContactLocation, LocalContactNormal;
 
-		const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+		const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
 
 		for (int32 TriIdx : PotentialIntersections)
 		{
@@ -651,7 +716,7 @@ bool FTriangleMeshImplicitObject::OverlapImp(const TArray<TVec3<IdxType>>& Eleme
 {
 	FAABB3 QueryBounds(Point, Point);
 	QueryBounds.Thicken(Thickness);
-	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+	const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
 
 	const FReal Epsilon = 1e-4f;
 	//ensure(Thickness > Epsilon);	//There's no hope for this to work unless thickness is large (really a sphere overlap test)
@@ -698,7 +763,7 @@ bool FTriangleMeshImplicitObject::Overlap(const FVec3& Point, const FReal Thickn
 
 void FTriangleMeshImplicitObject::VisitTriangles(const FAABB3& QueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const
 {
-	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+	const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
 
 	auto TriangleProducer = [&](const auto& Elements)
 	{
@@ -759,7 +824,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 	QueryBounds.ThickenSymmetrically(FVec3(Thickness));
 	QueryBounds.ScaleWithNegative(InvTriMeshScale);
 
-	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+	const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
 
 	if (OutMTD)
 	{
@@ -1068,7 +1133,7 @@ bool FTriangleMeshImplicitObject::SweepGeomImp(const QueryGeomType& QueryGeom, c
 		const FVec3 InvTriMeshScale = SafeInvScale(TriMeshScale);
 		const FVec3 StartPoint = QueryBounds.Center() * InvTriMeshScale + StartTM.GetLocation();
 		const FVec3 Inflation = QueryBounds.Extents() * InvTriMeshScale.GetAbs() * 0.5 + FVec3(Thickness);
-		BVH.template Sweep<VisitorType>(StartPoint,Dir,Length,Inflation,SQVisitor);
+		FastBVH.template Sweep<VisitorType>(StartPoint, Dir, Length, Inflation, SQVisitor);
 
 		if(SQVisitor.OutTime <= Length)
 		{
@@ -1140,7 +1205,7 @@ int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxTy
 
 	FAABB3 QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
 
-	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+	const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
 	const FReal Epsilon = 1e-4f;
 
 	FReal MostOpposingDot = TNumericLimits<FReal>::Max();
@@ -1217,7 +1282,7 @@ TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlowImp
 		ExternalVertexIndexMapCopy = MakeUnique<TArray<int32>>(*ExternalVertexIndexMap.Get());
 	}
 
-	return TUniquePtr<FTriangleMeshImplicitObject>(new FTriangleMeshImplicitObject(MoveTemp(ParticlesCopy), MoveTemp(ElementsCopy), MoveTemp(MaterialIndicesCopy), BVH, MoveTemp(ExternalFaceIndexMapCopy), MoveTemp(ExternalVertexIndexMapCopy), bCullsBackFaceRaycast));
+	return TUniquePtr<FTriangleMeshImplicitObject>(new FTriangleMeshImplicitObject(MoveTemp(ParticlesCopy), MoveTemp(ElementsCopy), MoveTemp(MaterialIndicesCopy), MoveTemp(ExternalFaceIndexMapCopy), MoveTemp(ExternalVertexIndexMapCopy), bCullsBackFaceRaycast));
 }
 
 TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlow() const
@@ -1324,7 +1389,7 @@ const FTrimeshIndexBuffer& FTriangleMeshImplicitObject::Elements() const
 }
 
 template <typename IdxType>
-void FTriangleMeshImplicitObject::RebuildBVImp(const TArray<TVec3<IdxType>>& Elements)
+void FTriangleMeshImplicitObject::RebuildBVImp(const TArray<TVec3<IdxType>>& Elements, BVHType& TreeBVH)
 {
 	const int32 NumTris = Elements.Num();
 	TArray<FBvEntry<sizeof(IdxType) == sizeof(FTrimeshIndexBuffer::LargeIdxType)>> BVEntries;
@@ -1334,21 +1399,24 @@ void FTriangleMeshImplicitObject::RebuildBVImp(const TArray<TVec3<IdxType>>& Ele
 	{
 		BVEntries.Add({this, Tri});
 	}
-	BVH.Reinitialize(BVEntries);
+	TreeBVH.Reinitialize(BVEntries);
 }
 
 FTriangleMeshImplicitObject::~FTriangleMeshImplicitObject() = default;
 
-void Chaos::FTriangleMeshImplicitObject::RebuildBV()
+
+void FTriangleMeshImplicitObject::RebuildFastBVH()
 {
+	BVHType TreeBVH;
 	if (MElements.RequiresLargeIndices())
 	{
-		RebuildBVImp(MElements.GetLargeIndexBuffer());
+		RebuildBVImp(MElements.GetLargeIndexBuffer(), TreeBVH);
 	}
 	else
 	{
-		RebuildBVImp(MElements.GetSmallIndexBuffer());
+		RebuildBVImp(MElements.GetSmallIndexBuffer(), TreeBVH);
 	}
+	RebuildFastBVHFromTree(TreeBVH);
 }
 
 void FTriangleMeshImplicitObject::UpdateVertices(const TArray<FVector>& NewPositions)
@@ -1371,8 +1439,136 @@ void FTriangleMeshImplicitObject::UpdateVertices(const TArray<FVector>& NewPosit
 		}
 	}
 
-	RebuildBV();
+	RebuildFastBVH();
+}
+	
+void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
+{
+	using NodeType = TAABBTreeNode<FRealSingle>;
+	using LeafType = TAABBTreeLeafArray<int32, /*bComputeBounds=*/ false, FRealSingle>;
+	const TArray<NodeType>& Nodes = TreeBVH.GetNodes();
+	const TArray<LeafType>& Leaves = TreeBVH.GetLeaves();
+
+	FastBVH.Nodes.Reset();
+	FastBVH.Faces.Reset();
+	FastBVH.FaceBounds.Reset();
+
+	// since we do skip leaf nodes, we need to handle the case where we have only one node that will be a leaf by default
+	if (Nodes.Num() == 1)
+	{
+		const NodeType& RootNode = Nodes[0];
+		ensure(RootNode.bLeaf);
+		ensure(RootNode.ChildrenNodes[1] == INDEX_NONE);
+
+		// the leaf index is stored in the first  ChildrenNodes for leaf type nodes
+		const int32 LeafIndex = RootNode.ChildrenNodes[0];
+		const LeafType& Leaf = Leaves[LeafIndex];
+
+		// make the node
+		FTrimeshBVH::FNode& NewNode = FastBVH.Nodes.Emplace_GetRef();
+		NewNode.Children[0].ChildOrFaceIndex = 0;
+		NewNode.Children[0].FaceCount = Leaf.Elems.Num();
+		NewNode.Children[0].Bounds = { BoundingBox().Min(), BoundingBox().Max() };
+		for (const TPayloadBoundsElement<int32, FRealSingle>& LeafPayload: Leaf.Elems)
+		{
+			FastBVH.FaceBounds.Add(LeafPayload.Bounds);
+			FastBVH.Faces.Add(LeafPayload.Payload);
+		}
+		return;
+	}
+	
+	// map leaf type nodes index (in Nodes array) to leaf index (in Leaves array) 
+	TMap<int32, int32> ChildIndexToLeafIndexMap;
+	for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); ++NodeIndex)
+	{
+		const NodeType& Node = Nodes[NodeIndex];
+		if (Node.bLeaf)
+		{
+			// the leaf index is stored in the first  ChildrenNodes for leaf type nodes
+			const int32 LeafIndex =  Node.ChildrenNodes[0];
+			ensure(Leaves.IsValidIndex(LeafIndex));
+			ChildIndexToLeafIndexMap.Emplace(NodeIndex, LeafIndex);
+		}
+	}
+
+	// let's walk the tree and build the optimized data
+	TArray<int32> NodeIndexStack;
+	NodeIndexStack.Push(0);
+
+	// used to remap indices at the end of the process
+	TMap<int32, int32> BVHToFastBVHNodeIndexMap;
+	
+	while (NodeIndexStack.Num())
+	{
+		const int32 NodeIndex = NodeIndexStack.Pop();
+		const NodeType& Node = Nodes[NodeIndex];
+
+		// leaf nodes are being trimmed and their info will be compacted in parents
+		if (!Node.bLeaf)
+		{
+			BVHToFastBVHNodeIndexMap.Emplace(NodeIndex, FastBVH.Nodes.Num());
+			FTrimeshBVH::FNode& NewNode = FastBVH.Nodes.Emplace_GetRef();
+
+			// go backward to simulate a depth first walk to keep the same order of the original tree 
+			// for consistent results to return the same triangle when a query hit right in on a share vertex
+			for (int32 ChildIndex=1; ChildIndex>=0; --ChildIndex)
+			{
+				// common infos
+				FTrimeshBVH::FChildData& ChildData = NewNode.Children[ChildIndex];
+				ChildData.Bounds = Node.ChildrenBounds[ChildIndex];
+				const int32 ChildNodeIndex = Node.ChildrenNodes[ChildIndex];
+				// index in the original BVH space, remapping is done at the end of the process
+				// this may be overwritten if the child is a leaf
+				ChildData.ChildOrFaceIndex = ChildNodeIndex;
+
+				if (Nodes.IsValidIndex(ChildNodeIndex))
+				{
+					// let's pull the face (leaves) data for leaf child nodes
+					const int32* LeafIndex = ChildIndexToLeafIndexMap.Find(ChildNodeIndex);
+					if (LeafIndex)
+					{
+						const LeafType& Leaf = Leaves[*LeafIndex];
+
+						// store face range in the node 
+						ChildData.ChildOrFaceIndex = FastBVH.Faces.Num();
+						ChildData.FaceCount = Leaf.Elems.Num();
+						check(ChildData.FaceCount > 0);
+
+						TMap<int32, int32> VertexReuse;
+						// copy indices in the linear face array
+						for (const auto& LeafPayload: Leaf.Elems)
+						{
+							FastBVH.FaceBounds.Add(LeafPayload.Bounds);
+							FastBVH.Faces.Add(LeafPayload.Payload);
+						}
+					}
+					// push for further processing
+					NodeIndexStack.Push(ChildNodeIndex);
+				}
+			}
+		}
+	}
+
+	// remap child node indices from original BVH node array space to fast BVH node array space
+	for (int32 NodeIndex = 0; NodeIndex < FastBVH.Nodes.Num(); ++NodeIndex)
+	{
+		FTrimeshBVH::FNode& Node = FastBVH.Nodes[NodeIndex];
+		for (int32 ChildIndex=0; ChildIndex<2; ++ChildIndex)
+		{
+			FTrimeshBVH::FChildData& ChildData = Node.Children[ChildIndex];
+			if (!ChildData.HasFaces())
+			{
+				const int32 ChildNodeIndex = ChildData.ChildOrFaceIndex;
+				const int32* FixedChildNodeIndex = BVHToFastBVHNodeIndexMap.Find(ChildNodeIndex);
+				if (ensure(FixedChildNodeIndex))
+				{
+					ChildData.ChildOrFaceIndex = *FixedChildNodeIndex;
+				}
+			}
+		}
+	}
+	
+}
+	
 }
 
-
-}

@@ -258,6 +258,60 @@ namespace Chaos
 		return Ar;
 	}
 
+	/**
+	* Ray / triangle  intersection
+	* this provides a double sided test
+	* note : this method assumes that the triangle formed by A,B and C is well formed
+	*/
+	FORCEINLINE_DEBUGGABLE bool RayTriangleIntersection(
+		const FVec3& RayStart, const FVec3& RayDir, FReal RayLength,
+		const FVec3& A, const FVec3& B, const FVec3& C,
+		FReal& OutT, FVec3& OutN
+	)
+	{
+		const FVec3 AB = B - A; // edge 1
+		const FVec3 AC = C - A; // edge 2
+		const FVec3 Normal = FVec3::CrossProduct(AB, AC);
+		const FVec3 NegRayDir = -RayDir;
+
+		FReal Den = FVec3::DotProduct(NegRayDir, Normal);
+		if (FMath::Abs(Den) < SMALL_NUMBER)
+		{
+			// ray is parallel or away to the triangle plane it is a miss
+			return false;
+		}
+
+		const FReal InvDen = (FReal)1 / Den;
+
+		// let's compute the time to intersection
+		const FVec3 RayToA = RayStart - A;
+		const FReal Time = FVec3::DotProduct(RayToA, Normal) * InvDen;
+		if (Time < (FReal)0 || Time > RayLength)
+		{
+			return false;
+		}
+
+		// now compute baricentric coordinates
+		const FVec3 RayToACrossNegDir = FVec3::CrossProduct(NegRayDir, RayToA);
+		constexpr FReal Epsilon = SMALL_NUMBER;
+		const FReal UU = FVec3::DotProduct(AC, RayToACrossNegDir) * InvDen;
+		if (UU < -Epsilon || UU >(1 + Epsilon))
+		{
+			return false; // outside of the triangle
+		}
+		const FReal VV = -FVec3::DotProduct(AB, RayToACrossNegDir) * InvDen;
+		if (VV < -Epsilon || (VV + UU) >(1 + Epsilon))
+		{
+			return false; // outside of the triangle
+		}
+
+		// point is within the triangle, let's compute 
+		OutT = Time;
+		OutN = Normal.GetSafeNormal();
+		OutN *= FMath::Sign(Den);
+		return true;
+	}
+
 	template<typename T> using TTriangle = FTriangle;
 	
 	template<typename T>
