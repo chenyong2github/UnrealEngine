@@ -202,6 +202,14 @@ struct ENGINE_API FStreamableHandle : public TSharedFromThis<FStreamableHandle>
 	/** Returns number of assets that have completed loading out of initial list, failed loads will count as loaded */
 	void GetLoadedCount(int32& LoadedCount, int32& RequestedCount) const;
 
+	/**
+	 * Invokes a callable for each loaded asset if load has succeeded. Some entries will be null if loading failed
+	 *
+	 * @param Callable	Callable object
+	 */
+	template <typename CallableT>
+	void ForEachLoadedAsset(CallableT Callable) const;
+
 	/** Returns progress as a value between 0.0 and 1.0. */
 	float GetProgress() const;
 
@@ -599,4 +607,39 @@ private:
 	FString ManagerName;
 };
 
+template <typename CallableT>
+void FStreamableHandle::ForEachLoadedAsset(CallableT Callable) const
+{
+	if (HasLoadCompleted())
+	{
+		for (const FSoftObjectPath& Ref : RequestedAssets)
+		{
+			// Try manager, should be faster and will handle redirects better
+			if (IsActive())
+			{
+				Invoke(Callable, OwningManager->GetStreamed(Ref));
+			}
+			else
+			{
+				Invoke(Callable, Ref.ResolveObject());
+			}
+		}
 
+		// Check child handles
+		for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
+		{
+			for (const FSoftObjectPath& Ref : ChildHandle->RequestedAssets)
+			{
+				// Try manager, should be faster and will handle redirects better
+				if (IsActive())
+				{
+					Invoke(Callable, OwningManager->GetStreamed(Ref));
+				}
+				else
+				{
+					Invoke(Callable, Ref.ResolveObject());
+				}
+			}
+		}
+	}
+}

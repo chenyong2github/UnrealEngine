@@ -477,38 +477,10 @@ UObject* FStreamableHandle::GetLoadedAsset() const
 
 void FStreamableHandle::GetLoadedAssets(TArray<UObject *>& LoadedAssets) const
 {
-	if (HasLoadCompleted())
+	ForEachLoadedAsset([&LoadedAssets](UObject* LoadedAsset)
 	{
-		for (const FSoftObjectPath& Ref : RequestedAssets)
-		{
-			// Try manager, should be faster and will handle redirects better
-			if (IsActive())
-			{
-				LoadedAssets.Add(OwningManager->GetStreamed(Ref));
-			}
-			else
-			{
-				LoadedAssets.Add(Ref.ResolveObject());
-			}
-		}
-
-		// Check child handles
-		for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
-		{
-			for (const FSoftObjectPath& Ref : ChildHandle->RequestedAssets)
-			{
-				// Try manager, should be faster and will handle redirects better
-				if (IsActive())
-				{
-					LoadedAssets.Add(OwningManager->GetStreamed(Ref));
-				}
-				else
-				{
-					LoadedAssets.Add(Ref.ResolveObject());
-				}
-			}
-		}
-	}
+		LoadedAssets.Add(LoadedAsset);
+	});
 }
 
 void FStreamableHandle::GetLoadedCount(int32& LoadedCount, int32& RequestedCount) const
