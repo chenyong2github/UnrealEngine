@@ -66,6 +66,13 @@ struct FConcertWorkspaceSyncCompletedEvent
 	GENERATED_BODY()
 };
 
+/** An event emitted by a client after its workspace has been completely synced and finalized. All transactions are posted and packages have been loaded. */
+USTRUCT()
+struct FConcertWorkspaceSyncAndFinalizeCompletedEvent
+{
+	GENERATED_BODY()
+};
+
 /** Request to sync an event that was partially synced on the client but for which the full data is required for inspection. FConcertSyncEventResponse is the corresponding response. */
 USTRUCT()
 struct FConcertSyncEventRequest

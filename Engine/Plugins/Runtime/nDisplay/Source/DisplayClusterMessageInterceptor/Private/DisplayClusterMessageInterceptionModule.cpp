@@ -50,9 +50,12 @@ class FDisplayClusterMessageInterceptionModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
-		// Register for Cluster StartSession callback so everything is setup before launching interception
-		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartSession().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnDisplayClusterStartSession);
-		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartScene().AddRaw(this,&FDisplayClusterMessageInterceptionModule::OnNewSceneEvent);
+		if (IDisplayCluster::IsAvailable())
+		{
+			// Register for Cluster StartSession callback so everything is setup before launching interception
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartSession().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnDisplayClusterStartSession);
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartScene().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnNewSceneEvent);
+		}
 
 		// Setup console command to start/stop interception
 		StartMessageSyncCommand = MakeUnique<FAutoConsoleCommand>(
@@ -96,6 +99,7 @@ public:
 				IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
 				ConcertClient->OnSessionStartup().RemoveAll(this);
 				ConcertClient->OnSessionShutdown().RemoveAll(this);
+				ConcertClient->OnSessionConnectionChanged().RemoveAll(this);
 			}
 		}
 #endif
@@ -112,6 +116,7 @@ public:
 
 			// Unregister cluster session events
 			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartSession().RemoveAll(this);
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartScene().RemoveAll(this);
 			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterEndSession().RemoveAll(this);
 			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreTick().RemoveAll(this);
 		}

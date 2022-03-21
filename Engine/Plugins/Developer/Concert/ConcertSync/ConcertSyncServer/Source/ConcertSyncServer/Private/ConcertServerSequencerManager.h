@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ConcertMessages.h"
 #include "ConcertSequencerMessages.h"
+#include "ConcertWorkspaceMessages.h"
 
 struct FConcertSessionContext;
 class IConcertServerSession;
@@ -32,8 +33,11 @@ private:
 	/** Handler for the sequencer close event. */
 	void HandleSequencerCloseEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerCloseEvent& InEvent);
 
-	/** Handler for the sequencer close event. */
+	/** Handler for the sequencer time adjustment event. */
 	void HandleSequencerTimeAdjustmentEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerTimeAdjustmentEvent& InEvent);
+
+	/** Handler for the workspace sync and finalize completed event. */
+	void HandleWorkspaceSyncAndFinalizeCompletedEvent(const FConcertSessionContext& InEventContext, const FConcertWorkspaceSyncAndFinalizeCompletedEvent& InEvent);
 
 	/** Handler for the session clients changed event. */
 	void HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo);

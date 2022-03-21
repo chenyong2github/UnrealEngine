@@ -176,10 +176,10 @@ private:
 	void OnOpenEvent(const FConcertSessionContext&, const FConcertSequencerOpenEvent& InEvent);
 
 	/**
-	 * Called on receipt of an external close event from the server
+	 * Called on receipt of an external state sync event from the server
 	 *
 	 * @param InEventContext              The context for the current client session
-	 * @param InEvent                     The sequencer close event received from the server
+	 * @param InEvent                     The sequencer state sync event received from the server
 	 */
 	void OnSyncEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerStateSyncEvent& InEvent);
 

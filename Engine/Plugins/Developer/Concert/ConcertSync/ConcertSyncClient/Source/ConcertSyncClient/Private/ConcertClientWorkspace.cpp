@@ -19,6 +19,7 @@
 #include "ConcertSyncClientUtil.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertWorkspaceData.h"
+#include "ConcertWorkspaceMessages.h"
 #include "ConcertClientDataStore.h"
 #include "ConcertClientLiveTransactionAuthors.h"
 
@@ -847,6 +848,9 @@ void FConcertClientWorkspace::OnEndFrame()
 		bHasSyncedWorkspace = true;
 		FConcertSlowTaskStackWorkaround::Get().PopTask(MoveTemp(InitialSyncSlowTask));
 		OnFinalizeWorkspaceSyncCompletedDelegate.Broadcast();
+
+		// Notify the server that we've finalized our workspace.
+		LiveSession->GetSession().SendCustomEvent(FConcertWorkspaceSyncAndFinalizeCompletedEvent(), LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
 	}
 
 	if (bHasSyncedWorkspace && CanProcessPendingPackages() && !ConcertSyncClientUtil::UserIsEditing())

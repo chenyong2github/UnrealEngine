@@ -3,6 +3,7 @@
 #include "ConcertServerSequencerManager.h"
 #include "IConcertSession.h"
 #include "ConcertSyncServerLiveSession.h"
+#include "ConcertWorkspaceMessages.h"
 
 FConcertServerSequencerManager::FConcertServerSequencerManager(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession)
 {
@@ -26,6 +27,7 @@ void FConcertServerSequencerManager::BindSession(const TSharedRef<FConcertSyncSe
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerStateEvent>(this, &FConcertServerSequencerManager::HandleSequencerStateEvent);
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerOpenEvent>(this, &FConcertServerSequencerManager::HandleSequencerOpenEvent);
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this, &FConcertServerSequencerManager::HandleSequencerTimeAdjustmentEvent);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertWorkspaceSyncAndFinalizeCompletedEvent>(this, &FConcertServerSequencerManager::HandleWorkspaceSyncAndFinalizeCompletedEvent);
 }
 
 void FConcertServerSequencerManager::UnbindSession()
@@ -33,9 +35,12 @@ void FConcertServerSequencerManager::UnbindSession()
 	if (LiveSession)
 	{
 		LiveSession->GetSession().OnSessionClientChanged().RemoveAll(this);
-		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerOpenEvent>(this);
 		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerCloseEvent>(this);
 		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerStateEvent>(this);
+		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerOpenEvent>(this);
+		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this);
+		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertWorkspaceSyncAndFinalizeCompletedEvent>(this);
+
 		LiveSession.Reset();
 	}
 }
@@ -100,6 +105,17 @@ void FConcertServerSequencerManager::HandleSequencerCloseEvent(const FConcertSes
 	}
 }
 
+void FConcertServerSequencerManager::HandleWorkspaceSyncAndFinalizeCompletedEvent(const FConcertSessionContext& InEventContext, const FConcertWorkspaceSyncAndFinalizeCompletedEvent& InEvent)
+{
+	FConcertSequencerStateSyncEvent SequencerStateSyncEvent;
+	for (const auto& Pair : SequencerStates)
+	{
+		SequencerStateSyncEvent.SequencerStates.Add(Pair.Value.State);
+	}
+
+	LiveSession->GetSession().SendCustomEvent(SequencerStateSyncEvent, InEventContext.SourceEndpointId, EConcertMessageFlags::ReliableOrdered);
+}
+
 void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo)
 {
 	check(&InSession == &LiveSession->GetSession());
@@ -122,14 +138,9 @@ void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSe
 			}
 		}
 	}
-	// Send the current Sequencers states to the newly connected client
-	else
-	{
-		FConcertSequencerStateSyncEvent SyncEvent;
-		for (const auto& Pair : SequencerStates)
-		{
-			SyncEvent.SequencerStates.Add(Pair.Value.State);
-		}
-		LiveSession->GetSession().SendCustomEvent(SyncEvent, InClientInfo.ClientEndpointId, EConcertMessageFlags::ReliableOrdered);
-	}
+
+	// Newly connected clients won't be sent the Sequencer state sync event
+	// until they have synced and finalized their workspace since an open
+	// sequence could have been created by a transaction in the activity
+	// stream.
 }

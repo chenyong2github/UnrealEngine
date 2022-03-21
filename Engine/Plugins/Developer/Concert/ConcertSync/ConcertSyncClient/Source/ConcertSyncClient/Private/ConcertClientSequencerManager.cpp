@@ -144,7 +144,7 @@ FConcertClientSequencerManager::GatherRootSequencersByState(const FString& InSeq
 		TSharedPtr<ISequencer> Sequencer = Entry.WeakSequencer.Pin();
 		UMovieSceneSequence*   Sequence = Sequencer.IsValid() ? Sequencer->GetRootMovieSceneSequence() : nullptr;
 
-		if (Sequence && (Sequence->GetPathName() == InSequenceObjectPath || CVarEnableUnrelatedTimelineSync.GetValueOnAnyThread() > 0))
+		if (Sequence && (Sequence->GetPathName() == InSequenceObjectPath || IsUnrelatedSequencerTimelineSyncEnabled()))
 		{
 			OutSequencers.Add(&Entry);
 		}
@@ -285,7 +285,16 @@ void FConcertClientSequencerManager::OnSyncEvent(const FConcertSessionContext& I
 	{
 		FConcertSequencerState& SequencerState = SequencerStates.FindOrAdd(*State.SequenceObjectPath);
 		SequencerState = State;
-		for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(SequencerState.SequenceObjectPath))
+
+		const TArray<FOpenSequencerData*, TInlineAllocator<1>> OpenSequencersForObject = GatherRootSequencersByState(SequencerState.SequenceObjectPath);
+
+		// Keep track of whether a Sequencer is open for this particular
+		// sequence, since the array of open Sequencers may contain unrelated
+		// Sequencers.
+		bool bFoundSequencerForObject = false;
+
+		UE_LOG(LogConcertSequencerSync, VeryVerbose, TEXT("OnSyncEvent: Syncing %d Sequencers for sequence %s"), OpenSequencersForObject.Num(), *SequencerState.SequenceObjectPath);
+		for (FOpenSequencerData* OpenSequencer : OpenSequencersForObject)
 		{
 			TSharedPtr<ISequencer> Sequencer = OpenSequencer->WeakSequencer.Pin();
 			if (Sequencer.IsValid() && IsSequencerPlaybackSyncEnabled())
@@ -293,7 +302,20 @@ void FConcertClientSequencerManager::OnSyncEvent(const FConcertSessionContext& I
 				Sequencer->SetGlobalTime(SequencerState.Time.ConvertTo(Sequencer->GetRootTickResolution()));
 				Sequencer->SetPlaybackStatus((EMovieScenePlayerStatus::Type)SequencerState.PlayerStatus);
 				Sequencer->SetPlaybackSpeed(SequencerState.PlaybackSpeed);
+
+				const UMovieSceneSequence* Sequence = Sequencer->GetRootMovieSceneSequence();
+				if (Sequence && (Sequence->GetPathName() == SequencerState.SequenceObjectPath))
+				{
+					bFoundSequencerForObject = true;
+				}
 			}
+		}
+
+		if (!bFoundSequencerForObject)
+		{
+			UE_LOG(LogConcertSequencerSync, VeryVerbose, TEXT("OnSyncEvent: No existing Sequencer with sequence %s open. Will open and sync a new one at end of frame."), *SequencerState.SequenceObjectPath);
+			PendingSequenceOpenEvents.Add(SequencerState.SequenceObjectPath);
+			PendingSequencerEvents.Add(SequencerState);
 		}
 	}
 }
