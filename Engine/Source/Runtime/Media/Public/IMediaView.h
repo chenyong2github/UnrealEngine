@@ -3,6 +3,62 @@
 #pragma once
 
 #include "Math/Quat.h"
+#include "Containers/Set.h"
+#include "Containers/Map.h"
+
+/**
+ * Tile coordinate of a tiled media source/texture.
+ */
+struct MEDIA_API FMediaTileCoordinate
+{
+	uint16 X, Y;
+
+	FORCEINLINE FMediaTileCoordinate()
+	{
+	}
+
+	FORCEINLINE explicit FMediaTileCoordinate(uint16 InX, uint16 InY)
+		: X(InX)
+		, Y(InY)
+	{
+	}
+
+	FORCEINLINE explicit FMediaTileCoordinate(int32 InX, int32 InY)
+		: X(IntCastChecked<uint16>(InX))
+		, Y(IntCastChecked<uint16>(InY))
+	{
+	}
+
+	FORCEINLINE FMediaTileCoordinate(EForceInit)
+		: X(0u)
+		, Y(0u)
+	{
+	}
+
+	FORCEINLINE bool operator==(const FMediaTileCoordinate& Other) const
+	{
+		return X == Other.X && Y == Other.Y;
+	}
+
+
+	FORCEINLINE bool operator!=(const FMediaTileCoordinate& Other) const
+	{
+		return X != Other.X || Y != Other.Y;
+	}
+
+	FORCEINLINE static FMediaTileCoordinate Zero()
+	{
+		return FMediaTileCoordinate(EForceInit::ForceInit);
+	}
+};
+
+template <> struct TIsPODType<FMediaTileCoordinate> { enum { Value = true }; };
+
+
+FORCEINLINE uint32 GetTypeHash(const FMediaTileCoordinate& Coord)
+{
+	return FCrc::TypeCrc32(Coord);
+}
 
 
 /**
@@ -23,6 +79,10 @@
  *
  * The user settings can be used by media players to customize the generated
  * audio or video output for specific users.
+ * 
+ * Note: This view class has now been extended to also support tiled
+ * media sources such as tiled exr image sequences. Sets of visible tiles can
+ * be specified per mip level.
  *
  * @see IMediaCache, IMediaControls, IMediaPlayer, IMediaSamples, IMediaTracks
  */
@@ -161,6 +221,33 @@ public:
 	{
 		return false; // override in child classes if supported
 	}
+
+public:
+	//~ Visible tile interface
+
+	/**
+	 * Get the visible tiles per mip-level.
+	 *
+	 * @param OutTiles Map of visible tile sets per mip level index.
+	 * @return true on success, false if feature is not available.
+	 * @see SetVisibleTiles
+	 */
+	virtual bool GetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>& OutTiles) const
+	{
+		return false; // override in child classes if supported
+	};
+
+	/**
+	 * Set the visible tiles per mip-level.
+	 *
+	 * @param InTiles Map of visible tile sets per mip level index.
+	 * @return true on success, false if feature is not available.
+	 * @see GetVisibleTiles
+	 */
+	virtual bool SetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>&& InTiles)
+	{
+		return false; // override in child classes if supported
+	};
 
 public:
 

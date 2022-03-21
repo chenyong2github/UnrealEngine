@@ -116,6 +116,18 @@ enum class EMediaOrientation
 class IMediaTextureSample
 {
 public:
+	/** Description of tiles (only used by tiled image sequences currently).*/
+	struct TilingDescription
+	{
+		FIntPoint TileNum  = FIntPoint::ZeroValue;
+		FIntPoint TileSize = FIntPoint::ZeroValue;
+		int32 TileBorderSize = 0;
+
+		FORCEINLINE bool IsValid() const
+		{
+			return TileNum.X > 0 && TileNum.Y > 0 && TileSize.X > 0 && TileSize.Y > 0;
+		}
+	};
 
 	/**
 	 * Get the sample's frame buffer.
@@ -147,6 +159,17 @@ public:
 	virtual uint8 GetNumMips() const
 	{
 		return 1;
+	}
+
+	/**
+	 * Get tile information (number, size and border size) of the sample.
+	 *
+	 * @return TileInfo struct
+	 * @note Default implementation provided as most samples will not feature tiles
+	 */
+	virtual TilingDescription GetTilingDescription() const
+	{
+		return TilingDescription();
 	}
 
 	/**
