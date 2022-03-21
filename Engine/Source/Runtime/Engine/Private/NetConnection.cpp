@@ -564,6 +564,8 @@ void UNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState InSta
 
 void UNetConnection::InitHandler()
 {
+	LLM_SCOPE_BYTAG(NetConnection);
+
 	check(!Handler.IsValid());
 
 #if !UE_BUILD_SHIPPING
