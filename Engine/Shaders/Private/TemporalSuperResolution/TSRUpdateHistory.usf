@@ -41,11 +41,13 @@
 	#define CONFIG_HIGH_FREQUENCY_ONLY 1
 	#define CONFIG_HIGH_FREQUENCY_YCOCG 0
 	#define CONFIG_OUTPUT_HALFRES_HISTORY 1
+	#define CONFIG_UPDATE_SUBPIXEL_DETAIL 0
 
 #else
 	#define CONFIG_HIGH_FREQUENCY_ONLY 0
 	#define CONFIG_HIGH_FREQUENCY_YCOCG 1
 	#define CONFIG_OUTPUT_HALFRES_HISTORY 0
+	#define CONFIG_UPDATE_SUBPIXEL_DETAIL 1
 
 #endif
 
@@ -158,8 +160,9 @@ groupshared tsr_half4 SharedArray9[GROUP_SHARED_SIZE];
 groupshared tsr_half4 SharedArray10[GROUP_SHARED_SIZE];
 groupshared tsr_half4 SharedArray11[GROUP_SHARED_SIZE];
 
-groupshared tsr_subpixel_payload2 SharedParallaxFactorBits[GROUP_SHARED_SIZE];
-
+#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+	groupshared tsr_subpixel_payload2 SharedParallaxFactorBits[GROUP_SHARED_SIZE];
+#endif
 
 //------------------------------------------------------- FUNCTIONS
 
@@ -290,7 +293,9 @@ void MainCS(
 	tsr_half2 OutputPixelVelocity = tsr_half(0.0).xx;
 	tsr_half2 NoiseFiltering = tsr_half(0.0).xx;
 	tsr_half2x2 HoleFilledVelocityMask = dpv_interleave_mono_registers(tsr_half(1.0).xx);
-	tsr_subpixel_payload2 ParallaxFactorBits = tsr_subpixel_payload(0x0).xx;
+	#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+		tsr_subpixel_payload2 ParallaxFactorBits = tsr_subpixel_payload(0x0).xx;
+	#endif
 	bool2 bIsResponsiveAAPixel = false;
 	bool2 bIsOffScreen = false;
 	bool2 bIsDisoccluded = false;
@@ -441,7 +446,9 @@ void MainCS(
 				/* out */ bIsDisoccluded);
 
 			// Process input texel, forcing to pack register.
-			ParallaxFactorBits    = dpv_force_interleave_registers_array(RawParallaxFactorBits) & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK);
+			#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+				ParallaxFactorBits    = dpv_force_interleave_registers_array(RawParallaxFactorBits) & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK);
+			#endif
 			LowFrequencyRejection = dpv_force_interleave_registers_array(RawLowFrequencyRejection);
 			SceneStencilRef       = dpv_force_interleave_registers_array(RawSceneStencilRef);
 			
@@ -520,8 +527,10 @@ void MainCS(
 	tsr_half2 ClosestInputLuma4;
 	
 	
-	bool2 bUpdateSubpixelDetails;
-	bool2x2 bKOSign;
+	#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+		bool2 bUpdateSubpixelDetails;
+		bool2x2 bKOSign;
+	#endif
 
 	PLATFORM_SPECIFIC_ISOLATE
 	{
@@ -529,6 +538,7 @@ void MainCS(
 		tsr_half2x2 dKO = tsr_half2x2(PPCo - PPCk);
 
 		// Compresses the sign of dKO into SGPR to keep VGPR pressure low.
+		#if CONFIG_UPDATE_SUBPIXEL_DETAIL
 		{
 			float SizeOfOutputPixelInInputPixelWidth = 0.5 * (InputInfo_ViewportSize.x * HistoryInfo_ViewportSizeInverse.x);
 
@@ -538,6 +548,7 @@ void MainCS(
 			bKOSign[0] = dKO[0] < 0.0;
 			bKOSign[1] = dKO[1] < 0.0;
 		}
+		#endif
 		
 		tsr_halfC RawInputColorArray[CONFIG_SAMPLES][DPV_PIXEL_PER_LANE];
 		tsr_half4 RawTranslucencyColorArray[CONFIG_SAMPLES][DPV_PIXEL_PER_LANE];
@@ -679,7 +690,9 @@ void MainCS(
 				SharedArray11[LocalGroupThreadIndex] = tsr_half4(TranslucencyMaxColor[2], TranslucencyMaxColor[3]);
 			#endif
 
-			SharedParallaxFactorBits[LocalGroupThreadIndex] = ParallaxFactorBits;
+			#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+				SharedParallaxFactorBits[LocalGroupThreadIndex] = ParallaxFactorBits;
+			#endif
 		#else
 			SharedArray0[LocalGroupThreadIndex] = tsr_half4(dpv_lo(FilteredInputColor), dpv_lo(LowFrequencyRejection));
 			SharedArray1[LocalGroupThreadIndex] = tsr_half4(dpv_lo(InputMinColor), dpv_lo(InputPixelAlignement));
@@ -705,7 +718,9 @@ void MainCS(
 
 	tsr_half4x2 PrevHistoryTranslucency;
 	
-	tsr_subpixel_details2 PrevSubpixelDetails;
+	#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+		tsr_subpixel_details2 PrevSubpixelDetails;
+	#endif
 
 	PLATFORM_SPECIFIC_ISOLATE
 	{
@@ -819,6 +834,7 @@ void MainCS(
 				AccumulateTranslucency  = dpv_scale(AccumulateTranslucency, FinalMultiplier);
 			}
 
+			#if CONFIG_UPDATE_SUBPIXEL_DETAIL
 			FSubpixelNeighborhood SubpixelNeighborhood0 = GatherPrevSubpixelNeighborhood(PrevHistory_SubpixelDetails, dpv_lo(PrevHistoryBufferUV));
 			FSubpixelNeighborhood SubpixelNeighborhood1 = GatherPrevSubpixelNeighborhood(PrevHistory_SubpixelDetails, dpv_hi(PrevHistoryBufferUV));
 			{
@@ -832,6 +848,7 @@ void MainCS(
 					PrevSubpixelDetails[1] |= SubpixelPayload1 << tsr_subpixel_payload(SUB_PIXEL_BIT_COUNT * SubpixelId);
 				}
 			}
+			#endif // CONFIG_UPDATE_SUBPIXEL_DETAIL
 			
 			#if CONFIG_SCENE_COLOR_APLHA
 				AccumulateLowFrequency  = -dpv_min(-AccumulateLowFrequency, tsr_half(0.0).xxxx);
@@ -907,7 +924,9 @@ void MainCS(
 				tsr_half4 RawLDS11 = SharedArray11[LocalGroupThreadIndex];
 			#endif
 
-			ParallaxFactorBits = SharedParallaxFactorBits[LocalGroupThreadIndex];
+			#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+				ParallaxFactorBits = SharedParallaxFactorBits[LocalGroupThreadIndex];
+			#endif
 
 			FilteredInputColor = tsr_half3x2(RawLDS0.rg, RawLDS0.ba, RawLDS1.rg);
 			InputMinColor = tsr_half3x2(RawLDS2.rg, RawLDS2.ba, RawLDS3.rg);
@@ -1415,6 +1434,7 @@ void MainCS(
 	#endif
 
 	// Update subpixel detail
+	#if CONFIG_UPDATE_SUBPIXEL_DETAIL
 	tsr_subpixel_details2 FinalSubpixelDetails;
 	{
 		FinalSubpixelDetails = PrevSubpixelDetails;
@@ -1452,6 +1472,7 @@ void MainCS(
 			FinalSubpixelDetails.y = UpdatedFinalSubpixelDetails.y;
 		}
 	}
+	#endif // CONFIG_UPDATE_SUBPIXEL_DETAIL
 
 	// Compute final output
 	tsr_halfCx2 FinalOutputColor;
@@ -1600,7 +1621,9 @@ void MainCS(
 					HistoryOutput_Translucency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).rgb;
 					HistoryOutput_TranslucencyAlpha[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).a;
 				#endif
-				HistoryOutput_SubpixelDetails[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalSubpixelDetails);
+				#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+					HistoryOutput_SubpixelDetails[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalSubpixelDetails);
+				#endif
 			}
 		
 			// Output final history hi pixel.
@@ -1618,7 +1641,9 @@ void MainCS(
 					HistoryOutput_Translucency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).rgb;
 					HistoryOutput_TranslucencyAlpha[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).a;
 				#endif
-				HistoryOutput_SubpixelDetails[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalSubpixelDetails);
+				#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+					HistoryOutput_SubpixelDetails[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalSubpixelDetails);
+				#endif
 			}
 			#endif // !CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
 		}

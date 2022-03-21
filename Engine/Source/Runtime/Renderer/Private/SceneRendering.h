@@ -894,6 +894,7 @@ struct FTSRHistory
 	// Filterable half-res output resolution
 	TRefCountPtr<IPooledRenderTarget> HighFrequencyHalfRes;
 
+	FIntRect InputViewportRect;
 	FIntRect OutputViewportRect;
 
 

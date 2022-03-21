@@ -15,6 +15,8 @@
 
 #define CONFIG_MANUAL_LDS_SPILL 1
 
+#define CONFIG_UPDATE_SUBPIXEL_DETAIL (DIM_HIGH_FREQUENCY_ONLY)
+
 #define CONFIG_VELOCITY_SAMPLES 9
 #if CONFIG_VELOCITY_SAMPLES != 1
 	#define CONFIG_VELOCITY_SAMPLE_PAIRS ((CONFIG_VELOCITY_SAMPLES - 1) / 2)
@@ -40,7 +42,7 @@ Texture2D<float2> DilatedVelocityTexture;
 Texture2D<float> ClosestDepthTexture;
 Texture2D<uint> PrevUseCountTexture;
 Texture2D<uint> PrevClosestDepthTexture;
-Texture2D<uint> ParallaxFactorTexture;
+Texture2D<tsr_subpixel_payload> ParallaxFactorTexture;
 
 Texture2D<tsr_halfC> PrevHistory_LowFrequency;
 Texture2D<tsr_halfC> PrevHistory_HighFrequency;
@@ -57,6 +59,7 @@ RWTexture2D<tsr_halfC> PredictionSceneColorOutput;
 RWTexture2D<float2> HoleFilledVelocityOutput;
 RWTexture2D<tsr_half2> HoleFilledVelocityMaskOutput;
 RWTexture2D<tsr_half> ParallaxRejectionMaskOutput;
+RWTexture2D<tsr_subpixel_payload> HistorySubpixelDetailsOutput;
 
 
 //------------------------------------------------------- LDS
@@ -133,6 +136,9 @@ void MainCS(
 	// Sample current frame informations.
 	float2 EncodedScreenVelocity;
 	float DeviceZ;
+	#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+		tsr_subpixel_payload ParallaxFactorBits;
+	#endif
 	tsr_half ParallaxFactor;
 	tsr_half RejectHighFrequency = tsr_half(0.0);
 	ISOLATE
@@ -148,8 +154,13 @@ void MainCS(
 		// Issue texture fetechs
 		ISOLATE
 		{
+			tsr_subpixel_payload RawParallaxFactor = ParallaxFactorTexture[InputPixelPos];
+
 			DeviceZ = ClosestDepthTexture[InputPixelPos];
-			ParallaxFactor = UncompressParallaxFactor((ParallaxFactorTexture[InputPixelPos] >> 4) & 0xF);
+			ParallaxFactor = UncompressParallaxFactor(RawParallaxFactor & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK));
+			#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+				ParallaxFactorBits = RawParallaxFactor & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK);
+			#endif
 
 			#if CONFIG_VELOCITY_SAMPLES == 1
 				EncodedScreenVelocity = DilatedVelocityTexture[InputPixelPos];
@@ -329,11 +340,10 @@ void MainCS(
 		tsr_ushort2 InputPixelPos = (
 			Map8x8Tile2x2Lane(GroupThreadIndex) +
 			(tsr_ushort2(InputInfo_ViewportMin) + tsr_ushort2(GroupId) * tsr_ushort2(TILE_SIZE, TILE_SIZE)));
-
+			
+		float2 ScreenPos = ApplyScreenTransform(float2(InputPixelPos), InputPixelPosToScreenPos);
+		float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedScreenVelocity, 0.0, 0.0)).xy;
 		{
-			float2 ScreenPos = ApplyScreenTransform(float2(InputPixelPos), InputPixelPosToScreenPos);
-
-			float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedScreenVelocity, 0.0, 0.0)).xy;
 			float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
 		
 			FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(PrevInputBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
@@ -425,8 +435,14 @@ void MainCS(
 				DecimatedColorSamples[0] = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, KernelHistoryBufferUV, 0);
 			}
 			#endif
-				
-			SubpixelNeigborhood = GatherPrevSubpixelNeighborhood(PrevHistory_SubpixelDetails, KernelHistoryBufferUV);
+		
+			#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+				float2 SubpixelBufferUV = ApplyScreenTransform(PrevScreenPos, ScreenPosToPrevSubpixelDetails);
+			#else
+				float2 SubpixelBufferUV = KernelHistoryBufferUV;
+			#endif
+
+			SubpixelNeigborhood = GatherPrevSubpixelNeighborhood(PrevHistory_SubpixelDetails, SubpixelBufferUV);
 		}
 	}
 	
@@ -458,6 +474,8 @@ void MainCS(
 
 	// Process the history samples
 	tsr_half ParallaxRejectionMask = 0.0;
+	
+	tsr_subpixel_details FinalSubpixelDetails;
 
 	ISOLATE
 	{
@@ -479,14 +497,19 @@ void MainCS(
 	
 		// Compute HistoryMaxRejectionFactor
 		tsr_half HistoryMaxRejectionFactor;
+		tsr_subpixel_details PrevSubpixelDetails;
 		{
 			uint EncodedHistoryMaxRejectionFactor = 0;
+			
+			PrevSubpixelDetails = 0;
 
 			UNROLL_N(SUB_PIXEL_COUNT)
 			for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
 			{
 				tsr_subpixel_payload SubpixelPayload = GetSubpixelPayload(SubpixelNeigborhood, SubpixelId);
 				tsr_subpixel_payload EncodedRejectionFactor = (SubpixelPayload >> SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET) & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK;
+				
+				PrevSubpixelDetails |= SubpixelPayload << tsr_subpixel_payload(SUB_PIXEL_BIT_COUNT * SubpixelId);
 
 				EncodedHistoryMaxRejectionFactor = max(EncodedHistoryMaxRejectionFactor, EncodedRejectionFactor);
 			}
@@ -552,29 +575,7 @@ void MainCS(
 			tsr_half HistorySubdetailRejectionFactor = max(HistoryMaxRejectionFactor / ParallaxFactor, tsr_half(1.0));
 
 			float4 ThisClip = float4(ScreenPos, DeviceZ, 1);
-			float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-			float2 PrevScreen = PrevClip.xy / PrevClip.w;
-			
-			float4 RotationalPrevClip = mul(ThisClip, RotationalClipToPrevClip);
-			float2 RotationalPrevScreen = RotationalPrevClip.xy / RotationalPrevClip.w;
-			
-			tsr_half PixelParallaxVelocity = tsr_half(0.5) * length(tsr_half2(RotationalPrevScreen - PrevScreen) * tsr_half2(InputInfo_ViewportSize));
-			tsr_half HistorySubdetailAdditionalParralax = (HistorySubdetailRejectionFactor - tsr_half(1.0)) * PixelParallaxVelocity;
-
-			// PixelParallaxVelocity can be +inf and generate NaN if HistorySubdetailRejectionFactor = 1.0;
-			HistorySubdetailAdditionalParralax = -min(-HistorySubdetailAdditionalParralax, tsr_half(0.0));
-
-			tsr_half HistoryParallaxRejectionMask = saturate(tsr_half(1.0) - HistorySubdetailAdditionalParralax);
-
-			ParallaxRejectionMask = min(ParallaxRejectionMask, HistoryParallaxRejectionMask);
-		}
-
-		// Reject subpixel details that might be in history but not input just based on their parrallax
-		{
-			tsr_half HistorySubdetailRejectionFactor = max(HistoryMaxRejectionFactor / ParallaxFactor, tsr_half(1.0));
-
-			float4 ThisClip = float4(ScreenPos, DeviceZ, 1);
-			float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+			float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); 
 			float2 PrevScreen = PrevClip.xy / PrevClip.w;
 			
 			float4 RotationalPrevClip = mul(ThisClip, RotationalClipToPrevClip);
@@ -619,6 +620,37 @@ void MainCS(
 				//HoleFilledVelocityMask = tsr_half(HoleFillingOutOfRange) * tsr_half(saturate(MaxHollFillPixelVelocity - VelocityDelta));
 			}
 		}
+		
+		// Update subpixel detail
+		#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+		{
+			FinalSubpixelDetails = PrevSubpixelDetails;
+
+			{
+				const tsr_subpixel_details ParallaxFactorMask = tsr_subpixel_details(
+					(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 0 * SUB_PIXEL_BIT_COUNT)) | 
+					(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 1 * SUB_PIXEL_BIT_COUNT)) | 
+					(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 2 * SUB_PIXEL_BIT_COUNT)) | 
+					(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 3 * SUB_PIXEL_BIT_COUNT)) | 
+					0x0);
+			
+				// Reset parallax factor
+				FinalSubpixelDetails = select(bIsOffscreenOrParallaxRejected, FinalSubpixelDetails & ~ParallaxFactorMask, FinalSubpixelDetails);
+			}
+		
+			// TODO(TSR): Move SubpixelId CPU
+			bool2 bKOSign = InputJitter < 0.0;
+			uint SubpixelId = dot(uint2(bKOSign), uint2(1, SUB_PIXEL_GRID_SIZE));
+
+			tsr_subpixel_payload SubpixelShift = tsr_subpixel_payload(SubpixelId) * tsr_subpixel_payload(SUB_PIXEL_BIT_COUNT);
+
+			tsr_subpixel_payload SubpixelPayload = (ParallaxFactorBits << tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET));
+
+			tsr_subpixel_details UpdatedFinalSubpixelDetails = (FinalSubpixelDetails & (~(tsr_subpixel_payload(SUB_PIXEL_BIT_MASK) << SubpixelShift))) | (SubpixelPayload << SubpixelShift);
+
+			FinalSubpixelDetails = UpdatedFinalSubpixelDetails;
+		}
+		#endif // CONFIG_UPDATE_SUBPIXEL_DETAIL
 	}
 	
 	// Output half res.
@@ -699,6 +731,9 @@ void MainCS(
 		HoleFilledVelocityOutput[OutputPixelPos] = EncodedScreenVelocity;
 		HoleFilledVelocityMaskOutput[InputPixelPos] = tsr_half2(0.0, RejectHighFrequency);
 		ParallaxRejectionMaskOutput[OutputPixelPos] = ParallaxRejectionMask;
+		#if CONFIG_UPDATE_SUBPIXEL_DETAIL
+			HistorySubpixelDetailsOutput[OutputPixelPos] = FinalSubpixelDetails;
+		#endif
 
 		#if DEBUG_OUTPUT
 		{

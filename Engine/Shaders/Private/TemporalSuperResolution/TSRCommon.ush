@@ -291,6 +291,8 @@ float2 PrevHistoryInfo_UVViewportSizeInverse;
 float2 PrevHistoryInfo_UVViewportBilinearMin;
 float2 PrevHistoryInfo_UVViewportBilinearMax;
 FScreenTransform ScreenPosToPrevHistoryBufferUV;
+FScreenTransform ScreenPosToPrevSubpixelDetails;
+float2 PrevSubpixelDetailsExtent;
 float HistoryPreExposureCorrection;
 
 uint bCameraCut;
@@ -947,9 +949,9 @@ struct FSubpixelNeighborhood
 	bool2 ClosestSubpixelOffset;
 };
 
-FSubpixelNeighborhood GatherPrevSubpixelNeighborhood(Texture2D<uint> PrevSubPixelDetailTexture, float2 PrevHistoryBufferUV)
+FSubpixelNeighborhood GatherPrevSubpixelNeighborhood(Texture2D<tsr_subpixel_details> PrevSubPixelDetailTexture, float2 PrevHistoryBufferUV)
 {
-	float2 PixelCoord = PrevHistoryBufferUV * PrevHistoryInfo_Extent;
+	float2 PixelCoord = PrevHistoryBufferUV * PrevSubpixelDetailsExtent;
 	float2 TopLeftPixelCoord = floor(PixelCoord - 0.5) + 0.5;
 	
 	FSubpixelNeighborhood Neighborhood;
