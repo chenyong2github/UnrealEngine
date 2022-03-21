@@ -8,6 +8,7 @@
 #include "Components/LightComponent.h"
 #include "LandscapeComponent.h"
 #include "UObject/UObjectIterator.h"
+#include "MaterialShared.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 

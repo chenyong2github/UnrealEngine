@@ -8,6 +8,7 @@
 #include "UObject/UObjectIterator.h"
 #include "VirtualHeightfieldMeshComponent.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
+#include "RenderUtils.h"
 
 namespace VirtualHeightfieldMesh
 {

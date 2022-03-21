@@ -11,6 +11,8 @@
 #include "UObject/UObjectIterator.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/VirtualTextureBuilder.h"
+#include "RenderUtils.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "URuntimeVirtualTextureComponent"
 

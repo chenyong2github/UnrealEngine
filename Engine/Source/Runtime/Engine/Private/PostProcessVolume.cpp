@@ -4,6 +4,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
 #include "EngineUtils.h"
+#include "SceneInterface.h"
 
 APostProcessVolume::APostProcessVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

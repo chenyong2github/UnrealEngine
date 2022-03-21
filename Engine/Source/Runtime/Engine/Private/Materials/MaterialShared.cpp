@@ -34,6 +34,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "EngineModule.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "SceneView.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"

@@ -5,6 +5,7 @@
 #include "GPULightmassCommon.h"
 #include "EntityArray.h"
 #include "Components/PrimitiveComponent.h"
+#include "MeshBatch.h"
 
 namespace GPULightmass
 {

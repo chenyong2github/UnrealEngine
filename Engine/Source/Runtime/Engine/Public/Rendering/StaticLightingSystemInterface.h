@@ -4,6 +4,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/LightComponent.h"
 
+class FMaterialRenderProxy;
+
 // TODO: Remove the 'V2' suffix after the renderer version is removed
 
 class ENGINE_API IStaticLightingSystem

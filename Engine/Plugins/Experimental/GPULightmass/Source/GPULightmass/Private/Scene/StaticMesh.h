@@ -5,6 +5,7 @@
 #include "LightmapStorage.h"
 #include "GeometryInterface.h"
 #include "Components/StaticMeshComponent.h"
+#include "LocalVertexFactory.h"
 
 namespace GPULightmass
 {
