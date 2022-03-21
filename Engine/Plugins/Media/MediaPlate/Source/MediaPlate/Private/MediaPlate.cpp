@@ -129,12 +129,39 @@ UMediaTexture* AMediaPlate::GetMediaTexture()
 
 void AMediaPlate::Play()
 {
+	bool bIsPlaying = false;
 	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 	if (MediaPlayer != nullptr)
 	{
 		MediaPlayer->PlayOnOpen = true;
 		MediaPlayer->SetLooping(bLoop);
-		MediaPlayer->OpenSource(MediaSource);
+		
+		// Try and play the URL.
+		if (Url.FilePath.IsEmpty() == false)
+		{
+			// Is it a URL or a file?
+			bool bIsUrl = Url.FilePath.Contains(TEXT("://"));
+			if (bIsUrl)
+			{
+				bIsPlaying = MediaPlayer->OpenUrl(Url.FilePath);
+			}
+			else
+			{
+				bIsPlaying = MediaPlayer->OpenFile(Url.FilePath);
+			}
+		}
+
+		// If we did not get anything, try the media source.
+		if (bIsPlaying == false)
+		{
+			bIsPlaying = MediaPlayer->OpenSource(MediaSource);
+		}
+	}
+
+	// Did anything play?
+	if (bIsPlaying == false)
+	{
+		UE_LOG(LogMediaPlate, Warning, TEXT("Could not play anything."));
 	}
 }
 

@@ -68,9 +68,13 @@ public:
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 
-	/** What media to play. */
+	/** What media to play. This will only be used if Url is not valid. */
 	UPROPERTY(EditAnywhere, Category = MediaPlate)
 	TObjectPtr<UMediaSource> MediaSource;
+
+	/** URL (or file)  to play. This will take precedence over the MediaSource. */
+	UPROPERTY(EditAnywhere, Category = MediaPlate)
+	FFilePath Url;
 
 private:
 	/** Name for our media component. */
