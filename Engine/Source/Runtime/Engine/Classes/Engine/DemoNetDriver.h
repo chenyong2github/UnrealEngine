@@ -385,11 +385,15 @@ public:
 	/** Sets the desired maximum recording time in milliseconds. */
 	void SetMaxDesiredRecordTimeMS(const float InMaxDesiredRecordTimeMS) { MaxDesiredRecordTimeMS = InMaxDesiredRecordTimeMS; }
 
+	float GetMaxDesiredRecordTimeMS() const { return MaxDesiredRecordTimeMS; }
+
 	/** Sets the controller to use as the viewpoint for recording prioritization purposes. */
 	void SetViewerOverride(APlayerController* const InViewerOverride ) { ViewerOverride = InViewerOverride; }
 
 	/** Enable or disable prioritization of actors for recording. */
 	void SetActorPrioritizationEnabled(const bool bInPrioritizeActors) { bPrioritizeActors = bInPrioritizeActors; }
+
+	bool IsActorPrioritizationEnabled() const { return bPrioritizeActors; }
 
 	/** Sets CheckpointSaveMaxMSPerFrame. */
 	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame)

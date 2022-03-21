@@ -18,6 +18,7 @@
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
 #include "ReplayNetConnection.h"
+#include "Engine/DemoNetDriver.h"
 
 extern TAutoConsoleVariable<int32> CVarWithLevelStreamingFixes;
 extern TAutoConsoleVariable<int32> CVarWithDeltaCheckpoints;
@@ -25,6 +26,10 @@ extern TAutoConsoleVariable<int32> CVarWithGameSpecificFrameData;
 extern TAutoConsoleVariable<int32> CVarEnableCheckpoints;
 extern TAutoConsoleVariable<float> CVarCheckpointUploadDelayInSeconds;
 extern TAutoConsoleVariable<float> CVarCheckpointSaveMaxMSPerFrameOverride;
+extern TAutoConsoleVariable<int32> CVarDemoUseNetRelevancy;
+extern TAutoConsoleVariable<int32> CVarDemoClientRecordAsyncEndOfFrame;
+extern TAutoConsoleVariable<float> CVarDemoRecordHz;
+extern TAutoConsoleVariable<float> CVarDemoMinRecordHz;
 
 CSV_DECLARE_CATEGORY_EXTERN(Demo);
 
@@ -198,6 +203,11 @@ void FReplayHelper::WriteNetworkDemoHeader(UNetConnection* Connection)
 			if (LocalWorld->GetNetDriver() != nullptr && !LocalWorld->GetNetDriver()->IsServer())
 			{
 				DemoHeader.HeaderFlags |= EReplayHeaderFlags::ClientRecorded;
+
+				if (CVarDemoClientRecordAsyncEndOfFrame.GetValueOnAnyThread() > 0)
+				{
+					DemoHeader.HeaderFlags |= EReplayHeaderFlags::AsyncRecorded;
+				}
 			}
 		}
 
@@ -221,7 +231,34 @@ void FReplayHelper::WriteNetworkDemoHeader(UNetConnection* Connection)
 			DemoHeader.HeaderFlags |= EReplayHeaderFlags::ReplayConnection;
 		}
 
+		if (Connection)
+		{
+			if (UDemoNetDriver* DemoDriver = Cast<UDemoNetDriver>(Connection->GetDriver()))
+			{
+				if (DemoDriver->IsActorPrioritizationEnabled())
+				{
+					DemoHeader.HeaderFlags |= EReplayHeaderFlags::ActorPrioritizationEnabled;
+				}
+
+				DemoHeader.FrameLimitInMS = DemoDriver->GetMaxDesiredRecordTimeMS();
+			}
+		}
+
+		if (CVarDemoUseNetRelevancy.GetValueOnAnyThread() > 0)
+		{
+			DemoHeader.HeaderFlags |= EReplayHeaderFlags::NetRelevancyEnabled;
+		}
+
 		DemoHeader.Guid = FGuid::NewGuid();
+
+		DemoHeader.CheckpointLimitInMS = CheckpointSaveMaxMSPerFrame;
+
+		DemoHeader.MinRecordHz = CVarDemoMinRecordHz.GetValueOnAnyThread();
+		DemoHeader.MaxRecordHz = CVarDemoRecordHz.GetValueOnAnyThread();
+		
+		DemoHeader.Platform = FPlatformProperties::PlatformName();
+		DemoHeader.BuildConfig = FApp::GetBuildConfiguration();
+		DemoHeader.BuildTarget = FApp::GetBuildTargetType();
 
 		// Write the header
 		(*FileAr) << DemoHeader;
@@ -2246,6 +2283,12 @@ const TCHAR* LexToString(EReplayHeaderFlags Flag)
 		return TEXT("GameSpecificFrameData");
 	case EReplayHeaderFlags::ReplayConnection:
 		return TEXT("ReplayConnection");
+	case EReplayHeaderFlags::ActorPrioritizationEnabled:
+		return TEXT("ActorPrioritizationEnabled");
+	case EReplayHeaderFlags::NetRelevancyEnabled:
+		return TEXT("NetRelevancyEnabled");
+	case EReplayHeaderFlags::AsyncRecorded:
+		return TEXT("AsyncRecorded");
 	default:
 		check(false);
 		return TEXT("Unknown");

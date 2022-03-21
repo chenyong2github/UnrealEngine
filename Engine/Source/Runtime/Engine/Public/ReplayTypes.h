@@ -25,6 +25,9 @@ enum class EReplayHeaderFlags : uint32
 	DeltaCheckpoints = (1 << 2),
 	GameSpecificFrameData = (1 << 3),
 	ReplayConnection = (1 << 4),
+	ActorPrioritizationEnabled = (1 << 5),
+	NetRelevancyEnabled = (1 << 6),
+	AsyncRecorded = (1 << 7),
 };
 
 ENUM_CLASS_FLAGS(EReplayHeaderFlags);
@@ -104,6 +107,7 @@ enum ENetworkVersionHistory
 	HISTORY_GUID_NAMETABLE = 15,				// Added a string table for exported guids
 	HISTORY_GUIDCACHE_CHECKSUMS = 16,			// Removing guid export checksums from saved data, they are ignored during playback
 	HISTORY_SAVE_PACKAGE_VERSION_UE = 17,		// Save engine and licensee package version as well, in case serialization functions need them for compatibility
+	HISTORY_RECORDING_METADATA = 18,			// Adding additional record-time information to the header
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	HISTORY_PLUS_ONE,
@@ -127,6 +131,15 @@ struct FNetworkDemoHeader
 	uint32	EngineNetworkProtocolVersion;			// Version of the engine internal network format
 	uint32	GameNetworkProtocolVersion;				// Version of the game internal network format
 	FGuid	Guid;									// Unique identifier
+
+	float MinRecordHz;
+	float MaxRecordHz;
+	float FrameLimitInMS;
+	float CheckpointLimitInMS;
+
+	FString Platform;
+	EBuildConfiguration BuildConfig;
+	EBuildTargetType BuildTarget;
 
 	FEngineVersion EngineVersion;					// Full engine version on which the replay was recorded
 	EReplayHeaderFlags HeaderFlags;					// Replay flags
@@ -256,6 +269,19 @@ struct FNetworkDemoHeader
 		}
 
 		Ar << Header.GameSpecificData;
+
+		if (Header.Version >= HISTORY_RECORDING_METADATA)
+		{
+			Ar << Header.MinRecordHz;
+			Ar << Header.MaxRecordHz;
+
+			Ar << Header.FrameLimitInMS;
+			Ar << Header.CheckpointLimitInMS;
+
+			Ar << Header.Platform;
+			Ar << Header.BuildConfig;
+			Ar << Header.BuildTarget;
+		}
 
 		return Ar;
 	}
