@@ -896,9 +896,6 @@ void STableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurr
 
 void STableTreeView::UpdateTree()
 {
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
 	if (bRunInAsyncMode)
 	{
 		if (!bIsUpdateRunning)
@@ -916,19 +913,34 @@ void STableTreeView::UpdateTree()
 	}
 	else
 	{
-		CreateGroups(CurrentGroupings);
-		if (CurrentSorter.IsValid())
-		{
-			SortTreeNodes(CurrentSorter.Get(), ColumnSortMode);
-		}
+		ApplyGrouping();
+		ApplySorting();
 		ApplyFiltering();
 	}
+}
 
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	if (TotalTime > 0.1)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Filtering
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::OnFilteringChanged()
+{
+	if (bRunInAsyncMode)
 	{
-		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Tree updated (grouping + sorting + filtering) in %.3fs."), *Table->GetDisplayName().ToString(), TotalTime);
+		if (!bIsUpdateRunning)
+		{
+			OnPreAsyncUpdate();
+
+			InProgressAsyncOperationEvent = StartApplyFiltersTask();
+		}
+		else
+		{
+			CancelCurrentAsyncOp();
+		}
+	}
+	else
+	{
+		ApplyFiltering();
 	}
 }
 
@@ -963,13 +975,14 @@ void STableTreeView::ApplyFiltering()
 		}
 	}
 
-	Stopwatch.Update();
-	const double Time1 = Stopwatch.GetAccumulatedTime();
+	Stopwatch.Stop();
+	const double FilteringTime = Stopwatch.GetAccumulatedTime();
+	if (FilteringTime > 0.1)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Filtering completed in %.3fs."), *Table->GetDisplayName().ToString(), FilteringTime);
+	}
 
 	UpdateAggregatedValues(*Root);
-
-	Stopwatch.Update();
-	const double Time2 = Stopwatch.GetAccumulatedTime();
 
 	// Cannot call TreeView functions from other threads than MainThread and SlateThread.
 	if (!bRunInAsyncMode)
@@ -1007,13 +1020,6 @@ void STableTreeView::ApplyFiltering()
 
 		// Request tree refresh
 		TreeView->RequestTreeRefresh();
-	}
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	if (TotalTime > 0.1)
-	{
-		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Filtering completed in %.3fs (aggregation done in %.3fs)."), *Table->GetDisplayName().ToString(), TotalTime, Time2 - Time1);
 	}
 }
 
@@ -1297,24 +1303,7 @@ void STableTreeView::SearchBox_OnTextChanged(const FText& InFilterText)
 {
 	TextFilter->SetRawFilterText(InFilterText);
 	SearchBox->SetError(TextFilter->GetFilterErrorText());
-
-	if (bRunInAsyncMode)
-	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
-
-			InProgressAsyncOperationEvent = StartApplyFiltersTask();
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
-	}
-	else
-	{
-		ApplyFiltering();
-	}
+	OnFilteringChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1340,6 +1329,40 @@ FText STableTreeView::SearchBox_GetTooltipText() const
 // Grouping
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STableTreeView::OnGroupingChanged()
+{
+	if (bRunInAsyncMode)
+	{
+		if (!bIsUpdateRunning)
+		{
+			OnPreAsyncUpdate();
+
+			FGraphEventRef CompletedEvent = StartCreateGroupsTask();
+			CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
+			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
+		}
+		else
+		{
+			CancelCurrentAsyncOp();
+		}
+	}
+	else
+	{
+		ApplyGrouping();
+		ApplySorting();
+		ApplyFiltering();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ApplyGrouping()
+{
+	CreateGroups(CurrentGroupings);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings)
 {
 	FStopwatch Stopwatch;
@@ -1347,17 +1370,14 @@ void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& G
 
 	GroupNodesRec(TableTreeNodes, *Root, 0, Groupings);
 
-	Stopwatch.Update();
-	const double Time1 = Stopwatch.GetAccumulatedTime();
+	Stopwatch.Stop();
+	const double GroupingTime = Stopwatch.GetAccumulatedTime();
+	if (GroupingTime > 0.1)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Grouping completed in %.3fs."), *Table->GetDisplayName().ToString(), GroupingTime);
+	}
 
 	UpdateAggregatedValues(*Root);
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	if (TotalTime > 0.1)
-	{
-		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Grouping completed in %.3fs (%.3fs + %.3fs)."), *Table->GetDisplayName().ToString(), TotalTime, Time1, TotalTime - Time1);
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1413,6 +1433,9 @@ void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 
 void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
 		FTableColumn& Column = ColumnRef.Get();
@@ -1469,6 +1492,13 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 				}
 				break;
 		}
+	}
+
+	Stopwatch.Stop();
+	const double AggregationTime = Stopwatch.GetAccumulatedTime();
+	if (AggregationTime > 0.1)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Aggregation completed in %.3fs."), *Table->GetDisplayName().ToString(), AggregationTime);
 	}
 }
 
@@ -1636,30 +1666,7 @@ void STableTreeView::PostChangeGroupings()
 
 	TreeViewHeaderRow->RefreshColumns();
 
-	if (bRunInAsyncMode)
-	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
-
-			FGraphEventRef CompletedEvent = StartCreateGroupsTask();
-			CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
-			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
-	}
-	else
-	{
-		CreateGroups(CurrentGroupings);
-		if (CurrentSorter.IsValid())
-		{
-			SortTreeNodes(CurrentSorter.Get(), ColumnSortMode);
-		}
-		ApplyFiltering();
-	}
+	OnGroupingChanged();
 
 	RebuildGroupingCrumbs();
 }
@@ -2093,6 +2100,41 @@ void STableTreeView::UpdateCurrentSortingByColumn()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STableTreeView::OnSortingChanged()
+{
+	if (bRunInAsyncMode)
+	{
+		if (!bIsUpdateRunning)
+		{
+			OnPreAsyncUpdate();
+
+			FGraphEventRef CompletedEvent = StartSortTreeNodesTask();
+			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
+		}
+		else
+		{
+			CancelCurrentAsyncOp();
+		}
+	}
+	else
+	{
+		ApplySorting();
+		ApplyFiltering();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ApplySorting()
+{
+	if (CurrentSorter.IsValid())
+	{
+		SortTreeNodes(CurrentSorter.Get(), ColumnSortMode);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STableTreeView::SortTreeNodes(ITableCellValueSorter* InSorter, EColumnSortMode::Type InColumnSortMode)
 {
 	FStopwatch Stopwatch;
@@ -2154,28 +2196,7 @@ void STableTreeView::SetSortModeForColumn(const FName& ColumnId, const EColumnSo
 	ColumnSortMode = SortMode;
 	UpdateCurrentSortingByColumn();
 
-	if (bRunInAsyncMode)
-	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
-
-			FGraphEventRef CompletedEvent = StartSortTreeNodesTask();
-			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
-	}
-	else
-	{
-		if (CurrentSorter.IsValid())
-		{
-			SortTreeNodes(CurrentSorter.Get(), ColumnSortMode);
-		}
-		ApplyFiltering();
-	}
+	OnSortingChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2926,22 +2947,7 @@ bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 
 void STableTreeView::OnAdvancedFiltersChangesCommited()
 {
-	if (bRunInAsyncMode)
-	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
-			InProgressAsyncOperationEvent = StartApplyFiltersTask();
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
-	}
-	else
-	{
-		ApplyFiltering();
-	}
+	OnFilteringChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
