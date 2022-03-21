@@ -1302,7 +1302,12 @@ public:
 		int CurJobifyNumThreads = OodleJobifyNumThreads;
 		void* CurJobifyUserPointer = OodleJobifyUserPointer;
 
-		if (bIsVT)
+		// Have a target number of pixels per job, and clamp the num threads
+		// to avoid generating lots of tiny jobs
+		const int64 TargetPixelsPerJobThread = 128 * 128;
+		const int TargetJobThreads = (int)(int64(Image.SizeX) * Image.SizeY / TargetPixelsPerJobThread);
+
+		if (bIsVT || TargetJobThreads <= 1)
 		{
 			// VT runs its tiles in a ParallelFor on the TaskGraph
 			//   We internally also make tasks on TaskGraph
@@ -1311,6 +1316,10 @@ public:
 			// disable our own internal threading for VT tiles :
 			CurJobifyNumThreads = OODLETEX_JOBS_DISABLE;
 			CurJobifyUserPointer = nullptr;
+		}
+		else
+		{
+			CurJobifyNumThreads = FMath::Min(CurJobifyNumThreads, TargetJobThreads);
 		}
 
 		// encode each slice
@@ -1396,7 +1405,10 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 {
 	using namespace UE::Tasks;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_RunJob);
+	// Don't trace both RunJob and the EncodeBCN_Task by default; that's a lot of event
+	// spam. The RunJob portion is a bit of setup work, just elide that unless there's
+	// reason to suspect something fishy here.
+	//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_RunJob);
 	
 	TArray<Private::FTaskBase*> Prerequisites;
 	Prerequisites.Reserve(NumDependencies);
