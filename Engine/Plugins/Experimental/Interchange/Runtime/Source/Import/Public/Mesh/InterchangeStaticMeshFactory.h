@@ -17,6 +17,7 @@ namespace UE::Interchange
 
 class UStaticMesh;
 class UInterchangeStaticMeshLodDataNode;
+struct FKAggregateGeom;
 
 
 UCLASS(BlueprintType, Experimental)
