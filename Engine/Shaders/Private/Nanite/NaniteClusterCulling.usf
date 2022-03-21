@@ -272,7 +272,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 
 #if VIRTUAL_TEXTURE_TARGET
 		BRANCH
-		if( bVisible && !Cull.bCrossesNearPlane )
+		if( bVisible )
 		{
 			RectPages = GetPageRect(Rect, NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
 			bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, RectPages, PageFlagMask );
