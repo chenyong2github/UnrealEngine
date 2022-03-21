@@ -8,7 +8,9 @@
 
 #include "RenderingThread.h"
 #include "RHICommandList.h"
+#include "Engine/Texture2D.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Rendering/Texture2DResource.h"
 
 
 UDMXFixtureComponent::UDMXFixtureComponent()
