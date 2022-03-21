@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Horde.Auth;
 using EpicGames.Serialization;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -65,12 +63,12 @@ namespace EpicGames.Horde.Storage.Impl
 
 			public CbObject Value { get; }
 
-			public RefImpl(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value)
+			public RefImpl(NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value)
 			{
-				this.NamespaceId = NamespaceId;
-				this.BucketId = BucketId;
-				this.RefId = RefId;
-				this.Value = Value;
+				NamespaceId = namespaceId;
+				BucketId = bucketId;
+				RefId = refId;
+				Value = value;
 			}
 		}
 
@@ -79,97 +77,97 @@ namespace EpicGames.Horde.Storage.Impl
 
 		const string CompactBinaryMimeType = "application/x-ue-cb";
 
-		HttpClient HttpClient;
+		readonly HttpClient _httpClient;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="HttpClient">Http client for the blob store. Should be pre-configured with a base address and appropriate authentication headers.</param>
-		public HttpStorageClient(HttpClient HttpClient)
+		/// <param name="httpClient">Http client for the blob store. Should be pre-configured with a base address and appropriate authentication headers.</param>
+		public HttpStorageClient(HttpClient httpClient)
 		{
-			this.HttpClient = HttpClient;
+			_httpClient = httpClient;
 		}
 
 		#region Blobs
 
 		/// <inheritdoc/>
-		public async Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken)
+		public async Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/blobs/{NamespaceId}/{Hash}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/blobs/{namespaceId}/{hash}");
 
-			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
+			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			try
 			{
-				if (Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+				if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
 				{
-					throw new BlobNotFoundException(NamespaceId, Hash);
+					throw new BlobNotFoundException(namespaceId, hash);
 				}
 
-				Response.EnsureSuccessStatusCode();
-				return await Response.Content.ReadAsStreamAsync();
+				response.EnsureSuccessStatusCode();
+				return await response.Content.ReadAsStreamAsync();
 			}
 			catch
 			{
-				Response.Dispose();
+				response.Dispose();
 				throw;
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken)
+		public async Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/blobs/{NamespaceId}/{Hash}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/blobs/{namespaceId}/{hash}");
 
-			StreamContent Content = new StreamContent(Stream);
-			Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-			Request.Content = Content;
+			StreamContent content = new StreamContent(stream);
+			content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+			request.Content = content;
 
-			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
-			Response.EnsureSuccessStatusCode();
+			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			response.EnsureSuccessStatusCode();
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		public async Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Head, $"api/v1/blobs/{NamespaceId}/{Hash}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, $"api/v1/blobs/{namespaceId}/{hash}");
 
-			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
+			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			try
 			{
-				if (Response.StatusCode != System.Net.HttpStatusCode.NotFound)
+				if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
 				{
-					Response.EnsureSuccessStatusCode();
+					response.EnsureSuccessStatusCode();
 				}
-				return Response.StatusCode == System.Net.HttpStatusCode.OK;
+				return response.StatusCode == System.Net.HttpStatusCode.OK;
 			}
 			catch
 			{
-				Response.Dispose();
+				response.Dispose();
 				throw;
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		public async Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId namespaceId, HashSet<IoHash> hashes, CancellationToken cancellationToken)
 		{
-			using StringContent Content = new StringContent(JsonSerializer.Serialize(Hashes));
+			using StringContent content = new StringContent(JsonSerializer.Serialize(hashes));
 
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/blobs/{NamespaceId}/exist");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/blobs/{namespaceId}/exist");
 
-			Request.Headers.Accept.Clear();
-			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-			Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-			Request.Content = Content;
+			request.Headers.Accept.Clear();
+			request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+			content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+			request.Content = content;
 
-			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
-			Response.EnsureSuccessStatusCode();
+			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			response.EnsureSuccessStatusCode();
 
-			BlobExistsResponse? ResponseBody = await ReadJsonResponse<BlobExistsResponse>(Response.Content);
-			if (ResponseBody == null)
+			BlobExistsResponse? responseBody = await ReadJsonResponse<BlobExistsResponse>(response.Content);
+			if (responseBody == null)
 			{
 				throw new StorageException("Unable to parse response body", null);
 			}
-			return ResponseBody.Needs;
+			return responseBody.Needs;
 		}
 
 		#endregion
@@ -177,132 +175,132 @@ namespace EpicGames.Horde.Storage.Impl
 		#region Refs
 
 		/// <inheritdoc/>
-		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
+		public async Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/refs/{namespaceId}/{bucketId}/{refId}");
 
-			Request.Headers.Accept.Clear();
-			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(CompactBinaryMimeType));
+			request.Headers.Accept.Clear();
+			request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(CompactBinaryMimeType));
 
-			using HttpResponseMessage Response = await HttpClient.SendAsync(Request);
-			if (!Response.IsSuccessStatusCode)
+			using HttpResponseMessage response = await _httpClient.SendAsync(request);
+			if (!response.IsSuccessStatusCode)
 			{
-				if (Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+				if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
 				{
-					throw new RefNotFoundException(NamespaceId, BucketId, RefId);
+					throw new RefNotFoundException(namespaceId, bucketId, refId);
 				}
 				else
 				{
-					throw new RefException(NamespaceId, BucketId, RefId, await GetMessageFromResponse(Response));
+					throw new RefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
 				}
 			}
 
-			byte[] Data = await Response.Content.ReadAsByteArrayAsync();
-			return new RefImpl(NamespaceId, BucketId, RefId, new CbObject(Data));
+			byte[] data = await response.Content.ReadAsByteArrayAsync();
+			return new RefImpl(namespaceId, bucketId, refId, new CbObject(data));
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IoHash>> TrySetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value, CancellationToken CancellationToken)
+		public async Task<List<IoHash>> TrySetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value, CancellationToken cancellationToken)
 		{
-			using ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Value.GetView());
+			using ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(value.GetView());
 
-			StreamContent Content = new StreamContent(Stream);
-			Content.Headers.ContentType = new MediaTypeHeaderValue(CompactBinaryMimeType);
-			Content.Headers.Add(HashHeaderName, IoHash.Compute(Value.GetView().Span).ToString());
+			StreamContent content = new StreamContent(stream);
+			content.Headers.ContentType = new MediaTypeHeaderValue(CompactBinaryMimeType);
+			content.Headers.Add(HashHeaderName, IoHash.Compute(value.GetView().Span).ToString());
 
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/refs/{namespaceId}/{bucketId}/{refId}");
 
-			Request.Headers.Accept.Clear();
-			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-			Request.Content = Content;
+			request.Headers.Accept.Clear();
+			request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+			request.Content = content;
 
-			using HttpResponseMessage Response = await HttpClient.SendAsync(Request);
-			if (!Response.IsSuccessStatusCode)
+			using HttpResponseMessage response = await _httpClient.SendAsync(request);
+			if (!response.IsSuccessStatusCode)
 			{
-				throw new RefException(NamespaceId, BucketId, RefId, await GetMessageFromResponse(Response));
+				throw new RefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
 			}
 
-			RefPutResponse? ResponseBody = await ReadJsonResponse<RefPutResponse>(Response.Content);
-			if (ResponseBody == null)
+			RefPutResponse? responseBody = await ReadJsonResponse<RefPutResponse>(response.Content);
+			if (responseBody == null)
 			{
-				throw new RefException(NamespaceId, BucketId, RefId, "Unable to parse response body");
+				throw new RefException(namespaceId, bucketId, refId, "Unable to parse response body");
 			}
 
-			return ResponseBody.Needs;
+			return responseBody.Needs;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, IoHash Hash, CancellationToken CancellationToken)
+		public async Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, IoHash hash, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}/finalize/{Hash}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/refs/{namespaceId}/{bucketId}/{refId}/finalize/{hash}");
 
-			Request.Headers.Accept.Clear();
-			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+			request.Headers.Accept.Clear();
+			request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-			using HttpResponseMessage Response = await HttpClient.SendAsync(Request);
-			if (!Response.IsSuccessStatusCode)
+			using HttpResponseMessage response = await _httpClient.SendAsync(request);
+			if (!response.IsSuccessStatusCode)
 			{
-				throw new RefException(NamespaceId, BucketId, RefId, await GetMessageFromResponse(Response));
+				throw new RefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
 			}
 
-			RefPutResponse? ResponseBody = await ReadJsonResponse<RefPutResponse>(Response.Content);
-			if (ResponseBody == null)
+			RefPutResponse? responseBody = await ReadJsonResponse<RefPutResponse>(response.Content);
+			if (responseBody == null)
 			{
-				throw new RefException(NamespaceId, BucketId, RefId, "Unable to parse response body");
+				throw new RefException(namespaceId, bucketId, refId, "Unable to parse response body");
 			}
 
-			return ResponseBody.Needs;
+			return responseBody.Needs;
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
+		public async Task<bool> DeleteRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Delete, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Delete, $"api/v1/refs/{namespaceId}/{bucketId}/{refId}");
 
-			using HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
-			return Response.IsSuccessStatusCode;
+			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			return response.IsSuccessStatusCode;
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
+		public async Task<bool> HasRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Head, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, $"api/v1/refs/{namespaceId}/{bucketId}/{refId}");
 
-			using HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
-			if (Response.IsSuccessStatusCode)
+			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			if (response.IsSuccessStatusCode)
 			{
 				return true;
 			}
-			else if (Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+			else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
 			{
 				return false;
 			}
 			else
 			{
-				throw new RefException(NamespaceId, BucketId, RefId, $"Unexpected response for {nameof(HasRefAsync)} call: {Response.StatusCode}");
+				throw new RefException(namespaceId, bucketId, refId, $"Unexpected response for {nameof(HasRefAsync)} call: {response.StatusCode}");
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<RefId>> FindMissingRefsAsync(NamespaceId NamespaceId, BucketId BucketId, List<RefId> RefIds, CancellationToken CancellationToken)
+		public async Task<List<RefId>> FindMissingRefsAsync(NamespaceId namespaceId, BucketId bucketId, List<RefId> refIds, CancellationToken cancellationToken)
 		{
-			string RefList = String.Join("&", RefIds.Select(x => $"id={x}"));
+			string refList = String.Join("&", refIds.Select(x => $"id={x}"));
 
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/refs/{NamespaceId}/{BucketId}/exists?{RefList}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/refs/{namespaceId}/{bucketId}/exists?{refList}");
 
-			using HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
-			if (!Response.IsSuccessStatusCode)
+			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			if (!response.IsSuccessStatusCode)
 			{
-				throw new RefException(NamespaceId, BucketId, new RefId(IoHash.Zero), await GetMessageFromResponse(Response));
+				throw new RefException(namespaceId, bucketId, new RefId(IoHash.Zero), await GetMessageFromResponse(response));
 			}
 
-			RefExistsResponse? ResponseContent = await ReadJsonResponse<RefExistsResponse>(Response.Content);
-			if (ResponseContent == null)
+			RefExistsResponse? responseContent = await ReadJsonResponse<RefExistsResponse>(response.Content);
+			if (responseContent == null)
 			{
-				throw new RefException(NamespaceId, BucketId, new RefId(IoHash.Zero), "Unable to parse response body");
+				throw new RefException(namespaceId, bucketId, new RefId(IoHash.Zero), "Unable to parse response body");
 			}
 
-			return ResponseContent.Needs;
+			return responseContent.Needs;
 		}
 
 		#endregion
@@ -312,26 +310,26 @@ namespace EpicGames.Horde.Storage.Impl
 			public string? Title { get; set; }
 		}
 
-		static async Task<string> GetMessageFromResponse(HttpResponseMessage Response)
+		static async Task<string> GetMessageFromResponse(HttpResponseMessage response)
 		{
-			StringBuilder Message = new StringBuilder($"HTTP {Response.StatusCode}");
+			StringBuilder message = new StringBuilder($"HTTP {response.StatusCode}");
 			try
 			{
-				byte[] Data = await Response.Content.ReadAsByteArrayAsync();
-				ProblemDetails? Details = JsonSerializer.Deserialize<ProblemDetails>(Data);
-				Message.Append($": {Details?.Title ?? "No description available"}");
+				byte[] data = await response.Content.ReadAsByteArrayAsync();
+				ProblemDetails? details = JsonSerializer.Deserialize<ProblemDetails>(data);
+				message.Append($": {details?.Title ?? "No description available"}");
 			}
 			catch
 			{
-				Message.Append(" (Unable to parse response data)");
+				message.Append(" (Unable to parse response data)");
 			}
-			return Message.ToString();
+			return message.ToString();
 		}
 
-		static async Task<T> ReadJsonResponse<T>(HttpContent Content)
+		static async Task<T> ReadJsonResponse<T>(HttpContent content)
 		{
-			byte[] Data = await Content.ReadAsByteArrayAsync();
-			return JsonSerializer.Deserialize<T>(Data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+			byte[] data = await content.ReadAsByteArrayAsync();
+			return JsonSerializer.Deserialize<T>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 		}
 	}
 }

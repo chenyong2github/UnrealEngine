@@ -5,16 +5,12 @@ using EpicGames.Horde.Storage.Impl;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Text;
 
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
 	/// Settings to configure a connected Horde.Storage instance
 	/// </summary>
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1056:URI-like properties should not be strings")]
 	public class StorageOptions : HttpServiceClientOptions
 	{
 	}
@@ -27,24 +23,24 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Registers services for Horde Storage
 		/// </summary>
-		/// <param name="Services">The current service collection</param>
-		public static void AddHordeStorage(this IServiceCollection Services)
+		/// <param name="services">The current service collection</param>
+		public static void AddHordeStorage(this IServiceCollection services)
 		{
-			Services.AddOptions<StorageOptions>();
+			services.AddOptions<StorageOptions>();
 
-			Services.AddScoped<IStorageClient, HttpStorageClient>();
-			Services.AddHttpClientWithAuth<IStorageClient, HttpStorageClient>(ServiceProvider => ServiceProvider.GetRequiredService<IOptions<StorageOptions>>().Value);
+			services.AddScoped<IStorageClient, HttpStorageClient>();
+			services.AddHttpClientWithAuth<IStorageClient, HttpStorageClient>(serviceProvider => serviceProvider.GetRequiredService<IOptions<StorageOptions>>().Value);
 		}
 
 		/// <summary>
 		/// Registers services for Horde Storage
 		/// </summary>
-		/// <param name="Services">The current service collection</param>
-		/// <param name="Configure">Callback for configuring the storage service</param>
-		public static void AddHordeStorage(this IServiceCollection Services, Action<StorageOptions> Configure)
+		/// <param name="services">The current service collection</param>
+		/// <param name="configure">Callback for configuring the storage service</param>
+		public static void AddHordeStorage(this IServiceCollection services, Action<StorageOptions> configure)
 		{
-			AddHordeStorage(Services);
-			Services.Configure<StorageOptions>(Configure);
+			AddHordeStorage(services);
+			services.Configure<StorageOptions>(configure);
 		}
 	}
 }

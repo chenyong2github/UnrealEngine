@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Horde.Common;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -123,60 +120,60 @@ namespace EpicGames.Horde.Compute.Impl
 	/// </summary>
 	public class HttpComputeClient : IComputeClient
 	{
-		HttpClient HttpClient;
+		readonly HttpClient _httpClient;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="HttpClient"></param>
-		public HttpComputeClient(HttpClient HttpClient)
+		/// <param name="httpClient"></param>
+		public HttpComputeClient(HttpClient httpClient)
 		{
-			this.HttpClient = HttpClient;
+			_httpClient = httpClient;
 		}
 
 		/// <inheritdoc/>
-		public async Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId ClusterId, CancellationToken CancellationToken)
+		public async Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId clusterId, CancellationToken cancellationToken)
 		{
-			return await HttpClient.GetAsync<GetComputeClusterInfo>($"api/v1/compute/{ClusterId}", CancellationToken);
+			return await _httpClient.GetAsync<GetComputeClusterInfo>($"api/v1/compute/{clusterId}", cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public async Task AddTasksAsync(ClusterId ClusterId, ChannelId ChannelId, IEnumerable<RefId> TaskRefIds, IoHash RequirementsHash, bool SkipCacheLookup, CancellationToken CancellationToken)
+		public async Task AddTasksAsync(ClusterId clusterId, ChannelId channelId, IEnumerable<RefId> taskRefIds, IoHash requirementsHash, bool skipCacheLookup, CancellationToken cancellationToken)
 		{
-			AddTasksRequest AddTasks = new AddTasksRequest();
-			AddTasks.ChannelId = ChannelId;
-			AddTasks.TaskRefIds.AddRange(TaskRefIds);
-			AddTasks.RequirementsHash = RequirementsHash;
-			AddTasks.DoNotCache = SkipCacheLookup;
+			AddTasksRequest addTasks = new AddTasksRequest();
+			addTasks.ChannelId = channelId;
+			addTasks.TaskRefIds.AddRange(taskRefIds);
+			addTasks.RequirementsHash = requirementsHash;
+			addTasks.DoNotCache = skipCacheLookup;
 
-			ReadOnlyMemoryContent Content = new ReadOnlyMemoryContent(CbSerializer.Serialize(AddTasks).GetView());
-			Content.Headers.Add("Content-Type", "application/x-ue-cb");
+			ReadOnlyMemoryContent content = new ReadOnlyMemoryContent(CbSerializer.Serialize(addTasks).GetView());
+			content.Headers.Add("Content-Type", "application/x-ue-cb");
 
-			HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/compute/{ClusterId}");
-			Request.Content = Content;
+			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/compute/{clusterId}");
+			request.Content = content;
 
-			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
-			Response.EnsureSuccessStatusCode();
+			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			response.EnsureSuccessStatusCode();
 		}
 
 		/// <inheritdoc/>
-		public async IAsyncEnumerable<IComputeTaskInfo> GetTaskUpdatesAsync(ClusterId ClusterId, ChannelId ChannelId, [EnumeratorCancellation] CancellationToken CancellationToken)
+		public async IAsyncEnumerable<IComputeTaskInfo> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
 			for (; ; )
 			{
-				HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/compute/{ClusterId}/updates/{ChannelId}?wait=10");
-				Request.Headers.Add("Accept", "application/x-ue-cb");
+				HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/compute/{clusterId}/updates/{channelId}?wait=10");
+				request.Headers.Add("Accept", "application/x-ue-cb");
 
-				using HttpResponseMessage Response = await HttpClient.SendAsync(Request, HttpCompletionOption.ResponseContentRead, CancellationToken);
-				Response.EnsureSuccessStatusCode();
+				using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
+				response.EnsureSuccessStatusCode();
 
-				byte[] Data = await Response.Content.ReadAsByteArrayAsync();
-				GetTaskUpdatesResponse ParsedResponse = CbSerializer.Deserialize<GetTaskUpdatesResponse>(new CbField(Data));
+				byte[] data = await response.Content.ReadAsByteArrayAsync();
+				GetTaskUpdatesResponse parsedResponse = CbSerializer.Deserialize<GetTaskUpdatesResponse>(new CbField(data));
 
-				foreach (GetTaskUpdateResponse Update in ParsedResponse.Updates)
+				foreach (GetTaskUpdateResponse update in parsedResponse.Updates)
 				{
-					CancellationToken.ThrowIfCancellationRequested();
-					yield return Update;
+					cancellationToken.ThrowIfCancellationRequested();
+					yield return update;
 				}
 			}
 		}

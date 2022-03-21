@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.Horde
 {
@@ -20,11 +17,10 @@ namespace EpicGames.Horde
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Input">Unique id for the string</param>
-		[SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "Known limited character set")]
-		public StringId(string Input)
+		/// <param name="input">Unique id for the string</param>
+		public StringId(string input)
 		{
-			this.Text = Input;
+			Text = input;
 
 			if (Text.Length == 0)
 			{
@@ -37,12 +33,12 @@ namespace EpicGames.Horde
 				throw new ArgumentException($"String id may not be longer than {MaxLength} characters");
 			}
 
-			for (int Idx = 0; Idx < Text.Length; Idx++)
+			for (int idx = 0; idx < Text.Length; idx++)
 			{
-				char Character = Text[Idx];
-				if (!IsValidCharacter(Character))
+				char character = Text[idx];
+				if (!IsValidCharacter(character))
 				{
-					if (Character >= 'A' && Character <= 'Z')
+					if (character >= 'A' && character <= 'Z')
 					{
 						Text = Text.ToLowerInvariant();
 					}
@@ -57,27 +53,24 @@ namespace EpicGames.Horde
 		/// <summary>
 		/// Checks whether this StringId is set
 		/// </summary>
-		public bool IsEmpty
-		{
-			get { return String.IsNullOrEmpty(Text); }
-		}
+		public bool IsEmpty => String.IsNullOrEmpty(Text);
 
 		/// <summary>
 		/// Checks whether the given character is valid within a string id
 		/// </summary>
-		/// <param name="Character">The character to check</param>
+		/// <param name="character">The character to check</param>
 		/// <returns>True if the character is valid</returns>
-		static bool IsValidCharacter(char Character)
+		static bool IsValidCharacter(char character)
 		{
-			if (Character >= 'a' && Character <= 'z')
+			if (character >= 'a' && character <= 'z')
 			{
 				return true;
 			}
-			if (Character >= '0' && Character <= '9')
+			if (character >= '0' && character <= '9')
 			{
 				return true;
 			}
-			if (Character == '-' || Character == '_' || Character == '.')
+			if (character == '-' || character == '_' || character == '.')
 			{
 				return true;
 			}
@@ -85,13 +78,13 @@ namespace EpicGames.Horde
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is StringId Id && Equals(Id);
+		public override bool Equals(object? obj) => obj is StringId id && Equals(id);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Text.GetHashCode(StringComparison.Ordinal);
 
 		/// <inheritdoc/>
-		public bool Equals(StringId Other) => Text.Equals(Other.Text, StringComparison.Ordinal);
+		public bool Equals(StringId other) => Text.Equals(other.Text, StringComparison.Ordinal);
 
 		/// <inheritdoc/>
 		public override string ToString() => Text;
@@ -99,17 +92,17 @@ namespace EpicGames.Horde
 		/// <summary>
 		/// Compares two string ids for equality
 		/// </summary>
-		/// <param name="Left">The first string id</param>
-		/// <param name="Right">Second string id</param>
+		/// <param name="left">The first string id</param>
+		/// <param name="right">Second string id</param>
 		/// <returns>True if the two string ids are equal</returns>
-		public static bool operator ==(StringId Left, StringId Right) => Left.Equals(Right);
+		public static bool operator ==(StringId left, StringId right) => left.Equals(right);
 
 		/// <summary>
 		/// Compares two string ids for inequality
 		/// </summary>
-		/// <param name="Left">The first string id</param>
-		/// <param name="Right">Second string id</param>
+		/// <param name="left">The first string id</param>
+		/// <param name="right">Second string id</param>
 		/// <returns>True if the two string ids are not equal</returns>
-		public static bool operator !=(StringId Left, StringId Right) => !Left.Equals(Right);
+		public static bool operator !=(StringId left, StringId right) => !left.Equals(right);
 	}
 }

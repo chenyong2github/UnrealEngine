@@ -2,10 +2,8 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Net.Http;
-using System.Text;
 
 namespace EpicGames.Horde.Auth
 {
@@ -49,35 +47,35 @@ namespace EpicGames.Horde.Auth
 
 	internal static class AuthExtensions
 	{
-		public static void AddHttpClientWithAuth<TClient, TImplementation>(this IServiceCollection Services, Func<IServiceProvider, HttpServiceClientOptions> GetOptions) 
+		public static void AddHttpClientWithAuth<TClient, TImplementation>(this IServiceCollection services, Func<IServiceProvider, HttpServiceClientOptions> getOptions) 
 			where TClient : class 
 			where TImplementation : class, TClient
 		{
-			Services.AddScoped<OAuthHandlerFactory>();
-			Services.AddHttpClient<OAuthHandlerFactory>();
-			Services.AddScoped<OAuthHandler<TImplementation>>(ServiceProvider => ServiceProvider.GetRequiredService<OAuthHandlerFactory>().Create<TImplementation>(GetOptions(ServiceProvider)));
+			services.AddScoped<OAuthHandlerFactory>();
+			services.AddHttpClient<OAuthHandlerFactory>();
+			services.AddScoped<OAuthHandler<TImplementation>>(serviceProvider => serviceProvider.GetRequiredService<OAuthHandlerFactory>().Create<TImplementation>(getOptions(serviceProvider)));
 
-			Services.AddHttpClient<TClient, TImplementation>((ServiceProvider, Client) =>
+			services.AddHttpClient<TClient, TImplementation>((serviceProvider, client) =>
 				{
-					HttpServiceClientOptions Options = GetOptions(ServiceProvider);
-					Client.BaseAddress = new Uri(Options.Url);
+					HttpServiceClientOptions options = getOptions(serviceProvider);
+					client.BaseAddress = new Uri(options.Url);
 				})
-				.ConfigurePrimaryHttpMessageHandler(ServiceProvider =>
+				.ConfigurePrimaryHttpMessageHandler(serviceProvider =>
 				{
-					HttpServiceClientOptions Options = GetOptions(ServiceProvider);
-					return CreateMessageHandler<TImplementation>(ServiceProvider, Options);
+					HttpServiceClientOptions options = getOptions(serviceProvider);
+					return CreateMessageHandler<TImplementation>(serviceProvider, options);
 				});
 		}
 
-		static HttpMessageHandler CreateMessageHandler<TImplementation>(IServiceProvider ServiceProvider, HttpServiceClientOptions Options)
+		static HttpMessageHandler CreateMessageHandler<TImplementation>(IServiceProvider serviceProvider, HttpServiceClientOptions options)
 		{
-			if (!String.IsNullOrEmpty(Options.AuthUrl))
+			if (!String.IsNullOrEmpty(options.AuthUrl))
 			{
-				return ServiceProvider.GetRequiredService<OAuthHandler<TImplementation>>();
+				return serviceProvider.GetRequiredService<OAuthHandler<TImplementation>>();
 			}
-			else if (!String.IsNullOrEmpty(Options.Token))
+			else if (!String.IsNullOrEmpty(options.Token))
 			{
-				return new TokenHandler<TImplementation>(Options);
+				return new TokenHandler<TImplementation>(options);
 			}
 			else
 			{

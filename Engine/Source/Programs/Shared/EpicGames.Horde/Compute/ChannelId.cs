@@ -3,11 +3,8 @@
 using EpicGames.Core;
 using EpicGames.Serialization;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -24,34 +21,34 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// The text representing this id
 		/// </summary>
-		readonly StringId Inner;
+		readonly StringId _inner;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Input">Unique id for the string</param>
-		public ChannelId(string Input)
+		/// <param name="input">Unique id for the string</param>
+		public ChannelId(string input)
 		{
-			Inner = new StringId(Input);
+			_inner = new StringId(input);
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is ChannelId Id && Inner.Equals(Id.Inner);
+		public override bool Equals(object? obj) => obj is ChannelId id && _inner.Equals(id._inner);
 
 		/// <inheritdoc/>
-		public override int GetHashCode() => Inner.GetHashCode();
+		public override int GetHashCode() => _inner.GetHashCode();
 
 		/// <inheritdoc/>
-		public bool Equals(ChannelId Other) => Inner.Equals(Other.Inner);
+		public bool Equals(ChannelId other) => _inner.Equals(other._inner);
 
 		/// <inheritdoc/>
-		public override string ToString() => Inner.ToString();
+		public override string ToString() => _inner.ToString();
 
 		/// <inheritdoc cref="StringId.op_Equality"/>
-		public static bool operator ==(ChannelId Left, ChannelId Right) => Left.Inner == Right.Inner;
+		public static bool operator ==(ChannelId left, ChannelId right) => left._inner == right._inner;
 
 		/// <inheritdoc cref="StringId.op_Inequality"/>
-		public static bool operator !=(ChannelId Left, ChannelId Right) => Left.Inner != Right.Inner;
+		public static bool operator !=(ChannelId left, ChannelId right) => left._inner != right._inner;
 	}
 
 	/// <summary>
@@ -60,13 +57,13 @@ namespace EpicGames.Horde.Compute
 	sealed class ChannelIdCbConverter : CbConverterBase<ChannelId>
 	{
 		/// <inheritdoc/>
-		public override ChannelId Read(CbField Field) => new ChannelId(Field.AsString());
+		public override ChannelId Read(CbField field) => new ChannelId(field.AsString());
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter Writer, ChannelId Value) => Writer.WriteStringValue(Value.ToString());
+		public override void Write(CbWriter writer, ChannelId value) => writer.WriteStringValue(value.ToString());
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, ChannelId Value) => Writer.WriteString(Name, Value.ToString());
+		public override void WriteNamed(CbWriter writer, Utf8String name, ChannelId value) => writer.WriteString(name, value.ToString());
 	}
 
 	/// <summary>
@@ -75,10 +72,10 @@ namespace EpicGames.Horde.Compute
 	sealed class ChannelIdJsonConverter : JsonConverter<ChannelId>
 	{
 		/// <inheritdoc/>
-		public override ChannelId Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => new ChannelId(Reader.GetString() ?? String.Empty);
+		public override ChannelId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => new ChannelId(reader.GetString() ?? String.Empty);
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, ChannelId Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.ToString());
+		public override void Write(Utf8JsonWriter writer, ChannelId value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
 	}
 
 	/// <summary>
@@ -87,9 +84,9 @@ namespace EpicGames.Horde.Compute
 	sealed class ChannelIdTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType) => SourceType == typeof(string);
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => sourceType == typeof(string);
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value) => new ChannelId((string)Value);
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value) => new ChannelId((string)value);
 	}
 }

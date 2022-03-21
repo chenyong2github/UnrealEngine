@@ -5,8 +5,6 @@ using EpicGames.Horde.Compute.Impl;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Horde.Compute
 {
@@ -25,24 +23,24 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Registers services for Horde Compute
 		/// </summary>
-		/// <param name="Services">The current service collection</param>
-		public static void AddHordeCompute(this IServiceCollection Services)
+		/// <param name="services">The current service collection</param>
+		public static void AddHordeCompute(this IServiceCollection services)
 		{
-			Services.AddOptions<ComputeOptions>();
+			services.AddOptions<ComputeOptions>();
 
-			Services.AddScoped<IComputeClient, HttpComputeClient>();
-			Services.AddHttpClientWithAuth<IComputeClient, HttpComputeClient>(ServiceProvider => ServiceProvider.GetRequiredService<IOptions<ComputeOptions>>().Value);
+			services.AddScoped<IComputeClient, HttpComputeClient>();
+			services.AddHttpClientWithAuth<IComputeClient, HttpComputeClient>(serviceProvider => serviceProvider.GetRequiredService<IOptions<ComputeOptions>>().Value);
 		}
 
 		/// <summary>
 		/// Registers services for Horde Compute
 		/// </summary>
-		/// <param name="Services">The current service collection</param>
-		/// <param name="Configure">Callback for configuring the storage service</param>
-		public static void AddHordeCompute(this IServiceCollection Services, Action<ComputeOptions> Configure)
+		/// <param name="services">The current service collection</param>
+		/// <param name="configure">Callback for configuring the storage service</param>
+		public static void AddHordeCompute(this IServiceCollection services, Action<ComputeOptions> configure)
 		{
-			AddHordeCompute(Services);
-			Services.Configure<ComputeOptions>(Configure);
+			AddHordeCompute(services);
+			services.Configure<ComputeOptions>(configure);
 		}
 	}
 }

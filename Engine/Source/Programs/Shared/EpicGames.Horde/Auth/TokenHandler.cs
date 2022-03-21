@@ -1,15 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Serialization;
-using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Net;
 using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,22 +22,22 @@ namespace EpicGames.Horde.Auth
 	/// </summary>
 	public class TokenHandler<T> : HttpClientHandler
 	{
-		ITokenAuthOptions Options;
+		readonly ITokenAuthOptions _options;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Options"></param>
-		public TokenHandler(ITokenAuthOptions Options)
+		/// <param name="options"></param>
+		public TokenHandler(ITokenAuthOptions options)
 		{
-			this.Options = Options;
+			_options = options;
 		}
 
 		/// <inheritdoc/>
-		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage Request, CancellationToken CancellationToken)
+		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
-			Request.Headers.Add("Authorization", $"Bearer {Options.Token}");
-			return await base.SendAsync(Request, CancellationToken);
+			request.Headers.Add("Authorization", $"Bearer {_options.Token}");
+			return await base.SendAsync(request, cancellationToken);
 		}
 	}
 }

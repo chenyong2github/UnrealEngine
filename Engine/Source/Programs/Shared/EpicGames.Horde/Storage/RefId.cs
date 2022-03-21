@@ -3,7 +3,6 @@
 using EpicGames.Core;
 using EpicGames.Serialization;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Text;
@@ -28,38 +27,38 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Hash"></param>
-		public RefId(IoHash Hash)
+		/// <param name="hash"></param>
+		public RefId(IoHash hash)
 		{
-			this.Hash = Hash;
+			Hash = hash;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name to identify this ref</param>
-		public RefId(string Name)
+		/// <param name="name">Name to identify this ref</param>
+		public RefId(string name)
 		{
-			this.Hash = IoHash.Compute(Encoding.UTF8.GetBytes(Name));
+			Hash = IoHash.Compute(Encoding.UTF8.GetBytes(name));
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is RefId RefId && Equals(RefId);
+		public override bool Equals(object? obj) => obj is RefId refId && Equals(refId);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Hash.GetHashCode();
 
 		/// <inheritdoc/>
-		public bool Equals(RefId RefId) => Hash == RefId.Hash;
+		public bool Equals(RefId refId) => Hash == refId.Hash;
 
 		/// <inheritdoc/>
 		public override string ToString() => Hash.ToString();
 
 		/// <inheritdoc/>
-		public static bool operator ==(RefId Lhs, RefId Rhs) => Lhs.Equals(Rhs);
+		public static bool operator ==(RefId lhs, RefId rhs) => lhs.Equals(rhs);
 
 		/// <inheritdoc/>
-		public static bool operator !=(RefId Lhs, RefId Rhs) => !Lhs.Equals(Rhs);
+		public static bool operator !=(RefId lhs, RefId rhs) => !lhs.Equals(rhs);
 	}
 
 	/// <summary>
@@ -68,10 +67,10 @@ namespace EpicGames.Horde.Storage
 	sealed class RefIdJsonConverter : JsonConverter<RefId>
 	{
 		/// <inheritdoc/>
-		public override RefId Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => new RefId(IoHash.Parse(Reader.ValueSpan));
+		public override RefId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => new RefId(IoHash.Parse(reader.ValueSpan));
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, RefId Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.Hash.ToUtf8String().Span);
+		public override void Write(Utf8JsonWriter writer, RefId value, JsonSerializerOptions options) => writer.WriteStringValue(value.Hash.ToUtf8String().Span);
 	}
 
 	/// <summary>
@@ -80,22 +79,22 @@ namespace EpicGames.Horde.Storage
 	sealed class RefIdTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
 		{
-			return SourceType == typeof(string);
+			return sourceType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
 		{
-			IoHash Hash;
-			if (IoHash.TryParse((string)Value, out Hash))
+			IoHash hash;
+			if (IoHash.TryParse((string)value, out hash))
 			{
-				return new RefId(Hash);
+				return new RefId(hash);
 			}
 			else
 			{
-				return new RefId((string)Value);
+				return new RefId((string)value);
 			}
 		}
 	}
@@ -106,12 +105,12 @@ namespace EpicGames.Horde.Storage
 	sealed class RefIdCbConverter : CbConverterBase<RefId>
 	{
 		/// <inheritdoc/>
-		public override RefId Read(CbField Field) => new RefId(Field.AsHash());
+		public override RefId Read(CbField field) => new RefId(field.AsHash());
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter Writer, RefId Value) => Writer.WriteHashValue(Value.Hash);
+		public override void Write(CbWriter writer, RefId value) => writer.WriteHashValue(value.Hash);
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, RefId Value) => Writer.WriteHash(Name, Value.Hash);
+		public override void WriteNamed(CbWriter writer, Utf8String name, RefId value) => writer.WriteHash(name, value.Hash);
 	}
 }

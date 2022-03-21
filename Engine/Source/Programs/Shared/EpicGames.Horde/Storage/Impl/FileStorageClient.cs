@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,12 +24,12 @@ namespace EpicGames.Horde.Storage.Impl
 			public RefId RefId { get; set; }
 			public CbObject Value { get; set; }
 
-			public Ref(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value)
+			public Ref(NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value)
 			{
-				this.NamespaceId = NamespaceId;
-				this.BucketId = BucketId;
-				this.RefId = RefId;
-				this.Value = Value;
+				NamespaceId = namespaceId;
+				BucketId = bucketId;
+				RefId = refId;
+				Value = value;
 			}
 		}
 
@@ -38,111 +37,112 @@ namespace EpicGames.Horde.Storage.Impl
 		/// Base directory for storing files
 		/// </summary>
 		public DirectoryReference BaseDir { get; }
-		ILogger Logger;
+
+		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="BaseDir"></param>
-		/// <param name="Logger"></param>
-		public FileStorageClient(DirectoryReference BaseDir, ILogger Logger)
+		/// <param name="baseDir"></param>
+		/// <param name="logger"></param>
+		public FileStorageClient(DirectoryReference baseDir, ILogger logger)
 		{
-			this.BaseDir = BaseDir;
-			this.Logger = Logger;
+			BaseDir = baseDir;
+			_logger = logger;
 
-			DirectoryReference.CreateDirectory(BaseDir);
+			DirectoryReference.CreateDirectory(baseDir);
 		}
 
-		FileReference GetBlobFile(NamespaceId NamespaceId, IoHash Hash)
+		FileReference GetBlobFile(NamespaceId namespaceId, IoHash hash)
 		{
-			return FileReference.Combine(BaseDir, NamespaceId.ToString(), $"{Hash}.blob");
-		}
-
-		/// <inheritdoc/>
-		public Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
-		{
-			FileReference File = GetBlobFile(NamespaceId, Hash);
-			Logger.LogInformation("Reading {File} ({Size:n0} bytes)", File, new FileInfo(File.FullName).Length);
-			return Task.FromResult<Stream>(FileReference.Open(File, FileMode.Open, FileAccess.Read, FileShare.Read));
+			return FileReference.Combine(BaseDir, namespaceId.ToString(), $"{hash}.blob");
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken = default)
+		public Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			FileReference File = GetBlobFile(NamespaceId, Hash);
-			DirectoryReference.CreateDirectory(File.Directory);
+			FileReference file = GetBlobFile(namespaceId, hash);
+			_logger.LogInformation("Reading {File} ({Size:n0} bytes)", file, new FileInfo(file.FullName).Length);
+			return Task.FromResult<Stream>(FileReference.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read));
+		}
 
-			Logger.LogInformation("Writing {File} ({Size:n0} bytes)", File, Stream.Length);
-			using (Stream OutputStream = FileReference.Open(File, FileMode.Create, FileAccess.Write, FileShare.Read))
+		/// <inheritdoc/>
+		public async Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken = default)
+		{
+			FileReference file = GetBlobFile(namespaceId, hash);
+			DirectoryReference.CreateDirectory(file.Directory);
+
+			_logger.LogInformation("Writing {File} ({Size:n0} bytes)", file, stream.Length);
+			using (Stream outputStream = FileReference.Open(file, FileMode.Create, FileAccess.Write, FileShare.Read))
 			{
-				await Stream.CopyToAsync(OutputStream);
+				await stream.CopyToAsync(outputStream);
 			}
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		public Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(FileReference.Exists(GetBlobFile(NamespaceId, Hash)));
+			return Task.FromResult(FileReference.Exists(GetBlobFile(namespaceId, hash)));
 		}
 
 		/// <inheritdoc/>
-		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId namespaceId, HashSet<IoHash> hashes, CancellationToken cancellationToken)
 		{
-			return Task.FromResult(Hashes.Where(x => !FileReference.Exists(GetBlobFile(NamespaceId, x))).ToHashSet());
+			return Task.FromResult(hashes.Where(x => !FileReference.Exists(GetBlobFile(namespaceId, x))).ToHashSet());
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
+		public Task<bool> DeleteRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			FileReference File = GetRefFile(NamespaceId, BucketId, RefId);
-			if (FileReference.Exists(File))
+			FileReference file = GetRefFile(namespaceId, bucketId, refId);
+			if (FileReference.Exists(file))
 			{
-				FileReference.Delete(File);
+				FileReference.Delete(file);
 				return Task.FromResult(true);
 			}
 			return Task.FromResult(false);
 		}
 
 		/// <inheritdoc/>
-		public Task<List<RefId>> FindMissingRefsAsync(NamespaceId NamespaceId, BucketId BucketId, List<RefId> RefIds, CancellationToken CancellationToken = default)
+		public Task<List<RefId>> FindMissingRefsAsync(NamespaceId namespaceId, BucketId bucketId, List<RefId> refIds, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(RefIds.Where(x => !FileReference.Exists(GetRefFile(NamespaceId, BucketId, x))).ToList());
+			return Task.FromResult(refIds.Where(x => !FileReference.Exists(GetRefFile(namespaceId, bucketId, x))).ToList());
 		}
 
-		FileReference GetRefFile(NamespaceId NamespaceId, BucketId BucketId, RefId RefId)
+		FileReference GetRefFile(NamespaceId namespaceId, BucketId bucketId, RefId refId)
 		{
-			return FileReference.Combine(BaseDir, NamespaceId.ToString(), BucketId.ToString(), $"{RefId}.ref");
-		}
-
-		/// <inheritdoc/>
-		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
-		{
-			FileReference File = GetRefFile(NamespaceId, BucketId, RefId);
-			Logger.LogInformation("Reading {File} ({Size:n0} bytes)", File, new FileInfo(File.FullName).Length);
-			byte[] Data = await FileReference.ReadAllBytesAsync(File);
-			return new Ref(NamespaceId, BucketId, RefId, new CbObject(Data));
+			return FileReference.Combine(BaseDir, namespaceId.ToString(), bucketId.ToString(), $"{refId}.ref");
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
+		public async Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(FileReference.Exists(GetRefFile(NamespaceId, BucketId, RefId)));
+			FileReference file = GetRefFile(namespaceId, bucketId, refId);
+			_logger.LogInformation("Reading {File} ({Size:n0} bytes)", file, new FileInfo(file.FullName).Length);
+			byte[] data = await FileReference.ReadAllBytesAsync(file);
+			return new Ref(namespaceId, bucketId, refId, new CbObject(data));
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, IoHash Hash, CancellationToken CancellationToken = default)
+		public Task<bool> HasRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
+		{
+			return Task.FromResult(FileReference.Exists(GetRefFile(namespaceId, bucketId, refId)));
+		}
+
+		/// <inheritdoc/>
+		public Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, IoHash hash, CancellationToken cancellationToken = default)
 		{
 			throw new NotImplementedException();
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IoHash>> TrySetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value, CancellationToken CancellationToken = default)
+		public async Task<List<IoHash>> TrySetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value, CancellationToken cancellationToken = default)
 		{
-			FileReference File = GetRefFile(NamespaceId, BucketId, RefId);
-			DirectoryReference.CreateDirectory(File.Directory);
+			FileReference file = GetRefFile(namespaceId, bucketId, refId);
+			DirectoryReference.CreateDirectory(file.Directory);
 
-			Logger.LogInformation("Writing {File} ({Size:n0} bytes)", File, Value.GetView().Length);
-			await FileReference.WriteAllBytesAsync(File, Value.GetView().ToArray(), CancellationToken);
+			_logger.LogInformation("Writing {File} ({Size:n0} bytes)", file, value.GetView().Length);
+			await FileReference.WriteAllBytesAsync(file, value.GetView().ToArray(), cancellationToken);
 			return new List<IoHash>();
 		}
 	}

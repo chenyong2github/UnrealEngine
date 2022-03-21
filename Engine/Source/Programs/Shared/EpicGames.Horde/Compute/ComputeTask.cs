@@ -2,9 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Horde.Compute
 {
@@ -65,16 +63,16 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Executable">The executable to run</param>
-		/// <param name="Arguments">Arguments for the executable to run</param>
-		/// <param name="WorkingDirectory">Working directory for execution</param>
-		/// <param name="SandboxHash">Hash of the sandbox</param>
-		public ComputeTask(Utf8String Executable, List<Utf8String> Arguments, Utf8String WorkingDirectory, CbObjectAttachment SandboxHash)
+		/// <param name="executable">The executable to run</param>
+		/// <param name="arguments">Arguments for the executable to run</param>
+		/// <param name="workingDirectory">Working directory for execution</param>
+		/// <param name="sandboxHash">Hash of the sandbox</param>
+		public ComputeTask(Utf8String executable, List<Utf8String> arguments, Utf8String workingDirectory, CbObjectAttachment sandboxHash)
 		{
-			this.Executable = Executable;
-			this.Arguments = Arguments;
-			this.WorkingDirectory = WorkingDirectory;
-			this.SandboxHash = SandboxHash;
+			Executable = executable;
+			Arguments = arguments;
+			WorkingDirectory = workingDirectory;
+			SandboxHash = sandboxHash;
 		}
 	}
 }

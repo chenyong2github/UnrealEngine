@@ -2,7 +2,6 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
-using EpicGames.Serialization.Converters;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -10,7 +9,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -49,17 +47,17 @@ namespace EpicGames.Horde.Common
 		public TokenType Type { get; private set; }
 		public string? Scalar { get; private set; }
 
-		public TokenReader(string Input)
+		public TokenReader(string input)
 		{
-			this.Input = Input;
+			Input = input;
 			MoveNext();
 		}
 
-		private void SetCurrent(int Length, TokenType Type, string? Scalar = null)
+		private void SetCurrent(int length, TokenType type, string? scalar = null)
 		{
-			this.Length = Length;
-			this.Type = Type;
-			this.Scalar = Scalar;
+			Length = length;
+			Type = type;
+			Scalar = scalar;
 		}
 
 		public void MoveNext()
@@ -138,31 +136,31 @@ namespace EpicGames.Horde.Common
 					case '\'':
 						ParseString();
 						return;
-					case char Char when IsNumber(Char):
+					case char character when IsNumber(character):
 						ParseNumber();
 						return;
-					case char Char when IsIdentifier(Char):
-						int EndIdx = Offset + 1;
-						while (EndIdx < Input.Length && IsIdentifierTail(Input[EndIdx]))
+					case char character when IsIdentifier(character):
+						int endIdx = Offset + 1;
+						while (endIdx < Input.Length && IsIdentifierTail(Input[endIdx]))
 						{
-							EndIdx++;
+							endIdx++;
 						}
 
-						TokenType Type;
-						if (EndIdx == Offset + 4 && String.Compare(Input, Offset, "true", 0, 4, StringComparison.OrdinalIgnoreCase) == 0)
+						TokenType type;
+						if (endIdx == Offset + 4 && String.Compare(Input, Offset, "true", 0, 4, StringComparison.OrdinalIgnoreCase) == 0)
 						{
-							Type = TokenType.True;
+							type = TokenType.True;
 						}
-						else if (EndIdx == Offset + 5 && String.Compare(Input, Offset, "false", 0, 5, StringComparison.OrdinalIgnoreCase) == 0)
+						else if (endIdx == Offset + 5 && String.Compare(Input, Offset, "false", 0, 5, StringComparison.OrdinalIgnoreCase) == 0)
 						{
-							Type = TokenType.False;
+							type = TokenType.False;
 						}
 						else
 						{
-							Type = TokenType.Identifier;
+							type = TokenType.Identifier;
 						}
 
-						SetCurrent(EndIdx - Offset, Type);
+						SetCurrent(endIdx - Offset, type);
 						return;
 					default:
 						SetCurrent(1, TokenType.Error, $"Invalid character at offset {Offset}: '{Input[Offset]}'");
@@ -175,52 +173,52 @@ namespace EpicGames.Horde.Common
 
 		bool ParseString()
 		{
-			char QuoteChar = Input[Offset];
-			if (QuoteChar != '\'' && QuoteChar != '\"')
+			char quoteChar = Input[Offset];
+			if (quoteChar != '\'' && quoteChar != '\"')
 			{
-				SetCurrent(1, TokenType.Error, $"Invalid quote character '{(char)QuoteChar}' at offset {Offset}");
+				SetCurrent(1, TokenType.Error, $"Invalid quote character '{(char)quoteChar}' at offset {Offset}");
 				return false;
 			}
 
-			int NumEscapeChars = 0;
+			int numEscapeChars = 0;
 
-			int EndIdx = Offset + 1;
-			for (; ; EndIdx++)
+			int endIdx = Offset + 1;
+			for (; ; endIdx++)
 			{
-				if (EndIdx >= Input.Length)
+				if (endIdx >= Input.Length)
 				{
-					SetCurrent(EndIdx - Offset, TokenType.Error, "Unterminated string in expression");
+					SetCurrent(endIdx - Offset, TokenType.Error, "Unterminated string in expression");
 					return false;
 				}
-				else if (Input[EndIdx] == '\\')
+				else if (Input[endIdx] == '\\')
 				{
-					NumEscapeChars++;
-					EndIdx++;
+					numEscapeChars++;
+					endIdx++;
 				}
-				else if (Input[EndIdx] == QuoteChar)
+				else if (Input[endIdx] == quoteChar)
 				{
 					break;
 				}
 			}
 
-			char[] Copy = new char[EndIdx - (Offset + 1) - NumEscapeChars];
+			char[] copy = new char[endIdx - (Offset + 1) - numEscapeChars];
 
-			int InputIdx = Offset + 1;
-			int OutputIdx = 0;
-			while (OutputIdx < Copy.Length)
+			int inputIdx = Offset + 1;
+			int outputIdx = 0;
+			while (outputIdx < copy.Length)
 			{
-				if (Input[InputIdx] == '\\')
+				if (Input[inputIdx] == '\\')
 				{
-					InputIdx++;
+					inputIdx++;
 				}
-				Copy[OutputIdx++] = Input[InputIdx++];
+				copy[outputIdx++] = Input[inputIdx++];
 			}
 
-			SetCurrent(EndIdx + 1 - Offset, TokenType.Scalar, new string(Copy));
+			SetCurrent(endIdx + 1 - Offset, TokenType.Scalar, new string(copy));
 			return true;
 		}
 
-		static Dictionary<StringView, ulong> SizeSuffixes = new Dictionary<StringView, ulong>(StringViewComparer.OrdinalIgnoreCase)
+		static readonly Dictionary<StringView, ulong> s_sizeSuffixes = new Dictionary<StringView, ulong>(StringViewComparer.OrdinalIgnoreCase)
 		{
 			["kb"] = 1024UL,
 			["Mb"] = 1024UL * 1024,
@@ -230,61 +228,61 @@ namespace EpicGames.Horde.Common
 
 		bool ParseNumber()
 		{
-			ulong Value = 0;
+			ulong value = 0;
 
-			int EndIdx = Offset;
-			while (EndIdx < Input.Length && IsNumber(Input[EndIdx]))
+			int endIdx = Offset;
+			while (endIdx < Input.Length && IsNumber(Input[endIdx]))
 			{
-				Value = (Value * 10) + (uint)(Input[EndIdx] - '0');
-				EndIdx++;
+				value = (value * 10) + (uint)(Input[endIdx] - '0');
+				endIdx++;
 			}
 
-			if (EndIdx < Input.Length && IsIdentifier(Input[EndIdx]))
+			if (endIdx < Input.Length && IsIdentifier(Input[endIdx]))
 			{
-				int Offset = EndIdx++;
-				while (EndIdx < Input.Length && IsIdentifierTail(Input[EndIdx]))
+				int offset = endIdx++;
+				while (endIdx < Input.Length && IsIdentifierTail(Input[endIdx]))
 				{
-					EndIdx++;
+					endIdx++;
 				}
 
-				StringView Suffix = new StringView(Input, Offset, EndIdx - Offset);
+				StringView suffix = new StringView(Input, offset, endIdx - offset);
 
-				ulong Size;
-				if (!SizeSuffixes.TryGetValue(Suffix, out Size))
+				ulong size;
+				if (!s_sizeSuffixes.TryGetValue(suffix, out size))
 				{
-					SetCurrent((EndIdx + 1) - Offset, TokenType.Error, $"'{Suffix}' is not a valid numerical suffix");
+					SetCurrent((endIdx + 1) - offset, TokenType.Error, $"'{suffix}' is not a valid numerical suffix");
 					return false;
 				}
-				Value *= Size;
+				value *= size;
 			}
 
-			SetCurrent(EndIdx - Offset, TokenType.Scalar, Value.ToString(CultureInfo.InvariantCulture));
+			SetCurrent(endIdx - Offset, TokenType.Scalar, value.ToString(CultureInfo.InvariantCulture));
 			return true;
 		}
 
-		bool RequireCharacter(string Text, int Idx, char Character)
+		bool RequireCharacter(string text, int idx, char character)
 		{
-			if (Idx == Text.Length || Text[Idx] != Character)
+			if (idx == text.Length || text[idx] != character)
 			{
-				SetCurrent(1, TokenType.Error, $"Invalid character at position {Idx}; expected '{Character}'.");
+				SetCurrent(1, TokenType.Error, $"Invalid character at position {idx}; expected '{character}'.");
 				return false;
 			}
 			return true;
 		}
 
-		static bool IsNumber(char Character)
+		static bool IsNumber(char character)
 		{
-			return Character >= '0' && Character <= '9';
+			return character >= '0' && character <= '9';
 		}
 
-		static bool IsIdentifier(char Character)
+		static bool IsIdentifier(char character)
 		{
-			return (Character >= 'a' && Character <= 'z') || (Character >= 'A' && Character <= 'Z') || Character == '_';
+			return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || character == '_';
 		}
 
-		static bool IsIdentifierTail(char Character)
+		static bool IsIdentifierTail(char character)
 		{
-			return IsIdentifier(Character) || IsNumber(Character) || Character == '-' || Character == '.';
+			return IsIdentifier(character) || IsNumber(character) || character == '-' || character == '.';
 		}
 	}
 
@@ -296,9 +294,9 @@ namespace EpicGames.Horde.Common
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Error"></param>
-		internal ConditionException(string Error)
-			: base(Error)
+		/// <param name="error"></param>
+		internal ConditionException(string error)
+			: base(error)
 		{
 		}
 	}
@@ -318,10 +316,10 @@ namespace EpicGames.Horde.Common
 			public readonly TokenType Type;
 			public readonly byte Index;
 
-			public Token(TokenType Type, int Index)
+			public Token(TokenType type, int index)
 			{
-				this.Type = Type;
-				this.Index = (byte)Index;
+				Type = type;
+				Index = (byte)index;
 			}
 		}
 
@@ -334,25 +332,26 @@ namespace EpicGames.Horde.Common
 		/// Error produced when parsing the condition
 		/// </summary>
 		public string? Error { get; private set; }
-		List<Token> Tokens = new List<Token>();
-		List<string> Strings = new List<string>();
+		
+		readonly List<Token> _tokens = new List<Token>();
+		readonly List<string> _strings = new List<string>();
 
-		private Condition(string Text)
+		private Condition(string text)
 		{
-			this.Text = Text;
+			Text = text;
 
-			TokenReader Reader = new TokenReader(Text);
-			if (Reader.Type != TokenType.End)
+			TokenReader reader = new TokenReader(text);
+			if (reader.Type != TokenType.End)
 			{
-				Error = ParseOrExpr(Reader);
+				Error = ParseOrExpr(reader);
 
-				if (Reader.Type == TokenType.Error)
+				if (reader.Type == TokenType.Error)
 				{
-					Error = Reader.Scalar;
+					Error = reader.Scalar;
 				}
-				else if (Error == null && Reader.Type != TokenType.End)
+				else if (Error == null && reader.Type != TokenType.End)
 				{
-					Error = $"Unexpected token at offset {Reader.Offset}: {Reader.Token}";
+					Error = $"Unexpected token at offset {reader.Offset}: {reader.Token}";
 				}
 			}
 		}
@@ -361,7 +360,7 @@ namespace EpicGames.Horde.Common
 		/// Determines if the condition is empty
 		/// </summary>
 		/// <returns>True if the condition is empty</returns>
-		public bool IsEmpty() => Tokens.Count == 0 && IsValid();
+		public bool IsEmpty() => _tokens.Count == 0 && IsValid();
 
 		/// <summary>
 		/// Checks if the condition has been parsed correctly
@@ -371,109 +370,109 @@ namespace EpicGames.Horde.Common
 		/// <summary>
 		/// Parse the given text as a condition
 		/// </summary>
-		/// <param name="Text">Condition text to parse</param>
+		/// <param name="text">Condition text to parse</param>
 		/// <returns>The new condition object</returns>
-		public static Condition Parse(string Text)
+		public static Condition Parse(string text)
 		{
-			Condition Condition = new Condition(Text);
-			if(!Condition.IsValid())
+			Condition condition = new Condition(text);
+			if(!condition.IsValid())
 			{
-				throw new ConditionException(Condition.Error!);
+				throw new ConditionException(condition.Error!);
 			}
-			return Condition;
+			return condition;
 		}
 
 		/// <summary>
 		/// Attempts to parse the given text as a condition
 		/// </summary>
-		/// <param name="Text">Condition to parse</param>
+		/// <param name="text">Condition to parse</param>
 		/// <returns>The parsed condition. Does not validate whether the parse completed successfully; call <see cref="Condition.IsValid"/> to verify.</returns>
-		public static Condition TryParse(string Text)
+		public static Condition TryParse(string text)
 		{
-			return new Condition(Text);
+			return new Condition(text);
 		}
 
-		string? ParseOrExpr(TokenReader Reader)
+		string? ParseOrExpr(TokenReader reader)
 		{
-			int StartCount = Tokens.Count;
+			int startCount = _tokens.Count;
 
-			string? Error = ParseAndExpr(Reader);
-			while (Error == null && Reader.Type == TokenType.LogicalOr)
+			string? error = ParseAndExpr(reader);
+			while (error == null && reader.Type == TokenType.LogicalOr)
 			{
-				Tokens.Insert(StartCount++, new Token(TokenType.LogicalOr, 0));
-				Reader.MoveNext();
-				Error = ParseAndExpr(Reader);
+				_tokens.Insert(startCount++, new Token(TokenType.LogicalOr, 0));
+				reader.MoveNext();
+				error = ParseAndExpr(reader);
 			}
 
-			return Error;
+			return error;
 		}
 
-		string? ParseAndExpr(TokenReader Reader)
+		string? ParseAndExpr(TokenReader reader)
 		{
-			int StartCount = Tokens.Count;
+			int startCount = _tokens.Count;
 
-			string? Error = ParseBooleanExpr(Reader);
-			while (Error == null && Reader.Type == TokenType.LogicalAnd)
+			string? error = ParseBooleanExpr(reader);
+			while (error == null && reader.Type == TokenType.LogicalAnd)
 			{
-				Tokens.Insert(StartCount++, new Token(TokenType.LogicalAnd, 0));
-				Reader.MoveNext();
-				Error = ParseBooleanExpr(Reader);
+				_tokens.Insert(startCount++, new Token(TokenType.LogicalAnd, 0));
+				reader.MoveNext();
+				error = ParseBooleanExpr(reader);
 			}
 
-			return Error;
+			return error;
 		}
 
-		string? ParseBooleanExpr(TokenReader Reader)
+		string? ParseBooleanExpr(TokenReader reader)
 		{
-			switch (Reader.Type)
+			switch (reader.Type)
 			{
 				case TokenType.Not:
-					Tokens.Add(new Token(Reader.Type, 0));
-					Reader.MoveNext();
-					if (Reader.Type != TokenType.Lparen)
+					_tokens.Add(new Token(reader.Type, 0));
+					reader.MoveNext();
+					if (reader.Type != TokenType.Lparen)
 					{
-						return $"Expected '(' at offset {Reader.Offset}";
+						return $"Expected '(' at offset {reader.Offset}";
 					}
-					return ParseSubExpr(Reader);
+					return ParseSubExpr(reader);
 				case TokenType.Lparen:
-					return ParseSubExpr(Reader);
+					return ParseSubExpr(reader);
 				case TokenType.True:
 				case TokenType.False:
-					Tokens.Add(new Token(Reader.Type, 0));
-					Reader.MoveNext();
+					_tokens.Add(new Token(reader.Type, 0));
+					reader.MoveNext();
 					return null;
 				default:
-					return ParseComparisonExpr(Reader);
+					return ParseComparisonExpr(reader);
 			}
 		}
 
-		string? ParseSubExpr(TokenReader Reader)
+		string? ParseSubExpr(TokenReader reader)
 		{
-			Reader.MoveNext();
+			reader.MoveNext();
 
-			string? Error = ParseOrExpr(Reader);
-			if (Error == null)
+			string? error = ParseOrExpr(reader);
+			if (error == null)
 			{
-				if (Reader.Type == TokenType.Rparen)
+				if (reader.Type == TokenType.Rparen)
 				{
-					Reader.MoveNext();
+					reader.MoveNext();
 				}
 				else
 				{
-					Error = $"Missing ')' at offset {Reader.Offset}";
+					error = $"Missing ')' at offset {reader.Offset}";
 				}
 			}
-			return Error;
+			return error;
 		}
 
-		string? ParseComparisonExpr(TokenReader Reader)
+		string? ParseComparisonExpr(TokenReader reader)
 		{
-			int StartCount = Tokens.Count;
+			int startCount = _tokens.Count;
 
-			string? Error = ParseScalarExpr(Reader);
-			if (Error == null)
+			string? error = ParseScalarExpr(reader);
+			if (error == null)
 			{
-				switch(Reader.Type)
+				switch(reader.Type)
 				{
 					case TokenType.Lt:
 					case TokenType.Lte:
@@ -482,130 +481,126 @@ namespace EpicGames.Horde.Common
 					case TokenType.Eq:
 					case TokenType.Neq:
 					case TokenType.Regex:
-						Tokens.Insert(StartCount, new Token(Reader.Type, 0));
-						Reader.MoveNext();
-						Error = ParseScalarExpr(Reader);
+						_tokens.Insert(startCount, new Token(reader.Type, 0));
+						reader.MoveNext();
+						error = ParseScalarExpr(reader);
 						break;
 				}
 			}
 
-			return Error;
+			return error;
 		}
 
-		string? ParseScalarExpr(TokenReader Reader)
+		string? ParseScalarExpr(TokenReader reader)
 		{
-			switch (Reader.Type)
+			switch (reader.Type)
 			{
 				case TokenType.Identifier:
-					Strings.Add(Reader.Token.ToString());
-					Tokens.Add(new Token(TokenType.Identifier, Strings.Count - 1));
-					Reader.MoveNext();
+					_strings.Add(reader.Token.ToString());
+					_tokens.Add(new Token(TokenType.Identifier, _strings.Count - 1));
+					reader.MoveNext();
 					return null;
 				case TokenType.Scalar:
-					Strings.Add(Reader.Scalar!);
-					Tokens.Add(new Token(TokenType.Scalar, Strings.Count - 1));
-					Reader.MoveNext();
+					_strings.Add(reader.Scalar!);
+					_tokens.Add(new Token(TokenType.Scalar, _strings.Count - 1));
+					reader.MoveNext();
 					return null;
 				default:
-					return $"Unexpected token '{Reader.Token}' at offset {Reader.Offset}";
+					return $"Unexpected token '{reader.Token}' at offset {reader.Offset}";
 			}
 		}
 
 		/// <summary>
 		/// Evaluate the condition using the given callback to retreive property values
 		/// </summary>
-		/// <param name="GetPropertyValues"></param>
+		/// <param name="getPropertyValues"></param>
 		/// <returns></returns>
-		public bool Evaluate(Func<string, IEnumerable<string>> GetPropertyValues)
+		public bool Evaluate(Func<string, IEnumerable<string>> getPropertyValues)
 		{
 			if (IsEmpty())
 			{
 				return true;
 			}
 
-			int Idx = 0;
-			return IsValid() && EvaluateCondition(ref Idx, GetPropertyValues);
+			int idx = 0;
+			return IsValid() && EvaluateCondition(ref idx, getPropertyValues);
 		}
 
-		bool EvaluateCondition(ref int Idx, Func<string, IEnumerable<string>> GetPropertyValues)
+		bool EvaluateCondition(ref int idx, Func<string, IEnumerable<string>> getPropertyValues)
 		{
-			bool LhsBool;
-			bool RhsBool;
-			IEnumerable<string> LhsScalar;
-			IEnumerable<string> RhsScalar;
+			bool lhsBool;
+			bool rhsBool;
+			IEnumerable<string> lhsScalar;
+			IEnumerable<string> rhsScalar;
 
-			Token Token = Tokens[Idx++];
-			switch (Token.Type)
+			Token token = _tokens[idx++];
+			switch (token.Type)
 			{
 				case TokenType.True:
 					return true;
 				case TokenType.False:
 					return false;
 				case TokenType.Not:
-					return !EvaluateCondition(ref Idx, GetPropertyValues);
+					return !EvaluateCondition(ref idx, getPropertyValues);
 				case TokenType.Eq:
-					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					return LhsScalar.Any(x => RhsScalar.Contains(x, StringComparer.OrdinalIgnoreCase));
+					lhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					rhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					return lhsScalar.Any(x => rhsScalar.Contains(x, StringComparer.OrdinalIgnoreCase));
 				case TokenType.Neq:
-					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					return !LhsScalar.Any(x => RhsScalar.Contains(x, StringComparer.OrdinalIgnoreCase));
+					lhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					rhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					return !lhsScalar.Any(x => rhsScalar.Contains(x, StringComparer.OrdinalIgnoreCase));
 				case TokenType.LogicalOr:
-					LhsBool = EvaluateCondition(ref Idx, GetPropertyValues);
-					RhsBool = EvaluateCondition(ref Idx, GetPropertyValues);
-					return LhsBool || RhsBool;
+					lhsBool = EvaluateCondition(ref idx, getPropertyValues);
+					rhsBool = EvaluateCondition(ref idx, getPropertyValues);
+					return lhsBool || rhsBool;
 				case TokenType.LogicalAnd:
-					LhsBool = EvaluateCondition(ref Idx, GetPropertyValues);
-					RhsBool = EvaluateCondition(ref Idx, GetPropertyValues);
-					return LhsBool && RhsBool;
+					lhsBool = EvaluateCondition(ref idx, getPropertyValues);
+					rhsBool = EvaluateCondition(ref idx, getPropertyValues);
+					return lhsBool && rhsBool;
 				case TokenType.Lt:
-					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					return AsIntegers(LhsScalar).Any(x => AsIntegers(RhsScalar).Any(y => x < y));
+					lhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					rhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					return AsIntegers(lhsScalar).Any(x => AsIntegers(rhsScalar).Any(y => x < y));
 				case TokenType.Lte:
-					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					return AsIntegers(LhsScalar).Any(x => AsIntegers(RhsScalar).Any(y => x <= y));
+					lhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					rhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					return AsIntegers(lhsScalar).Any(x => AsIntegers(rhsScalar).Any(y => x <= y));
 				case TokenType.Gt:
-					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					return AsIntegers(LhsScalar).Any(x => AsIntegers(RhsScalar).Any(y => x > y));
+					lhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					rhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					return AsIntegers(lhsScalar).Any(x => AsIntegers(rhsScalar).Any(y => x > y));
 				case TokenType.Gte:
-					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					return AsIntegers(LhsScalar).Any(x => AsIntegers(RhsScalar).Any(y => x >= y));
+					lhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					rhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					return AsIntegers(lhsScalar).Any(x => AsIntegers(rhsScalar).Any(y => x >= y));
 				case TokenType.Regex:
-					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
-					return LhsScalar.Any(x => RhsScalar.Any(y => Regex.IsMatch(x, y, RegexOptions.IgnoreCase)));
+					lhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					rhsScalar = EvaluateScalar(ref idx, getPropertyValues);
+					return lhsScalar.Any(x => rhsScalar.Any(y => Regex.IsMatch(x, y, RegexOptions.IgnoreCase)));
 				default:
 					throw new InvalidOperationException("Invalid token type");
 			}
 		}
 
-		IEnumerable<string> EvaluateScalar(ref int Idx, Func<string, IEnumerable<string>> GetPropertyValues)
+		IEnumerable<string> EvaluateScalar(ref int idx, Func<string, IEnumerable<string>> getPropertyValues)
 		{
-			Token Token = Tokens[Idx++];
-			switch (Token.Type)
+			Token token = _tokens[idx++];
+			return token.Type switch
 			{
-				case TokenType.Identifier:
-					return GetPropertyValues(Strings[Token.Index]);
-				case TokenType.Scalar:
-					return new string[] { Strings[Token.Index] };
-				default:
-					throw new InvalidOperationException("Invalid token type");
-			}
+				TokenType.Identifier => getPropertyValues(_strings[token.Index]),
+				TokenType.Scalar => new string[] { _strings[token.Index] },
+				_ => throw new InvalidOperationException("Invalid token type")
+			};
 		}
 
-		static IEnumerable<long> AsIntegers(IEnumerable<string> Scalars)
+		static IEnumerable<long> AsIntegers(IEnumerable<string> scalars)
 		{
-			foreach (string Scalar in Scalars)
+			foreach (string scalar in scalars)
 			{
-				long Value;
-				if (long.TryParse(Scalar, out Value))
+				if (Int64.TryParse(scalar, out long value))
 				{
-					yield return Value;
+					yield return value;
 				}
 			}
 		}
@@ -613,17 +608,17 @@ namespace EpicGames.Horde.Common
 		/// <summary>
 		/// Implicit conversion from string to conditions
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		[return: NotNullIfNotNull("Text")]
-		public static implicit operator Condition?(string? Text)
+		public static implicit operator Condition?(string? text)
 		{
-			if (Text == null)
+			if (text == null)
 			{
 				return null;
 			}
 			else
 			{
-				return new Condition(Text);
+				return new Condition(text);
 			}
 		}
 
@@ -637,13 +632,13 @@ namespace EpicGames.Horde.Common
 	public class ConditionCbConverter : CbConverterBase<Condition>
 	{
 		/// <inheritdoc/>
-		public override Condition Read(CbField Field) => Condition.TryParse(Field.AsUtf8String().ToString());
+		public override Condition Read(CbField field) => Condition.TryParse(field.AsUtf8String().ToString());
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter Writer, Condition Value) => Writer.WriteUtf8StringValue(Value.Text);
+		public override void Write(CbWriter writer, Condition value) => writer.WriteUtf8StringValue(value.Text);
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, Condition Value) => Writer.WriteUtf8String(Name, Value.Text);
+		public override void WriteNamed(CbWriter writer, Utf8String name, Condition value) => writer.WriteUtf8String(name, value.Text);
 	}
 
 	/// <summary>
@@ -652,16 +647,16 @@ namespace EpicGames.Horde.Common
 	sealed class ConditionTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType) => SourceType == typeof(string);
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => sourceType == typeof(string);
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value) => Condition.TryParse((string)Value);
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value) => Condition.TryParse((string)value);
 
 		/// <inheritdoc/>
-		public override bool CanConvertTo(ITypeDescriptorContext Context, Type DestinationType) => DestinationType == typeof(string);
+		public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType) => destinationType == typeof(string);
 
 		/// <inheritdoc/>
-		public override object? ConvertTo(ITypeDescriptorContext Context, CultureInfo Culture, object Value, Type DestinationType) => ((Condition)Value).Text;
+		public override object? ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType) => ((Condition)value).Text;
 	}
 
 	/// <summary>
@@ -674,12 +669,12 @@ namespace EpicGames.Horde.Common
 
 		public override Condition Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			string? String = reader.GetString();
-			if(String == null)
+			string? text = reader.GetString();
+			if(text == null)
 			{
 				throw new InvalidOperationException();
 			}
-			return Condition.Parse(String);
+			return Condition.Parse(text);
 		}
 
 		public override void Write(Utf8JsonWriter writer, Condition value, JsonSerializerOptions options)

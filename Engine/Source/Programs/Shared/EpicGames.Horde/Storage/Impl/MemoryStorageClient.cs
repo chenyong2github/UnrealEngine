@@ -2,12 +2,10 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,12 +23,12 @@ namespace EpicGames.Horde.Storage.Impl
 			public RefId RefId { get; set; }
 			public CbObject Value { get; set; }
 
-			public Ref(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value)
+			public Ref(NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value)
 			{
-				this.NamespaceId = NamespaceId;
-				this.BucketId = BucketId;
-				this.RefId = RefId;
-				this.Value = Value;
+				NamespaceId = namespaceId;
+				BucketId = bucketId;
+				RefId = refId;
+				Value = value;
 			}
 		}
 
@@ -41,68 +39,68 @@ namespace EpicGames.Horde.Storage.Impl
 		public Dictionary<(NamespaceId, BucketId, RefId), IRef> Refs { get; } = new Dictionary<(NamespaceId, BucketId, RefId), IRef>();
 
 		/// <inheritdoc/>
-		public Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		public Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			ReadOnlyMemory<byte> Data = Blobs[(NamespaceId, Hash)];
-			return Task.FromResult<Stream>(new ReadOnlyMemoryStream(Data));
+			ReadOnlyMemory<byte> data = Blobs[(namespaceId, hash)];
+			return Task.FromResult<Stream>(new ReadOnlyMemoryStream(data));
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken = default)
+		public async Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken = default)
 		{
-			using (MemoryStream MemoryStream = new MemoryStream())
+			using (MemoryStream memoryStream = new MemoryStream())
 			{
-				await Stream.CopyToAsync(MemoryStream);
-				Blobs[(NamespaceId, Hash)] = MemoryStream.ToArray();
+				await stream.CopyToAsync(memoryStream);
+				Blobs[(namespaceId, hash)] = memoryStream.ToArray();
 			}
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		public Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(Blobs.ContainsKey((NamespaceId, Hash)));
+			return Task.FromResult(Blobs.ContainsKey((namespaceId, hash)));
 		}
 
 		/// <inheritdoc/>
-		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId namespaceId, HashSet<IoHash> hashes, CancellationToken cancellationToken)
 		{
-			return Task.FromResult(Hashes.Where(x => !Blobs.ContainsKey((NamespaceId, x))).ToHashSet());
+			return Task.FromResult(hashes.Where(x => !Blobs.ContainsKey((namespaceId, x))).ToHashSet());
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
+		public Task<bool> DeleteRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(Refs.Remove((NamespaceId, BucketId, RefId)));
+			return Task.FromResult(Refs.Remove((namespaceId, bucketId, refId)));
 		}
 
 		/// <inheritdoc/>
-		public Task<List<RefId>> FindMissingRefsAsync(NamespaceId NamespaceId, BucketId BucketId, List<RefId> RefIds, CancellationToken CancellationToken = default)
+		public Task<List<RefId>> FindMissingRefsAsync(NamespaceId namespaceId, BucketId bucketId, List<RefId> refIds, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(RefIds.Where(x => !Refs.ContainsKey((NamespaceId, BucketId, x))).ToList());
+			return Task.FromResult(refIds.Where(x => !Refs.ContainsKey((namespaceId, bucketId, x))).ToList());
 		}
 
 		/// <inheritdoc/>
-		public Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
+		public Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(Refs[(NamespaceId, BucketId, RefId)]);
+			return Task.FromResult(Refs[(namespaceId, bucketId, refId)]);
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
+		public Task<bool> HasRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(Refs.ContainsKey((NamespaceId, BucketId, RefId)));
+			return Task.FromResult(Refs.ContainsKey((namespaceId, bucketId, refId)));
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, IoHash Hash, CancellationToken CancellationToken = default)
+		public Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, IoHash hash, CancellationToken cancellationToken = default)
 		{
 			throw new NotImplementedException();
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IoHash>> TrySetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value, CancellationToken CancellationToken = default)
+		public Task<List<IoHash>> TrySetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value, CancellationToken cancellationToken = default)
 		{
-			Refs[(NamespaceId, BucketId, RefId)] = new Ref(NamespaceId, BucketId, RefId, Value);
+			Refs[(namespaceId, bucketId, refId)] = new Ref(namespaceId, bucketId, refId, value);
 			return Task.FromResult(new List<IoHash>());
 		}
 	}

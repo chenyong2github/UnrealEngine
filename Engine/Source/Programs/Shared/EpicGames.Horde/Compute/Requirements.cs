@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Horde.Compute
 {
@@ -42,29 +40,29 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Construct a requirements object with a condition
 		/// </summary>
-		/// <param name="Condition"></param>
-		public Requirements(Condition? Condition)
+		/// <param name="condition"></param>
+		public Requirements(Condition? condition)
 		{
-			this.Condition = Condition;
+			Condition = condition;
 		}
 
 		/// <inheritdoc/>
 		public override string ToString()
 		{
-			List<string> List = new List<string>();
+			List<string> list = new List<string>();
 			if (Condition != null)
 			{
-				List.Add($"\"{Condition}\"");
+				list.Add($"\"{Condition}\"");
 			}
-			foreach ((string Name, int Count) in Resources)
+			foreach ((string name, int count) in Resources)
 			{
-				List.Add($"{Name}: {Count}");
+				list.Add($"{name}: {count}");
 			}
 			if (Exclusive)
 			{
-				List.Add("Exclusive");
+				list.Add("Exclusive");
 			}
-			return String.Join(", ", List);
+			return String.Join(", ", list);
 		}
 	}
 }

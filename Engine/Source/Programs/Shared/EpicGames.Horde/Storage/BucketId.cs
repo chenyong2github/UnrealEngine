@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
@@ -24,34 +21,34 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// The text representing this id
 		/// </summary>
-		readonly StringId Inner;
+		readonly StringId _inner;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Input">Unique id for the string</param>
-		public BucketId(string Input)
+		/// <param name="input">Unique id for the string</param>
+		public BucketId(string input)
 		{
-			Inner = new StringId(Input);
+			_inner = new StringId(input);
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is BucketId Id && Inner.Equals(Id.Inner);
+		public override bool Equals(object? obj) => obj is BucketId id && _inner.Equals(id._inner);
 
 		/// <inheritdoc/>
-		public override int GetHashCode() => Inner.GetHashCode();
+		public override int GetHashCode() => _inner.GetHashCode();
 
 		/// <inheritdoc/>
-		public bool Equals(BucketId Other) => Inner.Equals(Other.Inner);
+		public bool Equals(BucketId other) => _inner.Equals(other._inner);
 
 		/// <inheritdoc/>
-		public override string ToString() => Inner.ToString();
+		public override string ToString() => _inner.ToString();
 
 		/// <inheritdoc cref="StringId.op_Equality"/>
-		public static bool operator ==(BucketId Left, BucketId Right) => Left.Inner == Right.Inner;
+		public static bool operator ==(BucketId left, BucketId right) => left._inner == right._inner;
 
 		/// <inheritdoc cref="StringId.op_Inequality"/>
-		public static bool operator !=(BucketId Left, BucketId Right) => Left.Inner != Right.Inner;
+		public static bool operator !=(BucketId left, BucketId right) => left._inner != right._inner;
 	}
 
 	/// <summary>
@@ -60,10 +57,10 @@ namespace EpicGames.Horde.Storage
 	sealed class BucketIdJsonConverter : JsonConverter<BucketId>
 	{
 		/// <inheritdoc/>
-		public override BucketId Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => new BucketId(Reader.GetString() ?? String.Empty);
+		public override BucketId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => new BucketId(reader.GetString() ?? String.Empty);
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, BucketId Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.ToString());
+		public override void Write(Utf8JsonWriter writer, BucketId value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
 	}
 
 	/// <summary>
@@ -72,10 +69,10 @@ namespace EpicGames.Horde.Storage
 	sealed class BucketIdTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType) => SourceType == typeof(string);
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => sourceType == typeof(string);
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value) => new BucketId((string)Value);
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value) => new BucketId((string)value);
 	}
 
 	sealed class BucketIdCbConverter : CbConverterBase<BucketId>

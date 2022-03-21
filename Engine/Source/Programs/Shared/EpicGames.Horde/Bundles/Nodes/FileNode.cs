@@ -7,8 +7,6 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace EpicGames.Horde.Bundles.Nodes
@@ -61,11 +59,11 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public ChunkingOptionsForNodeType(int MinSize, int MaxSize, int TargetSize)
+		public ChunkingOptionsForNodeType(int minSize, int maxSize, int targetSize)
 		{
-			this.MinSize = MinSize;
-			this.MaxSize = MaxSize;
-			this.TargetSize = TargetSize;
+			MinSize = minSize;
+			MaxSize = maxSize;
+			TargetSize = targetSize;
 		}
 	}
 
@@ -79,33 +77,33 @@ namespace EpicGames.Horde.Bundles.Nodes
 	{
 		const byte TypeId = (byte)'c';
 
-		static readonly ReadOnlyMemory<byte> DefaultSegment = CreateFirstSegmentData(0, Array.Empty<byte>());
+		static readonly ReadOnlyMemory<byte> s_defaultSegment = CreateFirstSegmentData(0, Array.Empty<byte>());
 
 		class DataSegment : ReadOnlySequenceSegment<byte>
 		{
-			public DataSegment(long RunningIndex, ReadOnlyMemory<byte> Data)
+			public DataSegment(long runningIndex, ReadOnlyMemory<byte> data)
 			{
-				this.RunningIndex = RunningIndex;
-				this.Memory = Data;
+				RunningIndex = runningIndex;
+				Memory = data;
 			}
 
-			public void SetNext(DataSegment Next)
+			public void SetNext(DataSegment next)
 			{
-				this.Next = Next;
+				Next = next;
 			}
 		}
 
 		internal int Depth { get; private set; }
 		internal ReadOnlySequence<byte> Payload { get; private set; }
-		ReadOnlySequence<byte> Data = new ReadOnlySequence<byte>(DefaultSegment); // Full serialized data, including type id and header fields.
-		IoHash? Hash; // Hash of the serialized data buffer.
+		ReadOnlySequence<byte> _data = new ReadOnlySequence<byte>(s_defaultSegment); // Full serialized data, including type id and header fields.
+		IoHash? _hash; // Hash of the serialized data buffer.
 
 		// In-memory state
-		bool IsRoot = true;
-		uint RollingHash;
-		DataSegment? FirstSegment;
-		DataSegment? LastSegment;
-		List<BundleNodeRef<FileNode>>? ChildNodeRefs;
+		bool _isRoot = true;
+		uint _rollingHash;
+		DataSegment? _firstSegment;
+		DataSegment? _lastSegment;
+		List<BundleNodeRef<FileNode>>? _childNodeRefs;
 
 		/// <summary>
 		/// Length of this tree
@@ -115,18 +113,18 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Whether this node is read-only
 		/// </summary>
-		public override bool IsReadOnly() => Hash != null;
+		public override bool IsReadOnly() => _hash != null;
 
 		/// <summary>
 		/// Accessor for the children of this node
 		/// </summary>
-		public IReadOnlyList<BundleNodeRef<FileNode>> Children => (IReadOnlyList<BundleNodeRef<FileNode>>?)ChildNodeRefs ?? Array.Empty<BundleNodeRef<FileNode>>();
+		public IReadOnlyList<BundleNodeRef<FileNode>> Children => (IReadOnlyList<BundleNodeRef<FileNode>>?)_childNodeRefs ?? Array.Empty<BundleNodeRef<FileNode>>();
 
 		/// <inheritdoc/>
 		public override ReadOnlySequence<byte> Serialize()
 		{
 			MarkComplete();
-			return Data;
+			return _data;
 		}
 
 		/// <inheritdoc/>
@@ -135,112 +133,112 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Create a file node from deserialized data
 		/// </summary>
-		public static FileNode Deserialize(ReadOnlyMemory<byte> Data)
+		public static FileNode Deserialize(ReadOnlyMemory<byte> data)
 		{
-			ReadOnlySpan<byte> Span = Data.Span;
-			if (Span[0] != TypeId)
+			ReadOnlySpan<byte> span = data.Span;
+			if (span[0] != TypeId)
 			{
 				throw new InvalidDataException("Invalid type id");
 			}
 
-			FileNode Node = new FileNode();
-			Node.Data = new ReadOnlySequence<byte>(Data);
-			Node.Hash = IoHash.Compute(Data.Span);
-			Node.Depth = (int)VarInt.Read(Span.Slice(1), out int DepthBytes);
+			FileNode node = new FileNode();
+			node._data = new ReadOnlySequence<byte>(data);
+			node._hash = IoHash.Compute(data.Span);
+			node.Depth = (int)VarInt.Read(span.Slice(1), out int depthBytes);
 
-			int HeaderLength = 1 + DepthBytes;
-			Span = Span.Slice(HeaderLength);
+			int headerLength = 1 + depthBytes;
+			span = span.Slice(headerLength);
 
-			ReadOnlyMemory<byte> Payload = Data.Slice(HeaderLength);
-			Node.Payload = new ReadOnlySequence<byte>(Payload);
+			ReadOnlyMemory<byte> payload = data.Slice(headerLength);
+			node.Payload = new ReadOnlySequence<byte>(payload);
 
-			if (Node.Depth == 0)
+			if (node.Depth == 0)
 			{
-				Node.Length = Node.Payload.Length;
+				node.Length = node.Payload.Length;
 			}
 			else
 			{
-				Node.Length = (long)VarInt.Read(Span, out int LengthBytes);
-				Span = Span.Slice(LengthBytes);
+				node.Length = (long)VarInt.Read(span, out int lengthBytes);
+				span = span.Slice(lengthBytes);
 
-				Node.ChildNodeRefs = new List<BundleNodeRef<FileNode>>(Payload.Length / IoHash.NumBytes);
-				while (Span.Length > 0)
+				node._childNodeRefs = new List<BundleNodeRef<FileNode>>(payload.Length / IoHash.NumBytes);
+				while (span.Length > 0)
 				{
-					IoHash ChildHash = new IoHash(Span);
-					Node.ChildNodeRefs.Add(new BundleNodeRef<FileNode>(Node, ChildHash));
-					Span = Span.Slice(IoHash.NumBytes);
+					IoHash childHash = new IoHash(span);
+					node._childNodeRefs.Add(new BundleNodeRef<FileNode>(node, childHash));
+					span = span.Slice(IoHash.NumBytes);
 				}
 			}
-			return Node;
+			return node;
 		}
 
 		/// <summary>
 		/// Serialize this node and its children into a byte array
 		/// </summary>
 		/// <returns>Array of data stored by the tree</returns>
-		public async Task<byte[]> ToByteArrayAsync(Bundle Bundle)
+		public async Task<byte[]> ToByteArrayAsync(Bundle bundle)
 		{
-			using (MemoryStream Stream = new MemoryStream())
+			using (MemoryStream stream = new MemoryStream())
 			{
-				await CopyToStreamAsync(Bundle, Stream);
-				return Stream.ToArray();
+				await CopyToStreamAsync(bundle, stream);
+				return stream.ToArray();
 			}
 		}
 
 		/// <summary>
 		/// Copy data from the given stream into this file node
 		/// </summary>
-		/// <param name="InputStream"></param>
-		/// <param name="Options"></param>
+		/// <param name="inputStream"></param>
+		/// <param name="options"></param>
 		/// <returns></returns>
-		public async Task CopyFromStreamAsync(Stream InputStream, ChunkingOptions Options)
+		public async Task CopyFromStreamAsync(Stream inputStream, ChunkingOptions options)
 		{
-			byte[] Buffer = new byte[64 * 1024];
+			byte[] buffer = new byte[64 * 1024];
 			for (; ; )
 			{
-				int ReadSize = await InputStream.ReadAsync(Buffer);
-				if(ReadSize == 0)
+				int readSize = await inputStream.ReadAsync(buffer);
+				if(readSize == 0)
 				{
 					break;
 				}
-				Append(Buffer.AsMemory(0, ReadSize), Options);
+				Append(buffer.AsMemory(0, readSize), options);
 			}
 		}
 
 		/// <summary>
 		/// Copies the contents of this file from disk
 		/// </summary>
-		/// <param name="File"></param>
-		/// <param name="Options"></param>
+		/// <param name="file"></param>
+		/// <param name="options"></param>
 		/// <returns></returns>
-		public async Task CopyFromFileAsync(FileInfo File, ChunkingOptions Options)
+		public async Task CopyFromFileAsync(FileInfo file, ChunkingOptions options)
 		{
-			using (FileStream Stream = File.OpenRead())
+			using (FileStream stream = file.OpenRead())
 			{
-				await CopyFromStreamAsync(Stream, Options);
+				await CopyFromStreamAsync(stream, options);
 			}
 		}
 
 		/// <summary>
 		/// Copies the contents of this node and its children to the given output stream
 		/// </summary>
-		/// <param name="Bundle">Bundle that can provide node data</param>
-		/// <param name="OutputStream">The output stream to receive the data</param>
-		public async Task CopyToStreamAsync(Bundle Bundle, Stream OutputStream)
+		/// <param name="bundle">Bundle that can provide node data</param>
+		/// <param name="outputStream">The output stream to receive the data</param>
+		public async Task CopyToStreamAsync(Bundle bundle, Stream outputStream)
 		{
-			if (ChildNodeRefs != null)
+			if (_childNodeRefs != null)
 			{
-				foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
+				foreach (BundleNodeRef<FileNode> childNodeRef in _childNodeRefs)
 				{
-					FileNode ChildNode = ChildNodeRef.Node ?? await Bundle.GetAsync(ChildNodeRef);
-					await ChildNode.CopyToStreamAsync(Bundle, OutputStream);
+					FileNode childNode = childNodeRef.Node ?? await bundle.GetAsync(childNodeRef);
+					await childNode.CopyToStreamAsync(bundle, outputStream);
 				}
 			}
 			else
 			{
-				foreach (ReadOnlyMemory<byte> PayloadSegment in Payload)
+				foreach (ReadOnlyMemory<byte> payloadSegment in Payload)
 				{
-					await OutputStream.WriteAsync(PayloadSegment);
+					await outputStream.WriteAsync(payloadSegment);
 				}
 			}
 		}
@@ -248,25 +246,25 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Extracts the contents of this node to a file
 		/// </summary>
-		/// <param name="Bundle">Bundle that can provide node data</param>
-		/// <param name="File">File to write with the contents of this node</param>
+		/// <param name="bundle">Bundle that can provide node data</param>
+		/// <param name="file">File to write with the contents of this node</param>
 		/// <returns></returns>
-		public async Task CopyToFileAsync(Bundle Bundle, FileInfo File)
+		public async Task CopyToFileAsync(Bundle bundle, FileInfo file)
 		{
-			using (FileStream Stream = File.OpenWrite())
+			using (FileStream stream = file.OpenWrite())
 			{
-				await CopyToStreamAsync(Bundle, Stream);
+				await CopyToStreamAsync(bundle, stream);
 			}
 		}
 
 		/// <summary>
 		/// Append data to this chunk. Must only be called on the root node in a chunk tree.
 		/// </summary>
-		/// <param name="Input">The data to write</param>
-		/// <param name="Options">Settings for chunking the data</param>
-		public void Append(ReadOnlyMemory<byte> Input, ChunkingOptions Options)
+		/// <param name="input">The data to write</param>
+		/// <param name="options">Settings for chunking the data</param>
+		public void Append(ReadOnlyMemory<byte> input, ChunkingOptions options)
 		{
-			if (!IsRoot)
+			if (!_isRoot)
 			{
 				throw new InvalidOperationException("Data may only be appended to the root of a file node tree");
 			}
@@ -274,275 +272,273 @@ namespace EpicGames.Horde.Bundles.Nodes
 			for (; ; )
 			{
 				// Append as much data as possible to the existing tree
-				Input = AppendToNode(Input, Options);
-				if (Input.IsEmpty)
+				input = AppendToNode(input, options);
+				if (input.IsEmpty)
 				{
 					break;
 				}
 
 				// Increase the height of the tree by pushing the contents of this node into a new child node
-				FileNode NewNode = new FileNode();
-				NewNode.Depth = Depth;
-				NewNode.Payload = Payload;
-				NewNode.Data = Data;
-				NewNode.Hash = Hash;
+				FileNode newNode = new FileNode();
+				newNode.Depth = Depth;
+				newNode.Payload = Payload;
+				newNode._data = _data;
+				newNode._hash = _hash;
 
-				NewNode.IsRoot = false;
-				NewNode.RollingHash = RollingHash;
-				NewNode.FirstSegment = FirstSegment;
-				NewNode.LastSegment = LastSegment;
-				NewNode.ChildNodeRefs = ChildNodeRefs;
+				newNode._isRoot = false;
+				newNode._rollingHash = _rollingHash;
+				newNode._firstSegment = _firstSegment;
+				newNode._lastSegment = _lastSegment;
+				newNode._childNodeRefs = _childNodeRefs;
 
-				NewNode.Length = Length;
+				newNode.Length = Length;
 
 				// Detach all the child refs
-				if (ChildNodeRefs != null)
+				if (_childNodeRefs != null)
 				{
-					foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
+					foreach (BundleNodeRef<FileNode> childNodeRef in _childNodeRefs)
 					{
-						ChildNodeRef.Reparent(NewNode);
+						childNodeRef.Reparent(newNode);
 					}
-					ChildNodeRefs = null;
+					_childNodeRefs = null;
 				}
 
 				// Increase the depth and reset the current node
 				Depth++;
 				Payload = ReadOnlySequence<byte>.Empty;
-				Data = ReadOnlySequence<byte>.Empty;
-				Hash = null;
+				_data = ReadOnlySequence<byte>.Empty;
+				_hash = null;
 
-				IsRoot = true;
-				RollingHash = BuzHash.Add(0, NewNode.Hash!.Value.ToByteArray());
-				FirstSegment = null;
-				LastSegment = null;
-				ChildNodeRefs = new List<BundleNodeRef<FileNode>>();
+				_isRoot = true;
+				_rollingHash = BuzHash.Add(0, newNode._hash!.Value.ToByteArray());
+				_firstSegment = null;
+				_lastSegment = null;
+				_childNodeRefs = new List<BundleNodeRef<FileNode>>();
 
 				// Append the new node as a child
-				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(this, NewNode));
+				_childNodeRefs.Add(new BundleNodeRef<FileNode>(this, newNode));
 			}
 		}
 
-		private ReadOnlyMemory<byte> AppendToNode(ReadOnlyMemory<byte> Data, ChunkingOptions Options)
+		private ReadOnlyMemory<byte> AppendToNode(ReadOnlyMemory<byte> data, ChunkingOptions options)
 		{
-			if (Data.Length == 0 || IsReadOnly())
+			if (data.Length == 0 || IsReadOnly())
 			{
-				return Data;
+				return data;
 			}
 
 			if (Depth == 0)
 			{
-				return AppendToLeafNode(Data, Options);
+				return AppendToLeafNode(data, options);
 			}
 			else
 			{
-				return AppendToInteriorNode(Data, Options);
+				return AppendToInteriorNode(data, options);
 			}
 		}
 
-		private ReadOnlyMemory<byte> AppendToLeafNode(ReadOnlyMemory<byte> NewData, ChunkingOptions Options)
+		private ReadOnlyMemory<byte> AppendToLeafNode(ReadOnlyMemory<byte> newData, ChunkingOptions options)
 		{
 			// Fast path for appending data to the buffer up to the chunk window size
-			int WindowSize = Options.LeafOptions.MinSize;
-			if (Payload.Length < WindowSize)
+			int windowSize = options.LeafOptions.MinSize;
+			if (Payload.Length < windowSize)
 			{
-				int AppendLength = Math.Min(WindowSize - (int)Payload.Length, NewData.Length);
-				AppendLeafData(NewData.Span.Slice(0, AppendLength), Options);
-				NewData = NewData.Slice(AppendLength);
+				int appendLength = Math.Min(windowSize - (int)Payload.Length, newData.Length);
+				AppendLeafData(newData.Span.Slice(0, appendLength));
+				newData = newData.Slice(appendLength);
 			}
 
 			// Cap the maximum amount of data to append to this node
-			int MaxLength = Math.Min(NewData.Length, Options.LeafOptions.MaxSize - (int)Payload.Length);
-			if (MaxLength > 0)
+			int maxLength = Math.Min(newData.Length, options.LeafOptions.MaxSize - (int)Payload.Length);
+			if (maxLength > 0)
 			{
-				ReadOnlySpan<byte> InputSpan = NewData.Span.Slice(0, MaxLength);
-				int Length = AppendLeafDataToChunkBoundary(InputSpan, Options);
-				NewData = NewData.Slice(Length);
+				ReadOnlySpan<byte> inputSpan = newData.Span.Slice(0, maxLength);
+				int length = AppendLeafDataToChunkBoundary(inputSpan, options);
+				newData = newData.Slice(length);
 			}
 
 			// Compute the hash if this node is complete
-			if (Payload.Length == Options.LeafOptions.MaxSize)
+			if (Payload.Length == options.LeafOptions.MaxSize)
 			{
 				MarkComplete();
 			}
-			return NewData;
+			return newData;
 		}
 
-		private int AppendLeafDataToChunkBoundary(ReadOnlySpan<byte> InputSpan, ChunkingOptions Options)
+		private int AppendLeafDataToChunkBoundary(ReadOnlySpan<byte> inputSpan, ChunkingOptions options)
 		{
-			int WindowSize = Options.LeafOptions.MinSize;
-			Debug.Assert(Payload.Length >= WindowSize);
+			int windowSize = options.LeafOptions.MinSize;
+			Debug.Assert(Payload.Length >= windowSize);
 
 			// If this is the first time we're hashing the data, compute the hash of the existing window
-			if (Payload.Length == WindowSize)
+			if (Payload.Length == windowSize)
 			{
-				foreach (ReadOnlyMemory<byte> Segment in Payload)
+				foreach (ReadOnlyMemory<byte> segment in Payload)
 				{
-					RollingHash = BuzHash.Add(RollingHash, Segment.Span);
+					_rollingHash = BuzHash.Add(_rollingHash, segment.Span);
 				}
 			}
 
 			// Get the threshold for the rolling hash
-			uint RollingHashThreshold = (uint)((1L << 32) / Options.LeafOptions.TargetSize);
+			uint rollingHashThreshold = (uint)((1L << 32) / options.LeafOptions.TargetSize);
 
 			// Length of the data taken from the input span, updated as we step through it.
-			int Length = 0;
+			int length = 0;
 
 			// Step the window through the tail end of the existing payload window. In this state, update the hash to remove data from the current payload, and add data from the new payload.
-			int SplitLength = Math.Min(InputSpan.Length, WindowSize);
-			ReadOnlySequence<byte> SplitPayload = Payload.Slice(Payload.Length - WindowSize, SplitLength);
+			int splitLength = Math.Min(inputSpan.Length, windowSize);
+			ReadOnlySequence<byte> splitPayload = Payload.Slice(Payload.Length - windowSize, splitLength);
 
-			foreach (ReadOnlyMemory<byte> PayloadSegment in SplitPayload)
+			foreach (ReadOnlyMemory<byte> payloadSegment in splitPayload)
 			{
-				int BaseLength = Length;
-				int SpanLength = Length + PayloadSegment.Length;
+				int baseLength = length;
+				int spanLength = length + payloadSegment.Length;
 
-				ReadOnlySpan<byte> PayloadSpan = PayloadSegment.Span;
-				for (; Length < SpanLength; Length++)
+				ReadOnlySpan<byte> payloadSpan = payloadSegment.Span;
+				for (; length < spanLength; length++)
 				{
-					RollingHash = BuzHash.Add(RollingHash, InputSpan[Length]);
-					if (RollingHash < RollingHashThreshold)
+					_rollingHash = BuzHash.Add(_rollingHash, inputSpan[length]);
+					if (_rollingHash < rollingHashThreshold)
 					{
-						AppendLeafData(InputSpan.Slice(0, Length), Options);
+						AppendLeafData(inputSpan.Slice(0, length));
 						MarkComplete();
-						return Length;
+						return length;
 					}
-					RollingHash = BuzHash.Sub(RollingHash, PayloadSpan[Length - BaseLength], WindowSize);
+					_rollingHash = BuzHash.Sub(_rollingHash, payloadSpan[length - baseLength], windowSize);
 				}
 			}
 
 			// Step through the new window.
-			for (; Length < InputSpan.Length; Length++)
+			for (; length < inputSpan.Length; length++)
 			{
-				RollingHash = BuzHash.Add(RollingHash, InputSpan[Length]);
-				if (RollingHash < RollingHashThreshold)
+				_rollingHash = BuzHash.Add(_rollingHash, inputSpan[length]);
+				if (_rollingHash < rollingHashThreshold)
 				{
-					AppendLeafData(InputSpan.Slice(0, Length), Options);
+					AppendLeafData(inputSpan.Slice(0, length));
 					MarkComplete();
-					return Length;
+					return length;
 				}
-				RollingHash = BuzHash.Sub(RollingHash, InputSpan[Length - WindowSize], WindowSize);
+				_rollingHash = BuzHash.Sub(_rollingHash, inputSpan[length - windowSize], windowSize);
 			}
 
-			AppendLeafData(InputSpan, Options);
-			return InputSpan.Length;
+			AppendLeafData(inputSpan);
+			return inputSpan.Length;
 		}
 
-		private void AppendLeafData(ReadOnlySpan<byte> LeafData, ChunkingOptions Options)
+		private void AppendLeafData(ReadOnlySpan<byte> leafData)
 		{
-			int DepthBytes = VarInt.Measure(Depth);
-
-			if (LastSegment == null)
+			if (_lastSegment == null)
 			{
-				byte[] Buffer = CreateFirstSegmentData(Depth, LeafData);
-				FirstSegment = new DataSegment(0, Buffer);
-				LastSegment = FirstSegment;
+				byte[] buffer = CreateFirstSegmentData(Depth, leafData);
+				_firstSegment = new DataSegment(0, buffer);
+				_lastSegment = _firstSegment;
 			}
 			else
 			{
-				DataSegment NewSegment = new DataSegment(LastSegment.RunningIndex + LastSegment.Memory.Length, LeafData.ToArray());
-				LastSegment.SetNext(NewSegment);
-				LastSegment = NewSegment;
+				DataSegment newSegment = new DataSegment(_lastSegment.RunningIndex + _lastSegment.Memory.Length, leafData.ToArray());
+				_lastSegment.SetNext(newSegment);
+				_lastSegment = newSegment;
 			}
 
-			int HeaderSize = (int)(Data.Length - Payload.Length);
-			Data = new ReadOnlySequence<byte>(FirstSegment!, 0, LastSegment, LastSegment.Memory.Length);
-			Payload = Data.Slice(HeaderSize);
+			int headerSize = (int)(_data.Length - Payload.Length);
+			_data = new ReadOnlySequence<byte>(_firstSegment!, 0, _lastSegment, _lastSegment.Memory.Length);
+			Payload = _data.Slice(headerSize);
 
-			Length += LeafData.Length;
+			Length += leafData.Length;
 		}
 
-		private static byte[] CreateFirstSegmentData(int Depth, ReadOnlySpan<byte> LeafData)
+		private static byte[] CreateFirstSegmentData(int depth, ReadOnlySpan<byte> leafData)
 		{
-			int DepthBytes = VarInt.Measure(Depth);
+			int depthBytes = VarInt.Measure(depth);
 
-			byte[] Buffer = new byte[1 + DepthBytes + LeafData.Length];
-			Buffer[0] = TypeId;
+			byte[] buffer = new byte[1 + depthBytes + leafData.Length];
+			buffer[0] = TypeId;
 
-			VarInt.Write(Buffer.AsSpan(1, DepthBytes), Depth);
-			LeafData.CopyTo(Buffer.AsSpan(1 + DepthBytes));
+			VarInt.Write(buffer.AsSpan(1, depthBytes), depth);
+			leafData.CopyTo(buffer.AsSpan(1 + depthBytes));
 
-			return Buffer;
+			return buffer;
 		}
 
 		private void MarkComplete()
 		{
-			if (Hash == null)
+			if (_hash == null)
 			{
-				if (ChildNodeRefs != null)
+				if (_childNodeRefs != null)
 				{
-					int DepthBytes = VarInt.Measure(Depth);
-					int LengthBytes = VarInt.Measure((ulong)Length);
+					int depthBytes = VarInt.Measure(Depth);
+					int lengthBytes = VarInt.Measure((ulong)Length);
 
-					byte[] NewData = new byte[1 + DepthBytes + LengthBytes + (ChildNodeRefs.Count * IoHash.NumBytes)];
-					Data = new ReadOnlySequence<byte>(NewData);
-					Payload = new ReadOnlySequence<byte>(NewData.AsMemory(1 + DepthBytes));
+					byte[] newData = new byte[1 + depthBytes + lengthBytes + (_childNodeRefs.Count * IoHash.NumBytes)];
+					_data = new ReadOnlySequence<byte>(newData);
+					Payload = new ReadOnlySequence<byte>(newData.AsMemory(1 + depthBytes));
 
-					NewData[0] = TypeId;
-					Span<byte> Span = NewData.AsSpan(1);
+					newData[0] = TypeId;
+					Span<byte> span = newData.AsSpan(1);
 
-					VarInt.Write(Span, Depth);
-					Span = Span.Slice(DepthBytes);
+					VarInt.Write(span, Depth);
+					span = span.Slice(depthBytes);
 
-					VarInt.Write(Span, Length);
-					Span = Span.Slice(LengthBytes);
+					VarInt.Write(span, Length);
+					span = span.Slice(lengthBytes);
 
-					foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
+					foreach (BundleNodeRef<FileNode> childNodeRef in _childNodeRefs)
 					{
-						ChildNodeRef.Hash.CopyTo(Span);
-						Span = Span.Slice(IoHash.NumBytes);
+						childNodeRef.Hash.CopyTo(span);
+						span = span.Slice(IoHash.NumBytes);
 					}
 
-					Debug.Assert(Span.Length == 0);
+					Debug.Assert(span.Length == 0);
 				}
-				Hash = IoHash.Compute(Data);
+				_hash = IoHash.Compute(_data);
 			}
 		}
 
-		private ReadOnlyMemory<byte> AppendToInteriorNode(ReadOnlyMemory<byte> NewData, ChunkingOptions Options)
+		private ReadOnlyMemory<byte> AppendToInteriorNode(ReadOnlyMemory<byte> newData, ChunkingOptions options)
 		{
 			for (; ; )
 			{
-				Debug.Assert(ChildNodeRefs != null);
+				Debug.Assert(_childNodeRefs != null);
 
 				// Try to write to the last node
-				if (ChildNodeRefs.Count > 0)
+				if (_childNodeRefs.Count > 0)
 				{
-					FileNode? LastNode = ChildNodeRefs[^1].Node;
-					if (LastNode != null)
+					FileNode? lastNode = _childNodeRefs[^1].Node;
+					if (lastNode != null)
 					{
 						// Update the length to match the new node
-						Length -= LastNode.Length;
-						NewData = LastNode.AppendToNode(NewData, Options);
-						Length += LastNode.Length;
+						Length -= lastNode.Length;
+						newData = lastNode.AppendToNode(newData, options);
+						Length += lastNode.Length;
 
 						// If the last node is complete, write it to the buffer
-						if (LastNode.IsReadOnly())
+						if (lastNode.IsReadOnly())
 						{
 							// Update the hash
-							byte[] HashData = LastNode.Hash!.Value.ToByteArray();
-							RollingHash = BuzHash.Add(RollingHash, HashData);
+							byte[] hashData = lastNode._hash!.Value.ToByteArray();
+							_rollingHash = BuzHash.Add(_rollingHash, hashData);
 
 							// Check if it's time to finish this chunk
-							uint HashThreshold = (uint)(((1L << 32) * IoHash.NumBytes) / Options.LeafOptions.TargetSize);
-							if ((Payload.Length >= Options.InteriorOptions.MinSize && RollingHash < HashThreshold) || (Payload.Length >= Options.InteriorOptions.MaxSize))
+							uint hashThreshold = (uint)(((1L << 32) * IoHash.NumBytes) / options.LeafOptions.TargetSize);
+							if ((Payload.Length >= options.InteriorOptions.MinSize && _rollingHash < hashThreshold) || (Payload.Length >= options.InteriorOptions.MaxSize))
 							{
 								MarkComplete();
-								return NewData;
+								return newData;
 							}
 						}
 
 						// Bail out if there's nothing left to write
-						if (NewData.Length == 0)
+						if (newData.Length == 0)
 						{
-							return NewData;
+							return newData;
 						}
 					}
 				}
 
 				// Add a new child node
-				FileNode ChildNode = new FileNode();
-				ChildNode.IsRoot = false;
-				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(this, ChildNode));
+				FileNode childNode = new FileNode();
+				childNode._isRoot = false;
+				_childNodeRefs.Add(new BundleNodeRef<FileNode>(this, childNode));
 			}
 		}
 	}
@@ -553,6 +549,6 @@ namespace EpicGames.Horde.Bundles.Nodes
 	public class FileNodeDeserializer : BundleNodeDeserializer<FileNode>
 	{
 		/// <inheritdoc/>
-		public override FileNode Deserialize(ReadOnlyMemory<byte> Data) => FileNode.Deserialize(Data);
+		public override FileNode Deserialize(ReadOnlyMemory<byte> data) => FileNode.Deserialize(data);
 	}
 }

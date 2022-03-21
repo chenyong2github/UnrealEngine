@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Serialization;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -23,8 +20,8 @@ namespace EpicGames.Horde.Auth
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AuthenticationException(string Message, Exception? InnerException)
-			: base(Message, InnerException)
+		public AuthenticationException(string message, Exception? innerException)
+			: base(message, innerException)
 		{
 		}
 	}
@@ -65,6 +62,7 @@ namespace EpicGames.Horde.Auth
 	/// </summary>
 	public class OAuthHandler<T> : HttpClientHandler
 	{
+		[SuppressMessage("Style", "IDE1006:Naming Styles")]
 		class ClientCredentialsResponse
 		{
 			public string? access_token { get; set; }
@@ -73,74 +71,74 @@ namespace EpicGames.Horde.Auth
 			public string? scope { get; set; }
 		}
 
-		HttpClient Client;
-		IOAuthOptions Options;
-		string CachedAccessToken = String.Empty;
-		DateTime ExpiresAt = DateTime.MinValue;
+		readonly HttpClient _client;
+		readonly IOAuthOptions _options;
+		string _cachedAccessToken = String.Empty;
+		DateTime _expiresAt = DateTime.MinValue;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Client"></param>
-		/// <param name="Options"></param>
-		public OAuthHandler(HttpClient Client, IOAuthOptions Options)
+		/// <param name="client"></param>
+		/// <param name="options"></param>
+		public OAuthHandler(HttpClient client, IOAuthOptions options)
 		{
-			this.Client = Client;
-			this.Options = Options;
+			_client = client;
+			_options = options;
 		}
 
 		/// <inheritdoc/>
-		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage Request, CancellationToken CancellationToken)
+		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
-			if (DateTime.UtcNow > ExpiresAt)
+			if (DateTime.UtcNow > _expiresAt)
 			{
-				await UpdateAccessTokenAsync(CancellationToken);
+				await UpdateAccessTokenAsync(cancellationToken);
 			}
 
-			Request.Headers.Add("Authorization", $"Bearer {CachedAccessToken}");
-			return await base.SendAsync(Request, CancellationToken);
+			request.Headers.Add("Authorization", $"Bearer {_cachedAccessToken}");
+			return await base.SendAsync(request, cancellationToken);
 		}
 
 		/// <summary>
 		/// Updates the current access token
 		/// </summary>
 		/// <returns></returns>
-		async Task UpdateAccessTokenAsync(CancellationToken CancellationToken)
+		async Task UpdateAccessTokenAsync(CancellationToken cancellationToken)
 		{
-			KeyValuePair<string, string>[] Content = new KeyValuePair<string, string>[]
+			KeyValuePair<string, string>[] content = new KeyValuePair<string, string>[]
 			{
-				new KeyValuePair<string, string>("grant_type", Options.GrantType),
-				new KeyValuePair<string, string>("client_id", Options.ClientId),
-				new KeyValuePair<string, string>("client_secret", Options.ClientSecret),
-				new KeyValuePair<string, string>("scope", Options.Scope)
+				new KeyValuePair<string, string>("grant_type", _options.GrantType),
+				new KeyValuePair<string, string>("client_id", _options.ClientId),
+				new KeyValuePair<string, string>("client_secret", _options.ClientSecret),
+				new KeyValuePair<string, string>("scope", _options.Scope)
 			};
 
 			try
 			{
-				using HttpRequestMessage Message = new HttpRequestMessage(HttpMethod.Post, Options.AuthUrl);
-				Message.Content = new FormUrlEncodedContent(Content);
+				using HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Post, _options.AuthUrl);
+				message.Content = new FormUrlEncodedContent(content);
 
-				HttpResponseMessage Response = await Client.SendAsync(Message, CancellationToken);
-				if (!Response.IsSuccessStatusCode)
+				HttpResponseMessage response = await _client.SendAsync(message, cancellationToken);
+				if (!response.IsSuccessStatusCode)
 				{
-					throw new AuthenticationException($"Authentication failed. Response: {Response.Content}", null);
+					throw new AuthenticationException($"Authentication failed. Response: {response.Content}", null);
 				}
 
-				byte[] ResponseData = await Response.Content.ReadAsByteArrayAsync();
-				ClientCredentialsResponse Result = JsonSerializer.Deserialize<ClientCredentialsResponse>(ResponseData)!;
+				byte[] responseData = await response.Content.ReadAsByteArrayAsync();
+				ClientCredentialsResponse result = JsonSerializer.Deserialize<ClientCredentialsResponse>(responseData)!;
 
-				string? accessToken = Result?.access_token;
-				if (string.IsNullOrEmpty(accessToken))
+				string? accessToken = result?.access_token;
+				if (String.IsNullOrEmpty(accessToken))
 				{
-					throw new AuthenticationException("The authentication token received by the server is null or empty. Body received was: " + Encoding.UTF8.GetString(ResponseData), null);
+					throw new AuthenticationException("The authentication token received by the server is null or empty. Body received was: " + Encoding.UTF8.GetString(responseData), null);
 				}
-				CachedAccessToken = accessToken;
+				_cachedAccessToken = accessToken;
 				// renew after half the renewal time
-				ExpiresAt = DateTime.UtcNow + TimeSpan.FromSeconds((Result?.expires_in ?? 3200) / 2.0);
+				_expiresAt = DateTime.UtcNow + TimeSpan.FromSeconds((result?.expires_in ?? 3200) / 2.0);
 			}
-			catch (WebException Ex)
+			catch (WebException ex)
 			{
-				throw new AuthenticationException("Unable to authenticate.", Ex);
+				throw new AuthenticationException("Unable to authenticate.", ex);
 			}
 		}
 	}
@@ -150,22 +148,22 @@ namespace EpicGames.Horde.Auth
 	/// </summary>
 	public class OAuthHandlerFactory
 	{
-		HttpClient HttpClient;
+		readonly HttpClient _httpClient;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="HttpClient"></param>
-		public OAuthHandlerFactory(HttpClient HttpClient)
+		/// <param name="httpClient"></param>
+		public OAuthHandlerFactory(HttpClient httpClient)
 		{
-			this.HttpClient = HttpClient;
+			_httpClient = httpClient;
 		}
 
 		/// <summary>
 		/// Create an instance of the auth provider
 		/// </summary>
-		/// <param name="Options"></param>
+		/// <param name="options"></param>
 		/// <returns></returns>
-		public OAuthHandler<T> Create<T>(IOAuthOptions Options) => new OAuthHandler<T>(HttpClient, Options);
+		public OAuthHandler<T> Create<T>(IOAuthOptions options) => new OAuthHandler<T>(_httpClient, options);
 	}
 }

@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using EpicGames.Serialization;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Horde.Compute
 {
@@ -47,10 +43,10 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ExitCode">Exit code of the process</param>
-		public ComputeTaskResult(int ExitCode)
+		/// <param name="exitCode">Exit code of the process</param>
+		public ComputeTaskResult(int exitCode)
 		{
-			this.ExitCode = ExitCode;
+			ExitCode = exitCode;
 		}
 	}
 }

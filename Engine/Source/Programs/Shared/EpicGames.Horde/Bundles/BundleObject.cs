@@ -1,23 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Horde.Bundles.Nodes;
 using EpicGames.Serialization;
-using K4os.Compression.LZ4;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers.Binary;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace EpicGames.Horde.Bundles
 {
@@ -110,11 +98,11 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleImportObject(CbObjectAttachment Object, int TotalCost, List<BundleImport> Imports)
+		public BundleImportObject(CbObjectAttachment sourceObject, int totalCost, List<BundleImport> imports)
 		{
-			this.Object = Object;
-			this.TotalCost = TotalCost;
-			this.Imports = Imports;
+			Object = sourceObject;
+			TotalCost = totalCost;
+			Imports = imports;
 		}
 	}
 
@@ -141,62 +129,62 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleImport(IoHash Hash, int Rank, int Length)
+		public BundleImport(IoHash hash, int rank, int length)
 		{
-			if (Length <= 0)
+			if (length <= 0)
 			{
-				throw new ArgumentException("Length must be greater than zero", nameof(Length));
+				throw new ArgumentException("Length must be greater than zero", nameof(length));
 			}
 
-			this.Hash = Hash;
-			this.Rank = Rank;
-			this.Length = Length;
+			Hash = hash;
+			Rank = rank;
+			Length = length;
 		}
 	}
 
 	class BundleImportListConverter : CbConverterBase<List<BundleImport>>
 	{
-		public override List<BundleImport> Read(CbField Field) => Deserialize(Field.AsBinary().Span);
-		public override void Write(CbWriter Writer, List<BundleImport> Value) => Writer.WriteBinaryArrayValue(Serialize(Value));
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, List<BundleImport> Value) => Writer.WriteBinaryArray(Name, Serialize(Value));
+		public override List<BundleImport> Read(CbField field) => Deserialize(field.AsBinary().Span);
+		public override void Write(CbWriter writer, List<BundleImport> value) => writer.WriteBinaryArrayValue(Serialize(value));
+		public override void WriteNamed(CbWriter writer, Utf8String name, List<BundleImport> value) => writer.WriteBinaryArray(name, Serialize(value));
 
-		static List<BundleImport> Deserialize(ReadOnlySpan<byte> Span)
+		static List<BundleImport> Deserialize(ReadOnlySpan<byte> span)
 		{
-			List<BundleImport> Imports = new List<BundleImport>();
-			while (Span.Length > 0)
+			List<BundleImport> imports = new List<BundleImport>();
+			while (span.Length > 0)
 			{
-				IoHash Hash = new IoHash(Span);
-				Span = Span.Slice(IoHash.NumBytes);
+				IoHash hash = new IoHash(span);
+				span = span.Slice(IoHash.NumBytes);
 
-				int Rank = (int)VarInt.Read(Span, out int RankBytes);
-				Span = Span.Slice(RankBytes);
+				int rank = (int)VarInt.Read(span, out int rankBytes);
+				span = span.Slice(rankBytes);
 
-				int Cost = (int)VarInt.Read(Span, out int CostBytes);
-				Span = Span.Slice(CostBytes);
+				int cost = (int)VarInt.Read(span, out int costBytes);
+				span = span.Slice(costBytes);
 
-				Imports.Add(new BundleImport(Hash, Rank, Cost));
+				imports.Add(new BundleImport(hash, rank, cost));
 			}
-			return Imports;
+			return imports;
 		}
 
-		static byte[] Serialize(List<BundleImport> Imports)
+		static byte[] Serialize(List<BundleImport> imports)
 		{
-			byte[] Data = new byte[Imports.Sum(x => IoHash.NumBytes + VarInt.Measure(x.Rank) + VarInt.Measure(x.Length))];
+			byte[] data = new byte[imports.Sum(x => IoHash.NumBytes + VarInt.Measure(x.Rank) + VarInt.Measure(x.Length))];
 
-			Span<byte> Span = Data;
-			foreach (BundleImport Import in Imports)
+			Span<byte> span = data;
+			foreach (BundleImport import in imports)
 			{
-				Import.Hash.CopyTo(Span);
-				Span = Span.Slice(IoHash.NumBytes);
+				import.Hash.CopyTo(span);
+				span = span.Slice(IoHash.NumBytes);
 
-				int RankBytes = VarInt.Write(Span, Import.Rank);
-				Span = Span.Slice(RankBytes);
+				int rankBytes = VarInt.Write(span, import.Rank);
+				span = span.Slice(rankBytes);
 
-				int CostBytes = VarInt.Write(Span, Import.Length);
-				Span = Span.Slice(CostBytes);
+				int costBytes = VarInt.Write(span, import.Length);
+				span = span.Slice(costBytes);
 			}
 
-			return Data;
+			return data;
 		}
 	}
 
@@ -223,10 +211,10 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Offset"></param>
-		public BundleCompressionPacket(int Offset)
+		/// <param name="offset"></param>
+		public BundleCompressionPacket(int offset)
 		{
-			this.Offset = Offset;
+			Offset = offset;
 		}
 	}
 
@@ -253,142 +241,142 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(IoHash Hash, int Rank, BundleCompressionPacket Packet, int Offset, int Length, int[] References)
-			: base(Hash, Rank, Length)
+		public BundleExport(IoHash hash, int rank, BundleCompressionPacket packet, int offset, int length, int[] references)
+			: base(hash, rank, length)
 		{
-			this.Packet = Packet;
-			this.Offset = Offset;
-			this.References = References;
+			Packet = packet;
+			Offset = offset;
+			References = references;
 		}
 	}
 
 	class BundleExportListConverter : CbConverterBase<List<BundleExport>>
 	{
-		public override List<BundleExport> Read(CbField Field) => Deserialize(Field.AsBinary().Span);
-		public override void Write(CbWriter Writer, List<BundleExport> Value) => Writer.WriteBinaryArrayValue(Serialize(Value));
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, List<BundleExport> Value) => Writer.WriteBinaryArray(Name, Serialize(Value));
+		public override List<BundleExport> Read(CbField field) => Deserialize(field.AsBinary().Span);
+		public override void Write(CbWriter writer, List<BundleExport> value) => writer.WriteBinaryArrayValue(Serialize(value));
+		public override void WriteNamed(CbWriter writer, Utf8String name, List<BundleExport> value) => writer.WriteBinaryArray(name, Serialize(value));
 
-		static List<BundleExport> Deserialize(ReadOnlySpan<byte> Span)
+		static List<BundleExport> Deserialize(ReadOnlySpan<byte> span)
 		{
-			List<BundleExport> Exports = new List<BundleExport>();
+			List<BundleExport> exports = new List<BundleExport>();
 
-			int PacketOffset = 0;
-			while (Span.Length > 0)
+			int packetOffset = 0;
+			while (span.Length > 0)
 			{
-				BundleCompressionPacket Packet = new BundleCompressionPacket(PacketOffset);
+				BundleCompressionPacket packet = new BundleCompressionPacket(packetOffset);
 
-				Packet.EncodedLength = (int)VarInt.Read(Span, out int EncodedLengthBytes);
-				Span = Span.Slice(EncodedLengthBytes);
+				packet.EncodedLength = (int)VarInt.Read(span, out int encodedLengthBytes);
+				span = span.Slice(encodedLengthBytes);
 
-				Packet.DecodedLength = (int)VarInt.Read(Span, out int DecodedLengthBytes);
-				Span = Span.Slice(DecodedLengthBytes);
+				packet.DecodedLength = (int)VarInt.Read(span, out int decodedLengthBytes);
+				span = span.Slice(decodedLengthBytes);
 
-				PacketOffset += Packet.EncodedLength;
+				packetOffset += packet.EncodedLength;
 
-				int Offset = 0;
-				while (Offset < Packet.DecodedLength)
+				int offset = 0;
+				while (offset < packet.DecodedLength)
 				{
-					IoHash Hash = new IoHash(Span);
-					Span = Span.Slice(IoHash.NumBytes);
+					IoHash hash = new IoHash(span);
+					span = span.Slice(IoHash.NumBytes);
 
-					int Rank = (int)VarInt.Read(Span, out int RankBytes);
-					Span = Span.Slice(RankBytes);
+					int rank = (int)VarInt.Read(span, out int rankBytes);
+					span = span.Slice(rankBytes);
 
-					int Length = (int)VarInt.Read(Span, out int LengthBytes);
-					Span = Span.Slice(LengthBytes);
+					int length = (int)VarInt.Read(span, out int lengthBytes);
+					span = span.Slice(lengthBytes);
 
-					int NumReferences = (int)VarInt.Read(Span, out int NumReferencesBytes);
-					Span = Span.Slice(NumReferencesBytes);
+					int numReferences = (int)VarInt.Read(span, out int numReferencesBytes);
+					span = span.Slice(numReferencesBytes);
 
-					int[] References = new int[NumReferences];
-					for (int ReferenceIdx = 0; ReferenceIdx < NumReferences; ReferenceIdx++)
+					int[] references = new int[numReferences];
+					for (int referenceIdx = 0; referenceIdx < numReferences; referenceIdx++)
 					{
-						References[ReferenceIdx] = (int)VarInt.Read(Span, out int ReferenceBytes);
-						Span = Span.Slice(ReferenceBytes);
+						references[referenceIdx] = (int)VarInt.Read(span, out int referenceBytes);
+						span = span.Slice(referenceBytes);
 					}
 
-					Exports.Add(new BundleExport(Hash, Rank, Packet, Offset, Length, References));
-					Offset += Length;
+					exports.Add(new BundleExport(hash, rank, packet, offset, length, references));
+					offset += length;
 				}
 			}
 
-			return Exports;
+			return exports;
 		}
 
-		static byte[] Serialize(List<BundleExport> Exports)
+		static byte[] Serialize(List<BundleExport> exports)
 		{
-			int Length = Measure(Exports);
+			int length = Measure(exports);
 
-			byte[] Data = new byte[Length];
-			Span<byte> Span = Data;
+			byte[] data = new byte[length];
+			Span<byte> span = data;
 
-			BundleCompressionPacket? PrevPacket = null;
-			foreach (BundleExport Export in Exports)
+			BundleCompressionPacket? prevPacket = null;
+			foreach (BundleExport export in exports)
 			{
-				Debug.Assert(Export.Length > 0);
+				Debug.Assert(export.Length > 0);
 
-				BundleCompressionPacket Packet = Export.Packet;
-				if (PrevPacket == null || Packet.Offset != PrevPacket.Offset)
+				BundleCompressionPacket packet = export.Packet;
+				if (prevPacket == null || packet.Offset != prevPacket.Offset)
 				{
-					CheckPacketSequence(PrevPacket, Packet);
+					CheckPacketSequence(prevPacket, packet);
 
-					int EncodedLengthBytes = VarInt.Write(Span, Packet.EncodedLength);
-					Span = Span.Slice(EncodedLengthBytes);
+					int encodedLengthBytes = VarInt.Write(span, packet.EncodedLength);
+					span = span.Slice(encodedLengthBytes);
 
-					int DecodedLengthBytes = VarInt.Write(Span, Packet.DecodedLength);
-					Span = Span.Slice(DecodedLengthBytes);
+					int decodedLengthBytes = VarInt.Write(span, packet.DecodedLength);
+					span = span.Slice(decodedLengthBytes);
 
-					PrevPacket = Packet;
+					prevPacket = packet;
 				}
 
-				Export.Hash.CopyTo(Span);
-				Span = Span.Slice(IoHash.NumBytes);
+				export.Hash.CopyTo(span);
+				span = span.Slice(IoHash.NumBytes);
 
-				int RankBytes = VarInt.Write(Span, Export.Rank);
-				Span = Span.Slice(RankBytes);
+				int rankBytes = VarInt.Write(span, export.Rank);
+				span = span.Slice(rankBytes);
 
-				int LengthBytes = VarInt.Write(Span, Export.Length);
-				Span = Span.Slice(LengthBytes);
+				int lengthBytes = VarInt.Write(span, export.Length);
+				span = span.Slice(lengthBytes);
 
-				int NumReferencesBytes = VarInt.Write(Span, Export.References.Length);
-				Span = Span.Slice(NumReferencesBytes);
+				int numReferencesBytes = VarInt.Write(span, export.References.Length);
+				span = span.Slice(numReferencesBytes);
 
-				foreach (int Reference in Export.References)
+				foreach (int reference in export.References)
 				{
-					int ReferenceBytes = VarInt.Write(Span, Reference);
-					Span = Span.Slice(ReferenceBytes);
+					int referenceBytes = VarInt.Write(span, reference);
+					span = span.Slice(referenceBytes);
 				}
 			}
 
-			Debug.Assert(Span.Length == 0);
-			return Data;
+			Debug.Assert(span.Length == 0);
+			return data;
 		}
 
-		static int Measure(List<BundleExport> Exports)
+		static int Measure(List<BundleExport> exports)
 		{
-			int Length = 0;
+			int length = 0;
 
-			BundleCompressionPacket? PrevPacket = null;
-			foreach (BundleExport Export in Exports)
+			BundleCompressionPacket? prevPacket = null;
+			foreach (BundleExport export in exports)
 			{
-				BundleCompressionPacket Packet = Export.Packet;
-				if (PrevPacket == null || Packet.Offset != PrevPacket.Offset)
+				BundleCompressionPacket packet = export.Packet;
+				if (prevPacket == null || packet.Offset != prevPacket.Offset)
 				{
-					CheckPacketSequence(PrevPacket, Packet);
-					Length += VarInt.Measure(Packet.EncodedLength) + VarInt.Measure(Packet.DecodedLength);
-					PrevPacket = Packet;
+					CheckPacketSequence(prevPacket, packet);
+					length += VarInt.Measure(packet.EncodedLength) + VarInt.Measure(packet.DecodedLength);
+					prevPacket = packet;
 				}
 
-				Length += IoHash.NumBytes + VarInt.Measure(Export.Rank) + VarInt.Measure(Export.Length) + VarInt.Measure(Export.References.Length) + Export.References.Sum(x => VarInt.Measure(x));
+				length += IoHash.NumBytes + VarInt.Measure(export.Rank) + VarInt.Measure(export.Length) + VarInt.Measure(export.References.Length) + export.References.Sum(x => VarInt.Measure(x));
 			}
 
-			return Length;
+			return length;
 		}
 
-		static void CheckPacketSequence(BundleCompressionPacket? PrevPacket, BundleCompressionPacket Packet)
+		static void CheckPacketSequence(BundleCompressionPacket? prevPacket, BundleCompressionPacket packet)
 		{
-			int ExpectedOffset = (PrevPacket == null) ? 0 : (PrevPacket.Offset + PrevPacket.EncodedLength);
-			if (Packet.Offset != ExpectedOffset)
+			int expectedOffset = (prevPacket == null) ? 0 : (prevPacket.Offset + prevPacket.EncodedLength);
+			if (packet.Offset != expectedOffset)
 			{
 				throw new InvalidOperationException("Bundle compression packets are not sequential");
 			}

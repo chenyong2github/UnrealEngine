@@ -1,23 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Horde.Bundles.Nodes;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
-using K4os.Compression.LZ4;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers.Binary;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace EpicGames.Horde.Bundles
@@ -36,12 +27,12 @@ namespace EpicGames.Horde.Bundles
 
 			public BundleExport? Export { get; set; }
 
-			public NodeInfo(IoHash Hash, int Rank, int Length, BlobInfo Blob)
+			public NodeInfo(IoHash hash, int rank, int length, BlobInfo blob)
 			{
-				this.Blob = Blob;
-				this.Hash = Hash;
-				this.Rank = Rank;
-				this.Length = Length;
+				Blob = blob;
+				Hash = hash;
+				Rank = rank;
+				Length = length;
 			}
 		}
 
@@ -53,201 +44,201 @@ namespace EpicGames.Horde.Bundles
 			public List<NodeInfo>? References { get; set; }
 			public Dictionary<IoHash, NodeInfo> Nodes { get; } = new Dictionary<IoHash, NodeInfo>();
 
-			public BlobInfo(IoHash Hash, int DataSize)
+			public BlobInfo(IoHash hash, int dataSize)
 			{
-				this.Hash = Hash;
-				this.DataSize = DataSize;
+				Hash = hash;
+				DataSize = dataSize;
 			}
 		}
 
 		/// <summary>
 		/// Finds the delta between two bundles
 		/// </summary>
-		/// <param name="StorageClient"></param>
-		/// <param name="NamespaceId"></param>
-		/// <param name="BucketId"></param>
-		/// <param name="RefId1">First ref to compare</param>
-		/// <param name="RefId2">Second ref to compare</param>
-		/// <param name="Logger">Logger to write output data</param>
-		public static async Task FindDeltaAsync(IStorageClient StorageClient, NamespaceId NamespaceId, BucketId BucketId, RefId RefId1, RefId RefId2, ILogger Logger)
+		/// <param name="storageClient"></param>
+		/// <param name="namespaceId"></param>
+		/// <param name="bucketId"></param>
+		/// <param name="refId1">First ref to compare</param>
+		/// <param name="refId2">Second ref to compare</param>
+		/// <param name="logger">Logger to write output data</param>
+		public static async Task FindDeltaAsync(IStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId1, RefId refId2, ILogger logger)
 		{
-			Dictionary<IoHash, BlobInfo> BlobCache = new Dictionary<IoHash, BlobInfo>();
+			Dictionary<IoHash, BlobInfo> blobCache = new Dictionary<IoHash, BlobInfo>();
 
-			Logger.LogInformation("Reading internal blobs...");
-			HashSet<NodeInfo> Nodes1 = new HashSet<NodeInfo>();
-			BlobInfo RootBlob1 = await ScanTreeAsync(StorageClient, NamespaceId, BucketId, RefId1, BlobCache, Nodes1);
+			logger.LogInformation("Reading internal blobs...");
+			HashSet<NodeInfo> nodes1 = new HashSet<NodeInfo>();
+			BlobInfo rootBlob1 = await ScanTreeAsync(storageClient, namespaceId, bucketId, refId1, blobCache, nodes1);
 
-			HashSet<NodeInfo> Nodes2 = new HashSet<NodeInfo>();
-			BlobInfo RootBlob2 = await ScanTreeAsync(StorageClient, NamespaceId, BucketId, RefId2, BlobCache, Nodes2);
+			HashSet<NodeInfo> nodes2 = new HashSet<NodeInfo>();
+			BlobInfo rootBlob2 = await ScanTreeAsync(storageClient, namespaceId, bucketId, refId2, blobCache, nodes2);
 
-			Logger.LogInformation("Reading leaf blobs...");
-			foreach (BlobInfo Blob in BlobCache.Values)
+			logger.LogInformation("Reading leaf blobs...");
+			foreach (BlobInfo blob in blobCache.Values)
 			{
-				if (Blob.References == null)
+				if (blob.References == null)
 				{
-					ReadOnlyMemory<byte> Data = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, Blob.Hash);
-					MountObject(StorageClient, NamespaceId, Blob, Data, null!);
+					ReadOnlyMemory<byte> data = await storageClient.ReadBlobToMemoryAsync(namespaceId, blob.Hash);
+					MountObject(blob, data, null!);
 				}
 			}
 
-			Logger.LogInformation("");
+			logger.LogInformation("");
 
-			Logger.LogInformation("{Row}", "                                               |            |       Total       |        Used (Ref 1)        |        Used (Ref 2)        ");
-			Logger.LogInformation("{Row}", " Identifier                                    |    RawSize |    Num       Size |    Num         Size    Pct |    Num         Size    Pct ");
-			Logger.LogInformation("{Row}", " ----------------------------------------------|------------|-------------------|----------------------------|----------------------------");
+			logger.LogInformation("{Row}", "                                               |            |       Total       |        Used (Ref 1)        |        Used (Ref 2)        ");
+			logger.LogInformation("{Row}", " Identifier                                    |    RawSize |    Num       Size |    Num         Size    Pct |    Num         Size    Pct ");
+			logger.LogInformation("{Row}", " ----------------------------------------------|------------|-------------------|----------------------------|----------------------------");
 
-			WriteBlobInfo($"Ref1 {RefId1.Hash}", RootBlob1, Nodes1, Nodes2, Logger);
-			WriteBlobInfo($"Ref2 {RefId2.Hash}", RootBlob2, Nodes1, Nodes2, Logger);
+			WriteBlobInfo($"Ref1 {refId1.Hash}", rootBlob1, nodes1, nodes2, logger);
+			WriteBlobInfo($"Ref2 {refId2.Hash}", rootBlob2, nodes1, nodes2, logger);
 
-			foreach (BlobInfo Blob in BlobCache.Values)
+			foreach (BlobInfo blob in blobCache.Values)
 			{
-				WriteBlobInfo($"Blob {Blob.Hash}", Blob, Nodes1, Nodes2, Logger);
+				WriteBlobInfo($"Blob {blob.Hash}", blob, nodes1, nodes2, logger);
 			}
 
-			Logger.LogInformation("");
+			logger.LogInformation("");
 
-			List<BlobInfo> NewBlobs = Nodes2.Select(x => x.Blob).Distinct().Except(Nodes2.Select(x => x.Blob)).ToList();
-			Logger.LogInformation("Total blob download size: {NumBytes:n0} bytes", NewBlobs.Sum(x => x.Size));
+			List<BlobInfo> newBlobs = nodes2.Select(x => x.Blob).Distinct().Except(nodes2.Select(x => x.Blob)).ToList();
+			logger.LogInformation("Total blob download size: {NumBytes:n0} bytes", newBlobs.Sum(x => x.Size));
 		}
 
-		static void WriteBlobInfo(string Name, BlobInfo Blob, HashSet<NodeInfo> Nodes1, HashSet<NodeInfo> Nodes2, ILogger Logger)
+		static void WriteBlobInfo(string name, BlobInfo blob, HashSet<NodeInfo> nodes1, HashSet<NodeInfo> nodes2, ILogger logger)
 		{
-			int UsedCount1 = 0;
-			int UsedSize1 = 0;
+			int usedCount1 = 0;
+			int usedSize1 = 0;
 
-			int UsedCount2 = 0;
-			int UsedSize2 = 0;
+			int usedCount2 = 0;
+			int usedSize2 = 0;
 
-			foreach (NodeInfo Node in Blob.Nodes.Values)
+			foreach (NodeInfo node in blob.Nodes.Values)
 			{
-				if (Nodes1.Contains(Node))
+				if (nodes1.Contains(node))
 				{
-					UsedCount1++;
-					UsedSize1 += Node.Length;
+					usedCount1++;
+					usedSize1 += node.Length;
 				}
-				if (Nodes2.Contains(Node))
+				if (nodes2.Contains(node))
 				{
-					UsedCount2++;
-					UsedSize2 += Node.Length;
+					usedCount2++;
+					usedSize2 += node.Length;
 				}
 			}
 
-			string UsedPct1 = $"{(UsedSize1 * 100) / Blob.DataSize}%";
-			string UsedPct2 = $"{(UsedSize2 * 100) / Blob.DataSize}%";
+			string usedPct1 = $"{(usedSize1 * 100) / blob.DataSize}%";
+			string usedPct2 = $"{(usedSize2 * 100) / blob.DataSize}%";
 
-			string Row = $"{Name,42} | {Blob.Size,10:n0} | {Blob.Nodes.Count,6:n0} {Blob.DataSize,10:n0} | {UsedCount1,6:n0} {UsedSize1,12:n0} {UsedPct1,6} | {UsedCount2,6:n0} {UsedSize2,12:n0} {UsedPct2,6}";
-			Logger.LogInformation(" {Row}", Row);
+			string row = $"{name,42} | {blob.Size,10:n0} | {blob.Nodes.Count,6:n0} {blob.DataSize,10:n0} | {usedCount1,6:n0} {usedSize1,12:n0} {usedPct1,6} | {usedCount2,6:n0} {usedSize2,12:n0} {usedPct2,6}";
+			logger.LogInformation(" {Row}", row);
 		}
 
-		static async Task<BlobInfo> ScanTreeAsync(IStorageClient StorageClient, NamespaceId NamespaceId, BucketId BucketId, RefId RefId, Dictionary<IoHash, BlobInfo> BlobCache, HashSet<NodeInfo> Nodes)
+		static async Task<BlobInfo> ScanTreeAsync(IStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, Dictionary<IoHash, BlobInfo> blobCache, HashSet<NodeInfo> nodes)
 		{
-			IRef Ref = await StorageClient.GetRefAsync(NamespaceId, BucketId, RefId);
+			IRef rootRef = await storageClient.GetRefAsync(namespaceId, bucketId, refId);
 
-			BlobInfo RootBlob = new BlobInfo(IoHash.Zero, 0);
-			BundleObject Object = MountObject(StorageClient, NamespaceId, RootBlob, Ref.Value.GetView(), BlobCache);
+			BlobInfo rootBlob = new BlobInfo(IoHash.Zero, 0);
+			BundleObject rootObject = MountObject(rootBlob, rootRef.Value.GetView(), blobCache);
 
-			NodeInfo RootNode = RootBlob.Nodes[Object.Exports[^1].Hash];
-			await ScanTreeAsync(StorageClient, NamespaceId, RootNode, BlobCache, Nodes);
+			NodeInfo rootNode = rootBlob.Nodes[rootObject.Exports[^1].Hash];
+			await ScanTreeAsync(storageClient, namespaceId, rootNode, blobCache, nodes);
 
-			return RootBlob;
+			return rootBlob;
 		}
 
-		static async Task ScanTreeAsync(IStorageClient StorageClient, NamespaceId NamespaceId, NodeInfo Node, Dictionary<IoHash, BlobInfo> BlobCache, HashSet<NodeInfo> Nodes)
+		static async Task ScanTreeAsync(IStorageClient storageClient, NamespaceId namespaceId, NodeInfo node, Dictionary<IoHash, BlobInfo> blobCache, HashSet<NodeInfo> nodes)
 		{
-			if (Nodes.Add(Node) && Node.Rank > 0)
+			if (nodes.Add(node) && node.Rank > 0)
 			{
-				if (Node.Export == null)
+				if (node.Export == null)
 				{
-					ReadOnlyMemory<byte> Data = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, Node.Blob.Hash);
-					MountObject(StorageClient, NamespaceId, Node.Blob, Data, BlobCache);
+					ReadOnlyMemory<byte> data = await storageClient.ReadBlobToMemoryAsync(namespaceId, node.Blob.Hash);
+					MountObject(node.Blob, data, blobCache);
 				}
 
-				Debug.Assert(Node.Export != null);
+				Debug.Assert(node.Export != null);
 
-				foreach (int RefIdx in Node.Export.References)
+				foreach (int refIdx in node.Export.References)
 				{
-					NodeInfo RefNode = Node.Blob.References![RefIdx];
-					await ScanTreeAsync(StorageClient, NamespaceId, RefNode, BlobCache, Nodes);
+					NodeInfo refNode = node.Blob.References![refIdx];
+					await ScanTreeAsync(storageClient, namespaceId, refNode, blobCache, nodes);
 				}
 			}
 		}
 
-		static BundleObject MountObject(IStorageClient StorageClient, NamespaceId NamespaceId, BlobInfo Blob, ReadOnlyMemory<byte> BlobData, Dictionary<IoHash, BlobInfo> BlobCache)
+		static BundleObject MountObject(BlobInfo blob, ReadOnlyMemory<byte> blobData, Dictionary<IoHash, BlobInfo> blobCache)
 		{
-			BundleObject Object = CbSerializer.Deserialize<BundleObject>(BlobData);
+			BundleObject blobObject = CbSerializer.Deserialize<BundleObject>(blobData);
 
-			Blob.Size = BlobData.Length;
-			Blob.DataSize = Object.Data.Length;
-			Blob.References = new List<NodeInfo>();
+			blob.Size = blobData.Length;
+			blob.DataSize = blobObject.Data.Length;
+			blob.References = new List<NodeInfo>();
 
-			foreach (BundleExport Export in Object.Exports)
+			foreach (BundleExport export in blobObject.Exports)
 			{
-				NodeInfo? Node;
-				if (!Blob.Nodes.TryGetValue(Export.Hash, out Node))
+				NodeInfo? node;
+				if (!blob.Nodes.TryGetValue(export.Hash, out node))
 				{
-					Node = new NodeInfo(Export.Hash, Export.Rank, Export.Length, Blob);
-					Blob.Nodes.Add(Export.Hash, Node);
+					node = new NodeInfo(export.Hash, export.Rank, export.Length, blob);
+					blob.Nodes.Add(export.Hash, node);
 				}
-				Blob.References.Add(Node);
+				blob.References.Add(node);
 
-				Node.Export = Export;
+				node.Export = export;
 			}
 
-			foreach (BundleImportObject ImportObject in Object.ImportObjects)
+			foreach (BundleImportObject importObject in blobObject.ImportObjects)
 			{
-				BlobInfo? ImportBlob;
-				if (!BlobCache.TryGetValue(ImportObject.Object.Hash, out ImportBlob))
+				BlobInfo? importBlob;
+				if (!blobCache.TryGetValue(importObject.Object.Hash, out importBlob))
 				{
-					ImportBlob = new BlobInfo(ImportObject.Object.Hash, ImportObject.TotalCost);
-					BlobCache[ImportObject.Object.Hash] = ImportBlob;
+					importBlob = new BlobInfo(importObject.Object.Hash, importObject.TotalCost);
+					blobCache[importObject.Object.Hash] = importBlob;
 				}
-				foreach (BundleImport Import in ImportObject.Imports)
+				foreach (BundleImport import in importObject.Imports)
 				{
-					NodeInfo? Node;
-					if (!ImportBlob.Nodes.TryGetValue(Import.Hash, out Node))
+					NodeInfo? node;
+					if (!importBlob.Nodes.TryGetValue(import.Hash, out node))
 					{
-						Node = new NodeInfo(Import.Hash, Import.Rank, Import.Length, ImportBlob);
-						ImportBlob.Nodes.Add(Import.Hash, Node);
+						node = new NodeInfo(import.Hash, import.Rank, import.Length, importBlob);
+						importBlob.Nodes.Add(import.Hash, node);
 					}
-					Blob.References.Add(Node);
+					blob.References.Add(node);
 				}
 			}
 
-			return Object;
+			return blobObject;
 		}
 
 		/// <summary>
 		/// Creates a YAML summary of the given bundle tree
 		/// </summary>
-		/// <param name="StorageClient"></param>
-		/// <param name="NamespaceId"></param>
-		/// <param name="BucketId"></param>
-		/// <param name="RefId"></param>
-		/// <param name="OutputDir"></param>
-		public static async Task WriteSummaryAsync(IStorageClient StorageClient, NamespaceId NamespaceId, BucketId BucketId, RefId RefId, DirectoryReference OutputDir)
+		/// <param name="storageClient"></param>
+		/// <param name="namespaceId"></param>
+		/// <param name="bucketId"></param>
+		/// <param name="refId"></param>
+		/// <param name="outputDir"></param>
+		public static async Task WriteSummaryAsync(IStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, DirectoryReference outputDir)
 		{
-			IRef Ref = await StorageClient.GetRefAsync(NamespaceId, BucketId, RefId);
-			BundleObject RootObject = CbSerializer.Deserialize<BundleObject>(Ref.Value);
+			IRef rootRef = await storageClient.GetRefAsync(namespaceId, bucketId, refId);
+			BundleObject rootObject = CbSerializer.Deserialize<BundleObject>(rootRef.Value);
 
-			FileReference RootFile = FileReference.Combine(OutputDir, "root.yml");
-			WriteSummaryForObject(RootObject, RootFile);
+			FileReference rootFile = FileReference.Combine(outputDir, "root.yml");
+			WriteSummaryForObject(rootObject, rootFile);
 
-			await WriteSummaryForImportsAsync(StorageClient, NamespaceId, RootObject.ImportObjects, new HashSet<IoHash>(), OutputDir);
+			await WriteSummaryForImportsAsync(storageClient, namespaceId, rootObject.ImportObjects, new HashSet<IoHash>(), outputDir);
 		}
 
-		static async Task WriteSummaryForImportsAsync(IStorageClient StorageClient, NamespaceId NamespaceId, IEnumerable<BundleImportObject> ImportObjects, HashSet<IoHash> Hashes, DirectoryReference OutputDir)
+		static async Task WriteSummaryForImportsAsync(IStorageClient storageClient, NamespaceId namespaceId, IEnumerable<BundleImportObject> importObjects, HashSet<IoHash> hashes, DirectoryReference outputDir)
 		{
-			foreach (BundleImportObject ImportObject in ImportObjects)
+			foreach (BundleImportObject importObject in importObjects)
 			{
-				IoHash Hash = ImportObject.Object.Hash;
-				if (Hashes.Add(Hash))
+				IoHash hash = importObject.Object.Hash;
+				if (hashes.Add(hash))
 				{
-					BundleObject Object = await StorageClient.ReadBlobAsync<BundleObject>(NamespaceId, Hash);
+					BundleObject blobObject = await storageClient.ReadBlobAsync<BundleObject>(namespaceId, hash);
 
-					FileReference OutputFile = FileReference.Combine(OutputDir, $"{Hash}.yml");
-					WriteSummaryForObject(Object, OutputFile);
+					FileReference outputFile = FileReference.Combine(outputDir, $"{hash}.yml");
+					WriteSummaryForObject(blobObject, outputFile);
 
-					await WriteSummaryForImportsAsync(StorageClient, NamespaceId, Object.ImportObjects, Hashes, OutputDir);
+					await WriteSummaryForImportsAsync(storageClient, namespaceId, blobObject.ImportObjects, hashes, outputDir);
 				}
 			}
 		}
@@ -255,66 +246,66 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Writes a summary of the given bundle object to disk in YAML format
 		/// </summary>
-		/// <param name="Object"></param>
-		/// <param name="File"></param>
-		public static void WriteSummaryForObject(BundleObject Object, FileReference File)
+		/// <param name="blobObject"></param>
+		/// <param name="file"></param>
+		public static void WriteSummaryForObject(BundleObject blobObject, FileReference file)
 		{
-			DirectoryReference.CreateDirectory(File.Directory);
+			DirectoryReference.CreateDirectory(file.Directory);
 
-			using StreamWriter Writer = new StreamWriter(FileReference.Open(File, FileMode.Create));
+			using StreamWriter writer = new StreamWriter(FileReference.Open(file, FileMode.Create));
 
-			Writer.WriteLine("schema: {0}", Object.Schema);
+			writer.WriteLine("schema: {0}", blobObject.Schema);
 
-			List<IoHash> References = new List<IoHash>(Object.Exports.Select(x => x.Hash));
-			if (Object.ImportObjects.Count > 0)
+			List<IoHash> references = new List<IoHash>(blobObject.Exports.Select(x => x.Hash));
+			if (blobObject.ImportObjects.Count > 0)
 			{
-				Writer.WriteLine("import-objects:");
-				foreach (BundleImportObject ImportObject in Object.ImportObjects)
+				writer.WriteLine("import-objects:");
+				foreach (BundleImportObject importObject in blobObject.ImportObjects)
 				{
-					Writer.WriteLine($"- blob: \"{ImportObject.Object.Hash}\"");
-					Writer.WriteLine($"  imports:");
-					foreach (BundleImport Import in ImportObject.Imports)
+					writer.WriteLine($"- blob: \"{importObject.Object.Hash}\"");
+					writer.WriteLine($"  imports:");
+					foreach (BundleImport import in importObject.Imports)
 					{
-						Writer.WriteLine($"  - hash: \"{Import.Hash}\"");
-						Writer.WriteLine($"    rank: \"{Import.Rank}\"");
-						Writer.WriteLine($"    cost: \"{Import.Length}\"");
-						Writer.WriteLine("");
-						References.Add(Import.Hash);
+						writer.WriteLine($"  - hash: \"{import.Hash}\"");
+						writer.WriteLine($"    rank: \"{import.Rank}\"");
+						writer.WriteLine($"    cost: \"{import.Length}\"");
+						writer.WriteLine("");
+						references.Add(import.Hash);
 					}
-					Writer.WriteLine();
+					writer.WriteLine();
 				}
 			}
 
-			if (Object.Exports.Count > 0)
+			if (blobObject.Exports.Count > 0)
 			{
-				Writer.WriteLine("packets:");
-				foreach (IGrouping<int, BundleCompressionPacket> Group in Object.Exports.Select(x => x.Packet).GroupBy(x => x.Offset).OrderBy(x => x.Key))
+				writer.WriteLine("packets:");
+				foreach (IGrouping<int, BundleCompressionPacket> group in blobObject.Exports.Select(x => x.Packet).GroupBy(x => x.Offset).OrderBy(x => x.Key))
 				{
-					BundleCompressionPacket Packet = Group.First();
-					Writer.WriteLine($"- offset: {Packet.Offset}");
-					Writer.WriteLine($"  encodedLength: {Packet.EncodedLength}");
-					Writer.WriteLine($"  decodedLength: {Packet.DecodedLength}");
-					Writer.WriteLine($"  compression-ratio: \"{(Packet.EncodedLength * 100) / Packet.DecodedLength}%\"");
-					Writer.WriteLine($"  exports: {Group.Count()}");
-					Writer.WriteLine();
+					BundleCompressionPacket packet = group.First();
+					writer.WriteLine($"- offset: {packet.Offset}");
+					writer.WriteLine($"  encodedLength: {packet.EncodedLength}");
+					writer.WriteLine($"  decodedLength: {packet.DecodedLength}");
+					writer.WriteLine($"  compression-ratio: \"{(packet.EncodedLength * 100) / packet.DecodedLength}%\"");
+					writer.WriteLine($"  exports: {group.Count()}");
+					writer.WriteLine();
 				}
 
-				Writer.WriteLine("exports:");
-				foreach (BundleExport Export in Object.Exports)
+				writer.WriteLine("exports:");
+				foreach (BundleExport export in blobObject.Exports)
 				{
-					Writer.WriteLine($"- hash: {Export.Hash}");
-					Writer.WriteLine($"  packet-offset: {Export.Packet.Offset}");
-					Writer.WriteLine($"  size: {Export.Length}");
-					if (Export.References.Length > 0)
+					writer.WriteLine($"- hash: {export.Hash}");
+					writer.WriteLine($"  packet-offset: {export.Packet.Offset}");
+					writer.WriteLine($"  size: {export.Length}");
+					if (export.References.Length > 0)
 					{
-						Writer.WriteLine($"  references:");
-						foreach (int Reference in Export.References)
+						writer.WriteLine($"  references:");
+						foreach (int reference in export.References)
 						{
-							IoHash ReferenceHash = References[Reference];
-							Writer.WriteLine($"  - \"{ReferenceHash}\"");
+							IoHash referenceHash = references[reference];
+							writer.WriteLine($"  - \"{referenceHash}\"");
 						}
 					}
-					Writer.WriteLine();
+					writer.WriteLine();
 				}
 			}
 		}

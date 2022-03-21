@@ -3,11 +3,8 @@
 using EpicGames.Core;
 using EpicGames.Serialization;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,83 +15,83 @@ namespace EpicGames.Horde.Storage.Impl
 	/// </summary>
 	public class TracingStorageClient : IStorageClient
 	{
-		IStorageClient Inner;
-		ILogger Logger;
+		readonly IStorageClient _inner;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Inner"></param>
-		/// <param name="Logger"></param>
-		public TracingStorageClient(IStorageClient Inner, ILogger Logger)
+		/// <param name="inner"></param>
+		/// <param name="logger"></param>
+		public TracingStorageClient(IStorageClient inner, ILogger logger)
 		{
-			this.Inner = Inner;
-			this.Logger = Logger;
+			_inner = inner;
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		public Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			Logger.LogDebug("Reading blob {NamespaceId}/{Hash}", NamespaceId, Hash);
-			return Inner.ReadBlobAsync(NamespaceId, Hash, CancellationToken);
+			_logger.LogDebug("Reading blob {NamespaceId}/{Hash}", namespaceId, hash);
+			return _inner.ReadBlobAsync(namespaceId, hash, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken = default)
+		public Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken = default)
 		{
-			Logger.LogDebug("Writing blob {NamespaceId}/{Hash}", NamespaceId, Hash);
-			return Inner.WriteBlobAsync(NamespaceId, Hash, Stream, CancellationToken);
+			_logger.LogDebug("Writing blob {NamespaceId}/{Hash}", namespaceId, hash);
+			return _inner.WriteBlobAsync(namespaceId, hash, stream, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		public Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			return Inner.HasBlobAsync(NamespaceId, Hash, CancellationToken);
+			return _inner.HasBlobAsync(namespaceId, hash, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		public Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId namespaceId, HashSet<IoHash> hashes, CancellationToken cancellationToken)
 		{
-			return Inner.FindMissingBlobsAsync(NamespaceId, Hashes, CancellationToken);
+			return _inner.FindMissingBlobsAsync(namespaceId, hashes, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
+		public Task<bool> DeleteRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			Logger.LogDebug("Deleting ref {NamespaceId}/{BucketId}/{RefId}", NamespaceId, BucketId, RefId);
-			return Inner.DeleteRefAsync(NamespaceId, BucketId, RefId, CancellationToken);
+			_logger.LogDebug("Deleting ref {NamespaceId}/{BucketId}/{RefId}", namespaceId, bucketId, refId);
+			return _inner.DeleteRefAsync(namespaceId, bucketId, refId, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<List<RefId>> FindMissingRefsAsync(NamespaceId NamespaceId, BucketId BucketId, List<RefId> RefIds, CancellationToken CancellationToken = default)
+		public Task<List<RefId>> FindMissingRefsAsync(NamespaceId namespaceId, BucketId bucketId, List<RefId> refIds, CancellationToken cancellationToken = default)
 		{
-			return Inner.FindMissingRefsAsync(NamespaceId, BucketId, RefIds, CancellationToken);
+			return _inner.FindMissingRefsAsync(namespaceId, bucketId, refIds, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
+		public Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			Logger.LogDebug("Getting ref {NamespaceId}/{BucketId}/{RefId}", NamespaceId, BucketId, RefId);
-			return Inner.GetRefAsync(NamespaceId, BucketId, RefId, CancellationToken);
+			_logger.LogDebug("Getting ref {NamespaceId}/{BucketId}/{RefId}", namespaceId, bucketId, refId);
+			return _inner.GetRefAsync(namespaceId, bucketId, refId, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
+		public Task<bool> HasRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			return Inner.HasRefAsync(NamespaceId, BucketId, RefId, CancellationToken);
+			return _inner.HasRefAsync(namespaceId, bucketId, refId, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, IoHash Hash, CancellationToken CancellationToken = default)
+		public Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			return Inner.TryFinalizeRefAsync(NamespaceId, BucketId, RefId, Hash, CancellationToken);
+			return _inner.TryFinalizeRefAsync(namespaceId, bucketId, refId, hash, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IoHash>> TrySetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value, CancellationToken CancellationToken = default)
+		public Task<List<IoHash>> TrySetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value, CancellationToken cancellationToken = default)
 		{
-			Logger.LogDebug("Setting ref {NamespaceId}/{BucketId}/{RefId}", NamespaceId, BucketId, RefId);
-			return Inner.TrySetRefAsync(NamespaceId, BucketId, RefId, Value, CancellationToken);
+			_logger.LogDebug("Setting ref {NamespaceId}/{BucketId}/{RefId}", namespaceId, bucketId, refId);
+			return _inner.TrySetRefAsync(namespaceId, bucketId, refId, value, cancellationToken);
 		}
 	}
 }

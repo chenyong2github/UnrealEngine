@@ -2,9 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Horde.Compute
 {
@@ -65,12 +63,12 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileNode(Utf8String Name, CbBinaryAttachment Hash, long Size, int Attributes)
+		public FileNode(Utf8String name, CbBinaryAttachment hash, long size, int attributes)
 		{
-			this.Name = Name;
-			this.Hash = Hash;
-			this.Size = Size;
-			this.Attributes = Attributes;
+			Name = name;
+			Hash = hash;
+			Size = size;
+			Attributes = attributes;
 		}
 	}
 
@@ -101,10 +99,10 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DirectoryNode(Utf8String Name, CbObjectAttachment Hash)
+		public DirectoryNode(Utf8String name, CbObjectAttachment hash)
 		{
-			this.Name = Name;
-			this.Hash = Hash;
+			Name = name;
+			Hash = hash;
 		}
 	}
 }
