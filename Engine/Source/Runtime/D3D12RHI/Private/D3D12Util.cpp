@@ -1416,7 +1416,7 @@ D3D12_RESOURCE_STATES CResourceState::GetSubresourceState(uint32 SubresourceInde
 {
 	if (m_AllSubresourcesSame)
 	{
-		return m_ResourceState;
+		return static_cast<D3D12_RESOURCE_STATES>(m_ResourceState);
 	}
 	else
 	{
@@ -1459,7 +1459,10 @@ void CResourceState::SetResourceState(D3D12_RESOURCE_STATES State)
 {
 	m_AllSubresourcesSame = 1;
 
-	m_ResourceState = State;
+	// m_ResourceState is restricted to 31 bits.  Ensure State can be properly represented.
+	check((State & (1 << 31)) == 0);
+
+	m_ResourceState = *reinterpret_cast<uint32*>(&State);
 
 	// State is now tracked per-resource, so m_SubresourceState should not be read.
 #if UE_BUILD_DEBUG
@@ -1490,7 +1493,7 @@ void CResourceState::SetSubresourceState(uint32 SubresourceIndex, D3D12_RESOURCE
 			const uint32 numSubresourceStates = m_SubresourceState.Num();
 			for (uint32 i = 0; i < numSubresourceStates; i++)
 			{
-				m_SubresourceState[i] = m_ResourceState;
+				m_SubresourceState[i] = static_cast<D3D12_RESOURCE_STATES>(m_ResourceState);
 			}
 
 			m_AllSubresourcesSame = 0;
