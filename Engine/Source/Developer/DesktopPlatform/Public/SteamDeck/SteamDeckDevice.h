@@ -5,23 +5,20 @@
 #include "CoreMinimal.h"
 #include "Common/TargetPlatformBase.h"
 #include "Misc/ConfigCacheIni.h"
-#if PLATFORM_WINDOWS
-#include "LocalPcTargetDevice.h"
-#endif
 #include "Serialization/MemoryLayout.h"
 
-// Extend SteamDevice from LocalPcDevice as we are leveraging the Windows Device for Steam Deck when building
-// for the Win64 platform. As SteamDeck consumes the exact same build it would for a normal Win64 device
-#if PLATFORM_WINDOWS
-class FSteamDeckDevice : public TLocalPcTargetDevice<true>
+// Extend from either WIndows or Linux device, since there will be a lot of shared functionality
+template<class ParentDeviceClass>
+class TSteamDeckDevice : public ParentDeviceClass
 {
 public:
-	FSteamDeckDevice(FString InIpAddr, FString InDeviceName, FString InUserName, const ITargetPlatform& InTargetPlatform)
-		: TLocalPcTargetDevice<true>(InTargetPlatform)
+	TSteamDeckDevice(FString InIpAddr, FString InDeviceName, FString InUserName, const ITargetPlatform& InTargetPlatform, const TCHAR* InRuntimeOSName)
+		: ParentDeviceClass(InTargetPlatform)
 		, IpAddr(InIpAddr)
-		, DeviceName(InDeviceName)
 		, UserName(InUserName)
+		, RuntimeOSName(InRuntimeOSName)
 	{
+		DeviceName = FString::Printf(TEXT("%s (%s)"), *InDeviceName, InRuntimeOSName);
 	}
 
 	virtual FString GetName() const override
@@ -31,12 +28,12 @@ public:
 
 	virtual FTargetDeviceId GetId() const override
 	{
-		return FTargetDeviceId(TargetPlatform.PlatformName(), IpAddr);
+		return FTargetDeviceId(this->TargetPlatform.PlatformName(), IpAddr);
 	}
 
 	virtual FString GetOperatingSystemName() override
 	{
-		return TEXT("SteamOS");
+		return FString::Printf(TEXT("SteamOS (%s)"), *RuntimeOSName);
 	}
 
 	virtual bool GetUserCredentials(FString& OutUserName, FString& OutUserPassword) override
@@ -49,12 +46,12 @@ public:
 		return true;
 	}
 
-	static TArray<ITargetDevicePtr> DiscoverDevices(const ITargetPlatform& GenericWindowsTP)
+	static TArray<ITargetDevicePtr> DiscoverDevices(const ITargetPlatform& TargetPlatform, const TCHAR* RuntimeOSName)
 	{
 		TArray<FString> EngineIniSteamDeckDevices;
 
 		// Expected ini format: +SteamDeckDevice=(IpAddr=10.1.33.19,Name=MySteamDeck,UserName=deck)
-		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("SteamDeckDevice"), EngineIniSteamDeckDevices, GEngineIni);
+		GConfig->GetArray(TEXT("SteamDeck"), TEXT("SteamDeckDevice"), EngineIniSteamDeckDevices, GEngineIni);
 
 		TArray<ITargetDevicePtr> SteamDevices;
 		for (const FString& Device : EngineIniSteamDeckDevices)
@@ -76,7 +73,7 @@ public:
 				continue;
 			}
 
-			SteamDevices.Add(MakeShareable(new FSteamDeckDevice(IpAddr, Name, UserName, GenericWindowsTP)));
+			SteamDevices.Add(MakeShareable(new TSteamDeckDevice<ParentDeviceClass>(IpAddr, Name, UserName, TargetPlatform, RuntimeOSName)));
 		}
 
 		return SteamDevices;
@@ -86,5 +83,5 @@ private:
 	FString IpAddr;
 	FString DeviceName;
 	FString UserName;
+	FString RuntimeOSName;
 };
-#endif // PLATFORM_WINDOWS

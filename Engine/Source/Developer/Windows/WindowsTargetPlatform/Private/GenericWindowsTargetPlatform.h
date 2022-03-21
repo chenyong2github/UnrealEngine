@@ -48,7 +48,7 @@ public:
 		LocalDevice = MakeShareable(new TTargetDevice(*this));
 
 		// Check if we have any SteamDeck devices around
-		SteamDevices = FSteamDeckDevice::DiscoverDevices(*this);
+		SteamDevices = TSteamDeckDevice<TLocalPcTargetDevice<true>>::DiscoverDevices(*this, TEXT("Proton"));
 #endif
 
 	#if WITH_ENGINE

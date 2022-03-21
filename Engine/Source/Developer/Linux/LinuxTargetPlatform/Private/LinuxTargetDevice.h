@@ -49,6 +49,11 @@ public:
 		, SavePlatformDevices(InSavePlatformDevices)
 	{ }
 
+	/**
+	 * Minimal constructor for use with SteamDeck devices */
+	FLinuxTargetDevice(const ITargetPlatform& InTargetPlatform)
+		: FLinuxTargetDevice(InTargetPlatform, TEXT("UnknownName"), nullptr) 
+	{ }
 
 public:
 
@@ -195,7 +200,7 @@ public:
 		return false;
 	}
 
-private:
+protected:
 
 	// Holds a reference to the device's target platform.
 	const ITargetPlatform& TargetPlatform;

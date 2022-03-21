@@ -26,7 +26,7 @@ public static class SteamDeckSupport
 		ConfigHierarchy EngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, null, UnrealTargetPlatform.Win64);
 
 		List<string> SteamDeckDevices;
-		if (EngineConfig.GetArray("/Script/WindowsTargetPlatform.WindowsTargetSettings", "SteamDeckDevice", out SteamDeckDevices))
+		if (EngineConfig.GetArray("SteamDeck", "SteamDeckDevice", out SteamDeckDevices))
 		{
 			// Expected ini format: +SteamDeckDevice=(IpAddr=10.1.33.19,Name=MySteamDeck,UserName=deck)
 			foreach (string DeckDevice in SteamDeckDevices)

@@ -12,6 +12,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Common/TargetPlatformBase.h"
+#include "SteamDeck/SteamDeckDevice.h"
 
 
 #if WITH_ENGINE
@@ -59,6 +60,12 @@ public:
 		StaticMeshLODSettings.Initialize(this);
 
 		InitDevicesFromConfig();
+
+		if (!TProperties::IsArm64())
+		{
+			SteamDevices = TSteamDeckDevice<FLinuxTargetDevice>::DiscoverDevices(*this, TEXT("Native Linux"));
+		}
+
 
 		// Get the Target RHIs for this platform, we do not always want all those that are supported.
 		TArray<FName> TargetedShaderFormats;
@@ -125,6 +132,14 @@ public:
 		{
 			OutDevices.Add(DeviceIter.Value);
 		}
+
+		for (const ITargetDevicePtr& SteamDeck : SteamDevices)
+		{
+			if (SteamDeck.IsValid())
+			{
+				OutDevices.Add(SteamDeck);
+			}
+		}
 	}
 
 	virtual bool GenerateStreamingInstallManifest(const TMultiMap<FString, int32>& PakchunkMap, const TSet<int32>& PakchunkIndicesInUse) const override
@@ -154,6 +169,14 @@ public:
 			if (DeviceId == DeviceIter.Value->GetId())
 			{
 				return DeviceIter.Value;
+			}
+		}
+
+		for (const ITargetDevicePtr& SteamDeck : SteamDevices)
+		{
+			if (SteamDeck.IsValid() && DeviceId == SteamDeck->GetId())
+			{
+				return SteamDeck;
 			}
 		}
 
@@ -456,6 +479,7 @@ protected:
 	FLinuxTargetDevicePtr LocalDevice;
 	// Holds a map of valid devices.
 	TMap<FString, FLinuxTargetDevicePtr> Devices;
+	TArray<ITargetDevicePtr> SteamDevices;
 
 
 #if WITH_ENGINE

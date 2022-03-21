@@ -35,7 +35,11 @@ public abstract class BaseLinuxPlatform : Platform
 			Devices.Add(LocalMachine);
 		}
 
-		Devices.AddRange(SteamDeckSupport.GetDevices(UnrealTargetPlatform.Linux));
+		// only add for true Linux, not Arm64, etc
+		if (PlatformType == UnrealTargetPlatform.Linux)
+		{
+			Devices.AddRange(SteamDeckSupport.GetDevices(UnrealTargetPlatform.Linux));
+		}
 
 		return Devices.ToArray();
 	}
