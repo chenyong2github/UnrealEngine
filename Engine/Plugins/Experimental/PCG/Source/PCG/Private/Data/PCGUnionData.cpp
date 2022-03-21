@@ -154,6 +154,59 @@ FPCGPoint UPCGUnionData::TransformPoint(const FPCGPoint& InPoint) const
 	}
 }
 
+bool UPCGUnionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	FVector PointPosition = InPosition;
+
+	if (FirstNonTrivialTransformData)
+	{
+		if (FirstNonTrivialTransformData->GetPointAtPosition(InPosition, OutPoint, OutMetadata))
+		{
+			PointPosition = OutPoint.Transform.GetLocation();
+
+			if (DensityFunction == EPCGUnionDensityFunction::Binary && OutPoint.Density > 0)
+			{
+				OutPoint.Density = 1.0f;
+			}
+		}
+	}
+
+	const bool bSkipLoop = (!OutMetadata && OutPoint.Density >= 1.0f);
+	const int32 DataCount = Data.Num();
+	for (int32 DataIndex = 0; DataIndex < DataCount && !bSkipLoop; ++DataIndex)
+	{
+		if (Data[DataIndex] == FirstNonTrivialTransformData)
+		{
+			continue;
+		}
+
+		FPCGPoint PointInData;
+		if (Data[DataIndex]->GetPointAtPosition(PointPosition, PointInData, OutMetadata))
+		{
+			// Update density
+			PCGUnionDataMaths::UpdateDensity(OutPoint.Density, PointInData.Density, DensityFunction);
+
+			OutPoint.Color = FVector4(
+				FMath::Max(OutPoint.Color.X, PointInData.Color.X),
+				FMath::Max(OutPoint.Color.Y, PointInData.Color.Y),
+				FMath::Max(OutPoint.Color.Z, PointInData.Color.Z),
+				FMath::Max(OutPoint.Color.W, PointInData.Color.W));
+
+			// Merge properties into OutPoint
+			if (OutMetadata)
+			{
+				OutMetadata->MergeAttributes(OutPoint, PointInData, OutPoint, EPCGMetadataOp::Max);
+			}
+			else if (OutPoint.Density >= 1.0f)
+			{
+				break;
+			}
+		}
+	}
+
+	return OutPoint.Density > 0;
+}
+
 bool UPCGUnionData::HasNonTrivialTransform() const
 {
 	return (FirstNonTrivialTransformData != nullptr || Super::HasNonTrivialTransform());
@@ -178,7 +231,13 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 	}
 
 	UPCGPointData* PointData = NewObject<UPCGPointData>(const_cast<UPCGUnionData*>(this));
-	PointData->TargetActor = TargetActor;
+	PointData->InitializeFromData(this, Data[0]->Metadata);
+
+	// Initialize metadata
+	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	{
+		PointData->Metadata->AddAttributes(Datum->Metadata);
+	}
 
 	switch (UnionType)
 	{
@@ -196,7 +255,14 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 			TArray<FPCGPoint>& TargetPoints = PointData->GetMutablePoints();
 			for (TObjectPtr<const UPCGSpatialData> Datum : Data)
 			{
-				TargetPoints.Append(Datum->ToPointData(Context)->GetPoints());
+				const UPCGPointData* DatumPointData = Datum->ToPointData(Context);
+				int32 TargetPointIndex = TargetPoints.Num();
+				TargetPoints.Append(DatumPointData->GetPoints());
+
+				if (PointData->Metadata && DatumPointData->GetPoints().Num() > 0)
+				{
+					PointData->Metadata->SetAttributes(MakeArrayView(DatumPointData->GetPoints()), DatumPointData->Metadata, MakeArrayView(&TargetPoints[TargetPointIndex], DatumPointData->GetPoints().Num()));
+				}
 			}
 
 			// Correct density for binary-style union
@@ -235,7 +301,7 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 		// add it & compute its final density
 		const TArray<FPCGPoint>& Points = Data[DataIndex]->ToPointData(Context)->GetPoints();
 
-		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), SelectedDataPoints, [this, &Points, DataIndex, FirstDataIndex, LastDataIndex, DataIndexIncrement](int32 Index, FPCGPoint& OutPoint)
+		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), SelectedDataPoints, [this, PointData, &Points, DataIndex, FirstDataIndex, LastDataIndex, DataIndexIncrement](int32 Index, FPCGPoint& OutPoint)
 		{
 			const FPCGPoint& Point = Points[Index];
 
@@ -255,17 +321,51 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 				return false;
 			}
 
+			check(PointData && PointData->Metadata);
+
 			OutPoint = Point;
+			if (PointData->Metadata->GetParent() == Data[DataIndex]->Metadata)
+			{
+				UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata, Point);
+			}
+			else
+			{
+				UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata);
+				// Since we can't inherit from the parent point, we'll set the values directly here
+				PointData->Metadata->SetAttributes(Point, Data[DataIndex]->Metadata, OutPoint);
+			}
 
 			if (DensityFunction == EPCGUnionDensityFunction::Binary && OutPoint.Density > 0)
 			{
 				OutPoint.Density = 1.0f;
 			}
 
-			// Compute final density based on current & following data
-			for (int32 FollowingDataIndex = DataIndex + DataIndexIncrement; FollowingDataIndex != LastDataIndex && OutPoint.Density < 1.0f; FollowingDataIndex += DataIndexIncrement)
+			// Update density & metadata based on current & following data
+			const bool bSkipLoop = (OutPoint.Density >= 1.0f && !PointData->Metadata);
+			for (int32 FollowingDataIndex = DataIndex + DataIndexIncrement; FollowingDataIndex != LastDataIndex && !bSkipLoop; FollowingDataIndex += DataIndexIncrement)
 			{
-				PCGUnionDataMaths::UpdateDensity(OutPoint.Density, Data[FollowingDataIndex]->GetDensityAtPosition(OutPoint.Transform.GetLocation()), DensityFunction);
+				FPCGPoint PointInData;
+				if (Data[FollowingDataIndex]->GetPointAtPosition(OutPoint.Transform.GetLocation(), PointInData, PointData->Metadata))
+				{
+					// Update density
+					PCGUnionDataMaths::UpdateDensity(OutPoint.Density, PointInData.Density, DensityFunction);
+
+					// Update color
+					OutPoint.Color = FVector4(
+						FMath::Max(OutPoint.Color.X, PointInData.Color.X),
+						FMath::Max(OutPoint.Color.Y, PointInData.Color.Y),
+						FMath::Max(OutPoint.Color.Z, PointInData.Color.Z),
+						FMath::Max(OutPoint.Color.W, PointInData.Color.W));
+
+					if (PointData->Metadata)
+					{
+						PointData->Metadata->MergeAttributes(OutPoint, PointInData, OutPoint, EPCGMetadataOp::Max);
+					}
+					else if (OutPoint.Density >= 1.0f)
+					{
+						break;
+					}
+				}
 			}
 
 			return true;

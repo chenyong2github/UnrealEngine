@@ -3,6 +3,7 @@
 #include "Data/PCGPointData.h"
 
 #include "PCGHelpers.h"
+#include "Metadata/PCGMetadataAccessor.h"
 
 #include "GameFramework/Actor.h"
 #include "Misc/ScopeLock.h"
@@ -63,6 +64,17 @@ namespace PCGPointHelpers
 			return 0;
 		}
 	}
+
+	/** Helper function for additive blending of quaternions (copied from ControlRig) */
+	FQuat AddQuatWithWeight(const FQuat& Q, const FQuat& V, float Weight)
+	{
+		FQuat BlendQuat = V * Weight;
+
+		if ((Q | BlendQuat) >= 0.0f)
+			return Q + BlendQuat;
+		else
+			return Q - BlendQuat;
+	}	
 }
 
 FPCGPointRef::FPCGPointRef(const FPCGPoint& InPoint)
@@ -145,7 +157,7 @@ void UPCGPointData::SetPoints(const TArray<FPCGPoint>& InPoints)
 	GetMutablePoints() = InPoints;
 }
 
-void UPCGPointData::Initialize(AActor* InActor)
+void UPCGPointData::InitializeFromActor(AActor* InActor)
 {
 	check(InActor);
 
@@ -156,6 +168,16 @@ void UPCGPointData::Initialize(AActor* InActor)
 	Points[0].Seed = PCGHelpers::ComputeSeed((int)Position.X, (int)Position.Y, (int)Position.Z);
 
 	TargetActor = InActor;
+	Metadata = NewObject<UPCGMetadata>(this);
+}
+
+void UPCGPointData::InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride)
+{
+	check(InSource);
+	TargetActor = InSource->TargetActor;
+
+	Metadata = NewObject<UPCGMetadata>(this);
+	Metadata->Initialize(InMetadataParentOverride ? InMetadataParentOverride : InSource->Metadata);
 }
 
 const FPCGPoint* UPCGPointData::GetPointAtPosition(const FVector& InPosition) const
@@ -231,11 +253,93 @@ FPCGPoint UPCGPointData::TransformPoint(const FPCGPoint& InPoint) const
 	Point.Transform.NormalizeRotation();
 	Point.Transform.SetScale3D(Point.Transform.GetScale3D() * WeightedScale);	
 	Point.Density *= WeightedDensity;
-	Point.Extents *= WeightedExtents;
+	Point.Extents *= WeightedExtents; // this assumes that the extents were 1 to begin with
 	Point.Color *= WeightedColor;
 	Point.Steepness *= WeightedSteepness;
 
 	return Point;
+}
+
+bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	if (bOctreeIsDirty)
+	{
+		RebuildOctree();
+	}
+
+	TArray<TPair<const FPCGPoint*, float>> Contributions;
+	Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(InPosition, FVector::Zero()), [&InPosition, &Contributions](const FPCGPointRef& InPointRef) {
+		Contributions.Emplace(InPointRef.Point, PCGPointHelpers::InverseEuclidianDistance(*InPointRef.Point, InPosition));
+	});
+
+	float SumContributions = 0;
+	float MaxContribution = 0;
+	const FPCGPoint* MaxContributor = nullptr;
+
+	for (const TPair<const FPCGPoint*, float>& Contribution : Contributions)
+	{
+		SumContributions += Contribution.Value;
+
+		if (Contribution.Value > MaxContribution)
+		{
+			MaxContribution = Contribution.Value;
+			MaxContributor = Contribution.Key;
+		}
+	}
+
+	if (SumContributions <= 0)
+	{
+		return false;
+	}
+
+	// Computed weighted average of spatial properties
+	FQuat WeightedQuat = FQuat::Identity;
+	FVector WeightedScale = FVector::ZeroVector;
+	float WeightedDensity = 0;
+	FVector WeightedExtents = FVector::ZeroVector;
+	FVector WeightedColor = FVector::ZeroVector;
+	float WeightedSteepness = 0;
+
+	for (const TPair<const FPCGPoint*, float> Contribution : Contributions)
+	{
+		const FPCGPoint& SourcePoint = *Contribution.Key;
+		const float Weight = Contribution.Value / SumContributions;
+
+		WeightedQuat = PCGPointHelpers::AddQuatWithWeight(WeightedQuat, SourcePoint.Transform.GetRotation(), Weight);
+		WeightedScale += SourcePoint.Transform.GetScale3D() * Weight;
+		WeightedDensity += PCGPointHelpers::ManhattanDensity(SourcePoint, InPosition);
+		WeightedExtents += SourcePoint.Extents * Weight;
+		WeightedColor += SourcePoint.Color * Weight;
+		WeightedSteepness += SourcePoint.Steepness * Weight;
+	}
+
+	// Finally, apply changes to point
+	WeightedQuat.Normalize();
+
+	OutPoint.Transform.SetRotation(WeightedQuat);
+	OutPoint.Transform.SetScale3D(WeightedScale);
+	OutPoint.Transform.SetLocation(InPosition);
+	OutPoint.Density = WeightedDensity;
+	OutPoint.Extents = WeightedExtents;
+	OutPoint.Color = WeightedColor;
+	OutPoint.Steepness = WeightedSteepness;
+
+	if (OutMetadata)
+	{
+		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, OutMetadata, *MaxContributor, Metadata);
+		OutMetadata->ResetWeightedAttributes(OutPoint);
+
+		for (const TPair<const FPCGPoint*, float> Contribution : Contributions)
+		{
+			const FPCGPoint& SourcePoint = *Contribution.Key;
+			const float Weight = Contribution.Value / SumContributions;
+			const bool bIsMaxContributor = (Contribution.Key == MaxContributor);
+
+			OutMetadata->AccumulateWeightedAttributes(SourcePoint, Metadata, Weight, bIsMaxContributor, OutPoint);
+		}
+	}
+
+	return true;
 }
 
 float UPCGPointData::GetDensityAtPosition(const FVector& InPosition) const

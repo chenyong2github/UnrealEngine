@@ -6,6 +6,7 @@
 #include "PCGContext.h"
 #include "PCGData.h"
 #include "PCGPoint.h"
+#include "Metadata/PCGMetadata.h"
 
 #include "PCGSpatialData.generated.h"
 
@@ -69,6 +70,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const;
 
+	virtual bool GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+	{
+		OutPoint.Transform = FTransform(InPosition);
+		OutPoint = TransformPoint(OutPoint);
+		return OutPoint.Density > 0;
+	}
+
 	/** Returns true if the data has a non-trivial transform */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual bool HasNonTrivialTransform() const { return false; }
@@ -88,6 +96,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual UPCGDifferenceData* Subtract(const UPCGSpatialData* InOther) const;
 
+	UFUNCTION(BlueprintCallable, Category = Metadata)
+	const UPCGMetadata* ConstMetadata() const { return Metadata; }
+
+	UFUNCTION(BlueprintCallable, Category = Metadata)
+	UPCGMetadata* MutableMetadata() { return Metadata; }
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	AActor* TargetActor = nullptr;
 
@@ -95,6 +109,10 @@ public:
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)
 	bool bKeepZeroDensityPoints = false;
 #endif
+
+	// Not accessible through blueprint to make sure the constness is preserved
+	UPROPERTY(VisibleAnywhere, Category = Metadata)
+	TObjectPtr<UPCGMetadata> Metadata = nullptr;
 };
 
 UCLASS(Abstract, ClassGroup = (Procedural))

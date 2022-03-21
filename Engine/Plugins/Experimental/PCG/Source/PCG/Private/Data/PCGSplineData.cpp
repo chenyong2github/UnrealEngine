@@ -47,7 +47,7 @@ const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSplineData::CreatePointData);
 	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGSplineData*>(this));
-	Data->TargetActor = TargetActor;
+	Data->InitializeFromData(this);
 
 	// TODO: introduce settings to sample, 
 	// should be part of the settings passed in param.

@@ -82,7 +82,7 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context) co
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeData::CreatePointData);
 
 	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGLandscapeData*>(this));
-	Data->TargetActor = TargetActor;
+	Data->InitializeFromData(this);
 	TArray<FPCGPoint>& Points = Data->GetMutablePoints();
 
 	// TODO: add offset to nearest edge, will have an impact if the grid size doesn't match the landscape size

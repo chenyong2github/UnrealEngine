@@ -52,7 +52,7 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 		const int OriginalPointCount = Points.Num();
 
 		UPCGPointData* SampledData = NewObject<UPCGPointData>();
-		SampledData->TargetActor = OriginalData->TargetActor;
+		SampledData->InitializeFromData(OriginalData);
 		TArray<FPCGPoint>& SampledPoints = SampledData->GetMutablePoints();
 		Output.Data = SampledData;
 

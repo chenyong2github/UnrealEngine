@@ -34,4 +34,7 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	int32 Seed = 0;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Properties|Metadata")
+	int64 MetadataEntry = -1;
 };

@@ -2,6 +2,7 @@
 
 #include "Data/PCGProjectionData.h"
 #include "Helpers/PCGAsync.h"
+#include "Metadata/PCGMetadataAccessor.h"
 
 void UPCGProjectionData::Initialize(const UPCGSpatialData* InSource, const UPCGSpatialData* InTarget)
 {
@@ -88,6 +89,35 @@ FPCGPoint UPCGProjectionData::TransformPoint(const FPCGPoint& InPoint) const
 	return Target->TransformPoint(Source->TransformPoint(InPoint));
 }
 
+bool UPCGProjectionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	FPCGPoint PointFromSource;
+	if (!Source->GetPointAtPosition(InPosition, PointFromSource, OutMetadata))
+	{
+		return false;
+	}
+
+	FPCGPoint PointFromTarget;
+	if (!Target->GetPointAtPosition(PointFromSource.Transform.GetLocation(), PointFromTarget, OutMetadata))
+	{
+		return false;
+	}
+
+	// Merge points into a single point
+	OutPoint = PointFromSource;
+	OutPoint.Transform = PointFromTarget.Transform;
+	OutPoint.Density *= PointFromTarget.Density;
+	OutPoint.Color *= PointFromTarget.Color;
+	
+	if (OutMetadata)
+	{
+		//METADATA TODO Review op
+		OutMetadata->MergeAttributes(PointFromSource, PointFromTarget, OutPoint, EPCGMetadataOp::Max);
+	}
+
+	return true;
+}
+
 bool UPCGProjectionData::HasNonTrivialTransform() const
 {
 	return Target->HasNonTrivialTransform();
@@ -102,19 +132,38 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 
 	UPCGPointData* PointData = NewObject<UPCGPointData>(const_cast<UPCGProjectionData*>(this));
-	PointData->TargetActor = TargetActor;
+	PointData->InitializeFromData(this, SourcePointData->Metadata);
+
 	TArray<FPCGPoint>& Points = PointData->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), Points, [this, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), Points, [this, SourcePointData, PointData, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& SourcePoint = SourcePoints[Index];
-		OutPoint = Target->TransformPoint(SourcePoint);
 
+		FPCGPoint PointFromTarget;
 #if WITH_EDITORONLY_DATA
-		return OutPoint.Density > 0 || bKeepZeroDensityPoints;
+		if (!Target->GetPointAtPosition(SourcePoint.Transform.GetLocation(), PointFromTarget, PointData->Metadata) && !bKeepZeroDensityPoints)
 #else
-		return OutPoint.Density > 0;
+		if (!Target->GetPointAtPosition(SourcePoint.Transform.GetLocation(), PointFromTarget, PointData->Metadata))
 #endif
+		{
+			return false;
+		}
+
+		// Merge points into a single point
+		OutPoint = SourcePoint;
+		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata, SourcePoint);
+		OutPoint.Transform = PointFromTarget.Transform;
+		OutPoint.Density *= PointFromTarget.Density;
+		OutPoint.Color *= PointFromTarget.Color;
+
+		if (PointData->Metadata)
+		{
+			//METADATA TODO review op
+			PointData->Metadata->MergeAttributes(SourcePoint, SourcePointData->Metadata, PointFromTarget, PointData->Metadata, OutPoint, EPCGMetadataOp::Max);
+		}
+
+		return true;
 	});
 
 	UE_LOG(LogPCG, Verbose, TEXT("Projection generated %d points from %d source points"), Points.Num(), SourcePoints.Num());

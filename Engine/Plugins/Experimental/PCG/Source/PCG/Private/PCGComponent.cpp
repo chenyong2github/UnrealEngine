@@ -1099,7 +1099,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
 		else // Default behavior on unknown actors
 		{
 			UPCGPointData* Data = NewObject<UPCGPointData>(this);
-			Data->Initialize(Actor);
+			Data->InitializeFromActor(Actor);
 			return Data;
 		}
 	}

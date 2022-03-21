@@ -183,8 +183,7 @@ namespace PCGSelfPruningElement
 			Output = Input;
 
 			UPCGPointData* PrunedData = NewObject<UPCGPointData>();
-			PrunedData->TargetActor = SpatialInput->TargetActor;
-
+			PrunedData->InitializeFromData(InputPointData);
 			Output.Data = PrunedData;
 
 			TArray<FPCGPoint>& OutputPoints = PrunedData->GetMutablePoints();

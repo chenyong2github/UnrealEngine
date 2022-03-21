@@ -59,15 +59,19 @@ class PCG_API UPCGPointData : public UPCGSpatialData
 public:
 	typedef TOctree2<FPCGPointRef, FPCGPointRefSemantics> PointOctree;
 
-	void Initialize(AActor* InActor);
-
 	// ~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override { return 0; }
 	virtual FBox GetBounds() const override;
 	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
 	virtual const UPCGPointData* ToPointData(FPCGContext* Context) const { return this; }
+	virtual bool GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const;
 	// ~End UPCGSpatialData interface
+
+	void InitializeFromActor(AActor* InActor);
+
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	void InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	const TArray<FPCGPoint>& GetPoints() const { return Points; }

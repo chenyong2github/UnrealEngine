@@ -382,7 +382,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* Context) const
 	return true;
 }
 
-void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData) const
+void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData, const UObject* InCustomObject) const
 {
 	if (!InData)
 	{
@@ -391,18 +391,18 @@ void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointD
 	}
 
 	OutData = NewObject<UPCGPointData>();
-	OutData->TargetActor = InData->TargetActor;
+	OutData->InitializeFromData(InData);
 	
 	const TArray<FPCGPoint>& InPoints = InData->GetPoints();
 	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(&InContext, InPoints.Num(), OutPoints, [this, InData, &InPoints](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(&InContext, InPoints.Num(), OutPoints, [this, &InContext, InData, OutData, InCustomObject, &InPoints](int32 Index, FPCGPoint& OutPoint)
 	{
-		return PointLoopBody(InData, InPoints[Index], OutPoint);
+		return PointLoopBody(InContext, InData, InPoints[Index], InCustomObject, OutPoint, OutData->Metadata);
 	});
 }
 
-void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData) const
+void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData, const UObject* InCustomObject) const
 {
 	if (!InA || !InB)
 	{
@@ -411,15 +411,15 @@ void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPo
 	}
 
 	OutData = NewObject<UPCGPointData>();
-	OutData->TargetActor = InA->TargetActor;
+	OutData->InitializeFromData(InA); //METADATA TODO should we remove the parenting here?
 
 	const TArray<FPCGPoint>& InPointsA = InA->GetPoints();
 	const TArray<FPCGPoint>& InPointsB = InB->GetPoints();
 	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(&InContext, InPointsA.Num() * InPointsB.Num(), OutPoints, [this, InA, InB, &InPointsA, &InPointsB](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(&InContext, InPointsA.Num() * InPointsB.Num(), OutPoints, [this, &InContext, InA, InB, InCustomObject, OutData, &InPointsA, &InPointsB](int32 Index, FPCGPoint& OutPoint)
 	{
-		return PointPairLoopBody(InA, InB, InPointsA[Index / InPointsB.Num()], InPointsB[Index % InPointsB.Num()], OutPoint);
+		return PointPairLoopBody(InContext, InA, InB, InPointsA[Index / InPointsB.Num()], InPointsB[Index % InPointsB.Num()], InCustomObject, OutPoint, OutData->Metadata);
 	});
 }
 

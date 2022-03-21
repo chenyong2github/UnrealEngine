@@ -5,6 +5,7 @@
 #include "Data/PCGUnionData.h"
 #include "Helpers/PCGAsync.h"
 #include "PCGHelpers.h"
+#include "Metadata/PCGMetadataAccessor.h"
 
 namespace PCGDifferenceDataUtils
 {
@@ -149,6 +150,39 @@ FPCGPoint UPCGDifferenceData::TransformPoint(const FPCGPoint& InPoint) const
 	return TransformedPoint;
 }
 
+bool UPCGDifferenceData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	check(Source);
+
+	FPCGPoint PointFromSource;
+	if (!Source->GetPointAtPosition(InPosition, PointFromSource, OutMetadata))
+	{
+		return false;
+	}
+
+	OutPoint = PointFromSource;
+
+	FPCGPoint PointFromDiff;
+	if (Difference && Difference->GetPointAtPosition(PointFromSource.Transform.GetLocation(), PointFromDiff, OutMetadata))
+	{
+		const bool bBinaryDensity = (DensityFunction == EPCGDifferenceDensityFunction::Binary);
+		
+		// Apply difference
+		OutPoint.Density = bBinaryDensity ? 0 : FMath::Max(0, PointFromSource.Density - PointFromDiff.Density);
+		// Color?
+		if (OutMetadata && OutPoint.Density > 0)
+		{
+			OutMetadata->MergeAttributes(PointFromSource, PointFromDiff, OutPoint, EPCGMetadataOp::Sub);
+		}
+
+		return OutPoint.Density > 0;
+	}
+	else
+	{
+		return true;
+	}
+}
+
 bool UPCGDifferenceData::HasNonTrivialTransform() const
 {
 	check(Source);
@@ -175,33 +209,40 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 	}
 
 	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGDifferenceData*>(this));
-	Data->TargetActor = TargetActor;
+	Data->InitializeFromData(this, SourcePointData->Metadata);
 
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 	TArray<FPCGPoint>& TargetPoints = Data->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, Data, SourcePointData, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& Point = SourcePoints[Index];
-		const float DensityInDifference = GetDensityAtPositionFromDifference(Point.Transform.GetLocation());
 
-		if (DensityInDifference < Point.Density)
+		FPCGPoint PointFromDiff;
+		if (Difference && Difference->GetPointAtPosition(Point.Transform.GetLocation(), PointFromDiff, Data->Metadata))
 		{
+			const bool bBinaryDensity = (DensityFunction == EPCGDifferenceDensityFunction::Binary);
+
 			OutPoint = Point;
-			OutPoint.Density -= DensityInDifference;
-			return true;
-		}
+			UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
+			OutPoint.Density = bBinaryDensity ? 0 : FMath::Max(0, Point.Density - PointFromDiff.Density);
+
+			if (Data->Metadata && OutPoint.Density > 0)
+			{
+				Data->Metadata->MergeAttributes(Point, SourcePointData->Metadata, PointFromDiff, Data->Metadata, OutPoint, EPCGMetadataOp::Sub);
+			}
+
 #if WITH_EDITORONLY_DATA
-		else if (bKeepZeroDensityPoints)
-		{
-			OutPoint = Point;
-			OutPoint.Density = 0;
-			return true;
-		}
+			return OutPoint.Density > 0 || bKeepZeroDensityPoints;
+#else
+			return OutPoint.Density > 0;
 #endif
+		}
 		else
 		{
-			return false;
+			OutPoint = Point;
+			UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
+			return true;
 		}
 	});
 

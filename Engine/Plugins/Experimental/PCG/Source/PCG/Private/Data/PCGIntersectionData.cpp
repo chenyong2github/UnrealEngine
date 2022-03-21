@@ -4,6 +4,7 @@
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
 #include "PCGHelpers.h"
+#include "Metadata/PCGMetadataAccessor.h"
 
 namespace PCGIntersectionDataMaths
 {
@@ -93,6 +94,37 @@ FPCGPoint UPCGIntersectionData::TransformPoint(const FPCGPoint& InPoint) const
 	return TransformedPoint;
 }
 
+bool UPCGIntersectionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	check(A && B);
+	const UPCGSpatialData* X = A->HasNonTrivialTransform() ? A : B;
+	const UPCGSpatialData* Y = X == A ? B : A;
+
+	FPCGPoint PointFromX;
+	if (!X->GetPointAtPosition(InPosition, PointFromX, OutMetadata))
+	{
+		return false;
+	}
+
+	FPCGPoint PointFromY;
+	if (!Y->GetPointAtPosition(PointFromX.Transform.GetLocation(), PointFromY, OutMetadata))
+	{
+		return false;
+	}
+
+	// Merge points into a single point
+	OutPoint = PointFromX;
+	OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(PointFromX.Density, PointFromY.Density, DensityFunction);
+	OutPoint.Color = PointFromX.Color * PointFromY.Color;
+
+	if (OutMetadata)
+	{
+		OutMetadata->MergeAttributes(PointFromX, PointFromY, OutPoint, EPCGMetadataOp::Min);
+	}
+
+	return true;
+}
+
 bool UPCGIntersectionData::HasNonTrivialTransform() const
 {
 	check(A && B);
@@ -132,28 +164,36 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 
 	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGIntersectionData*>(this));
-	Data->TargetActor = TargetActor;
+	Data->InitializeFromData(this, SourcePointData->Metadata);
+	Data->Metadata->AddAttributes(Y->Metadata);
+
 	TArray<FPCGPoint>& TargetPoints = Data->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, &SourcePoints, Y](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, Data, SourcePointData, &SourcePoints, Y](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& Point = SourcePoints[Index];
-		const float YDensity = Y->GetDensityAtPosition(Point.Transform.GetLocation());
 
+		FPCGPoint PointFromY;
 #if WITH_EDITORONLY_DATA
-		if (YDensity > 0 || bKeepZeroDensityPoints)
+		if (!Y->GetPointAtPosition(Point.Transform.GetLocation(), PointFromY, Data->Metadata) && !bKeepZeroDensityPoints)
 #else
-		if (YDensity > 0)
+		if (!Y->GetPointAtPosition(Point.Transform.GetLocation(), PointFromY, Data->Metadata))
 #endif
-		{
-			OutPoint = Point;
-			OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(Point.Density, YDensity, DensityFunction);
-			return true;
-		}
-		else
 		{
 			return false;
 		}
+
+		OutPoint = Point;
+		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
+		OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(Point.Density, PointFromY.Density, DensityFunction);
+		OutPoint.Color = Point.Color * PointFromY.Color;
+
+		if (Data->Metadata)
+		{
+			Data->Metadata->MergeAttributes(Point, SourcePointData->Metadata, PointFromY, Data->Metadata, OutPoint, EPCGMetadataOp::Min);
+		}
+
+		return true;
 	});
 
 	UE_LOG(LogPCG, Verbose, TEXT("Intersection generated %d points from %d source points"), TargetPoints.Num(), SourcePoints.Num());

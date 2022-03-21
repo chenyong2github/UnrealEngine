@@ -144,12 +144,12 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		Output = Input;
 
 		UPCGPointData* SampledData = NewObject<UPCGPointData>();
-		SampledData->TargetActor = SpatialInput->TargetActor;
+		SampledData->InitializeFromData(SpatialInput);
 		Output.Data = SampledData;
 
 		TArray<FPCGPoint>& SampledPoints = SampledData->GetMutablePoints();
 
-		FPCGAsync::AsyncPointProcessing(Context, LoopData.CellCount, SampledPoints, [&LoopData, SpatialInput](int32 Index, FPCGPoint& OutPoint)
+		FPCGAsync::AsyncPointProcessing(Context, LoopData.CellCount, SampledPoints, [&LoopData, SampledData, SpatialInput](int32 Index, FPCGPoint& OutPoint)
 		{
 			int32 CellX;
 			int32 CellY;
@@ -168,20 +168,27 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 			{
 				const float RandX = RandomSource.FRand();
 				const float RandY = RandomSource.FRand();
-
-				OutPoint.Transform = FTransform(FVector(CurrentX + RandX * InnerCellSize.X, CurrentY + RandY * InnerCellSize.Y, 0));
-				OutPoint.Extents = FVector(LoopData.Settings->PointExtents);
-				OutPoint.Density = LoopData.Settings->bApplyDensityToPoints ? ((Ratio - Chance) / Ratio) : 1.0f;
-				OutPoint.Steepness = LoopData.Settings->PointSteepness;
-				OutPoint.Seed = RandomSource.GetCurrentSeed();
-
-				OutPoint = SpatialInput->TransformPoint(OutPoint);
+				 
+				const FVector TentativeLocation = FVector(CurrentX + RandX * InnerCellSize.X, CurrentY + RandY * InnerCellSize.Y, 0.0f);
 
 #if WITH_EDITORONLY_DATA
-				return OutPoint.Density > 0 || LoopData.Settings->bKeepZeroDensityPoints;
+				if (SpatialInput->GetPointAtPosition(TentativeLocation, OutPoint, SampledData->Metadata) || LoopData.Settings->bKeepZeroDensityPoints)
 #else
-				return OutPoint.Density > 0;
+				if (SpatialInput->GetPointAtPosition(TentativeLocation, OutPoint, SampledData->Metadata))
 #endif
+				{
+					// Apply final parameters on the point
+					OutPoint.Extents = FVector(LoopData.Settings->PointExtents);
+					OutPoint.Density *= (LoopData.Settings->bApplyDensityToPoints ? ((Ratio - Chance) / Ratio) : 1.0f);
+					OutPoint.Steepness = LoopData.Settings->PointSteepness;
+					OutPoint.Seed = RandomSource.GetCurrentSeed();
+
+					return true;
+				}
+				else
+				{
+					return false;
+				}
 			}
 			else
 			{

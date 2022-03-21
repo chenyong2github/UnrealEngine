@@ -1,0 +1,49 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "PCGMetadataCommon.h"
+#include "PCGMetadata.h"
+
+#include "Misc/ScopeRWLock.h"
+#include "Templates/EnableIf.h"
+
+class FPCGMetadataAttributeBase
+{
+public:
+	FPCGMetadataAttributeBase() = default;
+	FPCGMetadataAttributeBase(UPCGMetadata* InMetadata, FName InName, const FPCGMetadataAttributeBase* InParent, bool bInAllowsInterpolation);
+
+	virtual ~FPCGMetadataAttributeBase() = default;
+
+	const UPCGMetadata* GetMetadata() const { return Metadata; }
+	int32 GetTypeId() const { return TypeId; }
+
+	virtual FPCGMetadataAttributeBase* Copy(FName NewName, UPCGMetadata* InMetadata, bool bKeepParent, bool bCopyEntries = true, bool bCopyValues = true) const = 0;
+
+	virtual void SetValue(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttribute, PCGMetadataEntryKey InEntryKey) = 0;
+	virtual void SetZeroValue(PCGMetadataEntryKey ItemKey) = 0;
+	virtual void AccumulateValue(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttributeA, PCGMetadataEntryKey InEntryKeyA, float Weight) = 0;
+	virtual void SetValue(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttributeA, PCGMetadataEntryKey InEntryKeyA, const FPCGMetadataAttributeBase* InAttributeB, PCGMetadataEntryKey InEntryKeyB, EPCGMetadataOp Op) = 0;
+
+	void SetValueFromValueKey(PCGMetadataEntryKey EntryKey, PCGMetadataValueKey ValueKey);
+	PCGMetadataValueKey GetValueKey(PCGMetadataEntryKey EntryKey) const;
+	bool HasNonDefaultValue(PCGMetadataEntryKey EntryKey) const;
+	void ClearEntries();
+
+	bool AllowsInterpolation() const { return bAllowsInterpolation; }
+
+protected:
+	TMap<PCGMetadataEntryKey, PCGMetadataValueKey> EntryToValueMap;
+	mutable FRWLock EntryMapLock;
+
+	TObjectPtr<UPCGMetadata> Metadata = nullptr;
+	const FPCGMetadataAttributeBase* Parent = nullptr;
+	int32 TypeId = 0;
+	bool bAllowsInterpolation = false;
+
+public:
+	FName Name = NAME_None;
+	PCGMetadataAttributeKey AttributeId = -1;
+};

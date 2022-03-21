@@ -131,7 +131,7 @@ const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContext* Context) 
 	FBox2D LocalSurfaceBounds(FVector2D(-1.0f, -1.0f), FVector2D(1.0f, 1.0f));
 
 	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGBaseTextureData*>(this));
-	Data->TargetActor = TargetActor;
+	Data->InitializeFromData(this);
 	TArray<FPCGPoint>& Points = Data->GetMutablePoints();
 
 	// TODO: There's a bias issue here where we should correct by a 0.5 unit...
