@@ -284,15 +284,21 @@ void FD3D12DescriptorCache::SetVertexBuffers(FD3D12VertexBufferCache& Cache)
 	CmdContext->CommandListHandle.UpdateResidency(Cache.ResidencyHandles, Count);
 	CmdContext->CommandListHandle->IASetVertexBuffers(0, Count, Cache.CurrentVertexBufferViews);
 
-	for (uint32 i = 0; i < Count; ++i)
+	// If using external transition then don't bother to Validate the state because
+	// resource could have already transitioned to new state but left in the cache without being actually used by the GPU
+	// It's still wrong but needs a bigger high level refactor to fix this problem.
+	if (GUseInternalTransitions)
 	{
-		if (Cache.CurrentVertexBufferResources[i])
+		for (uint32 i = 0; i < Count; ++i)
 		{
-			FD3D12Resource* Resource = Cache.CurrentVertexBufferResources[i]->GetResource();
-			if (Resource && Resource->RequiresResourceStateTracking())
+			if (Cache.CurrentVertexBufferResources[i])
 			{
-				check(Resource->GetSubresourceCount() == 1);
-				FD3D12DynamicRHI::TransitionResource(CmdContext->CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
+				FD3D12Resource* Resource = Cache.CurrentVertexBufferResources[i]->GetResource();
+				if (Resource && Resource->RequiresResourceStateTracking())
+				{
+					check(Resource->GetSubresourceCount() == 1);
+					FD3D12DynamicRHI::TransitionResource(CmdContext->CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
+				}
 			}
 		}
 	}

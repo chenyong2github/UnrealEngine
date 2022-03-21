@@ -623,7 +623,7 @@ public:
 		check(Before != D3D12_RESOURCE_STATE_TBD && After != D3D12_RESOURCE_STATE_TBD);
 
 		// Depth write is actually a suitable for read operations as a "normal" depth buffer.
-		if ((Before == D3D12_RESOURCE_STATE_DEPTH_WRITE) && (After == D3D12_RESOURCE_STATE_DEPTH_READ))
+		if (bInAllowStateMerging && (Before == D3D12_RESOURCE_STATE_DEPTH_WRITE) && (After == D3D12_RESOURCE_STATE_DEPTH_READ))
 		{
 			return false;
 		}

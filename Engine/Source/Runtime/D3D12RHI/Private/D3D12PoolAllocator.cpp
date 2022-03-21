@@ -754,44 +754,21 @@ void FD3D12PoolAllocator::FlushPendingCopyOps(FD3D12CommandContext& InCommandCon
 	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
 
 	for (FD3D12VRAMCopyOperation& CopyOperation : PendingCopyOps)
-	{		
+	{
 		// Cleared copy op?
 		if (CopyOperation.SourceResource == nullptr || CopyOperation.DestResource == nullptr)
 		{
 			continue;
 		}
 
-		bool bRTAccelerationStructure = false;
-		if (CopyOperation.SourceResource->RequiresResourceStateTracking())
-		{
-			check(CopyOperation.DestResource->RequiresResourceStateTracking());
-			FD3D12DynamicRHI::TransitionResource(CommandListHandle, CopyOperation.SourceResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-			FD3D12DynamicRHI::TransitionResource(CommandListHandle, CopyOperation.DestResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-		}
 #if D3D12_RHI_RAYTRACING
-		else if (CopyOperation.SourceResource->GetDefaultResourceState() == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+		if (!CopyOperation.SourceResource->RequiresResourceStateTracking() && CopyOperation.SourceResource->GetDefaultResourceState() == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
 		{
 			// can't make state changes to RT resources
-			bRTAccelerationStructure = true;
 			check(CopyOperation.DestResource->GetDefaultResourceState() == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
-		}
-#endif // D3D12_RHI_RAYTRACING
-		else
-		{
-			check(!CopyOperation.DestResource->RequiresResourceStateTracking());
-			CommandListHandle.AddTransitionBarrier(CopyOperation.SourceResource, CopyOperation.SourceResource->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			CommandListHandle.AddTransitionBarrier(CopyOperation.DestResource, CopyOperation.DestResource->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-		}
 
-		// Enable to log all defrag copy ops
-		//UE_LOG(LogD3D12RHI, Log, TEXT("Running defrag copy op for: %s at Frame: %d (Old: %#016llx New: %#016llx)"), *CopyOperation.SourceResource->GetName().ToString(), FrameFence.GetCurrentFence(), CopyOperation.SourceResource, CopyOperation.DestResource);
+			InCommandContext.numCopies++;
 
-		InCommandContext.numCopies++;
-		CommandListHandle.FlushResourceBarriers();
-
-#if D3D12_RHI_RAYTRACING
-		if (bRTAccelerationStructure)
-		{
 			D3D12_GPU_VIRTUAL_ADDRESS SrcAddress = CopyOperation.SourceResource->GetResource()->GetGPUVirtualAddress() + CopyOperation.SourceOffset;
 			D3D12_GPU_VIRTUAL_ADDRESS DestAddress = CopyOperation.DestResource->GetResource()->GetGPUVirtualAddress() + CopyOperation.DestOffset;
 			CommandListHandle.RayTracingCommandList()->CopyRaytracingAccelerationStructure(DestAddress, SrcAddress, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE);
@@ -799,6 +776,12 @@ void FD3D12PoolAllocator::FlushPendingCopyOps(FD3D12CommandContext& InCommandCon
 		else
 #endif // D3D12_RHI_RAYTRACING
 		{
+			FScopedResourceBarrier SourceScopedResourceBarrier(CommandListHandle, CopyOperation.SourceResource, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
+			FScopedResourceBarrier DestScopedResourceBarrier(CommandListHandle, CopyOperation.DestResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
+
+			InCommandContext.numCopies++;
+			CommandListHandle.FlushResourceBarriers();
+
 			switch (CopyOperation.CopyType)
 			{
 			case FD3D12VRAMCopyOperation::BufferRegion:
@@ -817,12 +800,6 @@ void FD3D12PoolAllocator::FlushPendingCopyOps(FD3D12CommandContext& InCommandCon
 
 		CommandListHandle.UpdateResidency(CopyOperation.SourceResource);
 		CommandListHandle.UpdateResidency(CopyOperation.DestResource);
-
-		if (!bRTAccelerationStructure && !CopyOperation.SourceResource->RequiresResourceStateTracking())
-		{
-			CommandListHandle.AddTransitionBarrier(CopyOperation.SourceResource, D3D12_RESOURCE_STATE_COPY_SOURCE, CopyOperation.SourceResource->GetDefaultResourceState(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			CommandListHandle.AddTransitionBarrier(CopyOperation.DestResource, D3D12_RESOURCE_STATE_COPY_DEST, CopyOperation.DestResource->GetDefaultResourceState(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-		}
 	}
 
 	InCommandContext.ConditionalFlushCommandList();
