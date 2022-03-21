@@ -398,12 +398,28 @@ public:
 
 	/** Append a string and return a reference to this */
 	template <typename StrType>
-	FORCEINLINE FString& operator+=(StrType&& Str)	{ return Append(Forward<StrType>(Str)); }
+	FORCEINLINE auto operator+=(StrType&& Str) -> decltype(Append(Forward<StrType>(Str)))
+	{
+		return Append(Forward<StrType>(Str));
+	}
 
 	/** Append a single character and return a reference to this */
-	FORCEINLINE FString& operator+=(ANSICHAR Char)	{ return AppendChar(Char); }
-	FORCEINLINE FString& operator+=(WIDECHAR Char)	{ return AppendChar(Char); }
-	FORCEINLINE FString& operator+=(UCS2CHAR Char)	{ return AppendChar(Char); }
+	template <
+		typename AppendedCharType,
+		std::enable_if_t<TIsCharType<AppendedCharType>::Value>* = nullptr
+	>
+	FORCEINLINE FString& operator+=(AppendedCharType Char)
+	{
+		if constexpr (FPlatformString::IsCharEncodingSimplyConvertibleTo<AppendedCharType, TCHAR>())
+		{
+			return AppendChar((TCHAR)Char);
+		}
+		else
+		{
+			AppendChars(&Char, 1);
+			return *this;
+		}
+	}
 
 	void InsertAt(int32 Index, TCHAR Character);
 	void InsertAt(int32 Index, const FString& Characters);
@@ -1901,9 +1917,9 @@ UE_NODISCARD inline TCHAR NibbleToTChar(uint8 Num)
 {
 	if (Num > 9)
 	{
-		return TEXT('A') + TCHAR(Num - 10);
+		return (TCHAR)('A' + (Num - 10));
 	}
-	return TEXT('0') + TCHAR(Num);
+	return (TCHAR)('0' + Num);
 }
 
 /** 
@@ -2226,7 +2242,7 @@ public:
 	 */
 	virtual FStringOutputDeviceCountLines& operator+=(const FStringOutputDeviceCountLines& Other)
 	{
-		FString::operator+=(Other);
+		FString::operator+=(static_cast<const FString&>(Other));
 
 		LineCount += Other.GetLineCount();
 
