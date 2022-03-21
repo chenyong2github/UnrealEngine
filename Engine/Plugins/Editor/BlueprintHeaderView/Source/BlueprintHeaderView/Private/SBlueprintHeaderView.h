@@ -16,10 +16,13 @@ class STableViewBase;
 class FUICommandList;
 class UEdGraph;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogBlueprintHeaderView, Log, All)
+
 /** rich text decorators for BlueprintHeaderView Syntax Highlighting */
 namespace HeaderViewSyntaxDecorators
 {
 	extern const FString CommentDecorator;
+	extern const FString ErrorDecorator;
 	extern const FString IdentifierDecorator;
 	extern const FString KeywordDecorator;
 	extern const FString MacroDecorator;
@@ -29,6 +32,8 @@ namespace HeaderViewSyntaxDecorators
 /** A base class for List Items in the Header View */
 struct FHeaderViewListItem : public TSharedFromThis<FHeaderViewListItem>
 {
+	virtual ~FHeaderViewListItem() {};
+
 	/** Creates the widget for this list item */
 	TSharedRef<SWidget> GenerateWidgetForItem();
 
@@ -37,6 +42,9 @@ struct FHeaderViewListItem : public TSharedFromThis<FHeaderViewListItem>
 
 	/** Returns the raw item text for copy actions */
 	const FString& GetRawItemString() const { return RawItemString; }
+
+	/** Allows the item to add items to the context menu if it is the only item selected */
+	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint) {}
 
 protected:
 	/** Empty base constructor hidden from public */
@@ -57,6 +65,9 @@ protected:
 	 * including template params for container types
 	 */
 	static FString GetCPPTypenameForProperty(const FProperty* InProperty, bool bIsMemberProperty = false);
+
+	/** Checks whether a string is a valid C++ identifier */
+	static bool IsValidCPPIdentifier(const FString& InIdentifier);
 
 protected:
 	/** A rich text representation of the item, including syntax highlighting and errors */
@@ -122,6 +133,9 @@ private:
 
 	/** Creates a context menu for the list view */
 	TSharedPtr<SWidget> OnContextMenuOpening();
+
+	/** Callback for when the selected blueprint is modified */
+	void OnBlueprintChanged(UBlueprint* InBlueprint);
 
 	/** UI Command Functions */
 	void OnCopy() const;

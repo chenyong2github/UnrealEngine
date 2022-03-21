@@ -6,10 +6,36 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "K2Node_FunctionEntry.h"
 #include "Misc/EngineVersion.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+#define LOCTEXT_NAMESPACE "FHeaderViewFunctionListItem"
 
 FHeaderViewListItemPtr FHeaderViewFunctionListItem::Create(const UK2Node_FunctionEntry* FunctionEntry)
 {
 	return MakeShareable(new FHeaderViewFunctionListItem(FunctionEntry));
+}
+
+void FHeaderViewFunctionListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint)
+{
+	if (!IllegalName.IsNone())
+	{
+		InMenuBuilder.AddEditableText(LOCTEXT("RenameItem", "Rename Function"),
+			LOCTEXT("RenameItemTooltip", "Renames this function in the Blueprint\nThis function name is not a legal C++ identifier."),
+			FSlateIcon(),
+			FText::FromName(IllegalName),
+			FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameFunctionTextCommitted, InBlueprint, GraphName)
+		);
+	}
+
+	for (FName IllegalParam : IllegalParameters)
+	{
+		InMenuBuilder.AddEditableText(LOCTEXT("RenameParm", "Rename Parameter"),
+			LOCTEXT("RenameParmTooltip", "Renames this function parameter in the Blueprint\nThis parameter name is not a legal C++ identifier."),
+			FSlateIcon(),
+			FText::FromName(IllegalParam),
+			FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameParameterTextCommitted, InBlueprint, GraphName, IllegalParam)
+		);
+	}
 }
 
 FString FHeaderViewFunctionListItem::GetConditionalUFunctionSpecifiers(const UFunction* SigFunction) const
@@ -115,17 +141,26 @@ void FHeaderViewFunctionListItem::AppendFunctionParameters(const UFunction* Sign
 			RichTextString.Append(FString::Printf(TEXT("<%s>UPARAM</>(ref) "), *HeaderViewSyntaxDecorators::MacroDecorator));
 		}
 
+		const FString Typename = GetCPPTypenameForProperty(*ParmIt);
+		const FString ParmName = ParmIt->GetAuthoredName();
+		
+		const bool bIsValidName = IsValidCPPIdentifier(ParmName);
+		const FString* IdentifierDecorator = &HeaderViewSyntaxDecorators::IdentifierDecorator;
+		if (!bIsValidName)
+		{
+			IllegalParameters.Emplace(ParmName);
+			IdentifierDecorator = &HeaderViewSyntaxDecorators::ErrorDecorator;
+		}
+
 		if (ParmIt->HasAnyPropertyFlags(CPF_OutParm | CPF_ReferenceParm))
 		{
-			const FString Typename = GetCPPTypenameForProperty(*ParmIt);
-			const FString ParmName = ParmIt->GetAuthoredName();
 			RawItemString.Append(FString::Printf(TEXT("%s& %s"), *Typename, *ParmName));
-			RichTextString.Append(FString::Printf(TEXT("<%s>%s</>& <%s>%s</>"), *HeaderViewSyntaxDecorators::TypenameDecorator, *Typename, *HeaderViewSyntaxDecorators::IdentifierDecorator, *ParmName));
+			RichTextString.Append(FString::Printf(TEXT("<%s>%s</>& <%s>%s</>"), *HeaderViewSyntaxDecorators::TypenameDecorator, *Typename, **IdentifierDecorator, *ParmName));
 		}
 		else
 		{
-			RawItemString.Append(FString::Printf(TEXT("%s %s"), *ParmIt->GetCPPType(), *ParmIt->GetAuthoredName()));
-			RichTextString.Append(FString::Printf(TEXT("<%s>%s</> <%s>%s</>"), *HeaderViewSyntaxDecorators::TypenameDecorator, *ParmIt->GetCPPType(), *HeaderViewSyntaxDecorators::IdentifierDecorator, *ParmIt->GetAuthoredName()));
+			RawItemString.Append(FString::Printf(TEXT("%s %s"), *Typename, *ParmName));
+			RichTextString.Append(FString::Printf(TEXT("<%s>%s</> <%s>%s</>"), *HeaderViewSyntaxDecorators::TypenameDecorator, *Typename, **IdentifierDecorator, *ParmName));
 		}
 
 		++ParamIdx;
@@ -136,6 +171,7 @@ FHeaderViewFunctionListItem::FHeaderViewFunctionListItem(const UK2Node_FunctionE
 {
 	check(FunctionEntry);
 
+	GraphName = FunctionEntry->GetGraph()->GetFName();
 	RawItemString.Reserve(512);
 	RichTextString.Reserve(512);
 
@@ -198,18 +234,25 @@ FHeaderViewFunctionListItem::FHeaderViewFunctionListItem(const UK2Node_FunctionE
 				FunctionName = FunctionEntry->CustomGeneratedFunctionName.ToString();
 			}
 
+			const bool bValidName = IsValidCPPIdentifier(FunctionName);
+			const FString* IdentifierDecorator = &HeaderViewSyntaxDecorators::IdentifierDecorator;
+			if (!bValidName)
+			{
+				IllegalName = ResolvedFunc->GetFName();
+				IdentifierDecorator = &HeaderViewSyntaxDecorators::ErrorDecorator;
+			}
+
 			if (FProperty* ReturnProperty = ResolvedFunc->GetReturnProperty())
 			{
 				const FString Typename = ReturnProperty->GetCPPType();
 				RawItemString += FString::Printf(TEXT("\n%s %s("), *Typename, *FunctionName);
-				RichTextString += FString::Printf(TEXT("\n<%s>%s</> <%s>%s</>("), *HeaderViewSyntaxDecorators::TypenameDecorator, *Typename, *HeaderViewSyntaxDecorators::IdentifierDecorator, *FunctionName);
+				RichTextString += FString::Printf(TEXT("\n<%s>%s</> <%s>%s</>("), *HeaderViewSyntaxDecorators::TypenameDecorator, *Typename, **IdentifierDecorator, *FunctionName);
 			}
 			else
 			{
 				RawItemString += FString::Printf(TEXT("\nvoid %s("), *FunctionName);
-				RichTextString += FString::Printf(TEXT("\n<%s>void</> <%s>%s</>("), *HeaderViewSyntaxDecorators::KeywordDecorator, *HeaderViewSyntaxDecorators::IdentifierDecorator, *FunctionName);
+				RichTextString += FString::Printf(TEXT("\n<%s>void</> <%s>%s</>("), *HeaderViewSyntaxDecorators::KeywordDecorator, **IdentifierDecorator, *FunctionName);
 			}
-
 
 			AppendFunctionParameters(ResolvedFunc);
 
@@ -236,3 +279,67 @@ FHeaderViewFunctionListItem::FHeaderViewFunctionListItem(const UK2Node_FunctionE
 		UE::String::ToHostLineEndingsInline(RichTextString);
 	}
 }
+
+void FHeaderViewFunctionListItem::OnRenameFunctionTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint, FName OldGraphName)
+{
+	if (TextCommitType == ETextCommit::OnEnter)
+	{
+		if (UBlueprint* Blueprint = WeakBlueprint.Get())
+		{
+			const FString& CommittedString = CommittedText.ToString();
+			if (IsValidCPPIdentifier(CommittedString))
+			{
+				const TObjectPtr<UEdGraph>* FunctionGraph = Blueprint->FunctionGraphs.FindByPredicate([OldGraphName](const TObjectPtr<UEdGraph>& Graph)
+					{
+						return Graph->GetFName() == OldGraphName;
+					});
+
+				if (FunctionGraph)
+				{
+					FBlueprintEditorUtils::RenameGraph(FunctionGraph->Get(), CommittedString);
+				}
+				else
+				{
+					UE_LOG(LogBlueprintHeaderView, Warning, TEXT("Could not find Function Graph named \"%s\" in Blueprint \"%s\""), *OldGraphName.ToString(), *Blueprint->GetName());
+				}
+			}
+		}
+	}
+}
+
+void FHeaderViewFunctionListItem::OnRenameParameterTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint, FName OldGraphName, FName OldParamName)
+{
+	if (TextCommitType == ETextCommit::OnEnter)
+	{
+		if (UBlueprint* Blueprint = WeakBlueprint.Get())
+		{
+			const FString& CommittedString = CommittedText.ToString();
+			if (IsValidCPPIdentifier(CommittedString))
+			{
+				const TObjectPtr<UEdGraph>* FunctionGraph = Blueprint->FunctionGraphs.FindByPredicate([OldGraphName](const TObjectPtr<UEdGraph>& Graph)
+					{
+						return Graph->GetFName() == OldGraphName;
+					});
+
+				if (FunctionGraph)
+				{
+					TArray<UK2Node_FunctionEntry*> Entry;
+					FunctionGraph->Get()->GetNodesOfClass<UK2Node_FunctionEntry>(Entry);
+					if (ensureMsgf(Entry.Num() == 1 && Entry[0], TEXT("Function Graph \"%s\" in Blueprint \"%s\" does not have exactly one Entry Node"), *FunctionGraph->Get()->GetName(), *Blueprint->GetName()))
+					{
+						if (Entry[0]->RenameUserDefinedPin(OldParamName, FName(CommittedString)) == ERenamePinResult_Success)
+						{
+							FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+						}
+					}
+				}
+				else
+				{
+					UE_LOG(LogBlueprintHeaderView, Warning, TEXT("Could not find Function Graph named \"%s\" in Blueprint \"%s\""), *OldGraphName.ToString(), *Blueprint->GetName());
+				}
+			}
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

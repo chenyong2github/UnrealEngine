@@ -5,10 +5,27 @@
 #include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 #include "String/LineEndings.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+#define LOCTEXT_NAMESPACE "FHeaderViewVariableListItem"
 
 FHeaderViewListItemPtr FHeaderViewVariableListItem::Create(const FBPVariableDescription* VariableDesc, const FProperty& VarProperty)
 {
 	return MakeShareable(new FHeaderViewVariableListItem(VariableDesc, VarProperty));
+}
+
+void FHeaderViewVariableListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint)
+{
+	if (!IllegalName.IsNone())
+	{
+		InMenuBuilder.AddEditableText(LOCTEXT("RenameItem", "Rename Variable"),
+			LOCTEXT("RenameItemTooltip", "Renames this variable in the Blueprint\nThis variable name is not a legal C++ identifier."),
+			FSlateIcon(),
+			FText::FromName(IllegalName),
+			FOnTextCommitted::CreateSP(this, &FHeaderViewVariableListItem::OnRenameTextCommitted, InBlueprint)
+		);
+	}
 }
 
 FHeaderViewVariableListItem::FHeaderViewVariableListItem(const FBPVariableDescription* VariableDesc, const FProperty& VarProperty)
@@ -88,12 +105,21 @@ FHeaderViewVariableListItem::FHeaderViewVariableListItem(const FBPVariableDescri
 	{
 		const FString Typename = GetCPPTypenameForProperty(&VarProperty, /*bIsMemberProperty=*/true);
 		const FString VarName = VarProperty.GetAuthoredName();
+		const bool bLegalName = IsValidCPPIdentifier(VarName);
+
+		const FString* IdentifierDecorator = &HeaderViewSyntaxDecorators::IdentifierDecorator;
+		if (!bLegalName)
+		{
+			IllegalName = FName(VarName);
+			IdentifierDecorator = &HeaderViewSyntaxDecorators::ErrorDecorator;
+		}
+
 
 		RawItemString += FString::Printf(TEXT("\n%s %s;"), *Typename, *VarName);
 		RichTextString += FString::Printf(TEXT("\n<%s>%s</> <%s>%s</>;"), 
 			*HeaderViewSyntaxDecorators::TypenameDecorator,
 			*Typename.Replace(TEXT("<"), TEXT("&lt;")).Replace(TEXT(">"), TEXT("&gt;")),
-			*HeaderViewSyntaxDecorators::IdentifierDecorator,
+			**IdentifierDecorator,
 			*VarName);
 	}
 
@@ -305,3 +331,20 @@ FString FHeaderViewVariableListItem::GetOwningClassName(const FProperty& VarProp
 
 	return TEXT("");
 }
+
+void FHeaderViewVariableListItem::OnRenameTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint)
+{
+	if (TextCommitType == ETextCommit::OnEnter)
+	{
+		if (UBlueprint* Blueprint = WeakBlueprint.Get())
+		{
+			const FString& CommittedString = CommittedText.ToString();
+			if (IsValidCPPIdentifier(CommittedString))
+			{
+				FBlueprintEditorUtils::RenameMemberVariable(Blueprint, IllegalName, FName(CommittedString));
+			}
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

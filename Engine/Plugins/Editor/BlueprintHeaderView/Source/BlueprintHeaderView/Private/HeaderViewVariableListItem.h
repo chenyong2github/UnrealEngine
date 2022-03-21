@@ -13,6 +13,10 @@ struct FHeaderViewVariableListItem : public FHeaderViewListItem
 	/** Creates a list item for the Header view representing a variable declaration for the given blueprint variable */
 	static FHeaderViewListItemPtr Create(const FBPVariableDescription* VariableDesc, const FProperty& VarProperty);
 
+	//~ FHeaderViewListItem Interface
+	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> Blueprint) override;
+	//~ End FHeaderViewListItem Interface
+
 protected:
 	FHeaderViewVariableListItem(const FBPVariableDescription* VariableDesc, const FProperty& VarProperty);
 
@@ -25,4 +29,9 @@ protected:
 	/** Returns the name of the owning class */
 	FString GetOwningClassName(const FProperty& VarProperty) const;
 
+	void OnRenameTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint);
+protected:
+
+	/** None if the name is legal, else holds the name of the variable */
+	FName IllegalName = NAME_None;
 };

@@ -3,10 +3,30 @@
 #include "HeaderViewClassListItem.h"
 #include "Engine/Blueprint.h"
 #include "String/LineEndings.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+#define LOCTEXT_NAMESPACE "FHeaderViewClassListItem"
 
 FHeaderViewListItemPtr FHeaderViewClassListItem::Create(TWeakObjectPtr<UBlueprint> InBlueprint)
 {
 	return MakeShareable(new FHeaderViewClassListItem(InBlueprint));
+}
+
+void FHeaderViewClassListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint)
+{
+	if (!bIsValidName)
+	{
+		if (UBlueprint* Blueprint = InBlueprint.Get())
+		{
+			InMenuBuilder.AddEditableText(LOCTEXT("RenameBlueprint", "Rename Blueprint"),
+				LOCTEXT("RenameItemTooltip", "Renames this Blueprint\nThis Blueprint name is not a legal C++ identifier."),
+				FSlateIcon(),
+				FText::FromString(Blueprint->GetName()),
+				FOnTextCommitted::CreateSP(this, &FHeaderViewClassListItem::OnRenameTextComitted, InBlueprint)
+			);
+		}
+	}
 }
 
 FString FHeaderViewClassListItem::GetConditionalUClassSpecifiers(const UBlueprint* Blueprint) const
@@ -111,10 +131,13 @@ FHeaderViewClassListItem::FHeaderViewClassListItem(TWeakObjectPtr<UBlueprint> In
 				ParentBlueprint ? TEXT("") : Blueprint->ParentClass->GetPrefixCPP(),
 				ParentBlueprint ? *ParentBlueprint->GetName() : *Blueprint->ParentClass->GetAuthoredName());
 
+			bIsValidName = IsValidCPPIdentifier(BlueprintName);
+			const FString& NameDecorator = bIsValidName ? HeaderViewSyntaxDecorators::TypenameDecorator : HeaderViewSyntaxDecorators::ErrorDecorator;
+
 			RawItemString += FString::Printf(TEXT("\nclass %s : public %s\n{\n\tGENERATED_BODY()"), *BlueprintName, *ParentClassName);
 			RichTextString += FString::Printf(TEXT("\n<%s>class</> <%s>%s</> : <%s>public</> <%s>%s</>\n{\n\t<%s>GENERATED_BODY</>()"), 
 				*HeaderViewSyntaxDecorators::KeywordDecorator,
-				*HeaderViewSyntaxDecorators::TypenameDecorator, 
+				*NameDecorator, 
 				*BlueprintName,
 				*HeaderViewSyntaxDecorators::KeywordDecorator,
 				*HeaderViewSyntaxDecorators::TypenameDecorator,
@@ -129,3 +152,20 @@ FHeaderViewClassListItem::FHeaderViewClassListItem(TWeakObjectPtr<UBlueprint> In
 	}
 }
 
+
+void FHeaderViewClassListItem::OnRenameTextComitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> InBlueprint)
+{
+	if (TextCommitType == ETextCommit::OnEnter)
+	{
+		if (UBlueprint* Blueprint = InBlueprint.Get())
+		{
+			if (IsValidCPPIdentifier(CommittedText.ToString()))
+			{
+				Blueprint->Rename(*CommittedText.ToString());
+				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+			}
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

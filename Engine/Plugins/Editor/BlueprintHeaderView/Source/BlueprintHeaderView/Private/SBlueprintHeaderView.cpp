@@ -22,14 +22,18 @@
 #include "String/LineEndings.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "BlueprintHeaderViewSettings.h"
+#include "Internationalization/Regex.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintHeaderView"
+
+DEFINE_LOG_CATEGORY(LogBlueprintHeaderView)
 
 // HeaderViewSyntaxDecorators /////////////////////////////////////////////////
 
 namespace HeaderViewSyntaxDecorators
 {
 	const FString CommentDecorator = TEXT("comment");
+	const FString ErrorDecorator = TEXT("error");
 	const FString IdentifierDecorator = TEXT("identifier");
 	const FString KeywordDecorator = TEXT("keyword");
 	const FString MacroDecorator = TEXT("macro");
@@ -103,6 +107,7 @@ TSharedRef<SWidget> FHeaderViewListItem::GenerateWidgetForItem()
 			.Text(FText::FromString(RichTextString))
 			.TextStyle(FEditorStyle::Get(), "Log.Normal")
 			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::CommentDecorator, SyntaxColors.Comment))
+			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::ErrorDecorator, SyntaxColors.Error))
 			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::IdentifierDecorator, SyntaxColors.Identifier))
 			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::KeywordDecorator, SyntaxColors.Keyword))
 			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::MacroDecorator, SyntaxColors.Macro))
@@ -172,6 +177,15 @@ FString FHeaderViewListItem::GetCPPTypenameForProperty(const FProperty* InProper
 	{
 		return TEXT("");
 	}
+}
+
+bool FHeaderViewListItem::IsValidCPPIdentifier(const FString& InIdentifier)
+{
+	// Only matches strings that start with a Letter or Underscore with any number of letters, digits or underscores following
+	// _Legal, Legal0, legal_0
+	// 0Illegal, Illegal&, Illegal-0
+	static const FRegexPattern RegexPattern = FRegexPattern(TEXT("^[A-Za-z_]\\w*$"));
+	return FRegexMatcher(RegexPattern, InIdentifier).FindNext();
 }
 
 // SBlueprintHeaderView ///////////////////////////////////////////////////////
@@ -341,7 +355,16 @@ void SBlueprintHeaderView::OnAssetSelected(const FAssetData& SelectedAsset)
 {
 	ClassPickerComboButton->SetIsOpen(false);
 
-	SelectedBlueprint = Cast<UBlueprint>(SelectedAsset.GetAsset());
+	if (UBlueprint* OldBlueprint = SelectedBlueprint.Get())
+	{
+		OldBlueprint->OnChanged().RemoveAll(this);
+	}
+
+	if (UBlueprint* Blueprint = Cast<UBlueprint>(SelectedAsset.GetAsset()))
+	{
+		Blueprint->OnChanged().AddRaw(this, &SBlueprintHeaderView::OnBlueprintChanged);
+		SelectedBlueprint = Blueprint;
+	}
 
 	RepopulateListView();
 }
@@ -531,7 +554,19 @@ TSharedPtr<SWidget> SBlueprintHeaderView::OnContextMenuOpening()
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().SelectAll);
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
 
+	TArray<FHeaderViewListItemPtr> SelectedListItems;
+	ListView->GetSelectedItems(SelectedListItems);
+	if (SelectedListItems.Num() == 1)
+	{
+		SelectedListItems[0]->ExtendContextMenu(MenuBuilder, SelectedBlueprint);
+	}
+
 	return MenuBuilder.MakeWidget();
+}
+
+void SBlueprintHeaderView::OnBlueprintChanged(UBlueprint* InBlueprint)
+{
+	RepopulateListView();
 }
 
 void SBlueprintHeaderView::OnCopy() const
