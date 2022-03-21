@@ -11,8 +11,27 @@
 #include "UObject/Package.h"
 
 
+UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentAdded UDMXPixelMappingBaseComponent::OnComponentAdded;
+UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentRemoved UDMXPixelMappingBaseComponent::OnComponentRemoved;
+UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentRenamed UDMXPixelMappingBaseComponent::OnComponentRenamed;
+
 UDMXPixelMappingBaseComponent::UDMXPixelMappingBaseComponent()
 {}
+
+UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentAdded& UDMXPixelMappingBaseComponent::UDMXPixelMappingBaseComponent::GetOnComponentAdded()
+{
+	return OnComponentAdded;
+}
+
+UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentRemoved& UDMXPixelMappingBaseComponent::GetOnComponentRemoved()
+{
+	return OnComponentRemoved;
+}
+
+UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentRenamed& UDMXPixelMappingBaseComponent::GetOnComponentRenamed()
+{
+	return OnComponentRenamed;
+}
 
 void UDMXPixelMappingBaseComponent::Serialize(FArchive& Ar)
 {

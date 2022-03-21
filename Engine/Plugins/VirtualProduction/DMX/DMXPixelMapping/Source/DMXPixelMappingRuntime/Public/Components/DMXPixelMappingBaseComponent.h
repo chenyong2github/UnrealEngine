@@ -34,26 +34,14 @@ public:
 	UDMXPixelMappingBaseComponent();
 
 	/** Gets an Event broadcast when a component was added */
-	static FDMXPixelMappingOnComponentAdded& GetOnComponentAdded()
-	{
-		static FDMXPixelMappingOnComponentAdded OnComponentAdded;
-		return OnComponentAdded;
-	}
+	static FDMXPixelMappingOnComponentAdded& GetOnComponentAdded();
 
 	/** Gets an Event broadcast when a component was added */
-	static FDMXPixelMappingOnComponentRemoved& GetOnComponentRemoved()
-	{
-		static FDMXPixelMappingOnComponentRemoved OnComponentRemoved;
-		return OnComponentRemoved;
-	}
+	static FDMXPixelMappingOnComponentRemoved& GetOnComponentRemoved();
 
 	/** Gets an Event broadcast when a component was renamed */
-	static FDMXPixelMappingOnComponentRenamed& GetOnComponentRenamed()
-	{
-		static FDMXPixelMappingOnComponentRenamed OnComponentRenamed;
-		return OnComponentRenamed;
-	}
-
+	static FDMXPixelMappingOnComponentRenamed& GetOnComponentRenamed();
+	
 protected:
 	//~ Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
@@ -275,4 +263,13 @@ private:
 	/** Parent component */
 	UPROPERTY(NonTransactional)
 	TWeakObjectPtr<UDMXPixelMappingBaseComponent> WeakParent;
+
+	/** Delegate Broadcast when a component was added */
+	static FDMXPixelMappingOnComponentAdded OnComponentAdded;
+
+	/** Delegate Broadcast when a component was removed */
+	static FDMXPixelMappingOnComponentRemoved OnComponentRemoved;
+
+	/** Delegate Broadcast when a component was renamed */
+	static FDMXPixelMappingOnComponentRenamed OnComponentRenamed;
 };
