@@ -149,13 +149,14 @@
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="..\Private\ConfigurationTree.cs" />
+    <Compile Include="..\Private\ConfigurationExporter.cs" />
     <Compile Include="..\Private\Addin.cs" />
     <Compile Include="..\Private\Animation.cs" />
     <Compile Include="..\Private\AnimationExtractor.cs" />
     <Compile Include="..\Private\AssemblyDocument.cs" />
     <Compile Include="..\Private\Body.cs" />
     <Compile Include="..\Private\BoundingBox.cs" />
-    <Compile Include="..\Private\ConfigurationManager.cs" />
     <Compile Include="..\Private\ConstructionGeometry.cs" />
     <Compile Include="..\Private\DatasmithExporter.cs" />
     <Compile Include="..\Private\Document.cs" />

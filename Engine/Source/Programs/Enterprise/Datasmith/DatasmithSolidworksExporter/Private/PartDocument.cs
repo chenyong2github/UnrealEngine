@@ -10,7 +10,7 @@ namespace DatasmithSolidworks
 {
 	public class FPartDocument : FDocument
 	{
-		private PartDoc SwPartDoc = null;
+		public PartDoc SwPartDoc { get; private set; } = null;
 		private FAssemblyDocument AsmDoc = null;
 		private string ComponentName = null;
 

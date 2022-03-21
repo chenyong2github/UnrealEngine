@@ -19,12 +19,12 @@ namespace DatasmithSolidworks
 		public PartDoc PartDocument {  get; private set; }
 		public FDocument OwnerDoc {  get; private set; }
 
-		private int ComponentMaterialID = -1;
-		private int PartMaterialID = -1;
+		public int ComponentMaterialID { get; private set; } = -1;
+		public int PartMaterialID { get; private set; } = -1;
 
-		private Dictionary<string, int> BodyMaterialsMap = new Dictionary<string, int>();
-		private Dictionary<string, int> FaceMaterialsMap = new Dictionary<string, int>();
-		private Dictionary<string, int> FeatureMaterialsMap = new Dictionary<string, int>();
+		public Dictionary<string, int> BodyMaterialsMap { get; private set; } = new Dictionary<string, int>();
+		public Dictionary<string, int> FaceMaterialsMap { get; private set; } = new Dictionary<string, int>();
+		public Dictionary<string, int> FeatureMaterialsMap { get; private set; } = new Dictionary<string, int>();
 
 		public ConcurrentDictionary<int, FMaterial> GlobalMaterialsMap { get; private set; } = null;
 

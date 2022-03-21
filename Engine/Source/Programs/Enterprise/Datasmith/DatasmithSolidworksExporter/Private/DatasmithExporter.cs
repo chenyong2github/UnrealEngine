@@ -36,6 +36,7 @@ namespace DatasmithSolidworks
 		private ConcurrentDictionary<int, FDatasmithFacadeMasterMaterial> ExportedMaterialsMap = new ConcurrentDictionary<int, FDatasmithFacadeMasterMaterial>();
 		private ConcurrentDictionary<string, FDatasmithFacadeTexture> ExportedTexturesMap = new ConcurrentDictionary<string, FDatasmithFacadeTexture>();
 		private Dictionary<string, FDatasmithFacadeActorBinding> ExportedActorBindingsMap = new Dictionary<string, FDatasmithFacadeActorBinding>();
+		private Dictionary<string, FDatasmithFacadeVariant> ExportedVariantsMap = new Dictionary<string, FDatasmithFacadeVariant>();
 
 		private FDatasmithFacadeScene DatasmithScene = null;
 
@@ -316,45 +317,142 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public void ExportConfiguration(string InConfigurationsSetName, FConfigurationData InConfig)
+		FDatasmithFacadeActorBinding GetActorBinding(string InActorName, FDatasmithFacadeVariant InVariant)
 		{
-			FDatasmithFacadeActorBinding GetActorBinding(string InActorName, FDatasmithFacadeVariant InVariant)
+			for (int BindingIndex = 0; BindingIndex < InVariant.GetActorBindingsCount(); ++BindingIndex)
 			{
-				FDatasmithFacadeActorBinding Binding = null;
-
-				if (!ExportedActorBindingsMap.ContainsKey(InActorName))
+				FDatasmithFacadeActorBinding Binding = InVariant.GetActorBinding(BindingIndex);
+				if (Binding.GetName() == InActorName)
 				{
-					// Find a datasmith actor
-					FDatasmithFacadeActor Actor = null;
-
-					if (ExportedActorsMap.ContainsKey(InActorName))
-					{
-						Tuple<EActorType, FDatasmithFacadeActor> ActorInfo = ExportedActorsMap[InActorName];
-						Actor = ActorInfo.Item2;
-					}
-					else
-					{
-						// Actor was not found, should not happen
-						return null;
-					}
-
-					// Make a new binding
-					Binding = new FDatasmithFacadeActorBinding(Actor);
-					ExportedActorBindingsMap.Add(InActorName, Binding);
-					InVariant.AddActorBinding(Binding);
+					return Binding;
 				}
-				else
-				{
-					// Get an existing binding
-					Binding = ExportedActorBindingsMap[InActorName];
-				}
-				return Binding;
 			}
 
+			// No binding was found, add one
+
+			FDatasmithFacadeActor Actor = null;
+
+			if (ExportedActorsMap.ContainsKey(InActorName))
+			{
+				Tuple<EActorType, FDatasmithFacadeActor> ActorInfo = ExportedActorsMap[InActorName];
+				Actor = ActorInfo.Item2;
+			}
+			else
+			{
+				// Actor was not found, should not happen
+				return null;
+			}
+
+			// Make a new binding
+			FDatasmithFacadeActorBinding NewBinding = new FDatasmithFacadeActorBinding(Actor);
+			InVariant.AddActorBinding(NewBinding);
+
+			return NewBinding;
+		}
+
+		private void ExportMaterialVariants(List<Tuple<FConfigurationData, FDatasmithFacadeVariant>> InVariants)
+		{
+			foreach (Tuple<FConfigurationData, FDatasmithFacadeVariant> KVP in InVariants)
+			{
+				FConfigurationData Config = KVP.Item1;
+				FDatasmithFacadeVariant Variant = KVP.Item2;
+
+				// Iterate over all material assignments
+				foreach (var MatKVP in Config.ComponentMaterials)
+				{
+					FDatasmithFacadeActorBinding Binding = GetActorBinding(MatKVP.Key, Variant);
+					if (Binding != null)
+					{
+						HashSet<int> UniqueMaterialsSet = new HashSet<int>();
+						FObjectMaterials Materials = MatKVP.Value;
+
+						if (Materials.ComponentMaterialID != -1 && !UniqueMaterialsSet.Contains(Materials.ComponentMaterialID))
+						{
+							UniqueMaterialsSet.Add(Materials.ComponentMaterialID);
+						}
+						if (Materials.PartMaterialID != -1 && !UniqueMaterialsSet.Contains(Materials.ComponentMaterialID))
+						{
+							UniqueMaterialsSet.Add(Materials.PartMaterialID);
+						}
+						foreach (var MatID in Materials.BodyMaterialsMap.Values)
+						{
+							if (!UniqueMaterialsSet.Contains(Materials.ComponentMaterialID))
+							{
+								UniqueMaterialsSet.Add(MatID);
+							}
+						}
+						foreach (var MatID in Materials.FeatureMaterialsMap.Values)
+						{
+							if (!UniqueMaterialsSet.Contains(Materials.ComponentMaterialID))
+							{
+								UniqueMaterialsSet.Add(MatID);
+							}
+						}
+						foreach (var MatID in Materials.FaceMaterialsMap.Values)
+						{
+							if (!UniqueMaterialsSet.Contains(Materials.ComponentMaterialID))
+							{
+								UniqueMaterialsSet.Add(MatID);
+							}
+						}
+
+						foreach (var MatID in UniqueMaterialsSet)
+						{
+							FMaterial Material = Materials.GetMaterial(MatID);
+							FDatasmithFacadeMasterMaterial DatasmithMaterial = null;
+							if (Material != null && ExportedMaterialsMap.TryGetValue(Material.ID, out DatasmithMaterial))
+							{
+								Binding.AddMaterialCapture(DatasmithMaterial);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		private void ExportTransformVariants(List<Tuple<FConfigurationData, FDatasmithFacadeVariant>> InVariants)
+		{
+			foreach (Tuple<FConfigurationData, FDatasmithFacadeVariant> KVP in InVariants)
+			{
+				FConfigurationData Config = KVP.Item1;
+				FDatasmithFacadeVariant Variant = KVP.Item2;
+
+				// Provide transform variants
+				foreach (var TransformMap in Config.ComponentTransform)
+				{
+					FDatasmithFacadeActorBinding Binding = GetActorBinding(TransformMap.Key, Variant);
+					if (Binding != null)
+					{
+						Binding.AddRelativeTransformCapture(TransformMap.Value);
+					}
+				}
+			}
+		}
+
+		private void ExportActorVisibilityVariants(List<Tuple<FConfigurationData, FDatasmithFacadeVariant>> InVariants)
+		{
+			foreach (Tuple<FConfigurationData, FDatasmithFacadeVariant> KVP in InVariants)
+			{
+				FConfigurationData Config = KVP.Item1;
+				FDatasmithFacadeVariant Variant = KVP.Item2;
+
+				// Build a visibility variant data
+				foreach (var VisibilityMap in Config.ComponentVisibility)
+				{
+					FDatasmithFacadeActorBinding Binding = GetActorBinding(VisibilityMap.Key, Variant);
+					if (Binding != null)
+					{
+						Binding.AddVisibilityCapture(VisibilityMap.Value);
+					}
+				}
+			}
+		}
+
+		public void ExportLevelVariantSets(List<FConfigurationData> InConfigs)
+		{
 			// Request existing VariantSet, or create a new one
 			FDatasmithFacadeLevelVariantSets LevelVariantSets = null;
-			FDatasmithFacadeVariantSet VariantSet = null;
-
+			
 			if (DatasmithScene.GetLevelVariantSetsCount() == 0)
 			{
 				LevelVariantSets = new FDatasmithFacadeLevelVariantSets("LevelVariantSets");
@@ -365,62 +463,72 @@ namespace DatasmithSolidworks
 				LevelVariantSets = DatasmithScene.GetLevelVariantSets(0);
 			}
 
-			int VariantSetsCount = LevelVariantSets.GetVariantSetsCount();
-			for (int VariantSetIndex = 0; VariantSetIndex < VariantSetsCount; ++VariantSetIndex)
+			FDatasmithFacadeVariantSet GetOrCreateLevelVariantSet(string InName)
 			{
-				FDatasmithFacadeVariantSet VSet = LevelVariantSets.GetVariantSet(VariantSetIndex);
+				int VariantSetsCount = LevelVariantSets.GetVariantSetsCount();
+				FDatasmithFacadeVariantSet VariantSet = null;
 
-				if (VSet.GetName() == InConfigurationsSetName)
+				for (int VariantSetIndex = 0; VariantSetIndex < VariantSetsCount; ++VariantSetIndex)
 				{
-					VariantSet = VSet;
-					break;
-				}
-			}
+					FDatasmithFacadeVariantSet VSet = LevelVariantSets.GetVariantSet(VariantSetIndex);
 
-			if (VariantSet == null)
-			{
-				VariantSet = new FDatasmithFacadeVariantSet(InConfigurationsSetName);
-				LevelVariantSets.AddVariantSet(VariantSet);
-			}
-
-			// Add a new variant
-			FDatasmithFacadeVariant Variant = new FDatasmithFacadeVariant(InConfig.Name);
-			VariantSet.AddVariant(Variant);
-
-			// Build a visibility variant data
-			foreach (var VisibilityMap in InConfig.ComponentVisibility)
-			{
-				FDatasmithFacadeActorBinding Binding = GetActorBinding(VisibilityMap.Key, Variant);
-				if (Binding != null)
-				{
-					Binding.AddVisibilityCapture(VisibilityMap.Value);
-				}
-			}
-
-			// Provide transform variants
-			foreach (var TransformMap in InConfig.ComponentTransform)
-			{
-				FDatasmithFacadeActorBinding Binding = GetActorBinding(TransformMap.Key, Variant);
-				if (Binding != null)
-				{
-					Binding.AddRelativeTransformCapture(TransformMap.Value);
-				}
-			}
-
-			// Iterate over all material assignments
-			foreach (var KVP in InConfig.ComponentMaterials)
-			{
-				FDatasmithFacadeActorBinding Binding = GetActorBinding(KVP.Key, Variant);
-				if (Binding != null)
-				{
-					FObjectMaterials Materials = KVP.Value;
-
-					FMaterial TopMaterial = Materials.GetComponentMaterial();
-					if (TopMaterial != null)
+					if (VSet.GetName() == InName)
 					{
-						Binding.AddMaterialCapture(ExportedMaterialsMap[TopMaterial.ID]);
+						VariantSet = VSet;
+						break;
 					}
 				}
+
+				if (VariantSet == null)
+				{
+					VariantSet = new FDatasmithFacadeVariantSet(InName);
+					LevelVariantSets.AddVariantSet(VariantSet);
+				}
+				return VariantSet;
+			}
+
+			FDatasmithFacadeVariantSet ConfigurationsVariantSet = null;
+			FDatasmithFacadeVariantSet DisplayStatesVariantSet = null;
+
+			List<Tuple<FConfigurationData, FDatasmithFacadeVariant>> ConfigurationVariants = null;
+			List<Tuple<FConfigurationData, FDatasmithFacadeVariant>> DisplayStateVariants = null;
+
+			foreach (FConfigurationData Config in InConfigs)
+			{
+				FDatasmithFacadeVariant Variant = new FDatasmithFacadeVariant(Config.Name);
+
+				if (Config.bIsDisplayStateConfiguration)
+				{
+					if (DisplayStatesVariantSet == null)
+					{
+						DisplayStatesVariantSet = GetOrCreateLevelVariantSet("DisplayStates");
+						DisplayStateVariants = new List<Tuple<FConfigurationData, FDatasmithFacadeVariant>>();
+					}
+					DisplayStatesVariantSet.AddVariant(Variant);
+					DisplayStateVariants.Add(new Tuple<FConfigurationData, FDatasmithFacadeVariant>(Config, Variant));
+				}
+				else
+				{
+					if (ConfigurationsVariantSet == null)
+					{
+						ConfigurationsVariantSet = GetOrCreateLevelVariantSet("Configurations");
+						ConfigurationVariants = new List<Tuple<FConfigurationData, FDatasmithFacadeVariant>>();
+					}
+					ConfigurationsVariantSet.AddVariant(Variant);
+					ConfigurationVariants.Add(new Tuple<FConfigurationData, FDatasmithFacadeVariant>(Config, Variant));
+				}
+			}
+
+			if (ConfigurationVariants != null)
+			{
+				ExportActorVisibilityVariants(ConfigurationVariants);
+				ExportMaterialVariants(ConfigurationVariants);
+				ExportTransformVariants(ConfigurationVariants);
+			}
+
+			if (DisplayStateVariants != null)
+			{
+				ExportMaterialVariants(DisplayStateVariants);
 			}
 		}
 

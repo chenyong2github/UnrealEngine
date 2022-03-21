@@ -99,6 +99,23 @@ namespace DatasmithSolidworks
 			}
 		}
 
+		private void ExportConfigurations()
+		{
+			// Remove any existing Datasmith LevelVariantSets as we'll re-add data
+			while (DatasmithScene.GetLevelVariantSetsCount() > 0)
+			{
+				for (int Index = 0; Index < DatasmithScene.GetLevelVariantSetsCount(); Index++)
+				{
+					DatasmithScene.RemoveLevelVariantSets(DatasmithScene.GetLevelVariantSets(Index));
+				}
+			}
+
+			List<FConfigurationData> Configs = FConfigurationExporter.ExportConfigurations(this);
+
+			Exporter.ExportMaterials(ExportedMaterialsMap);
+			Exporter.ExportLevelVariantSets(Configs);
+		}
+
 		private void CheckForMaterialUpdatesProc()
 		{
 			while (!bExitMaterialUpdateThread)
@@ -181,8 +198,10 @@ namespace DatasmithSolidworks
 				Exporter = new FDatasmithExporter(DatasmithScene);
 
 				ExportToDatasmithScene();
+
 			
 				ExportLights();
+				ExportConfigurations();
 
 				DatasmithScene.PreExport();
 				DatasmithScene.ExportScene(DatasmithFileExportPath);
