@@ -385,19 +385,5 @@ namespace DatasmithSolidworks
 		{
 			return base.Equals(InObj);
 		}
-
-		public static bool operator ==(FMatrix4 InA, FMatrix4 InB)
-		{
-			if ((object)InA == null)
-			{
-				return (object)InB == null;
-			}
-			return InA.Equals(InB);
-		}
-
-		public static bool operator !=(FMatrix4 InA, FMatrix4 InB)
-		{
-			return !(InA == InB);
-		}
 	}
 }

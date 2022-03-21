@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
 {
-    [ComVisible(false)]
+	[ComVisible(false)]
     public static class MathUtils
     {
 		public static float Rad2Deg { get { return (float)(180.0 / Math.PI); } }
@@ -76,6 +76,72 @@ namespace DatasmithSolidworks
 			Result[14] = (float)InputMatrix[11] * InGeomScale;
 
 			return Result;
+		}
+
+		public static float[] LookAt(FVec3 InDirection, FVec3 InFromPoint, float InGeomScale)
+		{
+			float[] Ret = new float[16];
+
+			if (InDirection != null)
+			{
+				FVec3 Forward = InDirection.Normalized();
+				FVec3 Right = FVec3.Cross(FVec3.YAxis, Forward);
+				FVec3 Up = FVec3.Cross(Forward, Right);
+
+				Ret[0] = Forward.X;
+				Ret[1] = Forward.Y;
+				Ret[2] = Forward.Z;
+
+				Ret[4] = Right.X;
+				Ret[5] = Right.Y;
+				Ret[6] = Right.Z;
+
+				Ret[8] = Up.X;
+				Ret[9] = Up.Y;
+				Ret[10] = Up.Z;
+
+				Ret[3] = 0f;
+				Ret[7] = 0f;
+				Ret[11] = 0f;
+				Ret[15] = 1f;
+
+				if (InFromPoint != null)
+				{
+					Ret[12] = InFromPoint.X * InGeomScale;
+					Ret[13] = InFromPoint.Y * InGeomScale;
+					Ret[14] = InFromPoint.Z * InGeomScale;
+				}
+			}
+
+			return Ret;
+		}
+
+		public static float[] Translation(FVec3 InTranslation, float InGeomScale)
+		{
+			float[] Ret = new float[16];
+
+			Ret[0] = 1f;
+			Ret[1] = 0f;
+			Ret[2] = 0f;
+
+			Ret[4] = 0f;
+			Ret[5] = 1f;
+			Ret[6] = 0f;
+
+			Ret[8] = 0f;
+			Ret[9] = 0f;
+			Ret[10] = 1f;
+
+			Ret[3] = 0f;
+			Ret[7] = 0f;
+			Ret[11] = 0f;
+			Ret[15] = 1f;
+
+			Ret[12] = InTranslation.X * InGeomScale;
+			Ret[13] = InTranslation.Y * InGeomScale;
+			Ret[14] = InTranslation.Z * InGeomScale;
+
+			return Ret;
 		}
 
 		public static bool TransformsAreEqual(float[] InTransformA, float[] InTransformB)

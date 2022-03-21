@@ -12,7 +12,10 @@ namespace DatasmithSolidworks
 	public enum EActorType
 	{
 		SimpleActor,
-		MeshActor
+		MeshActor,
+		PointLightActor,
+		SpotLightActor,
+		DirLightActor
 	};
 
 	public class FDatasmithActorExportInfo
@@ -51,7 +54,7 @@ namespace DatasmithSolidworks
 			return null;
 		}
 
-		public void ExportOrUpdateActor(FDatasmithActorExportInfo InExportInfo)
+		public FDatasmithFacadeActor ExportOrUpdateActor(FDatasmithActorExportInfo InExportInfo)
 		{
 			FDatasmithFacadeActor Actor = null;
 
@@ -77,8 +80,11 @@ namespace DatasmithSolidworks
 				{
 					case EActorType.SimpleActor: Actor = new FDatasmithFacadeActor(InExportInfo.Name); break;
 					case EActorType.MeshActor: Actor = new FDatasmithFacadeActorMesh(InExportInfo.Name); break;
+					case EActorType.PointLightActor: Actor = new FDatasmithFacadePointLight(InExportInfo.Name); break;
+					case EActorType.SpotLightActor: Actor = new FDatasmithFacadeSpotLight(InExportInfo.Name); break;
+					case EActorType.DirLightActor: Actor = new FDatasmithFacadeDirectionalLight(InExportInfo.Name); break;
 				}
-				
+
 				Actor.AddTag(InExportInfo.Name);
 
 				ExportedActorsMap[InExportInfo.Name] = new Tuple<EActorType, FDatasmithFacadeActor>(InExportInfo.Type, Actor);
@@ -105,6 +111,8 @@ namespace DatasmithSolidworks
 				FDatasmithFacadeActorMesh MeshActor = Actor as FDatasmithFacadeActorMesh;
 				MeshActor.SetMesh(InExportInfo.MeshName);
 			}
+
+			return Actor;
 		}
 
 		public void RemoveActor(string InActorName)
@@ -115,6 +123,66 @@ namespace DatasmithSolidworks
 				FDatasmithFacadeActor Actor = ActorInfo.Item2;
 				DatasmithScene.RemoveActor(Actor);
 				ExportedActorsMap.Remove(InActorName);
+			}
+		}
+
+		public void ExportLight(FLight InLight)
+		{
+			FDatasmithActorExportInfo ExportInfo = new FDatasmithActorExportInfo();
+			ExportInfo.Label = InLight.LightName;
+			ExportInfo.Name = InLight.LightName;
+			ExportInfo.bVisible = true;
+		
+			FVec3 LightPosition = null;
+			FVec3 LightDirection = null;
+
+			switch (InLight.LightType)
+			{
+				case FLight.EType.Directional:
+				{
+					LightDirection = InLight.DirLightDirection;
+					ExportInfo.Type = EActorType.DirLightActor;
+				}
+				break;
+				case FLight.EType.Point:
+				{
+					LightPosition = InLight.PointLightPosition;
+					ExportInfo.Type = EActorType.PointLightActor;
+				}
+				break;
+				case FLight.EType.Spot:
+				{
+					LightPosition = InLight.SpotLightPosition;
+					LightDirection = (InLight.SpotLightTarget - InLight.SpotLightPosition).Normalized();
+					ExportInfo.Type = EActorType.SpotLightActor;
+				}
+				break;
+
+				default: return; // Unsupported light type
+			}
+
+			if (LightDirection != null)
+			{
+				ExportInfo.Transform = MathUtils.LookAt(LightDirection, LightPosition, 100f);
+			}
+			else if (LightPosition != null)
+			{
+				ExportInfo.Transform = MathUtils.Translation(LightPosition, 100f);
+			}
+
+			FDatasmithFacadeActorLight LightActor = ExportOrUpdateActor(ExportInfo) as FDatasmithFacadeActorLight;
+
+			const float MaxIntensity = 500f; // Map from SW (normlized) to Datasmith intensity
+
+			LightActor.SetIntensity(InLight.Intensity * MaxIntensity);
+			LightActor.SetColor(InLight.Color.X, InLight.Color.Y, InLight.Color.Z, 1f);
+			LightActor.SetEnabled(InLight.bIsEnabled);
+
+			if (LightActor is FDatasmithFacadeSpotLight SpotLight)
+			{
+				// Solidworks spot light has only one cone angle
+				SpotLight.SetInnerConeAngle(InLight.SpotLightConeAngle);
+				SpotLight.SetOuterConeAngle(InLight.SpotLightConeAngle);
 			}
 		}
 

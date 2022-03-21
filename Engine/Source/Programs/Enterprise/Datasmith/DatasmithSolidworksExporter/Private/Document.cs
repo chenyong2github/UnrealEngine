@@ -124,6 +124,16 @@ namespace DatasmithSolidworks
 			}
 		}
 
+		private void ExportLights()
+		{
+			List<FLight> Lights  = FLightExporter.ExportLights(SwDoc);
+
+			foreach (FLight Light in Lights)
+			{
+				Exporter.ExportLight(Light);
+			}
+		}
+
 		private void RunExport(bool bIsDirectLinkExport)
 		{
 			if (bIsDirectLinkExport)
@@ -140,6 +150,8 @@ namespace DatasmithSolidworks
 #endif
 
 				ExportToDatasmithScene();
+
+				ExportLights();
 
 #if DEBUG
 				Watch.Stop();
@@ -169,7 +181,8 @@ namespace DatasmithSolidworks
 				Exporter = new FDatasmithExporter(DatasmithScene);
 
 				ExportToDatasmithScene();
-
+			
+				ExportLights();
 
 				DatasmithScene.PreExport();
 				DatasmithScene.ExportScene(DatasmithFileExportPath);

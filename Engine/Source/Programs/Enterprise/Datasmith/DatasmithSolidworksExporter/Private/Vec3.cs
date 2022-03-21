@@ -110,19 +110,6 @@ namespace DatasmithSolidworks
                 (Z == float.NaN) ? 0.0f : Z);
         }
 
-        public static bool operator !=(FVec3 A, FVec3 B)
-        {
-            return !(A == B);
-        }
-
-        public static bool operator ==(FVec3 V1, FVec3 V2)
-        {
-            return 
-				MathUtils.Equals(V1.X, V2.X) && 
-				MathUtils.Equals(V1.Y, V2.Y) &&
-				MathUtils.Equals(V1.Z, V2.Z);
-        }
-
         public static bool operator <(FVec3 V1, FVec3 V2)
         {
 			return

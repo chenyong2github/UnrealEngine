@@ -160,6 +160,7 @@
     <Compile Include="..\Private\DatasmithExporter.cs" />
     <Compile Include="..\Private\Document.cs" />
     <Compile Include="..\Private\GeometryChunk.cs" />
+    <Compile Include="..\Private\Lights.cs" />
     <Compile Include="..\Private\Material.cs" />
     <Compile Include="..\Private\MaterialUtils.cs" />
     <Compile Include="..\Private\MathUtils.cs" />
@@ -194,6 +195,6 @@
 "$(EngineDir)\Source\ThirdParty\WiX\3.8\heat.exe" file "$(TargetDir)$(TargetName)$(TargetExt)" -gg -o "$(TargetDir)asm_SolidworksToUnreal.wxs"
 "$(EngineDir)\Source\ThirdParty\WiX\3.8\heat.exe" file "$(TargetDir)$(TargetName).tlb" -gg -o "$(TargetDir)tlb_SolidworksToUnreal.wxs"
 "$(ProjectDir)..\bin\$(Configuration)\PreprocessWxs.exe" "$(TargetDir)$(TargetName)$(TargetExt)" "$(TargetDir)asm_SolidworksToUnreal.wxs" "$(TargetDir)tlb_SolidworksToUnreal.wxs" "$(InstallerDir)" "$(EngineDir)"
-    </PostBuildEvent>
+</PostBuildEvent>
   </PropertyGroup>
 </Project>
