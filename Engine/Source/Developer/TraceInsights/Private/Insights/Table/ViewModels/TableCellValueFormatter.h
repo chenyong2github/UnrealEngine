@@ -108,6 +108,15 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FInt64ValueFormatterAsUInt32InfinteNumber : public FTableCellValueFormatter
+{
+public:
+	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) const override;
+	virtual FText FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) const override;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FInt64ValueFormatterAsHex32 : public FTableCellValueFormatter
 {
 public:

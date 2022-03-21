@@ -22,7 +22,7 @@ public:
 
 	int64 GetStartEventIndex() const { return int64(StartEventIndex); }
 	int64 GetEndEventIndex() const { return int64(EndEventIndex); }
-	int64 GetEventDistance() const { return int64(EndEventIndex) - int64(StartEventIndex); }
+	int64 GetEventDistance() const { return EndEventIndex == ~0 ? int64(EndEventIndex) : int64(EndEventIndex) - int64(StartEventIndex); }
 	double GetStartTime() const { return StartTime; }
 	double GetEndTime() const { return EndTime; }
 	double GetDuration() const { return EndTime - StartTime; }
