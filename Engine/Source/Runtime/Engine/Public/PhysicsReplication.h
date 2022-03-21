@@ -61,6 +61,14 @@ struct FReplicatedPhysicsTarget
 };
 
 #if WITH_CHAOS
+struct ErrorCorrectionData
+{
+	float LinearVelocityCoefficient;
+	float AngularVelocityCoefficient;
+	float PositionLerp;
+	float AngleLerp;
+};
+
 /** Final computed desired state passed into the physics sim */
 struct FAsyncPhysicsDesiredState
 {
@@ -69,6 +77,7 @@ struct FAsyncPhysicsDesiredState
 	FVector AngularVelocity;
 	Chaos::FSingleParticlePhysicsProxy* Proxy;
 	Chaos::EObjectStateType ObjectState;
+	TOptional<ErrorCorrectionData> ErrorCorrection;
 	bool bShouldSleep;
 	int32 ServerFrame;
 };
