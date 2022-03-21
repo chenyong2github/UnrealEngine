@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
+
 #include "Mesh/InterchangeStaticMeshFactory.h"
 
+#if WITH_EDITOR
+#include "BSPOps.h"
+#endif
 #include "Components.h"
+#include "Engine/Polys.h"
 #include "Engine/StaticMesh.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
@@ -18,15 +23,20 @@
 #include "Materials/MaterialInterface.h"
 #include "Mesh/InterchangeStaticMeshPayload.h"
 #include "Mesh/InterchangeStaticMeshPayloadInterface.h"
+#include "Model.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/BoxElem.h"
+#include "PhysicsEngine/ConvexElem.h"
+#include "PhysicsEngine/SphereElem.h"
+#include "PhysicsEngine/SphylElem.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
 #if WITH_EDITORONLY_DATA
-
 #include "EditorFramework/AssetImportData.h"
-
 #endif //WITH_EDITORONLY_DATA
 
 
@@ -75,6 +85,9 @@ UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParam
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
+
+	// create the BodySetup on the game thread
+	StaticMesh->CreateBodySetup();
 	
 	StaticMesh->PreEditChange(nullptr);	
 	return StaticMesh;
@@ -99,13 +112,6 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 	UInterchangeStaticMeshFactoryNode* StaticMeshFactoryNode = Cast<UInterchangeStaticMeshFactoryNode>(Arguments.AssetNode);
 	if (StaticMeshFactoryNode == nullptr)
 	{
-		return nullptr;
-	}
-
-	const IInterchangeStaticMeshPayloadInterface* StaticMeshTranslatorPayloadInterface = Cast<IInterchangeStaticMeshPayloadInterface>(Arguments.Translator);
-	if (!StaticMeshTranslatorPayloadInterface)
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import static mesh, the translator does not implement the IInterchangeStaticMeshPayloadInterface."));
 		return nullptr;
 	}
 
@@ -146,6 +152,8 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			
 	int32 LodCount = StaticMeshFactoryNode->GetLodDataCount();
 	int32 FinalLodCount = LodCount;
+
+	// If we are reimporting, cache the existing vertex colors so they can be optionally reapplied after reimport
 	TMap<FVector, FColor> ExisitingVertexColorData;
 	if (Arguments.ReimportObject)
 	{
@@ -153,15 +161,49 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		{
 			StaticMesh->GetVertexColorData(ExisitingVertexColorData);
 		}
-		//When we reimport we dont want to reduce the number of existing LODs
+
+		// When we reimport we don't want to reduce the number of existing LODs
 		FinalLodCount = FMath::Max(StaticMesh->GetNumLODs(), LodCount);
 	}
+
 	StaticMesh->SetNumSourceModels(FinalLodCount);
 
+	// Set material slots from imported materials
+	TArray<FString> FactoryDependencies;
+	StaticMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
+
+	for (int32 DependencyIndex = 0; DependencyIndex < FactoryDependencies.Num(); ++DependencyIndex)
+	{
+		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.NodeContainer->GetNode(FactoryDependencies[DependencyIndex]));
+		if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid())
+		{
+			continue;
+		}
+		if (!MaterialFactoryNode->IsEnabled())
+		{
+			continue;
+		}
+
+		FName MaterialSlotName = *MaterialFactoryNode->GetDisplayLabel();
+		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
+		if (!MaterialInterface)
+		{
+			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		int32 MaterialSlotIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName(MaterialSlotName);
+		if (MaterialSlotIndex == INDEX_NONE)
+		{
+			StaticMesh->GetStaticMaterials().Emplace(MaterialInterface, MaterialSlotName);
+		}
+	}
+
+	// Now import geometry for each LOD
 	TArray<FString> LodDataUniqueIds;
 	StaticMeshFactoryNode->GetLodDataUniqueIds(LodDataUniqueIds);
 	ensure(LodDataUniqueIds.Num() == LodCount);
 
+	bool bImportedCustomCollision = false;
 	int32 CurrentLodIndex = 0;
 	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
 	{
@@ -173,69 +215,6 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			continue;
 		}
 
-		// Get the mesh node context for each MeshUids
-		struct FMeshNodeContext
-		{
-			const UInterchangeMeshNode* MeshNode = nullptr;
-			const UInterchangeSceneNode* SceneNode = nullptr;
-			TOptional<FTransform> SceneGlobalTransform;
-			FString TranslatorPayloadKey;
-		};
-		TArray<FMeshNodeContext> MeshReferences;
-
-		// Scope to query the mesh node
-		{
-			TArray<FString> MeshUids;
-			LodDataNode->GetMeshUids(MeshUids);
-			MeshReferences.Reserve(MeshUids.Num());
-
-			for (const FString& MeshUid : MeshUids)
-			{
-				FMeshNodeContext MeshReference;
-				MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshUid));
-				if (!MeshReference.MeshNode)
-				{
-					// The reference is a scene node and we need to bake the geometry
-					MeshReference.SceneNode = Cast<UInterchangeSceneNode>(Arguments.NodeContainer->GetNode(MeshUid));
-					if (!ensure(MeshReference.SceneNode != nullptr))
-					{
-						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing StaticMesh asset %s"), *Arguments.AssetName);
-						continue;
-					}
-
-					FString MeshDependencyUid;
-					MeshReference.SceneNode->GetCustomAssetInstanceUid(MeshDependencyUid);
-					MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
-
-					// Cache the scene node global matrix, we will use this matrix to bake the vertices
-					FTransform SceneNodeGlobalTransform;
-					if (MeshReference.SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, SceneNodeGlobalTransform))
-					{
-						MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
-					}
-				}
-
-				if (!ensure(MeshReference.MeshNode != nullptr))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing StaticMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-
-				TOptional<FString> MeshPayloadKey = MeshReference.MeshNode->GetPayLoadKey();
-				if (MeshPayloadKey.IsSet())
-				{
-					MeshReference.TranslatorPayloadKey = MeshPayloadKey.GetValue();
-				}
-				else
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD mesh reference payload when importing StaticMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-
-				MeshReferences.Add(MeshReference);
-			}
-		}
-
 		// Add the lod mesh data to the static mesh
 		FMeshDescription* LodMeshDescription = StaticMesh->CreateMeshDescription(CurrentLodIndex);
 
@@ -244,43 +223,32 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		{
 			AppendSettings.bMergeUVChannels[ChannelIdx] = true;
 		}
-
-		// Fetch the payloads for all mesh references in parallel
-		TMap<FString, TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>>> MeshPayloads;
-		for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
-		{
-			const FString& PayloadKey = MeshNodeContext.TranslatorPayloadKey;
-			MeshPayloads.Add(PayloadKey, StaticMeshTranslatorPayloadInterface->GetStaticMeshPayloadData(PayloadKey));
-		}
 				
+
+		TArray<FString> MeshUids;
+		LodDataNode->GetMeshUids(MeshUids);
+
 		// Fill the lod mesh description using all combined mesh parts
-		for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
+		TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, MeshUids);
+		for (const FMeshPayload& MeshPayload : MeshPayloads)
 		{
-			TOptional<UE::Interchange::FStaticMeshPayloadData> LodMeshPayload = MeshPayloads.FindChecked(MeshNodeContext.TranslatorPayloadKey).Get();
+			const TOptional<UE::Interchange::FStaticMeshPayloadData>& LodMeshPayload = MeshPayload.PayloadData.Get();
 			if (!LodMeshPayload.IsSet())
 			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid static mesh payload key [%s] StaticMesh asset %s"), *MeshNodeContext.TranslatorPayloadKey, *Arguments.AssetName);
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid static mesh payload key, StaticMesh asset %s"), *Arguments.AssetName);
 				continue;
 			}
 
 			// Bake the payload, with the provided transform
-			if (MeshNodeContext.SceneGlobalTransform.IsSet())
-			{
-				AppendSettings.MeshTransform = MeshNodeContext.SceneGlobalTransform;
-			}
-			else
-			{
-				AppendSettings.MeshTransform.Reset();
-			}
-
+			AppendSettings.MeshTransform = MeshPayload.Transform;
 			FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, *LodMeshDescription, AppendSettings);
 		}
 
-		//////////////////////////////////////////////////////////////////////////
-		//Manage vertex color
-		//Replace -> do nothing, we want to use the translated source data
-		//Ignore -> remove vertex color from import data (when we re-import, ignore have to put back the current mesh vertex color)
-		//Override -> replace the vertex color by the override color
+		// Manage vertex color
+		// Replace -> do nothing, we want to use the translated source data
+		// Ignore -> remove vertex color from import data (when we re-import, ignore have to put back the current mesh vertex color)
+		// Override -> replace the vertex color by the override color
+		// @todo: new mesh description attribute for painted vertex colors?
 		{
 			FStaticMeshAttributes Attributes(*LodMeshDescription);
 			TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
@@ -335,37 +303,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		CommitMeshDescriptionParams.bMarkPackageDirty = false; // Marking packages dirty isn't threadsafe
 		StaticMesh->CommitMeshDescription(CurrentLodIndex, CommitMeshDescriptionParams);
 
-		// Handle materials
-		// @TODO: move this outside of the LOD loop?
-		TArray<FString> FactoryDependencies;
-		StaticMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
-
-		for (int32 DependencyIndex = 0; DependencyIndex < FactoryDependencies.Num(); ++DependencyIndex)
-		{
-			const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.NodeContainer->GetNode(FactoryDependencies[DependencyIndex]));
-			if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid())
-			{
-				continue;
-			}
-			if (!MaterialFactoryNode->IsEnabled())
-			{
-				continue;
-			}
-
-			FName MaterialSlotName = *MaterialFactoryNode->GetDisplayLabel();
-			UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
-			if (!MaterialInterface)
-			{
-				MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
-			}
-
-			int32 MaterialSlotIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName(MaterialSlotName);
-			if (MaterialSlotIndex == INDEX_NONE)
-			{
-				StaticMesh->GetStaticMaterials().Emplace(MaterialInterface, MaterialSlotName);
-			}
-		}
-
+		// Build section info map from materials
 		FStaticMeshConstAttributes StaticMeshAttributes(*LodMeshDescription);
 		TPolygonGroupAttributesRef<const FName> SlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
 		int32 SectionIndex = 0;
@@ -386,6 +324,15 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			StaticMesh->GetSectionInfoMap().Set(CurrentLodIndex, SectionIndex, Info);
 
 			SectionIndex++;
+		}
+
+		// Import collision geometry
+		if (CurrentLodIndex == 0)
+		{
+			bImportedCustomCollision |= ImportBoxCollision(Arguments, StaticMesh, LodDataNode);
+			bImportedCustomCollision |= ImportCapsuleCollision(Arguments, StaticMesh, LodDataNode);
+			bImportedCustomCollision |= ImportSphereCollision(Arguments, StaticMesh, LodDataNode);
+			bImportedCustomCollision |= ImportConvexCollision(Arguments, StaticMesh, LodDataNode);
 		}
 
 		if (!Arguments.ReimportObject)
@@ -431,7 +378,16 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		CurrentNode->FillAllCustomAttributeFromObject(StaticMesh);
 		UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(StaticMesh, PreviousNode, CurrentNode, StaticMeshFactoryNode);
 	}
-		
+	
+	if (!bImportedCustomCollision)
+	{
+		GenerateKDopCollision(Arguments, StaticMesh);
+	}
+	else
+	{
+		StaticMesh->bCustomizedCollision = true;
+	}
+
 	// Getting the file Hash will cache it into the source data
 	Arguments.SourceData->GetFileContentHash();
 
@@ -459,5 +415,865 @@ void UInterchangeStaticMeshFactory::PreImportPreCompletedCallback(const FImportP
 		ImportDataPtr = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 		StaticMesh->SetAssetImportData(ImportDataPtr);
 	}
+#endif
+}
+
+
+TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactory::GetMeshPayloads(const FCreateAssetParams& Arguments, const TArray<FString>& MeshUids) const
+{
+	TArray<FMeshPayload> Payloads;
+	Payloads.Reserve(MeshUids.Num());
+
+	const IInterchangeStaticMeshPayloadInterface* StaticMeshTranslatorPayloadInterface = Cast<IInterchangeStaticMeshPayloadInterface>(Arguments.Translator);
+	if (!StaticMeshTranslatorPayloadInterface)
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import static mesh, the translator does not implement the IInterchangeStaticMeshPayloadInterface."));
+		return Payloads;
+	}
+
+	for (const FString& MeshUid : MeshUids)
+	{
+		FMeshPayload Payload;
+
+		const UInterchangeBaseNode* Node = Arguments.NodeContainer->GetNode(MeshUid);
+		const UInterchangeMeshNode* MeshNode = Cast<const UInterchangeMeshNode>(Node);
+		if (MeshNode == nullptr)
+		{
+			// MeshUid must refer to a scene node
+			const UInterchangeSceneNode* SceneNode = Cast<const UInterchangeSceneNode>(Node);
+			if (!ensure(SceneNode))
+			{
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing StaticMesh asset %s"), *Arguments.AssetName);
+				continue;
+			}
+
+			// Get the transform from the scene node
+			FTransform SceneNodeGlobalTransform;
+			if (SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, SceneNodeGlobalTransform))
+			{
+				Payload.Transform = SceneNodeGlobalTransform;
+			}
+
+			// And get the mesh node which it references
+			FString MeshDependencyUid;
+			SceneNode->GetCustomAssetInstanceUid(MeshDependencyUid);
+			MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
+		}
+
+		if (!ensure(MeshNode))
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing StaticMesh asset %s"), *Arguments.AssetName);
+			continue;
+		}
+
+		TOptional<FString> MeshPayloadKey = MeshNode->GetPayLoadKey();
+		if (!ensure(MeshPayloadKey.IsSet()))
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD mesh reference payload when importing StaticMesh asset %s"), *Arguments.AssetName);
+			continue;
+		}
+
+		Payload.MeshName = *MeshPayloadKey;
+		Payload.PayloadData = StaticMeshTranslatorPayloadInterface->GetStaticMeshPayloadData(*MeshPayloadKey);
+
+		Payloads.Emplace(MoveTemp(Payload));
+	}
+
+	return Payloads;
+}
+
+
+bool UInterchangeStaticMeshFactory::AddConvexGeomFromVertices(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
+{
+	FStaticMeshConstAttributes Attributes(MeshDescription);
+	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
+	
+	if (VertexPositions.GetNumElements() == 0)
+	{
+		return false;
+	}
+
+	FKConvexElem& ConvexElem = AggGeom.ConvexElems.Emplace_GetRef();
+	ConvexElem.VertexData.AddUninitialized(VertexPositions.GetNumElements());
+
+	for (int32 Index = 0; Index < VertexPositions.GetNumElements(); Index++)
+	{
+		ConvexElem.VertexData[Index] = Transform.TransformPosition(FVector(VertexPositions[Index]));
+	}
+
+	ConvexElem.UpdateElemBox();
+
+	return true;
+}
+
+
+bool UInterchangeStaticMeshFactory::DecomposeConvexMesh(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, UBodySetup* BodySetup)
+{
+#if WITH_EDITOR
+
+	// Construct a bit array containing a bit for each triangle ID in the mesh description.
+	// We are assuming the mesh description is compact, i.e. it has no holes, and so the number of triangles is equal to the array size.
+	// The aim is to identify 'islands' of adjacent triangles which will form separate convex hulls
+
+	check(MeshDescription.Triangles().Num() == MeshDescription.Triangles().GetArraySize());
+	TBitArray<> BitArray(0, MeshDescription.Triangles().Num());
+
+	// Here we build the groups of triangle IDs
+
+	TArray<TArray<FTriangleID>> TriangleGroups;
+
+	int32 FirstIndex = BitArray.FindAndSetFirstZeroBit();
+	while (FirstIndex != INDEX_NONE)
+	{
+		// Find the first index we haven't used yet, and use it as the beginning of a new triangle group
+
+		TArray<FTriangleID>& TriangleGroup = TriangleGroups.Emplace_GetRef();
+		TriangleGroup.Emplace(FirstIndex);
+
+		// Now iterate through the TriangleGroup array, finding unused adjacent triangles to each index, and appending them
+		// to the end of the array.  Note we deliberately check the array size each time round the loop, as each iteration
+		// can cause it to grow.
+
+		for (int32 CheckIndex = 0; CheckIndex < TriangleGroup.Num(); ++CheckIndex)
+		{
+			for (FTriangleID AdjacentTriangleID : MeshDescription.GetTriangleAdjacentTriangles(TriangleGroup[CheckIndex]))
+			{
+				if (BitArray[AdjacentTriangleID] == 0)
+				{
+					// Append unused adjacent triangles to the TriangleGroup, to be considered for adjacency later
+					TriangleGroup.Emplace(AdjacentTriangleID);
+					BitArray[AdjacentTriangleID] = 1;
+				}
+			}
+		}
+
+		// When we exhaust the triangle group array, there are no more triangles in this island.
+		// Now find the start of the next group.
+
+		FirstIndex = BitArray.FindAndSetFirstZeroBit();
+	}
+
+	// Now iterate through the triangle groups, adding each as a convex hull to the AggGeom
+
+	UModel* TempModel = NewObject<UModel>();
+	TempModel->RootOutside = true;
+	TempModel->EmptyModel(true, true);
+	TempModel->Polys->ClearFlags(RF_Transactional);
+
+	FStaticMeshConstAttributes Attributes(MeshDescription);
+	TTriangleAttributesRef<TArrayView<const FVertexID>> TriangleVertices = Attributes.GetTriangleVertexIndices();
+	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
+
+	bool bSuccess = true;
+
+	for (const TArray<FTriangleID>& TriangleGroup : TriangleGroups)
+	{
+		// Initialize a new brush
+		TempModel->Polys->Element.Empty();
+
+		// Add each triangle to the brush
+		int32 Index = 0;
+		for (FTriangleID TriangleID : TriangleGroup)
+		{
+			FPoly& Poly = TempModel->Polys->Element.Emplace_GetRef();
+			Poly.Init();
+			Poly.iLink = Index++;
+
+			// For reasons lost in time, BSP poly vertices have the opposite winding order to regular mesh vertices.
+			// So add them backwards (sigh)
+			Poly.Vertices.Emplace(Transform.TransformPosition(FVector(VertexPositions[TriangleVertices[TriangleID][2]])));
+			Poly.Vertices.Emplace(Transform.TransformPosition(FVector(VertexPositions[TriangleVertices[TriangleID][1]])));
+			Poly.Vertices.Emplace(Transform.TransformPosition(FVector(VertexPositions[TriangleVertices[TriangleID][0]])));
+
+			Poly.CalcNormal(true);
+		}
+
+		// Build bounding box
+		TempModel->BuildBound();
+
+		// Build BSP for the brush
+		FBSPOps::bspBuild(TempModel, FBSPOps::BSP_Good, 15, 70, 1, 0);
+		FBSPOps::bspRefresh(TempModel, true);
+		FBSPOps::bspBuildBounds(TempModel);
+
+		bSuccess &= BodySetup->CreateFromModel(TempModel, false);
+	}
+
+	TempModel->ClearInternalFlags(EInternalObjectFlags::Async);
+	TempModel->Polys->ClearInternalFlags(EInternalObjectFlags::Async);
+
+	return bSuccess;
+
+#else // #if WITH_EDITOR
+
+	return false;
+
+#endif
+}
+
+
+static bool AreEqual(float A, float B)
+{
+	constexpr float MeshToPrimTolerance = 0.001f;
+	return FMath::Abs(A - B) < MeshToPrimTolerance;
+}
+
+
+static bool AreParallel(const FVector3f& A, const FVector3f& B)
+{
+	float Dot = FVector3f::DotProduct(A, B);
+
+	return (AreEqual(FMath::Abs(Dot), 1.0f));
+}
+
+
+static FVector3f GetTriangleNormal(const FTransform& Transform, TVertexAttributesRef<const FVector3f> VertexPositions, TArrayView<const FVertexID> VertexIndices)
+{
+	const FVector3f& V0 = VertexPositions[VertexIndices[0]];
+	const FVector3f& V1 = VertexPositions[VertexIndices[1]];
+	const FVector3f& V2 = VertexPositions[VertexIndices[2]];
+	// @todo: LWC conversions everywhere here; surely this can be more elegant?
+	return FVector3f(Transform.TransformVector(FVector(FVector3f::CrossProduct(V1 - V0, V2 - V0).GetSafeNormal())));
+}
+
+
+bool UInterchangeStaticMeshFactory::AddBoxGeomFromTris(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
+{
+	// Maintain an array of the planes we have encountered so far.
+	// We are expecting two instances of three unique plane orientations, one for each side of the box.
+
+	struct FPlaneInfo
+	{
+		FPlaneInfo(const FVector3f InNormal, float InFirstDistance)
+			: Normal(InNormal),
+			  DistCount(1),
+			  PlaneDist{InFirstDistance, 0.0f}
+		{}
+
+		FVector3f Normal;
+		int32 DistCount;
+		float PlaneDist[2];
+	};
+
+	TArray<FPlaneInfo> Planes;
+	FBox Box(ForceInit);
+
+	FStaticMeshConstAttributes Attributes(MeshDescription);
+	TTriangleAttributesRef<TArrayView<const FVertexID>> TriangleVertices = Attributes.GetTriangleVertexIndices();
+	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
+
+	for (FTriangleID TriangleID : MeshDescription.Triangles().GetElementIDs())
+	{
+		TArrayView<const FVertexID> VertexIndices = TriangleVertices[TriangleID];
+
+		FVector3f TriangleNormal = GetTriangleNormal(Transform, VertexPositions, VertexIndices);
+		if (TriangleNormal.IsNearlyZero())
+		{
+			continue;
+		}
+
+		bool bFoundPlane = false;
+		for (int32 PlaneIndex = 0; PlaneIndex < Planes.Num() && !bFoundPlane; PlaneIndex++)
+		{
+			// if this triangle plane is already known...
+			if (AreParallel(TriangleNormal, Planes[PlaneIndex].Normal))
+			{
+				// Always use the same normal when comparing distances, to ensure consistent sign.
+				float Dist = FVector3f::DotProduct(VertexPositions[VertexIndices[0]], Planes[PlaneIndex].Normal);
+
+				// we only have one distance, and its not that one, add it.
+				if (Planes[PlaneIndex].DistCount == 1 && !AreEqual(Dist, Planes[PlaneIndex].PlaneDist[0]))
+				{
+					Planes[PlaneIndex].PlaneDist[1] = Dist;
+					Planes[PlaneIndex].DistCount = 2;
+				}
+				// if we have a second distance, and its not that either, something is wrong.
+				else if (Planes[PlaneIndex].DistCount == 2 && !AreEqual(Dist, Planes[PlaneIndex].PlaneDist[1]))
+				{
+					// Error
+//					UE_LOG(LogStaticMeshImportUtils, Log, TEXT("AddBoxGeomFromTris (%s): Found more than 2 planes with different distances."), ObjName);
+					return false;
+				}
+
+				bFoundPlane = true;
+			}
+		}
+
+		// If this triangle does not match an existing plane, add to list.
+		if (!bFoundPlane)
+		{
+			Planes.Emplace(TriangleNormal, FVector3f::DotProduct(VertexPositions[VertexIndices[0]], TriangleNormal));
+		}
+
+		// Maintain an AABB, adding points from each triangle.
+		// We will use this to determine the origin of the box transform.
+
+		Box += Transform.TransformPosition(FVector(VertexPositions[VertexIndices[0]]));
+		Box += Transform.TransformPosition(FVector(VertexPositions[VertexIndices[1]]));
+		Box += Transform.TransformPosition(FVector(VertexPositions[VertexIndices[2]]));
+	}
+
+	// Now we have our candidate planes, see if there are any problems
+
+	// Wrong number of planes.
+	if (Planes.Num() != 3)
+	{
+		// Error
+//		UE_LOG(LogStaticMeshImportUtils, Log, TEXT("AddBoxGeomFromTris (%s): Not very box-like (need 3 sets of planes)."), ObjName);
+		return false;
+	}
+
+	// If we don't have 3 pairs, we can't carry on.
+	if ((Planes[0].DistCount != 2) || (Planes[1].DistCount != 2) || (Planes[2].DistCount != 2))
+	{
+		// Error
+//		UE_LOG(LogStaticMeshImportUtils, Log, TEXT("AddBoxGeomFromTris (%s): Incomplete set of planes (need 2 per axis)."), ObjName);
+		return false;
+	}
+
+	// ensure valid TM by cross-product
+	if (!AreParallel(FVector3f::CrossProduct(Planes[0].Normal, Planes[1].Normal), Planes[2].Normal))
+	{
+		// Error
+//		UE_LOG(LogStaticMeshImportUtils, Log, TEXT("AddBoxGeomFromTris (%s): Box axes are not perpendicular."), ObjName);
+		return false;
+	}
+
+	// Allocate box in array
+	FKBoxElem BoxElem;
+	BoxElem.SetTransform(FTransform(FVector(Planes[0].Normal), FVector(Planes[1].Normal), FVector(Planes[2].Normal), Box.GetCenter()));
+
+	// distance between parallel planes is box edge lengths.
+	BoxElem.X = FMath::Abs(Planes[0].PlaneDist[0] - Planes[0].PlaneDist[1]);
+	BoxElem.Y = FMath::Abs(Planes[1].PlaneDist[0] - Planes[1].PlaneDist[1]);
+	BoxElem.Z = FMath::Abs(Planes[2].PlaneDist[0] - Planes[2].PlaneDist[1]);
+
+	AggGeom.BoxElems.Add(BoxElem);
+
+	return true;
+}
+
+
+bool UInterchangeStaticMeshFactory::AddSphereGeomFromVertices(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
+{
+	FStaticMeshConstAttributes Attributes(MeshDescription);
+	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
+
+	if (VertexPositions.GetNumElements() == 0)
+	{
+		return false;
+	}
+
+	FBox Box(ForceInit);
+
+	for (const FVector3f& VertexPosition : VertexPositions.GetRawArray())
+	{
+		Box += Transform.TransformPosition(FVector(VertexPosition));
+	}
+
+	FVector Center;
+	FVector Extents;
+	Box.GetCenterAndExtents(Center, Extents);
+	float Longest = 2.0f * Extents.GetMax();
+	float Shortest = 2.0f * Extents.GetMin();
+
+	// check that the AABB is roughly a square (5% tolerance)
+	if ((Longest - Shortest) / Longest > 0.05f)
+	{
+		// Error
+		//UE_LOG(LogStaticMeshImportUtils, Log, TEXT("AddSphereGeomFromVerts (%s): Sphere bounding box not square."), ObjName);
+		return false;
+	}
+
+	float Radius = 0.5f * Longest;
+
+	// Test that all vertices are a similar radius (5%) from the sphere centre.
+	float MaxR = 0;
+	float MinR = BIG_NUMBER;
+
+
+	for (const FVector3f& VertexPosition : VertexPositions.GetRawArray())
+	{
+		FVector3f CToV = VertexPosition - FVector3f(Center);
+		float RSqr = CToV.SizeSquared();
+
+		MaxR = FMath::Max(RSqr, MaxR);
+
+		// Sometimes vertex at centre, so reject it.
+		if (RSqr > KINDA_SMALL_NUMBER)
+		{
+			MinR = FMath::Min(RSqr, MinR);
+		}
+	}
+
+	MaxR = FMath::Sqrt(MaxR);
+	MinR = FMath::Sqrt(MinR);
+
+	if ((MaxR - MinR) / Radius > 0.05f)
+	{
+		// Error
+		//UE_LOG(LogStaticMeshImportUtils, Log, TEXT("AddSphereGeomFromVerts (%s): Vertices not at constant radius."), ObjName);
+		return false;
+	}
+
+	// Allocate sphere in array
+	FKSphereElem SphereElem;
+	SphereElem.Center = Center;
+	SphereElem.Radius = Radius;
+	AggGeom.SphereElems.Add(SphereElem);
+
+	return true;
+}
+
+
+bool UInterchangeStaticMeshFactory::AddCapsuleGeomFromVertices(const FCreateAssetParams& Arguments, const FMeshDescription& MeshDescription, const FTransform& Transform, FKAggregateGeom& AggGeom)
+{
+	FStaticMeshConstAttributes Attributes(MeshDescription);
+	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
+
+	if (VertexPositions.GetNumElements() == 0)
+	{
+		return false;
+	}
+
+	FVector AxisStart;
+	FVector AxisEnd;
+	float MaxDistSqr = 0.f;
+
+	for (int32 IndexA = 0; IndexA < VertexPositions.GetNumElements() - 1; IndexA++)
+	{
+		for (int32 IndexB = IndexA + 1; IndexB < VertexPositions.GetNumElements(); IndexB++)
+		{
+			FVector TransformedA = Transform.TransformPosition(FVector(VertexPositions[IndexA]));
+			FVector TransformedB = Transform.TransformPosition(FVector(VertexPositions[IndexB]));
+
+			float DistSqr = (TransformedA - TransformedB).SizeSquared();
+			if (DistSqr > MaxDistSqr)
+			{
+				AxisStart = TransformedA;
+				AxisEnd = TransformedB;
+				MaxDistSqr = DistSqr;
+			}
+		}
+	}
+
+	// If we got a valid axis, find vertex furthest from it
+	if (MaxDistSqr > SMALL_NUMBER)
+	{
+		float MaxRadius = 0.0f;
+
+		const FVector LineOrigin = AxisStart;
+		const FVector LineDir = (AxisEnd - AxisStart).GetSafeNormal();
+
+		for (int32 IndexA = 0; IndexA < VertexPositions.GetNumElements(); IndexA++)
+		{
+			FVector TransformedA = Transform.TransformPosition(FVector(VertexPositions[IndexA]));
+
+			float DistToAxis = FMath::PointDistToLine(TransformedA, LineDir, LineOrigin);
+			if (DistToAxis > MaxRadius)
+			{
+				MaxRadius = DistToAxis;
+			}
+		}
+
+		if (MaxRadius > SMALL_NUMBER)
+		{
+			// Allocate capsule in array
+			FKSphylElem SphylElem;
+			SphylElem.Center = 0.5f * (AxisStart + AxisEnd);
+			SphylElem.Rotation = FQuat::FindBetweenVectors(FVector::ZAxisVector, LineDir).Rotator(); // Get quat that takes you from z axis to desired axis
+			SphylElem.Radius = MaxRadius;
+			SphylElem.Length = FMath::Max(FMath::Sqrt(MaxDistSqr) - (2.0f * MaxRadius), 0.0f); // subtract two radii from total length to get segment length (ensure > 0)
+			AggGeom.SphylElems.Add(SphylElem);
+			return true;
+		}
+	}
+
+	return false;
+
+}
+
+
+bool UInterchangeStaticMeshFactory::ImportBoxCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
+{
+	using namespace UE::Interchange;
+
+	bool bResult = false;
+
+	TArray<FString> BoxCollisionMeshUids;
+	LodDataNode->GetBoxCollisionMeshUids(BoxCollisionMeshUids);
+
+	FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
+
+	TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, BoxCollisionMeshUids);
+	for (const FMeshPayload& MeshPayload : MeshPayloads)
+	{
+		const FTransform& Transform = MeshPayload.Transform;
+		const TOptional<FStaticMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
+
+		if (!PayloadData.IsSet())
+		{
+			// warning here
+			continue;
+		}
+
+		if (AddBoxGeomFromTris(Arguments, PayloadData->MeshDescription, Transform, AggGeo))
+		{
+			bResult = true;
+			FKBoxElem& NewElem = AggGeo.BoxElems.Last();
+
+			// Now test the last element in the AggGeo list and remove it if its a duplicate
+			// @TODO: determine why we have to do this. Was it to prevent duplicate boxes accumulating when reimporting?
+			for (int32 ElementIndex = 0; ElementIndex < AggGeo.BoxElems.Num() - 1; ++ElementIndex)
+			{
+				FKBoxElem& CurrentElem = AggGeo.BoxElems[ElementIndex];
+
+				if (CurrentElem == NewElem)
+				{
+					// The new element is a duplicate, remove it
+					AggGeo.BoxElems.RemoveAt(AggGeo.BoxElems.Num() - 1);
+					break;
+				}
+			}
+		}
+	}
+
+	return bResult;
+}
+
+
+bool UInterchangeStaticMeshFactory::ImportCapsuleCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
+{
+	using namespace UE::Interchange;
+
+	bool bResult = false;
+
+	TArray<FString> CapsuleCollisionMeshUids;
+	LodDataNode->GetCapsuleCollisionMeshUids(CapsuleCollisionMeshUids);
+
+	FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
+
+	TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, CapsuleCollisionMeshUids);
+	for (const FMeshPayload& MeshPayload : MeshPayloads)
+	{
+		const FTransform& Transform = MeshPayload.Transform;
+		const TOptional<FStaticMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
+
+		if (!PayloadData.IsSet())
+		{
+			// warning here
+			continue;
+		}
+
+		if (AddCapsuleGeomFromVertices(Arguments, PayloadData->MeshDescription, Transform, AggGeo))
+		{
+			bResult = true;
+
+			FKSphylElem& NewElem = AggGeo.SphylElems.Last();
+
+			// Now test the late element in the AggGeo list and remove it if its a duplicate
+			// @TODO: determine why we have to do this. Was it to prevent duplicate boxes accumulating when reimporting?
+			for (int32 ElementIndex = 0; ElementIndex < AggGeo.SphylElems.Num() - 1; ++ElementIndex)
+			{
+				FKSphylElem& CurrentElem = AggGeo.SphylElems[ElementIndex];
+				if (CurrentElem == NewElem)
+				{
+					// The new element is a duplicate, remove it
+					AggGeo.SphylElems.RemoveAt(AggGeo.SphylElems.Num() - 1);
+					break;
+				}
+			}
+		}
+	}
+
+	return bResult;
+}
+
+
+bool UInterchangeStaticMeshFactory::ImportSphereCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
+{
+	using namespace UE::Interchange;
+
+	bool bResult = false;
+
+	TArray<FString> SphereCollisionMeshUids;
+	LodDataNode->GetSphereCollisionMeshUids(SphereCollisionMeshUids);
+
+	FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
+
+	TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, SphereCollisionMeshUids);
+	for (const FMeshPayload& MeshPayload : MeshPayloads)
+	{
+		const FTransform& Transform = MeshPayload.Transform;
+		const TOptional<FStaticMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
+
+		if (!PayloadData.IsSet())
+		{
+			// warning here
+			continue;
+		}
+
+		if (AddSphereGeomFromVertices(Arguments, PayloadData->MeshDescription, Transform, AggGeo))
+		{
+			bResult = true;
+
+			FKSphereElem& NewElem = AggGeo.SphereElems.Last();
+
+			// Now test the last element in the AggGeo list and remove it if its a duplicate
+			// @TODO: determine why we have to do this. Was it to prevent duplicate boxes accumulating when reimporting?
+			for (int32 ElementIndex = 0; ElementIndex < AggGeo.SphereElems.Num() - 1; ++ElementIndex)
+			{
+				FKSphereElem& CurrentElem = AggGeo.SphereElems[ElementIndex];
+
+				if (CurrentElem == NewElem)
+				{
+					// The new element is a duplicate, remove it
+					AggGeo.SphereElems.RemoveAt(AggGeo.SphereElems.Num() - 1);
+					break;
+				}
+			}
+		}
+	}
+
+	return bResult;
+}
+
+
+bool UInterchangeStaticMeshFactory::ImportConvexCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode)
+{
+	using namespace UE::Interchange;
+
+	bool bResult = false;
+
+	TArray<FString> ConvexCollisionMeshUids;
+	LodDataNode->GetConvexCollisionMeshUids(ConvexCollisionMeshUids);
+
+	TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, ConvexCollisionMeshUids);
+
+	bool bOneConvexHullPerUCX;
+	if (!LodDataNode->GetOneConvexHullPerUCX(bOneConvexHullPerUCX) || !bOneConvexHullPerUCX)
+	{
+		for (const FMeshPayload& MeshPayload : MeshPayloads)
+		{
+			const FTransform& Transform = MeshPayload.Transform;
+			const TOptional<FStaticMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
+
+			if (!PayloadData.IsSet())
+			{
+				// warning here
+				continue;
+			}
+
+			if (!DecomposeConvexMesh(Arguments, PayloadData->MeshDescription, Transform, StaticMesh->GetBodySetup()))
+			{
+				// error: could not decompose mesh
+			}
+			else
+			{
+				bResult = true;
+			}
+		}
+	}
+	else
+	{
+		FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
+
+		for (const FMeshPayload& MeshPayload : MeshPayloads)
+		{
+			const FTransform& Transform = MeshPayload.Transform;
+			TOptional<FStaticMeshPayloadData> PayloadData = MeshPayload.PayloadData.Get();
+
+			if (!PayloadData.IsSet())
+			{
+				// warning here
+				continue;
+			}
+
+			if (AddConvexGeomFromVertices(Arguments, PayloadData->MeshDescription, Transform, AggGeo))
+			{
+				bResult = true;
+
+				FKConvexElem& NewElem = AggGeo.ConvexElems.Last();
+
+				// Now test the late element in the AggGeo list and remove it if its a duplicate
+				// @TODO: determine why the importer used to do this. Was it something to do with reimport not adding extra collision or something?
+				for (int32 ElementIndex = 0; ElementIndex < AggGeo.ConvexElems.Num() - 1; ++ElementIndex)
+				{
+					FKConvexElem& CurrentElem = AggGeo.ConvexElems[ElementIndex];
+
+					if (CurrentElem.VertexData.Num() == NewElem.VertexData.Num())
+					{
+						bool bFoundDifference = false;
+						for (int32 VertexIndex = 0; VertexIndex < NewElem.VertexData.Num(); ++VertexIndex)
+						{
+							if (CurrentElem.VertexData[VertexIndex] != NewElem.VertexData[VertexIndex])
+							{
+								bFoundDifference = true;
+								break;
+							}
+						}
+
+						if (!bFoundDifference)
+						{
+							// The new collision geo is a duplicate, delete it
+							AggGeo.ConvexElems.RemoveAt(AggGeo.ConvexElems.Num() - 1);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return bResult;
+}
+
+
+bool UInterchangeStaticMeshFactory::GenerateKDopCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh)
+{
+#if WITH_EDITOR
+
+	constexpr float RecipSqrt2 = UE_INV_SQRT_2;
+	constexpr int32 KCount = 18;
+	static const FVector3f KDopDir18[KCount] =
+	{
+		FVector3f( 1.0f,  0.0f,  0.0f),
+		FVector3f(-1.0f,  0.0f,  0.0f),
+		FVector3f( 0.0f,  1.0f,  0.0f),
+		FVector3f( 0.0f, -1.0f,  0.0f),
+		FVector3f( 0.0f,  0.0f,  1.0f),
+		FVector3f( 0.0f,  0.0f, -1.0f),
+		FVector3f( 0.0f,  RecipSqrt2,  RecipSqrt2),
+		FVector3f( 0.0f, -RecipSqrt2, -RecipSqrt2),
+		FVector3f( 0.0f,  RecipSqrt2, -RecipSqrt2),
+		FVector3f( 0.0f, -RecipSqrt2,  RecipSqrt2),
+		FVector3f( RecipSqrt2,  0.0f,  RecipSqrt2),
+		FVector3f(-RecipSqrt2,  0.0f, -RecipSqrt2),
+		FVector3f( RecipSqrt2,  0.0f, -RecipSqrt2),
+		FVector3f(-RecipSqrt2,  0.0f,  RecipSqrt2),
+		FVector3f( RecipSqrt2,  RecipSqrt2,  0.0f),
+		FVector3f(-RecipSqrt2, -RecipSqrt2,  0.0f),
+		FVector3f( RecipSqrt2, -RecipSqrt2,  0.0f),
+		FVector3f(-RecipSqrt2,  RecipSqrt2,  0.0f)
+	};
+
+	UBodySetup* BodySetup = StaticMesh->GetBodySetup();
+
+	// Initialize maximum distances from each kdop plane to the minimum value possible
+	TArray<float> MaxDist;
+	MaxDist.Reserve(KCount);
+	for (int32 Count = 0; Count < KCount; Count++)
+	{
+		MaxDist.Add(-MAX_FLT);
+	}
+
+	// Construct temporary UModel for kdop creation.
+	UModel* TempModel = NewObject<UModel>();
+	TempModel->RootOutside = true;
+	TempModel->EmptyModel(true, true);
+	TempModel->Polys->ClearFlags(RF_Transactional);
+
+	// Get the vertex positions for the final LOD0 mesh
+	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
+	check(MeshDescription);
+
+	FStaticMeshConstAttributes Attributes(*MeshDescription);
+	TVertexAttributesRef<const FVector3f> VertexPositions = Attributes.GetVertexPositions();
+
+	// For each vertex, project along each kdop direction, to find the max in that direction.
+	for (FVector3f VertexPosition : VertexPositions.GetRawArray())
+	{
+		for (int32 Index = 0; Index < KCount; Index++)
+		{
+			float Dist = FVector3f::DotProduct(VertexPosition, KDopDir18[Index]);
+			MaxDist[Index] = FMath::Max(Dist, MaxDist[Index]);
+		}
+	}
+
+	// Inflate kdop to ensure it is not degenerate
+	constexpr float MinSize = 0.1f;
+	for (int32 Index = 0; Index < KCount; Index++)
+	{
+		MaxDist[Index] += MinSize;
+	}
+
+	// Now we have the planes of the kdop, we work out the face polygons.
+	TArray<FPlane4f> Planes;
+	Planes.Reserve(KCount);
+	for (int32 Index = 0; Index < KCount; Index++)
+	{
+		Planes.Add(FPlane4f(KDopDir18[Index], MaxDist[Index]));
+	}
+
+	for (int32 PlaneIndex = 0; PlaneIndex < Planes.Num(); PlaneIndex++)
+	{
+		FPoly& Polygon = TempModel->Polys->Element.Emplace_GetRef();
+
+		Polygon.Init();
+		Polygon.Normal = Planes[PlaneIndex];
+
+		FVector3f AxisX, AxisY;
+		Polygon.Normal.FindBestAxisVectors(AxisX, AxisY);
+
+		FVector3f Base = Planes[PlaneIndex] * Planes[PlaneIndex].W;
+
+		Polygon.Vertices.Emplace(Base + AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
+		Polygon.Vertices.Emplace(Base + AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
+		Polygon.Vertices.Emplace(Base - AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
+		Polygon.Vertices.Emplace(Base - AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
+
+		for (int32 OtherPlaneIndex = 0; OtherPlaneIndex < Planes.Num(); OtherPlaneIndex++)
+		{
+			if (PlaneIndex != OtherPlaneIndex)
+			{
+				if (!Polygon.Split(-FVector3f(Planes[OtherPlaneIndex]), Planes[OtherPlaneIndex] * Planes[OtherPlaneIndex].W))
+				{
+					Polygon.Vertices.Empty();
+					break;
+				}
+			}
+		}
+
+		if (Polygon.Vertices.Num() < 3)
+		{
+			// If poly resulted in no verts, remove from array
+			TempModel->Polys->Element.RemoveAt(TempModel->Polys->Element.Num() - 1);
+		}
+		else
+		{
+			Polygon.iLink = PlaneIndex;
+
+			constexpr bool bSilent = true;
+			Polygon.CalcNormal(bSilent);
+		}
+	}
+
+	if (TempModel->Polys->Element.Num() < 4)
+	{
+		return false;
+	}
+
+	// Build bounding box.
+	TempModel->BuildBound();
+
+	// Build BSP for the brush.
+	FBSPOps::bspBuild(TempModel, FBSPOps::BSP_Good, 15, 70, 1, 0);
+
+	constexpr bool bNoRemapSurfs = true;
+	FBSPOps::bspRefresh(TempModel, bNoRemapSurfs);
+	FBSPOps::bspBuildBounds(TempModel);
+
+	bool bRemoveExisting = true;
+	BodySetup->CreateFromModel(TempModel, bRemoveExisting);
+
+	TempModel->ClearInternalFlags(EInternalObjectFlags::Async);
+	TempModel->Polys->ClearInternalFlags(EInternalObjectFlags::Async);
+
+	return true;
+
+#else // #if WITH_EDITOR
+
+	return false;
+
 #endif
 }

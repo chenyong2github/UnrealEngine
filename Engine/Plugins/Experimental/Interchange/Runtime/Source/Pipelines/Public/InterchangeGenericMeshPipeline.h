@@ -78,13 +78,30 @@ public:
 	
 	//////	STATIC_MESHES_CATEGORY Properties //////
 
-	/** If enable, import the animation asset find in the sources. */
+	/** If enabled, import the static mesh asset found in the sources. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
 	bool bImportStaticMeshes = true;
 
-	/** If enable all translated static mesh node will be imported has a one static mesh. */
+	/** If enabled, all translated static mesh nodes will be imported as a single static mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
 	bool bCombineStaticMeshes = false;
+
+	/**
+	 * If enabled, meshes with certain prefixes will be imported as collision primitives for the mesh with the corresponding unprefixed name.
+	 * 
+	 * Supported prefixes are:
+	 * UBX_ Box collision
+	 * UCP_ Capsule collision
+	 * USP_ Sphere collision
+	 * UCX_ Convex collision
+	 */
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
+	bool bImportCollisionAccordingToMeshName = true;
+
+	/** If enabled, each UCX collision mesh will be imported as a single convex hull. If disabled, a UCX mesh will be decomposed into its separate pieces and a convex hull generated for each. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
+	bool bOneConvexHullPerUCX = true;
 
 	
 	//////  COMMON_SKELETAL_ANIMATIONS_CATEGORY //////

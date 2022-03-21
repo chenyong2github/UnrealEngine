@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 #include "Nodes/InterchangeBaseNode.h"
 
 #include "InterchangeStaticMeshLodDataNode.generated.h"
@@ -15,6 +16,10 @@ namespace UE
 		struct FStaticMeshNodeLodDataStaticData : public FBaseNodeStaticData
 		{
 			static const FString& GetMeshUidsBaseKey();
+			static const FString& GetBoxCollisionMeshUidsBaseKey();
+			static const FString& GetCapsuleCollisionMeshUidsBaseKey();
+			static const FString& GetSphereCollisionMeshUidsBaseKey();
+			static const FString& GetConvexCollisionMeshUidsBaseKey();
 		};
 	} // namespace Interchange
 } // namespace UE
@@ -55,10 +60,82 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
 	bool RemoveAllMeshes();
 
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	int32 GetBoxCollisionMeshUidsCount() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	void GetBoxCollisionMeshUids(TArray<FString>& OutMeshNames) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool AddBoxCollisionMeshUid(const FString& MeshName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool RemoveBoxCollisionMeshUid(const FString& MeshName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool RemoveAllBoxCollisionMeshes();
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	int32 GetCapsuleCollisionMeshUidsCount() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	void GetCapsuleCollisionMeshUids(TArray<FString>& OutMeshNames) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool AddCapsuleCollisionMeshUid(const FString& MeshName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool RemoveCapsuleCollisionMeshUid(const FString& MeshName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool RemoveAllCapsuleCollisionMeshes();
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	int32 GetSphereCollisionMeshUidsCount() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	void GetSphereCollisionMeshUids(TArray<FString>& OutMeshNames) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool AddSphereCollisionMeshUid(const FString& MeshName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool RemoveSphereCollisionMeshUid(const FString& MeshName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool RemoveAllSphereCollisionMeshes();
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	int32 GetConvexCollisionMeshUidsCount() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	void GetConvexCollisionMeshUids(TArray<FString>& OutMeshNames) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool AddConvexCollisionMeshUid(const FString& MeshName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool RemoveConvexCollisionMeshUid(const FString& MeshName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool RemoveAllConvexCollisionMeshes();
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool GetOneConvexHullPerUCX(bool& AttributeValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool SetOneConvexHullPerUCX(bool AttributeValue);
+
+
 private:
 
 	bool IsEditorOnlyDataDefined();
 
 	UE::Interchange::TArrayAttributeHelper<FString> MeshUids;
-protected:
+	UE::Interchange::TArrayAttributeHelper<FString> BoxCollisionMeshUids;
+	UE::Interchange::TArrayAttributeHelper<FString> CapsuleCollisionMeshUids;
+	UE::Interchange::TArrayAttributeHelper<FString> SphereCollisionMeshUids;
+	UE::Interchange::TArrayAttributeHelper<FString> ConvexCollisionMeshUids;
+
+	const UE::Interchange::FAttributeKey Macro_CustomOneConvexHullPerUCXKey = UE::Interchange::FAttributeKey(TEXT("__OneConvexHullPerUCX__Key"));
 };

@@ -413,10 +413,14 @@ FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckSimpleCollis
 	}
 	else
 	{
+		// If there was no collision imported, collision will be automatically generated as a kdop-18 convex primitive.
+		// We should not count this when checking imported simple collision, hence we treat the convex element count as zero if there was no customized collision.
+		bool bImportedCollision = Mesh->bCustomizedCollision;
+
 		int32 SphereElementCount = BodySetup->AggGeom.SphereElems.Num();
 		int32 BoxElementCount = BodySetup->AggGeom.BoxElems.Num();
 		int32 CapsuleElementCount = BodySetup->AggGeom.SphylElems.Num();
-		int32 ConvexElementCount = BodySetup->AggGeom.ConvexElems.Num();
+		int32 ConvexElementCount = bImportedCollision ? BodySetup->AggGeom.ConvexElems.Num() : 0;
 		int32 TaperedCapsuleElementCount = BodySetup->AggGeom.TaperedCapsuleElems.Num();
 
 		if (SphereElementCount != ExpectedSphereElementCount)
