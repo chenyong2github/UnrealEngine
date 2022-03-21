@@ -156,7 +156,7 @@ namespace AutomationToolDriver
 			if (!bForceCompile && bUseBuildRecords)
 			{
 				// If all found records are valid, we can return their targets directly
-				if (ValidBuildRecords.Count == FoundAutomationProjects.Count)
+				if (FoundAutomationProjects.All(x => ValidBuildRecords.ContainsKey(x)))
                 {
 					bBuildSuccess = true;
 					return new HashSet<FileReference>(ValidBuildRecords.Select(x => FileReference.Combine(x.Key.Directory, x.Value.TargetPath)));
