@@ -367,6 +367,11 @@ namespace Horde.Build.Api
 		public bool PendingConform { get; set; }
 
 		/// <summary>
+		/// Whether a full conform job is pending
+		/// </summary>
+		public bool PendingFullConform { get; set; }
+
+		/// <summary>
 		/// Whether a restart is pending
 		/// </summary>
 		public bool PendingRestart { get; set; }
@@ -470,6 +475,7 @@ namespace Horde.Build.Api
 			this.Online = Agent.IsSessionValid(DateTime.UtcNow);
 			this.Deleted = Agent.Deleted;
 			this.PendingConform = Agent.RequestConform;
+			this.PendingFullConform = Agent.RequestFullConform;
 			this.PendingRestart = Agent.RequestRestart;
 			this.PendingShutdown = Agent.RequestShutdown;
 			this.LastShutdownReason = Agent.LastShutdownReason ?? "Unknown";
