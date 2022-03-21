@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemAllocTable.h"
-#include "CallstackFormatting.h"
 #include "Containers/StringView.h"
 #include "Internationalization/Regex.h"
 #include "Widgets/SBoxPanel.h"
@@ -9,6 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 // Insights
+#include "Insights/MemoryProfiler/ViewModels/CallstackFormatting.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocFilterValueConverter.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocTable.h"
@@ -768,90 +768,92 @@ void FMemAllocTable::AddDefaultColumns()
 					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
 					if (Alloc)
 					{
-						static FString NotAvailable = TEXT("Unknown callstack");
 						const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
 
-						if (Callstack)
+						if (!Callstack)
 						{
-							check(Callstack->Num() > 0);
+							return FTableCellValue(FText::FromString(GetCallstackNotAvailableString()));
+						}
 
-							const TraceServices::FStackFrame* Frame = nullptr;
-							const TraceServices::FStackFrame* FirstUnknownSymbol = nullptr;
-							for (uint32 FrameIndex = 0; FrameIndex < Callstack->Num(); ++FrameIndex)
+						if (Callstack->Num() == 0)
+						{
+							return FTableCellValue(FText::FromString(GetEmptyCallstackString()));
+						}
+
+						const TraceServices::FStackFrame* Frame = nullptr;
+						const TraceServices::FStackFrame* FirstUnknownSymbol = nullptr;
+						for (uint32 FrameIndex = 0; FrameIndex < Callstack->Num(); ++FrameIndex)
+						{
+							Frame = Callstack->Frame(FrameIndex);
+							check(Frame != nullptr);
+
+							if (!Frame->Symbol || !Frame->Symbol->Name)
 							{
-								Frame = Callstack->Frame(FrameIndex);
-								check(Frame != nullptr);
-
-								if (!Frame->Symbol || !Frame->Symbol->Name)
+								if (FirstUnknownSymbol == nullptr)
 								{
-									if (FirstUnknownSymbol == nullptr)
-									{
-										FirstUnknownSymbol = Frame;
-									}
-									continue;
+									FirstUnknownSymbol = Frame;
 								}
+								continue;
+							}
 
-								bool bIgnoreSymbol = false;
+							bool bIgnoreSymbol = false;
 
-								// Ignore symbols by function prefix.
-								FStringView IgnoreSymbolsByFunctionName[] =
+							// Ignore symbols by function prefix.
+							FStringView IgnoreSymbolsByFunctionName[] =
+							{
+								TEXT("FMemory::"_SV),
+								TEXT("FMallocWrapper::"_SV),
+								TEXT("FMallocPoisonProxy::"_SV),
+								TEXT("Malloc"_SV),
+								TEXT("Realloc"_SV),
+							};
+							for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFunctionName); ++StringIndex)
+							{
+								if (FCString::Strnicmp(Frame->Symbol->Name, IgnoreSymbolsByFunctionName[StringIndex].GetData(), IgnoreSymbolsByFunctionName[StringIndex].Len()) == 0)
 								{
-									TEXT("FMemory::"_SV),
-									TEXT("FMallocWrapper::"_SV),
-									TEXT("FMallocPoisonProxy::"_SV),
-									TEXT("Malloc"_SV),
-									TEXT("Realloc"_SV),
+									bIgnoreSymbol = true;
+									break;
+								}
+							}
+
+#if 1 // TODO: check perf impact
+							if (!bIgnoreSymbol && Frame->Symbol->File)
+							{
+								// Ignore symbols by file, specified as RegexPattern strings.
+								FStringView IgnoreSymbolsByFilePath[] =
+								{
+									TEXT(".*/Containers/.*"_SV),
 								};
-								for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFunctionName); ++StringIndex)
+								for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFilePath); ++StringIndex)
 								{
-									if (FCString::Strnicmp(Frame->Symbol->Name, IgnoreSymbolsByFunctionName[StringIndex].GetData(), IgnoreSymbolsByFunctionName[StringIndex].Len()) == 0)
+									const FString Pattern(IgnoreSymbolsByFilePath[StringIndex]);
+									const FRegexPattern RegexPattern(Pattern);
+									FString File(Frame->Symbol->File);
+									File.ReplaceCharInline(TEXT('\\'), TEXT('/'), ESearchCase::CaseSensitive);
+									FRegexMatcher RegexMatcher(RegexPattern, File);
+									if (RegexMatcher.FindNext())
 									{
 										bIgnoreSymbol = true;
 										break;
 									}
 								}
-
-#if 1 // TODO: check perf impact
-								if (!bIgnoreSymbol && Frame->Symbol->File)
-								{
-									// Ignore symbols by file, specified as RegexPattern strings.
-									FStringView IgnoreSymbolsByFilePath[] =
-									{
-										TEXT(".*/Containers/.*"_SV),
-									};
-									for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFilePath); ++StringIndex)
-									{
-										const FString Pattern(IgnoreSymbolsByFilePath[StringIndex]);
-										const FRegexPattern RegexPattern(Pattern);
-										FString File(Frame->Symbol->File);
-										File.ReplaceCharInline(TEXT('\\'), TEXT('/'), ESearchCase::CaseSensitive);
-										FRegexMatcher RegexMatcher(RegexPattern, File);
-										if (RegexMatcher.FindNext())
-										{
-											bIgnoreSymbol = true;
-											break;
-										}
-									}
-								}
+							}
 #endif
 
-								if (!bIgnoreSymbol)
-								{
-									break;
-								}
-							}
-							if (!Frame)
+							if (!bIgnoreSymbol)
 							{
-								check(FirstUnknownSymbol != nullptr);
-								Frame = FirstUnknownSymbol;
+								break;
 							}
-
-							TStringBuilder<1024> Str;
-							FormatStackFrame(*Frame, Str, EStackFrameFormatFlags::Module);
-							return FTableCellValue(FText::FromString(FString(Str)));
+						}
+						if (!Frame)
+						{
+							check(FirstUnknownSymbol != nullptr);
+							Frame = FirstUnknownSymbol;
 						}
 
-						return FTableCellValue(FText::FromString(NotAvailable));
+						TStringBuilder<1024> Str;
+						FormatStackFrame(*Frame, Str, EStackFrameFormatFlags::Module);
+						return FTableCellValue(FText::FromString(FString(Str)));
 					}
 				}
 

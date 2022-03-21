@@ -1,21 +1,39 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
+
 #include "TraceServices/Model/Callstack.h"
 #include "TraceServices/Model/Modules.h"
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 enum EStackFrameFormatFlags : uint8
 {
 	Module			= 1 << 0,
 	FileAndLine		= 1 << 1
 };
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline const TCHAR* GetCallstackNotAvailableString()
+{
+	return TEXT("Unknown Callstack");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline const TCHAR* GetEmptyCallstackString()
+{
+	return TEXT("Empty Callstack");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 inline void FormatStackFrame(const TraceServices::FStackFrame& Frame, FStringBuilderBase& OutString, uint8 FormatFlags)
 {
 	using namespace TraceServices;
 	const ESymbolQueryResult Result = Frame.Symbol->GetResult();
-	switch(Result)
+	switch (Result)
 	{
 		case ESymbolQueryResult::OK:
 			if (FormatFlags & (uint8)EStackFrameFormatFlags::Module)
@@ -28,6 +46,7 @@ inline void FormatStackFrame(const TraceServices::FStackFrame& Frame, FStringBui
 				OutString.Appendf(TEXT(" %s(%d)"), Frame.Symbol->File, Frame.Symbol->Line);
 			}
 			break;
+
 		case ESymbolQueryResult::Mismatch:
 		case ESymbolQueryResult::NotFound:
 		case ESymbolQueryResult::NotLoaded:
@@ -40,9 +59,12 @@ inline void FormatStackFrame(const TraceServices::FStackFrame& Frame, FStringBui
 				OutString.Appendf(TEXT("0x%08x (%s)"), Frame.Symbol->Name, Frame.Addr, QueryResultToString((Result)));
 			}
 			break;
+
 		case ESymbolQueryResult::Pending:
 		default:
 			OutString.Append(QueryResultToString(Result));
 			break;
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
