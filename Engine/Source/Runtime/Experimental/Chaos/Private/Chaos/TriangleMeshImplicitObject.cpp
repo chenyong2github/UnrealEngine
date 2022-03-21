@@ -1458,7 +1458,6 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 	{
 		const NodeType& RootNode = Nodes[0];
 		ensure(RootNode.bLeaf);
-		ensure(RootNode.ChildrenNodes[1] == INDEX_NONE);
 
 		// the leaf index is stored in the first  ChildrenNodes for leaf type nodes
 		const int32 LeafIndex = RootNode.ChildrenNodes[0];

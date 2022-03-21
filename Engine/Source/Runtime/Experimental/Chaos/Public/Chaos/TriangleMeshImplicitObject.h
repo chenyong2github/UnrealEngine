@@ -494,6 +494,7 @@ namespace Chaos
 		void SerializeImp(FChaosArchive& Ar)
 		{
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 			FImplicitObject::SerializeImp(Ar);
 			Ar << MParticles;
@@ -517,7 +518,7 @@ namespace Chaos
 				Ar << Dummy;
 				RebuildFastBVH();
 			}
-			else if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FUE5MainStreamObjectVersion::UseTriangleMeshBVH)
+			else if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::UseTriangleMeshBVH)
 			{
 				// Serialize acceleration
 				BVHType BVH;
