@@ -174,9 +174,12 @@ namespace DatasmithSolidworks
 				ConcurrentDictionary<string, FObjectMaterials> ComponentMaterials =
 					FObjectMaterials.LoadAssemblyMaterials(AsmDoc, InComponentsSet, Option, DisplayStates);
 
-				foreach (var KVP in ComponentMaterials)
+				if (ComponentMaterials != null)
 				{
-					MaterialsMap.Add(KVP.Key, KVP.Value);
+					foreach (var KVP in ComponentMaterials)
+					{
+						MaterialsMap.Add(KVP.Key, KVP.Value);
+					}
 				}
 			}
 			else

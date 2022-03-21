@@ -677,7 +677,7 @@ namespace DatasmithSolidworks
 			{
 				FAnimation.FChannel Chan = NodePair.Value;
 				Component2 Component = Chan.Target;
-				FDatasmithFacadeTransformAnimation Anim = new FDatasmithFacadeTransformAnimation(Component.Name2);
+				FDatasmithFacadeTransformAnimation Anim = new FDatasmithFacadeTransformAnimation(SanitizeName(Component.Name2));
 
 				foreach (var Keyframe in Chan.Keyframes)
 				{

@@ -131,6 +131,21 @@ namespace DatasmithSolidworks
 			SyncState.DirtyComponents.Clear();
 
 			SyncState = OldSyncState;
+
+			// Export animations (only allow when exporting to file)
+		//	if (bFileExportInProgress)
+			{
+				List<FAnimation> Animations = FAnimationExtractor.ExtractAnimations(SwAsmDoc, Root);
+				if (Animations != null)
+				{
+					SetExportStatus($"Animations");
+
+					foreach (FAnimation Anim in Animations)
+					{
+						Exporter.ExportAnimation(Anim);
+					}
+				}
+			}
 		}
 
 		public override bool HasMaterialUpdates()
@@ -263,11 +278,16 @@ namespace DatasmithSolidworks
 				FDatasmithActorExportInfo ActorExportInfo = new FDatasmithActorExportInfo();
 
 				string ComponentName = FDatasmithExporter.SanitizeName(InComponent.Name2);
-				string[] NameComponents = ComponentName.Split('/');
+				string[] NameComponents = InComponent.Name2.Split('/');
 
 				ActorExportInfo.Label = NameComponents.Last();
 				ActorExportInfo.Name = ComponentName;
-				ActorExportInfo.ParentName = InParent?.Name2;
+
+				if (InParent != null)
+				{
+					ActorExportInfo.ParentName = FDatasmithExporter.SanitizeName(InParent.Name2);
+				}
+				
 				ActorExportInfo.bVisible = true;
 				ActorExportInfo.Type = Exporter.GetExportedActorType(ComponentName) ?? EActorType.SimpleActor;
 				ActorExportInfo.Transform = GetComponentDatasmithTransform(InComponent);

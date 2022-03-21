@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using SolidWorks.Interop.sldworks;
 
@@ -132,43 +133,5 @@ namespace DatasmithSolidworks
 
 			return XForm;
 		}
-
-#if false // level sequences are not implemented for 4.27
-		public FDatasmithFacadeLevelSequence Export()
-		{
-			FDatasmithFacadeLevelSequence LevelSeq = new FDatasmithFacadeLevelSequence(Name);
-
-			LevelSeq.SetFrameRate(FPS);
-
-			foreach (var NodePair in ComponentToChannelMap)
-			{
-				FChannel Chan = NodePair.Value;
-				Component2 Component = Chan.Target;
-				FDatasmithFacadeTransformAnimation Anim = new FDatasmithFacadeTransformAnimation(Component.Name2);
-
-				foreach (FKeyframe Keyframe in Chan.Keyframes)
-				{
-					FMatrix4 LocalMatrix = Keyframe.LocalMatrix;
-
-					// Get euler angles in degrees
-					float X = MathUtils.Rad2Deg * (float)Math.Atan2(LocalMatrix[6], LocalMatrix[10]);
-					float Y = MathUtils.Rad2Deg * (float)Math.Atan2(-LocalMatrix[2], Math.Sqrt(LocalMatrix[6] * LocalMatrix[6] + LocalMatrix[10] * LocalMatrix[10]));
-					float Z = MathUtils.Rad2Deg * (float)Math.Atan2(LocalMatrix[1], LocalMatrix[0]);
-
-					float Scale = LocalMatrix[15];
-
-					Vec3 Translation = new Vec3(LocalMatrix[12], LocalMatrix[13], LocalMatrix[14]);
-
-					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Rotation, Keyframe.Step, X, -Y, -Z);
-					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Scale, Keyframe.Step, Scale, Scale, Scale);
-					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Translation, Keyframe.Step, Translation.x, -Translation.y, Translation.z);
-				}
-
-				LevelSeq.AddAnimation(Anim);
-			}
-
-			return LevelSeq;
-		}
-#endif
 	}
 }
