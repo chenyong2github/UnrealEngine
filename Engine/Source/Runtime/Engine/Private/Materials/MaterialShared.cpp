@@ -35,6 +35,7 @@
 #include "EngineModule.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "Engine/Font.h"
 #include "SceneView.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
@@ -5302,7 +5303,26 @@ UE::Shader::FValue FMaterialParameterValue::AsShaderValue() const
 	}
 }
 
-UE::Shader::EValueType GetShaderValueType(EMaterialParameterType Type)
+UObject* FMaterialParameterValue::AsTextureObject() const
+{
+	UObject* Result = nullptr;
+	switch (Type)
+	{
+	case EMaterialParameterType::Texture: Result = Texture; break;
+	case EMaterialParameterType::RuntimeVirtualTexture: Result = RuntimeVirtualTexture; break;
+	case EMaterialParameterType::Font:
+		if (Font.Value && Font.Value->Textures.IsValidIndex(Font.Page))
+		{
+			Result = Font.Value->Textures[Font.Page];
+		}
+		break;
+	default:
+		break;
+	}
+	return Result;
+}
+
+UE::Shader::FType GetShaderValueType(EMaterialParameterType Type)
 {
 	switch (Type)
 	{
@@ -5313,9 +5333,9 @@ UE::Shader::EValueType GetShaderValueType(EMaterialParameterType Type)
 	case EMaterialParameterType::StaticComponentMask: return UE::Shader::EValueType::Bool4;
 	case EMaterialParameterType::Texture:
 	case EMaterialParameterType::Font:
+		return FMaterialTextureValue::GetTypeName();
 	case EMaterialParameterType::RuntimeVirtualTexture:
-		// Non-numeric types, can't represent as shader values
-		return UE::Shader::EValueType::Void;
+		return UE::Shader::EValueType::Void; // TODO
 	default:
 		checkNoEntry();
 		return UE::Shader::EValueType::Void;

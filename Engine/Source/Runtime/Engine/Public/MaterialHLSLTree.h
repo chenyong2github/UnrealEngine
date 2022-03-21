@@ -8,12 +8,41 @@
 #include "Materials/MaterialLayersFunctions.h"
 #include "RHIDefinitions.h"
 
+class UTexture;
 enum class EMaterialParameterType : uint8;
 struct FMaterialCachedExpressionData;
 struct FMaterialLayersFunctions;
 
 namespace UE::HLSLTree::Material
 {
+
+inline void AppendHash(FHasher& Hasher, const FMaterialParameterInfo& Value)
+{
+	AppendHash(Hasher, Value.Name);
+	AppendHash(Hasher, Value.Index);
+	AppendHash(Hasher, Value.Association);
+}
+
+inline void AppendHash(FHasher& Hasher, const FMaterialParameterValue& Value)
+{
+	switch (Value.Type)
+	{
+	case EMaterialParameterType::Scalar: AppendHash(Hasher, Value.Float[0]); break;
+	case EMaterialParameterType::Vector: AppendHash(Hasher, Value.Float); break;
+	case EMaterialParameterType::DoubleVector: AppendHash(Hasher, Value.Double); break;
+	case EMaterialParameterType::Texture: AppendHash(Hasher, Value.Texture); break;
+	case EMaterialParameterType::Font: AppendHash(Hasher, Value.Font); break;
+	case EMaterialParameterType::RuntimeVirtualTexture: AppendHash(Hasher, Value.RuntimeVirtualTexture); break;
+	case EMaterialParameterType::StaticSwitch: AppendHash(Hasher, Value.Bool[0]); break;
+	case EMaterialParameterType::StaticComponentMask: AppendHash(Hasher, Value.Bool); break;
+	default: checkNoEntry(); break;
+	}
+}
+
+inline void AppendHash(FHasher& Hasher, const FMaterialParameterMetadata& Meta)
+{
+	AppendHash(Hasher, Meta.Value);
+}
 
 enum class EExternalInput : uint8
 {
@@ -205,61 +234,69 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
-inline void AppendHash(FHasher& Hasher, const FMaterialParameterInfo& Value)
-{
-	AppendHash(Hasher, Value.Name);
-	AppendHash(Hasher, Value.Index);
-	AppendHash(Hasher, Value.Association);
-}
-
-inline void AppendHash(FHasher& Hasher, const FMaterialParameterValue& Value)
-{
-	switch (Value.Type)
-	{
-	case EMaterialParameterType::Scalar: AppendHash(Hasher, Value.Float[0]); break;
-	case EMaterialParameterType::Vector: AppendHash(Hasher, Value.Float); break;
-	case EMaterialParameterType::DoubleVector: AppendHash(Hasher, Value.Double); break;
-	case EMaterialParameterType::Texture: AppendHash(Hasher, Value.Texture); break;
-	case EMaterialParameterType::Font: AppendHash(Hasher, Value.Font); break;
-	case EMaterialParameterType::RuntimeVirtualTexture: AppendHash(Hasher, Value.RuntimeVirtualTexture); break;
-	case EMaterialParameterType::StaticSwitch: AppendHash(Hasher, Value.Bool[0]); break;
-	case EMaterialParameterType::StaticComponentMask: AppendHash(Hasher, Value.Bool); break;
-	default: checkNoEntry(); break;
-	}
-}
-
-inline void AppendHash(FHasher& Hasher, const FMaterialParameterMetadata& Meta)
-{
-	AppendHash(Hasher, Meta.Value);
-}
-
 class FExpressionParameter : public FExpression
 {
 public:
-	explicit FExpressionParameter(const FMaterialParameterInfo& InParameterInfo, const FMaterialParameterMetadata& InParameterMeta, const Shader::FValue& InDefaultValue)
-		: ParameterInfo(InParameterInfo), ParameterMeta(InParameterMeta), DefaultValue(InDefaultValue)
+	explicit FExpressionParameter(const FMaterialParameterInfo& InParameterInfo,
+		const FMaterialParameterMetadata& InParameterMeta,
+		EMaterialSamplerType InSamplerType = SAMPLERTYPE_Color,
+		const FGuid& InExternalTextureGuid = FGuid())
+		: ParameterInfo(InParameterInfo), ParameterMeta(InParameterMeta), ExternalTextureGuid(InExternalTextureGuid), TextureSamplerType(InSamplerType)
 	{
 	}
 
 	FMaterialParameterInfo ParameterInfo;
 	FMaterialParameterMetadata ParameterMeta;
-	Shader::FValue DefaultValue;
+	FGuid ExternalTextureGuid;
+	EMaterialSamplerType TextureSamplerType;
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+	virtual bool EmitValueObject(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, void* OutObjectBase) const override;
+	virtual bool EmitCustomHLSLParameter(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, const TCHAR* ParameterName, FEmitCustomHLSLParameterResult& OutResult) const override;
+};
+
+class FExpressionTextureSample : public FExpression
+{
+public:
+	FExpressionTextureSample(const FExpression* InTextureExpression,
+		const FExpression* InTexCoordExpression,
+		const FExpression* InMipValueExpression,
+		const FExpression* InAutomaticMipBiasExpression,
+		const FExpressionDerivatives& InTexCoordDerivatives,
+		ESamplerSourceMode InSamplerSource,
+		ETextureMipValueMode InMipValueMode)
+		: TextureExpression(InTextureExpression)
+		, TexCoordExpression(InTexCoordExpression)
+		, MipValueExpression(InMipValueExpression)
+		, AutomaticMipBiasExpression(InAutomaticMipBiasExpression)
+		, TexCoordDerivatives(InTexCoordDerivatives)
+		, SamplerSource(InSamplerSource)
+		, MipValueMode(InMipValueMode)
+	{}
+
+	const FExpression* TextureExpression;
+	const FExpression* TexCoordExpression;
+	const FExpression* MipValueExpression;
+	const FExpression* AutomaticMipBiasExpression;
+	FExpressionDerivatives TexCoordDerivatives;
+	ESamplerSourceMode SamplerSource;
+	ETextureMipValueMode MipValueMode;
+
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 };
 
 class FExpressionTextureSize : public FExpression
 {
 public:
-	explicit FExpressionTextureSize(const FMaterialParameterInfo& InParameterInfo, UTexture* InTexture)
-		: ParameterInfo(InParameterInfo), Texture(InTexture)
+	explicit FExpressionTextureSize(const FExpression* InTextureExpression)
+		: TextureExpression(InTextureExpression)
 	{}
 
-	FMaterialParameterInfo ParameterInfo;
-	UTexture* Texture;
+	const FExpression* TextureExpression;
 
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;

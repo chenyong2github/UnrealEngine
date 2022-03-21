@@ -53,37 +53,6 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
-class FExpressionTextureSample : public FExpression
-{
-public:
-	FExpressionTextureSample(const FExpression* InTextureExpression,
-		const FExpression* InTexCoordExpression,
-		const FExpression* InMipValueExpression,
-		const FExpression* InAutomaticMipBiasExpression,
-		const FExpressionDerivatives& InTexCoordDerivatives,
-		ESamplerSourceMode InSamplerSource,
-		ETextureMipValueMode InMipValueMode)
-		: TextureExpression(InTextureExpression)
-		, TexCoordExpression(InTexCoordExpression)
-		, MipValueExpression(InMipValueExpression)
-		, AutomaticMipBiasExpression(InAutomaticMipBiasExpression)
-		, TexCoordDerivatives(InTexCoordDerivatives)
-		, SamplerSource(InSamplerSource)
-		, MipValueMode(InMipValueMode)
-	{}
-
-	const FExpression* TextureExpression;
-	const FExpression* TexCoordExpression;
-	const FExpression* MipValueExpression;
-	const FExpression* AutomaticMipBiasExpression;
-	FExpressionDerivatives TexCoordDerivatives;
-	ESamplerSourceMode SamplerSource;
-	ETextureMipValueMode MipValueMode;
-
-	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
-};
-
 class FExpressionGetStructField : public FExpression
 {
 public:

@@ -250,30 +250,16 @@ void EmitCustomHLSL(const FEmitCustomHLSL& EmitCustomHLSL, const TCHAR* Paramete
 
 	// Function that wraps custom HLSL, provides the interface expected by custom HLSL
 	// * LWC inputs have both LWC version and non-LWC version
-	// * Texture inputs are split into a Texture/SamplerState pair
 	// * First output is given through return value, additional outputs use inout function parameters
 	OutCode.Appendf(TEXT("%s CustomExpressionInternal%d(%s Parameters"), OutputStruct->Fields[0].Type.GetName(), EmitCustomHLSL.Index, ParametersTypeName);
 	for (const FEmitCustomHLSLInput& Input : EmitCustomHLSL.Inputs)
 	{
 		Shader::FType InputType = Input.Type;
-		if (InputType.IsTexture())
+		if (InputType.IsObject())
 		{
-			// Texture parameter followed by a SamplerState parameter
-			const TCHAR* TextureTypeName = nullptr;
-			switch (InputType.ValueType)
-			{
-			case Shader::EValueType::Texture2D: TextureTypeName = TEXT("Texture2D"); break;
-			case Shader::EValueType::Texture2DArray: TextureTypeName = TEXT("Texture2DArray"); break;
-			case Shader::EValueType::TextureCube: TextureTypeName = TEXT("TextureCube"); break;
-			case Shader::EValueType::TextureCubeArray: TextureTypeName = TEXT("TextureCubeArray"); break;
-			case Shader::EValueType::Texture3D: TextureTypeName = TEXT("Texture3D"); break;
-			default: checkNoEntry(); break;
-			}
-			OutCode.Appendf(TEXT(", %s "), TextureTypeName);
-			OutCode.Append(Input.Name);
-			OutCode.Appendf(TEXT(", SamplerState "));
-			OutCode.Append(Input.Name);
-			OutCode.Append(TEXT("Sampler"));
+			check(Input.ObjectDeclarationCode.Len() > 0);
+			OutCode.Append(TEXT(", "));
+			OutCode.Append(Input.ObjectDeclarationCode);
 		}
 		else
 		{
@@ -305,8 +291,17 @@ void EmitCustomHLSL(const FEmitCustomHLSL& EmitCustomHLSL, const TCHAR* Paramete
 	OutCode.Appendf(TEXT("%s CustomExpression%d(%s Parameters"), OutputStruct->Name, EmitCustomHLSL.Index, ParametersTypeName);
 	for (const FEmitCustomHLSLInput& Input : EmitCustomHLSL.Inputs)
 	{
-		OutCode.Appendf(TEXT(", %s "), Input.Type.GetName());
-		OutCode.Append(Input.Name);
+		Shader::FType InputType = Input.Type;
+		if (InputType.IsObject())
+		{
+			OutCode.Append(TEXT(", "));
+			OutCode.Append(Input.ObjectDeclarationCode);
+		}
+		else
+		{
+			OutCode.Appendf(TEXT(", %s "), InputType.GetName());
+			OutCode.Append(Input.Name);
+		}
 	}
 	OutCode.Append(TEXT(")\n{\n"));
 	OutCode.Appendf(TEXT("\t%s Result = (%s)0;\n"), OutputStruct->Name, OutputStruct->Name);
@@ -314,19 +309,21 @@ void EmitCustomHLSL(const FEmitCustomHLSL& EmitCustomHLSL, const TCHAR* Paramete
 	for (const FEmitCustomHLSLInput& Input : EmitCustomHLSL.Inputs)
 	{
 		OutCode.Append(TEXT(", "));
-		OutCode.Append(Input.Name);
-		if (Input.Type.IsTexture())
+		if (Input.Type.IsObject() &&
+			Input.ObjectForwardCode.Len() > 0)
 		{
-			// Pass the Texture and SamplerState to the wrapper
-			OutCode.Append(TEXT(".Texture, "));
-			OutCode.Append(Input.Name);
-			OutCode.Append(TEXT(".Sampler"));
+			// CustomHLSL object parameters may have dedicated code to forward parameters from 1 function to another
+			OutCode.Append(Input.ObjectForwardCode);
 		}
-		else if (Input.Type.IsNumericLWC())
+		else
 		{
-			OutCode.Append(TEXT(", LWCToFloat("));
 			OutCode.Append(Input.Name);
-			OutCode.Append(TEXT(")"));
+			if (Input.Type.IsNumericLWC())
+			{
+				OutCode.Append(TEXT(", LWCToFloat("));
+				OutCode.Append(Input.Name);
+				OutCode.Append(TEXT(")"));
+			}
 		}
 	}
 	for (int32 OutputIndex = 1; OutputIndex < OutputStruct->Fields.Num(); ++OutputIndex)
@@ -1265,15 +1262,32 @@ FEmitShaderExpression* FEmitContext::EmitCustomHLSL(FEmitScope& Scope, FStringVi
 {
 	TArray<FEmitCustomHLSLInput, TInlineAllocator<8>> EmitInputs;
 	EmitInputs.Reserve(Inputs.Num());
-	for (const FCustomHLSLInput& Input : Inputs)
-	{
-		EmitInputs.Add(FEmitCustomHLSLInput{ Input.Name, GetType(Input.Expression) });
-	}
 
 	FHasher Hasher;
+	for (const FCustomHLSLInput& Input : Inputs)
+	{
+		const Shader::FType InputType = GetType(Input.Expression);
+		AppendHash(Hasher, Input.Name);
+		AppendHash(Hasher, InputType);
+
+		FStringView ObjectDeclarationCode;
+		FStringView ObjectForwardCode;
+		if (InputType.IsObject())
+		{
+			TStringBuilder<256> FormattedDeclarationCode;
+			TStringBuilder<256> FormattedForwardCode;
+			Input.Expression->GetObjectCustomHLSLParameter(*this, Scope, InputType.ObjectType, Input.Name.GetData(), FormattedDeclarationCode, FormattedForwardCode);
+			ObjectDeclarationCode = MemStack::AllocateStringView(*Allocator, FormattedDeclarationCode.ToView());
+			ObjectForwardCode = MemStack::AllocateStringView(*Allocator, FormattedForwardCode.ToView());
+			AppendHash(Hasher, ObjectDeclarationCode);
+			AppendHash(Hasher, ObjectForwardCode);
+		}
+
+		EmitInputs.Add(FEmitCustomHLSLInput{ Input.Name, ObjectDeclarationCode, ObjectForwardCode, InputType });
+	}
+
 	AppendHash(Hasher, DeclarationCode);
 	AppendHash(Hasher, FunctionCode);
-	AppendHash(Hasher, MakeArrayView(EmitInputs));
 	AppendHash(Hasher, OutputType);
 	const FXxHash64 Hash = Hasher.Finalize();
 

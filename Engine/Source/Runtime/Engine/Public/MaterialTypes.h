@@ -16,6 +16,161 @@ class UCurveLinearColorAtlas;
 class UFont;
 class URuntimeVirtualTexture;
 
+UENUM()
+enum EMaterialParameterAssociation
+{
+	LayerParameter,
+	BlendParameter,
+	GlobalParameter,
+};
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FMaterialParameterInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ParameterInfo)
+		FName Name;
+
+	/** Whether this is a global parameter, or part of a layer or blend */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ParameterInfo)
+		TEnumAsByte<EMaterialParameterAssociation> Association;
+
+	/** Layer or blend index this parameter is part of. INDEX_NONE for global parameters. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ParameterInfo)
+		int32 Index;
+
+	FMaterialParameterInfo(const TCHAR* InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(InName)
+		, Association(InAssociation)
+		, Index(InIndex)
+	{
+	}
+	FMaterialParameterInfo(FName InName = FName(), EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(InName)
+		, Association(InAssociation)
+		, Index(InIndex)
+	{
+	}
+
+	explicit FMaterialParameterInfo(const struct FMemoryImageMaterialParameterInfo& Rhs);
+
+	FString ToString() const
+	{
+		return *Name.ToString() + FString::FromInt(Association) + FString::FromInt(Index);
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FMaterialParameterInfo& Ref)
+	{
+		Ar << Ref.Name << Ref.Association << Ref.Index;
+		return Ar;
+	}
+
+	bool RemapLayerIndex(TArrayView<const int32> IndexRemap, FMaterialParameterInfo& OutResult) const;
+};
+
+struct FMemoryImageMaterialParameterInfo
+{
+	DECLARE_TYPE_LAYOUT(FMemoryImageMaterialParameterInfo, NonVirtual);
+public:
+	FMemoryImageMaterialParameterInfo(const TCHAR* InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(NameToScriptName(FName(InName)))
+		, Index(InIndex)
+		, Association(InAssociation)
+	{}
+
+	FMemoryImageMaterialParameterInfo(const FName& InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(NameToScriptName(InName))
+		, Index(InIndex)
+		, Association(InAssociation)
+	{}
+
+	FMemoryImageMaterialParameterInfo(const FScriptName& InName = FScriptName(), EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(InName)
+		, Index(InIndex)
+		, Association(InAssociation)
+	{}
+
+	FMemoryImageMaterialParameterInfo(const FMaterialParameterInfo& Rhs)
+		: Name(NameToScriptName(Rhs.Name))
+		, Index(Rhs.Index)
+		, Association(Rhs.Association)
+	{}
+
+	FMemoryImageMaterialParameterInfo(const FMemoryImageMaterialParameterInfo& Rhs) = default;
+
+	FORCEINLINE FName GetName() const { return ScriptNameToName(Name); }
+
+	friend FArchive& operator<<(FArchive& Ar, FMemoryImageMaterialParameterInfo& Ref)
+	{
+		FName RefName = ScriptNameToName(Ref.Name);
+		Ar << RefName << Ref.Association << Ref.Index;
+		Ref.Name = NameToScriptName(RefName);
+		return Ar;
+	}
+
+	bool RemapLayerIndex(TArrayView<const int32> IndexRemap, FMemoryImageMaterialParameterInfo& OutResult) const;
+
+	LAYOUT_FIELD(FScriptName, Name);
+	LAYOUT_FIELD(int32, Index);
+	LAYOUT_FIELD(TEnumAsByte<EMaterialParameterAssociation>, Association);
+};
+
+FORCEINLINE FMaterialParameterInfo::FMaterialParameterInfo(const struct FMemoryImageMaterialParameterInfo& Rhs)
+	: Name(ScriptNameToName(Rhs.Name))
+	, Association(Rhs.Association)
+	, Index(Rhs.Index)
+{
+}
+
+FORCEINLINE bool operator==(const FMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
+{
+	return Lhs.Name.IsEqual(Rhs.Name) && Lhs.Association == Rhs.Association && Lhs.Index == Rhs.Index;
+}
+
+FORCEINLINE bool operator!=(const FMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FMemoryImageMaterialParameterInfo& Lhs, const FMemoryImageMaterialParameterInfo& Rhs)
+{
+	return Lhs.Name == Rhs.Name && Lhs.Association == Rhs.Association && Lhs.Index == Rhs.Index;
+}
+
+FORCEINLINE bool operator!=(const FMemoryImageMaterialParameterInfo& Lhs, const FMemoryImageMaterialParameterInfo& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FMaterialParameterInfo& Lhs, const FMemoryImageMaterialParameterInfo& Rhs)
+{
+	return Lhs.Name == Rhs.Name && Lhs.Index == Rhs.Index && Lhs.Association == Rhs.Association;
+}
+
+FORCEINLINE bool operator!=(const FMaterialParameterInfo& Lhs, const FMemoryImageMaterialParameterInfo& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FMemoryImageMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
+{
+	return Lhs.Name == Rhs.Name && Lhs.Index == Rhs.Index && Lhs.Association == Rhs.Association;
+}
+
+FORCEINLINE bool operator!=(const FMemoryImageMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE uint32 GetTypeHash(const FMemoryImageMaterialParameterInfo& Value)
+{
+	return HashCombine(HashCombine(GetTypeHash(Value.Name), Value.Index), (uint32)Value.Association);
+}
+
+// Backwards compat
+using FHashedMaterialParameterInfo = FMemoryImageMaterialParameterInfo;
+
 enum class EMaterialParameterType : uint8
 {
 	Scalar = 0u,
@@ -40,6 +195,19 @@ static const int32 NumMaterialParameterTypes = (int32)EMaterialParameterType::Nu
 static const int32 NumMaterialRuntimeParameterTypes = (int32)EMaterialParameterType::NumRuntime;
 static const int32 NumMaterialEditorOnlyParameterTypes = NumMaterialParameterTypes - NumMaterialRuntimeParameterTypes;
 
+static inline bool IsNumericMaterialParameter(EMaterialParameterType InType)
+{
+	switch (InType)
+	{
+	case EMaterialParameterType::Scalar:
+	case EMaterialParameterType::Vector:
+	case EMaterialParameterType::DoubleVector:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static inline bool IsStaticMaterialParameter(EMaterialParameterType InType)
 {
 	switch (InType)
@@ -52,7 +220,7 @@ static inline bool IsStaticMaterialParameter(EMaterialParameterType InType)
 	}
 }
 
-extern ENGINE_API UE::Shader::EValueType GetShaderValueType(EMaterialParameterType Type);
+extern ENGINE_API UE::Shader::FType GetShaderValueType(EMaterialParameterType Type);
 
 enum class EMaterialGetParameterValueFlags : uint32
 {
@@ -114,6 +282,16 @@ struct FStaticComponentMaskValue
 	bool A = false;
 };
 
+struct FMaterialTextureValue
+{
+	static FName GetTypeName() { return TEXT("FMaterialTextureValue"); }
+
+	UTexture* Texture = nullptr;
+	FGuid ExternalTextureGuid;
+	EMaterialSamplerType SamplerType = SAMPLERTYPE_Color;
+	FMaterialParameterInfo ParameterInfo;
+};
+
 struct FMaterialParameterValue
 {
 	FMaterialParameterValue() : Type(EMaterialParameterType::None) {}
@@ -146,6 +324,7 @@ struct FMaterialParameterValue
 	inline bool AsStaticSwitch() const { check(Type == EMaterialParameterType::StaticSwitch); return Bool[0]; }
 	inline FStaticComponentMaskValue AsStaticComponentMask() const { check(Type == EMaterialParameterType::StaticComponentMask); return FStaticComponentMaskValue(Bool[0], Bool[1], Bool[2], Bool[3]); }
 	ENGINE_API UE::Shader::FValue AsShaderValue() const;
+	ENGINE_API UObject* AsTextureObject() const;
 
 	union
 	{

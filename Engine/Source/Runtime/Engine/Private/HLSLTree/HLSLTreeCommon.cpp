@@ -145,164 +145,6 @@ void FExpressionConstant::EmitValuePreshader(FEmitContext& Context, FEmitScope& 
 	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Value);
 }
 
-namespace Private
-{
-Shader::EValueType GetTexCoordType(Shader::EValueType TextureType)
-{
-	switch (TextureType)
-	{
-	case Shader::EValueType::Texture2D:
-	case Shader::EValueType::TextureExternal: return Shader::EValueType::Float2;
-	case Shader::EValueType::Texture2DArray:
-	case Shader::EValueType::TextureCube:
-	case Shader::EValueType::Texture3D: return Shader::EValueType::Float3;
-	case Shader::EValueType::TextureCubeArray: return Shader::EValueType::Float4;
-	default: checkNoEntry(); return Shader::EValueType::Void;
-	}
-}
-}
-
-bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
-{
-	// TODO - need the correct texture type?
-	const FPreparedType& TextureType = Context.PrepareExpression(TextureExpression, Scope, Shader::EValueType::Texture2D);
-	if (!Shader::IsTextureType(TextureType.ValueComponentType))
-	{
-		return Context.Error(TEXT("Expected texture"));
-	}
-
-	const FRequestedType RequestedTexCoordType = Private::GetTexCoordType(TextureType.GetType());
-	const FPreparedType& TexCoordType = Context.PrepareExpression(TexCoordExpression, Scope, RequestedTexCoordType);
-	if (TexCoordType.IsVoid())
-	{
-		return false;
-	}
-
-	if (AutomaticMipBiasExpression)
-	{
-		const FPreparedType& AutomaticMipBiasType = Context.PrepareExpression(AutomaticMipBiasExpression, Scope, Shader::EValueType::Bool1);
-		if (!IsConstantEvaluation(AutomaticMipBiasType.GetEvaluation(Scope, Shader::EValueType::Bool1)))
-		{
-			return Context.Error(TEXT("Automatic Mip Bias input must be constant"));
-		}
-	}
-
-	const bool bUseAnalyticDerivatives = Context.bUseAnalyticDerivatives && (MipValueMode != TMVM_MipLevel) && TexCoordDerivatives.IsValid();
-	if (MipValueMode == TMVM_Derivative || bUseAnalyticDerivatives)
-	{
-		Context.PrepareExpression(TexCoordDerivatives.ExpressionDdx, Scope, RequestedTexCoordType);
-		Context.PrepareExpression(TexCoordDerivatives.ExpressionDdy, Scope, RequestedTexCoordType);
-	}
-	else if (MipValueMode == TMVM_MipLevel || MipValueMode == TMVM_MipBias)
-	{
-		Context.PrepareExpression(MipValueExpression, Scope, Shader::EValueType::Float1);
-	}
-
-	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float4);
-}
-
-void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
-{
-	FEmitShaderExpression* EmitTexture = TextureExpression->GetValueShader(Context, Scope);
-	const Shader::EValueType TextureType = EmitTexture->Type;
-	check(Shader::IsTextureType(TextureType));
-
-	bool bVirtualTexture = false;
-	const TCHAR* SampleFunctionName = nullptr;
-	switch (TextureType)
-	{
-	case Shader::EValueType::Texture2D:
-		SampleFunctionName = TEXT("Texture2DSample");
-		break;
-	case Shader::EValueType::TextureCube:
-		SampleFunctionName = TEXT("TextureCubeSample");
-		break;
-	case Shader::EValueType::Texture2DArray:
-		SampleFunctionName = TEXT("Texture2DArraySample");
-		break;
-	case Shader::EValueType::Texture3D:
-		SampleFunctionName = TEXT("Texture3DSample");
-		break;
-	case Shader::EValueType::TextureExternal:
-		SampleFunctionName = TEXT("TextureExternalSample");
-		break;
-	/*case MCT_TextureVirtual:
-		// TODO
-		SampleFunctionName = TEXT("TextureVirtualSample");
-		bVirtualTexture = true;
-		break;*/
-	default:
-		checkNoEntry();
-		break;
-	}
-
-	const bool AutomaticViewMipBias = AutomaticMipBiasExpression ? AutomaticMipBiasExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar() : false;
-	TStringBuilder<256> FormattedSampler;
-	switch (SamplerSource)
-	{
-	case SSM_FromTextureAsset:
-		FormattedSampler.Appendf(TEXT("%s.Sampler"), EmitTexture->Reference);
-		break;
-	case SSM_Wrap_WorldGroupSettings:
-		FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%s.Sampler,%s)"),
-			EmitTexture->Reference,
-			AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearWrapedSampler") : TEXT("Material.Wrap_WorldGroupSettings"));
-		break;
-	case SSM_Clamp_WorldGroupSettings:
-		FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%s.Sampler,%s)"),
-			EmitTexture->Reference,
-			AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearClampedSampler") : TEXT("Material.Clamp_WorldGroupSettings"));
-		break;
-	default:
-		checkNoEntry();
-		break;
-	}
-
-	const Shader::EValueType TexCoordType = Private::GetTexCoordType(TextureType);
-	FEmitShaderExpression* TexCoordValue = TexCoordExpression->GetValueShader(Context, Scope, TexCoordType);
-
-	FEmitShaderExpression* TextureResult = nullptr;
-	if (MipValueMode == TMVM_MipLevel)
-	{
-		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Level(%.Texture, %, %, %)"),
-			SampleFunctionName,
-			EmitTexture,
-			FormattedSampler.ToString(),
-			TexCoordValue,
-			MipValueExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1));
-	}
-	else if (MipValueMode == TMVM_Derivative || (Context.bUseAnalyticDerivatives && TexCoordDerivatives.IsValid()))
-	{
-		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Grad(%.Texture, %, %, %, %)"),
-			SampleFunctionName,
-			EmitTexture,
-			FormattedSampler.ToString(),
-			TexCoordValue,
-			TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, TexCoordType),
-			TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, TexCoordType));
-	}
-	else if (MipValueMode == TMVM_MipBias)
-	{
-		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Bias(%.Texture, %, %, %)"),
-			SampleFunctionName,
-			EmitTexture,
-			FormattedSampler.ToString(),
-			TexCoordValue,
-			MipValueExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1));
-	}
-	else
-	{
-		check(MipValueMode == TMVM_None);
-		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%.Texture, %, %)"),
-			SampleFunctionName,
-			EmitTexture,
-			FormattedSampler.ToString(),
-			TexCoordValue);
-	}
-
-	OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("ApplyMaterialSamplerType(%, %.SamplerType)"), TextureResult, EmitTexture);
-}
-
 void FExpressionGetStructField::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
 {
 	const FExpressionDerivatives StructDerivatives = Tree.GetAnalyticDerivatives(StructExpression);
@@ -1016,12 +858,21 @@ bool FExpressionCustomHLSL::PrepareValue(FEmitContext& Context, FEmitScope& Scop
 {
 	for (const FCustomHLSLInput& Input : Inputs)
 	{
-		// TODO - do we need to support untyped input here?  Add explicit custom input types?
-		const FPreparedType& InputType = Context.PrepareExpression(Input.Expression, Scope, Shader::EValueType::Float4);
+		const FPreparedType& InputType = Context.PrepareExpression(Input.Expression, Scope, EDefaultRequestedType::Any);
 		if (InputType.IsVoid())
 		{
 			return false;
 		}
+
+		if (InputType.IsObject())
+		{
+			if (!Input.Expression->CheckObjectSupportsCustomHLSL(Context, Scope, InputType.ObjectType))
+			{
+				return Context.Error(TEXT("Object type not supported for custom HLSL"));
+			}
+		}
+
+		Context.MarkInputType(Input.Expression, InputType.GetType());
 	}
 
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::FType(OutputStructType));

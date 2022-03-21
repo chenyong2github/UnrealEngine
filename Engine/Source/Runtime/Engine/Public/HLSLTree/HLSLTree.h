@@ -134,6 +134,12 @@ private:
 	friend class FExpressionLocalPHI;
 };
 
+enum class EDefaultRequestedType : uint8
+{
+	None,
+	Any,
+};
+
 /**
  * Represents a request for an arbitrary set of untyped components
  */
@@ -143,19 +149,25 @@ public:
 	FRequestedType() = default;
 	FRequestedType(Shader::EValueType InType, bool bDefaultRequest = true);
 	FRequestedType(const Shader::FType& InType, bool bDefaultRequest = true);
+	FRequestedType(FName InObjectName);
+	FRequestedType(EDefaultRequestedType InType) : DefaultType(InType) { check(InType != EDefaultRequestedType::None); }
 
 	Shader::FType GetType() const;
 	const TCHAR* GetName() const { return GetType().GetName(); }
 	int32 GetNumComponents() const;
-	bool IsComponentRequested(int32 Index) const { return RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false; }
-	bool IsVoid() const { return RequestedComponents.Find(true) == INDEX_NONE; }
+
+	bool IsComponentRequested(int32 Index) const
+	{
+		return (DefaultType == EDefaultRequestedType::Any) || (RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false);
+	}
+
+	bool IsStruct() const { return !IsVoid() && StructType != nullptr; }
+	bool IsObject() const { return !IsVoid() && !ObjectType.IsNone(); }
+	bool IsNumeric() const { return !IsVoid() && Shader::IsNumericType(ValueComponentType); }
+	bool IsVoid() const { return (DefaultType != EDefaultRequestedType::Any) && RequestedComponents.Find(true) == INDEX_NONE; }
 
 	void SetComponentRequest(int32 Index, bool bRequest = true);
 
-	void Reset()
-	{
-		RequestedComponents.Reset();
-	}
 
 	/** Marks the given field as requested (or not) */
 	void SetFieldRequested(const Shader::FStructField* Field, bool bRequest = true);
@@ -171,7 +183,9 @@ public:
 	FRequestedType GetField(const Shader::FStructField* Field) const;
 
 	const Shader::FStructType* StructType = nullptr;
+	FName ObjectType;
 	Shader::EValueComponentType ValueComponentType = Shader::EValueComponentType::Void;
+	EDefaultRequestedType DefaultType = EDefaultRequestedType::None;
 
 	/** 1 bit per component, a value of 'true' means the specified component is requsted */
 	TBitArray<> RequestedComponents;
@@ -179,6 +193,7 @@ public:
 inline bool operator==(const FRequestedType& Lhs, const FRequestedType& Rhs)
 {
 	return Lhs.ValueComponentType == Rhs.ValueComponentType &&
+		Lhs.ObjectType == Rhs.ObjectType &&
 		Lhs.StructType == Rhs.StructType &&
 		Lhs.RequestedComponents == Rhs.RequestedComponents;
 }
@@ -189,6 +204,9 @@ inline bool operator!=(const FRequestedType& Lhs, const FRequestedType& Rhs)
 
 inline void AppendHash(FHasher& Hasher, const FRequestedType& Value)
 {
+	AppendHash(Hasher, Value.StructType);
+	AppendHash(Hasher, Value.ObjectType);
+	AppendHash(Hasher, Value.ValueComponentType);
 	AppendHash(Hasher, Value.RequestedComponents);
 }
 
@@ -243,8 +261,9 @@ public:
 	Shader::FType GetType() const;
 	const TCHAR* GetName() const { return GetType().GetName(); }
 	bool IsStruct() const { return !IsVoid() && StructType != nullptr; }
-	bool IsNumeric() const { return !IsVoid() && ValueComponentType != Shader::EValueComponentType::Void; }
-	bool IsInitialized() const { return StructType != nullptr || ValueComponentType != Shader::EValueComponentType::Void; }
+	bool IsObject() const { return !IsVoid() && !ObjectType.IsNone(); }
+	bool IsNumeric() const { return !IsVoid() && Shader::IsNumericType(ValueComponentType); }
+	bool IsInitialized() const { return StructType != nullptr || !ObjectType.IsNone() || ValueComponentType != Shader::EValueComponentType::Void; }
 	bool IsVoid() const;
 
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
@@ -262,6 +281,7 @@ public:
 	void MergeComponent(int32 Index, const FPreparedComponent& InComponent);
 
 	const Shader::FStructType* StructType = nullptr;
+	FName ObjectType;
 	Shader::EValueComponentType ValueComponentType = Shader::EValueComponentType::Void;
 
 	void EnsureNumComponents(int32 NumComponents);
@@ -273,6 +293,7 @@ inline bool operator==(const FPreparedType& Lhs, const FPreparedType& Rhs)
 {
 	return Lhs.ValueComponentType == Rhs.ValueComponentType &&
 		Lhs.StructType == Rhs.StructType &&
+		Lhs.ObjectType == Rhs.ObjectType &&
 		Lhs.PreparedComponents == Rhs.PreparedComponents;
 }
 inline bool operator!=(const FPreparedType& Lhs, const FPreparedType& Rhs)
@@ -294,7 +315,10 @@ public:
 	bool SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type);
 
 private:
-	bool TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType);
+	bool TryMergePreparedType(FEmitContext& Context,
+		const Shader::FStructType* StructType,
+		FName ObjectType,
+		Shader::EValueComponentType ComponentType);
 
 	FPreparedType PreparedType;
 	bool bPreparingValue = false;
@@ -306,6 +330,12 @@ private:
 struct FEmitValueShaderResult
 {
 	FEmitShaderExpression* Code = nullptr;
+};
+
+struct FEmitCustomHLSLParameterResult
+{
+	FStringBuilderBase* DeclarationCode = nullptr;
+	FStringBuilderBase* ForwardCode = nullptr;
 };
 
 struct FEmitValuePreshaderResult
@@ -369,12 +399,43 @@ public:
 	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, const Shader::FType& ResultType) const;
 	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, Shader::EValueType ResultType) const;
 
+	/**
+	 * Gets the value as an 'Object' with a certain type
+	 * Individual expressions will potentially support different types of objects
+	 * @param ObjectTypeName should be the object type that matches the type returned by PrepareExpression
+	 * @param OutObjectBase pointer to an object of the correct type
+	 * @return true if given type is supported, otherwise false
+	 */
+	bool GetValueObject(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, void* OutObjectBase) const;
+
+	template<typename ObjectType>
+	bool GetValueObject(FEmitContext& Context, FEmitScope& Scope, ObjectType& OutObject) const
+	{
+		return GetValueObject(Context, Scope, ObjectType::GetTypeName(), &OutObject);
+	}
+
+	/**
+	 * Some expressions may support passing object types to custom HLSL expressions
+	 * CheckObjectSupportsCustomHLSL() will return true if this is supported
+	 * If supported, GetObjectCustomHLSLParameter() will generate code to declare the parameters in the custom HLSL function, and forward the parameters
+	 * EmitValueShader() will be called to generate the actual HLSL code for the expression
+	 */
+	bool CheckObjectSupportsCustomHLSL(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName) const;
+	void GetObjectCustomHLSLParameter(FEmitContext& Context,
+		FEmitScope& Scope,
+		const FName& ObjectTypeName,
+		const TCHAR* ParameterName,
+		FStringBuilderBase& OutDeclarationCode,
+		FStringBuilderBase& OutForwardCode) const;
+
 protected:
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;
 	virtual const FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const;
+	virtual bool EmitValueObject(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, void* OutObjectBase) const;
+	virtual bool EmitCustomHLSLParameter(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, const TCHAR* ParameterName, FEmitCustomHLSLParameterResult& OutResult) const;
 
 private:
 	TArray<UObject*, TInlineAllocator<2>> Owners;

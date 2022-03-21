@@ -124,6 +124,21 @@ FTextureExternal MakeTextureExternal(TextureExternal Texture, SamplerState Sampl
 	Result.SamplerType = SamplerType;
 	return Result;
 }
+
+#if NUM_VIRTUALTEXTURE_SAMPLES
+struct FTextureVirtual
+{
+	Texture2D<uint4> PageTable0;
+	Texture2D<uint4> PageTable1;
+	Texture2D<uint> PageTableIndirection;
+	Texture2D PhysicalTexture;
+	SamplerState PhysicalSampler;
+	VTPageTableUniform PageTableUniform;
+	VTUniform Uniform;
+	int SamplerType; // EMaterialSamplerType
+};
+#endif // NUM_VIRTUALTEXTURE_SAMPLES
+
 #endif // ENABLE_NEW_HLSL_GENERATOR
 
 MaterialFloat4 ProcessMaterialColorTextureLookup(MaterialFloat4 TextureValue)

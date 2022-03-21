@@ -212,14 +212,10 @@ inline bool IsScopeDead(const FEmitScope* Scope)
 struct FEmitCustomHLSLInput
 {
 	FStringView Name;
+	FStringView ObjectDeclarationCode;
+	FStringView ObjectForwardCode;
 	Shader::FType Type;
 };
-
-inline void AppendHash(FHasher& Hasher, const FEmitCustomHLSLInput& Value)
-{
-	AppendHash(Hasher, Value.Name);
-	AppendHash(Hasher, Value.Type);
-}
 
 class FEmitCustomHLSL
 {

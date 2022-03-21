@@ -632,14 +632,14 @@ FLinearColor GetColorForConnectionType(const UGraphEditorSettings* Settings, UE:
 	{
 		return Settings->StructPinTypeColor;
 	}
+	else if (ConnectionType == UE::Shader::EValueType::Object)
+	{
+		return Settings->ObjectPinTypeColor;
+	}
 	else
 	{
 		const UE::Shader::FValueTypeDescription TypeDesc = UE::Shader::GetValueTypeDescription(ConnectionType);
-		if (UE::Shader::IsTextureType(TypeDesc.ComponentType))
-		{
-			return Settings->ObjectPinTypeColor;
-		}
-		else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Float)
+		if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Float)
 		{
 			if (TypeDesc.NumComponents == 1)
 			{

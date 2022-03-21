@@ -349,37 +349,6 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewSwizzle(const UE::HL
 	return GetTree().NewSwizzle(Params, Input);
 }
 
-const UE::Shader::FTextureValue* FMaterialHLSLGenerator::AcquireTextureValue(const UE::Shader::FTextureValue& InValue)
-{
-	using namespace UE::Shader;
-	
-	// Need to move this to HLSLTreeEmit
-	/*FString SamplerTypeError;
-	if (!UMaterialExpressionTextureBase::VerifySamplerType(CompileTarget.FeatureLevel, CompileTarget.TargetPlatform, InValue.Texture, InValue.SamplerType, SamplerTypeError))
-	{
-		Errors.AddError(SamplerTypeError);
-		return nullptr;
-	}*/
-
-	FXxHash64Builder Hasher;
-	Hasher.Update(&InValue.Texture, sizeof(InValue.Texture));
-	Hasher.Update(&InValue.SamplerType, sizeof(InValue.SamplerType));
-	Hasher.Update(&InValue.ExternalTextureGuid, sizeof(InValue.ExternalTextureGuid));
-	const FXxHash64 Hash = Hasher.Finalize();
-
-	FTextureValue const* const* PrevValue = TextureValueMap.Find(Hash);
-	if (PrevValue)
-	{
-		check(*PrevValue);
-		check(**PrevValue == InValue);
-		return *PrevValue;
-	}
-
-	FTextureValue* Value = new(GetTree().GetAllocator()) FTextureValue(InValue);
-	TextureValueMap.Add(Hash, Value);
-	return Value;
-}
-
 const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::InternalNewErrorExpression(FStringView Error)
 {
 	return GetTree().NewExpression<UE::HLSLTree::FExpressionError>(UE::MemStack::AllocateStringView(GetTree().GetAllocator(), Error));
@@ -586,13 +555,14 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 	return bResult;
 }
 
-const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateMaterialParameter(FName InParameterName, const FMaterialParameterMetadata& InParameterMeta, const UE::Shader::FValue& InDefaultValue)
+const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateMaterialParameter(FName InParameterName,
+	const FMaterialParameterMetadata& InParameterMeta,
+	EMaterialSamplerType InSamplerType,
+	const FGuid& InExternalTextureGuid)
 {
 	using namespace UE::Shader;
 
 	FMaterialParameterMetadata ParameterMeta(InParameterMeta);
-	FValue DefaultValue(InDefaultValue);
-
 	FMaterialParameterMetadata OverrideParameterMeta;
 	if (GetParameterOverrideValueForCurrentFunction(InParameterMeta.Value.Type, InParameterName, OverrideParameterMeta))
 	{
@@ -601,20 +571,9 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateMaterialParamet
 		ParameterMeta.bUsedAsAtlasPosition = OverrideParameterMeta.bUsedAsAtlasPosition;
 		ParameterMeta.ScalarAtlas = OverrideParameterMeta.ScalarAtlas;
 		ParameterMeta.ScalarCurve = OverrideParameterMeta.ScalarCurve;
-
-		if (DefaultValue.Type.IsTexture())
-		{
-			FTextureValue TextureValue(*DefaultValue.AsTexture());
-			TextureValue.Texture = OverrideParameterMeta.Value.Texture;
-			DefaultValue = AcquireTextureValue(TextureValue);
-		}
-		else
-		{
-			DefaultValue = OverrideParameterMeta.Value.AsShaderValue();
-		}
 	}
 
-	return GetTree().NewExpression<UE::HLSLTree::Material::FExpressionParameter>(GetParameterInfo(InParameterName), ParameterMeta, DefaultValue);
+	return GetTree().NewExpression<UE::HLSLTree::Material::FExpressionParameter>(GetParameterInfo(InParameterName), ParameterMeta, InSamplerType, InExternalTextureGuid);
 }
 
 const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSLTree::FScope& Scope,

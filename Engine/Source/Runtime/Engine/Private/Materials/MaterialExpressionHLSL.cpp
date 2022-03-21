@@ -313,7 +313,7 @@ bool UMaterialExpressionParameter::GenerateHLSLExpression(FMaterialHLSLGenerator
 		return Generator.Error(TEXT("Failed to get parameter value"));
 	}
 
-	OutExpression = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta, ParameterMeta.Value.AsShaderValue());
+	OutExpression = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta);
 	return true;
 }
 
@@ -335,23 +335,22 @@ bool UMaterialExpressionCurveAtlasRowParameter::GenerateHLSLExpression(FMaterial
 	{
 		return Generator.Error(TEXT("Failed to get parameter value"));
 	}
-	const FExpression* ExpressionSlot = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta, ParameterMeta.Value.AsShaderValue());
+	const FExpression* ExpressionSlot = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta);
 
 	const FExpression* ExpressionTexture = nullptr;
 	{
 		const FMaterialParameterMetadata TextureParameterMeta(Atlas.Get());
-		const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Atlas.Get(), SAMPLERTYPE_LinearColor));
-		ExpressionTexture = Generator.GenerateMaterialParameter(FName(), TextureParameterMeta, TextureValue);
+		ExpressionTexture = Generator.GenerateMaterialParameter(FName(), TextureParameterMeta, SAMPLERTYPE_LinearColor);
 	}
 
 	FTree& Tree = Generator.GetTree();
-	const FExpression* ExpressionTextureSize = Tree.NewExpression<Material::FExpressionTextureSize>(FMaterialParameterInfo(), Atlas.Get());
+	const FExpression* ExpressionTextureSize = Tree.NewExpression<Material::FExpressionTextureSize>(ExpressionTexture);
 	const FExpression* ExpressionTextureHeight = Tree.NewExpression<FExpressionSwizzle>(MakeSwizzleMask(false, true, false, false), ExpressionTextureSize);
 	const FExpression* ExpressionCoordU = InputTime.AcquireHLSLExpressionOrConstant(Generator, Scope, 0.0f);
 	const FExpression* ExpressionCoordV = Tree.NewMul(Tree.NewAdd(ExpressionSlot, Tree.NewConstant(0.5f)), Tree.NewRcp(ExpressionTextureHeight));
 	const FExpression* ExpressionUV = Tree.NewExpression<FExpressionAppend>(ExpressionCoordU, ExpressionCoordV);
 
-	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(ExpressionTexture, ExpressionUV, nullptr, nullptr, FExpressionDerivatives(), SSM_Clamp_WorldGroupSettings, TMVM_None);
+	OutExpression = Generator.GetTree().NewExpression<Material::FExpressionTextureSample>(ExpressionTexture, ExpressionUV, nullptr, nullptr, FExpressionDerivatives(), SSM_Clamp_WorldGroupSettings, TMVM_None);
 	return true;
 }
 
@@ -372,7 +371,7 @@ bool UMaterialExpressionStaticSwitchParameter::GenerateHLSLExpression(FMaterialH
 		return false;
 	}
 
-	const FExpression* ExpressionSwitch = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta, ParameterMeta.Value.AsShaderValue());
+	const FExpression* ExpressionSwitch = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta);
 	OutExpression = Generator.GetTree().NewExpression <FExpressionSelect>(ExpressionSwitch, ExpressionA, ExpressionB);
 	return true;
 }
@@ -684,8 +683,7 @@ bool UMaterialExpressionTextureObject::GenerateHLSLExpression(FMaterialHLSLGener
 	using namespace UE::Shader;
 
 	const FMaterialParameterMetadata ParameterMeta(Texture);
-	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
-	OutExpression = Generator.GenerateMaterialParameter(FName(), ParameterMeta, TextureValue);
+	OutExpression = Generator.GenerateMaterialParameter(FName(), ParameterMeta, SamplerType);
 	return true;
 }
 
@@ -700,8 +698,7 @@ bool UMaterialExpressionTextureObjectParameter::GenerateHLSLExpression(FMaterial
 		return Generator.Error(TEXT("Failed to get parameter value"));
 	}
 
-	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
-	OutExpression = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta, TextureValue);
+	OutExpression = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta, SamplerType);
 	return true;
 }
 
@@ -743,7 +740,7 @@ bool UMaterialExpressionTextureSample::GenerateHLSLExpressionBase(FMaterialHLSLG
 	}
 
 	const FExpression* AutomaticMipBiasExpression = AutomaticViewMipBiasValue.AcquireHLSLExpressionOrConstant(Generator, Scope, (bool)AutomaticViewMipBias);
-	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureExpression, TexCoordExpression, MipLevelExpression, AutomaticMipBiasExpression, TexCoordDerivatives, SamplerSource, MipValueMode);
+	OutExpression = Generator.GetTree().NewExpression<Material::FExpressionTextureSample>(TextureExpression, TexCoordExpression, MipLevelExpression, AutomaticMipBiasExpression, TexCoordDerivatives, SamplerSource, MipValueMode);
 	return true;
 }
 
@@ -759,8 +756,7 @@ bool UMaterialExpressionTextureSample::GenerateHLSLExpression(FMaterialHLSLGener
 	else if (Texture)
 	{
 		const FMaterialParameterMetadata ParameterMeta(Texture);
-		const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
-		TextureExpression = Generator.GenerateMaterialParameter(FName(), ParameterMeta, TextureValue);
+		TextureExpression = Generator.GenerateMaterialParameter(FName(), ParameterMeta, SamplerType);
 	}
 
 	return GenerateHLSLExpressionBase(Generator, Scope, TextureExpression, OutExpression);
@@ -782,9 +778,7 @@ bool UMaterialExpressionTextureSampleParameter::GenerateHLSLExpression(FMaterial
 		{
 			return Generator.Error(TEXT("Failed to get parameter value"));
 		}
-
-		const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
-		TextureExpression = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta, TextureValue);
+		TextureExpression = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta, SamplerType);
 	}
 
 	return GenerateHLSLExpressionBase(Generator, Scope, TextureExpression, OutExpression);
@@ -832,19 +826,17 @@ bool UMaterialExpressionFontSample::GenerateHLSLExpression(FMaterialHLSLGenerato
 		return Generator.Errorf(TEXT("%s"), *SamplerTypeError);
 	}*/
 
-	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, ExpectedSamplerType));
-
 	FMaterialParameterMetadata ParameterMeta;
 	if (!GetParameterValue(ParameterMeta))
 	{
 		ParameterMeta.Value = Texture;
 	}
 
-	const FExpression* TextureExpression = Generator.GenerateMaterialParameter(GetParameterName(), ParameterMeta, TextureValue);
+	const FExpression* TextureExpression = Generator.GenerateMaterialParameter(GetParameterName(), ParameterMeta, ExpectedSamplerType);
 	const FExpression* TexCoordExpression = Generator.NewTexCoord(0);
 	const FExpressionDerivatives TexCoordDerivatives = Generator.GetTree().GetAnalyticDerivatives(TextureExpression);
 
-	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureExpression, TexCoordExpression, nullptr, nullptr, TexCoordDerivatives, SSM_FromTextureAsset, TMVM_None);
+	OutExpression = Generator.GetTree().NewExpression<Material::FExpressionTextureSample>(TextureExpression, TexCoordExpression, nullptr, nullptr, TexCoordDerivatives, SSM_FromTextureAsset, TMVM_None);
 	return true;
 }
 

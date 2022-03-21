@@ -120,8 +120,6 @@ public:
 		return InternalNewErrorExpression(String.ToView());
 	}
 
-	const UE::Shader::FTextureValue* AcquireTextureValue(const UE::Shader::FTextureValue& Value);
-
 	int32 FindInputIndex(const FExpressionInput* Input) const;
 
 	const UE::HLSLTree::FExpression* NewDefaultInputConstant(int32 InputIndex, const UE::Shader::FValue& Value);
@@ -142,7 +140,10 @@ public:
 
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
 
-	const UE::HLSLTree::FExpression* GenerateMaterialParameter(FName InParameterName, const FMaterialParameterMetadata& InParameterMeta, const UE::Shader::FValue& InDefaultValue);
+	const UE::HLSLTree::FExpression* GenerateMaterialParameter(FName InParameterName,
+		const FMaterialParameterMetadata& InParameterMeta,
+		EMaterialSamplerType InSamplerType = SAMPLERTYPE_Color,
+		const FGuid& InExternalTextureGuid = FGuid());
 
 	const UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope,
 		UMaterialFunctionInterface* Function,
@@ -252,7 +253,6 @@ private:
 	FFunctionCallEntry RootFunctionCallEntry;
 	TArray<FFunctionCallEntry*, TInlineAllocator<8>> FunctionCallStack;
 	TArray<UE::HLSLTree::FScope*> JoinedScopeStack;
-	TMap<FXxHash64, const UE::Shader::FTextureValue*> TextureValueMap;
 	TMap<FXxHash64, TUniquePtr<FFunctionCallEntry>> FunctionCallMap;
 	TMap<UMaterialFunctionInterface*, UE::HLSLTree::FFunction*> FunctionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;

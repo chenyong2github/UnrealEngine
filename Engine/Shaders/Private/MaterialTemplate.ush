@@ -23,7 +23,6 @@
 #include "/Engine/Private/HairStrands/HairCardsAttributeCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
-#include "/Engine/Private/MaterialTexture.ush"
 
 // Update this GUID to force all material shaders to recompile
 // Merge conflicts on this line should be resolved by generating a new GUID
@@ -81,6 +80,8 @@
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
 	#include "/Engine/Private/VirtualTextureCommon.ush"
 #endif
+
+#include "/Engine/Private/MaterialTexture.ush"
 
 #ifdef MIN_MATERIAL_TEXCOORDS 
 	#include "/Engine/Private/MinMaterialTexCoords.ush"

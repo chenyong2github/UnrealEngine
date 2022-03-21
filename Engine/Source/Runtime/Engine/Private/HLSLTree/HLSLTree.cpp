@@ -549,34 +549,56 @@ FRequestedType::FRequestedType(const Shader::FType& InType, bool bDefaultRequest
 	}
 }
 
+FRequestedType::FRequestedType(FName InObjectType) : ObjectType(InObjectType)
+{
+	RequestedComponents.Init(true, 1);
+}
+
+int32 FRequestedType::GetNumComponents() const
+{
+	if (DefaultType == EDefaultRequestedType::Any)
+	{
+		return 4; // TODO?
+	}
+
+	const int32 MaxComponentIndex = RequestedComponents.FindLast(true);
+	if (MaxComponentIndex == INDEX_NONE)
+	{
+		return 0;
+	}
+	return MaxComponentIndex + 1;
+}
+
 Shader::FType FRequestedType::GetType() const
 {
 	if (StructType)
 	{
 		return StructType;
 	}
-	return Shader::MakeValueType(ValueComponentType, GetNumComponents());
-}
-
-int32 FRequestedType::GetNumComponents() const
-{
-	const int32 MaxComponentIndex = RequestedComponents.FindLast(true);
-	if (MaxComponentIndex != INDEX_NONE)
+	else if (!ObjectType.IsNone())
 	{
-		return MaxComponentIndex + 1;
+		return ObjectType;
 	}
-	return 0;
+	else if (DefaultType == EDefaultRequestedType::Any)
+	{
+		return FName(TEXT("Any"));
+	}
+
+	return Shader::MakeValueType(ValueComponentType, GetNumComponents());
 }
 
 void FRequestedType::SetComponentRequest(int32 Index, bool bRequested)
 {
-	if (bRequested)
+	if (DefaultType != EDefaultRequestedType::Any)
 	{
-		RequestedComponents.PadToNum(Index + 1, false);
-	}
-	if (RequestedComponents.IsValidIndex(Index))
-	{
-		RequestedComponents[Index] = bRequested;
+		if (bRequested)
+		{
+			RequestedComponents.PadToNum(Index + 1, false);
+		}
+		if (RequestedComponents.IsValidIndex(Index))
+		{
+			RequestedComponents[Index] = bRequested;
+		}
 	}
 }
 
@@ -691,6 +713,10 @@ int32 FPreparedType::GetNumComponents() const
 	{
 		return StructType->ComponentTypes.Num();
 	}
+	else if (!ObjectType.IsNone())
+	{
+		return 1;
+	}
 	else if (ValueComponentType != Shader::EValueComponentType::Void)
 	{
 		auto Predicate = [](const FPreparedComponent& InComponent) { return InComponent.IsRequested(); };
@@ -711,6 +737,11 @@ Shader::FType FPreparedType::GetType() const
 	{
 		return StructType;
 	}
+	else if (IsObject())
+	{
+		return ObjectType;
+	}
+
 	return Shader::MakeValueType(ValueComponentType, GetNumComponents());
 }
 
@@ -742,9 +773,8 @@ EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope) cons
 
 EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const
 {
-	const int32 NumComponents = RequestedType.GetNumComponents();
 	EExpressionEvaluation Result = EExpressionEvaluation::ConstantZero;
-	for (int32 Index = 0; Index < NumComponents; ++Index)
+	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
 		{
@@ -982,9 +1012,12 @@ FPreparedType MakeNonLWCType(const FPreparedType& Type)
 	return Result;
 }
 
-bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType)
+bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context,
+	const Shader::FStructType* StructType,
+	FName ObjectType,
+	Shader::EValueComponentType ComponentType)
 {
-	if (!StructType && ComponentType == Shader::EValueComponentType::Void)
+	if (!StructType && ObjectType.IsNone() && ComponentType == Shader::EValueComponentType::Void)
 	{
 		return false;
 	}
@@ -993,6 +1026,7 @@ bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shad
 	{
 		PreparedType.PreparedComponents.Reset();
 		PreparedType.ValueComponentType = ComponentType;
+		PreparedType.ObjectType = ObjectType;
 		PreparedType.StructType = StructType;
 		return true;
 	}
@@ -1000,7 +1034,16 @@ bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shad
 	if (StructType)
 	{
 		check(ComponentType == Shader::EValueComponentType::Void);
+		check(ObjectType.IsNone());
 		if (StructType != PreparedType.StructType)
+		{
+			return Context.Error(TEXT("Invalid type"));
+		}
+	}
+	else if (!ObjectType.IsNone())
+	{
+		check(ComponentType == Shader::EValueComponentType::Void);
+		if (ObjectType != PreparedType.ObjectType)
 		{
 			return Context.Error(TEXT("Invalid type"));
 		}
@@ -1017,13 +1060,14 @@ bool FPrepareValueResult::SetTypeVoid()
 {
 	PreparedType.PreparedComponents.Reset();
 	PreparedType.ValueComponentType = Shader::EValueComponentType::Void;
+	PreparedType.ObjectType = FName();
 	PreparedType.StructType = nullptr;
 	return false;
 }
 
 bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type)
 {
-	if (TryMergePreparedType(Context, Type.StructType, Shader::GetValueTypeDescription(Type.ValueType).ComponentType))
+	if (TryMergePreparedType(Context, Type.StructType, Type.ObjectType, Shader::GetValueTypeDescription(Type.ValueType).ComponentType))
 	{
 		if (Evaluation != EExpressionEvaluation::None)
 		{
@@ -1058,7 +1102,7 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 		}
 	}
 
-	if (TryMergePreparedType(Context, Type.StructType, ComponentType))
+	if (TryMergePreparedType(Context, Type.StructType, Type.ObjectType, ComponentType))
 	{
 		const int32 NumComponents = Type.GetNumComponents();
 		for (int32 Index = 0; Index < NumComponents; ++Index)
@@ -1107,6 +1151,16 @@ void FExpression::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, cons
 void FExpression::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
 	check(false);
+}
+
+bool FExpression::EmitValueObject(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, void* OutObjectBase) const
+{
+	return false;
+}
+
+bool FExpression::EmitCustomHLSLParameter(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, const TCHAR* ParameterName, FEmitCustomHLSLParameterResult& OutResult) const
+{
+	return false;
 }
 
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType) const
@@ -1261,6 +1315,36 @@ Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, Shader::EValueType ResultType) const
 {
 	return GetValueConstant(Context, Scope, FRequestedType(ResultType), PreparedType, ResultType);
+}
+
+bool FExpression::GetValueObject(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, void* OutObjectBase) const
+{
+	const FPreparedType PreparedType = Context.GetPreparedType(this);
+	check(PreparedType.ObjectType == ObjectTypeName);
+	return EmitValueObject(Context, Scope, ObjectTypeName, OutObjectBase);
+}
+
+bool FExpression::CheckObjectSupportsCustomHLSL(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName) const
+{
+	const FPreparedType PreparedType = Context.GetPreparedType(this);
+	check(PreparedType.ObjectType == ObjectTypeName);
+
+	FEmitCustomHLSLParameterResult UnusedResult;
+	return EmitCustomHLSLParameter(Context, Scope, ObjectTypeName, nullptr, UnusedResult);
+}
+
+void FExpression::GetObjectCustomHLSLParameter(FEmitContext& Context,
+	FEmitScope& Scope,
+	const FName& ObjectTypeName,
+	const TCHAR* ParameterName,
+	FStringBuilderBase& OutDeclarationCode,
+	FStringBuilderBase& OutForwardCode) const
+{
+	FEmitCustomHLSLParameterResult Result;
+	Result.DeclarationCode = &OutDeclarationCode;
+	Result.ForwardCode = &OutForwardCode;
+	const bool bResult = EmitCustomHLSLParameter(Context, Scope, ObjectTypeName, ParameterName, Result);
+	check(bResult);
 }
 
 bool FScope::HasParentScope(const FScope& InParentScope) const

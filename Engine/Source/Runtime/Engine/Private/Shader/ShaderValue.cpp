@@ -13,12 +13,13 @@ namespace Shader
 
 const TCHAR* FType::GetName() const
 {
-	if (StructType)
+	if (IsStruct())
 	{
 		check(ValueType == EValueType::Struct);
 		return StructType->Name;
 	}
 
+	// TODO - do we need specific object names?
 	check(ValueType != EValueType::Struct);
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
 	return TypeDesc.Name;
@@ -26,10 +27,14 @@ const TCHAR* FType::GetName() const
 
 FType FType::GetDerivativeType() const
 {
-	if (StructType)
+	if (IsStruct())
 	{
 		check(ValueType == EValueType::Struct);
 		return StructType->DerivativeType; // will convert to 'Void' if DerivativeType is nullptr
+	}
+	else if (IsObject())
+	{
+		return *this;
 	}
 
 	check(ValueType != EValueType::Struct);
@@ -38,10 +43,14 @@ FType FType::GetDerivativeType() const
 
 int32 FType::GetNumComponents() const
 {
-	if (StructType)
+	if (IsStruct())
 	{
 		check(ValueType == EValueType::Struct);
 		return StructType->ComponentTypes.Num();
+	}
+	else if (IsObject())
+	{
+		return 1;
 	}
 
 	check(ValueType != EValueType::Struct);
@@ -51,7 +60,7 @@ int32 FType::GetNumComponents() const
 
 int32 FType::GetNumFlatFields() const
 {
-	if (StructType)
+	if (IsStruct())
 	{
 		check(ValueType == EValueType::Struct);
 		return StructType->FlatFieldTypes.Num();
@@ -63,7 +72,7 @@ int32 FType::GetNumFlatFields() const
 
 EValueComponentType FType::GetComponentType(int32 Index) const
 {
-	if (StructType)
+	if (IsStruct())
 	{
 		check(ValueType == EValueType::Struct);
 		return StructType->ComponentTypes.IsValidIndex(Index) ? StructType->ComponentTypes[Index] : EValueComponentType::Void;
@@ -77,7 +86,7 @@ EValueComponentType FType::GetComponentType(int32 Index) const
 
 EValueType FType::GetFlatFieldType(int32 Index) const
 {
-	if (StructType)
+	if (IsStruct())
 	{
 		check(ValueType == EValueType::Struct);
 		return StructType->FlatFieldTypes.IsValidIndex(Index) ? StructType->FlatFieldTypes[Index] : EValueType::Void;
@@ -90,9 +99,10 @@ EValueType FType::GetFlatFieldType(int32 Index) const
 
 bool FType::Merge(const FType& OtherType)
 {
-	if (ValueType == EValueType::Void)
+	if (IsVoid())
 	{
 		ValueType = OtherType.ValueType;
+		ObjectType = OtherType.ObjectType;
 		StructType = OtherType.StructType;
 		return true;
 	}
@@ -100,6 +110,11 @@ bool FType::Merge(const FType& OtherType)
 	if (IsStruct() || OtherType.IsStruct())
 	{
 		return StructType == OtherType.StructType;
+	}
+
+	if (IsObject() || OtherType.IsObject())
+	{
+		return ObjectType == OtherType.ObjectType;
 	}
 
 	if (ValueType != OtherType.ValueType)
@@ -277,43 +292,6 @@ void FormatComponent_Double(double Value, int32 NumComponents, EValueStringForma
 
 } // namespace Private
 
-EValueType FTextureValue::GetType() const
-{
-	if (Texture)
-	{
-		const EMaterialValueType MaterialType = Texture->GetMaterialType();
-		switch (MaterialType)
-		{
-		case MCT_Texture2D: return EValueType::Texture2D;
-		case MCT_Texture2DArray: return EValueType::Texture2DArray;
-		case MCT_TextureCube: return EValueType::TextureCube;
-		case MCT_TextureCubeArray: return EValueType::TextureCubeArray;
-		case MCT_VolumeTexture: return EValueType::Texture3D;
-		case MCT_TextureExternal: return EValueType::TextureExternal;
-		case MCT_TextureVirtual: return EValueType::Texture2D; // TODO
-		default: checkNoEntry(); break;
-		}
-	}
-	else if (ExternalTextureGuid.IsValid())
-	{
-		return EValueType::TextureExternal;
-	}
-
-	return EValueType::Void;
-}
-
-FValue::FValue(const FTextureValue* InValue) : Type(EValueType::Void)
-{
-	if (InValue)
-	{
-		Type = InValue->GetType();
-		if (Type != EValueType::Void)
-		{
-			Component.Add(InValue);
-		}
-	}
-}
-
 FValue FValue::FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes)
 {
 	check(IsNumericType(Type));
@@ -435,15 +413,6 @@ bool FValue::IsZero() const
 	return bIsZero;
 }
 
-const FTextureValue* FValue::AsTexture() const
-{
-	if (Type.IsTexture() && Component.Num() > 0)
-	{
-		return Component[0].Texture;
-	}
-	return nullptr;
-}
-
 FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentType Type)
 {
 	switch (Type)
@@ -453,12 +422,6 @@ FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentT
 	case EValueComponentType::Double: return FValueComponentTypeDescription(TEXT("double"), sizeof(double), EComponentBound::NegDoubleMax, EComponentBound::DoubleMax);
 	case EValueComponentType::Int: return FValueComponentTypeDescription(TEXT("int"), sizeof(int32), EComponentBound::IntMin, EComponentBound::IntMax);
 	case EValueComponentType::Bool: return FValueComponentTypeDescription(TEXT("bool"), 1u, EComponentBound::Zero, EComponentBound::One);
-	case EValueComponentType::Texture2D: return FValueComponentTypeDescription(TEXT("Texture2D"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
-	case EValueComponentType::Texture2DArray: return FValueComponentTypeDescription(TEXT("Texture2DArray"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
-	case EValueComponentType::TextureCube: return FValueComponentTypeDescription(TEXT("TextureCube"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
-	case EValueComponentType::TextureCubeArray: return FValueComponentTypeDescription(TEXT("TextureCubeArray"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
-	case EValueComponentType::Texture3D: return FValueComponentTypeDescription(TEXT("Texture3D"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
-	case EValueComponentType::TextureExternal: return FValueComponentTypeDescription(TEXT("TextureExternal"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
 	default: checkNoEntry() return FValueComponentTypeDescription();
 	}
 }
@@ -656,12 +619,7 @@ FValueTypeDescription GetValueTypeDescription(EValueType Type)
 	case EValueType::Double4x4: return FValueTypeDescription(TEXT("FLWCMatrix"), EValueComponentType::Double, 16);
 	case EValueType::DoubleInverse4x4: return FValueTypeDescription(TEXT("FLWCInverseMatrix"), EValueComponentType::Double, 16);
 	case EValueType::Struct: return FValueTypeDescription(TEXT("struct"), EValueComponentType::Void, 0);
-	case EValueType::Texture2D: return FValueTypeDescription(TEXT("FTexture2D"), EValueComponentType::Texture2D, 1);
-	case EValueType::Texture2DArray: return FValueTypeDescription(TEXT("FTexture2DArray"), EValueComponentType::Texture2DArray, 1);
-	case EValueType::TextureCube: return FValueTypeDescription(TEXT("FTextureCube"), EValueComponentType::TextureCube, 1);
-	case EValueType::TextureCubeArray: return FValueTypeDescription(TEXT("FTextureCubeArray"), EValueComponentType::TextureCubeArray, 1);
-	case EValueType::Texture3D: return FValueTypeDescription(TEXT("FTexture3D"), EValueComponentType::Texture3D, 1);
-	case EValueType::TextureExternal: return FValueTypeDescription(TEXT("FTextureExternal"), EValueComponentType::TextureExternal, 1);
+	case EValueType::Object: return FValueTypeDescription(TEXT("object"), EValueComponentType::Void, 0);
 	default: checkNoEntry(); return FValueTypeDescription(TEXT("<INVALID>"), EValueComponentType::Void, 0);
 	}
 }
@@ -731,12 +689,6 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		default: break;
 		}
 		break;
-	case EValueComponentType::Texture2D: check(NumComponents == 1); return EValueType::Texture2D; break;
-	case EValueComponentType::Texture2DArray: check(NumComponents == 1); return EValueType::Texture2DArray; break;
-	case EValueComponentType::TextureCube: check(NumComponents == 1); return EValueType::TextureCube; break;
-	case EValueComponentType::TextureCubeArray: check(NumComponents == 1); return EValueType::TextureCubeArray; break;
-	case EValueComponentType::Texture3D: check(NumComponents == 1); return EValueType::Texture3D; break;
-	case EValueComponentType::TextureExternal: check(NumComponents == 1); return EValueType::TextureExternal; break;
 	default:
 		break;
 	}
