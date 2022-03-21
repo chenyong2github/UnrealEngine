@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using System.IO;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -1196,5 +1197,117 @@ namespace UnrealBuildTool
 				return TargetPlatform.ToString();
 			}
 		}
+
+
+		#region Unreal struct/map parsing helpers
+
+		/// <summary>
+		/// Gets an ini setting, and then pulls the value for a property out of a struct, in the format:
+		///   [SomeSection]
+		///   SomeStruct=(Foo=Bar,Prop="My Value")
+		/// </summary>
+		/// <param name="Section">Ini section ('SomeSection' in this example)</param>
+		/// <param name="Setting">Name of the struct setting ('SomeStruct' in this example)</param>
+		/// <param name="Property">Name of the property inside the struct ('Prop' in this example)</param>
+		/// <returns>The value retrieved from the struct ('My Value' in this example), or null if anything was not found</returns>
+		public string? GetStructEntryForSetting(string Section, string Setting, string Property)
+		{
+			string ConfigEntry;
+			if (GetString(Section, Setting, out ConfigEntry))
+			{
+				return GetStructEntry(ConfigEntry, Property, false);
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Pulls the value for a property out of a struct in the given input, in the format:
+		///   (Foo=Bar,Prop="My Value")
+		/// </summary>
+		/// <param name="Input">The entire struct as retrieved from the ini via GetString()</param>
+		/// <param name="Property">Name of the property inside the struct ('Prop' in this example)</param>
+		/// <param name="bIsArrayProperty">Pass true when the value pulled is an array, like (Foo=(X=1,Y=2)), this would return X=1,Y=2</param>
+		/// <returns>The value retrieved from the struct ('My Value' in this example), or null if anything was not found</returns>
+		public static string? GetStructEntry(string Input, string Property, bool bIsArrayProperty)
+		{
+			string PrimaryRegex;
+			string? AltRegex = null;
+			if (bIsArrayProperty)
+			{
+				PrimaryRegex = string.Format("{0}\\s*=\\s*\\((.*?)\\)", Property);
+			}
+			else
+			{
+				// handle quoted strings, allowing for escaped quotation marks (basically doing " followed by whatever, until we see a quote that was not proceeded by a \, and gather the whole mess in an outer group)
+				PrimaryRegex = string.Format("{0}\\s*=\\s*\"((.*?)[^\\\\])\"", Property);
+				// when no quotes, we skip over whitespace, and we end when we see whitespace, a comma or a ). This will handle (Ip = 192.168.0.1 , Name=....) , and return only '192.168.0.1'
+				AltRegex = string.Format("{0}\\s*=\\s*(.*?)[\\s,\\)]", Property);
+			}
+
+			// attempt to match it!
+			Match Result = Regex.Match(Input, PrimaryRegex);
+			if (!Result.Success && AltRegex != null)
+			{
+				Result = Regex.Match(Input, AltRegex);
+			}
+
+			// if we got a success, return the main match value
+			if (Result.Success)
+			{
+				return Result.Groups[1].Value.ToString();
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Gets an ini setting, and then pulls the value for a property out of a map, in the format:
+		///   [SomeSection]
+		///   SomeMap=((Foo=Bar),(SomeKey="My Value"))
+		/// </summary>
+		/// <param name="Section">Ini section ('SomeSection' in this example)</param>
+		/// <param name="Setting">Name of the struct setting ('SomeMap' in this example)</param>
+		/// <param name="Key">Name of the key inside the struct ('SomeKey' in this example)</param>
+		/// <returns>The value retrieved from the map ('My Value' in this example), or null if anything was not found</returns>
+		public string? GetMapValueForSetting(string Section, string Setting, string Key)
+		{
+			string ConfigEntry;
+			if (GetString(Section, Setting, out ConfigEntry))
+			{
+				return GetMapValue(ConfigEntry, Key);
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Pulls the value for a property out of a struct in the given input, in the format:
+		///   ((Foo=Bar),(SomeKey="My Value"))
+		/// </summary>
+		/// <param name="Input">The entire struct as retrieved from the ini via GetString()</param>
+		/// <param name="Key">Name of the key inside the struct ('SomeKey' in this example). Key cannot have escaped quotes or commas</param>
+		/// <returns>The value retrieved from the map ('My Value' in this example), or null if anything was not found</returns>
+		public static string? GetMapValue(string Input, string Key)
+		{
+			// handle quoted strings, allowing for escaped quotation marks (and possibly the key in quotes as well)
+			string PrimaryRegex = string.Format("{0}\"?\\s*,\\s*\"((.*?)[^\\\\])\"", Key);
+			string AltRegex = string.Format("{0}\"?\\s*,\\s*(.*?)[\\s,\\)]", Key);
+
+			// attempt to match it!
+			Match Result = Regex.Match(Input, PrimaryRegex);
+			if (!Result.Success && AltRegex != null)
+			{
+				Result = Regex.Match(Input, AltRegex);
+			}
+
+			// if we got a success, return the main match value
+			if (Result.Success)
+			{
+				return Result.Groups[1].Value.ToString();
+			}
+
+			return null;
+		}
+
+		#endregion
 	}
 }

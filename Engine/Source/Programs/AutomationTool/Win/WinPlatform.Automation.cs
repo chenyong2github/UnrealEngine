@@ -77,9 +77,9 @@ public static class SteamDeckSupport
 			// Expected ini format: +SteamDeckDevice=(IpAddr=10.1.33.19,Name=MySteamDeck,UserName=deck)
 			foreach (string DeckDevice in SteamDeckDevices)
 			{
-				string IpAddr     = GetStructEntry(DeckDevice, "IpAddr", false);
-				string DeviceName = GetStructEntry(DeckDevice, "Name", false);
-				string UserName   = GetStructEntry(DeckDevice, "UserName", false);
+				string IpAddr     = ConfigHierarchy.GetStructEntry(DeckDevice, "IpAddr", false);
+				string DeviceName = ConfigHierarchy.GetStructEntry(DeckDevice, "Name", false);
+				string UserName   = ConfigHierarchy.GetStructEntry(DeckDevice, "UserName", false);
 
 				// Name is optional, if its empty/not found lets just use the IpAddr for the Name
 				if (string.IsNullOrEmpty(DeviceName))
@@ -100,39 +100,6 @@ public static class SteamDeckSupport
 		}
 
 		return Devices;
-	}
-
-	// GetStructEntry copied from ExecuteBuild.cs TODO move to a better to share this
-	private static string GetStructEntry(string Input, string Property, bool bIsArrayProperty)
-	{
-		string PrimaryRegex;
-		string AltRegex = null;
-		if (bIsArrayProperty)
-		{
-			PrimaryRegex = string.Format("{0}\\s*=\\s*\\((.*?)\\)", Property);
-		}
-		else
-		{
-			// handle quoted strings, allowing for escaped quotation marks (basically doing " followed by whatever, until we see a quote that was not proceeded by a \, and gather the whole mess in an outer group)
-			PrimaryRegex = string.Format("{0}\\s*=\\s*\"((.*?)[^\\\\])\"", Property);
-			// when no quotes, we skip over whitespace, and we end when we see whitespace, a comma or a ). This will handle (Ip = 192.168.0.1 , Name=....) , and return only '192.168.0.1'
-			AltRegex = string.Format("{0}\\s*=\\s*(.*?)[\\s,\\)]", Property);
-		}
-
-		// attempt to match it!
-		Match Result = Regex.Match(Input, PrimaryRegex);
-		if (!Result.Success && AltRegex != null)
-		{
-			Result = Regex.Match(Input, AltRegex);
-		}
-
-		// if we got a success, return the main match value
-		if (Result.Success)
-		{
-			return Result.Groups[1].Value.ToString();
-		}
-
-		return null;
 	}
 
 	/**

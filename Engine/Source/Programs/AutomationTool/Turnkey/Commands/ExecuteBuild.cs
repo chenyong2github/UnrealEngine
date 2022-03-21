@@ -15,84 +15,6 @@ namespace Turnkey.Commands
 	{
 		protected override CommandGroup Group => CommandGroup.Builds;
 
-		// could move this to TurnkeyUtils!
-		public static string GetStructEntryForSetting(ConfigHierarchy Config, string Section, string Setting, string Property)
-		{
-			string ConfigEntry;
-			if (Config.GetString(Section, Setting, out ConfigEntry))
-			{
-				return GetStructEntry(ConfigEntry, Property, false);
-			}
-			return null;
-		}
-
-		public static string GetStructEntry(string Input, string Property, bool bIsArrayProperty)
-		{
-			string PrimaryRegex;
-			string AltRegex = null;
-			if (bIsArrayProperty)
-			{
-				PrimaryRegex = string.Format("{0}\\s*=\\s*\\((.*?)\\)", Property);
-			}
-			else
-			{
-				// handle quoted strings, allowing for escaped quotation marks (basically doing " followed by whatever, until we see a quote that was not proceeded by a \, and gather the whole mess in an outer group)
-				PrimaryRegex = string.Format("{0}\\s*=\\s*\"((.*?)[^\\\\])\"", Property);
-				// when no quotes, we skip over whitespace, and we end when we see whitespace, a comma or a ). This will handle (Ip = 192.168.0.1 , Name=....) , and return only '192.168.0.1'
-				AltRegex = string.Format("{0}\\s*=\\s*(.*?)[\\s,\\)]", Property);
-			}
-
-			// attempt to match it!
-			Match Result = Regex.Match(Input, PrimaryRegex);
-			if (!Result.Success && AltRegex != null)
-			{
-				Result = Regex.Match(Input, AltRegex);
-			}
-
-			// if we got a success, return the main match value
-			if (Result.Success)
-			{
-				return Result.Groups[1].Value.ToString();
-			}
-
-			return null;
-		}
-
-		public static string GetMapValueForSetting(ConfigHierarchy Config, string Section, string Setting, string Key)
-		{
-			string ConfigEntry;
-			if (Config.GetString(Section, Setting, out ConfigEntry))
-			{
-				return GetMapValue(ConfigEntry, Key);
-			}
-			return null;
-		}
-
-		// Key cannot have escaped quotes or commas
-		public static string GetMapValue(string Input, string Key)
-		{
-			string PrimaryRegex;
-			string AltRegex = null;
-			// handle quoted strings, allowing for escaped quotation marks (and possibly the key in quotes as well)
-			PrimaryRegex = string.Format("{0}\"?\\s*,\\s*\"((.*?)[^\\\\])\"", Key);
-			AltRegex = string.Format("{0}\"?\\s*,\\s*(.*?)[\\s,\\)]", Key);
-
-			// attempt to match it!
-			Match Result = Regex.Match(Input, PrimaryRegex);
-			if (!Result.Success && AltRegex != null)
-			{
-				Result = Regex.Match(Input, AltRegex);
-			}
-
-			// if we got a success, return the main match value
-			if (Result.Success)
-			{
-				return Result.Groups[1].Value.ToString();
-			}
-
-			return null;
-		}
-
 		protected override void Execute(string[] CommandOptions)
 		{
 			// we need a platform to execute
@@ -135,10 +57,10 @@ namespace Turnkey.Commands
 				{
 					foreach (string Build in Builds)
 					{
-						string Name = GetStructEntry(Build, "Name", false);
-						string Help = GetStructEntry(Build, "HelpText", false);
-						string SpecificPlatforms = GetStructEntry(Build, "SpecificPlatforms", true);
-						string Params = GetStructEntry(Build, "BuildCookRunParams", false);
+						string Name = ConfigHierarchy.GetStructEntry(Build, "Name", false);
+						string Help = ConfigHierarchy.GetStructEntry(Build, "HelpText", false);
+						string SpecificPlatforms = ConfigHierarchy.GetStructEntry(Build, "SpecificPlatforms", true);
+						string Params = ConfigHierarchy.GetStructEntry(Build, "BuildCookRunParams", false);
 
 						// make sure required entries are there
 						if (Name == null || Params == null)

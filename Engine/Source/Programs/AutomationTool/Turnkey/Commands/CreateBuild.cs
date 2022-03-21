@@ -58,7 +58,7 @@ namespace Turnkey.Commands
 		{
 			ConfigHierarchy Config = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectFile.Directory, BuildHostPlatform.Current.Platform);
 
-			string StagingDirectory = ExecuteBuild.GetStructEntryForSetting(Config, SettingsSection, "StagingDirectory", "Path");
+			string StagingDirectory = Config.GetStructEntryForSetting(SettingsSection, "StagingDirectory", "Path");
 			if (string.IsNullOrEmpty(StagingDirectory))
 			{
 				StagingDirectory = Path.Combine(ProjectFile.Directory.FullName, "Saved", "Archives");
@@ -99,7 +99,7 @@ namespace Turnkey.Commands
 		private static string GetPlatformSetting(ConfigHierarchy Config, UnrealTargetPlatform Platform, string PerPlatformKey, string GenericKey, string Default)
 		{
 			string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
-			string Value = ExecuteBuild.GetMapValueForSetting(Config, SettingsSection, PerPlatformKey, Platform.ToString());
+			string Value = Config.GetMapValueForSetting(SettingsSection, PerPlatformKey, Platform.ToString());
 			if (Value == null && !string.IsNullOrEmpty(GenericKey))
 			{
 				Config.GetString(SettingsSection, GenericKey, out Value);
@@ -331,7 +331,7 @@ namespace Turnkey.Commands
 				Config.GetBool(SettingsSection, "bBuildHttpChunkInstallData", out bBuildHttpChunkInstallData);
 				if (bBuildHttpChunkInstallData)
 				{
-					string HttpChunkInstallDataDirectory = ExecuteBuild.GetStructEntryForSetting(Config, SettingsSection, "HttpChunkInstallDataDirectory", "Path");
+					string HttpChunkInstallDataDirectory = Config.GetStructEntryForSetting(SettingsSection, "HttpChunkInstallDataDirectory", "Path");
 					string HttpChunkInstallDataVersion;
 					Config.GetString(SettingsSection, "HttpChunkInstallDataVersion", out HttpChunkInstallDataVersion);
 
@@ -705,7 +705,7 @@ namespace Turnkey.Commands
 							// we need a device here, if canceled, quit out
 							return;
 						}
-						PlatformParams += " -device=" + string.Join("+", Devices);
+						PlatformParams += " -device=" + string.Join("+", Devices.Select(x => x.Id));
 					}
 				}
 
@@ -726,8 +726,8 @@ namespace Turnkey.Commands
 						TurnkeyUtils.Log($"Here are the existing builds your project already has (and their descrptions):");
 						foreach (string Build in ExistingBuilds)
 						{
-							string BuildName = ExecuteBuild.GetStructEntry(Build, "Name", false);
-							string BuildHelp = ExecuteBuild.GetStructEntry(Build, "HelpText", false);
+							string BuildName = ConfigHierarchy.GetStructEntry(Build, "Name", false);
+							string BuildHelp = ConfigHierarchy.GetStructEntry(Build, "HelpText", false);
 							TurnkeyUtils.Log($"  {BuildName} - {BuildHelp}");
 						}
 						Name = TurnkeyUtils.ReadInput("Enter unique name for this build, it must be different than the above names", "");
