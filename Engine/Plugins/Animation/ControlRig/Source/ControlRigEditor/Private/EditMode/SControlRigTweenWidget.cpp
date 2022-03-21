@@ -74,20 +74,13 @@ void SControlRigTweenWidget::Construct(const FArguments& InArgs)
 void SControlRigTweenWidget::OnPoseBlendChanged(float ChangedVal)
 {
 	TArray<UControlRig*> ControlRigs = GetControlRigs();
-	bool bWeBlended = false;
-	for (UControlRig* ControlRig : ControlRigs)
+	if (ControlRigs.Num() > 0 && WeakSequencer.IsValid() && bIsBlending)
 	{
-		if (ControlRig && WeakSequencer.IsValid() && bIsBlending)
-		{
-			PoseBlendValue = ChangedVal;
-			ControlsToTween.Blend(WeakSequencer, ChangedVal);
-			bWeBlended = true;
-		}
-	}
-	if(bWeBlended)
-	{
+		PoseBlendValue = ChangedVal;
+		ControlsToTween.Blend(WeakSequencer, ChangedVal);
 		WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 	}
+
 }
 
 void SControlRigTweenWidget::OnBeginSliderMovement()
@@ -108,15 +101,10 @@ void SControlRigTweenWidget::SetupControls()
 	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
 	WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
 	TArray<UControlRig*> ControlRigs = GetControlRigs();
-	for (UControlRig* ControlRig : ControlRigs)
+	if (ControlRigs.Num() > 0)
 	{
-		if (ControlRig && WeakSequencer.IsValid() && bIsBlending)
-		{
-			WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
-			TArray<UControlRig*> SelectedControlRigs;
-			SelectedControlRigs.Add(ControlRig);
-			ControlsToTween.Setup(SelectedControlRigs, WeakSequencer);
-		}
+		WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
+		ControlsToTween.Setup(ControlRigs, WeakSequencer);
 	}
 }
 
@@ -186,7 +174,12 @@ TArray<UControlRig*>SControlRigTweenWidget::GetControlRigs()
 	TArray<UControlRig*> ControlRigs;
 	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 	{
-		ControlRigs = EditMode->GetControlRigsArray(true /*bIsVisible*/);
+		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
+		EditMode->GetAllSelectedControls(SelectedControls);
+		for (TPair<UControlRig*, TArray<FRigElementKey>>& Selected: SelectedControls)
+		{
+			ControlRigs.Add(Selected.Key);
+		}
 	}
 	return ControlRigs;
 }

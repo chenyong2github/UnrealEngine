@@ -55,7 +55,7 @@ private:
 	void SetupControlRigChannel(FFrameNumber CurrentFrame, TArray<FFrameNumber>& KeyTimes, TArray<FKeyHandle>& Handles, FMovieSceneFloatChannel* FloatChannel,
 		FChannelKeyBounds& KeyBounds);
 
-	TMap<FName, FControlRigChannels>  ControlRigChannelsMap;
+	TMap<TPair<UControlRig*,FName>, FControlRigChannels>  ControlRigChannelsMap;
 };
 
 

@@ -102,7 +102,10 @@ void FControlsToTween::Setup(const TArray<UControlRig*>& SelectedControlRigs, TW
 							}
 							if (ControlRigChannels.NumChannels > 0)
 							{
-								ControlRigChannelsMap.Add(ControlElement->GetName(), ControlRigChannels);
+								TPair<UControlRig*, FName> Pair;
+								Pair.Key = ControlRig;
+								Pair.Value = ControlElement->GetName();
+								ControlRigChannelsMap.Add(Pair, ControlRigChannels);
 							}
 						}
 					}
@@ -124,7 +127,7 @@ void FControlsToTween::Blend(TWeakPtr<ISequencer>& InSequencer, float BlendValue
 	Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
 	//BlendValue of 0.0 = half, 1.0f = Second, -1.0f = FirtValue;
 	//NormalizedBlendValue goes from 0 to 1.0f
-	for (const TPair<FName, FControlRigChannels>& Pair : ControlRigChannelsMap)
+	for (const TPair<TPair<UControlRig*,FName>, FControlRigChannels>& Pair : ControlRigChannelsMap)
 	{
 		for (int Index = 0; Index < 9; ++Index)
 		{
