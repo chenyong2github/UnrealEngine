@@ -2510,7 +2510,6 @@ void USoundWave::FinishDestroy()
 	check(GetPrecacheState() != ESoundWavePrecacheState::InProgress);
 	check(AudioDecompressor == nullptr);
 
-	CleanupCachedRunningPlatformData();
 #if WITH_EDITOR
 	if (!GExitPurge)
 	{
