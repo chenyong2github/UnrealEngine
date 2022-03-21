@@ -2,13 +2,9 @@
 
 using Google.Protobuf;
 using Google.Protobuf.Collections;
-using Google.Protobuf.WellKnownTypes;
-using HordeCommon;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
 
 namespace HordeCommon.Rpc
 {

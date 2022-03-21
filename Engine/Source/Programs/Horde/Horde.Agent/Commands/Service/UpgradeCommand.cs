@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Agent.Services;
-using Horde.Agent.Utility;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -15,8 +13,6 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
-using System.Threading;
 
 namespace Horde.Agent.Commands
 {

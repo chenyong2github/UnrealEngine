@@ -2,16 +2,11 @@
 
 using EpicGames.Core;
 using Grpc.Core;
-using HordeCommon;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Runtime.Serialization;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 

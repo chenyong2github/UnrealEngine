@@ -2,18 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Agent.Execution.Interfaces;
 using Horde.Agent.Parser;
-using Horde.Agent.Parser.Interfaces;
 using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;

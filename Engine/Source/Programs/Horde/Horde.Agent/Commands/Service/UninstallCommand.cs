@@ -4,9 +4,6 @@ using EpicGames.Core;
 using Horde.Agent.Utility;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Horde.Agent.Commands.Service

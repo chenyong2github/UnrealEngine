@@ -2,12 +2,8 @@
 
 using EpicGames.Core;
 using Horde.Agent.Parser.Interfaces;
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
-using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Horde.Agent.Parser

@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using OpenTracing;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Horde.Agent
 {

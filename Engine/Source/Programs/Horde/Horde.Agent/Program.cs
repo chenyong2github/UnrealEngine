@@ -1,34 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Agent.Commands;
-using Horde.Agent.Services;
-using Horde.Agent.Utility;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging;
-using Polly;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Management;
-using System.Net;
-using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.ServiceProcess;
-using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using EpicGames.Serialization;
-using System.Text;
-using EpicGames.Perforce;
-using System.Security.Cryptography;
 
 namespace Horde.Agent
 {

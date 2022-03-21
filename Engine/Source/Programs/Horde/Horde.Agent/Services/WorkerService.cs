@@ -29,19 +29,15 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Management;
-using System.Net.Http.Headers;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using Status = Grpc.Core.Status;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Compute;
 using System.Net;
-using EpicGames.Horde.Storage.Impl;
 using System.Text.RegularExpressions;
 
 namespace Horde.Agent.Services
@@ -1023,7 +1019,7 @@ namespace Horde.Agent.Services
 			// Execute the batch
 			try
 			{
-				await ExecuteBatchAsync(rpcClient, agentId, leaseId, executeTask, batch, logger, cancellationToken);
+				await ExecuteBatchAsync(rpcClient, leaseId, executeTask, batch, logger, cancellationToken);
 			}
 			catch (Exception ex)
 			{
@@ -1055,14 +1051,13 @@ namespace Horde.Agent.Services
 		/// Executes a batch
 		/// </summary>
 		/// <param name="rpcClient">RPC client for communicating with the server</param>
-		/// <param name="agentId">The current agent id</param>
 		/// <param name="leaseId">The current lease id</param>
 		/// <param name="executeTask">The task to execute</param>
 		/// <param name="batch">The batch to execute</param>
 		/// <param name="batchLogger">Output log for the batch</param>
 		/// <param name="cancellationToken">Cancellation token to abort the batch</param>
 		/// <returns>Async task</returns>
-		async Task ExecuteBatchAsync(IRpcConnection rpcClient, string agentId, string leaseId, ExecuteJobTask executeTask, BeginBatchResponse batch, ILogger batchLogger, CancellationToken cancellationToken)
+		async Task ExecuteBatchAsync(IRpcConnection rpcClient, string leaseId, ExecuteJobTask executeTask, BeginBatchResponse batch, ILogger batchLogger, CancellationToken cancellationToken)
 		{
 			batchLogger.LogInformation("Executing batch {BatchId} using {Executor} executor", executeTask.BatchId, _settings.Executor.ToString());
 			TerminateProcesses(batchLogger, cancellationToken);

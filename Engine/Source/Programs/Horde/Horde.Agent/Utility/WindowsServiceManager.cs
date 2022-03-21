@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Microsoft.Win32.SafeHandles;
-using Serilog;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 
 namespace Horde.Agent.Utility

@@ -8,12 +8,8 @@ using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Extensions.Http;
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
-using Grpc.Core;
-using HordeCommon.Rpc;
 
 namespace Horde.Agent.Services
 {

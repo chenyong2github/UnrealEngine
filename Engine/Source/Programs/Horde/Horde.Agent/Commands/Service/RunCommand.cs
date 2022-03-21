@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Agent.Commands;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using Microsoft.Extensions.Configuration;
@@ -10,22 +9,14 @@ using Microsoft.Extensions.Logging;
 using Polly;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
-using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using System.IO;
-using System.Reflection;
 using OpenTracing;
 using OpenTracing.Util;
 using Datadog.Trace.Configuration;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Impl;
-using EpicGames.Horde.Compute;
 
 namespace Horde.Agent.Modes.Service
 {

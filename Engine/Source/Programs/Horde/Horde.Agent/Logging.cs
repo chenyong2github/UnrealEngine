@@ -8,17 +8,10 @@ using Serilog.Extensions.Logging;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.SystemConsole.Themes;
 using System;
-using System.IO;
 using System.Runtime.InteropServices;
 using EpicGames.Core;
-using System.Collections.Generic;
-using System.Threading;
 using OpenTracing.Util;
 using OpenTracing;
-using Serilog.Formatting;
-using System.Text.Json;
-using System.Buffers;
-using MessageTemplate = EpicGames.Core.MessageTemplate;
 
 namespace Horde.Agent
 {

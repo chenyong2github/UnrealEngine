@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Horde;
 using EpicGames.Horde.Storage;
-using Google.Protobuf;
 using Grpc.Core;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,17 +11,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Text;
-using Google.Protobuf.WellKnownTypes;
-using Microsoft.Extensions.Hosting;
-using System.Collections.Concurrent;
-using Grpc.Net.Client;
-using Horde.Agent.Utility;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
-using HordeCommon.Rpc;
 using EpicGames.Serialization;
 using EpicGames.Horde.Compute;
-using EpicGames.Horde.Common;
 
 namespace Horde.Agent.Execution
 {
