@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
 #include "Sampling/MeshMapBaker.h"
+#include "Sampling/MeshVertexBaker.h"
 #include "MeshBakeFunctions.generated.h"
 
 class UDynamicMesh;
@@ -67,6 +68,13 @@ enum class EGeometryScriptBakeTypes : uint8
 	VertexColor            ,
 	/* Material IDs as unique colors */
 	MaterialID             UMETA(DisplayName = "Material ID"),
+};
+
+UENUM(BlueprintType)
+enum class EGeometryScriptBakeOutputMode : uint8
+{
+	RGBA,
+	PerChannel
 };
 
 UENUM(BlueprintType)
@@ -214,6 +222,55 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeTextureOptions
 };
 
 USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeVertexOptions
+{
+	GENERATED_BODY()
+
+	/** If true, compute a separate vertex color for each unique normal on a vertex */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bSplitAtNormalSeams = false;
+
+	/** If true, compute a separate vertex color for each unique UV on a vertex. */
+	UPROPERTY(BlueprintReadWrite, Category = Options, meta=(DisplayName = "Split at UV Seams"))
+	bool bSplitAtUVSeams = false;
+
+	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
+	 * This is only relevant if a separate source mesh is provided. */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float ProjectionDistance = 3.0f;
+
+	/** If true, uses the world space positions for the projection from target mesh to source mesh, otherwise it uses their object space positions.
+	 * This is only relevant if a separate source mesh is provided. */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bProjectionInWorldSpace = false;
+};
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeOutputType
+{
+	GENERATED_BODY()
+	
+	/** The bake output mode */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptBakeOutputMode OutputMode = EGeometryScriptBakeOutputMode::RGBA;
+
+	UPROPERTY(BlueprintReadWrite, Category = Output)
+	FGeometryScriptBakeTypeOptions RGBA;
+
+	UPROPERTY(BlueprintReadWrite, Category = Output)
+	FGeometryScriptBakeTypeOptions R;
+
+	UPROPERTY(BlueprintReadWrite, Category = Output)
+	FGeometryScriptBakeTypeOptions G;
+
+	UPROPERTY(BlueprintReadWrite, Category = Output)
+	FGeometryScriptBakeTypeOptions B;
+
+	UPROPERTY(BlueprintReadWrite, Category = Output)
+	FGeometryScriptBakeTypeOptions A;
+};
+
+USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeTargetMeshOptions
 {
 	GENERATED_BODY();
@@ -246,7 +303,17 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeTextureAsyncResult
 	TSharedPtr<UE::Geometry::FMeshMapBaker, ESPMode::ThreadSafe> BakeResult;
 };
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeVertexAsyncResult
+{
+	GENERATED_BODY();
+
+	TSharedPtr<UE::Geometry::FMeshVertexBaker, ESPMode::ThreadSafe> BakeResult;
+	TObjectPtr<UDynamicMesh> TargetMesh;
+};
+
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FBakeTextureDelegate, int, BakeId, FGeometryScriptBakeTextureAsyncResult, ResultOut);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FBakeVertexDelegate, int, BakeId, FGeometryScriptBakeVertexAsyncResult, ResultOut);
 
 UCLASS(meta = (ScriptName = "GeometryScript_Bake"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshBakeFunctions : public UBlueprintFunctionLibrary
@@ -336,7 +403,7 @@ public:
 	 * @param BakeOptions bake options (ex. resolution, number of samples, projection distance).
 	 * @param Debug debug structure to capture debug messages.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
+	UFUNCTION(/*BlueprintCallable,*/ Category = "GeometryScript|Bake")
 	static void BakeTextureAsyncBegin(
 		const FBakeTextureDelegate& Completed,
 		int BakeId,
@@ -358,7 +425,37 @@ public:
 	 * @param Result the result of a BakeTextureAsyncBegin() via delegate
 	 * @return array of UTexture2D corresponding to the requested bake types in BakeTextureAsyncBegin().
 	 */
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
+	UFUNCTION(/*BlueprintCallable,*/ Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Textures Out") TArray<UTexture2D*> BakeTextureAsyncEnd(
 		const FGeometryScriptBakeTextureAsyncResult& Result);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
+	static UPARAM(DisplayName="Target Mesh") UDynamicMesh* BakeVertex(
+		UDynamicMesh* TargetMesh,
+		FTransform TargetTransform,
+		FGeometryScriptBakeTargetMeshOptions TargetOptions,
+		UDynamicMesh* SourceMesh,
+		FTransform SourceTransform,
+		FGeometryScriptBakeSourceMeshOptions SourceOptions,
+		FGeometryScriptBakeOutputType BakeTypes,
+		FGeometryScriptBakeVertexOptions BakeOptions,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(/*BlueprintCallable,*/ Category = "GeometryScript|Bake")
+	static void BakeVertexAsyncBegin(
+		const FBakeVertexDelegate& Completed,
+		int BakeId,
+		UDynamicMesh* TargetMesh,
+		FTransform TargetTransform,
+		FGeometryScriptBakeTargetMeshOptions TargetOptions,
+		UDynamicMesh* SourceMesh,
+		FTransform SourceTransform,
+		FGeometryScriptBakeSourceMeshOptions SourceOptions,
+		FGeometryScriptBakeOutputType BakeTypes,
+		FGeometryScriptBakeVertexOptions BakeOptions,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(/*BlueprintCallable,*/ Category = "GeometryScript|Bake")
+	static UPARAM(DisplayName="Target Mesh") UDynamicMesh* BakeVertexAsyncEnd(
+		const FGeometryScriptBakeVertexAsyncResult& Result);
 };
