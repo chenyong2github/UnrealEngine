@@ -235,6 +235,22 @@ FInstallBundleCacheFlushResult FInstallBundleCache::Flush(EInstallBundleSourceTy
 	return Result;
 }
 
+bool FInstallBundleCache::Contains(FName BundleName) const
+{
+	return CacheInfo.Contains(BundleName);
+}
+
+bool FInstallBundleCache::Contains(EInstallBundleSourceType Source, FName BundleName) const
+{
+	const TMap<EInstallBundleSourceType, FPerSourceBundleCacheInfo>* SourcesMap = PerSourceCacheInfo.Find(BundleName);
+	if (SourcesMap)
+	{
+		return SourcesMap->Contains(Source);
+	}
+
+	return false;
+}
+
 bool FInstallBundleCache::Release(FName BundleName)
 {
 	CSV_SCOPED_TIMING_STAT(InstallBundleManager, FInstallBundleCache_Release);

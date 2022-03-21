@@ -47,7 +47,7 @@ public:
 
 	void Init(FInstallBundleCacheInitInfo InitInfo);
 
-	FName GetName() { return CacheName; }
+	FName GetName() const { return CacheName; }
 
 	// Add a bundle to the cache.  
 	void AddOrUpdateBundle(EInstallBundleSourceType Source, const FInstallBundleCacheBundleInfo& AddInfo);
@@ -69,6 +69,9 @@ public:
 
 	// Called from bundle manager, returns all bundles that can be evicted
 	FInstallBundleCacheFlushResult Flush(EInstallBundleSourceType* Source = nullptr);
+
+	bool Contains(FName BundleName) const;
+	bool Contains(EInstallBundleSourceType Source, FName BundleName) const;
 
 	// Called from bundle manager to make the files for this bundle eligible for eviction
 	bool Release(FName BundleName);
