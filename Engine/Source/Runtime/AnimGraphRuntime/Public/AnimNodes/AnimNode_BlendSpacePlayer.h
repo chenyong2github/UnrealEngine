@@ -99,6 +99,15 @@ private:
 	const FBlendSampleData* GetHighestWeightedSample() const;
 };
 
+template<>
+struct TStructOpsTypeTraits<FAnimNode_BlendSpacePlayerBase> : public TStructOpsTypeTraitsBase2<FAnimNode_BlendSpacePlayerBase>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};
+
 
 //@TODO: Comment
 USTRUCT(BlueprintInternalUseOnly)
