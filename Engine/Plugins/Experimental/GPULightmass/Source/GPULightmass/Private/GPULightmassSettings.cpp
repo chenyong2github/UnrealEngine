@@ -9,6 +9,7 @@
 #include "GPULightmass.h"
 #include "Editor.h"
 #include "LevelEditorViewport.h"
+#include "AssetCompilingManager.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
@@ -292,6 +293,9 @@ void UGPULightmassSubsystem::Launch()
 		FScopedSlowTask SlowTask(1);
 		SlowTask.MakeDialog();
 		SlowTask.EnterProgressFrame(1, LOCTEXT("StartingStaticLightingSystem", "Starting static lighting system"));
+
+		UMaterialInterface::SubmitRemainingJobsForWorld(World);
+		FAssetCompilingManager::Get().FinishAllCompilation();
 
 		{
 			FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext; // Implicit FlushRenderingCommands();
