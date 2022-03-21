@@ -91,10 +91,12 @@ namespace Horde.Storage.Implementation
             List<NamespaceId> namespaces = await _refsStore.GetNamespaces().ToListAsync();
             namespaces.AddRange(await _referencesStore.GetNamespaces().ToListAsync());
 
-            long countOfBlobsChecked = 0;
             // technically this does not need to be run per namespace but per s3 bucket
             await foreach (NamespaceId ns in namespaces)
             {
+                ulong countOfBlobsChecked = 0;
+                ulong countOfIncorrectBlobsFound = 0;
+
                 using IScope scope = Tracer.Instance.StartActive("consistency_check.run");
                 scope.Span.ResourceName = ns.ToString();
 
@@ -112,12 +114,14 @@ namespace Horde.Storage.Implementation
                     {
                         _logger.Error("Mismatching hash for S3 object {Blob} in {Namespace}, new hash has {NewHash}. Deleting incorrect blob.", blob, ns, newHash);
 
+                        Interlocked.Increment(ref countOfIncorrectBlobsFound);
                         await s3Store.DeleteObject(ns, blob);
                         // update blob index tracking to indicate that we no longer have this blob in this region
                         await _blobIndex.RemoveBlobFromRegion(ns, blob);
                     }
                 }
-                
+
+                _logger.Information("Blob Store Consistency check finished for {Namespace}, found {CountOfIncorrectBlobs} incorrect blobs. Processed {CountOfBlobs} blobs.", ns, countOfIncorrectBlobsFound, countOfBlobsChecked);
             }
         }
 

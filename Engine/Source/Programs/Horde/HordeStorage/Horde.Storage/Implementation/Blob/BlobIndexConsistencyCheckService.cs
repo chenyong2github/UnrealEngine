@@ -65,11 +65,16 @@ namespace Horde.Storage.Implementation
 
         private async Task RunConsistencyCheck()
         {
+            ulong countOfBlobsChecked = 0;
+            ulong countOfIncorrectBlobsFound = 0;
             string currentRegion = _jupiterSettings.CurrentValue.CurrentSite;
             await foreach (IBlobIndex.BlobInfo blobInfo in _blobIndex.GetAllBlobs())
             {
+                Interlocked.Increment(ref countOfBlobsChecked);
+
                 if (!blobInfo.Regions.Any())
                 {
+                    Interlocked.Increment(ref countOfIncorrectBlobsFound);
                     _logger.Warning("Blob {Blob} in namespace {Namespace} is not tracked to exist in any region", blobInfo.BlobIdentifier, blobInfo.Namespace);
 
                     if (await _blobService.ExistsInRootStore(blobInfo.Namespace, blobInfo.BlobIdentifier))
@@ -88,11 +93,12 @@ namespace Horde.Storage.Implementation
                         await _blobIndex.RemoveBlobFromIndex(blobInfo.Namespace, blobInfo.BlobIdentifier);
                     }
                 }
-
+                
                 if (blobInfo.Regions.Contains(currentRegion))
                 {
                     if (!await _blobService.ExistsInRootStore(blobInfo.Namespace, blobInfo.BlobIdentifier))
                     {
+                        Interlocked.Increment(ref countOfIncorrectBlobsFound);
                         _logger.Warning("Blob {Blob} in namespace {Namespace} did not exist in root store but is tracked as doing so in the blob index. Attempting to replicate it.", blobInfo.BlobIdentifier, blobInfo.Namespace);
                         try
                         {
@@ -110,7 +116,7 @@ namespace Horde.Storage.Implementation
                 }
             }
 
-            await Task.CompletedTask;
+            _logger.Information("Blob Index Consistency check finished, found {CountOfIncorrectBlobs} incorrect blobs. Processed {CountOfBlobs} blobs.", countOfIncorrectBlobsFound, countOfBlobsChecked);
         }
 
         protected override Task OnStopping(ConsistencyState state)
