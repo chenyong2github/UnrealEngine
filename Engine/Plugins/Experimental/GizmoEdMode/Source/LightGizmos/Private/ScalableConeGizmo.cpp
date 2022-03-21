@@ -7,6 +7,7 @@
 #include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
+#include "SceneManagement.h"
 
 #define LOCTEXT_NAMESPACE "UScalableSphereGizmo"
 
