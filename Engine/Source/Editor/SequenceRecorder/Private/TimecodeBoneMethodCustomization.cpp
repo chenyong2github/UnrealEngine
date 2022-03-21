@@ -10,6 +10,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "LevelEditor.h"
 #include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyHandle.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
