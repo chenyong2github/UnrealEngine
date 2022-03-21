@@ -14,6 +14,7 @@
 #include "InterchangeSkeletalMeshLodDataNode.h"
 #include "InterchangeSkeletalMeshFactoryNode.h"
 #include "InterchangeSkeletonFactoryNode.h"
+#include "InterchangeSkeletonHelper.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "Math/GenericOctree.h"
@@ -49,135 +50,6 @@ namespace UE
 				TOptional<FTransform> SceneGlobalTransform;
 				FString TranslatorPayloadKey;
 			};
-
-			struct FJointInfo
-			{
-				FString Name;
-				int32 ParentIndex;  // 0 if this is the root bone.  
-				FTransform	LocalTransform; // local transform
-			};
-
-			void RecursiveAddBones(const UInterchangeBaseNodeContainer* NodeContainer, const FString& JointNodeId, TArray <FJointInfo>& JointInfos, int32 ParentIndex, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary, const bool bUseTimeZeroAsBindPose, bool & bOutDiffPose)
-			{
-				const UInterchangeSceneNode* JointNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(JointNodeId));
-				if (!JointNode)
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton Joint"));
-					return;
-				}
-
-				int32 JointInfoIndex = JointInfos.Num();
-				FJointInfo& Info = JointInfos.AddZeroed_GetRef();
-				Info.Name = JointNode->GetDisplayLabel();
-
-				FTransform LocalTransform;
-				ensure(JointNode->GetCustomLocalTransform(LocalTransform));
-
-				FTransform TimeZeroLocalTransform;
-				const bool bHasTimeZeroTransform = JointNode->GetCustomTimeZeroLocalTransform(TimeZeroLocalTransform);
-				FTransform BindPoseLocalTransform;
-				const bool bHasBindPoseTransform = JointNode->GetCustomBindPoseLocalTransform(BindPoseLocalTransform);
-
-				Info.LocalTransform = bHasBindPoseTransform ? BindPoseLocalTransform : LocalTransform;
-				//If user want to bind the mesh at time zero try to get the time zero transform
-				if (bUseTimeZeroAsBindPose && bHasTimeZeroTransform)
-				{
-					if (bHasBindPoseTransform)
-					{
-						if(!TimeZeroLocalTransform.Equals(Info.LocalTransform))
-						{
-							bOutDiffPose = true;
-						}
-					}
-					Info.LocalTransform = TimeZeroLocalTransform;
-				}
-				else if (bHasBindPoseTransform)
-				{
-					Info.LocalTransform = BindPoseLocalTransform;
-				}
-
-				Info.ParentIndex = ParentIndex;
-
-				SkeletalMeshImportData::FBone& Bone = RefBonesBinary.AddZeroed_GetRef();
-				Bone.Name = Info.Name;
-				Bone.BonePos.Transform = FTransform3f(Info.LocalTransform);
-				Bone.ParentIndex = ParentIndex;
-				//Fill the scrap we do not need
-				Bone.BonePos.Length = 0.0f;
-				Bone.BonePos.XSize = 1.0f;
-				Bone.BonePos.YSize = 1.0f;
-				Bone.BonePos.ZSize = 1.0f;
-				
-				const TArray<FString> ChildrenIds = NodeContainer->GetNodeChildrenUids(JointNodeId);
-				Bone.NumChildren = ChildrenIds.Num();
-				for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
-				{
-					RecursiveAddBones(NodeContainer, ChildrenIds[ChildIndex], JointInfos, JointInfoIndex, RefBonesBinary, bUseTimeZeroAsBindPose, bOutDiffPose);
-				}
-			}
-
-			bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, const UInterchangeBaseNodeContainer* NodeContainer, const FString& RootJointNodeId, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary, const bool bUseTimeZeroAsBindPose, bool& bOutDiffPose)
-			{
-				auto FixupBoneName = [](FString BoneName)
-				{
-					BoneName.TrimStartAndEndInline();
-					BoneName.ReplaceInline(TEXT(" "), TEXT("-"), ESearchCase::IgnoreCase);
-					return BoneName;
-				};
-
-				RefBonesBinary.Empty();
-				// Setup skeletal hierarchy + names structure.
-				RefSkeleton.Empty();
-
-				FReferenceSkeletonModifier RefSkelModifier(RefSkeleton, SkeletonAsset);
-				TArray <FJointInfo> JointInfos;
-				RecursiveAddBones(NodeContainer, RootJointNodeId, JointInfos, INDEX_NONE, RefBonesBinary, bUseTimeZeroAsBindPose, bOutDiffPose);
-				if (bOutDiffPose)
-				{
-					//bOutDiffPose can only be true if the user ask to bind with time zero transform.
-					ensure(bUseTimeZeroAsBindPose);
-				}
-				// Digest bones to the serializable format.
-				for (int32 b = 0; b < JointInfos.Num(); b++)
-				{
-					const FJointInfo& BinaryBone = JointInfos[b];
-
-					const FString BoneName = FixupBoneName(BinaryBone.Name);
-					const FMeshBoneInfo BoneInfo(FName(*BoneName, FNAME_Add), BinaryBone.Name, BinaryBone.ParentIndex);
-					const FTransform BoneTransform(BinaryBone.LocalTransform);
-					if (RefSkeleton.FindRawBoneIndex(BoneInfo.Name) != INDEX_NONE)
-					{
-						UE_LOG(LogInterchangeImport, Error, TEXT("Invalid Skeleton because of non-unique bone names [%s]"), *BoneInfo.Name.ToString());
-						return false;
-					}
-					RefSkelModifier.Add(BoneInfo, BoneTransform);
-				}
-
-				// Add hierarchy index to each bone and detect max depth.
-				SkeletalDepth = 0;
-
-				TArray<int32> SkeletalDepths;
-				SkeletalDepths.Empty(JointInfos.Num());
-				SkeletalDepths.AddZeroed(JointInfos.Num());
-				for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetRawBoneNum(); ++BoneIndex)
-				{
-					int32 Parent = RefSkeleton.GetRawParentIndex(BoneIndex);
-					int32 Depth = 1.0f;
-
-					SkeletalDepths[BoneIndex] = 1.0f;
-					if (Parent != INDEX_NONE)
-					{
-						Depth += SkeletalDepths[Parent];
-					}
-					if (SkeletalDepth < Depth)
-					{
-						SkeletalDepth = Depth;
-					}
-					SkeletalDepths[BoneIndex] = Depth;
-				}
-
-				return true;
-			}
 
 			void FillBlendShapeMeshDescriptionsPerBlendShapeName(const FMeshNodeContext& MeshNodeContext
 																 , TMap<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>& BlendShapeMeshDescriptionsPerBlendShapeName
@@ -1240,7 +1112,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		bool bUseTimeZeroAsBindPose = false;
 		SkeletonNode->GetCustomUseTimeZeroForBindPose(bUseTimeZeroAsBindPose);
 		bool bDiffPose = false;
-		UE::Interchange::Private::ProcessImportMeshSkeleton(SkeletonReference, SkeletalMesh->GetRefSkeleton(), SkeletonDepth, Arguments.NodeContainer, RootJointNodeId, RefBonesBinary, bUseTimeZeroAsBindPose, bDiffPose);
+		UE::Interchange::Private::FSkeletonHelper::ProcessImportMeshSkeleton(SkeletonReference, SkeletalMesh->GetRefSkeleton(), SkeletonDepth, Arguments.NodeContainer, RootJointNodeId, RefBonesBinary, bUseTimeZeroAsBindPose, bDiffPose);
 		if (bSpecifiedSkeleton && !SkeletonReference->IsCompatibleMesh(SkeletalMesh))
 		{
 			UE_LOG(LogInterchangeImport, Warning, TEXT("The skeleton %s is incompatible with the imported skeletalmesh asset %s"), *SkeletonReference->GetName(), *Arguments.AssetName);

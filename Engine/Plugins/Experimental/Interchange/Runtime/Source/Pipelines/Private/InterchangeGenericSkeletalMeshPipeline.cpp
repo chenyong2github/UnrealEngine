@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/Async.h"
 #include "CoreMinimal.h"
+#include "InterchangeGenericAssetsPipeline.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePhysicsAssetFactoryNode.h"
@@ -14,14 +15,15 @@
 #include "InterchangeSkeletalMeshFactoryNode.h"
 #include "InterchangeSkeletalMeshLodDataNode.h"
 #include "InterchangeSkeletonFactoryNode.h"
+#include "InterchangeSkeletonHelper.h"
 #include "InterchangeSourceData.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #if WITH_EDITOR
 #include "PhysicsAssetUtils.h"
+#endif //WITH_EDITOR
 #include "PhysicsEngine/PhysicsAsset.h"
-#endif
 #include "ReferenceSkeleton.h"
 #include "Tasks/Task.h"
 #include "UObject/Object.h"
@@ -29,180 +31,6 @@
 
 namespace UE::Interchange::SkeletalMeshGenericPipeline
 {
-	FName SkeletalLodGetBoneName(const TArray<FMeshBoneInfo>& SkeletalLodRawInfos, int32 BoneIndex)
-	{
-		if (SkeletalLodRawInfos.IsValidIndex(BoneIndex))
-		{
-			return SkeletalLodRawInfos[BoneIndex].Name;
-		}
-		return NAME_None;
-	}
-
-	int32 SkeletalLodFindBoneIndex(const TArray<FMeshBoneInfo>& SkeletalLodRawInfos, FName BoneName)
-	{
-		const int32 BoneCount = SkeletalLodRawInfos.Num();
-		for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
-		{
-			if (SkeletalLodRawInfos[BoneIndex].Name == BoneName)
-			{
-				return BoneIndex;
-			}
-		}
-		return INDEX_NONE;
-	}
-
-	int32 SkeletalLodGetParentIndex(const TArray<FMeshBoneInfo>& SkeletalLodRawInfos, int32 BoneIndex)
-	{
-		if (SkeletalLodRawInfos.IsValidIndex(BoneIndex))
-		{
-			return SkeletalLodRawInfos[BoneIndex].ParentIndex;
-		}
-		return INDEX_NONE;
-	}
-
-	bool DoesParentChainMatch(int32 StartBoneIndex, const FReferenceSkeleton& SkeletonRef, const TArray<FMeshBoneInfo>& SkeletalLodRawInfos)
-	{
-		// if start is root bone
-		if (StartBoneIndex == 0)
-		{
-			// verify name of root bone matches
-			return (SkeletonRef.GetBoneName(0) == SkeletalLodGetBoneName(SkeletalLodRawInfos, 0));
-		}
-
-		int32 SkeletonBoneIndex = StartBoneIndex;
-		// If skeleton bone is not found in mesh, fail.
-		int32 MeshBoneIndex = SkeletalLodFindBoneIndex(SkeletalLodRawInfos, SkeletonRef.GetBoneName(SkeletonBoneIndex));
-		if (MeshBoneIndex == INDEX_NONE)
-		{
-			return false;
-		}
-		do
-		{
-			// verify if parent name matches
-			int32 ParentSkeletonBoneIndex = SkeletonRef.GetParentIndex(SkeletonBoneIndex);
-			int32 ParentMeshBoneIndex = SkeletalLodGetParentIndex(SkeletalLodRawInfos, MeshBoneIndex);
-
-			// if one of the parents doesn't exist, make sure both end. Otherwise fail.
-			if ((ParentSkeletonBoneIndex == INDEX_NONE) || (ParentMeshBoneIndex == INDEX_NONE))
-			{
-				return (ParentSkeletonBoneIndex == ParentMeshBoneIndex);
-			}
-
-			// If parents are not named the same, fail.
-			if (SkeletonRef.GetBoneName(ParentSkeletonBoneIndex) != SkeletalLodGetBoneName(SkeletalLodRawInfos, ParentMeshBoneIndex))
-			{
-				return false;
-			}
-
-			// move up
-			SkeletonBoneIndex = ParentSkeletonBoneIndex;
-			MeshBoneIndex = ParentMeshBoneIndex;
-		} while (true);
-
-		return true;
-	}
-
-	void RecursiveBuildSkeletalSkeleton(const FString JoinToAddUid, const int32 ParentIndex, const UInterchangeBaseNodeContainer* BaseNodeContainer, TArray<FMeshBoneInfo>& SkeletalLodRawInfos)
-	{
-		const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(JoinToAddUid));
-		if (!SceneNode || !SceneNode->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
-		{
-			return;
-		}
-
-		int32 JoinIndex = SkeletalLodRawInfos.Num();
-		FMeshBoneInfo& Info = SkeletalLodRawInfos.AddZeroed_GetRef();
-		Info.Name = *SceneNode->GetDisplayLabel();
-		Info.ParentIndex = ParentIndex;
-#if WITH_EDITORONLY_DATA
-		Info.ExportName = Info.Name.ToString();
-#endif
-		//Iterate childrens
-		const TArray<FString> ChildrenIds = BaseNodeContainer->GetNodeChildrenUids(JoinToAddUid);
-		for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
-		{
-			RecursiveBuildSkeletalSkeleton(ChildrenIds[ChildIndex], JoinIndex, BaseNodeContainer, SkeletalLodRawInfos);
-		}
-	}
-
-	bool IsCompatibleSkeleton(const USkeleton* Skeleton, const FString RootJoinUid, const UInterchangeBaseNodeContainer* BaseNodeContainer)
-	{
-		// at least % of bone should match 
-		int32 NumOfBoneMatches = 0;
-		//Make sure the specified Skeleton fit this skeletal mesh
-		const FReferenceSkeleton& SkeletonRef = Skeleton->GetReferenceSkeleton();
-		const int32 SkeletonBoneCount = SkeletonRef.GetRawBoneNum();
-
-		TArray<FMeshBoneInfo> SkeletalLodRawInfos;
-		SkeletalLodRawInfos.Reserve(SkeletonBoneCount);
-		RecursiveBuildSkeletalSkeleton(RootJoinUid, INDEX_NONE, BaseNodeContainer, SkeletalLodRawInfos);
-		const int32 SkeletalLodBoneCount = SkeletalLodRawInfos.Num();
-
-		// first ensure the parent exists for each bone
-		for (int32 MeshBoneIndex = 0; MeshBoneIndex < SkeletalLodBoneCount; MeshBoneIndex++)
-		{
-			FName MeshBoneName = SkeletalLodRawInfos[MeshBoneIndex].Name;
-			// See if Mesh bone exists in Skeleton.
-			int32 SkeletonBoneIndex = SkeletonRef.FindBoneIndex(MeshBoneName);
-
-			// if found, increase num of bone matches count
-			if (SkeletonBoneIndex != INDEX_NONE)
-			{
-				++NumOfBoneMatches;
-
-				// follow the parent chain to verify the chain is same
-				if (!DoesParentChainMatch(SkeletonBoneIndex, SkeletonRef, SkeletalLodRawInfos))
-				{
-					//Not compatible
-					return false;
-				}
-			}
-			else
-			{
-				int32 CurrentBoneId = MeshBoneIndex;
-				// if not look for parents that matches
-				while (SkeletonBoneIndex == INDEX_NONE && CurrentBoneId != INDEX_NONE)
-				{
-					// find Parent one see exists
-					const int32 ParentMeshBoneIndex = SkeletalLodGetParentIndex(SkeletalLodRawInfos, CurrentBoneId);
-					if (ParentMeshBoneIndex != INDEX_NONE)
-					{
-						// @TODO: make sure RefSkeleton's root ParentIndex < 0 if not, I'll need to fix this by checking TreeBoneIdx
-						FName ParentBoneName = SkeletalLodGetBoneName(SkeletalLodRawInfos, ParentMeshBoneIndex);
-						SkeletonBoneIndex = SkeletonRef.FindBoneIndex(ParentBoneName);
-					}
-
-					// root is reached
-					if (ParentMeshBoneIndex == 0)
-					{
-						break;
-					}
-					else
-					{
-						CurrentBoneId = ParentMeshBoneIndex;
-					}
-				}
-
-				// still no match, return false, no parent to look for
-				if (SkeletonBoneIndex == INDEX_NONE)
-				{
-					return false;
-				}
-
-				// second follow the parent chain to verify the chain is same
-				if (!DoesParentChainMatch(SkeletonBoneIndex, SkeletonRef, SkeletalLodRawInfos))
-				{
-					return false;
-				}
-			}
-		}
-
-		// originally we made sure at least matches more than 50% 
-		// but then slave components can't play since they're only partial
-		// if the hierarchy matches, and if it's more then 1 bone, we allow
-		return (NumOfBoneMatches > 0);
-	}
-
 	bool RecursiveFindChildUid(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& ParentUid, const FString& SearchUid)
 	{
 		if (ParentUid == SearchUid)
@@ -242,18 +70,19 @@ namespace UE::Interchange::SkeletalMeshGenericPipeline
 
 void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 {
+	check(!CommonMeshesProperties.IsNull());
 	if (!bImportSkeletalMeshes)
 	{
 		//Nothing to import
 		return;
 	}
 
-	if (ForceAllMeshAsType != EInterchangeForceMeshType::IFMT_None && ForceAllMeshAsType != EInterchangeForceMeshType::IFMT_SkeletalMesh)
+	if (CommonMeshesProperties->ForceAllMeshAsType != EInterchangeForceMeshType::IFMT_None && CommonMeshesProperties->ForceAllMeshAsType != EInterchangeForceMeshType::IFMT_SkeletalMesh)
 	{
 		//Nothing to import
 		return;
 	}
-	const bool bConvertStaticMeshToSkeletalMesh = (ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
+	const bool bConvertStaticMeshToSkeletalMesh = (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
 	TMap<FString, TArray<FString>> SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid;
 
 	auto SetSkeletalMeshDependencies = [&SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid](const FString& JointNodeUid, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode)
@@ -324,7 +153,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 		};
 
 		bool bFoundMeshes = false;
-		if (bBakeMeshes)
+		if (CommonMeshesProperties->bBakeMeshes)
 		{
 			PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(MeshUidsPerSkeletonRootUid, bConvertStaticMeshToSkeletalMesh);
 			const bool bUseMeshInstance = true;
@@ -398,7 +227,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 		};
 			
 		bool bFoundMeshes = false;
-		if (bBakeMeshes)
+		if (CommonMeshesProperties->bBakeMeshes)
 		{
 			PipelineMeshesUtilities->GetAllSkinnedMeshInstance(MeshUids, bConvertStaticMeshToSkeletalMesh);
 			const bool bUseMeshInstance = true;
@@ -418,11 +247,13 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 
 UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeletonFactoryNode(const FString& RootJointUid)
 {
+	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
 	const UInterchangeBaseNode* RootJointNode = BaseNodeContainer->GetNode(RootJointUid);
 	if (!RootJointNode)
 	{
 		return nullptr;
 	}
+
 	FString DisplayLabel = RootJointNode->GetDisplayLabel() + TEXT("_Skeleton");
 	FString SkeletonUid = TEXT("\\Skeleton\\") + RootJointNode->GetUniqueID();
 
@@ -453,21 +284,23 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeleton
 		}
 		SkeletonFactoryNode->InitializeSkeletonNode(SkeletonUid, DisplayLabel, USkeleton::StaticClass()->GetName());
 		SkeletonFactoryNode->SetCustomRootJointUid(RootJointNode->GetUniqueID());
-		SkeletonFactoryNode->SetCustomUseTimeZeroForBindPose(bUseT0AsRefPose);
+		SkeletonFactoryNode->SetCustomUseTimeZeroForBindPose(CommonSkeletalMeshesAndAnimationsProperties->bUseT0AsRefPose);
 		BaseNodeContainer->AddNode(SkeletonFactoryNode);
 	}
 
 	//If we have a specified skeleton
-	if (Skeleton)
+	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton)
 	{
 		SkeletonFactoryNode->SetEnabled(false);
-		SkeletonFactoryNode->ReferenceObject = Skeleton;
+		SkeletonFactoryNode->ReferenceObject = CommonSkeletalMeshesAndAnimationsProperties->Skeleton;
 	}
 	return SkeletonFactoryNode;
 }
 
 UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeletalMeshFactoryNode(const FString& RootJointUid, const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex)
 {
+	check(!CommonMeshesProperties.IsNull());
+	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
 	//Get the skeleton factory node
 	const UInterchangeBaseNode* RootJointNode = BaseNodeContainer->GetNode(RootJointUid);
 	if (!RootJointNode)
@@ -569,25 +402,28 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 	SkeletalMeshFactoryNode->SetCustomImportContentType(SkeletalMeshImportContentType);
 
 	//If we have a specified skeleton
-	if (Skeleton)
+	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton)
 	{
-		if (UE::Interchange::SkeletalMeshGenericPipeline::IsCompatibleSkeleton(Skeleton, RootJointNode->GetUniqueID(), BaseNodeContainer))
+		bool bSkeletonCompatible = false;
+
+		//TODO: support skeleton helper in runtime
+#if WITH_EDITOR
+		bSkeletonCompatible = UE::Interchange::Private::FSkeletonHelper::IsCompatibleSkeleton(CommonSkeletalMeshesAndAnimationsProperties->Skeleton, RootJointNode->GetUniqueID(), BaseNodeContainer);
+#endif
+		if (bSkeletonCompatible)
 		{
-			FSoftObjectPath SkeletonSoftObjectPath(Skeleton.Get());
+			FSoftObjectPath SkeletonSoftObjectPath(CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get());
 			SkeletalMeshFactoryNode->SetCustomSkeletonSoftObjectPath(SkeletonSoftObjectPath);
 		}
 		else
 		{
-			//Log an error, saying we will create a skeleton instead of using the specified one
-			//Should we show a dialog so we are sure the user understand he choose the wrong skeleton
-
-			//Make sure we enable the skeleton factory node
-			SkeletonFactoryNode->SetEnabled(true);
-
+			UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+			Message->Text = FText::Format(NSLOCTEXT("UInterchangeGenericMeshPipeline", "IncompatibleSkeleton", "Incompatible skeleton {0} when importing skeletalmesh {1}."),
+				FText::FromString(CommonSkeletalMeshesAndAnimationsProperties->Skeleton->GetName()),
+				FText::FromString(DisplayLabel));
 		}
 	}
 
-#if WITH_EDITOR
 	//Physic asset dependency, if we must create or use a specialize physic asset let create
 	//a PhysicsAsset factory node, so the asset will exist when we will setup the skeletalmesh
 	if (bCreatePhysicsAsset)
@@ -608,10 +444,9 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 		FSoftObjectPath PhysicSoftObjectPath(PhysicsAsset.Get());
 		SkeletalMeshFactoryNode->SetCustomPhysicAssetSoftObjectPath(PhysicSoftObjectPath);
 	}
-#endif
 
 	const bool bTrueValue = true;
-	switch (VertexColorImportOption)
+	switch (CommonMeshesProperties->VertexColorImportOption)
 	{
 		case EInterchangeVertexColorImportOption::IVCIO_Replace:
 		{
@@ -625,11 +460,17 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 		break;
 		case EInterchangeVertexColorImportOption::IVCIO_Override:
 		{
-			SkeletalMeshFactoryNode->SetCustomVertexColorOverride(VertexOverrideColor);
+			SkeletalMeshFactoryNode->SetCustomVertexColorOverride(CommonMeshesProperties->VertexOverrideColor);
 		}
 		break;
 	}
 
+	//Avoid importing skeletalmesh if we want to only import animation
+	if (CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations)
+	{
+		SkeletonFactoryNode->SetEnabled(false);
+		SkeletalMeshFactoryNode->SetEnabled(false);
+	}
 	return SkeletalMeshFactoryNode;
 }
 
@@ -651,12 +492,15 @@ UInterchangeSkeletalMeshLodDataNode* UInterchangeGenericMeshPipeline::CreateSkel
 
 void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex)
 {
+	check(!CommonMeshesProperties.IsNull());
+	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+
 	const FString SkeletalMeshUid = SkeletalMeshFactoryNode->GetUniqueID();
 	const FString SkeletonUid = SkeletonFactoryNode->GetUniqueID();
 	for (const TPair<int32, TArray<FString>>& LodIndexAndNodeUids : NodeUidsPerLodIndex)
 	{
 		const int32 LodIndex = LodIndexAndNodeUids.Key;
-		if (!bImportLods && LodIndex > 0)
+		if (!CommonMeshesProperties->bImportLods && LodIndex > 0)
 		{
 			//If the pipeline should not import lods, skip any lod over base lod
 			continue;
@@ -664,7 +508,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 
 		//Copy the nodes unique id because we need to remove nested mesh if the option is to not import them
 		TArray<FString> NodeUids = LodIndexAndNodeUids.Value;
-		if (!bImportMeshesInBoneHierarchy)
+		if (!CommonSkeletalMeshesAndAnimationsProperties->bImportMeshesInBoneHierarchy)
 		{
 			UE::Interchange::SkeletalMeshGenericPipeline::RemoveNestedMeshNodes(BaseNodeContainer, SkeletonFactoryNode, NodeUids);
 		}
@@ -731,6 +575,8 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 
 void UInterchangeGenericMeshPipeline::PostImportSkeletalMesh(UObject* CreatedAsset, UInterchangeBaseNode* Node)
 {
+	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+
 	if (!BaseNodeContainer)
 	{
 		return;
@@ -744,7 +590,7 @@ void UInterchangeGenericMeshPipeline::PostImportSkeletalMesh(UObject* CreatedAss
 
 	//If we import only the geometry we do not want to update the skeleton reference pose.
 	const bool bImportGeometryOnlyContent = SkeletalMeshImportContentType == EInterchangeSkeletalMeshContentType::Geometry;
-	if (!bImportGeometryOnlyContent && bUpdateSkeletonReferencePose && !Skeleton.IsNull() && SkeletalMesh->GetSkeleton() == Skeleton.Get())
+	if (!bImportGeometryOnlyContent && bUpdateSkeletonReferencePose && !CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull() && SkeletalMesh->GetSkeleton() == CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get())
 	{
 		SkeletalMesh->GetSkeleton()->UpdateReferencePoseFromMesh(SkeletalMesh);
 		//TODO: notify editor the skeleton has change
@@ -805,8 +651,10 @@ void UInterchangeGenericMeshPipeline::PostImportPhysicsAssetImport(UObject* Crea
 #endif //WITH_EDITOR
 }
 
-void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesAndAnimsImportedNodeCount, const bool bUseSourceNameForAsset)
+void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesImportedNodeCount, const bool bUseSourceNameForAsset)
 {
+	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+
 	const UClass* SkeletalMeshFactoryNodeClass = UInterchangeSkeletalMeshFactoryNode::StaticClass();
 	TArray<FString> SkeletalMeshNodeUids;
 	BaseNodeContainer->GetNodes(SkeletalMeshFactoryNodeClass, SkeletalMeshNodeUids);
@@ -815,7 +663,7 @@ void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkelet
 		return;
 	}
 	//If we import only one asset, and bUseSourceNameForAsset is true, we want to rename the asset using the file name.
-	const bool bShouldChangeAssetName = (bUseSourceNameForAsset && MeshesAndAnimsImportedNodeCount == 1);
+	const bool bShouldChangeAssetName = (bUseSourceNameForAsset && MeshesImportedNodeCount == 1);
 	const FString SkeletalMeshUid = SkeletalMeshNodeUids[0];
 	UInterchangeSkeletalMeshFactoryNode* SkeletalMeshNode = Cast<UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetNode(SkeletalMeshUid));
 	if (!SkeletalMeshNode)
@@ -840,7 +688,7 @@ void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkelet
 		if (UInterchangeSkeletalMeshLodDataNode* SkeletalMeshLodDataNode = Cast<UInterchangeSkeletalMeshLodDataNode>(BaseNodeContainer->GetNode(LodDataUids[0])))
 		{
 			//If the user did not specify any skeleton
-			if (Skeleton.IsNull())
+			if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull())
 			{
 				FString SkeletalMeshSkeletonUid;
 				SkeletalMeshLodDataNode->GetCustomSkeletonUid(SkeletalMeshSkeletonUid);

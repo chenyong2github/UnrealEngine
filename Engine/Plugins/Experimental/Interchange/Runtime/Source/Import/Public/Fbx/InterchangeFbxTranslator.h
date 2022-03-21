@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Animation/InterchangeAnimationPayloadInterface.h"
 #include "CoreMinimal.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeDispatcher.h"
@@ -22,6 +23,7 @@ class INTERCHANGEIMPORT_API UInterchangeFbxTranslator : public UInterchangeTrans
 , public IInterchangeTexturePayloadInterface
 , public IInterchangeStaticMeshPayloadInterface
 , public IInterchangeSkeletalMeshPayloadInterface
+, public IInterchangeAnimationPayloadInterface
 {
 	GENERATED_BODY()
 public:
@@ -75,6 +77,13 @@ public:
 	virtual TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey) const override;
 	
 	/* IInterchangeSkeletalMeshPayloadInterface End */
+
+	//////////////////////////////////////////////////////////////////////////
+	/* IInterchangeAnimationPayloadInterface Begin */
+
+	virtual TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> GetAnimationTransformPayloadData(const FString& PayLoadKey) const override;
+
+	/* IInterchangeAnimationPayloadInterface End */
 private:
 	FString CreateLoadFbxFileCommand(const FString& FbxFilePath) const;
 

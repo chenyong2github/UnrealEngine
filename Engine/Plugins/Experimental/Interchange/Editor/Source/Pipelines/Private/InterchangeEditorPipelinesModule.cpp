@@ -110,6 +110,7 @@ void FInterchangeEditorPipelinesModule::RegisterPropertySectionMappings()
 	{
 		TSharedRef<FPropertySection> Section = RegisterPropertySection(PropertyModule, "InterchangeGenericMeshPipeline", "SkeletalMeshes", LOCTEXT("Skeletal Meshes", "Skeletal Meshes"));
 		Section->AddCategory("Common Meshes");
+		Section->AddCategory("Common Skeletal Meshes and Animations");
 		Section->AddCategory("Skeletal Meshes");
 	}
 
@@ -118,6 +119,13 @@ void FInterchangeEditorPipelinesModule::RegisterPropertySectionMappings()
 		TSharedRef<FPropertySection> Section = RegisterPropertySection(PropertyModule, "InterchangeGenericMeshPipeline", "StaticMeshes", LOCTEXT("Static Meshes", "Static Meshes"));
 		Section->AddCategory("Common Meshes");
 		Section->AddCategory("Static Meshes");
+	}
+
+	// Animation
+	{
+		TSharedRef<FPropertySection> Section = RegisterPropertySection(PropertyModule, "InterchangeGenericAnimationPipeline", "AnimationSequences", LOCTEXT("Animation Sequences", "Animation Sequences"));
+		Section->AddCategory("Common Skeletal Meshes and Animations");
+		Section->AddCategory("Animations");
 	}
 
 	// Textures

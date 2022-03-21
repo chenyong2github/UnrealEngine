@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"GLTFCore",
 					"IESFile",
 					"ImageWrapper",
+					"InterchangeCommonParser",
 					"InterchangeDispatcher",
 					"InterchangeMessages",
 					"Json",

@@ -52,6 +52,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "InterchangeCommonParser",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "InterchangeFbxParser",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",

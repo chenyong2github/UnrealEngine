@@ -117,7 +117,7 @@ namespace UE
 				FbxCamera.AddAllCameras(SDKScene, NodeContainer);
 
 				FFbxScene FbxScene(*this);
-				FbxScene.AddHierarchy(SDKScene, NodeContainer);
+				FbxScene.AddHierarchy(SDKScene, NodeContainer, PayloadContexts);
 			}
 
 			bool FFbxParser::FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath)

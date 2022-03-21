@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeGenericAssetsPipelineSharedSettings.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -12,6 +13,7 @@
 
 #include "InterchangeGenericAssetsPipeline.generated.h"
 
+class UInterchangeGenericAnimationPipeline;
 class UInterchangeGenericMaterialPipeline;
 class UInterchangeGenericMeshPipeline;
 class UInterchangeGenericTexturePipeline;
@@ -28,12 +30,8 @@ class INTERCHANGEPIPELINES_API UInterchangeGenericAssetsPipeline : public UInter
 
 public:
 	UInterchangeGenericAssetsPipeline();
-
-	//////////////////////////////////////////////////////////////////////////
-	// BEGIN Pre import pipeline properties, please keep by per category order for properties declaration
-
+	
 	//////	COMMON_CATEGORY Properties //////
-
 	/* Allow user to choose the re-import strategy. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common")
 	EReimportStrategyFlags ReimportStrategy = EReimportStrategyFlags::ApplyNoProperties;
@@ -42,36 +40,47 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common")
 	bool bUseSourceNameForAsset = true;
 
-	//////	MESHES_CATEGORY Properties //////
+	/** Translation offset applied to meshes and animations. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common", meta = (DisplayName = "Offset Translation"))
+	FVector ImportOffsetTranslation;
 
+	/** Rotation offset applied to meshes and animations. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common", meta = (DisplayName = "Offset Rotation"))
+	FRotator ImportOffsetRotation;
+
+	/** Uniform scale offset applied to meshes and animations. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common", meta = (DisplayName = "Offset Uniform Scale"))
+	float ImportOffsetUniformScale;
+
+	//////	COMMON_MESHES_CATEGORY Properties //////
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Common Meshes")
+	TObjectPtr<UInterchangeGenericCommonMeshesProperties> CommonMeshesProperties;
+		
+	//////  COMMON_SKELETAL_ANIMATIONS_CATEGORY //////
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Common Skeletal Meshes and Animations")
+	TObjectPtr<UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties> CommonSkeletalMeshesAndAnimationsProperties;
+
+	//////	MESHES_CATEGORY Properties //////
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Meshes")
 	TObjectPtr<UInterchangeGenericMeshPipeline> MeshPipeline;
-	
+
 	//////	ANIMATIONS_CATEGORY Properties //////
-
-
-	/** If enable, import the animation asset find in the sources. */
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
-// 	bool bImportAnimations = true;
-
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Animation")
+	TObjectPtr<UInterchangeGenericAnimationPipeline> AnimationPipeline;
 
 	//////	MATERIALS_CATEGORY Properties //////
-
-
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Materials")
 	TObjectPtr<UInterchangeGenericMaterialPipeline> MaterialPipeline;
 
-
 	//////	TEXTURES_CATEGORY Properties //////
-
-
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Textures")
 	TObjectPtr<UInterchangeGenericTexturePipeline> TexturePipeline;
 
-	// END Pre import pipeline properties
-	//////////////////////////////////////////////////////////////////////////
-
 	virtual void PreDialogCleanup(const FName PipelineStackName) override;
+
+	virtual bool IsSettingsAreValid() const override;
+
+	virtual void SetupReimportData(TObjectPtr<UObject> ReimportObject) override;
 
 protected:
 

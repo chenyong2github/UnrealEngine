@@ -711,6 +711,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				{
 					//Duplicate the pipeline saved in the asset import data
 					UInterchangePipelineBase* GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(SourcePipeline, GetTransientPackage()));
+					GeneratedPipeline->SetupReimportData(ImportAssetParameters.ReimportAsset);
 					PipelineStack.Add(GeneratedPipeline);
 				}
 				else

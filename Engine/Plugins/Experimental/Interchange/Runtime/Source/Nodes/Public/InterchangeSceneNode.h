@@ -144,6 +144,46 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
 	bool SetCustomAssetInstanceUid(const FString& AttributeValue);
 
+	/** Return true if the node transform have animation, false if the attribute is not set or there is no animation for the transform. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool GetCustomIsNodeTransformAnimated(bool& AttributeValue) const;
+
+	/** Setter to be able to query if the node transform has animation. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool SetCustomIsNodeTransformAnimated(const bool& AttributeValue);
+
+	/** Return false if the Attribute was not set previously. This attribute store the payload key needed to retrieve the animation from the source*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool GetCustomNodeTransformAnimationKeyCount(int32& AttributeValue) const;
+
+	/** If the node transform is animated, this set the payload key needed to retrieve the animation from the source. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool SetCustomNodeTransformAnimationKeyCount(const int32& AttributeValue);
+
+	/** If the node transform is animated, this should return the starting frame of the animation for this node transform*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool GetCustomNodeTransformAnimationStartTime(double& AttributeValue) const;
+
+	/** If the node transform is animated, this set the starting frame of the animation for this node transform*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool SetCustomNodeTransformAnimationStartTime(const double& AttributeValue);
+
+	/** If the node transform is animated, this should return the ending frame of the animation for this node transform*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool GetCustomNodeTransformAnimationEndTime(double& AttributeValue) const;
+
+	/** If the node transform is animated, this set the ending frame of the animation for this node transform*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool SetCustomNodeTransformAnimationEndTime(const double& AttributeValue);
+
+	/** Return false if the Attribute was not set previously. This attribute store the payload key needed to retrieve the animation from the source*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool GetCustomTransformCurvePayloadKey(FString& AttributeValue) const;
+
+	/** If the node transform is animated, this is the where we store the payload key needed to retrieve the animation from the source. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene | animation")
+	bool SetCustomTransformCurvePayloadKey(const FString& AttributeValue);
+
 	/** This static function make sure all the global transform caches are reset for all the UInterchangeSceneNode nodes in the UInterchangeBaseNodeContainer */
 	static void ResetAllGlobalTransformCaches(const UInterchangeBaseNodeContainer* BaseNodeContainer);
 
@@ -160,6 +200,12 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomTimeZeroLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("TimeZeroLocalTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomGeometricTransformKey = UE::Interchange::FAttributeKey(TEXT("GeometricTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomAssetInstanceUidKey = UE::Interchange::FAttributeKey(TEXT("AssetInstanceUid"));
+	//Animation data
+	const UE::Interchange::FAttributeKey Macro_CustomIsNodeTransformAnimatedKey = UE::Interchange::FAttributeKey(TEXT("IsNodeTransformAnimated"));
+	const UE::Interchange::FAttributeKey Macro_CustomNodeTransformAnimationKeyCountKey = UE::Interchange::FAttributeKey(TEXT("NodeTransformAnimationKeyCount"));
+	const UE::Interchange::FAttributeKey Macro_CustomNodeTransformAnimationStartTimeKey = UE::Interchange::FAttributeKey(TEXT("NodeTransformAnimationStartTime"));
+	const UE::Interchange::FAttributeKey Macro_CustomNodeTransformAnimationEndTimeKey = UE::Interchange::FAttributeKey(TEXT("NodeTransformAnimationEndTime"));
+	const UE::Interchange::FAttributeKey Macro_CustomTransformCurvePayloadKeyKey = UE::Interchange::FAttributeKey(TEXT("TransformCurvePayloadKey"));
 
 	UE::Interchange::TArrayAttributeHelper<FString> NodeSpecializeTypes;
 	UE::Interchange::TArrayAttributeHelper<FString> MaterialDependencyUids;

@@ -42,7 +42,7 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 		UObject* SuperClassDefaultObject = Class->GetSuperClass()->GetDefaultObject();
 
 		const FString& PropFileName = GEditorPerProjectIni;
-
+		FObjectProperty* SubObject = CastField<FObjectProperty>(Property);
 		FArrayProperty* Array = CastField<FArrayProperty>(Property);
 		if (Array)
 		{
@@ -95,15 +95,12 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 				}
 			}
 		}
-		else if (FObjectProperty* SubObject = CastField<FObjectProperty>(Property))
+		else if (UInterchangePipelineBase* SubPipeline = SubObject ? Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(this)) : nullptr)
 		{
-			if (UInterchangePipelineBase* SubPipeline = Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(this)))
+			// Load the settings if the referenced pipeline is a subobject of ours
+			if (SubPipeline->IsInOuter(this))
 			{
-				// Load the settings if the referenced pipeline is a subobject of ours
-				if (SubPipeline->IsInOuter(this))
-				{
-					SubPipeline->LoadSettings(PipelineStackName);
-				}
+				SubPipeline->LoadSettings(PipelineStackName);
 			}
 		}
 		else
@@ -148,7 +145,7 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 
 		const bool bIsPropertyInherited = Property->GetOwnerClass() != Class;
 		UObject* SuperClassDefaultObject = Class->GetSuperClass()->GetDefaultObject();
-
+		FObjectProperty* SubObject = CastField<FObjectProperty>(Property);
 		FArrayProperty* Array = CastField<FArrayProperty>(Property);
 		if (Array)
 		{
@@ -166,15 +163,12 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 				Sec->Add(*Key, *Buffer);
 			}
 		}
-		else if (FObjectProperty* SubObject = CastField<FObjectProperty>(Property))
+		else if (UInterchangePipelineBase* SubPipeline = SubObject ? Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(this)) : nullptr)
 		{
-			if (UInterchangePipelineBase* SubPipeline = Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(this)))
+			// Save the settings if the referenced pipeline is a subobject of ours
+			if (SubPipeline->IsInOuter(this))
 			{
-				// Save the settings if the referenced pipeline is a subobject of ours
-				if (SubPipeline->IsInOuter(this))
-				{
-					SubPipeline->SaveSettings(PipelineStackName);
-				}
+				SubPipeline->SaveSettings(PipelineStackName);
 			}
 		}
 		else

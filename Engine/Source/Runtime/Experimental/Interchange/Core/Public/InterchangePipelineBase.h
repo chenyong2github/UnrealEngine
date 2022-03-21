@@ -112,7 +112,24 @@ public:
 
 	void SaveSettings(const FName PipelineStackName);
 
+	/**
+	 * This function is called before showing the import dialog it is not called when doing a re-import.
+	 */
 	virtual void PreDialogCleanup(const FName PipelineStackName) {};
+
+	/**
+	 * This function should return true if all the pipeline settings are in a valid state to start the import.
+	 * The Interchange Pipeline Configuration Dialog will call this to know if the Import button can be enable.
+	 */
+	virtual bool IsSettingsAreValid() const
+	{
+		return true;
+	}
+
+	/**
+	 * This function is call before showing the re-import dialog it is not call when importing a new assets.
+	 */
+	virtual void SetupReimportData(TObjectPtr<UObject> ReimportObject) {};
 
 	/**
 	 * This function is used to add the given message object directly into the results for this operation.

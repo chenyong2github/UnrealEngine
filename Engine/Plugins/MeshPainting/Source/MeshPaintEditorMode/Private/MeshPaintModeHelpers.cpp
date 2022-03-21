@@ -322,11 +322,11 @@ void UMeshPaintModeSubsystem::ImportVertexColorsToSkeletalMesh(USkeletalMesh* Sk
 			{
 				if (UInterchangeGenericAssetsPipeline* GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PipelineBase.Get()))
 				{
-					if (GenericAssetPipeline->MeshPipeline && GenericAssetPipeline->MeshPipeline->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
+					if (!GenericAssetPipeline->CommonMeshesProperties.IsNull() && GenericAssetPipeline->CommonMeshesProperties->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
 					{
 						InterchangeAssetImportData->SetFlags(RF_Transactional);
 						InterchangeAssetImportData->Modify();
-						GenericAssetPipeline->MeshPipeline->VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Ignore;
+						GenericAssetPipeline->CommonMeshesProperties->VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Ignore;
 					}
 				}
 			}

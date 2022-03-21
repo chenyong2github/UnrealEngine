@@ -2,6 +2,7 @@
 #include "InterchangeGenericMeshPipeline.h"
 
 #include "CoreMinimal.h"
+#include "InterchangeGenericAssetsPipeline.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
 #include "InterchangePipelineMeshesUtilities.h"
@@ -28,6 +29,8 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipeline(UInterchangeBaseN
 	}
 
 	PipelineMeshesUtilities = UInterchangePipelineMeshesUtilities::CreateInterchangePipelineMeshesUtilities(BaseNodeContainer);
+
+
 
 	//Create skeletalmesh factory nodes
 	ExecutePreImportPipelineSkeletalMesh();
@@ -95,11 +98,4 @@ void UInterchangeGenericMeshPipeline::SetReimportSourceIndex(UClass* ReimportObj
 		};
 	}
 }
-
-void UInterchangeGenericMeshPipeline::PreDialogCleanup(const FName PipelineStackName)
-{
-	//We always clean the pipeline skeleton when showing the dialog
-	Skeleton = nullptr;
-}
-
 

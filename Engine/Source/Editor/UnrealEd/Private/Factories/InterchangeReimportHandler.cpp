@@ -2,6 +2,7 @@
 
 #include "Factories/InterchangeReimportHandler.h"
 
+#include "Animation/AnimSequence.h"
 #include "CoreMinimal.h"
 #include "EngineDefines.h"
 #include "Engine/SkeletalMesh.h"
@@ -46,7 +47,7 @@ bool UInterchangeReimportHandler::CanReimport(UObject* Obj, TArray<FString>& Out
 
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Obj);
-	//UAnimSequence* AnimSequence = Cast<UAnimSequence>(Obj);
+	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Obj);
 	UTexture* Texture = Cast<UTexture>(Obj);
 	if (bUseInterchangeFramework && SkeletalMesh)
 	{
@@ -62,13 +63,13 @@ bool UInterchangeReimportHandler::CanReimport(UObject* Obj, TArray<FString>& Out
 			return CanReimportAsset(AssetImportData);
 		}
 	}
-// 	else if (bUseInterchangeFramework && AnimSequence)
-// 	{
-// 		if (UAssetImportData* AssetImportData = AnimSequence->AssetImportData)
-// 		{
-// 			return CanReimportAsset(AssetImportData);
-// 		}
-// 	}
+	else if (bUseInterchangeFramework && AnimSequence)
+	{
+		if (UAssetImportData* AssetImportData = AnimSequence->AssetImportData)
+		{
+			return CanReimportAsset(AssetImportData);
+		}
+	}
 	else if ((bUseInterchangeFramework || bUseInterchangeFrameworkForTextureOnly) && Texture)
 	{
 		if (UAssetImportData* AssetImportData = Texture->AssetImportData)
@@ -83,7 +84,7 @@ void UInterchangeReimportHandler::SetReimportPaths(UObject* Obj, const FString& 
 {
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Obj);
-//	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Obj);
+	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Obj);
 	UTexture* Texture = Cast<UTexture>(Obj);
 
 	UAssetImportData* AssetImportData = nullptr;
@@ -95,10 +96,10 @@ void UInterchangeReimportHandler::SetReimportPaths(UObject* Obj, const FString& 
 	{
 		AssetImportData = StaticMesh->GetAssetImportData();
 	}
-// 	else if (AnimSequence)
-// 	{
-// 		AssetImportData = AnimSequence->AssetImportData;
-// 	}
+	else if (AnimSequence)
+	{
+		AssetImportData = AnimSequence->AssetImportData;
+	}
 	else if (Texture)
 	{
 		AssetImportData = Texture->AssetImportData;

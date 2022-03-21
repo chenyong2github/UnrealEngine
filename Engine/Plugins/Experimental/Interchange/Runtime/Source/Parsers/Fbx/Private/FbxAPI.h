@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "FbxInclude.h"
+#include "HAL/CriticalSection.h"
 #include "InterchangeResultsContainer.h"
 
 
@@ -65,6 +66,14 @@ namespace UE
 					ResultsContainer->Add(Item);
 					Item->SourceAssetName = SourceFilename;
 				}
+
+				/**
+				 * Critical section to avoid getting animation payload curves asynchronously.
+				 * The FBX evaluator use a cache mechanism for evaluating global transform that is not thread safe.
+				 * We avoid evaluating global transform asynchronously by using this CriticalSection when we import curves payload.
+				 * Each scene nodes representing a joint have is own payload for the transform animation.
+				 */
+				FCriticalSection AnimationTransformPayloadCriticalSection;
 			private:
 
 				void CleanupFbxData();
@@ -75,9 +84,7 @@ namespace UE
 				FbxImporter* SDKImporter = nullptr;
 				FbxGeometryConverter* SDKGeometryConverter = nullptr;
 				FString SourceFilename;
-
 				TMap<FString, TSharedPtr<FPayloadContextBase>> PayloadContexts;
-				
 			};
 		}//ns Private
 	}//ns Interchange

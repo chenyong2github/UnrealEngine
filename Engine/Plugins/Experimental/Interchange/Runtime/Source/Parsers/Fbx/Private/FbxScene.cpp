@@ -3,6 +3,7 @@
 #include "FbxScene.h"
 
 #include "CoreMinimal.h"
+#include "FbxAnimation.h"
 #include "FbxAPI.h"
 #include "FbxConvert.h"
 #include "FbxHelper.h"
@@ -15,6 +16,7 @@
 #include "InterchangeResultsContainer.h"
 #include "InterchangeSceneNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeSourceNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeFbxScene"
@@ -89,7 +91,11 @@ namespace UE
 				return DoesTheParentHierarchyContainJoints(Node->GetParent());
 			}
 
-			void FFbxScene::AddHierarchyRecursively(UInterchangeSceneNode* UnrealParentNode, FbxNode* Node, FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
+			void FFbxScene::AddHierarchyRecursively(UInterchangeSceneNode* UnrealParentNode
+				, FbxNode* Node
+				, FbxScene* SDKScene
+				, UInterchangeBaseNodeContainer& NodeContainer
+				, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts)
 			{
 				FString NodeName = FFbxHelper::GetFbxObjectName(Node);
 				FString NodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Node);
@@ -224,7 +230,7 @@ namespace UE
 									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, GlobalTransform);
 								}
 							}
-
+							FFbxAnimation::AddJointAnimation(SDKScene, Node, NodeContainer, UnrealNode, PayloadContexts);
 							break;
 						}
 
@@ -309,6 +315,7 @@ namespace UE
 						if (CurveNode && CurveNode->IsAnimated())
 						{
 							//Set the optional payload key
+							//Create an attribute animation payload
 						}
 						switch (Property.GetPropertyDataType().GetType())
 						{
@@ -431,7 +438,7 @@ namespace UE
 				for (int32 ChildIndex = 0; ChildIndex < ChildCount; ++ChildIndex)
 				{
 					FbxNode* ChildNode = Node->GetChild(ChildIndex);
-					AddHierarchyRecursively(UnrealNode, ChildNode, SDKScene, NodeContainer);
+					AddHierarchyRecursively(UnrealNode, ChildNode, SDKScene, NodeContainer, PayloadContexts);
 				}
 			}
 
@@ -452,10 +459,58 @@ namespace UE
 				return TransformNode;
 			}
 
-			void FFbxScene::AddHierarchy(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
+			void FFbxScene::AddHierarchy(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts)
 			{
 				 FbxNode* RootNode = SDKScene->GetRootNode();
-				 AddHierarchyRecursively(nullptr, RootNode, SDKScene, NodeContainer);
+				 //Create a source node where we can store any general file info
+				 {
+					 FString NodeName = FFbxHelper::GetFbxObjectName(RootNode) + TEXT("_SourceInfo");
+					 FString NodeUniqueID = TEXT("\\SourceInfo\\") + FFbxHelper::GetFbxNodeHierarchyName(RootNode);
+					 UInterchangeSourceNode* SourceNode = NewObject<UInterchangeSourceNode>(&NodeContainer, NAME_None);
+					 if (!ensure(SourceNode))
+					 {
+						 UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+						 Message->Text = LOCTEXT("NodeAllocationError", "Unable to allocate a node when importing FBX.");
+						 return;
+					 }
+					 SourceNode->InitializeNode(NodeUniqueID, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
+
+					 //Store the fbx frame rate
+					 {
+						 double FrameRate = FbxTime::GetFrameRate(SDKScene->GetGlobalSettings().GetTimeMode());
+						 SourceNode->SetCustomSourceFrameRateNumerator(FrameRate);
+						 constexpr double Denominator = 1.0;
+						 SourceNode->SetCustomSourceFrameRateDenominator(Denominator);
+					 }
+
+					 //Store the fbx timeline
+					 {
+						 //Timeline time span
+						 FbxTimeSpan TimelineTimeSpan(FBXSDK_TIME_INFINITE, FBXSDK_TIME_MINUS_INFINITE);
+						 SDKScene->GetGlobalSettings().GetTimelineDefaultTimeSpan(TimelineTimeSpan);
+						 SourceNode->SetCustomSourceTimelineStart(TimelineTimeSpan.GetStart().GetSecondDouble());
+						 SourceNode->SetCustomSourceTimelineEnd(TimelineTimeSpan.GetStop().GetSecondDouble());
+
+						 //Animated time span
+						 FbxTimeSpan AnimatedTimeSpan(FBXSDK_TIME_INFINITE, FBXSDK_TIME_MINUS_INFINITE);
+						 int32 AnimCurveNodeCount = SDKScene->GetSrcObjectCount<FbxAnimCurveNode>();
+						 for (int32 AnimCurveNodeIndex = 0; AnimCurveNodeIndex < AnimCurveNodeCount; AnimCurveNodeIndex++)
+						 {
+							 FbxAnimCurveNode* CurAnimCruveNode = SDKScene->GetSrcObject<FbxAnimCurveNode>(AnimCurveNodeIndex);
+							 if (CurAnimCruveNode->IsAnimated(true))
+							 {
+								 FbxTimeSpan CurveTimeSpan(FBXSDK_TIME_INFINITE, FBXSDK_TIME_MINUS_INFINITE);
+								 CurAnimCruveNode->GetAnimationInterval(CurveTimeSpan);
+								 AnimatedTimeSpan.UnionAssignment(CurveTimeSpan);
+							 }
+						 }
+						 SourceNode->SetCustomAnimatedTimeStart(AnimatedTimeSpan.GetStart().GetSecondDouble());
+						 SourceNode->SetCustomAnimatedTimeEnd(AnimatedTimeSpan.GetStop().GetSecondDouble());
+					 }
+
+					 NodeContainer.AddNode(SourceNode);
+				 }
+				 AddHierarchyRecursively(nullptr, RootNode, SDKScene, NodeContainer, PayloadContexts);
 			}
 		} //ns Private
 	} //ns Interchange

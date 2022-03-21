@@ -4,6 +4,8 @@
 
 #include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
+#include "InterchangeAnimSequenceFactoryNode.h"
+#include "InterchangeGenericAnimationPipeline.h"
 #include "InterchangeGenericMaterialPipeline.h"
 #include "InterchangeGenericMeshPipeline.h"
 #include "InterchangeGenericTexturePipeline.h"
@@ -29,11 +31,21 @@ UInterchangeGenericAssetsPipeline::UInterchangeGenericAssetsPipeline()
 {
 	TexturePipeline = CreateDefaultSubobject<UInterchangeGenericTexturePipeline>("TexturePipeline");
 	MaterialPipeline = CreateDefaultSubobject<UInterchangeGenericMaterialPipeline>("MaterialPipeline");
+	CommonMeshesProperties = CreateDefaultSubobject<UInterchangeGenericCommonMeshesProperties>("CommonMeshesProperties");
+	CommonSkeletalMeshesAndAnimationsProperties = CreateDefaultSubobject<UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties>("CommonSkeletalMeshesAndAnimationsProperties");
 	MeshPipeline = CreateDefaultSubobject<UInterchangeGenericMeshPipeline>("MeshPipeline");
+	MeshPipeline->CommonMeshesProperties = CommonMeshesProperties;
+	MeshPipeline->CommonSkeletalMeshesAndAnimationsProperties = CommonSkeletalMeshesAndAnimationsProperties;
+	AnimationPipeline = CreateDefaultSubobject<UInterchangeGenericAnimationPipeline>("AnimationPipeline");
+	AnimationPipeline->CommonSkeletalMeshesAndAnimationsProperties = CommonSkeletalMeshesAndAnimationsProperties;
 }
 
 void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineStackName)
 {
+	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull())
+	//We always clean the pipeline skeleton when showing the dialog
+	CommonSkeletalMeshesAndAnimationsProperties->Skeleton = nullptr;
+
 	if (TexturePipeline)
 	{
 		TexturePipeline->PreDialogCleanup(PipelineStackName);
@@ -48,17 +60,98 @@ void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineSta
 	{
 		MeshPipeline->PreDialogCleanup(PipelineStackName);
 	}
+
+	if (AnimationPipeline)
+	{
+		AnimationPipeline->PreDialogCleanup(PipelineStackName);
+	}
 	
 	SaveSettings(PipelineStackName);
 }
 
+bool UInterchangeGenericAssetsPipeline::IsSettingsAreValid() const
+{
+	if (TexturePipeline && !TexturePipeline->IsSettingsAreValid())
+	{
+		return false;
+	}
+
+	if (MaterialPipeline && !MaterialPipeline->IsSettingsAreValid())
+	{
+		return false;
+	}
+
+	if (CommonMeshesProperties && !CommonMeshesProperties->IsSettingsAreValid())
+	{
+		return false;
+	}
+
+	if (CommonSkeletalMeshesAndAnimationsProperties && !CommonSkeletalMeshesAndAnimationsProperties->IsSettingsAreValid())
+	{
+		return false;
+	}
+
+	if (MeshPipeline && !MeshPipeline->IsSettingsAreValid())
+	{
+		return false;
+	}
+
+	if (AnimationPipeline && !AnimationPipeline->IsSettingsAreValid())
+	{
+		return false;
+	}
+
+	return Super::IsSettingsAreValid();
+}
+
+void UInterchangeGenericAssetsPipeline::SetupReimportData(TObjectPtr<UObject> ReimportObject)
+{
+	if (TexturePipeline)
+	{
+		TexturePipeline->SetupReimportData(ReimportObject);
+	}
+
+	if (MaterialPipeline)
+	{
+		MaterialPipeline->SetupReimportData(ReimportObject);
+	}
+
+	if (MeshPipeline)
+	{
+		MeshPipeline->SetupReimportData(ReimportObject);
+	}
+
+	if (AnimationPipeline)
+	{
+		AnimationPipeline->SetupReimportData(ReimportObject);
+	}
+}
+
 void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
+	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+
 	if (!InBaseNodeContainer)
 	{
 		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericAssetsPipeline: Cannot execute pre-import pipeline because InBaseNodeContrainer is null"));
 		return;
 	}
+
+	//////////////////////////////////////////////////////////////////////////
+	//Make sure all options go together
+	
+	//When we import only animation we need to prevent material and physic asset to be created
+	if (CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations)
+	{
+		MaterialPipeline->MaterialImport = EInterchangeMaterialImportOption::DoNotImport;
+		MeshPipeline->bImportStaticMeshes = false;
+		MeshPipeline->bCreatePhysicsAsset = false;
+		MeshPipeline->PhysicsAsset = nullptr;
+		TexturePipeline->bImportTextures = false;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
 
 	BaseNodeContainer = InBaseNodeContainer;
 	SourceDatas.Empty(InSourceDatas.Num());
@@ -82,8 +175,12 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 		MeshPipeline->ScriptedExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
 	}
 
-	ImplementUseSourceNameForAssetOption();
+	if (AnimationPipeline)
+	{
+		AnimationPipeline->ScriptedExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
+	}
 
+	ImplementUseSourceNameForAssetOption();
 	//Make sure all factory nodes have the specified strategy
 	BaseNodeContainer->IterateNodes([ReimportStrategyClosure = ReimportStrategy](const FString& NodeUid, UInterchangeBaseNode* Node)
 		{
@@ -110,6 +207,11 @@ void UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterch
 	{
 		MeshPipeline->ScriptedExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
 	}
+
+	if (AnimationPipeline)
+	{
+		AnimationPipeline->ScriptedExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
+	}
 }
 
 void UInterchangeGenericAssetsPipeline::SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex)
@@ -128,34 +230,49 @@ void UInterchangeGenericAssetsPipeline::SetReimportSourceIndex(UClass* ReimportO
 	{
 		MeshPipeline->ScriptedSetReimportSourceIndex(ReimportObjectClass, SourceFileIndex);
 	}
+
+	if (AnimationPipeline)
+	{
+		AnimationPipeline->ScriptedSetReimportSourceIndex(ReimportObjectClass, SourceFileIndex);
+	}
 }
 
 void UInterchangeGenericAssetsPipeline::ImplementUseSourceNameForAssetOption()
 {
-	const UClass* SkeletalMeshFactoryNodeClass = UInterchangeSkeletalMeshFactoryNode::StaticClass();
-	TArray<FString> SkeletalMeshNodeUids;
-	BaseNodeContainer->GetNodes(SkeletalMeshFactoryNodeClass, SkeletalMeshNodeUids);
-
-	const UClass* StaticMeshFactoryNodeClass = UInterchangeStaticMeshFactoryNode::StaticClass();
-	TArray<FString> StaticMeshNodeUids;
-	BaseNodeContainer->GetNodes(StaticMeshFactoryNodeClass, StaticMeshNodeUids);
-
-	//TODO count also the imported animations
-
-	//If we import only one asset, and bUseSourceNameForAsset is true, we want to rename the asset using the file name.
-	const int32 MeshesAndAnimsImportedNodeCount = SkeletalMeshNodeUids.Num() + StaticMeshNodeUids.Num();
-
-	//Skeletalmesh must always rename created skeleton and physics asset to (SKNAME_Skeleton of SKNAME_PhysicsAsset). So the pipeline option
-	// bUseSourceNameForAsset will change or not the SKNAME.
-	MeshPipeline->ImplementUseSourceNameForAssetOptionSkeletalMesh(MeshesAndAnimsImportedNodeCount, bUseSourceNameForAsset);
-
-	if (bUseSourceNameForAsset && MeshesAndAnimsImportedNodeCount == 1)
+	if (bUseSourceNameForAsset)
 	{
-		if (StaticMeshNodeUids.Num() > 0)
+		const UClass* SkeletalMeshFactoryNodeClass = UInterchangeSkeletalMeshFactoryNode::StaticClass();
+		TArray<FString> SkeletalMeshNodeUids;
+		BaseNodeContainer->GetNodes(SkeletalMeshFactoryNodeClass, SkeletalMeshNodeUids);
+
+		const UClass* StaticMeshFactoryNodeClass = UInterchangeStaticMeshFactoryNode::StaticClass();
+		TArray<FString> StaticMeshNodeUids;
+		BaseNodeContainer->GetNodes(StaticMeshFactoryNodeClass, StaticMeshNodeUids);
+
+		const UClass* AnimSequenceFactoryNodeClass = UInterchangeAnimSequenceFactoryNode::StaticClass();
+		TArray<FString> AnimSequenceNodeUids;
+		BaseNodeContainer->GetNodes(AnimSequenceFactoryNodeClass, AnimSequenceNodeUids);
+
+		//If we import only one mesh, we want to rename the mesh using the file name.
+		const int32 MeshesImportedNodeCount = SkeletalMeshNodeUids.Num() + StaticMeshNodeUids.Num();
+
+		//SkeletalMesh
+		MeshPipeline->ImplementUseSourceNameForAssetOptionSkeletalMesh(MeshesImportedNodeCount, bUseSourceNameForAsset);
+
+		//StaticMesh
+		if (MeshesImportedNodeCount == 1 && StaticMeshNodeUids.Num() > 0)
 		{
 			UInterchangeStaticMeshFactoryNode* StaticMeshNode = Cast<UInterchangeStaticMeshFactoryNode>(BaseNodeContainer->GetNode(StaticMeshNodeUids[0]));
 			const FString DisplayLabelName = FPaths::GetBaseFilename(SourceDatas[0]->GetFilename());
 			StaticMeshNode->SetDisplayLabel(DisplayLabelName);
+		}
+
+		//Animation, simply look if we import only 1 animation before applying the option to animation
+		if (AnimSequenceNodeUids.Num() == 1)
+		{
+			UInterchangeAnimSequenceFactoryNode* AnimSequenceNode = Cast<UInterchangeAnimSequenceFactoryNode>(BaseNodeContainer->GetNode(AnimSequenceNodeUids[0]));
+			const FString DisplayLabelName = FPaths::GetBaseFilename(SourceDatas[0]->GetFilename()) + TEXT("_Anim");
+			AnimSequenceNode->SetDisplayLabel(DisplayLabelName);
 		}
 	}
 

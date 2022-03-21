@@ -5,6 +5,7 @@
 #include "Dom/JsonValue.h"
 #include "Dom/JsonObject.h"
 #include "HAL/PlatformFileManager.h"
+#include "InterchangeCommonAnimationPayload.h"
 #include "InterchangeDispatcher.h"
 #include "InterchangeDispatcherTask.h"
 #include "InterchangeManager.h"
@@ -385,6 +386,90 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> UInterch
 	if (CreatedTaskIndex == INDEX_NONE)
 	{
 		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>{});
+	}
+
+	return Promise->GetFuture();
+}
+
+TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> UInterchangeFbxTranslator::GetAnimationTransformPayloadData(const FString& PayLoadKey) const
+{
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationTransformPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationTransformPayloadData>>>();
+
+	if (!Dispatcher.IsValid())
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>());
+		return Promise->GetFuture();
+	}
+
+	// Create a json command to read the fbx file
+	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
+	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
+		{
+			UE::Interchange::ETaskState TaskState;
+			FString JsonResult;
+			TArray<FString> JsonMessages;
+			Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
+
+			// Parse the Json messages into UInterchangeResults
+			for (const FString& JsonMessage : JsonMessages)
+			{
+				AddMessage(UInterchangeResult::FromJson(JsonMessage));
+			}
+
+			if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+			{
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>());
+				return;
+			}
+
+			// Grab the result file and fill the BaseNodeContainer
+			UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+			ResultParser.FromJson(JsonResult);
+			FString AnimationTransformPayloadFilename = ResultParser.GetResultFilename();
+
+			if (!ensure(FPaths::FileExists(AnimationTransformPayloadFilename)))
+			{
+				// TODO log an error saying the payload file does not exist even if the get payload command succeeded
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>());
+				return;
+			}
+
+			UE::Interchange::FAnimationTransformPayloadData AnimationTransformPayload;
+
+			// All sub object should be gone with the reset
+			TArray64<uint8> Buffer;
+			FFileHelper::LoadFileToArray(Buffer, *AnimationTransformPayloadFilename);
+			uint8* FileData = Buffer.GetData();
+			int64 FileDataSize = Buffer.Num();
+			if (FileDataSize < 1)
+			{
+				// Nothing to load from this file
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>());
+				return;
+			}
+
+			// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
+			FLargeMemoryReader Ar(FileData, FileDataSize);
+			TArray<FInterchangeCurve> InterchangeCurves;
+			Ar << InterchangeCurves;
+			AnimationTransformPayload.TransformCurves.AddDefaulted(static_cast<int32>(EInterchangeTransformCurveChannel::TransformChannelCount));
+			for (const FInterchangeCurve& InterchangeCurve : InterchangeCurves)
+			{
+				int32 TransformChannelIndex = static_cast<int32>(InterchangeCurve.TransformChannel);
+				if (AnimationTransformPayload.TransformCurves.IsValidIndex(TransformChannelIndex))
+				{
+					UE::Interchange::FAnimationCurveTransformPayloadData& CurveTransformData = AnimationTransformPayload.TransformCurves[static_cast<int32>(InterchangeCurve.TransformChannel)];
+					CurveTransformData.TransformChannel = InterchangeCurve.TransformChannel;
+					InterchangeCurve.ToRichCurve(CurveTransformData.Curve);
+				}
+			}
+			Promise->SetValue(MoveTemp(AnimationTransformPayload));
+		}));
+
+	// The task was not added to the dispatcher
+	if (CreatedTaskIndex == INDEX_NONE)
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>{});
 	}
 
 	return Promise->GetFuture();

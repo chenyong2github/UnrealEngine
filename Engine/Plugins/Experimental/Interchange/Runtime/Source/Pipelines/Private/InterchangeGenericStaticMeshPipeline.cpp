@@ -135,15 +135,17 @@ static void BuildMeshToCollisionMeshMap(const TArray<FString>& MeshUids, TMap<FS
 
 void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 {
-	if (bImportStaticMeshes && (ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_None || ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh))
+	check(!CommonMeshesProperties.IsNull());
+
+	if (bImportStaticMeshes && (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_None || CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh))
 	{
-		const bool bConvertSkeletalMeshToStaticMesh = (ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh);
+		const bool bConvertSkeletalMeshToStaticMesh = (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh);
 		if (bCombineStaticMeshes)
 		{
 			// Combine all the static meshes
 
 			bool bFoundMeshes = false;
-			if (bBakeMeshes)
+			if (CommonMeshesProperties->bBakeMeshes)
 			{
 				// If baking transforms, get all the static mesh instance nodes, and group them by LOD
 				TArray<FString> MeshUids;
@@ -207,7 +209,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 
 			bool bFoundMeshes = false;
 
-			if (bBakeMeshes)
+			if (CommonMeshesProperties->bBakeMeshes)
 			{
 				TArray<FString> MeshUids;
 				PipelineMeshesUtilities->GetAllStaticMeshInstance(MeshUids, bConvertSkeletalMeshToStaticMesh);
@@ -366,6 +368,7 @@ bool UInterchangeGenericMeshPipeline::MakeMeshFactoryNodeUidAndDisplayLabel(cons
 
 UInterchangeStaticMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateStaticMeshFactoryNode(const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex)
 {
+	check(!CommonMeshesProperties.IsNull());
 	if (MeshUidsPerLodIndex.Num() == 0)
 	{
 		return nullptr;
@@ -393,7 +396,7 @@ UInterchangeStaticMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateStatic
 
 	AddLodDataToStaticMesh(StaticMeshFactoryNode, MeshUidsPerLodIndex);
 
-	switch (VertexColorImportOption)
+	switch (CommonMeshesProperties->VertexColorImportOption)
 	{
 	case EInterchangeVertexColorImportOption::IVCIO_Replace:
 	{
@@ -407,7 +410,7 @@ UInterchangeStaticMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateStatic
 	break;
 	case EInterchangeVertexColorImportOption::IVCIO_Override:
 	{
-		StaticMeshFactoryNode->SetCustomVertexColorOverride(VertexOverrideColor);
+		StaticMeshFactoryNode->SetCustomVertexColorOverride(CommonMeshesProperties->VertexOverrideColor);
 	}
 	break;
 	}
@@ -435,12 +438,13 @@ UInterchangeStaticMeshLodDataNode* UInterchangeGenericMeshPipeline::CreateStatic
 
 void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticMeshFactoryNode* StaticMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex)
 {
+	check(!CommonMeshesProperties.IsNull());
 	const FString StaticMeshFactoryUid = StaticMeshFactoryNode->GetUniqueID();
 
 	for (const TPair<int32, TArray<FString>>& LodIndexAndNodeUids : NodeUidsPerLodIndex)
 	{
 		const int32 LodIndex = LodIndexAndNodeUids.Key;
-		if (!bImportLods && LodIndex > 0)
+		if (!CommonMeshesProperties->bImportLods && LodIndex > 0)
 		{
 			// If the pipeline should not import lods, skip any lod over base lod
 			continue;

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeGenericAssetsPipelineSharedSettings.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -12,6 +13,7 @@
 
 #include "InterchangeGenericMeshPipeline.generated.h"
 
+class UInterchangeGenericAssetsPipeline;
 class UInterchangeMeshNode;
 class UInterchangePipelineMeshesUtilities;
 class UInterchangeSkeletalMeshFactoryNode;
@@ -19,33 +21,8 @@ class UInterchangeSkeletalMeshLodDataNode;
 class UInterchangeSkeletonFactoryNode;
 class UInterchangeStaticMeshFactoryNode;
 class UInterchangeStaticMeshLodDataNode;
+class UPhysicsAsset;
 
-/** Force mesh type, if user want to import all meshes as one type*/
-UENUM(BlueprintType)
-enum class EInterchangeForceMeshType : uint8
-{
-	/** Will import from the source type, no conversion */
-	IFMT_None UMETA(DisplayName = "None"),
-	/** Will import any mesh to static mesh. */
-	IFMT_StaticMesh UMETA(DisplayName = "Static Mesh"),
-	/** Will import any mesh to skeletal mesh. */
-	IFMT_SkeletalMesh UMETA(DisplayName = "Skeletal Mesh"),
-
-	IFMT_MAX
-};
-
-UENUM(BlueprintType)
-enum class EInterchangeVertexColorImportOption : uint8
-{
-	/** Import the mesh using the vertex colors from the translated source. */
-	IVCIO_Replace UMETA(DisplayName = "Replace"),
-	/** Ignore vertex colors from the translated source. In case of a re-import keep the existing mesh vertex colors. */
-	IVCIO_Ignore UMETA(DisplayName = "Ignore"),
-	/** Override all vertex colors with the specified color. */
-	IVCIO_Override UMETA(DisplayName = "Override"),
-
-	IVCIO_MAX
-};
 
 UCLASS(BlueprintType, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericMeshPipeline : public UInterchangePipelineBase
@@ -54,27 +31,13 @@ class INTERCHANGEPIPELINES_API UInterchangeGenericMeshPipeline : public UInterch
 
 public:
 
-	//////	COMMON_MESHES_CATEGORY Properties //////
+	//Common Meshes Properties Settings Pointer
+	UPROPERTY(Transient)
+	TObjectPtr<UInterchangeGenericCommonMeshesProperties> CommonMeshesProperties;
 
-	/** Allow to convert mesh to a particular type */
- 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
- 	EInterchangeForceMeshType ForceAllMeshAsType = EInterchangeForceMeshType::IFMT_None;
-
-	/** If enable, meshes LODs will be imported. Note that it required the advanced bBakeMesh property to be enabled. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (editcondition = "bBakeMeshes"))
-	bool bImportLods = true;
-
-	/** If enable, meshes will be baked with the scene instance hierarchy transform. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
-	bool bBakeMeshes = true;
-
-	/** Specify how vertex colors should be imported */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
-	EInterchangeVertexColorImportOption VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Replace;
-
-	/** Specify override color in the case that VertexColorImportOption is set to Override */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
-	FColor VertexOverrideColor;
+	//Common SkeletalMeshes And Animations Properties Settings Pointer
+	UPROPERTY(Transient)
+	TObjectPtr<UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties> CommonSkeletalMeshesAndAnimationsProperties;
 	
 	//////	STATIC_MESHES_CATEGORY Properties //////
 
@@ -104,14 +67,6 @@ public:
 	bool bOneConvexHullPerUCX = true;
 
 	
-	//////  COMMON_SKELETAL_ANIMATIONS_CATEGORY //////
-
-
-	/** Skeleton to use for imported asset. When importing a skeletal mesh, leaving this as "None" will create a new skeleton. When importing an animation this MUST be specified to import the asset. */
- 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Skeletal Mesh and Animations")
- 	TObjectPtr<class USkeleton> Skeleton;
-
-	
 	//////	SKELETAL_MESHES_CATEGORY Properties //////
 
 	/** If enable, import the animation asset find in the sources. */
@@ -138,23 +93,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bUpdateSkeletonReferencePose = false;
 
-	/** If checked, meshes nested in bone hierarchies will be imported instead of being converted to bones. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
-	bool bImportMeshesInBoneHierarchy = true;
-
-	/** Enable this option to use frame 0 as reference pose */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
-	bool bUseT0AsRefPose = false;
-
 	/** If checked, create new PhysicsAsset if it doesn't have it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bCreatePhysicsAsset = true;
 
 	/** If this is set, use this specified PhysicsAsset. If its not set and bCreatePhysicsAsset is false, the importer will not generate or set any physic asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (editcondition = "!bCreatePhysicsAsset"))
-	TObjectPtr<class UPhysicsAsset> PhysicsAsset;
-
-	virtual void PreDialogCleanup(const FName PipelineStackName) override;
+	TObjectPtr<UPhysicsAsset> PhysicsAsset;
 
 protected:
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
@@ -171,8 +116,7 @@ protected:
 private:
 
 	/* Meshes utilities, to parse the translated graph and extract the meshes informations. */
-	UInterchangePipelineMeshesUtilities* PipelineMeshesUtilities;
-
+	TObjectPtr<UInterchangePipelineMeshesUtilities> PipelineMeshesUtilities = nullptr;
 
 	/************************************************************************/
 	/* Skeletal mesh API BEGIN                                              */
@@ -218,7 +162,7 @@ private:
 public:
 	
 	/** Specialize for skeletalmesh */
-	void ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesAndAnimsImportedNodeCount, const bool bUseSourceNameForAsset);
+	void ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesImportedNodeCount, const bool bUseSourceNameForAsset);
 
 private:
 	/* Skeletal mesh API END                                                */

@@ -2,6 +2,7 @@
 
 #include "InterchangeImportModule.h"
 
+#include "Animation/InterchangeAnimSequenceFactory.h"
 #include "CoreMinimal.h"
 #include "Fbx/InterchangeFbxTranslator.h"
 #include "Gltf/InterchangeGltfTranslator.h"
@@ -88,6 +89,7 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterFactory(UInterchangeStaticMeshFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangePhysicsAssetFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeActorFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeAnimSequenceFactory::StaticClass());
 	};
 
 	if (GEngine)
