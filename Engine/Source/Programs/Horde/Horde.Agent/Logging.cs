@@ -24,53 +24,53 @@ namespace Horde.Agent
 {
 	static class Logging
 	{
-		static string Env = "default";
+		static string s_env = "default";
 
-		public static void SetEnv(string NewEnv)
+		public static void SetEnv(string newEnv)
 		{
-			Env = NewEnv;
+			s_env = newEnv;
 		}
 
-		static Lazy<Serilog.ILogger> Logger = new Lazy<Serilog.ILogger>(CreateSerilogLogger, true);
+		private static readonly Lazy<Serilog.ILogger> s_logger = new Lazy<Serilog.ILogger>(CreateSerilogLogger, true);
 		
 		public static LoggingLevelSwitch LogLevelSwitch =  new LoggingLevelSwitch();
 
 		private class DatadogLogEnricher : ILogEventEnricher
 		{
-			public void Enrich(Serilog.Events.LogEvent LogEvent, ILogEventPropertyFactory PropertyFactory)
+			public void Enrich(Serilog.Events.LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
 			{
-				LogEvent.AddOrUpdateProperty(PropertyFactory.CreateProperty("dd.env", Env));
-				LogEvent.AddOrUpdateProperty(PropertyFactory.CreateProperty("dd.service", "hordeagent"));
-				LogEvent.AddOrUpdateProperty(PropertyFactory.CreateProperty("dd.version", Program.Version));
+				logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty("dd.env", s_env));
+				logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty("dd.service", "hordeagent"));
+				logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty("dd.version", Program.Version));
 
-				ISpan? Span = GlobalTracer.Instance?.ActiveSpan;
-				if (Span != null)
+				ISpan? span = GlobalTracer.Instance?.ActiveSpan;
+				if (span != null)
 				{
-					LogEvent.AddPropertyIfAbsent(PropertyFactory.CreateProperty("dd.trace_id", Span.Context.TraceId));
-					LogEvent.AddPropertyIfAbsent(PropertyFactory.CreateProperty("dd.span_id", Span.Context.SpanId));
+					logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("dd.trace_id", span.Context.TraceId));
+					logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("dd.span_id", span.Context.SpanId));
 				}
 			}
 		}
 		
 		public class HordeLoggerProvider : ILoggerProvider
 		{
-			SerilogLoggerProvider Inner;
+			private readonly SerilogLoggerProvider _inner;
 
 			public HordeLoggerProvider()
 			{
-				Inner = new SerilogLoggerProvider(Logger.Value);
+				_inner = new SerilogLoggerProvider(s_logger.Value);
 			}
 
-			public Microsoft.Extensions.Logging.ILogger CreateLogger(string CategoryName)
+			public Microsoft.Extensions.Logging.ILogger CreateLogger(string categoryName)
 			{
-				Microsoft.Extensions.Logging.ILogger Logger = Inner.CreateLogger(CategoryName);
-				Logger = new DefaultLoggerIndentHandler(Logger);
-				return Logger;
+				Microsoft.Extensions.Logging.ILogger logger = _inner.CreateLogger(categoryName);
+				logger = new DefaultLoggerIndentHandler(logger);
+				return logger;
 			}
 
 			public void Dispose()
 			{
-				Inner.Dispose();
+				_inner.Dispose();
 			}
 		}
 
@@ -78,14 +78,14 @@ namespace Horde.Agent
 		{
 			DirectoryReference.CreateDirectory(Program.DataDir);
 
-			ConsoleTheme Theme;
+			ConsoleTheme theme;
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && Environment.OSVersion.Version < new Version(10, 0))
 			{
-				Theme = SystemConsoleTheme.Literate;
+				theme = SystemConsoleTheme.Literate;
 			}
 			else
 			{
-				Theme = AnsiConsoleTheme.Code;
+				theme = AnsiConsoleTheme.Code;
 			}
 
 			return new LoggerConfiguration()
@@ -102,7 +102,7 @@ namespace Horde.Agent
 				.MinimumLevel.ControlledBy(LogLevelSwitch)
 				.Enrich.FromLogContext()
 				.Enrich.With<DatadogLogEnricher>()
-				.WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: Theme)
+				.WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: theme)
 				.WriteTo.File(FileReference.Combine(Program.DataDir, "Log-.txt").FullName, fileSizeLimitBytes: 50 * 1024 * 1024, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, retainedFileCountLimit: 10)
 				.WriteTo.File(new JsonFormatter(renderMessage: true), FileReference.Combine(Program.DataDir, "Log-.json").FullName, fileSizeLimitBytes: 50 * 1024 * 1024, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, retainedFileCountLimit: 10)
 				.CreateLogger();

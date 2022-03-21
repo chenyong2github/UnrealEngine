@@ -20,93 +20,92 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Provides additional diagnostic information for SSL certificate validation
 		/// </summary>
-		/// <param name="Logger">The logger instance</param>
-		/// <param name="Sender"></param>
-		/// <param name="Certificate"></param>
-		/// <param name="Chain"></param>
-		/// <param name="SslPolicyErrors"></param>
-		/// <param name="ServerProfile">The server profile</param>
+		/// <param name="logger">The logger instance</param>
+		/// <param name="sender"></param>
+		/// <param name="certificate"></param>
+		/// <param name="chain"></param>
+		/// <param name="sslPolicyErrors"></param>
+		/// <param name="serverProfile">The server profile</param>
 		/// <returns>True if the certificate is allowed, false otherwise</returns>
-		public static bool CertificateValidationCallBack(ILogger Logger, object Sender, X509Certificate Certificate, X509Chain Chain, SslPolicyErrors SslPolicyErrors, ServerProfile ServerProfile)
+		public static bool CertificateValidationCallBack(ILogger logger, object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors, ServerProfile serverProfile)
 		{
 			// If the certificate is a valid, signed certificate, return true.
-			if (SslPolicyErrors == SslPolicyErrors.None)
+			if (sslPolicyErrors == SslPolicyErrors.None)
 			{
 				return true;
 			}
 
 			// Trust the remote certificate if it has the right thumbprint
-			if (SslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors)
+			if (sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors)
 			{
-				if (Chain.ChainElements.Count == 1)
+				if (chain.ChainElements.Count == 1)
 				{
-					X509ChainElement Element = Chain.ChainElements[0];
-					if (Element.ChainElementStatus.Length == 1 && (Element.ChainElementStatus[0].Status == X509ChainStatusFlags.UntrustedRoot || Element.ChainElementStatus[0].Status == X509ChainStatusFlags.PartialChain))
+					X509ChainElement element = chain.ChainElements[0];
+					if (element.ChainElementStatus.Length == 1 && (element.ChainElementStatus[0].Status == X509ChainStatusFlags.UntrustedRoot || element.ChainElementStatus[0].Status == X509ChainStatusFlags.PartialChain))
 					{
-						if (ServerProfile.IsTrustedCertificate(Element.Certificate.Thumbprint))
+						if (serverProfile.IsTrustedCertificate(element.Certificate.Thumbprint))
 						{
-							Logger.LogDebug("Trusting server certificate {Thumbprint}", Element.Certificate.Thumbprint);
+							logger.LogDebug("Trusting server certificate {Thumbprint}", element.Certificate.Thumbprint);
 							return true;
 						}
 					}
-
 				}
 			}
 
 			// Generate diagnostic information
-			StringBuilder Builder = new StringBuilder();
-			if (Sender != null)
+			StringBuilder builder = new StringBuilder();
+			if (sender != null)
 			{
-				HttpRequestMessage? Message = Sender as HttpRequestMessage;
-				if (Message != null)
+				HttpRequestMessage? message = sender as HttpRequestMessage;
+				if (message != null)
 				{
-					Builder.Append($"\nSender: {Message.Method} {Message.RequestUri}");
+					builder.Append($"\nSender: {message.Method} {message.RequestUri}");
 				}
 				else
 				{
-					string SenderInfo = StringUtils.Indent(Sender.ToString() ?? String.Empty, "    ");
-					Builder.Append($"\nSender:\n{SenderInfo}");
+					string senderInfo = StringUtils.Indent(sender.ToString() ?? String.Empty, "    ");
+					builder.Append($"\nSender:\n{senderInfo}");
 				}
 			}
-			if (Certificate != null)
+			if (certificate != null)
 			{
-				Builder.Append($"\nCertificate: {Certificate.Subject}");
+				builder.Append($"\nCertificate: {certificate.Subject}");
 			}
-			if (Chain != null)
+			if (chain != null)
 			{
-				if (Chain.ChainStatus != null && Chain.ChainStatus.Length > 0)
+				if (chain.ChainStatus != null && chain.ChainStatus.Length > 0)
 				{
-					Builder.Append("\nChain status:");
-					foreach (X509ChainStatus Status in Chain.ChainStatus)
+					builder.Append("\nChain status:");
+					foreach (X509ChainStatus status in chain.ChainStatus)
 					{
-						Builder.Append($"\n  {Status.StatusInformation}");
+						builder.Append($"\n  {status.StatusInformation}");
 					}
 				}
-				if (Chain.ChainElements != null)
+				if (chain.ChainElements != null)
 				{
-					Builder.Append("\nChain elements:");
-					for (int Idx = 0; Idx < Chain.ChainElements.Count; Idx++)
+					builder.Append("\nChain elements:");
+					for (int idx = 0; idx < chain.ChainElements.Count; idx++)
 					{
-						X509ChainElement Element = Chain.ChainElements[Idx];
-						Builder.Append($"\n  {Idx,4} - Certificate: {Element.Certificate.Subject}");
-						Builder.Append($"\n         Thumbprint: {Element.Certificate.Thumbprint}");
-						if (Element.ChainElementStatus != null && Element.ChainElementStatus.Length > 0)
+						X509ChainElement element = chain.ChainElements[idx];
+						builder.Append($"\n  {idx,4} - Certificate: {element.Certificate.Subject}");
+						builder.Append($"\n         Thumbprint: {element.Certificate.Thumbprint}");
+						if (element.ChainElementStatus != null && element.ChainElementStatus.Length > 0)
 						{
-							foreach (X509ChainStatus Status in Element.ChainElementStatus)
+							foreach (X509ChainStatus status in element.ChainElementStatus)
 							{
-								Builder.Append($"\n         Status: {Status.StatusInformation} ({Status.Status})");
+								builder.Append($"\n         Status: {status.StatusInformation} ({status.Status})");
 							}
 						}
-						if (!String.IsNullOrEmpty(Element.Information))
+						if (!String.IsNullOrEmpty(element.Information))
 						{
-							Builder.Append($"\n         Info: {Element.Information}");
+							builder.Append($"\n         Info: {element.Information}");
 						}
 					}
 				}
 			}
 
 			// Print out additional diagnostic information
-			Logger.LogError("TLS certificate validation failed ({Errors}).{AdditionalInfo}", SslPolicyErrors, StringUtils.Indent(Builder.ToString(), "    "));
+			logger.LogError("TLS certificate validation failed ({Errors}).{AdditionalInfo}", sslPolicyErrors, StringUtils.Indent(builder.ToString(), "    "));
 			return false;
 		}
 	}

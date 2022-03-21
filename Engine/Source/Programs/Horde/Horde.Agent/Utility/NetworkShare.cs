@@ -15,6 +15,7 @@ namespace Horde.Agent.Utility
 	static class NetworkShare
 	{
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+		[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "<Pending>")]
 		private struct NETRESOURCE
 		{
 			public uint dwScope;
@@ -30,12 +31,11 @@ namespace Horde.Agent.Utility
 		const uint RESOURCETYPE_DISK = 1;
 		const uint CONNECT_TEMPORARY = 4;
 
-
 		const int ERROR_ALREADY_ASSIGNED = 85;
 		const int ERROR_MORE_DATA = 234;
 
 		[DllImport("Mpr.dll", CharSet = CharSet.Unicode)]
-		private static extern int WNetAddConnection2W(ref NETRESOURCE lpNetResource, string? lpPassword, string? lpUsername, System.UInt32 dwFlags );
+		private static extern int WNetAddConnection2W(ref NETRESOURCE lpNetResource, string? lpPassword, string? lpUsername, uint dwFlags);
 
 		[DllImport("Mpr.dll", CharSet = CharSet.Unicode)]
 		private static extern int WNetCancelConnectionW(string lpName, [MarshalAs(UnmanagedType.Bool)] bool fForce);
@@ -46,84 +46,84 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Mounts a network share at the given location
 		/// </summary>
-		/// <param name="MountPoint">Mount point for the share</param>
-		/// <param name="RemotePath">Path to the remote resource</param>
-		public static void Mount(string MountPoint, string RemotePath)
+		/// <param name="mountPoint">Mount point for the share</param>
+		/// <param name="remotePath">Path to the remote resource</param>
+		public static void Mount(string mountPoint, string remotePath)
 		{
-			NETRESOURCE NetResource = new NETRESOURCE();
-			NetResource.dwType = RESOURCETYPE_DISK;
-			NetResource.lpLocalName = MountPoint;
-			NetResource.lpRemoteName = RemotePath;
+			NETRESOURCE netResource = new NETRESOURCE();
+			netResource.dwType = RESOURCETYPE_DISK;
+			netResource.lpLocalName = mountPoint;
+			netResource.lpRemoteName = remotePath;
 
-			int Result = WNetAddConnection2W(ref NetResource, null, null, CONNECT_TEMPORARY);
-			if(Result != 0)
+			int result = WNetAddConnection2W(ref netResource, null, null, CONNECT_TEMPORARY);
+			if(result != 0)
 			{
-				if (Result == ERROR_ALREADY_ASSIGNED)
+				if (result == ERROR_ALREADY_ASSIGNED)
 				{
-					string? CurRemotePath;
-					if (TryGetRemotePath(MountPoint, out CurRemotePath))
+					string? curRemotePath;
+					if (TryGetRemotePath(mountPoint, out curRemotePath))
 					{
-						if (CurRemotePath.Equals(RemotePath, StringComparison.OrdinalIgnoreCase))
+						if (curRemotePath.Equals(remotePath, StringComparison.OrdinalIgnoreCase))
 						{
 							return;
 						}
 						else
 						{
-							throw new Win32Exception(Result, $"Unable to mount network share {RemotePath} as {MountPoint} ({Result}). Currently connected to {CurRemotePath}.");
+							throw new Win32Exception(result, $"Unable to mount network share {remotePath} as {mountPoint} ({result}). Currently connected to {curRemotePath}.");
 						}
 					}
 				}
-				throw new Win32Exception(Result, $"Unable to mount network share {RemotePath} as {MountPoint} ({Result}: {new Win32Exception(Result).Message})");
+				throw new Win32Exception(result, $"Unable to mount network share {remotePath} as {mountPoint} ({result}: {new Win32Exception(result).Message})");
 			}
 		}
 
 		/// <summary>
 		/// Unmounts a network share
 		/// </summary>
-		/// <param name="MountPoint">The mount point to remove</param>
-		public static void Unmount(string MountPoint)
+		/// <param name="mountPoint">The mount point to remove</param>
+		public static void Unmount(string mountPoint)
 		{
-			int Result = WNetCancelConnectionW(MountPoint, true);
-			if(Result != 0)
+			int result = WNetCancelConnectionW(mountPoint, true);
+			if(result != 0)
 			{
-				throw new Win32Exception(Result, $"Unable to unmount {MountPoint} ({Result})");
+				throw new Win32Exception(result, $"Unable to unmount {mountPoint} ({result})");
 			}
 		}
 
 		/// <summary>
 		/// Gets the currently mounted path for a network share
 		/// </summary>
-		/// <param name="MountPoint">The mount point</param>
-		/// <param name="OutRemotePath">Receives the remote path</param>
+		/// <param name="mountPoint">The mount point</param>
+		/// <param name="outRemotePath">Receives the remote path</param>
 		/// <returns>True if the remote path is returned</returns>
-		public static bool TryGetRemotePath(string MountPoint, [NotNullWhen(true)] out string? OutRemotePath)
+		public static bool TryGetRemotePath(string mountPoint, [NotNullWhen(true)] out string? outRemotePath)
 		{
-			int Length = 260 * sizeof(char);
+			int length = 260 * sizeof(char);
 			for (; ; )
 			{
-				IntPtr RemotePath = Marshal.AllocHGlobal(Length);
+				IntPtr remotePath = Marshal.AllocHGlobal(length);
 				try
 				{
-					int PrevLength = Length;
-					int Result = WNetGetConnectionW(MountPoint, RemotePath, ref Length);
-					if (Result == 0)
+					int prevLength = length;
+					int result = WNetGetConnectionW(mountPoint, remotePath, ref length);
+					if (result == 0)
 					{
-						OutRemotePath = Marshal.PtrToStringUni(RemotePath)!;
-						return OutRemotePath != null;
+						outRemotePath = Marshal.PtrToStringUni(remotePath)!;
+						return outRemotePath != null;
 					}
-					else if(Result == ERROR_MORE_DATA && Length > PrevLength)
+					else if(result == ERROR_MORE_DATA && length > prevLength)
 					{
 						continue;
 					}
 					else
 					{
-						OutRemotePath = null!;
+						outRemotePath = null!;
 						return false;
 					}
 				}
 				finally
 				{
-					Marshal.FreeHGlobal(RemotePath);
+					Marshal.FreeHGlobal(remotePath);
 				}
 			}
 		}

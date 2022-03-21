@@ -19,12 +19,12 @@ namespace Horde.Agent.Commands.Workspace
 	{
 		[CommandLine("-Client=", Required = true)]
 		[Description("Client to revert all files for")]
-		string ClientName = null!;
+		string ClientName { get; set; } = null!;
 
-		protected override async Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override async Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			using IPerforceConnection PerforceClient = await Perforce.WithClientAsync(ClientName);
-			await Repo.RevertAsync(PerforceClient, CancellationToken.None);
+			using IPerforceConnection perforceClient = await perforce.WithClientAsync(ClientName);
+			await repo.RevertAsync(perforceClient, CancellationToken.None);
 		}
 	}
 }

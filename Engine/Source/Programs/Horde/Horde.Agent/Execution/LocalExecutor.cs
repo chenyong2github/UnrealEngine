@@ -15,36 +15,36 @@ namespace Horde.Agent.Execution
 {
 	class LocalExecutor : BuildGraphExecutor
 	{
-		LocalExecutorSettings Settings;
-		DirectoryReference LocalWorkspaceDir;
+		private readonly LocalExecutorSettings _settings;
+		private readonly DirectoryReference _localWorkspaceDir;
 
-		public LocalExecutor(IRpcConnection RpcConnection, string JobId, string BatchId, string AgentTypeName, LocalExecutorSettings Settings) 
-			: base(RpcConnection, JobId, BatchId, AgentTypeName)
+		public LocalExecutor(IRpcConnection rpcConnection, string jobId, string batchId, string agentTypeName, LocalExecutorSettings settings) 
+			: base(rpcConnection, jobId, batchId, agentTypeName)
 		{
-			this.Settings = Settings;
-			if(Settings.WorkspaceDir == null)
+			_settings = settings;
+			if(settings.WorkspaceDir == null)
 			{
 				throw new Exception("Missing LocalWorkspaceDir from settings");
 			}
-			LocalWorkspaceDir = new DirectoryReference(Settings.WorkspaceDir);
+			_localWorkspaceDir = new DirectoryReference(settings.WorkspaceDir);
 		}
 
-		protected override Task<bool> SetupAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken)
+		protected override Task<bool> SetupAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
-			Dictionary<string, string> EnvVars = new Dictionary<string, string>();
-			return SetupAsync(Step, LocalWorkspaceDir, null, EnvVars, Logger, CancellationToken);
+			Dictionary<string, string> envVars = new Dictionary<string, string>();
+			return SetupAsync(step, _localWorkspaceDir, null, envVars, logger, cancellationToken);
 		}
 
-		protected override Task<bool> ExecuteAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken)
+		protected override Task<bool> ExecuteAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
-			if (Settings.RunSteps)
+			if (_settings.RunSteps)
 			{
-				Dictionary<string, string> EnvVars = new Dictionary<string, string>();
-				return ExecuteAsync(Step, LocalWorkspaceDir, null, EnvVars, Logger, CancellationToken);
+				Dictionary<string, string> envVars = new Dictionary<string, string>();
+				return ExecuteAsync(step, _localWorkspaceDir, null, envVars, logger, cancellationToken);
 			}
 			else
 			{
-				Logger.LogInformation("**** SKIPPING NODE {StepName} ****", Step.Name);
+				logger.LogInformation("**** SKIPPING NODE {StepName} ****", step.Name);
 				return Task.FromResult(true);
 			}
 		}

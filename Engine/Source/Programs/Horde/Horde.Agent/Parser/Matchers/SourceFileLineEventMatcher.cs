@@ -33,46 +33,46 @@ namespace Horde.Agent.Parser.Matchers
 		const string LinePattern =
 			@"(?<line>\d+)";
 
-		ILogContext Context;
+		readonly ILogContext _context;
 
-		public SourceFileLineEventMatcher(ILogContext Context)
+		public SourceFileLineEventMatcher(ILogContext context)
 		{
-			this.Context = Context;
+			_context = context;
 		}
 
 		/// <inheritdoc/>
-		public LogEventMatch? Match(ILogCursor Input)
+		public LogEventMatch? Match(ILogCursor input)
 		{
-			Match? Match;
-			if (Input.TryMatch($"^\\s*{SeverityPattern}: {FilePattern}(?:\\({LinePattern}\\))?: ", out Match))
+			Match? match;
+			if (input.TryMatch($"^\\s*{SeverityPattern}: {FilePattern}(?:\\({LinePattern}\\))?: ", out match))
 			{
-				LogLevel Level = GetLogLevelFromSeverity(Match);
+				LogLevel level = GetLogLevelFromSeverity(match);
 
-				LogEventBuilder Builder = new LogEventBuilder(Input);
+				LogEventBuilder builder = new LogEventBuilder(input);
 
-				Builder.AnnotateSourceFile(Match.Groups["file"], Context, "");
-				Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
-				Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
+				builder.AnnotateSourceFile(match.Groups["file"], _context, "");
+				builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
+				builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 
-				EventId EventId;
-				if (Input.IsMatch("copyright"))
+				EventId eventId;
+				if (input.IsMatch("copyright"))
 				{
-					EventId = KnownLogEvents.AutomationTool_MissingCopyright;
+					eventId = KnownLogEvents.AutomationTool_MissingCopyright;
 				}
 				else
 				{
-					EventId = KnownLogEvents.AutomationTool_SourceFileLine;
+					eventId = KnownLogEvents.AutomationTool_SourceFileLine;
 				}
 
-				return Builder.ToMatch(LogEventPriority.AboveNormal, Level, EventId);
+				return builder.ToMatch(LogEventPriority.AboveNormal, level, eventId);
 			}
 			return null;
 		}
 
-		static LogLevel GetLogLevelFromSeverity(Match Match)
+		static LogLevel GetLogLevelFromSeverity(Match match)
 		{
-			string Severity = Match.Groups["severity"].Value;
-			if (Severity.Equals("WARNING", StringComparison.Ordinal))
+			string severity = match.Groups["severity"].Value;
+			if (severity.Equals("WARNING", StringComparison.Ordinal))
 			{
 				return LogLevel.Warning;
 			}

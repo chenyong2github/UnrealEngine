@@ -16,20 +16,20 @@ namespace Horde.Agent.Parser.Matchers
 {
 	class SystemicEventMatcher : ILogEventMatcher
 	{
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			if (Cursor.IsMatch(@"LogDerivedDataCache: .*queries/writes will be limited"))
+			if (cursor.IsMatch(@"LogDerivedDataCache: .*queries/writes will be limited"))
 			{
-				return new LogEventBuilder(Cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_SlowDDC);
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_SlowDDC);
 			}
-			if (Cursor.IsMatch(@"^\s*ERROR: Error: EC_OK"))
+			if (cursor.IsMatch(@"^\s*ERROR: Error: EC_OK"))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while (Builder.Next.IsMatch(@"^\s*ERROR:\s*$"))
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				while (builder.Next.IsMatch(@"^\s*ERROR:\s*$"))
 				{
-					Builder.MoveNext();
+					builder.MoveNext();
 				}
-				return new LogEventBuilder(Cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
 			}
 			return null;
 		}

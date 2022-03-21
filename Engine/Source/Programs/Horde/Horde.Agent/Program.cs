@@ -65,15 +65,15 @@ namespace Horde.Agent
 		/// <summary>
 		/// Entry point
 		/// </summary>
-		/// <param name="Args">Command-line arguments</param>
+		/// <param name="args">Command-line arguments</param>
 		/// <returns>Exit code</returns>
-		public static async Task<int> Main(string[] Args)
+		public static async Task<int> Main(string[] args)
 		{
-			Program.Args = Args;
+			Program.Args = args;
 
-			IServiceCollection Services = new ServiceCollection();
-			Services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
-			Services.AddLogging(Builder => Builder.AddProvider(new Logging.HordeLoggerProvider()));
+			IServiceCollection services = new ServiceCollection();
+			services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
+			services.AddLogging(builder => builder.AddProvider(new Logging.HordeLoggerProvider()));
 
 			// Enable unencrypted HTTP/2 for gRPC channel without TLS
 			AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
@@ -83,15 +83,15 @@ namespace Horde.Agent
 				// Prioritize agent execution time over any job its running.
 				// We've seen file copying starving the agent communication to the Horde server, causing a disconnect.
 				// Increasing the process priority is speculative fix to combat this.
-				using (Process Process = Process.GetCurrentProcess())
+				using (Process process = Process.GetCurrentProcess())
 				{
-					Process.PriorityClass = ProcessPriorityClass.High;
+					process.PriorityClass = ProcessPriorityClass.High;
 				}
 			}
 
 			// Execute all the commands
-			IServiceProvider ServiceProvider = Services.BuildServiceProvider();
-			return await CommandHost.RunAsync(new CommandLineArguments(Args), ServiceProvider, typeof(Horde.Agent.Modes.Service.RunCommand));
+			IServiceProvider serviceProvider = services.BuildServiceProvider();
+			return await CommandHost.RunAsync(new CommandLineArguments(args), serviceProvider, typeof(Horde.Agent.Modes.Service.RunCommand));
 		}
 
 		/// <summary>
@@ -127,10 +127,10 @@ namespace Horde.Agent
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				DirectoryReference? ProgramDataDir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.CommonApplicationData);
-				if (ProgramDataDir != null)
+				DirectoryReference? programDataDir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.CommonApplicationData);
+				if (programDataDir != null)
 				{
-					return DirectoryReference.Combine(ProgramDataDir, "HordeAgent");
+					return DirectoryReference.Combine(programDataDir, "HordeAgent");
 				}
 			}
 			return GetAppDir();

@@ -12,26 +12,26 @@ namespace Horde.Agent.Parser.Matchers
 	/// </summary>
 	class ExitCodeEventMatcher : ILogEventMatcher
 	{
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			int NumLines = 0;
+			int numLines = 0;
 			for (; ; )
 			{
-				if (Cursor.IsMatch(NumLines, "Editor terminated with exit code [1-9]"))
+				if (cursor.IsMatch(numLines, "Editor terminated with exit code [1-9]"))
 				{
-					NumLines++;
+					numLines++;
 				}
-				else if (Cursor.IsMatch(NumLines, "AutomationTool exiting with ExitCode=[1-9]"))
+				else if (cursor.IsMatch(numLines, "AutomationTool exiting with ExitCode=[1-9]"))
 				{
-					NumLines++;
+					numLines++;
 				}
-				else if (Cursor.IsMatch(NumLines, "BUILD FAILED"))
+				else if (cursor.IsMatch(numLines, "BUILD FAILED"))
 				{
-					NumLines++;
+					numLines++;
 				}
-				else if (Cursor.IsMatch(NumLines, "(Error executing.+)(tool returned code)(.+)"))
+				else if (cursor.IsMatch(numLines, "(Error executing.+)(tool returned code)(.+)"))
 				{
-					NumLines++;
+					numLines++;
 				}
 				else
 				{
@@ -39,11 +39,11 @@ namespace Horde.Agent.Parser.Matchers
 				}
 			}
 
-			if (NumLines > 0)
+			if (numLines > 0)
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				Builder.MoveNext(NumLines - 1);
-				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.ExitCode);
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				builder.MoveNext(numLines - 1);
+				return builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.ExitCode);
 			}
 			return null;
 		}

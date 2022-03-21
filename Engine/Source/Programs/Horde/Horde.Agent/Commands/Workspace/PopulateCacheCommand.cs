@@ -19,34 +19,34 @@ namespace Horde.Agent.Commands.Workspace
 	{
 		[CommandLine("-ClientAndStream=")]
 		[Description("Specifies client and stream pairs, in the format Client:Stream")]
-		List<string> ClientAndStreamParams = new List<string>();
+		List<string> ClientAndStreamParams { get; set; } = new List<string>();
 
 		[CommandLine("-Filter=")]
 		[Description("Filters for the files to sync, in P4 syntax (eg. /Engine/...)")]
-		List<string> Filters = new List<string>();
+		List<string> Filters { get; set; } = new List<string>();
 
 		[CommandLine("-FakeSync")]
 		[Description("Simulates the sync without actually fetching any files")]
-		bool bFakeSync = false;
+		bool FakeSync { get; set; } = false;
 
-		protected override async Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override async Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			List<string> ExpandedFilters = ExpandFilters(Filters);
+			List<string> expandedFilters = ExpandFilters(Filters);
 
-			List<PopulateRequest> PopulateRequests = new List<PopulateRequest>();
-			foreach (string ClientAndStreamParam in ClientAndStreamParams)
+			List<PopulateRequest> populateRequests = new List<PopulateRequest>();
+			foreach (string clientAndStreamParam in ClientAndStreamParams)
 			{
-				int Idx = ClientAndStreamParam.IndexOf(':');
-				if (Idx == -1)
+				int idx = clientAndStreamParam.IndexOf(':');
+				if (idx == -1)
 				{
 					throw new FatalErrorException("Expected -ClientAndStream=<ClientName>:<StreamName>");
 				}
 
-				using IPerforceConnection PerforceClient = await Perforce.WithClientAsync(ClientAndStreamParam.Substring(0, Idx));
-				PopulateRequests.Add(new PopulateRequest(PerforceClient, ClientAndStreamParam.Substring(Idx + 1), ExpandedFilters));
+				using IPerforceConnection perforceClient = await perforce.WithClientAsync(clientAndStreamParam.Substring(0, idx));
+				populateRequests.Add(new PopulateRequest(perforceClient, clientAndStreamParam.Substring(idx + 1), expandedFilters));
 			}
 
-			await Repo.PopulateAsync(PopulateRequests, bFakeSync, CancellationToken.None);
+			await repo.PopulateAsync(populateRequests, FakeSync, CancellationToken.None);
 		}
 	}
 }

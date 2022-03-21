@@ -19,16 +19,16 @@ namespace Horde.Agent.Parser.Matchers
 	class ExceptionEventMatcher : ILogEventMatcher
 	{
 		/// <inheritdoc/>
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			if (Cursor.IsMatch(@"^\s*Unhandled Exception: "))
+			if (cursor.IsMatch(@"^\s*Unhandled Exception: "))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while(Builder.Current.IsMatch(1, @"^\s*at "))
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				while(builder.Current.IsMatch(1, @"^\s*at "))
 				{
-					Builder.MoveNext();
+					builder.MoveNext();
 				}
-				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Exception);
+				return builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Exception);
 			}
 			return null;
 		}

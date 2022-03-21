@@ -20,44 +20,44 @@ namespace Horde.Agent.Parser.Matchers
 	class GenericEventMatcher : ILogEventMatcher
 	{
 		/// <inheritdoc/>
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			Match? Match;
-			if (Cursor.TryMatch(@"^\s*(FATAL|fatal error):", out Match))
+			Match? match;
+			if (cursor.TryMatch(@"^\s*(FATAL|fatal error):", out _))
 			{
-				return new LogEventBuilder(Cursor).ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
 			}
-			if (Cursor.TryMatch(@"(?<!\w)(?i)(WARNING|ERROR) ?(\([^)]+\)|\[[^\]]+\])?: ", out Match))
+			if (cursor.TryMatch(@"(?<!\w)(?i)(WARNING|ERROR) ?(\([^)]+\)|\[[^\]]+\])?: ", out match))
 			{
 				// Careful to match the first WARNING or ERROR in the line here.
-				LogLevel Level = LogLevel.Error;
-				if(Match.Groups[1].Value.Equals("WARNING", StringComparison.OrdinalIgnoreCase))
+				LogLevel level = LogLevel.Error;
+				if(match.Groups[1].Value.Equals("WARNING", StringComparison.OrdinalIgnoreCase))
 				{
-					Level = LogLevel.Warning;
+					level = LogLevel.Warning;
 				}
 
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while (Builder.Current.IsMatch(1, String.Format(@"^({0} | *$)", ExtractIndent(Cursor[0]!))))
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				while (builder.Current.IsMatch(1, String.Format(@"^({0} | *$)", ExtractIndent(cursor[0]!))))
 				{
-					Builder.MoveNext();
+					builder.MoveNext();
 				}
-				return Builder.ToMatch(LogEventPriority.Lowest, Level, KnownLogEvents.Generic);
+				return builder.ToMatch(LogEventPriority.Lowest, level, KnownLogEvents.Generic);
 			}
-			if (Cursor.IsMatch(@"[Ee]rror [A-Z]\d+\s:"))
+			if (cursor.IsMatch(@"[Ee]rror [A-Z]\d+\s:"))
 			{
-				return new LogEventBuilder(Cursor).ToMatch(LogEventPriority.Lowest, LogLevel.Error, KnownLogEvents.Generic);
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Lowest, LogLevel.Error, KnownLogEvents.Generic);
 			}
 			return null;
 		}
 
-		static string ExtractIndent(string Line)
+		static string ExtractIndent(string line)
 		{
-			int Length = 0;
-			while (Length < Line.Length && Line[Length] == ' ')
+			int length = 0;
+			while (length < line.Length && line[length] == ' ')
 			{
-				Length++;
+				length++;
 			}
-			return new string(' ', Length);
+			return new string(' ', length);
 		}
 	}
 }

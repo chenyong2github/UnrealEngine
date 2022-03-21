@@ -17,17 +17,17 @@ namespace Horde.Agent.Commands.Workspace
 	class PurgeCacheCommand : WorkspaceCommand
 	{
 		[CommandLine("-Size=")]
-		string? SizeParam = null;
+		string? SizeParam { get; set; } = null;
 
-		protected override Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			long Size = 0;
+			long size = 0;
 			if (SizeParam != null)
 			{
-				Size = ParseSize(SizeParam);
+				size = ParseSize(SizeParam);
 			}
 
-			return Repo.PurgeAsync(Size, CancellationToken.None);
+			return repo.PurgeAsync(size, CancellationToken.None);
 		}
 	}
 }

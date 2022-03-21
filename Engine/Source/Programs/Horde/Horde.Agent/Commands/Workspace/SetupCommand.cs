@@ -19,16 +19,16 @@ namespace Horde.Agent.Commands.Workspace
 	{
 		[CommandLine("-Client=", Required = true)]
 		[Description("Name of the client to create")]
-		string ClientName = null!;
+		string ClientName { get; set; } = null!;
 
 		[CommandLine("-Stream=", Required = true)]
 		[Description("Name of the stream to configure")]
-		string StreamName = null!;
+		string StreamName { get; set; } = null!;
 
-		protected override async Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override async Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			using IPerforceConnection PerforceClient = await Perforce.WithClientAsync(ClientName);
-			await Repo.SetupAsync(PerforceClient, StreamName, CancellationToken.None);
+			using IPerforceConnection perforceClient = await perforce.WithClientAsync(ClientName);
+			await repo.SetupAsync(perforceClient, StreamName, CancellationToken.None);
 		}
 	}
 }

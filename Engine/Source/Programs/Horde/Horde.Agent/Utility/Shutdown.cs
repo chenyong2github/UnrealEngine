@@ -5,6 +5,7 @@ using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -13,30 +14,33 @@ namespace Horde.Agent.Utility
 {
 	static class Shutdown
 	{
-		public const UInt32 TOKEN_QUERY = 0x0008;
-		public const UInt32 TOKEN_ADJUST_PRIVILEGES = 0x0020;
+		public const uint TOKEN_QUERY = 0x0008;
+		public const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
 
 		[DllImport("advapi32.dll", SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		static extern bool OpenProcessToken(IntPtr ProcessHandle, UInt32 DesiredAccess, out IntPtr TokenHandle);
+		static extern bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
 
 		[StructLayout(LayoutKind.Sequential)]
+		[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Native struct")]
 		public struct LUID
 		{
-			public UInt32 LowPart;
-			public Int32 HighPart;
+			public uint LowPart;
+			public int HighPart;
 		}
 
 		[DllImport("advapi32.dll")]
 		static extern bool LookupPrivilegeValue(string? lpSystemName, string lpName, ref LUID lpLuid);
 
 		[StructLayout(LayoutKind.Sequential, Pack = 4)]
+		[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Native struct")]
 		public struct LUID_AND_ATTRIBUTES
 		{
 			public LUID Luid;
-			public UInt32 Attributes;
+			public uint Attributes;
 		}
 
+		[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Native struct")]
 		struct TOKEN_PRIVILEGES
 		{
 			public int PrivilegeCount;
@@ -46,11 +50,12 @@ namespace Horde.Agent.Utility
 
 		// Use this signature if you do not want the previous state
 		[DllImport("advapi32.dll", SetLastError = true)]
+		[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Native struct")]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		static extern bool AdjustTokenPrivileges(IntPtr TokenHandle,
 		   [MarshalAs(UnmanagedType.Bool)]bool DisableAllPrivileges,
 		   ref TOKEN_PRIVILEGES NewState,
-		   UInt32 Zero,
+		   uint Zero,
 		   IntPtr Null1,
 		   IntPtr Null2);
 
@@ -67,92 +72,92 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Initiate a shutdown operation
 		/// </summary>
-		/// <param name="bRestartAfterShutdown">Whether to restart after the shutdown</param>
-		/// <param name="Logger">Logger for the operation</param>
+		/// <param name="restartAfterShutdown">Whether to restart after the shutdown</param>
+		/// <param name="logger">Logger for the operation</param>
 		/// <returns></returns>
-		public static bool InitiateShutdown(bool bRestartAfterShutdown, ILogger Logger)
+		public static bool InitiateShutdown(bool restartAfterShutdown, ILogger logger)
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				if (bRestartAfterShutdown)
+				if (restartAfterShutdown)
 				{
-					Logger.LogInformation("Triggering restart");
+					logger.LogInformation("Triggering restart");
 				}
 				else
 				{
-					Logger.LogInformation("Triggering shutdown");
+					logger.LogInformation("Triggering shutdown");
 				}
 
-				IntPtr TokenHandle;
-				if (!OpenProcessToken(Process.GetCurrentProcess().Handle, TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out TokenHandle))
+				IntPtr tokenHandle;
+				if (!OpenProcessToken(Process.GetCurrentProcess().Handle, TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out tokenHandle))
 				{
-					Logger.LogError("OpenProcessToken() failed (code 0x{Code:x8})", Marshal.GetLastWin32Error());
+					logger.LogError("OpenProcessToken() failed (code 0x{Code:x8})", Marshal.GetLastWin32Error());
 					return false;
 				}
 
 				// Get the LUID for the shutdown privilege. 
-				LUID Luid = new LUID();
-				if (!LookupPrivilegeValue(null, SE_SHUTDOWN_NAME, ref Luid))
+				LUID luid = new LUID();
+				if (!LookupPrivilegeValue(null, SE_SHUTDOWN_NAME, ref luid))
 				{
-					Logger.LogError("LookupPrivilegeValue() failed (code 0x{Code:x8})", Marshal.GetLastWin32Error());
+					logger.LogError("LookupPrivilegeValue() failed (code 0x{Code:x8})", Marshal.GetLastWin32Error());
 					return false;
 				}
 
-				TOKEN_PRIVILEGES Privileges = new TOKEN_PRIVILEGES();
-				Privileges.PrivilegeCount = 1;
-				Privileges.Privileges = new LUID_AND_ATTRIBUTES[1];
-				Privileges.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-				Privileges.Privileges[0].Luid = Luid;
+				TOKEN_PRIVILEGES privileges = new TOKEN_PRIVILEGES();
+				privileges.PrivilegeCount = 1;
+				privileges.Privileges = new LUID_AND_ATTRIBUTES[1];
+				privileges.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+				privileges.Privileges[0].Luid = luid;
 
-				if (!AdjustTokenPrivileges(TokenHandle, false, ref Privileges, 0, IntPtr.Zero, IntPtr.Zero))
+				if (!AdjustTokenPrivileges(tokenHandle, false, ref privileges, 0, IntPtr.Zero, IntPtr.Zero))
 				{
-					Logger.LogError("AdjustTokenPrivileges() failed (code 0x{Code:x8})", Marshal.GetLastWin32Error());
+					logger.LogError("AdjustTokenPrivileges() failed (code 0x{Code:x8})", Marshal.GetLastWin32Error());
 					return false;
 				}
 
-				if (!InitiateSystemShutdownEx(null, "HordeAgent has initiated shutdown", 10, true, bRestartAfterShutdown, SHTDN_REASON_MAJOR_APPLICATION | SHTDN_REASON_MINOR_MAINTENANCE))
+				if (!InitiateSystemShutdownEx(null, "HordeAgent has initiated shutdown", 10, true, restartAfterShutdown, SHTDN_REASON_MAJOR_APPLICATION | SHTDN_REASON_MINOR_MAINTENANCE))
 				{
-					Logger.LogError("Shutdown failed (0x{Code:x8})", Marshal.GetLastWin32Error());
+					logger.LogError("Shutdown failed (0x{Code:x8})", Marshal.GetLastWin32Error());
 					return false;
 				}
 				return true;
 			}
 			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
-				String ShutdownArgs;
-				if (bRestartAfterShutdown)
+				string shutdownArgs;
+				if (restartAfterShutdown)
                 {
-					ShutdownArgs = "sudo shutdown -r +0 \"Horde Agent is restarting\"";
+					shutdownArgs = "sudo shutdown -r +0 \"Horde Agent is restarting\"";
 				}
 				else
                 {
-					ShutdownArgs = "sudo shutdown +0 \"Horde Agent is shutting down\"";
+					shutdownArgs = "sudo shutdown +0 \"Horde Agent is shutting down\"";
 				}
  
-				Process ShutdownProcess = new Process()
+				Process shutdownProcess = new Process()
 				{
 					StartInfo = new ProcessStartInfo
 					{
 						FileName = "/bin/sh",
-						Arguments = String.Format("-c \"{0}\"", ShutdownArgs),
+						Arguments = String.Format("-c \"{0}\"", shutdownArgs),
 						UseShellExecute = false,
 						CreateNoWindow = true
 					}
 				};
  
-				ShutdownProcess.Start();
-				ShutdownProcess.WaitForExit();
-				int ExitCode = ShutdownProcess.ExitCode;
-				if (ExitCode != 0)
+				shutdownProcess.Start();
+				shutdownProcess.WaitForExit();
+				int exitCode = shutdownProcess.ExitCode;
+				if (exitCode != 0)
 				{
-					Logger.LogError("Shutdown failed ({0})", ExitCode);
+					logger.LogError("Shutdown failed ({0})", exitCode);
 					return false;
 				}
 				return true;
 			}
 			else
 			{
-				Logger.LogError("Shutdown is not implemented on this platform");
+				logger.LogError("Shutdown is not implemented on this platform");
 				return false;
 			}
 		}

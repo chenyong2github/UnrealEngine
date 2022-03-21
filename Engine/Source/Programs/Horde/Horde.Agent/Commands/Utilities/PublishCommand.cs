@@ -29,98 +29,98 @@ namespace Horde.Agent.Commands.Utilities
 		/// The server to upload the software to
 		/// </summary>
 		[CommandLine("-Server=", Required = true)]
-		public string Server = null!;
+		public string Server { get; set; } = null!;
 
 		/// <summary>
 		/// Access token used to authenticate with the server
 		/// </summary>
 		[CommandLine("-Token=", Required = true)]
-		public string Token = null!;
+		public string Token { get; set; } = null!;
 
 		/// <summary>
 		/// The input directory
 		/// </summary>
 		[CommandLine("-InputDir=", Required = true)]
-		public DirectoryReference InputDir = null!;
+		public DirectoryReference InputDir { get; set; } = null!;
 
 		/// <summary>
 		/// The channel to post to
 		/// </summary>
 		[CommandLine("-Channel=", Required = true)]
-		public string Channel = null!;
+		public string Channel { get; set; } = null!;
 
 		/// <summary>
 		/// Main entry point for this command
 		/// </summary>
-		/// <param name="Logger"></param>
+		/// <param name="logger"></param>
 		/// <returns>Async task</returns>
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			// Create the zip archive
-			Logger.LogInformation("Creating archive...");
-			byte[] ArchiveData;
-			using (MemoryStream OutputStream = new MemoryStream())
+			logger.LogInformation("Creating archive...");
+			byte[] archiveData;
+			using (MemoryStream outputStream = new MemoryStream())
 			{
-				using (ZipArchive OutputArchive = new ZipArchive(OutputStream, ZipArchiveMode.Create, true))
+				using (ZipArchive outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create, true))
 				{
-					foreach (FileReference InputFile in DirectoryReference.EnumerateFiles(InputDir, "*", SearchOption.AllDirectories))
+					foreach (FileReference inputFile in DirectoryReference.EnumerateFiles(InputDir, "*", SearchOption.AllDirectories))
 					{
-						string RelativePath = InputFile.MakeRelativeTo(InputDir).Replace(Path.DirectorySeparatorChar, '/');
-						if (!RelativePath.Equals("Log.json", StringComparison.OrdinalIgnoreCase) && !RelativePath.Equals("Log.txt", StringComparison.OrdinalIgnoreCase))
+						string relativePath = inputFile.MakeRelativeTo(InputDir).Replace(Path.DirectorySeparatorChar, '/');
+						if (!relativePath.Equals("Log.json", StringComparison.OrdinalIgnoreCase) && !relativePath.Equals("Log.txt", StringComparison.OrdinalIgnoreCase))
 						{
-							Logger.LogInformation("  Adding {RelativePath}", RelativePath);
+							logger.LogInformation("  Adding {RelativePath}", relativePath);
 
-							ZipArchiveEntry OutputEntry = OutputArchive.CreateEntry(RelativePath, CompressionLevel.Optimal);
+							ZipArchiveEntry outputEntry = outputArchive.CreateEntry(relativePath, CompressionLevel.Optimal);
 
-							using Stream InputEntryStream = FileReference.Open(InputFile, FileMode.Open, FileAccess.Read, FileShare.Read);
-							using Stream OutputEntryStream = OutputEntry.Open();
+							using Stream inputEntryStream = FileReference.Open(inputFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+							using Stream outputEntryStream = outputEntry.Open();
 
-							await InputEntryStream.CopyToAsync(OutputEntryStream);
+							await inputEntryStream.CopyToAsync(outputEntryStream);
 						}
 					}
 				}
-				ArchiveData = OutputStream.ToArray();
+				archiveData = outputStream.ToArray();
 			}
-			Logger.LogInformation("Complete ({Size:n0} bytes)", ArchiveData.Length);
+			logger.LogInformation("Complete ({Size:n0} bytes)", archiveData.Length);
 
 			// Read the application settings
-			IConfigurationRoot Config = new ConfigurationBuilder()
+			IConfigurationRoot config = new ConfigurationBuilder()
 				.SetBasePath(Program.AppDir.FullName)
 				.AddJsonFile("appsettings.json", true)
 				.AddJsonFile("appsettings.Production.json", true)
 				.Build();
 
-			AgentSettings Settings = new AgentSettings();
-			Config.GetSection("Horde").Bind(Settings);
+			AgentSettings settings = new AgentSettings();
+			config.GetSection("Horde").Bind(settings);
 
 			// Get the server we're using
-			ServerProfile ServerProfile = Settings.GetServerProfile(Server);
+			ServerProfile serverProfile = settings.GetServerProfile(Server);
 
 			// Create the http message handler
-			HttpClientHandler Handler = new HttpClientHandler();
-			Handler.ServerCertificateCustomValidationCallback += (Sender, Cert, Chain, Errors) => CertificateHelper.CertificateValidationCallBack(Logger, Sender, Cert, Chain, Errors, ServerProfile);
+			HttpClientHandler handler = new HttpClientHandler();
+			handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, errors) => CertificateHelper.CertificateValidationCallBack(logger, sender, cert, chain, errors, serverProfile);
 
 			// Create a new http client for uploading
-			HttpClient HttpClient = new HttpClient(Handler);
-			HttpClient.BaseAddress = new Uri(ServerProfile.Url);
-			HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token);
+			HttpClient httpClient = new HttpClient(handler);
+			httpClient.BaseAddress = new Uri(serverProfile.Url);
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token);
 
-			GrpcChannelOptions ChannelOptions = new GrpcChannelOptions
+			GrpcChannelOptions channelOptions = new GrpcChannelOptions
 			{
-				HttpClient = HttpClient,
+				HttpClient = httpClient,
 				MaxReceiveMessageSize = 100 * 1024 * 1024, // 100 MB
 				MaxSendMessageSize = 100 * 1024 * 1024 // 100 MB
 			};
-			using (GrpcChannel RpcChannel = GrpcChannel.ForAddress(ServerProfile.Url, ChannelOptions))
+			using (GrpcChannel rpcChannel = GrpcChannel.ForAddress(serverProfile.Url, channelOptions))
 			{
-				HordeRpc.HordeRpcClient RpcClient = new HordeRpc.HordeRpcClient(RpcChannel);
+				HordeRpc.HordeRpcClient rpcClient = new HordeRpc.HordeRpcClient(rpcChannel);
 
-				UploadSoftwareRequest UploadRequest = new UploadSoftwareRequest();
-				UploadRequest.Channel = Channel;
-				UploadRequest.Data = Google.Protobuf.ByteString.CopyFrom(ArchiveData);
+				UploadSoftwareRequest uploadRequest = new UploadSoftwareRequest();
+				uploadRequest.Channel = Channel;
+				uploadRequest.Data = Google.Protobuf.ByteString.CopyFrom(archiveData);
 
-				UploadSoftwareResponse UploadResponse = await RpcClient.UploadSoftwareAsync(UploadRequest);
-				Logger.LogInformation("Created software (version={SoftwareId} channel={Default})", UploadResponse.Version, UploadRequest.Channel);
+				UploadSoftwareResponse uploadResponse = await rpcClient.UploadSoftwareAsync(uploadRequest);
+				logger.LogInformation("Created software (version={SoftwareId} channel={Default})", uploadResponse.Version, uploadRequest.Channel);
 			}
 
 			return 0;

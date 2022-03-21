@@ -27,13 +27,13 @@ namespace Horde.Agent.Parser
 	{
 		class QueueItem
 		{
-			public byte[] Data;
-			public CreateEventRequest? Event;
+			public byte[] Data { get; }
+			public CreateEventRequest? CreateEvent { get; }
 
-			public QueueItem(byte[] Data, CreateEventRequest? Event)
+			public QueueItem(byte[] data, CreateEventRequest? createEvent)
 			{
-				this.Data = Data;
-				this.Event = Event;
+				Data = data;
+				CreateEvent = createEvent;
 			}
 
 			public override string ToString()
@@ -42,13 +42,13 @@ namespace Horde.Agent.Parser
 			}
 		}
 
-		readonly IRpcConnection RpcClient;
-		readonly string LogId;
-		readonly string? JobId;
-		readonly string? JobBatchId;
-		readonly string? JobStepId;
-		Channel<QueueItem> DataChannel;
-		Task? DataWriter;
+		readonly IRpcConnection _rpcClient;
+		readonly string _logId;
+		readonly string? _jobId;
+		readonly string? _jobBatchId;
+		readonly string? _jobStepId;
+		readonly Channel<QueueItem> _dataChannel;
+		Task? _dataWriter;
 
 		/// <summary>
 		/// The current outcome for this step. Updated to reflect any errors and warnings that occurred.
@@ -62,51 +62,51 @@ namespace Horde.Agent.Parser
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="RpcClient">RPC client to use for server requests</param>
-		/// <param name="LogId">The log id to write to</param>
-		/// <param name="JobId">Id of the job being executed</param>
-		/// <param name="JobBatchId">Batch being executed</param>
-		/// <param name="JobStepId">Id of the step being executed</param>
-		/// <param name="Warnings">Whether to include warnings in the output</param>
-		/// <param name="Inner">Additional logger to write to</param>
-		public JsonRpcLogger(IRpcConnection RpcClient, string LogId, string? JobId, string? JobBatchId, string? JobStepId, bool? Warnings, ILogger Inner)
-			: base(Warnings, Inner)
+		/// <param name="rpcClient">RPC client to use for server requests</param>
+		/// <param name="logId">The log id to write to</param>
+		/// <param name="jobId">Id of the job being executed</param>
+		/// <param name="jobBatchId">Batch being executed</param>
+		/// <param name="jobStepId">Id of the step being executed</param>
+		/// <param name="warnings">Whether to include warnings in the output</param>
+		/// <param name="inner">Additional logger to write to</param>
+		public JsonRpcLogger(IRpcConnection rpcClient, string logId, string? jobId, string? jobBatchId, string? jobStepId, bool? warnings, ILogger inner)
+			: base(warnings, inner)
 		{
-			this.RpcClient = RpcClient;
-			this.LogId = LogId;
-			this.JobId = JobId;
-			this.JobBatchId = JobBatchId;
-			this.JobStepId = JobStepId;
-			this.DataChannel = Channel.CreateUnbounded<QueueItem>();
-			this.DataWriter = Task.Run(() => RunDataWriter());
-			this.Outcome = JobStepOutcome.Success;
+			_rpcClient = rpcClient;
+			_logId = logId;
+			_jobId = jobId;
+			_jobBatchId = jobBatchId;
+			_jobStepId = jobStepId;
+			_dataChannel = Channel.CreateUnbounded<QueueItem>();
+			_dataWriter = Task.Run(() => RunDataWriter());
+			Outcome = JobStepOutcome.Success;
 		}
 
-		protected override void WriteFormattedEvent(LogLevel Level, int LineIndex, int LineCount, byte[] Line)
+		protected override void WriteFormattedEvent(LogLevel level, int lineIndex, int lineCount, byte[] line)
 		{
 			// Update the state of this job if this is an error status
-			if (Level == LogLevel.Error || Level == LogLevel.Critical)
+			if (level == LogLevel.Error || level == LogLevel.Critical)
 			{
 				Outcome = JobStepOutcome.Failure;
 			}
-			else if (Level == LogLevel.Warning && Outcome != JobStepOutcome.Failure)
+			else if (level == LogLevel.Warning && Outcome != JobStepOutcome.Failure)
 			{
 				Outcome = JobStepOutcome.Warnings;
 			}
 
 			// If we want an event for this log event, create one now
-			CreateEventRequest? Event = null;
-			if (LineIndex == 0)
+			CreateEventRequest? eventRequest = null;
+			if (lineIndex == 0)
 			{
-				if (Level == LogLevel.Warning || Level == LogLevel.Error || Level == LogLevel.Critical)
+				if (level == LogLevel.Warning || level == LogLevel.Error || level == LogLevel.Critical)
 				{
-					Event = CreateEvent(Level, LineCount);
+					eventRequest = CreateEvent(level, lineCount);
 				}
 			}
 
 			// Write the data to the output channel
-			QueueItem QueueItem = new QueueItem(Line, Event);
-			if (!DataChannel.Writer.TryWrite(QueueItem))
+			QueueItem queueItem = new QueueItem(line, eventRequest);
+			if (!_dataChannel.Writer.TryWrite(queueItem))
 			{
 				throw new InvalidOperationException("Expected unbounded writer to complete immediately");
 			}
@@ -115,37 +115,37 @@ namespace Horde.Agent.Parser
 		/// <summary>
 		/// Callback to write a systemic event
 		/// </summary>
-		/// <param name="EventId">The event id</param>
-		/// <param name="Text">The event text</param>
-		protected override void WriteSystemicEvent(EventId EventId, string Text)
+		/// <param name="eventId">The event id</param>
+		/// <param name="text">The event text</param>
+		protected override void WriteSystemicEvent(EventId eventId, string text)
 		{
-			if (JobId == null)
+			if (_jobId == null)
 			{
-				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId}: {Text}", EventId.Id, Text);
+				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId}: {Text}", eventId.Id, text);
 			}
-			else if (JobBatchId == null)
+			else if (_jobBatchId == null)
 			{
-				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job {JobId}): {Text})", EventId.Id, JobId, Text);
+				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job {JobId}): {Text})", eventId.Id, _jobId, text);
 			}
-			else if (JobStepId == null)
+			else if (_jobStepId == null)
 			{
-				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job batch {JobId}:{BatchId}): {Text})", EventId.Id, JobId, JobStepId, Text);
+				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job batch {JobId}:{BatchId}): {Text})", eventId.Id, _jobId, _jobStepId, text);
 			}
 			else
 			{
-				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job step {JobId}:{BatchId}:{StepId}): {Text}", EventId.Id, LogId, JobId, JobBatchId, JobStepId, Text);
+				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job step {JobId}:{BatchId}:{StepId}): {Text}", eventId.Id, _logId, _jobId, _jobBatchId, _jobStepId, text);
 			}
 		}
 
 		/// <summary>
 		/// Makes a <see cref="CreateEventRequest"/> for the given parameters
 		/// </summary>
-		/// <param name="LogLevel">Level for this log event</param>
-		/// <param name="LineCount">Number of lines in the event</param>
-		CreateEventRequest CreateEvent(LogLevel LogLevel, int LineCount)
+		/// <param name="logLevel">Level for this log event</param>
+		/// <param name="lineCount">Number of lines in the event</param>
+		CreateEventRequest CreateEvent(LogLevel logLevel, int lineCount)
 		{
-			EventSeverity Severity = (LogLevel == LogLevel.Warning) ? EventSeverity.Warning : EventSeverity.Error;
-			return new CreateEventRequest(Severity, LogId, 0, LineCount);
+			EventSeverity severity = (logLevel == LogLevel.Warning) ? EventSeverity.Warning : EventSeverity.Error;
+			return new CreateEventRequest(severity, _logId, 0, lineCount);
 		}
 
 		/// <summary>
@@ -154,11 +154,11 @@ namespace Horde.Agent.Parser
 		/// <returns>Async task</returns>
 		public async Task StopAsync()
 		{
-			if (DataWriter != null)
+			if (_dataWriter != null)
 			{
-				DataChannel.Writer.TryComplete();
-				await DataWriter;
-				DataWriter = null;
+				_dataChannel.Writer.TryComplete();
+				await _dataWriter;
+				_dataWriter = null;
 			}
 		}
 
@@ -177,64 +177,64 @@ namespace Horde.Agent.Parser
 		async Task RunDataWriter()
 		{
 			// Current position and line number in the log file
-			long Offset = 0;
-			int LineIndex = 0;
+			long offset = 0;
+			int lineIndex = 0;
 
 			// Total number of errors and warnings
 			const int MaxErrors = 50;
-			int NumErrors = 0;
+			int numErrors = 0;
 			const int MaxWarnings = 50;
-			int NumWarnings = 0;
+			int numWarnings = 0;
 
 			// Buffers for chunks and events read in a single iteration
-			ArrayBufferWriter<byte> Writer = new ArrayBufferWriter<byte>();
-			List<CreateEventRequest> Events = new List<CreateEventRequest>();
+			ArrayBufferWriter<byte> writer = new ArrayBufferWriter<byte>();
+			List<CreateEventRequest> events = new List<CreateEventRequest>();
 
 			// Line separator for JSON events
-			byte[] Newline = { (byte)'\n' };
-			JsonEncodedText Timestamp = JsonEncodedText.Encode("");
+			byte[] newline = { (byte)'\n' };
+			JsonEncodedText timestamp = JsonEncodedText.Encode("");
 
 			// The current jobstep outcome
-			JobStepOutcome PostedOutcome = JobStepOutcome.Success;
+			JobStepOutcome postedOutcome = JobStepOutcome.Success;
 
 			// Whether we've written the flush command
 			for (; ; )
 			{
-				Writer.Clear();
-				Events.Clear();
+				writer.Clear();
+				events.Clear();
 
 				// Save off the current line number for sending to the server
-				int InitialLineIndex = LineIndex;
+				int initialLineIndex = lineIndex;
 
 				// Get the next data
-				Task WaitTask = Task.Delay(TimeSpan.FromSeconds(2.0));
-				while (Writer.WrittenCount < 256 * 1024)
+				Task waitTask = Task.Delay(TimeSpan.FromSeconds(2.0));
+				while (writer.WrittenCount < 256 * 1024)
 				{
-					QueueItem? Data;
-					if (DataChannel.Reader.TryRead(out Data))
+					QueueItem? data;
+					if (_dataChannel.Reader.TryRead(out data))
 					{
-						if (Data.Event != null)
+						if (data.CreateEvent != null)
 						{
-							if ((Data.Event.Severity == EventSeverity.Warning && ++NumWarnings <= MaxWarnings) || (Data.Event.Severity == EventSeverity.Error && ++NumErrors <= MaxErrors))
+							if ((data.CreateEvent.Severity == EventSeverity.Warning && ++numWarnings <= MaxWarnings) || (data.CreateEvent.Severity == EventSeverity.Error && ++numErrors <= MaxErrors))
 							{
-								Data.Event.LineIndex = LineIndex;
-								Events.Add(Data.Event);
+								data.CreateEvent.LineIndex = lineIndex;
+								events.Add(data.CreateEvent);
 							}
 						}
 
-						Writer.Write(Data.Data);
-						Writer.Write(Newline);
+						writer.Write(data.Data);
+						writer.Write(newline);
 
-						LineIndex++;
+						lineIndex++;
 					}
 					else
 					{
-						Task<bool> ReadTask = DataChannel.Reader.WaitToReadAsync().AsTask();
-						if (await Task.WhenAny(ReadTask, WaitTask) == WaitTask)
+						Task<bool> readTask = _dataChannel.Reader.WaitToReadAsync().AsTask();
+						if (await Task.WhenAny(readTask, waitTask) == waitTask)
 						{
 							break;
 						}
-						if (!await ReadTask)
+						if (!await readTask)
 						{
 							break;
 						}
@@ -242,57 +242,57 @@ namespace Horde.Agent.Parser
 				}
 
 				// Upload it to the server
-				if (Writer.WrittenCount > 0)
+				if (writer.WrittenCount > 0)
 				{
-					byte[] Data = Writer.WrittenSpan.ToArray();
+					byte[] data = writer.WrittenSpan.ToArray();
 					try
 					{
-						await RpcClient.InvokeAsync(x => x.WriteOutputAsync(new WriteOutputRequest(LogId, Offset, InitialLineIndex, Data, false)), new RpcContext(), CancellationToken.None);
+						await _rpcClient.InvokeAsync(x => x.WriteOutputAsync(new WriteOutputRequest(_logId, offset, initialLineIndex, data, false)), new RpcContext(), CancellationToken.None);
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						Inner.LogWarning(Ex, "Unable to write data to server (log {LogId}, offset {Offset})", LogId, Offset);
+						Inner.LogWarning(ex, "Unable to write data to server (log {LogId}, offset {Offset})", _logId, offset);
 					}
-					Offset += Data.Length;
+					offset += data.Length;
 				}
 
 				// Write all the events
-				if (Events.Count > 0)
+				if (events.Count > 0)
 				{
 					try
 					{
-						await RpcClient.InvokeAsync(x => x.CreateEventsAsync(new CreateEventsRequest(Events)), new RpcContext(), CancellationToken.None);
+						await _rpcClient.InvokeAsync(x => x.CreateEventsAsync(new CreateEventsRequest(events)), new RpcContext(), CancellationToken.None);
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						Inner.LogWarning(Ex, "Unable to create events");
+						Inner.LogWarning(ex, "Unable to create events");
 					}
 				}
 
 				// Update the outcome of this jobstep
-				if (JobId != null && JobBatchId != null && JobStepId != null && Outcome != PostedOutcome)
+				if (_jobId != null && _jobBatchId != null && _jobStepId != null && Outcome != postedOutcome)
 				{
 					try
 					{
-						await RpcClient.InvokeAsync(x => x.UpdateStepAsync(new UpdateStepRequest(JobId, JobBatchId, JobStepId, JobStepState.Unspecified, Outcome)), new RpcContext(), CancellationToken.None);
+						await _rpcClient.InvokeAsync(x => x.UpdateStepAsync(new UpdateStepRequest(_jobId, _jobBatchId, _jobStepId, JobStepState.Unspecified, Outcome)), new RpcContext(), CancellationToken.None);
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						Inner.LogWarning(Ex, "Unable to update step outcome to {NewOutcome}", Outcome);
+						Inner.LogWarning(ex, "Unable to update step outcome to {NewOutcome}", Outcome);
 					}
-					PostedOutcome = Outcome;
+					postedOutcome = Outcome;
 				}
 
 				// Wait for more data to be available
-				if (!await DataChannel.Reader.WaitToReadAsync())
+				if (!await _dataChannel.Reader.WaitToReadAsync())
 				{
 					try
 					{
-						await RpcClient.InvokeAsync(x => x.WriteOutputAsync(new WriteOutputRequest(LogId, Offset, LineIndex, Array.Empty<byte>(), true)), new RpcContext(), CancellationToken.None);
+						await _rpcClient.InvokeAsync(x => x.WriteOutputAsync(new WriteOutputRequest(_logId, offset, lineIndex, Array.Empty<byte>(), true)), new RpcContext(), CancellationToken.None);
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						Inner.LogWarning(Ex, "Unable to flush data to server (log {LogId}, offset {Offset})", LogId, Offset);
+						Inner.LogWarning(ex, "Unable to flush data to server (log {LogId}, offset {Offset})", _logId, offset);
 					}
 					break;
 				}

@@ -21,33 +21,33 @@ namespace Horde.Agent.Commands.Bundles
 	abstract class BundleCommandBase : Command
 	{
 		[CommandLine("-Server=")]
-		public string? Server = null;
+		public string? Server { get; set; } = null;
 
 		[CommandLine("-StorageDir=", Description = "Overrides the default storage server with a local directory")]
-		public DirectoryReference? StorageDir = null;
+		public DirectoryReference? StorageDir { get; set; } = null;
 
-		protected IStorageClient CreateStorageClient(ILogger Logger)
+		protected IStorageClient CreateStorageClient(ILogger logger)
 		{
 			if (StorageDir != null)
 			{
-				return new FileStorageClient(StorageDir, Logger);
+				return new FileStorageClient(StorageDir, logger);
 			}
 			else
 			{
-				IConfiguration Config = new ConfigurationBuilder()
+				IConfiguration config = new ConfigurationBuilder()
 					.AddJsonFile("appsettings.json", optional: false)
 					.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")}.json", optional: true) // environment variable overrides, also used in k8s setups with Helm
 					.AddJsonFile("appsettings.User.json", optional: true)
 					.AddEnvironmentVariables()
 					.Build();
 
-				IConfigurationSection ConfigSection = Config.GetSection(AgentSettings.SectionName);
+				IConfigurationSection configSection = config.GetSection(AgentSettings.SectionName);
 
-				IServiceCollection Services = new ServiceCollection();
-				Services.AddHordeStorage(Settings => ConfigSection.GetCurrentServerProfile().GetSection(nameof(ServerProfile.Storage)).Bind(Settings));
+				IServiceCollection services = new ServiceCollection();
+				services.AddHordeStorage(settings => configSection.GetCurrentServerProfile().GetSection(nameof(ServerProfile.Storage)).Bind(settings));
 
-				IServiceProvider ServiceProvider = Services.BuildServiceProvider();
-				return ServiceProvider.GetRequiredService<IStorageClient>();
+				IServiceProvider serviceProvider = services.BuildServiceProvider();
+				return serviceProvider.GetRequiredService<IStorageClient>();
 			}
 		}
 	}
@@ -67,16 +67,14 @@ namespace Horde.Agent.Commands.Bundles
 		[CommandLine("-InputDir=", Required = true)]
 		public DirectoryReference InputDir { get; set; } = null!;
 
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IStorageClient StorageClient = base.CreateStorageClient(Logger);
-			using (MemoryCache Cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50 * 1024 * 1024 }))
+			IStorageClient storageClient = base.CreateStorageClient(logger);
+			using (MemoryCache cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50 * 1024 * 1024 }))
 			{
-				using (Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), Cache))
-				{
-					await NewBundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), Logger);
-					await NewBundle.WriteAsync(BucketId, RefId, CbObject.Empty, false);
-				}
+				using Bundle<DirectoryNode> bundle = Bundle.Create<DirectoryNode>(storageClient, NamespaceId, new BundleOptions(), cache);
+				await bundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), logger);
+				await bundle.WriteAsync(BucketId, RefId, CbObject.Empty, false);
 			}
 
 			return 0;

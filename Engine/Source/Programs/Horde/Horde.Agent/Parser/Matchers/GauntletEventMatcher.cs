@@ -16,68 +16,66 @@ namespace Horde.Agent.Parser.Matchers
 	/// </summary>
 	class GauntletEventMatcher : ILogEventMatcher
 	{
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			Match? Match;
-			if(Cursor.TryMatch(@"^(?<indent>\s*)Error: EngineTest.RunTests Group:(?<group>[^\s]+) \(", out Match))
+			Match? match;
+			if(cursor.TryMatch(@"^(?<indent>\s*)Error: EngineTest.RunTests Group:(?<group>[^\s]+) \(", out match))
 			{
-				string Indent = Match.Groups["indent"].Value + " ";
+				string indent = match.Groups["indent"].Value + " ";
 
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				Builder.Annotate(Match.Groups["group"]);
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				builder.Annotate(match.Groups["group"]);
 
-				string Group = Match.Groups["group"].Value;
+				string group = match.Groups["group"].Value;
 
-				List<string> TestNames = new List<string>();
-
-				bool bInErrorList = false;
+				bool inErrorList = false;
 				//				List<LogEventBuilder> ChildEvents = new List<LogEventBuilder>();
 
 				//				int LineCount = 1;
-				EventId EventId = KnownLogEvents.Gauntlet;
-				while (Builder.Next.IsMatch($"^(?:{Indent}.*|\\s*)$"))
+				EventId eventId = KnownLogEvents.Gauntlet;
+				while (builder.Next.IsMatch($"^(?:{indent}.*|\\s*)$"))
 				{
-					Builder.MoveNext();
-					if (bInErrorList)
+					builder.MoveNext();
+					if (inErrorList)
 					{
-						Match? TestNameMatch;
-						if (Builder.Current.IsMatch(@"^\s*#{1,3} "))
+						Match? testNameMatch;
+						if (builder.Current.IsMatch(@"^\s*#{1,3} "))
 						{
-							bInErrorList = false;
+							inErrorList = false;
 						}
-						else if (Builder.Current.TryMatch(@"^\s*#####\s+(?<friendly_name>.*):\s*(?<name>\S+)\s*", out TestNameMatch))
+						else if (builder.Current.TryMatch(@"^\s*#####\s+(?<friendly_name>.*):\s*(?<name>\S+)\s*", out testNameMatch))
 						{
-							Builder.AddProperty("group", Group);//.Annotate().AddProperty("group", Group);
+							builder.AddProperty("group", group);//.Annotate().AddProperty("group", Group);
 
-							Builder.Annotate(TestNameMatch.Groups["name"]);
-							Builder.Annotate(TestNameMatch.Groups["friendly_name"]);
+							builder.Annotate(testNameMatch.Groups["name"]);
+							builder.Annotate(testNameMatch.Groups["friendly_name"]);
 
-							EventId = KnownLogEvents.Gauntlet_UnitTest;//							ChildEvents.Add(ChildEventBuilder);
+							eventId = KnownLogEvents.Gauntlet_UnitTest;//							ChildEvents.Add(ChildEventBuilder);
 						}
 					}
 					else
 					{
-						if (Builder.Current.IsMatch(@"^\s*### The following tests failed:"))
+						if (builder.Current.IsMatch(@"^\s*### The following tests failed:"))
 						{
-							bInErrorList = true;
+							inErrorList = true;
 						}
 					}
 				}
 
-				return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, EventId);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Error, eventId);
 			}
 
-			if (Cursor.TryMatch(@"Error: Screenshot '(?<screenshot>[^']+)' test failed", out Match))
+			if (cursor.TryMatch(@"Error: Screenshot '(?<screenshot>[^']+)' test failed", out match))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				Builder.Annotate(Match.Groups["screenshot"], LogEventMarkup.ScreenshotTest);//.MarkAsScreenshotTest();
-				return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Gauntlet_ScreenshotTest);
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				builder.Annotate(match.Groups["screenshot"], LogEventMarkup.ScreenshotTest);//.MarkAsScreenshotTest();
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Gauntlet_ScreenshotTest);
 			}
 
-			if (Cursor.TryMatch("\\[ERROR\\] (.*)$", out Match))
+			if (cursor.TryMatch("\\[ERROR\\] (.*)$", out _))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Generic);
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Generic);
 			}
 
 			return null;

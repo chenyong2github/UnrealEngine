@@ -18,30 +18,15 @@ namespace Horde.Agent.Tests
 {
 	// Stub for fulfilling IOptionsMonitor interface during testing
 	// Copied from HordeServerTests until a good way to share code between these is decided.
-	public class TestOptionsMonitor<T> : IOptionsMonitor<T>, IDisposable
+	public class TestOptionsMonitor<T> : IOptions<T>
 		where T : class, new()
 	{
-		public TestOptionsMonitor(T CurrentValue)
+		public TestOptionsMonitor(T value)
 		{
-			this.CurrentValue = CurrentValue;
+			this.Value = value;
 		}
 
-		public T Get(string Name)
-		{
-			return CurrentValue;
-		}
-
-		public IDisposable OnChange(Action<T, string> listener)
-		{
-			return this;
-		}
-
-		public T CurrentValue { get; }
-
-		public void Dispose()
-		{
-			// Dummy stub to satisfy return value of OnChange 
-		}
+		public T Value { get; }
 	}
 
 	class RpcClientRefStub : IRpcClientRef

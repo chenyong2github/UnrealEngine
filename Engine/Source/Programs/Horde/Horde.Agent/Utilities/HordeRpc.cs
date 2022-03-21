@@ -12,49 +12,48 @@ using System.Text;
 
 namespace HordeCommon.Rpc
 {
-#pragma warning disable CS1591
 	partial class Property
 	{
-		public Property(string Name, string Value)
+		public Property(string name, string value)
 		{
-			this.Name = Name;
-			this.Value = Value;
+			Name = name;
+			Value = value;
 		}
 
-		public Property(KeyValuePair<string, string> Pair)
+		public Property(KeyValuePair<string, string> pair)
 		{
-			this.Name = Pair.Key;
-			this.Value = Pair.Value;
+			Name = pair.Key;
+			Value = pair.Value;
 		}
 	}
 
 	partial class PropertyUpdate
 	{
-		public PropertyUpdate(string Name, string? Value)
+		public PropertyUpdate(string name, string? value)
 		{
-			this.Name = Name;
-			this.Value = Value;
+			Name = name;
+			Value = value;
 		}
 	}
 
 	static class PropertyExtensions
 	{
-		public static string GetValue(this RepeatedField<Property> Properties, string Name)
+		public static string GetValue(this RepeatedField<Property> properties, string name)
 		{
-			return Properties.First(x => x.Name == Name).Value;
+			return properties.First(x => x.Name == name).Value;
 		}
 
-		public static bool TryGetValue(this RepeatedField<Property> Properties, string Name, [MaybeNullWhen(false)] out string Result)
+		public static bool TryGetValue(this RepeatedField<Property> properties, string name, [MaybeNullWhen(false)] out string result)
 		{
-			Property? Property = Properties.FirstOrDefault(x => x.Name == Name);
-			if (Property == null)
+			Property? property = properties.FirstOrDefault(x => x.Name == name);
+			if (property == null)
 			{
-				Result = null!;
+				result = null!;
 				return false;
 			}
 			else
 			{
-				Result = Property.Value;
+				result = property.Value;
 				return true;
 			}
 		}
@@ -62,128 +61,127 @@ namespace HordeCommon.Rpc
 
 	partial class GetStreamRequest
 	{
-		public GetStreamRequest(string StreamId)
+		public GetStreamRequest(string streamId)
 		{
-			this.StreamId = StreamId;
+			StreamId = streamId;
 		}
 	}
 
 	partial class UpdateStreamRequest
 	{
-		public UpdateStreamRequest(string StreamId, Dictionary<string, string?> Properties)
+		public UpdateStreamRequest(string streamId, Dictionary<string, string?> properties)
 		{
-			this.StreamId = StreamId;
-			this.Properties.AddRange(Properties.Select(x => new PropertyUpdate(x.Key, x.Value)));
+			StreamId = streamId;
+			Properties.AddRange(properties.Select(x => new PropertyUpdate(x.Key, x.Value)));
 		}
 	}
 
 	partial class GetJobRequest
 	{
-		public GetJobRequest(string JobId)
+		public GetJobRequest(string jobId)
 		{
-			this.JobId = JobId;
+			JobId = jobId;
 		}
 	}
 
 	partial class BeginBatchRequest
 	{
-		public BeginBatchRequest(string JobId, string BatchId, string LeaseId)
+		public BeginBatchRequest(string jobId, string batchId, string leaseId)
 		{
-			this.JobId = JobId;
-			this.BatchId = BatchId;
-			this.LeaseId = LeaseId;
+			JobId = jobId;
+			BatchId = batchId;
+			LeaseId = leaseId;
 		}
 	}
 
 	partial class FinishBatchRequest
 	{
-		public FinishBatchRequest(string JobId, string BatchId, string LeaseId)
+		public FinishBatchRequest(string jobId, string batchId, string leaseId)
 		{
-			this.JobId = JobId;
-			this.BatchId = BatchId;
-			this.LeaseId = LeaseId;
+			JobId = jobId;
+			BatchId = batchId;
+			LeaseId = leaseId;
 		}
 	}
 
 	partial class BeginStepRequest
 	{
-		public BeginStepRequest(string JobId, string BatchId, string LeaseId)
+		public BeginStepRequest(string jobId, string batchId, string leaseId)
 		{
-			this.JobId = JobId;
-			this.BatchId = BatchId;
-			this.LeaseId = LeaseId;
+			JobId = jobId;
+			BatchId = batchId;
+			LeaseId = leaseId;
 		}
 	}
 
 	partial class UpdateStepRequest
 	{
-		public UpdateStepRequest(string JobId, string BatchId, string StepId, JobStepState State, JobStepOutcome Outcome)
+		public UpdateStepRequest(string jobId, string batchId, string stepId, JobStepState state, JobStepOutcome outcome)
 		{
-			this.JobId = JobId;
-			this.BatchId = BatchId;
-			this.StepId = StepId;
-			this.State = State;
-			this.Outcome = Outcome;
+			JobId = jobId;
+			BatchId = batchId;
+			StepId = stepId;
+			State = state;
+			Outcome = outcome;
 		}
 	}
 	
 	partial class GetStepRequest
 	{
-		public GetStepRequest(string JobId, string BatchId, string StepId)
+		public GetStepRequest(string jobId, string batchId, string stepId)
 		{
-			this.JobId = JobId;
-			this.BatchId = BatchId;
-			this.StepId = StepId;
+			JobId = jobId;
+			BatchId = batchId;
+			StepId = stepId;
 		}
 	}
 	
 	partial class GetStepResponse
 	{
-		public GetStepResponse(JobStepOutcome Outcome, JobStepState State, bool AbortRequested)
+		public GetStepResponse(JobStepOutcome outcome, JobStepState state, bool abortRequested)
 		{
-			this.Outcome = Outcome;
-			this.State = State;
-			this.AbortRequested = AbortRequested;
+			Outcome = outcome;
+			State = state;
+			AbortRequested = abortRequested;
 		}
 	}
 
 	partial class CreateEventRequest
 	{
-		public CreateEventRequest(EventSeverity Severity, string LogId, int LineIndex, int LineCount)
+		public CreateEventRequest(EventSeverity severity, string logId, int lineIndex, int lineCount)
 		{
-			this.Severity = Severity;
-			this.LogId = LogId;
-			this.LineIndex = LineIndex;
-			this.LineCount = LineCount;
+			Severity = severity;
+			LogId = logId;
+			LineIndex = lineIndex;
+			LineCount = lineCount;
 		}
 	}
 
 	partial class CreateEventsRequest
 	{
-		public CreateEventsRequest(IEnumerable<CreateEventRequest> Events)
+		public CreateEventsRequest(IEnumerable<CreateEventRequest> events)
 		{
-			this.Events.AddRange(Events);
+			Events.AddRange(events);
 		}
 	}
 
 	partial class WriteOutputRequest
 	{
-		public WriteOutputRequest(string LogId, long Offset, int LineIndex, byte[] Data, bool Flush)
+		public WriteOutputRequest(string logId, long offset, int lineIndex, byte[] data, bool flush)
 		{
-			this.LogId = LogId;
-			this.Offset = Offset;
-			this.LineIndex = LineIndex;
-			this.Data = ByteString.CopyFrom(Data);
-			this.Flush = Flush;
+			LogId = logId;
+			Offset = offset;
+			LineIndex = lineIndex;
+			Data = ByteString.CopyFrom(data);
+			Flush = flush;
 		}
 	}
 
 	partial class DownloadSoftwareRequest
 	{
-		public DownloadSoftwareRequest(string Version)
+		public DownloadSoftwareRequest(string version)
 		{
-			this.Version = Version;
+			Version = version;
 		}
 	}
-#pragma warning restore CS1591
 }

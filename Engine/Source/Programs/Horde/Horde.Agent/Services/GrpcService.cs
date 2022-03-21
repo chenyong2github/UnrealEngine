@@ -22,31 +22,18 @@ namespace Horde.Agent.Services
 	/// </summary>
 	class GrpcService
 	{
-		/// <summary>
-		/// Settings for the current server
-		/// </summary>
-		ServerProfile ServerProfile;
-
-		/// <summary>
-		/// Options for the agent
-		/// </summary>
-		IOptions<AgentSettings> Settings;
-
-		/// <summary>
-		/// Logger instance
-		/// </summary>
-		ILogger Logger;
+		private readonly ServerProfile _serverProfile;
+		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Settings"></param>
-		/// <param name="Logger"></param>
-		public GrpcService(IOptions<AgentSettings> Settings, ILogger<GrpcService> Logger)
+		/// <param name="settings"></param>
+		/// <param name="logger"></param>
+		public GrpcService(IOptions<AgentSettings> settings, ILogger<GrpcService> logger)
 		{
-			this.Settings = Settings;
-			this.ServerProfile = Settings.Value.GetCurrentServerProfile();
-			this.Logger = Logger;
+			_serverProfile = settings.Value.GetCurrentServerProfile();
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -55,22 +42,22 @@ namespace Horde.Agent.Services
 		/// <returns>New grpc channel</returns>
 		public GrpcChannel CreateGrpcChannel()
 		{
-			return CreateGrpcChannel(ServerProfile.Token);
+			return CreateGrpcChannel(_serverProfile.Token);
 		}
 		
 		/// <summary>
 		/// Create a GRPC channel with the given bearer token
 		/// </summary>
 		/// <returns>New grpc channel</returns>
-		public GrpcChannel CreateGrpcChannel(string? BearerToken)
+		public GrpcChannel CreateGrpcChannel(string? bearerToken)
 		{
-			if (BearerToken == null)
+			if (bearerToken == null)
 			{
-				return CreateGrpcChannel(ServerProfile.Url, null);
+				return CreateGrpcChannel(_serverProfile.Url, null);
 			}
 			else
 			{
-				return CreateGrpcChannel(ServerProfile.Url, new AuthenticationHeaderValue("Bearer", BearerToken));
+				return CreateGrpcChannel(_serverProfile.Url, new AuthenticationHeaderValue("Bearer", bearerToken));
 			}
 		}
 
@@ -78,33 +65,33 @@ namespace Horde.Agent.Services
 		/// Create a GRPC channel with the given auth header value
 		/// </summary>
 		/// <returns>New grpc channel</returns>
-		public GrpcChannel CreateGrpcChannel(string Address, AuthenticationHeaderValue? AuthHeaderValue)
+		public GrpcChannel CreateGrpcChannel(string address, AuthenticationHeaderValue? authHeaderValue)
 		{
-			HttpClientHandler CustomCertHandler = new HttpClientHandler();
-			CustomCertHandler.ServerCertificateCustomValidationCallback += (Sender, Cert, Chain, Errors) => CertificateHelper.CertificateValidationCallBack(Logger, Sender, Cert, Chain, Errors, ServerProfile);
+			HttpClientHandler customCertHandler = new HttpClientHandler();
+			customCertHandler.ServerCertificateCustomValidationCallback += (sender, cert, chain, errors) => CertificateHelper.CertificateValidationCallBack(_logger, sender, cert, chain, errors, _serverProfile);
 
-			TimeSpan[] RetryDelay = { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) };
-			IAsyncPolicy<HttpResponseMessage> Policy = HttpPolicyExtensions.HandleTransientHttpError().WaitAndRetryAsync(RetryDelay);
-			PolicyHttpMessageHandler RetryHandler = new PolicyHttpMessageHandler(Policy);
-			RetryHandler.InnerHandler = CustomCertHandler;
+			TimeSpan[] retryDelay = { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) };
+			IAsyncPolicy<HttpResponseMessage> policy = HttpPolicyExtensions.HandleTransientHttpError().WaitAndRetryAsync(retryDelay);
+			PolicyHttpMessageHandler retryHandler = new PolicyHttpMessageHandler(policy);
+			retryHandler.InnerHandler = customCertHandler;
 
-			HttpClient HttpClient = new HttpClient(RetryHandler);
-			HttpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-			if (AuthHeaderValue != null)
+			HttpClient httpClient = new HttpClient(retryHandler);
+			httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+			if (authHeaderValue != null)
 			{
-				HttpClient.DefaultRequestHeaders.Authorization = AuthHeaderValue;
+				httpClient.DefaultRequestHeaders.Authorization = authHeaderValue;
 			}
 
-			HttpClient.Timeout = TimeSpan.FromSeconds(210); // Need to make sure this doesn't cancel any long running gRPC streaming calls (eg. session update)
+			httpClient.Timeout = TimeSpan.FromSeconds(210); // Need to make sure this doesn't cancel any long running gRPC streaming calls (eg. session update)
 
-			Logger.LogInformation("Connecting to rpc server {BaseUrl}", ServerProfile.Url);
-			return GrpcChannel.ForAddress(Address, new GrpcChannelOptions
+			_logger.LogInformation("Connecting to rpc server {BaseUrl}", _serverProfile.Url);
+			return GrpcChannel.ForAddress(address, new GrpcChannelOptions
 			{
 				// Required payloads coming from CAS service can be large
 				MaxReceiveMessageSize = 1024 * 1024 * 1024, // 1 GB
 				MaxSendMessageSize = 1024 * 1024 * 1024, // 1 GB
 				
-				HttpClient = HttpClient,
+				HttpClient = httpClient,
 				DisposeHttpClient = true
 			});
 		}

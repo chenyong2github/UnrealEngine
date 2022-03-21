@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -26,10 +27,10 @@ namespace Horde.Agent.Utility
 			{
 			}
 
-			public ServiceHandle(IntPtr Handle)
+			public ServiceHandle(IntPtr handle)
 				: base(true)
 			{
-				SetHandle(Handle);
+				SetHandle(handle);
 			}
 
 			protected override bool ReleaseHandle()
@@ -76,6 +77,7 @@ namespace Horde.Agent.Utility
 
 		public const int SC_STATUS_PROCESS_INFO = 0;
 
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "<Pending>")]
 		public struct SERVICE_STATUS_PROCESS
 		{
 			public uint dwServiceType;
@@ -91,8 +93,9 @@ namespace Horde.Agent.Utility
 
 		[DllImport("advapi32.dll", SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		public static extern bool QueryServiceStatusEx(ServiceHandle hService, int InfoLevel, ref SERVICE_STATUS_PROCESS pBuffer, int cbBufSize, out int pcbBytesNeeded);
+		public static extern bool QueryServiceStatusEx(ServiceHandle hService, int infoLevel, ref SERVICE_STATUS_PROCESS pBuffer, int cbBufSize, out int pcbBytesNeeded);
 
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "<Pending>")]
 		public struct SERVICE_STATUS
 		{
 			public uint dwServiceType;
@@ -113,10 +116,11 @@ namespace Horde.Agent.Utility
 		public const int SERVICE_CONFIG_DESCRIPTION = 1;
 
 		[StructLayout(LayoutKind.Sequential)]
+		[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Native struct")]
 		public struct SERVICE_DESCRIPTION
 		{
 			[MarshalAs(UnmanagedType.LPWStr)]
-			public String lpDescription;
+			public string lpDescription;
 		}
 
 		[DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -171,24 +175,21 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Handle to the service
 		/// </summary>
-		Native.ServiceHandle Handle;
+		private readonly Native.ServiceHandle _handle;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Handle">Handle to the service</param>
-		public WindowsService(Native.ServiceHandle Handle)
+		/// <param name="handle">Handle to the service</param>
+		public WindowsService(Native.ServiceHandle handle)
 		{
-			this.Handle = Handle;
+			_handle = handle;
 		}
 
 		/// <summary>
 		/// Determines if the service is valid
 		/// </summary>
-		public bool IsValid
-		{
-			get { return !Handle.IsInvalid; }
-		}
+		public bool IsValid => !_handle.IsInvalid;
 
 		/// <summary>
 		/// Gets the current service status
@@ -196,28 +197,28 @@ namespace Horde.Agent.Utility
 		/// <returns>Status code</returns>
 		public WindowsServiceStatus GetStatus()
 		{
-			Native.SERVICE_STATUS_PROCESS Status = new Native.SERVICE_STATUS_PROCESS();
-			if (!Native.QueryServiceStatusEx(Handle, Native.SC_STATUS_PROCESS_INFO, ref Status, Marshal.SizeOf(Status), out int BytesNeeded))
+			Native.SERVICE_STATUS_PROCESS status = new Native.SERVICE_STATUS_PROCESS();
+			if (!Native.QueryServiceStatusEx(_handle, Native.SC_STATUS_PROCESS_INFO, ref status, Marshal.SizeOf(status), out int _))
 			{
 				throw new Win32Exception(String.Format("Unable to query process status (0x{0:X8)}", Marshal.GetLastWin32Error()));
 			}
-			return (WindowsServiceStatus)Status.dwCurrentState;
+			return (WindowsServiceStatus)status.dwCurrentState;
 		}
 
 		/// <summary>
 		/// Waits for the status to change
 		/// </summary>
-		/// <param name="TransitionStatus">Expected status while transitioning</param>
-		/// <param name="MaxWaitTime">Maximum time to wait</param>
-		public WindowsServiceStatus WaitForStatusChange(WindowsServiceStatus TransitionStatus, TimeSpan MaxWaitTime)
+		/// <param name="transitionStatus">Expected status while transitioning</param>
+		/// <param name="maxWaitTime">Maximum time to wait</param>
+		public WindowsServiceStatus WaitForStatusChange(WindowsServiceStatus transitionStatus, TimeSpan maxWaitTime)
 		{
-			Stopwatch Timer = Stopwatch.StartNew();
+			Stopwatch timer = Stopwatch.StartNew();
 			for(; ;)
 			{
-				WindowsServiceStatus Status = GetStatus();
-				if (Status != TransitionStatus || Timer.Elapsed > MaxWaitTime)
+				WindowsServiceStatus status = GetStatus();
+				if (status != transitionStatus || timer.Elapsed > maxWaitTime)
 				{
-					return Status;
+					return status;
 				}
 				else
 				{
@@ -229,12 +230,12 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Sets the service description
 		/// </summary>
-		/// <param name="Description">Description for the service</param>
-		public void SetDescription(string Description)
+		/// <param name="description">Description for the service</param>
+		public void SetDescription(string description)
 		{
-			Native.SERVICE_DESCRIPTION DescriptionData = new Native.SERVICE_DESCRIPTION();
-			DescriptionData.lpDescription = Description;
-			Native.ChangeServiceConfig2(Handle, Native.SERVICE_CONFIG_DESCRIPTION, ref DescriptionData);
+			Native.SERVICE_DESCRIPTION descriptionData = new Native.SERVICE_DESCRIPTION();
+			descriptionData.lpDescription = description;
+			Native.ChangeServiceConfig2(_handle, Native.SERVICE_CONFIG_DESCRIPTION, ref descriptionData);
 		}
 
 		/// <summary>
@@ -242,7 +243,7 @@ namespace Horde.Agent.Utility
 		/// </summary>
 		public void Start()
 		{
-			if (!Native.StartService(Handle, 0, null))
+			if (!Native.StartService(_handle, 0, null))
 			{
 				throw new Win32Exception(String.Format("Unable to start service (error 0x{0:X8})", Marshal.GetLastWin32Error()));
 			}
@@ -253,13 +254,13 @@ namespace Horde.Agent.Utility
 		/// </summary>
 		public void Stop()
 		{
-			Native.SERVICE_STATUS Status = new Native.SERVICE_STATUS();
-			if (!Native.ControlService(Handle, Native.SERVICE_CONTROL_STOP, ref Status))
+			Native.SERVICE_STATUS status = new Native.SERVICE_STATUS();
+			if (!Native.ControlService(_handle, Native.SERVICE_CONTROL_STOP, ref status))
 			{
-				int Error = Marshal.GetLastWin32Error();
-				if (Error != Native.ERROR_SERVICE_NOT_ACTIVE)
+				int error = Marshal.GetLastWin32Error();
+				if (error != Native.ERROR_SERVICE_NOT_ACTIVE)
 				{
-					throw new Win32Exception(String.Format("Unable to stop service (error 0x{0:X8})", Error));
+					throw new Win32Exception(String.Format("Unable to stop service (error 0x{0:X8})", error));
 				}
 			}
 		}
@@ -269,7 +270,7 @@ namespace Horde.Agent.Utility
 		/// </summary>
 		public void Delete()
 		{
-			if (!Native.DeleteService(Handle))
+			if (!Native.DeleteService(_handle))
 			{
 				throw new Win32Exception(String.Format("Unable to delete service (error 0x{0:X8})", Marshal.GetLastWin32Error()));
 			}
@@ -280,7 +281,7 @@ namespace Horde.Agent.Utility
 		/// </summary>
 		public void Dispose()
 		{
-			Handle.Close();
+			_handle.Close();
 		}
 	}
 
@@ -292,24 +293,24 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Native handle to the service manager
 		/// </summary>
-		Native.ServiceHandle ServiceManagerHandle;
+		private readonly Native.ServiceHandle _serviceManagerHandle;
 
 		/// <summary>
 		/// Constructor. Opens a handle to the service manager.
 		/// </summary>
 		public WindowsServiceManager()
 		{
-			ServiceManagerHandle = Native.OpenSCManager(null, null, Native.SC_MANAGER_ALL_ACCESS);
-			if (ServiceManagerHandle.IsInvalid)
+			_serviceManagerHandle = Native.OpenSCManager(null, null, Native.SC_MANAGER_ALL_ACCESS);
+			if (_serviceManagerHandle.IsInvalid)
 			{
-				int ErrorCode = Marshal.GetLastWin32Error();
-				if (ErrorCode == Native.ERROR_ACCESS_DENIED)
+				int errorCode = Marshal.GetLastWin32Error();
+				if (errorCode == Native.ERROR_ACCESS_DENIED)
 				{
 					throw new Win32Exception("Unable to open service manager (access denied). Check you're running as administrator.");
 				}
 				else
 				{
-					throw new Win32Exception(String.Format("Unable to open service manager (0x{0:X8)).", ErrorCode));
+					throw new Win32Exception(String.Format("Unable to open service manager (0x{0:X8)).", errorCode));
 				}
 			}
 		}
@@ -319,45 +320,45 @@ namespace Horde.Agent.Utility
 		/// </summary>
 		public void Dispose()
 		{
-			ServiceManagerHandle.Close();
+			_serviceManagerHandle.Close();
 		}
 
 		/// <summary>
 		/// Opens a service with the given name
 		/// </summary>
-		/// <param name="ServiceName">Name of the service</param>
+		/// <param name="serviceName">Name of the service</param>
 		/// <returns>New service wrapper</returns>
-		public WindowsService Open(string ServiceName)
+		public WindowsService Open(string serviceName)
 		{
-			Native.ServiceHandle ServiceHandle = Native.OpenService(ServiceManagerHandle, ServiceName, Native.SERVICE_ALL_ACCESS);
-			if (ServiceHandle.IsInvalid)
+			Native.ServiceHandle serviceHandle = Native.OpenService(_serviceManagerHandle, serviceName, Native.SERVICE_ALL_ACCESS);
+			if (serviceHandle.IsInvalid)
 			{
-				int ErrorCode = Marshal.GetLastWin32Error();
-				if (ErrorCode != Native.ERROR_SERVICE_DOES_NOT_EXIST)
+				int errorCode = Marshal.GetLastWin32Error();
+				if (errorCode != Native.ERROR_SERVICE_DOES_NOT_EXIST)
 				{
 					throw new Win32Exception("Unable to open handle to service");
 				}
 			}
-			return new WindowsService(ServiceHandle);
+			return new WindowsService(serviceHandle);
 		}
 
 		/// <summary>
 		/// Creates a service with the given settings
 		/// </summary>
-		/// <param name="Name">Name of the service</param>
-		/// <param name="DisplayName">Display name</param>
-		/// <param name="CommandLine">Command line to use when starting the service</param>
-		/// <param name="UserName">Username to run this service as</param>
-		/// <param name="Password">Password for the account the service is to run under</param>
+		/// <param name="name">Name of the service</param>
+		/// <param name="displayName">Display name</param>
+		/// <param name="commandLine">Command line to use when starting the service</param>
+		/// <param name="userName">Username to run this service as</param>
+		/// <param name="password">Password for the account the service is to run under</param>
 		/// <returns>New service instance</returns>
-		public WindowsService Create(string Name, string DisplayName, string CommandLine, string? UserName, string? Password)
+		public WindowsService Create(string name, string displayName, string commandLine, string? userName, string? password)
 		{
-			Native.ServiceHandle NewServiceHandle = Native.CreateService(ServiceManagerHandle, Name, DisplayName, Native.SERVICE_ALL_ACCESS, Native.SERVICE_WIN32_OWN_PROCESS, Native.SERVICE_AUTO_START, Native.SERVICE_ERROR_NORMAL, CommandLine, null, null, null, UserName, Password);
-			if (NewServiceHandle.IsInvalid)
+			Native.ServiceHandle newServiceHandle = Native.CreateService(_serviceManagerHandle, name, displayName, Native.SERVICE_ALL_ACCESS, Native.SERVICE_WIN32_OWN_PROCESS, Native.SERVICE_AUTO_START, Native.SERVICE_ERROR_NORMAL, commandLine, null, null, null, userName, password);
+			if (newServiceHandle.IsInvalid)
 			{
 				throw new Win32Exception(String.Format("Unable to create service (0x{0:X8})", Marshal.GetLastWin32Error()));
 			}
-			return new WindowsService(NewServiceHandle);
+			return new WindowsService(newServiceHandle);
 		}
 	}
 }

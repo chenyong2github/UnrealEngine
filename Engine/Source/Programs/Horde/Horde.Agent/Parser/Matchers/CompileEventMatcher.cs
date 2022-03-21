@@ -51,10 +51,7 @@ namespace Horde.Agent.Parser.Matchers
 		const string ClangSeverity =
 			@"(?<severity>error|warning)";
 
-		static string ClangOrVisualCppLinePattern =
-			$"(?:{VisualCppLocationPattern}|{ClangLocationPattern})";
-
-		static readonly string[] InvalidExtensions =
+		static readonly string[] s_invalidExtensions =
 		{
 			".obj",
 			".dll",
@@ -63,190 +60,190 @@ namespace Horde.Agent.Parser.Matchers
 
 		const string DefaultSourceFileBaseDir = "Engine/Source";
 
-		ILogContext Context;
+		private readonly ILogContext _context;
 
-		public CompileEventMatcher(ILogContext Context)
+		public CompileEventMatcher(ILogContext context)
 		{
-			this.Context = Context;
+			_context = context;
 		}
 
 		/// <inheritdoc/>
-		public LogEventMatch? Match(ILogCursor Input)
+		public LogEventMatch? Match(ILogCursor input)
 		{
 			// Match the prelude to any error
-			int MaxOffset = 0;
-			while (Input.IsMatch(MaxOffset, "^\\s*(?:In (member )?function|In file included from)"))
+			int maxOffset = 0;
+			while (input.IsMatch(maxOffset, "^\\s*(?:In (member )?function|In file included from)"))
 			{
-				MaxOffset++;
+				maxOffset++;
 			}
 
 			// Do the match in two phases so we can early out if the strings "error" or "warning" are not present. The patterns before these strings can
 			// produce many false positives, making them very slow to execute.
-			if (Input.IsMatch(MaxOffset, "error|warning"))
+			if (input.IsMatch(maxOffset, "error|warning"))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Input, MaxOffset + 1);
+				LogEventBuilder builder = new LogEventBuilder(input, maxOffset + 1);
 
 				// Try to match a Visual C++ diagnostic
-				LogEventMatch? EventMatch;
-				if(TryMatchVisualCppEvent(Builder, out EventMatch))
+				LogEventMatch? eventMatch;
+				if(TryMatchVisualCppEvent(builder, out eventMatch))
 				{
-					LogEvent NewEvent = EventMatch!.Events[EventMatch.Events.Count - 1];
+					LogEvent newEvent = eventMatch!.Events[eventMatch.Events.Count - 1];
 
 					// If warnings as errors is enabled, upgrade any following warnings to errors.
-					object? CodeProp;
-					if(NewEvent.Properties != null && NewEvent.Properties.TryGetValue("code", out CodeProp) && CodeProp is LogValue Code && Code.Text == "C2220")
+					object? codeProp;
+					if(newEvent.Properties != null && newEvent.Properties.TryGetValue("code", out codeProp) && codeProp is LogValue code && code.Text == "C2220")
 					{
-						ILogCursor NextCursor = Builder.Next;
-						while (NextCursor.CurrentLine != null)
+						ILogCursor nextCursor = builder.Next;
+						while (nextCursor.CurrentLine != null)
 						{
-							LogEventBuilder NextBuilder = new LogEventBuilder(NextCursor);
+							LogEventBuilder nextBuilder = new LogEventBuilder(nextCursor);
 
-							LogEventMatch? NextMatch;
-							if (!TryMatchVisualCppEvent(NextBuilder, out NextMatch))
+							LogEventMatch? nextMatch;
+							if (!TryMatchVisualCppEvent(nextBuilder, out nextMatch))
 							{
 								break;
 							}
-							foreach (LogEvent Event in NextMatch.Events)
+							foreach (LogEvent matchEvent in nextMatch.Events)
 							{
-								Event.Level = LogLevel.Error;
+								matchEvent.Level = LogLevel.Error;
 							}
-							EventMatch.Events.AddRange(NextMatch.Events);
+							eventMatch.Events.AddRange(nextMatch.Events);
 
-							NextCursor = NextBuilder.Next;
+							nextCursor = nextBuilder.Next;
 						}
 					}
-					return EventMatch;
+					return eventMatch;
 				}
 
 				// Try to match a Clang diagnostic
-				Match? Match;
-				if (Builder.Current.TryMatch($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:", out Match) && IsSourceFile(Match))
+				Match? match;
+				if (builder.Current.TryMatch($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:", out match) && IsSourceFile(match))
 				{
-					LogLevel Level = GetLogLevelFromSeverity(Match);
+					LogLevel level = GetLogLevelFromSeverity(match);
 
-					Builder.AnnotateSourceFile(Match.Groups["file"], Context, "Engine/Source");
-					Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
-					Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
-					Builder.TryAnnotate(Match.Groups["column"], LogEventMarkup.ColumnNumber);
+					builder.AnnotateSourceFile(match.Groups["file"], _context, "Engine/Source");
+					builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
+					builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
+					builder.TryAnnotate(match.Groups["column"], LogEventMarkup.ColumnNumber);
 
-					string Indent = ExtractIndent(Input[0]!);
+					string indent = ExtractIndent(input[0]!);
 
-					while (Builder.Current.TryMatch(1, $"^(?:{Indent} |{Indent}\\s*{FilePattern}\\s*{ClangLocationPattern}\\s*note:| *$)", out Match))
+					while (builder.Current.TryMatch(1, $"^(?:{indent} |{indent}\\s*{FilePattern}\\s*{ClangLocationPattern}\\s*note:| *$)", out match))
 					{
-						Builder.MoveNext();
+						builder.MoveNext();
 
-						Group FileGroup = Match.Groups["file"];
-						if (FileGroup.Success)
+						Group fileGroup = match.Groups["file"];
+						if (fileGroup.Success)
 						{
-							Builder.AnnotateSourceFile(FileGroup, Context, DefaultSourceFileBaseDir);
-							Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
+							builder.AnnotateSourceFile(fileGroup, _context, DefaultSourceFileBaseDir);
+							builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 						}
 					}
 
-					return Builder.ToMatch(LogEventPriority.High, Level, KnownLogEvents.Compiler);
+					return builder.ToMatch(LogEventPriority.High, level, KnownLogEvents.Compiler);
 				}
 			}
 			return null;
 		}
 
-		bool TryMatchVisualCppEvent(LogEventBuilder Builder, [NotNullWhen(true)] out LogEventMatch? OutEvent)
+		bool TryMatchVisualCppEvent(LogEventBuilder builder, [NotNullWhen(true)] out LogEventMatch? outEvent)
 		{
-			Match? Match;
-			if(!Builder.Current.TryMatch($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:", out Match) || !IsSourceFile(Match))
+			Match? match;
+			if(!builder.Current.TryMatch($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:", out match) || !IsSourceFile(match))
 			{
-				OutEvent = null;
+				outEvent = null;
 				return false;
 			}
 
-			LogLevel Level = GetLogLevelFromSeverity(Match);
-			Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
+			LogLevel level = GetLogLevelFromSeverity(match);
+			builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 
-			string SourceFileBaseDir = DefaultSourceFileBaseDir;
+			string sourceFileBaseDir = DefaultSourceFileBaseDir;
 
-			Group CodeGroup = Match.Groups["code"];
-			if (CodeGroup.Success)
+			Group codeGroup = match.Groups["code"];
+			if (codeGroup.Success)
 			{
-				Builder.Annotate(CodeGroup, LogEventMarkup.ErrorCode);
+				builder.Annotate(codeGroup, LogEventMarkup.ErrorCode);
 
-				if (CodeGroup.Value.StartsWith("CS", StringComparison.Ordinal))
+				if (codeGroup.Value.StartsWith("CS", StringComparison.Ordinal))
 				{
-					Match? ProjectMatch;
-					if (Builder.Current.TryMatch(@"\[(?<project>[^[\]]+)]\s*$", out ProjectMatch))
+					Match? projectMatch;
+					if (builder.Current.TryMatch(@"\[(?<project>[^[\]]+)]\s*$", out projectMatch))
 					{
-						Builder.AnnotateSourceFile(ProjectMatch.Groups[1], Context, "");
-						SourceFileBaseDir = GetPlatformAgnosticDirectoryName(ProjectMatch.Groups[1].Value) ?? SourceFileBaseDir;
+						builder.AnnotateSourceFile(projectMatch.Groups[1], _context, "");
+						sourceFileBaseDir = GetPlatformAgnosticDirectoryName(projectMatch.Groups[1].Value) ?? sourceFileBaseDir;
 					}
 				}
-				else if (CodeGroup.Value.StartsWith("MSB", StringComparison.Ordinal))
+				else if (codeGroup.Value.StartsWith("MSB", StringComparison.Ordinal))
 				{
-					if (CodeGroup.Value.Equals("MSB3026", StringComparison.Ordinal))
+					if (codeGroup.Value.Equals("MSB3026", StringComparison.Ordinal))
 					{
-						OutEvent = Builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_MSBuild);
+						outEvent = builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_MSBuild);
 						return true;
 					}
 
-					Match? ProjectMatch;
-					if (Builder.Current.TryMatch(@"\[(?<file>[^[\]]+)]\s*$", out ProjectMatch))
+					Match? projectMatch;
+					if (builder.Current.TryMatch(@"\[(?<file>[^[\]]+)]\s*$", out projectMatch))
 					{
-						Builder.AnnotateSourceFile(ProjectMatch.Groups[1], Context, "");
-						OutEvent = Builder.ToMatch(LogEventPriority.High, Level, KnownLogEvents.MSBuild);
+						builder.AnnotateSourceFile(projectMatch.Groups[1], _context, "");
+						outEvent = builder.ToMatch(LogEventPriority.High, level, KnownLogEvents.MSBuild);
 						return true;
 					}
 				}
 			}
 
-			Builder.AnnotateSourceFile(Match.Groups["file"], Context, SourceFileBaseDir);
-			Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
-			Builder.TryAnnotate(Match.Groups["column"], LogEventMarkup.ColumnNumber);
+			builder.AnnotateSourceFile(match.Groups["file"], _context, sourceFileBaseDir);
+			builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
+			builder.TryAnnotate(match.Groups["column"], LogEventMarkup.ColumnNumber);
 
-			string Indent = ExtractIndent(Builder.Current.CurrentLine ?? String.Empty);
+			string indent = ExtractIndent(builder.Current.CurrentLine ?? String.Empty);
 
-			while (Builder.Current.TryMatch(1, $"^(?:{Indent} |{Indent}\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:| *$)", out Match))
+			while (builder.Current.TryMatch(1, $"^(?:{indent} |{indent}\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:| *$)", out match))
 			{
-				Builder.MoveNext();
+				builder.MoveNext();
 
-				Group Group = Match.Groups["file"];
-				if (Group.Success)
+				Group group = match.Groups["file"];
+				if (group.Success)
 				{
-					Builder.AnnotateSourceFile(Group, Context, DefaultSourceFileBaseDir);
-					Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
-					Builder.AddProperty("note", true);
+					builder.AnnotateSourceFile(group, _context, DefaultSourceFileBaseDir);
+					builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
+					builder.AddProperty("note", true);
 				}
 			}
 
-			string Pattern = $"^{Indent} |: note:";
-			while (Builder.Current.IsMatch(1, Pattern))
+			string pattern = $"^{indent} |: note:";
+			while (builder.Current.IsMatch(1, pattern))
 			{
-				Builder.MoveNext();
+				builder.MoveNext();
 			}
 
-			OutEvent = Builder.ToMatch(LogEventPriority.High, Level, KnownLogEvents.Compiler);
+			outEvent = builder.ToMatch(LogEventPriority.High, level, KnownLogEvents.Compiler);
 			return true;
 		}
 
-		static string? GetPlatformAgnosticDirectoryName(string FileName)
+		static string? GetPlatformAgnosticDirectoryName(string fileName)
 		{
-			int Index = FileName.LastIndexOfAny(new[] { '/', '\\' });
-			if (Index == -1)
+			int index = fileName.LastIndexOfAny(new[] { '/', '\\' });
+			if (index == -1)
 			{
 				return null;
 			}
 			else
 			{
-				return FileName.Substring(0, Index);
+				return fileName.Substring(0, index);
 			}
 		}
 
-		bool IsSourceFile(Match Match)
+		bool IsSourceFile(Match match)
 		{
-			Group Group = Match.Groups["file"];
-			if (!Group.Success)
+			Group group = match.Groups["file"];
+			if (!group.Success)
 			{
 				return false;
 			}
 
-			string Text = Group.Value;
-			if (InvalidExtensions.Any(x => Text.EndsWith(x, StringComparison.OrdinalIgnoreCase)))
+			string text = group.Value;
+			if (s_invalidExtensions.Any(x => text.EndsWith(x, StringComparison.OrdinalIgnoreCase)))
 			{
 				return false;
 			}
@@ -254,10 +251,10 @@ namespace Horde.Agent.Parser.Matchers
 			return true;
 		}
 
-		static LogLevel GetLogLevelFromSeverity(Match Match)
+		static LogLevel GetLogLevelFromSeverity(Match match)
 		{
-			string Severity = Match.Groups["severity"].Value;
-			if(Severity.Equals("warning", StringComparison.Ordinal))
+			string severity = match.Groups["severity"].Value;
+			if(severity.Equals("warning", StringComparison.Ordinal))
 			{
 				return LogLevel.Warning;
 			}
@@ -267,14 +264,14 @@ namespace Horde.Agent.Parser.Matchers
 			}
 		}
 
-		static string ExtractIndent(string Line)
+		static string ExtractIndent(string line)
 		{
-			int Length = 0;
-			while(Length < Line.Length && Line[Length] == ' ')
+			int length = 0;
+			while(length < line.Length && line[length] == ' ')
 			{
-				Length++;
+				length++;
 			}
-			return new string(' ', Length);
+			return new string(' ', length);
 		}
 	}
 }

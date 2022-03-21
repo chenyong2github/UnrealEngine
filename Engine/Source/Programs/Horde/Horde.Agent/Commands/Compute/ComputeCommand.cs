@@ -50,273 +50,272 @@ namespace Horde.Agent.Commands
 		/// Input file describing the work to execute
 		/// </summary>
 		[CommandLine(Required = true)]
-		public FileReference Input = null!;
+		public FileReference Input { get; set; } = null!;
 
 		/// <summary>
 		/// The input directory. By default, the directory containing the input file will be used.
 		/// </summary>
 		[CommandLine]
-		public DirectoryReference? InputDir = null;
+		public DirectoryReference? InputDir { get; set; } = null;
 
 		/// <summary>
 		/// Apply a random salt to the cached value
 		/// </summary>
 		[CommandLine("-Salt")]
-		public bool RandomSalt;
+		public bool RandomSalt { get; set; }
 
 		/// <summary>
 		/// Add a known salt value to the cache
 		/// </summary>
 		[CommandLine("-Salt=")]
-		public string? Salt = null;
+		public string? Salt { get; set; } = null;
 						
 		/// <summary>
 		/// Skip checking if a result is already available in the action cache
 		/// </summary>
 		[CommandLine("-SkipCacheLookup")]
-		public bool SkipCacheLookup = false;
+		public bool SkipCacheLookup { get; set; } = false;
 		
 		/// <summary>
 		/// Directory to download the output files to. If not set, no results will be downloaded.
 		/// </summary>
 		[CommandLine("-OutputDir")]
-		public string? OutputDir = null;
+		public string? OutputDir { get; set; } = null;
 	
 		/// <summary>
 		/// Log verbosity level (use normal Serilog levels such as debug, warning or info)
 		/// </summary>
 		[CommandLine("-LogLevel")]
-		public string LogLevelStr = "debug";
+		public string LogLevelStr { get; set; } = "debug";
 
-		static (DirectoryTree, IoHash) CreateSandbox(DirectoryInfo BaseDirInfo, Dictionary<IoHash, byte[]> UploadList)
+		static (DirectoryTree, IoHash) CreateSandbox(DirectoryInfo baseDirInfo, Dictionary<IoHash, byte[]> uploadList)
 		{
-			DirectoryTree Tree = new DirectoryTree();
+			DirectoryTree tree = new DirectoryTree();
 
-			foreach (DirectoryInfo SubDirInfo in BaseDirInfo.EnumerateDirectories())
+			foreach (DirectoryInfo subDirInfo in baseDirInfo.EnumerateDirectories())
 			{
-				(DirectoryTree SubTree, IoHash SubDirHash) = CreateSandbox(SubDirInfo, UploadList);
-				Tree.Directories.Add(new DirectoryNode(SubDirInfo.Name, SubDirHash));
+				(DirectoryTree subTree, IoHash subDirHash) = CreateSandbox(subDirInfo, uploadList);
+				tree.Directories.Add(new DirectoryNode(subDirInfo.Name, subDirHash));
 			}
-			Tree.Directories.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
+			tree.Directories.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
 
-			foreach (FileInfo FileInfo in BaseDirInfo.EnumerateFiles())
+			foreach (FileInfo fileInfo in baseDirInfo.EnumerateFiles())
 			{
-				byte[] Data = File.ReadAllBytes(FileInfo.FullName);
-				IoHash Hash = IoHash.Compute(Data);
-				UploadList[Hash] = Data;
-				Tree.Files.Add(new FileNode(FileInfo.Name, Hash, FileInfo.Length, (int)FileInfo.Attributes));
+				byte[] data = File.ReadAllBytes(fileInfo.FullName);
+				IoHash hash = IoHash.Compute(data);
+				uploadList[hash] = data;
+				tree.Files.Add(new FileNode(fileInfo.Name, hash, fileInfo.Length, (int)fileInfo.Attributes));
 			}
-			Tree.Files.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
+			tree.Files.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
 
-			return (Tree, AddCbObject(UploadList, Tree));
+			return (tree, AddCbObject(uploadList, tree));
 		}
 
 		/// <inheritdoc/>
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			InputDir ??= Input.Directory;
 
-			if (Enum.TryParse(LogLevelStr, true, out LogEventLevel LogEventLevel))
+			if (Enum.TryParse(LogLevelStr, true, out LogEventLevel logEventLevel))
 			{
-				Logging.LogLevelSwitch.MinimumLevel = LogEventLevel;
+				Logging.LogLevelSwitch.MinimumLevel = logEventLevel;
 			}
 			else
 			{
-				Console.WriteLine($"Unable to parse log level: {this.LogLevelStr}");
+				Console.WriteLine($"Unable to parse log level: {LogLevelStr}");
 				return 0;
 			}
 
-			IConfiguration Configuration = new ConfigurationBuilder()
+			IConfiguration configuration = new ConfigurationBuilder()
 				.AddEnvironmentVariables()
 				.AddJsonFile(Input.FullName)
 				.Build();
 
-			IHostBuilder HostBuilder = Host.CreateDefaultBuilder()
-				.ConfigureLogging(Builder =>
+			IHostBuilder hostBuilder = Host.CreateDefaultBuilder()
+				.ConfigureLogging(builder =>
 				{
-					Builder.SetMinimumLevel(LogLevel.Warning);
+					builder.SetMinimumLevel(LogLevel.Warning);
 				})
-				.ConfigureServices(Services =>
+				.ConfigureServices(services =>
 				{
-					Services.AddLogging();
+					services.AddLogging();
 
-					IConfigurationSection ComputeSettings = Configuration.GetSection(nameof(JsonComputeTask.ComputeServer));
-					Services.AddHordeCompute(Settings => ComputeSettings.Bind(Settings));
+					IConfigurationSection computeSettings = configuration.GetSection(nameof(JsonComputeTask.ComputeServer));
+					services.AddHordeCompute(settings => computeSettings.Bind(settings));
 
-					IConfigurationSection StorageSettings = Configuration.GetSection(nameof(JsonComputeTask.StorageServer));
-					Services.AddHordeStorage(Settings => StorageSettings.Bind(Settings));
+					IConfigurationSection storageSettings = configuration.GetSection(nameof(JsonComputeTask.StorageServer));
+					services.AddHordeStorage(settings => storageSettings.Bind(settings));
 				});
 
-			using (IHost Host = HostBuilder.Build())
+			using (IHost host = hostBuilder.Build())
 			{
-				IStorageClient StorageClient = Host.Services.GetRequiredService<IStorageClient>();
-				IComputeClient ComputeClient = Host.Services.GetRequiredService<IComputeClient>();
+				IStorageClient storageClient = host.Services.GetRequiredService<IStorageClient>();
+				IComputeClient computeClient = host.Services.GetRequiredService<IComputeClient>();
 
-				ByteString SaltBytes = ByteString.Empty;
+				ByteString saltBytes = ByteString.Empty;
 				if (Salt != null)
 				{
-					SaltBytes = ByteString.CopyFromUtf8(Salt);
+					saltBytes = ByteString.CopyFromUtf8(Salt);
 				}
 				else if(RandomSalt)
 				{
-					SaltBytes = ByteString.CopyFrom(Guid.NewGuid().ToByteArray());
+					saltBytes = ByteString.CopyFrom(Guid.NewGuid().ToByteArray());
 				}
 
-				if (SaltBytes.Length > 0)
+				if (saltBytes.Length > 0)
 				{
-					Logger.LogInformation("Using salt: {SaltBytes}", StringUtils.FormatHexString(SaltBytes.ToByteArray()));
+					logger.LogInformation("Using salt: {SaltBytes}", StringUtils.FormatHexString(saltBytes.ToByteArray()));
 				}
 
-				Dictionary<IoHash, byte[]> Blobs = new Dictionary<IoHash, byte[]>();
-				(_, IoHash SandboxHash) = CreateSandbox(InputDir.ToDirectoryInfo(), Blobs);
+				Dictionary<IoHash, byte[]> blobs = new Dictionary<IoHash, byte[]>();
+				(_, IoHash sandboxHash) = CreateSandbox(InputDir.ToDirectoryInfo(), blobs);
 
-				JsonComputeTask JsonComputeTask = new JsonComputeTask();
-				Configuration.Bind(JsonComputeTask);
+				JsonComputeTask jsonComputeTask = new JsonComputeTask();
+				configuration.Bind(jsonComputeTask);
 
-				Logger.LogInformation("compute server: {ServerUrl}", JsonComputeTask.ComputeServer.Url);
-				Logger.LogInformation("storage server: {ServerUrl}", JsonComputeTask.StorageServer.Url);
+				logger.LogInformation("compute server: {ServerUrl}", jsonComputeTask.ComputeServer.Url);
+				logger.LogInformation("storage server: {ServerUrl}", jsonComputeTask.StorageServer.Url);
 
-				JsonRequirements JsonRequirements = JsonComputeTask.Requirements;
-				Requirements Requirements = new Requirements(JsonRequirements.Condition ?? String.Empty);
-				Requirements.Resources = JsonRequirements.Resources.ToDictionary(x => x.Key, x => x.Value);
-				Requirements.Exclusive = JsonRequirements.Exclusive;
-				IoHash RequirementsHash = AddCbObject(Blobs, Requirements);
+				JsonRequirements jsonRequirements = jsonComputeTask.Requirements;
+				Requirements requirements = new Requirements(jsonRequirements.Condition ?? String.Empty);
+				requirements.Resources = jsonRequirements.Resources.ToDictionary(x => x.Key, x => x.Value);
+				requirements.Exclusive = jsonRequirements.Exclusive;
+				IoHash requirementsHash = AddCbObject(blobs, requirements);
 
-				ComputeTask Task = new ComputeTask(JsonComputeTask.Executable, JsonComputeTask.Arguments.ConvertAll<Utf8String>(x => x), JsonComputeTask.WorkingDirectory, SandboxHash);
-				Task.EnvVars = JsonComputeTask.EnvVars.ToDictionary(x => (Utf8String)x.Key, x => (Utf8String)x.Value);
-				Task.OutputPaths.AddRange(JsonComputeTask.OutputPaths.Select(x => (Utf8String)x));
-				Task.RequirementsHash = AddCbObject(Blobs, Requirements);
+				ComputeTask task = new ComputeTask(jsonComputeTask.Executable, jsonComputeTask.Arguments.ConvertAll<Utf8String>(x => x), jsonComputeTask.WorkingDirectory, sandboxHash);
+				task.EnvVars = jsonComputeTask.EnvVars.ToDictionary(x => (Utf8String)x.Key, x => (Utf8String)x.Value);
+				task.OutputPaths.AddRange(jsonComputeTask.OutputPaths.Select(x => (Utf8String)x));
+				task.RequirementsHash = AddCbObject(blobs, requirements);
 
-				await ExecuteAction(Logger, ComputeClient, StorageClient, JsonComputeTask.ClusterId, Task, Blobs);	
+				await ExecuteAction(logger, computeClient, storageClient, jsonComputeTask.ClusterId, task, blobs);	
 			}
 			return 0;
 		}
 
-		static IoHash AddCbObject<T>(Dictionary<IoHash, byte[]> HashToData, T Source)
+		static IoHash AddCbObject<T>(Dictionary<IoHash, byte[]> hashToData, T source)
 		{
-			CbObject Obj = CbSerializer.Serialize<T>(Source);
-			IoHash Hash = Obj.GetHash();
-			HashToData[Hash] = Obj.GetView().ToArray();
-			return Hash;
+			CbObject obj = CbSerializer.Serialize<T>(source);
+			IoHash hash = obj.GetHash();
+			hashToData[hash] = obj.GetView().ToArray();
+			return hash;
 		}
 
-		private async Task ExecuteAction(ILogger Logger, IComputeClient ComputeClient, IStorageClient StorageClient, ClusterId ClusterId, ComputeTask Task, Dictionary<IoHash, byte[]> UploadList)
+		private async Task ExecuteAction(ILogger logger, IComputeClient computeClient, IStorageClient storageClient, ClusterId clusterId, ComputeTask task, Dictionary<IoHash, byte[]> uploadList)
 		{
-			IComputeClusterInfo Cluster = await ComputeClient.GetClusterInfoAsync(ClusterId);
+			IComputeClusterInfo cluster = await computeClient.GetClusterInfoAsync(clusterId);
 
 			{
-				int Index = 0, TotalUploaded = 0, TotalSkipped = 0, UploadedBytes = 0, SkippedBytes = 0;
-				var Tasks = UploadList.Select(async (Pair) =>
+				int index = 0, totalUploaded = 0, totalSkipped = 0, uploadedBytes = 0, skippedBytes = 0;
+				IEnumerable<Task> tasks = uploadList.Select(async (pair) =>
 				{
-					if (await StorageClient.HasBlobAsync(Cluster.NamespaceId, Pair.Key))
+					if (await storageClient.HasBlobAsync(cluster.NamespaceId, pair.Key))
 					{
-						Logger.LogInformation("Skipped blob {Idx}/{Count}: {Hash} ({Length} bytes)", Interlocked.Increment(ref Index), UploadList.Count, Pair.Key, Pair.Value.Length);
-						Interlocked.Increment(ref TotalSkipped);
-						Interlocked.Add(ref SkippedBytes, Pair.Value.Length);
+						logger.LogInformation("Skipped blob {Idx}/{Count}: {Hash} ({Length} bytes)", Interlocked.Increment(ref index), uploadList.Count, pair.Key, pair.Value.Length);
+						Interlocked.Increment(ref totalSkipped);
+						Interlocked.Add(ref skippedBytes, pair.Value.Length);
 						return;
 					}
 
-					await StorageClient.WriteBlobFromMemoryAsync(Cluster.NamespaceId, Pair.Key, Pair.Value);
-					Logger.LogInformation("Uploaded blob {Idx}/{Count}: {Hash} ({Bytes} bytes)", Interlocked.Increment(ref Index), UploadList.Count, Pair.Key, Pair.Value.Length);
-					Interlocked.Increment(ref TotalUploaded);
-					Interlocked.Add(ref UploadedBytes, Pair.Value.Length);
+					await storageClient.WriteBlobFromMemoryAsync(cluster.NamespaceId, pair.Key, pair.Value);
+					logger.LogInformation("Uploaded blob {Idx}/{Count}: {Hash} ({Bytes} bytes)", Interlocked.Increment(ref index), uploadList.Count, pair.Key, pair.Value.Length);
+					Interlocked.Increment(ref totalUploaded);
+					Interlocked.Add(ref uploadedBytes, pair.Value.Length);
 				});
-				await System.Threading.Tasks.Task.WhenAll(Tasks);
+				await Task.WhenAll(tasks);
 
-				Logger.LogInformation("Uploaded {UploadedCount} blobs ({UploadedBytes} bytes), Skipped {SkippedCount} blobs ({SkippedBytes} bytes)", TotalUploaded, UploadedBytes, TotalSkipped, SkippedBytes);
+				logger.LogInformation("Uploaded {UploadedCount} blobs ({UploadedBytes} bytes), Skipped {SkippedCount} blobs ({SkippedBytes} bytes)", totalUploaded, uploadedBytes, totalSkipped, skippedBytes);
 			}
 
-			CbObject TaskObject = CbSerializer.Serialize(Task);
-			IoHash TaskHash = IoHash.Compute(TaskObject.GetView().Span);
-			RefId TaskRefId = new RefId(TaskHash);
-			await StorageClient.SetRefAsync(Cluster.NamespaceId, Cluster.RequestBucketId, TaskRefId, TaskObject);
+			CbObject taskObject = CbSerializer.Serialize(task);
+			IoHash taskHash = IoHash.Compute(taskObject.GetView().Span);
+			RefId taskRefId = new RefId(taskHash);
+			await storageClient.SetRefAsync(cluster.NamespaceId, cluster.RequestBucketId, taskRefId, taskObject);
 
-			ChannelId ChannelId = new ChannelId(Guid.NewGuid().ToString());
-			Logger.LogInformation("cluster: {ClusterId}", ClusterId);
-			Logger.LogInformation("channel: {ChannelId}", ChannelId);
-			Logger.LogInformation("task: {TaskHash}", TaskHash);
-			Logger.LogInformation("requirements: {RequirementsHash}", Task.RequirementsHash);
-
+			ChannelId channelId = new ChannelId(Guid.NewGuid().ToString());
+			logger.LogInformation("cluster: {ClusterId}", clusterId);
+			logger.LogInformation("channel: {ChannelId}", channelId);
+			logger.LogInformation("task: {TaskHash}", taskHash);
+			logger.LogInformation("requirements: {RequirementsHash}", task.RequirementsHash);
 
 			// Execute the action
-			await ComputeClient.AddTaskAsync(ClusterId, ChannelId, TaskRefId, Task.RequirementsHash, SkipCacheLookup);
+			await computeClient.AddTaskAsync(clusterId, channelId, taskRefId, task.RequirementsHash, SkipCacheLookup);
 
-			await foreach(IComputeTaskInfo Response in ComputeClient.GetTaskUpdatesAsync(ClusterId, ChannelId))
+			await foreach(IComputeTaskInfo response in computeClient.GetTaskUpdatesAsync(clusterId, channelId))
 			{
-				Logger.LogInformation("{OperationName}: Execution state: {State}", Response.TaskRefId, Response.State.ToString());
-				if (!String.IsNullOrEmpty(Response.AgentId) || !String.IsNullOrEmpty(Response.LeaseId))
+				logger.LogInformation("{OperationName}: Execution state: {State}", response.TaskRefId, response.State.ToString());
+				if (!String.IsNullOrEmpty(response.AgentId) || !String.IsNullOrEmpty(response.LeaseId))
 				{
-					Logger.LogInformation("{OperationName}: Running on agent {AgentId} under lease {LeaseId}", Response.TaskRefId, Response.AgentId, Response.LeaseId);
+					logger.LogInformation("{OperationName}: Running on agent {AgentId} under lease {LeaseId}", response.TaskRefId, response.AgentId, response.LeaseId);
 				}
-				if (Response.ResultRefId != null)
+				if (response.ResultRefId != null)
 				{
-					await HandleCompleteTask(StorageClient, Cluster.NamespaceId, Cluster.ResponseBucketId, Response.ResultRefId.Value, Logger);
+					await HandleCompleteTask(storageClient, cluster.NamespaceId, cluster.ResponseBucketId, response.ResultRefId.Value, logger);
 				}
-				if (Response.State == ComputeTaskState.Complete)
+				if (response.State == ComputeTaskState.Complete)
 				{
-					if (Response.Outcome != ComputeTaskOutcome.Success)
+					if (response.Outcome != ComputeTaskOutcome.Success)
 					{
-						Logger.LogError("{OperationName}: Outcome: {Outcome}, Detail: {Detail}", Response.TaskRefId, Response.Outcome.ToString(), Response.Detail ?? "(none)");
+						logger.LogError("{OperationName}: Outcome: {Outcome}, Detail: {Detail}", response.TaskRefId, response.Outcome.ToString(), response.Detail ?? "(none)");
 					}
 					break;
 				}
 			}
 		}
 
-		async Task HandleCompleteTask(IStorageClient StorageClient, NamespaceId NamespaceId, BucketId OutputBucketId, RefId OutputRefId, ILogger Logger)
+		async Task HandleCompleteTask(IStorageClient storageClient, NamespaceId namespaceId, BucketId outputBucketId, RefId outputRefId, ILogger logger)
 		{
-			ComputeTaskResult Result = await StorageClient.GetRefAsync<ComputeTaskResult>(NamespaceId, OutputBucketId, OutputRefId);
-			Logger.LogInformation("exit: {ExitCode}", Result.ExitCode);
+			ComputeTaskResult result = await storageClient.GetRefAsync<ComputeTaskResult>(namespaceId, outputBucketId, outputRefId);
+			logger.LogInformation("exit: {ExitCode}", result.ExitCode);
 
-			await LogTaskOutputAsync(StorageClient, "stdout", NamespaceId, Result.StdOutHash, Logger);
-			await LogTaskOutputAsync(StorageClient, "stderr", NamespaceId, Result.StdErrHash, Logger);
+			await LogTaskOutputAsync(storageClient, "stdout", namespaceId, result.StdOutHash, logger);
+			await LogTaskOutputAsync(storageClient, "stderr", namespaceId, result.StdErrHash, logger);
 
-			if (Result.OutputHash != null && OutputDir != null)
+			if (result.OutputHash != null && OutputDir != null)
 			{
-				await WriteOutputAsync(StorageClient, NamespaceId, Result.OutputHash.Value, new DirectoryReference(OutputDir));
+				await WriteOutputAsync(storageClient, namespaceId, result.OutputHash.Value, new DirectoryReference(OutputDir));
 			}
 		}
 
-		async Task LogTaskOutputAsync(IStorageClient StorageClient, string Channel, NamespaceId NamespaceId, IoHash? LogHash, ILogger Logger)
+		async Task LogTaskOutputAsync(IStorageClient storageClient, string channel, NamespaceId namespaceId, IoHash? logHash, ILogger logger)
 		{
-			if (LogHash != null)
+			if (logHash != null)
 			{
-				byte[] StdOutData = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, LogHash.Value);
-				if (StdOutData.Length > 0)
+				byte[] stdOutData = await storageClient.ReadBlobToMemoryAsync(namespaceId, logHash.Value);
+				if (stdOutData.Length > 0)
 				{
-					foreach (string Line in Encoding.UTF8.GetString(StdOutData).Split('\n'))
+					foreach (string line in Encoding.UTF8.GetString(stdOutData).Split('\n'))
 					{
-						Logger.LogDebug("{Channel}: {Line}", Channel, Line);
+						logger.LogDebug("{Channel}: {Line}", channel, line);
 					}
 				}
 			}
 		}
 
-		async Task WriteOutputAsync(IStorageClient StorageClient, NamespaceId NamespaceId, IoHash TreeHash, DirectoryReference OutputDir)
+		async Task WriteOutputAsync(IStorageClient storageClient, NamespaceId namespaceId, IoHash treeHash, DirectoryReference outputDir)
 		{
-			DirectoryTree Tree = await StorageClient.ReadBlobAsync<DirectoryTree>(NamespaceId, TreeHash);
+			DirectoryTree tree = await storageClient.ReadBlobAsync<DirectoryTree>(namespaceId, treeHash);
 
-			List<Task> Tasks = new List<Task>();
-			foreach (FileNode File in Tree.Files)
+			List<Task> tasks = new List<Task>();
+			foreach (FileNode file in tree.Files)
 			{
-				FileReference OutputFile = FileReference.Combine(OutputDir, File.Name.ToString());
-				Tasks.Add(WriteObjectToFileAsync(StorageClient, NamespaceId, File.Hash, OutputFile));
+				FileReference outputFile = FileReference.Combine(outputDir, file.Name.ToString());
+				tasks.Add(WriteObjectToFileAsync(storageClient, namespaceId, file.Hash, outputFile));
 			}
-			foreach (DirectoryNode Directory in Tree.Directories)
+			foreach (DirectoryNode directory in tree.Directories)
 			{
-				DirectoryReference NextOutputDir = DirectoryReference.Combine(OutputDir, Directory.Name.ToString());
-				Tasks.Add(WriteOutputAsync(StorageClient, NamespaceId, Directory.Hash, NextOutputDir));
+				DirectoryReference nextOutputDir = DirectoryReference.Combine(outputDir, directory.Name.ToString());
+				tasks.Add(WriteOutputAsync(storageClient, namespaceId, directory.Hash, nextOutputDir));
 			}
 
-			await Task.WhenAll(Tasks);
+			await Task.WhenAll(tasks);
 		}
 
-		static async Task WriteObjectToFileAsync(IStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, FileReference OutputFile)
+		static async Task WriteObjectToFileAsync(IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, FileReference outputFile)
 		{
-			DirectoryReference.CreateDirectory(OutputFile.Directory);
+			DirectoryReference.CreateDirectory(outputFile.Directory);
 
-			byte[] Data = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, Hash);
-			await FileReference.WriteAllBytesAsync(OutputFile, Data);
+			byte[] data = await storageClient.ReadBlobToMemoryAsync(namespaceId, hash);
+			await FileReference.WriteAllBytesAsync(outputFile, data);
 		}
 	}
 }

@@ -15,9 +15,9 @@ namespace Horde.Agent.Commands.Workspace
 	[Command("Workspace", "Status", "Prints information about the state of the cache and workspace")]
 	class StatusCommand : WorkspaceCommand
 	{
-		protected override Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			Repo.Status();
+			repo.Status();
 			return Task.CompletedTask;
 		}
 	}

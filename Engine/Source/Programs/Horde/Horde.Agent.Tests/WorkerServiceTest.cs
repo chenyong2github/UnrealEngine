@@ -14,6 +14,7 @@ using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -27,12 +28,7 @@ namespace Horde.Agent.Tests
 
 		public WorkerServiceTest()
 		{
-			LoggerFactory LoggerFactory = new LoggerFactory();
-			ConsoleLoggerOptions LoggerOptions = new ConsoleLoggerOptions();
-			TestOptionsMonitor<ConsoleLoggerOptions> LoggerOptionsMon =
-				new TestOptionsMonitor<ConsoleLoggerOptions>(LoggerOptions);
-			LoggerFactory.AddProvider(new ConsoleLoggerProvider(LoggerOptionsMon));
-			WorkerLogger = LoggerFactory.CreateLogger<WorkerService>();
+			WorkerLogger = NullLogger<WorkerService>.Instance;
 		}
 
 		private WorkerService GetWorkerService(
@@ -48,7 +44,7 @@ namespace Horde.Agent.Tests
 			Settings.Server = "test";
 			Settings.WorkingDir = Path.GetTempPath();
 			Settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
-			IOptionsMonitor<AgentSettings> SettingsMonitor = new TestOptionsMonitor<AgentSettings>(Settings);
+			IOptions<AgentSettings> SettingsMonitor = new TestOptionsMonitor<AgentSettings>(Settings);
 
 			return new WorkerService(WorkerLogger, SettingsMonitor, null!, null!, CreateExecutor);
 		}
@@ -119,7 +115,7 @@ namespace Horde.Agent.Tests
 			});
 
 			WorkerService Ws = GetWorkerService((a, b, c) => Executor);
-			Ws.StepAbortPollInterval = TimeSpan.FromMilliseconds(1);
+			Ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(1);
 			LeaseOutcome Outcome = (await Ws.ExecuteJobAsync(RpcConnection, "agentId1", "leaseId1", ExecuteJobTask,
 				WorkerLogger, Token)).Outcome;
 
@@ -147,7 +143,7 @@ namespace Horde.Agent.Tests
 			});
 
 			WorkerService Ws = GetWorkerService((a, b, c) => Executor);
-			Ws.StepAbortPollInterval = TimeSpan.FromMilliseconds(5);
+			Ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(5);
 			
 			HordeRpcClientStub Client = new HordeRpcClientStub(WorkerLogger);
 			RpcConnectionStub RpcConnection = new RpcConnectionStub(null!, Client);

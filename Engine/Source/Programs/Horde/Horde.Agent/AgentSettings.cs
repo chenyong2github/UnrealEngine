@@ -101,15 +101,15 @@ namespace Horde.Agent
 		/// <summary>
 		/// Checks whether the given certificate thumbprint should be trusted
 		/// </summary>
-		/// <param name="CertificateThumbprint">The cert thumbprint</param>
+		/// <param name="certificateThumbprint">The cert thumbprint</param>
 		/// <returns>True if the cert should be trusted</returns>
-		public bool IsTrustedCertificate(string CertificateThumbprint)
+		public bool IsTrustedCertificate(string certificateThumbprint)
 		{
-			if (Thumbprint != null && Thumbprint.Equals(CertificateThumbprint, StringComparison.OrdinalIgnoreCase))
+			if (Thumbprint != null && Thumbprint.Equals(certificateThumbprint, StringComparison.OrdinalIgnoreCase))
 			{
 				return true;
 			}
-			if (Thumbprints.Any(x => x.Equals(CertificateThumbprint, StringComparison.OrdinalIgnoreCase)))
+			if (Thumbprints.Any(x => x.Equals(certificateThumbprint, StringComparison.OrdinalIgnoreCase)))
 			{
 				return true;
 			}
@@ -214,10 +214,10 @@ namespace Horde.Agent
 		/// Gets the current server settings
 		/// </summary>
 		/// <returns>The current server settings</returns>
-		public ServerProfile GetServerProfile(string Name)
+		public ServerProfile GetServerProfile(string name)
 		{
-			ServerProfile? ServerProfile = ServerProfiles.FirstOrDefault(x => x.Name.Equals(Name, StringComparison.OrdinalIgnoreCase));
-			if (ServerProfile == null)
+			ServerProfile? serverProfile = ServerProfiles.FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+			if (serverProfile == null)
 			{
 				if (ServerProfiles.Count == 0)
 				{
@@ -225,10 +225,10 @@ namespace Horde.Agent
 				}
 				else
 				{
-					throw new Exception($"Unknown server profile name '{Name}' (valid profiles: {String.Join("/", ServerProfiles.Select(x => x.Name))})");
+					throw new Exception($"Unknown server profile name '{name}' (valid profiles: {String.Join("/", ServerProfiles.Select(x => x.Name))})");
 				}
 			}
-			return ServerProfile;
+			return serverProfile;
 		}
 
 		/// <summary>
@@ -259,12 +259,12 @@ namespace Horde.Agent
 		/// <summary>
 		/// Gets the configuration section for the active server profile
 		/// </summary>
-		/// <param name="ConfigSection"></param>
+		/// <param name="configSection"></param>
 		/// <returns></returns>
-		public static IConfigurationSection GetCurrentServerProfile(this IConfigurationSection ConfigSection)
+		public static IConfigurationSection GetCurrentServerProfile(this IConfigurationSection configSection)
 		{
-			string ProfileName = ConfigSection[nameof(AgentSettings.Server)];
-			return ConfigSection.GetSection(nameof(AgentSettings.ServerProfiles)).GetChildren().First(x => x[nameof(ServerProfile.Name)] == ProfileName);
+			string profileName = configSection[nameof(AgentSettings.Server)];
+			return configSection.GetSection(nameof(AgentSettings.ServerProfiles)).GetChildren().First(x => x[nameof(ServerProfile.Name)] == profileName);
 		}
 	}
 }

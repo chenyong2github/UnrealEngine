@@ -25,32 +25,32 @@ namespace Horde.Agent.Parser.Matchers
 			@"(?<message>.*)";
 
 		/// <inheritdoc/>
-		public LogEventMatch? Match(ILogCursor Input)
+		public LogEventMatch? Match(ILogCursor input)
 		{
 			// Do the match in two phases so we can early out if the strings "error" or "warning" are not present. The patterns before these strings can
 			// produce many false positives, making them very slow to execute.
-			if (Input.IsMatch("Error:|Warning:"))
+			if (input.IsMatch("Error:|Warning:"))
 			{
-				Match? Match;
-				if(Input.TryMatch(Pattern, out Match))
+				Match? match;
+				if(input.TryMatch(Pattern, out match))
 				{
-					LogEventBuilder Builder = new LogEventBuilder(Input);
+					LogEventBuilder builder = new LogEventBuilder(input);
 
-					Builder.Annotate(Match.Groups["channel"], LogEventMarkup.Channel);
-					Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
+					builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
+					builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 					//					Builder.Annotate(Match.Groups["asset"]).MarkAsAsset(Context);
-					Builder.Annotate(Match.Groups["message"], LogEventMarkup.Message);
+					builder.Annotate(match.Groups["message"], LogEventMarkup.Message);
 
-					return Builder.ToMatch(LogEventPriority.AboveNormal, GetLogLevelFromSeverity(Match), KnownLogEvents.Engine_AssetLog);
+					return builder.ToMatch(LogEventPriority.AboveNormal, GetLogLevelFromSeverity(match), KnownLogEvents.Engine_AssetLog);
 				}
 			}
 			return null;
 		}
 
-		static LogLevel GetLogLevelFromSeverity(Match Match)
+		static LogLevel GetLogLevelFromSeverity(Match match)
 		{
-			string Severity = Match.Groups["severity"].Value;
-			if (Severity.Equals("Warning:", StringComparison.Ordinal))
+			string severity = match.Groups["severity"].Value;
+			if (severity.Equals("Warning:", StringComparison.Ordinal))
 			{
 				return LogLevel.Warning;
 			}

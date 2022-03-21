@@ -16,9 +16,9 @@ namespace Horde.Agent.Commands.Workspace
 	[Command("Workspace", "RepairCache", "Checks the integrity of the cache, and removes any invalid files")]
 	class RepairCommand : WorkspaceCommand
 	{
-		protected override Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			return Repo.RepairAsync(CancellationToken.None);
+			return repo.RepairAsync(CancellationToken.None);
 		}
 	}
 }

@@ -23,165 +23,167 @@ namespace Horde.Agent.Execution
 {
 	class TestExecutor : BuildGraphExecutor
 	{
-		public TestExecutor(IRpcConnection RpcClient, string JobId, string BatchId, string AgentTypeName)
-			: base(RpcClient, JobId, BatchId, AgentTypeName)
+		public TestExecutor(IRpcConnection rpcClient, string jobId, string batchId, string agentTypeName)
+			: base(rpcClient, jobId, batchId, agentTypeName)
 		{
 		}
 
-		public override Task InitializeAsync(ILogger Logger, CancellationToken CancellationToken)
+		public override Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
-			Logger.LogInformation("Initializing");
+			logger.LogInformation("Initializing");
 			return Task.CompletedTask;
 		}
 
-		protected override async Task<bool> SetupAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken)
+		protected override async Task<bool> SetupAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
-			Logger.LogInformation("**** BEGIN JOB SETUP ****");
+			logger.LogInformation("**** BEGIN JOB SETUP ****");
 
-			await Task.Delay(5000, CancellationToken);
+			await Task.Delay(5000, cancellationToken);
 
-			UpdateGraphRequest UpdateGraph = new UpdateGraphRequest();
-			UpdateGraph.JobId = JobId;
+			UpdateGraphRequest updateGraph = new UpdateGraphRequest();
+			updateGraph.JobId = _jobId;
 
-			CreateGroupRequest WinEditorGroup = CreateGroup("Win64");
-			WinEditorGroup.Nodes.Add(CreateNode("Update Version Files", new string[] { }, JobStepOutcome.Success));
-			WinEditorGroup.Nodes.Add(CreateNode("Compile UnrealHeaderTool Win64", new string[] { "Update Version Files" }, JobStepOutcome.Success));
-			WinEditorGroup.Nodes.Add(CreateNode("Compile UE4Editor Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Success));
-			WinEditorGroup.Nodes.Add(CreateNode("Compile FortniteEditor Win64", new string[] { "Compile UnrealHeaderTool Win64", "Compile UE4Editor Win64" }, JobStepOutcome.Success));
-			UpdateGraph.Groups.Add(WinEditorGroup);
+			CreateGroupRequest winEditorGroup = CreateGroup("Win64");
+			winEditorGroup.Nodes.Add(CreateNode("Update Version Files", new string[] { }, JobStepOutcome.Success));
+			winEditorGroup.Nodes.Add(CreateNode("Compile UnrealHeaderTool Win64", new string[] { "Update Version Files" }, JobStepOutcome.Success));
+			winEditorGroup.Nodes.Add(CreateNode("Compile UE4Editor Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Success));
+			winEditorGroup.Nodes.Add(CreateNode("Compile FortniteEditor Win64", new string[] { "Compile UnrealHeaderTool Win64", "Compile UE4Editor Win64" }, JobStepOutcome.Success));
+			updateGraph.Groups.Add(winEditorGroup);
 
-			CreateGroupRequest WinToolsGroup = CreateGroup("Win64"); 
-			WinToolsGroup.Nodes.Add(CreateNode("Compile Tools Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Warnings));
-			UpdateGraph.Groups.Add(WinToolsGroup);
+			CreateGroupRequest winToolsGroup = CreateGroup("Win64"); 
+			winToolsGroup.Nodes.Add(CreateNode("Compile Tools Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Warnings));
+			updateGraph.Groups.Add(winToolsGroup);
 
-			CreateGroupRequest WinClientsGroup = CreateGroup("Win64");
-			WinClientsGroup.Nodes.Add(CreateNode("Compile FortniteClient Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Success));
-			UpdateGraph.Groups.Add(WinClientsGroup);
+			CreateGroupRequest winClientsGroup = CreateGroup("Win64");
+			winClientsGroup.Nodes.Add(CreateNode("Compile FortniteClient Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Success));
+			updateGraph.Groups.Add(winClientsGroup);
 
-			CreateGroupRequest WinCooksGroup = CreateGroup("Win64");
-			WinCooksGroup.Nodes.Add(CreateNode("Cook FortniteClient Win64", new string[] { "Compile FortniteEditor Win64", "Compile Tools Win64" }, JobStepOutcome.Warnings));
-			WinCooksGroup.Nodes.Add(CreateNode("Stage FortniteClient Win64", new string[] { "Cook FortniteClient Win64", "Compile Tools Win64" }, JobStepOutcome.Success));
-			WinCooksGroup.Nodes.Add(CreateNode("Publish FortniteClient Win64", new string[] { "Stage FortniteClient Win64" }, JobStepOutcome.Success));
-			UpdateGraph.Groups.Add(WinCooksGroup);
+			CreateGroupRequest winCooksGroup = CreateGroup("Win64");
+			winCooksGroup.Nodes.Add(CreateNode("Cook FortniteClient Win64", new string[] { "Compile FortniteEditor Win64", "Compile Tools Win64" }, JobStepOutcome.Warnings));
+			winCooksGroup.Nodes.Add(CreateNode("Stage FortniteClient Win64", new string[] { "Cook FortniteClient Win64", "Compile Tools Win64" }, JobStepOutcome.Success));
+			winCooksGroup.Nodes.Add(CreateNode("Publish FortniteClient Win64", new string[] { "Stage FortniteClient Win64" }, JobStepOutcome.Success));
+			updateGraph.Groups.Add(winCooksGroup);
 
-			Dictionary<string, string[]> DependencyMap = CreateDependencyMap(UpdateGraph.Groups);
-			UpdateGraph.Labels.Add(CreateLabel("Editors", "UE4", new string[] { "Compile UE4Editor Win64" }, Array.Empty<string>(), DependencyMap));
-			UpdateGraph.Labels.Add(CreateLabel("Editors", "Fortnite", new string[] { "Compile FortniteEditor Win64" }, Array.Empty<string>(), DependencyMap));
-			UpdateGraph.Labels.Add(CreateLabel("Clients", "Fortnite", new string[] { "Cook FortniteClient Win64" }, new string[] { "Publish FortniteClient Win64" }, DependencyMap));
+			Dictionary<string, string[]> dependencyMap = CreateDependencyMap(updateGraph.Groups);
+			updateGraph.Labels.Add(CreateLabel("Editors", "UE4", new string[] { "Compile UE4Editor Win64" }, Array.Empty<string>(), dependencyMap));
+			updateGraph.Labels.Add(CreateLabel("Editors", "Fortnite", new string[] { "Compile FortniteEditor Win64" }, Array.Empty<string>(), dependencyMap));
+			updateGraph.Labels.Add(CreateLabel("Clients", "Fortnite", new string[] { "Cook FortniteClient Win64" }, new string[] { "Publish FortniteClient Win64" }, dependencyMap));
 
-			await RpcConnection.InvokeAsync(x => x.UpdateGraphAsync(UpdateGraph, null, null, CancellationToken), new RpcContext(), CancellationToken);
+			await _rpcConnection.InvokeAsync(x => x.UpdateGraphAsync(updateGraph, null, null, cancellationToken), new RpcContext(), cancellationToken);
 
-			Logger.LogInformation("**** FINISH JOB SETUP ****");
+			logger.LogInformation("**** FINISH JOB SETUP ****");
 			return true;
 		}
 
-		static CreateGroupRequest CreateGroup(string AgentType)
+		static CreateGroupRequest CreateGroup(string agentType)
 		{
-			CreateGroupRequest Request = new CreateGroupRequest();
-			Request.AgentType = AgentType;
-			return Request;
+			CreateGroupRequest request = new CreateGroupRequest();
+			request.AgentType = agentType;
+			return request;
 		}
 
-		static CreateNodeRequest CreateNode(string Name, string[] InputDependencies, JobStepOutcome Outcome)
+		static CreateNodeRequest CreateNode(string name, string[] inputDependencies, JobStepOutcome outcome)
 		{
-			CreateNodeRequest Request = new CreateNodeRequest();
-			Request.Name = Name;
-			Request.InputDependencies.AddRange(InputDependencies);
-			Request.Properties.Add("Action", "Build");
-			Request.Properties.Add("Outcome", Outcome.ToString());
-			return Request;
+			CreateNodeRequest request = new CreateNodeRequest();
+			request.Name = name;
+			request.InputDependencies.AddRange(inputDependencies);
+			request.Properties.Add("Action", "Build");
+			request.Properties.Add("Outcome", outcome.ToString());
+			return request;
 		}
 
-		static CreateLabelRequest CreateLabel(string Category, string Name, string[] RequiredNodes, string[] IncludedNodes, Dictionary<string, string[]> DependencyMap)
+		static CreateLabelRequest CreateLabel(string category, string name, string[] requiredNodes, string[] includedNodes, Dictionary<string, string[]> dependencyMap)
 		{
-			CreateLabelRequest Request = new CreateLabelRequest();
-			Request.DashboardName = Name;
-			Request.DashboardCategory = Category;
-			Request.RequiredNodes.AddRange(RequiredNodes);
-			Request.IncludedNodes.AddRange(Enumerable.Union(RequiredNodes, IncludedNodes).SelectMany(x => DependencyMap[x]).Distinct());
-			return Request;
+			CreateLabelRequest request = new CreateLabelRequest();
+			request.DashboardName = name;
+			request.DashboardCategory = category;
+			request.RequiredNodes.AddRange(requiredNodes);
+			request.IncludedNodes.AddRange(Enumerable.Union(requiredNodes, includedNodes).SelectMany(x => dependencyMap[x]).Distinct());
+			return request;
 		}
 
-		static Dictionary<string, string[]> CreateDependencyMap(IEnumerable<CreateGroupRequest> Groups)
+		static Dictionary<string, string[]> CreateDependencyMap(IEnumerable<CreateGroupRequest> groups)
 		{
-			Dictionary<string, string[]> NameToDependencyNames = new Dictionary<string, string[]>();
-			foreach (CreateGroupRequest Group in Groups)
+			Dictionary<string, string[]> nameToDependencyNames = new Dictionary<string, string[]>();
+			foreach (CreateGroupRequest group in groups)
 			{
-				foreach (CreateNodeRequest Node in Group.Nodes)
+				foreach (CreateNodeRequest node in group.Nodes)
 				{
-					HashSet<string> DependencyNames = new HashSet<string> { Node.Name };
+					HashSet<string> dependencyNames = new HashSet<string> { node.Name };
 
-					foreach (string InputDependency in Node.InputDependencies)
+					foreach (string inputDependency in node.InputDependencies)
 					{
-						DependencyNames.UnionWith(NameToDependencyNames[InputDependency]);
+						dependencyNames.UnionWith(nameToDependencyNames[inputDependency]);
 					}
-					foreach (string OrderDependency in Node.OrderDependencies)
+					foreach (string orderDependency in node.OrderDependencies)
 					{
-						DependencyNames.UnionWith(NameToDependencyNames[OrderDependency]);
+						dependencyNames.UnionWith(nameToDependencyNames[orderDependency]);
 					}
 
-					NameToDependencyNames[Node.Name] = DependencyNames.ToArray();
+					nameToDependencyNames[node.Name] = dependencyNames.ToArray();
 				}
 			}
-			return NameToDependencyNames;
+			return nameToDependencyNames;
 		}
 
-		protected override async Task<bool> ExecuteAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken)
+		protected override async Task<bool> ExecuteAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
-			Logger.LogInformation("**** BEGIN NODE {StepName} ****", Step.Name);
+			logger.LogInformation("**** BEGIN NODE {StepName} ****", step.Name);
 
-			await Task.Delay(TimeSpan.FromSeconds(5.0), CancellationToken);
-			CancellationToken.ThrowIfCancellationRequested();
+			await Task.Delay(TimeSpan.FromSeconds(5.0), cancellationToken);
+			cancellationToken.ThrowIfCancellationRequested();
 
-			JobStepOutcome Outcome = Enum.Parse<JobStepOutcome>(Step.Properties["Outcome"]);
+			JobStepOutcome outcome = Enum.Parse<JobStepOutcome>(step.Properties["Outcome"]);
 
-			Dictionary<string, object> Items = new Dictionary<string, object>();
-			Items["hello"] = new { prop = 12345, prop2 = "world" };
-			Items["world"] = new { prop = 123 };
-			await UploadTestDataAsync(Step.StepId, Items);
-
-			if (Step.Name == "Stage FortniteClient Win64")
+			Dictionary<string, object> items = new Dictionary<string, object>
 			{
-				Outcome = JobStepOutcome.Failure;
+				["hello"] = new { prop = 12345, prop2 = "world" },
+				["world"] = new { prop = 123 }
+			};
+			await UploadTestDataAsync(step.StepId, items);
+
+			if (step.Name == "Stage FortniteClient Win64")
+			{
+				outcome = JobStepOutcome.Failure;
 			}
 
-			foreach (KeyValuePair<string, string> Credential in Step.Credentials)
+			foreach (KeyValuePair<string, string> credential in step.Credentials)
 			{
-				Logger.LogInformation("Credential: {CredentialName}={CredentialValue}", Credential.Key, Credential.Value);
+				logger.LogInformation("Credential: {CredentialName}={CredentialValue}", credential.Key, credential.Value);
 			}
 
-			LogParserContext Context = new LogParserContext();
-			Context.WorkspaceDir = new DirectoryReference("D:\\Test");
-			Context.PerforceStream = "//UE4/Main";
-			Context.PerforceChange = 12345;
+			LogParserContext context = new LogParserContext();
+			context.WorkspaceDir = new DirectoryReference("D:\\Test");
+			context.PerforceStream = "//UE4/Main";
+			context.PerforceChange = 12345;
 
-			using (LogParser Filter = new LogParser(Logger, Context, new List<string>()))
+			using (LogParser filter = new LogParser(logger, context, new List<string>()))
 			{
-				if(Outcome == JobStepOutcome.Warnings)
+				if(outcome == JobStepOutcome.Warnings)
 				{
-					Filter.WriteLine("D:\\Test\\Path\\To\\Source\\File.cpp(234): warning: This is a compilation warning");
-					Logger.LogWarning("This is a warning!");
-					Filter.WriteLine("warning: this is a test");
+					filter.WriteLine("D:\\Test\\Path\\To\\Source\\File.cpp(234): warning: This is a compilation warning");
+					logger.LogWarning("This is a warning!");
+					filter.WriteLine("warning: this is a test");
 				}
-				if(Outcome == JobStepOutcome.Failure)
+				if(outcome == JobStepOutcome.Failure)
 				{
-					Filter.WriteLine("D:\\Test\\Path\\To\\Source\\File.cpp(234): error: This is a compilation error");
-					Logger.LogError("This is an error!");
-					Filter.WriteLine("error: this is a test");
+					filter.WriteLine("D:\\Test\\Path\\To\\Source\\File.cpp(234): error: This is a compilation error");
+					logger.LogError("This is an error!");
+					filter.WriteLine("error: this is a test");
 				}
 			}
 
-			FileReference CurrentFile = new FileReference(Assembly.GetExecutingAssembly().Location);
-			await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, CurrentFile.GetFileName(), CurrentFile, Logger, CancellationToken);
+			FileReference currentFile = new FileReference(Assembly.GetExecutingAssembly().Location);
+			await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, currentFile.GetFileName(), currentFile, logger, cancellationToken);
 
-			Logger.LogInformation("**** FINISH NODE {StepName} ****", Step.Name);
+			logger.LogInformation("**** FINISH NODE {StepName} ****", step.Name);
 
 			return true;
 		}
 
-		public override Task FinalizeAsync(ILogger Logger, CancellationToken CancellationToken)
+		public override Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
-			Logger.LogInformation("Finalizing");
+			logger.LogInformation("Finalizing");
 			return Task.CompletedTask;
 		}
 	}

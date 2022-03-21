@@ -14,28 +14,28 @@ namespace HordeCommon
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Hash"></param>
-		public IoHashWrapper(IoHash Hash)
+		/// <param name="hash"></param>
+		public IoHashWrapper(IoHash hash)
 		{
-			this.Hash = ByteString.CopyFrom(Hash.ToByteArray());
+			Hash = ByteString.CopyFrom(hash.ToByteArray());
 		}
 
 		/// <summary>
 		/// Convert from an IoHashWrapper to an IoHash
 		/// </summary>
-		/// <param name="Hash"></param>
-		public static implicit operator IoHash(IoHashWrapper Hash)
+		/// <param name="hash"></param>
+		public static implicit operator IoHash(IoHashWrapper hash)
 		{
-			return new IoHash(Hash.Hash.ToByteArray());
+			return new IoHash(hash.Hash.ToByteArray());
 		}
 
 		/// <summary>
 		/// Convert from an IoHash to an IoHashWrapper
 		/// </summary>
-		/// <param name="Hash"></param>
-		public static implicit operator IoHashWrapper(IoHash Hash)
+		/// <param name="hash"></param>
+		public static implicit operator IoHashWrapper(IoHash hash)
 		{
-			return new IoHashWrapper(Hash);
+			return new IoHashWrapper(hash);
 		}
 	}
 
@@ -47,25 +47,25 @@ namespace HordeCommon
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="RefId"></param>
-		public RefIdWrapper(RefId RefId)
+		/// <param name="refId"></param>
+		public RefIdWrapper(RefId refId)
 		{
-			this.Hash = ByteString.CopyFrom(RefId.Hash.ToByteArray());
+			Hash = ByteString.CopyFrom(refId.Hash.ToByteArray());
 		}
 
 		/// <summary>
 		/// Convert from an IoHashWrapper to an IoHash
 		/// </summary>
-		/// <param name="RefId"></param>
-		public static implicit operator RefId(RefIdWrapper RefId) => RefId.AsRefId();
+		/// <param name="refId"></param>
+		public static implicit operator RefId(RefIdWrapper refId) => refId.AsRefId();
 
 		/// <summary>
 		/// Convert from an IoHash to an IoHashWrapper
 		/// </summary>
-		/// <param name="RefId"></param>
-		public static implicit operator RefIdWrapper(RefId RefId)
+		/// <param name="refId"></param>
+		public static implicit operator RefIdWrapper(RefId refId)
 		{
-			return new RefIdWrapper(RefId);
+			return new RefIdWrapper(refId);
 		}
 
 		/// <summary>

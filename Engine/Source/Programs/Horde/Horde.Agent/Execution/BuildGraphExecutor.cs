@@ -132,103 +132,103 @@ namespace Horde.Agent.Execution
 		const string PreprocessedScript = "Engine/Saved/Horde/Preprocessed.xml";
 		const string PreprocessedSchema = "Engine/Saved/Horde/Preprocessed.xsd";
 
-		protected List<string> Targets = new List<string>();
-		protected string? ScriptFileName;
-		protected bool bPreprocessScript;
+		protected List<string> _targets = new List<string>();
+		protected string? _scriptFileName;
+		protected bool _preprocessScript;
 
-		protected string JobId;
-		protected string BatchId;
-		protected string AgentTypeName;
+		protected string _jobId;
+		protected string _batchId;
+		protected string _agentTypeName;
 
-		protected GetJobResponse Job;
-		protected GetStreamResponse Stream;
-		protected GetAgentTypeResponse AgentType;
+		protected GetJobResponse _job;
+		protected GetStreamResponse _stream;
+		protected GetAgentTypeResponse _agentType;
 
-		protected List<string> AdditionalArguments = new List<string>();
+		protected List<string> _additionalArguments = new List<string>();
 
-		protected bool CompileAutomationTool = true;
+		protected bool _compileAutomationTool = true;
 
-		protected IRpcConnection RpcConnection;
-		protected Dictionary<string, string> RemapAgentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		protected IRpcConnection _rpcConnection;
+		protected Dictionary<string, string> _remapAgentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-		public BuildGraphExecutor(IRpcConnection RpcConnection, string JobId, string BatchId, string AgentTypeName)
+		public BuildGraphExecutor(IRpcConnection rpcConnection, string jobId, string batchId, string agentTypeName)
 		{
-			this.RpcConnection = RpcConnection;
+			_rpcConnection = rpcConnection;
 
-			this.JobId = JobId;
-			this.BatchId = BatchId;
-			this.AgentTypeName = AgentTypeName;
+			_jobId = jobId;
+			_batchId = batchId;
+			_agentTypeName = agentTypeName;
 
-			this.Job = null!;
-			this.Stream = null!;
-			this.AgentType = null!;
+			_job = null!;
+			_stream = null!;
+			_agentType = null!;
 		}
 
-		public virtual async Task InitializeAsync(ILogger Logger, CancellationToken CancellationToken)
+		public virtual async Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
 			// Get the job settings
-			Job = await RpcConnection.InvokeAsync(x => x.GetJobAsync(new GetJobRequest(JobId), null, null, CancellationToken), new RpcContext(), CancellationToken);
+			_job = await _rpcConnection.InvokeAsync(x => x.GetJobAsync(new GetJobRequest(_jobId), null, null, cancellationToken), new RpcContext(), cancellationToken);
 
 			// Get the stream settings
-			Stream = await RpcConnection.InvokeAsync(x => x.GetStreamAsync(new GetStreamRequest(Job.StreamId), null, null, CancellationToken), new RpcContext(), CancellationToken);
+			_stream = await _rpcConnection.InvokeAsync(x => x.GetStreamAsync(new GetStreamRequest(_job.StreamId), null, null, cancellationToken), new RpcContext(), cancellationToken);
 
 			// Get the agent type to determine how to configure this machine
-			AgentType = Stream.AgentTypes.FirstOrDefault(x => x.Key == AgentTypeName).Value;
-			if (AgentType == null)
+			_agentType = _stream.AgentTypes.FirstOrDefault(x => x.Key == _agentTypeName).Value;
+			if (_agentType == null)
 			{
-				AgentType = new GetAgentTypeResponse();
+				_agentType = new GetAgentTypeResponse();
 			}
 
-			Logger.LogInformation("Configured as agent type {AgentType}", AgentTypeName);
+			logger.LogInformation("Configured as agent type {AgentType}", _agentTypeName);
 
 			// Figure out if we're running as an admin
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				if (IsUserAdministrator())
 				{
-					Logger.LogInformation("Running as an elevated user.");
+					logger.LogInformation("Running as an elevated user.");
 				}
 				else
 				{
-					Logger.LogInformation("Running as an restricted user.");
+					logger.LogInformation("Running as an restricted user.");
 				}
 			}
 
 			// Get the BuildGraph arguments
-			foreach (string Argument in Job.Arguments)
+			foreach (string argument in _job.Arguments)
 			{
 				const string RemapAgentTypesPrefix = "-RemapAgentTypes=";
-				if (Argument.StartsWith(RemapAgentTypesPrefix, StringComparison.OrdinalIgnoreCase))
+				if (argument.StartsWith(RemapAgentTypesPrefix, StringComparison.OrdinalIgnoreCase))
 				{
-					foreach (string Map in Argument.Substring(RemapAgentTypesPrefix.Length).Split(','))
+					foreach (string map in argument.Substring(RemapAgentTypesPrefix.Length).Split(','))
 					{
-						int ColonIdx = Map.IndexOf(':');
-						if (ColonIdx != -1)
+						int colonIdx = map.IndexOf(':');
+						if (colonIdx != -1)
 						{
-							RemapAgentTypes[Map.Substring(0, ColonIdx)] = Map.Substring(ColonIdx + 1);
+							_remapAgentTypes[map.Substring(0, colonIdx)] = map.Substring(colonIdx + 1);
 						}
 					}
 				}
-				else if (Argument.StartsWith(ScriptArgumentPrefix, StringComparison.OrdinalIgnoreCase))
+				else if (argument.StartsWith(ScriptArgumentPrefix, StringComparison.OrdinalIgnoreCase))
 				{
-					ScriptFileName = Argument.Substring(ScriptArgumentPrefix.Length);
+					_scriptFileName = argument.Substring(ScriptArgumentPrefix.Length);
 				}
-				else if (Argument.Equals("-Preprocess", StringComparison.OrdinalIgnoreCase))
+				else if (argument.Equals("-Preprocess", StringComparison.OrdinalIgnoreCase))
 				{
-					bPreprocessScript = true;
+					_preprocessScript = true;
 				}
-				else if (Argument.StartsWith(TargetArgumentPrefix, StringComparison.OrdinalIgnoreCase))
+				else if (argument.StartsWith(TargetArgumentPrefix, StringComparison.OrdinalIgnoreCase))
 				{
-					Targets.Add(Argument.Substring(TargetArgumentPrefix.Length));
+					_targets.Add(argument.Substring(TargetArgumentPrefix.Length));
 				}
 				else
 				{
-					AdditionalArguments.Add(Argument);
+					_additionalArguments.Add(argument);
 				}
 			}
-			if (Job.PreflightChange != 0)
+			if (_job.PreflightChange != 0)
 			{
-				AdditionalArguments.Add($"-set:PreflightChange={Job.PreflightChange}");
+				_additionalArguments.Add($"-set:PreflightChange={_job.PreflightChange}");
 			}
 		}
 
@@ -236,10 +236,10 @@ namespace Horde.Agent.Execution
 		{
 			try
 			{
-				using(WindowsIdentity Identity = WindowsIdentity.GetCurrent())
+				using(WindowsIdentity identity = WindowsIdentity.GetCurrent())
 				{
-					WindowsPrincipal Principal = new WindowsPrincipal(Identity);
-					return Principal.IsInRole(WindowsBuiltInRole.Administrator);
+					WindowsPrincipal principal = new WindowsPrincipal(identity);
+					return principal.IsInRole(WindowsBuiltInRole.Administrator);
 				}
 			}
 			catch
@@ -248,11 +248,11 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		public async Task<JobStepOutcome> RunAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken)
+		public async Task<JobStepOutcome> RunAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
-			if (Step.Name == "Setup Build")
+			if (step.Name == "Setup Build")
 			{
-				if (await SetupAsync(Step, Logger, CancellationToken))
+				if (await SetupAsync(step, logger, cancellationToken))
 				{
 					return JobStepOutcome.Success;
 				}
@@ -263,7 +263,7 @@ namespace Horde.Agent.Execution
 			}
 			else
 			{
-				if (await ExecuteAsync(Step, Logger, CancellationToken))
+				if (await ExecuteAsync(step, logger, cancellationToken))
 				{
 					return JobStepOutcome.Success;
 				}
@@ -274,811 +274,811 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		public virtual Task FinalizeAsync(ILogger Logger, CancellationToken CancellationToken)
+		public virtual Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
 			return Task.CompletedTask;
 		}
 
-		DirectoryReference GetAutomationToolDir(DirectoryReference SharedStorageDir)
+		DirectoryReference GetAutomationToolDir(DirectoryReference sharedStorageDir)
 		{
-			return DirectoryReference.Combine(SharedStorageDir, "UAT");
+			return DirectoryReference.Combine(sharedStorageDir, "UAT");
 		}
 
-		protected void CopyAutomationTool(DirectoryReference SharedStorageDir, DirectoryReference WorkspaceDir, ILogger Logger)
+		protected void CopyAutomationTool(DirectoryReference sharedStorageDir, DirectoryReference workspaceDir, ILogger logger)
 		{
-			DirectoryReference BuildDir = GetAutomationToolDir(SharedStorageDir);
+			DirectoryReference buildDir = GetAutomationToolDir(sharedStorageDir);
 
-			FileReference AutomationTool = FileReference.Combine(BuildDir, "Engine", "Binaries", "DotNET", "AutomationTool.exe");
-			if(FileReference.Exists(AutomationTool))
+			FileReference automationTool = FileReference.Combine(buildDir, "Engine", "Binaries", "DotNET", "AutomationTool.exe");
+			if(FileReference.Exists(automationTool))
 			{
-				Logger.LogInformation("Copying AutomationTool binaries from '{BuildDir}' to '{WorkspaceDir}", BuildDir, WorkspaceDir);
-				foreach (FileReference SourceFile in DirectoryReference.EnumerateFiles(BuildDir, "*", SearchOption.AllDirectories))
+				logger.LogInformation("Copying AutomationTool binaries from '{BuildDir}' to '{WorkspaceDir}", buildDir, workspaceDir);
+				foreach (FileReference sourceFile in DirectoryReference.EnumerateFiles(buildDir, "*", SearchOption.AllDirectories))
 				{
-					FileReference TargetFile = FileReference.Combine(WorkspaceDir, SourceFile.MakeRelativeTo(BuildDir));
-					if (FileReference.Exists(TargetFile))
+					FileReference targetFile = FileReference.Combine(workspaceDir, sourceFile.MakeRelativeTo(buildDir));
+					if (FileReference.Exists(targetFile))
 					{
-						FileUtils.ForceDeleteFile(TargetFile);
+						FileUtils.ForceDeleteFile(targetFile);
 					}
-					DirectoryReference.CreateDirectory(TargetFile.Directory);
-					FileReference.Copy(SourceFile, TargetFile);
+					DirectoryReference.CreateDirectory(targetFile.Directory);
+					FileReference.Copy(sourceFile, targetFile);
 				}
-				CompileAutomationTool = false;
+				_compileAutomationTool = false;
 			}
 		}
 
-		private async Task StorePreprocessedFile(FileReference? LocalFile, string StepId, DirectoryReference? SharedStorageDir, ILogger Logger, CancellationToken CancellationToken)
+		private async Task StorePreprocessedFile(FileReference? localFile, string stepId, DirectoryReference? sharedStorageDir, ILogger logger, CancellationToken cancellationToken)
 		{
-			if (LocalFile != null)
+			if (localFile != null)
 			{
-				string FileName = LocalFile.GetFileName();
-				await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, StepId, FileName, LocalFile, Logger, CancellationToken);
+				string fileName = localFile.GetFileName();
+				await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, stepId, fileName, localFile, logger, cancellationToken);
 
-				if (SharedStorageDir != null)
+				if (sharedStorageDir != null)
 				{
-					FileReference RemoteFile = FileReference.Combine(SharedStorageDir, FileName);
-					DirectoryReference.CreateDirectory(RemoteFile.Directory);
-					FileReference.Copy(LocalFile, RemoteFile);
+					FileReference remoteFile = FileReference.Combine(sharedStorageDir, fileName);
+					DirectoryReference.CreateDirectory(remoteFile.Directory);
+					FileReference.Copy(localFile, remoteFile);
 				}
 			}
 		}
 
-		private void FetchPreprocessedFile(FileReference LocalFile, DirectoryReference? SharedStorageDir, ILogger Logger)
+		private void FetchPreprocessedFile(FileReference localFile, DirectoryReference? sharedStorageDir, ILogger logger)
 		{
-			if (!FileReference.Exists(LocalFile))
+			if (!FileReference.Exists(localFile))
 			{
-				if (SharedStorageDir == null)
+				if (sharedStorageDir == null)
 				{
-					throw new FileNotFoundException($"Missing preprocessed script {LocalFile}");
+					throw new FileNotFoundException($"Missing preprocessed script {localFile}");
 				}
 
-				FileReference RemoteFile = FileReference.Combine(SharedStorageDir, LocalFile.GetFileName());
-				Logger.LogInformation("Copying {RemoteFile} to {LocalFile}", RemoteFile, LocalFile);
-				DirectoryReference.CreateDirectory(LocalFile.Directory);
-				FileReference.Copy(RemoteFile, LocalFile, false);
+				FileReference remoteFile = FileReference.Combine(sharedStorageDir, localFile.GetFileName());
+				logger.LogInformation("Copying {RemoteFile} to {LocalFile}", remoteFile, localFile);
+				DirectoryReference.CreateDirectory(localFile.Directory);
+				FileReference.Copy(remoteFile, localFile, false);
 			}
 		}
 
-		protected abstract Task<bool> SetupAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken);
+		protected abstract Task<bool> SetupAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken);
 
-		protected abstract Task<bool> ExecuteAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken);
+		protected abstract Task<bool> ExecuteAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken);
 
-		protected virtual async Task<bool> SetupAsync(BeginStepResponse Step, DirectoryReference WorkspaceDir, DirectoryReference? SharedStorageDir, IReadOnlyDictionary<string, string> EnvVars, ILogger Logger, CancellationToken CancellationToken)
+		protected virtual async Task<bool> SetupAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference? sharedStorageDir, IReadOnlyDictionary<string, string> envVars, ILogger logger, CancellationToken cancellationToken)
 		{
-			FileReference DefinitionFile = FileReference.Combine(WorkspaceDir, "Engine", "Saved", "Horde", "Exported.json");
+			FileReference definitionFile = FileReference.Combine(workspaceDir, "Engine", "Saved", "Horde", "Exported.json");
 
-			StringBuilder Arguments = new StringBuilder($"BuildGraph");
-			if (ScriptFileName != null)
+			StringBuilder arguments = new StringBuilder($"BuildGraph");
+			if (_scriptFileName != null)
 			{
-				Arguments.AppendArgument(ScriptArgumentPrefix, ScriptFileName);
+				arguments.AppendArgument(ScriptArgumentPrefix, _scriptFileName);
 			}
-			Arguments.AppendArgument("-HordeExport=", DefinitionFile.FullName);
-			Arguments.AppendArgument("-ListOnly");
+			arguments.AppendArgument("-HordeExport=", definitionFile.FullName);
+			arguments.AppendArgument("-ListOnly");
 			//Arguments.AppendArgument("-TokenSignature=", JobId.ToString());
-			foreach (string AdditionalArgument in AdditionalArguments)
+			foreach (string additionalArgument in _additionalArguments)
 			{
-				Arguments.AppendArgument(AdditionalArgument);
+				arguments.AppendArgument(additionalArgument);
 			}
 
-			FileReference? PreprocessedScriptFile = null;
-			FileReference? PreprocessedSchemaFile = null;
-			if (bPreprocessScript)
+			FileReference? preprocessedScriptFile = null;
+			FileReference? preprocessedSchemaFile = null;
+			if (_preprocessScript)
 			{
-				PreprocessedScriptFile = FileReference.Combine(WorkspaceDir, PreprocessedScript);
-				Arguments.AppendArgument("-Preprocess=", PreprocessedScriptFile.FullName);
+				preprocessedScriptFile = FileReference.Combine(workspaceDir, PreprocessedScript);
+				arguments.AppendArgument("-Preprocess=", preprocessedScriptFile.FullName);
 
-				PreprocessedSchemaFile = FileReference.Combine(WorkspaceDir, PreprocessedSchema);
-				Arguments.AppendArgument("-Schema=", PreprocessedSchemaFile.FullName);
+				preprocessedSchemaFile = FileReference.Combine(workspaceDir, PreprocessedSchema);
+				arguments.AppendArgument("-Schema=", preprocessedSchemaFile.FullName);
 			}
-			if (SharedStorageDir != null && !bPreprocessScript) // Do not precompile when preprocessing the script; other agents may have a different view of UAT
+			if (sharedStorageDir != null && !_preprocessScript) // Do not precompile when preprocessing the script; other agents may have a different view of UAT
 			{
-				DirectoryReference BuildDir = GetAutomationToolDir(SharedStorageDir);
-				Arguments.Append($" CopyUAT -WithLauncher -TargetDir=\"{BuildDir}\"");
+				DirectoryReference buildDir = GetAutomationToolDir(sharedStorageDir);
+				arguments.Append($" CopyUAT -WithLauncher -TargetDir=\"{buildDir}\"");
 			}
 
-			int Result = await ExecuteAutomationToolAsync(Step, WorkspaceDir, Arguments.ToString(), EnvVars, Step.Credentials, Logger, CancellationToken);
-			if (Result != 0)
+			int result = await ExecuteAutomationToolAsync(step, workspaceDir, arguments.ToString(), envVars, step.Credentials, logger, cancellationToken);
+			if (result != 0)
 			{
 				return false;
 			}
 			
-			await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, DefinitionFile.GetFileName(), DefinitionFile, Logger, CancellationToken);
-			await StorePreprocessedFile(PreprocessedScriptFile, Step.StepId, SharedStorageDir, Logger, CancellationToken);
-			await StorePreprocessedFile(PreprocessedSchemaFile, Step.StepId, SharedStorageDir, Logger, CancellationToken);
+			await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, definitionFile.GetFileName(), definitionFile, logger, cancellationToken);
+			await StorePreprocessedFile(preprocessedScriptFile, step.StepId, sharedStorageDir, logger, cancellationToken);
+			await StorePreprocessedFile(preprocessedSchemaFile, step.StepId, sharedStorageDir, logger, cancellationToken);
 
-			JsonSerializerOptions Options = new JsonSerializerOptions();
-			Options.PropertyNameCaseInsensitive = true;
-			Options.Converters.Add(new JsonStringEnumConverter());
+			JsonSerializerOptions options = new JsonSerializerOptions();
+			options.PropertyNameCaseInsensitive = true;
+			options.Converters.Add(new JsonStringEnumConverter());
 
-			ExportedGraph Graph = JsonSerializer.Deserialize<ExportedGraph>(await FileReference.ReadAllBytesAsync(DefinitionFile), Options)!;
+			ExportedGraph graph = JsonSerializer.Deserialize<ExportedGraph>(await FileReference.ReadAllBytesAsync(definitionFile), options)!;
 
-			List<string> MissingAgentTypes = new List<string>();
+			List<string> missingAgentTypes = new List<string>();
 
-			UpdateGraphRequest UpdateGraph = new UpdateGraphRequest();
-			UpdateGraph.JobId = JobId;
-			foreach (ExportedGroup ExportedGroup in Graph.Groups)
+			UpdateGraphRequest updateGraph = new UpdateGraphRequest();
+			updateGraph.JobId = _jobId;
+			foreach (ExportedGroup exportedGroup in graph.Groups)
 			{
-				string? AgentTypeName = null;
-				foreach (string ValidAgentTypeName in ExportedGroup.Types)
+				string? agentTypeName = null;
+				foreach (string validAgentTypeName in exportedGroup.Types)
 				{
-					string? ThisAgentTypeName;
-					if (!RemapAgentTypes.TryGetValue(ValidAgentTypeName, out ThisAgentTypeName))
+					string? thisAgentTypeName;
+					if (!_remapAgentTypes.TryGetValue(validAgentTypeName, out thisAgentTypeName))
 					{
-						ThisAgentTypeName = ValidAgentTypeName;
+						thisAgentTypeName = validAgentTypeName;
 					}
 
-					if (Stream!.AgentTypes.ContainsKey(ThisAgentTypeName))
+					if (_stream!.AgentTypes.ContainsKey(thisAgentTypeName))
 					{
-						AgentTypeName = ThisAgentTypeName;
+						agentTypeName = thisAgentTypeName;
 						break;
 					}
 				}
 
-				if (AgentTypeName == null)
+				if (agentTypeName == null)
 				{
-					AgentTypeName = ExportedGroup.Types.FirstOrDefault() ?? "Unspecified";
-					foreach (ExportedNode Node in ExportedGroup.Nodes)
+					agentTypeName = exportedGroup.Types.FirstOrDefault() ?? "Unspecified";
+					foreach (ExportedNode node in exportedGroup.Nodes)
 					{
-						MissingAgentTypes.Add($"  {Node.Name} ({String.Join(", ", ExportedGroup.Types)})");
+						missingAgentTypes.Add($"  {node.Name} ({String.Join(", ", exportedGroup.Types)})");
 					}
 				}
 
-				CreateGroupRequest CreateGroup = new CreateGroupRequest();
-				CreateGroup.AgentType = AgentTypeName;
+				CreateGroupRequest createGroup = new CreateGroupRequest();
+				createGroup.AgentType = agentTypeName;
 
-				foreach (ExportedNode ExportedNode in ExportedGroup.Nodes)
+				foreach (ExportedNode exportedNode in exportedGroup.Nodes)
 				{
-					CreateNodeRequest CreateNode = new CreateNodeRequest();
-					CreateNode.Name = ExportedNode.Name;
-					if (ExportedNode.InputDependencies != null)
+					CreateNodeRequest createNode = new CreateNodeRequest();
+					createNode.Name = exportedNode.Name;
+					if (exportedNode.InputDependencies != null)
 					{
-						CreateNode.InputDependencies.Add(ExportedNode.InputDependencies);
+						createNode.InputDependencies.Add(exportedNode.InputDependencies);
 					}
-					if (ExportedNode.OrderDependencies != null)
+					if (exportedNode.OrderDependencies != null)
 					{
-						CreateNode.OrderDependencies.Add(ExportedNode.OrderDependencies);
+						createNode.OrderDependencies.Add(exportedNode.OrderDependencies);
 					}
-					CreateNode.RunEarly = ExportedNode.RunEarly;
-					CreateNode.Warnings = ExportedNode.Warnings;
-					CreateNode.Priority = Priority.Normal;
-					CreateGroup.Nodes.Add(CreateNode);
+					createNode.RunEarly = exportedNode.RunEarly;
+					createNode.Warnings = exportedNode.Warnings;
+					createNode.Priority = Priority.Normal;
+					createGroup.Nodes.Add(createNode);
 				}
-				UpdateGraph.Groups.Add(CreateGroup);
+				updateGraph.Groups.Add(createGroup);
 			}
 
-			if (MissingAgentTypes.Count > 0)
+			if (missingAgentTypes.Count > 0)
 			{
-				Logger.LogInformation("The following nodes cannot be executed in this stream due to missing agent types:");
-				foreach (string MissingAgentType in MissingAgentTypes)
+				logger.LogInformation("The following nodes cannot be executed in this stream due to missing agent types:");
+				foreach (string missingAgentType in missingAgentTypes)
 				{
-					Logger.LogInformation(MissingAgentType);
+					logger.LogInformation(missingAgentType);
 				}
 			}
 
-			foreach (ExportedAggregate ExportedAggregate in Graph.Aggregates)
+			foreach (ExportedAggregate exportedAggregate in graph.Aggregates)
 			{
-				CreateAggregateRequest CreateAggregate = new CreateAggregateRequest();
-				CreateAggregate.Name = ExportedAggregate.Name;
-				CreateAggregate.Nodes.AddRange(ExportedAggregate.Nodes);
-				UpdateGraph.Aggregates.Add(CreateAggregate);
+				CreateAggregateRequest createAggregate = new CreateAggregateRequest();
+				createAggregate.Name = exportedAggregate.Name;
+				createAggregate.Nodes.AddRange(exportedAggregate.Nodes);
+				updateGraph.Aggregates.Add(createAggregate);
 			}
 
-			foreach (ExportedLabel ExportedLabel in Graph.Labels)
+			foreach (ExportedLabel exportedLabel in graph.Labels)
 			{
-				CreateLabelRequest CreateLabel = new CreateLabelRequest();
-				if (ExportedLabel.Name != null)
+				CreateLabelRequest createLabel = new CreateLabelRequest();
+				if (exportedLabel.Name != null)
 				{
-					CreateLabel.DashboardName = ExportedLabel.Name;
+					createLabel.DashboardName = exportedLabel.Name;
 				}
-				if (ExportedLabel.Category != null)
+				if (exportedLabel.Category != null)
 				{
-					CreateLabel.DashboardCategory = ExportedLabel.Category;
+					createLabel.DashboardCategory = exportedLabel.Category;
 				}
-				if (ExportedLabel.UgsBadge != null)
+				if (exportedLabel.UgsBadge != null)
 				{
-					CreateLabel.UgsName = ExportedLabel.UgsBadge;
+					createLabel.UgsName = exportedLabel.UgsBadge;
 				}
-				if (ExportedLabel.UgsProject != null)
+				if (exportedLabel.UgsProject != null)
 				{
-					CreateLabel.UgsProject = ExportedLabel.UgsProject;
+					createLabel.UgsProject = exportedLabel.UgsProject;
 				}
-				CreateLabel.Change = ExportedLabel.Change;
-				CreateLabel.RequiredNodes.AddRange(ExportedLabel.RequiredNodes);
-				CreateLabel.IncludedNodes.AddRange(ExportedLabel.IncludedNodes);
-				UpdateGraph.Labels.Add(CreateLabel);
+				createLabel.Change = exportedLabel.Change;
+				createLabel.RequiredNodes.AddRange(exportedLabel.RequiredNodes);
+				createLabel.IncludedNodes.AddRange(exportedLabel.IncludedNodes);
+				updateGraph.Labels.Add(createLabel);
 			}
 
-			Dictionary<string, ExportedNode> NameToNode = Graph.Groups.SelectMany(x => x.Nodes).ToDictionary(x => x.Name, x => x);
-			foreach (ExportedBadge ExportedBadge in Graph.Badges)
+			Dictionary<string, ExportedNode> nameToNode = graph.Groups.SelectMany(x => x.Nodes).ToDictionary(x => x.Name, x => x);
+			foreach (ExportedBadge exportedBadge in graph.Badges)
 			{
-				CreateLabelRequest CreateLabel = new CreateLabelRequest();
-				CreateLabel.UgsName = ExportedBadge.Name;
+				CreateLabelRequest createLabel = new CreateLabelRequest();
+				createLabel.UgsName = exportedBadge.Name;
 
-				string? Project = ExportedBadge.Project;
-				if (Project != null && Project.StartsWith("//", StringComparison.Ordinal))
+				string? project = exportedBadge.Project;
+				if (project != null && project.StartsWith("//", StringComparison.Ordinal))
 				{
-					int NextIdx = Project.IndexOf('/', 2);
-					if (NextIdx != -1)
+					int nextIdx = project.IndexOf('/', 2);
+					if (nextIdx != -1)
 					{
-						NextIdx = Project.IndexOf('/', NextIdx + 1);
-						if (NextIdx != -1 && !Project.Substring(NextIdx).Equals("/...", StringComparison.Ordinal))
+						nextIdx = project.IndexOf('/', nextIdx + 1);
+						if (nextIdx != -1 && !project.Substring(nextIdx).Equals("/...", StringComparison.Ordinal))
 						{
-							CreateLabel.UgsProject = Project.Substring(NextIdx + 1);
+							createLabel.UgsProject = project.Substring(nextIdx + 1);
 						}
 					}
 				}
 
-				if (ExportedBadge.Change == Job.Change || ExportedBadge.Change == 0)
+				if (exportedBadge.Change == _job.Change || exportedBadge.Change == 0)
 				{
-					CreateLabel.Change = LabelChange.Current;
+					createLabel.Change = LabelChange.Current;
 				}
-				else if (ExportedBadge.Change == Job.CodeChange)
+				else if (exportedBadge.Change == _job.CodeChange)
 				{
-					CreateLabel.Change = LabelChange.Code;
+					createLabel.Change = LabelChange.Code;
 				}
 				else
 				{
-					Logger.LogWarning("Badge is set to display for changelist {Change}. This is neither the current changelist ({CurrentChange}) or the current code changelist ({CurrentCodeChange}).", ExportedBadge.Change, Job.Change, Job.CodeChange);
+					logger.LogWarning("Badge is set to display for changelist {Change}. This is neither the current changelist ({CurrentChange}) or the current code changelist ({CurrentCodeChange}).", exportedBadge.Change, _job.Change, _job.CodeChange);
 				}
 
-				if (ExportedBadge.Dependencies != null)
+				if (exportedBadge.Dependencies != null)
 				{
-					CreateLabel.RequiredNodes.AddRange(ExportedBadge.Dependencies.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
+					createLabel.RequiredNodes.AddRange(exportedBadge.Dependencies.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
 
-					HashSet<string> Dependencies = new HashSet<string>();
-					foreach(string RequiredNode in CreateLabel.RequiredNodes)
+					HashSet<string> dependencies = new HashSet<string>();
+					foreach(string requiredNode in createLabel.RequiredNodes)
 					{
-						GetRecursiveDependencies(RequiredNode, NameToNode, Dependencies);
+						GetRecursiveDependencies(requiredNode, nameToNode, dependencies);
 					}
-					CreateLabel.IncludedNodes.AddRange(Dependencies);
+					createLabel.IncludedNodes.AddRange(dependencies);
 				}
-				UpdateGraph.Labels.Add(CreateLabel);
+				updateGraph.Labels.Add(createLabel);
 			}
 			
 
-			await RpcConnection.InvokeAsync(x => x.UpdateGraphAsync(UpdateGraph, null, null, CancellationToken), new RpcContext(), CancellationToken);
+			await _rpcConnection.InvokeAsync(x => x.UpdateGraphAsync(updateGraph, null, null, cancellationToken), new RpcContext(), cancellationToken);
 
-			HashSet<string> ValidTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			ValidTargets.Add("Setup Build");
-			ValidTargets.UnionWith(UpdateGraph.Groups.SelectMany(x => x.Nodes).Select(x => x.Name));
-			ValidTargets.UnionWith(UpdateGraph.Aggregates.Select(x => x.Name));
-			foreach (string Target in Targets)
+			HashSet<string> validTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			validTargets.Add("Setup Build");
+			validTargets.UnionWith(updateGraph.Groups.SelectMany(x => x.Nodes).Select(x => x.Name));
+			validTargets.UnionWith(updateGraph.Aggregates.Select(x => x.Name));
+			foreach (string target in _targets)
 			{
-				if (!ValidTargets.Contains(Target))
+				if (!validTargets.Contains(target))
 				{
-					Logger.LogWarning("Target '{Target}' does not exist in the graph", Target);
+					logger.LogWarning("Target '{Target}' does not exist in the graph", target);
 				}
 			}
 
 			return true;
 		}
 
-		private static void GetRecursiveDependencies(string Name, Dictionary<string, ExportedNode> NameToNode, HashSet<string> Dependencies)
+		private static void GetRecursiveDependencies(string name, Dictionary<string, ExportedNode> nameToNode, HashSet<string> dependencies)
 		{
-			ExportedNode? Node;
-			if (NameToNode.TryGetValue(Name, out Node) && Dependencies.Add(Node.Name))
+			ExportedNode? node;
+			if (nameToNode.TryGetValue(name, out node) && dependencies.Add(node.Name))
 			{
-				foreach (string InputDependency in Node.InputDependencies)
+				foreach (string inputDependency in node.InputDependencies)
 				{
-					GetRecursiveDependencies(InputDependency, NameToNode, Dependencies);
+					GetRecursiveDependencies(inputDependency, nameToNode, dependencies);
 				}
 			}
 		}
 
-		protected async Task<bool> ExecuteAsync(BeginStepResponse Step, DirectoryReference WorkspaceDir, DirectoryReference? SharedStorageDir, IReadOnlyDictionary<string, string> EnvVars, ILogger Logger, CancellationToken CancellationToken)
+		protected async Task<bool> ExecuteAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference? sharedStorageDir, IReadOnlyDictionary<string, string> envVars, ILogger logger, CancellationToken cancellationToken)
 		{
-			StringBuilder Arguments = new StringBuilder("BuildGraph");
-			if (bPreprocessScript)
+			StringBuilder arguments = new StringBuilder("BuildGraph");
+			if (_preprocessScript)
 			{
-				FileReference LocalPreprocessedScript = FileReference.Combine(WorkspaceDir, PreprocessedScript);
-				FetchPreprocessedFile(LocalPreprocessedScript, SharedStorageDir, Logger);
-				Arguments.AppendArgument(ScriptArgumentPrefix, LocalPreprocessedScript.FullName);
+				FileReference localPreprocessedScript = FileReference.Combine(workspaceDir, PreprocessedScript);
+				FetchPreprocessedFile(localPreprocessedScript, sharedStorageDir, logger);
+				arguments.AppendArgument(ScriptArgumentPrefix, localPreprocessedScript.FullName);
 
-				FileReference LocalPreprocessedSchema = FileReference.Combine(WorkspaceDir, PreprocessedSchema);
-				FetchPreprocessedFile(LocalPreprocessedSchema, SharedStorageDir, Logger);
-				Arguments.AppendArgument("-ImportSchema=", LocalPreprocessedSchema.FullName);
+				FileReference localPreprocessedSchema = FileReference.Combine(workspaceDir, PreprocessedSchema);
+				FetchPreprocessedFile(localPreprocessedSchema, sharedStorageDir, logger);
+				arguments.AppendArgument("-ImportSchema=", localPreprocessedSchema.FullName);
 			}
-			else if(ScriptFileName != null)
+			else if(_scriptFileName != null)
 			{
-				Arguments.AppendArgument(ScriptArgumentPrefix, ScriptFileName);
+				arguments.AppendArgument(ScriptArgumentPrefix, _scriptFileName);
 			}
-			Arguments.AppendArgument("-SingleNode=", Step.Name);
-			if (SharedStorageDir != null)
+			arguments.AppendArgument("-SingleNode=", step.Name);
+			if (sharedStorageDir != null)
 			{
-				Arguments.AppendArgument("-SharedStorageDir=", SharedStorageDir.FullName);
+				arguments.AppendArgument("-SharedStorageDir=", sharedStorageDir.FullName);
 			}
 //			Arguments.AppendArgument("-TokenSignature=", JobId.ToString());
-			foreach (string AdditionalArgument in AdditionalArguments)
+			foreach (string additionalArgument in _additionalArguments)
 			{
-				if (!bPreprocessScript || !AdditionalArgument.StartsWith("-set:", StringComparison.OrdinalIgnoreCase))
+				if (!_preprocessScript || !additionalArgument.StartsWith("-set:", StringComparison.OrdinalIgnoreCase))
 				{
-					Arguments.AppendArgument(AdditionalArgument);
+					arguments.AppendArgument(additionalArgument);
 				}
 			}
 
-			if (Step.EnvVars != null && Step.EnvVars.Count > 0)
+			if (step.EnvVars != null && step.EnvVars.Count > 0)
 			{
-				Dictionary<string, string> NewEnvVars = new Dictionary<string, string>(EnvVars);
-				foreach (KeyValuePair<string, string> EnvVar in Step.EnvVars)
+				Dictionary<string, string> newEnvVars = new Dictionary<string, string>(envVars);
+				foreach (KeyValuePair<string, string> envVar in step.EnvVars)
 				{
-					NewEnvVars[EnvVar.Key] = EnvVar.Value;
+					newEnvVars[envVar.Key] = envVar.Value;
 				}
-				EnvVars = NewEnvVars;
+				envVars = newEnvVars;
 			}
 
-			return await ExecuteAutomationToolAsync(Step, WorkspaceDir, Arguments.ToString(), EnvVars, Step.Credentials, Logger, CancellationToken) == 0;
+			return await ExecuteAutomationToolAsync(step, workspaceDir, arguments.ToString(), envVars, step.Credentials, logger, cancellationToken) == 0;
 		}
 
-		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse Step, DirectoryReference WorkspaceDir, string Arguments, IReadOnlyDictionary<string, string> EnvVars, IReadOnlyDictionary<string, string> Credentials, ILogger Logger, CancellationToken CancellationToken)
+		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, IReadOnlyDictionary<string, string> envVars, IReadOnlyDictionary<string, string> credentials, ILogger logger, CancellationToken cancellationToken)
 		{
-			int Result;
-			using (IScope Scope = GlobalTracer.Instance.BuildSpan("BuildGraph").StartActive())
+			int result;
+			using (IScope scope = GlobalTracer.Instance.BuildSpan("BuildGraph").StartActive())
 			{
-				if (!CompileAutomationTool)
+				if (!_compileAutomationTool)
 				{
-					Arguments += " -NoCompile";
+					arguments += " -NoCompile";
 				}
 
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					Result = await ExecuteCommandAsync(Step, WorkspaceDir, Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe", $"/C \"\"{WorkspaceDir}\\Engine\\Build\\BatchFiles\\RunUAT.bat\" {Arguments}\"", EnvVars, Credentials, Logger, CancellationToken);
+					result = await ExecuteCommandAsync(step, workspaceDir, Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe", $"/C \"\"{workspaceDir}\\Engine\\Build\\BatchFiles\\RunUAT.bat\" {arguments}\"", envVars, credentials, logger, cancellationToken);
 				}
 				else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 				{
-					Result = await ExecuteCommandAsync(Step, WorkspaceDir, "/bin/bash", $"\"{WorkspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {Arguments}", EnvVars, Credentials, Logger, CancellationToken);
+					result = await ExecuteCommandAsync(step, workspaceDir, "/bin/bash", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", envVars, credentials, logger, cancellationToken);
 				}
 				else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 				{
-					Result = await ExecuteCommandAsync(Step, WorkspaceDir, "/bin/sh", $"\"{WorkspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {Arguments}", EnvVars, Credentials, Logger, CancellationToken);
+					result = await ExecuteCommandAsync(step, workspaceDir, "/bin/sh", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", envVars, credentials, logger, cancellationToken);
 				}
 				else
 				{
 					throw new Exception("Unsupported platform");
 				}
 
-				CompileAutomationTool = false;
+				_compileAutomationTool = false;
 			}
-			return Result;
+			return result;
 		}
 
-		static void AddRestrictedDirs(List<DirectoryReference> Directories, string SubFolder)
+		static void AddRestrictedDirs(List<DirectoryReference> directories, string subFolder)
 		{
-			int NumDirs = Directories.Count;
-			for (int Idx = 0; Idx < NumDirs; Idx++)
+			int numDirs = directories.Count;
+			for (int idx = 0; idx < numDirs; idx++)
 			{
-				DirectoryReference SubDir = DirectoryReference.Combine(Directories[Idx], SubFolder);
-				if(DirectoryReference.Exists(SubDir))
+				DirectoryReference subDir = DirectoryReference.Combine(directories[idx], subFolder);
+				if(DirectoryReference.Exists(subDir))
 				{
-					Directories.AddRange(DirectoryReference.EnumerateDirectories(SubDir));
+					directories.AddRange(DirectoryReference.EnumerateDirectories(subDir));
 				}
 			}
 		}
 
-		static async Task<List<string>> ReadIgnorePatternsAsync(DirectoryReference WorkspaceDir, ILogger Logger)
+		static async Task<List<string>> ReadIgnorePatternsAsync(DirectoryReference workspaceDir, ILogger logger)
 		{
-			List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
-			BaseDirs.Add(DirectoryReference.Combine(WorkspaceDir, "Engine"));
-			AddRestrictedDirs(BaseDirs, "Restricted");
-			AddRestrictedDirs(BaseDirs, "Platforms");
+			List<DirectoryReference> baseDirs = new List<DirectoryReference>();
+			baseDirs.Add(DirectoryReference.Combine(workspaceDir, "Engine"));
+			AddRestrictedDirs(baseDirs, "Restricted");
+			AddRestrictedDirs(baseDirs, "Platforms");
 
-			List<string> IgnorePatternLines = new List<string>(Properties.Resources.IgnorePatterns.Split('\n', StringSplitOptions.RemoveEmptyEntries));
-			foreach (DirectoryReference BaseDir in BaseDirs)
+			List<string> ignorePatternLines = new List<string>(Properties.Resources.IgnorePatterns.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+			foreach (DirectoryReference baseDir in baseDirs)
 			{
-				FileReference IgnorePatternFile = FileReference.Combine(BaseDir, "Build", "Horde", "IgnorePatterns.txt");
-				if (FileReference.Exists(IgnorePatternFile))
+				FileReference ignorePatternFile = FileReference.Combine(baseDir, "Build", "Horde", "IgnorePatterns.txt");
+				if (FileReference.Exists(ignorePatternFile))
 				{
-					Logger.LogInformation("Reading ignore patterns from {0}...", IgnorePatternFile);
-					IgnorePatternLines.AddRange(await FileReference.ReadAllLinesAsync(IgnorePatternFile));
+					logger.LogInformation("Reading ignore patterns from {0}...", ignorePatternFile);
+					ignorePatternLines.AddRange(await FileReference.ReadAllLinesAsync(ignorePatternFile));
 				}
 			}
 
-			HashSet<string> IgnorePatterns = new HashSet<string>(StringComparer.Ordinal);
-			foreach (string Line in IgnorePatternLines)
+			HashSet<string> ignorePatterns = new HashSet<string>(StringComparer.Ordinal);
+			foreach (string line in ignorePatternLines)
 			{
-				string TrimLine = Line.Trim();
-				if (TrimLine.Length > 0 && TrimLine[0] != '#')
+				string trimLine = line.Trim();
+				if (trimLine.Length > 0 && trimLine[0] != '#')
 				{
-					IgnorePatterns.Add(TrimLine);
+					ignorePatterns.Add(trimLine);
 				}
 			}
 
-			return IgnorePatterns.ToList();
+			return ignorePatterns.ToList();
 		}
 
-		FileReference GetCleanupScript(DirectoryReference WorkspaceDir)
+		FileReference GetCleanupScript(DirectoryReference workspaceDir)
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				return FileReference.Combine(WorkspaceDir, "Cleanup.bat");
+				return FileReference.Combine(workspaceDir, "Cleanup.bat");
 			}
 			else
 			{
-				return FileReference.Combine(WorkspaceDir, "Cleanup.sh");
+				return FileReference.Combine(workspaceDir, "Cleanup.sh");
 			}
 		}
 
-		async Task ExecuteCleanupScriptAsync(FileReference CleanupScript, LogParser Filter)
+		async Task ExecuteCleanupScriptAsync(FileReference cleanupScript, LogParser filter)
 		{
-			if (FileReference.Exists(CleanupScript))
+			if (FileReference.Exists(cleanupScript))
 			{
-				Filter.WriteLine($"Executing cleanup script: {CleanupScript}");
+				filter.WriteLine($"Executing cleanup script: {cleanupScript}");
 
-				string FileName;
-				string Arguments;
+				string fileName;
+				string arguments;
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					FileName = "C:\\Windows\\System32\\Cmd.exe";
-					Arguments = $"/C \"{CleanupScript}\"";
+					fileName = "C:\\Windows\\System32\\Cmd.exe";
+					arguments = $"/C \"{cleanupScript}\"";
 				}
 				else
 				{
-					FileName = "/bin/sh";
-					Arguments = $"\"{CleanupScript}\"";
+					fileName = "/bin/sh";
+					arguments = $"\"{cleanupScript}\"";
 				}
 
 				try
 				{
-					using (CancellationTokenSource CancellationSource = new CancellationTokenSource())
+					using (CancellationTokenSource cancellationSource = new CancellationTokenSource())
 					{
-						CancellationSource.CancelAfter(TimeSpan.FromSeconds(30.0));
-						await ExecuteProcessAsync(FileName, Arguments, null, Filter, CancellationSource.Token);
+						cancellationSource.CancelAfter(TimeSpan.FromSeconds(30.0));
+						await ExecuteProcessAsync(fileName, arguments, null, filter, cancellationSource.Token);
 					}
-					FileUtils.ForceDeleteFile(CleanupScript);
+					FileUtils.ForceDeleteFile(cleanupScript);
 				}
 				catch (OperationCanceledException)
 				{
-					Filter.WriteLine("Cleanup script did not complete within allotted time. Aborting.");
+					filter.WriteLine("Cleanup script did not complete within allotted time. Aborting.");
 				}
 			}
 		}
 
-		async Task<int> ExecuteProcessAsync(string FileName, string Arguments, IReadOnlyDictionary<string, string>? NewEnvironment, LogParser Filter, CancellationToken CancellationToken)
+		async Task<int> ExecuteProcessAsync(string fileName, string arguments, IReadOnlyDictionary<string, string>? newEnvironment, LogParser filter, CancellationToken cancellationToken)
 		{
-			using (ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
+			using (ManagedProcessGroup processGroup = new ManagedProcessGroup())
 			{
-				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, FileName, Arguments, null, NewEnvironment, null, ProcessPriorityClass.Normal))
+				using (ManagedProcess process = new ManagedProcess(processGroup, fileName, arguments, null, newEnvironment, null, ProcessPriorityClass.Normal))
 				{
-					await Process.CopyToAsync((Buffer, Offset, Length) => Filter.WriteData(Buffer.AsMemory(Offset, Length)), 4096, CancellationToken);
-					Process.WaitForExit();
-					return Process.ExitCode;
+					await process.CopyToAsync((buffer, offset, length) => filter.WriteData(buffer.AsMemory(offset, length)), 4096, cancellationToken);
+					process.WaitForExit();
+					return process.ExitCode;
 				}
 			}
 		}
 
-		async Task<int> ExecuteCommandAsync(BeginStepResponse Step, DirectoryReference WorkspaceDir, string FileName, string Arguments, IReadOnlyDictionary<string, string> EnvVars, IReadOnlyDictionary<string, string> Credentials, ILogger Logger, CancellationToken CancellationToken)
+		async Task<int> ExecuteCommandAsync(BeginStepResponse step, DirectoryReference workspaceDir, string fileName, string arguments, IReadOnlyDictionary<string, string> envVars, IReadOnlyDictionary<string, string> credentials, ILogger logger, CancellationToken cancellationToken)
 		{
-			Dictionary<string, string> NewEnvironment = new Dictionary<string, string>(EnvVars);
-			foreach (object? Object in Environment.GetEnvironmentVariables())
+			Dictionary<string, string> newEnvironment = new Dictionary<string, string>(envVars);
+			foreach (object? envVar in Environment.GetEnvironmentVariables())
 			{
-				System.Collections.DictionaryEntry Entry = (System.Collections.DictionaryEntry)Object!;
-				string Key = Entry.Key.ToString()!;
-				if (!NewEnvironment.ContainsKey(Key))
+				System.Collections.DictionaryEntry entry = (System.Collections.DictionaryEntry)envVar!;
+				string key = entry.Key.ToString()!;
+				if (!newEnvironment.ContainsKey(key))
 				{
-					NewEnvironment[Key] = Entry.Value!.ToString()!;
+					newEnvironment[key] = entry.Value!.ToString()!;
 				}
 			}
-			foreach (KeyValuePair<string, string> EnvVar in AgentType.Environment)
+			foreach (KeyValuePair<string, string> envVar in _agentType.Environment)
 			{
-				Logger.LogInformation("Setting env var: {Key}={Value}", EnvVar.Key, EnvVar.Value);
-				NewEnvironment[EnvVar.Key] = EnvVar.Value;
+				logger.LogInformation("Setting env var: {Key}={Value}", envVar.Key, envVar.Value);
+				newEnvironment[envVar.Key] = envVar.Value;
 			}
-			foreach (KeyValuePair<string, string> EnvVar in Credentials)
+			foreach (KeyValuePair<string, string> envVar in credentials)
 			{
-				Logger.LogInformation("Setting env var: {Key}=[redacted]", EnvVar.Key);
-				NewEnvironment[EnvVar.Key] = EnvVar.Value;
+				logger.LogInformation("Setting env var: {Key}=[redacted]", envVar.Key);
+				newEnvironment[envVar.Key] = envVar.Value;
 			}
 
-			NewEnvironment["IsBuildMachine"] = "1";
+			newEnvironment["IsBuildMachine"] = "1";
 
-			DirectoryReference LogDir = DirectoryReference.Combine(WorkspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "Logs");
-			NewEnvironment["uebp_LogFolder"] = LogDir.FullName;
+			DirectoryReference logDir = DirectoryReference.Combine(workspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "Logs");
+			newEnvironment["uebp_LogFolder"] = logDir.FullName;
 
-			DirectoryReference TelemetryDir = DirectoryReference.Combine(WorkspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "Telemetry");
-			FileUtils.ForceDeleteDirectoryContents(TelemetryDir);
-			NewEnvironment["UE_TELEMETRY_DIR"] = TelemetryDir.FullName;
+			DirectoryReference telemetryDir = DirectoryReference.Combine(workspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "Telemetry");
+			FileUtils.ForceDeleteDirectoryContents(telemetryDir);
+			newEnvironment["UE_TELEMETRY_DIR"] = telemetryDir.FullName;
 
-			DirectoryReference TestDataDir = DirectoryReference.Combine(WorkspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "TestData");
-			FileUtils.ForceDeleteDirectoryContents(TestDataDir);
-			NewEnvironment["UE_TESTDATA_DIR"] = TestDataDir.FullName;
+			DirectoryReference testDataDir = DirectoryReference.Combine(workspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "TestData");
+			FileUtils.ForceDeleteDirectoryContents(testDataDir);
+			newEnvironment["UE_TESTDATA_DIR"] = testDataDir.FullName;
 
-			NewEnvironment["UE_HORDE_JOBID"] = JobId;
-			NewEnvironment["UE_HORDE_BATCHID"] = BatchId;
-			NewEnvironment["UE_HORDE_STEPID"] = Step.StepId;
+			newEnvironment["UE_HORDE_JOBID"] = _jobId;
+			newEnvironment["UE_HORDE_BATCHID"] = _batchId;
+			newEnvironment["UE_HORDE_STEPID"] = step.StepId;
 
 			// Enable structured logging output
-			NewEnvironment["UE_LOG_JSON"] = "1";
+			newEnvironment["UE_LOG_JSON"] = "1";
 
 			// Pass the location of the cleanup script to the job
-			FileReference CleanupScript = GetCleanupScript(WorkspaceDir);
-			NewEnvironment["UE_HORDE_CLEANUP"] = CleanupScript.FullName;
+			FileReference cleanupScript = GetCleanupScript(workspaceDir);
+			newEnvironment["UE_HORDE_CLEANUP"] = cleanupScript.FullName;
 
 			// Disable the S3DDC. This is technically a Fortnite-specific setting, but affects a large number of branches and is hard to retrofit. 
 			// Setting here for now, since it's likely to be temporary.
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				NewEnvironment["UE-S3DataCachePath"] = "None";
+				newEnvironment["UE-S3DataCachePath"] = "None";
 			}
 
 			// Clear out the telemetry directory
-			if (DirectoryReference.Exists(TelemetryDir))
+			if (DirectoryReference.Exists(telemetryDir))
 			{
-				FileUtils.ForceDeleteDirectoryContents(TelemetryDir);
+				FileUtils.ForceDeleteDirectoryContents(telemetryDir);
 			}
 			
-			LogParserContext Context = new LogParserContext();
-			Context.WorkspaceDir = WorkspaceDir;
-			Context.PerforceStream = Stream.Name;
-			Context.PerforceChange = Job.Change;
+			LogParserContext context = new LogParserContext();
+			context.WorkspaceDir = workspaceDir;
+			context.PerforceStream = _stream.Name;
+			context.PerforceChange = _job.Change;
 
-			List<string> IgnorePatterns = await ReadIgnorePatternsAsync(WorkspaceDir, Logger);
+			List<string> ignorePatterns = await ReadIgnorePatternsAsync(workspaceDir, logger);
 
-			int ExitCode;
-			using (LogParser Filter = new LogParser(Logger, Context, IgnorePatterns))
+			int exitCode;
+			using (LogParser filter = new LogParser(logger, context, ignorePatterns))
 			{
-				await ExecuteCleanupScriptAsync(CleanupScript, Filter);
+				await ExecuteCleanupScriptAsync(cleanupScript, filter);
 				try
 				{
-					ExitCode = await ExecuteProcessAsync(FileName, Arguments, NewEnvironment, Filter, CancellationToken);
+					exitCode = await ExecuteProcessAsync(fileName, arguments, newEnvironment, filter, cancellationToken);
 				}
 				finally
 				{
-					await ExecuteCleanupScriptAsync(CleanupScript, Filter);
+					await ExecuteCleanupScriptAsync(cleanupScript, filter);
 				}
-				Filter.Flush();
+				filter.Flush();
 			}
 
-			if (DirectoryReference.Exists(TelemetryDir))
+			if (DirectoryReference.Exists(telemetryDir))
 			{
-				List<TraceEventList> TelemetryList = new List<TraceEventList>();
-				foreach (FileReference TelemetryFile in DirectoryReference.EnumerateFiles(TelemetryDir, "*.json"))
+				List<TraceEventList> telemetryList = new List<TraceEventList>();
+				foreach (FileReference telemetryFile in DirectoryReference.EnumerateFiles(telemetryDir, "*.json"))
 				{
-					Logger.LogInformation("Reading telemetry from {File}", TelemetryFile);
-					byte[] Data = await FileReference.ReadAllBytesAsync(TelemetryFile);
+					logger.LogInformation("Reading telemetry from {File}", telemetryFile);
+					byte[] data = await FileReference.ReadAllBytesAsync(telemetryFile);
 
-					TraceEventList Telemetry = JsonSerializer.Deserialize<TraceEventList>(Data.AsSpan())!;
-					if (Telemetry.Spans.Count > 0)
+					TraceEventList telemetry = JsonSerializer.Deserialize<TraceEventList>(data.AsSpan())!;
+					if (telemetry.Spans.Count > 0)
 					{
-						string DefaultServiceName = TelemetryFile.GetFileNameWithoutAnyExtensions();
-						foreach (TraceEvent Span in Telemetry.Spans)
+						string defaultServiceName = telemetryFile.GetFileNameWithoutAnyExtensions();
+						foreach (TraceEvent span in telemetry.Spans)
 						{
-							Span.Service = Span.Service ?? DefaultServiceName;
+							span.Service ??= defaultServiceName;
 						}
-						TelemetryList.Add(Telemetry);
+						telemetryList.Add(telemetry);
 					}
 
-					await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, $"Telemetry/{TelemetryFile.GetFileName()}", TelemetryFile, Logger, CancellationToken.None);
-					FileUtils.ForceDeleteFile(TelemetryFile);
+					await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, $"Telemetry/{telemetryFile.GetFileName()}", telemetryFile, logger, CancellationToken.None);
+					FileUtils.ForceDeleteFile(telemetryFile);
 				}
 
-				List<TraceEvent> TelemetrySpans = new List<TraceEvent>();
-				foreach (TraceEventList Telemetry in TelemetryList.OrderBy(x => x.Spans.First().StartTime).ThenBy(x => x.Spans.Last().FinishTime))
+				List<TraceEvent> telemetrySpans = new List<TraceEvent>();
+				foreach (TraceEventList telemetry in telemetryList.OrderBy(x => x.Spans.First().StartTime).ThenBy(x => x.Spans.Last().FinishTime))
 				{
-					foreach (TraceEvent Span in Telemetry.Spans)
+					foreach (TraceEvent span in telemetry.Spans)
 					{
-						if (Span.FinishTime - Span.StartTime > TimeSpan.FromMilliseconds(1.0))
+						if (span.FinishTime - span.StartTime > TimeSpan.FromMilliseconds(1.0))
 						{
-							Span.Index = TelemetrySpans.Count;
-							TelemetrySpans.Add(Span);
+							span.Index = telemetrySpans.Count;
+							telemetrySpans.Add(span);
 						}
 					}
 				}
 
-				if (TelemetrySpans.Count > 0)
+				if (telemetrySpans.Count > 0)
 				{
-					TraceSpan RootSpan = new TraceSpan();
-					RootSpan.Name = Step.Name;
+					TraceSpan rootSpan = new TraceSpan();
+					rootSpan.Name = step.Name;
 
-					Stack<TraceSpan> Stack = new Stack<TraceSpan>();
-					Stack.Push(RootSpan);
+					Stack<TraceSpan> stack = new Stack<TraceSpan>();
+					stack.Push(rootSpan);
 
-					foreach (TraceEvent Event in TelemetrySpans.OrderBy(x => x.StartTime).ThenByDescending(x => x.FinishTime).ThenBy(x => x.Index))
+					foreach (TraceEvent traceEvent in telemetrySpans.OrderBy(x => x.StartTime).ThenByDescending(x => x.FinishTime).ThenBy(x => x.Index))
 					{
-						TraceSpan NewSpan = new TraceSpan();
-						NewSpan.Name = Event.Name;
-						NewSpan.Service = Event.Service;
-						NewSpan.Resource = Event.Resource;
-						NewSpan.Start = Event.StartTime.UtcTicks;
-						NewSpan.Finish = Event.FinishTime.UtcTicks;
-						if (Event.Metadata != null && Event.Metadata.Count > 0)
+						TraceSpan newSpan = new TraceSpan();
+						newSpan.Name = traceEvent.Name;
+						newSpan.Service = traceEvent.Service;
+						newSpan.Resource = traceEvent.Resource;
+						newSpan.Start = traceEvent.StartTime.UtcTicks;
+						newSpan.Finish = traceEvent.FinishTime.UtcTicks;
+						if (traceEvent.Metadata != null && traceEvent.Metadata.Count > 0)
 						{
-							NewSpan.Properties = Event.Metadata;
+							newSpan.Properties = traceEvent.Metadata;
 						}
 
-						TraceSpan StackTop = Stack.Peek();
-						while (Stack.Count > 1 && NewSpan.Start >= StackTop.Finish)
+						TraceSpan stackTop = stack.Peek();
+						while (stack.Count > 1 && newSpan.Start >= stackTop.Finish)
 						{
-							Stack.Pop();
-							StackTop = Stack.Peek();
+							stack.Pop();
+							stackTop = stack.Peek();
 						}
 
-						if (Stack.Count > 1 && NewSpan.Finish > StackTop.Finish)
+						if (stack.Count > 1 && newSpan.Finish > stackTop.Finish)
 						{
-							Logger.LogInformation("Trace event name='{Name}', service'{Service}', resource='{Resource}' has invalid finish time ({SpanFinish} < {StackFinish})", NewSpan.Name, NewSpan.Service, NewSpan.Resource, NewSpan.Finish, StackTop.Finish);
-							NewSpan.Finish = StackTop.Finish;
+							logger.LogInformation("Trace event name='{Name}', service'{Service}', resource='{Resource}' has invalid finish time ({SpanFinish} < {StackFinish})", newSpan.Name, newSpan.Service, newSpan.Resource, newSpan.Finish, stackTop.Finish);
+							newSpan.Finish = stackTop.Finish;
 						}
 
-						if (StackTop.Children == null)
+						if (stackTop.Children == null)
 						{
-							StackTop.Children = new List<TraceSpan>();
+							stackTop.Children = new List<TraceSpan>();
 						}
 
-						StackTop.Children.Add(NewSpan);
-						Stack.Push(NewSpan);
+						stackTop.Children.Add(newSpan);
+						stack.Push(newSpan);
 					}
 
-					RootSpan.Start = RootSpan.Children.First().Start;
-					RootSpan.Finish = RootSpan.Children.Last().Finish;
+					rootSpan.Start = rootSpan.Children.First().Start;
+					rootSpan.Finish = rootSpan.Children.Last().Finish;
 
-					FileReference TraceFile = FileReference.Combine(TelemetryDir, "Trace.json");
-					using (FileStream Stream = FileReference.Open(TraceFile, FileMode.Create))
+					FileReference traceFile = FileReference.Combine(telemetryDir, "Trace.json");
+					using (FileStream stream = FileReference.Open(traceFile, FileMode.Create))
 					{
-						JsonSerializerOptions Options = new JsonSerializerOptions { IgnoreNullValues = true };
-						await JsonSerializer.SerializeAsync(Stream, RootSpan, Options);
+						JsonSerializerOptions options = new JsonSerializerOptions { IgnoreNullValues = true };
+						await JsonSerializer.SerializeAsync(stream, rootSpan, options);
 					}
-					await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, "Trace.json", TraceFile, Logger, CancellationToken.None);
+					await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, "Trace.json", traceFile, logger, CancellationToken.None);
 
-					CreateTracingData(GlobalTracer.Instance.ActiveSpan, RootSpan);
+					CreateTracingData(GlobalTracer.Instance.ActiveSpan, rootSpan);
 				}
 			}
 					
-			if (DirectoryReference.Exists(TestDataDir))
+			if (DirectoryReference.Exists(testDataDir))
 			{
-				Dictionary<string, object> CombinedTestData = new Dictionary<string, object>();
-				foreach (FileReference TestDataFile in DirectoryReference.EnumerateFiles(TestDataDir, "*.json", SearchOption.AllDirectories))
+				Dictionary<string, object> combinedTestData = new Dictionary<string, object>();
+				foreach (FileReference testDataFile in DirectoryReference.EnumerateFiles(testDataDir, "*.json", SearchOption.AllDirectories))
 				{
-					Logger.LogInformation("Reading test data {TestDataFile}", TestDataFile);
-					await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, $"TestData/{TestDataFile.MakeRelativeTo(TestDataDir)}", TestDataFile, Logger, CancellationToken.None);
+					logger.LogInformation("Reading test data {TestDataFile}", testDataFile);
+					await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, $"TestData/{testDataFile.MakeRelativeTo(testDataDir)}", testDataFile, logger, CancellationToken.None);
 
-					TestData TestData;
-					using (FileStream Stream = FileReference.Open(TestDataFile, FileMode.Open))
+					TestData testData;
+					using (FileStream stream = FileReference.Open(testDataFile, FileMode.Open))
 					{
-						JsonSerializerOptions Options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-						TestData = (await JsonSerializer.DeserializeAsync<TestData>(Stream, Options))!;
+						JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+						testData = (await JsonSerializer.DeserializeAsync<TestData>(stream, options))!;
 					}
 
-					foreach (TestDataItem Item in TestData.Items)
+					foreach (TestDataItem item in testData.Items)
 					{
-						if (CombinedTestData.ContainsKey(Item.Key))
+						if (combinedTestData.ContainsKey(item.Key))
 						{
-							Logger.LogWarning("Key '{Key}' already exists - ignoring", Item.Key);
+							logger.LogWarning("Key '{Key}' already exists - ignoring", item.Key);
 						}
 						else
 						{
-							Logger.LogDebug("Adding data with key '{Key}'", Item.Key);
-							CombinedTestData.Add(Item.Key, Item.Data);
+							logger.LogDebug("Adding data with key '{Key}'", item.Key);
+							combinedTestData.Add(item.Key, item.Data);
 						}
 					}
 				}
 
-				Logger.LogInformation("Found {NumResults} test results", CombinedTestData.Count);
-				await UploadTestDataAsync(Step.StepId, CombinedTestData);
+				logger.LogInformation("Found {NumResults} test results", combinedTestData.Count);
+				await UploadTestDataAsync(step.StepId, combinedTestData);
 			}
 					
-			if (DirectoryReference.Exists(LogDir))
+			if (DirectoryReference.Exists(logDir))
 			{
-				Dictionary<FileReference, string> ArtifactFileToId = new Dictionary<FileReference, string>();
-				foreach (FileReference ArtifactFile in DirectoryReference.EnumerateFiles(LogDir, "*", SearchOption.AllDirectories))
+				Dictionary<FileReference, string> artifactFileToId = new Dictionary<FileReference, string>();
+				foreach (FileReference artifactFile in DirectoryReference.EnumerateFiles(logDir, "*", SearchOption.AllDirectories))
 				{
-					string ArtifactName = ArtifactFile.MakeRelativeTo(LogDir);
+					string artifactName = artifactFile.MakeRelativeTo(logDir);
 
-					string? ArtifactId = await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, ArtifactName, ArtifactFile, Logger, CancellationToken);
-					if (ArtifactId != null)
+					string? artifactId = await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, artifactName, artifactFile, logger, cancellationToken);
+					if (artifactId != null)
 					{
-						ArtifactFileToId[ArtifactFile] = ArtifactId;
+						artifactFileToId[artifactFile] = artifactId;
 					}
 				}
 
-				foreach (FileReference ReportFile in ArtifactFileToId.Keys.Where(x => x.HasExtension(".report.json")))
+				foreach (FileReference reportFile in artifactFileToId.Keys.Where(x => x.HasExtension(".report.json")))
 				{
 					try
 					{
-						await CreateReportAsync(Step.StepId, ReportFile, ArtifactFileToId, Logger);
+						await CreateReportAsync(step.StepId, reportFile, artifactFileToId, logger);
 					}
-					catch(Exception Ex)
+					catch(Exception ex)
 					{
-						Logger.LogWarning("Unable to upload report: {Message}", Ex.Message);
+						logger.LogWarning("Unable to upload report: {Message}", ex.Message);
 					}
 				}
 			}
 
-			return ExitCode;
+			return exitCode;
 		}
 
-		private async Task CreateReportAsync(string StepId, FileReference ReportFile, Dictionary<FileReference, string> ArtifactFileToId, ILogger Logger)
+		private async Task CreateReportAsync(string stepId, FileReference reportFile, Dictionary<FileReference, string> artifactFileToId, ILogger logger)
 		{
-			byte[] Data = await FileReference.ReadAllBytesAsync(ReportFile);
+			byte[] data = await FileReference.ReadAllBytesAsync(reportFile);
 
-			JsonSerializerOptions Options = new JsonSerializerOptions();
-			Options.PropertyNameCaseInsensitive = true;
-			Options.Converters.Add(new JsonStringEnumConverter());
-			ReportData Report = JsonSerializer.Deserialize<ReportData>(Data, Options)!;
+			JsonSerializerOptions options = new JsonSerializerOptions();
+			options.PropertyNameCaseInsensitive = true;
+			options.Converters.Add(new JsonStringEnumConverter());
+			ReportData report = JsonSerializer.Deserialize<ReportData>(data, options)!;
 
-			if (String.IsNullOrEmpty(Report.Name))
+			if (String.IsNullOrEmpty(report.Name))
 			{
-				Logger.LogWarning("Missing 'Name' field in report data");
+				logger.LogWarning("Missing 'Name' field in report data");
 				return;
 			}
-			if (String.IsNullOrEmpty(Report.FileName))
+			if (String.IsNullOrEmpty(report.FileName))
 			{
-				Logger.LogWarning("Missing 'FileName' field in report data");
-				return;
-			}
-
-			FileReference ArtifactFile = FileReference.Combine(ReportFile.Directory, Report.FileName);
-			if (!ArtifactFileToId.TryGetValue(ArtifactFile, out string? ArtifactId))
-			{
-				Logger.LogWarning("Unable to find artifact id for {File}", ArtifactFile);
+				logger.LogWarning("Missing 'FileName' field in report data");
 				return;
 			}
 
-			Logger.LogInformation("Creating report for {File} using artifact {ArtifactId}", ReportFile, ArtifactId);
+			FileReference artifactFile = FileReference.Combine(reportFile.Directory, report.FileName);
+			if (!artifactFileToId.TryGetValue(artifactFile, out string? artifactId))
+			{
+				logger.LogWarning("Unable to find artifact id for {File}", artifactFile);
+				return;
+			}
 
-			CreateReportRequest Request = new CreateReportRequest();
-			Request.JobId = JobId;
-			Request.BatchId = BatchId;
-			Request.StepId = StepId;
-			Request.Scope = Report.Scope;
-			Request.Placement = Report.Placement;
-			Request.Name = Report.Name;
-			Request.ArtifactId = ArtifactId;
-			await RpcConnection.InvokeAsync(x => x.CreateReportAsync(Request), new RpcContext(), CancellationToken.None);
+			logger.LogInformation("Creating report for {File} using artifact {ArtifactId}", reportFile, artifactId);
+
+			CreateReportRequest request = new CreateReportRequest();
+			request.JobId = _jobId;
+			request.BatchId = _batchId;
+			request.StepId = stepId;
+			request.Scope = report.Scope;
+			request.Placement = report.Placement;
+			request.Name = report.Name;
+			request.ArtifactId = artifactId;
+			await _rpcConnection.InvokeAsync(x => x.CreateReportAsync(request), new RpcContext(), CancellationToken.None);
 		}
 
-		private ISpan CreateTracingData(ISpan Parent, TraceSpan Span)
+		private ISpan CreateTracingData(ISpan parent, TraceSpan span)
 		{
-			ISpan NewSpan = GlobalTracer.Instance.BuildSpan(Span.Name)
-				.AsChildOf(Parent)
-				.WithServiceName(Span.Service)
-				.WithResourceName(Span.Resource)
-				.WithStartTimestamp(new DateTime(Span.Start, DateTimeKind.Utc))
+			ISpan newSpan = GlobalTracer.Instance.BuildSpan(span.Name)
+				.AsChildOf(parent)
+				.WithServiceName(span.Service)
+				.WithResourceName(span.Resource)
+				.WithStartTimestamp(new DateTime(span.Start, DateTimeKind.Utc))
 				.Start();
 
-			if (Span.Properties != null)
+			if (span.Properties != null)
 			{
-				foreach (KeyValuePair<string, string> Pair in Span.Properties)
+				foreach (KeyValuePair<string, string> pair in span.Properties)
 				{
-					NewSpan.SetTag(Pair.Key, Pair.Value);
+					newSpan.SetTag(pair.Key, pair.Value);
 				}
 			}
-			if (Span.Children != null)
+			if (span.Children != null)
 			{
-				foreach (TraceSpan Child in Span.Children)
+				foreach (TraceSpan child in span.Children)
 				{
-					CreateTracingData(NewSpan, Child);
+					CreateTracingData(newSpan, child);
 				}
 			}
 
-			NewSpan.Finish(new DateTime(Span.Finish, DateTimeKind.Utc));
-			return NewSpan;
+			newSpan.Finish(new DateTime(span.Finish, DateTimeKind.Utc));
+			return newSpan;
 		}
 
-		protected async Task UploadTestDataAsync(string JobStepId, IEnumerable<KeyValuePair<string, object>> TestData)
+		protected async Task UploadTestDataAsync(string jobStepId, IEnumerable<KeyValuePair<string, object>> testData)
 		{
-			if (TestData.Any())
+			if (testData.Any())
 			{
-				await RpcConnection.InvokeAsync(x => UploadTestDataAsync(x, JobStepId, TestData), new RpcContext(), CancellationToken.None);
+				await _rpcConnection.InvokeAsync(x => UploadTestDataAsync(x, jobStepId, testData), new RpcContext(), CancellationToken.None);
 			}
 		}
 
-		async Task<bool> UploadTestDataAsync(HordeRpc.HordeRpcClient RpcClient, string JobStepId, IEnumerable<KeyValuePair<string, object>> Pairs)
+		async Task<bool> UploadTestDataAsync(HordeRpc.HordeRpcClient rpcClient, string jobStepId, IEnumerable<KeyValuePair<string, object>> pairs)
 		{
-			using (AsyncClientStreamingCall<UploadTestDataRequest, UploadTestDataResponse> Call = RpcClient.UploadTestData())
+			using (AsyncClientStreamingCall<UploadTestDataRequest, UploadTestDataResponse> call = rpcClient.UploadTestData())
 			{
-				foreach (KeyValuePair<string, object> Pair in Pairs)
+				foreach (KeyValuePair<string, object> pair in pairs)
 				{
-					JsonSerializerOptions Options = new JsonSerializerOptions();
-					Options.PropertyNameCaseInsensitive = true;
-					Options.Converters.Add(new JsonStringEnumConverter());
-					byte[] Data = JsonSerializer.SerializeToUtf8Bytes(Pair.Value, Options);
+					JsonSerializerOptions options = new JsonSerializerOptions();
+					options.PropertyNameCaseInsensitive = true;
+					options.Converters.Add(new JsonStringEnumConverter());
+					byte[] data = JsonSerializer.SerializeToUtf8Bytes(pair.Value, options);
 
-					UploadTestDataRequest Request = new UploadTestDataRequest();
-					Request.JobId = JobId;
-					Request.JobStepId = JobStepId;
-					Request.Key = Pair.Key;
-					Request.Value = Google.Protobuf.ByteString.CopyFrom(Data);
-					await Call.RequestStream.WriteAsync(Request);
+					UploadTestDataRequest request = new UploadTestDataRequest();
+					request.JobId = _jobId;
+					request.JobStepId = jobStepId;
+					request.Key = pair.Key;
+					request.Value = Google.Protobuf.ByteString.CopyFrom(data);
+					await call.RequestStream.WriteAsync(request);
 				}
-				await Call.RequestStream.CompleteAsync();
-				await Call.ResponseAsync;
+				await call.RequestStream.CompleteAsync();
+				await call.ResponseAsync;
 			}
 			return true;
 		}

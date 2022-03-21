@@ -19,20 +19,20 @@ namespace Horde.Agent.Commands.Workspace
 	{
 		[CommandLine("-TempClient=", Required = true)]
 		[Description("Name of a temporary client to switch between streams gathering metadata. Will be created if it does not exist.")]
-		string TempClientName = null!;
+		string TempClientName { get; set; } = null!;
 
 		[CommandLine("-Stream=")]
 		[Description("Streams that should be included in the output")]
-		List<string> StreamNames = new List<string>();
+		List<string> StreamNames { get; set; } = new List<string>();
 
 		[CommandLine("-Filter=")]
 		[Description("Filters for the files to sync, in P4 syntax (eg. /Engine/...)")]
-		List<string> Filters = new List<string>();
+		List<string> Filters { get; set; } = new List<string>();
 
-		protected override async Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override async Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			using IPerforceConnection PerforceClient = await Perforce.WithClientAsync(TempClientName);
-			await Repo.StatsAsync(PerforceClient, StreamNames, Filters, CancellationToken.None);
+			using IPerforceConnection perforceClient = await perforce.WithClientAsync(TempClientName);
+			await repo.StatsAsync(perforceClient, StreamNames, Filters, CancellationToken.None);
 		}
 	}
 }

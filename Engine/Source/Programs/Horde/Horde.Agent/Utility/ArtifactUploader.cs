@@ -25,7 +25,7 @@ namespace Horde.Agent.Utility
         /// <summary>
         /// Dictionary of horde common mime types
         /// </summary>
-        private static Dictionary<string, string> HordeMimeTypes = new Dictionary<string, string>()
+        private static readonly Dictionary<string, string> s_hordeMimeTypes = new Dictionary<string, string>()
         {
             { ".bin", "application/octet-stream" },
             { ".json", "application/json" },
@@ -40,40 +40,40 @@ namespace Horde.Agent.Utility
         /// <summary>
         /// Gets a mime type from a file extension
         /// </summary>
-        /// <param name="File">The file object to parse</param>
+        /// <param name="file">The file object to parse</param>
         /// <returns>the mimetype if present in the dictionary, binary otherwise</returns>
-        private static string GetMimeType(FileReference File)
+        private static string GetMimeType(FileReference file)
         {
-            string? ContentType;
-            if (!HordeMimeTypes.TryGetValue(File.GetExtension(), out ContentType))
+            string? contentType;
+            if (!s_hordeMimeTypes.TryGetValue(file.GetExtension(), out contentType))
             {
-                ContentType = "application/octet-stream";
+                contentType = "application/octet-stream";
             }
-            return ContentType;
+            return contentType;
         }
         
         /// <summary>
         /// Uploads an artifact (with retries)
         /// </summary>
-        /// <param name="RpcConnection">The grpc client</param>
-        /// <param name="JobId">Job id</param>
-        /// <param name="BatchId">Job batch id</param>
-        /// <param name="StepId">Job step id</param>
-        /// <param name="ArtifactName">Name of the artifact</param>
-        /// <param name="ArtifactFile">File to upload</param>
-        /// <param name="Logger">Logger interfact</param>
-        /// <param name="CancellationToken">Cancellation token</param>
+        /// <param name="rpcConnection">The grpc client</param>
+        /// <param name="jobId">Job id</param>
+        /// <param name="batchId">Job batch id</param>
+        /// <param name="stepId">Job step id</param>
+        /// <param name="artifactName">Name of the artifact</param>
+        /// <param name="artifactFile">File to upload</param>
+        /// <param name="logger">Logger interfact</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         /// <returns></returns>
-        public static async Task<string?> UploadAsync(IRpcConnection RpcConnection, string JobId, string BatchId, string StepId, string ArtifactName, FileReference ArtifactFile, ILogger Logger, CancellationToken CancellationToken)
+        public static async Task<string?> UploadAsync(IRpcConnection rpcConnection, string jobId, string batchId, string stepId, string artifactName, FileReference artifactFile, ILogger logger, CancellationToken cancellationToken)
         {
 			try
 			{
-				string ArtifactId = await RpcConnection.InvokeAsync(RpcClient => DoUploadAsync(RpcClient, JobId, BatchId, StepId, ArtifactName, ArtifactFile, Logger, CancellationToken), new RpcContext(), CancellationToken);
-				return ArtifactId;
+				string artifactId = await rpcConnection.InvokeAsync(rpcClient => DoUploadAsync(rpcClient, jobId, batchId, stepId, artifactName, artifactFile, logger, cancellationToken), new RpcContext(), cancellationToken);
+				return artifactId;
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogInformation(KnownLogEvents.Systemic_Horde_ArtifactUpload, Ex, "Exception while attempting to upload artifact: {Message}", Ex.Message);
+				logger.LogInformation(KnownLogEvents.Systemic_Horde_ArtifactUpload, ex, "Exception while attempting to upload artifact: {Message}", ex.Message);
 				return null;
 			}
         }
@@ -81,59 +81,59 @@ namespace Horde.Agent.Utility
         /// <summary>
 		/// Uploads an artifact
 		/// </summary>
-		/// <param name="Client">The grpc client</param>
-		/// <param name="JobId">Job id</param>
-		/// <param name="BatchId">Job batch id</param>
-		/// <param name="StepId">Job step id</param>
-		/// <param name="ArtifactName">Name of the artifact</param>
-		/// <param name="ArtifactFile">File to upload</param>
-		/// <param name="Logger">Logger interfact</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="client">The grpc client</param>
+		/// <param name="jobId">Job id</param>
+		/// <param name="batchId">Job batch id</param>
+		/// <param name="stepId">Job step id</param>
+		/// <param name="artifactName">Name of the artifact</param>
+		/// <param name="artifactFile">File to upload</param>
+		/// <param name="logger">Logger interfact</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns></returns>
-		private static async Task<string> DoUploadAsync(HordeRpc.HordeRpcClient Client, string JobId, string BatchId, string StepId, string ArtifactName, FileReference ArtifactFile, ILogger Logger, CancellationToken CancellationToken)
+		private static async Task<string> DoUploadAsync(HordeRpc.HordeRpcClient client, string jobId, string batchId, string stepId, string artifactName, FileReference artifactFile, ILogger logger, CancellationToken cancellationToken)
         {
-			Logger.LogInformation("Uploading artifact {ArtifactName} from {ArtifactFile}", ArtifactName, ArtifactFile);
-            using (FileStream ArtifactStream = FileReference.Open(ArtifactFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+			logger.LogInformation("Uploading artifact {ArtifactName} from {ArtifactFile}", artifactName, artifactFile);
+            using (FileStream artifactStream = FileReference.Open(artifactFile, FileMode.Open, FileAccess.Read, FileShare.Read))
 			{
-				using (AsyncClientStreamingCall<UploadArtifactRequest, UploadArtifactResponse> Cursor = Client.UploadArtifact(null, null, CancellationToken))
+				using (AsyncClientStreamingCall<UploadArtifactRequest, UploadArtifactResponse> cursor = client.UploadArtifact(null, null, cancellationToken))
                 {
 					// Upload the metadata in the initial request
-					UploadArtifactMetadata Metadata = new UploadArtifactMetadata();
-					Metadata.JobId = JobId;
-					Metadata.BatchId = BatchId;
-					Metadata.StepId = StepId;
-					Metadata.Name = ArtifactName;
-					Metadata.MimeType = GetMimeType(ArtifactFile);
-					Metadata.Length = ArtifactStream.Length;
+					UploadArtifactMetadata metadata = new UploadArtifactMetadata();
+					metadata.JobId = jobId;
+					metadata.BatchId = batchId;
+					metadata.StepId = stepId;
+					metadata.Name = artifactName;
+					metadata.MimeType = GetMimeType(artifactFile);
+					metadata.Length = artifactStream.Length;
 
-					UploadArtifactRequest InitialRequest = new UploadArtifactRequest();
-					InitialRequest.Metadata = Metadata;
+					UploadArtifactRequest initialRequest = new UploadArtifactRequest();
+					initialRequest.Metadata = metadata;
 
-					await Cursor.RequestStream.WriteAsync(InitialRequest);
+					await cursor.RequestStream.WriteAsync(initialRequest);
 
 					// Upload the data in chunks
-					byte[] Buffer = new byte[4096];
-					for (int Offset = 0; Offset < Metadata.Length; )
+					byte[] buffer = new byte[4096];
+					for (int offset = 0; offset < metadata.Length; )
                     {
-                        int BytesRead = await ArtifactStream.ReadAsync(Buffer, 0, Buffer.Length);
-						if(BytesRead == 0)
+                        int bytesRead = await artifactStream.ReadAsync(buffer, 0, buffer.Length);
+						if(bytesRead == 0)
 						{
-							throw new InvalidDataException($"Unable to read data from {ArtifactFile} beyond offset {Offset}; expected length to be {Metadata.Length}");
+							throw new InvalidDataException($"Unable to read data from {artifactFile} beyond offset {offset}; expected length to be {metadata.Length}");
 						}
 
-						UploadArtifactRequest Request = new UploadArtifactRequest();
-						Request.Data = Google.Protobuf.ByteString.CopyFrom(Buffer, 0, BytesRead);
-						await Cursor.RequestStream.WriteAsync(Request);
+						UploadArtifactRequest request = new UploadArtifactRequest();
+						request.Data = Google.Protobuf.ByteString.CopyFrom(buffer, 0, bytesRead);
+						await cursor.RequestStream.WriteAsync(request);
 
-                        Offset += BytesRead;
+                        offset += bytesRead;
                     }
 
 					// Close the stream
-                    await Cursor.RequestStream.CompleteAsync();
+                    await cursor.RequestStream.CompleteAsync();
 
 					// Read the response
-					UploadArtifactResponse Response = await Cursor.ResponseAsync;
-					return Response.Id;
+					UploadArtifactResponse response = await cursor.ResponseAsync;
+					return response.Id;
                 }
             }
         }

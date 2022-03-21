@@ -35,141 +35,134 @@ namespace Horde.Agent.Execution
 	{
 		class OutputTree
 		{
-			public Dictionary<string, Task<IoHash>> Files = new Dictionary<string, Task<IoHash>>();
-			public Dictionary<string, OutputTree> SubDirs = new Dictionary<string, OutputTree>();
+			public Dictionary<string, Task<IoHash>> _files = new Dictionary<string, Task<IoHash>>();
+			public Dictionary<string, OutputTree> _subDirs = new Dictionary<string, OutputTree>();
 		}
 
-		/// <summary>
-		/// The blob store
-		/// </summary>
-		IStorageClient StorageClient;
-
-		/// <summary>
-		/// Logger for internal executor output
-		/// </summary>
-		ILogger Logger;
+		private readonly IStorageClient _storageClient;
+		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StorageClient"></param>
-		/// <param name="Logger"></param>
-		public ComputeTaskExecutor(IStorageClient StorageClient, ILogger Logger)
+		/// <param name="storageClient"></param>
+		/// <param name="logger"></param>
+		public ComputeTaskExecutor(IStorageClient storageClient, ILogger logger)
 		{
-			this.StorageClient = StorageClient;
-			this.Logger = Logger;
+			_storageClient = storageClient;
+			_logger = logger;
 		}
 
 		/// <summary>
 		/// Read stdout/stderr and wait until process completes
 		/// </summary>
-		/// <param name="Process">The process reading from</param>
-		/// <param name="Timeout">Max execution timeout for process</param>
-		/// <param name="CancelToken">Cancellation token</param>
+		/// <param name="process">The process reading from</param>
+		/// <param name="timeout">Max execution timeout for process</param>
+		/// <param name="cancelToken">Cancellation token</param>
 		/// <returns>stdout and stderr data</returns>
 		/// <exception cref="RpcException">Raised for either timeout or cancel</exception>
-		private async Task<(byte[] StdOutData, byte[] StdOutErr)> ReadProcessStreams(ManagedProcess Process, TimeSpan Timeout, CancellationToken CancelToken)
+		private async Task<(byte[] stdOutData, byte[] stdOutErr)> ReadProcessStreams(ManagedProcess process, TimeSpan timeout, CancellationToken cancelToken)
 		{
 			// Read stdout/stderr without cancellation token.
-			using MemoryStream StdOutStream = new MemoryStream();
-			Task StdOutReadTask = Process.StdOut.CopyToAsync(StdOutStream);
+			using MemoryStream stdOutStream = new MemoryStream();
+			Task stdOutReadTask = process.StdOut.CopyToAsync(stdOutStream);
 
-			using MemoryStream StdErrStream = new MemoryStream();
-			Task StdErrReadTask = Process.StdErr.CopyToAsync(StdErrStream);
+			using MemoryStream stdErrStream = new MemoryStream();
+			Task stdErrReadTask = process.StdErr.CopyToAsync(stdErrStream);
 
-			Task OutputTask = Task.WhenAll(StdOutReadTask, StdErrReadTask);
+			Task outputTask = Task.WhenAll(stdOutReadTask, stdErrReadTask);
 
 			// Instead, create a separate task that will wait for either timeout or cancellation
 			// as cancel interruptions are not reliable with Stream.CopyToAsync()
-			Task TimeoutTask = Task.Delay(Timeout, CancelToken);
+			Task timeoutTask = Task.Delay(timeout, cancelToken);
 
-			Task WaitTask = await Task.WhenAny(OutputTask, TimeoutTask);
-			if (WaitTask == TimeoutTask)
+			Task waitTask = await Task.WhenAny(outputTask, timeoutTask);
+			if (waitTask == timeoutTask)
 			{
-				throw new RpcException(new Grpc.Core.Status(StatusCode.DeadlineExceeded, $"Action timed out after {Timeout.TotalMilliseconds} ms"));
+				throw new RpcException(new Grpc.Core.Status(StatusCode.DeadlineExceeded, $"Action timed out after {timeout.TotalMilliseconds} ms"));
 			}
 			
-			return (StdOutStream.ToArray(), StdErrStream.ToArray());
+			return (stdOutStream.ToArray(), stdErrStream.ToArray());
 		}
 
 		/// <summary>
 		/// Execute an action
 		/// </summary>
-		/// <param name="LeaseId">The lease id</param>
-		/// <param name="ComputeTaskMessage">Task to execute</param>
-		/// <param name="SandboxDir">Directory to use as a sandbox for execution</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="leaseId">The lease id</param>
+		/// <param name="computeTaskMessage">Task to execute</param>
+		/// <param name="sandboxDir">Directory to use as a sandbox for execution</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>The action result</returns>
-		public async Task<ComputeTaskResultMessage> ExecuteAsync(string LeaseId, ComputeTaskMessage ComputeTaskMessage, DirectoryReference SandboxDir, CancellationToken CancellationToken)
+		public async Task<ComputeTaskResultMessage> ExecuteAsync(string leaseId, ComputeTaskMessage computeTaskMessage, DirectoryReference sandboxDir, CancellationToken cancellationToken)
 		{
-			NamespaceId NamespaceId = new NamespaceId(ComputeTaskMessage.NamespaceId);
-			BucketId InputBucketId = new BucketId(ComputeTaskMessage.InputBucketId);
-			BucketId OutputBucketId = new BucketId(ComputeTaskMessage.OutputBucketId);
+			NamespaceId namespaceId = new NamespaceId(computeTaskMessage.NamespaceId);
+			BucketId inputBucketId = new BucketId(computeTaskMessage.InputBucketId);
+			BucketId outputBucketId = new BucketId(computeTaskMessage.OutputBucketId);
 
-			ComputeTask Task = await StorageClient.GetRefAsync<ComputeTask>(NamespaceId, InputBucketId, ComputeTaskMessage.TaskRefId.AsRefId());
-			Logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", ComputeTaskMessage.TaskRefId, LeaseId);
+			ComputeTask task = await _storageClient.GetRefAsync<ComputeTask>(namespaceId, inputBucketId, computeTaskMessage.TaskRefId.AsRefId());
+			_logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", computeTaskMessage.TaskRefId, leaseId);
 
-			DirectoryReference.CreateDirectory(SandboxDir);
-			FileUtils.ForceDeleteDirectoryContents(SandboxDir);
+			DirectoryReference.CreateDirectory(sandboxDir);
+			FileUtils.ForceDeleteDirectoryContents(sandboxDir);
 
-			DateTimeOffset InputFetchStart = DateTimeOffset.UtcNow;
-			DirectoryTree InputDirectory = await StorageClient.ReadBlobAsync<DirectoryTree>(NamespaceId, Task.SandboxHash);
-			await SetupSandboxAsync(NamespaceId, InputDirectory, SandboxDir);
-			DateTimeOffset InputFetchCompleted = DateTimeOffset.UtcNow;
+			DateTimeOffset inputFetchStart = DateTimeOffset.UtcNow;
+			DirectoryTree inputDirectory = await _storageClient.ReadBlobAsync<DirectoryTree>(namespaceId, task.SandboxHash);
+			await SetupSandboxAsync(namespaceId, inputDirectory, sandboxDir);
+			DateTimeOffset inputFetchCompleted = DateTimeOffset.UtcNow;
 
-			using (ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
+			using (ManagedProcessGroup processGroup = new ManagedProcessGroup())
 			{
-				string FileName = FileReference.Combine(SandboxDir, Task.WorkingDirectory.ToString(), Task.Executable.ToString()).FullName;
-				string WorkingDirectory = DirectoryReference.Combine(SandboxDir, Task.WorkingDirectory.ToString()).FullName;
+				string fileName = FileReference.Combine(sandboxDir, task.WorkingDirectory.ToString(), task.Executable.ToString()).FullName;
+				string workingDirectory = DirectoryReference.Combine(sandboxDir, task.WorkingDirectory.ToString()).FullName;
 
-				Dictionary<string, string> NewEnvironment = new Dictionary<string, string>();
-				foreach (System.Collections.DictionaryEntry? Entry in Environment.GetEnvironmentVariables())
+				Dictionary<string, string> newEnvironment = new Dictionary<string, string>();
+				foreach (System.Collections.DictionaryEntry? entry in Environment.GetEnvironmentVariables())
 				{
-					NewEnvironment[Entry!.Value.Key.ToString()!] = Entry!.Value.Value!.ToString()!;
+					newEnvironment[entry!.Value.Key.ToString()!] = entry!.Value.Value!.ToString()!;
 				}
-				foreach(KeyValuePair<Utf8String, Utf8String> Pair in Task.EnvVars)
+				foreach(KeyValuePair<Utf8String, Utf8String> pair in task.EnvVars)
 				{
-					NewEnvironment[Pair.Key.ToString()] = Pair.Value.ToString();
+					newEnvironment[pair.Key.ToString()] = pair.Value.ToString();
 				}
 
-				string Arguments = CommandLineArguments.Join(Task.Arguments.Select(x => x.ToString()));
-				Logger.LogInformation("Executing {FileName} with arguments {Arguments}", FileName, Arguments);
+				string arguments = CommandLineArguments.Join(task.Arguments.Select(x => x.ToString()));
+				_logger.LogInformation("Executing {FileName} with arguments {Arguments}", fileName, arguments);
 
-				TimeSpan Timeout = TimeSpan.FromMinutes(5.0);// Action.Timeout == null ? TimeSpan.FromMinutes(5) : Action.Timeout.ToTimeSpan();
-				DateTimeOffset ExecutionStartTime = DateTimeOffset.UtcNow;
-				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, FileName, Arguments, WorkingDirectory, NewEnvironment, ProcessPriorityClass.Normal, ManagedProcessFlags.None))
+				TimeSpan timeout = TimeSpan.FromMinutes(5.0);// Action.Timeout == null ? TimeSpan.FromMinutes(5) : Action.Timeout.ToTimeSpan();
+				DateTimeOffset executionStartTime = DateTimeOffset.UtcNow;
+				using (ManagedProcess process = new ManagedProcess(processGroup, fileName, arguments, workingDirectory, newEnvironment, ProcessPriorityClass.Normal, ManagedProcessFlags.None))
 				{
-					(byte[] StdOutData, byte[] StdErrData) = await ReadProcessStreams(Process, Timeout, CancellationToken);
+					(byte[] stdOutData, byte[] stdErrData) = await ReadProcessStreams(process, timeout, cancellationToken);
 
-					foreach (string Line in Encoding.UTF8.GetString(StdOutData).Split('\n'))
+					foreach (string line in Encoding.UTF8.GetString(stdOutData).Split('\n'))
 					{
-						Logger.LogInformation("stdout: {Line}", Line);
+						_logger.LogInformation("stdout: {Line}", line);
 					}
-					foreach (string Line in Encoding.UTF8.GetString(StdErrData).Split('\n'))
+					foreach (string line in Encoding.UTF8.GetString(stdErrData).Split('\n'))
 					{
-						Logger.LogInformation("stderr: {Line}", Line);
+						_logger.LogInformation("stderr: {Line}", line);
 					}
 
-					Logger.LogInformation("exit: {ExitCode}", Process.ExitCode);
+					_logger.LogInformation("exit: {ExitCode}", process.ExitCode);
 
-					ComputeTaskResult Result = new ComputeTaskResult(Process.ExitCode);
-					Result.StdOutHash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, StdOutData);
-					Result.StdErrHash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, StdErrData);
+					ComputeTaskResult result = new ComputeTaskResult(process.ExitCode);
+					result.StdOutHash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, stdOutData);
+					result.StdErrHash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, stdErrData);
 
-					FileReference[] OutputFiles = ResolveOutputPaths(SandboxDir, Task.OutputPaths.Select(x => x.ToString())).OrderBy(x => x.FullName, StringComparer.Ordinal).ToArray();
-					if (OutputFiles.Length > 0)
+					FileReference[] outputFiles = ResolveOutputPaths(sandboxDir, task.OutputPaths.Select(x => x.ToString())).OrderBy(x => x.FullName, StringComparer.Ordinal).ToArray();
+					if (outputFiles.Length > 0)
 					{
-						foreach (FileReference OutputFile in OutputFiles)
+						foreach (FileReference outputFile in outputFiles)
 						{
-							Logger.LogInformation("output: {File}", OutputFile.MakeRelativeTo(SandboxDir));
+							_logger.LogInformation("output: {File}", outputFile.MakeRelativeTo(sandboxDir));
 						}
-						Result.OutputHash = await PutOutput(NamespaceId, SandboxDir, OutputFiles);
+						result.OutputHash = await PutOutput(namespaceId, sandboxDir, outputFiles);
 					}
 
-					CbObject ResultObject = CbSerializer.Serialize(Result);
+					CbObject resultObject = CbSerializer.Serialize(result);
 
-					await StorageClient.SetRefAsync(NamespaceId, OutputBucketId, ComputeTaskMessage.TaskRefId, ResultObject);
-					return new ComputeTaskResultMessage(ComputeTaskMessage.TaskRefId);
+					await _storageClient.SetRefAsync(namespaceId, outputBucketId, computeTaskMessage.TaskRefId, resultObject);
+					return new ComputeTaskResultMessage(computeTaskMessage.TaskRefId);
 				}
 			}
 		}
@@ -177,97 +170,97 @@ namespace Horde.Agent.Execution
 		/// <summary>
 		/// Downloads files to the sandbox
 		/// </summary>
-		/// <param name="NamespaceId">Namespace for fetching data</param>
-		/// <param name="InputDirectory">The directory spec</param>
-		/// <param name="OutputDir">Output directory on disk</param>
+		/// <param name="namespaceId">Namespace for fetching data</param>
+		/// <param name="inputDirectory">The directory spec</param>
+		/// <param name="outputDir">Output directory on disk</param>
 		/// <returns>Async task</returns>
-		async Task SetupSandboxAsync(NamespaceId NamespaceId, DirectoryTree InputDirectory, DirectoryReference OutputDir)
+		async Task SetupSandboxAsync(NamespaceId namespaceId, DirectoryTree inputDirectory, DirectoryReference outputDir)
 		{
-			DirectoryReference.CreateDirectory(OutputDir);
+			DirectoryReference.CreateDirectory(outputDir);
 
-			async Task DownloadFile(FileNode FileNode)
+			async Task DownloadFile(FileNode fileNode)
 			{
-				FileReference File = FileReference.Combine(OutputDir, FileNode.Name.ToString());
-				Logger.LogInformation("Downloading {File} (digest: {Digest})", File, FileNode.Hash);
-				byte[] Data = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, FileNode.Hash);
-				Logger.LogInformation("Writing {File} (digest: {Digest})", File, FileNode.Hash);
-				await FileReference.WriteAllBytesAsync(File, Data);
+				FileReference file = FileReference.Combine(outputDir, fileNode.Name.ToString());
+				_logger.LogInformation("Downloading {File} (digest: {Digest})", file, fileNode.Hash);
+				byte[] data = await _storageClient.ReadBlobToMemoryAsync(namespaceId, fileNode.Hash);
+				_logger.LogInformation("Writing {File} (digest: {Digest})", file, fileNode.Hash);
+				await FileReference.WriteAllBytesAsync(file, data);
 			}
 
-			async Task DownloadDir(DirectoryNode DirectoryNode)
+			async Task DownloadDir(DirectoryNode directoryNode)
 			{
-				DirectoryTree InputSubDirectory = await StorageClient.ReadBlobAsync<DirectoryTree>(NamespaceId, DirectoryNode.Hash);
-				DirectoryReference OutputSubDirectory = DirectoryReference.Combine(OutputDir, DirectoryNode.Name.ToString());
-				await SetupSandboxAsync(NamespaceId, InputSubDirectory, OutputSubDirectory);
+				DirectoryTree inputSubDirectory = await _storageClient.ReadBlobAsync<DirectoryTree>(namespaceId, directoryNode.Hash);
+				DirectoryReference outputSubDirectory = DirectoryReference.Combine(outputDir, directoryNode.Name.ToString());
+				await SetupSandboxAsync(namespaceId, inputSubDirectory, outputSubDirectory);
 			}
 
-			List<Task> Tasks = new List<Task>();
-			Tasks.AddRange(InputDirectory.Files.Select(x => Task.Run(() => DownloadFile(x))));
-			Tasks.AddRange(InputDirectory.Directories.Select(x => Task.Run(() => DownloadDir(x))));
-			await Task.WhenAll(Tasks);
+			List<Task> tasks = new List<Task>();
+			tasks.AddRange(inputDirectory.Files.Select(x => Task.Run(() => DownloadFile(x))));
+			tasks.AddRange(inputDirectory.Directories.Select(x => Task.Run(() => DownloadDir(x))));
+			await Task.WhenAll(tasks);
 		}
 
-		async Task<IoHash> PutOutput(NamespaceId NamespaceId, DirectoryReference BaseDir, IEnumerable<FileReference> Files)
+		async Task<IoHash> PutOutput(NamespaceId namespaceId, DirectoryReference baseDir, IEnumerable<FileReference> files)
 		{
-			List<FileReference> SortedFiles = Files.OrderBy(x => x.FullName, StringComparer.Ordinal).ToList();
-			(_, IoHash Hash) = await PutDirectoryTree(NamespaceId, BaseDir.FullName.Length, SortedFiles, 0, SortedFiles.Count);
-			return Hash;
+			List<FileReference> sortedFiles = files.OrderBy(x => x.FullName, StringComparer.Ordinal).ToList();
+			(_, IoHash hash) = await PutDirectoryTree(namespaceId, baseDir.FullName.Length, sortedFiles, 0, sortedFiles.Count);
+			return hash;
 		}
 
-		async Task<(DirectoryTree, IoHash)> PutDirectoryTree(NamespaceId NamespaceId, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
+		async Task<(DirectoryTree, IoHash)> PutDirectoryTree(NamespaceId namespaceId, int baseDirLen, List<FileReference> sortedFiles, int minIdx, int maxIdx)
 		{
-			List<Task<FileNode>> Files = new List<Task<FileNode>>();
-			List<Task<DirectoryNode>> Trees = new List<Task<DirectoryNode>>();
+			List<Task<FileNode>> files = new List<Task<FileNode>>();
+			List<Task<DirectoryNode>> trees = new List<Task<DirectoryNode>>();
 
-			while (MinIdx < MaxIdx)
+			while (minIdx < maxIdx)
 			{
-				FileReference File = SortedFiles[MinIdx];
+				FileReference file = sortedFiles[minIdx];
 
-				int NextMinIdx = MinIdx + 1;
+				int nextMinIdx = minIdx + 1;
 
-				int NextDirLen = File.FullName.IndexOf(Path.DirectorySeparatorChar, BaseDirLen + 1);
-				if (NextDirLen == -1)
+				int nextDirLen = file.FullName.IndexOf(Path.DirectorySeparatorChar, baseDirLen + 1);
+				if (nextDirLen == -1)
 				{
-					string Name = File.FullName.Substring(BaseDirLen + 1);
-					Files.Add(CreateFileNode(NamespaceId, Name, File));
+					string name = file.FullName.Substring(baseDirLen + 1);
+					files.Add(CreateFileNode(namespaceId, name, file));
 				}
 				else
 				{
-					string Name = File.FullName.Substring(BaseDirLen + 1, NextDirLen - (BaseDirLen + 1));
-					while (NextMinIdx < MaxIdx)
+					string name = file.FullName.Substring(baseDirLen + 1, nextDirLen - (baseDirLen + 1));
+					while (nextMinIdx < maxIdx)
 					{
-						string NextFile = SortedFiles[NextMinIdx].FullName;
-						if (NextFile.Length < NextDirLen || String.Compare(Name, 0, NextFile, BaseDirLen, Name.Length, StringComparison.Ordinal) == 0)
+						string nextFile = sortedFiles[nextMinIdx].FullName;
+						if (nextFile.Length < nextDirLen || String.Compare(name, 0, nextFile, baseDirLen, name.Length, StringComparison.Ordinal) == 0)
 						{
 							break;
 						}
-						NextMinIdx++;
+						nextMinIdx++;
 					}
-					Trees.Add(CreateDirectoryNode(NamespaceId, Name, NextDirLen, SortedFiles, MinIdx, NextMinIdx));
+					trees.Add(CreateDirectoryNode(namespaceId, name, nextDirLen, sortedFiles, minIdx, nextMinIdx));
 				}
 
-				MinIdx = NextMinIdx;
+				minIdx = nextMinIdx;
 			}
 
-			DirectoryTree Tree = new DirectoryTree();
-			Tree.Files.AddRange(await Task.WhenAll(Files));
-			Tree.Directories.AddRange(await Task.WhenAll(Trees));
+			DirectoryTree tree = new DirectoryTree();
+			tree.Files.AddRange(await Task.WhenAll(files));
+			tree.Directories.AddRange(await Task.WhenAll(trees));
 
-			IoHash Hash = await StorageClient.WriteBlobAsync<DirectoryTree>(NamespaceId, Tree);
-			return (Tree, Hash);
+			IoHash hash = await _storageClient.WriteBlobAsync<DirectoryTree>(namespaceId, tree);
+			return (tree, hash);
 		}
 
-		async Task<DirectoryNode> CreateDirectoryNode(NamespaceId NamespaceId, string Name, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
+		async Task<DirectoryNode> CreateDirectoryNode(NamespaceId namespaceId, string name, int baseDirLen, List<FileReference> sortedFiles, int minIdx, int maxIdx)
 		{
-			(_, IoHash Hash) = await PutDirectoryTree(NamespaceId, BaseDirLen, SortedFiles, MinIdx, MaxIdx);
-			return new DirectoryNode(Name, Hash);
+			(_, IoHash hash) = await PutDirectoryTree(namespaceId, baseDirLen, sortedFiles, minIdx, maxIdx);
+			return new DirectoryNode(name, hash);
 		}
 
-		async Task<FileNode> CreateFileNode(NamespaceId NamespaceId, string Name, FileReference File)
+		async Task<FileNode> CreateFileNode(NamespaceId namespaceId, string name, FileReference file)
 		{
-			byte[] Data = await FileReference.ReadAllBytesAsync(File);
-			IoHash Hash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, Data);
-			return new FileNode(Name, Hash, Data.Length, (int)FileReference.GetAttributes(File));
+			byte[] data = await FileReference.ReadAllBytesAsync(file);
+			IoHash hash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, data);
+			return new FileNode(name, hash, data.Length, (int)FileReference.GetAttributes(file));
 		}
 
 		/// <summary>
@@ -276,33 +269,33 @@ namespace Horde.Agent.Execution
 		/// The REAPI spec allows directories to be specified as an output path which require all sub dirs and files
 		/// to be resolved.
 		/// </summary>
-		/// <param name="SandboxDir">Base directory where execution is taking place</param>
-		/// <param name="OutputPaths">List of output paths relative to SandboxDir</param>
+		/// <param name="sandboxDir">Base directory where execution is taking place</param>
+		/// <param name="outputPaths">List of output paths relative to SandboxDir</param>
 		/// <returns>List of resolved paths (incl expanded dirs)</returns>
-		internal static HashSet<FileReference> ResolveOutputPaths(DirectoryReference SandboxDir, IEnumerable<string> OutputPaths)
+		internal static HashSet<FileReference> ResolveOutputPaths(DirectoryReference sandboxDir, IEnumerable<string> outputPaths)
 		{
-			HashSet<FileReference> Files = new HashSet<FileReference>();
-			foreach (string OutputPath in OutputPaths)
+			HashSet<FileReference> files = new HashSet<FileReference>();
+			foreach (string outputPath in outputPaths)
 			{
-				DirectoryReference DirRef = DirectoryReference.Combine(SandboxDir, OutputPath);
-				if (DirectoryReference.Exists(DirRef))
+				DirectoryReference dirRef = DirectoryReference.Combine(sandboxDir, outputPath);
+				if (DirectoryReference.Exists(dirRef))
 				{
-					IEnumerable<FileReference> ListedFiles = DirectoryReference.EnumerateFiles(DirRef, "*", SearchOption.AllDirectories);
-					foreach (FileReference ListedFileRef in ListedFiles)
+					IEnumerable<FileReference> listedFiles = DirectoryReference.EnumerateFiles(dirRef, "*", SearchOption.AllDirectories);
+					foreach (FileReference listedFileRef in listedFiles)
 					{
-						Files.Add(ListedFileRef);
+						files.Add(listedFileRef);
 					}
 				}
 				else
 				{
-					FileReference FileRef = FileReference.Combine(SandboxDir, OutputPath);
-					if (FileReference.Exists(FileRef))
+					FileReference fileRef = FileReference.Combine(sandboxDir, outputPath);
+					if (FileReference.Exists(fileRef))
 					{
-						Files.Add(FileRef);
+						files.Add(fileRef);
 					}
 				}
 			}
-			return Files;
+			return files;
 		}
 	}
 }

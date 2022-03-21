@@ -20,42 +20,34 @@ namespace Horde.Agent.Parser.Matchers
 	class LogChannelEventMatcher : ILogEventMatcher
 	{
 		/// <inheritdoc/>
-		public LogEventMatch? Match(ILogCursor Input)
+		public LogEventMatch? Match(ILogCursor input)
 		{
-			Match? Match;
-			if(Input.TryMatch(@"^(\s*)(?<channel>[a-zA-Z_][a-zA-Z0-9_]*):\s*(?<severity>Error|Warning|Display): ", out Match))
+			Match? match;
+			if(input.TryMatch(@"^(\s*)(?<channel>[a-zA-Z_][a-zA-Z0-9_]*):\s*(?<severity>Error|Warning|Display): ", out match))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Input);
-				Builder.Annotate(Match.Groups["channel"], LogEventMarkup.Channel);
-				Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
+				LogEventBuilder builder = new LogEventBuilder(input);
+				builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
+				builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 				
-				if (Builder.Next.TryMatch(@"^\s+", out Match? Indent))
+				if (builder.Next.TryMatch(@"^\s+", out Match? indent))
 				{						
-					while (Builder.Next.IsMatch($"^{Indent.Value}"))
+					while (builder.Next.IsMatch($"^{indent.Value}"))
 					{
-						Builder.MoveNext();
+						builder.MoveNext();
 					}					
 				}
 
-				LogLevel Level;
-				switch(Match.Groups["severity"].Value)
+				LogLevel level = match.Groups["severity"].Value switch
 				{
-					case "Error":
-						Level = LogLevel.Error;
-						break;
-					case "Warning":
-						Level = LogLevel.Warning;
-						break;
-					default:
-						Level = LogLevel.Information;
-						break;
-				}
+					"Error" => LogLevel.Error,
+					"Warning" => LogLevel.Warning,
+					_ => LogLevel.Information,
+				};
 
-				return Builder.ToMatch(LogEventPriority.Low, Level, KnownLogEvents.Engine_LogChannel);
+				return builder.ToMatch(LogEventPriority.Low, level, KnownLogEvents.Engine_LogChannel);
 				
 			}
 			return null;
 		}
-
 	}
 }

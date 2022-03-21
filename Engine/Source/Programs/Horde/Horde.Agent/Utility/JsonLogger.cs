@@ -32,66 +32,66 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Warnings">Whether to include warnings in the output</param>
-		/// <param name="Inner">Additional logger to write to</param>
-		public JsonLogger(bool? Warnings, ILogger Inner)
+		/// <param name="warnings">Whether to include warnings in the output</param>
+		/// <param name="inner">Additional logger to write to</param>
+		public JsonLogger(bool? warnings, ILogger inner)
 		{
-			this.Warnings = Warnings;
-			this.Inner = Inner;
+			Warnings = warnings;
+			Inner = inner;
 		}
 
 		/// <inheritdoc/>
-		public IDisposable? BeginScope<TState>(TState State)
+		public IDisposable? BeginScope<TState>(TState state)
 		{
 			return null;
 		}
 
 		/// <inheritdoc/>
-		public bool IsEnabled(LogLevel LogLevel)
+		public bool IsEnabled(LogLevel logLevel)
 		{
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception? Exception, Func<TState, Exception?, string> Formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
 			// Downgrade warnings to information if not required
-			if (LogLevel == LogLevel.Warning && !(Warnings ?? true))
+			if (logLevel == LogLevel.Warning && !(Warnings ?? true))
 			{
-				LogLevel = LogLevel.Information;
+				logLevel = LogLevel.Information;
 			}
 
-			if(State is JsonLogEvent JsonEvent)
+			if(state is JsonLogEvent jsonEvent)
 			{
-				WriteFormattedEvent(LogLevel, JsonEvent.LineIndex, JsonEvent.LineCount, JsonEvent.Data.ToArray());
+				WriteFormattedEvent(logLevel, jsonEvent.LineIndex, jsonEvent.LineCount, jsonEvent.Data.ToArray());
 				return;
 			}
 
-			LogEvent? Event = State as LogEvent;
-			if (Event == null)
+			LogEvent? logEvent = state as LogEvent;
+			if (logEvent == null)
 			{
-				Event = LogEvent.FromState(LogLevel, EventId, State, Exception, Formatter);
+				logEvent = LogEvent.FromState(logLevel, eventId, state, exception, formatter);
 			}
-			WriteFormattedEvent(Event.Level, Event.LineIndex, Event.LineCount, Event.ToJsonBytes());
+			WriteFormattedEvent(logEvent.Level, logEvent.LineIndex, logEvent.LineCount, logEvent.ToJsonBytes());
 		}
 
 		/// <summary>
 		/// Writes a formatted event
 		/// </summary>
-		/// <param name="Level">The log level</param>
-		/// <param name="LineIndex">Index of the current line within this event</param>
-		/// <param name="LineCount">Number of lines in this event</param>
-		/// <param name="Line">Utf-8 encoded JSON line data</param>
-		protected abstract void WriteFormattedEvent(LogLevel Level, int LineIndex, int LineCount, byte[] Line);
+		/// <param name="level">The log level</param>
+		/// <param name="lineIndex">Index of the current line within this event</param>
+		/// <param name="lineCount">Number of lines in this event</param>
+		/// <param name="line">Utf-8 encoded JSON line data</param>
+		protected abstract void WriteFormattedEvent(LogLevel level, int lineIndex, int lineCount, byte[] line);
 
 		/// <summary>
 		/// Callback to write a systemic event
 		/// </summary>
-		/// <param name="EventId">The event id</param>
-		/// <param name="Text">The event text</param>
-		protected virtual void WriteSystemicEvent(EventId EventId, string Text)
+		/// <param name="eventId">The event id</param>
+		/// <param name="text">The event text</param>
+		protected virtual void WriteSystemicEvent(EventId eventId, string text)
 		{
-			Inner.LogWarning("Systemic event {KnownLogEventId}: {Text}", EventId.Id, Text);
+			Inner.LogWarning("Systemic event {KnownLogEventId}: {Text}", eventId.Id, text);
 		}
 	}
 }

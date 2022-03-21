@@ -16,43 +16,43 @@ namespace Horde.Agent.Parser.Matchers
 	/// </summary>
 	class MicrosoftEventMatcher : ILogEventMatcher
 	{
-		ILogContext Context;
+		private readonly ILogContext _context;
 
-		public MicrosoftEventMatcher(ILogContext Context)
+		public MicrosoftEventMatcher(ILogContext context)
 		{
-			this.Context = Context;
+			_context = context;
 		}
 
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			// filename(line# [, column#]) | toolname} : [ any text ] {error | warning} code+number:localizable string [ any text ]
 
-			Match? Match;
-			if (Cursor.TryMatch(@"(?<severity>(?:error|warning)) (?<code>[a-zA-Z]+[0-9]+)\s*:", out Match))
+			Match? match;
+			if (cursor.TryMatch(@"(?<severity>(?:error|warning)) (?<code>[a-zA-Z]+[0-9]+)\s*:", out match))
 			{
-				string Prefix = Cursor.CurrentLine!.Substring(0, Match.Index);
+				string prefix = cursor.CurrentLine!.Substring(0, match.Index);
 
-				Match FileOrToolMatch = Regex.Match(Prefix, @"^\s*(.*[^\s])\s*:");
-				if (FileOrToolMatch.Success)
+				Match fileOrToolMatch = Regex.Match(prefix, @"^\s*(.*[^\s])\s*:");
+				if (fileOrToolMatch.Success)
 				{
-					LogEventBuilder Builder = new LogEventBuilder(Cursor);
+					LogEventBuilder builder = new LogEventBuilder(cursor);
 
-					Match FileMatch = Regex.Match(FileOrToolMatch.Value, @"^\s*(?<file>.*)\((?<line>\d+)(?:, (?<column>\d+))?\)\s*:$");
-					if (FileMatch.Success)
+					Match fileMatch = Regex.Match(fileOrToolMatch.Value, @"^\s*(?<file>.*)\((?<line>\d+)(?:, (?<column>\d+))?\)\s*:$");
+					if (fileMatch.Success)
 					{
-						Builder.AnnotateSourceFile(FileMatch.Groups["file"], Context, "");
-						Builder.Annotate(FileMatch.Groups["line"], LogEventMarkup.LineNumber);
-						Builder.TryAnnotate(FileMatch.Groups["column"]);
+						builder.AnnotateSourceFile(fileMatch.Groups["file"], _context, "");
+						builder.Annotate(fileMatch.Groups["line"], LogEventMarkup.LineNumber);
+						builder.TryAnnotate(fileMatch.Groups["column"]);
 					}
 					else
 					{
-						Builder.Annotate("tool", FileOrToolMatch.Groups[1], LogEventMarkup.ToolName);
+						builder.Annotate("tool", fileOrToolMatch.Groups[1], LogEventMarkup.ToolName);
 					}
 
-					Group Severity = Match.Groups["severity"];
-					Builder.Annotate(Severity);
-					Builder.Annotate(Match.Groups["code"]);
-					return Builder.ToMatch(LogEventPriority.Normal, Severity.Value.Equals("error")? LogLevel.Error : LogLevel.Warning, KnownLogEvents.Microsoft);
+					Group severity = match.Groups["severity"];
+					builder.Annotate(severity);
+					builder.Annotate(match.Groups["code"]);
+					return builder.ToMatch(LogEventPriority.Normal, severity.Value.Equals("error")? LogLevel.Error : LogLevel.Warning, KnownLogEvents.Microsoft);
 				}
 			}
 			return null;

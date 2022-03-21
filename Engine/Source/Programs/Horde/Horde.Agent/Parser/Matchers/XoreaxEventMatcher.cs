@@ -16,42 +16,42 @@ namespace Horde.Agent.Parser.Matchers
 {
 	class XoreaxEventMatcher : ILogEventMatcher
 	{
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			if (Cursor.IsMatch(@"\(BuildService.exe\) is not running"))
+			if (cursor.IsMatch(@"\(BuildService.exe\) is not running"))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				return Builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
 			}
 
-			if (Cursor.IsMatch(@"BUILD FAILED: (.*)xgConsole\.exe(.*)"))
+			if (cursor.IsMatch(@"BUILD FAILED: (.*)xgConsole\.exe(.*)"))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Systemic_Xge_BuildFailed);
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Systemic_Xge_BuildFailed);
 			}
 
-			if (Cursor.IsMatch(@"^\s*--------------------Build System Warning[- ]"))
+			if (cursor.IsMatch(@"^\s*--------------------Build System Warning[- ]"))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				if (Builder.Next.TryMatch(@"^(\s*)([^ ].*):", out Match? Prefix))
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				if (builder.Next.TryMatch(@"^(\s*)([^ ].*):", out Match? prefix))
 				{
-					Builder.MoveNext();
+					builder.MoveNext();
 
-					string Message = Prefix.Groups[2].Value;
+					string message = prefix.Groups[2].Value;
 
-					EventId EventId = KnownLogEvents.Systemic_Xge;
-					if (Regex.IsMatch(Message, "Failed to connect to Coordinator"))
+					EventId eventId = KnownLogEvents.Systemic_Xge;
+					if (Regex.IsMatch(message, "Failed to connect to Coordinator"))
 					{
-						EventId = KnownLogEvents.Systemic_Xge_Standalone;
+						eventId = KnownLogEvents.Systemic_Xge_Standalone;
 					}
 
-					string PrefixPattern = $"^{Prefix.Groups[1].Value}\\s";
-					while (Builder.Next.IsMatch(PrefixPattern))
+					string prefixPattern = $"^{prefix.Groups[1].Value}\\s";
+					while (builder.Next.IsMatch(prefixPattern))
 					{
-						Builder.MoveNext();
+						builder.MoveNext();
 					}
 
-					return Builder.ToMatch(LogEventPriority.High, LogLevel.Information, EventId);
+					return builder.ToMatch(LogEventPriority.High, LogLevel.Information, eventId);
 				}
 			}
 			return null;

@@ -28,15 +28,15 @@ namespace Horde.Agent.Commands.Utilities
 	class CapsCommand : Command
 	{
 		/// <inheritdoc/>
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			AgentCapabilities Capabilities = await WorkerService.GetAgentCapabilities(DirectoryReference.GetCurrentDirectory(), Logger);
-			foreach (DeviceCapabilities Device in Capabilities.Devices)
+			AgentCapabilities capabilities = await WorkerService.GetAgentCapabilities(DirectoryReference.GetCurrentDirectory(), logger);
+			foreach (DeviceCapabilities device in capabilities.Devices)
 			{
-				Logger.LogInformation("Device: {Name}", Device.Handle);
-				foreach (string Property in Device.Properties)
+				logger.LogInformation("Device: {Name}", device.Handle);
+				foreach (string property in device.Properties)
 				{
-					Logger.LogInformation("  {Property}", Property);
+					logger.LogInformation("  {Property}", property);
 				}
 			}
 			return 0;

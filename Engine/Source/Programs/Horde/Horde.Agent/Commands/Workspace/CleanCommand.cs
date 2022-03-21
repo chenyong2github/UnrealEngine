@@ -19,11 +19,11 @@ namespace Horde.Agent.Commands.Workspace
 	{
 		[CommandLine("-Incremental")]
 		[Description("Performs an incremental sync, without removing intermediates")]
-		public bool bIncrementalSync = false;
+		public bool Incremental { get; set; } = false;
 
-		protected override Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			return Repo.CleanAsync(!bIncrementalSync, CancellationToken.None);
+			return repo.CleanAsync(!Incremental, CancellationToken.None);
 		}
 	}
 }

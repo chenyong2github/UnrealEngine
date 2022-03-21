@@ -43,50 +43,50 @@ namespace Horde.Agent.Parser
 	/// </summary>
 	public class LogParser : LogEventParser
 	{
-		LogParserContext Context;
+		readonly LogParserContext _context;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Logger">The logger to receive parsed output messages</param>
-		/// <param name="Context">Context for parsing this log</param>
-		/// <param name="IgnorePatterns">List of patterns to ignore</param>
-		public LogParser(ILogger Logger, LogParserContext Context, List<string> IgnorePatterns)
-			: base(Logger)
+		/// <param name="logger">The logger to receive parsed output messages</param>
+		/// <param name="context">Context for parsing this log</param>
+		/// <param name="ignorePatterns">List of patterns to ignore</param>
+		public LogParser(ILogger logger, LogParserContext context, List<string> ignorePatterns)
+			: base(logger)
 		{
-			this.Context = Context;
-			foreach (string IgnorePattern in IgnorePatterns)
+			_context = context;
+			foreach (string ignorePattern in ignorePatterns)
 			{
-				this.IgnorePatterns.Add(new Regex(IgnorePattern));
+				IgnorePatterns.Add(new Regex(ignorePattern));
 			}
 
-			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
+			foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
 			{
-				if (Type.IsClass && typeof(ILogEventMatcher).IsAssignableFrom(Type))
+				if (type.IsClass && typeof(ILogEventMatcher).IsAssignableFrom(type))
 				{
-					ILogEventMatcher Matcher;
-					if (Type.GetConstructor(new[] { typeof(ILogContext) }) != null)
+					ILogEventMatcher matcher;
+					if (type.GetConstructor(new[] { typeof(ILogContext) }) != null)
 					{
-						Matcher = (ILogEventMatcher)Activator.CreateInstance(Type, (ILogContext)Context)!;
+						matcher = (ILogEventMatcher)Activator.CreateInstance(type, (ILogContext)context)!;
 					}
 					else
 					{
-						Matcher = (ILogEventMatcher)Activator.CreateInstance(Type)!;
+						matcher = (ILogEventMatcher)Activator.CreateInstance(type)!;
 					}
-					Matchers.Add(Matcher);
+					Matchers.Add(matcher);
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		protected override void WriteEvents(List<LogEvent> Events)
+		protected override void WriteEvents(List<LogEvent> events)
 		{
-			base.WriteEvents(Events);
+			base.WriteEvents(events);
 
 			// Also flag that an error has occurred for future add the error to the log context, so that future errors can examine it
-			if (Events.Any(x => x.Level >= LogLevel.Error))
+			if (events.Any(x => x.Level >= LogLevel.Error))
 			{
-				Context.HasLoggedErrors = true;
+				_context.HasLoggedErrors = true;
 			}
 		}
 

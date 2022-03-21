@@ -19,46 +19,46 @@ namespace Horde.Agent.Parser.Matchers
 	/// </summary>
 	class CrashEventMatcher : ILogEventMatcher
 	{
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			if (Cursor.IsMatch("begin: stack for UAT"))
+			if (cursor.IsMatch("begin: stack for UAT"))
 			{
-				for (int MaxOffset = 1; MaxOffset < 100; MaxOffset++)
+				for (int maxOffset = 1; maxOffset < 100; maxOffset++)
 				{
-					if (Cursor.IsMatch(MaxOffset, "end: stack for UAT"))
+					if (cursor.IsMatch(maxOffset, "end: stack for UAT"))
 					{
-						LogEventBuilder Builder = new LogEventBuilder(Cursor, LineCount: MaxOffset + 1);
-						return Builder.ToMatch(LogEventPriority.BelowNormal, GetLogLevel(Cursor), KnownLogEvents.Engine_Crash);
+						LogEventBuilder builder = new LogEventBuilder(cursor, LineCount: maxOffset + 1);
+						return builder.ToMatch(LogEventPriority.BelowNormal, GetLogLevel(cursor), KnownLogEvents.Engine_Crash);
 					}
 				}
 			}
-			if (Cursor.IsMatch("AutomationTool: Stack:"))
+			if (cursor.IsMatch("AutomationTool: Stack:"))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while (Builder.Current.IsMatch(1, "AutomationTool: Stack:"))
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				while (builder.Current.IsMatch(1, "AutomationTool: Stack:"))
 				{
-					Builder.MoveNext();
+					builder.MoveNext();
 				}
-				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.AutomationTool_Crash);
+				return builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.AutomationTool_Crash);
 			}
 
-			Match? Match;
-			if (Cursor.TryMatch(@"ExitCode=(3|139|255)(?!\d)", out Match))
+			Match? match;
+			if (cursor.TryMatch(@"ExitCode=(3|139|255)(?!\d)", out match))
 			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				Builder.Annotate("exitCode", Match.Groups[1]);
-				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.AutomationTool_CrashExitCode);
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				builder.Annotate("exitCode", match.Groups[1]);
+				return builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.AutomationTool_CrashExitCode);
 			}
 			return null;
 		}
 
-		static LogLevel GetLogLevel(ILogCursor Cursor)
+		static LogLevel GetLogLevel(ILogCursor cursor)
 		{
-			if(Cursor.IsMatch(0, "[Ee]rror:"))
+			if(cursor.IsMatch(0, "[Ee]rror:"))
 			{
 				return LogLevel.Error;
 			}
-			else if(Cursor.IsMatch(0, "[Ww]arning:"))
+			else if(cursor.IsMatch(0, "[Ww]arning:"))
 			{
 				return LogLevel.Warning;
 			}

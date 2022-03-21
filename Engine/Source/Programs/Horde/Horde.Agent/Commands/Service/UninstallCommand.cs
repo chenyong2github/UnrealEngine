@@ -25,32 +25,32 @@ namespace Horde.Agent.Commands.Service
 		/// <summary>
 		/// Runs the service indefinitely
 		/// </summary>
-		/// <param name="Logger">Logger to use</param>
+		/// <param name="logger">Logger to use</param>
 		/// <returns>Exit code</returns>
-		public override Task<int> ExecuteAsync(ILogger Logger)
+		public override Task<int> ExecuteAsync(ILogger logger)
 		{
-			using (WindowsServiceManager ServiceManager = new WindowsServiceManager())
+			using (WindowsServiceManager serviceManager = new WindowsServiceManager())
 			{
-				using (WindowsService Service = ServiceManager.Open(ServiceName))
+				using (WindowsService service = serviceManager.Open(ServiceName))
 				{
-					if (Service.IsValid)
+					if (service.IsValid)
 					{
-						Logger.LogInformation("Stopping existing service...");
-						Service.Stop();
+						logger.LogInformation("Stopping existing service...");
+						service.Stop();
 
-						WindowsServiceStatus Status = Service.WaitForStatusChange(WindowsServiceStatus.Stopping, TimeSpan.FromSeconds(30.0));
-						if (Status != WindowsServiceStatus.Stopped)
+						WindowsServiceStatus status = service.WaitForStatusChange(WindowsServiceStatus.Stopping, TimeSpan.FromSeconds(30.0));
+						if (status != WindowsServiceStatus.Stopped)
 						{
-							Logger.LogError("Unable to stop service (status = {Status})", Status);
+							logger.LogError("Unable to stop service (status = {Status})", status);
 							return Task.FromResult(1);
 						}
 
-						Logger.LogInformation("Deleting service");
-						Service.Delete();
+						logger.LogInformation("Deleting service");
+						service.Delete();
 					}
 					else
 					{
-						Logger.LogInformation("Unable to find service {ServiceName}", ServiceName);
+						logger.LogInformation("Unable to find service {ServiceName}", ServiceName);
 					}
 				}
 			}

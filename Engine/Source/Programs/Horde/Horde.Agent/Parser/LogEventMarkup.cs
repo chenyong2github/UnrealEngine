@@ -30,43 +30,43 @@ namespace Horde.Agent.Parser
 		/// <summary>
 		/// Marks a span of text as a source file
 		/// </summary>
-		public static void AnnotateSourceFile(this LogEventBuilder Builder, Group Group, ILogContext Context, string BaseDir)
+		public static void AnnotateSourceFile(this LogEventBuilder builder, Group group, ILogContext context, string baseDir)
 		{
-			LogValue? Value = null;
-			if (Context.WorkspaceDir != null && Context.PerforceStream != null && Context.PerforceChange != null)
+			LogValue? value = null;
+			if (context.WorkspaceDir != null && context.PerforceStream != null && context.PerforceChange != null)
 			{
-				FileReference Location = FileReference.Combine(Context.WorkspaceDir, BaseDir.Replace('\\', Path.DirectorySeparatorChar), Group.Value.Replace('\\', Path.DirectorySeparatorChar));
-				if (Location.IsUnderDirectory(Context.WorkspaceDir) && !Location.ContainsName("Intermediate", Context.WorkspaceDir))
+				FileReference location = FileReference.Combine(context.WorkspaceDir, baseDir.Replace('\\', Path.DirectorySeparatorChar), group.Value.Replace('\\', Path.DirectorySeparatorChar));
+				if (location.IsUnderDirectory(context.WorkspaceDir) && !location.ContainsName("Intermediate", context.WorkspaceDir))
 				{
-					string RelativePath = Location.MakeRelativeTo(Context.WorkspaceDir).Replace('\\', '/');
-					string DepotPath = $"{Context.PerforceStream.TrimEnd('/')}/{RelativePath.Replace(Path.DirectorySeparatorChar, '/')}@{Context.PerforceChange.Value}";
+					string relativePath = location.MakeRelativeTo(context.WorkspaceDir).Replace('\\', '/');
+					string depotPath = $"{context.PerforceStream.TrimEnd('/')}/{relativePath.Replace(Path.DirectorySeparatorChar, '/')}@{context.PerforceChange.Value}";
 
-					Dictionary<string, object> Properties = new Dictionary<string, object>();
-					Properties["relativePath"] = RelativePath;
-					Properties["depotPath"] = DepotPath;
-					Value = new LogValue("SourceFile", "", Properties);
+					Dictionary<string, object> properties = new Dictionary<string, object>();
+					properties["relativePath"] = relativePath;
+					properties["depotPath"] = depotPath;
+					value = new LogValue("SourceFile", "", properties);
 				}
 			}
-			Builder.Annotate(Group, Value);
+			builder.Annotate(group, value);
 		}
 
 		/// <summary>
 		/// Marks a span of text as a source file
 		/// </summary>
-		public static void AnnotateAsset(this LogEventBuilder Builder, Group Group, ILogContext Context)
+		public static void AnnotateAsset(this LogEventBuilder builder, Group group, ILogContext context)
 		{
-			if (Context.WorkspaceDir != null && Context.PerforceStream != null && Context.PerforceChange != null)
+			if (context.WorkspaceDir != null && context.PerforceStream != null && context.PerforceChange != null)
 			{
-				FileReference Location = FileReference.Combine(DirectoryReference.Combine(Context.WorkspaceDir, "Engine", "Binaries", "Win64"), Group.Value);
-				if (Location.IsUnderDirectory(Context.WorkspaceDir) && !Location.ContainsName("Intermediate", Context.WorkspaceDir))
+				FileReference location = FileReference.Combine(DirectoryReference.Combine(context.WorkspaceDir, "Engine", "Binaries", "Win64"), group.Value);
+				if (location.IsUnderDirectory(context.WorkspaceDir) && !location.ContainsName("Intermediate", context.WorkspaceDir))
 				{
-					string RelativePath = Location.MakeRelativeTo(Context.WorkspaceDir);
-					string DepotPath = $"{Context.PerforceStream.TrimEnd('/')}/{RelativePath.Replace(Path.DirectorySeparatorChar, '/')}@{Context.PerforceChange.Value}";
+					string relativePath = location.MakeRelativeTo(context.WorkspaceDir);
+					string depotPath = $"{context.PerforceStream.TrimEnd('/')}/{relativePath.Replace(Path.DirectorySeparatorChar, '/')}@{context.PerforceChange.Value}";
 
-					Dictionary<string, object> Properties = new Dictionary<string, object>();
-					Properties["relativePath"] = RelativePath;
-					Properties["depotPath"] = DepotPath;
-					Builder.Annotate(Group, new LogValue("Asset", "", Properties));
+					Dictionary<string, object> properties = new Dictionary<string, object>();
+					properties["relativePath"] = relativePath;
+					properties["depotPath"] = depotPath;
+					builder.Annotate(group, new LogValue("Asset", "", properties));
 				}
 			}
 		}
@@ -74,23 +74,23 @@ namespace Horde.Agent.Parser
 		/// <summary>
 		/// Marks a span of text as a symbol
 		/// </summary>
-		public static void AnnotateSymbol(this LogEventBuilder Builder, Group Group)
+		public static void AnnotateSymbol(this LogEventBuilder builder, Group group)
 		{
-			string Identifier = Group.Value;
+			string identifier = group.Value;
 
 			// Remove any __declspec qualifiers
-			Identifier = Regex.Replace(Identifier, "(?<![^a-zA-Z_])__declspec\\([^\\)]+\\)", "");
+			identifier = Regex.Replace(identifier, "(?<![^a-zA-Z_])__declspec\\([^\\)]+\\)", "");
 
 			// Remove any argument lists for functions (anything after the first paren)
-			Identifier = Regex.Replace(Identifier, "\\(.*$", "");
+			identifier = Regex.Replace(identifier, "\\(.*$", "");
 
 			// Remove any decorators and type information (greedy match up to the last space)
-			Identifier = Regex.Replace(Identifier, "^.* ", "");
+			identifier = Regex.Replace(identifier, "^.* ", "");
 
 			// Add it to the list
-			Dictionary<string, object> Properties = new Dictionary<string, object>();
-			Properties["identifier"] = Identifier;
-			Builder.Annotate(Group, new LogValue("symbol", "", Properties));
+			Dictionary<string, object> properties = new Dictionary<string, object>();
+			properties["identifier"] = identifier;
+			builder.Annotate(group, new LogValue("symbol", "", properties));
 		}
 	}
 }

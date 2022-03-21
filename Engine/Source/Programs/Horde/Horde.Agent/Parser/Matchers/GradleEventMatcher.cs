@@ -13,34 +13,34 @@ namespace Horde.Agent.Parser.Matchers
 	/// </summary>
 	class GradleEventMatcher : ILogEventMatcher
 	{
-		public LogEventMatch? Match(ILogCursor Cursor)
+		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			if (Cursor.IsMatch(@"^\s*FAILURE:"))
+			if (cursor.IsMatch(@"^\s*FAILURE:"))
 			{
-				int MaxOffset = 1;
+				int maxOffset = 1;
 				for (; ; )
 				{
-					int NewMaxOffset = MaxOffset;
-					while (Cursor.IsMatch(NewMaxOffset, @"^\s*$"))
+					int newMaxOffset = maxOffset;
+					while (cursor.IsMatch(newMaxOffset, @"^\s*$"))
 					{
-						NewMaxOffset++;
+						newMaxOffset++;
 					}
 
-					Match? Match;
-					if (!Cursor.TryMatch(NewMaxOffset, @"^(\s*)\*", out Match))
+					Match? match;
+					if (!cursor.TryMatch(newMaxOffset, @"^(\s*)\*", out match))
 					{
 						break;
 					}
-					MaxOffset = NewMaxOffset + 1;
+					maxOffset = newMaxOffset + 1;
 
-					while (Cursor.IsMatch(MaxOffset, $"^{Match.Groups[1].Value}"))
+					while (cursor.IsMatch(maxOffset, $"^{match.Groups[1].Value}"))
 					{
-						MaxOffset++;
+						maxOffset++;
 					}
 				}
 
-				LogEventBuilder Builder = new LogEventBuilder(Cursor, MaxOffset);
-				return Builder.ToMatch(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.AutomationTool);
+				LogEventBuilder builder = new LogEventBuilder(cursor, maxOffset);
+				return builder.ToMatch(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.AutomationTool);
 			}
 
 			return null;

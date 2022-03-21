@@ -15,9 +15,9 @@ namespace Horde.Agent.Commands.Workspace
 	[Command("Workspace", "Dump", "Dumps the contents of the repository to the log for analysis")]
 	class Dump : WorkspaceCommand
 	{
-		protected override Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
+		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			Repo.Dump();
+			repo.Dump();
 			return Task.CompletedTask;
 		}
 	}

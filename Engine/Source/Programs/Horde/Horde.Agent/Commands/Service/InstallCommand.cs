@@ -26,79 +26,79 @@ namespace Horde.Agent.Commands.Service
 		/// Specifies the username for the service to run under
 		/// </summary>
 		[CommandLine("-UserName=")]
-		public string? UserName = null;
+		public string? UserName { get; set; } = null;
 
 		/// <summary>
 		/// Password for the username
 		/// </summary>
 		[CommandLine("-Password=")]
-		public string? Password = null;
+		public string? Password { get; set; } = null;
 
 		/// <summary>
 		/// The server profile to use
 		/// </summary>
 		[CommandLine("-Server=")]
-		public string? Server = null;
+		public string? Server { get; set; } = null;
 		
 		/// <summary>
 		/// Path to dotnet executable (dotnet.exe on Windows)
 		/// When left empty, the value of "dotnet" will be used.
 		/// </summary>
 		[CommandLine("-DotNetExecutable=")]
-		public string DotNetExecutable = "dotnet";
+		public string DotNetExecutable { get; set; } = "dotnet";
 
 		/// <summary>
 		/// Runs the service indefinitely
 		/// </summary>
-		/// <param name="Logger">Logger to use</param>
+		/// <param name="logger">Logger to use</param>
 		/// <returns>Exit code</returns>
-		public override Task<int> ExecuteAsync(ILogger Logger)
+		public override Task<int> ExecuteAsync(ILogger logger)
 		{
-			using (WindowsServiceManager ServiceManager = new WindowsServiceManager())
+			using (WindowsServiceManager serviceManager = new WindowsServiceManager())
 			{
-				using (WindowsService Service = ServiceManager.Open(ServiceName))
+				using (WindowsService service = serviceManager.Open(ServiceName))
 				{
-					if (Service.IsValid)
+					if (service.IsValid)
 					{
-						Logger.LogInformation("Stopping existing service...");
-						Service.Stop();
+						logger.LogInformation("Stopping existing service...");
+						service.Stop();
 
-						WindowsServiceStatus Status = Service.WaitForStatusChange(WindowsServiceStatus.Stopping, TimeSpan.FromSeconds(30.0));
-						if (Status != WindowsServiceStatus.Stopped)
+						WindowsServiceStatus status = service.WaitForStatusChange(WindowsServiceStatus.Stopping, TimeSpan.FromSeconds(30.0));
+						if (status != WindowsServiceStatus.Stopped)
 						{
-							Logger.LogError("Unable to stop service (status = {Status})", Status);
+							logger.LogError("Unable to stop service (status = {Status})", status);
 							return Task.FromResult(1);
 						}
 
-						Logger.LogInformation("Deleting service");
-						Service.Delete();
+						logger.LogInformation("Deleting service");
+						service.Delete();
 					}
 				}
 
-				Logger.LogInformation("Registering {ServiceName} service", ServiceName);
+				logger.LogInformation("Registering {ServiceName} service", ServiceName);
 
-				StringBuilder CommandLine = new StringBuilder();
-				CommandLine.AppendFormat("{0} \"{1}\" service run", DotNetExecutable, Assembly.GetEntryAssembly()!.Location);
+				StringBuilder commandLine = new StringBuilder();
+				commandLine.AppendFormat("{0} \"{1}\" service run", DotNetExecutable, Assembly.GetEntryAssembly()!.Location);
 				if(Server != null)
 				{
-					CommandLine.Append($" -server={Server}");
+					commandLine.Append($" -server={Server}");
 				}
 
-				using (WindowsService Service = ServiceManager.Create(ServiceName, "Horde Agent", CommandLine.ToString(), UserName, Password))
+				using (WindowsService service = serviceManager.Create(ServiceName, "Horde Agent", commandLine.ToString(), UserName, Password))
 				{
-					Service.SetDescription("Allows this machine to participate in a Horde farm.");
+					service.SetDescription("Allows this machine to participate in a Horde farm.");
 
-					Logger.LogInformation("Starting...");
-					Service.Start();
+					logger.LogInformation("Starting...");
+					service.Start();
 
-					WindowsServiceStatus Status = Service.WaitForStatusChange(WindowsServiceStatus.Starting, TimeSpan.FromSeconds(30.0));
-					if (Status != WindowsServiceStatus.Running)
+					WindowsServiceStatus status = service.WaitForStatusChange(WindowsServiceStatus.Starting, TimeSpan.FromSeconds(30.0));
+					if (status != WindowsServiceStatus.Running)
 					{
-						Logger.LogError("Unable to start service (status = {Status})", Status);
+						logger.LogError("Unable to start service (status = {Status})", status);
 						return Task.FromResult(1);
 					}
 
-					Logger.LogInformation("Done.");
+					logger.LogInformation("Done.");
 				}
 			}
 			return Task.FromResult(0);

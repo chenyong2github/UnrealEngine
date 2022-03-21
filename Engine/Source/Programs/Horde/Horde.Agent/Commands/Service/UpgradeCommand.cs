@@ -30,167 +30,167 @@ namespace Horde.Agent.Commands
 		/// The process id to replace
 		/// </summary>
 		[CommandLine("-ProcessId=", Required = true)]
-		int ProcessId = -1;
+		int ProcessId { get; set; } = -1;
 
 		/// <summary>
 		/// The target directory to install to
 		/// </summary>
 		[CommandLine("-TargetDir=", Required = true)]
-		DirectoryReference TargetDir = null!;
+		DirectoryReference TargetDir { get; set; } = null!;
 
 		/// <summary>
 		/// Arguments to forwar to the target executable
 		/// </summary>
 		[CommandLine("-Arguments=", Required = true)]
-		string Arguments = null!;
+		string Arguments { get; set; } = null!;
 
 		/// <summary>
 		/// Upgrades the application to a new version
 		/// </summary>
-		/// <param name="Logger">The log output device</param>
+		/// <param name="logger">The log output device</param>
 		/// <returns>True if the upgrade succeeded</returns>
-		public override Task<int> ExecuteAsync(ILogger Logger)
+		public override Task<int> ExecuteAsync(ILogger logger)
 		{
 			// Stop the other process
-			Logger.LogInformation("Attempting to perform upgrade on process {ProcessId}", ProcessId);
-			using (Process OtherProcess = Process.GetProcessById(ProcessId))
+			logger.LogInformation("Attempting to perform upgrade on process {ProcessId}", ProcessId);
+			using (Process otherProcess = Process.GetProcessById(ProcessId))
 			{
 				// Get the directory containing the target application
-				DirectoryInfo TargetDir = new DirectoryInfo(this.TargetDir.FullName);
-				HashSet<string> TargetFiles = new HashSet<string>(TargetDir.EnumerateFiles("*", SearchOption.AllDirectories).Select(x => x.FullName), StringComparer.OrdinalIgnoreCase);
+				DirectoryInfo targetDir = new DirectoryInfo(TargetDir.FullName);
+				HashSet<string> targetFiles = new HashSet<string>(targetDir.EnumerateFiles("*", SearchOption.AllDirectories).Select(x => x.FullName), StringComparer.OrdinalIgnoreCase);
 
 				// Find all the source files
-				DirectoryInfo SourceDir = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
-				HashSet<string> SourceFiles = new HashSet<string>(SourceDir.EnumerateFiles("*", SearchOption.AllDirectories).Select(x => x.FullName), StringComparer.OrdinalIgnoreCase);
+				DirectoryInfo sourceDir = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+				HashSet<string> sourceFiles = new HashSet<string>(sourceDir.EnumerateFiles("*", SearchOption.AllDirectories).Select(x => x.FullName), StringComparer.OrdinalIgnoreCase);
 
 				// Exclude all the source files from the list of target files, since we may be in a subdirectory
-				TargetFiles.ExceptWith(SourceFiles);
+				targetFiles.ExceptWith(sourceFiles);
 
 				// Ignore any files that are in the saved directory
-				string SourceDataDir = Path.Combine(SourceDir.FullName, "Saved") + Path.DirectorySeparatorChar;
-				SourceFiles.RemoveWhere(x => x.StartsWith(SourceDataDir, StringComparison.OrdinalIgnoreCase));
+				string sourceDataDir = Path.Combine(sourceDir.FullName, "Saved") + Path.DirectorySeparatorChar;
+				sourceFiles.RemoveWhere(x => x.StartsWith(sourceDataDir, StringComparison.OrdinalIgnoreCase));
 
-				string TargetDataDir = Path.Combine(TargetDir.FullName, "Saved") + Path.DirectorySeparatorChar;
-				TargetFiles.RemoveWhere(x => x.StartsWith(TargetDataDir, StringComparison.OrdinalIgnoreCase));
+				string targetDataDir = Path.Combine(targetDir.FullName, "Saved") + Path.DirectorySeparatorChar;
+				targetFiles.RemoveWhere(x => x.StartsWith(targetDataDir, StringComparison.OrdinalIgnoreCase));
 
 				// Copy all the files into the target directory
-				List<Tuple<string, string>> RenameFiles = new List<Tuple<string, string>>();
-				foreach (string SourceFile in SourceFiles)
+				List<Tuple<string, string>> renameFiles = new List<Tuple<string, string>>();
+				foreach (string sourceFile in sourceFiles)
 				{
-					if (!SourceFile.StartsWith(SourceDir.FullName, StringComparison.OrdinalIgnoreCase))
+					if (!sourceFile.StartsWith(sourceDir.FullName, StringComparison.OrdinalIgnoreCase))
 					{
-						throw new InvalidDataException($"Expected {SourceFile} to be under {SourceDir.FullName}");
+						throw new InvalidDataException($"Expected {sourceFile} to be under {sourceDir.FullName}");
 					}
 
-					string TargetFile = TargetDir.FullName + SourceFile.Substring(SourceDir.FullName.Length);
-					Directory.CreateDirectory(Path.GetDirectoryName(TargetFile));
+					string targetFile = targetDir.FullName + sourceFile.Substring(sourceDir.FullName.Length);
+					Directory.CreateDirectory(Path.GetDirectoryName(targetFile));
 
-					string TargetFileBeforeRename = TargetFile + ".new";
-					Logger.LogDebug("Copying {SourceFile} to {TargetFileBeforeRename}", SourceFile, TargetFileBeforeRename);
-					File.Copy(SourceFile, TargetFileBeforeRename, true);
+					string targetFileBeforeRename = targetFile + ".new";
+					logger.LogDebug("Copying {SourceFile} to {TargetFileBeforeRename}", sourceFile, targetFileBeforeRename);
+					File.Copy(sourceFile, targetFileBeforeRename, true);
 
-					RenameFiles.Add(Tuple.Create(TargetFileBeforeRename, TargetFile));
-					TargetFiles.Remove(TargetFileBeforeRename);
+					renameFiles.Add(Tuple.Create(targetFileBeforeRename, targetFile));
+					targetFiles.Remove(targetFileBeforeRename);
 				}
 
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					UpgradeWindowsService(Logger, OtherProcess, TargetFiles, RenameFiles);
+					UpgradeWindowsService(logger, otherProcess, targetFiles, renameFiles);
 				}
 				else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 				{
-					UpgradeMacService(Logger, OtherProcess, TargetFiles, RenameFiles);
+					UpgradeMacService(logger, otherProcess, targetFiles, renameFiles);
 				}
 				else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 				{
-					UpgradeLinuxService(Logger, OtherProcess, TargetFiles, RenameFiles);
+					UpgradeLinuxService(logger, otherProcess, targetFiles, renameFiles);
 				}
 				else
 				{
-					Logger.LogError("Agent is not running a platform that supports Upgrades. Platform: {0}", RuntimeInformation.OSDescription);
+					logger.LogError("Agent is not running a platform that supports Upgrades. Platform: {0}", RuntimeInformation.OSDescription);
 					return Task.FromResult(-1);
 				}
 			}
-			Logger.LogInformation("Upgrade complete");
+			logger.LogInformation("Upgrade complete");
 			return Task.FromResult(0);
 		}
 
-		void UpgradeFilesInPlace(ILogger Logger, HashSet<string> TargetFiles, List<Tuple<string, string>> RenameFiles)
+		void UpgradeFilesInPlace(ILogger logger, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
 		{
 			// Remove all the target files
-			foreach (string TargetFile in TargetFiles)
+			foreach (string targetFile in targetFiles)
 			{
-				Logger.LogDebug("Deleting {File}", TargetFile);
-				File.SetAttributes(TargetFile, FileAttributes.Normal);
-				File.Delete(TargetFile);
+				logger.LogDebug("Deleting {File}", targetFile);
+				File.SetAttributes(targetFile, FileAttributes.Normal);
+				File.Delete(targetFile);
 			}
 
 			// Rename all the new files into place
-			foreach (Tuple<string, string> Pair in RenameFiles)
+			foreach (Tuple<string, string> pair in renameFiles)
 			{
-				Logger.LogDebug("Renaming {SourceFile} to {TargetFile}", Pair.Item1, Pair.Item2);
-				File.Move(Pair.Item1, Pair.Item2, true);
+				logger.LogDebug("Renaming {SourceFile} to {TargetFile}", pair.Item1, pair.Item2);
+				File.Move(pair.Item1, pair.Item2, true);
 			}
 		}
 
-		void UpgradeMacService(ILogger Logger, Process OtherProcess, HashSet<string> TargetFiles, List<Tuple<string, string>> RenameFiles)
+		void UpgradeMacService(ILogger logger, Process otherProcess, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
 		{
-			UpgradeFilesInPlace(Logger, TargetFiles, RenameFiles);
-			Logger.LogDebug("Upgrade completed, restarting...");
-			OtherProcess.Kill();
+			UpgradeFilesInPlace(logger, targetFiles, renameFiles);
+			logger.LogDebug("Upgrade completed, restarting...");
+			otherProcess.Kill();
 		}
 
-		void UpgradeLinuxService(ILogger Logger, Process OtherProcess, HashSet<string> TargetFiles, List<Tuple<string, string>> RenameFiles)
+		void UpgradeLinuxService(ILogger logger, Process otherProcess, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
 		{
-			UpgradeFilesInPlace(Logger, TargetFiles, RenameFiles);
-			Logger.LogDebug("Upgrade completed, restarting...");
-			OtherProcess.Kill();
+			UpgradeFilesInPlace(logger, targetFiles, renameFiles);
+			logger.LogDebug("Upgrade completed, restarting...");
+			otherProcess.Kill();
 		}
 
-		void UpgradeWindowsService(ILogger Logger, Process OtherProcess, HashSet<string> TargetFiles, List<Tuple<string, string>> RenameFiles)
+		void UpgradeWindowsService(ILogger logger, Process otherProcess, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
 		{
 			// Try to get the service associated with the passed-in process id
-			using (ServiceController? Service = GetServiceForProcess(ProcessId))
+			using (ServiceController? service = GetServiceForProcess(ProcessId))
 			{
 				// Stop the process
-				if (Service == null)
+				if (service == null)
 				{
-					Logger.LogInformation("Terminating other process");
-					OtherProcess.Kill();
+					logger.LogInformation("Terminating other process");
+					otherProcess.Kill();
 				}
 				else
 				{
-					Logger.LogInformation("Stopping service");
-					Service.Stop();
+					logger.LogInformation("Stopping service");
+					service.Stop();
 				}
-				OtherProcess.WaitForExit();
+				otherProcess.WaitForExit();
 
-				UpgradeFilesInPlace(Logger, TargetFiles, RenameFiles);
+				UpgradeFilesInPlace(logger, targetFiles, renameFiles);
 
 				// Run the new application
-				if (Service == null)
+				if (service == null)
 				{
-					string DriverFileName = "dotnet";
-					string AssemblyFileName = Path.Combine(TargetDir.FullName, Path.GetFileName(Assembly.GetExecutingAssembly().Location));
+					string driverFileName = "dotnet";
+					string assemblyFileName = Path.Combine(TargetDir.FullName, Path.GetFileName(Assembly.GetExecutingAssembly().Location));
 
-					StringBuilder DriverArguments = new StringBuilder();
-					DriverArguments.AppendArgument(AssemblyFileName);
-					DriverArguments.Append(' ');
-					DriverArguments.Append(Arguments);
+					StringBuilder driverArguments = new StringBuilder();
+					driverArguments.AppendArgument(assemblyFileName);
+					driverArguments.Append(' ');
+					driverArguments.Append(Arguments);
 
-					StringBuilder Launch = new StringBuilder();
-					Launch.AppendArgument(DriverFileName);
-					Launch.Append(' ');
-					Launch.Append(DriverArguments);
-					Logger.LogInformation("Launching: {Launch}", Launch.ToString());
+					StringBuilder launch = new StringBuilder();
+					launch.AppendArgument(driverFileName);
+					launch.Append(' ');
+					launch.Append(driverArguments);
+					logger.LogInformation("Launching: {Launch}", launch.ToString());
 
-					using Process NewProcess = Process.Start(DriverFileName, DriverArguments.ToString());
+					using Process newProcess = Process.Start(driverFileName, driverArguments.ToString());
 				}
 				else
 				{
 					// Start the service again
-					Logger.LogInformation("Restarting service");
-					Service.Start();
+					logger.LogInformation("Restarting service");
+					service.Start();
 				}
 			}
 		}
@@ -198,23 +198,23 @@ namespace Horde.Agent.Commands
 		/// <summary>
 		/// Try to find the service controller for the given process id
 		/// </summary>
-		/// <param name="ProcessId">The process id to search for</param>
+		/// <param name="processId">The process id to search for</param>
 		/// <returns>The service controller corresponding to this process</returns>
-		static ServiceController? GetServiceForProcess(int ProcessId)
+		static ServiceController? GetServiceForProcess(int processId)
 		{
 			try
 			{
-				using (ManagementObjectSearcher Searcher = new ManagementObjectSearcher($"SELECT Name FROM Win32_Service WHERE ProcessId={ProcessId}"))
+				using (ManagementObjectSearcher searcher = new ManagementObjectSearcher($"SELECT Name FROM Win32_Service WHERE ProcessId={processId}"))
 				{
-					foreach (ManagementObject Service in Searcher.Get())
+					foreach (ManagementObject service in searcher.Get())
 					{
-						PropertyData Property = Service.Properties["Name"];
-						if (Property != null)
+						PropertyData property = service.Properties["Name"];
+						if (property != null)
 						{
-							string? Name = Property.Value as string;
-							if (Name != null)
+							string? name = property.Value as string;
+							if (name != null)
 							{
-								return new ServiceController(Name);
+								return new ServiceController(name);
 							}
 						}
 					}

@@ -17,18 +17,18 @@ namespace HordeCommon.Rpc.Tasks
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeTaskResultMessage(RefIdWrapper ResultRefId)
+		public ComputeTaskResultMessage(RefIdWrapper resultRefId)
 		{
-			this.ResultRefId = ResultRefId;
+			ResultRefId = resultRefId;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeTaskResultMessage(ComputeTaskOutcome Outcome, string? Detail = null)
+		public ComputeTaskResultMessage(ComputeTaskOutcome outcome, string? detail = null)
 		{
-			this.Outcome = (int)Outcome;
-			this.Detail = Detail;
+			Outcome = (int)outcome;
+			Detail = detail;
 		}
 	}
 }
