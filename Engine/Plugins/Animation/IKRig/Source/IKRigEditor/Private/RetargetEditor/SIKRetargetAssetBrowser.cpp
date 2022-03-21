@@ -178,7 +178,7 @@ void SIKRetargetAssetBrowser::OnAssetDoubleClicked(const FAssetData& AssetData)
 bool SIKRetargetAssetBrowser::OnShouldFilterAsset(const struct FAssetData& AssetData)
 {
 	// is this an animation asset?
-	if (!AssetData.GetClass()->IsChildOf(UAnimationAsset::StaticClass()))
+	if (!AssetData.IsInstanceOf(UAnimationAsset::StaticClass()))
 	{
 		return true;
 	}

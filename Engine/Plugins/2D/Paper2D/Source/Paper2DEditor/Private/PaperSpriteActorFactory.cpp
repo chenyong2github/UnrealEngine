@@ -60,7 +60,7 @@ void UPaperSpriteActorFactory::PostCreateBlueprint(UObject* Asset, AActor* CDO)
 
 bool UPaperSpriteActorFactory::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	if (AssetData.IsValid() && AssetData.GetClass()->IsChildOf(UPaperSprite::StaticClass()))
+	if (AssetData.IsValid() && AssetData.IsInstanceOf(UPaperSprite::StaticClass()))
 	{
 		return true;
 	}

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigEditor/SIKRigAssetBrowser.h"
 
@@ -83,7 +83,7 @@ void SIKRigAssetBrowser::OnAssetDoubleClicked(const FAssetData& AssetData)
 bool SIKRigAssetBrowser::OnShouldFilterAsset(const struct FAssetData& AssetData)
 {
 	// is this an animation asset?
-	if (!AssetData.GetClass()->IsChildOf(UAnimationAsset::StaticClass()))
+	if (!AssetData.IsInstanceOf(UAnimationAsset::StaticClass()))
 	{
 		return true;
 	}

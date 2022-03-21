@@ -48,7 +48,7 @@ void UPaperFlipbookActorFactory::PostCreateBlueprint(UObject* Asset, AActor* CDO
 
 bool UPaperFlipbookActorFactory::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	if (AssetData.IsValid() && AssetData.GetClass()->IsChildOf(UPaperFlipbook::StaticClass()))
+	if (AssetData.IsValid() && AssetData.IsInstanceOf(UPaperFlipbook::StaticClass()))
 	{
 		return true;
 	}

@@ -202,7 +202,7 @@ FReply SSCSEditor::TryHandleAssetDragDropOperation(const FDragDropEvent& DragDro
 						PotentialActorClass = BPClass->GeneratedClass;
 					}
 				}
-				else if (AssetClass->IsChildOf(UClass::StaticClass()))
+				else if (AssetClass && AssetClass->IsChildOf(UClass::StaticClass()))
 				{
 					UClass* AssetAsClass = CastChecked<UClass>(Asset);
 					if (AssetAsClass->IsChildOf(UActorComponent::StaticClass()))

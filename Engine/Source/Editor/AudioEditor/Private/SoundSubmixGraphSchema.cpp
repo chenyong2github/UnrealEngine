@@ -154,7 +154,7 @@ void USoundSubmixGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData
 
 	for (const FAssetData& Data : Assets)
 	{
-		if (!Data.GetClass()->IsChildOf(USoundSubmixBase::StaticClass()))
+		if (!Data.IsInstanceOf(USoundSubmixBase::StaticClass()))
 		{
 			OutOkIcon = false;
 			OutTooltipText = TEXT("Asset(s) must all be Submixes.");

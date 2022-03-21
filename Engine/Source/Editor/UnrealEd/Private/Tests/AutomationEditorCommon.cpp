@@ -710,7 +710,7 @@ void FAutomationEditorCommonUtils::CollectGameContentTests(TArray<FString>& OutB
 				Filename = FPackageName::LongPackageNameToFilename(Filename);
 				if (FAutomationTestFramework::Get().ShouldTestContent(Filename))
 				{
-					FString BeautifiedFilename = FString::Printf(TEXT("%s.%s"), *Asset.GetClass()->GetFName().ToString(), *Asset.AssetName.ToString());
+					FString BeautifiedFilename = FString::Printf(TEXT("%s.%s"), *Asset.AssetClass.ToString(), *Asset.AssetName.ToString());
 					OutBeautifiedNames.Add(BeautifiedFilename);
 					OutTestCommands.Add(Asset.ObjectPath.ToString());
 				}

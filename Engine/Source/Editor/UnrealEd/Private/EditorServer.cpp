@@ -609,7 +609,7 @@ void UEditorEngine::LoadAndSelectAssets( TArray<FAssetData>& Assets, UClass* Typ
 		for ( int32 CurrentAssetIndex=0; CurrentAssetIndex < Assets.Num(); CurrentAssetIndex++ )
 		{
 			FAssetData& SelectedAsset = Assets[CurrentAssetIndex];
-			if ( TypeOfAsset == NULL || SelectedAsset.GetClass()->IsChildOf( TypeOfAsset ) )
+			if ( TypeOfAsset == NULL || SelectedAsset.IsInstanceOf( TypeOfAsset ) )
 			{
 				// GetAsset() will load the asset if necessary
 				UObject* LoadedAsset = SelectedAsset.GetAsset();

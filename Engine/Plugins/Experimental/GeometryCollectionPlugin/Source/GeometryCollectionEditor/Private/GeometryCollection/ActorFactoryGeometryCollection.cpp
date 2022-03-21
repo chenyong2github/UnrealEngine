@@ -27,7 +27,7 @@ UActorFactoryGeometryCollection::UActorFactoryGeometryCollection(const FObjectIn
 
 bool UActorFactoryGeometryCollection::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	if (!AssetData.IsValid() || !AssetData.GetClass()->IsChildOf(UGeometryCollection::StaticClass()))
+	if (!AssetData.IsValid() || !AssetData.IsInstanceOf(UGeometryCollection::StaticClass()))
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoGeometryCollectionSpecified", "No GeometryCollection mesh was specified.");
 		return false;

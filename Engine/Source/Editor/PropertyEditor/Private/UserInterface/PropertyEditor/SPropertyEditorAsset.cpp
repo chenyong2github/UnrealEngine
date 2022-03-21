@@ -1390,6 +1390,12 @@ bool SPropertyEditorAsset::CanSetBasedOnCustomClasses( const FAssetData& InAsset
 
 bool SPropertyEditorAsset::IsClassAllowed(const UClass* InClass) const
 {
+	if (!InClass)
+	{
+		// A null class will not match any filters. If we have an allow list, this means failure, otherwise it means success.
+		return AllowedClassFilters.Num() == 0;
+	}
+
 	bool bClassAllowed = true;
 	if (AllowedClassFilters.Num() > 0)
 	{

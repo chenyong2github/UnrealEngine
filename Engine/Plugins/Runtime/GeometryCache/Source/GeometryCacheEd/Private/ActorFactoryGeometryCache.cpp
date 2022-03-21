@@ -16,7 +16,7 @@ UActorFactoryGeometryCache::UActorFactoryGeometryCache(const FObjectInitializer&
 
 bool UActorFactoryGeometryCache::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	if (!AssetData.IsValid() || !AssetData.GetClass()->IsChildOf(UGeometryCache::StaticClass()))
+	if (!AssetData.IsValid() || !AssetData.IsInstanceOf(UGeometryCache::StaticClass()))
 	{
 		OutErrorMsg = FText::FromString("A valid GeometryCache must be specified.");
 		return false;

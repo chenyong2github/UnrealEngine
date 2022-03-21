@@ -42,7 +42,7 @@ bool UTerrainSplineActorFactory::CanCreateActorFrom(const FAssetData& AssetData,
 {
 	if (GetDefault<UPaperRuntimeSettings>()->bEnableTerrainSplineEditing)
 	{
-		if (AssetData.IsValid() && AssetData.GetClass()->IsChildOf(UPaperTerrainMaterial::StaticClass()))
+		if (AssetData.IsValid() && AssetData.IsInstanceOf(UPaperTerrainMaterial::StaticClass()))
 		{
 			return true;
 		}

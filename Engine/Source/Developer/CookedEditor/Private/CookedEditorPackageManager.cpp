@@ -196,7 +196,7 @@ bool FIniCookedEditorPackageManager::AllowAssetToBeGathered(const struct FAssetD
 {
 	for (UClass* Class : DisallowedAssetClassesToGather)
 	{
-		if (AssetData.GetClass()->IsChildOf(Class))
+		if (AssetData.IsInstanceOf(Class))
 		{
 			return false;
 		}

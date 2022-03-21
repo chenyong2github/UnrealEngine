@@ -538,7 +538,7 @@ UActorFactoryStaticMesh::UActorFactoryStaticMesh(const FObjectInitializer& Objec
 
 bool UActorFactoryStaticMesh::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
-	if ( !AssetData.IsValid() || !AssetData.GetClass()->IsChildOf( UStaticMesh::StaticClass() ) )
+	if ( !AssetData.IsValid() || !AssetData.IsInstanceOf( UStaticMesh::StaticClass() ) )
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoStaticMesh", "A valid static mesh must be specified.");
 		return false;
@@ -674,7 +674,7 @@ bool UActorFactoryDeferredDecal::CanCreateActorFrom( const FAssetData& AssetData
 	}
 
 	//But if an asset is specified it must be based-on a deferred decal umaterial
-	if ( !AssetData.GetClass()->IsChildOf( UMaterialInterface::StaticClass() ) )
+	if ( !AssetData.IsInstanceOf( UMaterialInterface::StaticClass() ) )
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoMaterial", "A valid material must be specified.");
 		return false;
@@ -685,7 +685,7 @@ bool UActorFactoryDeferredDecal::CanCreateActorFrom( const FAssetData& AssetData
 
 	uint32 SanityCheck = 0;
 	FAssetData CurrentAssetData = AssetData;
-	while( SanityCheck < 1000 && !CurrentAssetData.GetClass()->IsChildOf( UMaterial::StaticClass() ) )
+	while( SanityCheck < 1000 && !CurrentAssetData.IsInstanceOf( UMaterial::StaticClass() ) )
 	{
 		const FString ObjectPath = CurrentAssetData.GetTagValueRef<FString>( "Parent" );
 		if ( ObjectPath.IsEmpty() )
@@ -710,7 +710,7 @@ bool UActorFactoryDeferredDecal::CanCreateActorFrom( const FAssetData& AssetData
 		return false;
 	}
 
-	if ( !CurrentAssetData.GetClass()->IsChildOf( UMaterial::StaticClass() ) )
+	if ( !CurrentAssetData.IsInstanceOf( UMaterial::StaticClass() ) )
 	{
 		return false;
 	}
@@ -814,7 +814,7 @@ UActorFactoryEmitter::UActorFactoryEmitter(const FObjectInitializer& ObjectIniti
 
 bool UActorFactoryEmitter::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
-	if ( !AssetData.IsValid() || !AssetData.GetClass()->IsChildOf( UParticleSystem::StaticClass() ) )
+	if ( !AssetData.IsValid() || !AssetData.IsInstanceOf( UParticleSystem::StaticClass() ) )
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoParticleSystem", "A valid particle system must be specified.");
 		return false;
@@ -917,7 +917,7 @@ UActorFactoryPhysicsAsset::UActorFactoryPhysicsAsset(const FObjectInitializer& O
 
 bool UActorFactoryPhysicsAsset::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
-	if ( !AssetData.IsValid() || !AssetData.GetClass()->IsChildOf( UPhysicsAsset::StaticClass() ) )
+	if ( !AssetData.IsValid() || !AssetData.IsInstanceOf( UPhysicsAsset::StaticClass() ) )
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoPhysicsAsset", "A valid physics asset must be specified.");
 		return false;
@@ -1023,7 +1023,7 @@ bool UActorFactoryAnimationAsset::CanCreateActorFrom( const FAssetData& AssetDat
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-	if ( AssetData.GetClass()->IsChildOf( UAnimSequenceBase::StaticClass() ) )
+	if ( AssetData.IsInstanceOf( UAnimSequenceBase::StaticClass() ) )
 	{
 		const FString SkeletonPath = AssetData.GetTagValueRef<FString>("Skeleton");
 		if ( SkeletonPath.IsEmpty() ) 
@@ -1179,12 +1179,13 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 	FAssetData SkeletalMeshData;
 
-	if ( AssetData.GetClass()->IsChildOf( USkeletalMesh::StaticClass() ) )
+	UClass* AssetClass = AssetData.GetClass();
+	if ( AssetClass && AssetClass->IsChildOf( USkeletalMesh::StaticClass() ) )
 	{
 		SkeletalMeshData = AssetData;
 	}
 
-	if ( !SkeletalMeshData.IsValid() && (AssetData.GetClass()->IsChildOf(UAnimBlueprint::StaticClass()) || AssetData.GetClass()->IsChildOf(UAnimBlueprintGeneratedClass::StaticClass())))
+	if ( !SkeletalMeshData.IsValid() && AssetClass && (AssetClass->IsChildOf(UAnimBlueprint::StaticClass()) || AssetClass->IsChildOf(UAnimBlueprintGeneratedClass::StaticClass())))
 	{
 		const FString TargetSkeletonPath = AssetData.GetTagValueRef<FString>( "TargetSkeleton" );
 		if ( TargetSkeletonPath.IsEmpty() )
@@ -1222,7 +1223,7 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 		}
 	}
 
-	if ( !SkeletalMeshData.IsValid() && AssetData.GetClass()->IsChildOf( USkeleton::StaticClass() ) )
+	if ( !SkeletalMeshData.IsValid() && AssetClass && AssetClass->IsChildOf( USkeleton::StaticClass() ) )
 	{
 		// so I'm changing this to load directly not using tags and values
 		USkeleton* Skeleton = Cast<USkeleton>(AssetData.GetAsset());
@@ -1258,9 +1259,10 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 		return false;
 	}
 
-	if(USkeletalMesh* SkeletalMeshCDO = Cast<USkeletalMesh>(AssetData.GetClass()->GetDefaultObject()))
+	check(AssetClass);
+	if (USkeletalMesh* SkeletalMeshCDO = Cast<USkeletalMesh>(AssetClass->GetDefaultObject()))
 	{
-		if(SkeletalMeshCDO->HasCustomActorFactory())
+		if (SkeletalMeshCDO->HasCustomActorFactory())
 		{
 			return false;
 		}
@@ -1483,7 +1485,7 @@ bool UActorFactoryAmbientSound::CanCreateActorFrom( const FAssetData& AssetData,
 		return true;
 	}
 
-	if ( AssetData.IsValid() && !AssetData.GetClass()->IsChildOf( USoundBase::StaticClass() ) )
+	if ( AssetData.IsValid() && !AssetData.IsInstanceOf( USoundBase::StaticClass() ) )
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoSoundAsset", "A valid sound asset must be specified.");
 		return false;
@@ -1539,7 +1541,7 @@ UActorFactoryClass::UActorFactoryClass(const FObjectInitializer& ObjectInitializ
 
 bool UActorFactoryClass::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
-	if ( AssetData.IsValid() && AssetData.GetClass()->IsChildOf( UClass::StaticClass() ) )
+	if ( AssetData.IsValid() && AssetData.IsInstanceOf( UClass::StaticClass() ) )
 	{
 		UClass* ActualClass = Cast<UClass>(AssetData.GetAsset());
 		if ( (nullptr != ActualClass) && ActualClass->IsChildOf(AActor::StaticClass()) )
@@ -1554,7 +1556,7 @@ bool UActorFactoryClass::CanCreateActorFrom( const FAssetData& AssetData, FText&
 
 AActor* UActorFactoryClass::GetDefaultActor( const FAssetData& AssetData )
 {
-	if ( AssetData.IsValid() && AssetData.GetClass()->IsChildOf( UClass::StaticClass() ) )
+	if ( AssetData.IsValid() && AssetData.IsInstanceOf( UClass::StaticClass() ) )
 	{
 		UClass* ActualClass = Cast<UClass>(StaticLoadObject(UClass::StaticClass(), nullptr, *AssetData.ObjectPath.ToString(), nullptr, LOAD_NoWarn, nullptr));
 			
@@ -1606,7 +1608,7 @@ UActorFactoryBlueprint::UActorFactoryBlueprint(const FObjectInitializer& ObjectI
 
 bool UActorFactoryBlueprint::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
-	if ( !AssetData.IsValid() || !AssetData.GetClass()->IsChildOf( UBlueprint::StaticClass() ) )
+	if ( !AssetData.IsValid() || !AssetData.IsInstanceOf( UBlueprint::StaticClass() ) )
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoBlueprint", "No Blueprint was specified, or the specified Blueprint needs to be compiled.");
 		return false;
@@ -1659,7 +1661,7 @@ AActor* UActorFactoryBlueprint::GetDefaultActor( const FAssetData& AssetData )
 
 UClass* UActorFactoryBlueprint::GetDefaultActorClass(const FAssetData& AssetData)
 {
-	if (!AssetData.IsValid() || !AssetData.GetClass()->IsChildOf(UBlueprint::StaticClass()))
+	if (!AssetData.IsValid() || !AssetData.IsInstanceOf(UBlueprint::StaticClass()))
 	{
 		return nullptr;
 	}
@@ -1884,7 +1886,7 @@ UActorFactoryVectorFieldVolume::UActorFactoryVectorFieldVolume(const FObjectInit
 
 bool UActorFactoryVectorFieldVolume::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
-	if ( !AssetData.IsValid() || !AssetData.GetClass()->IsChildOf( UVectorField::StaticClass() ) )
+	if ( !AssetData.IsValid() || !AssetData.IsInstanceOf( UVectorField::StaticClass() ) )
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoVectorField", "No vector field was specified.");
 		return false;
@@ -1967,7 +1969,7 @@ bool UActorFactoryBoxVolume::CanCreateActorFrom( const FAssetData& AssetData, FT
 		return true;
 	}
 
-	if ( AssetData.IsValid() && !AssetData.GetClass()->IsChildOf( AVolume::StaticClass() ) )
+	if ( AssetData.IsValid() && !AssetData.IsInstanceOf( AVolume::StaticClass() ) )
 	{
 		return false;
 	}
@@ -2004,7 +2006,7 @@ bool UActorFactorySphereVolume::CanCreateActorFrom( const FAssetData& AssetData,
 		return true;
 	}
 
-	if ( AssetData.IsValid() && !AssetData.GetClass()->IsChildOf( AVolume::StaticClass() ) )
+	if ( AssetData.IsValid() && !AssetData.IsInstanceOf( AVolume::StaticClass() ) )
 	{
 		return false;
 	}
@@ -2065,7 +2067,7 @@ bool UActorFactoryLevelSequence::CanCreateActorFrom( const FAssetData& AssetData
 		return true;
 	}
 
-	if ( AssetData.IsValid() && !AssetData.GetClass()->IsChildOf( ULevelSequence::StaticClass() ) )
+	if ( AssetData.IsValid() && !AssetData.IsInstanceOf( ULevelSequence::StaticClass() ) )
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoLevelSequenceAsset", "A valid sequencer asset must be specified.");
 		return false;

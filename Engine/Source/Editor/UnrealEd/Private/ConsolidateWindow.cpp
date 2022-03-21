@@ -913,7 +913,11 @@ FReply SConsolidateToolWidget::OnDragOver( const FGeometry& MyGeometry, const FD
 
 		if ( Object == NULL )
 		{
-			Object = ExtractedDroppedAsset[Index].GetClass()->GetDefaultObject();
+			UClass* ObjectClass = ExtractedDroppedAsset[Index].GetClass();
+			if (ObjectClass)
+			{
+				Object = ObjectClass->GetDefaultObject();
+			}
 		}
 
 		if ( Object != NULL )

@@ -22,7 +22,7 @@ public:
 			return true;
 		}
 
-		if (AssetData.IsValid() && !AssetData.GetClass()->IsChildOf(AVolume::StaticClass()))
+		if (AssetData.IsValid() && !AssetData.IsInstanceOf(AVolume::StaticClass()))
 		{
 			return false;
 		}

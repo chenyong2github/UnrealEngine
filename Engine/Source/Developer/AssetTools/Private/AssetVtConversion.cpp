@@ -46,7 +46,7 @@ void GetReferencersData(UObject *Object, UClass *MatchClass, TArray<FAssetData> 
 		{
 			if (MatchClass != nullptr)
 			{
-				if (AssetData.GetClass()->IsChildOf(MatchClass))
+				if (AssetData.IsInstanceOf(MatchClass))
 				{
 					OutAssetDatas.AddUnique(AssetData);
 				}

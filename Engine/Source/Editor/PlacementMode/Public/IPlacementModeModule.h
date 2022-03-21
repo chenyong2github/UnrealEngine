@@ -136,7 +136,7 @@ struct FPlaceableItem
 	{
 		UClass* Class = AssetData.GetClass() == UClass::StaticClass() ? Cast<UClass>(AssetData.GetAsset()) : nullptr;
 		const bool bIsVolume = Class && Class->IsChildOf<AVolume>();
-		const bool bIsShape = Class ? false : AssetData.GetClass()->IsChildOf(UStaticMesh::StaticClass());
+		const bool bIsShape = Class ? false : AssetData.IsInstanceOf(UStaticMesh::StaticClass());
 
 		// Use the class unless its a volume or shape.  Those need custom names as the factory that spawns them does not properly represent what is being spawned.
 		if (Class && !bIsVolume && !bIsShape)

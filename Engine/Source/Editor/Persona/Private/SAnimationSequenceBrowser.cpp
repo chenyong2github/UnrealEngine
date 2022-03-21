@@ -347,7 +347,7 @@ public:
 		FAssetData ItemAssetData;
 		if (InItem.Legacy_TryGetAssetData(ItemAssetData))
 		{
-			return !ItemAssetData.GetClass()->IsChildOf(USoundWave::StaticClass());
+			return !ItemAssetData.IsInstanceOf(USoundWave::StaticClass());
 		}
 		return false;
 	}
@@ -593,7 +593,7 @@ TSharedPtr<SWidget> SAnimationSequenceBrowser::OnGetAssetContextMenu(const TArra
 			);
 		}
 
-		if (SelectedAssets.Num() == 1 && SelectedAssets[0].GetClass()->IsChildOf(USoundWave::StaticClass()))
+		if (SelectedAssets.Num() == 1 && SelectedAssets[0].IsInstanceOf(USoundWave::StaticClass()))
 		{
 			FToolMenuSection& Section = InMenu->AddSection("SequenceAudioOptions", LOCTEXT("AssetHeading", "Asset"));
 
@@ -1539,7 +1539,7 @@ EVisibility SAnimationSequenceBrowser::GetHistoryVisibility() const
 
 bool SAnimationSequenceBrowser::HandleFilterAsset(const FAssetData& InAssetData) const
 {
-	if (InAssetData.GetClass()->IsChildOf(UAnimationAsset::StaticClass()))
+	if (InAssetData.IsInstanceOf(UAnimationAsset::StaticClass()))
 	{
 		const USkeleton* DesiredSkeleton = PersonaToolkitPtr.Pin()->GetSkeleton();
 		if (DesiredSkeleton)

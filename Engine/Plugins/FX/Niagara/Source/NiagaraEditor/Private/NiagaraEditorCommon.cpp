@@ -1785,7 +1785,7 @@ UActorFactoryNiagara::UActorFactoryNiagara(const FObjectInitializer& ObjectIniti
 
 bool UActorFactoryNiagara::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	if (!AssetData.IsValid() || !AssetData.GetClass()->IsChildOf(UNiagaraSystem::StaticClass()))
+	if (!AssetData.IsValid() || !AssetData.IsInstanceOf(UNiagaraSystem::StaticClass()))
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoSystem", "A valid Niagara System must be specified.");
 		return false;

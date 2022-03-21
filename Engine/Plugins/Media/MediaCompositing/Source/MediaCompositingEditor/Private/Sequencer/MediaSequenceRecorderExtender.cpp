@@ -336,7 +336,7 @@ bool FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListAllowDrop(TShared
 		bResult = true;
 		for (const FAssetData& AssetData : AssetDragDropOperation->GetAssets())
 		{
-			if (!AssetData.IsValid() || !AssetData.GetClass()->IsChildOf<UMediaPlayer>())
+			if (!AssetData.IsValid() || !AssetData.IsInstanceOf(UMediaPlayer::StaticClass()))
 			{
 				bResult = false;
 				break;
@@ -354,7 +354,7 @@ bool FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListAllowDrop(TShared
 	{
 		for (const FAssetData& AssetData : AssetDragDropOperation->GetAssets())
 		{
-			if (AssetData.IsValid() && AssetData.GetClass()->IsChildOf<UMediaPlayer>())
+			if (AssetData.IsValid() && AssetData.IsInstanceOf(UMediaPlayer::StaticClass()))
 			{
 				UMediaPlayer* MediaPlayer = Cast<UMediaPlayer>(AssetData.GetAsset());
 				if (MediaPlayer)

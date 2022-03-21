@@ -274,7 +274,7 @@ void SAnimationModifiersTab::FindAnimSequencesForSkeleton(TArray<UAnimSequence *
 		for (const FAssetData& Asset : Assets)
 		{
 			// Only add assets whos class is of UAnimSequence
-			if (Asset.GetClass()->IsChildOf(UAnimSequence::StaticClass()))
+			if (Asset.IsInstanceOf(UAnimSequence::StaticClass()))
 			{
 				ReferencedAnimSequences.Add(CastChecked<UAnimSequence>(Asset.GetAsset()));
 			}

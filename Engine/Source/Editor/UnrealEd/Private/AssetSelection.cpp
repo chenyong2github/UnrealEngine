@@ -792,14 +792,15 @@ void FActorFactoryAssetProxy::GenerateActorFactoryMenuItems( const FAssetData& A
 UActorFactory* FActorFactoryAssetProxy::GetFactoryForAsset( const FAssetData& AssetData, bool bRequireValidObject/*=false*/ )
 {
 	UObject* Asset = NULL;
+	UClass* AssetClass = AssetData.GetClass();
 	
 	if ( AssetData.IsAssetLoaded() )
 	{
 		Asset = AssetData.GetAsset();
 	}
-	else if ( !bRequireValidObject )
+	else if ( !bRequireValidObject && AssetClass )
 	{
-		Asset = AssetData.GetClass()->GetDefaultObject();
+		Asset = AssetClass->GetDefaultObject();
 	}
 
 	return FActorFactoryAssetProxy::GetFactoryForAssetObject( Asset );

@@ -81,7 +81,7 @@ public:
 						else
 						{
 							// Is the asset the right kind?
-							bPassesClassFilter = Asset.GetClass()->IsChildOf(SupportedClass);
+							bPassesClassFilter = Asset.IsInstanceOf(SupportedClass);
 						}
 
 						if (bPassesClassFilter)

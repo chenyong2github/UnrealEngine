@@ -1297,7 +1297,7 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 	if (ExistingAsset.IsValid())
 	{
 		// An asset of a different type already exists at this location, inform the user and continue
-		if (ObjectClass && !ExistingAsset.GetClass()->IsChildOf(ObjectClass))
+		if (ObjectClass && !ExistingAsset.IsInstanceOf(ObjectClass))
 		{
 			OutErrorMessage = FText::Format(LOCTEXT("RenameAssetOtherTypeAlreadyExists", "An asset of type '{0}' already exists at this location with the name '{1}'."), FText::FromName(ExistingAsset.AssetClass), FText::FromString(ObjectName));
 			

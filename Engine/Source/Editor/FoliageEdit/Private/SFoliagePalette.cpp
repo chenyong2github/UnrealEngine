@@ -837,7 +837,7 @@ EVisibility SFoliagePalette::GetFoliageDropTargetVisibility() const
 			{
 				for (const UClass* Filter : ClassFilters)
 				{
-					if (AssetData.GetClass()->IsChildOf(Filter))
+					if (AssetData.IsInstanceOf(Filter))
 					{
 						return EVisibility::Visible;
 					}

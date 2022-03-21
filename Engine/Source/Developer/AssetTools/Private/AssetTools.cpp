@@ -358,6 +358,11 @@ void UAssetToolsImpl::GetAssetTypeActionsList( TArray<TWeakPtr<IAssetTypeActions
 
 TWeakPtr<IAssetTypeActions> UAssetToolsImpl::GetAssetTypeActionsForClass(const UClass* Class) const
 {
+	if (!Class)
+	{
+		return TSharedPtr<IAssetTypeActions>();
+	}
+
 	TSharedPtr<IAssetTypeActions> MostDerivedAssetTypeActions;
 
 	for (int32 TypeActionsIdx = 0; TypeActionsIdx < AssetTypeActionsList.Num(); ++TypeActionsIdx)

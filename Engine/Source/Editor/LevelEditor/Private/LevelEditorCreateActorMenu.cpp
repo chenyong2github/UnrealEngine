@@ -247,13 +247,14 @@ static void GetContentBrowserSelectionFactoryMenuEntries( FAssetData& TargetAsse
 		TargetAssetData = SelectedAssets.Top();
 	}
 
-	if ( TargetAssetData.GetClass() == UClass::StaticClass() )
+	UClass* AssetClass = TargetAssetData.GetClass();
+	if (AssetClass == UClass::StaticClass() )
 	{
 		UClass* Class = Cast<UClass>( TargetAssetData.GetAsset() );
 
 		bPlaceable = AssetSelectionUtils::IsClassPlaceable( Class );
 	}
-	else if (TargetAssetData.GetClass()->IsChildOf<UBlueprint>())
+	else if (AssetClass && AssetClass->IsChildOf<UBlueprint>())
 	{
 		// For blueprints, attempt to determine placeability from its tag information
 

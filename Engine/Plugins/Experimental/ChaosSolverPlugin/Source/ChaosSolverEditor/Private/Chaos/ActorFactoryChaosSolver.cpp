@@ -26,7 +26,7 @@ UActorFactoryChaosSolver::UActorFactoryChaosSolver(const FObjectInitializer& Obj
 
 bool UActorFactoryChaosSolver::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	if (!AssetData.IsValid() || !AssetData.GetClass()->IsChildOf(UChaosSolver::StaticClass()))
+	if (!AssetData.IsValid() || !AssetData.IsInstanceOf(UChaosSolver::StaticClass()))
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoChaosSolverSpecified", "No ChaosSolver was specified.");
 		return false;

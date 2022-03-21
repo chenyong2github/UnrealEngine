@@ -184,7 +184,7 @@ private:
 				AssetRegistry->GetAssetsByPackageName(AssetDependency, AssetDependencyDatas);
 				for (const FAssetData& AssetDependencyData : AssetDependencyDatas)
 				{
-					const bool bIsCameraAnimDependency = AssetDependencyData.GetClass()->IsChildOf<UCameraAnim>();
+					const bool bIsCameraAnimDependency = AssetDependencyData.IsInstanceOf(UCameraAnim::StaticClass());
 					if (bIsCameraAnimDependency)
 					{
 						return false;

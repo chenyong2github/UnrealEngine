@@ -764,13 +764,14 @@ bool FPlacementModeModule::PassesFilters(const TSharedPtr<FPlaceableItem>& Item)
 		if (PredicatePair.Value(Item))
 		{
 			bool bPlaceable = true;
-			if (Item->AssetData.GetClass() == UClass::StaticClass())
+			UClass* AssetClass = Item->AssetData.GetClass();
+			if (AssetClass == UClass::StaticClass())
 			{
 				UClass* Class = Cast<UClass>(Item->AssetData.GetAsset());
 
 				bPlaceable = AssetSelectionUtils::IsClassPlaceable(Class);
 			}
-			else if (Item->AssetData.GetClass()->IsChildOf<UBlueprint>())
+			else if (AssetClass && AssetClass->IsChildOf<UBlueprint>())
 			{
 				// For blueprints, attempt to determine placeability from its tag information
 

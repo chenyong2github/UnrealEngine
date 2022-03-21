@@ -482,8 +482,12 @@ FReply SPlacementAssetMenuEntry::OnMouseButtonUp(const FGeometry& MyGeometry, co
 		if (!Item->Factory)
 		{
 			// If no actor factory was found or failed, add the actor from the uclass
-			UObject* ClassObject = Item->AssetData.GetClass()->GetDefaultObject();
-			FActorFactoryAssetProxy::GetFactoryForAssetObject(ClassObject);
+			UClass* AssetClass = Item->AssetData.GetClass();
+			if (AssetClass)
+			{
+				UObject* ClassObject = AssetClass->GetDefaultObject();
+				FActorFactoryAssetProxy::GetFactoryForAssetObject(ClassObject);
+			}
 		}
 		NewActor = FLevelEditorActionCallbacks::AddActor(Factory, Item->AssetData, &TempTransform);
 		if (NewActor && GCurrentLevelEditingViewportClient)

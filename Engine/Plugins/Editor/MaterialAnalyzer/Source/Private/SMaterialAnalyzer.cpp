@@ -222,7 +222,7 @@ void SMaterialAnalyzer::SetupAssetRegistryCallbacks()
 
 void SMaterialAnalyzer::OnAssetAdded(const FAssetData& InAssetData)
 {
-	if(InAssetData.GetClass()->IsChildOf<UMaterialInterface>())
+	if(InAssetData.IsInstanceOf(UMaterialInterface::StaticClass()))
 	{
 		RecentlyAddedAssetData.Add(InAssetData);
 	}

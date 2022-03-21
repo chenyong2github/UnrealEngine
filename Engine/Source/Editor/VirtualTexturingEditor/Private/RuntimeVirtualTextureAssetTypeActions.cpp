@@ -44,7 +44,7 @@ namespace
 			{
 				if (MatchClass != nullptr)
 				{
-					if (AssetData.GetClass()->IsChildOf(MatchClass))
+					if (AssetData.IsInstanceOf(MatchClass))
 					{
 						OutAssetDatas.AddUnique(AssetData);
 					}
