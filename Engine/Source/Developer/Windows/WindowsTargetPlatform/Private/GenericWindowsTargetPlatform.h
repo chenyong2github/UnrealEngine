@@ -9,7 +9,7 @@
 #include "LocalPcTargetDevice.h"
 #endif
 #include "Serialization/MemoryLayout.h"
-#include "SteamDeckDevice.h"
+#include "SteamDeck/SteamDeckDevice.h"
 
 #if WITH_ENGINE
 	#include "Sound/SoundWave.h"
