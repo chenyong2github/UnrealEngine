@@ -13,7 +13,8 @@ FString UDatasmithStringMetadataValueFetcher::Fetch_Implementation(const UObject
 	if ( Object ) 
 	{
 		bOutFetchSucceded = true;
-		return UDatasmithContentBlueprintLibrary::GetDatasmithUserDataValueForKey( const_cast< UObject* >( Object ), Key );
+		bool bMatchPartialKey = KeyMatch == EMetadataKeyMatchingCriteria::Contains;
+		return UDatasmithContentBlueprintLibrary::GetDatasmithUserDataValueForKey( const_cast< UObject* >( Object ), Key, bMatchPartialKey);
 	}
 
 	bOutFetchSucceded = false;

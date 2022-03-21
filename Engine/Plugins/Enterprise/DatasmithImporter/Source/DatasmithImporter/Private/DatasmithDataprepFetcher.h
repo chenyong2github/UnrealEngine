@@ -8,6 +8,13 @@
 
 #include "DatasmithDataprepFetcher.generated.h"
 
+UENUM()
+enum EMetadataKeyMatchingCriteria
+{
+	ExactMatch,
+	Contains
+};
+
 UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Metadata Value", ToolTip="Filter objects based on the key value of their metadata."))
 class UDatasmithStringMetadataValueFetcher final : public UDataprepStringFetcher
 {
@@ -22,6 +29,8 @@ public:
 	virtual bool IsThreadSafe() const final;
 	//~ End of UDataprepFetcher interface
 
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Key")
+	TEnumAsByte<EMetadataKeyMatchingCriteria> KeyMatch;
 
 	// The key for the for the string
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Key")

@@ -13,9 +13,9 @@ UDatasmithAssetUserData* UDatasmithContentBlueprintLibrary::GetDatasmithUserData
 	return UDatasmithAssetUserData::GetDatasmithUserData(Object);
 }
 
-FString UDatasmithContentBlueprintLibrary::GetDatasmithUserDataValueForKey(UObject* Object, FName Key)
+FString UDatasmithContentBlueprintLibrary::GetDatasmithUserDataValueForKey(UObject* Object, FName Key, bool bPartialMatchKey)
 {
-	return UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(Object, Key);
+	return UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(Object, Key, bPartialMatchKey);
 }
 
 void UDatasmithContentBlueprintLibrary::GetDatasmithUserDataKeysAndValuesForValue(UObject* Object, const FString& StringToMatch, TArray<FName>& OutKeys, TArray<FString>& OutValues)

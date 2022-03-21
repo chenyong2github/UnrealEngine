@@ -29,7 +29,7 @@ public:
 	virtual void PostLoad() override;
 #endif
 
-	static FString GetDatasmithUserDataValueForKey(UObject* Object, FName Key);
+	static FString GetDatasmithUserDataValueForKey(UObject* Object, FName Key, bool bPartialMatchKey = false);
 	static UDatasmithAssetUserData* GetDatasmithUserData(UObject* Object);
 	static bool SetDatasmithUserDataValueForKey(UObject* Object, FName Key, const FString & Value);
 

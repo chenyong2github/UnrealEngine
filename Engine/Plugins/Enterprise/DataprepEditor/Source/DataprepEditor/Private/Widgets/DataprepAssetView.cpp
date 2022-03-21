@@ -82,7 +82,17 @@ void SGraphNodeDetailsWidget::Construct(const FArguments& InArgs)
 
 	PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
 
-	PropertyView->GetIsPropertyEditingEnabledDelegate().BindSP(this, &SGraphNodeDetailsWidget::GetCanEditProperties);
+	// Enable selection (copy/paste) for metadata property only
+
+	PropertyView->GetIsCustomRowReadOnlyDelegate().BindLambda([this](const FName InRowName, const FName InParentName) -> bool
+		{
+			return !bCanEditProperties;
+		});
+
+	PropertyView->GetIsPropertyReadOnlyDelegate().BindLambda([this](const FPropertyAndParent& PNP) -> bool
+		{
+			return !bCanEditProperties && (PNP.Property.GetName() != TEXT("MetaData"));
+		});
 
 	DetailsSplitter = SNew(SSplitter)
 		.MinimumSlotHeight(80.0f)
