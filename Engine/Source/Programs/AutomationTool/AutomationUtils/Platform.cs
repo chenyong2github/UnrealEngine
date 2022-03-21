@@ -85,7 +85,7 @@ namespace AutomationTool
 
 		public override string ToString()
 		{
-			return Type.ToString() + CookFlavor;
+			return Type.ToString();
 		}
 	}
 
