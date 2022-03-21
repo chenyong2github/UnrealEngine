@@ -2395,7 +2395,7 @@ bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet)
 
 	ProgressManager.Finished();
 
-	LogInfo(TEXT("Export fihished:"));
+	LogInfo(TEXT("Export completed:"));
 	ProgressManager.PrintStatisticss();
 
 	return true;
