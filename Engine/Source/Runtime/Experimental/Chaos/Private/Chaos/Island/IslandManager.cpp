@@ -726,7 +726,8 @@ void FPBDIslandManager::BuildGroups(const int32 NumContainers)
 			IslandSolver->SetGroupIndex(GroupIndex);
 			GroupOffset += IslandSolver->NumConstraints();
 
-			if(GroupOffset > GroupSize)
+			// @todo: In theory we should never need the second check	
+			if(GroupOffset > GroupSize && (GroupIndex + 1) < NumGroups)
 			{
 				GroupIndex++;
 				GroupOffset = 0;
