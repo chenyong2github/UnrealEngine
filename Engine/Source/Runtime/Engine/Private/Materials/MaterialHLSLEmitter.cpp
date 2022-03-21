@@ -18,6 +18,7 @@
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Containers/LazyPrintf.h"
+#include "RenderUtils.h"
 
 static bool SharedPixelProperties[CompiledMP_MAX];
 
