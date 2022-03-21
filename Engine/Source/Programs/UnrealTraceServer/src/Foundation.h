@@ -48,9 +48,43 @@ struct FString
 	using Super::Super;
 	using Super::operator +=;
 
-	const char* operator * () const				{ return Super::c_str(); }
-	void operator += (const FStringView& Rhs)	{ Super::operator += ((FStringView::Super&)(Rhs)); }
+					FString(const std::string& Rhs) : Super(Rhs)	{}
+					FString(std::string&& Rhs) : Super(Rhs)			{}
+	const char*		operator * () const								{ return Super::c_str(); }
+	void			operator += (const FStringView& Rhs)			{ Super::operator += ((FStringView::Super&)(Rhs)); }
 };
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+namespace fs
+{
+	using namespace std::filesystem;
+
+	inline FString ToFString(const path& Path)
+	{
+#if TS_USING(TS_PLATFORM_WINDOWS)
+		std::wstring String = Path.wstring();
+		size_t OutSize = WideCharToMultiByte(
+			CP_UTF8, 0,
+			String.c_str(), -1,
+			nullptr, 0,
+			nullptr, nullptr);
+
+		std::string Ret;
+		Ret.resize(OutSize - 1);
+		WideCharToMultiByte(
+			CP_UTF8, 0,
+			String.c_str(), -1,
+			Ret.data(), int(Ret.size()),
+			nullptr, nullptr);
+
+		return FString(Ret);
+#else
+		return Path.string();
+#endif
+	}
+}
 
 
 

@@ -2,13 +2,15 @@
 
 #pragma once
 
+#include "Foundation.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 class FStoreService
 {
 public:
 	struct FDesc
 	{
-		const char*			StoreDir;
+		fs::path			StoreDir;
 		int32				StorePort		= 0; // <=0:auto-assign
 		int32				RecorderPort	= 0; // 0:auto-assign, -1:off
 		int32				ThreadCount		= 0; // <=0:logical CPU count

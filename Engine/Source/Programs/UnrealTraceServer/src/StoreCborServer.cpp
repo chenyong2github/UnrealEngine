@@ -133,7 +133,7 @@ void FStoreCborPeer::OnStatus()
 	TPayloadBuilder<> Builder(EStatusCode::Success);
 	Builder.AddInteger("recorder_port", Recorder.GetPort());
 	Builder.AddInteger("change_serial", Store.GetChangeSerial());
-	Builder.AddString("store_dir", Store.GetStoreDir());
+	Builder.AddString("store_dir", *Store.GetStoreDir());
 	SendResponse(Builder.Done());
 }
 

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#define TS_WITH_DIR_WATCHER TS_ON
-
 #include "Asio.h"
 #include "AsioFile.h"
 #include "Foundation.h"
@@ -45,34 +43,52 @@ public:
 		FAsioWriteable* Writeable;
 	};
 
-						FStore(asio::io_context& IoContext, const char* InStoreDir);
+	class FMount
+	{
+	public:
+						FMount(const fs::path& InDir);
+		uint32			GetId() const;
+		FString			GetDir() const;
+		uint32			GetTraceCount() const;
+		const FTrace*	GetTraceInfo(uint32 Index) const;
+		bool			HasTrace(uint32 Id) const;
+
+	private:
+		friend			FStore;
+		FTrace*			GetTrace(uint32 Id) const;
+		FTrace*			AddTrace(const char* Path);
+		uint32			Refresh();
+		fs::path		Dir;
+		TArray<FTrace*>	Traces;
+		uint32			Id;
+	};
+
+						FStore(asio::io_context& IoContext, const fs::path& InStoreDir);
 						~FStore();
 	void				Close();
-	const char*			GetStoreDir() const;
+	bool				AddMount(const fs::path& Dir);
+	bool				RemoveMount(uint32 Id);
+	const FMount*		GetMount(uint32 Id) const;
+	uint32				GetMountCount() const;
+	const FMount*		GetMountInfo(uint32 Index) const;
+
+	FString				GetStoreDir() const;
 	uint32				GetChangeSerial() const;
 	uint32				GetTraceCount() const;
 	const FTrace*		GetTraceInfo(uint32 Index) const;
 	bool				HasTrace(uint32 Id) const;
 	FNewTrace			CreateTrace();
 	FAsioReadable*		OpenTrace(uint32 Id);
+	class				FDirWatcher;
 
 private:
-	FTrace*				GetTrace(uint32 Id) const;
-	FTrace*				AddTrace(const char* Path);
-	void				ClearTraces();
+	FTrace*				GetTrace(uint32 Id, FMount** OutMount=nullptr) const;
 	void				Refresh();
-	asio::io_context&	IoContext;
-	FString				StoreDir;
-	TArray<FTrace*>		Traces;
-	uint32				ChangeSerial;
-#if TS_USING(TS_WITH_DIR_WATCHER)
-	class				FDirWatcher;
 	void				WatchDir();
+	asio::io_context&	IoContext;
+	TArray<FMount*>		Mounts;
+	uint32				ChangeSerial;
 	FDirWatcher*		DirWatcher = nullptr;
-#endif
-#if 0
-	int32				LastTraceId = -1;
-#endif // 0
 };
 
 /* vim: set noexpandtab : */
