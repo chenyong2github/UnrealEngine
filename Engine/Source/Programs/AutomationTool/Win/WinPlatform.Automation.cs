@@ -12,270 +12,6 @@ using System.Diagnostics;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-public static class SteamDeckSupport
-{
-	public static string RSyncPath = Path.Combine(Unreal.RootDirectory.FullName, "Engine\\Extras\\ThirdPartyNotUE\\cwrsync\\bin\\rsync.exe");
-	public static string SSHPath   = Path.Combine(Unreal.RootDirectory.FullName, "Engine\\Extras\\ThirdPartyNotUE\\cwrsync\\bin\\ssh.exe");
-
-	public static string GetRegisterGameScript(string GameId, string GameExePath, string GameFolderPath, string GameRunArgs, string MsvsMonVersion)
-	{
-		// create a script that will be copied over to the SteamDeck and ran to register the game
-		// TODO make these easier to customize, vs hard coding the settings. Assume debugging for now, requires the user to have uploaded the required msvsmom/remote debugging stuff
-		// which is done through uploading any game with debugging enabled through the SteamOS Devkit Client
-		string[] Settings =
-		{
-			$"\"steam_play\": \"1\"",
-			$"\"steam_play_debug\": \"1\"",
-			$"\"steam_play_debug_version\": \"{MsvsMonVersion}\"",
-		};
-		string JoinedSettings = string.Join(", ", Settings);
-
-		string[] Parms =
-		{
-			$"\"gameid\":\"{GameId}\"",
-			$"\"directory\":\"{GameFolderPath}\"",
-			$"\"argv\":[\"{GameExePath} {GameRunArgs}\"]",
-			$"\"settings\": {{{JoinedSettings}}}",
-		};
-		string JoinedParams = string.Join(", ", Parms);
-
-		// combine all the settings
-		return $"#!/bin/bash\npython3 ~/devkit-utils/steam-client-create-shortcut --parms '{{{JoinedParams}}}'";
-	}
-
-	// This is a bit nasty, due to rsync needing to use cygdrive path for its local location over Windows paths.
-	// This will not work with UNC paths
-	public static string ConvertWindowsPathToCygdrive(string WindowsPath)
-	{
-		string CygdrivePath = "";
-
-		if (!string.IsNullOrEmpty(WindowsPath))
-		{
-			string FullPath = Path.GetFullPath(WindowsPath);
-			string RootPath = Path.GetPathRoot(FullPath);
-
-			System.Console.WriteLine("{0}", RootPath);
-			CygdrivePath = Path.Combine("/cygdrive", Char.ToLower(FullPath[0]).ToString(), FullPath.Substring(RootPath.Length));
-
-			return CygdrivePath.Replace('\\','/');
-		}
-
-		return CygdrivePath;
-	}
-
-	public static List<DeviceInfo> GetDevices()
-	{
-		List<DeviceInfo> Devices = new List<DeviceInfo>();
-
-		// Look for any Steam Deck devices that are in the Engine ini files. If so lets add them as valid devices
-		// This will be required for matching devices passed into the BuildCookRun command
-		ConfigHierarchy EngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, null, UnrealTargetPlatform.Win64);
-
-		List<string> SteamDeckDevices;
-		if (EngineConfig.GetArray("/Script/WindowsTargetPlatform.WindowsTargetSettings", "SteamDeckDevice", out SteamDeckDevices))
-		{
-			// Expected ini format: +SteamDeckDevice=(IpAddr=10.1.33.19,Name=MySteamDeck,UserName=deck)
-			foreach (string DeckDevice in SteamDeckDevices)
-			{
-				string IpAddr     = ConfigHierarchy.GetStructEntry(DeckDevice, "IpAddr", false);
-				string DeviceName = ConfigHierarchy.GetStructEntry(DeckDevice, "Name", false);
-				string UserName   = ConfigHierarchy.GetStructEntry(DeckDevice, "UserName", false);
-
-				// Name is optional, if its empty/not found lets just use the IpAddr for the Name
-				if (string.IsNullOrEmpty(DeviceName))
-				{
-					DeviceName = IpAddr;
-				}
-
-				if (!string.IsNullOrEmpty(IpAddr))
-				{
-					// TODO Fix the usage of OSVersion here. We are abusing this and using MS OSVersion to allow Turnkey to be happy
-					DeviceInfo SteamDeck = new DeviceInfo(UnrealTargetPlatform.Win64, DeviceName, IpAddr,
-						Environment.OSVersion.Version.ToString(), "SteamDeck", true, true, new Dictionary<string, string>() { { "UserName", UserName } });
-//					SteamDeck.PlatformValues["UserName"] = UserName;
-
-					Devices.Add(SteamDeck);
-				}
-			}
-		}
-
-		return Devices;
-	}
-
-	/**
-	 * Get the ipaddr and username of the device from the params and/or device registry
-	 */
-	static bool GetDeviceInfo(ProjectParams Params, out string IpAddr, out string UserName)
-	{
-		IpAddr = UserName = null;
-
-		if (Params.DeviceNames.Count != 1)
-		{
-			CommandUtils.LogWarning("SteamDeck deployment requires 1, and only, device");
-			return false;
-		}
-
-		// look up in the devices in the registry based on the params (commandline -device=)
-		List<DeviceInfo> Devices = GetDevices();
-		// assume DeviceName is an Id (ie IpAddr)
-		string DeviceId = Params.DeviceNames[0];
-		DeviceInfo Device = Devices.FirstOrDefault(x => x.Id.Equals(DeviceId, StringComparison.InvariantCultureIgnoreCase));
-		// if the id didn't match, fallback to trying name match
-		if (Device == null)
-		{
-			Device = Devices.FirstOrDefault(x => x.Name.Equals(DeviceId, StringComparison.InvariantCultureIgnoreCase));
-		}
-		// if the device wasn't found, just use the DeviceId (it may be a DNS name, so we can't really verify it here)
-		IpAddr = Device == null ? DeviceId : Device.Id;
-
-
-		// if -deviceuser was specified, prefer that, otherwise use what's in the registry
-		UserName = Params.DeviceUsername;
-		if (string.IsNullOrEmpty(UserName))
-		{
-			UserName = Device?.PlatformValues["UserName"];
-		}
-
-		if (string.IsNullOrEmpty(UserName) || string.IsNullOrEmpty(IpAddr))
-		{
-			CommandUtils.LogWarning("Unable to discover Ip Adress and Username for your Steamdeck. Use -device to specify device, and if that device is not in your Engine.ini, then you will need to specify -deviceuser= to set the username.");
-			return false;
-		}
-
-		return true;
-	}
-
-	/* Deploying to a steam deck currently does 2 things
-	 *
-	 * 1) Generates a script CreateShortcutHelper.sh that will register the game on the SteamDeck once uploaded
-	 * 2) Uploads the build using rsync to the devkit-game location. Once uploaded it runs the CreateShortcutHelper.sh generated before.
-	 */
-	public static void Deploy(ProjectParams Params, DeploymentContext SC)
-	{
-		string IpAddr, UserName;
-		if (GetDeviceInfo(Params, out IpAddr, out UserName) == false)
-		{
-			return;
-		}
-
-		string DevKitRSAPath  = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"steamos-devkit\steamos-devkit\devkit_rsa");
-		string KnownHostsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @".ssh\known_hosts");
-		string SSHArgs        = $"-i {DevKitRSAPath} {UserName}@{IpAddr}";
-		string GameFolderPath = $"/home/{UserName}/devkit-game/{Params.ShortProjectName}";
-		string GameRunArgs    = $"{SC.ProjectArgForCommandLines} {Params.StageCommandline} {Params.RunCommandline}".Replace("\"", "\\\"");
-		FileReference ExePath = Params.GetProjectExeForPlatform(UnrealTargetPlatform.Win64);
-		string RelGameExePath = ExePath.MakeRelativeTo(DirectoryReference.Combine(ExePath.Directory, "../../..")).Replace('\\', '/');
-		// string DevkitUtilPath = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 943760", "InstallLocation", null) as string;
-
-		// get the path to some compiler's Msvsmon/RemoteDebugger support files to copy over
-		string MsvsmonPath = null;
-		string MsvsmonVersion = "2022";
-		IEnumerable<DirectoryReference> InstallDirs = WindowsExports.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022);
-		if (InstallDirs == null)
-		{
-			InstallDirs = WindowsExports.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019);
-			MsvsmonVersion = "2019";
-		}
-		if (InstallDirs != null)
-		{
-			MsvsmonPath = Path.Combine(InstallDirs.First().FullName, "Common7/IDE/Remote Debugger");
-		}
-		string TargetMsvsmonPath = $"/home/{UserName}/devkit-msvsmon/msvsmon{MsvsmonVersion}";
-
-
-		// make a standard set of options to pass to the rsync for auth's -e option
-		string[] AuthOpts =
-		{
-			SteamDeckSupport.SSHPath,
-			$"-o UserKnownHostsFile='{KnownHostsPath}'",
-			$"-o StrictHostKeyChecking=no",
-			$"-i '{DevKitRSAPath}'",
-		};
-		string AuthOptions = $"-e \"{string.Join(" ", AuthOpts)}\"";
-
-
-		if (!File.Exists(DevKitRSAPath))
-		{
-			CommandUtils.LogWarning("Unable to find '{0}' rsa key needed to deploy to the steam deck. Make sure you've installed the SteamOS Devkit client", DevKitRSAPath);
-			return;
-		}
-
-
-		// rsync remote debugger support files
-		if (string.IsNullOrEmpty(MsvsmonPath) || !Directory.Exists(MsvsmonPath))
-		{
-			CommandUtils.LogWarning("Unable to find MSVC remote debugger source files, remote debugging may not work correctly.");
-		}
-		else
-		{
-			string[] DebuggerOpts =
-			{
-				// ?
-				$"-avh",
-				// ?
-				$"--chmod=Du=rwx,Dgo=rx,Fu=rwx,Fog=rx",
-				// standard authorization options
-				AuthOptions,
-				// this is a trick to make sure the target path exists before running the remote rsync command
-				$"--rsync-path=\"mkdir -p {TargetMsvsmonPath} && rsync\"",
-				// copy/update files as needed
-				$"--update",
-				// source path, in cygwin-speak (/cygdrive/c/Program Files.....)
-				$"'{ConvertWindowsPathToCygdrive(MsvsmonPath)}/'",
-				// destrination in standard 'user@ipaddr:destpath' format
-				$"{UserName}@{IpAddr}:{TargetMsvsmonPath}",
-			};
-
-			// run rsync command
-			IProcessResult DebuggerSyncResult = CommandUtils.Run(SteamDeckSupport.RSyncPath, string.Join(" ", DebuggerOpts), "");
-			if (DebuggerSyncResult.ExitCode > 0)
-			{
-				CommandUtils.LogWarning($"Failed to rsync debugger support files to the SteamDeck. Check connection on ip {UserName}@{IpAddr}");
-				return;
-			}
-		}
-
-
-		string ScriptFileName = "CreateShortcutHelper.sh";
-		string ScriptFile = Path.Combine(SC.StageDirectory.FullName, ScriptFileName);
-		File.WriteAllText(ScriptFile, SteamDeckSupport.GetRegisterGameScript(Params.ShortProjectName, RelGameExePath, GameFolderPath, GameRunArgs, MsvsmonVersion));
-
-		string[] Opts =
-		{
-			// ?
-			$"-avh",
-			// ?
-			$"--chmod=Du=rwx,Dgo=rx,Fu=rwx,Fog=rx",
-			// standard authorization options
-			AuthOptions,
-			// this is a trick to make sure the target path exists before running the remote rsync command
-			$"--rsync-path=\"mkdir -p {GameFolderPath} && rsync\"",
-			// copy/update files as needed
-			$"--update",
-			// source path, in cygwin-speak (/cygdrive/c/Program Files.....)
-			$"'{ConvertWindowsPathToCygdrive(SC.StageDirectory.FullName)}/'",
-			// destrination in standard 'user@ipaddr:destpath' format
-			$"{UserName}@{IpAddr}:{GameFolderPath}",
-		};
-
-		// Exclude removing the Saved folders to preserve logs and crash data. Though note these will keep filling up with data
-		IProcessResult Result = CommandUtils.Run(SteamDeckSupport.RSyncPath, string.Join(" ", Opts), "");
-		if (Result.ExitCode > 0)
-		{
-			CommandUtils.LogWarning("Failed to rsync files to the SteamDeck. Check connection on ip {UserName}@{IpAddr}");
-			return;
-		}
-
-		// Run the script to register the game with the Deck
-		Result = CommandUtils.Run(SteamDeckSupport.SSHPath, $"{SSHArgs} \"chmod +x {GameFolderPath}/{ScriptFileName} && {GameFolderPath}/{ScriptFileName}\"", "");
-
-		if (Result.ExitCode > 0)
-		{
-			CommandUtils.LogWarning($"Failed to run the {ScriptFileName}.sh script. Check connection on ip Check connection on ip {UserName}@{IpAddr}");
-			return;
-		}
-	}
-}
 
 public class Win64Platform : Platform
 {
@@ -300,7 +36,7 @@ public class Win64Platform : Platform
 
 			Devices.Add(LocalMachine);
 
-			Devices.AddRange(SteamDeckSupport.GetDevices());
+			Devices.AddRange(SteamDeckSupport.GetDevices(UnrealTargetPlatform.Win64));
 		}
 
 		return Devices.ToArray();
@@ -311,7 +47,7 @@ public class Win64Platform : Platform
 		// We only care about deploying for SteamDeck
 		if (Params.Devices.Count == 1 && GetDevices().FirstOrDefault(x => x.Id == Params.DeviceNames[0])?.Type == "SteamDeck")
 		{
-			SteamDeckSupport.Deploy(Params, SC);
+			SteamDeckSupport.Deploy(UnrealTargetPlatform.Win64, Params, SC);
 		}
 	}
 
@@ -319,10 +55,7 @@ public class Win64Platform : Platform
 	{
 		if (Params.Devices.Count == 1 && GetDevices().FirstOrDefault(x => x.Id == Params.DeviceNames[0])?.Type == "SteamDeck")
 		{
-			// TODO figure out how to get the steam app num id. Then can run like this:
-			// steam steam://rungameid/<GameNumId>
-			// TODO would be great if we could tail the log while running. Figure out how to cancel/exit app
-			return null;
+			return SteamDeckSupport.RunClient(UnrealTargetPlatform.Win64, ClientRunFlags, ClientApp, ClientCmdLine, Params);
 		}
 
 		return base.RunClient(ClientRunFlags, ClientApp, ClientCmdLine, Params);
