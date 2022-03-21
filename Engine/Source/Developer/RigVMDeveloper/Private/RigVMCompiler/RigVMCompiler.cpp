@@ -998,21 +998,35 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 		{
 			return;
 		}
-
+		
 		// if this is a copy - we should check if operands need offsets
 		if (InExpr->GetType() == FRigVMExprAST::EType::Copy)
 		{
 			struct Local
 			{
-				static void SetupRegisterOffset(URigVM* VM, URigVMPin* Pin, FRigVMOperand& Operand, const FRigVMVarExprAST* VarExpr, bool bSource, FRigVMCompilerWorkData& WorkData)
+				static void SetupRegisterOffset(URigVM* VM, const FRigVMASTLinkDescription& InLink, URigVMPin* Pin,
+					FRigVMOperand& Operand, const FRigVMVarExprAST* VarExpr, bool bSource, FRigVMCompilerWorkData& WorkData)
 				{
+					const bool bHasTargetSegmentPath = !bSource && !InLink.SegmentPath.IsEmpty();
+					
 					URigVMPin* RootPin = Pin->GetRootPin();
-					if (Pin == RootPin)
+					if (Pin == RootPin && !bHasTargetSegmentPath)
 					{
 						return;
 					}
 
 					FString SegmentPath = Pin->GetSegmentPath(false);
+					if(bHasTargetSegmentPath)
+					{
+						if(SegmentPath.IsEmpty())
+						{
+							SegmentPath = InLink.SegmentPath;
+						}
+						else
+						{
+							SegmentPath = URigVMPin::JoinPinPath(SegmentPath, InLink.SegmentPath);
+						}
+					}
 
 					// for select nodes we create a register for each case (since the cases are fixed in size)
 					// thus we do not need to setup a registeroffset for the array element.
@@ -1048,8 +1062,9 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				}
 			};
 
-			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetSourcePin(), Source, SourceExpr, true, WorkData);
-			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetTargetPin(), Target, TargetExpr, false, WorkData);
+			const FRigVMASTLinkDescription& Link = InExpr->GetLink();
+			Local::SetupRegisterOffset(WorkData.VM, Link, InExpr->GetSourcePin(), Source, SourceExpr, true, WorkData);
+			Local::SetupRegisterOffset(WorkData.VM, Link, InExpr->GetTargetPin(), Target, TargetExpr, false, WorkData);
 		}
 
 		FRigVMCopyOp CopyOp = WorkData.VM->GetCopyOpForOperands(Source, Target);
@@ -1722,9 +1737,9 @@ void URigVMCompiler::AddCopyOperator(const FRigVMCopyOp& InOp, const FRigVMAssig
 					const FRigVMASTProxy RootPinProxy = InTargetExpr->GetProxy().GetSibling(RootPin);
 
 					// if the root pin has only links on its subpins
-					if(WorkData.AST->GetSourceLinks(RootPinProxy, false).Num() == 0)
+					if(WorkData.AST->GetSourceLinkIndices(RootPinProxy, false).Num() == 0)
 					{
-						if(WorkData.AST->GetSourceLinks(RootPinProxy, true).Num() > 0)
+						if(WorkData.AST->GetSourceLinkIndices(RootPinProxy, true).Num() > 0)
 						{					
 							FRigVMCompilerWorkData::FCopyOpInfo DeferredCopyOp;
 							DeferredCopyOp.Op = InOp;

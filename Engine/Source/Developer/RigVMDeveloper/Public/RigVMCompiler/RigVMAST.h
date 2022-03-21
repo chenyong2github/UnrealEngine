@@ -37,6 +37,33 @@ class URigVMGraph;
 class URigVMController;
 
 /*
+ * A structure to describe a link between two proxies
+ */
+struct RIGVMDEVELOPER_API FRigVMASTLinkDescription
+{
+	FRigVMASTLinkDescription() {}
+	
+	FRigVMASTLinkDescription(const FRigVMASTProxy& InSourceProxy, const FRigVMASTProxy& InTargetProxy, const FString& InSegmentPath)
+	: SourceProxy(InSourceProxy)
+	, TargetProxy(InTargetProxy)
+	, SegmentPath(InSegmentPath)
+	, LinkIndex(INDEX_NONE)
+	{}
+
+	FRigVMASTLinkDescription(const FRigVMASTLinkDescription& InOther)
+	: SourceProxy(InOther.SourceProxy)
+	, TargetProxy(InOther.TargetProxy)
+	, SegmentPath(InOther.SegmentPath)
+	, LinkIndex(INDEX_NONE)
+	{}
+
+	FRigVMASTProxy SourceProxy;
+	FRigVMASTProxy TargetProxy;
+	FString SegmentPath;
+	int32 LinkIndex;
+};
+
+/*
  * Base class for an expression within an abstract syntax tree.
  * The base implements parent / child relationships as well as a
  * simple typing system.
@@ -811,18 +838,21 @@ public:
 	FRigVMAssignExprAST(const FRigVMAssignExprAST&) = delete;
 
 	// returns the source proxy this expression is using
-	const FRigVMASTProxy& GetSourceProxy() const { return SourceProxy; }
+	const FRigVMASTLinkDescription& GetLink() const { return Link; }
+
+	// returns the source proxy this expression is using
+	const FRigVMASTProxy& GetSourceProxy() const { return Link.SourceProxy; }
 
 	// returns the source pin for this assignment
 	// @return the source pin for this assignment
-	URigVMPin* GetSourcePin() const { return SourceProxy.GetSubjectChecked<URigVMPin>(); }
+	URigVMPin* GetSourcePin() const { return Link.SourceProxy.GetSubjectChecked<URigVMPin>(); }
 
 	// returns the target proxy this expression is using
-	const FRigVMASTProxy& GetTargetProxy() const { return TargetProxy; }
+	const FRigVMASTProxy& GetTargetProxy() const { return Link.TargetProxy; }
 
 	// returns the target pin for this assignment
 	// @return the target pin for this assignment
-	URigVMPin* GetTargetPin() const { return TargetProxy.GetSubjectChecked<URigVMPin>(); }
+	URigVMPin* GetTargetPin() const { return Link.TargetProxy.GetSubjectChecked<URigVMPin>(); }
 
 	// overload of the type checking mechanism
 	virtual bool IsA(EType InType) const override
@@ -833,17 +863,14 @@ public:
 protected:
 
 	// default constructor (protected so that only parser can access it)
-	FRigVMAssignExprAST(EType InType, const FRigVMASTProxy& InSourceProxy, const FRigVMASTProxy& InTargetProxy)
+	FRigVMAssignExprAST(EType InType, const FRigVMASTLinkDescription& InLink)
 		: FRigVMExprAST(InType)
-		, SourceProxy(InSourceProxy)
-		, TargetProxy(InTargetProxy)
+		, Link(InLink)
 	{
 	}
 
 private:
-
-	FRigVMASTProxy SourceProxy;
-	FRigVMASTProxy TargetProxy;
+	FRigVMASTLinkDescription Link;
 	friend class FRigVMParserAST;
 };
 
@@ -878,8 +905,8 @@ public:
 protected:
 
 	// default constructor (protected so that only parser can access it)
-	FRigVMCopyExprAST(const FRigVMASTProxy& InSourceProxy, const FRigVMASTProxy& InTargetProxy)
-		: FRigVMAssignExprAST(EType::Copy, InSourceProxy, InTargetProxy)
+	FRigVMCopyExprAST(const FRigVMASTLinkDescription& InLink)
+		: FRigVMAssignExprAST(EType::Copy, InLink)
 	{}
 
 
@@ -1285,6 +1312,16 @@ private:
 
 	// make function to create an expression
 	template<class ExprType>
+	ExprType* MakeExpr(FRigVMExprAST::EType InType, const FRigVMASTLinkDescription& InLink)
+	{
+		ExprType* Expr = new ExprType(InType, InLink);
+		Expr->ParserPtr = this;
+		Expr->Index = Expressions.Add(Expr);
+		return Expr;
+	}
+
+	// make function to create an expression
+	template<class ExprType>
 	ExprType* MakeExpr(FRigVMExprAST::EType InType, const FRigVMASTProxy& InProxyA, const FRigVMASTProxy& InProxyB)
 	{
 		ExprType* Expr = new ExprType(InType, InProxyA, InProxyB);
@@ -1308,6 +1345,16 @@ private:
 	ExprType* MakeExpr(const FRigVMASTProxy& InProxy)
 	{
 		ExprType* Expr = new ExprType(InProxy);
+		Expr->ParserPtr = this;
+		Expr->Index = Expressions.Add(Expr);
+		return Expr;
+	}
+
+	// make function to create an expression
+	template<class ExprType>
+	ExprType* MakeExpr(const FRigVMASTLinkDescription& InLink)
+	{
+		ExprType* Expr = new ExprType(InLink);
 		Expr->ParserPtr = this;
 		Expr->Index = Expressions.Add(Expr);
 		return Expr;
@@ -1373,10 +1420,12 @@ private:
 	void Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>& InNodeProxies);
 
 	// helper functions to retrieve links for a given pin
-	const TArray<FRigVMASTProxy>& GetSourcePins(const FRigVMASTProxy& InPinProxy) const;
-	const TArray<FRigVMASTProxy>& GetTargetPins(const FRigVMASTProxy& InPinProxy) const;
-	TArray<FRigVMPinProxyPair> GetSourceLinks(const FRigVMASTProxy& InPinProxy, bool bRecursive = false) const;
-	TArray<FRigVMPinProxyPair> GetTargetLinks(const FRigVMASTProxy& InPinProxy, bool bRecursive = false) const;
+	TArray<int32> GetSourceLinkIndices(const FRigVMASTProxy& InPinProxy, bool bRecursive = false) const;
+	TArray<int32> GetTargetLinkIndices(const FRigVMASTProxy& InPinProxy, bool bRecursive = false) const;
+	TArray<int32> GetLinkIndices(const FRigVMASTProxy& InPinProxy, bool bGetSource, bool bRecursive) const;
+
+	// function to retrieve a link given its index
+	const FRigVMASTLinkDescription& GetLink(int32 InLinkIndex) const;
 
 	// traverse a single mutable node (constructs entry, call extern and other expressions)
 	FRigVMExprAST* TraverseMutableNode(const FRigVMASTProxy& InNodeProxy, FRigVMExprAST* InParentExpr);
@@ -1394,11 +1443,11 @@ private:
 	FRigVMExprAST* TraversePin(const FRigVMASTProxy& InPinProxy, FRigVMExprAST* InParentExpr);
 
 	// traverse a single link (constructs assign + copy expressions)
-	FRigVMExprAST* TraverseLink(const FRigVMPinProxyPair& InLink, FRigVMExprAST* InParentExpr);
+	FRigVMExprAST* TraverseLink(int32 InLinkIndex, FRigVMExprAST* InParentExpr);
 
-	bool ShouldLinkBeSkipped(const FRigVMPinProxyPair& InLink) const;
+	bool ShouldLinkBeSkipped(const FRigVMASTLinkDescription& InLink) const;
 
-	static FString GetLinkAsString(const FRigVMPinProxyPair& InLink);
+	static FString GetLinkAsString(const FRigVMASTLinkDescription& InLink);
 
 	TMap<FRigVMASTProxy, FRigVMExprAST*> SubjectToExpression;
 	TMap<FRigVMASTProxy, int32> NodeExpressionIndex;
@@ -1409,8 +1458,9 @@ private:
 
 	TArray<FRigVMASTProxy> NodeProxies;
 	TMap<FRigVMASTProxy, FRigVMASTProxy> SharedOperandPins;
-	TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>> TargetLinks;
-	TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>> SourceLinks;
+	TMap<FRigVMASTProxy, TArray<int32>> TargetLinkIndices;
+	TMap<FRigVMASTProxy, TArray<int32>> SourceLinkIndices;
+	TArray<FRigVMASTLinkDescription> Links;
 	static const TArray<FRigVMASTProxy> EmptyProxyArray;
 	URigVMPin::FPinOverrideMap PinOverrides;
 
@@ -1430,6 +1480,7 @@ private:
 	mutable TMap<TTuple<const FRigVMExprAST*,const FRigVMExprAST*>, int32> MinIndexOfChildWithinParent;
 
 	friend class FRigVMExprAST;
+	friend class FRigVMAssignExprAST;
 	friend class URigVMCompiler;
 };
 

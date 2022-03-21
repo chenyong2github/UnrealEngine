@@ -244,14 +244,14 @@ FString URigVMPin::GetPinPath(bool bUseNodePath) const
 	URigVMPin* ParentPin = GetParentPin();
 	if (ParentPin)
 	{
-		PinPath = FString::Printf(TEXT("%s.%s"), *ParentPin->GetPinPath(), *GetName());
+		PinPath = JoinPinPath(ParentPin->GetPinPath(), GetName());
 	}
 	else
 	{
 		URigVMNode* Node = GetNode();
 		if (Node != nullptr)
 		{
-			PinPath = FString::Printf(TEXT("%s.%s"), *Node->GetNodePath(bUseNodePath), *GetName());
+			PinPath = JoinPinPath(Node->GetNodePath(bUseNodePath), GetName());
 		}
 	}
 #if UE_BUILD_DEBUG
@@ -261,6 +261,25 @@ FString URigVMPin::GetPinPath(bool bUseNodePath) const
 	}
 #endif
 	return PinPath;
+}
+
+FString URigVMPin::GetSubPinPath(const URigVMPin* InParentPin, bool bIncludeParentPinName) const
+{
+	if (const URigVMPin* ParentPin = GetParentPin())
+	{
+		if(ParentPin == InParentPin)
+		{
+			if(bIncludeParentPinName)
+			{
+				return JoinPinPath(ParentPin->GetName(),GetName());
+			}
+		}
+		else
+		{
+			return JoinPinPath(ParentPin->GetSubPinPath(InParentPin, bIncludeParentPinName), GetName());
+		}
+	}
+	return GetName();
 }
 
 FString URigVMPin::GetSegmentPath(bool bIncludeRootPin) const
@@ -273,7 +292,7 @@ FString URigVMPin::GetSegmentPath(bool bIncludeRootPin) const
 		{
 			return GetName();
 		}
-		return FString::Printf(TEXT("%s.%s"), *ParentSegmentPath, *GetName());
+		return JoinPinPath(ParentSegmentPath, GetName());
 	}
 
 	if(bIncludeRootPin)

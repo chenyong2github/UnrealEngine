@@ -132,6 +132,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	FString GetPinPath(bool bUseNodePath = false) const;
 
+	// Returns a . separated path containing all names of the pin and its owners
+	// until we hit the provided parent pin.
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	FString GetSubPinPath(const URigVMPin* InParentPin, bool bIncludeParentPinName = false) const;
+
 	// Returns a . separated path containing all names of the pin within its main
 	// memory owner / storage. This is typically used to create an offset pointer
 	// within memory (FRigVMRegisterOffset).
