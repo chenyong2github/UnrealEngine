@@ -573,9 +573,9 @@ FORCEINLINE uint32 GetTypeHash(const FIntPoint& InPoint)
 
 FORCEINLINE int32 FIntPoint::Size() const
 {
-	int64 X64 = (int64)X;
-	int64 Y64 = (int64)Y;
-	return int32(FMath::Sqrt(float(X64 * X64 + Y64 * Y64)));
+	int64 LocalX64 = (int64)X;
+	int64 LocalY64 = (int64)Y;
+	return int32(FMath::Sqrt(float(LocalX64 * LocalX64 + LocalY64 * LocalY64)));
 }
 
 FORCEINLINE int32 FIntPoint::SizeSquared() const
