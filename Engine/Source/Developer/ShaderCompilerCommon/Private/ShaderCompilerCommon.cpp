@@ -1315,6 +1315,8 @@ void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource);
 // Replace all uniform buffer struct member references (View.WorldToClip) with a flattened name that removes the struct dependency (View_WorldToClip)
 void RemoveUniformBuffersFromSource(const FShaderCompilerEnvironment& Environment, FString& PreprocessedShaderSource)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(RemoveUniformBuffersFromSource);
+
 	TMap<FString, TArray<FUniformBufferMemberInfo>> UniformBufferNameToMembers;
 	UniformBufferNameToMembers.Reserve(Environment.UniformBufferMap.Num());
 

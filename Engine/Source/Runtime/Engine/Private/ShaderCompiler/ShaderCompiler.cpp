@@ -2547,6 +2547,8 @@ void FShaderCompileThreadRunnable::CompileDirectlyThroughDll()
 
 void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& Job)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompileUtilities::ExecuteShaderCompileJob);
+
 	check(!Job.bFinalized);
 
 	static ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();

@@ -631,6 +631,8 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 	const TCHAR* ShaderProfile, bool bSecondPassAferUnusedInputRemoval,
 	TArray<FString>& FilteredErrors, FShaderCompilerOutput& Output)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CompileAndProcessD3DShaderFXC);
+
 	auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 
 	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
@@ -1142,6 +1144,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 
 void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, FShaderCompilerDefinitions& AdditionalDefines, const FString& WorkingDirectory, ELanguage Language)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CompileD3DShader);
 	FString PreprocessedShaderSource;
 	const bool bIsRayTracingShader = Input.IsRayTracingShader();
 	const bool bUseDXC =

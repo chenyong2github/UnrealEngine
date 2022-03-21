@@ -278,14 +278,17 @@ bool PreprocessShader(
 		ANSICHAR* McppOutAnsi = NULL;
 		ANSICHAR* McppErrAnsi = NULL;
 
-		McppResult = mcpp_run(
-			McppOptionsANSI.GetData(),
-			McppOptionsANSI.Num(),
-			TCHAR_TO_ANSI(*ShaderInput.VirtualSourceFilePath),
-			&McppOutAnsi,
-			&McppErrAnsi,
-			FileLoader.GetMcppInterface()
-		);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(mcpp_run);
+			McppResult = mcpp_run(
+				McppOptionsANSI.GetData(),
+				McppOptionsANSI.Num(),
+				TCHAR_TO_ANSI(*ShaderInput.VirtualSourceFilePath),
+				&McppOutAnsi,
+				&McppErrAnsi,
+				FileLoader.GetMcppInterface()
+			);
+		}
 
 		McppOutput = McppOutAnsi;
 		McppErrors = McppErrAnsi;
