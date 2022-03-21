@@ -15,9 +15,12 @@ FODSCManager* GODSCManager = nullptr;
 
 FODSCManager::FODSCManager()
 	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
-	, Thread(new FODSCThread())
 {
-	Thread->StartThread();
+	if (IsRunningCookOnTheFly())
+	{
+		Thread = new FODSCThread();
+		Thread->StartThread();
+	}
 }
 
 FODSCManager::~FODSCManager()
@@ -55,12 +58,18 @@ bool FODSCManager::Tick(float DeltaSeconds)
 
 void FODSCManager::AddThreadedRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType)
 {
-	check(Thread);
-	Thread->AddRequest(MaterialsToCompile, ShaderPlatform, RecompileCommandType);
+	if (IsRunningCookOnTheFly())
+	{
+		check(Thread);
+		Thread->AddRequest(MaterialsToCompile, ShaderPlatform, RecompileCommandType);
+	}
 }
 
 void FODSCManager::AddThreadedShaderPipelineRequest(EShaderPlatform ShaderPlatform, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames)
 {
-	check(Thread);
-	Thread->AddShaderPipelineRequest(ShaderPlatform, MaterialName, VertexFactoryName, PipelineName, ShaderTypeNames);
+	if (IsRunningCookOnTheFly())
+	{
+		check(Thread);
+		Thread->AddShaderPipelineRequest(ShaderPlatform, MaterialName, VertexFactoryName, PipelineName, ShaderTypeNames);
+	}
 }
