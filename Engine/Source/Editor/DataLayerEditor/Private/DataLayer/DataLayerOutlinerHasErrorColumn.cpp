@@ -2,6 +2,7 @@
 
 #include "DataLayerOutlinerHasErrorColumn.h"
 
+#include "Algo/Transform.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "DataLayerTreeItem.h"
 #include "Widgets/Images/SImage.h"
