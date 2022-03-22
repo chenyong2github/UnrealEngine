@@ -95,7 +95,8 @@ void UInputComponent::OnInputOwnerEndPlayed(AActor* InOwner, EEndPlayReason::Typ
 	for (int32 Index = CachedKeyToActionInfo.Num() - 1; Index >= 0; --Index)
 	{
 		FCachedKeyToActionInfo& CachedInfo = CachedKeyToActionInfo[Index];
-		if (CachedInfo.PlayerInput->GetTypedOuter<AActor>() == InOwner)
+		const UPlayerInput* CachedInput = CachedInfo.PlayerInput.Get();
+		if (CachedInput && CachedInput->GetTypedOuter<AActor>() == InOwner)
 		{
 			CachedKeyToActionInfo.RemoveAtSwap(Index, 1, false);
 		}
