@@ -9,40 +9,43 @@
 #include "Serialization/StructuredArchive.h"
 #include "Templates/TypeHash.h"
 
+namespace UE::Math
+{
+
 /**
  * Structure for integer points in 2-d space.
  *
  * @todo Docs: The operators need better documentation, i.e. what does it mean to divide a point?
  */
-struct FIntPoint
+template <typename InIntType>
+struct TIntPoint
 {
+	using IntType = InIntType;
+	static_assert(std::is_integral_v<IntType>, "An integer type is required.");
+
 	union
 	{
 		struct
 		{
 			/** Holds the point's x-coordinate. */
-			int32 X;
+			IntType X;
 
 			/** Holds the point's y-coordinate. */
-			int32 Y;
+			IntType Y;
 		};
 
 		UE_DEPRECATED(all, "For internal use only")
-		int32 XY[2];
+		IntType XY[2];
 	};
 
-public:
-
 	/** An integer point with zeroed values. */
-	CORE_API static const FIntPoint ZeroValue;
+	static const TIntPoint ZeroValue;
 
 	/** An integer point with INDEX_NONE values. */
-	CORE_API static const FIntPoint NoneValue;
-
-public:
+	static const TIntPoint NoneValue;
 
 	/** Default constructor (no initialization). */
-	FIntPoint();
+	TIntPoint() = default;
 
 	/**
 	 * Create and initialize a new instance with the specified coordinates.
@@ -50,7 +53,11 @@ public:
 	 * @param InX The x-coordinate.
 	 * @param InY The y-coordinate.
 	 */
-	FIntPoint(int32 InX, int32 InY);
+	TIntPoint(IntType InX, IntType InY)
+		: X(InX)
+		, Y(InY)
+	{
+	}
 
 	/**
 	 * Create and initialize a new instance with a single int.
@@ -58,16 +65,32 @@ public:
 	 *
 	 * @param InXY The x and y-coordinate.
 	 */
-	FIntPoint(int32 InXY);
+	TIntPoint(IntType InXY)
+		: X(InXY)
+		, Y(InXY)
+	{
+	}
 
 	/**
 	 * Create and initialize a new instance to zero.
 	 *
 	 * @param EForceInit Force init enum
 	 */
-	explicit FORCEINLINE FIntPoint(EForceInit);
+	explicit TIntPoint(EForceInit)
+		: X(0)
+		, Y(0)
+	{
+	}
 
-public:
+	/**
+	 * Converts to another int type. Checks that the cast will succeed.
+	 */
+	template <typename OtherIntType>
+	explicit TIntPoint(TIntPoint<OtherIntType> Other)
+		: X(IntCastChecked<OtherIntType>(Other.X))
+		, Y(IntCastChecked<OtherIntType>(Other.Y))
+	{
+	}
 
 	/**
 	 * Get specific component of a point.
@@ -75,7 +98,12 @@ public:
 	 * @param PointIndex Index of point component.
 	 * @return const reference to component.
 	 */
-	const int32& operator()(int32 PointIndex) const;
+	const IntType& operator()(int32 PointIndex) const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XY[PointIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Get specific component of a point.
@@ -83,7 +111,12 @@ public:
 	 * @param PointIndex Index of point component
 	 * @return reference to component.
 	 */
-	int32& operator()(int32 PointIndex);
+	IntType& operator()(int32 PointIndex)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XY[PointIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Compare two points for equality.
@@ -91,7 +124,10 @@ public:
 	 * @param Other The other int point being compared.
 	 * @return true if the points are equal, false otherwise.
 	 */
-	bool operator==(const FIntPoint& Other) const;
+	bool operator==(const TIntPoint& Other) const
+	{
+		return X == Other.X && Y == Other.Y;
+	}
 
 	/**
 	 * Compare two points for inequality.
@@ -99,7 +135,10 @@ public:
 	 * @param Other The other int point being compared.
 	 * @return true if the points are not equal, false otherwise.
 	 */
-	bool operator!=(const FIntPoint& Other) const;
+	bool operator!=(const TIntPoint& Other) const
+	{
+		return (X != Other.X) || (Y != Other.Y);
+	}
 
 	/**
 	 * Scale this point.
@@ -107,7 +146,13 @@ public:
 	 * @param Scale What to multiply the point by.
 	 * @return Reference to this point after multiplication.
 	 */
-	FIntPoint& operator*=(int32 Scale);
+	TIntPoint& operator*=(IntType Scale)
+	{
+		X *= Scale;
+		Y *= Scale;
+
+		return *this;
+	}
 
 	/**
 	 * Divide this point by a scalar.
@@ -115,7 +160,13 @@ public:
 	 * @param Divisor What to divide the point by.
 	 * @return Reference to this point after division.
 	 */
-	FIntPoint& operator/=(int32 Divisor);
+	TIntPoint& operator/=(IntType Divisor)
+	{
+		X /= Divisor;
+		Y /= Divisor;
+
+		return *this;
+	}
 
 	/**
 	 * Add another point component-wise to this point.
@@ -123,7 +174,13 @@ public:
 	 * @param Other The point to add to this point.
 	 * @return Reference to this point after addition.
 	 */
-	FIntPoint& operator+=(const FIntPoint& Other);
+	TIntPoint& operator+=(const TIntPoint& Other)
+	{
+		X += Other.X;
+		Y += Other.Y;
+
+		return *this;
+	}
 
 	/**
 	 * Multiply another point component-wise from this point.
@@ -131,7 +188,13 @@ public:
 	 * @param Other The point to multiply with this point.
 	 * @return Reference to this point after multiplication.
 	 */
-	FIntPoint& operator*=(const FIntPoint& Other);
+	TIntPoint& operator*=(const TIntPoint& Other)
+	{
+		X *= Other.X;
+		Y *= Other.Y;
+
+		return *this;
+	}
 
 	/**
 	 * Subtract another point component-wise from this point.
@@ -139,7 +202,13 @@ public:
 	 * @param Other The point to subtract from this point.
 	 * @return Reference to this point after subtraction.
 	 */
-	FIntPoint& operator-=(const FIntPoint& Other);
+	TIntPoint& operator-=(const TIntPoint& Other)
+	{
+		X -= Other.X;
+		Y -= Other.Y;
+
+		return *this;
+	}
 
 	/**
 	 * Divide this point component-wise by another point.
@@ -147,7 +216,13 @@ public:
 	 * @param Other The point to divide with.
 	 * @return Reference to this point after division.
 	 */
-	FIntPoint& operator/=(const FIntPoint& Other);
+	TIntPoint& operator/=(const TIntPoint& Other)
+	{
+		X /= Other.X;
+		Y /= Other.Y;
+
+		return *this;
+	}
 
 	/**
 	 * Assign another point to this one.
@@ -155,7 +230,13 @@ public:
 	 * @param Other The point to assign this point from.
 	 * @return Reference to this point after assignment.
 	 */
-	FIntPoint& operator=(const FIntPoint& Other);
+	TIntPoint& operator=(const TIntPoint& Other)
+	{
+		X = Other.X;
+		Y = Other.Y;
+
+		return *this;
+	}
 
 	/**
 	 * Get the result of scaling on this point.
@@ -163,7 +244,10 @@ public:
 	 * @param Scale What to multiply the point by.
 	 * @return A new scaled int point.
 	 */
-	FIntPoint operator*(int32 Scale) const;
+	TIntPoint operator*(IntType Scale) const
+	{
+		return TIntPoint(*this) *= Scale;
+	}
 
 	/**
 	 * Get the result of division on this point.
@@ -171,7 +255,10 @@ public:
 	 * @param Divisor What to divide the point by.
 	 * @return A new divided int point.
 	 */
-	FIntPoint operator/(int32 Divisor) const;
+	TIntPoint operator/(IntType Divisor) const
+	{
+		return TIntPoint(*this) /= Divisor;
+	}
 
 	/**
 	 * Get the result of addition on this point.
@@ -179,7 +266,10 @@ public:
 	 * @param Other The other point to add to this.
 	 * @return A new combined int point.
 	 */
-	FIntPoint operator+(const FIntPoint& Other) const;
+	TIntPoint operator+(const TIntPoint& Other) const
+	{
+		return TIntPoint(*this) += Other;
+	}
 
 	/**
 	 * Get the result of subtraction from this point.
@@ -187,7 +277,10 @@ public:
 	 * @param Other The other point to subtract from this.
 	 * @return A new subtracted int point.
 	 */
-	FIntPoint operator-(const FIntPoint& Other) const;
+	TIntPoint operator-(const TIntPoint& Other) const
+	{
+		return TIntPoint(*this) -= Other;
+	}
 
 	/**
 	 * Get the result of multiplication on this point.
@@ -195,7 +288,10 @@ public:
 	 * @param Other The point to multiply with this point.
 	 * @return A new multiplied int point
 	 */
-	FIntPoint operator*(const FIntPoint& Other) const;
+	TIntPoint operator*(const TIntPoint& Other) const
+	{
+		return TIntPoint(*this) *= Other;
+	}
 
 	/**
 	 * Get the result of division on this point.
@@ -203,7 +299,10 @@ public:
 	 * @param Other The other point to subtract from this.
 	 * @return A new subtracted int point.
 	 */
-	FIntPoint operator/(const FIntPoint& Other) const;
+	TIntPoint operator/(const TIntPoint& Other) const
+	{
+		return TIntPoint(*this) /= Other;
+	}
 
 	/**
 	* Get specific component of the point.
@@ -211,7 +310,11 @@ public:
 	* @param Index the index of point component
 	* @return reference to component.
 	*/
-	int32& operator[](int32 Index);
+	IntType& operator[](IntType Index)
+	{
+		check(Index >= 0 && Index < 2);
+		return ((Index == 0) ? X : Y);
+	}
 
 	/**
 	* Get specific component of the point.
@@ -219,23 +322,31 @@ public:
 	* @param Index the index of point component
 	* @return copy of component value.
 	*/
-	int32 operator[](int32 Index) const;
-
-public:
+	IntType operator[](IntType Index) const
+	{
+		check(Index >= 0 && Index < 2);
+		return ((Index == 0) ? X : Y);
+	}
 
 	/**
 	 * Get the component-wise min of two points.
 	 *
 	 * @see ComponentMax, GetMax
 	 */
-	FORCEINLINE FIntPoint ComponentMin(const FIntPoint& Other) const;
+	TIntPoint ComponentMin(const TIntPoint& Other) const
+	{
+		return TIntPoint(FMath::Min(X, Other.X), FMath::Min(Y, Other.Y));
+	}
 
 	/**
 	 * Get the component-wise max of two points.
 	 *
 	 * @see ComponentMin, GetMin
 	 */
-	FORCEINLINE FIntPoint ComponentMax(const FIntPoint& Other) const;
+	TIntPoint ComponentMax(const TIntPoint& Other) const
+	{
+		return TIntPoint(FMath::Max(X, Other.X), FMath::Max(Y, Other.Y));
+	}
 
 	/**
 	 * Get the larger of the point's two components.
@@ -243,7 +354,10 @@ public:
 	 * @return The maximum component of the point.
 	 * @see GetMin, Size, SizeSquared
 	 */
-	int32 GetMax() const;
+	IntType GetMax() const
+	{
+		return FMath::Max(X, Y);
+	}
 
 	/**
 	 * Get the smaller of the point's two components.
@@ -251,7 +365,10 @@ public:
 	 * @return The minimum component of the point.
 	 * @see GetMax, Size, SizeSquared
 	 */
-	int32 GetMin() const;
+	IntType GetMin() const
+	{
+		return FMath::Min(X, Y);
+	}
 
 	/**
 	 * Get the distance of this point from (0,0).
@@ -259,7 +376,12 @@ public:
 	 * @return The distance of this point from (0,0).
 	 * @see GetMax, GetMin, SizeSquared
 	 */
-	int32 Size() const;
+	IntType Size() const
+	{
+		int64 LocalX64 = (int64)X;
+		int64 LocalY64 = (int64)Y;
+		return IntType(FMath::Sqrt(double(LocalX64 * LocalX64 + LocalY64 * LocalY64)));
+	}
 
 	/**
 	 * Get the squared distance of this point from (0,0).
@@ -267,16 +389,20 @@ public:
 	 * @return The squared distance of this point from (0,0).
 	 * @see GetMax, GetMin, Size
 	 */
-	int32 SizeSquared() const;
-	
+	IntType SizeSquared() const
+	{
+		return X * X + Y * Y;
+	}
+
 	/**
 	 * Get a textual representation of this point.
 	 *
 	 * @return A string describing the point.
 	 */
-	FString ToString() const;
-
-public:
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("X=%s Y=%s"), *LexToString(X), *LexToString(Y));
+	}
 
 	/**
 	 * Divide an int point and round up the result.
@@ -286,8 +412,15 @@ public:
 	 * @return A new divided int point.
 	 * @see DivideAndRoundDown
 	 */
-	static FIntPoint DivideAndRoundUp(FIntPoint lhs, int32 Divisor);
-	static FIntPoint DivideAndRoundUp(FIntPoint lhs, FIntPoint Divisor);
+	static TIntPoint DivideAndRoundUp(TIntPoint lhs, IntType Divisor)
+	{
+		return TIntPoint(FMath::DivideAndRoundUp(lhs.X, Divisor), FMath::DivideAndRoundUp(lhs.Y, Divisor));
+	}
+
+	static TIntPoint DivideAndRoundUp(TIntPoint lhs, TIntPoint Divisor)
+	{
+		return TIntPoint(FMath::DivideAndRoundUp(lhs.X, Divisor.X), FMath::DivideAndRoundUp(lhs.Y, Divisor.Y));
+	}
 
 	/**
 	 * Divide an int point and round down the result.
@@ -297,16 +430,20 @@ public:
 	 * @return A new divided int point.
 	 * @see DivideAndRoundUp
 	 */
-	static FIntPoint DivideAndRoundDown(FIntPoint lhs, int32 Divisor);
+	static TIntPoint DivideAndRoundDown(TIntPoint lhs, IntType Divisor)
+	{
+		return TIntPoint(FMath::DivideAndRoundDown(lhs.X, Divisor), FMath::DivideAndRoundDown(lhs.Y, Divisor));
+	}
 
 	/**
 	 * Get number of components point has.
 	 *
 	 * @return number of components point has.
 	 */
-	static int32 Num();
-
-public:
+	static int32 Num()
+	{
+		return 2;
+	}
 
 	/**
 	 * Serialize the point.
@@ -315,7 +452,7 @@ public:
 	 * @param Point The point to serialize.
 	 * @return Reference to the Archive after serialization.
 	 */
-	friend FArchive& operator<<(FArchive& Ar, FIntPoint& Point)
+	friend FArchive& operator<<(FArchive& Ar, TIntPoint& Point)
 	{
 		return Ar << Point.X << Point.Y;
 	}
@@ -326,7 +463,7 @@ public:
 	 * @param Slot The structured archive slot to serialize into.
 	 * @param Point The point to serialize.
 	 */
-	friend void operator<<(FStructuredArchive::FSlot Slot, FIntPoint& Point)
+	friend void operator<<(FStructuredArchive::FSlot Slot, TIntPoint& Point)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
 		Record << SA_VALUE(TEXT("X"), Point.X) << SA_VALUE(TEXT("Y"), Point.Y);
@@ -357,235 +494,70 @@ public:
 	}
 };
 
+template <typename IntType>
+const TIntPoint<IntType> TIntPoint<IntType>::ZeroValue(0, 0);
 
-/* FIntPoint inline functions
- *****************************************************************************/
+template <typename IntType>
+const TIntPoint<IntType> TIntPoint<IntType>::NoneValue(static_cast<IntType>(INDEX_NONE), static_cast<IntType>(INDEX_NONE));
 
-FORCEINLINE FIntPoint::FIntPoint() { }
-
-
-FORCEINLINE FIntPoint::FIntPoint(int32 InX, int32 InY)
-	: X(InX)
-	, Y(InY)
-{ }
-
-FORCEINLINE FIntPoint::FIntPoint(int32 InXY)
-	: X(InXY)
-	, Y(InXY)
-{ }
-
-FORCEINLINE FIntPoint::FIntPoint(EForceInit)
-	: X(0)
-	, Y(0)
-{ }
-
-
-FORCEINLINE const int32& FIntPoint::operator()(int32 PointIndex) const
+template <typename IntType>
+uint32 GetTypeHash(const TIntPoint<IntType>& InPoint)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XY[PointIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return HashCombine(::GetTypeHash(InPoint.X), ::GetTypeHash(InPoint.Y));
 }
 
-
-FORCEINLINE int32& FIntPoint::operator()(int32 PointIndex)
+template <>
+inline FString TIntPoint<int64>::ToString() const
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XY[PointIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return FString::Printf(TEXT("X=%lld Y=%lld"), X, Y);
 }
 
-
-FORCEINLINE int32 FIntPoint::Num()
-{
-	return 2;
-}
-
-
-FORCEINLINE bool FIntPoint::operator==(const FIntPoint& Other) const
-{
-	return X==Other.X && Y==Other.Y;
-}
-
-
-FORCEINLINE bool FIntPoint::operator!=(const FIntPoint& Other) const
-{
-	return (X != Other.X) || (Y != Other.Y);
-}
-
-
-FORCEINLINE FIntPoint& FIntPoint::operator*=(int32 Scale)
-{
-	X *= Scale;
-	Y *= Scale;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntPoint& FIntPoint::operator/=(int32 Divisor)
-{
-	X /= Divisor;
-	Y /= Divisor;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntPoint& FIntPoint::operator+=(const FIntPoint& Other)
-{
-	X += Other.X;
-	Y += Other.Y;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntPoint& FIntPoint::operator-=(const FIntPoint& Other)
-{
-	X -= Other.X;
-	Y -= Other.Y;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntPoint& FIntPoint::operator*=(const FIntPoint& Other)
-{
-	X *= Other.X;
-	Y *= Other.Y;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntPoint& FIntPoint::operator/=(const FIntPoint& Other)
-{
-	X /= Other.X;
-	Y /= Other.Y;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntPoint& FIntPoint::operator=(const FIntPoint& Other)
-{
-	X = Other.X;
-	Y = Other.Y;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntPoint FIntPoint::operator*(int32 Scale) const
-{
-	return FIntPoint(*this) *= Scale;
-}
-
-
-FORCEINLINE FIntPoint FIntPoint::operator/(int32 Divisor) const
-{
-	return FIntPoint(*this) /= Divisor;
-}
-
-
-FORCEINLINE int32& FIntPoint::operator[](int32 Index)
-{
-	check(Index >= 0 && Index < 2);
-	return ((Index == 0) ? X : Y);
-}
-
-
-FORCEINLINE int32 FIntPoint::operator[](int32 Index) const
-{
-	check(Index >= 0 && Index < 2);
-	return ((Index == 0) ? X : Y);
-}
-
-
-FORCEINLINE FIntPoint FIntPoint::ComponentMin(const FIntPoint& Other) const
-{
-	return FIntPoint(FMath::Min(X, Other.X), FMath::Min(Y, Other.Y));
-}
-
-
-FORCEINLINE FIntPoint FIntPoint::ComponentMax(const FIntPoint& Other) const
-{
-	return FIntPoint(FMath::Max(X, Other.X), FMath::Max(Y, Other.Y));
-}
-
-FORCEINLINE FIntPoint FIntPoint::DivideAndRoundUp(FIntPoint lhs, int32 Divisor)
-{
-	return FIntPoint(FMath::DivideAndRoundUp(lhs.X, Divisor), FMath::DivideAndRoundUp(lhs.Y, Divisor));
-}
-
-FORCEINLINE FIntPoint FIntPoint::DivideAndRoundUp(FIntPoint lhs, FIntPoint Divisor)
-{
-	return FIntPoint(FMath::DivideAndRoundUp(lhs.X, Divisor.X), FMath::DivideAndRoundUp(lhs.Y, Divisor.Y));
-}	
-
-FORCEINLINE FIntPoint FIntPoint::DivideAndRoundDown(FIntPoint lhs, int32 Divisor)
-{
-	return FIntPoint(FMath::DivideAndRoundDown(lhs.X, Divisor), FMath::DivideAndRoundDown(lhs.Y, Divisor));
-}	
-
-
-FORCEINLINE FIntPoint FIntPoint::operator+(const FIntPoint& Other) const
-{
-	return FIntPoint(*this) += Other;
-}
-
-
-FORCEINLINE FIntPoint FIntPoint::operator-(const FIntPoint& Other) const
-{
-	return FIntPoint(*this) -= Other;
-}
-
-
-FORCEINLINE FIntPoint FIntPoint::operator*(const FIntPoint& Other) const
-{
-	return FIntPoint(*this) *= Other;
-}
-
-
-FORCEINLINE FIntPoint FIntPoint::operator/(const FIntPoint& Other) const
-{
-	return FIntPoint(*this) /= Other;
-}
-
-
-FORCEINLINE int32 FIntPoint::GetMax() const
-{
-	return FMath::Max(X, Y);
-}
-
-
-FORCEINLINE int32 FIntPoint::GetMin() const
-{
-	return FMath::Min(X,Y);
-}
-
-FORCEINLINE uint32 GetTypeHash(const FIntPoint& InPoint)
-{
-	return HashCombine(GetTypeHash(InPoint.X), GetTypeHash(InPoint.Y));
-}
-
-
-FORCEINLINE int32 FIntPoint::Size() const
-{
-	int64 LocalX64 = (int64)X;
-	int64 LocalY64 = (int64)Y;
-	return int32(FMath::Sqrt(float(LocalX64 * LocalX64 + LocalY64 * LocalY64)));
-}
-
-FORCEINLINE int32 FIntPoint::SizeSquared() const
-{
-	return X*X + Y*Y;
-}
-
-FORCEINLINE FString FIntPoint::ToString() const
+template <>
+inline FString TIntPoint<int32>::ToString() const
 {
 	return FString::Printf(TEXT("X=%d Y=%d"), X, Y);
 }
 
-template <> struct TIsPODType<FIntPoint> { enum { Value = true }; };
+template <>
+inline FString TIntPoint<int16>::ToString() const
+{
+	return FString::Printf(TEXT("X=%d Y=%d"), X, Y);
+}
+
+template <>
+inline FString TIntPoint<int8>::ToString() const
+{
+	return FString::Printf(TEXT("X=%d Y=%d"), X, Y);
+}
+
+template <>
+inline FString TIntPoint<uint64>::ToString() const
+{
+	return FString::Printf(TEXT("X=%llu Y=%llu"), X, Y);
+}
+
+template <>
+inline FString TIntPoint<uint32>::ToString() const
+{
+	return FString::Printf(TEXT("X=%u Y=%u"), X, Y);
+}
+
+template <>
+inline FString TIntPoint<uint16>::ToString() const
+{
+	return FString::Printf(TEXT("X=%u Y=%u"), X, Y);
+}
+
+template <>
+inline FString TIntPoint<uint8>::ToString() const
+{
+	return FString::Printf(TEXT("X=%u Y=%u"), X, Y);
+}
+
+} //! namespace UE::Math
+
+template <> struct TIsPODType<FIntPoint>  { enum { Value = true }; };
+template <> struct TIsPODType<FUintPoint> { enum { Value = true }; };
+
+template<> struct TIsUECoreType<FIntPoint>  { enum { Value = true }; };
+template<> struct TIsUECoreType<FUintPoint> { enum { Value = true }; };

@@ -238,7 +238,7 @@ void UDMXPixelMappingMatrixCellComponent::QueueDownsample()
 	constexpr bool bStaticCalculateUV = true;
 
 	FVector4 ExposeFactor;
-	FIntVector4 InvertFactor;
+	FIntVector4 InvertFactor{};
 	if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
 	{
 		ExposeFactor = FVector4(MatrixComponent->AttributeRExpose ? 1.f : 0.f, MatrixComponent->AttributeGExpose ? 1.f : 0.f, MatrixComponent->AttributeBExpose ? 1.f : 0.f, 1.f);

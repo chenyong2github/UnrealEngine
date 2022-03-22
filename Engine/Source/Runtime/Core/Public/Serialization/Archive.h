@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "CoreFwd.h"
 #include "HAL/PlatformProperties.h"
 #include "Internationalization/TextNamespaceFwd.h"
 #include "Misc/AssertionMacros.h"
@@ -1582,7 +1583,7 @@ public:
 	 * @param Ar The archive to serialize from or to.
 	 * @param Value The value to serialize.
 	 */
-	friend FArchive& operator<<(FArchive& Ar, struct FIntRect& Value);
+	friend FArchive& operator<<(FArchive& Ar, FIntRect& Value);
 
 	/**
 	 * Serializes an FString value from or into an archive.

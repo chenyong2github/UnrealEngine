@@ -15,7 +15,8 @@
 struct FDisplayClusterViewportResourceSettings
 {
 	FDisplayClusterViewportResourceSettings()
-		: Format(EPixelFormat(0))
+		: Size(ForceInit)
+		, Format(EPixelFormat(0))
 		, bShouldUseSRGB(false)
 		, DisplayGamma(1)
 		, bIsRenderTargetable(false)
@@ -23,7 +24,8 @@ struct FDisplayClusterViewportResourceSettings
 	{ }
 
 	FDisplayClusterViewportResourceSettings(const FString& InClusterNodeId, const EPixelFormat InFormat, const bool InbShouldUseSRGB, const float InDisplayGamma)
-		: Format(InFormat)
+		: Size(ForceInit)
+		, Format(InFormat)
 		, bShouldUseSRGB(InbShouldUseSRGB)
 		, DisplayGamma(InDisplayGamma)
 		, bIsRenderTargetable(false)

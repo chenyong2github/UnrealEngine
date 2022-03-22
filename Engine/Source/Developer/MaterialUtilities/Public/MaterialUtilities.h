@@ -121,7 +121,7 @@ private:
 		const uint32 Index = (uint32)Property;
 		check(Index < (uint32)EFlattenMaterialProperties::NumFlattenMaterialProperties);
 
-		static FIntPoint TempSize;
+		static FIntPoint TempSize = FIntPoint::ZeroValue;
 		return Index < (uint32)EFlattenMaterialProperties::NumFlattenMaterialProperties ? PropertySizes[Index] : TempSize;
 	}
 
@@ -139,7 +139,7 @@ private:
 		const uint32 Index = (uint32)Property;
 		check(Index < (uint32)EFlattenMaterialProperties::NumFlattenMaterialProperties);
 
-		static const FIntPoint TempSize;
+		static const FIntPoint TempSize = FIntPoint::ZeroValue;
 		return Index < (uint32)EFlattenMaterialProperties::NumFlattenMaterialProperties ? PropertySizes[Index] : TempSize;
 	}
 

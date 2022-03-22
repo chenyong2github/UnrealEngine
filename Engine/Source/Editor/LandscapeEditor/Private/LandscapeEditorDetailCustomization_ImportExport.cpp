@@ -490,7 +490,7 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 				FIntRect ExportRegion;
 				if (LandscapeInfo->GetLandscapeExtent(LandscapeProxy, ExportRegion))
 				{
-					FIntPoint FileOffset;
+					FIntPoint FileOffset{};
 					if (!LandscapeEdMode->UseSingleFileImport())
 					{
 						ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();

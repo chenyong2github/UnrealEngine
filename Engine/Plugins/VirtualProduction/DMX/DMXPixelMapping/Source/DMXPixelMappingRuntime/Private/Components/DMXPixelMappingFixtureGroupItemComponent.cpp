@@ -213,8 +213,8 @@ void UDMXPixelMappingFixtureGroupItemComponent::QueueDownsample()
 	const FVector2D UVCellSize = UVSize / 2.f;
 	constexpr bool bStaticCalculateUV = true;
 
-	FVector4 ExposeFactor;
-	FIntVector4 InvertFactor;
+	FVector4 ExposeFactor{};
+	FIntVector4 InvertFactor{};
 	if (ColorMode == EDMXColorMode::CM_RGB)
 	{
 		ExposeFactor = FVector4(AttributeRExpose ? 1.f : 0.f, AttributeGExpose ? 1.f : 0.f, AttributeBExpose ? 1.f : 0.f, 1.f);

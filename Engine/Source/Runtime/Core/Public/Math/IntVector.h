@@ -8,43 +8,46 @@
 #include "Containers/UnrealString.h"
 #include "Serialization/StructuredArchive.h"
 
+namespace UE::Math
+{
+
 /**
  * Structure for integer vectors in 3-d space.
  */
-struct FIntVector
+template <typename InIntType>
+struct TIntVector3
 {
+	using IntType = InIntType;
+	static_assert(std::is_integral_v<IntType>, "Only an integer types are supported.");
+
 	union
 	{
 		struct
 		{
 			/** Holds the point's x-coordinate. */
-			int32 X;
+			IntType X;
 
 			/** Holds the point's y-coordinate. */
-			int32 Y;
+			IntType Y;
 
 			/**  Holds the point's z-coordinate. */
-			int32 Z;
+			IntType Z;
 		};
 
 		UE_DEPRECATED(all, "For internal use only")
-		int32 XYZ[3];
+		IntType XYZ[3];
 	};
 
-public:
-
 	/** An int point with zeroed values. */
-	CORE_API static const FIntVector ZeroValue;
+	static const TIntVector3 ZeroValue;
 
 	/** An int point with INDEX_NONE values. */
-	CORE_API static const FIntVector NoneValue;
-
-public:
+	static const TIntVector3 NoneValue;
 
 	/**
 	 * Default constructor (no initialization).
 	 */
-	FIntVector();
+	TIntVector3() = default;
 
 	/**
 	 * Creates and initializes a new instance with the specified coordinates.
@@ -53,30 +56,55 @@ public:
 	 * @param InY The y-coordinate.
 	 * @param InZ The z-coordinate.
 	 */
-	FIntVector( int32 InX, int32 InY, int32 InZ );
+	TIntVector3(IntType InX, IntType InY, IntType InZ )
+		: X(InX)
+		, Y(InY)
+		, Z(InZ)
+	{
+	}
 
 	/**
 	 * Constructor
 	 *
 	 * @param InValue replicated to all components
 	 */
-	explicit FIntVector( int32 InValue );
+	explicit TIntVector3(IntType InValue )
+		: X(InValue)
+		, Y(InValue)
+		, Z(InValue)
+	{
+	}
 
 	/**
 	 * Constructor
 	 *
 	 * @param InVector float vector converted to int
 	 */
-	explicit FIntVector( FVector InVector  );
+	explicit TIntVector3( FVector InVector  );
 
 	/**
 	 * Constructor
 	 *
 	 * @param EForceInit Force init enum
 	 */
-	explicit FORCEINLINE FIntVector( EForceInit );
 
-public:
+	explicit TIntVector3( EForceInit )
+		: X(0)
+		, Y(0)
+		, Z(0)
+	{
+	}
+
+	/**
+	 * Converts to another int type. Checks that the cast will succeed.
+	 */
+	template <typename OtherIntType>
+	explicit TIntVector3(TIntVector3<OtherIntType> Other)
+		: X(IntCastChecked<OtherIntType>(Other.X))
+		, Y(IntCastChecked<OtherIntType>(Other.Y))
+		, Z(IntCastChecked<OtherIntType>(Other.Z))
+	{
+	}
 
 	/**
 	 * Gets specific component of a point.
@@ -84,7 +112,12 @@ public:
 	 * @param ComponentIndex Index of point component.
 	 * @return const reference to component.
 	 */
-	const int32& operator()( int32 ComponentIndex ) const;
+	const IntType& operator()(int32 ComponentIndex) const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[ComponentIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Gets specific component of a point.
@@ -92,7 +125,12 @@ public:
 	 * @param ComponentIndex Index of point component.
 	 * @return reference to component.
 	 */
-	int32& operator()( int32 ComponentIndex );
+	IntType& operator()(int32 ComponentIndex)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[ComponentIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Gets specific component of a point.
@@ -100,7 +138,12 @@ public:
 	 * @param ComponentIndex Index of point component.
 	 * @return const reference to component.
 	 */
-	const int32& operator[]( int32 ComponentIndex ) const;
+	const IntType& operator[](int32 ComponentIndex) const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[ComponentIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Gets specific component of a point.
@@ -108,7 +151,12 @@ public:
 	 * @param ComponentIndex Index of point component.
 	 * @return reference to component.
 	 */
-	int32& operator[]( int32 ComponentIndex );
+	IntType& operator[](int32 ComponentIndex)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[ComponentIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Compares points for equality.
@@ -116,7 +164,10 @@ public:
 	 * @param Other The other int point being compared.
 	 * @return true if the points are equal, false otherwise..
 	 */
-	bool operator==( const FIntVector& Other ) const;
+	bool operator==(const TIntVector3& Other) const
+	{
+		return X == Other.X && Y == Other.Y && Z == Other.Z;
+	}
 
 	/**
 	 * Compares points for inequality.
@@ -124,7 +175,10 @@ public:
 	 * @param Other The other int point being compared.
 	 * @return true if the points are not equal, false otherwise..
 	 */
-	bool operator!=( const FIntVector& Other ) const;
+	bool operator!=(const TIntVector3& Other) const
+	{
+		return X != Other.X || Y != Other.Y || Z != Other.Z;
+	}
 
 	/**
 	 * Scales this point.
@@ -132,7 +186,14 @@ public:
 	 * @param Scale What to multiply the point by.
 	 * @return Reference to this point after multiplication.
 	 */
-	FIntVector& operator*=( int32 Scale );
+	TIntVector3& operator*=(IntType Scale)
+	{
+		X *= Scale;
+		Y *= Scale;
+		Z *= Scale;
+
+		return *this;
+	}
 
 	/**
 	 * Divides this point.
@@ -140,7 +201,14 @@ public:
 	 * @param Divisor What to divide the point by.
 	 * @return Reference to this point after division.
 	 */
-	FIntVector& operator/=( int32 Divisor );
+	TIntVector3& operator/=(IntType Divisor)
+	{
+		X /= Divisor;
+		Y /= Divisor;
+		Z /= Divisor;
+
+		return *this;
+	}
 
 	/**
 	 * Adds to this point.
@@ -148,7 +216,14 @@ public:
 	 * @param Other The point to add to this point.
 	 * @return Reference to this point after addition.
 	 */
-	FIntVector& operator+=( const FIntVector& Other );
+	TIntVector3& operator+=(const TIntVector3& Other)
+	{
+		X += Other.X;
+		Y += Other.Y;
+		Z += Other.Z;
+
+		return *this;
+	}
 
 	/**
 	 * Subtracts from this point.
@@ -156,15 +231,14 @@ public:
 	 * @param Other The point to subtract from this point.
 	 * @return Reference to this point after subtraction.
 	 */
-	FIntVector& operator-=( const FIntVector& Other );
+	TIntVector3& operator-=(const TIntVector3& Other)
+	{
+		X -= Other.X;
+		Y -= Other.Y;
+		Z -= Other.Z;
 
-	/**
-	 * Assigns another point to this one.
-	 *
-	 * @param Other The point to assign this point from.
-	 * @return Reference to this point after assignment.
-	 */
-	FIntVector& operator=( const FIntVector& Other );
+		return *this;
+	}
 
 	/**
 	 * Gets the result of scaling on this point.
@@ -172,7 +246,10 @@ public:
 	 * @param Scale What to multiply the point by.
 	 * @return A new scaled int point.
 	 */
-	FIntVector operator*( int32 Scale ) const;
+	TIntVector3 operator*(IntType Scale) const
+	{
+		return TIntVector3(*this) *= Scale;
+	}
 
 	/**
 	 * Gets the result of division on this point.
@@ -180,7 +257,10 @@ public:
 	 * @param Divisor What to divide the point by.
 	 * @return A new divided int point.
 	 */
-	FIntVector operator/( int32 Divisor ) const;
+	TIntVector3 operator/(IntType Divisor) const
+	{
+		return TIntVector3(*this) /= Divisor;
+	}
 
 	/**
 	 * Gets the result of addition on this point.
@@ -188,7 +268,10 @@ public:
 	 * @param Other The other point to add to this.
 	 * @return A new combined int point.
 	 */
-	FIntVector operator+( const FIntVector& Other ) const;
+	TIntVector3 operator+(const TIntVector3& Other) const
+	{
+		return TIntVector3(*this) += Other;
+	}
 
 	/**
 	 * Gets the result of subtraction from this point.
@@ -196,7 +279,10 @@ public:
 	 * @param Other The other point to subtract from this.
 	 * @return A new subtracted int point.
 	 */
-	FIntVector operator-( const FIntVector& Other ) const;
+	TIntVector3 operator-(const TIntVector3& Other) const
+	{
+		return TIntVector3(*this) -= Other;
+	}
 
 	/**
 	 * Shifts all components to the right.
@@ -204,7 +290,10 @@ public:
 	 * @param Shift The number of bits to shift.
 	 * @return A new shifted int point.
 	 */
-	FIntVector operator>>(int32 Shift) const;
+	TIntVector3 operator>>(IntType Shift) const
+	{
+		return TIntVector3(X >> Shift, Y >> Shift, Z >> Shift);
+	}
 
 	/**
 	 * Shifts all components to the left.
@@ -212,7 +301,10 @@ public:
 	 * @param Shift The number of bits to shift.
 	 * @return A new shifted int point.
 	 */
-	FIntVector operator<<(int32 Shift) const;
+	TIntVector3 operator<<(IntType Shift) const
+	{
+		return TIntVector3(X << Shift, Y << Shift, Z << Shift);
+	}
 
 	/**
 	 * Component-wise AND.
@@ -220,7 +312,10 @@ public:
 	 * @param Value Number to AND with the each component.
 	 * @return A new shifted int point.
 	 */
-	FIntVector operator&(int32 Val) const;
+	TIntVector3 operator&(IntType Value) const
+	{
+		return TIntVector3(X & Value, Y & Value, Z & Value);
+	}
 
 	/**
 	 * Component-wise OR.
@@ -228,7 +323,10 @@ public:
 	 * @param Value Number to OR with the each component.
 	 * @return A new shifted int point.
 	 */
-	FIntVector operator|(int32 Value) const;
+	TIntVector3 operator|(IntType Value) const
+	{
+		return TIntVector3(X | Value, Y | Value, Z | Value);
+	}
 
 	/**
 	 * Component-wise XOR.
@@ -236,45 +334,62 @@ public:
 	 * @param Value Number to XOR with the each component.
 	 * @return A new shifted int point.
 	 */
-	FIntVector operator^(int32 Value) const;
+	TIntVector3 operator^(IntType Value) const
+	{
+		return TIntVector3(X ^ Value, Y ^ Value, Z ^ Value);
+	}
 
 	/**
 	 * Is vector equal to zero.
 	 * @return is zero
 	*/
-	bool IsZero() const;
-
-public:
+	bool IsZero() const
+	{
+		return *this == ZeroValue;
+	}
 
 	/**
 	 * Gets the maximum value in the point.
 	 *
 	 * @return The maximum value in the point.
 	 */
-	int32 GetMax() const;
+	IntType GetMax() const
+	{
+		return FMath::Max(FMath::Max(X, Y), Z);
+	}
 
 	/**
 	 * Gets the minimum value in the point.
 	 *
 	 * @return The minimum value in the point.
 	 */
-	int32 GetMin() const;
+	IntType GetMin() const
+	{
+		return FMath::Min(FMath::Min(X, Y), Z);
+	}
 
 	/**
 	 * Gets the distance of this point from (0,0,0).
 	 *
 	 * @return The distance of this point from (0,0,0).
 	 */
-	int32 Size() const;
+	IntType Size() const
+	{
+		int64 LocalX64 = (int64)X;
+		int64 LocalY64 = (int64)Y;
+		int64 LocalZ64 = (int64)Z;
+		return IntType(FMath::Sqrt(double(LocalX64 * LocalX64 + LocalY64 * LocalY64 + LocalZ64 * LocalZ64)));
+	}
 
 	/**
 	 * Get a textual representation of this vector.
 	 *
 	 * @return A string describing the vector.
 	 */
-	FString ToString() const;
-
-public:
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("X=%s Y=%s Z=%s"), *LexToString(X), *LexToString(Y), *LexToString(Z));
+	}
 
 	/**
 	 * Divide an int point and round up the result.
@@ -283,17 +398,25 @@ public:
 	 * @param Divisor What to divide the int point by.
 	 * @return A new divided int point.
 	 */
-	static FIntVector DivideAndRoundUp( FIntVector lhs, int32 Divisor );
-	static FIntVector DivideAndRoundUp( FIntVector lhs, FIntVector Divisor );
+	static TIntVector3 DivideAndRoundUp(TIntVector3 lhs, IntType Divisor)
+	{
+		return TIntVector3(FMath::DivideAndRoundUp(lhs.X, Divisor), FMath::DivideAndRoundUp(lhs.Y, Divisor), FMath::DivideAndRoundUp(lhs.Z, Divisor));
+	}
+
+	static TIntVector3 DivideAndRoundUp(TIntVector3 lhs, TIntVector3 Divisor)
+	{
+		return TIntVector3(FMath::DivideAndRoundUp(lhs.X, Divisor.X), FMath::DivideAndRoundUp(lhs.Y, Divisor.Y), FMath::DivideAndRoundUp(lhs.Z, Divisor.Z));
+	}
 
 	/**
 	 * Gets the number of components a point has.
 	 *
 	 * @return Number of components point has.
 	 */
-	static int32 Num();
-
-public:
+	static int32 Num()
+	{
+		return 3;
+	}
 
 	/**
 	 * Serializes the Rectangle.
@@ -302,12 +425,12 @@ public:
 	 * @param Vector The vector to serialize.
 	 * @return Reference to the Archive after serialization.
 	 */
-	friend FArchive& operator<<( FArchive& Ar, FIntVector& Vector )
+	friend FArchive& operator<<( FArchive& Ar, TIntVector3& Vector )
 	{
 		return Ar << Vector.X << Vector.Y << Vector.Z;
 	}
 
-	friend void operator<<(FStructuredArchive::FSlot Slot, FIntVector& Vector)
+	friend void operator<<(FStructuredArchive::FSlot Slot, TIntVector3& Vector)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
 		Record << SA_VALUE(TEXT("X"), Vector.X);
@@ -322,370 +445,156 @@ public:
 	}
 };
 
-
-/* FIntVector inline functions
- *****************************************************************************/
-
-FORCEINLINE FIntVector::FIntVector()
-{ }
-
-
-FORCEINLINE FIntVector::FIntVector( int32 InX, int32 InY, int32 InZ )
-	: X(InX)
-	, Y(InY)
-	, Z(InZ)
-{ }
-
-
-FORCEINLINE FIntVector::FIntVector( int32 InValue )
-	: X(InValue)
-	, Y(InValue)
-	, Z(InValue)
-{ }
-
-
-FORCEINLINE FIntVector::FIntVector( EForceInit )
-	: X(0)
-	, Y(0)
-	, Z(0)
-{ }
-
-
-FORCEINLINE const int32& FIntVector::operator()( int32 ComponentIndex ) const
+template <>
+inline FString TIntVector3<int64>::ToString() const
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XYZ[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return FString::Printf(TEXT("X=%lld Y=%lld Z=%lld"), X, Y, Z);
 }
 
-
-FORCEINLINE int32& FIntVector::operator()( int32 ComponentIndex )
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XYZ[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-
-FORCEINLINE const int32& FIntVector::operator[]( int32 ComponentIndex ) const
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XYZ[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-
-FORCEINLINE int32& FIntVector::operator[]( int32 ComponentIndex )
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XYZ[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-FORCEINLINE bool FIntVector::operator==( const FIntVector& Other ) const
-{
-	return X==Other.X && Y==Other.Y && Z==Other.Z;
-}
-
-
-FORCEINLINE bool FIntVector::operator!=( const FIntVector& Other ) const
-{
-	return X!=Other.X || Y!=Other.Y || Z!=Other.Z;
-}
-
-
-FORCEINLINE FIntVector& FIntVector::operator*=( int32 Scale )
-{
-	X *= Scale;
-	Y *= Scale;
-	Z *= Scale;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector& FIntVector::operator/=( int32 Divisor )
-{
-	X /= Divisor;
-	Y /= Divisor;
-	Z /= Divisor;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector& FIntVector::operator+=( const FIntVector& Other )
-{
-	X += Other.X;
-	Y += Other.Y;
-	Z += Other.Z;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector& FIntVector::operator-=( const FIntVector& Other )
-{
-	X -= Other.X;
-	Y -= Other.Y;
-	Z -= Other.Z;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector& FIntVector::operator=( const FIntVector& Other )
-{
-	X = Other.X;
-	Y = Other.Y;
-	Z = Other.Z;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector FIntVector::operator*( int32 Scale ) const
-{
-	return FIntVector(*this) *= Scale;
-}
-
-
-FORCEINLINE FIntVector FIntVector::operator/( int32 Divisor ) const
-{
-	return FIntVector(*this) /= Divisor;
-}
-
-
-FORCEINLINE FIntVector FIntVector::operator+( const FIntVector& Other ) const
-{
-	return FIntVector(*this) += Other;
-}
-
-FORCEINLINE FIntVector FIntVector::operator-( const FIntVector& Other ) const
-{
-	return FIntVector(*this) -= Other;
-}
-
-FORCEINLINE FIntVector FIntVector::operator>>(int32 Shift) const
-{
-	return FIntVector(X >> Shift, Y >> Shift, Z >> Shift);
-}
-
-FORCEINLINE FIntVector FIntVector::operator<<(int32 Shift) const
-{
-	return FIntVector(X << Shift, Y << Shift, Z << Shift);
-}
-
-FORCEINLINE FIntVector FIntVector::operator&(int32 Value) const
-{
-	return FIntVector(X & Value, Y & Value, Z & Value);
-}
-
-FORCEINLINE FIntVector FIntVector::operator|(int32 Value) const
-{
-	return FIntVector(X | Value, Y | Value, Z | Value);
-}
-
-FORCEINLINE FIntVector FIntVector::operator^(int32 Value) const
-{
-	return FIntVector(X ^ Value, Y ^ Value, Z ^ Value);
-}
-
-FORCEINLINE FIntVector FIntVector::DivideAndRoundUp( FIntVector lhs, int32 Divisor )
-{
-	return FIntVector(FMath::DivideAndRoundUp(lhs.X, Divisor), FMath::DivideAndRoundUp(lhs.Y, Divisor), FMath::DivideAndRoundUp(lhs.Z, Divisor));
-}
-
-FORCEINLINE FIntVector FIntVector::DivideAndRoundUp(FIntVector lhs, FIntVector Divisor)
-{
-	return FIntVector(FMath::DivideAndRoundUp(lhs.X, Divisor.X), FMath::DivideAndRoundUp(lhs.Y, Divisor.Y), FMath::DivideAndRoundUp(lhs.Z, Divisor.Z));
-}
-
-
-FORCEINLINE int32 FIntVector::GetMax() const
-{
-	return FMath::Max(FMath::Max(X, Y), Z);
-}
-
-
-FORCEINLINE int32 FIntVector::GetMin() const
-{
-	return FMath::Min(FMath::Min(X, Y), Z);
-}
-
-
-FORCEINLINE int32 FIntVector::Num()
-{
-	return 3;
-}
-
-
-FORCEINLINE int32 FIntVector::Size() const
-{
-	int64 LocalX64 = (int64)X;
-	int64 LocalY64 = (int64)Y;
-	int64 LocalZ64 = (int64)Z;
-	return int32(FMath::Sqrt(float(LocalX64 * LocalX64 + LocalY64 * LocalY64 + LocalZ64 * LocalZ64)));
-}
-
-FORCEINLINE bool FIntVector::IsZero() const
-{
-	return *this == ZeroValue;
-}
-
-
-FORCEINLINE FString FIntVector::ToString() const
+template <>
+inline FString TIntVector3<int32>::ToString() const
 {
 	return FString::Printf(TEXT("X=%d Y=%d Z=%d"), X, Y, Z);
 }
 
-FORCEINLINE uint32 GetTypeHash(const FIntVector& Vector)
+template <>
+inline FString TIntVector3<int16>::ToString() const
 {
-	return FCrc::MemCrc_DEPRECATED(&Vector,sizeof(FIntVector));
+	return FString::Printf(TEXT("X=%d Y=%d Z=%d"), X, Y, Z);
 }
 
-struct FIntVector2
+template <>
+inline FString TIntVector3<int8>::ToString() const
 {
+	return FString::Printf(TEXT("X=%d Y=%d Z=%d"), X, Y, Z);
+}
+
+template <>
+inline FString TIntVector3<uint64>::ToString() const
+{
+	return FString::Printf(TEXT("X=%llu Y=%llu Z=%llu"), X, Y, Z);
+}
+
+template <>
+inline FString TIntVector3<uint32>::ToString() const
+{
+	return FString::Printf(TEXT("X=%u Y=%u Z=%u"), X, Y, Z);
+}
+
+template <>
+inline FString TIntVector3<uint16>::ToString() const
+{
+	return FString::Printf(TEXT("X=%u Y=%u Z=%u"), X, Y, Z);
+}
+
+template <>
+inline FString TIntVector3<uint8>::ToString() const
+{
+	return FString::Printf(TEXT("X=%u Y=%u Z=%u"), X, Y, Z);
+}
+
+template <typename IntType>
+const TIntVector3<IntType> TIntVector3<IntType>::ZeroValue(0, 0, 0);
+
+template <typename IntType>
+const TIntVector3<IntType> TIntVector3<IntType>::NoneValue(INDEX_NONE, INDEX_NONE, INDEX_NONE);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+template <typename InIntType>
+struct TIntVector2
+{
+	using IntType = InIntType;
+	static_assert(std::is_integral_v<IntType>, "Only an integer types are supported.");
+
 	union
 	{
 		struct
 		{
-			int32 X, Y;
+			IntType X, Y;
 		};
 
 		UE_DEPRECATED(all, "For internal use only")
-		int32 XY[2];
+		IntType XY[2];
 	};
 
-	FORCEINLINE FIntVector2()
-	{
-	}
+	TIntVector2() = default;
 
-	FORCEINLINE FIntVector2(int32 InX, int32 InY)
+	TIntVector2(IntType InX, IntType InY)
 		: X(InX)
 		, Y(InY)
 	{
 	}
 
-	FORCEINLINE explicit FIntVector2(int32 InValue)
+	explicit TIntVector2(IntType InValue)
 		: X(InValue)
 		, Y(InValue)
 	{
 	}
 
-	FORCEINLINE FIntVector2(EForceInit)
+	TIntVector2(EForceInit)
 		: X(0)
 		, Y(0)
 	{
 	}
 
-	FORCEINLINE const int32& operator[](int32 ComponentIndex) const
+	/**
+	 * Converts to another int type. Checks that the cast will succeed.
+	 */
+	template <typename OtherIntType>
+	explicit TIntVector2(TIntVector2<OtherIntType> Other)
+		: X(IntCastChecked<OtherIntType>(Other.X))
+		, Y(IntCastChecked<OtherIntType>(Other.Y))
+	{
+	}
+
+	const IntType& operator[](int32 ComponentIndex) const
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return XY[ComponentIndex];
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-
-	FORCEINLINE int32& operator[](int32 ComponentIndex)
+	IntType& operator[](int32 ComponentIndex)
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return XY[ComponentIndex];
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	FORCEINLINE bool operator==(const FIntVector2& Other) const
+	bool operator==(const TIntVector2& Other) const
 	{
 		return X==Other.X && Y==Other.Y;
 	}
 
-
-	FORCEINLINE bool operator!=(const FIntVector2& Other) const
+	bool operator!=(const TIntVector2& Other) const
 	{
 		return X!=Other.X || Y!=Other.Y;
 	}
 };
 
-struct FUintVector2
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+template <typename InIntType>
+struct TIntVector4
 {
+	using IntType = InIntType;
+	static_assert(std::is_integral_v<IntType>, "Only an integer types are supported.");
+
 	union
 	{
 		struct
 		{
-			uint32 X, Y;
+			IntType X, Y, Z, W;
 		};
 
 		UE_DEPRECATED(all, "For internal use only")
-		uint32 XY[2];
+		IntType XYZW[4];
 	};
 
-	FORCEINLINE FUintVector2()
-	{
-	}
+	TIntVector4() = default;
 
-	FORCEINLINE FUintVector2(uint32 InX, uint32 InY)
-		: X(InX)
-		, Y(InY)
-	{
-	}
-
-	FORCEINLINE explicit FUintVector2(uint32 InValue)
-		: X(InValue)
-		, Y(InValue)
-	{
-	}
-
-	FORCEINLINE FUintVector2(EForceInit)
-		: X(0)
-		, Y(0)
-	{
-	}
-
-	FORCEINLINE const uint32& operator[](int32 ComponentIndex) const
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XY[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-
-	FORCEINLINE uint32& operator[](int32 ComponentIndex)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XY[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	FORCEINLINE bool operator==(const FUintVector2& Other) const
-	{
-		return X==Other.X && Y==Other.Y;
-	}
-
-
-	FORCEINLINE bool operator!=(const FUintVector2& Other) const
-	{
-		return X!=Other.X || Y!=Other.Y;
-	}
-};
-
-struct FIntVector4
-{
-	union
-	{
-		struct
-		{
-			int32 X, Y, Z, W;
-		};
-
-		UE_DEPRECATED(all, "For internal use only")
-		int32 XYZW[4];
-	};
-
-	FORCEINLINE FIntVector4()
-	{
-	}
-
-	FORCEINLINE FIntVector4(int32 InX, int32 InY, int32 InZ, int32 InW)
+	TIntVector4(IntType InX, IntType InY, IntType InZ, IntType InW)
 		: X(InX)
 		, Y(InY)
 		, Z(InZ)
@@ -693,7 +602,7 @@ struct FIntVector4
 	{
 	}
 
-	FORCEINLINE explicit FIntVector4(int32 InValue)
+	explicit TIntVector4(IntType InValue)
 		: X(InValue)
 		, Y(InValue)
 		, Z(InValue)
@@ -701,7 +610,7 @@ struct FIntVector4
 	{
 	}
 
-	FORCEINLINE explicit FIntVector4(const FIntVector& InValue, int32 InW = 0)
+	explicit TIntVector4(const TIntVector3<IntType>& InValue, IntType InW = 0)
 		: X(InValue.X)
 		, Y(InValue.Y)
 		, Z(InValue.Z)
@@ -709,11 +618,23 @@ struct FIntVector4
 	{
 	}
 
-	FORCEINLINE FIntVector4(EForceInit)
+	TIntVector4(EForceInit)
 		: X(0)
 		, Y(0)
 		, Z(0)
 		, W(0)
+	{
+	}
+
+	/**
+	 * Converts to another int type. Checks that the cast will succeed.
+	 */
+	template <typename OtherIntType>
+	explicit TIntVector4(TIntVector4<OtherIntType> Other)
+		: X(IntCastChecked<OtherIntType>(Other.X))
+		, Y(IntCastChecked<OtherIntType>(Other.Y))
+		, Z(IntCastChecked<OtherIntType>(Other.Z))
+		, W(IntCastChecked<OtherIntType>(Other.W))
 	{
 	}
 
@@ -723,7 +644,12 @@ struct FIntVector4
 	 * @param ComponentIndex Index of point component.
 	 * @return const reference to component.
 	 */
-	const int32& operator()(int32 ComponentIndex) const;
+	const IntType& operator()(int32 ComponentIndex) const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZW[ComponentIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Gets specific component of a point.
@@ -731,7 +657,12 @@ struct FIntVector4
 	 * @param ComponentIndex Index of point component.
 	 * @return reference to component.
 	 */
-	int32& operator()(int32 ComponentIndex);
+	IntType& operator()(int32 ComponentIndex)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZW[ComponentIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Gets specific component of a point.
@@ -739,7 +670,12 @@ struct FIntVector4
 	 * @param ComponentIndex Index of point component.
 	 * @return const reference to component.
 	 */
-	const int32& operator[](int32 ComponentIndex) const;
+	const IntType& operator[](int32 ComponentIndex) const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZW[ComponentIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Gets specific component of a point.
@@ -747,7 +683,12 @@ struct FIntVector4
 	 * @param ComponentIndex Index of point component.
 	 * @return reference to component.
 	 */
-	int32& operator[](int32 ComponentIndex);
+	IntType& operator[](int32 ComponentIndex)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZW[ComponentIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Compares points for equality.
@@ -755,7 +696,10 @@ struct FIntVector4
 	 * @param Other The other int point being compared.
 	 * @return true if the points are equal, false otherwise..
 	 */
-	bool operator==(const FIntVector4& Other) const;
+	bool operator==(const TIntVector4& Other) const
+	{
+		return X == Other.X && Y == Other.Y && Z == Other.Z && W == Other.W;
+	}
 
 	/**
 	 * Compares points for inequality.
@@ -763,7 +707,10 @@ struct FIntVector4
 	 * @param Other The other int point being compared.
 	 * @return true if the points are not equal, false otherwise..
 	 */
-	bool operator!=(const FIntVector4& Other) const;
+	bool operator!=(const TIntVector4& Other) const
+	{
+		return X != Other.X || Y != Other.Y || Z != Other.Z || W != Other.W;
+	}
 
 	/**
 	 * Scales this point.
@@ -771,7 +718,15 @@ struct FIntVector4
 	 * @param Scale What to multiply the point by.
 	 * @return Reference to this point after multiplication.
 	 */
-	FIntVector4& operator*=(int32 Scale);
+	TIntVector4& operator*=(IntType Scale)
+	{
+		X *= Scale;
+		Y *= Scale;
+		Z *= Scale;
+		W *= Scale;
+
+		return *this;
+	}
 
 	/**
 	 * Divides this point.
@@ -779,7 +734,15 @@ struct FIntVector4
 	 * @param Divisor What to divide the point by.
 	 * @return Reference to this point after division.
 	 */
-	FIntVector4& operator/=(int32 Divisor);
+	TIntVector4& operator/=(IntType Divisor)
+	{
+		X /= Divisor;
+		Y /= Divisor;
+		Z /= Divisor;
+		W /= Divisor;
+
+		return *this;
+	}
 
 	/**
 	 * Adds to this point.
@@ -787,7 +750,15 @@ struct FIntVector4
 	 * @param Other The point to add to this point.
 	 * @return Reference to this point after addition.
 	 */
-	FIntVector4& operator+=(const FIntVector4& Other);
+	TIntVector4& operator+=(const TIntVector4& Other)
+	{
+		X += Other.X;
+		Y += Other.Y;
+		Z += Other.Z;
+		W += Other.W;
+
+		return *this;
+	}
 
 	/**
 	 * Subtracts from this point.
@@ -795,7 +766,15 @@ struct FIntVector4
 	 * @param Other The point to subtract from this point.
 	 * @return Reference to this point after subtraction.
 	 */
-	FIntVector4& operator-=(const FIntVector4& Other);
+	TIntVector4& operator-=(const TIntVector4& Other)
+	{
+		X -= Other.X;
+		Y -= Other.Y;
+		Z -= Other.Z;
+		W -= Other.W;
+
+		return *this;
+	}
 
 	/**
 	 * Assigns another point to this one.
@@ -803,7 +782,15 @@ struct FIntVector4
 	 * @param Other The point to assign this point from.
 	 * @return Reference to this point after assignment.
 	 */
-	FIntVector4& operator=(const FIntVector4& Other);
+	TIntVector4& operator=(const TIntVector4& Other)
+	{
+		X = Other.X;
+		Y = Other.Y;
+		Z = Other.Z;
+		W = Other.W;
+
+		return *this;
+	}
 
 	/**
 	 * Gets the result of scaling on this point.
@@ -811,7 +798,10 @@ struct FIntVector4
 	 * @param Scale What to multiply the point by.
 	 * @return A new scaled int point.
 	 */
-	FIntVector4 operator*(int32 Scale) const;
+	TIntVector4 operator*(IntType Scale) const
+	{
+		return TIntVector4(*this) *= Scale;
+	}
 
 	/**
 	 * Gets the result of division on this point.
@@ -819,7 +809,10 @@ struct FIntVector4
 	 * @param Divisor What to divide the point by.
 	 * @return A new divided int point.
 	 */
-	FIntVector4 operator/(int32 Divisor) const;
+	TIntVector4 operator/(IntType Divisor) const
+	{
+		return TIntVector4(*this) /= Divisor;
+	}
 
 	/**
 	 * Gets the result of addition on this point.
@@ -827,7 +820,10 @@ struct FIntVector4
 	 * @param Other The other point to add to this.
 	 * @return A new combined int point.
 	 */
-	FIntVector4 operator+(const FIntVector4& Other) const;
+	TIntVector4 operator+(const TIntVector4& Other) const
+	{
+		return TIntVector4(*this) += Other;
+	}
 
 	/**
 	 * Gets the result of subtraction from this point.
@@ -835,7 +831,10 @@ struct FIntVector4
 	 * @param Other The other point to subtract from this.
 	 * @return A new subtracted int point.
 	 */
-	FIntVector4 operator-(const FIntVector4& Other) const;
+	TIntVector4 operator-(const TIntVector4& Other) const
+	{
+		return TIntVector4(*this) -= Other;
+	}
 
 	/**
 	 * Shifts all components to the right.
@@ -843,7 +842,10 @@ struct FIntVector4
 	 * @param Shift The number of bits to shift.
 	 * @return A new shifted int point.
 	 */
-	FIntVector4 operator>>(int32 Shift) const;
+	TIntVector4 operator>>(IntType Shift) const
+	{
+		return TIntVector4(X >> Shift, Y >> Shift, Z >> Shift, W >> Shift);
+	}
 
 	/**
 	 * Shifts all components to the left.
@@ -851,7 +853,10 @@ struct FIntVector4
 	 * @param Shift The number of bits to shift.
 	 * @return A new shifted int point.
 	 */
-	FIntVector4 operator<<(int32 Shift) const;
+	TIntVector4 operator<<(IntType Shift) const
+	{
+		return TIntVector4(X << Shift, Y << Shift, Z << Shift, W << Shift);
+	}
 
 	/**
 	 * Component-wise AND.
@@ -859,7 +864,10 @@ struct FIntVector4
 	 * @param Value Number to AND with the each component.
 	 * @return A new shifted int point.
 	 */
-	FIntVector4 operator&(int32 Val) const;
+	TIntVector4 operator&(IntType Value) const
+	{
+		return TIntVector4(X & Value, Y & Value, Z & Value, W & Value);
+	}
 
 	/**
 	 * Component-wise OR.
@@ -867,7 +875,10 @@ struct FIntVector4
 	 * @param Value Number to OR with the each component.
 	 * @return A new shifted int point.
 	 */
-	FIntVector4 operator|(int32 Value) const;
+	TIntVector4 operator|(IntType Value) const
+	{
+		return TIntVector4(X | Value, Y | Value, Z | Value, W | Value);
+	}
 
 	/**
 	 * Component-wise XOR.
@@ -875,223 +886,37 @@ struct FIntVector4
 	 * @param Value Number to XOR with the each component.
 	 * @return A new shifted int point.
 	 */
-	FIntVector4 operator^(int32 Value) const;
-};
-
-FORCEINLINE const int32& FIntVector4::operator()(int32 ComponentIndex) const
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XYZW[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-
-FORCEINLINE int32& FIntVector4::operator()(int32 ComponentIndex)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XYZW[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-
-FORCEINLINE const int32& FIntVector4::operator[](int32 ComponentIndex) const
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XYZW[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-
-FORCEINLINE int32& FIntVector4::operator[](int32 ComponentIndex)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return XYZW[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-FORCEINLINE bool FIntVector4::operator==(const FIntVector4& Other) const
-{
-	return X == Other.X && Y == Other.Y && Z == Other.Z && W == Other.W;
-}
-
-
-FORCEINLINE bool FIntVector4::operator!=(const FIntVector4& Other) const
-{
-	return X != Other.X || Y != Other.Y || Z != Other.Z || W != Other.W;
-}
-
-
-FORCEINLINE FIntVector4& FIntVector4::operator*=(int32 Scale)
-{
-	X *= Scale;
-	Y *= Scale;
-	Z *= Scale;
-	W *= Scale;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector4& FIntVector4::operator/=(int32 Divisor)
-{
-	X /= Divisor;
-	Y /= Divisor;
-	Z /= Divisor;
-	W /= Divisor;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector4& FIntVector4::operator+=(const FIntVector4& Other)
-{
-	X += Other.X;
-	Y += Other.Y;
-	Z += Other.Z;
-	W += Other.W;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector4& FIntVector4::operator-=(const FIntVector4& Other)
-{
-	X -= Other.X;
-	Y -= Other.Y;
-	Z -= Other.Z;
-	W -= Other.W;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector4& FIntVector4::operator=(const FIntVector4& Other)
-{
-	X = Other.X;
-	Y = Other.Y;
-	Z = Other.Z;
-	W = Other.W;
-
-	return *this;
-}
-
-
-FORCEINLINE FIntVector4 FIntVector4::operator*(int32 Scale) const
-{
-	return FIntVector4(*this) *= Scale;
-}
-
-
-FORCEINLINE FIntVector4 FIntVector4::operator/(int32 Divisor) const
-{
-	return FIntVector4(*this) /= Divisor;
-}
-
-
-FORCEINLINE FIntVector4 FIntVector4::operator+(const FIntVector4& Other) const
-{
-	return FIntVector4(*this) += Other;
-}
-
-FORCEINLINE FIntVector4 FIntVector4::operator-(const FIntVector4& Other) const
-{
-	return FIntVector4(*this) -= Other;
-}
-
-FORCEINLINE FIntVector4 FIntVector4::operator>>(int32 Shift) const
-{
-	return FIntVector4(X >> Shift, Y >> Shift, Z >> Shift, W >> Shift);
-}
-
-FORCEINLINE FIntVector4 FIntVector4::operator<<(int32 Shift) const
-{
-	return FIntVector4(X << Shift, Y << Shift, Z << Shift, W << Shift);
-}
-
-FORCEINLINE FIntVector4 FIntVector4::operator&(int32 Value) const
-{
-	return FIntVector4(X & Value, Y & Value, Z & Value, W & Value);
-}
-
-FORCEINLINE FIntVector4 FIntVector4::operator|(int32 Value) const
-{
-	return FIntVector4(X | Value, Y | Value, Z | Value, W | Value);
-}
-
-FORCEINLINE FIntVector4 FIntVector4::operator^(int32 Value) const
-{
-	return FIntVector4(X ^ Value, Y ^ Value, Z ^ Value, W ^ Value);
-}
-
-
-struct FUintVector4
-{
-	union
+	TIntVector4 operator^(IntType Value) const
 	{
-		struct
-		{
-			uint32 X, Y, Z, W;
-		};
-
-		UE_DEPRECATED(all, "For internal use only")
-		uint32 XYZW[4];
-	};
-
-	FORCEINLINE FUintVector4()
-	{
-	}
-
-	FORCEINLINE FUintVector4(uint32 InX, uint32 InY, uint32 InZ, uint32 InW)
-		: X(InX)
-		, Y(InY)
-		, Z(InZ)
-		, W(InW)
-	{
-	}
-
-	FORCEINLINE explicit FUintVector4(uint32 InValue)
-		: X(InValue)
-		, Y(InValue)
-		, Z(InValue)
-		, W(InValue)
-	{
-	}
-
-	FORCEINLINE FUintVector4(EForceInit)
-		: X(0)
-		, Y(0)
-		, Z(0)
-		, W(0)
-	{
-	}
-
-	FORCEINLINE const uint32& operator[](int32 ComponentIndex) const
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XYZW[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-
-	FORCEINLINE uint32& operator[](int32 ComponentIndex)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XYZW[ComponentIndex];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	FORCEINLINE bool operator==(const FUintVector4& Other) const
-	{
-		return X==Other.X && Y==Other.Y && Z==Other.Z && W==Other.W;
-	}
-
-
-	FORCEINLINE bool operator!=(const FUintVector4& Other) const
-	{
-		return X!=Other.X || Y!=Other.Y || Z!=Other.Z || W!=Other.W;
+		return TIntVector4(X ^ Value, Y ^ Value, Z ^ Value, W ^ Value);
 	}
 };
 
-template <> struct TIsPODType<FIntVector> { enum { Value = true }; };
-template <> struct TIsPODType<FIntVector4> { enum { Value = true }; };
+/**
+ * Creates a hash value from an FVector.
+ *
+ * @param Vector the vector to create a hash value for
+ * @return The hash value from the components
+ */
+template<typename T>
+uint32 GetTypeHash(const TIntVector3<T>& Vector)
+{
+	// Note: this assumes there's no padding in Vector that could contain uncompared data.
+	return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(Vector));
+}
+
+} //! namespace UE::Math
+
+template <> struct TIsPODType<FIntVector2>  { enum { Value = true }; };
+template <> struct TIsPODType<FUintVector2> { enum { Value = true }; };
+template <> struct TIsPODType<FIntVector3>  { enum { Value = true }; };
+template <> struct TIsPODType<FUintVector3> { enum { Value = true }; };
+template <> struct TIsPODType<FIntVector4>  { enum { Value = true }; };
 template <> struct TIsPODType<FUintVector4> { enum { Value = true }; };
+
+template <> struct TIsUECoreType<FIntVector2>  { enum { Value = true }; };
+template <> struct TIsUECoreType<FUintVector2> { enum { Value = true }; };
+template <> struct TIsUECoreType<FIntVector3>  { enum { Value = true }; };
+template <> struct TIsUECoreType<FUintVector3> { enum { Value = true }; };
+template <> struct TIsUECoreType<FIntVector4>  { enum { Value = true }; };
+template <> struct TIsUECoreType<FUintVector4> { enum { Value = true }; };

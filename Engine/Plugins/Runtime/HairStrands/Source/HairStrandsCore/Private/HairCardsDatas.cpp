@@ -7,14 +7,6 @@
 // including the types used in them such as the RenderData structures,
 // CustomVersion will be required to handle the changes
 
-FArchive& operator<<(FArchive& Ar, FUIntPoint& Point)
-{
-	Ar << Point.X;
-	Ar << Point.Y;
-
-	return Ar;
-}
-
 void FHairCardsBulkData::Serialize(FArchive& Ar)
 {
 	Ar << Positions;

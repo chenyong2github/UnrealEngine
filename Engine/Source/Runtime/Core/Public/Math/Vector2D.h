@@ -97,7 +97,8 @@ public:
 	*
 	* @param InPos Integer point used to set this vector.
 	*/
-	FORCEINLINE TVector2<T>(FIntPoint InPos);
+	template <typename IntType>
+	FORCEINLINE TVector2<T>(TIntPoint<IntType> InPos);
 
 	/**
 	* Constructor which initializes all components to zero.
@@ -764,7 +765,8 @@ FORCEINLINE TVector2<T>::TVector2(T InF)
 { }
 
 template<typename T>
-FORCEINLINE TVector2<T>::TVector2(FIntPoint InPos)
+template<typename IntType>
+FORCEINLINE TVector2<T>::TVector2(TIntPoint<IntType> InPos)
 {
 	X = (T)InPos.X;
 	Y = (T)InPos.Y;

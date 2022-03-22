@@ -673,7 +673,7 @@ bool FRepMovement::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOut
 }
 
 /** Rebase zero-origin position onto local world origin value. */
-FVector FRepMovement::RebaseOntoLocalOrigin(const FVector& Location, const struct FIntVector& LocalOrigin)
+FVector FRepMovement::RebaseOntoLocalOrigin(const FVector& Location, const FIntVector& LocalOrigin)
 {
 	if (EnableMultiplayerWorldOriginRebasing <= 0 || LocalOrigin == FIntVector::ZeroValue)
 	{
@@ -684,7 +684,7 @@ FVector FRepMovement::RebaseOntoLocalOrigin(const FVector& Location, const struc
 }
 
 /** Rebase local-origin position onto zero world origin value. */
-FVector FRepMovement::RebaseOntoZeroOrigin(const FVector& Location, const struct FIntVector& LocalOrigin)
+FVector FRepMovement::RebaseOntoZeroOrigin(const FVector& Location, const FIntVector& LocalOrigin)
 {
 	if (EnableMultiplayerWorldOriginRebasing <= 0 || LocalOrigin == FIntVector::ZeroValue)
 	{

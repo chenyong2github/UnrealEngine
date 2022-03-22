@@ -122,7 +122,7 @@ ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool
 		return ELandscapeImportResult::Error;
 	}
 		
-	FIntPoint OutCoord;
+	FIntPoint OutCoord{};
 	FIntPoint MinCoord(INT32_MAX, INT32_MAX); // All coords should be rebased to the min
 	FIntPoint MaxCoord(INT32_MIN, INT32_MIN);
 	FString OutFileImportPattern;

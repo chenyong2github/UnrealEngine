@@ -1035,7 +1035,7 @@ static void ExportMaterialPropertyTexture(const FString& BMPFilename, UMaterialI
 
 	// make the BMP for the diffuse channel
 	TArray<FColor> OutputBMP;
-	FIntPoint OutSize;
+	FIntPoint OutSize{};
 
 	const TEnumAsByte<EBlendMode> BlendMode = Material->GetBlendMode();
 

@@ -190,14 +190,16 @@ public:
      *
      * @param InVector FIntVector to copy from.
      */
-    explicit TVector(FIntVector InVector);
+	template <typename IntType>
+    explicit TVector(TIntVector3<IntType> InVector);
 
     /**
      * Constructs a vector from an FIntPoint.
      *
      * @param A Int Point used to set X and Y coordinates, Z is set to zero.
      */
-    explicit TVector(FIntPoint A);
+	template <typename IntType>
+    explicit TVector(TIntPoint<IntType> A);
 
     /**
      * Constructor which initializes all components to zero.
@@ -1384,14 +1386,16 @@ FORCEINLINE TVector<T>::TVector(const FLinearColor& InColor)
 }
 
 template<typename T>
-FORCEINLINE TVector<T>::TVector(FIntVector InVector)
+template <typename IntType>
+FORCEINLINE TVector<T>::TVector(TIntVector3<IntType> InVector)
     : X((T)InVector.X), Y((T)InVector.Y), Z((T)InVector.Z)
 {
     DiagnosticCheckNaN();
 }
 
 template<typename T>
-FORCEINLINE TVector<T>::TVector(FIntPoint A)
+template <typename IntType>
+FORCEINLINE TVector<T>::TVector(TIntPoint<IntType> A)
     : X((T)A.X), Y((T)A.Y), Z(0.f)
 {
     DiagnosticCheckNaN();
@@ -2603,14 +2607,6 @@ inline FVector FMath::VRand()
     return Result * (1.0f / Sqrt(L));
 }
 
-
-FORCEINLINE FIntVector::FIntVector(FVector InVector)
-	: X(FMath::TruncToInt32(InVector.X))
-	, Y(FMath::TruncToInt32(InVector.Y))
-	, Z(FMath::TruncToInt32(InVector.Z))
-{
-}
-
 template<>
 inline bool FVector3f::SerializeFromMismatchedTag(FName StructTag, FStructuredArchive::FSlot Slot)
 {
@@ -2630,6 +2626,21 @@ inline bool FVector3d::SerializeFromMismatchedTag(FName StructTag, FStructuredAr
 namespace UE {
 namespace Math {
 
+template <>
+FORCEINLINE TIntVector3<int32>::TIntVector3(FVector InVector)
+	: X(FMath::TruncToInt32(InVector.X))
+	, Y(FMath::TruncToInt32(InVector.Y))
+	, Z(FMath::TruncToInt32(InVector.Z))
+{
+}
+
+template <>
+FORCEINLINE TIntVector3<uint32>::TIntVector3(FVector InVector)
+	: X(IntCastChecked<uint32, int64>(FMath::TruncToInt64(InVector.X)))
+	, Y(IntCastChecked<uint32, int64>(FMath::TruncToInt64(InVector.Y)))
+	, Z(IntCastChecked<uint32, int64>(FMath::TruncToInt64(InVector.Z)))
+{
+}
 
 template<typename T>
 FORCEINLINE TVector2<T>::TVector2( const TVector<T>& V )

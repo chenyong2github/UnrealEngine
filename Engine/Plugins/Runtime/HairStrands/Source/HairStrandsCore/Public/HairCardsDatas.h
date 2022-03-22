@@ -11,12 +11,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Utils/Format data
 
-struct FUIntPoint
-{
-	uint32 X;
-	uint32 Y;
-};
-
 struct FHairCardsPositionFormat
 {
 	typedef FVector4f Type;
@@ -103,7 +97,7 @@ struct FHairCardsStrandsPositionFormat
 
 struct FHairCardsOffsetAndCount
 {
-	typedef FUIntPoint Type;
+	typedef FUintPoint Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_None;
@@ -322,8 +316,8 @@ struct FHairCardsProceduralGeometry : FHairCardsGeometry
 	TArray<Rect>   Rects;
 	TArray<float>  Lengths;
 	
-	TArray<FUIntPoint> CardIndexToClusterOffsetAndCount;
-	TArray<FUIntPoint> ClusterIndexToVertexOffsetAndCount;
+	TArray<FUintPoint> CardIndexToClusterOffsetAndCount;
+	TArray<FUintPoint> ClusterIndexToVertexOffsetAndCount;
 
 	TArray<FHairOrientedBound> Bounds;
 

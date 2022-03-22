@@ -70,11 +70,6 @@ CORE_API const uint32 FMath::BitFlag[32] =
 	(1U << 28),	(1U << 29),	(1U << 30),	(1U << 31),
 };
 
-const FIntPoint FIntPoint::ZeroValue(0,0);
-const FIntPoint FIntPoint::NoneValue(INDEX_NONE,INDEX_NONE);
-const FIntVector FIntVector::ZeroValue(0,0,0);
-const FIntVector FIntVector::NoneValue(INDEX_NONE,INDEX_NONE,INDEX_NONE);
-
 template<typename T>
 bool UE::Math::TRotator<T>::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {

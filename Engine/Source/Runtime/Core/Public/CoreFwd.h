@@ -29,17 +29,48 @@ UE_DECLARE_LWC_TYPE(Transform, 3);
 UE_DECLARE_LWC_TYPE(Vector2,, FVector2D);
 UE_DECLARE_LWC_TYPE(Vector, 3);
 UE_DECLARE_LWC_TYPE(Vector4);
-struct FIntPoint;
-struct FIntRect;
 
 namespace UE
 {
 namespace Math
 {
+template <typename IntType>
+struct TIntPoint;
+
+template <typename IntType>
+struct TIntRect;
+
+template <typename IntType>
+struct TIntVector2;
+
+template <typename IntType>
+struct TIntVector3;
+
+template <typename IntType>
+struct TIntVector4;
+
 template<typename T, typename TExtent = T>
 struct TBoxSphereBounds;
 }
 }
+
+using FIntPoint = UE::Math::TIntPoint<int32>;
+using FUintPoint = UE::Math::TIntPoint<uint32>;
+
+using FIntRect = UE::Math::TIntRect<int32>;
+using FUintRect = UE::Math::TIntRect<uint32>;
+
+using FIntVector3 = UE::Math::TIntVector3<int32>;
+using FUintVector3 = UE::Math::TIntVector3<uint32>;
+
+using FIntVector = FIntVector3;
+
+using FIntVector2 = UE::Math::TIntVector2<int32>;
+using FUintVector2 = UE::Math::TIntVector2<uint32>;
+
+using FIntVector4 = UE::Math::TIntVector4<int32>;
+using FUintVector4 = UE::Math::TIntVector4<uint32>;
+
 using FBoxSphereBounds3f = UE::Math::TBoxSphereBounds<float, float>;
 using FBoxSphereBounds3d = UE::Math::TBoxSphereBounds<double, double>;
 // FCompactBoxSphereBounds always stores float extents
