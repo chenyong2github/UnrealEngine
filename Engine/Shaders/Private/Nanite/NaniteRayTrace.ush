@@ -70,7 +70,7 @@ bool RayTriangleIntersection(float3 RayOrigin, float3 RayDirection, float3 Verte
 #endif
 }
 
-bool RayAABBIntersection(float3 RayOrigin, float3 RayDirection, float3 BoxCenter, float3 BoxExtent, float RayTCurrent)
+bool RayAABBIntersection(float3 RayOrigin, float3 RayDirection, float3 BoxCenter, float3 BoxExtent, float TMin, float RayTCurrent)
 {
 	const float3 BoxMin = BoxCenter - BoxExtent;
 	const float3 BoxMax = BoxCenter + BoxExtent;
@@ -82,7 +82,7 @@ bool RayAABBIntersection(float3 RayOrigin, float3 RayDirection, float3 BoxCenter
 	const float3 FurthestPlaneIntersections = max(FirstPlaneIntersections, SecondPlaneIntersections);
 	const float ClosestDistance = max3(ClosestPlaneIntersections.x, ClosestPlaneIntersections.y, ClosestPlaneIntersections.z);
 	const float FurthestDistance = min3(FurthestPlaneIntersections.x, FurthestPlaneIntersections.y, FurthestPlaneIntersections.z);
-	if (ClosestDistance > FurthestDistance || RayTCurrent < ClosestDistance)
+	if (ClosestDistance > FurthestDistance || TMin > FurthestDistance || RayTCurrent < ClosestDistance)
 	{
 		return false;
 	}
@@ -93,7 +93,7 @@ bool RayAABBIntersection(float3 RayOrigin, float3 RayDirection, float3 BoxCenter
 bool NaniteClustersIntersection(
 	uint PageIndex, uint BaseClusterIndex, uint NumClusters, float CutError,
 	float3 Origin, float3 Direction, float4x4 LocalToTranslatedWorld, float3 InvScale, float3 BoundsCenter,
-	inout float RayTCurrent, inout FNaniteIntersectionResult NaniteIntersectionResult)
+	float TMin, inout float RayTCurrent, inout FNaniteIntersectionResult NaniteIntersectionResult)
 {
 	bool bIntersection = false;
 	for (int ClusterIndex = 0; ClusterIndex < NumClusters; ++ClusterIndex)
@@ -106,7 +106,7 @@ bool NaniteClustersIntersection(
 		float3 BoxBoundsCenter = (Cluster.BoxBoundsCenter - BoundsCenter) * InvScale;
 		float3 BoxBoundsExtent = Cluster.BoxBoundsExtent * InvScale;
 
-		const bool bBoxIntersection = RayAABBIntersection(Origin, Direction, BoxBoundsCenter, BoxBoundsExtent, RayTCurrent);
+		const bool bBoxIntersection = RayAABBIntersection(Origin, Direction, BoxBoundsCenter, BoxBoundsExtent, TMin, RayTCurrent);
 #else
 		const bool bBoxIntersection = true;
 #endif
@@ -146,7 +146,7 @@ bool NaniteClustersIntersection(
 			bool bHit = RayTriangleIntersection(Origin, Direction, PointLocal0, PointLocal1, PointLocal2, IntersectionT, Barycentrics);
 #endif
 			
-			if (bHit && IntersectionT < RayTCurrent)
+			if (bHit && IntersectionT >= TMin && IntersectionT <= RayTCurrent)
 			{
 				NaniteIntersectionResult.Barycentrics = Barycentrics;
 				NaniteIntersectionResult.TriIndex = TriIndex;
@@ -162,7 +162,7 @@ bool NaniteClustersIntersection(
 	return bIntersection;
 }
 
-bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData InstanceData, FPrimitiveSceneData PrimitiveData, float CutError, inout float RayTCurrent, out FNaniteIntersectionResult NaniteIntersectionResult)
+bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData InstanceData, FPrimitiveSceneData PrimitiveData, float CutError, float TMin, inout float RayTCurrent, out FNaniteIntersectionResult NaniteIntersectionResult)
 {
 	float4x4 LocalToTranslatedWorld = LWCHackToFloat(InstanceData.LocalToWorld);
 	float4x4 TranslatedWorldToLocal = LWCHackToFloat(InstanceData.WorldToLocal);
@@ -205,7 +205,7 @@ bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData Inst
 			float3 BoxBoundsCenter = (HierarchyNodeSlice.BoxBoundsCenter - BoundsCenter) * InvScale;
 			float3 BoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent * InvScale;
 
-			bool bBoxIntersection = RayAABBIntersection(Origin, Direction, BoxBoundsCenter, BoxBoundsExtent, RayTCurrent);
+			bool bBoxIntersection = RayAABBIntersection(Origin, Direction, BoxBoundsCenter, BoxBoundsExtent, TMin, RayTCurrent);
 #else
 			const bool bBoxIntersection = true;
 #endif
@@ -225,7 +225,7 @@ bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData Inst
 				const uint PageIndex = HierarchyNodeSlice.ChildStartReference >> NANITE_MAX_CLUSTERS_PER_PAGE_BITS;
 				const uint BaseClusterIndex = HierarchyNodeSlice.ChildStartReference & NANITE_MAX_CLUSTERS_PER_PAGE_MASK;
 
-				if (NaniteClustersIntersection(PageIndex, BaseClusterIndex, NumClusters, CutError, Origin, Direction, LocalToTranslatedWorld, InvScale, BoundsCenter, RayTCurrent, NaniteIntersectionResult))
+				if (NaniteClustersIntersection(PageIndex, BaseClusterIndex, NumClusters, CutError, Origin, Direction, LocalToTranslatedWorld, InvScale, BoundsCenter, TMin, RayTCurrent, NaniteIntersectionResult))
 				{
 					bIntersection = true;
 				}
