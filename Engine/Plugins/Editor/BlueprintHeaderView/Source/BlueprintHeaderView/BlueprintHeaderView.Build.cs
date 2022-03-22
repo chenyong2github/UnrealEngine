@@ -29,6 +29,7 @@ public class BlueprintHeaderView : ModuleRules
 				"BlueprintGraph",
 				"ApplicationCore",
 				"DeveloperSettings",
+				"WorkspaceMenuStructure",
 			}
 			);
 		
