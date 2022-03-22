@@ -49,6 +49,8 @@ void FPrestonMDRMessageThread::SetIncomingDataMode_GameThread(EFIZDataMode InDat
 
 void FPrestonMDRMessageThread::Start()
 {
+	bIsFinished = false;
+
 	Thread.Reset(FRunnableThread::Create(this, TEXT("Preston MDR Message Thread"), ThreadStackSize, TPri_AboveNormal));
 }
 
@@ -88,6 +90,7 @@ uint32 FPrestonMDRMessageThread::Run()
 		if ((FPlatformTime::Seconds() - LastTimeDataReceived) > ConnectionTimeout)
 		{
 			ConnectionFailedDelegate.ExecuteIfBound();
+			bIsFinished = true;
 			return 0;
 		}
 
@@ -99,12 +102,17 @@ uint32 FPrestonMDRMessageThread::Run()
 
 	int32 TotalBytesRead = 0;
 	uint32 NumBytesOnSocket = 0;
-	while ((bIsThreadRunning) || Socket->HasPendingData(NumBytesOnSocket))
+
+	uint32 NumCommandsSent = 0;
+	uint32 NumRepliedReceived = 0;
+
+	while ((bIsThreadRunning || !bReadyToSendCommandToServer) && !bForceKillThread)
 	{
 		if (bReadyToSendCommandToServer)
 		{
 			bReadyToSendCommandToServer = false;
 			SendNextCommandToServer();
+			NumCommandsSent++;
 		}
 
 		int32 NumBytesRead = 0;
@@ -138,6 +146,7 @@ uint32 FPrestonMDRMessageThread::Run()
 				LastTimeDataReceived = FPlatformTime::Seconds();
 
 				ParseMessageFromServer(ReceiveBuffer.GetData(), PacketLength);
+				NumRepliedReceived++;
 
 				// After receiving a new timecode and new FIZ data packet, send a new frame of lens data 
 				if (bIsFrameTimeReady && bIsFrameDataReady)
@@ -159,7 +168,7 @@ uint32 FPrestonMDRMessageThread::Run()
 		}
 		else if (Socket->GetConnectionState() != ESocketConnectionState::SCS_Connected)
 		{
-			ConnectionFailedDelegate.ExecuteIfBound();
+			ConnectionLostDelegate.ExecuteIfBound();
 			break;
 		}
 
@@ -180,6 +189,11 @@ uint32 FPrestonMDRMessageThread::Run()
 			}
 		}
 	}
+
+	UE_LOG(LogPrestonMDRMessageThread, Verbose, TEXT("Commands Sent   : %d"), NumCommandsSent);
+	UE_LOG(LogPrestonMDRMessageThread, Verbose, TEXT("Replies Received: %d"), NumRepliedReceived);
+
+	bIsFinished = true;
 
 	return 0;
 }
@@ -584,11 +598,17 @@ void FPrestonMDRMessageThread::SoftReset()
 
 void FPrestonMDRMessageThread::HardReset()
 {
+	// Update this flag so that the main message loop stops executing and the thread can be marked as finished
+	bForceKillThread = true;
+
 	// Notify the Source that the connection has been lost so that it can attempt to re-establish it.
 	ConnectionLostDelegate.ExecuteIfBound();
+}
 
-	// Reset the timer so that another reset does not immediately trigger
-	LastTimeDataReceived = FPlatformTime::Seconds();
+void FPrestonMDRMessageThread::ForceKill()
+{
+	// Update this flag so that the main message loop stops executing and the thread can be marked as finished
+	bForceKillThread = true;
 }
 
 // Utility Functions

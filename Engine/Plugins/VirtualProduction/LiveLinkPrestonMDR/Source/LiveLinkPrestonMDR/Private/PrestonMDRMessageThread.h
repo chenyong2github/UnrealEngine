@@ -168,6 +168,9 @@ public:
 
 	void Start();
 
+	bool IsThreadRunning() const { return bIsThreadRunning; }
+	bool IsFinished() const { return bIsFinished; }
+
 	/**
 	 * Returns a delegate that is executed when frame data is ready.
 	 *
@@ -205,6 +208,8 @@ public:
 
 	void SoftReset();
 
+	void ForceKill();
+
 	void SetIncomingDataMode_GameThread(EFIZDataMode InDataMode);
 
 private:
@@ -236,7 +241,7 @@ private:
 	FSocket* Socket;
 
 	TUniquePtr<FRunnableThread> Thread;
-	bool bIsThreadRunning = false;
+	std::atomic<bool> bIsThreadRunning = false;
 
 	FOnFrameDataReady FrameDataReadyDelegate;
 	FOnStatusChanged StatusChangedDelegate;
@@ -269,12 +274,15 @@ private:
 	bool bSoftResetTriggered = false;
 	bool bHardResetTriggered = false;
 
+	std::atomic<bool> bIsFinished = true;
+	std::atomic<bool> bForceKillThread = false;
+
 private:
 	static constexpr uint32 MaximumMDRMessageLength = 512;
 
 	static constexpr uint32 ThreadStackSize = 1024 * 128;
 
 	static constexpr float ConnectionWaitInterval = 0.02f; // 20ms
-	static constexpr double ConnectionTimeout = 3.0; // 3sec
+	static constexpr double ConnectionTimeout = 5.0; // 3sec
 	static constexpr double DataReceivedTimeout = 2.0; // 2sec
 };

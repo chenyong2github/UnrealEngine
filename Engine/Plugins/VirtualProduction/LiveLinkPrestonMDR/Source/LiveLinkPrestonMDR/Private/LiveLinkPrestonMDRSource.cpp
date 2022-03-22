@@ -15,21 +15,25 @@
 
 #define LOCTEXT_NAMESPACE "LiveLinkPrestonMDRSource"
 
-DEFINE_LOG_CATEGORY_STATIC(LogPrestonMDRSource, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkPrestonMDRSource, Log, All);
 
 FLiveLinkPrestonMDRSource::FLiveLinkPrestonMDRSource(FLiveLinkPrestonMDRConnectionSettings InConnectionSettings)
 	: SocketSubsystem(ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM))
 	, ConnectionSettings(MoveTemp(InConnectionSettings))
 	, LastTimeDataReceived(0.0)
-	, bIsConnectedToDevice(false)
-	, bFailedToConnectToDevice(false)
+	, MessageThreadShutdownTime(0.0)
+	, SourceStatus(EPrestonSourceStatus::NotConnected)
 {
 	SourceMachineName = FText::Format(LOCTEXT("PrestonMDRMachineName", "{0}:{1}"), FText::FromString(ConnectionSettings.IPAddress), FText::AsNumber(ConnectionSettings.PortNumber, &FNumberFormattingOptions::DefaultNoGrouping()));
 }
 
 FLiveLinkPrestonMDRSource::~FLiveLinkPrestonMDRSource()
 {
-	RequestSourceShutdown();
+	bool bIsReadyToShutdown = false;
+	while (!bIsReadyToShutdown)
+	{
+		bIsReadyToShutdown = ShutdownMessageThreadAndSocket();
+	}
 }
 
 void FLiveLinkPrestonMDRSource::ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid)
@@ -38,15 +42,6 @@ void FLiveLinkPrestonMDRSource::ReceiveClient(ILiveLinkClient* InClient, FGuid I
 	SubjectKey = FLiveLinkSubjectKey(InSourceGuid, ConnectionSettings.SubjectName);
 
 	OpenConnection();
-
-	MessageThread = MakeUnique<FPrestonMDRMessageThread>(Socket);
-
-	MessageThread->OnFrameDataReady().BindRaw(this, &FLiveLinkPrestonMDRSource::OnFrameDataReady);
-	MessageThread->OnStatusChanged().BindRaw(this, &FLiveLinkPrestonMDRSource::OnStatusChanged);
-	MessageThread->OnConnectionLost().BindRaw(this, &FLiveLinkPrestonMDRSource::OnConnectionLost);
-	MessageThread->OnConnectionFailed().BindRaw(this, &FLiveLinkPrestonMDRSource::OnConnectionFailed);
-
-	MessageThread->Start();
 }
 
 void FLiveLinkPrestonMDRSource::InitializeSettings(ULiveLinkSourceSettings* Settings)
@@ -64,7 +59,7 @@ void FLiveLinkPrestonMDRSource::InitializeSettings(ULiveLinkSourceSettings* Sett
 	}
 	else
 	{
-		UE_LOG(LogPrestonMDRSource, Warning, TEXT("Preston MDR Source coming from Preset is outdated. Consider recreating a Preston MDR Source. Configure it and resave as preset"));
+		UE_LOG(LogLiveLinkPrestonMDRSource, Warning, TEXT("Preston MDR Source coming from Preset is outdated. Consider recreating a Preston MDR Source. Configure it and resave as preset"));
 	}
 }
 
@@ -124,31 +119,60 @@ void FLiveLinkPrestonMDRSource::OnSettingsChanged(ULiveLinkSourceSettings* Setti
 		}
 		else
 		{
-			UE_LOG(LogPrestonMDRSource, Warning, TEXT("Preston MDR Source coming from Preset is outdated. Consider recreating a Preston MDR Source. Configure it and resave as preset"));
+			UE_LOG(LogLiveLinkPrestonMDRSource, Warning, TEXT("Preston MDR Source coming from Preset is outdated. Consider recreating a Preston MDR Source. Configure it and resave as preset"));
 		}
 	}
 }
 
 bool FLiveLinkPrestonMDRSource::IsSourceStillValid() const
 {
-	return bIsConnectedToDevice;
+	return (SourceStatus == EPrestonSourceStatus::ConnectedActive || SourceStatus == EPrestonSourceStatus::ConnectedIdle);
 }
 
 bool FLiveLinkPrestonMDRSource::RequestSourceShutdown()
 {
-	if (MessageThread)
 	{
-		MessageThread->Stop();
+		FScopeLock Lock(&PrestonSourceCriticalSection);
+		SourceStatus = EPrestonSourceStatus::ShuttingDown;
+	}
+
+	return ShutdownMessageThreadAndSocket();
+}
+
+bool FLiveLinkPrestonMDRSource::ShutdownMessageThreadAndSocket()
+{
+	if (MessageThread.IsValid())
+	{
+		// Instruct the message thread to stop its message loop
+		if (MessageThread->IsThreadRunning())
+		{
+			MessageThreadShutdownTime = FPlatformTime::Seconds();
+			MessageThread->Stop();
+		}
+
+		if ((FPlatformTime::Seconds() - MessageThreadShutdownTime) > MessageThreadShutdownTimeout)
+		{
+			MessageThread->ForceKill();
+		}
+
+		// If the message thread has stopped executing its message loop, then it is safe to reset it and destroy the socket
+		if (!MessageThread->IsFinished())
+		{
+			return false;
+		}
+
 		MessageThread.Reset();
 	}
 
+	if (Socket)
 	{
-		FScopeLock Lock(&PrestonSourceCriticalSection);
-		if (Socket)
+		if (!Socket->Close())
 		{
-			SocketSubsystem->DestroySocket(Socket);
-			Socket = nullptr;
+			UE_LOG(LogLiveLinkPrestonMDRSource, Warning, TEXT("Preston MDR Source socket failed to close."));
 		}
+
+		SocketSubsystem->DestroySocket(Socket);
+		Socket = nullptr;
 	}
 
 	return true;
@@ -159,21 +183,65 @@ FText FLiveLinkPrestonMDRSource::GetSourceType() const
 	return LOCTEXT("PrestonMDRSourceType", "PrestonMDR");
 }
 
+void FLiveLinkPrestonMDRSource::Update()
+{
+	if (SourceStatus == EPrestonSourceStatus::ConnectedActive && (FPlatformTime::Seconds() - LastTimeDataReceived > DataReceivedTimeout))
+	{
+		{
+			FScopeLock Lock(&PrestonSourceCriticalSection);
+			SourceStatus = EPrestonSourceStatus::ConnectedIdle;
+		}
+	}
+	else if (SourceStatus == EPrestonSourceStatus::ConnectionLost)
+	{
+		// If the connection was lost, shut down the message thread and the socket and attempt to reconnect
+		if (ShutdownMessageThreadAndSocket())
+		{
+			SourceStatus = EPrestonSourceStatus::NotConnected;
+			OpenConnection();
+		}
+	}
+}
+
 FText FLiveLinkPrestonMDRSource::GetSourceStatus() const
 {
-	if (bFailedToConnectToDevice == true)
+	switch (SourceStatus)
 	{
-		return LOCTEXT("FailedConnectionStatus", "Failed to connect");
-	}
-	else if (bIsConnectedToDevice == false)
+	case EPrestonSourceStatus::NotConnected:
 	{
-		return LOCTEXT("NotConnectedStatus", "Waiting to connect...");
+		return LOCTEXT("NotConnectedStatus", "Not Connected");
 	}
-	else if (FPlatformTime::Seconds() - LastTimeDataReceived > DataReceivedTimeout)
+	case EPrestonSourceStatus::WaitingToConnect:
 	{
-		return LOCTEXT("WaitingForDataStatus", "Idle");
+		return LOCTEXT("WaitingToConnectStatus", "Waiting To Connect...");
 	}
-	return LOCTEXT("ActiveStatus", "Active");
+	case EPrestonSourceStatus::ConnectedActive:
+	{
+		return LOCTEXT("ConnectedActiveStatus", "Active");
+	}
+	case EPrestonSourceStatus::ConnectedIdle:
+	{
+		return LOCTEXT("ConnectedIdleStatus", "Idle");
+	}
+	case EPrestonSourceStatus::ConnectionFailed:
+	{
+		return LOCTEXT("ConnectionFailedStatus", "Failed To Connect");
+	}
+	case EPrestonSourceStatus::ConnectionLost:
+	{
+		return LOCTEXT("ConnectionLostStatus", "Connection Lost");
+	}
+	case EPrestonSourceStatus::ShuttingDown:
+	{
+		return LOCTEXT("ShuttingDownStatus", "Shutting Down...");
+	}
+	default:
+	{
+		return LOCTEXT("UnknownStatus", "Unknown");
+	}
+	}
+
+	return LOCTEXT("UnknownStatus", "Unknown");
 }
 
 void FLiveLinkPrestonMDRSource::OpenConnection()
@@ -185,69 +253,63 @@ void FLiveLinkPrestonMDRSource::OpenConnection()
 	Socket->SetRecvErr(true);
 
 	FIPv4Address IPAddr;
-	if (FIPv4Address::Parse(ConnectionSettings.IPAddress, IPAddr) == false)
+	if (!FIPv4Address::Parse(ConnectionSettings.IPAddress, IPAddr))
 	{
-		UE_LOG(LogPrestonMDRSource, Error, TEXT("Ill-formed IP Address"));
+		SourceStatus = EPrestonSourceStatus::ConnectionFailed;
+		UE_LOG(LogLiveLinkPrestonMDRSource, Error, TEXT("Ill-formed IP Address"));
 		return;
 	}
 
-	uint16 PortNumber = ConnectionSettings.PortNumber;
-
-	FIPv4Endpoint Endpoint = FIPv4Endpoint(IPAddr, PortNumber);
+	FIPv4Endpoint Endpoint = FIPv4Endpoint(IPAddr, ConnectionSettings.PortNumber);
 	TSharedRef<FInternetAddr> Addr = Endpoint.ToInternetAddr();
 
-	UE_LOG(LogPrestonMDRSource, VeryVerbose, TEXT("Connecting to the MDR server at %s:%d..."), *IPAddr.ToString(), PortNumber);
+	UE_LOG(LogLiveLinkPrestonMDRSource, VeryVerbose, TEXT("Connecting to the MDR server at %s"), *Endpoint.ToString());
 
 	if (!Socket->Connect(*Addr))
 	{
-		UE_LOG(LogPrestonMDRSource, Error, TEXT("Could not connect to the MDR server at %s:%d"), *IPAddr.ToString(), PortNumber);
-		bFailedToConnectToDevice = true;
+		SourceStatus = EPrestonSourceStatus::ConnectionFailed;
+		UE_LOG(LogLiveLinkPrestonMDRSource, Error, TEXT("Could not connect to the MDR server at %s"), *Endpoint.ToString());
 		return;
 	}
 
 	if (Socket->GetConnectionState() == ESocketConnectionState::SCS_ConnectionError)
 	{
-		UE_LOG(LogPrestonMDRSource, Error, TEXT("Could not connect to the MDR server at %s:%d"), *IPAddr.ToString(), PortNumber);
-		bFailedToConnectToDevice = true;
+		SourceStatus = EPrestonSourceStatus::ConnectionFailed;
+		UE_LOG(LogLiveLinkPrestonMDRSource, Error, TEXT("Could not connect to the MDR server at %s"), *Endpoint.ToString());
 		return;
 	}
+
+	// The socket is non-blocking, so we will not know if the connection was successful until sometime later
+	SourceStatus = EPrestonSourceStatus::WaitingToConnect;
+
+	MessageThread = MakeUnique<FPrestonMDRMessageThread>(Socket);
+
+	MessageThread->OnFrameDataReady().BindRaw(this, &FLiveLinkPrestonMDRSource::OnFrameDataReady);
+	MessageThread->OnStatusChanged().BindRaw(this, &FLiveLinkPrestonMDRSource::OnStatusChanged);
+	MessageThread->OnConnectionLost().BindRaw(this, &FLiveLinkPrestonMDRSource::OnConnectionLost);
+	MessageThread->OnConnectionFailed().BindRaw(this, &FLiveLinkPrestonMDRSource::OnConnectionFailed);
+
+	MessageThread->Start();
 }
 
 void FLiveLinkPrestonMDRSource::OnConnectionLost()
 {
-	UE_LOG(LogPrestonMDRSource, Error, TEXT("Connection to the MDR device was lost"));
-	bIsConnectedToDevice = false;
-
 	{
 		FScopeLock Lock(&PrestonSourceCriticalSection);
-		// There was an unrecoverable connection loss, so we need to destroy the current socket and open a new one
-		if (Socket)
-		{
-			SocketSubsystem->DestroySocket(Socket);
-			Socket = nullptr;
-		}
-
-		// Attempt to re-open the connection to the MDR server
-		OpenConnection();
+		SourceStatus = EPrestonSourceStatus::ConnectionLost;
 	}
 
-	if (MessageThread && Socket)
-	{
-		MessageThread->SetSocket(Socket);
-		MessageThread->SoftReset();
-	}
+	UE_LOG(LogLiveLinkPrestonMDRSource, Error, TEXT("Connection to the MDR device was lost"));	
 }
 
 void FLiveLinkPrestonMDRSource::OnConnectionFailed()
 {
-	UE_LOG(LogPrestonMDRSource, Error, TEXT("Could not connect to the MDR server at %s:%d"), *ConnectionSettings.IPAddress, ConnectionSettings.PortNumber);
-	bIsConnectedToDevice = false;
-	bFailedToConnectToDevice = true;
-
-	if (MessageThread)
 	{
-		MessageThread->Stop();
+		FScopeLock Lock(&PrestonSourceCriticalSection);
+		SourceStatus = EPrestonSourceStatus::ConnectionFailed;
 	}
+
+	UE_LOG(LogLiveLinkPrestonMDRSource, Error, TEXT("Could not connect to the MDR server at %s:%d"), *ConnectionSettings.IPAddress, ConnectionSettings.PortNumber);
 }
 
 void FLiveLinkPrestonMDRSource::OnStatusChanged(FMDR3Status InStatus)
@@ -274,7 +336,10 @@ void FLiveLinkPrestonMDRSource::UpdateStaticData()
 
 void FLiveLinkPrestonMDRSource::OnFrameDataReady(FLensDataPacket InData)
 {
-	bIsConnectedToDevice = true;
+	{
+		FScopeLock Lock(&PrestonSourceCriticalSection);
+		SourceStatus = EPrestonSourceStatus::ConnectedActive;
+	}
 
 	FLiveLinkFrameDataStruct LensFrameDataStruct(FLiveLinkPrestonMDRFrameData::StaticStruct());
 	FLiveLinkPrestonMDRFrameData* LensFrameData = LensFrameDataStruct.Cast<FLiveLinkPrestonMDRFrameData>();

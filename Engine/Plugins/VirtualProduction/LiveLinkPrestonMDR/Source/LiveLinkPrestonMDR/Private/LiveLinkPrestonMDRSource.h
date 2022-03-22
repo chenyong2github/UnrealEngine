@@ -14,6 +14,17 @@
 
 class ISocketSubsystem;
 
+enum class EPrestonSourceStatus : uint8
+{
+	NotConnected,
+	WaitingToConnect,
+	ConnectedActive,
+	ConnectedIdle,
+	ConnectionFailed,
+	ConnectionLost,
+	ShuttingDown
+};
+
 class LIVELINKPRESTONMDR_API FLiveLinkPrestonMDRSource : public ILiveLinkSource
 {
 public:
@@ -23,7 +34,7 @@ public:
 
 	// Begin ILiveLinkSource Implementation
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
-
+	virtual void Update() override;
 	virtual bool IsSourceStillValid() const override;
 
 	virtual bool RequestSourceShutdown() override;
@@ -45,6 +56,7 @@ private:
 	void OnConnectionLost();
 	void OnConnectionFailed();
 	void UpdateStaticData();
+	bool ShutdownMessageThreadAndSocket();
 
 	ILiveLinkClient* Client = nullptr;
 	FSocket* Socket = nullptr;
@@ -54,19 +66,20 @@ private:
 	FLiveLinkSubjectKey SubjectKey;
 	FText SourceMachineName;
 
-	ULiveLinkPrestonMDRSourceSettings* SavedSourceSettings = nullptr;
+	TObjectPtr<ULiveLinkPrestonMDRSourceSettings> SavedSourceSettings = nullptr;
 
 	TUniquePtr<FPrestonMDRMessageThread> MessageThread;
 
 	FCriticalSection PrestonSourceCriticalSection;
 
 	std::atomic<double> LastTimeDataReceived;
+	double MessageThreadShutdownTime;
 
-	std::atomic<bool> bIsConnectedToDevice;
-	std::atomic<bool> bFailedToConnectToDevice;
+	EPrestonSourceStatus SourceStatus = EPrestonSourceStatus::NotConnected;
 
 	FMDR3Status LatestMDRStatus;
 
 private:
 	const float DataReceivedTimeout = 1.0f;
+	const float MessageThreadShutdownTimeout = 2.0f;
 };
