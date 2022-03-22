@@ -13,6 +13,8 @@ public class RigLogicLib : ModuleRules
 
     public RigLogicLib(ReadOnlyTargetRules Target) : base(Target)
     {
+        bUseUnity = false;
+
         PublicDependencyModuleNames.AddRange(
             new string[]
             {
