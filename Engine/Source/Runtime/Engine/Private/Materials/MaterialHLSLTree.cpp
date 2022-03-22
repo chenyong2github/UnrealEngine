@@ -11,6 +11,7 @@
 #include "Materials/MaterialFunctionInterface.h"
 #include "Engine/BlendableInterface.h" // BL_AfterTonemapping
 #include "VT/RuntimeVirtualTexture.h"
+#include "VT/VirtualTextureScalability.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Font.h"
 
@@ -587,6 +588,7 @@ bool FExpressionParameter::EmitCustomHLSLParameter(FEmitContext& Context, FEmitS
 
 namespace Private
 {
+
 Shader::EValueType GetTexCoordType(EMaterialValueType TextureType)
 {
 	switch (TextureType)
@@ -601,6 +603,23 @@ Shader::EValueType GetTexCoordType(EMaterialValueType TextureType)
 	default: checkNoEntry(); return Shader::EValueType::Void;
 	}
 }
+
+ETextureMipValueMode GetMipValueMode(FEmitContext& Context, const FExpressionTextureSample* Expression)
+{
+	const ETextureMipValueMode MipValueMode = Expression->MipValueMode;
+	const bool bUseAnalyticDerivatives = Context.bUseAnalyticDerivatives && (MipValueMode != TMVM_MipLevel) && Expression->TexCoordDerivatives.IsValid();
+	if (Context.ShaderFrequency != SF_Pixel)
+	{
+		// TODO - should we allow TMVM_Derivative in non-PS?
+		return TMVM_MipLevel;
+	}
+	else if (bUseAnalyticDerivatives || MipValueMode == TMVM_Derivative)
+	{
+		return TMVM_Derivative;
+	}
+	return MipValueMode;
+}
+
 } // namespace Private
 
 bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
@@ -634,13 +653,13 @@ bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& S
 		}
 	}
 
-	const bool bUseAnalyticDerivatives = Context.bUseAnalyticDerivatives && (MipValueMode != TMVM_MipLevel) && TexCoordDerivatives.IsValid();
-	if (MipValueMode == TMVM_Derivative || bUseAnalyticDerivatives)
+	const ETextureMipValueMode LocalMipValueMode = Private::GetMipValueMode(Context, this);
+	if (LocalMipValueMode == TMVM_Derivative)
 	{
 		Context.PrepareExpression(TexCoordDerivatives.ExpressionDdx, Scope, RequestedTexCoordType);
 		Context.PrepareExpression(TexCoordDerivatives.ExpressionDdy, Scope, RequestedTexCoordType);
 	}
-	else if (MipValueMode == TMVM_MipLevel || MipValueMode == TMVM_MipBias)
+	else if (LocalMipValueMode == TMVM_MipLevel || LocalMipValueMode == TMVM_MipBias)
 	{
 		Context.PrepareExpression(MipValueExpression, Scope, Shader::EValueType::Float1);
 	}
@@ -648,107 +667,389 @@ bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& S
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float4);
 }
 
+namespace Private
+{
+
+const TCHAR* GetVTAddressMode(TextureAddress Address)
+{
+	switch (Address)
+	{
+	case TA_Wrap: return TEXT("VTADDRESSMODE_WRAP");
+	case TA_Clamp: return TEXT("VTADDRESSMODE_CLAMP");
+	case TA_Mirror: return TEXT("VTADDRESSMODE_MIRROR");
+	default: checkNoEntry(); return nullptr;
+	}
+}
+
+uint32 AcquireVTStackIndex(
+	FEmitContext& Context,
+	FEmitScope& Scope,
+	FEmitData& EmitMaterialData,
+	ETextureMipValueMode MipValueMode,
+	TextureAddress AddressU,
+	TextureAddress AddressV,
+	float AspectRatio,
+	FEmitShaderExpression* EmitTexCoordValue,
+	FEmitShaderExpression* EmitTexCoordValueDdx,
+	FEmitShaderExpression* EmitTexCoordValueDdy,
+	FEmitShaderExpression* EmitMipValue,
+	int32 PreallocatedStackTextureIndex,
+	bool bAdaptive,
+	bool bGenerateFeedback)
+{
+	FHasher Hasher;
+	AppendHashes(Hasher, MipValueMode, AddressU, AddressV, AspectRatio, EmitTexCoordValue, EmitTexCoordValueDdx, EmitTexCoordValueDdy, EmitMipValue, PreallocatedStackTextureIndex, bAdaptive, bGenerateFeedback);
+	const FXxHash64 Hash = Hasher.Finalize();
+
+	// First check to see if we have an existing VTStack that matches this key, that can still fit another layer
+	FUniformExpressionSet& UniformExpressionSet = Context.MaterialCompilationOutput->UniformExpressionSet;
+	for (int32 Index = EmitMaterialData.VTStackHash.First(Hash.Hash); EmitMaterialData.VTStackHash.IsValid(Index); Index = EmitMaterialData.VTStackHash.Next(Index))
+	{
+		const FVTStackEntry& Entry = EmitMaterialData.VTStacks[Index];
+		if (!UniformExpressionSet.GetVTStacks()[Index].AreLayersFull() &&
+			Entry.EmitTexCoordValue == EmitTexCoordValue &&
+			Entry.EmitTexCoordValueDdx == EmitTexCoordValueDdx &&
+			Entry.EmitTexCoordValueDdy == EmitTexCoordValueDdy &&
+			Entry.EmitMipValue == EmitMipValue &&
+			Entry.MipValueMode == MipValueMode &&
+			Entry.AddressU == AddressU &&
+			Entry.AddressV == AddressV &&
+			Entry.AspectRatio == AspectRatio &&
+			Entry.PreallocatedStackTextureIndex == PreallocatedStackTextureIndex &&
+			Entry.bAdaptive == bAdaptive &&
+			Entry.bGenerateFeedback == bGenerateFeedback)
+		{
+			return Index;
+		}
+	}
+
+	// Need to allocate a new VTStack
+	const int32 StackIndex = EmitMaterialData.VTStacks.AddDefaulted();
+	EmitMaterialData.VTStackHash.Add(Hash.Hash, StackIndex);
+	FVTStackEntry& Entry = EmitMaterialData.VTStacks[StackIndex];
+	Entry.EmitTexCoordValue = EmitTexCoordValue;
+	Entry.EmitTexCoordValueDdx = EmitTexCoordValueDdx;
+	Entry.EmitTexCoordValueDdy = EmitTexCoordValueDdy;
+	Entry.MipValueMode = MipValueMode;
+	Entry.AddressU = AddressU;
+	Entry.AddressV = AddressV;
+	Entry.AspectRatio = AspectRatio;
+	Entry.PreallocatedStackTextureIndex = PreallocatedStackTextureIndex;
+	Entry.bAdaptive = bAdaptive;
+	Entry.bGenerateFeedback = bGenerateFeedback;
+
+	const int32 MaterialStackIndex = UniformExpressionSet.AddVTStack(PreallocatedStackTextureIndex);
+	// These two arrays need to stay in sync
+	check(StackIndex == MaterialStackIndex);
+
+	// Select LoadVirtualPageTable function name for this context
+	const TCHAR* BaseFunctionName = bAdaptive ? TEXT("TextureLoadVirtualPageTableAdaptive") : TEXT("TextureLoadVirtualPageTable");
+
+	// Optionally sample without virtual texture feedback but only for miplevel mode
+	check(bGenerateFeedback || MipValueMode == TMVM_MipLevel);
+
+	TStringBuilder<256> FormattedFeedback;
+	if (bGenerateFeedback)
+	{
+		FormattedFeedback.Appendf(TEXT(", %dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback"), StackIndex);
+	}
+
+	// Code to load the VT page table...this will execute the first time a given VT stack is accessed
+	// Additional stack layers will simply reuse these results
+	switch (MipValueMode)
+	{
+	case TMVM_None:
+		Entry.EmitResult = Context.EmitExpression(Scope, EmitMaterialData.VTPageTableResultType, TEXT(
+			"%("
+			"VIRTUALTEXTURE_PAGETABLE_%, "
+			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%*2], Material.VTPackedPageTableUniform[%*2+1]), "
+			"%, %, %, "
+			"0, Parameters.SvPosition.xy, "
+			"%U + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			BaseFunctionName,
+			StackIndex, StackIndex, StackIndex,
+			EmitTexCoordValue, Private::GetVTAddressMode(AddressU), Private::GetVTAddressMode(AddressV),
+			StackIndex);
+		break;
+	case TMVM_MipBias:
+		Entry.EmitResult = Context.EmitExpression(Scope, EmitMaterialData.VTPageTableResultType, TEXT(
+			"%("
+			"VIRTUALTEXTURE_PAGETABLE_%, "
+			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%*2], Material.VTPackedPageTableUniform[%*2+1]), "
+			"%, %, %, "
+			"%, Parameters.SvPosition.xy, "
+			"%U + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			BaseFunctionName,
+			StackIndex, StackIndex, StackIndex,
+			EmitTexCoordValue, GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
+			EmitMipValue,
+			StackIndex);
+		break;
+	case TMVM_MipLevel:
+		Entry.EmitResult = Context.EmitExpression(Scope, EmitMaterialData.VTPageTableResultType, TEXT(
+			"%Level("
+			"VIRTUALTEXTURE_PAGETABLE_%, "
+			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%*2], Material.VTPackedPageTableUniform[%*2+1]), "
+			"%, %, %, "
+			"%"
+			"%)"),
+			BaseFunctionName,
+			StackIndex, StackIndex, StackIndex,
+			EmitTexCoordValue, GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
+			EmitMipValue,
+			FormattedFeedback.ToString());
+		break;
+	case TMVM_Derivative:
+		Entry.EmitResult = Context.EmitExpression(Scope, EmitMaterialData.VTPageTableResultType, TEXT(
+			"%Grad("
+			"VIRTUALTEXTURE_PAGETABLE_%, "
+			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%*2], Material.VTPackedPageTableUniform[%*2+1]), "
+			"%, %, %, "
+			"%, %, Parameters.SvPosition.xy, "
+			"%U + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+			BaseFunctionName,
+			StackIndex, StackIndex, StackIndex,
+			EmitTexCoordValue, GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
+			EmitTexCoordValueDdx, EmitTexCoordValueDdy,
+			StackIndex);
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+
+	return StackIndex;
+}
+
+} // namespace Private
+
 void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	FMaterialTextureValue TextureValue;
 	TextureExpression->GetValueObject(Context, Scope, TextureValue);
-	const EMaterialValueType TextureType = TextureValue.Texture->GetMaterialType();
-
-	bool bVirtualTexture = false;
-	const TCHAR* SampleFunctionName = nullptr;
-	switch (TextureType)
-	{
-	case MCT_Texture2D:
-		SampleFunctionName = TEXT("Texture2DSample");
-		break;
-	case MCT_Texture2DArray:
-		SampleFunctionName = TEXT("Texture2DArraySample");
-		break;
-	case MCT_TextureCube:
-		SampleFunctionName = TEXT("TextureCubeSample");
-		break;
-	case MCT_TextureCubeArray:
-		SampleFunctionName = TEXT("TextureCubeArraySample");
-		break;
-	case MCT_VolumeTexture:
-		SampleFunctionName = TEXT("Texture3DSample");
-		break;
-	case MCT_TextureExternal:
-		SampleFunctionName = TEXT("TextureExternalSample");
-		break;
-	default:
-		checkNoEntry();
-		break;
-	}
-
-	TStringBuilder<64> FormattedTexture;
-	Private::EmitTextureShader(Context, TextureValue, FormattedTexture);
-
-	const bool AutomaticViewMipBias = AutomaticMipBiasExpression ? AutomaticMipBiasExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar() : false;
-	TStringBuilder<256> FormattedSampler;
-	switch (SamplerSource)
-	{
-	case SSM_FromTextureAsset:
-		FormattedSampler.Appendf(TEXT("%sSampler"), FormattedTexture.ToString());
-		break;
-	case SSM_Wrap_WorldGroupSettings:
-		FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
-			FormattedTexture.ToString(),
-			AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearWrapedSampler") : TEXT("Material.Wrap_WorldGroupSettings"));
-		break;
-	case SSM_Clamp_WorldGroupSettings:
-		FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
-			FormattedTexture.ToString(),
-			AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearClampedSampler") : TEXT("Material.Clamp_WorldGroupSettings"));
-		break;
-	default:
-		checkNoEntry();
-		break;
-	}
-
+	UTexture* Texture = TextureValue.Texture;
+	const EMaterialValueType TextureType = Texture->GetMaterialType();
 	const Shader::EValueType TexCoordType = Private::GetTexCoordType(TextureType);
-	FEmitShaderExpression* TexCoordValue = TexCoordExpression->GetValueShader(Context, Scope, TexCoordType);
 
-	FEmitShaderExpression* TextureResult = nullptr;
-	if (MipValueMode == TMVM_MipLevel)
+	TextureAddress StaticAddressX = TA_Wrap;
+	TextureAddress StaticAddressY = TA_Wrap;
+	TextureAddress StaticAddressZ = TA_Wrap;
+	if (Texture && Texture->Source.GetNumBlocks() > 1)
 	{
-		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Level(%, %, %, %)"),
-			SampleFunctionName,
-			FormattedTexture.ToString(),
-			FormattedSampler.ToString(),
-			TexCoordValue,
-			MipValueExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1));
-	}
-	else if (MipValueMode == TMVM_Derivative || (Context.bUseAnalyticDerivatives && TexCoordDerivatives.IsValid()))
-	{
-		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Grad(%, %, %, %, %)"),
-			SampleFunctionName,
-			FormattedTexture.ToString(),
-			FormattedSampler.ToString(),
-			TexCoordValue,
-			TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, TexCoordType),
-			TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, TexCoordType));
-	}
-	else if (MipValueMode == TMVM_MipBias)
-	{
-		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Bias(%, %, %, %)"),
-			SampleFunctionName,
-			FormattedTexture.ToString(),
-			FormattedSampler.ToString(),
-			TexCoordValue,
-			MipValueExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1));
+		// UDIM (multi-block) texture are forced to use wrap address mode
+		// This is important for supporting VT stacks made from UDIMs with differing number of blocks, as this requires wrapping vAddress for certain layers
+		StaticAddressX = TA_Wrap;
+		StaticAddressY = TA_Wrap;
+		StaticAddressZ = TA_Wrap;
 	}
 	else
 	{
-		check(MipValueMode == TMVM_None);
-		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%, %, %)"),
+		switch (SamplerSource)
+		{
+		case SSM_FromTextureAsset:
+			if (Texture)
+			{
+				StaticAddressX = Texture->GetTextureAddressX();
+				StaticAddressY = Texture->GetTextureAddressY();
+				StaticAddressZ = Texture->GetTextureAddressZ();
+			}
+			break;
+		case SSM_Wrap_WorldGroupSettings:
+			StaticAddressX = TA_Wrap;
+			StaticAddressY = TA_Wrap;
+			StaticAddressZ = TA_Wrap;
+			break;
+		case SSM_Clamp_WorldGroupSettings:
+			StaticAddressX = TA_Clamp;
+			StaticAddressY = TA_Clamp;
+			StaticAddressZ = TA_Clamp;
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
+
+	FEmitShaderExpression* EmitTexCoordValue = TexCoordExpression->GetValueShader(Context, Scope, TexCoordType);
+	FEmitShaderExpression* EmitMipValue = nullptr;
+	FEmitShaderExpression* EmitTexCoordValueDdx = nullptr;
+	FEmitShaderExpression* EmitTexCoordValueDdy = nullptr;
+	const ETextureMipValueMode LocalMipValueMode = Private::GetMipValueMode(Context, this);
+	if (LocalMipValueMode == TMVM_Derivative)
+	{
+		EmitTexCoordValueDdx = TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, TexCoordType);
+		EmitTexCoordValueDdy = TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, TexCoordType);
+	}
+	else if (LocalMipValueMode == TMVM_MipLevel || LocalMipValueMode == TMVM_MipBias)
+	{
+		if (MipValueExpression)
+		{
+			EmitMipValue = MipValueExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1);
+		}
+		else
+		{
+			EmitMipValue = Context.EmitConstantZero(Scope, Shader::EValueType::Float1);
+		}
+	}
+
+	FEmitShaderExpression* EmitTextureResult = nullptr;
+	if (TextureType == MCT_TextureVirtual)
+	{
+		FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
+
+		FMaterialTextureParameterInfo TextureParameterInfo;
+		TextureParameterInfo.ParameterInfo = TextureValue.ParameterInfo;
+		TextureParameterInfo.TextureIndex = Context.Material->GetReferencedTextures().Find(TextureValue.Texture);
+		TextureParameterInfo.SamplerSource = SamplerSource;
+		check(TextureParameterInfo.TextureIndex != INDEX_NONE);
+		const int32 TextureParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddTextureParameter(EMaterialTextureParameterType::Virtual, TextureParameterInfo);
+
+		// Using Source size because we care about the aspect ratio of each block (each block of multi-block texture must have same aspect ratio)
+		// We can still combine multi-block textures of different block aspect ratios, as long as each block has the same ratio
+		// This is because we only need to overlay VT pages from within a given block
+		const float TextureAspectRatio = (float)Texture->Source.GetSizeX() / (float)Texture->Source.GetSizeY();
+
+		const bool AdaptiveVirtualTexture = false;
+		const bool bGenerateFeedback = (Context.ShaderFrequency == SF_Pixel);
+		int32 VTStackIndex = Private::AcquireVTStackIndex(Context, Scope, EmitMaterialData,
+			LocalMipValueMode,
+			StaticAddressX,
+			StaticAddressY,
+			TextureAspectRatio,
+			EmitTexCoordValue,
+			EmitTexCoordValueDdx,
+			EmitTexCoordValueDdy,
+			EmitMipValue,
+			INDEX_NONE,
+			AdaptiveVirtualTexture,
+			bGenerateFeedback);
+
+		// Allocate a layer in the virtual texture stack for this physical sample
+		int32 VTLayerIndex = Context.MaterialCompilationOutput->UniformExpressionSet.AddVTLayer(VTStackIndex, TextureParameterIndex);
+		int32 VTPageTableIndex = VTLayerIndex;
+
+		TStringBuilder<64> FormattedTexture;
+		FormattedTexture.Appendf(TEXT("Material.VirtualTexturePhysical_%d"), TextureParameterIndex);
+
+		TStringBuilder<256> FormattedSampler;
+		if (SamplerSource != SSM_FromTextureAsset)
+		{
+			// VT doesn't care if the shared sampler is wrap or clamp. It only cares if it is aniso or not.
+			// The wrap/clamp/mirror operation is handled in the shader explicitly.
+			const bool bUseAnisoSampler = VirtualTextureScalability::IsAnisotropicFilteringEnabled() && LocalMipValueMode != TMVM_MipLevel;
+			const TCHAR* SharedSamplerName = bUseAnisoSampler ? TEXT("View.SharedBilinearAnisoClampedSampler") : TEXT("View.SharedBilinearClampedSampler");
+			FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(Material.VirtualTexturePhysical_%dSampler, %s)"), TextureParameterIndex, SharedSamplerName);
+		}
+		else
+		{
+			FormattedSampler.Appendf(TEXT("Material.VirtualTexturePhysical_%dSampler"), TextureParameterIndex);
+		}
+
+		const TCHAR* SampleFunctionName = (LocalMipValueMode == TMVM_MipLevel) ? TEXT("TextureVirtualSampleLevel") : TEXT("TextureVirtualSample");
+		EmitTextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%, %, %, %, VTUniform_Unpack(Material.VTPackedUniform[%]))"),
 			SampleFunctionName,
 			FormattedTexture.ToString(),
 			FormattedSampler.ToString(),
-			TexCoordValue);
+			EmitMaterialData.VTStacks[VTStackIndex].EmitResult,
+			VTPageTableIndex,
+			TextureParameterIndex);
+	}
+	else
+	{
+		// Non virtual texture
+		const TCHAR* SampleFunctionName = nullptr;
+		switch (TextureType)
+		{
+		case MCT_Texture2D:
+			SampleFunctionName = TEXT("Texture2DSample");
+			break;
+		case MCT_Texture2DArray:
+			SampleFunctionName = TEXT("Texture2DArraySample");
+			break;
+		case MCT_TextureCube:
+			SampleFunctionName = TEXT("TextureCubeSample");
+			break;
+		case MCT_TextureCubeArray:
+			SampleFunctionName = TEXT("TextureCubeArraySample");
+			break;
+		case MCT_VolumeTexture:
+			SampleFunctionName = TEXT("Texture3DSample");
+			break;
+		case MCT_TextureExternal:
+			SampleFunctionName = TEXT("TextureExternalSample");
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+
+		TStringBuilder<64> FormattedTexture;
+		Private::EmitTextureShader(Context, TextureValue, FormattedTexture);
+
+		const bool AutomaticViewMipBias = AutomaticMipBiasExpression ? AutomaticMipBiasExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar() : false;
+		TStringBuilder<256> FormattedSampler;
+		switch (SamplerSource)
+		{
+		case SSM_FromTextureAsset:
+			FormattedSampler.Appendf(TEXT("%sSampler"), FormattedTexture.ToString());
+			break;
+		case SSM_Wrap_WorldGroupSettings:
+			FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
+				FormattedTexture.ToString(),
+				AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearWrapedSampler") : TEXT("Material.Wrap_WorldGroupSettings"));
+			break;
+		case SSM_Clamp_WorldGroupSettings:
+			FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
+				FormattedTexture.ToString(),
+				AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearClampedSampler") : TEXT("Material.Clamp_WorldGroupSettings"));
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+
+		switch (LocalMipValueMode)
+		{
+		case TMVM_Derivative:
+			EmitTextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Grad(%, %, %, %, %)"),
+				SampleFunctionName,
+				FormattedTexture.ToString(),
+				FormattedSampler.ToString(),
+				EmitTexCoordValue,
+				EmitTexCoordValueDdx,
+				EmitTexCoordValueDdy);
+			break;
+		case TMVM_MipLevel:
+			EmitTextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Level(%, %, %, %)"),
+				SampleFunctionName,
+				FormattedTexture.ToString(),
+				FormattedSampler.ToString(),
+				EmitTexCoordValue,
+				EmitMipValue);
+			break;
+		case TMVM_MipBias:
+			EmitTextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Bias(%, %, %, %)"),
+				SampleFunctionName,
+				FormattedTexture.ToString(),
+				FormattedSampler.ToString(),
+				EmitTexCoordValue,
+				EmitMipValue);
+			break;
+		case TMVM_None:
+			EmitTextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%, %, %)"),
+				SampleFunctionName,
+				FormattedTexture.ToString(),
+				FormattedSampler.ToString(),
+				EmitTexCoordValue);
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
 	}
 
-	OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("ApplyMaterialSamplerType(%, %)"), TextureResult, TextureValue.SamplerType);
+	check(EmitTextureResult);
+	OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("ApplyMaterialSamplerType(%, %)"), EmitTextureResult, TextureValue.SamplerType);
 }
 
 bool FExpressionTextureSize::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const

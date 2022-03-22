@@ -603,6 +603,18 @@ uint32 FUniformExpressionSet::AddDefaultParameterValue(const UE::Shader::FValue&
 	return Offset;
 }
 
+int32 FUniformExpressionSet::AddVTStack(int32 InPreallocatedStackTextureIndex)
+{
+	return VTStacks.Add(FMaterialVirtualTextureStack(InPreallocatedStackTextureIndex));
+}
+
+int32 FUniformExpressionSet::AddVTLayer(int32 StackIndex, int32 TextureIndex)
+{
+	const int32 VTLayerIndex = VTStacks[StackIndex].AddLayer();
+	VTStacks[StackIndex].SetLayer(VTLayerIndex, TextureIndex);
+	return VTLayerIndex;
+}
+
 void FUniformExpressionSet::GetGameThreadTextureValue(EMaterialTextureParameterType Type, int32 Index, const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride) const
 {
 	check(IsInGameThread());

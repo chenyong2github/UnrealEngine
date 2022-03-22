@@ -223,7 +223,7 @@ struct FStructType
 {
 	uint64 Hash;
 	const TCHAR* Name;
-	const FStructType* DerivativeType;
+	const FStructType* DerivativeType = nullptr;
 	TArrayView<const FStructField> Fields;
 
 	/**
@@ -237,6 +237,7 @@ struct FStructType
 	 */
 	TArrayView<const EValueType> FlatFieldTypes;
 
+	bool IsExternal() const { return Fields.Num() == 0; }
 	int32 GetNumComponents() const { return ComponentTypes.Num(); }
 
 	const FStructField* FindFieldByName(const TCHAR* InName) const;
@@ -266,6 +267,7 @@ public:
 	void EmitDeclarationsCode(FStringBuilderBase& OutCode) const;
 
 	const FStructType* NewType(const FStructTypeInitializer& Initializer);
+	const FStructType* NewExternalType(FStringView Name);
 	const FStructType* FindType(uint64 Hash) const;
 
 private:

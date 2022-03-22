@@ -59,6 +59,7 @@ public:
 	UE::HLSLTree::FScope* GetResultScope() const { return ResultScope; }
 
 	const UE::Shader::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
+	const UE::Shader::FStructType* GetVTPageTableResultType() const { return VTPageTableResultType; }
 	const UE::Shader::FValue& GetMaterialAttributesDefaultValue() const { return MaterialAttributesDefaultValue; }
 
 	const TMap<FMaterialConnectionKey, const UE::HLSLTree::FExpression*>& GetConnections() const { return ConnectionMap; }
@@ -81,6 +82,7 @@ private:
 	TArray<UMaterialExpressionCustomOutput*> MaterialCustomOutputs;
 	TMap<FMaterialConnectionKey, const UE::HLSLTree::FExpression*> ConnectionMap;
 	const UE::Shader::FStructType* MaterialAttributesType = nullptr;
+	const UE::Shader::FStructType* VTPageTableResultType = nullptr;
 	UE::Shader::FValue MaterialAttributesDefaultValue;
 
 	friend class FMaterialHLSLGenerator;

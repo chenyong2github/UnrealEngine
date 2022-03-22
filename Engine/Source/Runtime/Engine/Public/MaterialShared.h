@@ -578,6 +578,10 @@ public:
 	int32 FindOrAddNumericParameter(EMaterialParameterType Type, const FMaterialParameterInfo& ParameterInfo, uint32 DefaultValueOffset);
 	uint32 AddDefaultParameterValue(const UE::Shader::FValue& Value);
 
+	TConstArrayView<FMaterialVirtualTextureStack> GetVTStacks() const { return VTStacks; }
+	int32 AddVTStack(int32 InPreallocatedStackTextureIndex);
+	int32 AddVTLayer(int32 StackIndex, int32 TextureIndex);
+
 protected:
 	union FVTPackedStackAndLayerIndex
 	{

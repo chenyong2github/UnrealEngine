@@ -495,23 +495,29 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_ANISOTROPY"), false);// bUsesAnisotropy);
 
 	// Count the number of VTStacks (each stack will allocate a feedback slot)
-	OutEnvironment.SetDefine(TEXT("NUM_VIRTUALTEXTURE_SAMPLES"), 0);// VTStacks.Num());
+	OutEnvironment.SetDefine(TEXT("NUM_VIRTUALTEXTURE_SAMPLES"), EmitMaterialData.VTStacks.Num());
 
 	// Setup defines to map each VT stack to either 1 or 2 page table textures, depending on how many layers it uses
-	/*for (int i = 0; i < VTStacks.Num(); ++i)
+	for (int i = 0; i < EmitMaterialData.VTStacks.Num(); ++i)
 	{
-		const FMaterialVirtualTextureStack& Stack = MaterialCompilationOutput.UniformExpressionSet.VTStacks[i];
-		FString PageTableValue = FString::Printf(TEXT("Material.VirtualTexturePageTable0_%d"), i);
+		const FMaterialVirtualTextureStack& Stack = MaterialCompilationOutput.UniformExpressionSet.GetVTStacks()[i];
+
+		TStringBuilder<256> PageTableName;
+		PageTableName.Appendf(TEXT("VIRTUALTEXTURE_PAGETABLE_%d"), i);
+
+		TStringBuilder<1024> PageTableValue;
+		PageTableValue.Appendf(TEXT("Material.VirtualTexturePageTable0_%d"), i);
+
 		if (Stack.GetNumLayers() > 4u)
 		{
-			PageTableValue += FString::Printf(TEXT(", Material.VirtualTexturePageTable1_%d"), i);
+			PageTableValue.Appendf(TEXT(", Material.VirtualTexturePageTable1_%d"), i);
 		}
-		if (VTStacks[i].bAdaptive)
+		if (EmitMaterialData.VTStacks[i].bAdaptive)
 		{
-			PageTableValue += FString::Printf(TEXT(", Material.VirtualTexturePageTableIndirection_%d"), i);
+			PageTableValue.Appendf(TEXT(", Material.VirtualTexturePageTableIndirection_%d"), i);
 		}
-		OutEnvironment.SetDefine(*FString::Printf(TEXT("VIRTUALTEXTURE_PAGETABLE_%d"), i), *PageTableValue);
-	}*/
+		OutEnvironment.SetDefine(PageTableName.ToString(), PageTableValue.ToString());
+	}
 
 	/*for (int32 CollectionIndex = 0; CollectionIndex < ParameterCollections.Num(); CollectionIndex++)
 	{
@@ -793,6 +799,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	EmitContext.MaterialCompilationOutput = &OutCompilationOutput;
 
 	Material::FEmitData& EmitMaterialData = EmitContext.AcquireData<Material::FEmitData>();
+	EmitMaterialData.VTPageTableResultType = CachedTree->GetVTPageTableResultType();
 	EmitMaterialData.StaticParameters = &InStaticParameters;
 
 	const FStructField* NormalField = CachedTree->GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));

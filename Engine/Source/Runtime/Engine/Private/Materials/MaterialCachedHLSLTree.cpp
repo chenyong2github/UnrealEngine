@@ -122,6 +122,8 @@ bool FMaterialCachedHLSLTree::GenerateTree(UMaterial* Material, const FMaterialL
 	check(MaterialAttributesDefaultValue.Component.Num() == MaterialAttributesType->ComponentTypes.Num());
 	MaterialAttributesDefaultValue.Type = MaterialAttributesType;
 
+	VTPageTableResultType = TypeRegistry.NewExternalType(TEXT("VTPageTableResult"));
+
 	HLSLTree = UE::HLSLTree::FTree::Create(Allocator);
 
 	FMaterialHLSLGenerator Generator(Material, LayerOverrides, PreviewExpression, *this);

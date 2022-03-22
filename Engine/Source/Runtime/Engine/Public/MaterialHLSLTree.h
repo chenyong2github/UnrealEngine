@@ -7,14 +7,17 @@
 #include "MaterialTypes.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "RHIDefinitions.h"
+#include "Engine/Texture.h" // enum TextureAddress for VTStackEntry
 
 class UTexture;
 enum class EMaterialParameterType : uint8;
 struct FMaterialCachedExpressionData;
 struct FMaterialLayersFunctions;
 
-namespace UE::HLSLTree::Material
+namespace UE::HLSLTree
 {
+
+class FEmitShaderExpression;
 
 inline void AppendHash(FHasher& Hasher, const FMaterialParameterInfo& Value)
 {
@@ -43,6 +46,11 @@ inline void AppendHash(FHasher& Hasher, const FMaterialParameterMetadata& Meta)
 {
 	AppendHash(Hasher, Meta.Value);
 }
+
+} // namespace UE::HLSLTree
+
+namespace UE::HLSLTree::Material
+{
 
 enum class EExternalInput : uint8
 {
@@ -406,6 +414,25 @@ struct FVertexInterpolator
 	FPreparedType PreparedType;
 };
 
+struct FVTStackEntry
+{
+	FEmitShaderExpression* EmitTexCoordValue;
+	FEmitShaderExpression* EmitTexCoordValueDdx;
+	FEmitShaderExpression* EmitTexCoordValueDdy;
+	FEmitShaderExpression* EmitMipValue;
+	FEmitShaderExpression* EmitResult;
+	ETextureMipValueMode MipValueMode;
+	TextureAddress AddressU;
+	TextureAddress AddressV;
+	int32 DebugCoordinateIndex;
+	int32 DebugMipValue0Index;
+	int32 DebugMipValue1Index;
+	int32 PreallocatedStackTextureIndex;
+	bool bAdaptive;
+	bool bGenerateFeedback;
+	float AspectRatio;
+};
+
 class FEmitData
 {
 public:
@@ -417,10 +444,13 @@ public:
 		}
 	}
 
+	Shader::FType VTPageTableResultType;
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCachedExpressionData* CachedExpressionData = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
 	TArray<FVertexInterpolator, TInlineAllocator<8>> VertexInterpolators;
+	TArray<FVTStackEntry, TInlineAllocator<8>> VTStacks;
+	FHashTable VTStackHash;
 	TBitArray<> ExternalInputMask[SF_NumFrequencies];
 	FMaterialShadingModelField ShadingModelsFromCompilation;
 	int32 NumInterpolatorComponents = 0;

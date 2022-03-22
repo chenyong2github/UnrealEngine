@@ -811,21 +811,24 @@ void FStructTypeRegistry::EmitDeclarationsCode(FStringBuilderBase& OutCode) cons
 	for (const auto& It : Types)
 	{
 		const FStructType* StructType = It.Value;
-
-		OutCode.Appendf(TEXT("struct %s\n"), StructType->Name);
-		OutCode.Append(TEXT("{\n"));
-		for (const FStructField& Field : StructType->Fields)
+		// Don't need to emit declaration for external types
+		if (!StructType->IsExternal())
 		{
-			OutCode.Appendf(TEXT("\t%s %s;\n"), Field.Type.GetName(), Field.Name);
-		}
-		OutCode.Append(TEXT("};\n"));
+			OutCode.Appendf(TEXT("struct %s\n"), StructType->Name);
+			OutCode.Append(TEXT("{\n"));
+			for (const FStructField& Field : StructType->Fields)
+			{
+				OutCode.Appendf(TEXT("\t%s %s;\n"), Field.Type.GetName(), Field.Name);
+			}
+			OutCode.Append(TEXT("};\n"));
 
-		for (const FStructField& Field : StructType->Fields)
-		{
-			OutCode.Appendf(TEXT("%s %s_Set%s(%s Self, %s Value) { Self.%s = Value; return Self; }\n"),
-				StructType->Name, StructType->Name, Field.Name, StructType->Name, Field.Type.GetName(), Field.Name);
+			for (const FStructField& Field : StructType->Fields)
+			{
+				OutCode.Appendf(TEXT("%s %s_Set%s(%s Self, %s Value) { Self.%s = Value; return Self; }\n"),
+					StructType->Name, StructType->Name, Field.Name, StructType->Name, Field.Type.GetName(), Field.Name);
+			}
+			OutCode.Append(TEXT("\n"));
 		}
-		OutCode.Append(TEXT("\n"));
 	}
 }
 
@@ -933,6 +936,22 @@ const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& In
 		StructType->DerivativeType = NewType(DerivativeTypeInitializer);
 	}
 
+	return StructType;
+}
+
+const FStructType* FStructTypeRegistry::NewExternalType(FStringView Name)
+{
+	uint64 Hash = 0u;
+	{
+		FXxHash64Builder Hasher;
+		Hasher.Update(Name.GetData(), Name.Len() * sizeof(TCHAR));
+		Hash = Hasher.Finalize().Hash;
+	}
+
+	FStructType* StructType = new(*Allocator) FStructType();
+	StructType->Name = MemStack::AllocateString(*Allocator, Name);
+	StructType->Hash = Hash;
+	Types.Add(Hash, StructType);
 	return StructType;
 }
 
