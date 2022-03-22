@@ -223,3 +223,119 @@ struct CONTROLRIG_API FRigUnit_MathBoolToggled : public FRigUnit_MathBoolBase
 	UPROPERTY()
 	bool LastValue;
 };
+
+/**
+ * Returns true and false as a sequence.
+ */
+USTRUCT(meta=(DisplayName="FlipFlop", Keywords="Toggle,Changed,Different", Varying))
+struct CONTROLRIG_API FRigUnit_MathBoolFlipFlop : public FRigUnit_MathBoolBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathBoolFlipFlop()
+	{
+		Duration = TimeLeft = 0.f;
+		Result = LastValue = StartValue = false;
+	}
+
+	// The initial value to use for the flag
+	UPROPERTY(meta=(Visible))
+	bool StartValue;
+
+	/**
+	 * The duration in seconds at which the result won't change.
+     * Use 0 for a different result every time.
+	 */
+	UPROPERTY(meta = (Input))
+	float Duration;
+
+	UPROPERTY(meta=(Output))
+	bool Result;
+
+	UPROPERTY()
+	bool LastValue;
+
+	UPROPERTY()
+	float TimeLeft;
+};
+
+/**
+ * Returns true once the first time this node is hit
+ */
+USTRUCT(meta=(DisplayName="Once", Keywords="FlipFlop,Toggle,Changed,Different", Varying))
+struct CONTROLRIG_API FRigUnit_MathBoolOnce : public FRigUnit_MathBoolBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathBoolOnce()
+	{
+		Duration = TimeLeft = 0.f;
+		Result = LastValue = false;
+	}
+
+	/**
+	 * The duration in seconds at which the result is true
+	 * Use 0 for a different result every time.
+	 */
+	UPROPERTY(meta = (Visible))
+	float Duration;
+
+	UPROPERTY(meta=(Output))
+	bool Result;
+
+	UPROPERTY()
+	bool LastValue;
+
+	UPROPERTY()
+	float TimeLeft;
+};
+
+/**
+ * Turns the given bool into a float value
+ */
+USTRUCT(meta=(DisplayName="To Float", TemplateName="Cast"))
+struct CONTROLRIG_API FRigUnit_MathBoolToFloat : public FRigUnit_MathBoolBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathBoolToFloat()
+	{
+		Value = false;
+		Result = 0.f;
+	}
+
+	UPROPERTY(meta = (Input))
+	bool Value;
+
+	UPROPERTY(meta= (Output))
+	float Result;
+};
+
+/**
+ * Turns the given bool into an integer value
+ */
+USTRUCT(meta=(DisplayName="To Integer", TemplateName="Cast"))
+struct CONTROLRIG_API FRigUnit_MathBoolToInteger : public FRigUnit_MathBoolBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathBoolToInteger()
+	{
+		Value = false;
+		Result = 0;
+	}
+
+	UPROPERTY(meta = (Input))
+	bool Value;
+
+	UPROPERTY(meta= (Output))
+	int32 Result;
+};
