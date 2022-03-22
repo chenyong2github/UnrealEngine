@@ -21,6 +21,8 @@ public:
 
 	static void OpenHeaderViewForAsset(FAssetData InAssetData);
 private:
+	void SetupAssetEditorMenuExtender();
+
 	void SetupContentBrowserContextMenuExtender();
 
 	static TSharedRef<FExtender> OnExtendContentBrowserAssetSelectionMenu(const TArray<FAssetData>& SelectedAssets);

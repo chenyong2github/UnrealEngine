@@ -30,6 +30,7 @@ public class BlueprintHeaderView : ModuleRules
 				"ApplicationCore",
 				"DeveloperSettings",
 				"WorkspaceMenuStructure",
+				"ToolMenus",
 			}
 			);
 		
