@@ -146,6 +146,9 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 #else // Assume that Mac & other platforms all support these from the start. They can diverge later.
 	const bool bIsNVIDIA = [Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound;
 	Features = EMetalFeaturesCountingQueries | EMetalFeaturesBaseVertexInstance | EMetalFeaturesIndirectBuffer | EMetalFeaturesLayeredRendering | EMetalFeaturesCubemapArrays;
+
+	FString DeviceName(Device.GetName());
+
 	if (!bIsNVIDIA)
 	{
 		Features |= EMetalFeaturesSetBufferOffset;
@@ -157,7 +160,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		// Assume that set*Bytes only works on macOS Sierra and above as no-one has tested it anywhere else.
 		Features |= EMetalFeaturesSetBytes;
 		
-		FString DeviceName(Device.GetName());
 		// On earlier OS versions Intel Broadwell couldn't suballocate properly
 		if (!(DeviceName.Contains(TEXT("Intel")) && (DeviceName.Contains(TEXT("5300")) || DeviceName.Contains(TEXT("6000")) || DeviceName.Contains(TEXT("6100")))) || FPlatformMisc::MacOSXVersionCompare(10,14,0) >= 0)
 		{
@@ -250,6 +252,16 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	if (CVar->GetInt() == 0 || FParse::Param(FCommandLine::Get(),TEXT("metalshaderdebug")))
 	{
 		Features |= EMetalFeaturesGPUTrace;
+	}
+
+	// For Release-5.0 we encountered a hard GPU hang on AMD GPUs.
+	if (DeviceName.Contains(TEXT("AMD")))
+	{
+		static const auto CVarLumenDiffuseIndirectAllow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.DiffuseIndirect.Allow"));
+		static const auto CVarLumenReflectionsAllow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.Reflections.Allow"));
+
+		CVarLumenDiffuseIndirectAllow->Set(0, ECVF_SetByCode);
+		CVarLumenReflectionsAllow->Set(0, ECVF_SetByCode);
 	}
 
 	PermittedOptions = 0;
