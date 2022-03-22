@@ -35,6 +35,10 @@ public:
 	UPROPERTY(EditAnywhere, Transient, Category = Tiles)
 	int32 TileSizeY = 0;
 
+	/** Number of pixels to duplicate along each tile border. */
+	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (ClampMin = "0.0"))
+	int32 TileBorder = 0;
+
 	/** Number of tiles in the X direction. If 0, then there are no tiles. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Tiles)
 	int32 NumTilesX = 0;

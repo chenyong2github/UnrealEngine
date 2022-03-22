@@ -58,10 +58,11 @@ private:
 	 * @param InImageWrapper	ImageWrapper to read/write the image.
 	 * @param InTileWidth		Desired width of tiles.
 	 * @param InTileHeight		Desired height of tiles.
+	 * @param InTileBorder		Number of pixels to duplicate along a tile edge.
 	 * @param InName			Full path and name of file to write.
 	 */
 	void ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
-		int32 InTileWidth, int32 InTileHeight, const FString& InName);
+		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, const FString& InName);
 
 	/** Holds our details view. */
 	TSharedPtr<class IDetailsView> DetailsView;
