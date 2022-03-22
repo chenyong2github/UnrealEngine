@@ -718,12 +718,12 @@ void PatchViewState(FNaniteView NaniteView, inout ViewState InOutView)
 
 void WriteDispatchArgsSWHW(RWBuffer<uint> RasterizerArgsSWHW, uint ArgsOffset, uint NumClustersSW, uint NumClustersHW)
 {
-	RasterizerArgsSWHW[ArgsOffset + 0] = NumClustersSW;							// SW: ThreadGroupCountX
+	RasterizerArgsSWHW[ArgsOffset + 0] = (NumClustersSW + 63u) / 64u;			// SW: ThreadGroupCountX
 	RasterizerArgsSWHW[ArgsOffset + 1] = 1;										// SW: ThreadGroupCountY
 	RasterizerArgsSWHW[ArgsOffset + 2] = 1;										// SW: ThreadGroupCountZ
 	RasterizerArgsSWHW[ArgsOffset + 3] = 0;										// padding
 
-	RasterizerArgsSWHW[ArgsOffset + 4] = NumClustersHW;							// HW: ThreadGroupCountX
+	RasterizerArgsSWHW[ArgsOffset + 4] = (NumClustersHW + 63u) / 64u;			// HW: ThreadGroupCountX
 	RasterizerArgsSWHW[ArgsOffset + 5] = 1;										// HW: ThreadGroupCountY
 	RasterizerArgsSWHW[ArgsOffset + 6] = 1;										// HW: ThreadGroupCountZ
 	RasterizerArgsSWHW[ArgsOffset + 7] = 0;										// padding

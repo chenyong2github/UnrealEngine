@@ -127,6 +127,7 @@ struct FCullingContext
 	FRDGBufferRef	SafePostRasterizeArgsSWHW;
 
 	FRDGBufferRef	ClusterCountSWHW;
+	FRDGBufferRef	ClusterClassifyArgs;
 
 	FRDGBufferRef	QueueState;
 	FRDGBufferRef	VisibleClustersSWHW;

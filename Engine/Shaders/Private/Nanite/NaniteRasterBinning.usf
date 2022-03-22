@@ -4,30 +4,17 @@
 #include "../SceneData.ush"
 #include "NaniteAttributeDecode.ush"
 
-#if (RASTER_BIN_PASS == NANITE_RASTER_BIN_CLASSIFY_SW)
+#if (RASTER_BIN_PASS == NANITE_RASTER_BIN_CLASSIFY)
 	#define RASTER_BIN_CLASSIFY	1
 	#define RASTER_BIN_SCATTER	0
-	#define RASTER_BIN_SOFTWARE	1
 	#define RASTER_BIN_RESERVE	0
-#elif (RASTER_BIN_PASS == NANITE_RASTER_BIN_CLASSIFY_HW)
-	#define RASTER_BIN_CLASSIFY	1
-	#define RASTER_BIN_SCATTER	0
-	#define RASTER_BIN_SOFTWARE	0
-	#define RASTER_BIN_RESERVE	0
-#elif (RASTER_BIN_PASS == NANITE_RASTER_BIN_SCATTER_SW)
+#elif (RASTER_BIN_PASS == NANITE_RASTER_BIN_SCATTER)
 	#define RASTER_BIN_CLASSIFY	0
 	#define RASTER_BIN_SCATTER	1
-	#define RASTER_BIN_SOFTWARE	1
-	#define RASTER_BIN_RESERVE	0
-#elif (RASTER_BIN_PASS == NANITE_RASTER_BIN_SCATTER_HW)
-	#define RASTER_BIN_CLASSIFY	0
-	#define RASTER_BIN_SCATTER	1
-	#define RASTER_BIN_SOFTWARE	0
 	#define RASTER_BIN_RESERVE	0
 #else
 	#define RASTER_BIN_CLASSIFY	0
 	#define RASTER_BIN_SCATTER	0
-	#define RASTER_BIN_SOFTWARE	0
 	#define RASTER_BIN_RESERVE	1
 #endif
 
@@ -103,80 +90,44 @@ RWStructuredBuffer<uint2> OutRasterizerBinData;
 #endif
 
 #if RASTER_BIN_CLASSIFY
-void IncrementRasterizerBinCount(uint BinIndex)
+void IncrementRasterizerBinCount(uint BinIndex, bool bSoftware)
 {
-#if RASTER_BIN_SOFTWARE
-	InterlockedAdd(OutRasterizerBinHeaders[BinIndex].x, 1u);
-#else
-	InterlockedAdd(OutRasterizerBinHeaders[BinIndex].y, 1u);
-#endif
+	if (bSoftware)
+	{
+		InterlockedAdd(OutRasterizerBinHeaders[BinIndex].x, 1u);
+	}
+	else
+	{
+		InterlockedAdd(OutRasterizerBinHeaders[BinIndex].y, 1u);
+	}
 }
 #elif RASTER_BIN_SCATTER
-uint AllocateRasterizerBinCluster(uint BinIndex)
+uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware)
 {
 	uint ClusterOffset;
 	const uint ArgsOffset = (BinIndex * NANITE_RASTERIZER_ARG_COUNT);
-#if RASTER_BIN_SOFTWARE
-	const uint Offset = 0u;
-	InterlockedAdd(OutRasterizerBinArgsSWHW[ArgsOffset + Offset], 1u, ClusterOffset);
-#else
-	const uint Capacity = GetRasterizerBinCapacity(BinIndex);
-	const uint Offset = CondMask((RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER) || (RenderFlags & NANITE_RENDER_FLAG_PRIMITIVE_SHADER), 4u, 5u);
-	InterlockedAdd(OutRasterizerBinArgsSWHW[ArgsOffset + Offset], 1u, ClusterOffset);
-	ClusterOffset = (Capacity - ClusterOffset - 1u); // HW writes from the top, SW writes from the bottom
-#endif
+	if (bSoftware)
+	{
+		const uint Offset = 0u;
+		InterlockedAdd(OutRasterizerBinArgsSWHW[ArgsOffset + Offset], 1u, ClusterOffset);
+	}
+	else
+	{
+		const uint Capacity = GetRasterizerBinCapacity(BinIndex);
+		const uint Offset = CondMask((RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER) || (RenderFlags & NANITE_RENDER_FLAG_PRIMITIVE_SHADER), 4u, 5u);
+		InterlockedAdd(OutRasterizerBinArgsSWHW[ArgsOffset + Offset], 1u, ClusterOffset);
+		ClusterOffset = (Capacity - ClusterOffset - 1u); // HW writes from the top, SW writes from the bottom
+	}
 	return GetRasterizerBinOffset(BinIndex) + ClusterOffset;
 }
 #endif
 
-#if RASTER_BIN_SOFTWARE
-
-uint2 GetClassifyClusterOffsetAndCount()
-{
-	uint SWClusterOffset = 0;
-
-	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
-	BRANCH
-	if (bHasPrevDrawData)
-	{
-		SWClusterOffset += InTotalPrevDrawClusters[0].x;
-	}
-
-#if IS_POST_PASS
-	SWClusterOffset += InClusterOffsetSWHW[0];
-#endif
-	uint SWClusterCount = InClusterCountSWHW[0].x;
-	return uint2(SWClusterOffset, SWClusterCount);
-}
-
-#else
-
-uint2 GetClassifyClusterOffsetAndCount()
-{
-	uint HWClusterOffset = 0;
-
-	const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
-	BRANCH
-	if (bHasPrevDrawData)
-	{
-		HWClusterOffset += InTotalPrevDrawClusters[0].y;
-	}
-
-#if IS_POST_PASS
-	HWClusterOffset += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
-#endif
-	uint HWClusterCount = InClusterCountSWHW[0].y;
-	return uint2(HWClusterOffset, HWClusterCount);
-}
-
-#endif
-
-void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd)
+void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, bool bSoftware)
 {
 #if RASTER_BIN_CLASSIFY
-	IncrementRasterizerBinCount(RasterizerBin);
+	IncrementRasterizerBinCount(RasterizerBin, bSoftware);
 #elif RASTER_BIN_SCATTER
-	const uint BinClusterMapping = AllocateRasterizerBinCluster(RasterizerBin);
+	const uint BinClusterMapping = AllocateRasterizerBinCluster(RasterizerBin, bSoftware);
 	OutRasterizerBinData[BinClusterMapping].x = ClusterIndex;
 	OutRasterizerBinData[BinClusterMapping].y = (RangeStart << 16u) | RangeEnd;
 #endif
@@ -185,13 +136,33 @@ void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart,
 [numthreads(64, 1, 1)]
 void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 {
-	const uint2 ClusterOffsetAndCount = GetClassifyClusterOffsetAndCount();
-	if (RelativeClusterIndex < ClusterOffsetAndCount.y)
+	const uint SWClusterCount = InClusterCountSWHW[0].x;
+	const uint HWClusterCount = InClusterCountSWHW[0].y;
+
+	const bool bSoftware = RelativeClusterIndex < SWClusterCount;
+	const uint ClusterCount = SWClusterCount + HWClusterCount;
+
+	if (RelativeClusterIndex < ClusterCount)
 	{
-		uint VisibleClusterIndex = RelativeClusterIndex + ClusterOffsetAndCount.x;
-	#if !RASTER_BIN_SOFTWARE
-		VisibleClusterIndex = (MaxVisibleClusters - 1) - VisibleClusterIndex; // HW clusters are written from the top
+		RelativeClusterIndex = CondMask(bSoftware, RelativeClusterIndex, RelativeClusterIndex - SWClusterCount);
+
+		uint ClusterOffset = 0;
+
+		const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
+		BRANCH
+		if (bHasPrevDrawData)
+		{
+			ClusterOffset += CondMask(bSoftware, InTotalPrevDrawClusters[0].x, InTotalPrevDrawClusters[0].y);
+		}
+
+	#if IS_POST_PASS
+		ClusterOffset += CondMask(bSoftware, InClusterOffsetSWHW[0], InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)]);
 	#endif
+
+		uint VisibleClusterIndex = RelativeClusterIndex + ClusterOffset;
+
+		// HW clusters are written from the top
+		VisibleClusterIndex = CondMask(bSoftware, VisibleClusterIndex, (MaxVisibleClusters - 1) - VisibleClusterIndex);
 
 		FVisibleCluster VisibleCluster		= GetVisibleCluster(VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET);
 		FInstanceSceneData InstanceData		= GetInstanceSceneData(VisibleCluster, false);
@@ -201,7 +172,6 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 		// TODO: Embed fast path material uint in FVisibleCluster
 		// TODO: Upload uniform with default material bin index, directly allocate/store indirections into 0th range
 		// TODO: Optimize and/or separate out slow path into another dispatch? (possibly with groupshared bin tracking to avoid searching)
-		// TODO: Combine SW and HW phases (dispatch combined count, and use offset to determine SW vs HW split point)
 
 		BRANCH
 		if (IsMaterialFastPath(Cluster))
@@ -257,7 +227,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 
 			// The 0th material range is always non-zero length
 			{
-				ExportRasterizerBin(RasterizerBin0, RelativeClusterIndex, 0u, RasterizerLen0);
+				ExportRasterizerBin(RasterizerBin0, RelativeClusterIndex, 0u, RasterizerLen0, bSoftware);
 			}
 
 			BRANCH
@@ -265,7 +235,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 			{
 				const uint Range1Start = RasterizerLen0;
 				const uint Range1End   = Range1Start + RasterizerLen1;
-				ExportRasterizerBin(RasterizerBin1, RelativeClusterIndex, Range1Start, Range1End);
+				ExportRasterizerBin(RasterizerBin1, RelativeClusterIndex, Range1Start, Range1End, bSoftware);
 			}
 
 			BRANCH
@@ -273,7 +243,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 			{
 				const uint Range2Start = (RasterizerLen0 + RasterizerLen1);
 				const uint Range2End   = Range2Start + RasterizerLen2;
-				ExportRasterizerBin(RasterizerBin2, RelativeClusterIndex, Range2Start, Range2End);
+				ExportRasterizerBin(RasterizerBin2, RelativeClusterIndex, Range2Start, Range2End, bSoftware);
 			}
 		}
 		else
@@ -306,7 +276,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 					BRANCH
 					if (CurrentRangeEnd > 0)
 					{
-						ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd);
+						ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd, bSoftware);
 					}
 
 					CurrentRangeBin   = RasterizerBinN;
@@ -316,7 +286,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 			}
 
 			// Need to flush current range
-			ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd);
+			ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd, bSoftware);
 		}
 	}
 }
