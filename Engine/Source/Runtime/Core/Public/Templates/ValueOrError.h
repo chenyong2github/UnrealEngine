@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/Optional.h"
 #include "Misc/TVariant.h"
 #include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"
@@ -145,4 +146,128 @@ public:
 
 private:
 	TVariant<ValueType, FWrapErrorType, FEmptyType> Variant;
+};
+
+template <typename ValueType>
+class TValueOrError<ValueType, void>
+{
+	template <typename... ArgTypes, uint32... ArgIndices>
+	inline TValueOrError(TValueOrError_ValueProxy<ArgTypes...>&& Proxy, TIntegerSequence<uint32, ArgIndices...>)
+		: Value(InPlace, MoveTemp(Proxy.Args).template Get<ArgIndices>()...)
+	{
+	}
+
+public:
+	/** Construct the value from a proxy from MakeValue. */
+	template <typename... ArgTypes>
+	inline TValueOrError(TValueOrError_ValueProxy<ArgTypes...>&& Proxy)
+		: TValueOrError(MoveTemp(Proxy), TMakeIntegerSequence<uint32, sizeof...(ArgTypes)>())
+	{
+	}
+
+	/** Construct the error from a proxy from MakeError. */
+	inline TValueOrError(TValueOrError_ErrorProxy<>&& Proxy)
+	{
+	}
+
+	/** Whether the error is set. An error does imply no value. */
+	inline bool HasError() const { return !Value.IsSet(); }
+
+	/** Whether the value is set. A value does imply no error. */
+	inline bool HasValue() const { return Value.IsSet(); }
+
+	/** Access the value. Asserts if this does not have a value. */
+	inline       ValueType& GetValue()       &  { return Value.GetValue(); }
+	inline const ValueType& GetValue() const &  { return Value.GetValue(); }
+	inline       ValueType  GetValue()       && { return MoveTemp(Value.GetValue()); }
+
+	/** Access the value if it is set. */
+	inline       ValueType* TryGetValue()       { return Value.GetPtrOrNull(); }
+	inline const ValueType* TryGetValue() const { return Value.GetPtrOrNull(); }
+
+	/** Steal the value. Asserts if this does not have a value. This causes the value to be unset. */
+	inline ValueType StealValue()
+	{
+		ValueType Temp = MoveTemp(GetValue());
+		Value.Reset();
+		return Temp;
+	}
+
+private:
+	TOptional<ValueType> Value;
+};
+
+template <typename ErrorType>
+class TValueOrError<void, ErrorType>
+{
+	template <typename... ArgTypes, uint32... ArgIndices>
+	inline TValueOrError(TValueOrError_ErrorProxy<ArgTypes...>&& Proxy, TIntegerSequence<uint32, ArgIndices...>)
+		: Error(InPlace, MoveTemp(Proxy.Args).template Get<ArgIndices>()...)
+	{
+	}
+
+public:
+	/** Construct the value from a proxy from MakeValue. */
+	inline TValueOrError(TValueOrError_ValueProxy<>&& Proxy)
+	{
+	}
+
+	/** Construct the error from a proxy from MakeError. */
+	template <typename... ArgTypes>
+	inline TValueOrError(TValueOrError_ErrorProxy<ArgTypes...>&& Proxy)
+		: TValueOrError(MoveTemp(Proxy), TMakeIntegerSequence<uint32, sizeof...(ArgTypes)>())
+	{
+	}
+
+	/** Whether the value is set. A value does imply no error. */
+	inline bool HasValue() const { return !Error.IsSet(); }
+
+	/** Whether the error is set. An error does imply no value. */
+	inline bool HasError() const { return Error.IsSet(); }
+
+	/** Access the error. Asserts if this does not have an error. */
+	inline       ErrorType& GetError()       &  { return Error.GetValue(); }
+	inline const ErrorType& GetError() const &  { return Error.GetValue(); }
+	inline       ErrorType  GetError()       && { return MoveTemp(Error.GetValue()); }
+
+	/** Access the error if it is set. */
+	inline       ErrorType* TryGetError()       { return Error.GetPtrOrNull(); }
+	inline const ErrorType* TryGetError() const { return Error.GetPtrOrNull(); }
+
+	/** Steal the error. Asserts if this does not have an error. This causes the error to be unset. */
+	inline ErrorType StealError()
+	{
+		ErrorType Temp = MoveTemp(GetError());
+		Error.Reset();
+		return Temp;
+	}
+
+private:
+	TOptional<ErrorType> Error;
+};
+
+template <>
+class TValueOrError<void, void>
+{
+public:
+	/** Construct the value from a proxy from MakeValue. */
+	inline TValueOrError(TValueOrError_ValueProxy<>&& Proxy)
+		: bValue(true)
+	{
+	}
+
+	/** Construct the error from a proxy from MakeError. */
+	inline TValueOrError(TValueOrError_ErrorProxy<>&& Proxy)
+		: bValue(false)
+	{
+	}
+
+	/** Whether the error is set. An error does imply no value. */
+	inline bool HasError() const { return !bValue; }
+
+	/** Whether the value is set. A value does imply no error. */
+	inline bool HasValue() const { return bValue; }
+
+private:
+	bool bValue;
 };
