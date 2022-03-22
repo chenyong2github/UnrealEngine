@@ -719,7 +719,9 @@ void ULocalPlayer::GetViewPoint(FMinimalViewInfo& OutViewInfo) const
 
 	if (ViewportClient != nullptr)
 	{
-		for (auto& ViewExt : GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(ViewportClient->Viewport)))
+		FSceneViewExtensionContext SceneViewExtensionContext(ViewportClient->Viewport);
+		SceneViewExtensionContext.bStereoEnabled = true;
+		for (const FSceneViewExtensionRef& ViewExt : GEngine->ViewExtensions->GatherActiveExtensions(SceneViewExtensionContext))
 		{
 			ViewExt->SetupViewPoint(PlayerController, OutViewInfo);
 		};

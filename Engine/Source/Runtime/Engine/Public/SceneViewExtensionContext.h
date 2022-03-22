@@ -26,7 +26,7 @@ public:
 
 	FViewport* Viewport = nullptr;
 	FSceneInterface* Scene = nullptr;
-	bool bStereoDisabled = false;
+	bool bStereoEnabled = false;
 
 	FSceneViewExtensionContext() : Viewport(nullptr), Scene(nullptr) {}
 	explicit FSceneViewExtensionContext(FViewport* InViewport) : Viewport(InViewport) {}
@@ -61,7 +61,7 @@ public:
 
 	bool IsStereoSupported() const
 	{
-		return !bStereoDisabled && GEngine && GEngine->IsStereoscopic3D(Viewport);
+		return bStereoEnabled && GEngine && GEngine->IsStereoscopic3D(Viewport);
 	}
 
 	// Return true, if HMD supported

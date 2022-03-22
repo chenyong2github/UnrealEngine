@@ -1461,9 +1461,7 @@ void CaptureSceneIntoScratchCubemap(
 			ViewFamily, /* GlobalResolutionFraction = */ 1.0f));
 
 		FSceneViewExtensionContext ViewExtensionContext(Scene);
-		ViewExtensionContext.bStereoDisabled = true;
 		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
-
 		for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
 		{
 			Extension->SetupViewFamily(ViewFamily);

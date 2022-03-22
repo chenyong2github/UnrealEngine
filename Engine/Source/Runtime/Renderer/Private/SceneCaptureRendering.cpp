@@ -878,8 +878,6 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 		.SetRealtimeUpdate(SceneCaptureComponent->bCaptureEveryFrame || SceneCaptureComponent->bAlwaysPersistRenderingState));
 
 	FSceneViewExtensionContext ViewExtensionContext(Scene);
-	ViewExtensionContext.bStereoDisabled = true;
-
 	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
 	
 	SetupViewFamilyForSceneCapture(
@@ -992,7 +990,6 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		// Process Scene View extensions for the capture component
 		{
 			FSceneViewExtensionContext ViewExtensionContext(SceneRenderer->Scene);
-			ViewExtensionContext.bStereoDisabled = true;
 
 			for (int32 Index = 0; Index < CaptureComponent->SceneViewExtensions.Num(); ++Index)
 			{
