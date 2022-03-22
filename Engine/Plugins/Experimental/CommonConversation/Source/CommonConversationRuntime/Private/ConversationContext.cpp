@@ -100,7 +100,7 @@ FConversationParticipants FConversationContext::GetParticipantsCopy() const
 	{
 		if (ensure(ClientParticipant))
 		{
-			return ClientParticipant->LastMessage.Participants;
+			return ClientParticipant->GetLastMessage().Participants;
 		}
 	}
 

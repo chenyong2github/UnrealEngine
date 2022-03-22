@@ -72,7 +72,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Conversation)
 	virtual FText GetParticipantDisplayName();
 
-
 	UFUNCTION(BlueprintCallable, Category = Conversation)
 	bool IsInActiveConversation() const;
 
@@ -123,10 +122,15 @@ protected:
 #endif
 
 public:
-	FClientConversationMessagePayload LastMessage;
-	int32 MessageIndex = 0;
-
+    // The number of conversations active.  A given conversationalist might be in multiple conversations at once.
+    // e.g. Multiple players "talking" to the same NPC in a multiplayer game.
 	int32 GetConversationsActive() const { return ConversationsActive; }
+	
+	// A cached version of the last conversation message payload data recieved.
+	const FClientConversationMessagePayload& GetLastMessage() const { return LastMessage; }
+	
+	// Gets the last message index recieved, this is just a monotomically increasing number each time we get a new message.
+	const int32 GetLastMessageIndex() const { return MessageIndex; }
 
 	bool GetIsFirstConversationUpdateBroadcasted() const { return bIsFirstConversationUpdateBroadcasted; }
 
@@ -146,7 +150,12 @@ private:
 
 	UPROPERTY()
 	TArray<UConversationInstance*> Auth_Conversations;
-
+	
+	UPROPERTY()
+    FClientConversationMessagePayload LastMessage;
+    
+    int32 MessageIndex = 0;
+    
 	bool bIsFirstConversationUpdateBroadcasted = false;
 };
 
