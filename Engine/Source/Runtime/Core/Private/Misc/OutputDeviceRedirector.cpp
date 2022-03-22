@@ -422,6 +422,11 @@ void FOutputDeviceRedirector::SetCurrentThreadAsMasterThread()
 
 bool FOutputDeviceRedirector::TryStartDedicatedMasterThread()
 {
+	if constexpr (!PLATFORM_WINDOWS)
+	{
+		return false;
+	}
+
 	if (!FApp::ShouldUseThreadingForPerformance())
 	{
 		return false;
