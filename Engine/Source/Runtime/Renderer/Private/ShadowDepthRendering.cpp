@@ -1959,7 +1959,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						Params.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
 						Params.PrevViewMatrices = Params.ViewMatrices;
 						Params.HZBTestViewRect = ShadowViewRect;
-						Params.Flags = 0;
 						UpdatePackedViewParamsFromPrevShadowState(Params, PrevShadowState);
 
 						PackedViews.Add(Nanite::CreatePackedView(Params));
