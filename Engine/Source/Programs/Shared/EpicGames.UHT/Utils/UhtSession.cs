@@ -848,6 +848,11 @@ namespace EpicGames.UHT.Utils
 		public bool bIncludeDebugOutput = false;
 
 		/// <summary>
+		/// If true, disable all exporters which would normally be run by default
+		/// </summary>
+		public bool bNoDefaultExporters = false;
+
+		/// <summary>
 		/// If true, cache any error messages until the end of processing.  This is used by the testing
 		/// harness to generate more stable console output.
 		/// </summary>
@@ -2369,7 +2374,8 @@ namespace EpicGames.UHT.Utils
 					bool Run = false;
 					if (!this.ExporterStates.TryGetValue(Exporter.Name, out Run))
 					{
-						Run = UhtConfig.Instance.IsExporterEnabled(Exporter.Name) || Exporter.Options.HasAnyFlags(UhtExporterOptions.Default);
+						Run = UhtConfig.Instance.IsExporterEnabled(Exporter.Name) || 
+							(Exporter.Options.HasAnyFlags(UhtExporterOptions.Default) && !this.bNoDefaultExporters);
 					}
 
 					if (Run)

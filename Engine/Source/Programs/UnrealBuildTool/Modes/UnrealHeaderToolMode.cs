@@ -400,6 +400,9 @@ namespace UnrealBuildTool.Modes
 		[CommandLine("-IncludeDebugOutput", Description = "Include extra content in generated output to assist with debugging")]
 		public bool bIncludeDebugOutput = false;
 
+		[CommandLine("-NoDefaultExporters", Description = "Disable all default exporters.  Useful for when a specific exporter is to be run")]
+		public bool bNoDefaultExporters = false;
+
 		/// <summary>
 		/// Initialize the options with the given command line arguments
 		/// </summary>
@@ -1102,6 +1105,7 @@ namespace UnrealBuildTool.Modes
 					bFailIfGeneratedCodeChanges = Options.bFailIfGeneratedCodeChanges,
 					bNoOutput = Options.bNoOutput,
 					bIncludeDebugOutput = Options.bIncludeDebugOutput,
+					bNoDefaultExporters = Options.bNoDefaultExporters,
 				};
 
 				if (Options.bWriteRef)
