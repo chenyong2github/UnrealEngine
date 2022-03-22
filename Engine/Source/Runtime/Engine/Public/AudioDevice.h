@@ -9,6 +9,7 @@
 #include "DSP/SpectrumAnalyzer.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
+#include "HAL/LowLevelMemStats.h"
 #include "IAudioExtensionPlugin.h"
 #include "AudioDynamicParameter.h"
 #include "Sound/AudioSettings.h"
@@ -61,6 +62,8 @@ struct FAudioComponentParam;
 struct FAudioQualitySettings;
 UE_DECLARE_LWC_TYPE(Rotator, 3);
 struct FWaveInstance;
+
+LLM_DECLARE_TAG_API(AudioSpatializationPlugins, ENGINE_API);
 
 namespace Audio
 {

@@ -20,7 +20,6 @@
 #include "GeneralProjectSettings.h"
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "IAudioExtensionPlugin.h"
 #include "IAudioParameterTransmitter.h"
 #include "Misc/ConfigCacheIni.h"
@@ -54,6 +53,10 @@
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
 
+DECLARE_LLM_MEMORY_STAT(TEXT("AudioSpatializationPlugins"), STAT_AudioSpatializationPluginsLLM, STATGROUP_LLMFULL);
+LLM_DEFINE_TAG(AudioSpatializationPlugins, NAME_None, TEXT("Audio"), GET_STATFNAME(STAT_AudioSpatializationPluginsLLM), GET_STATFNAME(STAT_AudioSummaryLLM));
+
+#define AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE LLM_SCOPE_BYTAG(AudioSpatializationPlugins); 
 
 static int32 AudioChannelCountCVar = 0;
 FAutoConsoleVariableRef CVarSetAudioChannelCount(
@@ -783,7 +786,7 @@ void FAudioDevice::Teardown()
 
 	for (TAudioPluginListenerPtr PluginListener : PluginListeners)
 	{
-		LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+		AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE
 
 		PluginListener->OnListenerShutdown(this);
 	}
@@ -3224,7 +3227,7 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 
 	if (World)
 	{
-		LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+		AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE
 
 		for (TAudioPluginListenerPtr PluginManager : PluginListeners)
 		{
@@ -3237,7 +3240,7 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 		// Broadcast to a 3rd party plugin listener observer if enabled
 		for (TAudioPluginListenerPtr PluginManager : PluginListeners)
 		{
-			LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+			AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE
 
 			PluginManager->OnListenerUpdated(this, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
 		}
@@ -4790,7 +4793,7 @@ void FAudioDevice::InitializePluginListeners(UWorld* World)
 	check(IsInGameThread());
 	check(!bPluginListenersInitialized);
 
-	LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+	AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE
 
 	for (TAudioPluginListenerPtr PluginListener : PluginListeners)
 	{
@@ -4802,7 +4805,7 @@ void FAudioDevice::NotifyPluginListenersWorldChanged(UWorld* World)
 {
 	check(IsInGameThread());
 
-	LLM_SCOPE(ELLMTag::AudioSpatializationPlugins);
+	AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE
 
 	for (TAudioPluginListenerPtr PluginListener : PluginListeners)
 	{
