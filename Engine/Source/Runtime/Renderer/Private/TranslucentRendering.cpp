@@ -1073,7 +1073,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	OIT::SetOITParameters(GraphBuilder, View, BasePassParameters.OIT, OITData);
+	//OIT::SetOITParameters(GraphBuilder, View, BasePassParameters.OIT, OITData);
 
 	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
 }
