@@ -139,7 +139,7 @@ protected:
 	void TeardownBlueprintElementEvent();
 };
 
-class FPCGExecuteBlueprintElement : public FSimpleTypedPCGElement<UPCGBlueprintSettings>
+class FPCGExecuteBlueprintElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

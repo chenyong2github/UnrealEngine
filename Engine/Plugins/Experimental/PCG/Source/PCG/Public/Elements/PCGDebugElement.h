@@ -28,7 +28,7 @@ protected:
 	// ~End UPCGSettings interface
 };
 
-class FPCGDebugElement : public FSimpleTypedPCGElement<UPCGDebugSettings>
+class FPCGDebugElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

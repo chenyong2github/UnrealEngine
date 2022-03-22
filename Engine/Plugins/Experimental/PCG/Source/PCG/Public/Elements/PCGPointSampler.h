@@ -34,7 +34,7 @@ public:
 #endif
 };
 
-class FPCGPointSamplerElement : public FSimpleTypedPCGElement<UPCGPointSamplerSettings>
+class FPCGPointSamplerElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

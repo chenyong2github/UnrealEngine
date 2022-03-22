@@ -63,7 +63,7 @@ public:
 	/** ~End UPCGBaseSubgraphNode interface */
 };
 
-class FPCGSpawnActorElement : public FSimpleTypedPCGElement<UPCGSpawnActorSettings>
+class FPCGSpawnActorElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

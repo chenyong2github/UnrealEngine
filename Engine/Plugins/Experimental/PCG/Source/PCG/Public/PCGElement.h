@@ -20,7 +20,11 @@ typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
 		*((CustomContext)->GetTaskName()), \
 		##__VA_ARGS__)
 
+#if WITH_EDITOR
+#define PCGE_LOG(Verbosity, Format, ...) do{ if(ShouldLog()) { PCGE_LOG_C(Verbosity, Context, Format, ##__VA_ARGS__); } }while(0)
+#else
 #define PCGE_LOG(Verbosity, Format, ...) PCGE_LOG_C(Verbosity, Context, Format, ##__VA_ARGS__)
+#endif
 
 /**
 * Base class for the processing bit of a PCG node/settings
@@ -37,6 +41,9 @@ protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const = 0;
 	virtual bool IsCancellable() const { return true; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
+#if WITH_EDITOR
+	virtual bool ShouldLog() const { return true; }
+#endif
 };
 
 /**
@@ -46,14 +53,4 @@ class PCG_API FSimplePCGElement : public IPCGElement
 {
 public:
 	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
-};
-
-/**
-* CRTP PCG element class to facilitate settings retrieval
-*/
-template<typename SettingsClass>
-class PCG_API FSimpleTypedPCGElement : public FSimplePCGElement
-{
-public:
-	const SettingsClass* GetSettings();
 };

@@ -29,7 +29,7 @@ protected:
 	//~End UPCGSettings interface
 };
 
-class FPCGProjectionElement : public FSimpleTypedPCGElement<UPCGProjectionSettings>
+class FPCGProjectionElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;

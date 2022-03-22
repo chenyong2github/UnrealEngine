@@ -32,7 +32,7 @@ public:
 	EPCGUnionDensityFunction DensityFunction = EPCGUnionDensityFunction::Maximum;
 };
 
-class FPCGUnionElement : public FSimpleTypedPCGElement<UPCGUnionSettings>
+class FPCGUnionElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;

@@ -41,7 +41,7 @@ public:
 	TArray<FPCGStaticMeshSpawnerEntry> Meshes;
 };
 
-class FPCGStaticMeshSpawnerElement : public FSimpleTypedPCGElement<UPCGStaticMeshSpawnerSettings>
+class FPCGStaticMeshSpawnerElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

@@ -63,7 +63,10 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 		bool bDone = false;
 
 #if WITH_EDITOR
-		UE_LOG(LogPCG, Verbose, TEXT("---------------------------------------"));
+		if (ShouldLog())
+		{
+			UE_LOG(LogPCG, Verbose, TEXT("---------------------------------------"));
+		}
 #endif
 
 		if (IsCacheable(Settings) && Context->Cache && Context->Cache->GetFromCache(this, Context->InputData, Settings, Context->OutputData))

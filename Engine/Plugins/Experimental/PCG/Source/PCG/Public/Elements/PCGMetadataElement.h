@@ -53,7 +53,7 @@ public:
 	EPCGMetadataOperationTarget Target = EPCGMetadataOperationTarget::PropertyToAttribute;
 };
 
-class FPCGMetadataOperationElement : public FSimpleTypedPCGElement<UPCGMetadataOperationSettings>
+class FPCGMetadataOperationElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

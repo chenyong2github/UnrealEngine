@@ -133,6 +133,9 @@ protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	virtual bool IsCancellable() const { return false; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
+#if WITH_EDITOR
+	virtual bool ShouldLog() const { return false; }
+#endif
 
 private:
 	TFunction<bool()> Operation;

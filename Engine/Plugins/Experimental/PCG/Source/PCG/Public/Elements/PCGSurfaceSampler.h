@@ -54,7 +54,7 @@ protected:
 	// ~End UPCGSettings interface
 };
 
-class FPCGSurfaceSamplerElement : public FSimpleTypedPCGElement<UPCGSurfaceSamplerSettings>
+class FPCGSurfaceSamplerElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
