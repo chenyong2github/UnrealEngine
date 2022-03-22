@@ -1,0 +1,223 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Common.ush"
+
+#define OIT_ENABLED 1
+#define MAX_SAMPLE_COUNT 8
+#define OIT_PASS_REGULAR 1
+#define OIT_PASS_SEPARATE 2
+
+#include "OITCommon.ush"
+#include "ColorMap.ush"
+
+int2 Resolution;
+uint MaxSideSampleCount;
+uint MaxSampleCount;
+uint Method;
+uint PassType;
+uint SupportedPass;
+
+Texture2D<uint>	SampleColorTexture;
+Texture2D<uint>	SampleTransTexture;
+Texture2D<float>SampleDepthTexture;
+Texture2D<uint>	SampleCountTexture;
+
+FOITSample OITLoadSample(uint2 InPixelCoord)
+{
+	FOITPackedSample Packed = (FOITPackedSample)0;
+	Packed.Depth = SampleDepthTexture.Load(uint3(InPixelCoord, 0));
+	Packed.Color = SampleColorTexture.Load(uint3(InPixelCoord, 0));
+	Packed.Trans = SampleTransTexture.Load(uint3(InPixelCoord, 0));
+	return UnpackOITSample(Packed);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Combine
+
+#if SHADER_OIT_COMBINE
+RWTexture2D<float4> OutColorTexture;
+
+[numthreads(8, 8, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{	
+	const uint2 PixelCoord = DispatchThreadId.xy;
+	if (any(PixelCoord.xy >= uint2(Resolution)))
+		return;
+
+	FOITSample Samples[MAX_SAMPLE_COUNT];
+
+	const uint  SampleCount		= min(MaxSampleCount, SampleCountTexture.Load(uint3(PixelCoord, 0)));
+	const uint2 SampleBaseCoord	= PixelCoord * MaxSideSampleCount;
+
+	// Bubble sort
+	// TODO: sorting go through memory, while it should be in registers
+	for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
+	{
+		Samples[SampleIt] = (FOITSample)0;
+		Samples[SampleIt].Depth = 10e28f;
+
+		const uint2 SampleOffset = uint2(SampleIt % MaxSideSampleCount, SampleIt / MaxSideSampleCount);
+		const uint2 SampleCoord  = SampleBaseCoord + SampleOffset;
+
+		FOITSample Current = OITLoadSample(SampleCoord);
+		if (SampleIt > 0)
+		{
+			for (uint j = 0; j <= SampleIt; ++j)
+			{
+				if (Current.Depth < Samples[j].Depth) // Scene depth
+				{
+					OITSwap(Samples[j], Current);
+				}
+			}
+		}
+		else
+		{
+			Samples[SampleIt] = Current;
+		}
+	}
+
+	// Combine all samples from front to back
+	float3 FinalColor = 0;
+	float3 Transmittance = 1;
+	for (uint CompIt = 0; CompIt < SampleCount; ++CompIt)
+	{
+		FinalColor	 += Samples[CompIt].Color * Transmittance;
+		Transmittance = saturate(Transmittance * Samples[CompIt].Trans);
+	}
+
+	float AdjustedAlpha = saturate(1 - dot(Transmittance, float3(1.0f, 1.0f, 1.0f) / 3.0f));
+	
+	// Write final color - typed load
+	if (SampleCount > 0)
+	{
+		OutColorTexture[PixelCoord] = float4(FinalColor + OutColorTexture[PixelCoord].rgb * Transmittance, PassType == OIT_PASS_SEPARATE ? AdjustedAlpha : OutColorTexture[PixelCoord].a);
+	}
+}
+#endif // SHADER_OIT_COMBINE
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Debug
+
+#if SHADER_OIT_DEBUG
+
+#include "ShaderPrint.ush"
+
+int2 CursorCoord;
+
+void AddNewLine(float2 OriginalPos, inout float2 Pos)
+{
+	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
+}
+
+void WriteEnable(inout float2 Pos, bool bEnable)
+{
+	if (bEnable)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("On"), FontGreen);
+	}
+	else
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Off"), FontRed);
+	}
+}
+[numthreads(1, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (all(DispatchThreadId == 0) && all(CursorCoord > 0) && all(CursorCoord < Resolution-1))
+	{
+		const uint2 PixelCoord	= CursorCoord;
+		uint  SampleCount		= SampleCountTexture.Load(uint3(PixelCoord, 0));
+		uint2 SampleBaseCoord	= PixelCoord * MaxSideSampleCount;
+		
+		// Global info
+		{
+			const uint2 GlobalCoord = uint2(50, 80);
+			float2 OriginalPos = GlobalCoord / float2(Resolution);
+			float2 Pos = OriginalPos;
+
+			if (Method == 0)
+			{
+			Pos = ShaderPrintText(Pos, TEXT("Method          : K-Buffer"), FontOrange);
+			}
+			else
+			{
+			Pos = ShaderPrintText(Pos, TEXT("Method          : MLAB"), FontOrange);
+			}
+			AddNewLine(OriginalPos, Pos);
+
+			Pos = ShaderPrintText(Pos, TEXT("Max Sample Count: "), FontWhite);
+			Pos = ShaderPrint(Pos, MaxSampleCount, FontYellow);
+			AddNewLine(OriginalPos, Pos);
+
+			Pos = ShaderPrintText(Pos, TEXT("Current Pass    : "), FontWhite);
+			if (!!(PassType & OIT_PASS_REGULAR))
+			{
+				Pos = ShaderPrintText(Pos, TEXT("Regular Translucency"), FontYellow);
+			}
+			else if (!!(PassType & OIT_PASS_SEPARATE))
+			{
+				Pos = ShaderPrintText(Pos, TEXT("Separate Translucency"), FontYellow);
+			}
+			AddNewLine(OriginalPos, Pos);
+
+			Pos = ShaderPrintText(Pos, TEXT("Transp. Regular : "), FontWhite); WriteEnable(Pos, (SupportedPass & OIT_PASS_REGULAR) > 0);
+			AddNewLine(OriginalPos, Pos);
+
+			Pos = ShaderPrintText(Pos, TEXT("Transp. Separate: "), FontWhite); WriteEnable(Pos, (SupportedPass & OIT_PASS_SEPARATE) > 0);
+			AddNewLine(OriginalPos, Pos);
+		}
+
+		// Pixel coord
+		float2 OriginalPos = PixelCoord / float2(Resolution);
+		float2 Pos = OriginalPos;
+		Pos = ShaderPrintText(Pos, TEXT("Pixel Coord.: "), FontWhite);
+		Pos = ShaderPrint(Pos, PixelCoord, FontYellow);
+		AddNewLine(OriginalPos, Pos);
+
+		FFontColor SampleCountColor = FontEmerald;
+		if (SampleCount > MaxSampleCount)
+		{
+			SampleCountColor = FontRed;
+		}
+		Pos = ShaderPrintText(Pos, TEXT("Sample Count: "), FontWhite);
+		Pos = ShaderPrint(Pos, SampleCount, SampleCountColor);
+		Pos = ShaderPrint(Pos, MaxSampleCount, SampleCountColor);
+		AddNewLine(OriginalPos, Pos);
+
+		if (Method == 0)
+		{
+			Pos = ShaderPrintText(Pos, TEXT("Method: K-Buffer"), FontOrange);
+		}
+		else
+		{
+			Pos = ShaderPrintText(Pos, TEXT("Method: MLAB"), FontOrange);
+		}
+		AddNewLine(OriginalPos, Pos);
+		
+
+		// Sample infos
+		SampleCount = min(SampleCount, MaxSampleCount);
+		for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
+		{
+			const uint2 SampleOffset = uint2(SampleIt % MaxSideSampleCount, SampleIt / MaxSideSampleCount);
+			const uint2 SampleCoord = SampleBaseCoord + SampleOffset;
+
+			const FOITSample Sample = OITLoadSample(SampleCoord);
+
+			Pos = ShaderPrintText(Pos, TEXT("Depth "), FontYellow);
+			Pos = ShaderPrint(Pos, Sample.Depth, FontYellow);
+			AddNewLine(OriginalPos, Pos);
+
+			Pos = ShaderPrintText(Pos, TEXT("Color "), FontEmerald);	
+			Pos = ShaderPrint(Pos, Sample.Color, InitFontColor(Sample.Color));
+			AddNewLine(OriginalPos, Pos);
+
+			Pos = ShaderPrintText(Pos, TEXT("Trans."), FontOrange);	
+			Pos = ShaderPrint(Pos, Sample.Trans, InitFontColor(Sample.Trans));
+			AddNewLine(OriginalPos, Pos);
+		}
+	}
+}
+#endif

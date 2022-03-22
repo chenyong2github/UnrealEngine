@@ -546,7 +546,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 			if (LightSceneInfo.bEnableLightShaftBloom)
 			{
 				bool bWillRenderLightShafts = false;
-
+				
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
 					const FViewInfo& View    = Views[ViewIndex];
@@ -574,7 +574,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 							OutputLoadAction = ERenderTargetLoadAction::EClear;
 
 							const bool bIsModulate = false;
-							OutputTexture = CreatePostDOFTranslucentTexture(GraphBuilder, ETranslucencyPass::TPT_TranslucencyAfterDOF, SeparateTranslucencyDimensions, bIsModulate);
+							OutputTexture = CreatePostDOFTranslucentTexture(GraphBuilder, ETranslucencyPass::TPT_TranslucencyAfterDOF, SeparateTranslucencyDimensions, bIsModulate, ShaderPlatform);
 
 							// We will need to update views separate transluceny buffers if we have just created them.
 							bUpdateViewsSeparateTranslucency = true;

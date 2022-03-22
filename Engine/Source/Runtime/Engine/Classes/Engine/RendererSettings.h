@@ -927,6 +927,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bMaterialEnergyConservation : 1;
 
 	/**
+	"Enable Order Independent Transparency (Experimental)."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = Translucency, meta = (
+		ConsoleVariable = "r.OIT.SortedPixels", DisplayName = "Enable Order Independent Transparency (Experimental)",
+		ToolTip = "Enable support for Order-Independent-Transparency on translucent surfaces, which remove most of the sorting artifact among translucent surfaces.",
+		ConfigRestartRequired = true))
+		uint32 bOrderedIndependentTransparencyEnable : 1;
+
+	/**
 	"Skin cache allows a compute shader to skin once each vertex, save those results into a new buffer and reuse those calculations when later running the depth, base and velocity passes. This also allows opting into the 'recompute tangents' for skinned mesh instance feature. Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (

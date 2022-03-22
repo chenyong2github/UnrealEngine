@@ -12,6 +12,26 @@ class FSortedIndexBuffer;
 struct FMeshBatchElementDynamicIndexBuffer;
 class FViewInfo;
 
+enum class EOITSortingType
+{
+	SortedTriangles,
+	SortedPixels,
+};
+
+enum EOITPassType
+{
+	OITPass_None = 0,
+	OITPass_RegularTranslucency = 1,
+	OITPass_SeperateTranslucency = 2
+};
+
+enum class FTriangleSortingOrder
+{
+	FrontToBack,
+	BackToFront,
+};
+
+// Sorted triangles data
 struct FSortedTriangleData
 {
 	const FIndexBuffer* SourceIndexBuffer = nullptr;
@@ -31,6 +51,23 @@ struct FSortedTriangleData
 	bool IsValid() const { return SortedIndexBuffer != nullptr; }
 };
 
+// Order Independent Translucency pass data for a given translucent pass
+struct FOITData
+{
+	EOITPassType PassType = OITPass_None;
+	uint32 SupportedPass = 0;
+	uint32 Method = 0;
+	uint32 MaxSamplePerPixel = 0;
+	uint32 MaxSideSamplePerPixel = 0;
+	float TransmittanceThreshold = 0.f;
+
+	FRDGTextureRef SampleColorTexture = nullptr;
+	FRDGTextureRef SampleTransTexture = nullptr;
+	FRDGTextureRef SampleDepthTexture = nullptr;
+	FRDGTextureRef SampleCountTexture = nullptr;
+};
+
+// Order Independent Translucency scene data
 struct FOITSceneData
 {
 	/* Allocate sorted-triangle data for a instance */
@@ -45,25 +82,24 @@ struct FOITSceneData
 	uint32 FrameIndex = 0;
 };
 
-enum class FOITSortingType
-{
-	FrontToBack,
-	BackToFront,
-};
-
 namespace OIT
 {
 	/* Return true if OIT techniques are enabled/supported */
-	bool IsEnabled(const FViewInfo& View);
-	bool IsEnabled(EShaderPlatform ShaderPlatform);
+	bool IsEnabled(EOITSortingType Type, const FViewInfo& View);
+	bool IsEnabled(EOITSortingType Type, EShaderPlatform ShaderPlatform);
 
 	/* Return true if the current MeshBatch is compatible with per-instance sorted triangle */
 	bool IsCompatible(const FMeshBatch& Mesh, ERHIFeatureLevel::Type InFeatureLevel);
 
 	/* Sort triangles of all instances whose has the sorted triangle option enabled */
-	void AddSortTrianglesPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FOITSceneData& OITSceneData, FOITSortingType SortType);
+	void AddSortTrianglesPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FOITSceneData& OITSceneData, FTriangleSortingOrder SortType);
 
 	/* Convert FSortedTriangleData into FMeshBatchElementDynamicIndexBuffer */
 	void ConvertSortedIndexToDynamicIndex(FSortedTriangleData* In, FMeshBatchElementDynamicIndexBuffer* Out);
+
+	/* Create OIT data for translucent pass */
+	FOITData CreateOITData(FRDGBuilder& GraphBuilder, const FViewInfo& View, EOITPassType PassType);
+
+	/* Compose all OIT samples into the target color buffer */
+	void AddOITComposePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FOITData& OITData, FRDGTextureRef SceneColorTexture);
 }
- 

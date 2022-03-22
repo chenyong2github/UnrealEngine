@@ -167,7 +167,8 @@ const TCHAR* GetShaderParameterMacroName(EUniformBufferBaseType ShaderParameterB
 
 EShaderCodeResourceBindingType ParseShaderResourceBindingType(const TCHAR* ShaderType)
 {
-	bool bIsRWResource = FCString::Strncmp(ShaderType, TEXT("RW"), 2) == 0;
+	const bool bIsRasterizerOrderedResource = FCString::Strncmp(ShaderType, TEXT("RasterizerOrdered"), 17) == 0;
+	const bool bIsRWResource = FCString::Strncmp(ShaderType, TEXT("RW"), 2) == 0 || bIsRasterizerOrderedResource;
 	const TCHAR* ComparedShaderType = ShaderType + (bIsRWResource ? 2 : 0);
 
 	int32 ShaderTypeLength = 0;

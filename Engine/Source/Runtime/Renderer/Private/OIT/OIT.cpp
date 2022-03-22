@@ -1,54 +1,257 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OIT.h"
+#include "OITParameters.h"
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterStruct.h"
 #include "SceneTextureParameters.h"
 #include "SceneRendering.h"
-
+#include "ShaderCompilerCore.h"
 #include "ShaderPrintParameters.h"
 #include "ShaderPrint.h"
 #include "ScreenPass.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Variables
+// Variables: sorted triangles
 
-static int32 GOIT_SortObjectTriangles = 1;
-static FAutoConsoleVariableRef CVarOIT_PerObjectSorting(TEXT("r.OIT.SortObjectTriangles"), GOIT_SortObjectTriangles, TEXT("Enable per-instance triangle sorting to avoid invalid triangle ordering (experimental)."));
+static TAutoConsoleVariable<int32> CVarOIT_SortedTriangles_Enable(
+	TEXT("r.OIT.SortedTriangles"), 
+	1, 
+	TEXT("Enable per-instance triangle sorting to avoid invalid triangle ordering (experimental)."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static int32 GOIT_Debug = 0;
-static FAutoConsoleVariableRef CVarOIT_Debug(TEXT("r.OIT.Debug"), GOIT_Debug, TEXT("Enable per-instance triangle sorting debug rendering."));
+static TAutoConsoleVariable<int32> CVarOIT_SortedTriangles_Debug(
+	TEXT("r.OIT.SortedTriangles.Debug"), 
+	0, 
+	TEXT("Enable per-instance triangle sorting debug rendering."),
+	ECVF_RenderThreadSafe);
 
-static int32 GOIT_Pool = 0;
-static int32 GOIT_PoolReleaseThreshold = 100;
-static FAutoConsoleVariableRef CVarOIT_Pool(TEXT("r.OIT.Pool"), GOIT_Pool, TEXT("Enable index buffer pool allocation which reduce creation/deletion time by re-use buffers."));
-static FAutoConsoleVariableRef CVarOIT_PoolReleaseThreshold(TEXT("r.OIT.Pool.ReleaseFrameThreshold"), GOIT_PoolReleaseThreshold, TEXT("Number of frame after which unused buffer are released."));
+static TAutoConsoleVariable<int32> CVarOIT_SortedTriangles_Pool(
+	TEXT("r.OIT.SortedTriangles.Pool"), 
+	0, 
+	TEXT("Enable index buffer pool allocation which reduce creation/deletion time by re-use buffers."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarOIT_SortedTriangles_PoolReleaseThreshold(
+	TEXT("r.OIT.SortedTriangles.Pool.ReleaseFrameThreshold"), 
+	100, 
+	TEXT("Number of frame after which unused buffer are released."),
+	ECVF_RenderThreadSafe);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// OIT Debug
+// Variables: sorted pixels
 
-struct FOITDebugData
+// Referenced in RendererSettings.h, as it is a project settings
+static TAutoConsoleVariable<int32> CVarOIT_SortedPixels_Enable(
+	TEXT("r.OIT.SortedPixels"),
+	0,
+	TEXT("Enable OIT rendering (project settings, can't be changed at runtime)"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarOIT_SortedPixels_PassType(
+	TEXT("r.OIT.SortedPixels.PassType"),
+	3,
+	TEXT("Enable OIT rendering. 0: disable 1: enable OIT for std. translucency 2: enable OIT for separated translucency 3: enable for both std. and separated translucency (default)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarOIT_SortedPixels_SampleCount(
+	TEXT("r.OIT.SortedPixels.MaxSampleCount"),
+	4,
+	TEXT("Max sample count."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarOIT_SortedPixels_Debug(
+	TEXT("r.OIT.SortedPixels.Debug"),
+	0,
+	TEXT("Enable debug rendering for OIT. 1: Enable debug for std. translucency 2: Enable for separated translucency."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarOIT_SortedPixels_Method(
+	TEXT("r.OIT.SortedPixels.Method"),
+	1,
+	TEXT("Toggle OIT methods 0: Regular alpha-blending (i.e., no OIT) 1: MLAB"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarOIT_SortedPixels_TransmittanceThreshold(
+	TEXT("r.OIT.SortedPixels.TransmittanceThreshold"),
+	0.05,
+	TEXT("Remove translucent rendering surfaces when the accumulated thransmittance is below this threshold"),
+	ECVF_RenderThreadSafe);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+static bool IsOITSortedTrianglesSupported(EShaderPlatform InShaderPlatform)
 {
-	static const EPixelFormat Format = PF_R32_UINT;
+	return RHISupportsComputeShaders(InShaderPlatform);
+}
 
-	FRDGBufferRef Buffer = nullptr; // First element is counter, then element are: (NumPrim/Type/Size)
+static bool IsOITSortedPixelsSupported(EShaderPlatform InShaderPlatform)
+{
+	return RHISupportsComputeShaders(InShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsOIT(InShaderPlatform);
+}
 
-	uint32 VisibleInstances = 0;
-	uint32 VisiblePrimitives = 0;
-	uint32 VisibleIndexSizeInBytes = 0;
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Debug OIT
+class FOITPixelDebugCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FOITPixelDebugCS);
+	SHADER_USE_PARAMETER_STRUCT(FOITPixelDebugCS, FGlobalShader);
 
-	uint32 AllocatedBuffers = 0;
-	uint32 AllocatedIndexSizeInBytes = 0;
-
-	uint32 UnusedBuffers = 0;
-	uint32 UnusedIndexSizeInBytes = 0;
-
-	uint32 TotalEntries = 0;
-
-	bool IsValid() const { return Buffer != nullptr; }
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, CursorCoord)
+		SHADER_PARAMETER(FIntPoint, Resolution)
+		SHADER_PARAMETER(uint32, MaxSideSampleCount)
+		SHADER_PARAMETER(uint32, MaxSampleCount)
+		SHADER_PARAMETER(uint32, Method)
+		SHADER_PARAMETER(uint32, PassType)
+		SHADER_PARAMETER(uint32, SupportedPass)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, SampleColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, SampleTransTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SampleDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SampleCountTexture)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedPixelsSupported(Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_OIT_DEBUG"), 1);
+	}
 };
+
+IMPLEMENT_GLOBAL_SHADER(FOITPixelDebugCS, "/Engine/Private/OITCombine.usf", "MainCS", SF_Compute);
+
+static void AddOITPixelDebugPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FOITData& OITData)
+{
+	if (!OITData.SampleColorTexture ||
+		!OITData.SampleTransTexture ||
+		!OITData.SampleDepthTexture ||
+		!OITData.SampleCountTexture)
+		return;
+
+	if (!ShaderPrint::IsEnabled(View))
+	{
+		ShaderPrint::SetEnabled(true);
+	}
+	ShaderPrint::RequestSpaceForCharacters(512);
+
+	FOITPixelDebugCS::FParameters* Parameters = GraphBuilder.AllocParameters<FOITPixelDebugCS::FParameters>();
+	Parameters->PassType = OITData.PassType;
+	Parameters->SupportedPass = OITData.SupportedPass;
+	Parameters->Resolution = View.ViewRect.Size();
+	Parameters->CursorCoord = View.CursorPos;
+	Parameters->MaxSampleCount = OITData.MaxSamplePerPixel;
+	Parameters->Method = OITData.Method;
+	Parameters->MaxSideSampleCount = OITData.MaxSideSamplePerPixel;
+	Parameters->SampleColorTexture = OITData.SampleColorTexture;
+	Parameters->SampleTransTexture = OITData.SampleTransTexture;
+	Parameters->SampleDepthTexture = OITData.SampleDepthTexture;
+	Parameters->SampleCountTexture = OITData.SampleCountTexture;
+	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintUniformBuffer);
+
+	FOITPixelDebugCS::FPermutationDomain PermutationVector;
+	TShaderMapRef<FOITPixelDebugCS> ComputeShader(View.ShaderMap, PermutationVector);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("Translucency::OITDebug(Pixel,%s)", !!(OITData.PassType & OITPass_SeperateTranslucency) ? TEXT("SeparateTransluency") : TEXT("Regular")),
+		ComputeShader,
+		Parameters,
+		FIntVector(1, 1, 1));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Combine OIT samples
+class FOITPixelCombineCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FOITPixelCombineCS);
+	SHADER_USE_PARAMETER_STRUCT(FOITPixelCombineCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, Resolution)
+		SHADER_PARAMETER(uint32, MaxSideSampleCount)
+		SHADER_PARAMETER(uint32, MaxSampleCount)
+		SHADER_PARAMETER(uint32, Method)
+		SHADER_PARAMETER(uint32, PassType)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, SampleColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, SampleTransTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SampleDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SampleCountTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutColorTexture)
+		END_SHADER_PARAMETER_STRUCT()
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedPixelsSupported(Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+		OutEnvironment.SetDefine(TEXT("SHADER_OIT_COMBINE"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FOITPixelCombineCS, "/Engine/Private/OITCombine.usf", "MainCS", SF_Compute);
+
+static void AddInternalOITComposePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FOITData& OITData,
+	FRDGTextureRef SceneColorTexture)
+{
+	// TODO: Add tile composition based on the coarse translucent raster AABB buffer
+
+	if (!SceneColorTexture ||
+		 SceneColorTexture->Desc.NumSamples > 1 ||
+		!OITData.SampleColorTexture ||
+		!OITData.SampleTransTexture ||
+		!OITData.SampleDepthTexture ||
+		!OITData.SampleCountTexture)
+		return;
+
+	FIntPoint InResolution = OITData.SampleColorTexture->Desc.Extent;
+	FIntPoint OutResolution = SceneColorTexture->Desc.Extent;
+	FIntPoint Resolution = FIntPoint(FMath::Min(InResolution.X, OutResolution.X), FMath::Min(InResolution.Y, OutResolution.Y));
+
+	FOITPixelCombineCS::FParameters* Parameters = GraphBuilder.AllocParameters<FOITPixelCombineCS::FParameters>();
+	Parameters->PassType = OITData.PassType;
+	Parameters->Resolution = Resolution;
+	Parameters->Method = OITData.Method;
+	Parameters->MaxSampleCount = OITData.MaxSamplePerPixel;
+	Parameters->MaxSideSampleCount = OITData.MaxSideSamplePerPixel;
+	Parameters->SampleColorTexture = OITData.SampleColorTexture;
+	Parameters->SampleTransTexture = OITData.SampleTransTexture;
+	Parameters->SampleDepthTexture = OITData.SampleDepthTexture;
+	Parameters->SampleCountTexture = OITData.SampleCountTexture;
+	Parameters->OutColorTexture = GraphBuilder.CreateUAV(SceneColorTexture);
+
+	FOITPixelCombineCS::FPermutationDomain PermutationVector;
+	TShaderMapRef<FOITPixelCombineCS > ComputeShader(View.ShaderMap, PermutationVector);
+
+	// Add 64 threads permutation
+	const uint32 GroupSize = 8;
+	const FIntVector DispatchCount = FIntVector(
+		(Resolution.X + GroupSize - 1) / GroupSize,
+		(Resolution.Y + GroupSize - 1) / GroupSize,
+		1);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("Translucency::OITCombine(%s)", !!(OITData.PassType & OITPass_SeperateTranslucency) ? TEXT("SeparateTransluency") : TEXT("Regular")),
+		ComputeShader,
+		Parameters,
+		DispatchCount);
+
+	// Add debug pass
+	const uint32 ActiveDebugPass = CVarOIT_SortedPixels_Debug.GetValueOnRenderThread();
+	if (ActiveDebugPass == OITData.PassType)
+	{
+		AddOITPixelDebugPass(GraphBuilder, View, OITData);
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // OIT Index buffer
@@ -118,7 +321,7 @@ static void TrimSortedIndexBuffers(TArray<FSortedIndexBuffer*>& FreeBuffers, uin
 		if (LastFrameId != 0)
 		{
 			const int32 ElapsedFrame = FMath::Abs(int32(FrameId) - int32(LastFrameId));
-			if (ElapsedFrame > GOIT_PoolReleaseThreshold)
+			if (ElapsedFrame > CVarOIT_SortedTriangles_PoolReleaseThreshold.GetValueOnRenderThread())
 			{
 				FSortedIndexBuffer* Buffer = FreeBuffers[FreeIt];
 				RemoveAllocation(Buffer);
@@ -155,7 +358,7 @@ FSortedTriangleData FOITSceneData::Allocate(const FIndexBuffer* InSource, EPrimi
 	// Linear scan if there are some free resource which are large enough
 	const uint32 NumIndices = InNumPrimitives * 3; // Sorted index always has triangle list topology
 	FSortedIndexBuffer* OITIndexBuffer = nullptr;
-	if (GOIT_Pool>0)
+	if (CVarOIT_SortedTriangles_Pool.GetValueOnRenderThread() > 0)
 	{
 		for (uint32 FreeIt=0,FreeCount=FreeBuffers.Num(); FreeIt<FreeCount; ++FreeIt)
 		{		
@@ -202,7 +405,7 @@ void FOITSceneData::Deallocate(FIndexBuffer* InIndexBuffer)
 	const uint32 Slot = OITIndexBuffer->Id;
 	if (Slot < uint32(Allocations.Num()))
 	{
-		if (GOIT_Pool > 0)
+		if (CVarOIT_SortedTriangles_Pool.GetValueOnAnyThread() > 0)
 		{
 			OITIndexBuffer->Id = FSortedIndexBuffer::InvalidId;
 			OITIndexBuffer->LastUsedFrameId = FrameIndex;
@@ -278,7 +481,7 @@ class FOITSortTriangleIndex_ScanCS : public FGlobalShader
 
 	END_SHADER_PARAMETER_STRUCT()
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedTrianglesSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -301,7 +504,7 @@ class FOITSortTriangleIndex_AllocateCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, SliceOffsetsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedTrianglesSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -333,7 +536,7 @@ class FOITSortTriangleIndex_WriteOutCS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWBuffer<uint>, OutIndexBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedTrianglesSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -364,7 +567,7 @@ class FOITSortTriangleIndex_Debug : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, DebugData)
 	END_SHADER_PARAMETER_STRUCT()
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedTrianglesSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -377,12 +580,33 @@ IMPLEMENT_GLOBAL_SHADER(FOITSortTriangleIndex_Debug, "/Engine/Private/OIT/OITSor
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+struct FOITDebugData
+{
+	static const EPixelFormat Format = PF_R32_UINT;
+
+	FRDGBufferRef Buffer = nullptr; // First element is counter, then element are: (NumPrim/Type/Size)
+
+	uint32 VisibleInstances = 0;
+	uint32 VisiblePrimitives = 0;
+	uint32 VisibleIndexSizeInBytes = 0;
+
+	uint32 AllocatedBuffers = 0;
+	uint32 AllocatedIndexSizeInBytes = 0;
+
+	uint32 UnusedBuffers = 0;
+	uint32 UnusedIndexSizeInBytes = 0;
+
+	uint32 TotalEntries = 0;
+
+	bool IsValid() const { return Buffer != nullptr; }
+};
+
 static void AddOITSortTriangleIndexPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FOITSceneData& OITSceneData,
 	const FSortedTrianglesMeshBatch& MeshBatch,
-	FOITSortingType SortType,
+	FTriangleSortingOrder SortType,
 	FOITDebugData& DebugData)
 {
 	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FLocalVertexFactory"));
@@ -440,7 +664,7 @@ static void AddOITSortTriangleIndexPass(
 		Parameters->NumIndices				= Allocation.NumIndices;
 		Parameters->ViewBoundMinZ			= ViewBoundMinZ;
 		Parameters->ViewBoundMaxZ			= ViewBoundMaxZ;
-		Parameters->SortType				= SortType == FOITSortingType::BackToFront ? 0 : 1;
+		Parameters->SortType				= SortType == FTriangleSortingOrder::BackToFront ? 0 : 1;
 		Parameters->SortedIndexBufferSizeInByte = Allocation.SortedIndexBuffer->IndexBufferRHI->GetSize();
 		Parameters->PositionBuffer			= VertexPosition;
 		Parameters->SourceFirstIndex		= Allocation.SourceFirstIndex;
@@ -542,7 +766,7 @@ static void AddOITSortTriangleIndexPass(
 	// * Batch Scan/Alloc/Write of several primitive, so that we have better overlapping
 }
 
-static void AddOITDebugPass(
+static void AddOITTriangleDebugPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FOITDebugData& DebugData)
@@ -552,29 +776,28 @@ static void AddOITDebugPass(
 		return;
 	}
 
+	if (ShaderPrint::IsEnabled(View))
+	{
+		ShaderPrint::SetEnabled(true);
+	}
+	ShaderPrint::RequestSpaceForCharacters(512);
+
 	FOITSortTriangleIndex_Debug::FParameters* Parameters = GraphBuilder.AllocParameters<FOITSortTriangleIndex_Debug::FParameters>();
 	Parameters->VisibleInstances = DebugData.VisibleInstances;
 	Parameters->VisiblePrimitives = DebugData.VisiblePrimitives;
 	Parameters->VisibleIndexSizeInBytes = DebugData.VisibleIndexSizeInBytes;
-
 	Parameters->UnusedBuffers = DebugData.UnusedBuffers;
 	Parameters->UnusedIndexSizeInBytes = DebugData.UnusedIndexSizeInBytes;
-
 	Parameters->AllocatedBuffers = DebugData.AllocatedBuffers;
 	Parameters->AllocatedIndexSizeInBytes = DebugData.AllocatedIndexSizeInBytes;
-
 	Parameters->TotalEntries = DebugData.TotalEntries;
-
 	Parameters->DebugData = GraphBuilder.CreateSRV(DebugData.Buffer, FOITDebugData::Format);
-	if (ShaderPrint::IsEnabled(View))
-	{
-		ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
-	}
+	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 
 	TShaderMapRef<FOITSortTriangleIndex_Debug> ComputeShader(View.ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("OIT::Debug"),
+		RDG_EVENT_NAME("OIT::Debug(Triangle)"),
 		ComputeShader,
 		Parameters,
 		FIntVector(1u, 1u, 1u));
@@ -584,14 +807,38 @@ static void AddOITDebugPass(
 
 namespace OIT
 {
-	bool IsEnabled(const FViewInfo& View)
+	bool IsEnabled(EOITSortingType Type)
 	{
-		return GOIT_SortObjectTriangles > 0 && IsOITSupported(View.GetShaderPlatform());
+		switch (Type)
+		{
+		case EOITSortingType::SortedTriangles: return CVarOIT_SortedTriangles_Enable.GetValueOnAnyThread() > 0;
+		case EOITSortingType::SortedPixels	 : return CVarOIT_SortedPixels_Enable.GetValueOnAnyThread() > 0;
+		}
+		return false;
 	}
 
-	bool IsEnabled(EShaderPlatform ShaderPlatform)
+	bool IsEnabled(EOITSortingType Type, const FViewInfo& View)
 	{
-		return GOIT_SortObjectTriangles > 0 && IsOITSupported(ShaderPlatform);
+		switch (Type)
+		{
+		case EOITSortingType::SortedTriangles: return CVarOIT_SortedTriangles_Enable.GetValueOnAnyThread() > 0 && IsOITSortedTrianglesSupported(View.GetShaderPlatform());
+		case EOITSortingType::SortedPixels	 : return CVarOIT_SortedPixels_Enable.GetValueOnAnyThread() > 0 && FDataDrivenShaderPlatformInfo::GetSupportsOIT(View.GetShaderPlatform());
+		}
+		return false;
+
+		
+	}
+
+	bool IsEnabled(EOITSortingType Type, EShaderPlatform InPlatform)
+	{
+		const bool bMSAAEnabled = GetDefaultAntiAliasingMethod(GetMaxSupportedFeatureLevel(InPlatform)) != EAntiAliasingMethod::AAM_MSAA;
+
+		switch (Type)
+		{
+			case EOITSortingType::SortedTriangles: return CVarOIT_SortedTriangles_Enable.GetValueOnAnyThread() > 0 && IsOITSortedTrianglesSupported(InPlatform);
+			case EOITSortingType::SortedPixels	 : return CVarOIT_SortedPixels_Enable.GetValueOnAnyThread() > 0 && FDataDrivenShaderPlatformInfo::GetSupportsOIT(EShaderPlatform(InPlatform));
+		}
+		return false;
 	}
 
 	bool IsCompatible(const FMeshBatch& InMesh, ERHIFeatureLevel::Type InFeatureLevel)
@@ -606,16 +853,16 @@ namespace OIT
 		return false;
 	}
 
-	void AddSortTrianglesPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FOITSceneData& OITSceneData, FOITSortingType SortType)
+	void AddSortTrianglesPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FOITSceneData& OITSceneData, FTriangleSortingOrder SortType)
 	{
-		if (!IsEnabled(View))
+		if (!IsEnabled(EOITSortingType::SortedTriangles))
 		{
 			return;
 		}
 
 		RDG_EVENT_SCOPE(GraphBuilder, "OIT::IndexSorting");
 
-		const bool bDebugEnable = GOIT_Debug > 0;
+		const bool bDebugEnable = CVarOIT_SortedTriangles_Debug.GetValueOnRenderThread() > 0;
 		FOITDebugData DebugData;
 		if (bDebugEnable)
 		{
@@ -650,12 +897,12 @@ namespace OIT
 
 		if (DebugData.IsValid())
 		{
-			AddOITDebugPass(GraphBuilder, View, DebugData);
+			AddOITTriangleDebugPass(GraphBuilder, View, DebugData);
 		}
 
 		// Trim unused buffers
 		OITSceneData.FrameIndex = View.Family->FrameNumber;
-		if (GOIT_Pool > 0 && GOIT_PoolReleaseThreshold > 0)
+		if (CVarOIT_SortedTriangles_Pool.GetValueOnRenderThread() > 0 && CVarOIT_SortedTriangles_PoolReleaseThreshold.GetValueOnRenderThread() > 0)
 		{
 			TrimSortedIndexBuffers(OITSceneData.FreeBuffers, OITSceneData.FrameIndex);
 		}
@@ -667,5 +914,82 @@ namespace OIT
 		Out->IndexBuffer = In->SortedIndexBuffer;
 		Out->FirstIndex = In->SortedFirstIndex;
 		Out->PrimitiveType = In->SortedPrimitiveType;
+	}
+
+	FOITData CreateOITData(FRDGBuilder& GraphBuilder, const FViewInfo& View, EOITPassType PassType)
+	{
+		const bool bOIT = IsEnabled(EOITSortingType::SortedPixels, View.GetShaderPlatform());
+		const uint32 PassTypeBits = FMath::Clamp(CVarOIT_SortedPixels_PassType.GetValueOnRenderThread(), 0, 3);
+		const bool bPassValid = !!(PassTypeBits & PassType);
+
+		FOITData Out;
+		if (!bOIT || !bPassValid)
+		{
+			Out.MaxSideSamplePerPixel = 0;
+			Out.MaxSamplePerPixel = 0;
+			Out.Method = 0;
+			Out.TransmittanceThreshold = 0;
+
+			Out.SampleColorTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("OIT.SampleColor"));
+			Out.SampleTransTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("OIT.SampleTrans"));
+			Out.SampleDepthTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("OIT.SampleDepth"));
+			Out.SampleCountTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("OIT.SampleCount"));
+			return Out;
+		}
+
+		// Scene render targets might not exist yet; avoids NaNs.
+		FIntPoint EffectiveBufferSize = GetSceneTextureExtent();
+		EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
+		EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
+
+		// Allocate OIT data		
+		Out.PassType = PassTypeBits & PassType ? PassType : OITPass_None;
+		if (PassTypeBits & OITPass_RegularTranslucency)  Out.SupportedPass |= OITPass_RegularTranslucency;
+		if (PassTypeBits & OITPass_SeperateTranslucency) Out.SupportedPass |= OITPass_SeperateTranslucency;
+
+		if (Out.PassType != OITPass_None)
+		{
+			// Round sample to be square to store them into square tile
+			uint32 MaxSamplePerPixel = FMath::Clamp(CVarOIT_SortedPixels_SampleCount.GetValueOnRenderThread(), 1, 16);
+			uint32 MaxSideSamplePerPixel = FMath::FloorToInt(FMath::Sqrt(float(MaxSamplePerPixel)));
+			MaxSamplePerPixel = MaxSideSamplePerPixel * MaxSideSamplePerPixel;
+
+			Out.MaxSideSamplePerPixel = MaxSideSamplePerPixel;
+			Out.MaxSamplePerPixel = MaxSamplePerPixel;
+			Out.Method = FMath::Clamp(CVarOIT_SortedPixels_Method.GetValueOnRenderThread(), 0, 1);
+			Out.TransmittanceThreshold = FMath::Clamp(CVarOIT_SortedPixels_TransmittanceThreshold.GetValueOnRenderThread(), 0.f, 1.f);
+
+			Out.SampleColorTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(EffectiveBufferSize * MaxSideSamplePerPixel, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("OIT.SampleColor"));
+			Out.SampleTransTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(EffectiveBufferSize * MaxSideSamplePerPixel, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("OIT.SampleTrans"));
+			Out.SampleDepthTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(EffectiveBufferSize * MaxSideSamplePerPixel, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("OIT.SampleDepth"));
+			Out.SampleCountTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(EffectiveBufferSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("OIT.SampleCount"));
+		}
+
+		// TODO: Add tile clear based on the coarse translucent raster AABB buffer
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Out.SampleColorTexture), 0u);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Out.SampleTransTexture), 0u);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Out.SampleCountTexture), 0u);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Out.SampleDepthTexture), 0.f);
+
+		return Out;
+	}
+
+	void SetOITParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FOITBasePassUniformParameters& OutOIT, const FOITData& InOITData)
+	{
+		// Always set the parameters, even when the OIT is disabled, as Uniform buffer validation complain about null resources otherwise
+		OutOIT.OITMethod = InOITData.Method;
+		OutOIT.bOITEnable = InOITData.PassType != OITPass_None ? 1 : 0;
+		OutOIT.MaxSideSamplePerPixel = InOITData.MaxSideSamplePerPixel;
+		OutOIT.MaxSamplePerPixel = InOITData.MaxSamplePerPixel;
+		OutOIT.TransmittanceThreshold = InOITData.TransmittanceThreshold;
+		OutOIT.OutOITSampleColor = GraphBuilder.CreateUAV(InOITData.SampleColorTexture);
+		OutOIT.OutOITSampleTrans = GraphBuilder.CreateUAV(InOITData.SampleTransTexture);
+		OutOIT.OutOITSampleDepth = GraphBuilder.CreateUAV(InOITData.SampleDepthTexture);
+		OutOIT.OutOITSampleCount = GraphBuilder.CreateUAV(InOITData.SampleCountTexture);
+	}
+
+	void AddOITComposePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FOITData& OITData, FRDGTextureRef SceneColorTexture)
+	{
+		AddInternalOITComposePass(GraphBuilder, View, OITData, SceneColorTexture);
 	}
 }

@@ -135,6 +135,13 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
 #define MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || STRATA_BLENDING_TRANSLUCENT_COLOREDTRANSMITTANCE )
 
+#define OIT_ENABLED (PROJECT_OIT && (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING))
+
+#if OIT_ENABLED
+#define OIT_IS_BASEPASS 1
+#include "OITCommon.ush"
+#endif
+
 #if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
 #if SINGLE_LAYER_WATER_SIMPLE_FORWARD
@@ -2024,6 +2031,47 @@ void FPixelShaderInOut_MainPS(
 		Out.MRT[0].rgba *= ViewPreExposure;
 	#endif
 #endif
+
+	// If support OIT, then remove blending contribution and insert OIT sample
+	// Note: Out.MRT[0] has already view pre-exposition applied
+#if OIT_ENABLED
+	if (TranslucentBasePass.OIT.bOITEnable)
+	{
+		const float OpacityThreshold = 10e-4f;
+
+		#if MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
+		{
+			float3 AdjustedDualBlendAdd = Out.MRT[0];
+			float3 AdjustedDualBlendMul = Out.MRT[1];
+			// Add early out threshold?
+			AddOITSample(uint2(In.SvPosition.xy), AdjustedDualBlendAdd, AdjustedDualBlendMul, MaterialParameters.ScreenPosition.w);
+			Out.MRT[0] = half4(0, 0, 0, 0);
+			Out.MRT[1] = half4(1, 1, 1, 1);
+		}
+		#else
+		{
+			float3 WriteColor = Out.MRT[0].rgb;
+			float  Opacity = Out.MRT[0].a;
+		#if MATERIALBLENDING_TRANSLUCENT
+			WriteColor *= Opacity; // WriteColor is premultiplied alpha color
+		#elif MATERIALBLENDING_ADDITIVE
+			Opacity = 1.0f;
+		#elif MATERIALBLENDING_ALPHACOMPOSITE || MATERIALBLENDING_ALPHAHOLDOUT
+			// Not clear what should be done in this case.
+		#else
+			#error OIT is not support for this blend mode
+		#endif
+
+			if (Opacity > OpacityThreshold)
+			{
+				AddOITSample(uint2(In.SvPosition.xy), WriteColor, 1.f - Opacity, MaterialParameters.ScreenPosition.w);
+			}
+			Out.MRT[0] = half4(0, 0, 0, 0);
+		}
+		#endif
+	}
+#endif // OIT_ENABLED
+
 #if MATERIAL_IS_SKY
 	// Sky materials can result in high luminance values, e.g. the sun disk. 
 	// This is so we make sure to at least stay within the boundaries of fp10 and not cause NaN on some platforms.
@@ -2043,7 +2091,7 @@ void FPixelShaderInOut_MainPS(
 }
 
 // If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
-#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || STRATA_OPAQUE_DEFERRED
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || STRATA_OPAQUE_DEFERRED || OIT_ENABLED
 	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
 		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE

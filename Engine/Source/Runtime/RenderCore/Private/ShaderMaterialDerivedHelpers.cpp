@@ -100,6 +100,9 @@ FShaderMaterialDerivedDefines RENDERCORE_API CalculateDerivedMaterialParameters(
 	// As of today, all translucent Strata material forces dual source color blending. STRATA_TODO: optimize out dual color blending when not needed or requested
 	Dst.MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING = (Mat.MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || Mat.STRATA_BLENDING_TRANSLUCENT_COLOREDTRANSMITTANCE);
 
+	// matching the logic in BasePassPixelShader.usf
+	Dst.OIT_ENABLED = (FEATURE_LEVEL >= ERHIFeatureLevel::SM5) && Mat.PROJECT_OIT && (Mat.MATERIALBLENDING_TRANSLUCENT || Mat.MATERIALBLENDING_ADDITIVE || Dst.MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING);
+
 	// There are 4 different ways of setting MRTs depending on which .usf file is the base shader, which sets defines which includes a different include file
 	// which may or may not override the current defines. Here is my best attempt at figuring out the logic.
 	if (Mat.IS_VIRTUAL_TEXTURE_MATERIAL)

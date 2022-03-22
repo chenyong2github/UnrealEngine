@@ -143,6 +143,7 @@ void UpdateTranslucentMeshSortKeys(
 	const FMatrix& ViewMatrix,
 	const TArray<struct FPrimitiveBounds>& PrimitiveBounds,
 	ETranslucencyPass::Type TranslucencyPass, 
+	bool bInverseSorting,
 	FMeshCommandOneFrameArray& VisibleMeshCommands
 	)
 {
@@ -178,6 +179,13 @@ void UpdateTranslucentMeshSortKeys(
 		const uint32 PackedOffset = VisibleCommand.SortKey.Translucent.Distance;
 		const float DistanceOffset = *((float*)&PackedOffset);
 		Distance += DistanceOffset;
+
+		// Sort front-to-back instead of back-to-front
+		if (bInverseSorting)
+		{
+			const float MaxSortingDistance = 1000000.f; // 100km, arbitrary
+			Distance = MaxSortingDistance - Distance;
+		}
 
 		// Patch distance inside translucent mesh sort key.
 		FMeshDrawCommandSortKey SortKey;
@@ -875,6 +883,10 @@ public:
 			}
 			else if (Context.TranslucencyPass != ETranslucencyPass::TPT_MAX)
 			{
+				// When per-pixel OIT is enabled, sort primitive from front to back ensure avoid 
+				// constantly resorting front-to-back samples list.
+				const bool bInverseSorting = OIT::IsEnabled(EOITSortingType::SortedPixels, Context.ShaderPlatform) && Context.View->AntiAliasingMethod != EAntiAliasingMethod::AAM_MSAA;
+
 				UpdateTranslucentMeshSortKeys(
 					Context.TranslucentSortPolicy,
 					Context.TranslucentSortAxis,
@@ -882,6 +894,7 @@ public:
 					Context.ViewMatrix,
 					*Context.PrimitiveBounds,
 					Context.TranslucencyPass,
+					bInverseSorting,
 					Context.MeshDrawCommands
 				);
 			}

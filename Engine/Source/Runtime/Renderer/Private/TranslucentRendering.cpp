@@ -17,6 +17,8 @@
 #include "Strata/Strata.h"
 #include "HairStrands/HairStrandsUtils.h"
 #include "PixelShaderUtils.h"
+#include "OIT/OIT.h"
+#include "OIT/OITParameters.h"
 
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQueryFence Wait"), STAT_TranslucencyTimestampQueryFence_Wait, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQuery Wait"), STAT_TranslucencyTimestampQuery_Wait, STATGROUP_SceneRendering);
@@ -835,13 +837,15 @@ FRDGTextureMSAA CreatePostDOFTranslucentTexture(
 	FRDGBuilder& GraphBuilder,
 	ETranslucencyPass::Type TranslucencyPass,
 	FSeparateTranslucencyDimensions& SeparateTranslucencyDimensions,
-	bool bIsModulate)
+	bool bIsModulate,
+	EShaderPlatform ShaderPlatform)
 {
+	const bool bNeedUAV = SeparateTranslucencyDimensions.NumSamples == 1 && OIT::IsEnabled(EOITSortingType::SortedPixels, ShaderPlatform);
 	const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 		SeparateTranslucencyDimensions.Extent,
 		bIsModulate ? PF_FloatR11G11B10 : PF_FloatRGBA,
 		bIsModulate ? FClearValueBinding::White : FClearValueBinding::Black,
-		TexCreate_RenderTargetable | TexCreate_ShaderResource,
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | (bNeedUAV ? TexCreate_UAV : TexCreate_None),
 		1,
 		SeparateTranslucencyDimensions.NumSamples);
 
@@ -893,7 +897,8 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 	FRDGTextureRef SceneColorCopyTexture,
 	const ESceneTextureSetupMode SceneTextureSetupMode,
-	bool bLumenGIEnabled)
+	bool bLumenGIEnabled,
+	const FOITData& OITData)
 {
 	FTranslucentBasePassUniformParameters& BasePassParameters = *GraphBuilder.AllocParameters<FTranslucentBasePassUniformParameters>();
 
@@ -1068,7 +1073,32 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+	OIT::SetOITParameters(GraphBuilder, View, BasePassParameters.OIT, OITData);
+
 	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
+}
+
+TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo& View,
+	const int32 ViewIndex,
+	const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
+	FRDGTextureRef SceneColorCopyTexture,
+	const ESceneTextureSetupMode SceneTextureSetupMode,
+	bool bLumenGIEnabled)
+{
+	FOITData OITData = OIT::CreateOITData(GraphBuilder, View, OITPass_None);
+	return CreateTranslucentBasePassUniformBuffer(
+		GraphBuilder,
+		Scene,
+		View,
+		ViewIndex,
+		TranslucencyLightingVolumeTextures,
+		SceneColorCopyTexture,
+		SceneTextureSetupMode,
+		bLumenGIEnabled,
+		OITData);
 }
 
 static FViewShaderParameters GetSeparateTranslucencyViewParameters(const FViewInfo& View, FIntPoint TextureExtent, float ViewportScale, ETranslucencyPass::Type TranslucencyPass)
@@ -1352,7 +1382,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	if (bRenderInSeparateTranslucency)
 	{
 		// Create resources shared by each view (each view data is tiled into each of the render target resources)
-		FRDGTextureMSAA SharedColorTexture = CreatePostDOFTranslucentTexture(GraphBuilder, TranslucencyPass, SeparateTranslucencyDimensions, bIsModulate);
+		FRDGTextureMSAA SharedColorTexture = CreatePostDOFTranslucentTexture(GraphBuilder, TranslucencyPass, SeparateTranslucencyDimensions, bIsModulate, ShaderPlatform);
 
 		for (int32 ViewIndex = 0, NumProcessedViews = 0; ViewIndex < Views.Num(); ++ViewIndex, ++NumProcessedViews)
 		{
@@ -1392,6 +1422,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				? ERenderTargetLoadAction::EClear
 				: ERenderTargetLoadAction::ELoad;
 
+			FOITData OITData = OIT::CreateOITData(GraphBuilder, View, OITPass_SeperateTranslucency);
+
 			RenderTranslucencyViewInner(
 				GraphBuilder,
 				*this,
@@ -1401,7 +1433,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				SeparateTranslucencyColorTexture,
 				SeparateTranslucencyColorLoadAction,
 				SeparateTranslucencyDepthTexture.Target,
-				CreateTranslucentBasePassUniformBuffer(GraphBuilder, Scene, View, ViewIndex, TranslucentLightingVolumeTextures, SceneColorCopyTexture, SceneTextureSetupMode, bLumenGIEnabled),
+				CreateTranslucentBasePassUniformBuffer(GraphBuilder, Scene, View, ViewIndex, TranslucentLightingVolumeTextures, SceneColorCopyTexture, SceneTextureSetupMode, bLumenGIEnabled, OITData),
 				TranslucencyPass,
 				!bCompositeBackToSceneColor,
 				bRenderInParallel,
@@ -1412,6 +1444,11 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				TranslucencyPassResources.ViewRect = ScaledViewRect;
 				TranslucencyPassResources.ColorTexture = SharedColorTexture;
 				TranslucencyPassResources.DepthTexture = SharedDepthTexture;
+			}
+
+			if (OITData.PassType & OITPass_SeperateTranslucency)
+			{
+				OIT::AddOITComposePass(GraphBuilder, View, OITData, SeparateTranslucencyColorTexture.Target);
 			}
 
 			if (bCompositeBackToSceneColor)
@@ -1485,6 +1522,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 			const bool bResolveColorTexture = false;
 			const bool bLumenGIEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 
+			FOITData OITData = OIT::CreateOITData(GraphBuilder, View, OITPass_RegularTranslucency);
+
 			RenderTranslucencyViewInner(
 				GraphBuilder,
 				*this,
@@ -1494,11 +1533,16 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				SceneTextures.Color,
 				SceneColorLoadAction,
 				SceneTextures.Depth.Target,
-				CreateTranslucentBasePassUniformBuffer(GraphBuilder, Scene, View, ViewIndex, TranslucentLightingVolumeTextures, SceneColorCopyTexture, SceneTextureSetupMode, bLumenGIEnabled),
+				CreateTranslucentBasePassUniformBuffer(GraphBuilder, Scene, View, ViewIndex, TranslucentLightingVolumeTextures, SceneColorCopyTexture, SceneTextureSetupMode, bLumenGIEnabled, OITData),
 				TranslucencyPass,
 				bResolveColorTexture,
 				bRenderInParallel,
 				InstanceCullingManager);
+
+			if (OITData.PassType & OITPass_RegularTranslucency)
+			{
+				OIT::AddOITComposePass(GraphBuilder, View, OITData, SceneTextures.Color.Target);
+			}
 
 			AddEndTranslucencyTimerPass(GraphBuilder, View);
 		}
