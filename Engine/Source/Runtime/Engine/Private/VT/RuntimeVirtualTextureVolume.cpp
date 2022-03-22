@@ -4,6 +4,7 @@
 
 #include "Components/BoxComponent.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 ARuntimeVirtualTextureVolume::ARuntimeVirtualTextureVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
