@@ -148,7 +148,7 @@ UMaterialInstanceDynamic* USlateVectorArtData::ConvertToMaterialInstanceDynamic(
 void USlateVectorArtData::EnsureValidData()
 {
 #if WITH_EDITORONLY_DATA
-	InitFromStaticMesh(*MeshAsset);
+	//InitFromStaticMesh(*MeshAsset);
 #endif
 }
 
