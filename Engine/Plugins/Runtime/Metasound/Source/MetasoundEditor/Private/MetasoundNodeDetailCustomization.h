@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Components/Widget.h"
+#include "Delegates/IDelegateInstance.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -16,8 +17,8 @@
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphMemberDefaults.h"
 #include "MetasoundEditorGraphNode.h"
-#include "MetasoundFrontendLiteral.h"
 #include "MetasoundEditorModule.h"
+#include "MetasoundFrontendLiteral.h"
 #include "MetasoundUObjectRegistry.h"
 #include "PropertyHandle.h"
 #include "PropertyRestriction.h"
@@ -34,6 +35,7 @@
 #include "WorkflowOrientedApp/SModeWidget.h"
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
+
 
 namespace Metasound
 {

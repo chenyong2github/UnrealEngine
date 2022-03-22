@@ -16,6 +16,7 @@
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorDelegates.h"
 #include "SAssetDropTarget.h"
@@ -25,6 +26,7 @@
 #include "SSearchableComboBox.h"
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Images/SImage.h"
@@ -786,7 +788,7 @@ namespace Metasound
 			const TSharedPtr<FString>* SelectedItem = ComboOptions.FindByPredicate(NameMatchesPredicate);
 			if (ensure(SelectedItem))
 			{
-				DataTypeComboBox->SetSelectedItem(*SelectedItem);
+				DataTypeComboBox->SetSelectedItem(*SelectedItem, ESelectInfo::Direct);
 			}
 		}
 
@@ -838,9 +840,9 @@ namespace Metasound
 					{
 						Member->OnRenameRequested.Clear();
 						RenameRequestedHandle = Member->OnRenameRequested.AddLambda([this]()
-							{
-								FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
-							});
+						{
+							FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
+						});
 					}
 				}
 			}

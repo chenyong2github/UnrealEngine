@@ -90,7 +90,14 @@ public:
 
 	void ClearSelection();
 
-	void SetSelectedItem(TSharedPtr<FString> InSelectedItem);
+	/**
+	 * Sets the selected item.  By default, registers as a navigation request, which *does not*
+	 * set the cached selected item, only updating the visually selected item.
+	 * 
+	 * @param InSelectedItem Item to select
+	 * @param InSelectInfo (optional) How the selected item is being committed (default: OnNavigation)
+	 */
+	void SetSelectedItem(TSharedPtr<FString> InSelectedItem, ESelectInfo::Type InSelectInfo = ESelectInfo::OnNavigation);
 
 	/** @return the item currently selected by the combo box. */
 	TSharedPtr<FString> GetSelectedItem();

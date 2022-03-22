@@ -109,15 +109,15 @@ void SSearchableComboBox::ClearSelection()
 	ComboListView->ClearSelection();
 }
 
-void SSearchableComboBox::SetSelectedItem(TSharedPtr<FString> InSelectedItem)
+void SSearchableComboBox::SetSelectedItem(TSharedPtr<FString> InSelectedItem, ESelectInfo::Type InSelectInfo)
 {
 	if (TListTypeTraits<TSharedPtr<FString>>::IsPtrValid(InSelectedItem))
 	{
-		ComboListView->SetSelection(InSelectedItem, ESelectInfo::OnNavigation);
+		ComboListView->SetSelection(InSelectedItem, InSelectInfo);
 	}
 	else
 	{
-		ComboListView->SetSelection(SelectedItem, ESelectInfo::OnNavigation);
+		ComboListView->SetSelection(SelectedItem, InSelectInfo);
 	}
 }
 
