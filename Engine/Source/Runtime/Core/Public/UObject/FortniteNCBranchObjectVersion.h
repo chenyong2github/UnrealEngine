@@ -15,6 +15,9 @@ struct CORE_API FFortniteNCBranchObjectVersion
 		// Added FWorldDataLayersActorDesc
 		AddedWorldDataLayersActorDesc,
 
+		// Fixed FDataLayerInstanceDesc
+		FixedDataLayerInstanceDesc,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

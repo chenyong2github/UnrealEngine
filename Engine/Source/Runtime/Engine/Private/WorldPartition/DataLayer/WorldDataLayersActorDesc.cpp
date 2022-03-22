@@ -11,10 +11,26 @@
 
 FArchive& operator<<(FArchive& Ar, FDataLayerInstanceDesc& Desc)
 {
-	Ar << Desc.Name << Desc.ParentName << Desc.bIsUsingAsset << Desc.ShortName;
-	if (Desc.bIsUsingAsset)
+	Ar << Desc.Name << Desc.ParentName << Desc.bIsUsingAsset;
+
+	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::FixedDataLayerInstanceDesc)
 	{
-		Ar << Desc.AssetPath << Desc.bIsRuntime;
+		Ar << Desc.ShortName;
+		if (Desc.bIsUsingAsset)
+		{
+			Ar << Desc.AssetPath << Desc.bIsRuntime;
+		}
+	}
+	else
+	{
+		if (Desc.bIsUsingAsset)
+		{
+			Ar << Desc.AssetPath;
+		}
+		else
+		{
+			Ar << Desc.bIsRuntime << Desc.ShortName;
+		}
 	}
 	return Ar;
 }
