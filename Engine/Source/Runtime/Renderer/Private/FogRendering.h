@@ -16,6 +16,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FFogUniformParameters,)
 	SHADER_PARAMETER(FVector4f, ExponentialFogParameters2)
 	SHADER_PARAMETER(FVector4f, ExponentialFogColorParameter)
 	SHADER_PARAMETER(FVector4f, ExponentialFogParameters3)
+	SHADER_PARAMETER(FVector4f, SkyAtmosphereAmbientContributionColorScale)
 	SHADER_PARAMETER(FVector4f, InscatteringLightDirection) // non negative DirectionalInscatteringStartDistance in .W
 	SHADER_PARAMETER(FVector4f, DirectionalInscatteringColor)
 	SHADER_PARAMETER(FVector2f, SinCosInscatteringColorCubemapRotation)

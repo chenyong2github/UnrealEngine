@@ -69,6 +69,10 @@ class ENGINE_API UExponentialHeightFogComponent : public USceneComponent
 	UPROPERTY(BlueprintReadOnly, interp, Category=ExponentialHeightFogComponent, meta = (DisplayName = "Fog Inscattering Color"))
 	FLinearColor FogInscatteringLuminance;
 
+	/** Color used to modulate the SkyAtmosphere component contribution to the non directional component of the fog. Only effective when r.SupportSkyAtmosphereAffectsHeightFog>0 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ExponentialHeightFogComponent)
+	FLinearColor SkyAtmosphereAmbientContributionColorScale;
+
 	/** 
 	 * Cubemap that can be specified for fog color, which is useful to make distant, heavily fogged scene elements match the sky.
 	 * When the cubemap is specified, FogInscatteringColor is ignored and Directional inscattering is disabled. 

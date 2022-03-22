@@ -288,6 +288,8 @@ public:
 	float VolumetricFogStaticLightingScatteringIntensity;
 	bool bOverrideLightColorsWithFogInscatteringColors;
 
+	FLinearColor SkyAtmosphereAmbientContributionColorScale;
+
 	/** Initialization constructor. */
 	FExponentialHeightFogSceneInfo(const UExponentialHeightFogComponent* InComponent);
 };

@@ -23,6 +23,8 @@ UExponentialHeightFogComponent::UExponentialHeightFogComponent(const FObjectInit
 	FogInscatteringColor_DEPRECATED = FLinearColor(0.447f, 0.638f, 1.0f);
 	FogInscatteringLuminance = FLinearColor::Black;
 
+	SkyAtmosphereAmbientContributionColorScale = FLinearColor::White;
+
 	DirectionalInscatteringExponent = 4.0f;
 	DirectionalInscatteringStartDistance = 10000.0f;
 	DirectionalInscatteringColor_DEPRECATED = FLinearColor(0.25f, 0.25f, 0.125f);
@@ -103,6 +105,12 @@ bool UExponentialHeightFogComponent::CanEditChange(const FProperty* InProperty) 
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, InscatteringColorCubemapAngle))
 		{
 			return InscatteringColorCubemap != NULL;
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, FogInscatteringLuminance))
+		{
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportSkyAtmosphereAffectsHeightFog"));
+			return CVar && CVar->GetValueOnAnyThread() > 0;
 		}
 	}
 

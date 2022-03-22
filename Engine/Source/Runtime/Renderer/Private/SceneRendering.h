@@ -1307,6 +1307,7 @@ public:
 	FVector3f ExponentialFogColor;
 	float FogMaxOpacity;
 	FVector4f ExponentialFogParameters3;
+	FVector4f SkyAtmosphereAmbientContributionColorScale;
 	FVector2f SinCosInscatteringColorCubemapRotation;
 
 	UTexture* FogInscatteringColorCubemap;
