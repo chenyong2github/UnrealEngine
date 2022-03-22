@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/SoftObjectPath.h"
 
 struct FAssetData;
 struct FBlueprintNamespacePathTree;
@@ -53,6 +54,11 @@ public:
 	 */
 	void RegisterNamespace(const FString& InPath);
 
+	/**
+	 * Recreates the namespace registry.
+	 */
+	void Rebuild();
+
 protected:
 	FBlueprintNamespaceRegistry();
 
@@ -83,4 +89,7 @@ private:
 
 	/** Handles storage and retrieval for namespace path identifiers. */
 	TUniquePtr<FBlueprintNamespacePathTree> PathTree;
+
+	/** Internal set of objects to exclude during namespace registration. */
+	TSet<FSoftObjectPath> ExcludedObjectPaths;
 };

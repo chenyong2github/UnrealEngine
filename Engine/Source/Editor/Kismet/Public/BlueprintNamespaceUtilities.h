@@ -88,4 +88,12 @@ public:
 	 * Refresh the Blueprint editor environment to align with current namespace editor feature settings.
 	 */
 	static void RefreshBlueprintEditorFeatures();
+
+	/**
+	 * Helper method to convert a package path to a Blueprint namespace identifier string.
+	 *
+	 * @param InPackagePath		Package path input string.
+	 * @param OutNamespacePath	The input string converted to namespace identifier format.
+	 */
+	static void ConvertPackagePathToNamespacePath(const FString& InPackagePath, FString& OutNamespacePath);
 };

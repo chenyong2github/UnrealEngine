@@ -18,16 +18,15 @@ namespace UE::Editor::Kismet::Private
 
 	// Delegate invoked whenever the default Blueprint namespace type is set to a different value.
 	static FBlueprintNamespaceUtilities::FOnDefaultBlueprintNamespaceTypeChanged OnDefaultBlueprintNamespaceTypeChangedDelegate;
+}
 
-	// Helper method to convert a package path to a Blueprint namespace identifier string.
-	static void ConvertPackagePathToNamespacePath(const FString& InPackagePath, FString& OutNamespacePath)
+void FBlueprintNamespaceUtilities::ConvertPackagePathToNamespacePath(const FString& InPackagePath, FString& OutNamespacePath)
+{
+	OutNamespacePath = InPackagePath;
+	OutNamespacePath.ReplaceCharInline(TEXT('/'), TEXT('.'));
+	if (OutNamespacePath.StartsWith(TEXT(".")))
 	{
-		OutNamespacePath = InPackagePath;
-		OutNamespacePath.ReplaceCharInline(TEXT('/'), TEXT('.'));
-		if (OutNamespacePath.StartsWith(TEXT(".")))
-		{
-			OutNamespacePath.RemoveAt(0);
-		}
+		OutNamespacePath.RemoveAt(0);
 	}
 }
 

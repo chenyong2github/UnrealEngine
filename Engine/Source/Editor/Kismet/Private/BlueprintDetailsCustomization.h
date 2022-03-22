@@ -812,6 +812,9 @@ protected:
 	/** Invoked when the Blueprint namespace "reset to default" button is clicked */
 	void OnNamespaceResetToDefaultValue();
 
+	/** Called when the assigned Blueprint namespace value is changed */
+	void HandleNamespaceValueChange(const FString& InOldValue, const FString& InNewValue);
+
 private:
 	/** Weak reference to the Blueprint editor */
 	TWeakPtr<FBlueprintEditor> BlueprintEditorPtr;

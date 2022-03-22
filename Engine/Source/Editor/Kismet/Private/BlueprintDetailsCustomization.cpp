@@ -92,6 +92,7 @@
 #include "IPropertyAccessEditor.h"
 #include "AssetRegistryModule.h"
 #include "Settings/BlueprintEditorProjectSettings.h"
+#include "Misc/ScopedSlowTask.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDetailsCustomization"
 
@@ -5967,25 +5968,7 @@ void FBlueprintGlobalOptionsDetails::OnNamespaceValueCommitted(const FString& In
 		check(NamespacePropertyHandle.IsValid());
 		NamespacePropertyHandle->SetValue(InNamespace);
 
-		// Ensure that the new path is added into the namespace registry.
-		FBlueprintNamespaceRegistry::Get().RegisterNamespace(InNamespace);
-
-		// Auto-import the namespace into the current editor context.
-		TSharedPtr<FBlueprintEditor> BlueprintEditor = GetBlueprintEditorPtr().Pin();
-		if (BlueprintEditor.IsValid())
-		{
-			// We need to refresh the details view if we flipped from an imported namespace to an assigned
-			// namespace (or vice-versa). In that case, it will switch to/from a default import in the view.
-			if (Blueprint->ImportedNamespaces.Contains(OldNamespace) || Blueprint->ImportedNamespaces.Contains(InNamespace))
-			{
-				BlueprintEditor->RefreshInspector();
-			}
-			else if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
-			{
-				// This will also refresh the details view.
-				BlueprintEditor->ImportNamespace(InNamespace);
-			}
-		}
+		HandleNamespaceValueChange(OldNamespace, InNamespace);
 	}
 }
 
@@ -6016,15 +5999,74 @@ void FBlueprintGlobalOptionsDetails::OnNamespaceResetToDefaultValue()
 		NamespaceValueWidget->SetCurrentNamespace(DefaultNamespaceValue);
 	}
 
+	HandleNamespaceValueChange(OriginalValue, DefaultNamespaceValue);
+}
+
+void FBlueprintGlobalOptionsDetails::HandleNamespaceValueChange(const FString& InOldValue, const FString& InNewValue)
+{
+	// Refresh the namespace registry.
+	FBlueprintNamespaceRegistry& BlueprintNamespaceRegistry = FBlueprintNamespaceRegistry::Get();
+	if (!InOldValue.IsEmpty() && BlueprintNamespaceRegistry.IsRegisteredPath(InOldValue))
+	{
+		// @todo_namespaces - This may not scale for larger projects.
+		// Using a slow task for now, but consider optimizing this path.
+		FScopedSlowTask SlowTask(0.0f, LOCTEXT("RebuildingNamespaceRegistry", "Updating the namespace registry..."));
+
+		// The old path is a non-global registered namespace. Revisit all assets and ensure that the registry is up-to-date.
+		// If the old namespace is no longer in use by another Blueprint asset, this effectively removes it from the registry.
+		BlueprintNamespaceRegistry.Rebuild();
+	}
+
+	if (!InNewValue.IsEmpty() && !BlueprintNamespaceRegistry.IsRegisteredPath(InNewValue))
+	{
+		// Add the new namespace into the registry (it has not been seen yet).
+		BlueprintNamespaceRegistry.RegisterNamespace(InNewValue);
+	}
+	
+	// Refresh the Blueprint editor context.
 	TSharedPtr<FBlueprintEditor> BlueprintEditor = GetBlueprintEditorPtr().Pin();
 	if (BlueprintEditor.IsValid())
 	{
-		// We need to refresh the details view if we reassigned away from an already-imported
-		// namespace. In that case, it needs to switch back to a user-added import in the view.
-		const UBlueprint* Blueprint = GetBlueprintObj();
-		if (Blueprint && Blueprint->ImportedNamespaces.Contains(OriginalValue))
+		if (const UBlueprint* Blueprint = BlueprintEditor->GetBlueprintObj())
 		{
-			BlueprintEditor->RefreshInspector();
+			bool bRefreshDetailsView = false;
+			if (Blueprint->ImportedNamespaces.Contains(InOldValue))
+			{
+				// Remove the import from the current editor context if it is no longer registered.
+				if (!BlueprintNamespaceRegistry.IsRegisteredPath(InOldValue))
+				{
+					BlueprintEditor->RemoveNamespace(InOldValue);
+				}
+
+				// We need to refresh the details view if we unassigned and/or removed an imported namespace path.
+				// If unassigned but still imported, it will return to a non-default namespace in the Imports table.
+				bRefreshDetailsView = true;
+			}
+			
+			if (Blueprint->ImportedNamespaces.Contains(InNewValue))
+			{
+				// We need to refresh the details view if we assigned an imported namespace.
+				// In that case, it will switch to a default namespace in the Imports table.
+				bRefreshDetailsView = true;
+			}
+			else if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+			{
+				FBlueprintEditor::FImportNamespaceParameters Params;
+				Params.bIsAutoImport = false;
+				Params.OnImportCallback = FSimpleDelegate::CreateLambda([&bRefreshDetailsView]()
+				{
+					bRefreshDetailsView = true;
+				});
+
+				// Import the new namespace into the current editor context.
+				BlueprintEditor->ImportNamespace(InNewValue, Params);
+			}
+
+			// Refresh the details view if necessary.
+			if (bRefreshDetailsView)
+			{
+				BlueprintEditor->RefreshInspector();
+			}
 		}
 	}
 }
