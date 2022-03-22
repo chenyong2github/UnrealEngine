@@ -45,5 +45,12 @@ public:
 	
 #if WITH_EDITOR
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void PreEditUndo() override;
+	void PostEditUndo() override;
+#endif
+
+private:
+#if WITH_EDITORONLY_DATA
+	FName ResourceNameForUndo;
 #endif
 };

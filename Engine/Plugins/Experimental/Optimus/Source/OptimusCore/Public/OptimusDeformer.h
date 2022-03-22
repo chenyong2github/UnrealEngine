@@ -25,6 +25,7 @@ class UOptimusDeformer;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
 enum class EOptimusDiagnosticLevel : uint8;
+struct FOptimusCompoundAction;
 
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
@@ -264,6 +265,8 @@ public:
 protected:
 	friend class UOptimusNodeGraph;
 	friend class UOptimusDeformerInstance;
+	friend class UOptimusResourceDescription;
+	friend class UOptimusVariableDescription;
 	friend struct FOptimusResourceAction_AddResource;
 	friend struct FOptimusResourceAction_RemoveResource;
 	friend struct FOptimusResourceAction_RenameResource;
@@ -286,6 +289,11 @@ protected:
 
 	bool RemoveResourceDirect(
 		UOptimusResourceDescription* InResourceDesc
+		);
+
+	bool UpdateResourceNodesPinNames(
+		UOptimusResourceDescription* InResourceDesc,
+		FName InNewName
 		);
 
 	bool RenameResourceDirect(
@@ -314,6 +322,11 @@ protected:
 		UOptimusVariableDescription* InVariableDesc
 		);
 
+	bool UpdateVariableNodesPinNames(
+		UOptimusVariableDescription* InVariableDesc,
+		FName InNewName
+		);
+
 	bool RenameVariableDirect(
 		UOptimusVariableDescription* InVariableDesc,
 		FName InNewName
@@ -339,6 +352,18 @@ private:
 	bool SetVariableValue(FName InVariableName, FName InTypeName, const T& InValue);
 
 	TArray<UOptimusNode*> GetAllNodesOfClass(UClass* InNodeClass) const;
+	
+	void CreateVariableNodePinRenamesActions(
+		FOptimusCompoundAction* InAction,		
+		const UOptimusVariableDescription* InVariableDesc,
+		FName InNewName
+		) const;
+	
+	void CreateResourceNodePinRenamesActions(
+		FOptimusCompoundAction* InAction,		
+		const UOptimusResourceDescription* InResourceDesc,
+		FName InNewName
+		) const;
 	
 	// Compile a node graph to a compute graph. Returns either a completed compute graph, or
 	// the error message to pass back, if the compilation failed.

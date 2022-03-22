@@ -172,7 +172,48 @@ bool UOptimusDeformer::RemoveVariable(
 }
 
 
-bool UOptimusDeformer::RenameVariable(
+void UOptimusDeformer::CreateVariableNodePinRenamesActions
+(
+	FOptimusCompoundAction* InAction,		
+	const UOptimusVariableDescription* InVariableDesc,
+	FName InNewName
+	) const
+{
+	TArray<UOptimusNode*> AllVariableNodes = GetAllNodesOfClass(UOptimusNode_GetVariable::StaticClass());
+	for (UOptimusNode* Node: AllVariableNodes)
+	{
+		const UOptimusNode_GetVariable* VariableNode = Cast<UOptimusNode_GetVariable>(Node);
+		if (VariableNode->GetVariableDescription() == InVariableDesc)
+		{
+			if (ensure(VariableNode->GetPins().Num() == 1))
+			{
+				InAction->AddSubAction<FOptimusNodeAction_SetPinName>(VariableNode->GetPins()[0], InNewName);
+			}
+		}	
+	}
+}
+
+
+bool UOptimusDeformer::UpdateVariableNodesPinNames(
+	UOptimusVariableDescription* InVariableDesc, 
+	FName InNewName
+	)
+{
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Update Variable Nodes' Pin Names"));
+
+	CreateVariableNodePinRenamesActions(Action, InVariableDesc, InNewName);
+	
+	if (!GetActionStack()->RunAction(Action))
+	{
+		return false;
+	}
+
+	Notify(EOptimusGlobalNotifyType::VariableRenamed, InVariableDesc);
+	return true;
+}
+
+
+bool UOptimusDeformer::RenameVariable(	
 	UOptimusVariableDescription* InVariableDesc, 
 	FName InNewName
 	)
@@ -191,33 +232,19 @@ bool UOptimusDeformer::RenameVariable(
 		UE_LOG(LogOptimusCore, Error, TEXT("Invalid resource name."));
 		return false;
 	}
-	if (InNewName == InVariableDesc->GetFName())
-	{
-		return true;
-	}
 
 	// Ensure we can rename to that name, update the name if necessary.
 	InNewName = Optimus::GetUniqueNameForScope(Variables, InNewName);
 	
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Rename Variable"));
 	
-	TArray<UOptimusNode*> AllVariableNodes = GetAllNodesOfClass(UOptimusNode_GetVariable::StaticClass());
-	for (UOptimusNode* Node: AllVariableNodes)
-	{
-		const UOptimusNode_GetVariable* VariableNode = Cast<UOptimusNode_GetVariable>(Node);
-		if (VariableNode->GetVariableDescription() == InVariableDesc)
-		{
-			if (ensure(VariableNode->GetPins().Num() == 1))
-			{
-				Action->AddSubAction<FOptimusNodeAction_SetPinName>(VariableNode->GetPins()[0], InNewName);
-			}
-		}	
-	}
+	CreateVariableNodePinRenamesActions(Action, InVariableDesc, InNewName);
 
 	Action->AddSubAction<FOptimusVariableAction_RenameVariable>(InVariableDesc, InNewName);
 
 	return GetActionStack()->RunAction(Action);
 }
+
 
 
 bool UOptimusDeformer::SetVariableDataType(
@@ -446,8 +473,7 @@ bool UOptimusDeformer::RenameVariableDirect(
 		return false;
 	}
 
-	if (InVariableDesc->VariableName != InNewName &&
-		InVariableDesc->Rename(*InNewName.ToString(), nullptr))
+	if (InVariableDesc->Rename(*InNewName.ToString(), nullptr, REN_NonTransactional))
 	{
 		InVariableDesc->VariableName = InNewName;
 		Notify(EOptimusGlobalNotifyType::VariableRenamed, InVariableDesc);
@@ -505,6 +531,9 @@ UOptimusResourceDescription* UOptimusDeformer::AddResource(
 		return nullptr;
 	}
 
+	// Ensure the name is unique.
+	InName = Optimus::GetUniqueNameForScope(Resources, InName);
+
 	FOptimusResourceAction_AddResource *AddResourceAction = 	
 	    new FOptimusResourceAction_AddResource(InDataTypeRef, InName);
 
@@ -560,6 +589,46 @@ bool UOptimusDeformer::RemoveResource(UOptimusResourceDescription* InResourceDes
 }
 
 
+void UOptimusDeformer::CreateResourceNodePinRenamesActions(
+	FOptimusCompoundAction* InAction,
+	const UOptimusResourceDescription* InResourceDesc,
+	FName InNewName
+	) const
+{
+	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
+	for (UOptimusNode* Node: AllResourceNodes)
+	{
+		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
+		if (ResourceNode->GetResourceDescription() == InResourceDesc)
+		{
+			if (ensure(ResourceNode->GetPins().Num() == 1))
+			{
+				InAction->AddSubAction<FOptimusNodeAction_SetPinName>(ResourceNode->GetPins()[0], InNewName);
+			}
+		}	
+	}	
+}
+
+
+bool UOptimusDeformer::UpdateResourceNodesPinNames(
+	UOptimusResourceDescription* InResourceDesc,
+	FName InNewName
+	)
+{
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Update Resource Nodes' Pin Names"));
+
+	CreateResourceNodePinRenamesActions(Action, InResourceDesc, InNewName);
+	
+	if (!GetActionStack()->RunAction(Action))
+	{
+		return false;
+	}
+
+	Notify(EOptimusGlobalNotifyType::ResourceRenamed, InResourceDesc);
+	return true;
+}
+
+
 bool UOptimusDeformer::RenameResource(
 	UOptimusResourceDescription* InResourceDesc, 
 	FName InNewName
@@ -581,28 +650,12 @@ bool UOptimusDeformer::RenameResource(
 		return false;
 	}
 
-	if (InNewName == InResourceDesc->GetFName())
-	{
-		return true;
-	}
-
 	// Ensure we can rename to that name, update the name if necessary.
 	InNewName = Optimus::GetUniqueNameForScope(Resources, InNewName);
 
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Rename Resource"));
-	
-	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
-	for (UOptimusNode* Node: AllResourceNodes)
-	{
-		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
-		if (ResourceNode->GetResourceDescription() == InResourceDesc)
-		{
-			if (ensure(ResourceNode->GetPins().Num() == 1))
-			{
-				Action->AddSubAction<FOptimusNodeAction_SetPinName>(ResourceNode->GetPins()[0], InNewName);
-			}
-		}	
-	}
+
+	CreateResourceNodePinRenamesActions(Action, InResourceDesc, InNewName);
 
 	Action->AddSubAction<FOptimusResourceAction_RenameResource>(InResourceDesc, InNewName);
 
@@ -777,9 +830,9 @@ bool UOptimusDeformer::RenameResourceDirect(
 	{
 		return false;
 	}
-	
-	if (InResourceDesc->ResourceName != InNewName &&
-		InResourceDesc->Rename(*InNewName.ToString(), nullptr))
+
+	// Rename in a non-transactional manner, since we're handling undo/redo.
+	if (InResourceDesc->Rename(*InNewName.ToString(), nullptr, REN_NonTransactional))
 	{
 		InResourceDesc->ResourceName = InNewName;
 		Notify(EOptimusGlobalNotifyType::ResourceRenamed, InResourceDesc);

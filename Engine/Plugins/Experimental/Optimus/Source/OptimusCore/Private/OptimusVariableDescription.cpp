@@ -3,6 +3,8 @@
 #include "OptimusVariableDescription.h"
 
 #include "OptimusDeformer.h"
+#include "OptimusHelpers.h"
+
 
 UOptimusDeformer* UOptimusVariableDescription::GetOwningDeformer() const
 {
@@ -21,8 +23,9 @@ void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& 
 		UOptimusDeformer* Deformer = GetOwningDeformer();
 		if (ensure(Deformer))
 		{
-			// Do a rename through an action. Otherwise undo won't notify on changes.
-			Deformer->RenameVariable(this, VariableName);
+			VariableName = Optimus::GetUniqueNameForScope(GetOuter(), VariableName);
+			Rename(*VariableName.ToString(), nullptr);
+			Deformer->UpdateVariableNodesPinNames(this, VariableName);
 		}
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FOptimusDataType, TypeName))
@@ -45,6 +48,26 @@ void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& 
 
 			ValueData.SetNumZeroed(TempProperty->GetSize());
 		}
+	}
+}
+
+
+void UOptimusVariableDescription::PreEditUndo()
+{
+	UObject::PreEditUndo();
+
+	VariableNameForUndo = VariableName;
+}
+
+
+void UOptimusVariableDescription::PostEditUndo()
+{
+	UObject::PostEditUndo();
+
+	if (VariableNameForUndo != VariableName)
+	{
+		const UOptimusDeformer *Deformer = GetOwningDeformer();
+		Deformer->Notify(EOptimusGlobalNotifyType::VariableRenamed, this);
 	}
 }
 #endif
