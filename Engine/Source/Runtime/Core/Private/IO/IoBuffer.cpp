@@ -117,8 +117,18 @@ FIoBuffer::FIoBuffer(const void* Data, uint64 InSize, const FIoBuffer& OuterBuff
 {
 }
 
+FIoBuffer::FIoBuffer(FMemoryView Memory, const FIoBuffer& OuterBuffer)
+: FIoBuffer(Memory.GetData(), Memory.GetSize(), OuterBuffer)
+{
+}
+
 FIoBuffer::FIoBuffer(FIoBuffer::EWrapTag, const void* Data, uint64 InSize)
 :	CorePtr(new BufCore((uint8*)Data, InSize, /* ownership */ false))
+{
+}
+
+FIoBuffer::FIoBuffer(FIoBuffer::EWrapTag, FMemoryView Memory)
+: FIoBuffer(FIoBuffer::Wrap, Memory.GetData(), Memory.GetSize())
 {
 }
 
@@ -127,8 +137,18 @@ FIoBuffer::FIoBuffer(FIoBuffer::EAssumeOwnershipTag, const void* Data, uint64 In
 {
 }
 
+FIoBuffer::FIoBuffer(FIoBuffer::EAssumeOwnershipTag, FMemoryView Memory)
+: FIoBuffer(FIoBuffer::AssumeOwnership, Memory.GetData(), Memory.GetSize())
+{
+}
+
 FIoBuffer::FIoBuffer(FIoBuffer::ECloneTag, const void* Data, uint64 InSize)
 :	CorePtr(new BufCore(Clone, (uint8*)Data, InSize))
+{
+}
+
+FIoBuffer::FIoBuffer(FIoBuffer::ECloneTag, FMemoryView Memory)
+: FIoBuffer(FIoBuffer::Clone, Memory.GetData(), Memory.GetSize())
 {
 }
 

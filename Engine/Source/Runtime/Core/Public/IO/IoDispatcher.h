@@ -428,10 +428,14 @@ public:
 	CORE_API			FIoBuffer();
 	CORE_API explicit	FIoBuffer(uint64 InSize);
 	CORE_API			FIoBuffer(const void* Data, uint64 InSize, const FIoBuffer& OuterBuffer);
+	CORE_API			FIoBuffer(FMemoryView Memory, const FIoBuffer& OuterBuffer);
 
 	CORE_API			FIoBuffer(EAssumeOwnershipTag,	const void* Data, uint64 InSize);
+	CORE_API			FIoBuffer(EAssumeOwnershipTag,	FMemoryView Memory);
 	CORE_API			FIoBuffer(ECloneTag,			const void* Data, uint64 InSize);
+	CORE_API			FIoBuffer(ECloneTag,			FMemoryView Memory);
 	CORE_API			FIoBuffer(EWrapTag,				const void* Data, uint64 InSize);
+	CORE_API			FIoBuffer(EWrapTag,				FMemoryView Memory);
 
 	// Note: we currently rely on implicit move constructor, thus we do not declare any
 	//		 destructor or copy/assignment operators or copy constructors
