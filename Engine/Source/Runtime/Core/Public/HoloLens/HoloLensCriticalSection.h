@@ -88,31 +88,41 @@ public:
 	{
 		Windows::InitializeSRWLock(&Mutex);
 	}
-	
+
 	FORCEINLINE ~FHoloLensRWLock()
 	{
 	}
-	
+
 	FORCEINLINE void ReadLock()
 	{
 		Windows::AcquireSRWLockShared(&Mutex);
 	}
-	
+
 	FORCEINLINE void WriteLock()
 	{
 		Windows::AcquireSRWLockExclusive(&Mutex);
 	}
-	
+
+	FORCEINLINE bool TryReadLock()
+	{
+		return !!Windows::TryAcquireSRWLockShared(&Mutex);
+	}
+
+	FORCEINLINE bool TryWriteLock()
+	{
+		return !!Windows::TryAcquireSRWLockExclusive(&Mutex);
+	}
+
 	FORCEINLINE void ReadUnlock()
 	{
 		Windows::ReleaseSRWLockShared(&Mutex);
 	}
-	
+
 	FORCEINLINE void WriteUnlock()
 	{
 		Windows::ReleaseSRWLockExclusive(&Mutex);
 	}
-	
+
 private:
 	Windows::SRWLOCK Mutex;
 };

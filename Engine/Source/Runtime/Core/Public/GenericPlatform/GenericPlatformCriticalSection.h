@@ -45,31 +45,41 @@ public:
 	FORCEINLINE TGenericPlatformRWLock()
 	{
 	}
-	
+
 	FORCEINLINE ~TGenericPlatformRWLock()
 	{
 	}
-	
+
 	FORCEINLINE void ReadLock()
 	{
 		Mutex.Lock();
 	}
-	
+
 	FORCEINLINE void WriteLock()
 	{
 		Mutex.Lock();
 	}
-	
+
+	FORCEINLINE bool TryReadLock()
+	{
+		return Mutex.TryLock();
+	}
+
+	FORCEINLINE bool TryWriteLock()
+	{
+		return Mutex.TryLock();
+	}
+
 	FORCEINLINE void ReadUnlock()
 	{
 		Mutex.Unlock();
 	}
-	
+
 	FORCEINLINE void WriteUnlock()
 	{
 		Mutex.Unlock();
 	}
-	
+
 private:
 	CriticalSection Mutex;
 };
