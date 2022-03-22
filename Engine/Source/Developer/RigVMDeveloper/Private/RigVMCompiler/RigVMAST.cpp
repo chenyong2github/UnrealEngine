@@ -230,7 +230,10 @@ int32 FRigVMExprAST::GetMinChildIndexWithinParent(const FRigVMExprAST* InParentE
 		}
 	}
 
-	Parser->MinIndexOfChildWithinParent.Add(MapKey, MinIndex);
+	if(Parser)
+	{
+		Parser->MinIndexOfChildWithinParent.Add(MapKey, MinIndex);
+	}
 	return MinIndex;
 }
 
