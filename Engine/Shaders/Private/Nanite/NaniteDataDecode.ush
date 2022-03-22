@@ -184,6 +184,7 @@ struct FNaniteFullscreenVSToPS
 	#define MaxNodes				Nanite.MaxNodes
 	#define MaxVisibleClusters		Nanite.MaxVisibleClusters
 	#define RenderFlags				Nanite.RenderFlags
+	#define RayTracingCutError		Nanite.RayTracingCutError
 	#define DebugFlags				Nanite.DebugFlags
 	#define ClusterPageData			Nanite.ClusterPageData
 	#define VisibleClustersSWHW		Nanite.VisibleClustersSWHW
@@ -193,6 +194,7 @@ struct FNaniteFullscreenVSToPS
 	uint							MaxNodes;
 	uint							MaxVisibleClusters;
 	uint							RenderFlags;
+	float							RayTracingCutError;
 	uint							DebugFlags;
 	ByteAddressBuffer 				ClusterPageData;
 	ByteAddressBuffer				VisibleClustersSWHW;

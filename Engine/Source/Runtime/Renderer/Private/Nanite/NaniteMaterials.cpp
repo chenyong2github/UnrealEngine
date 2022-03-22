@@ -43,6 +43,13 @@ static FAutoConsoleVariableRef CVarNaniteClassifyWithResolve(
 	TEXT("")
 );
 
+float GRayTracingCutError = 0.0f;
+static FAutoConsoleVariableRef CVarRayTracingCutError(
+	TEXT("r.RayTracing.Nanite.CutError"),
+	GRayTracingCutError,
+	TEXT("Global target cut error to control quality when using procedural raytracing geometry for Nanite meshes.")
+);
+
 #if WITH_EDITORONLY_DATA
 extern int32 GNaniteIsolateInvalidCoarseMesh;
 #endif
@@ -321,6 +328,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER(uint32,		MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,		MaxNodes)
 	SHADER_PARAMETER(uint32,		RenderFlags)
+	SHADER_PARAMETER(float,			RayTracingCutError)
 	SHADER_PARAMETER(uint32,		MaterialRemapCount)
 	SHADER_PARAMETER(FIntPoint,		GridSize)
 
@@ -487,6 +495,7 @@ void DrawBasePass(
 		PassParameters->MaxVisibleClusters	= RasterResults.MaxVisibleClusters;
 		PassParameters->MaxNodes			= RasterResults.MaxNodes;
 		PassParameters->RenderFlags			= RasterResults.RenderFlags;
+		PassParameters->RayTracingCutError	= GRayTracingCutError;
 		PassParameters->MaterialRemapCount	= TileRemaps;
 			
 		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV();
@@ -547,6 +556,7 @@ void DrawBasePass(
 			UniformParams.MaxVisibleClusters= PassParameters->MaxVisibleClusters;
 			UniformParams.MaxNodes = PassParameters->MaxNodes;
 			UniformParams.RenderFlags = PassParameters->RenderFlags;
+			UniformParams.RayTracingCutError = PassParameters->RayTracingCutError;
 
 			UniformParams.MaterialConfig.X = 1; // Indirect
 			UniformParams.MaterialConfig.Y = PassParameters->GridSize.X;
@@ -1153,6 +1163,7 @@ void DrawLumenMeshCapturePass(
 		PassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 		PassParameters->MaxNodes = Nanite::FGlobalResources::GetMaxNodes();
 		PassParameters->RenderFlags = CullingContext.RenderFlags;
+		PassParameters->RayTracingCutError = GRayTracingCutError;
 
 		PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->HierarchyBuffer = Nanite::GStreamingManager.GetHierarchySRV();
@@ -1200,6 +1211,7 @@ void DrawLumenMeshCapturePass(
 				UniformParams.MaxVisibleClusters = PassParameters->MaxVisibleClusters;
 				UniformParams.MaxNodes = PassParameters->MaxNodes;
 				UniformParams.RenderFlags = PassParameters->RenderFlags;
+				UniformParams.RayTracingCutError = PassParameters->RayTracingCutError;
 				UniformParams.MaterialConfig = FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
 				UniformParams.RectScaleOffset = FVector4f(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
 

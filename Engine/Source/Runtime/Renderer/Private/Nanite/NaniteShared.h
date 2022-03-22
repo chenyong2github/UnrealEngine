@@ -202,6 +202,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER(uint32,						MaxNodes)
 	SHADER_PARAMETER(uint32,						MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,						RenderFlags)
+	SHADER_PARAMETER(float,							RayTracingCutError)
 	SHADER_PARAMETER(FVector4f,						RectScaleOffset) // xy: scale, zw: offset
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			VisibleClustersSWHW)
