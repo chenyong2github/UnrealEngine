@@ -427,7 +427,7 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FName ClassName, bool bAllo
 	if (bAllowRedirects)
 	{
 		FCoreRedirectObjectName ClassNameRedirect(NameStringBuffer);
-		FCoreRedirectObjectName RedirectedClassNameRedirect = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, ClassNameRedirect);
+		FCoreRedirectObjectName RedirectedClassNameRedirect = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Type_Struct, ClassNameRedirect);
 		if (ClassNameRedirect != RedirectedClassNameRedirect)
 		{
 			NameStringBuffer = RedirectedClassNameRedirect.ToString();

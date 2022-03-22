@@ -559,11 +559,15 @@ bool FPackageReader::SerializeImportMap(TArray<FObjectImport>& OutImportMap)
 	return true;
 }
 
+static FName CoreUObjectPackageName(TEXT("/Script/CoreUObject"));
+static FName ScriptStructName(TEXT("ScriptStruct"));
+
 bool FPackageReader::SerializeImportedClasses(const TArray<FObjectImport>& ImportMap, TArray<FName>& OutClassNames)
 {
 	OutClassNames.Reset();
 
 	TSet<int32> ClassImportIndices;
+	// Any import that is specified as the class of an export is an imported class
 	if (PackageFileSummary.ExportCount > 0)
 	{
 		if (!StartSerializeSection(PackageFileSummary.ExportOffset))
@@ -591,6 +595,21 @@ bool FPackageReader::SerializeImportedClasses(const TArray<FObjectImport>& Impor
 			{
 				ClassImportIndices.Add(ExportBuffer.ClassIndex.ToImport());
 			}
+		}
+	}
+	// Any imports of types UScriptStruct are an imported struct and need to be added to ImportedClasses
+	// This covers e.g. DataTable, which has a RowStruct pointer that it uses in its native serialization to
+	// serialize data into its rows
+	// TODO: Projects may create their own ScriptStruct subclass, and if they use one of these subclasses
+	// as a serialized-external-struct-pointer then we will miss it. In a future implementation we will 
+	// change the PackageReader to report all imports, and allow the AssetRegistry to decide which ones
+	// are classes based on its class database.
+	for (int32 ImportIndex = 0; ImportIndex < ImportMap.Num(); ++ImportIndex)
+	{
+		const FObjectImport& ObjectImport = ImportMap[ImportIndex];
+		if (ObjectImport.ClassPackage == CoreUObjectPackageName && ObjectImport.ClassName == ScriptStructName)
+		{
+			ClassImportIndices.Add(ImportIndex);
 		}
 	}
 

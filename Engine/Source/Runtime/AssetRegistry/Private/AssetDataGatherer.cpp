@@ -32,7 +32,7 @@ namespace AssetDataGathererConstants
 	constexpr int32 SingleThreadFilesPerBatch = 3;
 	constexpr int32 ExpectedMaxBatchSize = 100;
 	constexpr int32 MinSecondsToElapseBeforeCacheWrite = 60;
-	static constexpr uint32 CacheSerializationMagic = 0x087DF133; // Versioning and integrity checking
+	static constexpr uint32 CacheSerializationMagic = 0xC8F81894; // Versioning and integrity checking
 }
 
 namespace UE
