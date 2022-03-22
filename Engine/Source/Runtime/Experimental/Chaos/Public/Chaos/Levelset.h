@@ -36,6 +36,8 @@ class CHAOS_API FLevelSet final : public FImplicitObject
 	FLevelSet(FLevelSet&& Other);
 	virtual ~FLevelSet();
 
+	virtual TUniquePtr<FImplicitObject> Copy() const override { return DeepCopy(); }
+	virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const { return DeepCopyWithScale(Scale); }
 	virtual TUniquePtr<FImplicitObject> DeepCopy() const;
 	virtual TUniquePtr<FImplicitObject> DeepCopyWithScale(const FVec3& Scale) const;
 
