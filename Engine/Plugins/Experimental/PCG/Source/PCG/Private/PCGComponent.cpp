@@ -759,11 +759,11 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 
 void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent)
 {
-	bool bValueSet = (InEvent.ChangeType == EPropertyChangeType::ValueSet);
+	bool bValueNotInteractive = (InEvent.ChangeType != EPropertyChangeType::Interactive);
 	// Special exception for actor tags, as we can't track otherwise an actor "losing" a tag
 	bool bActorTagChange = (InEvent.Property && InEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, Tags));
 
-	if(!bValueSet && !bActorTagChange)
+	if(!bValueNotInteractive && !bActorTagChange)
 	{
 		return;
 	}
@@ -780,6 +780,25 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 		}
 	}
 
+	// Finally, if it's neither an actor or an actor component, it might be a dependency of a tracked actor
+	if (!Actor)
+	{
+		for(const TPair<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UObject>>>& TrackedActor : CachedTrackedActorToDependencies)
+		{
+			if (TrackedActor.Value.Contains(InObject))
+			{
+				OnActorChanged(TrackedActor.Key.Get(), InObject, bActorTagChange);
+			}
+		}
+	}
+	else
+	{
+		OnActorChanged(Actor, InObject, bActorTagChange);
+	}
+}
+
+void UPCGComponent::OnActorChanged(AActor* Actor, UObject* InObject, bool bActorTagChange)
+{
 	if (Actor == GetOwner())
 	{
 		// Something has changed on the owner (including properties of this component)
@@ -1265,6 +1284,7 @@ bool UPCGComponent::PopulateTrackedActorToTagsMap(bool bForce)
 	}
 
 	CachedTrackedActorToTags.Reset();
+	CachedTrackedActorToDependencies.Reset();
 	for (TWeakObjectPtr<AActor> Actor : CachedTrackedActors)
 	{
 		if (Actor.IsValid())
@@ -1296,6 +1316,7 @@ bool UPCGComponent::AddTrackedActor(AActor* InActor, bool bForce)
 
 		bAppliedChange = true;
 		CachedTrackedActorToTags.FindOrAdd(InActor).Add(Tag);
+		PCGHelpers::GatherDependencies(InActor, CachedTrackedActorToDependencies.FindOrAdd(InActor));
 
 		if (!bForce)
 		{
@@ -1321,6 +1342,7 @@ bool UPCGComponent::RemoveTrackedActor(AActor* InActor)
 		}
 
 		CachedTrackedActorToTags.Remove(InActor);
+		CachedTrackedActorToDependencies.Remove(InActor);
 		bAppliedChange = true;
 	}
 
@@ -1360,6 +1382,7 @@ bool UPCGComponent::UpdateTrackedActor(AActor* InActor)
 		if (!CachedTrackedActorToTags.FindOrAdd(InActor).Find(Tag))
 		{
 			CachedTrackedActorToTags[InActor].Add(Tag);
+			PCGHelpers::GatherDependencies(InActor, CachedTrackedActorToDependencies.FindOrAdd(InActor));
 			DirtyCacheFromTag(Tag);
 			bAppliedChange = true;
 		}
@@ -1369,6 +1392,7 @@ bool UPCGComponent::UpdateTrackedActor(AActor* InActor)
 	if (CachedTrackedActorToTags.Contains(InActor) && CachedTrackedActorToTags[InActor].IsEmpty())
 	{
 		CachedTrackedActorToTags.Remove(InActor);
+		CachedTrackedActorToDependencies.Remove(InActor);
 	}
 
 	return bAppliedChange;

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectPtr.h"
 
 class AActor;
 class APCGWorldActor;
@@ -31,5 +32,8 @@ namespace PCGHelpers
 
 #if WITH_EDITOR
 	APCGWorldActor* GetPCGWorldActor(UWorld* InWorld);
+
+	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies);
+	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies);
 #endif
 };

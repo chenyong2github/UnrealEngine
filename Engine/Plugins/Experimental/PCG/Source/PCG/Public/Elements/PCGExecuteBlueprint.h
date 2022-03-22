@@ -19,8 +19,6 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGBlueprintChanged, UPCGBlueprintElement
 
 namespace PCGBlueprintHelper
 {
-	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies);
-	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies);
 	TSet<TObjectPtr<UObject>> GetDataDependencies(UPCGBlueprintElement* InElement);
 }
 #endif // WITH_EDITOR

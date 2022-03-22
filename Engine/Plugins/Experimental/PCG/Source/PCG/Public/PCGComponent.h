@@ -163,6 +163,8 @@ private:
 	bool ActorIsTracked(AActor* InActor) const;
 	void DirtyExclusionData(AActor* InActor);
 
+	void OnActorChanged(AActor* InActor, UObject* InSourceObject, bool bActorTagChange);
+
 	bool PopulateTrackedActorToTagsMap(bool bForce = false);
 	bool AddTrackedActor(AActor* InActor, bool bForce = false);
 	bool RemoveTrackedActor(AActor* InActor);
@@ -210,6 +212,7 @@ private:
 	TSet<TWeakObjectPtr<AActor>> CachedTrackedActors;
 
 	TMap<TWeakObjectPtr<AActor>, TSet<FName>> CachedTrackedActorToTags;
+	TMap<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UObject>>> CachedTrackedActorToDependencies;
 	bool bActorToTagsMapPopulated = false;
 #endif
 };
