@@ -277,9 +277,9 @@ section > :first-child{
 	font-weight: bold;
 	cursor: pointer;
 	font-family: var(--buttonFont);
-	font-size: 10px;
+	font-size: 0.95em;
 	border-radius: 5px;
-	height: 20px;
+	height: 1.5em;
 	text-align: center;
 }
 

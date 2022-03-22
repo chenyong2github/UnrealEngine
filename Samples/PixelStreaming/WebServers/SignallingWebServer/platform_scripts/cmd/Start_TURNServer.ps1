@@ -1,4 +1,4 @@
-# Copyright 1998-2021 Epic Games, Inc. All Rights Reserved.
+# Copyright Epic Games, Inc. All Rights Reserved.
 
 . "$PSScriptRoot\Start_Common.ps1"
 

@@ -35,12 +35,6 @@
 				<div id="overlayButton">+</div>
 			</div>
 			<div id="overlaySettings">
-				<div id="showFPS" class="setting">
-					<div class="settings-text">Show FPS</div>
-					<label class="btn-overlay">
-						<input type="button" id="show-fps-button" class="overlay-button btn-flat" value="Toggle">
-					</label>
-				</div>
 				<div id="fillWindow" class="setting">
 					<div class="settings-text">Enlarge display to fill window</div>
 					<label class="tgl-switch">
@@ -81,6 +75,12 @@
 					<label class="tgl-switch">
 						<input type="checkbox" id="force-turn-tgl" class="tgl tgl-flat">
 						<div class="tgl-slider"></div>
+					</label>
+				</div>
+				<div id="showFPS" class="setting">
+					<div class="settings-text">Show FPS</div>
+					<label class="btn-overlay">
+						<input type="button" id="show-fps-button" class="overlay-button btn-flat" value="Toggle">
 					</label>
 				</div>
 
@@ -163,6 +163,15 @@
 					</div>
 					<div id="latencyStatsContainer" class="statsContainer">
 						<div id=LatencyStats class="stats">No report yet...</div>
+					</div>
+				</section>
+
+				<section>
+					<div class="setting">
+						<div class="settings-text"></div>
+						<label class="btn-overlay">
+							<input type="button" id="restart-stream-button" class="overlay-button btn-flat" value="Restart stream">
+						</label>
 					</div>
 				</section>
 			</div>

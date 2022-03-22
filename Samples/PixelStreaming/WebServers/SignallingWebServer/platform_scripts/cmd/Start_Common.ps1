@@ -1,7 +1,7 @@
-# Copyright 1998-2021 Epic Games, Inc. All Rights Reserved.
+# Copyright Epic Games, Inc. All Rights Reserved.
 
 # Do setup as a common task, it is smart and will not reinstall if not required.
-. "$PSScriptRoot\setup.ps1"
+Start-Process -FilePath "$PSScriptRoot\setup.bat" -Wait -NoNewWindow
 
 $global:ScriptName = $MyInvocation.MyCommand.Name
 $global:PublicIP = $null

@@ -530,7 +530,7 @@ function webRtcPlayer(parOptions) {
             self.dcClient = createDataChannel(self.pcClient, 'cirrus', self.dataChannelOptions);
             handleCreateOffer(self.pcClient);
         });
-        
+
     };
 
     //Called externaly when an offer is received from the server
@@ -607,8 +607,9 @@ function webRtcPlayer(parOptions) {
             self.pcClient.close();
             self.pcClient = null;
         }
-        if(self.aggregateStatsIntervalId)
+        if(self.aggregateStatsIntervalId){
             clearInterval(self.aggregateStatsIntervalId);
+        }
     }
 
     //Sends data across the datachannel
