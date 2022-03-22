@@ -56,18 +56,12 @@ static TAutoConsoleVariable<int32> CVarNaniteFilterPrimitives(
 	ECVF_RenderThreadSafe
 );
 
-#if PLATFORM_WINDOWS
-// TODO: Currently disabled on Windows due to lack of atomic64 vendor extension interop.
-// This will be resolved with upcoming DX12 shader model 6.6 atomic support
-int32 GNaniteMeshShaderRasterization = 0;
-#else
 int32 GNaniteMeshShaderRasterization = 1;
 FAutoConsoleVariableRef CVarNaniteMeshShaderRasterization(
 	TEXT("r.Nanite.MeshShaderRasterization"),
 	GNaniteMeshShaderRasterization,
 	TEXT("")
 );
-#endif
 
 // Support disabling mesh shader raster for VSMs
 int32 GNaniteVSMMeshShaderRasterization = 0;
@@ -204,10 +198,12 @@ static FAutoConsoleVariableRef CVarNaniteDisocclusionHack(
 
 extern int32 GNaniteShowStats;
 
-static bool UseMeshShader(Nanite::EPipeline Pipeline)
+static bool UseMeshShader(EShaderPlatform ShaderPlatform, Nanite::EPipeline Pipeline)
 {
+	const bool bNoVendorExtensions = !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(ShaderPlatform);
+
 	// We require tier1 support to utilize primitive attributes
-	const bool bSupported = GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShadersTier1;
+	const bool bSupported = bNoVendorExtensions && GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShadersTier1;
 	return bSupported && (GNaniteVSMMeshShaderRasterization != 0 || Pipeline != Nanite::EPipeline::Shadows);
 }
 
@@ -1267,6 +1263,8 @@ FCullingContext InitCullingContext(
 
 	INC_DWORD_STAT(STAT_NaniteCullingContexts);
 
+	const EShaderPlatform ShaderPlatform = Scene.GetShaderPlatform();
+
 	FCullingContext CullingContext = {};
 	CullingContext.PrevHZB					= PrevHZB;
 	CullingContext.HZBBuildViewRect			= HZBBuildViewRect;
@@ -1311,7 +1309,7 @@ FCullingContext InitCullingContext(
 	CullingContext.RenderFlags |= CullingContext.Configuration.bEditorShowFlag			? NANITE_RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED : 0u;
 #endif
 
-	if (UseMeshShader(SharedContext.Pipeline))
+	if (UseMeshShader(ShaderPlatform, SharedContext.Pipeline))
 	{
 		CullingContext.RenderFlags |= NANITE_RENDER_FLAG_MESH_SHADER;
 	}
@@ -1985,6 +1983,8 @@ void AddPass_Rasterize(
 
 	LLM_SCOPE_BYTAG(Nanite);
 
+	const EShaderPlatform ShaderPlatform = Scene.GetShaderPlatform();
+
 	FRDGBufferRef DummyBuffer8 = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
 	FRDGBufferRef DummyBuffer16 = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride16(), TEXT("Nanite.StructuredBufferStride16"));
 
@@ -2081,7 +2081,7 @@ void AddPass_Rasterize(
 	RPInfo.ResolveParameters.DestRect.X2 = ViewRect.Max.X;
 	RPInfo.ResolveParameters.DestRect.Y2 = ViewRect.Max.Y;
 
-	const bool bUseMeshShader = UseMeshShader(SharedContext.Pipeline);
+	const bool bUseMeshShader = UseMeshShader(ShaderPlatform, SharedContext.Pipeline);
 
 	const bool bUsePrimitiveShader = UsePrimitiveShader() && !bUseMeshShader;
 
