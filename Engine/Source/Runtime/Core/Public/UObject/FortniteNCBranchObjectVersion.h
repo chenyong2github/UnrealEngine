@@ -12,6 +12,9 @@ struct CORE_API FFortniteNCBranchObjectVersion
 		// Before any version changes were made
 		BeforeCustomVersionWasAdded = 0,
 
+		// Added FWorldDataLayersActorDesc
+		AddedWorldDataLayersActorDesc,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

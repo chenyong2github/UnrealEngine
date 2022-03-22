@@ -14,6 +14,7 @@
 #include "WorldPartition/WorldPartition.h"
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldDataLayers"
@@ -406,6 +407,11 @@ void AWorldDataLayers::DumpDataLayers(FOutputDevice& OutputDevice) const
 }
 
 #if WITH_EDITOR
+
+TUniquePtr<class FWorldPartitionActorDesc> AWorldDataLayers::CreateClassActorDesc() const
+{
+	return TUniquePtr<FWorldPartitionActorDesc>(new FWorldDataLayersActorDesc());
+}
 
 void AWorldDataLayers::GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const
 {

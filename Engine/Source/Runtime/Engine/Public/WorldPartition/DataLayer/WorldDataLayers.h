@@ -50,6 +50,7 @@ public:
 	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override { return false; }
 	virtual bool IsLockLocation() const { return true; }
 	virtual bool IsUserManaged() const override { return false; }
+	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
 	static AWorldDataLayers* Create(UWorld* World);
 
@@ -232,6 +233,8 @@ public:
 	UE_DEPRECATED(5.00, "do not use, will be replaced by another mechanism for initial release.")
 	FDataLayersFilterDelegate DataLayersFilterDelegate;
 };
+
+DEFINE_ACTORDESC_TYPE(AWorldDataLayers, FWorldDataLayersActorDesc);
 
 #if WITH_EDITOR
 
