@@ -3036,11 +3036,11 @@ private:
 	URigHierarchy* Hierarchy;
 };
 
-struct CONTROLRIG_API FRigHierarchyEnableControllerBracket : public TGuardValue<bool>
+struct CONTROLRIG_API FRigHierarchyEnableControllerBracket
 {
 private:
 	FRigHierarchyEnableControllerBracket(URigHierarchy* InHierarchy, bool bEnable)
-		: TGuardValue<bool>(InHierarchy->bIsControllerAvailable, bEnable)
+		: GuardIsControllerAvailable(InHierarchy->bIsControllerAvailable, bEnable)
 	{
 	}
 
@@ -3049,6 +3049,9 @@ private:
 
 	// certain units are allowed to use this
 	friend struct FRigUnit_AddParent;
+
+private:
+	TGuardValue<bool> GuardIsControllerAvailable;
 };
 
 struct CONTROLRIG_API FRigHierarchyExecuteContextBracket
