@@ -45,7 +45,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			}
 		}
 
-		User _testUser = new User("TestUser");
+		readonly User _testUser = new User("TestUser");
 
 		class ChangeComparer : IComparer<int>
 		{
@@ -54,11 +54,11 @@ namespace Horde.Build.Tests.Stubs.Services
 
 		public Dictionary<string, SortedDictionary<int, ChangeDetails>> Changes { get; } = new Dictionary<string, SortedDictionary<int, ChangeDetails>>(StringComparer.OrdinalIgnoreCase);
 
-		IUserCollection _userCollection;
+		readonly IUserCollection _userCollection;
 
 		public PerforceServiceStub(IUserCollection userCollection)
 		{
-			this._userCollection = userCollection;
+			_userCollection = userCollection;
 		}
 
 		public Task<IPerforceConnection?> GetServiceUserConnection(string? clusterName)

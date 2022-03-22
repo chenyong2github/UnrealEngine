@@ -36,7 +36,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
 using StatsdClient;
 
 namespace Horde.Build.Tests
@@ -159,7 +158,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<IUserCollection, UserCollectionV1>();
 
 			services.AddSingleton<FakeClock>();
-			services.AddSingleton<IClock>(SP => SP.GetRequiredService<FakeClock>());
+			services.AddSingleton<IClock>(sp => sp.GetRequiredService<FakeClock>());
 			services.AddSingleton<IHostApplicationLifetime, AppLifetimeStub>();
 
 			services.AddSingleton<AclService>();

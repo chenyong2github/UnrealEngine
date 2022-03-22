@@ -46,12 +46,11 @@ namespace Horde.Build.Tests
 			public override DocumentV2 UpgradeToLatest() => this;
 		}
 
-
-		DatabaseService _databaseService;
-		IDatabase _redis;
-		RedisKey _baseKey = new RedisKey("versioned/");
-		IMongoCollection<VersionedDocument<string, DocumentV2>> _baseCollection;
-		VersionedCollection<string, DocumentV2> _collection;
+		readonly DatabaseService _databaseService;
+		readonly IDatabase _redis;
+		readonly RedisKey _baseKey = new RedisKey("versioned/");
+		readonly IMongoCollection<VersionedDocument<string, DocumentV2>> _baseCollection;
+		readonly VersionedCollection<string, DocumentV2> _collection;
 
 		public VersionedCollectionTests()
 		{

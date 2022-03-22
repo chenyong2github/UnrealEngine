@@ -23,7 +23,6 @@ using AgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
 using ISession = Microsoft.AspNetCore.Http.ISession;
 using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
 
-
 namespace Horde.Build.Tests
 {
 	using LeaseId = ObjectId<ILease>;
@@ -77,7 +76,7 @@ namespace Horde.Build.Tests
 			
 			public HttpContextStub(ClaimsPrincipal user)
 			{
-				this.User = user;
+				User = user;
 			}
 
 			public override void Abort()
@@ -151,8 +150,8 @@ namespace Horde.Build.Tests
 
 			public RpcServiceInvoker(RpcService rpcService, ServerCallContext serverCallContext)
 			{
-				this._rpcService = rpcService;
-				this._serverCallContext = serverCallContext;
+				_rpcService = rpcService;
+				_serverCallContext = serverCallContext;
 			}
 
 			public override TResponse BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
@@ -384,7 +383,6 @@ namespace Horde.Build.Tests
 				new Claim(HordeClaimTypes.AgentSessionId, sessionId.ToString()),
 			}, "TestAuthType")));
 
-
 			string[] data = {"foo", "bar", "baz", "qux"};
 			string dataStr = String.Join("", data);
 			
@@ -422,7 +420,6 @@ namespace Horde.Build.Tests
 			requestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(data[2]) });
 			requestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(data[3]) });
 			UploadArtifactResponse res = await call;
-
 
 			IArtifact? artifact = await ArtifactCollection.GetArtifactAsync(ObjectId.Parse(res.Id));
 			Assert.IsNotNull(artifact);

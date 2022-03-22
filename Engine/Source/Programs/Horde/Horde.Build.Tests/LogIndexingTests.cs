@@ -32,7 +32,7 @@ namespace Horde.Build.Tests
 		private readonly ILogFileService _logFileService;
 		private readonly NullLogStorage _nullLogStorage;
 		private readonly LocalLogStorage _logStorage;
-		private byte[] _data = Resources.TextFile;
+		private readonly byte[] _data = Resources.TextFile;
 
 		public LogIndexingTests()
 		{

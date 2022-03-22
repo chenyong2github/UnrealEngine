@@ -40,18 +40,18 @@ namespace Horde.Build.Tests.Stubs.Collections
 		public JobStepRefStub(JobId jobId, SubResourceId batchId, SubResourceId stepId, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, JobStepOutcome? outcome)
 		{
 			Id = new JobStepRefId(jobId, batchId, stepId);
-			this.JobName = jobName;
-			this.NodeName = nodeName;
-			this.StreamId = streamId;
-			this.TemplateId = templateId;
-			this.Change = change;
-			this.Outcome = outcome;
+			JobName = jobName;
+			NodeName = nodeName;
+			StreamId = streamId;
+			TemplateId = templateId;
+			Change = change;
+			Outcome = outcome;
 		}
 	}
 
 	class JobStepRefCollectionStub : IJobStepRefCollection
 	{
-		List<IJobStepRef> _refs = new List<IJobStepRef>();
+		readonly List<IJobStepRef> _refs = new List<IJobStepRef>();
 
 		public void Add(IJobStepRef jobStepRef)
 		{

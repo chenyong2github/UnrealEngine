@@ -28,8 +28,8 @@ namespace Horde.Build.Tests
 		StreamId StreamId { get; } = new StreamId("ue5-main");
 		TemplateRefId TemplateRefId { get; } = new TemplateRefId("template1");
 
-		ITemplate _template;
-		HashSet<JobId> _initialJobIds;
+		readonly ITemplate _template;
+		readonly HashSet<JobId> _initialJobIds;
 
 		public SchedulerTests()
 		{
@@ -379,7 +379,7 @@ namespace Horde.Build.Tests
 			CreateScheduleRequest schedule = new CreateScheduleRequest();
 			schedule.Enabled = true;
 			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
-			IStream stream = await SetScheduleAsync(schedule);
+			/*IStream stream = */await SetScheduleAsync(schedule);
 
 			// Trigger a job
 			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
@@ -406,7 +406,7 @@ namespace Horde.Build.Tests
 
 			// Create two templates, the second dependent on the first
 			ITemplate? newTemplate1 = await TemplateCollection.AddAsync("Test template 1");
-			TemplateRef newTemplateRef1 = new TemplateRef(newTemplate1);
+			//TemplateRef newTemplateRef1 = new TemplateRef(newTemplate1);
 			TemplateRefId newTemplateRefId1 = new TemplateRefId("new-template-1");
 
 			ITemplate? newTemplate2 = await TemplateCollection.AddAsync("Test template 2");
@@ -442,6 +442,7 @@ namespace Horde.Build.Tests
 			job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, LogId.GenerateNewId(), JobStepBatchState.Running));
 			job1 = Deref(await JobService.UpdateStepAsync(job1, batchId1, stepId1, JobStepState.Completed, JobStepOutcome.Failure));
 			job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, LogId.GenerateNewId(), JobStepBatchState.Complete));
+			Assert.IsNotNull(job1);
 			await GetNewJobs();
 
 			// Tick the schedule and make sure it doesn't trigger
@@ -456,6 +457,7 @@ namespace Horde.Build.Tests
 			SubResourceId stepId2 = job2.Batches[0].Steps[0].Id;
 			job2 = Deref(await JobService.UpdateBatchAsync(job2, batchId2, LogId.GenerateNewId(), JobStepBatchState.Running));
 			job2 = Deref(await JobService.UpdateStepAsync(job2, batchId2, stepId2, JobStepState.Completed, JobStepOutcome.Success));
+			Assert.IsNotNull(job2);
 
 			// Tick the schedule and make sure it does trigger
 			await ScheduleService.TickForTestingAsync();
@@ -506,7 +508,9 @@ namespace Horde.Build.Tests
 			stream = (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, stream, "", "", ProjectId, config))!;
 
 			ITemplate template1 = (await TemplateCollection.GetAsync(stream.Templates[newTemplateRefId1].Hash))!;
+			Assert.IsNotNull(template1);
 			ITemplate template2 = (await TemplateCollection.GetAsync(stream.Templates[newTemplateRefId2].Hash))!;
+			Assert.IsNotNull(template2);
 
 			// Create the graph
 			IGraph graphA = await GraphCollection.AddAsync(template1);

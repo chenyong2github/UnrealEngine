@@ -10,15 +10,13 @@ using Horde.Build.Notifications;
 using Horde.Build.Notifications.Impl;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
-using StackExchange.Redis;
-using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
 
 namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
+	using StreamId = StringId<IStream>;
 
 	public class FakeNotificationSink : INotificationSink
 	{
@@ -49,7 +47,7 @@ namespace Horde.Build.Tests
 			base.ConfigureServices(services);
 
 			services.AddSingleton<FakeNotificationSink>();
-			services.AddSingleton<INotificationSink>(SP => SP.GetRequiredService<FakeNotificationSink>());
+			services.AddSingleton<INotificationSink>(sp => sp.GetRequiredService<FakeNotificationSink>());
 		}
 
 		public static IJob CreateJob(StreamId streamId, int change, string name, IGraph graph)

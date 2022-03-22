@@ -309,7 +309,7 @@ namespace Horde.Build.Tests
 
 			byte[] line5 = Encoding.UTF8.GetBytes("a\nb\n");
 			await _logFileService.WriteLogDataAsync(logFile, offset, 4, line5, false, MaxChunkSize, MaxSubChunkLineCount);
-			offset += line5.Length;
+			// offset += line5.Length;
 
 			await _logFileService.FlushAsync();
 			logFile = (await _logFileService.GetLogFileAsync(logFile.Id))!;

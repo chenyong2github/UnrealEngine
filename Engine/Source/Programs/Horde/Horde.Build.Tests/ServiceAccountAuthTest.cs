@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Horde.Build.Authentication;
 using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
-using Horde.Build.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,7 +31,7 @@ namespace Horde.Build.Tests
 
 			services.AddSingleton<ILoggerFactory, LoggerFactory>();
 			services.AddSingleton<ServiceAccountCollection>();
-			services.AddSingleton<IServiceAccountCollection>(SP => SP.GetRequiredService<ServiceAccountCollection>());
+			services.AddSingleton<IServiceAccountCollection>(sp => sp.GetRequiredService<ServiceAccountCollection>());
 		}
 
 		private async Task<ServiceAccountAuthHandler> GetAuthHandlerAsync(string? headerValue)

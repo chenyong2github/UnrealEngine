@@ -27,12 +27,12 @@ public abstract class DatabaseRunner
 	protected DatabaseRunner(string name, string binName, int defaultPort, bool reuseProcess, bool printStdOut = false,
 		bool printStdErr = true)
 	{
-		this._name = name;
-		this._binName = binName;
-		this._defaultPort = defaultPort;
-		this._reuseProcess = reuseProcess;
-		this._printStdOut = printStdOut;
-		this._printStdErr = printStdErr;
+		_name = name;
+		_binName = binName;
+		_defaultPort = defaultPort;
+		_reuseProcess = reuseProcess;
+		_printStdOut = printStdOut;
+		_printStdErr = printStdErr;
 		TempDir = GetTemporaryDirectory();
 	}
 
