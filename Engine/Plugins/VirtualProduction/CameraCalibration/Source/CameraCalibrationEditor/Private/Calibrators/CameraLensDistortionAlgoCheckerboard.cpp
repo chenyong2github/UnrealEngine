@@ -7,6 +7,7 @@
 #include "AssetEditor/SSimulcamViewport.h"
 #include "CameraCalibrationCheckerboard.h"
 #include "EditorFontGlyphs.h"
+#include "Engine/Texture2D.h"
 #include "EngineUtils.h"
 #include "Misc/MessageDialog.h"
 #include "PropertyCustomizationHelpers.h"
