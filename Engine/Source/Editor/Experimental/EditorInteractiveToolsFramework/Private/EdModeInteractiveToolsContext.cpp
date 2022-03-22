@@ -121,7 +121,10 @@ public:
 		StateOut.World = EditorModeManager->GetWorld();
 		EditorModeManager->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);
 		EditorModeManager->GetSelectedComponents()->GetSelectedObjects(StateOut.SelectedComponents);
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		StateOut.TypedElementSelectionSet = EditorModeManager->GetEditorSelectionSet();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const override

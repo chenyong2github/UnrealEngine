@@ -8,6 +8,10 @@
 #include "ComponentSourceInterfaces.h"
 #include "UObject/ObjectMacros.h"
 
+// For deprecated FToolBuilderState::TypedElementSelectionSet member
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "UObject/WeakObjectPtr.h"
+
 
 // predeclarations so we don't have to include these in all tools
 class UWorld;
@@ -22,7 +26,6 @@ class UInteractiveGizmoManager;
 class UToolTargetManager;
 struct FMeshDescription;
 struct FTypedElementHandle;
-class UTypedElementSelectionSet;
 
 /**
  * FToolBuilderState is a bucket of state information that a ToolBuilder might need
@@ -45,6 +48,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 	/** Current selected Components. May be empty or nullptr. */
 	TArray<UActorComponent*> SelectedComponents;
 
+	UE_DEPRECATED(5.1, "This has moved to a context object. See IAssetEditorContextInterface")
 	TWeakObjectPtr<UTypedElementSelectionSet> TypedElementSelectionSet;
 };
 

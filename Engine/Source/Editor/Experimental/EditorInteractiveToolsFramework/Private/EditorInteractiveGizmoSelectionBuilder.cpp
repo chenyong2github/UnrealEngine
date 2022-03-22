@@ -2,42 +2,47 @@
 
 #include "EditorInteractiveGizmoSelectionBuilder.h"
 #include "BaseGizmos/TransformProxy.h"
+#include "ContextObjectStore.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
-#include "Engine/Selection.h"
 #include "Engine/World.h"
+#include "Tools/AssetEditorContextInterface.h"
 
 UTransformProxy* FEditorGizmoSelectionBuilderHelper::CreateTransformProxyForSelection(const FToolBuilderState& SceneState)
 {
 	// @todo - once UTransformProxy supports typed elements, update this to use the normalized typed
 	// element selection set.
-	if (UTypedElementSelectionSet* SelectionSet = SceneState.TypedElementSelectionSet.Get())
+	if (IAssetEditorContextInterface* AssetEditorContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>())
 	{
-		if (SelectionSet->GetNumSelectedElements() > 0)
+		if (const UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetSelectionSet())
 		{
-			bool bHasSelectedElements = false;
-			UTransformProxy* TransformProxy = NewObject<UTransformProxy>();
+			if (SelectionSet->GetNumSelectedElements() > 0)
+			{
+				bool bHasSelectedElements = false;
+				UTransformProxy* TransformProxy = NewObject<UTransformProxy>();
 
-			SelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([TransformProxy, SelectionSet, &bHasSelectedElements](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
-				{
-					if (InWorldElement.CanMoveElement(ETypedElementWorldType::Editor))
+				SelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([TransformProxy, SelectionSet, &bHasSelectedElements](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
 					{
-						if (TTypedElement<ITypedElementObjectInterface> ObjectTypedElement = SelectionSet->GetElementList()->GetElement<ITypedElementObjectInterface>(InWorldElement))
+						if (InWorldElement.CanMoveElement(ETypedElementWorldType::Editor))
 						{
-							if (AActor* Actor = ObjectTypedElement.GetObjectAs<AActor>())
+							if (TTypedElement<ITypedElementObjectInterface> ObjectTypedElement = SelectionSet->GetElementList()->GetElement<ITypedElementObjectInterface>(InWorldElement))
 							{
-								USceneComponent* SceneComponent = Actor->GetRootComponent();
-								TransformProxy->AddComponent(SceneComponent);
-								bHasSelectedElements = true;
+								if (AActor* Actor = ObjectTypedElement.GetObjectAs<AActor>())
+								{
+									USceneComponent* SceneComponent = Actor->GetRootComponent();
+									TransformProxy->AddComponent(SceneComponent);
+									bHasSelectedElements = true;
+								}
 							}
 						}
-					}
-					return true;
-				});
+						return true;
+					});
 
-			if (bHasSelectedElements)
-			{
-				return TransformProxy;
+				if (bHasSelectedElements)
+				{
+					return TransformProxy;
+				}
 			}
 		}
 	}
