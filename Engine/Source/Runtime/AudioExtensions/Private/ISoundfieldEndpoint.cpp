@@ -116,8 +116,9 @@ ISoundfieldEndpointFactory* ISoundfieldEndpointFactory::Get(const FName& InName)
 	{
 		return nullptr;
 	}
-
+	IModularFeatures::Get().LockModularFeatureList();
 	TArray<ISoundfieldEndpointFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<ISoundfieldEndpointFactory>(GetModularFeatureName());
+	IModularFeatures::Get().UnlockModularFeatureList();
 
 	for (ISoundfieldEndpointFactory* Factory : Factories)
 	{
@@ -137,7 +138,10 @@ TArray<FName> ISoundfieldEndpointFactory::GetAllSoundfieldEndpointTypes()
 
 	SoundfieldFormatNames.Add(DefaultSoundfieldEndpointName());
 
+	IModularFeatures::Get().LockModularFeatureList();
 	TArray<ISoundfieldEndpointFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<ISoundfieldEndpointFactory>(GetModularFeatureName());
+	IModularFeatures::Get().UnlockModularFeatureList();
+
 	for (ISoundfieldEndpointFactory* Factory : Factories)
 	{
 		SoundfieldFormatNames.Add(Factory->GetEndpointTypeName());

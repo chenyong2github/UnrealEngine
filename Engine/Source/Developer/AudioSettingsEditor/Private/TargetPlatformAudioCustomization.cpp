@@ -90,12 +90,14 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 
 #if WITH_ENGINE
 	// Scan through all currently enabled audio plugins of this specific type:
-
 	switch (AudioPluginType)
 	{
 		case EAudioPlugin::SPATIALIZATION:
 		{
+			IModularFeatures::Get().LockModularFeatureList();
 			TArray<IAudioSpatializationFactory*> AvailableSpatializationPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioSpatializationFactory>(IAudioSpatializationFactory::GetModularFeatureName());
+			IModularFeatures::Get().UnlockModularFeatureList();
+
 			for (IAudioSpatializationFactory* Plugin : AvailableSpatializationPlugins)
 			{
 				if (Plugin->SupportsPlatform(PlatformName))
@@ -108,7 +110,10 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 
 		case EAudioPlugin::REVERB:
 		{
+			IModularFeatures::Get().LockModularFeatureList();
 			TArray<IAudioReverbFactory*> AvailableReverbPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioReverbFactory>(IAudioReverbFactory::GetModularFeatureName());
+			IModularFeatures::Get().UnlockModularFeatureList();
+
 			for (IAudioReverbFactory* Plugin : AvailableReverbPlugins)
 			{
 				if (Plugin->SupportsPlatform(PlatformName))
@@ -121,7 +126,10 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 
 		case EAudioPlugin::OCCLUSION:
 		{
+			IModularFeatures::Get().LockModularFeatureList();
 			TArray<IAudioOcclusionFactory*> AvailableOcclusionPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioOcclusionFactory>(IAudioOcclusionFactory::GetModularFeatureName());
+			IModularFeatures::Get().UnlockModularFeatureList();
+
 			for (IAudioOcclusionFactory* Plugin : AvailableOcclusionPlugins)
 			{
 				if (Plugin->SupportsPlatform(PlatformName))
@@ -134,7 +142,10 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 
 		case EAudioPlugin::SOURCEDATAOVERRIDE:
 		{
+			IModularFeatures::Get().LockModularFeatureList();
 			TArray<IAudioSourceDataOverrideFactory*> AvailableSourceDataOverridePlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioSourceDataOverrideFactory>(IAudioSourceDataOverrideFactory::GetModularFeatureName());
+			IModularFeatures::Get().UnlockModularFeatureList();
+
 			for (IAudioSourceDataOverrideFactory* Plugin : AvailableSourceDataOverridePlugins)
 			{
 				if (Plugin->SupportsPlatform(PlatformName))
@@ -145,7 +156,11 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 		}
 		break;
 
+		// note: if adding cases here, make sure to lock the Modular Feature List after retrieving the implementations
+		//		IModularFeatures::Get().LockModularFeatureList(); & IModularFeatures::Get().UnlockModularFeatureList();
+
 		default:
+			IModularFeatures::Get().UnlockModularFeatureList();
 			break;
 	}
 #endif // #if WITH_ENGINE

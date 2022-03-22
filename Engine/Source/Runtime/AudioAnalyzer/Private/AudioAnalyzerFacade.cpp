@@ -11,7 +11,9 @@ namespace Audio
 	IAnalyzerFactory* GetAnalyzerFactory(FName InFactoryName)
 	{
 		// Get all analyzer nrt factories implementations.
+		IModularFeatures::Get().LockModularFeatureList();
 		TArray<IAnalyzerFactory*> RegisteredFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAnalyzerFactory>(IAnalyzerFactory::GetModularFeatureName());
+		IModularFeatures::Get().UnlockModularFeatureList();
 
 		// Get the factory of interest by matching the name.
 		TArray<IAnalyzerFactory*> MatchingFactories = RegisteredFactories.FilterByPredicate([InFactoryName](IAnalyzerFactory* Factory) { check(nullptr != Factory); return Factory->GetName() == InFactoryName; });

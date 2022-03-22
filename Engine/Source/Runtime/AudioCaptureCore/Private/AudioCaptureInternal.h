@@ -32,7 +32,9 @@ namespace Audio
 
 	FORCEINLINE TUniquePtr<IAudioCaptureStream> FAudioCapture::CreateImpl()
 	{
+		IModularFeatures::Get().LockModularFeatureList();
 		TArray<IAudioCaptureFactory*> AudioCaptureStreamFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioCaptureFactory>(IAudioCaptureFactory::GetModularFeatureName());
+		IModularFeatures::Get().UnlockModularFeatureList();
 
 		// For now, just return the first audio capture stream implemented. We can make this configurable at a later point.
 		if (AudioCaptureStreamFactories.Num() > 0 && AudioCaptureStreamFactories[0] != nullptr)

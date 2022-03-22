@@ -38,6 +38,7 @@ FName IAudioLinkFactory::GetModularFeatureName()
 
 TArray<IAudioLinkFactory*> IAudioLinkFactory::GetAllRegisteredFactories()
 {
+	IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
 	return IModularFeatures::Get().GetModularFeatureImplementations<IAudioLinkFactory>(GetModularFeatureName());
 }
 

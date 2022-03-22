@@ -159,7 +159,9 @@ IAudioEndpointFactory* IAudioEndpointFactory::Get(const FName& InName)
 		return nullptr;
 	}
 
+	IModularFeatures::Get().LockModularFeatureList();
 	TArray<IAudioEndpointFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioEndpointFactory>(GetModularFeatureName());
+	IModularFeatures::Get().UnlockModularFeatureList();
 
 	for (IAudioEndpointFactory* Factory : Factories)
 	{
@@ -180,7 +182,10 @@ TArray<FName> IAudioEndpointFactory::GetAvailableEndpointTypes()
 
 	EndpointNames.Add(GetTypeNameForDefaultEndpoint());
 
+	IModularFeatures::Get().LockModularFeatureList();
 	TArray<IAudioEndpointFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioEndpointFactory>(GetModularFeatureName());
+	IModularFeatures::Get().UnlockModularFeatureList();
+
 	for (IAudioEndpointFactory* Factory : Factories)
 	{
 		EndpointNames.AddUnique(Factory->GetEndpointTypeName());

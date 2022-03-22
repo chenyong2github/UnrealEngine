@@ -22,7 +22,9 @@ namespace Audio
 	TUniquePtr<IConvolutionAlgorithm> FConvolutionFactory::NewConvolutionAlgorithm(const FConvolutionSettings& InSettings, const FName& InAlgorithmFactoryName)
 	{
 		// Get all IConvolutionAlgorithm factories. 
+		IModularFeatures::Get().LockModularFeatureList();
 		TArray<IConvolutionAlgorithmFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IConvolutionAlgorithmFactory>(IConvolutionAlgorithmFactory::GetModularFeatureName());
+		IModularFeatures::Get().UnlockModularFeatureList();
 
 		// Remove null factories
 		Factories = Factories.FilterByPredicate([InAlgorithmFactoryName](const IConvolutionAlgorithmFactory* Factory) 
