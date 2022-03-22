@@ -11,6 +11,8 @@ int2 TextureSize;
 /** Size of tiles that represent this texture. */
 int2 TileSize;
 
+/** Total number of tiles in X and Y direction for the current mip level. */
+int2 NumTiles;
 
 /**
 * This function extracts the 16bit (float) data stored in uint (32 bit)
@@ -56,7 +58,7 @@ void MainVS(
 	DrawRectangle(InPosition, InTexCoord, OutPosition, OutUVAndScreenPos);
 }
 
-void GetStartScanlinePosition(in int2 PixelPos, out float2 SampleSize, out int StartPosition)
+void GetStartScanlinePosition(in int2 PixelPos, out int2 SampleSize, out int StartPosition)
 {
 	// Depending on the EXR file it could contain multi-channel data.
 #if NUM_CHANNELS == 1
@@ -70,8 +72,7 @@ void GetStartScanlinePosition(in int2 PixelPos, out float2 SampleSize, out int S
 #endif
 
 #if SWIZZLE_TILES
-	SampleSize.x = TileSize.x;
-	SampleSize.y = TileSize.y;
+	SampleSize = TileSize;
 
 	int xCoord = (PixelPos.x) % TileSize.x;
 	int yCoord = (PixelPos.y) % TileSize.y;
@@ -79,16 +80,13 @@ void GetStartScanlinePosition(in int2 PixelPos, out float2 SampleSize, out int S
 	int TileX = floor((PixelPos.x) / TileSize.x);
 	int TileY = floor((PixelPos.y) / TileSize.y);
 
-	int MaxTilesX = TextureSize.x / TileSize.x;
-	int MaxTilesY = TextureSize.y / TileSize.y;
-
 	// Padding in bytes
 	const int TilePadding = 10;
 
 	// Current tile position.
 	int TileBufferStride = TileSize.x * TileSize.y * Channels;
-	int PreviousTilesOffset = (MaxTilesX * TileY + TileX) * TileBufferStride;
-	StartPosition = PreviousTilesOffset + yCoord * TileSize.x * Channels + xCoord + (TileY * MaxTilesX + TileX + 1) * TilePadding;
+	int PreviousTilesOffset = (NumTiles.x * TileY + TileX) * TileBufferStride;
+	StartPosition = PreviousTilesOffset + yCoord * TileSize.x * Channels + xCoord + (TileY * NumTiles.x + TileX + 1) * TilePadding;
 #else
 	SampleSize.x = TextureSize.x;
 	SampleSize.y = TextureSize.y;
@@ -106,7 +104,7 @@ half4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0
 {
 	float2 UV = UVAndScreenPos.xy;
 
-	float2 SampleSize;
+	int2 SampleSize;
 
 	int2 PixelPos = UV * TextureSize;
 	int StartBufferPosition;

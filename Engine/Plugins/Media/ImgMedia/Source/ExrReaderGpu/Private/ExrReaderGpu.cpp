@@ -199,7 +199,7 @@ bool FExrReader::ReadHeaderData(FILE* FileHandle)
 	return true;
 }
 
-bool FExrReader::ReadLineOffsets(FILE* FileHandle, ELineOrder LineOrder, TArray<int64>& LineOffsets)
+bool FExrReader::ReadLineOrTileOffsets(FILE* FileHandle, ELineOrder LineOrder, TArray<int64>& LineOrTileOffsets)
 {
 	// At the moment we only support increasing Y EXR; 
 	// LineOrder is currently unused but we might need to take that into account as exr scanlines can go from top to bottom and vice versa.
@@ -209,9 +209,9 @@ bool FExrReader::ReadLineOffsets(FILE* FileHandle, ELineOrder LineOrder, TArray<
 		return false;
 	}
 
-	for (int32 i = 0; i < LineOffsets.Num(); i++)
+	for (int32 i = 0; i < LineOrTileOffsets.Num(); i++)
 	{
-		Read8ByteValue(FileHandle, LineOffsets[i]);
+		Read8ByteValue(FileHandle, LineOrTileOffsets[i]);
 	}
 	return true;
 }
@@ -233,25 +233,25 @@ bool FExrReader::GenerateTextureData(uint16* Buffer, int32 BufferSize, FString F
 	rewind(FileHandle);
 
 	// Reading header (throwaway) and line offset data. We just need line offset data.
-	TArray<int64> LineOffsets;
+	TArray<int64> LineOrTileOffsets;
 	{
 		ReadMagicNumberAndVersionField(FileHandle);
 		ReadHeaderData(FileHandle);
-		LineOffsets.SetNum(NumberOfScanlines);
+		LineOrTileOffsets.SetNum(NumberOfScanlines);
 
 		// At the moment we support only increasing Y.
 		ELineOrder LineOrder = INCREASING_Y;
-		ReadLineOffsets(FileHandle, LineOrder, LineOffsets);
+		ReadLineOrTileOffsets(FileHandle, LineOrder, LineOrTileOffsets);
 	}
 
-	fseek(FileHandle, LineOffsets[0], SEEK_SET);
+	fseek(FileHandle, LineOrTileOffsets[0], SEEK_SET);
 	fread(Buffer, BufferSize, 1 /*NumOfElements*/, FileHandle);
 
 	fclose(FileHandle);
 	return true;
 }
 
-bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 TextureWidth, int32 TextureHeight, int32& PixelSize, int32 NumChannels)
+bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets)
 {
 	if (FileHandle != nullptr)
 	{
@@ -273,14 +273,14 @@ bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 Textur
 		{
 			return false;
 		}
-		LineOffsets.SetNum(TextureHeight);
+		LineOrTileOffsets.SetNum(NumOffsets);
 
 		// At the moment we support only increasing Y.
 		ELineOrder LineOrder = INCREASING_Y;
-		ReadLineOffsets(FileHandle, LineOrder, LineOffsets);
+		ReadLineOrTileOffsets(FileHandle, LineOrder, LineOrTileOffsets);
 	}
 
-	fseek(FileHandle, LineOffsets[0], SEEK_SET);
+	fseek(FileHandle, LineOrTileOffsets[0], SEEK_SET);
 
 	return true;
 }
@@ -289,7 +289,7 @@ bool FExrReader::ReadExrImageChunk(void* Buffer, int32 ChunkSize)
 {
 	if (FileHandle == nullptr)
 	{
-		UE_LOG(LogExrReaderGpu, Error, TEXT("File is not open for reading. Please use OpenExrAndPrepareForPixelReading"));
+		UE_LOG(LogExrReaderGpu, Error, TEXT("File is not open for reading. Please use OpenExrAndPrepareForPixelReading. "));
 		return false;
 	}
 	if (Buffer == nullptr)
@@ -306,6 +306,18 @@ bool FExrReader::ReadExrImageChunk(void* Buffer, int32 ChunkSize)
 	return NumElementsRead == NumElements;
 }
 
+bool FExrReader::SeekTileWithinFile(const int StartTileIndex, const FIntPoint& TexDimInTiles, int32& OutBufferOffset)
+{
+	if (StartTileIndex >= LineOrTileOffsets.Num())
+	{
+		UE_LOG(LogExrReaderGpu, Error, TEXT("Tile index is invalid."));
+		return false;
+	}
+	int64 LineOffset = LineOrTileOffsets[StartTileIndex];
+	OutBufferOffset = LineOffset - LineOrTileOffsets[0];
+	return fseek(FileHandle, LineOffset, SEEK_SET) == 0;
+}
+
 bool FExrReader::CloseExrFile()
 {
 	if (FileHandle == nullptr)
@@ -314,7 +326,7 @@ bool FExrReader::CloseExrFile()
 		return false;
 	}
 	fclose(FileHandle);
-	LineOffsets.Empty();
+	LineOrTileOffsets.Empty();
 	return true;
 }
 

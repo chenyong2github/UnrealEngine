@@ -35,10 +35,10 @@ DECLARE_GPU_STAT_NAMED(ExrImgMediaReaderGpu, TEXT("ExrImgMediaReaderGpu"));
 namespace {
 
 	/* Padding in bits that is added at the beginning of each scanline */
-	const uint16 ExrRowPadding = 8;
+	const uint16 CExrRowPadding = 8;
 
 	/* Padding in bits that is added at the beginning of each tile */
-	const uint16 ExrTilePadding = 20;
+	const uint16 CExrTilePadding = 20;
 
 	/** This function is similar to DrawScreenPass in OpenColorIODisplayExtension.cpp except it is catered for Viewless texture rendering. */
 	template<typename TSetupFunction>
@@ -166,7 +166,6 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 	{
 		TopMipViewport = FIntRect(StartTileX * TileDim.X, StartTileY * TileDim.Y, EndTileX * TileDim.X, EndTileY * TileDim.Y);
 	}
-
 	const int32 NumChannels = OutFrame->Info.NumChannels;
 	const int32 PixelSize = sizeof(uint16) * NumChannels;
 
@@ -185,12 +184,12 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 			bool ReadThisMip = (CurrentMipLevel >= MipLevel) && (IsThisLevelPresent == false);
 
 			// Next mip level.
-			int MipPow = FMath::Pow(2., float(CurrentMipLevel));
-			CurrentMipDim = FullResolution / MipPow;
+			int MipLevelDiv = 1 << CurrentMipLevel;
+			CurrentMipDim = FullResolution / MipLevelDiv;
 
 			if (ReadThisMip)
 			{
-				const SIZE_T BufferSize = GetBufferSize(CurrentMipDim, NumChannels, bHasTiles, OutFrame->Info.NumTiles / MipPow);
+				const SIZE_T BufferSize = GetBufferSize(CurrentMipDim, NumChannels, bHasTiles, OutFrame->Info.NumTiles / MipLevelDiv);
 				FStructuredBufferPoolItemSharedPtr& BufferData = BufferDataArray[CurrentMipLevel];
 				BufferData = AllocateGpuBufferFromPool(BufferSize);
 				uint16* MipDataPtr = static_cast<uint16*>(BufferData->MappedBuffer);
@@ -205,8 +204,22 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 				if (InputTileFile.HasInputFile())
 				{
 					// read frame data
-					ReadResult = ReadInChunks(MipDataPtr, ImagePath, FrameId, CurrentMipDim, BufferSize, PixelSize, NumChannels);
-							
+					if (bHasTiles)
+					{
+						FIntRect TileRegion = FIntRect(
+							FMath::FloorToInt(float(StartTileX) / MipLevelDiv),
+							FMath::FloorToInt(float(StartTileY) / MipLevelDiv),
+							FMath::CeilToInt(float(EndTileX) / MipLevelDiv),
+							FMath::CeilToInt(float(EndTileY) / MipLevelDiv));
+						FIntPoint NumTiles = OutFrame->Info.NumTiles / MipLevelDiv;
+
+						ReadResult = ReadTiles(MipDataPtr, ImagePath, FrameId, TileRegion, NumTiles, TileDim, PixelSize);
+					}
+					else
+					{
+						ReadResult = ReadInChunks(MipDataPtr, ImagePath, FrameId, CurrentMipDim, BufferSize);
+					}
+
 					if (ReadResult != Fail)
 					{
 						OutFrame->MipMapsPresent |= 1 << CurrentMipLevel;
@@ -290,7 +303,7 @@ void FExrImgMediaReaderGpu::OnTick()
 /* FExrImgMediaReaderGpu implementation
  *****************************************************************************/
 
-FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadInChunks(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntPoint& Dim, int32 BufferSize, int32 PixelSize, int32 NumChannels)
+FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadInChunks(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntPoint& Dim, int32 BufferSize)
 {
 	EReadResult bResult = Success;
 
@@ -302,7 +315,7 @@ FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadInChunks(uint16* B
 	FExrReader ChunkReader;
 
 
-	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, Dim.X, Dim.Y, PixelSize, NumChannels))
+	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, Dim.Y))
 	{
 		return Fail;
 	}
@@ -342,6 +355,55 @@ FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadInChunks(uint16* B
 	return bResult;
 }
 
+FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadTiles(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, const FIntPoint& FullTexDimInTiles, const FIntPoint& TileDim, const int32 PixelSize)
+{
+	EReadResult bResult = Success;
+
+	// Chunks are of 16 MB
+	int32 CurrentBufferPos = 0;
+	FExrReader ChunkReader;
+
+
+	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, FullTexDimInTiles.X * FullTexDimInTiles.Y))
+	{
+		return Fail;
+	}
+
+	for (int32 TileRow = TileRegion.Min.Y; TileRow < TileRegion.Max.Y; TileRow++)
+	{
+		// Check to see if the frame was canceled.
+		{
+			FScopeLock RegionScopeLock(&CanceledFramesCriticalSection);
+			if (CanceledFrames.Remove(FrameId) > 0)
+			{
+				UE_LOG(LogImgMedia, Warning, TEXT("Reader %p: Canceling Frame %i At tile row # %i"), this, FrameId, TileRow);
+				bResult = Cancelled;
+				break;
+			}
+		}
+
+		const int32 TileByteStride = PixelSize * TileDim.X * TileDim.Y + CExrTilePadding;
+		const int StartTileIndex = TileRow * FullTexDimInTiles.X + TileRegion.Min.X;
+		const int EndTileIndex = TileRow * FullTexDimInTiles.X + TileRegion.Max.X;
+		const int BytesToRead = (EndTileIndex - StartTileIndex) * TileByteStride;
+
+		ChunkReader.SeekTileWithinFile(StartTileIndex, FullTexDimInTiles, CurrentBufferPos);
+
+		if (!ChunkReader.ReadExrImageChunk(reinterpret_cast<char*>(Buffer) + CurrentBufferPos, BytesToRead))
+		{
+			bResult = Fail;
+			break;
+		}
+	}
+
+	if (!ChunkReader.CloseExrFile())
+	{
+		return Fail;
+	}
+
+	return bResult;
+}
+
 SIZE_T FExrImgMediaReaderGpu::GetBufferSize(const FIntPoint& Dim, int32 NumChannels, bool bHasTiles, const FIntPoint& TileNum)
 {
 	if (!bHasTiles)
@@ -352,7 +414,7 @@ SIZE_T FExrImgMediaReaderGpu::GetBufferSize(const FIntPoint& Dim, int32 NumChann
 		* At the beginning of each row of B G R channel planes there is 2x4 byte data that has information
 		* about number of pixels in the current row and row's number.
 		*/
-		SIZE_T BufferSize = Dim.X * Dim.Y * sizeof(uint16) * NumChannels + Dim.Y * ExrRowPadding;
+		SIZE_T BufferSize = Dim.X * Dim.Y * sizeof(uint16) * NumChannels + Dim.Y * CExrRowPadding;
 		return BufferSize;
 	}
 	else
@@ -363,7 +425,7 @@ SIZE_T FExrImgMediaReaderGpu::GetBufferSize(const FIntPoint& Dim, int32 NumChann
 		* At the beginning of each tile of B G R channel planes there is 10 byte data that has information
 		* about number contents of tiles.
 		*/
-		SIZE_T BufferSize = Dim.X * Dim.Y * sizeof(uint16) * NumChannels + TileNum.X * TileNum.Y * ExrTilePadding;
+		SIZE_T BufferSize = Dim.X * Dim.Y * sizeof(uint16) * NumChannels + TileNum.X * TileNum.Y * CExrTilePadding;
 		return BufferSize;
 	}
 
@@ -387,10 +449,11 @@ TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> FExrImgMediaReader
 		FIntPoint Dim = FullResolution;
 		for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 		{
-			int MipLevelDiv = FMath::Pow(2., float(MipLevel));
+			int MipLevelDiv = 1 << MipLevel;
 			Dim = FullResolution / MipLevelDiv;
-			const FIntRect Viewport = TopMipViewport.Scale(1. / MipLevelDiv);
 
+			FIntRect Viewport = TopMipViewport / MipLevelDiv;
+			Viewport.Clip(FIntRect(FIntPoint(0, 0), Dim));
 			FStructuredBufferPoolItemSharedPtr BufferData = BufferDataArray[MipLevel];
 			if (BufferData.IsValid())
 			{
@@ -410,6 +473,10 @@ TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> FExrImgMediaReader
 				FExrSwizzlePS::FParameters Parameters = FExrSwizzlePS::FParameters();
 				Parameters.TextureSize = Dim;
 				Parameters.TileSize = TileDim;
+				if (bHasTiles)
+				{
+					Parameters.NumTiles = Dim / TileDim;
+				}
 
 				Parameters.UnswizzledBuffer = RHICreateShaderResourceView(BufferData->BufferRef);
 

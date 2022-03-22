@@ -53,6 +53,7 @@ class EXRREADERGPU_API FExrSwizzlePS : public FGlobalShader
 		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, UnswizzledBuffer)
 		SHADER_PARAMETER(FIntPoint, TextureSize)
 		SHADER_PARAMETER(FIntPoint, TileSize)
+		SHADER_PARAMETER(FIntPoint, NumTiles)
 	END_SHADER_PARAMETER_STRUCT()
 };
 #endif

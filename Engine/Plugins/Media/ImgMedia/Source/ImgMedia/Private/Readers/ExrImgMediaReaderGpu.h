@@ -84,7 +84,13 @@ protected:
 	 * This function reads file in 16 MB chunks and if it detects that
 	 * Frame is pending for cancellation stops reading the file and returns false.
 	*/
-	EReadResult ReadInChunks(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntPoint& Dim, int32 BufferSize, int32 PixelSize, int32 NumChannels);
+	EReadResult ReadInChunks(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntPoint& Dim, int32 BufferSize);
+
+	/** 
+	 * Reads tiles from exr files in tile rows based on Tile region. If frame is pending for cancelation 
+	 * stops reading tiles at the current tile row.
+	*/
+	EReadResult ReadTiles(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, const FIntPoint& FullTexDimInTiles, const FIntPoint& TileDim, const int32 PixelSize);
 
 	/**
 	 * Get the size of the buffer needed to load in an image.

@@ -46,7 +46,7 @@ private:
 	static bool ReadHeaderData(FILE* FileHandle);
 
 	/** Reads Scan line offsets so that we can jump to a position in file. */
-	static bool ReadLineOffsets(FILE* FileHandle, ELineOrder LineOrder, TArray<int64>& LineOffsets);
+	static bool ReadLineOrTileOffsets(FILE* FileHandle, ELineOrder LineOrder, TArray<int64>& LineOrTileOffsets);
 
 public:
 
@@ -58,13 +58,18 @@ public:
 	* Reading in chunks allows the process of reading to be canceled midway through reading. 
 	* This function reads and discards the header and keeps the pointers to the scanlines. 
 	*/
-	bool OpenExrAndPrepareForPixelReading(FString FilePath, int32 TextureWidth, int32 TextureHeight, int32& PixelSize, int32 NumChannels);
+	bool OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets);
 
 	/** 
 	* Read a chunk of an Exr file previously open via OpenExrAndPrepareForPixelReading.
 	* The read starts from the last point of file reading.
 	*/
 	bool ReadExrImageChunk(void* Buffer, int32 ChunkSize);
+
+	/** 
+	* Moves to the specified tile position in the file in preparation for reading.
+	*/
+	bool SeekTileWithinFile(const int StartTileIndex, const FIntPoint& TexDimInTiles, int32& OutBufferOffset);
 
 	/**
 	* After we have finished reading the file that was open via OpenExrAndPrepareForPixelReading
@@ -80,9 +85,8 @@ private:
 	FILE* FileHandle;
 
 	/**
-	* These are byte offsets pointing to scanlines from the begining of the file.
+	* These are byte offsets pointing to scanlines or tiles from the begining of the file.
 	*/
-	TArray<int64> LineOffsets;
-
+	TArray<int64> LineOrTileOffsets;
 };
 #endif
