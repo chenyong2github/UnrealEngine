@@ -10,6 +10,7 @@
 
 UE_TRACE_CHANNEL(FrameChannel)
 UE_TRACE_CHANNEL(BookmarkChannel)
+UE_TRACE_CHANNEL(ScreenshotChannel)
 
 UE_TRACE_EVENT_BEGIN(Misc, BookmarkSpec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(const void*, BookmarkPoint)
@@ -32,6 +33,23 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(Misc, EndFrame)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint8, FrameType)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Misc, ScreenshotHeader)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint32, Width)
+	UE_TRACE_EVENT_FIELD(uint32, Height)
+	UE_TRACE_EVENT_FIELD(uint32, TotalChunkNum)
+	UE_TRACE_EVENT_FIELD(uint32, Size)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Misc, ScreenshotChunk)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(uint32, ChunkNum)
+	UE_TRACE_EVENT_FIELD(uint16, Size)
+	UE_TRACE_EVENT_FIELD(uint8[], Data)
 UE_TRACE_EVENT_END()
 
 void FMiscTrace::OutputBookmarkSpec(const void* BookmarkPoint, const ANSICHAR* File, int32 Line, const TCHAR* Format)
@@ -81,4 +99,39 @@ void FMiscTrace::OutputEndFrame(ETraceFrameType FrameType)
 		<< EndFrame.FrameType((uint8)FrameType);
 }
 
+void FMiscTrace::OutputScreenshot(const TCHAR* Name, uint64 Cycle, uint32 Width, uint32 Height, TArray64<uint8> Data)
+{
+	static std::atomic<uint32> ScreenshotId = 0;
+
+	const uint32 DataSize = (uint32) Data.Num();
+	const uint32 MaxChunkSize = TNumericLimits<uint16>::Max();
+	uint32 ChunkNum = (DataSize + MaxChunkSize - 1) / MaxChunkSize;
+
+	uint32 Id = ScreenshotId.fetch_add(1);
+	UE_TRACE_LOG(Misc, ScreenshotHeader, ScreenshotChannel)
+		<< ScreenshotHeader.Id(Id)
+		<< ScreenshotHeader.Name(Name, uint16(FCString::Strlen(Name)))
+		<< ScreenshotHeader.Cycle(Cycle)
+		<< ScreenshotHeader.Width(Width)
+		<< ScreenshotHeader.Height(Height)
+		<< ScreenshotHeader.TotalChunkNum(ChunkNum)
+		<< ScreenshotHeader.Size(DataSize);
+
+	uint32 RemainingSize = DataSize;
+	for (uint32 Index = 0; Index < ChunkNum; ++Index)
+	{
+		uint16 Size = (uint16) FMath::Min(RemainingSize, MaxChunkSize);
+
+		uint8* ChunkData = Data.GetData() + MaxChunkSize * Index;
+		UE_TRACE_LOG(Misc, ScreenshotChunk, ScreenshotChannel)
+			<< ScreenshotChunk.Id(Id)
+			<< ScreenshotChunk.ChunkNum(Index)
+			<< ScreenshotChunk.Size(Size)
+			<< ScreenshotChunk.Data(ChunkData, Size);
+
+		RemainingSize -= Size;
+	}
+
+	check(RemainingSize == 0);
+}
 #endif

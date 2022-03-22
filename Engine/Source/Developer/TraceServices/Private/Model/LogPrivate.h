@@ -36,7 +36,8 @@ class FLogProvider :
 public:
 	enum
 	{
-		ReservedLogCategory_Bookmark = 0
+		ReservedLogCategory_Bookmark = 0,
+		ReservedLogCategory_Screenshot = 1
 	};
 
 	static const FName ProviderName;
@@ -47,6 +48,7 @@ public:
 	FLogCategoryInfo& GetCategory(uint64 CategoryPointer);
 	FLogMessageSpec& GetMessageSpec(uint64 LogPoint);
 	void AppendMessage(uint64 LogPoint, double Time, const uint8* FormatArgs);
+	void AppendMessage(uint64 LogPoint, double Time, const FString& Message);
 
 	virtual uint64 GetMessageCount() const override;
 	virtual bool ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessageInfo&)> Callback) const override;

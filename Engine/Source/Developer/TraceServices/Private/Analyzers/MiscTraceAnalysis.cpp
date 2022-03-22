@@ -5,24 +5,26 @@
 #include "Model/ThreadsPrivate.h"
 #include "Model/BookmarksPrivate.h"
 #include "Model/FramesPrivate.h"
+#include "Model/ScreenshotProviderPrivate.h"
 #include "Model/Channel.h"
 #include "Common/Utils.h"
 
 namespace TraceServices
 {
-
 FMiscTraceAnalyzer::FMiscTraceAnalyzer(IAnalysisSession& InSession,
 									   FThreadProvider& InThreadProvider,
 									   FBookmarkProvider& InBookmarkProvider,
 									   FLogProvider& InLogProvider,
 									   FFrameProvider& InFrameProvider,
-									   FChannelProvider& InChannelProvider)
+									   FChannelProvider& InChannelProvider,
+									   FScreenshotProvider& InScreenshotProvider)
 	: Session(InSession)
 	, ThreadProvider(InThreadProvider)
 	, BookmarkProvider(InBookmarkProvider)
 	, LogProvider(InLogProvider)
 	, FrameProvider(InFrameProvider)
 	, ChannelProvider(InChannelProvider)
+	, ScreenshotProvider(InScreenshotProvider)
 {
 	FLogCategoryInfo& BookmarkLogCategory = LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Bookmark);
 	BookmarkLogCategory.Name = TEXT("LogBookmark");
@@ -48,6 +50,8 @@ void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EndRenderFrame, "Misc", "EndRenderFrame");
 	Builder.RouteEvent(RouteId_ChannelAnnounce, "Trace", "ChannelAnnounce");
 	Builder.RouteEvent(RouteId_ChannelToggle, "Trace", "ChannelToggle");
+	Builder.RouteEvent(RouteId_ScreenshotHeader, "Misc", "ScreenshotHeader");
+	Builder.RouteEvent(RouteId_ScreenshotChunk, "Misc", "ScreenshotChunk");
 }
 
 void FMiscTraceAnalyzer::OnThreadInfo(const FThreadInfo& ThreadInfo)
@@ -104,6 +108,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		LogMessageSpec.Verbosity = ELogVerbosity::Log;
 		break;
 	}
+
 	case RouteId_Bookmark:
 	{
 		uint64 BookmarkPoint = EventData.GetValue<uint64>("BookmarkPoint");
@@ -114,6 +119,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		LogProvider.AppendMessage(BookmarkPoint, Timestamp, FormatArgsView.GetData());
 		break;
 	}
+
 	case RouteId_BeginFrame:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
@@ -122,6 +128,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		FrameProvider.BeginFrame(ETraceFrameType(FrameType), Context.EventTime.AsSeconds(Cycle));
 		break;
 	}
+
 	case RouteId_EndFrame:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
@@ -130,6 +137,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		FrameProvider.EndFrame(ETraceFrameType(FrameType), Context.EventTime.AsSeconds(Cycle));
 		break;
 	}
+
 	case RouteId_BeginGameFrame:
 	case RouteId_EndGameFrame:
 	case RouteId_BeginRenderFrame:
@@ -167,6 +175,47 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		OnChannelToggle(Context);
 		break;
 
+	case RouteId_ScreenshotHeader:
+	{
+		uint32 Id = EventData.GetValue<uint32>("Id");
+		TSharedPtr<FScreenshot> Screenshot = ScreenshotProvider.AddScreenshot(Id);
+		Screenshot->Id = Id;
+
+		EventData.GetString("Name", Screenshot->Name);
+		
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		Screenshot->Timestamp = Context.EventTime.AsSeconds(Cycle);
+
+		Screenshot->Width = EventData.GetValue<uint32>("Width");
+		Screenshot->Height = EventData.GetValue<uint32>("Height");
+		Screenshot->ChunkNum = EventData.GetValue<uint32>("TotalChunkNum");
+		Screenshot->Size = EventData.GetValue<uint32>("Size");
+		Screenshot->Data.Reserve(Screenshot->Size);
+
+		FLogMessageSpec& LogMessageSpec = LogProvider.GetMessageSpec(Cycle);
+		LogMessageSpec.Category = &LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Screenshot);
+		LogMessageSpec.Category->Name = TEXT("Screenshot");
+		LogMessageSpec.Line = Id;
+		LogMessageSpec.File = nullptr;
+		LogMessageSpec.FormatString = nullptr;
+		LogMessageSpec.Verbosity = ELogVerbosity::Log;
+
+		LogProvider.AppendMessage(Cycle, Screenshot->Timestamp, Screenshot->Name);
+
+		break;
+	}
+
+	case RouteId_ScreenshotChunk:
+	{
+		uint32 Id = EventData.GetValue<uint32>("Id");
+		uint16 ChunkNum = EventData.GetValue<uint16>("ChunkNum");
+		uint16 Size = EventData.GetValue<uint16>("Size");
+		TArrayView<const uint8> Data = EventData.GetArrayView<uint8>("Data");
+
+		ScreenshotProvider.AddScreenshotChunk(Id, ChunkNum, Size, Data);
+
+		break;
+	}
 	// Begin retired events
 	//
 	case RouteId_RegisterGameThread:
@@ -175,6 +224,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		ThreadProvider.AddGameThread(ThreadId);
 		break;
 	}
+
 	case RouteId_CreateThread:
 	{
 		const uint32 CreatedThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context, "CreatedThreadId");
@@ -189,6 +239,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		}
 		break;
 	}
+
 	case RouteId_SetThreadGroup:
 	{
 		const TCHAR* GroupName = Session.StoreString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(EventData.GetAttachment())));
@@ -196,6 +247,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		ThreadProvider.SetThreadGroup(ThreadId, GroupName);
 		break;
 	}
+
 	case RouteId_BeginThreadGroupScope:
 	{
 		const TCHAR* GroupName = Session.StoreString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(EventData.GetAttachment())));
@@ -204,6 +256,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		ThreadState->ThreadGroupStack.Push(GroupName);
 		break;
 	}
+
 	case RouteId_EndThreadGroupScope:
 	{
 		const uint32 CurrentThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context, "CurrentThreadId");

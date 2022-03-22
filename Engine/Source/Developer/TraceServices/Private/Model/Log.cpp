@@ -89,6 +89,20 @@ void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* Form
 	}
 }
 
+void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const FString& Message)
+{
+	Session.WriteAccessCheck();
+	FLogMessageSpec** FindSpec = SpecMap.Find(LogPoint);
+	if (FindSpec && (*FindSpec)->Verbosity != ELogVerbosity::SetColor)
+	{
+		FLogMessageInternal& InternalMessage = Messages.PushBack();
+		InternalMessage.Time = Time;
+		InternalMessage.Spec = *FindSpec;
+		InternalMessage.Message = Session.StoreString(Message);
+		Session.UpdateDurationSeconds(Time);
+	}
+}
+
 uint64 FLogProvider::GetMessageCount() const
 {
 	Session.ReadAccessCheck();

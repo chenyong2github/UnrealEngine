@@ -37,6 +37,7 @@ struct FTimeMarkerTextInfo
 	FLinearColor Color;
 	FString Category; // truncated Category string
 	FString Message; // truncated Message string
+	uint64 LogIndex;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,6 +83,8 @@ public:
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+	virtual const TSharedPtr<const ITimingEvent> GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const override;
+	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 
 	double Snap(double Time, double SnapTolerance);
 
@@ -95,7 +98,7 @@ private:
 	void UpdateTrackNameAndHeight();
 	void UpdateDrawState(const ITimingTrackUpdateContext& Context);
 
-	void UpdateBookmarkCategory();
+	void UpdateCategory(const TraceServices::FLogCategoryInfo*& InOutCategory, const TCHAR* CategoryName);
 
 private:
 	TArray<FTimeMarkerBoxInfo> TimeMarkerBoxes;
@@ -103,6 +106,7 @@ private:
 
 	bool bUseOnlyBookmarks; // If true, uses only bookmarks; otherwise it uses all log messages.
 	const TraceServices::FLogCategoryInfo* BookmarkCategory;
+	const TraceServices::FLogCategoryInfo* ScreenshotCategory;
 
 	FTrackHeader Header;
 

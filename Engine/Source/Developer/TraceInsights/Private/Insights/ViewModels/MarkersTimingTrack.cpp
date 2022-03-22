@@ -5,15 +5,21 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Screenshot.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 #include <limits>
 
@@ -33,6 +39,7 @@ FMarkersTimingTrack::FMarkersTimingTrack()
 	//, TimeMarkerTexts()
 	, bUseOnlyBookmarks(true)
 	, BookmarkCategory(nullptr)
+	, ScreenshotCategory(nullptr)
 	, Header(*this)
 	, NumLogMessages(0)
 	, NumDrawBoxes(0)
@@ -61,6 +68,7 @@ void FMarkersTimingTrack::Reset()
 
 	bUseOnlyBookmarks = true;
 	BookmarkCategory = nullptr;
+	ScreenshotCategory = nullptr;
 
 	Header.Reset();
 	Header.SetIsInBackground(true);
@@ -99,7 +107,11 @@ void FMarkersTimingTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 {
 	if (!BookmarkCategory)
 	{
-		UpdateBookmarkCategory();
+		UpdateCategory(BookmarkCategory, TEXT("LogBookmark"));
+	}
+	if (!ScreenshotCategory)
+	{
+		UpdateCategory(ScreenshotCategory, TEXT("Screenshot"));
 	}
 }
 
@@ -364,9 +376,9 @@ double FMarkersTimingTrack::Snap(double Time, const double SnapTolerance)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMarkersTimingTrack::UpdateBookmarkCategory()
+void FMarkersTimingTrack::UpdateCategory(const TraceServices::FLogCategoryInfo*& InOutCategory, const TCHAR* CategoryName)
 {
-	BookmarkCategory = nullptr;
+	InOutCategory = nullptr;
 
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session)
@@ -374,14 +386,126 @@ void FMarkersTimingTrack::UpdateBookmarkCategory()
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const TraceServices::ILogProvider& LogProvider = TraceServices::ReadLogProvider(*Session.Get());
 
-		LogProvider.EnumerateCategories([this](const TraceServices::FLogCategoryInfo& Category)
+		LogProvider.EnumerateCategories([this, CategoryName, &InOutCategory](const TraceServices::FLogCategoryInfo& Category)
 		{
-			if (Category.Name && FCString::Strcmp(Category.Name, TEXT("LogBookmark")) == 0)
+			if (Category.Name && FCString::Strcmp(Category.Name, CategoryName) == 0)
 			{
-				BookmarkCategory = &Category;
+				InOutCategory = &Category;
 			}
 		});
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TSharedPtr<const ITimingEvent> FMarkersTimingTrack::GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const
+{
+	TSharedPtr<ITimingEvent> TimingEvent;
+
+	const FTimingViewLayout& Layout = Viewport.GetLayout();
+
+	const float DY = InPosY - GetPosY();
+
+	if (DY >= 0 && DY < GetHeight())
+	{
+		const int32 NumBoxes = TimeMarkerTexts.Num();
+		int32 FoundIndex = Algo::LowerBoundBy(TimeMarkerTexts, InPosX, [](const FTimeMarkerTextInfo& Text)
+		{
+			return Text.X;
+		});
+
+		if (FoundIndex > 0)
+		{
+			--FoundIndex;
+		}
+
+		if (FoundIndex < 0 || FoundIndex >= TimeMarkerTexts.Num())
+		{
+			return TimingEvent;
+		}
+
+		float Width = Viewport.GetWidth();
+		if (FoundIndex + 1 < TimeMarkerTexts.Num())
+		{
+			Width = TimeMarkerTexts[FoundIndex + 1].X;
+		}
+
+		uint16 ScreenshotId = std::numeric_limits<uint16>::max();
+
+		const FTimeMarkerTextInfo& Text = TimeMarkerTexts[FoundIndex];
+
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (!Session.IsValid())
+		{
+			return TimingEvent;
+		}
+
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ILogProvider& LogProvider = TraceServices::ReadLogProvider(*Session.Get());
+		LogProvider.ReadMessage(Text.LogIndex,
+			[&ScreenshotId, this](const TraceServices::FLogMessageInfo& Message)
+			{
+				if (Message.Category == this->ScreenshotCategory)
+				{
+					ScreenshotId = Message.Line;
+				}
+			});
+
+		if (ScreenshotId == std::numeric_limits<uint16>::max())
+		{
+			return TimingEvent;
+		}
+
+		TimingEvent = MakeShared<FTimingEvent>(SharedThis(this), Viewport.SlateUnitsToTime(Text.X), Viewport.SlateUnitsToTime(Text.X + Width), 0, ScreenshotId);
+	}
+
+	return TimingEvent;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMarkersTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
+{
+	InOutTooltip.ResetContent();
+	InOutTooltip.UpdateLayout();
+
+	if (!InTooltipEvent.CheckTrack(this))
+	{
+		return;
+	}
+
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (!Session.IsValid())
+	{
+		return;
+	}
+
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+	const FTimingEvent& Event = StaticCast<const FTimingEvent&>(InTooltipEvent);
+
+	const TraceServices::IScreenshotProvider& ScreenshotProvider = TraceServices::ReadScreenshotProvider(*Session.Get());
+	TSharedPtr<const TraceServices::FScreenshot> Screenshot = ScreenshotProvider.GetScreenshot((uint16)Event.GetType());
+
+	if (!Screenshot.IsValid())
+	{
+		return;
+	}
+
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+	if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(Screenshot->Data.GetData(), Screenshot->Data.Num()))
+	{
+		TArray<uint8> RawImage;
+		if (!ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawImage))
+		{
+			return;
+		}
+
+		TSharedPtr<FSlateBrush> ImageBrush = FSlateDynamicImageBrush::CreateWithImageData(FName(Screenshot->Name), FVector2D(Screenshot->Width, Screenshot->Height), RawImage);
+		InOutTooltip.SetImage(ImageBrush);
+	}
+
+	InOutTooltip.UpdateLayout();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -430,7 +554,7 @@ void FTimeMarkerTrackBuilder::AddLogMessage(const TraceServices::FLogMessageInfo
 	}
 
 	check(Message.Category != nullptr);
-	if (!Track.bUseOnlyBookmarks || Message.Category == Track.BookmarkCategory)
+	if (!Track.bUseOnlyBookmarks || Message.Category == Track.BookmarkCategory || Message.Category == Track.ScreenshotCategory)
 	{
 		float X = Viewport.TimeToSlateUnitsRounded(Message.Time);
 		if (X < 0.0f)
@@ -538,6 +662,7 @@ void FTimeMarkerTrackBuilder::Flush(float AvailableTextW)
 				FTimeMarkerTextInfo& TextInfo = Track.TimeMarkerTexts.AddDefaulted_GetRef();
 				TextInfo.X = LastX2 + 2.0f;
 				TextInfo.Color = Color;
+				TextInfo.LogIndex = LastLogIndex;
 				if (LastWholeCharacterIndexCategory >= 0)
 				{
 					TextInfo.Category.AppendChars(*CategoryStr, LastWholeCharacterIndexCategory + 1);

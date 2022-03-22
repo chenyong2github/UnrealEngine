@@ -55,6 +55,7 @@ void FTooltipDrawState::Reset()
 void FTooltipDrawState::ResetContent()
 {
 	Texts.Reset();
+	ImageBrush.Reset();
 
 	ValueOffsetX = 0.0f;
 	NewLineY = BorderY;
@@ -125,6 +126,12 @@ void FTooltipDrawState::AddTextLine(const float X, const float Y, const FString&
 
 void FTooltipDrawState::UpdateLayout()
 {
+	if (ImageBrush.IsValid())
+	{
+		DesiredSize = ImageBrush->GetImageSize();
+		return;
+	}
+
 	ValueOffsetX = 0.0f;
 	for (const FDrawTextInfo& TextInfo : Texts)
 	{
@@ -251,6 +258,13 @@ void FTooltipDrawState::Draw(const FDrawContext& DrawContext) const
 		// Draw border.
 		//DrawContext.DrawBox(Position.X, Position.Y, Size.X, Size.Y, BorderBrush, BorderColor.CopyWithNewOpacity(Opacity));
 		//DrawContext.LayerId++;
+
+		if (ImageBrush)
+		{
+			DrawContext.DrawBox(Position.X, Position.Y, DesiredSize.X, DesiredSize.Y, ImageBrush.Get(), FLinearColor::White);
+			DrawContext.LayerId++;
+			return;
+		}
 
 		// Draw cached texts.
 		for (const FDrawTextInfo& TextInfo : Texts)

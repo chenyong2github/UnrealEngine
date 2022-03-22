@@ -85,6 +85,8 @@ public:
 	void SetFontScale(float InFontScale) { FontScale = InFontScale; }
 	float GetFontScale() const { return FontScale; }
 
+	void SetImage(TSharedPtr<FSlateBrush> InImageBrush) { ImageBrush = InImageBrush; }
+
 private:
 	const FSlateBrush* WhiteBrush;
 	const FSlateFontInfo Font;
@@ -105,6 +107,7 @@ private:
 	float FontScale;
 
 	TArray<FDrawTextInfo> Texts;
+	TSharedPtr<FSlateBrush> ImageBrush;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

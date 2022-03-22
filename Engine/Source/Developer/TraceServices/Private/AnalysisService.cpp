@@ -19,6 +19,7 @@
 #include "Model/MemoryPrivate.h"
 #include "Model/Channel.h"
 #include "Model/DiagnosticsPrivate.h"
+#include "Model/ScreenshotProviderPrivate.h"
 
 namespace TraceServices
 {
@@ -240,7 +241,10 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(uint32 TraceI
 	FChannelProvider* ChannelProvider = new FChannelProvider();
 	Session->AddProvider(FChannelProvider::ProviderName, ChannelProvider);
 
-	Session->AddAnalyzer(new FMiscTraceAnalyzer(*Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider, *ChannelProvider));
+	FScreenshotProvider* ScreenshotProvider = new FScreenshotProvider(*Session);
+	Session->AddProvider(FScreenshotProvider::ProviderName, ScreenshotProvider);
+
+	Session->AddAnalyzer(new FMiscTraceAnalyzer(*Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider, *ChannelProvider, *ScreenshotProvider));
 	Session->AddAnalyzer(new FLogTraceAnalyzer(*Session, *LogProvider));
 
 	ModuleService.OnAnalysisBegin(*Session);
