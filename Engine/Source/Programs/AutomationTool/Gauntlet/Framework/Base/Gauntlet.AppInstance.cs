@@ -64,4 +64,38 @@ namespace Gauntlet
 	{
 		string UnfilteredStdOut { get; }
 	}
+
+
+
+	/// <summary>
+	/// Interface used by IAppInstance if they support Suspend/Resume
+	/// </summary>
+	public interface IWithPLMSuspend
+	{
+		/// <summary>
+		/// Attempt to suspend the running application. Correlates to FCoreDelegates::ApplicationWillEnterBackgroundDelegate
+		/// </summary>
+		bool Suspend();
+
+		/// <summary>
+		/// Attempts to resume a suspended application. Correlates to FCoreDelegates::ApplicationHasEnteredForegroundDelegate
+		/// </summary>
+		bool Resume();
+	}
+
+	/// <summary>
+	/// Interface used by IAppInstance if they support Constrain/Unconstrain
+	/// </summary>
+	public interface IWithPLMConstrain
+	{
+		/// <summary>
+		/// Attempts to contrain the running application. Correlates to FCoreDelegates::ApplicationWillDeactivateDelegate
+		/// </summary>
+		bool Constrain();
+
+		/// <summary>
+		/// Attempts to unconstained a constrained application. Correlates to FCoreDelegates::ApplicationHasReactivatedDelegate
+		/// </summary>
+		bool Unconstrain();
+	}
 }
