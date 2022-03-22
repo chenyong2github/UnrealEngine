@@ -584,7 +584,7 @@ namespace Chaos
 			const FSolverReal MaxImpulseTangent = FMath::Max(FSolverReal(0), DynamicFriction * (ManifoldPoint.NetImpulseNormal + ImpulseNormal + ManifoldPoint.NetPushOutNormal / Dt));
 			const FSolverReal MaxImpulseTangentSq = FMath::Square(MaxImpulseTangent);
 			const FSolverReal ImpulseTangentSq = FMath::Square(ImpulseTangentU) + FMath::Square(ImpulseTangentV);
-			if (ImpulseTangentSq > MaxImpulseTangentSq)
+			if (ImpulseTangentSq > (MaxImpulseTangentSq + SMALL_NUMBER))
 			{
 				const FSolverReal ImpulseTangentScale = MaxImpulseTangent * FMath::InvSqrt(ImpulseTangentSq);
 				ImpulseTangentU *= ImpulseTangentScale;
