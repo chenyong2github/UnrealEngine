@@ -196,16 +196,11 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 		FGraphPartitioner Partitioner( LevelClusters.Num() );
 
 		// Sort to force deterministic order
-		{
-			TArray< uint32 > SortedIndexes;
-			SortedIndexes.AddUninitialized( Partitioner.Indexes.Num() );
-			RadixSort32( SortedIndexes.GetData(), Partitioner.Indexes.GetData(), Partitioner.Indexes.Num(),
-				[&]( uint32 Index )
-				{
-					return LevelClusters[ Index ].GUID;
-				} );
-			Swap( Partitioner.Indexes, SortedIndexes );
-		}
+		Partitioner.Indexes.Sort(
+			[&LevelClusters](uint32 A, uint32 B)
+			{
+				return LevelClusters[A].GUID < LevelClusters[B].GUID;
+			} );
 
 		auto GetCenter = [&]( uint32 Index )
 		{
@@ -264,6 +259,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 
 		LevelOffset = Clusters.Num();
 
+		const uint32 ParentsStartOffset = Clusters.Num();
 		Clusters.AddDefaulted( MaxParents );
 		Groups.AddDefaulted( Partitioner.Ranges.Num() );
 
@@ -288,6 +284,25 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 
 		// Correct num to atomic count
 		Clusters.SetNum( NumClusters, false );
+
+		// Force a deterministic order of the generated parent clusters
+		{
+			// TODO: Optimize me.
+			// Just sorting the array directly seems like the safest option at this stage (right before UE5 final build).
+			// On AOD_Shield this seems to be on the order of 0.01s in practice.
+			// As the Clusters array is already conservatively allocated, it seems storing the parent clusters in their designated
+			// conservative ranges and then doing a compaction pass at the end would be a more efficient solution that doesn't involve sorting.
+			
+			//uint32 StartTime = FPlatformTime::Cycles();
+			TArrayView< FCluster > Parents( Clusters.GetData() + ParentsStartOffset, NumClusters - ParentsStartOffset );
+			Parents.Sort(
+				[&]( const FCluster& A, const FCluster& B )
+				{
+					return A.GUID < B.GUID;
+				} );
+			//UE_LOG(LogStaticMesh, Log, TEXT("SortTime Adjacency [%.2fs]"), FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - StartTime) / 1000.0f);
+		}
+		
 	}
 	
 	// Max out root node

@@ -212,11 +212,8 @@ static void BuildCoarseRepresentation(
 			Vertex.UVs[UVIndex] = UVs[UVIndex].ContainsNaN() ? FVector2f::ZeroVector : UVs[UVIndex];
 		}
 
-		if (CoarseRepresentation.bHasColors)
-		{
-			Vertex.Color = CoarseRepresentation.GetColor(Iter).ToFColor(false /* sRGB */);
-		}
-
+		Vertex.Color = CoarseRepresentation.bHasColors ? CoarseRepresentation.GetColor(Iter).ToFColor(false /* sRGB */) : FColor::White;
+		
 		Verts.Add(Vertex);
 	}
 
@@ -338,11 +335,21 @@ static void ClusterTriangles(
 	{
 		if( Adjacency.Direct[ EdgeIndex ] == -2 )
 		{
+			// EdgeHash is built in parallel, so we need to sort before use to ensure determinism.
+			// This path is only executed in the rare event that an edge is shared by more than two triangles,
+			// so performance impact should be negligible in practice.
+			TArray< TPair< int32, int32 >, TInlineAllocator< 16 > > Edges;
 			EdgeHash.ForAllMatching( EdgeIndex, false, GetPosition,
 				[&]( int32 EdgeIndex0, int32 EdgeIndex1 )
 				{
-					Adjacency.Link( EdgeIndex0, EdgeIndex1 );
+					Edges.Emplace( EdgeIndex0, EdgeIndex1 );
 				} );
+			Edges.Sort();	
+			
+			for( const TPair< int32, int32 >& Edge : Edges )
+			{
+				Adjacency.Link( Edge.Key, Edge.Value );
+			}
 		}
 
 		Adjacency.ForAll( EdgeIndex,

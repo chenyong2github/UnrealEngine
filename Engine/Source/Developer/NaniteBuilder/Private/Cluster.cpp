@@ -31,7 +31,7 @@ FCluster::FCluster(
 	uint32 InNumTexCoords, bool bInHasColors,
 	uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency )
 {
-	GUID = Murmur32( { TriBegin, TriEnd } );
+	GUID = (uint64(TriBegin) << 32) | TriEnd;
 	
 	NumTris = TriEnd - TriBegin;
 	//ensure(NumTriangles <= FCluster::ClusterSize);
@@ -118,7 +118,7 @@ FCluster::FCluster(
 FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency )
 	: MipLevel( SrcCluster.MipLevel )
 {
-	GUID = Murmur32( { SrcCluster.GUID, TriBegin, TriEnd } );
+	GUID = MurmurFinalize64(SrcCluster.GUID) ^ ((uint64(TriBegin) << 32) | TriEnd);
 
 	NumTexCoords = SrcCluster.NumTexCoords;
 	bHasColors   = SrcCluster.bHasColors;
@@ -214,6 +214,8 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& Merge
 			const int32 MaterialIndex = Child->MaterialIndexes[i];
 			MaterialIndexes.Add( MaterialIndex );
 		}
+
+		GUID = MurmurFinalize64(GUID) ^ Child->GUID;
 	}
 
 	FAdjacency Adjacency = BuildAdjacency();
