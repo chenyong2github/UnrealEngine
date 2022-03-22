@@ -593,6 +593,9 @@ private:
 	// Verifies the target function meets the criteria for a replication notify callback
 	void VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
+	// Verifies the target property meets the criteria for Getter/Setter accessor
+	void VerifyGetterSetterAccessorProperties(const FUnrealClassDefinitionInfo& TargetClassDef, FUnrealPropertyDefinitionInfo& PropertyDef);
+
 	// Vefifies the target property meets the criteria for FieldNotify
 	void VerifyNotifyValueChangedProperties(FUnrealPropertyDefinitionInfo& PropertyDef);
 
