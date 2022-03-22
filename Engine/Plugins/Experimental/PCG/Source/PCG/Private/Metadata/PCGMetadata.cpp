@@ -109,13 +109,14 @@ FPCGMetadataAttributeBase* UPCGMetadata::CreateAttribute(FName AttributeName, co
 		ParentAttribute = Parent->GetConstAttribute(AttributeName);
 	}
 
-	FPCGMetadataAttribute<T>* NewAttribute = new FPCGMetadataAttribute<T>(this, AttributeName, ParentAttribute, DefaultValue, bAllowsInterpolation);
+	FPCGMetadataAttributeBase* NewAttribute = new FPCGMetadataAttribute<T>(this, AttributeName, ParentAttribute, DefaultValue, bAllowsInterpolation);
 
 	AttributeLock.WriteLock();
-	if (Attributes.Find(AttributeName))
+	if (FPCGMetadataAttributeBase** ExistingAttribute = Attributes.Find(AttributeName))
 	{
 		UE_LOG(LogPCG, Warning, TEXT("Attribute %s already exists"), *AttributeName.ToString());
 		delete NewAttribute;
+		NewAttribute = *ExistingAttribute;
 	}
 	else
 	{
