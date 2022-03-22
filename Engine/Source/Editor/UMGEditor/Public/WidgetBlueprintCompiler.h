@@ -81,6 +81,14 @@ protected:
 public:
 	void AddExtension(UWidgetBlueprintGeneratedClass* Class, UWidgetBlueprintGeneratedClassExtension* Extension);
 
+	struct UMGEDITOR_API FCreateVariableContext
+	{
+		FCreateVariableContext(FWidgetBlueprintCompilerContext& InContext);
+		FProperty* CreateVariable(const FName Name, const FEdGraphPinType& Type) const;
+	private:
+		FWidgetBlueprintCompilerContext& Context;
+	};
+
 protected:
 	void FixAbandonedWidgetTree(UWidgetBlueprint* WidgetBP);
 

@@ -32,7 +32,20 @@
 
 extern COREUOBJECT_API bool GMinimalCompileOnLoad;
 
+//////////////////////////////////////////////////////////////////////////
+// FWidgetBlueprintCompiler::FCreateVariableContext
+FWidgetBlueprintCompilerContext::FCreateVariableContext::FCreateVariableContext(FWidgetBlueprintCompilerContext& InContext)
+	: Context(InContext)
+{}
 
+FProperty* FWidgetBlueprintCompilerContext::FCreateVariableContext::CreateVariable(const FName Name, const FEdGraphPinType& Type) const
+{
+	return Context.CreateVariable(Name, Type);
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FWidgetBlueprintCompiler
 FWidgetBlueprintCompiler::FWidgetBlueprintCompiler()
 	: ReRegister(nullptr)
 	, CompileCount(0)
@@ -504,7 +517,7 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 			// Only show variables if they're explicitly marked as variables.
 			if ( Widget->bIsVariable )
 			{
-				WidgetProperty->SetPropertyFlags(CPF_BlueprintVisible);
+				WidgetProperty->SetPropertyFlags(CPF_BlueprintVisible | CPF_BlueprintReadOnly | CPF_DisableEditOnInstance);
 
 				const FString& CategoryName = Widget->GetCategoryName();
 				
@@ -550,9 +563,10 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		}
 	}
 
-	UWidgetBlueprintExtension::ForEachExtension(WidgetBlueprint(), [](UWidgetBlueprintExtension* InExtension)
+	FWidgetBlueprintCompilerContext* Self = this;
+	UWidgetBlueprintExtension::ForEachExtension(WidgetBlueprint(), [Self](UWidgetBlueprintExtension* InExtension)
 		{
-			InExtension->CreateClassVariablesFromBlueprint();
+			InExtension->CreateClassVariablesFromBlueprint(FCreateVariableContext(*Self));
 		});
 
 	//Add FieldNotifyNames
@@ -632,9 +646,9 @@ void FWidgetBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* D
 		}
 	}
 
-	UWidgetBlueprintExtension::ForEachExtension(WidgetBlueprint(), [](UWidgetBlueprintExtension* InExtension)
+	UWidgetBlueprintExtension::ForEachExtension(WidgetBlueprint(), [DefaultObject](UWidgetBlueprintExtension* InExtension)
 		{
-			InExtension->CreateClassVariablesFromBlueprint();
+			InExtension->CopyTermDefaultsToDefaultObject(DefaultObject);
 		});
 }
 

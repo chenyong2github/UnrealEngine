@@ -6,15 +6,15 @@
 #include "UObject/ObjectMacros.h"
 #include "Blueprint/BlueprintExtension.h"
 #include "WidgetBlueprint.h"
+#include "WidgetBlueprintCompiler.h"
 
 class FSubobjectCollection;
-class FWidgetBlueprintCompilerContext;
 class UWidgetBlueprintGeneratedClass;
 
 #include "WidgetBlueprintExtension.generated.h"
 
 /** Extension that allows per-system data to be held on the widget blueprint, and per-system logic to be executed during compilation */
-UCLASS()
+UCLASS(Within=WidgetBlueprint)
 class UMGEDITOR_API UWidgetBlueprintExtension : public UBlueprintExtension
 {
 	GENERATED_BODY()
@@ -74,7 +74,7 @@ protected:
 
 	virtual void HandleCreateFunctionList() {}
 	virtual void HandleCleanAndSanitizeClass(UWidgetBlueprintGeneratedClass* ClassToClean, UObject* OldCDO) {}
-	virtual void HandleCreateClassVariablesFromBlueprint() {}
+	virtual void HandleCreateClassVariablesFromBlueprint(const FWidgetBlueprintCompilerContext::FCreateVariableContext& Context) {}
 	virtual void HandleCopyTermDefaultsToDefaultObject(UObject* DefaultObject) {}
 	virtual void HandleFinishCompilingClass(UWidgetBlueprintGeneratedClass* Class) {}
 	virtual bool HandleValidateGeneratedClass(UWidgetBlueprintGeneratedClass* Class) { return true; }
@@ -104,9 +104,9 @@ private:
 		HandleCleanAndSanitizeClass(ClassToClean, OldCDO);
 	}
 
-	void CreateClassVariablesFromBlueprint()
+	void CreateClassVariablesFromBlueprint(const FWidgetBlueprintCompilerContext::FCreateVariableContext& Context)
 	{
-		HandleCreateClassVariablesFromBlueprint();
+		HandleCreateClassVariablesFromBlueprint(Context);
 	}
 
 	void CopyTermDefaultsToDefaultObject(UObject* DefaultObject)

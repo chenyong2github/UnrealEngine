@@ -35,7 +35,7 @@ void FCustomizationHelper::CustomizeVariableDetails(IDetailLayoutBuilder& Detail
 		{
 			UPropertyWrapper* PropertyWrapper = Cast<UPropertyWrapper>(Obj.Get());
 			FProperty* PropertyBeingCustomized = PropertyWrapper ? PropertyWrapper->GetProperty() : nullptr;
-			if (PropertyBeingCustomized)
+			if (PropertyBeingCustomized && !PropertyBeingCustomized->HasAnyPropertyFlags(CPF_BlueprintReadOnly))
 			{
 				PropertiesBeingCustomized.Emplace(PropertyBeingCustomized);
 

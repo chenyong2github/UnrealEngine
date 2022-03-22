@@ -56,5 +56,5 @@ TArray<UWidgetBlueprintExtension*> UWidgetBlueprintExtension::GetExtensions(cons
 
 UWidgetBlueprint* UWidgetBlueprintExtension::GetWidgetBlueprint() const
 {
-	return CastChecked<UWidgetBlueprint>(GetOuter());
+	return GetOuterUWidgetBlueprint();
 }
