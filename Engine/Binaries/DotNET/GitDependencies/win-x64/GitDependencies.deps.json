@@ -129,6 +129,10 @@
             "assemblyVersion": "4.2.2.0",
             "fileVersion": "4.700.20.47203"
           },
+          "System.Runtime.InteropServices.RuntimeInformation.dll": {
+            "assemblyVersion": "4.0.4.0",
+            "fileVersion": "4.700.20.47203"
+          },
           "System.Runtime.Numerics.dll": {
             "assemblyVersion": "4.1.2.0",
             "fileVersion": "4.700.20.47203"

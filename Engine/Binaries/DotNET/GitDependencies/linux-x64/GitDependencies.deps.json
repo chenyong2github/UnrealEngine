@@ -9,165 +9,169 @@
     ".NETCoreApp,Version=v3.1/linux-x64": {
       "GitDependencies/1.0.0": {
         "dependencies": {
-          "runtimepack.Microsoft.NETCore.App.Runtime.linux-x64": "3.1.21"
+          "runtimepack.Microsoft.NETCore.App.Runtime.linux-x64": "3.1.9"
         },
         "runtime": {
           "GitDependencies.dll": {}
         }
       },
-      "runtimepack.Microsoft.NETCore.App.Runtime.linux-x64/3.1.21": {
+      "runtimepack.Microsoft.NETCore.App.Runtime.linux-x64/3.1.9": {
         "runtime": {
           "Microsoft.Win32.Primitives.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Collections.Concurrent.dll": {
             "assemblyVersion": "4.0.15.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Collections.NonGeneric.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Collections.Specialized.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Collections.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Console.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Diagnostics.DiagnosticSource.dll": {
             "assemblyVersion": "4.0.5.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Diagnostics.Tools.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Diagnostics.TraceSource.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.IO.Compression.Brotli.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.IO.Compression.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.IO.FileSystem.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Linq.Expressions.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Linq.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.Http.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.NameResolution.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.NetworkInformation.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.Primitives.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.Requests.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.Security.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.ServicePoint.dll": {
             "assemblyVersion": "4.0.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.Sockets.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.WebHeaderCollection.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Net.WebProxy.dll": {
             "assemblyVersion": "4.0.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.ObjectModel.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Private.Uri.dll": {
             "assemblyVersion": "4.0.6.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Private.Xml.dll": {
             "assemblyVersion": "4.0.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Runtime.Extensions.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
+          },
+          "System.Runtime.InteropServices.RuntimeInformation.dll": {
+            "assemblyVersion": "4.0.4.0",
+            "fileVersion": "4.700.20.47203"
           },
           "System.Runtime.Numerics.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Runtime.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Security.Cryptography.Algorithms.dll": {
             "assemblyVersion": "4.3.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Security.Cryptography.Csp.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Security.Cryptography.Encoding.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Security.Cryptography.OpenSsl.dll": {
             "assemblyVersion": "4.1.3.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Security.Cryptography.Primitives.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Security.Cryptography.X509Certificates.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Security.Principal.dll": {
             "assemblyVersion": "4.1.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           },
           "System.Text.RegularExpressions.dll": {
             "assemblyVersion": "4.2.2.0",
-            "fileVersion": "4.700.21.51508"
+            "fileVersion": "4.700.20.47203"
           }
         },
         "native": {
@@ -203,7 +207,7 @@
           },
           "System.Private.CoreLib.dll": {
             "assemblyVersion": "4.0.0.0",
-            "fileVersion": "4.700.21.51404"
+            "fileVersion": "4.700.20.47201"
           },
           "System.Security.Cryptography.Native.OpenSsl.a": {
             "fileVersion": "0.0.0.0"
@@ -248,7 +252,7 @@
       "serviceable": false,
       "sha512": ""
     },
-    "runtimepack.Microsoft.NETCore.App.Runtime.linux-x64/3.1.21": {
+    "runtimepack.Microsoft.NETCore.App.Runtime.linux-x64/3.1.9": {
       "type": "runtimepack",
       "serviceable": false,
       "sha512": ""
@@ -311,62 +315,6 @@
       "base"
     ],
     "alpine.3.12-x64": [
-      "alpine.3.12",
-      "alpine.3.11-x64",
-      "alpine.3.11",
-      "alpine.3.10-x64",
-      "alpine.3.10",
-      "alpine.3.9-x64",
-      "alpine.3.9",
-      "alpine.3.8-x64",
-      "alpine.3.8",
-      "alpine.3.7-x64",
-      "alpine.3.7",
-      "alpine.3.6-x64",
-      "alpine.3.6",
-      "alpine-x64",
-      "alpine",
-      "linux-musl-x64",
-      "linux-musl",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
-    "alpine.3.13-x64": [
-      "alpine.3.13",
-      "alpine.3.12-x64",
-      "alpine.3.12",
-      "alpine.3.11-x64",
-      "alpine.3.11",
-      "alpine.3.10-x64",
-      "alpine.3.10",
-      "alpine.3.9-x64",
-      "alpine.3.9",
-      "alpine.3.8-x64",
-      "alpine.3.8",
-      "alpine.3.7-x64",
-      "alpine.3.7",
-      "alpine.3.6-x64",
-      "alpine.3.6",
-      "alpine-x64",
-      "alpine",
-      "linux-musl-x64",
-      "linux-musl",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
-    "alpine.3.14-x64": [
-      "alpine.3.14",
-      "alpine.3.13-x64",
-      "alpine.3.13",
-      "alpine.3.12-x64",
       "alpine.3.12",
       "alpine.3.11-x64",
       "alpine.3.11",
@@ -496,21 +444,6 @@
       "any",
       "base"
     ],
-    "centos.9-x64": [
-      "centos.9",
-      "centos-x64",
-      "rhel.9-x64",
-      "centos",
-      "rhel.9",
-      "rhel-x64",
-      "rhel",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
     "debian-x64": [
       "debian",
       "linux-x64",
@@ -522,17 +455,6 @@
     ],
     "debian.10-x64": [
       "debian.10",
-      "debian-x64",
-      "debian",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
-    "debian.11-x64": [
-      "debian.11",
       "debian-x64",
       "debian",
       "linux-x64",
@@ -557,15 +479,6 @@
       "debian.9",
       "debian-x64",
       "debian",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
-    "exherbo-x64": [
-      "exherbo",
       "linux-x64",
       "linux",
       "unix-x64",
@@ -694,39 +607,6 @@
     ],
     "fedora.33-x64": [
       "fedora.33",
-      "fedora-x64",
-      "fedora",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
-    "fedora.34-x64": [
-      "fedora.34",
-      "fedora-x64",
-      "fedora",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
-    "fedora.35-x64": [
-      "fedora.35",
-      "fedora-x64",
-      "fedora",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
-    "fedora.36-x64": [
-      "fedora.36",
       "fedora-x64",
       "fedora",
       "linux-x64",
@@ -1502,17 +1382,6 @@
       "rhel.8.0",
       "rhel.8-x64",
       "rhel.8",
-      "rhel-x64",
-      "rhel",
-      "linux-x64",
-      "linux",
-      "unix-x64",
-      "unix",
-      "any",
-      "base"
-    ],
-    "rhel.9-x64": [
-      "rhel.9",
       "rhel-x64",
       "rhel",
       "linux-x64",
