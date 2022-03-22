@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/PhysicsFiltering.h"
+#include "CollisionQueryParams.h"
 
 
 //////////////////////////////////////////////////////////////////////////

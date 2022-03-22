@@ -31,6 +31,24 @@ FDelegateHandle FChaosVehicleManager::OnWorldCleanupHandle;
 bool FChaosVehicleManager::GInitialized = false;
 #endif
 
+void OnPostWorldInitialize(UWorld* InWorld, const UWorld::InitializationValues)
+{
+	FChaosVehicleManager* Manager = FChaosVehicleManager::GetVehicleManagerFromScene(InWorld->GetPhysicsScene());
+	if(Manager)
+	{
+		Manager->RegisterCallbacks();
+	}
+}
+
+void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
+{
+	FChaosVehicleManager* Manager = FChaosVehicleManager::GetVehicleManagerFromScene(InWorld->GetPhysicsScene());
+	if(Manager)
+	{
+		Manager->UnregisterCallbacks();
+	}
+}
+
 FChaosVehicleManager::FChaosVehicleManager(FPhysScene* PhysScene)
 #if WITH_CHAOS
 	: Scene(*PhysScene)
@@ -48,8 +66,8 @@ FChaosVehicleManager::FChaosVehicleManager(FPhysScene* PhysScene)
 		// PhysScene->GetOwningWorld() is always null here, the world is being setup too late to be of use
 		// therefore setup these global world delegates that will callback when everything is setup so registering
 		// the physics solver Async Callback will succeed
-		OnPostWorldInitializationHandle = FWorldDelegates::OnPostWorldInitialization.AddStatic(&FChaosVehicleManager::OnPostWorldInitialization);
-		OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddStatic(&FChaosVehicleManager::OnWorldCleanup);
+		OnPostWorldInitializationHandle = FWorldDelegates::OnPostWorldInitialization.AddStatic(&OnPostWorldInitialize);
+		OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddStatic(&OnWorldCleanup);
 	}
 
 	ensure(FChaosVehicleManager::SceneToVehicleManagerMap.Find(PhysScene) == nullptr);	//double registration with same scene, will cause a leak
@@ -83,25 +101,6 @@ void FChaosVehicleManager::UnregisterCallbacks()
 		AsyncCallback = nullptr;
 	}
 #endif
-}
-
-void FChaosVehicleManager::OnPostWorldInitialization(UWorld* InWorld, const UWorld::InitializationValues)
-{
-	FChaosVehicleManager* Manager = FChaosVehicleManager::GetVehicleManagerFromScene(InWorld->GetPhysicsScene());
-	if (Manager)
-	{
-		Manager->RegisterCallbacks();
-	}
-}
-
-
-void FChaosVehicleManager::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
-{
-	FChaosVehicleManager* Manager = FChaosVehicleManager::GetVehicleManagerFromScene(InWorld->GetPhysicsScene());
-	if (Manager)
-	{
-		Manager->UnregisterCallbacks();
-	}
 }
 
 void FChaosVehicleManager::DetachFromPhysScene(FPhysScene* PhysScene)

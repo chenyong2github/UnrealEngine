@@ -16,6 +16,7 @@
 #include "SnapshotData.h"
 #include "DeferredForces.h"
 #include "ChaosVehicleManagerAsyncCallback.h"
+#include "CollisionQueryParams.h"
 
 #include "ChaosVehicleMovementComponent.generated.h"
 

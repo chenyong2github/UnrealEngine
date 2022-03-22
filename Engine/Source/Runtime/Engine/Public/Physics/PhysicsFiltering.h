@@ -7,6 +7,7 @@
 #include "PhysicsPublic.h"
 #include "PhysXIncludes.h"
 #include "Physics/PhysicsInterfaceTypes.h"
+#include "Chaos/ChaosEngineInterface.h"
 
 /** 
  * Set of flags stored in the PhysX FilterData

@@ -12,7 +12,7 @@
 
 class UChaosTireConfig;
 class UChaosVehicleMovementComponent;
-
+class FChaosScene;
 
 class CHAOSVEHICLES_API FChaosVehicleManager
 {
@@ -23,9 +23,6 @@ public:
 
 	FChaosVehicleManager(FPhysScene* PhysScene);
 	~FChaosVehicleManager();
-
-	static void OnPostWorldInitialization(UWorld* InWorld, const UWorld::InitializationValues);
-	static void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
 
 #if WITH_CHAOS
 	/** Get Physics Scene */

@@ -9,6 +9,8 @@
 #include "ChaosSolversModule.h"
 #include "Components/BillboardComponent.h"
 #include "PBDRigidsSolver.h"
+#include "Features/IModularFeatures.h"
+#include "Algo/Find.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
