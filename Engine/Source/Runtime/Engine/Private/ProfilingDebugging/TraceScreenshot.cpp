@@ -87,7 +87,7 @@ void FTraceScreenshot::HandleScreenshotData(int32 InSizeX, int32 InSizeY, const 
 	TArray64<uint8> CompressedBitmap;
 	FImageUtils::PNGCompressImageArray(ResizedX, ResizedY, TArrayView64<const FColor>(ResizedImage.GetData(), ResizedImage.Num()), CompressedBitmap);
 
-	FMiscTrace::OutputScreenshot(*ScreenshotName, Cycles, ResizedX, ResizedY, CompressedBitmap);
+	TRACE_SCREENSHOT(*ScreenshotName, Cycles, ResizedX, ResizedY, CompressedBitmap);
 	ScreenshotName.Empty();
 }
 

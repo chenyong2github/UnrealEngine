@@ -82,10 +82,14 @@ private:
 #define TRACE_END_FRAME(FrameType) \
 	FMiscTrace::OutputEndFrame(FrameType);
 
+#define TRACE_SCREENSHOT(Name, Cycle, Width, Height, Data) \
+	FMiscTrace::OutputScreenshot(Name, Cycle, Width, Height, Data);
+
 #else
 
 #define TRACE_BOOKMARK(...)
 #define TRACE_BEGIN_FRAME(...)
 #define TRACE_END_FRAME(...)
+#define TRACE_SCREENSHOT(...)
 
 #endif
