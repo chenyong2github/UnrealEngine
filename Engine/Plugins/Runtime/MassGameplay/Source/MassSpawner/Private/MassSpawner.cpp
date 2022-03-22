@@ -17,6 +17,9 @@
 #include "Engine/AssetManager.h"
 #include "MassSpawnLocationProcessor.h"
 #include "MassExecutor.h"
+#if WITH_EDITOR
+#include "Engine/Texture2D.h"
+#endif
 
 
 namespace UE::MassSpawner
