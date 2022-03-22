@@ -1723,6 +1723,10 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 					VirtualShadowMapArray.CreateMipViews( VirtualShadowViews );
 
 					Nanite::FRasterState RasterState;
+					if (bShouldClampToNearPlane)
+					{
+						RasterState.bNearClip = false;
+					}
 
 					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 					CullingConfig.bUpdateStreaming			= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;

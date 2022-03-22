@@ -476,11 +476,12 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 	DECLARE_GLOBAL_SHADER( FInstanceCullVSM_CS );
 	SHADER_USE_PARAMETER_STRUCT( FInstanceCullVSM_CS, FNaniteGlobalShader);
 
+	class FNearClipDim : SHADER_PERMUTATION_BOOL( "NEAR_CLIP" );
 	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
 	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN);
 
-	using FPermutationDomain = TShaderPermutationDomain<FPrimitiveFilterDim, FDebugFlagsDim, FCullingPassDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FNearClipDim, FPrimitiveFilterDim, FDebugFlagsDim, FCullingPassDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1584,6 +1585,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCullVSM_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCullVSM_CS::FCullingPassDim>(CullingPass);
+		PermutationVector.Set<FInstanceCullVSM_CS::FNearClipDim>(RasterState.bNearClip);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCullVSM_CS>(PermutationVector);
 
