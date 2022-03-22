@@ -415,7 +415,18 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			change.forceStompChanges = true
 		}
 		change.additionalDescriptionText = fromQueue.description
-		change.commandOverride = fromQueue.commandOverride
+		if (fromQueue.commandOverride) {
+			change.commandOverride = fromQueue.commandOverride
+		}
+		// regular reconsiders, make sure edge target is included
+		else if (specifiedTargetBranch && !change.forceCreateAShelf && !change.forceStompChanges) {
+			// new behaviour: make target explicit
+			const bg = this.branchGraph
+			
+			const botNameOrAlias = bg.config.aliases.length > 0 ? bg.config.aliases[0] : bg.botname
+			change.commandOverride = `#robomerge[${botNameOrAlias}] ${specifiedTargetBranch.upperName}`
+			change.accumulateCommandOverride = true
+		}
 
 		// process just this change
 		await this._processAndMergeCl(new Map<string, EdgeBot>(this.edges), change, true, fromQueue.who, fromQueue.workspace, specifiedTargetBranch)
@@ -1569,7 +1580,14 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		const commandOverride = (change.commandOverride || '').trim()
 		if (commandOverride) {
-			parsedLines.override(parse(commandOverride.split('|').map(s => s.trim())))
+
+			const parsedOverride = parse(commandOverride.split('|').map(s => s.trim()))
+			if (change.accumulateCommandOverride) {
+				parsedLines.append(parsedOverride)
+			}
+			else {
+				parsedLines.override(parsedOverride)
+			}
 		}
 
 		// Author is always CL user

@@ -199,6 +199,15 @@ export class DescriptionParser {
 		this.errors = other.errors
 	}
 
+	append(other: DescriptionParser) {
+		// ignore default flow here
+		this.arguments = [...this.arguments, ...other.arguments]
+		this.expandedMacros = [...this.expandedMacros, ...other.expandedMacros]
+		this.otherBotArguments = [...this.otherBotArguments, ...other.otherBotArguments]
+
+		this.errors = [...this.errors, ...other.errors]
+	}
+
 	private processNonRoboToken(token: Token_Other) {
 		if (token.isRobo) {
 			if (ROBO_TAGS.indexOf(token.tag) >= 0) {

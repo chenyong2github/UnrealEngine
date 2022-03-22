@@ -227,6 +227,7 @@ export interface Change {
 	forceCreateAShelf?: boolean
 	sendNoShelfEmail?: boolean // Used for requesting stomps for internal RM usage, such as stomp changes
 	commandOverride?: string
+	accumulateCommandOverride?: boolean
 
 	// Stomp Changes support
 	forceStompChanges?: boolean
