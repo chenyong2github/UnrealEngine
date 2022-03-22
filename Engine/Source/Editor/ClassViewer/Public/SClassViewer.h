@@ -66,6 +66,9 @@ public:
 	/** Sends a requests to the Class Viewer to refresh itself the next chance it gets */
 	CLASSVIEWER_API void Refresh();
 
+	/** Requests a repopulation of the internal Class Hierarchy database */
+	CLASSVIEWER_API static void RequestPopulateClassHierarchy();
+
 	/** Destroys the internal Class Hierarchy database */
 	static void DestroyClassHierarchy();
 private:

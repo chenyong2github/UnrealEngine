@@ -2569,6 +2569,11 @@ bool SClassViewer::SupportsKeyboardFocus() const
 	return true;
 }
 
+void SClassViewer::RequestPopulateClassHierarchy()
+{
+	ClassViewer::Helpers::RequestPopulateClassHierarchy();
+}
+
 void SClassViewer::DestroyClassHierarchy()
 {
 	ClassViewer::Helpers::DestroyClassHierachy();
