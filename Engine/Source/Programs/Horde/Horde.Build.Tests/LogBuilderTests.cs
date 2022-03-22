@@ -7,7 +7,6 @@ using Horde.Build.Models;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -23,79 +22,79 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task TestLocalLogBuilder()
 		{
-			ILogBuilder Builder = new LocalLogBuilder();
-			await TestBuilder(Builder);
+			ILogBuilder builder = new LocalLogBuilder();
+			await TestBuilder(builder);
 		}
 
 		[TestMethod]
 		public async Task TestRedisLogBuilder()
 		{
-			ILogBuilder Builder = new RedisLogBuilder(GetRedisConnectionPool(), NullLogger.Instance);
-			await TestBuilder(Builder);
+			ILogBuilder builder = new RedisLogBuilder(GetRedisConnectionPool(), NullLogger.Instance);
+			await TestBuilder(builder);
 		}
 
-		public async Task TestBuilder(ILogBuilder Builder)
+		public static async Task TestBuilder(ILogBuilder builder)
 		{
-			LogId LogId = LogId.GenerateNewId();
+			LogId logId = LogId.GenerateNewId();
 
 			const long Offset = 100;
-			Assert.IsTrue(await Builder.AppendAsync(LogId, Offset, Offset, 0, 1, Encoding.UTF8.GetBytes("hello\n"), LogType.Text));
+			Assert.IsTrue(await builder.AppendAsync(logId, Offset, Offset, 0, 1, Encoding.UTF8.GetBytes("hello\n"), LogType.Text));
 
-			LogChunkData? Chunk1 = await Builder.GetChunkAsync(LogId, Offset, 0);
-			Assert.IsNotNull(Chunk1);
-			Assert.AreEqual(1, Chunk1!.LineCount);
-			Assert.AreEqual(6, Chunk1!.Length);
-			Assert.AreEqual(1, Chunk1!.SubChunks.Count);
-			Assert.AreEqual(1, Chunk1!.SubChunks[0].LineCount);
-			Assert.AreEqual(6, Chunk1!.SubChunks[0].Length);
+			LogChunkData? chunk1 = await builder.GetChunkAsync(logId, Offset, 0);
+			Assert.IsNotNull(chunk1);
+			Assert.AreEqual(1, chunk1!.LineCount);
+			Assert.AreEqual(6, chunk1!.Length);
+			Assert.AreEqual(1, chunk1!.SubChunks.Count);
+			Assert.AreEqual(1, chunk1!.SubChunks[0].LineCount);
+			Assert.AreEqual(6, chunk1!.SubChunks[0].Length);
 
-			Assert.IsTrue(await Builder.AppendAsync(LogId, Offset, Offset + 6, 1, 1, Encoding.UTF8.GetBytes("world\n"), LogType.Text));
+			Assert.IsTrue(await builder.AppendAsync(logId, Offset, Offset + 6, 1, 1, Encoding.UTF8.GetBytes("world\n"), LogType.Text));
 
-			LogChunkData? Chunk2 = await Builder.GetChunkAsync(LogId, Offset, 1);
-			Assert.IsNotNull(Chunk2);
-			Assert.AreEqual(2, Chunk2!.LineCount);
-			Assert.AreEqual(12, Chunk2!.Length);
-			Assert.AreEqual(1, Chunk2!.SubChunks.Count);
-			Assert.AreEqual(2, Chunk2!.SubChunks[0].LineCount);
-			Assert.AreEqual(12, Chunk2!.SubChunks[0].Length);
+			LogChunkData? chunk2 = await builder.GetChunkAsync(logId, Offset, 1);
+			Assert.IsNotNull(chunk2);
+			Assert.AreEqual(2, chunk2!.LineCount);
+			Assert.AreEqual(12, chunk2!.Length);
+			Assert.AreEqual(1, chunk2!.SubChunks.Count);
+			Assert.AreEqual(2, chunk2!.SubChunks[0].LineCount);
+			Assert.AreEqual(12, chunk2!.SubChunks[0].Length);
 
-			await Builder.CompleteSubChunkAsync(LogId, Offset);
-			Assert.IsTrue(await Builder.AppendAsync(LogId, Offset, Offset + 12, 2, 1, Encoding.UTF8.GetBytes("foo\n"), LogType.Text));
-			Assert.IsTrue(await Builder.AppendAsync(LogId, Offset, Offset + 16, 3, 2, Encoding.UTF8.GetBytes("bar\nbaz\n"), LogType.Text));
-			await Builder.CompleteSubChunkAsync(LogId, Offset);
+			await builder.CompleteSubChunkAsync(logId, Offset);
+			Assert.IsTrue(await builder.AppendAsync(logId, Offset, Offset + 12, 2, 1, Encoding.UTF8.GetBytes("foo\n"), LogType.Text));
+			Assert.IsTrue(await builder.AppendAsync(logId, Offset, Offset + 16, 3, 2, Encoding.UTF8.GetBytes("bar\nbaz\n"), LogType.Text));
+			await builder.CompleteSubChunkAsync(logId, Offset);
 
-			LogChunkData? Chunk3 = await Builder.GetChunkAsync(LogId, Offset, 4);
-			Assert.IsNotNull(Chunk3);
-			Assert.AreEqual(5, Chunk3!.LineCount);
-			Assert.AreEqual(24, Chunk3!.Length);
-			Assert.AreEqual(2, Chunk3!.SubChunks.Count);
-			Assert.AreEqual(2, Chunk3!.SubChunks[0].LineCount);
-			Assert.AreEqual(12, Chunk3!.SubChunks[0].Length);
-			Assert.AreEqual(3, Chunk3!.SubChunks[1].LineCount);
-			Assert.AreEqual(12, Chunk3!.SubChunks[1].Length);
+			LogChunkData? chunk3 = await builder.GetChunkAsync(logId, Offset, 4);
+			Assert.IsNotNull(chunk3);
+			Assert.AreEqual(5, chunk3!.LineCount);
+			Assert.AreEqual(24, chunk3!.Length);
+			Assert.AreEqual(2, chunk3!.SubChunks.Count);
+			Assert.AreEqual(2, chunk3!.SubChunks[0].LineCount);
+			Assert.AreEqual(12, chunk3!.SubChunks[0].Length);
+			Assert.AreEqual(3, chunk3!.SubChunks[1].LineCount);
+			Assert.AreEqual(12, chunk3!.SubChunks[1].Length);
 
-			Assert.AreEqual(0, Chunk3!.GetLineOffsetWithinChunk(0));
-			Assert.AreEqual(6, Chunk3!.GetLineOffsetWithinChunk(1));
-			Assert.AreEqual(12, Chunk3!.GetLineOffsetWithinChunk(2));
-			Assert.AreEqual(16, Chunk3!.GetLineOffsetWithinChunk(3));
-			Assert.AreEqual(20, Chunk3!.GetLineOffsetWithinChunk(4));
+			Assert.AreEqual(0, chunk3!.GetLineOffsetWithinChunk(0));
+			Assert.AreEqual(6, chunk3!.GetLineOffsetWithinChunk(1));
+			Assert.AreEqual(12, chunk3!.GetLineOffsetWithinChunk(2));
+			Assert.AreEqual(16, chunk3!.GetLineOffsetWithinChunk(3));
+			Assert.AreEqual(20, chunk3!.GetLineOffsetWithinChunk(4));
 
-			List<(LogId, long)> Chunks1 = await Builder.TouchChunksAsync(TimeSpan.Zero);
-			Assert.AreEqual(1, Chunks1.Count);
-			Assert.AreEqual((LogId, Offset), Chunks1[0]);
+			List<(LogId, long)> chunks1 = await builder.TouchChunksAsync(TimeSpan.Zero);
+			Assert.AreEqual(1, chunks1.Count);
+			Assert.AreEqual((logId, Offset), chunks1[0]);
 
-			await Builder.CompleteChunkAsync(LogId, Offset);
+			await builder.CompleteChunkAsync(logId, Offset);
 
-			LogChunkData? Chunk4 = await Builder.GetChunkAsync(LogId, Offset, 5);
-			Assert.AreEqual(24, Chunk4!.Length);
+			LogChunkData? chunk4 = await builder.GetChunkAsync(logId, Offset, 5);
+			Assert.AreEqual(24, chunk4!.Length);
 
-			List<(LogId, long)> Chunks2 = await Builder.TouchChunksAsync(TimeSpan.Zero);
-			Assert.AreEqual(1, Chunks2.Count);
+			List<(LogId, long)> chunks2 = await builder.TouchChunksAsync(TimeSpan.Zero);
+			Assert.AreEqual(1, chunks2.Count);
 
-			await Builder.RemoveChunkAsync(LogId, Offset);
+			await builder.RemoveChunkAsync(logId, Offset);
 
-			List<(LogId, long)> Chunks3 = await Builder.TouchChunksAsync(TimeSpan.Zero);
-			Assert.AreEqual(0, Chunks3.Count);
+			List<(LogId, long)> chunks3 = await builder.TouchChunksAsync(TimeSpan.Zero);
+			Assert.AreEqual(0, chunks3.Count);
 		}
 	}
 }

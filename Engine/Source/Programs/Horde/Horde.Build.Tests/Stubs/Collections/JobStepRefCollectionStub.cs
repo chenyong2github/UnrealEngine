@@ -4,11 +4,8 @@ using Horde.Build.Collections;
 using HordeCommon;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using Moq;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
@@ -40,65 +37,65 @@ namespace Horde.Build.Tests.Stubs.Collections
 		public virtual DateTime StartTimeUtc => throw new NotImplementedException();
 		public virtual DateTime? FinishTimeUtc => throw new NotImplementedException();
 
-		public JobStepRefStub(JobId JobId, SubResourceId BatchId, SubResourceId StepId, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, JobStepOutcome? Outcome)
+		public JobStepRefStub(JobId jobId, SubResourceId batchId, SubResourceId stepId, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, JobStepOutcome? outcome)
 		{
-			this.Id = new JobStepRefId(JobId, BatchId, StepId);
-			this.JobName = JobName;
-			this.NodeName = NodeName;
-			this.StreamId = StreamId;
-			this.TemplateId = TemplateId;
-			this.Change = Change;
-			this.Outcome = Outcome;
+			Id = new JobStepRefId(jobId, batchId, stepId);
+			this.JobName = jobName;
+			this.NodeName = nodeName;
+			this.StreamId = streamId;
+			this.TemplateId = templateId;
+			this.Change = change;
+			this.Outcome = outcome;
 		}
 	}
 
 	class JobStepRefCollectionStub : IJobStepRefCollection
 	{
-		List<IJobStepRef> Refs = new List<IJobStepRef>();
+		List<IJobStepRef> _refs = new List<IJobStepRef>();
 
-		public void Add(IJobStepRef JobStepRef)
+		public void Add(IJobStepRef jobStepRef)
 		{
-			Refs.Add(JobStepRef);
+			_refs.Add(jobStepRef);
 		}
 
-		public Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId StreamId, TemplateRefId TemplateId, string NodeName, int Change)
+		public Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change)
 		{
-			IJobStepRef? NextRef = null;
-			foreach (IJobStepRef Ref in Refs)
+			IJobStepRef? nextRef = null;
+			foreach (IJobStepRef jobStepRef in _refs)
 			{
-				if (Ref.StreamId == StreamId && Ref.TemplateId == TemplateId && Ref.NodeName == NodeName && Ref.Change > Change)
+				if (jobStepRef.StreamId == streamId && jobStepRef.TemplateId == templateId && jobStepRef.NodeName == nodeName && jobStepRef.Change > change)
 				{
-					if (NextRef == null || Ref.Change < NextRef.Change)
+					if (nextRef == null || jobStepRef.Change < nextRef.Change)
 					{
-						NextRef = Ref;
+						nextRef = jobStepRef;
 					}
 				}
 			}
-			return Task.FromResult(NextRef);
+			return Task.FromResult(nextRef);
 		}
 
-		public Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId StreamId, TemplateRefId TemplateId, string NodeName, int Change)
+		public Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change)
 		{
-			IJobStepRef? PrevRef = null;
-			foreach (IJobStepRef Ref in Refs)
+			IJobStepRef? prevRef = null;
+			foreach (IJobStepRef jobStepRef in _refs)
 			{
-				if (Ref.StreamId == StreamId && Ref.TemplateId == TemplateId && Ref.NodeName == NodeName && Ref.Change < Change)
+				if (jobStepRef.StreamId == streamId && jobStepRef.TemplateId == templateId && jobStepRef.NodeName == nodeName && jobStepRef.Change < change)
 				{
-					if (PrevRef == null || Ref.Change > PrevRef.Change)
+					if (prevRef == null || jobStepRef.Change > prevRef.Change)
 					{
-						PrevRef = Ref;
+						prevRef = jobStepRef;
 					}
 				}
 			}
-			return Task.FromResult(PrevRef);
+			return Task.FromResult(prevRef);
 		}
 
-		Task<List<IJobStepRef>> IJobStepRefCollection.GetStepsForNodeAsync(StreamId StreamId, TemplateRefId TemplateId, string NodeName, int? Change, bool IncludeFailed, int Count)
+		Task<List<IJobStepRef>> IJobStepRefCollection.GetStepsForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int? change, bool includeFailed, int count)
 		{
 			throw new NotImplementedException();
 		}
 
-		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId Id, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, int? LastSuccess, int? LastWarning, float WaitTime, float InitTime, DateTime StartTime, DateTime? FinishTime)
+		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime startTime, DateTime? finishTime)
 		{
 			throw new NotImplementedException();
 		}

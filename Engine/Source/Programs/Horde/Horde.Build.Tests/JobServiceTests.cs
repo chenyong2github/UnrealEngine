@@ -5,7 +5,6 @@ using HordeCommon;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using MongoDB.Bson;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -26,87 +25,87 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task TestChainedJobs()
 		{
-			ProjectId ProjectId = new ProjectId("ue5");
-			IProject? Project = await ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" });
-			Assert.IsNotNull(Project);
+			ProjectId projectId = new ProjectId("ue5");
+			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(projectId, "", "", 0, new ProjectConfig { Name = "UE5" });
+			Assert.IsNotNull(project);
 
-			ITemplate Template = await TemplateCollection.AddAsync("Test template");
-			IGraph Graph = await GraphCollection.AddAsync(Template);
+			ITemplate template = await TemplateCollection.AddAsync("Test template");
+			IGraph graph = await GraphCollection.AddAsync(template);
 
-			TemplateRefId TemplateRefId1 = new TemplateRefId("template1");
-			TemplateRefId TemplateRefId2 = new TemplateRefId("template2");
+			TemplateRefId templateRefId1 = new TemplateRefId("template1");
+			TemplateRefId templateRefId2 = new TemplateRefId("template2");
 
-			StreamConfig StreamConfig = new StreamConfig();
-			StreamConfig.Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId1.ToString(), Name = "Test Template", ChainedJobs = new List<CreateChainedJobTemplateRequest> { new CreateChainedJobTemplateRequest { TemplateId = TemplateRefId2.ToString(), Trigger = "Setup Build" } } });
-			StreamConfig.Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId2.ToString(), Name = "Test Template" });
-			StreamConfig.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId1.ToString(), TemplateRefId2.ToString() } });
+			StreamConfig streamConfig = new StreamConfig();
+			streamConfig.Templates.Add(new CreateTemplateRefRequest { Id = templateRefId1.ToString(), Name = "Test Template", ChainedJobs = new List<CreateChainedJobTemplateRequest> { new CreateChainedJobTemplateRequest { TemplateId = templateRefId2.ToString(), Trigger = "Setup Build" } } });
+			streamConfig.Templates.Add(new CreateTemplateRefRequest { Id = templateRefId2.ToString(), Name = "Test Template" });
+			streamConfig.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { templateRefId1.ToString(), templateRefId2.ToString() } });
 
-			StreamId StreamId = new StreamId("ue5-main");
-			IStream? Stream = await StreamService.GetStreamAsync(StreamId);
-			Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), Stream, String.Empty, String.Empty, ProjectId, StreamConfig);
+			StreamId streamId = new StreamId("ue5-main");
+			IStream? stream = await StreamService.GetStreamAsync(streamId);
+			stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), stream, String.Empty, String.Empty, projectId, streamConfig);
 
-			IJob Job = await JobService.CreateJobAsync(null, Stream!, TemplateRefId1, Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, null, null, null, null, Stream!.Templates[TemplateRefId1].ChainedJobs, true, true, null, null, new List<string>());
-			Assert.AreEqual(1, Job.ChainedJobs.Count);
+			IJob job = await JobService.CreateJobAsync(null, stream!, templateRefId1, template.Id, graph, "Hello", 1234, 1233, 999, null, null, null, null, null, null, stream!.Templates[templateRefId1].ChainedJobs, true, true, null, null, new List<string>());
+			Assert.AreEqual(1, job.ChainedJobs.Count);
 
-			Job = Deref(await JobService.UpdateBatchAsync(Job, Job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			Job = Deref(await JobService.UpdateStepAsync(Job, Job.Batches[0].Id, Job.Batches[0].Steps[0].Id, JobStepState.Running));
-			Job = Deref(await JobService.UpdateStepAsync(Job, Job.Batches[0].Id, Job.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
+			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
 
-			Assert.IsNotNull(Job.ChainedJobs[0].JobId);
+			Assert.IsNotNull(job.ChainedJobs[0].JobId);
 
-			IJob? ChainedJob = await JobCollection.GetAsync(Job.ChainedJobs[0].JobId!.Value);
-			Assert.IsNotNull(ChainedJob);
-			Assert.AreEqual(ChainedJob!.Id, Job!.ChainedJobs[0].JobId);
+			IJob? chainedJob = await JobCollection.GetAsync(job.ChainedJobs[0].JobId!.Value);
+			Assert.IsNotNull(chainedJob);
+			Assert.AreEqual(chainedJob!.Id, job!.ChainedJobs[0].JobId);
 
-			Assert.AreEqual(ChainedJob!.Change, Job!.Change);
-			Assert.AreEqual(ChainedJob!.CodeChange, Job!.CodeChange);
-			Assert.AreEqual(ChainedJob!.PreflightChange, Job!.PreflightChange);
-			Assert.AreEqual(ChainedJob!.StartedByUserId, Job!.StartedByUserId);
+			Assert.AreEqual(chainedJob!.Change, job!.Change);
+			Assert.AreEqual(chainedJob!.CodeChange, job!.CodeChange);
+			Assert.AreEqual(chainedJob!.PreflightChange, job!.PreflightChange);
+			Assert.AreEqual(chainedJob!.StartedByUserId, job!.StartedByUserId);
 		}
 
 		[TestMethod]
 		public async Task StopAnyDuplicateJobsByPreflight()
 		{
-			Fixture Fixture = await CreateFixtureAsync();
+			Fixture fixture = await CreateFixtureAsync();
 
-			string[] Args = {"-Target=bogus"};
-			IJob OrgJob = await CreatePreflightJob(Fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1000, Args);
-			IJob NewJob = await CreatePreflightJob(Fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1000, Args);
-			IJob DifferentTplRef = await CreatePreflightJob(Fixture, "tpl-ref-other", "tpl-hash-1", "elvis", 1000, Args);
-			IJob DifferentTplHash = await CreatePreflightJob(Fixture, "tpl-ref-1", "tpl-hash-other", "elvis", 1000, Args);
-			IJob DifferentUserName = await CreatePreflightJob(Fixture, "tpl-ref-1", "tpl-hash-1", "julia", 1000, Args);
-			IJob DifferentArgs = await CreatePreflightJob(Fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1000, new []{"-Target=other"});
+			string[] args = {"-Target=bogus"};
+			IJob orgJob = await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1000, args);
+			IJob newJob = await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1000, args);
+			IJob differentTplRef = await CreatePreflightJob(fixture, "tpl-ref-other", "tpl-hash-1", "elvis", 1000, args);
+			IJob differentTplHash = await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-other", "elvis", 1000, args);
+			IJob differentUserName = await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-1", "julia", 1000, args);
+			IJob differentArgs = await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1000, new []{"-Target=other"});
 			
-			OrgJob = (await JobService.GetJobAsync(OrgJob.Id))!;
-			NewJob = (await JobService.GetJobAsync(NewJob.Id))!;
-			DifferentTplRef = (await JobService.GetJobAsync(DifferentTplRef.Id))!;
-			DifferentTplHash = (await JobService.GetJobAsync(DifferentTplHash.Id))!;
-			DifferentUserName = (await JobService.GetJobAsync(DifferentUserName.Id))!;
-			DifferentArgs = (await JobService.GetJobAsync(DifferentArgs.Id))!;
+			orgJob = (await JobService.GetJobAsync(orgJob.Id))!;
+			newJob = (await JobService.GetJobAsync(newJob.Id))!;
+			differentTplRef = (await JobService.GetJobAsync(differentTplRef.Id))!;
+			differentTplHash = (await JobService.GetJobAsync(differentTplHash.Id))!;
+			differentUserName = (await JobService.GetJobAsync(differentUserName.Id))!;
+			differentArgs = (await JobService.GetJobAsync(differentArgs.Id))!;
 			
-			Assert.AreEqual(KnownUsers.System, OrgJob.AbortedByUserId);
-			Assert.IsNull(NewJob.AbortedByUserId);
-			Assert.IsNull(DifferentTplRef.AbortedByUserId);
-			Assert.IsNull(DifferentTplHash.AbortedByUserId);
-			Assert.IsNull(DifferentUserName.AbortedByUserId);
-			Assert.IsNull(DifferentArgs.AbortedByUserId);
+			Assert.AreEqual(KnownUsers.System, orgJob.AbortedByUserId);
+			Assert.IsNull(newJob.AbortedByUserId);
+			Assert.IsNull(differentTplRef.AbortedByUserId);
+			Assert.IsNull(differentTplHash.AbortedByUserId);
+			Assert.IsNull(differentUserName.AbortedByUserId);
+			Assert.IsNull(differentArgs.AbortedByUserId);
 		}
 
-		private async Task<IJob> CreatePreflightJob(Fixture Fixture, string TemplateRefId, string TemplateHash, string StartedByUserName, int PreflightChange, string[] Arguments)
+		private async Task<IJob> CreatePreflightJob(Fixture fixture, string templateRefId, string templateHash, string startedByUserName, int preflightChange, string[] arguments)
 		{
-			IUser User = await UserCollection.FindOrAddUserByLoginAsync(StartedByUserName);
+			IUser user = await UserCollection.FindOrAddUserByLoginAsync(startedByUserName);
 			return await JobService.CreateJobAsync(
 				JobId: JobId.GenerateNewId(),
-				Stream: Fixture!.Stream!,
-				TemplateRefId: new TemplateRefId(TemplateRefId),
-				TemplateHash: new ContentHash(Encoding.ASCII.GetBytes(TemplateHash)),
-				Graph: Fixture!.Graph,
+				Stream: fixture!.Stream!,
+				TemplateRefId: new TemplateRefId(templateRefId),
+				TemplateHash: new ContentHash(Encoding.ASCII.GetBytes(templateHash)),
+				Graph: fixture!.Graph,
 				Name: "hello1",
 				Change: 1000001,
 				CodeChange: 1000002,
-				PreflightChange: PreflightChange,
+				PreflightChange: preflightChange,
 				ClonedPreflightChange: null,
-				StartedByUserId: User.Id,
+				StartedByUserId: user.Id,
 				Priority: Priority.Normal,
 				null,
 				null,
@@ -116,7 +115,7 @@ namespace Horde.Build.Tests
 				false,
 				null,
 				null,
-				Arguments: new List<string>(Arguments)
+				Arguments: new List<string>(arguments)
 			);
 		}
 		
@@ -147,43 +146,43 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task TestRunEarly()
 		{
-			IAgent? Agent = await AgentService.CreateAgentAsync("TestAgent", true, null, new List<StringId<IPool>> { new StringId<IPool>("win") });
-			await AgentService.CreateSessionAsync(Agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
+			IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", true, null, new List<StringId<IPool>> { new StringId<IPool>("win") });
+			await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
 
-			IProject? Project = await ProjectService.Collection.AddOrUpdateAsync(new ProjectId("ue5"), "", "", 0, new ProjectConfig { Name = "UE5" });
-			Assert.IsNotNull(Project);
+			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(new ProjectId("ue5"), "", "", 0, new ProjectConfig { Name = "UE5" });
+			Assert.IsNotNull(project);
 
-			StreamId StreamId = new StreamId("ue5-main");
-			IStream? Stream = await StreamCollection.GetAsync(StreamId);
-			Stream = await StreamCollection.TryCreateOrReplaceAsync(StreamId, Stream, "", "", Project!.Id, new StreamConfig { Name = "//UE5/Main" });
+			StreamId streamId = new StreamId("ue5-main");
+			IStream? stream = await StreamCollection.GetAsync(streamId);
+			stream = await StreamCollection.TryCreateOrReplaceAsync(streamId, stream, "", "", project!.Id, new StreamConfig { Name = "//UE5/Main" });
 
-			ITemplate Template = await TemplateCollection.AddAsync("Test template");
-			IGraph Graph = await GraphCollection.AddAsync(Template);
+			ITemplate template = await TemplateCollection.AddAsync("Test template");
+			IGraph graph = await GraphCollection.AddAsync(template);
 
-			NewGroup GroupA = new NewGroup("win", new List<NewNode>());
-			GroupA.Nodes.Add(new NewNode("Compile"));
+			NewGroup groupA = new NewGroup("win", new List<NewNode>());
+			groupA.Nodes.Add(new NewNode("Compile"));
 
-			NewGroup GroupB = new NewGroup("win", new List<NewNode>());
-			GroupB.Nodes.Add(new NewNode("Cook", RunEarly: true));
-			GroupB.Nodes.Add(new NewNode("Middle"));
-			GroupB.Nodes.Add(new NewNode("Pak", InputDependencies: new List<string> { "Compile", "Cook" }));
+			NewGroup groupB = new NewGroup("win", new List<NewNode>());
+			groupB.Nodes.Add(new NewNode("Cook", RunEarly: true));
+			groupB.Nodes.Add(new NewNode("Middle"));
+			groupB.Nodes.Add(new NewNode("Pak", InputDependencies: new List<string> { "Compile", "Cook" }));
 
-			Graph = await GraphCollection.AppendAsync(Graph, new List<NewGroup> { GroupA, GroupB });
+			graph = await GraphCollection.AppendAsync(graph, new List<NewGroup> { groupA, groupB });
 
-			IJob Job = await JobService.CreateJobAsync(null, Stream!, new TemplateRefId("temp"), Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=Pak" });
+			IJob job = await JobService.CreateJobAsync(null, stream!, new TemplateRefId("temp"), template.Id, graph, "Hello", 1234, 1233, 999, null, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=Pak" });
 
-			Job = Deref(await JobService.UpdateBatchAsync(Job, Job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			Job = Deref(await JobService.UpdateStepAsync(Job, Job.Batches[0].Id, Job.Batches[0].Steps[0].Id, JobStepState.Running));
-			Job = Deref(await JobService.UpdateStepAsync(Job, Job.Batches[0].Id, Job.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
+			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
 
-			Job = Deref(await JobService.UpdateBatchAsync(Job, Job.Batches[1].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			Job = Deref(await JobService.UpdateStepAsync(Job, Job.Batches[1].Id, Job.Batches[1].Steps[0].Id, JobStepState.Running));
+			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[1].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[1].Id, job.Batches[1].Steps[0].Id, JobStepState.Running));
 
-			Job = Deref(await JobService.UpdateBatchAsync(Job, Job.Batches[2].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			Job = Deref(await JobService.UpdateStepAsync(Job, Job.Batches[2].Id, Job.Batches[2].Steps[0].Id, JobStepState.Running));
-			Job = Deref(await JobService.UpdateStepAsync(Job, Job.Batches[2].Id, Job.Batches[2].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
+			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[2].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[2].Id, job.Batches[2].Steps[0].Id, JobStepState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[2].Id, job.Batches[2].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
 
-			Assert.AreEqual(JobStepState.Waiting, Job.Batches[2].Steps[1].State);
+			Assert.AreEqual(JobStepState.Waiting, job.Batches[2].Steps[1].State);
 		}
 	}
 }

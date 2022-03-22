@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 using Horde.Build.Authentication;
 using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
-using Horde.Build.Models;
 using Horde.Build.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Extensions.WebEncoders.Testing;
@@ -22,85 +22,92 @@ namespace Horde.Build.Tests
 	[TestClass]
 	public class ServiceAccountAuthTest : DatabaseIntegrationTest
 	{
-		private readonly IServiceAccountCollection ServiceAccounts;
-		private readonly IServiceAccount ServiceAccount;
-
 		public ServiceAccountAuthTest()
 		{
-			DatabaseService DatabaseService = GetDatabaseService();
-			ServiceAccounts = new ServiceAccountCollection(DatabaseService);
-			ServiceAccount = ServiceAccounts.AddAsync("mytoken", new List<string> {"myclaim###myvalue", "foo###bar"}, "mydesc").Result;
  		}
 
-		private async Task<ServiceAccountAuthHandler> GetAuthHandlerAsync(string? HeaderValue)
+		protected override void ConfigureServices(IServiceCollection services)
 		{
-			ServiceAccountAuthOptions Options = new ServiceAccountAuthOptions();
-			ILoggerFactory LoggerFactory = new LoggerFactory();
-			ServiceAccountAuthHandler Handler = new ServiceAccountAuthHandler(new TestOptionsMonitor<ServiceAccountAuthOptions>(Options), LoggerFactory, new UrlTestEncoder(), new SystemClock(), ServiceAccounts);
-			AuthenticationScheme Scheme = new AuthenticationScheme(ServiceAccountAuthHandler.AuthenticationScheme, "ServiceAccountAuth", Handler.GetType());
+			base.ConfigureServices(services);
+
+			services.AddSingleton<ILoggerFactory, LoggerFactory>();
+			services.AddSingleton<ServiceAccountCollection>();
+			services.AddSingleton<IServiceAccountCollection>(SP => SP.GetRequiredService<ServiceAccountCollection>());
+		}
+
+		private async Task<ServiceAccountAuthHandler> GetAuthHandlerAsync(string? headerValue)
+		{
+			ServiceAccountAuthOptions options = new ServiceAccountAuthOptions();
+
+			ServiceAccountCollection serviceAccounts = ServiceProvider.GetRequiredService<ServiceAccountCollection>();
+			await serviceAccounts.AddAsync("mytoken", new List<string> { "myclaim###myvalue", "foo###bar" }, "mydesc");
+
+			ILoggerFactory loggerFactory = ServiceProvider.GetRequiredService<ILoggerFactory>();
+			ServiceAccountAuthHandler handler = new ServiceAccountAuthHandler(new TestOptionsMonitor<ServiceAccountAuthOptions>(options), loggerFactory, new UrlTestEncoder(), new SystemClock(), serviceAccounts);
+			AuthenticationScheme scheme = new AuthenticationScheme(ServiceAccountAuthHandler.AuthenticationScheme, "ServiceAccountAuth", handler.GetType());
 			
-			HttpContext HttpContext = new DefaultHttpContext();
-			if (HeaderValue != null)
+			HttpContext httpContext = new DefaultHttpContext();
+			if (headerValue != null)
 			{
-				HttpContext.Request.Headers.Add(HeaderNames.Authorization, new StringValues(HeaderValue));	
+				httpContext.Request.Headers.Add(HeaderNames.Authorization, new StringValues(headerValue));	
 			}
 			
-			await Handler.InitializeAsync(Scheme, HttpContext);
+			await handler.InitializeAsync(scheme, httpContext);
 
-			return Handler;
+			return handler;
 		}
 
 		[TestMethod]
 		public async Task ValidToken()
 		{
-			ServiceAccountAuthHandler Handler = await GetAuthHandlerAsync("ServiceAccount mytoken");
-			AuthenticateResult Result = await Handler.AuthenticateAsync();
-			Assert.IsTrue(Result.Succeeded);
+			ServiceAccountAuthHandler handler = await GetAuthHandlerAsync("ServiceAccount mytoken");
+			AuthenticateResult result = await handler.AuthenticateAsync();
+			Assert.IsTrue(result.Succeeded);
 			
-			Handler = await GetAuthHandlerAsync("ServiceAccount   mytoken        ");
-			Result = await Handler.AuthenticateAsync();
-			Assert.IsTrue(Result.Succeeded);
+			handler = await GetAuthHandlerAsync("ServiceAccount   mytoken        ");
+			result = await handler.AuthenticateAsync();
+			Assert.IsTrue(result.Succeeded);
 		}
 		
 		[TestMethod]
 		public async Task InvalidToken()
 		{
-			ServiceAccountAuthHandler Handler = await GetAuthHandlerAsync("ServiceAccount doesNotExist");
-			AuthenticateResult Result = await Handler.AuthenticateAsync();
-			Assert.IsFalse(Result.Succeeded);
+			ServiceAccountAuthHandler handler = await GetAuthHandlerAsync("ServiceAccount doesNotExist");
+			AuthenticateResult result = await handler.AuthenticateAsync();
+			Assert.IsFalse(result.Succeeded);
 			
 			// Valid token but bad prefix
-			Handler = await GetAuthHandlerAsync("SriceAcct mytoken");
-			Result = await Handler.AuthenticateAsync();
-			Assert.IsFalse(Result.Succeeded);
+			handler = await GetAuthHandlerAsync("SriceAcct mytoken");
+			result = await handler.AuthenticateAsync();
+			Assert.IsFalse(result.Succeeded);
 		}
 		
 		[TestMethod]
 		public async Task NoResult()
 		{
 			// Valid token but bad prefix
-			ServiceAccountAuthHandler Handler = await GetAuthHandlerAsync("Bogus mytoken");
-			AuthenticateResult Result = await Handler.AuthenticateAsync();
-			Assert.IsFalse(Result.Succeeded);
-			Assert.IsTrue(Result.None);
+			ServiceAccountAuthHandler handler = await GetAuthHandlerAsync("Bogus mytoken");
+			AuthenticateResult result = await handler.AuthenticateAsync();
+			Assert.IsFalse(result.Succeeded);
+			Assert.IsTrue(result.None);
 			
 			// No Authorization header at all
-			Handler = await GetAuthHandlerAsync(null);
-			Result = await Handler.AuthenticateAsync();
-			Assert.IsFalse(Result.Succeeded);
-			Assert.IsTrue(Result.None);
+			handler = await GetAuthHandlerAsync(null);
+			result = await handler.AuthenticateAsync();
+			Assert.IsFalse(result.Succeeded);
+			Assert.IsTrue(result.None);
 		}
 		
 		[TestMethod]
 		public async Task Claims()
 		{
-			ServiceAccountAuthHandler Handler = await GetAuthHandlerAsync("ServiceAccount mytoken");
-			AuthenticateResult Result = await Handler.AuthenticateAsync();
-			Assert.IsTrue(Result.Succeeded);
-			Assert.AreEqual(3, Result.Ticket!.Principal.Claims.Count());
-			Assert.AreEqual(ServiceAccountAuthHandler.AuthenticationScheme, Result.Ticket.Principal.FindFirst(ClaimTypes.Name)!.Value);
-			Assert.AreEqual("myvalue", Result.Ticket!.Principal.FindFirst("myclaim")!.Value);
-			Assert.AreEqual("bar", Result.Ticket!.Principal.FindFirst("foo")!.Value);
+			ServiceAccountAuthHandler handler = await GetAuthHandlerAsync("ServiceAccount mytoken");
+			AuthenticateResult result = await handler.AuthenticateAsync();
+			Assert.IsTrue(result.Succeeded);
+			Assert.AreEqual(3, result.Ticket!.Principal.Claims.Count());
+			Assert.AreEqual(ServiceAccountAuthHandler.AuthenticationScheme, result.Ticket.Principal.FindFirst(ClaimTypes.Name)!.Value);
+			Assert.AreEqual("myvalue", result.Ticket!.Principal.FindFirst("myclaim")!.Value);
+			Assert.AreEqual("bar", result.Ticket!.Principal.FindFirst("foo")!.Value);
 		}
 	}
 }

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -10,214 +9,215 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Castle.Core.Internal;
 using EpicGames.Core;
 
-namespace Horde.Build.Tests
+namespace Horde.Build.Tests;
+
+public abstract class DatabaseRunner
 {
-	public abstract class DatabaseRunner
+	private readonly string _binName;
+	private readonly int _defaultPort;
+	private readonly string _name;
+	private readonly bool _printStdErr;
+	private readonly bool _printStdOut;
+	private readonly bool _reuseProcess;
+	protected string TempDir { get; }
+	private Process? _proc;
+
+	protected DatabaseRunner(string name, string binName, int defaultPort, bool reuseProcess, bool printStdOut = false,
+		bool printStdErr = true)
 	{
-		private readonly string Name;
-		private readonly string BinName;
-		private readonly int DefaultPort;
-		private readonly bool ReuseProcess;
-		private readonly bool PrintStdOut;
-		private readonly bool PrintStdErr;
-		protected readonly string TempDir;
-		private Process? Proc;
-		protected int Port { get; private set; } = -1;
+		this._name = name;
+		this._binName = binName;
+		this._defaultPort = defaultPort;
+		this._reuseProcess = reuseProcess;
+		this._printStdOut = printStdOut;
+		this._printStdErr = printStdErr;
+		TempDir = GetTemporaryDirectory();
+	}
 
-		protected DatabaseRunner(string Name, string BinName, int DefaultPort, bool ReuseProcess, bool PrintStdOut = false, bool PrintStdErr = true)
+	protected int Port { get; private set; } = -1;
+
+	protected abstract string GetArguments();
+
+	public void Start()
+	{
+		if (_reuseProcess && !IsPortAvailable(_defaultPort))
 		{
-			this.Name = Name;
-			this.BinName = BinName;
-			this.DefaultPort = DefaultPort;
-			this.ReuseProcess = ReuseProcess;
-			this.PrintStdOut = PrintStdOut;
-			this.PrintStdErr = PrintStdErr;
-			TempDir = GetTemporaryDirectory();
+			Console.WriteLine($"Re-using already running {_name} process!");
+			Port = _defaultPort;
+			return;
 		}
 
-		protected abstract string GetArguments();
-		
-		public void Start()
+		if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 		{
-			if (ReuseProcess && !IsPortAvailable(DefaultPort))
-			{
-				Console.WriteLine($"Re-using already running {Name} process!");
-				Port = DefaultPort;
-				return;
-			}
-
-			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-			{
-				Console.WriteLine($"Unable to find a running {Name} process to use during testing!");
-				Console.WriteLine("This is required on any non-Windows as the runner can only start Windows binaries!");
-				Console.WriteLine($"Please ensure {BinName} is running on the default port {DefaultPort}.");
-				throw new Exception("Failed finding process to re-use! See stdout for info.");
-			}
-			
-			if (Proc != null)
-			{
-				return;
-			}
-
-			Port = GetAvailablePort();
-			
-			Process P = new Process();
-			if (PrintStdOut)
-			{
-				P.OutputDataReceived += (_, Args) => Console.WriteLine("{0} stdout: {1}", Name, Args.Data);	
-			}
-			if (PrintStdErr)
-			{
-				P.ErrorDataReceived += (_, Args) => Console.WriteLine("{0} stderr: {1}", Name, Args.Data);
-			}
-				
-			P.StartInfo.FileName = GetBinaryPath();
-			P.StartInfo.WorkingDirectory = TempDir;
-			P.StartInfo.Arguments = GetArguments();
-			P.StartInfo.UseShellExecute = false;
-			P.StartInfo.CreateNoWindow = true;
-			P.StartInfo.RedirectStandardOutput = true;
-			P.StartInfo.RedirectStandardError = true;
-
-			if (!P.Start())
-			{
-				throw new Exception("Process start failed!");
-			}
-			P.BeginOutputReadLine();
-			P.BeginErrorReadLine();
-
-			// Try detect when main .NET process exits and kill the runner
-			AppDomain.CurrentDomain.ProcessExit += (Sender, EventArgs) =>
-			{
-				Console.WriteLine("Main process exiting!");
-				Stop();
-			};
-
-			Proc = P;
-		}
-		
-		public void Stop()
-		{
-			if (Proc != null)
-			{
-				Proc.Kill(true);
-				
-				// Waiting for exit blocks excessively even though the kill was sent. Anti-virus interfering?
-				// Process eventually shuts down but takes 2-3 min in Redis case. ReuseProcess flags circumvents this.
-				//Proc.WaitForExit();
-				Proc = null;
-				DeleteDirectory(TempDir);
-			}
+			Console.WriteLine($"Unable to find a running {_name} process to use during testing!");
+			Console.WriteLine("This is required on any non-Windows as the runner can only start Windows binaries!");
+			Console.WriteLine($"Please ensure {_binName} is running on the default port {_defaultPort}.");
+			throw new Exception("Failed finding process to re-use! See stdout for info.");
 		}
 
-		public (string Host, int Port) GetListenAddress()
+		if (_proc != null)
 		{
-			return ("localhost", Port);
-		}
-		
-		private string GetBinaryPath()
-		{
-			FileReference File = new FileReference(new Uri(Assembly.GetExecutingAssembly().Location).LocalPath);
-			FileReference BinPath = FileReference.Combine(File.Directory, BinName);
-			return BinPath.FullName;
-		}
-		
-		private string GetTemporaryDirectory()
-		{
-			string Temp = Path.Join(Path.GetTempPath(), $"horde-{Name}-"  + Path.GetRandomFileName());
-			Directory.CreateDirectory(Temp);
-			return Temp;
-		}
-		
-		private static int GetAvailablePort()
-		{
-			TcpListener Listener = new TcpListener(IPAddress.Loopback, 0);
-			Listener.Start();
-			int Port = ((IPEndPoint)Listener.LocalEndpoint).Port;
-			Listener.Stop();
-			return Port;
+			return;
 		}
 
-		private static bool IsPortAvailable(int Port)
+		Port = GetAvailablePort();
+
+		Process p = new();
+		if (_printStdOut)
 		{
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			p.OutputDataReceived += (_, args) => Console.WriteLine("{0} stdout: {1}", _name, args.Data);
+		}
+
+		if (_printStdErr)
+		{
+			p.ErrorDataReceived += (_, args) => Console.WriteLine("{0} stderr: {1}", _name, args.Data);
+		}
+
+		p.StartInfo.FileName = GetBinaryPath();
+		p.StartInfo.WorkingDirectory = TempDir;
+		p.StartInfo.Arguments = GetArguments();
+		p.StartInfo.UseShellExecute = false;
+		p.StartInfo.CreateNoWindow = true;
+		p.StartInfo.RedirectStandardOutput = true;
+		p.StartInfo.RedirectStandardError = true;
+
+		if (!p.Start())
+		{
+			throw new Exception("Process start failed!");
+		}
+
+		p.BeginOutputReadLine();
+		p.BeginErrorReadLine();
+
+		// Try detect when main .NET process exits and kill the runner
+		AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) =>
+		{
+			Console.WriteLine("Main process exiting!");
+			Stop();
+		};
+
+		_proc = p;
+	}
+
+	public void Stop()
+	{
+		if (_proc != null)
+		{
+			_proc.Kill(true);
+
+			// Waiting for exit blocks excessively even though the kill was sent. Anti-virus interfering?
+			// Process eventually shuts down but takes 2-3 min in Redis case. ReuseProcess flags circumvents this.
+			//Proc.WaitForExit();
+			_proc = null;
+			DeleteDirectory(TempDir);
+		}
+	}
+
+	public (string Host, int Port) GetListenAddress()
+	{
+		return ("localhost", Port);
+	}
+
+	private string GetBinaryPath()
+	{
+		FileReference file = new(new Uri(Assembly.GetExecutingAssembly().Location).LocalPath);
+		FileReference binPath = FileReference.Combine(file.Directory, _binName);
+		return binPath.FullName;
+	}
+
+	private string GetTemporaryDirectory()
+	{
+		string temp = Path.Join(Path.GetTempPath(), $"horde-{_name}-" + Path.GetRandomFileName());
+		Directory.CreateDirectory(temp);
+		return temp;
+	}
+
+	private static int GetAvailablePort()
+	{
+		TcpListener listener = new(IPAddress.Loopback, 0);
+		listener.Start();
+		int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+		listener.Stop();
+		return port;
+	}
+
+	private static bool IsPortAvailable(int port)
+	{
+		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+		{
+			IPGlobalProperties ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+
+			IPEndPoint[] listeners = ipGlobalProperties.GetActiveTcpListeners();
+			if (listeners.Any(x => x.Port == port))
 			{
-				IPGlobalProperties IpGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
-
-				IPEndPoint[] Listeners = IpGlobalProperties.GetActiveTcpListeners();
-				if (Listeners.Any(x => x.Port == Port))
-				{
-					return false;
-				}
-
-				return true;
-			}
-			else
-			{
-				TcpListener? ListenerAny = null;
-				TcpListener? ListenerLoopback = null;
-				try
-				{
-					ListenerAny = new TcpListener(IPAddress.Loopback, Port);
-					ListenerAny.Start();
-					ListenerLoopback = new TcpListener(IPAddress.Any, Port);
-					ListenerLoopback.Start();
-					return true;
-				}
-				catch (SocketException)
-				{
-				}
-				finally
-				{
-					ListenerAny?.Stop();
-					ListenerLoopback?.Stop();
-				}
-
 				return false;
 			}
+
+			return true;
 		}
-		
-		private static void DeleteDirectory(string Path)
+
+		TcpListener? listenerAny = null;
+		TcpListener? listenerLoopback = null;
+		try
 		{
-			DirectoryInfo Dir = new DirectoryInfo(Path) { Attributes = FileAttributes.Normal };
-			foreach (var Info in Dir.GetFileSystemInfos("*", SearchOption.AllDirectories))
-			{
-				Info.Attributes = FileAttributes.Normal;
-			}
-			Dir.Delete(true);
+			listenerAny = new TcpListener(IPAddress.Loopback, port);
+			listenerAny.Start();
+			listenerLoopback = new TcpListener(IPAddress.Any, port);
+			listenerLoopback.Start();
+			return true;
 		}
+		catch (SocketException)
+		{
+		}
+		finally
+		{
+			listenerAny?.Stop();
+			listenerLoopback?.Stop();
+		}
+
+		return false;
 	}
 
-	public class MongoDbRunnerLocal : DatabaseRunner
+	private static void DeleteDirectory(string path)
 	{
-		public MongoDbRunnerLocal() : base("mongodb", "ThirdParty/Mongo/mongod.exe", 27017, true)
+		DirectoryInfo dir = new(path) { Attributes = FileAttributes.Normal };
+		foreach (FileSystemInfo info in dir.GetFileSystemInfos("*", SearchOption.AllDirectories))
 		{
+			info.Attributes = FileAttributes.Normal;
 		}
 
-		protected override string GetArguments()
-		{
-			return $"--dbpath {TempDir} --noauth --quiet --port {Port}";
-		}
-
-		public string GetConnectionString()
-		{
-			(var Host, int ListenPort) = GetListenAddress();
-			return $"mongodb://{Host}:{ListenPort}";
-		}
+		dir.Delete(true);
 	}
-	
-	public class RedisRunner : DatabaseRunner
-	{
-		public RedisRunner() : base("redis", "ThirdParty/Redis/redis-server.exe", 6379, true)
-		{
-		}
+}
 
-		protected override string GetArguments()
-		{
-			return $"--port {Port} --save \"\" --appendonly no";
-		}
+public class MongoDbRunnerLocal : DatabaseRunner
+{
+	public MongoDbRunnerLocal() : base("mongodb", "ThirdParty/Mongo/mongod.exe", 27017, true)
+	{
+	}
+
+	protected override string GetArguments()
+	{
+		return $"--dbpath {TempDir} --noauth --quiet --port {Port}";
+	}
+
+	public string GetConnectionString()
+	{
+		(string host, int listenPort) = GetListenAddress();
+		return $"mongodb://{host}:{listenPort}";
+	}
+}
+
+public class RedisRunner : DatabaseRunner
+{
+	public RedisRunner() : base("redis", "ThirdParty/Redis/redis-server.exe", 6379, true)
+	{
+	}
+
+	protected override string GetArguments()
+	{
+		return $"--port {Port} --save \"\" --appendonly no";
 	}
 }

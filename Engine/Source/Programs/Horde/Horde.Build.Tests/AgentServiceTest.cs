@@ -4,58 +4,53 @@ using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using HordeCommon;
 using Horde.Build.Api;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Horde.Build.Models;
-using Horde.Build.Services;
-using Microsoft.AspNetCore.Mvc;
-using AgentSoftwareVersion = Horde.Build.Utilities.StringId<Horde.Build.Collections.IAgentSoftwareCollection>;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
+using HordeCommon;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Horde.Build.Tests
+namespace Horde.Build.Tests;
+
+/// <summary>
+///     Testing the agent service
+/// </summary>
+[TestClass]
+public class AgentServiceTest : TestSetup
 {
-    /// <summary>
-    /// Testing the agent service
-    /// </summary>
-	[TestClass]
-    public class AgentServiceTest : TestSetup
-    {
-        [TestMethod]
-        public async Task GetJobs()
-        {
-			Fixture Fixture = await CreateFixtureAsync();
+	[TestMethod]
+	public async Task GetJobs()
+	{
+		Fixture fixture = await CreateFixtureAsync();
 
-			ActionResult<List<object>> Res = await JobsController.FindJobsAsync();
-	        Assert.AreEqual(2, Res.Value!.Count);
-	        Assert.AreEqual("hello2", (Res.Value[0] as GetJobResponse)!.Name);
-	        Assert.AreEqual("hello1", (Res.Value[1] as GetJobResponse)!.Name);
-	        
-	        Res = await JobsController.FindJobsAsync(IncludePreflight: false);
-	        Assert.AreEqual(1, Res.Value!.Count);
-	        Assert.AreEqual("hello2", (Res.Value[0] as GetJobResponse)!.Name);
-        }
-        
-        [TestMethod]
-        public async Task CreateSessionTest()
-        {
-			Fixture Fixture = await CreateFixtureAsync();
+		ActionResult<List<object>> res = await JobsController.FindJobsAsync();
+		Assert.AreEqual(2, res.Value!.Count);
+		Assert.AreEqual("hello2", (res.Value[0] as GetJobResponse)!.Name);
+		Assert.AreEqual("hello1", (res.Value[1] as GetJobResponse)!.Name);
 
-	        IAgent Agent = await AgentService.CreateSessionAsync(Fixture.Agent1, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(),
-		        "test");
-	        
-	        Assert.IsTrue(AgentService.AuthorizeSession(Agent, GetUser(Agent)));
-	        await Clock.AdvanceAsync(TimeSpan.FromMinutes(20));
-	        Assert.IsFalse(AgentService.AuthorizeSession(Agent, GetUser(Agent)));
-        }
+		res = await JobsController.FindJobsAsync(IncludePreflight: false);
+		Assert.AreEqual(1, res.Value!.Count);
+		Assert.AreEqual("hello2", (res.Value[0] as GetJobResponse)!.Name);
+	}
 
-        private ClaimsPrincipal GetUser(IAgent Agent)
-        {
-	        return new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
-	        {
-		        new Claim(HordeClaimTypes.AgentSessionId, Agent.SessionId.ToString()!),
-	        }, "TestAuthType"));
-        }
-    }
+	[TestMethod]
+	public async Task CreateSessionTest()
+	{
+		Fixture fixture = await CreateFixtureAsync();
+
+		IAgent agent = await AgentService.CreateSessionAsync(fixture.Agent1, AgentStatus.Ok, new List<string>(),
+			new Dictionary<string, int>(),
+			"test");
+
+		Assert.IsTrue(AgentService.AuthorizeSession(agent, GetUser(agent)));
+		await Clock.AdvanceAsync(TimeSpan.FromMinutes(20));
+		Assert.IsFalse(AgentService.AuthorizeSession(agent, GetUser(agent)));
+	}
+
+	private static ClaimsPrincipal GetUser(IAgent agent)
+	{
+		return new ClaimsPrincipal(new ClaimsIdentity(
+			new List<Claim> { new(HordeClaimTypes.AgentSessionId, agent.SessionId.ToString()!) }, "TestAuthType"));
+	}
 }

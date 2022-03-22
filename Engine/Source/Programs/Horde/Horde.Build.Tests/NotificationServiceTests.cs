@@ -22,101 +22,95 @@ namespace Horde.Build.Tests
 
 	public class FakeNotificationSink : INotificationSink
 	{
-		public List<JobScheduledNotification> JobScheduledNotifications = new();
-		public int JobScheduledCallCount;
+		public List<JobScheduledNotification> JobScheduledNotifications { get; } = new();
+		public int JobScheduledCallCount { get; set; }
 		
-		public Task NotifyJobScheduledAsync(List<JobScheduledNotification> Notifications)
+		public Task NotifyJobScheduledAsync(List<JobScheduledNotification> notifications)
 		{
-			JobScheduledNotifications.AddRange(Notifications);
+			JobScheduledNotifications.AddRange(notifications);
 			JobScheduledCallCount++;
 			return Task.CompletedTask;
 		}
 
-		public Task NotifyJobCompleteAsync(IStream JobStream, IJob Job, IGraph Graph, LabelOutcome Outcome) { throw new NotImplementedException(); }
-		public Task NotifyJobCompleteAsync(IUser User, IStream JobStream, IJob Job, IGraph Graph, LabelOutcome Outcome) { throw new NotImplementedException(); }
-		public Task NotifyJobStepCompleteAsync(IUser User, IStream JobStream, IJob Job, IJobStepBatch Batch, IJobStep Step, INode Node, List<ILogEventData> JobStepEventData) { throw new NotImplementedException(); }
-		public Task NotifyLabelCompleteAsync(IUser User, IJob Job, IStream Stream, ILabel Label, int LabelIdx, LabelOutcome Outcome, List<(string, JobStepOutcome, Uri)> StepData) { throw new NotImplementedException(); }
-		public Task NotifyIssueUpdatedAsync(IIssue Issue) { throw new NotImplementedException(); }
-		public Task NotifyConfigUpdateFailureAsync(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null) { throw new NotImplementedException(); }
-		public Task NotifyDeviceServiceAsync(string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null, IUser? User = null) { throw new NotImplementedException(); }
+		public Task NotifyJobCompleteAsync(IStream jobStream, IJob job, IGraph graph, LabelOutcome outcome) { throw new NotImplementedException(); }
+		public Task NotifyJobCompleteAsync(IUser user, IStream jobStream, IJob job, IGraph graph, LabelOutcome outcome) { throw new NotImplementedException(); }
+		public Task NotifyJobStepCompleteAsync(IUser user, IStream jobStream, IJob job, IJobStepBatch batch, IJobStep step, INode node, List<ILogEventData> jobStepEventData) { throw new NotImplementedException(); }
+		public Task NotifyLabelCompleteAsync(IUser user, IJob job, IStream stream, ILabel label, int labelIdx, LabelOutcome outcome, List<(string, JobStepOutcome, Uri)> stepData) { throw new NotImplementedException(); }
+		public Task NotifyIssueUpdatedAsync(IIssue issue) { throw new NotImplementedException(); }
+		public Task NotifyConfigUpdateFailureAsync(string errorMessage, string fileName, int? change = null, IUser? author = null, string? description = null) { throw new NotImplementedException(); }
+		public Task NotifyDeviceServiceAsync(string message, IDevice? device = null, IDevicePool? pool = null, IStream? stream = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null) { throw new NotImplementedException(); }
 	}
-	
 
 	[TestClass]
 	public class NotificationServiceTests : TestSetup
 	{
-		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph)
+		protected override void ConfigureServices(IServiceCollection services)
 		{
-			JobId JobId = new JobId("5ec16da1774cb4000107c2c1");
+			base.ConfigureServices(services);
 
-			List<IJobStepBatch> Batches = new List<IJobStepBatch>();
-			for (int GroupIdx = 0; GroupIdx < Graph.Groups.Count; GroupIdx++)
+			services.AddSingleton<FakeNotificationSink>();
+			services.AddSingleton<INotificationSink>(SP => SP.GetRequiredService<FakeNotificationSink>());
+		}
+
+		public static IJob CreateJob(StreamId streamId, int change, string name, IGraph graph)
+		{
+			JobId jobId = new JobId("5ec16da1774cb4000107c2c1");
+
+			List<IJobStepBatch> batches = new List<IJobStepBatch>();
+			for (int groupIdx = 0; groupIdx < graph.Groups.Count; groupIdx++)
 			{
-				INodeGroup Group = Graph.Groups[GroupIdx];
+				INodeGroup @group = graph.Groups[groupIdx];
 
-				List<IJobStep> Steps = new List<IJobStep>();
-				for (int NodeIdx = 0; NodeIdx < Group.Nodes.Count; NodeIdx++)
+				List<IJobStep> steps = new List<IJobStep>();
+				for (int nodeIdx = 0; nodeIdx < @group.Nodes.Count; nodeIdx++)
 				{
-					SubResourceId StepId = new SubResourceId((ushort)((GroupIdx * 100) + NodeIdx));
+					SubResourceId stepId = new SubResourceId((ushort)((groupIdx * 100) + nodeIdx));
 
-					Mock<IJobStep> Step = new Mock<IJobStep>(MockBehavior.Strict);
-					Step.SetupGet(x => x.Id).Returns(StepId);
-					Step.SetupGet(x => x.NodeIdx).Returns(NodeIdx);
+					Mock<IJobStep> step = new Mock<IJobStep>(MockBehavior.Strict);
+					step.SetupGet(x => x.Id).Returns(stepId);
+					step.SetupGet(x => x.NodeIdx).Returns(nodeIdx);
 
-					Steps.Add(Step.Object);
+					steps.Add(step.Object);
 				}
 
-				SubResourceId BatchId = new SubResourceId((ushort)(GroupIdx * 100));
+				SubResourceId batchId = new SubResourceId((ushort)(groupIdx * 100));
 
-				Mock<IJobStepBatch> Batch = new Mock<IJobStepBatch>(MockBehavior.Strict);
-				Batch.SetupGet(x => x.Id).Returns(BatchId);
-				Batch.SetupGet(x => x.GroupIdx).Returns(GroupIdx);
-				Batch.SetupGet(x => x.Steps).Returns(Steps);
-				Batches.Add(Batch.Object);
+				Mock<IJobStepBatch> batch = new Mock<IJobStepBatch>(MockBehavior.Strict);
+				batch.SetupGet(x => x.Id).Returns(batchId);
+				batch.SetupGet(x => x.GroupIdx).Returns(groupIdx);
+				batch.SetupGet(x => x.Steps).Returns(steps);
+				batches.Add(batch.Object);
 			}
 
-			Mock<IJob> Job = new Mock<IJob>(MockBehavior.Strict);
-			Job.SetupGet(x => x.Id).Returns(JobId);
-			Job.SetupGet(x => x.Name).Returns(Name);
-			Job.SetupGet(x => x.StreamId).Returns(StreamId);
-			Job.SetupGet(x => x.Change).Returns(Change);
-			Job.SetupGet(x => x.Batches).Returns(Batches);
-			return Job.Object;
+			Mock<IJob> job = new Mock<IJob>(MockBehavior.Strict);
+			job.SetupGet(x => x.Id).Returns(jobId);
+			job.SetupGet(x => x.Name).Returns(name);
+			job.SetupGet(x => x.StreamId).Returns(streamId);
+			job.SetupGet(x => x.Change).Returns(change);
+			job.SetupGet(x => x.Batches).Returns(batches);
+			return job.Object;
 		}
 		
 		[TestMethod]
 		public async Task NotifyJobScheduled()
 		{
-			FakeNotificationSink FakeSink = new();
-			NotificationService Service = GetNotificationService(FakeSink);
-			Fixture Fixture = await CreateFixtureAsync();
-			IPool Pool = await PoolService.CreatePoolAsync("BogusPool", Properties: new Dictionary<string, string>());
+			FakeNotificationSink fakeSink = ServiceProvider.GetRequiredService<FakeNotificationSink>();
 
-			Assert.AreEqual(0, FakeSink.JobScheduledNotifications.Count);
-			Service.NotifyJobScheduled(Pool, false, Fixture.Job1, Fixture.Graph, SubResourceId.Random());
-			Service.NotifyJobScheduled(Pool, false, Fixture.Job2, Fixture.Graph, SubResourceId.Random());
+			NotificationService service = (NotificationService)ServiceProvider.GetRequiredService<INotificationService>();
+			await service.Ticker.StartAsync();
+
+			Fixture fixture = await CreateFixtureAsync();
+			IPool pool = await PoolService.CreatePoolAsync("BogusPool", Properties: new Dictionary<string, string>());
+
+			Assert.AreEqual(0, fakeSink.JobScheduledNotifications.Count);
+			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());
+			service.NotifyJobScheduled(pool, false, fixture.Job2, fixture.Graph, SubResourceId.Random());
 			
 			// Currently no good way to wait for NotifyJobScheduled() to complete as the execution is completely async in background task (see ExecuteAsync)
 			await Task.Delay(1000);
-			await Clock.AdvanceAsync(Service.NotificationBatchInterval + TimeSpan.FromMinutes(5));
-			Assert.AreEqual(2, FakeSink.JobScheduledNotifications.Count);
-			Assert.AreEqual(1, FakeSink.JobScheduledCallCount);
-		}
-
-		private NotificationService GetNotificationService(INotificationSink? Sink)
-		{
-			ILogger<NotificationService> Logger = ServiceProvider.GetRequiredService<ILogger<NotificationService>>();
-			IDatabase Database = GetRedisConnectionPool().GetDatabase();
-			List<INotificationSink> Sinks = new ();
-			if (Sink != null) Sinks.Add(Sink);
-			
-			NotificationService Service = new NotificationService(
-				Sinks, ServerSettingsMon, Logger, GraphCollection, SubscriptionCollection,
-				NotificationTriggerCollection, UserCollection, JobService, StreamService, IssueService, LogFileService,
-				new NoOpDogStatsd(), Database, Clock);
-
-			Service.Ticker.StartAsync().Wait(5000);
-			return Service;
+			await Clock.AdvanceAsync(service.NotificationBatchInterval + TimeSpan.FromMinutes(5));
+			Assert.AreEqual(2, fakeSink.JobScheduledNotifications.Count);
+			Assert.AreEqual(1, fakeSink.JobScheduledCallCount);
 		}
 
 		//public void NotifyLabelUpdate(IJob Job, IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates, IReadOnlyList<(LabelState, LabelOutcome)> NewLabelStates)

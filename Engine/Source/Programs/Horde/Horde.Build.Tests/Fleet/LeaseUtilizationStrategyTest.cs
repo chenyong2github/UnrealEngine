@@ -10,110 +10,108 @@ using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using Horde.Build.Tests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Fleet
 {
-	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
-	
+
 	[TestClass]
 	public class LeaseUtilizationStrategyTest : TestSetup
 	{
-		private IAgent Agent1 = null!;
-		private IAgent Agent2 = null!;
-		private IAgent Agent3 = null!;
-		private IAgent Agent4 = null!;
-		private List<IAgent> PoolAgents = null!;
+		private IAgent _agent1 = null!;
+		private IAgent _agent2 = null!;
+		private IAgent _agent3 = null!;
+		private IAgent _agent4 = null!;
+		private List<IAgent> _poolAgents = null!;
 
-		public void CreateAgents(IPool Pool)
+		public void CreateAgents(IPool pool)
 		{
-			Agent1 = CreateAgentAsync(Pool).Result;
-			Agent2 = CreateAgentAsync(Pool).Result;
-			Agent3 = CreateAgentAsync(Pool).Result;
-			Agent4 = CreateAgentAsync(Pool).Result;
-			PoolAgents = new() { Agent1, Agent2, Agent3, Agent4 };
+			_agent1 = CreateAgentAsync(pool).Result;
+			_agent2 = CreateAgentAsync(pool).Result;
+			_agent3 = CreateAgentAsync(pool).Result;
+			_agent4 = CreateAgentAsync(pool).Result;
+			_poolAgents = new() { _agent1, _agent2, _agent3, _agent4 };
 		}
 
 		[TestMethod]
 		public async Task UtilizationFull()
 		{
-			IPool Pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
-			CreateAgents(Pool);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
+			CreateAgents(pool);
 			
-			await AddPlaceholderLease(Agent1, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AddPlaceholderLease(Agent2, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AddPlaceholderLease(Agent3, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AddPlaceholderLease(Agent4, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AssertPoolSizeAsync(Pool, 4);
+			await AddPlaceholderLease(_agent1, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AddPlaceholderLease(_agent2, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AddPlaceholderLease(_agent3, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AddPlaceholderLease(_agent4, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AssertPoolSizeAsync(pool, 4);
 		}
 		
 		[TestMethod]
 		public async Task UtilizationHalf()
 		{
-			IPool Pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
-			CreateAgents(Pool);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
+			CreateAgents(pool);
 			
-			await AddPlaceholderLease(Agent1, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AddPlaceholderLease(Agent2, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AssertPoolSizeAsync(Pool, 2);
+			await AddPlaceholderLease(_agent1, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AddPlaceholderLease(_agent2, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AssertPoolSizeAsync(pool, 2);
 		}
 		
 		[TestMethod]
 		public async Task UtilizationZero()
 		{
-			IPool Pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
-			CreateAgents(Pool);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
+			CreateAgents(pool);
 
-			await AssertPoolSizeAsync(Pool, 0);
+			await AssertPoolSizeAsync(pool, 0);
 		}
 		
 		[TestMethod]
 		public async Task ReserveAgents()
 		{
-			IPool Pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 5);
-			CreateAgents(Pool);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 5);
+			CreateAgents(pool);
 			
-			await AddPlaceholderLease(Agent1, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AddPlaceholderLease(Agent2, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AddPlaceholderLease(Agent3, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
-			await AddPlaceholderLease(Agent4, Pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AddPlaceholderLease(_agent1, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AddPlaceholderLease(_agent2, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AddPlaceholderLease(_agent3, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
+			await AddPlaceholderLease(_agent4, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
 			
 			// Full utilization should mean all agents plus the reserve agents
-			await AssertPoolSizeAsync(Pool, 9);
+			await AssertPoolSizeAsync(pool, 9);
 		}
 		
 		[TestMethod]
 		public async Task MinAgents()
 		{
-			IPool Pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 2, 0);
-			CreateAgents(Pool);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 2, 0);
+			CreateAgents(pool);
 			
 			// Even with no utilization, expect at least the min number of agents
-			await AssertPoolSizeAsync(Pool, 2);
+			await AssertPoolSizeAsync(pool, 2);
 		}
 
-		private async Task AssertPoolSizeAsync(IPool Pool, int ExpectedNumAgents)
+		private async Task AssertPoolSizeAsync(IPool pool, int expectedNumAgents)
 		{
-			LeaseUtilizationStrategy Strategy = new (AgentCollection, PoolCollection, LeaseCollection, Clock);
-			List<PoolSizeData> Output = await Strategy.CalcDesiredPoolSizesAsync(new() { new(Pool, PoolAgents, null) });
-			Assert.AreEqual(1, Output.Count);
-			Assert.AreEqual(ExpectedNumAgents, Output[0].DesiredAgentCount);
+			LeaseUtilizationStrategy strategy = new (AgentCollection, PoolCollection, LeaseCollection, Clock);
+			List<PoolSizeData> output = await strategy.CalcDesiredPoolSizesAsync(new() { new(pool, _poolAgents, null) });
+			Assert.AreEqual(1, output.Count);
+			Assert.AreEqual(expectedNumAgents, output[0].DesiredAgentCount);
 		}
 		
-		private async Task<ILease> AddPlaceholderLease(IAgent Agent, IPool Pool, DateTime StartTime, TimeSpan Duration)
+		private async Task<ILease> AddPlaceholderLease(IAgent agent, IPool pool, DateTime startTime, TimeSpan duration)
 		{
-			Assert.IsNotNull(Agent.SessionId);
+			Assert.IsNotNull(agent.SessionId);
 			
-			ExecuteJobTask PlaceholderJobTask = new();
-			PlaceholderJobTask.JobName = "placeholderJobName";
-			byte[] Payload = Any.Pack(PlaceholderJobTask).ToByteArray();
+			ExecuteJobTask placeholderJobTask = new();
+			placeholderJobTask.JobName = "placeholderJobName";
+			byte[] payload = Any.Pack(placeholderJobTask).ToByteArray();
 
-			ILease Lease = await LeaseCollection.AddAsync(ObjectId<ILease>.GenerateNewId(), "placeholderLease", Agent.Id, Agent.SessionId!.Value, new StreamId("placeholderStream"), Pool.Id, null, StartTime, Payload);
-			bool WasModified = await LeaseCollection.TrySetOutcomeAsync(Lease.Id, StartTime + Duration, LeaseOutcome.Success, null);
-			Assert.IsTrue(WasModified);
-			return Lease;
+			ILease lease = await LeaseCollection.AddAsync(ObjectId<ILease>.GenerateNewId(), "placeholderLease", agent.Id, agent.SessionId!.Value, new StreamId("placeholderStream"), pool.Id, null, startTime, payload);
+			bool wasModified = await LeaseCollection.TrySetOutcomeAsync(lease.Id, startTime + duration, LeaseOutcome.Success, null);
+			Assert.IsTrue(wasModified);
+			return lease;
 		}
 	}
 }

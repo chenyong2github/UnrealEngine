@@ -4,25 +4,14 @@ using EpicGames.Core;
 using Horde.Agent.Parser;
 using Horde.Agent.Utility;
 using HordeCommon;
-using Horde.Build;
-using Horde.Build.Collections;
-using Horde.Build.Collections.Impl;
 using Horde.Build.IssueHandlers.Impl;
-using Horde.Build.Logs;
-using Horde.Build.Logs.Builder;
-using Horde.Build.Logs.Storage;
-using Horde.Build.Logs.Storage.Impl;
 using Horde.Build.Models;
-using Horde.Build.Notifications;
 using Horde.Build.Services;
-using Horde.Build.Services.Impl;
 using Horde.Build.Utilities;
-using Horde.Build.Tests.Stubs.Collections;
 using Horde.Build.Tests.Stubs.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -49,222 +38,222 @@ namespace Horde.Build.Tests
 	{
 		class TestJsonLogger : JsonLogger, IAsyncDisposable
 		{
-			ILogFileService LogFileService;
-			LogId LogId;
-			List<(LogLevel, byte[])> Events = new List<(LogLevel, byte[])>();
+			ILogFileService _logFileService;
+			LogId _logId;
+			List<(LogLevel, byte[])> _events = new List<(LogLevel, byte[])>();
 
-			public TestJsonLogger(ILogFileService LogFileService, LogId LogId)
+			public TestJsonLogger(ILogFileService logFileService, LogId logId)
 				: base(null, NullLogger.Instance)
 			{
-				this.LogFileService = LogFileService;
-				this.LogId = LogId;
+				this._logFileService = logFileService;
+				this._logId = logId;
 			}
 
 			public async ValueTask DisposeAsync()
 			{
-				foreach ((LogLevel Level, byte[] Line) in Events)
+				foreach ((LogLevel level, byte[] line) in _events)
 				{
-					byte[] LineWithNewLine = new byte[Line.Length + 1];
-					Array.Copy(Line, LineWithNewLine, Line.Length);
-					LineWithNewLine[LineWithNewLine.Length - 1] = (byte)'\n';
-					await WriteAsync(Level, LineWithNewLine);
+					byte[] lineWithNewLine = new byte[line.Length + 1];
+					Array.Copy(line, lineWithNewLine, line.Length);
+					lineWithNewLine[^1] = (byte)'\n';
+					await WriteAsync(level, lineWithNewLine);
 				}
 			}
 
-			protected override void WriteFormattedEvent(LogLevel Level, int LineIndex, int LineCount, byte[] Line)
+			protected override void WriteFormattedEvent(LogLevel level, int lineIndex, int lineCount, byte[] line)
 			{
-				Events.Add((Level, Line));
+				_events.Add((level, line));
 			}
 
-			private async Task WriteAsync(LogLevel Level, byte[] Line)
+			private async Task WriteAsync(LogLevel level, byte[] line)
 			{
-				ILogFile LogFile = (await LogFileService.GetLogFileAsync(LogId))!;
-				LogMetadata Metadata = await LogFileService.GetMetadataAsync(LogFile);
-				await LogFileService.WriteLogDataAsync(LogFile, Metadata.Length, Metadata.MaxLineIndex, Line, false);
+				ILogFile logFile = (await _logFileService.GetLogFileAsync(_logId))!;
+				LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile);
+				await _logFileService.WriteLogDataAsync(logFile, metadata.Length, metadata.MaxLineIndex, line, false);
 
-				if (Level >= LogLevel.Warning)
+				if (level >= LogLevel.Warning)
 				{
-					LogEvent Event = ParseEvent(Line);
-					if (Event.LineIndex == 0)
+					LogEvent @event = ParseEvent(line);
+					if (@event.LineIndex == 0)
 					{
-						EventSeverity Severity = (Level == LogLevel.Warning) ? EventSeverity.Warning : EventSeverity.Error;
-						await LogFileService.CreateEventsAsync(new List<NewLogEventData> { new NewLogEventData { LogId = LogId, LineIndex = Metadata.MaxLineIndex, LineCount = Event.LineCount, Severity = Severity } });
+						EventSeverity severity = (level == LogLevel.Warning) ? EventSeverity.Warning : EventSeverity.Error;
+						await _logFileService.CreateEventsAsync(new List<NewLogEventData> { new NewLogEventData { LogId = _logId, LineIndex = metadata.MaxLineIndex, LineCount = @event.LineCount, Severity = severity } });
 					}
 				}
 			}
 
-			static LogEvent ParseEvent(byte[] Line)
+			static LogEvent ParseEvent(byte[] line)
 			{
-				Utf8JsonReader Reader = new Utf8JsonReader(Line.AsSpan());
-				Reader.Read();
-				return LogEvent.Read(ref Reader);
+				Utf8JsonReader reader = new Utf8JsonReader(line.AsSpan());
+				reader.Read();
+				return LogEvent.Read(ref reader);
 			}
 		}
 
 		const string MainStreamName = "//UE4/Main";
-		StreamId MainStreamId = StreamId.Sanitize(MainStreamName);
+		StreamId _mainStreamId = StreamId.Sanitize(MainStreamName);
 
 		const string ReleaseStreamName = "//UE4/Release";
-		StreamId ReleaseStreamId = StreamId.Sanitize(ReleaseStreamName);
+		StreamId _releaseStreamId = StreamId.Sanitize(ReleaseStreamName);
 
 		const string DevStreamName = "//UE4/Dev";
-		StreamId DevStreamId = StreamId.Sanitize(DevStreamName);
+		StreamId _devStreamId = StreamId.Sanitize(DevStreamName);
 
-		IGraph Graph;
-		PerforceServiceStub Perforce;
+		IGraph _graph;
+		PerforceServiceStub _perforce;
 
-		UserId TimId;
-		UserId JerryId;
-		UserId BobId;
+		UserId _timId;
+		UserId _jerryId;
+		UserId _bobId;
 
-		DirectoryReference WorkspaceDir;
+		DirectoryReference _workspaceDir;
 
 		public IssueServiceTests()
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				WorkspaceDir = new DirectoryReference("C:\\Horde");
+				_workspaceDir = new DirectoryReference("C:\\Horde");
 			}
 			else
 			{
-				WorkspaceDir = new DirectoryReference("/Horde");
+				_workspaceDir = new DirectoryReference("/Horde");
 			}
 
-			IProject Project = ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), "", "", 0, new ProjectConfig { Name = "UE4" }).Result!;
+			IProject project = ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), "", "", 0, new ProjectConfig { Name = "UE4" }).Result!;
 
-			IStream MainStream = StreamCollection.TryCreateOrReplaceAsync(MainStreamId, null, "", "", Project.Id, new StreamConfig { Name = MainStreamName }).Result!;
-			IStream ReleaseStream = StreamCollection.TryCreateOrReplaceAsync(ReleaseStreamId, null, "", "", Project.Id, new StreamConfig { Name = ReleaseStreamName }).Result!;
-			IStream DevStream = StreamCollection.TryCreateOrReplaceAsync(DevStreamId, null, "", "", Project.Id, new StreamConfig { Name = DevStreamName }).Result!;
+			IStream mainStream = StreamCollection.TryCreateOrReplaceAsync(_mainStreamId, null, "", "", project.Id, new StreamConfig { Name = MainStreamName }).Result!;
+			IStream releaseStream = StreamCollection.TryCreateOrReplaceAsync(_releaseStreamId, null, "", "", project.Id, new StreamConfig { Name = ReleaseStreamName }).Result!;
+			IStream devStream = StreamCollection.TryCreateOrReplaceAsync(_devStreamId, null, "", "", project.Id, new StreamConfig { Name = DevStreamName }).Result!;
 
-			IUser Bill = UserCollection.FindOrAddUserByLoginAsync("Bill").Result;
-			IUser Anne = UserCollection.FindOrAddUserByLoginAsync("Anne").Result;
-			IUser Bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
-			IUser Jerry = UserCollection.FindOrAddUserByLoginAsync("Jerry").Result;
-			IUser Chris = UserCollection.FindOrAddUserByLoginAsync("Chris").Result;
+			IUser bill = UserCollection.FindOrAddUserByLoginAsync("Bill").Result;
+			IUser anne = UserCollection.FindOrAddUserByLoginAsync("Anne").Result;
+			IUser bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
+			IUser jerry = UserCollection.FindOrAddUserByLoginAsync("Jerry").Result;
+			IUser chris = UserCollection.FindOrAddUserByLoginAsync("Chris").Result;
 
-			TimId = UserCollection.FindOrAddUserByLoginAsync("Tim").Result.Id;
-			JerryId = UserCollection.FindOrAddUserByLoginAsync("Jerry").Result.Id;
-			BobId = UserCollection.FindOrAddUserByLoginAsync("Bob").Result.Id;
+			_timId = UserCollection.FindOrAddUserByLoginAsync("Tim").Result.Id;
+			_jerryId = UserCollection.FindOrAddUserByLoginAsync("Jerry").Result.Id;
+			_bobId = UserCollection.FindOrAddUserByLoginAsync("Bob").Result.Id;
 
-			Perforce = PerforceService;
-			Perforce.AddChange(MainStreamName, 100, Bill, "Description", new string[] { "a/b.cpp" });
-			Perforce.AddChange(MainStreamName, 105, Anne, "Description", new string[] { "a/c.cpp" });
-			Perforce.AddChange(MainStreamName, 110, Bob, "Description", new string[] { "a/d.cpp" });
-			Perforce.AddChange(MainStreamName, 115, Jerry, "Description\n#ROBOMERGE-SOURCE: CL 75 in //UE4/Release/...", new string[] { "a/e.cpp", "a/foo.cpp" });
-			Perforce.AddChange(MainStreamName, 120, Chris, "Description\n#ROBOMERGE-OWNER: Tim", new string[] { "a/f.cpp" });
-			Perforce.AddChange(MainStreamName, 125, Chris, "Description", new string[] { "a/g.cpp" });
+			_perforce = PerforceService;
+			_perforce.AddChange(MainStreamName, 100, bill, "Description", new string[] { "a/b.cpp" });
+			_perforce.AddChange(MainStreamName, 105, anne, "Description", new string[] { "a/c.cpp" });
+			_perforce.AddChange(MainStreamName, 110, bob, "Description", new string[] { "a/d.cpp" });
+			_perforce.AddChange(MainStreamName, 115, jerry, "Description\n#ROBOMERGE-SOURCE: CL 75 in //UE4/Release/...", new string[] { "a/e.cpp", "a/foo.cpp" });
+			_perforce.AddChange(MainStreamName, 120, chris, "Description\n#ROBOMERGE-OWNER: Tim", new string[] { "a/f.cpp" });
+			_perforce.AddChange(MainStreamName, 125, chris, "Description", new string[] { "a/g.cpp" });
 
-			List<INode> Nodes = new List<INode>();
-			Nodes.Add(MockNode("Update Version Files"));
-			Nodes.Add(MockNode("Compile UnrealHeaderTool Win64"));
-			Nodes.Add(MockNode("Compile ShooterGameEditor Win64"));
-			Nodes.Add(MockNode("Cook ShooterGame Win64"));
+			List<INode> nodes = new List<INode>();
+			nodes.Add(MockNode("Update Version Files"));
+			nodes.Add(MockNode("Compile UnrealHeaderTool Win64"));
+			nodes.Add(MockNode("Compile ShooterGameEditor Win64"));
+			nodes.Add(MockNode("Cook ShooterGame Win64"));
 
-			Mock<INodeGroup> Group = new Mock<INodeGroup>(MockBehavior.Strict);
-			Group.SetupGet(x => x.Nodes).Returns(Nodes);
+			Mock<INodeGroup> @group = new Mock<INodeGroup>(MockBehavior.Strict);
+			@group.SetupGet(x => x.Nodes).Returns(nodes);
 
-			Mock<IGraph> GraphMock = new Mock<IGraph>(MockBehavior.Strict);
-			GraphMock.SetupGet(x => x.Groups).Returns(new List<INodeGroup> { Group.Object });
-			Graph = GraphMock.Object;
+			Mock<IGraph> graphMock = new Mock<IGraph>(MockBehavior.Strict);
+			graphMock.SetupGet(x => x.Groups).Returns(new List<INodeGroup> { @group.Object });
+			_graph = graphMock.Object;
 		}
 
-		public static INode MockNode(string Name)
+		public static INode MockNode(string name)
 		{
-			Mock<INode> Node = new Mock<INode>();
-			Node.SetupGet(x => x.Name).Returns(Name);
-			return Node.Object;
+			Mock<INode> node = new Mock<INode>();
+			node.SetupGet(x => x.Name).Returns(name);
+			return node.Object;
 		}
 
-		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph, TimeSpan Time = default, bool PromoteByDefault = true)
+		public IJob CreateJob(StreamId streamId, int change, string name, IGraph graph, TimeSpan time = default, bool promoteByDefault = true)
 		{
-			JobId JobId = JobId.GenerateNewId();
+			JobId jobId = JobId.GenerateNewId();
 
-			List<IJobStepBatch> Batches = new List<IJobStepBatch>();
-			for (int GroupIdx = 0; GroupIdx < Graph.Groups.Count; GroupIdx++)
+			List<IJobStepBatch> batches = new List<IJobStepBatch>();
+			for (int groupIdx = 0; groupIdx < graph.Groups.Count; groupIdx++)
 			{
-				INodeGroup Group = Graph.Groups[GroupIdx];
+				INodeGroup @group = graph.Groups[groupIdx];
 
-				List<IJobStep> Steps = new List<IJobStep>();
-				for (int NodeIdx = 0; NodeIdx < Group.Nodes.Count; NodeIdx++)
+				List<IJobStep> steps = new List<IJobStep>();
+				for (int nodeIdx = 0; nodeIdx < @group.Nodes.Count; nodeIdx++)
 				{
-					SubResourceId StepId = new SubResourceId((ushort)((GroupIdx * 100) + NodeIdx));
+					SubResourceId stepId = new SubResourceId((ushort)((groupIdx * 100) + nodeIdx));
 
-					ILogFile LogFile = LogFileService.CreateLogFileAsync(JobId, null, Horde.Build.Api.LogType.Json).Result;
+					ILogFile logFile = LogFileService.CreateLogFileAsync(jobId, null, Horde.Build.Api.LogType.Json).Result;
 
-					Mock<IJobStep> Step = new Mock<IJobStep>(MockBehavior.Strict);
-					Step.SetupGet(x => x.Id).Returns(StepId);
-					Step.SetupGet(x => x.NodeIdx).Returns(NodeIdx);
-					Step.SetupGet(x => x.LogId).Returns(LogFile.Id);
-					Step.SetupGet(x => x.StartTimeUtc).Returns(DateTime.UtcNow + Time);
+					Mock<IJobStep> step = new Mock<IJobStep>(MockBehavior.Strict);
+					step.SetupGet(x => x.Id).Returns(stepId);
+					step.SetupGet(x => x.NodeIdx).Returns(nodeIdx);
+					step.SetupGet(x => x.LogId).Returns(logFile.Id);
+					step.SetupGet(x => x.StartTimeUtc).Returns(DateTime.UtcNow + time);
 
-					Steps.Add(Step.Object);
+					steps.Add(step.Object);
 				}
 
-				SubResourceId BatchId = new SubResourceId((ushort)(GroupIdx * 100));
+				SubResourceId batchId = new SubResourceId((ushort)(groupIdx * 100));
 
-				Mock<IJobStepBatch> Batch = new Mock<IJobStepBatch>(MockBehavior.Strict);
-				Batch.SetupGet(x => x.Id).Returns(BatchId);
-				Batch.SetupGet(x => x.GroupIdx).Returns(GroupIdx);
-				Batch.SetupGet(x => x.Steps).Returns(Steps);
-				Batches.Add(Batch.Object);
+				Mock<IJobStepBatch> batch = new Mock<IJobStepBatch>(MockBehavior.Strict);
+				batch.SetupGet(x => x.Id).Returns(batchId);
+				batch.SetupGet(x => x.GroupIdx).Returns(groupIdx);
+				batch.SetupGet(x => x.Steps).Returns(steps);
+				batches.Add(batch.Object);
 			}
 
-			Mock<IJob> Job = new Mock<IJob>(MockBehavior.Strict);
-			Job.SetupGet(x => x.Id).Returns(JobId);
-			Job.SetupGet(x => x.Name).Returns(Name);
-			Job.SetupGet(x => x.StreamId).Returns(StreamId);
-			Job.SetupGet(x => x.TemplateId).Returns(new TemplateRefId("test-template"));
-			Job.SetupGet(x => x.Change).Returns(Change);
-			Job.SetupGet(x => x.Batches).Returns(Batches);
-			Job.SetupGet(x => x.ShowUgsBadges).Returns(PromoteByDefault);
-			Job.SetupGet(x => x.ShowUgsAlerts).Returns(PromoteByDefault);
-			Job.SetupGet(x => x.PromoteIssuesByDefault).Returns(PromoteByDefault);
-			Job.SetupGet(x => x.NotificationChannel).Returns("#devtools-horde-slack-testing");
-			return Job.Object;
+			Mock<IJob> job = new Mock<IJob>(MockBehavior.Strict);
+			job.SetupGet(x => x.Id).Returns(jobId);
+			job.SetupGet(x => x.Name).Returns(name);
+			job.SetupGet(x => x.StreamId).Returns(streamId);
+			job.SetupGet(x => x.TemplateId).Returns(new TemplateRefId("test-template"));
+			job.SetupGet(x => x.Change).Returns(change);
+			job.SetupGet(x => x.Batches).Returns(batches);
+			job.SetupGet(x => x.ShowUgsBadges).Returns(promoteByDefault);
+			job.SetupGet(x => x.ShowUgsAlerts).Returns(promoteByDefault);
+			job.SetupGet(x => x.PromoteIssuesByDefault).Returns(promoteByDefault);
+			job.SetupGet(x => x.NotificationChannel).Returns("#devtools-horde-slack-testing");
+			return job.Object;
 		}
 
-		async Task UpdateCompleteStep(IJob Job, int BatchIdx, int StepIdx, JobStepOutcome Outcome)
+		async Task UpdateCompleteStep(IJob job, int batchIdx, int stepIdx, JobStepOutcome outcome)
 		{
-			IJobStepBatch Batch = Job.Batches[BatchIdx];
-			IJobStep Step = Batch.Steps[StepIdx];
-			await IssueService.UpdateCompleteStep(Job, Graph, Batch.Id, Step.Id);
+			IJobStepBatch batch = job.Batches[batchIdx];
+			IJobStep step = batch.Steps[stepIdx];
+			await IssueService.UpdateCompleteStep(job, _graph, batch.Id, step.Id);
 
-			JobStepRefId JobStepRefId = new JobStepRefId(Job.Id, Batch.Id, Step.Id);
-			string NodeName = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx].Name;
-			await JobStepRefCollection.InsertOrReplaceAsync(JobStepRefId, "TestJob", NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, null, null, Outcome, null, null, 0.0f, 0.0f, Step.StartTimeUtc!.Value, Step.StartTimeUtc);
+			JobStepRefId jobStepRefId = new JobStepRefId(job.Id, batch.Id, step.Id);
+			string nodeName = _graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
+			await JobStepRefCollection.InsertOrReplaceAsync(jobStepRefId, "TestJob", nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, null, null, outcome, null, null, 0.0f, 0.0f, step.StartTimeUtc!.Value, step.StartTimeUtc);
 		}
 
-		async Task AddEvent(IJob Job, int BatchIdx, int StepIdx, object Data, EventSeverity Severity = EventSeverity.Error)
+		async Task AddEvent(IJob job, int batchIdx, int stepIdx, object data, EventSeverity severity = EventSeverity.Error)
 		{
-			LogId LogId = Job.Batches[BatchIdx].Steps[StepIdx].LogId!.Value;
+			LogId logId = job.Batches[batchIdx].Steps[stepIdx].LogId!.Value;
 
-			List<byte> Bytes = new List<byte>();
-			Bytes.AddRange(JsonSerializer.SerializeToUtf8Bytes(Data));
-			Bytes.Add((byte)'\n');
+			List<byte> bytes = new List<byte>();
+			bytes.AddRange(JsonSerializer.SerializeToUtf8Bytes(data));
+			bytes.Add((byte)'\n');
 
-			ILogFile LogFile = (await LogFileService.GetLogFileAsync(LogId))!;
-			LogMetadata Metadata = await LogFileService.GetMetadataAsync(LogFile);
-			await LogFileService.WriteLogDataAsync(LogFile, Metadata.Length, Metadata.MaxLineIndex, Bytes.ToArray(), false);
+			ILogFile logFile = (await LogFileService.GetLogFileAsync(logId))!;
+			LogMetadata metadata = await LogFileService.GetMetadataAsync(logFile);
+			await LogFileService.WriteLogDataAsync(logFile, metadata.Length, metadata.MaxLineIndex, bytes.ToArray(), false);
 
-			await LogFileService.CreateEventsAsync(new List<NewLogEventData> { new NewLogEventData { LogId = LogId, LineIndex = Metadata.MaxLineIndex, LineCount = 1, Severity = Severity } });
+			await LogFileService.CreateEventsAsync(new List<NewLogEventData> { new NewLogEventData { LogId = logId, LineIndex = metadata.MaxLineIndex, LineCount = 1, Severity = severity } });
 		}
 
-		private async Task ParseEventsAsync(IJob Job, int BatchIdx, int StepIdx, string[] Lines)
+		private async Task ParseEventsAsync(IJob job, int batchIdx, int stepIdx, string[] lines)
 		{
-			LogId LogId = Job.Batches[BatchIdx].Steps[StepIdx].LogId!.Value;
+			LogId logId = job.Batches[batchIdx].Steps[stepIdx].LogId!.Value;
 
-			LogParserContext Context = new LogParserContext();
-			Context.WorkspaceDir = WorkspaceDir;
-			Context.PerforceStream = "//UE4/Main";
-			Context.PerforceChange = 12345;
+			LogParserContext context = new LogParserContext();
+			context.WorkspaceDir = _workspaceDir;
+			context.PerforceStream = "//UE4/Main";
+			context.PerforceChange = 12345;
 
-			await using (TestJsonLogger Logger = new TestJsonLogger(LogFileService, LogId))
+			await using (TestJsonLogger logger = new TestJsonLogger(LogFileService, logId))
 			{
-				using (LogParser Parser = new LogParser(Logger, Context, new List<string>()))
+				using (LogParser parser = new LogParser(logger, context, new List<string>()))
 				{
-					for (int Idx = 0; Idx < Lines.Length; Idx++)
+					for (int idx = 0; idx < lines.Length; idx++)
 					{
-						Parser.WriteLine(Lines[Idx]);
+						parser.WriteLine(lines[idx]);
 					}
 				}
 			}
@@ -277,71 +266,71 @@ namespace Horde.Build.Tests
 			// Scenario: Warning in first step
 			// Expected: Default issues is created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				Assert.AreEqual("Warnings in Update Version Files", Issues[0].Summary);
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
 			}
 
 			// #2
 			// Scenario: Errors in other steps on same job
 			// Expected: Nodes are NOT added to issue
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await AddEvent(Job, 0, 1, new { });
-				await UpdateCompleteStep(Job, 0, 1, JobStepOutcome.Failure);
-				await AddEvent(Job, 0, 2, new { });
-				await UpdateCompleteStep(Job, 0, 2, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 1, new { });
+				await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Failure);
+				await AddEvent(job, 0, 2, new { });
+				await UpdateCompleteStep(job, 0, 2, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = (await IssueService.FindIssuesAsync()).OrderBy(x => x.Summary).ToList();
-				Assert.AreEqual(3, Issues.Count);
+				List<IIssue> issues = (await IssueService.FindIssuesAsync()).OrderBy(x => x.Summary).ToList();
+				Assert.AreEqual(3, issues.Count);
 
-				Assert.AreEqual("Errors in Compile ShooterGameEditor Win64", Issues[0].Summary);
-				Assert.AreEqual("Errors in Compile UnrealHeaderTool Win64", Issues[1].Summary);
-				Assert.AreEqual("Warnings in Update Version Files", Issues[2].Summary);
+				Assert.AreEqual("Errors in Compile ShooterGameEditor Win64", issues[0].Summary);
+				Assert.AreEqual("Errors in Compile UnrealHeaderTool Win64", issues[1].Summary);
+				Assert.AreEqual("Warnings in Update Version Files", issues[2].Summary);
 			}
 
 			// #3
 			// Scenario: Subsequent jobs also error
 			// Expected: Nodes are added to issue, but change outcome to error
 			{
-				IJob Job = CreateJob(MainStreamId, 110, "Test Build", Graph);
-				await AddEvent(Job, 0, 0, new { });
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 110, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { });
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = (await IssueService.FindIssuesAsync()).OrderBy(x => x.Summary).ToList();
-				Assert.AreEqual(3, Issues.Count);
+				List<IIssue> issues = (await IssueService.FindIssuesAsync()).OrderBy(x => x.Summary).ToList();
+				Assert.AreEqual(3, issues.Count);
 
-				Assert.AreEqual("Errors in Compile ShooterGameEditor Win64", Issues[0].Summary);
-				Assert.AreEqual("Errors in Compile UnrealHeaderTool Win64", Issues[1].Summary);
-				Assert.AreEqual("Errors in Update Version Files", Issues[2].Summary);
+				Assert.AreEqual("Errors in Compile ShooterGameEditor Win64", issues[0].Summary);
+				Assert.AreEqual("Errors in Compile UnrealHeaderTool Win64", issues[1].Summary);
+				Assert.AreEqual("Errors in Update Version Files", issues[2].Summary);
 			}
 
 			// #4
 			// Scenario: Subsequent jobs also error, but in different node
 			// Expected: Additional error is created
 			{
-				IJob Job = CreateJob(MainStreamId, 110, "Test Build", Graph);
-				await AddEvent(Job, 0, 3, new { });
-				await UpdateCompleteStep(Job, 0, 3, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 110, "Test Build", _graph);
+				await AddEvent(job, 0, 3, new { });
+				await UpdateCompleteStep(job, 0, 3, JobStepOutcome.Warnings);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(4, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(4, issues.Count);
 			}
 
 			// #5
 			// Add a description to the issue
 			{
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
 
-				IIssue Issue = Issues[0];
-				await IssueService.UpdateIssueAsync(Issue.Id, Description: "Hello world!");
-				IIssue? NewIssue = await IssueService.GetIssueAsync(Issue.Id);
-				Assert.AreEqual(NewIssue?.Description, "Hello world!");
+				IIssue issue = issues[0];
+				await IssueService.UpdateIssueAsync(issue.Id, Description: "Hello world!");
+				IIssue? newIssue = await IssueService.GetIssueAsync(issue.Id);
+				Assert.AreEqual(newIssue?.Description, "Hello world!");
 			}
 		}
 
@@ -352,30 +341,30 @@ namespace Horde.Build.Tests
 			// Scenario: Warning in first step
 			// Expected: Default issues is created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				Assert.AreEqual(IssueSeverity.Warning, Issues[0].Severity);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
 
-				Assert.AreEqual("Warnings in Update Version Files", Issues[0].Summary);
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
 			}
 
 			// #2
 			// Scenario: Same step errors
 			// Expected: Issue state changes to error
 			{
-				IJob Job = CreateJob(MainStreamId, 110, "Test Build", Graph);
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Error) }, EventSeverity.Error);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 110, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Error) }, EventSeverity.Error);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				Assert.AreEqual(IssueSeverity.Error, Issues[0].Severity);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Error, issues[0].Severity);
 
-				Assert.AreEqual("Errors in Update Version Files", Issues[0].Summary);
+				Assert.AreEqual("Errors in Update Version Files", issues[0].Summary);
 			}
 		}
 
@@ -386,44 +375,44 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync(Resolved: false);
-				Assert.AreEqual(0, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				Assert.AreEqual(0, openIssues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120 in AutoSDK file
 			// Expected: Creates issue, identifies source file correctly
 			{
-				string[] Lines =
+				string[] lines =
 				{
 					@"  D:\build\AutoSDK\Sync\HostWin64\GDK\200604\Microsoft GDK\200604\GRDK\ExtensionLibraries\Xbox.Game.Chat.2.Cpp.API\DesignTime\CommonConfiguration\Neutral\Include\GameChat2Impl.h(90): warning C5043: 'xbox::services::game_chat_2::chat_manager::set_memory_callbacks': exception specification does not match previous declaration",
 					@"  D:\build\AutoSDK\Sync\HostWin64\GDK\200604\Microsoft GDK\200604\GRDK\ExtensionLibraries\Xbox.Game.Chat.2.Cpp.API\DesignTime\CommonConfiguration\Neutral\Include\GameChat2.h(2083): note: see declaration of 'xbox::services::game_chat_2::chat_manager::set_memory_callbacks'",
 				};
 
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				ILogFile? Log = await LogFileService.GetLogFileAsync(Job.Batches[0].Steps[0].LogId!.Value);
-				List<ILogEvent> Events = await LogFileService.FindLogEventsAsync(Log!);
-				Assert.AreEqual(1, Events.Count);
-				Assert.AreEqual(2, Events[0].LineCount);
+				ILogFile? log = await LogFileService.GetLogFileAsync(job.Batches[0].Steps[0].LogId!.Value);
+				List<ILogEvent> events = await LogFileService.FindLogEventsAsync(log!);
+				Assert.AreEqual(1, events.Count);
+				Assert.AreEqual(2, events[0].LineCount);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(1, Spans.Count);
-				Assert.AreEqual(1, Issue.Fingerprints.Count);
-				Assert.AreEqual("Compile", Issue.Fingerprints[0].Type);
-				Assert.AreEqual("Compile warnings in GameChat2Impl.h", Issue.Summary);
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(1, spans.Count);
+				Assert.AreEqual(1, issue.Fingerprints.Count);
+				Assert.AreEqual("Compile", issue.Fingerprints[0].Type);
+				Assert.AreEqual("Compile warnings in GameChat2Impl.h", issue.Summary);
 			}
 		}
 
@@ -434,157 +423,157 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync(Resolved: false);
-				Assert.AreEqual(0, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				Assert.AreEqual(0, openIssues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120
 			// Expected: Creates issue, blames submitters at CL 110, 115, 120
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "fog.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+					FileReference.Combine(_workspaceDir, "fog.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(1, Spans.Count);
-				Assert.AreEqual(1, Issue.Fingerprints.Count);
-				Assert.AreEqual("Compile", Issue.Fingerprints[0].Type);
-				Assert.AreEqual("Compile errors in fog.cpp", Issue.Summary);
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(1, spans.Count);
+				Assert.AreEqual(1, issue.Fingerprints.Count);
+				Assert.AreEqual("Compile", issue.Fingerprints[0].Type);
+				Assert.AreEqual("Compile errors in fog.cpp", issue.Summary);
 
-				IIssueSpan Stream = Spans[0];
-				Assert.AreEqual(105, Stream.LastSuccess?.Change);
-				Assert.AreEqual(null, Stream.NextSuccess?.Change);
+				IIssueSpan stream = spans[0];
+				Assert.AreEqual(105, stream.LastSuccess?.Change);
+				Assert.AreEqual(null, stream.NextSuccess?.Change);
 
-				IReadOnlyList<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issue);
-				Suspects = Suspects.OrderBy(x => x.Id).ToList();
-				Assert.AreEqual(3, Suspects.Count);
+				IReadOnlyList<IIssueSuspect> suspects = await IssueService.GetIssueSuspectsAsync(issue);
+				suspects = suspects.OrderBy(x => x.Id).ToList();
+				Assert.AreEqual(3, suspects.Count);
 
-				Assert.AreEqual(75 /*115*/, Suspects[1].Change);
-				Assert.AreEqual(JerryId, Suspects[1].AuthorId);
+				Assert.AreEqual(75 /*115*/, suspects[1].Change);
+				Assert.AreEqual(_jerryId, suspects[1].AuthorId);
 				//				Assert.AreEqual(75, Suspects[1].OriginatingChange);
 
-				Assert.AreEqual(110, Suspects[2].Change);
-				Assert.AreEqual(BobId, Suspects[2].AuthorId);
+				Assert.AreEqual(110, suspects[2].Change);
+				Assert.AreEqual(_bobId, suspects[2].AuthorId);
 				//			Assert.AreEqual(null, Suspects[2].OriginatingChange);
 
-				Assert.AreEqual(120, Suspects[0].Change);
-				Assert.AreEqual(TimId, Suspects[0].AuthorId);
+				Assert.AreEqual(120, suspects[0].Change);
+				Assert.AreEqual(_timId, suspects[0].AuthorId);
 				//				Assert.AreEqual(null, Suspects[0].OriginatingChange);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync(Resolved: false);
-				Assert.AreEqual(1, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				Assert.AreEqual(1, openIssues.Count);
 			}
 
 			// #3
 			// Scenario: Job step succeeds at CL 110
 			// Expected: Issue is updated to vindicate change at CL 110
 			{
-				IJob Job = CreateJob(MainStreamId, 110, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 110, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(Spans.Count, 1);
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(spans.Count, 1);
 
-				IIssueSpan Stream = Spans[0];
-				Assert.AreEqual(110, Stream.LastSuccess?.Change);
-				Assert.AreEqual(null, Stream.NextSuccess?.Change);
+				IIssueSpan stream = spans[0];
+				Assert.AreEqual(110, stream.LastSuccess?.Change);
+				Assert.AreEqual(null, stream.NextSuccess?.Change);
 
-				IReadOnlyList<IIssueSuspect> Suspects = (await IssueService.GetIssueSuspectsAsync(Issue)).OrderByDescending(x => x.Change).ToList();
-				Assert.AreEqual(2, Suspects.Count);
+				IReadOnlyList<IIssueSuspect> suspects = (await IssueService.GetIssueSuspectsAsync(issue)).OrderByDescending(x => x.Change).ToList();
+				Assert.AreEqual(2, suspects.Count);
 
-				Assert.AreEqual(120, Suspects[0].Change);
-				Assert.AreEqual(TimId, Suspects[0].AuthorId);
+				Assert.AreEqual(120, suspects[0].Change);
+				Assert.AreEqual(_timId, suspects[0].AuthorId);
 
-				Assert.AreEqual(75, Suspects[1].Change);
-				Assert.AreEqual(JerryId, Suspects[1].AuthorId);
+				Assert.AreEqual(75, suspects[1].Change);
+				Assert.AreEqual(_jerryId, suspects[1].AuthorId);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync(Resolved: false);
-				Assert.AreEqual(1, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				Assert.AreEqual(1, openIssues.Count);
 			}
 
 			// #4
 			// Scenario: Job step succeeds at CL 125
 			// Expected: Issue is updated to narrow range to 115, 120
 			{
-				IJob Job = CreateJob(MainStreamId, 125, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 125, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync(Resolved: true);
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync(Resolved: true);
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(Spans.Count, 1);
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(spans.Count, 1);
 
-				IIssueSpan Stream = Spans[0];
-				Assert.AreEqual(110, Stream.LastSuccess?.Change);
-				Assert.AreEqual(125, Stream.NextSuccess?.Change);
+				IIssueSpan stream = spans[0];
+				Assert.AreEqual(110, stream.LastSuccess?.Change);
+				Assert.AreEqual(125, stream.NextSuccess?.Change);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync(Resolved: false);
-				Assert.AreEqual(0, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				Assert.AreEqual(0, openIssues.Count);
 			}
 
 			// #5
 			// Scenario: Additional error in same node at 115
 			// Expected: Event is merged into existing issue
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "fog.cpp").FullName + @"(114): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+					FileReference.Combine(_workspaceDir, "fog.cpp").FullName + @"(114): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				IJob Job = CreateJob(MainStreamId, 115, "Test Build", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 115, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync(Resolved: true);
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync(Resolved: true);
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(1, Spans.Count);
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(1, spans.Count);
 
-				IIssueSpan Span = Spans[0];
-				Assert.AreEqual(110, Span.LastSuccess?.Change);
-				Assert.AreEqual(125, Span.NextSuccess?.Change);
+				IIssueSpan span = spans[0];
+				Assert.AreEqual(110, span.LastSuccess?.Change);
+				Assert.AreEqual(125, span.NextSuccess?.Change);
 
-				List<IIssueStep> Steps = await IssueService.GetIssueStepsAsync(Span);
-				Assert.AreEqual(2, Steps.Count);
+				List<IIssueStep> steps = await IssueService.GetIssueStepsAsync(span);
+				Assert.AreEqual(2, steps.Count);
 			}
 
 			// #5
 			// Scenario: Additional error in different node at 115
 			// Expected: New issue is created
 			{
-				IJob Job = CreateJob(MainStreamId, 115, "Test Build", Graph);
-				await AddEvent(Job, 0, 1, new { });
-				await UpdateCompleteStep(Job, 0, 1, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 115, "Test Build", _graph);
+				await AddEvent(job, 0, 1, new { });
+				await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Failure);
 
-				List<IIssue> ResolvedIssues = await IssueService.FindIssuesAsync(Resolved: true);
-				Assert.AreEqual(1, ResolvedIssues.Count);
+				List<IIssue> resolvedIssues = await IssueService.FindIssuesAsync(Resolved: true);
+				Assert.AreEqual(1, resolvedIssues.Count);
 
-				List<IIssue> UnresolvedIssues = await IssueService.FindIssuesAsync(Resolved: false);
-				Assert.AreEqual(1, UnresolvedIssues.Count);
+				List<IIssue> unresolvedIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				Assert.AreEqual(1, unresolvedIssues.Count);
 			}
 		}
 
@@ -595,58 +584,58 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Compile Test", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Compile Test", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120
 			// Expected: Creates issue, blames submitters at CL 110, 115, 120
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				Perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				Perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
-				Perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
 
-				IJob Job = CreateJob(MainStreamId, 120, "Compile Test", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				Assert.IsTrue(Issues[0].Promoted);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.IsTrue(issues[0].Promoted);
 
-				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+				List<IIssueSuspect> suspects = await IssueService.GetIssueSuspectsAsync(issues[0]);
 
-				List<UserId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
-				Assert.AreEqual(2, PrimarySuspects.Count);
-				Assert.IsTrue(PrimarySuspects.Contains(JerryId)); // 115
-				Assert.IsTrue(PrimarySuspects.Contains(TimId)); // 120
+				List<UserId> primarySuspects = suspects.Select(x => x.AuthorId).ToList();
+				Assert.AreEqual(2, primarySuspects.Count);
+				Assert.IsTrue(primarySuspects.Contains(_jerryId)); // 115
+				Assert.IsTrue(primarySuspects.Contains(_timId)); // 120
 			}
 
 			// #3
 			// Scenario: Job step succeeds at CL 115
 			// Expected: Creates issue, blames submitter at CL 120
 			{
-				IJob Job = CreateJob(MainStreamId, 115, "Compile Test", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 115, "Compile Test", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				Assert.AreEqual(TimId, Issue.OwnerId);
+				IIssue issue = issues[0];
+				Assert.AreEqual(_timId, issue.OwnerId);
 
 				// Also check updating an issue doesn't clear the owner
-				Assert.IsTrue(await IssueService.UpdateIssueAsync(Issue.Id));
-				Assert.AreEqual(TimId, Issue!.OwnerId);
+				Assert.IsTrue(await IssueService.UpdateIssueAsync(issue.Id));
+				Assert.AreEqual(_timId, issue!.OwnerId);
 			}
 		}
 
@@ -657,39 +646,39 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Compile Test", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Compile Test", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120
 			// Expected: Creates issue, blames submitters at CL 110, 115, 120
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				Perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				Perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
-				Perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
 
-				IJob Job = CreateJob(MainStreamId, 120, "Compile Test", Graph, PromoteByDefault: false);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph, promoteByDefault: false);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				Assert.IsFalse(Issues[0].Promoted);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.IsFalse(issues[0].Promoted);
 
-				await IssueService.UpdateIssueAsync(Issues[0].Id, Promoted: true);
+				await IssueService.UpdateIssueAsync(issues[0].Id, Promoted: true);
 
-				Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				Assert.IsTrue(Issues[0].Promoted);
+				issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.IsTrue(issues[0].Promoted);
 			}
 		}
 
@@ -700,33 +689,33 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Compile Test", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Compile Test", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120
 			// Expected: Issue is promoted
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				Perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				Perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
-				Perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
 
-				IJob Job = CreateJob(MainStreamId, 120, "Compile Test", Graph, PromoteByDefault: true);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph, promoteByDefault: true);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				Assert.IsTrue(Issues[0].Promoted);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.IsTrue(issues[0].Promoted);
 
 			}
 		}
@@ -739,39 +728,39 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Compile Test", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Compile Test", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120
 			// Expected: Creates issue, blames submitters at CL 110, 115, 120
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "FOO.CPP").FullName + @"(170) : warning C6011: Dereferencing NULL pointer 'CurrentProperty'. : Lines: 159, 162, 163, 169, 170, 174, 176, 159, 162, 163, 169, 170",
-					FileReference.Combine(WorkspaceDir, "foo.cpp").FullName + @"(170) : warning C6011: Dereferencing NULL pointer 'CurrentProperty'. : Lines: 159, 162, 163, 169, 170, 174, 176, 159, 162, 163, 169, 170"
+					FileReference.Combine(_workspaceDir, "FOO.CPP").FullName + @"(170) : warning C6011: Dereferencing NULL pointer 'CurrentProperty'. : Lines: 159, 162, 163, 169, 170, 174, 176, 159, 162, 163, 169, 170",
+					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(170) : warning C6011: Dereferencing NULL pointer 'CurrentProperty'. : Lines: 159, 162, 163, 169, 170, 174, 176, 159, 162, 163, 169, 170"
 				};
 
-				IJob Job = CreateJob(MainStreamId, 120, "Compile Test", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				Assert.AreEqual(1, Issue.Fingerprints.Count);
+				IIssue issue = issues[0];
+				Assert.AreEqual(1, issue.Fingerprints.Count);
 
-				CompileIssueHandler Handler = new CompileIssueHandler();
+				CompileIssueHandler handler = new CompileIssueHandler();
 
-				IIssueFingerprint Fingerprint = Issue.Fingerprints[0];
-				Assert.AreEqual(Handler.Type, Fingerprint.Type);
-				Assert.AreEqual(1, Fingerprint.Keys.Count);
-				Assert.AreEqual("FOO.CPP", Fingerprint.Keys.First());
+				IIssueFingerprint fingerprint = issue.Fingerprints[0];
+				Assert.AreEqual(handler.Type, fingerprint.Type);
+				Assert.AreEqual(1, fingerprint.Keys.Count);
+				Assert.AreEqual("FOO.CPP", fingerprint.Keys.First());
 			}
 		}
 
@@ -782,39 +771,39 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Compile Test", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Compile Test", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120
 			// Expected: Creates issue, blames submitter at CL 115 that introduced deprecation message
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "Consumer.h").FullName + @"(22): warning C4996: 'USimpleWheeledVehicleMovementComponent': PhysX is deprecated.Use the UChaosWheeledVehicleMovementComponent from the ChaosVehiclePhysics Plugin.Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.",
-					FileReference.Combine(WorkspaceDir, "Deprecater.h").FullName + @"(16): note: see declaration of 'USimpleWheeledVehicleMovementComponent'"
+					FileReference.Combine(_workspaceDir, "Consumer.h").FullName + @"(22): warning C4996: 'USimpleWheeledVehicleMovementComponent': PhysX is deprecated.Use the UChaosWheeledVehicleMovementComponent from the ChaosVehiclePhysics Plugin.Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.",
+					FileReference.Combine(_workspaceDir, "Deprecater.h").FullName + @"(16): note: see declaration of 'USimpleWheeledVehicleMovementComponent'"
 				};
 
-				Perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				Perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Deprecater.h");
-				Perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Deprecater.h");
+				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
 
-				IJob Job = CreateJob(MainStreamId, 120, "Compile Test", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+				List<IIssueSuspect> suspects = await IssueService.GetIssueSuspectsAsync(issues[0]);
 
-				List<UserId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
-				Assert.AreEqual(1, PrimarySuspects.Count);
-				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115
+				List<UserId> primarySuspects = suspects.Select(x => x.AuthorId).ToList();
+				Assert.AreEqual(1, primarySuspects.Count);
+				Assert.AreEqual(_jerryId, primarySuspects[0]); // 115
 			}
 		}
 
@@ -825,57 +814,57 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Compile Test", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Compile Test", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120
 			// Expected: Creates issue, blames submitters at CL 110, 115, 120
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				Perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				Perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
-				Perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
 
-				IJob Job = CreateJob(MainStreamId, 120, "Compile Test", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+				List<IIssueSuspect> suspects = await IssueService.GetIssueSuspectsAsync(issues[0]);
 
-				List<UserId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
-				Assert.AreEqual(2, PrimarySuspects.Count);
-				Assert.IsTrue(PrimarySuspects.Contains(JerryId)); // 115
-				Assert.IsTrue(PrimarySuspects.Contains(TimId)); // 120
+				List<UserId> primarySuspects = suspects.Select(x => x.AuthorId).ToList();
+				Assert.AreEqual(2, primarySuspects.Count);
+				Assert.IsTrue(primarySuspects.Contains(_jerryId)); // 115
+				Assert.IsTrue(primarySuspects.Contains(_timId)); // 120
 			}
 
 			// #3
 			// Scenario: Tim declines the issue
 			// Expected: Only suspect is Jerry, but owner is still unassigned
 			{
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				await IssueService.UpdateIssueAsync(Issues[0].Id, DeclinedById: TimId);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				await IssueService.UpdateIssueAsync(issues[0].Id, DeclinedById: _timId);
 
-				Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+				List<IIssueSuspect> suspects = await IssueService.GetIssueSuspectsAsync(issues[0]);
 
-				List<UserId> PrimarySuspects = Suspects.Where(x => x.DeclinedAt == null).Select(x => x.AuthorId).ToList();
-				Assert.AreEqual(1, PrimarySuspects.Count);
-				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115
+				List<UserId> primarySuspects = suspects.Where(x => x.DeclinedAt == null).Select(x => x.AuthorId).ToList();
+				Assert.AreEqual(1, primarySuspects.Count);
+				Assert.AreEqual(_jerryId, primarySuspects[0]); // 115
 			}
 		}
 
@@ -886,44 +875,44 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120
 			// Expected: Creates issue, blames submitter at CL 115 due to file matching symbol name
 			{
-				string[] Lines =
+				string[] lines =
 				{
 					@"  Foo.cpp.obj : error LNK2019: unresolved external symbol ""__declspec(dllimport) private: static class UClass * __cdecl UE::FOO::BAR"" (__UE__FOO_BAR) referenced in function ""class UPhysicalMaterial * __cdecl ConstructorHelpersInternal::FindOrLoadObject<class UPhysicalMaterial>(class FString &,unsigned int)"" (??$FindOrLoadObject@VUPhysicalMaterial@@@ConstructorHelpersInternal@@YAPEAVUPhysicalMaterial@@AEAVFString@@I@Z)"
 				};
 
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(Spans.Count, 1);
-				Assert.AreEqual(Issue.Fingerprints.Count, 1);
-				Assert.AreEqual(Issue.Fingerprints[0].Type, "Symbol");
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(spans.Count, 1);
+				Assert.AreEqual(issue.Fingerprints.Count, 1);
+				Assert.AreEqual(issue.Fingerprints[0].Type, "Symbol");
 
-				IIssueSpan Stream = Spans[0];
-				Assert.AreEqual(105, Stream.LastSuccess?.Change);
-				Assert.AreEqual(null, Stream.NextSuccess?.Change);
+				IIssueSpan stream = spans[0];
+				Assert.AreEqual(105, stream.LastSuccess?.Change);
+				Assert.AreEqual(null, stream.NextSuccess?.Change);
 
-				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+				List<IIssueSuspect> suspects = await IssueService.GetIssueSuspectsAsync(issues[0]);
 
-				List<UserId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
-				Assert.AreEqual(1, PrimarySuspects.Count);
-				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115 = foo.cpp
+				List<UserId> primarySuspects = suspects.Select(x => x.AuthorId).ToList();
+				Assert.AreEqual(1, primarySuspects.Count);
+				Assert.AreEqual(_jerryId, primarySuspects[0]); // 115 = foo.cpp
 			}
 		}
 
@@ -934,20 +923,20 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120 on different platforms
 			// Expected: Creates single issue
 			{
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
 
-				string[] Lines1 =
+				string[] lines1 =
 				{
 					@"Undefined symbols for architecture x86_64:",
 					@"  ""Metasound::FTriggerOnThresholdOperator::DefaultThreshold"", referenced from:",
@@ -955,36 +944,36 @@ namespace Horde.Build.Tests
 					@"ld: symbol(s) not found for architecture x86_64",
 					@"clang: error: linker command failed with exit code 1 (use -v to see invocation)"
 				};
-				await ParseEventsAsync(Job, 0, 0, Lines1);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				await ParseEventsAsync(job, 0, 0, lines1);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
 				// NB. This is a new step and has not succeeded before, but can still be merged with the issue above.
-				string[] Lines2 =
+				string[] lines2 =
 				{
 					@"ld.lld: error: undefined symbol: Metasound::FTriggerOnThresholdOperator::DefaultThreshold",
 					@">>> referenced by Module.MetasoundStandardNodes.cpp",
 					@">>>               D:/build/++UE5/Sync/Engine/Plugins/Runtime/Metasound/Intermediate/Build/Linux/B4D820EA/UnrealEditor/Debug/MetasoundStandardNodes/Module.MetasoundStandardNodes.cpp.o:(Metasound::FTriggerOnThresholdOperator::DeclareVertexInterface())",
 					@"clang++: error: linker command failed with exit code 1 (use -v to see invocation)",
 				};
-				await ParseEventsAsync(Job, 0, 1, Lines2);
-				await UpdateCompleteStep(Job, 0, 1, JobStepOutcome.Failure);
+				await ParseEventsAsync(job, 0, 1, lines2);
+				await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(Spans.Count, 2);
-				Assert.AreEqual(Issue.Fingerprints.Count, 1);
-				Assert.AreEqual(Issue.Fingerprints[0].Type, "Symbol");
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(spans.Count, 2);
+				Assert.AreEqual(issue.Fingerprints.Count, 1);
+				Assert.AreEqual(issue.Fingerprints[0].Type, "Symbol");
 
-				IIssueSpan Span1 = Spans[0];
-				Assert.AreEqual(105, Span1.LastSuccess?.Change);
-				Assert.AreEqual(null, Span1.NextSuccess?.Change);
+				IIssueSpan span1 = spans[0];
+				Assert.AreEqual(105, span1.LastSuccess?.Change);
+				Assert.AreEqual(null, span1.NextSuccess?.Change);
 
-				IIssueSpan Span2 = Spans[1];
-				Assert.AreEqual(null, Span2.LastSuccess?.Change);
-				Assert.AreEqual(null, Span2.NextSuccess?.Change);
+				IIssueSpan span2 = spans[1];
+				Assert.AreEqual(null, span2.LastSuccess?.Change);
+				Assert.AreEqual(null, span2.NextSuccess?.Change);
 			}
 		}
 
@@ -995,39 +984,39 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120 on different platforms
 			// Expected: Creates single issue
 			{
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
 
-				string[] Lines =
+				string[] lines =
 				{
 					@"  DatasmithDirectLink.cpp.obj : error LNK2019: unresolved external symbol ""enum DirectLink::ECommunicationStatus __cdecl DirectLink::ValidateCommunicationStatus(void)"" (?ValidateCommunicationStatus@DirectLink@@YA?AW4ECommunicationStatus@1@XZ) referenced in function ""public: static int __cdecl FDatasmithDirectLink::ValidateCommunicationSetup(void)"" (?ValidateCommunicationSetup@FDatasmithDirectLink@@SAHXZ)",
 					@"  Engine\Binaries\Win64\UE4Editor-DatasmithExporter.dll: fatal error LNK1120: 1 unresolved externals",
 				};
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(Spans.Count, 1);
-				Assert.AreEqual(Issue.Fingerprints.Count, 1);
-				Assert.AreEqual(Issue.Fingerprints[0].Type, "Symbol");
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(spans.Count, 1);
+				Assert.AreEqual(issue.Fingerprints.Count, 1);
+				Assert.AreEqual(issue.Fingerprints[0].Type, "Symbol");
 
-				IIssueSpan Span = Spans[0];
-				Assert.AreEqual(105, Span.LastSuccess?.Change);
-				Assert.AreEqual(null, Span.NextSuccess?.Change);
+				IIssueSpan span = spans[0];
+				Assert.AreEqual(105, span.LastSuccess?.Change);
+				Assert.AreEqual(null, span.NextSuccess?.Change);
 			}
 		}
 
@@ -1038,59 +1027,59 @@ namespace Horde.Build.Tests
 			// Scenario: Job step completes successfully at CL 105
 			// Expected: No issues are created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 
 			// #2
 			// Scenario: Job step fails at CL 120 with compile & link error
 			// Expected: Creates one issue for compile error
 			{
-				string[] Lines =
+				string[] lines =
 				{
-					FileReference.Combine(WorkspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 					@"  Foo.cpp.obj : error LNK2019: unresolved external symbol ""__declspec(dllimport) private: static class UClass * __cdecl UE::FOO::BAR"" (__UE__FOO_BAR) referenced in function ""class UPhysicalMaterial * __cdecl ConstructorHelpersInternal::FindOrLoadObject<class UPhysicalMaterial>(class FString &,unsigned int)"" (??$FindOrLoadObject@VUPhysicalMaterial@@@ConstructorHelpersInternal@@YAPEAVUPhysicalMaterial@@AEAVFString@@I@Z)"
 				};
 
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(1, Spans.Count);
-				Assert.AreEqual(1, Issue.Fingerprints.Count);
-				Assert.AreEqual("Compile", Issue.Fingerprints[0].Type);
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(1, spans.Count);
+				Assert.AreEqual(1, issue.Fingerprints.Count);
+				Assert.AreEqual("Compile", issue.Fingerprints[0].Type);
 			}
 		}
 
 		[TestMethod]
 		public async Task MissingCopyrightTest()
 		{
-			string[] Lines =
+			string[] lines =
 			{
 				@"WARNING: Engine\Source\Programs\UnrealBuildTool\ProjectFiles\Rider\ToolchainInfo.cs: Missing copyright boilerplate"
 			};
 
-			IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
-			await ParseEventsAsync(Job, 0, 0, Lines);
-			await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+			IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+			await ParseEventsAsync(job, 0, 0, lines);
+			await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-			List<IIssue> Issues = await IssueService.FindIssuesAsync();
-			Assert.AreEqual(1, Issues.Count);
+			List<IIssue> issues = await IssueService.FindIssuesAsync();
+			Assert.AreEqual(1, issues.Count);
 
-			IIssue Issue = Issues[0];
-			List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-			Assert.AreEqual(1, Spans.Count);
-			Assert.AreEqual(1, Issue.Fingerprints.Count);
-			Assert.AreEqual("Copyright", Issue.Fingerprints[0].Type);
-			Assert.AreEqual("Missing copyright notice in ToolchainInfo.cs", Issue.Summary);
+			IIssue issue = issues[0];
+			List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+			Assert.AreEqual(1, spans.Count);
+			Assert.AreEqual(1, issue.Fingerprints.Count);
+			Assert.AreEqual("Copyright", issue.Fingerprints[0].Type);
+			Assert.AreEqual("Missing copyright notice in ToolchainInfo.cs", issue.Summary);
 		}
 
 
@@ -1098,97 +1087,97 @@ namespace Horde.Build.Tests
 		public async Task AddSpanToIssueTest()
 		{
 			// Create the first issue
-			IIssue IssueA;
-			IIssueSpan SpanA;
+			IIssue issueA;
+			IIssueSpan spanA;
 			{
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
 
-				string[] Lines =
+				string[] lines =
 				{
 					@"  DatasmithDirectLink.cpp.obj : error LNK2019: unresolved external symbol ""enum DirectLink::ECommunicationStatus __cdecl DirectLink::ValidateCommunicationStatus(void)"" (?ValidateCommunicationStatus@DirectLink@@YA?AW4ECommunicationStatus@1@XZ) referenced in function ""public: static int __cdecl FDatasmithDirectLink::ValidateCommunicationSetup(void)"" (?ValidateCommunicationSetup@FDatasmithDirectLink@@SAHXZ)",
 				};
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IssueA = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(IssueA);
-				Assert.AreEqual(Spans.Count, 1);
-				SpanA = Spans[0];
+				issueA = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issueA);
+				Assert.AreEqual(spans.Count, 1);
+				spanA = spans[0];
 			}
 
 			// Create the second issue
-			IIssue IssueB;
-			IIssueSpan SpanB;
+			IIssue issueB;
+			IIssueSpan spanB;
 			{
-				string[] Lines =
+				string[] lines =
 				{
 					@"WARNING: Engine\Source\Programs\UnrealBuildTool\ProjectFiles\Rider\ToolchainInfo.cs: Missing copyright boilerplate"
 				};
 
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
-				await ParseEventsAsync(Job, 0, 0, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Issues.RemoveAll(x => x.Id == IssueA.Id);
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				issues.RemoveAll(x => x.Id == issueA.Id);
+				Assert.AreEqual(1, issues.Count);
 
-				IssueB = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(IssueB);
-				Assert.AreEqual(1, Spans.Count);
-				SpanB = Spans[0];
+				issueB = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issueB);
+				Assert.AreEqual(1, spans.Count);
+				spanB = spans[0];
 			}
 
 			// Add SpanB to IssueA
 			{
-				await IssueService.UpdateIssueAsync(IssueA.Id, AddSpanIds: new List<ObjectId> { SpanB.Id });
+				await IssueService.UpdateIssueAsync(issueA.Id, AddSpanIds: new List<ObjectId> { spanB.Id });
 
-				IIssue NewIssueA = (await IssueService.GetIssueAsync(IssueA.Id))!;
-				Assert.IsNull(NewIssueA.VerifiedAt);
-				Assert.IsNull(NewIssueA.ResolvedAt);
-				Assert.AreEqual(2, NewIssueA.Fingerprints.Count);
-				List<IIssueSpan> NewSpansA = await IssueService.GetIssueSpansAsync(NewIssueA!);
-				Assert.AreEqual(2, NewSpansA.Count);
-				Assert.AreEqual(NewIssueA.Id, NewSpansA[0].IssueId);
-				Assert.AreEqual(NewIssueA.Id, NewSpansA[1].IssueId);
+				IIssue newIssueA = (await IssueService.GetIssueAsync(issueA.Id))!;
+				Assert.IsNull(newIssueA.VerifiedAt);
+				Assert.IsNull(newIssueA.ResolvedAt);
+				Assert.AreEqual(2, newIssueA.Fingerprints.Count);
+				List<IIssueSpan> newSpansA = await IssueService.GetIssueSpansAsync(newIssueA!);
+				Assert.AreEqual(2, newSpansA.Count);
+				Assert.AreEqual(newIssueA.Id, newSpansA[0].IssueId);
+				Assert.AreEqual(newIssueA.Id, newSpansA[1].IssueId);
 
-				IIssue NewIssueB = (await IssueService.GetIssueAsync(IssueB.Id))!;
-				Assert.IsNotNull(NewIssueB.VerifiedAt);
-				Assert.IsNotNull(NewIssueB.ResolvedAt);
-				Assert.AreEqual(0, NewIssueB.Fingerprints.Count);
-				List<IIssueSpan> NewSpansB = await IssueService.GetIssueSpansAsync(NewIssueB);
-				Assert.AreEqual(0, NewSpansB.Count);
+				IIssue newIssueB = (await IssueService.GetIssueAsync(issueB.Id))!;
+				Assert.IsNotNull(newIssueB.VerifiedAt);
+				Assert.IsNotNull(newIssueB.ResolvedAt);
+				Assert.AreEqual(0, newIssueB.Fingerprints.Count);
+				List<IIssueSpan> newSpansB = await IssueService.GetIssueSpansAsync(newIssueB);
+				Assert.AreEqual(0, newSpansB.Count);
 			}
 
 			// Add SpanA and SpanB to IssueB
 			{
-				await IssueService.UpdateIssueAsync(IssueB.Id, AddSpanIds: new List<ObjectId> { SpanA.Id, SpanB.Id });
+				await IssueService.UpdateIssueAsync(issueB.Id, AddSpanIds: new List<ObjectId> { spanA.Id, spanB.Id });
 
-				IIssue NewIssueA = (await IssueService.GetIssueAsync(IssueA.Id))!;
-				Assert.IsNotNull(NewIssueA.VerifiedAt);
-				Assert.IsNotNull(NewIssueA.ResolvedAt);
-				Assert.AreEqual(0, NewIssueA.Fingerprints.Count);
-				List<IIssueSpan> NewSpansA = await IssueService.GetIssueSpansAsync(NewIssueA);
-				Assert.AreEqual(0, NewSpansA.Count);
+				IIssue newIssueA = (await IssueService.GetIssueAsync(issueA.Id))!;
+				Assert.IsNotNull(newIssueA.VerifiedAt);
+				Assert.IsNotNull(newIssueA.ResolvedAt);
+				Assert.AreEqual(0, newIssueA.Fingerprints.Count);
+				List<IIssueSpan> newSpansA = await IssueService.GetIssueSpansAsync(newIssueA);
+				Assert.AreEqual(0, newSpansA.Count);
 
-				IIssue NewIssueB = (await IssueService.GetIssueAsync(IssueB.Id))!;
-				Assert.IsNull(NewIssueB.VerifiedAt);
-				Assert.IsNull(NewIssueB.ResolvedAt);
-				Assert.AreEqual(2, NewIssueB.Fingerprints.Count);
-				List<IIssueSpan> NewSpansB = await IssueService.GetIssueSpansAsync(NewIssueB!);
-				Assert.AreEqual(2, NewSpansB.Count);
-				Assert.AreEqual(NewIssueB.Id, NewSpansB[0].IssueId);
-				Assert.AreEqual(NewIssueB.Id, NewSpansB[1].IssueId);
+				IIssue newIssueB = (await IssueService.GetIssueAsync(issueB.Id))!;
+				Assert.IsNull(newIssueB.VerifiedAt);
+				Assert.IsNull(newIssueB.ResolvedAt);
+				Assert.AreEqual(2, newIssueB.Fingerprints.Count);
+				List<IIssueSpan> newSpansB = await IssueService.GetIssueSpansAsync(newIssueB!);
+				Assert.AreEqual(2, newSpansB.Count);
+				Assert.AreEqual(newIssueB.Id, newSpansB[0].IssueId);
+				Assert.AreEqual(newIssueB.Id, newSpansB[1].IssueId);
 			}
 		}
 
 		[TestMethod]
 		public async Task GauntletIssueTest()
 		{
-			string[] Lines =
+			string[] lines =
 			{
 				@"  Error: EngineTest.RunTests Group:HLOD (Win64 Development EditorGame) result=Failed",
 				@"    # EngineTest.RunTests Group:HLOD Report",
@@ -1236,226 +1225,226 @@ namespace Horde.Build.Tests
 			// Scenario: Job with multiple GJob step fails at CL 120 with compile & link error
 			// Expected: Creates one issue for compile error
 			{
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
-				await ParseAsync(Job.Batches[0].Steps[0].LogId!.Value, Lines);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+				await ParseAsync(job.Batches[0].Steps[0].LogId!.Value, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				ILogFile? Log = await LogFileService.GetLogFileAsync(Job.Batches[0].Steps[0].LogId!.Value);
-				List<ILogEvent> Events = await LogFileService.FindLogEventsAsync(Log!);
-				Assert.AreEqual(1, Events.Count);
-				Assert.AreEqual(40, Events[0].LineCount);
-				ILogEventData EventData = await LogFileService.GetEventDataAsync(Log!, Events[0].LineIndex, Events[0].LineCount);
+				ILogFile? log = await LogFileService.GetLogFileAsync(job.Batches[0].Steps[0].LogId!.Value);
+				List<ILogEvent> events = await LogFileService.FindLogEventsAsync(log!);
+				Assert.AreEqual(1, events.Count);
+				Assert.AreEqual(40, events[0].LineCount);
+				ILogEventData eventData = await LogFileService.GetEventDataAsync(log!, events[0].LineIndex, events[0].LineCount);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
 
-				IIssue Issue = Issues[0];
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(Spans.Count, 1);
-				Assert.AreEqual(Issue.Fingerprints.Count, 1);
-				Assert.AreEqual(Issue.Fingerprints[0].Type, "Gauntlet");
-				Assert.AreEqual(Issue.Summary, "HLOD test failures: SectionFlags, SimpleMerge and SingleLODMerge");
+				IIssue issue = issues[0];
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(spans.Count, 1);
+				Assert.AreEqual(issue.Fingerprints.Count, 1);
+				Assert.AreEqual(issue.Fingerprints[0].Type, "Gauntlet");
+				Assert.AreEqual(issue.Summary, "HLOD test failures: SectionFlags, SimpleMerge and SingleLODMerge");
 			}
 		}
 
 		[TestMethod]
 		public async Task FixFailedTest()
 		{
-			int IssueId;
+			int issueId;
 
 			// #1
 			// Scenario: Warning in first step
 			// Expected: Default issue is created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				Assert.AreEqual(IssueSeverity.Warning, Issues[0].Severity);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
 
-				Assert.AreEqual("Warnings in Update Version Files", Issues[0].Summary);
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
 
-				IssueId = Issues[0].Id;
+				issueId = issues[0].Id;
 			}
 
 			// #2
 			// Scenario: Issue is marked fixed
 			// Expected: Resolved time, owner is set
 			{
-				await IssueService.UpdateIssueAsync(IssueId, ResolvedById: BobId);
+				await IssueService.UpdateIssueAsync(issueId, ResolvedById: _bobId);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, openIssues.Count);
 
-				IIssue Issue = (await IssueService.GetIssueAsync(IssueId))!;
-				Assert.IsNotNull(Issue.ResolvedAt);
-				Assert.AreEqual(BobId, Issue.OwnerId);
-				Assert.AreEqual(BobId, Issue.ResolvedById);
+				IIssue issue = (await IssueService.GetIssueAsync(issueId))!;
+				Assert.IsNotNull(issue.ResolvedAt);
+				Assert.AreEqual(_bobId, issue.OwnerId);
+				Assert.AreEqual(_bobId, issue.ResolvedById);
 			}
 
 			// #3
 			// Scenario: Issue recurs an hour later
 			// Expected: Issue is still marked as resolved
 			{
-				IJob Job = CreateJob(MainStreamId, 110, "Test Build", Graph, TimeSpan.FromHours(1.0));
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 110, "Test Build", _graph, TimeSpan.FromHours(1.0));
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, openIssues.Count);
 
-				IIssue Issue = (await IssueService.GetIssueAsync(IssueId))!;
-				Assert.IsNotNull(Issue.ResolvedAt);
-				Assert.AreEqual(BobId, Issue.OwnerId);
-				Assert.AreEqual(BobId, Issue.ResolvedById);
+				IIssue issue = (await IssueService.GetIssueAsync(issueId))!;
+				Assert.IsNotNull(issue.ResolvedAt);
+				Assert.AreEqual(_bobId, issue.OwnerId);
+				Assert.AreEqual(_bobId, issue.ResolvedById);
 			}
 
 			// #4
 			// Scenario: Issue recurs a day later at the same change
 			// Expected: Issue is reopened
 			{
-				IJob Job = CreateJob(MainStreamId, 110, "Test Build", Graph, TimeSpan.FromHours(25.0));
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 110, "Test Build", _graph, TimeSpan.FromHours(25.0));
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, openIssues.Count);
 
-				IIssue Issue = OpenIssues[0];
-				Assert.AreEqual(IssueId, Issue.Id);
-				Assert.IsNull(Issue.ResolvedAt);
-				Assert.AreEqual(BobId, Issue.OwnerId);
-				Assert.IsNull(Issue.ResolvedById);
+				IIssue issue = openIssues[0];
+				Assert.AreEqual(issueId, issue.Id);
+				Assert.IsNull(issue.ResolvedAt);
+				Assert.AreEqual(_bobId, issue.OwnerId);
+				Assert.IsNull(issue.ResolvedById);
 			}
 
 			// #5
 			// Scenario: Issue is marked fixed again, at a particular changelist
 			// Expected: Resolved time, owner is set
 			{
-				await IssueService.UpdateIssueAsync(IssueId, ResolvedById: BobId, FixChange: 115);
+				await IssueService.UpdateIssueAsync(issueId, ResolvedById: _bobId, FixChange: 115);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, openIssues.Count);
 
-				IIssue Issue = (await IssueService.GetIssueAsync(IssueId))!;
-				Assert.IsNotNull(Issue.ResolvedAt);
-				Assert.AreEqual(BobId, Issue.OwnerId);
-				Assert.AreEqual(BobId, Issue.ResolvedById);
+				IIssue issue = (await IssueService.GetIssueAsync(issueId))!;
+				Assert.IsNotNull(issue.ResolvedAt);
+				Assert.AreEqual(_bobId, issue.OwnerId);
+				Assert.AreEqual(_bobId, issue.ResolvedById);
 			}
 
 			// #6
 			// Scenario: Issue fails again at a later changelist
 			// Expected: Issue is reopened
 			{
-				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph, TimeSpan.FromHours(25.0));
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph, TimeSpan.FromHours(25.0));
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, openIssues.Count);
 
-				IIssue Issue = OpenIssues[0];
-				Assert.AreEqual(IssueId, Issue.Id);
-				Assert.IsNull(Issue.ResolvedAt);
-				Assert.AreEqual(BobId, Issue.OwnerId);
-				Assert.IsNull(Issue.ResolvedById);
+				IIssue issue = openIssues[0];
+				Assert.AreEqual(issueId, issue.Id);
+				Assert.IsNull(issue.ResolvedAt);
+				Assert.AreEqual(_bobId, issue.OwnerId);
+				Assert.IsNull(issue.ResolvedById);
 			}
 
 			// #7
 			// Scenario: Issue is marked fixed again, at a particular changelist
 			// Expected: Resolved time, owner is set
 			{
-				await IssueService.UpdateIssueAsync(IssueId, ResolvedById: BobId, FixChange: 125);
+				await IssueService.UpdateIssueAsync(issueId, ResolvedById: _bobId, FixChange: 125);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, openIssues.Count);
 
-				IIssue Issue = (await IssueService.GetIssueAsync(IssueId))!;
-				Assert.IsNotNull(Issue.ResolvedAt);
-				Assert.AreEqual(BobId, Issue.OwnerId);
-				Assert.AreEqual(BobId, Issue.ResolvedById);
+				IIssue issue = (await IssueService.GetIssueAsync(issueId))!;
+				Assert.IsNotNull(issue.ResolvedAt);
+				Assert.AreEqual(_bobId, issue.OwnerId);
+				Assert.AreEqual(_bobId, issue.ResolvedById);
 			}
 
 			// #8
 			// Scenario: Issue succeeds at a later changelist
 			// Expected: Issue remains closed
 			{
-				IJob Job = CreateJob(MainStreamId, 125, "Test Build", Graph, TimeSpan.FromHours(25.0));
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 125, "Test Build", _graph, TimeSpan.FromHours(25.0));
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(0, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, openIssues.Count);
 			}
 
 			// #9
 			// Scenario: Issue fails at a later changelist
 			// Expected: New issue is opened
 			{
-				IJob Job = CreateJob(MainStreamId, 130, "Test Build", Graph, TimeSpan.FromHours(25.0));
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 130, "Test Build", _graph, TimeSpan.FromHours(25.0));
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, OpenIssues.Count);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, openIssues.Count);
 
-				IIssue Issue = OpenIssues[0];
-				Assert.AreNotEqual(IssueId, Issue.Id);
+				IIssue issue = openIssues[0];
+				Assert.AreNotEqual(issueId, issue.Id);
 			}
 		}
 
 		[TestMethod]
 		public async Task AutoResolveTest()
 		{
-			int IssueId;
+			int issueId;
 
 			// #1
 			// Scenario: Warning in first step
 			// Expected: Default issue is created
 			{
-				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
-				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(1, Issues.Count);
-				Assert.AreEqual(IssueSeverity.Warning, Issues[0].Severity);
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
 
-				Assert.AreEqual("Warnings in Update Version Files", Issues[0].Summary);
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
 
-				IssueId = Issues[0].Id;
+				issueId = issues[0].Id;
 			}
 
 			// #2
 			// Scenario: Job succeeds
 			// Expected: Issue is marked as resolved
 			{
-				IJob Job = CreateJob(MainStreamId, 115, "Test Build", Graph);
-				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+				IJob job = CreateJob(_mainStreamId, 115, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				IIssue? Issue = await IssueService.GetIssueAsync(IssueId);
-				Assert.IsNotNull(Issue!.ResolvedAt);
+				IIssue? issue = await IssueService.GetIssueAsync(issueId);
+				Assert.IsNotNull(issue!.ResolvedAt);
 
-				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
-				Assert.AreEqual(Spans.Count, 1);
+				List<IIssueSpan> spans = await IssueService.GetIssueSpansAsync(issue);
+				Assert.AreEqual(spans.Count, 1);
 			}
 		}
 
-				private async Task ParseAsync(LogId LogId, string[] Lines)
+				private async Task ParseAsync(LogId logId, string[] lines)
 		{
-			LogParserContext Context = new LogParserContext();
-			Context.WorkspaceDir = DirectoryReference.GetCurrentDirectory();
-			Context.PerforceStream = "//UE4/Main";
-			Context.PerforceChange = 12345;
+			LogParserContext context = new LogParserContext();
+			context.WorkspaceDir = DirectoryReference.GetCurrentDirectory();
+			context.PerforceStream = "//UE4/Main";
+			context.PerforceChange = 12345;
 
-			await using (TestJsonLogger Logger = new TestJsonLogger(LogFileService, LogId))
+			await using (TestJsonLogger logger = new TestJsonLogger(LogFileService, logId))
 			{
-				using (LogParser Parser = new LogParser(Logger, Context, new List<string>()))
+				using (LogParser parser = new LogParser(logger, context, new List<string>()))
 				{
-					for (int Idx = 0; Idx < Lines.Length; Idx++)
+					for (int idx = 0; idx < lines.Length; idx++)
 					{
-						Parser.WriteLine(Lines[Idx]);
+						parser.WriteLine(lines[idx]);
 					}
 				}
 			}

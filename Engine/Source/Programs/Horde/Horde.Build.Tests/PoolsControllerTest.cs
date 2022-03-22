@@ -6,31 +6,30 @@ using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using Horde.Build.Tests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
-    [TestClass]
+	[TestClass]
     public class PoolsControllerTest : TestSetup
     {
         [TestMethod]
         public async Task GetPoolsTest()
         {
-	        IPool Pool1 = await PoolService.CreatePoolAsync("Pool1", Properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
-	        ActionResult<List<object>> RawResult = await PoolsController.GetPoolsAsync();
-	        Assert.AreEqual(1, RawResult.Value!.Count);
-	        GetPoolResponse Response = (RawResult.Value![0] as GetPoolResponse)!;
-	        Assert.AreEqual(Pool1.Id.ToString(), Response.Id);
-	        Assert.AreEqual(Pool1.Name, Response.Name);
-	        Assert.AreEqual(Pool1.SizeStrategy, Response.SizeStrategy);
+	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", Properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
+	        ActionResult<List<object>> rawResult = await PoolsController.GetPoolsAsync();
+	        Assert.AreEqual(1, rawResult.Value!.Count);
+	        GetPoolResponse response = (rawResult.Value![0] as GetPoolResponse)!;
+	        Assert.AreEqual(pool1.Id.ToString(), response.Id);
+	        Assert.AreEqual(pool1.Name, response.Name);
+	        Assert.AreEqual(pool1.SizeStrategy, response.SizeStrategy);
         }
         
         [TestMethod]
         public async Task CreatePoolsTest()
         {
-	        CreatePoolRequest Request = new CreatePoolRequest
+	        CreatePoolRequest request = new CreatePoolRequest
 	        {
 		        Name = "Pool1",
 		        ScaleOutCooldown = 111,
@@ -39,32 +38,32 @@ namespace Horde.Build.Tests
 		        JobQueueSettings = new Horde.Build.Api.JobQueueSettings(new Horde.Build.Fleet.Autoscale.JobQueueSettings(0.35, 0.85))
 	        };
 	        
-	        ActionResult<CreatePoolResponse> Result = await PoolsController.CreatePoolAsync(Request);
-	        CreatePoolResponse Response = Result.Value!;
+	        ActionResult<CreatePoolResponse> result = await PoolsController.CreatePoolAsync(request);
+	        CreatePoolResponse response = result.Value!;
 		        
-	        IPool Pool = (await PoolService.GetPoolAsync(new StringId<IPool>(Response.Id)))!;
-	        Assert.AreEqual(Request.Name, Pool.Name);
-	        Assert.AreEqual(Request.ScaleOutCooldown, (int)Pool.ScaleOutCooldown!.Value.TotalSeconds);
-	        Assert.AreEqual(Request.ScaleInCooldown, (int)Pool.ScaleInCooldown!.Value.TotalSeconds);
-	        Assert.AreEqual(Request.JobQueueSettings.ScaleOutFactor, Pool.JobQueueSettings!.ScaleOutFactor, 0.0001);
-	        Assert.AreEqual(Request.JobQueueSettings.ScaleInFactor, Pool.JobQueueSettings!.ScaleInFactor, 0.0001);
+	        IPool pool = (await PoolService.GetPoolAsync(new StringId<IPool>(response.Id)))!;
+	        Assert.AreEqual(request.Name, pool.Name);
+	        Assert.AreEqual(request.ScaleOutCooldown, (int)pool.ScaleOutCooldown!.Value.TotalSeconds);
+	        Assert.AreEqual(request.ScaleInCooldown, (int)pool.ScaleInCooldown!.Value.TotalSeconds);
+	        Assert.AreEqual(request.JobQueueSettings.ScaleOutFactor, pool.JobQueueSettings!.ScaleOutFactor, 0.0001);
+	        Assert.AreEqual(request.JobQueueSettings.ScaleInFactor, pool.JobQueueSettings!.ScaleInFactor, 0.0001);
         }
         
         [TestMethod]
         public async Task UpdatePoolTest()
         {
-	        IPool Pool1 = await PoolService.CreatePoolAsync("Pool1", Properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
+	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", Properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
 
-	        await PoolsController.UpdatePoolAsync(Pool1.Id.ToString(), new UpdatePoolRequest
+	        await PoolsController.UpdatePoolAsync(pool1.Id.ToString(), new UpdatePoolRequest
 	        {
 		        Name = "Pool1Modified",
 		        SizeStrategy = PoolSizeStrategy.JobQueue
 	        });
 
-	        ActionResult<object> GetResult = await PoolsController.GetPoolAsync(Pool1.Id.ToString());
-	        GetPoolResponse Response = (GetResult.Value! as GetPoolResponse)!;
-	        Assert.AreEqual("Pool1Modified", Response.Name);
-	        Assert.AreEqual(PoolSizeStrategy.JobQueue, Response.SizeStrategy);
+	        ActionResult<object> getResult = await PoolsController.GetPoolAsync(pool1.Id.ToString());
+	        GetPoolResponse response = (getResult.Value! as GetPoolResponse)!;
+	        Assert.AreEqual("Pool1Modified", response.Name);
+	        Assert.AreEqual(PoolSizeStrategy.JobQueue, response.SizeStrategy);
         }
     }
 }

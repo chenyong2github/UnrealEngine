@@ -110,9 +110,9 @@ namespace Horde.Build.Tests
 		{
 			_serverCallContext.CancellationToken.ThrowIfCancellationRequested();
 
-			if (await _channel.Reader.WaitToReadAsync())
+			if (await _channel.Reader.WaitToReadAsync(cancellationToken))
 			{
-				if (_channel.Reader.TryRead(out var message))
+				if (_channel.Reader.TryRead(out T? message))
 				{
 					Current = message;
 					return true;

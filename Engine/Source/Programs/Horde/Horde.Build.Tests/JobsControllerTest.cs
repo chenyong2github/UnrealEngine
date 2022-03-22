@@ -1,5 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -9,25 +10,25 @@ namespace Horde.Build.Tests
     [TestClass]
     public class JobsControllerTest : ControllerIntegrationTest
     {
-        private static string GetUri(string JobId, string StepId, string FileName)
+        private static Uri GetUri(string jobId, string stepId, string fileName)
         {
-            return $"/api/v1/jobs/{JobId}/steps/{StepId}/artifacts/{FileName}/data";
+            return new Uri($"http://localhost/api/v1/jobs/{jobId}/steps/{stepId}/artifacts/{fileName}/data");
         }
 
         [TestMethod]
         public async Task GetArtifactDataByFilenameTest()
         {
-            var Fixture = await GetFixture();
-            var Art = Fixture.Job1Artifact;
+			Fixture? fixture = await GetFixture();
+			Models.IArtifact? art = fixture.Job1Artifact;
 
-            // Test existing filename
-            var Res = await client.GetAsync(GetUri(Art.JobId.ToString(), Art.StepId.ToString()!, Art.Name));
-            Res.EnsureSuccessStatusCode();
-            Assert.AreEqual(Fixture.Job1ArtifactData, await Res.Content.ReadAsStringAsync());
+			// Test existing filename
+			System.Net.Http.HttpResponseMessage? res = await Client.GetAsync(GetUri(art.JobId.ToString(), art.StepId.ToString()!, art.Name));
+            res.EnsureSuccessStatusCode();
+            Assert.AreEqual(fixture.Job1ArtifactData, await res.Content.ReadAsStringAsync());
 
             // Test non-existing filename
-            Res = await client.GetAsync(GetUri(Art.JobId.ToString(), Art.StepId.ToString()!, "bogus.txt"));
-            Assert.AreEqual(Res.StatusCode, HttpStatusCode.NotFound);
+            res = await Client.GetAsync(GetUri(art.JobId.ToString(), art.StepId.ToString()!, "bogus.txt"));
+            Assert.AreEqual(res.StatusCode, HttpStatusCode.NotFound);
         }
     }
 }

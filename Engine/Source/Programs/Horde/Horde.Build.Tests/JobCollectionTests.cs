@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Collections;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
-using System.Text;
-
-using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
 using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
 using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
 using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
@@ -15,13 +11,10 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using EpicGames.Core;
 using Moq;
 using Horde.Build.Models;
-using Horde.Build.Services;
 using System.Threading.Tasks;
 using Horde.Build.Api;
 using System.Linq;
 using HordeCommon;
-using Horde.Build.Collections.Impl;
-using Microsoft.Extensions.Logging.Abstractions;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Tests
@@ -33,103 +26,103 @@ namespace Horde.Build.Tests
 	[TestClass]
 	public class JobCollectionTests : TestSetup
 	{
-		NewGroup AddGroup(List<NewGroup> Groups)
+		static NewGroup AddGroup(List<NewGroup> groups)
 		{
-			NewGroup Group = new NewGroup("win64", new List<NewNode>());
-			Groups.Add(Group);
-			return Group;
+			NewGroup @group = new NewGroup("win64", new List<NewNode>());
+			groups.Add(@group);
+			return @group;
 		}
 
-		NewNode AddNode(NewGroup Group, string Name, string[]? InputDependencies, Action<NewNode>? Action = null)
+		static NewNode AddNode(NewGroup @group, string name, string[]? inputDependencies, Action<NewNode>? action = null)
 		{
-			NewNode Node = new NewNode(Name, InputDependencies?.ToList(), InputDependencies?.ToList(), null, null, null, null, null, null);
-			if (Action != null)
+			NewNode node = new NewNode(name, inputDependencies?.ToList(), inputDependencies?.ToList(), null, null, null, null, null, null);
+			if (action != null)
 			{
-				Action.Invoke(Node);
+				action.Invoke(node);
 			}
-			Group.Nodes.Add(Node);
-			return Node;
+			@group.Nodes.Add(node);
+			return node;
 		}
 
-		async Task<IJob> StartBatch(IJob Job, IGraph Graph, int BatchIdx)
+		async Task<IJob> StartBatch(IJob job, IGraph graph, int batchIdx)
 		{
-			Assert.AreEqual(JobStepBatchState.Ready, Job.Batches[BatchIdx].State);
-			Job = Deref(await JobCollection.TryUpdateBatchAsync(Job, Graph, Job.Batches[BatchIdx].Id, null, JobStepBatchState.Running, null));
-			Assert.AreEqual(JobStepBatchState.Running, Job.Batches[BatchIdx].State);
-			return Job;
+			Assert.AreEqual(JobStepBatchState.Ready, job.Batches[batchIdx].State);
+			job = Deref(await JobCollection.TryUpdateBatchAsync(job, graph, job.Batches[batchIdx].Id, null, JobStepBatchState.Running, null));
+			Assert.AreEqual(JobStepBatchState.Running, job.Batches[batchIdx].State);
+			return job;
 		}
 
-		async Task<IJob> RunStep(IJob Job, IGraph Graph, int BatchIdx, int StepIdx, JobStepOutcome Outcome)
+		async Task<IJob> RunStep(IJob job, IGraph graph, int batchIdx, int stepIdx, JobStepOutcome outcome)
 		{
-			Assert.AreEqual(JobStepState.Ready, Job.Batches[BatchIdx].Steps[StepIdx].State);
-			Job = Deref(await JobCollection.TryUpdateStepAsync(Job, Graph, Job.Batches[BatchIdx].Id, Job.Batches[BatchIdx].Steps[StepIdx].Id, JobStepState.Running, JobStepOutcome.Success));
-			Assert.AreEqual(JobStepState.Running, Job.Batches[BatchIdx].Steps[StepIdx].State);
-			Job = Deref(await JobCollection.TryUpdateStepAsync(Job, Graph, Job.Batches[BatchIdx].Id, Job.Batches[BatchIdx].Steps[StepIdx].Id, JobStepState.Completed, Outcome));
-			Assert.AreEqual(JobStepState.Completed, Job.Batches[BatchIdx].Steps[StepIdx].State);
-			Assert.AreEqual(Outcome, Job.Batches[BatchIdx].Steps[StepIdx].Outcome);
-			return Job;
+			Assert.AreEqual(JobStepState.Ready, job.Batches[batchIdx].Steps[stepIdx].State);
+			job = Deref(await JobCollection.TryUpdateStepAsync(job, graph, job.Batches[batchIdx].Id, job.Batches[batchIdx].Steps[stepIdx].Id, JobStepState.Running, JobStepOutcome.Success));
+			Assert.AreEqual(JobStepState.Running, job.Batches[batchIdx].Steps[stepIdx].State);
+			job = Deref(await JobCollection.TryUpdateStepAsync(job, graph, job.Batches[batchIdx].Id, job.Batches[batchIdx].Steps[stepIdx].Id, JobStepState.Completed, outcome));
+			Assert.AreEqual(JobStepState.Completed, job.Batches[batchIdx].Steps[stepIdx].State);
+			Assert.AreEqual(outcome, job.Batches[batchIdx].Steps[stepIdx].Outcome);
+			return job;
 		}
 
 		[TestMethod]
 		public async Task TestStates()
 		{
-			Mock<ITemplate> TemplateMock = new Mock<ITemplate>(MockBehavior.Strict);
-			TemplateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
+			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
+			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
 
-			IGraph BaseGraph = await GraphCollection.AddAsync(TemplateMock.Object);
+			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
 
-			List<string> Arguments = new List<string>();
-			Arguments.Add("-Target=Publish Client");
-			Arguments.Add("-Target=Post-Publish Client");
+			List<string> arguments = new List<string>();
+			arguments.Add("-Target=Publish Client");
+			arguments.Add("-Target=Post-Publish Client");
 
-			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, Arguments);
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, arguments);
 
-			Job = await StartBatch(Job, BaseGraph, 0);
-			Job = await RunStep(Job, BaseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
+			job = await StartBatch(job, baseGraph, 0);
+			job = await RunStep(job, baseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
 
-			List<NewGroup> NewGroups = new List<NewGroup>();
+			List<NewGroup> newGroups = new List<NewGroup>();
 
-			NewGroup InitialGroup = AddGroup(NewGroups);
-			AddNode(InitialGroup, "Update Version Files", null);
-			AddNode(InitialGroup, "Compile Editor", new[] { "Update Version Files" });
+			NewGroup initialGroup = AddGroup(newGroups);
+			AddNode(initialGroup, "Update Version Files", null);
+			AddNode(initialGroup, "Compile Editor", new[] { "Update Version Files" });
 
-			NewGroup CompileGroup = AddGroup(NewGroups);
-			AddNode(CompileGroup, "Compile Client", new[] { "Update Version Files" });
+			NewGroup compileGroup = AddGroup(newGroups);
+			AddNode(compileGroup, "Compile Client", new[] { "Update Version Files" });
 
-			NewGroup PublishGroup = AddGroup(NewGroups);
-			AddNode(PublishGroup, "Cook Client", new[] { "Compile Editor" }, x => x.RunEarly = true);
-			AddNode(PublishGroup, "Publish Client", new[] { "Compile Client", "Cook Client" });
-			AddNode(PublishGroup, "Post-Publish Client", null, x => x.OrderDependencies = new List<string> { "Publish Client" });
+			NewGroup publishGroup = AddGroup(newGroups);
+			AddNode(publishGroup, "Cook Client", new[] { "Compile Editor" }, x => x.RunEarly = true);
+			AddNode(publishGroup, "Publish Client", new[] { "Compile Client", "Cook Client" });
+			AddNode(publishGroup, "Post-Publish Client", null, x => x.OrderDependencies = new List<string> { "Publish Client" });
 
-			IGraph Graph = await GraphCollection.AppendAsync(BaseGraph, NewGroups, null, null);
-			Job = Deref(await JobCollection.TryUpdateGraphAsync(Job, Graph));
+			IGraph graph = await GraphCollection.AppendAsync(baseGraph, newGroups, null, null);
+			job = Deref(await JobCollection.TryUpdateGraphAsync(job, graph));
 
-			Job = await StartBatch(Job, Graph, 1);
-			Job = await RunStep(Job, Graph, 1, 0, JobStepOutcome.Success); // Update Version Files
-			Job = await RunStep(Job, Graph, 1, 1, JobStepOutcome.Success); // Compile Editor
+			job = await StartBatch(job, graph, 1);
+			job = await RunStep(job, graph, 1, 0, JobStepOutcome.Success); // Update Version Files
+			job = await RunStep(job, graph, 1, 1, JobStepOutcome.Success); // Compile Editor
 
-			Job = await StartBatch(Job, Graph, 2);
-			Job = await RunStep(Job, Graph, 2, 0, JobStepOutcome.Success); // Compile Client
+			job = await StartBatch(job, graph, 2);
+			job = await RunStep(job, graph, 2, 0, JobStepOutcome.Success); // Compile Client
 
-			Job = await StartBatch(Job, Graph, 3);
-			Job = await RunStep(Job, Graph, 3, 0, JobStepOutcome.Failure); // Cook Client
-			Assert.AreEqual(JobStepState.Skipped, Job.Batches[3].Steps[1].State); // Publish Client
-			Assert.AreEqual(JobStepState.Skipped, Job.Batches[3].Steps[2].State); // Post-Publish Client
+			job = await StartBatch(job, graph, 3);
+			job = await RunStep(job, graph, 3, 0, JobStepOutcome.Failure); // Cook Client
+			Assert.AreEqual(JobStepState.Skipped, job.Batches[3].Steps[1].State); // Publish Client
+			Assert.AreEqual(JobStepState.Skipped, job.Batches[3].Steps[2].State); // Post-Publish Client
 		}
 
 		[TestMethod]
 		public async Task TryAssignLeaseTest()
 		{
-			Fixture Fixture = await CreateFixtureAsync();
+			Fixture fixture = await CreateFixtureAsync();
 
-			ObjectId<ISession> SessionId1 = new (ObjectId.GenerateNewId());
-			await JobCollection.TryAssignLeaseAsync(Fixture.Job1, 0, new PoolId("foo"), Fixture.Agent1.Id,
-				SessionId1, LeaseId.GenerateNewId(), LogId.GenerateNewId());
+			ObjectId<ISession> sessionId1 = new (ObjectId.GenerateNewId());
+			await JobCollection.TryAssignLeaseAsync(fixture.Job1, 0, new PoolId("foo"), fixture.Agent1.Id,
+				sessionId1, LeaseId.GenerateNewId(), LogId.GenerateNewId());
 			
-			ObjectId<ISession> SessionId2 = new (ObjectId.GenerateNewId());
-			IJob Job = (await JobCollection.GetAsync(Fixture.Job1.Id))!;
-			await JobCollection.TryAssignLeaseAsync(Job, 0, new PoolId("foo"), Fixture.Agent1.Id,
-				SessionId2, LeaseId.GenerateNewId(), LogId.GenerateNewId());
+			ObjectId<ISession> sessionId2 = new (ObjectId.GenerateNewId());
+			IJob job = (await JobCollection.GetAsync(fixture.Job1.Id))!;
+			await JobCollection.TryAssignLeaseAsync(job, 0, new PoolId("foo"), fixture.Agent1.Id,
+				sessionId2, LeaseId.GenerateNewId(), LogId.GenerateNewId());
 			
 			// Manually verify the log output
 		}
@@ -146,108 +139,108 @@ namespace Horde.Build.Tests
 			return LostLeaseTestInternal(false);
 		}
 
-		public async Task LostLeaseTestInternal(bool HasDependency)
+		public async Task LostLeaseTestInternal(bool hasDependency)
 		{
-			Mock<ITemplate> TemplateMock = new Mock<ITemplate>(MockBehavior.Strict);
-			TemplateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
+			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
+			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
 
-			IGraph BaseGraph = await GraphCollection.AddAsync(TemplateMock.Object);
+			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
 
-			List<string> Arguments = new List<string>();
-			Arguments.Add("-Target=Step 1");
-			Arguments.Add("-Target=Step 3");
+			List<string> arguments = new List<string>();
+			arguments.Add("-Target=Step 1");
+			arguments.Add("-Target=Step 3");
 
-			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, Arguments);
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, arguments);
 
-			Job = await StartBatch(Job, BaseGraph, 0);
-			Job = await RunStep(Job, BaseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
+			job = await StartBatch(job, baseGraph, 0);
+			job = await RunStep(job, baseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
 
-			List<NewGroup> NewGroups = new List<NewGroup>();
+			List<NewGroup> newGroups = new List<NewGroup>();
 
-			NewGroup InitialGroup = AddGroup(NewGroups);
-			AddNode(InitialGroup, "Step 1", null);
-			AddNode(InitialGroup, "Step 2", HasDependency? new[] { "Step 1" } : null);
-			AddNode(InitialGroup, "Step 3", new[] { "Step 2" });
+			NewGroup initialGroup = AddGroup(newGroups);
+			AddNode(initialGroup, "Step 1", null);
+			AddNode(initialGroup, "Step 2", hasDependency? new[] { "Step 1" } : null);
+			AddNode(initialGroup, "Step 3", new[] { "Step 2" });
 
-			IGraph Graph = await GraphCollection.AppendAsync(BaseGraph, NewGroups, null, null);
-			Job = Deref(await JobCollection.TryUpdateGraphAsync(Job, Graph));
+			IGraph graph = await GraphCollection.AppendAsync(baseGraph, newGroups, null, null);
+			job = Deref(await JobCollection.TryUpdateGraphAsync(job, graph));
 
-			Job = await StartBatch(Job, Graph, 1);
-			Job = await RunStep(Job, Graph, 1, 0, JobStepOutcome.Success); // Step 1
-			Job = await RunStep(Job, Graph, 1, 1, JobStepOutcome.Success); // Step 2
+			job = await StartBatch(job, graph, 1);
+			job = await RunStep(job, graph, 1, 0, JobStepOutcome.Success); // Step 1
+			job = await RunStep(job, graph, 1, 1, JobStepOutcome.Success); // Step 2
 
 			// Force an error executing the batch
-			Job = Deref(await JobCollection.TryUpdateBatchAsync(Job, Graph, Job.Batches[1].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
+			job = Deref(await JobCollection.TryUpdateBatchAsync(job, graph, job.Batches[1].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
 
 			// Check that it restarted all three nodes
-			IJob NewJob = (await JobCollection.GetAsync(Job.Id))!;
-			Assert.AreEqual(3, NewJob.Batches.Count);
-			Assert.AreEqual(1, NewJob.Batches[2].GroupIdx);
+			IJob newJob = (await JobCollection.GetAsync(job.Id))!;
+			Assert.AreEqual(3, newJob.Batches.Count);
+			Assert.AreEqual(1, newJob.Batches[2].GroupIdx);
 
-			if (HasDependency)
+			if (hasDependency)
 			{
-				Assert.AreEqual(3, NewJob.Batches[2].Steps.Count);
+				Assert.AreEqual(3, newJob.Batches[2].Steps.Count);
 
-				Assert.AreEqual(0, NewJob.Batches[2].Steps[0].NodeIdx);
-				Assert.AreEqual(1, NewJob.Batches[2].Steps[1].NodeIdx);
-				Assert.AreEqual(2, NewJob.Batches[2].Steps[2].NodeIdx);
+				Assert.AreEqual(0, newJob.Batches[2].Steps[0].NodeIdx);
+				Assert.AreEqual(1, newJob.Batches[2].Steps[1].NodeIdx);
+				Assert.AreEqual(2, newJob.Batches[2].Steps[2].NodeIdx);
 			}
 			else
 			{
-				Assert.AreEqual(2, NewJob.Batches[2].Steps.Count);
+				Assert.AreEqual(2, newJob.Batches[2].Steps.Count);
 
-				Assert.AreEqual(1, NewJob.Batches[2].Steps[0].NodeIdx);
-				Assert.AreEqual(2, NewJob.Batches[2].Steps[1].NodeIdx);
+				Assert.AreEqual(1, newJob.Batches[2].Steps[0].NodeIdx);
+				Assert.AreEqual(2, newJob.Batches[2].Steps[1].NodeIdx);
 			}
 		}
 
 		[TestMethod]
 		public async Task IncompleteBatchAsync()
 		{
-			Mock<ITemplate> TemplateMock = new Mock<ITemplate>(MockBehavior.Strict);
-			TemplateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
+			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
+			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
 
-			IGraph BaseGraph = await GraphCollection.AddAsync(TemplateMock.Object);
+			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
 
-			List<string> Arguments = new List<string>();
-			Arguments.Add("-Target=Step 1");
-			Arguments.Add("-Target=Step 3");
+			List<string> arguments = new List<string>();
+			arguments.Add("-Target=Step 1");
+			arguments.Add("-Target=Step 3");
 
-			IJob Job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, Arguments);
-			Assert.AreEqual(1, Job.Batches.Count);
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, false, false, null, null, arguments);
+			Assert.AreEqual(1, job.Batches.Count);
 
-			Job = await StartBatch(Job, BaseGraph, 0);
-			Job = Deref(await JobCollection.TryUpdateBatchAsync(Job, BaseGraph, Job.Batches[0].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
+			job = await StartBatch(job, baseGraph, 0);
+			job = Deref(await JobCollection.TryUpdateBatchAsync(job, baseGraph, job.Batches[0].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
 
-			Job = (await JobCollection.GetAsync(Job.Id))!;
-			Assert.AreEqual(2, Job.Batches.Count);
-			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[0].State);
-			Assert.AreEqual(0, Job.Batches[0].Steps.Count);
-			Assert.AreEqual(JobStepBatchState.Ready, Job.Batches[1].State);
-			Assert.AreEqual(1, Job.Batches[1].Steps.Count);
+			job = (await JobCollection.GetAsync(job.Id))!;
+			Assert.AreEqual(2, job.Batches.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, job.Batches[0].State);
+			Assert.AreEqual(0, job.Batches[0].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Ready, job.Batches[1].State);
+			Assert.AreEqual(1, job.Batches[1].Steps.Count);
 
-			Job = Deref(await JobCollection.TryUpdateBatchAsync(Job, BaseGraph, Job.Batches[1].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
+			job = Deref(await JobCollection.TryUpdateBatchAsync(job, baseGraph, job.Batches[1].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
 
-			Job = (await JobCollection.GetAsync(Job.Id))!;
-			Assert.AreEqual(3, Job.Batches.Count);
-			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[0].State);
-			Assert.AreEqual(0, Job.Batches[0].Steps.Count);
-			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[1].State);
-			Assert.AreEqual(0, Job.Batches[1].Steps.Count);
-			Assert.AreEqual(JobStepBatchState.Ready, Job.Batches[2].State);
-			Assert.AreEqual(1, Job.Batches[2].Steps.Count);
+			job = (await JobCollection.GetAsync(job.Id))!;
+			Assert.AreEqual(3, job.Batches.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, job.Batches[0].State);
+			Assert.AreEqual(0, job.Batches[0].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, job.Batches[1].State);
+			Assert.AreEqual(0, job.Batches[1].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Ready, job.Batches[2].State);
+			Assert.AreEqual(1, job.Batches[2].Steps.Count);
 
-			Job = Deref(await JobCollection.TryUpdateBatchAsync(Job, BaseGraph, Job.Batches[2].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
+			job = Deref(await JobCollection.TryUpdateBatchAsync(job, baseGraph, job.Batches[2].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
 
-			Job = (await JobCollection.GetAsync(Job.Id))!;
-			Assert.AreEqual(3, Job.Batches.Count);
-			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[0].State);
-			Assert.AreEqual(0, Job.Batches[0].Steps.Count);
-			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[1].State);
-			Assert.AreEqual(0, Job.Batches[1].Steps.Count);
-			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[2].State);
-			Assert.AreEqual(1, Job.Batches[2].Steps.Count);
-			Assert.AreEqual(JobStepState.Skipped, Job.Batches[2].Steps[0].State);
+			job = (await JobCollection.GetAsync(job.Id))!;
+			Assert.AreEqual(3, job.Batches.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, job.Batches[0].State);
+			Assert.AreEqual(0, job.Batches[0].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, job.Batches[1].State);
+			Assert.AreEqual(0, job.Batches[1].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, job.Batches[2].State);
+			Assert.AreEqual(1, job.Batches[2].Steps.Count);
+			Assert.AreEqual(JobStepState.Skipped, job.Batches[2].Steps[0].State);
 		}
 	}
 }

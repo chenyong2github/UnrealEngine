@@ -7,7 +7,7 @@ namespace Horde.Build.Tests
     ///
     /// Put into a separate file to avoid accidental commit of credentials.
     /// </summary>
-	public class DebugSettings
+	public static class DebugSettings
     {
 	    public static readonly string DbUsername = "username-not-set";
 	    public static readonly string DbPassword = "password-not-set";

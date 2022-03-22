@@ -2,34 +2,32 @@
 
 using System.Threading.Tasks;
 using Horde.Build.Api;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Horde.Build.Controllers;
 using Horde.Build.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Horde.Build.Tests
+namespace Horde.Build.Tests;
+
+[TestClass]
+public class AgentControllerDbTest : TestSetup
 {
-	[TestClass]
-    public class AgentControllerDbTest : TestSetup
-    {
-        [TestMethod]
-        public async Task UpdateAgent()
-        {
-			Fixture Fixture = await CreateFixtureAsync();
-	        IAgent FixtureAgent = Fixture.Agent1;
+	[TestMethod]
+	public async Task UpdateAgent()
+	{
+		Fixture fixture = await CreateFixtureAsync();
+		IAgent fixtureAgent = fixture.Agent1;
 
-	        ActionResult<object> Obj = await AgentsController.GetAgentAsync(FixtureAgent.Id);
-	        GetAgentResponse GetRes = (Obj.Value as GetAgentResponse)!;
-	        Assert.AreEqual(Fixture!.Agent1Name.ToUpper(), GetRes.Name);
-	        Assert.IsNull(GetRes.Comment);
-	        
-	        UpdateAgentRequest UpdateReq = new UpdateAgentRequest();
-	        UpdateReq.Comment = "foo bar baz";
-	        await AgentsController.UpdateAgentAsync(FixtureAgent.Id, UpdateReq);
-	        
-	        Obj = await AgentsController.GetAgentAsync(FixtureAgent.Id);
-	        GetRes = (Obj.Value as GetAgentResponse)!;
-	        Assert.AreEqual("foo bar baz", GetRes.Comment);
-        }
-    }
+		ActionResult<object> obj = await AgentsController.GetAgentAsync(fixtureAgent.Id);
+		GetAgentResponse getRes = (obj.Value as GetAgentResponse)!;
+		Assert.AreEqual(fixture!.Agent1Name.ToUpper(), getRes.Name);
+		Assert.IsNull(getRes.Comment);
+
+		UpdateAgentRequest updateReq = new();
+		updateReq.Comment = "foo bar baz";
+		await AgentsController.UpdateAgentAsync(fixtureAgent.Id, updateReq);
+
+		obj = await AgentsController.GetAgentAsync(fixtureAgent.Id);
+		getRes = (obj.Value as GetAgentResponse)!;
+		Assert.AreEqual("foo bar baz", getRes.Comment);
+	}
 }

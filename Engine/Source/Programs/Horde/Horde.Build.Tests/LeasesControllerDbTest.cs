@@ -7,7 +7,6 @@ using HordeCommon;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using Horde.Build.Tests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -22,26 +21,26 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task FindLeases()
 		{
-			DateTimeOffset MinTime = Clock.UtcNow - TimeSpan.FromMinutes(5);
-			DateTimeOffset MaxTime = Clock.UtcNow;
+			DateTimeOffset minTime = Clock.UtcNow - TimeSpan.FromMinutes(5);
+			DateTimeOffset maxTime = Clock.UtcNow;
 
-			ILease Lease1 = await CreateLease(Clock.UtcNow - TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(6));
-			ILease Lease2 = await CreateLease(Clock.UtcNow - TimeSpan.FromMinutes(7), TimeSpan.FromMinutes(3.1));
-			ILease OutOfTimeWindow = await CreateLease(Clock.UtcNow - TimeSpan.FromMinutes(7), TimeSpan.FromMinutes(25));
+			ILease lease1 = await CreateLease(Clock.UtcNow - TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(6));
+			ILease lease2 = await CreateLease(Clock.UtcNow - TimeSpan.FromMinutes(7), TimeSpan.FromMinutes(3.1));
+			ILease outOfTimeWindow = await CreateLease(Clock.UtcNow - TimeSpan.FromMinutes(7), TimeSpan.FromMinutes(25));
 			
-			ActionResult<List<object>> Res = await LeasesController.FindLeasesAsync(null, null, null, null, MinTime, MaxTime);
-			Assert.AreEqual(2, Res.Value!.Count);
-			Assert.AreEqual(Lease2.Id.ToString(), (Res.Value[0] as GetAgentLeaseResponse)!.Id);
-			Assert.AreEqual(Lease1.Id.ToString(), (Res.Value[1] as GetAgentLeaseResponse)!.Id);
+			ActionResult<List<object>> res = await LeasesController.FindLeasesAsync(null, null, null, null, minTime, maxTime);
+			Assert.AreEqual(2, res.Value!.Count);
+			Assert.AreEqual(lease2.Id.ToString(), (res.Value[0] as GetAgentLeaseResponse)!.Id);
+			Assert.AreEqual(lease1.Id.ToString(), (res.Value[1] as GetAgentLeaseResponse)!.Id);
 		}
 
-		private async Task<ILease> CreateLease(DateTime StartTime, TimeSpan Duration)
+		private async Task<ILease> CreateLease(DateTime startTime, TimeSpan duration)
 		{
-			ObjectId<ILease> Id = ObjectId<ILease>.GenerateNewId();
-			ObjectId<ISession> SessionId = ObjectId<ISession>.GenerateNewId();
-			ILease Lease = await LeaseCollection.AddAsync(Id, "myLease", new AgentId("agent-1"), SessionId, null, null, null, StartTime, new byte[] { });
-			await LeaseCollection.TrySetOutcomeAsync(Id, StartTime + Duration, LeaseOutcome.Success, null);
-			return Lease;
+			ObjectId<ILease> id = ObjectId<ILease>.GenerateNewId();
+			ObjectId<ISession> sessionId = ObjectId<ISession>.GenerateNewId();
+			ILease lease = await LeaseCollection.AddAsync(id, "myLease", new AgentId("agent-1"), sessionId, null, null, null, startTime, Array.Empty<byte>());
+			await LeaseCollection.TrySetOutcomeAsync(id, startTime + duration, LeaseOutcome.Success, null);
+			return lease;
 		}
 	}
 }

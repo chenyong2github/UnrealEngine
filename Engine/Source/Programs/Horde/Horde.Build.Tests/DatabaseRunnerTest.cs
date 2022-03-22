@@ -11,19 +11,19 @@ namespace Horde.Build.Tests
         [TestMethod]
         public void RunMongoDbTest()
         {
-	        MongoDbRunnerLocal Runner = new MongoDbRunnerLocal();
-	        Runner.Start();
+	        MongoDbRunnerLocal runner = new MongoDbRunnerLocal();
+	        runner.Start();
             Thread.Sleep(100);
-            Runner.Stop();
+            runner.Stop();
         }
         
         [TestMethod]
         public void RunRedisTest()
         {
-	        RedisRunner Runner = new RedisRunner();
-	        Runner.Start();
+	        RedisRunner runner = new RedisRunner();
+	        runner.Start();
 	        Thread.Sleep(100);
-	        Runner.Stop();
+	        runner.Stop();
         }
     }
 }

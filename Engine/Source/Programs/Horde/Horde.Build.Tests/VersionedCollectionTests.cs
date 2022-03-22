@@ -49,16 +49,16 @@ namespace Horde.Build.Tests
 
 		DatabaseService _databaseService;
 		IDatabase _redis;
-		RedisKey baseKey = new RedisKey("versioned/");
+		RedisKey _baseKey = new RedisKey("versioned/");
 		IMongoCollection<VersionedDocument<string, DocumentV2>> _baseCollection;
 		VersionedCollection<string, DocumentV2> _collection;
 
 		public VersionedCollectionTests()
 		{
-			_databaseService = GetDatabaseService();
+			_databaseService = GetDatabaseServiceSingleton();
 			_redis = GetRedisDatabase();
 			_baseCollection = _databaseService.GetCollection<VersionedDocument<string, DocumentV2>>("versioned");
-			_collection = new VersionedCollection<string, DocumentV2>(_baseCollection, _redis, baseKey);
+			_collection = new VersionedCollection<string, DocumentV2>(_baseCollection, _redis, _baseKey);
 		}
 
 		[TestMethod]

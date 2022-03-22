@@ -6,7 +6,6 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using EpicGames.Core;
 using Horde.Build.Commands;
-using Horde.Build;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
@@ -23,30 +22,30 @@ namespace Horde.Build.Tests
 				return;
 			}
 			
-			string FriendlyName = "A testing cert";
-			byte[] TempCertData = CertificateUtils.CreateSelfSignedCert("testing.epicgames.com", FriendlyName);
-			string TempCertPath = Path.GetTempFileName();
-			File.WriteAllBytes(TempCertPath, TempCertData);
+			string friendlyName = "A testing cert";
+			byte[] tempCertData = CertificateUtils.CreateSelfSignedCert("testing.epicgames.com", friendlyName);
+			string tempCertPath = Path.GetTempFileName();
+			File.WriteAllBytes(tempCertPath, tempCertData);
 			
 			// No cert given
 			Assert.IsNull(ServerCommand.ReadGrpcCertificate(new () { ServerPrivateCert = null }));
 
 			// Cert as file path
 			{
-				X509Certificate2? Cert = ServerCommand.ReadGrpcCertificate(new() { ServerPrivateCert = TempCertPath });
-				Assert.IsNotNull(Cert);
-				Assert.AreEqual(FriendlyName, Cert!.FriendlyName);
+				X509Certificate2? cert = ServerCommand.ReadGrpcCertificate(new() { ServerPrivateCert = tempCertPath });
+				Assert.IsNotNull(cert);
+				Assert.AreEqual(friendlyName, cert!.FriendlyName);
 			}
 
 			// Cert as base64 data
 			{
-				string TempCertBase64 = Convert.ToBase64String(TempCertData);
-				X509Certificate2? Cert = ServerCommand.ReadGrpcCertificate(new() { ServerPrivateCert = "base64:" + TempCertBase64 });
-				Assert.IsNotNull(Cert);
-				Assert.AreEqual(FriendlyName, Cert!.FriendlyName);	
+				string tempCertBase64 = Convert.ToBase64String(tempCertData);
+				X509Certificate2? cert = ServerCommand.ReadGrpcCertificate(new() { ServerPrivateCert = "base64:" + tempCertBase64 });
+				Assert.IsNotNull(cert);
+				Assert.AreEqual(friendlyName, cert!.FriendlyName);	
 			}
 			
-			File.Delete(TempCertPath);
+			File.Delete(tempCertPath);
 		}
 	}
 }

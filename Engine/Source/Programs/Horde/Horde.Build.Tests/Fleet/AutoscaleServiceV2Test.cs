@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using StatsdClient;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Fleet.Autoscale;
-using Horde.Build;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
-using Horde.Build.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,27 +17,25 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Horde.Build.Tests.Fleet
 {
 	using PoolId = StringId<IPool>;
-	using ProjectId = StringId<IProject>;
-	using StreamId = StringId<IStream>;
-	
+
 	public class FleetManagerSpy : IFleetManager
 	{
 		public int ExpandPoolAsyncCallCount { get; private set; }
 		public int ShrinkPoolAsyncCallCount { get; private set; }
 		
-		public Task ExpandPoolAsync(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
+		public Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
 		{
 			ExpandPoolAsyncCallCount++;
 			return Task.CompletedTask;
 		}
 
-		public Task ShrinkPoolAsync(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
+		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
 		{
 			ShrinkPoolAsyncCallCount++;
 			return Task.CompletedTask;
 		}
 
-		public Task<int> GetNumStoppedInstancesAsync(IPool Pool)
+		public Task<int> GetNumStoppedInstancesAsync(IPool pool)
 		{
 			throw new NotImplementedException();
 		}
@@ -49,14 +46,14 @@ namespace Horde.Build.Tests.Fleet
 		public int CallCount { get; private set; }
 		public HashSet<PoolId> PoolIdsSeen { get; } = new();
 		
-		public Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools)
+		public Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
 		{
 			CallCount++;
-			foreach (PoolSizeData Data in Pools)
+			foreach (PoolSizeData data in pools)
 			{
-				PoolIdsSeen.Add(Data.Pool.Id);
+				PoolIdsSeen.Add(data.Pool.Id);
 			}
-			return Task.FromResult(Pools);
+			return Task.FromResult(pools);
 		}
 
 		public string Name { get; } = "PoolSizeStrategySpy";
@@ -65,102 +62,90 @@ namespace Horde.Build.Tests.Fleet
 	[TestClass]
 	public class AutoscaleServiceV2Test : TestSetup
 	{
-		FleetManagerSpy FleetManagerSpy = new();
-		
+		readonly FleetManagerSpy _fleetManagerSpy = new();
+		readonly IDogStatsd _dogStatsD = new NoOpDogStatsd();
+
 		[TestMethod]
 		public async Task PerPoolStrategy()
 		{
-			var Service = GetAutoscaleService(FleetManagerSpy);
+			using AutoscaleServiceV2 service = GetAutoscaleService(_fleetManagerSpy);
 			
-			IPool Pool1 = await PoolService.CreatePoolAsync("bogusPoolLease1", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.LeaseUtilization);
-			IPool Pool2 = await PoolService.CreatePoolAsync("bogusPoolLease2", null, true, 0, 0, SizeStrategy: null);
-			IPool Pool3 = await PoolService.CreatePoolAsync("bogusPoolJobQueue1", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.JobQueue);
-			IPool Pool4 = await PoolService.CreatePoolAsync("bogusPoolJobQueue2", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.JobQueue);
-			IPool Pool5 = await PoolService.CreatePoolAsync("bogusPoolNoOp", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
+			IPool pool1 = await PoolService.CreatePoolAsync("bogusPoolLease1", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.LeaseUtilization);
+			IPool pool2 = await PoolService.CreatePoolAsync("bogusPoolLease2", null, true, 0, 0, SizeStrategy: null);
+			IPool pool3 = await PoolService.CreatePoolAsync("bogusPoolJobQueue1", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.JobQueue);
+			IPool pool4 = await PoolService.CreatePoolAsync("bogusPoolJobQueue2", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.JobQueue);
+			IPool pool5 = await PoolService.CreatePoolAsync("bogusPoolNoOp", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
 
-			PoolSizeStrategySpy LeaseUtilizationSpy = new();
-			PoolSizeStrategySpy JobQueueSpy = new();
-			PoolSizeStrategySpy NoOpSpy = new();
-			Service.OverridePoolSizeStrategiesDuringTesting(LeaseUtilizationSpy, JobQueueSpy, NoOpSpy);
+			PoolSizeStrategySpy leaseUtilizationSpy = new();
+			PoolSizeStrategySpy jobQueueSpy = new();
+			PoolSizeStrategySpy noOpSpy = new();
+			service.OverridePoolSizeStrategiesDuringTesting(leaseUtilizationSpy, jobQueueSpy, noOpSpy);
 
-			await Service.TickLeaderAsync(CancellationToken.None);
+			await service.TickLeaderAsync(CancellationToken.None);
 			
-			Assert.AreEqual(1, LeaseUtilizationSpy.CallCount);
-			Assert.IsTrue(LeaseUtilizationSpy.PoolIdsSeen.Contains(Pool1.Id));
-			Assert.IsTrue(LeaseUtilizationSpy.PoolIdsSeen.Contains(Pool2.Id));
+			Assert.AreEqual(1, leaseUtilizationSpy.CallCount);
+			Assert.IsTrue(leaseUtilizationSpy.PoolIdsSeen.Contains(pool1.Id));
+			Assert.IsTrue(leaseUtilizationSpy.PoolIdsSeen.Contains(pool2.Id));
 			
-			Assert.AreEqual(1, JobQueueSpy.CallCount);
-			Assert.IsTrue(JobQueueSpy.PoolIdsSeen.Contains(Pool3.Id));
-			Assert.IsTrue(JobQueueSpy.PoolIdsSeen.Contains(Pool4.Id));
+			Assert.AreEqual(1, jobQueueSpy.CallCount);
+			Assert.IsTrue(jobQueueSpy.PoolIdsSeen.Contains(pool3.Id));
+			Assert.IsTrue(jobQueueSpy.PoolIdsSeen.Contains(pool4.Id));
 			
-			Assert.AreEqual(1, NoOpSpy.CallCount);
-			Assert.IsTrue(NoOpSpy.PoolIdsSeen.Contains(Pool5.Id));
+			Assert.AreEqual(1, noOpSpy.CallCount);
+			Assert.IsTrue(noOpSpy.PoolIdsSeen.Contains(pool5.Id));
 		}
 
 		[TestMethod]
 		public async Task ScaleOutCooldown()
 		{
-			AutoscaleServiceV2 Service = GetAutoscaleService(FleetManagerSpy);
-			IPool Pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
+			using AutoscaleServiceV2 service = GetAutoscaleService(_fleetManagerSpy);
+			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
 
 			// First scale-out will succeed
-			await Service.ResizePools(new() { new PoolSizeData(Pool, new List<IAgent>(), 1, "Testing") });
-			Assert.AreEqual(1, FleetManagerSpy.ExpandPoolAsyncCallCount);
+			await service.ResizePools(new() { new PoolSizeData(pool, new List<IAgent>(), 1, "Testing") });
+			Assert.AreEqual(1, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 			
 			// Cannot scale-out due to cool-down
-			await Service.ResizePools(new() { new PoolSizeData(Pool, new List<IAgent>(), 2, "Testing") });
-			Assert.AreEqual(1, FleetManagerSpy.ExpandPoolAsyncCallCount);
+			await service.ResizePools(new() { new PoolSizeData(pool, new List<IAgent>(), 2, "Testing") });
+			Assert.AreEqual(1, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 
 			// Wait some time and then try again
 			await Clock.AdvanceAsync(TimeSpan.FromHours(2));
-			await Service.ResizePools(new() { new PoolSizeData(Pool, new List<IAgent>(), 2, "Testing") });
-			Assert.AreEqual(2, FleetManagerSpy.ExpandPoolAsyncCallCount);
+			await service.ResizePools(new() { new PoolSizeData(pool, new List<IAgent>(), 2, "Testing") });
+			Assert.AreEqual(2, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 		}
 		
 		[TestMethod]
 		public async Task ScaleInCooldown()
 		{
-			AutoscaleServiceV2 Service = GetAutoscaleService(FleetManagerSpy);
-			IPool Pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
-			IAgent Agent1 = await CreateAgentAsync(Pool);
-			IAgent Agent2 = await CreateAgentAsync(Pool);
+			using AutoscaleServiceV2 service = GetAutoscaleService(_fleetManagerSpy);
+			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
+			IAgent agent1 = await CreateAgentAsync(pool);
+			IAgent agent2 = await CreateAgentAsync(pool);
 
 			// First scale-out will succeed
-			await Service.ResizePools(new() { new PoolSizeData(Pool, new () { Agent1, Agent2 }, 1, "Testing") });
-			Assert.AreEqual(1, FleetManagerSpy.ShrinkPoolAsyncCallCount);
+			await service.ResizePools(new() { new PoolSizeData(pool, new () { agent1, agent2 }, 1, "Testing") });
+			Assert.AreEqual(1, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 			
 			// Cannot scale-out due to cool-down
-			await Service.ResizePools(new() { new PoolSizeData(Pool, new () { Agent1 }, 0, "Testing") });
-			Assert.AreEqual(1, FleetManagerSpy.ShrinkPoolAsyncCallCount);
+			await service.ResizePools(new() { new PoolSizeData(pool, new () { agent1 }, 0, "Testing") });
+			Assert.AreEqual(1, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 
 			// Wait some time and then try again
 			await Clock.AdvanceAsync(TimeSpan.FromHours(2));
-			await Service.ResizePools(new() { new PoolSizeData(Pool, new () { Agent1 }, 0, "Testing") });
-			Assert.AreEqual(2, FleetManagerSpy.ShrinkPoolAsyncCallCount);
+			await service.ResizePools(new() { new PoolSizeData(pool, new () { agent1 }, 0, "Testing") });
+			Assert.AreEqual(2, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 		}
 
-		private async Task<List<PoolSizeData>> GetPoolSizeData()
+		private AutoscaleServiceV2 GetAutoscaleService(IFleetManager fleetManager)
 		{
-			IPool Pool1 = await PoolService.CreatePoolAsync("bogusPool1", null, true, 0, 0);
-			IAgent Agent1 = await CreateAgentAsync(Pool1);
-			IAgent Agent2 = await CreateAgentAsync(Pool1);
+			ILogger<AutoscaleServiceV2> logger = ServiceProvider.GetRequiredService<ILogger<AutoscaleServiceV2>>();
+			IOptions<ServerSettings> serverSettingsOpt = ServiceProvider.GetRequiredService<IOptions<ServerSettings>>();
 
-			return new List<PoolSizeData>
-			{
-				new (Pool1, new List<IAgent> { Agent1, Agent2 }, null)
-			};
+			LeaseUtilizationStrategy leaseUtilizationStrategy = new(AgentCollection, PoolCollection, LeaseCollection, Clock);
+			JobQueueStrategy jobQueueStrategy = new(JobCollection, GraphCollection, StreamService, Clock);
+			AutoscaleServiceV2 service = new AutoscaleServiceV2(leaseUtilizationStrategy,jobQueueStrategy, new NoOpPoolSizeStrategy(), AgentCollection, PoolCollection, fleetManager, _dogStatsD, Clock, serverSettingsOpt, logger);
+			return service;
 		}
-
-		private AutoscaleServiceV2 GetAutoscaleService(IFleetManager FleetManager)
-		{
-			ILogger<AutoscaleServiceV2> Logger = ServiceProvider.GetRequiredService<ILogger<AutoscaleServiceV2>>();
-			IOptions<ServerSettings> ServerSettingsOpt = ServiceProvider.GetRequiredService<IOptions<ServerSettings>>();
-
-			LeaseUtilizationStrategy LeaseUtilizationStrategy = new(AgentCollection, PoolCollection, LeaseCollection, Clock);
-			JobQueueStrategy JobQueueStrategy = new(JobCollection, GraphCollection, StreamService, Clock);
-			AutoscaleServiceV2 Service = new AutoscaleServiceV2(LeaseUtilizationStrategy,JobQueueStrategy, new NoOpPoolSizeStrategy(), AgentCollection, PoolCollection, FleetManager, new NoOpDogStatsd(), Clock, ServerSettingsOpt, Logger);
-			return Service;
-		}
-
 	}
 }

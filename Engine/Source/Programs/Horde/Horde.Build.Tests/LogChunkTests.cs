@@ -12,7 +12,7 @@ namespace Horde.Build.Tests
 	[TestClass]
 	public class LogChunkTests
 	{
-		string[] Text =
+		string[] _text =
 		{
 			@"{ ""id"": 1, ""message"": ""foo"" }",
 			@"{ ""id"": 2, ""message"": ""bar"" }",
@@ -22,25 +22,25 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public void TestSerialization()
 		{
-			byte[] TextData = Encoding.UTF8.GetBytes(String.Join("\n", Text) + "\n");
+			byte[] textData = Encoding.UTF8.GetBytes(String.Join("\n", _text) + "\n");
 
-			List<LogSubChunkData> SubChunks = new List<LogSubChunkData>();
-			SubChunks.Add(new LogSubChunkData(LogType.Text, 0, 0, new LogText(TextData, TextData.Length)));
-			SubChunks.Add(new LogSubChunkData(LogType.Json, TextData.Length, 3, new LogText(TextData, TextData.Length)));
+			List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
+			subChunks.Add(new LogSubChunkData(LogType.Text, 0, 0, new LogText(textData, textData.Length)));
+			subChunks.Add(new LogSubChunkData(LogType.Json, textData.Length, 3, new LogText(textData, textData.Length)));
 
-			LogChunkData OldChunkData = new LogChunkData(0, 0, SubChunks);
-			byte[] Data = OldChunkData.ToByteArray();
-			LogChunkData NewChunkData = LogChunkData.FromMemory(Data, 0, 0);
+			LogChunkData oldChunkData = new LogChunkData(0, 0, subChunks);
+			byte[] data = oldChunkData.ToByteArray();
+			LogChunkData newChunkData = LogChunkData.FromMemory(data, 0, 0);
 
-			Assert.AreEqual(OldChunkData.Length, NewChunkData.Length);
-			Assert.AreEqual(OldChunkData.SubChunks.Count, NewChunkData.SubChunks.Count);
-			Assert.IsTrue(OldChunkData.SubChunkOffset.AsSpan(0, OldChunkData.SubChunkOffset.Length).SequenceEqual(NewChunkData.SubChunkOffset.AsSpan(0, NewChunkData.SubChunkOffset.Length)));
-			Assert.IsTrue(OldChunkData.SubChunkLineIndex.AsSpan(0, OldChunkData.SubChunkLineIndex.Length).SequenceEqual(NewChunkData.SubChunkLineIndex.AsSpan(0, NewChunkData.SubChunkLineIndex.Length)));
-			for (int Idx = 0; Idx < OldChunkData.SubChunks.Count; Idx++)
+			Assert.AreEqual(oldChunkData.Length, newChunkData.Length);
+			Assert.AreEqual(oldChunkData.SubChunks.Count, newChunkData.SubChunks.Count);
+			Assert.IsTrue(oldChunkData.SubChunkOffset.AsSpan(0, oldChunkData.SubChunkOffset.Length).SequenceEqual(newChunkData.SubChunkOffset.AsSpan(0, newChunkData.SubChunkOffset.Length)));
+			Assert.IsTrue(oldChunkData.SubChunkLineIndex.AsSpan(0, oldChunkData.SubChunkLineIndex.Length).SequenceEqual(newChunkData.SubChunkLineIndex.AsSpan(0, newChunkData.SubChunkLineIndex.Length)));
+			for (int idx = 0; idx < oldChunkData.SubChunks.Count; idx++)
 			{
-				LogSubChunkData OldSubChunkData = OldChunkData.SubChunks[Idx];
-				LogSubChunkData NewSubChunkData = NewChunkData.SubChunks[Idx];
-				Assert.IsTrue(OldSubChunkData.InflateText().Data.Span.SequenceEqual(NewSubChunkData.InflateText().Data.Span));
+				LogSubChunkData oldSubChunkData = oldChunkData.SubChunks[idx];
+				LogSubChunkData newSubChunkData = newChunkData.SubChunks[idx];
+				Assert.IsTrue(oldSubChunkData.InflateText().Data.Span.SequenceEqual(newSubChunkData.InflateText().Data.Span));
 			}
 		}
 	}

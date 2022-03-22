@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Horde.Build.Api;
-using Horde.Build.Collections;
 using Horde.Build.Logs;
 using Horde.Build.Logs.Builder;
 using Horde.Build.Logs.Storage;
@@ -14,7 +13,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,7 +21,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Horde.Build.Collections.Impl;
 using HordeCommon;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Horde.Build.Tests
 {
@@ -32,106 +29,117 @@ namespace Horde.Build.Tests
 	[TestClass]
 	public class LogIndexingTests : DatabaseIntegrationTest
 	{
-		private readonly ILogFileService LogFileService;
-		private byte[] Data = Resources.TextFile;
+		private readonly ILogFileService _logFileService;
+		private readonly NullLogStorage _nullLogStorage;
+		private readonly LocalLogStorage _logStorage;
+		private byte[] _data = Resources.TextFile;
 
 		public LogIndexingTests()
 		{
-			LogFileCollection LogFileCollection = new LogFileCollection(GetDatabaseService());
+			LogFileCollection logFileCollection = new LogFileCollection(GetDatabaseServiceSingleton());
 
-			ServiceProvider ServiceProvider = new ServiceCollection()
-				.AddLogging(Builder => Builder.AddConsole().SetMinimumLevel(LogLevel.Debug))
+			ServiceProvider serviceProvider = new ServiceCollection()
+				.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug))
 				.BuildServiceProvider();
 
-			ILoggerFactory LoggerFactory = ServiceProvider.GetRequiredService<ILoggerFactory>();
-			ILogger<LogFileService> Logger = LoggerFactory.CreateLogger<LogFileService>();
+			ILoggerFactory loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+			ILogger<LogFileService> logger = loggerFactory.CreateLogger<LogFileService>();
 
 			// Just to satisfy the parameter, need to be fixed
-			IConfiguration Config = new ConfigurationBuilder().Build();
+			IConfiguration config = new ConfigurationBuilder().Build();
 
-			ILogBuilder LogBuilder = new LocalLogBuilder();
-			ILogStorage LogStorage = new LocalLogStorage(20, new NullLogStorage());
-			LogFileService = new LogFileService(LogFileCollection, null!, LogBuilder, LogStorage, new FakeClock(), Logger);
+			ILogBuilder logBuilder = new LocalLogBuilder();
+			_nullLogStorage = new NullLogStorage();
+			_logStorage = new LocalLogStorage(20, _nullLogStorage);
+			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, new FakeClock(), logger);
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			base.Dispose(disposing);
+
+			_logStorage.Dispose();
+			_nullLogStorage.Dispose();
 		}
 
 		[TestMethod]
 		public async Task IndexTests()
 		{
-			JobId JobId = JobId.GenerateNewId();
-			ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
+			JobId jobId = JobId.GenerateNewId();
+			ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text);
 
 			// Write the test data to the log file in blocks
-			int Offset = 0;
-			int LineIndex = 0;
-			while (Offset < Data.Length)
+			int offset = 0;
+			int lineIndex = 0;
+			while (offset < _data.Length)
 			{
-				int Length = 0;
-				int LineCount = 0;
+				int length = 0;
+				int lineCount = 0;
 
-				for(int Idx = Offset; Length == 0 || Idx < Math.Min(Data.Length, Offset + 1883); Idx++)
+				for(int idx = offset; idx < Math.Min(_data.Length, offset + 1883); idx++)
 				{
-					if(Data[Idx] == '\n')
+					if(_data[idx] == '\n')
 					{
-						Length = (Idx + 1) - Offset;
-						LineCount++;
+						length = (idx + 1) - offset;
+						lineCount++;
 						break;
 					}
 				}
 
-				LogFile = await WriteLogDataAsync(LogFile, Offset, LineIndex, Data.AsMemory(Offset, Length), false);
+				logFile = await WriteLogDataAsync(logFile, offset, lineIndex, _data.AsMemory(offset, length), false);
 
-				Offset += Length;
-				LineIndex += LineCount;
+				offset += length;
+				lineIndex += lineCount;
 			}
 
 			// Read the data back out and check it's the same
-			byte[] ReadData = new byte[Data.Length];
-			using (Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, 0, Data.Length))
+			byte[] readData = new byte[_data.Length];
+			using (Stream stream = await _logFileService.OpenRawStreamAsync(logFile, 0, _data.Length))
 			{
-				int ReadSize = await Stream.ReadAsync(ReadData, 0, ReadData.Length);
-				Assert.AreEqual(ReadData.Length, ReadSize);
+				int readSize = await stream.ReadAsync(readData, 0, readData.Length);
+				Assert.AreEqual(readData.Length, readSize);
 
-				int EqualSize = 0;
-				while(EqualSize < Data.Length && Data[EqualSize] == ReadData[EqualSize])
+				int equalSize = 0;
+				while(equalSize < _data.Length && _data[equalSize] == readData[equalSize])
 				{
-					EqualSize++;
+					equalSize++;
 				}
 
-				Assert.AreEqual(EqualSize, ReadSize);
+				Assert.AreEqual(equalSize, readSize);
 			}
 
 			// Test some searches
-			await SearchLogDataTestAsync(LogFile);
+			await SearchLogDataTestAsync(logFile);
 
 			// Generate an index and test again
-			LogFile = await WriteLogDataAsync(LogFile, Offset, LineIndex, Array.Empty<byte>(), true);
-			await SearchLogDataTestAsync(LogFile);
+			logFile = await WriteLogDataAsync(logFile, offset, lineIndex, Array.Empty<byte>(), true);
+			await SearchLogDataTestAsync(logFile);
 		}
 
 		[TestMethod]
 		public void TrieTests()
 		{
-			ReadOnlyTrieBuilder Builder = new ReadOnlyTrieBuilder();
+			ReadOnlyTrieBuilder builder = new ReadOnlyTrieBuilder();
 
-			ulong[] Values = { 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 0xfedcba9876543210UL };
-			foreach (ulong Value in Values)
+			ulong[] values = { 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 0xfedcba9876543210UL };
+			foreach (ulong value in values)
 			{
-				Builder.Add(Value);
+				builder.Add(value);
 			}
 
-			ReadOnlyTrie Trie = Builder.Build();
-			Assert.IsTrue(Enumerable.SequenceEqual(Trie.EnumerateRange(0, ulong.MaxValue), Values));
-			Assert.IsTrue(Enumerable.SequenceEqual(Trie.EnumerateRange(0, 90), Values.Where(x => x <= 90)));
-			Assert.IsTrue(Enumerable.SequenceEqual(Trie.EnumerateRange(2, 89), Values.Where(x => x >= 2 && x <= 89)));
+			ReadOnlyTrie trie = builder.Build();
+			Assert.IsTrue(Enumerable.SequenceEqual(trie.EnumerateRange(0, UInt64.MaxValue), values));
+			Assert.IsTrue(Enumerable.SequenceEqual(trie.EnumerateRange(0, 90), values.Where(x => x <= 90)));
+			Assert.IsTrue(Enumerable.SequenceEqual(trie.EnumerateRange(2, 89), values.Where(x => x >= 2 && x <= 89)));
 		}
 
 		[TestMethod]
 		public async Task PartialTokenTests()
 		{
-			JobId JobId = JobId.GenerateNewId();
-			ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
+			JobId jobId = JobId.GenerateNewId();
+			ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text);
 
-			string[] Lines =
+			string[] lines =
 			{
 				"abcdefghi\n",
 				"jklmno123\n",
@@ -139,29 +147,29 @@ namespace Horde.Build.Tests
 				"wx\n"
 			};
 
-			int Length = 0;
-			for (int LineIdx = 0; LineIdx < Lines.Length; LineIdx++)
+			int length = 0;
+			for (int lineIdx = 0; lineIdx < lines.Length; lineIdx++)
 			{
-				LogFile = await WriteLogDataAsync(LogFile, Length, LineIdx, Encoding.UTF8.GetBytes(Lines[LineIdx]), true);
-				Length += Lines[LineIdx].Length;
+				logFile = await WriteLogDataAsync(logFile, length, lineIdx, Encoding.UTF8.GetBytes(lines[lineIdx]), true);
+				length += lines[lineIdx].Length;
 			}
 
-			for (int LineIdx = 0; LineIdx < Lines.Length; LineIdx++)
+			for (int lineIdx = 0; lineIdx < lines.Length; lineIdx++)
 			{
-				for (int StrLen = 1; StrLen < 7; StrLen++)
+				for (int strLen = 1; strLen < 7; strLen++)
 				{
-					for (int StrOfs = 0; StrOfs + StrLen < Lines[LineIdx].Length - 1; StrOfs++)
+					for (int strOfs = 0; strOfs + strLen < lines[lineIdx].Length - 1; strOfs++)
 					{
-						string Str = Lines[LineIdx].Substring(StrOfs, StrLen);
+						string str = lines[lineIdx].Substring(strOfs, strLen);
 
-						LogSearchStats Stats = new LogSearchStats();
-						List<int> Results = await LogFileService.SearchLogDataAsync(LogFile, Str, 0, 5, Stats);
-						Assert.AreEqual(1, Results.Count);
-						Assert.AreEqual(LineIdx, Results[0]);
+						LogSearchStats stats = new LogSearchStats();
+						List<int> results = await _logFileService.SearchLogDataAsync(logFile, str, 0, 5, stats);
+						Assert.AreEqual(1, results.Count);
+						Assert.AreEqual(lineIdx, results[0]);
 
-						Assert.AreEqual(1, Stats.NumScannedBlocks);
-						Assert.AreEqual(3, Stats.NumSkippedBlocks);
-						Assert.AreEqual(0, Stats.NumFalsePositiveBlocks);
+						Assert.AreEqual(1, stats.NumScannedBlocks);
+						Assert.AreEqual(3, stats.NumSkippedBlocks);
+						Assert.AreEqual(0, stats.NumFalsePositiveBlocks);
 					}
 				}
 			}
@@ -170,71 +178,71 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task AppendIndexTests()
 		{
-			JobId JobId = JobId.GenerateNewId();
-			ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
+			JobId jobId = JobId.GenerateNewId();
+			ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text);
 
-			LogFile = await WriteLogDataAsync(LogFile, 0, 0, Encoding.UTF8.GetBytes("abc\n"), true);
-			LogFile = await WriteLogDataAsync(LogFile, 4, 1, Encoding.UTF8.GetBytes("def\n"), true);
-			LogFile = await WriteLogDataAsync(LogFile, 8, 2, Encoding.UTF8.GetBytes("ghi\n"), false);
+			logFile = await WriteLogDataAsync(logFile, 0, 0, Encoding.UTF8.GetBytes("abc\n"), true);
+			logFile = await WriteLogDataAsync(logFile, 4, 1, Encoding.UTF8.GetBytes("def\n"), true);
+			logFile = await WriteLogDataAsync(logFile, 8, 2, Encoding.UTF8.GetBytes("ghi\n"), false);
 
-			await ((LogFileService)LogFileService).FlushPendingWritesAsync();
+			await ((LogFileService)_logFileService).FlushPendingWritesAsync();
 
 			{
-				LogSearchStats Stats = new LogSearchStats();
-				List<int> Results = await LogFileService.SearchLogDataAsync(LogFile, "abc", 0, 5, Stats);
-				Assert.AreEqual(1, Results.Count);
-				Assert.AreEqual(0, Results[0]);
+				LogSearchStats stats = new LogSearchStats();
+				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "abc", 0, 5, stats);
+				Assert.AreEqual(1, results.Count);
+				Assert.AreEqual(0, results[0]);
 
-				Assert.AreEqual(2, Stats.NumScannedBlocks); // abc + ghi (no index yet because it hasn't been flushed)
-				Assert.AreEqual(1, Stats.NumSkippedBlocks); // def
-				Assert.AreEqual(0, Stats.NumFalsePositiveBlocks);
+				Assert.AreEqual(2, stats.NumScannedBlocks); // abc + ghi (no index yet because it hasn't been flushed)
+				Assert.AreEqual(1, stats.NumSkippedBlocks); // def
+				Assert.AreEqual(0, stats.NumFalsePositiveBlocks);
 			}
 			{
-				LogSearchStats Stats = new LogSearchStats();
-				List<int> Results = await LogFileService.SearchLogDataAsync(LogFile, "def", 0, 5, Stats);
-				Assert.AreEqual(1, Results.Count);
-				Assert.AreEqual(1, Results[0]);
+				LogSearchStats stats = new LogSearchStats();
+				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "def", 0, 5, stats);
+				Assert.AreEqual(1, results.Count);
+				Assert.AreEqual(1, results[0]);
 
-				Assert.AreEqual(2, Stats.NumScannedBlocks); // def + ghi (no index yet because it hasn't been flushed)
-				Assert.AreEqual(1, Stats.NumSkippedBlocks); // abc
-				Assert.AreEqual(0, Stats.NumFalsePositiveBlocks);
+				Assert.AreEqual(2, stats.NumScannedBlocks); // def + ghi (no index yet because it hasn't been flushed)
+				Assert.AreEqual(1, stats.NumSkippedBlocks); // abc
+				Assert.AreEqual(0, stats.NumFalsePositiveBlocks);
 			}
 			{
-				LogSearchStats Stats = new LogSearchStats();
-				List<int> Results = await LogFileService.SearchLogDataAsync(LogFile, "ghi", 0, 5, Stats);
-				Assert.AreEqual(1, Results.Count);
-				Assert.AreEqual(2, Results[0]);
+				LogSearchStats stats = new LogSearchStats();
+				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "ghi", 0, 5, stats);
+				Assert.AreEqual(1, results.Count);
+				Assert.AreEqual(2, results[0]);
 
-				Assert.AreEqual(1, Stats.NumScannedBlocks); // ghi
-				Assert.AreEqual(2, Stats.NumSkippedBlocks); // abc + def
-				Assert.AreEqual(0, Stats.NumFalsePositiveBlocks);
+				Assert.AreEqual(1, stats.NumScannedBlocks); // ghi
+				Assert.AreEqual(2, stats.NumSkippedBlocks); // abc + def
+				Assert.AreEqual(0, stats.NumFalsePositiveBlocks);
 			}
 		}
 
-		async Task<ILogFile> WriteLogDataAsync(ILogFile LogFile, long Offset, int LineIndex, ReadOnlyMemory<byte> Data, bool Flush)
+		async Task<ILogFile> WriteLogDataAsync(ILogFile logFile, long offset, int lineIndex, ReadOnlyMemory<byte> data, bool flush)
 		{
 			const int MaxChunkLength = 32 * 1024;
 			const int MaxSubChunkLineCount = 128;
 
-			ILogFile? NewLogFile = await LogFileService.WriteLogDataAsync(LogFile, Offset, LineIndex, Data, Flush, MaxChunkLength, MaxSubChunkLineCount);
-			Assert.IsNotNull(NewLogFile);
-			return NewLogFile!;
+			ILogFile? newLogFile = await _logFileService.WriteLogDataAsync(logFile, offset, lineIndex, data, flush, MaxChunkLength, MaxSubChunkLineCount);
+			Assert.IsNotNull(newLogFile);
+			return newLogFile!;
 		}
 
-		async Task SearchLogDataTestAsync(ILogFile LogFile)
+		async Task SearchLogDataTestAsync(ILogFile logFile)
 		{
-			await SearchLogDataTestAsync(LogFile, "HISPANIOLA", 0, 4, new[] { 1503, 1520, 1525, 1595 });
-			await SearchLogDataTestAsync(LogFile, "Hispaniola", 0, 4, new[] { 1503, 1520, 1525, 1595 });
-			await SearchLogDataTestAsync(LogFile, "HizpaniolZ", 0, 4, Array.Empty<int>());
-			await SearchLogDataTestAsync(LogFile, "Pieces of eight!", 0, 100, new[] { 2227, 2228, 5840, 5841, 7520 });
-			await SearchLogDataTestAsync(LogFile, "NEWSLETTER", 0, 100, new[] { 7886 });
+			await SearchLogDataTestAsync(logFile, "HISPANIOLA", 0, 4, new[] { 1503, 1520, 1525, 1595 });
+			await SearchLogDataTestAsync(logFile, "Hispaniola", 0, 4, new[] { 1503, 1520, 1525, 1595 });
+			await SearchLogDataTestAsync(logFile, "HizpaniolZ", 0, 4, Array.Empty<int>());
+			await SearchLogDataTestAsync(logFile, "Pieces of eight!", 0, 100, new[] { 2227, 2228, 5840, 5841, 7520 });
+			await SearchLogDataTestAsync(logFile, "NEWSLETTER", 0, 100, new[] { 7886 });
 		}
 
-		async Task SearchLogDataTestAsync(ILogFile LogFile, string Text, int FirstLine, int Count, int[] ExpectedLines)
+		async Task SearchLogDataTestAsync(ILogFile logFile, string text, int firstLine, int count, int[] expectedLines)
 		{
-			LogSearchStats Stats = new LogSearchStats();
-			List<int> Lines = await LogFileService.SearchLogDataAsync(LogFile, Text, FirstLine, Count, Stats);
-			Assert.IsTrue(Lines.SequenceEqual(ExpectedLines));
+			LogSearchStats stats = new LogSearchStats();
+			List<int> lines = await _logFileService.SearchLogDataAsync(logFile, text, firstLine, count, stats);
+			Assert.IsTrue(lines.SequenceEqual(expectedLines));
 		}
 	}
 }

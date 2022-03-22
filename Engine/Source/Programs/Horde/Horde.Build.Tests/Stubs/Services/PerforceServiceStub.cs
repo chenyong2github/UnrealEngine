@@ -7,13 +7,8 @@ using Horde.Build.Services;
 using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
-
-using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
 
 namespace Horde.Build.Tests.Stubs.Services
 {
@@ -21,14 +16,14 @@ namespace Horde.Build.Tests.Stubs.Services
 
 	static class PerforceExtensions
 	{
-		public static ChangeFile CreateChangeFile(string Path)
+		public static ChangeFile CreateChangeFile(string path)
 		{
-			return new ChangeFile(Path, null!, 0, 0, EpicGames.Core.Md5Hash.Zero, null!);
+			return new ChangeFile(path, null!, 0, 0, EpicGames.Core.Md5Hash.Zero, null!);
 		}
 
-		public static void Add(this List<ChangeFile> Files, string Path)
+		public static void Add(this List<ChangeFile> files, string path)
 		{
-			Files.Add(CreateChangeFile(Path));
+			files.Add(CreateChangeFile(path));
 		}
 	}
 
@@ -41,185 +36,184 @@ namespace Horde.Build.Tests.Stubs.Services
 			public string Email { get; set; }
 			public string Login { get; set; }
 
-			public User(string Login)
+			public User(string login)
 			{
-				this.Id = UserId.GenerateNewId();
-				this.Name = Login.ToUpperInvariant();
-				this.Email = $"{Login}@server";
-				this.Login = Login;
+				Id = UserId.GenerateNewId();
+				Name = login.ToUpperInvariant();
+				Email = $"{login}@server";
+				Login = login;
 			}
 		}
 
-		User TestUser = new User("TestUser");
+		User _testUser = new User("TestUser");
 
 		class ChangeComparer : IComparer<int>
 		{
-			public int Compare(int X, int Y) => Y.CompareTo(X);
+			public int Compare(int x, int y) => y.CompareTo(x);
 		}
 
-		Dictionary<string, IUser> NameToUser = new Dictionary<string, IUser>(StringComparer.OrdinalIgnoreCase);
 		public Dictionary<string, SortedDictionary<int, ChangeDetails>> Changes { get; } = new Dictionary<string, SortedDictionary<int, ChangeDetails>>(StringComparer.OrdinalIgnoreCase);
 
-		IUserCollection UserCollection;
+		IUserCollection _userCollection;
 
-		public PerforceServiceStub(IUserCollection UserCollection)
+		public PerforceServiceStub(IUserCollection userCollection)
 		{
-			this.UserCollection = UserCollection;
+			this._userCollection = userCollection;
 		}
 
-		public Task<IPerforceConnection?> GetServiceUserConnection(string? ClusterName)
+		public Task<IPerforceConnection?> GetServiceUserConnection(string? clusterName)
 		{
 			throw new NotImplementedException();
 		}
 
-		public async ValueTask<IUser> FindOrAddUserAsync(string ClusterName, string UserName)
+		public async ValueTask<IUser> FindOrAddUserAsync(string clusterName, string userName)
 		{
-			return await UserCollection.FindOrAddUserByLoginAsync(UserName);
+			return await _userCollection.FindOrAddUserByLoginAsync(userName);
 		}
 
-		public void AddChange(string StreamName, int Number, IUser Author, string Description, IEnumerable<string> Files)
+		public void AddChange(string streamName, int number, IUser author, string description, IEnumerable<string> files)
 		{
-			SortedDictionary<int, ChangeDetails>? StreamChanges;
-			if (!Changes.TryGetValue(StreamName, out StreamChanges))
+			SortedDictionary<int, ChangeDetails>? streamChanges;
+			if (!Changes.TryGetValue(streamName, out streamChanges))
 			{
-				StreamChanges = new SortedDictionary<int, ChangeDetails>(new ChangeComparer());
-				Changes[StreamName] = StreamChanges;
+				streamChanges = new SortedDictionary<int, ChangeDetails>(new ChangeComparer());
+				Changes[streamName] = streamChanges;
 			}
-			StreamChanges.Add(Number, new ChangeDetails(Number, Author, null!, Description, Files.Select(x => PerforceExtensions.CreateChangeFile(x)).ToList(), DateTime.Now));
+			streamChanges.Add(number, new ChangeDetails(number, author, null!, description, files.Select(x => PerforceExtensions.CreateChangeFile(x)).ToList(), DateTime.Now));
 		}
 
-		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int NumResults, string? ImpersonateUser)
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int numResults, string? impersonateUser)
 		{
-			List<ChangeSummary> Results = new List<ChangeSummary>();
+			List<ChangeSummary> results = new List<ChangeSummary>();
 
-			SortedDictionary<int, ChangeDetails>? StreamChanges;
-			if (Changes.TryGetValue(StreamName, out StreamChanges) && StreamChanges.Count > 0)
+			SortedDictionary<int, ChangeDetails>? streamChanges;
+			if (Changes.TryGetValue(streamName, out streamChanges) && streamChanges.Count > 0)
 			{
-				foreach (ChangeDetails Details in StreamChanges.Values)
+				foreach (ChangeDetails details in streamChanges.Values)
 				{
-					if (MinChange.HasValue && Details.Number < MinChange)
+					if (minChange.HasValue && details.Number < minChange)
 					{
 						break;
 					}
-					if (!MaxChange.HasValue || Details.Number <= MaxChange.Value)
+					if (!maxChange.HasValue || details.Number <= maxChange.Value)
 					{
-						Results.Add(new ChangeSummary(Details.Number, Details.Author, "//...", Details.Description));
+						results.Add(new ChangeSummary(details.Number, details.Author, "//...", details.Description));
 					}
-					if (NumResults > 0 && Results.Count >= NumResults)
+					if (numResults > 0 && results.Count >= numResults)
 					{
 						break;
 					}
 				}
 			}
 
-			return Task.FromResult(Results);
+			return Task.FromResult(results);
 		}
 
-		public Task<CheckShelfResult> CheckShelfAsync(string ClusterName, string StreamName, int ChangeNumber, string? ImpersonateUser)
+		public Task<CheckShelfResult> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<PerforceUserInfo?> GetUserInfoAsync(string ClusterName, string UserName)
+		public Task<PerforceUserInfo?> GetUserInfoAsync(string clusterName, string userName)
 		{
-			return Task.FromResult<PerforceUserInfo?>(new PerforceUserInfo { Login = UserName, FullName = UserName, Email = $"{UserName}@epicgames.com" });
+			return Task.FromResult<PerforceUserInfo?>(new PerforceUserInfo { Login = userName, FullName = userName, Email = $"{userName}@epicgames.com" });
 		}
 
-		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string ClusterName, string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
+		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser)
 		{
-			List<ChangeDetails> Results = new List<ChangeDetails>();
-			foreach (int ChangeNumber in ChangeNumbers)
+			List<ChangeDetails> results = new List<ChangeDetails>();
+			foreach (int changeNumber in changeNumbers)
 			{
-				Results.Add(Changes[StreamName][ChangeNumber]);
+				results.Add(Changes[streamName][changeNumber]);
 			}
-			return Task.FromResult(Results);
+			return Task.FromResult(results);
 		}
 
-		public Task<string> CreateTicket(string ClusterName, string ImpersonateUser)
+		public static Task<string> CreateTicket()
 		{
 			return Task.FromResult("bogus-ticket");
 		}
 
-		public Task<int> GetCodeChangeAsync(string ClusterName, string StreamName, int Change)
+		public Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change)
 		{
-			int CodeChange = 0;
+			int codeChange = 0;
 
-			SortedDictionary<int, ChangeDetails>? StreamChanges;
-			if (Changes.TryGetValue(StreamName, out StreamChanges))
+			SortedDictionary<int, ChangeDetails>? streamChanges;
+			if (Changes.TryGetValue(streamName, out streamChanges))
 			{
-				foreach (ChangeDetails Details in StreamChanges.Values)
+				foreach (ChangeDetails details in streamChanges.Values)
 				{
-					if (Details.Number <= Change && Details.Files.Any(x => x.Path.EndsWith(".h") || x.Path.EndsWith(".cpp")))
+					if (details.Number <= change && details.Files.Any(x => x.Path.EndsWith(".h", StringComparison.OrdinalIgnoreCase) || x.Path.EndsWith(".cpp", StringComparison.OrdinalIgnoreCase)))
 					{
-						CodeChange = Details.Number;
+						codeChange = details.Number;
 						break;
 					}
 				}
 			}
 
-			return Task.FromResult(CodeChange);
+			return Task.FromResult(codeChange);
 		}
 
-		public Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string Path, string Description)
+		public Task<int> CreateNewChangeAsync(string clusterName, string streamName, string path, string description)
 		{
-			ChangeDetails NewChange = new ChangeDetails(Changes[StreamName].First().Key + 1, TestUser, null!, Description, new List<ChangeFile> { PerforceExtensions.CreateChangeFile(Path) }, DateTime.Now);
-			Changes[StreamName].Add(NewChange.Number, NewChange);
-			return Task.FromResult(NewChange.Number);
+			ChangeDetails newChange = new ChangeDetails(Changes[streamName].First().Key + 1, _testUser, null!, description, new List<ChangeFile> { PerforceExtensions.CreateChangeFile(path) }, DateTime.Now);
+			Changes[streamName].Add(newChange.Number, newChange);
+			return Task.FromResult(newChange.Number);
 		}
 
-		public Task<List<FileSummary>> FindFilesAsync(string ClusterName, IEnumerable<string> Paths)
-		{
-			throw new NotImplementedException();
-		}
-
-		public Task<byte[]> PrintAsync(string ClusterName, string Path)
+		public Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string ClusterName, int ShelvedChange, int OriginalChange)
+		public Task<byte[]> PrintAsync(string clusterName, string path)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<int> DuplicateShelvedChangeAsync(string ClusterName, int ShelvedChange)
+		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string clusterName, int shelvedChange, int originalChange)
 		{
-			return Task.FromResult(ShelvedChange);
+			throw new NotImplementedException();
 		}
 
-		public Task DeleteShelvedChangeAsync(string ClusterName, int ShelvedChange)
+		public Task<int> DuplicateShelvedChangeAsync(string clusterName, int shelvedChange)
+		{
+			return Task.FromResult(shelvedChange);
+		}
+
+		public Task DeleteShelvedChangeAsync(string clusterName, int shelvedChange)
 		{
 			return Task.CompletedTask;
 		}
 
-		public Task UpdateChangelistDescription(string ClusterName, int Change, string Description)
+		public Task UpdateChangelistDescription(string clusterName, int change, string description)
 		{
 			return Task.CompletedTask;
 		}
 
-		public Task<IStreamView> GetStreamViewAsync(string ClusterName, string StreamName)
+		public Task<IStreamView> GetStreamViewAsync(string clusterName, string streamName)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int? MaxChange, int MaxResults)
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, int ChangeNumber)
+		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, int changeNumber)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<List<ChangeFile>> GetStreamSnapshotAsync(string ClusterName, string StreamName, int Change)
+		public Task<List<ChangeFile>> GetStreamSnapshotAsync(string clusterName, string streamName, int change)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, string StreamName, int ChangeNumber)
+		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, string streamName, int changeNumber)
 		{
-			return Task.FromResult(Changes[StreamName][ChangeNumber]);
+			return Task.FromResult(Changes[streamName][changeNumber]);
 		}
 	}
 }

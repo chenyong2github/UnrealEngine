@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Reflection;
 using System.Security.Claims;
 using System.Threading;
@@ -11,18 +10,13 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Grpc.Core;
-using Horde.Build;
-using Horde.Build.Collections;
 using HordeCommon.Rpc;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
-using Horde.Build.Tests.Stubs.Collections;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using AgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
@@ -57,7 +51,7 @@ namespace Horde.Build.Tests
 	[TestClass]
 	public class RpcServiceTest : TestSetup
 	{
-		private readonly ServerCallContext AdminContext = new ServerCallContextStub("app-horde-admins");
+		private readonly ServerCallContext _adminContext = new ServerCallContextStub("app-horde-admins");
 
 		sealed class HttpContextStub : HttpContext
 		{
@@ -73,17 +67,17 @@ namespace Horde.Build.Tests
 			public override ClaimsPrincipal User { get; set; }
 			public override WebSocketManager WebSockets { get; } = null!;
 
-			public HttpContextStub(string RoleClaimType)
+			public HttpContextStub(string roleClaimType)
 			{
 				User = new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 				{
-					new Claim(HordeClaimTypes.Role, RoleClaimType),
+					new Claim(HordeClaimTypes.Role, roleClaimType),
 				}, "TestAuthType"));
 			}
 			
-			public HttpContextStub(ClaimsPrincipal User)
+			public HttpContextStub(ClaimsPrincipal user)
 			{
-				this.User = User;
+				this.User = user;
 			}
 
 			public override void Abort()
@@ -92,17 +86,17 @@ namespace Horde.Build.Tests
 			}
 		}
 
-		public class ServerCallContextStub : ServerCallContext
+		class ServerCallContextStub : ServerCallContext
 		{
 			// Copied from ServerCallContextExtensions.cs in Grpc.Core
 			const string HttpContextKey = "__HttpContext";
 
-			public static ServerCallContext ForAdminWithAgentSessionId(string AgentSessionId)
+			public static ServerCallContext ForAdminWithAgentSessionId(string agentSessionId)
 			{
 				return new ServerCallContextStub(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 				{
 					new Claim(HordeClaimTypes.Role, "app-horde-admins"),
-					new Claim(HordeClaimTypes.AgentSessionId, AgentSessionId),
+					new Claim(HordeClaimTypes.AgentSessionId, agentSessionId),
 				}, "TestAuthType")));
 			}
 			
@@ -114,26 +108,26 @@ namespace Horde.Build.Tests
 				}, "TestAuthType")));
 			}
 
-			public ServerCallContextStub(string RoleClaimType)
+			public ServerCallContextStub(string roleClaimType)
 			{
 				// The GetHttpContext extension falls back to getting the HttpContext from UserState
 				// We can piggyback on that behavior during tests
-				UserState[HttpContextKey] = new HttpContextStub(RoleClaimType);
+				UserState[HttpContextKey] = new HttpContextStub(roleClaimType);
 			}
 			
-			public ServerCallContextStub(ClaimsPrincipal User)
+			public ServerCallContextStub(ClaimsPrincipal user)
 			{
 				// The GetHttpContext extension falls back to getting the HttpContext from UserState
 				// We can piggyback on that behavior during tests
-				UserState[HttpContextKey] = new HttpContextStub(User);
+				UserState[HttpContextKey] = new HttpContextStub(user);
 			}
 
-			protected override Task WriteResponseHeadersAsyncCore(Metadata ResponseHeaders)
+			protected override Task WriteResponseHeadersAsyncCore(Metadata responseHeaders)
 			{
 				throw new NotImplementedException();
 			}
 
-			protected override ContextPropagationToken CreatePropagationTokenCore(ContextPropagationOptions Options)
+			protected override ContextPropagationToken CreatePropagationTokenCore(ContextPropagationOptions options)
 			{
 				throw new NotImplementedException();
 			}
@@ -150,15 +144,15 @@ namespace Horde.Build.Tests
 			protected override AuthContext AuthContextCore { get; } = null!;
 		}
 		
-		public class RpcServiceInvoker : CallInvoker
+		class RpcServiceInvoker : CallInvoker
 		{
-			private readonly RpcService RpcService;
-			private readonly ServerCallContext ServerCallContext;
+			private readonly RpcService _rpcService;
+			private readonly ServerCallContext _serverCallContext;
 
-			public RpcServiceInvoker(RpcService RpcService, ServerCallContext ServerCallContext)
+			public RpcServiceInvoker(RpcService rpcService, ServerCallContext serverCallContext)
 			{
-				this.RpcService = RpcService;
-				this.ServerCallContext = ServerCallContext;
+				this._rpcService = rpcService;
+				this._serverCallContext = serverCallContext;
 			}
 
 			public override TResponse BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
@@ -166,49 +160,49 @@ namespace Horde.Build.Tests
 				throw new NotImplementedException("Blocking calls are not supported! Method " + method.FullName);
 			}
 
-			public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> Method, string Host, CallOptions Options, TRequest Request)
+			public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
 			{
-				MethodInfo MethodInfo = GetMethod(Method.Name);
-				Task<TResponse> Res = (MethodInfo.Invoke(RpcService, new object[] {Request, ServerCallContext}) as Task<TResponse>)!;
-				return new AsyncUnaryCall<TResponse>(Res, null!, null!, null!, null!, null!);
+				MethodInfo methodInfo = GetMethod(method.Name);
+				Task<TResponse> res = (methodInfo.Invoke(_rpcService, new object[] {request, _serverCallContext}) as Task<TResponse>)!;
+				return new AsyncUnaryCall<TResponse>(res, null!, null!, null!, null!, null!);
 			}
 
-			public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> Method, string Host, CallOptions Options,
-				TRequest Request)
+			public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options,
+				TRequest request)
 			{
-				Console.WriteLine($"RpcServiceInvoker.AsyncServerStreamingCall(method={Method.FullName} request={Request})");
+				Console.WriteLine($"RpcServiceInvoker.AsyncServerStreamingCall(method={method.FullName} request={request})");
 				throw new NotImplementedException();
 			}
 
-			public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> Method, string Host, CallOptions Options)
+			public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
 			{
-				Console.WriteLine($"RpcServiceInvoker.AsyncClientStreamingCall(method={Method.FullName})");
+				Console.WriteLine($"RpcServiceInvoker.AsyncClientStreamingCall(method={method.FullName})");
 				throw new NotImplementedException();
 			}
 
-			public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> Method, string Host, CallOptions Options)
+			public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
 			{
-				Console.WriteLine($"RpcServiceInvoker.AsyncDuplexStreamingCall(method={Method.FullName})");
+				Console.WriteLine($"RpcServiceInvoker.AsyncDuplexStreamingCall(method={method.FullName})");
 
-				GrpcDuplexStreamHandler<TRequest> RequestStream = new GrpcDuplexStreamHandler<TRequest>(ServerCallContext);
-				GrpcDuplexStreamHandler<TResponse> ResponseStream = new GrpcDuplexStreamHandler<TResponse>(ServerCallContext);
+				GrpcDuplexStreamHandler<TRequest> requestStream = new GrpcDuplexStreamHandler<TRequest>(_serverCallContext);
+				GrpcDuplexStreamHandler<TResponse> responseStream = new GrpcDuplexStreamHandler<TResponse>(_serverCallContext);
 
-				MethodInfo MethodInfo = GetMethod(Method.Name);
-				Task MethodTask = (MethodInfo.Invoke(RpcService, new object[] {RequestStream, ResponseStream, ServerCallContext}) as Task)!;
-				MethodTask.ContinueWith(t => { Console.Error.WriteLine($"Uncaught exception in {Method.Name}: {t}"); }, TaskContinuationOptions.OnlyOnFaulted);
+				MethodInfo methodInfo = GetMethod(method.Name);
+				Task methodTask = (methodInfo.Invoke(_rpcService, new object[] {requestStream, responseStream, _serverCallContext}) as Task)!;
+				methodTask.ContinueWith(t => { Console.Error.WriteLine($"Uncaught exception in {method.Name}: {t}"); }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
 				
-				return new AsyncDuplexStreamingCall<TRequest, TResponse>(RequestStream, ResponseStream, null!, null!, null!, null!);
+				return new AsyncDuplexStreamingCall<TRequest, TResponse>(requestStream, responseStream, null!, null!, null!, null!);
 			}
 			
-			private MethodInfo GetMethod(string MethodName)
+			private MethodInfo GetMethod(string methodName)
 			{
-				MethodInfo? Method = RpcService.GetType().GetMethod(MethodName);
-				if (Method == null)
+				MethodInfo? method = _rpcService.GetType().GetMethod(methodName);
+				if (method == null)
 				{
-					throw new ArgumentException($"Method {MethodName} not found in RpcService");
+					throw new ArgumentException($"Method {methodName} not found in RpcService");
 				}
 
-				return Method;
+				return method;
 			}
 		}
 		
@@ -216,35 +210,35 @@ namespace Horde.Build.Tests
 		/// Combines and cross-writes streams for a duplex streaming call in gRPC
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		public class GrpcDuplexStreamHandler<T> : IServerStreamWriter<T>, IClientStreamWriter<T>, IAsyncStreamReader<T> where T : class
+		class GrpcDuplexStreamHandler<T> : IServerStreamWriter<T>, IClientStreamWriter<T>, IAsyncStreamReader<T> where T : class
 		{
-			private readonly ServerCallContext ServerCallContext;
-			private readonly Channel<T> Channel;
+			private readonly ServerCallContext _serverCallContext;
+			private readonly Channel<T> _channel;
 
 			public WriteOptions? WriteOptions { get; set; }
 
-			public GrpcDuplexStreamHandler(ServerCallContext ServerCallContext)
+			public GrpcDuplexStreamHandler(ServerCallContext serverCallContext)
 			{
-				Channel = System.Threading.Channels.Channel.CreateUnbounded<T>();
+				_channel = System.Threading.Channels.Channel.CreateUnbounded<T>();
 
-				this.ServerCallContext = ServerCallContext;
+				_serverCallContext = serverCallContext;
 			}
 
 			public void Complete()
 			{
-				Channel.Writer.Complete();
+				_channel.Writer.Complete();
 			}
 
 			public IAsyncEnumerable<T> ReadAllAsync()
 			{
-				return Channel.Reader.ReadAllAsync();
+				return _channel.Reader.ReadAllAsync();
 			}
 
 			public async Task<T?> ReadNextAsync()
 			{
-				if (await Channel.Reader.WaitToReadAsync())
+				if (await _channel.Reader.WaitToReadAsync())
 				{
-					Channel.Reader.TryRead(out var message);
+					_channel.Reader.TryRead(out T? message);
 					return message;
 				}
 				else
@@ -253,14 +247,14 @@ namespace Horde.Build.Tests
 				}
 			}
 
-			public Task WriteAsync(T Message)
+			public Task WriteAsync(T message)
 			{
-				if (ServerCallContext.CancellationToken.IsCancellationRequested)
+				if (_serverCallContext.CancellationToken.IsCancellationRequested)
 				{
-					return Task.FromCanceled(ServerCallContext.CancellationToken);
+					return Task.FromCanceled(_serverCallContext.CancellationToken);
 				}
 
-				if (!Channel.Writer.TryWrite(Message))
+				if (!_channel.Writer.TryWrite(message))
 				{
 					throw new InvalidOperationException("Unable to write message.");
 				}
@@ -274,15 +268,15 @@ namespace Horde.Build.Tests
 				return Task.CompletedTask;
 			}
 
-			public async Task<bool> MoveNext(CancellationToken CancellationToken)
+			public async Task<bool> MoveNext(CancellationToken cancellationToken)
 			{
-				ServerCallContext.CancellationToken.ThrowIfCancellationRequested();
+				_serverCallContext.CancellationToken.ThrowIfCancellationRequested();
 				
-				if (await Channel.Reader.WaitToReadAsync(CancellationToken))
+				if (await _channel.Reader.WaitToReadAsync(cancellationToken))
 				{
-					if (Channel.Reader.TryRead(out var Message))
+					if (_channel.Reader.TryRead(out T? message))
 					{
-						Current = Message;
+						Current = message;
 						return true;
 					}
 				}
@@ -297,40 +291,40 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task CreateSessionTest()
 		{
-			CreateSessionRequest Req = new CreateSessionRequest();
-			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => RpcService.CreateSession(Req, AdminContext));
+			CreateSessionRequest req = new CreateSessionRequest();
+			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => RpcService.CreateSession(req, _adminContext));
 
-			Req.Name = "MyName";
-			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => RpcService.CreateSession(Req, AdminContext));
+			req.Name = "MyName";
+			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => RpcService.CreateSession(req, _adminContext));
 
-			Req.Capabilities = new AgentCapabilities();
-			CreateSessionResponse Res = await RpcService.CreateSession(Req, AdminContext);
+			req.Capabilities = new AgentCapabilities();
+			CreateSessionResponse res = await RpcService.CreateSession(req, _adminContext);
 
-			Assert.AreEqual("MYNAME", Res.AgentId);
+			Assert.AreEqual("MYNAME", res.AgentId);
 			// TODO: Check Token, ExpiryTime, SessionId 
 		}
 
 		[TestMethod]
 		public async Task UpdateSessionTest()
 		{
-			CreateSessionRequest CreateReq = new CreateSessionRequest
+			CreateSessionRequest createReq = new CreateSessionRequest
 			{
 				Name = "UpdateSessionTest1", Capabilities = new AgentCapabilities()
 			};
-			CreateSessionResponse CreateRes = await RpcService.CreateSession(CreateReq, AdminContext);
-			string AgentId = CreateRes.AgentId;
-			string SessionId = CreateRes.SessionId;
+			CreateSessionResponse createRes = await RpcService.CreateSession(createReq, _adminContext);
+			string agentId = createRes.AgentId;
+			string sessionId = createRes.SessionId;
 
-			TestAsyncStreamReader<UpdateSessionRequest> RequestStream =
-				new TestAsyncStreamReader<UpdateSessionRequest>(AdminContext);
-			TestServerStreamWriter<UpdateSessionResponse> ResponseStream =
-				new TestServerStreamWriter<UpdateSessionResponse>(AdminContext);
-			Task Call = RpcService.UpdateSession(RequestStream, ResponseStream, AdminContext);
+			TestAsyncStreamReader<UpdateSessionRequest> requestStream =
+				new TestAsyncStreamReader<UpdateSessionRequest>(_adminContext);
+			TestServerStreamWriter<UpdateSessionResponse> responseStream =
+				new TestServerStreamWriter<UpdateSessionResponse>(_adminContext);
+			Task call = RpcService.UpdateSession(requestStream, responseStream, _adminContext);
 
-			RequestStream.AddMessage(new UpdateSessionRequest {AgentId = "does-not-exist", SessionId = SessionId});
-			StructuredRpcException Re = await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => Call);
-			Assert.AreEqual(StatusCode.NotFound, Re.StatusCode);
-			Assert.IsTrue(Re.Message.Contains("Invalid agent name"));
+			requestStream.AddMessage(new UpdateSessionRequest {AgentId = "does-not-exist", SessionId = sessionId});
+			StructuredRpcException re = await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => call);
+			Assert.AreEqual(StatusCode.NotFound, re.StatusCode);
+			Assert.IsTrue(re.Message.Contains("Invalid agent name", StringComparison.OrdinalIgnoreCase));
 		}
 		
 		[TestMethod]
@@ -338,75 +332,75 @@ namespace Horde.Build.Tests
 		{
 			RpcService.LongPollTimeout = TimeSpan.FromMilliseconds(200);
 
-			TestAsyncStreamReader<QueryServerStateRequest> RequestStream =
-				new TestAsyncStreamReader<QueryServerStateRequest>(AdminContext);
-			TestServerStreamWriter<QueryServerStateResponse> ResponseStream =
-				new TestServerStreamWriter<QueryServerStateResponse>(AdminContext);
-			Task Call = RpcService.QueryServerState(RequestStream, ResponseStream, AdminContext);
+			TestAsyncStreamReader<QueryServerStateRequest> requestStream =
+				new TestAsyncStreamReader<QueryServerStateRequest>(_adminContext);
+			TestServerStreamWriter<QueryServerStateResponse> responseStream =
+				new TestServerStreamWriter<QueryServerStateResponse>(_adminContext);
+			Task call = RpcService.QueryServerState(requestStream, responseStream, _adminContext);
 
-			RequestStream.AddMessage(new QueryServerStateRequest {Name = "bogusAgentName"});
-			QueryServerStateResponse? Res = await ResponseStream.ReadNextAsync();
-			Assert.IsNotNull(Res);
+			requestStream.AddMessage(new QueryServerStateRequest {Name = "bogusAgentName"});
+			QueryServerStateResponse? res = await responseStream.ReadNextAsync();
+			Assert.IsNotNull(res);
 			
-			Res = await ResponseStream.ReadNextAsync();
-			Assert.IsNotNull(Res);
+			res = await responseStream.ReadNextAsync();
+			Assert.IsNotNull(res);
 
 			// Should timeout after LongPollTimeout specified above
-			await Call;
+			await call;
 		}
 		
 		[TestMethod]
 		public async Task FinishBatchTest()
 		{
-			CreateSessionRequest CreateReq = new CreateSessionRequest
+			CreateSessionRequest createReq = new CreateSessionRequest
 			{
 				Name = "UpdateSessionTest1", Capabilities = new AgentCapabilities()
 			};
-			CreateSessionResponse CreateRes = await RpcService.CreateSession(CreateReq, AdminContext);
-			string AgentId = CreateRes.AgentId;
-			string SessionId = CreateRes.SessionId;
+			CreateSessionResponse createRes = await RpcService.CreateSession(createReq, _adminContext);
+			string agentId = createRes.AgentId;
+			string sessionId = createRes.SessionId;
 
-			TestAsyncStreamReader<UpdateSessionRequest> RequestStream =
-				new TestAsyncStreamReader<UpdateSessionRequest>(AdminContext);
-			TestServerStreamWriter<UpdateSessionResponse> ResponseStream =
-				new TestServerStreamWriter<UpdateSessionResponse>(AdminContext);
-			Task Call = RpcService.UpdateSession(RequestStream, ResponseStream, AdminContext);
+			TestAsyncStreamReader<UpdateSessionRequest> requestStream =
+				new TestAsyncStreamReader<UpdateSessionRequest>(_adminContext);
+			TestServerStreamWriter<UpdateSessionResponse> responseStream =
+				new TestServerStreamWriter<UpdateSessionResponse>(_adminContext);
+			Task call = RpcService.UpdateSession(requestStream, responseStream, _adminContext);
 
-			RequestStream.AddMessage(new UpdateSessionRequest {AgentId = "does-not-exist", SessionId = SessionId});
-			StructuredRpcException Re = await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => Call);
-			Assert.AreEqual(StatusCode.NotFound, Re.StatusCode);
-			Assert.IsTrue(Re.Message.Contains("Invalid agent name"));
+			requestStream.AddMessage(new UpdateSessionRequest {AgentId = "does-not-exist", SessionId = sessionId});
+			StructuredRpcException re = await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => call);
+			Assert.AreEqual(StatusCode.NotFound, re.StatusCode);
+			Assert.IsTrue(re.Message.Contains("Invalid agent name", StringComparison.OrdinalIgnoreCase));
 		}
 		
 		[TestMethod]
 		public async Task UploadArtifactTest()
 		{
-			Fixture Fixture = await CreateFixtureAsync();
+			Fixture fixture = await CreateFixtureAsync();
 
-			ObjectId SessionId = ObjectId.GenerateNewId();
-			ServerCallContext Context = new ServerCallContextStub(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
+			ObjectId sessionId = ObjectId.GenerateNewId();
+			ServerCallContext context = new ServerCallContextStub(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 			{
 				new Claim(HordeClaimTypes.Role, "app-horde-admins"),
-				new Claim(HordeClaimTypes.AgentSessionId, SessionId.ToString()),
+				new Claim(HordeClaimTypes.AgentSessionId, sessionId.ToString()),
 			}, "TestAuthType")));
 
 
-			string[] Data = {"foo", "bar", "baz", "qux"};
-			string DataStr = string.Join("", Data);
+			string[] data = {"foo", "bar", "baz", "qux"};
+			string dataStr = String.Join("", data);
 			
-			UploadArtifactMetadata Metadata = new UploadArtifactMetadata
+			UploadArtifactMetadata metadata = new UploadArtifactMetadata
 			{
-				JobId = Fixture.Job1.Id.ToString(),
-				BatchId = Fixture.Job1.Batches[0].Id.ToString(),
-				StepId = Fixture.Job1.Batches[0].Steps[0].Id.ToString(),
+				JobId = fixture.Job1.Id.ToString(),
+				BatchId = fixture.Job1.Batches[0].Id.ToString(),
+				StepId = fixture.Job1.Batches[0].Steps[0].Id.ToString(),
 				Name = "testfile.txt",
 				MimeType = "text/plain",
-				Length = DataStr.Length
+				Length = dataStr.Length
 			};
 
 			// Set the session ID on the job batch to pass auth later
-			Deref(await JobCollection.TryAssignLeaseAsync(Fixture.Job1, 0, new PoolId("foo"),
-				new AgentId("test"), new ObjectId<Horde.Build.Models.ISession>(SessionId),
+			Deref(await JobCollection.TryAssignLeaseAsync(fixture.Job1, 0, new PoolId("foo"),
+				new AgentId("test"), new ObjectId<Horde.Build.Models.ISession>(sessionId),
 				LeaseId.GenerateNewId(), LogId.GenerateNewId()));
 /*
 			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);
@@ -420,22 +414,22 @@ namespace Horde.Build.Tests
 			RequestStream.Complete();
 			await Task.Delay(500);
 */			
-			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);
-			Task<UploadArtifactResponse> Call = RpcService.UploadArtifact(RequestStream,  Context);
-			RequestStream.AddMessage(new UploadArtifactRequest { Metadata = Metadata });
-			RequestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(Data[0]) });
-			RequestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(Data[1]) });
-			RequestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(Data[2]) });
-			RequestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(Data[3]) });
-			UploadArtifactResponse Res = await Call;
+			TestAsyncStreamReader<UploadArtifactRequest> requestStream = new TestAsyncStreamReader<UploadArtifactRequest>(context);
+			Task<UploadArtifactResponse> call = RpcService.UploadArtifact(requestStream,  context);
+			requestStream.AddMessage(new UploadArtifactRequest { Metadata = metadata });
+			requestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(data[0]) });
+			requestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(data[1]) });
+			requestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(data[2]) });
+			requestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(data[3]) });
+			UploadArtifactResponse res = await call;
 
 
-			IArtifact? Artifact = await ArtifactCollection.GetArtifactAsync(ObjectId.Parse(Res.Id));
-			Assert.IsNotNull(Artifact);
-			Stream Stream = await ArtifactCollection.OpenArtifactReadStreamAsync(Artifact!);
-			StreamReader Reader = new StreamReader(Stream);
-			string text = Reader.ReadToEnd();
-			Assert.AreEqual(DataStr, text);
+			IArtifact? artifact = await ArtifactCollection.GetArtifactAsync(ObjectId.Parse(res.Id));
+			Assert.IsNotNull(artifact);
+			Stream stream = await ArtifactCollection.OpenArtifactReadStreamAsync(artifact!);
+			using StreamReader reader = new StreamReader(stream);
+			string text = await reader.ReadToEndAsync();
+			Assert.AreEqual(dataStr, text);
 		}
 		/*
 		[TestMethod]
