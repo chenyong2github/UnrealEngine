@@ -84,6 +84,7 @@ struct FTriggerStateTracker
 	bool GetMappingTriggerApplied() const { return bMappingTriggerApplied; }
 
 	bool operator>=(const FTriggerStateTracker& Other) const { return GetState() >= Other.GetState(); }
+	bool operator< (const FTriggerStateTracker& Other) const { return GetState() <  Other.GetState(); }
 
 	// TODO: Hacky. This is the state we should return if we have evaluated no valid triggers. Set during action evaluation based on final ModifiedValue.
 	void SetStateForNoTriggers(ETriggerState State);

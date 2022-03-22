@@ -963,14 +963,14 @@ struct FGenericPlatformMath
 	template< class T > 
 	static CONSTEXPR FORCEINLINE T Max( const T A, const T B )
 	{
-		return (A>=B) ? A : B;
+		return (B < A) ? A : B;
 	}
 
 	/** Returns lower value in a generic way */
 	template< class T > 
 	static CONSTEXPR FORCEINLINE T Min( const T A, const T B )
 	{
-		return (A<=B) ? A : B;
+		return (A < B) ? A : B;
 	}
 
 	// Allow mixing of float types to promote to highest precision type
