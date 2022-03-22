@@ -11,6 +11,7 @@
 
 class UWorld;
 
+class UConversationNode;
 class UConversationDatabase;
 class UCommonDialogueConversation;
 struct FConversationContext;
