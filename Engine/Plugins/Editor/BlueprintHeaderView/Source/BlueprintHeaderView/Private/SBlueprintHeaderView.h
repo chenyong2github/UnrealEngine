@@ -100,6 +100,8 @@ public:
 	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	//~ End FNotifyHook interface
 
+	/** Callback for class picker menu selecting a blueprint asset */
+	void OnAssetSelected(const FAssetData& SelectedAsset);
 private:
 	/** Gets the text for the class picker combo button */
 	FText GetClassPickerText() const;
@@ -109,9 +111,6 @@ private:
 
 	/** Constructs a DetailsView widget for the settings menu */
 	TSharedRef<SWidget> GetSettingsMenuContent();
-
-	/** Callback for class picker menu selecting a blueprint asset */
-	void OnAssetSelected(const FAssetData& SelectedAsset);
 
 	/** Generates a row for a given List Item */
 	TSharedRef<ITableRow> GenerateRowForItem(FHeaderViewListItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const;
