@@ -367,7 +367,7 @@ namespace EpicGames.UHT.Types
 		{
 			string Format = "(R={0},G={1},B={2},A={3})";
 
-			DefaultValueReader.Require("FLinearColor");
+			DefaultValueReader.Require("FColor");
 			if (DefaultValueReader.TryOptional("::"))
 			{
 				switch (DefaultValueReader.GetIdentifier().Value.ToString())
