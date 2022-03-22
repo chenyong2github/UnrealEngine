@@ -225,6 +225,17 @@ uint32 FVirtualTextureProducerCollection::RemoveAllCallbacks(const void* Baton)
 	return NumRemoved;
 }
 
+void FVirtualTextureProducerCollection::NotifyRequestsCompleted()
+{
+	for (FProducerEntry& Entry : Producers)
+	{
+		if (Entry.Producer.Description.bNotifyCompleted)
+		{
+			Entry.Producer.GetVirtualTexture()->OnRequestsCompleted();
+		}
+	}
+}
+
 FVirtualTextureProducer* FVirtualTextureProducerCollection::FindProducer(const FVirtualTextureProducerHandle& Handle)
 {
 	FProducerEntry* Entry = GetEntry(Handle);

@@ -155,11 +155,12 @@ protected :
 class FVirtualTexture2DResource : public FTextureResource
 {
 public:
-	FVirtualTexture2DResource(const UTexture2D* InOwner, struct FVirtualTextureBuiltData* InVTData, int32 FirstMipToUse);
-	virtual ~FVirtualTexture2DResource();
+	ENGINE_API FVirtualTexture2DResource();
+	ENGINE_API FVirtualTexture2DResource(const UTexture2D* InOwner, struct FVirtualTextureBuiltData* InVTData, int32 FirstMipToUse);
+	ENGINE_API virtual ~FVirtualTexture2DResource();
 
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
 	
 	// Dynamic cast methods.
 	ENGINE_API virtual FVirtualTexture2DResource* GetVirtualTexture2DResource() { return this; }
@@ -167,11 +168,11 @@ public:
 	ENGINE_API virtual const FVirtualTexture2DResource* GetVirtualTexture2DResource() const { return this; }
 
 #if WITH_EDITOR
-	void InitializeEditorResources(class IVirtualTexture* InVirtualTexture);
+	ENGINE_API virtual void InitializeEditorResources(class IVirtualTexture* InVirtualTexture);
 #endif
 
-	virtual uint32 GetSizeX() const override;
-	virtual uint32 GetSizeY() const override;
+	ENGINE_API virtual uint32 GetSizeX() const override;
+	ENGINE_API virtual uint32 GetSizeY() const override;
 
 	const FVirtualTextureProducerHandle& GetProducerHandle() const { return ProducerHandle; }
 
@@ -187,19 +188,19 @@ public:
 	ENGINE_API class IAllocatedVirtualTexture* AcquireAllocatedVT();
 	ENGINE_API void ReleaseAllocatedVT();
 
-	ENGINE_API EPixelFormat GetFormat(uint32 LayerIndex) const;
-	ENGINE_API FIntPoint GetSizeInBlocks() const;
-	ENGINE_API uint32 GetNumTilesX() const;
-	ENGINE_API uint32 GetNumTilesY() const;
-	ENGINE_API uint32 GetNumMips() const;
-	ENGINE_API uint32 GetNumLayers() const;
-	ENGINE_API uint32 GetTileSize() const; //no borders
-	ENGINE_API uint32 GetBorderSize() const;
+	ENGINE_API virtual EPixelFormat GetFormat(uint32 LayerIndex) const;
+	ENGINE_API virtual FIntPoint GetSizeInBlocks() const;
+	ENGINE_API virtual uint32 GetNumTilesX() const;
+	ENGINE_API virtual uint32 GetNumTilesY() const;
+	ENGINE_API virtual uint32 GetNumMips() const;
+	ENGINE_API virtual uint32 GetNumLayers() const;
+	ENGINE_API virtual uint32 GetTileSize() const; //no borders
+	ENGINE_API virtual uint32 GetBorderSize() const;
 	uint32 GetAllocatedvAddress() const;
 
-	ENGINE_API FIntPoint GetPhysicalTextureSize(uint32 LayerIndex) const;
+	ENGINE_API virtual FIntPoint GetPhysicalTextureSize(uint32 LayerIndex) const;
 
-private:
+protected:
 	class IAllocatedVirtualTexture* AllocatedVT;
 	struct FVirtualTextureBuiltData* VTData;
 	const UTexture2D* TextureOwner;

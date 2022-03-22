@@ -133,6 +133,7 @@ struct FVTProducerDescription
 	
 	bool bPersistentHighestMip = true;
 	bool bContinuousUpdate = false;
+	bool bNotifyCompleted = false; /** Producer will receive OnRequestsCompleted() callbacks every frame when enabled. */
 	
 	uint32 TileSize = 0u;
 	uint32 TileBorderSize = 0u;
@@ -307,6 +308,9 @@ public:
 
 	/** Dump any type specific debug info. */
 	virtual void DumpToConsole(bool verbose) {}
+
+	/** Called on every virtual texture system update once all requests are completed, if bNotifyCompleted is enabled. */
+	virtual void OnRequestsCompleted() {}
 };
 
 enum class EVTPageTableFormat : uint8

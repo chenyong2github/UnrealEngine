@@ -1618,6 +1618,8 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	// Submit the merged requests
 	SubmitRequests(GraphBuilder, FeatureLevel, MemStack, MergedRequestList, true);
 
+	Producers.NotifyRequestsCompleted();
+
 	UpdateResidencyTracking();
 
 #if !UE_BUILD_SHIPPING
@@ -2150,16 +2152,29 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 void FVirtualTextureSystem::GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce)
 {
 	const int32 NumContinuousUpdateRequests = (int32)RequestList->GetNumContinuousUpdateRequests();
-	const int32 MaxContinousUpdates = FMath::Min(VirtualTextureScalability::GetMaxContinuousUpdatesPerFrame(), NumContinuousUpdateRequests);
-
-	int32 NumContinuousUpdates = 0;
-	while (NumContinuousUpdates < MaxContinousUpdates && ContinuousUpdateTilesToProduce.Num() < MaxTilesToProduce)
+	const int32 MaxContinuousUpdatesPerFrame = VirtualTextureScalability::GetMaxContinuousUpdatesPerFrame();
+	
+	// Negative maximum continous updates allows for uncapped requests
+	if (MaxContinuousUpdatesPerFrame < 0)
 	{
-		// Note it's possible that we add a duplicate value to the TSet here, and so MappedTilesToProduce doesn't grow.
-		// But ending up with fewer continuous updates then the maximum is OK.
-		int32 RandomIndex = FMath::Rand() % NumContinuousUpdateRequests;
-		ContinuousUpdateTilesToProduce.Add(RequestList->GetContinuousUpdateRequest(RandomIndex));
-		NumContinuousUpdates++;
+		for (int32 i = 0; i < NumContinuousUpdateRequests; ++i)
+		{
+			ContinuousUpdateTilesToProduce.Add(RequestList->GetContinuousUpdateRequest(i));
+		}
+	}
+	else
+	{
+		const int32 MaxContinousUpdates = FMath::Min(MaxContinuousUpdatesPerFrame, NumContinuousUpdateRequests);
+
+		int32 NumContinuousUpdates = 0;
+		while (NumContinuousUpdates < MaxContinousUpdates && ContinuousUpdateTilesToProduce.Num() < MaxTilesToProduce)
+		{
+			// Note it's possible that we add a duplicate value to the TSet here, and so MappedTilesToProduce doesn't grow.
+			// But ending up with fewer continuous updates then the maximum is OK.
+			int32 RandomIndex = FMath::Rand() % NumContinuousUpdateRequests;
+			ContinuousUpdateTilesToProduce.Add(RequestList->GetContinuousUpdateRequest(RandomIndex));
+			NumContinuousUpdates++;
+		}
 	}
 }
 

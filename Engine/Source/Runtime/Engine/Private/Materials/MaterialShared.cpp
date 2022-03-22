@@ -3147,9 +3147,9 @@ int32 FMaterialVirtualTextureStack::FindLayer(int32 UniformExpressionIndex) cons
 	return -1;
 }
 
-void FMaterialVirtualTextureStack::GetTextureValues(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, UTexture2D const** OutValues) const
+void FMaterialVirtualTextureStack::GetTextureValues(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, UTexture const** OutValues) const
 {
-	FMemory::Memzero(OutValues, sizeof(FVirtualTexture2DResource*) * VIRTUALTEXTURE_SPACE_MAXLAYERS);
+	FMemory::Memzero(OutValues, sizeof(UTexture*) * VIRTUALTEXTURE_SPACE_MAXLAYERS);
 	
 	for (uint32 LayerIndex = 0u; LayerIndex < NumLayers; ++LayerIndex)
 	{
@@ -3158,7 +3158,7 @@ void FMaterialVirtualTextureStack::GetTextureValues(const FMaterialRenderContext
 		{
 			const UTexture* Texture = nullptr;
 			UniformExpressionSet.GetTextureValue(EMaterialTextureParameterType::Virtual, ParameterIndex, Context, Context.Material, Texture);
-			OutValues[LayerIndex] = Cast<UTexture2D>(Texture);
+			OutValues[LayerIndex] = Texture;
 		}
 	}
 }
@@ -3284,7 +3284,7 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 		return nullptr;
 	}
 
-	const UTexture2D* LayerTextures[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { nullptr };
+	const UTexture* LayerTextures[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { nullptr };
 	VTStack.GetTextureValues(Context, UniformExpressionSet, LayerTextures);
 
 	const UMaterialInterface* MaterialInterface = GetMaterialInterface();
@@ -3299,7 +3299,7 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 	bool bFoundValidLayer = false;
 	for (uint32 LayerIndex = 0u; LayerIndex < NumLayers; ++LayerIndex)
 	{
-		const UTexture2D* Texture = LayerTextures[LayerIndex];
+		const UTexture* Texture = LayerTextures[LayerIndex];
 		if (!Texture)
 		{
 			continue;

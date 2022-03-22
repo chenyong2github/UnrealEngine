@@ -1226,6 +1226,19 @@ bool UTexture2D::IsCurrentlyVirtualTextured() const
 	return false;
 }
 
+FVirtualTexture2DResource::FVirtualTexture2DResource()
+	: AllocatedVT(nullptr)
+	, VTData(nullptr)
+	, TextureOwner(nullptr)
+	, ProducerHandle()
+	, FirstMipToUse(0)
+{
+	//NOTE: Empty constructor for use with media textures (which do not derive from UTexture2D).
+
+	// Initialize this resource FeatureLevel, so it gets re-created on FeatureLevel changes
+	SetFeatureLevel(GMaxRHIFeatureLevel);
+}
+
 FVirtualTexture2DResource::FVirtualTexture2DResource(const UTexture2D* InOwner, FVirtualTextureBuiltData* InVTData, int32 InFirstMipToUse)
 	: AllocatedVT(nullptr)
 	, VTData(InVTData)
