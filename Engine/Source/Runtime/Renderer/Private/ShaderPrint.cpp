@@ -552,7 +552,7 @@ namespace ShaderPrint
 			View.ShaderPrintData.UniformBuffer = CreateUniformBuffer(View.ShaderPrintData);
 			View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			View.ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
-			View.ShaderPrintData.ShaderPrintLineBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, 8), TEXT("ShaderPrint.LineBuffer(Dummy)"), ERDGBufferFlags::None);
+			View.ShaderPrintData.ShaderPrintLineBuffer  = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			return;
 		}
 
