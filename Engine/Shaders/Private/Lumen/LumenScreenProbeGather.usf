@@ -560,6 +560,17 @@ RWTexture2D<float3> RWRoughSpecularIndirect;
 RWTexture2D<uint> RWTileClassificationModes;
 
 uint DefaultDiffuseIntegrationMethod;
+float MaxRoughnessToTrace;
+float RoughnessFadeLength;
+float MaxRoughnessToEvaluateRoughSpecular;
+
+// Computes the lerp factor to diffuse for rough specular, as an optimization to skip rough specular computations
+// 1 = fully diffuse
+float GetDiffuseLerp(float Roughness)
+{
+	float FadeLength = .3f;
+	return saturate((Roughness - MaxRoughnessToEvaluateRoughSpecular + FadeLength) / FadeLength);
+}
 
 groupshared uint SharedTileClassification[TILE_CLASSIFICATION_NUM];
 
@@ -629,8 +640,9 @@ void ScreenProbeTileClassificationMarkCS(
 				}
 
 				const float DiffuseLerp = GetDiffuseLerp(Material.Roughness);
+				float MinRoughnessForProbeImportanceSampling = MaxRoughnessToTrace - RoughnessFadeLength;
 
-				if (DiffuseLerp < 1.0f || IsClearCoat(Material))
+				if (DiffuseLerp < 1.0f && Material.Roughness >= MinRoughnessForProbeImportanceSampling || IsClearCoat(Material))
 				{
 					TileClassification = TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF;
 				}
@@ -946,8 +958,6 @@ float3 InverseTonemapLighting(float3 TonemappedLighting)
 
 #define TILE_CLASSIFICATION_DISABLED TILE_CLASSIFICATION_NUM
 
-float MaxRoughnessToTrace;
-float RoughnessFadeLength;
 uint ApplyMaterialAO;
 
 StructuredBuffer<uint> IntegrateTileData;

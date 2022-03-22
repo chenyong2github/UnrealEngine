@@ -527,7 +527,7 @@ void TraceScreenProbes(
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
 		PassParameters->RelativeDepthThickness = GLumenScreenProbeGatherRelativeDepthThickness;
 		PassParameters->HistoryDepthTestRelativeThickness = GLumenScreenProbeGatherHistoryDepthTestRelativeThickness;
-		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;
+		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits ? 0 : GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;
 		PassParameters->MinimumTracingThreadOccupancy = GLumenScreenProbeGatherScreenTracesMinimumOccupancy;
 		PassParameters->SkipFoliageHits = GLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits;
 

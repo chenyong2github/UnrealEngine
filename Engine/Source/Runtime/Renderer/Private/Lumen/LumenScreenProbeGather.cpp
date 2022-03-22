@@ -284,6 +284,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeStochasticInterpolation(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular = .8f;
+FAutoConsoleVariableRef GVarLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular(
+	TEXT("r.Lumen.ScreenProbeGather.MaxRoughnessToEvaluateRoughSpecular"),
+	GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular,
+	TEXT("Maximum roughness value to evaluate rough specular in Screen Probe Gather.  Lower values reduce GPU cost of integration, but also lose rough specular."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 namespace LumenScreenProbeGather 
 {
 	int32 GetTracingOctahedronResolution(const FViewInfo& View)
@@ -799,6 +807,9 @@ class FScreenProbeTileClassificationMarkCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER(uint32, DefaultDiffuseIntegrationMethod)
+		SHADER_PARAMETER(float, MaxRoughnessToTrace)
+		SHADER_PARAMETER(float, RoughnessFadeLength)
+		SHADER_PARAMETER(float, MaxRoughnessToEvaluateRoughSpecular)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -870,6 +881,7 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 		SHADER_PARAMETER(float, FullResolutionJitterWidth)
 		SHADER_PARAMETER(float, MaxRoughnessToTrace)
 		SHADER_PARAMETER(float, RoughnessFadeLength)
+		SHADER_PARAMETER(float, MaxRoughnessToEvaluateRoughSpecular)
 		SHADER_PARAMETER(uint32, ApplyMaterialAO)
 		SHADER_PARAMETER(uint32, DefaultDiffuseIntegrationMethod)
 		SHADER_PARAMETER(FIntPoint, ViewportTileDimensions)
@@ -1057,6 +1069,11 @@ void InterpolateAndIntegrate(
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 			PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
+			extern float GLumenReflectionMaxRoughnessToTrace;
+			extern float GLumenReflectionRoughnessFadeLength;
+			PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
+			PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+			PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 
 			FScreenProbeTileClassificationMarkCS::FPermutationDomain PermutationVector;
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTileClassificationMarkCS>(PermutationVector);
@@ -1109,6 +1126,7 @@ void InterpolateAndIntegrate(
 			extern float GLumenReflectionRoughnessFadeLength;
 			PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 			PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+			PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 			PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
 			PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
 			PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
@@ -1154,6 +1172,7 @@ void InterpolateAndIntegrate(
 		extern float GLumenReflectionRoughnessFadeLength;
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 		PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+		PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 		PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
 		PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
 		PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();

@@ -38,11 +38,6 @@ struct FLumenMaterialData
 #endif
 };
 
-float GetDiffuseLerp(float Roughness)
-{
-	return saturate((Roughness - .5f) / .3f);
-}
-
 // Note: must match SampleBxDFWrapper
 bool RequiresBxDFImportanceSampling(uint ShadingModelID)
 {
@@ -78,7 +73,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.bNeedsSeparateLightAccumulation = SSSData.bIsValid;
 	Out.bIsHair = StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
 	Out.bIsFoliage = false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
-	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;// || StrataPixelHeader.BSDFCount > 1u || GetDiffuseLerp(Out.Roughness) < 1.0f;
+	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;
 	Out.bIsFrontLayerTranslucency = false;
 
 	Out.Anisotropy = 0;
@@ -138,7 +133,7 @@ FLumenMaterialData InternalReadMaterialData_GBuffer(const FGBufferData GBufferDa
 	Out.bNeedsSeparateLightAccumulation = UseSubsurfaceProfile(GBufferData.ShadingModelID);
 	Out.bIsHair = GBufferData.ShadingModelID == SHADINGMODELID_HAIR;
 	Out.bIsFoliage = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
-	Out.bRequiresBxDFImportanceSampling = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID); // || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT || GetDiffuseLerp(GBufferData.Roughness) < 1.0f;
+	Out.bRequiresBxDFImportanceSampling = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID);
 	Out.bIsFrontLayerTranslucency = false;
 
 	Out.GBufferData = GBufferData;
