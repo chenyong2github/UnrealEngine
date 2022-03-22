@@ -126,6 +126,41 @@ bool GetGGXDirection(float2 RandomUV, float Roughness, float3 V, inout float3 L,
 
 
 
+struct FLobeStat
+{
+	float Count;
+	float2 Mean;
+	float2 M2;
+	float2 Variance;
+	float pad;
+};
+
+// See Welford's algorithm https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+void LobStatUpdate(inout FLobeStat LobeStat, in float2 InPos)
+{
+	LobeStat.Count += 1;
+	float2 Delta = InPos - LobeStat.Mean;
+	LobeStat.Mean += Delta / LobeStat.Count;
+	float2 Delta2 = InPos - LobeStat.Mean;
+	LobeStat.M2 += Delta * Delta2;
+}
+
+void LobStatFinalize(inout FLobeStat LobeStat)
+{
+	if (LobeStat.Count < 2)
+	{
+		// nan
+	}
+	else
+	{
+		// Mean is already valid
+		LobeStat.Variance = LobeStat.M2 / LobeStat.Count;
+		//LobeStat.SampleVariance = LobeStat.M2 / (LobeStat.Count - 1);
+	}
+}
+
+
+
 #if defined(EVALUATE_ROUGH_REFRACTION_LOBE_CS) || defined(VISUALIZE_ROUGH_REFRACTION_PS)
 
 struct FUI
@@ -190,39 +225,6 @@ void DrawCircleXY(inout FShaderPrintContext Context, float3 Center, float2 Radiu
 		float3 P1 = Center + float3(C1, S1, 0.0) * float3(Radius, 0.0);
 
 		AddLineWS(Context, P0, P1, ColorAlpha);
-	}
-}
-
-struct FLobeStat
-{
-	float Count;
-	float2 Mean;
-	float2 M2;
-	float2 Variance;
-	float pad;
-};
-
-// See Welford's algorithm https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-void LobStatUpdate(inout FLobeStat LobeStat, in float2 InPos)
-{
-	LobeStat.Count += 1;
-	float2 Delta = InPos - LobeStat.Mean;
-	LobeStat.Mean += Delta / LobeStat.Count;
-	float2 Delta2 = InPos - LobeStat.Mean;
-	LobeStat.M2 += Delta * Delta2;
-}
-
-void LobStatFinalize(inout FLobeStat LobeStat)
-{
-	if (LobeStat.Count < 2)
-	{
-		// nan
-	}
-	else
-	{
-		// Mean is already valid
-		LobeStat.Variance = LobeStat.M2 / LobeStat.Count;
-		//LobeStat.SampleVariance = LobeStat.M2 / (LobeStat.Count - 1);
 	}
 }
 
@@ -303,6 +305,45 @@ void EvaluateRoughRefractionLobeCS(uint3 ThreadId : SV_DispatchThreadID)
 }
 
 #endif // EVALUATE_ROUGH_REFRACTION_LOBE_CS
+
+
+
+#ifdef EVALUATE_ROUGH_REFRACTION_DATA_CS
+
+uint TraceSqrtSampleCount;
+
+RWBuffer<float2> RoughRefracDataUAV;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void RoughRefracDataCS(uint3 ThreadId : SV_DispatchThreadID)
+{
+	const float Roughness = float(ThreadId.x) / float(THREADGROUP_SIZE);
+
+	FLobeStat LobeState = (FLobeStat)0;
+
+	for (float u = 0.5f; u < float(TraceSqrtSampleCount); u++)
+	{
+		for (float v = 0.5f; v < float(TraceSqrtSampleCount); v++)
+		{
+			float2 RandomUV = float2(u, v) / float(TraceSqrtSampleCount);
+			float3 V = float3(0, 0, 1);	// Only considering perpendicular view for now
+			float Eta12 = 1.33;			// Only considering air to water for now
+
+			float3 L = 0;
+			float Value = 0;
+			if (GetGGXDirection(RandomUV, Roughness, V, L, Value, Eta12) && Value > 0.0f)
+			{
+				LobStatUpdate(LobeState, L.xy);
+			}
+		}
+	}
+
+	LobStatFinalize(LobeState);
+
+	RoughRefracDataUAV[ThreadId.x] = float2(Roughness, dot(LobeState.Variance, float2(0.5, 0.5)));	// Roughness => Mean of both X and Y variances
+}
+
+#endif // EVALUATE_ROUGH_REFRACTION_DATA_CS
 
 
 
