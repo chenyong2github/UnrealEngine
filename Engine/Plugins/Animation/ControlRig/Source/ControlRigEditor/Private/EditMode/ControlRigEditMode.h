@@ -410,6 +410,10 @@ private:
 
 	TArray<FRigElementKey> DeferredItemsToFrame;
 
+	/** Computes the current interaction types based on the widget mode */
+	static uint8 GetInteractionType(FEditorViewportClient* InViewportClient);
+	uint8 InteractionType;
+
 	friend class FControlRigEditorModule;
 	friend class FControlRigEditor;
 	friend class FControlRigEditModeGenericDetails;

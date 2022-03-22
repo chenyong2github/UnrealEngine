@@ -117,6 +117,9 @@ public:
 	/** Get whether the control is hovered */
 	virtual bool IsHovered() const;
 
+	/* Returns the key of the control element this shape actor represents */
+	FRigElementKey GetElementKey() const { return FRigElementKey(ControlName, ERigElementType::Control); }
+
 	/** Called from the edit mode each tick */
 	virtual void TickControl() {};
 

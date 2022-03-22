@@ -76,6 +76,7 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, PostSetupBracket(0)
 	, InteractionBracket(0)
 	, InterRigSyncBracket(0)
+	, InteractionType((uint8)EControlRigInteractionType::None)
 #if WITH_EDITORONLY_DATA
 	, VMSnapshotBeforeExecution(nullptr)
 #endif
@@ -661,7 +662,8 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.DeltaTime = DeltaTime;
 	Context.AbsoluteTime = AbsoluteTime;
 	Context.FramesPerSecond = GetCurrentFramesPerSecond();
-	Context.bDuringInteraction = IsInteracting();
+	Context.InteractionType = InteractionType;
+	Context.ElementsBeingInteracted = ElementsBeingInteracted;
 	Context.State = InState;
 	
 	Context.Hierarchy = GetHierarchy();

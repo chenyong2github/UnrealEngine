@@ -658,6 +658,8 @@ protected:
 	int32 PostForwardsSolveBracket;
 	int32 InteractionBracket;
 	int32 InterRigSyncBracket;
+	uint8 InteractionType;
+	TArray<FRigElementKey> ElementsBeingInteracted;
 
 	TWeakObjectPtr<USceneComponent> OuterSceneComponent;
 
@@ -684,6 +686,11 @@ protected:
 	FORCEINLINE bool IsInteracting() const
 	{
 		return InteractionBracket > 0;
+	}
+
+	FORCEINLINE uint8 GetInteractionType() const
+	{
+		return InteractionType;
 	}
 
 	FORCEINLINE bool IsSyncingWithOtherRig() const
@@ -893,6 +900,8 @@ public:
 		if(ensure(ControlRig.IsValid()))
 		{
 			ControlRig->GetHierarchy()->EndInteraction();
+			ControlRig->InteractionType = (uint8)EControlRigInteractionType::None;
+			ControlRig->ElementsBeingInteracted.Reset();
 		}
 	}
 

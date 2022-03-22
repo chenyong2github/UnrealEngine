@@ -137,6 +137,7 @@ FControlRigEditMode::FControlRigEditMode()
 	, bSuspendHierarchyNotifs(false)
 	, CurrentViewportClient(nullptr)
 	, bIsChangingCoordSystem(false)
+	, InteractionType((uint8)EControlRigInteractionType::None)
 {
 	ControlProxy = NewObject<UControlRigDetailPanelControlProxies>(GetTransientPackage(), NAME_None);
 	ControlProxy->SetFlags(RF_Transactional);
@@ -886,6 +887,7 @@ bool FControlRigEditMode::InputKey(FEditorViewportClient* InViewportClient, FVie
 
 bool FControlRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
+	InteractionType = (uint8)EControlRigInteractionType::None;
 
 	if (InteractionScopes.Num() > 0)
 	{
@@ -915,6 +917,8 @@ bool FControlRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, F
 
 bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
+	InteractionType = GetInteractionType(InViewportClient);
+	
 	if (InteractionScopes.Num() == 0)
 	{
 		bool bShouldModify = IsInLevelEditor();
@@ -1089,6 +1093,8 @@ bool FControlRigEditMode::GetCustomInputCoordinateSystem(FMatrix& OutMatrix, voi
 
 bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click)
 {
+	InteractionType = GetInteractionType(InViewportClient);
+	
 	if(HActor* ActorHitProxy = HitProxyCast<HActor>(HitProxy))
 	{
 		if(ActorHitProxy->Actor)
@@ -1278,6 +1284,10 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 				}
 			}
 		}
+	}
+	else
+	{
+		InteractionType = (uint8)EControlRigInteractionType::None;
 	}
 
 	// for now we show this menu all the time if body is selected
@@ -2247,6 +2257,30 @@ void FControlRigEditMode::ResetControlShapeSize()
 	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
+uint8 FControlRigEditMode::GetInteractionType(FEditorViewportClient* InViewportClient)
+{
+	uint8 Result = (uint8)EControlRigInteractionType::None;
+	if(InViewportClient->IsMovingCamera())
+	{
+		return Result;
+	}
+	
+	const UE::Widget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
+	if(WidgetMode == UE::Widget::WM_Translate || WidgetMode == UE::Widget::WM_TranslateRotateZ)
+	{
+		Result |= (uint8)EControlRigInteractionType::Translate;
+	}
+	if(WidgetMode == UE::Widget::WM_Rotate || WidgetMode == UE::Widget::WM_TranslateRotateZ)
+	{
+		Result |= (uint8)EControlRigInteractionType::Rotate;
+	}
+	if(WidgetMode == UE::Widget::WM_Scale)
+	{
+		Result |= (uint8)EControlRigInteractionType::Scale;
+	}
+	return Result;	
+}
+
 void FControlRigEditMode::ToggleControlShapeTransformEdit()
 { 
 	if (bIsChangingControlShapeTransform)
@@ -3179,6 +3213,8 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 
 				ShapeActor->SetGlobalTransform(CurrentTransform);
 
+				ControlRig->InteractionType = InteractionType;
+				ControlRig->ElementsBeingInteracted.AddUnique(ShapeActor->GetElementKey());
 				ControlRig->Evaluate_AnyThread();
 			}
 		}
@@ -3236,6 +3272,9 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 					InOutLocal = NewLocal.GetRelativeTransform(InOutLocal);
 
 				}
+
+				ControlRig->InteractionType = InteractionType;
+				ControlRig->ElementsBeingInteracted.AddUnique(ShapeActor->GetElementKey());
 				ControlRig->Evaluate_AnyThread();		
 			}
 		}
@@ -3269,7 +3308,7 @@ void FControlRigEditMode::ChangeControlShapeTransform(AControlRigShapeActor* Sha
 
 	if (UControlRig* ControlRig = ShapeActor->ControlRig.Get())
 	{
-		if (FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ShapeActor->ControlName, ERigElementType::Control)))
+		if (FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(ShapeActor->GetElementKey()))
 		{
 			CurrentTransform = ControlRig->GetHierarchy()->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentGlobal);
 			CurrentTransform = CurrentTransform * ToWorldTransform;
@@ -3308,7 +3347,7 @@ void FControlRigEditMode::ChangeControlShapeTransform(AControlRigShapeActor* Sha
 			FTransform NewTransform = CurrentTransform.GetRelativeTransform(ToWorldTransform);
 			FRigControlModifiedContext Context;
 
-			if (FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ShapeActor->ControlName, ERigElementType::Control)))
+			if (FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(ShapeActor->GetElementKey()))
 			{
 				// do not setup undo for this first step since it is just used to calculate the local transform
 				ControlRig->GetHierarchy()->SetControlShapeTransform(ControlElement, NewTransform, ERigTransformType::CurrentGlobal, false);

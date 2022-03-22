@@ -23,6 +23,19 @@ enum class EControlRigState : uint8
 	Invalid,
 };
 
+/**
+ * The type of interaction happening on a rig
+ */
+UENUM()
+enum class EControlRigInteractionType : uint8
+{
+	None = 0,
+	Translate = (1 << 0),
+	Rotate = (1 << 1),
+	Scale = (1 << 2),
+	All = Translate | Rotate | Scale
+};
+
 /** Execution context that rig units use */
 struct FRigUnitContext
 {
@@ -35,7 +48,8 @@ struct FRigUnitContext
 		, AbsoluteTime(0.f)
 		, State(EControlRigState::Invalid)
 		, Hierarchy(nullptr)
-		, bDuringInteraction(false)
+		, InteractionType((uint8)EControlRigInteractionType::None)
+		, ElementsBeingInteracted()
 		, ToWorldSpaceTransform(FTransform::Identity)
 		, OwningComponent(nullptr)
 		, OwningActor(nullptr)
@@ -71,8 +85,11 @@ struct FRigUnitContext
 	/** The current hierarchy being executed */
 	URigHierarchy* Hierarchy;
 
-	/** True if the rig is executing during an interaction */
-	bool bDuringInteraction;
+	/** The type of interaction currently happening on the rig (0 == None) */
+	uint8 InteractionType;
+
+	/** The elements being interacted with. */
+	TArray<FRigElementKey> ElementsBeingInteracted;
 
 	/** The current transform going from rig (global) space to world space */
 	FTransform ToWorldSpaceTransform;
@@ -156,6 +173,14 @@ struct FRigUnitContext
 	FORCEINLINE FQuat ToRigSpace(const FQuat& InRotation) const
 	{
 		return ToWorldSpaceTransform.InverseTransformRotation(InRotation);
+	}
+
+	/**
+	 * Returns true if this context is currently being interacted on
+	 */
+	FORCEINLINE bool IsInteracting() const
+	{
+		return InteractionType != (uint8)EControlRigInteractionType::None;
 	}
 };
 

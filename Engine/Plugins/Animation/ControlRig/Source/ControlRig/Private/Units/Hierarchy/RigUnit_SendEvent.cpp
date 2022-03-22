@@ -12,7 +12,7 @@ FRigUnit_SendEvent_Execute()
     	return;
     }
 
-	if (bOnlyDuringInteraction && !Context.bDuringInteraction)
+	if (bOnlyDuringInteraction && !Context.IsInteracting())
 	{
 		return;
 	}
