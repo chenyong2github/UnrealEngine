@@ -15,7 +15,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Viewport/DisplayClusterLightCardEditorViewportClient.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SSplitter.h"
 
@@ -72,6 +71,11 @@ SDisplayClusterLightCardEditor::~SDisplayClusterLightCardEditor()
 		GEngine->OnLevelActorDeleted().RemoveAll(this);
 	}
 
+	if (OnObjectTransactedHandle.IsValid())
+	{
+		FCoreUObjectDelegates::OnObjectTransacted.Remove(OnObjectTransactedHandle);
+	}
+
 	RemoveCompileDelegates();
 }
 
@@ -82,6 +86,8 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 	{
 		GEngine->OnLevelActorDeleted().AddSP(this, &SDisplayClusterLightCardEditor::OnLevelActorDeleted);
 	}
+	
+	OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP(this, &SDisplayClusterLightCardEditor::OnObjectTransacted);
 
 	ChildSlot                     
 	[
@@ -171,6 +177,47 @@ void SDisplayClusterLightCardEditor::RefreshPreviewActors(EDisplayClusterLightCa
 	BindCompileDelegates();
 }
 
+bool SDisplayClusterLightCardEditor::IsOurObject(UObject* InObject,
+	EDisplayClusterLightCardEditorProxyType& OutProxyType) const
+{
+	auto IsOurActor = [InObject] (UObject* ObjectToCompare) -> bool
+	{
+		if (ObjectToCompare)
+		{
+			if (InObject == ObjectToCompare)
+			{
+				return true;
+			}
+
+			if (const UObject* RootActorOuter = InObject->GetTypedOuter(ObjectToCompare->GetClass()))
+			{
+				return RootActorOuter == ObjectToCompare;
+			}
+		}
+
+		return false;
+	};
+
+	EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All;
+	
+	bool bIsOurActor = IsOurActor(GetActiveRootActor().Get());
+	if (!bIsOurActor && LightCardList.IsValid())
+	{
+		for (const TSharedPtr<SDisplayClusterLightCardList::FLightCardTreeItem>& LightCard : LightCardList->GetLightCardActors())
+		{
+			bIsOurActor = IsOurActor(LightCard->LightCardActor.Get());
+			if (bIsOurActor)
+			{
+				ProxyType = EDisplayClusterLightCardEditorProxyType::LightCards;
+				break;
+			}
+		}
+	}
+
+	OutProxyType = ProxyType;
+	return bIsOurActor;
+}
+
 void SDisplayClusterLightCardEditor::BindCompileDelegates()
 {
 	if (LightCardList.IsValid())
@@ -208,41 +255,8 @@ void SDisplayClusterLightCardEditor::RemoveCompileDelegates()
 void SDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeingModified,
                                                             FPropertyChangedEvent& PropertyChangedEvent)
 {
-	auto IsOurActor = [ObjectBeingModified] (UObject* ObjectToCompare) -> bool
-	{
-		if (ObjectToCompare)
-		{
-			if (ObjectBeingModified == ObjectToCompare)
-			{
-				return true;
-			}
-
-			if (const UObject* RootActorOuter = ObjectBeingModified->GetTypedOuter(ObjectToCompare->GetClass()))
-			{
-				return RootActorOuter == ObjectToCompare;
-			}
-		}
-
-		return false;
-	};
-
-	EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All;
-	
-	bool bIsOurActor = IsOurActor(GetActiveRootActor().Get());
-	if (!bIsOurActor && LightCardList.IsValid())
-	{
-		for (const TSharedPtr<SDisplayClusterLightCardList::FLightCardTreeItem>& LightCard : LightCardList->GetLightCardActors())
-		{
-			bIsOurActor = IsOurActor(LightCard->LightCardActor.Get());
-			if (bIsOurActor)
-			{
-				ProxyType = EDisplayClusterLightCardEditorProxyType::LightCards;
-				break;
-			}
-		}
-	}
-	
-	if (bIsOurActor)
+	EDisplayClusterLightCardEditorProxyType ProxyType;
+	if (IsOurObject(ObjectBeingModified, ProxyType))
 	{
 		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
 		{
@@ -291,6 +305,18 @@ void SDisplayClusterLightCardEditor::OnBlueprintCompiled(UBlueprint* Blueprint)
 {
 	// Right now only LightCard blueprints are handled here.
 	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+}
+
+void SDisplayClusterLightCardEditor::OnObjectTransacted(UObject* Object,
+	const FTransactionObjectEvent& TransactionObjectEvent)
+{
+	if (TransactionObjectEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
+	{
+		// Always refresh on undo because the light card actor may not inherit our C++ class
+		// so we can't easily distinguish it. This supports the case where the user deletes
+		// a LightCard actor from the level manually then undoes it.
+		RefreshPreviewActors();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -24,4 +24,8 @@ public:
 
 	TSharedPtr<FUICommandInfo> PerspectiveProjection;
 	TSharedPtr<FUICommandInfo> AzimuthalProjection;
+
+	TSharedPtr<FUICommandInfo> AddNewLightCard;
+	TSharedPtr<FUICommandInfo> AddExistingLightCard;
+	TSharedPtr<FUICommandInfo> RemoveLightCard;
 };

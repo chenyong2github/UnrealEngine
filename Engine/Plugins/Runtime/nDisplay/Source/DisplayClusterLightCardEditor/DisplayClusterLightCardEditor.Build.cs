@@ -27,6 +27,9 @@ public class DisplayClusterLightCardEditor : ModuleRules
 				"EditorStyle",
 				"WorkspaceMenuStructure",
 				"AdvancedPreviewScene",
+				"ToolWidgets",
+				"PropertyEditor",
+				"AppFramework"
 			});
 	}
 }

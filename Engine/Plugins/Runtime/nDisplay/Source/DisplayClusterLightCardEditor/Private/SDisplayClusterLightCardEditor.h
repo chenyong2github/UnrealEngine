@@ -47,7 +47,7 @@ public:
 
 	void Construct(const FArguments& args, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner);
 
-	/** The current active root actor for this light card editor. */
+	/** The current active root actor for this light card editor */
 	TWeakObjectPtr<ADisplayClusterRootActor> GetActiveRootActor() const { return ActiveRootActor; }
 
 	/** Selects the specified light cards in the light card list and details panel */
@@ -63,32 +63,43 @@ private:
 	/** Creates the widget used to show the list of light cards associated with the active root actor */
 	TSharedRef<SWidget> CreateLightCardListWidget();
 
-	/** Create the 3d viewport widget. */
+	/** Create the 3d viewport widget */
 	TSharedRef<SWidget> CreateViewportWidget();
 
-	/** Refresh all preview actors. */
+	/** Refresh all preview actors */
 	void RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All);
 
-	/** Bind delegates to when a BP compiles. */
+	/**
+	 * Check if an object is managed by us
+	 * @param InObject The object to compare
+	 * @param OutProxyType The type of the object
+	 * @return True if our object, false if not
+	 */
+	bool IsOurObject(UObject* InObject, EDisplayClusterLightCardEditorProxyType& OutProxyType) const;
+	
+	/** Bind delegates to when a BP compiles */
 	void BindCompileDelegates();
 
-	/** Remove compile delegates from a BP. */
+	/** Remove compile delegates from a BP */
 	void RemoveCompileDelegates();
 
-	/** When a property on the actor has changed. */
+	/** When a property on the actor has changed */
 	void OnActorPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 
 	/** Raised when the user deletes an actor from the level */
 	void OnLevelActorDeleted(AActor* Actor);
 
-	/** Raised when a supported blueprint is compiled. */
+	/** Raised when a supported blueprint is compiled */
 	void OnBlueprintCompiled(UBlueprint* Blueprint);
+
+	/** Raised when any object is transacted */
+	void OnObjectTransacted(UObject* Object, const FTransactionObjectEvent& TransactionObjectEvent);
 	
 private:
 	/** The light card list widget */
 	TSharedPtr<SDisplayClusterLightCardList> LightCardList;
 
-	/** The 3d viewport. */
+	/** The 3d viewport */
 	TSharedPtr<SDisplayClusterLightCardEditorViewport> ViewportView;
 
 	/** A reference to the root actor that is currently being operated on */
@@ -96,4 +107,7 @@ private:
 
 	/** Delegate handle for the OnActiveRootActorChanged delegate */
 	FDelegateHandle ActiveRootActorChangedHandle;
+
+	/** Delegate handle for when an object is transacted */
+	FDelegateHandle OnObjectTransactedHandle;
 };

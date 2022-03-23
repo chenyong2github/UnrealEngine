@@ -20,7 +20,7 @@ enum class EDisplayClusterLightCardMask : uint8
 };
 
 UCLASS(Blueprintable)
-class ADisplayClusterLightCardActor : public AActor
+class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor
 {
 	GENERATED_BODY()
 
