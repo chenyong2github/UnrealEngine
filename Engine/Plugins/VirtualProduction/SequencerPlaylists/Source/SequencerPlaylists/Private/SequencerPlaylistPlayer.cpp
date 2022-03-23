@@ -473,10 +473,18 @@ void USequencerPlaylistPlayer::OnTakeRecorderStopped(UTakeRecorder* InRecorder)
 	if (TSharedPtr<ISequencer> Sequencer = GetValidatedSequencer())
 	{
 		FScopedTransaction Transaction(LOCTEXT("TakeRecorderStoppedTransaction", "Playlist - Take Recorder stopped"));
+		bool bAnySequencesModified = false;
 
 		for (USequencerPlaylistItem* Item : Playlist->Items)
 		{
-			GetCheckedItemPlayer(Item)->Stop(Item);
+			bAnySequencesModified |= GetCheckedItemPlayer(Item)->Stop(Item);
+		}
+
+		if (!bAnySequencesModified)
+		{
+			// Cancel the otherwise empty transaction if stopping the item
+			// players did not modify any sequences.
+			Transaction.Cancel();
 		}
 	}
 }

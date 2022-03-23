@@ -54,7 +54,12 @@ private:
 	void ClearItemStates();
 
 	UMovieSceneSubTrack* GetOrCreateWorkingTrack(USequencerPlaylistItem* Item);
-	void EndSection(UMovieSceneSection* Section);
+
+	/**
+	 * Marks the end of a section based on the item player's Sequencer.
+	 * @return true if the current sequence was modified, otherwise false.
+	 */
+	bool EndSection(UMovieSceneSection* Section);
 
 private:
 	TMap<USequencerPlaylistItem*, FItemState> ItemStates;
