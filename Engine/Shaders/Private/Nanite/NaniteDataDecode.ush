@@ -9,7 +9,7 @@
 #include "NanitePackedNaniteView.ush"
 
 #ifndef DEBUG_FLAGS
-#define DEBUG_FLAGS 0
+    #define DEBUG_FLAGS 0
 #endif
 
 uint GetHWClusterCounterIndex(uint InRenderFlags)

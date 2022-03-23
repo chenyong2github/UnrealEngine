@@ -337,6 +337,34 @@ void FVirtualShadowMapArrayCacheManager::FreePhysicalPool()
 	}
 }
 
+TRefCountPtr<IPooledRenderTarget> FVirtualShadowMapArrayCacheManager::SetHZBPhysicalPoolSize(FRDGBuilder& GraphBuilder, FIntPoint RequestedHZBSize, const EPixelFormat Format)
+{
+	if (!HZBPhysicalPagePool || HZBPhysicalPagePool->GetDesc().Extent != RequestedHZBSize || HZBPhysicalPagePool->GetDesc().Format != Format)
+	{
+		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
+			RequestedHZBSize,
+			Format,
+			FClearValueBinding::None,
+			GFastVRamConfig.HZB,
+			TexCreate_ShaderResource | TexCreate_UAV,
+			false,
+			FVirtualShadowMap::NumHZBLevels);
+
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, HZBPhysicalPagePool, TEXT("Shadow.Virtual.HZBPhysicalPagePool"));
+	}
+
+	return HZBPhysicalPagePool;
+}
+
+void FVirtualShadowMapArrayCacheManager::FreeHZBPhysicalPool()
+{
+	if (HZBPhysicalPagePool)
+	{
+		HZBPhysicalPagePool = nullptr;
+		Invalidate();
+	}
+}
+
 void FVirtualShadowMapArrayCacheManager::Invalidate()
 {
 	// Clear the cache

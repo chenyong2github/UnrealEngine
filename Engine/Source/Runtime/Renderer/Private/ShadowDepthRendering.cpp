@@ -101,12 +101,6 @@ static TAutoConsoleVariable<int32> CVarNaniteShadowsUseHZB(
 	TEXT("Enables HZB for Nanite shadows."),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarShadowsVirtualUseHZB(
-	TEXT("r.Shadow.Virtual.UseHZB"),
-	1,
-	TEXT("Enables HZB for Virtual Shadow Maps."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<float> CVarNaniteShadowsLODBias(
 	TEXT("r.Shadow.NaniteLODBias"),
 	1.0f,
@@ -1638,7 +1632,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 	FVirtualShadowMapArrayCacheManager *CacheManager = Scene->VirtualShadowMapArrayCacheManager;
 
 	// TODO: Separate out the decision about nanite using HZB and stuff like HZB culling invalidations?
-	const bool bVSMUseHZB = (CVarShadowsVirtualUseHZB.GetValueOnRenderThread() != 0);
+	const bool bVSMUseHZB = VirtualShadowMapArray.UseHzbOcclusion();
 
 	const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
 	const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
@@ -1729,8 +1723,8 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 					}
 
 					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
-					CullingConfig.bUpdateStreaming			= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
-					CullingConfig.bTwoPassOcclusion = CVarShadowsVirtualUseHZB.GetValueOnRenderThread() == 2;
+					CullingConfig.bUpdateStreaming  = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
+					CullingConfig.bTwoPassOcclusion = VirtualShadowMapArray.UseTwoPassHzbOcclusion();
 
 					CullingConfig.SetViewFlags(SceneView);
 
@@ -1777,7 +1771,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 			if (bVSMUseHZB)
 			{
-				VirtualShadowMapArray.HZBPhysical = VirtualShadowMapArray.BuildHZBFurthest(GraphBuilder);
+				VirtualShadowMapArray.UpdateHZB(GraphBuilder);
 			}
 		}
 	}

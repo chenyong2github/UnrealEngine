@@ -70,6 +70,12 @@ void PrintStats()
 		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NUM_PAGES_TO_CLEAR]);
 		ScreenPos = ShaderPrintNewline(ScreenPos);
 
+		ScreenPos.x = ItemX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("HZB Built"), FontWhite);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NUM_HZB_PAGES_BUILT]);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
+
 		if (VirtualShadowMapShouldCacheStaticSeparately())
 		{
 			ScreenPos.x = HeadlineX;

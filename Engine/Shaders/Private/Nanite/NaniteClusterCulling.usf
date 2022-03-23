@@ -80,6 +80,7 @@ float						DisocclusionLodScaleFactor;	// TODO: HACK: Force LOD down first frame
 uint						LargePageRectThreshold;
 uint						StreamingRequestsBufferVersion;
 
+RWStructuredBuffer<uint>	OutDirtyPageFlags;
 
 // Get the area of an "inclusive" rect (which means that the max is inside the rect), also guards against negative area (where min > max)
 uint GetInclusiveRectArea(uint4 Rect)
@@ -388,6 +389,21 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 		if( !bWasOccluded )
 		{
 #if VIRTUAL_TEXTURE_TARGET
+
+			// Mark touched pages dirty
+			{
+				uint PageTableLevelOffset = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
+				for (uint y = RectPages.y; y <= RectPages.w; y++)
+				{
+					for (uint x = RectPages.x; x <= RectPages.z; x++)
+					{
+						uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(NaniteView.TargetMipLevel, uint2(x, y));
+						OutDirtyPageFlags[PageFlagOffset] = 1;
+					}
+				}
+			}
+
+
 
 			uint VisibleClusterOffsetHW = ClusterOffsetHW;
 			VisibleClusterOffsetHW += TotalPrevDrawClusters.y;

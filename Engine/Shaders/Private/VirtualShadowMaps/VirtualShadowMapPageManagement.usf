@@ -346,8 +346,9 @@ RWStructuredBuffer<int> OutFreePhysicalPages;
 void InitPhysicalPageMetaData(uint3 Index : SV_DispatchThreadID)
 {
 	FPhysicalPageMetaData MetaData;
-	MetaData.Flags = 0;
-	MetaData.Age = 0;
+	MetaData.Flags = 0U;
+	MetaData.Age = 0U;
+	MetaData.VirtualPageOffset = 0U;
 
 	// Because of launch size rounding we might get here.
 	if (Index.x < VirtualShadowMap.MaxPhysicalPages)
@@ -489,6 +490,7 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 							// TODO: Separate age for static/dynamic pages probably
 							OutPhysicalPageMetaData[PhysicalPageIndex].Age = bDynamicValid ? PrevMetaData.Age + 1 : 0;
 							OutPhysicalPageMetaData[PhysicalPageIndex].Flags = ResultPageFlags;
+							OutPhysicalPageMetaData[PhysicalPageIndex].VirtualPageOffset = GlobalPageOffset;
 						}
 					}
 				}
@@ -564,6 +566,7 @@ void AllocateNewPageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId
 			OutPageFlags[GlobalPageOffset] = Flags;
 
 			OutPhysicalPageMetaData[PhysicalPageIndex].Flags = Flags;
+			OutPhysicalPageMetaData[PhysicalPageIndex].VirtualPageOffset = GlobalPageOffset;
 		}
 		else
 		{
@@ -1016,6 +1019,8 @@ void MergeStaticPhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, u
 
 RWBuffer<uint> OutPagesForHZBIndirectArgsBuffer;
 RWStructuredBuffer<uint> OutPhysicalPagesForHZB;
+StructuredBuffer<uint> DirtyPageFlags;
+uint bFirstBuildThisFrame;
 
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
 void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
@@ -1029,21 +1034,30 @@ void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 
 	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) != 0)
 	{
-		int GroupCount = 0;
-		// Each page needs TILES_PER_PAGE_1D groups launched
-		WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0], TILES_PER_PAGE_1D, GroupCount);
-		OutPhysicalPagesForHZB[GroupCount >> LOG2_TILES_PER_PAGE_1D] = PhysicalPageIndex;
-
-		// Each top-reduction needs only one group launched
-		WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCount);
-
-		if (VirtualShadowMapShouldCacheStaticSeparately())
+		bool bPageDirty = DirtyPageFlags[MetaData.VirtualPageOffset] != 0U;
+		// rebuild the HZB if the page is rendered to or it is freshly allocated, but only the first time for a given frame.
+		if (bPageDirty || (bFirstBuildThisFrame != 0 && MetaData.Age == 0U))
 		{
-			// Also queue build for the static page
-			int GroupCountStatic = 0;
-			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0], TILES_PER_PAGE_1D, GroupCountStatic);
-			OutPhysicalPagesForHZB[GroupCountStatic >> LOG2_TILES_PER_PAGE_1D] = PhysicalPageIndex + VirtualShadowMap.StaticPageIndexOffset;
-			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCountStatic);
+			StatsBufferInterlockedInc(VSM_STAT_NUM_HZB_PAGES_BUILT);
+
+			int GroupCount = 0;
+			// Each page needs TILES_PER_PAGE_1D groups launched
+			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0], TILES_PER_PAGE_1D, GroupCount);
+			OutPhysicalPagesForHZB[GroupCount >> LOG2_TILES_PER_PAGE_1D] = PhysicalPageIndex;
+
+			// Each top-reduction needs only one group launched
+			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCount);
+
+			if (VirtualShadowMapShouldCacheStaticSeparately())
+			{
+				StatsBufferInterlockedInc(VSM_STAT_NUM_HZB_PAGES_BUILT);
+				
+				// Also queue build for the static page
+				int GroupCountStatic = 0;
+				WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0], TILES_PER_PAGE_1D, GroupCountStatic);
+				OutPhysicalPagesForHZB[GroupCountStatic >> LOG2_TILES_PER_PAGE_1D] = PhysicalPageIndex + VirtualShadowMap.StaticPageIndexOffset;
+				WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCountStatic);
+			}
 		}
 	}
 }

@@ -33,6 +33,7 @@ struct FPhysicalPageMetaData
 {	
 	uint32 Flags;
 	uint32 Age;
+	uint32 VirtualPageOffset;
 };
 
 int32 GEnableVirtualShadowMaps = 0;
@@ -256,6 +257,15 @@ static TAutoConsoleVariable<float> CVarMaxMaterialPositionInvalidationRange(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarShadowsVirtualUseHZB(
+	TEXT("r.Shadow.Virtual.UseHZB"),
+	2,
+	TEXT("Enables HZB for (Nanite) Virtual Shadow Maps - Non-Nanite unfortunately has a separate flag with different semantics: r.Shadow.Virtual.NonNanite.UseHZB.\n")
+	TEXT(" 0 - No HZB occlusion culling\n")
+	TEXT(" 1 - Approximate Single-pass HZB occlusion culling (using previous frame HZB)\n")
+	TEXT(" 2 - Two-pass occlusion culling (default)."),
+	ECVF_RenderThreadSafe);
+
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
 	const FMatrix& ViewToClip)
@@ -271,6 +281,21 @@ FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(
 	const FMatrix& ViewToClip)
 {
 	return CalcTranslatedWorldToShadowUVMatrix(TranslatedWorldToShadowView, ViewToClip).GetTransposed().Inverse();
+}
+
+
+template <typename ShaderType>
+static bool SetStatsArgsAndPermutation(FRDGBuilder& GraphBuilder, FRDGBufferRef StatsBufferRDG, typename ShaderType::FParameters *OutPassParameters, typename ShaderType::FPermutationDomain& OutPermutationVector)
+{
+	bool bGenerateStats = StatsBufferRDG != nullptr;
+	if (bGenerateStats)
+	{
+		OutPassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(StatsBufferRDG);
+	}
+	;
+	OutPermutationVector.template Set<typename ShaderType::FGenerateStatsDim>(bGenerateStats);
+
+	return bGenerateStats;
 }
 
 FVirtualShadowMapArray::FVirtualShadowMapArray()
@@ -335,6 +360,8 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	CacheManager = InCacheManager;
 
 	bCullBackfacingPixels = CVarCullBackfacingPixels.GetValueOnRenderThread() != 0;
+	bUseHzbOcclusion = CVarShadowsVirtualUseHZB.GetValueOnRenderThread() != 0;
+	bUseTwoPassHzbOcclusion = CVarShadowsVirtualUseHZB.GetValueOnRenderThread() == 2;
 
 	UniformParameters.NumShadowMaps = 0;
 	UniformParameters.NumDirectionalLights = 0;
@@ -395,12 +422,25 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 		TRefCountPtr<IPooledRenderTarget> PhysicalPagePool = CacheManager->SetPhysicalPoolSize(GraphBuilder, GetPhysicalPoolSize());
 		PhysicalPagePoolRDG = GraphBuilder.RegisterExternalTexture(PhysicalPagePool);
 		UniformParameters.PhysicalPagePool = PhysicalPagePoolRDG;
-	}	
+	}
 	else
 	{
 		CacheManager->FreePhysicalPool();
 		UniformParameters.PhysicalPagePool = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
 	}	
+
+	HZBPixelFormat = CVarVSMHZB32Bit.GetValueOnRenderThread() ? PF_R32_FLOAT : PF_R16F;
+
+	if (bEnabled && bUseHzbOcclusion)
+	{
+		TRefCountPtr<IPooledRenderTarget> HzbPhysicalPagePool = CacheManager->SetHZBPhysicalPoolSize(GraphBuilder, GetHZBPhysicalPoolSize(), HZBPixelFormat);
+		HZBPhysical = GraphBuilder.RegisterExternalTexture(HzbPhysicalPagePool);
+	}
+	else
+	{
+		CacheManager->FreeHZBPhysicalPool();
+		HZBPhysical = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
+	}
 }
 
 FVirtualShadowMapArray::~FVirtualShadowMapArray()
@@ -443,6 +483,15 @@ FIntPoint FVirtualShadowMapArray::GetDynamicPhysicalPoolSize() const
 	return FIntPoint(
 		UniformParameters.PhysicalPoolSize.X,
 		ShouldCacheStaticSeparately() ? UniformParameters.StaticCachedPixelOffsetY : UniformParameters.PhysicalPoolSize.Y);
+}
+
+FIntPoint FVirtualShadowMapArray::GetHZBPhysicalPoolSize() const
+{
+	check(bInitialized);
+	FIntPoint PhysicalPoolSize = GetPhysicalPoolSize();
+	FIntPoint HZBSize(FMath::Max(FPlatformMath::RoundUpToPowerOfTwo(PhysicalPoolSize.X) >> 1, 1u),
+	                  FMath::Max(FPlatformMath::RoundUpToPowerOfTwo(PhysicalPoolSize.Y) >> 1, 1u));
+	return HZBSize;
 }
 
 uint32 FVirtualShadowMapArray::GetTotalAllocatedPhysicalPages() const
@@ -830,13 +879,9 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 			PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
 			PassParameters->OutMergePagesIndirectArgsBuffer = GraphBuilder.CreateUAV(MergePagesIndirectArgsRDG);
 			PassParameters->OutPhysicalPagesToMerge = GraphBuilder.CreateUAV(PhysicalPagesToMergeRDG);
-			bool bGenerateStats = StatsBufferRDG != nullptr;
-			if (bGenerateStats)
-			{
-				PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(StatsBufferRDG);
-			}
+
 			FSelectPagesToMergeCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FSelectPagesToMergeCS::FGenerateStatsDim>(bGenerateStats);
+			SetStatsArgsAndPermutation<FSelectPagesToMergeCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
 
 			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesToMergeCS>(PermutationVector);
 
@@ -1133,6 +1178,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	// TODO: Remove/move to next frame and make temporary OR replace with direct page table manipulation?
 	DynamicCasterPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("Shadow.Virtual.DynamicCasterPageFlags"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DynamicCasterPageFlagsRDG), 0);
+
+	DirtyPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("Shadow.Virtual.DirtyPageFlags"));
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DirtyPageFlagsRDG), 0);
 		
 	// Record the number of instances the buffer has capactiy for, should anything change (it shouldn't!)
 	NumInvalidatingInstanceSlots = Scene.GPUScene.GetNumInstances();
@@ -1309,15 +1357,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		{
 			SetCacheDataShaderParameters(GraphBuilder, ShadowMaps, CacheManager, PassParameters->CacheDataParameters);
 		}
-		bool bGenerateStats = StatsBufferRDG != nullptr;
-		if (bGenerateStats)
-		{
-			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(StatsBufferRDG);
-		}
 
 		FCreateCachedPageMappingsCS::FPermutationDomain PermutationVector;
+		SetStatsArgsAndPermutation<FCreateCachedPageMappingsCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
 		PermutationVector.Set<FCreateCachedPageMappingsCS::FHasCacheDataDim>(bCacheEnabled);
-		PermutationVector.Set<FCreateCachedPageMappingsCS::FGenerateStatsDim>(bGenerateStats);
 		auto ComputeShader = Views[0].ShaderMap->GetShader<FCreateCachedPageMappingsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -1357,14 +1400,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		PassParameters->OutFreePhysicalPages	= GraphBuilder.CreateUAV(FreePhysicalPagesRDG);
 		PassParameters->OutPhysicalPageMetaData = GraphBuilder.CreateUAV(PhysicalPageMetaDataRDG);
 			
-		bool bGenerateStats = StatsBufferRDG != nullptr;
-		if (bGenerateStats)
-		{
-			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(StatsBufferRDG);
-		}
-
 		FAllocateNewPageMappingsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FAllocateNewPageMappingsCS::FGenerateStatsDim>(bGenerateStats);
+		SetStatsArgsAndPermutation<FAllocateNewPageMappingsCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
+
 		auto ComputeShader = Views[0].ShaderMap->GetShader<FAllocateNewPageMappingsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -2488,11 +2526,17 @@ class FSelectPagesForHZBCS : public FVirtualPageManagementShader
 	DECLARE_GLOBAL_SHADER(FSelectPagesForHZBCS);
 	SHADER_USE_PARAMETER_STRUCT(FSelectPagesForHZBCS, FVirtualPageManagementShader)
 
+	class FGenerateStatsDim : SHADER_PERMUTATION_BOOL("VSM_GENERATE_STATS");
+	using FPermutationDomain = TShaderPermutationDomain< FGenerateStatsDim >;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPhysicalPageMetaData>, PhysicalPageMetaData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutPagesForHZBIndirectArgsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPhysicalPagesForHZB)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, DirtyPageFlags)
+		SHADER_PARAMETER(uint32, bFirstBuildThisFrame)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FSelectPagesForHZBCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPageManagement.usf", "SelectPagesForHZBCS", SF_Compute);
@@ -2503,7 +2547,7 @@ class FVirtualSmBuildHZBPerPageCS : public FVirtualPageManagementShader
 	DECLARE_GLOBAL_SHADER(FVirtualSmBuildHZBPerPageCS);
 	SHADER_USE_PARAMETER_STRUCT(FVirtualSmBuildHZBPerPageCS, FVirtualPageManagementShader)
 
-	static constexpr uint32 TotalHZBLevels = FVirtualShadowMap::Log2PageSize;
+	static constexpr uint32 TotalHZBLevels = FVirtualShadowMap::NumHZBLevels;
 	static constexpr uint32 HZBLevelsBase = TotalHZBLevels - 2U;
 
 	static_assert(HZBLevelsBase == 5U, "The shader is expecting 5 levels, if the page size is changed, this needs to be massaged");
@@ -2542,12 +2586,10 @@ class FVirtualSmBBuildHZBPerPageTopCS : public FVirtualPageManagementShader
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualSmBBuildHZBPerPageTopCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPageManagement.usf", "BuildHZBPerPageTopCS", SF_Compute);
 
-FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilder)
+void FVirtualShadowMapArray::UpdateHZB(FRDGBuilder& GraphBuilder)
 {
 	const FIntRect ViewRect(0, 0, GetPhysicalPoolSize().X, GetPhysicalPoolSize().Y);
-	const EPixelFormat Format = CVarVSMHZB32Bit.GetValueOnRenderThread() ? PF_R32_FLOAT : PF_R16F;
 
-	FRDGTextureRef OutFurthestHZBTexture = nullptr;
 	if (CVarVSMBuildHZBPerPage.GetValueOnRenderThread())
 	{
 		// 1. Gather up all physical pages that are allocated
@@ -2565,8 +2607,11 @@ FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilde
 			PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
 			PassParameters->OutPagesForHZBIndirectArgsBuffer = GraphBuilder.CreateUAV(PagesForHZBIndirectArgsRDG);
 			PassParameters->OutPhysicalPagesForHZB = GraphBuilder.CreateUAV(PhysicalPagesForHZBRDG);
-
-			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesForHZBCS>();
+			PassParameters->DirtyPageFlags = GraphBuilder.CreateSRV(DirtyPageFlagsRDG);
+			PassParameters->bFirstBuildThisFrame = !bHZBBuiltThisFrame;
+			FSelectPagesForHZBCS::FPermutationDomain PermutationVector;
+			SetStatsArgsAndPermutation<FSelectPagesForHZBCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesForHZBCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -2575,26 +2620,12 @@ FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilde
 				PassParameters,
 				FIntVector(FMath::DivideAndRoundUp(UniformParameters.MaxPhysicalPages, FSelectPagesForHZBCS::DefaultCSGroupX), 1, 1)
 			);
-
 		}
 
+		// Clear the dirty flags (for subsequent render passes).
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DirtyPageFlagsRDG), 0);
 
-		//FIntPoint HZBSize(GetPhysicalPoolSize().X / 2, GetPhysicalPoolSize().Y / 2);
-		FIntPoint PhysicalPoolSize = GetPhysicalPoolSize();
-
-		FIntPoint HZBSize;
-		//HZBSize = FIntPoint(PhysicalPoolSize.X / 2, PhysicalPoolSize.Y / 2);
-		// NOTE: IsVisibleHZB currently assumes HZB is pow2 size, so force that. See HZBCull.ush.
-		HZBSize.X = FMath::Max( FPlatformMath::RoundUpToPowerOfTwo( PhysicalPoolSize.X ) >> 1, 1u );
-		HZBSize.Y = FMath::Max( FPlatformMath::RoundUpToPowerOfTwo( PhysicalPoolSize.Y ) >> 1, 1u );
-
-		FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2D(HZBSize, Format, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV, FVirtualSmBuildHZBPerPageCS::TotalHZBLevels);
-		HZBDesc.Flags |= GFastVRamConfig.HZB;
-
-		/** Closest and furthest HZB are intentionally in separate render target, because majority of the case you only one or the other.
-		 * Keeping them separate avoid doubling the size in cache for this cases, to avoid performance regression.
-		 */
-		OutFurthestHZBTexture = GraphBuilder.CreateTexture(HZBDesc, TEXT("Shadow.Virtual.PreviousOccluderHZB"));
+		bHZBBuiltThisFrame = true;
 		
 		{
 			FVirtualSmBuildHZBPerPageCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmBuildHZBPerPageCS::FParameters>();
@@ -2602,7 +2633,7 @@ FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilde
 			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 			for (int32 DestMip = 0; DestMip < FVirtualSmBuildHZBPerPageCS::HZBLevelsBase; DestMip++)
 			{
-				PassParameters->FurthestHZBOutput[DestMip] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutFurthestHZBTexture, DestMip));
+				PassParameters->FurthestHZBOutput[DestMip] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(HZBPhysical, DestMip));
 			}
 			PassParameters->PhysicalPagePool = PhysicalPagePoolRDG;
 			PassParameters->PhysicalPagePoolSampler = TStaticSamplerState<SF_Point>::GetRHI();
@@ -2628,11 +2659,11 @@ FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilde
 			uint32 StartDestMip = FVirtualSmBuildHZBPerPageCS::HZBLevelsBase;
 			for (int32 DestMip = 0; DestMip < FVirtualSmBBuildHZBPerPageTopCS::HZBLevelsTop; DestMip++)
 			{
-				PassParameters->FurthestHZBOutput[DestMip] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutFurthestHZBTexture, StartDestMip + DestMip));
+				PassParameters->FurthestHZBOutput[DestMip] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(HZBPhysical, StartDestMip + DestMip));
 			}
-			FIntPoint SrcSize = FIntPoint::DivideAndRoundUp(HZBSize, 1 << int32(StartDestMip - 1));
+			FIntPoint SrcSize = FIntPoint::DivideAndRoundUp(FIntPoint(HZBPhysical->Desc.GetSize().X, HZBPhysical->Desc.GetSize().Y), 1 << int32(StartDestMip - 1));
 			PassParameters->InvHzbInputSize = FVector2f(1.0f / SrcSize.X, 1.0f / SrcSize.Y);;
-			PassParameters->ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(OutFurthestHZBTexture, StartDestMip - 1));
+			PassParameters->ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(HZBPhysical, StartDestMip - 1));
 			PassParameters->ParentTextureMipSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
 			PassParameters->IndirectArgs = PagesForHZBIndirectArgsRDG;
@@ -2660,10 +2691,9 @@ FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilde
 			GMaxRHIFeatureLevel,
 			GMaxRHIShaderPlatform,
 			TEXT("Shadow.Virtual.PreviousOccluderHZB"),
-			/* OutFurthestHZBTexture = */ &OutFurthestHZBTexture,
-			Format);
+			/* OutFurthestHZBTexture = */ &HZBPhysical,
+			HZBPixelFormat);
 	}
-	return OutFurthestHZBTexture;
 }
 
 

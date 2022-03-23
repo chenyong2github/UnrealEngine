@@ -30,6 +30,8 @@ struct FPhysicalPageMetaData
 {
 	uint Flags;	// VSM_*_FLAG. Not all relevant to physical pages
 	uint Age;
+	// Link back to the virtual page table slot that references this physical page, useful to track data on a virtual address space frequency
+	uint VirtualPageOffset;
 };
 
 uint CalcLog2LevelDimsPages(uint Level)

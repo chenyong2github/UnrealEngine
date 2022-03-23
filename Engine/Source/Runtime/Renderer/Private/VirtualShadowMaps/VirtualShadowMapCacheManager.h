@@ -126,6 +126,11 @@ public:
 
 	void FreePhysicalPool();
 
+	// Called by VirtualShadowMapArray to potentially resize the HZB physical pool
+	TRefCountPtr<IPooledRenderTarget> SetHZBPhysicalPoolSize(FRDGBuilder& GraphBuilder, FIntPoint RequestedSize, const EPixelFormat Format);
+
+	void FreeHZBPhysicalPool();
+
 	// Invalidate the cache for all shadows, causing any pages to be rerendered
 	void Invalidate();
 
@@ -217,6 +222,7 @@ private:
 	// This allows us to (optionally) persist cached pages between frames. Regardless of whether caching is enabled,
 	// we store the physical pool here.
 	TRefCountPtr<IPooledRenderTarget> PhysicalPagePool;
+	TRefCountPtr<IPooledRenderTarget> HZBPhysicalPagePool;
 
 	// Index the Cache entries by the light ID
 	TMap< int32, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > CacheEntries;

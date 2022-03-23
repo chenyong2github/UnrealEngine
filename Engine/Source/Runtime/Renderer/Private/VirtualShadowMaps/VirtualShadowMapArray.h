@@ -56,6 +56,8 @@ public:
 	static constexpr uint32 MaxPhysicalTextureDimPages = 1U << PhysicalPageAddressBits;
 	static constexpr uint32 MaxPhysicalTextureDimTexels = MaxPhysicalTextureDimPages * PageSize;
 
+	static constexpr uint32 NumHZBLevels = Log2PageSize;
+
 	static constexpr uint32 RasterWindowPages = 4u;
 	
 	static_assert(MaxMipLevels <= 8, ">8 mips requires more PageFlags bits. See VSM_PAGE_FLAGS_BITS_PER_HMIP in PageAccessCommon.ush");
@@ -211,6 +213,8 @@ public:
 	FIntPoint GetPhysicalPoolSize() const;
 	// Size of the physical pool for only the dynamic pages (if static are cached separately)
 	FIntPoint GetDynamicPhysicalPoolSize() const;
+	// Size of HZB (level 0)
+	FIntPoint GetHZBPhysicalPoolSize() const;
 
 	// Maximum number of physical pages to allocate. This value is NOT doubled when static caching is
 	// enabled as we always allocate both as pairs (offset in the page pool).
@@ -267,7 +271,7 @@ public:
 
 	bool ShouldCullBackfacingPixels() const { return bCullBackfacingPixels; }
 
-	FRDGTextureRef BuildHZBFurthest(FRDGBuilder& GraphBuilder);
+	void UpdateHZB(FRDGBuilder& GraphBuilder);		
 
 	// Add render views, and mark shadow maps as rendered for a given clipmap or set of VSMs, returns the number of primary views added.
 	uint32 AddRenderViews(const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap, float LODScaleFactor, bool bSetHzbParams, bool bUpdateHZBMetaData, bool bClampToNearPlane, TArray<Nanite::FPackedView, SceneRenderingAllocator>& OutVirtualShadowViews);
@@ -275,6 +279,10 @@ public:
 
 	// Add visualization composite pass, if enabled
 	void AddVisualizePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture Output);
+
+	//
+	bool UseHzbOcclusion() const { return bUseHzbOcclusion; }
+	bool UseTwoPassHzbOcclusion() const { return bUseTwoPassHzbOcclusion; }
 
 	// We keep a reference to the cache manager that was used to initialize this frame as it owns some of the buffers
 	FVirtualShadowMapArrayCacheManager* CacheManager = nullptr;
@@ -315,8 +323,10 @@ public:
 	FRDGBufferRef AllocatedPageRectBoundsRDG = nullptr;
 	FRDGBufferRef ProjectionDataRDG = nullptr;
 
-	// HZB generated for the *current* frame's physical page pool
-	// We use the *previous* frame's HZB (from VirtualShadowMapCacheManager) for culling the current frame
+	FRDGBufferRef DirtyPageFlagsRDG = nullptr;
+	bool bHZBBuiltThisFrame = false;
+
+	EPixelFormat HZBPixelFormat = PF_R32_FLOAT;
 	FRDGTextureRef HZBPhysical = nullptr;
 	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;
 
@@ -330,6 +340,10 @@ public:
 	FVirtualShadowMapVisualizeLightSearch VisualizeLight;
 
 private:
+	//
+	bool bUseHzbOcclusion = true;
+	bool bUseTwoPassHzbOcclusion = true;
+
 	bool bInitialized = false;
 
 	// Are virtual shadow maps enabled? We store this at the start of the frame to centralize the logic.

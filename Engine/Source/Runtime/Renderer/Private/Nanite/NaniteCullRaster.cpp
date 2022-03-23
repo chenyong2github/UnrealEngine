@@ -250,6 +250,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	HZBPageTable )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint4 >,	HZBPageRectBounds )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	HZBPageFlags )
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutDirtyPageFlags)
 END_SHADER_PARAMETER_STRUCT()
 
 class FRasterTechnique
@@ -2841,6 +2842,7 @@ void CullRasterize(
 		VirtualTargetParameters.HZBPageTable = GraphBuilder.CreateSRV( HZBPageTableRDG );
 		VirtualTargetParameters.HZBPageRectBounds = GraphBuilder.CreateSRV( HZBPageRectBoundsRDG );
 		VirtualTargetParameters.HZBPageFlags = GraphBuilder.CreateSRV( HZBPageFlagsRDG );
+		VirtualTargetParameters.OutDirtyPageFlags = GraphBuilder.CreateUAV(VirtualShadowMapArray->DirtyPageFlagsRDG);
 	}
 	FGPUSceneParameters GPUSceneParameters;
 	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceSceneDataBuffer.SRV;
@@ -3007,7 +3009,8 @@ void CullRasterize(
 		if (VirtualShadowMapArray)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildPreviousOccluderHZB(VSM)");
-			CullingParameters.HZBTexture = VirtualShadowMapArray->BuildHZBFurthest(GraphBuilder);
+			VirtualShadowMapArray->UpdateHZB(GraphBuilder);
+			CullingParameters.HZBTexture = VirtualShadowMapArray->HZBPhysical;
 			CullingParameters.HZBSize = CullingParameters.HZBTexture->Desc.Extent;
 		}
 		else
