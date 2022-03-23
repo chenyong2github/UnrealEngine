@@ -82,6 +82,7 @@ void FLevelSequenceActorDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 	IDetailCategoryBuilder& GeneralCategory = DetailLayout.EditCategory( "General", NSLOCTEXT("GeneralDetails", "General", "General"), ECategoryPriority::Important );
 
 	GeneralCategory.AddCustomRow( NSLOCTEXT("LevelSequenceActorDetails", "OpenLevelSequence", "Open Level Sequence") )
+	.RowTag("OpenLevelSequence")
 	[
 		SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
