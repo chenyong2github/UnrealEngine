@@ -359,17 +359,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (Rules.AdditionalCodeGenDirectories != null)
-			{
-				foreach (string CodeGenDir in Rules.AdditionalCodeGenDirectories)
-				{
-					if (Directory.Exists(CodeGenDir))
-					{
-						IncludePaths.Add(new DirectoryReference(CodeGenDir));
-					}
-				}
-			}
-
 			ModuleInterfacePaths.Add(UEToolChain.GetModuleInterfaceDir(IntermediateDirectory));
 
 			base.AddModuleToCompileEnvironment(SourceModule, SourceBinary, IncludePaths, SystemIncludePaths, ModuleInterfacePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bLegacyPublicIncludePaths);

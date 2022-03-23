@@ -1028,11 +1028,6 @@ namespace UnrealBuildTool
 		public List<string> ExternalDependencies = new List<string>();
 
 		/// <summary>
-		/// External directories containing generated interop files.
-		/// </summary>
-		public List<string> AdditionalCodeGenDirectories = new List<string>();
-
-		/// <summary>
 		/// Subclass rules files which invalidate the makefile if modified.
 		/// </summary>
 		public List<string>? SubclassRules;

@@ -500,17 +500,6 @@ namespace UnrealBuildTool
 							Module.GeneratedCppDirectories = new List<string>();
 						}
 						Module.GeneratedCppDirectories.Add(GeneratedCodeDirectoryUHT.FullName);
-
-						if (Module.Rules.AdditionalCodeGenDirectories != null)
-						{
-							foreach (string DirPath in Module.Rules.AdditionalCodeGenDirectories)
-							{
-								if (Directory.Exists(DirPath))
-								{
-									Module.GeneratedCppDirectories.Add(Path.GetFullPath(DirPath));
-								}
-							}
-						}
 					}
 
 					UObjectModules.Add(Info);
