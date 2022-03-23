@@ -31,7 +31,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityProbeSpacing(
 	TEXT("r.LumenScene.Radiosity.ProbeSpacing"),
 	GLumenRadiosityProbeSpacing,
 	TEXT("Distance between probes, in Surface Cache texels"),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenRadiosityHemisphereProbeResolution = 4;
@@ -47,7 +47,7 @@ FAutoConsoleVariableRef CVarLumenRadiositySpatialFilterProbes(
 	TEXT("r.LumenScene.Radiosity.SpatialFilterProbes"),
 	GLumenRadiositySpatialFilterProbes,
 	TEXT("Whether to spatially filter Radiosity probes.  Filtering reduces noise but increases leaking."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenRadiositySpatialFilterProbesKernelSize = 1;
@@ -55,7 +55,7 @@ FAutoConsoleVariableRef CVarLumenRadiositySpatialFilterProbesKernelSize(
 	TEXT("r.LumenScene.Radiosity.SpatialFilterProbes.KernelSize"),
 	GLumenRadiositySpatialFilterProbesKernelSize,
 	TEXT("Larger kernels reduce noise but increase leaking."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GRadiosityFilteringProbePlaneWeighting = 1;
