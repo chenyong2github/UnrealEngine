@@ -5,6 +5,7 @@
 #include "Online/OnlineServicesOSSAdapter.h"
 #include "Online/OnlineIdOSSAdapter.h"
 #include "Online/OnlineErrorDefinitions.h"
+#include "Online/DelegateAdapter.h"
 
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
@@ -96,37 +97,25 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthOSSAdapter::Login(FAuthLogin::Params&& Par
 				Credentials.Id = Op.GetParams().CredentialsId;
 				Credentials.Token = Op.GetParams().CredentialsToken.Get<FString>(); // TODO: handle binary token
 
-				TSharedPtr<TPair<FDelegateHandle, TPromise<TOnlineResult<FAuthLogin>>>> ResultPtr = MakeShared<TPair<FDelegateHandle, TPromise<TOnlineResult<FAuthLogin>>>>(FDelegateHandle(), MoveTemp(Result));
-				ResultPtr->Get<FDelegateHandle>() = GetIdentityInterface()->OnLoginCompleteDelegates[LocalUserIndex].AddLambda(
-					[WeakThis = TWeakPtr<IAuth>(AsShared()), this, ResultPtr, PlatformUserId = Op.GetParams().PlatformUserId, LocalUserIndex](int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error) mutable
+				MakeMulticastAdapter(this, GetIdentityInterface()->OnLoginCompleteDelegates[LocalUserIndex], 
+				[this, ResultPromise = MoveTemp(Result), PlatformUserId = Op.GetParams().PlatformUserId, LocalUserIndex](int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error) mutable
+				{
+					if (bWasSuccessful)
 					{
-						if (LocalUserIndex != LocalUserNum)
-						{
-							return;
-						}
+						FOnlineAccountIdHandle Handle = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UserId.AsShared());
+						FAuthLogin::Result Result = { MakeShared<FAccountInfo>() };
+						Result.AccountInfo->PlatformUserId = PlatformUserId;
+						Result.AccountInfo->UserId = Handle;
+						Result.AccountInfo->LoginStatus = ELoginStatus::LoggedIn;
+						ResultPromise.EmplaceValue(MoveTemp(Result));
+					}
+					else
+					{
+						FOnlineError V2Error = Errors::Unknown(); // TODO: V1 to V2 error conversion/error from string conversion
+						ResultPromise.EmplaceValue(MoveTemp(V2Error));
+					}
 
-						TSharedPtr<IAuth> PinnedThis = WeakThis.Pin();
-						if (PinnedThis.IsValid())
-						{
-							TPromise<TOnlineResult<FAuthLogin>>& OnlineResult = ResultPtr->Get<TPromise<TOnlineResult<FAuthLogin>>>();
-							if (bWasSuccessful)
-							{
-								FOnlineAccountIdHandle Handle = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UserId.AsShared());
-								FAuthLogin::Result Result = { MakeShared<FAccountInfo>() };
-								Result.AccountInfo->PlatformUserId = PlatformUserId;
-								Result.AccountInfo->UserId = Handle;
-								Result.AccountInfo->LoginStatus = ELoginStatus::LoggedIn;
-								OnlineResult.EmplaceValue(MoveTemp(Result));
-							}
-							else
-							{
-								FOnlineError V2Error = Errors::Unknown(); // TODO: V1 to V2 error conversion/error from string conversion
-								OnlineResult.EmplaceValue(MoveTemp(V2Error));
-							}
-						}
-
-						GetIdentityInterface()->OnLoginCompleteDelegates[LocalUserIndex].Remove(ResultPtr->Get<FDelegateHandle>());
-					});
+				});
 
 				GetIdentityInterface()->Login(LocalUserIndex, Credentials);
 			})
@@ -162,33 +151,19 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthOSSAdapter::Logout(FAuthLogout::Params&& 
 
 		Op->Then([this, LocalUserIndex](TOnlineAsyncOp<FAuthLogout>& Op, TPromise<TOnlineResult<FAuthLogout>>&& Result)
 			{
-				TSharedPtr<TPair<FDelegateHandle, TPromise<TOnlineResult<FAuthLogout>>>> ResultPtr = MakeShared<TPair<FDelegateHandle, TPromise<TOnlineResult<FAuthLogout>>>>(FDelegateHandle(), MoveTemp(Result));
-				ResultPtr->Get<FDelegateHandle>() = GetIdentityInterface()->OnLogoutCompleteDelegates[LocalUserIndex].AddLambda(
-					[WeakThis = TWeakPtr<IAuth>(AsShared()), this, ResultPtr, LocalUserIndex](int32 LocalUserNum, bool bWasSuccessful) mutable
+				MakeMulticastAdapter(this, GetIdentityInterface()->OnLogoutCompleteDelegates[LocalUserIndex],
+				[this, OnlineResult = MoveTemp(Result), LocalUserIndex](int32 LocalUserNum, bool bWasSuccessful) mutable
 				{
-					if (LocalUserIndex != LocalUserNum)
+					if (bWasSuccessful)
 					{
-						return;
+						FAuthLogout::Result Result;
+						OnlineResult.EmplaceValue(MoveTemp(Result));
 					}
-
-					TPromise<TOnlineResult<FAuthLogout>>& OnlineResult = ResultPtr->Get<TPromise<TOnlineResult<FAuthLogout>>>();
-
-					TSharedPtr<IAuth> PinnedThis = WeakThis.Pin();
-					if (PinnedThis.IsValid())
+					else
 					{
-						if (bWasSuccessful)
-						{
-							FAuthLogout::Result Result;
-							OnlineResult.EmplaceValue(MoveTemp(Result));
-						}
-						else
-						{
-							FOnlineError V2Error = Errors::Unknown(); // TODO: V1 to V2 error conversion/error from string conversion
-							OnlineResult.EmplaceValue(MoveTemp(V2Error));
-						}
+						FOnlineError V2Error = Errors::Unknown(); // TODO: V1 to V2 error conversion/error from string conversion
+						OnlineResult.EmplaceValue(MoveTemp(V2Error));
 					}
-
-					GetIdentityInterface()->OnLogoutCompleteDelegates[LocalUserIndex].Remove(ResultPtr->Get<FDelegateHandle>());
 				});
 
 				GetIdentityInterface()->Logout(LocalUserIndex);
@@ -232,7 +207,8 @@ TOnlineAsyncOpHandle<FAuthGenerateAuthToken> FAuthOSSAdapter::GenerateAuthToken(
 					const FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Op.GetParams().LocalUserId);
 					const int32 LocalUserNum = Identity->GetLocalUserNumFromPlatformUserId(Identity->GetPlatformUserIdFromUniqueNetId(*UniqueNetId));
 
-					Identity->GetLinkedAccountAuthToken(LocalUserNum, IOnlineIdentity::FOnGetLinkedAccountAuthTokenCompleteDelegate::CreateLambda([this, WeakOp = Op.AsWeak()](int32 LocalUserNum, bool bWasSuccessful, const FExternalAuthToken& AuthToken)
+					Identity->GetLinkedAccountAuthToken(LocalUserNum, *MakeDelegateAdapter(this, 
+					[this, WeakOp = Op.AsWeak()](int32 LocalUserNum, bool bWasSuccessful, const FExternalAuthToken& AuthToken)
 					{
 						TSharedPtr<TOnlineAsyncOp<FAuthGenerateAuthToken>> Op = WeakOp.Pin();
 						if (!Op)
