@@ -12,7 +12,7 @@ struct FKismetFunctionContext;
 //////////////////////////////////////////////////////////////////////////
 // FKCHandler_CallFunction
 
-class FKCHandler_CallFunction : public FNodeHandlingFunctor
+class BLUEPRINTGRAPH_API FKCHandler_CallFunction : public FNodeHandlingFunctor
 {
 public:
 	FKCHandler_CallFunction(FKismetCompilerContext& InCompilerContext)

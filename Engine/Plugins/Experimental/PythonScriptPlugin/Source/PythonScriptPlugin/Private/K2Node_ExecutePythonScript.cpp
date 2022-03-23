@@ -13,6 +13,8 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "CallFunctionHandler.h"
+#include "KismetCastingUtils.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_ExecutePythonScript"
 
@@ -38,6 +40,37 @@ FString PythonizePinName(const UEdGraphPin* InPin)
 }
 
 }
+
+class FKCHandler_ExecutePythonScript : public FKCHandler_CallFunction
+{
+public:
+	FKCHandler_ExecutePythonScript(FKismetCompilerContext& InCompilerContext)
+		: FKCHandler_CallFunction(InCompilerContext)
+	{
+	}
+
+	virtual void Compile(FKismetFunctionContext& Context, UEdGraphNode* Node) override
+	{
+		using namespace UE::KismetCompiler;
+
+		FKCHandler_CallFunction::Compile(Context, Node);
+
+		UK2Node_ExecutePythonScript* PythonNode = CastChecked<UK2Node_ExecutePythonScript>(Node);
+
+		// The ExecutePythonScript function uses variadic inputs, which obviates the need for implicit casting.
+		// In other words, ExecutePythonScript's native signature doesn't include the parameters corresponding
+		// to the inputs pins. As a result, there's nothing to cast the inputs to. Instead, the implementation of
+		// execExecutePythonScript directly inspects these arguments and converts them to a Python type.
+		for (FName InputName : PythonNode->Inputs)
+		{
+			UEdGraphPin* Pin = PythonNode->FindPinChecked(InputName, EGPD_Input);
+			if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+			{
+				CastingUtils::RemoveRegisteredImplicitCast(Context, Pin);
+			}
+		}
+	}
+};
 
 UK2Node_ExecutePythonScript::UK2Node_ExecutePythonScript()
 {
@@ -287,6 +320,11 @@ void UK2Node_ExecutePythonScript::ExpandNode(FKismetCompilerContext& CompilerCon
 	MakeArgumentNamesNode(Outputs, FindPinChecked(ExecutePythonScriptUtil::PythonOutputsPinName, EGPD_Input));
 
 	Super::ExpandNode(CompilerContext, SourceGraph);
+}
+
+class FNodeHandlingFunctor* UK2Node_ExecutePythonScript::CreateNodeHandler(class FKismetCompilerContext& CompilerContext) const
+{
+	return new FKCHandler_ExecutePythonScript(CompilerContext);
 }
 
 bool UK2Node_ExecutePythonScript::CanPasteHere(const UEdGraph* TargetGraph) const
