@@ -1,20 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using Grpc.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Text;
+using EpicGames.Core;
+using EpicGames.Horde.Compute;
+using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
+using Grpc.Core;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
-using EpicGames.Serialization;
-using EpicGames.Horde.Compute;
 
 namespace Horde.Agent.Execution
 {

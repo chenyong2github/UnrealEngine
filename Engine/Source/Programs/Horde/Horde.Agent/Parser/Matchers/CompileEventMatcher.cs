@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Agent.Parser.Interfaces;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
+using Horde.Agent.Parser.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Parser.Matchers
 {

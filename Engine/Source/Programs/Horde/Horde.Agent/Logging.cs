@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Runtime.InteropServices;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using OpenTracing;
+using OpenTracing.Util;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.SystemConsole.Themes;
-using System;
-using System.Runtime.InteropServices;
-using EpicGames.Core;
-using OpenTracing.Util;
-using OpenTracing;
 
 namespace Horde.Agent
 {

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Horde.Agent.Parser.Interfaces;
 using Microsoft.Extensions.Logging;
-using System.Text.RegularExpressions;
 
 namespace Horde.Agent.Parser.Matchers
 {

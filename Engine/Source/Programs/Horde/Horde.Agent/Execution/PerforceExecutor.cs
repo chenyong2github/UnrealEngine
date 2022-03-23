@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Perforce.Managed;
-using Horde.Agent.Utility;
-using HordeCommon.Rpc;
-using HordeCommon.Rpc.Messages;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,6 +10,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
+using EpicGames.Perforce.Managed;
+using Horde.Agent.Utility;
+using HordeCommon.Rpc;
+using HordeCommon.Rpc.Messages;
+using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
 

@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Agent.Parser.Interfaces;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
+using Horde.Agent.Parser.Interfaces;
 
 namespace Horde.Agent.Parser
 {

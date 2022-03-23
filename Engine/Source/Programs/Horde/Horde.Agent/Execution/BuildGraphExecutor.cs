@@ -1,15 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Grpc.Core;
-using Horde.Agent.Execution.Interfaces;
-using Horde.Agent.Parser;
-using Horde.Agent.Utility;
-using HordeCommon;
-using HordeCommon.Rpc;
-using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -22,6 +12,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Grpc.Core;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Parser;
+using Horde.Agent.Utility;
+using HordeCommon;
+using HordeCommon.Rpc;
+using Microsoft.Extensions.Logging;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace Horde.Agent.Execution
 {

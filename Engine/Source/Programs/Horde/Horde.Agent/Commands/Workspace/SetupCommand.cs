@@ -3,10 +3,10 @@
 using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
-using EpicGames.Perforce.Managed;
-using Microsoft.Extensions.Logging;
 using EpicGames.Core;
 using EpicGames.Perforce;
+using EpicGames.Perforce.Managed;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Workspace
 {

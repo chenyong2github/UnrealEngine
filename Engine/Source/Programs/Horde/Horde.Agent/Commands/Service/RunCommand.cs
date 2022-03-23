@@ -1,22 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Datadog.Trace;
+using Datadog.Trace.Configuration;
+using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Polly;
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading.Tasks;
-using EpicGames.Core;
 using OpenTracing;
 using OpenTracing.Util;
-using Datadog.Trace.Configuration;
-using Datadog.Trace;
-using EpicGames.Horde.Storage;
+using Polly;
 
 namespace Horde.Agent.Modes.Service
 {

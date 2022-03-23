@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using HordeCommon.Rpc.Messages;
 using Horde.Agent.Services;
+using HordeCommon.Rpc.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Utilities
 {

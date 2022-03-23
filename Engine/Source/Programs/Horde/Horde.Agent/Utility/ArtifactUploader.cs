@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Grpc.Core;
-using HordeCommon.Rpc;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Grpc.Core;
+using HordeCommon.Rpc;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Utility
 {

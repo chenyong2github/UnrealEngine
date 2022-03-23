@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Google.Protobuf;
-using Google.Protobuf.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Google.Protobuf;
+using Google.Protobuf.Collections;
 
 namespace HordeCommon.Rpc
 {

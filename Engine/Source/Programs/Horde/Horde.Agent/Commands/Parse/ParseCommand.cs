@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Agent.Parser;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Agent.Parser;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Parse
 {

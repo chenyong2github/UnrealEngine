@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Grpc.Net.Client;
-using Horde.Agent.Utility;
-using HordeCommon.Rpc;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -12,6 +7,11 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Grpc.Net.Client;
+using Horde.Agent.Utility;
+using HordeCommon.Rpc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Utilities
 {
