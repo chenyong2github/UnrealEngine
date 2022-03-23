@@ -338,6 +338,16 @@ void EmitEditorLevelInstanceDepthPS(
 
 #if USE_EDITOR_SHADERS
 	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale + OutputToInputBias);
+	uint MaterialSlot = 0;
+	bool IsNanitePixel = false;
+	bool IsDecalReceiver = false;
+	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
+	
+	if (!IsNanitePixel)
+	{
+		discard;
+	}
+	
 	UlongType VisPixel = VisBuffer64[PixelPos];
 
 	uint VisibleClusterIndex = 0;

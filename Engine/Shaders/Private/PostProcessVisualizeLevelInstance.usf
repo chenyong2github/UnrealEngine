@@ -34,8 +34,7 @@ bool IsOccluded(int2 PixelPos, int SampleID, int OffsetX, int OffsetY, float3 De
 	PixelPos += int2(OffsetX, OffsetY);
 
 	// more stable on the silhouette
-	float2 ReconstructionOffset = View.TemporalAAParams.zw;
-
+	float2 ReconstructionOffset = (View.TemporalAAParams.zw * Color_Extent * Depth_ExtentInverse);
 
 #if MSAA_SAMPLE_COUNT > 1
 	float DeviceZ = EditorPrimitivesDepth.Load(PixelPos, SampleID).r;
@@ -123,15 +122,27 @@ void MainPS(
 
 	const float4 SceneColor = ColorTexture.Load(int3(ColorPixelPos, 0));
 
-	if (StencilVal != 0)
+	if (StencilVal == 2)
+	{
+		// This is a Nanite pixel and occlusion has been handled already
+		OutColor = SceneColor;
+	}
+	else if (StencilVal != 0)
 	{
 		const float2 DepthUV = ApplyScreenTransform(ColorUV, ColorToDepth);
+		const float2 DepthUVColorPixelSize = Pow2(Color_ExtentInverse) * Depth_Extent;
+		const float2 DepthUVOffsets[4] = {
+			{ -DepthUVColorPixelSize.x,  0 },
+			{ DepthUVColorPixelSize.x,  0 },
+			{ 0, -DepthUVColorPixelSize.y },
+			{ 0, DepthUVColorPixelSize.y },
+		};
 
 		float Center = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV, 0).r;
-		float Left = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2(-1, 0) * Depth_ExtentInverse, 0).r;
-		float Right = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2(1, 0) * Depth_ExtentInverse, 0).r;
-		float Top = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2(0, -1) * Depth_ExtentInverse, 0).r;
-		float Bottom = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2(0, 1) * Depth_ExtentInverse, 0).r;
+		float Left = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + DepthUVOffsets[0], 0).r;
+		float Right = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + DepthUVOffsets[1], 0).r;
+		float Top = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + DepthUVOffsets[2], 0).r;
+		float Bottom = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + DepthUVOffsets[3], 0).r;
 
 		// This allows to reconstruct depth with a small pixel offset without many texture lookups (4xMSAA * 5 neighbors -> 20 samples)
 		// It's an approximation assuming the surface is a plane.

@@ -241,6 +241,7 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	OutPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 	OutPassParameters->PageConstants = NaniteRasterResults->PageConstants;
 	OutPassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
+	OutPassParameters->MaterialResolve = NaniteRasterResults->MaterialResolve;
 	OutPassParameters->VisBuffer64 = VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	OutPassParameters->OutputToInputScale = FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Scale;
@@ -281,7 +282,7 @@ void DrawEditorVisualizeLevelInstance(
 		TStaticBlendState<>::GetRHI(),
 		TStaticRasterizerState<>::GetRHI(),
 		TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
-		1
+		2
 	);
 }
 
