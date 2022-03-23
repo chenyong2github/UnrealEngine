@@ -6,12 +6,31 @@
 
 
 
+// Gaussian function with a=1/(c*sqrt(2*PI)) so it represents the probability density function of a normally distributed random variable with expected value mu = b for some variance and integrale = 1;
+float GaussianFunction(float x, float Mean, float Variance)
+{
+	float StandardDeviation = sqrt(Variance);
+	float FactorA = 1 / (StandardDeviation * sqrt(2 * PI));
+	float Bell = exp(-abs((x - Mean) * (x - Mean)) / (2 * Variance));
+	return FactorA * Bell;
+}
+float GaussianFunction(float2 P, float2 Mean, float Variance)
+{
+	float StandardDeviation = sqrt(Variance);
+	float FactorA = 1 / (StandardDeviation * sqrt(2 * PI));
+	float2 Bell = exp(-((P.x - Mean.x) * (P.x - Mean.x)) / (2 * Variance) - ((P.y - Mean.y) * (P.y - Mean.y)) / (2 * Variance));
+	return FactorA * Bell;
+}
+
+
+
 #if OPAQUE_ROUGH_REFRACTION_PS
 
 #include "/Engine/Private/Strata/Strata.ush"
 
 Texture2D<float4> SeparatedOpaqueRoughRefractionSceneColor;
 float2 BlurDirection;
+float BlurScale;
 
 void OpaqueRoughRefractionPS(
 	float4 SVPos : SV_POSITION,
@@ -20,26 +39,49 @@ void OpaqueRoughRefractionPS(
 	float2 PixelPos = SVPos.xy;
 	float2 UvBuffer = PixelPos * View.BufferSizeAndInvSize.zw;
 
+	// First read unblurred layers at the bottom of the top layer
+	OutColor = SeparatedOpaqueRoughRefractionSceneColor[PixelPos];
+
 #if PERMUTATION_ENABLE_BLUR && STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
 	FStrataOpaqueRoughRefractionData ORRData = StrataUnpackOpaqueRoughRefractionData(Strata.OpaqueRoughRefractionTexture[PixelPos]);
 
-	if (ORRData.OpaqueRoughRefractionEnabled)
+	const float DeviceZ = LookupDeviceZ(UvBuffer);
+	const float SceneDepthCm = ConvertFromDeviceZ(DeviceZ);
+
+	const float2 PixelRadiusCm2 = SceneDepthCm * GetTanHalfFieldOfView() * View.ViewSizeAndInvSize.zw;
+	const float PixelRadiusCm = min(PixelRadiusCm2.x, PixelRadiusCm2.y);
+
+	const float PerceptualBlurAcceptanceFactor = 1.5f;
+	const bool OpaqueRoughRefractionEnabled = ORRData.OpaqueRoughRefractionEnabled && (PixelRadiusCm < PerceptualBlurAcceptanceFactor * ORRData.VarianceCm);
+
+	// We are now going to blur the bottom layer luminance according to the top layer variance resulting from the roughness.
+	// For this we have: measure GGX variance for a perpendicaular view, eta=1.33 and varying roughness. At runtim that variance is approximated by a Gaussian.
+
+	if (OpaqueRoughRefractionEnabled)
 	{
-		// BAD placeholder blur
-		float4 SourceData = 0.0f;
+		// Proceed blurring the bottom layers if needed according to the blur footprint.
+		float3 SourceData = 0.0f;
 		float SampleCount = 0.0f;
-		for (float u = -4.5f; u <= 4.5f; u += 1.0f)
+
+		const float VariancePixelSpace = ORRData.VarianceCm / PixelRadiusCm;
+		const float StandardDeviationPixelSpace = sqrt(VariancePixelSpace);
+
+		// A area of radius StandardDeviation*3 around the mean of a guassian normal distribution (=mu) encompass 99% of the energy.
+		const float RadiusAroundCenterMu = 3.0f;
+		for (float u = -RadiusAroundCenterMu; u <= RadiusAroundCenterMu; u += 0.5f) // steps of 0.5 means 13 taps
 		{
-			SourceData += SeparatedOpaqueRoughRefractionSceneColor[PixelPos + BlurDirection * u * ORRData.VarianceCm * 10000.0];
-			SampleCount++;
+			const float OffsetPixelSpace = u * StandardDeviationPixelSpace;
+			const float Weight = GaussianFunction(OffsetPixelSpace, 0.0f, VariancePixelSpace);
+			SourceData += SeparatedOpaqueRoughRefractionSceneColor[PixelPos + BlurDirection * OffsetPixelSpace].rgb * Weight;
+			SampleCount += Weight;
 		}
-		OutColor = SourceData / SampleCount;
+		const float3 BlurredSceneColor = SampleCount > 0.0 ? SourceData / SampleCount : 0.0f;
+
+		// Combine blurred layers below with unblurred according to coverage
+		OutColor = float4(lerp(OutColor.rgb, BlurredSceneColor, ORRData.Coverage), OutColor.a);
+		//OutColor *= float4(0, 1, 0, 1);
 	}
-	else
 #endif
-	{
-		OutColor = SeparatedOpaqueRoughRefractionSceneColor[PixelPos];
-	}
 
 }
 
@@ -375,22 +417,6 @@ FStrataLobeStatistic StrataGetRefractedLobe2(FStrataLobeStatistic WiLobe, float3
 	WoLobe.Sigma = (WiLobe.Sigma / InterfaceEta12) + StrataLobeRoughnessToVariance(InterfaceRoughness * S);
 
 	return WoLobe;
-}
-
-// Gaussian function with a=1/(c*sqrt(2*PI)) so it represents the probability density function of a normally distributed random variable with expected value mu = b for some variance and integrale = 1;
-float GaussianFunction(float x, float Mean, float Variance)
-{
-	float StandardDeviation = sqrt(Variance);
-	float FactorA = 1 / (StandardDeviation * sqrt(2 * PI));
-	float Bell = exp(-((x - Mean) * (x - Mean)) / (2 * Variance));
-	return FactorA * Bell;
-}
-float GaussianFunction(float2 P, float2 Mean, float Variance)
-{
-	float StandardDeviation = sqrt(Variance);
-	float FactorA = 1 / (StandardDeviation * sqrt(2 * PI));
-	float2 Bell = exp(-((P.x - Mean.x) * (P.x - Mean.x)) / (2 * Variance) - ((P.y - Mean.y) * (P.y - Mean.y)) / (2 * Variance));
-	return FactorA * Bell;
 }
 
 void VisualizeRoughRefractionPS(

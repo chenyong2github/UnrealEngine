@@ -19,6 +19,12 @@ static TAutoConsoleVariable<int32> CVarStrataOpaqueMaterialRoughRefraction(
 	TEXT("Enable Strata opaque material rough refractions effect from top layers over layers below."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarStrataOpaqueMaterialRoughRefractionBlurScale(
+	TEXT("r.Strata.OpaqueMaterialRoughRefraction.BlurScale"),
+	1,
+	TEXT("Scale opaque rough refraction strengh for debug purposes."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 
 namespace Strata
 {
@@ -38,10 +44,12 @@ class FOpaqueRoughRefractionPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(Strata::FStrataTilePassVS::FParameters, StrataTile)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparatedOpaqueRoughRefractionSceneColor)
 		SHADER_PARAMETER(FVector2f, BlurDirection)
+		SHADER_PARAMETER(float, BlurScale)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT();
 
@@ -97,6 +105,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
 		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = GetSceneTextureShaderParameters(SceneTextures.UniformBuffer);
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(TempTexture, LoadAction);
@@ -152,6 +161,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
 		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = GetSceneTextureShaderParameters(SceneTextures.UniformBuffer);
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = TempTexture;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
@@ -170,7 +180,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->StrataTile = Strata::SetTileParameters(GraphBuilder, View, StrataTileType, PrimitiveType);
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("OpaqueRoughRefraction - Pass2)"),
+			RDG_EVENT_NAME("OpaqueRoughRefraction - Pass1)"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[&View, TileVertexShader, PixelShader, PassParameters, StrataTileType, PrimitiveType](FRHICommandList& RHICmdList)
@@ -208,6 +218,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
 		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = GetSceneTextureShaderParameters(SceneTextures.UniformBuffer);
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);

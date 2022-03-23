@@ -585,6 +585,32 @@ FStrataOpaqueRoughRefractionData StrataUnpackOpaqueRoughRefractionData(float3 In
 	return Out;
 }
 
+
+// Returns the variance of rays projected on the XY plane after scattering at the interface of a slab of matter,
+// having the given Roughness and a normal along Z; after traveling along -Z from air to water (eta = 1.333).
+// That variance has been generated from unit vectors, so it is a measure of the spread of light on the projected XY plane.
+// Using Thales, one can scale that spread to any distance. The Gaussian kernel can be evaluated for a depth d using a Variance = GetVarianceFromRoughness(Roughness) * d.
+// 
+//			| V = -Z
+//			|
+//			|
+//			|
+//			|
+//			v
+//	------------------- ^	Surfcace of roughness R
+//		   /|\			|
+//		  / | \			| Depth D
+//		 /  |  \		|
+//		|<----->|		v
+//			Variance = GetVarianceFromRoughness(R) * D;
+float GetVarianceFromRoughness(float Roughness)
+{
+	float Roughness2 = Roughness * Roughness;
+	float Roughness3 = Roughness2 * Roughness;
+	float Roughness4 = Roughness2 * Roughness2;
+	return saturate(0.0000483367f - 0.000707943f * Roughness - 0.00840911f * Roughness2 + 0.095437f * Roughness3 - 0.0478129f * Roughness4);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Sub-surface 
 
@@ -2690,7 +2716,7 @@ void PackStrataOut(
 			const FStrataOperator RootOperator = StrataTree.Operators[Strata.OperatorIndex];
 			OpaqueRoughRefractionData.Coverage = RootOperator.Coverage;
 			// STRATA_TODO Fake variance place holder for now
-			OpaqueRoughRefractionData.VarianceCm = RootOperator.OpaqueRoughRefractTopRoughness * RootOperator.OpaqueRoughRefractThicknessCm;
+			OpaqueRoughRefractionData.VarianceCm = GetVarianceFromRoughness(RootOperator.OpaqueRoughRefractTopRoughness) * RootOperator.OpaqueRoughRefractThicknessCm;
 		}
 		
 		int SimpleMaterial_BSDFIndex = 0;
