@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SessionHistory/SSessionHistory.h"
+#include "Session/History/SSessionHistory.h"
 
 #include "ConcertMessageData.h"
 #include "IConcertSession.h"
-#include "SConcertSessionActivities.h"
+#include "Session/Activity/SConcertSessionActivities.h"
 
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"

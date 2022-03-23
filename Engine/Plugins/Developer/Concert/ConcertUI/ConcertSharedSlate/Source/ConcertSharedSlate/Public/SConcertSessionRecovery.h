@@ -3,14 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SConcertSessionActivities.h"
+#include "Session/Activity/SConcertSessionActivities.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 struct FConcertSessionActivity;
 struct FConcertClientInfo;
-class SConcertSessionActivities;
 class FConcertSessionActivitiesOptions;
 
 /**

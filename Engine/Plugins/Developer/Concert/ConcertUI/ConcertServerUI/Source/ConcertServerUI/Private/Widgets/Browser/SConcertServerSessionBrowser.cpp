@@ -2,13 +2,13 @@
 
 #include "SConcertServerSessionBrowser.h"
 
-#include "SessionBrowser/SConcertSessionBrowser.h"
+#include "Session/Browser/SConcertSessionBrowser.h"
 #include "Widgets/Browser/ConcertServerSessionBrowserController.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #include "Dialog/SMessageDialog.h"
 #include "Framework/Docking/TabManager.h"
-#include "SessionBrowser/ConcertSessionItem.h"
+#include "Session/Browser/ConcertSessionItem.h"
 #include "Widgets/ConcertServerTabs.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"

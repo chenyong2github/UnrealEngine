@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SessionHistory/SSessionHistory.h"
+#include "Session/History/SSessionHistory.h"
 #include "PackageViewer/SConcertSessionPackageViewer.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

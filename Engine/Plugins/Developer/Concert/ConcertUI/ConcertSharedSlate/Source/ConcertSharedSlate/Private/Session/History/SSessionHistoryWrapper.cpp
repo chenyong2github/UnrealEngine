@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SessionHistory/SSessionHistoryWrapper.h"
+#include "Session/History/SSessionHistoryWrapper.h"
 
 void SSessionHistoryWrapper::Construct(const FArguments& InArgs, TSharedRef<FAbstractSessionHistoryController> InController)
 {

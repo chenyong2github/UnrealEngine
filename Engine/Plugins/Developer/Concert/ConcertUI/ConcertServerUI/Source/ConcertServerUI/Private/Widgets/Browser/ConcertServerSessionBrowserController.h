@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SessionBrowser/IConcertSessionBrowserController.h"
+#include "Session/Browser/IConcertSessionBrowserController.h"
 #include "Widgets/IConcertComponent.h"
 
 class IConcertServerSession;

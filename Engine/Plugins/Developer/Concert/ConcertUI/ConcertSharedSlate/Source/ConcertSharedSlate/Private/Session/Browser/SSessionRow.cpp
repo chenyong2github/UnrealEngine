@@ -2,8 +2,8 @@
 
 #include "SSessionRow.h"
 
-#include "SessionBrowser/ConcertBrowserUtils.h"
-#include "SessionBrowser/ConcertSessionItem.h"
+#include "Session/Browser/ConcertBrowserUtils.h"
+#include "Session/Browser/ConcertSessionItem.h"
 
 #include "EditorFontGlyphs.h"
 #include "Framework/Application/SlateApplication.h"

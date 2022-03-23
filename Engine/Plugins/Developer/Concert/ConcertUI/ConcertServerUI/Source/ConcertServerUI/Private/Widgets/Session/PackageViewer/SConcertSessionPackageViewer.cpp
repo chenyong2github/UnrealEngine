@@ -2,7 +2,7 @@
 
 #include "SConcertSessionPackageViewer.h"
 
-#include "SConcertSessionActivities.h"
+#include "Session/Activity/SConcertSessionActivities.h"
 #include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"

@@ -2,8 +2,8 @@
 
 #include "SNewSessionRow.h"
 
-#include "SessionBrowser/ConcertBrowserUtils.h"
-#include "SessionBrowser/ConcertSessionItem.h"
+#include "Session/Browser/ConcertBrowserUtils.h"
+#include "Session/Browser/ConcertSessionItem.h"
 
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
@@ -12,7 +12,6 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"

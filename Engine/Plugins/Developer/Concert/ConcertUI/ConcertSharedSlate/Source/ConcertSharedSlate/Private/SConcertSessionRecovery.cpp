@@ -3,16 +3,13 @@
 #include "SConcertSessionRecovery.h"
 
 #include "EditorStyleSet.h"
-#include "EditorFontGlyphs.h"
+#include "Session/Activity/SConcertSessionActivities.h"
 #include "Widgets/SWindow.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "SConcertSessionActivities.h"
 #include "SNegativeActionButton.h"
 #include "SPositiveActionButton.h"
 

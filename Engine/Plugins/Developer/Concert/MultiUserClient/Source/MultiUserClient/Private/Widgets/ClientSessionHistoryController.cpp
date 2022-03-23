@@ -6,7 +6,7 @@
 #include "IConcertClientWorkspace.h"
 #include "IConcertSyncClient.h"
 
-#include "SessionHistory/SSessionHistory.h"
+#include "Session/History/SSessionHistory.h"
 
 FClientSessionHistoryController::FClientSessionHistoryController(TSharedRef<IConcertSyncClient> Client, FName PackageFilter)
 	: FAbstractSessionHistoryController(PackageFilter)

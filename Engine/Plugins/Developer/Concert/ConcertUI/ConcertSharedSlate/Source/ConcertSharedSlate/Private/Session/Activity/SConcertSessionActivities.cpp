@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SConcertSessionActivities.h"
+#include "Session/Activity/SConcertSessionActivities.h"
 
 #include "Algo/Transform.h"
 #include "Misc/AsyncTaskNotification.h"

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SessionBrowser/SConcertSessionBrowser.h"
+#include "Session/Browser/SConcertSessionBrowser.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 

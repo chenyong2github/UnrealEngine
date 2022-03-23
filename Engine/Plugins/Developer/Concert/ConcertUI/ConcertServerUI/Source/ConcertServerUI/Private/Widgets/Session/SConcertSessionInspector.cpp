@@ -3,9 +3,8 @@
 #include "Widgets/Session/SConcertSessionInspector.h"
 
 #include "Framework/Docking/TabManager.h"
-#include "SessionHistory/SSessionHistory.h"
+#include "Session/History/SSessionHistory.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "SConcertSessionInspector"
 

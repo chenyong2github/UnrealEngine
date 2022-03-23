@@ -1,8 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SessionHistory/AbstractSessionHistoryController.h"
+#include "Session/History/AbstractSessionHistoryController.h"
 
-#include "SessionHistory/SSessionHistory.h"
+#include "Session/History/SSessionHistory.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 FAbstractSessionHistoryController::FAbstractSessionHistoryController(FName PackageFilter)

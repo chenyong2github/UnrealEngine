@@ -10,7 +10,7 @@
 #include "SConcertServerSessionBrowser.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/AsyncTaskNotification.h"
-#include "SessionBrowser/ConcertSessionItem.h"
+#include "Session/Browser/ConcertSessionItem.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/ConcertServerTabs.h"
 #include "Widgets/ConcertServerWindowController.h"
