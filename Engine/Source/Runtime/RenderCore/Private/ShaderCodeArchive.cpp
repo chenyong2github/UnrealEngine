@@ -1868,27 +1868,30 @@ void FIoStoreShaderCodeArchive::ReleasePreloadEntry(int32 ShaderGroupIndex)
 {
 	FWriteScopeLock Lock(PreloadedShaderGroupsLock);
 	FShaderGroupPreloadEntry** ExistingEntry = PreloadedShaderGroups.Find(ShaderGroupIndex);
-	FShaderGroupPreloadEntry* PreloadEntry = ExistingEntry ? *ExistingEntry : nullptr;
-	checkf(PreloadEntry, TEXT("Preload entry for shader group %d should exist if we're asked to release it"), ShaderGroupIndex);
-
-	const uint32 ShaderNumRefs = PreloadEntry->NumRefs--;
-	check(ShaderNumRefs > 0u);
-	if (ShaderNumRefs == 1u)
+	ensureMsgf(ExistingEntry, TEXT("Preload entry for shader group %d should exist if we're asked to release it"), ShaderGroupIndex);
+	if (ExistingEntry)
 	{
-		if (!PreloadEntry->bNeverToBePreloaded)
-		{
-			PreloadEntry->IoRequest = FIoRequest();
-			PreloadEntry->PreloadEvent.SafeRelease();
-			const FIoStoreShaderGroupEntry& GroupEntry = Header.ShaderGroupEntries[ShaderGroupIndex];
-			DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, (GroupEntry.CompressedSize + sizeof(FShaderGroupPreloadEntry)));
-		}
-		else
-		{
-			DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, sizeof(FShaderGroupPreloadEntry));
-		}
+		FShaderGroupPreloadEntry* PreloadEntry = *ExistingEntry;
 
-		delete PreloadEntry;
-		PreloadedShaderGroups.Remove(ShaderGroupIndex);
+		const uint32 ShaderNumRefs = PreloadEntry->NumRefs--;
+		check(ShaderNumRefs > 0u);
+		if (ShaderNumRefs == 1u)
+		{
+			if (!PreloadEntry->bNeverToBePreloaded)
+			{
+				PreloadEntry->IoRequest = FIoRequest();
+				PreloadEntry->PreloadEvent.SafeRelease();
+				const FIoStoreShaderGroupEntry& GroupEntry = Header.ShaderGroupEntries[ShaderGroupIndex];
+				DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, (GroupEntry.CompressedSize + sizeof(FShaderGroupPreloadEntry)));
+			}
+			else
+			{
+				DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, sizeof(FShaderGroupPreloadEntry));
+			}
+
+			delete PreloadEntry;
+			PreloadedShaderGroups.Remove(ShaderGroupIndex);
+		}
 	}
 }
 
@@ -1948,8 +1951,8 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 ShaderInd
 	FGraphEventRef Event;
 	{
 		{
-			// preloading a shader group 
-			FReadScopeLock Lock(PreloadedShaderGroupsLock);
+			// preloading a shader group (write lock because we will need to adjust its refcount)
+			FWriteScopeLock Lock(PreloadedShaderGroupsLock);
 			FShaderGroupPreloadEntry** ExistingEntry = PreloadedShaderGroups.Find(GroupIndex);
 			PreloadEntryPtr = ExistingEntry ? *ExistingEntry : PreloadEntryPtr;
 			// if we have an entry, addref it so it doesn't go away
@@ -2040,6 +2043,7 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 ShaderInd
 	}
 	else
 	{
+		FWriteScopeLock Lock(PreloadedShaderGroupsLock);
 		// if the entry existed before Create was called, it will be released by the higher level resource after the creation.
 		checkf(PreloadEntryPtr->NumRefs > 1, TEXT("We shouldn't be releasing the last preload entry here (NumRefs=%d)"), PreloadEntryPtr->NumRefs);
 		--PreloadEntryPtr->NumRefs;
