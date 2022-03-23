@@ -44,14 +44,12 @@ public:
 	bool TryReadLock()
 	{
 		int Err = pthread_rwlock_tryrdlock(&Mutex);
-		checkf(Err == 0 || Err == EBUSY, TEXT("pthread_rwlock_tryrdlock failed with error: %d"), Err);
 		return Err == 0;
 	}
 
 	bool TryWriteLock()
 	{
 		int Err = pthread_rwlock_trywrlock(&Mutex);
-		checkf(Err == 0 || Err == EBUSY, TEXT("pthread_rwlock_trywrlock failed with error: %d"), Err);
 		return Err == 0;
 	}
 
