@@ -152,10 +152,10 @@ namespace Horde.Storage.FunctionalTests.Storage
             }
 
             IBlobIndex.BlobInfo? deletedBlobInfo = await index.GetBlobInfo(TestNamespaceName, contentHash);
-            // the blob info will still exist after delete
-            Assert.IsNotNull(deletedBlobInfo);
+
+            bool hasRegions = deletedBlobInfo != null && deletedBlobInfo.Regions.Any();
             // but the blob info will not contain the current region
-            Assert.IsTrue(!deletedBlobInfo.Regions.Any());
+            Assert.IsTrue(!hasRegions);
         }
 
 
