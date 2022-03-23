@@ -492,7 +492,8 @@ void UpdateMotionMatchingState(
 
 const FPoseSearchIndexAsset* FMotionMatchingState::GetCurrentSearchIndexAsset() const
 {
-	if (!CurrentDatabase->SearchIndex.Assets.IsValidIndex(SearchIndexAssetIdx))
+	if (!CurrentDatabase.IsValid() ||
+		!CurrentDatabase->SearchIndex.Assets.IsValidIndex(SearchIndexAssetIdx))
 	{
 		return nullptr;
 	}

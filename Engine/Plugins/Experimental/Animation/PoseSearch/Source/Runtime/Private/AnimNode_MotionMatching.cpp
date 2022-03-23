@@ -28,7 +28,10 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 	CurrentAssetPlayerNode = &SequencePlayerNode;
 
 	MirrorNode.SetSourceLinkNode(CurrentAssetPlayerNode);
-	MirrorNode.SetMirrorDataTable(Database->Schema->MirrorDataTable.Get());
+	if (Database && Database->Schema)
+	{
+		MirrorNode.SetMirrorDataTable(Database->Schema->MirrorDataTable.Get());
+	}
 
 	Source.SetLinkNode(&MirrorNode);
 	Source.Initialize(Context);
@@ -75,6 +78,11 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		Settings,
 		MotionMatchingState
 	);
+
+	if (MotionMatchingState.CurrentDatabase.IsValid() && MotionMatchingState.CurrentDatabase->Schema)
+	{
+		MirrorNode.SetMirrorDataTable(MotionMatchingState.CurrentDatabase->Schema->MirrorDataTable.Get());
+	}
 
 	const FPoseSearchIndexAsset* SearchIndexAsset = MotionMatchingState.GetCurrentSearchIndexAsset();
 
