@@ -202,6 +202,41 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 #endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 
+FD3D12AdapterDesc::FD3D12AdapterDesc() = default;
+
+FD3D12AdapterDesc::FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& InDesc, int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, D3D_SHADER_MODEL InMaxSupportedShaderModel, ERHIFeatureLevel::Type InMaxRHIFeatureLevel)
+	: Desc(InDesc)
+	, AdapterIndex(InAdapterIndex)
+	, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
+	, MaxSupportedShaderModel(InMaxSupportedShaderModel)
+	, MaxRHIFeatureLevel(InMaxRHIFeatureLevel)
+{
+}
+
+bool FD3D12AdapterDesc::IsValid() const
+{
+	return MaxSupportedFeatureLevel != (D3D_FEATURE_LEVEL)0 && AdapterIndex >= 0;
+}
+
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+HRESULT FD3D12AdapterDesc::EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE GpuPreference, IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter)
+{
+	if (!DxgiFactory6 || GpuPreference == DXGI_GPU_PREFERENCE_UNSPECIFIED)
+	{
+		return DxgiFactory->EnumAdapters(AdapterIndex, TempAdapter);
+	}
+	else
+	{
+		return DxgiFactory6->EnumAdapterByGpuPreference(AdapterIndex, GpuPreference, IID_PPV_ARGS(TempAdapter));
+	}
+}
+
+HRESULT FD3D12AdapterDesc::EnumAdapters(IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter) const
+{
+	return EnumAdapters(AdapterIndex, GpuPreference, DxgiFactory, DxgiFactory6, TempAdapter);
+}
+#endif
+
 FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	: OwningRHI(nullptr)
 	, bDepthBoundsTestSupported(false)
@@ -1003,6 +1038,7 @@ void FD3D12Adapter::InitializeDevices()
 				if (D3D12Caps9.AtomicInt64OnTypedResourceSupported)
 				{
 					UE_LOG(LogD3D12RHI, Log, TEXT("AtomicInt64OnTypedResource is supported"));
+					GRHISupportsAtomicUInt64 = true;
 				}
 
 				if (D3D12Caps9.AtomicInt64OnGroupSharedSupported)

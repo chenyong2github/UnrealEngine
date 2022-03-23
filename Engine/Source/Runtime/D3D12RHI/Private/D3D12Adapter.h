@@ -35,67 +35,35 @@ This structure allows a single RHI to control several different hardware setups.
 
 #pragma once
 
-THIRD_PARTY_INCLUDES_START
-#if D3D12_SUPPORTS_DXGI_DEBUG
-	#include "dxgidebug.h"
-#endif
-THIRD_PARTY_INCLUDES_END
-
 class FD3D12DynamicRHI;
 
 struct FD3D12AdapterDesc
 {
-	FD3D12AdapterDesc() = default;
+	FD3D12AdapterDesc();
+	FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& InDesc, int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, D3D_SHADER_MODEL InMaxSupportedShaderModel, ERHIFeatureLevel::Type InMaxRHIFeatureLevel);
 
-	FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& DescIn , int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, D3D_SHADER_MODEL InMaxSupportedShaderModel, uint32 NumNodes, bool InIsIntegrated
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-		, DXGI_GPU_PREFERENCE InGpuPreference
-#endif
-	)
-		: AdapterIndex(InAdapterIndex)
-		, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
-		, MaxSupportedShaderModel(InMaxSupportedShaderModel)
-		, Desc(DescIn)
-		, NumDeviceNodes(NumNodes)
-		, bIsIntegrated(InIsIntegrated)
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-		, GpuPreference(InGpuPreference)
-#endif
-	{
-	}
-
-	bool IsValid() const { return MaxSupportedFeatureLevel != (D3D_FEATURE_LEVEL)0 && AdapterIndex >= 0; }
+	bool IsValid() const;
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	static HRESULT EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE GpuPreference, IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter)
-	{
-		if (!DxgiFactory6 || GpuPreference == DXGI_GPU_PREFERENCE_UNSPECIFIED)
-		{
-			return DxgiFactory->EnumAdapters(AdapterIndex, TempAdapter);
-		}
-		else
-		{
-			return DxgiFactory6->EnumAdapterByGpuPreference(AdapterIndex, GpuPreference, IID_PPV_ARGS(TempAdapter));
-		}
-	}
-
-	HRESULT EnumAdapters(IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter) const
-	{
-		return EnumAdapters(AdapterIndex, GpuPreference, DxgiFactory, DxgiFactory6, TempAdapter);
-	}
+	static HRESULT EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE GpuPreference, IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter);
+	HRESULT EnumAdapters(IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter) const;
 #endif
-
-	/** -1 if not supported or FindAdpater() wasn't called. Ideally we would store a pointer to IDXGIAdapter but it's unlikely the adpaters change during engine init. */
-	int32 AdapterIndex{ -1 };
-
-	/** The maximum D3D12 feature level supported. 0 if not supported or FindAdpater() wasn't called */
-	D3D_FEATURE_LEVEL MaxSupportedFeatureLevel{ (D3D_FEATURE_LEVEL)0 };
-
-	D3D_SHADER_MODEL MaxSupportedShaderModel{ D3D_SHADER_MODEL_5_1 };
 
 	DXGI_ADAPTER_DESC Desc{};
 
-	uint32 NumDeviceNodes{ 0 };
+	/** -1 if not supported or FindAdapter() wasn't called. Ideally we would store a pointer to IDXGIAdapter but it's unlikely the adpaters change during engine init. */
+	int32 AdapterIndex = -1;
+
+	/** The maximum D3D12 feature level supported. 0 if not supported or FindAdapter() wasn't called */
+	D3D_FEATURE_LEVEL MaxSupportedFeatureLevel = (D3D_FEATURE_LEVEL)0;
+
+	/** The maximum Shader Model supported. 0 if not supported or FindAdpater() wasn't called */
+	D3D_SHADER_MODEL MaxSupportedShaderModel = (D3D_SHADER_MODEL)0;
+
+	ERHIFeatureLevel::Type MaxRHIFeatureLevel = ERHIFeatureLevel::Num;
+
+	/** Number of device nodes (read: GPUs) */
+	uint32 NumDeviceNodes = 1;
 
 	/** Whether the GPU is integrated or discrete. */
 	bool bIsIntegrated = false;
