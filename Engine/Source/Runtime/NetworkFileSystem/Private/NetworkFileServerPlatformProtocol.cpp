@@ -330,11 +330,18 @@ void FNetworkFileServerPlatformProtocol::AddConnectionsForNewDevices(ITargetPlat
 
 					if (Socket)
 					{
-						FConnectionThreaded* Connection =
-							new FConnectionThreaded(Device, Socket, FileServerOptions);
+						if (Socket->Connected())
+						{
+							FConnectionThreaded* Connection =
+								new FConnectionThreaded(Device, Socket, FileServerOptions);
 
-						Connections.Add(Connection);
-						UE_LOG(LogFileServer, Display, TEXT("Client %s connected."), *Connection->GetName());
+							Connections.Add(Connection);
+							UE_LOG(LogFileServer, Display, TEXT("Client %s connected."), *Connection->GetName());
+						}
+						else
+						{
+							Device->CloseConnection(Socket);
+						}
 					}
 				}
 			}
