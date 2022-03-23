@@ -33,6 +33,8 @@ public:
 
 	RENDERCORE_API const TMap<FString, TArray<FShaderTypeDependency>>& GetShaderFilenameToDependeciesMap() const { return ShaderFilenameToDependenciesMap; }
 
+	RENDERCORE_API bool WithEditorOnly() const;
+
 private:
 	FPlatformTypeLayoutParameters LayoutParams;
 	EShaderPlatform ShaderPlatform;

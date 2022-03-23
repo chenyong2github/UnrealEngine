@@ -1342,6 +1342,9 @@ extern ENGINE_API const FString& GetGlobalShaderMapDDCKey();
 
 extern ENGINE_API const FString& GetMaterialShaderMapDDCKey();
 
+extern ENGINE_API bool ShouldDumpShaderDDCKeys();
+extern ENGINE_API void DumpShaderDDCKeyToFile(const EShaderPlatform InPlatform, bool bWithEditor, const FString& FileName, const FString& DDCKey);
+
 /**
 * Handles serializing in MeshMaterialMaps or GlobalShaderMap from a CookOnTheFly command and applying them to the in-memory shadermaps.
 *

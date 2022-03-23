@@ -188,7 +188,12 @@ static FAutoConsoleVariableRef CVarShaderCompilerTooLongIOThresholdSeconds(
 	ECVF_Default
 );
 
-
+static TAutoConsoleVariable<bool> CVarShaderCompilerDumpDDCKeys(
+	TEXT("r.ShaderCompiler.DumpDDCKeys"),
+	false,
+	TEXT("if != 0, DDC keys for each shadermap will be dumped into project's Saved directory (ShaderDDCKeys subdirectory)"),
+	ECVF_Default
+);
 
 /** Helper functions for logging more debug info */
 namespace ShaderCompiler
@@ -237,6 +242,24 @@ const FString& GetMaterialShaderMapDDCKey()
 {
 	static FString MaterialShaderMapDDCKey = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().MATERIALSHADERMAP_DERIVEDDATA_VER).ToString();
 	return MaterialShaderMapDDCKey;
+}
+
+bool ShouldDumpShaderDDCKeys()
+{
+	return CVarShaderCompilerDumpDDCKeys.GetValueOnAnyThread();
+}
+
+void DumpShaderDDCKeyToFile(const EShaderPlatform InPlatform, bool bWithEditor, const FString& FileName, const FString& DDCKey)
+{
+	const FString SubDirectory = bWithEditor ? TEXT("Editor") : TEXT("Game");
+	const FString TempPath = FPaths::ProjectSavedDir() / TEXT("ShaderDDCKeys") / SubDirectory / LexToString(InPlatform);
+	IFileManager::Get().MakeDirectory(*TempPath, true);
+
+	const FString TempFile = TempPath / FileName;
+
+	TUniquePtr<FArchive> DumpAr(IFileManager::Get().CreateFileWriter(*TempFile));
+	// serializing the string via << produces a non-textual file because it saves string's length, too
+	DumpAr->Serialize(const_cast<TCHAR*>(*DDCKey), DDCKey.Len() * sizeof(TCHAR));
 }
 
 namespace ShaderCompiler
@@ -6661,15 +6684,20 @@ static FString GetGlobalShaderCacheFilename(EShaderPlatform Platform)
 }
 
 #if WITH_EDITOR
-/** Creates a string key for the derived data cache entry for the global shader map. */
-static UE::DerivedData::FCacheKey GetGlobalShaderMapKey(const FGlobalShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FShaderTypeDependency> const& Dependencies)
+
+static FString GetGlobalShaderMapKeyString(const FGlobalShaderMapId& ShaderMapId, EShaderPlatform Platform, TArray<FShaderTypeDependency> const& Dependencies)
 {
 	FName Format = LegacyShaderPlatformToShaderFormat(Platform);
 	FString ShaderMapKeyString = Format.ToString() + TEXT("_") + FString(FString::FromInt(GetTargetPlatformManagerRef().ShaderFormatVersion(Format))) + TEXT("_");
 	ShaderMapAppendKeyString(Platform, ShaderMapKeyString);
 	ShaderMapId.AppendKeyString(ShaderMapKeyString, Dependencies);
-	const FString DataKey = FString::Printf(TEXT("%s_%s_%s"), TEXT("GSM"), *GetGlobalShaderMapDDCKey(), *ShaderMapKeyString);
+	return FString::Printf(TEXT("%s_%s_%s"), TEXT("GSM"), *GetGlobalShaderMapDDCKey(), *ShaderMapKeyString);
+}
 
+/** Creates a string key for the derived data cache entry for the global shader map. */
+static UE::DerivedData::FCacheKey GetGlobalShaderMapKey(const FGlobalShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FShaderTypeDependency> const& Dependencies)
+{
+	const FString DataKey = GetGlobalShaderMapKeyString(ShaderMapId, Platform, Dependencies);
 	static const UE::DerivedData::FCacheBucket Bucket("GlobalShaderMap");
 	return {Bucket, FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(DataKey)))};
 }
@@ -6992,6 +7020,14 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 					Request.Key = GetGlobalShaderMapKey(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value);
 					Request.UserData = uint64(BufferIndex);
 					++BufferIndex;
+
+					if (UNLIKELY(ShouldDumpShaderDDCKeys()))
+					{
+						const FString ShaderName = ShaderFilenameDependencies.Key.Replace(TEXT("/"), TEXT(".")).Replace(TEXT(".usf"), TEXT(""));
+						const FString FileName = FString::Printf(TEXT("GlobalShaderMap%s.txt"), *ShaderName);
+						const FString DataKey = GetGlobalShaderMapKeyString(ShaderMapId, Platform, ShaderFilenameDependencies.Value);
+						DumpShaderDDCKeyToFile(Platform, ShaderMapId.WithEditorOnly(), FileName, DataKey);
+					}
 				}
 
 				int32 DDCHits = 0;

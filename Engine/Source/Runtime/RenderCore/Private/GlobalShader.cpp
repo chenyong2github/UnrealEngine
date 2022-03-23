@@ -535,6 +535,11 @@ void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShade
 #endif // WITH_EDITOR
 }
 
+bool FGlobalShaderMapId::WithEditorOnly() const
+{
+	return LayoutParams.WithEditorOnly();
+}
+
 bool FGlobalShaderType::ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, EShaderPermutationFlags Flags)
 {
 	for (const FShaderType* ShaderType : ShaderPipelineType->GetStages())
