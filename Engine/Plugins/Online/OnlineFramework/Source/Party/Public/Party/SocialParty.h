@@ -12,7 +12,6 @@
 #include "Interfaces/OnlineChatInterface.h"
 #include "Containers/Queue.h"
 #include "Engine/EngineBaseTypes.h"
-#include "PartyPackage.h"
 #include "SocialParty.generated.h"
 
 class APartyBeaconClient;
@@ -64,7 +63,7 @@ private:
 	mutable FSimpleMulticastDelegate OnPlatformSessionsChangedEvent;
 };
 
-using FPartyDataReplicator = TPartyDataReplicator<FPartyRepData>;
+using FPartyDataReplicator = TPartyDataReplicator<FPartyRepData, USocialParty>;
 
 /**
  * Party game state that contains all information relevant to the communication within a party
@@ -75,6 +74,10 @@ class PARTY_API USocialParty : public UObject
 {
 	GENERATED_BODY()
 
+	friend class FPartyPlatformSessionMonitor;
+	friend UPartyMember;
+	friend USocialManager;
+	friend USocialUser;
 public:
 	static bool IsJoiningDuringLoadEnabled();
 
@@ -207,14 +210,14 @@ public:
 	virtual bool ShouldAlwaysJoinPlatformSession(const FSessionId& SessionId) const;
 
 	virtual void JoinSessionCompleteAnalytics(const FSessionId& SessionId, const FString& JoinBootableGroupSessionResult);
+	bool IsCurrentlyLeaving() const;
 
-PACKAGE_SCOPE:
+protected:
 	void InitializeParty(const TSharedRef<const FOnlineParty>& InOssParty);
 	bool IsInitialized() const;
 	void TryFinishInitialization();
 
 	bool ShouldCacheForRejoinOnDisconnect() const;
-	bool IsCurrentlyLeaving() const;
 
 	void SetIsMissingPlatformSession(bool bInIsMissingPlatformSession);
 	bool IsMissingPlatformSession() { return bIsMissingPlatformSession; }
@@ -222,7 +225,7 @@ PACKAGE_SCOPE:
 	FPartyRepData& GetMutableRepData() { return *PartyDataReplicator; }
 
 	//--------------------------
-	// User/member-specific actions that are best exposed on the individuals themselves, but best handled by the actual party (thus the package scoping)
+	// User/member-specific actions that are best exposed on the individuals themselves, but best handled by the actual party
 	bool HasUserBeenInvited(const USocialUser& User) const;
 	
 	bool CanInviteUser(const USocialUser& User) const;

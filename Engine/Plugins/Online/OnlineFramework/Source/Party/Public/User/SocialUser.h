@@ -8,7 +8,6 @@
 #include "Party/PartyTypes.h"
 #include "Interactions/SocialInteractionHandle.h"
 
-#include "PartyPackage.h"
 #include "SocialUser.generated.h"
 
 class IOnlinePartyJoinInfo;
@@ -31,6 +30,8 @@ UCLASS(Within = SocialToolkit)
 class PARTY_API USocialUser : public UObject
 {
 	GENERATED_BODY()
+
+	friend USocialToolkit;
 
 public:
 	USocialUser();
@@ -164,7 +165,7 @@ public:
 	void EstablishOssInfo(const TSharedRef<FOnlineBlockedPlayer>& BlockedPlayerInfo, ESocialSubsystem SubsystemType);
 	void EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& RecentPlayerInfo, ESocialSubsystem SubsystemType);
 
-PACKAGE_SCOPE:
+protected:
 	void InitLocalUser();
 	void Initialize(const FUniqueNetIdRepl& PrimaryId);
 

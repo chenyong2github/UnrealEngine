@@ -7,20 +7,20 @@
 #include "Containers/Ticker.h"
 #include "Interfaces/OnlinePartyInterface.h"
 #include "Stats/Stats.h"
-#include "PartyPackage.h"
 
 /** Util exclusively for use by TPartyDataReplicator to circumvent circular include header issues (we can't include SocialParty.h or PartyMember.h here) */
 class FPartyDataReplicatorHelper
 {
-	template <typename> friend class TPartyDataReplicator;
+	template <typename, class> friend class TPartyDataReplicator;
 	PARTY_API static void ReplicateDataToMembers(const FOnlinePartyRepDataBase& RepDataInstance, const UScriptStruct& RepDataType, const FOnlinePartyData& ReplicationPayload);
 };
 
 /** Base util class for dealing with data that is replicated to party members */
-template <typename RepDataT>
+template <typename RepDataT, class OwningObjectT>
 class TPartyDataReplicator : public FGCObject
 {
 	static_assert(TIsDerivedFrom<RepDataT, FOnlinePartyRepDataBase>::IsDerived, "TPartyDataReplicator is only intended to function with FOnlinePartyRepDataBase types.");
+	friend OwningObjectT;
 
 public:
 	~TPartyDataReplicator()
@@ -71,7 +71,7 @@ public:
 		}
 	}
 
-PACKAGE_SCOPE:
+protected:
 	void ProcessReceivedData(const FOnlinePartyData& IncomingPartyData, bool bCompareToPrevious = true)
 	{
 		// If the rep data can be edited locally, disregard any replication updates (they're the same at best or out of date at worst)

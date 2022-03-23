@@ -461,7 +461,7 @@ protected:
 	void LogPropertyChanged(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName, bool bFromReplication) const;
 
 	friend class FPartyDataReplicatorHelper;
-	template <typename> friend class TPartyDataReplicator;
+	template <typename, class> friend class TPartyDataReplicator;
 	FSimpleDelegate OnDataChanged;
 };
 

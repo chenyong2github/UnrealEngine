@@ -5,7 +5,6 @@
 #include "Party/PartyTypes.h"
 #include "Party/PartyDataReplicator.h"
 
-#include "PartyPackage.h"
 #include "PartyMember.generated.h"
 
 class USocialUser;
@@ -72,13 +71,15 @@ private:
 	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, ECrossplayPreference, CrossplayPreference);
 };
 
-using FPartyMemberDataReplicator = TPartyDataReplicator<FPartyMemberRepData>;
+using FPartyMemberDataReplicator = TPartyDataReplicator<FPartyMemberRepData, UPartyMember>;
 
 UCLASS(Abstract, config = Game, Within = SocialParty, Transient)
 class PARTY_API UPartyMember : public UObject
 {
 	GENERATED_BODY()
 
+	friend class FPartyPlatformSessionMonitor;
+	friend USocialParty;
 public:
 	UPartyMember();
 
@@ -114,7 +115,7 @@ public:
 
 	FString ToDebugString(bool bIncludePartyId = true) const;
 
-PACKAGE_SCOPE:
+protected:
 	void InitializePartyMember(const FOnlinePartyMemberConstRef& OssMember, const FSimpleDelegate& OnInitComplete);
 
 	FPartyMemberRepData& GetMutableRepData() { return *MemberDataReplicator; }

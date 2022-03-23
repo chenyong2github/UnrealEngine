@@ -4,7 +4,6 @@
 
 #include "User/ISocialUserList.h"
 #include "UObject/GCObject.h"
-#include "PartyPackage.h"
 #include "Containers/Ticker.h"
 
 enum class EMemberExitedReason : uint8;
@@ -12,6 +11,7 @@ typedef TSharedRef<const IOnlinePartyRequestToJoinInfo> IOnlinePartyRequestToJoi
 
 class FSocialUserList : public ISocialUserList, public FGCObject, public TSharedFromThis<FSocialUserList>
 {
+	friend class USocialToolkit;
 public:
 	static TSharedRef<FSocialUserList> CreateUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);
 
@@ -34,7 +34,7 @@ public:
 
 	bool HasPresenceFilters() const;
 
-PACKAGE_SCOPE:
+protected:
 	const FSocialUserListConfig& GetListConfig() const { return ListConfig; }
 
 private:

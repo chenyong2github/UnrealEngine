@@ -11,7 +11,6 @@
 #include "Interfaces/OnlinePartyInterface.h"
 #include "Interactions/SocialInteractionHandle.h"
 
-#include "PartyPackage.h"
 #include "SocialManager.generated.h"
 
 class ULocalPlayer;
@@ -33,6 +32,10 @@ UCLASS(Within = GameInstance, Config = Game)
 class PARTY_API USocialManager : public UObject, public FExec
 {
 	GENERATED_BODY()
+
+	friend class FPartyPlatformSessionManager;
+	friend UPartyMember;
+	friend USocialUser;
 
 public:
 	// FExec
@@ -111,8 +114,7 @@ public:
 	/** Validates that the target user has valid join info for us to use and that we can join any party of the given type */
 	virtual FJoinPartyResult ValidateJoinTarget(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId) const;
 
-PACKAGE_SCOPE:
-	
+protected:
 	DECLARE_DELEGATE_OneParam(FOnJoinPartyAttemptComplete, const FJoinPartyResult&);
 	void JoinParty(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId, const FOnJoinPartyAttemptComplete& OnJoinPartyComplete);
 

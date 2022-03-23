@@ -10,7 +10,6 @@
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "Containers/Ticker.h"
 
-#include "PartyPackage.h"
 #include "SocialToolkit.generated.h"
 
 class ULocalPlayer;
@@ -43,6 +42,10 @@ UCLASS(Within = SocialManager)
 class PARTY_API USocialToolkit : public UObject, public FExec
 {
 	GENERATED_BODY()
+
+	friend class FPartyPlatformSessionManager;
+	friend USocialChatManager;
+	friend USocialUser;
 
 public:
 	template <typename ToolkitT = USocialToolkit>
@@ -139,19 +142,19 @@ public:
 	virtual void NotifyPartyInviteReceived(USocialUser& SocialUser, const IOnlinePartyJoinInfo& Invite);
 	virtual void NotifyPartyInviteRemoved(USocialUser& SocialUser, const IOnlinePartyJoinInfo& Invite);
 
+	void RequestToJoinParty(USocialUser& SocialUser);
+
 #if WITH_EDITOR
 	bool Debug_IsRandomlyChangingPresence() const { return bDebug_IsRandomlyChangingUserPresence; }
 #endif
 
-PACKAGE_SCOPE:
+protected:
 	void NotifySubsystemIdEstablished(USocialUser& SocialUser, ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	TSubclassOf<USocialChatManager> GetChatManagerClass() { return ChatManagerClass; }
 	
 	bool TrySendFriendInvite(USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
 	bool AcceptFriendInvite(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
-
-	void RequestToJoinParty(USocialUser& SocialUser);
 
 	void HandleUserInvalidated(USocialUser& InvalidUser);
 
