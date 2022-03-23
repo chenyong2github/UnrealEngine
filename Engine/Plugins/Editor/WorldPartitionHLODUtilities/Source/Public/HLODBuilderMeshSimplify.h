@@ -23,7 +23,7 @@ class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderMeshSimplifySettings : public 
 
 	/** Material that will be used by the generated HLOD static mesh */
 	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = HLOD)
-	TSoftObjectPtr<UMaterial> HLODMaterial;
+	TSoftObjectPtr<UMaterialInterface> HLODMaterial;
 };
 
 

@@ -95,7 +95,7 @@ TArray<UActorComponent*> UHLODBuilderMeshSimplify::Build(const FHLODBuildContext
 
 	const UHLODBuilderMeshSimplifySettings* MeshSimplifySettings = CastChecked<UHLODBuilderMeshSimplifySettings>(HLODBuilderSettings);
 	const FMeshProxySettings& UseSettings = MeshSimplifySettings->MeshSimplifySettings;
-	UMaterial* HLODMaterial = MeshSimplifySettings->HLODMaterial.LoadSynchronous();
+	UMaterialInterface* HLODMaterial = MeshSimplifySettings->HLODMaterial.LoadSynchronous();
 
 	TArray<UObject*> Assets;
 	FCreateProxyDelegate ProxyDelegate;

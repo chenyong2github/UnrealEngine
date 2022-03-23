@@ -106,7 +106,7 @@ TArray<UActorComponent*> UHLODBuilderMeshApproximate::Build(const FHLODBuildCont
 
 	const UHLODBuilderMeshApproximateSettings* MeshApproximateSettings = CastChecked<UHLODBuilderMeshApproximateSettings>(HLODBuilderSettings);
 	const FMeshApproximationSettings& UseSettings = MeshApproximateSettings->MeshApproximationSettings;
-	UMaterial* HLODMaterial = MeshApproximateSettings->HLODMaterial.LoadSynchronous();
+	UMaterialInterface* HLODMaterial = MeshApproximateSettings->HLODMaterial.LoadSynchronous();
 
 	IGeometryProcessing_ApproximateActors::FOptions Options = ApproxActorsAPI->ConstructOptions(UseSettings);
 	Options.BasePackagePath = InHLODBuildContext.AssetsOuter->GetPackage()->GetName();
