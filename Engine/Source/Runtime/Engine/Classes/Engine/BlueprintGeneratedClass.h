@@ -809,6 +809,18 @@ protected:
 	*/
 	static void InitArrayPropertyFromCustomList(const FArrayProperty* ArrayProperty, const FCustomPropertyListNode* InPropertyList, uint8* DataPtr, const uint8* DefaultDataPtr);
 
+
+	/**
+	* Helper method to assist with initializing a property from sub property list
+	*
+	* @param	Property					the property to copy
+	* @param	CustomPropertySubListNode	the list node of the sub property to copy
+	* @param	PropertyValue				destination address (where to start copying values to)
+	* @param	DefaultPropertyValue		source address (where to start copying the defaults data from)
+	* @return	true if the method was able to copy the property successfully via the sub custom property list
+	*/
+	static bool InitPropertyFromSubPropertyList(const FProperty* Property, const FCustomPropertyListNode* SubPropertyList, uint8* PropertyValue, const uint8* DefaultPropertyValue);
+
 	// @todo: BP2CPP_remove
 	/** Check for and handle manual application of default value overrides to component subobjects that were inherited from a nativized parent class */
 	UE_DEPRECATED(5.0, "This API is no longer in use and will be removed.")

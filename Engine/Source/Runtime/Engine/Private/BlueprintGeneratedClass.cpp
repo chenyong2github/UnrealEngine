@@ -825,25 +825,9 @@ void UBlueprintGeneratedClass::InitPropertiesFromCustomList(const FCustomPropert
 		uint8* PropertyValue = CustomPropertyListNode->Property->ContainerPtrToValuePtr<uint8>(DataPtr, CustomPropertyListNode->ArrayIndex);
 		const uint8* DefaultPropertyValue = CustomPropertyListNode->Property->ContainerPtrToValuePtr<uint8>(DefaultDataPtr, CustomPropertyListNode->ArrayIndex);
 
-		if (const FStructProperty* StructProperty = CastField<FStructProperty>(CustomPropertyListNode->Property))
+		if (!InitPropertyFromSubPropertyList(CustomPropertyListNode->Property, CustomPropertyListNode->SubPropertyList, PropertyValue, DefaultPropertyValue))
 		{
-			if (CustomPropertyListNode->SubPropertyList != nullptr)
-			{
-				InitPropertiesFromCustomList(CustomPropertyListNode->SubPropertyList, StructProperty->Struct, PropertyValue, DefaultPropertyValue);
-			}
-			else
-			{
-				// A NULL sub-property list indicates that we should copy the entire default value (e.g. a struct with one or more non-reflected fields).
-				StructProperty->CopySingleValue(PropertyValue, DefaultPropertyValue);
-			}
-		}
-		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CustomPropertyListNode->Property))
-		{
-			// Note: The sub-property list can be NULL here; in that case only the array size will differ from the default value, but the elements themselves will simply be initialized to defaults.
-			InitArrayPropertyFromCustomList(ArrayProperty, CustomPropertyListNode->SubPropertyList, PropertyValue, DefaultPropertyValue);
-		}
-		else
-		{
+			// Unable to init properties from sub custom property list, fall back to the default copy value behavior
 			CustomPropertyListNode->Property->CopySingleValue(PropertyValue, DefaultPropertyValue);
 		}
 	}
@@ -878,19 +862,31 @@ void UBlueprintGeneratedClass::InitArrayPropertyFromCustomList(const FArrayPrope
 			continue;
 		}
 
-		if (const FStructProperty* InnerStructProperty = CastField<FStructProperty>(ArrayProperty->Inner))
+		if (!InitPropertyFromSubPropertyList(ArrayProperty->Inner, CustomArrayPropertyListNode->SubPropertyList, DstArrayItemValue, SrcArrayItemValue))
 		{
-			InitPropertiesFromCustomList(CustomArrayPropertyListNode->SubPropertyList, InnerStructProperty->Struct, DstArrayItemValue, SrcArrayItemValue);
-		}
-		else if (const FArrayProperty* InnerArrayProperty = CastField<FArrayProperty>(ArrayProperty->Inner))
-		{
-			InitArrayPropertyFromCustomList(InnerArrayProperty, CustomArrayPropertyListNode->SubPropertyList, DstArrayItemValue, SrcArrayItemValue);
-		}
-		else
-		{
+			// Unable to init properties from sub custom property list, fall back to the default copy value behavior
 			ArrayProperty->Inner->CopyCompleteValue(DstArrayItemValue, SrcArrayItemValue);
 		}
 	}
+}
+
+bool UBlueprintGeneratedClass::InitPropertyFromSubPropertyList(const FProperty* Property, const FCustomPropertyListNode* SubPropertyList, uint8* PropertyValue, const uint8* DefaultPropertyValue)
+{
+	if (SubPropertyList != nullptr)
+	{
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			InitPropertiesFromCustomList(SubPropertyList, StructProperty->Struct, PropertyValue, DefaultPropertyValue);
+			return true;
+		}
+		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		{
+			InitArrayPropertyFromCustomList(ArrayProperty, SubPropertyList, PropertyValue, DefaultPropertyValue);
+			return true;
+		}
+		// No need to handle Sets and Maps as they are not optimized through the custom property list
+	}
+	return false;
 }
 
 bool UBlueprintGeneratedClass::IsFunctionImplementedInScript(FName InFunctionName) const
