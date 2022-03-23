@@ -9,9 +9,13 @@
 // END EPIC MOD
 
 dia::Variant::Variant(IDiaSymbol* symbol)
-	: m_var{ VT_EMPTY }
-	, m_str(nullptr)
+// BEGIN EPIC MOD
+	: m_str(nullptr)
+// END EPIC MOD
 {
+	// BEGIN EPIC MOD
+	m_var.vt = VT_EMPTY;
+	// END EPIC MOD
 	if (symbol->get_value(&m_var) == S_OK)
 	{
 		// the information we're interested in is always stored as string

@@ -36,9 +36,9 @@ static void OnRequestExit()
 class FLiveCodingConsoleApp
 {
 private:
-	static constexpr TCHAR* SectionName = TEXT("LiveCodingConsole");
-	static constexpr TCHAR* DisableActionLimitKey = TEXT("bDisableActionLimit");
-	static constexpr TCHAR* ActionLimitKey = TEXT("ActionLimit");
+	static constexpr const TCHAR* SectionName = TEXT("LiveCodingConsole");
+	static constexpr const TCHAR* DisableActionLimitKey = TEXT("bDisableActionLimit");
+	static constexpr const TCHAR* ActionLimitKey = TEXT("ActionLimit");
 
 	FCriticalSection CriticalSection;
 	FSlateApplication& Slate;

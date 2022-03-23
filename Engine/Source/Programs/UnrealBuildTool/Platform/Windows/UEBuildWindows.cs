@@ -1909,7 +1909,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				List<DirectoryReference> VisualStudioDirs = FindVisualStudioInstallations(Compiler).ConvertAll(x => x.BaseDir);
+				List<DirectoryReference> VisualStudioDirs = VisualStudioInstallations.ConvertAll(x => x.BaseDir);
 				foreach (DirectoryReference VisualStudioDir in VisualStudioDirs)
 				{
 					DirectoryReference DiaSdkDir = DirectoryReference.Combine(VisualStudioDir, "DIA SDK");
