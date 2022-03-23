@@ -97,7 +97,7 @@ void FMessageLogListingViewModel::DismissNotification(int32 NotificationId)
 		TSharedPtr<SNotificationItem> NotificationItem = OpenNotifications[NotificationIndex].NotificationItem.Pin();
 		if (NotificationItem.IsValid())
 		{
-			NotificationItem->SetExpireDuration(0);
+			NotificationItem->SetExpireDuration(0.0f);
 			NotificationItem->ExpireAndFadeout();
 		}
 
