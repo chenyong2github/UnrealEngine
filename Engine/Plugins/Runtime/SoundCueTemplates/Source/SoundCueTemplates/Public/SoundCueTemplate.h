@@ -33,6 +33,9 @@ public:
 	/** Override to initialize a template with array of sound waves from SoundCueFactory */
 	virtual void AddSoundWaves(TArray<TWeakObjectPtr<USoundWave>>& Waves) {}
 
+	/** Override to load template default settings from SoundCueTemplateFactory */
+	virtual void LoadTemplateDefaultSettings() {}
+
 	/** Override to provide a default new asset name prefix from SoundCueTemplateFactory */
 	virtual FString GenerateDefaultNewAssetName(const TArray<TWeakObjectPtr<USoundWave>>& Waves) const { return FString(); }
 

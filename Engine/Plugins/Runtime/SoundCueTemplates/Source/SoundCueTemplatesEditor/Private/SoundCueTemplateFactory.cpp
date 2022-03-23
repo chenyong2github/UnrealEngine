@@ -81,6 +81,8 @@ UObject* USoundCueTemplateFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 	{
 		if (USoundCueTemplate* NewSoundCueTemplate = NewObject<USoundCueTemplate>(InParent, SoundCueTemplateClass, Name, Flags))
 		{
+			NewSoundCueTemplate->LoadTemplateDefaultSettings();
+
 			if (SoundWaves.Num())
 			{
 				NewSoundCueTemplate->AddSoundWaves(SoundWaves);
