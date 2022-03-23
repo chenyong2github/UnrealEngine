@@ -9,6 +9,7 @@
 namespace UE::Virtualization
 {
 
-void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>& DescriptionTags, TArray<FText>& Errors);
+/** @See IVirtualizationSystem::TryVirtualizePackages */
+void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors);
 
 } // namespace UE::Virtualization

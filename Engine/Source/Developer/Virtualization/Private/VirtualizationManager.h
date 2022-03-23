@@ -117,6 +117,8 @@ private:
 
 	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override;
 
+	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override;
+
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override;
 
 	virtual void GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef ) const override;

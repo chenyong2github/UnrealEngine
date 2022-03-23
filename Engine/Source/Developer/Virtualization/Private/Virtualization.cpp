@@ -26,7 +26,7 @@ public:
 		FDelayedAutoRegisterHelper(EDelayedRegisterRunPhase::EarliestPossiblePluginsLoaded, [this]() 
 			{
 				PackageSubmissionHandle = ISourceControlModule::Get().RegisterPreSubmitFinalize(
-					FSourceControlPreSubmitFinalizeDelegate::FDelegate::CreateStatic(&OnPrePackageSubmission));
+					FSourceControlPreSubmitFinalizeDelegate::FDelegate::CreateStatic(&VirtualizePackages));
 			});
 
 		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");

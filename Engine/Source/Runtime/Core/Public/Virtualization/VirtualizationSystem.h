@@ -255,6 +255,24 @@ public:
 		return QueryPayloadStatuses(Ids, StorageType, OutStatuses) != EQueryResult::Success;
 	}
 
+	/**
+	 * Runs the virtualization process on a set of packages. All of the packages will be parsed and any found to be containing locally stored
+	 * payloads will have them removed but before they are removed they will be pushed to persistent storage.
+	 * 
+	 * @param FilesToVirtualize		An array of file paths to packages that should be virtualized. If a path resolves to a file that is not 
+	 *								a valid package then it will be silently skipped and will not be considered an error.
+	 * @param OutDescriptionTags	The process may produce description tags associated with the packages which will be placed in this array.
+	 *								These tags can be used to improve logging, or be appended to change list descriptions etc. Note that the 
+	 *								array will be emptied before the process.
+	 *								is run and will not contain any pre-existing entries.
+	 * @param OutErrors				Any error encountered during the process will be added here. If any error is added to the array then it
+	 *								can be assumed that the process will return false. Note that the array will be emptied before the process
+	 *								is run and will not contain any pre-existing entries.
+	 * 
+	 * @return True if the process succeeded and false if it did not. If this returns false then OutErrors should contain at least one entry
+	 */
+	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) = 0;
+
 	using GetPayloadActivityInfoFuncRef = TFunctionRef<void(const FString& DebugName, const FString& ConfigName, const FPayloadActivityInfo& PayloadInfo)>;
 
 	/** Access profiling info relating to payload activity per backend. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/

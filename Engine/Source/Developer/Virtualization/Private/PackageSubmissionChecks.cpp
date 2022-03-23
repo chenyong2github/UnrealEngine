@@ -124,9 +124,9 @@ bool TryCopyPackageWithoutTrailer(const FPackagePath PackagePath, const FString&
 	return true;
 }
 
-void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>& DescriptionTags, TArray<FText>& Errors)
+void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UE::Virtualization::OnPrePackageSubmission);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UE::Virtualization::VirtualizePackages);
 
 	IVirtualizationSystem& System = IVirtualizationSystem::Get();
 
@@ -155,7 +155,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	Progress.MakeDialog();
 
 	// Other systems may have added errors to this array, we need to check so later we can determine if this function added any additional errors.
-	const int32 NumErrors = Errors.Num();
+	const int32 NumErrors = OutErrors.Num();
 
 	struct FPackageInfo
 	{
@@ -197,7 +197,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 				{
 					FText Message = FText::Format(	LOCTEXT("Virtualization_PkgHasReferences", "Cannot virtualize the package '{1}' as it has referenced payloads in the trailer"),
 													FText::FromString(PackagePath.GetDebugName()));
-					Errors.Add(Message);
+					OutErrors.Add(Message);
 					return;
 				}
 
@@ -228,7 +228,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	if (System.QueryPayloadStatuses(AllLocalPayloads, EStorageType::Persistent, PayloadStatuses) != EQueryResult::Success)
 	{
 		FText Message = LOCTEXT("Virtualization_DoesExistFail", "Failed to find the status of the payloads in the packages being submitted");
-		Errors.Add(Message);
+		OutErrors.Add(Message);
 
 		return;
 	}
@@ -253,7 +253,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
 													FText::FromString(LexToString(PackageInfo.LocalPayloads[Index])),
 													FText::FromString(PackageInfo.Path.GetDebugName()));
-					Errors.Add(Message);
+					OutErrors.Add(Message);
 					return;
 				}
 			}
@@ -292,7 +292,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		{
 			FText Message = FText::Format(	LOCTEXT("Virtualization_PkgOpen", "Failed to open the package '{1}' for reading"),
 											FText::FromString(PackageInfo.Path.GetDebugName()));
-			Errors.Add(Message);
+			OutErrors.Add(Message);
 			return;
 		}
 
@@ -310,7 +310,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 												FText::FromString(PackageInfo.Path.GetDebugName()),
 												FText::FromString(LexToString(PayloadId)),
 												FText::FromString(LexToString(Payload.GetRawHash())));
-				Errors.Add(Message);
+				OutErrors.Add(Message);
 				return;
 			}
 
@@ -319,7 +319,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 				FText Message = FText::Format(	LOCTEXT("Virtualization_MissingPayload", "Unable to find the payload '{0}' in the local storage of package '{1}'"),
 												FText::FromString(LexToString(PayloadId)),
 												FText::FromString(PackageInfo.Path.GetDebugName()));
-				Errors.Add(Message);
+				OutErrors.Add(Message);
 				return;
 
 			}
@@ -333,7 +333,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	if (!System.PushData(PayloadsToSubmit, EStorageType::Persistent))
 	{
 		FText Message = LOCTEXT("Virtualization_PushFailure", "Failed to push payloads");
-		Errors.Add(Message);
+		OutErrors.Add(Message);
 		return;
 	}
 
@@ -363,7 +363,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
 													FText::FromString(LexToString(Request.Identifier)),
 													FText::FromString(PackageInfo.Path.GetDebugName()));
-					Errors.Add(Message);
+					OutErrors.Add(Message);
 					return;
 				}
 			}
@@ -391,7 +391,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		// TODO Optimization: Combine TryCopyPackageWithoutTrailer with the appending of the new trailer to avoid opening multiple handles
 
 		// Create copy of package minus the trailer the trailer
-		if (!TryCopyPackageWithoutTrailer(PackagePath, TempFilePath, PackageInfo.Trailer, Errors))
+		if (!TryCopyPackageWithoutTrailer(PackagePath, TempFilePath, PackageInfo.Trailer, OutErrors))
 		{
 			return;
 		}			
@@ -402,7 +402,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		{
 			FText Message = FText::Format(	LOCTEXT("Virtualization_PkgOpen", "Failed to open the package '{1}' for reading"),
 											FText::FromString(PackagePath.GetDebugName()));
-			Errors.Add(Message);
+			OutErrors.Add(Message);
 			return;
 		}
 
@@ -411,7 +411,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		{
 			FText Message = FText::Format(	LOCTEXT("Virtualization_TrailerAppendOpen", "Unable to open '{0}' to append the trailer'"),
 											FText::FromString(TempFilePath));
-			Errors.Add(Message);
+			OutErrors.Add(Message);
 			return;
 		}
 
@@ -420,7 +420,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		{
 			FText Message = FText::Format(	LOCTEXT("Virtualization_TrailerAppend", "Failed to append the trailer to '{0}'"),
 											FText::FromString(TempFilePath));
-			Errors.Add(Message);
+			OutErrors.Add(Message);
 			return;
 		}
 
@@ -431,7 +431,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 
 	UE_LOG(LogVirtualization, Display, TEXT("%d package(s) had their trailer container modified and need to be updated"), PackagesToReplace.Num());
 
-	if (NumErrors == Errors.Num())
+	if (NumErrors == OutErrors.Num())
 	{
 		// TODO: Consider using the SavePackage model (move the original, then replace, so we can restore all of the original packages if needed)
 		// having said that, once a package is in PackagesToReplace it should still be safe to submit so maybe we don't need this level of protection?
@@ -456,7 +456,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 			{
 				FText Message = FText::Format(	LOCTEXT("Virtualization_MoveFailed", "Unable to replace the package '{0}' with the virtualized version"),
 												FText::FromString(Iterator.Key.GetDebugName()));
-				Errors.Add(Message);
+				OutErrors.Add(Message);
 				continue;
 			}
 		}
@@ -465,10 +465,10 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	// If we had no new errors add the validation tag to indicate that the packages are safe for submission. 
 	// TODO: Currently this is a simple tag to make it easier for us to track which assets were submitted via the
 	// virtualization process in a test project. This should be expanded when we add proper p4 server triggers.
-	if (NumErrors == Errors.Num())
+	if (NumErrors == OutErrors.Num())
 	{
 		FText Tag = FText::FromString(TEXT("#virtualized"));
-		DescriptionTags.Add(Tag);
+		OutDescriptionTags.Add(Tag);
 	}
 
 	const double TimeInSeconds = FPlatformTime::Seconds() - StartTime;

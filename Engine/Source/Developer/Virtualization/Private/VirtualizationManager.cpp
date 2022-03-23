@@ -578,6 +578,16 @@ EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHa
 	return EQueryResult::Success;
 }
 
+bool FVirtualizationManager::TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
+{
+	OutDescriptionTags.Reset();
+	OutErrors.Reset();
+
+	UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutDescriptionTags, OutErrors);
+
+	return OutErrors.IsEmpty();
+}
+
 FPayloadActivityInfo FVirtualizationManager::GetAccumualtedPayloadActivityInfo() const
 {
 	FPayloadActivityInfo Info;

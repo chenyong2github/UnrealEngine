@@ -61,6 +61,16 @@ public:
 	{
 	}
 
+	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override
+	{
+		OutDescriptionTags.Reset();
+		OutErrors.Reset();
+
+		OutErrors.Add(FText::FromString(TEXT("Calling ::TryVirtualizePackages on FNullVirtualizationSystem")));
+
+		return false;
+	}
+
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override
 	{
 		return FPayloadActivityInfo();
