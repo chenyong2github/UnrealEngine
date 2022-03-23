@@ -52,5 +52,5 @@ void FIOSErrorOutputDevice::HandleError()
 	FDebug::LogFormattedMessageWithCallstack(LogIOS.GetCategoryName(), __FILE__, __LINE__, TEXT("=== Critical error: ==="), GErrorHist, ELogVerbosity::Error);
 #endif
 
-	GLog->PanicFlushThreadedLogs();
+	GLog->PanicFlush();
 }

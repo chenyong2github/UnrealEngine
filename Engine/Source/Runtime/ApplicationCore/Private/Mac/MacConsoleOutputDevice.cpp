@@ -290,7 +290,7 @@ void FMacConsoleOutputDevice::SetDefaultTextColor()
 		UE_LOG(LogCore, Warning, TEXT("*** INTERRUPTED *** : Console Window Closed, Shutting Down"));
 		if (GLog)
 		{
-			GLog->PanicFlushThreadedLogs();
+			GLog->PanicFlush();
 		}
 		_Exit(0);
 	}

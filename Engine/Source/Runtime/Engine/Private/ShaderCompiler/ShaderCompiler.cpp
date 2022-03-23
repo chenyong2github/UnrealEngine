@@ -1117,7 +1117,7 @@ namespace SCWErrorCode
 {
 	void HandleGeneralCrash(const TCHAR* ExceptionInfo, const TCHAR* Callstack)
 	{
-		GLog->PanicFlushThreadedLogs();
+		GLog->PanicFlush();
 		UE_LOG(LogShaderCompilers, Fatal, TEXT("ShaderCompileWorker crashed!\n%s\n\t%s"), ExceptionInfo, Callstack);
 	}
 
@@ -1620,7 +1620,7 @@ static void DumpCompilationJobs(const TArray<FShaderCommonCompileJobPtr>& Queued
 	}
 
 	// Force a log flush so we can track the crash before the cooker potentially crashes before the output shows up
-	GLog->PanicFlushThreadedLogs();
+	GLog->PanicFlush();
 }
 
 // Disable optimization for this crash handler to get full access to the entire stack frame when debugging a crash dump

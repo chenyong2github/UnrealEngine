@@ -280,8 +280,7 @@ static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12Comm
 		}
 	}
 
-	GLog->PanicFlushThreadedLogs();
-	GLog->Flush();
+	GLog->PanicFlush();
 
 	return true;
 }
@@ -791,8 +790,7 @@ namespace D3D12RHI
 		}
 		
 		// Make sure the log is flushed!
-		GLog->PanicFlushThreadedLogs();
-		GLog->Flush();
+		GLog->PanicFlush();
 
 		// Show message box or trace information
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -853,8 +851,7 @@ namespace D3D12RHI
 		}
 
 		// Make sure the log is flushed!
-		GLog->PanicFlushThreadedLogs();
-		GLog->Flush();
+		GLog->PanicFlush();
 
 		UE_LOG(LogD3D12RHI, Fatal, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
 
@@ -898,8 +895,7 @@ namespace D3D12RHI
 		}
 
 		// Make sure the log is flushed!
-		GLog->PanicFlushThreadedLogs();
-		GLog->Flush();
+		GLog->PanicFlush();
 
 		UE_LOG(LogD3D12RHI, Fatal,
 			TEXT("%s failed \n at %s:%u \n with error %s, \n Size=%ix%ix%i Format=%s(0x%08X), NumMips=%i, Flags=%s"),

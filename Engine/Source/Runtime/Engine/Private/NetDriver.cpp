@@ -4962,7 +4962,7 @@ struct FReplicationAutoCapture
 			--KillProcessFrames;
 			if (KillProcessFrames == 0)
 			{
-				GLog->PanicFlushThreadedLogs();
+				GLog->PanicFlush();
 				FPlatformMisc::RequestExit(1);
 			}
 		}

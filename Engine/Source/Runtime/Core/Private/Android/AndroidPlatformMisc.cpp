@@ -1040,8 +1040,7 @@ void DefaultCrashHandler(const FAndroidCrashContext& Context)
 
 		if (GLog)
 		{
-			GLog->SetCurrentThreadAsMasterThread();
-			GLog->Flush();
+			GLog->PanicFlush();
 		}
 
 		if (GWarn)
@@ -1410,8 +1409,7 @@ void FAndroidMisc::TriggerCrashHandler(ECrashContextType InType, const TCHAR* In
 		// we dont flush logs during a fatal signal, malloccrash can cause us to deadlock.
 		if (GLog)
 		{
-			GLog->PanicFlushThreadedLogs();
-			GLog->Flush();
+			GLog->PanicFlush();
 		}
 		if (GWarn)
 		{

@@ -847,8 +847,7 @@ void DefaultCrashHandler(const FUnixCrashContext & Context)
 	const_cast<FUnixCrashContext&>(Context).CaptureStackTrace(Context.ErrorFrame);
 	if (GLog)
 	{
-		GLog->SetCurrentThreadAsMasterThread();
-		GLog->Flush();
+		GLog->PanicFlush();
 	}
 	if (GWarn)
 	{

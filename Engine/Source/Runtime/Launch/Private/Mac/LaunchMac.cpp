@@ -32,8 +32,7 @@ void LogCrashCallstack(const FMacCrashContext& Context)
     Context.ReportCrash();
     if (GLog)
     {
-        GLog->SetCurrentThreadAsMasterThread();
-        GLog->Flush();
+        GLog->PanicFlush();
     }
     if (GWarn)
     {

@@ -275,7 +275,7 @@ void FORCENOINLINE FThreadHeartBeat::OnHang(double HangDuration, uint32 ThreadTh
 
 #if PLATFORM_USE_REPORT_ENSURE
 		UE_LOG(LogCore, Error, TEXT("%s"), *ErrorMessage);
-		GLog->PanicFlushThreadedLogs();
+		GLog->PanicFlush();
 
 		// Skip macros and FDebug, we always want this to fire
 		ReportHang(*ErrorMessage, StackFrames, NumStackFrames, ThreadThatHung);

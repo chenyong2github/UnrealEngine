@@ -163,8 +163,9 @@ struct FOutputDeviceRedirectorState
  * - Must be locked to write to unbuffered output devices.
  * - Must not be entered when the thread holds a write or master lock.
  */
-struct FOutputDevicesReadScopeLock
+class FOutputDevicesReadScopeLock
 {
+public:
 	FORCEINLINE explicit FOutputDevicesReadScopeLock(FOutputDeviceRedirectorState& InState)
 		: State(InState)
 	{
@@ -192,6 +193,7 @@ struct FOutputDevicesReadScopeLock
 		State.OutputDevicesLockState.fetch_sub(2, std::memory_order_relaxed);
 	}
 
+private:
 	FOutputDeviceRedirectorState& State;
 };
 
@@ -202,8 +204,9 @@ struct FOutputDevicesReadScopeLock
  * - Must be locked to add or remove output devices.
  * - Must not be entered when the thread holds a read, write, or master lock.
  */
-struct FOutputDevicesWriteScopeLock
+class FOutputDevicesWriteScopeLock
 {
+public:
 	FORCEINLINE explicit FOutputDevicesWriteScopeLock(FOutputDeviceRedirectorState& InState)
 		: State(InState)
 	{
@@ -233,6 +236,7 @@ struct FOutputDevicesWriteScopeLock
 		State.OutputDevicesLock.WriteUnlock();
 	}
 
+private:
 	FOutputDeviceRedirectorState& State;
 };
 
@@ -245,8 +249,9 @@ struct FOutputDevicesWriteScopeLock
  * - Must not be entered when the thread holds a write or master lock.
  * - May be locked when the thread holds a read lock.
  */
-struct FOutputDevicesMasterScopeLock
+class FOutputDevicesMasterScopeLock
 {
+public:
 	FORCEINLINE explicit FOutputDevicesMasterScopeLock(FOutputDeviceRedirectorState& InState)
 		: State(InState)
 	{
@@ -258,7 +263,49 @@ struct FOutputDevicesMasterScopeLock
 		State.OutputDevicesLock.WriteUnlock();
 	}
 
+private:
 	FOutputDeviceRedirectorState& State;
+};
+
+/**
+ * A scoped lock for readers of the OutputDevices arrays that need to access master thread state.
+ *
+ * Equivalent to FOutputDevicesMasterScopeLock, except:
+ * - IsLocked() must be checked before accessing the state guarded by the lock.
+ * - The wait to take the lock is bounded. The lock is not taken if the wait time elapses.
+ */
+class FOutputDevicesMasterScopeTryLock
+{
+public:
+	FORCEINLINE explicit FOutputDevicesMasterScopeTryLock(FOutputDeviceRedirectorState& InState, double WaitTime = 0.0)
+		: State(InState)
+		, bLocked(State.OutputDevicesLock.TryWriteLock())
+	{
+		if (!bLocked && WaitTime > 0.0)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FOutputDevicesWriteScopeTryLock);
+			const double EndTime = FPlatformTime::Seconds() + WaitTime;
+			do
+			{
+				bLocked = State.OutputDevicesLock.TryWriteLock();
+			}
+			while (!bLocked && FPlatformTime::Seconds() < EndTime);
+		}
+	}
+
+	FORCEINLINE ~FOutputDevicesMasterScopeTryLock()
+	{
+		if (bLocked)
+		{
+			State.OutputDevicesLock.WriteUnlock();
+		}
+	}
+
+	FORCEINLINE bool IsLocked() const { return bLocked; }
+
+private:
+	FOutputDeviceRedirectorState& State;
+	bool bLocked = false;
 };
 
 void FOutputDeviceRedirectorState::ThreadLoop()
@@ -373,11 +420,6 @@ void FOutputDeviceRedirector::FlushThreadedLogs(EOutputDeviceRedirectorFlushOpti
 	State->FlushBufferedLines();
 }
 
-void FOutputDeviceRedirector::PanicFlushThreadedLogs()
-{
-	Flush();
-}
-
 void FOutputDeviceRedirector::SerializeBacklog(FOutputDevice* OutputDevice)
 {
 	FReadScopeLock ScopeLock(State->BacklogLock);
@@ -422,11 +464,6 @@ void FOutputDeviceRedirector::SetCurrentThreadAsMasterThread()
 
 bool FOutputDeviceRedirector::TryStartDedicatedMasterThread()
 {
-	if constexpr (!PLATFORM_WINDOWS)
-	{
-		return false;
-	}
-
 	if (!FApp::ShouldUseThreadingForPerformance())
 	{
 		return false;
@@ -533,6 +570,39 @@ void FOutputDeviceRedirector::Flush()
 	for (FOutputDevice* OutputDevice : State->UnbufferedOutputDevices)
 	{
 		OutputDevice->Flush();
+	}
+}
+
+void FOutputDeviceRedirector::PanicFlush()
+{
+	if (UE::Private::FOutputDevicesMasterScopeTryLock Lock(*State, 1.0); Lock.IsLocked())
+	{
+		State->BufferedLines.Deplete([this](UE::Private::FOutputDeviceLine&& Line)
+		{
+			for (FOutputDevice* OutputDevice : State->BufferedOutputDevices)
+			{
+				if (OutputDevice->CanBeUsedByPanicFlush())
+				{
+					OutputDevice->Serialize(Line.Data, Line.Verbosity, Line.Category, Line.Time);
+				}
+			}
+		});
+
+		for (FOutputDevice* OutputDevice : State->BufferedOutputDevices)
+		{
+			if (OutputDevice->CanBeUsedByPanicFlush())
+			{
+				OutputDevice->Flush();
+			}
+		}
+
+		for (FOutputDevice* OutputDevice : State->UnbufferedOutputDevices)
+		{
+			if (OutputDevice->CanBeUsedByPanicFlush())
+			{
+				OutputDevice->Flush();
+			}
+		}
 	}
 }
 

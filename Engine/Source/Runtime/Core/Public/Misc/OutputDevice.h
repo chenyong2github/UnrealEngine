@@ -192,11 +192,19 @@ public:
 	}
 
 	/**
-	* @return whether this output device can be used from multiple threads simultaneously without any locking
-	*/
+	 * @return whether this output device can be used from multiple threads simultaneously without any locking
+	 */
 	virtual bool CanBeUsedOnMultipleThreads() const
 	{
 		return false;
+	}
+
+	/**
+	 * @return whether this output device can be used when flushing after a fatal error.
+	 */
+	virtual bool CanBeUsedByPanicFlush() const
+	{
+		return CanBeUsedOnAnyThread();
 	}
 
 	// Simple text printing.

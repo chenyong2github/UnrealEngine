@@ -1410,9 +1410,9 @@ private:
 
 		if (GLog)
 		{
-			//Panic flush the logs to make sure there are no entries queued. This is
-			//not thread safe so it will skip for example editor log.
-			GLog->PanicFlushThreadedLogs();
+			// Panic flush the logs to make sure there are no entries queued.
+			// This is will skip output devices that are not safe to flush during a crash, for example, the editor log.
+			GLog->PanicFlush();
 		}
 		
 		// Get the default settings for the crash context

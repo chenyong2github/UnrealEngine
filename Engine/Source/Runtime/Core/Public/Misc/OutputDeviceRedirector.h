@@ -103,8 +103,9 @@ public:
 	/** Flushes lines buffered by secondary threads. */
 	void FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions Options = EOutputDeviceRedirectorFlushOptions::None);
 
-	/** Same as FlushThreadedLogs(). */
-	void PanicFlushThreadedLogs();
+	/** Same as PanicFlush(). */
+	UE_DEPRECATED(5.1, "Use PanicFlush().")
+	void PanicFlushThreadedLogs() { PanicFlush(); }
 
 	/**
 	 * Serializes the current backlog to the specified output device.
@@ -153,6 +154,9 @@ public:
 
 	/** Passes on the flush request to all current output devices. */
 	void Flush() final;
+
+	/** Makes an effort to flush threaded logs and flush output devices after a fatal error. */
+	void PanicFlush();
 
 	/**
 	 * Closes output device and cleans up.

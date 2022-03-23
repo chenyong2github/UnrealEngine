@@ -692,8 +692,7 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 					const FString* Frame = CachedStrings.Find(Value);
 					UE_LOG(LogVulkanRHI, Error, TEXT("[VK_NV_device_diagnostic_checkpoints] %i: Stage 0x%08x, %s (CRC 0x%x)"), Index, Data[Index].stage, Frame ? *(*Frame) : TEXT("<undefined>"), Value);
 				}
-				GLog->PanicFlushThreadedLogs();
-				GLog->Flush();
+				GLog->PanicFlush();
 			}
 		}
 #endif
@@ -711,8 +710,7 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 			UE_LOG(LogVulkanRHI, Warning, TEXT("[gpu_crash_markers] %s"), (CrashMarkers[i] != 0) ? *FrameName : TEXT("unavailable"));
 		}
 
-		GLog->PanicFlushThreadedLogs();
-		GLog->Flush();
+		GLog->PanicFlush();
 	}
 }
 #endif

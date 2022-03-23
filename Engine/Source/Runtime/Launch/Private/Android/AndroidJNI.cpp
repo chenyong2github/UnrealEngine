@@ -489,8 +489,7 @@ void EngineCrashHandler(const FGenericCrashContext& GenericContext)
 
 		if (GLog)
 		{
-			GLog->SetCurrentThreadAsMasterThread();
-			GLog->Flush();
+			GLog->PanicFlush();
 		}
 		
 		if (GWarn)

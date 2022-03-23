@@ -107,7 +107,7 @@ void FWindowsErrorOutputDevice::HandleError()
 #if !NO_LOGGING
 	FDebug::LogFormattedMessageWithCallstack(LogWindows.GetCategoryName(), __FILE__, __LINE__, TEXT("=== Critical error: ==="), GErrorHist, ELogVerbosity::Error);
 #endif
-	GLog->PanicFlushThreadedLogs();
+	GLog->PanicFlush();
 
 	HandleErrorRestoreUI();
 

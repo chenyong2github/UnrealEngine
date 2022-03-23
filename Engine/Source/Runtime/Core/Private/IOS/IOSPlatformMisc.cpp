@@ -1362,8 +1362,7 @@ static void DefaultCrashHandler(FIOSCrashContext const& Context)
     Context.ReportCrash();
     if (GLog)
     {
-        GLog->SetCurrentThreadAsMasterThread();
-        GLog->Flush();
+        GLog->PanicFlush();
     }
     if (GWarn)
     {

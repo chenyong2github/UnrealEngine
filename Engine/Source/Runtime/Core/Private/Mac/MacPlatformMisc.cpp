@@ -1916,8 +1916,7 @@ static void DefaultCrashHandler(FMacCrashContext const& Context)
 	Context.ReportCrash();
 	if (GLog)
 	{
-		GLog->SetCurrentThreadAsMasterThread();
-		GLog->Flush();
+		GLog->PanicFlush();
 	}
 	if (GWarn)
 	{

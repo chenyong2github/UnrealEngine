@@ -32,7 +32,7 @@ void ReportInteractiveEnsure(const TCHAR* InMessage)
 	GEnsureShowsCRC = true;
 
 #if PLATFORM_USE_REPORT_ENSURE
-	GLog->PanicFlushThreadedLogs();
+	GLog->PanicFlush();
 	ReportEnsure(InMessage, nullptr);
 #endif
 

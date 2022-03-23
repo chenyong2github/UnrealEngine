@@ -81,7 +81,7 @@ void FHoloLensErrorOutputDevice::HandleError()
 #if !NO_LOGGING
 	FDebug::LogFormattedMessageWithCallstack(LogHoloLens.GetCategoryName(), __FILE__, __LINE__, TEXT("=== Critical error: ==="), GErrorHist, ELogVerbosity::Error);
 #endif
-	GLog->PanicFlushThreadedLogs();
+	GLog->PanicFlush();
 
 	// Copy to clipboard in non-cooked editor builds.
 	FPlatformApplicationMisc::ClipboardCopy(GErrorHist);

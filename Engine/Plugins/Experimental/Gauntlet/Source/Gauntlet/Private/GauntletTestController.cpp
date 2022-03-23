@@ -68,7 +68,7 @@ void UGauntletTestController::EndTest(int32 ExitCode /*= 0*/)
 {
 	UE_LOG(LogGauntlet, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), ExitCode);
 	// we flush logs because we don't (currently...) want to treat shutdown errors as failures
-	GLog->PanicFlushThreadedLogs();
+	GLog->FlushThreadedLogs();
 	// force exit only if platform doesn't support quitting
 	FPlatformMisc::RequestExitWithStatus(!FPlatformProperties::SupportsQuit(), static_cast<uint8>(ExitCode));
 }
