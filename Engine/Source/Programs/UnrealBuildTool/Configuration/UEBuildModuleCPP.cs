@@ -35,14 +35,35 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// If UHT found any associated UObjects in this module's source files
+		/// </summary>
+		public bool bHasUObjects;
+
+		/// <summary>
 		/// The directory for this module's generated code
 		/// </summary>
 		public readonly DirectoryReference? GeneratedCodeDirectory;
 
 		/// <summary>
-		/// Set for modules that have generated code
+		/// The directory for this module's generated UHT code
 		/// </summary>
-		public bool bAddGeneratedCodeIncludePath;
+		public DirectoryReference? GeneratedCodeDirectoryUHT
+		{
+			get { return GeneratedCodeDirectory != null ? DirectoryReference.Combine(GeneratedCodeDirectory!, "UHT") : null; }
+		}
+
+		/// <summary>
+		/// The directory for this module's generated VNI code
+		/// </summary>
+		public DirectoryReference? GeneratedCodeDirectoryVNI
+		{
+			get { return GeneratedCodeDirectory != null ? DirectoryReference.Combine(GeneratedCodeDirectory!, "VNI") : null; }
+		}
+
+		/// <summary>
+		/// Global override to force all include paths to be always added
+		/// </summary>
+		static public bool bForceAddGeneratedCodeIncludePath;
 
 		/// <summary>
 		/// Paths containing *.gen.cpp files for this module.  If this is null then this module doesn't have any generated code.
@@ -321,27 +342,30 @@ namespace UnrealBuildTool
 			bool bLegacyPublicIncludePaths
 			)
 		{
-			// This directory may not exist for this module (or ever exist, if it doesn't contain any generated headers), but we want the project files
-			// to search it so we can pick up generated code definitions after UHT is run for the first time.
-			if(bAddGeneratedCodeIncludePath || (ProjectFileGenerator.bGenerateProjectFiles && GeneratedCodeDirectory != null))
+			if (GeneratedCodeDirectory != null)
 			{
-				IncludePaths.Add(GeneratedCodeDirectory!);
+				// This directory may not exist for this module (or ever exist, if it doesn't contain any generated headers), but we want the project files
+				// to search it so we can pick up generated code definitions after UHT is run for the first time.
+				bool bForceAddIncludePath = bForceAddGeneratedCodeIncludePath || ProjectFileGenerator.bGenerateProjectFiles;
 
-				// If this module has Verse code, also add a VNI subdirectory in the generated code directory
-				if (bHasVerse)
+				if (bHasUObjects || bForceAddIncludePath)
 				{
-					DirectoryReference VNIGeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory!, "VNI");
-					IncludePaths.Add(VNIGeneratedCodeDirectory);
+					IncludePaths.Add(GeneratedCodeDirectoryUHT!);
 				}
 
-				if (Rules.AdditionalCodeGenDirectories != null)
+				if (bHasVerse || bForceAddIncludePath)
 				{
-					foreach (string CodeGenDir in Rules.AdditionalCodeGenDirectories)
+					IncludePaths.Add(GeneratedCodeDirectoryVNI!);
+				}
+			}
+
+			if (Rules.AdditionalCodeGenDirectories != null)
+			{
+				foreach (string CodeGenDir in Rules.AdditionalCodeGenDirectories)
+				{
+					if (Directory.Exists(CodeGenDir))
 					{
-						if (Directory.Exists(CodeGenDir))
-						{
-							IncludePaths.Add(new DirectoryReference(CodeGenDir));
-						}
+						IncludePaths.Add(new DirectoryReference(CodeGenDir));
 					}
 				}
 			}

@@ -461,7 +461,7 @@ namespace UnrealBuildTool
 				{
 					UEBuildModuleCPP Module = ModulesSortedByType[Idx];
 
-					UHTModuleInfo Info = new UHTModuleInfo(Module.Name, Module.RulesFile, Module.ModuleDirectories, ModuleToType[Module], DirectoryItem.GetItemByDirectoryReference(Module.GeneratedCodeDirectory!), GeneratedCodeVersion, Module.Rules.bUsePrecompiled, Module.Rules.OverridePackageType);
+					UHTModuleInfo Info = new UHTModuleInfo(Module.Name, Module.RulesFile, Module.ModuleDirectories, ModuleToType[Module], DirectoryItem.GetItemByDirectoryReference(Module.GeneratedCodeDirectoryUHT!), GeneratedCodeVersion, Module.Rules.bUsePrecompiled, Module.Rules.OverridePackageType);
 					ModuleInfoArray[Idx] = Info;
 
 					Queue.Enqueue(() => SetupUObjectModule(Info, ExcludedFolders, MetadataCache, Queue));
@@ -473,18 +473,33 @@ namespace UnrealBuildTool
 			{
 				UEBuildModuleCPP Module = ModulesSortedByType[Idx];
 				UHTModuleInfo Info = ModuleInfoArray[Idx];
+
+				// Delete any obsolete files at the root of the generated code directory
+				// Remove this code after engine version 5.2 (SOL-2551)
+				if (Module.GeneratedCodeDirectory != null && DirectoryReference.Exists(Module.GeneratedCodeDirectory))
+				{
+					DirectoryItem GeneratedCodeDirectory = DirectoryItem.GetItemByDirectoryReference(Module.GeneratedCodeDirectory);
+					foreach (FileItem File in GeneratedCodeDirectory.EnumerateFiles())
+					{
+						File.Delete();
+					}
+				}
+
 				if (Info.PublicUObjectClassesHeaders.Count > 0 || Info.PrivateUObjectHeaders.Count > 0 || Info.PublicUObjectHeaders.Count > 0 || Info.InternalUObjectHeaders.Count > 0)
 				{
-					// Set a flag indicating that we need to add the generated headers directory
-					Module.bAddGeneratedCodeIncludePath = true;
+					Module.bHasUObjects = true;
 
 					// If we've got this far and there are no source files then it's likely we're installed and ignoring
 					// engine files, so we don't need a .gen.cpp either
-					Info.GeneratedCPPFilenameBase = Path.Combine(Module.GeneratedCodeDirectory!.FullName, Info.ModuleName) + ".gen";
+					DirectoryReference GeneratedCodeDirectoryUHT = Module.GeneratedCodeDirectoryUHT!;
+					Info.GeneratedCPPFilenameBase = Path.Combine(GeneratedCodeDirectoryUHT.FullName, Info.ModuleName) + ".gen";
 					if (!Module.Rules.bUsePrecompiled)
 					{
-						Module.GeneratedCppDirectories = new List<string>();
-						Module.GeneratedCppDirectories.Add(Module.GeneratedCodeDirectory.FullName);
+						if (Module.GeneratedCppDirectories == null)
+						{
+							Module.GeneratedCppDirectories = new List<string>();
+						}
+						Module.GeneratedCppDirectories.Add(GeneratedCodeDirectoryUHT.FullName);
 
 						if (Module.Rules.AdditionalCodeGenDirectories != null)
 						{
@@ -512,12 +527,16 @@ namespace UnrealBuildTool
 				else
 				{
 					// Remove any stale generated code directory
-					// Don't destroy the directory if we have Verse
-					if(!Module.bHasVerse && Module.GeneratedCodeDirectory != null && !Module.Rules.bUsePrecompiled)
+					if (Module.GeneratedCodeDirectoryUHT != null && !Module.Rules.bUsePrecompiled)
 					{
-						if (DirectoryReference.Exists(Module.GeneratedCodeDirectory))
+						if (DirectoryReference.Exists(Module.GeneratedCodeDirectoryUHT))
 						{
-							Directory.Delete(Module.GeneratedCodeDirectory.FullName, true);
+							Directory.Delete(Module.GeneratedCodeDirectoryUHT.FullName, true);
+							// Also delete parent directory if now empty
+							if (!Directory.EnumerateFileSystemEntries(Module.GeneratedCodeDirectory!.FullName).Any())
+							{
+								Directory.Delete(Module.GeneratedCodeDirectory!.FullName, true);
+							}
 						}
 					}
 				}

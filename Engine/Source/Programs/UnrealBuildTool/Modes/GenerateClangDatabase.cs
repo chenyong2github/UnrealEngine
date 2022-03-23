@@ -47,6 +47,9 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Force C++ modules to always include their generated code directories
+			UEBuildModuleCPP.bForceAddGeneratedCodeIncludePath = true;
+
 			// Parse all the target descriptors
 			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile);
 
@@ -67,15 +70,6 @@ namespace UnrealBuildTool
 					FileReference ClangPath = FindClangCompiler(Target);
 
 					bool IsWindowsClang = ClangPath.GetFileName().Equals("clang-cl.exe", StringComparison.OrdinalIgnoreCase);
-
-					// Convince each module to output its generated code include path
-					foreach (UEBuildBinary Binary in Target.Binaries)
-					{
-						foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
-						{
-							Module.bAddGeneratedCodeIncludePath = true;
-						}
-					}
 
 					// Create all the binaries and modules
 					CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles();
