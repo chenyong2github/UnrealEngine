@@ -1154,7 +1154,7 @@ namespace AutomationTool
 				Scope.Span.SetTag("blocks", InputStorageBlocks.Count);
 				foreach (TempStorageBlock InputStorageBlock in InputStorageBlocks)
 				{
-					TempStorageManifest Manifest = Storage.Retreive(InputStorageBlock.NodeName, InputStorageBlock.OutputName);
+					TempStorageManifest Manifest = Storage.Retrieve(InputStorageBlock.NodeName, InputStorageBlock.OutputName);
 					InputManifests[InputStorageBlock] = Manifest;
 				}
 				Scope.Span.SetTag("size", InputManifests.Sum(x => x.Value.GetTotalSize()));
