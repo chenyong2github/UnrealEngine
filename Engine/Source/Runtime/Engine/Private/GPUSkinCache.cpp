@@ -211,7 +211,7 @@ static inline bool IsGPUSkinCacheInclusive(EShaderPlatform Platform)
 	return (PerPlatformCVar.Get(Platform) != 0);
 }
 
-bool ShouldWeCompileGPUSkinVFShaders(EShaderPlatform Platform)
+bool ShouldWeCompileGPUSkinVFShaders(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel)
 {
 	// If the skin cache is not available on this platform we need to compile GPU Skin VF shaders.
 	if (IsGPUSkinCacheAvailable(Platform) == false)
@@ -227,6 +227,15 @@ bool ShouldWeCompileGPUSkinVFShaders(EShaderPlatform Platform)
 
 	// If the skin cache has been globally disabled for all skeletal meshes we need to compile GPU Skin VF Shaders.
 	if (IsGPUSkinCacheInclusive(Platform) == false)
+	{
+		return true;
+	}
+
+	// Some mobile GPUs (MALI) has a 64K elements limitation on texel buffers
+	// This results in meshes with more than 64k vertices having their skin cache entries disabled at runtime.
+	// We don't have a reliable way of checking this at cook time, so for mobile we must always cache skin cache
+	// shaders so we have something to fall back to.
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		return true;
 	}

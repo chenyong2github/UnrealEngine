@@ -58,7 +58,7 @@ struct FRayTracingGeometrySegment;
 // Can the skin cache be used (ie shaders added, etc)
 extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
 
-extern bool ShouldWeCompileGPUSkinVFShaders(EShaderPlatform Platform);
+extern bool ShouldWeCompileGPUSkinVFShaders(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel);
 
 extern ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices();
 
