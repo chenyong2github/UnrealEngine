@@ -34,6 +34,37 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 		}
 	}
 
+	// Get media source property.
+	MediaSourceProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AMediaPlate, MediaSource));
+	
+	// Get Url property.
+	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AMediaPlate, Url));
+	if (Property->IsValidHandle())
+	{
+		UrlProperty = Property->GetChildHandle("FilePath");
+		if (UrlProperty->IsValidHandle())
+		{
+			if (MediaSourceProperty->IsValidHandle())
+			{
+				// Get a callback when this changes so we can hide the media source property.
+				FSimpleDelegate OnUrlChangedDelegate = FSimpleDelegate::CreateSP(this,
+					&FMediaPlateCustomization::OnUrlChanged, &DetailBuilder);
+				UrlProperty->SetOnPropertyValueChanged(OnUrlChangedDelegate);
+
+				// Is the Url being used?
+				FString Url;
+				if (UrlProperty->GetValue(Url))
+				{
+					if (Url.IsEmpty() == false)
+					{
+						// Yes, so hide the media source.
+						MediaSourceProperty->MarkHiddenByCustomization();
+					}
+				}
+			}
+		}
+	}
+
 	// Add media control buttons.
 	MediaPlateCategory.AddCustomRow(LOCTEXT("MediaPlateControls", "MediaPlate Controls"))
 		.NameContent()
@@ -147,6 +178,12 @@ FReply FMediaPlateCustomization::OnOpenMediaPlate()
 	}
 
 	return FReply::Handled();
+}
+
+void FMediaPlateCustomization::OnUrlChanged(IDetailLayoutBuilder* DetailBuilder)
+{
+	// Refresh the layout so we can show/hide the media source.
+	DetailBuilder->ForceRefreshDetails();
 }
 
 #undef LOCTEXT_NAMESPACE

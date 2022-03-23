@@ -37,10 +37,20 @@ private:
 	/** List of the actors we are editing. */
 	TArray<TWeakObjectPtr<AMediaPlate>> ActorsList;
 
+	/** Stores our media source property. */
+	TSharedPtr<IPropertyHandle> MediaSourceProperty;
+	/** Stores our Url property. */
+	TSharedPtr<IPropertyHandle> UrlProperty;
+
 	/**
 	 * Called when the open media plate button is pressed.
 	 */
 	FReply OnOpenMediaPlate();
+
+	/**
+	 * Called when Url changes.
+	 */
+	void OnUrlChanged(IDetailLayoutBuilder* DetailBuilder);
 
 };
 
