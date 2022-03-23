@@ -737,7 +737,8 @@ bool UDataLayerToAssetCommandlet::CommitConversion(TStrongObjectPtr<UDataLayerTo
 	{
 		if (ConversionInfo->DataLayerToConvert != nullptr)
 		{
-			if (WorldDataLayers->RemoveDataLayer(ConversionInfo->DataLayerToConvert))
+			// Remove directly from DataLayerInstances as RemoveDataLayer method also cleans DeprecatedDataLayerNameToDataLayerInstance which is used for runtime conversion
+			if (WorldDataLayers->DataLayerInstances.Remove(ConversionInfo->DataLayerToConvert))
 			{
 				UE_LOG(LogDataLayerToAssetCommandlet, Log, TEXT("Deleted old data layer %s, it is now converted to Data Layer Asset %s and Data Layer Instance %s"),
 					*ConversionInfo->DataLayerToConvert->GetDataLayerShortName(), *ConversionInfo->DataLayerAsset->GetFullName(), *ConversionInfo->DataLayerInstance->GetDataLayerFName().ToString());
