@@ -4,7 +4,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 
-DEFINE_LOG_CATEGORY(LogUnrealEditorMLAdapter);
+DEFINE_LOG_CATEGORY(LogMLAdapter);
 
 namespace FMLAdapter
 {

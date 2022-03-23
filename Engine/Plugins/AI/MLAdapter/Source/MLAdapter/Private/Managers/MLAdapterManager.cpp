@@ -65,7 +65,7 @@ void UMLAdapterManager::RecreateManagerInstance()
 		? SettingsManagerClass.Get()
 		: UMLAdapterManager::StaticClass();
 
-	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Creating MLAdapter manager of class %s"), *GetNameSafe(Class));
+	UE_LOG(LogMLAdapter, Log, TEXT("Creating MLAdapter manager of class %s"), *GetNameSafe(Class));
 
 	UMLAdapterManager* NewInstance = NewObject<UMLAdapterManager>(GEngine, Class);
 	check(NewInstance);
@@ -148,7 +148,7 @@ void UMLAdapterManager::StopServer()
 {
 	if (RPCServerInstance)
 	{
-		UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Stopping RPC server."));
+		UE_LOG(LogMLAdapter, Log, TEXT("Stopping RPC server."));
 		RPCServerInstance->stop();
 		delete RPCServerInstance;
 		RPCServerInstance = nullptr;
@@ -184,7 +184,7 @@ void UMLAdapterManager::StartServer(uint16 Port, EMLAdapterServerMode InMode, ui
 		}
 	}
 
-	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Starting RPC server on port %d."), Port);
+	UE_LOG(LogMLAdapter, Log, TEXT("Starting RPC server on port %d."), Port);
 	RPCServerInstance = new FRPCServer(Port);
 	CurrentPort = Port;
 	check(RPCServerInstance);
@@ -278,7 +278,7 @@ UMLAdapterSession* UMLAdapterManager::CreateNewSession()
 		? UMLAdapterSettings::GetSessionClass().Get()
 		: UMLAdapterSession::StaticClass();
 
-	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Creating MLAdapter session of class %s"), *GetNameSafe(Class));
+	UE_LOG(LogMLAdapter, Log, TEXT("Creating MLAdapter session of class %s"), *GetNameSafe(Class));
 
 	UMLAdapterSession* NewSession = FMLAdapter::NewObject<UMLAdapterSession>(this, Class);
 	check(NewSession);

@@ -20,7 +20,7 @@ void UMLAdapterAgent_Inference::Think(const float DeltaTime)
 {
 	if (Brain == nullptr)
 	{
-		UE_LOG(LogUnrealEditorMLAdapter, Warning, TEXT("Agent beginning to Think but Brain is null, Skipping."));
+		UE_LOG(LogMLAdapter, Warning, TEXT("Agent beginning to Think but Brain is null, Skipping."));
 		return;
 	}
 

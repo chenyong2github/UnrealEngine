@@ -36,7 +36,7 @@ void UMLAdapterLocalDataCollectionSession::Tick(float DeltaTime)
 
 	if (Agent ==  nullptr)
 	{
-		UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("LocalDataCollectionSession: Player-controlled agent not found yet."))
+		UE_LOG(LogMLAdapter, Log, TEXT("LocalDataCollectionSession: Player-controlled agent not found yet."))
 		return;
 	}
 

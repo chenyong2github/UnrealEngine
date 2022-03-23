@@ -347,7 +347,7 @@ FMLAdapter::FAgentID UMLAdapterSession::AddAgent()
 		? UMLAdapterSettings::GetAgentClass().Get()
 		: UMLAdapterAgent::StaticClass();
 
-	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Creating MLAdapter agent of class %s"), *GetNameSafe(AgentClass));
+	UE_LOG(LogMLAdapter, Log, TEXT("Creating MLAdapter agent of class %s"), *GetNameSafe(AgentClass));
 
 	UMLAdapterAgent* NewAgent = FMLAdapter::NewObject<UMLAdapterAgent>(this, AgentClass);
 
@@ -396,7 +396,7 @@ UMLAdapterAgent* UMLAdapterSession::GetAgent(FMLAdapter::FAgentID AgentID)
 {
 	if (Agents.IsValidIndex(AgentID) == false)
 	{
-		UE_LOG(LogUnrealEditorMLAdapter, Warning, TEXT("UMLAdapterSession::GetAgent: Invalid AgentID. Failing"));
+		UE_LOG(LogMLAdapter, Warning, TEXT("UMLAdapterSession::GetAgent: Invalid AgentID. Failing"));
 		return nullptr;
 	}
 
@@ -489,7 +489,7 @@ bool UMLAdapterSession::RequestAvatarForAgent(UMLAdapterAgent& Agent, UWorld* In
 	if (Agent.GetAvatar() != nullptr)
 	{
 		// skipping.
-		UE_LOG(LogUnrealEditorMLAdapter, Verbose, TEXT("UMLAdapterSession::RequestAvatarForAgent called for agent [%s] while it still has an avatar [%s]. Call ClearAvatar first to null-out agent\'s avatar."),
+		UE_LOG(LogMLAdapter, Verbose, TEXT("UMLAdapterSession::RequestAvatarForAgent called for agent [%s] while it still has an avatar [%s]. Call ClearAvatar first to null-out agent\'s avatar."),
 			Agent.GetAgentID(), *GetNameSafe(Agent.GetAvatar()));
 		return false;
 	}
@@ -507,7 +507,7 @@ bool UMLAdapterSession::RequestAvatarForAgent(UMLAdapterAgent& Agent, UWorld* In
 	
 	if (InWorld == nullptr)
 	{
-		UE_LOG(LogUnrealEditorMLAdapter, Warning, TEXT("UMLAdapterSession::RequestAvatarForAgent called with InWorld and CachedWorld both being null. Auto-failure."));
+		UE_LOG(LogMLAdapter, Warning, TEXT("UMLAdapterSession::RequestAvatarForAgent called with InWorld and CachedWorld both being null. Auto-failure."));
 		return false;
 	}
 

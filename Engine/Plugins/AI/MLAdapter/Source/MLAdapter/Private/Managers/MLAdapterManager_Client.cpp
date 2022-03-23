@@ -94,7 +94,7 @@ void UMLAdapterManager::AddCommonFunctions(FRPCServer& Server)
 
 void UMLAdapterManager::ConfigureAsClient(FRPCServer& Server)
 {
-	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("\tconfiguring as client"));
+	UE_LOG(LogMLAdapter, Log, TEXT("\tconfiguring as client"));
 
 	AddCommonFunctions(Server);
 

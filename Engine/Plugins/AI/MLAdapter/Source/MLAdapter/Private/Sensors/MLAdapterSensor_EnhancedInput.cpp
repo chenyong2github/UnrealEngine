@@ -80,7 +80,7 @@ void UMLAdapterSensor_EnhancedInput::OnAvatarSet(AActor* Avatar)
 
 	if (InputComponent != nullptr)
 	{
-		UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("MLAdapterSensor_EnhancedInput: This sensor already bound to another InputComponent. Cleaning up previous InputComponent and rebinding to new avatar."));
+		UE_LOG(LogMLAdapter, Log, TEXT("MLAdapterSensor_EnhancedInput: This sensor already bound to another InputComponent. Cleaning up previous InputComponent and rebinding to new avatar."));
 		InputComponent->DestroyComponent();
 	}
 
@@ -108,13 +108,13 @@ void UMLAdapterSensor_EnhancedInput::OnAvatarSet(AActor* Avatar)
 			}
 
 			UInputDelegateBinding::BindInputDelegates(Pawn->GetClass(), InputComponent);
-			UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("MLAdapterSensor_EnhancedInput: Successfully bound to %s"), *GetNameSafe(PawnClass));
+			UE_LOG(LogMLAdapter, Log, TEXT("MLAdapterSensor_EnhancedInput: Successfully bound to %s"), *GetNameSafe(PawnClass));
 		}
 	}
 	else
 	{
 		FString AvatarName = Avatar->GetName();
-		UE_LOG(LogUnrealEditorMLAdapter, Warning, TEXT("MLAdapterSensor_EnhancedInput: Unable to bind - could not cast to APawn or APlayerController with a Pawn. Avatar name was %s"), *AvatarName);
+		UE_LOG(LogMLAdapter, Warning, TEXT("MLAdapterSensor_EnhancedInput: Unable to bind - could not cast to APawn or APlayerController with a Pawn. Avatar name was %s"), *AvatarName);
 	}
 
 	Super::OnAvatarSet(Avatar);

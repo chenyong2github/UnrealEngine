@@ -11,7 +11,7 @@
 class AActor;
 class AController;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogUnrealEditorMLAdapter, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogMLAdapter, Log, All);
 
 #ifndef DEFINE_ENUM_TO_STRING
 #define DEFINE_ENUM_TO_STRING(EnumType) FString EnumToString(const EnumType Value) \

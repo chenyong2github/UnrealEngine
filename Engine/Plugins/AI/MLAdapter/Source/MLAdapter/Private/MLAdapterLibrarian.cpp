@@ -20,7 +20,7 @@ namespace FLibrarianHelper
 
 		if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
 		{
-			UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Librarian: skipping class %s registration due to it being %s%s%s")
+			UE_LOG(LogMLAdapter, Log, TEXT("Librarian: skipping class %s registration due to it being %s%s%s")
 				, *Class->GetName()
 				, Class->HasAnyClassFlags(CLASS_Abstract) ? TEXT("Abstract, ") : TEXT("")
 				, Class->HasAnyClassFlags(CLASS_Deprecated) ? TEXT("Deprecated, ") : TEXT("")

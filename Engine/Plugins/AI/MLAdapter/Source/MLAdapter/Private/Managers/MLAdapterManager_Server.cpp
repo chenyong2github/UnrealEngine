@@ -22,7 +22,7 @@
 
 void UMLAdapterManager::ConfigureAsServer(FRPCServer& Server)
 {
-	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("\tconfiguring as server"));
+	UE_LOG(LogMLAdapter, Log, TEXT("\tconfiguring as server"));
 
 	AddCommonFunctions(Server);
 

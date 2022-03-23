@@ -367,7 +367,7 @@ void UMLAdapterAgent::SetAvatar(AActor* InAvatar)
 
 	if (InAvatar != nullptr && IsSuitableAvatar(*InAvatar) == false)
 	{
-		UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("SetAvatar was called for agent %u but %s is not a valid avatar (required avatar class %s)"),
+		UE_LOG(LogMLAdapter, Log, TEXT("SetAvatar was called for agent %u but %s is not a valid avatar (required avatar class %s)"),
 			AgentID, *InAvatar->GetName(), *GetNameSafe(AvatarClass));
 		return;
 	}
