@@ -48,6 +48,7 @@ public class Sequencer : ModuleRules
 				"BlueprintGraph",
 				"LevelSequence",
 				"GraphEditor",
+				"PropertyEditor",
                 "ViewportInteraction",
                 "SerializedRecorderInterface",
 				"ToolMenus",
@@ -85,7 +86,6 @@ public class Sequencer : ModuleRules
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
-				"PropertyEditor",
 				"LevelEditor",
 				"WorkspaceMenuStructure",
 				"MainFrame",

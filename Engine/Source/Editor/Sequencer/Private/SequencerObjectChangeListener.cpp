@@ -6,6 +6,7 @@
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "PropertyEditorPermissionList.h"
 #include "IPropertyChangeListener.h"
 #include "MovieSceneSequence.h"
 #include "ScopedTransaction.h"
@@ -285,6 +286,11 @@ bool FSequencerObjectChangeListener::CanKeyProperty_Internal(FCanKeyPropertyPara
 			const UStruct* PropertyContainer = CanKeyPropertyParams.FindPropertyContainer(Property);
 			if (PropertyContainer)
 			{
+				if (!FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(PropertyContainer, Property->GetFName()))
+				{
+					continue;
+				}
+
 				{
 					FAnimatedPropertyKey PropertyKey = FAnimatedPropertyKey::FromProperty(Property);
 					const FOnAnimatablePropertyChanged* DelegatePtr = FindPropertySetter(*PropertyContainer, PropertyKey, *Property);
