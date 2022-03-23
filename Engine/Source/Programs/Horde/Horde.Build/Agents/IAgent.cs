@@ -1,38 +1,30 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Google.Protobuf.WellKnownTypes;
-using EpicGames.Core;
-using Horde.Build.Acls;
-using Horde.Build.Api;
-using HordeCommon;
-using HordeCommon.Rpc.Tasks;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using Serilog;
-using System.Diagnostics;
 using System.Threading.Tasks;
-using Horde.Build.Collections;
-using EpicGames.Horde.Compute;
+using EpicGames.Core;
 using EpicGames.Horde.Common;
+using EpicGames.Horde.Compute;
+using Google.Protobuf.WellKnownTypes;
+using Horde.Build.Acls;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
+using HordeCommon.Rpc.Tasks;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Models
 {
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
-	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 
 	/// <summary>
 	/// Information about a workspace synced to an agent
@@ -67,39 +59,39 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Whether to use an incremental workspace
 		/// </summary>
-		public bool bIncremental { get; set; }
+		public bool BIncremental { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Cluster">Name of the Perforce cluster</param>
-		/// <param name="UserName">User to log into Perforce with (eg. buildmachine)</param>
-		/// <param name="Identifier">Identifier to distinguish this workspace from other workspaces</param>
-		/// <param name="Stream">The stream to sync</param>
-		/// <param name="View">Custom view for the workspace</param>
+		/// <param name="cluster">Name of the Perforce cluster</param>
+		/// <param name="userName">User to log into Perforce with (eg. buildmachine)</param>
+		/// <param name="identifier">Identifier to distinguish this workspace from other workspaces</param>
+		/// <param name="stream">The stream to sync</param>
+		/// <param name="view">Custom view for the workspace</param>
 		/// <param name="bIncremental">Whether to use an incremental workspace</param>
-		public AgentWorkspace(string? Cluster, string? UserName, string Identifier, string Stream, List<string>? View, bool bIncremental)
+		public AgentWorkspace(string? cluster, string? userName, string identifier, string stream, List<string>? view, bool bIncremental)
 		{
-			if (!String.IsNullOrEmpty(Cluster))
+			if (!String.IsNullOrEmpty(cluster))
 			{
-				this.Cluster = Cluster;
+				Cluster = cluster;
 			}
-			if (!String.IsNullOrEmpty(UserName))
+			if (!String.IsNullOrEmpty(userName))
 			{
-				this.UserName = UserName;
+				UserName = userName;
 			}
-			this.Identifier = Identifier;
-			this.Stream = Stream;
-			this.View = View;
-			this.bIncremental = bIncremental;
+			Identifier = identifier;
+			Stream = stream;
+			View = view;
+			BIncremental = bIncremental;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Workspace">RPC message to construct from</param>
-		public AgentWorkspace(HordeCommon.Rpc.Messages.AgentWorkspace Workspace)
-			: this(Workspace.ConfiguredCluster, Workspace.ConfiguredUserName, Workspace.Identifier, Workspace.Stream, (Workspace.View.Count > 0) ? Workspace.View.ToList() : null, Workspace.Incremental)
+		/// <param name="workspace">RPC message to construct from</param>
+		public AgentWorkspace(HordeCommon.Rpc.Messages.AgentWorkspace workspace)
+			: this(workspace.ConfiguredCluster, workspace.ConfiguredUserName, workspace.Identifier, workspace.Stream, (workspace.View.Count > 0) ? workspace.View.ToList() : null, workspace.Incremental)
 		{
 		}
 
@@ -110,27 +102,27 @@ namespace Horde.Build.Models
 		public string GetDigest()
 		{
 #pragma warning disable CA5351 // Do Not Use Broken Cryptographic Algorithms
-			using (MD5 Hasher = MD5.Create())
+			using (MD5 hasher = MD5.Create())
 			{
-				byte[] Data = BsonExtensionMethods.ToBson(this);
-				return BitConverter.ToString(Hasher.ComputeHash(Data)).Replace("-", "", StringComparison.Ordinal);
+				byte[] data = BsonExtensionMethods.ToBson(this);
+				return BitConverter.ToString(hasher.ComputeHash(data)).Replace("-", "", StringComparison.Ordinal);
 			}
 #pragma warning restore CA5351
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj)
+		public override bool Equals(object? obj)
 		{
-			AgentWorkspace? Other = Obj as AgentWorkspace;
-			if (Other == null)
+			AgentWorkspace? other = obj as AgentWorkspace;
+			if (other == null)
 			{
 				return false;
 			}
-			if (Cluster != Other.Cluster || UserName != Other.UserName || Identifier != Other.Identifier || Stream != Other.Stream || bIncremental != Other.bIncremental)
+			if (Cluster != other.Cluster || UserName != other.UserName || Identifier != other.Identifier || Stream != other.Stream || BIncremental != other.BIncremental)
 			{
 				return false;
 			}
-			if (!Enumerable.SequenceEqual(View ?? new List<string>(), Other.View ?? new List<string>()))
+			if (!Enumerable.SequenceEqual(View ?? new List<string>(), other.View ?? new List<string>()))
 			{
 				return false;
 			}
@@ -140,44 +132,44 @@ namespace Horde.Build.Models
 		/// <inheritdoc/>
 		public override int GetHashCode()
 		{
-			return HashCode.Combine(Cluster, UserName, Identifier, Stream, bIncremental); // Ignore 'View' for now
+			return HashCode.Combine(Cluster, UserName, Identifier, Stream, BIncremental); // Ignore 'View' for now
 		}
 
 		/// <summary>
 		/// Checks if two workspace sets are equivalent, ignoring order
 		/// </summary>
-		/// <param name="WorkspacesA">First list of workspaces</param>
-		/// <param name="WorkspacesB">Second list of workspaces</param>
+		/// <param name="workspacesA">First list of workspaces</param>
+		/// <param name="workspacesB">Second list of workspaces</param>
 		/// <returns>True if the sets are equivalent</returns>
-		public static bool SetEquals(IReadOnlyList<AgentWorkspace> WorkspacesA, IReadOnlyList<AgentWorkspace> WorkspacesB)
+		public static bool SetEquals(IReadOnlyList<AgentWorkspace> workspacesA, IReadOnlyList<AgentWorkspace> workspacesB)
 		{
-			HashSet<AgentWorkspace> WorkspacesSetA = new HashSet<AgentWorkspace>(WorkspacesA);
-			return WorkspacesSetA.SetEquals(WorkspacesB);
+			HashSet<AgentWorkspace> workspacesSetA = new HashSet<AgentWorkspace>(workspacesA);
+			return workspacesSetA.SetEquals(workspacesB);
 		}
 
 		/// <summary>
 		/// Converts this workspace to an RPC message
 		/// </summary>
-		/// <param name="Server">The Perforce server</param>
-		/// <param name="Credentials">Credentials for the server</param>
+		/// <param name="server">The Perforce server</param>
+		/// <param name="credentials">Credentials for the server</param>
 		/// <returns>The RPC message</returns>
-		public HordeCommon.Rpc.Messages.AgentWorkspace ToRpcMessage(IPerforceServer Server, PerforceCredentials? Credentials)
+		public HordeCommon.Rpc.Messages.AgentWorkspace ToRpcMessage(IPerforceServer server, PerforceCredentials? credentials)
 		{
 			// Construct the message
-			HordeCommon.Rpc.Messages.AgentWorkspace Result = new HordeCommon.Rpc.Messages.AgentWorkspace();
-			Result.ConfiguredCluster = Cluster;
-			Result.ConfiguredUserName = UserName;
-			Result.ServerAndPort = Server.ServerAndPort;
-			Result.UserName = Credentials?.UserName ?? UserName;
-			Result.Password = Credentials?.Password;
-			Result.Identifier = Identifier;
-			Result.Stream = Stream;
+			HordeCommon.Rpc.Messages.AgentWorkspace result = new HordeCommon.Rpc.Messages.AgentWorkspace();
+			result.ConfiguredCluster = Cluster;
+			result.ConfiguredUserName = UserName;
+			result.ServerAndPort = server.ServerAndPort;
+			result.UserName = credentials?.UserName ?? UserName;
+			result.Password = credentials?.Password;
+			result.Identifier = Identifier;
+			result.Stream = Stream;
 			if (View != null)
 			{
-				Result.View.AddRange(View);
+				result.View.AddRange(View);
 			}
-			Result.Incremental = bIncremental;
-			return Result;
+			result.Incremental = BIncremental;
+			return result;
 		}
 	}
 
@@ -265,26 +257,26 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Identifier for the lease</param>
-		/// <param name="Name">Name of this lease</param>
-		/// <param name="StreamId"></param>
-		/// <param name="PoolId"></param>
-		/// <param name="LogId">Unique id for the log</param>
-		/// <param name="State">State for the lease</param>
-		/// <param name="Resources">Resources required for this lease</param>
-		/// <param name="Exclusive">Whether to reserve the entire device</param>
-		/// <param name="Payload">Encoded "any" protobuf describing the contents of the payload</param>
-		public AgentLease(LeaseId Id, string Name, StreamId? StreamId, PoolId? PoolId, LogId? LogId, LeaseState State, IReadOnlyDictionary<string, int>? Resources, bool Exclusive, byte[]? Payload)
+		/// <param name="id">Identifier for the lease</param>
+		/// <param name="name">Name of this lease</param>
+		/// <param name="streamId"></param>
+		/// <param name="poolId"></param>
+		/// <param name="logId">Unique id for the log</param>
+		/// <param name="state">State for the lease</param>
+		/// <param name="resources">Resources required for this lease</param>
+		/// <param name="exclusive">Whether to reserve the entire device</param>
+		/// <param name="payload">Encoded "any" protobuf describing the contents of the payload</param>
+		public AgentLease(LeaseId id, string name, StreamId? streamId, PoolId? poolId, LogId? logId, LeaseState state, IReadOnlyDictionary<string, int>? resources, bool exclusive, byte[]? payload)
 		{
-			this.Id = Id;
-			this.Name = Name;
-			this.StreamId = StreamId;
-			this.PoolId = PoolId;
-			this.LogId = LogId;
-			this.State = State;
-			this.Resources = Resources;
-			this.Exclusive = Exclusive;
-			this.Payload = Payload;
+			Id = id;
+			Name = name;
+			StreamId = streamId;
+			PoolId = poolId;
+			LogId = logId;
+			State = state;
+			Resources = resources;
+			Exclusive = exclusive;
+			Payload = payload;
 			StartTime = DateTime.UtcNow;
 		}
 
@@ -296,8 +288,8 @@ namespace Horde.Build.Models
 		{
 			if (Payload != null)
 			{
-				Any BasePayload = Any.Parser.ParseFrom(Payload);
-				if (BasePayload.Is(ConformTask.Descriptor))
+				Any basePayload = Any.Parser.ParseFrom(Payload);
+				if (basePayload.Is(ConformTask.Descriptor))
 				{
 					return true;
 				}
@@ -311,11 +303,11 @@ namespace Horde.Build.Models
 		/// <returns>RPC message</returns>
 		public HordeCommon.Rpc.Messages.Lease ToRpcMessage()
 		{
-			HordeCommon.Rpc.Messages.Lease Lease = new HordeCommon.Rpc.Messages.Lease();
-			Lease.Id = Id.ToString();
-			Lease.Payload = Google.Protobuf.WellKnownTypes.Any.Parser.ParseFrom(Payload); 
-			Lease.State = State;
-			return Lease;
+			HordeCommon.Rpc.Messages.Lease lease = new HordeCommon.Rpc.Messages.Lease();
+			lease.Id = Id.ToString();
+			lease.Payload = Google.Protobuf.WellKnownTypes.Any.Parser.ParseFrom(Payload); 
+			lease.State = State;
+			return lease;
 		}
 	}
 
@@ -332,7 +324,7 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// The operating system (Linux, MacOS, Windows)
 		/// </summary>
-		public const string OSFamily = "OSFamily";
+		public const string OsFamily = "OSFamily";
 
 		/// <summary>
 		/// Pools that this agent belongs to
@@ -347,7 +339,7 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Amount of RAM, in GB
 		/// </summary>
-		public const string RAM = "RAM";
+		public const string Ram = "RAM";
 	}
 
 	/// <summary>
@@ -500,83 +492,83 @@ namespace Horde.Build.Models
 		/// Determines whether this agent is online
 		/// </summary>
 		/// <returns></returns>
-		public static bool IsSessionValid(this IAgent Agent, DateTime UtcNow)
+		public static bool IsSessionValid(this IAgent agent, DateTime utcNow)
 		{
-			return Agent.SessionId.HasValue && Agent.SessionExpiresAt.HasValue && UtcNow < Agent.SessionExpiresAt.Value;
+			return agent.SessionId.HasValue && agent.SessionExpiresAt.HasValue && utcNow < agent.SessionExpiresAt.Value;
 		}
 
 		/// <summary>
 		/// Tests whether an agent is in the given pool
 		/// </summary>
-		/// <param name="Agent"></param>
-		/// <param name="PoolId"></param>
+		/// <param name="agent"></param>
+		/// <param name="poolId"></param>
 		/// <returns></returns>
-		public static bool IsInPool(this IAgent Agent, PoolId PoolId)
+		public static bool IsInPool(this IAgent agent, PoolId poolId)
 		{
-			return Agent.DynamicPools.Contains(PoolId) || Agent.ExplicitPools.Contains(PoolId);
+			return agent.DynamicPools.Contains(poolId) || agent.ExplicitPools.Contains(poolId);
 		}
 
 		/// <summary>
 		/// Get all the pools for each agent
 		/// </summary>
-		/// <param name="Agent">The agent to query</param>
+		/// <param name="agent">The agent to query</param>
 		/// <returns></returns>
-		public static IEnumerable<PoolId> GetPools(this IAgent Agent)
+		public static IEnumerable<PoolId> GetPools(this IAgent agent)
 		{
-			foreach (PoolId PoolId in Agent.DynamicPools)
+			foreach (PoolId poolId in agent.DynamicPools)
 			{
-				yield return PoolId;
+				yield return poolId;
 			}
-			foreach (PoolId PoolId in Agent.ExplicitPools)
+			foreach (PoolId poolId in agent.ExplicitPools)
 			{
-				yield return PoolId;
+				yield return poolId;
 			}
 		}
 
 		/// <summary>
 		/// Tests whether an agent has a particular property
 		/// </summary>
-		/// <param name="Agent"></param>
-		/// <param name="Property"></param>
+		/// <param name="agent"></param>
+		/// <param name="property"></param>
 		/// <returns></returns>
-		public static bool HasProperty(this IAgent Agent, string Property)
+		public static bool HasProperty(this IAgent agent, string property)
 		{
-			return Agent.Properties.BinarySearch(Property, StringComparer.OrdinalIgnoreCase) >= 0;
+			return agent.Properties.BinarySearch(property, StringComparer.OrdinalIgnoreCase) >= 0;
 		}
 
 		/// <summary>
 		/// Finds property values from a sorted list of Name=Value pairs
 		/// </summary>
-		/// <param name="Agent">The agent to query</param>
-		/// <param name="Name">Name of the property to find</param>
+		/// <param name="agent">The agent to query</param>
+		/// <param name="name">Name of the property to find</param>
 		/// <returns>Property values</returns>
-		public static IEnumerable<string> GetPropertyValues(this IAgent Agent, string Name)
+		public static IEnumerable<string> GetPropertyValues(this IAgent agent, string name)
 		{
-			if (Name.Equals(KnownPropertyNames.Id, StringComparison.OrdinalIgnoreCase))
+			if (name.Equals(KnownPropertyNames.Id, StringComparison.OrdinalIgnoreCase))
 			{
-				yield return Agent.Id.ToString();
+				yield return agent.Id.ToString();
 			}
-			else if (Name.Equals(KnownPropertyNames.Pool, StringComparison.OrdinalIgnoreCase))
+			else if (name.Equals(KnownPropertyNames.Pool, StringComparison.OrdinalIgnoreCase))
 			{
-				foreach (PoolId PoolId in Agent.GetPools())
+				foreach (PoolId poolId in agent.GetPools())
 				{
-					yield return PoolId.ToString();
+					yield return poolId.ToString();
 				}
 			}
 			else
 			{
-				int Index = Agent.Properties.BinarySearch(Name, StringComparer.OrdinalIgnoreCase);
-				if (Index < 0)
+				int index = agent.Properties.BinarySearch(name, StringComparer.OrdinalIgnoreCase);
+				if (index < 0)
 				{
-					Index = ~Index;
-					for (; Index < Agent.Properties.Count; Index++)
+					index = ~index;
+					for (; index < agent.Properties.Count; index++)
 					{
-						string Property = Agent.Properties[Index];
-						if (Property.Length <= Name.Length || !Property.StartsWith(Name, StringComparison.OrdinalIgnoreCase) || Property[Name.Length] != '=')
+						string property = agent.Properties[index];
+						if (property.Length <= name.Length || !property.StartsWith(name, StringComparison.OrdinalIgnoreCase) || property[name.Length] != '=')
 						{
 							break;
 						}
-						yield return Property.Substring(Name.Length + 1);
+						yield return property.Substring(name.Length + 1);
 					}
 				}
 			}
@@ -585,70 +577,70 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Evaluates a condition against an agent
 		/// </summary>
-		/// <param name="Agent">The agent to evaluate</param>
-		/// <param name="Condition">The condition to evaluate</param>
+		/// <param name="agent">The agent to evaluate</param>
+		/// <param name="condition">The condition to evaluate</param>
 		/// <returns>True if the agent satisfies the condition</returns>
-		public static bool SatisfiesCondition(this IAgent Agent, Condition Condition)
+		public static bool SatisfiesCondition(this IAgent agent, Condition condition)
 		{
-			return Condition.Evaluate(x => Agent.GetPropertyValues(x));
+			return condition.Evaluate(x => agent.GetPropertyValues(x));
 		}
 
 		/// <summary>
 		/// Determine whether it's possible to add a lease for the given resources
 		/// </summary>
-		/// <param name="Agent">The agent to create a lease for</param>
-		/// <param name="Requirements">Requirements for the lease</param>
+		/// <param name="agent">The agent to create a lease for</param>
+		/// <param name="requirements">Requirements for the lease</param>
 		/// <returns>True if the new lease can be granted</returns>
-		public static bool MeetsRequirements(this IAgent Agent, Requirements Requirements)
+		public static bool MeetsRequirements(this IAgent agent, Requirements requirements)
 		{
-			return MeetsRequirements(Agent, Requirements.Condition, Requirements.Resources, Requirements.Exclusive);
+			return MeetsRequirements(agent, requirements.Condition, requirements.Resources, requirements.Exclusive);
 		}
 
 		/// <summary>
 		/// Determine whether it's possible to add a lease for the given resources
 		/// </summary>
-		/// <param name="Agent">The agent to create a lease for</param>
-		/// <param name="Exclusive">Whether t</param>
-		/// <param name="Condition">Condition to satisfy</param>
-		/// <param name="Resources">Resources required to execute</param>
+		/// <param name="agent">The agent to create a lease for</param>
+		/// <param name="exclusive">Whether t</param>
+		/// <param name="condition">Condition to satisfy</param>
+		/// <param name="resources">Resources required to execute</param>
 		/// <returns>True if the new lease can be granted</returns>
-		public static bool MeetsRequirements(this IAgent Agent, Condition? Condition, Dictionary<string, int>? Resources, bool Exclusive)
+		public static bool MeetsRequirements(this IAgent agent, Condition? condition, Dictionary<string, int>? resources, bool exclusive)
 		{
-			if (!Agent.Enabled || Agent.Status != AgentStatus.Ok)
+			if (!agent.Enabled || agent.Status != AgentStatus.Ok)
 			{
 				return false;
 			}
-			if (Agent.Leases.Any(x => x.Exclusive))
+			if (agent.Leases.Any(x => x.Exclusive))
 			{
 				return false;
 			}
-			if (Exclusive && Agent.Leases.Any())
+			if (exclusive && agent.Leases.Any())
 			{
 				return false;
 			}
-			if (Condition != null && !Agent.SatisfiesCondition(Condition))
+			if (condition != null && !agent.SatisfiesCondition(condition))
 			{
 				return false;
 			}
-			if (Resources != null)
+			if (resources != null)
 			{
-				foreach ((string Name, int Count) in Resources)
+				foreach ((string name, int count) in resources)
 				{
-					int RemainingCount;
-					if (!Agent.Resources.TryGetValue(Name, out RemainingCount))
+					int remainingCount;
+					if (!agent.Resources.TryGetValue(name, out remainingCount))
 					{
 						return false;
 					}
-					foreach (AgentLease Lease in Agent.Leases)
+					foreach (AgentLease lease in agent.Leases)
 					{
-						if (Lease.Resources != null)
+						if (lease.Resources != null)
 						{
-							int LeaseCount;
-							Lease.Resources.TryGetValue(Name, out LeaseCount);
-							RemainingCount -= LeaseCount;
+							int leaseCount;
+							lease.Resources.TryGetValue(name, out leaseCount);
+							remainingCount -= leaseCount;
 						}
 					}
-					if (RemainingCount < Count)
+					if (remainingCount < count)
 					{
 						return false;
 					}
@@ -660,41 +652,41 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets all the autosdk workspaces required for an agent
 		/// </summary>
-		/// <param name="Agent"></param>
-		/// <param name="Globals"></param>
-		/// <param name="Workspaces"></param>
+		/// <param name="agent"></param>
+		/// <param name="globals"></param>
+		/// <param name="workspaces"></param>
 		/// <returns></returns>
-		public static HashSet<AgentWorkspace> GetAutoSdkWorkspaces(this IAgent Agent, Globals Globals, List<AgentWorkspace> Workspaces)
+		public static HashSet<AgentWorkspace> GetAutoSdkWorkspaces(this IAgent agent, Globals globals, List<AgentWorkspace> workspaces)
 		{
-			HashSet<AgentWorkspace> AutoSdkWorkspaces = new HashSet<AgentWorkspace>();
-			foreach (string? ClusterName in Workspaces.Select(x => x.Cluster).Distinct())
+			HashSet<AgentWorkspace> autoSdkWorkspaces = new HashSet<AgentWorkspace>();
+			foreach (string? clusterName in workspaces.Select(x => x.Cluster).Distinct())
 			{
-				PerforceCluster? Cluster = Globals.FindPerforceCluster(ClusterName);
-				if (Cluster != null)
+				PerforceCluster? cluster = globals.FindPerforceCluster(clusterName);
+				if (cluster != null)
 				{
-					AgentWorkspace? AutoSdkWorkspace = GetAutoSdkWorkspace(Agent, Cluster);
-					if (AutoSdkWorkspace != null)
+					AgentWorkspace? autoSdkWorkspace = GetAutoSdkWorkspace(agent, cluster);
+					if (autoSdkWorkspace != null)
 					{
-						AutoSdkWorkspaces.Add(AutoSdkWorkspace);
+						autoSdkWorkspaces.Add(autoSdkWorkspace);
 					}
 				}
 			}
-			return AutoSdkWorkspaces;
+			return autoSdkWorkspaces;
 		}
 
 		/// <summary>
 		/// Get the AutoSDK workspace required for an agent
 		/// </summary>
-		/// <param name="Agent"></param>
-		/// <param name="Cluster">The perforce cluster to get a workspace for</param>
+		/// <param name="agent"></param>
+		/// <param name="cluster">The perforce cluster to get a workspace for</param>
 		/// <returns></returns>
-		public static AgentWorkspace? GetAutoSdkWorkspace(this IAgent Agent, PerforceCluster Cluster)
+		public static AgentWorkspace? GetAutoSdkWorkspace(this IAgent agent, PerforceCluster cluster)
 		{
-			foreach (AutoSdkWorkspace AutoSdk in Cluster.AutoSdk)
+			foreach (AutoSdkWorkspace autoSdk in cluster.AutoSdk)
 			{
-				if (AutoSdk.Stream != null && AutoSdk.Properties.All(x => Agent.Properties.Contains(x)))
+				if (autoSdk.Stream != null && autoSdk.Properties.All(x => agent.Properties.Contains(x)))
 				{
-					return new AgentWorkspace(Cluster.Name, AutoSdk.UserName, AutoSdk.Name ?? "AutoSDK", AutoSdk.Stream!, null, true);
+					return new AgentWorkspace(cluster.Name, autoSdk.UserName, autoSdk.Name ?? "AutoSDK", autoSdk.Stream!, null, true);
 				}
 			}
 			return null;
@@ -703,72 +695,72 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Converts this workspace to an RPC message
 		/// </summary>
-		/// <param name="Agent">The agent to get a workspace for</param>
-		/// <param name="Workspace">The workspace definition</param>
-		/// <param name="Cluster">The global state</param>
-		/// <param name="LoadBalancer">The Perforce load balancer</param>
-		/// <param name="WorkspaceMessages">List of messages</param>
+		/// <param name="agent">The agent to get a workspace for</param>
+		/// <param name="workspace">The workspace definition</param>
+		/// <param name="cluster">The global state</param>
+		/// <param name="loadBalancer">The Perforce load balancer</param>
+		/// <param name="workspaceMessages">List of messages</param>
 		/// <returns>The RPC message</returns>
-		public static async Task<bool> TryAddWorkspaceMessage(this IAgent Agent, AgentWorkspace Workspace, PerforceCluster Cluster, PerforceLoadBalancer LoadBalancer, IList<HordeCommon.Rpc.Messages.AgentWorkspace> WorkspaceMessages)
+		public static async Task<bool> TryAddWorkspaceMessage(this IAgent agent, AgentWorkspace workspace, PerforceCluster cluster, PerforceLoadBalancer loadBalancer, IList<HordeCommon.Rpc.Messages.AgentWorkspace> workspaceMessages)
 		{
 			// Find a matching server, trying to use a previously selected one if possible
-			string? BaseServerAndPort;
-			string? ServerAndPort;
+			string? baseServerAndPort;
+			string? serverAndPort;
 
-			HordeCommon.Rpc.Messages.AgentWorkspace? ExistingWorkspace = WorkspaceMessages.FirstOrDefault(x => x.ConfiguredCluster == Workspace.Cluster);
-			if(ExistingWorkspace != null)
+			HordeCommon.Rpc.Messages.AgentWorkspace? existingWorkspace = workspaceMessages.FirstOrDefault(x => x.ConfiguredCluster == workspace.Cluster);
+			if(existingWorkspace != null)
 			{
-				BaseServerAndPort = ExistingWorkspace.BaseServerAndPort;
-				ServerAndPort = ExistingWorkspace.ServerAndPort;
+				baseServerAndPort = existingWorkspace.BaseServerAndPort;
+				serverAndPort = existingWorkspace.ServerAndPort;
 			}
 			else
 			{
-				if (Cluster == null)
+				if (cluster == null)
 				{
 					return false;
 				}
 
-				IPerforceServer? Server = await LoadBalancer.SelectServerAsync(Cluster, Agent);
-				if (Server == null)
+				IPerforceServer? server = await loadBalancer.SelectServerAsync(cluster, agent);
+				if (server == null)
 				{
 					return false;
 				}
 
-				BaseServerAndPort = Server.BaseServerAndPort;
-				ServerAndPort = Server.ServerAndPort;
+				baseServerAndPort = server.BaseServerAndPort;
+				serverAndPort = server.ServerAndPort;
 			}
 
 			// Find the matching credentials for the desired user
-			PerforceCredentials? Credentials = null;
-			if (Cluster != null)
+			PerforceCredentials? credentials = null;
+			if (cluster != null)
 			{
-				if (Workspace.UserName == null)
+				if (workspace.UserName == null)
 				{
-					Credentials = Cluster.Credentials.FirstOrDefault();
+					credentials = cluster.Credentials.FirstOrDefault();
 				}
 				else
 				{
-					Credentials = Cluster.Credentials.FirstOrDefault(x => String.Equals(x.UserName, Workspace.UserName, StringComparison.OrdinalIgnoreCase));
+					credentials = cluster.Credentials.FirstOrDefault(x => String.Equals(x.UserName, workspace.UserName, StringComparison.OrdinalIgnoreCase));
 				}
 			}
 
 			// Construct the message
-			HordeCommon.Rpc.Messages.AgentWorkspace Result = new HordeCommon.Rpc.Messages.AgentWorkspace();
-			Result.ConfiguredCluster = Workspace.Cluster;
-			Result.ConfiguredUserName = Workspace.UserName;
-			Result.Cluster = Cluster?.Name;
-			Result.BaseServerAndPort = BaseServerAndPort;
-			Result.ServerAndPort = ServerAndPort;
-			Result.UserName = Credentials?.UserName ?? Workspace.UserName;
-			Result.Password = Credentials?.Password;
-			Result.Identifier = Workspace.Identifier;
-			Result.Stream = Workspace.Stream;
-			if (Workspace.View != null)
+			HordeCommon.Rpc.Messages.AgentWorkspace result = new HordeCommon.Rpc.Messages.AgentWorkspace();
+			result.ConfiguredCluster = workspace.Cluster;
+			result.ConfiguredUserName = workspace.UserName;
+			result.Cluster = cluster?.Name;
+			result.BaseServerAndPort = baseServerAndPort;
+			result.ServerAndPort = serverAndPort;
+			result.UserName = credentials?.UserName ?? workspace.UserName;
+			result.Password = credentials?.Password;
+			result.Identifier = workspace.Identifier;
+			result.Stream = workspace.Stream;
+			if (workspace.View != null)
 			{
-				Result.View.AddRange(Workspace.View);
+				result.View.AddRange(workspace.View);
 			}
-			Result.Incremental = Workspace.bIncremental;
-			WorkspaceMessages.Add(Result);
+			result.Incremental = workspace.BIncremental;
+			workspaceMessages.Add(result);
 
 			return true;
 		}

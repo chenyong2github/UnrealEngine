@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Models;
-using Horde.Build.Services;
 using Horde.Build.Storage;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Logs.Readers
 {
@@ -24,22 +20,22 @@ namespace Horde.Build.Logs.Readers
 		/// <summary>
 		/// The bulk storage provider to use
 		/// </summary>
-		IStorageBackend StorageProvider;
+		readonly IStorageBackend _storageProvider;
 
 		/// <summary>
 		/// Log provider
 		/// </summary>
-		ILogger Logger;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StorageProvider">The storage provider</param>
-		/// <param name="Logger">Logging provider</param>
-		public PersistentLogStorage(IStorageBackend<PersistentLogStorage> StorageProvider, ILogger<PersistentLogStorage> Logger)
+		/// <param name="storageProvider">The storage provider</param>
+		/// <param name="logger">Logging provider</param>
+		public PersistentLogStorage(IStorageBackend<PersistentLogStorage> storageProvider, ILogger<PersistentLogStorage> logger)
 		{
-			this.StorageProvider = StorageProvider;
-			this.Logger = Logger;
+			_storageProvider = storageProvider;
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
@@ -48,64 +44,64 @@ namespace Horde.Build.Logs.Readers
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length)
+		public async Task<LogIndexData?> ReadIndexAsync(LogId logId, long length)
 		{
-			Logger.LogDebug("Reading log {LogId} index length {Length} from persistent storage", LogId, Length);
+			_logger.LogDebug("Reading log {LogId} index length {Length} from persistent storage", logId, length);
 
-			string Path = $"{LogId}/index_{Length}";
-			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadBytesAsync(Path);
-			if (Data == null)
+			string path = $"{logId}/index_{length}";
+			ReadOnlyMemory<byte>? data = await _storageProvider.ReadBytesAsync(path);
+			if (data == null)
 			{
 				return null;
 			}
-			return LogIndexData.FromMemory(Data.Value);
+			return LogIndexData.FromMemory(data.Value);
 		}
 
 		/// <inheritdoc/>
-		public Task WriteIndexAsync(LogId LogId, long Length, LogIndexData IndexData)
+		public Task WriteIndexAsync(LogId logId, long length, LogIndexData indexData)
 		{
-			Logger.LogDebug("Writing log {LogId} index length {Length} to persistent storage", LogId, Length);
+			_logger.LogDebug("Writing log {LogId} index length {Length} to persistent storage", logId, length);
 
-			string Path = $"{LogId}/index_{Length}";
-			ReadOnlyMemory<byte> Data = IndexData.ToByteArray();
-			return StorageProvider.WriteBytesAsync(Path, Data);
+			string path = $"{logId}/index_{length}";
+			ReadOnlyMemory<byte> data = indexData.ToByteArray();
+			return _storageProvider.WriteBytesAsync(path, data);
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex)
+		public async Task<LogChunkData?> ReadChunkAsync(LogId logId, long offset, int lineIndex)
 		{
-			Logger.LogDebug("Reading log {LogId} chunk offset {Offset} from persistent storage", LogId, Offset);
+			_logger.LogDebug("Reading log {LogId} chunk offset {Offset} from persistent storage", logId, offset);
 
-			string Path = $"{LogId}/offset_{Offset}";
-			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadBytesAsync(Path);
-			if(Data == null)
+			string path = $"{logId}/offset_{offset}";
+			ReadOnlyMemory<byte>? data = await _storageProvider.ReadBytesAsync(path);
+			if(data == null)
 			{
 				return null;
 			}
 
-			MemoryReader Reader = new MemoryReader(Data.Value);
-			LogChunkData ChunkData = Reader.ReadLogChunkData(Offset, LineIndex);
+			MemoryReader reader = new MemoryReader(data.Value);
+			LogChunkData chunkData = reader.ReadLogChunkData(offset, lineIndex);
 
-			if (Reader.Offset != Data.Value.Length)
+			if (reader.Offset != data.Value.Length)
 			{
-				throw new Exception($"Serialization of persistent chunk {Path} is not at expected offset (expected {Data.Value.Length}, actual {Reader.Offset})");
+				throw new Exception($"Serialization of persistent chunk {path} is not at expected offset (expected {data.Value.Length}, actual {reader.Offset})");
 			}
 
-			return ChunkData;
+			return chunkData;
 		}
 
 		/// <inheritdoc/>
-		public Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
+		public Task WriteChunkAsync(LogId logId, long offset, LogChunkData chunkData)
 		{
-			Logger.LogDebug("Writing log {LogId} chunk offset {Offset} to persistent storage", LogId, Offset);
+			_logger.LogDebug("Writing log {LogId} chunk offset {Offset} to persistent storage", logId, offset);
 
-			string Path = $"{LogId}/offset_{Offset}";
-			byte[] Data = new byte[ChunkData.GetSerializedSize()];
-			MemoryWriter Writer = new MemoryWriter(Data);
-			Writer.WriteLogChunkData(ChunkData);
-			Writer.CheckOffset(Data.Length);
+			string path = $"{logId}/offset_{offset}";
+			byte[] data = new byte[chunkData.GetSerializedSize()];
+			MemoryWriter writer = new MemoryWriter(data);
+			writer.WriteLogChunkData(chunkData);
+			writer.CheckOffset(data.Length);
 
-			return StorageProvider.WriteBytesAsync(Path, Data);
+			return _storageProvider.WriteBytesAsync(path, data);
 		}
 	}
 }

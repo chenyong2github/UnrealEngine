@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Services
 {
@@ -43,64 +40,64 @@ namespace Horde.Build.Services
 			private set;
 		}
 
-		DatabaseService DatabaseService;
-		ITicker Ticker;
-		IOptionsMonitor<ServerSettings> Settings;
-		ILogger Logger;
+		readonly DatabaseService _databaseService;
+		readonly ITicker _ticker;
+		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		/// <param name="Clock"></param>
-		/// <param name="Settings">The server settings</param>
-		/// <param name="Logger">Logger instance</param>
-		public DowntimeService(DatabaseService DatabaseService, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<DowntimeService> Logger)
+		/// <param name="databaseService">The database service instance</param>
+		/// <param name="clock"></param>
+		/// <param name="settings">The server settings</param>
+		/// <param name="logger">Logger instance</param>
+		public DowntimeService(DatabaseService databaseService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<DowntimeService> logger)
 		{
-			this.DatabaseService = DatabaseService;
-			this.Settings = Settings;
-			this.Logger = Logger;
+			_databaseService = databaseService;
+			_settings = settings;
+			_logger = logger;
 
 			// Ensure the initial value to be correct
 			TickAsync(CancellationToken.None).AsTask().Wait();
 
-			Ticker = Clock.AddTicker(TimeSpan.FromMinutes(1.0), TickAsync, Logger);
+			_ticker = clock.AddTicker<DowntimeService>(TimeSpan.FromMinutes(1.0), TickAsync, logger);
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken CancellationToken) => Ticker.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken CancellationToken) => Ticker.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
 
 		/// <inheritdoc/>
-		public void Dispose() => Ticker.Dispose();
+		public void Dispose() => _ticker.Dispose();
 
 		/// <summary>
 		/// Periodically called tick function
 		/// </summary>
-		/// <param name="StoppingToken">Token indicating that the service should stop</param>
+		/// <param name="stoppingToken">Token indicating that the service should stop</param>
 		/// <returns>Async task</returns>
-		async ValueTask TickAsync(CancellationToken StoppingToken)
+		async ValueTask TickAsync(CancellationToken stoppingToken)
 		{
-			Globals Globals = await DatabaseService.GetGlobalsAsync();
+			Globals globals = await _databaseService.GetGlobalsAsync();
 
-			DateTimeOffset Now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, Settings.CurrentValue.TimeZoneInfo);
-			bool bIsActive = Globals.ScheduledDowntime.Any(x => x.IsActive(Now));
+			DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
+			bool bIsActive = globals.ScheduledDowntime.Any(x => x.IsActive(now));
 
-			DateTimeOffset? Next = null;
-			foreach (ScheduledDowntime Schedule in Globals.ScheduledDowntime)
+			DateTimeOffset? next = null;
+			foreach (ScheduledDowntime schedule in globals.ScheduledDowntime)
 			{
-				DateTimeOffset Start = Schedule.GetNext(Now).StartTime;
-				if(Next == null || Start < Next)
+				DateTimeOffset start = schedule.GetNext(now).StartTime;
+				if(next == null || start < next)
 				{
-					Next = Start;
+					next = start;
 				}
 			}
 
-			if (Next != null)
+			if (next != null)
 			{
-				Logger.LogInformation("Server time: {Time}. Downtime: {Downtime}. Next: {Next}.", Now, bIsActive, Next.Value);
+				_logger.LogInformation("Server time: {Time}. Downtime: {Downtime}. Next: {Next}.", now, bIsActive, next.Value);
 			}
 
 			if (bIsActive != IsDowntimeActive)
@@ -108,11 +105,11 @@ namespace Horde.Build.Services
 				IsDowntimeActive = bIsActive;
 				if (IsDowntimeActive)
 				{
-					Logger.LogInformation("Entering downtime");
+					_logger.LogInformation("Entering downtime");
 				}
 				else
 				{
-					Logger.LogInformation("Leaving downtime");
+					_logger.LogInformation("Leaving downtime");
 				}
 			}
 		}

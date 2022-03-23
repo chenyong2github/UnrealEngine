@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Api;
-using Horde.Build.Models;
-using MongoDB.Bson;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using MongoDB.Bson;
 
 namespace Horde.Build.Notifications
 {
@@ -33,14 +33,14 @@ namespace Horde.Build.Notifications
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="JobId"></param>
-		/// <param name="JobName"></param>
-		/// <param name="PoolName"></param>
-		public JobScheduledNotification(string JobId, string JobName, string PoolName)
+		/// <param name="jobId"></param>
+		/// <param name="jobName"></param>
+		/// <param name="poolName"></param>
+		public JobScheduledNotification(string jobId, string jobName, string poolName)
 		{
-			this.JobId = JobId;
-			this.JobName = JobName;
-			this.PoolName = PoolName;
+			JobId = jobId;
+			JobName = jobName;
+			PoolName = poolName;
 		}
 	}
 	
@@ -52,67 +52,67 @@ namespace Horde.Build.Notifications
 		/// <summary>
 		/// Updates a subscription to a trigger
 		/// </summary>
-		/// <param name="TriggerId"></param>
-		/// <param name="User"></param>
-		/// <param name="Email">Whether to receive email notifications</param>
-		/// <param name="Slack">Whether to receive Slack notifications</param>
+		/// <param name="triggerId"></param>
+		/// <param name="user"></param>
+		/// <param name="email">Whether to receive email notifications</param>
+		/// <param name="slack">Whether to receive Slack notifications</param>
 		/// <returns></returns>
-		Task<bool> UpdateSubscriptionsAsync(ObjectId TriggerId, ClaimsPrincipal User, bool? Email, bool? Slack);
+		Task<bool> UpdateSubscriptionsAsync(ObjectId triggerId, ClaimsPrincipal user, bool? email, bool? slack);
 
 		/// <summary>
 		/// Gets the current subscriptions for a user
 		/// </summary>
-		/// <param name="TriggerId"></param>
-		/// <param name="User"></param>
+		/// <param name="triggerId"></param>
+		/// <param name="user"></param>
 		/// <returns>Subscriptions for that user</returns>
-		Task<INotificationSubscription?> GetSubscriptionsAsync(ObjectId TriggerId, ClaimsPrincipal User);
+		Task<INotificationSubscription?> GetSubscriptionsAsync(ObjectId triggerId, ClaimsPrincipal user);
 
 		/// <summary>
 		/// Notify all subscribers that a job step has finished
 		/// </summary>
-		/// <param name="Job">The job containing the step that has finished</param>
-		/// <param name="Graph"></param>
-		/// <param name="BatchId">The batch id</param>
-		/// <param name="StepId">The step id</param>
+		/// <param name="job">The job containing the step that has finished</param>
+		/// <param name="graph"></param>
+		/// <param name="batchId">The batch id</param>
+		/// <param name="stepId">The step id</param>
 		/// <returns>Async task</returns>
-		void NotifyJobStepComplete(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId);
+		void NotifyJobStepComplete(IJob job, IGraph graph, SubResourceId batchId, SubResourceId stepId);
 		
 		/// <summary>
 		/// Notify all subscribers that a job step's outcome has changed
 		/// </summary>
-		/// <param name="Job">The job containing the step that has changed</param>
-		/// <param name="OldLabelStates">The old label states for the job</param>
-		/// <param name="NewLabelStates">The new label states for the job</param>
+		/// <param name="job">The job containing the step that has changed</param>
+		/// <param name="oldLabelStates">The old label states for the job</param>
+		/// <param name="newLabelStates">The new label states for the job</param>
 		/// <returns>Async task</returns>
-		void NotifyLabelUpdate(IJob Job, IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates, IReadOnlyList<(LabelState, LabelOutcome)> NewLabelStates);
+		void NotifyLabelUpdate(IJob job, IReadOnlyList<(LabelState, LabelOutcome)> oldLabelStates, IReadOnlyList<(LabelState, LabelOutcome)> newLabelStates);
 
 		/// <summary>
 		/// Notify slack channel about a stream update failure
 		/// </summary>
-		/// <param name="ErrorMessage">Error message passed back</param>
-		/// <param name="FileName"></param>
-		/// <param name="Change">Latest change number of the file</param>
-		/// <param name="Author">Author of the change, if found from p4 service</param>
-		/// <param name="Description">Description of the change, if found from p4 service</param>
-		void NotifyConfigUpdateFailure(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null);
+		/// <param name="errorMessage">Error message passed back</param>
+		/// <param name="fileName"></param>
+		/// <param name="change">Latest change number of the file</param>
+		/// <param name="author">Author of the change, if found from p4 service</param>
+		/// <param name="description">Description of the change, if found from p4 service</param>
+		void NotifyConfigUpdateFailure(string errorMessage, string fileName, int? change = null, IUser? author = null, string? description = null);
 
 		/// <summary>
 		/// Sends a notification to a user regarding a build health issue.
 		/// </summary>
-		/// <param name="Issue">The new issue that was created</param>
-		void NotifyIssueUpdated(IIssue Issue);
+		/// <param name="issue">The new issue that was created</param>
+		void NotifyIssueUpdated(IIssue issue);
 
 		/// <summary>
 		/// Send a device service notification
 		/// </summary>
-		/// <param name="Message">The message to send</param>
-		/// <param name="Device">The device</param>
-		/// <param name="Pool">The pool</param>
-		/// <param name="Stream"></param>
-		/// <param name="Job"></param>
-		/// <param name="Step"></param>
-		/// <param name="Node"></param>
-		/// <param name="User"></param>
-		void NotifyDeviceService(string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null, IUser? User = null);
+		/// <param name="message">The message to send</param>
+		/// <param name="device">The device</param>
+		/// <param name="pool">The pool</param>
+		/// <param name="stream"></param>
+		/// <param name="job"></param>
+		/// <param name="step"></param>
+		/// <param name="node"></param>
+		/// <param name="user"></param>
+		void NotifyDeviceService(string message, IDevice? device = null, IDevicePool? pool = null, IStream? stream = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null);
     }
 }

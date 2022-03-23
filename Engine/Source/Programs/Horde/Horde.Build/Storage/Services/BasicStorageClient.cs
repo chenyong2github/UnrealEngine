@@ -1,24 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using EpicGames.Serialization;
-using Horde.Build.Services;
-using Horde.Build.Storage;
-using Horde.Build.Utilities;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
+using Horde.Build.Services;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Storage.Services
 {
-	using IRef = EpicGames.Horde.Storage.IRef;
 	using BlobNotFoundException = EpicGames.Horde.Storage.BlobNotFoundException;
+	using IRef = EpicGames.Horde.Storage.IRef;
 
 	/// <summary>
 	/// Simple implementation of <see cref="IStorageClient"/> which uses the current <see cref="IStorageBackend"/> implementation without garbage collection.
@@ -45,209 +43,209 @@ namespace Horde.Build.Storage.Services
 			public CbObject Value => new CbObject(Data);
 		}
 
-		IMongoCollection<RefImpl> Refs;
-		IStorageBackend StorageBackend;
+		readonly IMongoCollection<RefImpl> _refs;
+		readonly IStorageBackend _storageBackend;
 
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		/// <param name="StorageBackend"></param>
-		public BasicStorageClient(DatabaseService DatabaseService, IStorageBackend<BasicStorageClient> StorageBackend)
+		/// <param name="databaseService"></param>
+		/// <param name="storageBackend"></param>
+		public BasicStorageClient(DatabaseService databaseService, IStorageBackend<BasicStorageClient> storageBackend)
 		{
-			Refs = DatabaseService.GetCollection<RefImpl>("Storage.RefsV2");
-			this.StorageBackend = StorageBackend;
+			_refs = databaseService.GetCollection<RefImpl>("Storage.RefsV2");
+			_storageBackend = storageBackend;
 		}
 
 		/// <inheritdoc/>
-		public async Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken)
+		public async Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken)
 		{
-			string Path = GetFullBlobPath(NamespaceId, Hash);
+			string path = GetFullBlobPath(namespaceId, hash);
 
-			Stream? Stream = await StorageBackend.ReadAsync(Path);
-			if(Stream == null)
+			Stream? stream = await _storageBackend.ReadAsync(path);
+			if(stream == null)
 			{
-				throw new BlobNotFoundException(NamespaceId, Hash);
+				throw new BlobNotFoundException(namespaceId, hash);
 			}
 
-			return Stream;
+			return stream;
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken)
+		public async Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken)
 		{
-			byte[] Data;
-			using (MemoryStream Buffer = new MemoryStream())
+			byte[] data;
+			using (MemoryStream buffer = new MemoryStream())
 			{
-				await Stream.CopyToAsync(Buffer, CancellationToken);
-				Data = Buffer.ToArray();
+				await stream.CopyToAsync(buffer, cancellationToken);
+				data = buffer.ToArray();
 			}
 
-			IoHash DataHash = IoHash.Compute(Data);
-			if (Hash != DataHash)
+			IoHash dataHash = IoHash.Compute(data);
+			if (hash != dataHash)
 			{
-				throw new InvalidDataException($"Incorrect hash for data (was {DataHash}, expected {Hash})");
+				throw new InvalidDataException($"Incorrect hash for data (was {dataHash}, expected {hash})");
 			}
 
-			string Path = GetFullBlobPath(NamespaceId, Hash);
-			await StorageBackend.WriteBytesAsync(Path, Data);
+			string path = GetFullBlobPath(namespaceId, hash);
+			await _storageBackend.WriteBytesAsync(path, data);
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken)
+		public async Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken)
 		{
-			return await StorageBackend.ExistsAsync(GetFullBlobPath(NamespaceId, Hash));
+			return await _storageBackend.ExistsAsync(GetFullBlobPath(namespaceId, hash));
 		}
 
 		/// <inheritdoc/>
-		public async Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId NamespaceId, HashSet<IoHash> Hashes, CancellationToken CancellationToken)
+		public async Task<HashSet<IoHash>> FindMissingBlobsAsync(NamespaceId namespaceId, HashSet<IoHash> hashes, CancellationToken cancellationToken)
 		{
-			var Tasks = Hashes.Select(async Hash => (Hash, await StorageBackend.ExistsAsync(GetFullBlobPath(NamespaceId, Hash))));
-			await Task.WhenAll(Tasks);
-			return Tasks.Where(x => !x.Result.Item2).Select(x => x.Result.Item1).ToHashSet();
+			IEnumerable<Task<(IoHash Hash, bool Exists)>> tasks = hashes.Select(async hash => (Hash: hash, await _storageBackend.ExistsAsync(GetFullBlobPath(namespaceId, hash))));
+			await Task.WhenAll(tasks);
+			return tasks.Where(x => !x.Result.Exists).Select(x => x.Result.Hash).ToHashSet();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
+		public async Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
 		{
-			string Id = GetFullRefId(NamespaceId, BucketId, RefId);
+			string id = GetFullRefId(namespaceId, bucketId, refId);
 
-			RefImpl? RefImpl = await Refs.FindOneAndUpdateAsync<RefImpl>(x => x.Id == Id, Builders<RefImpl>.Update.Set(x => x.LastAccessTime, DateTime.UtcNow), new FindOneAndUpdateOptions<RefImpl> { ReturnDocument = ReturnDocument.After }, CancellationToken);
-			if (RefImpl == null || !RefImpl.Finalized)
+			RefImpl? refImpl = await _refs.FindOneAndUpdateAsync<RefImpl>(x => x.Id == id, Builders<RefImpl>.Update.Set(x => x.LastAccessTime, DateTime.UtcNow), new FindOneAndUpdateOptions<RefImpl> { ReturnDocument = ReturnDocument.After }, cancellationToken);
+			if (refImpl == null || !refImpl.Finalized)
 			{
-				throw new RefNotFoundException(NamespaceId, BucketId, RefId);
+				throw new RefNotFoundException(namespaceId, bucketId, refId);
 			}
 
-			return RefImpl;
+			return refImpl;
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
+		public async Task<bool> HasRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
 		{
-			string Id = GetFullRefId(NamespaceId, BucketId, RefId);
-			RefImpl? RefImpl = await Refs.Find<RefImpl>(x => x.Id == Id).FirstOrDefaultAsync(CancellationToken);
-			return RefImpl != null;
+			string id = GetFullRefId(namespaceId, bucketId, refId);
+			RefImpl? refImpl = await _refs.Find<RefImpl>(x => x.Id == id).FirstOrDefaultAsync(cancellationToken);
+			return refImpl != null;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IoHash>> TrySetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value, CancellationToken CancellationToken)
+		public async Task<List<IoHash>> TrySetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value, CancellationToken cancellationToken)
 		{
-			RefImpl NewRef = new RefImpl();
-			NewRef.Id = GetFullRefId(NamespaceId, BucketId, RefId);
-			NewRef.Data = Value.GetView().ToArray();
-			await Refs.ReplaceOneAsync(x => x.Id == NewRef.Id, NewRef, new ReplaceOptions { IsUpsert = true }, CancellationToken);
+			RefImpl newRef = new RefImpl();
+			newRef.Id = GetFullRefId(namespaceId, bucketId, refId);
+			newRef.Data = value.GetView().ToArray();
+			await _refs.ReplaceOneAsync(x => x.Id == newRef.Id, newRef, new ReplaceOptions { IsUpsert = true }, cancellationToken);
 
-			IoHash Hash = IoHash.Compute(Value.GetView().Span);
-			return await TryFinalizeRefAsync(NamespaceId, BucketId, RefId, Hash, CancellationToken);
+			IoHash hash = IoHash.Compute(value.GetView().Span);
+			return await TryFinalizeRefAsync(namespaceId, bucketId, refId, hash, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, IoHash Hash, CancellationToken CancellationToken)
+		public async Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, IoHash hash, CancellationToken cancellationToken)
 		{
-			string Id = GetFullRefId(NamespaceId, BucketId, RefId);
+			string id = GetFullRefId(namespaceId, bucketId, refId);
 
-			RefImpl Ref = await Refs.Find(x => x.Id == Id).FirstAsync(CancellationToken);
+			RefImpl refImpl = await _refs.Find(x => x.Id == id).FirstAsync(cancellationToken);
 
-			HashSet<IoHash> MissingHashes = new HashSet<IoHash>();
-			if (!Ref.Finalized)
+			HashSet<IoHash> missingHashes = new HashSet<IoHash>();
+			if (!refImpl.Finalized)
 			{
-				HashSet<IoHash> CheckedObjectHashes = new HashSet<IoHash>();
-				HashSet<IoHash> CheckedBinaryHashes = new HashSet<IoHash>();
-				await FinalizeInternalAsync(Ref.NamespaceId, Ref.Value, CheckedObjectHashes, CheckedBinaryHashes, MissingHashes);
+				HashSet<IoHash> checkedObjectHashes = new HashSet<IoHash>();
+				HashSet<IoHash> checkedBinaryHashes = new HashSet<IoHash>();
+				await FinalizeInternalAsync(refImpl.NamespaceId, refImpl.Value, checkedObjectHashes, checkedBinaryHashes, missingHashes);
 
-				if (MissingHashes.Count == 0)
+				if (missingHashes.Count == 0)
 				{
-					await Refs.UpdateOneAsync(x => x.Id == Id, Builders<RefImpl>.Update.Set(x => x.Finalized, true), cancellationToken: CancellationToken);
+					await _refs.UpdateOneAsync(x => x.Id == id, Builders<RefImpl>.Update.Set(x => x.Finalized, true), cancellationToken: cancellationToken);
 				}
 			}
-			return MissingHashes.ToList();
+			return missingHashes.ToList();
 		}
 
-		async Task FinalizeInternalAsync(NamespaceId NamespaceId, CbObject Object, HashSet<IoHash> CheckedObjectHashes, HashSet<IoHash> CheckedBinaryHashes, HashSet<IoHash> MissingHashes)
+		async Task FinalizeInternalAsync(NamespaceId namespaceId, CbObject obj, HashSet<IoHash> checkedObjectHashes, HashSet<IoHash> checkedBinaryHashes, HashSet<IoHash> missingHashes)
 		{
-			List<IoHash> NewObjectHashes = new List<IoHash>();
-			List<IoHash> NewBinaryHashes = new List<IoHash>();
-			Object.IterateAttachments(Field =>
+			List<IoHash> newObjectHashes = new List<IoHash>();
+			List<IoHash> newBinaryHashes = new List<IoHash>();
+			obj.IterateAttachments(field =>
 			{
-				IoHash AttachmentHash = Field.AsAttachment();
-				if (Field.IsObjectAttachment())
+				IoHash attachmentHash = field.AsAttachment();
+				if (field.IsObjectAttachment())
 				{
-					if (CheckedObjectHashes.Add(AttachmentHash))
+					if (checkedObjectHashes.Add(attachmentHash))
 					{
-						NewObjectHashes.Add(AttachmentHash);
+						newObjectHashes.Add(attachmentHash);
 					}
 				}
 				else
 				{
-					if (CheckedBinaryHashes.Add(AttachmentHash))
+					if (checkedBinaryHashes.Add(attachmentHash))
 					{
-						NewBinaryHashes.Add(AttachmentHash);
+						newBinaryHashes.Add(attachmentHash);
 					}
 				}
 			});
 
-			foreach (IoHash NewHash in NewObjectHashes)
+			foreach (IoHash newHash in newObjectHashes)
 			{
-				string ObjPath = GetFullBlobPath(NamespaceId, NewHash);
+				string objPath = GetFullBlobPath(namespaceId, newHash);
 
-				ReadOnlyMemory<byte>? Data = await StorageBackend.ReadBytesAsync(ObjPath);
-				if (Data == null)
+				ReadOnlyMemory<byte>? data = await _storageBackend.ReadBytesAsync(objPath);
+				if (data == null)
 				{
-					MissingHashes.Add(NewHash);
+					missingHashes.Add(newHash);
 				}
 				else
 				{
-					await FinalizeInternalAsync(NamespaceId, new CbObject(Data.Value), CheckedObjectHashes, CheckedBinaryHashes, MissingHashes);
+					await FinalizeInternalAsync(namespaceId, new CbObject(data.Value), checkedObjectHashes, checkedBinaryHashes, missingHashes);
 				}
 			}
 
-			foreach (IoHash NewBinaryHash in NewBinaryHashes)
+			foreach (IoHash newBinaryHash in newBinaryHashes)
 			{
-				string Path = GetFullBlobPath(NamespaceId, NewBinaryHash);
-				if (!await StorageBackend.ExistsAsync(Path))
+				string path = GetFullBlobPath(namespaceId, newBinaryHash);
+				if (!await _storageBackend.ExistsAsync(path))
 				{
-					MissingHashes.Add(NewBinaryHash);
+					missingHashes.Add(newBinaryHash);
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
+		public async Task<bool> DeleteRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
 		{
-			string Id = GetFullRefId(NamespaceId, BucketId, RefId);
-			DeleteResult Result = await Refs.DeleteOneAsync(x => x.Id == Id, CancellationToken);
-			return Result.DeletedCount > 0;
+			string id = GetFullRefId(namespaceId, bucketId, refId);
+			DeleteResult result = await _refs.DeleteOneAsync(x => x.Id == id, cancellationToken);
+			return result.DeletedCount > 0;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<RefId>> FindMissingRefsAsync(NamespaceId NamespaceId, BucketId BucketId, List<RefId> RefIds, CancellationToken CancellationToken)
+		public async Task<List<RefId>> FindMissingRefsAsync(NamespaceId namespaceId, BucketId bucketId, List<RefId> refIds, CancellationToken cancellationToken)
 		{
-			List<RefId> MissingRefIds = new List<RefId>();
-			foreach (RefId RefId in RefIds)
+			List<RefId> missingRefIds = new List<RefId>();
+			foreach (RefId refId in refIds)
 			{
-				if(!await HasRefAsync(NamespaceId, BucketId, RefId, CancellationToken))
+				if(!await HasRefAsync(namespaceId, bucketId, refId, cancellationToken))
 				{
-					MissingRefIds.Add(RefId);
+					missingRefIds.Add(refId);
 				}
 			}
-			return MissingRefIds;
+			return missingRefIds;
 		}
 
 		/// <summary>
 		/// Gets the formatted id for a particular ref
 		/// </summary>
-		static string GetFullRefId(NamespaceId NamespaceId, BucketId BucketId, RefId RefId)
+		static string GetFullRefId(NamespaceId namespaceId, BucketId bucketId, RefId refId)
 		{
-			return $"{NamespaceId}/{BucketId}/{RefId}";
+			return $"{namespaceId}/{bucketId}/{refId}";
 		}
 
 		/// <summary>
 		/// Gets the path for a blob
 		/// </summary>
-		static string GetFullBlobPath(NamespaceId NamespaceId, IoHash Hash)
+		static string GetFullBlobPath(NamespaceId namespaceId, IoHash hash)
 		{
-			string HashText = Hash.ToString();
-			return $"blobs2/{NamespaceId}/{HashText[0..2]}/{HashText[2..4]}/{HashText}.blob";
+			string hashText = hash.ToString();
+			return $"blobs2/{namespaceId}/{hashText[0..2]}/{hashText[2..4]}/{hashText}.blob";
 		}
 	}
 }

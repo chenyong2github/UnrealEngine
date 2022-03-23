@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Utilities;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Models
 {
@@ -50,62 +45,62 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DaysOfWeek">Which days of the week the schedule should run</param>
-		/// <param name="MinTime">Time during the day for the first schedule to trigger. Measured in minutes from midnight.</param>
-		/// <param name="MaxTime">Time during the day for the last schedule to trigger. Measured in minutes from midnight.</param>
-		/// <param name="Interval">Interval between each schedule triggering</param>
-		public SchedulePattern(List<DayOfWeek>? DaysOfWeek, int MinTime, int? MaxTime, int? Interval)
+		/// <param name="daysOfWeek">Which days of the week the schedule should run</param>
+		/// <param name="minTime">Time during the day for the first schedule to trigger. Measured in minutes from midnight.</param>
+		/// <param name="maxTime">Time during the day for the last schedule to trigger. Measured in minutes from midnight.</param>
+		/// <param name="interval">Interval between each schedule triggering</param>
+		public SchedulePattern(List<DayOfWeek>? daysOfWeek, int minTime, int? maxTime, int? interval)
 		{
-			this.DaysOfWeek = DaysOfWeek;
-			this.MinTime = MinTime;
-			this.MaxTime = MaxTime;
-			this.Interval = Interval;
+			DaysOfWeek = daysOfWeek;
+			MinTime = minTime;
+			MaxTime = maxTime;
+			Interval = interval;
 		}
 
 		/// <summary>
 		/// Calculates the trigger index based on the given time in minutes
 		/// </summary>
-		/// <param name="LastTimeUtc">Time for the last trigger</param>
-		/// <param name="TimeZone">The timezone for running the schedule</param>
+		/// <param name="lastTimeUtc">Time for the last trigger</param>
+		/// <param name="timeZone">The timezone for running the schedule</param>
 		/// <returns>Index of the trigger</returns>
-		public DateTime GetNextTriggerTimeUtc(DateTime LastTimeUtc, TimeZoneInfo TimeZone)
+		public DateTime GetNextTriggerTimeUtc(DateTime lastTimeUtc, TimeZoneInfo timeZone)
 		{
 			// Convert last time into the correct timezone for running the scheule
-			DateTimeOffset LastTime = TimeZoneInfo.ConvertTime((DateTimeOffset)LastTimeUtc, TimeZone);
+			DateTimeOffset lastTime = TimeZoneInfo.ConvertTime((DateTimeOffset)lastTimeUtc, timeZone);
 
 			// Get the base time (ie. the start of this day) for anchoring the schedule
-			DateTimeOffset BaseTime = new DateTimeOffset(LastTime.Year, LastTime.Month, LastTime.Day, 0, 0, 0, LastTime.Offset);
+			DateTimeOffset baseTime = new DateTimeOffset(lastTime.Year, lastTime.Month, lastTime.Day, 0, 0, 0, lastTime.Offset);
 			for (; ; )
 			{
-				if (DaysOfWeek == null || DaysOfWeek.Contains(BaseTime.DayOfWeek))
+				if (DaysOfWeek == null || DaysOfWeek.Contains(baseTime.DayOfWeek))
 				{
 					// Get the last time in minutes from the start of this day
-					int LastTimeMinutes = (int)(LastTime - BaseTime).TotalMinutes;
+					int lastTimeMinutes = (int)(lastTime - baseTime).TotalMinutes;
 
 					// Get the time of the first trigger of this day. If the last time is less than this, this is the next trigger.
-					if (LastTimeMinutes < MinTime)
+					if (lastTimeMinutes < MinTime)
 					{
-						return BaseTime.AddMinutes(MinTime).UtcDateTime;
+						return baseTime.AddMinutes(MinTime).UtcDateTime;
 					}
 
 					// Otherwise, get the time for the last trigger in the day.
 					if (Interval.HasValue && Interval.Value > 0)
 					{
-						int ActualMaxTime = MaxTime ?? ((24 * 60) - 1);
-						if (LastTimeMinutes < ActualMaxTime)
+						int actualMaxTime = MaxTime ?? ((24 * 60) - 1);
+						if (lastTimeMinutes < actualMaxTime)
 						{
-							int LastIndex = (LastTimeMinutes - MinTime) / Interval.Value;
-							int NextIndex = LastIndex + 1;
+							int lastIndex = (lastTimeMinutes - MinTime) / Interval.Value;
+							int nextIndex = lastIndex + 1;
 
-							int NextTimeMinutes = MinTime + (NextIndex * Interval.Value);
-							if (NextTimeMinutes <= ActualMaxTime)
+							int nextTimeMinutes = MinTime + (nextIndex * Interval.Value);
+							if (nextTimeMinutes <= actualMaxTime)
 							{
-								return BaseTime.AddMinutes(NextTimeMinutes).UtcDateTime;
+								return baseTime.AddMinutes(nextTimeMinutes).UtcDateTime;
 							}
 						}
 					}
 				}
-				BaseTime = BaseTime.AddDays(1.0);
+				baseTime = baseTime.AddDays(1.0);
 			}
 		}
 	}
@@ -137,12 +132,12 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="TemplateRefId">The template containing the dependency</param>
-		/// <param name="Target">Target to wait for</param>
-		public ScheduleGate(TemplateRefId TemplateRefId, string Target)
+		/// <param name="templateRefId">The template containing the dependency</param>
+		/// <param name="target">Target to wait for</param>
+		public ScheduleGate(TemplateRefId templateRefId, string target)
 		{
-			this.TemplateRefId = TemplateRefId;
-			this.Target = Target;
+			TemplateRefId = templateRefId;
+			Target = target;
 		}
 	}
 
@@ -232,39 +227,39 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="CurrentTimeUtc">The current time. This will be used to seed the last trigger time.</param>
-		/// <param name="Enabled">Whether the schedule is currently enabled</param>
-		/// <param name="MaxActive">Maximum number of builds that may be active at once</param>
-		/// <param name="MaxChanges">Maximum number of changes the schedule can fall behind head revision</param>
-		/// <param name="RequireSubmittedChange">Whether a change has to be submitted for the schedule to trigger</param>
-		/// <param name="Gate">Reference to another job/target which much succeed for this schedule to trigger</param>
-		/// <param name="Filter">Filter for changes to consider</param>
-		/// <param name="Files">Files that should trigger the schedule</param>
-		/// <param name="TemplateParameters">Parameters for the template to run</param>
-		/// <param name="Patterns">List of patterns for the schedule</param>
-		public Schedule(DateTime CurrentTimeUtc, bool Enabled = true, int MaxActive = 0, int MaxChanges = 0, bool RequireSubmittedChange = true, ScheduleGate? Gate = null, List<ChangeContentFlags>? Filter = null, List<string>? Files = null, Dictionary<string, string>? TemplateParameters = null, List<SchedulePattern>? Patterns = null)
+		/// <param name="currentTimeUtc">The current time. This will be used to seed the last trigger time.</param>
+		/// <param name="enabled">Whether the schedule is currently enabled</param>
+		/// <param name="maxActive">Maximum number of builds that may be active at once</param>
+		/// <param name="maxChanges">Maximum number of changes the schedule can fall behind head revision</param>
+		/// <param name="requireSubmittedChange">Whether a change has to be submitted for the schedule to trigger</param>
+		/// <param name="gate">Reference to another job/target which much succeed for this schedule to trigger</param>
+		/// <param name="filter">Filter for changes to consider</param>
+		/// <param name="files">Files that should trigger the schedule</param>
+		/// <param name="templateParameters">Parameters for the template to run</param>
+		/// <param name="patterns">List of patterns for the schedule</param>
+		public Schedule(DateTime currentTimeUtc, bool enabled = true, int maxActive = 0, int maxChanges = 0, bool requireSubmittedChange = true, ScheduleGate? gate = null, List<ChangeContentFlags>? filter = null, List<string>? files = null, Dictionary<string, string>? templateParameters = null, List<SchedulePattern>? patterns = null)
 		{
-			this.Enabled = Enabled;
-			this.MaxActive = MaxActive;
-			this.MaxChanges = MaxChanges;
-			this.RequireSubmittedChange = RequireSubmittedChange;
-			this.Gate = Gate;
-			this.Filter = Filter;
-			this.Files = Files;
-			this.TemplateParameters = TemplateParameters ?? new Dictionary<string, string>();
-			this.Patterns = Patterns ?? new List<SchedulePattern>();
-			this.LastTriggerTimeUtc = CurrentTimeUtc;
+			Enabled = enabled;
+			MaxActive = maxActive;
+			MaxChanges = maxChanges;
+			RequireSubmittedChange = requireSubmittedChange;
+			Gate = gate;
+			Filter = filter;
+			Files = files;
+			TemplateParameters = templateParameters ?? new Dictionary<string, string>();
+			Patterns = patterns ?? new List<SchedulePattern>();
+			LastTriggerTimeUtc = currentTimeUtc;
 		}
 
 		/// <summary>
 		/// Copies the state fields from another schedule object
 		/// </summary>
-		/// <param name="Other">The schedule object to copy from</param>
-		public void CopyState(Schedule Other)
+		/// <param name="other">The schedule object to copy from</param>
+		public void CopyState(Schedule other)
 		{
-			LastTriggerChange = Other.LastTriggerChange;
-			LastTriggerTime = Other.LastTriggerTime;
-			ActiveJobs.AddRange(Other.ActiveJobs);
+			LastTriggerChange = other.LastTriggerChange;
+			LastTriggerTime = other.LastTriggerTime;
+			ActiveJobs.AddRange(other.ActiveJobs);
 		}
 
 		/// <summary>
@@ -278,12 +273,12 @@ namespace Horde.Build.Models
 				return null;
 			}
 
-			ChangeContentFlags Flags = 0;
-			foreach (ChangeContentFlags Flag in Filter)
+			ChangeContentFlags flags = 0;
+			foreach (ChangeContentFlags flag in Filter)
 			{
-				Flags |= Flag;
+				flags |= flag;
 			}
-			return Flags;
+			return flags;
 		}
 
 		/// <summary>
@@ -303,34 +298,34 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Get the next time that the schedule will trigger
 		/// </summary>
-		/// <param name="TimeZone">Timezone to evaluate the trigger</param>
+		/// <param name="timeZone">Timezone to evaluate the trigger</param>
 		/// <returns>Next time at which the schedule will trigger</returns>
-		public DateTime? GetNextTriggerTimeUtc(TimeZoneInfo TimeZone)
+		public DateTime? GetNextTriggerTimeUtc(TimeZoneInfo timeZone)
 		{
-			return GetNextTriggerTimeUtc(GetLastTriggerTimeUtc(), TimeZone);
+			return GetNextTriggerTimeUtc(GetLastTriggerTimeUtc(), timeZone);
 		}
 
 		/// <summary>
 		/// Get the next time that the schedule will trigger
 		/// </summary>
-		/// <param name="LastTimeUtc">Last time at which the schedule triggered</param>
-		/// <param name="TimeZone">Timezone to evaluate the trigger</param>
+		/// <param name="lastTimeUtc">Last time at which the schedule triggered</param>
+		/// <param name="timeZone">Timezone to evaluate the trigger</param>
 		/// <returns>Next time at which the schedule will trigger</returns>
-		public DateTime? GetNextTriggerTimeUtc(DateTime LastTimeUtc, TimeZoneInfo TimeZone)
+		public DateTime? GetNextTriggerTimeUtc(DateTime lastTimeUtc, TimeZoneInfo timeZone)
 		{
-			DateTime? NextTriggerTimeUtc = null;
+			DateTime? nextTriggerTimeUtc = null;
 			if (Enabled)
 			{
-				foreach (SchedulePattern Pattern in Patterns)
+				foreach (SchedulePattern pattern in Patterns)
 				{
-					DateTime PatternTriggerTime = Pattern.GetNextTriggerTimeUtc(LastTimeUtc, TimeZone);
-					if (NextTriggerTimeUtc == null || PatternTriggerTime < NextTriggerTimeUtc)
+					DateTime patternTriggerTime = pattern.GetNextTriggerTimeUtc(lastTimeUtc, timeZone);
+					if (nextTriggerTimeUtc == null || patternTriggerTime < nextTriggerTimeUtc)
 					{
-						NextTriggerTimeUtc = PatternTriggerTime;
+						nextTriggerTimeUtc = patternTriggerTime;
 					}
 				}
 			}
-			return NextTriggerTimeUtc;
+			return nextTriggerTimeUtc;
 		}
 	}
 }

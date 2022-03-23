@@ -22,9 +22,9 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Writes the Json for a BlockKitAttachment to the given <see cref="Utf8JsonWriter"/>.
 		/// </summary>
-		public override void Write(Utf8JsonWriter Writer, BlockKitAttachment Value, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, BlockKitAttachment value, JsonSerializerOptions options)
 		{
-			Value.Write(Writer, Options);
+			value.Write(writer, options);
 		}
 	}
 
@@ -75,23 +75,23 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Write a BlockKit block to a <see cref="Utf8JsonWriter"/>
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Options"></param>
-		public void Write(Utf8JsonWriter Writer, JsonSerializerOptions Options)
+		/// <param name="writer"></param>
+		/// <param name="options"></param>
+		public void Write(Utf8JsonWriter writer, JsonSerializerOptions options)
 		{
-			Writer.WriteStartObject();
+			writer.WriteStartObject();
 			if (FallbackText != null)
 			{
-				Writer.WriteString("fallback", FallbackText);
+				writer.WriteString("fallback", FallbackText);
 			}
-			Writer.WriteString("color", $"#{Color.ToArgb() & 0xFFFFFF:x6}");
-			Writer.WriteStartArray("blocks");
-			foreach (BlockBase Block in Blocks)
+			writer.WriteString("color", $"#{Color.ToArgb() & 0xFFFFFF:x6}");
+			writer.WriteStartArray("blocks");
+			foreach (BlockBase block in Blocks)
 			{
-				Block.Write(Writer, Options);
+				block.Write(writer, options);
 			}
-			Writer.WriteEndArray();
-			Writer.WriteEndObject();
+			writer.WriteEndArray();
+			writer.WriteEndObject();
 		}
 	}
 }

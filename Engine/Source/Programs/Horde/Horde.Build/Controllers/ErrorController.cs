@@ -23,12 +23,12 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/error")]
 		public IActionResult Error()
 		{
-			IExceptionHandlerFeature? Context = HttpContext.Features.Get<IExceptionHandlerFeature>();
-			if (Context == null)
+			IExceptionHandlerFeature? context = HttpContext.Features.Get<IExceptionHandlerFeature>();
+			if (context == null)
 			{
 				return NoContent();
 			}
-			return StatusCode(StatusCodes.Status500InternalServerError, LogEvent.Create(LogLevel.Error, KnownLogEvents.None, Context.Error, Context.Error.Message));
+			return StatusCode(StatusCodes.Status500InternalServerError, LogEvent.Create(LogLevel.Error, KnownLogEvents.None, context.Error, context.Error.Message));
 		}
 	}
 }

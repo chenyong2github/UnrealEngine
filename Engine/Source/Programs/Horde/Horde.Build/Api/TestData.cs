@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using MongoDB.Bson.Serialization;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Models;
+using MongoDB.Bson.Serialization;
 
 namespace Horde.Build.Api
 {
@@ -52,10 +50,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Id of the new document</param>
-		public CreateTestDataResponse(string Id)
+		/// <param name="id">Id of the new document</param>
+		public CreateTestDataResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -107,17 +105,17 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="TestData">Test data to construct from</param>
-		internal GetTestDataResponse(ITestData TestData)
+		/// <param name="testData">Test data to construct from</param>
+		internal GetTestDataResponse(ITestData testData)
 		{
-			this.Id = TestData.Id.ToString();
-			this.StreamId = TestData.StreamId.ToString();
-			this.TemplateRefId = TestData.TemplateRefId.ToString();
-			this.JobId = TestData.JobId.ToString();
-			this.StepId = TestData.StepId.ToString();
-			this.Change = TestData.Change;
-			this.Key = TestData.Key;
-			this.Data = BsonSerializer.Deserialize<Dictionary<string, object>>(TestData.Data);
+			Id = testData.Id.ToString();
+			StreamId = testData.StreamId.ToString();
+			TemplateRefId = testData.TemplateRefId.ToString();
+			JobId = testData.JobId.ToString();
+			StepId = testData.StepId.ToString();
+			Change = testData.Change;
+			Key = testData.Key;
+			Data = BsonSerializer.Deserialize<Dictionary<string, object>>(testData.Data);
 		}
 	}
 }

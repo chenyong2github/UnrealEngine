@@ -1,42 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Google.Protobuf;
-using Google.Protobuf.Reflection;
-using Google.Protobuf.WellKnownTypes;
-using Grpc.Core;
-using HordeCommon;
-using HordeCommon.Rpc.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Options;
+using EpicGames.Core;
+using EpicGames.Horde.Compute;
+using EpicGames.Horde.Storage;
+using EpicGames.Redis;
+using EpicGames.Serialization;
+using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
-using Horde.Build.Storage;
-using StackExchange.Redis;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Bson.Serialization;
-using EpicGames.Serialization;
+using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Caching.Memory;
-using EpicGames.Horde.Compute;
 using Microsoft.Extensions.Hosting;
-using System.Threading.Channels;
-using EpicGames.Redis;
-using Horde.Build.Collections;
-using EpicGames.Horde.Storage;
-using EpicGames.Horde.Common;
-using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace Horde.Build.Compute.Impl
 {
@@ -61,11 +46,11 @@ namespace Horde.Build.Compute.Impl
 		{
 		}
 
-		public ComputeTaskInfo(ClusterId ClusterId, RefId TaskRefId, ChannelId ChannelId)
+		public ComputeTaskInfo(ClusterId clusterId, RefId taskRefId, ChannelId channelId)
 		{
-			this.ClusterId = ClusterId;
-			this.TaskRefId = TaskRefId;
-			this.ChannelId = ChannelId;
+			ClusterId = clusterId;
+			TaskRefId = taskRefId;
+			ChannelId = channelId;
 		}
 	}
 
@@ -114,20 +99,20 @@ namespace Horde.Build.Compute.Impl
 		public LeaseId? LeaseId
 		{
 			get => (LeaseIdBytes == null || LeaseIdBytes.Length == 0) ? (LeaseId?)null : new LeaseId(LeaseIdBytes);
-			set => LeaseIdBytes = (value != null) ? value.Value.Value.ToByteArray() : null;
+			set => LeaseIdBytes = value?.Value.ToByteArray();
 		}
 
 		private ComputeTaskStatus()
 		{
 		}
 
-		public ComputeTaskStatus(RefId TaskRefId, ComputeTaskState State, AgentId? AgentId, LeaseId? LeaseId)
+		public ComputeTaskStatus(RefId taskRefId, ComputeTaskState state, AgentId? agentId, LeaseId? leaseId)
 		{
-			this.TaskRefId = TaskRefId;
-			this.Time = DateTime.UtcNow;
-			this.State = State;
-			this.AgentId = (AgentId == null) ? Utf8String.Empty : AgentId.Value.ToString();
-			this.LeaseIdBytes = (LeaseId != null) ? LeaseId.Value.Value.ToByteArray() : null;
+			TaskRefId = taskRefId;
+			Time = DateTime.UtcNow;
+			State = state;
+			AgentId = (agentId == null) ? Utf8String.Empty : agentId.Value.ToString();
+			LeaseIdBytes = leaseId?.Value.ToByteArray();
 		}
 	}
 
@@ -142,10 +127,10 @@ namespace Horde.Build.Compute.Impl
 			public ClusterId ClusterId { get; set; }
 			public IoHash RequirementsHash { get; set; }
 
-			public QueueKey(ClusterId ClusterId, IoHash RequirementsHash)
+			public QueueKey(ClusterId clusterId, IoHash requirementsHash)
 			{
-				this.ClusterId = ClusterId;
-				this.RequirementsHash = RequirementsHash;
+				ClusterId = clusterId;
+				RequirementsHash = requirementsHash;
 			}
 
 			public override string ToString() => $"{ClusterId}/{RequirementsHash}";
@@ -153,14 +138,14 @@ namespace Horde.Build.Compute.Impl
 
 		class QueueKeySerializer : IRedisConverter<QueueKey>
 		{
-			public QueueKey FromRedisValue(RedisValue Value)
+			public QueueKey FromRedisValue(RedisValue value)
 			{
-				string Str = Value.ToString();
-				int Idx = Str.LastIndexOf("/", StringComparison.Ordinal);
-				return new QueueKey(new ClusterId(Str.Substring(0, Idx)), IoHash.Parse(Str.Substring(Idx + 1)));
+				string str = value.ToString();
+				int idx = str.LastIndexOf("/", StringComparison.Ordinal);
+				return new QueueKey(new ClusterId(str.Substring(0, idx)), IoHash.Parse(str.Substring(idx + 1)));
 			}
 
-			public RedisValue ToRedisValue(QueueKey Value) => $"{Value.ClusterId}/{Value.RequirementsHash}";
+			public RedisValue ToRedisValue(QueueKey value) => $"{value.ClusterId}/{value.RequirementsHash}";
 		}
 
 		class ClusterInfo : IComputeClusterInfo
@@ -170,12 +155,12 @@ namespace Horde.Build.Compute.Impl
 			public BucketId RequestBucketId { get; set; }
 			public BucketId ResponseBucketId { get; set; }
 
-			public ClusterInfo(ComputeClusterConfig Config)
+			public ClusterInfo(ComputeClusterConfig config)
 			{
-				Id = new ClusterId(Config.Id);
-				NamespaceId = new NamespaceId(Config.NamespaceId);
-				RequestBucketId = new BucketId(Config.RequestBucketId);
-				ResponseBucketId = new BucketId(Config.ResponseBucketId);
+				Id = new ClusterId(config.Id);
+				NamespaceId = new NamespaceId(config.NamespaceId);
+				RequestBucketId = new BucketId(config.RequestBucketId);
+				ResponseBucketId = new BucketId(config.ResponseBucketId);
 			}
 		}
 
@@ -187,62 +172,60 @@ namespace Horde.Build.Compute.Impl
 
 		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
 
-		IStorageClient StorageClient;
-		ITaskScheduler<QueueKey, ComputeTaskInfo> TaskScheduler;
-		RedisMessageQueue<ComputeTaskStatus> MessageQueue;
-		ITicker ExpireTasksTicker;
-		IMemoryCache RequirementsCache;
-		LazyCachedValue<Task<Globals>> Globals;
-		LazyCachedValue<Task<List<IPool>>> CachedPools;
-		ILogger Logger;
+		readonly IStorageClient _storageClient;
+		readonly ITaskScheduler<QueueKey, ComputeTaskInfo> _taskScheduler;
+		readonly RedisMessageQueue<ComputeTaskStatus> _messageQueue;
+		readonly ITicker _expireTasksTicker;
+		readonly IMemoryCache _requirementsCache;
+		readonly LazyCachedValue<Task<Globals>> _globals;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeService(DatabaseService DatabaseService, IDatabase Redis, IStorageClient StorageClient, IPoolCollection PoolCollection, IClock Clock, ILogger<ComputeService> Logger)
+		public ComputeService(DatabaseService databaseService, IDatabase redis, IStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
 		{
-			this.StorageClient = StorageClient;
-			this.TaskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(Redis, "compute/tasks/", Logger);
-			this.MessageQueue = new RedisMessageQueue<ComputeTaskStatus>(Redis, "compute/messages/");
-			this.ExpireTasksTicker = Clock.AddTicker(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, Logger);
-			this.RequirementsCache = new MemoryCache(new MemoryCacheOptions());
-			this.Globals = new LazyCachedValue<Task<Globals>>(() => DatabaseService.GetGlobalsAsync(), TimeSpan.FromSeconds(120.0));
-			this.CachedPools = new LazyCachedValue<Task<List<IPool>>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
-			this.Logger = Logger;
+			_storageClient = storageClient;
+			_taskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(redis, "compute/tasks/", logger);
+			_messageQueue = new RedisMessageQueue<ComputeTaskStatus>(redis, "compute/messages/");
+			_expireTasksTicker = clock.AddTicker<ComputeService>(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, logger);
+			_requirementsCache = new MemoryCache(new MemoryCacheOptions());
+			_globals = new LazyCachedValue<Task<Globals>>(() => databaseService.GetGlobalsAsync(), TimeSpan.FromSeconds(120.0));
+			_logger = logger;
 
 			OnLeaseStartedProperties.Add(x => x.TaskRefId);
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken Token) => ExpireTasksTicker.StartAsync();
+		public Task StartAsync(CancellationToken token) => _expireTasksTicker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken Token) => ExpireTasksTicker.StopAsync();
+		public Task StopAsync(CancellationToken token) => _expireTasksTicker.StopAsync();
 
 		/// <summary>
 		/// Expire tasks that are in inactive queues (ie. no machines can execute them)
 		/// </summary>
-		/// <param name="CancellationToken"></param>
+		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		async ValueTask ExpireTasksAsync(CancellationToken CancellationToken)
+		async ValueTask ExpireTasksAsync(CancellationToken cancellationToken)
 		{
-			List<QueueKey> QueueKeys = await TaskScheduler.GetInactiveQueuesAsync();
-			foreach (QueueKey QueueKey in QueueKeys)
+			List<QueueKey> queueKeys = await _taskScheduler.GetInactiveQueuesAsync();
+			foreach (QueueKey queueKey in queueKeys)
 			{
-				Logger.LogInformation("Inactive queue: {QueueKey}", QueueKey);
+				_logger.LogInformation("Inactive queue: {QueueKey}", queueKey);
 				for (; ; )
 				{
-					ComputeTaskInfo? ComputeTask = await TaskScheduler.DequeueAsync(QueueKey);
-					if (ComputeTask == null)
+					ComputeTaskInfo? computeTask = await _taskScheduler.DequeueAsync(queueKey);
+					if (computeTask == null)
 					{
 						break;
 					}
 
-					ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskRefId, ComputeTaskState.Complete, null, null);
-					Status.Outcome = ComputeTaskOutcome.Expired;
-					Status.Detail = $"No agents monitoring queue {QueueKey}";
-					Logger.LogInformation("Compute task expired (queue: {RequirementsHash}, task: {TaskHash}, channel: {ChannelId})", QueueKey, ComputeTask.TaskRefId, ComputeTask.ChannelId);
-					await PostStatusMessageAsync(ComputeTask, Status);
+					ComputeTaskStatus status = new ComputeTaskStatus(computeTask.TaskRefId, ComputeTaskState.Complete, null, null);
+					status.Outcome = ComputeTaskOutcome.Expired;
+					status.Detail = $"No agents monitoring queue {queueKey}";
+					_logger.LogInformation("Compute task expired (queue: {RequirementsHash}, task: {TaskHash}, channel: {ChannelId})", queueKey, computeTask.TaskRefId, computeTask.ChannelId);
+					await PostStatusMessageAsync(computeTask, status);
 				}
 			}
 		}
@@ -250,276 +233,276 @@ namespace Horde.Build.Compute.Impl
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			MessageQueue.Dispose();
-			ExpireTasksTicker.Dispose();
-			RequirementsCache.Dispose();
+			_messageQueue.Dispose();
+			_expireTasksTicker.Dispose();
+			_requirementsCache.Dispose();
 		}
 
 		/// <summary>
 		/// Gets information about a compute cluster
 		/// </summary>
-		/// <param name="ClusterId">Cluster to use for execution</param>
-		public async Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId ClusterId)
+		/// <param name="clusterId">Cluster to use for execution</param>
+		public async Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId clusterId)
 		{
-			ComputeClusterConfig? Config = await GetClusterAsync(ClusterId);
-			if (Config == null)
+			ComputeClusterConfig? config = await GetClusterAsync(clusterId);
+			if (config == null)
 			{
 				throw new KeyNotFoundException();
 			}
-			return new ClusterInfo(Config);
+			return new ClusterInfo(config);
 		}
 
 		/// <inheritdoc/>
-		public async Task AddTasksAsync(ClusterId ClusterId, ChannelId ChannelId, List<RefId> TaskRefIds, CbObjectAttachment RequirementsHash)
+		public async Task AddTasksAsync(ClusterId clusterId, ChannelId channelId, List<RefId> taskRefIds, CbObjectAttachment requirementsHash)
 		{
-			List<Task> Tasks = new List<Task>();
-			foreach (RefId TaskRefId in TaskRefIds)
+			List<Task> tasks = new List<Task>();
+			foreach (RefId taskRefId in taskRefIds)
 			{
-				ComputeTaskInfo TaskInfo = new ComputeTaskInfo(ClusterId, TaskRefId, ChannelId);
-				Logger.LogDebug("Adding task {TaskHash} from channel {ChannelId} to queue {ClusterId}{RequirementsHash}", TaskRefId.Hash, ChannelId, ClusterId, RequirementsHash);
-				Tasks.Add(TaskScheduler.EnqueueAsync(new QueueKey(ClusterId, RequirementsHash), TaskInfo, false));
+				ComputeTaskInfo taskInfo = new ComputeTaskInfo(clusterId, taskRefId, channelId);
+				_logger.LogDebug("Adding task {TaskHash} from channel {ChannelId} to queue {ClusterId}{RequirementsHash}", taskRefId.Hash, channelId, clusterId, requirementsHash);
+				tasks.Add(_taskScheduler.EnqueueAsync(new QueueKey(clusterId, requirementsHash), taskInfo, false));
 			}
-			await Task.WhenAll(Tasks);
+			await Task.WhenAll(tasks);
 		}
 
-		async ValueTask<ComputeClusterConfig?> GetClusterAsync(ClusterId ClusterId)
+		async ValueTask<ComputeClusterConfig?> GetClusterAsync(ClusterId clusterId)
 		{
-			Globals GlobalsInstance = await Globals.GetCached();
-			return GlobalsInstance.ComputeClusters.FirstOrDefault(x => new ClusterId(x.Id) == ClusterId);
+			Globals globalsInstance = await _globals.GetCached();
+			return globalsInstance.ComputeClusters.FirstOrDefault(x => new ClusterId(x.Id) == clusterId);
 		}
 
 		/// <inheritdoc/>
-		public override async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
+		public override async Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
 			// If the agent is disabled, just block until we cancel
-			if (!Agent.Enabled)
+			if (!agent.Enabled)
 			{
-				using CancellationTask Task = new CancellationTask(CancellationToken);
-				await Task.Task;
+				using CancellationTask task = new CancellationTask(cancellationToken);
+				await task.Task;
 				return null;
 			}
 
 			// Find a task to execute
-			(QueueKey, ComputeTaskInfo)? Entry = await TaskScheduler.DequeueAsync(QueueKey => CheckRequirements(Agent, QueueKey), CancellationToken);
-			if (Entry != null)
+			(QueueKey, ComputeTaskInfo)? entry = await _taskScheduler.DequeueAsync(queueKey => CheckRequirements(agent, queueKey), cancellationToken);
+			if (entry != null)
 			{
-				(QueueKey QueueKey, ComputeTaskInfo TaskInfo) = Entry.Value;
+				(QueueKey queueKey, ComputeTaskInfo taskInfo) = entry.Value;
 
-				ComputeClusterConfig? Cluster = await GetClusterAsync(TaskInfo.ClusterId);
-				if (Cluster == null)
+				ComputeClusterConfig? cluster = await GetClusterAsync(taskInfo.ClusterId);
+				if (cluster == null)
 				{
-					Logger.LogWarning("Invalid cluster '{ClusterId}'; failing task {TaskRefId}", TaskInfo.ClusterId, TaskInfo.TaskRefId);
-					ComputeTaskStatus Status = new ComputeTaskStatus(TaskInfo.TaskRefId, ComputeTaskState.Complete, Agent.Id, null) { Detail = $"Invalid cluster '{TaskInfo.ClusterId}'" };
-					await PostStatusMessageAsync(TaskInfo, Status);
+					_logger.LogWarning("Invalid cluster '{ClusterId}'; failing task {TaskRefId}", taskInfo.ClusterId, taskInfo.TaskRefId);
+					ComputeTaskStatus status = new ComputeTaskStatus(taskInfo.TaskRefId, ComputeTaskState.Complete, agent.Id, null) { Detail = $"Invalid cluster '{taskInfo.ClusterId}'" };
+					await PostStatusMessageAsync(taskInfo, status);
 					return null;
 				}
 
-				Requirements? Requirements = await GetCachedRequirementsAsync(QueueKey);
-				if (Requirements == null)
+				Requirements? requirements = await GetCachedRequirementsAsync(queueKey);
+				if (requirements == null)
 				{
-					Logger.LogWarning("Unable to fetch requirements {RequirementsHash}", QueueKey);
-					ComputeTaskStatus Status = new ComputeTaskStatus(TaskInfo.TaskRefId, ComputeTaskState.Complete, Agent.Id, null) { Detail = $"Unable to retrieve requirements '{QueueKey}'" };
-					await PostStatusMessageAsync(TaskInfo, Status);
+					_logger.LogWarning("Unable to fetch requirements {RequirementsHash}", queueKey);
+					ComputeTaskStatus status = new ComputeTaskStatus(taskInfo.TaskRefId, ComputeTaskState.Complete, agent.Id, null) { Detail = $"Unable to retrieve requirements '{queueKey}'" };
+					await PostStatusMessageAsync(taskInfo, status);
 					return null;
 				}
 
-				ComputeTaskMessage ComputeTask = new ComputeTaskMessage();
-				ComputeTask.ClusterId = TaskInfo.ClusterId.ToString();
-				ComputeTask.ChannelId = TaskInfo.ChannelId.ToString();
-				ComputeTask.NamespaceId = Cluster.NamespaceId.ToString();
-				ComputeTask.InputBucketId = Cluster.RequestBucketId.ToString();
-				ComputeTask.OutputBucketId = Cluster.ResponseBucketId.ToString();
-				ComputeTask.RequirementsHash = QueueKey.RequirementsHash;
-				ComputeTask.TaskRefId = TaskInfo.TaskRefId;
+				ComputeTaskMessage computeTask = new ComputeTaskMessage();
+				computeTask.ClusterId = taskInfo.ClusterId.ToString();
+				computeTask.ChannelId = taskInfo.ChannelId.ToString();
+				computeTask.NamespaceId = cluster.NamespaceId.ToString();
+				computeTask.InputBucketId = cluster.RequestBucketId.ToString();
+				computeTask.OutputBucketId = cluster.ResponseBucketId.ToString();
+				computeTask.RequirementsHash = queueKey.RequirementsHash;
+				computeTask.TaskRefId = taskInfo.TaskRefId;
 
-				string LeaseName = $"Remote action ({TaskInfo.TaskRefId})";
-				byte[] Payload = Any.Pack(ComputeTask).ToByteArray();
+				string leaseName = $"Remote action ({taskInfo.TaskRefId})";
+				byte[] payload = Any.Pack(computeTask).ToByteArray();
 
-				AgentLease Lease = new AgentLease(LeaseId.GenerateNewId(), LeaseName, null, null, null, LeaseState.Pending, Requirements.Resources, Requirements.Exclusive, Payload);
-				Logger.LogDebug("Created lease {LeaseId} for channel {ChannelId} task {TaskHash} req {RequirementsHash}", Lease.Id, ComputeTask.ChannelId, ComputeTask.TaskRefId, ComputeTask.RequirementsHash);
-				return Lease;
+				AgentLease lease = new AgentLease(LeaseId.GenerateNewId(), leaseName, null, null, null, LeaseState.Pending, requirements.Resources, requirements.Exclusive, payload);
+				_logger.LogDebug("Created lease {LeaseId} for channel {ChannelId} task {TaskHash} req {RequirementsHash}", lease.Id, computeTask.ChannelId, computeTask.TaskRefId, computeTask.RequirementsHash);
+				return lease;
 			}
 			return null;
 		}
 
 		/// <inheritdoc/>
-		public override Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, ComputeTaskMessage Message)
+		public override Task CancelLeaseAsync(IAgent agent, LeaseId leaseId, ComputeTaskMessage message)
 		{
-			ClusterId ClusterId = new ClusterId(Message.ClusterId);
-			ComputeTaskInfo TaskInfo = new ComputeTaskInfo(ClusterId, new RefId(new IoHash(Message.TaskRefId.ToByteArray())), new ChannelId(Message.ChannelId));
-			return TaskScheduler.EnqueueAsync(new QueueKey(ClusterId, new IoHash(Message.RequirementsHash.ToByteArray())), TaskInfo, true);
+			ClusterId clusterId = new ClusterId(message.ClusterId);
+			ComputeTaskInfo taskInfo = new ComputeTaskInfo(clusterId, new RefId(new IoHash(message.TaskRefId.ToByteArray())), new ChannelId(message.ChannelId));
+			return _taskScheduler.EnqueueAsync(new QueueKey(clusterId, new IoHash(message.RequirementsHash.ToByteArray())), taskInfo, true);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ClusterId ClusterId, ChannelId ChannelId)
+		public async Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId)
 		{
-			List<ComputeTaskStatus> Messages = await MessageQueue.ReadMessagesAsync(GetMessageQueueId(ClusterId, ChannelId));
-			return Messages.ConvertAll<IComputeTaskStatus>(x => x);
+			List<ComputeTaskStatus> messages = await _messageQueue.ReadMessagesAsync(GetMessageQueueId(clusterId, channelId));
+			return messages.ConvertAll<IComputeTaskStatus>(x => x);
 		}
 
-		public async Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ClusterId ClusterId, ChannelId ChannelId, CancellationToken CancellationToken)
+		public async Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, CancellationToken cancellationToken)
 		{
-			List<ComputeTaskStatus> Messages = await MessageQueue.WaitForMessagesAsync(GetMessageQueueId(ClusterId, ChannelId), CancellationToken);
-			return Messages.ConvertAll<IComputeTaskStatus>(x => x);
+			List<ComputeTaskStatus> messages = await _messageQueue.WaitForMessagesAsync(GetMessageQueueId(clusterId, channelId), cancellationToken);
+			return messages.ConvertAll<IComputeTaskStatus>(x => x);
 		}
 
-		public override async Task OnLeaseStartedAsync(IAgent Agent, LeaseId LeaseId, ComputeTaskMessage ComputeTask, ILogger Logger)
+		public override async Task OnLeaseStartedAsync(IAgent agent, LeaseId leaseId, ComputeTaskMessage computeTask, ILogger logger)
 		{
-			await base.OnLeaseStartedAsync(Agent, LeaseId, ComputeTask, Logger);
+			await base.OnLeaseStartedAsync(agent, leaseId, computeTask, logger);
 
-			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskRefId, ComputeTaskState.Executing, Agent.Id, LeaseId);
-			await PostStatusMessageAsync(ComputeTask, Status);
+			ComputeTaskStatus status = new ComputeTaskStatus(computeTask.TaskRefId, ComputeTaskState.Executing, agent.Id, leaseId);
+			await PostStatusMessageAsync(computeTask, status);
 		}
 
-		public override async Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, ComputeTaskMessage ComputeTask, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
+		public override async Task OnLeaseFinishedAsync(IAgent agent, LeaseId leaseId, ComputeTaskMessage computeTask, LeaseOutcome outcome, ReadOnlyMemory<byte> output, ILogger logger)
 		{
-			await base.OnLeaseFinishedAsync(Agent, LeaseId, ComputeTask, Outcome, Output, Logger);
+			await base.OnLeaseFinishedAsync(agent, leaseId, computeTask, outcome, output, logger);
 
-			ComputeTaskResultMessage Message = ComputeTaskResultMessage.Parser.ParseFrom(Output.ToArray());
+			ComputeTaskResultMessage message = ComputeTaskResultMessage.Parser.ParseFrom(output.ToArray());
 
-			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskRefId, ComputeTaskState.Complete, Agent.Id, LeaseId);
-			if (Message.ResultRefId != null)
+			ComputeTaskStatus status = new ComputeTaskStatus(computeTask.TaskRefId, ComputeTaskState.Complete, agent.Id, leaseId);
+			if (message.ResultRefId != null)
 			{
-				Status.ResultRefId = Message.ResultRefId;
+				status.ResultRefId = message.ResultRefId;
 			}
-			else if ((ComputeTaskOutcome)Message.Outcome != ComputeTaskOutcome.Success)
+			else if ((ComputeTaskOutcome)message.Outcome != ComputeTaskOutcome.Success)
 			{
-				(Status.Outcome, Status.Detail) = ((ComputeTaskOutcome)Message.Outcome, Message.Detail);
+				(status.Outcome, status.Detail) = ((ComputeTaskOutcome)message.Outcome, message.Detail);
 			}
-			else if (Outcome == LeaseOutcome.Failed)
+			else if (outcome == LeaseOutcome.Failed)
 			{
-				Status.Outcome = ComputeTaskOutcome.Failed;
+				status.Outcome = ComputeTaskOutcome.Failed;
 			}
-			else if (Outcome == LeaseOutcome.Cancelled)
+			else if (outcome == LeaseOutcome.Cancelled)
 			{
-				Status.Outcome = ComputeTaskOutcome.Cancelled;
+				status.Outcome = ComputeTaskOutcome.Cancelled;
 			}
 			else
 			{
-				Status.Outcome = ComputeTaskOutcome.NoResult;
+				status.Outcome = ComputeTaskOutcome.NoResult;
 			}
 
-			Logger.LogInformation("Compute lease finished (lease: {LeaseId}, task: {TaskHash}, agent: {AgentId}, channel: {ChannelId}, result: {ResultHash}, outcome: {Outcome})", LeaseId, ComputeTask.TaskRefId.AsRefId(), Agent.Id, ComputeTask.ChannelId, Status.ResultRefId?.ToString() ?? "(none)", Status.Outcome);
-			await PostStatusMessageAsync(ComputeTask, Status);
+			logger.LogInformation("Compute lease finished (lease: {LeaseId}, task: {TaskHash}, agent: {AgentId}, channel: {ChannelId}, result: {ResultHash}, outcome: {Outcome})", leaseId, computeTask.TaskRefId.AsRefId(), agent.Id, computeTask.ChannelId, status.ResultRefId?.ToString() ?? "(none)", status.Outcome);
+			await PostStatusMessageAsync(computeTask, status);
 		}
 
 		/// <summary>
 		/// Checks that an agent matches the necessary criteria to execute a task
 		/// </summary>
-		/// <param name="Agent"></param>
-		/// <param name="QueueKey"></param>
+		/// <param name="agent"></param>
+		/// <param name="queueKey"></param>
 		/// <returns></returns>
-		async ValueTask<bool> CheckRequirements(IAgent Agent, QueueKey QueueKey)
+		async ValueTask<bool> CheckRequirements(IAgent agent, QueueKey queueKey)
 		{
-			Requirements? Requirements = await GetCachedRequirementsAsync(QueueKey);
-			if (Requirements == null)
+			Requirements? requirements = await GetCachedRequirementsAsync(queueKey);
+			if (requirements == null)
 			{
 				return false;
 			}
-			return Agent.MeetsRequirements(Requirements);
+			return agent.MeetsRequirements(requirements);
 		}
 
 		/// <summary>
 		/// Gets the requirements object from the CAS
 		/// </summary>
-		/// <param name="QueueKey">Queue identifier</param>
+		/// <param name="queueKey">Queue identifier</param>
 		/// <returns>Requirements object for the queue</returns>
-		async ValueTask<Requirements?> GetCachedRequirementsAsync(QueueKey QueueKey)
+		async ValueTask<Requirements?> GetCachedRequirementsAsync(QueueKey queueKey)
 		{
-			Requirements? Requirements;
-			if (!RequirementsCache.TryGetValue(QueueKey.RequirementsHash, out Requirements))
+			Requirements? requirements;
+			if (!_requirementsCache.TryGetValue(queueKey.RequirementsHash, out requirements))
 			{
-				Requirements = await GetRequirementsAsync(QueueKey);
-				if (Requirements != null)
+				requirements = await GetRequirementsAsync(queueKey);
+				if (requirements != null)
 				{
-					using (ICacheEntry Entry = RequirementsCache.CreateEntry(QueueKey.RequirementsHash))
+					using (ICacheEntry entry = _requirementsCache.CreateEntry(queueKey.RequirementsHash))
 					{
-						Entry.SetSlidingExpiration(TimeSpan.FromMinutes(10.0));
-						Entry.SetValue(Requirements);
+						entry.SetSlidingExpiration(TimeSpan.FromMinutes(10.0));
+						entry.SetValue(requirements);
 					}
 				}
 			}
-			return Requirements;
+			return requirements;
 		}
 
 		/// <summary>
 		/// Gets the requirements object for a given queue. Fails tasks in the queue if the requirements object is missing.
 		/// </summary>
-		/// <param name="QueueKey">Queue identifier</param>
+		/// <param name="queueKey">Queue identifier</param>
 		/// <returns>Requirements object for the queue</returns>
-		async ValueTask<Requirements?> GetRequirementsAsync(QueueKey QueueKey)
+		async ValueTask<Requirements?> GetRequirementsAsync(QueueKey queueKey)
 		{
-			Requirements? Requirements = null;
+			Requirements? requirements = null;
 
-			ComputeClusterConfig? ClusterConfig = await GetClusterAsync(QueueKey.ClusterId);
-			if (ClusterConfig != null)
+			ComputeClusterConfig? clusterConfig = await GetClusterAsync(queueKey.ClusterId);
+			if (clusterConfig != null)
 			{
-				NamespaceId NamespaceId = new NamespaceId(ClusterConfig.NamespaceId);
+				NamespaceId namespaceId = new NamespaceId(clusterConfig.NamespaceId);
 				try
 				{
-					Requirements = await StorageClient.ReadBlobAsync<Requirements>(NamespaceId, QueueKey.RequirementsHash);
+					requirements = await _storageClient.ReadBlobAsync<Requirements>(namespaceId, queueKey.RequirementsHash);
 				}
 				catch (BlobNotFoundException)
 				{
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					Logger.LogError(Ex, "Unable to read blob {NamespaceId}/{RequirementsHash} from storage service", ClusterConfig.NamespaceId, QueueKey.RequirementsHash);
+					_logger.LogError(ex, "Unable to read blob {NamespaceId}/{RequirementsHash} from storage service", clusterConfig.NamespaceId, queueKey.RequirementsHash);
 				}
 			}
 
-			if (Requirements == null)
+			if (requirements == null)
 			{
-				Logger.LogWarning("Unable to fetch requirements object for queue {QueueKey}; failing queued tasks.", QueueKey);
+				_logger.LogWarning("Unable to fetch requirements object for queue {QueueKey}; failing queued tasks.", queueKey);
 				for (; ; )
 				{
-					ComputeTaskInfo? ComputeTask = await TaskScheduler.DequeueAsync(QueueKey);
-					if (ComputeTask == null)
+					ComputeTaskInfo? computeTask = await _taskScheduler.DequeueAsync(queueKey);
+					if (computeTask == null)
 					{
 						break;
 					}
 
-					ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskRefId, ComputeTaskState.Complete, null, null);
-					Status.Outcome = ComputeTaskOutcome.BlobNotFound;
-					Status.Detail = $"Missing requirements object {QueueKey.RequirementsHash}";
-					Logger.LogInformation("Compute task failed due to missing requirements (queue: {QueueKey}, task: {TaskHash}, channel: {ChannelId})", QueueKey, ComputeTask.TaskRefId, ComputeTask.ChannelId);
-					await PostStatusMessageAsync(ComputeTask, Status);
+					ComputeTaskStatus status = new ComputeTaskStatus(computeTask.TaskRefId, ComputeTaskState.Complete, null, null);
+					status.Outcome = ComputeTaskOutcome.BlobNotFound;
+					status.Detail = $"Missing requirements object {queueKey.RequirementsHash}";
+					_logger.LogInformation("Compute task failed due to missing requirements (queue: {QueueKey}, task: {TaskHash}, channel: {ChannelId})", queueKey, computeTask.TaskRefId, computeTask.ChannelId);
+					await PostStatusMessageAsync(computeTask, status);
 				}
 			}
 
-			return Requirements;
+			return requirements;
 		}
 
 		/// <summary>
 		/// Post a status message for a particular task
 		/// </summary>
-		/// <param name="ComputeTask">The compute task instance</param>
-		/// <param name="Status">New status for the task</param>
-		async Task PostStatusMessageAsync(ComputeTaskInfo ComputeTask, ComputeTaskStatus Status)
+		/// <param name="computeTask">The compute task instance</param>
+		/// <param name="status">New status for the task</param>
+		async Task PostStatusMessageAsync(ComputeTaskInfo computeTask, ComputeTaskStatus status)
 		{
-			await MessageQueue.PostAsync(GetMessageQueueId(ComputeTask.ClusterId, ComputeTask.ChannelId), Status);
+			await _messageQueue.PostAsync(GetMessageQueueId(computeTask.ClusterId, computeTask.ChannelId), status);
 		}
 
 		/// <summary>
 		/// Post a status message for a particular task
 		/// </summary>
-		/// <param name="ComputeTaskMessage">The compute task lease</param>
-		/// <param name="Status">New status for the task</param>
+		/// <param name="computeTaskMessage">The compute task lease</param>
+		/// <param name="status">New status for the task</param>
 		/// <returns></returns>
-		async Task PostStatusMessageAsync(ComputeTaskMessage ComputeTaskMessage, ComputeTaskStatus Status)
+		async Task PostStatusMessageAsync(ComputeTaskMessage computeTaskMessage, ComputeTaskStatus status)
 		{
-			await MessageQueue.PostAsync(GetMessageQueueId(new ClusterId(ComputeTaskMessage.ClusterId), new ChannelId(ComputeTaskMessage.ChannelId)), Status);
+			await _messageQueue.PostAsync(GetMessageQueueId(new ClusterId(computeTaskMessage.ClusterId), new ChannelId(computeTaskMessage.ChannelId)), status);
 		}
 
 		/// <summary>
 		/// Gets the name of a particular message queue
 		/// </summary>
-		/// <param name="ClusterId">The compute cluster</param>
-		/// <param name="ChannelId">Identifier for the message channel</param>
+		/// <param name="clusterId">The compute cluster</param>
+		/// <param name="channelId">Identifier for the message channel</param>
 		/// <returns>Name of the message queue</returns>
-		static string GetMessageQueueId(ClusterId ClusterId, ChannelId ChannelId)
+		static string GetMessageQueueId(ClusterId clusterId, ChannelId channelId)
 		{
-			return $"{ClusterId}/{ChannelId}";
+			return $"{clusterId}/{channelId}";
 		}
 	}
 }

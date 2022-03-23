@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Redis.Utility;
-using Horde.Build.Services;
-using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Redis.Utility;
+using Horde.Build.Services;
+using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace HordeCommon
 {
@@ -58,21 +57,22 @@ namespace HordeCommon
 		/// <summary>
 		/// Create an event that will trigger after the given time
 		/// </summary>
-		/// <param name="Interval">Time after which the event will trigger</param>
-		/// <param name="TickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
-		/// <param name="Logger">Logger for error messages</param>
+		/// <param name="name">Name of the event</param>
+		/// <param name="interval">Time after which the event will trigger</param>
+		/// <param name="tickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
+		/// <param name="logger">Logger for error messages</param>
 		/// <returns>Handle to the event</returns>
-		ITicker AddTicker(TimeSpan Interval, Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync, ILogger Logger);
+		ITicker AddTicker(string name, TimeSpan interval, Func<CancellationToken, ValueTask<TimeSpan?>> tickAsync, ILogger logger);
 
 		/// <summary>
 		/// Create a ticker shared between all server pods
 		/// </summary>
-		/// <param name="Name">Name of the event</param>
-		/// <param name="Interval">Time after which the event will trigger</param>
-		/// <param name="TickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
-		/// <param name="Logger">Logger for error messages</param>
+		/// <param name="name">Name of the event</param>
+		/// <param name="interval">Time after which the event will trigger</param>
+		/// <param name="tickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
+		/// <param name="logger">Logger for error messages</param>
 		/// <returns>New ticker instance</returns>
-		ITicker AddSharedTicker(string Name, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger);
+		ITicker AddSharedTicker(string name, TimeSpan interval, Func<CancellationToken, ValueTask> tickAsync, ILogger logger);
 	}
 
 	/// <summary>
@@ -83,31 +83,53 @@ namespace HordeCommon
 		/// <summary>
 		/// Create an event that will trigger after the given time
 		/// </summary>
-		/// <param name="Clock">Clock to schedule the event on</param>
-		/// <param name="Interval">Interval for the callback</param>
-		/// <param name="TickAsync">Trigger callback</param>
-		/// <param name="Logger">Logger for any error messages</param>
+		/// <param name="clock">Clock to schedule the event on</param>
+		/// <param name="name">Name of the ticker</param>
+		/// <param name="interval">Interval for the callback</param>
+		/// <param name="tickAsync">Trigger callback</param>
+		/// <param name="logger">Logger for any error messages</param>
 		/// <returns>Handle to the event</returns>
-		public static ITicker AddTicker(this IClock Clock, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger)
+		public static ITicker AddTicker(this IClock clock, string name, TimeSpan interval, Func<CancellationToken, ValueTask> tickAsync, ILogger logger)
 		{
-			Func<CancellationToken, ValueTask<TimeSpan?>> WrappedTrigger = async Token =>
+			async ValueTask<TimeSpan?> WrappedTrigger(CancellationToken token)
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
-				await TickAsync(Token);
-				return Interval - Timer.Elapsed;
-			};
-			return Clock.AddTicker(Interval, WrappedTrigger, Logger);
+				Stopwatch timer = Stopwatch.StartNew();
+				await tickAsync(token);
+				return interval - timer.Elapsed;
+			}
+
+			return clock.AddTicker(name, interval, WrappedTrigger, logger);
 		}
+
+		/// <summary>
+		/// Create an event that will trigger after the given time
+		/// </summary>
+		/// <param name="clock">Clock to schedule the event on</param>
+		/// <param name="interval">Time after which the event will trigger</param>
+		/// <param name="tickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
+		/// <param name="logger">Logger for error messages</param>
+		/// <returns>Handle to the event</returns>
+		public static ITicker AddTicker<T>(this IClock clock, TimeSpan interval, Func<CancellationToken, ValueTask<TimeSpan?>> tickAsync, ILogger logger) => clock.AddTicker(typeof(T).Name, interval, tickAsync, logger);
+
+		/// <summary>
+		/// Create an event that will trigger after the given time
+		/// </summary>
+		/// <param name="clock">Clock to schedule the event on</param>
+		/// <param name="interval">Interval for the callback</param>
+		/// <param name="tickAsync">Trigger callback</param>
+		/// <param name="logger">Logger for any error messages</param>
+		/// <returns>Handle to the event</returns>
+		public static ITicker AddTicker<T>(this IClock clock, TimeSpan interval, Func<CancellationToken, ValueTask> tickAsync, ILogger logger) => clock.AddTicker(typeof(T).Name, interval, tickAsync, logger);
 
 		/// <summary>
 		/// Create a ticker shared between all server pods
 		/// </summary>
-		/// <param name="Clock">Clock to schedule the event on</param>
-		/// <param name="Interval">Time after which the event will trigger</param>
-		/// <param name="TickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
-		/// <param name="Logger">Logger for error messages</param>
+		/// <param name="clock">Clock to schedule the event on</param>
+		/// <param name="interval">Time after which the event will trigger</param>
+		/// <param name="tickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
+		/// <param name="logger">Logger for error messages</param>
 		/// <returns>New ticker instance</returns>
-		public static ITicker AddSharedTicker<T>(this IClock Clock, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger) => Clock.AddSharedTicker(typeof(T).Name, Interval, TickAsync, Logger);
+		public static ITicker AddSharedTicker<T>(this IClock clock, TimeSpan interval, Func<CancellationToken, ValueTask> tickAsync, ILogger logger) => clock.AddSharedTicker(typeof(T).Name, interval, tickAsync, logger);
 	}
 
 	/// <summary>
@@ -117,79 +139,80 @@ namespace HordeCommon
 	{
 		class TickerImpl : ITicker
 		{
-			[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "<Pending>")]
-			CancellationTokenSource? CancellationSource;
-			Func<Task> TickFunc;
-			Task? BackgroundTask;
+			readonly string _name;
+			CancellationTokenSource? _cancellationSource;
+			readonly Func<Task> _tickFunc;
+			Task? _backgroundTask;
 
-			public TickerImpl(TimeSpan Delay, Func<CancellationToken, ValueTask<TimeSpan?>> TriggerAsync, ILogger Logger)
+			public TickerImpl(string name, TimeSpan delay, Func<CancellationToken, ValueTask<TimeSpan?>> triggerAsync, ILogger logger)
 			{
-				TickFunc = () => Run(Delay, TriggerAsync, Logger);
+				_name = name;
+				_tickFunc = () => Run(delay, triggerAsync, logger);
 			}
 
 			public async Task StartAsync()
 			{
 				await StopAsync();
-				CancellationSource = new CancellationTokenSource();
-				BackgroundTask = Task.Run(TickFunc);
+				_cancellationSource = new CancellationTokenSource();
+				_backgroundTask = Task.Run(_tickFunc);
 			}
 
 			public async Task StopAsync()
 			{
-				if (CancellationSource != null)
+				if (_cancellationSource != null)
 				{
-					CancellationSource.Cancel();
-					await BackgroundTask!;
-					CancellationSource.Dispose();
-					CancellationSource = null;
+					_cancellationSource.Cancel();
+					await _backgroundTask!;
+					_cancellationSource.Dispose();
+					_cancellationSource = null;
 				}
 			}
 
 			public void Dispose()
 			{
 				StopAsync().Wait();
-				if (CancellationSource != null)
+				if (_cancellationSource != null)
 				{
-					CancellationSource.Dispose();
+					_cancellationSource.Dispose();
 				}
 			}
 
-			public async Task Run(TimeSpan Delay, Func<CancellationToken, ValueTask<TimeSpan?>> TriggerAsync, ILogger Logger)
+			public async Task Run(TimeSpan delay, Func<CancellationToken, ValueTask<TimeSpan?>> triggerAsync, ILogger logger)
 			{
-				while (!CancellationSource!.IsCancellationRequested)
+				while (!_cancellationSource!.IsCancellationRequested)
 				{
 					try
 					{
-						if (Delay > TimeSpan.Zero)
+						if (delay > TimeSpan.Zero)
 						{
-							await Task.Delay(Delay, CancellationSource.Token);
+							await Task.Delay(delay, _cancellationSource.Token);
 						}
 
-						TimeSpan? NextDelay = await TriggerAsync(CancellationSource.Token);
-						if(NextDelay == null)
+						TimeSpan? nextDelay = await triggerAsync(_cancellationSource.Token);
+						if(nextDelay == null)
 						{
 							break;
 						}
 
-						Delay = NextDelay.Value;
+						delay = nextDelay.Value;
 					}
-					catch (OperationCanceledException) when (CancellationSource.IsCancellationRequested)
+					catch (OperationCanceledException) when (_cancellationSource.IsCancellationRequested)
 					{
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						Logger.LogError(Ex, "Exception while executing scheduled event");
-						if (Delay < TimeSpan.Zero)
+						logger.LogError(ex, "Exception while executing scheduled event");
+						if (delay < TimeSpan.Zero)
 						{
-							Delay = TimeSpan.FromSeconds(5.0);
-							Logger.LogWarning("Delaying tick for 5 seconds");
+							delay = TimeSpan.FromSeconds(5.0);
+							logger.LogWarning("Delaying tick for 5 seconds");
 						}
 					}
 				}
 			}
 		}
 
-		RedisService Redis;
+		readonly RedisService _redis;
 
 		/// <inheritdoc/>
 		public DateTime UtcNow => DateTime.UtcNow;
@@ -197,31 +220,31 @@ namespace HordeCommon
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public Clock(RedisService Redis)
+		public Clock(RedisService redis)
 		{
-			this.Redis = Redis;
+			_redis = redis;
 		}
 
 		/// <inheritdoc/>
-		public ITicker AddTicker(TimeSpan Delay, Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync, ILogger Logger)
+		public ITicker AddTicker(string name, TimeSpan delay, Func<CancellationToken, ValueTask<TimeSpan?>> tickAsync, ILogger logger)
 		{
-			return new TickerImpl(Delay, TickAsync, Logger);
+			return new TickerImpl(name, delay, tickAsync, logger);
 		}
 
 		/// <inheritdoc/>
-		public ITicker AddSharedTicker(string Name, TimeSpan Delay, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger)
+		public ITicker AddSharedTicker(string name, TimeSpan delay, Func<CancellationToken, ValueTask> tickAsync, ILogger logger)
 		{
-			RedisKey Key = new RedisKey($"tick/{Name}");
-			return ClockExtensions.AddTicker(this, Delay / 4, Token => TriggerSharedAsync(Key, Delay, TickAsync, Token), Logger);
+			RedisKey key = new RedisKey($"tick/{name}");
+			return ClockExtensions.AddTicker(this, name, delay / 4, token => TriggerSharedAsync(key, delay, tickAsync, token), logger);
 		}
 
-		async ValueTask TriggerSharedAsync(RedisKey Key, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, CancellationToken CancellationToken)
+		async ValueTask TriggerSharedAsync(RedisKey key, TimeSpan interval, Func<CancellationToken, ValueTask> tickAsync, CancellationToken cancellationToken)
 		{
-			using (RedisLock Lock = new RedisLock(Redis.Database, Key))
+			using (RedisLock sharedLock = new RedisLock(_redis.Database, key))
 			{
-				if (await Lock.AcquireAsync(Interval, false))
+				if (await sharedLock.AcquireAsync(interval, false))
 				{
-					await TickAsync(CancellationToken);
+					await tickAsync(cancellationToken);
 				}
 			}
 		}
@@ -235,26 +258,28 @@ namespace HordeCommon
 	{
 		class TickerImpl : ITicker
 		{
-			FakeClock Outer { get; }
-			TimeSpan Interval;
+			readonly FakeClock _outer;
+			readonly string _name;
+			readonly TimeSpan _interval;
 			public DateTime? NextTime { get; set; }
 			public Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync { get; }
 
-			public TickerImpl(FakeClock Outer, TimeSpan Interval, Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync)
+			public TickerImpl(FakeClock outer, string name, TimeSpan interval, Func<CancellationToken, ValueTask<TimeSpan?>> tickAsync)
 			{
-				this.Outer = Outer;
-				this.Interval = Interval;
-				this.TickAsync = TickAsync;
+				_outer = outer;
+				_name = name;
+				_interval = interval;
+				TickAsync = tickAsync;
 
-				lock (Outer.Triggers)
+				lock (outer._triggers)
 				{
-					Outer.Triggers.Add(this);
+					outer._triggers.Add(this);
 				}
 			}
 
 			public Task StartAsync()
 			{
-				NextTime = Outer.UtcNow + Interval;
+				NextTime = _outer.UtcNow + _interval;
 				return Task.CompletedTask;
 			}
 
@@ -271,46 +296,58 @@ namespace HordeCommon
 
 			public ValueTask DisposeAsync()
 			{
-				lock (Outer.Triggers)
+				lock (_outer._triggers)
 				{
-					Outer.Triggers.Remove(this);
+					_outer._triggers.Remove(this);
 				}
 				return new ValueTask();
 			}
+
+			public override string ToString()
+			{
+				if (NextTime == null)
+				{
+					return $"{_name} (paused)";
+				}
+				else
+				{
+					return $"{_name} ({NextTime.Value})";
+				}
+			}
 		}
 
-		DateTime UtcNowPrivate;
-		List<TickerImpl> Triggers = new List<TickerImpl>();
+		DateTime _utcNowPrivate;
+		readonly List<TickerImpl> _triggers = new List<TickerImpl>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		public FakeClock()
 		{
-			UtcNowPrivate = DateTime.UtcNow;
+			_utcNowPrivate = DateTime.UtcNow;
 		}
 
 		/// <summary>
 		/// Advance time by given amount
 		/// Useful for letting time progress during tests
 		/// </summary>
-		/// <param name="Period">Time span to advance</param>
-		public async Task AdvanceAsync(TimeSpan Period)
+		/// <param name="period">Time span to advance</param>
+		public async Task AdvanceAsync(TimeSpan period)
 		{
-			UtcNowPrivate = UtcNowPrivate.Add(Period);
+			_utcNowPrivate = _utcNowPrivate.Add(period);
 
-			for (int Idx = 0; Idx < Triggers.Count; Idx++)
+			for (int idx = 0; idx < _triggers.Count; idx++)
 			{
-				TickerImpl Trigger = Triggers[Idx];
-				while (Trigger.NextTime != null && UtcNowPrivate > Trigger.NextTime)
+				TickerImpl trigger = _triggers[idx];
+				while (trigger.NextTime != null && _utcNowPrivate > trigger.NextTime)
 				{
-					TimeSpan? Delay = await Trigger.TickAsync(CancellationToken.None);
-					if (Delay == null)
+					TimeSpan? delay = await trigger.TickAsync(CancellationToken.None);
+					if (delay == null)
 					{
-						Triggers.RemoveAt(Idx--);
+						_triggers.RemoveAt(idx--);
 						break;
 					}
-					Trigger.NextTime = UtcNowPrivate + Delay.Value;
+					trigger.NextTime = _utcNowPrivate + delay.Value;
 				}
 			}
 		}
@@ -318,20 +355,25 @@ namespace HordeCommon
 		/// <inheritdoc/>
 		public DateTime UtcNow
 		{ 
-			get => UtcNowPrivate;
-			set => UtcNowPrivate = value.ToUniversalTime(); 
+			get => _utcNowPrivate;
+			set => _utcNowPrivate = value.ToUniversalTime(); 
 		}
 
 		/// <inheritdoc/>
-		public ITicker AddTicker(TimeSpan Interval, Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync, ILogger Logger)
+		public ITicker AddTicker(string name, TimeSpan interval, Func<CancellationToken, ValueTask<TimeSpan?>> tickAsync, ILogger logger)
 		{
-			return new TickerImpl(this, Interval, TickAsync);
+			return new TickerImpl(this, name, interval, tickAsync);
 		}
 
 		/// <inheritdoc/>
-		public ITicker AddSharedTicker(string Name, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger)
+		public ITicker AddSharedTicker(string name, TimeSpan interval, Func<CancellationToken, ValueTask> tickAsync, ILogger logger)
 		{
-			return AddTicker(Interval, async Token => { await TickAsync(Token); return Interval; }, Logger);
+			async ValueTask<TimeSpan?> Tick(CancellationToken token)
+			{
+				await tickAsync(token);
+				return interval;
+			}
+			return new TickerImpl(this, name, interval, Tick);
 		}
 	}
 }

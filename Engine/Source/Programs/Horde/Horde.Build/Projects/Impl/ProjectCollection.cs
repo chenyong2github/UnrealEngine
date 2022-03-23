@@ -1,20 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
+using Horde.Build.Acls;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -56,10 +52,10 @@ namespace Horde.Build.Collections.Impl
 				Name = null!;
 			}
 
-			public ProjectDocument(ProjectId Id, string Name)
+			public ProjectDocument(ProjectId id, string name)
 			{
-				this.Id = Id;
-				this.Name = Name;
+				Id = id;
+				Name = name;
 			}
 		}
 
@@ -97,78 +93,78 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Collection of project documents
 		/// </summary>
-		IMongoCollection<ProjectDocument> Projects;
+		readonly IMongoCollection<ProjectDocument> _projects;
 
 		/// <summary>
 		/// Collection of project logo documents
 		/// </summary>
-		IMongoCollection<ProjectLogoDocument> ProjectLogos;
+		readonly IMongoCollection<ProjectLogoDocument> _projectLogos;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		public ProjectCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service instance</param>
+		public ProjectCollection(DatabaseService databaseService)
 		{
-			Projects = DatabaseService.GetCollection<ProjectDocument>("Projects");
-			ProjectLogos = DatabaseService.GetCollection<ProjectLogoDocument>("ProjectLogos");
+			_projects = databaseService.GetCollection<ProjectDocument>("Projects");
+			_projectLogos = databaseService.GetCollection<ProjectLogoDocument>("ProjectLogos");
 		}
 
 		/// <inheritdoc/>
-		public async Task<IProject?> AddOrUpdateAsync(ProjectId Id, string ConfigPath, string Revision, int Order, ProjectConfig Config)
+		public async Task<IProject?> AddOrUpdateAsync(ProjectId id, string configPath, string revision, int order, ProjectConfig config)
 		{
-			ProjectDocument NewProject = new ProjectDocument(Id, Config.Name);
-			NewProject.ConfigPath = ConfigPath;
-			NewProject.ConfigRevision = Revision;
-			NewProject.Order = Order;
-			NewProject.Categories = Config.Categories.ConvertAll(x => new StreamCategory(x));
-			NewProject.Acl = Acl.Merge(new Acl(), Config.Acl);
+			ProjectDocument newProject = new ProjectDocument(id, config.Name);
+			newProject.ConfigPath = configPath;
+			newProject.ConfigRevision = revision;
+			newProject.Order = order;
+			newProject.Categories = config.Categories.ConvertAll(x => new StreamCategory(x));
+			newProject.Acl = Acl.Merge(new Acl(), config.Acl);
 
-			await Projects.FindOneAndReplaceAsync<ProjectDocument>(x => x.Id == Id, NewProject, new FindOneAndReplaceOptions<ProjectDocument> { IsUpsert = true });
-			return NewProject;
+			await _projects.FindOneAndReplaceAsync<ProjectDocument>(x => x.Id == id, newProject, new FindOneAndReplaceOptions<ProjectDocument> { IsUpsert = true });
+			return newProject;
 		}
 
 		/// <inheritdoc/>
 		public async Task<List<IProject>> FindAllAsync()
 		{
-			List<ProjectDocument> Results = await Projects.Find(x => !x.Deleted).ToListAsync();
-			return Results.OrderBy(x => x.Order).ThenBy(x => x.Name).Select<ProjectDocument, IProject>(x => x).ToList();
+			List<ProjectDocument> results = await _projects.Find(x => !x.Deleted).ToListAsync();
+			return results.OrderBy(x => x.Order).ThenBy(x => x.Name).Select<ProjectDocument, IProject>(x => x).ToList();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IProject?> GetAsync(ProjectId ProjectId)
+		public async Task<IProject?> GetAsync(ProjectId projectId)
 		{
-			return await Projects.Find<ProjectDocument>(x => x.Id == ProjectId).FirstOrDefaultAsync();
+			return await _projects.Find<ProjectDocument>(x => x.Id == projectId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IProjectLogo?> GetLogoAsync(ProjectId ProjectId)
+		public async Task<IProjectLogo?> GetLogoAsync(ProjectId projectId)
 		{
-			return await ProjectLogos.Find(x => x.Id == ProjectId).FirstOrDefaultAsync();
+			return await _projectLogos.Find(x => x.Id == projectId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task SetLogoAsync(ProjectId ProjectId, string LogoPath, string LogoRevision, string MimeType, byte[] Data)
+		public async Task SetLogoAsync(ProjectId projectId, string logoPath, string logoRevision, string mimeType, byte[] data)
 		{
-			ProjectLogoDocument Logo = new ProjectLogoDocument();
-			Logo.Id = ProjectId;
-			Logo.Path = LogoPath;
-			Logo.Revision = LogoRevision;
-			Logo.MimeType = MimeType;
-			Logo.Data = Data;
-			await ProjectLogos.ReplaceOneAsync(x => x.Id == ProjectId, Logo, new ReplaceOptions { IsUpsert = true });
+			ProjectLogoDocument logo = new ProjectLogoDocument();
+			logo.Id = projectId;
+			logo.Path = logoPath;
+			logo.Revision = logoRevision;
+			logo.MimeType = mimeType;
+			logo.Data = data;
+			await _projectLogos.ReplaceOneAsync(x => x.Id == projectId, logo, new ReplaceOptions { IsUpsert = true });
 		}
 
 		/// <inheritdoc/>
-		public async Task<IProjectPermissions?> GetPermissionsAsync(ProjectId ProjectId)
+		public async Task<IProjectPermissions?> GetPermissionsAsync(ProjectId projectId)
 		{
-			return await Projects.Find<ProjectDocument>(x => x.Id == ProjectId).Project<ProjectPermissions>(ProjectPermissions.Projection).FirstOrDefaultAsync();
+			return await _projects.Find<ProjectDocument>(x => x.Id == projectId).Project<ProjectPermissions>(ProjectPermissions.Projection).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(ProjectId ProjectId)
+		public async Task DeleteAsync(ProjectId projectId)
 		{
-			await Projects.UpdateOneAsync(x => x.Id == ProjectId, Builders<ProjectDocument>.Update.Set(x => x.Deleted, true));
+			await _projects.UpdateOneAsync(x => x.Id == projectId, Builders<ProjectDocument>.Update.Set(x => x.Deleted, true));
 		}
 	}
 }

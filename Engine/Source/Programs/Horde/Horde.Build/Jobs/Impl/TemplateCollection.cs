@@ -1,20 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -58,39 +57,39 @@ namespace Horde.Build.Collections.Impl
 				Name = null!;
 			}
 
-			public TemplateDocument(string Name, Priority? Priority, bool bAllowPreflights, bool UpdateIssues, bool PromoteIssuesByDefault, string? InitialAgentType, string? SubmitNewChange, string? SubmitDescription, List<string>? Arguments, List<Parameter>? Parameters)
+			public TemplateDocument(string name, Priority? priority, bool bAllowPreflights, bool updateIssues, bool promoteIssuesByDefault, string? initialAgentType, string? submitNewChange, string? submitDescription, List<string>? arguments, List<Parameter>? parameters)
 			{
-				this.Name = Name;
-				this.Priority = Priority;
-				this.AllowPreflights = bAllowPreflights;
-				this.UpdateIssues = UpdateIssues;
-				this.PromoteIssuesByDefault = PromoteIssuesByDefault;
-				this.InitialAgentType = InitialAgentType;
-				this.SubmitNewChange = SubmitNewChange;
-				this.SubmitDescription = SubmitDescription;
-				this.Arguments = Arguments ?? new List<string>();
-				this.Parameters = Parameters ?? new List<Parameter>();
+				Name = name;
+				Priority = priority;
+				AllowPreflights = bAllowPreflights;
+				UpdateIssues = updateIssues;
+				PromoteIssuesByDefault = promoteIssuesByDefault;
+				InitialAgentType = initialAgentType;
+				SubmitNewChange = submitNewChange;
+				SubmitDescription = submitDescription;
+				Arguments = arguments ?? new List<string>();
+				Parameters = parameters ?? new List<Parameter>();
 
 				// Compute the hash once all other fields have been set
-				this.Id = ContentHash.SHA1(BsonExtensionMethods.ToBson(this));
+				Id = ContentHash.SHA1(BsonExtensionMethods.ToBson(this));
 			}
 		}
 
 		/// <summary>
 		/// Template documents
 		/// </summary>
-		IMongoCollection<TemplateDocument> Templates;
+		readonly IMongoCollection<TemplateDocument> _templates;
 
 		/// <summary>
 		/// Cache of template documents
 		/// </summary>
-		MemoryCache TemplateCache;
+		readonly MemoryCache _templateCache;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service singleton</param>
-		public TemplateCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service singleton</param>
+		public TemplateCollection(DatabaseService databaseService)
 		{
 			// Ensure discriminator cannot be registered twice (throws exception). Can otherwise happen during unit tests.
 			if (BsonSerializer.LookupDiscriminatorConvention(typeof(JobsTabColumn)) == null)
@@ -98,56 +97,56 @@ namespace Horde.Build.Collections.Impl
 				BsonSerializer.RegisterDiscriminatorConvention(typeof(JobsTabColumn), new DefaultDiscriminatorConvention(typeof(JobsTabColumn), typeof(JobsTabLabelColumn)));	
 			}
 			
-			Templates = DatabaseService.GetCollection<TemplateDocument>("Templates");
+			_templates = databaseService.GetCollection<TemplateDocument>("Templates");
 
-			MemoryCacheOptions Options = new MemoryCacheOptions();
-			TemplateCache = new MemoryCache(Options);
+			MemoryCacheOptions options = new MemoryCacheOptions();
+			_templateCache = new MemoryCache(options);
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			TemplateCache.Dispose();
+			_templateCache.Dispose();
 		}
 
 		/// <inheritdoc/>
-		public async Task<ITemplate> AddAsync(string Name, Priority? Priority, bool bAllowPreflights, bool bUpdateIssues, bool bPromoteIssuesByDefault, string? InitialAgentType, string? SubmitNewChange, string? SubmitDescription, List<string>? Arguments, List<Parameter>? Parameters)
+		public async Task<ITemplate> AddAsync(string name, Priority? priority, bool bAllowPreflights, bool bUpdateIssues, bool bPromoteIssuesByDefault, string? initialAgentType, string? submitNewChange, string? submitDescription, List<string>? arguments, List<Parameter>? parameters)
 		{
-			TemplateDocument Template = new TemplateDocument(Name, Priority, bAllowPreflights, bUpdateIssues, bPromoteIssuesByDefault, InitialAgentType, SubmitNewChange, SubmitDescription, Arguments, Parameters);
-			if (await GetAsync(Template.Id) == null)
+			TemplateDocument template = new TemplateDocument(name, priority, bAllowPreflights, bUpdateIssues, bPromoteIssuesByDefault, initialAgentType, submitNewChange, submitDescription, arguments, parameters);
+			if (await GetAsync(template.Id) == null)
 			{
-				await Templates.ReplaceOneAsync(x => x.Id == Template.Id, Template, new ReplaceOptions { IsUpsert = true });
+				await _templates.ReplaceOneAsync(x => x.Id == template.Id, template, new ReplaceOptions { IsUpsert = true });
 			}
-			return Template;
+			return template;
 		}
 
 		/// <inheritdoc/>
 		public async Task<List<ITemplate>> FindAllAsync()
 		{
-			List<TemplateDocument> Results = await Templates.Find(FilterDefinition<TemplateDocument>.Empty).ToListAsync();
-			return Results.ConvertAll<ITemplate>(x => x);
+			List<TemplateDocument> results = await _templates.Find(FilterDefinition<TemplateDocument>.Empty).ToListAsync();
+			return results.ConvertAll<ITemplate>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task<ITemplate?> GetAsync(ContentHash TemplateId)
+		public async Task<ITemplate?> GetAsync(ContentHash templateId)
 		{
-			object? Result;
-			if (TemplateCache.TryGetValue(TemplateId, out Result))
+			object? result;
+			if (_templateCache.TryGetValue(templateId, out result))
 			{
-				return (ITemplate?)Result;
+				return (ITemplate?)result;
 			}
 
-			ITemplate? Template = await Templates.Find<TemplateDocument>(x => x.Id == TemplateId).FirstOrDefaultAsync();
-			if (Template != null)
+			ITemplate? template = await _templates.Find<TemplateDocument>(x => x.Id == templateId).FirstOrDefaultAsync();
+			if (template != null)
 			{
-				using (ICacheEntry Entry = TemplateCache.CreateEntry(TemplateId))
+				using (ICacheEntry entry = _templateCache.CreateEntry(templateId))
 				{
-					Entry.SetSlidingExpiration(TimeSpan.FromMinutes(30.0));
-					Entry.SetValue(Template);
+					entry.SetSlidingExpiration(TimeSpan.FromMinutes(30.0));
+					entry.SetValue(template);
 				}
 			}
 
-			return Template;
+			return template;
 		}
 	}
 }

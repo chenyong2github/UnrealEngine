@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
+using HordeCommon;
 
 namespace Horde.Build.Api
 {
@@ -75,14 +71,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Label">Name of the group</param>
-		/// <param name="Style">How to display this group</param>
-		/// <param name="Children">List of child parameters</param>
-		public GroupParameterData(string Label, GroupParameterStyle Style, List<ParameterData> Children)
+		/// <param name="label">Name of the group</param>
+		/// <param name="style">How to display this group</param>
+		/// <param name="children">List of child parameters</param>
+		public GroupParameterData(string label, GroupParameterStyle style, List<ParameterData> children)
 		{
-			this.Label = Label;
-			this.Style = Style;
-			this.Children = Children;
+			Label = label;
+			Style = style;
+			Children = children;
 		}
 
 		/// <summary>
@@ -149,22 +145,22 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Label">Label to show next to the parameter</param>
-		/// <param name="Argument">Argument to pass this value with</param>
-		/// <param name="Default">Default value for this parameter</param>
-		/// <param name="Hint">Hint text to display for this parameter</param>
-		/// <param name="Validation">Regex used to validate entries</param>
-		/// <param name="ValidationError">Message displayed to explain validation issues</param>
-		/// <param name="ToolTip">Tool tip text to display</param>
-		public TextParameterData(string Label, string Argument, string Default, string? Hint, string? Validation, string? ValidationError, string? ToolTip)
+		/// <param name="label">Label to show next to the parameter</param>
+		/// <param name="argument">Argument to pass this value with</param>
+		/// <param name="defaultValue">Default value for this parameter</param>
+		/// <param name="hint">Hint text to display for this parameter</param>
+		/// <param name="validation">Regex used to validate entries</param>
+		/// <param name="validationError">Message displayed to explain validation issues</param>
+		/// <param name="toolTip">Tool tip text to display</param>
+		public TextParameterData(string label, string argument, string defaultValue, string? hint, string? validation, string? validationError, string? toolTip)
 		{
-			this.Label = Label;
-			this.Argument = Argument;
-			this.Default = Default;
-			this.Hint = Hint;
-			this.Validation = Validation;
-			this.ValidationError = ValidationError;
-			this.ToolTip = ToolTip;
+			Label = label;
+			Argument = argument;
+			Default = defaultValue;
+			Hint = hint;
+			Validation = validation;
+			ValidationError = validationError;
+			ToolTip = toolTip;
 		}
 
 		/// <summary>
@@ -239,18 +235,18 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Group">The group to put this parameter in</param>
-		/// <param name="Text">Text to display for this option</param>
-		/// <param name="ArgumentIfEnabled">Argument to pass for this item if it's enabled</param>
-		/// <param name="ArgumentIfDisabled">Argument to pass for this item if it's enabled</param>
-		/// <param name="Default">Whether this item is selected by default</param>
-		public ListParameterItemData(string? Group, string Text, string? ArgumentIfEnabled, string? ArgumentIfDisabled, bool Default)
+		/// <param name="group">The group to put this parameter in</param>
+		/// <param name="text">Text to display for this option</param>
+		/// <param name="argumentIfEnabled">Argument to pass for this item if it's enabled</param>
+		/// <param name="argumentIfDisabled">Argument to pass for this item if it's enabled</param>
+		/// <param name="defaultValue">Whether this item is selected by default</param>
+		public ListParameterItemData(string? group, string text, string? argumentIfEnabled, string? argumentIfDisabled, bool defaultValue)
 		{
-			this.Group = Group;
-			this.Text = Text;
-			this.ArgumentIfEnabled = ArgumentIfEnabled;
-			this.ArgumentIfDisabled = ArgumentIfDisabled;
-			this.Default = Default;
+			Group = group;
+			Text = text;
+			ArgumentIfEnabled = argumentIfEnabled;
+			ArgumentIfDisabled = argumentIfDisabled;
+			Default = defaultValue;
 		}
 
 		/// <summary>
@@ -301,16 +297,16 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// List of possible values
 		/// </summary>
-		/// <param name="Label">Label to show next to this parameter</param>
-		/// <param name="Style">Type of picker to show</param>
-		/// <param name="Items">Entries for this list</param>
-		/// <param name="ToolTip">Tool tip text to display</param>
-		public ListParameterData(string Label, ListParameterStyle Style, List<ListParameterItemData> Items, string? ToolTip)
+		/// <param name="label">Label to show next to this parameter</param>
+		/// <param name="style">Type of picker to show</param>
+		/// <param name="items">Entries for this list</param>
+		/// <param name="toolTip">Tool tip text to display</param>
+		public ListParameterData(string label, ListParameterStyle style, List<ListParameterItemData> items, string? toolTip)
 		{
-			this.Label = Label;
-			this.Style = Style;
-			this.Items = Items;
-			this.ToolTip = ToolTip;
+			Label = label;
+			Style = style;
+			Items = items;
+			ToolTip = toolTip;
 		}
 
 		/// <summary>
@@ -365,18 +361,18 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Label">Label to show next to this parameter</param>
-		/// <param name="ArgumentIfEnabled">Value if enabled</param>
-		/// <param name="ArgumentIfDisabled">Value if disabled</param>
-		/// <param name="Default">Whether this option is enabled by default</param>
-		/// <param name="ToolTip">The tool tip text to display</param>
-		public BoolParameterData(string Label, string? ArgumentIfEnabled, string? ArgumentIfDisabled, bool Default, string? ToolTip)
+		/// <param name="label">Label to show next to this parameter</param>
+		/// <param name="argumentIfEnabled">Value if enabled</param>
+		/// <param name="argumentIfDisabled">Value if disabled</param>
+		/// <param name="defaultValue">Whether this option is enabled by default</param>
+		/// <param name="toolTip">The tool tip text to display</param>
+		public BoolParameterData(string label, string? argumentIfEnabled, string? argumentIfDisabled, bool defaultValue, string? toolTip)
 		{
-			this.Label = Label;
-			this.ArgumentIfEnabled = ArgumentIfEnabled;
-			this.ArgumentIfDisabled = ArgumentIfDisabled;
-			this.Default = Default;
-			this.ToolTip = ToolTip;
+			Label = label;
+			ArgumentIfEnabled = argumentIfEnabled;
+			ArgumentIfDisabled = argumentIfDisabled;
+			Default = defaultValue;
+			ToolTip = toolTip;
 		}
 
 		/// <summary>
@@ -496,26 +492,26 @@ namespace Horde.Build.Api
 		/// </summary>
 		protected GetTemplateResponseBase()
 		{
-			this.Name = null!;
-			this.AllowPreflights = true;
-			this.Arguments = new List<string>();
-			this.Parameters = new List<ParameterData>();
+			Name = null!;
+			AllowPreflights = true;
+			Arguments = new List<string>();
+			Parameters = new List<ParameterData>();
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Template">The template to construct from</param>
-		public GetTemplateResponseBase(ITemplate Template)
+		/// <param name="template">The template to construct from</param>
+		public GetTemplateResponseBase(ITemplate template)
 		{
-			this.Name = Template.Name;
-			this.Priority = Template.Priority;
-			this.AllowPreflights = Template.AllowPreflights;
-			this.UpdateIssues = Template.UpdateIssues;
-			this.InitialAgentType = Template.InitialAgentType;
-			this.SubmitNewChange = Template.SubmitNewChange;
-			this.Arguments = new List<string>(Template.Arguments);
-			this.Parameters = Template.Parameters.ConvertAll(x => x.ToData());
+			Name = template.Name;
+			Priority = template.Priority;
+			AllowPreflights = template.AllowPreflights;
+			UpdateIssues = template.UpdateIssues;
+			InitialAgentType = template.InitialAgentType;
+			SubmitNewChange = template.SubmitNewChange;
+			Arguments = new List<string>(template.Arguments);
+			Parameters = template.Parameters.ConvertAll(x => x.ToData());
 		}
 	}
 
@@ -535,17 +531,17 @@ namespace Horde.Build.Api
 		protected GetTemplateResponse()
 			: base()
 		{
-			this.Id = null!;
+			Id = null!;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Template">The template to construct from</param>
-		public GetTemplateResponse(ITemplate Template)
-			: base(Template)
+		/// <param name="template">The template to construct from</param>
+		public GetTemplateResponse(ITemplate template)
+			: base(template)
 		{
-			this.Id = Template.Id.ToString();
+			Id = template.Id.ToString();
 		}
 	}
 }

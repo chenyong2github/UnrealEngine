@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Horde.Common;
-using HordeCommon;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Common;
+using Horde.Build.Collections;
 using Horde.Build.Fleet.Autoscale;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using HordeCommon;
 
 namespace Horde.Build.Services
 {
@@ -24,135 +24,135 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// The database service instance
 		/// </summary>
-		DatabaseService DatabaseService;
+		readonly DatabaseService _databaseService;
 
 		/// <summary>
 		/// Collection of pool documents
 		/// </summary>
-		IPoolCollection Pools;
+		readonly IPoolCollection _pools;
 
 		/// <summary>
 		/// Returns the current time
 		/// </summary>
-		IClock Clock;
+		readonly IClock _clock;
 
 		/// <summary>
 		/// Cached set of pools, along with the timestamp that it was obtained
 		/// </summary>
-		Tuple<DateTime, Dictionary<PoolId, IPool>>? CachedPoolLookup;
+		Tuple<DateTime, Dictionary<PoolId, IPool>>? _cachedPoolLookup;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		/// <param name="Pools">Collection of pool documents</param>
-		/// <param name="Clock"></param>
-		public PoolService(DatabaseService DatabaseService, IPoolCollection Pools, IClock Clock)
+		/// <param name="databaseService"></param>
+		/// <param name="pools">Collection of pool documents</param>
+		/// <param name="clock"></param>
+		public PoolService(DatabaseService databaseService, IPoolCollection pools, IClock clock)
 		{
-			this.DatabaseService = DatabaseService;
-			this.Pools = Pools;
-			this.Clock = Clock;
+			_databaseService = databaseService;
+			_pools = pools;
+			_clock = clock;
 		}
 
 		/// <summary>
 		/// Creates a new pool
 		/// </summary>
-		/// <param name="Name">Name of the new pool</param>
-		/// <param name="Condition">Condition for agents to be automatically included in this pool</param>
-		/// <param name="EnableAutoscaling">Whether to enable autoscaling for this pool</param>
-		/// <param name="MinAgents">Minimum number of agents in the pool</param>
-		/// <param name="NumReserveAgents">Minimum number of idle agents to maintain</param>
-		/// <param name="ScaleOutCooldown">Cooldown time between scale-out events</param>
-		/// <param name="ScaleInCooldown">Cooldown time between scale-in events</param>
-		/// <param name="SizeStrategy">Pool sizing strategy</param>
-		/// <param name="LeaseUtilizationSettings">Settings for lease utilization strategy</param>
-		/// <param name="JobQueueSettings">Settings for job queue strategy</param>
-		/// <param name="Properties">Properties for the new pool</param>
+		/// <param name="name">Name of the new pool</param>
+		/// <param name="condition">Condition for agents to be automatically included in this pool</param>
+		/// <param name="enableAutoscaling">Whether to enable autoscaling for this pool</param>
+		/// <param name="minAgents">Minimum number of agents in the pool</param>
+		/// <param name="numReserveAgents">Minimum number of idle agents to maintain</param>
+		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
+		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
+		/// <param name="sizeStrategy">Pool sizing strategy</param>
+		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
+		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
+		/// <param name="properties">Properties for the new pool</param>
 		/// <returns>The new pool document</returns>
 		public Task<IPool> CreatePoolAsync(
-			string Name,
-			Condition? Condition = null,
-			bool? EnableAutoscaling = null,
-			int? MinAgents = null,
-			int? NumReserveAgents = null,
-			TimeSpan? ScaleOutCooldown = null,
-			TimeSpan? ScaleInCooldown = null,
-			PoolSizeStrategy? SizeStrategy = null,
-			LeaseUtilizationSettings? LeaseUtilizationSettings = null,
-			JobQueueSettings? JobQueueSettings = null,
-			Dictionary<string, string>? Properties = null)
+			string name,
+			Condition? condition = null,
+			bool? enableAutoscaling = null,
+			int? minAgents = null,
+			int? numReserveAgents = null,
+			TimeSpan? scaleOutCooldown = null,
+			TimeSpan? scaleInCooldown = null,
+			PoolSizeStrategy? sizeStrategy = null,
+			LeaseUtilizationSettings? leaseUtilizationSettings = null,
+			JobQueueSettings? jobQueueSettings = null,
+			Dictionary<string, string>? properties = null)
 		{
-			return Pools.AddAsync(
-				PoolId.Sanitize(Name),
-				Name,
-				Condition,
-				EnableAutoscaling,
-				MinAgents,
-				NumReserveAgents,
-				ScaleOutCooldown,
-				ScaleInCooldown,
-				SizeStrategy,
-				LeaseUtilizationSettings,
-				JobQueueSettings,
-				Properties);
+			return _pools.AddAsync(
+				PoolId.Sanitize(name),
+				name,
+				condition,
+				enableAutoscaling,
+				minAgents,
+				numReserveAgents,
+				scaleOutCooldown,
+				scaleInCooldown,
+				sizeStrategy,
+				leaseUtilizationSettings,
+				jobQueueSettings,
+				properties);
 		}
 
 		/// <summary>
 		/// Deletes a pool
 		/// </summary>
-		/// <param name="PoolId">Unique id of the pool</param>
+		/// <param name="poolId">Unique id of the pool</param>
 		/// <returns>Async task object</returns>
-		public Task<bool> DeletePoolAsync(PoolId PoolId)
+		public Task<bool> DeletePoolAsync(PoolId poolId)
 		{
-			return Pools.DeleteAsync(PoolId);
+			return _pools.DeleteAsync(poolId);
 		}
 
 		/// <summary>
 		/// Updates an existing pool
 		/// </summary>
-		/// <param name="Pool">The pool to update</param>
-		/// <param name="NewName">The new name for the pool</param>
-		/// <param name="NewCondition">New requirements for the pool</param>
-		/// <param name="NewEnableAutoscaling">Whether to enable autoscaling</param>
-		/// <param name="NewMinAgents">Minimum number of agents in the pool</param>
-		/// <param name="NewNumReserveAgents">Minimum number of idle agents to maintain</param>
-		/// <param name="NewProperties">Properties on the pool to update. Any properties with a value of null will be removed.</param>
-		/// <param name="ScaleOutCooldown">Cooldown time between scale-out events</param>
-		/// <param name="ScaleInCooldown">Cooldown time between scale-in events</param>
-		/// <param name="SizeStrategy">New pool sizing strategy for the pool</param>
+		/// <param name="pool">The pool to update</param>
+		/// <param name="newName">The new name for the pool</param>
+		/// <param name="newCondition">New requirements for the pool</param>
+		/// <param name="newEnableAutoscaling">Whether to enable autoscaling</param>
+		/// <param name="newMinAgents">Minimum number of agents in the pool</param>
+		/// <param name="newNumReserveAgents">Minimum number of idle agents to maintain</param>
+		/// <param name="newProperties">Properties on the pool to update. Any properties with a value of null will be removed.</param>
+		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
+		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
+		/// <param name="sizeStrategy">New pool sizing strategy for the pool</param>
 		/// <returns>Async task object</returns>
 		public async Task<IPool?> UpdatePoolAsync(
-			IPool? Pool,
-			string? NewName = null,
-			Condition? NewCondition = null,
-			bool? NewEnableAutoscaling = null,
-			int? NewMinAgents = null,
-			int? NewNumReserveAgents = null,
-			Dictionary<string, string?>? NewProperties = null,
-			TimeSpan? ScaleOutCooldown = null,
-			TimeSpan? ScaleInCooldown = null,
-			PoolSizeStrategy? SizeStrategy = null)
+			IPool? pool,
+			string? newName = null,
+			Condition? newCondition = null,
+			bool? newEnableAutoscaling = null,
+			int? newMinAgents = null,
+			int? newNumReserveAgents = null,
+			Dictionary<string, string?>? newProperties = null,
+			TimeSpan? scaleOutCooldown = null,
+			TimeSpan? scaleInCooldown = null,
+			PoolSizeStrategy? sizeStrategy = null)
 		{
-			for (; Pool != null; Pool = await Pools.GetAsync(Pool.Id))
+			for (; pool != null; pool = await _pools.GetAsync(pool.Id))
 			{
-				IPool? NewPool = await Pools.TryUpdateAsync(
-					Pool,
-					NewName,
-					NewCondition,
-					NewEnableAutoscaling,
-					NewMinAgents,
-					NewNumReserveAgents,
-					NewProperties: NewProperties,
-					ScaleOutCooldown: ScaleOutCooldown,
-					ScaleInCooldown: ScaleInCooldown,
-					SizeStrategy: SizeStrategy);
+				IPool? newPool = await _pools.TryUpdateAsync(
+					pool,
+					newName,
+					newCondition,
+					newEnableAutoscaling,
+					newMinAgents,
+					newNumReserveAgents,
+					newProperties: newProperties,
+					scaleOutCooldown: scaleOutCooldown,
+					scaleInCooldown: scaleInCooldown,
+					sizeStrategy: sizeStrategy);
 				
-				if (NewPool != null)
+				if (newPool != null)
 				{
-					return NewPool;
+					return newPool;
 				}
 			}
-			return Pool;
+			return pool;
 		}
 
 		/// <summary>
@@ -161,78 +161,78 @@ namespace Horde.Build.Services
 		/// <returns>List of pool documents</returns>
 		public Task<List<IPool>> GetPoolsAsync()
 		{
-			return Pools.GetAsync();
+			return _pools.GetAsync();
 		}
 
 		/// <summary>
 		/// Gets a pool by ID
 		/// </summary>
-		/// <param name="PoolId">Unique id of the pool</param>
+		/// <param name="poolId">Unique id of the pool</param>
 		/// <returns>The pool document</returns>
-		public Task<IPool?> GetPoolAsync(PoolId PoolId)
+		public Task<IPool?> GetPoolAsync(PoolId poolId)
 		{
-			return Pools.GetAsync(PoolId);
+			return _pools.GetAsync(poolId);
 		}
 
 		/// <summary>
 		/// Get a list of workspaces for the given agent
 		/// </summary>
-		/// <param name="Agent">The agent to return workspaces for</param>
-		/// <param name="ValidAtTime">Absolute time at which we expect the results to be valid. Values may be cached as long as they are after this time.</param>
+		/// <param name="agent">The agent to return workspaces for</param>
+		/// <param name="validAtTime">Absolute time at which we expect the results to be valid. Values may be cached as long as they are after this time.</param>
 		/// <returns>List of workspaces</returns>
-		public async Task<HashSet<AgentWorkspace>> GetWorkspacesAsync(IAgent Agent, DateTime ValidAtTime)
+		public async Task<HashSet<AgentWorkspace>> GetWorkspacesAsync(IAgent agent, DateTime validAtTime)
 		{
 			bool bAddAutoSdkWorkspace = false;
-			HashSet<AgentWorkspace> Workspaces = new HashSet<AgentWorkspace>();
+			HashSet<AgentWorkspace> workspaces = new HashSet<AgentWorkspace>();
 
-			Dictionary<PoolId, IPool> PoolMapping = await GetPoolLookupAsync(ValidAtTime);
-			foreach (PoolId PoolId in Agent.GetPools())
+			Dictionary<PoolId, IPool> poolMapping = await GetPoolLookupAsync(validAtTime);
+			foreach (PoolId poolId in agent.GetPools())
 			{
-				IPool? Pool;
-				if (PoolMapping.TryGetValue(PoolId, out Pool))
+				IPool? pool;
+				if (poolMapping.TryGetValue(poolId, out pool))
 				{
-					Workspaces.UnionWith(Pool.Workspaces);
-					bAddAutoSdkWorkspace |= Pool.UseAutoSdk;
+					workspaces.UnionWith(pool.Workspaces);
+					bAddAutoSdkWorkspace |= pool.UseAutoSdk;
 				}
 			}
 
 			if (bAddAutoSdkWorkspace)
 			{
-				Globals Globals = await DatabaseService.GetGlobalsAsync();
-				Workspaces.UnionWith(Agent.GetAutoSdkWorkspaces(Globals, Workspaces.ToList()));
+				Globals globals = await _databaseService.GetGlobalsAsync();
+				workspaces.UnionWith(agent.GetAutoSdkWorkspaces(globals, workspaces.ToList()));
 			}
 
-			return Workspaces;
+			return workspaces;
 		}
 
 		/// <summary>
 		/// Gets a mapping from pool identifiers to definitions
 		/// </summary>
-		/// <param name="ValidAtTime">Absolute time at which we expect the results to be valid. Values may be cached as long as they are after this time.</param>
+		/// <param name="validAtTime">Absolute time at which we expect the results to be valid. Values may be cached as long as they are after this time.</param>
 		/// <returns>Map of pool ids to pool documents</returns>
-		private async Task<Dictionary<PoolId, IPool>> GetPoolLookupAsync(DateTime ValidAtTime)
+		private async Task<Dictionary<PoolId, IPool>> GetPoolLookupAsync(DateTime validAtTime)
 		{
-			Tuple<DateTime, Dictionary<PoolId, IPool>>? CachedPoolLookupCopy = CachedPoolLookup;
-			if (CachedPoolLookupCopy == null || CachedPoolLookupCopy.Item1 < ValidAtTime)
+			Tuple<DateTime, Dictionary<PoolId, IPool>>? cachedPoolLookupCopy = _cachedPoolLookup;
+			if (cachedPoolLookupCopy == null || cachedPoolLookupCopy.Item1 < validAtTime)
 			{
 				// Get a new list of cached pools
-				DateTime NewCacheTime = Clock.UtcNow;
-				List<IPool> NewPools = await Pools.GetAsync();
-				Tuple<DateTime, Dictionary<PoolId, IPool>> NewCachedPoolLookup = Tuple.Create(NewCacheTime, NewPools.ToDictionary(x => x.Id, x => x));
+				DateTime newCacheTime = _clock.UtcNow;
+				List<IPool> newPools = await _pools.GetAsync();
+				Tuple<DateTime, Dictionary<PoolId, IPool>> newCachedPoolLookup = Tuple.Create(newCacheTime, newPools.ToDictionary(x => x.Id, x => x));
 
 				// Try to swap it with the current version
-				while (CachedPoolLookupCopy == null || CachedPoolLookupCopy.Item1 < NewCacheTime)
+				while (cachedPoolLookupCopy == null || cachedPoolLookupCopy.Item1 < newCacheTime)
 				{
-					Tuple<DateTime, Dictionary<PoolId, IPool>>? OriginalValue = Interlocked.CompareExchange(ref CachedPoolLookup, NewCachedPoolLookup, CachedPoolLookupCopy);
-					if (OriginalValue == CachedPoolLookupCopy)
+					Tuple<DateTime, Dictionary<PoolId, IPool>>? originalValue = Interlocked.CompareExchange(ref _cachedPoolLookup, newCachedPoolLookup, cachedPoolLookupCopy);
+					if (originalValue == cachedPoolLookupCopy)
 					{
-						CachedPoolLookupCopy = NewCachedPoolLookup;
+						cachedPoolLookupCopy = newCachedPoolLookup;
 						break;
 					}
-					CachedPoolLookupCopy = OriginalValue;
+					cachedPoolLookupCopy = originalValue;
 				}
 			}
-			return CachedPoolLookupCopy.Item2;
+			return cachedPoolLookupCopy.Item2;
 		}
 	}
 }

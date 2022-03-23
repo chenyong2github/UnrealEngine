@@ -1,5 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Models;
@@ -7,12 +9,6 @@ using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -29,128 +25,128 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Singleton instance of the project service
 		/// </summary>
-		private readonly ProjectService ProjectService;
+		private readonly ProjectService _projectService;
 
 		/// <summary>
 		/// Singleton instance of the stream service
 		/// </summary>
-		private readonly StreamService StreamService;
+		private readonly StreamService _streamService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ProjectService">The project service</param>
-		/// <param name="StreamService">The stream service</param>
-		public ProjectsController(ProjectService ProjectService, StreamService StreamService)
+		/// <param name="projectService">The project service</param>
+		/// <param name="streamService">The stream service</param>
+		public ProjectsController(ProjectService projectService, StreamService streamService)
 		{
-			this.ProjectService = ProjectService;
-			this.StreamService = StreamService;
+			_projectService = projectService;
+			_streamService = streamService;
 		}
 
 		/// <summary>
 		/// Query all the projects
 		/// </summary>
-		/// <param name="IncludeStreams">Whether to include streams in the response</param>
-		/// <param name="IncludeCategories">Whether to include categories in the response</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="includeStreams">Whether to include streams in the response</param>
+		/// <param name="includeCategories">Whether to include categories in the response</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Information about all the projects</returns>
 		[HttpGet]
 		[Route("/api/v1/projects")]
 		[ProducesResponseType(typeof(List<GetProjectResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetProjectsAsync([FromQuery(Name = "Streams")] bool IncludeStreams = false, [FromQuery(Name = "Categories")] bool IncludeCategories = false, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetProjectsAsync([FromQuery(Name = "Streams")] bool includeStreams = false, [FromQuery(Name = "Categories")] bool includeCategories = false, [FromQuery] PropertyFilter? filter = null)
 		{
-			List<IProject> Projects = await ProjectService.GetProjectsAsync();
-			ProjectPermissionsCache PermissionsCache = new ProjectPermissionsCache();
+			List<IProject> projects = await _projectService.GetProjectsAsync();
+			ProjectPermissionsCache permissionsCache = new ProjectPermissionsCache();
 
-			List<IStream>? Streams = null;
-			if (IncludeStreams || IncludeCategories)
+			List<IStream>? streams = null;
+			if (includeStreams || includeCategories)
 			{
-				Streams = await StreamService.GetStreamsAsync();
+				streams = await _streamService.GetStreamsAsync();
 			}
 
-			List<object> Responses = new List<object>();
-			foreach (IProject Project in Projects)
+			List<object> responses = new List<object>();
+			foreach (IProject project in projects)
 			{
-				if (await ProjectService.AuthorizeAsync(Project, AclAction.ViewProject, User, PermissionsCache))
+				if (await _projectService.AuthorizeAsync(project, AclAction.ViewProject, User, permissionsCache))
 				{
-					bool bIncludeAcl = await ProjectService.AuthorizeAsync(Project, AclAction.ViewPermissions, User, PermissionsCache);
-					Responses.Add(Project.ToResponse(IncludeStreams, IncludeCategories, Streams, bIncludeAcl).ApplyFilter(Filter));
+					bool bIncludeAcl = await _projectService.AuthorizeAsync(project, AclAction.ViewPermissions, User, permissionsCache);
+					responses.Add(project.ToResponse(includeStreams, includeCategories, streams, bIncludeAcl).ApplyFilter(filter));
 				}
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Retrieve information about a specific project
 		/// </summary>
-		/// <param name="ProjectId">Id of the project to get information about</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="projectId">Id of the project to get information about</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
-		[Route("/api/v1/projects/{ProjectId}")]
+		[Route("/api/v1/projects/{projectId}")]
 		[ProducesResponseType(typeof(List<GetProjectResponse>), 200)]
-		public async Task<ActionResult<object>> GetProjectAsync(ProjectId ProjectId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetProjectAsync(ProjectId projectId, [FromQuery] PropertyFilter? filter = null)
 		{
-			IProject? Project = await ProjectService.GetProjectAsync(ProjectId);
-			if (Project == null)
+			IProject? project = await _projectService.GetProjectAsync(projectId);
+			if (project == null)
 			{
-				return NotFound(ProjectId);
+				return NotFound(projectId);
 			}
 
-			ProjectPermissionsCache Cache = new ProjectPermissionsCache();
-			if (!await ProjectService.AuthorizeAsync(Project, AclAction.ViewProject, User, Cache))
+			ProjectPermissionsCache cache = new ProjectPermissionsCache();
+			if (!await _projectService.AuthorizeAsync(project, AclAction.ViewProject, User, cache))
 			{
-				return Forbid(AclAction.ViewProject, ProjectId);
+				return Forbid(AclAction.ViewProject, projectId);
 			}
 
-			bool bIncludeStreams = PropertyFilter.Includes(Filter, nameof(GetProjectResponse.Streams));
-			bool bIncludeCategories = PropertyFilter.Includes(Filter, nameof(GetProjectResponse.Categories));
+			bool bIncludeStreams = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Streams));
+			bool bIncludeCategories = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Categories));
 
-			List<IStream>? VisibleStreams = null;
+			List<IStream>? visibleStreams = null;
 			if (bIncludeStreams || bIncludeCategories)
 			{
-				VisibleStreams = new List<IStream>();
+				visibleStreams = new List<IStream>();
 
-				List<IStream> Streams = await StreamService.GetStreamsAsync(Project.Id);
-				foreach (IStream Stream in Streams)
+				List<IStream> streams = await _streamService.GetStreamsAsync(project.Id);
+				foreach (IStream stream in streams)
 				{
-					if (await StreamService.AuthorizeAsync(Stream, AclAction.ViewStream, User, Cache))
+					if (await _streamService.AuthorizeAsync(stream, AclAction.ViewStream, User, cache))
 					{
-						VisibleStreams.Add(Stream);
+						visibleStreams.Add(stream);
 					}
 				}
 			}
 
-			bool bIncludeAcl = await ProjectService.AuthorizeAsync(Project, AclAction.ViewPermissions, User, Cache);
-			return Project.ToResponse(bIncludeStreams, bIncludeCategories, VisibleStreams, bIncludeAcl).ApplyFilter(Filter);
+			bool bIncludeAcl = await _projectService.AuthorizeAsync(project, AclAction.ViewPermissions, User, cache);
+			return project.ToResponse(bIncludeStreams, bIncludeCategories, visibleStreams, bIncludeAcl).ApplyFilter(filter);
 		}
 
 		/// <summary>
 		/// Retrieve information about a specific project
 		/// </summary>
-		/// <param name="ProjectId">Id of the project to get information about</param>
+		/// <param name="projectId">Id of the project to get information about</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
-		[Route("/api/v1/projects/{ProjectId}/logo")]
-		public async Task<ActionResult<object>> GetProjectLogoAsync(ProjectId ProjectId)
+		[Route("/api/v1/projects/{projectId}/logo")]
+		public async Task<ActionResult<object>> GetProjectLogoAsync(ProjectId projectId)
 		{
-			IProject? Project = await ProjectService.GetProjectAsync(ProjectId);
-			if (Project == null)
+			IProject? project = await _projectService.GetProjectAsync(projectId);
+			if (project == null)
 			{
-				return NotFound(ProjectId);
+				return NotFound(projectId);
 			}
-			if (!await ProjectService.AuthorizeAsync(Project, AclAction.ViewProject, User, null))
+			if (!await _projectService.AuthorizeAsync(project, AclAction.ViewProject, User, null))
 			{
-				return Forbid(AclAction.ViewProject, ProjectId);
+				return Forbid(AclAction.ViewProject, projectId);
 			}
 
-			IProjectLogo? ProjectLogo = await ProjectService.Collection.GetLogoAsync(ProjectId);
-			if (ProjectLogo == null)
+			IProjectLogo? projectLogo = await _projectService.Collection.GetLogoAsync(projectId);
+			if (projectLogo == null)
 			{
 				return NotFound();
 			}
 
-			return new FileContentResult(ProjectLogo.Data, ProjectLogo.MimeType);
+			return new FileContentResult(projectLogo.Data, projectLogo.MimeType);
 		}
 	}
 }

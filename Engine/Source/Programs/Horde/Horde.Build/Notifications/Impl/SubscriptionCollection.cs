@@ -1,22 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using Polly;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -32,24 +29,24 @@ namespace Horde.Build.Collections.Impl
 		[BsonKnownTypes(typeof(JobCompleteEvent), typeof(LabelCompleteEvent), typeof(StepCompleteEvent))]
 		abstract class Event : IEvent
 		{
-			public static Event FromRecord(EventRecord Record)
+			public static Event FromRecord(EventRecord record)
 			{
-				JobCompleteEventRecord? JobCompleteRecord = Record as JobCompleteEventRecord;
-				if (JobCompleteRecord != null)
+				JobCompleteEventRecord? jobCompleteRecord = record as JobCompleteEventRecord;
+				if (jobCompleteRecord != null)
 				{
-					return new JobCompleteEvent(JobCompleteRecord);
+					return new JobCompleteEvent(jobCompleteRecord);
 				}
 
-				LabelCompleteEventRecord? LabelCompleteRecord = Record as LabelCompleteEventRecord;
-				if (LabelCompleteRecord != null)
+				LabelCompleteEventRecord? labelCompleteRecord = record as LabelCompleteEventRecord;
+				if (labelCompleteRecord != null)
 				{
-					return new LabelCompleteEvent(LabelCompleteRecord);
+					return new LabelCompleteEvent(labelCompleteRecord);
 				}
 
-				StepCompleteEventRecord? StepCompleteRecord = Record as StepCompleteEventRecord;
-				if (StepCompleteRecord != null)
+				StepCompleteEventRecord? stepCompleteRecord = record as StepCompleteEventRecord;
+				if (stepCompleteRecord != null)
 				{
-					return new StepCompleteEvent(StepCompleteRecord);
+					return new StepCompleteEvent(stepCompleteRecord);
 				}
 
 				throw new ArgumentException("Invalid record type");
@@ -68,11 +65,11 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public JobCompleteEvent(JobCompleteEventRecord Record)
+			public JobCompleteEvent(JobCompleteEventRecord record)
 			{
-				StreamId = new StreamId(Record.StreamId);
-				TemplateId = new TemplateRefId(Record.TemplateId);
-				Outcome = Record.Outcome;
+				StreamId = new StreamId(record.StreamId);
+				TemplateId = new TemplateRefId(record.TemplateId);
+				Outcome = record.Outcome;
 			}
 
 			public override EventRecord ToRecord()
@@ -99,13 +96,13 @@ namespace Horde.Build.Collections.Impl
 				LabelName = String.Empty;
 			}
 
-			public LabelCompleteEvent(LabelCompleteEventRecord Record)
+			public LabelCompleteEvent(LabelCompleteEventRecord record)
 			{
-				StreamId = new StreamId(Record.StreamId);
-				TemplateId = new TemplateRefId(Record.TemplateId);
-				CategoryName = Record.CategoryName;
-				LabelName = Record.LabelName;
-				Outcome = Record.Outcome;
+				StreamId = new StreamId(record.StreamId);
+				TemplateId = new TemplateRefId(record.TemplateId);
+				CategoryName = record.CategoryName;
+				LabelName = record.LabelName;
+				Outcome = record.Outcome;
 			}
 
 			public override EventRecord ToRecord()
@@ -115,14 +112,14 @@ namespace Horde.Build.Collections.Impl
 
 			public override string ToString()
 			{
-				StringBuilder Result = new StringBuilder();
-				Result.Append(CultureInfo.InvariantCulture, $"stream={StreamId}, template={TemplateId}");
+				StringBuilder result = new StringBuilder();
+				result.Append(CultureInfo.InvariantCulture, $"stream={StreamId}, template={TemplateId}");
 				if(CategoryName != null)
 				{
-					Result.Append(CultureInfo.InvariantCulture, $", category={CategoryName}");
+					result.Append(CultureInfo.InvariantCulture, $", category={CategoryName}");
 				}
-				Result.Append(CultureInfo.InvariantCulture, $", label={LabelName}, outcome={Outcome}");
-				return Result.ToString();
+				result.Append(CultureInfo.InvariantCulture, $", label={LabelName}, outcome={Outcome}");
+				return result.ToString();
 			}
 		}
 
@@ -138,12 +135,12 @@ namespace Horde.Build.Collections.Impl
 				StepName = String.Empty;
 			}
 
-			public StepCompleteEvent(StepCompleteEventRecord Record)
+			public StepCompleteEvent(StepCompleteEventRecord record)
 			{
-				StreamId = new StreamId(Record.StreamId);
-				TemplateId = new TemplateRefId(Record.TemplateId);
-				StepName = Record.StepName;
-				Outcome = Record.Outcome;
+				StreamId = new StreamId(record.StreamId);
+				TemplateId = new TemplateRefId(record.TemplateId);
+				StepName = record.StepName;
+				Outcome = record.Outcome;
 			}
 
 			public override EventRecord ToRecord()
@@ -169,83 +166,83 @@ namespace Horde.Build.Collections.Impl
 			[BsonConstructor]
 			private Subscription()
 			{
-				this.Id = String.Empty;
-				this.Event = null!;
+				Id = String.Empty;
+				Event = null!;
 			}
 
-			public Subscription(NewSubscription Subscription)
+			public Subscription(NewSubscription subscription)
 			{
-				this.Event = Event.FromRecord(Subscription.Event);
-				this.UserId = Subscription.UserId;
-				this.NotificationType = Subscription.NotificationType;
-				this.Id = ContentHash.SHA1($"{Event}, user={UserId}, type={NotificationType.ToString()}").ToString();
+				Event = Event.FromRecord(subscription.Event);
+				UserId = subscription.UserId;
+				NotificationType = subscription.NotificationType;
+				Id = ContentHash.SHA1($"{Event}, user={UserId}, type={NotificationType}").ToString();
 			}
 		}
 
-		IMongoCollection<Subscription> Collection;
+		readonly IMongoCollection<Subscription> _collection;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service</param>
-		public SubscriptionCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service</param>
+		public SubscriptionCollection(DatabaseService databaseService)
 		{
-			Collection = DatabaseService.GetCollection<Subscription>("SubscriptionsV2");
-			if (!DatabaseService.ReadOnlyMode)
+			_collection = databaseService.GetCollection<Subscription>("SubscriptionsV2");
+			if (!databaseService.ReadOnlyMode)
 			{
-				Collection.Indexes.CreateOne(new CreateIndexModel<Subscription>(Builders<Subscription>.IndexKeys.Ascending(x => x.Event)));
-				Collection.Indexes.CreateOne(new CreateIndexModel<Subscription>(Builders<Subscription>.IndexKeys.Ascending(x => x.UserId)));
+				_collection.Indexes.CreateOne(new CreateIndexModel<Subscription>(Builders<Subscription>.IndexKeys.Ascending(x => x.Event)));
+				_collection.Indexes.CreateOne(new CreateIndexModel<Subscription>(Builders<Subscription>.IndexKeys.Ascending(x => x.UserId)));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ISubscription>> AddAsync(IEnumerable<NewSubscription> NewSubscriptions)
+		public async Task<List<ISubscription>> AddAsync(IEnumerable<NewSubscription> newSubscriptions)
 		{
-			List<Subscription> NewDocuments = NewSubscriptions.Select(x => new Subscription(x)).ToList();
+			List<Subscription> newDocuments = newSubscriptions.Select(x => new Subscription(x)).ToList();
 			try
 			{
-				await Collection.InsertManyAsync(NewDocuments, new InsertManyOptions { IsOrdered = false });
+				await _collection.InsertManyAsync(newDocuments, new InsertManyOptions { IsOrdered = false });
 			}
-			catch (MongoBulkWriteException Ex)
+			catch (MongoBulkWriteException ex)
 			{
-				foreach (WriteError WriteError in Ex.WriteErrors)
+				foreach (WriteError writeError in ex.WriteErrors)
 				{
-					if (WriteError.Category != ServerErrorCategory.DuplicateKey)
+					if (writeError.Category != ServerErrorCategory.DuplicateKey)
 					{
 						throw;
 					}
 				}
 			}
-			return NewDocuments.ConvertAll<ISubscription>(x => x);
+			return newDocuments.ConvertAll<ISubscription>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task RemoveAsync(IEnumerable<ISubscription> Subscriptions)
+		public async Task RemoveAsync(IEnumerable<ISubscription> subscriptions)
 		{
-			FilterDefinition<Subscription> Filter = Builders<Subscription>.Filter.In(x => x.Id, Subscriptions.Select(x => ((Subscription)x).Id));
-			await Collection.DeleteManyAsync(Filter);
+			FilterDefinition<Subscription> filter = Builders<Subscription>.Filter.In(x => x.Id, subscriptions.Select(x => ((Subscription)x).Id));
+			await _collection.DeleteManyAsync(filter);
 		}
 
 		/// <inheritdoc/>
-		public async Task<ISubscription?> GetAsync(string SubscriptionId)
+		public async Task<ISubscription?> GetAsync(string subscriptionId)
 		{
-			FilterDefinition<Subscription> Filter = Builders<Subscription>.Filter.Eq(x => x.Id, SubscriptionId);
-			return await Collection.Find(Filter).FirstOrDefaultAsync();
+			FilterDefinition<Subscription> filter = Builders<Subscription>.Filter.Eq(x => x.Id, subscriptionId);
+			return await _collection.Find(filter).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ISubscription>> FindSubscribersAsync(EventRecord EventRecord)
+		public async Task<List<ISubscription>> FindSubscribersAsync(EventRecord eventRecord)
 		{
-			FilterDefinition<Subscription> Filter = Builders<Subscription>.Filter.Eq(x => x.Event, Event.FromRecord(EventRecord));
-			List<Subscription> Results = await Collection.Find(Filter).ToListAsync();
-			return Results.ConvertAll<ISubscription>(x => x);
+			FilterDefinition<Subscription> filter = Builders<Subscription>.Filter.Eq(x => x.Event, Event.FromRecord(eventRecord));
+			List<Subscription> results = await _collection.Find(filter).ToListAsync();
+			return results.ConvertAll<ISubscription>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ISubscription>> FindSubscriptionsAsync(UserId UserId)
+		public async Task<List<ISubscription>> FindSubscriptionsAsync(UserId userId)
 		{
-			List<Subscription> Results = await Collection.Find(x => x.UserId == UserId).ToListAsync();
-			return Results.ConvertAll<ISubscription>(x => x);
+			List<Subscription> results = await _collection.Find(x => x.UserId == userId).ToListAsync();
+			return results.ConvertAll<ISubscription>(x => x);
 		}
 	}
 }

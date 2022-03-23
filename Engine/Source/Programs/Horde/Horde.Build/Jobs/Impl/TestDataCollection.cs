@@ -1,21 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
 	using JobId = ObjectId<IJob>;
-	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 
@@ -40,96 +37,96 @@ namespace Horde.Build.Collections.Impl
 
 			private TestDataDocument()
 			{
-				this.Key = String.Empty;
-				this.Data = new BsonDocument();
+				Key = String.Empty;
+				Data = new BsonDocument();
 			}
 
-			public TestDataDocument(IJob Job, IJobStep JobStep, string Key, BsonDocument Value)
+			public TestDataDocument(IJob job, IJobStep jobStep, string key, BsonDocument value)
 			{
-				this.Id = ObjectId.GenerateNewId();
-				this.StreamId = Job.StreamId;
-				this.TemplateRefId = Job.TemplateId;
-				this.JobId = Job.Id;
-				this.StepId = JobStep.Id;
-				this.Change = Job.Change;
-				this.Key = Key;
-				this.Data = Value;
+				Id = ObjectId.GenerateNewId();
+				StreamId = job.StreamId;
+				TemplateRefId = job.TemplateId;
+				JobId = job.Id;
+				StepId = jobStep.Id;
+				Change = job.Change;
+				Key = key;
+				Data = value;
 			}
 		}
 
 		/// <summary>
 		/// The stream collection
 		/// </summary>
-		IMongoCollection<TestDataDocument> TestDataDocuments;
+		readonly IMongoCollection<TestDataDocument> _testDataDocuments;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		public TestDataCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service instance</param>
+		public TestDataCollection(DatabaseService databaseService)
 		{
-			TestDataDocuments = DatabaseService.GetCollection<TestDataDocument>("TestData");
+			_testDataDocuments = databaseService.GetCollection<TestDataDocument>("TestData");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				TestDataDocuments.Indexes.CreateOne(new CreateIndexModel<TestDataDocument>(Builders<TestDataDocument>.IndexKeys.Ascending(x => x.StreamId).Ascending(x => x.Change).Ascending(x => x.Key)));
-				TestDataDocuments.Indexes.CreateOne(new CreateIndexModel<TestDataDocument>(Builders<TestDataDocument>.IndexKeys.Ascending(x => x.JobId).Ascending(x => x.StepId).Ascending(x => x.Key), new CreateIndexOptions { Unique = true }));
+				_testDataDocuments.Indexes.CreateOne(new CreateIndexModel<TestDataDocument>(Builders<TestDataDocument>.IndexKeys.Ascending(x => x.StreamId).Ascending(x => x.Change).Ascending(x => x.Key)));
+				_testDataDocuments.Indexes.CreateOne(new CreateIndexModel<TestDataDocument>(Builders<TestDataDocument>.IndexKeys.Ascending(x => x.JobId).Ascending(x => x.StepId).Ascending(x => x.Key), new CreateIndexOptions { Unique = true }));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<ITestData> AddAsync(IJob Job, IJobStep Step, string Key, BsonDocument Value)
+		public async Task<ITestData> AddAsync(IJob job, IJobStep step, string key, BsonDocument value)
 		{
-			TestDataDocument NewTestData = new TestDataDocument(Job, Step, Key, Value);
-			await TestDataDocuments.InsertOneAsync(NewTestData);
-			return NewTestData;
+			TestDataDocument newTestData = new TestDataDocument(job, step, key, value);
+			await _testDataDocuments.InsertOneAsync(newTestData);
+			return newTestData;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ITestData?> GetAsync(ObjectId Id)
+		public async Task<ITestData?> GetAsync(ObjectId id)
 		{
-			return await TestDataDocuments.Find<TestDataDocument>(x => x.Id == Id).FirstOrDefaultAsync();
+			return await _testDataDocuments.Find<TestDataDocument>(x => x.Id == id).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ITestData>> FindAsync(StreamId? StreamId, int? MinChange, int? MaxChange, JobId? JobId, SubResourceId? StepId, string? Key = null, int Index = 0, int Count = 10)
+		public async Task<List<ITestData>> FindAsync(StreamId? streamId, int? minChange, int? maxChange, JobId? jobId, SubResourceId? stepId, string? key = null, int index = 0, int count = 10)
 		{
-			FilterDefinition<TestDataDocument> Filter = FilterDefinition<TestDataDocument>.Empty;
-			if (StreamId != null)
+			FilterDefinition<TestDataDocument> filter = FilterDefinition<TestDataDocument>.Empty;
+			if (streamId != null)
 			{
-				Filter &= Builders<TestDataDocument>.Filter.Eq(x => x.StreamId, StreamId.Value);
-				if (MinChange != null)
+				filter &= Builders<TestDataDocument>.Filter.Eq(x => x.StreamId, streamId.Value);
+				if (minChange != null)
 				{
-					Filter &= Builders<TestDataDocument>.Filter.Gte(x => x.Change, MinChange.Value);
+					filter &= Builders<TestDataDocument>.Filter.Gte(x => x.Change, minChange.Value);
 				}
-				if (MaxChange != null)
+				if (maxChange != null)
 				{
-					Filter &= Builders<TestDataDocument>.Filter.Lte(x => x.Change, MaxChange.Value);
-				}
-			}
-			if (JobId != null)
-			{
-				Filter &= Builders<TestDataDocument>.Filter.Eq(x => x.JobId, JobId.Value);
-				if (StepId != null)
-				{
-					Filter &= Builders<TestDataDocument>.Filter.Eq(x => x.StepId, StepId.Value);
+					filter &= Builders<TestDataDocument>.Filter.Lte(x => x.Change, maxChange.Value);
 				}
 			}
-			if (Key != null)
+			if (jobId != null)
 			{
-				Filter &= Builders<TestDataDocument>.Filter.Eq(x => x.Key, Key);
+				filter &= Builders<TestDataDocument>.Filter.Eq(x => x.JobId, jobId.Value);
+				if (stepId != null)
+				{
+					filter &= Builders<TestDataDocument>.Filter.Eq(x => x.StepId, stepId.Value);
+				}
+			}
+			if (key != null)
+			{
+				filter &= Builders<TestDataDocument>.Filter.Eq(x => x.Key, key);
 			}
 
-			SortDefinition<TestDataDocument> Sort = Builders<TestDataDocument>.Sort.Ascending(x => x.StreamId).Descending(x => x.Change);
+			SortDefinition<TestDataDocument> sort = Builders<TestDataDocument>.Sort.Ascending(x => x.StreamId).Descending(x => x.Change);
 
-			List<TestDataDocument> Results = await TestDataDocuments.Find(Filter).Sort(Sort).Skip(Index).Limit(Count).ToListAsync();
-			return Results.ConvertAll<ITestData>(x => x);
+			List<TestDataDocument> results = await _testDataDocuments.Find(filter).Sort(sort).Skip(index).Limit(count).ToListAsync();
+			return results.ConvertAll<ITestData>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(ObjectId Id)
+		public async Task DeleteAsync(ObjectId id)
 		{
-			await TestDataDocuments.DeleteOneAsync<TestDataDocument>(x => x.Id == Id);
+			await _testDataDocuments.DeleteOneAsync<TestDataDocument>(x => x.Id == id);
 		}
 	}
 }

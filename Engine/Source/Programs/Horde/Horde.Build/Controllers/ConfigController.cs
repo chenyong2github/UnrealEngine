@@ -1,18 +1,17 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Text.Json;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Services;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using System.Threading.Tasks;
-using System.Text.Json;
-using Microsoft.Extensions.Logging;
-using System.Runtime.InteropServices;
-using Horde.Build.Utilities;
 
 namespace Horde.Build.Controllers
 {
@@ -26,44 +25,31 @@ namespace Horde.Build.Controllers
 	public class ConfigController : HordeControllerBase
 	{
 		/// <summary>
-		/// The database service singleton
-		/// </summary>
-		DatabaseService DatabaseService;
-
-		/// <summary>
 		/// The acl service singleton
 		/// </summary>
-		AclService AclService;
+		readonly AclService _aclService;
 
 		/// <summary>
 		/// The config service singleton
 		/// </summary>
-		ConfigService ConfigService;
+		readonly ConfigService _configService;
+
 		/// <summary>
 		/// Settings for the server
 		/// </summary>
-		IOptionsMonitor<ServerSettings> Settings;
-
-		/// <summary>
-		///  Logger for controller
-		/// </summary>
-		private readonly ILogger<ConfigController> Logger;
+		readonly IOptionsMonitor<ServerSettings> _settings;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service singleton</param>
-		/// <param name="AclService">The ACL service singleton</param>
-		/// <param name="ConfigService">The Config service singleton</param>
-		/// <param name="Logger">Logger for the controller</param>
-		/// <param name="Settings">Server settings</param>
-		public ConfigController(DatabaseService DatabaseService, AclService AclService, ConfigService ConfigService, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigController> Logger)
+		/// <param name="aclService">The ACL service singleton</param>
+		/// <param name="configService">The Config service singleton</param>
+		/// <param name="settings">Server settings</param>
+		public ConfigController(AclService aclService, ConfigService configService, IOptionsMonitor<ServerSettings> settings)
 		{
-			this.DatabaseService = DatabaseService;
-			this.AclService = AclService;
-			this.ConfigService = ConfigService;
-			this.Settings = Settings;
-			this.Logger = Logger;			
+			_aclService = aclService;
+			_configService = configService;
+			_settings = settings;
 		}
 
 		// Global Configuration
@@ -73,19 +59,19 @@ namespace Horde.Build.Controllers
 		/// </summary>
 		[HttpPut]
 		[Route("/api/v1/config/global")]
-		public async Task<ActionResult> UpdateGlobalSettings([FromBody] UpdateGlobalConfigRequest Request)
+		public async Task<ActionResult> UpdateGlobalSettings([FromBody] UpdateGlobalConfigRequest request)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
 
-			if (!Settings.CurrentValue.SingleInstance)
+			if (!_settings.CurrentValue.SingleInstance)
 			{
 				return BadRequest("Updating global configuration settings with ConfigController currently only supported in single instance mode");
 			}
 
-			await ConfigService.UpdateGlobalConfig(Request);
+			await _configService.UpdateGlobalConfig(request);
 
 			return Ok();
 		}
@@ -98,23 +84,23 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/config/global")]
 		public async Task<ActionResult<GlobalConfig?>> GetGlobalConfig()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
 				return Forbid(AclAction.AdminRead);
 			}
 
-			if (string.IsNullOrEmpty(Settings.CurrentValue.ConfigPath))
+			if (String.IsNullOrEmpty(_settings.CurrentValue.ConfigPath))
 			{
 				return BadRequest("Missing config path for settings");
 			}
 
-			FileReference GlobalConfigFile = new FileReference(Settings.CurrentValue.ConfigPath);
+			FileReference globalConfigFile = new FileReference(_settings.CurrentValue.ConfigPath);
 
-			byte[] Data = await FileReference.ReadAllBytesAsync(GlobalConfigFile);
-			JsonSerializerOptions Options = new JsonSerializerOptions();
-			Startup.ConfigureJsonSerializer(Options);
+			byte[] data = await FileReference.ReadAllBytesAsync(globalConfigFile);
+			JsonSerializerOptions options = new JsonSerializerOptions();
+			Startup.ConfigureJsonSerializer(options);
 
-			return JsonSerializer.Deserialize<GlobalConfig>(Data, Options);
+			return JsonSerializer.Deserialize<GlobalConfig>(data, options);
 		}
 
 		// Administrative Server Settings
@@ -127,15 +113,15 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/config/serversettings")]
 		public async Task<ActionResult<GetServerSettingsResponse>> GetServerSettings()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
 				return Forbid(AclAction.AdminRead);
 			}
 
-			GetServerSettingsResponse Response = new GetServerSettingsResponse(Settings.CurrentValue);
-			Response.NumServerUpdates = ConfigService.NumUserConfigUpdates;
+			GetServerSettingsResponse response = new GetServerSettingsResponse(_settings.CurrentValue);
+			response.NumServerUpdates = _configService.NumUserConfigUpdates;
 
-			return Response;
+			return response;
 		}
 
 		/// <summary>
@@ -144,28 +130,26 @@ namespace Horde.Build.Controllers
 		/// <returns>Administrative settings for the server</returns>
 		[HttpPut]
 		[Route("/api/v1/config/serversettings")]
-		public async Task<ActionResult<ServerUpdateResponse>> UpdateServerSettings([FromBody] UpdateServerSettingsRequest Request)
+		public async Task<ActionResult<ServerUpdateResponse>> UpdateServerSettings([FromBody] UpdateServerSettingsRequest request)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
 
-			if (!Settings.CurrentValue.SingleInstance)
+			if (!_settings.CurrentValue.SingleInstance)
 			{
 				return BadRequest("Updating server settings from ConfigController currently only supported in single instance mode");
 			}
 
-			if (Request.Settings == null || Request.Settings.Count == 0)
+			if (request.Settings == null || request.Settings.Count == 0)
 			{
 				return new ServerUpdateResponse() { RestartRequired = false };
 			}
 
-			ServerUpdateResponse Response = await ConfigService.UpdateServerSettings(Request);
+			ServerUpdateResponse response = await _configService.UpdateServerSettings(request);
 
-			return Response;
+			return response;
 		}
-
 	}
-
 }

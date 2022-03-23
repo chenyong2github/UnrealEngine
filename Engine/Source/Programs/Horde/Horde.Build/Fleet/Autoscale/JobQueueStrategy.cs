@@ -4,18 +4,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using HordeCommon;
 using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
+using HordeCommon;
 
 namespace Horde.Build.Fleet.Autoscale
 {
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
-	
+
 	/// <summary>
 	/// Job queue sizing settings for a pool
 	/// </summary>
@@ -38,12 +38,12 @@ namespace Horde.Build.Fleet.Autoscale
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ScaleOutFactor"></param>
-		/// <param name="ScaleInFactor"></param>
-		public JobQueueSettings(double? ScaleOutFactor = null, double? ScaleInFactor = null)
+		/// <param name="scaleOutFactor"></param>
+		/// <param name="scaleInFactor"></param>
+		public JobQueueSettings(double? scaleOutFactor = null, double? scaleInFactor = null)
 		{
-			this.ScaleOutFactor = ScaleOutFactor.GetValueOrDefault(this.ScaleOutFactor);
-			this.ScaleInFactor = ScaleInFactor.GetValueOrDefault(this.ScaleInFactor);
+			ScaleOutFactor = scaleOutFactor.GetValueOrDefault(ScaleOutFactor);
+			ScaleInFactor = scaleInFactor.GetValueOrDefault(ScaleInFactor);
 		}
 	}
 	
@@ -55,15 +55,15 @@ namespace Horde.Build.Fleet.Autoscale
 	/// </summary>
 	public class JobQueueStrategy : IPoolSizeStrategy
 	{
-		private readonly IJobCollection Jobs;
-		private readonly IGraphCollection Graphs;
-		private readonly StreamService StreamService;
-		private readonly IClock Clock;
+		private readonly IJobCollection _jobs;
+		private readonly IGraphCollection _graphs;
+		private readonly StreamService _streamService;
+		private readonly IClock _clock;
 		
 		/// <summary>
 		/// How far back in time to look for job batches (that potentially are in the queue)
 		/// </summary>
-		private readonly TimeSpan SamplePeriod = TimeSpan.FromDays(5);
+		private readonly TimeSpan _samplePeriod = TimeSpan.FromDays(5);
 		
 		/// <summary>
 		/// Time spent in ready state before considered truly waiting for an agent
@@ -73,23 +73,23 @@ namespace Horde.Build.Fleet.Autoscale
 		/// </summary>
 		internal readonly TimeSpan ReadyTimeThreshold = TimeSpan.FromSeconds(45.0);
 
-		private readonly JobQueueSettings DefaultPoolSettings = new();
+		private readonly JobQueueSettings _defaultPoolSettings = new();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Jobs"></param>
-		/// <param name="Graphs"></param>
-		/// <param name="StreamService"></param>
-		/// <param name="Clock"></param>
-		/// <param name="SamplePeriod">Time period for each sample</param>
-		public JobQueueStrategy(IJobCollection Jobs, IGraphCollection Graphs, StreamService StreamService, IClock Clock, TimeSpan? SamplePeriod = null)
+		/// <param name="jobs"></param>
+		/// <param name="graphs"></param>
+		/// <param name="streamService"></param>
+		/// <param name="clock"></param>
+		/// <param name="samplePeriod">Time period for each sample</param>
+		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, StreamService streamService, IClock clock, TimeSpan? samplePeriod = null)
 		{
-			this.Jobs = Jobs;
-			this.Graphs = Graphs;
-			this.StreamService = StreamService;
-			this.Clock = Clock;
-			this.SamplePeriod = SamplePeriod ?? this.SamplePeriod;
+			_jobs = jobs;
+			_graphs = graphs;
+			_streamService = streamService;
+			_clock = clock;
+			_samplePeriod = samplePeriod ?? _samplePeriod;
 		}
 
 		/// <inheritdoc/>
@@ -98,75 +98,84 @@ namespace Horde.Build.Fleet.Autoscale
 		/// <summary>
 		/// Extract all job step batches from a job, with their associated pool 
 		/// </summary>
-		/// <param name="Job">Job to extract from</param>
-		/// <param name="Streams">Cached lookup table of streams</param>
+		/// <param name="job">Job to extract from</param>
+		/// <param name="streams">Cached lookup table of streams</param>
 		/// <returns></returns>
-		private async Task<List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)>> GetJobBatchesWithPools(IJob Job, Dictionary<StreamId, IStream> Streams)
+		private async Task<List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)>> GetJobBatchesWithPools(IJob job, Dictionary<StreamId, IStream> streams)
 		{
-			IGraph Graph = await Graphs.GetAsync(Job.GraphHash);
+			IGraph graph = await _graphs.GetAsync(job.GraphHash);
 
-			List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)> JobBatches = new();
-			foreach (IJobStepBatch Batch in Job.Batches)
+			List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)> jobBatches = new();
+			foreach (IJobStepBatch batch in job.Batches)
 			{
-				if (Batch.State != JobStepBatchState.Ready) continue;
-				
-				TimeSpan? WaitTime = Clock.UtcNow - Batch.ReadyTimeUtc;
-				if (WaitTime == null) continue;
-				if (WaitTime.Value < ReadyTimeThreshold) continue;
-
-				if (!Streams.TryGetValue(Job.StreamId, out IStream? Stream))
-				{
-					continue;
-				}
-
-				string BatchAgentType = Graph.Groups[Batch.GroupIdx].AgentType;
-				if (!Stream.AgentTypes.TryGetValue(BatchAgentType, out AgentType? AgentType))
+				if (batch.State != JobStepBatchState.Ready)
 				{
 					continue;
 				}
 				
-				JobBatches.Add((Job, Batch, AgentType.Pool));
+				TimeSpan? waitTime = _clock.UtcNow - batch.ReadyTimeUtc;
+				if (waitTime == null)
+				{
+					continue;
+				}
+				if (waitTime.Value < ReadyTimeThreshold)
+				{
+					continue;
+				}
+
+				if (!streams.TryGetValue(job.StreamId, out IStream? stream))
+				{
+					continue;
+				}
+
+				string batchAgentType = graph.Groups[batch.GroupIdx].AgentType;
+				if (!stream.AgentTypes.TryGetValue(batchAgentType, out AgentType? agentType))
+				{
+					continue;
+				}
+				
+				jobBatches.Add((job, batch, agentType.Pool));
 			}
 
-			return JobBatches;
+			return jobBatches;
 		}
 
-		internal async Task<Dictionary<PoolId, int>> GetPoolQueueSizesAsync(DateTimeOffset JobsCreatedAfter)
+		internal async Task<Dictionary<PoolId, int>> GetPoolQueueSizesAsync(DateTimeOffset jobsCreatedAfter)
 		{
-			List<IStream> StreamsList = await StreamService.GetStreamsAsync();
-			Dictionary<StreamId, IStream> Streams = StreamsList.ToDictionary(x => x.Id, x => x);
-			List<IJob> RecentJobs = await Jobs.FindAsync(MinCreateTime: JobsCreatedAfter);
+			List<IStream> streamsList = await _streamService.GetStreamsAsync();
+			Dictionary<StreamId, IStream> streams = streamsList.ToDictionary(x => x.Id, x => x);
+			List<IJob> recentJobs = await _jobs.FindAsync(minCreateTime: jobsCreatedAfter);
 
-			List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)> JobBatches = new();
-			foreach (IJob Job in RecentJobs)
+			List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)> jobBatches = new();
+			foreach (IJob job in recentJobs)
 			{
-				JobBatches.AddRange(await GetJobBatchesWithPools(Job, Streams));
+				jobBatches.AddRange(await GetJobBatchesWithPools(job, streams));
 			}
 
-			List<(PoolId PoolId, int QueueSize)> PoolsWithQueueSize = JobBatches.GroupBy(t => t.PoolId).Select(t => (t.Key, t.Count())).ToList();
-			return PoolsWithQueueSize.ToDictionary(x => x.PoolId, x => x.QueueSize);
+			List<(PoolId PoolId, int QueueSize)> poolsWithQueueSize = jobBatches.GroupBy(t => t.PoolId).Select(t => (t.Key, t.Count())).ToList();
+			return poolsWithQueueSize.ToDictionary(x => x.PoolId, x => x.QueueSize);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools)
+		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
 		{
-			DateTimeOffset MinCreateTime = Clock.UtcNow - SamplePeriod;
-			Dictionary<PoolId, int> PoolQueueSizes = await GetPoolQueueSizesAsync(MinCreateTime);
+			DateTimeOffset minCreateTime = _clock.UtcNow - _samplePeriod;
+			Dictionary<PoolId, int> poolQueueSizes = await GetPoolQueueSizesAsync(minCreateTime);
 
-			return Pools.Select(Current =>
+			return pools.Select(current =>
 			{
-				JobQueueSettings Settings = Current.Pool.JobQueueSettings ?? DefaultPoolSettings;
-				PoolQueueSizes.TryGetValue(Current.Pool.Id, out var QueueSize);
-				if (QueueSize > 0)
+				JobQueueSettings settings = current.Pool.JobQueueSettings ?? _defaultPoolSettings;
+				poolQueueSizes.TryGetValue(current.Pool.Id, out int queueSize);
+				if (queueSize > 0)
 				{
-					int AdditionalAgentCount = (int)Math.Ceiling(QueueSize * Settings.ScaleOutFactor);
-					int DesiredAgentCount = Current.Agents.Count + AdditionalAgentCount;
-					return new PoolSizeData(Current.Pool, Current.Agents, DesiredAgentCount, $"QueueSize={QueueSize}");
+					int additionalAgentCount = (int)Math.Ceiling(queueSize * settings.ScaleOutFactor);
+					int desiredAgentCount = current.Agents.Count + additionalAgentCount;
+					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, $"QueueSize={queueSize}");
 				}
 				else
 				{
-					int DesiredAgentCount = (int)(Current.Agents.Count * Settings.ScaleInFactor);
-					return new PoolSizeData(Current.Pool, Current.Agents, DesiredAgentCount, "Empty job queue");
+					int desiredAgentCount = (int)(current.Agents.Count * settings.ScaleInFactor);
+					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, "Empty job queue");
 				}
 			}).ToList();
 		}

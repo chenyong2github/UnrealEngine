@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Grpc.Core;
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
+using Grpc.Core;
 using Grpc.Health.V1;
 using static Grpc.Health.V1.HealthCheckResponse.Types;
 
@@ -14,25 +13,15 @@ namespace Horde.Build.Services
 	/// </summary>
 	public class HealthService : Health.HealthBase
 	{
-		/// <summary>
-		/// The application lifetime interface
-		/// </summary>
-		LifetimeService LifetimeService;
-
-		/// <summary>
-		/// Writer for log output
-		/// </summary>
-		ILogger<HealthService> Logger;
+		readonly LifetimeService _lifetimeService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="LifetimeService">The application lifetime</param>
-		/// <param name="Logger">Log writer</param>
-		public HealthService(LifetimeService LifetimeService, ILogger<HealthService> Logger)
+		/// <param name="lifetimeService">The application lifetime</param>
+		public HealthService(LifetimeService lifetimeService)
 		{
-			this.LifetimeService = LifetimeService;
-			this.Logger = Logger;
+			_lifetimeService = lifetimeService;
 		}
 
 		/// <summary>
@@ -41,32 +30,32 @@ namespace Horde.Build.Services
 		///
 		/// For example, the gRPC health check for AWS ALB will pick up and react to the gRPC status code returned.
 		/// </summary>
-		/// <param name="Request">Empty placeholder request (for now)</param>
-		/// <param name="Context">Context for the call</param>
+		/// <param name="request">Empty placeholder request (for now)</param>
+		/// <param name="context">Context for the call</param>
 		/// <returns>Return status code 'unavailable' if stopping</returns>
-		public override Task<HealthCheckResponse> Check(HealthCheckRequest Request, ServerCallContext Context)
+		public override Task<HealthCheckResponse> Check(HealthCheckRequest request, ServerCallContext context)
 		{
-			ServingStatus Status = ServingStatus.Serving;
+			ServingStatus status = ServingStatus.Serving;
 			
-			bool IsStopping = LifetimeService.IsPreStopping || LifetimeService.IsStopping;
-			if (IsStopping)
+			bool isStopping = _lifetimeService.IsPreStopping || _lifetimeService.IsStopping;
+			if (isStopping)
 			{
-				Context.Status = new Status(StatusCode.Unavailable, "Server is stopping");
-				Status = ServingStatus.NotServing;
+				context.Status = new Status(StatusCode.Unavailable, "Server is stopping");
+				status = ServingStatus.NotServing;
 			}
 			 
-			return Task.FromResult(new HealthCheckResponse {Status = Status});
+			return Task.FromResult(new HealthCheckResponse {Status = status});
 		}
 
 		
 		/// <summary>
 		/// Stream the server health status (not implemented)
 		/// </summary>
-		/// <param name="Request"></param>
-		/// <param name="ResponseStream"></param>
-		/// <param name="Context"></param>
+		/// <param name="request"></param>
+		/// <param name="responseStream"></param>
+		/// <param name="context"></param>
 		/// <returns></returns>
-		public override Task Watch(HealthCheckRequest Request, IServerStreamWriter<HealthCheckResponse> ResponseStream, ServerCallContext Context)
+		public override Task Watch(HealthCheckRequest request, IServerStreamWriter<HealthCheckResponse> responseStream, ServerCallContext context)
 		{
 			return Task.FromException(new RpcException(new Status(StatusCode.Unimplemented, "Watch() not implemented")));
 		}

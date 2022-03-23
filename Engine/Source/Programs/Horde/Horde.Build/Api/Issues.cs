@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using MongoDB.Bson;
 
 namespace Horde.Build.Api
 {
@@ -65,17 +61,17 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="IssueStep">The issue step to construct from</param>
-		public GetIssueStepResponse(IIssueStep IssueStep)
+		/// <param name="issueStep">The issue step to construct from</param>
+		public GetIssueStepResponse(IIssueStep issueStep)
 		{
-			this.Change = IssueStep.Change;
-			this.Severity = IssueStep.Severity;
-			this.JobName = IssueStep.JobName;
-			this.JobId = IssueStep.JobId.ToString();
-			this.BatchId = IssueStep.BatchId.ToString();
-			this.StepId = IssueStep.StepId.ToString();
-			this.StepTime = IssueStep.StepTime;
-			this.LogId = IssueStep.LogId?.ToString();
+			Change = issueStep.Change;
+			Severity = issueStep.Severity;
+			JobName = issueStep.JobName;
+			JobId = issueStep.JobId.ToString();
+			BatchId = issueStep.BatchId.ToString();
+			StepId = issueStep.StepId.ToString();
+			StepTime = issueStep.StepTime;
+			LogId = issueStep.LogId?.ToString();
 		}
 	}
 
@@ -117,16 +113,16 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Span">The node to construct from</param>
-		/// <param name="Steps">Failing steps for this span</param>
-		public GetIssueSpanResponse(IIssueSpan Span, List<IIssueStep> Steps)
+		/// <param name="span">The node to construct from</param>
+		/// <param name="steps">Failing steps for this span</param>
+		public GetIssueSpanResponse(IIssueSpan span, List<IIssueStep> steps)
 		{
-			this.Id = Span.Id.ToString();
-			this.Name = Span.NodeName;
-			this.TemplateId = Span.TemplateRefId.ToString();
-			this.LastSuccess = (Span.LastSuccess != null) ? new GetIssueStepResponse(Span.LastSuccess) : null;
-			this.Steps = Steps.ConvertAll(x => new GetIssueStepResponse(x));
-			this.NextSuccess = (Span.NextSuccess != null) ? new GetIssueStepResponse(Span.NextSuccess) : null;
+			Id = span.Id.ToString();
+			Name = span.NodeName;
+			TemplateId = span.TemplateRefId.ToString();
+			LastSuccess = (span.LastSuccess != null) ? new GetIssueStepResponse(span.LastSuccess) : null;
+			Steps = steps.ConvertAll(x => new GetIssueStepResponse(x));
+			NextSuccess = (span.NextSuccess != null) ? new GetIssueStepResponse(span.NextSuccess) : null;
 		}
 	}
 
@@ -158,26 +154,26 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StreamId">The stream to construct from</param>
-		/// <param name="Spans">List of spans for the given stream</param>
-		/// <param name="Steps">List of steps for the given stream</param>
-		public GetIssueStreamResponse(StreamId StreamId, List<IIssueSpan> Spans, List<IIssueStep> Steps)
+		/// <param name="streamId">The stream to construct from</param>
+		/// <param name="spans">List of spans for the given stream</param>
+		/// <param name="steps">List of steps for the given stream</param>
+		public GetIssueStreamResponse(StreamId streamId, List<IIssueSpan> spans, List<IIssueStep> steps)
 		{
-			this.StreamId = StreamId.ToString();
+			StreamId = streamId.ToString();
 
-			foreach (IIssueSpan Span in Spans)
+			foreach (IIssueSpan span in spans)
 			{
-				if (Span.LastSuccess != null && (MinChange == null || Span.LastSuccess.Change < MinChange.Value))
+				if (span.LastSuccess != null && (MinChange == null || span.LastSuccess.Change < MinChange.Value))
 				{
-					MinChange = Span.LastSuccess.Change;
+					MinChange = span.LastSuccess.Change;
 				}
-				if (Span.NextSuccess != null && (MaxChange == null || Span.NextSuccess.Change > MaxChange.Value))
+				if (span.NextSuccess != null && (MaxChange == null || span.NextSuccess.Change > MaxChange.Value))
 				{
-					MaxChange = Span.NextSuccess.Change;
+					MaxChange = span.NextSuccess.Change;
 				}
 			}
 
-			this.Nodes = Spans.ConvertAll(x => new GetIssueSpanResponse(x, Steps.Where(y => y.SpanId == x.Id).ToList()));
+			Nodes = spans.ConvertAll(x => new GetIssueSpanResponse(x, steps.Where(y => y.SpanId == x.Id).ToList()));
 		}
 	}
 
@@ -230,14 +226,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="BuildId">The corresponding build id</param>
-		/// <param name="Message">Message for the diagnostic</param>
-		/// <param name="Url">Link to the diagnostic</param>
-		public GetIssueDiagnosticResponse(long? BuildId, string Message, Uri Url)
+		/// <param name="buildId">The corresponding build id</param>
+		/// <param name="message">Message for the diagnostic</param>
+		/// <param name="url">Link to the diagnostic</param>
+		public GetIssueDiagnosticResponse(long? buildId, string message, Uri url)
 		{
-			this.BuildId = BuildId;
-			this.Message = Message;
-			this.Url = Url;
+			BuildId = buildId;
+			Message = message;
+			Url = url;
 		}
 	}
 
@@ -269,16 +265,16 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="TemplateId"></param>
-		/// <param name="TemplateName"></param>
-		/// <param name="Resolved"></param>
-		/// <param name="Severity"></param>
-		public GetIssueAffectedTemplateResponse(string TemplateId, string TemplateName, bool Resolved, IssueSeverity Severity = IssueSeverity.Unspecified)
+		/// <param name="templateId"></param>
+		/// <param name="templateName"></param>
+		/// <param name="resolved"></param>
+		/// <param name="severity"></param>
+		public GetIssueAffectedTemplateResponse(string templateId, string templateName, bool resolved, IssueSeverity severity = IssueSeverity.Unspecified)
 		{
-			this.TemplateId = TemplateId;
-			this.TemplateName = TemplateName;
-			this.Resolved = Resolved;
-			this.Severity = Severity;
+			TemplateId = templateId;
+			TemplateName = templateName;
+			Resolved = resolved;
+			Severity = severity;
 		}
 	}
 
@@ -325,38 +321,38 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Details">Issue to construct from</param>
-		/// <param name="Stream"></param>
-		/// <param name="Spans">The spans to construct from</param>
-		public GetIssueAffectedStreamResponse(IIssueDetails Details, IStream? Stream, IEnumerable<IIssueSpan> Spans)
+		/// <param name="details">Issue to construct from</param>
+		/// <param name="stream"></param>
+		/// <param name="spans">The spans to construct from</param>
+		public GetIssueAffectedStreamResponse(IIssueDetails details, IStream? stream, IEnumerable<IIssueSpan> spans)
 		{
-			IIssueSpan FirstSpan = Spans.First();
-			this.StreamId = FirstSpan.StreamId.ToString();
-			this.StreamName = FirstSpan.StreamName;
-			this.Resolved = Spans.All(x => x.NextSuccess != null);
+			IIssueSpan firstSpan = spans.First();
+			StreamId = firstSpan.StreamId.ToString();
+			StreamName = firstSpan.StreamName;
+			Resolved = spans.All(x => x.NextSuccess != null);
 
-			this.AffectedTemplates = new List<GetIssueAffectedTemplateResponse>();
-			foreach (IGrouping<TemplateRefId, IIssueSpan> Template in Spans.GroupBy(x => x.TemplateRefId))
+			AffectedTemplates = new List<GetIssueAffectedTemplateResponse>();
+			foreach (IGrouping<TemplateRefId, IIssueSpan> template in spans.GroupBy(x => x.TemplateRefId))
 			{
-				string TemplateName = Template.Key.ToString();
-				if (Stream != null && Stream.Templates.TryGetValue(Template.Key, out TemplateRef? TemplateRef))
+				string templateName = template.Key.ToString();
+				if (stream != null && stream.Templates.TryGetValue(template.Key, out TemplateRef? templateRef))
 				{
-					TemplateName = TemplateRef.Name;
+					templateName = templateRef.Name;
 				}
 
-				HashSet<ObjectId> UnresolvedTemplateSpans = new HashSet<ObjectId>(Template.Where(x => x.NextSuccess == null).Select(x => x.Id));
+				HashSet<ObjectId> unresolvedTemplateSpans = new HashSet<ObjectId>(template.Where(x => x.NextSuccess == null).Select(x => x.Id));
 
-				IIssueStep? TemplateStep = Details.Steps.Where(x => UnresolvedTemplateSpans.Contains(x.SpanId)).OrderByDescending(x => x.StepTime).FirstOrDefault();
+				IIssueStep? templateStep = details.Steps.Where(x => unresolvedTemplateSpans.Contains(x.SpanId)).OrderByDescending(x => x.StepTime).FirstOrDefault();
 
-				this.AffectedTemplates.Add(new GetIssueAffectedTemplateResponse(Template.Key.ToString(), TemplateName, Template.All(x => x.NextSuccess != null), TemplateStep?.Severity ?? IssueSeverity.Unspecified));
+				AffectedTemplates.Add(new GetIssueAffectedTemplateResponse(template.Key.ToString(), templateName, template.All(x => x.NextSuccess != null), templateStep?.Severity ?? IssueSeverity.Unspecified));
 			}
 
-			HashSet<TemplateRefId> TemplateIdsSet = new HashSet<TemplateRefId>(Spans.Select(x => x.TemplateRefId));
-			this.TemplateIds = TemplateIdsSet.Select(x => x.ToString()).ToList();
+			HashSet<TemplateRefId> templateIdsSet = new HashSet<TemplateRefId>(spans.Select(x => x.TemplateRefId));
+			TemplateIds = templateIdsSet.Select(x => x.ToString()).ToList();
 
-			HashSet<TemplateRefId> UnresolvedTemplateIdsSet = new HashSet<TemplateRefId>(Spans.Where(x => x.NextSuccess == null).Select(x => x.TemplateRefId));
-			this.UnresolvedTemplateIds = UnresolvedTemplateIdsSet.Select(x => x.ToString()).ToList();
-			this.ResolvedTemplateIds = TemplateIdsSet.Except(UnresolvedTemplateIdsSet).Select(x => x.ToString()).ToList();
+			HashSet<TemplateRefId> unresolvedTemplateIdsSet = new HashSet<TemplateRefId>(spans.Where(x => x.NextSuccess == null).Select(x => x.TemplateRefId));
+			UnresolvedTemplateIds = unresolvedTemplateIdsSet.Select(x => x.ToString()).ToList();
+			ResolvedTemplateIds = templateIdsSet.Except(unresolvedTemplateIdsSet).Select(x => x.ToString()).ToList();
 		}
 	}
 
@@ -513,60 +509,60 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
-		/// <param name="Details">Issue to construct from</param>
-		/// <param name="AffectedStreams">The affected streams</param>
-		/// <param name="ShowDesktopAlerts">Whether to show alerts for this issue</param>
-		public GetIssueResponse(IIssueDetails Details, List<GetIssueAffectedStreamResponse> AffectedStreams, bool ShowDesktopAlerts)
+		/// <param name="details">Issue to construct from</param>
+		/// <param name="affectedStreams">The affected streams</param>
+		/// <param name="showDesktopAlerts">Whether to show alerts for this issue</param>
+		public GetIssueResponse(IIssueDetails details, List<GetIssueAffectedStreamResponse> affectedStreams, bool showDesktopAlerts)
 		{
-			IIssue Issue = Details.Issue;
-			this.Id = Issue.Id;
-			this.CreatedAt = Issue.CreatedAt;
-			this.RetrievedAt = DateTime.UtcNow;
-			this.Summary = String.IsNullOrEmpty(Issue.UserSummary)? Issue.Summary : Issue.UserSummary;
-			this.Description = Issue.Description;
-			this.Severity = Issue.Severity;
-			this.Promoted = Issue.Promoted;
-			this.Owner = Details.Owner?.Login;
-			this.OwnerId = (Details.Owner == null)? null : Details.Owner.Id.ToString();
-			if(Details.Owner != null)
+			IIssue issue = details.Issue;
+			Id = issue.Id;
+			CreatedAt = issue.CreatedAt;
+			RetrievedAt = DateTime.UtcNow;
+			Summary = String.IsNullOrEmpty(issue.UserSummary)? issue.Summary : issue.UserSummary;
+			Description = issue.Description;
+			Severity = issue.Severity;
+			Promoted = issue.Promoted;
+			Owner = details.Owner?.Login;
+			OwnerId = details.Owner?.Id.ToString();
+			if(details.Owner != null)
 			{
-				this.OwnerInfo = new GetThinUserInfoResponse(Details.Owner);
+				OwnerInfo = new GetThinUserInfoResponse(details.Owner);
 			}
-			this.NominatedBy = Details.NominatedBy?.Login;
-			if (Details.NominatedBy != null)
+			NominatedBy = details.NominatedBy?.Login;
+			if (details.NominatedBy != null)
 			{
-				this.NominatedByInfo = new GetThinUserInfoResponse(Details.NominatedBy);
+				NominatedByInfo = new GetThinUserInfoResponse(details.NominatedBy);
 			}
-			this.AcknowledgedAt = Issue.AcknowledgedAt;
-			this.FixChange = Issue.FixChange;
-			this.ResolvedAt = Issue.ResolvedAt;
-			this.ResolvedBy = Details.ResolvedBy?.Login;
-			this.ResolvedById = (Details.ResolvedBy == null) ? null : Details.ResolvedBy.Id.ToString();
-			if (Details.ResolvedBy != null)
+			AcknowledgedAt = issue.AcknowledgedAt;
+			FixChange = issue.FixChange;
+			ResolvedAt = issue.ResolvedAt;
+			ResolvedBy = details.ResolvedBy?.Login;
+			ResolvedById = details.ResolvedBy?.Id.ToString();
+			if (details.ResolvedBy != null)
 			{
-				this.ResolvedByInfo = new GetThinUserInfoResponse(Details.ResolvedBy);
+				ResolvedByInfo = new GetThinUserInfoResponse(details.ResolvedBy);
 			}
-			this.VerifiedAt = Issue.VerifiedAt;
-			this.LastSeenAt = Issue.LastSeenAt;
-			this.Streams = Details.Spans.Select(x => x.StreamName).Distinct().ToList()!;
-			this.ResolvedStreams = new List<string>();
-			this.UnresolvedStreams = new List<string>();
-			this.AffectedStreams = AffectedStreams;
-			foreach (IGrouping<StreamId, IIssueSpan> Stream in Details.Spans.GroupBy(x => x.StreamId))
+			VerifiedAt = issue.VerifiedAt;
+			LastSeenAt = issue.LastSeenAt;
+			Streams = details.Spans.Select(x => x.StreamName).Distinct().ToList()!;
+			ResolvedStreams = new List<string>();
+			UnresolvedStreams = new List<string>();
+			AffectedStreams = affectedStreams;
+			foreach (IGrouping<StreamId, IIssueSpan> stream in details.Spans.GroupBy(x => x.StreamId))
 			{
-				if (Stream.All(x => x.NextSuccess != null))
+				if (stream.All(x => x.NextSuccess != null))
 				{
-					this.ResolvedStreams.Add(Stream.Key.ToString());
+					ResolvedStreams.Add(stream.Key.ToString());
 				}
 				else
 				{
-					this.UnresolvedStreams.Add(Stream.Key.ToString());
+					UnresolvedStreams.Add(stream.Key.ToString());
 				}
 			}
-			this.PrimarySuspects = Details.SuspectUsers.Where(x => x.Login != null).Select(x => x.Login).ToList();
-			this.PrimarySuspectIds= Details.SuspectUsers.Select(x => x.Id.ToString()).ToList();
-			this.PrimarySuspectsInfo = Details.SuspectUsers.ConvertAll(x => new GetThinUserInfoResponse(x));
-			this.ShowDesktopAlerts = ShowDesktopAlerts;
+			PrimarySuspects = details.SuspectUsers.Where(x => x.Login != null).Select(x => x.Login).ToList();
+			PrimarySuspectIds= details.SuspectUsers.Select(x => x.Id.ToString()).ToList();
+			PrimarySuspectsInfo = details.SuspectUsers.ConvertAll(x => new GetThinUserInfoResponse(x));
+			ShowDesktopAlerts = showDesktopAlerts;
 		}
 	}
 
@@ -603,19 +599,19 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Span"></param>
-		public FindIssueSpanResponse(IIssueSpan Span)
+		/// <param name="span"></param>
+		public FindIssueSpanResponse(IIssueSpan span)
 		{
-			this.Id = Span.Id.ToString();
-			this.TemplateId = Span.TemplateRefId.ToString();
-			this.Name = Span.NodeName;
-			if (Span.LastSuccess != null)
+			Id = span.Id.ToString();
+			TemplateId = span.TemplateRefId.ToString();
+			Name = span.NodeName;
+			if (span.LastSuccess != null)
 			{
-				this.LastSuccess = new GetIssueStepResponse(Span.LastSuccess);
+				LastSuccess = new GetIssueStepResponse(span.LastSuccess);
 			}
-			if (Span.NextSuccess != null)
+			if (span.NextSuccess != null)
 			{
-				this.NextSuccess = new GetIssueStepResponse(Span.NextSuccess);
+				NextSuccess = new GetIssueStepResponse(span.NextSuccess);
 			}
 		}
 	}
@@ -718,40 +714,40 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
-		/// <param name="Issue">The isseu information</param>
-		/// <param name="Owner">Owner of the issue</param>
-		/// <param name="NominatedBy">User that nominated the current fixer</param>
-		/// <param name="ResolvedBy">User that resolved the issue</param>
-		/// <param name="StreamSeverity">The current severity in the stream</param>
-		/// <param name="Spans">Spans for this issue</param>
-		public FindIssueResponse(IIssue Issue, IUser? Owner, IUser? NominatedBy, IUser? ResolvedBy, IssueSeverity? StreamSeverity, List<FindIssueSpanResponse> Spans)
+		/// <param name="issue">The isseu information</param>
+		/// <param name="owner">Owner of the issue</param>
+		/// <param name="nominatedBy">User that nominated the current fixer</param>
+		/// <param name="resolvedBy">User that resolved the issue</param>
+		/// <param name="streamSeverity">The current severity in the stream</param>
+		/// <param name="spans">Spans for this issue</param>
+		public FindIssueResponse(IIssue issue, IUser? owner, IUser? nominatedBy, IUser? resolvedBy, IssueSeverity? streamSeverity, List<FindIssueSpanResponse> spans)
 		{
-			this.Id = Issue.Id;
-			this.CreatedAt = Issue.CreatedAt;
-			this.RetrievedAt = DateTime.UtcNow;
-			this.Summary = String.IsNullOrEmpty(Issue.UserSummary) ? Issue.Summary : Issue.UserSummary;
-			this.Description = Issue.Description;
-			this.Severity = Issue.Severity;
-			this.StreamSeverity = StreamSeverity;
-			this.Promoted = Issue.Promoted;
-			if (Owner != null)
+			Id = issue.Id;
+			CreatedAt = issue.CreatedAt;
+			RetrievedAt = DateTime.UtcNow;
+			Summary = String.IsNullOrEmpty(issue.UserSummary) ? issue.Summary : issue.UserSummary;
+			Description = issue.Description;
+			Severity = issue.Severity;
+			StreamSeverity = streamSeverity;
+			Promoted = issue.Promoted;
+			if (owner != null)
 			{
-				this.Owner = new GetThinUserInfoResponse(Owner);
+				Owner = new GetThinUserInfoResponse(owner);
 			}
-			if (NominatedBy != null)
+			if (nominatedBy != null)
 			{
-				this.NominatedBy = new GetThinUserInfoResponse(NominatedBy);
+				NominatedBy = new GetThinUserInfoResponse(nominatedBy);
 			}
-			this.AcknowledgedAt = Issue.AcknowledgedAt;
-			this.FixChange = Issue.FixChange;
-			this.ResolvedAt = Issue.ResolvedAt;
-			if (ResolvedBy != null)
+			AcknowledgedAt = issue.AcknowledgedAt;
+			FixChange = issue.FixChange;
+			ResolvedAt = issue.ResolvedAt;
+			if (resolvedBy != null)
 			{
-				this.ResolvedBy = new GetThinUserInfoResponse(ResolvedBy);
+				ResolvedBy = new GetThinUserInfoResponse(resolvedBy);
 			}
-			this.VerifiedAt = Issue.VerifiedAt;
-			this.LastSeenAt = Issue.LastSeenAt;
-			this.Spans = Spans;
+			VerifiedAt = issue.VerifiedAt;
+			LastSeenAt = issue.LastSeenAt;
+			Spans = spans;
 		}
 	}
 

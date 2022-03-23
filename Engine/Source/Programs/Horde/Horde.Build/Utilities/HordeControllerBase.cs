@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
 using Horde.Build.Acls;
@@ -6,13 +6,6 @@ using Horde.Build.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -30,186 +23,186 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Create a response indicating a problem with the request
 		/// </summary>
-		/// <param name="Message">Standard structured-logging format string</param>
-		/// <param name="Args">Arguments for the format string</param>
+		/// <param name="message">Standard structured-logging format string</param>
+		/// <param name="args">Arguments for the format string</param>
 		[NonAction]
-		protected ActionResult BadRequest(string Message, params object[] Args)
+		protected ActionResult BadRequest(string message, params object[] args)
 		{
-			return BadRequest(LogEvent.Create(LogLevel.Error, Message, Args));
+			return BadRequest(LogEvent.Create(LogLevel.Error, message, args));
 		}
 
 		/// <summary>
 		/// Create a response indicating a problem with the request
 		/// </summary>
-		/// <param name="EventId">Id identifying the error</param>
-		/// <param name="Message">Standard structured-logging format string</param>
-		/// <param name="Args">Arguments for the format string</param>
+		/// <param name="eventId">Id identifying the error</param>
+		/// <param name="message">Standard structured-logging format string</param>
+		/// <param name="args">Arguments for the format string</param>
 		[NonAction]
-		protected ActionResult BadRequest(EventId EventId, string Message, params object[] Args)
+		protected ActionResult BadRequest(EventId eventId, string message, params object[] args)
 		{
-			return BadRequest(LogEvent.Create(LogLevel.Error, EventId, Message, Args));
+			return BadRequest(LogEvent.Create(LogLevel.Error, eventId, message, args));
 		}
 
 		/// <summary>
 		/// Returns a 403 (forbidden) response with the given action
 		/// </summary>
 		[NonAction]
-		protected ActionResult Forbid(AclAction Action)
+		protected ActionResult Forbid(AclAction action)
 		{
-			return Forbid("User does not have {Action} permission", Action);
+			return Forbid("User does not have {Action} permission", action);
 		}
 
 		/// <summary>
 		/// Returns a 403 (forbidden) response with the given action and object
 		/// </summary>
 		[NonAction]
-		protected ActionResult Forbid(AclAction Action, AgentId AgentId)
+		protected ActionResult Forbid(AclAction action, AgentId agentId)
 		{
-			return Forbid(Action, "agent {AgentId}", AgentId);
+			return Forbid(action, "agent {AgentId}", agentId);
 		}
 
 		/// <summary>
 		/// Returns a 403 (forbidden) response with the given action and object
 		/// </summary>
 		[NonAction]
-		protected ActionResult Forbid(AclAction Action, JobId JobId)
+		protected ActionResult Forbid(AclAction action, JobId jobId)
 		{
-			return Forbid(Action, "job {JobId}", JobId);
+			return Forbid(action, "job {JobId}", jobId);
 		}
 
 		/// <summary>
 		/// Returns a 403 (forbidden) response with the given action and object
 		/// </summary>
 		[NonAction]
-		protected ActionResult Forbid(AclAction Action, ProjectId ProjectId)
+		protected ActionResult Forbid(AclAction action, ProjectId projectId)
 		{
-			return Forbid(Action, "project {ProjectId}", ProjectId);
+			return Forbid(action, "project {ProjectId}", projectId);
 		}
 
 		/// <summary>
 		/// Returns a 403 (forbidden) response with the given action and object
 		/// </summary>
 		[NonAction]
-		protected ActionResult Forbid(AclAction Action, StreamId StreamId)
+		protected ActionResult Forbid(AclAction action, StreamId streamId)
 		{
-			return Forbid(Action, "stream {StreamId}", StreamId);
+			return Forbid(action, "stream {StreamId}", streamId);
 		}
 
 		/// <summary>
 		/// Returns a 403 (forbidden) response with the given action and object
 		/// </summary>
 		[NonAction]
-		protected ActionResult Forbid(AclAction Action, TemplateRefId TemplateId)
+		protected ActionResult Forbid(AclAction action, TemplateRefId templateId)
 		{
-			return Forbid(Action, "template {TemplateId}", TemplateId);
+			return Forbid(action, "template {TemplateId}", templateId);
 		}
 
 		/// <summary>
 		/// Returns a 403 (forbidden) response with the given action and object
 		/// </summary>
 		[NonAction]
-		private ActionResult Forbid(AclAction Action, string ObjectMessage, object Object)
+		private ActionResult Forbid(AclAction action, string objectMessage, object obj)
 		{
-			return Forbid($"User does not have {{Action}} permission for {ObjectMessage}", Action, Object);
+			return Forbid($"User does not have {{Action}} permission for {objectMessage}", action, obj);
 		}
 
 		/// <summary>
 		/// Returns a 403 response with the given log event
 		/// </summary>
 		[NonAction]
-		protected ActionResult Forbid(string Message, params object[] Args)
+		protected ActionResult Forbid(string message, params object[] args)
 		{
-			return StatusCode(StatusCodes.Status403Forbidden, LogEvent.Create(LogLevel.Error, Message, Args));
+			return StatusCode(StatusCodes.Status403Forbidden, LogEvent.Create(LogLevel.Error, message, args));
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(AgentId AgentId)
+		protected ActionResult NotFound(AgentId agentId)
 		{
-			return NotFound("Agent {AgentId} not found", AgentId);
+			return NotFound("Agent {AgentId} not found", agentId);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(AgentId AgentId, LeaseId LeaseId)
+		protected ActionResult NotFound(AgentId agentId, LeaseId leaseId)
 		{
-			return NotFound("Lease {LeaseId} not found for agent {AgentId}", LeaseId, AgentId);
+			return NotFound("Lease {LeaseId} not found for agent {AgentId}", leaseId, agentId);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(JobId JobId)
+		protected ActionResult NotFound(JobId jobId)
 		{
-			return NotFound("Job {JobId} not found", JobId);
+			return NotFound("Job {JobId} not found", jobId);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(JobId JobId, int GroupIdx)
+		protected ActionResult NotFound(JobId jobId, int groupIdx)
 		{
-			return NotFound("Group {GroupIdx} on job {JobId} not found", GroupIdx, JobId);
+			return NotFound("Group {GroupIdx} on job {JobId} not found", groupIdx, jobId);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(JobId JobId, int GroupIdx, int NodeIdx)
+		protected ActionResult NotFound(JobId jobId, int groupIdx, int nodeIdx)
 		{
-			return NotFound("Node {NodeIdx} not found on job {JobId} group {GroupIdx}", NodeIdx, JobId, GroupIdx);
+			return NotFound("Node {NodeIdx} not found on job {JobId} group {GroupIdx}", nodeIdx, jobId, groupIdx);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(JobId JobId, SubResourceId BatchId)
+		protected ActionResult NotFound(JobId jobId, SubResourceId batchId)
 		{
-			return NotFound("Batch {BatchId} not found on job {JobId}", BatchId, JobId);
+			return NotFound("Batch {BatchId} not found on job {JobId}", batchId, jobId);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(JobId JobId, SubResourceId BatchId, SubResourceId StepId)
+		protected ActionResult NotFound(JobId jobId, SubResourceId batchId, SubResourceId stepId)
 		{
-			return NotFound("Step {StepId} not found on job {JobId} batch {BatchId}", StepId, JobId, BatchId);
+			return NotFound("Step {StepId} not found on job {JobId} batch {BatchId}", stepId, jobId, batchId);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(StreamId StreamId)
+		protected ActionResult NotFound(StreamId streamId)
 		{
-			return NotFound("Stream {StreamId} not found", StreamId);
+			return NotFound("Stream {StreamId} not found", streamId);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(StreamId StreamId, TemplateRefId TemplateId)
+		protected ActionResult NotFound(StreamId streamId, TemplateRefId templateId)
 		{
-			return NotFound("Template {TemplateId} not found on stream {StreamId}", TemplateId, StreamId);
+			return NotFound("Template {TemplateId} not found on stream {StreamId}", templateId, streamId);
 		}
 
 		/// <summary>
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(string Message, params object[] Args)
+		protected ActionResult NotFound(string message, params object[] args)
 		{
-			return NotFound(LogEvent.Create(LogLevel.Error, Message, Args));
+			return NotFound(LogEvent.Create(LogLevel.Error, message, args));
 		}
 	}
 }

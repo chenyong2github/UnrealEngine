@@ -5,10 +5,10 @@ using System.Text.Json.Serialization;
 
 namespace Horde.Build.Utilities.Slack.BlockKit
 {
-    /// <summary>
-    /// An entire BlockKit message to be presented in Slack.
-    /// </summary>
-    public class BlockKitMessage
+	/// <summary>
+	/// An entire BlockKit message to be presented in Slack.
+	/// </summary>
+	public class BlockKitMessage
     {
 		/// <summary>
 		/// The channel ID or user ID to deliver the notification to.

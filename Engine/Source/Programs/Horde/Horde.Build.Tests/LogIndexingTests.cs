@@ -1,6 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using Horde.Build.Api;
+using Horde.Build.Collections.Impl;
+using Horde.Build.Compute.Tests.Properties;
 using Horde.Build.Logs;
 using Horde.Build.Logs.Builder;
 using Horde.Build.Logs.Storage;
@@ -8,19 +16,11 @@ using Horde.Build.Logs.Storage.Impl;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
-using Horde.Build.Compute.Tests.Properties;
+using HordeCommon;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Horde.Build.Collections.Impl;
-using HordeCommon;
 
 namespace Horde.Build.Tests
 {

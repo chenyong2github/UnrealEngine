@@ -1,15 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace Horde.Build.Storage.Backends
 {
@@ -32,41 +27,41 @@ namespace Horde.Build.Storage.Backends
 		/// <summary>
 		/// Base directory for log files
 		/// </summary>
-		private readonly DirectoryReference BaseDir;
+		private readonly DirectoryReference _baseDir;
 
 		/// <summary>
 		/// Unique identifier for this instance
 		/// </summary>
-		private string InstanceId;
+		private readonly string _instanceId;
 
 		/// <summary>
 		/// Unique id for each write
 		/// </summary>
-		private int UniqueId;
+		private int _uniqueId;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Options">Current Horde Settings</param>
-		public FileSystemStorageBackend(IFileSystemStorageOptions Options)
+		/// <param name="options">Current Horde Settings</param>
+		public FileSystemStorageBackend(IFileSystemStorageOptions options)
 		{
-			this.BaseDir = DirectoryReference.Combine(Program.DataDir, Options.BaseDir ?? "Storage");
-			this.InstanceId = Guid.NewGuid().ToString("N");
-			DirectoryReference.CreateDirectory(BaseDir);
+			_baseDir = DirectoryReference.Combine(Program.DataDir, options.BaseDir ?? "Storage");
+			_instanceId = Guid.NewGuid().ToString("N");
+			DirectoryReference.CreateDirectory(_baseDir);
 		}
 
 		/// <inheritdoc/>
-		public Task<Stream?> ReadAsync(string Path)
+		public Task<Stream?> ReadAsync(string path)
 		{
-			FileReference Location = FileReference.Combine(BaseDir, Path);
-			if (!FileReference.Exists(Location))
+			FileReference location = FileReference.Combine(_baseDir, path);
+			if (!FileReference.Exists(location))
 			{
 				return Task.FromResult<Stream?>(null);
 			}
 
 			try
 			{
-				return Task.FromResult<Stream?>(FileReference.Open(Location, FileMode.Open, FileAccess.Read, FileShare.Read));
+				return Task.FromResult<Stream?>(FileReference.Open(location, FileMode.Open, FileAccess.Read, FileShare.Read));
 			}
 			catch (DirectoryNotFoundException)
 			{
@@ -79,32 +74,32 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteAsync(string Path, Stream Stream)
+		public async Task WriteAsync(string path, Stream stream)
 		{
-			FileReference FinalLocation = FileReference.Combine(BaseDir, Path);
-			if (!FileReference.Exists(FinalLocation))
+			FileReference finalLocation = FileReference.Combine(_baseDir, path);
+			if (!FileReference.Exists(finalLocation))
 			{
 				// Write to a temp file first
-				int NewUniqueId = Interlocked.Increment(ref UniqueId);
+				int newUniqueId = Interlocked.Increment(ref _uniqueId);
 
-				DirectoryReference.CreateDirectory(FinalLocation.Directory);
-				FileReference TempLocation = new FileReference($"{FinalLocation}.{InstanceId}.{UniqueId:x8}");
+				DirectoryReference.CreateDirectory(finalLocation.Directory);
+				FileReference tempLocation = new FileReference($"{finalLocation}.{_instanceId}.{newUniqueId:x8}");
 
-				using (Stream OutputStream = FileReference.Open(TempLocation, FileMode.Create, FileAccess.Write, FileShare.Read))
+				using (Stream outputStream = FileReference.Open(tempLocation, FileMode.Create, FileAccess.Write, FileShare.Read))
 				{
-					await Stream.CopyToAsync(OutputStream);
+					await stream.CopyToAsync(outputStream);
 				}
 
 				// Move the temp file into place
 				try
 				{
-					FileReference.Move(TempLocation, FinalLocation, true);
+					FileReference.Move(tempLocation, finalLocation, true);
 				}
 				catch (IOException) // Already exists
 				{
-					if (FileReference.Exists(FinalLocation))
+					if (FileReference.Exists(finalLocation))
 					{
-						FileReference.Delete(TempLocation);
+						FileReference.Delete(tempLocation);
 					}
 					else
 					{
@@ -115,17 +110,17 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> ExistsAsync(string Path)
+		public Task<bool> ExistsAsync(string path)
 		{
-			FileReference Location = FileReference.Combine(BaseDir, Path);
-			return Task.FromResult(FileReference.Exists(Location));
+			FileReference location = FileReference.Combine(_baseDir, path);
+			return Task.FromResult(FileReference.Exists(location));
 		}
 
 		/// <inheritdoc/>
-		public Task DeleteAsync(string Path)
+		public Task DeleteAsync(string path)
 		{
-			FileReference Location = FileReference.Combine(BaseDir, Path);
-			FileReference.Delete(Location);
+			FileReference location = FileReference.Combine(_baseDir, path);
+			FileReference.Delete(location);
 			return Task.CompletedTask;
 		}
 	}

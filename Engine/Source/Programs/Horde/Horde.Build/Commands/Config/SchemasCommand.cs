@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Controllers;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Commands.Config
 {
@@ -13,17 +13,17 @@ namespace Horde.Build.Commands.Config
 	class SchemasCommand : Command
 	{
 		[CommandLine]
-		DirectoryReference? OutputDir = null!;
+		DirectoryReference? _outputDir = null!;
 
-		public override Task<int> ExecuteAsync(ILogger Logger)
+		public override Task<int> ExecuteAsync(ILogger logger)
 		{
-			OutputDir ??= DirectoryReference.Combine(Program.AppDir, "Schemas");
+			_outputDir ??= DirectoryReference.Combine(Program.AppDir, "Schemas");
 
-			DirectoryReference.CreateDirectory(OutputDir);
-			foreach (Type SchemaType in SchemaController.ConfigSchemas)
+			DirectoryReference.CreateDirectory(_outputDir);
+			foreach (Type schemaType in SchemaController.ConfigSchemas)
 			{
-				FileReference OutputFile = FileReference.Combine(OutputDir, $"{SchemaType.Name}.json");
-				Schemas.CreateSchema(SchemaType).Write(OutputFile);
+				FileReference outputFile = FileReference.Combine(_outputDir, $"{schemaType.Name}.json");
+				Schemas.CreateSchema(schemaType).Write(outputFile);
 			}
 
 			return Task.FromResult(0);

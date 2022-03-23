@@ -1,19 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace Horde.Build.Commands
 {
@@ -22,74 +21,80 @@ namespace Horde.Build.Commands
 	[Command("server", "Runs the Horde Build server (default)")]
 	class ServerCommand : Command
 	{
-		ServerSettings HordeSettings;
-		IConfiguration Config;
-		string[] Args = Array.Empty<string>();
+		readonly ServerSettings _hordeSettings;
+		readonly IConfiguration _config;
+		string[] _args = Array.Empty<string>();
 
-		public ServerCommand(ServerSettings Settings, IConfiguration Config)
+		public ServerCommand(ServerSettings settings, IConfiguration config)
 		{
-			this.HordeSettings = Settings;
-			this.Config = Config;
+			_hordeSettings = settings;
+			_config = config;
 		}
 
-		public override void Configure(CommandLineArguments Arguments, ILogger Logger)
+		public override void Configure(CommandLineArguments arguments, ILogger logger)
 		{
-			base.Configure(Arguments, Logger);
-			this.Args = Arguments.GetRawArray();
+			base.Configure(arguments, logger);
+			_args = arguments.GetRawArray();
 		}
 
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			using (X509Certificate2? GrpcCertificate = ReadGrpcCertificate(HordeSettings))
+			using (X509Certificate2? grpcCertificate = ReadGrpcCertificate(_hordeSettings))
 			{
-				List<IHost> Hosts = new List<IHost>();
-				Hosts.Add(CreateHostBuilderWithCert(Args, Config, HordeSettings, GrpcCertificate).Build());
+				List<IHost> hosts = new List<IHost>();
+				hosts.Add(CreateHostBuilderWithCert(_args, _config, _hordeSettings, grpcCertificate).Build());
 #if WITH_HORDE_STORAGE
-				IHostBuilder StorageHostBuilder = Horde.Storage.Program.CreateHostBuilder(Args);
-				StorageHostBuilder.ConfigureWebHostDefaults(Builder =>
+				IHostBuilder storageHostBuilder = Horde.Storage.Program.CreateHostBuilder(_args);
+				storageHostBuilder.ConfigureWebHostDefaults(builder =>
 				{
-					Builder.ConfigureKestrel(Options =>
+					builder.ConfigureKestrel(options =>
 					{
-						Options.ListenAnyIP(57000);
-						Options.ListenAnyIP(57001, Configure => Configure.UseHttps());
+						options.ListenAnyIP(57000);
+						options.ListenAnyIP(57001, configure => configure.UseHttps());
 					});
 				});
-				Hosts.Add(StorageHostBuilder.Build());
+				hosts.Add(storageHostBuilder.Build());
 #endif
-				await Task.WhenAll(Hosts.Select(x => x.RunAsync()));
+				await Task.WhenAll(hosts.Select(x => x.RunAsync()));
 				return 0;
 			}
 		}
 
-		static IHostBuilder CreateHostBuilderWithCert(string[] Args, IConfiguration Config, ServerSettings ServerSettings, X509Certificate2? SslCert)
+		static IHostBuilder CreateHostBuilderWithCert(string[] args, IConfiguration config, ServerSettings serverSettings, X509Certificate2? sslCert)
 		{
-			return Host.CreateDefaultBuilder(Args)
+			return Host.CreateDefaultBuilder(args)
 				.UseSerilog()
-				.ConfigureAppConfiguration(Builder => Builder.AddConfiguration(Config))
-				.ConfigureWebHostDefaults(WebBuilder =>
+				.ConfigureAppConfiguration(builder => builder.AddConfiguration(config))
+				.ConfigureWebHostDefaults(webBuilder =>
 				{
-					WebBuilder.ConfigureKestrel(Options =>
+					webBuilder.ConfigureKestrel(options =>
 					{
-						Options.Limits.MaxRequestBodySize = 100 * 1024 * 1024;
+						options.Limits.MaxRequestBodySize = 100 * 1024 * 1024;
 
-						if (ServerSettings.HttpPort != 0)
+						if (serverSettings.HttpPort != 0)
 						{
-							Options.ListenAnyIP(ServerSettings.HttpPort, Configure => { Configure.Protocols = HttpProtocols.Http1AndHttp2; });
+							options.ListenAnyIP(serverSettings.HttpPort, configure => { configure.Protocols = HttpProtocols.Http1AndHttp2; });
 						}
 
-						if (ServerSettings.HttpsPort != 0)
+						if (serverSettings.HttpsPort != 0)
 						{
-							Options.ListenAnyIP(ServerSettings.HttpsPort, Configure => { if (SslCert != null) { Configure.UseHttps(SslCert); } });
+							options.ListenAnyIP(serverSettings.HttpsPort, configure => 
+							{ 
+								if (sslCert != null) 
+								{ 
+									configure.UseHttps(sslCert); 
+								} 
+							});
 						}
 
 						// To serve HTTP/2 with gRPC *without* TLS enabled, a separate port for HTTP/2 must be used.
 						// This is useful when having a load balancer in front that terminates TLS.
-						if (ServerSettings.Http2Port != 0)
+						if (serverSettings.Http2Port != 0)
 						{
-							Options.ListenAnyIP(ServerSettings.Http2Port, Configure => { Configure.Protocols = HttpProtocols.Http2; });
+							options.ListenAnyIP(serverSettings.Http2Port, configure => { configure.Protocols = HttpProtocols.Http2; });
 						}
 					});
-					WebBuilder.UseStartup<Startup>();
+					webBuilder.UseStartup<Startup>();
 				});
 		}
 
@@ -97,40 +102,39 @@ namespace Horde.Build.Commands
 		/// Gets the certificate to use for Grpc endpoints
 		/// </summary>
 		/// <returns>Custom certificate to use for Grpc endpoints, or null for the default.</returns>
-		public static X509Certificate2? ReadGrpcCertificate(ServerSettings HordeSettings)
+		public static X509Certificate2? ReadGrpcCertificate(ServerSettings hordeSettings)
 		{
-			string Base64Prefix = "base64:";
+			string base64Prefix = "base64:";
 
-			if (HordeSettings.ServerPrivateCert == null)
+			if (hordeSettings.ServerPrivateCert == null)
 			{
 				return null;
 			}
-			else if (HordeSettings.ServerPrivateCert.StartsWith(Base64Prefix, StringComparison.Ordinal))
+			else if (hordeSettings.ServerPrivateCert.StartsWith(base64Prefix, StringComparison.Ordinal))
 			{
-				byte[] CertData = Convert.FromBase64String(HordeSettings.ServerPrivateCert.Replace(Base64Prefix, "", StringComparison.Ordinal));
-				return new X509Certificate2(CertData);
+				byte[] certData = Convert.FromBase64String(hordeSettings.ServerPrivateCert.Replace(base64Prefix, "", StringComparison.Ordinal));
+				return new X509Certificate2(certData);
 			}
 			else
 			{
-				FileReference? ServerPrivateCert = null;
-
-				if (!Path.IsPathRooted(HordeSettings.ServerPrivateCert))
+				FileReference? serverPrivateCert;
+				if (!Path.IsPathRooted(hordeSettings.ServerPrivateCert))
 				{
-					ServerPrivateCert = FileReference.Combine(Program.AppDir, HordeSettings.ServerPrivateCert);
+					serverPrivateCert = FileReference.Combine(Program.AppDir, hordeSettings.ServerPrivateCert);
 				}
 				else
 				{
-					ServerPrivateCert = new FileReference(HordeSettings.ServerPrivateCert);
+					serverPrivateCert = new FileReference(hordeSettings.ServerPrivateCert);
 				}
 
-				return new X509Certificate2(FileReference.ReadAllBytes(ServerPrivateCert));
+				return new X509Certificate2(FileReference.ReadAllBytes(serverPrivateCert));
 			}
 		}
 
-		public static IHostBuilder CreateHostBuilderForTesting(string[] Args)
+		public static IHostBuilder CreateHostBuilderForTesting(string[] args)
 		{
-			ServerSettings HordeSettings = new ServerSettings();
-			return CreateHostBuilderWithCert(Args, new ConfigurationBuilder().Build(), HordeSettings, null);
+			ServerSettings hordeSettings = new ServerSettings();
+			return CreateHostBuilderWithCert(args, new ConfigurationBuilder().Build(), hordeSettings, null);
 		}
 }
 }

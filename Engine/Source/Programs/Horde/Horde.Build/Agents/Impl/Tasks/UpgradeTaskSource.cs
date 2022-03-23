@@ -1,20 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Google.Protobuf;
-using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
-using HordeCommon;
-using HordeCommon.Rpc.Tasks;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 
 namespace Horde.Build.Tasks.Impl
 {
@@ -29,49 +25,49 @@ namespace Horde.Build.Tasks.Impl
 
 		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled | TaskSourceFlags.AllowDuringDowntime;
 
-		AgentSoftwareService AgentSoftwareService;
-		ILogFileService LogService;
-		IClock Clock;
+		readonly AgentSoftwareService _agentSoftwareService;
+		readonly ILogFileService _logService;
+		readonly IClock _clock;
 
-		public UpgradeTaskSource(AgentSoftwareService AgentSoftwareService, ILogFileService LogService, IClock Clock)
+		public UpgradeTaskSource(AgentSoftwareService agentSoftwareService, ILogFileService logService, IClock clock)
 		{
-			this.AgentSoftwareService = AgentSoftwareService;
-			this.LogService = LogService;
-			this.Clock = Clock;
+			_agentSoftwareService = agentSoftwareService;
+			_logService = logService;
+			_clock = clock;
 
-			this.OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => new LogId(x.LogId));
+			OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => new LogId(x.LogId));
 		}
 
-		public async override Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
+		public override async Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
-			string? RequiredVersion = await GetRequiredSoftwareVersion(Agent);
-			if (RequiredVersion != null && Agent.Version != RequiredVersion)
+			string? requiredVersion = await GetRequiredSoftwareVersion(agent);
+			if (requiredVersion != null && agent.Version != requiredVersion)
 			{
-				AgentLease? Lease = null;
-				if (Agent.Leases.Count == 0 && (Agent.LastUpgradeTime == null || Agent.LastUpgradeTime.Value + TimeSpan.FromMinutes(5.0) < Clock.UtcNow || Agent.LastUpgradeVersion != RequiredVersion.ToString()))
+				AgentLease? lease = null;
+				if (agent.Leases.Count == 0 && (agent.LastUpgradeTime == null || agent.LastUpgradeTime.Value + TimeSpan.FromMinutes(5.0) < _clock.UtcNow || agent.LastUpgradeVersion != requiredVersion.ToString()))
 				{
-					ILogFile LogFile = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
+					ILogFile logFile = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json);
 
-					UpgradeTask Task = new UpgradeTask();
-					Task.SoftwareId = RequiredVersion.ToString();
-					Task.LogId = LogFile.Id.ToString();
+					UpgradeTask task = new UpgradeTask();
+					task.SoftwareId = requiredVersion.ToString();
+					task.LogId = logFile.Id.ToString();
 
-					byte[] Payload;
-					if (Agent.Version == "5.0.0-17425336" || Agent.Version == "5.0.0-17448746")
+					byte[] payload;
+					if (agent.Version == "5.0.0-17425336" || agent.Version == "5.0.0-17448746")
 					{
-						Any Any = new Any();
-						Any.TypeUrl = "type.googleapis.com/Horde.UpgradeTask";
-						Any.Value = Task.ToByteString();
-						Payload = Any.ToByteArray();
+						Any any = new Any();
+						any.TypeUrl = "type.googleapis.com/Horde.UpgradeTask";
+						any.Value = task.ToByteString();
+						payload = any.ToByteArray();
 					}
 					else
 					{
-						Payload = Any.Pack(Task).ToByteArray();
+						payload = Any.Pack(task).ToByteArray();
 					}
 
-					Lease = new AgentLease(LeaseId.GenerateNewId(), $"Upgrade to {RequiredVersion}", null, null, LogFile.Id, LeaseState.Pending, null, true, Payload);
+					lease = new AgentLease(LeaseId.GenerateNewId(), $"Upgrade to {requiredVersion}", null, null, logFile.Id, LeaseState.Pending, null, true, payload);
 				}
-				return Lease;
+				return lease;
 			}
 			return null;
 		}
@@ -79,13 +75,13 @@ namespace Horde.Build.Tasks.Impl
 		/// <summary>
 		/// Determines the client software version that should be installed on an agent
 		/// </summary>
-		/// <param name="Agent">The agent instance</param>
+		/// <param name="agent">The agent instance</param>
 		/// <returns>Unique id of the client version this agent should be running</returns>
-		public async Task<string?> GetRequiredSoftwareVersion(IAgent Agent)
+		public async Task<string?> GetRequiredSoftwareVersion(IAgent agent)
 		{
-			AgentSoftwareChannelName ChannelName = Agent.Channel ?? AgentSoftwareService.DefaultChannelName;
-			IAgentSoftwareChannel? Channel = await AgentSoftwareService.GetCachedChannelAsync(ChannelName);
-			return Channel?.Version;
+			AgentSoftwareChannelName channelName = agent.Channel ?? AgentSoftwareService.DefaultChannelName;
+			IAgentSoftwareChannel? channel = await _agentSoftwareService.GetCachedChannelAsync(channelName);
+			return channel?.Version;
 		}
 	}
 }

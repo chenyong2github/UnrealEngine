@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization.Conventions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -21,9 +18,9 @@ namespace Horde.Build.Utilities
 		public static NullDiscriminatorConvention Instance { get; } = new NullDiscriminatorConvention();
 
 		/// <inheritdoc/>
-		public Type GetActualType(IBsonReader BsonReader, Type NominalType)
+		public Type GetActualType(IBsonReader bsonReader, Type nominalType)
 		{
-			return NominalType;
+			return nominalType;
 		}
 
 		/// <inheritdoc/>

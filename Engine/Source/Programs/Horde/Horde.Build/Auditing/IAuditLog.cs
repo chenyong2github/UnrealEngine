@@ -1,26 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Api;
-using HordeCommon;
-using Horde.Build.Models;
-using HordeCommon.Rpc.Tasks;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
+using System.IO.Pipelines;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using EpicGames.Core;
-using System.Buffers;
-using System.Text.Json;
-using System.Text;
-using System.IO.Pipelines;
 
 namespace Horde.Build.Collections
 {
@@ -53,20 +38,20 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Finds messages matching certain criteria
 		/// </summary>
-		/// <param name="MinTime"></param>
-		/// <param name="MaxTime"></param>
-		/// <param name="Index"></param>
-		/// <param name="Count"></param>
+		/// <param name="minTime"></param>
+		/// <param name="maxTime"></param>
+		/// <param name="index"></param>
+		/// <param name="count"></param>
 		/// <returns></returns>
-		IAsyncEnumerable<IAuditLogMessage> FindAsync(DateTime? MinTime = null, DateTime? MaxTime = null, int? Index = null, int? Count = null);
+		IAsyncEnumerable<IAuditLogMessage> FindAsync(DateTime? minTime = null, DateTime? maxTime = null, int? index = null, int? count = null);
 
 		/// <summary>
 		/// Deletes messages between a given time range for a particular object
 		/// </summary>
-		/// <param name="MinTime">Minimum time to remove</param>
-		/// <param name="MaxTime">Maximum time to remove</param>
+		/// <param name="minTime">Minimum time to remove</param>
+		/// <param name="maxTime">Maximum time to remove</param>
 		/// <returns>Async task</returns>
-		Task<long> DeleteAsync(DateTime? MinTime = null, DateTime? MaxTime = null);
+		Task<long> DeleteAsync(DateTime? minTime = null, DateTime? maxTime = null);
 	}
 
 	/// <summary>
@@ -100,9 +85,9 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Get the channel for a particular subject
 		/// </summary>
-		/// <param name="Subject"></param>
+		/// <param name="subject"></param>
 		/// <returns></returns>
-		IAuditLogChannel<TSubject> this[TSubject Subject] { get; }
+		IAuditLogChannel<TSubject> this[TSubject subject] { get; }
 	}
 
 	/// <summary>
@@ -114,10 +99,10 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Create a new audit log instance, with the given database name
 		/// </summary>
-		/// <param name="CollectionName"></param>
-		/// <param name="SubjectProperty"></param>
+		/// <param name="collectionName"></param>
+		/// <param name="subjectProperty"></param>
 		/// <returns></returns>
-		IAuditLog<TSubject> Create(string CollectionName, string SubjectProperty);
+		IAuditLog<TSubject> Create(string collectionName, string subjectProperty);
 	}
 
 	/// <summary>
@@ -128,28 +113,28 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Retrieve historical information about a specific agent
 		/// </summary>
-		/// <param name="Channel">Channel to query</param>
-		/// <param name="BodyWriter">Writer for Json data</param>
-		/// <param name="MinTime">Minimum time for records to return</param>
-		/// <param name="MaxTime">Maximum time for records to return</param>
-		/// <param name="Index">Offset of the first result</param>
-		/// <param name="Count">Number of records to return</param>
+		/// <param name="channel">Channel to query</param>
+		/// <param name="bodyWriter">Writer for Json data</param>
+		/// <param name="minTime">Minimum time for records to return</param>
+		/// <param name="maxTime">Maximum time for records to return</param>
+		/// <param name="index">Offset of the first result</param>
+		/// <param name="count">Number of records to return</param>
 		/// <returns>Information about the requested agent</returns>
-		public static async Task FindAsync<T>(this IAuditLogChannel<T> Channel, PipeWriter BodyWriter, DateTime? MinTime = null, DateTime? MaxTime = null, int Index = 0, int Count = 50)
+		public static async Task FindAsync<T>(this IAuditLogChannel<T> channel, PipeWriter bodyWriter, DateTime? minTime = null, DateTime? maxTime = null, int index = 0, int count = 50)
 		{
-			string Prefix = "{\n\t\"entries\":\n\t[";
-			await BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Prefix));
+			string prefix = "{\n\t\"entries\":\n\t[";
+			await bodyWriter.WriteAsync(Encoding.UTF8.GetBytes(prefix));
 
-			string Separator = "";
-			await foreach (IAuditLogMessage<T> Message in Channel.FindAsync(MinTime, MaxTime, Index, Count))
+			string separator = "";
+			await foreach (IAuditLogMessage<T> message in channel.FindAsync(minTime, maxTime, index, count))
 			{
-				string Line = $"{Separator}\n\t\t{Message.Data}";
-				await BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Line));
-				Separator = ",";
+				string line = $"{separator}\n\t\t{message.Data}";
+				await bodyWriter.WriteAsync(Encoding.UTF8.GetBytes(line));
+				separator = ",";
 			}
 
-			string Suffix = "\n\t]\n}";
-			await BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Suffix));
+			string suffix = "\n\t]\n}";
+			await bodyWriter.WriteAsync(Encoding.UTF8.GetBytes(suffix));
 		}
 	}
 }

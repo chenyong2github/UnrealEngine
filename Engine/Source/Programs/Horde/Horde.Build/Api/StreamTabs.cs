@@ -1,15 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.S3.Model.Internal.MarshallTransformations;
-using EpicGames.Core;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -132,10 +126,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Title">Title of this page</param>
-		protected GetStreamTabResponse(string Title)//, StreamPageType Type)
+		/// <param name="title">Title of this page</param>
+		protected GetStreamTabResponse(string title)//, StreamPageType Type)
 		{
-			this.Title = Title;
+			Title = title;
 		}
 	}
 
@@ -158,12 +152,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Heading">Heading for this column</param>
-		/// <param name="RelativeWidth">Relative width of this column</param>
-		protected GetJobsTabColumnResponse(string Heading, int? RelativeWidth)
+		/// <param name="heading">Heading for this column</param>
+		/// <param name="relativeWidth">Relative width of this column</param>
+		protected GetJobsTabColumnResponse(string heading, int? relativeWidth)
 		{
-			this.Heading = Heading;
-			this.RelativeWidth = RelativeWidth;
+			Heading = heading;
+			RelativeWidth = relativeWidth;
 		}
 	}
 
@@ -181,13 +175,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Heading">Heading for this column</param>
-		/// <param name="Category">Category of aggregates to display in this column. If null, includes any aggregate not matched by another column.</param>
-		/// <param name="RelativeWidth">Relative width of this column</param>
-		public GetJobsTabLabelColumnResponse(string Heading, string? Category, int? RelativeWidth)
-			: base(Heading, RelativeWidth)
+		/// <param name="heading">Heading for this column</param>
+		/// <param name="category">Category of aggregates to display in this column. If null, includes any aggregate not matched by another column.</param>
+		/// <param name="relativeWidth">Relative width of this column</param>
+		public GetJobsTabLabelColumnResponse(string heading, string? category, int? relativeWidth)
+			: base(heading, relativeWidth)
 		{
-			this.Category = Category;
+			Category = category;
 		}
 	}
 
@@ -205,13 +199,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Heading">Heading for this column</param>
-		/// <param name="Parameter">Name of the parameter to display</param>
-		/// <param name="RelativeWidth">Relative width of this column</param>
-		public GetJobsTabParameterColumnResponse(string Heading, string? Parameter, int? RelativeWidth)
-			: base(Heading, RelativeWidth)
+		/// <param name="heading">Heading for this column</param>
+		/// <param name="parameter">Name of the parameter to display</param>
+		/// <param name="relativeWidth">Relative width of this column</param>
+		public GetJobsTabParameterColumnResponse(string heading, string? parameter, int? relativeWidth)
+			: base(heading, relativeWidth)
 		{
-			this.Parameter = Parameter;
+			Parameter = parameter;
 		}
 	}
 
@@ -244,18 +238,18 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Title">Title for this page</param>
+		/// <param name="title">Title for this page</param>
 		/// <param name="bShowNames">Whether to show names on the page</param>
-		/// <param name="Templates">Templates to include on this page</param>
-		/// <param name="JobNames">List of job names to include on this page</param>
-		/// <param name="Columns">List of columns to display</param>
-		public GetJobsTabResponse(string Title, bool bShowNames, List<string>? Templates, List<string>? JobNames, List<GetJobsTabColumnResponse>? Columns)
-			: base(Title)
+		/// <param name="templates">Templates to include on this page</param>
+		/// <param name="jobNames">List of job names to include on this page</param>
+		/// <param name="columns">List of columns to display</param>
+		public GetJobsTabResponse(string title, bool bShowNames, List<string>? templates, List<string>? jobNames, List<GetJobsTabColumnResponse>? columns)
+			: base(title)
 		{
-			this.ShowNames = bShowNames;
-			this.Templates = Templates;
-			this.JobNames = JobNames;
-			this.Columns = Columns;
+			ShowNames = bShowNames;
+			Templates = templates;
+			JobNames = jobNames;
+			Columns = columns;
 		}
 	}
 }

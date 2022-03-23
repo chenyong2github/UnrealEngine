@@ -1,17 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Services;
-using MongoDB.Bson.Serialization.Attributes;
-using System.Threading.Tasks;
-
-using Horde.Build.Models;
-using MongoDB.Driver;
 using System;
-using Horde.Build.Utilities;
-using System.Linq;
-
-using MongoDB.Bson;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -45,81 +43,76 @@ namespace Horde.Build.Collections.Impl
 			[BsonConstructor]
 			private NoticeDocument()
 			{
-				
 			}
 
-			public NoticeDocument(ObjectId Id, string Message, UserId? UserId, DateTime? StartTime, DateTime? FinishTime)
+			public NoticeDocument(ObjectId id, string message, UserId? userId, DateTime? startTime, DateTime? finishTime)
 			{
-				this.Id = Id;
-				this.Message = Message;
-				this.UserId = UserId;
-				this.StartTime = StartTime;
-				this.FinishTime = FinishTime;
+				Id = id;
+				Message = message;
+				UserId = userId;
+				StartTime = startTime;
+				FinishTime = finishTime;
 			}
-
 		}
 
-		readonly IMongoCollection<NoticeDocument> Notices;
+		readonly IMongoCollection<NoticeDocument> _notices;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NoticeCollection(DatabaseService DatabaseService)
+		public NoticeCollection(DatabaseService databaseService)
 		{
-			Notices = DatabaseService.GetCollection<NoticeDocument>("Notices");
+			_notices = databaseService.GetCollection<NoticeDocument>("Notices");
 		}
 
 		/// <inheritdoc/>
-		public async Task<INotice?> AddNoticeAsync(string Message, UserId? UserId, DateTime? StartTime, DateTime? FinishTime)
+		public async Task<INotice?> AddNoticeAsync(string message, UserId? userId, DateTime? startTime, DateTime? finishTime)
 		{
-			NoticeDocument NewNotice = new NoticeDocument(ObjectId.GenerateNewId(), Message, UserId, StartTime, FinishTime);
-			await Notices.InsertOneAsync(NewNotice);
-			return NewNotice;
+			NoticeDocument newNotice = new NoticeDocument(ObjectId.GenerateNewId(), message, userId, startTime, finishTime);
+			await _notices.InsertOneAsync(newNotice);
+			return newNotice;
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> UpdateNoticeAsync(ObjectId Id, string? Message, DateTime? StartTime, DateTime? FinishTime)
+		public async Task<bool> UpdateNoticeAsync(ObjectId id, string? message, DateTime? startTime, DateTime? finishTime)
 		{
 
-			UpdateDefinitionBuilder<NoticeDocument> UpdateBuilder = Builders<NoticeDocument>.Update;
-			List<UpdateDefinition<NoticeDocument>> Updates = new List<UpdateDefinition<NoticeDocument>>();
+			UpdateDefinitionBuilder<NoticeDocument> updateBuilder = Builders<NoticeDocument>.Update;
+			List<UpdateDefinition<NoticeDocument>> updates = new List<UpdateDefinition<NoticeDocument>>();
 
-			if (Message != null)
+			if (message != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.Message, Message));
+				updates.Add(updateBuilder.Set(x => x.Message, message));
 			}
 
-			Updates.Add(UpdateBuilder.Set(x => x.StartTime, StartTime));
+			updates.Add(updateBuilder.Set(x => x.StartTime, startTime));
 
-			Updates.Add(UpdateBuilder.Set(x => x.FinishTime, FinishTime));
+			updates.Add(updateBuilder.Set(x => x.FinishTime, finishTime));
 
-			NoticeDocument? Document = await Notices.FindOneAndUpdateAsync(x => x.Id == Id, UpdateBuilder.Combine(Updates));
+			NoticeDocument? document = await _notices.FindOneAndUpdateAsync(x => x.Id == id, updateBuilder.Combine(updates));
 
-			return Document != null;
+			return document != null;
 		}
 
 		/// <inheritdoc/>
-		public async Task<INotice?> GetNoticeAsync(ObjectId NoticeId)
+		public async Task<INotice?> GetNoticeAsync(ObjectId noticeId)
 		{
-			return await Notices.Find(x => x.Id == NoticeId).FirstOrDefaultAsync();
+			return await _notices.Find(x => x.Id == noticeId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
 		public async Task<List<INotice>> GetNoticesAsync()
 		{
-			List<NoticeDocument> Results = await Notices.Find(x => true).ToListAsync();
-			return Results.Select<NoticeDocument, INotice>(x => x).ToList();
+			List<NoticeDocument> results = await _notices.Find(x => true).ToListAsync();
+			return results.Select<NoticeDocument, INotice>(x => x).ToList();
 		}
-
 
 		/// <inheritdoc/>
-		public async Task<bool> RemoveNoticeAsync(ObjectId Id)
+		public async Task<bool> RemoveNoticeAsync(ObjectId id)
 		{
-			DeleteResult Result = await Notices.DeleteOneAsync(x => x.Id == Id);
-			return Result.DeletedCount > 0;
+			DeleteResult result = await _notices.DeleteOneAsync(x => x.Id == id);
+			return result.DeletedCount > 0;
 		}
-
 	}
-
 }
 

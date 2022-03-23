@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Google.Protobuf.WellKnownTypes;
-using HordeCommon;
-using HordeCommon.Rpc.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Services
 {
@@ -24,121 +21,121 @@ namespace Horde.Build.Services
 	/// </summary>
 	public sealed class TelemetryService : IHostedService, IDisposable
 	{
-		ITelemetryCollection TelemetryCollection;
-		IAgentCollection AgentCollection;
-		ILeaseCollection LeaseCollection;
-		IPoolCollection PoolCollection;
-		IFleetManager FleetManager;
-		IClock Clock;
-		ITicker Tick;
-		ILogger Logger;
+		readonly ITelemetryCollection _telemetryCollection;
+		readonly IAgentCollection _agentCollection;
+		readonly ILeaseCollection _leaseCollection;
+		readonly IPoolCollection _poolCollection;
+		readonly IFleetManager _fleetManager;
+		readonly IClock _clock;
+		readonly ITicker _tick;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TelemetryService(ITelemetryCollection TelemetryCollection, IAgentCollection AgentCollection, ILeaseCollection LeaseCollection, IPoolCollection PoolCollection, IFleetManager FleetManager, IClock Clock, ILogger<TelemetryService> Logger)
+		public TelemetryService(ITelemetryCollection telemetryCollection, IAgentCollection agentCollection, ILeaseCollection leaseCollection, IPoolCollection poolCollection, IFleetManager fleetManager, IClock clock, ILogger<TelemetryService> logger)
 		{
-			this.TelemetryCollection = TelemetryCollection;
-			this.AgentCollection = AgentCollection;
-			this.LeaseCollection = LeaseCollection;
-			this.PoolCollection = PoolCollection;
-			this.FleetManager = FleetManager;
-			this.Clock = Clock;
-			this.Tick = Clock.AddSharedTicker<TelemetryService>(TimeSpan.FromMinutes(10.0), TickLeaderAsync, Logger);
-			this.Logger = Logger;
+			_telemetryCollection = telemetryCollection;
+			_agentCollection = agentCollection;
+			_leaseCollection = leaseCollection;
+			_poolCollection = poolCollection;
+			_fleetManager = fleetManager;
+			_clock = clock;
+			_tick = clock.AddSharedTicker<TelemetryService>(TimeSpan.FromMinutes(10.0), TickLeaderAsync, logger);
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken CancellationToken) => Tick.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken) => _tick.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken CancellationToken) => Tick.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken) => _tick.StopAsync();
 
 		/// <inheritdoc/>
-		public void Dispose() => Tick.Dispose();
+		public void Dispose() => _tick.Dispose();
 
 		/// <inheritdoc/>
-		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
+		async ValueTask TickLeaderAsync(CancellationToken stoppingToken)
 		{
-			DateTime CurrentTime = Clock.UtcNow;
+			DateTime currentTime = _clock.UtcNow;
 
 			// Find the last time that we need telemetry for
-			DateTime MaxTime = CurrentTime.Date + TimeSpan.FromHours(CurrentTime.Hour);
+			DateTime maxTime = currentTime.Date + TimeSpan.FromHours(currentTime.Hour);
 
 			// Get the latest telemetry data
-			IUtilizationTelemetry? Latest = await TelemetryCollection.GetLatestUtilizationTelemetryAsync();
-			TimeSpan Interval = TimeSpan.FromHours(1.0);
-			int Count = (Latest == null) ? (7 * 24) : (int)Math.Round((MaxTime - Latest.FinishTime) / Interval);
-			DateTime MinTime = MaxTime - Count * Interval;
+			IUtilizationTelemetry? latest = await _telemetryCollection.GetLatestUtilizationTelemetryAsync();
+			TimeSpan interval = TimeSpan.FromHours(1.0);
+			int count = (latest == null) ? (7 * 24) : (int)Math.Round((maxTime - latest.FinishTime) / interval);
+			DateTime minTime = maxTime - count * interval;
 
 			// Query all the current data
-			List<IAgent> Agents = await AgentCollection.FindAsync();
-			List<IPool> Pools = await PoolCollection.GetAsync();
-			List<ILease> Leases = await LeaseCollection.FindLeasesAsync(MinTime: MinTime);
+			List<IAgent> agents = await _agentCollection.FindAsync();
+			List<IPool> pools = await _poolCollection.GetAsync();
+			List<ILease> leases = await _leaseCollection.FindLeasesAsync(minTime: minTime);
 
 			// Remove any agents which are offline
-			Agents.RemoveAll(x => !x.Enabled || !x.IsSessionValid(CurrentTime));
+			agents.RemoveAll(x => !x.Enabled || !x.IsSessionValid(currentTime));
 
 			// Find all the agents
-			Dictionary<AgentId, List<PoolId>> AgentToPoolIds = Agents.ToDictionary(x => x.Id, x => x.GetPools().ToList());
+			Dictionary<AgentId, List<PoolId>> agentToPoolIds = agents.ToDictionary(x => x.Id, x => x.GetPools().ToList());
 
 			// Generate all the telemetry data
-			DateTime BucketMinTime = MinTime;
-			for (int Idx = 0; Idx < Count; Idx++)
+			DateTime bucketMinTime = minTime;
+			for (int idx = 0; idx < count; idx++)
 			{
-				DateTime BucketMaxTime = BucketMinTime + Interval;
-				Logger.LogInformation("Creating telemetry for {MinTime} to {MaxTime}", BucketMinTime, BucketMaxTime);
+				DateTime bucketMaxTime = bucketMinTime + interval;
+				_logger.LogInformation("Creating telemetry for {MinTime} to {MaxTime}", bucketMinTime, bucketMaxTime);
 
-				NewUtilizationTelemetry Telemetry = new NewUtilizationTelemetry(BucketMinTime, BucketMaxTime);
-				Telemetry.NumAgents = Agents.Count;
-				foreach (IPool Pool in Pools)
+				NewUtilizationTelemetry telemetry = new NewUtilizationTelemetry(bucketMinTime, bucketMaxTime);
+				telemetry.NumAgents = agents.Count;
+				foreach (IPool pool in pools)
 				{
-					if (Pool.EnableAutoscaling)
+					if (pool.EnableAutoscaling)
 					{
-						int NumStoppedInstances = await FleetManager.GetNumStoppedInstancesAsync(Pool);
-						Telemetry.NumAgents += NumStoppedInstances;
+						int numStoppedInstances = await _fleetManager.GetNumStoppedInstancesAsync(pool);
+						telemetry.NumAgents += numStoppedInstances;
 
-						NewPoolUtilizationTelemetry PoolTelemetry = Telemetry.FindOrAddPool(Pool.Id);
-						PoolTelemetry.NumAgents += NumStoppedInstances;
-						PoolTelemetry.HibernatingTime += Interval.TotalHours * NumStoppedInstances;
+						NewPoolUtilizationTelemetry poolTelemetry = telemetry.FindOrAddPool(pool.Id);
+						poolTelemetry.NumAgents += numStoppedInstances;
+						poolTelemetry.HibernatingTime += interval.TotalHours * numStoppedInstances;
 					}
 				}
-				foreach (PoolId PoolId in AgentToPoolIds.Values.SelectMany(x => x))
+				foreach (PoolId poolId in agentToPoolIds.Values.SelectMany(x => x))
 				{
-					Telemetry.FindOrAddPool(PoolId).NumAgents++;
+					telemetry.FindOrAddPool(poolId).NumAgents++;
 				}
-				foreach (ILease Lease in Leases)
+				foreach (ILease lease in leases)
 				{
-					if (Lease.StartTime < BucketMaxTime && (!Lease.FinishTime.HasValue || Lease.FinishTime >= BucketMinTime))
+					if (lease.StartTime < bucketMaxTime && (!lease.FinishTime.HasValue || lease.FinishTime >= bucketMinTime))
 					{
-						List<PoolId>? LeasePools;
-						if (AgentToPoolIds.TryGetValue(Lease.AgentId, out LeasePools))
+						List<PoolId>? leasePools;
+						if (agentToPoolIds.TryGetValue(lease.AgentId, out leasePools))
 						{
-							DateTime FinishTime = Lease.FinishTime ?? BucketMaxTime;
-							double Time = new TimeSpan(Math.Min(FinishTime.Ticks, BucketMaxTime.Ticks) - Math.Max(Lease.StartTime.Ticks, BucketMinTime.Ticks)).TotalHours;
+							DateTime finishTime = lease.FinishTime ?? bucketMaxTime;
+							double time = new TimeSpan(Math.Min(finishTime.Ticks, bucketMaxTime.Ticks) - Math.Max(lease.StartTime.Ticks, bucketMinTime.Ticks)).TotalHours;
 
-							foreach (PoolId PoolId in LeasePools)
+							foreach (PoolId poolId in leasePools)
 							{
-								NewPoolUtilizationTelemetry PoolTelemetry = Telemetry.FindOrAddPool(PoolId);
-								if (Lease.PoolId == null || Lease.StreamId == null)
+								NewPoolUtilizationTelemetry poolTelemetry = telemetry.FindOrAddPool(poolId);
+								if (lease.PoolId == null || lease.StreamId == null)
 								{
-									PoolTelemetry.AdminTime += Time;
+									poolTelemetry.AdminTime += time;
 								}
-								else if (PoolId == Lease.PoolId)
+								else if (poolId == lease.PoolId)
 								{
-									PoolTelemetry.FindOrAddStream(Lease.StreamId.Value).Time += Time;
+									poolTelemetry.FindOrAddStream(lease.StreamId.Value).Time += time;
 								}
 								else
 								{
-									PoolTelemetry.OtherTime += Time;
+									poolTelemetry.OtherTime += time;
 								}
 							}
 						}
 					}
 				}
-				await TelemetryCollection.AddUtilizationTelemetryAsync(Telemetry);
+				await _telemetryCollection.AddUtilizationTelemetryAsync(telemetry);
 
-				BucketMinTime = BucketMaxTime;
+				bucketMinTime = bucketMaxTime;
 			}
 		}
 	}

@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.DependencyInjection;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -45,99 +43,99 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public SessionDocument(SessionId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version)
+			public SessionDocument(SessionId id, AgentId agentId, DateTime startTime, IReadOnlyList<string>? properties, IReadOnlyDictionary<string, int>? resources, string? version)
 			{
-				this.Id = Id;
-				this.AgentId = AgentId;
-				this.StartTime = StartTime;
-				if (Properties != null)
+				Id = id;
+				AgentId = agentId;
+				StartTime = startTime;
+				if (properties != null)
 				{
-					this.Properties = new List<string>(Properties);
+					Properties = new List<string>(properties);
 				}
-				if (Resources != null)
+				if (resources != null)
 				{
-					this.Resources = new Dictionary<string, int>(Resources);
+					Resources = new Dictionary<string, int>(resources);
 				}
-				this.Version = Version;
+				Version = version;
 			}
 		}
 
 		/// <summary>
 		/// Collection of session documents
 		/// </summary>
-		readonly IMongoCollection<SessionDocument> Sessions;
+		readonly IMongoCollection<SessionDocument> _sessions;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service</param>
-		public SessionCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service</param>
+		public SessionCollection(DatabaseService databaseService)
 		{
-			Sessions = DatabaseService.GetCollection<SessionDocument>("Sessions");
+			_sessions = databaseService.GetCollection<SessionDocument>("Sessions");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				Sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.AgentId)));
-				Sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.StartTime)));
-				Sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.FinishTime)));
+				_sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.AgentId)));
+				_sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.StartTime)));
+				_sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.FinishTime)));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<ISession> AddAsync(SessionId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version)
+		public async Task<ISession> AddAsync(SessionId id, AgentId agentId, DateTime startTime, IReadOnlyList<string>? properties, IReadOnlyDictionary<string, int>? resources, string? version)
 		{
-			SessionDocument NewSession = new SessionDocument(Id, AgentId, StartTime, Properties, Resources, Version);
-			await Sessions.InsertOneAsync(NewSession);
-			return NewSession;
+			SessionDocument newSession = new SessionDocument(id, agentId, startTime, properties, resources, version);
+			await _sessions.InsertOneAsync(newSession);
+			return newSession;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ISession?> GetAsync(SessionId SessionId)
+		public async Task<ISession?> GetAsync(SessionId sessionId)
 		{
-			return await Sessions.Find(x => x.Id == SessionId).FirstOrDefaultAsync();
+			return await _sessions.Find(x => x.Id == sessionId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ISession>> FindAsync(AgentId AgentId, DateTime? StartTime, DateTime? FinishTime, int Index, int Count)
+		public async Task<List<ISession>> FindAsync(AgentId agentId, DateTime? startTime, DateTime? finishTime, int index, int count)
 		{
-			FilterDefinitionBuilder<SessionDocument> FilterBuilder = Builders<SessionDocument>.Filter;
+			FilterDefinitionBuilder<SessionDocument> filterBuilder = Builders<SessionDocument>.Filter;
 
-			FilterDefinition<SessionDocument> Filter = FilterBuilder.Eq(x => x.AgentId, AgentId);
-			if (StartTime != null)
+			FilterDefinition<SessionDocument> filter = filterBuilder.Eq(x => x.AgentId, agentId);
+			if (startTime != null)
 			{
-				Filter &= FilterBuilder.Gte(x => x.StartTime, StartTime.Value);
+				filter &= filterBuilder.Gte(x => x.StartTime, startTime.Value);
 			}
-			if (FinishTime != null)
+			if (finishTime != null)
 			{
-				Filter &= FilterBuilder.Or(FilterBuilder.Eq(x => x.FinishTime, null), FilterBuilder.Lte(x => x.FinishTime, FinishTime.Value));
+				filter &= filterBuilder.Or(filterBuilder.Eq(x => x.FinishTime, null), filterBuilder.Lte(x => x.FinishTime, finishTime.Value));
 			}
 
-			List<SessionDocument> Results = await Sessions.Find(Filter).SortByDescending(x => x.StartTime).Skip(Index).Limit(Count).ToListAsync();
-			return Results.ConvertAll<ISession>(x => x);
+			List<SessionDocument> results = await _sessions.Find(filter).SortByDescending(x => x.StartTime).Skip(index).Limit(count).ToListAsync();
+			return results.ConvertAll<ISession>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ISession>> FindActiveSessionsAsync(int? Index, int? Count)
+		public async Task<List<ISession>> FindActiveSessionsAsync(int? index, int? count)
 		{
-			List<SessionDocument> Results = await Sessions.Find(x => x.FinishTime == null).Range(Index, Count).ToListAsync();
-			return Results.ConvertAll<ISession>(x => x);
+			List<SessionDocument> results = await _sessions.Find(x => x.FinishTime == null).Range(index, count).ToListAsync();
+			return results.ConvertAll<ISession>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public Task UpdateAsync(SessionId SessionId, DateTime FinishTime, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources)
+		public Task UpdateAsync(SessionId sessionId, DateTime finishTime, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources)
 		{
-			UpdateDefinition<SessionDocument> Update = Builders<SessionDocument>.Update
-				.Set(x => x.FinishTime, FinishTime)
-				.Set(x => x.Properties, new List<string>(Properties))
-				.Set(x => x.Resources, new Dictionary<string, int>(Resources));
+			UpdateDefinition<SessionDocument> update = Builders<SessionDocument>.Update
+				.Set(x => x.FinishTime, finishTime)
+				.Set(x => x.Properties, new List<string>(properties))
+				.Set(x => x.Resources, new Dictionary<string, int>(resources));
 
-			return Sessions.FindOneAndUpdateAsync(x => x.Id == SessionId, Update);
+			return _sessions.FindOneAndUpdateAsync(x => x.Id == sessionId, update);
 		}
 
 		/// <inheritdoc/>
-		public Task DeleteAsync(SessionId SessionId)
+		public Task DeleteAsync(SessionId sessionId)
 		{
-			return Sessions.DeleteOneAsync(x => x.Id == SessionId);
+			return _sessions.DeleteOneAsync(x => x.Id == sessionId);
 		}
 	}
 }

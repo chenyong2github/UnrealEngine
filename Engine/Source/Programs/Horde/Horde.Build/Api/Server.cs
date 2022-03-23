@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Runtime.InteropServices;
-using System.Reflection;
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace Horde.Build.Api
 {
@@ -20,7 +20,7 @@ namespace Horde.Build.Api
         /// <summary>
         /// The operating system server is hosted on
         /// </summary>
-        public string OSDescription { get; set; }
+        public string OsDescription { get; set; }
 
 		/// <summary>
 		/// Whether this is an installed Horde build
@@ -30,13 +30,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetServerInfoResponse( bool SingleInstance)
+		public GetServerInfoResponse( bool singleInstance)
         {
 
-            FileVersionInfo VersionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);		
-			ServerVersion = VersionInfo.ProductVersion ?? String.Empty;			
-			OSDescription = RuntimeInformation.OSDescription;
-			this.SingleInstance = SingleInstance;
+            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);		
+			ServerVersion = versionInfo.ProductVersion ?? String.Empty;			
+			OsDescription = RuntimeInformation.OSDescription;
+			SingleInstance = singleInstance;
 		}
 	}
 }

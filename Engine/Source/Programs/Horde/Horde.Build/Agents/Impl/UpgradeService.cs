@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Threading.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
 using Horde.Build.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using MongoDB.Driver;
-using Serilog.Events;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Services
 {
@@ -32,39 +28,39 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// The DI service provider
 		/// </summary>
-		IServiceProvider ServiceProvider;
+		readonly IServiceProvider _serviceProvider;
 
 		/// <summary>
 		/// Logger instance
 		/// </summary>
-		ILogger<UpgradeService> Logger;
+		readonly ILogger<UpgradeService> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service singleton</param>
-		/// <param name="ServiceProvider">The DI service provider</param>
-		/// <param name="Logger">Logger instance</param>
-		public UpgradeService(DatabaseService DatabaseService, IServiceProvider ServiceProvider, ILogger<UpgradeService> Logger)
+		/// <param name="databaseService">The database service singleton</param>
+		/// <param name="serviceProvider">The DI service provider</param>
+		/// <param name="logger">Logger instance</param>
+		public UpgradeService(DatabaseService databaseService, IServiceProvider serviceProvider, ILogger<UpgradeService> logger)
 		{
-			this.DatabaseService = DatabaseService;
-			this.ServiceProvider = ServiceProvider;
-			this.Logger = Logger;
+			DatabaseService = databaseService;
+			_serviceProvider = serviceProvider;
+			_logger = logger;
 		}
 
 		/// <summary>
 		/// Update the database schema
 		/// </summary>
-		/// <param name="FromVersion">The version to upgrade from. Automatically detected if this is null.</param>
+		/// <param name="fromVersion">The version to upgrade from. Automatically detected if this is null.</param>
 		/// <returns>Async task</returns>
-		public async Task UpgradeSchemaAsync(int? FromVersion)
+		public async Task UpgradeSchemaAsync(int? fromVersion)
 		{
-			Globals Globals = await DatabaseService.GetGlobalsAsync();
-			int SchemaVersion = FromVersion ?? Globals.SchemaVersion ?? 0;
+			Globals globals = await DatabaseService.GetGlobalsAsync();
+			int schemaVersion = fromVersion ?? globals.SchemaVersion ?? 0;
 
-			while (SchemaVersion < LatestSchemaVersion)
+			while (schemaVersion < LatestSchemaVersion)
 			{
-				Logger.LogInformation("Upgrading from schema version {Version}", SchemaVersion);
+				_logger.LogInformation("Upgrading from schema version {Version}", schemaVersion);
 
 				// Handle the current version
 				//				if (SchemaVersion == 0)
@@ -79,30 +75,30 @@ namespace Horde.Build.Services
 				//					await IssueCollection.FixResolvedIssuesAsync(Logger);
 				//				}
 
-				if (SchemaVersion == 3)
+				if (schemaVersion == 3)
 				{
-					IJobCollection JobCollection = ServiceProvider.GetRequiredService<IJobCollection>();
-					await JobCollection.UpgradeDocumentsAsync();
+					IJobCollection jobCollection = _serviceProvider.GetRequiredService<IJobCollection>();
+					await jobCollection.UpgradeDocumentsAsync();
 				}
-				if (SchemaVersion == 4)
+				if (schemaVersion == 4)
 				{
-					UserCollectionV1 UserCollectionV1 = new UserCollectionV1(ServiceProvider.GetRequiredService<DatabaseService>());
-					using UserCollectionV2 UserCollectionV2 = new UserCollectionV2(ServiceProvider.GetRequiredService<DatabaseService>(), ServiceProvider.GetRequiredService<ILogger<UserCollectionV2>>());
-					await UserCollectionV2.ResaveDocumentsAsync(UserCollectionV1);
+					UserCollectionV1 userCollectionV1 = new UserCollectionV1(_serviceProvider.GetRequiredService<DatabaseService>());
+					using UserCollectionV2 userCollectionV2 = new UserCollectionV2(_serviceProvider.GetRequiredService<DatabaseService>(), _serviceProvider.GetRequiredService<ILogger<UserCollectionV2>>());
+					await userCollectionV2.ResaveDocumentsAsync(userCollectionV1);
 				}
 
 				// Increment the version number
-				SchemaVersion++;
+				schemaVersion++;
 
 				// Try to update the current schema version number
-				while (Globals.SchemaVersion == null || Globals.SchemaVersion < SchemaVersion)
+				while (globals.SchemaVersion == null || globals.SchemaVersion < schemaVersion)
 				{
-					Globals.SchemaVersion = SchemaVersion;
-					if (await DatabaseService.TryUpdateSingletonAsync(Globals))
+					globals.SchemaVersion = schemaVersion;
+					if (await DatabaseService.TryUpdateSingletonAsync(globals))
 					{
 						break;
 					}
-					Globals = await DatabaseService.GetGlobalsAsync();
+					globals = await DatabaseService.GetGlobalsAsync();
 				}
 			}
 		}

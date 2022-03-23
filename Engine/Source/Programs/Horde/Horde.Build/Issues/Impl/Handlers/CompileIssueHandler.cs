@@ -1,25 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Collections;
-using HordeCommon.Rpc;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
-using System.Security.Policy;
-using System.Text;
-using System.Threading.Tasks;
 using System.Text.Json;
-using Horde.Build.Models;
 using EpicGames.Core;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 
 namespace Horde.Build.IssueHandlers.Impl
 {
@@ -42,42 +33,42 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
-		/// <param name="EventId">The event id to compare</param>
+		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? EventId)
+		public static bool IsMatchingEventId(EventId? eventId)
 		{
-			return EventId == KnownLogEvents.Compiler || EventId == KnownLogEvents.AutomationTool_SourceFileLine || EventId == KnownLogEvents.MSBuild;
+			return eventId == KnownLogEvents.Compiler || eventId == KnownLogEvents.AutomationTool_SourceFileLine || eventId == KnownLogEvents.MSBuild;
 		}
 
 		/// <summary>
 		/// Extracts a list of source files from an event
 		/// </summary>
-		/// <param name="Event">The event data</param>
-		/// <param name="SourceFiles">List of source files</param>
-		static void GetSourceFiles(ILogEventData Event, List<string> SourceFiles)
+		/// <param name="logEventData">The event data</param>
+		/// <param name="sourceFiles">List of source files</param>
+		static void GetSourceFiles(ILogEventData logEventData, List<string> sourceFiles)
 		{
-			foreach (ILogEventLine Line in Event.Lines)
+			foreach (ILogEventLine line in logEventData.Lines)
 			{
-				JsonElement Properties;
-				if (Line.Data.TryGetProperty("properties", out Properties) && Properties.ValueKind == JsonValueKind.Object)
+				JsonElement properties;
+				if (line.Data.TryGetProperty("properties", out properties) && properties.ValueKind == JsonValueKind.Object)
 				{
-					string? Prefix = null;
+					string? prefix = null;
 
-					JsonElement NoteElement;
-					if (Properties.TryGetProperty("note", out NoteElement) && NoteElement.GetBoolean())
+					JsonElement noteElement;
+					if (properties.TryGetProperty("note", out noteElement) && noteElement.GetBoolean())
 					{
-						Prefix = NotePrefix;
+						prefix = NotePrefix;
 					}
 
-					foreach (JsonProperty Property in Properties.EnumerateObject())
+					foreach (JsonProperty property in properties.EnumerateObject())
 					{
-						if (Property.NameEquals("file") && Property.Value.ValueKind == JsonValueKind.String)
+						if (property.NameEquals("file") && property.Value.ValueKind == JsonValueKind.String)
 						{
-							AddSourceFile(SourceFiles, Property.Value.GetString()!, Prefix);
+							AddSourceFile(sourceFiles, property.Value.GetString()!, prefix);
 						}
-						if (Property.Value.HasStringProperty("$type", "SourceFile") && Property.Value.TryGetStringProperty("relativePath", out string? Value))
+						if (property.Value.HasStringProperty("$type", "SourceFile") && property.Value.TryGetStringProperty("relativePath", out string? value))
 						{
-							AddSourceFile(SourceFiles, Value, Prefix);
+							AddSourceFile(sourceFiles, value, prefix);
 						}
 					}
 				}
@@ -87,75 +78,75 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		/// Add a new source file to a list of unique source files
 		/// </summary>
-		/// <param name="SourceFiles">List of source files</param>
-		/// <param name="RelativePath">File to add</param>
-		/// <param name="Prefix">Prefix to insert at the start of the filename</param>
-		static void AddSourceFile(List<string> SourceFiles, string RelativePath, string? Prefix)
+		/// <param name="sourceFiles">List of source files</param>
+		/// <param name="relativePath">File to add</param>
+		/// <param name="prefix">Prefix to insert at the start of the filename</param>
+		static void AddSourceFile(List<string> sourceFiles, string relativePath, string? prefix)
 		{
-			int EndIdx = RelativePath.LastIndexOfAny(new char[] { '/', '\\' }) + 1;
+			int endIdx = relativePath.LastIndexOfAny(new char[] { '/', '\\' }) + 1;
 
-			string FileName = RelativePath.Substring(EndIdx);
-			if (Prefix != null)
+			string fileName = relativePath.Substring(endIdx);
+			if (prefix != null)
 			{
-				FileName = Prefix + FileName;
+				fileName = prefix + fileName;
 			}
 
-			if (!SourceFiles.Any(x => x.Equals(FileName, StringComparison.OrdinalIgnoreCase)))
+			if (!sourceFiles.Any(x => x.Equals(fileName, StringComparison.OrdinalIgnoreCase)))
 			{
-				SourceFiles.Add(FileName);
+				sourceFiles.Add(fileName);
 			}
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob Job, INode Node, ILogEventData EventData, [NotNullWhen(true)] out NewIssueFingerprint? Fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
-			if (!IsMatchingEventId(EventData.EventId))
+			if (!IsMatchingEventId(eventData.EventId))
 			{
-				Fingerprint = null;
+				fingerprint = null;
 				return false;
 			}
 
-			List<string> NewFileNames = new List<string>();
-			GetSourceFiles(EventData, NewFileNames);
-			Fingerprint = new NewIssueFingerprint(Type, NewFileNames, null);
+			List<string> newFileNames = new List<string>();
+			GetSourceFiles(eventData, newFileNames);
+			fingerprint = new NewIssueFingerprint(Type, newFileNames, null);
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint Fingerprint, IssueSeverity Severity)
+		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
-			string Type = (Severity == IssueSeverity.Warning) ? "Compile warnings" : "Compile errors";
-			string List = StringUtils.FormatList(Fingerprint.Keys.Where(x => !x.StartsWith(NotePrefix, StringComparison.Ordinal)).ToArray(), 2);
-			return $"{Type} in {List}";
+			string type = (severity == IssueSeverity.Warning) ? "Compile warnings" : "Compile errors";
+			string list = StringUtils.FormatList(fingerprint.Keys.Where(x => !x.StartsWith(NotePrefix, StringComparison.Ordinal)).ToArray(), 2);
+			return $"{type} in {list}";
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint Fingerprint, List<SuspectChange> Suspects)
+		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
-			List<string> FileNames = new List<string>();
-			foreach (string Key in Fingerprint.Keys)
+			List<string> fileNames = new List<string>();
+			foreach (string key in fingerprint.Keys)
 			{
-				if (Key.StartsWith(NotePrefix, StringComparison.Ordinal))
+				if (key.StartsWith(NotePrefix, StringComparison.Ordinal))
 				{
-					FileNames.Add(Key.Substring(NotePrefix.Length));
+					fileNames.Add(key.Substring(NotePrefix.Length));
 				}
 				else
 				{
-					FileNames.Add(Key);
+					fileNames.Add(key);
 				}
 			}
 
-			foreach (SuspectChange Change in Suspects)
+			foreach (SuspectChange change in suspects)
 			{
-				if (Change.ContainsCode)
+				if (change.ContainsCode)
 				{
-					if (FileNames.Any(x => Change.ModifiesFile(x)))
+					if (fileNames.Any(x => change.ModifiesFile(x)))
 					{
-						Change.Rank += 20;
+						change.Rank += 20;
 					}
 					else
 					{
-						Change.Rank += 10;
+						change.Rank += 10;
 					}
 				}
 			}

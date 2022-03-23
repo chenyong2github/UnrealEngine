@@ -1,13 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Api;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -15,6 +7,13 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using HordeCommon;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -60,17 +59,17 @@ namespace Horde.Build.Collections.Impl
 				OrderDependencies = null!;
 			}
 
-			public Node(string Name, NodeRef[] InputDependencies, NodeRef[] OrderDependencies, Priority Priority, bool AllowRetry, bool RunEarly, bool Warnings, Dictionary<string, string>? Credentials, Dictionary<string, string>? Properties)
+			public Node(string name, NodeRef[] inputDependencies, NodeRef[] orderDependencies, Priority priority, bool allowRetry, bool runEarly, bool warnings, Dictionary<string, string>? credentials, Dictionary<string, string>? properties)
 			{
-				this.Name = Name;
-				this.InputDependencies = InputDependencies;
-				this.OrderDependencies = OrderDependencies;
-				this.Priority = Priority;
-				this.AllowRetry = AllowRetry;
-				this.RunEarly = RunEarly;
-				this.Warnings = Warnings;
-				this.Credentials = Credentials;
-				this.Properties = Properties;
+				Name = name;
+				InputDependencies = inputDependencies;
+				OrderDependencies = orderDependencies;
+				Priority = priority;
+				AllowRetry = allowRetry;
+				RunEarly = runEarly;
+				Warnings = warnings;
+				Credentials = credentials;
+				Properties = properties;
 			}
 		}
 
@@ -94,12 +93,12 @@ namespace Horde.Build.Collections.Impl
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="AgentType">The type of agent to execute this group</param>
-			/// <param name="Nodes">Nodes to execute</param>
-			public NodeGroup(string AgentType, List<Node> Nodes)
+			/// <param name="agentType">The type of agent to execute this group</param>
+			/// <param name="nodes">Nodes to execute</param>
+			public NodeGroup(string agentType, List<Node> nodes)
 			{
-				this.AgentType = AgentType;
-				this.Nodes = Nodes;
+				AgentType = agentType;
+				Nodes = nodes;
 			}
 		}
 
@@ -116,10 +115,10 @@ namespace Horde.Build.Collections.Impl
 				Nodes = new List<NodeRef>();
 			}
 
-			public Aggregate(string Name, List<NodeRef> Nodes)
+			public Aggregate(string name, List<NodeRef> nodes)
 			{
-				this.Name = Name;
-				this.Nodes = Nodes;
+				Name = name;
+				Nodes = nodes;
 			}
 		}
 
@@ -158,15 +157,15 @@ namespace Horde.Build.Collections.Impl
 				IncludedNodes = new List<NodeRef>();
 			}
 
-			public Label(string? DashboardName, string? DashboardCategory, string? UgsName, string? UgsProject, LabelChange Change, List<NodeRef> RequiredNodes, List<NodeRef> IncludedNodes)
+			public Label(string? dashboardName, string? dashboardCategory, string? ugsName, string? ugsProject, LabelChange change, List<NodeRef> requiredNodes, List<NodeRef> includedNodes)
 			{
-				this.DashboardName = DashboardName;
-				this.DashboardCategory = DashboardCategory;
-				this.UgsName = UgsName;
-				this.UgsProject = UgsProject;
-				this.Change = Change;
-				this.RequiredNodes = RequiredNodes;
-				this.IncludedNodes = IncludedNodes;
+				DashboardName = dashboardName;
+				DashboardCategory = dashboardCategory;
+				UgsName = ugsName;
+				UgsProject = ugsProject;
+				Change = change;
+				RequiredNodes = requiredNodes;
+				IncludedNodes = includedNodes;
 			}
 		}
 
@@ -183,7 +182,7 @@ namespace Horde.Build.Collections.Impl
 			public List<Label> Labels { get; private set; } = new List<Label>();
 
 			[BsonIgnore]
-			IReadOnlyDictionary<string, NodeRef>? CachedNodeNameToRef;
+			IReadOnlyDictionary<string, NodeRef>? _cachedNodeNameToRef;
 
 			IReadOnlyList<INodeGroup> IGraph.Groups => Groups;
 			IReadOnlyList<IAggregate> IGraph.Aggregates => Aggregates;
@@ -194,75 +193,75 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public GraphDocument(List<NodeGroup> Groups, List<Aggregate> Aggregates, List<Label> Labels)
+			public GraphDocument(List<NodeGroup> groups, List<Aggregate> aggregates, List<Label> labels)
 			{
-				this.Groups = Groups;
-				this.Aggregates = Aggregates;
-				this.Labels = Labels;
-				this.Id = ContentHash.SHA1(BsonExtensionMethods.ToBson(this));
+				Groups = groups;
+				Aggregates = aggregates;
+				Labels = labels;
+				Id = ContentHash.SHA1(BsonExtensionMethods.ToBson(this));
 			}
 
-			public GraphDocument(GraphDocument BaseGraph, List<NewGroup>? NewGroupRequests, List<NewAggregate>? NewAggregateRequests, List<NewLabel>? NewLabelRequests)
+			public GraphDocument(GraphDocument baseGraph, List<NewGroup>? newGroupRequests, List<NewAggregate>? newAggregateRequests, List<NewLabel>? newLabelRequests)
 			{
-				Dictionary<string, NodeRef> NodeNameToRef = new Dictionary<string, NodeRef>(BaseGraph.GetNodeNameToRef(), StringComparer.OrdinalIgnoreCase);
+				Dictionary<string, NodeRef> nodeNameToRef = new Dictionary<string, NodeRef>(baseGraph.GetNodeNameToRef(), StringComparer.OrdinalIgnoreCase);
 
 				// Update the new list of groups
-				List<NodeGroup> NewGroups = new List<NodeGroup>(BaseGraph.Groups);
-				if (NewGroupRequests != null)
+				List<NodeGroup> newGroups = new List<NodeGroup>(baseGraph.Groups);
+				if (newGroupRequests != null)
 				{
-					foreach (NewGroup NewGroupRequest in NewGroupRequests)
+					foreach (NewGroup newGroupRequest in newGroupRequests)
 					{
-						List<Node> Nodes = new List<Node>();
-						foreach (NewNode NewNodeRequest in NewGroupRequest.Nodes)
+						List<Node> nodes = new List<Node>();
+						foreach (NewNode newNodeRequest in newGroupRequest.Nodes)
 						{
-							int NodeIdx = Nodes.Count;
+							int nodeIdx = nodes.Count;
 
-							Priority Priority = NewNodeRequest.Priority ?? Priority.Normal;
-							bool bAllowRetry = NewNodeRequest.AllowRetry ?? true;
-							bool bRunEarly = NewNodeRequest.RunEarly ?? false;
-							bool bWarnings = NewNodeRequest.Warnings ?? true;
+							Priority priority = newNodeRequest.Priority ?? Priority.Normal;
+							bool bAllowRetry = newNodeRequest.AllowRetry ?? true;
+							bool bRunEarly = newNodeRequest.RunEarly ?? false;
+							bool bWarnings = newNodeRequest.Warnings ?? true;
 
-							NodeRef[] InputDependencies = (NewNodeRequest.InputDependencies == null) ? Array.Empty<NodeRef>() : NewNodeRequest.InputDependencies.Select(x => NodeNameToRef[x]).ToArray();
-							NodeRef[] OrderDependencies = (NewNodeRequest.OrderDependencies == null) ? Array.Empty<NodeRef>() : NewNodeRequest.OrderDependencies.Select(x => NodeNameToRef[x]).ToArray();
-							OrderDependencies = OrderDependencies.Union(InputDependencies).ToArray();
-							Nodes.Add(new Node(NewNodeRequest.Name, InputDependencies, OrderDependencies, Priority, bAllowRetry, bRunEarly, bWarnings, NewNodeRequest.Credentials, NewNodeRequest.Properties));
+							NodeRef[] inputDependencies = (newNodeRequest.InputDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.InputDependencies.Select(x => nodeNameToRef[x]).ToArray();
+							NodeRef[] orderDependencies = (newNodeRequest.OrderDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.OrderDependencies.Select(x => nodeNameToRef[x]).ToArray();
+							orderDependencies = orderDependencies.Union(inputDependencies).ToArray();
+							nodes.Add(new Node(newNodeRequest.Name, inputDependencies, orderDependencies, priority, bAllowRetry, bRunEarly, bWarnings, newNodeRequest.Credentials, newNodeRequest.Properties));
 
-							NodeNameToRef.Add(NewNodeRequest.Name, new NodeRef(NewGroups.Count, NodeIdx));
+							nodeNameToRef.Add(newNodeRequest.Name, new NodeRef(newGroups.Count, nodeIdx));
 						}
-						NewGroups.Add(new NodeGroup(NewGroupRequest.AgentType, Nodes));
+						newGroups.Add(new NodeGroup(newGroupRequest.AgentType, nodes));
 					}
 				}
 
 				// Update the list of aggregates
-				List<Aggregate> NewAggregates = new List<Aggregate>(BaseGraph.Aggregates);
-				if (NewAggregateRequests != null)
+				List<Aggregate> newAggregates = new List<Aggregate>(baseGraph.Aggregates);
+				if (newAggregateRequests != null)
 				{
-					foreach (NewAggregate NewAggregateRequest in NewAggregateRequests)
+					foreach (NewAggregate newAggregateRequest in newAggregateRequests)
 					{
-						List<NodeRef> Nodes = NewAggregateRequest.Nodes.ConvertAll(x => NodeNameToRef[x]);
-						NewAggregates.Add(new Aggregate(NewAggregateRequest.Name, Nodes));
+						List<NodeRef> nodes = newAggregateRequest.Nodes.ConvertAll(x => nodeNameToRef[x]);
+						newAggregates.Add(new Aggregate(newAggregateRequest.Name, nodes));
 					}
 				}
 
 				// Update the list of labels
-				List<Label> NewLabels = new List<Label>(BaseGraph.Labels);
-				if (NewLabelRequests != null)
+				List<Label> newLabels = new List<Label>(baseGraph.Labels);
+				if (newLabelRequests != null)
 				{
-					foreach (NewLabel NewLabelRequest in NewLabelRequests)
+					foreach (NewLabel newLabelRequest in newLabelRequests)
 					{
-						List<NodeRef> RequiredNodes = NewLabelRequest.RequiredNodes.ConvertAll(x => NodeNameToRef[x]);
-						List<NodeRef> IncludedNodes = NewLabelRequest.IncludedNodes.ConvertAll(x => NodeNameToRef[x]);
-						NewLabels.Add(new Label(NewLabelRequest.DashboardName, NewLabelRequest.DashboardCategory, NewLabelRequest.UgsName, NewLabelRequest.UgsProject, NewLabelRequest.Change, RequiredNodes, IncludedNodes));
+						List<NodeRef> requiredNodes = newLabelRequest.RequiredNodes.ConvertAll(x => nodeNameToRef[x]);
+						List<NodeRef> includedNodes = newLabelRequest.IncludedNodes.ConvertAll(x => nodeNameToRef[x]);
+						newLabels.Add(new Label(newLabelRequest.DashboardName, newLabelRequest.DashboardCategory, newLabelRequest.UgsName, newLabelRequest.UgsProject, newLabelRequest.Change, requiredNodes, includedNodes));
 					}
 				}
 
 				// Create the new arrays
-				Groups = NewGroups;
-				Aggregates = NewAggregates;
-				Labels = NewLabels;
+				Groups = newGroups;
+				Aggregates = newAggregates;
+				Labels = newLabels;
 
 				// Create the new graph, and save the generated node lookup into it
-				CachedNodeNameToRef = NodeNameToRef;
+				_cachedNodeNameToRef = nodeNameToRef;
 
 				// Compute the hash
 				Id = ContentHash.SHA1(BsonExtensionMethods.ToBson(this));
@@ -270,21 +269,21 @@ namespace Horde.Build.Collections.Impl
 
 			public IReadOnlyDictionary<string, NodeRef> GetNodeNameToRef()
 			{
-				if (CachedNodeNameToRef == null)
+				if (_cachedNodeNameToRef == null)
 				{
-					Dictionary<string, NodeRef> NodeNameToRef = new Dictionary<string, NodeRef>(StringComparer.OrdinalIgnoreCase);
-					for (int GroupIdx = 0; GroupIdx < Groups.Count; GroupIdx++)
+					Dictionary<string, NodeRef> nodeNameToRef = new Dictionary<string, NodeRef>(StringComparer.OrdinalIgnoreCase);
+					for (int groupIdx = 0; groupIdx < Groups.Count; groupIdx++)
 					{
-						List<Node> Nodes = Groups[GroupIdx].Nodes;
-						for (int NodeIdx = 0; NodeIdx < Nodes.Count; NodeIdx++)
+						List<Node> nodes = Groups[groupIdx].Nodes;
+						for (int nodeIdx = 0; nodeIdx < nodes.Count; nodeIdx++)
 						{
-							Node Node = Nodes[NodeIdx];
-							NodeNameToRef[Node.Name] = new NodeRef(GroupIdx, NodeIdx);
+							Node node = nodes[nodeIdx];
+							nodeNameToRef[node.Name] = new NodeRef(groupIdx, nodeIdx);
 						}
 					}
-					CachedNodeNameToRef = NodeNameToRef;
+					_cachedNodeNameToRef = nodeNameToRef;
 				}
-				return CachedNodeNameToRef;
+				return _cachedNodeNameToRef;
 			}
 		}
 
@@ -296,15 +295,12 @@ namespace Horde.Build.Collections.Impl
 			/// <summary>
 			/// Time at which the graph was last accessed
 			/// </summary>
-			public long LastAccessTime
-			{
-				get { return LastAccessTimePrivate; }
-			}
+			public long LastAccessTime => _lastAccessTimePrivate;
 
 			/// <summary>
 			/// Backing value for <see cref="LastAccessTime"/>
 			/// </summary>
-			private long LastAccessTimePrivate;
+			private long _lastAccessTimePrivate;
 
 			/// <summary>
 			/// The graph instance
@@ -314,11 +310,11 @@ namespace Horde.Build.Collections.Impl
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Graph">The graph to store</param>
-			public CachedGraph(IGraph Graph)
+			/// <param name="graph">The graph to store</param>
+			public CachedGraph(IGraph graph)
 			{
-				this.LastAccessTimePrivate = Stopwatch.GetTimestamp();
-				this.Graph = Graph;
+				_lastAccessTimePrivate = Stopwatch.GetTimestamp();
+				Graph = graph;
 			}
 
 			/// <summary>
@@ -328,9 +324,9 @@ namespace Horde.Build.Collections.Impl
 			{
 				for (; ; )
 				{
-					long Time = Stopwatch.GetTimestamp();
-					long LastAccessTimeCopy = LastAccessTimePrivate;
-					if (Time < LastAccessTimeCopy || Interlocked.CompareExchange(ref LastAccessTimePrivate, Time, LastAccessTimeCopy) == LastAccessTimeCopy)
+					long time = Stopwatch.GetTimestamp();
+					long lastAccessTimeCopy = _lastAccessTimePrivate;
+					if (time < lastAccessTimeCopy || Interlocked.CompareExchange(ref _lastAccessTimePrivate, time, lastAccessTimeCopy) == lastAccessTimeCopy)
 					{
 						break;
 					}
@@ -341,7 +337,7 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// The jobs collection
 		/// </summary>
-		IMongoCollection<GraphDocument> Graphs;
+		readonly IMongoCollection<GraphDocument> _graphs;
 
 		/// <summary>
 		/// Maximum number of graphs to keep in the cache
@@ -351,33 +347,33 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Cache of recently accessed graphs
 		/// </summary>
-		ConcurrentDictionary<ContentHash, CachedGraph> CachedGraphs = new ConcurrentDictionary<ContentHash, CachedGraph>();
+		readonly ConcurrentDictionary<ContentHash, CachedGraph> _cachedGraphs = new ConcurrentDictionary<ContentHash, CachedGraph>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service singleton</param>
-		public GraphCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service singleton</param>
+		public GraphCollection(DatabaseService databaseService)
 		{
-			Graphs = DatabaseService.GetCollection<GraphDocument>("Graphs");
+			_graphs = databaseService.GetCollection<GraphDocument>("Graphs");
 		}
 
 		/// <summary>
 		/// Adds a new graph document
 		/// </summary>
-		/// <param name="Graph">The graph to add</param>
+		/// <param name="graph">The graph to add</param>
 		/// <returns>Async task</returns>
-		async Task AddAsync(GraphDocument Graph)
+		async Task AddAsync(GraphDocument graph)
 		{
-			if (!await Graphs.Find(x => x.Id == Graph.Id).AnyAsync())
+			if (!await _graphs.Find(x => x.Id == graph.Id).AnyAsync())
 			{
 				try
 				{
-					await Graphs.InsertOneAsync(Graph);
+					await _graphs.InsertOneAsync(graph);
 				}
-				catch (MongoWriteException Ex)
+				catch (MongoWriteException ex)
 				{
-					if (Ex.WriteError.Category != ServerErrorCategory.DuplicateKey)
+					if (ex.WriteError.Category != ServerErrorCategory.DuplicateKey)
 					{
 						throw;
 					}
@@ -386,84 +382,84 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IGraph> AddAsync(ITemplate Template)
+		public async Task<IGraph> AddAsync(ITemplate template)
 		{
-			Node Node = new Node(IJob.SetupNodeName, Array.Empty<NodeRef>(), Array.Empty<NodeRef>(), Priority.High, true, false, true, null, null);
-			NodeGroup Group = new NodeGroup(Template.InitialAgentType ?? "Win64", new List<Node> { Node });
+			Node node = new Node(IJob.SetupNodeName, Array.Empty<NodeRef>(), Array.Empty<NodeRef>(), Priority.High, true, false, true, null, null);
+			NodeGroup group = new NodeGroup(template.InitialAgentType ?? "Win64", new List<Node> { node });
 
-			GraphDocument Graph = new GraphDocument(new List<NodeGroup> { Group }, new List<Aggregate>(), new List<Label>());
-			await AddAsync(Graph);
-			return Graph;
+			GraphDocument graph = new GraphDocument(new List<NodeGroup> { group }, new List<Aggregate>(), new List<Label>());
+			await AddAsync(graph);
+			return graph;
 		}
 
 		/// <inheritdoc/>
-		public async Task<IGraph> AppendAsync(IGraph? BaseGraph, List<NewGroup>? NewGroupRequests, List<NewAggregate>? NewAggregateRequests, List<NewLabel>? NewLabelRequests)
+		public async Task<IGraph> AppendAsync(IGraph? baseGraph, List<NewGroup>? newGroupRequests, List<NewAggregate>? newAggregateRequests, List<NewLabel>? newLabelRequests)
 		{
-			GraphDocument Graph = new GraphDocument((GraphDocument?)BaseGraph ?? GraphDocument.Empty, NewGroupRequests, NewAggregateRequests, NewLabelRequests);
-			await AddAsync(Graph);
-			return Graph;
+			GraphDocument graph = new GraphDocument((GraphDocument?)baseGraph ?? GraphDocument.Empty, newGroupRequests, newAggregateRequests, newLabelRequests);
+			await AddAsync(graph);
+			return graph;
 		}
 
 		/// <inheritdoc/>
-		public async Task<IGraph> GetAsync(ContentHash? Hash)
+		public async Task<IGraph> GetAsync(ContentHash? hash)
 		{
 			// Special case for an empty graph request
-			if (Hash == null || Hash == ContentHash.Empty || Hash == GraphDocument.Empty.Id)
+			if (hash == null || hash == ContentHash.Empty || hash == GraphDocument.Empty.Id)
 			{
 				return GraphDocument.Empty;
 			}
 
 			// Try to read the graph from the cache
-			CachedGraph? CachedGraph;
-			if (CachedGraphs.TryGetValue(Hash, out CachedGraph))
+			CachedGraph? cachedGraph;
+			if (_cachedGraphs.TryGetValue(hash, out cachedGraph))
 			{
 				// Update the last access time
-				CachedGraph.Touch();
+				cachedGraph.Touch();
 			}
 			else
 			{
 				// Trim the cache
-				while (CachedGraphs.Count > MaxGraphs)
+				while (_cachedGraphs.Count > MaxGraphs)
 				{
-					ContentHash? RemoveHash = CachedGraphs.OrderBy(x => x.Value.LastAccessTime).Select(x => x.Key).FirstOrDefault();
-					if (RemoveHash == null || RemoveHash == ContentHash.Empty)
+					ContentHash? removeHash = _cachedGraphs.OrderBy(x => x.Value.LastAccessTime).Select(x => x.Key).FirstOrDefault();
+					if (removeHash == null || removeHash == ContentHash.Empty)
 					{
 						break;
 					}
-					CachedGraphs.TryRemove(RemoveHash, out _);
+					_cachedGraphs.TryRemove(removeHash, out _);
 				}
 
 				// Create the new entry
-				CachedGraph = new CachedGraph(await Graphs.Find<GraphDocument>(x => x.Id == Hash).FirstAsync());
-				CachedGraphs.TryAdd(Hash, CachedGraph);
+				cachedGraph = new CachedGraph(await _graphs.Find<GraphDocument>(x => x.Id == hash).FirstAsync());
+				_cachedGraphs.TryAdd(hash, cachedGraph);
 			}
-			return CachedGraph.Graph;
+			return cachedGraph.Graph;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IGraph>> FindAllAsync(ContentHash[]? Hashes, int? Index, int? Count)
+		public async Task<List<IGraph>> FindAllAsync(ContentHash[]? hashes, int? index, int? count)
 		{
-			FilterDefinitionBuilder<GraphDocument> FilterBuilder = Builders<GraphDocument>.Filter;
+			FilterDefinitionBuilder<GraphDocument> filterBuilder = Builders<GraphDocument>.Filter;
 
-			FilterDefinition<GraphDocument> Filter = FilterBuilder.Empty;
-			if (Hashes != null)
+			FilterDefinition<GraphDocument> filter = filterBuilder.Empty;
+			if (hashes != null)
 			{
-				Filter &= FilterBuilder.In(x => x.Id, Hashes);
+				filter &= filterBuilder.In(x => x.Id, hashes);
 			}
 
-			List<GraphDocument> Results;
-			IFindFluent<GraphDocument, GraphDocument> Search = Graphs.Find(Filter);
-			if (Index != null)
+			List<GraphDocument> results;
+			IFindFluent<GraphDocument, GraphDocument> search = _graphs.Find(filter);
+			if (index != null)
 			{
-				Search = Search.Skip(Index.Value);
+				search = search.Skip(index.Value);
 			}
-			if (Count != null)
+			if (count != null)
 			{
-				Search = Search.Limit(Count.Value);
+				search = search.Limit(count.Value);
 			}
 
-			Results = await Search.ToListAsync();
-			return Results.ConvertAll<IGraph>(x => x);
+			results = await search.ToListAsync();
+			return results.ConvertAll<IGraph>(x => x);
 		}
 	}
 }

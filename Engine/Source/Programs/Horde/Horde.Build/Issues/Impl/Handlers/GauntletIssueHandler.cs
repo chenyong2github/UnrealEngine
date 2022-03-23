@@ -1,21 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Connections.Features;
-using Microsoft.Extensions.Logging;
-using Serilog.Formatting.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text.Json;
-using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
-using Horde.Build.Collections;
+using System.Linq;
+using System.Text.Json;
 using EpicGames.Core;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.IssueHandlers.Impl
 {
@@ -43,38 +37,38 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
-		/// <param name="EventId">The event id to compare</param>
+		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? EventId)
+		public static bool IsMatchingEventId(EventId? eventId)
 		{
-			return EventId == KnownLogEvents.Gauntlet_UnitTest || EventId == KnownLogEvents.Gauntlet_ScreenshotTest;
+			return eventId == KnownLogEvents.Gauntlet_UnitTest || eventId == KnownLogEvents.Gauntlet_ScreenshotTest;
 		}
 
 		/// <summary>
 		/// Parses symbol names from a log event
 		/// </summary>
-		/// <param name="EventData">The log event data</param>
-		/// <param name="UnitTestNames">Receives a set of the unit test names</param>
-		private static void GetUnitTestNames(ILogEventData EventData, HashSet<string> UnitTestNames)
+		/// <param name="eventData">The log event data</param>
+		/// <param name="unitTestNames">Receives a set of the unit test names</param>
+		private static void GetUnitTestNames(ILogEventData eventData, HashSet<string> unitTestNames)
 		{
-			foreach (ILogEventLine Line in EventData.Lines)
+			foreach (ILogEventLine line in eventData.Lines)
 			{
-				string? Group = null;
-				string? Name = null;
+				string? group = null;
+				string? name = null;
 
-				string? Value;
-				if (Line.Data.TryGetNestedProperty("properties.group", out Value))
+				string? value;
+				if (line.Data.TryGetNestedProperty("properties.group", out value))
 				{
-					Group = Value;
+					group = value;
 				}
-				if (Line.Data.TryGetNestedProperty("properties.name", out Value))
+				if (line.Data.TryGetNestedProperty("properties.name", out value))
 				{
-					Name = Value;
+					name = value;
 				}
 
-				if (Group != null && Name != null)
+				if (group != null && name != null)
 				{
-					UnitTestNames.Add($"{UnitTestPrefix}:{Group}/{Name}");
+					unitTestNames.Add($"{UnitTestPrefix}:{group}/{name}");
 				}
 			}
 		}
@@ -82,20 +76,20 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		/// Parses screenshot test names from a log event
 		/// </summary>
-		/// <param name="EventData">The event data</param>
-		/// <param name="ScreenshotTestNames">Receives the parsed screenshot test names</param>
-		private static void GetScreenshotTestNames(ILogEventData EventData, HashSet<string> ScreenshotTestNames)
+		/// <param name="eventData">The event data</param>
+		/// <param name="screenshotTestNames">Receives the parsed screenshot test names</param>
+		private static void GetScreenshotTestNames(ILogEventData eventData, HashSet<string> screenshotTestNames)
 		{
-			foreach (ILogEventLine Line in EventData.Lines)
+			foreach (ILogEventLine line in eventData.Lines)
 			{
-				if (Line.Data.TryGetProperty("properties", JsonValueKind.Object, out JsonElement Properties))
+				if (line.Data.TryGetProperty("properties", JsonValueKind.Object, out JsonElement properties))
 				{
-					foreach (JsonProperty Property in Properties.EnumerateObject())
+					foreach (JsonProperty property in properties.EnumerateObject())
 					{
-						JsonElement Value = Property.Value;
-						if (Value.ValueKind == JsonValueKind.Object && Value.HasStringProperty("type", "Screenshot") && Value.TryGetStringProperty("name", out string? Name))
+						JsonElement value = property.Value;
+						if (value.ValueKind == JsonValueKind.Object && value.HasStringProperty("type", "Screenshot") && value.TryGetStringProperty("name", out string? name))
 						{
-							ScreenshotTestNames.Add($"{ScreenshotTestPrefix}:{Name}");
+							screenshotTestNames.Add($"{ScreenshotTestPrefix}:{name}");
 						}
 					}
 				}
@@ -103,72 +97,72 @@ namespace Horde.Build.IssueHandlers.Impl
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob Job, INode Node, ILogEventData EventData, [NotNullWhen(true)] out NewIssueFingerprint? Fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
-			if(!IsMatchingEventId(EventData.EventId))
+			if(!IsMatchingEventId(eventData.EventId))
 			{
-				Fingerprint = null;
+				fingerprint = null;
 				return false;
 			}
 
-			HashSet<string> Keys = new HashSet<string>();
-			GetUnitTestNames(EventData, Keys);
-			GetScreenshotTestNames(EventData, Keys);
+			HashSet<string> keys = new HashSet<string>();
+			GetUnitTestNames(eventData, keys);
+			GetScreenshotTestNames(eventData, keys);
 
-			if (Keys.Count == 0)
+			if (keys.Count == 0)
 			{
-				Fingerprint = null;
+				fingerprint = null;
 				return false;
 			}
 
-			Fingerprint = new NewIssueFingerprint(Type, Keys, null);
+			fingerprint = new NewIssueFingerprint(Type, keys, null);
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint Fingerprint, List<SuspectChange> Changes)
+		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> changes)
 		{
-			foreach (SuspectChange Change in Changes)
+			foreach (SuspectChange change in changes)
 			{
-				if (Change.ContainsCode)
+				if (change.ContainsCode)
 				{
-					Change.Rank += 10;
+					change.Rank += 10;
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint Fingerprint, IssueSeverity Severity)
+		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
-			List<string> UnitTestNames = Fingerprint.Keys.Where(x => x.StartsWith(UnitTestPrefix, StringComparison.Ordinal)).Select(x => x.Substring(UnitTestPrefix.Length + 1)).ToList();
-			if (UnitTestNames.Count > 0)
+			List<string> unitTestNames = fingerprint.Keys.Where(x => x.StartsWith(UnitTestPrefix, StringComparison.Ordinal)).Select(x => x.Substring(UnitTestPrefix.Length + 1)).ToList();
+			if (unitTestNames.Count > 0)
 			{
-				HashSet<string> GroupNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-				HashSet<string> TestNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-				foreach (string UnitTestName in UnitTestNames)
+				HashSet<string> groupNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+				HashSet<string> testNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+				foreach (string unitTestName in unitTestNames)
 				{
-					int Idx = UnitTestName.IndexOf('/', StringComparison.OrdinalIgnoreCase);
-					if (Idx != -1)
+					int idx = unitTestName.IndexOf('/', StringComparison.OrdinalIgnoreCase);
+					if (idx != -1)
 					{
-						GroupNames.Add(UnitTestName.Substring(0, Idx));
+						groupNames.Add(unitTestName.Substring(0, idx));
 					}
-					TestNames.Add(UnitTestName.Substring(Idx + 1));
+					testNames.Add(unitTestName.Substring(idx + 1));
 				}
 
-				if (GroupNames.Count == 1)
+				if (groupNames.Count == 1)
 				{
-					return $"{GroupNames.First()} test failures: {StringUtils.FormatList(TestNames.ToArray(), 3)}";
+					return $"{groupNames.First()} test failures: {StringUtils.FormatList(testNames.ToArray(), 3)}";
 				}
 				else
 				{
-					return $"{StringUtils.FormatList(GroupNames.OrderBy(x => x).ToArray(), 100)} test failures";
+					return $"{StringUtils.FormatList(groupNames.OrderBy(x => x).ToArray(), 100)} test failures";
 				}
 			}
 
-			List<string> ScreenshotTestNames = Fingerprint.Keys.Where(x => x.StartsWith(ScreenshotTestPrefix, StringComparison.Ordinal)).Select(x => x.Substring(ScreenshotTestPrefix.Length + 1)).ToList();
-			if (ScreenshotTestNames.Count > 0)
+			List<string> screenshotTestNames = fingerprint.Keys.Where(x => x.StartsWith(ScreenshotTestPrefix, StringComparison.Ordinal)).Select(x => x.Substring(ScreenshotTestPrefix.Length + 1)).ToList();
+			if (screenshotTestNames.Count > 0)
 			{
-				return $"Screenshot test failures: {StringUtils.FormatList(ScreenshotTestNames.ToArray(), 3)}";
+				return $"Screenshot test failures: {StringUtils.FormatList(screenshotTestNames.ToArray(), 3)}";
 			}
 
 			return "Test failures";

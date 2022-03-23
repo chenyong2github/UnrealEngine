@@ -1,5 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Models;
@@ -8,11 +10,6 @@ using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -27,155 +24,155 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Singleton instance of the ACL service
 		/// </summary>
-		private readonly AclService AclService;
+		private readonly AclService _aclService;
 
 		/// <summary>
 		/// Singleton instance of the credential service
 		/// </summary>
-		private readonly CredentialService CredentialService;
+		private readonly CredentialService _credentialService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AclService">The ACL service</param>
-		/// <param name="CredentialService">The credential service</param>
-		public CredentialsController(AclService AclService, CredentialService CredentialService)
+		/// <param name="aclService">The ACL service</param>
+		/// <param name="credentialService">The credential service</param>
+		public CredentialsController(AclService aclService, CredentialService credentialService)
 		{
-			this.AclService = AclService;
-			this.CredentialService = CredentialService;
+			_aclService = aclService;
+			_credentialService = credentialService;
 		}
 
 		/// <summary>
 		/// Creates a new credential
 		/// </summary>
-		/// <param name="Create">Parameters for the new credential.</param>
+		/// <param name="create">Parameters for the new credential.</param>
 		/// <returns>Http result code</returns>
 		[HttpPost]
 		[Route("/api/v1/credentials")]
-		public async Task<ActionResult<CreateCredentialResponse>> CreateCredentialAsync([FromBody] CreateCredentialRequest Create)
+		public async Task<ActionResult<CreateCredentialResponse>> CreateCredentialAsync([FromBody] CreateCredentialRequest create)
 		{
-			if(!await AclService.AuthorizeAsync(AclAction.CreateCredential, User))
+			if(!await _aclService.AuthorizeAsync(AclAction.CreateCredential, User))
 			{
 				return Forbid();
 			}
 
-			Credential NewCredential = await CredentialService.CreateCredentialAsync(Create.Name, Create.Properties);
-			return new CreateCredentialResponse(NewCredential.Id.ToString());
+			Credential newCredential = await _credentialService.CreateCredentialAsync(create.Name, create.Properties);
+			return new CreateCredentialResponse(newCredential.Id.ToString());
 		}
 
 		/// <summary>
 		/// Query all the credentials
 		/// </summary>
-		/// <param name="Name">Id of the credential to get information about</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="name">Id of the credential to get information about</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Information about all the credentials</returns>
 		[HttpGet]
 		[Route("/api/v1/credentials")]
 		[ProducesResponseType(typeof(List<GetCredentialResponse>), 200)]
-		public async Task<ActionResult<object>> FindCredentialAsync([FromQuery] string? Name = null, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> FindCredentialAsync([FromQuery] string? name = null, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.ListCredentials, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.ListCredentials, User))
 			{
 				return Forbid();
 			}
 
-			List<Credential> Credentials = await CredentialService.FindCredentialsAsync(Name);
-			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
+			List<Credential> credentials = await _credentialService.FindCredentialsAsync(name);
+			GlobalPermissionsCache cache = new GlobalPermissionsCache();
 
-			List<object> Responses = new List<object>();
-			foreach (Credential Credential in Credentials)
+			List<object> responses = new List<object>();
+			foreach (Credential credential in credentials)
 			{
-				if (await CredentialService.AuthorizeAsync(Credential, AclAction.ViewCredential, User, Cache))
+				if (await _credentialService.AuthorizeAsync(credential, AclAction.ViewCredential, User, cache))
 				{
-					bool bIncludeAcl = await CredentialService.AuthorizeAsync(Credential, AclAction.ViewPermissions, User, Cache);
-					Responses.Add(new GetCredentialResponse(Credential, bIncludeAcl).ApplyFilter(Filter));
+					bool bIncludeAcl = await _credentialService.AuthorizeAsync(credential, AclAction.ViewPermissions, User, cache);
+					responses.Add(new GetCredentialResponse(credential, bIncludeAcl).ApplyFilter(filter));
 				}
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Retrieve information about a specific credential
 		/// </summary>
-		/// <param name="CredentialId">Id of the credential to get information about</param>
-		/// <param name="Filter">Filter for properties to return</param>
+		/// <param name="credentialId">Id of the credential to get information about</param>
+		/// <param name="filter">Filter for properties to return</param>
 		/// <returns>Information about the requested credential</returns>
 		[HttpGet]
-		[Route("/api/v1/credentials/{CredentialId}")]
+		[Route("/api/v1/credentials/{credentialId}")]
 		[ProducesResponseType(typeof(GetCredentialResponse), 200)]
-		public async Task<ActionResult<object>> GetCredentialAsync(string CredentialId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetCredentialAsync(string credentialId, [FromQuery] PropertyFilter? filter = null)
 		{
-			ObjectId ProjectIdValue = CredentialId.ToObjectId();
+			ObjectId projectIdValue = credentialId.ToObjectId();
 
-			Credential? Credential = await CredentialService.GetCredentialAsync(ProjectIdValue);
-			if (Credential == null)
+			Credential? credential = await _credentialService.GetCredentialAsync(projectIdValue);
+			if (credential == null)
 			{
 				return NotFound();
 			}
 
-			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
-			if (!await CredentialService.AuthorizeAsync(Credential, AclAction.ViewCredential, User, Cache))
+			GlobalPermissionsCache cache = new GlobalPermissionsCache();
+			if (!await _credentialService.AuthorizeAsync(credential, AclAction.ViewCredential, User, cache))
 			{
 				return Forbid();
 			}
 
-			bool bIncludeAcl = await CredentialService.AuthorizeAsync(Credential, AclAction.ViewPermissions, User, Cache);
-			return new GetCredentialResponse(Credential, bIncludeAcl).ApplyFilter(Filter);
+			bool bIncludeAcl = await _credentialService.AuthorizeAsync(credential, AclAction.ViewPermissions, User, cache);
+			return new GetCredentialResponse(credential, bIncludeAcl).ApplyFilter(filter);
 		}
 
 		/// <summary>
 		/// Update a credential's properties.
 		/// </summary>
-		/// <param name="CredentialId">Id of the credential to update</param>
-		/// <param name="Update">Items on the credential to update</param>
+		/// <param name="credentialId">Id of the credential to update</param>
+		/// <param name="update">Items on the credential to update</param>
 		/// <returns>Http result code</returns>
 		[HttpPut]
-		[Route("/api/v1/credentials/{CredentialId}")]
-		public async Task<ActionResult> UpdateCredentialAsync(string CredentialId, [FromBody] UpdateCredentialRequest Update)
+		[Route("/api/v1/credentials/{credentialId}")]
+		public async Task<ActionResult> UpdateCredentialAsync(string credentialId, [FromBody] UpdateCredentialRequest update)
 		{
-			ObjectId CredentialIdValue = CredentialId.ToObjectId();
+			ObjectId credentialIdValue = credentialId.ToObjectId();
 
-			Credential? Credential = await CredentialService.GetCredentialAsync(CredentialIdValue);
-			if(Credential == null)
+			Credential? credential = await _credentialService.GetCredentialAsync(credentialIdValue);
+			if(credential == null)
 			{
 				return NotFound();
 			}
 
-			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
-			if (!await CredentialService.AuthorizeAsync(Credential, AclAction.UpdateCredential, User, Cache))
+			GlobalPermissionsCache cache = new GlobalPermissionsCache();
+			if (!await _credentialService.AuthorizeAsync(credential, AclAction.UpdateCredential, User, cache))
 			{
 				return Forbid();
 			}
-			if (Update.Acl != null && !await CredentialService.AuthorizeAsync(Credential, AclAction.ChangePermissions, User, Cache))
+			if (update.Acl != null && !await _credentialService.AuthorizeAsync(credential, AclAction.ChangePermissions, User, cache))
 			{
 				return Forbid();
 			}
 
-			await CredentialService.UpdateCredentialAsync(CredentialIdValue, Update.Name, Update.Properties, Acl.Merge(Credential.Acl, Update.Acl));
+			await _credentialService.UpdateCredentialAsync(credentialIdValue, update.Name, update.Properties, Acl.Merge(credential.Acl, update.Acl));
 			return new OkResult();
 		}
 
 		/// <summary>
 		/// Delete a credential
 		/// </summary>
-		/// <param name="CredentialId">Id of the credential to delete</param>
+		/// <param name="credentialId">Id of the credential to delete</param>
 		/// <returns>Http result code</returns>
 		[HttpDelete]
-		[Route("/api/v1/credentials/{CredentialId}")]
-		public async Task<ActionResult> DeleteCredentialAsync(string CredentialId)
+		[Route("/api/v1/credentials/{credentialId}")]
+		public async Task<ActionResult> DeleteCredentialAsync(string credentialId)
 		{
-			ObjectId CredentialIdValue = CredentialId.ToObjectId();
+			ObjectId credentialIdValue = credentialId.ToObjectId();
 
-			Credential? Credential = await CredentialService.GetCredentialAsync(CredentialIdValue);
-			if (Credential == null)
+			Credential? credential = await _credentialService.GetCredentialAsync(credentialIdValue);
+			if (credential == null)
 			{
 				return NotFound();
 			}
-			if (!await CredentialService.AuthorizeAsync(Credential, AclAction.DeleteCredential, User, null))
+			if (!await _credentialService.AuthorizeAsync(credential, AclAction.DeleteCredential, User, null))
 			{
 				return Forbid();
 			}
-			if (!await CredentialService.DeleteCredentialAsync(CredentialIdValue))
+			if (!await _credentialService.DeleteCredentialAsync(credentialIdValue))
 			{
 				return NotFound();
 			}

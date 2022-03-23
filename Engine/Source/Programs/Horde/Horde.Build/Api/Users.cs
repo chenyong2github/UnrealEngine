@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
+using MongoDB.Bson;
 
 namespace Horde.Build.Api
 {
@@ -75,25 +73,25 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetUserResponse(IUser User, IAvatar? Avatar, IUserClaims? Claims, IUserSettings? Settings)
+		public GetUserResponse(IUser user, IAvatar? avatar, IUserClaims? claims, IUserSettings? settings)
 		{
-			this.Id = User.Id.ToString();
-			this.Name = User.Name;
-			this.Email = User.Email;
+			Id = user.Id.ToString();
+			Name = user.Name;
+			Email = user.Email;
 
-			this.Image24 = Avatar?.Image24;
-			this.Image32 = Avatar?.Image32;
-			this.Image48 = Avatar?.Image48;
-			this.Image72 = Avatar?.Image72;
+			Image24 = avatar?.Image24;
+			Image32 = avatar?.Image32;
+			Image48 = avatar?.Image48;
+			Image72 = avatar?.Image72;
 						
-			this.Claims = Claims == null ? null : Claims.Claims.Select(x => new UserClaim(x)).ToList();
+			Claims = claims?.Claims.Select(x => new UserClaim(x)).ToList();
 
-			if (Settings != null)
+			if (settings != null)
 			{
-				this.EnableExperimentalFeatures = Settings.EnableExperimentalFeatures;
+				EnableExperimentalFeatures = settings.EnableExperimentalFeatures;
 				
-				this.DashboardSettings = BsonTypeMapper.MapToDotNetValue(Settings.DashboardSettings);
-				this.PinnedJobIds = Settings.PinnedJobIds.ConvertAll(x => x.ToString());
+				DashboardSettings = BsonTypeMapper.MapToDotNetValue(settings.DashboardSettings);
+				PinnedJobIds = settings.PinnedJobIds.ConvertAll(x => x.ToString());
 			}
 		}
 	}
@@ -126,22 +124,22 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="User"></param>
-		public GetThinUserInfoResponse(IUser? User)
+		/// <param name="user"></param>
+		public GetThinUserInfoResponse(IUser? user)
 		{
-			if (User == null)
+			if (user == null)
 			{
-				this.Id = String.Empty;
-				this.Name = "(Unknown)";
-				this.Email = null;
-				this.Login = null;
+				Id = String.Empty;
+				Name = "(Unknown)";
+				Email = null;
+				Login = null;
 			}
 			else
 			{
-				this.Id = User.Id.ToString();
-				this.Name = User.Name;
-				this.Email = User.Email;
-				this.Login = User.Login;
+				Id = user.Id.ToString();
+				Name = user.Name;
+				Email = user.Email;
+				Login = user.Login;
 			}
 		}
 	}
@@ -171,5 +169,4 @@ namespace Horde.Build.Api
 		/// </summary>
 		public List<string>? RemovePinnedJobIds { get; set; }
 	}
-
 }

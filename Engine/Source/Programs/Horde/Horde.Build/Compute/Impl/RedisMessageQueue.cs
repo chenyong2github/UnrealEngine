@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Redis;
-using Horde.Build.Compute.Impl;
-using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Redis;
+using StackExchange.Redis;
 
 namespace Horde.Build.Compute.Impl
 {
@@ -22,24 +18,24 @@ namespace Horde.Build.Compute.Impl
 		/// <summary>
 		/// Adds messages to the queue
 		/// </summary>
-		/// <param name="ChannelId">The channel to post to</param>
-		/// <param name="Message">Message to post</param>
-		Task PostAsync(string ChannelId, T Message);
+		/// <param name="channelId">The channel to post to</param>
+		/// <param name="message">Message to post</param>
+		Task PostAsync(string channelId, T message);
 
 		/// <summary>
 		/// Waits for a message to be available on the given channel
 		/// </summary>
-		/// <param name="ChannelId">The channel to read from</param>
+		/// <param name="channelId">The channel to read from</param>
 		/// <returns>True if a message was available, false otherwise</returns>
-		Task<List<T>> ReadMessagesAsync(string ChannelId);
+		Task<List<T>> ReadMessagesAsync(string channelId);
 
 		/// <summary>
 		/// Waits for a message to be available on the given channel
 		/// </summary>
-		/// <param name="ChannelId">The channel to read from</param>
-		/// <param name="CancellationToken">May be signalled to stop the wait, without throwing an exception</param>
+		/// <param name="channelId">The channel to read from</param>
+		/// <param name="cancellationToken">May be signalled to stop the wait, without throwing an exception</param>
 		/// <returns>True if a message was available, false otherwise</returns>
-		Task<List<T>> WaitForMessagesAsync(string ChannelId, CancellationToken CancellationToken);
+		Task<List<T>> WaitForMessagesAsync(string channelId, CancellationToken cancellationToken);
 	}
 
 	/// <summary>
@@ -48,10 +44,10 @@ namespace Horde.Build.Compute.Impl
 	/// <typeparam name="T">The message type. Must be serailizable by RedisSerializer.</typeparam>
 	class RedisMessageQueue<T> : IMessageQueue<T>, IDisposable where T : class
 	{
-		IDatabase Redis;
-		RedisKey KeyPrefix;
-		RedisChannel UpdateChannel;
-		Dictionary<string, TaskCompletionSource<bool>> ChannelWakeEvents = new Dictionary<string, TaskCompletionSource<bool>>();
+		readonly IDatabase _redis;
+		readonly RedisKey _keyPrefix;
+		readonly RedisChannel _updateChannel;
+		readonly Dictionary<string, TaskCompletionSource<bool>> _channelWakeEvents = new Dictionary<string, TaskCompletionSource<bool>>();
 
 		// Time after which entries should be removed
 		TimeSpan ExpireTime { get; set; } = TimeSpan.FromSeconds(30);
@@ -59,126 +55,126 @@ namespace Horde.Build.Compute.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Redis">The Redis database instance</param>
-		/// <param name="KeyPrefix">Prefix for keys to use in the database</param>
-		public RedisMessageQueue(IDatabase Redis, RedisKey KeyPrefix)
+		/// <param name="redis">The Redis database instance</param>
+		/// <param name="keyPrefix">Prefix for keys to use in the database</param>
+		public RedisMessageQueue(IDatabase redis, RedisKey keyPrefix)
 		{
-			this.Redis = Redis;
-			this.KeyPrefix = KeyPrefix;
-			this.UpdateChannel = KeyPrefix.Append("updates").ToString();
+			_redis = redis;
+			_keyPrefix = keyPrefix;
+			_updateChannel = keyPrefix.Append("updates").ToString();
 
-			Redis.Multiplexer.GetSubscriber().Subscribe(UpdateChannel, OnChannelUpdate);
+			redis.Multiplexer.GetSubscriber().Subscribe(_updateChannel, OnChannelUpdate);
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Redis.Multiplexer.GetSubscriber().Unsubscribe(UpdateChannel, OnChannelUpdate);
+			_redis.Multiplexer.GetSubscriber().Unsubscribe(_updateChannel, OnChannelUpdate);
 		}
 
 		/// <summary>
 		/// Callback for a message being posted to a channel
 		/// </summary>
-		/// <param name="Channel"></param>
-		/// <param name="Value"></param>
-		void OnChannelUpdate(RedisChannel Channel, RedisValue Value)
+		/// <param name="channel"></param>
+		/// <param name="value"></param>
+		void OnChannelUpdate(RedisChannel channel, RedisValue value)
 		{
-			TaskCompletionSource<bool>? CompletionSource;
-			lock (ChannelWakeEvents)
+			TaskCompletionSource<bool>? completionSource;
+			lock (_channelWakeEvents)
 			{
-				ChannelWakeEvents.TryGetValue(Value.ToString(), out CompletionSource);
+				_channelWakeEvents.TryGetValue(value.ToString(), out completionSource);
 			}
-			if (CompletionSource != null)
+			if (completionSource != null)
 			{
-				CompletionSource.TrySetResult(true);
+				completionSource.TrySetResult(true);
 			}
 		}
 
 		/// <summary>
 		/// Gets the set of messages for a channel
 		/// </summary>
-		/// <param name="ChannelId"></param>
+		/// <param name="channelId"></param>
 		/// <returns></returns>
-		RedisList<T> GetChannel(string ChannelId)
+		RedisList<T> GetChannel(string channelId)
 		{
-			return new RedisList<T>(Redis, KeyPrefix.Append(ChannelId));
+			return new RedisList<T>(_redis, _keyPrefix.Append(channelId));
 		}
 
 		/// <inheritdoc/>
-		public async Task PostAsync(string ChannelId, T Message)
+		public async Task PostAsync(string channelId, T message)
 		{
-			RedisList<T> Channel = GetChannel(ChannelId);
+			RedisList<T> channel = GetChannel(channelId);
 
-			long Length = await Channel.RightPushAsync(Message);
-			if (Length == 1)
+			long length = await channel.RightPushAsync(message);
+			if (length == 1)
 			{
-				await Redis.PublishAsync(UpdateChannel, ChannelId, CommandFlags.FireAndForget);
+				await _redis.PublishAsync(_updateChannel, channelId, CommandFlags.FireAndForget);
 			}
-			await Redis.KeyExpireAsync(Channel.Key, ExpireTime, CommandFlags.FireAndForget);
+			await _redis.KeyExpireAsync(channel.Key, ExpireTime, CommandFlags.FireAndForget);
 		}
 
-		static async Task<bool> ReadMessagesAsync(RedisList<T> List, List<T> Messages)
+		static async Task<bool> ReadMessagesAsync(RedisList<T> list, List<T> messages)
 		{
-			T? Message = await List.LeftPopAsync();
-			while(Message != null)
+			T? message = await list.LeftPopAsync();
+			while(message != null)
 			{
-				Messages.Add(Message);
-				Message = await List.LeftPopAsync();
+				messages.Add(message);
+				message = await list.LeftPopAsync();
 			}
-			return Messages.Count > 0;
+			return messages.Count > 0;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<T>> ReadMessagesAsync(string ChannelId)
+		public async Task<List<T>> ReadMessagesAsync(string channelId)
 		{
-			List<T> Messages = new List<T>();
-			await ReadMessagesAsync(GetChannel(ChannelId), Messages);
-			return Messages;
+			List<T> messages = new List<T>();
+			await ReadMessagesAsync(GetChannel(channelId), messages);
+			return messages;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<T>> WaitForMessagesAsync(string ChannelId, CancellationToken CancellationToken)
+		public async Task<List<T>> WaitForMessagesAsync(string channelId, CancellationToken cancellationToken)
 		{
-			List<T> Messages = new List<T>();
+			List<T> messages = new List<T>();
 
-			RedisList<T> Channel = GetChannel(ChannelId);
-			while (!CancellationToken.IsCancellationRequested && !await ReadMessagesAsync(Channel, Messages))
+			RedisList<T> channel = GetChannel(channelId);
+			while (!cancellationToken.IsCancellationRequested && !await ReadMessagesAsync(channel, messages))
 			{
 				// Register for notifications on this channel
-				TaskCompletionSource<bool>? CompletionSource;
-				lock (ChannelWakeEvents)
+				TaskCompletionSource<bool>? completionSource;
+				lock (_channelWakeEvents)
 				{
-					if (!ChannelWakeEvents.TryGetValue(ChannelId, out CompletionSource))
+					if (!_channelWakeEvents.TryGetValue(channelId, out completionSource))
 					{
-						CompletionSource = new TaskCompletionSource<bool>();
-						ChannelWakeEvents.Add(ChannelId, CompletionSource);
+						completionSource = new TaskCompletionSource<bool>();
+						_channelWakeEvents.Add(channelId, completionSource);
 					}
 				}
 
 				try
 				{
 					// Read the current queue state again, in case it was modified since we registered.
-					if(await ReadMessagesAsync(Channel, Messages))
+					if(await ReadMessagesAsync(channel, messages))
 					{
 						break;
 					}
 
 					// Wait for messages to be available
-					using (CancellationToken.Register(() => CompletionSource.TrySetResult(false)))
+					using (cancellationToken.Register(() => completionSource.TrySetResult(false)))
 					{
-						await CompletionSource.Task;
+						await completionSource.Task;
 					}
 				}
 				finally
 				{
-					lock (ChannelWakeEvents)
+					lock (_channelWakeEvents)
 					{
-						ChannelWakeEvents.Remove(ChannelId);
+						_channelWakeEvents.Remove(channelId);
 					}
 				}
 			}
 
-			return Messages;
+			return messages;
 		}
 	}
 }

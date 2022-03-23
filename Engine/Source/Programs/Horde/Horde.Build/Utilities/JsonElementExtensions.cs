@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using MongoDB.Bson.IO;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -19,48 +15,48 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Checks if the element has a property with the given value
 		/// </summary>
-		/// <param name="Element">Element to search</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="Value">Expected value of the property</param>
+		/// <param name="element">Element to search</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="value">Expected value of the property</param>
 		/// <returns>True if the property exists and matches</returns>
-		public static bool HasStringProperty(this JsonElement Element, ReadOnlySpan<byte> Name, string Value)
+		public static bool HasStringProperty(this JsonElement element, ReadOnlySpan<byte> name, string value)
 		{
-			JsonElement Property;
-			return Element.ValueKind == JsonValueKind.Object && Element.TryGetProperty(Name, out Property) && Property.ValueEquals(Value);
+			JsonElement property;
+			return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out property) && property.ValueEquals(value);
 		}
 
 		/// <summary>
 		/// Checks if the element has a property with the given value
 		/// </summary>
-		/// <param name="Element">Element to search</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="Value">Expected value of the property</param>
+		/// <param name="element">Element to search</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="value">Expected value of the property</param>
 		/// <returns>True if the property exists and matches</returns>
-		public static bool HasStringProperty(this JsonElement Element, string Name, string Value)
+		public static bool HasStringProperty(this JsonElement element, string name, string value)
 		{
-			JsonElement Property;
-			return Element.ValueKind == JsonValueKind.Object && Element.TryGetProperty(Name, out Property) && Property.ValueEquals(Value);
+			JsonElement property;
+			return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out property) && property.ValueEquals(value);
 		}
 
 		/// <summary>
 		/// Gets a property value of a certain type
 		/// </summary>
-		/// <param name="Element">The element to get a property from</param>
-		/// <param name="Name">Name of the element</param>
-		/// <param name="ValueKind">The required type of property</param>
-		/// <param name="Value">Value of the property</param>
+		/// <param name="element">The element to get a property from</param>
+		/// <param name="name">Name of the element</param>
+		/// <param name="valueKind">The required type of property</param>
+		/// <param name="value">Value of the property</param>
 		/// <returns>True if the property exists and was a string</returns>
-		public static bool TryGetProperty(this JsonElement Element, ReadOnlySpan<byte> Name, JsonValueKind ValueKind, [NotNullWhen(true)] out JsonElement Value)
+		public static bool TryGetProperty(this JsonElement element, ReadOnlySpan<byte> name, JsonValueKind valueKind, [NotNullWhen(true)] out JsonElement value)
 		{
-			JsonElement Property;
-			if (Element.TryGetProperty(Name, out Property) && Property.ValueKind == ValueKind)
+			JsonElement property;
+			if (element.TryGetProperty(name, out property) && property.ValueKind == valueKind)
 			{
-				Value = Property;
+				value = property;
 				return true;
 			}
 			else
 			{
-				Value = new JsonElement();
+				value = new JsonElement();
 				return false;
 			}
 		}
@@ -68,22 +64,22 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Gets a property value of a certain type
 		/// </summary>
-		/// <param name="Element">The element to get a property from</param>
-		/// <param name="Name">Name of the element</param>
-		/// <param name="ValueKind">The required type of property</param>
-		/// <param name="Value">Value of the property</param>
+		/// <param name="element">The element to get a property from</param>
+		/// <param name="name">Name of the element</param>
+		/// <param name="valueKind">The required type of property</param>
+		/// <param name="value">Value of the property</param>
 		/// <returns>True if the property exists and was a string</returns>
-		public static bool TryGetProperty(this JsonElement Element, string Name, JsonValueKind ValueKind, [NotNullWhen(true)] out JsonElement Value)
+		public static bool TryGetProperty(this JsonElement element, string name, JsonValueKind valueKind, [NotNullWhen(true)] out JsonElement value)
 		{
-			JsonElement Property;
-			if (Element.TryGetProperty(Name, out Property) && Property.ValueKind == ValueKind)
+			JsonElement property;
+			if (element.TryGetProperty(name, out property) && property.ValueKind == valueKind)
 			{
-				Value = Property;
+				value = property;
 				return true;
 			}
 			else
 			{
-				Value = new JsonElement();
+				value = new JsonElement();
 				return false;
 			}
 		}
@@ -91,21 +87,21 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Gets a string property value
 		/// </summary>
-		/// <param name="Element">The element to get a property from</param>
-		/// <param name="Name">Name of the element</param>
-		/// <param name="Value">Value of the property</param>
+		/// <param name="element">The element to get a property from</param>
+		/// <param name="name">Name of the element</param>
+		/// <param name="value">Value of the property</param>
 		/// <returns>True if the property exists and was a string</returns>
-		public static bool TryGetStringProperty(this JsonElement Element, ReadOnlySpan<byte> Name, [NotNullWhen(true)] out string? Value)
+		public static bool TryGetStringProperty(this JsonElement element, ReadOnlySpan<byte> name, [NotNullWhen(true)] out string? value)
 		{
-			JsonElement Property;
-			if (Element.TryGetProperty(Name, out Property) && Property.ValueKind == JsonValueKind.String)
+			JsonElement property;
+			if (element.TryGetProperty(name, out property) && property.ValueKind == JsonValueKind.String)
 			{
-				Value = Property.GetString()!;
+				value = property.GetString()!;
 				return true;
 			}
 			else
 			{
-				Value = null;
+				value = null;
 				return false;
 			}
 		}
@@ -113,70 +109,70 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Gets a string property value
 		/// </summary>
-		/// <param name="Element">The element to get a property from</param>
-		/// <param name="Name">Name of the element</param>
-		/// <param name="Value">Value of the property</param>
+		/// <param name="element">The element to get a property from</param>
+		/// <param name="name">Name of the element</param>
+		/// <param name="value">Value of the property</param>
 		/// <returns>True if the property exists and was a string</returns>
-		public static bool TryGetStringProperty(this JsonElement Element, string Name, [NotNullWhen(true)] out string? Value)
+		public static bool TryGetStringProperty(this JsonElement element, string name, [NotNullWhen(true)] out string? value)
 		{
-			return TryGetStringProperty(Element, Encoding.UTF8.GetBytes(Name).AsSpan(), out Value);
+			return TryGetStringProperty(element, Encoding.UTF8.GetBytes(name).AsSpan(), out value);
 		}
 
 		/// <summary>
 		/// Gets a property value from a document or subdocument, indicated with dotted notation
 		/// </summary>
-		/// <param name="Element">Document to get a property for</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="OutElement">Receives the nexted element</param>
+		/// <param name="element">Document to get a property for</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="outElement">Receives the nexted element</param>
 		/// <returns>True if the property exists and was of the correct type</returns>
-		public static bool TryGetNestedProperty(this JsonElement Element, ReadOnlySpan<byte> Name, [NotNullWhen(true)] out JsonElement OutElement)
+		public static bool TryGetNestedProperty(this JsonElement element, ReadOnlySpan<byte> name, [NotNullWhen(true)] out JsonElement outElement)
 		{
-			int DotIdx = Name.IndexOf((byte)'.');
-			if (DotIdx == -1)
+			int dotIdx = name.IndexOf((byte)'.');
+			if (dotIdx == -1)
 			{
-				return Element.TryGetProperty(Name, out OutElement);
+				return element.TryGetProperty(name, out outElement);
 			}
 
-			JsonElement DocValue;
-			if (Element.TryGetProperty(Name.Slice(0, DotIdx), out DocValue) && DocValue.ValueKind == JsonValueKind.Object)
+			JsonElement docValue;
+			if (element.TryGetProperty(name.Slice(0, dotIdx), out docValue) && docValue.ValueKind == JsonValueKind.Object)
 			{
-				return TryGetNestedProperty(DocValue, Name.Slice(DotIdx + 1), out OutElement);
+				return TryGetNestedProperty(docValue, name.Slice(dotIdx + 1), out outElement);
 			}
 
-			OutElement = new JsonElement();
+			outElement = new JsonElement();
 			return false;
 		}
 
 		/// <summary>
 		/// Gets a property value from a document or subdocument, indicated with dotted notation
 		/// </summary>
-		/// <param name="Element">Document to get a property for</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="OutElement">Receives the nexted element</param>
+		/// <param name="element">Document to get a property for</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="outElement">Receives the nexted element</param>
 		/// <returns>True if the property exists and was of the correct type</returns>
-		public static bool TryGetNestedProperty(this JsonElement Element, string Name, [NotNullWhen(true)] out JsonElement OutElement)
+		public static bool TryGetNestedProperty(this JsonElement element, string name, [NotNullWhen(true)] out JsonElement outElement)
 		{
-			return TryGetNestedProperty(Element, Encoding.UTF8.GetBytes(Name).AsSpan(), out OutElement);
+			return TryGetNestedProperty(element, Encoding.UTF8.GetBytes(name).AsSpan(), out outElement);
 		}
 
 		/// <summary>
 		/// Gets an int32 value from the document
 		/// </summary>
-		/// <param name="Element">Document to get a property for</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="OutValue">Receives the property value</param>
+		/// <param name="element">Document to get a property for</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="outValue">Receives the property value</param>
 		/// <returns>True if the property was retrieved</returns>
-		public static bool TryGetNestedProperty(this JsonElement Element, string Name, out int OutValue)
+		public static bool TryGetNestedProperty(this JsonElement element, string name, out int outValue)
 		{
-			JsonElement Value;
-			if (Element.TryGetNestedProperty(Name, out Value) && Value.ValueKind == JsonValueKind.Number)
+			JsonElement value;
+			if (element.TryGetNestedProperty(name, out value) && value.ValueKind == JsonValueKind.Number)
 			{
-				OutValue = Value.GetInt32();
+				outValue = value.GetInt32();
 				return true;
 			}
 			else
 			{
-				OutValue = 0;
+				outValue = 0;
 				return false;
 			}
 		}
@@ -184,21 +180,21 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Gets a string value from the document
 		/// </summary>
-		/// <param name="Element">Document to get a property for</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="OutValue">Receives the property value</param>
+		/// <param name="element">Document to get a property for</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="outValue">Receives the property value</param>
 		/// <returns>True if the property was retrieved</returns>
-		public static bool TryGetNestedProperty(this JsonElement Element, string Name, [NotNullWhen(true)] out string? OutValue)
+		public static bool TryGetNestedProperty(this JsonElement element, string name, [NotNullWhen(true)] out string? outValue)
 		{
-			JsonElement Value;
-			if (Element.TryGetNestedProperty(Name, out Value) && Value.ValueKind == JsonValueKind.String)
+			JsonElement value;
+			if (element.TryGetNestedProperty(name, out value) && value.ValueKind == JsonValueKind.String)
 			{
-				OutValue = Value.GetString();
-				return OutValue != null;
+				outValue = value.GetString();
+				return outValue != null;
 			}
 			else
 			{
-				OutValue = null;
+				outValue = null;
 				return false;
 			}
 		}

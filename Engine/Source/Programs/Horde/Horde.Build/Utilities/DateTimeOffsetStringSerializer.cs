@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Globalization;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
-using Newtonsoft.Json.Bson;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -18,25 +14,25 @@ namespace Horde.Build.Utilities
 	class DateTimeOffsetStringSerializer : StructSerializerBase<DateTimeOffset>
 	{
 		/// <inheritdoc/>
-		public override DateTimeOffset Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
+		public override DateTimeOffset Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			switch (Context.Reader.CurrentBsonType)
+			switch (context.Reader.CurrentBsonType)
 			{
 				case BsonType.String:
-					string StringValue = Context.Reader.ReadString();
-					return DateTimeOffset.Parse(StringValue, DateTimeFormatInfo.InvariantInfo);
+					string stringValue = context.Reader.ReadString();
+					return DateTimeOffset.Parse(stringValue, DateTimeFormatInfo.InvariantInfo);
 				case BsonType.DateTime:
-					long Ticks = Context.Reader.ReadDateTime();
-					return DateTimeOffset.FromUnixTimeMilliseconds(Ticks);
+					long ticks = context.Reader.ReadDateTime();
+					return DateTimeOffset.FromUnixTimeMilliseconds(ticks);
 				default:
-					throw new FormatException($"Unable to deserialize a DateTimeOffset from a {Context.Reader.CurrentBsonType}");
+					throw new FormatException($"Unable to deserialize a DateTimeOffset from a {context.Reader.CurrentBsonType}");
 			}
 		}
 
 		/// <inheritdoc/>
-		public override void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, DateTimeOffset Value)
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, DateTimeOffset value)
 		{
-			Context.Writer.WriteString(Value.ToString(DateTimeFormatInfo.InvariantInfo));
+			context.Writer.WriteString(value.ToString(DateTimeFormatInfo.InvariantInfo));
 		}
 	}
 }

@@ -1,5 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
@@ -7,9 +10,6 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using StackExchange.Redis;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Tools.Impl
 {
@@ -60,7 +60,6 @@ namespace Horde.Build.Tools.Impl
 		private static readonly RedisKey s_timeSuffix = new RedisKey("/ts");
 
 		private static FilterDefinitionBuilder<VersionedDocument<TId, TLatest>> FilterBuilder { get; } = Builders<VersionedDocument<TId, TLatest>>.Filter;
-		private static UpdateDefinitionBuilder<VersionedDocument<TId, TLatest>> UpdateBuilder { get; } = Builders<VersionedDocument<TId, TLatest>>.Update;
 
 		private readonly IMongoCollection<VersionedDocument<TId, TLatest>> _baseCollection;
 		private readonly IMongoCollection<TLatest> _latestCollection;
@@ -102,14 +101,14 @@ namespace Horde.Build.Tools.Impl
 
 		private static FilterDefinition<VersionedDocument<TId, TLatest>> GetFilter(VersionedDocument<TId, TLatest> doc)
 		{
-			FilterDefinitionBuilder<VersionedDocument<TId, TLatest>> Builder = Builders<VersionedDocument<TId, TLatest>>.Filter;
-			return Builder.Eq(x => x.Id, doc.Id) & Builder.Eq(x => x.LastUpdateTime, doc.LastUpdateTime);
+			FilterDefinitionBuilder<VersionedDocument<TId, TLatest>> builder = Builders<VersionedDocument<TId, TLatest>>.Filter;
+			return builder.Eq(x => x.Id, doc.Id) & builder.Eq(x => x.LastUpdateTime, doc.LastUpdateTime);
 		}
 
 		private static FilterDefinition<TLatest> GetFilter(TLatest doc)
 		{
-			FilterDefinitionBuilder<TLatest> Builder = Builders<TLatest>.Filter;
-			return Builder.Eq(x => x.Id, doc.Id) & Builder.Eq(x => x.LastUpdateTime, doc.LastUpdateTime);
+			FilterDefinitionBuilder<TLatest> builder = Builders<TLatest>.Filter;
+			return builder.Eq(x => x.Id, doc.Id) & builder.Eq(x => x.LastUpdateTime, doc.LastUpdateTime);
 		}
 
 		/// <summary>
@@ -132,11 +131,11 @@ namespace Horde.Build.Tools.Impl
 
 		private void AddCachedValue(RedisKey docKey, TLatest doc)
 		{
-			KeyValuePair<RedisKey, RedisValue>[] Pairs = new KeyValuePair<RedisKey, RedisValue>[2];
-			Pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson());
-			Pairs[1] = new KeyValuePair<RedisKey, RedisValue>(docKey.Append(s_timeSuffix), doc.LastUpdateTime.Ticks);
+			KeyValuePair<RedisKey, RedisValue>[] pairs = new KeyValuePair<RedisKey, RedisValue>[2];
+			pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson());
+			pairs[1] = new KeyValuePair<RedisKey, RedisValue>(docKey.Append(s_timeSuffix), doc.LastUpdateTime.Ticks);
 
-			_ = _redis.StringSetAsync(Pairs, When.NotExists, CommandFlags.FireAndForget);
+			_ = _redis.StringSetAsync(pairs, When.NotExists, CommandFlags.FireAndForget);
 		}
 
 		private async ValueTask<VersionedDocument<TId, TLatest>?> GetCachedValueAsync(RedisKey docKey)
@@ -161,11 +160,11 @@ namespace Horde.Build.Tools.Impl
 			ITransaction transaction = _redis.CreateTransaction();
 			transaction.AddCondition(Condition.StringEqual(docKey.Append(s_timeSuffix), prevDoc.LastUpdateTime.Ticks));
 
-			KeyValuePair<RedisKey, RedisValue>[] Pairs = new KeyValuePair<RedisKey, RedisValue>[2];
-			Pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson());
-			Pairs[1] = new KeyValuePair<RedisKey, RedisValue>(docKey.Append(s_timeSuffix), doc.LastUpdateTime.Ticks);
+			KeyValuePair<RedisKey, RedisValue>[] pairs = new KeyValuePair<RedisKey, RedisValue>[2];
+			pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson());
+			pairs[1] = new KeyValuePair<RedisKey, RedisValue>(docKey.Append(s_timeSuffix), doc.LastUpdateTime.Ticks);
 
-			_ = transaction.StringSetAsync(Pairs);
+			_ = transaction.StringSetAsync(pairs);
 
 			if (!await transaction.ExecuteAsync())
 			{

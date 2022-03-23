@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using HordeCommon.Rpc;
+using System.Collections.Generic;
+using System.Text.Json;
 using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Models
 {

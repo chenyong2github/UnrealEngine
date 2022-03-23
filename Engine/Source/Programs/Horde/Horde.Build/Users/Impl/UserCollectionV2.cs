@@ -1,5 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
@@ -9,11 +13,6 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -46,19 +45,19 @@ namespace Horde.Build.Collections.Impl
 				LoginUpper = null!;
 			}
 
-			public UserDocument(IUser Other)
-				: this(Other.Id, Other.Name, Other.Login, Other.Email)
+			public UserDocument(IUser other)
+				: this(other.Id, other.Name, other.Login, other.Email)
 			{
 			}
 
-			public UserDocument(UserId Id, string Name, string Login, string? Email)
+			public UserDocument(UserId id, string name, string login, string? email)
 			{
-				this.Id = Id;
-				this.Name = Name;
-				this.Login = Login;
-				this.LoginUpper = Login.ToUpperInvariant();
-				this.Email = Email;
-				this.EmailUpper = Email?.ToUpperInvariant();
+				Id = id;
+				Name = name;
+				Login = login;
+				LoginUpper = login.ToUpperInvariant();
+				Email = email;
+				EmailUpper = email?.ToUpperInvariant();
 			}
 		}
 
@@ -75,15 +74,15 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public UserClaimsDocument(UserId Id)
+			public UserClaimsDocument(UserId id)
 			{
-				this.Id = Id;
+				Id = id;
 			}
 
-			public UserClaimsDocument(IUserClaims Other)
-				: this(Other.UserId)
+			public UserClaimsDocument(IUserClaims other)
+				: this(other.UserId)
 			{
-				this.Claims.AddRange(Other.Claims.Select(x => new UserClaim(x)));
+				Claims.AddRange(other.Claims.Select(x => new UserClaim(x)));
 			}
 		}
 
@@ -105,17 +104,17 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public UserSettingsDocument(UserId Id)
+			public UserSettingsDocument(UserId id)
 			{
-				this.Id = Id;
+				Id = id;
 			}
 
-			public UserSettingsDocument(IUserSettings Other)
-				: this(Other.UserId)
+			public UserSettingsDocument(IUserSettings other)
+				: this(other.UserId)
 			{
-				this.EnableExperimentalFeatures = Other.EnableExperimentalFeatures;
-				this.DashboardSettings = Other.DashboardSettings;
-				this.PinnedJobIds = new List<JobId>(Other.PinnedJobIds);
+				EnableExperimentalFeatures = other.EnableExperimentalFeatures;
+				DashboardSettings = other.DashboardSettings;
+				PinnedJobIds = new List<JobId>(other.PinnedJobIds);
 			}
 		}
 
@@ -126,30 +125,28 @@ namespace Horde.Build.Collections.Impl
 
 			private ClaimDocument()
 			{
-				this.Type = null!;
-				this.Value = null!;
+				Type = null!;
+				Value = null!;
 			}
 
-			public ClaimDocument(string Type, string Value)
+			public ClaimDocument(string type, string value)
 			{
-				this.Type = Type;
-				this.Value = Value;
+				Type = type;
+				Value = value;
 			}
 
-			public ClaimDocument(IUserClaim Other)
+			public ClaimDocument(IUserClaim other)
 			{
-				this.Type = Other.Type;
-				this.Value = Other.Value;
+				Type = other.Type;
+				Value = other.Value;
 			}
 		}
 
-		IMongoCollection<UserDocument> Users;
-		IMongoCollection<UserClaimsDocument> UserClaims;
-		IMongoCollection<UserSettingsDocument> UserSettings;
-
-		ILogger<UserCollectionV2> Logger;
-
-		MemoryCache UserCache;
+		readonly IMongoCollection<UserDocument> _users;
+		readonly IMongoCollection<UserClaimsDocument> _userClaims;
+		readonly IMongoCollection<UserSettingsDocument> _userSettings;
+		readonly ILogger<UserCollectionV2> _logger;
+		readonly MemoryCache _userCache;
 
 		/// <summary>
 		/// Static constructor
@@ -166,205 +163,205 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		/// <param name="Logger"></param>
-		public UserCollectionV2(DatabaseService DatabaseService, ILogger<UserCollectionV2> Logger)
+		/// <param name="databaseService"></param>
+		/// <param name="logger"></param>
+		public UserCollectionV2(DatabaseService databaseService, ILogger<UserCollectionV2> logger)
 		{
-			this.Logger = Logger;
+			_logger = logger;
 
-			Users = DatabaseService.GetCollection<UserDocument>("UsersV2");
-			UserClaims = DatabaseService.GetCollection<UserClaimsDocument>("UserClaimsV2");
-			UserSettings = DatabaseService.GetCollection<UserSettingsDocument>("UserSettingsV2");
+			_users = databaseService.GetCollection<UserDocument>("UsersV2");
+			_userClaims = databaseService.GetCollection<UserClaimsDocument>("UserClaimsV2");
+			_userSettings = databaseService.GetCollection<UserSettingsDocument>("UserSettingsV2");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				Users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.LoginUpper), new CreateIndexOptions { Unique = true }));
-				Users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.EmailUpper)));
+				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.LoginUpper), new CreateIndexOptions { Unique = true }));
+				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.EmailUpper)));
 			}
 
-			MemoryCacheOptions Options = new MemoryCacheOptions();
-			UserCache = new MemoryCache(Options);
+			MemoryCacheOptions options = new MemoryCacheOptions();
+			_userCache = new MemoryCache(options);
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			UserCache.Dispose();
+			_userCache.Dispose();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUser?> GetUserAsync(UserId Id)
+		public async Task<IUser?> GetUserAsync(UserId id)
 		{
-			IUser? User = await Users.Find(x => x.Id == Id).FirstOrDefaultAsync();
-			using (ICacheEntry Entry = UserCache.CreateEntry(Id))
+			IUser? user = await _users.Find(x => x.Id == id).FirstOrDefaultAsync();
+			using (ICacheEntry entry = _userCache.CreateEntry(id))
 			{
-				Entry.SetValue(User);
-				Entry.SetSlidingExpiration(TimeSpan.FromMinutes(30.0));
+				entry.SetValue(user);
+				entry.SetSlidingExpiration(TimeSpan.FromMinutes(30.0));
 			}
-			return User;
+			return user;
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<IUser?> GetCachedUserAsync(UserId? Id)
+		public async ValueTask<IUser?> GetCachedUserAsync(UserId? id)
 		{
-			IUser? User;
-			if(Id == null)
+			IUser? user;
+			if(id == null)
 			{
 				return null;
 			}
-			else if (UserCache.TryGetValue(Id.Value, out User))
+			else if (_userCache.TryGetValue(id.Value, out user))
 			{
-				return User;
+				return user;
 			}
 			else
 			{
-				return await GetUserAsync(Id.Value);
+				return await GetUserAsync(id.Value);
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? Ids, string? NameRegex = null, int? Index = null, int? Count = null)
+		public async Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? ids, string? nameRegex = null, int? index = null, int? count = null)
 		{
-			FilterDefinition<UserDocument> Filter = FilterDefinition<UserDocument>.Empty;
-			if (Ids != null)
+			FilterDefinition<UserDocument> filter = FilterDefinition<UserDocument>.Empty;
+			if (ids != null)
 			{
-				Filter &= Builders<UserDocument>.Filter.In(x => x.Id, Ids);
+				filter &= Builders<UserDocument>.Filter.In(x => x.Id, ids);
 			}
 			
-			if (NameRegex != null)
+			if (nameRegex != null)
 			{
-				BsonRegularExpression Regex = new BsonRegularExpression(NameRegex, "i");
-				Filter &= Builders<UserDocument>.Filter.Regex(x => x.Name, Regex);
+				BsonRegularExpression regex = new BsonRegularExpression(nameRegex, "i");
+				filter &= Builders<UserDocument>.Filter.Regex(x => x.Name, regex);
 			}
 
-			Filter &= Builders<UserDocument>.Filter.Ne(x => x.Hidden, true);
+			filter &= Builders<UserDocument>.Filter.Ne(x => x.Hidden, true);
 
-			return await Users.Find(Filter).Range(Index, Count ?? 100).ToListAsync<UserDocument, IUser>();
+			return await _users.Find(filter).Range(index, count ?? 100).ToListAsync<UserDocument, IUser>();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUser?> FindUserByLoginAsync(string Login)
+		public async Task<IUser?> FindUserByLoginAsync(string login)
 		{
-			string LoginUpper = Login.ToUpperInvariant();
-			return await Users.Find(x => x.LoginUpper == LoginUpper).FirstOrDefaultAsync();
+			string loginUpper = login.ToUpperInvariant();
+			return await _users.Find(x => x.LoginUpper == loginUpper).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUser> FindOrAddUserByLoginAsync(string Login, string? Name, string? Email)
+		public async Task<IUser> FindOrAddUserByLoginAsync(string login, string? name, string? email)
 		{
-			if (Login.Contains(' ', StringComparison.Ordinal))
+			if (login.Contains(' ', StringComparison.Ordinal))
 			{
-				Logger.LogWarning("Potentially invalid login name: {Login} (from {Trace})", Login, Environment.StackTrace);
+				_logger.LogWarning("Potentially invalid login name: {Login} (from {Trace})", login, Environment.StackTrace);
 			}
 
-			UserId NewUserId = UserId.GenerateNewId();
-			UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, NewUserId).SetOnInsert(x => x.Login, Login).Unset(x => x.Hidden);
+			UserId newUserId = UserId.GenerateNewId();
+			UpdateDefinition<UserDocument> update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, newUserId).SetOnInsert(x => x.Login, login).Unset(x => x.Hidden);
 
-			if (Name == null)
+			if (name == null)
 			{
-				Update = Update.SetOnInsert(x => x.Name, Login);
+				update = update.SetOnInsert(x => x.Name, login);
 			}
 			else
 			{
-				Update = Update.Set(x => x.Name, Name);
+				update = update.Set(x => x.Name, name);
 			}
 
-			if (Email != null)
+			if (email != null)
 			{
-				Update = Update.Set(x => x.Email, Email).Set(x => x.EmailUpper, Email.ToUpperInvariant());
+				update = update.Set(x => x.Email, email).Set(x => x.EmailUpper, email.ToUpperInvariant());
 			}
 
-			string LoginUpper = Login.ToUpperInvariant();
+			string loginUpper = login.ToUpperInvariant();
 
-			IUser User = await Users.FindOneAndUpdateAsync<UserDocument>(x => x.LoginUpper == LoginUpper, Update, new FindOneAndUpdateOptions<UserDocument, UserDocument> { IsUpsert = true, ReturnDocument = ReturnDocument.After });
-			if (User.Id == NewUserId)
+			IUser user = await _users.FindOneAndUpdateAsync<UserDocument>(x => x.LoginUpper == loginUpper, update, new FindOneAndUpdateOptions<UserDocument, UserDocument> { IsUpsert = true, ReturnDocument = ReturnDocument.After });
+			if (user.Id == newUserId)
 			{
-				Logger.LogInformation("Added new user {Name} ({UserId}, {Login}, {Email})", User.Name, User.Id, User.Login, User.Email);
+				_logger.LogInformation("Added new user {Name} ({UserId}, {Login}, {Email})", user.Name, user.Id, user.Login, user.Email);
 			}
 
-			return User;
+			return user;
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUserClaims> GetClaimsAsync(UserId UserId)
+		public async Task<IUserClaims> GetClaimsAsync(UserId userId)
 		{
-			IUserClaims? Claims = await UserClaims.Find(x => x.Id == UserId).FirstOrDefaultAsync();
-			if(Claims == null)
+			IUserClaims? claims = await _userClaims.Find(x => x.Id == userId).FirstOrDefaultAsync();
+			if(claims == null)
 			{
-				Claims = new UserClaimsDocument(UserId);
+				claims = new UserClaimsDocument(userId);
 			}
-			return Claims;
+			return claims;
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateClaimsAsync(UserId UserId, IEnumerable<IUserClaim> Claims)
+		public async Task UpdateClaimsAsync(UserId userId, IEnumerable<IUserClaim> claims)
 		{
-			UserClaimsDocument NewDocument = new UserClaimsDocument(UserId);
-			NewDocument.Claims.AddRange(Claims.Select(x => new UserClaim(x)));
-			await UserClaims.ReplaceOneAsync(x => x.Id == UserId, NewDocument, new ReplaceOptions { IsUpsert = true });
+			UserClaimsDocument newDocument = new UserClaimsDocument(userId);
+			newDocument.Claims.AddRange(claims.Select(x => new UserClaim(x)));
+			await _userClaims.ReplaceOneAsync(x => x.Id == userId, newDocument, new ReplaceOptions { IsUpsert = true });
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUserSettings> GetSettingsAsync(UserId UserId)
+		public async Task<IUserSettings> GetSettingsAsync(UserId userId)
 		{
-			IUserSettings? Settings = await UserSettings.Find(x => x.Id == UserId).FirstOrDefaultAsync();
-			if (Settings == null)
+			IUserSettings? settings = await _userSettings.Find(x => x.Id == userId).FirstOrDefaultAsync();
+			if (settings == null)
 			{
-				Settings = new UserSettingsDocument(UserId);
+				settings = new UserSettingsDocument(userId);
 			}
-			return Settings;
+			return settings;
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures = null, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null)
 		{
-			List<UpdateDefinition<UserSettingsDocument>> Updates = new List<UpdateDefinition<UserSettingsDocument>>();
-			if (EnableExperimentalFeatures != null)
+			List<UpdateDefinition<UserSettingsDocument>> updates = new List<UpdateDefinition<UserSettingsDocument>>();
+			if (enableExperimentalFeatures != null)
 			{
-				Updates.Add(Builders<UserSettingsDocument>.Update.SetOrUnsetNull(x => x.EnableExperimentalFeatures, EnableExperimentalFeatures));
+				updates.Add(Builders<UserSettingsDocument>.Update.SetOrUnsetNull(x => x.EnableExperimentalFeatures, enableExperimentalFeatures));
 			}
-			if (DashboardSettings != null)
+			if (dashboardSettings != null)
 			{
-				Updates.Add(Builders<UserSettingsDocument>.Update.Set(x => x.DashboardSettings, DashboardSettings));
+				updates.Add(Builders<UserSettingsDocument>.Update.Set(x => x.DashboardSettings, dashboardSettings));
 			}
-			if (AddPinnedJobIds != null && AddPinnedJobIds.Any())
+			if (addPinnedJobIds != null && addPinnedJobIds.Any())
 			{
-				Updates.Add(Builders<UserSettingsDocument>.Update.AddToSetEach(x => x.PinnedJobIds, AddPinnedJobIds));
+				updates.Add(Builders<UserSettingsDocument>.Update.AddToSetEach(x => x.PinnedJobIds, addPinnedJobIds));
 			}
-			if (RemovePinnedJobIds != null && RemovePinnedJobIds.Any())
+			if (removePinnedJobIds != null && removePinnedJobIds.Any())
 			{
-				Updates.Add(Builders<UserSettingsDocument>.Update.PullAll(x => x.PinnedJobIds, RemovePinnedJobIds));
+				updates.Add(Builders<UserSettingsDocument>.Update.PullAll(x => x.PinnedJobIds, removePinnedJobIds));
 			}
-			if (Updates.Count > 0)
+			if (updates.Count > 0)
 			{
-				await UserSettings.UpdateOneAsync<UserSettingsDocument>(x => x.Id == UserId, Builders<UserSettingsDocument>.Update.Combine(Updates), new UpdateOptions { IsUpsert = true });
+				await _userSettings.UpdateOneAsync<UserSettingsDocument>(x => x.Id == userId, Builders<UserSettingsDocument>.Update.Combine(updates), new UpdateOptions { IsUpsert = true });
 			}
 		}
 
 		/// <summary>
 		/// Upgrade from V1 collection
 		/// </summary>
-		/// <param name="UserCollectionV1"></param>
+		/// <param name="userCollectionV1"></param>
 		/// <returns></returns>
-		public async Task ResaveDocumentsAsync(UserCollectionV1 UserCollectionV1)
+		public async Task ResaveDocumentsAsync(UserCollectionV1 userCollectionV1)
 		{
-			await foreach ((IUser User, IUserClaims Claims, IUserSettings Settings) in UserCollectionV1.EnumerateDocumentsAsync())
+			await foreach ((IUser user, IUserClaims claims, IUserSettings settings) in userCollectionV1.EnumerateDocumentsAsync())
 			{
 				try
 				{
-					await Users.ReplaceOneAsync(x => x.Id == User.Id, new UserDocument(User), new ReplaceOptions { IsUpsert = true });
-					await UserClaims.ReplaceOneAsync(x => x.Id == User.Id, new UserClaimsDocument(Claims), new ReplaceOptions { IsUpsert = true });
-					await UserSettings.ReplaceOneAsync(x => x.Id == User.Id, new UserSettingsDocument(Settings), new ReplaceOptions { IsUpsert = true });
-					Logger.LogDebug("Updated user {UserId}", User.Id);
+					await _users.ReplaceOneAsync(x => x.Id == user.Id, new UserDocument(user), new ReplaceOptions { IsUpsert = true });
+					await _userClaims.ReplaceOneAsync(x => x.Id == user.Id, new UserClaimsDocument(claims), new ReplaceOptions { IsUpsert = true });
+					await _userSettings.ReplaceOneAsync(x => x.Id == user.Id, new UserSettingsDocument(settings), new ReplaceOptions { IsUpsert = true });
+					_logger.LogDebug("Updated user {UserId}", user.Id);
 				}
-				catch (MongoWriteException Ex)
+				catch (MongoWriteException ex)
 				{
-					Logger.LogWarning(Ex, "Unable to resave user {UserId}", User.Id);
+					_logger.LogWarning(ex, "Unable to resave user {UserId}", user.Id);
 				}
 
-				if(Settings.PinnedJobIds.Count > 0)
+				if(settings.PinnedJobIds.Count > 0)
 				{
-					await UpdateSettingsAsync(User.Id, AddPinnedJobIds: Settings.PinnedJobIds);
+					await UpdateSettingsAsync(user.Id, addPinnedJobIds: settings.PinnedJobIds);
 				}
 			}
 		}

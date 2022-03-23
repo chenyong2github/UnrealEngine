@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Attributes;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Models
 {
@@ -30,10 +27,10 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Value">New identifier for this subresource</param>
-		public SubResourceId(ushort Value)
+		/// <param name="value">New identifier for this subresource</param>
+		public SubResourceId(ushort value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
 		/// <summary>
@@ -58,11 +55,11 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Parse a subresource id from a string
 		/// </summary>
-		/// <param name="Text">Text to parse</param>
+		/// <param name="text">Text to parse</param>
 		/// <returns>New subresource id</returns>
-		public static SubResourceId Parse(string Text)
+		public static SubResourceId Parse(string text)
 		{
-			return new SubResourceId(ushort.Parse(Text, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+			return new SubResourceId(UInt16.Parse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
 		}
 
 		/// <summary>
@@ -75,15 +72,15 @@ namespace Horde.Build.Models
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Other)
+		public override bool Equals(object? other)
 		{
-			return Other is SubResourceId OtherId && Equals(OtherId);
+			return other is SubResourceId otherId && Equals(otherId);
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(SubResourceId Other)
+		public bool Equals(SubResourceId other)
 		{
-			return Value == Other.Value;
+			return Value == other.Value;
 		}
 
 		/// <inheritdoc/>
@@ -95,23 +92,23 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Equality operator for identifiers
 		/// </summary>
-		/// <param name="Left">First identifier to compare</param>
-		/// <param name="Right">Second identifier to compare</param>
+		/// <param name="left">First identifier to compare</param>
+		/// <param name="right">Second identifier to compare</param>
 		/// <returns>True if the identifiers are equal</returns>
-		public static bool operator ==(SubResourceId Left, SubResourceId Right)
+		public static bool operator ==(SubResourceId left, SubResourceId right)
 		{
-			return Left.Value == Right.Value;
+			return left.Value == right.Value;
 		}
 
 		/// <summary>
 		/// Inequality operator for identifiers
 		/// </summary>
-		/// <param name="Left">First identifier to compare</param>
-		/// <param name="Right">Second identifier to compare</param>
+		/// <param name="left">First identifier to compare</param>
+		/// <param name="right">Second identifier to compare</param>
 		/// <returns>True if the identifiers are equal</returns>
-		public static bool operator !=(SubResourceId Left, SubResourceId Right)
+		public static bool operator !=(SubResourceId left, SubResourceId right)
 		{
-			return Left.Value != Right.Value;
+			return left.Value != right.Value;
 		}
 	}
 
@@ -123,11 +120,11 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Parse a string as a subresource identifier
 		/// </summary>
-		/// <param name="Text">Text to parse</param>
+		/// <param name="text">Text to parse</param>
 		/// <returns>The new subresource identifier</returns>
-		public static SubResourceId ToSubResourceId(this string Text)
+		public static SubResourceId ToSubResourceId(this string text)
 		{
-			return new SubResourceId(ushort.Parse(Text, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+			return new SubResourceId(UInt16.Parse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
 		}
 	}
 
@@ -140,28 +137,28 @@ namespace Horde.Build.Models
 		public Type ValueType => typeof(SubResourceId);
 
 		/// <inheritdoc/>
-		public object Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
+		public object Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			return new SubResourceId((ushort)Context.Reader.ReadInt32());
+			return new SubResourceId((ushort)context.Reader.ReadInt32());
 		}
 
 		/// <inheritdoc/>
-		public void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, object Value)
+		public void Serialize(BsonSerializationContext context, BsonSerializationArgs args, object value)
 		{
-			SubResourceId Id = (SubResourceId)Value;
-			Context.Writer.WriteInt32((int)Id.Value);
+			SubResourceId id = (SubResourceId)value;
+			context.Writer.WriteInt32((int)id.Value);
 		}
 
 		/// <inheritdoc/>
-		public void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, SubResourceId Id)
+		public void Serialize(BsonSerializationContext context, BsonSerializationArgs args, SubResourceId id)
 		{
-			Context.Writer.WriteInt32((int)Id.Value);
+			context.Writer.WriteInt32((int)id.Value);
 		}
 
 		/// <inheritdoc/>
-		SubResourceId IBsonSerializer<SubResourceId>.Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Vrgs)
+		SubResourceId IBsonSerializer<SubResourceId>.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs vrgs)
 		{
-			return new SubResourceId((ushort)Context.Reader.ReadInt32());
+			return new SubResourceId((ushort)context.Reader.ReadInt32());
 		}
 	}
 
@@ -171,29 +168,29 @@ namespace Horde.Build.Models
 	sealed class SubResourceIdTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
 		{
-			return SourceType == typeof(string);
+			return sourceType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
 		{
-			return SubResourceId.Parse((string)Value);
+			return SubResourceId.Parse((string)value);
 		}
 
 		/// <inheritdoc/>
-		public override bool CanConvertTo(ITypeDescriptorContext? Context, Type? DestinationType)
+		public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
 		{
-			return DestinationType == typeof(string);
+			return destinationType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object? ConvertTo(ITypeDescriptorContext? Context, CultureInfo? Culture, object? Value, Type DestinationType)
+		public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
 		{
-			if (DestinationType == typeof(string))
+			if (destinationType == typeof(string))
 			{
-				return Value?.ToString();
+				return value?.ToString();
 			}
 			else
 			{

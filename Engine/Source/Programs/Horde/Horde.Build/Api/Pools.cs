@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Horde.Common;
-using Horde.Build.Models;
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using EpicGames.Horde.Common;
 using Horde.Build.Fleet.Autoscale;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -16,8 +15,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Construct a public REST API representation from the internal one
 		/// </summary>
-		/// <param name="Settings"></param>
-		public LeaseUtilizationSettings(Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings Settings)
+		/// <param name="settings"></param>
+#pragma warning disable IDE0060 // Remove unused parameter
+		public LeaseUtilizationSettings(Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings settings)
+#pragma warning restore IDE0060 // Remove unused parameter
 		{
 		}
 		
@@ -51,11 +52,11 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Construct a public REST API representation from the internal one
 		/// </summary>
-		/// <param name="Settings"></param>
-		public JobQueueSettings(Horde.Build.Fleet.Autoscale.JobQueueSettings Settings)
+		/// <param name="settings"></param>
+		public JobQueueSettings(Horde.Build.Fleet.Autoscale.JobQueueSettings settings)
 		{
-			ScaleInFactor = Settings.ScaleInFactor;
-			ScaleOutFactor = Settings.ScaleOutFactor;
+			ScaleInFactor = settings.ScaleInFactor;
+			ScaleOutFactor = settings.ScaleOutFactor;
 		}
 		
 		/// <summary>
@@ -143,10 +144,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Unique id for the new pool</param>
-		public CreatePoolResponse(string Id)
+		/// <param name="id">Unique id for the new pool</param>
+		public CreatePoolResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -306,22 +307,22 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Pool">The pool to construct from</param>
-		public GetPoolResponse(IPool Pool)
+		/// <param name="pool">The pool to construct from</param>
+		public GetPoolResponse(IPool pool)
 		{
-			this.Id = Pool.Id.ToString();
-			this.Name = Pool.Name;
-			this.Condition = Pool.Condition;
-			this.EnableAutoscaling = Pool.EnableAutoscaling;
-			this.ScaleOutCooldown = Pool.ScaleOutCooldown == null ? null : (int)Pool.ScaleOutCooldown.Value.TotalSeconds;
-			this.ScaleInCooldown = Pool.ScaleInCooldown == null ? null : (int)Pool.ScaleInCooldown.Value.TotalSeconds;
-			this.SizeStrategy = Pool.SizeStrategy;
-			this.LeaseUtilizationSettings = Pool.LeaseUtilizationSettings == null ? null : new LeaseUtilizationSettings(Pool.LeaseUtilizationSettings);
-			this.JobQueueSettings = Pool.JobQueueSettings == null ? null : new JobQueueSettings(Pool.JobQueueSettings);
-			this.MinAgents = Pool.MinAgents;
-			this.NumReserveAgents = Pool.NumReserveAgents;
-			this.Workspaces = Pool.Workspaces.Select(x => new GetAgentWorkspaceResponse(x)).ToList();
-			this.Properties = Pool.Properties;
+			Id = pool.Id.ToString();
+			Name = pool.Name;
+			Condition = pool.Condition;
+			EnableAutoscaling = pool.EnableAutoscaling;
+			ScaleOutCooldown = pool.ScaleOutCooldown == null ? null : (int)pool.ScaleOutCooldown.Value.TotalSeconds;
+			ScaleInCooldown = pool.ScaleInCooldown == null ? null : (int)pool.ScaleInCooldown.Value.TotalSeconds;
+			SizeStrategy = pool.SizeStrategy;
+			LeaseUtilizationSettings = pool.LeaseUtilizationSettings == null ? null : new LeaseUtilizationSettings(pool.LeaseUtilizationSettings);
+			JobQueueSettings = pool.JobQueueSettings == null ? null : new JobQueueSettings(pool.JobQueueSettings);
+			MinAgents = pool.MinAgents;
+			NumReserveAgents = pool.NumReserveAgents;
+			Workspaces = pool.Workspaces.Select(x => new GetAgentWorkspaceResponse(x)).ToList();
+			Properties = pool.Properties;
 		}
 	}
 }

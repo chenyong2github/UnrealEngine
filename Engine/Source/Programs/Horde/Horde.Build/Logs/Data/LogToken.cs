@@ -2,8 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Logs
 {
@@ -25,95 +23,95 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Lookup from input byte to token type
 		/// </summary>
-		static readonly byte[] TokenTypes = GetTokenTypes();
+		static readonly byte[] s_tokenTypes = GetTokenTypes();
 
 		/// <summary>
 		/// Lookup from input byte to token char
 		/// </summary>
-		static readonly byte[] TokenChars = GetTokenChars();
+		static readonly byte[] s_tokenChars = GetTokenChars();
 
 		/// <summary>
 		/// Get a set of tokens in a trie
 		/// </summary>
-		/// <param name="Text">Text to scan</param>
+		/// <param name="text">Text to scan</param>
 		/// <returns></returns>
-		public static ReadOnlyTrie GetTrie(ReadOnlySpan<byte> Text)
+		public static ReadOnlyTrie GetTrie(ReadOnlySpan<byte> text)
 		{
-			ReadOnlyTrieBuilder Builder = new ReadOnlyTrieBuilder();
-			GetTokens(Text, Builder.Add);
-			return Builder.Build();
+			ReadOnlyTrieBuilder builder = new ReadOnlyTrieBuilder();
+			GetTokens(text, builder.Add);
+			return builder.Build();
 		}
 
 		/// <summary>
 		/// Gets a single token
 		/// </summary>
-		/// <param name="Text">The text to parse</param>
+		/// <param name="text">The text to parse</param>
 		/// <returns>The token value</returns>
-		public static ulong GetToken(ReadOnlySpan<byte> Text)
+		public static ulong GetToken(ReadOnlySpan<byte> text)
 		{
-			ulong Token = 0;
-			GetTokens(Text, x => Token = x);
-			return Token;
+			ulong token = 0;
+			GetTokens(text, x => token = x);
+			return token;
 		}
 
 		/// <summary>
 		/// Get a set of tokens in a trie
 		/// </summary>
-		/// <param name="Text">Text to scan</param>
+		/// <param name="text">Text to scan</param>
 		/// <returns></returns>
-		public static HashSet<ulong> GetTokenSet(ReadOnlySpan<byte> Text)
+		public static HashSet<ulong> GetTokenSet(ReadOnlySpan<byte> text)
 		{
-			HashSet<ulong> Tokens = new HashSet<ulong>();
-			GetTokens(Text, x => Tokens.Add(x));
-			return Tokens;
+			HashSet<ulong> tokens = new HashSet<ulong>();
+			GetTokens(text, x => tokens.Add(x));
+			return tokens;
 		}
 
 		/// <summary>
 		/// Decompose a span of text into tokens
 		/// </summary>
-		/// <param name="Text">Text to scan</param>
-		/// <param name="AddToken">Receives a set of tokens</param>
-		public static void GetTokens(ReadOnlySpan<byte> Text, Action<ulong> AddToken)
+		/// <param name="text">Text to scan</param>
+		/// <param name="addToken">Receives a set of tokens</param>
+		public static void GetTokens(ReadOnlySpan<byte> text, Action<ulong> addToken)
 		{
-			if (Text.Length > 0)
+			if (text.Length > 0)
 			{
-				int Type = TokenTypes[Text[0]];
-				int NumTokenBits = 8;
-				ulong Token = TokenChars[Text[0]];
+				int type = s_tokenTypes[text[0]];
+				int numTokenBits = 8;
+				ulong token = s_tokenChars[text[0]];
 
-				for (int TextIdx = 1; TextIdx < Text.Length; TextIdx++)
+				for (int textIdx = 1; textIdx < text.Length; textIdx++)
 				{
-					byte NextChar = TokenChars[Text[TextIdx]];
-					int NextType = TokenTypes[NextChar];
-					if (Type != NextType || NumTokenBits + 8 > MaxTokenBits)
+					byte nextChar = s_tokenChars[text[textIdx]];
+					int nextType = s_tokenTypes[nextChar];
+					if (type != nextType || numTokenBits + 8 > MaxTokenBits)
 					{
-						AddToken(Token << (MaxTokenBits - NumTokenBits));
-						Token = 0;
-						NumTokenBits = 0;
-						Type = NextType;
+						addToken(token << (MaxTokenBits - numTokenBits));
+						token = 0;
+						numTokenBits = 0;
+						type = nextType;
 					}
-					Token = (Token << 8) | NextChar;
-					NumTokenBits += 8;
+					token = (token << 8) | nextChar;
+					numTokenBits += 8;
 				}
 
-				AddToken(Token << (MaxTokenBits - NumTokenBits));
+				addToken(token << (MaxTokenBits - numTokenBits));
 			}
 		}
 
 		/// <summary>
 		/// Gets the length of the first token in the given span
 		/// </summary>
-		/// <param name="Text">The text to search</param>
-		/// <param name="Pos">Start position for the search</param>
+		/// <param name="text">The text to search</param>
+		/// <param name="pos">Start position for the search</param>
 		/// <returns>Length of the first token</returns>
-		public static ReadOnlySpan<byte> GetTokenText(ReadOnlySpan<byte> Text, int Pos)
+		public static ReadOnlySpan<byte> GetTokenText(ReadOnlySpan<byte> text, int pos)
 		{
-			int Type = TokenTypes[Text[Pos]];
-			for (int End = Pos + 1; ; End++)
+			int type = s_tokenTypes[text[pos]];
+			for (int end = pos + 1; ; end++)
 			{
-				if (End == Text.Length || TokenTypes[Text[End]] != Type)
+				if (end == text.Length || s_tokenTypes[text[end]] != type)
 				{
-					return Text.Slice(Pos, End - Pos);
+					return text.Slice(pos, end - pos);
 				}
 			}
 		}
@@ -121,44 +119,44 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Gets the length of the first token in the given span
 		/// </summary>
-		/// <param name="Text">The text to search</param>
-		/// <param name="Offset">Offset of the window to read from the token</param>
+		/// <param name="text">The text to search</param>
+		/// <param name="offset">Offset of the window to read from the token</param>
 		/// <returns>Length of the first token</returns>
-		public static ulong GetWindowedTokenValue(ReadOnlySpan<byte> Text, int Offset)
+		public static ulong GetWindowedTokenValue(ReadOnlySpan<byte> text, int offset)
 		{
-			ulong Token = 0;
-			for (int Idx = 0; Idx < MaxTokenBytes; Idx++)
+			ulong token = 0;
+			for (int idx = 0; idx < MaxTokenBytes; idx++)
 			{
-				Token <<= 8;
-				if (Offset >= 0 && Offset < Text.Length)
+				token <<= 8;
+				if (offset >= 0 && offset < text.Length)
 				{
-					Token |= TokenChars[Text[Offset]];
+					token |= s_tokenChars[text[offset]];
 				}
-				Offset++;
+				offset++;
 			}
-			return Token;
+			return token;
 		}
 
 		/// <summary>
 		/// Gets the length of the first token in the given span
 		/// </summary>
-		/// <param name="Text">The text to search</param>
-		/// <param name="Offset">Offset of the window to read from the token</param>
+		/// <param name="text">The text to search</param>
+		/// <param name="offset">Offset of the window to read from the token</param>
 		/// <param name="bAllowPartialMatch">Whether to allow only matching the start of the string</param>
 		/// <returns>Length of the first token</returns>
-		public static ulong GetWindowedTokenMask(ReadOnlySpan<byte> Text, int Offset, bool bAllowPartialMatch)
+		public static ulong GetWindowedTokenMask(ReadOnlySpan<byte> text, int offset, bool bAllowPartialMatch)
 		{
-			ulong Token = 0;
-			for (int Idx = 0; Idx < MaxTokenBytes; Idx++)
+			ulong token = 0;
+			for (int idx = 0; idx < MaxTokenBytes; idx++)
 			{
-				Token <<= 8;
-				if (Offset >= 0 && (Offset < Text.Length || !bAllowPartialMatch))
+				token <<= 8;
+				if (offset >= 0 && (offset < text.Length || !bAllowPartialMatch))
 				{
-					Token |= 0xff;
+					token |= 0xff;
 				}
-				Offset++;
+				offset++;
 			}
-			return Token;
+			return token;
 		}
 
 		/// <summary>
@@ -167,23 +165,23 @@ namespace Horde.Build.Logs
 		/// <returns>Array whose elements map from an input byte to token type</returns>
 		static byte[] GetTokenTypes()
 		{
-			byte[] CharTypes = new byte[256];
-			for (int Idx = 'a'; Idx <= 'z'; Idx++)
+			byte[] charTypes = new byte[256];
+			for (int idx = 'a'; idx <= 'z'; idx++)
 			{
-				CharTypes[Idx] = 1;
+				charTypes[idx] = 1;
 			}
-			for (int Idx = 'A'; Idx <= 'Z'; Idx++)
+			for (int idx = 'A'; idx <= 'Z'; idx++)
 			{
-				CharTypes[Idx] = 1;
+				charTypes[idx] = 1;
 			}
-			for (int Idx = '0'; Idx <= '9'; Idx++)
+			for (int idx = '0'; idx <= '9'; idx++)
 			{
-				CharTypes[Idx] = 2;
+				charTypes[idx] = 2;
 			}
-			CharTypes[' '] = 3;
-			CharTypes['\t'] = 3;
-			CharTypes['\n'] = 4;
-			return CharTypes;
+			charTypes[' '] = 3;
+			charTypes['\t'] = 3;
+			charTypes['\n'] = 4;
+			return charTypes;
 		}
 
 		/// <summary>
@@ -192,16 +190,16 @@ namespace Horde.Build.Logs
 		/// <returns>Array whose elements map from an input byte to token type</returns>
 		static byte[] GetTokenChars()
 		{
-			byte[] Chars = new byte[256];
-			for(int Idx = 0; Idx < 256; Idx++)
+			byte[] chars = new byte[256];
+			for(int idx = 0; idx < 256; idx++)
 			{
-				Chars[Idx] = (byte)Idx;
+				chars[idx] = (byte)idx;
 			}
-			for (int Idx = 'A'; Idx <= 'Z'; Idx++)
+			for (int idx = 'A'; idx <= 'Z'; idx++)
 			{
-				Chars[Idx] = (byte)('a' + Idx - 'A');
+				chars[idx] = (byte)('a' + idx - 'A');
 			}
-			return Chars;
+			return chars;
 		}
 	}
 }

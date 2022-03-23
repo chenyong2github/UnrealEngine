@@ -1,21 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Logs.Readers;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Storage;
-using Horde.Build.Storage.Backends;
-using Horde.Build.Utilities;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using Horde.Build.Fleet.Autoscale;
-using TimeZoneConverter;
 using EpicGames.Horde.Storage;
+using Horde.Build.Fleet.Autoscale;
+using Horde.Build.Utilities;
+using TimeZoneConverter;
 
 namespace Horde.Build
 {
@@ -529,15 +519,15 @@ namespace Horde.Build
 		{
 			get
 			{
-				if (CachedTimeZoneInfo == null)
+				if (_cachedTimeZoneInfo == null)
 				{
-					CachedTimeZoneInfo = (ScheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(ScheduleTimeZone);
+					_cachedTimeZoneInfo = (ScheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(ScheduleTimeZone);
 				}
-				return CachedTimeZoneInfo;
+				return _cachedTimeZoneInfo;
 			}
 		}
 
-		private TimeZoneInfo? CachedTimeZoneInfo;
+		private TimeZoneInfo? _cachedTimeZoneInfo;
 
 		/// <summary>
 		/// Whether to open a browser on startup
@@ -550,12 +540,15 @@ namespace Horde.Build
 		/// <summary>
 		/// Helper method to check if this process has activated the given mode
 		/// </summary>
-		/// <param name="Mode">Run mode</param>
+		/// <param name="mode">Run mode</param>
 		/// <returns>True if mode is active</returns>
-		public bool IsRunModeActive(RunMode Mode)
+		public bool IsRunModeActive(RunMode mode)
 		{
-			if (RunModes == null) return true;
-			return RunModes.Contains(Mode);
+			if (RunModes == null)
+			{
+				return true;
+			}
+			return RunModes.Contains(mode);
 		}
 
 		/// <summary>

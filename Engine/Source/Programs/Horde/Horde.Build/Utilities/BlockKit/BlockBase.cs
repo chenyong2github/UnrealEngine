@@ -20,9 +20,9 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Writes the Json for a BlockKit block to the given <see cref="Utf8JsonWriter"/>.
 		/// </summary>
-		public override void Write(Utf8JsonWriter Writer, BlockBase Value, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, BlockBase value, JsonSerializerOptions options)
 		{
-			Value.Write(Writer, Options);
+			value.Write(writer, options);
 		}
 	}
 
@@ -35,8 +35,8 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Write a BlockKit block to a <see cref="Utf8JsonWriter"/>
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Options"></param>
-		public abstract void Write(Utf8JsonWriter Writer, JsonSerializerOptions Options);
+		/// <param name="writer"></param>
+		/// <param name="options"></param>
+		public abstract void Write(Utf8JsonWriter writer, JsonSerializerOptions options);
 	}
 }

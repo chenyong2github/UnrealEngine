@@ -1,18 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using MongoDB.Driver.Core.Authentication;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Api;
+using Horde.Build.Models;
 
 namespace Horde.Build.Collections
 {
@@ -24,43 +16,43 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Finds or adds metadata for a given changelist
 		/// </summary>
-		/// <param name="Stream">The stream containing the change</param>
-		/// <param name="Change">The changelist number</param>
-		/// <param name="Project">Project identifier</param>
+		/// <param name="stream">The stream containing the change</param>
+		/// <param name="change">The changelist number</param>
+		/// <param name="project">Project identifier</param>
 		/// <returns>The metadata instance</returns>
-		Task<IUgsMetadata> FindOrAddAsync(string Stream, int Change, string? Project);
+		Task<IUgsMetadata> FindOrAddAsync(string stream, int change, string? project);
 
 		/// <summary>
 		/// Adds information to a change
 		/// </summary>
-		/// <param name="Metadata">The existing metadata</param>
-		/// <param name="UserName">Name of the user posting the change</param>
-		/// <param name="Synced">Time that the change was synced</param>
-		/// <param name="Vote">Vote for this change</param>
-		/// <param name="Investigating">Whether the user is investigating the change</param>
-		/// <param name="Starred">Whether the change is starred</param>
-		/// <param name="Comment">New comment from this user</param>
+		/// <param name="metadata">The existing metadata</param>
+		/// <param name="userName">Name of the user posting the change</param>
+		/// <param name="synced">Time that the change was synced</param>
+		/// <param name="vote">Vote for this change</param>
+		/// <param name="investigating">Whether the user is investigating the change</param>
+		/// <param name="starred">Whether the change is starred</param>
+		/// <param name="comment">New comment from this user</param>
 		/// <returns>Async task task</returns>
-		Task<IUgsMetadata> UpdateUserAsync(IUgsMetadata Metadata, string UserName, bool? Synced, UgsUserVote? Vote, bool? Investigating, bool? Starred, string? Comment);
+		Task<IUgsMetadata> UpdateUserAsync(IUgsMetadata metadata, string userName, bool? synced, UgsUserVote? vote, bool? investigating, bool? starred, string? comment);
 
 		/// <summary>
 		/// Updates the state of a badge
 		/// </summary>
-		/// <param name="Metadata">The existing metadata</param>
-		/// <param name="Name">Name of the badge</param>
-		/// <param name="Url">Url to link to for the badge</param>
-		/// <param name="State">State of the badge</param>
+		/// <param name="metadata">The existing metadata</param>
+		/// <param name="name">Name of the badge</param>
+		/// <param name="url">Url to link to for the badge</param>
+		/// <param name="state">State of the badge</param>
 		/// <returns>Async task</returns>
-		Task<IUgsMetadata> UpdateBadgeAsync(IUgsMetadata Metadata, string Name, Uri? Url, UgsBadgeState State);
+		Task<IUgsMetadata> UpdateBadgeAsync(IUgsMetadata metadata, string name, Uri? url, UgsBadgeState state);
 
 		/// <summary>
 		/// Searches for metadata updates
 		/// </summary>
-		/// <param name="Stream">The stream to search</param>
-		/// <param name="MinChange">Minimum changelist number</param>
-		/// <param name="MaxChange">Maximum changelist number</param>
-		/// <param name="AfterTicks">Last query time</param>
+		/// <param name="stream">The stream to search</param>
+		/// <param name="minChange">Minimum changelist number</param>
+		/// <param name="maxChange">Maximum changelist number</param>
+		/// <param name="afterTicks">Last query time</param>
 		/// <returns>List of metadata updates</returns>
-		Task<List<IUgsMetadata>> FindAsync(string Stream, int MinChange, int? MaxChange = null, long? AfterTicks = null);
+		Task<List<IUgsMetadata>> FindAsync(string stream, int minChange, int? maxChange = null, long? afterTicks = null);
 	}
 }

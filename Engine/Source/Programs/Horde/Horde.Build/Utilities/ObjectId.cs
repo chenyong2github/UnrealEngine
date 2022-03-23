@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Serialization.Converters;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Serializers;
 using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 
 namespace Horde.Build.Utilities
 {
@@ -35,74 +34,74 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ObjectId(ObjectId Value) => this.Value = Value;
+		public ObjectId(ObjectId value) => Value = value;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ObjectId(byte[] Bytes) => this.Value = new ObjectId(Bytes);
+		public ObjectId(byte[] bytes) => Value = new ObjectId(bytes);
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ObjectId(string Value) => this.Value = new ObjectId(Value);
+		public ObjectId(string value) => Value = new ObjectId(value);
 
 		/// <inheritdoc cref="ObjectId.GenerateNewId()"/>
 		[SuppressMessage("Design", "CA1000:Do not declare static members on generic types", Justification = "<Pending>")]
 		public static ObjectId<T> GenerateNewId() => new ObjectId<T>(ObjectId.GenerateNewId());
 
-		/// <inheritdoc cref="ObjectId.Parse(string)"/>
+		/// <inheritdoc cref="ObjectId.Parse(String)"/>
 		[SuppressMessage("Design", "CA1000:Do not declare static members on generic types", Justification = "<Pending>")]
-		public static ObjectId<T> Parse(string Str) => new ObjectId<T>(ObjectId.Parse(Str));
+		public static ObjectId<T> Parse(string str) => new ObjectId<T>(ObjectId.Parse(str));
 
-		/// <inheritdoc cref="ObjectId.TryParse(string, out ObjectId)"/>
+		/// <inheritdoc cref="ObjectId.TryParse(String, out ObjectId)"/>
 		[SuppressMessage("Design", "CA1000:Do not declare static members on generic types", Justification = "<Pending>")]
-		public static bool TryParse(string Str, out ObjectId<T> Value)
+		public static bool TryParse(string str, out ObjectId<T> value)
 		{
-			if (ObjectId.TryParse(Str, out ObjectId Id))
+			if (ObjectId.TryParse(str, out ObjectId id))
 			{
-				Value = new ObjectId<T>(Id);
+				value = new ObjectId<T>(id);
 				return true;
 			}
 			else
 			{
-				Value = Empty;
+				value = Empty;
 				return false;
 			}
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is ObjectId<T> Other && Equals(Other);
+		public override bool Equals(object? obj) => obj is ObjectId<T> other && Equals(other);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Value.GetHashCode();
 
 		/// <inheritdoc/>
-		public bool Equals(ObjectId<T> Other) => Value.Equals(Other.Value);
+		public bool Equals(ObjectId<T> other) => Value.Equals(other.Value);
 
 		/// <inheritdoc/>
 		public override string ToString() => Value.ToString();
 
 		/// <inheritdoc/>
-		public int CompareTo(ObjectId<T> Other) => Value.CompareTo(Other.Value);
+		public int CompareTo(ObjectId<T> other) => Value.CompareTo(other.Value);
 
 		/// <inheritdoc cref="ObjectId.op_LessThan"/>
-		public static bool operator <(ObjectId<T> Left, ObjectId<T> Right) => Left.Value < Right.Value;
+		public static bool operator <(ObjectId<T> left, ObjectId<T> right) => left.Value < right.Value;
 
 		/// <inheritdoc cref="ObjectId.op_GreaterThan"/>
-		public static bool operator >(ObjectId<T> Left, ObjectId<T> Right) => Left.Value > Right.Value;
+		public static bool operator >(ObjectId<T> left, ObjectId<T> right) => left.Value > right.Value;
 
 		/// <inheritdoc cref="ObjectId.op_LessThanOrEqual"/>
-		public static bool operator <=(ObjectId<T> Left, ObjectId<T> Right) => Left.Value <= Right.Value;
+		public static bool operator <=(ObjectId<T> left, ObjectId<T> right) => left.Value <= right.Value;
 
 		/// <inheritdoc cref="ObjectId.op_GreaterThanOrEqual"/>
-		public static bool operator >=(ObjectId<T> Left, ObjectId<T> Right) => Left.Value >= Right.Value;
+		public static bool operator >=(ObjectId<T> left, ObjectId<T> right) => left.Value >= right.Value;
 
 		/// <inheritdoc cref="ObjectId.op_Equality"/>
-		public static bool operator ==(ObjectId<T> Left, ObjectId<T> Right) => Left.Value == Right.Value;
+		public static bool operator ==(ObjectId<T> left, ObjectId<T> right) => left.Value == right.Value;
 
 		/// <inheritdoc cref="ObjectId.op_Inequality"/>
-		public static bool operator !=(ObjectId<T> Left, ObjectId<T> Right) => Left.Value != Right.Value;
+		public static bool operator !=(ObjectId<T> left, ObjectId<T> right) => left.Value != right.Value;
 	}
 
 	/// <summary>
@@ -111,15 +110,15 @@ namespace Horde.Build.Utilities
 	public class ObjectIdJsonConverter<T> : JsonConverter<ObjectId<T>>
 	{
 		/// <inheritdoc/>
-		public override ObjectId<T> Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override ObjectId<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			return new ObjectId<T>(ObjectId.Parse(Reader.GetString()!));
+			return new ObjectId<T>(ObjectId.Parse(reader.GetString()!));
 		}
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, ObjectId<T> Value, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, ObjectId<T> value, JsonSerializerOptions options)
 		{
-			Writer.WriteStringValue(Value.ToString());
+			writer.WriteStringValue(value.ToString());
 		}
 	}
 
@@ -129,15 +128,15 @@ namespace Horde.Build.Utilities
 	public class JsonObjectIdConverterFactory : JsonConverterFactory
 	{
 		/// <inheritdoc/>
-		public override bool CanConvert(Type TypeToConvert)
+		public override bool CanConvert(Type typeToConvert)
 		{
-			return TypeToConvert.IsGenericType && TypeToConvert.GetGenericTypeDefinition() == typeof(ObjectId<>);
+			return typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(ObjectId<>);
 		}
 
 		/// <inheritdoc/>
-		public override JsonConverter? CreateConverter(Type Type, JsonSerializerOptions Options)
+		public override JsonConverter? CreateConverter(Type type, JsonSerializerOptions options)
 		{
-			return (JsonConverter?)Activator.CreateInstance(typeof(ObjectIdJsonConverter<>).MakeGenericType(Type.GetGenericArguments()));
+			return (JsonConverter?)Activator.CreateInstance(typeof(ObjectIdJsonConverter<>).MakeGenericType(type.GetGenericArguments()));
 		}
 	}
 
@@ -147,15 +146,15 @@ namespace Horde.Build.Utilities
 	public sealed class ObjectIdBsonSerializer<T> : SerializerBase<ObjectId<T>>
 	{
 		/// <inheritdoc/>
-		public override ObjectId<T> Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
+		public override ObjectId<T> Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			return new ObjectId<T>(Context.Reader.ReadObjectId());
+			return new ObjectId<T>(context.Reader.ReadObjectId());
 		}
 
 		/// <inheritdoc/>
-		public override void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, ObjectId<T> Value)
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, ObjectId<T> value)
 		{
-			Context.Writer.WriteObjectId(Value.Value);
+			context.Writer.WriteObjectId(value.Value);
 		}
 	}
 
@@ -165,11 +164,11 @@ namespace Horde.Build.Utilities
 	public sealed class ObjectIdSerializationProvider : BsonSerializationProviderBase
 	{
 		/// <inheritdoc/>
-		public override IBsonSerializer? GetSerializer(Type Type, IBsonSerializerRegistry SerializerRegistry)
+		public override IBsonSerializer? GetSerializer(Type type, IBsonSerializerRegistry serializerRegistry)
 		{
-			if (Type.IsGenericType && Type.GetGenericTypeDefinition() == typeof(ObjectId<>))
+			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ObjectId<>))
 			{
-				return (IBsonSerializer?)Activator.CreateInstance(typeof(ObjectIdBsonSerializer<>).MakeGenericType(Type.GetGenericArguments()));
+				return (IBsonSerializer?)Activator.CreateInstance(typeof(ObjectIdBsonSerializer<>).MakeGenericType(type.GetGenericArguments()));
 			}
 			else
 			{
@@ -183,65 +182,65 @@ namespace Horde.Build.Utilities
 	/// </summary>
 	sealed class ObjectIdTypeConverter : TypeConverter
 	{
-		Type Type;
+		readonly Type _type;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type"></param>
-		public ObjectIdTypeConverter(Type Type)
+		/// <param name="type"></param>
+		public ObjectIdTypeConverter(Type type)
 		{
-			this.Type = Type;
+			_type = type;
 		}
 
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
 		{
-			return SourceType == typeof(string) || base.CanConvertFrom(Context, SourceType);
+			return sourceType == typeof(string) || base.CanConvertFrom(context, sourceType);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
 		{
-			return Activator.CreateInstance(Type, Value)!;
+			return Activator.CreateInstance(_type, value)!;
 		}
 
 		/// <inheritdoc/>
-		public override bool CanConvertTo(ITypeDescriptorContext? Context, Type? DestinationType)
+		public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
 		{
-			if (DestinationType == null)
+			if (destinationType == null)
 			{
 				return false;
 			}
-			if (DestinationType == typeof(string))
+			if (destinationType == typeof(string))
 			{
 				return true;
 			}
-			if (DestinationType.IsGenericType)
+			if (destinationType.IsGenericType)
 			{
-				Type GenericTypeDefinition = DestinationType.GetGenericTypeDefinition();
-				if (GenericTypeDefinition == typeof(ObjectId<>))
+				Type genericTypeDefinition = destinationType.GetGenericTypeDefinition();
+				if (genericTypeDefinition == typeof(ObjectId<>))
 				{
 					return true;
 				}
-				if (GenericTypeDefinition == typeof(Nullable<>))
+				if (genericTypeDefinition == typeof(Nullable<>))
 				{
-					return CanConvertTo(Context, GenericTypeDefinition.GetGenericArguments()[0]);
+					return CanConvertTo(context, genericTypeDefinition.GetGenericArguments()[0]);
 				}
 			}
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override object? ConvertTo(ITypeDescriptorContext? Context, CultureInfo? Culture, object? Value, Type DestinationType)
+		public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
 		{
-			if (DestinationType == typeof(string))
+			if (destinationType == typeof(string))
 			{
-				return Value?.ToString();
+				return value?.ToString();
 			}
 			else
 			{
-				return Activator.CreateInstance(DestinationType, Value);
+				return Activator.CreateInstance(destinationType, value);
 			}
 		}
 	}

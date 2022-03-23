@@ -1,18 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Google.Protobuf.WellKnownTypes;
-using HordeCommon;
-using HordeCommon.Rpc.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -21,6 +9,16 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Protobuf.WellKnownTypes;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using HordeCommon;
+using HordeCommon.Rpc.Tasks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Services
 {
@@ -115,15 +113,15 @@ namespace Horde.Build.Services
 			{
 			}
 
-			public PerforceServerEntry(string ServerAndPort, string BaseServerAndPort, string? HealthCheckUrl, string Cluster, PerforceServerStatus Status, string? Detail, DateTime? LastUpdateTime)
+			public PerforceServerEntry(string serverAndPort, string baseServerAndPort, string? healthCheckUrl, string cluster, PerforceServerStatus status, string? detail, DateTime? lastUpdateTime)
 			{
-				this.ServerAndPort = ServerAndPort;
-				this.BaseServerAndPort = BaseServerAndPort;
-				this.HealthCheckUrl = HealthCheckUrl;
-				this.Cluster = Cluster;
-				this.Status = Status;
-				this.Detail = Detail;
-				this.LastUpdateTime = LastUpdateTime;
+				ServerAndPort = serverAndPort;
+				BaseServerAndPort = baseServerAndPort;
+				HealthCheckUrl = healthCheckUrl;
+				Cluster = cluster;
+				Status = status;
+				Detail = detail;
+				LastUpdateTime = lastUpdateTime;
 			}
 		}
 
@@ -136,40 +134,40 @@ namespace Horde.Build.Services
 			public List<PerforceServerEntry> Servers { get; set; } = new List<PerforceServerEntry>();
 		}
 
-		DatabaseService DatabaseService;
-		ILeaseCollection LeaseCollection;
-		SingletonDocument<PerforceServerList> ServerListSingleton;
-		Random Random = new Random();
-		ILogger Logger;
-		ITicker Ticker;
+		readonly DatabaseService _databaseService;
+		readonly ILeaseCollection _leaseCollection;
+		readonly SingletonDocument<PerforceServerList> _serverListSingleton;
+		readonly Random _random = new Random();
+		readonly ILogger _logger;
+		readonly ITicker _ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceLoadBalancer(DatabaseService DatabaseService, ILeaseCollection LeaseCollection, IClock Clock, ILogger<PerforceLoadBalancer> Logger)
+		public PerforceLoadBalancer(DatabaseService databaseService, ILeaseCollection leaseCollection, IClock clock, ILogger<PerforceLoadBalancer> logger)
 		{
-			this.DatabaseService = DatabaseService;
-			this.LeaseCollection = LeaseCollection;
-			this.ServerListSingleton = new SingletonDocument<PerforceServerList>(DatabaseService);
-			this.Logger = Logger;
-			if (DatabaseService.ReadOnlyMode)
+			_databaseService = databaseService;
+			_leaseCollection = leaseCollection;
+			_serverListSingleton = new SingletonDocument<PerforceServerList>(databaseService);
+			_logger = logger;
+			if (databaseService.ReadOnlyMode)
 			{
-				this.Ticker = new NullTicker();
+				_ticker = new NullTicker();
 			}
 			else
 			{
-				this.Ticker = Clock.AddSharedTicker<PerforceLoadBalancer>(TimeSpan.FromMinutes(1.0), TickInternalAsync, Logger);
+				_ticker = clock.AddSharedTicker<PerforceLoadBalancer>(TimeSpan.FromMinutes(1.0), TickInternalAsync, logger);
 			}
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
 
 		/// <inheritdoc/>
-		public void Dispose() => Ticker.Dispose();
+		public void Dispose() => _ticker.Dispose();
 
 		/// <summary>
 		/// Get the current server list
@@ -177,19 +175,19 @@ namespace Horde.Build.Services
 		/// <returns></returns>
 		async Task<PerforceServerList> GetServerListAsync()
 		{
-			PerforceServerList ServerList = await ServerListSingleton.GetAsync();
+			PerforceServerList serverList = await _serverListSingleton.GetAsync();
 
-			DateTime MinLastUpdateTime = DateTime.UtcNow - TimeSpan.FromMinutes(2.5);
-			foreach (PerforceServerEntry Server in ServerList.Servers)
+			DateTime minLastUpdateTime = DateTime.UtcNow - TimeSpan.FromMinutes(2.5);
+			foreach (PerforceServerEntry server in serverList.Servers)
 			{
-				if (Server.Status == PerforceServerStatus.Healthy && Server.LastUpdateTime != null && Server.LastUpdateTime.Value < MinLastUpdateTime)
+				if (server.Status == PerforceServerStatus.Healthy && server.LastUpdateTime != null && server.LastUpdateTime.Value < minLastUpdateTime)
 				{
-					Server.Status = PerforceServerStatus.Degraded;
-					Server.Detail = "Server has not responded to health check";
+					server.Status = PerforceServerStatus.Degraded;
+					server.Detail = "Server has not responded to health check";
 				}
 			}
 
-			return ServerList;
+			return serverList;
 		}
 
 		/// <summary>
@@ -198,23 +196,23 @@ namespace Horde.Build.Services
 		/// <returns></returns>
 		public async Task<List<IPerforceServer>> GetServersAsync()
 		{
-			PerforceServerList ServerList = await GetServerListAsync();
-			return ServerList.Servers.ConvertAll<IPerforceServer>(x => x);
+			PerforceServerList serverList = await GetServerListAsync();
+			return serverList.Servers.ConvertAll<IPerforceServer>(x => x);
 		}
 
 		/// <summary>
 		/// Allocates a server for use by a lease
 		/// </summary>
 		/// <returns>The server to use. Null if there is no healthy server available.</returns>
-		public async Task<IPerforceServer?> GetServer(string Cluster)
+		public async Task<IPerforceServer?> GetServer(string cluster)
 		{
-			PerforceServerList ServerList = await GetServerListAsync();
+			PerforceServerList serverList = await GetServerListAsync();
 
-			List<PerforceServerEntry> Candidates = ServerList.Servers.Where(x => x.Cluster == Cluster && x.Status >= PerforceServerStatus.Healthy).ToList();
-			if(Candidates.Count == 0)
+			List<PerforceServerEntry> candidates = serverList.Servers.Where(x => x.Cluster == cluster && x.Status >= PerforceServerStatus.Healthy).ToList();
+			if(candidates.Count == 0)
 			{
-				int Idx = Random.Next(0, Candidates.Count);
-				return Candidates[Idx];
+				int idx = _random.Next(0, candidates.Count);
+				return candidates[idx];
 			}
 			return null;
 		}
@@ -222,265 +220,265 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Select a Perforce server to use by the Horde server
 		/// </summary>
-		/// <param name="Cluster"></param>
+		/// <param name="cluster"></param>
 		/// <returns></returns>
-		public Task<IPerforceServer?> SelectServerAsync(PerforceCluster Cluster)
+		public Task<IPerforceServer?> SelectServerAsync(PerforceCluster cluster)
 		{
-			List<string> Properties = new List<string>{ "HordeServer=1" };
-			return SelectServerAsync(Cluster, Properties);
+			List<string> properties = new List<string>{ "HordeServer=1" };
+			return SelectServerAsync(cluster, properties);
 		}
 
 		/// <summary>
 		/// Select a Perforce server to use
 		/// </summary>
-		/// <param name="Cluster"></param>
-		/// <param name="Agent"></param>
+		/// <param name="cluster"></param>
+		/// <param name="agent"></param>
 		/// <returns></returns>
-		public Task<IPerforceServer?> SelectServerAsync(PerforceCluster Cluster, IAgent Agent)
+		public Task<IPerforceServer?> SelectServerAsync(PerforceCluster cluster, IAgent agent)
 		{
-			return SelectServerAsync(Cluster, Agent.Properties);
+			return SelectServerAsync(cluster, agent.Properties);
 		}
 
 		/// <summary>
 		/// Select a Perforce server to use
 		/// </summary>
-		/// <param name="Cluster"></param>
-		/// <param name="Properties"></param>
+		/// <param name="cluster"></param>
+		/// <param name="properties"></param>
 		/// <returns></returns>
-		public async Task<IPerforceServer?> SelectServerAsync(PerforceCluster Cluster, IReadOnlyList<string> Properties)
+		public async Task<IPerforceServer?> SelectServerAsync(PerforceCluster cluster, IReadOnlyList<string> properties)
 		{
 			// Find all the valid servers for this agent
-			List<PerforceServer> ValidServers = new List<PerforceServer>();
-			if (Properties != null)
+			List<PerforceServer> validServers = new List<PerforceServer>();
+			if (properties != null)
 			{
-				ValidServers.AddRange(Cluster.Servers.Where(x => x.Properties != null && x.Properties.Count > 0 && x.Properties.All(y => Properties.Contains(y))));
+				validServers.AddRange(cluster.Servers.Where(x => x.Properties != null && x.Properties.Count > 0 && x.Properties.All(y => properties.Contains(y))));
 			}
-			if (ValidServers.Count == 0)
+			if (validServers.Count == 0)
 			{
-				ValidServers.AddRange(Cluster.Servers.Where(x => x.Properties == null || x.Properties.Count == 0));
+				validServers.AddRange(cluster.Servers.Where(x => x.Properties == null || x.Properties.Count == 0));
 			}
 
-			HashSet<string> ValidServerNames = new HashSet<string>(ValidServers.Select(x => x.ServerAndPort), StringComparer.OrdinalIgnoreCase);
+			HashSet<string> validServerNames = new HashSet<string>(validServers.Select(x => x.ServerAndPort), StringComparer.OrdinalIgnoreCase);
 
 			// Find all the matching servers.
-			PerforceServerList ServerList = await GetServerListAsync();
+			PerforceServerList serverList = await GetServerListAsync();
 
-			List<PerforceServerEntry> Candidates = ServerList.Servers.Where(x => x.Cluster == Cluster.Name && ValidServerNames.Contains(x.BaseServerAndPort)).ToList();
-			if (Candidates.Count == 0)
+			List<PerforceServerEntry> candidates = serverList.Servers.Where(x => x.Cluster == cluster.Name && validServerNames.Contains(x.BaseServerAndPort)).ToList();
+			if (candidates.Count == 0)
 			{
-				foreach (PerforceServer ValidServer in ValidServers)
+				foreach (PerforceServer validServer in validServers)
 				{
-					Logger.LogDebug("Fetching server info for {ServerAndPort}", ValidServer.ServerAndPort);
-					await UpdateServerAsync(Cluster, ValidServer, Candidates);
+					_logger.LogDebug("Fetching server info for {ServerAndPort}", validServer.ServerAndPort);
+					await UpdateServerAsync(cluster, validServer, candidates);
 				}
-				if (Candidates.Count == 0)
+				if (candidates.Count == 0)
 				{
-					Logger.LogWarning("Unable to resolve any Perforce servers from valid list");
+					_logger.LogWarning("Unable to resolve any Perforce servers from valid list");
 					return null; 
 				}
 			}
 
 			// Remove any servers that are unhealthy
-			if (Candidates.Any(x => x.Status == PerforceServerStatus.Healthy))
+			if (candidates.Any(x => x.Status == PerforceServerStatus.Healthy))
 			{
-				Candidates.RemoveAll(x => x.Status != PerforceServerStatus.Healthy);
+				candidates.RemoveAll(x => x.Status != PerforceServerStatus.Healthy);
 			}
 			else
 			{
-				Candidates.RemoveAll(x => x.Status != PerforceServerStatus.Unknown);
+				candidates.RemoveAll(x => x.Status != PerforceServerStatus.Unknown);
 			}
 
-			if (Candidates.Count == 0)
+			if (candidates.Count == 0)
 			{
-				Logger.LogWarning("Unable to find any healthy Perforce server in cluster {ClusterName}", Cluster.Name);
+				_logger.LogWarning("Unable to find any healthy Perforce server in cluster {ClusterName}", cluster.Name);
 				return null;
 			}
 
 			// Select which server to use with a weighted average of the number of active leases
-			int Index = 0;
-			if (Candidates.Count > 1)
+			int index = 0;
+			if (candidates.Count > 1)
 			{
 				const int BaseWeight = 20;
 
-				int TotalLeases = Candidates.Sum(x => x.NumLeases);
-				int TotalWeight = Candidates.Sum(x => (TotalLeases + BaseWeight) - x.NumLeases);
+				int totalLeases = candidates.Sum(x => x.NumLeases);
+				int totalWeight = candidates.Sum(x => (totalLeases + BaseWeight) - x.NumLeases);
 
-				int Weight = Random.Next(TotalWeight);
-				for (; Index + 1 < Candidates.Count; Index++)
+				int weight = _random.Next(totalWeight);
+				for (; index + 1 < candidates.Count; index++)
 				{
-					Weight -= (TotalLeases + BaseWeight) - Candidates[Index].NumLeases;
-					if(Weight < 0)
+					weight -= (totalLeases + BaseWeight) - candidates[index].NumLeases;
+					if(weight < 0)
 					{
 						break;
 					}
 				}
 			}
 
-			return Candidates[Index];
+			return candidates[index];
 		}
 
 		/// <inheritdoc/>
-		async ValueTask TickInternalAsync(CancellationToken CancellationToken)
+		async ValueTask TickInternalAsync(CancellationToken cancellationToken)
 		{
-			Globals Globals = await DatabaseService.GetGlobalsAsync();
+			Globals globals = await _databaseService.GetGlobalsAsync();
 
 			// Set of new server entries
-			List<PerforceServerEntry> NewServers = new List<PerforceServerEntry>();
+			List<PerforceServerEntry> newServers = new List<PerforceServerEntry>();
 
 			// Update the state of all the valid servers
-			foreach (PerforceCluster Cluster in Globals.PerforceClusters)
+			foreach (PerforceCluster cluster in globals.PerforceClusters)
 			{
-				foreach (PerforceServer Server in Cluster.Servers)
+				foreach (PerforceServer server in cluster.Servers)
 				{
 					try
 					{
-						await UpdateServerAsync(Cluster, Server, NewServers);
+						await UpdateServerAsync(cluster, server, newServers);
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						Logger.LogError(Ex, "Exception while updating Perforce server status");
+						_logger.LogError(ex, "Exception while updating Perforce server status");
 					}
 				}
 			}
 
 			// Update the number of leases for each entry
-			List<PerforceServerEntry> NewEntries = NewServers.OrderBy(x => x.Cluster).ThenBy(x => x.BaseServerAndPort).ThenBy(x => x.ServerAndPort).ToList();
-			await UpdateLeaseCounts(NewEntries);
-			PerforceServerList List = await ServerListSingleton.UpdateAsync(List => MergeServerList(List, NewEntries));
+			List<PerforceServerEntry> newEntries = newServers.OrderBy(x => x.Cluster).ThenBy(x => x.BaseServerAndPort).ThenBy(x => x.ServerAndPort).ToList();
+			await UpdateLeaseCounts(newEntries);
+			PerforceServerList list = await _serverListSingleton.UpdateAsync(list => MergeServerList(list, newEntries));
 
 			// Now update the health of each entry
-			List<Task> Tasks = new List<Task>();
-			foreach (PerforceServerEntry Entry in List.Servers)
+			List<Task> tasks = new List<Task>();
+			foreach (PerforceServerEntry entry in list.Servers)
 			{
-				Tasks.Add(Task.Run(() => UpdateHealthAsync(Entry), CancellationToken.None));
+				tasks.Add(Task.Run(() => UpdateHealthAsync(entry), CancellationToken.None));
 			}
-			await Task.WhenAll(Tasks);
+			await Task.WhenAll(tasks);
 		}
 
-		static void MergeServerList(PerforceServerList ServerList, List<PerforceServerEntry> NewEntries)
+		static void MergeServerList(PerforceServerList serverList, List<PerforceServerEntry> newEntries)
 		{
-			Dictionary<string, PerforceServerEntry> ExistingEntries = ServerList.Servers.ToDictionary(x => x.ServerAndPort, x => x, StringComparer.OrdinalIgnoreCase);
-			foreach (PerforceServerEntry NewEntry in NewEntries)
+			Dictionary<string, PerforceServerEntry> existingEntries = serverList.Servers.ToDictionary(x => x.ServerAndPort, x => x, StringComparer.OrdinalIgnoreCase);
+			foreach (PerforceServerEntry newEntry in newEntries)
 			{
-				PerforceServerEntry? ExistingEntry;
-				if (ExistingEntries.TryGetValue(NewEntry.ServerAndPort, out ExistingEntry))
+				PerforceServerEntry? existingEntry;
+				if (existingEntries.TryGetValue(newEntry.ServerAndPort, out existingEntry))
 				{
-					NewEntry.Status = ExistingEntry.Status;
-					NewEntry.Detail = ExistingEntry.Detail;
-					NewEntry.LastUpdateTime = ExistingEntry.LastUpdateTime;
+					newEntry.Status = existingEntry.Status;
+					newEntry.Detail = existingEntry.Detail;
+					newEntry.LastUpdateTime = existingEntry.LastUpdateTime;
 				}
 			}
-			ServerList.Servers = NewEntries;
+			serverList.Servers = newEntries;
 		}
 
-		async Task UpdateLeaseCounts(IEnumerable<PerforceServerEntry> NewServerEntries)
+		async Task UpdateLeaseCounts(IEnumerable<PerforceServerEntry> newServerEntries)
 		{
-			Dictionary<string, Dictionary<string, PerforceServerEntry>> NewServerLookup = new Dictionary<string, Dictionary<string, PerforceServerEntry>>();
-			foreach (PerforceServerEntry NewServerEntry in NewServerEntries)
+			Dictionary<string, Dictionary<string, PerforceServerEntry>> newServerLookup = new Dictionary<string, Dictionary<string, PerforceServerEntry>>();
+			foreach (PerforceServerEntry newServerEntry in newServerEntries)
 			{
-				if (NewServerEntry.Cluster != null)
+				if (newServerEntry.Cluster != null)
 				{
-					Dictionary<string, PerforceServerEntry>? ClusterServers;
-					if (!NewServerLookup.TryGetValue(NewServerEntry.Cluster, out ClusterServers))
+					Dictionary<string, PerforceServerEntry>? clusterServers;
+					if (!newServerLookup.TryGetValue(newServerEntry.Cluster, out clusterServers))
 					{
-						ClusterServers = new Dictionary<string, PerforceServerEntry>();
-						NewServerLookup.Add(NewServerEntry.Cluster, ClusterServers);
+						clusterServers = new Dictionary<string, PerforceServerEntry>();
+						newServerLookup.Add(newServerEntry.Cluster, clusterServers);
 					}
-					ClusterServers[NewServerEntry.ServerAndPort] = NewServerEntry;
+					clusterServers[newServerEntry.ServerAndPort] = newServerEntry;
 				}
 			}
 
-			List<ILease> Leases = await LeaseCollection.FindActiveLeasesAsync();
-			foreach (ILease Lease in Leases)
+			List<ILease> leases = await _leaseCollection.FindActiveLeasesAsync();
+			foreach (ILease lease in leases)
 			{
-				Any Any = Any.Parser.ParseFrom(Lease.Payload.ToArray());
+				Any any = Any.Parser.ParseFrom(lease.Payload.ToArray());
 
-				HashSet<(string, string)> Servers = new HashSet<(string, string)>();
-				if (Any.TryUnpack(out ConformTask ConformTask))
+				HashSet<(string, string)> servers = new HashSet<(string, string)>();
+				if (any.TryUnpack(out ConformTask conformTask))
 				{
-					foreach (HordeCommon.Rpc.Messages.AgentWorkspace Workspace in ConformTask.Workspaces)
+					foreach (HordeCommon.Rpc.Messages.AgentWorkspace workspace in conformTask.Workspaces)
 					{
-						Servers.Add((Workspace.Cluster, Workspace.ServerAndPort));
+						servers.Add((workspace.Cluster, workspace.ServerAndPort));
 					}
 				}
-				if (Any.TryUnpack(out ExecuteJobTask ExecuteJobTask))
+				if (any.TryUnpack(out ExecuteJobTask executeJobTask))
 				{
-					if (ExecuteJobTask.AutoSdkWorkspace != null)
+					if (executeJobTask.AutoSdkWorkspace != null)
 					{
-						Servers.Add((ExecuteJobTask.AutoSdkWorkspace.Cluster, ExecuteJobTask.AutoSdkWorkspace.ServerAndPort));
+						servers.Add((executeJobTask.AutoSdkWorkspace.Cluster, executeJobTask.AutoSdkWorkspace.ServerAndPort));
 					}
-					if (ExecuteJobTask.Workspace != null)
+					if (executeJobTask.Workspace != null)
 					{
-						Servers.Add((ExecuteJobTask.Workspace.Cluster, ExecuteJobTask.Workspace.ServerAndPort));
+						servers.Add((executeJobTask.Workspace.Cluster, executeJobTask.Workspace.ServerAndPort));
 					}
 				}
 
-				foreach ((string Cluster, string ServerAndPort) in Servers)
+				foreach ((string cluster, string serverAndPort) in servers)
 				{
-					IncrementLeaseCount(Cluster, ServerAndPort, NewServerLookup);
-				}
-			}
-		}
-
-		static void IncrementLeaseCount(string Cluster, string ServerAndPort, Dictionary<string, Dictionary<string, PerforceServerEntry>> NewServers)
-		{
-			Dictionary<string, PerforceServerEntry>? ClusterServers;
-			if (Cluster != null && NewServers.TryGetValue(Cluster, out ClusterServers))
-			{
-				PerforceServerEntry? Entry;
-				if (ClusterServers.TryGetValue(ServerAndPort, out Entry))
-				{
-					Entry.NumLeases++;
+					IncrementLeaseCount(cluster, serverAndPort, newServerLookup);
 				}
 			}
 		}
 
-		async Task UpdateServerAsync(PerforceCluster Cluster, PerforceServer Server, List<PerforceServerEntry> NewServers)
+		static void IncrementLeaseCount(string cluster, string serverAndPort, Dictionary<string, Dictionary<string, PerforceServerEntry>> newServers)
 		{
-			string InitialHostName = Server.ServerAndPort;
-			int Port = 1666;
-
-			int PortIdx = InitialHostName.LastIndexOf(':');
-			if (PortIdx != -1)
+			Dictionary<string, PerforceServerEntry>? clusterServers;
+			if (cluster != null && newServers.TryGetValue(cluster, out clusterServers))
 			{
-				Port = int.Parse(InitialHostName.Substring(PortIdx + 1), NumberStyles.Integer, CultureInfo.InvariantCulture);
-				InitialHostName = InitialHostName.Substring(0, PortIdx);
+				PerforceServerEntry? entry;
+				if (clusterServers.TryGetValue(serverAndPort, out entry))
+				{
+					entry.NumLeases++;
+				}
+			}
+		}
+
+		async Task UpdateServerAsync(PerforceCluster cluster, PerforceServer server, List<PerforceServerEntry> newServers)
+		{
+			string initialHostName = server.ServerAndPort;
+			int port = 1666;
+
+			int portIdx = initialHostName.LastIndexOf(':');
+			if (portIdx != -1)
+			{
+				port = Int32.Parse(initialHostName.Substring(portIdx + 1), NumberStyles.Integer, CultureInfo.InvariantCulture);
+				initialHostName = initialHostName.Substring(0, portIdx);
 			}
 
-			List<string> HostNames = new List<string>();
-			if (!Server.ResolveDns || IPAddress.TryParse(InitialHostName, out IPAddress? HostAddress))
+			List<string> hostNames = new List<string>();
+			if (!server.ResolveDns || IPAddress.TryParse(initialHostName, out IPAddress? _))
 			{
-				HostNames.Add(InitialHostName);
+				hostNames.Add(initialHostName);
 			}
 			else
 			{
-				await ResolveServersAsync(InitialHostName, HostNames);
+				await ResolveServersAsync(initialHostName, hostNames);
 			}
 
-			foreach (string HostName in HostNames)
+			foreach (string hostName in hostNames)
 			{
-				string? HealthCheckUrl = null;
-				if (Server.HealthCheck)
+				string? healthCheckUrl = null;
+				if (server.HealthCheck)
 				{
-					HealthCheckUrl = $"http://{HostName}:5000/healthcheck";
+					healthCheckUrl = $"http://{hostName}:5000/healthcheck";
 				}
-				NewServers.Add(new PerforceServerEntry($"{HostName}:{Port}", Server.ServerAndPort, HealthCheckUrl, Cluster.Name, PerforceServerStatus.Unknown, "", DateTime.UtcNow));
+				newServers.Add(new PerforceServerEntry($"{hostName}:{port}", server.ServerAndPort, healthCheckUrl, cluster.Name, PerforceServerStatus.Unknown, "", DateTime.UtcNow));
 			}
 		}
 
-		async Task ResolveServersAsync(string HostName, List<string> HostNames)
+		async Task ResolveServersAsync(string hostName, List<string> hostNames)
 		{
 			// Find all the addresses of the hosts
-			IPHostEntry Entry = await Dns.GetHostEntryAsync(HostName);
-			foreach (IPAddress Address in Entry.AddressList)
+			IPHostEntry entry = await Dns.GetHostEntryAsync(hostName);
+			foreach (IPAddress address in entry.AddressList)
 			{
 				try
 				{
-					HostNames.Add(Address.ToString());
+					hostNames.Add(address.ToString());
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					Logger.LogDebug(Ex, "Unable to resolve host name for Perforce server {Address}", Address);
+					_logger.LogDebug(ex, "Unable to resolve host name for Perforce server {Address}", address);
 				}
 			}
 		}
@@ -488,66 +486,66 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Updates 
 		/// </summary>
-		/// <param name="Entry"></param>
+		/// <param name="entry"></param>
 		/// <returns></returns>
-		async Task UpdateHealthAsync(PerforceServerEntry Entry)
+		async Task UpdateHealthAsync(PerforceServerEntry entry)
 		{
-			DateTime? UpdateTime = null;
-			string Detail = "Health check disabled";
+			DateTime? updateTime = null;
+			string detail = "Health check disabled";
 
 			// Get the health of the server
-			PerforceServerStatus Health = PerforceServerStatus.Healthy;
-			if (Entry.HealthCheckUrl != null)
+			PerforceServerStatus health = PerforceServerStatus.Healthy;
+			if (entry.HealthCheckUrl != null)
 			{
-				UpdateTime = DateTime.UtcNow;
-				Uri HealthCheckUrl = new Uri(Entry.HealthCheckUrl);
+				updateTime = DateTime.UtcNow;
+				Uri healthCheckUrl = new Uri(entry.HealthCheckUrl);
 				try
 				{
-					(Health, Detail) = await GetServerHealthAsync(HealthCheckUrl);
+					(health, detail) = await GetServerHealthAsync(healthCheckUrl);
 				}
 				catch
 				{
-					(Health, Detail) = (PerforceServerStatus.Unhealthy, $"Failed to query status at {HealthCheckUrl}");
+					(health, detail) = (PerforceServerStatus.Unhealthy, $"Failed to query status at {healthCheckUrl}");
 				}
 			}
 
 			// Update the server record
-			if (Health != Entry.Status || Detail != Entry.Detail || UpdateTime != Entry.LastUpdateTime)
+			if (health != entry.Status || detail != entry.Detail || updateTime != entry.LastUpdateTime)
 			{
-				await ServerListSingleton.UpdateAsync(x => UpdateHealth(x, Entry.ServerAndPort, Health, Detail, UpdateTime));
+				await _serverListSingleton.UpdateAsync(x => UpdateHealth(x, entry.ServerAndPort, health, detail, updateTime));
 			}
 		}
 
-		static void UpdateHealth(PerforceServerList ServerList, string ServerAndPort, PerforceServerStatus Status, string Detail, DateTime? UpdateTime)
+		static void UpdateHealth(PerforceServerList serverList, string serverAndPort, PerforceServerStatus status, string detail, DateTime? updateTime)
 		{
-			PerforceServerEntry? Entry = ServerList.Servers.FirstOrDefault(x => x.ServerAndPort.Equals(ServerAndPort, StringComparison.Ordinal));
-			if (Entry != null)
+			PerforceServerEntry? entry = serverList.Servers.FirstOrDefault(x => x.ServerAndPort.Equals(serverAndPort, StringComparison.Ordinal));
+			if (entry != null)
 			{
-				if (Entry.LastUpdateTime == null || UpdateTime == null || Entry.LastUpdateTime.Value < UpdateTime.Value)
+				if (entry.LastUpdateTime == null || updateTime == null || entry.LastUpdateTime.Value < updateTime.Value)
 				{
-					Entry.Status = Status;
-					Entry.Detail = Detail;
-					Entry.LastUpdateTime = UpdateTime;
+					entry.Status = status;
+					entry.Detail = detail;
+					entry.LastUpdateTime = updateTime;
 				}
 			}
 		}
 
-		static async Task<(PerforceServerStatus, string)> GetServerHealthAsync(Uri HealthCheckUrl)
+		static async Task<(PerforceServerStatus, string)> GetServerHealthAsync(Uri healthCheckUrl)
 		{
-			using HttpClient Client = new HttpClient();
-			HttpResponseMessage Response = await Client.GetAsync(HealthCheckUrl);
+			using HttpClient client = new HttpClient();
+			HttpResponseMessage response = await client.GetAsync(healthCheckUrl);
 
-			byte[] Data = await Response.Content.ReadAsByteArrayAsync();
-			JsonDocument Document = JsonDocument.Parse(Data);
+			byte[] data = await response.Content.ReadAsByteArrayAsync();
+			JsonDocument document = JsonDocument.Parse(data);
 
-			foreach (JsonElement Element in Document.RootElement.GetProperty("results").EnumerateArray())
+			foreach (JsonElement element in document.RootElement.GetProperty("results").EnumerateArray())
 			{
-				if (Element.TryGetProperty("checker", out JsonElement Checker) && Checker.ValueEquals("edge_traffic_lights"))
+				if (element.TryGetProperty("checker", out JsonElement checker) && checker.ValueEquals("edge_traffic_lights"))
 				{
-					if (Element.TryGetProperty("output", out JsonElement Output))
+					if (element.TryGetProperty("output", out JsonElement output))
 					{
-						string Status = Output.GetString() ?? String.Empty;
-						switch(Status)
+						string status = output.GetString() ?? String.Empty;
+						switch(status)
 						{
 							case "green":
 								return (PerforceServerStatus.Healthy, "Server is healthy");
@@ -556,7 +554,7 @@ namespace Horde.Build.Services
 							case "red":
 								return (PerforceServerStatus.Unhealthy, "Server is being drained");
 							default:
-								return (PerforceServerStatus.Unknown, $"Expected state for health check ({Status})");
+								return (PerforceServerStatus.Unknown, $"Expected state for health check ({status})");
 						}
 					}
 				}

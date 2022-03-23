@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Fleet.Autoscale;
-using HordeCommon;
-using HordeCommon.Rpc.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
+using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Fleet

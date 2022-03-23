@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization.Conventions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -29,42 +26,42 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// The nominal type
 		/// </summary>
-		Type BaseType;
+		readonly Type _baseType;
 
 		/// <summary>
 		/// Default type to use if the inner discriminator returns the nominal type
 		/// </summary>
-		Type DefaultType;
+		readonly Type _defaultType;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="BaseType">The base class</param>
-		/// <param name="DefaultType">Default type to use if the inner discriminator returns an interface</param>
-		public DefaultDiscriminatorConvention(Type BaseType, Type DefaultType)
+		/// <param name="baseType">The base class</param>
+		/// <param name="defaultType">Default type to use if the inner discriminator returns an interface</param>
+		public DefaultDiscriminatorConvention(Type baseType, Type defaultType)
 		{
-			this.BaseType = BaseType;
-			this.DefaultType = DefaultType;
+			_baseType = baseType;
+			_defaultType = defaultType;
 		}
 
 		/// <inheritdoc/>
 		public string ElementName => Inner.ElementName;
 
 		/// <inheritdoc/>
-		public Type GetActualType(IBsonReader BsonReader, Type NominalType)
+		public Type GetActualType(IBsonReader bsonReader, Type nominalType)
 		{
-			Type ActualType = Inner.GetActualType(BsonReader, NominalType);
-			if (ActualType == BaseType)
+			Type actualType = Inner.GetActualType(bsonReader, nominalType);
+			if (actualType == _baseType)
 			{
-				ActualType = DefaultType;
+				actualType = _defaultType;
 			}
-			return ActualType;
+			return actualType;
 		}
 
 		/// <inheritdoc/>
-		public BsonValue GetDiscriminator(Type NominalType, Type ActualType)
+		public BsonValue GetDiscriminator(Type nominalType, Type actualType)
 		{
-			return Inner.GetDiscriminator(NominalType, ActualType);
+			return Inner.GetDiscriminator(nominalType, actualType);
 		}
 	}
 

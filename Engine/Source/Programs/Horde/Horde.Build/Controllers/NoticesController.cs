@@ -1,5 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Collections;
@@ -10,10 +14,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Threading.Tasks;
 using TimeZoneConverter;
 
 namespace Horde.Build.Controllers
@@ -29,94 +29,93 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// 
 		/// </summary>
-		NoticeService NoticeService;
+		readonly NoticeService _noticeService;
 
 		/// <summary>
 		/// The acl service singleton
 		/// </summary>
-		AclService AclService;
+		readonly AclService _aclService;
 
 		/// <summary>
 		/// Reference to the globals singleton
 		/// </summary>
-		ISingletonDocument<Globals> Globals;
+		readonly ISingletonDocument<Globals> _globals;
 
 		/// <summary>
 		/// Reference to the user collection
 		/// </summary>
-		private readonly IUserCollection UserCollection;
+		private readonly IUserCollection _userCollection;
 
 		/// <summary>
 		/// Server settings
 		/// </summary>
-		IOptionsMonitor<ServerSettings> Settings;
+		readonly IOptionsMonitor<ServerSettings> _settings;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Settings">The server settings</param>
-		/// <param name="NoticeService">The notice service singleton</param>
-		/// <param name="AclService">The acl service singleton</param>
-		/// <param name="UserCollection">The user collection singleton</param>
-		/// <param name="Globals">The global singleton</param>
-		public NoticesController(IOptionsMonitor<ServerSettings> Settings, NoticeService NoticeService, AclService AclService, IUserCollection UserCollection, ISingletonDocument<Globals> Globals)
+		/// <param name="settings">The server settings</param>
+		/// <param name="noticeService">The notice service singleton</param>
+		/// <param name="aclService">The acl service singleton</param>
+		/// <param name="userCollection">The user collection singleton</param>
+		/// <param name="globals">The global singleton</param>
+		public NoticesController(IOptionsMonitor<ServerSettings> settings, NoticeService noticeService, AclService aclService, IUserCollection userCollection, ISingletonDocument<Globals> globals)
 		{
-			this.Settings = Settings;
-			this.NoticeService = NoticeService;
-			this.AclService = AclService;
-			this.UserCollection = UserCollection;
-			this.Globals = Globals;
+			_settings = settings;
+			_noticeService = noticeService;
+			_aclService = aclService;
+			_userCollection = userCollection;
+			_globals = globals;
 		}
 
 		/// <summary>
 		/// Add a status message
 		/// </summary>
-		/// <param name="Request"></param>
+		/// <param name="request"></param>
 		/// <returns></returns>
 		[HttpPost("/api/v1/notices")]
-		public async Task<ActionResult> AddNoticeAsync(CreateNoticeRequest Request)
+		public async Task<ActionResult> AddNoticeAsync(CreateNoticeRequest request)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
 
-			INotice? Notice = await NoticeService.AddNoticeAsync(Request.Message, User.GetUserId(), Request.StartTime, Request.FinishTime);
+			INotice? notice = await _noticeService.AddNoticeAsync(request.Message, User.GetUserId(), request.StartTime, request.FinishTime);
 
-			return Notice == null ? NotFound() : Ok();
+			return notice == null ? NotFound() : Ok();
 
 		}
 
 		/// <summary>
 		/// Update a status message
 		/// </summary>
-		/// <param name="Request"></param>
+		/// <param name="request"></param>
 		/// <returns></returns>
 		[HttpPut("/api/v1/notices")]
-		public async Task<ActionResult> UpdateNoticeAsync(UpdateNoticeRequest Request)
+		public async Task<ActionResult> UpdateNoticeAsync(UpdateNoticeRequest request)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
 
-			return await NoticeService.UpdateNoticeAsync(new ObjectId(Request.Id), Request.Message, Request.StartTime, Request.FinishTime) ? Ok() : NotFound();
+			return await _noticeService.UpdateNoticeAsync(new ObjectId(request.Id), request.Message, request.StartTime, request.FinishTime) ? Ok() : NotFound();
 		}
-
 
 		/// <summary>
 		/// Remove a manually added status message
 		/// </summary>
 		/// <returns></returns>
-		[HttpDelete("/api/v1/notices/{Id}")]
-		public async Task<ActionResult> DeleteNoticeAsync(string Id)
+		[HttpDelete("/api/v1/notices/{id}")]
+		public async Task<ActionResult> DeleteNoticeAsync(string id)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
 
-			await NoticeService.RemoveNoticeAsync(new ObjectId(Id));
+			await _noticeService.RemoveNoticeAsync(new ObjectId(id));
 			
 			return Ok();
 		}
@@ -128,64 +127,64 @@ namespace Horde.Build.Controllers
 		[HttpGet("/api/v1/notices")]
 		public async Task<List<GetNoticeResponse>> GetNoticesAsync()
 		{			
-			string? ScheduleTimeZone = Settings.CurrentValue.ScheduleTimeZone;
-			TimeZoneInfo TimeZone = (ScheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(ScheduleTimeZone);
+			string? scheduleTimeZone = _settings.CurrentValue.ScheduleTimeZone;
+			TimeZoneInfo timeZone = (scheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(scheduleTimeZone);
 			
-			Globals GlobalsValue = await Globals.GetAsync();
-			List<GetNoticeResponse> Messages = new List<GetNoticeResponse>();
+			Globals globalsValue = await _globals.GetAsync();
+			List<GetNoticeResponse> messages = new List<GetNoticeResponse>();
 
 			// Add system downtime notices
-			for (int Idx = 0; Idx < GlobalsValue.ScheduledDowntime.Count; Idx++)
+			for (int idx = 0; idx < globalsValue.ScheduledDowntime.Count; idx++)
 			{
-				ScheduledDowntime Downtime = GlobalsValue.ScheduledDowntime[Idx];
+				ScheduledDowntime downtime = globalsValue.ScheduledDowntime[idx];
 
 				// @todo: handle this, though likely will have a custom message
-				if (Downtime.Frequency == ScheduledDowntimeFrequency.Once)
+				if (downtime.Frequency == ScheduledDowntimeFrequency.Once)
 				{
 					continue;
 				}
 
-				DateTimeOffset Now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, Settings.CurrentValue.TimeZoneInfo);
+				DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
 				
 				// @todo: this time and formatting should be on client
-				if (Downtime.IsActive(Now))
+				if (downtime.IsActive(now))
 				{
-					(DateTimeOffset StartTime, DateTimeOffset FinishTime) = Downtime.GetNext(Now);
-					string FinishTimeString = String.Format(CultureInfo.CurrentCulture, "{0:t}", TimeZoneInfo.ConvertTime(FinishTime, TimeZone));
-					Messages.Add(new GetNoticeResponse() { StartTime = StartTime.UtcDateTime, FinishTime = FinishTime.UtcDateTime, Message = $"Horde is currently in scheduled downtime. Jobs will resume execution at {FinishTimeString} {TimeZone.Id}." });
+					(DateTimeOffset startTime, DateTimeOffset finishTime) = downtime.GetNext(now);
+					string finishTimeString = String.Format(CultureInfo.CurrentCulture, "{0:t}", TimeZoneInfo.ConvertTime(finishTime, timeZone));
+					messages.Add(new GetNoticeResponse() { StartTime = startTime.UtcDateTime, FinishTime = finishTime.UtcDateTime, Message = $"Horde is currently in scheduled downtime. Jobs will resume execution at {finishTimeString} {timeZone.Id}." });
 				}
 				else 
 				{
 					// add a week to get the actual next scheduled time
-					if (Downtime.Frequency == ScheduledDowntimeFrequency.Weekly)
+					if (downtime.Frequency == ScheduledDowntimeFrequency.Weekly)
 					{
-						Now += TimeSpan.FromDays(7);
+						now += TimeSpan.FromDays(7);
 					}
 
-					(DateTimeOffset StartTime, DateTimeOffset FinishTime) = Downtime.GetNext(Now);
-					string StartTimeString = String.Format(CultureInfo.CurrentCulture, "{0:g}", StartTime);
-					string FinishTimeString = String.Format(CultureInfo.CurrentCulture, "{0:g}", FinishTime);
-					Messages.Add(new GetNoticeResponse() { StartTime = StartTime.UtcDateTime, FinishTime = FinishTime.UtcDateTime, Message = $"Downtime is scheduled from {StartTimeString} to {FinishTimeString} {TimeZone.Id}. No jobs will run during this time." });
+					(DateTimeOffset startTime, DateTimeOffset finishTime) = downtime.GetNext(now);
+					string startTimeString = String.Format(CultureInfo.CurrentCulture, "{0:g}", startTime);
+					string finishTimeString = String.Format(CultureInfo.CurrentCulture, "{0:g}", finishTime);
+					messages.Add(new GetNoticeResponse() { StartTime = startTime.UtcDateTime, FinishTime = finishTime.UtcDateTime, Message = $"Downtime is scheduled from {startTimeString} to {finishTimeString} {timeZone.Id}. No jobs will run during this time." });
 				}
 			}
 
 			// Add user notices
-			List<INotice> Notices = await NoticeService.GetNoticesAsync();
+			List<INotice> notices = await _noticeService.GetNoticesAsync();
 
-			for (int i = 0; i < Notices.Count; i++)
+			for (int i = 0; i < notices.Count; i++)
 			{
-				INotice Notice = Notices[i];
-				GetThinUserInfoResponse? UserInfo = null;
+				INotice notice = notices[i];
+				GetThinUserInfoResponse? userInfo = null;
 
-				if (Notice.UserId != null)
+				if (notice.UserId != null)
 				{
-					UserInfo = new GetThinUserInfoResponse(await UserCollection.GetCachedUserAsync(Notice.UserId));
+					userInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(notice.UserId));
 				}								
 
-				Messages.Add(new GetNoticeResponse(Notice, UserInfo));
+				messages.Add(new GetNoticeResponse(notice, userInfo));
 			}
 
-			return Messages;
+			return messages;
 		}
 	}
 }

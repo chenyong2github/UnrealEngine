@@ -1,19 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using Serilog.Events;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using MongoDB.Bson;
 
 namespace Horde.Build.Collections
 {
@@ -27,47 +18,47 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Creates a new event
 		/// </summary>
-		/// <param name="NewEvent">The new event to vreate</param>
-		Task AddAsync(NewLogEventData NewEvent);
+		/// <param name="newEvent">The new event to vreate</param>
+		Task AddAsync(NewLogEventData newEvent);
 
 		/// <summary>
 		/// Creates a new event
 		/// </summary>
-		/// <param name="NewEvents">List of events to create</param>
-		Task AddManyAsync(List<NewLogEventData> NewEvents);
+		/// <param name="newEvents">List of events to create</param>
+		Task AddManyAsync(List<NewLogEventData> newEvents);
 
 		/// <summary>
 		/// Finds events within a log file
 		/// </summary>
-		/// <param name="LogId">Unique id of the log containing this event</param>
-		/// <param name="Index">Start index within the matching results</param>
-		/// <param name="Count">Maximum number of results to return</param>
+		/// <param name="logId">Unique id of the log containing this event</param>
+		/// <param name="index">Start index within the matching results</param>
+		/// <param name="count">Maximum number of results to return</param>
 		/// <returns>List of events matching the query</returns>
-		Task<List<ILogEvent>> FindAsync(LogId LogId, int? Index = null, int? Count = null);
+		Task<List<ILogEvent>> FindAsync(LogId logId, int? index = null, int? count = null);
 
 		/// <summary>
 		/// Finds a list of events for a set of spans
 		/// </summary>
-		/// <param name="SpanIds">The span ids</param>
-		/// <param name="LogIds">List of log ids to query</param>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="spanIds">The span ids</param>
+		/// <param name="logIds">List of log ids to query</param>
+		/// <param name="index">Index of the first result to return</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>List of events for this issue</returns>
-		Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, LogId[]? LogIds = null, int Index = 0, int Count = 10);
+		Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> spanIds, LogId[]? logIds = null, int index = 0, int count = 10);
 
 		/// <summary>
 		/// Delete all the events for a log file
 		/// </summary>
-		/// <param name="LogId">Unique id of the log</param>
+		/// <param name="logId">Unique id of the log</param>
 		/// <returns>Async task</returns>
-		Task DeleteLogAsync(LogId LogId);
+		Task DeleteLogAsync(LogId logId);
 
 		/// <summary>
 		/// Update the span for an event
 		/// </summary>
-		/// <param name="Events">The events to update</param>
-		/// <param name="SpanId">New span id</param>
+		/// <param name="events">The events to update</param>
+		/// <param name="spanId">New span id</param>
 		/// <returns>Async task</returns>
-		Task AddSpanToEventsAsync(IEnumerable<ILogEvent> Events, ObjectId SpanId);
+		Task AddSpanToEventsAsync(IEnumerable<ILogEvent> events, ObjectId spanId);
 	}
 }

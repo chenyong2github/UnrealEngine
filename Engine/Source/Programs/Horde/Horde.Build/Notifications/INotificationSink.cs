@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Api;
-using Horde.Build.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using HordeCommon;
 
 namespace Horde.Build.Notifications
 {
@@ -17,88 +17,88 @@ namespace Horde.Build.Notifications
 		/// <summary>
 		/// Send notifications that a job has been scheduled
 		/// </summary>
-		/// <param name="Notifications">List of notifications to send</param>
+		/// <param name="notifications">List of notifications to send</param>
 		/// <returns>Async task</returns>
-		Task NotifyJobScheduledAsync(List<JobScheduledNotification> Notifications);
+		Task NotifyJobScheduledAsync(List<JobScheduledNotification> notifications);
 		
 		/// <summary>
 		/// Send notifications that a job has completed
 		/// </summary>
-		/// <param name="JobStream"></param>
-		/// <param name="Job">The job containing the step</param>
-		/// <param name="Graph"></param>
-		/// <param name="Outcome"></param>
+		/// <param name="jobStream"></param>
+		/// <param name="job">The job containing the step</param>
+		/// <param name="graph"></param>
+		/// <param name="outcome"></param>
 		/// <returns>Async task</returns>
-		Task NotifyJobCompleteAsync(IStream JobStream, IJob Job, IGraph Graph, LabelOutcome Outcome);
+		Task NotifyJobCompleteAsync(IStream jobStream, IJob job, IGraph graph, LabelOutcome outcome);
 
 		/// <summary>
 		/// Send notifications that a job has completed
 		/// </summary>
-		/// <param name="User">User to notify</param>
-		/// <param name="JobStream"></param>
-		/// <param name="Job">The job containing the step</param>
-		/// <param name="Graph"></param>
-		/// <param name="Outcome"></param>
+		/// <param name="user">User to notify</param>
+		/// <param name="jobStream"></param>
+		/// <param name="job">The job containing the step</param>
+		/// <param name="graph"></param>
+		/// <param name="outcome"></param>
 		/// <returns>Async task</returns>
-		Task NotifyJobCompleteAsync(IUser User, IStream JobStream, IJob Job, IGraph Graph, LabelOutcome Outcome);
+		Task NotifyJobCompleteAsync(IUser user, IStream jobStream, IJob job, IGraph graph, LabelOutcome outcome);
 
 		/// <summary>
 		/// Send notifications that a job step has completed
 		/// </summary>
-		/// <param name="User">User to notify</param>
-		/// <param name="JobStream">Stream containing the job</param>
-		/// <param name="Job">The job containing the step</param>
-		/// <param name="Batch">Unique id of the batch</param>
-		/// <param name="Step">The step id</param>
-		/// <param name="Node">Corresponding node for the step</param>
-		/// <param name="JobStepEventData"></param>
+		/// <param name="user">User to notify</param>
+		/// <param name="jobStream">Stream containing the job</param>
+		/// <param name="job">The job containing the step</param>
+		/// <param name="batch">Unique id of the batch</param>
+		/// <param name="step">The step id</param>
+		/// <param name="node">Corresponding node for the step</param>
+		/// <param name="jobStepEventData"></param>
 		/// <returns>Async task</returns>
-		Task NotifyJobStepCompleteAsync(IUser User, IStream JobStream, IJob Job, IJobStepBatch Batch, IJobStep Step, INode Node, List<ILogEventData> JobStepEventData);
+		Task NotifyJobStepCompleteAsync(IUser user, IStream jobStream, IJob job, IJobStepBatch batch, IJobStep step, INode node, List<ILogEventData> jobStepEventData);
 
 		/// <summary>
 		/// Send notifications that a job step has completed
 		/// </summary>
-		/// <param name="User">User to notify</param>
-		/// <param name="Job">The job containing the step</param>
-		/// <param name="Stream"></param>
-		/// <param name="Label"></param>
-		/// <param name="LabelIdx"></param>
-		/// <param name="Outcome"></param>
-		/// <param name="StepData"></param>
+		/// <param name="user">User to notify</param>
+		/// <param name="job">The job containing the step</param>
+		/// <param name="stream"></param>
+		/// <param name="label"></param>
+		/// <param name="labelIdx"></param>
+		/// <param name="outcome"></param>
+		/// <param name="stepData"></param>
 		/// <returns>Async task</returns>
-		Task NotifyLabelCompleteAsync(IUser User, IJob Job, IStream Stream, ILabel Label, int LabelIdx, LabelOutcome Outcome, List<(string, JobStepOutcome, Uri)> StepData);
+		Task NotifyLabelCompleteAsync(IUser user, IJob job, IStream stream, ILabel label, int labelIdx, LabelOutcome outcome, List<(string, JobStepOutcome, Uri)> stepData);
 
 		/// <summary>
 		/// Send notifications that a new issue has been created or assigned
 		/// </summary>
-		/// <param name="Issue"></param>
+		/// <param name="issue"></param>
 		/// <returns></returns>
-		Task NotifyIssueUpdatedAsync(IIssue Issue);
+		Task NotifyIssueUpdatedAsync(IIssue issue);
 
 		/// <summary>
 		/// Notification that a stream has failed to update
 		/// </summary>
-		/// <param name="ErrorMessage"></param>
-		/// <param name="FileName"></param>
-		/// <param name="Change"></param>
-		/// <param name="Author"></param>
-		/// <param name="Description"></param>
+		/// <param name="errorMessage"></param>
+		/// <param name="fileName"></param>
+		/// <param name="change"></param>
+		/// <param name="author"></param>
+		/// <param name="description"></param>
 		/// <returns></returns>
-		Task NotifyConfigUpdateFailureAsync(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null);
+		Task NotifyConfigUpdateFailureAsync(string errorMessage, string fileName, int? change = null, IUser? author = null, string? description = null);
 
 		/// <summary>
 		/// Notification for device service
 		/// </summary>
-		/// <param name="Message"></param>
-		/// <param name="Device"></param>
-		/// <param name="Pool"></param>
-		/// <param name="Stream"></param>
-		/// <param name="Job"></param>
-		/// <param name="Step"></param>
-		/// <param name="Node"></param>
-		/// <param name="User"></param>
+		/// <param name="message"></param>
+		/// <param name="device"></param>
+		/// <param name="pool"></param>
+		/// <param name="stream"></param>
+		/// <param name="job"></param>
+		/// <param name="step"></param>
+		/// <param name="node"></param>
+		/// <param name="user"></param>
 		/// <returns></returns>
-		Task NotifyDeviceServiceAsync(string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null, IUser? User = null);
+		Task NotifyDeviceServiceAsync(string message, IDevice? device = null, IDevicePool? pool = null, IStream? stream = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null);
     }
 }
 

@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
-using Microsoft.Extensions.Hosting;
-using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -43,14 +40,14 @@ namespace Horde.Build.Collections.Impl
 				Pools = new List<PoolUtilizationDocument>();
 			}
 
-			public UtilizationDocument(IUtilizationTelemetry Other)
+			public UtilizationDocument(IUtilizationTelemetry other)
 			{
-				this.StartTime = Other.StartTime;
-				this.FinishTime = Other.FinishTime;
-				this.NumAgents = Other.NumAgents;
-				this.Pools = Other.Pools.ConvertAll(x => new PoolUtilizationDocument(x));
-				this.HibernatingTime = Other.HibernatingTime;
-				this.AdminTime = Other.AdminTime;
+				StartTime = other.StartTime;
+				FinishTime = other.FinishTime;
+				NumAgents = other.NumAgents;
+				Pools = other.Pools.ConvertAll(x => new PoolUtilizationDocument(x));
+				HibernatingTime = other.HibernatingTime;
+				AdminTime = other.AdminTime;
 			}
 		}
 
@@ -72,14 +69,14 @@ namespace Horde.Build.Collections.Impl
 				Streams = new List<StreamUtilizationDocument>();
 			}
 
-			public PoolUtilizationDocument(IPoolUtilizationTelemetry Other)
+			public PoolUtilizationDocument(IPoolUtilizationTelemetry other)
 			{
-				this.PoolId = Other.PoolId;
-				this.NumAgents = Other.NumAgents;
-				this.Streams = Other.Streams.ConvertAll(x => new StreamUtilizationDocument(x));
-				this.AdminTime = Other.AdminTime;
-				this.HibernatingTime = Other.HibernatingTime;
-				this.OtherTime = Other.OtherTime;
+				PoolId = other.PoolId;
+				NumAgents = other.NumAgents;
+				Streams = other.Streams.ConvertAll(x => new StreamUtilizationDocument(x));
+				AdminTime = other.AdminTime;
+				HibernatingTime = other.HibernatingTime;
+				OtherTime = other.OtherTime;
 			}
 		}
 
@@ -93,48 +90,48 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public StreamUtilizationDocument(IStreamUtilizationTelemetry Other)
+			public StreamUtilizationDocument(IStreamUtilizationTelemetry other)
 			{
-				this.StreamId = Other.StreamId;
-				this.Time = Other.Time;
+				StreamId = other.StreamId;
+				Time = other.Time;
 			}
 		}
 
-		IMongoCollection<UtilizationDocument> Utilization;
+		readonly IMongoCollection<UtilizationDocument> _utilization;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Database"></param>
-		public TelemetryCollection(DatabaseService Database)
+		/// <param name="database"></param>
+		public TelemetryCollection(DatabaseService database)
 		{
-			Utilization = Database.GetCollection<UtilizationDocument>("Utilization");
+			_utilization = database.GetCollection<UtilizationDocument>("Utilization");
 
-			if (!Database.ReadOnlyMode)
+			if (!database.ReadOnlyMode)
 			{
-				Utilization.Indexes.CreateOne(new CreateIndexModel<UtilizationDocument>(Builders<UtilizationDocument>.IndexKeys.Ascending(x => x.FinishTime).Ascending(x => x.StartTime)));
+				_utilization.Indexes.CreateOne(new CreateIndexModel<UtilizationDocument>(Builders<UtilizationDocument>.IndexKeys.Ascending(x => x.FinishTime).Ascending(x => x.StartTime)));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task AddUtilizationTelemetryAsync(IUtilizationTelemetry NewTelemetry)
+		public async Task AddUtilizationTelemetryAsync(IUtilizationTelemetry newTelemetry)
 		{
-			await Utilization.InsertOneAsync(new UtilizationDocument(NewTelemetry));
+			await _utilization.InsertOneAsync(new UtilizationDocument(newTelemetry));
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IUtilizationTelemetry>> GetUtilizationTelemetryAsync(DateTime StartTimeUtc, DateTime FinishTimeUtc)
+		public async Task<List<IUtilizationTelemetry>> GetUtilizationTelemetryAsync(DateTime startTimeUtc, DateTime finishTimeUtc)
 		{
-			FilterDefinition<UtilizationDocument> Filter = Builders<UtilizationDocument>.Filter.Gte(x => x.FinishTime, StartTimeUtc) & Builders<UtilizationDocument>.Filter.Lte(x => x.StartTime, FinishTimeUtc);
+			FilterDefinition<UtilizationDocument> filter = Builders<UtilizationDocument>.Filter.Gte(x => x.FinishTime, startTimeUtc) & Builders<UtilizationDocument>.Filter.Lte(x => x.StartTime, finishTimeUtc);
 
-			List<UtilizationDocument> Documents = await Utilization.Find(Filter).ToListAsync();
-			return Documents.ConvertAll<IUtilizationTelemetry>(x => x);
+			List<UtilizationDocument> documents = await _utilization.Find(filter).ToListAsync();
+			return documents.ConvertAll<IUtilizationTelemetry>(x => x);
 		}
 
 		/// <inheritdoc/>
 		public async Task<IUtilizationTelemetry?> GetLatestUtilizationTelemetryAsync()
 		{
-			return await Utilization.Find(FilterDefinition<UtilizationDocument>.Empty).SortByDescending(x => x.FinishTime).FirstOrDefaultAsync();
+			return await _utilization.Find(FilterDefinition<UtilizationDocument>.Empty).SortByDescending(x => x.FinishTime).FirstOrDefaultAsync();
 		}
 	}
 }

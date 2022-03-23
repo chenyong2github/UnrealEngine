@@ -1,17 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
 using EpicGames.Core;
 using Horde.Build.Api;
 using HordeCommon;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Models
 {
@@ -25,8 +19,8 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets the default arguments for this parameter and its children
 		/// </summary>
-		/// <param name="DefaultArguments">List of default arguments</param>
-		public abstract void GetDefaultArguments(List<string> DefaultArguments);
+		/// <param name="defaultArguments">List of default arguments</param>
+		public abstract void GetDefaultArguments(List<string> defaultArguments);
 
 		/// <summary>
 		/// Convert this parameter to data for serialization
@@ -60,32 +54,32 @@ namespace Horde.Build.Models
 		/// </summary>
 		private GroupParameter()
 		{
-			this.Label = null!;
-			this.Children = null!;
+			Label = null!;
+			Children = null!;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Label">Name of the group</param>
-		/// <param name="Style">How to display this group</param>
-		/// <param name="Children">List of child parameters</param>
-		public GroupParameter(string Label, GroupParameterStyle Style, List<Parameter> Children)
+		/// <param name="label">Name of the group</param>
+		/// <param name="style">How to display this group</param>
+		/// <param name="children">List of child parameters</param>
+		public GroupParameter(string label, GroupParameterStyle style, List<Parameter> children)
 		{
-			this.Label = Label;
-			this.Style = Style;
-			this.Children = Children;
+			Label = label;
+			Style = style;
+			Children = children;
 		}
 
 		/// <summary>
 		/// Gets the default arguments for this parameter and its children
 		/// </summary>
-		/// <param name="DefaultArguments">List of default arguments</param>
-		public override void GetDefaultArguments(List<string> DefaultArguments)
+		/// <param name="defaultArguments">List of default arguments</param>
+		public override void GetDefaultArguments(List<string> defaultArguments)
 		{
-			foreach (Parameter Child in Children)
+			foreach (Parameter child in Children)
 			{
-				Child.GetDefaultArguments(DefaultArguments);
+				child.GetDefaultArguments(defaultArguments);
 			}
 		}
 
@@ -154,31 +148,31 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Label">Parameter to pass this value to the BuildGraph script with</param>
-		/// <param name="Argument">Label to show next to the parameter</param>
-		/// <param name="Default">Default value for this argument</param>
-		/// <param name="Hint">Hint text to display</param>
-		/// <param name="Validation">Regex used to validate entries</param>
-		/// <param name="Description">Message displayed for invalid values</param>
-		/// <param name="ToolTip">Tool tip text to display</param>
-		public TextParameter(string Label, string Argument, string Default, string? Hint, string? Validation, string? Description, string? ToolTip)
+		/// <param name="label">Parameter to pass this value to the BuildGraph script with</param>
+		/// <param name="argument">Label to show next to the parameter</param>
+		/// <param name="defaultValue">Default value for this argument</param>
+		/// <param name="hint">Hint text to display</param>
+		/// <param name="validation">Regex used to validate entries</param>
+		/// <param name="description">Message displayed for invalid values</param>
+		/// <param name="toolTip">Tool tip text to display</param>
+		public TextParameter(string label, string argument, string defaultValue, string? hint, string? validation, string? description, string? toolTip)
 		{
-			this.Label = Label;
-			this.Argument = Argument;
-			this.Default = Default;
-			this.Hint = Hint;
-			this.Validation = Validation;
-			this.Description = Description;
-			this.ToolTip = ToolTip;
+			Label = label;
+			Argument = argument;
+			Default = defaultValue;
+			Hint = hint;
+			Validation = validation;
+			Description = description;
+			ToolTip = toolTip;
 		}
 
 		/// <summary>
 		/// Gets the default arguments for this parameter and its children
 		/// </summary>
-		/// <param name="DefaultArguments">List of default arguments</param>
-		public override void GetDefaultArguments(List<string> DefaultArguments)
+		/// <param name="defaultArguments">List of default arguments</param>
+		public override void GetDefaultArguments(List<string> defaultArguments)
 		{
-			DefaultArguments.Add(Argument + Default);
+			defaultArguments.Add(Argument + Default);
 		}
 
 		/// <summary>
@@ -228,18 +222,18 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Group">The group to put this parameter in</param>
-		/// <param name="Text">Text to display for this option</param>
-		/// <param name="ArgumentIfEnabled">Argument to add if this option is enabled</param>
-		/// <param name="ArgumentIfDisabled">Argument to add if this option is disabled</param>
-		/// <param name="Default">Whether this item is selected by default</param>
-		public ListParameterItem(string? Group, string Text, string? ArgumentIfEnabled, string? ArgumentIfDisabled, bool Default)
+		/// <param name="group">The group to put this parameter in</param>
+		/// <param name="text">Text to display for this option</param>
+		/// <param name="argumentIfEnabled">Argument to add if this option is enabled</param>
+		/// <param name="argumentIfDisabled">Argument to add if this option is disabled</param>
+		/// <param name="defaultValue">Whether this item is selected by default</param>
+		public ListParameterItem(string? group, string text, string? argumentIfEnabled, string? argumentIfDisabled, bool defaultValue)
 		{
-			this.Group = Group;
-			this.Text = Text;
-			this.ArgumentIfEnabled = ArgumentIfEnabled;
-			this.ArgumentIfDisabled = ArgumentIfDisabled;
-			this.Default = Default;
+			Group = group;
+			Text = text;
+			ArgumentIfEnabled = argumentIfEnabled;
+			ArgumentIfDisabled = argumentIfDisabled;
+			Default = defaultValue;
 		}
 
 		/// <summary>
@@ -282,45 +276,45 @@ namespace Horde.Build.Models
 		/// </summary>
 		private ListParameter()
 		{
-			this.Label = null!;
-			this.Items = null!;
+			Label = null!;
+			Items = null!;
 		}
 
 		/// <summary>
 		/// List of possible values
 		/// </summary>
-		/// <param name="Label">Label to show next to this parameter</param>
-		/// <param name="Style">Style of list parameter to use</param>
-		/// <param name="Entries">Entries for this list</param>
-		/// <param name="ToolTip">Tool tip text to display</param>
-		public ListParameter(string Label, ListParameterStyle Style, List<ListParameterItem> Entries, string? ToolTip)
+		/// <param name="label">Label to show next to this parameter</param>
+		/// <param name="style">Style of list parameter to use</param>
+		/// <param name="entries">Entries for this list</param>
+		/// <param name="toolTip">Tool tip text to display</param>
+		public ListParameter(string label, ListParameterStyle style, List<ListParameterItem> entries, string? toolTip)
 		{
-			this.Label = Label;
-			this.Style = Style;
-			this.Items = Entries;
-			this.ToolTip = ToolTip;
+			Label = label;
+			Style = style;
+			Items = entries;
+			ToolTip = toolTip;
 		}
 
 		/// <summary>
 		/// Gets the default arguments for this parameter and its children
 		/// </summary>
-		/// <param name="DefaultArguments">List of default arguments</param>
-		public override void GetDefaultArguments(List<string> DefaultArguments)
+		/// <param name="defaultArguments">List of default arguments</param>
+		public override void GetDefaultArguments(List<string> defaultArguments)
 		{
-			foreach(ListParameterItem Item in Items)
+			foreach(ListParameterItem item in Items)
 			{
-				if (Item.Default)
+				if (item.Default)
 				{
-					if (Item.ArgumentIfEnabled != null)
+					if (item.ArgumentIfEnabled != null)
 					{
-						DefaultArguments.Add(Item.ArgumentIfEnabled);
+						defaultArguments.Add(item.ArgumentIfEnabled);
 					}
 				}
 				else
 				{
-					if (Item.ArgumentIfDisabled != null)
+					if (item.ArgumentIfDisabled != null)
 					{
-						DefaultArguments.Add(Item.ArgumentIfDisabled);
+						defaultArguments.Add(item.ArgumentIfDisabled);
 					}
 				}
 			}
@@ -380,30 +374,30 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Label">Label to display for this parameter</param>
-		/// <param name="ArgumentIfEnabled">Value if enabled</param>
-		/// <param name="ArgumentIfDisabled">Value if disabled</param>
-		/// <param name="Default">Default value for this argument</param>
-		/// <param name="ToolTip">Tool tip text to display</param>
-		public BoolParameter(string Label, string? ArgumentIfEnabled, string? ArgumentIfDisabled, bool Default, string? ToolTip)
+		/// <param name="label">Label to display for this parameter</param>
+		/// <param name="argumentIfEnabled">Value if enabled</param>
+		/// <param name="argumentIfDisabled">Value if disabled</param>
+		/// <param name="defaultValue">Default value for this argument</param>
+		/// <param name="toolTip">Tool tip text to display</param>
+		public BoolParameter(string label, string? argumentIfEnabled, string? argumentIfDisabled, bool defaultValue, string? toolTip)
 		{
-			this.Label = Label;
-			this.ArgumentIfEnabled = ArgumentIfEnabled;
-			this.ArgumentIfDisabled = ArgumentIfDisabled;
-			this.Default = Default;
-			this.ToolTip = ToolTip;
+			Label = label;
+			ArgumentIfEnabled = argumentIfEnabled;
+			ArgumentIfDisabled = argumentIfDisabled;
+			Default = defaultValue;
+			ToolTip = toolTip;
 		}
 
 		/// <summary>
 		/// Gets the default arguments for this parameter and its children
 		/// </summary>
-		/// <param name="DefaultArguments">List of default arguments</param>
-		public override void GetDefaultArguments(List<string> DefaultArguments)
+		/// <param name="defaultArguments">List of default arguments</param>
+		public override void GetDefaultArguments(List<string> defaultArguments)
 		{
-			string? DefaultArgument = Default ? ArgumentIfEnabled : ArgumentIfDisabled;
-			if (!String.IsNullOrEmpty(DefaultArgument))
+			string? defaultArgument = Default ? ArgumentIfEnabled : ArgumentIfDisabled;
+			if (!String.IsNullOrEmpty(defaultArgument))
 			{
-				DefaultArguments.Add(DefaultArgument);
+				defaultArguments.Add(defaultArgument);
 			}
 		}
 		/// <summary>
@@ -486,14 +480,14 @@ namespace Horde.Build.Models
 		/// Gets the arguments for default options in this template. Does not include the standard template arguments.
 		/// </summary>
 		/// <returns>List of default arguments</returns>
-		public static List<string> GetDefaultArguments(this ITemplate Template)
+		public static List<string> GetDefaultArguments(this ITemplate template)
 		{
-			List<string> DefaultArguments = new List<string>(Template.Arguments);
-			foreach (Parameter Parameter in Template.Parameters)
+			List<string> defaultArguments = new List<string>(template.Arguments);
+			foreach (Parameter parameter in template.Parameters)
 			{
-				Parameter.GetDefaultArguments(DefaultArguments);
+				parameter.GetDefaultArguments(defaultArguments);
 			}
-			return DefaultArguments;
+			return defaultArguments;
 		}
 	}
 }

@@ -1,13 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
-using SubResourceId = Horde.Build.Models.SubResourceId;
 
 namespace Horde.Build.Models
 {

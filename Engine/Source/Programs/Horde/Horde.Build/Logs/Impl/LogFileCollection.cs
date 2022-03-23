@@ -1,17 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -38,12 +36,12 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public LogChunkDocument(LogChunkDocument Other)
+			public LogChunkDocument(LogChunkDocument other)
 			{
-				Offset = Other.Offset;
-				Length = Other.Length;
-				LineIndex = Other.LineIndex;
-				Server = Other.Server;
+				Offset = other.Offset;
+				Length = other.Length;
+				LineIndex = other.LineIndex;
+				Server = other.Server;
 			}
 
 			public LogChunkDocument Clone()
@@ -81,155 +79,155 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public LogFileDocument(JobId JobId, SessionId? SessionId, LogType Type)
+			public LogFileDocument(JobId jobId, SessionId? sessionId, LogType type)
 			{
-				this.Id = LogId.GenerateNewId();
-				this.JobId = JobId;
-				this.SessionId = SessionId;
-				this.Type = Type;
-				this.MaxLineIndex = 0;
+				Id = LogId.GenerateNewId();
+				JobId = jobId;
+				SessionId = sessionId;
+				Type = type;
+				MaxLineIndex = 0;
 			}
 
 			public LogFileDocument Clone()
 			{
-				LogFileDocument Document = (LogFileDocument)MemberwiseClone();
-				Document.Chunks = Document.Chunks.ConvertAll(x => x.Clone());
-				return Document;
+				LogFileDocument document = (LogFileDocument)MemberwiseClone();
+				document.Chunks = document.Chunks.ConvertAll(x => x.Clone());
+				return document;
 			}
 		}
 
 		/// <summary>
 		/// The jobs collection
 		/// </summary>
-		IMongoCollection<LogFileDocument> LogFiles;
+		readonly IMongoCollection<LogFileDocument> _logFiles;
 
 		/// <summary>
 		/// Hostname for the current server
 		/// </summary>
-		string HostName;
+		readonly string _hostName;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service singleton</param>
-		public LogFileCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service singleton</param>
+		public LogFileCollection(DatabaseService databaseService)
 		{
-			LogFiles = DatabaseService.GetCollection<LogFileDocument>("LogFiles");
-			this.HostName = Dns.GetHostName();
+			_logFiles = databaseService.GetCollection<LogFileDocument>("LogFiles");
+			_hostName = Dns.GetHostName();
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile> CreateLogFileAsync(JobId JobId, SessionId? SessionId, LogType Type)
+		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type)
 		{
-			LogFileDocument NewLogFile = new LogFileDocument(JobId, SessionId, Type);
-			await LogFiles.InsertOneAsync(NewLogFile);
-			return NewLogFile;
+			LogFileDocument newLogFile = new LogFileDocument(jobId, sessionId, type);
+			await _logFiles.InsertOneAsync(newLogFile);
+			return newLogFile;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> TryAddChunkAsync(ILogFile LogFileInterface, long Offset, int LineIndex)
+		public async Task<ILogFile?> TryAddChunkAsync(ILogFile logFileInterface, long offset, int lineIndex)
 		{
-			LogFileDocument LogFile = ((LogFileDocument)LogFileInterface).Clone();
+			LogFileDocument logFile = ((LogFileDocument)logFileInterface).Clone();
 
-			int ChunkIdx = LogFile.Chunks.GetChunkForOffset(Offset) + 1;
+			int chunkIdx = logFile.Chunks.GetChunkForOffset(offset) + 1;
 
-			LogChunkDocument Chunk = new LogChunkDocument();
-			Chunk.Offset = Offset;
-			Chunk.LineIndex = LineIndex;
-			Chunk.Server = HostName;
-			LogFile.Chunks.Insert(ChunkIdx, Chunk);
+			LogChunkDocument chunk = new LogChunkDocument();
+			chunk.Offset = offset;
+			chunk.LineIndex = lineIndex;
+			chunk.Server = _hostName;
+			logFile.Chunks.Insert(chunkIdx, chunk);
 
-			UpdateDefinition<LogFileDocument> Update = Builders<LogFileDocument>.Update.Set(x => x.Chunks, LogFile.Chunks);
-			if (ChunkIdx == LogFile.Chunks.Count - 1)
+			UpdateDefinition<LogFileDocument> update = Builders<LogFileDocument>.Update.Set(x => x.Chunks, logFile.Chunks);
+			if (chunkIdx == logFile.Chunks.Count - 1)
 			{
-				LogFile.MaxLineIndex = null;
-				Update = Update.Unset(x => x.MaxLineIndex);
+				logFile.MaxLineIndex = null;
+				update = update.Unset(x => x.MaxLineIndex);
 			}
 
-			if (!await TryUpdateLogFileAsync(LogFile, Update))
+			if (!await TryUpdateLogFileAsync(logFile, update))
 			{
 				return null;
 			}
 
-			return LogFile;
+			return logFile;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> TryCompleteChunksAsync(ILogFile LogFileInterface, IEnumerable<CompleteLogChunkUpdate> ChunkUpdates)
+		public async Task<ILogFile?> TryCompleteChunksAsync(ILogFile logFileInterface, IEnumerable<CompleteLogChunkUpdate> chunkUpdates)
 		{
-			LogFileDocument LogFile = ((LogFileDocument)LogFileInterface).Clone();
+			LogFileDocument logFile = ((LogFileDocument)logFileInterface).Clone();
 
 			// Update the length of any complete chunks
-			UpdateDefinitionBuilder<LogFileDocument> UpdateBuilder = Builders<LogFileDocument>.Update;
-			List<UpdateDefinition<LogFileDocument>> Updates = new List<UpdateDefinition<LogFileDocument>>();
-			foreach (CompleteLogChunkUpdate ChunkUpdate in ChunkUpdates)
+			UpdateDefinitionBuilder<LogFileDocument> updateBuilder = Builders<LogFileDocument>.Update;
+			List<UpdateDefinition<LogFileDocument>> updates = new List<UpdateDefinition<LogFileDocument>>();
+			foreach (CompleteLogChunkUpdate chunkUpdate in chunkUpdates)
 			{
-				LogChunkDocument Chunk = LogFile.Chunks[ChunkUpdate.Index];
-				Chunk.Length = ChunkUpdate.Length;
-				Updates.Add(UpdateBuilder.Set(x => x.Chunks[ChunkUpdate.Index].Length, ChunkUpdate.Length));
+				LogChunkDocument chunk = logFile.Chunks[chunkUpdate.Index];
+				chunk.Length = chunkUpdate.Length;
+				updates.Add(updateBuilder.Set(x => x.Chunks[chunkUpdate.Index].Length, chunkUpdate.Length));
 
-				if (ChunkUpdate.Index == LogFile.Chunks.Count - 1)
+				if (chunkUpdate.Index == logFile.Chunks.Count - 1)
 				{
-					LogFile.MaxLineIndex = Chunk.LineIndex + ChunkUpdate.LineCount;
-					Updates.Add(UpdateBuilder.Set(x => x.MaxLineIndex, LogFile.MaxLineIndex));
+					logFile.MaxLineIndex = chunk.LineIndex + chunkUpdate.LineCount;
+					updates.Add(updateBuilder.Set(x => x.MaxLineIndex, logFile.MaxLineIndex));
 				}
 			}
 
 			// Try to apply the updates
-			if (Updates.Count > 0 && !await TryUpdateLogFileAsync(LogFile, UpdateBuilder.Combine(Updates)))
+			if (updates.Count > 0 && !await TryUpdateLogFileAsync(logFile, updateBuilder.Combine(updates)))
 			{
 				return null;
 			}
 
-			return LogFile;
+			return logFile;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> TryUpdateIndexAsync(ILogFile LogFileInterface, long NewIndexLength)
+		public async Task<ILogFile?> TryUpdateIndexAsync(ILogFile logFileInterface, long newIndexLength)
 		{
-			LogFileDocument LogFile = ((LogFileDocument)LogFileInterface).Clone();
+			LogFileDocument logFile = ((LogFileDocument)logFileInterface).Clone();
 
-			UpdateDefinition<LogFileDocument> Update = Builders<LogFileDocument>.Update.Set(x => x.IndexLength, NewIndexLength);
-			if (!await TryUpdateLogFileAsync(LogFile, Update))
+			UpdateDefinition<LogFileDocument> update = Builders<LogFileDocument>.Update.Set(x => x.IndexLength, newIndexLength);
+			if (!await TryUpdateLogFileAsync(logFile, update))
 			{
 				return null;
 			}
 
-			LogFile.IndexLength = NewIndexLength;
-			return LogFile;
+			logFile.IndexLength = newIndexLength;
+			return logFile;
 		}
 
 		/// <inheritdoc/>
-		private async Task<bool> TryUpdateLogFileAsync(LogFileDocument Current, UpdateDefinition<LogFileDocument> Update)
+		private async Task<bool> TryUpdateLogFileAsync(LogFileDocument current, UpdateDefinition<LogFileDocument> update)
 		{
-			int PrevUpdateIndex = Current.UpdateIndex;
-			Current.UpdateIndex++;
-			UpdateResult Result = await LogFiles.UpdateOneAsync<LogFileDocument>(x => x.Id == Current.Id && x.UpdateIndex == PrevUpdateIndex, Update.Set(x => x.UpdateIndex, Current.UpdateIndex));
-			return Result.ModifiedCount == 1;
+			int prevUpdateIndex = current.UpdateIndex;
+			current.UpdateIndex++;
+			UpdateResult result = await _logFiles.UpdateOneAsync<LogFileDocument>(x => x.Id == current.Id && x.UpdateIndex == prevUpdateIndex, update.Set(x => x.UpdateIndex, current.UpdateIndex));
+			return result.ModifiedCount == 1;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> GetLogFileAsync(LogId LogFileId)
+		public async Task<ILogFile?> GetLogFileAsync(LogId logFileId)
 		{
-			LogFileDocument LogFile = await LogFiles.Find<LogFileDocument>(x => x.Id == LogFileId).FirstOrDefaultAsync();
-			return LogFile;
+			LogFileDocument logFile = await _logFiles.Find<LogFileDocument>(x => x.Id == logFileId).FirstOrDefaultAsync();
+			return logFile;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogFile>> GetLogFilesAsync(int? Index = null, int? Count = null)
+		public async Task<List<ILogFile>> GetLogFilesAsync(int? index = null, int? count = null)
 		{
-			IFindFluent<LogFileDocument, LogFileDocument> Query = LogFiles.Find(FilterDefinition<LogFileDocument>.Empty);
-			if(Index != null)
+			IFindFluent<LogFileDocument, LogFileDocument> query = _logFiles.Find(FilterDefinition<LogFileDocument>.Empty);
+			if(index != null)
 			{
-				Query = Query.Skip(Index.Value);
+				query = query.Skip(index.Value);
 			}
-			if(Count != null)
+			if(count != null)
 			{
-				Query = Query.Limit(Count.Value);
+				query = query.Limit(count.Value);
 			}
 
-			List<LogFileDocument> Results = await Query.ToListAsync();
-			return Results.ConvertAll<ILogFile>(x => x);
+			List<LogFileDocument> results = await query.ToListAsync();
+			return results.ConvertAll<ILogFile>(x => x);
 		}
 	}
 }

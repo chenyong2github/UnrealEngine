@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -36,13 +33,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Channel">The channel information</param>
-		public GetAgentSoftwareChannelResponse(IAgentSoftwareChannel Channel)
+		/// <param name="channel">The channel information</param>
+		public GetAgentSoftwareChannelResponse(IAgentSoftwareChannel channel)
 		{
-			this.Name = Channel.Name.ToString();
-			this.ModifiedBy = Channel.ModifiedBy;
-			this.ModifiedTime = Channel.ModifiedTime;
-			this.Version = Channel.Version.ToString();
+			Name = channel.Name.ToString();
+			ModifiedBy = channel.ModifiedBy;
+			ModifiedTime = channel.ModifiedTime;
+			Version = channel.Version.ToString();
 		}
 	}
 }

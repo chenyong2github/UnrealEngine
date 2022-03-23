@@ -1,11 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using Horde.Build.Models;
 using Horde.Build.Services;
 
 namespace Horde.Build.Api
@@ -59,20 +53,18 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Response constructor
 		/// </summary>
-		public GetJiraIssueResponse(JiraIssue Issue)
+		public GetJiraIssueResponse(JiraIssue issue)
 		{
-			this.Key = Issue.Key;
-			this.JiraLink = Issue.JiraLink;
-			this.StatusName = Issue.StatusName;
-			this.ResolutionName = Issue.ResolutionName;
-			this.PriorityName = Issue.PriorityName;
-			this.AssigneeName = Issue.AssigneeName;
-			this.AssigneeDisplayName = Issue.AssigneeDisplayName;
-			this.AssigneeEmailAddress = Issue.AssigneeEmailAddress;
+			Key = issue.Key;
+			JiraLink = issue.JiraLink;
+			StatusName = issue.StatusName;
+			ResolutionName = issue.ResolutionName;
+			PriorityName = issue.PriorityName;
+			AssigneeName = issue.AssigneeName;
+			AssigneeDisplayName = issue.AssigneeDisplayName;
+			AssigneeEmailAddress = issue.AssigneeEmailAddress;
 		}
-
 	}
-
 }
 
  

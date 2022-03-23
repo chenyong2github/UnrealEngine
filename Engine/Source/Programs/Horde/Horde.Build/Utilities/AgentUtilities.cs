@@ -2,13 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Text.RegularExpressions;
 using System.Text.Json;
-using System.Diagnostics;
 
 #nullable disable
 
@@ -19,26 +16,26 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Reads the version number from an archive
 		/// </summary>
-		/// <param name="Data">The archive data</param>
+		/// <param name="data">The archive data</param>
 		/// <returns></returns>
-		public static string ReadVersion(byte[] Data)
+		public static string ReadVersion(byte[] data)
 		{
-			MemoryStream InputStream = new MemoryStream(Data);
-			using (ZipArchive InputArchive = new ZipArchive(InputStream, ZipArchiveMode.Read, true))
+			MemoryStream inputStream = new MemoryStream(data);
+			using (ZipArchive inputArchive = new ZipArchive(inputStream, ZipArchiveMode.Read, true))
 			{
-				foreach (ZipArchiveEntry InputEntry in InputArchive.Entries)
+				foreach (ZipArchiveEntry inputEntry in inputArchive.Entries)
 				{
-					if (InputEntry.FullName.Equals("HordeAgent.dll", StringComparison.OrdinalIgnoreCase))
+					if (inputEntry.FullName.Equals("HordeAgent.dll", StringComparison.OrdinalIgnoreCase))
 					{
-						string TempFile = Path.GetTempFileName();
+						string tempFile = Path.GetTempFileName();
 						try
 						{
-							InputEntry.ExtractToFile(TempFile, true);
-							return FileVersionInfo.GetVersionInfo(TempFile).ProductVersion;
+							inputEntry.ExtractToFile(tempFile, true);
+							return FileVersionInfo.GetVersionInfo(tempFile).ProductVersion;
 						}
 						finally
 						{
-							File.Delete(TempFile);
+							File.Delete(tempFile);
 						}
 					}
 				}
@@ -46,48 +43,48 @@ namespace Horde.Build.Utilities
 			throw new Exception("Unable to find HordeAgent.dll in archive");
 		}
 
-
 		/// <summary>
 		/// Updates the agent app settings within the archive data
 		/// </summary>
-		/// <param name="Data">Data for the zip archive</param>
-		/// <param name="Settings">The settings to update</param>
+		/// <param name="data">Data for the zip archive</param>
+		/// <param name="settings">The settings to update</param>
 		/// <returns>New agent app data</returns>
-		public static byte[] UpdateAppSettings(byte[] Data, Dictionary<string, object> Settings)
+		public static byte[] UpdateAppSettings(byte[] data, Dictionary<string, object> settings)
 		{
 			bool bWrittenClientId = false;
 
-			MemoryStream OutputStream = new MemoryStream();
-			using (ZipArchive OutputArchive = new ZipArchive(OutputStream, ZipArchiveMode.Create, true))
+			MemoryStream outputStream = new MemoryStream();
+			using (ZipArchive outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create, true))
 			{
-				MemoryStream InputStream = new MemoryStream(Data);
-				using (ZipArchive InputArchive = new ZipArchive(InputStream, ZipArchiveMode.Read, true))
+				MemoryStream inputStream = new MemoryStream(data);
+				using (ZipArchive inputArchive = new ZipArchive(inputStream, ZipArchiveMode.Read, true))
 				{
-					foreach (ZipArchiveEntry InputEntry in InputArchive.Entries)
+					foreach (ZipArchiveEntry inputEntry in inputArchive.Entries)
 					{
-						ZipArchiveEntry OutputEntry = OutputArchive.CreateEntry(InputEntry.FullName);
+						ZipArchiveEntry outputEntry = outputArchive.CreateEntry(inputEntry.FullName);
 
-						using System.IO.Stream InputEntryStream = InputEntry.Open();
-						using System.IO.Stream OutputEntryStream = OutputEntry.Open();
+						using System.IO.Stream inputEntryStream = inputEntry.Open();
+						using System.IO.Stream outputEntryStream = outputEntry.Open();
 
-						if (InputEntry.FullName.Equals("appsettings.json", StringComparison.OrdinalIgnoreCase))
+						if (inputEntry.FullName.Equals("appsettings.json", StringComparison.OrdinalIgnoreCase))
 						{
-							using MemoryStream MemoryStream = new MemoryStream();
-							InputEntryStream.CopyTo(MemoryStream);
+							using MemoryStream memoryStream = new MemoryStream();
+							inputEntryStream.CopyTo(memoryStream);
 
-							Dictionary<string, Dictionary<string, object>> Document = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(MemoryStream.ToArray());
-							foreach (KeyValuePair<string, object> Pair in Settings) {								
-								Document["Horde"][Pair.Key] = Pair.Value;
+							Dictionary<string, Dictionary<string, object>> document = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(memoryStream.ToArray());
+							foreach (KeyValuePair<string, object> pair in settings) 
+							{								
+								document["Horde"][pair.Key] = pair.Value;
 							}
 
-							using Utf8JsonWriter Writer = new Utf8JsonWriter(OutputEntryStream, new JsonWriterOptions { Indented = true });
-							JsonSerializer.Serialize<Dictionary<string, Dictionary<string, object>>>(Writer, Document, new JsonSerializerOptions { WriteIndented = true });
+							using Utf8JsonWriter writer = new Utf8JsonWriter(outputEntryStream, new JsonWriterOptions { Indented = true });
+							JsonSerializer.Serialize<Dictionary<string, Dictionary<string, object>>>(writer, document, new JsonSerializerOptions { WriteIndented = true });
 
 							bWrittenClientId = true;
 						}
 						else
 						{
-							InputEntryStream.CopyTo(OutputEntryStream);
+							inputEntryStream.CopyTo(outputEntryStream);
 						}
 					}
 				}
@@ -98,8 +95,7 @@ namespace Horde.Build.Utilities
 				throw new InvalidDataException("Missing appsettings.json file from zip archive");
 			}
 
-			return OutputStream.ToArray();
+			return outputStream.ToArray();
 		}
-
 	}
 }

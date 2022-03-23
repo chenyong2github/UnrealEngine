@@ -31,11 +31,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CreateNoticeRequest(string Message)
+		public CreateNoticeRequest(string message)
 		{
-			this.Message = Message;
+			Message = message;
 		}
-
 	}
 
 	/// <summary>
@@ -43,12 +42,10 @@ namespace Horde.Build.Api
 	/// </summary>
 	public class UpdateNoticeRequest
 	{
-
 		/// <summary>
 		/// The id of the notice to update
 		/// </summary>
 		public string Id { get; set; }
-
 
 		/// <summary>
 		/// Start time to display this message
@@ -68,13 +65,11 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public UpdateNoticeRequest(string Id)
+		public UpdateNoticeRequest(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
-
 	}
-
 
 	/// <summary>
 	/// Notice informtation
@@ -118,13 +113,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetNoticeResponse(INotice Notice, GetThinUserInfoResponse? CreateByUser = null)
+		public GetNoticeResponse(INotice notice, GetThinUserInfoResponse? createByUser = null)
 		{
-			this.Id = Notice.Id.ToString();
-			this.StartTime = Notice.StartTime;
-			this.FinishTime = Notice.FinishTime;
-			this.Message = Notice.Message;
-			this.CreatedByUser = CreateByUser;
+			Id = notice.Id.ToString();
+			StartTime = notice.StartTime;
+			FinishTime = notice.FinishTime;
+			Message = notice.Message;
+			CreatedByUser = createByUser;
 		}
 	}
 }

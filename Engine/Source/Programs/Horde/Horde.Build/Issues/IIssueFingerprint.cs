@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Utilities;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Models
 {
@@ -37,20 +35,20 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Checks if a fingerprint matches another fingerprint
 		/// </summary>
-		/// <param name="Fingerprint">The first fingerprint to compare</param>
-		/// <param name="Other">The other fingerprint to compare to</param>
+		/// <param name="fingerprint">The first fingerprint to compare</param>
+		/// <param name="other">The other fingerprint to compare to</param>
 		/// <returns>True is the fingerprints match</returns>
-		public static bool IsMatch(this IIssueFingerprint Fingerprint, IIssueFingerprint Other)
+		public static bool IsMatch(this IIssueFingerprint fingerprint, IIssueFingerprint other)
 		{
-			if (!Fingerprint.Type.Equals(Other.Type, StringComparison.Ordinal))
+			if (!fingerprint.Type.Equals(other.Type, StringComparison.Ordinal))
 			{
 				return false;
 			}
-			if (Fingerprint.Keys.Count > 0 && Other.Keys.Count > 0 && !Fingerprint.Keys.Any(x => Other.Keys.Contains(x)))
+			if (fingerprint.Keys.Count > 0 && other.Keys.Count > 0 && !fingerprint.Keys.Any(x => other.Keys.Contains(x)))
 			{
 				return false;
 			}
-			if (Fingerprint.RejectKeys != null && Fingerprint.RejectKeys.Any(x => Other.Keys.Contains(x)))
+			if (fingerprint.RejectKeys != null && fingerprint.RejectKeys.Any(x => other.Keys.Contains(x)))
 			{
 				return false;
 			}
@@ -60,16 +58,16 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Checks if a fingerprint matches another fingerprint for creating a new span
 		/// </summary>
-		/// <param name="Fingerprint">The first fingerprint to compare</param>
-		/// <param name="Other">The other fingerprint to compare to</param>
+		/// <param name="fingerprint">The first fingerprint to compare</param>
+		/// <param name="other">The other fingerprint to compare to</param>
 		/// <returns>True is the fingerprints match</returns>
-		public static bool IsMatchForNewSpan(this IIssueFingerprint Fingerprint, IIssueFingerprint Other)
+		public static bool IsMatchForNewSpan(this IIssueFingerprint fingerprint, IIssueFingerprint other)
 		{
-			if (!Fingerprint.Type.Equals(Other.Type, StringComparison.Ordinal))
+			if (!fingerprint.Type.Equals(other.Type, StringComparison.Ordinal))
 			{
 				return false;
 			}
-			if (Fingerprint.RejectKeys != null && Fingerprint.RejectKeys.Any(x => Other.Keys.Contains(x)))
+			if (fingerprint.RejectKeys != null && fingerprint.RejectKeys.Any(x => other.Keys.Contains(x)))
 			{
 				return false;
 			}

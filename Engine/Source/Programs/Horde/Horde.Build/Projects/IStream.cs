@@ -1,24 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Acls;
-using Horde.Build.Api;
-using HordeCommon;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
+using EpicGames.Core;
+using Horde.Build.Acls;
+using Horde.Build.Api;
+using Horde.Build.Utilities;
+using HordeCommon;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Models
 {
@@ -38,12 +30,12 @@ namespace Horde.Build.Models
 		}
 
 		/// <inheritdoc/>
-		public InvalidStreamException(string Message) : base(Message)
+		public InvalidStreamException(string message) : base(message)
 		{
 		}
 
 		/// <inheritdoc/>
-		public InvalidStreamException(string Message, Exception InnerEx) : base(Message, InnerEx)
+		public InvalidStreamException(string message, Exception innerEx) : base(message, innerEx)
 		{
 		}
 	}
@@ -85,37 +77,37 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Pool">The pool for this agent</param>
-		/// <param name="Workspace">Name of the workspace to use</param>
-		/// <param name="TempStorageDir">Path to the temp storage directory</param>
-		public AgentType(PoolId Pool, string Workspace, string? TempStorageDir)
+		/// <param name="pool">The pool for this agent</param>
+		/// <param name="workspace">Name of the workspace to use</param>
+		/// <param name="tempStorageDir">Path to the temp storage directory</param>
+		public AgentType(PoolId pool, string workspace, string? tempStorageDir)
 		{
-			this.Pool = Pool;
-			this.Workspace = Workspace;
-			this.TempStorageDir = TempStorageDir;
+			Pool = pool;
+			Workspace = workspace;
+			TempStorageDir = tempStorageDir;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Request">The object to construct from</param>
-		public AgentType(CreateAgentTypeRequest Request)
+		/// <param name="request">The object to construct from</param>
+		public AgentType(CreateAgentTypeRequest request)
 		{
-			Pool = new PoolId(Request.Pool);
-			Workspace = Request.Workspace;
-			TempStorageDir = Request.TempStorageDir;
-			Environment = Request.Environment;
+			Pool = new PoolId(request.Pool);
+			Workspace = request.Workspace;
+			TempStorageDir = request.TempStorageDir;
+			Environment = request.Environment;
 		}
 
 		/// <summary>
 		/// Constructs an AgentType object from an optional request
 		/// </summary>
-		/// <param name="Request">The request object</param>
+		/// <param name="request">The request object</param>
 		/// <returns>New agent type object</returns>
-		[return: NotNullIfNotNull("Request")]
-		public static AgentType? FromRequest(CreateAgentTypeRequest? Request)
+		[return: NotNullIfNotNull("request")]
+		public static AgentType? FromRequest(CreateAgentTypeRequest? request)
 		{
-			return (Request != null) ? new AgentType(Request) : null;
+			return (request != null) ? new AgentType(request) : null;
 		}
 
 		/// <summary>
@@ -133,16 +125,16 @@ namespace Horde.Build.Models
 		/// <returns>The response object</returns>
 		public HordeCommon.Rpc.GetAgentTypeResponse ToRpcResponse()
 		{
-			HordeCommon.Rpc.GetAgentTypeResponse Response = new HordeCommon.Rpc.GetAgentTypeResponse();
+			HordeCommon.Rpc.GetAgentTypeResponse response = new HordeCommon.Rpc.GetAgentTypeResponse();
 			if (TempStorageDir != null)
 			{
-				Response.TempStorageDir = TempStorageDir;
+				response.TempStorageDir = TempStorageDir;
 			}
 			if (Environment != null)
 			{
-				Response.Environment.Add(Environment);
+				response.Environment.Add(Environment);
 			}
-			return Response;
+			return response;
 		}
 	}
 
@@ -213,29 +205,29 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Request">The object to construct from</param>
-		public WorkspaceType(CreateWorkspaceTypeRequest Request)
+		/// <param name="request">The object to construct from</param>
+		public WorkspaceType(CreateWorkspaceTypeRequest request)
 		{
-			Cluster = Request.Cluster;
-			ServerAndPort = Request.ServerAndPort;
-			UserName = Request.UserName;
-			Password = Request.Password;
-			Identifier = Request.Identifier;
-			Stream = Request.Stream;
-			View = Request.View;
-			Incremental = Request.Incremental;
-			UseAutoSdk = Request.UseAutoSdk;
+			Cluster = request.Cluster;
+			ServerAndPort = request.ServerAndPort;
+			UserName = request.UserName;
+			Password = request.Password;
+			Identifier = request.Identifier;
+			Stream = request.Stream;
+			View = request.View;
+			Incremental = request.Incremental;
+			UseAutoSdk = request.UseAutoSdk;
 		}
 
 		/// <summary>
 		/// Constructs an AgentType object from an optional request
 		/// </summary>
-		/// <param name="Request">The request object</param>
+		/// <param name="request">The request object</param>
 		/// <returns>New agent type object</returns>
-		[return: NotNullIfNotNull("Request")]
-		public static WorkspaceType? FromRequest(CreateWorkspaceTypeRequest? Request)
+		[return: NotNullIfNotNull("request")]
+		public static WorkspaceType? FromRequest(CreateWorkspaceTypeRequest? request)
 		{
-			return (Request != null) ? new WorkspaceType(Request) : null;
+			return (request != null) ? new WorkspaceType(request) : null;
 		}
 
 		/// <summary>
@@ -273,20 +265,20 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Trigger">Name of the target that needs to complete</param>
-		/// <param name="TemplateRefId">The new template to trigger</param>
-		public ChainedJobTemplate(string Trigger, TemplateRefId TemplateRefId)
+		/// <param name="trigger">Name of the target that needs to complete</param>
+		/// <param name="templateRefId">The new template to trigger</param>
+		public ChainedJobTemplate(string trigger, TemplateRefId templateRefId)
 		{
-			this.Trigger = Trigger;
-			this.TemplateRefId = TemplateRefId;
+			Trigger = trigger;
+			TemplateRefId = templateRefId;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Request">Request to construct from</param>
-		public ChainedJobTemplate(CreateChainedJobTemplateRequest Request)
-			: this(Request.Trigger, new TemplateRefId(Request.TemplateId))
+		/// <param name="request">Request to construct from</param>
+		public ChainedJobTemplate(CreateChainedJobTemplateRequest request)
+			: this(request.Trigger, new TemplateRefId(request.TemplateId))
 		{
 		}
 	}
@@ -353,34 +345,34 @@ namespace Horde.Build.Models
 		/// </summary>
 		private TemplateRef()
 		{
-			this.Name = null!;
-			this.Hash = null!;
+			Name = null!;
+			Hash = null!;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Template">The template being referenced</param>
-		/// <param name="ShowUgsBadges">Whether to show badges in UGS for this job</param>
-		/// <param name="ShowUgsAlerts">Whether to show alerts in UGS for this job</param>
-		/// <param name="NotificationChannel">Notification channel for this template</param>
-		/// <param name="NotificationChannelFilter">Notification channel filter for this template</param>
-		/// <param name="TriageChannel"></param>
-		/// <param name="Schedule">Schedule for this template</param>
-		/// <param name="Triggers">List of downstream templates to trigger</param>
-		/// <param name="Acl">ACL for this template</param>
-		public TemplateRef(ITemplate Template, bool ShowUgsBadges = false, bool ShowUgsAlerts = false, string? NotificationChannel = null, string? NotificationChannelFilter = null, string? TriageChannel = null, Schedule? Schedule = null, List<ChainedJobTemplate>? Triggers = null, Acl? Acl = null)
+		/// <param name="template">The template being referenced</param>
+		/// <param name="showUgsBadges">Whether to show badges in UGS for this job</param>
+		/// <param name="showUgsAlerts">Whether to show alerts in UGS for this job</param>
+		/// <param name="notificationChannel">Notification channel for this template</param>
+		/// <param name="notificationChannelFilter">Notification channel filter for this template</param>
+		/// <param name="triageChannel"></param>
+		/// <param name="schedule">Schedule for this template</param>
+		/// <param name="triggers">List of downstream templates to trigger</param>
+		/// <param name="acl">ACL for this template</param>
+		public TemplateRef(ITemplate template, bool showUgsBadges = false, bool showUgsAlerts = false, string? notificationChannel = null, string? notificationChannelFilter = null, string? triageChannel = null, Schedule? schedule = null, List<ChainedJobTemplate>? triggers = null, Acl? acl = null)
 		{
-			this.Name = Template.Name;
-			this.Hash = Template.Id;
-			this.ShowUgsBadges = ShowUgsBadges;
-			this.ShowUgsAlerts = ShowUgsAlerts;
-			this.NotificationChannel = NotificationChannel;
-			this.NotificationChannelFilter = NotificationChannelFilter;
-			this.TriageChannel = TriageChannel;
-			this.Schedule = Schedule;
-			this.ChainedJobs = Triggers;
-			this.Acl = Acl;
+			Name = template.Name;
+			Hash = template.Id;
+			ShowUgsBadges = showUgsBadges;
+			ShowUgsAlerts = showUgsAlerts;
+			NotificationChannel = notificationChannel;
+			NotificationChannelFilter = notificationChannelFilter;
+			TriageChannel = triageChannel;
+			Schedule = schedule;
+			ChainedJobs = triggers;
+			Acl = acl;
 		}
 	}
 
@@ -438,12 +430,12 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="TemplateRefId"></param>
-		/// <param name="Change">The job type to query for the change to use</param>
-		public DefaultPreflight(TemplateRefId? TemplateRefId, ChangeQuery? Change)
+		/// <param name="templateRefId"></param>
+		/// <param name="change">The job type to query for the change to use</param>
+		public DefaultPreflight(TemplateRefId? templateRefId, ChangeQuery? change)
 		{
-			this.TemplateRefId = TemplateRefId;
-			this.Change = Change;
+			TemplateRefId = templateRefId;
+			Change = change;
 		}
 
 		/// <summary>
@@ -453,17 +445,17 @@ namespace Horde.Build.Models
 		public DefaultPreflightRequest ToRequest()
 		{
 #pragma warning disable CS0618 // Type or member is obsolete
-			ChangeQueryRequest? ChangeRequest = null;
+			ChangeQueryRequest? changeRequest = null;
 			if (Change != null)
 			{
-				ChangeRequest = Change.ToRequest();
+				changeRequest = Change.ToRequest();
 			}
 			else if (ChangeTemplateRefId != null)
 			{
-				ChangeRequest = new ChangeQueryRequest { TemplateId = ChangeTemplateRefId.ToString() };
+				changeRequest = new ChangeQueryRequest { TemplateId = ChangeTemplateRefId.ToString() };
 			}
 
-			return new DefaultPreflightRequest { TemplateId = TemplateRefId?.ToString(), Change = ChangeRequest, ChangeTemplateId = ChangeRequest?.TemplateId };
+			return new DefaultPreflightRequest { TemplateId = TemplateRefId?.ToString(), Change = changeRequest, ChangeTemplateId = changeRequest?.TemplateId };
 #pragma warning restore CS0618 // Type or member is obsolete
 		}
 	}
@@ -476,11 +468,11 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Adds a new template ref to a list
 		/// </summary>
-		/// <param name="TemplateRefs">List of template refs</param>
-		/// <param name="TemplateRef">The template ref to add</param>
-		public static void AddRef(this Dictionary<TemplateRefId, TemplateRef> TemplateRefs, TemplateRef TemplateRef)
+		/// <param name="templateRefs">List of template refs</param>
+		/// <param name="templateRef">The template ref to add</param>
+		public static void AddRef(this Dictionary<TemplateRefId, TemplateRef> templateRefs, TemplateRef templateRef)
 		{
-			TemplateRefs.Add(new TemplateRefId(TemplateRef.Name), TemplateRef);
+			templateRefs.Add(new TemplateRefId(templateRef.Name), templateRef);
 		}
 	}
 
@@ -619,46 +611,46 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Tries to get an agent workspace definition from the given type name
 		/// </summary>
-		/// <param name="Stream">The stream object</param>
-		/// <param name="AgentType">The agent type</param>
-		/// <param name="Workspace">Receives the agent workspace definition</param>
+		/// <param name="stream">The stream object</param>
+		/// <param name="agentType">The agent type</param>
+		/// <param name="workspace">Receives the agent workspace definition</param>
 		/// <returns>True if the agent type was valid, and an agent workspace could be created</returns>
-		public static bool TryGetAgentWorkspace(this IStream Stream, AgentType AgentType, [NotNullWhen(true)] out (AgentWorkspace, bool)? Workspace)
+		public static bool TryGetAgentWorkspace(this IStream stream, AgentType agentType, [NotNullWhen(true)] out (AgentWorkspace, bool)? workspace)
 		{
 			// Get the workspace settings
-			if (AgentType.Workspace == null)
+			if (agentType.Workspace == null)
 			{
 				// Use the default settings (fast switching workspace, clean 
-				Workspace = (new AgentWorkspace(null, null, GetDefaultWorkspaceIdentifier(Stream), Stream.Name, null, false), true);
+				workspace = (new AgentWorkspace(null, null, GetDefaultWorkspaceIdentifier(stream), stream.Name, null, false), true);
 				return true;
 			}
 			else
 			{
 				// Try to get the matching workspace type
-				WorkspaceType? WorkspaceType;
-				if (!Stream.WorkspaceTypes.TryGetValue(AgentType.Workspace, out WorkspaceType))
+				WorkspaceType? workspaceType;
+				if (!stream.WorkspaceTypes.TryGetValue(agentType.Workspace, out workspaceType))
 				{
-					Workspace = null;
+					workspace = null;
 					return false;
 				}
 
 				// Get the workspace identifier
-				string Identifier;
-				if (WorkspaceType.Identifier != null)
+				string identifier;
+				if (workspaceType.Identifier != null)
 				{
-					Identifier = WorkspaceType.Identifier;
+					identifier = workspaceType.Identifier;
 				}
-				else if (WorkspaceType.Incremental)
+				else if (workspaceType.Incremental)
 				{
-					Identifier = $"{Stream.GetEscapedName()}+{AgentType.Workspace}";
+					identifier = $"{stream.GetEscapedName()}+{agentType.Workspace}";
 				}
 				else
 				{
-					Identifier = GetDefaultWorkspaceIdentifier(Stream);
+					identifier = GetDefaultWorkspaceIdentifier(stream);
 				}
 
 				// Create the new workspace
-				Workspace = (new AgentWorkspace(WorkspaceType.Cluster, WorkspaceType.UserName, Identifier, WorkspaceType.Stream ?? Stream.Name, WorkspaceType.View, WorkspaceType.Incremental), WorkspaceType.UseAutoSdk);
+				workspace = (new AgentWorkspace(workspaceType.Cluster, workspaceType.UserName, identifier, workspaceType.Stream ?? stream.Name, workspaceType.View, workspaceType.Incremental), workspaceType.UseAutoSdk);
 				return true;
 			}
 		}
@@ -666,61 +658,61 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// The escaped name of this stream. Removes all non-identifier characters.
 		/// </summary>
-		/// <param name="Stream">The stream object</param>
+		/// <param name="stream">The stream object</param>
 		/// <returns>Escaped name for the stream</returns>
-		public static string GetEscapedName(this IStream Stream)
+		public static string GetEscapedName(this IStream stream)
 		{
-			return Regex.Replace(Stream.Name, @"[^a-zA-Z0-9_]", "+");
+			return Regex.Replace(stream.Name, @"[^a-zA-Z0-9_]", "+");
 		}
 
 		/// <summary>
 		/// Gets the default identifier for workspaces created for this stream. Just includes an escaped depot name.
 		/// </summary>
-		/// <param name="Stream">The stream object</param>
+		/// <param name="stream">The stream object</param>
 		/// <returns>The default workspace identifier</returns>
-		private static string GetDefaultWorkspaceIdentifier(IStream Stream)
+		private static string GetDefaultWorkspaceIdentifier(IStream stream)
 		{
-			return Regex.Replace(Stream.GetEscapedName(), @"^(\+\+[^+]*).*$", "$1");
+			return Regex.Replace(stream.GetEscapedName(), @"^(\+\+[^+]*).*$", "$1");
 		}
 
 		/// <summary>
 		/// Converts to a public response object
 		/// </summary>
-		/// <param name="Stream">The stream object</param>
+		/// <param name="stream">The stream object</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response object</param>
-		/// <param name="ApiTemplateRefs">The template refs for this stream. Passed separately because they have their own ACL.</param>
+		/// <param name="apiTemplateRefs">The template refs for this stream. Passed separately because they have their own ACL.</param>
 		/// <returns>New response instance</returns>
-		public static Api.GetStreamResponse ToApiResponse(this IStream Stream, bool bIncludeAcl, List<GetTemplateRefResponse> ApiTemplateRefs)
+		public static Api.GetStreamResponse ToApiResponse(this IStream stream, bool bIncludeAcl, List<GetTemplateRefResponse> apiTemplateRefs)
 		{
-			List<GetStreamTabResponse> ApiTabs = Stream.Tabs.ConvertAll(x => x.ToResponse());
-			Dictionary<string, GetAgentTypeResponse> ApiAgentTypes = Stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
-			Dictionary<string, GetWorkspaceTypeResponse> ApiWorkspaceTypes = Stream.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
-			GetAclResponse? ApiAcl = (bIncludeAcl && Stream.Acl != null)? new GetAclResponse(Stream.Acl) : null;
-			return new Api.GetStreamResponse(Stream.Id.ToString(), Stream.ProjectId.ToString(), Stream.Name, Stream.ConfigPath, Stream.ConfigRevision, Stream.Order, Stream.NotificationChannel, Stream.NotificationChannelFilter, Stream.TriageChannel, Stream.DefaultPreflight?.ToRequest(), ApiTabs, ApiAgentTypes, ApiWorkspaceTypes, ApiTemplateRefs, ApiAcl, Stream.PausedUntil, Stream.PauseComment);
+			List<GetStreamTabResponse> apiTabs = stream.Tabs.ConvertAll(x => x.ToResponse());
+			Dictionary<string, GetAgentTypeResponse> apiAgentTypes = stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
+			Dictionary<string, GetWorkspaceTypeResponse> apiWorkspaceTypes = stream.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
+			GetAclResponse? apiAcl = (bIncludeAcl && stream.Acl != null)? new GetAclResponse(stream.Acl) : null;
+			return new Api.GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigPath, stream.ConfigRevision, stream.Order, stream.NotificationChannel, stream.NotificationChannelFilter, stream.TriageChannel, stream.DefaultPreflight?.ToRequest(), apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment);
 		}
 
 		/// <summary>
 		/// Converts to an RPC response object
 		/// </summary>
-		/// <param name="Stream">The stream object</param>
+		/// <param name="stream">The stream object</param>
 		/// <returns>New response instance</returns>
-		public static HordeCommon.Rpc.GetStreamResponse ToRpcResponse(this IStream Stream)
+		public static HordeCommon.Rpc.GetStreamResponse ToRpcResponse(this IStream stream)
 		{
-			HordeCommon.Rpc.GetStreamResponse Response = new HordeCommon.Rpc.GetStreamResponse();
-			Response.Name = Stream.Name;
-			Response.AgentTypes.Add(Stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToRpcResponse()));
-			return Response;
+			HordeCommon.Rpc.GetStreamResponse response = new HordeCommon.Rpc.GetStreamResponse();
+			response.Name = stream.Name;
+			response.AgentTypes.Add(stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToRpcResponse()));
+			return response;
 		}
 
 		/// <summary>
 		/// Check if stream is paused for new builds
 		/// </summary>
-		/// <param name="Stream">The stream object</param>
-		/// <param name="CurrentTime">Current time (allow tests to pass in a fake clock)</param>
+		/// <param name="stream">The stream object</param>
+		/// <param name="currentTime">Current time (allow tests to pass in a fake clock)</param>
 		/// <returns>If stream is paused</returns>
-		public static bool IsPaused(this IStream Stream, DateTime CurrentTime)
+		public static bool IsPaused(this IStream stream, DateTime currentTime)
 		{
-			return Stream.PausedUntil != null && Stream.PausedUntil > CurrentTime;
+			return stream.PausedUntil != null && stream.PausedUntil > currentTime;
 		}
 	}
 

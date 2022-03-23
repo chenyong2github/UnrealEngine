@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Buffers.Binary;
+using System.Globalization;
+using System.IO;
 using EpicGames.Core;
 using ICSharpCode.SharpZipLib.BZip2;
 using OpenTracing;
 using OpenTracing.Util;
-using System;
-using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -23,55 +20,55 @@ namespace Horde.Build.Utilities
 		/// Compress a block of data with bzip2
 		/// </summary>
 		/// <returns>The compressed data</returns>
-		public static byte[] CompressBzip2(this ReadOnlyMemory<byte> Memory)
+		public static byte[] CompressBzip2(this ReadOnlyMemory<byte> memory)
 		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("CompressBzip2").StartActive();
-			Scope.Span.SetTag("DecompressedSize", Memory.Length.ToString(CultureInfo.InvariantCulture));
+			using IScope scope = GlobalTracer.Instance.BuildSpan("CompressBzip2").StartActive();
+			scope.Span.SetTag("DecompressedSize", memory.Length.ToString(CultureInfo.InvariantCulture));
 
-			byte[] CompressedData;
-			using (MemoryStream Stream = new MemoryStream())
+			byte[] compressedData;
+			using (MemoryStream stream = new MemoryStream())
 			{
-				byte[] DecompressedSize = new byte[4];
-				BinaryPrimitives.WriteInt32LittleEndian(DecompressedSize.AsSpan(), Memory.Length);
-				Stream.Write(DecompressedSize.AsSpan());
+				byte[] decompressedSize = new byte[4];
+				BinaryPrimitives.WriteInt32LittleEndian(decompressedSize.AsSpan(), memory.Length);
+				stream.Write(decompressedSize.AsSpan());
 
-				using (BZip2OutputStream CompressedStream = new BZip2OutputStream(Stream))
+				using (BZip2OutputStream compressedStream = new BZip2OutputStream(stream))
 				{
-					CompressedStream.Write(Memory.Span);
+					compressedStream.Write(memory.Span);
 				}
 
-				CompressedData = Stream.ToArray();
+				compressedData = stream.ToArray();
 			}
 
-			Scope.Span.SetTag("CompressedSize", CompressedData.Length.ToString(CultureInfo.InvariantCulture));
-			return CompressedData;
+			scope.Span.SetTag("CompressedSize", compressedData.Length.ToString(CultureInfo.InvariantCulture));
+			return compressedData;
 		}
 
 		/// <summary>
 		/// Decompress the data
 		/// </summary>
 		/// <returns>The decompressed data</returns>
-		public static byte[] DecompressBzip2(this ReadOnlyMemory<byte> Memory)
+		public static byte[] DecompressBzip2(this ReadOnlyMemory<byte> memory)
 		{
-			int DecompressedSize = BinaryPrimitives.ReadInt32LittleEndian(Memory.Span);
+			int decompressedSize = BinaryPrimitives.ReadInt32LittleEndian(memory.Span);
 
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("DecompressBzip2").StartActive();
-			Scope.Span.SetTag("CompressedSize", Memory.Length.ToString(CultureInfo.InvariantCulture));
-			Scope.Span.SetTag("DecompressedSize", DecompressedSize.ToString(CultureInfo.InvariantCulture));
+			using IScope scope = GlobalTracer.Instance.BuildSpan("DecompressBzip2").StartActive();
+			scope.Span.SetTag("CompressedSize", memory.Length.ToString(CultureInfo.InvariantCulture));
+			scope.Span.SetTag("DecompressedSize", decompressedSize.ToString(CultureInfo.InvariantCulture));
 
-			byte[] Data = new byte[DecompressedSize];
-			using (ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Memory.Slice(4)))
+			byte[] data = new byte[decompressedSize];
+			using (ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(memory.Slice(4)))
 			{
-				using (BZip2InputStream DecompressedStream = new BZip2InputStream(Stream))
+				using (BZip2InputStream decompressedStream = new BZip2InputStream(stream))
 				{
-					int ReadSize = DecompressedStream.Read(Data.AsSpan());
-					if (ReadSize != Data.Length)
+					int readSize = decompressedStream.Read(data.AsSpan());
+					if (readSize != data.Length)
 					{
-						throw new InvalidDataException($"Compressed data is too short (expected {Data.Length} bytes, got {ReadSize} bytes)");
+						throw new InvalidDataException($"Compressed data is too short (expected {data.Length} bytes, got {readSize} bytes)");
 					}
 				}
 			}
-			return Data;
+			return data;
 		}
 	}
 }

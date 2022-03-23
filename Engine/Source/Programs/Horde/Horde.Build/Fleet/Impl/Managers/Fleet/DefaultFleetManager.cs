@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Services.Impl
 {
@@ -14,32 +12,32 @@ namespace Horde.Build.Services.Impl
 	/// </summary>
 	public class DefaultFleetManager : IFleetManager
 	{
-		ILogger Logger;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Logger">Logging device</param>
-		public DefaultFleetManager(ILogger<DefaultFleetManager> Logger)
+		/// <param name="logger">Logging device</param>
+		public DefaultFleetManager(ILogger<DefaultFleetManager> logger)
 		{
-			this.Logger = Logger;
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public Task ExpandPoolAsync(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
+		public Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
 		{
-			Logger.LogInformation("Expand pool {PoolId} by {Count} agents", Pool.Id, Count);
+			_logger.LogInformation("Expand pool {PoolId} by {Count} agents", pool.Id, count);
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task ShrinkPoolAsync(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
+		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
 		{
-			Logger.LogInformation("Shrink pool {PoolId} by {Count} agents", Pool.Id, Count);
+			_logger.LogInformation("Shrink pool {PoolId} by {Count} agents", pool.Id, count);
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task<int> GetNumStoppedInstancesAsync(IPool Pool) => Task.FromResult(0);
+		public Task<int> GetNumStoppedInstancesAsync(IPool pool) => Task.FromResult(0);
 	}
 }

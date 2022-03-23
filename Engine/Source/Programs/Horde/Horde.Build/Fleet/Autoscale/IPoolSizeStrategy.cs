@@ -4,12 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Utilities;
 
 namespace Horde.Build.Fleet.Autoscale
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Available pool sizing strategies
 	/// </summary>
@@ -62,30 +59,30 @@ namespace Horde.Build.Fleet.Autoscale
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Pool"></param>
-		/// <param name="Agents"></param>
-		/// <param name="DesiredAgentCount"></param>
-		/// <param name="StatusMessage"></param>
-		public PoolSizeData(IPool Pool, List<IAgent> Agents, int? DesiredAgentCount, string StatusMessage = "N/A")
+		/// <param name="pool"></param>
+		/// <param name="agents"></param>
+		/// <param name="desiredAgentCount"></param>
+		/// <param name="statusMessage"></param>
+		public PoolSizeData(IPool pool, List<IAgent> agents, int? desiredAgentCount, string statusMessage = "N/A")
 		{
-			this.Pool = Pool;
-			this.Agents = Agents;
-			this.DesiredAgentCount = DesiredAgentCount;
-			this.StatusMessage = StatusMessage;
+			Pool = pool;
+			Agents = agents;
+			DesiredAgentCount = desiredAgentCount;
+			StatusMessage = statusMessage;
 		}
 
 		/// <summary>
 		/// Copy the object, inheriting any unspecified values from current instance
 		/// Needed because the class is immutable 
 		/// </summary>
-		/// <param name="Pool"></param>
-		/// <param name="Agents"></param>
-		/// <param name="DesiredAgentCount"></param>
-		/// <param name="StatusMessage"></param>
+		/// <param name="pool"></param>
+		/// <param name="agents"></param>
+		/// <param name="desiredAgentCount"></param>
+		/// <param name="statusMessage"></param>
 		/// <returns>A new copy</returns>
-		public PoolSizeData Copy(IPool? Pool = null, List<IAgent>? Agents = null, int? DesiredAgentCount = null, string? StatusMessage = null)
+		public PoolSizeData Copy(IPool? pool = null, List<IAgent>? agents = null, int? desiredAgentCount = null, string? statusMessage = null)
 		{
-			return new PoolSizeData(Pool ?? this.Pool, Agents ?? this.Agents, DesiredAgentCount ?? this.DesiredAgentCount, StatusMessage ?? this.StatusMessage);
+			return new PoolSizeData(pool ?? Pool, agents ?? Agents, desiredAgentCount ?? DesiredAgentCount, statusMessage ?? StatusMessage);
 		}
 	}
 	
@@ -97,9 +94,9 @@ namespace Horde.Build.Fleet.Autoscale
 		/// <summary>
 		/// Calculate the adequate number of agents to be online for given pools
 		/// </summary>
-		/// <param name="Pools">Pools including attached agents</param>
+		/// <param name="pools">Pools including attached agents</param>
 		/// <returns></returns>
-		Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools);
+		Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools);
 		
 		/// <summary>
 		/// Name of the strategy
@@ -114,10 +111,10 @@ namespace Horde.Build.Fleet.Autoscale
 	public class NoOpPoolSizeStrategy : IPoolSizeStrategy
 	{
 		/// <inheritdoc/>
-		public Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools)
+		public Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
 		{
-			List<PoolSizeData> Result = Pools.Select(x => new PoolSizeData(x.Pool, x.Agents, x.Agents.Count, "(no-op)")).ToList();
-			return Task.FromResult(Result);
+			List<PoolSizeData> result = pools.Select(x => new PoolSizeData(x.Pool, x.Agents, x.Agents.Count, "(no-op)")).ToList();
+			return Task.FromResult(result);
 		}
 
 		/// <inheritdoc/>

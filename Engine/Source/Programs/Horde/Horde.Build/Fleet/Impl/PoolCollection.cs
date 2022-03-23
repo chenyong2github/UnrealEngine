@@ -1,19 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using EpicGames.Horde.Common;
+using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
-using Horde.Build.Fleet.Autoscale;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -56,259 +54,259 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public PoolDocument(IPool Other)
+			public PoolDocument(IPool other)
 			{
-				Id = Other.Id;
-				Name = Other.Name;
-				Condition = Other.Condition;
-				Workspaces.AddRange(Other.Workspaces);
-				UseAutoSdk = Other.UseAutoSdk;
-				Properties = new Dictionary<string, string>(Other.Properties);
-				EnableAutoscaling = Other.EnableAutoscaling;
-				MinAgents = Other.MinAgents;
-				NumReserveAgents = Other.NumReserveAgents;
-				LastScaleUpTime = Other.LastScaleUpTime;
-				LastScaleDownTime = Other.LastScaleDownTime;
-				ScaleOutCooldown = Other.ScaleOutCooldown;
-				ScaleInCooldown = Other.ScaleInCooldown;
-				SizeStrategy = Other.SizeStrategy;
-				LeaseUtilizationSettings = Other.LeaseUtilizationSettings;
-				JobQueueSettings = Other.JobQueueSettings;
-				UpdateIndex = Other.UpdateIndex;
+				Id = other.Id;
+				Name = other.Name;
+				Condition = other.Condition;
+				Workspaces.AddRange(other.Workspaces);
+				UseAutoSdk = other.UseAutoSdk;
+				Properties = new Dictionary<string, string>(other.Properties);
+				EnableAutoscaling = other.EnableAutoscaling;
+				MinAgents = other.MinAgents;
+				NumReserveAgents = other.NumReserveAgents;
+				LastScaleUpTime = other.LastScaleUpTime;
+				LastScaleDownTime = other.LastScaleDownTime;
+				ScaleOutCooldown = other.ScaleOutCooldown;
+				ScaleInCooldown = other.ScaleInCooldown;
+				SizeStrategy = other.SizeStrategy;
+				LeaseUtilizationSettings = other.LeaseUtilizationSettings;
+				JobQueueSettings = other.JobQueueSettings;
+				UpdateIndex = other.UpdateIndex;
 			}
 		}
 
 		/// <summary>
 		/// Collection of pool documents
 		/// </summary>
-		IMongoCollection<PoolDocument> Pools;
+		readonly IMongoCollection<PoolDocument> _pools;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		public PoolCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service instance</param>
+		public PoolCollection(DatabaseService databaseService)
 		{
-			Pools = DatabaseService.GetCollection<PoolDocument>("Pools");
+			_pools = databaseService.GetCollection<PoolDocument>("Pools");
 		}
 
 		/// <inheritdoc/>
 		public async Task<IPool> AddAsync(
-			PoolId Id,
-			string Name,
-			Condition? Condition,
-			bool? EnableAutoscaling,
-			int? MinAgents,
-			int? NumReserveAgents,
-			TimeSpan? ScaleOutCooldown,
-			TimeSpan? ScaleInCooldown,
-			PoolSizeStrategy? SizeStrategy,
-			LeaseUtilizationSettings? LeaseUtilizationSettings,
-			JobQueueSettings? JobQueueSettings,
-			IEnumerable<KeyValuePair<string, string>>? Properties)
+			PoolId id,
+			string name,
+			Condition? condition,
+			bool? enableAutoscaling,
+			int? minAgents,
+			int? numReserveAgents,
+			TimeSpan? scaleOutCooldown,
+			TimeSpan? scaleInCooldown,
+			PoolSizeStrategy? sizeStrategy,
+			LeaseUtilizationSettings? leaseUtilizationSettings,
+			JobQueueSettings? jobQueueSettings,
+			IEnumerable<KeyValuePair<string, string>>? properties)
 		{
-			PoolDocument Pool = new PoolDocument();
-			Pool.Id = Id;
-			Pool.Name = Name;
-			Pool.Condition = Condition;
-			if (EnableAutoscaling != null)
+			PoolDocument pool = new PoolDocument();
+			pool.Id = id;
+			pool.Name = name;
+			pool.Condition = condition;
+			if (enableAutoscaling != null)
 			{
-				Pool.EnableAutoscaling = EnableAutoscaling.Value;
+				pool.EnableAutoscaling = enableAutoscaling.Value;
 			}
-			Pool.MinAgents = MinAgents;
-			Pool.NumReserveAgents = NumReserveAgents;
-			if (Properties != null)
+			pool.MinAgents = minAgents;
+			pool.NumReserveAgents = numReserveAgents;
+			if (properties != null)
 			{
-				Pool.Properties = new Dictionary<string, string>(Properties);
+				pool.Properties = new Dictionary<string, string>(properties);
 			}
 
-			Pool.ScaleOutCooldown = ScaleOutCooldown;
-			Pool.ScaleInCooldown = ScaleInCooldown;
-			Pool.SizeStrategy = SizeStrategy;
-			Pool.LeaseUtilizationSettings = LeaseUtilizationSettings;
-			Pool.JobQueueSettings = JobQueueSettings;
-			await Pools.InsertOneAsync(Pool);
-			return Pool;
+			pool.ScaleOutCooldown = scaleOutCooldown;
+			pool.ScaleInCooldown = scaleInCooldown;
+			pool.SizeStrategy = sizeStrategy;
+			pool.LeaseUtilizationSettings = leaseUtilizationSettings;
+			pool.JobQueueSettings = jobQueueSettings;
+			await _pools.InsertOneAsync(pool);
+			return pool;
 		}
 
 		/// <inheritdoc/>
 		public async Task<List<IPool>> GetAsync()
 		{
-			List<PoolDocument> Results = await Pools.Find(FilterDefinition<PoolDocument>.Empty).ToListAsync();
-			return Results.ConvertAll<IPool>(x => x);
+			List<PoolDocument> results = await _pools.Find(FilterDefinition<PoolDocument>.Empty).ToListAsync();
+			return results.ConvertAll<IPool>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task<IPool?> GetAsync(PoolId Id)
+		public async Task<IPool?> GetAsync(PoolId id)
 		{
-			return await Pools.Find(x => x.Id == Id).FirstOrDefaultAsync();
+			return await _pools.Find(x => x.Id == id).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
 		public async Task<List<PoolId>> GetPoolIdsAsync()
 		{
-			ProjectionDefinition<PoolDocument, BsonDocument> Projection = Builders<PoolDocument>.Projection.Include(x => x.Id);
-			List<BsonDocument> Results = await Pools.Find(FilterDefinition<PoolDocument>.Empty).Project(Projection).ToListAsync();
-			return Results.ConvertAll(x => new PoolId(x.GetElement("_id").Value.AsString));
+			ProjectionDefinition<PoolDocument, BsonDocument> projection = Builders<PoolDocument>.Projection.Include(x => x.Id);
+			List<BsonDocument> results = await _pools.Find(FilterDefinition<PoolDocument>.Empty).Project(projection).ToListAsync();
+			return results.ConvertAll(x => new PoolId(x.GetElement("_id").Value.AsString));
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> DeleteAsync(PoolId Id)
+		public async Task<bool> DeleteAsync(PoolId id)
 		{
-			FilterDefinition<PoolDocument> Filter = Builders<PoolDocument>.Filter.Eq(x => x.Id, Id);
-			DeleteResult Result = await Pools.DeleteOneAsync(Filter);
-			return Result.DeletedCount > 0;
+			FilterDefinition<PoolDocument> filter = Builders<PoolDocument>.Filter.Eq(x => x.Id, id);
+			DeleteResult result = await _pools.DeleteOneAsync(filter);
+			return result.DeletedCount > 0;
 		}
 
 		/// <summary>
 		/// Attempts to update a pool, upgrading it to the latest document schema if necessary
 		/// </summary>
-		/// <param name="PoolToUpdate">Interface for the document to update</param>
-		/// <param name="Transaction">The transaction to execute</param>
+		/// <param name="poolToUpdate">Interface for the document to update</param>
+		/// <param name="transaction">The transaction to execute</param>
 		/// <returns>New pool definition, or null on failure.</returns>
-		async Task<IPool?> TryUpdateAsync(IPool PoolToUpdate, TransactionBuilder<PoolDocument> Transaction)
+		async Task<IPool?> TryUpdateAsync(IPool poolToUpdate, TransactionBuilder<PoolDocument> transaction)
 		{
-			if (Transaction.IsEmpty)
+			if (transaction.IsEmpty)
 			{
-				return PoolToUpdate;
+				return poolToUpdate;
 			}
 
-			Transaction.Set(x => x.UpdateIndex, PoolToUpdate.UpdateIndex + 1);
+			transaction.Set(x => x.UpdateIndex, poolToUpdate.UpdateIndex + 1);
 
-			PoolDocument? MutablePool = PoolToUpdate as PoolDocument;
-			if (MutablePool != null)
+			PoolDocument? mutablePool = poolToUpdate as PoolDocument;
+			if (mutablePool != null)
 			{
-				UpdateResult Result = await Pools.UpdateOneAsync(x => x.Id == PoolToUpdate.Id && x.UpdateIndex == PoolToUpdate.UpdateIndex, Transaction.ToUpdateDefinition());
-				if (Result.ModifiedCount == 0)
+				UpdateResult result = await _pools.UpdateOneAsync(x => x.Id == poolToUpdate.Id && x.UpdateIndex == poolToUpdate.UpdateIndex, transaction.ToUpdateDefinition());
+				if (result.ModifiedCount == 0)
 				{
 					return null;
 				}
 
-				Transaction.ApplyTo(MutablePool);
+				transaction.ApplyTo(mutablePool);
 			}
 			else
 			{
-				MutablePool = new PoolDocument(PoolToUpdate);
-				Transaction.ApplyTo(MutablePool);
+				mutablePool = new PoolDocument(poolToUpdate);
+				transaction.ApplyTo(mutablePool);
 
-				ReplaceOneResult Result = await Pools.ReplaceOneAsync<PoolDocument>(x => x.Id == PoolToUpdate.Id && x.UpdateIndex == PoolToUpdate.UpdateIndex, MutablePool);
-				if (Result.ModifiedCount == 0)
+				ReplaceOneResult result = await _pools.ReplaceOneAsync<PoolDocument>(x => x.Id == poolToUpdate.Id && x.UpdateIndex == poolToUpdate.UpdateIndex, mutablePool);
+				if (result.ModifiedCount == 0)
 				{
 					return null;
 				}
 			}
-			return MutablePool;
+			return mutablePool;
 		}
 
 		/// <inheritdoc/>
 		public Task<IPool?> TryUpdateAsync(
-			IPool Pool,
-			string? NewName,
-			Condition? NewCondition,
-			bool? NewEnableAutoscaling,
-			int? NewMinAgents,
-			int? NewNumReserveAgents,
-			List<AgentWorkspace>? NewWorkspaces,
-			bool? NewUseAutoSdk,
-			Dictionary<string, string?>? NewProperties,
-			DateTime? LastScaleUpTime,
-			DateTime? LastScaleDownTime,
-			TimeSpan? ScaleOutCooldown,
-			TimeSpan? ScaleInCooldown, 
-			PoolSizeStrategy? SizeStrategy,
-			LeaseUtilizationSettings? LeaseUtilizationSettings,
-			JobQueueSettings? JobQueueSettings)
+			IPool pool,
+			string? newName,
+			Condition? newCondition,
+			bool? newEnableAutoscaling,
+			int? newMinAgents,
+			int? newNumReserveAgents,
+			List<AgentWorkspace>? newWorkspaces,
+			bool? newUseAutoSdk,
+			Dictionary<string, string?>? newProperties,
+			DateTime? lastScaleUpTime,
+			DateTime? lastScaleDownTime,
+			TimeSpan? scaleOutCooldown,
+			TimeSpan? scaleInCooldown, 
+			PoolSizeStrategy? sizeStrategy,
+			LeaseUtilizationSettings? leaseUtilizationSettings,
+			JobQueueSettings? jobQueueSettings)
 		{
-			TransactionBuilder<PoolDocument> Transaction = new TransactionBuilder<PoolDocument>();
-			if (NewName != null)
+			TransactionBuilder<PoolDocument> transaction = new TransactionBuilder<PoolDocument>();
+			if (newName != null)
 			{
-				Transaction.Set(x => x.Name, NewName);
+				transaction.Set(x => x.Name, newName);
 			}
-			if (NewCondition != null)
+			if (newCondition != null)
 			{
-				if (NewCondition.IsEmpty())
+				if (newCondition.IsEmpty())
 				{
-					Transaction.Unset(x => x.Condition!);
+					transaction.Unset(x => x.Condition!);
 				}
 				else
 				{
-					Transaction.Set(x => x.Condition, NewCondition);
+					transaction.Set(x => x.Condition, newCondition);
 				}
 			}
-			if (NewEnableAutoscaling != null)
+			if (newEnableAutoscaling != null)
 			{
-				if (NewEnableAutoscaling.Value)
+				if (newEnableAutoscaling.Value)
 				{
-					Transaction.Unset(x => x.EnableAutoscaling);
+					transaction.Unset(x => x.EnableAutoscaling);
 				}
 				else
 				{
-					Transaction.Set(x => x.EnableAutoscaling, NewEnableAutoscaling.Value);
+					transaction.Set(x => x.EnableAutoscaling, newEnableAutoscaling.Value);
 				}
 			}
-			if (NewMinAgents != null)
+			if (newMinAgents != null)
 			{
-				if (NewMinAgents.Value < 0)
+				if (newMinAgents.Value < 0)
 				{
-					Transaction.Unset(x => x.MinAgents!);
+					transaction.Unset(x => x.MinAgents!);
 				}
 				else
 				{
-					Transaction.Set(x => x.MinAgents, NewMinAgents.Value);
+					transaction.Set(x => x.MinAgents, newMinAgents.Value);
 				}
 			}
-			if (NewNumReserveAgents != null)
+			if (newNumReserveAgents != null)
 			{
-				if (NewNumReserveAgents.Value < 0)
+				if (newNumReserveAgents.Value < 0)
 				{
-					Transaction.Unset(x => x.NumReserveAgents!);
+					transaction.Unset(x => x.NumReserveAgents!);
 				}
 				else
 				{
-					Transaction.Set(x => x.NumReserveAgents, NewNumReserveAgents.Value);
+					transaction.Set(x => x.NumReserveAgents, newNumReserveAgents.Value);
 				}
 			}
-			if (NewWorkspaces != null)
+			if (newWorkspaces != null)
 			{
-				Transaction.Set(x => x.Workspaces, NewWorkspaces);
+				transaction.Set(x => x.Workspaces, newWorkspaces);
 			}
-			if (NewUseAutoSdk != null)
+			if (newUseAutoSdk != null)
 			{
-				Transaction.Set(x => x.UseAutoSdk, NewUseAutoSdk.Value);
+				transaction.Set(x => x.UseAutoSdk, newUseAutoSdk.Value);
 			}
-			if (NewProperties != null)
+			if (newProperties != null)
 			{
-				Transaction.UpdateDictionary(x => x.Properties, NewProperties);
+				transaction.UpdateDictionary(x => x.Properties, newProperties);
 			}
-			if (LastScaleUpTime != null)
+			if (lastScaleUpTime != null)
 			{
-				Transaction.Set(x => x.LastScaleUpTime, LastScaleUpTime);
+				transaction.Set(x => x.LastScaleUpTime, lastScaleUpTime);
 			}
-			if (LastScaleDownTime != null)
+			if (lastScaleDownTime != null)
 			{
-				Transaction.Set(x => x.LastScaleDownTime, LastScaleDownTime);
+				transaction.Set(x => x.LastScaleDownTime, lastScaleDownTime);
 			}
-			if (ScaleOutCooldown != null)
+			if (scaleOutCooldown != null)
 			{
-				Transaction.Set(x => x.ScaleOutCooldown, ScaleOutCooldown);
+				transaction.Set(x => x.ScaleOutCooldown, scaleOutCooldown);
 			}
-			if (ScaleInCooldown != null)
+			if (scaleInCooldown != null)
 			{
-				Transaction.Set(x => x.ScaleInCooldown, ScaleInCooldown);
+				transaction.Set(x => x.ScaleInCooldown, scaleInCooldown);
 			}
-			if (SizeStrategy != null)
+			if (sizeStrategy != null)
 			{
-				Transaction.Set(x => x.SizeStrategy, SizeStrategy);
+				transaction.Set(x => x.SizeStrategy, sizeStrategy);
 			}
-			if (LeaseUtilizationSettings != null)
+			if (leaseUtilizationSettings != null)
 			{
-				Transaction.Set(x => x.LeaseUtilizationSettings, LeaseUtilizationSettings);
+				transaction.Set(x => x.LeaseUtilizationSettings, leaseUtilizationSettings);
 			}
-			if (JobQueueSettings != null)
+			if (jobQueueSettings != null)
 			{
-				Transaction.Set(x => x.JobQueueSettings, JobQueueSettings);
+				transaction.Set(x => x.JobQueueSettings, jobQueueSettings);
 			}
-			return TryUpdateAsync(Pool, Transaction);
+			return TryUpdateAsync(pool, transaction);
 		}
 	}
 }

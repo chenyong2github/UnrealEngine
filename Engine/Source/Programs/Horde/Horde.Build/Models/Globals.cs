@@ -1,24 +1,17 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Acls;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.IdentityModel.Tokens;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Threading.Tasks;
+using Horde.Build.Acls;
+using Horde.Build.Utilities;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Models
 {
-	using UserId = ObjectId<IUser>;
-
 	/// <summary>
 	/// Base class for singleton documents
 	/// </summary>
@@ -87,65 +80,65 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets the next scheduled downtime
 		/// </summary>
-		/// <param name="Now">The current time</param>
+		/// <param name="now">The current time</param>
 		/// <returns>Start and finish time</returns>
-		public (DateTimeOffset StartTime, DateTimeOffset FinishTime) GetNext(DateTimeOffset Now)
+		public (DateTimeOffset StartTime, DateTimeOffset FinishTime) GetNext(DateTimeOffset now)
 		{
-			TimeSpan Offset = TimeSpan.Zero;
+			TimeSpan offset = TimeSpan.Zero;
 			if (Frequency == ScheduledDowntimeFrequency.Daily)
 			{
-				double Days = (Now - StartTime).TotalDays;
-				if (Days >= 1.0)
+				double days = (now - StartTime).TotalDays;
+				if (days >= 1.0)
 				{
-					Days -= Days % 1.0;
+					days -= days % 1.0;
 				}
-				Offset = TimeSpan.FromDays(Days);
+				offset = TimeSpan.FromDays(days);
 			}
 			else if (Frequency == ScheduledDowntimeFrequency.Weekly)
 			{
-				double Days = (Now - StartTime).TotalDays;
-				if (Days >= 7.0)
+				double days = (now - StartTime).TotalDays;
+				if (days >= 7.0)
 				{
-					Days -= Days % 7.0;
+					days -= days % 7.0;
 				}
-				Offset = TimeSpan.FromDays(Days);
+				offset = TimeSpan.FromDays(days);
 			}
-			return (StartTime + Offset, FinishTime + Offset);
+			return (StartTime + offset, FinishTime + offset);
 		}
 
 		/// <summary>
 		/// Determines if this schedule is active
 		/// </summary>
-		/// <param name="Now">The current time</param>
+		/// <param name="now">The current time</param>
 		/// <returns>True if downtime is active</returns>
-		public bool IsActive(DateTimeOffset Now)
+		public bool IsActive(DateTimeOffset now)
 		{
 			if (Frequency == ScheduledDowntimeFrequency.Once)
 			{
-				return Now >= StartTime && Now < FinishTime;
+				return now >= StartTime && now < FinishTime;
 			}
 			else if (Frequency == ScheduledDowntimeFrequency.Daily)
 			{
-				double Days = (Now - StartTime).TotalDays;
-				if (Days < 0.0)
+				double days = (now - StartTime).TotalDays;
+				if (days < 0.0)
 				{
 					return false;
 				}
 				else
 				{
-					return (Days % 1.0) < (FinishTime - StartTime).TotalDays;
+					return (days % 1.0) < (FinishTime - StartTime).TotalDays;
 				}
 			}
 			else if (Frequency == ScheduledDowntimeFrequency.Weekly)
 			{
-				double Days = (Now - StartTime).TotalDays;
-				if(Days < 0.0)
+				double days = (now - StartTime).TotalDays;
+				if(days < 0.0)
 				{
 					return false;
 				}
 				else
 				{
-					return (Days % 7.0) < (FinishTime - StartTime).TotalDays;
+					return (days % 7.0) < (FinishTime - StartTime).TotalDays;
 				}
 			}
 			else
@@ -346,30 +339,30 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Finds a perforce cluster with the given name or that contains the provided server
 		/// </summary>
-		/// <param name="Name">Name of the cluster</param>
-		/// <param name="ServerAndPort">Find cluster which contains server</param>
+		/// <param name="name">Name of the cluster</param>
+		/// <param name="serverAndPort">Find cluster which contains server</param>
 		/// <returns></returns>
-		public PerforceCluster? FindPerforceCluster(string? Name, string? ServerAndPort = null)
+		public PerforceCluster? FindPerforceCluster(string? name, string? serverAndPort = null)
 		{
-			List<PerforceCluster> Clusters = PerforceClusters;
+			List<PerforceCluster> clusters = PerforceClusters;
 
-			if (ServerAndPort != null)
+			if (serverAndPort != null)
 			{
-				return Clusters.FirstOrDefault(x => x.Servers.FirstOrDefault( server => string.Equals(server.ServerAndPort, ServerAndPort, StringComparison.OrdinalIgnoreCase)) != null);
+				return clusters.FirstOrDefault(x => x.Servers.FirstOrDefault( server => String.Equals(server.ServerAndPort, serverAndPort, StringComparison.OrdinalIgnoreCase)) != null);
 			}
 
-			if (Clusters.Count == 0)
+			if (clusters.Count == 0)
 			{
-				Clusters = DefaultClusters;
+				clusters = DefaultClusters;
 			}
 
-			if (Name == null)
+			if (name == null)
 			{
-				return Clusters.FirstOrDefault();
+				return clusters.FirstOrDefault();
 			}
 			else
 			{
-				return Clusters.FirstOrDefault(x => String.Equals(x.Name, Name, StringComparison.OrdinalIgnoreCase));
+				return clusters.FirstOrDefault(x => String.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 			}
 		}
 
@@ -377,15 +370,15 @@ namespace Horde.Build.Models
 
 		static List<PerforceCluster> GetDefaultClusters()
 		{
-			PerforceServer Server = new PerforceServer();
-			Server.ServerAndPort = Perforce.P4.P4Server.Get("P4PORT") ?? "perforce:1666";
+			PerforceServer server = new PerforceServer();
+			server.ServerAndPort = Perforce.P4.P4Server.Get("P4PORT") ?? "perforce:1666";
 
-			PerforceCluster Cluster = new PerforceCluster();
-			Cluster.Name = "Default";
-			Cluster.CanImpersonate = false;
-			Cluster.Servers.Add(Server);
+			PerforceCluster cluster = new PerforceCluster();
+			cluster.Name = "Default";
+			cluster.CanImpersonate = false;
+			cluster.Servers.Add(server);
 
-			return new List<PerforceCluster> { Cluster };
+			return new List<PerforceCluster> { cluster };
 		}
 	}
 }

@@ -1,126 +1,101 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Channels;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Perforce;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Horde.Build.Commands;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
 using OpenTracing;
+using OpenTracing.Propagation;
 using OpenTracing.Util;
 using Serilog;
 using Serilog.Configuration;
 using Serilog.Core;
-using Serilog.Enrichers.OpenTracing;
 using Serilog.Events;
-using Serilog.Filters;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.SystemConsole.Themes;
-using OpenTracing.Propagation;
-using Microsoft.Extensions.DependencyInjection;
-using Horde.Build.Commands;
 
 namespace Horde.Build
 {
 	static class LoggerExtensions
 	{
-		public static LoggerConfiguration Console(this LoggerSinkConfiguration SinkConfig, ServerSettings Settings)
+		public static LoggerConfiguration Console(this LoggerSinkConfiguration sinkConfig, ServerSettings settings)
 		{
-			if (Settings.LogJsonToStdOut)
+			if (settings.LogJsonToStdOut)
 			{
-				return SinkConfig.Console(new JsonFormatter(renderMessage: true));
+				return sinkConfig.Console(new JsonFormatter(renderMessage: true));
 			}
 			else
 			{
-				ConsoleTheme Theme;
+				ConsoleTheme theme;
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && Environment.OSVersion.Version < new Version(10, 0))
 				{
-					Theme = SystemConsoleTheme.Literate;
+					theme = SystemConsoleTheme.Literate;
 				}
 				else
 				{
-					Theme = AnsiConsoleTheme.Code;
+					theme = AnsiConsoleTheme.Code;
 				}
-				return SinkConfig.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: Theme, restrictedToMinimumLevel: LogEventLevel.Debug);
+				return sinkConfig.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: theme, restrictedToMinimumLevel: LogEventLevel.Debug);
 			}
 		}
 
-		public static LoggerConfiguration WithHordeConfig(this LoggerConfiguration Configuration, ServerSettings Settings)
+		public static LoggerConfiguration WithHordeConfig(this LoggerConfiguration configuration, ServerSettings settings)
 		{
-			if (Settings.WithDatadog)
+			if (settings.WithDatadog)
 			{
-				Configuration = Configuration.Enrich.With<DatadogLogEnricher>();
+				configuration = configuration.Enrich.With<DatadogLogEnricher>();
 			}
-			return Configuration;
+			return configuration;
 		}
 	}
 
 	class DatadogLogEnricher : ILogEventEnricher
 	{
-		public void Enrich(Serilog.Events.LogEvent LogEvent, ILogEventPropertyFactory PropertyFactory)
+		public void Enrich(Serilog.Events.LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
 		{
-			ISpan? Span = GlobalTracer.Instance?.ActiveSpan;
-			if (Span != null)
+			ISpan? span = GlobalTracer.Instance?.ActiveSpan;
+			if (span != null)
 			{
-				LogEvent.AddPropertyIfAbsent(PropertyFactory.CreateProperty("dd.trace_id", Span.Context.TraceId));
-				LogEvent.AddPropertyIfAbsent(PropertyFactory.CreateProperty("dd.span_id", Span.Context.SpanId));
+				logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("dd.trace_id", span.Context.TraceId));
+				logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("dd.span_id", span.Context.SpanId));
 			}
 		}
 	}
 
 	class TestTracer : ITracer
 	{
-		ITracer Inner;
+		readonly ITracer _inner;
 
-		public TestTracer(ITracer Inner)
+		public TestTracer(ITracer inner)
 		{
-			this.Inner = Inner;
+			_inner = inner;
 		}
 
-		public IScopeManager ScopeManager => Inner.ScopeManager;
+		public IScopeManager ScopeManager => _inner.ScopeManager;
 
-		public ISpan ActiveSpan => Inner.ActiveSpan;
+		public ISpan ActiveSpan => _inner.ActiveSpan;
 
 		public ISpanBuilder BuildSpan(string operationName)
 		{
 			Serilog.Log.Debug("Creating span {Name}", operationName);
-			return Inner.BuildSpan(operationName);
+			return _inner.BuildSpan(operationName);
 		}
 
 		public ISpanContext Extract<TCarrier>(IFormat<TCarrier> format, TCarrier carrier)
 		{
-			return Inner.Extract<TCarrier>(format, carrier);
+			return _inner.Extract<TCarrier>(format, carrier);
 		}
 
 		public void Inject<TCarrier>(ISpanContext spanContext, IFormat<TCarrier> format, TCarrier carrier)
 		{
-			Inner.Inject<TCarrier>(spanContext, format, carrier);
+			_inner.Inject<TCarrier>(spanContext, format, carrier);
 		}
 	}
 
@@ -136,22 +111,22 @@ namespace Horde.Build
 
 		static Type[] FindSchemaTypes()
 		{
-			List<Type> SchemaTypes = new List<Type>();
-			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
+			List<Type> schemaTypes = new List<Type>();
+			foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
 			{
-				if (Type.GetCustomAttribute<JsonSchemaAttribute>() != null)
+				if (type.GetCustomAttribute<JsonSchemaAttribute>() != null)
 				{
-					SchemaTypes.Add(Type);
+					schemaTypes.Add(type);
 				}
 			}
-			return SchemaTypes.ToArray();
+			return schemaTypes.ToArray();
 		}
 
-		public static async Task<int> Main(string[] Args)
+		public static async Task<int> Main(string[] args)
 		{
-			CommandLineArguments Arguments = new CommandLineArguments(Args);
+			CommandLineArguments arguments = new CommandLineArguments(args);
 
-			IConfiguration Config = new ConfigurationBuilder()
+			IConfiguration config = new ConfigurationBuilder()
 				.SetBasePath(AppDir.FullName)
 				.AddJsonFile("appsettings.json", optional: false) 
 				.AddJsonFile("appsettings.Build.json", optional: true) // specific settings for builds (installer/dockerfile)
@@ -161,50 +136,50 @@ namespace Horde.Build
 				.AddEnvironmentVariables()
 				.Build();
 
-			ServerSettings HordeSettings = new ServerSettings();
-			Config.GetSection("Horde").Bind(HordeSettings);
+			ServerSettings hordeSettings = new ServerSettings();
+			config.GetSection("Horde").Bind(hordeSettings);
 
-			InitializeDefaults(HordeSettings);
+			InitializeDefaults(hordeSettings);
 
-			DirectoryReference LogDir = AppDir;
+			DirectoryReference logDir = AppDir;
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				LogDir = DirectoryReference.Combine(DataDir);
+				logDir = DirectoryReference.Combine(DataDir);
 			}
 
 			Serilog.Log.Logger = new LoggerConfiguration()
-				.WithHordeConfig(HordeSettings)
+				.WithHordeConfig(hordeSettings)
 				.Enrich.FromLogContext()
-				.WriteTo.Console(HordeSettings)
-				.WriteTo.File(Path.Combine(LogDir.FullName, "Log.txt"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception} [{SourceContext}]", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
-				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(LogDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
-				.ReadFrom.Configuration(Config)
+				.WriteTo.Console(hordeSettings)
+				.WriteTo.File(Path.Combine(logDir.FullName, "Log.txt"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception} [{SourceContext}]", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
+				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(logDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
+				.ReadFrom.Configuration(config)
 				.CreateLogger();
 
-			if (HordeSettings.WithDatadog)
+			if (hordeSettings.WithDatadog)
 			{
-				using var _ = Datadog.Trace.Tracer.Instance.StartActive("Trace Test");
+				using Datadog.Trace.IScope? _ = Datadog.Trace.Tracer.Instance.StartActive("Trace Test");
 				Serilog.Log.Logger.Information("Enabling datadog tracing");
 				GlobalTracer.Register(Datadog.Trace.OpenTracing.OpenTracingTracerFactory.WrapTracer(Datadog.Trace.Tracer.Instance));
-				using IScope Scope = GlobalTracer.Instance.BuildSpan("OpenTrace Test").StartActive();
-				Scope.Span.SetTag("TestProp", "hello");
+				using IScope scope = GlobalTracer.Instance.BuildSpan("OpenTrace Test").StartActive();
+				scope.Span.SetTag("TestProp", "hello");
 				Serilog.Log.Logger.Information("Enabling datadog tracing (OpenTrace)");
 			}
 
-			IServiceCollection Services = new ServiceCollection();
-			Services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
-			Services.AddLogging(Builder => Builder.AddSerilog());
-			Services.AddSingleton<IConfiguration>(Config);
-			Services.AddSingleton<ServerSettings>(HordeSettings);
+			IServiceCollection services = new ServiceCollection();
+			services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
+			services.AddLogging(builder => builder.AddSerilog());
+			services.AddSingleton<IConfiguration>(config);
+			services.AddSingleton<ServerSettings>(hordeSettings);
 
 #pragma warning disable ASP0000 // Do not call 'IServiceCollection.BuildServiceProvider' in 'ConfigureServices'
-			IServiceProvider ServiceProvider = Services.BuildServiceProvider();
-			return await CommandHost.RunAsync(Arguments, ServiceProvider, typeof(ServerCommand));
+			IServiceProvider serviceProvider = services.BuildServiceProvider();
+			return await CommandHost.RunAsync(arguments, serviceProvider, typeof(ServerCommand));
 #pragma warning restore ASP0000 // Do not call 'IServiceCollection.BuildServiceProvider' in 'ConfigureServices'
 		}
 
 		// Used by WebApplicationFactory in controller tests. Uses reflection to call this exact function signature.
-		public static IHostBuilder CreateHostBuilder(string[] Args) => ServerCommand.CreateHostBuilderForTesting(Args);
+		public static IHostBuilder CreateHostBuilder(string[] args) => ServerCommand.CreateHostBuilderForTesting(args);
 
 		/// <summary>
 		/// Get the application directory
@@ -223,10 +198,10 @@ namespace Horde.Build
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				DirectoryReference? Dir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.CommonApplicationData);
-				if (Dir != null)
+				DirectoryReference? dir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.CommonApplicationData);
+				if (dir != null)
 				{
-					return DirectoryReference.Combine(Dir, "HordeServer");
+					return DirectoryReference.Combine(dir, "HordeServer");
 				}
 			}
 			return DirectoryReference.Combine(GetAppDir(), "Data");
@@ -236,54 +211,52 @@ namespace Horde.Build
 		/// Handles bootstrapping of defaults for local servers, which can't be generated during build/installation process (or are better handled here where they can be updated)
 		/// This stuff will change as we get settings into database and could be considered discovery for installer/dockerfile builds 
 		/// </summary>		
-		static void InitializeDefaults(ServerSettings Settings)
+		static void InitializeDefaults(ServerSettings settings)
 		{			
-			if (Settings.SingleInstance)
+			if (settings.SingleInstance)
 			{
-				FileReference GlobalConfig = FileReference.Combine(Program.DataDir, "Config/globals.json");
+				FileReference globalConfig = FileReference.Combine(Program.DataDir, "Config/globals.json");
 
-				if (!FileReference.Exists(GlobalConfig))
+				if (!FileReference.Exists(globalConfig))
 				{
-					DirectoryReference.CreateDirectory(GlobalConfig.Directory);
-					FileReference.WriteAllText(GlobalConfig, "{}");
+					DirectoryReference.CreateDirectory(globalConfig.Directory);
+					FileReference.WriteAllText(globalConfig, "{}");
 				}
 
-				FileReference PrivateCertFile = FileReference.Combine(Program.DataDir, "Agent/ServerToAgent.pfx");
-				string PrivateCertFileJsonPath = PrivateCertFile.ToString().Replace("\\", "/", StringComparison.Ordinal);
+				FileReference privateCertFile = FileReference.Combine(Program.DataDir, "Agent/ServerToAgent.pfx");
+				string privateCertFileJsonPath = privateCertFile.ToString().Replace("\\", "/", StringComparison.Ordinal);
 
 				if (!FileReference.Exists(UserConfigFile))
 				{
 					// create new user configuration
 					DirectoryReference.CreateDirectory(UserConfigFile.Directory);
-					FileReference.WriteAllText(UserConfigFile, $"{{\"Horde\": {{ \"ConfigPath\" : \"{GlobalConfig.ToString().Replace("\\", "/", StringComparison.Ordinal)}\", \"ServerPrivateCert\" : \"{PrivateCertFileJsonPath}\", \"HttpPort\": 8080}}}}");
+					FileReference.WriteAllText(UserConfigFile, $"{{\"Horde\": {{ \"ConfigPath\" : \"{globalConfig.ToString().Replace("\\", "/", StringComparison.Ordinal)}\", \"ServerPrivateCert\" : \"{privateCertFileJsonPath}\", \"HttpPort\": 8080}}}}");
 				}
 
 				// make sure the cert exists
-				if (!FileReference.Exists(PrivateCertFile))
+				if (!FileReference.Exists(privateCertFile))
 				{
-					string DnsName = System.Net.Dns.GetHostName();
-					Serilog.Log.Logger.Information("Creating certificate for {DnsName}", DnsName);
+					string dnsName = System.Net.Dns.GetHostName();
+					Serilog.Log.Logger.Information("Creating certificate for {DnsName}", dnsName);
 
-					byte[] PrivateCertData = CertificateUtils.CreateSelfSignedCert(DnsName, "Horde Server");
+					byte[] privateCertData = CertificateUtils.CreateSelfSignedCert(dnsName, "Horde Server");
 					
-					Serilog.Log.Logger.Information("Writing private cert: {PrivateCert}", PrivateCertFile.FullName);
+					Serilog.Log.Logger.Information("Writing private cert: {PrivateCert}", privateCertFile.FullName);
 
-					if (!DirectoryReference.Exists(PrivateCertFile.Directory))
+					if (!DirectoryReference.Exists(privateCertFile.Directory))
 					{
-						DirectoryReference.CreateDirectory(PrivateCertFile.Directory);
+						DirectoryReference.CreateDirectory(privateCertFile.Directory);
 					}
 
-					FileReference.WriteAllBytes(PrivateCertFile, PrivateCertData);
+					FileReference.WriteAllBytes(privateCertFile, privateCertData);
 				}
 
 				// note: this isn't great, though we need it early in server startup, and this is only hit on first server boot where the grpc cert isn't generated/set 
-				if (Settings.ServerPrivateCert == null)
+				if (settings.ServerPrivateCert == null)
 				{
-					Settings.ServerPrivateCert = PrivateCertFile.ToString();
+					settings.ServerPrivateCert = privateCertFile.ToString();
 				}				
-
 			}
 		}
 	}
 }
-

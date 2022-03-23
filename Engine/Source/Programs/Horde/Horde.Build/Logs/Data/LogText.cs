@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.VisualBasic.CompilerServices;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace Horde.Build.Logs
 {
@@ -53,51 +49,51 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Finds the number of newline characters in the given span
 		/// </summary>
-		/// <param name="Span">Span of utf-8 characters to scan</param>
-		/// <param name="Offset">Starting offset within the span</param>
+		/// <param name="span">Span of utf-8 characters to scan</param>
+		/// <param name="offset">Starting offset within the span</param>
 		/// <returns>Number of lines in the given span</returns>
-		public static int GetLineCount(ReadOnlySpan<byte> Span, int Offset)
+		public static int GetLineCount(ReadOnlySpan<byte> span, int offset)
 		{
-			int LineCount = 0;
-			for (; Offset < Span.Length; Offset++)
+			int lineCount = 0;
+			for (; offset < span.Length; offset++)
 			{
-				if (Span[Offset] == (byte)'\n')
+				if (span[offset] == (byte)'\n')
 				{
-					LineCount++;
+					lineCount++;
 				}
 			}
-			return LineCount;
+			return lineCount;
 		}
 
 		/// <summary>
 		/// Find the offsets of the start of each line within the given span
 		/// </summary>
-		/// <param name="Span">Span to search</param>
-		/// <param name="Offset">Offset within the span to start searching</param>
-		/// <param name="LineOffsets">Receives the list of line offsets</param>
-		/// <param name="LineCount">The current line count</param>
-		public static void FindLineOffsets(ReadOnlySpan<byte> Span, int Offset, Span<int> LineOffsets, int LineCount)
+		/// <param name="span">Span to search</param>
+		/// <param name="offset">Offset within the span to start searching</param>
+		/// <param name="lineOffsets">Receives the list of line offsets</param>
+		/// <param name="lineCount">The current line count</param>
+		public static void FindLineOffsets(ReadOnlySpan<byte> span, int offset, Span<int> lineOffsets, int lineCount)
 		{
-			Debug.Assert(Span.Length == 0 || Span[Span.Length - 1] == (byte)'\n');
+			Debug.Assert(span.Length == 0 || span[^1] == (byte)'\n');
 			for(; ; )
 			{
 				// Store the start of this line
-				LineOffsets[LineCount++] = Offset;
+				lineOffsets[lineCount++] = offset;
 
 				// Check if we're at the end
-				if(Offset >= Span.Length)
+				if(offset >= span.Length)
 				{
 					break;
 				}
 
 				// Move to the end of this line
-				while (Span[Offset] != '\n')
+				while (span[offset] != '\n')
 				{
-					Offset++;
+					offset++;
 				}
 
 				// Move to the start of the next line
-				Offset++;
+				offset++;
 			}
 		}
 	}
@@ -111,42 +107,33 @@ namespace Horde.Build.Logs
 		public ReadOnlyMemory<byte> Data { get; private set; }
 
 		/// <inheritdoc/>
-		public int Length
-		{
-			get { return Data.Length; }
-		}
+		public int Length => Data.Length;
 
 		/// <inheritdoc/>
 		public IReadOnlyList<int> LineOffsets { get; private set; }
 
 		/// <inheritdoc/>
-		public int LineCount
-		{
-			get { return LineOffsets.Count - 1; }
-		}
+		public int LineCount => LineOffsets.Count - 1;
 
 		/// <inheritdoc/>
-		public int AllocatedSize
-		{
-			get { return Data.Length + (LineOffsets.Count * sizeof(int)); }
-		}
+		public int AllocatedSize => Data.Length + (LineOffsets.Count * sizeof(int));
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Data">Data to construct from</param>
-		public ReadOnlyLogText(ReadOnlyMemory<byte> Data)
+		/// <param name="data">Data to construct from</param>
+		public ReadOnlyLogText(ReadOnlyMemory<byte> data)
 		{
-			ReadOnlySpan<byte> Span = Data.Span;
+			ReadOnlySpan<byte> span = data.Span;
 
-			int LineCount = LogTextHelpers.GetLineCount(Span, 0);
+			int lineCount = LogTextHelpers.GetLineCount(span, 0);
 
-			int[] LineOffsets = new int[LineCount + 1];
-			LogTextHelpers.FindLineOffsets(Span, 0, LineOffsets, 0);
-			Debug.Assert(LineOffsets[LineCount] == Data.Length);
+			int[] lineOffsets = new int[lineCount + 1];
+			LogTextHelpers.FindLineOffsets(span, 0, lineOffsets, 0);
+			Debug.Assert(lineOffsets[lineCount] == data.Length);
 
-			this.Data = Data;
-			this.LineOffsets = LineOffsets;
+			Data = data;
+			LineOffsets = lineOffsets;
 		}
 	}
 
@@ -158,15 +145,15 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Accessor for Data
 		/// </summary>
-		byte[] InternalData;
+		byte[] _internalData;
 
 		/// <inheritdoc/>
-		public ReadOnlyMemory<byte> Data => InternalData.AsMemory(0, Length);
+		public ReadOnlyMemory<byte> Data => _internalData.AsMemory(0, Length);
 
 		/// <summary>
 		/// Hacky accessor for InternalData, for serializing to Redis
 		/// </summary>
-		public byte[] InternalDataHACK => InternalData;
+		public byte[] InternalDataHack => _internalData;
 
 		/// <inheritdoc/>
 		public int Length
@@ -178,100 +165,94 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Offsets of the start of each line within the data
 		/// </summary>
-		List<int> InternalLineOffsets = new List<int> { 0 };
+		readonly List<int> _internalLineOffsets = new List<int> { 0 };
 
 		/// <inheritdoc/>
-		public IReadOnlyList<int> LineOffsets => InternalLineOffsets;
+		public IReadOnlyList<int> LineOffsets => _internalLineOffsets;
 
 		/// <inheritdoc/>
-		public int LineCount => InternalLineOffsets.Count - 1;
+		public int LineCount => _internalLineOffsets.Count - 1;
 
 		/// <summary>
 		/// Chunk Size
 		/// </summary>
-		public int MaxLength
-		{
-			get { return InternalData.Length; }
-		}
+		public int MaxLength => _internalData.Length;
 
 		/// <summary>
 		/// Computes the size of data used by this object
 		/// </summary>
-		public int AllocatedSize
-		{
-			get { return InternalData.Length + (InternalLineOffsets.Capacity * sizeof(int)); }
-		}
+		public int AllocatedSize => _internalData.Length + (_internalLineOffsets.Capacity * sizeof(int));
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		public LogText()
 		{
-			this.InternalData = Array.Empty<byte>();
+			_internalData = Array.Empty<byte>();
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Data">Data to initialize this chunk with. Ownership of this array is transferred to the chunk, and its length determines the chunk size.</param>
-		/// <param name="Length">Number of valid bytes within the initial data array</param>
-		public LogText(byte[] Data, int Length)
+		/// <param name="data">Data to initialize this chunk with. Ownership of this array is transferred to the chunk, and its length determines the chunk size.</param>
+		/// <param name="length">Number of valid bytes within the initial data array</param>
+		public LogText(byte[] data, int length)
 		{
-			this.InternalData = Data;
-			this.Length = 0; // Updated below
+			_internalData = data;
+			Length = 0; // Updated below
 
-			UpdateLength(Length);
+			UpdateLength(length);
 		}
 
 		/// <summary>
 		/// Create a new chunk data object with the given data appended. The internal buffers are reused, with the assumption that
 		/// there is no contention over writing to the same location in the chunk.
 		/// </summary>
-		/// <param name="TextData">The data to append</param>
+		/// <param name="textData">The data to append</param>
 		/// <returns>New chunk data object</returns>
-		public void Append(ReadOnlySpan<byte> TextData)
+		public void Append(ReadOnlySpan<byte> textData)
 		{
-			TextData.CopyTo(InternalData.AsSpan(Length, TextData.Length));
-			UpdateLength(Length + TextData.Length);
+			textData.CopyTo(_internalData.AsSpan(Length, textData.Length));
+			UpdateLength(Length + textData.Length);
 		}
 
 		/// <summary>
 		/// Updates the plain text representation of this chunk
 		/// </summary>
-		public void AppendPlainText(ILogText SrcText, int SrcLineIndex, int SrcLineCount)
+		public void AppendPlainText(ILogText srcText, int srcLineIndex, int srcLineCount)
 		{
 			// Convert all the lines to plain text
-			for (int Idx = 0; Idx < SrcLineCount; Idx++)
+			for (int idx = 0; idx < srcLineCount; idx++)
 			{
-				int LineOffset = SrcText.LineOffsets[SrcLineIndex + Idx];
-				int NextLineOffset = SrcText.LineOffsets[SrcLineIndex + Idx + 1];
-				ReadOnlySpan<byte> InputLine = SrcText.Data.Slice(LineOffset, NextLineOffset - LineOffset).Span;
+				int lineOffset = srcText.LineOffsets[srcLineIndex + idx];
+				int nextLineOffset = srcText.LineOffsets[srcLineIndex + idx + 1];
+				ReadOnlySpan<byte> inputLine = srcText.Data.Slice(lineOffset, nextLineOffset - lineOffset).Span;
 
 				// Make sure the output buffer is large enough
-				int RequiredSpace = NextLineOffset - LineOffset;
-				if (RequiredSpace > InternalData.Length - Length)
+				int requiredSpace = nextLineOffset - lineOffset;
+				if (requiredSpace > _internalData.Length - Length)
 				{
-					int MaxLineOffset = SrcText.LineOffsets[SrcLineIndex + SrcLineCount];
-					Array.Resize(ref InternalData, InternalData.Length + RequiredSpace + (MaxLineOffset - NextLineOffset) / 2);
+					int maxLineOffset = srcText.LineOffsets[srcLineIndex + srcLineCount];
+					Array.Resize(ref _internalData, _internalData.Length + requiredSpace + (maxLineOffset - nextLineOffset) / 2);
 				}
 
 				// Convert the line to plain text
-				Length = ConvertToPlainText(InputLine, InternalData, Length);
-				InternalLineOffsets.Add(Length);
+				Length = ConvertToPlainText(inputLine, _internalData, Length);
+				_internalLineOffsets.Add(Length);
 			}
 		}
 
 		/// <summary>
 		/// Determines if the given line is empty
 		/// </summary>
-		/// <param name="Input">The input data</param>
+		/// <param name="input">The input data</param>
 		/// <returns>True if the given text is empty</returns>
-		public static bool IsEmptyOrWhitespace(ReadOnlySpan<byte> Input)
+		public static bool IsEmptyOrWhitespace(ReadOnlySpan<byte> input)
 		{
-			for(int Idx = 0; Idx < Input.Length; Idx++)
+			for(int idx = 0; idx < input.Length; idx++)
 			{
-				byte Byte = Input[Idx];
-				if(Byte != (byte)'\n' && Byte != '\r' && Byte != ' ')
+				byte v = input[idx];
+				if(v != (byte)'\n' && v != '\r' && v != ' ')
 				{
 					return false;
 				}
@@ -282,85 +263,85 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Converts a JSON log line to plain text
 		/// </summary>
-		/// <param name="Input">The JSON data</param>
-		/// <param name="Output">Output buffer for the converted line</param>
-		/// <param name="OutputOffset">Offset within the buffer to write the converted data</param>
+		/// <param name="input">The JSON data</param>
+		/// <param name="output">Output buffer for the converted line</param>
+		/// <param name="outputOffset">Offset within the buffer to write the converted data</param>
 		/// <returns></returns>
-		public static int ConvertToPlainText(ReadOnlySpan<byte> Input, byte[] Output, int OutputOffset)
+		public static int ConvertToPlainText(ReadOnlySpan<byte> input, byte[] output, int outputOffset)
 		{
-			if(IsEmptyOrWhitespace(Input))
+			if(IsEmptyOrWhitespace(input))
 			{
-				Output[OutputOffset] = (byte)'\n';
-				return OutputOffset + 1;
+				output[outputOffset] = (byte)'\n';
+				return outputOffset + 1;
 			}
 
-			Utf8JsonReader Reader = new Utf8JsonReader(Input);
-			if (Reader.Read() && Reader.TokenType == JsonTokenType.StartObject)
+			Utf8JsonReader reader = new Utf8JsonReader(input);
+			if (reader.Read() && reader.TokenType == JsonTokenType.StartObject)
 			{
-				while (Reader.Read() && Reader.TokenType == JsonTokenType.PropertyName)
+				while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
 				{
-					if (!Reader.ValueTextEquals("message"))
+					if (!reader.ValueTextEquals("message"))
 					{
-						Reader.Skip();
+						reader.Skip();
 						continue;
 					}
-					if (!Reader.Read() || Reader.TokenType != JsonTokenType.String)
+					if (!reader.Read() || reader.TokenType != JsonTokenType.String)
 					{
-						Reader.Skip();
+						reader.Skip();
 						continue;
 					}
 
-					int UnescapedLength = UnescapeUtf8(Reader.ValueSpan, Output.AsSpan(OutputOffset));
-					OutputOffset += UnescapedLength;
+					int unescapedLength = UnescapeUtf8(reader.ValueSpan, output.AsSpan(outputOffset));
+					outputOffset += unescapedLength;
 
-					Output[OutputOffset] = (byte)'\n';
-					OutputOffset++;
+					output[outputOffset] = (byte)'\n';
+					outputOffset++;
 
 					break;
 				}
 			}
-			return OutputOffset;
+			return outputOffset;
 		}
 
 		/// <summary>
 		/// Unescape a json utf8 string
 		/// </summary>
-		/// <param name="Source">Source span of bytes</param>
-		/// <param name="Target">Target span of bytes</param>
+		/// <param name="source">Source span of bytes</param>
+		/// <param name="target">Target span of bytes</param>
 		/// <returns>Length of the converted data</returns>
-		static int UnescapeUtf8(ReadOnlySpan<byte> Source, Span<byte> Target)
+		static int UnescapeUtf8(ReadOnlySpan<byte> source, Span<byte> target)
 		{
-			int Length = 0;
+			int length = 0;
 			for (; ; )
 			{
 				// Copy up to the next backslash
-				int Backslash = Source.IndexOf((byte)'\\');
-				if (Backslash == -1)
+				int backslash = source.IndexOf((byte)'\\');
+				if (backslash == -1)
 				{
-					Source.CopyTo(Target);
-					Length += Source.Length;
+					source.CopyTo(target);
+					length += source.Length;
 					break;
 				}
-				else if (Backslash > 0)
+				else if (backslash > 0)
 				{
-					Source.Slice(0, Backslash).CopyTo(Target);
-					Source = Source.Slice(Backslash);
-					Target = Target.Slice(Backslash);
-					Length += Backslash;
+					source.Slice(0, backslash).CopyTo(target);
+					source = source.Slice(backslash);
+					target = target.Slice(backslash);
+					length += backslash;
 				}
 
 				// Check what the escape code is
-				if (Source[1] == 'u')
+				if (source[1] == 'u')
 				{
-					char[] Chars = { (char)((StringUtils.ParseHexByte(Source, 2) << 8) | StringUtils.ParseHexByte(Source, 4)) };
-					int EncodedLength = Encoding.UTF8.GetBytes(Chars.AsSpan(), Target);
-					Source = Source.Slice(6);
-					Target = Target.Slice(EncodedLength);
-					Length += EncodedLength;
+					char[] chars = { (char)((StringUtils.ParseHexByte(source, 2) << 8) | StringUtils.ParseHexByte(source, 4)) };
+					int encodedLength = Encoding.UTF8.GetBytes(chars.AsSpan(), target);
+					source = source.Slice(6);
+					target = target.Slice(encodedLength);
+					length += encodedLength;
 				}
 				else
 				{
-					Target[0] = Source[1] switch
+					target[0] = source[1] switch
 					{
 						(byte)'\"' => (byte)'\"',
 						(byte)'\\' => (byte)'\\',
@@ -369,55 +350,55 @@ namespace Horde.Build.Logs
 						(byte)'n' => (byte)'\n',
 						(byte)'r' => (byte)'\r',
 						(byte)'t' => (byte)'\t',
-						_ => Source[1]
+						_ => source[1]
 					};
-					Source = Source.Slice(2);
-					Target = Target.Slice(1);
-					Length++;
+					source = source.Slice(2);
+					target = target.Slice(1);
+					length++;
 				}
 			}
-			return Length;
+			return length;
 		}
 
 		/// <summary>
 		/// Generates placeholder data for a missing span
 		/// </summary>
-		/// <param name="ChunkIdx">Index of the chunk</param>
-		/// <param name="HostName">Host name of the machine that was holding the data</param>
-		/// <param name="TargetLength">Desired length of the buffer</param>
-		/// <param name="TargetLineCount">Desired line count for the buffer</param>
-		public void AppendMissingDataInfo(int ChunkIdx, string? HostName, int TargetLength, int TargetLineCount)
+		/// <param name="chunkIdx">Index of the chunk</param>
+		/// <param name="hostName">Host name of the machine that was holding the data</param>
+		/// <param name="targetLength">Desired length of the buffer</param>
+		/// <param name="targetLineCount">Desired line count for the buffer</param>
+		public void AppendMissingDataInfo(int chunkIdx, string? hostName, int targetLength, int targetLineCount)
 		{
-			int NewLength = Length;
+			int newLength = Length;
 
-			if(InternalData.Length < TargetLength)
+			if(_internalData.Length < targetLength)
 			{
-				Array.Resize(ref InternalData, TargetLength);
+				Array.Resize(ref _internalData, targetLength);
 			}
 
-			string Suffix = $" (server: {HostName})";
-			for(int NewLineCount = LineCount; NewLineCount < TargetLineCount; NewLineCount++)
+			string suffix = $" (server: {hostName})";
+			for(int newLineCount = LineCount; newLineCount < targetLineCount; newLineCount++)
 			{
-				byte[] ErrorBytes = Encoding.ASCII.GetBytes($"{{ \"level\":\"Error\",\"message\":\"[Missing data at chunk {ChunkIdx}, line {NewLineCount}{Suffix}]\" }}\n");
-				if (NewLength + ErrorBytes.Length > TargetLength)
+				byte[] errorBytes = Encoding.ASCII.GetBytes($"{{ \"level\":\"Error\",\"message\":\"[Missing data at chunk {chunkIdx}, line {newLineCount}{suffix}]\" }}\n");
+				if (newLength + errorBytes.Length > targetLength)
 				{
 					break;
 				}
 
-				ErrorBytes.AsSpan().CopyTo(InternalData.AsSpan(NewLength));
-				NewLength += ErrorBytes.Length;
+				errorBytes.AsSpan().CopyTo(_internalData.AsSpan(newLength));
+				newLength += errorBytes.Length;
 
-				Suffix = String.Empty;
+				suffix = String.Empty;
 			}
 
-			if (NewLength < TargetLength)
+			if (newLength < targetLength)
 			{
-				NewLength = Math.Max(NewLength - 1, 0);
-				InternalData.AsSpan(NewLength, (int)((TargetLength - 1) - NewLength)).Fill((byte)' ');
-				InternalData[TargetLength - 1] = (byte)'\n';
+				newLength = Math.Max(newLength - 1, 0);
+				_internalData.AsSpan(newLength, (int)((targetLength - 1) - newLength)).Fill((byte)' ');
+				_internalData[targetLength - 1] = (byte)'\n';
 			}
 
-			UpdateLength((int)TargetLength);
+			UpdateLength((int)targetLength);
 		}
 
 		/// <summary>
@@ -425,38 +406,38 @@ namespace Horde.Build.Logs
 		/// </summary>
 		public void Shrink()
 		{
-			if (Length < InternalData.Length)
+			if (Length < _internalData.Length)
 			{
-				Array.Resize(ref InternalData, Length);
+				Array.Resize(ref _internalData, Length);
 			}
 		}
 
 		/// <summary>
 		/// Updates the length of this chunk, computing all the newline offsets
 		/// </summary>
-		/// <param name="NewLength">New length of the chunk</param>
-		private void UpdateLength(int NewLength)
+		/// <param name="newLength">New length of the chunk</param>
+		private void UpdateLength(int newLength)
 		{
-			if (NewLength > Length)
+			if (newLength > Length)
 			{
 				// Make sure the data ends with a newline
-				if (InternalData[NewLength - 1] != '\n')
+				if (_internalData[newLength - 1] != '\n')
 				{
 					throw new InvalidDataException("Chunk data must end with a newline");
 				}
 
 				// Calculate the new number of newlines
-				ReadOnlySpan<byte> NewData = InternalData.AsSpan(0, NewLength);
-				for(int Idx = Length; Idx < NewLength; Idx++)
+				ReadOnlySpan<byte> newData = _internalData.AsSpan(0, newLength);
+				for(int idx = Length; idx < newLength; idx++)
 				{
-					if(NewData[Idx] == '\n')
+					if(newData[idx] == '\n')
 					{
-						InternalLineOffsets.Add(Idx + 1);
+						_internalLineOffsets.Add(idx + 1);
 					}
 				}
 
 				// Update the size of the buffer
-				Length = NewLength;
+				Length = newLength;
 			}
 		}
 	}
@@ -469,29 +450,29 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Find the line index for a particular offset
 		/// </summary>
-		/// <param name="LogText">The text to search</param>
-		/// <param name="Offset">Offset within the text</param>
+		/// <param name="logText">The text to search</param>
+		/// <param name="offset">Offset within the text</param>
 		/// <returns>The line index</returns>
-		public static int GetLineIndexForOffset(this ILogText LogText, int Offset)
+		public static int GetLineIndexForOffset(this ILogText logText, int offset)
 		{
-			int LineIdx = LogText.LineOffsets.BinarySearch(Offset);
-			if(LineIdx < 0)
+			int lineIdx = logText.LineOffsets.BinarySearch(offset);
+			if(lineIdx < 0)
 			{
-				LineIdx = ~LineIdx - 1;
+				lineIdx = ~lineIdx - 1;
 			}
-			return LineIdx;
+			return lineIdx;
 		}
 
 		/// <summary>
 		/// Converts a log text instance to plain text
 		/// </summary>
-		/// <param name="LogText">The text to convert</param>
+		/// <param name="logText">The text to convert</param>
 		/// <returns>The plain text instance</returns>
-		public static ILogText ToPlainText(this ILogText LogText)
+		public static ILogText ToPlainText(this ILogText logText)
 		{
-			LogText Other = new LogText();
-			Other.AppendPlainText(LogText, 0, LogText.LineCount);
-			return Other;
+			LogText other = new LogText();
+			other.AppendPlainText(logText, 0, logText.LineCount);
+			return other;
 		}
 	}
 }

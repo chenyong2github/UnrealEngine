@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -55,17 +55,17 @@ namespace Horde.Build.Collections.Impl
 				Payload = null!;
 			}
 
-			public LeaseDocument(LeaseId Id, string Name, AgentId AgentId, SessionId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload)
+			public LeaseDocument(LeaseId id, string name, AgentId agentId, SessionId sessionId, StreamId? streamId, PoolId? poolId, LogId? logId, DateTime startTime, byte[] payload)
 			{
-				this.Id = Id;
-				this.Name = Name;
-				this.AgentId = AgentId;
-				this.SessionId = SessionId;
-				this.StreamId = StreamId;
-				this.PoolId = PoolId;
-				this.LogId = LogId;
-				this.StartTime = StartTime;
-				this.Payload = Payload;
+				Id = id;
+				Name = name;
+				AgentId = agentId;
+				SessionId = sessionId;
+				StreamId = streamId;
+				PoolId = poolId;
+				LogId = logId;
+				StartTime = startTime;
+				Payload = payload;
 			}
 		}
 		
@@ -77,139 +77,145 @@ namespace Horde.Build.Collections.Impl
 			public readonly string FinishTime;
 			public readonly string FinishTimeStartTimeCompound;
 
-			public DatabaseIndexes(IMongoCollection<LeaseDocument> Leases, bool DatabaseReadOnlyMode) : base(DatabaseReadOnlyMode)
+			public DatabaseIndexes(IMongoCollection<LeaseDocument> leases, bool databaseReadOnlyMode) : base(databaseReadOnlyMode)
 			{
-				AgentId = CreateOrGetIndex(Leases, "AgentId_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.AgentId));
-				SessionId = CreateOrGetIndex(Leases, "SessionId_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.SessionId));
-				StartTime = CreateOrGetIndex(Leases, "StartTime_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.StartTime));
-				FinishTime = CreateOrGetIndex(Leases, "FinishTime_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.FinishTime));
-				FinishTimeStartTimeCompound = CreateOrGetIndex(Leases, "FinishTime_1_StartTime_-1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.FinishTime).Descending(x => x.StartTime));
+				AgentId = CreateOrGetIndex(leases, "AgentId_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.AgentId));
+				SessionId = CreateOrGetIndex(leases, "SessionId_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.SessionId));
+				StartTime = CreateOrGetIndex(leases, "StartTime_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.StartTime));
+				FinishTime = CreateOrGetIndex(leases, "FinishTime_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.FinishTime));
+				FinishTimeStartTimeCompound = CreateOrGetIndex(leases, "FinishTime_1_StartTime_-1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.FinishTime).Descending(x => x.StartTime));
 			}
 		}
 
 		/// <summary>
 		/// Collection of lease documents
 		/// </summary>
-		readonly IMongoCollection<LeaseDocument> Leases;
-		
+		readonly IMongoCollection<LeaseDocument> _leases;
+
 		/// <summary>
 		/// Creation and lookup of indexes
 		/// </summary>
-		DatabaseIndexes Indexes;
+		readonly DatabaseIndexes _indexes;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		public LeaseCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service instance</param>
+		public LeaseCollection(DatabaseService databaseService)
 		{
-			Leases = DatabaseService.GetCollection<LeaseDocument>("Leases");
-			Indexes = new DatabaseIndexes(Leases, DatabaseService.ReadOnlyMode);
+			_leases = databaseService.GetCollection<LeaseDocument>("Leases");
+			_indexes = new DatabaseIndexes(_leases, databaseService.ReadOnlyMode);
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILease> AddAsync(LeaseId Id, string Name, AgentId AgentId, SessionId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload)
+		public async Task<ILease> AddAsync(LeaseId id, string name, AgentId agentId, SessionId sessionId, StreamId? streamId, PoolId? poolId, LogId? logId, DateTime startTime, byte[] payload)
 		{
-			LeaseDocument Lease = new LeaseDocument(Id, Name, AgentId, SessionId, StreamId, PoolId, LogId, StartTime, Payload);
-			await Leases.ReplaceOneAsync(x => x.Id == Id, Lease, new ReplaceOptions { IsUpsert = true });
-			return Lease;
+			LeaseDocument lease = new LeaseDocument(id, name, agentId, sessionId, streamId, poolId, logId, startTime, payload);
+			await _leases.ReplaceOneAsync(x => x.Id == id, lease, new ReplaceOptions { IsUpsert = true });
+			return lease;
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(LeaseId LeaseId)
+		public async Task DeleteAsync(LeaseId leaseId)
 		{
-			await Leases.DeleteOneAsync(x => x.Id == LeaseId);
+			await _leases.DeleteOneAsync(x => x.Id == leaseId);
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILease?> GetAsync(LeaseId LeaseId)
+		public async Task<ILease?> GetAsync(LeaseId leaseId)
 		{
-			return await Leases.Find(x => x.Id == LeaseId).FirstOrDefaultAsync();
+			return await _leases.Find(x => x.Id == leaseId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILease>> FindLeasesAsync(AgentId? AgentId, SessionId? SessionId, DateTime? MinTime, DateTime? MaxTime, int? Index, int? Count, string? IndexHint = null, bool ConsistentRead = true)
+		public async Task<List<ILease>> FindLeasesAsync(AgentId? agentId, SessionId? sessionId, DateTime? minTime, DateTime? maxTime, int? index, int? count, string? indexHint = null, bool consistentRead = true)
 		{
-			IMongoCollection<LeaseDocument> Collection = ConsistentRead ? Leases : Leases.WithReadPreference(ReadPreference.SecondaryPreferred);
+			IMongoCollection<LeaseDocument> collection = consistentRead ? _leases : _leases.WithReadPreference(ReadPreference.SecondaryPreferred);
 			
-			FilterDefinitionBuilder<LeaseDocument> FilterBuilder = Builders<LeaseDocument>.Filter;
-			FilterDefinition<LeaseDocument> Filter = FilterDefinition<LeaseDocument>.Empty;
-			if (AgentId != null)
+			FilterDefinitionBuilder<LeaseDocument> filterBuilder = Builders<LeaseDocument>.Filter;
+			FilterDefinition<LeaseDocument> filter = FilterDefinition<LeaseDocument>.Empty;
+			if (agentId != null)
 			{
-				Filter &= FilterBuilder.Eq(x => x.AgentId, AgentId.Value);
+				filter &= filterBuilder.Eq(x => x.AgentId, agentId.Value);
 			}
-			if (SessionId != null)
+			if (sessionId != null)
 			{
-				Filter &= FilterBuilder.Eq(x => x.SessionId, SessionId.Value);
+				filter &= filterBuilder.Eq(x => x.SessionId, sessionId.Value);
 			}
-			if (MinTime != null)
+			if (minTime != null)
 			{
-				Filter &= FilterBuilder.Or(FilterBuilder.Eq(x => x.FinishTime!, null), FilterBuilder.Gt(x => x.FinishTime!, MinTime.Value));
+				filter &= filterBuilder.Or(filterBuilder.Eq(x => x.FinishTime!, null), filterBuilder.Gt(x => x.FinishTime!, minTime.Value));
 			}
-			if (MaxTime != null)
+			if (maxTime != null)
 			{
-				Filter &= FilterBuilder.Lt(x => x.StartTime, MaxTime.Value);
+				filter &= filterBuilder.Lt(x => x.StartTime, maxTime.Value);
 			}
-			FindOptions? FindOptions = null;
-			if (IndexHint != null)
+			FindOptions? findOptions = null;
+			if (indexHint != null)
 			{
-				FindOptions = new FindOptions { Hint = new BsonString(IndexHint) };
+				findOptions = new FindOptions { Hint = new BsonString(indexHint) };
 			}
 
-			List<LeaseDocument> Results = await Collection.Find(Filter, FindOptions).SortByDescending(x => x.StartTime).Range(Index, Count).ToListAsync();
-			return Results.ConvertAll<ILease>(x => x);
+			List<LeaseDocument> results = await collection.Find(filter, findOptions).SortByDescending(x => x.StartTime).Range(index, count).ToListAsync();
+			return results.ConvertAll<ILease>(x => x);
 		}
 		
 		/// <inheritdoc/>
-		public async Task<List<ILease>> FindLeasesByFinishTimeAsync(DateTime? MinFinishTime, DateTime? MaxFinishTime, int? Index, int? Count, string? IndexHint, bool ConsistentRead)
+		public async Task<List<ILease>> FindLeasesByFinishTimeAsync(DateTime? minFinishTime, DateTime? maxFinishTime, int? index, int? count, string? indexHint, bool consistentRead)
 		{
-			IMongoCollection<LeaseDocument> Collection = ConsistentRead ? Leases : Leases.WithReadPreference(ReadPreference.SecondaryPreferred);
-			FilterDefinitionBuilder<LeaseDocument> FilterBuilder = Builders<LeaseDocument>.Filter;
-			FilterDefinition<LeaseDocument> Filter = FilterDefinition<LeaseDocument>.Empty;
+			IMongoCollection<LeaseDocument> collection = consistentRead ? _leases : _leases.WithReadPreference(ReadPreference.SecondaryPreferred);
+			FilterDefinitionBuilder<LeaseDocument> filterBuilder = Builders<LeaseDocument>.Filter;
+			FilterDefinition<LeaseDocument> filter = FilterDefinition<LeaseDocument>.Empty;
 
-			if (MinFinishTime == null && MaxFinishTime == null)
+			if (minFinishTime == null && maxFinishTime == null)
 			{
-				throw new ArgumentException($"Both {nameof(MinFinishTime)} and {nameof(MaxFinishTime)} cannot be null");
+				throw new ArgumentException($"Both {nameof(minFinishTime)} and {nameof(maxFinishTime)} cannot be null");
 			}
 
-			if (MinFinishTime != null) Filter &= FilterBuilder.Gt(x => x.FinishTime, MinFinishTime.Value);
-			if (MaxFinishTime != null) Filter &= FilterBuilder.Lt(x => x.FinishTime, MaxFinishTime.Value);
-
-			FindOptions? FindOptions = IndexHint == null ? null : new FindOptions { Hint = new BsonString(IndexHint) };
-			List<LeaseDocument> Results = await Collection.Find(Filter, FindOptions).SortByDescending(x => x.FinishTime).Range(Index, Count).ToListAsync();
-
-			return Results.ConvertAll<ILease>(x => x);
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<ILease>> FindLeasesAsync(DateTime? MinTime, DateTime? MaxTime)
-		{
-			return await FindLeasesAsync(null, null, MinTime, MaxTime, null, null, Indexes.FinishTimeStartTimeCompound, false);
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<ILease>> FindActiveLeasesAsync(int? Index = null, int? Count = null)
-		{
-			List<LeaseDocument> Results = await Leases.Find(x => x.FinishTime == null).Range(Index, Count).ToListAsync();
-			return Results.ConvertAll<ILease>(x => x);
-		}
-
-		/// <inheritdoc/>
-		public async Task<bool> TrySetOutcomeAsync(LeaseId LeaseId, DateTime FinishTime, LeaseOutcome Outcome, byte[]? Output)
-		{
-			FilterDefinitionBuilder<LeaseDocument> FilterBuilder = Builders<LeaseDocument>.Filter;
-			FilterDefinition<LeaseDocument> Filter = FilterBuilder.Eq(x => x.Id, LeaseId) & FilterBuilder.Eq(x => x.FinishTime, null);
-
-			UpdateDefinitionBuilder<LeaseDocument> UpdateBuilder = Builders<LeaseDocument>.Update;
-			UpdateDefinition<LeaseDocument> Update = UpdateBuilder.Set(x => x.FinishTime, FinishTime).Set(x => x.Outcome, Outcome);
-
-			if(Output != null && Output.Length > 0)
+			if (minFinishTime != null)
 			{
-				Update = Update.Set(x => x.Output, Output);
+				filter &= filterBuilder.Gt(x => x.FinishTime, minFinishTime.Value);
+			}
+			if (maxFinishTime != null)
+			{
+				filter &= filterBuilder.Lt(x => x.FinishTime, maxFinishTime.Value);
 			}
 
-			UpdateResult Result = await Leases.UpdateOneAsync(Filter, Update);
-			return Result.ModifiedCount > 0;
+			FindOptions? findOptions = indexHint == null ? null : new FindOptions { Hint = new BsonString(indexHint) };
+			List<LeaseDocument> results = await collection.Find(filter, findOptions).SortByDescending(x => x.FinishTime).Range(index, count).ToListAsync();
+
+			return results.ConvertAll<ILease>(x => x);
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<ILease>> FindLeasesAsync(DateTime? minTime, DateTime? maxTime)
+		{
+			return await FindLeasesAsync(null, null, minTime, maxTime, null, null, _indexes.FinishTimeStartTimeCompound, false);
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<ILease>> FindActiveLeasesAsync(int? index = null, int? count = null)
+		{
+			List<LeaseDocument> results = await _leases.Find(x => x.FinishTime == null).Range(index, count).ToListAsync();
+			return results.ConvertAll<ILease>(x => x);
+		}
+
+		/// <inheritdoc/>
+		public async Task<bool> TrySetOutcomeAsync(LeaseId leaseId, DateTime finishTime, LeaseOutcome outcome, byte[]? output)
+		{
+			FilterDefinitionBuilder<LeaseDocument> filterBuilder = Builders<LeaseDocument>.Filter;
+			FilterDefinition<LeaseDocument> filter = filterBuilder.Eq(x => x.Id, leaseId) & filterBuilder.Eq(x => x.FinishTime, null);
+
+			UpdateDefinitionBuilder<LeaseDocument> updateBuilder = Builders<LeaseDocument>.Update;
+			UpdateDefinition<LeaseDocument> update = updateBuilder.Set(x => x.FinishTime, finishTime).Set(x => x.Outcome, outcome);
+
+			if(output != null && output.Length > 0)
+			{
+				update = update.Set(x => x.Output, output);
+			}
+
+			UpdateResult result = await _leases.UpdateOneAsync(filter, update);
+			return result.ModifiedCount > 0;
 		}
 	}
 }

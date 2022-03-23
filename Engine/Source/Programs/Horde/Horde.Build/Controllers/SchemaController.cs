@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Primitives;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Utilities;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 
 namespace Horde.Build.Controllers
 {
@@ -47,15 +44,15 @@ namespace Horde.Build.Controllers
 
 		static Type[] FindSchemaTypes()
 		{
-			List<Type> SchemaTypes = new List<Type>();
-			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
+			List<Type> schemaTypes = new List<Type>();
+			foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
 			{
-				if (Type.GetCustomAttribute<JsonSchemaAttribute>() != null)
+				if (type.GetCustomAttribute<JsonSchemaAttribute>() != null)
 				{
-					SchemaTypes.Add(Type);
+					schemaTypes.Add(type);
 				}
 			}
-			return SchemaTypes.ToArray();
+			return schemaTypes.ToArray();
 		}
 
 		/// <summary>
@@ -66,55 +63,55 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/schema/catalog.json")]
 		public ActionResult GetCatalog()
 		{
-			string? Host = null;
+			string? host = null;
 
-			StringValues Hosts;
-			if (Request.Headers.TryGetValue("Host", out Hosts))
+			StringValues hosts;
+			if (Request.Headers.TryGetValue("Host", out hosts))
 			{
-				Host = Hosts.FirstOrDefault();
+				host = hosts.FirstOrDefault();
 			}
 
-			if (Host == null)
+			if (host == null)
 			{
-				Host = Dns.GetHostName();
+				host = Dns.GetHostName();
 			}
 
-			CatalogRoot Root = new CatalogRoot();
-			foreach (Type SchemaType in ConfigSchemas)
+			CatalogRoot root = new CatalogRoot();
+			foreach (Type schemaType in ConfigSchemas)
 			{
-				JsonSchemaAttribute? SchemaAttribute = SchemaType.GetCustomAttribute<JsonSchemaAttribute>();
-				if (SchemaAttribute != null)
+				JsonSchemaAttribute? schemaAttribute = schemaType.GetCustomAttribute<JsonSchemaAttribute>();
+				if (schemaAttribute != null)
 				{
-					JsonSchemaCatalogAttribute? CatalogAttribute = SchemaType.GetCustomAttribute<JsonSchemaCatalogAttribute>();
-					if (CatalogAttribute != null)
+					JsonSchemaCatalogAttribute? catalogAttribute = schemaType.GetCustomAttribute<JsonSchemaCatalogAttribute>();
+					if (catalogAttribute != null)
 					{
-						Uri Url = new Uri($"https://{Host}/api/v1/schema/types/{SchemaType.Name}.json");
-						Root.Schemas.Add(new CatalogItem { Name = CatalogAttribute.Name, Description = CatalogAttribute.Description, FileMatch = CatalogAttribute.FileMatch, Url = Url });
+						Uri url = new Uri($"https://{host}/api/v1/schema/types/{schemaType.Name}.json");
+						root.Schemas.Add(new CatalogItem { Name = catalogAttribute.Name, Description = catalogAttribute.Description, FileMatch = catalogAttribute.FileMatch, Url = url });
 					}
 				}
 			}
-			return Ok(Root);
+			return Ok(root);
 		}
 
 		/// <summary>
 		/// Gets a specific schema
 		/// </summary>
-		/// <param name="TypeName">The type name</param>
+		/// <param name="typeName">The type name</param>
 		/// <returns></returns>
 		[HttpGet]
-		[Route("/api/v1/schema/types/{TypeName}.json")]
-		public ActionResult GetSchema(string TypeName)
+		[Route("/api/v1/schema/types/{typeName}.json")]
+		public ActionResult GetSchema(string typeName)
 		{
-			foreach (Type SchemaType in ConfigSchemas)
+			foreach (Type schemaType in ConfigSchemas)
 			{
-				if (SchemaType.Name.Equals(TypeName, StringComparison.OrdinalIgnoreCase))
+				if (schemaType.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase))
 				{
-					JsonSchema Schema = Schemas.CreateSchema(SchemaType);
+					JsonSchema schema = Schemas.CreateSchema(schemaType);
 
-					using MemoryStream Stream = new MemoryStream();
-					Schema.Write(Stream);
+					using MemoryStream stream = new MemoryStream();
+					schema.Write(stream);
 
-					return new FileContentResult(Stream.ToArray(), "application/json");
+					return new FileContentResult(stream.ToArray(), "application/json");
 				}
 			}
 			return NotFound();

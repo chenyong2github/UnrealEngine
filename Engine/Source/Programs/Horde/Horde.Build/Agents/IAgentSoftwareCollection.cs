@@ -1,19 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Horde.Build.Collections
@@ -26,29 +12,29 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Adds a new software revision
 		/// </summary>
-		/// <param name="Version">The version number</param>
-		/// <param name="Data">Zip file containing the new software</param>
+		/// <param name="version">The version number</param>
+		/// <param name="data">Zip file containing the new software</param>
 		/// <returns>New software instance</returns>
-		Task<bool> AddAsync(string Version, byte[] Data);
+		Task<bool> AddAsync(string version, byte[] data);
 
 		/// <summary>
 		/// Tests whether a given version exists
 		/// </summary>
-		/// <param name="Version">Version of the software</param>
+		/// <param name="version">Version of the software</param>
 		/// <returns>True if it exists, false otherwise</returns>
-		Task<bool> ExistsAsync(string Version);
+		Task<bool> ExistsAsync(string version);
 
 		/// <summary>
 		/// Removes a software archive 
 		/// </summary>
-		/// <param name="Version">Version of the software to delete</param>
-		Task<bool> RemoveAsync(string Version);
+		/// <param name="version">Version of the software to delete</param>
+		Task<bool> RemoveAsync(string version);
 
 		/// <summary>
 		/// Downloads software of a given revision
 		/// </summary>
-		/// <param name="Version">Version of the software</param>
+		/// <param name="version">Version of the software</param>
 		/// <returns>Data for the given software</returns>
-		Task<byte[]?> GetAsync(string Version);
+		Task<byte[]?> GetAsync(string version);
 	}
 }

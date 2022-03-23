@@ -1,19 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using Serilog.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -54,19 +52,19 @@ namespace Horde.Build.Collections.Impl
 
 			public LogEventDocument()
 			{
-				this.Id = new LogEventId();
+				Id = new LogEventId();
 			}
 
-			public LogEventDocument(LogId LogId, EventSeverity Severity, int LineIndex, int LineCount, ObjectId? SpanId)
+			public LogEventDocument(LogId logId, EventSeverity severity, int lineIndex, int lineCount, ObjectId? spanId)
 			{
-				this.Id = new LogEventId { LogId = LogId, LineIndex = LineIndex };
-				this.IsWarning = Severity == EventSeverity.Warning;
-				this.LineCount = (LineCount > 1) ? (int?)LineCount : null;
-				this.SpanId = SpanId;
+				Id = new LogEventId { LogId = logId, LineIndex = lineIndex };
+				IsWarning = severity == EventSeverity.Warning;
+				LineCount = (lineCount > 1) ? (int?)lineCount : null;
+				SpanId = spanId;
 			}
 
-			public LogEventDocument(NewLogEventData Data)
-				: this(Data.LogId, Data.Severity, Data.LineIndex, Data.LineCount, Data.SpanId)
+			public LogEventDocument(NewLogEventData data)
+				: this(data.LogId, data.Severity, data.LineIndex, data.LineCount, data.SpanId)
 			{
 			}
 		}
@@ -93,112 +91,112 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Collection of event documents
 		/// </summary>
-		IMongoCollection<LogEventDocument> LogEvents;
+		readonly IMongoCollection<LogEventDocument> _logEvents;
 
 		/// <summary>
 		/// Collection of legacy event documents
 		/// </summary>
-		IMongoCollection<LegacyEventDocument> LegacyEvents;
+		readonly IMongoCollection<LegacyEventDocument> _legacyEvents;
 
 		/// <summary>
 		/// Logger for upgrade messages
 		/// </summary>
-		ILogger<LogEventCollection> Logger;
+		readonly ILogger<LogEventCollection> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		/// <param name="Logger">The logger instance</param>
-		public LogEventCollection(DatabaseService DatabaseService, ILogger<LogEventCollection> Logger)
+		/// <param name="databaseService">The database service instance</param>
+		/// <param name="logger">The logger instance</param>
+		public LogEventCollection(DatabaseService databaseService, ILogger<LogEventCollection> logger)
 		{
-			this.Logger = Logger;
+			_logger = logger;
 
-			LogEvents = DatabaseService.GetCollection<LogEventDocument>("LogEvents");
-			LegacyEvents = DatabaseService.GetCollection<LegacyEventDocument>("Events");
+			_logEvents = databaseService.GetCollection<LogEventDocument>("LogEvents");
+			_legacyEvents = databaseService.GetCollection<LegacyEventDocument>("Events");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				LogEvents.Indexes.CreateOne(new CreateIndexModel<LogEventDocument>(Builders<LogEventDocument>.IndexKeys.Ascending(x => x.Id.LogId)));
-				LogEvents.Indexes.CreateOne(new CreateIndexModel<LogEventDocument>(Builders<LogEventDocument>.IndexKeys.Ascending(x => x.SpanId).Ascending(x => x.Id)));
-				LegacyEvents.Indexes.CreateOne(new CreateIndexModel<LegacyEventDocument>(Builders<LegacyEventDocument>.IndexKeys.Ascending(x => x.LogId)));
+				_logEvents.Indexes.CreateOne(new CreateIndexModel<LogEventDocument>(Builders<LogEventDocument>.IndexKeys.Ascending(x => x.Id.LogId)));
+				_logEvents.Indexes.CreateOne(new CreateIndexModel<LogEventDocument>(Builders<LogEventDocument>.IndexKeys.Ascending(x => x.SpanId).Ascending(x => x.Id)));
+				_legacyEvents.Indexes.CreateOne(new CreateIndexModel<LegacyEventDocument>(Builders<LegacyEventDocument>.IndexKeys.Ascending(x => x.LogId)));
 			}
 		}
 
 		/// <inheritdoc/>
-		public Task AddAsync(NewLogEventData NewEvent)
+		public Task AddAsync(NewLogEventData newEvent)
 		{
-			return LogEvents.InsertOneAsync(new LogEventDocument(NewEvent));
+			return _logEvents.InsertOneAsync(new LogEventDocument(newEvent));
 		}
 
 		/// <inheritdoc/>
-		public Task AddManyAsync(List<NewLogEventData> NewEvents)
+		public Task AddManyAsync(List<NewLogEventData> newEvents)
 		{
-			return LogEvents.InsertManyAsync(NewEvents.ConvertAll(x => new LogEventDocument(x)));
+			return _logEvents.InsertManyAsync(newEvents.ConvertAll(x => new LogEventDocument(x)));
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindAsync(LogId LogId, int? Index = null, int? Count = null)
+		public async Task<List<ILogEvent>> FindAsync(LogId logId, int? index = null, int? count = null)
 		{
-			Logger.LogInformation("Querying for log events for log {LogId} creation time {CreateTime}", LogId, LogId.Value.CreationTime);
+			_logger.LogInformation("Querying for log events for log {LogId} creation time {CreateTime}", logId, logId.Value.CreationTime);
 
-			FilterDefinitionBuilder<LogEventDocument> Builder = Builders<LogEventDocument>.Filter;
+			FilterDefinitionBuilder<LogEventDocument> builder = Builders<LogEventDocument>.Filter;
 
-			FilterDefinition<LogEventDocument> Filter = Builder.Eq(x => x.Id.LogId, LogId);
+			FilterDefinition<LogEventDocument> filter = builder.Eq(x => x.Id.LogId, logId);
 
-			IFindFluent<LogEventDocument, LogEventDocument> Results = LogEvents.Find(Filter).SortBy(x => x.Id);
-			if (Index != null)
+			IFindFluent<LogEventDocument, LogEventDocument> results = _logEvents.Find(filter).SortBy(x => x.Id);
+			if (index != null)
 			{
-				Results = Results.Skip(Index.Value);
+				results = results.Skip(index.Value);
 			}
-			if (Count != null)
+			if (count != null)
 			{
-				Results = Results.Limit(Count.Value);
-			}
-
-			List<LogEventDocument> EventDocuments = await Results.ToListAsync();
-			return EventDocuments.ConvertAll<ILogEvent>(x => x);
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindEventsForSpanAsync(ObjectId SpanId, LogId[]? LogIds, int Index, int Count)
-		{
-			FilterDefinition<LogEventDocument> Filter = Builders<LogEventDocument>.Filter.Eq(x => x.SpanId, SpanId);
-			if (LogIds != null && LogIds.Length > 0)
-			{
-				Filter &= Builders<LogEventDocument>.Filter.In(x => x.Id.LogId, LogIds);
+				results = results.Limit(count.Value);
 			}
 
-			List<LogEventDocument> EventDocuments = await LogEvents.Find(Filter).Skip(Index).Limit(Count).ToListAsync();
-			return EventDocuments.ConvertAll<ILogEvent>(x => x);
+			List<LogEventDocument> eventDocuments = await results.ToListAsync();
+			return eventDocuments.ConvertAll<ILogEvent>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, LogId[]? LogIds, int Index, int Count)
+		public async Task<List<ILogEvent>> FindEventsForSpanAsync(ObjectId spanId, LogId[]? logIds, int index, int count)
 		{
-			FilterDefinition<LogEventDocument> Filter = Builders<LogEventDocument>.Filter.In(x => x.SpanId, SpanIds.Select<ObjectId, ObjectId?>(x => x));
-			if (LogIds != null && LogIds.Length > 0)
+			FilterDefinition<LogEventDocument> filter = Builders<LogEventDocument>.Filter.Eq(x => x.SpanId, spanId);
+			if (logIds != null && logIds.Length > 0)
 			{
-				Filter &= Builders<LogEventDocument>.Filter.In(x => x.Id.LogId, LogIds);
+				filter &= Builders<LogEventDocument>.Filter.In(x => x.Id.LogId, logIds);
 			}
 
-			List<LogEventDocument> EventDocuments = await LogEvents.Find(Filter).Skip(Index).Limit(Count).ToListAsync();
-			return EventDocuments.ConvertAll<ILogEvent>(x => x);
+			List<LogEventDocument> eventDocuments = await _logEvents.Find(filter).Skip(index).Limit(count).ToListAsync();
+			return eventDocuments.ConvertAll<ILogEvent>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteLogAsync(LogId LogId)
+		public async Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> spanIds, LogId[]? logIds, int index, int count)
 		{
-			await LogEvents.DeleteManyAsync(x => x.Id.LogId == LogId);
-			await LegacyEvents.DeleteManyAsync(x => x.LogId == LogId);
+			FilterDefinition<LogEventDocument> filter = Builders<LogEventDocument>.Filter.In(x => x.SpanId, spanIds.Select<ObjectId, ObjectId?>(x => x));
+			if (logIds != null && logIds.Length > 0)
+			{
+				filter &= Builders<LogEventDocument>.Filter.In(x => x.Id.LogId, logIds);
+			}
+
+			List<LogEventDocument> eventDocuments = await _logEvents.Find(filter).Skip(index).Limit(count).ToListAsync();
+			return eventDocuments.ConvertAll<ILogEvent>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task AddSpanToEventsAsync(IEnumerable<ILogEvent> Events, ObjectId SpanId)
+		public async Task DeleteLogAsync(LogId logId)
 		{
-			FilterDefinition<LogEventDocument> EventFilter = Builders<LogEventDocument>.Filter.In(x => x.Id, Events.OfType<LogEventDocument>().Select(x => x.Id));
-			UpdateDefinition<LogEventDocument> EventUpdate = Builders<LogEventDocument>.Update.Set(x => x.SpanId, SpanId);
-			await LogEvents.UpdateManyAsync(EventFilter, EventUpdate);
+			await _logEvents.DeleteManyAsync(x => x.Id.LogId == logId);
+			await _legacyEvents.DeleteManyAsync(x => x.LogId == logId);
+		}
+
+		/// <inheritdoc/>
+		public async Task AddSpanToEventsAsync(IEnumerable<ILogEvent> events, ObjectId spanId)
+		{
+			FilterDefinition<LogEventDocument> eventFilter = Builders<LogEventDocument>.Filter.In(x => x.Id, events.OfType<LogEventDocument>().Select(x => x.Id));
+			UpdateDefinition<LogEventDocument> eventUpdate = Builders<LogEventDocument>.Update.Set(x => x.SpanId, spanId);
+			await _logEvents.UpdateManyAsync(eventFilter, eventUpdate);
 		}
 	}
 }

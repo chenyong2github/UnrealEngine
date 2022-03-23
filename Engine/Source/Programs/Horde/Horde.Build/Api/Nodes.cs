@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
+using HordeCommon;
 
 namespace Horde.Build.Api
 {
@@ -70,19 +66,19 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Node">The node to construct from</param>
-		/// <param name="Groups">The groups in the graph</param>
-		public GetNodeResponse(INode Node, IReadOnlyList<INodeGroup> Groups)
+		/// <param name="node">The node to construct from</param>
+		/// <param name="groups">The groups in the graph</param>
+		public GetNodeResponse(INode node, IReadOnlyList<INodeGroup> groups)
 		{
-			this.Name = Node.Name;
-			this.InputDependencies = new List<string>(Node.InputDependencies.Select(x => Groups[x.GroupIdx].Nodes[x.NodeIdx].Name)); ;
-			this.OrderDependencies = new List<string>(Node.OrderDependencies.Select(x => Groups[x.GroupIdx].Nodes[x.NodeIdx].Name)); ;
-			this.Priority = Node.Priority;
-			this.AllowRetry = Node.AllowRetry;
-			this.RunEarly = Node.RunEarly;
-			this.Warnings = Node.Warnings;
-			this.Credentials = Node.Credentials;
-			this.Properties = Node.Properties;
+			Name = node.Name;
+			InputDependencies = new List<string>(node.InputDependencies.Select(x => groups[x.GroupIdx].Nodes[x.NodeIdx].Name));
+			OrderDependencies = new List<string>(node.OrderDependencies.Select(x => groups[x.GroupIdx].Nodes[x.NodeIdx].Name));
+			Priority = node.Priority;
+			AllowRetry = node.AllowRetry;
+			RunEarly = node.RunEarly;
+			Warnings = node.Warnings;
+			Credentials = node.Credentials;
+			Properties = node.Properties;
 		}
 	}
 
@@ -104,12 +100,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Group">The group to construct from</param>
-		/// <param name="Groups">Other groups in this graph</param>
-		public GetGroupResponse(INodeGroup Group, IReadOnlyList<INodeGroup> Groups)
+		/// <param name="group">The group to construct from</param>
+		/// <param name="groups">Other groups in this graph</param>
+		public GetGroupResponse(INodeGroup group, IReadOnlyList<INodeGroup> groups)
 		{
-			this.AgentType = Group.AgentType;
-			this.Nodes = Group.Nodes.ConvertAll(x => new GetNodeResponse(x, Groups));
+			AgentType = group.AgentType;
+			Nodes = group.Nodes.ConvertAll(x => new GetNodeResponse(x, groups));
 		}
 	}
 
@@ -131,12 +127,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Aggregate">The aggregate to construct from</param>
-		/// <param name="Groups">List of groups in this graph</param>
-		public GetAggregateResponse(IAggregate Aggregate, IReadOnlyList<INodeGroup> Groups)
+		/// <param name="aggregate">The aggregate to construct from</param>
+		/// <param name="groups">List of groups in this graph</param>
+		public GetAggregateResponse(IAggregate aggregate, IReadOnlyList<INodeGroup> groups)
 		{
-			Name = Aggregate.Name;
-			Nodes = Aggregate.Nodes.ConvertAll(x => x.ToNode(Groups).Name);
+			Name = aggregate.Name;
+			Nodes = aggregate.Nodes.ConvertAll(x => x.ToNode(groups).Name);
 		}
 	}
 
@@ -188,16 +184,16 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Label">The label to construct from</param>
-		/// <param name="Groups">List of groups in this graph</param>
-		public GetLabelResponse(ILabel Label, IReadOnlyList<INodeGroup> Groups)
+		/// <param name="label">The label to construct from</param>
+		/// <param name="groups">List of groups in this graph</param>
+		public GetLabelResponse(ILabel label, IReadOnlyList<INodeGroup> groups)
 		{
-			DashboardName = Label.DashboardName;
-			DashboardCategory = Label.DashboardCategory;
-			UgsName = Label.UgsName;
-			UgsProject = Label.UgsProject;
-			RequiredNodes = Label.RequiredNodes.ConvertAll(x => x.ToNode(Groups).Name);
-			IncludedNodes = Label.IncludedNodes.ConvertAll(x => x.ToNode(Groups).Name);
+			DashboardName = label.DashboardName;
+			DashboardCategory = label.DashboardCategory;
+			UgsName = label.UgsName;
+			UgsProject = label.UgsProject;
+			RequiredNodes = label.RequiredNodes.ConvertAll(x => x.ToNode(groups).Name);
+			IncludedNodes = label.IncludedNodes.ConvertAll(x => x.ToNode(groups).Name);
 		}
 	}
 
@@ -229,21 +225,21 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Graph">The graph to construct from</param>
-		public GetGraphResponse(IGraph Graph)
+		/// <param name="graph">The graph to construct from</param>
+		public GetGraphResponse(IGraph graph)
 		{
-			Hash = Graph.Id.ToString();
-			if (Graph.Groups.Count > 0)
+			Hash = graph.Id.ToString();
+			if (graph.Groups.Count > 0)
 			{
-				Groups = Graph.Groups.ConvertAll(x => new GetGroupResponse(x, Graph.Groups));
+				Groups = graph.Groups.ConvertAll(x => new GetGroupResponse(x, graph.Groups));
 			}
-			if (Graph.Aggregates.Count > 0)
+			if (graph.Aggregates.Count > 0)
 			{
-				Aggregates = Graph.Aggregates.ConvertAll(x => new GetAggregateResponse(x, Graph.Groups));
+				Aggregates = graph.Aggregates.ConvertAll(x => new GetAggregateResponse(x, graph.Groups));
 			}
-			if (Graph.Labels.Count > 0)
+			if (graph.Labels.Count > 0)
 			{
-				Labels = Graph.Labels.ConvertAll(x => new GetLabelResponse(x, Graph.Groups));
+				Labels = graph.Labels.ConvertAll(x => new GetLabelResponse(x, graph.Groups));
 			}
 		}
 	}

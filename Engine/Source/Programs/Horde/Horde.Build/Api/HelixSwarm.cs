@@ -85,10 +85,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Id of the new document</param>
-		public SwarmAutoTestResponse(string Id)
+		/// <param name="id">Id of the new document</param>
+		public SwarmAutoTestResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 }

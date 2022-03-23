@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -39,10 +36,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Unique id for the new credential</param>
-		public CreateCredentialResponse(string Id)
+		/// <param name="id">Unique id for the new credential</param>
+		public CreateCredentialResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -95,14 +92,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Credential">The credential to construct from</param>
+		/// <param name="credential">The credential to construct from</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetCredentialResponse(Credential Credential, bool bIncludeAcl)
+		public GetCredentialResponse(Credential credential, bool bIncludeAcl)
 		{
-			this.Id = Credential.Id.ToString();
-			this.Name = Credential.Name;
-			this.Properties = Credential.Properties;
-			this.Acl = (bIncludeAcl && Credential.Acl != null)? new GetAclResponse(Credential.Acl) : null;
+			Id = credential.Id.ToString();
+			Name = credential.Name;
+			Properties = credential.Properties;
+			Acl = (bIncludeAcl && credential.Acl != null)? new GetAclResponse(credential.Acl) : null;
 		}
 	}
 }

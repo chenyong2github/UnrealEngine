@@ -1,25 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Collections;
-using HordeCommon.Rpc;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
-using System.Security.Policy;
-using System.Text;
-using System.Threading.Tasks;
-using System.Text.Json;
-using Horde.Build.Models;
 using EpicGames.Core;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 
 namespace Horde.Build.IssueHandlers.Impl
 {
@@ -37,7 +26,7 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		///  Known systemic errors
 		/// </summary>
-		static HashSet<EventId?> KnownSystemic = new HashSet<EventId?> {  KnownLogEvents.Systemic, KnownLogEvents.Systemic_Xge, KnownLogEvents.Systemic_Xge_Standalone, 
+		static readonly HashSet<EventId?> s_knownSystemic = new HashSet<EventId?> {  KnownLogEvents.Systemic, KnownLogEvents.Systemic_Xge, KnownLogEvents.Systemic_Xge_Standalone, 
 																		KnownLogEvents.Systemic_Xge_ServiceNotRunning, KnownLogEvents.Systemic_Xge_BuildFailed, 
 																		KnownLogEvents.Systemic_SlowDDC, KnownLogEvents.Systemic_Horde, KnownLogEvents.Systemic_Horde_ArtifactUpload,
 																		KnownLogEvents.Horde, KnownLogEvents.Horde_InvalidPreflight};
@@ -45,58 +34,57 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
-		/// <param name="EventId">The event id to compare</param>
+		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? EventId)
+		public static bool IsMatchingEventId(EventId? eventId)
 		{
-			return KnownSystemic.Contains(EventId);
+			return s_knownSystemic.Contains(eventId);
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint Fingerprint, List<SuspectChange> Suspects)
+		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob Job, INode Node, ILogEventData EventData, [NotNullWhen(true)] out NewIssueFingerprint? Fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
-			Fingerprint = null;
+			fingerprint = null;
 
-			if (EventData.EventId == KnownLogEvents.ExitCode)
+			if (eventData.EventId == KnownLogEvents.ExitCode)
 			{
-				for (int i = 0; i < EventData.Lines.Count; i++)
+				for (int i = 0; i < eventData.Lines.Count; i++)
 				{
-					string Message = EventData.Lines[i].Message;
+					string message = eventData.Lines[i].Message;
 
-					string[] SystemicExitMessages = new string[] { "AutomationTool exiting with ExitCode", "BUILD FAILED", "tool returned code" };
+					string[] systemicExitMessages = new string[] { "AutomationTool exiting with ExitCode", "BUILD FAILED", "tool returned code" };
 
-					for (int j = 0; j < SystemicExitMessages.Length; j++)
+					for (int j = 0; j < systemicExitMessages.Length; j++)
 					{
-						if (Message.Contains(SystemicExitMessages[j], StringComparison.InvariantCultureIgnoreCase))
+						if (message.Contains(systemicExitMessages[j], StringComparison.InvariantCultureIgnoreCase))
 						{
-							Fingerprint = new NewIssueFingerprint(Type, new[] { Node.Name }, null);
+							fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null);
 							return true;
 						}
 					}
 				}
 			}
 
-			if (!IsMatchingEventId(EventData.EventId))
+			if (!IsMatchingEventId(eventData.EventId))
 			{				
 				return false;
 			}
 
-			Fingerprint = new NewIssueFingerprint(Type, new[] { Node.Name }, null);
+			fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null);
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint Fingerprint, IssueSeverity Severity)
+		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
-			string Type = (Severity == IssueSeverity.Warning) ? "Systemic warnings" : "Systemic errors";
-			string NodeName = Fingerprint.Keys.FirstOrDefault() ?? "(unknown)";
-			return $"{Type} in {NodeName}";
+			string type = (severity == IssueSeverity.Warning) ? "Systemic warnings" : "Systemic errors";
+			string nodeName = fingerprint.Keys.FirstOrDefault() ?? "(unknown)";
+			return $"{type} in {nodeName}";
 		}
-
 	}
 }

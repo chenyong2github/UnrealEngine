@@ -1,21 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Build.Models;
-using Horde.Build.Storage;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
-using Microsoft.Extensions.Hosting;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Compute
 {
@@ -75,34 +69,34 @@ namespace Horde.Build.Compute
 		/// <summary>
 		/// Gets information about a compute cluster
 		/// </summary>
-		/// <param name="ClusterId">Cluster to use for execution</param>
-		Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId ClusterId);
+		/// <param name="clusterId">Cluster to use for execution</param>
+		Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId clusterId);
 
 		/// <summary>
 		/// Post tasks to be executed to a channel
 		/// </summary>
-		/// <param name="ClusterId">Cluster to use for execution</param>
-		/// <param name="ChannelId">Unique identifier of the client</param>
-		/// <param name="TaskRefIds">List of task hashes</param>
-		/// <param name="RequirementsHash">Requirements document for execution</param>
+		/// <param name="clusterId">Cluster to use for execution</param>
+		/// <param name="channelId">Unique identifier of the client</param>
+		/// <param name="taskRefIds">List of task hashes</param>
+		/// <param name="requirementsHash">Requirements document for execution</param>
 		/// <returns>Async task</returns>
-		Task AddTasksAsync(ClusterId ClusterId, ChannelId ChannelId, List<RefId> TaskRefIds, CbObjectAttachment RequirementsHash);
+		Task AddTasksAsync(ClusterId clusterId, ChannelId channelId, List<RefId> taskRefIds, CbObjectAttachment requirementsHash);
 
 		/// <summary>
 		/// Dequeue completed items from a queue and return immediately
 		/// </summary>
-		/// <param name="ClusterId">Cluster containing the channel</param>
-		/// <param name="ChannelId">Queue to remove items from</param>
+		/// <param name="clusterId">Cluster containing the channel</param>
+		/// <param name="channelId">Queue to remove items from</param>
 		/// <returns>List of status updates</returns>
-		Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ClusterId ClusterId, ChannelId ChannelId);
+		Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId);
 
 		/// <summary>
 		/// Dequeue completed items from a queue
 		/// </summary>
-		/// <param name="ClusterId">Cluster containing the channel</param>
-		/// <param name="ChannelId">Queue to remove items from</param>
-		/// <param name="CancellationToken">Cancellation token to stop waiting for items</param>
+		/// <param name="clusterId">Cluster containing the channel</param>
+		/// <param name="channelId">Queue to remove items from</param>
+		/// <param name="cancellationToken">Cancellation token to stop waiting for items</param>
 		/// <returns>List of status updates</returns>
-		Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ClusterId ClusterId, ChannelId ChannelId, CancellationToken CancellationToken);
+		Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, CancellationToken cancellationToken);
 	}
 }

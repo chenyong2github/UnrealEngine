@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph;
-using EpicGames.Perforce;
-using Horde.Build.Collections;
-using Horde.Build.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using EpicGames.BuildGraph;
+using EpicGames.Perforce;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 
 namespace Horde.Build.Utilities
 {
@@ -20,35 +20,35 @@ namespace Horde.Build.Utilities
 	{
 		class PerforceScriptContext : IBgScriptReaderContext
 		{
-			IPerforceConnection PerforceConnection;
-			string Stream;
-			int ChangeNumber;
+			readonly IPerforceConnection _perforceConnection;
+			readonly string _stream;
+			readonly int _changeNumber;
 
-			public PerforceScriptContext(IPerforceConnection Perforce, string Stream, int ChangeNumber)
+			public PerforceScriptContext(IPerforceConnection perforce, string stream, int changeNumber)
 			{
-				this.PerforceConnection = Perforce;
-				this.Stream = Stream;
-				this.ChangeNumber = ChangeNumber;
+				_perforceConnection = perforce;
+				_stream = stream;
+				_changeNumber = changeNumber;
 			}
 
-			public async Task<bool> ExistsAsync(string Path)
+			public async Task<bool> ExistsAsync(string path)
 			{
-				List<FStatRecord> Records = await PerforceConnection.FStatAsync($"{Stream}/{Path}@{ChangeNumber}").ToListAsync();
-				return Records.Count > 0;
+				List<FStatRecord> records = await _perforceConnection.FStatAsync($"{_stream}/{path}@{_changeNumber}").ToListAsync();
+				return records.Count > 0;
 			}
 
-			public object GetNativePath(string Path)
+			public object GetNativePath(string path)
 			{
-				return $"{Stream}/{Path}";
+				return $"{_stream}/{path}";
 			}
 
-			public async Task<byte[]?> ReadAsync(string Path)
+			public async Task<byte[]?> ReadAsync(string path)
 			{
-				string TempFileName = System.IO.Path.GetTempFileName();
+				string tempFileName = System.IO.Path.GetTempFileName();
 				try
 				{
-					await PerforceConnection.PrintAsync(TempFileName, $"{Stream}/{Path}");
-					return await File.ReadAllBytesAsync(TempFileName);
+					await _perforceConnection.PrintAsync(tempFileName, $"{_stream}/{path}");
+					return await File.ReadAllBytesAsync(tempFileName);
 				}
 				catch
 				{
@@ -58,14 +58,14 @@ namespace Horde.Build.Utilities
 				{
 					try
 					{
-						File.SetAttributes(TempFileName, FileAttributes.Normal);
-						File.Delete(TempFileName);
+						File.SetAttributes(tempFileName, FileAttributes.Normal);
+						File.Delete(tempFileName);
 					}
 					catch { }
 				}
 			}
 
-			public Task<string[]> FindAsync(string Path)
+			public Task<string[]> FindAsync(string path)
 			{
 				throw new NotImplementedException();
 			}
@@ -74,133 +74,133 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Create a graph from a script in Perforce
 		/// </summary>
-		/// <param name="GraphCollection"></param>
-		/// <param name="PerforceConnection"></param>
-		/// <param name="Stream"></param>
-		/// <param name="ChangeNumber"></param>
-		/// <param name="CodeChangeNumber"></param>
-		/// <param name="Arguments"></param>
+		/// <param name="graphCollection"></param>
+		/// <param name="perforceConnection"></param>
+		/// <param name="stream"></param>
+		/// <param name="changeNumber"></param>
+		/// <param name="codeChangeNumber"></param>
+		/// <param name="arguments"></param>
 		/// <returns></returns>
 		/// <exception cref="NotImplementedException"></exception>
-		public static async Task<IGraph> AddAsync(this IGraphCollection GraphCollection, IPerforceConnection PerforceConnection, IStream Stream, int ChangeNumber, int CodeChangeNumber, List<string> Arguments)
+		public static async Task<IGraph> AddAsync(this IGraphCollection graphCollection, IPerforceConnection perforceConnection, IStream stream, int changeNumber, int codeChangeNumber, List<string> arguments)
 		{
-			PerforceScriptContext Context = new PerforceScriptContext(PerforceConnection, Stream.Name, ChangeNumber);
+			PerforceScriptContext context = new PerforceScriptContext(perforceConnection, stream.Name, changeNumber);
 
-			BgScriptSchema? Schema = null!;
+			BgScriptSchema? schema = null!;
 
-			Dictionary<string, string> Properties = new Dictionary<string, string>();
-			Properties["HostPlatform"] = "";
-			Properties["RootDir"] = "";
-			Properties["IsBuildMachine"] = "true";
-			Properties["Branch"] = Stream.Name;
-			Properties["Change"] = ChangeNumber.ToString(CultureInfo.InvariantCulture);
-			Properties["EscapedBranch"] = Stream.Name.Replace('/', '+');
-			Properties["CodeChange"] = CodeChangeNumber.ToString(CultureInfo.InvariantCulture);
+			Dictionary<string, string> properties = new Dictionary<string, string>();
+			properties["HostPlatform"] = "";
+			properties["RootDir"] = "";
+			properties["IsBuildMachine"] = "true";
+			properties["Branch"] = stream.Name;
+			properties["Change"] = changeNumber.ToString(CultureInfo.InvariantCulture);
+			properties["EscapedBranch"] = stream.Name.Replace('/', '+');
+			properties["CodeChange"] = codeChangeNumber.ToString(CultureInfo.InvariantCulture);
 
-			string? ScriptFile = null;
-			foreach (string Argument in Arguments)
+			string? scriptFile = null;
+			foreach (string argument in arguments)
 			{
 				const string ScriptPrefix = "-Script=";
-				if (Argument.StartsWith(ScriptPrefix, StringComparison.OrdinalIgnoreCase))
+				if (argument.StartsWith(ScriptPrefix, StringComparison.OrdinalIgnoreCase))
 				{
-					ScriptFile = Argument.Substring(ScriptPrefix.Length);
+					scriptFile = argument.Substring(ScriptPrefix.Length);
 				}
 			}
 
-			List<string> Targets = new List<string>();
-			foreach (string Argument in Arguments)
+			List<string> targets = new List<string>();
+			foreach (string argument in arguments)
 			{
 				const string TargetPrefix = "-Target=";
-				if (Argument.StartsWith(TargetPrefix, StringComparison.OrdinalIgnoreCase))
+				if (argument.StartsWith(TargetPrefix, StringComparison.OrdinalIgnoreCase))
 				{
-					Targets.AddRange(Argument.Substring(TargetPrefix.Length).Split(';'));
+					targets.AddRange(argument.Substring(TargetPrefix.Length).Split(';'));
 				}
 			}
 
-			Dictionary<string, string> Options = new Dictionary<string, string>();
-			foreach (string Argument in Arguments)
+			Dictionary<string, string> options = new Dictionary<string, string>();
+			foreach (string argument in arguments)
 			{
 				const string SetPrefix = "-Set:";
-				if (Argument.StartsWith(SetPrefix, StringComparison.OrdinalIgnoreCase))
+				if (argument.StartsWith(SetPrefix, StringComparison.OrdinalIgnoreCase))
 				{
-					int EqualsIdx = Argument.IndexOf('=', StringComparison.Ordinal);
-					if (EqualsIdx != -1)
+					int equalsIdx = argument.IndexOf('=', StringComparison.Ordinal);
+					if (equalsIdx != -1)
 					{
-						Options[Argument.Substring(SetPrefix.Length, EqualsIdx - SetPrefix.Length)] = Argument.Substring(EqualsIdx + 1);
+						options[argument.Substring(SetPrefix.Length, equalsIdx - SetPrefix.Length)] = argument.Substring(equalsIdx + 1);
 					}
 				}
 			}
 
-			if(ScriptFile == null)
+			if(scriptFile == null)
 			{
 				throw new NotImplementedException();
 			}
 
-			BgGraph? Script = await BgScriptReader.ReadAsync(Context, ScriptFile, Options, Properties, Schema, EpicGames.Core.Log.Logger);
-			if (Script == null)
+			BgGraph? script = await BgScriptReader.ReadAsync(context, scriptFile, options, properties, schema, EpicGames.Core.Log.Logger);
+			if (script == null)
 			{
 				throw new NotImplementedException();
 			}
 
-			HashSet<BgNode> TargetNodes = new HashSet<BgNode>();
-			foreach (string Target in Targets)
+			HashSet<BgNode> targetNodes = new HashSet<BgNode>();
+			foreach (string target in targets)
 			{
-				if (Script.NameToNode.TryGetValue(Target, out BgNode? Node))
+				if (script.NameToNode.TryGetValue(target, out BgNode? node))
 				{
-					TargetNodes.Add(Node);
+					targetNodes.Add(node);
 				}
-				else if (Script.NameToAgent.TryGetValue(Target, out BgAgent? Agent))
+				else if (script.NameToAgent.TryGetValue(target, out BgAgent? agent))
 				{
-					TargetNodes.UnionWith(Agent.Nodes);
+					targetNodes.UnionWith(agent.Nodes);
 				}
-				else if (Script.NameToAggregate.TryGetValue(Target, out BgAggregate? Aggregate))
+				else if (script.NameToAggregate.TryGetValue(target, out BgAggregate? aggregate))
 				{
-					TargetNodes.UnionWith(Aggregate.RequiredNodes);
+					targetNodes.UnionWith(aggregate.RequiredNodes);
 				}
 				else
 				{
 					throw new NotImplementedException();
 				}
 			}
-			Script.Select(TargetNodes);
+			script.Select(targetNodes);
 
-			List<NewGroup> NewGroups = new List<NewGroup>();
-			foreach (BgAgent Agent in Script.Agents)
+			List<NewGroup> newGroups = new List<NewGroup>();
+			foreach (BgAgent agent in script.Agents)
 			{
-				List<NewNode> NewNodes = new List<NewNode>();
-				foreach (BgNode Node in Agent.Nodes)
+				List<NewNode> newNodes = new List<NewNode>();
+				foreach (BgNode node in agent.Nodes)
 				{
-					const bool bAllowRetry = true;
-					NewNode NewNode = new NewNode(Node.Name, Node.InputDependencies.Select(x => x.Name).ToList(), Node.OrderDependencies.Select(x => x.Name).ToList(), HordeCommon.Priority.Normal, bAllowRetry, Node.bRunEarly, Node.bNotifyOnWarnings, new Dictionary<string, string>(), new Dictionary<string, string>());
-					NewNodes.Add(NewNode);
+					const bool BAllowRetry = true;
+					NewNode newNode = new NewNode(node.Name, node.InputDependencies.Select(x => x.Name).ToList(), node.OrderDependencies.Select(x => x.Name).ToList(), HordeCommon.Priority.Normal, BAllowRetry, node.bRunEarly, node.bNotifyOnWarnings, new Dictionary<string, string>(), new Dictionary<string, string>());
+					newNodes.Add(newNode);
 				}
 
-				string AgentType = Agent.PossibleTypes.FirstOrDefault(x => Stream.AgentTypes.ContainsKey(x)) ?? Agent.PossibleTypes.FirstOrDefault() ?? "Unknown";
-				NewGroups.Add(new NewGroup(AgentType, NewNodes));
+				string agentType = agent.PossibleTypes.FirstOrDefault(x => stream.AgentTypes.ContainsKey(x)) ?? agent.PossibleTypes.FirstOrDefault() ?? "Unknown";
+				newGroups.Add(new NewGroup(agentType, newNodes));
 			}
 
-			List<NewAggregate> NewAggregates = new List<NewAggregate>();
-			foreach (BgAggregate Aggregate in Script.NameToAggregate.Values)
+			List<NewAggregate> newAggregates = new List<NewAggregate>();
+			foreach (BgAggregate aggregate in script.NameToAggregate.Values)
 			{
-				NewAggregate NewAggregate = new NewAggregate(Aggregate.Name, Aggregate.RequiredNodes.Select(x => x.Name).ToList());
-				NewAggregates.Add(NewAggregate);
+				NewAggregate newAggregate = new NewAggregate(aggregate.Name, aggregate.RequiredNodes.Select(x => x.Name).ToList());
+				newAggregates.Add(newAggregate);
 			}
 
-			List<NewLabel> NewLabels = new List<NewLabel>();
-			foreach (BgLabel Label in Script.Labels)
+			List<NewLabel> newLabels = new List<NewLabel>();
+			foreach (BgLabel label in script.Labels)
 			{
-				NewLabel NewLabel = new NewLabel();
-				NewLabel.DashboardName = String.IsNullOrEmpty(Label.DashboardName) ? null : Label.DashboardName;
-				NewLabel.DashboardCategory = String.IsNullOrEmpty(Label.DashboardCategory) ? null : Label.DashboardCategory;
-				NewLabel.UgsName = String.IsNullOrEmpty(Label.UgsBadge) ? null : Label.UgsBadge;
-				NewLabel.UgsProject = String.IsNullOrEmpty(Label.UgsProject) ? null : Label.UgsProject;
-				NewLabel.Change = (Label.Change == BgLabelChange.Code) ? HordeCommon.LabelChange.Code : HordeCommon.LabelChange.Current;
-				NewLabel.RequiredNodes = Label.RequiredNodes.Select(x => x.Name).ToList();
-				NewLabel.IncludedNodes = Label.IncludedNodes.Select(x => x.Name).ToList();
-				NewLabels.Add(NewLabel);
+				NewLabel newLabel = new NewLabel();
+				newLabel.DashboardName = String.IsNullOrEmpty(label.DashboardName) ? null : label.DashboardName;
+				newLabel.DashboardCategory = String.IsNullOrEmpty(label.DashboardCategory) ? null : label.DashboardCategory;
+				newLabel.UgsName = String.IsNullOrEmpty(label.UgsBadge) ? null : label.UgsBadge;
+				newLabel.UgsProject = String.IsNullOrEmpty(label.UgsProject) ? null : label.UgsProject;
+				newLabel.Change = (label.Change == BgLabelChange.Code) ? HordeCommon.LabelChange.Code : HordeCommon.LabelChange.Current;
+				newLabel.RequiredNodes = label.RequiredNodes.Select(x => x.Name).ToList();
+				newLabel.IncludedNodes = label.IncludedNodes.Select(x => x.Name).ToList();
+				newLabels.Add(newLabel);
 			}
 
-			return await GraphCollection.AppendAsync(null, NewGroups, NewAggregates, NewLabels);
+			return await graphCollection.AppendAsync(null, newGroups, newAggregates, newLabels);
 		}
 	}
 }

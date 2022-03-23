@@ -1,16 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.Runtime;
-using EpicGames.Core;
-using Horde.Build.Logs;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing.Constraints;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Logs
 {
@@ -24,65 +14,65 @@ namespace Horde.Build.Logs
 		/// </summary>
 		class Node
 		{
-			public Node?[]? Children;
+			public Node?[]? _children;
 		}
 
 		/// <summary>
 		/// The root node
 		/// </summary>
-		Node Root;
+		readonly Node _root;
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
 		public ReadOnlyTrieBuilder()
 		{
-			Root = new Node();
+			_root = new Node();
 		}
 
 		/// <summary>
 		/// Adds a value to the trie
 		/// </summary>
-		/// <param name="Value">Value to add</param>
-		public void Add(ulong Value)
+		/// <param name="value">Value to add</param>
+		public void Add(ulong value)
 		{
 			// Loop through the tree until we've added the item
-			Node Leaf = Root;
-			for (int Shift = (sizeof(ulong) * 8) - 4; Shift >= 0; Shift -= 4)
+			Node leaf = _root;
+			for (int shift = (sizeof(ulong) * 8) - 4; shift >= 0; shift -= 4)
 			{
-				int Index = (int)(Value >> Shift) & 15;
-				if (Leaf.Children == null)
+				int index = (int)(value >> shift) & 15;
+				if (leaf._children == null)
 				{
-					Leaf.Children = new Node[16];
+					leaf._children = new Node[16];
 				}
-				if (Leaf.Children[Index] == null)
+				if (leaf._children[index] == null)
 				{
-					Leaf.Children[Index] = new Node();
+					leaf._children[index] = new Node();
 				}
-				Leaf = Leaf.Children[Index]!;
+				leaf = leaf._children[index]!;
 			}
 		}
 
 		/// <summary>
 		/// Searches for the given item in the trie
 		/// </summary>
-		/// <param name="Value">Value to add</param>
-		public bool Contains(ulong Value)
+		/// <param name="value">Value to add</param>
+		public bool Contains(ulong value)
 		{
 			// Loop through the tree until we've added the item
-			Node Leaf = Root;
-			for (int Shift = (sizeof(ulong) * 8) - 4; Shift >= 0; Shift -= 4)
+			Node leaf = _root;
+			for (int shift = (sizeof(ulong) * 8) - 4; shift >= 0; shift -= 4)
 			{
-				int Index = (int)(Value >> Shift) & 15;
-				if (Leaf.Children == null)
+				int index = (int)(value >> shift) & 15;
+				if (leaf._children == null)
 				{
 					return false;
 				}
-				if (Leaf.Children[Index] == null)
+				if (leaf._children[index] == null)
 				{
 					return false;
 				}
-				Leaf = Leaf.Children[Index]!;
+				leaf = leaf._children[index]!;
 			}
 			return true;
 		}
@@ -93,34 +83,34 @@ namespace Horde.Build.Logs
 		/// <returns></returns>
 		public ReadOnlyTrie Build()
 		{
-			List<ushort> Values = new List<ushort>();
+			List<ushort> values = new List<ushort>();
 
-			List<Node> Nodes = new List<Node>();
-			Nodes.Add(Root);
+			List<Node> nodes = new List<Node>();
+			nodes.Add(_root);
 
-			for(int Bits = 0; Bits < (sizeof(ulong) * 8); Bits += 4)
+			for(int bits = 0; bits < (sizeof(ulong) * 8); bits += 4)
 			{
-				List<Node> NextNodes = new List<Node>();
-				foreach(Node Node in Nodes)
+				List<Node> nextNodes = new List<Node>();
+				foreach(Node node in nodes)
 				{
-					ushort Value = 0;
-					if (Node.Children != null)
+					ushort value = 0;
+					if (node._children != null)
 					{
-						for (int Idx = 0; Idx < Node.Children.Length; Idx++)
+						for (int idx = 0; idx < node._children.Length; idx++)
 						{
-							if(Node.Children[Idx] != null)
+							if(node._children[idx] != null)
 							{
-								Value |= (ushort)(1 << Idx);
-								NextNodes.Add(Node.Children[Idx]!);
+								value |= (ushort)(1 << idx);
+								nextNodes.Add(node._children[idx]!);
 							}
 						}
 					}
-					Values.Add(Value);
+					values.Add(value);
 				}
-				Nodes = NextNodes;
+				nodes = nextNodes;
 			}
 
-			return new ReadOnlyTrie(Values.ToArray());
+			return new ReadOnlyTrie(values.ToArray());
 		}
 	}
 }

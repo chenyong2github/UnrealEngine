@@ -1,14 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Agent.Parser;
 using Horde.Agent.Utility;
-using HordeCommon;
 using Horde.Build.IssueHandlers.Impl;
 using Horde.Build.Models;
 using Horde.Build.Services;
-using Horde.Build.Utilities;
 using Horde.Build.Tests.Stubs.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,13 +22,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text.Json;
-using System.Threading.Tasks;
-
 using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
 using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
 using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
@@ -38,9 +37,9 @@ namespace Horde.Build.Tests
 	{
 		class TestJsonLogger : JsonLogger, IAsyncDisposable
 		{
-			ILogFileService _logFileService;
-			LogId _logId;
-			List<(LogLevel, byte[])> _events = new List<(LogLevel, byte[])>();
+			readonly ILogFileService _logFileService;
+			readonly LogId _logId;
+			readonly List<(LogLevel, byte[])> _events = new List<(LogLevel, byte[])>();
 
 			public TestJsonLogger(ILogFileService logFileService, LogId logId)
 				: base(null, NullLogger.Instance)
@@ -91,22 +90,19 @@ namespace Horde.Build.Tests
 		}
 
 		const string MainStreamName = "//UE4/Main";
-		StreamId _mainStreamId = StreamId.Sanitize(MainStreamName);
+		readonly StreamId _mainStreamId = StreamId.Sanitize(MainStreamName);
 
 		const string ReleaseStreamName = "//UE4/Release";
-		StreamId _releaseStreamId = StreamId.Sanitize(ReleaseStreamName);
+		readonly StreamId _releaseStreamId = StreamId.Sanitize(ReleaseStreamName);
 
 		const string DevStreamName = "//UE4/Dev";
-		StreamId _devStreamId = StreamId.Sanitize(DevStreamName);
-
-		IGraph _graph;
-		PerforceServiceStub _perforce;
-
-		UserId _timId;
-		UserId _jerryId;
-		UserId _bobId;
-
-		DirectoryReference _workspaceDir;
+		readonly StreamId _devStreamId = StreamId.Sanitize(DevStreamName);
+		readonly IGraph _graph;
+		readonly PerforceServiceStub _perforce;
+		readonly UserId _timId;
+		readonly UserId _jerryId;
+		readonly UserId _bobId;
+		readonly DirectoryReference _workspaceDir;
 
 		public IssueServiceTests()
 		{
@@ -328,7 +324,7 @@ namespace Horde.Build.Tests
 				List<IIssue> issues = await IssueService.FindIssuesAsync();
 
 				IIssue issue = issues[0];
-				await IssueService.UpdateIssueAsync(issue.Id, Description: "Hello world!");
+				await IssueService.UpdateIssueAsync(issue.Id, description: "Hello world!");
 				IIssue? newIssue = await IssueService.GetIssueAsync(issue.Id);
 				Assert.AreEqual(newIssue?.Description, "Hello world!");
 			}
@@ -381,7 +377,7 @@ namespace Horde.Build.Tests
 				List<IIssue> issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(0, issues.Count);
 
-				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(resolved: false);
 				Assert.AreEqual(0, openIssues.Count);
 			}
 
@@ -429,7 +425,7 @@ namespace Horde.Build.Tests
 				List<IIssue> issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(0, issues.Count);
 
-				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(resolved: false);
 				Assert.AreEqual(0, openIssues.Count);
 			}
 
@@ -476,7 +472,7 @@ namespace Horde.Build.Tests
 				Assert.AreEqual(_timId, suspects[0].AuthorId);
 				//				Assert.AreEqual(null, Suspects[0].OriginatingChange);
 
-				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(resolved: false);
 				Assert.AreEqual(1, openIssues.Count);
 			}
 
@@ -507,7 +503,7 @@ namespace Horde.Build.Tests
 				Assert.AreEqual(75, suspects[1].Change);
 				Assert.AreEqual(_jerryId, suspects[1].AuthorId);
 
-				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(resolved: false);
 				Assert.AreEqual(1, openIssues.Count);
 			}
 
@@ -518,7 +514,7 @@ namespace Horde.Build.Tests
 				IJob job = CreateJob(_mainStreamId, 125, "Test Build", _graph);
 				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> issues = await IssueService.FindIssuesAsync(Resolved: true);
+				List<IIssue> issues = await IssueService.FindIssuesAsync(resolved: true);
 				Assert.AreEqual(1, issues.Count);
 
 				IIssue issue = issues[0];
@@ -529,7 +525,7 @@ namespace Horde.Build.Tests
 				Assert.AreEqual(110, stream.LastSuccess?.Change);
 				Assert.AreEqual(125, stream.NextSuccess?.Change);
 
-				List<IIssue> openIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				List<IIssue> openIssues = await IssueService.FindIssuesAsync(resolved: false);
 				Assert.AreEqual(0, openIssues.Count);
 			}
 
@@ -546,7 +542,7 @@ namespace Horde.Build.Tests
 				await ParseEventsAsync(job, 0, 0, lines);
 				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> issues = await IssueService.FindIssuesAsync(Resolved: true);
+				List<IIssue> issues = await IssueService.FindIssuesAsync(resolved: true);
 				Assert.AreEqual(1, issues.Count);
 
 				IIssue issue = issues[0];
@@ -569,10 +565,10 @@ namespace Horde.Build.Tests
 				await AddEvent(job, 0, 1, new { });
 				await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Failure);
 
-				List<IIssue> resolvedIssues = await IssueService.FindIssuesAsync(Resolved: true);
+				List<IIssue> resolvedIssues = await IssueService.FindIssuesAsync(resolved: true);
 				Assert.AreEqual(1, resolvedIssues.Count);
 
-				List<IIssue> unresolvedIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				List<IIssue> unresolvedIssues = await IssueService.FindIssuesAsync(resolved: false);
 				Assert.AreEqual(1, unresolvedIssues.Count);
 			}
 		}
@@ -674,7 +670,7 @@ namespace Horde.Build.Tests
 				Assert.AreEqual(1, issues.Count);
 				Assert.IsFalse(issues[0].Promoted);
 
-				await IssueService.UpdateIssueAsync(issues[0].Id, Promoted: true);
+				await IssueService.UpdateIssueAsync(issues[0].Id, promoted: true);
 
 				issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, issues.Count);
@@ -855,7 +851,7 @@ namespace Horde.Build.Tests
 			{
 				List<IIssue> issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, issues.Count);
-				await IssueService.UpdateIssueAsync(issues[0].Id, DeclinedById: _timId);
+				await IssueService.UpdateIssueAsync(issues[0].Id, declinedById: _timId);
 
 				issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, issues.Count);
@@ -1133,7 +1129,7 @@ namespace Horde.Build.Tests
 
 			// Add SpanB to IssueA
 			{
-				await IssueService.UpdateIssueAsync(issueA.Id, AddSpanIds: new List<ObjectId> { spanB.Id });
+				await IssueService.UpdateIssueAsync(issueA.Id, addSpanIds: new List<ObjectId> { spanB.Id });
 
 				IIssue newIssueA = (await IssueService.GetIssueAsync(issueA.Id))!;
 				Assert.IsNull(newIssueA.VerifiedAt);
@@ -1154,7 +1150,7 @@ namespace Horde.Build.Tests
 
 			// Add SpanA and SpanB to IssueB
 			{
-				await IssueService.UpdateIssueAsync(issueB.Id, AddSpanIds: new List<ObjectId> { spanA.Id, spanB.Id });
+				await IssueService.UpdateIssueAsync(issueB.Id, addSpanIds: new List<ObjectId> { spanA.Id, spanB.Id });
 
 				IIssue newIssueA = (await IssueService.GetIssueAsync(issueA.Id))!;
 				Assert.IsNotNull(newIssueA.VerifiedAt);
@@ -1273,7 +1269,7 @@ namespace Horde.Build.Tests
 			// Scenario: Issue is marked fixed
 			// Expected: Resolved time, owner is set
 			{
-				await IssueService.UpdateIssueAsync(issueId, ResolvedById: _bobId);
+				await IssueService.UpdateIssueAsync(issueId, resolvedById: _bobId);
 
 				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(0, openIssues.Count);
@@ -1323,7 +1319,7 @@ namespace Horde.Build.Tests
 			// Scenario: Issue is marked fixed again, at a particular changelist
 			// Expected: Resolved time, owner is set
 			{
-				await IssueService.UpdateIssueAsync(issueId, ResolvedById: _bobId, FixChange: 115);
+				await IssueService.UpdateIssueAsync(issueId, resolvedById: _bobId, fixChange: 115);
 
 				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(0, openIssues.Count);
@@ -1356,7 +1352,7 @@ namespace Horde.Build.Tests
 			// Scenario: Issue is marked fixed again, at a particular changelist
 			// Expected: Resolved time, owner is set
 			{
-				await IssueService.UpdateIssueAsync(issueId, ResolvedById: _bobId, FixChange: 125);
+				await IssueService.UpdateIssueAsync(issueId, resolvedById: _bobId, fixChange: 125);
 
 				List<IIssue> openIssues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(0, openIssues.Count);

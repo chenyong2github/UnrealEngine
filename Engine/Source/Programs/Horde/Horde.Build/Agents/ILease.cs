@@ -1,17 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Api;
-using HordeCommon;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using Serilog;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Google.Protobuf.WellKnownTypes;
 using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
+using Horde.Build.Utilities;
+using HordeCommon;
 
 namespace Horde.Build.Models
 {
@@ -95,22 +88,22 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets the task from a lease, encoded as an Any protobuf object
 		/// </summary>
-		/// <param name="Lease">The lease to query</param>
+		/// <param name="lease">The lease to query</param>
 		/// <returns>The task definition encoded as a protobuf Any object</returns>
-		public static Any GetTask(this ILease Lease)
+		public static Any GetTask(this ILease lease)
 		{
-			return Any.Parser.ParseFrom(Lease.Payload.ToArray());
+			return Any.Parser.ParseFrom(lease.Payload.ToArray());
 		}
 
 		/// <summary>
 		/// Gets a typed task object from a lease
 		/// </summary>
 		/// <typeparam name="T">Type of the protobuf message to return</typeparam>
-		/// <param name="Lease">The lease to query</param>
+		/// <param name="lease">The lease to query</param>
 		/// <returns>The task definition</returns>
-		public static T GetTask<T>(this ILease Lease) where T : IMessage<T>, new()
+		public static T GetTask<T>(this ILease lease) where T : IMessage<T>, new()
 		{
-			return GetTask(Lease).Unpack<T>();
+			return GetTask(lease).Unpack<T>();
 		}
 	}
 }

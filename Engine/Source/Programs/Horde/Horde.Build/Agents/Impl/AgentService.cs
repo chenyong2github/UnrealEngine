@@ -1,21 +1,5 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Redis;
-using EpicGames.Serialization;
-using Google.Protobuf.WellKnownTypes;
-using HordeCommon;
-using Horde.Build.Acls;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Tasks;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Driver;
-using StackExchange.Redis;
-using StatsdClient;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -23,8 +7,23 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Redis;
+using EpicGames.Serialization;
+using Google.Protobuf.WellKnownTypes;
+using Horde.Build.Acls;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Tasks;
+using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 using OpenTracing;
 using OpenTracing.Util;
+using StackExchange.Redis;
+using StatsdClient;
 
 namespace Horde.Build.Services
 {
@@ -65,209 +64,208 @@ namespace Horde.Build.Services
 		/// Time after which a session will be renewed
 		/// </summary>
 		public static readonly TimeSpan SessionRenewTime = TimeSpan.FromSeconds(50);
-
-		AclService AclService;
-		IDowntimeService DowntimeService;
+		readonly AclService _aclService;
+		readonly IDowntimeService _downtimeService;
 
 		/// <summary>
 		/// Collection of agent documents
 		/// </summary>
 		public IAgentCollection Agents { get; }
 
-		ILeaseCollection Leases;
-		ISessionCollection Sessions;
-		IDogStatsd DogStatsd;
-		ITaskSource[] TaskSources;
-		IHostApplicationLifetime ApplicationLifetime;
-		IClock Clock;
-		ILogger Logger;
-		ITicker Ticker;
+		readonly ILeaseCollection _leases;
+		readonly ISessionCollection _sessions;
+		readonly IDogStatsd _dogStatsd;
+		readonly ITaskSource[] _taskSources;
+		readonly IHostApplicationLifetime _applicationLifetime;
+		readonly IClock _clock;
+		readonly ILogger _logger;
+		readonly ITicker _ticker;
 		
-		RedisString<AgentRateTable> AgentRateTableData;
-		RedisService RedisService;
+		readonly RedisString<AgentRateTable> _agentRateTableData;
+		readonly RedisService _redisService;
 
 		// Lazily updated costs for different agent types
-		AsyncCachedValue<AgentRateTable?> AgentRateTable;
-		
+		readonly AsyncCachedValue<AgentRateTable?> _agentRateTable;
+
 		// Lazily updated list of current pools
-		AsyncCachedValue<List<IPool>> PoolsList;
+		readonly AsyncCachedValue<List<IPool>> _poolsList;
 
 		// All the agents currently performing a long poll for work on this server
-		Dictionary<AgentId, CancellationTokenSource> WaitingAgents = new Dictionary<AgentId, CancellationTokenSource>();
-		
+		readonly Dictionary<AgentId, CancellationTokenSource> _waitingAgents = new Dictionary<AgentId, CancellationTokenSource>();
+
 		// Subscription for update events
-		IDisposable Subscription;
+		readonly IDisposable _subscription;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, RedisService RedisService, IHostApplicationLifetime ApplicationLifetime, IClock Clock, ILogger<AgentService> Logger)
+		public AgentService(IAgentCollection agents, ILeaseCollection leases, ISessionCollection sessions, AclService aclService, IDowntimeService downtimeService, IPoolCollection poolCollection, IDogStatsd dogStatsd, IEnumerable<ITaskSource> taskSources, RedisService redisService, IHostApplicationLifetime applicationLifetime, IClock clock, ILogger<AgentService> logger)
 		{
-			this.Agents = Agents;
-			this.Leases = Leases;
-			this.Sessions = Sessions;
-			this.AclService = AclService;
-			this.DowntimeService = DowntimeService;
-			this.AgentRateTableData = new RedisString<AgentRateTable>(RedisService.Database, "agent-rates");
-			this.AgentRateTable = new AsyncCachedValue<AgentRateTable?>(() => AgentRateTableData.GetAsync(), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
-			this.PoolsList = new AsyncCachedValue<List<IPool>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
-			this.DogStatsd = DogStatsd;
-			this.TaskSources = TaskSources.ToArray();
-			this.ApplicationLifetime = ApplicationLifetime;
-			this.RedisService = RedisService;
-			this.Clock = Clock;
-			this.Ticker = Clock.AddTicker(TimeSpan.FromSeconds(30.0), TickAsync, Logger);
-			this.Logger = Logger;
+			Agents = agents;
+			_leases = leases;
+			_sessions = sessions;
+			_aclService = aclService;
+			_downtimeService = downtimeService;
+			_agentRateTableData = new RedisString<AgentRateTable>(redisService.Database, "agent-rates");
+			_agentRateTable = new AsyncCachedValue<AgentRateTable?>(() => _agentRateTableData.GetAsync(), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
+			_poolsList = new AsyncCachedValue<List<IPool>>(() => poolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
+			_dogStatsd = dogStatsd;
+			_taskSources = taskSources.ToArray();
+			_applicationLifetime = applicationLifetime;
+			_redisService = redisService;
+			_clock = clock;
+			_ticker = clock.AddTicker<AgentService>(TimeSpan.FromSeconds(30.0), TickAsync, logger);
+			_logger = logger;
 
-			Subscription = Agents.SubscribeToUpdateEventsAsync(OnAgentUpdate).Result;
+			_subscription = agents.SubscribeToUpdateEventsAsync(OnAgentUpdate).Result;
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Subscription.Dispose();
-			Ticker.Dispose();
+			_subscription.Dispose();
+			_ticker.Dispose();
 		}
 
 		/// <summary>
 		/// Gets user-readable payload information
 		/// </summary>
-		/// <param name="Payload">The payload data</param>
+		/// <param name="payload">The payload data</param>
 		/// <returns>Dictionary of key/value pairs for the payload</returns>
-		public Dictionary<string, string>? GetPayloadDetails(ReadOnlyMemory<byte>? Payload)
+		public Dictionary<string, string>? GetPayloadDetails(ReadOnlyMemory<byte>? payload)
 		{
-			Dictionary<string, string>? Details = null;
-			if (Payload != null)
+			Dictionary<string, string>? details = null;
+			if (payload != null)
 			{
-				Any BasePayload = Any.Parser.ParseFrom(Payload.Value.ToArray());
-				foreach (ITaskSource TaskSource in TaskSources)
+				Any basePayload = Any.Parser.ParseFrom(payload.Value.ToArray());
+				foreach (ITaskSource taskSource in _taskSources)
 				{
-					if (BasePayload.Is(TaskSource.Descriptor))
+					if (basePayload.Is(taskSource.Descriptor))
 					{
-						Details = new Dictionary<string, string>();
-						TaskSource.GetLeaseDetails(BasePayload, Details);
+						details = new Dictionary<string, string>();
+						taskSource.GetLeaseDetails(basePayload, details);
 						break;
 					}
 				}
 			}
-			return Details;
+			return details;
 		}
 
 		/// <summary>
 		/// Issues a bearer token for the given session id
 		/// </summary>
-		/// <param name="AgentId">The agent id</param>
-		/// <param name="SessionId">The session id</param>
+		/// <param name="agentId">The agent id</param>
+		/// <param name="sessionId">The session id</param>
 		/// <returns>Bearer token for the agent</returns>
-		public string IssueSessionToken(AgentId AgentId, SessionId SessionId)
+		public string IssueSessionToken(AgentId agentId, SessionId sessionId)
 		{
-			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(AclService.AgentRoleClaim);
-			Claims.Add(AclService.GetAgentClaim(AgentId));
-			Claims.Add(AclService.GetSessionClaim(SessionId));
-			return AclService.IssueBearerToken(Claims, null);
+			List<AclClaim> claims = new List<AclClaim>();
+			claims.Add(AclService.AgentRoleClaim);
+			claims.Add(AclService.GetAgentClaim(agentId));
+			claims.Add(AclService.GetSessionClaim(sessionId));
+			return _aclService.IssueBearerToken(claims, null);
 		}
 
 		/// <summary>
 		/// Register a new agent
 		/// </summary>
-		/// <param name="Name">Name of the agent</param>
+		/// <param name="name">Name of the agent</param>
 		/// <param name="bEnabled">Whether the agent is currently enabled</param>
-		/// <param name="Channel">Override for the desired software version</param>
-		/// <param name="Pools">Pools for this agent</param>
+		/// <param name="channel">Override for the desired software version</param>
+		/// <param name="pools">Pools for this agent</param>
 		/// <returns>Unique id for the agent</returns>
-		public Task<IAgent> CreateAgentAsync(string Name, bool bEnabled, AgentSoftwareChannelName? Channel, List<PoolId>? Pools)
+		public Task<IAgent> CreateAgentAsync(string name, bool bEnabled, AgentSoftwareChannelName? channel, List<PoolId>? pools)
 		{
-			return Agents.AddAsync(new AgentId(Name), bEnabled, Channel, Pools);
+			return Agents.AddAsync(new AgentId(name), bEnabled, channel, pools);
 		}
 
 		/// <summary>
 		/// Gets an agent by ID
 		/// </summary>
-		/// <param name="AgentId">Unique id of the agent</param>
+		/// <param name="agentId">Unique id of the agent</param>
 		/// <returns>The agent document</returns>
-		public Task<IAgent?> GetAgentAsync(AgentId AgentId)
+		public Task<IAgent?> GetAgentAsync(AgentId agentId)
 		{
-			return Agents.GetAsync(AgentId);
+			return Agents.GetAsync(agentId);
 		}
 
 		/// <summary>
 		/// Finds all agents matching certain criteria
 		/// </summary>
-		/// <param name="PoolId">The pool containing the agent</param>
-		/// <param name="ModifiedAfter">If set, only returns agents modified after this time</param>
-		/// <param name="Index">Index within the list of results</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="poolId">The pool containing the agent</param>
+		/// <param name="modifiedAfter">If set, only returns agents modified after this time</param>
+		/// <param name="index">Index within the list of results</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>List of agents matching the given criteria</returns>
-		public Task<List<IAgent>> FindAgentsAsync(PoolId? PoolId, DateTime? ModifiedAfter, int? Index, int? Count)
+		public Task<List<IAgent>> FindAgentsAsync(PoolId? poolId, DateTime? modifiedAfter, int? index, int? count)
 		{
-			return Agents.FindAsync(PoolId, ModifiedAfter, null, Index, Count);
+			return Agents.FindAsync(poolId, modifiedAfter, null, index, count);
 		}
 
 		/// <summary>
 		/// Update the current workspaces for an agent.
 		/// </summary>
-		/// <param name="Agent">The agent to update</param>
-		/// <param name="Workspaces">Current list of workspaces</param>
+		/// <param name="agent">The agent to update</param>
+		/// <param name="workspaces">Current list of workspaces</param>
 		/// <param name="bPendingConform">Whether the agent still needs to run another conform</param>
 		/// <returns>New agent state</returns>
-		public async Task<bool> TryUpdateWorkspacesAsync(IAgent Agent, List<AgentWorkspace> Workspaces, bool bPendingConform)
+		public async Task<bool> TryUpdateWorkspacesAsync(IAgent agent, List<AgentWorkspace> workspaces, bool bPendingConform)
 		{
-			IAgent? NewAgent = await Agents.TryUpdateWorkspacesAsync(Agent, Workspaces, bPendingConform);
-			return NewAgent != null;
+			IAgent? newAgent = await Agents.TryUpdateWorkspacesAsync(agent, workspaces, bPendingConform);
+			return newAgent != null;
 		}
 
 		/// <summary>
 		/// Marks the agent as deleted
 		/// </summary>
-		/// <param name="Agent">The agent to delete</param>
+		/// <param name="agent">The agent to delete</param>
 		/// <returns>Async task</returns>
-		public async Task DeleteAgentAsync(IAgent? Agent)
+		public async Task DeleteAgentAsync(IAgent? agent)
 		{
-			while (Agent != null && !Agent.Deleted)
+			while (agent != null && !agent.Deleted)
 			{
-				IAgent? NewAgent = await Agents.TryDeleteAsync(Agent);
-				if(NewAgent != null)
+				IAgent? newAgent = await Agents.TryDeleteAsync(agent);
+				if(newAgent != null)
 				{
 					break;
 				}
-				Agent = await GetAgentAsync(Agent.Id);
+				agent = await GetAgentAsync(agent.Id);
 			}
 		}
 
-		async ValueTask<List<PoolId>> GetDynamicPoolsAsync(IAgent Agent)
+		async ValueTask<List<PoolId>> GetDynamicPoolsAsync(IAgent agent)
 		{
-			List<PoolId> NewDynamicPools = new List<PoolId>();
+			List<PoolId> newDynamicPools = new List<PoolId>();
 
-			List<IPool> Pools = await PoolsList.GetAsync();
-			foreach (IPool Pool in Pools)
+			List<IPool> pools = await _poolsList.GetAsync();
+			foreach (IPool pool in pools)
 			{
-				if (Pool.Condition != null && Agent.SatisfiesCondition(Pool.Condition))
+				if (pool.Condition != null && agent.SatisfiesCondition(pool.Condition))
 				{
-					NewDynamicPools.Add(Pool.Id);
+					newDynamicPools.Add(pool.Id);
 				}
 			}
 
-			return NewDynamicPools;
+			return newDynamicPools;
 		}
 
 		/// <summary>
 		/// Callback for an agents 
 		/// </summary>
-		/// <param name="AgentId"></param>
-		void OnAgentUpdate(AgentId AgentId)
+		/// <param name="agentId"></param>
+		void OnAgentUpdate(AgentId agentId)
 		{
-			lock (WaitingAgents)
+			lock (_waitingAgents)
 			{
-				if (WaitingAgents.TryGetValue(AgentId, out CancellationTokenSource? CancellationSource))
+				if (_waitingAgents.TryGetValue(agentId, out CancellationTokenSource? cancellationSource))
 				{
-					CancellationSource.Cancel();
+					cancellationSource.Cancel();
 				}
 			}
 		}
@@ -275,81 +273,81 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Creates a new agent session
 		/// </summary>
-		/// <param name="Agent">The agent to create a session for</param>
-		/// <param name="Status">Current status of the agent</param>
-		/// <param name="Properties">Properties for the agent</param>
-		/// <param name="Resources">Resources which the agent has</param>
-		/// <param name="Version">Version of the software that's running</param>
+		/// <param name="agent">The agent to create a session for</param>
+		/// <param name="status">Current status of the agent</param>
+		/// <param name="properties">Properties for the agent</param>
+		/// <param name="resources">Resources which the agent has</param>
+		/// <param name="version">Version of the software that's running</param>
 		/// <returns>New agent state</returns>
-		public async Task<IAgent> CreateSessionAsync(IAgent Agent, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, string? Version)
+		public async Task<IAgent> CreateSessionAsync(IAgent agent, AgentStatus status, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources, string? version)
 		{
 			for (; ; )
 			{
-				IAuditLogChannel<AgentId> AgentLogger = Agents.GetLogger(Agent.Id);
+				IAuditLogChannel<AgentId> agentLogger = Agents.GetLogger(agent.Id);
 
 				// Check if there's already a session running for this agent.
-				IAgent? NewAgent;
-				if (Agent.SessionId != null)
+				IAgent? newAgent;
+				if (agent.SessionId != null)
 				{
 					// Try to terminate the current session
-					await TryTerminateSessionAsync(Agent);
+					await TryTerminateSessionAsync(agent);
 				}
 				else
 				{
-					DateTime UtcNow = Clock.UtcNow;
+					DateTime utcNow = _clock.UtcNow;
 
 					// Remove any outstanding leases
-					foreach (AgentLease Lease in Agent.Leases)
+					foreach (AgentLease lease in agent.Leases)
 					{
-						AgentLogger.LogInformation("Removing outstanding lease {LeaseId}", Lease.Id);
-						await RemoveLeaseAsync(Agent, Lease, UtcNow, LeaseOutcome.Failed, null);
+						agentLogger.LogInformation("Removing outstanding lease {LeaseId}", lease.Id);
+						await RemoveLeaseAsync(agent, lease, utcNow, LeaseOutcome.Failed, null);
 					}
 
 					// Create a new session document
-					ISession NewSession = await Sessions.AddAsync(SessionId.GenerateNewId(), Agent.Id, Clock.UtcNow, Properties, Resources, Version);
-					DateTime SessionExpiresAt = UtcNow + SessionExpiryTime;
+					ISession newSession = await _sessions.AddAsync(SessionId.GenerateNewId(), agent.Id, _clock.UtcNow, properties, resources, version);
+					DateTime sessionExpiresAt = utcNow + SessionExpiryTime;
 
 					// Get the new dynamic pools for the agent
-					List<PoolId> DynamicPools = await GetDynamicPoolsAsync(Agent);
+					List<PoolId> dynamicPools = await GetDynamicPoolsAsync(agent);
 
 					// Reset the agent to use the new session
-					NewAgent = await Agents.TryStartSessionAsync(Agent, NewSession.Id, SessionExpiresAt, Status, Properties, Resources, DynamicPools, Version);
-					if(NewAgent != null)
+					newAgent = await Agents.TryStartSessionAsync(agent, newSession.Id, sessionExpiresAt, status, properties, resources, dynamicPools, version);
+					if(newAgent != null)
 					{
-						Agent = NewAgent;
-						AgentLogger.LogInformation("Session {SessionId} started", NewSession.Id);
+						agent = newAgent;
+						agentLogger.LogInformation("Session {SessionId} started", newSession.Id);
 						break;
 					}
 
 					// Remove the session we didn't use
-					await Sessions.DeleteAsync(NewSession.Id);
+					await _sessions.DeleteAsync(newSession.Id);
 				}
 
 				// Get the current agent state
-				NewAgent = await GetAgentAsync(Agent.Id);
-				if (NewAgent == null)
+				newAgent = await GetAgentAsync(agent.Id);
+				if (newAgent == null)
 				{
-					throw new InvalidOperationException($"Invalid agent id '{Agent.Id}'");
+					throw new InvalidOperationException($"Invalid agent id '{agent.Id}'");
 				}
-				Agent = NewAgent;
+				agent = newAgent;
 			}
-			return Agent;
+			return agent;
 		}
 
-		async Task<(ITaskSource, AgentLease)?> GuardedWaitForLeaseAsync(ITaskSource Source, IAgent Agent, CancellationToken CancellationToken)
+		async Task<(ITaskSource, AgentLease)?> GuardedWaitForLeaseAsync(ITaskSource source, IAgent agent, CancellationToken cancellationToken)
 		{
 			try
 			{
-				AgentLease? Lease = await Source.AssignLeaseAsync(Agent, CancellationToken);
-				return (Lease != null) ? (Source, Lease) : null;
+				AgentLease? lease = await source.AssignLeaseAsync(agent, cancellationToken);
+				return (lease != null) ? (source, lease) : null;
 			}
 			catch (TaskCanceledException)
 			{
 				return null;
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogError(Ex, "Exception while trying to assign lease"); 
+				_logger.LogError(ex, "Exception while trying to assign lease"); 
 				return null;
 			}
 		}
@@ -357,14 +355,14 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Determines whether a task source can currently issue tasks
 		/// </summary>
-		bool CanUseTaskSource(IAgent Agent, ITaskSource TaskSource)
+		bool CanUseTaskSource(IAgent agent, ITaskSource taskSource)
 		{
-			TaskSourceFlags Flags = TaskSource.Flags;
-			if ((Flags & TaskSourceFlags.AllowWhenDisabled) == 0 && !Agent.Enabled)
+			TaskSourceFlags flags = taskSource.Flags;
+			if ((flags & TaskSourceFlags.AllowWhenDisabled) == 0 && !agent.Enabled)
 			{
 				return false;
 			}
-			if ((Flags & TaskSourceFlags.AllowDuringDowntime) == 0 && DowntimeService.IsDowntimeActive)
+			if ((flags & TaskSourceFlags.AllowDuringDowntime) == 0 && _downtimeService.IsDowntimeActive)
 			{
 				return false;
 			}
@@ -374,212 +372,212 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Waits for a lease to be assigned to an agent
 		/// </summary>
-		/// <param name="Agent">The agent to assign a lease to</param>
-		/// <param name="CancellationToken"></param>
+		/// <param name="agent">The agent to assign a lease to</param>
+		/// <param name="cancellationToken"></param>
 		/// <returns>True if a lease was assigned, false otherwise</returns>
-		public async Task<IAgent?> WaitForLeaseAsync(IAgent? Agent, CancellationToken CancellationToken)
+		public async Task<IAgent?> WaitForLeaseAsync(IAgent? agent, CancellationToken cancellationToken)
 		{
-			while (Agent != null)
+			while (agent != null)
 			{
-				if (!Agent.SessionExpiresAt.HasValue)
+				if (!agent.SessionExpiresAt.HasValue)
 				{
 					break;
 				}
 
 				// Check we have some time to wait
-				DateTime UtcNow = Clock.UtcNow;
-				TimeSpan MaxWaitTime = (Agent.SessionExpiresAt.Value - SessionExpiryTime + SessionLongPollTime) - UtcNow;
-				if (MaxWaitTime <= TimeSpan.Zero)
+				DateTime utcNow = _clock.UtcNow;
+				TimeSpan maxWaitTime = (agent.SessionExpiresAt.Value - SessionExpiryTime + SessionLongPollTime) - utcNow;
+				if (maxWaitTime <= TimeSpan.Zero)
 				{
 					break;
 				}
 
 				// Create a cancellation token that will expire with the session
-				using CancellationTokenSource CancellationSource = CancellationTokenSource.CreateLinkedTokenSource(ApplicationLifetime.ApplicationStopping, CancellationToken);
-				CancellationSource.CancelAfter(MaxWaitTime);
+				using CancellationTokenSource cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(_applicationLifetime.ApplicationStopping, cancellationToken);
+				cancellationSource.CancelAfter(maxWaitTime);
 
 				// Assign a new lease
-				(ITaskSource, AgentLease)? Result = null;
+				(ITaskSource, AgentLease)? result = null;
 				try
 				{
 					// Add the cancellation source to the set of waiting agents
-					lock (WaitingAgents)
+					lock (_waitingAgents)
 					{
-						WaitingAgents[Agent.Id] = CancellationSource;
+						_waitingAgents[agent.Id] = cancellationSource;
 					}
 
 					// Create all the tasks to wait for
-					List<Task<(ITaskSource, AgentLease)?>> Tasks = new List<Task<(ITaskSource, AgentLease)?>>();
-					foreach (ITaskSource TaskSource in TaskSources)
+					List<Task<(ITaskSource, AgentLease)?>> tasks = new List<Task<(ITaskSource, AgentLease)?>>();
+					foreach (ITaskSource taskSource in _taskSources)
 					{
-						if (CanUseTaskSource(Agent, TaskSource))
+						if (CanUseTaskSource(agent, taskSource))
 						{
-							Tasks.Add(GuardedWaitForLeaseAsync(TaskSource, Agent, CancellationSource.Token));
+							tasks.Add(GuardedWaitForLeaseAsync(taskSource, agent, cancellationSource.Token));
 						}
 					}
 
 					// If no task source is valid, just add a delay
-					if (Tasks.Count == 0)
+					if (tasks.Count == 0)
 					{
-						await AsyncUtils.DelayNoThrow(MaxWaitTime, CancellationToken);
+						await AsyncUtils.DelayNoThrow(maxWaitTime, cancellationToken);
 						break;
 					}
 
 					// Wait for a lease to be available
-					while (Tasks.Count > 0)
+					while (tasks.Count > 0)
 					{
-						await Task.WhenAny(Tasks);
+						await Task.WhenAny(tasks);
 
-						for (int Idx = 0; Idx < Tasks.Count; Idx++)
+						for (int idx = 0; idx < tasks.Count; idx++)
 						{
-							(ITaskSource, AgentLease)? TaskResult;
-							if (!Tasks[Idx].TryGetResult(out TaskResult))
+							(ITaskSource, AgentLease)? taskResult;
+							if (!tasks[idx].TryGetResult(out taskResult))
 							{
 								continue;
 							}
 
-							Tasks.RemoveAt(Idx--);
+							tasks.RemoveAt(idx--);
 
-							if (!TaskResult.HasValue)
+							if (!taskResult.HasValue)
 							{
 								continue;
 							}
 
-							if (Result == null)
+							if (result == null)
 							{
-								Result = TaskResult;
-								CancellationSource.Cancel();
+								result = taskResult;
+								cancellationSource.Cancel();
 							}
-							else if (TaskResult.Value.Item2 != AgentLease.Drain)
+							else if (taskResult.Value.Item2 != AgentLease.Drain)
 							{
-								(ITaskSource TaskSource, AgentLease TaskLease) = TaskResult.Value;
-								await TaskSource.CancelLeaseAsync(Agent, TaskLease.Id, Any.Parser.ParseFrom(TaskLease.Payload));
+								(ITaskSource taskSource, AgentLease taskLease) = taskResult.Value;
+								await taskSource.CancelLeaseAsync(agent, taskLease.Id, Any.Parser.ParseFrom(taskLease.Payload));
 							}
 						}
 					}
 				}
 				finally
 				{
-					lock (WaitingAgents)
+					lock (_waitingAgents)
 					{
-						WaitingAgents.Remove(Agent.Id);
+						_waitingAgents.Remove(agent.Id);
 					}
 				}
 
 				// Exit if we didn't find any work to do. It may be that all the task sources returned null, in which case wait for the time period to expire.
-				if (Result == null)
+				if (result == null)
 				{
-					if (!CancellationSource.IsCancellationRequested)
+					if (!cancellationSource.IsCancellationRequested)
 					{
-						await CancellationSource.Token.AsTask();
+						await cancellationSource.Token.AsTask();
 					}
 					break;
 				}
 
 				// Get the resulting lease
-				(ITaskSource Source, AgentLease Lease) = Result.Value;
-				if (Lease == AgentLease.Drain)
+				(ITaskSource source, AgentLease lease) = result.Value;
+				if (lease == AgentLease.Drain)
 				{
-					await AsyncUtils.DelayNoThrow(MaxWaitTime, CancellationToken);
+					await AsyncUtils.DelayNoThrow(maxWaitTime, cancellationToken);
 					break;
 				}
 
 				// Add the new lease to the agent
-				IAgent? NewAgent = await Agents.TryAddLeaseAsync(Agent, Lease);
-				if (NewAgent != null)
+				IAgent? newAgent = await Agents.TryAddLeaseAsync(agent, lease);
+				if (newAgent != null)
 				{
-					await Source.OnLeaseStartedAsync(NewAgent, Lease.Id, Any.Parser.ParseFrom(Lease.Payload), Agents.GetLogger(Agent.Id));
-					await CreateLeaseAsync(Agent, Lease);
-					return NewAgent;
+					await source.OnLeaseStartedAsync(newAgent, lease.Id, Any.Parser.ParseFrom(lease.Payload), Agents.GetLogger(agent.Id));
+					await CreateLeaseAsync(agent, lease);
+					return newAgent;
 				}
 
 				// Update the agent
-				Agent = await GetAgentAsync(Agent.Id);
+				agent = await GetAgentAsync(agent.Id);
 			}
-			return Agent;
+			return agent;
 		}
 
 		/// <summary>
 		/// Cancels the specified agent lease
 		/// </summary>
-		/// <param name="Agent">Agent to cancel the lease on</param>
-		/// <param name="LeaseId">The lease id to cancel</param>
+		/// <param name="agent">Agent to cancel the lease on</param>
+		/// <param name="leaseId">The lease id to cancel</param>
 		/// <returns></returns>
-		public async Task<bool> CancelLeaseAsync(IAgent Agent, LeaseId LeaseId)
+		public async Task<bool> CancelLeaseAsync(IAgent agent, LeaseId leaseId)
 		{		
-			int Index = 0;
-			while (Index < Agent.Leases.Count && Agent.Leases[Index].Id != LeaseId)
+			int index = 0;
+			while (index < agent.Leases.Count && agent.Leases[index].Id != leaseId)
 			{
-				Index++;
+				index++;
 			}
 
-			if (Index == Agent.Leases.Count)
-			{
-				return false;
-			}
-
-			if (Agent.Leases[Index].State == LeaseState.Cancelled)
+			if (index == agent.Leases.Count)
 			{
 				return false;
 			}
 
-			await Agents.TryCancelLeaseAsync(Agent, Index);
+			if (agent.Leases[index].State == LeaseState.Cancelled)
+			{
+				return false;
+			}
+
+			await Agents.TryCancelLeaseAsync(agent, index);
 			return true;
 		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		public async Task<IAgent?> UpdateSessionWithWaitAsync(IAgent InAgent, SessionId SessionId, AgentStatus Status, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IList<HordeCommon.Rpc.Messages.Lease> NewLeases, CancellationToken CancellationToken)
+		public async Task<IAgent?> UpdateSessionWithWaitAsync(IAgent inAgent, SessionId sessionId, AgentStatus status, IReadOnlyList<string>? properties, IReadOnlyDictionary<string, int>? resources, IList<HordeCommon.Rpc.Messages.Lease> newLeases, CancellationToken cancellationToken)
 		{
-			IAgent? Agent = InAgent;
+			IAgent? agent = inAgent;
 
 			// Capture the current agent update index. This allows us to detect if anything has changed.
-			uint UpdateIndex = Agent.UpdateIndex;
+			uint updateIndex = agent.UpdateIndex;
 
 			// Update the agent session and return to the caller if anything changes
-			Agent = await UpdateSessionAsync(Agent, SessionId, Status, Properties, Resources, NewLeases);
-			if (Agent != null && Agent.UpdateIndex == UpdateIndex && (Agent.Leases.Count > 0 || Agent.Status != AgentStatus.Stopping))
+			agent = await UpdateSessionAsync(agent, sessionId, status, properties, resources, newLeases);
+			if (agent != null && agent.UpdateIndex == updateIndex && (agent.Leases.Count > 0 || agent.Status != AgentStatus.Stopping))
 			{
-				Agent = await WaitForLeaseAsync(Agent, CancellationToken);
+				agent = await WaitForLeaseAsync(agent, cancellationToken);
 			}
-			return Agent;
+			return agent;
 		}
 
 		/// <summary>
 		/// Updates the state of the current agent session
 		/// </summary>
-		/// <param name="InAgent">The current agent state</param>
-		/// <param name="SessionId">Id of the session</param>
-		/// <param name="Status">New status for the agent</param>
-		/// <param name="Properties">New agent properties</param>
-		/// <param name="Resources">New agent resources</param>
-		/// <param name="NewLeases">New list of leases for this session</param>
+		/// <param name="inAgent">The current agent state</param>
+		/// <param name="sessionId">Id of the session</param>
+		/// <param name="status">New status for the agent</param>
+		/// <param name="properties">New agent properties</param>
+		/// <param name="resources">New agent resources</param>
+		/// <param name="newLeases">New list of leases for this session</param>
 		/// <returns>Updated agent state</returns>
-		public async Task<IAgent?> UpdateSessionAsync(IAgent InAgent, SessionId SessionId, AgentStatus Status, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IList<HordeCommon.Rpc.Messages.Lease> NewLeases)
+		public async Task<IAgent?> UpdateSessionAsync(IAgent inAgent, SessionId sessionId, AgentStatus status, IReadOnlyList<string>? properties, IReadOnlyDictionary<string, int>? resources, IList<HordeCommon.Rpc.Messages.Lease> newLeases)
 		{
-			DateTime UtcNow = Clock.UtcNow;
+			DateTime utcNow = _clock.UtcNow;
 
-			Stopwatch Timer = Stopwatch.StartNew();
+			Stopwatch timer = Stopwatch.StartNew();
 
-			IAgent? Agent = InAgent;
-			while (Agent != null)
+			IAgent? agent = inAgent;
+			while (agent != null)
 			{
 				// If the agent is stopping and doesn't have any leases, we can terminate the current session.
-				if (Status == AgentStatus.Stopping && NewLeases.Count == 0)
+				if (status == AgentStatus.Stopping && newLeases.Count == 0)
 				{
 					// If we've already decided to terminate the session, this update is redundant but harmless
-					if (Agent.SessionId != SessionId)
+					if (agent.SessionId != sessionId)
 					{
 						break;
 					}
 
 					// If the session is valid, we can terminate once the agent leases are also empty
-					if (Agent.Leases.Count == 0)
+					if (agent.Leases.Count == 0)
 					{
-						if (!await TryTerminateSessionAsync(Agent))
+						if (!await TryTerminateSessionAsync(agent))
 						{
-							Agent = await GetAgentAsync(Agent.Id);
+							agent = await GetAgentAsync(agent.Id);
 							continue;
 						}
 						break;
@@ -587,13 +585,13 @@ namespace Horde.Build.Services
 				}
 
 				// Check the session id is correct.
-				if (Agent.SessionId != SessionId)
+				if (agent.SessionId != sessionId)
 				{
-					throw new InvalidOperationException($"Invalid agent session {SessionId}");
+					throw new InvalidOperationException($"Invalid agent session {sessionId}");
 				}
 
 				// Check the session hasn't expired
-				if (!Agent.IsSessionValid(UtcNow))
+				if (!agent.IsSessionValid(utcNow))
 				{
 					throw new InvalidOperationException("Session has already expired");
 				}
@@ -601,44 +599,44 @@ namespace Horde.Build.Services
 				// Extend the current session time if we're within a time period of the current time expiring. This reduces
 				// unnecessary DB writes a little, but it also allows us to skip the update and jump into a long poll state
 				// if there's still time on the session left.
-				DateTime? SessionExpiresAt = null;
-				if (!Agent.SessionExpiresAt.HasValue || UtcNow > (Agent.SessionExpiresAt - SessionExpiryTime) + SessionRenewTime)
+				DateTime? sessionExpiresAt = null;
+				if (!agent.SessionExpiresAt.HasValue || utcNow > (agent.SessionExpiresAt - SessionExpiryTime) + SessionRenewTime)
 				{
-					SessionExpiresAt = UtcNow + SessionExpiryTime;
+					sessionExpiresAt = utcNow + SessionExpiryTime;
 				}
 
 				// Flag for whether the leases array should be updated
 				bool bUpdateLeases = false;
-				List<AgentLease> Leases = new List<AgentLease>(Agent.Leases);
+				List<AgentLease> leases = new List<AgentLease>(agent.Leases);
 
 				// Remove any completed leases from the agent
-				Dictionary<LeaseId, HordeCommon.Rpc.Messages.Lease> LeaseIdToNewState = NewLeases.ToDictionary(x => new LeaseId(x.Id), x => x);
-				for (int Idx = 0; Idx < Leases.Count; Idx++)
+				Dictionary<LeaseId, HordeCommon.Rpc.Messages.Lease> leaseIdToNewState = newLeases.ToDictionary(x => new LeaseId(x.Id), x => x);
+				for (int idx = 0; idx < leases.Count; idx++)
 				{
-					AgentLease Lease = Leases[Idx];
-					if (Lease.State == LeaseState.Cancelled)
+					AgentLease lease = leases[idx];
+					if (lease.State == LeaseState.Cancelled)
 					{
-						HordeCommon.Rpc.Messages.Lease? NewLease;
-						if (!LeaseIdToNewState.TryGetValue(Lease.Id, out NewLease) || NewLease.State == LeaseState.Cancelled || NewLease.State == LeaseState.Completed)
+						HordeCommon.Rpc.Messages.Lease? newLease;
+						if (!leaseIdToNewState.TryGetValue(lease.Id, out newLease) || newLease.State == LeaseState.Cancelled || newLease.State == LeaseState.Completed)
 						{
-							await RemoveLeaseAsync(Agent, Lease, UtcNow, LeaseOutcome.Cancelled, null);
-							Leases.RemoveAt(Idx--);
+							await RemoveLeaseAsync(agent, lease, utcNow, LeaseOutcome.Cancelled, null);
+							leases.RemoveAt(idx--);
 							bUpdateLeases = true;
 						}
 					}
 					else
 					{
-						HordeCommon.Rpc.Messages.Lease? NewLease;
-						if (LeaseIdToNewState.TryGetValue(Lease.Id, out NewLease) && NewLease.State != Lease.State)
+						HordeCommon.Rpc.Messages.Lease? newLease;
+						if (leaseIdToNewState.TryGetValue(lease.Id, out newLease) && newLease.State != lease.State)
 						{
-							if (NewLease.State == LeaseState.Cancelled || NewLease.State == LeaseState.Completed)
+							if (newLease.State == LeaseState.Cancelled || newLease.State == LeaseState.Completed)
 							{
-								await RemoveLeaseAsync(Agent, Lease, UtcNow, NewLease.Outcome, NewLease.Output.ToByteArray());
-								Leases.RemoveAt(Idx--);
+								await RemoveLeaseAsync(agent, lease, utcNow, newLease.Outcome, newLease.Output.ToByteArray());
+								leases.RemoveAt(idx--);
 							}
-							else if (NewLease.State == LeaseState.Active && Lease.State == LeaseState.Pending)
+							else if (newLease.State == LeaseState.Active && lease.State == LeaseState.Pending)
 							{
-								Lease.State = LeaseState.Active;
+								lease.State = LeaseState.Active;
 							}
 							bUpdateLeases = true;
 						}
@@ -646,75 +644,75 @@ namespace Horde.Build.Services
 				}
 
 				// If the agent is stopping, cancel all the leases. Clear out the current session once it's complete.
-				if (Status == AgentStatus.Stopping)
+				if (status == AgentStatus.Stopping)
 				{
-					foreach (AgentLease Lease in Leases)
+					foreach (AgentLease lease in leases)
 					{
-						if (Lease.State != LeaseState.Cancelled)
+						if (lease.State != LeaseState.Cancelled)
 						{
-							Lease.State = LeaseState.Cancelled;
+							lease.State = LeaseState.Cancelled;
 							bUpdateLeases = true;
 						}
 					}
 				}
 
 				// Get the new dynamic pools for the agent
-				List<PoolId> DynamicPools = await GetDynamicPoolsAsync(Agent);
+				List<PoolId> dynamicPools = await GetDynamicPoolsAsync(agent);
 
 				// Update the agent, and try to create new lease documents if we succeed
-				IAgent? NewAgent = await Agents.TryUpdateSessionAsync(Agent, Status, SessionExpiresAt, Properties, Resources, DynamicPools, bUpdateLeases ? Leases : null);
-				if (NewAgent != null)
+				IAgent? newAgent = await Agents.TryUpdateSessionAsync(agent, status, sessionExpiresAt, properties, resources, dynamicPools, bUpdateLeases ? leases : null);
+				if (newAgent != null)
 				{
-					Agent = NewAgent;
+					agent = newAgent;
 					break;
 				}
 
 				// Fetch the agent again
-				Agent = await GetAgentAsync(Agent.Id);
+				agent = await GetAgentAsync(agent.Id);
 			}
-			return Agent;
+			return agent;
 		}
 
 		/// <summary>
 		/// Terminates an existing session. Does not update the agent itself, if it's currently 
 		/// </summary>
-		/// <param name="Agent">The agent whose current session should be terminated</param>
+		/// <param name="agent">The agent whose current session should be terminated</param>
 		/// <returns>True if the session was terminated</returns>
-		private async Task<bool> TryTerminateSessionAsync(IAgent Agent)
+		private async Task<bool> TryTerminateSessionAsync(IAgent agent)
 		{
 			// Make sure the agent has a valid session id
-			if (Agent.SessionId == null)
+			if (agent.SessionId == null)
 			{
 				return true;
 			}
 
 			// Get the time that the session finishes at
-			DateTime FinishTime = Clock.UtcNow;
-			if (Agent.SessionExpiresAt.HasValue && Agent.SessionExpiresAt.Value < FinishTime)
+			DateTime finishTime = _clock.UtcNow;
+			if (agent.SessionExpiresAt.HasValue && agent.SessionExpiresAt.Value < finishTime)
 			{
-				FinishTime = Agent.SessionExpiresAt.Value;
+				finishTime = agent.SessionExpiresAt.Value;
 			}
 
 			// Save off the session id and current leases
-			SessionId SessionId = Agent.SessionId.Value;
-			List<AgentLease> Leases = new List<AgentLease>(Agent.Leases);
+			SessionId sessionId = agent.SessionId.Value;
+			List<AgentLease> leases = new List<AgentLease>(agent.Leases);
 
 			// Clear the current session
-			IAgent? NewAgent = await Agents.TryTerminateSessionAsync(Agent);
-			if (NewAgent != null)
+			IAgent? newAgent = await Agents.TryTerminateSessionAsync(agent);
+			if (newAgent != null)
 			{
-				Agent = NewAgent;
+				agent = newAgent;
 
 				// Remove any outstanding leases
-				foreach(AgentLease Lease in Leases)
+				foreach(AgentLease lease in leases)
 				{
-					Agents.GetLogger(Agent.Id).LogInformation("Removing lease {LeaseId} during session terminate...", Lease.Id);
-					await RemoveLeaseAsync(Agent, Lease, FinishTime, LeaseOutcome.Failed, null);
+					Agents.GetLogger(agent.Id).LogInformation("Removing lease {LeaseId} during session terminate...", lease.Id);
+					await RemoveLeaseAsync(agent, lease, finishTime, LeaseOutcome.Failed, null);
 				}
 
 				// Update the session document
-				Agents.GetLogger(Agent.Id).LogInformation("Terminated session {SessionId}", SessionId);
-				await Sessions.UpdateAsync(SessionId, FinishTime, Agent.Properties, Agent.Resources);
+				Agents.GetLogger(agent.Id).LogInformation("Terminated session {SessionId}", sessionId);
+				await _sessions.UpdateAsync(sessionId, finishTime, agent.Properties, agent.Resources);
 				return true;
 			}
 			return false;
@@ -723,18 +721,18 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Creates a new lease document
 		/// </summary>
-		/// <param name="Agent">Agent that will be executing the lease</param>
-		/// <param name="AgentLease">The new agent lease</param>
+		/// <param name="agent">Agent that will be executing the lease</param>
+		/// <param name="agentLease">The new agent lease</param>
 		/// <returns>New lease document</returns>
-		private Task<ILease> CreateLeaseAsync(IAgent Agent, AgentLease AgentLease)
+		private Task<ILease> CreateLeaseAsync(IAgent agent, AgentLease agentLease)
 		{
 			try
 			{
-				return Leases.AddAsync(AgentLease.Id, AgentLease.Name, Agent.Id, Agent.SessionId!.Value, AgentLease.StreamId, AgentLease.PoolId, AgentLease.LogId, AgentLease.StartTime, AgentLease.Payload!);
+				return _leases.AddAsync(agentLease.Id, agentLease.Name, agent.Id, agent.SessionId!.Value, agentLease.StreamId, agentLease.PoolId, agentLease.LogId, agentLease.StartTime, agentLease.Payload!);
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogError(Ex, "Unable to create lease {LeaseId} for agent {AgentId}; lease already exists?", AgentLease.Id, Agent.Id);
+				_logger.LogError(ex, "Unable to create lease {LeaseId} for agent {AgentId}; lease already exists?", agentLease.Id, agent.Id);
 				throw;
 			}
 		}
@@ -742,167 +740,167 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Finds all leases matching a set of criteria
 		/// </summary>
-		/// <param name="AgentId">Unqiue id of the agent executing this lease</param>
-		/// <param name="SessionId">Unique id of the agent session</param>
-		/// <param name="StartTime">Start of the search window to return results for</param>
-		/// <param name="FinishTime">End of the search window to return results for</param>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="agentId">Unqiue id of the agent executing this lease</param>
+		/// <param name="sessionId">Unique id of the agent session</param>
+		/// <param name="startTime">Start of the search window to return results for</param>
+		/// <param name="finishTime">End of the search window to return results for</param>
+		/// <param name="index">Index of the first result to return</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>List of leases matching the given criteria</returns>
-		public Task<List<ILease>> FindLeasesAsync(AgentId? AgentId, SessionId? SessionId, DateTime? StartTime, DateTime? FinishTime, int Index, int Count)
+		public Task<List<ILease>> FindLeasesAsync(AgentId? agentId, SessionId? sessionId, DateTime? startTime, DateTime? finishTime, int index, int count)
 		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan($"{nameof(AgentService)}.{nameof(FindLeasesAsync)}").StartActive();
-			Scope.Span.SetTag("AgentId", AgentId?.ToString());
-			Scope.Span.SetTag("SessionId", SessionId?.ToString());
-			Scope.Span.SetTag("StartTime", StartTime?.ToString());
-			Scope.Span.SetTag("FinishTime", FinishTime?.ToString());
-			Scope.Span.SetTag("Index", Index);
-			Scope.Span.SetTag("Count", Count);
-			return Leases.FindLeasesAsync(AgentId, SessionId, StartTime, FinishTime, Index, Count);
+			using IScope scope = GlobalTracer.Instance.BuildSpan($"{nameof(AgentService)}.{nameof(FindLeasesAsync)}").StartActive();
+			scope.Span.SetTag("AgentId", agentId?.ToString());
+			scope.Span.SetTag("SessionId", sessionId?.ToString());
+			scope.Span.SetTag("StartTime", startTime?.ToString());
+			scope.Span.SetTag("FinishTime", finishTime?.ToString());
+			scope.Span.SetTag("Index", index);
+			scope.Span.SetTag("Count", count);
+			return _leases.FindLeasesAsync(agentId, sessionId, startTime, finishTime, index, count);
 		}
 
 		/// <summary>
 		/// Finds all leases by finish time
 		/// </summary>
-		/// <param name="MinFinishTime">Start of the search window to return results for</param>
-		/// <param name="MaxFinishTime">End of the search window to return results for</param>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="minFinishTime">Start of the search window to return results for</param>
+		/// <param name="maxFinishTime">End of the search window to return results for</param>
+		/// <param name="index">Index of the first result to return</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>List of leases matching the given criteria</returns>
-		public Task<List<ILease>> FindLeasesByFinishTimeAsync(DateTime? MinFinishTime, DateTime? MaxFinishTime, int? Index, int? Count)
+		public Task<List<ILease>> FindLeasesByFinishTimeAsync(DateTime? minFinishTime, DateTime? maxFinishTime, int? index, int? count)
 		{
-			return Leases.FindLeasesByFinishTimeAsync(MinFinishTime, MaxFinishTime, Index, Count, null, false);
+			return _leases.FindLeasesByFinishTimeAsync(minFinishTime, maxFinishTime, index, count, null, false);
 		}
 
 		/// <summary>
 		/// Gets a specific lease
 		/// </summary>
-		/// <param name="LeaseId">Unique id of the lease</param>
+		/// <param name="leaseId">Unique id of the lease</param>
 		/// <returns>The lease that was found, or null if it does not exist</returns>
-		public Task<ILease?> GetLeaseAsync(LeaseId LeaseId)
+		public Task<ILease?> GetLeaseAsync(LeaseId leaseId)
 		{
-			return Leases.GetAsync(LeaseId);
+			return _leases.GetAsync(leaseId);
 		}
 
 		/// <summary>
 		/// Removes a lease with the given id. Updates the lease state in the database, and removes the item from the agent's leases array.
 		/// </summary>
-		/// <param name="Agent">The agent to remove a lease from</param>
-		/// <param name="Lease">The lease to cancel</param>
-		/// <param name="UtcNow">The current time</param>
-		/// <param name="Outcome">Final status of the lease</param>
-		/// <param name="Output">Output from executing the task</param>
+		/// <param name="agent">The agent to remove a lease from</param>
+		/// <param name="lease">The lease to cancel</param>
+		/// <param name="utcNow">The current time</param>
+		/// <param name="outcome">Final status of the lease</param>
+		/// <param name="output">Output from executing the task</param>
 		/// <returns>Async task</returns>
-		private async Task RemoveLeaseAsync(IAgent Agent, AgentLease Lease, DateTime UtcNow, LeaseOutcome Outcome, byte[]? Output)
+		private async Task RemoveLeaseAsync(IAgent agent, AgentLease lease, DateTime utcNow, LeaseOutcome outcome, byte[]? output)
 		{
 			// Make sure the lease is terminated correctly
-			if (Lease.Payload == null)
+			if (lease.Payload == null)
 			{
-				Logger.LogWarning("Removing lease {LeaseId} (no payload)", Lease.Id);
+				_logger.LogWarning("Removing lease {LeaseId} (no payload)", lease.Id);
 			}
 			else
 			{
-				Any Any = Any.Parser.ParseFrom(Lease.Payload);
-				Logger.LogInformation("Removing lease {LeaseId} ({LeaseType})", Lease.Id, Any.TypeUrl);
+				Any any = Any.Parser.ParseFrom(lease.Payload);
+				_logger.LogInformation("Removing lease {LeaseId} ({LeaseType})", lease.Id, any.TypeUrl);
 
-				foreach (ITaskSource TaskSource in TaskSources)
+				foreach (ITaskSource taskSource in _taskSources)
 				{
-					if (Any.Is(TaskSource.Descriptor))
+					if (any.Is(taskSource.Descriptor))
 					{
-						await TaskSource.OnLeaseFinishedAsync(Agent, Lease.Id, Any, Outcome, Output, Agents.GetLogger(Agent.Id));
+						await taskSource.OnLeaseFinishedAsync(agent, lease.Id, any, outcome, output, Agents.GetLogger(agent.Id));
 						break;
 					}
 				}
 			}
 
 			// Figure out what time the lease finished
-			DateTime FinishTime = UtcNow;
-			if (Agent.SessionExpiresAt.HasValue && Agent.SessionExpiresAt.Value < FinishTime)
+			DateTime finishTime = utcNow;
+			if (agent.SessionExpiresAt.HasValue && agent.SessionExpiresAt.Value < finishTime)
 			{
-				FinishTime = Agent.SessionExpiresAt.Value;
+				finishTime = agent.SessionExpiresAt.Value;
 			}
-			if (Lease.ExpiryTime.HasValue && Lease.ExpiryTime.Value < FinishTime)
+			if (lease.ExpiryTime.HasValue && lease.ExpiryTime.Value < finishTime)
 			{
-				FinishTime = Lease.ExpiryTime.Value;
+				finishTime = lease.ExpiryTime.Value;
 			}
 
 			// Update the lease
-			await Leases.TrySetOutcomeAsync(Lease.Id, FinishTime, Outcome, Output);
+			await _leases.TrySetOutcomeAsync(lease.Id, finishTime, outcome, output);
 		}
 
 		/// <summary>
 		/// Gets information about a particular session
 		/// </summary>
-		/// <param name="SessionId">The unique session id</param>
+		/// <param name="sessionId">The unique session id</param>
 		/// <returns>The session information</returns>
-		public Task<ISession?> GetSessionAsync(SessionId SessionId)
+		public Task<ISession?> GetSessionAsync(SessionId sessionId)
 		{
-			return Sessions.GetAsync(SessionId);
+			return _sessions.GetAsync(sessionId);
 		}
 
 		/// <summary>
 		/// Find sessions for the given agent
 		/// </summary>
-		/// <param name="AgentId">The unique agent id</param>
-		/// <param name="StartTime">Start time to include in the search</param>
-		/// <param name="FinishTime">Finish time to include in the search</param>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="agentId">The unique agent id</param>
+		/// <param name="startTime">Start time to include in the search</param>
+		/// <param name="finishTime">Finish time to include in the search</param>
+		/// <param name="index">Index of the first result to return</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>List of sessions matching the given criteria</returns>
-		public Task<List<ISession>> FindSessionsAsync(AgentId AgentId, DateTime? StartTime, DateTime? FinishTime, int Index, int Count)
+		public Task<List<ISession>> FindSessionsAsync(AgentId agentId, DateTime? startTime, DateTime? finishTime, int index, int count)
 		{
-			return Sessions.FindAsync(AgentId, StartTime, FinishTime, Index, Count);
+			return _sessions.FindAsync(agentId, startTime, finishTime, index, count);
 		}
 
 		/// <summary>
 		/// Update the rate table for different agent types
 		/// </summary>
-		/// <param name="Entries">New entries for the rate table</param>
+		/// <param name="entries">New entries for the rate table</param>
 		/// <returns></returns>
-		public async Task UpdateRateTableAsync(List<AgentRateConfig> Entries)
+		public async Task UpdateRateTableAsync(List<AgentRateConfig> entries)
 		{
-			await AgentRateTableData.SetAsync(new AgentRateTable { Entries = Entries });
+			await _agentRateTableData.SetAsync(new AgentRateTable { Entries = entries });
 		}
 
 		/// <summary>
 		/// Gets the rate for the given agent
 		/// </summary>
-		/// <param name="AgentId">Agent id to query</param>
+		/// <param name="agentId">Agent id to query</param>
 		/// <returns>Hourly rate of running the given agent</returns>
-		public async ValueTask<double?> GetRateAsync(AgentId AgentId)
+		public async ValueTask<double?> GetRateAsync(AgentId agentId)
 		{
-			RedisKey Key = $"agent-rate/{AgentId}";
+			RedisKey key = $"agent-rate/{agentId}";
 
 			// Try to get the current value
-			RedisValue Value = await RedisService.Database.StringGetAsync(Key);
-			if (!Value.IsNull)
+			RedisValue value = await _redisService.Database.StringGetAsync(key);
+			if (!value.IsNull)
 			{
-				double Rate = (double)Value;
-				if (Rate == 0.0)
+				double rate = (double)value;
+				if (rate == 0.0)
 				{
 					return null;
 				}
 				else
 				{
-					return Rate;
+					return rate;
 				}
 			}
 			else
 			{
-				double Rate = 0.0;
+				double rate = 0.0;
 
 				// Get the rate table
-				AgentRateTable? RateTable = await AgentRateTable.GetAsync();
-				if (RateTable != null && RateTable.Entries.Count > 0)
+				AgentRateTable? rateTable = await _agentRateTable.GetAsync();
+				if (rateTable != null && rateTable.Entries.Count > 0)
 				{
-					IAgent? Agent = await GetAgentAsync(AgentId);
-					if (Agent != null)
+					IAgent? agent = await GetAgentAsync(agentId);
+					if (agent != null)
 					{
-						foreach (AgentRateConfig Config in RateTable.Entries)
+						foreach (AgentRateConfig config in rateTable.Entries)
 						{
-							if (Config.Condition != null && Config.Condition.Evaluate(x => Agent.GetPropertyValues(x)))
+							if (config.Condition != null && config.Condition.Evaluate(x => agent.GetPropertyValues(x)))
 							{
-								Rate = Config.Rate;
+								rate = config.Rate;
 								break;
 							}
 						}
@@ -910,35 +908,35 @@ namespace Horde.Build.Services
 				}
 
 				// Cache it for future reference
-				await RedisService.Database.StringSetAsync(Key, Rate, TimeSpan.FromMinutes(5.0), flags: CommandFlags.FireAndForget);
-				return Rate;
+				await _redisService.Database.StringSetAsync(key, rate, TimeSpan.FromMinutes(5.0), flags: CommandFlags.FireAndForget);
+				return rate;
 			}
 		}
 
 		/// <summary>
 		/// Terminate any sessions for agents that are offline
 		/// </summary>
-		/// <param name="StoppingToken">Token indicating the service is shutting down</param>
+		/// <param name="stoppingToken">Token indicating the service is shutting down</param>
 		/// <returns>Async task</returns>
-		async ValueTask TickAsync(CancellationToken StoppingToken)
+		async ValueTask TickAsync(CancellationToken stoppingToken)
 		{
-			while (!StoppingToken.IsCancellationRequested)
+			while (!stoppingToken.IsCancellationRequested)
 			{
 				// Find all the agents which are ready to be expired
 				const int MaxAgents = 100;
-				DateTime UtcNow = Clock.UtcNow;
-				List<IAgent> ExpiredAgents = await Agents.FindExpiredAsync(UtcNow, MaxAgents);
+				DateTime utcNow = _clock.UtcNow;
+				List<IAgent> expiredAgents = await Agents.FindExpiredAsync(utcNow, MaxAgents);
 
 				// Transition each agent to being offline
-				foreach (IAgent ExpiredAgent in ExpiredAgents)
+				foreach (IAgent expiredAgent in expiredAgents)
 				{
-					StoppingToken.ThrowIfCancellationRequested();
-					Logger.LogDebug("Terminating session {SessionId} for agent {Agent}", ExpiredAgent.SessionId, ExpiredAgent.Id);
-					await TryTerminateSessionAsync(ExpiredAgent);
+					stoppingToken.ThrowIfCancellationRequested();
+					_logger.LogDebug("Terminating session {SessionId} for agent {Agent}", expiredAgent.SessionId, expiredAgent.Id);
+					await TryTerminateSessionAsync(expiredAgent);
 				}
 
 				// Try again if we didn't fetch everything
-				if(ExpiredAgents.Count < MaxAgents)
+				if(expiredAgents.Count < MaxAgents)
 				{
 					break;
 				}
@@ -949,55 +947,55 @@ namespace Horde.Build.Services
 
 		private async Task CollectMetrics()
 		{
-			List<IAgent> AgentList = await Agents.FindAsync();
-			int NumAgentsTotal = AgentList.Count;
-			int NumAgentsTotalEnabled = AgentList.Count(a => a.Enabled);
-			int NumAgentsTotalDisabled = AgentList.Count(a => !a.Enabled);
-			int NumAgentsTotalOk = AgentList.Count(a => a.Enabled && a.Status == AgentStatus.Ok);
-			int NumAgentsTotalStopping = AgentList.Count(a => a.Enabled && a.Status == AgentStatus.Stopping);
-			int NumAgentsTotalUnhealthy = AgentList.Count(a => a.Enabled && a.Status == AgentStatus.Unhealthy);
-			int NumAgentsTotalUnspecified = AgentList.Count(a => a.Enabled && a.Status == AgentStatus.Unspecified);
+			List<IAgent> agentList = await Agents.FindAsync();
+			int numAgentsTotal = agentList.Count;
+			int numAgentsTotalEnabled = agentList.Count(a => a.Enabled);
+			int numAgentsTotalDisabled = agentList.Count(a => !a.Enabled);
+			int numAgentsTotalOk = agentList.Count(a => a.Enabled && a.Status == AgentStatus.Ok);
+			int numAgentsTotalStopping = agentList.Count(a => a.Enabled && a.Status == AgentStatus.Stopping);
+			int numAgentsTotalUnhealthy = agentList.Count(a => a.Enabled && a.Status == AgentStatus.Unhealthy);
+			int numAgentsTotalUnspecified = agentList.Count(a => a.Enabled && a.Status == AgentStatus.Unspecified);
 			
 			// TODO: utilize tags argument in a smarter way below
-			DogStatsd.Gauge("agents.total.count", NumAgentsTotal);
-			DogStatsd.Gauge("agents.total.enabled.count", NumAgentsTotalEnabled);
-			DogStatsd.Gauge("agents.total.disabled.count", NumAgentsTotalDisabled);
-			DogStatsd.Gauge("agents.total.ok.count", NumAgentsTotalOk);
-			DogStatsd.Gauge("agents.total.stopping.count", NumAgentsTotalStopping);
-			DogStatsd.Gauge("agents.total.unhealthy.count", NumAgentsTotalUnhealthy);
-			DogStatsd.Gauge("agents.total.unspecified.count", NumAgentsTotalUnspecified);
+			_dogStatsd.Gauge("agents.total.count", numAgentsTotal);
+			_dogStatsd.Gauge("agents.total.enabled.count", numAgentsTotalEnabled);
+			_dogStatsd.Gauge("agents.total.disabled.count", numAgentsTotalDisabled);
+			_dogStatsd.Gauge("agents.total.ok.count", numAgentsTotalOk);
+			_dogStatsd.Gauge("agents.total.stopping.count", numAgentsTotalStopping);
+			_dogStatsd.Gauge("agents.total.unhealthy.count", numAgentsTotalUnhealthy);
+			_dogStatsd.Gauge("agents.total.unspecified.count", numAgentsTotalUnspecified);
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular agent
 		/// </summary>
-		/// <param name="Agent">The agent to check</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="Cache">The permissions cache</param>
+		/// <param name="agent">The agent to check</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="cache">The permissions cache</param>
 		/// <returns>True if the action is authorized</returns>
-		public async Task<bool> AuthorizeAsync(IAgent Agent, AclAction Action, ClaimsPrincipal User, GlobalPermissionsCache? Cache)
+		public async Task<bool> AuthorizeAsync(IAgent agent, AclAction action, ClaimsPrincipal user, GlobalPermissionsCache? cache)
 		{
-			bool? Result = Agent.Acl?.Authorize(Action, User);
-			if (Result == null)
+			bool? result = agent.Acl?.Authorize(action, user);
+			if (result == null)
 			{
-				return await AclService.AuthorizeAsync(Action, User, Cache);
+				return await _aclService.AuthorizeAsync(action, user, cache);
 			}
 			else
 			{
-				return Result.Value;
+				return result.Value;
 			}
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular agent
 		/// </summary>
-		/// <param name="Agent">The agent to check</param>
-		/// <param name="User">The principal to authorize</param>
+		/// <param name="agent">The agent to check</param>
+		/// <param name="user">The principal to authorize</param>
 		/// <returns>True if the action is authorized</returns>
-		public bool AuthorizeSession(IAgent Agent, ClaimsPrincipal User)
+		public bool AuthorizeSession(IAgent agent, ClaimsPrincipal user)
 		{
-			if (Agent.SessionId != null && User.HasSessionClaim(Agent.SessionId.Value) && Agent.IsSessionValid(Clock.UtcNow))
+			if (agent.SessionId != null && user.HasSessionClaim(agent.SessionId.Value) && agent.IsSessionValid(_clock.UtcNow))
 			{
 				return true;
 			}

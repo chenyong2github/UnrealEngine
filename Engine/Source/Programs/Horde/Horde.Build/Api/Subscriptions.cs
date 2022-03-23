@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -45,10 +41,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Subscription">The subscription to construct from</param>
-		public CreateSubscriptionResponse(ISubscription Subscription)
+		/// <param name="subscription">The subscription to construct from</param>
+		public CreateSubscriptionResponse(ISubscription subscription)
 		{
-			this.Id = Subscription.Id;
+			Id = subscription.Id;
 		}
 	}
 
@@ -80,13 +76,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Subscription">Subscription to construct from</param>
-		public GetSubscriptionResponse(ISubscription Subscription)
+		/// <param name="subscription">Subscription to construct from</param>
+		public GetSubscriptionResponse(ISubscription subscription)
 		{
-			this.Id = Subscription.Id;
-			this.Event = Subscription.Event.ToRecord();
-			this.UserId = Subscription.UserId.ToString();
-			this.NotificationType = Subscription.NotificationType;
+			Id = subscription.Id;
+			Event = subscription.Event.ToRecord();
+			UserId = subscription.UserId.ToString();
+			NotificationType = subscription.NotificationType;
 		}
 	}
 }

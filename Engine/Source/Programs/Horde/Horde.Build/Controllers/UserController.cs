@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
@@ -7,11 +10,6 @@ using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -39,12 +37,12 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="UserCollection"></param>
-		/// <param name="AvatarService"></param>
-		public UserController(IUserCollection UserCollection, IAvatarService? AvatarService)
+		/// <param name="userCollection"></param>
+		/// <param name="avatarService"></param>
+		public UserController(IUserCollection userCollection, IAvatarService? avatarService)
 		{
-			this.UserCollection = UserCollection;
-			this.AvatarService = AvatarService;
+			UserCollection = userCollection;
+			AvatarService = avatarService;
 		}
 
 		/// <summary>
@@ -54,18 +52,18 @@ namespace Horde.Build.Controllers
 		[HttpGet]
 		[Route("/api/v1/user")]
 		[ProducesResponseType(typeof(List<GetUserResponse>), 200)]
-		public async Task<ActionResult<object>> GetUserAsync([FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetUserAsync([FromQuery] PropertyFilter? filter = null)
 		{
-			IUser? InternalUser = await UserCollection.GetUserAsync(User);
-			if (InternalUser == null)
+			IUser? internalUser = await UserCollection.GetUserAsync(User);
+			if (internalUser == null)
 			{
 				return NotFound();
 			}
 
-			IAvatar? Avatar = (AvatarService == null)? (IAvatar?)null : await AvatarService.GetAvatarAsync(InternalUser);
-			IUserClaims Claims = await UserCollection.GetClaimsAsync(InternalUser.Id);
-			IUserSettings Settings = await UserCollection.GetSettingsAsync(InternalUser.Id);
-			return PropertyFilter.Apply(new GetUserResponse(InternalUser, Avatar, Claims, Settings), Filter);
+			IAvatar? avatar = (AvatarService == null)? (IAvatar?)null : await AvatarService.GetAvatarAsync(internalUser);
+			IUserClaims claims = await UserCollection.GetClaimsAsync(internalUser.Id);
+			IUserSettings settings = await UserCollection.GetSettingsAsync(internalUser.Id);
+			return PropertyFilter.Apply(new GetUserResponse(internalUser, avatar, claims, settings), filter);
 		}
 
 		/// <summary>
@@ -74,14 +72,14 @@ namespace Horde.Build.Controllers
 		/// <returns>Http result code</returns>
 		[HttpPut]
 		[Route("/api/v1/user")]
-		public async Task<ActionResult> UpdateUserAsync(UpdateUserRequest Request)
+		public async Task<ActionResult> UpdateUserAsync(UpdateUserRequest request)
 		{
-			UserId? UserId = User.GetUserId();
-			if(UserId == null)
+			UserId? userId = User.GetUserId();
+			if(userId == null)
 			{
 				return BadRequest("Current user does not have a registered profile");
 			}
-			await UserCollection.UpdateSettingsAsync(UserId.Value, Request.EnableExperimentalFeatures, Request.DashboardSettings?.ToBsonValue(), Request.AddPinnedJobIds?.Select(x => new JobId(x)), Request.RemovePinnedJobIds?.Select(x => new JobId(x)));
+			await UserCollection.UpdateSettingsAsync(userId.Value, request.EnableExperimentalFeatures, request.DashboardSettings?.ToBsonValue(), request.AddPinnedJobIds?.Select(x => new JobId(x)), request.RemovePinnedJobIds?.Select(x => new JobId(x)));
 			return Ok();
 		}
 	}

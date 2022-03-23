@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using EpicGames.Core;
 using Horde.Build.Models;
-using Horde.Build.Utilities;
 using OpenTracing;
 
 namespace Horde.Build.Utilities
@@ -16,82 +15,100 @@ namespace Horde.Build.Utilities
 	{
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan Span, string Key, StringId<T>? Value)
+		public static ISpan SetTag<T>(this ISpan span, string key, StringId<T>? value)
 		{
-			if (Value != null) Span.SetTag(Key, Value.ToString());
-			return Span;
+			if (value != null)
+			{
+				span.SetTag(key, value.ToString());
+			}
+			return span;
 		}
 		
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan Span, string Key, StringId<T> Value)
+		public static ISpan SetTag<T>(this ISpan span, string key, StringId<T> value)
 		{
-			Span.SetTag(Key, Value.ToString());
-			return Span;
+			span.SetTag(key, value.ToString());
+			return span;
 		}
 
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan Span, string Key, IEnumerable<StringId<T>>? Value)
+		public static ISpan SetTag<T>(this ISpan span, string key, IEnumerable<StringId<T>>? value)
 		{
-			if (Value != null) Span.SetTag(Key, string.Join(',', Value));
-			return Span;
+			if (value != null)
+			{
+				span.SetTag(key, String.Join(',', value));
+			}
+			return span;
 		}
 
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan Span, string Key, ObjectId<T>? Value)
+		public static ISpan SetTag<T>(this ISpan span, string key, ObjectId<T>? value)
 		{
-			if (Value != null) Span.SetTag(Key, Value.ToString());
-			return Span;
+			if (value != null)
+			{
+				span.SetTag(key, value.ToString());
+			}
+			return span;
 		}
 		
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan Span, string Key, ObjectId<T> Value)
+		public static ISpan SetTag<T>(this ISpan span, string key, ObjectId<T> value)
 		{
-			Span.SetTag(Key, Value.ToString());
-			return Span;
+			span.SetTag(key, value.ToString());
+			return span;
 		}
 		
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag(this ISpan Span, string Key, ContentHash Value)
+		public static ISpan SetTag(this ISpan span, string key, ContentHash value)
 		{
-			Span.SetTag(Key, Value.ToString());
-			return Span;
+			span.SetTag(key, value.ToString());
+			return span;
 		}
 		
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag(this ISpan Span, string Key, SubResourceId Value)
+		public static ISpan SetTag(this ISpan span, string key, SubResourceId value)
 		{
-			Span.SetTag(Key, Value.ToString());
-			return Span;
+			span.SetTag(key, value.ToString());
+			return span;
 		}
 		
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag<T>(this ISpan Span, string Key, IEnumerable<ObjectId<T>>? Value)
+		public static ISpan SetTag<T>(this ISpan span, string key, IEnumerable<ObjectId<T>>? value)
 		{
-			if (Value != null) Span.SetTag(Key, string.Join(',', Value));
-			return Span;
+			if (value != null)
+			{
+				span.SetTag(key, String.Join(',', value));
+			}
+			return span;
 		}
 		
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag(this ISpan Span, string Key, int? Value)
+		public static ISpan SetTag(this ISpan span, string key, int? value)
 		{
-			if (Value != null) Span.SetTag(Key, Value.Value);
-			return Span;
+			if (value != null)
+			{
+				span.SetTag(key, value.Value);
+			}
+			return span;
 		}
 		
 		/// <summary>Set a key:value tag on the span</summary>
 		/// <returns>This span instance, for chaining</returns>
-		public static ISpan SetTag(this ISpan Span, string Key, DateTimeOffset? Value)
+		public static ISpan SetTag(this ISpan span, string key, DateTimeOffset? value)
 		{
-			if (Value != null) Span.SetTag(Key, Value.ToString());
-			return Span;
+			if (value != null)
+			{
+				span.SetTag(key, value.ToString());
+			}
+			return span;
 		}
 	}
 }

@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Models
 {
@@ -38,37 +34,37 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type"></param>
-		/// <param name="Value"></param>
-		public UserClaim(string Type, string Value)
+		/// <param name="type"></param>
+		/// <param name="value"></param>
+		public UserClaim(string type, string value)
 		{
-			this.Type = Type;
-			this.Value = Value;
+			Type = type;
+			Value = value;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Other">Claim to construct from</param>
-		public UserClaim(IUserClaim Other)
-			: this(Other.Type, Other.Value)
+		/// <param name="other">Claim to construct from</param>
+		public UserClaim(IUserClaim other)
+			: this(other.Type, other.Value)
 		{
 		}
 
 		/// <summary>
 		/// Constructs a UserClaim from a Claim object
 		/// </summary>
-		/// <param name="Claim">Claim object</param>
+		/// <param name="claim">Claim object</param>
 		/// <returns></returns>
-		public static UserClaim FromClaim(Claim Claim)
+		public static UserClaim FromClaim(Claim claim)
 		{
-			return new UserClaim(Claim.Type, Claim.Value);
+			return new UserClaim(claim.Type, claim.Value);
 		}
 
 		/// <summary>
 		/// Conversion operator from NET claims
 		/// </summary>
-		/// <param name="Claim"></param>
-		public static implicit operator UserClaim(Claim Claim) => FromClaim(Claim);
+		/// <param name="claim"></param>
+		public static implicit operator UserClaim(Claim claim) => FromClaim(claim);
 	}
 }

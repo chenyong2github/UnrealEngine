@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using EpicGames.Serialization;
-using EpicGames.Serialization.Converters;
-using Horde.Build.Storage;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 
 namespace Horde.Build.Utilities
 {
@@ -23,12 +21,12 @@ namespace Horde.Build.Utilities
 		public int Length { get; }
 		public IoHash[] Refs { get; }
 
-		public ObjectPackEntry(IoHash Hash, int Offset, int Length, IoHash[] Refs)
+		public ObjectPackEntry(IoHash hash, int offset, int length, IoHash[] refs)
 		{
-			this.Hash = Hash;
-			this.Offset = Offset;
-			this.Length = Length;
-			this.Refs = Refs;
+			Hash = hash;
+			Offset = offset;
+			Length = length;
+			Refs = refs;
 		}
 	}
 
@@ -41,23 +39,23 @@ namespace Horde.Build.Utilities
 		public DateTime Time { get; }
 		public ObjectPackEntry[] Blobs { get; }
 		public IoHash DataHash { get; }
-		public int DataSize;
+		public int _dataSize;
 
-		Dictionary<IoHash, ObjectPackEntry> HashToInfo;
+		readonly Dictionary<IoHash, ObjectPackEntry> _hashToInfo;
 
-		public ObjectPackIndex(DateTime Time, ObjectPackEntry[] Blobs, IoHash DataHash, int DataSize)
+		public ObjectPackIndex(DateTime time, ObjectPackEntry[] blobs, IoHash dataHash, int dataSize)
 		{
-			this.Time = Time;
-			this.Blobs = Blobs;
-			this.DataHash = DataHash;
-			this.DataSize = DataSize;
+			Time = time;
+			Blobs = blobs;
+			DataHash = dataHash;
+			_dataSize = dataSize;
 
-			HashToInfo = Blobs.ToDictionary(x => x.Hash, x => x);
+			_hashToInfo = blobs.ToDictionary(x => x.Hash, x => x);
 		}
 
-		public bool Contains(IoHash Hash) => HashToInfo.ContainsKey(Hash);
+		public bool Contains(IoHash hash) => _hashToInfo.ContainsKey(hash);
 
-		public bool TryGetEntry(IoHash Hash, [NotNullWhen(true)] out ObjectPackEntry? BlobInfo) => HashToInfo.TryGetValue(Hash, out BlobInfo);
+		public bool TryGetEntry(IoHash hash, [NotNullWhen(true)] out ObjectPackEntry? blobInfo) => _hashToInfo.TryGetValue(hash, out blobInfo);
 	}
 
 	/// <summary>
@@ -87,48 +85,48 @@ namespace Horde.Build.Utilities
 		}
 
 		/// <inheritdoc/>
-		public override ObjectPackIndex Read(CbField Field)
+		public override ObjectPackIndex Read(CbField field)
 		{
-			EncodeFormat Format = CbSerializer.Deserialize<EncodeFormat>(Field);
+			EncodeFormat format = CbSerializer.Deserialize<EncodeFormat>(field);
 
-			ObjectPackEntry[] Objects = new ObjectPackEntry[Format.Exports!.Length];
+			ObjectPackEntry[] objects = new ObjectPackEntry[format.Exports!.Length];
 
-			int Offset = 0;
-			for (int Idx = 0; Idx < Format.Exports.Length; Idx++)
+			int offset = 0;
+			for (int idx = 0; idx < format.Exports.Length; idx++)
 			{
-				Objects[Idx] = new ObjectPackEntry(Format.Exports[Idx], Offset, Format.Lengths![Idx], Format.Refs![Idx]);
-				Offset += Format.Lengths[Idx];
+				objects[idx] = new ObjectPackEntry(format.Exports[idx], offset, format.Lengths![idx], format.Refs![idx]);
+				offset += format.Lengths[idx];
 			}
 
-			return new ObjectPackIndex(Format.Time, Objects, Format.DataHash, Format.DataSize);
+			return new ObjectPackIndex(format.Time, objects, format.DataHash, format.DataSize);
 		}
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter Writer, ObjectPackIndex Index)
+		public override void Write(CbWriter writer, ObjectPackIndex index)
 		{
-			Writer.BeginObject();
-			WriteInternal(Writer, Index);
-			Writer.EndObject();
+			writer.BeginObject();
+			WriteInternal(writer, index);
+			writer.EndObject();
 		}
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, ObjectPackIndex Index)
+		public override void WriteNamed(CbWriter writer, Utf8String name, ObjectPackIndex index)
 		{
-			Writer.BeginObject(Name);
-			WriteInternal(Writer, Index);
-			Writer.EndObject();
+			writer.BeginObject(name);
+			WriteInternal(writer, index);
+			writer.EndObject();
 		}
 
-		static void WriteInternal(CbWriter Writer, ObjectPackIndex Index)
+		static void WriteInternal(CbWriter writer, ObjectPackIndex index)
 		{
-			EncodeFormat Format = new EncodeFormat();
-			Format.Time = Index.Time;
-			Format.Exports = Index.Blobs.ConvertAll(x => x.Hash).ToArray();
-			Format.Lengths = Index.Blobs.ConvertAll(x => x.Length).ToArray();
-			Format.Refs = Index.Blobs.ConvertAll(x => x.Refs).ToArray();
-			Format.DataHash = Index.DataHash;
-			Format.DataSize = Index.DataSize;
-			CbSerializer.Serialize(Writer, Format);
+			EncodeFormat format = new EncodeFormat();
+			format.Time = index.Time;
+			format.Exports = index.Blobs.ConvertAll(x => x.Hash).ToArray();
+			format.Lengths = index.Blobs.ConvertAll(x => x.Length).ToArray();
+			format.Refs = index.Blobs.ConvertAll(x => x.Refs).ToArray();
+			format.DataHash = index.DataHash;
+			format.DataSize = index._dataSize;
+			CbSerializer.Serialize(writer, format);
 		}
 	}
 
@@ -137,38 +135,38 @@ namespace Horde.Build.Utilities
 	/// </summary>
 	class ObjectSet
 	{
-		readonly IStorageClient StorageClient;
-		readonly NamespaceId NamespaceId;
+		readonly IStorageClient _storageClient;
+		readonly NamespaceId _namespaceId;
 		public int MaxPackSize { get; }
 
 		public HashSet<IoHash> RootSet { get; set; } = new HashSet<IoHash>();
 
-		DateTime Time;
+		DateTime _time;
 
-		int NextPackSize;
-		byte[] NextPackData;
-		List<ObjectPackEntry> NextPackEntries = new List<ObjectPackEntry>();
-		Dictionary<IoHash, ObjectPackEntry> NextPackHashToEntry = new Dictionary<IoHash, ObjectPackEntry>();
+		int _nextPackSize;
+		byte[] _nextPackData;
+		readonly List<ObjectPackEntry> _nextPackEntries = new List<ObjectPackEntry>();
+		readonly Dictionary<IoHash, ObjectPackEntry> _nextPackHashToEntry = new Dictionary<IoHash, ObjectPackEntry>();
 
 		public List<ObjectPackIndex> PackIndexes { get; } = new List<ObjectPackIndex>();
-		List<Task> WriteTasks = new List<Task>();
+		readonly List<Task> _writeTasks = new List<Task>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StorageClient"></param>
-		/// <param name="NamespaceId"></param>
-		/// <param name="MaxPackSize"></param>
-		/// <param name="Time">The initial update time; used to determine the age of blobs</param>
-		public ObjectSet(IStorageClient StorageClient, NamespaceId NamespaceId, int MaxPackSize, DateTime Time)
+		/// <param name="storageClient"></param>
+		/// <param name="namespaceId"></param>
+		/// <param name="maxPackSize"></param>
+		/// <param name="time">The initial update time; used to determine the age of blobs</param>
+		public ObjectSet(IStorageClient storageClient, NamespaceId namespaceId, int maxPackSize, DateTime time)
 		{
-			this.StorageClient = StorageClient;
-			this.NamespaceId = NamespaceId;
-			this.MaxPackSize = MaxPackSize;
+			_storageClient = storageClient;
+			_namespaceId = namespaceId;
+			MaxPackSize = maxPackSize;
 
-			NextPackData = null!;
+			_nextPackData = null!;
 
-			SetTime(Time);
+			SetTime(time);
 			Reset();
 		}
 
@@ -177,93 +175,93 @@ namespace Horde.Build.Utilities
 		/// </summary>
 		void Reset()
 		{
-			NextPackSize = 0;
-			NextPackData = new byte[MaxPackSize];
-			NextPackEntries.Clear();
-			NextPackHashToEntry.Clear();
+			_nextPackSize = 0;
+			_nextPackData = new byte[MaxPackSize];
+			_nextPackEntries.Clear();
+			_nextPackHashToEntry.Clear();
 		}
 
 		/// <summary>
 		/// Reset the current timestamp
 		/// </summary>
-		/// <param name="Time">The new timestamp</param>
-		public void SetTime(DateTime Time)
+		/// <param name="time">The new timestamp</param>
+		public void SetTime(DateTime time)
 		{
-			this.Time = Time;
+			_time = time;
 		}
 
 		/// <summary>
 		/// Copies an existing entry into storage
 		/// </summary>
-		/// <param name="Hash">Hash of the data</param>
-		/// <param name="Data">The data buffer</param>
-		/// <param name="Refs">References to other objects</param>
-		public void Add(IoHash Hash, ReadOnlySpan<byte> Data, ReadOnlySpan<IoHash> Refs)
+		/// <param name="hash">Hash of the data</param>
+		/// <param name="data">The data buffer</param>
+		/// <param name="refs">References to other objects</param>
+		public void Add(IoHash hash, ReadOnlySpan<byte> data, ReadOnlySpan<IoHash> refs)
 		{
-			if (!NextPackHashToEntry.ContainsKey(Hash))
+			if (!_nextPackHashToEntry.ContainsKey(hash))
 			{
 				// Create enough space for the new data
-				CreateSpace(Data.Length);
+				CreateSpace(data.Length);
 
 				// Copy the data into the buffer
-				Data.CopyTo(NextPackData.AsSpan(NextPackSize));
+				data.CopyTo(_nextPackData.AsSpan(_nextPackSize));
 
 				// Add the blob
-				ObjectPackEntry Entry = new ObjectPackEntry(Hash, NextPackSize, Data.Length, Refs.ToArray());
-				NextPackHashToEntry.Add(Hash, Entry);
-				NextPackEntries.Add(Entry);
-				NextPackSize += Data.Length;
+				ObjectPackEntry entry = new ObjectPackEntry(hash, _nextPackSize, data.Length, refs.ToArray());
+				_nextPackHashToEntry.Add(hash, entry);
+				_nextPackEntries.Add(entry);
+				_nextPackSize += data.Length;
 			}
 		}
 
 		/// <summary>
 		/// Adds an item to the packer
 		/// </summary>
-		/// <param name="Size">Size of the data</param>
-		/// <param name="ReadData">Delegate to copy the data into a span</param>
-		/// <param name="Refs">References to other objects</param>
-		public IoHash Add(int Size, Action<Memory<byte>> ReadData, IoHash[] Refs)
+		/// <param name="size">Size of the data</param>
+		/// <param name="readData">Delegate to copy the data into a span</param>
+		/// <param name="refs">References to other objects</param>
+		public IoHash Add(int size, Action<Memory<byte>> readData, IoHash[] refs)
 		{
 			// Get the last blob and make sure there's enough space in it
-			CreateSpace(Size);
+			CreateSpace(size);
 
 			// Copy the data into the new blob
-			Memory<byte> Output = NextPackData.AsMemory(NextPackSize, Size);
-			ReadData(Output);
+			Memory<byte> output = _nextPackData.AsMemory(_nextPackSize, size);
+			readData(output);
 
 			// Update the metadata for it
-			IoHash Hash = IoHash.Compute(Output.Span);
-			if (!NextPackHashToEntry.ContainsKey(Hash))
+			IoHash hash = IoHash.Compute(output.Span);
+			if (!_nextPackHashToEntry.ContainsKey(hash))
 			{
-				ObjectPackEntry Entry = new ObjectPackEntry(Hash, NextPackSize, Size, Refs);
-				NextPackHashToEntry.Add(Hash, Entry);
-				NextPackEntries.Add(Entry);
-				NextPackSize += Size;
+				ObjectPackEntry entry = new ObjectPackEntry(hash, _nextPackSize, size, refs);
+				_nextPackHashToEntry.Add(hash, entry);
+				_nextPackEntries.Add(entry);
+				_nextPackSize += size;
 			}
-			return Hash;
+			return hash;
 		}
 
 		/// <summary>
 		/// Finds data for an object with the given hash, from the current pack files
 		/// </summary>
-		/// <param name="Hash"></param>
+		/// <param name="hash"></param>
 		/// <returns></returns>
-		public async Task<ReadOnlyMemory<byte>> GetObjectDataAsync(IoHash Hash)
+		public async Task<ReadOnlyMemory<byte>> GetObjectDataAsync(IoHash hash)
 		{
-			await Task.WhenAll(WriteTasks);
+			await Task.WhenAll(_writeTasks);
 
-			ObjectPackEntry? Entry;
-			if (NextPackHashToEntry.TryGetValue(Hash, out Entry))
+			ObjectPackEntry? entry;
+			if (_nextPackHashToEntry.TryGetValue(hash, out entry))
 			{
-				return NextPackData.AsMemory(Entry.Offset, Entry.Length);
+				return _nextPackData.AsMemory(entry.Offset, entry.Length);
 			}
 
-			foreach (ObjectPackIndex Pack in PackIndexes)
+			foreach (ObjectPackIndex pack in PackIndexes)
 			{
-				if (Pack.TryGetEntry(Hash, out Entry))
+				if (pack.TryGetEntry(hash, out entry))
 				{
-					ReadOnlyMemory<byte> PackData = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, Pack.DataHash);
-					return PackData.Slice(Entry.Offset, Entry.Length);
+					ReadOnlyMemory<byte> packData = await _storageClient.ReadBlobToMemoryAsync(_namespaceId, pack.DataHash);
+					return packData.Slice(entry.Offset, entry.Length);
 				}
 			}
 
@@ -273,28 +271,28 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Tries to find an entry for the given hash from the current set of pack files
 		/// </summary>
-		/// <param name="Hash">Hash of the </param>
-		/// <param name="Entry"></param>
+		/// <param name="hash">Hash of the </param>
+		/// <param name="entry"></param>
 		/// <returns></returns>
-		public bool TryGetEntry(IoHash Hash, [NotNullWhen(true)] out ObjectPackEntry? Entry)
+		public bool TryGetEntry(IoHash hash, [NotNullWhen(true)] out ObjectPackEntry? entry)
 		{
-			ObjectPackEntry? LocalEntry;
-			if (NextPackHashToEntry.TryGetValue(Hash, out LocalEntry))
+			ObjectPackEntry? localEntry;
+			if (_nextPackHashToEntry.TryGetValue(hash, out localEntry))
 			{
-				Entry = LocalEntry;
+				entry = localEntry;
 				return true;
 			}
 
-			foreach (ObjectPackIndex Pack in PackIndexes)
+			foreach (ObjectPackIndex pack in PackIndexes)
 			{
-				if (Pack.TryGetEntry(Hash, out LocalEntry))
+				if (pack.TryGetEntry(hash, out localEntry))
 				{
-					Entry = LocalEntry;
+					entry = localEntry;
 					return true;
 				}
 			}
 
-			Entry = null;
+			entry = null;
 			return false;
 		}
 
@@ -304,116 +302,116 @@ namespace Horde.Build.Utilities
 		public async Task FlushAsync()
 		{
 			// Find the live set of objects
-			HashSet<IoHash> LiveSet = new HashSet<IoHash>();
-			foreach(IoHash RootHash in RootSet)
+			HashSet<IoHash> liveSet = new HashSet<IoHash>();
+			foreach(IoHash rootHash in RootSet)
 			{
-				FindLiveSet(RootHash, LiveSet);
+				FindLiveSet(rootHash, liveSet);
 			}
 
 			// Find the total cost of all the current blobs, then loop through the blobs trying to find a more optimal arrangement
-			double TotalCost = PackIndexes.Sum(x => GetCostHeuristic(x)) + GetCostHeuristic(NextPackSize, TimeSpan.Zero);
+			double totalCost = PackIndexes.Sum(x => GetCostHeuristic(x)) + GetCostHeuristic(_nextPackSize, TimeSpan.Zero);
 			for (; ; )
 			{
 				// Exclude any objects that are in the pending blobs, since we will always upload these
-				HashSet<IoHash> NewLiveSet = new HashSet<IoHash>(LiveSet);
-				NewLiveSet.ExceptWith(NextPackHashToEntry.Values.Select(x => x.Hash));
+				HashSet<IoHash> newLiveSet = new HashSet<IoHash>(liveSet);
+				newLiveSet.ExceptWith(_nextPackHashToEntry.Values.Select(x => x.Hash));
 
 				// Get the size and cost of the next blob
-				double NextBlobCost = GetCostHeuristic(NextPackSize, TimeSpan.Zero);
+				double nextBlobCost = GetCostHeuristic(_nextPackSize, TimeSpan.Zero);
 
 				// Pass through all the blobs to find the best one to merge in
-				double MergeCost = TotalCost;
-				ObjectPackIndex? MergePack = null;
-				for (int Idx = PackIndexes.Count - 1; Idx >= 0; Idx--)
+				double mergeCost = totalCost;
+				ObjectPackIndex? mergePack = null;
+				for (int idx = PackIndexes.Count - 1; idx >= 0; idx--)
 				{
-					ObjectPackIndex PackIndex = PackIndexes[Idx];
+					ObjectPackIndex packIndex = PackIndexes[idx];
 
 					// Try to merge any old blobs with the next blob
-					if (PackIndex.Time < Time)
+					if (packIndex.Time < _time)
 					{
 						// Calculate the cost of the last blob if we merge this one with it. We remove blobs as we iterate
 						// through the list, since subsequent blobs will not usefully contribute the same items.
-						double NewTotalCost = TotalCost - GetCostHeuristic(PackIndex) - NextBlobCost;
+						double newTotalCost = totalCost - GetCostHeuristic(packIndex) - nextBlobCost;
 
-						int NewNextPackSize = NextPackSize;
-						foreach (ObjectPackEntry Entry in PackIndex.Blobs)
+						int newNextPackSize = _nextPackSize;
+						foreach (ObjectPackEntry entry in packIndex.Blobs)
 						{
-							if (LiveSet.Contains(Entry.Hash))
+							if (liveSet.Contains(entry.Hash))
 							{
-								if (NewNextPackSize + Entry.Length > MaxPackSize)
+								if (newNextPackSize + entry.Length > MaxPackSize)
 								{
-									NewTotalCost += GetCostHeuristic(NewNextPackSize, TimeSpan.Zero);
-									NewNextPackSize = 0;
+									newTotalCost += GetCostHeuristic(newNextPackSize, TimeSpan.Zero);
+									newNextPackSize = 0;
 								}
-								NewNextPackSize += Entry.Length;
+								newNextPackSize += entry.Length;
 							}
 						}
 
-						NewTotalCost += GetCostHeuristic(NewNextPackSize, TimeSpan.Zero);
+						newTotalCost += GetCostHeuristic(newNextPackSize, TimeSpan.Zero);
 
 						// Compute the potential cost if we replace the partial blob with the useful parts of this blob
-						if (NewTotalCost < MergeCost)
+						if (newTotalCost < mergeCost)
 						{
-							MergePack = PackIndex;
-							MergeCost = NewTotalCost;
+							mergePack = packIndex;
+							mergeCost = newTotalCost;
 						}
 					}
 
 					// Remove any items in this blob from the remaining live set. No other blobs need to include them.
-					NewLiveSet.ExceptWith(PackIndex.Blobs.Select(x => x.Hash));
+					newLiveSet.ExceptWith(packIndex.Blobs.Select(x => x.Hash));
 				}
 
 				// Bail out if we didn't find anything to merge
-				if (MergePack == null)
+				if (mergePack == null)
 				{
 					break;
 				}
 
 				// Get the data for this blob
-				ReadOnlyMemory<byte> MergeData = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, MergePack.DataHash);
+				ReadOnlyMemory<byte> mergeData = await _storageClient.ReadBlobToMemoryAsync(_namespaceId, mergePack.DataHash);
 
 				// Add anything that's still part of the live set into the new blobs
-				int Offset = 0;
-				foreach (ObjectPackEntry Blob in MergePack.Blobs)
+				int offset = 0;
+				foreach (ObjectPackEntry blob in mergePack.Blobs)
 				{
-					if (LiveSet.Contains(Blob.Hash))
+					if (liveSet.Contains(blob.Hash))
 					{
-						ReadOnlyMemory<byte> Data = MergeData.Slice(Offset, Blob.Length);
-						Add(Blob.Hash, Data.Span, Blob.Refs);
+						ReadOnlyMemory<byte> data = mergeData.Slice(offset, blob.Length);
+						Add(blob.Hash, data.Span, blob.Refs);
 					}
-					Offset += Blob.Length;
+					offset += blob.Length;
 				}
 
 				// Discard the old blob
-				PackIndexes.Remove(MergePack);
-				TotalCost = MergeCost;
+				PackIndexes.Remove(mergePack);
+				totalCost = mergeCost;
 			}
 
 			// Write the current blob
 			FlushCurrentPack();
 
 			// Wait for all the writes to finish
-			await Task.WhenAll(WriteTasks);
-			WriteTasks.Clear();
+			await Task.WhenAll(_writeTasks);
+			_writeTasks.Clear();
 		}
 
 		/// <summary>
 		/// Finds the live set for a particular tree, and updates tree entries with the size of used items within them
 		/// </summary>
-		/// <param name="Hash"></param>
-		/// <param name="LiveSet"></param>
-		void FindLiveSet(IoHash Hash, HashSet<IoHash> LiveSet)
+		/// <param name="hash"></param>
+		/// <param name="liveSet"></param>
+		void FindLiveSet(IoHash hash, HashSet<IoHash> liveSet)
 		{
-			if (LiveSet.Add(Hash))
+			if (liveSet.Add(hash))
 			{
-				ObjectPackEntry? Entry;
-				if (!TryGetEntry(Hash, out Entry))
+				ObjectPackEntry? entry;
+				if (!TryGetEntry(hash, out entry))
 				{
-					throw new Exception($"Missing blob {Hash} from working set");
+					throw new Exception($"Missing blob {hash} from working set");
 				}
-				foreach (IoHash Ref in Entry.Refs)
+				foreach (IoHash refHash in entry.Refs)
 				{
-					FindLiveSet(Ref, LiveSet);
+					FindLiveSet(refHash, liveSet);
 				}
 			}
 		}
@@ -421,19 +419,19 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Creates enough space to store the given block of data
 		/// </summary>
-		/// <param name="Size"></param>
-		void CreateSpace(int Size)
+		/// <param name="size"></param>
+		void CreateSpace(int size)
 		{
 			// Get the last blob and make sure there's enough space in it
-			if (NextPackSize + Size > MaxPackSize)
+			if (_nextPackSize + size > MaxPackSize)
 			{
 				FlushCurrentPack();
 			}
 
 			// Resize the next blob buffer if necessary
-			if (Size > NextPackData.Length)
+			if (size > _nextPackData.Length)
 			{
-				Array.Resize(ref NextPackData, Size);
+				Array.Resize(ref _nextPackData, size);
 			}
 		}
 
@@ -442,35 +440,35 @@ namespace Horde.Build.Utilities
 		/// </summary>
 		void FlushCurrentPack()
 		{
-			if (NextPackSize > 0)
+			if (_nextPackSize > 0)
 			{
 				// Write the buffer to storage
-				Array.Resize(ref NextPackData, NextPackSize);
-				ReadOnlyMemory<byte> Data = NextPackData;
-				IoHash DataHash = IoHash.Compute(Data.Span);
-				WriteTasks.Add(Task.Run(() => StorageClient.WriteBlobFromMemoryAsync(NamespaceId, DataHash, Data)));
+				Array.Resize(ref _nextPackData, _nextPackSize);
+				ReadOnlyMemory<byte> data = _nextPackData;
+				IoHash dataHash = IoHash.Compute(data.Span);
+				_writeTasks.Add(Task.Run(() => _storageClient.WriteBlobFromMemoryAsync(_namespaceId, dataHash, data)));
 
 				// Create the new index
-				ObjectPackIndex Index = new ObjectPackIndex(Time, NextPackEntries.ToArray(), DataHash, NextPackSize);
-				PackIndexes.Add(Index);
+				ObjectPackIndex index = new ObjectPackIndex(_time, _nextPackEntries.ToArray(), dataHash, _nextPackSize);
+				PackIndexes.Add(index);
 
 				// Clear the next pack buffer
 				Reset();
 			}
 		}
 
-		/// <inheritdoc cref="GetCostHeuristic(int, TimeSpan)"/>
-		/// <param name="Index">Index to calculate the heuristic for</param>
-		public double GetCostHeuristic(ObjectPackIndex Index) => GetCostHeuristic(Index.Blobs.Length, Time - Index.Time);
+		/// <inheritdoc cref="GetCostHeuristic(Int32, TimeSpan)"/>
+		/// <param name="index">Index to calculate the heuristic for</param>
+		public double GetCostHeuristic(ObjectPackIndex index) => GetCostHeuristic(index.Blobs.Length, _time - index.Time);
 
 		/// <summary>
 		/// Heuristic which estimates the cost of a particular blob. This is used to compare scenarios of merging blobs to reduce download
 		/// size against keeping older blobs which a lot of agents already have.
 		/// </summary>
-		/// <param name="Size">Size of the blob</param>
-		/// <param name="Age">Age of the blob</param>
+		/// <param name="size">Size of the blob</param>
+		/// <param name="age">Age of the blob</param>
 		/// <returns>Heuristic for the cost of a blob</returns>
-		public static double GetCostHeuristic(int Size, TimeSpan Age)
+		public static double GetCostHeuristic(int size, TimeSpan age)
 		{
 			// Time overhead to starting a download
 			const double DownloadInit = 0.1;
@@ -482,10 +480,10 @@ namespace Horde.Build.Utilities
 			const double CleanSyncProbability = 0.2;
 
 			// Average length of time between agents having to update
-			TimeSpan AverageCoherence = TimeSpan.FromHours(4.0);
+			TimeSpan averageCoherence = TimeSpan.FromHours(4.0);
 
 			// Scale the age into a -1.0 -> 1.0 range around AverageCoherence
-			double ScaledAge = (AverageCoherence - Age).TotalSeconds / AverageCoherence.TotalSeconds;
+			double scaledAge = (averageCoherence - age).TotalSeconds / averageCoherence.TotalSeconds;
 
 			// Get the probability of agents having to sync this blob based on its age. This is modeled as a logistic function (1 / (1 + e^-x))
 			// with value of 0.5 at AverageCoherence, and MaxInterval at zero.
@@ -495,17 +493,17 @@ namespace Horde.Build.Utilities
 			//    e^-x = (1 / MaxInterval) - 1
 			//    x = -ln((1 / MaxInterval) - 1)
 			const double MaxInterval = 0.95;
-			double SigmoidScale = -Math.Log((1.0 / MaxInterval) - 1.0);
+			double sigmoidScale = -Math.Log((1.0 / MaxInterval) - 1.0);
 
 			// Find the probability of having to sync this 
-			double Param = ScaledAge * SigmoidScale;
-			double Probability = 1.0 / (1.0 + Math.Exp(-Param));
+			double param = scaledAge * sigmoidScale;
+			double probability = 1.0 / (1.0 + Math.Exp(-param));
 
 			// Scale the probability against having to do a full sync
-			Probability = CleanSyncProbability + (Probability * (1.0 - CleanSyncProbability));
+			probability = CleanSyncProbability + (probability * (1.0 - CleanSyncProbability));
 
 			// Compute the final cost estimate; the amount of time we expect agents to spend downloading the file
-			return Probability * (DownloadInit + (Size / DownloadRate));
+			return probability * (DownloadInit + (size / DownloadRate));
 		}
 	}
 }

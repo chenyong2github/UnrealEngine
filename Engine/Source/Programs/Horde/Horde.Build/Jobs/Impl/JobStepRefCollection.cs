@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Services;
 using Horde.Build.Utilities;
+using HordeCommon;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -66,86 +65,86 @@ namespace Horde.Build.Collections.Impl
 			DateTime? IJobStepRef.FinishTimeUtc => FinishTimeUtc ?? FinishTime?.UtcDateTime;
 			string IJobStepRef.NodeName => Name;
 
-			public JobStepRef(JobStepRefId Id, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, int? LastSuccess, int? LastWarning, float BatchWaitTime, float BatchInitTime, DateTime StartTimeUtc, DateTime? FinishTimeUtc)
+			public JobStepRef(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, int? lastSuccess, int? lastWarning, float batchWaitTime, float batchInitTime, DateTime startTimeUtc, DateTime? finishTimeUtc)
 			{
-				this.Id = Id;
-				this.JobName = JobName;
-				this.Name = NodeName;
-				this.StreamId = StreamId;
-				this.TemplateId = TemplateId;
-				this.Change = Change;
-				this.LogId = LogId;
-				this.PoolId = PoolId;
-				this.AgentId = AgentId;
-				this.Outcome = Outcome;
-				this.LastSuccess = LastSuccess;
-				this.LastWarning = LastWarning;
-				this.BatchWaitTime = BatchWaitTime;
-				this.BatchInitTime = BatchInitTime;
-				this.StartTime = StartTimeUtc;
-				this.StartTimeUtc = StartTimeUtc;
-				this.FinishTime = FinishTimeUtc;
-				this.FinishTimeUtc = FinishTimeUtc;
+				Id = id;
+				JobName = jobName;
+				Name = nodeName;
+				StreamId = streamId;
+				TemplateId = templateId;
+				Change = change;
+				LogId = logId;
+				PoolId = poolId;
+				AgentId = agentId;
+				Outcome = outcome;
+				LastSuccess = lastSuccess;
+				LastWarning = lastWarning;
+				BatchWaitTime = batchWaitTime;
+				BatchInitTime = batchInitTime;
+				StartTime = startTimeUtc;
+				StartTimeUtc = startTimeUtc;
+				FinishTime = finishTimeUtc;
+				FinishTimeUtc = finishTimeUtc;
 			}
 		}
 
-		IMongoCollection<JobStepRef> JobStepRefs;
+		readonly IMongoCollection<JobStepRef> _jobStepRefs;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		public JobStepRefCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service instance</param>
+		public JobStepRefCollection(DatabaseService databaseService)
 		{
-			JobStepRefs = DatabaseService.GetCollection<JobStepRef>("JobStepRefs");
+			_jobStepRefs = databaseService.GetCollection<JobStepRef>("JobStepRefs");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				JobStepRefs.Indexes.CreateOne(new CreateIndexModel<JobStepRef>(Builders<JobStepRef>.IndexKeys.Ascending(x => x.StreamId).Ascending(x => x.TemplateId).Ascending(x => x.Name).Descending(x => x.Change)));
+				_jobStepRefs.Indexes.CreateOne(new CreateIndexModel<JobStepRef>(Builders<JobStepRef>.IndexKeys.Ascending(x => x.StreamId).Ascending(x => x.TemplateId).Ascending(x => x.Name).Descending(x => x.Change)));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId Id, string JobName, string StepName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, int? LastSuccess, int? LastWarning, float WaitTime, float InitTime, DateTime StartTimeUtc, DateTime? FinishTimeUtc)
+		public async Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId id, string jobName, string stepName, StreamId streamId, TemplateRefId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime startTimeUtc, DateTime? finishTimeUtc)
 		{
-			JobStepRef NewJobStepRef = new JobStepRef(Id, JobName, StepName, StreamId, TemplateId, Change, LogId, PoolId, AgentId, Outcome, LastSuccess, LastWarning, WaitTime, InitTime, StartTimeUtc, FinishTimeUtc);
-			await JobStepRefs.ReplaceOneAsync(Builders<JobStepRef>.Filter.Eq(x => x.Id, NewJobStepRef.Id), NewJobStepRef, new ReplaceOptions { IsUpsert = true });
-			return NewJobStepRef;
+			JobStepRef newJobStepRef = new JobStepRef(id, jobName, stepName, streamId, templateId, change, logId, poolId, agentId, outcome, lastSuccess, lastWarning, waitTime, initTime, startTimeUtc, finishTimeUtc);
+			await _jobStepRefs.ReplaceOneAsync(Builders<JobStepRef>.Filter.Eq(x => x.Id, newJobStepRef.Id), newJobStepRef, new ReplaceOptions { IsUpsert = true });
+			return newJobStepRef;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IJobStepRef>> GetStepsForNodeAsync(StreamId StreamId, TemplateRefId TemplateId, string NodeName, int? Change, bool IncludeFailed, int Count)
+		public async Task<List<IJobStepRef>> GetStepsForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int? change, bool includeFailed, int count)
 		{
 			// Find all the steps matching the given criteria
-			FilterDefinitionBuilder<JobStepRef> FilterBuilder = Builders<JobStepRef>.Filter;
+			FilterDefinitionBuilder<JobStepRef> filterBuilder = Builders<JobStepRef>.Filter;
 
-			FilterDefinition<JobStepRef> Filter = FilterDefinition<JobStepRef>.Empty;
-			Filter &= FilterBuilder.Eq(x => x.StreamId, StreamId);
-			Filter &= FilterBuilder.Eq(x => x.TemplateId, TemplateId);
-			Filter &= FilterBuilder.Eq(x => x.Name, NodeName);
-			if (Change != null)
+			FilterDefinition<JobStepRef> filter = FilterDefinition<JobStepRef>.Empty;
+			filter &= filterBuilder.Eq(x => x.StreamId, streamId);
+			filter &= filterBuilder.Eq(x => x.TemplateId, templateId);
+			filter &= filterBuilder.Eq(x => x.Name, nodeName);
+			if (change != null)
 			{
-				Filter &= FilterBuilder.Lte(x => x.Change, Change.Value);
+				filter &= filterBuilder.Lte(x => x.Change, change.Value);
 			}
-			if (!IncludeFailed)
+			if (!includeFailed)
 			{
-				Filter &= FilterBuilder.Ne(x => x.Outcome, JobStepOutcome.Failure);
+				filter &= filterBuilder.Ne(x => x.Outcome, JobStepOutcome.Failure);
 			}
 
-			List<JobStepRef> Steps = await JobStepRefs.Find(Filter).SortByDescending(x => x.Change).ThenByDescending(x => x.StartTime).Limit(Count).ToListAsync();
-			return Steps.ConvertAll<IJobStepRef>(x => x);
+			List<JobStepRef> steps = await _jobStepRefs.Find(filter).SortByDescending(x => x.Change).ThenByDescending(x => x.StartTime).Limit(count).ToListAsync();
+			return steps.ConvertAll<IJobStepRef>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId StreamId, TemplateRefId TemplateId, string NodeName, int Change)
+		public async Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change)
 		{
-			return await JobStepRefs.Find(x => x.StreamId == StreamId && x.TemplateId == TemplateId && x.Name == NodeName && x.Change < Change && x.Outcome != null).SortByDescending(x => x.Change).FirstOrDefaultAsync();
+			return await _jobStepRefs.Find(x => x.StreamId == streamId && x.TemplateId == templateId && x.Name == nodeName && x.Change < change && x.Outcome != null).SortByDescending(x => x.Change).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId StreamId, TemplateRefId TemplateId, string NodeName, int Change)
+		public async Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change)
 		{
-			return await JobStepRefs.Find(x => x.StreamId == StreamId && x.TemplateId == TemplateId && x.Name == NodeName && x.Change > Change && x.Outcome != null).SortBy(x => x.Change).FirstOrDefaultAsync();
+			return await _jobStepRefs.Find(x => x.StreamId == streamId && x.TemplateId == templateId && x.Name == nodeName && x.Change > change && x.Outcome != null).SortBy(x => x.Change).FirstOrDefaultAsync();
 		}
 	}
 }

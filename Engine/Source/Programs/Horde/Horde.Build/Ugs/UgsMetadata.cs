@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.S3.Model;
-using Horde.Build.Api;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Api;
 
 namespace Horde.Build.Models
 {

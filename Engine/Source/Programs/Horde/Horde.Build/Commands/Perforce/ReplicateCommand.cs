@@ -1,22 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Impl;
-using EpicGames.Serialization;
 using Horde.Build.Collections;
 using Horde.Build.Commits;
 using Horde.Build.Commits.Impl;
-using Horde.Build.Controllers;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Commands
 {
@@ -55,54 +53,54 @@ namespace Horde.Build.Commands
 		[CommandLine]
 		public DirectoryReference? OutputDir { get; set; }
 
-		IConfiguration Configuration;
-		ILoggerProvider LoggerProvider;
+		readonly IConfiguration _configuration;
+		readonly ILoggerProvider _loggerProvider;
 
-		public ReplicateCommand(IConfiguration Configuration, ILoggerProvider LoggerProvider)
+		public ReplicateCommand(IConfiguration configuration, ILoggerProvider loggerProvider)
 		{
-			this.Configuration = Configuration;
-			this.LoggerProvider = LoggerProvider;
+			_configuration = configuration;
+			_loggerProvider = loggerProvider;
 		}
 
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IServiceCollection Services = new ServiceCollection();
-			Services.AddLogging(Builder => Builder.AddProvider(LoggerProvider));
+			IServiceCollection services = new ServiceCollection();
+			services.AddLogging(builder => builder.AddProvider(_loggerProvider));
 
-			Startup.AddServices(Services, Configuration);
+			Startup.AddServices(services, _configuration);
 
 			OutputDir ??= DirectoryReference.Combine(Program.DataDir, "Storage");
-			Logger.LogInformation("Writing output to {OutputDir}", OutputDir);
-			Services.AddSingleton<IStorageClient, FileStorageClient>(SP => new FileStorageClient(OutputDir, Logger));
+			logger.LogInformation("Writing output to {OutputDir}", OutputDir);
+			services.AddSingleton<IStorageClient, FileStorageClient>(sp => new FileStorageClient(OutputDir, logger));
 
-			IServiceProvider ServiceProvider = Services.BuildServiceProvider();
-			CommitService CommitService = ServiceProvider.GetRequiredService<CommitService>();
-			ICommitCollection CommitCollection = ServiceProvider.GetRequiredService<ICommitCollection>();
-			IStreamCollection StreamCollection = ServiceProvider.GetRequiredService<IStreamCollection>();
-			IStorageClient StorageClient = ServiceProvider.GetRequiredService<IStorageClient>();
+			IServiceProvider serviceProvider = services.BuildServiceProvider();
+			CommitService commitService = serviceProvider.GetRequiredService<CommitService>();
+			ICommitCollection commitCollection = serviceProvider.GetRequiredService<ICommitCollection>();
+			IStreamCollection streamCollection = serviceProvider.GetRequiredService<IStreamCollection>();
+			IStorageClient storageClient = serviceProvider.GetRequiredService<IStorageClient>();
 
-			IStream? Stream = await StreamCollection.GetAsync(new StreamId(StreamId));
-			if (Stream == null)
+			IStream? stream = await streamCollection.GetAsync(new StreamId(StreamId));
+			if (stream == null)
 			{
-				throw new FatalErrorException($"Stream '{Stream}' not found");
+				throw new FatalErrorException($"Stream '{stream}' not found");
 			}
 
-			Dictionary<IStream, int> StreamToFirstChange = new Dictionary<IStream, int>();
-			StreamToFirstChange[Stream] = Change;
+			Dictionary<IStream, int> streamToFirstChange = new Dictionary<IStream, int>();
+			streamToFirstChange[stream] = Change;
 
-			await foreach (NewCommit NewCommit in CommitService.FindCommitsForClusterAsync(Stream.ClusterName, StreamToFirstChange).Take(Count))
+			await foreach (NewCommit newCommit in commitService.FindCommitsForClusterAsync(stream.ClusterName, streamToFirstChange).Take(Count))
 			{
-				string BriefSummary = NewCommit.Description.Replace('\n', ' ');
-				Logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", NewCommit.Change, NewCommit.AuthorId, BriefSummary.Substring(0, Math.Min(50, BriefSummary.Length)));
-				Logger.LogInformation(" - Base path: {BasePath}", NewCommit.BasePath);
+				string briefSummary = newCommit.Description.Replace('\n', ' ');
+				logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", newCommit.Change, newCommit.AuthorId, briefSummary.Substring(0, Math.Min(50, briefSummary.Length)));
+				logger.LogInformation(" - Base path: {BasePath}", newCommit.BasePath);
 
 				if (Content)
 				{
 					if (Clean || BaseChange != null)
 					{
-						await CommitService.WriteCommitTreeAsync(Stream, NewCommit.Change, BaseChange, Filter, Metadata);
+						await commitService.WriteCommitTreeAsync(stream, newCommit.Change, BaseChange, Filter, Metadata);
 					}
-					BaseChange = NewCommit.Change;
+					BaseChange = newCommit.Change;
 				}
 			}
 

@@ -1,15 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Services;
-using Microsoft.Extensions.Logging;
 using Horde.Build.Api;
-using System.Collections.Generic;
 using Horde.Build.Models;
+using Horde.Build.Services;
 using Horde.Build.Utilities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Horde.Build
 {
@@ -25,26 +24,20 @@ namespace Horde.Build
 		/// <summary>
 		/// Singleton instance of the jira service
 		/// </summary>
-		JiraService JiraService;
+		readonly JiraService _jiraService;
 
 		/// <summary>
 		/// Singleton instance of the stream service
 		/// </summary>
-		StreamService StreamService;
-
-		/// <summary>
-		///  Logger for controller
-		/// </summary>
-		private readonly ILogger<JiraController> Logger;
+		readonly StreamService _streamService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JiraController(JiraService JiraService, StreamService StreamService, ILogger<JiraController> Logger)
+		public JiraController(JiraService jiraService, StreamService streamService)
 		{
-			this.JiraService = JiraService;
-			this.Logger = Logger;
-			this.StreamService = StreamService;
+			_jiraService = jiraService;
+			_streamService = streamService;
 		}
 
 		/// <summary>
@@ -53,33 +46,30 @@ namespace Horde.Build
 		[HttpGet]
 		[Authorize]
 		[Route("/api/v1/jira")]
-		public async Task<ActionResult<List<GetJiraIssueResponse>>> GetJiraIssuesAsync([FromQuery] string StreamId, [FromQuery] string[] JiraKeys)
+		public async Task<ActionResult<List<GetJiraIssueResponse>>> GetJiraIssuesAsync([FromQuery] string streamId, [FromQuery] string[] jiraKeys)
 		{
 
-			StreamId StreamIdValue = new StreamId(StreamId);
-			StreamPermissionsCache Cache = new StreamPermissionsCache();
+			StreamId streamIdValue = new StreamId(streamId);
+			StreamPermissionsCache cache = new StreamPermissionsCache();
 
-			if (!await StreamService.AuthorizeAsync(StreamIdValue, AclAction.ViewStream, User, Cache))
+			if (!await _streamService.AuthorizeAsync(streamIdValue, AclAction.ViewStream, User, cache))
 			{
 				return Forbid();
 			}
 
-			List<GetJiraIssueResponse> Response = new List<GetJiraIssueResponse>();
+			List<GetJiraIssueResponse> response = new List<GetJiraIssueResponse>();
 
-			if (JiraKeys.Length != 0)
+			if (jiraKeys.Length != 0)
 			{
-				List<JiraIssue> Issues = await this.JiraService.GetJiraIssuesAsync(JiraKeys);
+				List<JiraIssue> issues = await _jiraService.GetJiraIssuesAsync(jiraKeys);
 
-				for (int i = 0; i < Issues.Count; i++)
+				for (int i = 0; i < issues.Count; i++)
 				{
-					Response.Add(new GetJiraIssueResponse(Issues[i]));
+					response.Add(new GetJiraIssueResponse(issues[i]));
 				}
-
 			}			
 
-			return Response;
+			return response;
 		}
-
-
 	}
 }

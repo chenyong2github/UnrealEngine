@@ -1,17 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text.Encodings.Web;
+using System.Threading.Tasks;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Text.Encodings.Web;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Authentication
 {
@@ -24,48 +22,47 @@ namespace Horde.Build.Authentication
 		/// Default name of the authentication scheme
 		/// </summary>
 		public const string AuthenticationScheme = "ServerJwt";
+		readonly DatabaseService _databaseService;
 
-		DatabaseService DatabaseService;
-
-		public HordeJwtBearerHandler(ILoggerFactory Logger, UrlEncoder Encoder, ISystemClock Clock, DatabaseService DatabaseService, IOptionsMonitorCache<JwtBearerOptions> OptionsCache)
-			: base(GetOptionsMonitor(DatabaseService, OptionsCache), Logger, Encoder, Clock)
+		public HordeJwtBearerHandler(ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock, DatabaseService databaseService, IOptionsMonitorCache<JwtBearerOptions> optionsCache)
+			: base(GetOptionsMonitor(databaseService, optionsCache), logger, encoder, clock)
 		{
-			this.DatabaseService = DatabaseService;
+			_databaseService = databaseService;
 		}
 
-		private static IOptionsMonitor<JwtBearerOptions> GetOptionsMonitor(DatabaseService DatabaseService, IOptionsMonitorCache<JwtBearerOptions> OptionsCache)
+		private static IOptionsMonitor<JwtBearerOptions> GetOptionsMonitor(DatabaseService databaseService, IOptionsMonitorCache<JwtBearerOptions> optionsCache)
 		{
-			ConfigureNamedOptions<JwtBearerOptions> NamedOptions = new ConfigureNamedOptions<JwtBearerOptions>(AuthenticationScheme, Options => Configure(Options, DatabaseService));
-			OptionsFactory<JwtBearerOptions> OptionsFactory = new OptionsFactory<JwtBearerOptions>(new[] { NamedOptions }, Array.Empty<IPostConfigureOptions<JwtBearerOptions>>());
-			return new OptionsMonitor<JwtBearerOptions>(OptionsFactory, Array.Empty<IOptionsChangeTokenSource<JwtBearerOptions>>(), OptionsCache);
+			ConfigureNamedOptions<JwtBearerOptions> namedOptions = new ConfigureNamedOptions<JwtBearerOptions>(AuthenticationScheme, options => Configure(options, databaseService));
+			OptionsFactory<JwtBearerOptions> optionsFactory = new OptionsFactory<JwtBearerOptions>(new[] { namedOptions }, Array.Empty<IPostConfigureOptions<JwtBearerOptions>>());
+			return new OptionsMonitor<JwtBearerOptions>(optionsFactory, Array.Empty<IOptionsChangeTokenSource<JwtBearerOptions>>(), optionsCache);
 		}
 
-		private static void Configure(JwtBearerOptions Options, DatabaseService DatabaseService)
+		private static void Configure(JwtBearerOptions options, DatabaseService databaseService)
 		{
-			Options.TokenValidationParameters.ValidateAudience = false;
+			options.TokenValidationParameters.ValidateAudience = false;
 
-			Options.TokenValidationParameters.RequireExpirationTime = false;
-			Options.TokenValidationParameters.ValidateLifetime = true;
+			options.TokenValidationParameters.RequireExpirationTime = false;
+			options.TokenValidationParameters.ValidateLifetime = true;
 
-			Options.TokenValidationParameters.ValidIssuer = DatabaseService.JwtIssuer;
-			Options.TokenValidationParameters.ValidateIssuer = true;
+			options.TokenValidationParameters.ValidIssuer = databaseService.JwtIssuer;
+			options.TokenValidationParameters.ValidateIssuer = true;
 
-			Options.TokenValidationParameters.ValidateIssuerSigningKey = true;
-			Options.TokenValidationParameters.IssuerSigningKey = DatabaseService.JwtSigningKey;
+			options.TokenValidationParameters.ValidateIssuerSigningKey = true;
+			options.TokenValidationParameters.IssuerSigningKey = databaseService.JwtSigningKey;
 		}
 
 		protected override Task<AuthenticateResult> HandleAuthenticateAsync()
 		{
 			// Silent fail if this JWT is not issued by the server
-			string? Token;
-			if (!JwtUtils.TryGetBearerToken(Request, "Bearer ", out Token))
+			string? token;
+			if (!JwtUtils.TryGetBearerToken(Request, "Bearer ", out token))
 			{
 				return Task.FromResult(AuthenticateResult.NoResult());
 			}
 
 			// Validate that it's from the correct issuer
-			JwtSecurityToken? JwtToken;
-			if (!JwtUtils.TryParseJwt(Token, out JwtToken) || !String.Equals(JwtToken.Issuer, DatabaseService.JwtIssuer, StringComparison.Ordinal))
+			JwtSecurityToken? jwtToken;
+			if (!JwtUtils.TryParseJwt(token, out jwtToken) || !String.Equals(jwtToken.Issuer, _databaseService.JwtIssuer, StringComparison.Ordinal))
 			{
 				return Task.FromResult(AuthenticateResult.NoResult());
 			}

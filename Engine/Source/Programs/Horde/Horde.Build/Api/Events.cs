@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.ComponentModel.DataAnnotations;
 using EpicGames.Core;
-using HordeCommon;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
+using HordeCommon;
 
 namespace Horde.Build.Api
 {
@@ -59,14 +55,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StreamId">The stream id</param>
-		/// <param name="TemplateId">The template id</param>
-		/// <param name="Outcome">Outcome of the job</param>
-		public JobCompleteEventRecord(StreamId StreamId, TemplateRefId TemplateId, LabelOutcome Outcome)
+		/// <param name="streamId">The stream id</param>
+		/// <param name="templateId">The template id</param>
+		/// <param name="outcome">Outcome of the job</param>
+		public JobCompleteEventRecord(StreamId streamId, TemplateRefId templateId, LabelOutcome outcome)
 		{
-			this.StreamId = StreamId.ToString();
-			this.TemplateId = TemplateId.ToString();
-			this.Outcome = Outcome;
+			StreamId = streamId.ToString();
+			TemplateId = templateId.ToString();
+			Outcome = outcome;
 		}
 	}
 
@@ -109,26 +105,26 @@ namespace Horde.Build.Api
 		/// </summary>
 		public LabelCompleteEventRecord()
 		{
-			this.StreamId = String.Empty;
-			this.TemplateId = String.Empty;
-			this.LabelName = String.Empty;
+			StreamId = String.Empty;
+			TemplateId = String.Empty;
+			LabelName = String.Empty;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StreamId">The stream id</param>
-		/// <param name="TemplateId">The template id</param>
-		/// <param name="CategoryName">Name of the category</param>
-		/// <param name="LabelName">The label name</param>
-		/// <param name="Outcome">Outcome of the label</param>
-		public LabelCompleteEventRecord(StreamId StreamId, TemplateRefId TemplateId, string? CategoryName, string LabelName, LabelOutcome Outcome)
+		/// <param name="streamId">The stream id</param>
+		/// <param name="templateId">The template id</param>
+		/// <param name="categoryName">Name of the category</param>
+		/// <param name="labelName">The label name</param>
+		/// <param name="outcome">Outcome of the label</param>
+		public LabelCompleteEventRecord(StreamId streamId, TemplateRefId templateId, string? categoryName, string labelName, LabelOutcome outcome)
 		{
-			this.StreamId = StreamId.ToString();
-			this.TemplateId = TemplateId.ToString();
-			this.CategoryName = CategoryName;
-			this.LabelName = LabelName;
-			this.Outcome = Outcome;
+			StreamId = streamId.ToString();
+			TemplateId = templateId.ToString();
+			CategoryName = categoryName;
+			LabelName = labelName;
+			Outcome = outcome;
 		}
 	}
 
@@ -174,16 +170,16 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StreamId">The stream id</param>
-		/// <param name="TemplateId">The template id</param>
-		/// <param name="StepName">The label name</param>
-		/// <param name="Outcome">Outcome of the step</param>
-		public StepCompleteEventRecord(StreamId StreamId, TemplateRefId TemplateId, string StepName, JobStepOutcome Outcome)
+		/// <param name="streamId">The stream id</param>
+		/// <param name="templateId">The template id</param>
+		/// <param name="stepName">The label name</param>
+		/// <param name="outcome">Outcome of the step</param>
+		public StepCompleteEventRecord(StreamId streamId, TemplateRefId templateId, string stepName, JobStepOutcome outcome)
 		{
-			this.StreamId = StreamId.ToString();
-			this.TemplateId = TemplateId.ToString();
-			this.StepName = StepName;
-			this.Outcome = Outcome;
+			StreamId = streamId.ToString();
+			TemplateId = templateId.ToString();
+			StepName = stepName;
+			Outcome = outcome;
 		}
 	}
 }

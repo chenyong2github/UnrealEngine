@@ -1,17 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Services
 {
@@ -22,51 +21,51 @@ namespace Horde.Build.Services
 	/// </summary>
 	class ConsistencyService : IHostedService, IDisposable
 	{
-		ISessionCollection SessionCollection;
-		ILeaseCollection LeaseCollection;
-		ITicker Ticker;
-		ILogger<ConsistencyService> Logger;
+		readonly ISessionCollection _sessionCollection;
+		readonly ILeaseCollection _leaseCollection;
+		readonly ITicker _ticker;
+		readonly ILogger<ConsistencyService> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConsistencyService(ISessionCollection SessionCollection, ILeaseCollection LeaseCollection, IClock Clock, ILogger<ConsistencyService> Logger)
+		public ConsistencyService(ISessionCollection sessionCollection, ILeaseCollection leaseCollection, IClock clock, ILogger<ConsistencyService> logger)
 		{
-			this.SessionCollection = SessionCollection;
-			this.LeaseCollection = LeaseCollection;
-			this.Ticker = Clock.AddSharedTicker<ConsistencyService>(TimeSpan.FromMinutes(20.0), TickLeaderAsync, Logger);
-			this.Logger = Logger;
+			_sessionCollection = sessionCollection;
+			_leaseCollection = leaseCollection;
+			_ticker = clock.AddSharedTicker<ConsistencyService>(TimeSpan.FromMinutes(20.0), TickLeaderAsync, logger);
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
 
 		/// <inheritdoc/>
-		public void Dispose() => Ticker.Dispose();
+		public void Dispose() => _ticker.Dispose();
 
 		/// <summary>
 		/// Poll for inconsistencies in the database
 		/// </summary>
-		/// <param name="StoppingToken">Stopping token</param>
+		/// <param name="stoppingToken">Stopping token</param>
 		/// <returns>Async task</returns>
-		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
+		async ValueTask TickLeaderAsync(CancellationToken stoppingToken)
 		{
-			List<ISession> Sessions = await SessionCollection.FindActiveSessionsAsync();
-			Dictionary<SessionId, ISession> SessionIdToInstance = Sessions.ToDictionary(x => x.Id, x => x);
+			List<ISession> sessions = await _sessionCollection.FindActiveSessionsAsync();
+			Dictionary<SessionId, ISession> sessionIdToInstance = sessions.ToDictionary(x => x.Id, x => x);
 
 			// Find any leases that are still running when their session has terminated
-			List<ILease> Leases = await LeaseCollection.FindActiveLeasesAsync();
-			foreach (ILease Lease in Leases)
+			List<ILease> leases = await _leaseCollection.FindActiveLeasesAsync();
+			foreach (ILease lease in leases)
 			{
-				if (!SessionIdToInstance.ContainsKey(Lease.SessionId))
+				if (!sessionIdToInstance.ContainsKey(lease.SessionId))
 				{
-					ISession? Session = await SessionCollection.GetAsync(Lease.SessionId);
-					DateTime FinishTime = Session?.FinishTime ?? DateTime.UtcNow;
-					Logger.LogWarning("Setting finish time for lease {LeaseId} to {FinishTime}", Lease.Id, FinishTime);
-					await LeaseCollection.TrySetOutcomeAsync(Lease.Id, FinishTime, LeaseOutcome.Cancelled, null);
+					ISession? session = await _sessionCollection.GetAsync(lease.SessionId);
+					DateTime finishTime = session?.FinishTime ?? DateTime.UtcNow;
+					_logger.LogWarning("Setting finish time for lease {LeaseId} to {FinishTime}", lease.Id, finishTime);
+					await _leaseCollection.TrySetOutcomeAsync(lease.Id, finishTime, LeaseOutcome.Cancelled, null);
 				}
 			}
 		}

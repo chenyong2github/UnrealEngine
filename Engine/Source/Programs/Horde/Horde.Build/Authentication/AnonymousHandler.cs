@@ -1,18 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using System.Threading.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Models;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Authentication
 {
@@ -25,43 +23,42 @@ namespace Horde.Build.Authentication
 	class AnonymousAuthenticationHandler : AuthenticationHandler<AnonymousAuthenticationOptions>
 	{
 		public const string AuthenticationScheme = "Anonymous";
+		readonly IUserCollection _userCollection;
 
-		IUserCollection UserCollection;
-
-		public AnonymousAuthenticationHandler(IUserCollection UserCollection, IOptionsMonitor<AnonymousAuthenticationOptions> Options,
-			ILoggerFactory Logger, UrlEncoder Encoder, ISystemClock Clock)
-			: base(Options, Logger, Encoder, Clock)
+		public AnonymousAuthenticationHandler(IUserCollection userCollection, IOptionsMonitor<AnonymousAuthenticationOptions> options,
+			ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock)
+			: base(options, logger, encoder, clock)
 		{
-			this.UserCollection = UserCollection;
+			_userCollection = userCollection;
 		}
 
 		protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
 		{
-			List<Claim> Claims = new List<Claim>();
-			Claims.Add(new Claim(ClaimTypes.Name, AuthenticationScheme));
+			List<Claim> claims = new List<Claim>();
+			claims.Add(new Claim(ClaimTypes.Name, AuthenticationScheme));
 
 			if (Options.AdminClaimType != null && Options.AdminClaimValue != null)
 			{
-				Claims.Add(new Claim(Options.AdminClaimType, Options.AdminClaimValue));
+				claims.Add(new Claim(Options.AdminClaimType, Options.AdminClaimValue));
 			}
 
-			IUser User = await UserCollection.FindOrAddUserByLoginAsync("anonymous", "Anonymous", "anonymous@epicgames.com");
+			IUser user = await _userCollection.FindOrAddUserByLoginAsync("anonymous", "Anonymous", "anonymous@epicgames.com");
 
-			ClaimsIdentity Identity = new ClaimsIdentity(Claims, Scheme.Name);
-			Identity.AddClaim(new Claim(HordeClaimTypes.UserId, User.Id.ToString()));
+			ClaimsIdentity identity = new ClaimsIdentity(claims, Scheme.Name);
+			identity.AddClaim(new Claim(HordeClaimTypes.UserId, user.Id.ToString()));
 
-			ClaimsPrincipal Principal = new ClaimsPrincipal(Identity);
-			AuthenticationTicket Ticket = new AuthenticationTicket(Principal, Scheme.Name);
+			ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+			AuthenticationTicket ticket = new AuthenticationTicket(principal, Scheme.Name);
 
-			return AuthenticateResult.Success(Ticket);
+			return AuthenticateResult.Success(ticket);
 		}
 	}
 
 	static class AnonymousExtensions
 	{
-		public static AuthenticationBuilder AddAnonymous(this AuthenticationBuilder Builder, Action<AnonymousAuthenticationOptions> Configure)
+		public static AuthenticationBuilder AddAnonymous(this AuthenticationBuilder builder, Action<AnonymousAuthenticationOptions> configure)
 		{
-			return Builder.AddScheme<AnonymousAuthenticationOptions, AnonymousAuthenticationHandler>(AnonymousAuthenticationHandler.AuthenticationScheme, Configure);
+			return builder.AddScheme<AnonymousAuthenticationOptions, AnonymousAuthenticationHandler>(AnonymousAuthenticationHandler.AuthenticationScheme, configure);
 		}
 	}
 }

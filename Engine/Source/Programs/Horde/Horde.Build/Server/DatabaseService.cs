@@ -1,47 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Api;
-using HordeCommon;
 using Horde.Build.Models;
-using Horde.Build.Utilities;
+using Horde.Build.Utiltiies;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Net;
-using System.Net.Security;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
-using System.Net.Sockets;
 using MongoDB.Driver.Core.Events;
-using System.Threading;
-using Horde.Build.Collections;
-using System.Diagnostics;
-using System.Text.RegularExpressions;
-using System.Net.NetworkInformation;
-using OpenTracing.Util;
-using OpenTracing;
-using Horde.Build.Utiltiies;
-using System.Globalization;
 
 namespace Horde.Build.Services
 {
-	using IStream = Horde.Build.Models.IStream;
-	using PoolId = StringId<IPool>;
-	using ProjectId = StringId<IProject>;
-	using TemplateRefId = StringId<TemplateRef>;
-
 	/// <summary>
 	/// Singleton for accessing the database
 	/// </summary>
@@ -80,7 +66,7 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Logger for this instance
 		/// </summary>
-		ILogger<DatabaseService> Logger;
+		readonly ILogger<DatabaseService> _logger;
 		
 		/// <summary>
 		/// Access the database in a read-only mode (don't create indices or modify content)
@@ -90,22 +76,22 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// The mongo process group
 		/// </summary>
-		ManagedProcessGroup? MongoProcessGroup;
+		ManagedProcessGroup? _mongoProcessGroup;
 
 		/// <summary>
 		/// The mongo process
 		/// </summary>
-		ManagedProcess? MongoProcess;
+		ManagedProcess? _mongoProcess;
 
 		/// <summary>
 		/// Task to read from the mongo process
 		/// </summary>
-		Task? MongoOutputTask;
+		Task? _mongoOutputTask;
 
 		/// <summary>
 		/// Factory for creating logger instances
 		/// </summary>
-		ILoggerFactory LoggerFactory;
+		readonly ILoggerFactory _loggerFactory;
 
 		/// <summary>
 		/// Default port for MongoDB connections
@@ -115,48 +101,48 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="SettingsSnapshot">The settings instance</param>
-		/// <param name="LoggerFactory">Instance of the logger for this service</param>
-		public DatabaseService(IOptions<ServerSettings> SettingsSnapshot, ILoggerFactory LoggerFactory)
+		/// <param name="settingsSnapshot">The settings instance</param>
+		/// <param name="loggerFactory">Instance of the logger for this service</param>
+		public DatabaseService(IOptions<ServerSettings> settingsSnapshot, ILoggerFactory loggerFactory)
 		{
-			this.Settings = SettingsSnapshot.Value;
-			this.Logger = LoggerFactory.CreateLogger<DatabaseService>();
-			this.LoggerFactory = LoggerFactory;
+			Settings = settingsSnapshot.Value;
+			_logger = loggerFactory.CreateLogger<DatabaseService>();
+			_loggerFactory = loggerFactory;
 
 			try
 			{
 				ReadOnlyMode = Settings.DatabaseReadOnlyMode;
 				if (Settings.DatabasePublicCert != null)
 				{
-					X509Store LocalTrustStore = new X509Store(StoreName.Root);
+					X509Store localTrustStore = new X509Store(StoreName.Root);
 					try
 					{
-						LocalTrustStore.Open(OpenFlags.ReadWrite);
+						localTrustStore.Open(OpenFlags.ReadWrite);
 
-						X509Certificate2Collection Collection = ImportCertificateBundle(Settings.DatabasePublicCert);
-						foreach (X509Certificate2 Certificate in Collection)
+						X509Certificate2Collection collection = ImportCertificateBundle(Settings.DatabasePublicCert);
+						foreach (X509Certificate2 certificate in collection)
 						{
-							Logger.LogInformation("Importing certificate for {Subject}", Certificate.Subject);
+							_logger.LogInformation("Importing certificate for {Subject}", certificate.Subject);
 						}
 
-						LocalTrustStore.AddRange(Collection);
+						localTrustStore.AddRange(collection);
 					}
 					finally
 					{
-						LocalTrustStore.Close();
+						localTrustStore.Close();
 					}
 				}
 
-				string? ConnectionString = Settings.DatabaseConnectionString;
-				if (ConnectionString == null)
+				string? connectionString = Settings.DatabaseConnectionString;
+				if (connectionString == null)
 				{
 					if (IsPortInUse(DefaultMongoPort))
 					{
-						ConnectionString = "mongodb://localhost:27017";
+						connectionString = "mongodb://localhost:27017";
 					}
-					else if (TryStartMongoServer(Logger))
+					else if (TryStartMongoServer(_logger))
 					{
-						ConnectionString = "mongodb://localhost:27017/?readPreference=primary&appname=Horde&ssl=false";
+						connectionString = "mongodb://localhost:27017/?readPreference=primary&appname=Horde&ssl=false";
 					}
 					else
 					{
@@ -164,40 +150,40 @@ namespace Horde.Build.Services
 					}
 				}
 
-				MongoClientSettings MongoSettings = MongoClientSettings.FromConnectionString(ConnectionString);
-				MongoSettings.ClusterConfigurator = ClusterBuilder =>
+				MongoClientSettings mongoSettings = MongoClientSettings.FromConnectionString(connectionString);
+				mongoSettings.ClusterConfigurator = clusterBuilder =>
 				{
-					if (Logger.IsEnabled(LogLevel.Trace))
+					if (_logger.IsEnabled(LogLevel.Trace))
 					{
-						ClusterBuilder.Subscribe<CommandStartedEvent>(Event => TraceMongoCommand(Event.Command));
+						clusterBuilder.Subscribe<CommandStartedEvent>(ev => TraceMongoCommand(ev.Command));
 					}
 				};
 				
-				MongoSettings.SslSettings = new SslSettings();
-				MongoSettings.SslSettings.ServerCertificateValidationCallback = CertificateValidationCallBack;
-				MongoSettings.MaxConnectionPoolSize = 300; // Default is 100
+				mongoSettings.SslSettings = new SslSettings();
+				mongoSettings.SslSettings.ServerCertificateValidationCallback = CertificateValidationCallBack;
+				mongoSettings.MaxConnectionPoolSize = 300; // Default is 100
 
 				//TestSslConnection(MongoSettings.Server.Host, MongoSettings.Server.Port, Logger);
 
-				MongoClient Client = new MongoClient(MongoSettings);
-				Database = Client.GetDatabase(Settings.DatabaseName);
+				MongoClient client = new MongoClient(mongoSettings);
+				Database = client.GetDatabase(Settings.DatabaseName);
 
 				Singletons = GetCollection<BsonDocument>("Singletons");
 
-				Globals Globals = GetGlobalsAsync().Result;
-				while (Globals.JwtSigningKey == null)
+				Globals globals = GetGlobalsAsync().Result;
+				while (globals.JwtSigningKey == null)
 				{
-					Globals.RotateSigningKey();
-					if (!TryUpdateSingletonAsync(Globals).Result)
+					globals.RotateSigningKey();
+					if (!TryUpdateSingletonAsync(globals).Result)
 					{
-						Globals = GetGlobalsAsync().Result;
+						globals = GetGlobalsAsync().Result;
 					}
 				}
 
 				JwtIssuer = Settings.JwtIssuer ?? Dns.GetHostName();
 				if (String.IsNullOrEmpty(Settings.JwtSecret))
 				{
-					JwtSigningKey = new SymmetricSecurityKey(Globals.JwtSigningKey);
+					JwtSigningKey = new SymmetricSecurityKey(globals.JwtSigningKey);
 				}
 				else
 				{
@@ -206,50 +192,50 @@ namespace Horde.Build.Services
 
 				Credentials = GetCollection<Credential>("Credentials");
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogError(Ex, "Exception while initializing DatabaseService");
+				_logger.LogError(ex, "Exception while initializing DatabaseService");
 				throw;
 			}
 		}
 
-		internal const int CTRL_C_EVENT = 0;
+		internal const int CtrlCEvent = 0;
 
 		[DllImport("kernel32.dll")]
-		internal static extern bool GenerateConsoleCtrlEvent(int Event, int ProcessGroupId);
+		internal static extern bool GenerateConsoleCtrlEvent(int eventId, int processGroupId);
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			if (MongoProcess != null)
+			if (_mongoProcess != null)
 			{
-				GenerateConsoleCtrlEvent(CTRL_C_EVENT, MongoProcess.Id);
+				GenerateConsoleCtrlEvent(CtrlCEvent, _mongoProcess.Id);
 
-				MongoOutputTask?.Wait();
-				MongoOutputTask = null;
+				_mongoOutputTask?.Wait();
+				_mongoOutputTask = null;
 
-				MongoProcess.WaitForExit();
-				MongoProcess.Dispose();
-				MongoProcess = null;
+				_mongoProcess.WaitForExit();
+				_mongoProcess.Dispose();
+				_mongoProcess = null;
 			}
-			if(MongoProcessGroup != null)
+			if(_mongoProcessGroup != null)
 			{
-				MongoProcessGroup.Dispose();
-				MongoProcessGroup = null;
+				_mongoProcessGroup.Dispose();
+				_mongoProcessGroup = null;
 			}
 		}
 
 		/// <summary>
 		/// Checks if the given port is in use
 		/// </summary>
-		/// <param name="PortNumber"></param>
+		/// <param name="portNumber"></param>
 		/// <returns></returns>
-		static bool IsPortInUse(int PortNumber)
+		static bool IsPortInUse(int portNumber)
 		{
-			IPGlobalProperties IpGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+			IPGlobalProperties ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
 
-			IPEndPoint[] Listeners = IpGlobalProperties.GetActiveTcpListeners();
-			if (Listeners.Any(x => x.Port == PortNumber))
+			IPEndPoint[] listeners = ipGlobalProperties.GetActiveTcpListeners();
+			if (listeners.Any(x => x.Port == portNumber))
 			{
 				return true;
 			}
@@ -260,60 +246,60 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Attempts to start a local instance of MongoDB
 		/// </summary>
-		/// <param name="Logger"></param>
+		/// <param name="logger"></param>
 		/// <returns></returns>
-		bool TryStartMongoServer(ILogger Logger)
+		bool TryStartMongoServer(ILogger logger)
 		{
 			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				return false;
 			}
 
-			FileReference MongoExe = FileReference.Combine(Program.AppDir, "ThirdParty", "Mongo", "mongod.exe");
-			if (!FileReference.Exists(MongoExe))
+			FileReference mongoExe = FileReference.Combine(Program.AppDir, "ThirdParty", "Mongo", "mongod.exe");
+			if (!FileReference.Exists(mongoExe))
 			{
-				Logger.LogWarning("Unable to find Mongo executable.");
+				logger.LogWarning("Unable to find Mongo executable.");
 				return false;
 			}
 
-			DirectoryReference MongoDir = DirectoryReference.Combine(Program.DataDir, "Mongo");
+			DirectoryReference mongoDir = DirectoryReference.Combine(Program.DataDir, "Mongo");
 
-			DirectoryReference MongoDataDir = DirectoryReference.Combine(MongoDir, "Data");
-			DirectoryReference.CreateDirectory(MongoDataDir);
+			DirectoryReference mongoDataDir = DirectoryReference.Combine(mongoDir, "Data");
+			DirectoryReference.CreateDirectory(mongoDataDir);
 
-			FileReference MongoLogFile = FileReference.Combine(MongoDir, "mongod.log");
+			FileReference mongoLogFile = FileReference.Combine(mongoDir, "mongod.log");
 
-			FileReference ConfigFile = FileReference.Combine(MongoDir, "mongod.conf");
-			if(!FileReference.Exists(ConfigFile))
+			FileReference configFile = FileReference.Combine(mongoDir, "mongod.conf");
+			if(!FileReference.Exists(configFile))
 			{
-				DirectoryReference.CreateDirectory(ConfigFile.Directory);
-				using (StreamWriter Writer = new StreamWriter(ConfigFile.FullName))
+				DirectoryReference.CreateDirectory(configFile.Directory);
+				using (StreamWriter writer = new StreamWriter(configFile.FullName))
 				{
-					Writer.WriteLine("# mongod.conf");
-					Writer.WriteLine();
-					Writer.WriteLine("# for documentation of all options, see:");
-					Writer.WriteLine("# http://docs.mongodb.org/manual/reference/configuration-options/");
-					Writer.WriteLine();
-					Writer.WriteLine("storage:");
-					Writer.WriteLine("    dbPath: {0}", MongoDataDir.FullName);
-					Writer.WriteLine();
-					Writer.WriteLine("net:");
-					Writer.WriteLine("    port: {0}", DefaultMongoPort);
-					Writer.WriteLine("    bindIp: 127.0.0.1");
+					writer.WriteLine("# mongod.conf");
+					writer.WriteLine();
+					writer.WriteLine("# for documentation of all options, see:");
+					writer.WriteLine("# http://docs.mongodb.org/manual/reference/configuration-options/");
+					writer.WriteLine();
+					writer.WriteLine("storage:");
+					writer.WriteLine("    dbPath: {0}", mongoDataDir.FullName);
+					writer.WriteLine();
+					writer.WriteLine("net:");
+					writer.WriteLine("    port: {0}", DefaultMongoPort);
+					writer.WriteLine("    bindIp: 127.0.0.1");
 				}
 			}
 
-			MongoProcessGroup = new ManagedProcessGroup();
+			_mongoProcessGroup = new ManagedProcessGroup();
 			try
 			{
-				MongoProcess = new ManagedProcess(MongoProcessGroup, MongoExe.FullName, $"--config \"{ConfigFile}\"", null, null, ProcessPriorityClass.Normal);
-				MongoProcess.StdIn.Close();
-				MongoOutputTask = Task.Run(() => RelayMongoOutput());
+				_mongoProcess = new ManagedProcess(_mongoProcessGroup, mongoExe.FullName, $"--config \"{configFile}\"", null, null, ProcessPriorityClass.Normal);
+				_mongoProcess.StdIn.Close();
+				_mongoOutputTask = Task.Run(() => RelayMongoOutput());
 				return true;
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogWarning(Ex, "Unable to start Mongo server process");
+				logger.LogWarning(ex, "Unable to start Mongo server process");
 				return false;
 			}
 		}
@@ -324,45 +310,45 @@ namespace Horde.Build.Services
 		/// <returns></returns>
 		async Task RelayMongoOutput()
 		{
-			ILogger MongoLogger = LoggerFactory.CreateLogger("MongoDB");
+			ILogger mongoLogger = _loggerFactory.CreateLogger("MongoDB");
 
-			Dictionary<string, ILogger> ChannelLoggers = new Dictionary<string, ILogger>();
+			Dictionary<string, ILogger> channelLoggers = new Dictionary<string, ILogger>();
 			for (; ; )
 			{
-				string? Line = await MongoProcess!.ReadLineAsync();
-				if (Line == null)
+				string? line = await _mongoProcess!.ReadLineAsync();
+				if (line == null)
 				{
 					break;
 				}
-				if (Line.Length > 0)
+				if (line.Length > 0)
 				{
-					Match Match = Regex.Match(Line, @"^\s*[^\s]+\s+([A-Z])\s+([^\s]+)\s+(.*)");
-					if (Match.Success)
+					Match match = Regex.Match(line, @"^\s*[^\s]+\s+([A-Z])\s+([^\s]+)\s+(.*)");
+					if (match.Success)
 					{
-						ILogger? ChannelLogger;
-						if (!ChannelLoggers.TryGetValue(Match.Groups[2].Value, out ChannelLogger))
+						ILogger? channelLogger;
+						if (!channelLoggers.TryGetValue(match.Groups[2].Value, out channelLogger))
 						{
-							ChannelLogger = LoggerFactory.CreateLogger($"MongoDB.{Match.Groups[2].Value}");
-							ChannelLoggers.Add(Match.Groups[2].Value, ChannelLogger);
+							channelLogger = _loggerFactory.CreateLogger($"MongoDB.{match.Groups[2].Value}");
+							channelLoggers.Add(match.Groups[2].Value, channelLogger);
 						}
-						ChannelLogger.Log(ParseMongoLogLevel(Match.Groups[1].Value), "{Message}", Match.Groups[3].Value.TrimEnd());
+						channelLogger.Log(ParseMongoLogLevel(match.Groups[1].Value), "{Message}", match.Groups[3].Value.TrimEnd());
 					}
 					else
 					{
-						MongoLogger.Log(LogLevel.Information, "{Message}", Line);
+						mongoLogger.Log(LogLevel.Information, "{Message}", line);
 					}
 				}
 			}
-			MongoLogger.LogInformation("Exit code {ExitCode}", MongoProcess.ExitCode);
+			mongoLogger.LogInformation("Exit code {ExitCode}", _mongoProcess.ExitCode);
 		}
 
-		static LogLevel ParseMongoLogLevel(string Text)
+		static LogLevel ParseMongoLogLevel(string text)
 		{
-			if (Text.Equals("I", StringComparison.Ordinal))
+			if (text.Equals("I", StringComparison.Ordinal))
 			{
 				return LogLevel.Information;
 			}
-			else if (Text.Equals("E", StringComparison.Ordinal))
+			else if (text.Equals("E", StringComparison.Ordinal))
 			{
 				return LogLevel.Error;
 			}
@@ -375,167 +361,165 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Logs a mongodb command, removing any fields we don't care about
 		/// </summary>
-		/// <param name="Command">The command document</param>
-		void TraceMongoCommand(BsonDocument Command)
+		/// <param name="command">The command document</param>
+		void TraceMongoCommand(BsonDocument command)
 		{
-			List<string> Params = new List<string>();
-			List<string> Values = new List<string>();
+			List<string> names = new List<string>();
+			List<string> values = new List<string>();
 
-			foreach(BsonElement Element in Command)
+			foreach(BsonElement element in command)
 			{
-				if (Element.Value != null && !Element.Name.Equals("$db", StringComparison.Ordinal) && !Element.Name.Equals("lsid", StringComparison.Ordinal))
+				if (element.Value != null && !element.Name.Equals("$db", StringComparison.Ordinal) && !element.Name.Equals("lsid", StringComparison.Ordinal))
 				{
-					Params.Add($"{Element.Name}: {{{Values.Count}}}");
-					Values.Add(Element.Value.ToString()!);
+					names.Add($"{element.Name}: {{{values.Count}}}");
+					values.Add(element.Value.ToString()!);
 				}
 			}
 
 #pragma warning disable CA2254 // Template should be a static expression
-			Logger.LogTrace($"MongoDB: {String.Join(", ", Params)}", Values.ToArray());
+			_logger.LogTrace($"MongoDB: {String.Join(", ", names)}", values.ToArray());
 #pragma warning restore CA2254 // Template should be a static expression
 		}
 
 		/// <summary>
 		/// Imports one or more certificates from a single PEM file
 		/// </summary>
-		/// <param name="FileName">File to import</param>
+		/// <param name="fileName">File to import</param>
 		/// <returns>Collection of certificates</returns>
-		static X509Certificate2Collection ImportCertificateBundle(string FileName)
+		static X509Certificate2Collection ImportCertificateBundle(string fileName)
 		{
-			X509Certificate2Collection Collection = new X509Certificate2Collection();
+			X509Certificate2Collection collection = new X509Certificate2Collection();
 
-			string Text = File.ReadAllText(FileName);
-			for (int Offset = 0; Offset < Text.Length;)
+			string text = File.ReadAllText(fileName);
+			for (int offset = 0; offset < text.Length;)
 			{
-				int NextOffset = Text.IndexOf("-----BEGIN CERTIFICATE-----", Offset + 1, StringComparison.Ordinal);
-				if (NextOffset == -1)
+				int nextOffset = text.IndexOf("-----BEGIN CERTIFICATE-----", offset + 1, StringComparison.Ordinal);
+				if (nextOffset == -1)
 				{
-					NextOffset = Text.Length;
+					nextOffset = text.Length;
 				}
 
-				string CertificateText = Text.Substring(Offset, NextOffset - Offset);
-				Collection.Add(new X509Certificate2(Encoding.UTF8.GetBytes(CertificateText)));
+				string certificateText = text.Substring(offset, nextOffset - offset);
+				collection.Add(new X509Certificate2(Encoding.UTF8.GetBytes(certificateText)));
 
-				Offset = NextOffset;
+				offset = nextOffset;
 			}
 
-			return Collection;
+			return collection;
 		}
 
 		/// <summary>
 		/// Tests connection to the given server
 		/// </summary>
-		/// <param name="Host">Host name</param>
-		/// <param name="Port">Port number to connect on</param>
-		/// <param name="Logger">Logger for diagnostic messages</param>
+		/// <param name="host">Host name</param>
+		/// <param name="port">Port number to connect on</param>
+		/// <param name="logger">Logger for diagnostic messages</param>
 		/// <returns>True if the connection was valid</returns>
-		static bool TestSslConnection(string Host, int Port, ILogger Logger)
+		static bool TestSslConnection(string host, int port, ILogger logger)
 		{
-#pragma warning disable CA1031 // Do not catch general exception types
-			using (TcpClient Client = new TcpClient())
+			using (TcpClient client = new TcpClient())
 			{
 				try
 				{
-					Client.Connect(Host, Port);
-					Logger.LogInformation("Successfully connected to {Host} on port {Port}", Host, Port);
+					client.Connect(host, port);
+					logger.LogInformation("Successfully connected to {Host} on port {Port}", host, port);
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					Logger.LogError(Ex, "Unable to connect to {Host} on port {Port}", Host, Port);
+					logger.LogError(ex, "Unable to connect to {Host} on port {Port}", host, port);
 					return false;
 				}
 
-				using (SslStream Stream = new SslStream(Client.GetStream()))
+				using (SslStream stream = new SslStream(client.GetStream()))
 				{
 					try
 					{
-						Stream.AuthenticateAsClient(Host);
-						Logger.LogInformation("Successfully authenticated host {Host}", Host);
+						stream.AuthenticateAsClient(host);
+						logger.LogInformation("Successfully authenticated host {Host}", host);
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						Logger.LogError(Ex, "Unable to authenticate as client");
+						logger.LogError(ex, "Unable to authenticate as client");
 						return false;
 					}
 				}
 			}
 			return true;
-#pragma warning restore CA1031 // Do not catch general exception types
 		}
 
 		/// <summary>
 		/// Provides additional diagnostic information for SSL certificate validation
 		/// </summary>
-		/// <param name="Sender"></param>
-		/// <param name="Certificate"></param>
-		/// <param name="Chain"></param>
-		/// <param name="SslPolicyErrors"></param>
+		/// <param name="sender"></param>
+		/// <param name="certificate"></param>
+		/// <param name="chain"></param>
+		/// <param name="sslPolicyErrors"></param>
 		/// <returns>True if the certificate is allowed, false otherwise</returns>
-		bool CertificateValidationCallBack(object Sender, X509Certificate? Certificate, X509Chain? Chain, SslPolicyErrors SslPolicyErrors)
+		bool CertificateValidationCallBack(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
 		{
 			// If the certificate is a valid, signed certificate, return true.
-			if (SslPolicyErrors == SslPolicyErrors.None)
+			if (sslPolicyErrors == SslPolicyErrors.None)
 			{
 				return true;
 			}
 
 			// Generate diagnostic information
-			StringBuilder Builder = new StringBuilder();
-			if (Sender != null)
+			StringBuilder builder = new StringBuilder();
+			if (sender != null)
 			{
-				string SenderInfo = StringUtils.Indent(Sender.ToString() ?? String.Empty, "    ");
-				Builder.Append(CultureInfo.InvariantCulture, $"\nSender:\n{SenderInfo}");
+				string senderInfo = StringUtils.Indent(sender.ToString() ?? String.Empty, "    ");
+				builder.Append(CultureInfo.InvariantCulture, $"\nSender:\n{senderInfo}");
 			}
-			if (Certificate != null)
+			if (certificate != null)
 			{
-				Builder.Append(CultureInfo.InvariantCulture, $"\nCertificate: {Certificate.Subject}");
+				builder.Append(CultureInfo.InvariantCulture, $"\nCertificate: {certificate.Subject}");
 			}
-			if (Chain != null)
+			if (chain != null)
 			{
-				if (Chain.ChainStatus != null && Chain.ChainStatus.Length > 0)
+				if (chain.ChainStatus != null && chain.ChainStatus.Length > 0)
 				{
-					Builder.Append("\nChain status:");
-					foreach (X509ChainStatus Status in Chain.ChainStatus)
+					builder.Append("\nChain status:");
+					foreach (X509ChainStatus status in chain.ChainStatus)
 					{
-						Builder.Append(CultureInfo.InvariantCulture, $"\n  {Status.StatusInformation}");
+						builder.Append(CultureInfo.InvariantCulture, $"\n  {status.StatusInformation}");
 					}
 				}
-				if (Chain.ChainElements != null)
+				if (chain.ChainElements != null)
 				{
-					Builder.Append("\nChain elements:");
-					for (int Idx = 0; Idx < Chain.ChainElements.Count; Idx++)
+					builder.Append("\nChain elements:");
+					for (int idx = 0; idx < chain.ChainElements.Count; idx++)
 					{
-						X509ChainElement Element = Chain.ChainElements[Idx];
-						Builder.Append(CultureInfo.InvariantCulture, $"\n  {Idx,4} - Certificate: {Element.Certificate.Subject}");
-						if (Element.ChainElementStatus != null && Element.ChainElementStatus.Length > 0)
+						X509ChainElement element = chain.ChainElements[idx];
+						builder.Append(CultureInfo.InvariantCulture, $"\n  {idx,4} - Certificate: {element.Certificate.Subject}");
+						if (element.ChainElementStatus != null && element.ChainElementStatus.Length > 0)
 						{
-							foreach (X509ChainStatus Status in Element.ChainElementStatus)
+							foreach (X509ChainStatus status in element.ChainElementStatus)
 							{
-								Builder.Append(CultureInfo.InvariantCulture, $"\n         Status: {Status.StatusInformation} ({Status.Status})");
+								builder.Append(CultureInfo.InvariantCulture, $"\n         Status: {status.StatusInformation} ({status.Status})");
 							}
 						}
-						if (!String.IsNullOrEmpty(Element.Information))
+						if (!String.IsNullOrEmpty(element.Information))
 						{
-							Builder.Append(CultureInfo.InvariantCulture, $"\n         Info: {Element.Information}");
+							builder.Append(CultureInfo.InvariantCulture, $"\n         Info: {element.Information}");
 						}
 					}
 				}
 			}
 
 			// Print out additional diagnostic information
-			Logger.LogError("TLS certificate validation failed ({Errors}).{AdditionalInfo}", SslPolicyErrors, StringUtils.Indent(Builder.ToString(), "    "));
+			_logger.LogError("TLS certificate validation failed ({Errors}).{AdditionalInfo}", sslPolicyErrors, StringUtils.Indent(builder.ToString(), "    "));
 			return false;
 		}
 
 		/// <summary>
 		/// Get a MongoDB collection from database
 		/// </summary>
-		/// <param name="Name">Name of collection</param>
+		/// <param name="name">Name of collection</param>
 		/// <typeparam name="T">A MongoDB document</typeparam>
 		/// <returns></returns>
-		public IMongoCollection<T> GetCollection<T>(string Name)
+		public IMongoCollection<T> GetCollection<T>(string name)
 		{
-			return new MongoTracingCollection<T>(Database.GetCollection<T>(Name));
+			return new MongoTracingCollection<T>(Database.GetCollection<T>(name));
 		}
 
 		/// <summary>
@@ -550,37 +534,37 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Gets a singleton document by id
 		/// </summary>
-		/// <param name="Id">Id of the singleton document</param>
+		/// <param name="id">Id of the singleton document</param>
 		/// <returns>The document</returns>
-		public async Task<T> GetSingletonAsync<T>(ObjectId Id) where T : SingletonBase, new()
+		public async Task<T> GetSingletonAsync<T>(ObjectId id) where T : SingletonBase, new()
 		{
-			T Singleton = await GetSingletonAsync(Id, () => new T());
-			Singleton.PostLoad();
-			return Singleton;
+			T singleton = await GetSingletonAsync(id, () => new T());
+			singleton.PostLoad();
+			return singleton;
 		}
 
 		/// <summary>
 		/// Gets a singleton document by id
 		/// </summary>
-		/// <param name="Id">Id of the singleton document</param>
-		/// <param name="Constructor">Method to use to construct a new object</param>
+		/// <param name="id">Id of the singleton document</param>
+		/// <param name="constructor">Method to use to construct a new object</param>
 		/// <returns>The document</returns>
-		public async Task<T> GetSingletonAsync<T>(ObjectId Id, Func<T> Constructor) where T : SingletonBase, new()
+		public async Task<T> GetSingletonAsync<T>(ObjectId id, Func<T> constructor) where T : SingletonBase, new()
 		{
-			FilterDefinition<BsonDocument> Filter = new BsonDocument(new BsonElement("_id", Id));
+			FilterDefinition<BsonDocument> filter = new BsonDocument(new BsonElement("_id", id));
 			for (; ; )
 			{
-				BsonDocument? Object = await Singletons.Find<BsonDocument>(Filter).FirstOrDefaultAsync();
-				if (Object != null)
+				BsonDocument? document = await Singletons.Find<BsonDocument>(filter).FirstOrDefaultAsync();
+				if (document != null)
 				{
-					T Item = BsonSerializer.Deserialize<T>(Object);
-					Item.PostLoad();
-					return Item;
+					T item = BsonSerializer.Deserialize<T>(document);
+					item.PostLoad();
+					return item;
 				}
 
-				T NewItem = Constructor();
-				NewItem.Id = Id;
-				await Singletons.InsertOneAsync(NewItem.ToBsonDocument());
+				T newItem = constructor();
+				newItem.Id = id;
+				await Singletons.InsertOneAsync(newItem.ToBsonDocument());
 			}
 		}
 
@@ -588,17 +572,17 @@ namespace Horde.Build.Services
 		/// Updates a singleton
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Id"></param>
-		/// <param name="Updater"></param>
+		/// <param name="id"></param>
+		/// <param name="updater"></param>
 		/// <returns></returns>
-		public async Task UpdateSingletonAsync<T>(ObjectId Id, Action<T> Updater) where T : SingletonBase, new()
+		public async Task UpdateSingletonAsync<T>(ObjectId id, Action<T> updater) where T : SingletonBase, new()
 		{
 			for (; ; )
 			{
-				T Object = await GetSingletonAsync(Id, () => new T());
-				Updater(Object);
+				T document = await GetSingletonAsync(id, () => new T());
+				updater(document);
 				
-				if (await TryUpdateSingletonAsync(Object))
+				if (await TryUpdateSingletonAsync(document))
 				{
 					break;
 				}
@@ -608,22 +592,22 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Attempts to update a singleton object
 		/// </summary>
-		/// <param name="SingletonObject">The singleton object</param>
+		/// <param name="singletonObject">The singleton object</param>
 		/// <returns>True if the singleton document was updated</returns>
-		public async Task<bool> TryUpdateSingletonAsync<T>(T SingletonObject) where T : SingletonBase
+		public async Task<bool> TryUpdateSingletonAsync<T>(T singletonObject) where T : SingletonBase
 		{
-			int PrevRevision = SingletonObject.Revision++;
+			int prevRevision = singletonObject.Revision++;
 
-			BsonDocument Filter = new BsonDocument { new BsonElement("_id", SingletonObject.Id), new BsonElement(nameof(SingletonBase.Revision), PrevRevision) };
+			BsonDocument filter = new BsonDocument { new BsonElement("_id", singletonObject.Id), new BsonElement(nameof(SingletonBase.Revision), prevRevision) };
 			try
 			{
-				ReplaceOneResult Result = await Singletons.ReplaceOneAsync(Filter, SingletonObject.ToBsonDocument(), new ReplaceOptions { IsUpsert = true });
-				return Result.MatchedCount > 0;
+				ReplaceOneResult result = await Singletons.ReplaceOneAsync(filter, singletonObject.ToBsonDocument(), new ReplaceOptions { IsUpsert = true });
+				return result.MatchedCount > 0;
 			}
-			catch (MongoWriteException Ex)
+			catch (MongoWriteException ex)
 			{
 				// Duplicate key error occurs if filter fails to match because revision is not the same.
-				if (Ex.WriteError != null && Ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+				if (ex.WriteError != null && ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
 				{
 					return false;
 				}

@@ -6,11 +6,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
-using HordeCommon;
-using HordeCommon.Rpc.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
+using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 using OpenTracing;
 using OpenTracing.Util;
 
@@ -32,8 +32,8 @@ namespace Horde.Build.Fleet.Autoscale
 	{
 		struct UtilizationSample
 		{
-			public double JobWork;
-			public double OtherWork;
+			public double _jobWork;
+			public double _otherWork;
 		}
 
 		class AgentData
@@ -41,24 +41,24 @@ namespace Horde.Build.Fleet.Autoscale
 			public IAgent Agent { get; }
 			public UtilizationSample[] Samples { get; }
 			public List<ILease> Leases { get; } = new ();
-			private readonly int NumSamples;
+			private readonly int _numSamples;
 
-			public AgentData(IAgent Agent, int NumSamples)
+			public AgentData(IAgent agent, int numSamples)
 			{
-				this.Agent = Agent;
-				this.NumSamples = NumSamples;
-				Samples = new UtilizationSample[NumSamples];
+				Agent = agent;
+				_numSamples = numSamples;
+				Samples = new UtilizationSample[numSamples];
 			}
 
-			public void Add(double MinT, double MaxT, double JobWork, double OtherWork)
+			public void Add(double minT, double maxT, double jobWork, double otherWork)
 			{
-				int MinIdx = Math.Clamp((int)MinT, 0, NumSamples - 1);
-				int MaxIdx = Math.Clamp((int)MaxT, MinIdx, NumSamples - 1);
-				for (int Idx = MinIdx; Idx <= MaxIdx; Idx++)
+				int minIdx = Math.Clamp((int)minT, 0, _numSamples - 1);
+				int maxIdx = Math.Clamp((int)maxT, minIdx, _numSamples - 1);
+				for (int idx = minIdx; idx <= maxIdx; idx++)
 				{
-					double Fraction = Math.Clamp(MaxT - Idx, 0.0, 1.0) - Math.Clamp(MinT - Idx, 0.0, 1.0);
-					Samples[Idx].JobWork += JobWork * Fraction;
-					Samples[Idx].OtherWork += OtherWork * Fraction;
+					double fraction = Math.Clamp(maxT - idx, 0.0, 1.0) - Math.Clamp(minT - idx, 0.0, 1.0);
+					Samples[idx]._jobWork += jobWork * fraction;
+					Samples[idx]._otherWork += otherWork * fraction;
 				}
 			}
 		}
@@ -69,50 +69,50 @@ namespace Horde.Build.Fleet.Autoscale
 			public List<IAgent> Agents { get; } = new ();
 			public UtilizationSample[] Samples { get; }
 
-			public PoolData(IPool Pool, int NumSamples)
+			public PoolData(IPool pool, int numSamples)
 			{
-				this.Pool = Pool;
-				Samples = new UtilizationSample[NumSamples];
+				Pool = pool;
+				Samples = new UtilizationSample[numSamples];
 			}
 
-			public void Add(AgentData AgentData)
+			public void Add(AgentData agentData)
 			{
-				Agents.Add(AgentData.Agent);
-				for (int Idx = 0; Idx < Samples.Length; Idx++)
+				Agents.Add(agentData.Agent);
+				for (int idx = 0; idx < Samples.Length; idx++)
 				{
-					Samples[Idx].JobWork += AgentData.Samples[Idx].JobWork;
-					Samples[Idx].OtherWork += AgentData.Samples[Idx].OtherWork;
+					Samples[idx]._jobWork += agentData.Samples[idx]._jobWork;
+					Samples[idx]._otherWork += agentData.Samples[idx]._otherWork;
 				}
 			}
 		}
 		
-		private readonly IAgentCollection AgentCollection;
-		private readonly IPoolCollection PoolCollection;
-		private readonly ILeaseCollection LeaseCollection;
-		private readonly IClock Clock;
-		private readonly TimeSpan SampleTime = TimeSpan.FromMinutes(6.0);
-		private readonly int NumSamples = 10;
-		private readonly int NumSamplesForResult = 9;
+		private readonly IAgentCollection _agentCollection;
+		private readonly IPoolCollection _poolCollection;
+		private readonly ILeaseCollection _leaseCollection;
+		private readonly IClock _clock;
+		private readonly TimeSpan _sampleTime = TimeSpan.FromMinutes(6.0);
+		private readonly int _numSamples = 10;
+		private readonly int _numSamplesForResult = 9;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AgentCollection"></param>
-		/// <param name="PoolCollection"></param>
-		/// <param name="LeaseCollection"></param>
-		/// <param name="Clock"></param>
-		/// <param name="NumSamples">Number of samples to collect for calculating lease utilization</param>
-		/// <param name="NumSamplesForResult">Min number of samples for a valid result</param>
-		/// <param name="SampleTime">Time period for each sample</param>
-		public LeaseUtilizationStrategy(IAgentCollection AgentCollection, IPoolCollection PoolCollection, ILeaseCollection LeaseCollection, IClock Clock, int NumSamples = 10, int NumSamplesForResult = 9, TimeSpan? SampleTime = null)
+		/// <param name="agentCollection"></param>
+		/// <param name="poolCollection"></param>
+		/// <param name="leaseCollection"></param>
+		/// <param name="clock"></param>
+		/// <param name="numSamples">Number of samples to collect for calculating lease utilization</param>
+		/// <param name="numSamplesForResult">Min number of samples for a valid result</param>
+		/// <param name="sampleTime">Time period for each sample</param>
+		public LeaseUtilizationStrategy(IAgentCollection agentCollection, IPoolCollection poolCollection, ILeaseCollection leaseCollection, IClock clock, int numSamples = 10, int numSamplesForResult = 9, TimeSpan? sampleTime = null)
 		{
-			this.AgentCollection = AgentCollection;
-			this.PoolCollection = PoolCollection;
-			this.LeaseCollection = LeaseCollection;
-			this.Clock = Clock;
-			this.NumSamples = NumSamples;
-			this.NumSamplesForResult = NumSamplesForResult;
-			this.SampleTime = SampleTime ?? this.SampleTime;
+			_agentCollection = agentCollection;
+			_poolCollection = poolCollection;
+			_leaseCollection = leaseCollection;
+			_clock = clock;
+			_numSamples = numSamples;
+			_numSamplesForResult = numSamplesForResult;
+			_sampleTime = sampleTime ?? _sampleTime;
 		}
 
 		private async Task<Dictionary<AgentId, AgentData>> GetAgentDataAsync()
@@ -120,125 +120,125 @@ namespace Horde.Build.Fleet.Autoscale
 			using IScope _ = GlobalTracer.Instance.BuildSpan("GetAgentDataAsync").StartActive();
 			
 			// Find all the current agents
-			List<IAgent> Agents = await AgentCollection.FindAsync(Status: AgentStatus.Ok);
+			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok);
 
 			// Query leases in last interval
-			DateTime MaxTime = Clock.UtcNow;
-			DateTime MinTime = MaxTime - (SampleTime * NumSamples);
-			List<ILease> Leases = await LeaseCollection.FindLeasesAsync(MinTime, MaxTime);
+			DateTime maxTime = _clock.UtcNow;
+			DateTime minTime = maxTime - (_sampleTime * _numSamples);
+			List<ILease> leases = await _leaseCollection.FindLeasesAsync(minTime, maxTime);
 
 			// Add all the leases to a data object for each agent
-			Dictionary<AgentId, AgentData> AgentIdToData = Agents.ToDictionary(x => x.Id, x => new AgentData(x, NumSamples));
-			foreach (ILease Lease in Leases)
+			Dictionary<AgentId, AgentData> agentIdToData = agents.ToDictionary(x => x.Id, x => new AgentData(x, _numSamples));
+			foreach (ILease lease in leases)
 			{
-				AgentData? AgentData;
-				if (AgentIdToData.TryGetValue(Lease.AgentId, out AgentData) && AgentData.Agent.SessionId == Lease.SessionId)
+				AgentData? agentData;
+				if (agentIdToData.TryGetValue(lease.AgentId, out agentData) && agentData.Agent.SessionId == lease.SessionId)
 				{
-					AgentData.Leases.Add(Lease);
+					agentData.Leases.Add(lease);
 				}
 			}
 			
 			// Compute utilization for each agent
-			foreach (AgentData AgentData in AgentIdToData.Values)
+			foreach (AgentData agentData in agentIdToData.Values)
 			{
-				foreach (ILease Lease in AgentData.Leases.OrderBy(x => x.StartTime))
+				foreach (ILease lease in agentData.Leases.OrderBy(x => x.StartTime))
 				{
-					double MinT = (Lease.StartTime - MinTime).TotalSeconds / SampleTime.TotalSeconds;
-					double MaxT = (Lease.FinishTime == null)
-						? NumSamples
-						: ((Lease.FinishTime.Value - MinTime).TotalSeconds / SampleTime.TotalSeconds);
+					double minT = (lease.StartTime - minTime).TotalSeconds / _sampleTime.TotalSeconds;
+					double maxT = (lease.FinishTime == null)
+						? _numSamples
+						: ((lease.FinishTime.Value - minTime).TotalSeconds / _sampleTime.TotalSeconds);
 
-					Any Payload = Any.Parser.ParseFrom(Lease.Payload.ToArray());
-					if (Payload.Is(ExecuteJobTask.Descriptor))
+					Any payload = Any.Parser.ParseFrom(lease.Payload.ToArray());
+					if (payload.Is(ExecuteJobTask.Descriptor))
 					{
-						AgentData.Add(MinT, MaxT, 1.0, 0.0);
+						agentData.Add(minT, maxT, 1.0, 0.0);
 					}
 					else
 					{
-						AgentData.Add(MinT, MaxT, 0.0, 1.0);
+						agentData.Add(minT, maxT, 0.0, 1.0);
 					}
 				}
 			}
 
-			return AgentIdToData;
+			return agentIdToData;
 		}
 		
 		private async Task<Dictionary<PoolId, PoolData>> GetPoolDataAsync()
 		{
 			using IScope _ = GlobalTracer.Instance.BuildSpan("GetPoolDataAsync").StartActive();
 
-			Dictionary<AgentId, AgentData> AgentIdToData = await GetAgentDataAsync();
+			Dictionary<AgentId, AgentData> agentIdToData = await GetAgentDataAsync();
 			
 			// Get all the pools
-			List<IPool> Pools = await PoolCollection.GetAsync();
-			Dictionary<PoolId, PoolData> PoolToData = Pools.ToDictionary(x => x.Id, x => new PoolData(x, NumSamples));
+			List<IPool> pools = await _poolCollection.GetAsync();
+			Dictionary<PoolId, PoolData> poolToData = pools.ToDictionary(x => x.Id, x => new PoolData(x, _numSamples));
 
 			// Find pool utilization over the query period
-			foreach (AgentData AgentData in AgentIdToData.Values)
+			foreach (AgentData agentData in agentIdToData.Values)
 			{
-				foreach (PoolId PoolId in AgentData.Agent.GetPools())
+				foreach (PoolId poolId in agentData.Agent.GetPools())
 				{
-					PoolData? PoolData;
-					if (PoolToData.TryGetValue(PoolId, out PoolData))
+					PoolData? poolData;
+					if (poolToData.TryGetValue(poolId, out poolData))
 					{
-						PoolData.Add(AgentData);
+						poolData.Add(agentData);
 					}
 				}
 			}
 
-			return PoolToData;
+			return poolToData;
 		}
 
 		/// <inheritdoc/>
 		public string Name { get; } = "LeaseUtilization";
 
 		/// <inheritdoc/>
-		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools)
+		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
 		{
-			Dictionary<PoolId, PoolData> PoolToData = await GetPoolDataAsync();
-			List<PoolSizeData> Result = new();
+			Dictionary<PoolId, PoolData> poolToData = await GetPoolDataAsync();
+			List<PoolSizeData> result = new();
 
-			foreach (PoolData PoolData in PoolToData.Values.OrderByDescending(x => x.Agents.Count))
+			foreach (PoolData poolData in poolToData.Values.OrderByDescending(x => x.Agents.Count))
 			{
-				IPool Pool = PoolData.Pool;
+				IPool pool = poolData.Pool;
 
-				PoolSizeData? PoolSize = Pools.Find(x => x.Pool.Id == Pool.Id);
-				if (PoolSize != null)
+				PoolSizeData? poolSize = pools.Find(x => x.Pool.Id == pool.Id);
+				if (poolSize != null)
 				{
-					int MinAgents = Pool.MinAgents ?? 1;
-					int NumReserveAgents = Pool.NumReserveAgents ?? 5;
-					double Utilization = PoolData.Samples.Select(x => x.JobWork).OrderByDescending(x => x).Skip(NumSamples - NumSamplesForResult).First();
+					int minAgents = pool.MinAgents ?? 1;
+					int numReserveAgents = pool.NumReserveAgents ?? 5;
+					double utilization = poolData.Samples.Select(x => x._jobWork).OrderByDescending(x => x).Skip(_numSamples - _numSamplesForResult).First();
 				
 					// Number of agents in use over the sampling period. Can never be greater than number of agents available in pool.
-					int NumAgentsUtilized = (int)Utilization;
+					int numAgentsUtilized = (int)utilization;
 					
 					// Include reserve agent count to ensure pool always can grow
-					int DesiredAgentCount = Math.Max(NumAgentsUtilized + NumReserveAgents, MinAgents);;
+					int desiredAgentCount = Math.Max(numAgentsUtilized + numReserveAgents, minAgents);
 					
-					StringBuilder Sb = new();
-					Sb.AppendFormat("Jobs=[{0}] ", GetDensityMap(PoolData.Samples.Select(x => x.JobWork / Math.Max(1, PoolData.Agents.Count))));
-					Sb.AppendFormat("Total=[{0}] ", GetDensityMap(PoolData.Samples.Select(x => x.OtherWork / Math.Max(1, PoolData.Agents.Count))));
-					Sb.AppendFormat("Min=[{0,5:0.0}] ", PoolData.Samples.Min(x => x.JobWork));
-					Sb.AppendFormat("Max=[{0,5:0.0}] ", PoolData.Samples.Max(x => x.JobWork));
-					Sb.AppendFormat("Avg=[{0,5:0.0}] ", Utilization);
-					Sb.AppendFormat("Pct=[{0,5:0.0}] ", PoolData.Samples.Sum(x => x.JobWork) / NumSamples);
+					StringBuilder sb = new();
+					sb.AppendFormat("Jobs=[{0}] ", GetDensityMap(poolData.Samples.Select(x => x._jobWork / Math.Max(1, poolData.Agents.Count))));
+					sb.AppendFormat("Total=[{0}] ", GetDensityMap(poolData.Samples.Select(x => x._otherWork / Math.Max(1, poolData.Agents.Count))));
+					sb.AppendFormat("Min=[{0,5:0.0}] ", poolData.Samples.Min(x => x._jobWork));
+					sb.AppendFormat("Max=[{0,5:0.0}] ", poolData.Samples.Max(x => x._jobWork));
+					sb.AppendFormat("Avg=[{0,5:0.0}] ", utilization);
+					sb.AppendFormat("Pct=[{0,5:0.0}] ", poolData.Samples.Sum(x => x._jobWork) / _numSamples);
 
-					Result.Add(new(Pool, PoolSize.Agents, DesiredAgentCount, Sb.ToString()));
+					result.Add(new(pool, poolSize.Agents, desiredAgentCount, sb.ToString()));
 				}
 			}
 
-			return Result;
+			return result;
 		}
 		
 		/// <summary>
 		/// Creates a string of characters indicating a sequence of 0-1 values over time
 		/// </summary>
-		/// <param name="Values">Sequence of values</param>
+		/// <param name="values">Sequence of values</param>
 		/// <returns>Density map</returns>
-		private static string GetDensityMap(IEnumerable<double> Values)
+		private static string GetDensityMap(IEnumerable<double> values)
 		{
 			const string Greyscale = " 123456789";
-			return new string(Values.Select(x => Greyscale[Math.Clamp((int)(x * Greyscale.Length), 0, Greyscale.Length - 1)]).ToArray());
+			return new string(values.Select(x => Greyscale[Math.Clamp((int)(x * Greyscale.Length), 0, Greyscale.Length - 1)]).ToArray());
 		}
 	}
 }

@@ -1,5 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
@@ -7,11 +12,6 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -54,24 +54,24 @@ namespace Horde.Build.Collections.Impl
 
 			private ClaimDocument()
 			{
-				this.Type = null!;
-				this.Value = null!;
+				Type = null!;
+				Value = null!;
 			}
 
-			public ClaimDocument(string Type, string Value)
+			public ClaimDocument(string type, string value)
 			{
-				this.Type = Type;
-				this.Value = Value;
+				Type = type;
+				Value = value;
 			}
 
-			public ClaimDocument(IUserClaim Other)
+			public ClaimDocument(IUserClaim other)
 			{
-				this.Type = Other.Type;
-				this.Value = Other.Value;
+				Type = other.Type;
+				Value = other.Value;
 			}
 		}
 
-		IMongoCollection<UserDocument> Users;
+		readonly IMongoCollection<UserDocument> _users;
 
 		/// <summary>
 		/// Static constructor
@@ -85,106 +85,106 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		public UserCollectionV1(DatabaseService DatabaseService)
+		/// <param name="databaseService"></param>
+		public UserCollectionV1(DatabaseService databaseService)
 		{
-			Users = DatabaseService.GetCollection<UserDocument>("Users");
+			_users = databaseService.GetCollection<UserDocument>("Users");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				Users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.PrimaryClaim), new CreateIndexOptions { Unique = true }));
+				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.PrimaryClaim), new CreateIndexOptions { Unique = true }));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUser?> GetUserAsync(UserId Id)
+		public async Task<IUser?> GetUserAsync(UserId id)
 		{
-			return await Users.Find(x => x.Id == Id).FirstOrDefaultAsync();
+			return await _users.Find(x => x.Id == id).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<IUser?> GetCachedUserAsync(UserId? Id)
+		public async ValueTask<IUser?> GetCachedUserAsync(UserId? id)
 		{
-			if (Id == null)
+			if (id == null)
 			{
 				return null;
 			}
 			else
 			{
-				return await GetUserAsync(Id.Value);
+				return await GetUserAsync(id.Value);
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? Ids, string? NameRegex, int? Index, int? Count)
+		public async Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? ids, string? nameRegex, int? index, int? count)
 		{
-			FilterDefinition<UserDocument> Filter = Builders<UserDocument>.Filter.In(x => x.Id, Ids);
-			return await Users.Find(Filter).Range(Index, Count).ToListAsync<UserDocument, IUser>();
+			FilterDefinition<UserDocument> filter = Builders<UserDocument>.Filter.In(x => x.Id, ids);
+			return await _users.Find(filter).Range(index, count).ToListAsync<UserDocument, IUser>();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUser?> FindUserByLoginAsync(string Login)
+		public async Task<IUser?> FindUserByLoginAsync(string login)
 		{
-			ClaimDocument PrimaryClaim = new ClaimDocument(ClaimTypes.Name, Login);
-			return await Users.Find(x => x.PrimaryClaim == PrimaryClaim).FirstOrDefaultAsync();
+			ClaimDocument primaryClaim = new ClaimDocument(ClaimTypes.Name, login);
+			return await _users.Find(x => x.PrimaryClaim == primaryClaim).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUser> FindOrAddUserByLoginAsync(string Login, string? Name, string? Email)
+		public async Task<IUser> FindOrAddUserByLoginAsync(string login, string? name, string? email)
 		{
-			ClaimDocument NewPrimaryClaim = new ClaimDocument(ClaimTypes.Name, Login);
-			UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, UserId.GenerateNewId());
-			return await Users.FindOneAndUpdateAsync<UserDocument>(x => x.PrimaryClaim == NewPrimaryClaim, Update, new FindOneAndUpdateOptions<UserDocument> { IsUpsert = true, ReturnDocument = ReturnDocument.After });
+			ClaimDocument newPrimaryClaim = new ClaimDocument(ClaimTypes.Name, login);
+			UpdateDefinition<UserDocument> update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, UserId.GenerateNewId());
+			return await _users.FindOneAndUpdateAsync<UserDocument>(x => x.PrimaryClaim == newPrimaryClaim, update, new FindOneAndUpdateOptions<UserDocument> { IsUpsert = true, ReturnDocument = ReturnDocument.After });
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUserClaims> GetClaimsAsync(UserId UserId)
+		public async Task<IUserClaims> GetClaimsAsync(UserId userId)
 		{
-			return await Users.Find(x => x.Id == UserId).FirstOrDefaultAsync() ?? new UserDocument { Id = UserId };
+			return await _users.Find(x => x.Id == userId).FirstOrDefaultAsync() ?? new UserDocument { Id = userId };
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateClaimsAsync(UserId UserId, IEnumerable<IUserClaim> Claims)
+		public async Task UpdateClaimsAsync(UserId userId, IEnumerable<IUserClaim> claims)
 		{
-			List<ClaimDocument> NewClaims = Claims.Select(x => new ClaimDocument(x)).ToList();
-			await Users.FindOneAndUpdateAsync(x => x.Id == UserId, Builders<UserDocument>.Update.Set(x => x.Claims, NewClaims));
+			List<ClaimDocument> newClaims = claims.Select(x => new ClaimDocument(x)).ToList();
+			await _users.FindOneAndUpdateAsync(x => x.Id == userId, Builders<UserDocument>.Update.Set(x => x.Claims, newClaims));
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUserSettings> GetSettingsAsync(UserId UserId)
+		public async Task<IUserSettings> GetSettingsAsync(UserId userId)
 		{
-			return await Users.Find(x => x.Id == UserId).FirstOrDefaultAsync() ?? new UserDocument { Id = UserId };
+			return await _users.Find(x => x.Id == userId).FirstOrDefaultAsync() ?? new UserDocument { Id = userId };
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null)
 		{
-			if (AddPinnedJobIds != null)
+			if (addPinnedJobIds != null)
 			{
-				foreach (JobId PinnedJobId in AddPinnedJobIds)
+				foreach (JobId pinnedJobId in addPinnedJobIds)
 				{
-					FilterDefinition<UserDocument> Filter = Builders<UserDocument>.Filter.Eq(x => x.Id, UserId) & Builders<UserDocument>.Filter.AnyNin<JobId>(x => x.PinnedJobIds, new[] { PinnedJobId });
-					UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.PushEach(x => x.PinnedJobIds, new[] { PinnedJobId }, -50);
-					await Users.UpdateOneAsync(Filter, Update);
+					FilterDefinition<UserDocument> filter = Builders<UserDocument>.Filter.Eq(x => x.Id, userId) & Builders<UserDocument>.Filter.AnyNin<JobId>(x => x.PinnedJobIds, new[] { pinnedJobId });
+					UpdateDefinition<UserDocument> update = Builders<UserDocument>.Update.PushEach(x => x.PinnedJobIds, new[] { pinnedJobId }, -50);
+					await _users.UpdateOneAsync(filter, update);
 				}
 			}
 
-			List<UpdateDefinition<UserDocument>> Updates = new List<UpdateDefinition<UserDocument>>();
-			if (EnableExperimentalFeatures != null)
+			List<UpdateDefinition<UserDocument>> updates = new List<UpdateDefinition<UserDocument>>();
+			if (enableExperimentalFeatures != null)
 			{
-				Updates.Add(Builders<UserDocument>.Update.SetOrUnsetNull(x => x.EnableExperimentalFeatures, EnableExperimentalFeatures));
+				updates.Add(Builders<UserDocument>.Update.SetOrUnsetNull(x => x.EnableExperimentalFeatures, enableExperimentalFeatures));
 			}
-			if (DashboardSettings != null)
+			if (dashboardSettings != null)
 			{
-				Updates.Add(Builders<UserDocument>.Update.Set(x => x.DashboardSettings, DashboardSettings));
+				updates.Add(Builders<UserDocument>.Update.Set(x => x.DashboardSettings, dashboardSettings));
 			}
-			if (RemovePinnedJobIds != null && RemovePinnedJobIds.Any())
+			if (removePinnedJobIds != null && removePinnedJobIds.Any())
 			{
-				Updates.Add(Builders<UserDocument>.Update.PullAll(x => x.PinnedJobIds, RemovePinnedJobIds));
+				updates.Add(Builders<UserDocument>.Update.PullAll(x => x.PinnedJobIds, removePinnedJobIds));
 			}
-			if (Updates.Count > 0)
+			if (updates.Count > 0)
 			{
-				await Users.UpdateOneAsync<UserDocument>(x => x.Id == UserId, Builders<UserDocument>.Update.Combine(Updates));
+				await _users.UpdateOneAsync<UserDocument>(x => x.Id == userId, Builders<UserDocument>.Update.Combine(updates));
 			}
 		}
 
@@ -194,15 +194,15 @@ namespace Horde.Build.Collections.Impl
 		/// <returns></returns>
 		public async IAsyncEnumerable<(IUser, IUserClaims, IUserSettings)> EnumerateDocumentsAsync()
 		{
-			using (IAsyncCursor<UserDocument> Cursor = await Users.Find(FilterDefinition<UserDocument>.Empty).ToCursorAsync())
+			using (IAsyncCursor<UserDocument> cursor = await _users.Find(FilterDefinition<UserDocument>.Empty).ToCursorAsync())
 			{
-				while (await Cursor.MoveNextAsync())
+				while (await cursor.MoveNextAsync())
 				{
-					foreach (UserDocument Document in Cursor.Current)
+					foreach (UserDocument document in cursor.Current)
 					{
-						if (Document.Claims.Count > 0)
+						if (document.Claims.Count > 0)
 						{
-							yield return (Document, Document, Document);
+							yield return (document, document, document);
 						}
 					}
 				}

@@ -1,6 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.S3.Transfer;
+using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net.Mime;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Jobs;
@@ -10,21 +18,8 @@ using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IdentityModel.Tokens.Jwt;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Net.Http.Headers;
-using System.Net.Mime;
-using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -40,226 +35,226 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Instance of the database service
 		/// </summary>
-		private readonly DatabaseService DatabaseService;
+		private readonly DatabaseService _databaseService;
 
 		/// <summary>
 		/// Instance of the artifact collection
 		/// </summary>
-		private readonly IArtifactCollection ArtifactCollection;
+		private readonly IArtifactCollection _artifactCollection;
 
 		/// <summary>
 		/// Instance of the ACL service
 		/// </summary>
-		private readonly AclService AclService;
+		private readonly AclService _aclService;
 
 		/// <summary>
 		/// Instance of the Job service
 		/// </summary>
-		private readonly JobService JobService;
+		private readonly JobService _jobService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ArtifactsController(DatabaseService DatabaseSerivce, IArtifactCollection ArtifactCollection, AclService AclService, JobService JobService)
+		public ArtifactsController(DatabaseService databaseSerivce, IArtifactCollection artifactCollection, AclService aclService, JobService jobService)
 		{
-			this.DatabaseService = DatabaseSerivce;
-			this.ArtifactCollection = ArtifactCollection;
-			this.AclService = AclService;
-			this.JobService = JobService;
+			_databaseService = databaseSerivce;
+			_artifactCollection = artifactCollection;
+			_aclService = aclService;
+			_jobService = jobService;
 		}
 
 		/// <summary>
 		/// Creates an artifact
 		/// </summary>
-		/// <param name="JobId">BatchId</param>
-		/// <param name="StepId">StepId</param>
-		/// <param name="File">The file contents</param>
+		/// <param name="jobId">BatchId</param>
+		/// <param name="stepId">StepId</param>
+		/// <param name="file">The file contents</param>
 		/// <returns>Http result code</returns>
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v1/artifacts")]
-		public async Task<ActionResult<CreateArtifactResponse>> CreateArtifact([FromQuery] JobId JobId, [FromQuery]string? StepId, IFormFile File)
+		public async Task<ActionResult<CreateArtifactResponse>> CreateArtifact([FromQuery] JobId jobId, [FromQuery]string? stepId, IFormFile file)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId);
-			if(Job == null)
+			IJob? job = await _jobService.GetJobAsync(jobId);
+			if(job == null)
 			{
 				return NotFound();
 			}
 
-			if (!await JobService.AuthorizeAsync(Job, AclAction.UploadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(job, AclAction.UploadArtifact, User, null))
 			{
 				return Forbid();
 			}
 
-			IJobStep? Step = null;
-			if(StepId != null)
+			IJobStep? step = null;
+			if(stepId != null)
 			{
-				foreach(IJobStepBatch Batch in Job.Batches)
+				foreach(IJobStepBatch batch in job.Batches)
 				{
-					if(Batch.TryGetStep(StepId.ToSubResourceId(), out Step))
+					if(batch.TryGetStep(stepId.ToSubResourceId(), out step))
 					{
 						break;
 					}
 				}
-				if(Step == null)
+				if(step == null)
 				{
 					// if the step doesn't exist in any of the batches, not found
 					return NotFound();
 				}
 			}
 
-			IArtifact NewArtifact = await ArtifactCollection.CreateArtifactAsync(Job.Id, Step?.Id, File.FileName, File.ContentType ?? "horde-mime/unknown", File.OpenReadStream());
-			return new CreateArtifactResponse(NewArtifact.Id.ToString());
+			IArtifact newArtifact = await _artifactCollection.CreateArtifactAsync(job.Id, step?.Id, file.FileName, file.ContentType ?? "horde-mime/unknown", file.OpenReadStream());
+			return new CreateArtifactResponse(newArtifact.Id.ToString());
 		}
 
 		/// <summary>
 		/// Updates an artifact
 		/// </summary>
-		/// <param name="ArtifactId">JobId</param>
-		/// <param name="File">The file contents</param>
+		/// <param name="artifactId">JobId</param>
+		/// <param name="file">The file contents</param>
 		/// <returns>Http result code</returns>
 		[HttpPut]
 		[Authorize]
-		[Route("/api/v1/artifacts/{ArtifactId}")]
-		public async Task<ActionResult<CreateArtifactResponse>> UpdateArtifact(string ArtifactId, IFormFile File)
+		[Route("/api/v1/artifacts/{artifactId}")]
+		public async Task<ActionResult<CreateArtifactResponse>> UpdateArtifact(string artifactId, IFormFile file)
 		{
-			IArtifact? Artifact = await ArtifactCollection.GetArtifactAsync(ArtifactId.ToObjectId());
-			if (Artifact == null)
+			IArtifact? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			if (artifact == null)
 			{
 				return NotFound();
 			}
-			if (!await JobService.AuthorizeAsync(Artifact.JobId, AclAction.UploadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.UploadArtifact, User, null))
 			{
 				return Forbid();
 			}
 
-			await ArtifactCollection.UpdateArtifactAsync(Artifact, File.ContentType ?? "horde-mime/unknown", File.OpenReadStream());
+			await _artifactCollection.UpdateArtifactAsync(artifact, file.ContentType ?? "horde-mime/unknown", file.OpenReadStream());
 			return Ok();
 		}
 
 		/// <summary>
 		/// Query artifacts for a job step
 		/// </summary>
-		/// <param name="JobId">Optional JobId to filter by</param>
-		/// <param name="StepId">Optional StepId to filter by</param>
-		/// <param name="Code">Whether to generate a direct download code</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="jobId">Optional JobId to filter by</param>
+		/// <param name="stepId">Optional StepId to filter by</param>
+		/// <param name="code">Whether to generate a direct download code</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Information about all the artifacts</returns>
 		[HttpGet]
 		[Authorize]
 		[Route("/api/v1/artifacts")]
 		[ProducesResponseType(typeof(List<GetArtifactResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetArtifacts([FromQuery] JobId JobId, [FromQuery] string? StepId = null, [FromQuery] bool Code = false, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetArtifacts([FromQuery] JobId jobId, [FromQuery] string? stepId = null, [FromQuery] bool code = false, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await JobService.AuthorizeAsync(JobId, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(jobId, AclAction.DownloadArtifact, User, null))
 			{
 				return Forbid();
 			}
 
-			string? DownloadCode = Code ? (string?)GetDirectDownloadCodeForJob(JobId) : null;
+			string? downloadCode = code ? (string?)GetDirectDownloadCodeForJob(jobId) : null;
 
-			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobId, StepId?.ToSubResourceId(), null);
-			return Artifacts.ConvertAll(x => new GetArtifactResponse(x, DownloadCode).ApplyFilter(Filter));
+			List<IArtifact> artifacts = await _artifactCollection.GetArtifactsAsync(jobId, stepId?.ToSubResourceId(), null);
+			return artifacts.ConvertAll(x => new GetArtifactResponse(x, downloadCode).ApplyFilter(filter));
 		}
 
 		/// <summary>
 		/// Gets the claim required to download artifacts for a particular job
 		/// </summary>
-		/// <param name="JobId">The job id</param>
+		/// <param name="jobId">The job id</param>
 		/// <returns>The required claim</returns>
-		static Claim GetDirectDownloadClaim(JobId JobId)
+		static Claim GetDirectDownloadClaim(JobId jobId)
 		{
-			return new Claim(HordeClaimTypes.JobArtifacts, JobId.ToString());
+			return new Claim(HordeClaimTypes.JobArtifacts, jobId.ToString());
 		}
 
 		/// <summary>
 		/// Get a download code for the artifacts of a job
 		/// </summary>
-		/// <param name="JobId">The job id</param>
+		/// <param name="jobId">The job id</param>
 		/// <returns>The download code</returns>
-		string GetDirectDownloadCodeForJob(JobId JobId)
+		string GetDirectDownloadCodeForJob(JobId jobId)
 		{
-			Claim DownloadClaim = GetDirectDownloadClaim(JobId);
-			return AclService.IssueBearerToken(new[] { DownloadClaim }, TimeSpan.FromHours(4.0));
+			Claim downloadClaim = GetDirectDownloadClaim(jobId);
+			return _aclService.IssueBearerToken(new[] { downloadClaim }, TimeSpan.FromHours(4.0));
 		}
 
 		/// <summary>
 		/// Retrieve metadata about a specific artifact
 		/// </summary>
-		/// <param name="ArtifactId">Id of the artifact to get information about</param>
-		/// <param name="Code">Whether to generate a direct download code</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="artifactId">Id of the artifact to get information about</param>
+		/// <param name="code">Whether to generate a direct download code</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Authorize]
-		[Route("/api/v1/artifacts/{ArtifactId}")]
+		[Route("/api/v1/artifacts/{artifactId}")]
 		[ProducesResponseType(typeof(GetArtifactResponse), 200)]
-		public async Task<ActionResult<object>> GetArtifact(string ArtifactId, bool Code = false, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetArtifact(string artifactId, bool code = false, [FromQuery] PropertyFilter? filter = null)
 		{
-			IArtifact? Artifact = await ArtifactCollection.GetArtifactAsync(ArtifactId.ToObjectId());
-			if (Artifact == null)
+			IArtifact? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			if (artifact == null)
 			{
 				return NotFound();
 			}
-			if (!await JobService.AuthorizeAsync(Artifact.JobId, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.DownloadArtifact, User, null))
 			{
 				return Forbid();
 			}
 
-			string? DownloadCode = Code? (string?)GetDirectDownloadCodeForJob(Artifact.JobId) : null;
-			return new GetArtifactResponse(Artifact, DownloadCode).ApplyFilter(Filter);
+			string? downloadCode = code? (string?)GetDirectDownloadCodeForJob(artifact.JobId) : null;
+			return new GetArtifactResponse(artifact, downloadCode).ApplyFilter(filter);
 		}
 
 		/// <summary>
 		/// Retrieve raw data for an artifact
 		/// </summary>
-		/// <param name="ArtifactId">Id of the artifact to get information about</param>
+		/// <param name="artifactId">Id of the artifact to get information about</param>
 		/// <returns>Raw artifact data</returns>
 		[HttpGet]
 		[Authorize]
-		[Route("/api/v1/artifacts/{ArtifactId}/data")]
-		public async Task<ActionResult> GetArtifactData(string ArtifactId)
+		[Route("/api/v1/artifacts/{artifactId}/data")]
+		public async Task<ActionResult> GetArtifactData(string artifactId)
 		{
-			IArtifact? Artifact = await ArtifactCollection.GetArtifactAsync(ArtifactId.ToObjectId());
-			if (Artifact == null)
+			IArtifact? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			if (artifact == null)
 			{
 				return NotFound();
 			}
-			if (!await JobService.AuthorizeAsync(Artifact.JobId, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.DownloadArtifact, User, null))
 			{
 				return Forbid();
 			}
 
 			// Fun, filestream result automatically closes the stream!
-			return new FileStreamResult(await ArtifactCollection.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType);
+			return new FileStreamResult(await _artifactCollection.OpenArtifactReadStreamAsync(artifact), artifact.MimeType);
 		}
 		
 		/// <summary>
 		/// Retrieve raw data for an artifact by filename
 		/// </summary>
-		/// <param name="JobId">Unique id for the job</param>
-		/// <param name="StepId">Unique id for the step</param>
-		/// <param name="Filename">Filename of artifact from step</param>
+		/// <param name="jobId">Unique id for the job</param>
+		/// <param name="stepId">Unique id for the step</param>
+		/// <param name="filename">Filename of artifact from step</param>
 		/// <returns>Raw artifact data</returns>
 		[HttpGet]
-		[Route("/api/v1/jobs/{JobId}/steps/{StepId}/artifacts/{FileName}/data")]
-		public async Task<ActionResult<object>> GetArtifactDataByFilename(JobId JobId, string StepId, string Filename)
+		[Route("/api/v1/jobs/{jobId}/steps/{stepId}/artifacts/{filename}/data")]
+		public async Task<ActionResult<object>> GetArtifactDataByFilename(JobId jobId, string stepId, string filename)
 		{
-			SubResourceId StepIdValue = StepId.ToSubResourceId();
+			SubResourceId stepIdValue = stepId.ToSubResourceId();
 
-			if (!await JobService.AuthorizeAsync(JobId, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(jobId, AclAction.DownloadArtifact, User, null))
 			{
 				return Forbid();
 			}
 			
-			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobId, StepIdValue, Filename);
-			if (Artifacts.Count == 0)
+			List<IArtifact> artifacts = await _artifactCollection.GetArtifactsAsync(jobId, stepIdValue, filename);
+			if (artifacts.Count == 0)
 			{
 				return NotFound();
 			}
 
-			IArtifact Artifact = Artifacts[0];
-			return new FileStreamResult(await ArtifactCollection.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType);
+			IArtifact artifact = artifacts[0];
+			return new FileStreamResult(await _artifactCollection.OpenArtifactReadStreamAsync(artifact), artifact.MimeType);
 		}
 
 		/// <summary>
@@ -270,114 +265,113 @@ namespace Horde.Build.Controllers
 			/// <summary>
 			/// The suggested download filename
 			/// </summary>
-			string FileName;
+			readonly string _fileName;
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Stream"></param>
-			/// <param name="MimeType"></param>
-			/// <param name="FileName"></param>
-			public InlineFileStreamResult(System.IO.Stream Stream, string MimeType, string FileName)
-				: base(Stream, MimeType)
+			/// <param name="stream"></param>
+			/// <param name="mimeType"></param>
+			/// <param name="fileName"></param>
+			public InlineFileStreamResult(System.IO.Stream stream, string mimeType, string fileName)
+				: base(stream, mimeType)
 			{
-				this.FileName = FileName;
+				_fileName = fileName;
 			}
 
 			/// <inheritdoc/>
-			public override Task ExecuteResultAsync(ActionContext Context)
+			public override Task ExecuteResultAsync(ActionContext context)
 			{
-				ContentDisposition ContentDisposition = new ContentDisposition();
-				ContentDisposition.Inline = true;
-				ContentDisposition.FileName = FileName;
-				Context.HttpContext.Response.Headers.Add("Content-Disposition", ContentDisposition.ToString());
+				ContentDisposition contentDisposition = new ContentDisposition();
+				contentDisposition.Inline = true;
+				contentDisposition.FileName = _fileName;
+				context.HttpContext.Response.Headers.Add("Content-Disposition", contentDisposition.ToString());
 				
-				return base.ExecuteResultAsync(Context);
+				return base.ExecuteResultAsync(context);
 			}
 		}
 
 		/// <summary>
 		/// Retrieve raw data for an artifact
 		/// </summary>
-		/// <param name="ArtifactId">Id of the artifact to get information about</param>
-		/// <param name="Code">The authorization code for this resource</param>
+		/// <param name="artifactId">Id of the artifact to get information about</param>
+		/// <param name="code">The authorization code for this resource</param>
 		/// <returns>Raw artifact data</returns>
 		[HttpGet]
 		[AllowAnonymous]
-		[Route("/api/v1/artifacts/{ArtifactId}/download")]
-		public async Task<ActionResult> DownloadArtifact(string ArtifactId, [FromQuery] string Code)
+		[Route("/api/v1/artifacts/{artifactId}/download")]
+		public async Task<ActionResult> DownloadArtifact(string artifactId, [FromQuery] string code)
 		{
-			TokenValidationParameters Parameters = new TokenValidationParameters();
-			Parameters.ValidateAudience = false;
-			Parameters.RequireExpirationTime = true;
-			Parameters.ValidateLifetime = true;
-			Parameters.ValidIssuer = DatabaseService.JwtIssuer;
-			Parameters.ValidateIssuer = true;
-			Parameters.ValidateIssuerSigningKey = true;
-			Parameters.IssuerSigningKey = DatabaseService.JwtSigningKey;
+			TokenValidationParameters parameters = new TokenValidationParameters();
+			parameters.ValidateAudience = false;
+			parameters.RequireExpirationTime = true;
+			parameters.ValidateLifetime = true;
+			parameters.ValidIssuer = _databaseService.JwtIssuer;
+			parameters.ValidateIssuer = true;
+			parameters.ValidateIssuerSigningKey = true;
+			parameters.IssuerSigningKey = _databaseService.JwtSigningKey;
 
-			SecurityToken Token;
-			JwtSecurityTokenHandler Handler = new JwtSecurityTokenHandler();
-			ClaimsPrincipal Principal = Handler.ValidateToken(Code, Parameters, out Token);
+			JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
+			ClaimsPrincipal principal = handler.ValidateToken(code, parameters, out _);
 
-			IArtifact? Artifact = await ArtifactCollection.GetArtifactAsync(ArtifactId.ToObjectId());
-			if (Artifact == null)
+			IArtifact? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			if (artifact == null)
 			{
 				return NotFound();
 			}
 
-			Claim DirectDownloadClaim = GetDirectDownloadClaim(Artifact.JobId);
-			if (!Principal.HasClaim(DirectDownloadClaim.Type, DirectDownloadClaim.Value))
+			Claim directDownloadClaim = GetDirectDownloadClaim(artifact.JobId);
+			if (!principal.HasClaim(directDownloadClaim.Type, directDownloadClaim.Value))
 			{
 				return Forbid();
 			}
 
-			return new InlineFileStreamResult(await ArtifactCollection.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType, Path.GetFileName(Artifact.Name));
+			return new InlineFileStreamResult(await _artifactCollection.OpenArtifactReadStreamAsync(artifact), artifact.MimeType, Path.GetFileName(artifact.Name));
 		}
 
 		/// <summary>
 		/// Returns a zip archive of many artifacts
 		/// </summary>
-		/// <param name="ArtifactZipRequest">Artifact request params</param>
+		/// <param name="artifactZipRequest">Artifact request params</param>
 		/// <returns>Zip of many artifacts</returns>
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v1/artifacts/zip")]
-		public async Task<ActionResult> ZipArtifacts(GetArtifactZipRequest ArtifactZipRequest)
+		public async Task<ActionResult> ZipArtifacts(GetArtifactZipRequest artifactZipRequest)
 		{
-			if (ArtifactZipRequest.JobId == null)
+			if (artifactZipRequest.JobId == null)
 			{
 				return BadRequest("Must specify a JobId");
 			}
 
-			IJob? Job = await JobService.GetJobAsync(new JobId(ArtifactZipRequest.JobId!));
-			if (Job == null)
+			IJob? job = await _jobService.GetJobAsync(new JobId(artifactZipRequest.JobId!));
+			if (job == null)
 			{
 				return NotFound();
 			}
-			if (!await JobService.AuthorizeAsync(Job, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(job, AclAction.DownloadArtifact, User, null))
 			{
 				return Forbid();
 			}
 
-			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(Job.Id, ArtifactZipRequest.StepId?.ToSubResourceId(), null);
+			List<IArtifact> artifacts = await _artifactCollection.GetArtifactsAsync(job.Id, artifactZipRequest.StepId?.ToSubResourceId(), null);
 
-			Dictionary<ObjectId, IArtifact> IdToArtifact = Artifacts.ToDictionary(x => x.Id, x => x);
+			Dictionary<ObjectId, IArtifact> idToArtifact = artifacts.ToDictionary(x => x.Id, x => x);
 
-			List<IArtifact> ZipArtifacts;
-			if (ArtifactZipRequest.ArtifactIds == null)
+			List<IArtifact> zipArtifacts;
+			if (artifactZipRequest.ArtifactIds == null)
 			{
-				ZipArtifacts = Artifacts;
+				zipArtifacts = artifacts;
 			}
 			else
 			{
-				ZipArtifacts = new List<IArtifact>();
-				foreach (string ArtifactId in ArtifactZipRequest.ArtifactIds)
+				zipArtifacts = new List<IArtifact>();
+				foreach (string artifactId in artifactZipRequest.ArtifactIds)
 				{
-					IArtifact? Artifact;
-					if (IdToArtifact.TryGetValue(ArtifactId.ToObjectId(), out Artifact))
+					IArtifact? artifact;
+					if (idToArtifact.TryGetValue(artifactId.ToObjectId(), out artifact))
 					{
-						ZipArtifacts.Add(Artifact);
+						zipArtifacts.Add(artifact);
 					}
 					else
 					{
@@ -386,61 +380,61 @@ namespace Horde.Build.Controllers
 				}
 			}
 
-			IGraph Graph = await JobService.GetGraphAsync(Job);
+			IGraph graph = await _jobService.GetGraphAsync(job);
 
-			return new CustomFileCallbackResult("Artifacts.zip", "application/octet-stream", false, async (OutputStream, Context) =>
+			return new CustomFileCallbackResult("Artifacts.zip", "application/octet-stream", false, async (outputStream, context) =>
 			{
 				// Make an unseekable MemoryStream for the ZipArchive. We have to do this because the ZipEntry stream falls back to a synchronous write to it's own stream wrappers.
-				using (CustomBufferStream ZipOutputStream = new CustomBufferStream())
+				using (CustomBufferStream zipOutputStream = new CustomBufferStream())
 				{
 					// Keep the stream open after dispose so we can write the EOF bits.
-					using (ZipArchive ZipArchive = new ZipArchive(ZipOutputStream, ZipArchiveMode.Create, true))
+					using (ZipArchive zipArchive = new ZipArchive(zipOutputStream, ZipArchiveMode.Create, true))
 					{
-						foreach (IArtifact Artifact in ZipArtifacts)
+						foreach (IArtifact artifact in zipArtifacts)
 						{
-							await using (System.IO.Stream ArtifactStream = await ArtifactCollection.OpenArtifactReadStreamAsync(Artifact))
+							await using (System.IO.Stream artifactStream = await _artifactCollection.OpenArtifactReadStreamAsync(artifact))
 							{
 								// tack on the step name into the directory if it exists
-								string StepName = string.Empty;
-								if (Artifact.StepId.HasValue)
+								string stepName = String.Empty;
+								if (artifact.StepId.HasValue)
 								{
-									foreach (IJobStepBatch Batch in Job.Batches)
+									foreach (IJobStepBatch batch in job.Batches)
 									{
-										IJobStep? Step;
-										if (Batch.TryGetStep(Artifact.StepId.Value, out Step))
+										IJobStep? step;
+										if (batch.TryGetStep(artifact.StepId.Value, out step))
 										{
-											StepName = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx].Name;
+											stepName = graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
 											break;
 										}
 									}
 								}
 
-								ZipArchiveEntry ZipEntry = ZipArchive.CreateEntry(Artifact.Name);
-								using (System.IO.Stream EntryStream = ZipEntry.Open())
+								ZipArchiveEntry zipEntry = zipArchive.CreateEntry(artifact.Name);
+								using (System.IO.Stream entryStream = zipEntry.Open())
 								{
-									byte[] Buffer = new byte[4096];
-									int TotalBytesRead = 0;
-									while (TotalBytesRead < Artifact.Length)
+									byte[] buffer = new byte[4096];
+									int totalBytesRead = 0;
+									while (totalBytesRead < artifact.Length)
 									{
-										int BytesRead = await ArtifactStream.ReadAsync(Buffer, 0, Buffer.Length);
+										int bytesRead = await artifactStream.ReadAsync(buffer, 0, buffer.Length);
 
 										// Write bytes to the entry stream.  Also advances the MemStream pos.
-										await EntryStream.WriteAsync(Buffer, 0, BytesRead);
+										await entryStream.WriteAsync(buffer, 0, bytesRead);
 										// Dump what we have to the output stream
-										await OutputStream.WriteAsync(ZipOutputStream.GetBuffer(), 0, (int)ZipOutputStream.Position);
+										await outputStream.WriteAsync(zipOutputStream.GetBuffer(), 0, (int)zipOutputStream.Position);
 
 										// Reset everything.
-										ZipOutputStream.Position = 0;
-										ZipOutputStream.SetLength(0);
-										TotalBytesRead += BytesRead;
+										zipOutputStream.Position = 0;
+										zipOutputStream.SetLength(0);
+										totalBytesRead += bytesRead;
 									}
 								}
 							}
 						}
 					}
 					// Write out the EOF stuff
-					ZipOutputStream.Position = 0;
-					await ZipOutputStream.CopyToAsync(OutputStream);
+					zipOutputStream.Position = 0;
+					await zipOutputStream.CopyToAsync(outputStream);
 				}
 			});
 		}

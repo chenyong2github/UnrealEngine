@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Grpc.Core;
-using HordeCommon.Rpc;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Grpc.Core;
+using HordeCommon.Rpc;
 
 namespace Horde.Build.Utilities
 {
@@ -19,48 +17,48 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// The grpc client reader. Should probably be templatized
 		/// </summary>
-		IAsyncStreamReader<UploadArtifactRequest> Reader;
+		readonly IAsyncStreamReader<UploadArtifactRequest> _reader;
 
 		/// <summary>
 		/// Position within the stream
 		/// </summary>
-		long StreamPosition;
+		long _streamPosition;
 
 		/// <summary>
 		/// The length of the stream
 		/// </summary>
-		long StreamLength;
+		readonly long _streamLength;
 
 		/// <summary>
 		/// The current request being read from
 		/// </summary>
-		UploadArtifactRequest? Request;
+		UploadArtifactRequest? _request;
 
 		/// <summary>
 		/// Position within the current request
 		/// </summary>
-		int RequestPos;
+		int _requestPos;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Reader">the grpc reader</param>
-		/// <param name="Length">filesize reported by the client</param>
-		public ArtifactChunkStream(IAsyncStreamReader<UploadArtifactRequest> Reader, long Length)
+		/// <param name="reader">the grpc reader</param>
+		/// <param name="length">filesize reported by the client</param>
+		public ArtifactChunkStream(IAsyncStreamReader<UploadArtifactRequest> reader, long length)
 		{
-			this.Reader = Reader;
-			this.StreamLength = Length;
+			_reader = reader;
+			_streamLength = length;
 		}
 
 		/// <inheritdoc/>
 		public override long Position
 		{
-			get { return StreamPosition; }
-			set { throw new NotSupportedException(); }
+			get => _streamPosition;
+			set => throw new NotSupportedException();
 		}
 
 		/// <inheritdoc/>
-		public override long Length => StreamLength;
+		public override long Length => _streamLength;
 
 		/// <inheritdoc/>
 		public override void SetLength(long value) => throw new NotSupportedException();
@@ -69,7 +67,7 @@ namespace Horde.Build.Utilities
 		public override bool CanSeek => false;
 
 		/// <inheritdoc/>
-		public override long Seek(long Offset, SeekOrigin Origin) => throw new NotSupportedException();
+		public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
 		/// <inheritdoc/>
 		public override bool CanWrite => false;
@@ -81,45 +79,45 @@ namespace Horde.Build.Utilities
 		public override bool CanRead => true;
 
 		/// <inheritdoc/>
-		public override int Read(byte[] Buffer, int Offset, int Count)
+		public override int Read(byte[] buffer, int offset, int count)
 		{
-			return ReadAsync(Buffer, Offset, Count, CancellationToken.None).Result;
+			return ReadAsync(buffer, offset, count, CancellationToken.None).Result;
 		}
 
 		/// <inheritdoc/>
-		public override async Task<int> ReadAsync(byte[] Buffer, int Offset, int Count, CancellationToken CancellationToken)
+		public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
-			return await ReadAsync(Buffer.AsMemory(Offset, Count), CancellationToken);
+			return await ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public override async ValueTask<int> ReadAsync(Memory<byte> Buffer, CancellationToken CancellationToken)
+		public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
 		{
-			int BytesRead = 0;
-			while (BytesRead < Buffer.Length && StreamPosition < StreamLength)
+			int bytesRead = 0;
+			while (bytesRead < buffer.Length && _streamPosition < _streamLength)
 			{
-				if (Request == null || RequestPos == Request.Data.Length)
+				if (_request == null || _requestPos == _request.Data.Length)
 				{
 					// Read the next request object
-					if (!await Reader.MoveNext())
+					if (!await _reader.MoveNext())
 					{
 						throw new EndOfStreamException("Unexpected end of stream while reading artifact");
 					}
 
-					Request = Reader.Current;
-					RequestPos = 0;
+					_request = _reader.Current;
+					_requestPos = 0;
 				}
 				else
 				{
 					// Copy data from the current request object
-					int NumBytesToCopy = Math.Min(Buffer.Length - BytesRead, Request.Data.Length - RequestPos);
-					Request.Data.Span.Slice(RequestPos, NumBytesToCopy).CopyTo(Buffer.Slice(BytesRead, NumBytesToCopy).Span);
-					RequestPos += NumBytesToCopy;
-					BytesRead += NumBytesToCopy;
-					StreamPosition += NumBytesToCopy;
+					int numBytesToCopy = Math.Min(buffer.Length - bytesRead, _request.Data.Length - _requestPos);
+					_request.Data.Span.Slice(_requestPos, numBytesToCopy).CopyTo(buffer.Slice(bytesRead, numBytesToCopy).Span);
+					_requestPos += numBytesToCopy;
+					bytesRead += numBytesToCopy;
+					_streamPosition += numBytesToCopy;
 				}
 			}
-			return BytesRead;
+			return bytesRead;
 		}
 
 		/// <inheritdoc/>

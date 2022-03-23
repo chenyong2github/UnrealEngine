@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Logs.Storage.Impl
 {
@@ -20,177 +17,177 @@ namespace Horde.Build.Logs.Storage.Impl
 		/// <summary>
 		/// Inner storage implementation
 		/// </summary>
-		ILogStorage Inner;
+		readonly ILogStorage _inner;
 
 		/// <summary>
 		/// Pending index reads
 		/// </summary>
-		Dictionary<(LogId, long), Task<LogIndexData?>> IndexReadTasks = new Dictionary<(LogId, long), Task<LogIndexData?>>();
+		readonly Dictionary<(LogId, long), Task<LogIndexData?>> _indexReadTasks = new Dictionary<(LogId, long), Task<LogIndexData?>>();
 
 		/// <summary>
 		/// Pending index reads
 		/// </summary>
-		Dictionary<(LogId, long), Task> IndexWriteTasks = new Dictionary<(LogId, long), Task>();
+		readonly Dictionary<(LogId, long), Task> _indexWriteTasks = new Dictionary<(LogId, long), Task>();
 
 		/// <summary>
 		/// Pending chunk reads
 		/// </summary>
-		Dictionary<(LogId, long), Task<LogChunkData?>> ChunkReadTasks = new Dictionary<(LogId, long), Task<LogChunkData?>>();
+		readonly Dictionary<(LogId, long), Task<LogChunkData?>> _chunkReadTasks = new Dictionary<(LogId, long), Task<LogChunkData?>>();
 
 		/// <summary>
 		/// Pending chunk reads
 		/// </summary>
-		Dictionary<(LogId, long), Task> ChunkWriteTasks = new Dictionary<(LogId, long), Task>();
+		readonly Dictionary<(LogId, long), Task> _chunkWriteTasks = new Dictionary<(LogId, long), Task>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Inner">The inner storage provider</param>
-		public SequencedLogStorage(ILogStorage Inner)
+		/// <param name="inner">The inner storage provider</param>
+		public SequencedLogStorage(ILogStorage inner)
 		{
-			this.Inner = Inner;
+			_inner = inner;
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Inner.Dispose();
+			_inner.Dispose();
 		}
 
 		/// <inheritdoc/>
-		public Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length)
+		public Task<LogIndexData?> ReadIndexAsync(LogId logId, long length)
 		{
-			Task<LogIndexData?>? Task;
-			lock (IndexReadTasks)
+			Task<LogIndexData?>? task;
+			lock (_indexReadTasks)
 			{
-				if (!IndexReadTasks.TryGetValue((LogId, Length), out Task))
+				if (!_indexReadTasks.TryGetValue((logId, length), out task))
 				{
-					Task = InnerReadIndexAsync(LogId, Length);
-					IndexReadTasks.Add((LogId, Length), Task);
+					task = InnerReadIndexAsync(logId, length);
+					_indexReadTasks.Add((logId, length), task);
 				}
 			}
-			return Task;
+			return task;
 		}
 
 		/// <inheritdoc/>
-		public Task WriteIndexAsync(LogId LogId, long Length, LogIndexData IndexData)
+		public Task WriteIndexAsync(LogId logId, long length, LogIndexData indexData)
 		{
-			Task? Task;
-			lock (IndexWriteTasks)
+			Task? task;
+			lock (_indexWriteTasks)
 			{
-				if (!IndexWriteTasks.TryGetValue((LogId, Length), out Task))
+				if (!_indexWriteTasks.TryGetValue((logId, length), out task))
 				{
-					Task = InnerWriteIndexAsync(LogId, Length, IndexData);
-					IndexWriteTasks.Add((LogId, Length), Task);
+					task = InnerWriteIndexAsync(logId, length, indexData);
+					_indexWriteTasks.Add((logId, length), task);
 				}
 			}
-			return Task;
+			return task;
 		}
 
 		/// <inheritdoc/>
-		public Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex)
+		public Task<LogChunkData?> ReadChunkAsync(LogId logId, long offset, int lineIndex)
 		{
-			Task<LogChunkData?>? Task;
-			lock (ChunkReadTasks)
+			Task<LogChunkData?>? task;
+			lock (_chunkReadTasks)
 			{
-				if (!ChunkReadTasks.TryGetValue((LogId, Offset), out Task))
+				if (!_chunkReadTasks.TryGetValue((logId, offset), out task))
 				{
-					Task = InnerReadChunkAsync(LogId, Offset, LineIndex);
-					ChunkReadTasks[(LogId, Offset)] = Task;
+					task = InnerReadChunkAsync(logId, offset, lineIndex);
+					_chunkReadTasks[(logId, offset)] = task;
 				}
 			}
-			return Task;
+			return task;
 		}
 
 		/// <inheritdoc/>
-		public Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
+		public Task WriteChunkAsync(LogId logId, long offset, LogChunkData chunkData)
 		{
-			Task? Task;
-			lock (ChunkWriteTasks)
+			Task? task;
+			lock (_chunkWriteTasks)
 			{
-				if (!ChunkWriteTasks.TryGetValue((LogId, Offset), out Task))
+				if (!_chunkWriteTasks.TryGetValue((logId, offset), out task))
 				{
-					Task = InnerWriteChunkAsync(LogId, Offset, ChunkData);
-					ChunkWriteTasks[(LogId, Offset)] = Task;
+					task = InnerWriteChunkAsync(logId, offset, chunkData);
+					_chunkWriteTasks[(logId, offset)] = task;
 				}
 			}
-			return Task;
+			return task;
 		}
 
 		/// <summary>
 		/// Wrapper for reading an index from the inner storage provider
 		/// </summary>
-		/// <param name="LogId">The log file to read the index for</param>
-		/// <param name="Length">Length of the file that's indexed</param>
+		/// <param name="logId">The log file to read the index for</param>
+		/// <param name="length">Length of the file that's indexed</param>
 		/// <returns>The index data</returns>
-		async Task<LogIndexData?> InnerReadIndexAsync(LogId LogId, long Length)
+		async Task<LogIndexData?> InnerReadIndexAsync(LogId logId, long length)
 		{
 			await Task.Yield();
 
-			LogIndexData? IndexData = await Inner.ReadIndexAsync(LogId, Length);
-			lock (IndexReadTasks)
+			LogIndexData? indexData = await _inner.ReadIndexAsync(logId, length);
+			lock (_indexReadTasks)
 			{
-				IndexReadTasks.Remove((LogId, Length));
+				_indexReadTasks.Remove((logId, length));
 			}
-			return IndexData;
+			return indexData;
 		}
 
 		/// <summary>
 		/// Wrapper for reading an index from the inner storage provider
 		/// </summary>
-		/// <param name="LogId">The log file to read the index for</param>
-		/// <param name="Length">Length of the indexed data</param>
-		/// <param name="IndexData">The index data to write</param>
+		/// <param name="logId">The log file to read the index for</param>
+		/// <param name="length">Length of the indexed data</param>
+		/// <param name="indexData">The index data to write</param>
 		/// <returns>The index data</returns>
-		async Task InnerWriteIndexAsync(LogId LogId, long Length, LogIndexData IndexData)
+		async Task InnerWriteIndexAsync(LogId logId, long length, LogIndexData indexData)
 		{
 			await Task.Yield();
 
-			await Inner.WriteIndexAsync(LogId, Length, IndexData);
+			await _inner.WriteIndexAsync(logId, length, indexData);
 
-			lock (IndexWriteTasks)
+			lock (_indexWriteTasks)
 			{
-				IndexWriteTasks.Remove((LogId, Length));
+				_indexWriteTasks.Remove((logId, length));
 			}
 		}
 
 		/// <summary>
 		/// Wrapper for reading a chunk from the inner storage provider
 		/// </summary>
-		/// <param name="LogId">The log file to read the index for</param>
-		/// <param name="Offset">Offset of the chunk to read</param>
-		/// <param name="LineIndex">Index of the first line in this chunk</param>
+		/// <param name="logId">The log file to read the index for</param>
+		/// <param name="offset">Offset of the chunk to read</param>
+		/// <param name="lineIndex">Index of the first line in this chunk</param>
 		/// <returns>The index data</returns>
-		async Task<LogChunkData?> InnerReadChunkAsync(LogId LogId, long Offset, int LineIndex)
+		async Task<LogChunkData?> InnerReadChunkAsync(LogId logId, long offset, int lineIndex)
 		{
 			await Task.Yield();
 
-			LogChunkData? ChunkData = await Inner.ReadChunkAsync(LogId, Offset, LineIndex);
-			lock (ChunkReadTasks)
+			LogChunkData? chunkData = await _inner.ReadChunkAsync(logId, offset, lineIndex);
+			lock (_chunkReadTasks)
 			{
-				ChunkReadTasks.Remove((LogId, Offset));
+				_chunkReadTasks.Remove((logId, offset));
 			}
-			return ChunkData;
+			return chunkData;
 		}
 
 		/// <summary>
 		/// Wrapper for reading a chunk from the inner storage provider
 		/// </summary>
-		/// <param name="LogId">The log file to write the chunk for</param>
-		/// <param name="Offset">Offset of the chunk within the log</param>
-		/// <param name="ChunkData">The chunk data</param>
+		/// <param name="logId">The log file to write the chunk for</param>
+		/// <param name="offset">Offset of the chunk within the log</param>
+		/// <param name="chunkData">The chunk data</param>
 		/// <returns>The index data</returns>
-		async Task<LogChunkData> InnerWriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
+		async Task<LogChunkData> InnerWriteChunkAsync(LogId logId, long offset, LogChunkData chunkData)
 		{
 			await Task.Yield();
 
-			await Inner.WriteChunkAsync(LogId, Offset, ChunkData);
+			await _inner.WriteChunkAsync(logId, offset, chunkData);
 
-			lock (ChunkWriteTasks)
+			lock (_chunkWriteTasks)
 			{
-				ChunkWriteTasks.Remove((LogId, Offset));
+				_chunkWriteTasks.Remove((logId, offset));
 			}
-			return ChunkData;
+			return chunkData;
 		}
 	}
 }

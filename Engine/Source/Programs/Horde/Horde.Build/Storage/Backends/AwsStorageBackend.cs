@@ -1,37 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.Extensions.NETCore.Setup;
-using Amazon.Runtime;
-using Amazon.S3;
-using Amazon.S3.Model;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.S3;
+using Amazon.S3.Model;
+using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Storage.Backends
 {
 	/// <summary>
 	/// Exception wrapper for S3 requests
 	/// </summary>
-	[SuppressMessage("Design", "CA1032:Implement standard exception constructors", Justification = "<Pending>")]
 	public sealed class AwsException : Exception
 	{
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message">Message for the exception</param>
-		/// <param name="InnerException">Inner exception data</param>
-		public AwsException(string? Message, Exception? InnerException)
-			: base(Message, InnerException)
+		/// <param name="message">Message for the exception</param>
+		/// <param name="innerException">Inner exception data</param>
+		public AwsException(string? message, Exception? innerException)
+			: base(message, innerException)
 		{
 		}
 	}
@@ -60,70 +55,70 @@ namespace Horde.Build.Storage.Backends
 		/// <summary>
 		/// S3 Client
 		/// </summary>
-		private readonly IAmazonS3 Client;
+		private readonly IAmazonS3 _client;
 
 		/// <summary>
 		/// Options for AWs
 		/// </summary>
-		private IAwsStorageOptions Options;
+		private readonly IAwsStorageOptions _options;
 
 		/// <summary>
 		/// Semaphore for connecting to AWS
 		/// </summary>
-		private SemaphoreSlim Semaphore;
+		private readonly SemaphoreSlim _semaphore;
 
 		/// <summary>
 		/// Logger interface
 		/// </summary>
-		private ILogger Logger;
+		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AwsOptions">AWS options</param>
-		/// <param name="Options">Storage options</param>
-		/// <param name="Logger">Logger interface</param>
-		public AwsStorageBackend(AWSOptions AwsOptions, IAwsStorageOptions Options, ILogger<AwsStorageBackend> Logger)
+		/// <param name="awsOptions">AWS options</param>
+		/// <param name="options">Storage options</param>
+		/// <param name="logger">Logger interface</param>
+		public AwsStorageBackend(AWSOptions awsOptions, IAwsStorageOptions options, ILogger<AwsStorageBackend> logger)
 		{
-			this.Client = AwsOptions.CreateServiceClient<IAmazonS3>();
-			this.Options = Options;
-			this.Semaphore = new SemaphoreSlim(16);
-			this.Logger = Logger;
+			_client = awsOptions.CreateServiceClient<IAmazonS3>();
+			_options = options;
+			_semaphore = new SemaphoreSlim(16);
+			_logger = logger;
 
-			Logger.LogInformation("Created AWS storage backend for bucket {BucketName} using credentials {Credentials} {CredentialsStr}", Options.BucketName, AwsOptions.Credentials.GetType(), AwsOptions.Credentials.ToString());
+			logger.LogInformation("Created AWS storage backend for bucket {BucketName} using credentials {Credentials} {CredentialsStr}", options.BucketName, awsOptions.Credentials.GetType(), awsOptions.Credentials.ToString());
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Client.Dispose();
-			Semaphore.Dispose();
+			_client.Dispose();
+			_semaphore.Dispose();
 		}
 
 		class WrappedResponseStream : Stream
 		{
-			IDisposable Semaphore;
-			GetObjectResponse Response;
-			Stream ResponseStream;
+			readonly IDisposable _semaphore;
+			readonly GetObjectResponse _response;
+			readonly Stream _responseStream;
 
-			public WrappedResponseStream(IDisposable Semaphore, GetObjectResponse Response)
+			public WrappedResponseStream(IDisposable semaphore, GetObjectResponse response)
 			{
-				this.Semaphore = Semaphore;
-				this.Response = Response;
-				this.ResponseStream = Response.ResponseStream;
+				_semaphore = semaphore;
+				_response = response;
+				_responseStream = response.ResponseStream;
 			}
 
 			public override bool CanRead => true;
 			public override bool CanSeek => false;
 			public override bool CanWrite => false;
-			public override long Length => ResponseStream.Length;
-			public override long Position { get => ResponseStream.Position; set => throw new NotSupportedException(); }
+			public override long Length => _responseStream.Length;
+			public override long Position { get => _responseStream.Position; set => throw new NotSupportedException(); }
 
-			public override void Flush() => ResponseStream.Flush();
+			public override void Flush() => _responseStream.Flush();
 
-			public override int Read(byte[] buffer, int offset, int count) => ResponseStream.Read(buffer, offset, count);
-			public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => ResponseStream.ReadAsync(buffer, cancellationToken);
-			public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => ResponseStream.ReadAsync(buffer, offset, count, cancellationToken);
+			public override int Read(byte[] buffer, int offset, int count) => _responseStream.Read(buffer, offset, count);
+			public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _responseStream.ReadAsync(buffer, cancellationToken);
+			public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => _responseStream.ReadAsync(buffer, offset, count, cancellationToken);
 
 			public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 			public override void SetLength(long value) => throw new NotSupportedException();
@@ -133,180 +128,179 @@ namespace Horde.Build.Storage.Backends
 			{
 				base.Dispose(disposing);
 
-				Semaphore.Dispose();
-				Response.Dispose();
-				ResponseStream.Dispose();
+				_semaphore.Dispose();
+				_response.Dispose();
+				_responseStream.Dispose();
 			}
 
 			public override async ValueTask DisposeAsync()
 			{
 				await base.DisposeAsync();
 
-				Semaphore.Dispose();
-				Response.Dispose();
-				await ResponseStream.DisposeAsync();
+				_semaphore.Dispose();
+				_response.Dispose();
+				await _responseStream.DisposeAsync();
 			}
 		}
 
-		string GetFullPath(string Path)
+		string GetFullPath(string path)
 		{
-			if (Options.BucketPath == null)
+			if (_options.BucketPath == null)
 			{
-				return Path;
+				return path;
 			}
 
-			StringBuilder Result = new StringBuilder();
-			Result.Append(Options.BucketPath);
-			if (Result.Length > 0 && Result[Result.Length - 1] != '/')
+			StringBuilder result = new StringBuilder();
+			result.Append(_options.BucketPath);
+			if (result.Length > 0 && result[^1] != '/')
 			{
-				Result.Append('/');
+				result.Append('/');
 			}
-			Result.Append(Path);
-			return Result.ToString();
+			result.Append(path);
+			return result.ToString();
 		}
 
 		/// <inheritdoc/>
-		public async Task<Stream?> ReadAsync(string Path)
+		public async Task<Stream?> ReadAsync(string path)
 		{
-			string FullPath = GetFullPath(Path);
+			string fullPath = GetFullPath(path);
 
-			IDisposable? Lock = null;
-			GetObjectResponse? Response = null;
+			IDisposable? semaLock = null;
+			GetObjectResponse? response = null;
 			try
 			{
-				Lock = await Semaphore.UseWaitAsync();
+				semaLock = await _semaphore.UseWaitAsync();
 
-				GetObjectRequest NewGetRequest = new GetObjectRequest();
-				NewGetRequest.BucketName = Options.BucketName;
-				NewGetRequest.Key = FullPath;
+				GetObjectRequest newGetRequest = new GetObjectRequest();
+				newGetRequest.BucketName = _options.BucketName;
+				newGetRequest.Key = fullPath;
 
-				Response = await Client.GetObjectAsync(NewGetRequest);
+				response = await _client.GetObjectAsync(newGetRequest);
 
-				return new WrappedResponseStream(Lock, Response);
+				return new WrappedResponseStream(semaLock, response);
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogWarning(Ex, "Unable to read {Path} from S3", FullPath);
+				_logger.LogWarning(ex, "Unable to read {Path} from S3", fullPath);
 
-				Lock?.Dispose();
-				Response?.Dispose();
+				semaLock?.Dispose();
+				response?.Dispose();
 
 				return null;
 			}
 		}
 
 		/// <inheritdoc/>
-		[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-		public async Task WriteAsync(string Path, Stream InputStream)
+		public async Task WriteAsync(string path, Stream inputStream)
 		{
-			TimeSpan[] RetryTimes =
+			TimeSpan[] retryTimes =
 			{
 				TimeSpan.FromSeconds(1.0),
 				TimeSpan.FromSeconds(5.0),
 				TimeSpan.FromSeconds(10.0),
 			};
 
-			string FullPath = GetFullPath(Path);
-			for (int Attempt = 0; ; Attempt++)
+			string fullPath = GetFullPath(path);
+			for (int attempt = 0; ; attempt++)
 			{
 				try
 				{
-					using IDisposable Lock = await Semaphore.UseWaitAsync();
-					await WriteInternalAsync(FullPath, InputStream);
-					Logger.LogDebug("Written data to {Path}", Path);
+					using IDisposable semaLock = await _semaphore.UseWaitAsync();
+					await WriteInternalAsync(fullPath, inputStream);
+					_logger.LogDebug("Written data to {Path}", path);
 					break;
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					Logger.LogError(Ex, "Unable to write data to {Path} ({Attempt}/{AttemptCount})", FullPath, Attempt + 1, RetryTimes.Length + 1);
-					if (Attempt >= RetryTimes.Length)
+					_logger.LogError(ex, "Unable to write data to {Path} ({Attempt}/{AttemptCount})", fullPath, attempt + 1, retryTimes.Length + 1);
+					if (attempt >= retryTimes.Length)
 					{
-						throw new AwsException($"Unable to write to bucket {Options.BucketName} path {FullPath}", Ex);
+						throw new AwsException($"Unable to write to bucket {_options.BucketName} path {fullPath}", ex);
 					}
 				}
 
-				await Task.Delay(RetryTimes[Attempt]);
+				await Task.Delay(retryTimes[attempt]);
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteInternalAsync(string FullPath, Stream Stream)
+		public async Task WriteInternalAsync(string fullPath, Stream stream)
 		{
 			const int MinPartSize = 5 * 1024 * 1024;
 
-			long StreamLen = Stream.Length;
-			if (StreamLen < MinPartSize)
+			long streamLen = stream.Length;
+			if (streamLen < MinPartSize)
 			{
 				// Read the data into memory. Errors with hash value not matching if we don't do this (?)
-				byte[] Buffer = new byte[StreamLen];
-				await ReadExactLengthAsync(Stream, Buffer, (int)StreamLen);
+				byte[] buffer = new byte[streamLen];
+				await ReadExactLengthAsync(stream, buffer, (int)streamLen);
 
 				// Upload it to S3
-				using (MemoryStream InputStream = new MemoryStream(Buffer))
+				using (MemoryStream inputStream = new MemoryStream(buffer))
 				{
-					PutObjectRequest UploadRequest = new PutObjectRequest();
-					UploadRequest.BucketName = Options.BucketName;
-					UploadRequest.Key = FullPath;
-					UploadRequest.InputStream = InputStream;
-					UploadRequest.Metadata.Add("bytes-written", StreamLen.ToString(CultureInfo.InvariantCulture));
-					await Client.PutObjectAsync(UploadRequest);
+					PutObjectRequest uploadRequest = new PutObjectRequest();
+					uploadRequest.BucketName = _options.BucketName;
+					uploadRequest.Key = fullPath;
+					uploadRequest.InputStream = inputStream;
+					uploadRequest.Metadata.Add("bytes-written", streamLen.ToString(CultureInfo.InvariantCulture));
+					await _client.PutObjectAsync(uploadRequest);
 				}
 			}
 			else
 			{
 				// Initiate a multi-part upload
-				InitiateMultipartUploadRequest InitiateRequest = new InitiateMultipartUploadRequest();
-				InitiateRequest.BucketName = Options.BucketName;
-				InitiateRequest.Key = FullPath;
+				InitiateMultipartUploadRequest initiateRequest = new InitiateMultipartUploadRequest();
+				initiateRequest.BucketName = _options.BucketName;
+				initiateRequest.Key = fullPath;
 
-				InitiateMultipartUploadResponse InitiateResponse = await Client.InitiateMultipartUploadAsync(InitiateRequest);
+				InitiateMultipartUploadResponse initiateResponse = await _client.InitiateMultipartUploadAsync(initiateRequest);
 				try
 				{
 					// Buffer for reading the data
-					byte[] Buffer = new byte[MinPartSize];
+					byte[] buffer = new byte[MinPartSize];
 
 					// Upload all the parts
-					List<PartETag> PartTags = new List<PartETag>();
-					for (long StreamPos = 0; StreamPos < StreamLen;)
+					List<PartETag> partTags = new List<PartETag>();
+					for (long streamPos = 0; streamPos < streamLen;)
 					{
 						// Read the next chunk of data into the buffer
-						int BufferLen = (int)Math.Min((long)MinPartSize, StreamLen - StreamPos);
-						await ReadExactLengthAsync(Stream, Buffer, BufferLen);
-						StreamPos += BufferLen;
+						int bufferLen = (int)Math.Min((long)MinPartSize, streamLen - streamPos);
+						await ReadExactLengthAsync(stream, buffer, bufferLen);
+						streamPos += bufferLen;
 
 						// Upload the part
-						using (MemoryStream InputStream = new MemoryStream(Buffer, 0, BufferLen))
+						using (MemoryStream inputStream = new MemoryStream(buffer, 0, bufferLen))
 						{
-							UploadPartRequest PartRequest = new UploadPartRequest();
-							PartRequest.BucketName = Options.BucketName;
-							PartRequest.Key = FullPath;
-							PartRequest.UploadId = InitiateResponse.UploadId;
-							PartRequest.InputStream = InputStream;
-							PartRequest.PartSize = BufferLen;
-							PartRequest.PartNumber = PartTags.Count + 1;
-							PartRequest.IsLastPart = (StreamPos == StreamLen);
+							UploadPartRequest partRequest = new UploadPartRequest();
+							partRequest.BucketName = _options.BucketName;
+							partRequest.Key = fullPath;
+							partRequest.UploadId = initiateResponse.UploadId;
+							partRequest.InputStream = inputStream;
+							partRequest.PartSize = bufferLen;
+							partRequest.PartNumber = partTags.Count + 1;
+							partRequest.IsLastPart = (streamPos == streamLen);
 
-							UploadPartResponse PartResponse = await Client.UploadPartAsync(PartRequest);
-							PartTags.Add(new PartETag(PartResponse.PartNumber, PartResponse.ETag));
+							UploadPartResponse partResponse = await _client.UploadPartAsync(partRequest);
+							partTags.Add(new PartETag(partResponse.PartNumber, partResponse.ETag));
 						}
 					}
 
 					// Mark the upload as complete
-					CompleteMultipartUploadRequest CompleteRequest = new CompleteMultipartUploadRequest();
-					CompleteRequest.BucketName = Options.BucketName;
-					CompleteRequest.Key = FullPath;
-					CompleteRequest.UploadId = InitiateResponse.UploadId;
-					CompleteRequest.PartETags = PartTags;
-					await Client.CompleteMultipartUploadAsync(CompleteRequest);
+					CompleteMultipartUploadRequest completeRequest = new CompleteMultipartUploadRequest();
+					completeRequest.BucketName = _options.BucketName;
+					completeRequest.Key = fullPath;
+					completeRequest.UploadId = initiateResponse.UploadId;
+					completeRequest.PartETags = partTags;
+					await _client.CompleteMultipartUploadAsync(completeRequest);
 				}
 				catch
 				{
 					// Abort the upload
-					AbortMultipartUploadRequest AbortRequest = new AbortMultipartUploadRequest();
-					AbortRequest.BucketName = Options.BucketName;
-					AbortRequest.Key = FullPath;
-					AbortRequest.UploadId = InitiateResponse.UploadId;
-					await Client.AbortMultipartUploadAsync(AbortRequest);
+					AbortMultipartUploadRequest abortRequest = new AbortMultipartUploadRequest();
+					abortRequest.BucketName = _options.BucketName;
+					abortRequest.Key = fullPath;
+					abortRequest.UploadId = initiateResponse.UploadId;
+					await _client.AbortMultipartUploadAsync(abortRequest);
 
 					throw;
 				}
@@ -316,45 +310,45 @@ namespace Horde.Build.Storage.Backends
 		/// <summary>
 		/// Reads data of an exact length into a stream
 		/// </summary>
-		/// <param name="Stream">The stream to read from</param>
-		/// <param name="Buffer">The buffer to read into</param>
-		/// <param name="Length">Length of the data to read</param>
+		/// <param name="stream">The stream to read from</param>
+		/// <param name="buffer">The buffer to read into</param>
+		/// <param name="length">Length of the data to read</param>
 		/// <returns>Async task</returns>
-		static async Task ReadExactLengthAsync(System.IO.Stream Stream, byte[] Buffer, int Length)
+		static async Task ReadExactLengthAsync(System.IO.Stream stream, byte[] buffer, int length)
 		{
-			int BufferPos = 0;
-			while (BufferPos < Length)
+			int bufferPos = 0;
+			while (bufferPos < length)
 			{
-				int BytesRead = await Stream.ReadAsync(Buffer, BufferPos, Length - BufferPos);
-				if (BytesRead == 0)
+				int bytesRead = await stream.ReadAsync(buffer, bufferPos, length - bufferPos);
+				if (bytesRead == 0)
 				{
 					throw new InvalidOperationException("Unexpected end of stream");
 				}
-				BufferPos += BytesRead;
+				bufferPos += bytesRead;
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(string Path)
+		public async Task DeleteAsync(string path)
 		{
-			DeleteObjectRequest NewDeleteRequest = new DeleteObjectRequest();
-			NewDeleteRequest.BucketName = Options.BucketName;
-			NewDeleteRequest.Key = GetFullPath(Path);
-			await Client.DeleteObjectAsync(NewDeleteRequest);
+			DeleteObjectRequest newDeleteRequest = new DeleteObjectRequest();
+			newDeleteRequest.BucketName = _options.BucketName;
+			newDeleteRequest.Key = GetFullPath(path);
+			await _client.DeleteObjectAsync(newDeleteRequest);
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> ExistsAsync(string Path)
+		public async Task<bool> ExistsAsync(string path)
 		{
 			try
 			{
-				GetObjectMetadataRequest Request = new GetObjectMetadataRequest();
-				Request.BucketName = Options.BucketName;
-				Request.Key = GetFullPath(Path);
-				await Client.GetObjectMetadataAsync(Request);
+				GetObjectMetadataRequest request = new GetObjectMetadataRequest();
+				request.BucketName = _options.BucketName;
+				request.Key = GetFullPath(path);
+				await _client.GetObjectMetadataAsync(request);
 				return true;
 			}
-			catch (AmazonS3Exception Ex) when (Ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+			catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
 			{
 				return false;
 			}

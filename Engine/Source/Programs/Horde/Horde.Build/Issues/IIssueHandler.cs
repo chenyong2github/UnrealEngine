@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Models;
-using Horde.Build.Collections;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
+using EpicGames.Core;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 
 namespace Horde.Build.IssueHandlers
 {
@@ -19,7 +17,7 @@ namespace Horde.Build.IssueHandlers
 		/// <summary>
 		/// Set of extensions to treat as code
 		/// </summary>
-		static readonly HashSet<StringView> CodeExtensions = new HashSet<StringView>(StringViewComparer.OrdinalIgnoreCase)
+		static readonly HashSet<StringView> s_codeExtensions = new HashSet<StringView>(StringViewComparer.OrdinalIgnoreCase)
 		{
 			".c",
 			".cc",
@@ -42,7 +40,7 @@ namespace Horde.Build.IssueHandlers
 		/// <summary>
 		/// Set of file extensions to treat as content
 		/// </summary>
-		static readonly HashSet<StringView> ContentExtensions = new HashSet<StringView>(StringViewComparer.OrdinalIgnoreCase)
+		static readonly HashSet<StringView> s_contentExtensions = new HashSet<StringView>(StringViewComparer.OrdinalIgnoreCase)
 		{
 			".uasset",
 			".umap",
@@ -73,22 +71,22 @@ namespace Horde.Build.IssueHandlers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Details">The changelist details</param>
-		public SuspectChange(ChangeDetails Details)
+		/// <param name="details">The changelist details</param>
+		public SuspectChange(ChangeDetails details)
 		{
-			this.Details = Details;
+			Details = details;
 
-			foreach (ChangeFile File in Details.Files)
+			foreach (ChangeFile file in details.Files)
 			{
-				int Idx = File.Path.LastIndexOf('.');
-				if (Idx != -1)
+				int idx = file.Path.LastIndexOf('.');
+				if (idx != -1)
 				{
-					StringView Extension = new StringView(File.Path, Idx);
-					if (CodeExtensions.Contains(Extension))
+					StringView extension = new StringView(file.Path, idx);
+					if (s_codeExtensions.Contains(extension))
 					{
 						ContainsCode = true;
 					}
-					if (ContentExtensions.Contains(Extension))
+					if (s_contentExtensions.Contains(extension))
 					{
 						ContainsContent = true;
 					}
@@ -103,13 +101,13 @@ namespace Horde.Build.IssueHandlers
 		/// <summary>
 		/// Determines whether this change modifies the given file
 		/// </summary>
-		/// <param name="FileToCheck">The file to look for</param>
+		/// <param name="fileToCheck">The file to look for</param>
 		/// <returns>True if the change modifies the given file</returns>
-		public bool ModifiesFile(string FileToCheck)
+		public bool ModifiesFile(string fileToCheck)
 		{
-			foreach (ChangeFile File in Details.Files)
+			foreach (ChangeFile file in Details.Files)
 			{
-				if (File.Path.EndsWith(FileToCheck, StringComparison.OrdinalIgnoreCase) && (File.Length == FileToCheck.Length || File.Path[File.Path.Length - FileToCheck.Length - 1] == '/'))
+				if (file.Path.EndsWith(fileToCheck, StringComparison.OrdinalIgnoreCase) && (file.Length == fileToCheck.Length || file.Path[file.Path.Length - fileToCheck.Length - 1] == '/'))
 				{
 					return true;
 				}
@@ -136,26 +134,26 @@ namespace Horde.Build.IssueHandlers
 		/// <summary>
 		/// Match the given event and produce a fingerprint
 		/// </summary>
-		/// <param name="Job">The job that spawned the event</param>
-		/// <param name="Node">Node that was executed</param>
-		/// <param name="EventData">The event data</param>
-		/// <param name="Fingerprint">Receives the fingerprint on success</param>
+		/// <param name="job">The job that spawned the event</param>
+		/// <param name="node">Node that was executed</param>
+		/// <param name="eventData">The event data</param>
+		/// <param name="fingerprint">Receives the fingerprint on success</param>
 		/// <returns>True if the match is successful</returns>
-		bool TryGetFingerprint(IJob Job, INode Node, ILogEventData EventData, [NotNullWhen(true)] out NewIssueFingerprint? Fingerprint);
+		bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint);
 
 		/// <summary>
 		/// Rank all the suspect changes for a given fingerprint
 		/// </summary>
-		/// <param name="Fingerprint">The issue fingerprint</param>
-		/// <param name="Suspects">Potential suspects</param>
-		void RankSuspects(IIssueFingerprint Fingerprint, List<SuspectChange> Suspects);
+		/// <param name="fingerprint">The issue fingerprint</param>
+		/// <param name="suspects">Potential suspects</param>
+		void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects);
 
 		/// <summary>
 		/// Gets the summary text for an issue
 		/// </summary>
-		/// <param name="Fingerprint">The fingerprint</param>
-		/// <param name="Severity">Severity of the issue</param>
+		/// <param name="fingerprint">The fingerprint</param>
+		/// <param name="severity">Severity of the issue</param>
 		/// <returns>The summary text</returns>
-		string GetSummary(IIssueFingerprint Fingerprint, IssueSeverity Severity);
+		string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity);
 	}
 }

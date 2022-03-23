@@ -1,5 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Models;
@@ -7,12 +10,6 @@ using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -29,151 +26,151 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Singleton instance of the ACL service
 		/// </summary>
-		private readonly AclService AclService;
+		private readonly AclService _aclService;
 
 		/// <summary>
 		/// Singleton instance of the pool service
 		/// </summary>
-		private readonly PoolService PoolService;
+		private readonly PoolService _poolService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AclService">The ACL service</param>
-		/// <param name="PoolService">The pool service</param>
-		public PoolsController(AclService AclService, PoolService PoolService)
+		/// <param name="aclService">The ACL service</param>
+		/// <param name="poolService">The pool service</param>
+		public PoolsController(AclService aclService, PoolService poolService)
 		{
-			this.AclService = AclService;
-			this.PoolService = PoolService;
+			_aclService = aclService;
+			_poolService = poolService;
 		}
 
 		/// <summary>
 		/// Creates a new pool
 		/// </summary>
-		/// <param name="Create">Parameters for the new pool.</param>
+		/// <param name="create">Parameters for the new pool.</param>
 		/// <returns>Http result code</returns>
 		[HttpPost]
 		[Route("/api/v1/pools")]
-		public async Task<ActionResult<CreatePoolResponse>> CreatePoolAsync([FromBody] CreatePoolRequest Create)
+		public async Task<ActionResult<CreatePoolResponse>> CreatePoolAsync([FromBody] CreatePoolRequest create)
 		{
-			if(!await AclService.AuthorizeAsync(AclAction.CreatePool, User))
+			if(!await _aclService.AuthorizeAsync(AclAction.CreatePool, User))
 			{
 				return Forbid(AclAction.CreatePool);
 			}
 
-			Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings? LuSettings = Create.LeaseUtilizationSettings?.Convert();
-			Horde.Build.Fleet.Autoscale.JobQueueSettings? JqSettings = Create.JobQueueSettings?.Convert();
+			Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings? luSettings = create.LeaseUtilizationSettings?.Convert();
+			Horde.Build.Fleet.Autoscale.JobQueueSettings? jqSettings = create.JobQueueSettings?.Convert();
 			
-			TimeSpan? ScaleOutCooldown = Create.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(Create.ScaleOutCooldown.Value);
-			TimeSpan? ScaleInCooldown = Create.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(Create.ScaleInCooldown.Value);
+			TimeSpan? scaleOutCooldown = create.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(create.ScaleOutCooldown.Value);
+			TimeSpan? scaleInCooldown = create.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(create.ScaleInCooldown.Value);
 
-			IPool NewPool = await PoolService.CreatePoolAsync(
-				Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents,
-				ScaleOutCooldown, ScaleInCooldown, Create.SizeStrategy, LuSettings, JqSettings, Create.Properties);
-			return new CreatePoolResponse(NewPool.Id.ToString());
+			IPool newPool = await _poolService.CreatePoolAsync(
+				create.Name, create.Condition, create.EnableAutoscaling, create.MinAgents, create.NumReserveAgents,
+				scaleOutCooldown, scaleInCooldown, create.SizeStrategy, luSettings, jqSettings, create.Properties);
+			return new CreatePoolResponse(newPool.Id.ToString());
 		}
 
 		/// <summary>
 		/// Query all the pools
 		/// </summary>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Information about all the pools</returns>
 		[HttpGet]
 		[Route("/api/v1/pools")]
 		[ProducesResponseType(typeof(List<GetPoolResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetPoolsAsync([FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetPoolsAsync([FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.ListPools, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.ListPools, User))
 			{
 				return Forbid(AclAction.ListPools);
 			}
 
-			List<IPool> Pools = await PoolService.GetPoolsAsync();
+			List<IPool> pools = await _poolService.GetPoolsAsync();
 
-			List<object> Responses = new List<object>();
-			foreach (IPool Pool in Pools)
+			List<object> responses = new List<object>();
+			foreach (IPool pool in pools)
 			{
-				Responses.Add(new GetPoolResponse(Pool).ApplyFilter(Filter));
+				responses.Add(new GetPoolResponse(pool).ApplyFilter(filter));
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Retrieve information about a specific pool
 		/// </summary>
-		/// <param name="PoolId">Id of the pool to get information about</param>
-		/// <param name="Filter">Filter to apply to the returned properties</param>
+		/// <param name="poolId">Id of the pool to get information about</param>
+		/// <param name="filter">Filter to apply to the returned properties</param>
 		/// <returns>Information about the requested pool</returns>
 		[HttpGet]
-		[Route("/api/v1/pools/{PoolId}")]
+		[Route("/api/v1/pools/{poolId}")]
 		[ProducesResponseType(typeof(GetPoolResponse), 200)]
-		public async Task<ActionResult<object>> GetPoolAsync(string PoolId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetPoolAsync(string poolId, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.ViewPool, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.ViewPool, User))
 			{
 				return Forbid(AclAction.ViewPool);
 			}
 
-			PoolId PoolIdValue = new PoolId(PoolId);
+			PoolId poolIdValue = new PoolId(poolId);
 
-			IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
-			if (Pool == null)
+			IPool? pool = await _poolService.GetPoolAsync(poolIdValue);
+			if (pool == null)
 			{
-				return NotFound(PoolIdValue);
+				return NotFound(poolIdValue);
 			}
 
-			return new GetPoolResponse(Pool).ApplyFilter(Filter);
+			return new GetPoolResponse(pool).ApplyFilter(filter);
 		}
 
 		/// <summary>
 		/// Update a pool's properties.
 		/// </summary>
-		/// <param name="PoolId">Id of the pool to update</param>
-		/// <param name="Update">Items on the pool to update</param>
+		/// <param name="poolId">Id of the pool to update</param>
+		/// <param name="update">Items on the pool to update</param>
 		/// <returns>Http result code</returns>
 		[HttpPut]
-		[Route("/api/v1/pools/{PoolId}")]
-		public async Task<ActionResult> UpdatePoolAsync(string PoolId, [FromBody] UpdatePoolRequest Update)
+		[Route("/api/v1/pools/{poolId}")]
+		public async Task<ActionResult> UpdatePoolAsync(string poolId, [FromBody] UpdatePoolRequest update)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.UpdatePool, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.UpdatePool, User))
 			{
 				return Forbid(AclAction.UpdatePool);
 			}
 
-			PoolId PoolIdValue = new PoolId(PoolId);
+			PoolId poolIdValue = new PoolId(poolId);
 			
-			IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
-			if(Pool == null)
+			IPool? pool = await _poolService.GetPoolAsync(poolIdValue);
+			if(pool == null)
 			{
-				return NotFound(PoolIdValue);
+				return NotFound(poolIdValue);
 			}
 			
-			TimeSpan? ScaleOutCooldown = Update.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(Update.ScaleOutCooldown.Value);
-			TimeSpan? ScaleInCooldown = Update.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(Update.ScaleInCooldown.Value);
+			TimeSpan? scaleOutCooldown = update.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(update.ScaleOutCooldown.Value);
+			TimeSpan? scaleInCooldown = update.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(update.ScaleInCooldown.Value);
 
-			await PoolService.UpdatePoolAsync(Pool, Update.Name, Update.Condition, Update.EnableAutoscaling,
-				Update.MinAgents, Update.NumReserveAgents, Update.Properties, ScaleOutCooldown, ScaleInCooldown, Update.SizeStrategy);
+			await _poolService.UpdatePoolAsync(pool, update.Name, update.Condition, update.EnableAutoscaling,
+				update.MinAgents, update.NumReserveAgents, update.Properties, scaleOutCooldown, scaleInCooldown, update.SizeStrategy);
 			return new OkResult();
 		}
 
 		/// <summary>
 		/// Delete a pool
 		/// </summary>
-		/// <param name="PoolId">Id of the pool to delete</param>
+		/// <param name="poolId">Id of the pool to delete</param>
 		/// <returns>Http result code</returns>
 		[HttpDelete]
-		[Route("/api/v1/pools/{PoolId}")]
-		public async Task<ActionResult> DeletePoolAsync(string PoolId)
+		[Route("/api/v1/pools/{poolId}")]
+		public async Task<ActionResult> DeletePoolAsync(string poolId)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.DeletePool, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.DeletePool, User))
 			{
 				return Forbid(AclAction.DeletePool);
 			}
 
-			PoolId PoolIdValue = new PoolId(PoolId);
-			if(!await PoolService.DeletePoolAsync(PoolIdValue))
+			PoolId poolIdValue = new PoolId(poolId);
+			if(!await _poolService.DeletePoolAsync(poolIdValue))
 			{
-				return NotFound(PoolIdValue);
+				return NotFound(poolIdValue);
 			}
 			return Ok();
 		}
@@ -181,28 +178,28 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Batch update pool properties
 		/// </summary>
-		/// <param name="BatchUpdates">List of pools to update</param>
+		/// <param name="batchUpdates">List of pools to update</param>
 		/// <returns>Http result code</returns>
 		[HttpPut]
 		[Route("/api/v1/pools")]
-		public async Task<ActionResult> UpdatePoolAsync([FromBody] List<BatchUpdatePoolRequest> BatchUpdates)
+		public async Task<ActionResult> UpdatePoolAsync([FromBody] List<BatchUpdatePoolRequest> batchUpdates)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.UpdatePool, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.UpdatePool, User))
 			{
 				return Forbid(AclAction.UpdatePool);
 			}
 
-			foreach (BatchUpdatePoolRequest Update in BatchUpdates)
+			foreach (BatchUpdatePoolRequest update in batchUpdates)
 			{
-				PoolId PoolIdValue = new PoolId(Update.Id);
+				PoolId poolIdValue = new PoolId(update.Id);
 
-				IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
-				if (Pool == null)
+				IPool? pool = await _poolService.GetPoolAsync(poolIdValue);
+				if (pool == null)
 				{
-					return NotFound(PoolIdValue);
+					return NotFound(poolIdValue);
 				}
 
-				await PoolService.UpdatePoolAsync(Pool, Update.Name, NewProperties: Update.Properties);
+				await _poolService.UpdatePoolAsync(pool, update.Name, newProperties: update.Properties);
 			}
 			return Ok();
 		}

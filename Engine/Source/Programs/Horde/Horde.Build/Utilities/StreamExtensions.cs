@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
@@ -16,32 +14,32 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Reads data of a fixed size into the buffer. Throws an exception if the whole block cannot be read.
 		/// </summary>
-		/// <param name="Stream">The stream to read from</param>
-		/// <param name="Data">Buffer to receive the read data</param>
-		/// <param name="Offset">Offset within the buffer to read the new data</param>
-		/// <param name="Length">Length of the data to read</param>
+		/// <param name="stream">The stream to read from</param>
+		/// <param name="data">Buffer to receive the read data</param>
+		/// <param name="offset">Offset within the buffer to read the new data</param>
+		/// <param name="length">Length of the data to read</param>
 		/// <returns>Async task</returns>
-		public static Task ReadFixedSizeDataAsync(this Stream Stream, byte[] Data, int Offset, int Length)
+		public static Task ReadFixedSizeDataAsync(this Stream stream, byte[] data, int offset, int length)
 		{
-			return ReadFixedSizeDataAsync(Stream, Data.AsMemory(Offset, Length));
+			return ReadFixedSizeDataAsync(stream, data.AsMemory(offset, length));
 		}
 
 		/// <summary>
 		/// Reads data of a fixed size into the buffer. Throws an exception if the whole block cannot be read.
 		/// </summary>
-		/// <param name="Stream">The stream to read from</param>
-		/// <param name="Data">Buffer to receive the read data</param>
+		/// <param name="stream">The stream to read from</param>
+		/// <param name="data">Buffer to receive the read data</param>
 		/// <returns>Async task</returns>
-		public static async Task ReadFixedSizeDataAsync(this Stream Stream, Memory<byte> Data)
+		public static async Task ReadFixedSizeDataAsync(this Stream stream, Memory<byte> data)
 		{
-			while (Data.Length > 0)
+			while (data.Length > 0)
 			{
-				int Count = await Stream.ReadAsync(Data);
-				if (Count == 0)
+				int count = await stream.ReadAsync(data);
+				if (count == 0)
 				{
 					throw new EndOfStreamException();
 				}
-				Data = Data.Slice(Count);
+				data = data.Slice(count);
 			}
 		}
 	}

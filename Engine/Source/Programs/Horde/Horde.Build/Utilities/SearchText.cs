@@ -2,9 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Logs
 {
@@ -26,53 +24,53 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Normalized (lowercase) utf-8 bytes to search for
 		/// </summary>
-		byte[] SearchBytes;
+		readonly byte[] _searchBytes;
 
 		/// <summary>
 		/// Skip table for comparisons
 		/// </summary>
-		byte[] SkipTable;
+		readonly byte[] _skipTable;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">The text to search for</param>
-		public SearchText(string Text)
+		/// <param name="text">The text to search for</param>
+		public SearchText(string text)
 		{
-			byte[] Bytes = Encoding.UTF8.GetBytes(Text);
-			this.Bytes = Bytes;
-			this.Text = Text;
+			byte[] bytes = Encoding.UTF8.GetBytes(text);
+			Bytes = bytes;
+			Text = text;
 
 			// Find the byte sequence to search for, in lowercase
-			SearchBytes = new byte[Bytes.Length];
-			for (int Idx = 0; Idx < SearchBytes.Length; Idx++)
+			_searchBytes = new byte[bytes.Length];
+			for (int idx = 0; idx < _searchBytes.Length; idx++)
 			{
-				if (Bytes[Idx] >= 'A' && Bytes[Idx] <= 'Z')
+				if (bytes[idx] >= 'A' && bytes[idx] <= 'Z')
 				{
-					SearchBytes[Idx] = (byte)('a' + (Bytes[Idx] - 'A'));
+					_searchBytes[idx] = (byte)('a' + (bytes[idx] - 'A'));
 				}
 				else
 				{
-					SearchBytes[Idx] = Bytes[Idx];
+					_searchBytes[idx] = bytes[idx];
 				}
 			}
 
 			// Build a table indicating how many characters to skip before attempting the next comparison
-			SkipTable = new byte[256];
-			for (int Idx = 0; Idx < 256; Idx++)
+			_skipTable = new byte[256];
+			for (int idx = 0; idx < 256; idx++)
 			{
-				SkipTable[Idx] = (byte)SearchBytes.Length;
+				_skipTable[idx] = (byte)_searchBytes.Length;
 			}
-			for (int Idx = 0; Idx < SearchBytes.Length - 1; Idx++)
+			for (int idx = 0; idx < _searchBytes.Length - 1; idx++)
 			{
-				byte Character = SearchBytes[Idx];
+				byte character = _searchBytes[idx];
 
-				byte SkipBytes = (byte)(SearchBytes.Length - 1 - Idx);
-				SkipTable[Character] = SkipBytes;
+				byte skipBytes = (byte)(_searchBytes.Length - 1 - idx);
+				_skipTable[character] = skipBytes;
 
-				if (Character >= 'a' && Character <= 'z')
+				if (character >= 'a' && character <= 'z')
 				{
-					SkipTable['A' + (Character - 'a')] = SkipBytes;
+					_skipTable['A' + (character - 'a')] = skipBytes;
 				}
 			}
 		}
@@ -80,40 +78,40 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Find all ocurrences of the text in the given buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to search</param>
-		/// <param name="Text">The text to search for</param>
+		/// <param name="buffer">The buffer to search</param>
+		/// <param name="text">The text to search for</param>
 		/// <returns>Sequence of offsets within the buffer</returns>
-		public static IEnumerable<int> FindOcurrences(ReadOnlyMemory<byte> Buffer, SearchText Text)
+		public static IEnumerable<int> FindOcurrences(ReadOnlyMemory<byte> buffer, SearchText text)
 		{
-			for(int Offset = 0; ;Offset++)
+			for(int offset = 0; ;offset++)
 			{
-				Offset = FindNextOcurrence(Buffer.Span, Offset, Text);
-				if(Offset == -1)
+				offset = FindNextOcurrence(buffer.Span, offset, text);
+				if(offset == -1)
 				{
 					break;
 				}
-				yield return Offset;
+				yield return offset;
 			}
 		}
 
 		/// <summary>
 		/// Perform a case sensitive search for the next occurerence of the search term in a given buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to search</param>
-		/// <param name="Offset">Starting offset for the search</param>
-		/// <param name="Text">The text to search for</param>
+		/// <param name="buffer">The buffer to search</param>
+		/// <param name="offset">Starting offset for the search</param>
+		/// <param name="text">The text to search for</param>
 		/// <returns>Offset of the next occurence, or -1</returns>
-		public static int FindNextOcurrence(ReadOnlySpan<byte> Buffer, int Offset, SearchText Text)
+		public static int FindNextOcurrence(ReadOnlySpan<byte> buffer, int offset, SearchText text)
 		{
-			while (Offset + Text.SearchBytes.Length <= Buffer.Length)
+			while (offset + text._searchBytes.Length <= buffer.Length)
 			{
-				if (Matches(Buffer, Offset, Text))
+				if (Matches(buffer, offset, text))
 				{
-					return Offset;
+					return offset;
 				}
 				else
 				{
-					Offset += Text.SkipTable[Buffer[Offset + Text.SearchBytes.Length - 1]];
+					offset += text._skipTable[buffer[offset + text._searchBytes.Length - 1]];
 				}
 			}
 			return -1;
@@ -122,20 +120,20 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Compare the search term against the given buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to search</param>
-		/// <param name="Offset">Starting offset for the search</param>
-		/// <param name="Text">The text to search for</param>
+		/// <param name="buffer">The buffer to search</param>
+		/// <param name="offset">Starting offset for the search</param>
+		/// <param name="text">The text to search for</param>
 		/// <returns>True if the text matches, false otherwise</returns>
-		public static bool Matches(ReadOnlySpan<byte> Buffer, int Offset, SearchText Text)
+		public static bool Matches(ReadOnlySpan<byte> buffer, int offset, SearchText text)
 		{
-			for (int Idx = Text.SearchBytes.Length - 1; Idx >= 0; Idx--)
+			for (int idx = text._searchBytes.Length - 1; idx >= 0; idx--)
 			{
-				byte Char = Buffer[Offset + Idx];
-				if (Char >= 'A' && Char <= 'Z')
+				byte character = buffer[offset + idx];
+				if (character >= 'A' && character <= 'Z')
 				{
-					Char = (byte)('a' + (Char - 'A'));
+					character = (byte)('a' + (character - 'A'));
 				}
-				if (Char != Text.SearchBytes[Idx])
+				if (character != text._searchBytes[idx])
 				{
 					return false;
 				}
@@ -152,36 +150,36 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Find all ocurrences of the text in the given buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to search</param>
-		/// <param name="Text">The text to search for</param>
+		/// <param name="buffer">The buffer to search</param>
+		/// <param name="text">The text to search for</param>
 		/// <returns>Sequence of offsets within the buffer</returns>
-		public static IEnumerable<int> FindOcurrences(this ReadOnlyMemory<byte> Buffer, SearchText Text)
+		public static IEnumerable<int> FindOcurrences(this ReadOnlyMemory<byte> buffer, SearchText text)
 		{
-			return SearchText.FindOcurrences(Buffer, Text);
+			return SearchText.FindOcurrences(buffer, text);
 		}
 
 		/// <summary>
 		/// Perform a case sensitive search for the next occurerence of the search term in a given buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to search</param>
-		/// <param name="Offset">Starting offset for the search</param>
-		/// <param name="Text">The text to search for</param>
+		/// <param name="buffer">The buffer to search</param>
+		/// <param name="offset">Starting offset for the search</param>
+		/// <param name="text">The text to search for</param>
 		/// <returns>Offset of the next occurence, or -1</returns>
-		public static int FindNextOcurrence(this ReadOnlySpan<byte> Buffer, int Offset, SearchText Text)
+		public static int FindNextOcurrence(this ReadOnlySpan<byte> buffer, int offset, SearchText text)
 		{
-			return SearchText.FindNextOcurrence(Buffer, Offset, Text);
+			return SearchText.FindNextOcurrence(buffer, offset, text);
 		}
 
 		/// <summary>
 		/// Compare the search term against the given buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to search</param>
-		/// <param name="Offset">Starting offset for the search</param>
-		/// <param name="Text">The text to search for</param>
+		/// <param name="buffer">The buffer to search</param>
+		/// <param name="offset">Starting offset for the search</param>
+		/// <param name="text">The text to search for</param>
 		/// <returns>True if the text matches, false otherwise</returns>
-		public static bool Matches(this ReadOnlySpan<byte> Buffer, int Offset, SearchText Text)
+		public static bool Matches(this ReadOnlySpan<byte> buffer, int offset, SearchText text)
 		{
-			return SearchText.Matches(Buffer, Offset, Text);
+			return SearchText.Matches(buffer, offset, text);
 		}
 	}
 }

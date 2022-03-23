@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -41,19 +41,19 @@ namespace Horde.Build.Collections.Impl
 			{
 			}
 
-			public ServiceAccountDocument(ObjectId Id, string SecretToken, List<string> Claims, bool Enabled, string Description)
+			public ServiceAccountDocument(ObjectId id, string secretToken, List<string> claims, bool enabled, string description)
 			{
-				this.Id = Id;
-				this.SecretToken = SecretToken;
-				this.Claims = Claims;
-				this.Enabled = Enabled;
-				this.Description = Description;
+				Id = id;
+				SecretToken = secretToken;
+				Claims = claims;
+				Enabled = enabled;
+				Description = description;
 			}
 			
 			/// <inheritdoc/>
-			public void AddClaim(string Type, string Value)
+			public void AddClaim(string type, string value)
 			{
-				Claims.Add(Type + ClaimSeparator + Value);
+				Claims.Add(type + ClaimSeparator + value);
 			}
 
 			/// <inheritdoc/>
@@ -61,23 +61,32 @@ namespace Horde.Build.Collections.Impl
 			{
 				return Claims.Select(x =>
 				{
-					string[] Split = x.Split(ClaimSeparator);
-					return (Split[0], Split[1]);
+					string[] split = x.Split(ClaimSeparator);
+					return (split[0], split[1]);
 				}).ToList();
 			}
 
 			protected bool Equals(ServiceAccountDocument other)
 			{
-				bool AreClaimsEqual = !Claims.Except(other.Claims).Any();
+				bool areClaimsEqual = !Claims.Except(other.Claims).Any();
 
-                return Id.Equals(other.Id) && SecretToken == other.SecretToken && AreClaimsEqual && Enabled == other.Enabled && Description == other.Description;
+                return Id.Equals(other.Id) && SecretToken == other.SecretToken && areClaimsEqual && Enabled == other.Enabled && Description == other.Description;
 			}
 
 			public override bool Equals(object? obj)
 			{
-				if (ReferenceEquals(null, obj)) return false;
-				if (ReferenceEquals(this, obj)) return true;
-				if (obj.GetType() != this.GetType()) return false;
+				if (obj is null)
+				{
+					return false;
+				}
+				if (ReferenceEquals(this, obj))
+				{
+					return true;
+				}
+				if (obj.GetType() != GetType())
+				{
+					return false;
+				}
 				return Equals((ServiceAccountDocument) obj);
 			}
 
@@ -90,60 +99,72 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Collection of session documents
 		/// </summary>
-		private readonly IMongoCollection<ServiceAccountDocument> ServiceAccounts;
+		private readonly IMongoCollection<ServiceAccountDocument> _serviceAccounts;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service</param>
-		public ServiceAccountCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service</param>
+		public ServiceAccountCollection(DatabaseService databaseService)
 		{
-			ServiceAccounts = DatabaseService.GetCollection<ServiceAccountDocument>("ServiceAccounts");
+			_serviceAccounts = databaseService.GetCollection<ServiceAccountDocument>("ServiceAccounts");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				ServiceAccounts.Indexes.CreateOne(new CreateIndexModel<ServiceAccountDocument>(Builders<ServiceAccountDocument>.IndexKeys.Ascending(x => x.SecretToken)));
+				_serviceAccounts.Indexes.CreateOne(new CreateIndexModel<ServiceAccountDocument>(Builders<ServiceAccountDocument>.IndexKeys.Ascending(x => x.SecretToken)));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<IServiceAccount> AddAsync(string SecretToken, List<string> Claims, string Description)
+		public async Task<IServiceAccount> AddAsync(string secretToken, List<string> claims, string description)
 		{
-			ServiceAccountDocument NewSession = new ServiceAccountDocument(ObjectId.GenerateNewId(), SecretToken, Claims, true, Description);
-			await ServiceAccounts.InsertOneAsync(NewSession);
-			return NewSession;
+			ServiceAccountDocument newSession = new ServiceAccountDocument(ObjectId.GenerateNewId(), secretToken, claims, true, description);
+			await _serviceAccounts.InsertOneAsync(newSession);
+			return newSession;
 		}
 
 		/// <inheritdoc/>
-		public async Task<IServiceAccount?> GetAsync(ObjectId Id)
+		public async Task<IServiceAccount?> GetAsync(ObjectId id)
 		{
-			return await ServiceAccounts.Find(x => x.Id == Id).FirstOrDefaultAsync();
+			return await _serviceAccounts.Find(x => x.Id == id).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IServiceAccount?> GetBySecretTokenAsync(string SecretToken)
+		public async Task<IServiceAccount?> GetBySecretTokenAsync(string secretToken)
 		{
-			return await ServiceAccounts.Find(x => x.SecretToken == SecretToken).FirstOrDefaultAsync();
+			return await _serviceAccounts.Find(x => x.SecretToken == secretToken).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public Task UpdateAsync(ObjectId Id, string? SecretToken, List<string>? Claims, bool? Enabled, string? Description)
+		public Task UpdateAsync(ObjectId id, string? secretToken, List<string>? claims, bool? enabled, string? description)
 		{
-			UpdateDefinitionBuilder<ServiceAccountDocument> Update = Builders<ServiceAccountDocument>.Update;
-			List<UpdateDefinition<ServiceAccountDocument>> Updates = new List<UpdateDefinition<ServiceAccountDocument>>();
-			
-			if (SecretToken != null) Updates.Add(Update.Set(x => x.SecretToken, SecretToken));
-			if (Claims != null) Updates.Add(Update.Set(x => x.Claims, Claims));
-			if (Enabled != null) Updates.Add(Update.Set(x => x.Enabled, Enabled));
-			if (Description != null) Updates.Add(Update.Set(x => x.Description, Description));
+			UpdateDefinitionBuilder<ServiceAccountDocument> update = Builders<ServiceAccountDocument>.Update;
+			List<UpdateDefinition<ServiceAccountDocument>> updates = new List<UpdateDefinition<ServiceAccountDocument>>();
 
-			return ServiceAccounts.FindOneAndUpdateAsync(x => x.Id == Id, Update.Combine(Updates));
+			if (secretToken != null)
+			{
+				updates.Add(update.Set(x => x.SecretToken, secretToken));
+			}
+			if (claims != null)
+			{
+				updates.Add(update.Set(x => x.Claims, claims));
+			}
+			if (enabled != null)
+			{
+				updates.Add(update.Set(x => x.Enabled, enabled));
+			}
+			if (description != null)
+			{
+				updates.Add(update.Set(x => x.Description, description));
+			}
+
+			return _serviceAccounts.FindOneAndUpdateAsync(x => x.Id == id, update.Combine(updates));
 		}
 
 		/// <inheritdoc/>
-		public Task DeleteAsync(ObjectId SessionId)
+		public Task DeleteAsync(ObjectId sessionId)
 		{
-			return ServiceAccounts.DeleteOneAsync(x => x.Id == SessionId);
+			return _serviceAccounts.DeleteOneAsync(x => x.Id == sessionId);
 		}
 	}
 }

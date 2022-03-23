@@ -1,30 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
 	static class ObjectIdHelpers
 	{
-		public static ObjectId ToObjectId(this string Text)
+		public static ObjectId ToObjectId(this string text)
 		{
-			if (Text.Length == 0)
+			if (text.Length == 0)
 			{
 				return ObjectId.Empty;
 			}
 			else
 			{
-				return ObjectId.Parse(Text);
+				return ObjectId.Parse(text);
 			}
 		}
 
-		public static ObjectId<T> ToObjectId<T>(this string Text)
+		public static ObjectId<T> ToObjectId<T>(this string text)
 		{
-			return new ObjectId<T>(Text.ToObjectId());
+			return new ObjectId<T>(text.ToObjectId());
 		}
 	}
 }

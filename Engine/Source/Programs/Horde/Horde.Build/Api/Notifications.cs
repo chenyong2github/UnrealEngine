@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.ComponentModel.DataAnnotations;
 using Horde.Build.Models;
 
 namespace Horde.Build.Api
@@ -39,18 +38,18 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Subscription">The subscription interface</param>
-		internal GetNotificationResponse(INotificationSubscription? Subscription)
+		/// <param name="subscription">The subscription interface</param>
+		internal GetNotificationResponse(INotificationSubscription? subscription)
 		{
-			if (Subscription == null)
+			if (subscription == null)
 			{
 				Email = false;
 				Slack = false;
 			}
 			else
 			{
-				Email = Subscription.Email;
-				Slack = Subscription.Slack;
+				Email = subscription.Email;
+				Slack = subscription.Slack;
 			}
 		}
 	}

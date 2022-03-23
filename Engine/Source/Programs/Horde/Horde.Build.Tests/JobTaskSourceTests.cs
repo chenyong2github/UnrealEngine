@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Horde.Build.Api;
+using Horde.Build.Models;
 using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {

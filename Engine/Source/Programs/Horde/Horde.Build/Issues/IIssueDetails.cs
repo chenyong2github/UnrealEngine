@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Models
 {
@@ -66,9 +63,9 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Determines if the issue is relevant to the given user
 		/// </summary>
-		/// <param name="UserId">The user to query</param>
+		/// <param name="userId">The user to query</param>
 		/// <returns>True if the issue is relevant to the given user</returns>
-		bool IncludeForUser(UserId UserId);
+		bool IncludeForUser(UserId userId);
 	}
 
 	/// <summary>
@@ -79,17 +76,17 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets an issue details object for a specific issue id
 		/// </summary>
-		/// <param name="IssueService">The issue service</param>
-		/// <param name="IssueId">Issue id to query </param>
+		/// <param name="issueService">The issue service</param>
+		/// <param name="issueId">Issue id to query </param>
 		/// <returns></returns>
-		public static async Task<IIssueDetails?> GetIssueDetailsAsync(this IIssueService IssueService, int IssueId)
+		public static async Task<IIssueDetails?> GetIssueDetailsAsync(this IIssueService issueService, int issueId)
 		{
-			IIssue? Issue = await IssueService.GetIssueAsync(IssueId);
-			if(Issue == null)
+			IIssue? issue = await issueService.GetIssueAsync(issueId);
+			if(issue == null)
 			{
 				return null;
 			}
-			return await IssueService.GetIssueDetailsAsync(Issue);
+			return await issueService.GetIssueDetailsAsync(issue);
 		}
 	}
 }

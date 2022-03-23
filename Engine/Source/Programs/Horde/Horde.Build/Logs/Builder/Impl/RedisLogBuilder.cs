@@ -1,26 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Primitives;
-using MongoDB.Bson;
-using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
-using Horde.Build.Models;
+using StackExchange.Redis;
 
 namespace Horde.Build.Logs.Builder
 {
-	using LogId = ObjectId<ILogFile>;
 	using Condition = StackExchange.Redis.Condition;
+	using LogId = ObjectId<ILogFile>;
 
 	/// <summary>
 	/// Redis-based cache for log file chunks
@@ -39,18 +36,18 @@ namespace Horde.Build.Logs.Builder
 			public string SubChunkData => $"{Prefix}-subchunk";
 			public string Complete => $"{Prefix}-complete";
 
-			public ChunkKeys(LogId LogId, long Offset)
+			public ChunkKeys(LogId logId, long offset)
 			{
-				Prefix = $"log-{LogId}-chunk-{Offset}-builder";
+				Prefix = $"log-{logId}-chunk-{offset}-builder";
 			}
 
-			public static bool TryParse(string Prefix, out LogId LogId, out long Offset)
+			public static bool TryParse(string prefix, out LogId logId, out long offset)
 			{
-				Match Match = Regex.Match(Prefix, "log-([^-]+)-chunk-([^-]+)-builder");
-				if (!Match.Success || !LogId.TryParse(Match.Groups[1].Value, out LogId) || !long.TryParse(Match.Groups[2].Value, out Offset))
+				Match match = Regex.Match(prefix, "log-([^-]+)-chunk-([^-]+)-builder");
+				if (!match.Success || !LogId.TryParse(match.Groups[1].Value, out logId) || !Int64.TryParse(match.Groups[2].Value, out offset))
 				{
-					LogId = LogId.Empty;
-					Offset = 0;
+					logId = LogId.Empty;
+					offset = 0;
 					return false;
 				}
 				return true;
@@ -63,68 +60,68 @@ namespace Horde.Build.Logs.Builder
 		/// <summary>
 		/// The Redis database connection pool
 		/// </summary>
-		RedisConnectionPool RedisConnectionPool;
+		readonly RedisConnectionPool _redisConnectionPool;
 
 		/// <summary>
 		/// Logger for debug output
 		/// </summary>
-		ILogger Logger;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="RedisConnectionPool">The redis database singleton</param>
-		/// <param name="Logger">Logger for debug output</param>
-		public RedisLogBuilder(RedisConnectionPool RedisConnectionPool, ILogger Logger)
+		/// <param name="redisConnectionPool">The redis database singleton</param>
+		/// <param name="logger">Logger for debug output</param>
+		public RedisLogBuilder(RedisConnectionPool redisConnectionPool, ILogger logger)
 		{
-			this.RedisConnectionPool = RedisConnectionPool;
-			this.Logger = Logger;
+			_redisConnectionPool = redisConnectionPool;
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> AppendAsync(LogId LogId, long ChunkOffset, long WriteOffset, int WriteLineIndex, int WriteLineCount, ReadOnlyMemory<byte> Data, LogType Type)
+		public async Task<bool> AppendAsync(LogId logId, long chunkOffset, long writeOffset, int writeLineIndex, int writeLineCount, ReadOnlyMemory<byte> data, LogType type)
 		{
-			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
-			ChunkKeys Keys = new ChunkKeys(LogId, ChunkOffset);
+			IDatabase redisDb = _redisConnectionPool.GetDatabase();
+			ChunkKeys keys = new ChunkKeys(logId, chunkOffset);
 
-			if(ChunkOffset == WriteOffset)
+			if(chunkOffset == writeOffset)
 			{
-				using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.CreateChunk").StartActive();
-				Scope.Span.SetTag("LogId", LogId.ToString());
-				Scope.Span.SetTag("Offset", ChunkOffset.ToString(CultureInfo.InvariantCulture));
-				Scope.Span.SetTag("WriteOffset", WriteOffset.ToString(CultureInfo.InvariantCulture));
+				using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.CreateChunk").StartActive();
+				scope.Span.SetTag("LogId", logId.ToString());
+				scope.Span.SetTag("Offset", chunkOffset.ToString(CultureInfo.InvariantCulture));
+				scope.Span.SetTag("WriteOffset", writeOffset.ToString(CultureInfo.InvariantCulture));
 
-				ITransaction? CreateTransaction = RedisDb.CreateTransaction();
-				CreateTransaction.AddCondition(Condition.SortedSetNotContains(ItemsKey, Keys.Prefix));
-				_ = CreateTransaction.SortedSetAddAsync(ItemsKey, Keys.Prefix, DateTime.UtcNow.Ticks);
-				_ = CreateTransaction.StringSetAsync(Keys.Type, (int)Type);
-				_ = CreateTransaction.StringSetAsync(Keys.Length, Data.Length);
-				_ = CreateTransaction.StringSetAsync(Keys.LineIndex, WriteLineIndex + WriteLineCount);
-				_ = CreateTransaction.StringSetAsync(Keys.SubChunkData, Data);
-				if (await CreateTransaction.ExecuteAsync())
+				ITransaction? createTransaction = redisDb.CreateTransaction();
+				createTransaction.AddCondition(Condition.SortedSetNotContains(ItemsKey, keys.Prefix));
+				_ = createTransaction.SortedSetAddAsync(ItemsKey, keys.Prefix, DateTime.UtcNow.Ticks);
+				_ = createTransaction.StringSetAsync(keys.Type, (int)type);
+				_ = createTransaction.StringSetAsync(keys.Length, data.Length);
+				_ = createTransaction.StringSetAsync(keys.LineIndex, writeLineIndex + writeLineCount);
+				_ = createTransaction.StringSetAsync(keys.SubChunkData, data);
+				if (await createTransaction.ExecuteAsync())
 				{
-					Logger.LogTrace("Created {Size} bytes in {Key}", Data.Length, Keys.SubChunkData);
+					_logger.LogTrace("Created {Size} bytes in {Key}", data.Length, keys.SubChunkData);
 					return true;
 				}
 			}
 
 			{
-				using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.AppendChunk").StartActive();
-				Scope.Span.SetTag("LogId", LogId.ToString());
-				Scope.Span.SetTag("Offset", ChunkOffset.ToString(CultureInfo.InvariantCulture));
-				Scope.Span.SetTag("WriteOffset", WriteOffset.ToString(CultureInfo.InvariantCulture));
+				using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.AppendChunk").StartActive();
+				scope.Span.SetTag("LogId", logId.ToString());
+				scope.Span.SetTag("Offset", chunkOffset.ToString(CultureInfo.InvariantCulture));
+				scope.Span.SetTag("WriteOffset", writeOffset.ToString(CultureInfo.InvariantCulture));
 
-				ITransaction? AppendTransaction = RedisDb.CreateTransaction();
-				AppendTransaction.AddCondition(Condition.SortedSetContains(ItemsKey, Keys.Prefix));
-				AppendTransaction.AddCondition(Condition.KeyNotExists(Keys.Complete));
-				AppendTransaction.AddCondition(Condition.StringEqual(Keys.Type, (int)Type));
-				AppendTransaction.AddCondition(Condition.StringEqual(Keys.Length, (int)(WriteOffset - ChunkOffset)));
-				_ = AppendTransaction.StringAppendAsync(Keys.SubChunkData, Data);
-				_ = AppendTransaction.StringSetAsync(Keys.Length, (int)(WriteOffset - ChunkOffset) + Data.Length);
-				_ = AppendTransaction.StringSetAsync(Keys.LineIndex, WriteLineIndex + WriteLineCount);
-				if (await AppendTransaction.ExecuteAsync())
+				ITransaction? appendTransaction = redisDb.CreateTransaction();
+				appendTransaction.AddCondition(Condition.SortedSetContains(ItemsKey, keys.Prefix));
+				appendTransaction.AddCondition(Condition.KeyNotExists(keys.Complete));
+				appendTransaction.AddCondition(Condition.StringEqual(keys.Type, (int)type));
+				appendTransaction.AddCondition(Condition.StringEqual(keys.Length, (int)(writeOffset - chunkOffset)));
+				_ = appendTransaction.StringAppendAsync(keys.SubChunkData, data);
+				_ = appendTransaction.StringSetAsync(keys.Length, (int)(writeOffset - chunkOffset) + data.Length);
+				_ = appendTransaction.StringSetAsync(keys.LineIndex, writeLineIndex + writeLineCount);
+				if (await appendTransaction.ExecuteAsync())
 				{
-					Logger.LogTrace("Appended {Size} to {Key}", Data.Length, Keys.SubChunkData);
+					_logger.LogTrace("Appended {Size} to {Key}", data.Length, keys.SubChunkData);
 					return true;
 				}
 			}
@@ -133,176 +130,176 @@ namespace Horde.Build.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public async Task CompleteSubChunkAsync(LogId LogId, long Offset)
+		public async Task CompleteSubChunkAsync(LogId logId, long offset)
 		{
-			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
-			ChunkKeys Keys = new ChunkKeys(LogId, Offset);
+			IDatabase redisDb = _redisConnectionPool.GetDatabase();
+			ChunkKeys keys = new ChunkKeys(logId, offset);
 			for (; ; )
 			{
-				using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteSubChunk").StartActive();
-				Scope.Span.SetTag("LogId", LogId.ToString());
-				Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
+				using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteSubChunk").StartActive();
+				scope.Span.SetTag("LogId", logId.ToString());
+				scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
 
-				LogType Type = (LogType)(int)await RedisDb.StringGetAsync(Keys.Type);
-				int Length = (int)await RedisDb.StringGetAsync(Keys.Length);
-				int LineIndex = (int)await RedisDb.StringGetAsync(Keys.LineIndex);
-				long ChunkDataLength = await RedisDb.StringLengthAsync(Keys.ChunkData);
+				LogType type = (LogType)(int)await redisDb.StringGetAsync(keys.Type);
+				int length = (int)await redisDb.StringGetAsync(keys.Length);
+				int lineIndex = (int)await redisDb.StringGetAsync(keys.LineIndex);
+				long chunkDataLength = await redisDb.StringLengthAsync(keys.ChunkData);
 
-				RedisValue SubChunkTextValue = await RedisDb.StringGetAsync(Keys.SubChunkData);
-				if (SubChunkTextValue.IsNullOrEmpty)
+				RedisValue subChunkTextValue = await redisDb.StringGetAsync(keys.SubChunkData);
+				if (subChunkTextValue.IsNullOrEmpty)
 				{
 					break;
 				}
 
-				ReadOnlyLogText SubChunkText = new ReadOnlyLogText(SubChunkTextValue);
-				LogSubChunkData SubChunkData = new LogSubChunkData(Type, Offset + Length - SubChunkText.Data.Length, LineIndex - SubChunkText.LineCount, SubChunkText);
-				byte[] SubChunkDataBytes = SubChunkData.ToByteArray();
+				ReadOnlyLogText subChunkText = new ReadOnlyLogText(subChunkTextValue);
+				LogSubChunkData subChunkData = new LogSubChunkData(type, offset + length - subChunkText.Data.Length, lineIndex - subChunkText.LineCount, subChunkText);
+				byte[] subChunkDataBytes = subChunkData.ToByteArray();
 
-				ITransaction WriteTransaction = RedisDb.CreateTransaction();
+				ITransaction writeTransaction = redisDb.CreateTransaction();
 
-				WriteTransaction.AddCondition(Condition.StringLengthEqual(Keys.ChunkData, ChunkDataLength));
-				WriteTransaction.AddCondition(Condition.StringLengthEqual(Keys.SubChunkData, SubChunkText.Length));
-				WriteTransaction.AddCondition(Condition.StringEqual(Keys.Length, Length));
-				WriteTransaction.AddCondition(Condition.StringEqual(Keys.LineIndex, LineIndex));
-				Task<long> NewLength = WriteTransaction.StringAppendAsync(Keys.ChunkData, SubChunkDataBytes);
-				_ = WriteTransaction.KeyDeleteAsync(Keys.SubChunkData);
+				writeTransaction.AddCondition(Condition.StringLengthEqual(keys.ChunkData, chunkDataLength));
+				writeTransaction.AddCondition(Condition.StringLengthEqual(keys.SubChunkData, subChunkText.Length));
+				writeTransaction.AddCondition(Condition.StringEqual(keys.Length, length));
+				writeTransaction.AddCondition(Condition.StringEqual(keys.LineIndex, lineIndex));
+				Task<long> newLength = writeTransaction.StringAppendAsync(keys.ChunkData, subChunkDataBytes);
+				_ = writeTransaction.KeyDeleteAsync(keys.SubChunkData);
 
-				if (await WriteTransaction.ExecuteAsync())
+				if (await writeTransaction.ExecuteAsync())
 				{
-					Logger.LogDebug("Completed sub-chunk for log {LogId} chunk offset {Offset} -> sub-chunk size {SubChunkSize}, chunk size {ChunkSize}", LogId, Offset, SubChunkDataBytes.Length, await NewLength);
+					_logger.LogDebug("Completed sub-chunk for log {LogId} chunk offset {Offset} -> sub-chunk size {SubChunkSize}, chunk size {ChunkSize}", logId, offset, subChunkDataBytes.Length, await newLength);
 					break;
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task CompleteChunkAsync(LogId LogId, long Offset)
+		public async Task CompleteChunkAsync(LogId logId, long offset)
 		{
-			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteChunk").StartActive();
-			Scope.Span.SetTag("LogId", LogId.ToString());
-			Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
+			IDatabase redisDb = _redisConnectionPool.GetDatabase();
+			using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteChunk").StartActive();
+			scope.Span.SetTag("LogId", logId.ToString());
+			scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
 
-			ChunkKeys Keys = new ChunkKeys(LogId, Offset);
+			ChunkKeys keys = new ChunkKeys(logId, offset);
 
-			ITransaction Transaction = RedisDb.CreateTransaction();
-			Transaction.AddCondition(Condition.SortedSetContains(ItemsKey, Keys.Prefix));
-			_ = Transaction.StringSetAsync(Keys.Complete, true);
-			if(!await Transaction.ExecuteAsync())
+			ITransaction transaction = redisDb.CreateTransaction();
+			transaction.AddCondition(Condition.SortedSetContains(ItemsKey, keys.Prefix));
+			_ = transaction.StringSetAsync(keys.Complete, true);
+			if(!await transaction.ExecuteAsync())
 			{
-				Logger.LogDebug("Log {LogId} chunk offset {Offset} is not in Redis builder", LogId, Offset);
+				_logger.LogDebug("Log {LogId} chunk offset {Offset} is not in Redis builder", logId, offset);
 				return;
 			}
 
-			await CompleteSubChunkAsync(LogId, Offset);
+			await CompleteSubChunkAsync(logId, offset);
 		}
 
 		/// <inheritdoc/>
-		public async Task RemoveChunkAsync(LogId LogId, long Offset)
+		public async Task RemoveChunkAsync(LogId logId, long offset)
 		{
-			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.RemoveChunk").StartActive();
-			Scope.Span.SetTag("LogId", LogId.ToString());
-			Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
+			IDatabase redisDb = _redisConnectionPool.GetDatabase();
+			using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.RemoveChunk").StartActive();
+			scope.Span.SetTag("LogId", logId.ToString());
+			scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
 
-			ChunkKeys Keys = new ChunkKeys(LogId, Offset);
+			ChunkKeys keys = new ChunkKeys(logId, offset);
 
-			ITransaction Transaction = RedisDb.CreateTransaction();
-			_ = Transaction.KeyDeleteAsync(Keys.Type);
-			_ = Transaction.KeyDeleteAsync(Keys.LineIndex);
-			_ = Transaction.KeyDeleteAsync(Keys.Length);
-			_ = Transaction.KeyDeleteAsync(Keys.ChunkData);
-			_ = Transaction.KeyDeleteAsync(Keys.SubChunkData);
-			_ = Transaction.KeyDeleteAsync(Keys.Complete);
+			ITransaction transaction = redisDb.CreateTransaction();
+			_ = transaction.KeyDeleteAsync(keys.Type);
+			_ = transaction.KeyDeleteAsync(keys.LineIndex);
+			_ = transaction.KeyDeleteAsync(keys.Length);
+			_ = transaction.KeyDeleteAsync(keys.ChunkData);
+			_ = transaction.KeyDeleteAsync(keys.SubChunkData);
+			_ = transaction.KeyDeleteAsync(keys.Complete);
 
-			_ = Transaction.SortedSetRemoveAsync(ItemsKey, Keys.Prefix);
-			await Transaction.ExecuteAsync();
+			_ = transaction.SortedSetRemoveAsync(ItemsKey, keys.Prefix);
+			await transaction.ExecuteAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogChunkData?> GetChunkAsync(LogId LogId, long Offset, int LineIndex)
+		public async Task<LogChunkData?> GetChunkAsync(LogId logId, long offset, int lineIndex)
 		{
-			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
-			ChunkKeys Keys = new ChunkKeys(LogId, Offset);
+			IDatabase redisDb = _redisConnectionPool.GetDatabase();
+			ChunkKeys keys = new ChunkKeys(logId, offset);
 			for (; ; )
 			{
-				using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.GetChunk").StartActive();
-				Scope.Span.SetTag("LogId", LogId.ToString());
-				Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
+				using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.GetChunk").StartActive();
+				scope.Span.SetTag("LogId", logId.ToString());
+				scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
 
-				RedisValue ChunkDataValue = await RedisDb.StringGetAsync(Keys.ChunkData);
+				RedisValue chunkDataValue = await redisDb.StringGetAsync(keys.ChunkData);
 
-				ReadOnlyMemory<byte> ChunkData = ChunkDataValue;
+				ReadOnlyMemory<byte> chunkData = chunkDataValue;
 
-				ITransaction Transaction = RedisDb.CreateTransaction();
-				Transaction.AddCondition(Condition.StringLengthEqual(Keys.ChunkData, ChunkData.Length));
-				Task<RedisValue> TypeTask = Transaction.StringGetAsync(Keys.Type);
-				Task<RedisValue> LastSubChunkDataTask = Transaction.StringGetAsync(Keys.SubChunkData);
+				ITransaction transaction = redisDb.CreateTransaction();
+				transaction.AddCondition(Condition.StringLengthEqual(keys.ChunkData, chunkData.Length));
+				Task<RedisValue> typeTask = transaction.StringGetAsync(keys.Type);
+				Task<RedisValue> lastSubChunkDataTask = transaction.StringGetAsync(keys.SubChunkData);
 
-				if (await Transaction.ExecuteAsync())
+				if (await transaction.ExecuteAsync())
 				{
-					MemoryReader Reader = new MemoryReader(ChunkData);
+					MemoryReader reader = new MemoryReader(chunkData);
 
-					long SubChunkOffset = Offset;
-					int SubChunkLineIndex = LineIndex;
+					long subChunkOffset = offset;
+					int subChunkLineIndex = lineIndex;
 
-					List<LogSubChunkData> SubChunks = new List<LogSubChunkData>();
-					while (Reader.Offset < Reader.Length)
+					List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
+					while (reader.Offset < reader.Length)
 					{
-						LogSubChunkData SubChunkData = Reader.ReadLogSubChunkData(SubChunkOffset, SubChunkLineIndex);
-						SubChunkOffset += SubChunkData.Length;
-						SubChunkLineIndex += SubChunkData.LineCount;
-						SubChunks.Add(SubChunkData);
+						LogSubChunkData subChunkData = reader.ReadLogSubChunkData(subChunkOffset, subChunkLineIndex);
+						subChunkOffset += subChunkData.Length;
+						subChunkLineIndex += subChunkData.LineCount;
+						subChunks.Add(subChunkData);
 					}
 
-					RedisValue Type = await TypeTask;
+					RedisValue type = await typeTask;
 
-					RedisValue LastSubChunkData = await LastSubChunkDataTask;
-					if (LastSubChunkData.Length() > 0)
+					RedisValue lastSubChunkData = await lastSubChunkDataTask;
+					if (lastSubChunkData.Length() > 0)
 					{
-						ReadOnlyLogText SubChunkDataText = new ReadOnlyLogText(LastSubChunkData);
-						SubChunks.Add(new LogSubChunkData((LogType)(int)Type, SubChunkOffset, SubChunkLineIndex, SubChunkDataText));
+						ReadOnlyLogText subChunkDataText = new ReadOnlyLogText(lastSubChunkData);
+						subChunks.Add(new LogSubChunkData((LogType)(int)type, subChunkOffset, subChunkLineIndex, subChunkDataText));
 					}
 
-					if (SubChunks.Count == 0)
+					if (subChunks.Count == 0)
 					{
 						break;
 					}
 
-					return new LogChunkData(Offset, LineIndex, SubChunks);
+					return new LogChunkData(offset, lineIndex, subChunks);
 				}
 			}
 			return null;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<(LogId, long)>> TouchChunksAsync(TimeSpan MinAge)
+		public async Task<List<(LogId, long)>> TouchChunksAsync(TimeSpan minAge)
 		{
-			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
+			IDatabase redisDb = _redisConnectionPool.GetDatabase();
 			
 			// Find all the chunks that are suitable for expiry
-			DateTime UtcNow = DateTime.UtcNow;
-			SortedSetEntry[] Entries = await RedisDb.SortedSetRangeByScoreWithScoresAsync(ItemsKey, stop: (UtcNow - MinAge).Ticks);
+			DateTime utcNow = DateTime.UtcNow;
+			SortedSetEntry[] entries = await redisDb.SortedSetRangeByScoreWithScoresAsync(ItemsKey, stop: (utcNow - minAge).Ticks);
 
 			// Update the score for each element in a transaction. If it succeeds, we can write the chunk. Otherwise another pod has beat us to it.
-			List<(LogId, long)> Results = new List<(LogId, long)>();
-			foreach (SortedSetEntry Entry in Entries)
+			List<(LogId, long)> results = new List<(LogId, long)>();
+			foreach (SortedSetEntry entry in entries)
 			{
-				if (ChunkKeys.TryParse(Entry.Element.ToString(), out LogId LogId, out long Offset))
+				if (ChunkKeys.TryParse(entry.Element.ToString(), out LogId logId, out long offset))
 				{
-					ITransaction Transaction = RedisDb.CreateTransaction();
-					Transaction.AddCondition(Condition.SortedSetEqual(ItemsKey, Entry.Element, Entry.Score));
-					_ = Transaction.SortedSetAddAsync(ItemsKey, Entry.Element, UtcNow.Ticks);
+					ITransaction transaction = redisDb.CreateTransaction();
+					transaction.AddCondition(Condition.SortedSetEqual(ItemsKey, entry.Element, entry.Score));
+					_ = transaction.SortedSetAddAsync(ItemsKey, entry.Element, utcNow.Ticks);
 
-					if (!await Transaction.ExecuteAsync())
+					if (!await transaction.ExecuteAsync())
 					{
 						break;
 					}
 
-					Results.Add((LogId, Offset));
+					results.Add((logId, offset));
 				}
 			}
-			return Results;
+			return results;
 		}
 	}
 }

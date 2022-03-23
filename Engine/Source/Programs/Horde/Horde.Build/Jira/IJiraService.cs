@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.	
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -14,12 +15,12 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// The Jira issue key
 		/// </summary>
-		public string Key { get; set; } = string.Empty;
+		public string Key { get; set; } = String.Empty;
 
 		/// <summary>
 		/// The Jira issue link
 		/// </summary>
-		public string JiraLink { get; set; } = string.Empty;
+		public string JiraLink { get; set; } = String.Empty;
 
 		/// <summary>
 		/// The issue status name, "To Do", "In Progress", etc
@@ -60,9 +61,8 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Get Jira issues associated with provided keys
 		/// </summary>
-		/// <param name="JiraKeys"></param>
+		/// <param name="jiraKeys"></param>
 		/// <returns></returns>
-		Task<List<JiraIssue>> GetJiraIssuesAsync(string[] JiraKeys);
+		Task<List<JiraIssue>> GetJiraIssuesAsync(string[] jiraKeys);
 	}
-
 }

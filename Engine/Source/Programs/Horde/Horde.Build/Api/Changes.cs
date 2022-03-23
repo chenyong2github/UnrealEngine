@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -36,13 +33,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ChangeSummary">The commit to construct from</param>
-		public GetChangeSummaryResponse(ChangeSummary ChangeSummary)
+		/// <param name="changeSummary">The commit to construct from</param>
+		public GetChangeSummaryResponse(ChangeSummary changeSummary)
 		{
-			this.Number = ChangeSummary.Number;
-			this.Author = ChangeSummary.Author.Name;
-			this.AuthorInfo = new GetThinUserInfoResponse(ChangeSummary.Author);
-			this.Description = ChangeSummary.Description;
+			Number = changeSummary.Number;
+			Author = changeSummary.Author.Name;
+			AuthorInfo = new GetThinUserInfoResponse(changeSummary.Author);
+			Description = changeSummary.Description;
 		}
 	}
 
@@ -79,14 +76,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ChangeDetails">The commit to construct from</param>
-		public GetChangeDetailsResponse(ChangeDetails ChangeDetails)
+		/// <param name="changeDetails">The commit to construct from</param>
+		public GetChangeDetailsResponse(ChangeDetails changeDetails)
 		{
-			this.Number = ChangeDetails.Number;
-			this.Author = ChangeDetails.Author.Name;
-			this.AuthorInfo = new GetThinUserInfoResponse(ChangeDetails.Author);
-			this.Description = ChangeDetails.Description;
-			this.Files = ChangeDetails.Files.ConvertAll(x => x.Path);
+			Number = changeDetails.Number;
+			Author = changeDetails.Author.Name;
+			AuthorInfo = new GetThinUserInfoResponse(changeDetails.Author);
+			Description = changeDetails.Description;
+			Files = changeDetails.Files.ConvertAll(x => x.Path);
 		}
 	}
 }

@@ -1,19 +1,15 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
-using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -30,163 +26,162 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// The ACL service singleton
 		/// </summary>
-		AclService AclService;
+		readonly AclService _aclService;
 
 		/// <summary>
 		/// Collection of subscription documents
 		/// </summary>
-		ISubscriptionCollection SubscriptionCollection;
+		readonly ISubscriptionCollection _subscriptionCollection;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AclService">The acl service singleton</param>
-		/// <param name="SubscriptionCollection">The collection of subscription documents</param>
-		public SubscriptionsController(AclService AclService, ISubscriptionCollection SubscriptionCollection)
+		/// <param name="aclService">The acl service singleton</param>
+		/// <param name="subscriptionCollection">The collection of subscription documents</param>
+		public SubscriptionsController(AclService aclService, ISubscriptionCollection subscriptionCollection)
 		{
-			this.AclService = AclService;
-			this.SubscriptionCollection = SubscriptionCollection;
+			_aclService = aclService;
+			_subscriptionCollection = subscriptionCollection;
 		}
 
 		/// <summary>
 		/// Find subscriptions matching a criteria
 		/// </summary>
-		/// <param name="UserId">Name of the user</param>
-		/// <param name="Filter">Filter for properties to return</param>
+		/// <param name="userId">Name of the user</param>
+		/// <param name="filter">Filter for properties to return</param>
 		/// <returns>List of subscriptions</returns>
 		[HttpGet]
 		[Route("/api/v1/subscriptions")]
 		[ProducesResponseType(typeof(List<GetSubscriptionResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetSubscriptionsAsync([FromQuery] string UserId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetSubscriptionsAsync([FromQuery] string userId, [FromQuery] PropertyFilter? filter = null)
 		{
-			UserId UserIdValue;
-			if (!TryParseUserId(UserId, out UserIdValue))
+			UserId userIdValue;
+			if (!TryParseUserId(userId, out userIdValue))
 			{
 				return BadRequest("Invalid user id");
 			}
-			if (!await AclService.AuthorizeAsUserAsync(User, UserIdValue))
+			if (!await _aclService.AuthorizeAsUserAsync(User, userIdValue))
 			{
 				return Forbid();
 			}
 
-			List<ISubscription> Results = await SubscriptionCollection.FindSubscriptionsAsync(UserIdValue);
-			return Results.ConvertAll(x => PropertyFilter.Apply(new GetSubscriptionResponse(x), Filter));
+			List<ISubscription> results = await _subscriptionCollection.FindSubscriptionsAsync(userIdValue);
+			return results.ConvertAll(x => PropertyFilter.Apply(new GetSubscriptionResponse(x), filter));
 		}
 
 		/// <summary>
 		/// Find subscriptions matching a criteria
 		/// </summary>
-		/// <param name="SubscriptionId">The subscription id</param>
-		/// <param name="Filter">Filter for properties to return</param>
+		/// <param name="subscriptionId">The subscription id</param>
+		/// <param name="filter">Filter for properties to return</param>
 		/// <returns>List of subscriptions</returns>
 		[HttpGet]
-		[Route("/api/v1/subscriptions/{SubscriptionId}")]
+		[Route("/api/v1/subscriptions/{subscriptionId}")]
 		[ProducesResponseType(typeof(GetSubscriptionResponse), 200)]
-		public async Task<ActionResult<object>> GetSubscriptionAsync(string SubscriptionId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetSubscriptionAsync(string subscriptionId, [FromQuery] PropertyFilter? filter = null)
 		{
-			ISubscription? Subscription = await SubscriptionCollection.GetAsync(SubscriptionId);
-			if (Subscription == null)
+			ISubscription? subscription = await _subscriptionCollection.GetAsync(subscriptionId);
+			if (subscription == null)
 			{
 				return NotFound();
 			}
-			if (!await AclService.AuthorizeAsUserAsync(User, Subscription.UserId))
+			if (!await _aclService.AuthorizeAsUserAsync(User, subscription.UserId))
 			{
 				return Forbid();
 			}
 
-			return PropertyFilter.Apply(new GetSubscriptionResponse(Subscription), Filter);
+			return PropertyFilter.Apply(new GetSubscriptionResponse(subscription), filter);
 		}
-
 
 		/// <summary>
 		/// Remove a subscription
 		/// </summary>
-		/// <param name="SubscriptionId">The subscription id</param>
+		/// <param name="subscriptionId">The subscription id</param>
 		/// <returns>Async task</returns>
 		[HttpDelete]
-		[Route("/api/v1/subscriptions/{SubscriptionId}")]
+		[Route("/api/v1/subscriptions/{subscriptionId}")]
 		[ProducesResponseType(typeof(List<GetSubscriptionResponse>), 200)]
-		public async Task<ActionResult> DeleteSubscriptionAsync(string SubscriptionId)
+		public async Task<ActionResult> DeleteSubscriptionAsync(string subscriptionId)
 		{
-			ISubscription? Subscription = await SubscriptionCollection.GetAsync(SubscriptionId);
-			if (Subscription == null)
+			ISubscription? subscription = await _subscriptionCollection.GetAsync(subscriptionId);
+			if (subscription == null)
 			{
 				return NotFound();
 			}
-			if (!await AclService.AuthorizeAsUserAsync(User, Subscription.UserId))
+			if (!await _aclService.AuthorizeAsUserAsync(User, subscription.UserId))
 			{
 				return Forbid();
 			}
 
-			await SubscriptionCollection.RemoveAsync(new[] { Subscription });
+			await _subscriptionCollection.RemoveAsync(new[] { subscription });
 			return Ok();
 		}
 
 		/// <summary>
 		/// Find subscriptions matching a criteria
 		/// </summary>
-		/// <param name="Subscriptions">The new subscriptions to create</param>
+		/// <param name="subscriptions">The new subscriptions to create</param>
 		/// <returns>List of subscriptions</returns>
 		[HttpPost]
 		[Route("/api/v1/subscriptions")]
-		public async Task<ActionResult<List<CreateSubscriptionResponse>>> CreateSubscriptionsAsync(List<CreateSubscriptionRequest> Subscriptions)
+		public async Task<ActionResult<List<CreateSubscriptionResponse>>> CreateSubscriptionsAsync(List<CreateSubscriptionRequest> subscriptions)
 		{
-			HashSet<UserId> AuthorizedUsers = new HashSet<UserId>();
+			HashSet<UserId> authorizedUsers = new HashSet<UserId>();
 
-			UserId? CurrentUserId = User.GetUserId();
-			if(CurrentUserId != null)
+			UserId? currentUserId = User.GetUserId();
+			if(currentUserId != null)
 			{
-				AuthorizedUsers.Add(CurrentUserId.Value);
+				authorizedUsers.Add(currentUserId.Value);
 			}
 
-			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
+			GlobalPermissionsCache cache = new GlobalPermissionsCache();
 
-			List<NewSubscription> NewSubscriptions = new List<NewSubscription>();
-			foreach (CreateSubscriptionRequest Subscription in Subscriptions)
+			List<NewSubscription> newSubscriptions = new List<NewSubscription>();
+			foreach (CreateSubscriptionRequest subscription in subscriptions)
 			{
-				UserId NewUserId;
-				if (!TryParseUserId(Subscription.UserId, out NewUserId))
+				UserId newUserId;
+				if (!TryParseUserId(subscription.UserId, out newUserId))
 				{
-					return BadRequest($"Invalid user id: '{Subscription.UserId}'.");
+					return BadRequest($"Invalid user id: '{subscription.UserId}'.");
 				}
-				if (AuthorizedUsers.Add(NewUserId) && !await AclService.AuthorizeAsync(AclAction.Impersonate, User, Cache))
+				if (authorizedUsers.Add(newUserId) && !await _aclService.AuthorizeAsync(AclAction.Impersonate, User, cache))
 				{
 					return Forbid();
 				}
-				NewSubscriptions.Add(new NewSubscription(Subscription.Event, NewUserId, Subscription.NotificationType));
+				newSubscriptions.Add(new NewSubscription(subscription.Event, newUserId, subscription.NotificationType));
 			}
 
-			List<ISubscription> Results = await SubscriptionCollection.AddAsync(NewSubscriptions);
-			return Results.ConvertAll(x => new CreateSubscriptionResponse(x));
+			List<ISubscription> results = await _subscriptionCollection.AddAsync(newSubscriptions);
+			return results.ConvertAll(x => new CreateSubscriptionResponse(x));
 		}
 
 		/// <summary>
 		/// Parse a user id from a string. Allows passing the user's name as well as their objectid value.
 		/// </summary>
-		/// <param name="UserName"></param>
-		/// <param name="ObjectId"></param>
+		/// <param name="userName"></param>
+		/// <param name="objectId"></param>
 		/// <returns></returns>
-		bool TryParseUserId(string UserName, out UserId ObjectId)
+		bool TryParseUserId(string userName, out UserId objectId)
 		{
-			UserId NewObjectId;
-			if (UserId.TryParse(UserName, out NewObjectId))
+			UserId newObjectId;
+			if (UserId.TryParse(userName, out newObjectId))
 			{
-				ObjectId = NewObjectId;
+				objectId = newObjectId;
 				return true;
 			}
 
-			string? CurrentUserName = User.GetUserName();
-			if (CurrentUserName != null && String.Equals(UserName, CurrentUserName, StringComparison.OrdinalIgnoreCase))
+			string? currentUserName = User.GetUserName();
+			if (currentUserName != null && String.Equals(userName, currentUserName, StringComparison.OrdinalIgnoreCase))
 			{
-				UserId? CurrentUserId = User.GetUserId();
-				if (CurrentUserId != null)
+				UserId? currentUserId = User.GetUserId();
+				if (currentUserId != null)
 				{
-					ObjectId = CurrentUserId.Value;
+					objectId = currentUserId.Value;
 					return true;
 				}
 			}
 
-			ObjectId = default;
+			objectId = default;
 			return false;
 		}
 	}

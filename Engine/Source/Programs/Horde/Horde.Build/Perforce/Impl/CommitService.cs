@@ -1,48 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using Perforce;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
-using Horde.Build.Storage;
-using Horde.Build.Services;
-using EpicGames.Serialization;
-using MongoDB.Bson.Serialization.Attributes;
-using System.Collections.Concurrent;
-using System.Globalization;
-using Microsoft.Extensions.Hosting;
-using EpicGames.Perforce.Managed;
 using System.Threading.Channels;
-using StackExchange.Redis;
-using EpicGames.Perforce;
-using EpicGames.Redis;
-using System.Diagnostics;
-using System.IO.Compression;
-using System.IO;
-using HordeCommon;
-using EpicGames.Horde.Storage;
-using System.Text;
-using Microsoft.Extensions.Options;
+using System.Threading.Tasks;
+using EpicGames.Core;
 using EpicGames.Horde.Bundles;
 using EpicGames.Horde.Bundles.Nodes;
+using EpicGames.Horde.Storage;
+using EpicGames.Perforce;
+using EpicGames.Redis;
+using EpicGames.Serialization;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
-using System.Runtime;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 
 namespace Horde.Build.Commits.Impl
 {
-	using P4 = Perforce.P4;
 	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;
-	using IRef = EpicGames.Horde.Storage.IRef;
 
 	/// <summary>
 	/// Options for the commit service
@@ -113,12 +102,12 @@ namespace Horde.Build.Commits.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitKey(StreamId StreamId, int Change, string? Filter, bool RevisionsOnly)
+		public CommitKey(StreamId streamId, int change, string? filter, bool revisionsOnly)
 		{
-			this.StreamId = StreamId;
-			this.Change = Change;
-			this.Filter = Filter;
-			this.RevisionsOnly = RevisionsOnly;
+			StreamId = streamId;
+			Change = change;
+			Filter = filter;
+			RevisionsOnly = revisionsOnly;
 		}
 
 		/// <summary>
@@ -127,8 +116,8 @@ namespace Horde.Build.Commits.Impl
 		/// <returns></returns>
 		public RefId GetRefId()
 		{
-			CbObject Object = CbSerializer.Serialize(this);
-			return new RefId(IoHash.Compute(Object.GetView().Span));
+			CbObject obj = CbSerializer.Serialize(this);
+			return new RefId(IoHash.Compute(obj.GetView().Span));
 		}
 	}
 
@@ -145,10 +134,10 @@ namespace Horde.Build.Commits.Impl
 			public IStream Stream { get; set; }
 			public ViewMap View { get; }
 
-			public StreamInfo(IStream Stream, ViewMap View)
+			public StreamInfo(IStream stream, ViewMap view)
 			{
-				this.Stream = Stream;
-				this.View = View;
+				Stream = stream;
+				View = view;
 			}
 		}
 
@@ -157,25 +146,25 @@ namespace Horde.Build.Commits.Impl
 		/// </summary>
 		class ListenerInfo : IDisposable
 		{
-			List<ListenerInfo> Listeners;
-			public Action<ICommit> Callback;
+			readonly List<ListenerInfo> _listeners;
+			public Action<ICommit> _callback;
 
-			public ListenerInfo(List<ListenerInfo> Listeners, Action<ICommit> Callback)
+			public ListenerInfo(List<ListenerInfo> listeners, Action<ICommit> callback)
 			{
-				this.Listeners = Listeners;
-				this.Callback = Callback;
+				_listeners = listeners;
+				_callback = callback;
 
-				lock (Listeners)
+				lock (listeners)
 				{
-					Listeners.Add(this);
+					listeners.Add(this);
 				}
 			}
 
 			public void Dispose()
 			{
-				lock (Listeners)
+				lock (_listeners)
 				{
-					Listeners.Remove(this);
+					_listeners.Remove(this);
 				}
 			}
 		}
@@ -183,45 +172,45 @@ namespace Horde.Build.Commits.Impl
 		public CommitServiceOptions Options { get; }
 
 		// Redis
-		IDatabase Redis;
+		readonly IDatabase _redis;
 
 		// Collections
-		ICommitCollection CommitCollection;
-		IStorageClient StorageClient;
-		IStreamCollection StreamCollection;
-		IPerforceService PerforceService;
-		IUserCollection UserCollection;
-		IMemoryCache MemoryCache;
-		ILogger<CommitService> Logger;
+		readonly ICommitCollection _commitCollection;
+		readonly IStorageClient _storageClient;
+		readonly IStreamCollection _streamCollection;
+		readonly IPerforceService _perforceService;
+		readonly IUserCollection _userCollection;
+		readonly IMemoryCache _memoryCache;
+		readonly ILogger<CommitService> _logger;
 
 		const int MaxBackgroundTasks = 2;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitService(IDatabase Redis, ICommitCollection CommitCollection, IStorageClient StorageClient, IStreamCollection StreamCollection, IPerforceService PerforceService, IUserCollection UserCollection, IClock Clock, IMemoryCache MemoryCache, IOptions<CommitServiceOptions> Options, ILogger<CommitService> Logger)
+		public CommitService(IDatabase redis, ICommitCollection commitCollection, IStorageClient storageClient, IStreamCollection streamCollection, IPerforceService perforceService, IUserCollection userCollection, IClock clock, IMemoryCache memoryCache, IOptions<CommitServiceOptions> options, ILogger<CommitService> logger)
 		{
-			this.Options = Options.Value;
+			Options = options.Value;
 
-			this.Redis = Redis;
-			this.RedisDirtyStreams = new RedisSet<StreamId>(Redis, RedisBaseKey.Append("streams"));
-			this.RedisReservations = new RedisSortedSet<StreamId>(Redis, RedisBaseKey.Append("reservations"));
+			_redis = redis;
+			_redisDirtyStreams = new RedisSet<StreamId>(redis, RedisBaseKey.Append("streams"));
+			_redisReservations = new RedisSortedSet<StreamId>(redis, RedisBaseKey.Append("reservations"));
 
-			this.CommitCollection = CommitCollection;
-			this.StorageClient = StorageClient;
-			this.StreamCollection = StreamCollection;
-			this.PerforceService = PerforceService;
-			this.UserCollection = UserCollection;
-			this.MemoryCache = MemoryCache;
-			this.Logger = Logger;
-			this.UpdateMetadataTicker = Clock.AddSharedTicker<CommitService>(TimeSpan.FromSeconds(30.0), UpdateMetadataAsync, Logger);
+			_commitCollection = commitCollection;
+			_storageClient = storageClient;
+			_streamCollection = streamCollection;
+			_perforceService = perforceService;
+			_userCollection = userCollection;
+			_memoryCache = memoryCache;
+			_logger = logger;
+			_updateMetadataTicker = clock.AddSharedTicker<CommitService>(TimeSpan.FromSeconds(30.0), UpdateMetadataAsync, logger);
 		}
 
 		/// <inheritdoc/>
-		public void Dispose() => UpdateMetadataTicker.Dispose();
+		public void Dispose() => _updateMetadataTicker.Dispose();
 
 		/// <inheritdoc/>
-		public async Task StartAsync(CancellationToken CancellationToken)
+		public async Task StartAsync(CancellationToken cancellationToken)
 		{
 			await StartNotificationsAsync();
 			if (Options.Metadata)
@@ -235,7 +224,7 @@ namespace Horde.Build.Commits.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task StopAsync(CancellationToken CancellationToken)
+		public async Task StopAsync(CancellationToken cancellationToken)
 		{
 			if (Options.Content)
 			{
@@ -250,83 +239,83 @@ namespace Horde.Build.Commits.Impl
 
 		#region Notifications
 
-		List<ListenerInfo> Listeners = new List<ListenerInfo>();
+		readonly List<ListenerInfo> _listeners = new List<ListenerInfo>();
 		RedisChannel<CommitId> CommitNotifyChannel { get; } = new RedisChannel<CommitId>("commits/notify");
-		RedisChannelSubscription<CommitId>? CommitNotifySubscription;
+		RedisChannelSubscription<CommitId>? _commitNotifySubscription;
 
 		async Task StartNotificationsAsync()
 		{
-			ISubscriber Subscriber = Redis.Multiplexer.GetSubscriber();
-			CommitNotifySubscription = await Subscriber.SubscribeAsync(CommitNotifyChannel, DispatchCommitNotification);
+			ISubscriber subscriber = _redis.Multiplexer.GetSubscriber();
+			_commitNotifySubscription = await subscriber.SubscribeAsync(CommitNotifyChannel, DispatchCommitNotification);
 		}
 
 		async Task StopNotificationsAsync()
 		{
-			if (CommitNotifySubscription != null)
+			if (_commitNotifySubscription != null)
 			{
-				await CommitNotifySubscription.DisposeAsync();
-				CommitNotifySubscription = null;
+				await _commitNotifySubscription.DisposeAsync();
+				_commitNotifySubscription = null;
 			}
 		}
 
-		async void DispatchCommitNotification(RedisChannel<CommitId> Channel, CommitId CommitId)
+		async void DispatchCommitNotification(RedisChannel<CommitId> channel, CommitId commitId)
 		{
-			ICommit? Commit = await CommitCollection.GetCommitAsync(CommitId);
-			if (Commit != null)
+			ICommit? commit = await _commitCollection.GetCommitAsync(commitId);
+			if (commit != null)
 			{
-				lock (Listeners)
+				lock (_listeners)
 				{
-					foreach (ListenerInfo Listener in Listeners)
+					foreach (ListenerInfo listener in _listeners)
 					{
-						Listener.Callback(Commit);
+						listener._callback(commit);
 					}
 				}
 			}
 		}
 
-		async Task NotifyListeners(CommitId CommitId)
+		async Task NotifyListeners(CommitId commitId)
 		{
-			await Redis.PublishAsync(CommitNotifyChannel, CommitId);
+			await _redis.PublishAsync(CommitNotifyChannel, commitId);
 		}
 
-		public IDisposable AddListener(Action<ICommit> OnAddCommit)
+		public IDisposable AddListener(Action<ICommit> onAddCommit)
 		{
-			return new ListenerInfo(Listeners, OnAddCommit);
+			return new ListenerInfo(_listeners, onAddCommit);
 		}
 
 		#endregion
 
 		#region Metadata updates
 
-		ITicker UpdateMetadataTicker;
+		readonly ITicker _updateMetadataTicker;
 
 		Task StartMetadataReplicationAsync()
 		{
-			return UpdateMetadataTicker.StartAsync();
+			return _updateMetadataTicker.StartAsync();
 		}
 
 		Task StopMetadataReplicationAsync()
 		{
-			return UpdateMetadataTicker.StopAsync();
+			return _updateMetadataTicker.StopAsync();
 		}
 
 		/// <summary>
 		/// Polls Perforce for submitted changes
 		/// </summary>
-		/// <param name="CancellationToken"></param>
+		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		async ValueTask UpdateMetadataAsync(CancellationToken CancellationToken)
+		async ValueTask UpdateMetadataAsync(CancellationToken cancellationToken)
 		{
-			List<IStream> Streams = await StreamCollection.FindAllAsync();
-			foreach (IGrouping<string, IStream> Group in Streams.GroupBy(x => x.ClusterName, StringComparer.OrdinalIgnoreCase))
+			List<IStream> streams = await _streamCollection.FindAllAsync();
+			foreach (IGrouping<string, IStream> group in streams.GroupBy(x => x.ClusterName, StringComparer.OrdinalIgnoreCase))
 			{
 				try
 				{
-					await UpdateMetadataForClusterAsync(Group.Key, Group);
+					await UpdateMetadataForClusterAsync(group.Key, group);
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					Logger.LogError(Ex, "Error while updating cluster {ClusterName}", Group.Key);
+					_logger.LogError(ex, "Error while updating cluster {ClusterName}", group.Key);
 				}
 			}
 		}
@@ -334,134 +323,134 @@ namespace Horde.Build.Commits.Impl
 		/// <summary>
 		/// Updates metadata for all the streams on a particular server cluster
 		/// </summary>
-		/// <param name="ClusterName"></param>
-		/// <param name="Streams"></param>
+		/// <param name="clusterName"></param>
+		/// <param name="streams"></param>
 		/// <returns></returns>
-		async Task UpdateMetadataForClusterAsync(string ClusterName, IEnumerable<IStream> Streams)
+		async Task UpdateMetadataForClusterAsync(string clusterName, IEnumerable<IStream> streams)
 		{
 			// Find the minimum changelist number to query
-			Dictionary<IStream, int> StreamToFirstChange = new Dictionary<IStream, int>();
-			foreach (IStream Stream in Streams)
+			Dictionary<IStream, int> streamToFirstChange = new Dictionary<IStream, int>();
+			foreach (IStream stream in streams)
 			{
-				RedisList<int> Changes = RedisStreamChanges(Stream.Id);
+				RedisList<int> changes = RedisStreamChanges(stream.Id);
 
-				int FirstChange = await Changes.GetByIndexAsync(-1);
-				if (FirstChange != 0)
+				int firstChange = await changes.GetByIndexAsync(-1);
+				if (firstChange != 0)
 				{
-					FirstChange++;
+					firstChange++;
 				}
 
-				StreamToFirstChange[Stream] = FirstChange;
+				streamToFirstChange[stream] = firstChange;
 			}
 
 			// Update the database with all the commits
-			await foreach (NewCommit NewCommit in FindCommitsForClusterAsync(ClusterName, StreamToFirstChange))
+			await foreach (NewCommit newCommit in FindCommitsForClusterAsync(clusterName, streamToFirstChange))
 			{
-				ICommit Commit = await CommitCollection.AddOrReplaceAsync(NewCommit);
-				await NotifyListeners(Commit.Id);
+				ICommit commit = await _commitCollection.AddOrReplaceAsync(newCommit);
+				await NotifyListeners(commit.Id);
 
-				RedisList<int> StreamCommitsKey = RedisStreamChanges(Commit.StreamId);
-				await StreamCommitsKey.RightPushAsync(Commit.Change);
+				RedisList<int> streamCommitsKey = RedisStreamChanges(commit.StreamId);
+				await streamCommitsKey.RightPushAsync(commit.Change);
 
-				await RedisDirtyStreams.AddAsync(Commit.StreamId);
-				await Redis.PublishAsync(RedisUpdateChannel, Commit.StreamId);
+				await _redisDirtyStreams.AddAsync(commit.StreamId);
+				await _redis.PublishAsync(RedisUpdateChannel, commit.StreamId);
 			}
 		}
 
 		/// <summary>
 		/// Enumerate new commits to the given streams, using a stream view to deduplicate changes which affect multiple branches.
 		/// </summary>
-		/// <param name="ClusterName"></param>
-		/// <param name="StreamToFirstChange"></param>
+		/// <param name="clusterName"></param>
+		/// <param name="streamToFirstChange"></param>
 		/// <returns>List of new commits</returns>
-		public async IAsyncEnumerable<NewCommit> FindCommitsForClusterAsync(string ClusterName, Dictionary<IStream, int> StreamToFirstChange)
+		public async IAsyncEnumerable<NewCommit> FindCommitsForClusterAsync(string clusterName, Dictionary<IStream, int> streamToFirstChange)
 		{
 			// Create a connection to the server
-			using IPerforceConnection? Connection = await PerforceService.GetServiceUserConnection(ClusterName);
-			if (Connection == null)
+			using IPerforceConnection? connection = await _perforceService.GetServiceUserConnection(clusterName);
+			if (connection == null)
 			{
-				throw new PerforceException($"Unable to create cluster connection for {ClusterName}");
+				throw new PerforceException($"Unable to create cluster connection for {clusterName}");
 			}
 
 			// Figure out the case settings for the server
-			InfoRecord ServerInfo = await Connection.GetInfoAsync(InfoOptions.ShortOutput);
+			InfoRecord serverInfo = await connection.GetInfoAsync(InfoOptions.ShortOutput);
 
 			// Get the view for each stream
-			List<StreamInfo> StreamInfoList = new List<StreamInfo>();
-			foreach (IStream Stream in StreamToFirstChange.Keys)
+			List<StreamInfo> streamInfoList = new List<StreamInfo>();
+			foreach (IStream stream in streamToFirstChange.Keys)
 			{
-				ViewMap View = await GetStreamViewAsync(Connection, Stream.Name);
-				StreamInfoList.Add(new StreamInfo(Stream, View));
+				ViewMap view = await GetStreamViewAsync(connection, stream.Name);
+				streamInfoList.Add(new StreamInfo(stream, view));
 			}
 
 			// Find all the depot roots
-			Dictionary<Utf8String, Utf8String> DepotRoots = new Dictionary<Utf8String, Utf8String>(ServerInfo.Utf8PathComparer);
-			foreach (ViewMap View in StreamInfoList.Select(x => x.View))
+			Dictionary<Utf8String, Utf8String> depotRoots = new Dictionary<Utf8String, Utf8String>(serverInfo.Utf8PathComparer);
+			foreach (ViewMap view in streamInfoList.Select(x => x.View))
 			{
-				foreach (ViewMapEntry Entry in View.Entries)
+				foreach (ViewMapEntry entry in view.Entries)
 				{
-					if (Entry.SourcePrefix.Length >= 3)
+					if (entry.SourcePrefix.Length >= 3)
 					{
-						int SlashIdx = Entry.SourcePrefix.IndexOf('/', 2);
-						Utf8String Depot = Entry.SourcePrefix.Slice(0, SlashIdx + 1);
+						int slashIdx = entry.SourcePrefix.IndexOf('/', 2);
+						Utf8String depot = entry.SourcePrefix.Slice(0, slashIdx + 1);
 
-						Utf8String DepotRoot;
-						if (DepotRoots.TryGetValue(Depot, out DepotRoot))
+						Utf8String depotRoot;
+						if (depotRoots.TryGetValue(depot, out depotRoot))
 						{
-							DepotRoot = GetCommonPrefix(DepotRoot, Entry.SourcePrefix);
+							depotRoot = GetCommonPrefix(depotRoot, entry.SourcePrefix);
 						}
 						else
 						{
-							DepotRoot = Entry.SourcePrefix;
+							depotRoot = entry.SourcePrefix;
 						}
 
-						int LastSlashIdx = DepotRoot.LastIndexOf('/');
-						DepotRoots[Depot] = DepotRoot.Slice(0, LastSlashIdx + 1);
+						int lastSlashIdx = depotRoot.LastIndexOf('/');
+						depotRoots[depot] = depotRoot.Slice(0, lastSlashIdx + 1);
 					}
 				}
 			}
 
 			// Find the minimum changelist number to query
-			int MinChange = int.MaxValue;
-			foreach (StreamInfo StreamInfo in StreamInfoList)
+			int minChange = Int32.MaxValue;
+			foreach (StreamInfo streamInfo in streamInfoList)
 			{
-				int FirstChange = StreamToFirstChange[StreamInfo.Stream];
-				if (FirstChange == 0)
+				int firstChange = streamToFirstChange[streamInfo.Stream];
+				if (firstChange == 0)
 				{
-					FirstChange = await GetFirstCommitToReplicateAsync(Connection, StreamInfo.View, ServerInfo.Utf8PathComparer);
+					firstChange = await GetFirstCommitToReplicateAsync(connection, streamInfo.View, serverInfo.Utf8PathComparer);
 				}
-				if (FirstChange != 0)
+				if (firstChange != 0)
 				{
-					MinChange = Math.Min(MinChange, FirstChange);
+					minChange = Math.Min(minChange, firstChange);
 				}
 			}
 
 			// Find all the changes to consider
-			SortedSet<int> ChangeNumbers = new SortedSet<int>();
-			foreach (Utf8String DepotRoot in DepotRoots.Values)
+			SortedSet<int> changeNumbers = new SortedSet<int>();
+			foreach (Utf8String depotRoot in depotRoots.Values)
 			{
-				List<ChangesRecord> Changes = await Connection.GetChangesAsync(ChangesOptions.None, null, MinChange, -1, ChangeStatus.Submitted, null, $"{DepotRoot}...");
-				ChangeNumbers.UnionWith(Changes.Select(x => x.Number));
+				List<ChangesRecord> changes = await connection.GetChangesAsync(ChangesOptions.None, null, minChange, -1, ChangeStatus.Submitted, null, $"{depotRoot}...");
+				changeNumbers.UnionWith(changes.Select(x => x.Number));
 			}
 
 			// Add the changes in order
-			List<string> RelativePaths = new List<string>();
-			foreach (int ChangeNumber in ChangeNumbers)
+			List<string> relativePaths = new List<string>();
+			foreach (int changeNumber in changeNumbers)
 			{
-				DescribeRecord DescribeRecord = await Connection.DescribeAsync(ChangeNumber);
-				foreach (StreamInfo StreamInfo in StreamInfoList)
+				DescribeRecord describeRecord = await connection.DescribeAsync(changeNumber);
+				foreach (StreamInfo streamInfo in streamInfoList)
 				{
-					IStream Stream = StreamInfo.Stream;
+					IStream stream = streamInfo.Stream;
 
-					Utf8String BasePath = GetBasePath(DescribeRecord, StreamInfo.View, ServerInfo.Utf8PathComparer);
-					if (!BasePath.IsEmpty)
+					Utf8String basePath = GetBasePath(describeRecord, streamInfo.View, serverInfo.Utf8PathComparer);
+					if (!basePath.IsEmpty)
 					{
-						IUser Author = await UserCollection.FindOrAddUserByLoginAsync(DescribeRecord.User);
-						IUser Owner = (await ParseRobomergeOwnerAsync(DescribeRecord.Description)) ?? Author;
+						IUser author = await _userCollection.FindOrAddUserByLoginAsync(describeRecord.User);
+						IUser owner = (await ParseRobomergeOwnerAsync(describeRecord.Description)) ?? author;
 
-						int OriginalChange = ParseRobomergeSource(DescribeRecord.Description) ?? DescribeRecord.Number;
+						int originalChange = ParseRobomergeSource(describeRecord.Description) ?? describeRecord.Number;
 
-						yield return new NewCommit(Stream.Id, DescribeRecord.Number, OriginalChange, Author.Id, Owner.Id, DescribeRecord.Description, BasePath.ToString(), DescribeRecord.Time);
+						yield return new NewCommit(stream.Id, describeRecord.Number, originalChange, author.Id, owner.Id, describeRecord.Description, basePath.ToString(), describeRecord.Time);
 					}
 				}
 			}
@@ -470,91 +459,91 @@ namespace Horde.Build.Commits.Impl
 		/// <summary>
 		/// Find the first commit to replicate from a branch
 		/// </summary>
-		/// <param name="Connection"></param>
-		/// <param name="View"></param>
-		/// <param name="Comparer"></param>
+		/// <param name="connection"></param>
+		/// <param name="view"></param>
+		/// <param name="comparer"></param>
 		/// <returns></returns>
-		static async Task<int> GetFirstCommitToReplicateAsync(IPerforceConnection Connection, ViewMap View, Utf8StringComparer Comparer)
+		static async Task<int> GetFirstCommitToReplicateAsync(IPerforceConnection connection, ViewMap view, Utf8StringComparer comparer)
 		{
-			int MinChange = 0;
+			int minChange = 0;
 
-			List<Utf8String> RootPaths = View.GetRootPaths(Comparer);
-			foreach (Utf8String RootPath in RootPaths)
+			List<Utf8String> rootPaths = view.GetRootPaths(comparer);
+			foreach (Utf8String rootPath in rootPaths)
 			{
-				IList<ChangesRecord> PathChanges = await Connection.GetChangesAsync(ChangesOptions.None, 20, ChangeStatus.Submitted, $"{RootPath}...");
-				MinChange = Math.Max(MinChange, PathChanges.Min(x => x.Number));
+				IList<ChangesRecord> pathChanges = await connection.GetChangesAsync(ChangesOptions.None, 20, ChangeStatus.Submitted, $"{rootPath}...");
+				minChange = Math.Max(minChange, pathChanges.Min(x => x.Number));
 			}
 
-			return MinChange;
+			return minChange;
 		}
 
 		/// <summary>
 		/// Find the base path for a change within a stream
 		/// </summary>
-		/// <param name="Changelist">Information about the changelist</param>
-		/// <param name="View">Mapping from depot syntax to client view</param>
-		/// <param name="Comparer">Path comparison type for the server</param>
+		/// <param name="changelist">Information about the changelist</param>
+		/// <param name="view">Mapping from depot syntax to client view</param>
+		/// <param name="comparer">Path comparison type for the server</param>
 		/// <returns>The base path for all files in the change</returns>
-		static Utf8String GetBasePath(DescribeRecord Changelist, ViewMap View, Utf8StringComparer Comparer)
+		static Utf8String GetBasePath(DescribeRecord changelist, ViewMap view, Utf8StringComparer comparer)
 		{
-			Utf8String BasePath = default;
-			foreach (DescribeFileRecord File in Changelist.Files)
+			Utf8String basePath = default;
+			foreach (DescribeFileRecord file in changelist.Files)
 			{
-				Utf8String StreamFile;
-				if (View.TryMapFile(File.DepotFile, Comparer, out StreamFile))
+				Utf8String streamFile;
+				if (view.TryMapFile(file.DepotFile, comparer, out streamFile))
 				{
-					if (BasePath.IsEmpty)
+					if (basePath.IsEmpty)
 					{
-						BasePath = StreamFile;
+						basePath = streamFile;
 					}
 					else
 					{
-						BasePath = GetCommonPrefix(BasePath, StreamFile);
+						basePath = GetCommonPrefix(basePath, streamFile);
 					}
 				}
 			}
-			return BasePath;
+			return basePath;
 		}
 
 		/// <summary>
 		/// Gets the common prefix between two stringsc
 		/// </summary>
-		/// <param name="A"></param>
-		/// <param name="B"></param>
+		/// <param name="a"></param>
+		/// <param name="b"></param>
 		/// <returns></returns>
-		static Utf8String GetCommonPrefix(Utf8String A, Utf8String B)
+		static Utf8String GetCommonPrefix(Utf8String a, Utf8String b)
 		{
-			int Index = 0;
-			while (Index < A.Length && Index < B.Length && A[Index] == B[Index])
+			int index = 0;
+			while (index < a.Length && index < b.Length && a[index] == b[index])
 			{
-				Index++;
+				index++;
 			}
-			return A.Substring(0, Index);
+			return a.Substring(0, index);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ICommit>> FindCommitsAsync(StreamId StreamId, int? MinChange = null, int? MaxChange = null, string[]? Paths = null, int? Index = null, int? Count = null)
+		public async Task<List<ICommit>> FindCommitsAsync(StreamId streamId, int? minChange = null, int? maxChange = null, string[]? paths = null, int? index = null, int? count = null)
 		{
-			if(Paths != null)
+			if(paths != null)
 			{
 				throw new NotImplementedException();
 			}
 
-			return await CommitCollection.FindCommitsAsync(StreamId, MinChange, MaxChange, Index, Count);
+			return await _commitCollection.FindCommitsAsync(streamId, minChange, maxChange, index, count);
 		}
 
 		/// <summary>
 		/// Attempts to parse the Robomerge source from this commit information
 		/// </summary>
-		/// <param name="Description">Description text to parse</param>
+		/// <param name="description">Description text to parse</param>
 		/// <returns>The parsed source changelist, or null if no #ROBOMERGE-SOURCE tag was present</returns>
-		static int? ParseRobomergeSource(string Description)
+		static int? ParseRobomergeSource(string description)
 		{
 			// #ROBOMERGE-SOURCE: CL 13232051 in //Fortnite/Release-12.60/... via CL 13232062 via CL 13242953
-			Match Match = Regex.Match(Description, @"^#ROBOMERGE-SOURCE: CL (\d+)", RegexOptions.Multiline);
-			if (Match.Success)
+			Match match = Regex.Match(description, @"^#ROBOMERGE-SOURCE: CL (\d+)", RegexOptions.Multiline);
+			if (match.Success)
 			{
-				return int.Parse(Match.Groups[1].Value, CultureInfo.InvariantCulture);
+				return Int32.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
 			}
 			else
 			{
@@ -562,12 +551,12 @@ namespace Horde.Build.Commits.Impl
 			}
 		}
 
-		async Task<IUser?> ParseRobomergeOwnerAsync(string Description)
+		async Task<IUser?> ParseRobomergeOwnerAsync(string description)
 		{
-			string? OriginalAuthor = ParseRobomergeOwner(Description);
-			if (OriginalAuthor != null)
+			string? originalAuthor = ParseRobomergeOwner(description);
+			if (originalAuthor != null)
 			{
-				return await UserCollection.FindOrAddUserByLoginAsync(OriginalAuthor);
+				return await _userCollection.FindOrAddUserByLoginAsync(originalAuthor);
 			}
 			return null;
 		}
@@ -575,15 +564,15 @@ namespace Horde.Build.Commits.Impl
 		/// <summary>
 		/// Attempts to parse the Robomerge owner from this commit information
 		/// </summary>
-		/// <param name="Description">Description text to parse</param>
+		/// <param name="description">Description text to parse</param>
 		/// <returns>The Robomerge owner, or null if no #ROBOMERGE-OWNER tag was present</returns>
-		static string? ParseRobomergeOwner(string Description)
+		static string? ParseRobomergeOwner(string description)
 		{
 			// #ROBOMERGE-OWNER: ben.marsh
-			Match Match = Regex.Match(Description, @"^#ROBOMERGE-OWNER:\s*([^\s]+)", RegexOptions.Multiline);
-			if (Match.Success)
+			Match match = Regex.Match(description, @"^#ROBOMERGE-OWNER:\s*([^\s]+)", RegexOptions.Multiline);
+			if (match.Success)
 			{
-				return Match.Groups[1].Value;
+				return match.Groups[1].Value;
 			}
 			else
 			{
@@ -594,24 +583,24 @@ namespace Horde.Build.Commits.Impl
 		/// <summary>
 		/// Gets the view for a stream
 		/// </summary>
-		/// <param name="Connection">The Perforce connection</param>
-		/// <param name="StreamName">Name of the stream to be mirrored</param>
-		static async Task<ViewMap> GetStreamViewAsync(IPerforceConnection Connection, string StreamName)
+		/// <param name="connection">The Perforce connection</param>
+		/// <param name="streamName">Name of the stream to be mirrored</param>
+		static async Task<ViewMap> GetStreamViewAsync(IPerforceConnection connection, string streamName)
 		{
-			StreamRecord Record = await Connection.GetStreamAsync(StreamName, true);
+			StreamRecord record = await connection.GetStreamAsync(streamName, true);
 
-			ViewMap View = new ViewMap();
-			foreach (string ViewLine in Record.View)
+			ViewMap view = new ViewMap();
+			foreach (string viewLine in record.View)
 			{
-				Match Match = Regex.Match(ViewLine, "^(-?)([^ ]+) *([^ ]+)$");
-				if (!Match.Success)
+				Match match = Regex.Match(viewLine, "^(-?)([^ ]+) *([^ ]+)$");
+				if (!match.Success)
 				{
-					throw new PerforceException($"Unable to parse stream view: '{ViewLine}'");
+					throw new PerforceException($"Unable to parse stream view: '{viewLine}'");
 				}
-				View.Entries.Add(new ViewMapEntry(Match.Groups[1].Length == 0, Match.Groups[2].Value, Match.Groups[3].Value));
+				view.Entries.Add(new ViewMapEntry(match.Groups[1].Length == 0, match.Groups[2].Value, match.Groups[3].Value));
 			}
 
-			return View;
+			return view;
 		}
 
 		#endregion
@@ -620,118 +609,118 @@ namespace Horde.Build.Commits.Impl
 
 		RedisKey RedisBaseKey { get; } = new RedisKey("commits/");
 		RedisChannel<StreamId> RedisUpdateChannel { get; } = new RedisChannel<StreamId>("commits/streams");
-		readonly RedisSet<StreamId> RedisDirtyStreams;
-		readonly RedisSortedSet<StreamId> RedisReservations;
-		Channel<StreamId>? RedisUpdateStreams;
-		RedisChannelSubscription<StreamId>? RedisUpdateSubscription;
-		Task? StreamUpdateTask;
+		readonly RedisSet<StreamId> _redisDirtyStreams;
+		readonly RedisSortedSet<StreamId> _redisReservations;
+		Channel<StreamId>? _redisUpdateStreams;
+		RedisChannelSubscription<StreamId>? _redisUpdateSubscription;
+		Task? _streamUpdateTask;
 
-		RedisList<int> RedisStreamChanges(StreamId StreamId) => new RedisList<int>(Redis, RedisBaseKey.Append($"stream/{StreamId}/changes"));
+		RedisList<int> RedisStreamChanges(StreamId streamId) => new RedisList<int>(_redis, RedisBaseKey.Append($"stream/{streamId}/changes"));
 
 		async Task StartContentReplicationAsync()
 		{
-			RedisUpdateStreams = Channel.CreateUnbounded<StreamId>();
-			RedisUpdateSubscription = await Redis.Multiplexer.GetSubscriber().SubscribeAsync(RedisUpdateChannel, (_, StreamId) => RedisUpdateStreams.Writer.TryWrite(StreamId));
-			StreamUpdateTask = Task.Run(() => UpdateContentAsync());
+			_redisUpdateStreams = Channel.CreateUnbounded<StreamId>();
+			_redisUpdateSubscription = await _redis.Multiplexer.GetSubscriber().SubscribeAsync(RedisUpdateChannel, (_, streamId) => _redisUpdateStreams.Writer.TryWrite(streamId));
+			_streamUpdateTask = Task.Run(() => UpdateContentAsync());
 		}
 
 		async Task StopContentReplicationAsync()
 		{
-			if (RedisUpdateStreams != null)
+			if (_redisUpdateStreams != null)
 			{
-				RedisUpdateStreams.Writer.Complete();
-				RedisUpdateStreams = null;
+				_redisUpdateStreams.Writer.Complete();
+				_redisUpdateStreams = null;
 			}
-			if (RedisUpdateSubscription != null)
+			if (_redisUpdateSubscription != null)
 			{
-				await RedisUpdateSubscription.DisposeAsync();
-				RedisUpdateSubscription = null;
+				await _redisUpdateSubscription.DisposeAsync();
+				_redisUpdateSubscription = null;
 			}
-			await StreamUpdateTask!;
+			await _streamUpdateTask!;
 		}
 
 		async Task UpdateContentAsync()
 		{
-			List<(StreamId, Task)> BackgroundTasks = new List<(StreamId, Task)>(MaxBackgroundTasks);
-			while (!RedisUpdateStreams!.Reader.Completion.IsCompleted || BackgroundTasks.Count > 0)
+			List<(StreamId, Task)> backgroundTasks = new List<(StreamId, Task)>(MaxBackgroundTasks);
+			while (!_redisUpdateStreams!.Reader.Completion.IsCompleted || backgroundTasks.Count > 0)
 			{
 				try
 				{
-					await UpdateContentInternalAsync(BackgroundTasks);
+					await UpdateContentInternalAsync(backgroundTasks);
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					Logger.LogError(Ex, "Exception when updating commit service");
+					_logger.LogError(ex, "Exception when updating commit service");
 				}
 			}
 		}
 
-		async Task UpdateContentInternalAsync(List<(StreamId, Task)> BackgroundTasks)
+		async Task UpdateContentInternalAsync(List<(StreamId, Task)> backgroundTasks)
 		{
 			// Remove any complete background tasks
-			for (int Idx = BackgroundTasks.Count - 1; Idx >= 0; Idx--)
+			for (int idx = backgroundTasks.Count - 1; idx >= 0; idx--)
 			{
-				(_, Task BackgroundTask) = BackgroundTasks[Idx];
-				if (BackgroundTask.IsCompleted)
+				(_, Task backgroundTask) = backgroundTasks[idx];
+				if (backgroundTask.IsCompleted)
 				{
-					if (BackgroundTask.Exception != null)
+					if (backgroundTask.Exception != null)
 					{
-						Logger.LogError(BackgroundTask.Exception, "Update background task faulted");
+						_logger.LogError(backgroundTask.Exception, "Update background task faulted");
 					}
-					BackgroundTasks.RemoveAt(Idx);
+					backgroundTasks.RemoveAt(idx);
 				}
 			}
 
 			// Create a list of events to wait for
-			List<Task> WaitTasks = new List<Task>(BackgroundTasks.Select(x => x.Item2));
-			if (!RedisUpdateStreams!.Reader.Completion.IsCompleted)
+			List<Task> waitTasks = new List<Task>(backgroundTasks.Select(x => x.Item2));
+			if (!_redisUpdateStreams!.Reader.Completion.IsCompleted)
 			{
-				WaitTasks.Add(RedisUpdateStreams.Reader.WaitToReadAsync().AsTask());
+				waitTasks.Add(_redisUpdateStreams.Reader.WaitToReadAsync().AsTask());
 
 				// If we have spare slots for executing background tasks, check if there are any dirty streams
-				if (BackgroundTasks.Count < MaxBackgroundTasks)
+				if (backgroundTasks.Count < MaxBackgroundTasks)
 				{
 					// Expire any reservations that are no longer valid
-					DateTime UtcNow = DateTime.UtcNow;
-					await RedisReservations.RemoveRangeByScoreAsync(Double.NegativeInfinity, UtcNow.Ticks);
+					DateTime utcNow = DateTime.UtcNow;
+					await _redisReservations.RemoveRangeByScoreAsync(Double.NegativeInfinity, utcNow.Ticks);
 
 					// Find the streams that we can wait for
-					HashSet<StreamId> CheckStreams = new HashSet<StreamId>(await RedisDirtyStreams.MembersAsync());
-					CheckStreams.ExceptWith(BackgroundTasks.Select(x => x.Item1));
+					HashSet<StreamId> checkStreams = new HashSet<StreamId>(await _redisDirtyStreams.MembersAsync());
+					checkStreams.ExceptWith(backgroundTasks.Select(x => x.Item1));
 
-					if (CheckStreams.Count > 0)
+					if (checkStreams.Count > 0)
 					{
 						// Try to start new background tasks
-						double NewScore = (UtcNow + TimeSpan.FromSeconds(30.0)).Ticks;
-						foreach (StreamId CheckStream in CheckStreams)
+						double newScore = (utcNow + TimeSpan.FromSeconds(30.0)).Ticks;
+						foreach (StreamId checkStream in checkStreams)
 						{
-							if (await RedisReservations.AddAsync(CheckStream, NewScore, When.NotExists))
+							if (await _redisReservations.AddAsync(checkStream, newScore, When.NotExists))
 							{
-								Task NewTask = Task.Run(() => UpdateStreamContentAsync(CheckStream));
-								BackgroundTasks.Add((CheckStream, NewTask));
+								Task newTask = Task.Run(() => UpdateStreamContentAsync(checkStream));
+								backgroundTasks.Add((checkStream, newTask));
 
-								if (BackgroundTasks.Count == MaxBackgroundTasks)
+								if (backgroundTasks.Count == MaxBackgroundTasks)
 								{
 									break;
 								}
 							}
 						}
-						CheckStreams.ExceptWith(BackgroundTasks.Select(x => x.Item1));
+						checkStreams.ExceptWith(backgroundTasks.Select(x => x.Item1));
 
 						// If we still have spare tasks, check how long we should wait for a reservation to expire
-						if (BackgroundTasks.Count < MaxBackgroundTasks)
+						if (backgroundTasks.Count < MaxBackgroundTasks)
 						{
-							long WaitTime = long.MaxValue;
-							await foreach (SortedSetEntry<StreamId> Entry in RedisReservations.ScanAsync())
+							long waitTime = Int64.MaxValue;
+							await foreach (SortedSetEntry<StreamId> entry in _redisReservations.ScanAsync())
 							{
-								if (CheckStreams.Contains(Entry.Element))
+								if (checkStreams.Contains(entry.Element))
 								{
-									WaitTime = Math.Min(WaitTime, (long)Entry.Score - UtcNow.Ticks);
+									waitTime = Math.Min(waitTime, (long)entry.Score - utcNow.Ticks);
 								}
 							}
-							if (WaitTime < int.MaxValue)
+							if (waitTime < Int32.MaxValue)
 							{
-								WaitTasks.Add(Task.Delay(new TimeSpan(Math.Max(WaitTime, 0))));
+								waitTasks.Add(Task.Delay(new TimeSpan(Math.Max(waitTime, 0))));
 							}
 						}
 					}
@@ -739,172 +728,172 @@ namespace Horde.Build.Commits.Impl
 			}
 
 			// Wait until any task has completed
-			if (WaitTasks.Count > 0)
+			if (waitTasks.Count > 0)
 			{
-				await Task.WhenAny(WaitTasks);
+				await Task.WhenAny(waitTasks);
 			}
 		}
 
-		async Task UpdateStreamContentAsync(StreamId StreamId)
+		async Task UpdateStreamContentAsync(StreamId streamId)
 		{
-			Stopwatch Timer = Stopwatch.StartNew();
+			Stopwatch timer = Stopwatch.StartNew();
 
-			RedisList<int> StreamChanges = RedisStreamChanges(StreamId);
+			RedisList<int> streamChanges = RedisStreamChanges(streamId);
 			for (; ; )
 			{
 				// Update the stream, updating the reservation every 30 seconds
-				Task InternalTask = Task.Run(() => UpdateStreamContentInternalAsync(StreamId, StreamChanges));
-				while (!InternalTask.IsCompleted)
+				Task internalTask = Task.Run(() => UpdateStreamContentInternalAsync(streamId, streamChanges));
+				while (!internalTask.IsCompleted)
 				{
-					Task DelayTask = Task.Delay(TimeSpan.FromSeconds(15.0));
-					if (await Task.WhenAny(InternalTask, DelayTask) == DelayTask)
+					Task delayTask = Task.Delay(TimeSpan.FromSeconds(15.0));
+					if (await Task.WhenAny(internalTask, delayTask) == delayTask)
 					{
-						DateTime NewTime = DateTime.UtcNow + TimeSpan.FromSeconds(30.0);
-						await RedisReservations.AddAsync(StreamId, NewTime.Ticks);
-						Logger.LogInformation("Extending reservation for tree update of {StreamId} (elapsed: {Time}s)", StreamId, (int)Timer.Elapsed.TotalSeconds);
+						DateTime newTime = DateTime.UtcNow + TimeSpan.FromSeconds(30.0);
+						await _redisReservations.AddAsync(streamId, newTime.Ticks);
+						_logger.LogInformation("Extending reservation for tree update of {StreamId} (elapsed: {Time}s)", streamId, (int)timer.Elapsed.TotalSeconds);
 					}
 				}
 
 				// Log any error during the update
-				if (InternalTask.IsFaulted)
+				if (internalTask.IsFaulted)
 				{
-					Logger.LogError(InternalTask.Exception, "Exception while updating stream content for {StreamId}", StreamId);
+					_logger.LogError(internalTask.Exception, "Exception while updating stream content for {StreamId}", streamId);
 				}
 				else
 				{
-					Logger.LogInformation("Finished update for {StreamId}", StreamId);
+					_logger.LogInformation("Finished update for {StreamId}", streamId);
 				}
 
 				// Remove this stream from the dirty list if it's empty
-				ITransaction Transaction = Redis.CreateTransaction();
-				Transaction.AddCondition(Condition.ListLengthLessThan(StreamChanges.Key, 2));
-				_ = Transaction.With(RedisDirtyStreams).RemoveAsync(StreamId);
-				if (await Transaction.ExecuteAsync())
+				ITransaction transaction = _redis.CreateTransaction();
+				transaction.AddCondition(Condition.ListLengthLessThan(streamChanges.Key, 2));
+				_ = transaction.With(_redisDirtyStreams).RemoveAsync(streamId);
+				if (await transaction.ExecuteAsync())
 				{
 					break;
 				}
 			}
-			await RedisReservations.RemoveAsync(StreamId);
+			await _redisReservations.RemoveAsync(streamId);
 		}
 
-		async Task UpdateStreamContentInternalAsync(StreamId StreamId, RedisList<int> Changes)
+		async Task UpdateStreamContentInternalAsync(StreamId streamId, RedisList<int> changes)
 		{
-			IStream? Stream = await StreamCollection.GetAsync(StreamId);
-			if (Stream == null)
+			IStream? stream = await _streamCollection.GetAsync(streamId);
+			if (stream == null)
 			{
 				return;
 			}
 
-			int? PrevChange = null;
+			int? prevChange = null;
 			for (; ; )
 			{
 				// Get the first two changes to be mirrored. The first one should already exist, unless it's the start of replication for this stream.
-				int[] Values = await Changes.RangeAsync(0, 1);
-				if (Values.Length < 2)
+				int[] values = await changes.RangeAsync(0, 1);
+				if (values.Length < 2)
 				{
 					break;
 				}
 
 				// Check that the previous commit is still valid
-				if (PrevChange != null && PrevChange.Value != Values[0])
+				if (prevChange != null && prevChange.Value != values[0])
 				{
-					Logger.LogInformation("Invalidating previous commit; expected {Change}, actually {ActualChange}", PrevChange.Value, Values[0]);
-					PrevChange = null;
+					_logger.LogInformation("Invalidating previous commit; expected {Change}, actually {ActualChange}", prevChange.Value, values[0]);
+					prevChange = null;
 				}
 
 				// If we don't have a previous commit tree yet, perform a full snapshot of that change
-				if (PrevChange == null)
+				if (prevChange == null)
 				{
-					await WriteCommitTreeAsync(Stream, Values[0], null);
+					await WriteCommitTreeAsync(stream, values[0], null);
 				}
 
 				// Perform a snapshot of the new change, then remove it from the list
-				await WriteCommitTreeAsync(Stream, Values[1], PrevChange);
-				PrevChange = Values[1];
-				await Changes.LeftPopAsync();
+				await WriteCommitTreeAsync(stream, values[1], prevChange);
+				prevChange = values[1];
+				await changes.LeftPopAsync();
 			}
 		}
 
 		/// <summary>
 		/// Replicates the contents of a stream to Horde storage, optionally using the given change as a starting point
 		/// </summary>
-		/// <param name="Stream">The stream to replicate</param>
-		/// <param name="Change">Commit to store the tree ref</param>
-		/// <param name="BaseChange">The base change to update from</param>
+		/// <param name="stream">The stream to replicate</param>
+		/// <param name="change">Commit to store the tree ref</param>
+		/// <param name="baseChange">The base change to update from</param>
 		/// <returns>Root tree object</returns>
-		public async Task WriteCommitTreeAsync(IStream Stream, int Change, int? BaseChange)
+		public async Task WriteCommitTreeAsync(IStream stream, int change, int? baseChange)
 		{
-			if (Stream.ReplicationMode != ContentReplicationMode.None)
+			if (stream.ReplicationMode != ContentReplicationMode.None)
 			{
-				await WriteCommitTreeAsync(Stream, Change, BaseChange, Stream.ReplicationFilter, Stream.ReplicationMode == ContentReplicationMode.RevisionsOnly);
+				await WriteCommitTreeAsync(stream, change, baseChange, stream.ReplicationFilter, stream.ReplicationMode == ContentReplicationMode.RevisionsOnly);
 			}
 		}
 
 		/// <summary>
 		/// Creates a new bundle or reads an existing one
 		/// </summary>
-		async ValueTask<Bundle<DirectoryNode>> CreateOrReadBundle(StreamId StreamId, int? BaseChange, string? Filter, bool RevisionsOnly)
+		async ValueTask<Bundle<DirectoryNode>> CreateOrReadBundle(StreamId streamId, int? baseChange, string? filter, bool revisionsOnly)
 		{
-			if (BaseChange == null)
+			if (baseChange == null)
 			{
-				return Bundle.Create<DirectoryNode>(StorageClient, Options.NamespaceId, Options.Bundle, MemoryCache);
+				return Bundle.Create<DirectoryNode>(_storageClient, Options.NamespaceId, Options.Bundle, _memoryCache);
 			}
 			else
 			{
-				return await Bundle.ReadAsync<DirectoryNode>(StorageClient, Options.NamespaceId, GetStreamBucketId(StreamId), new CommitKey(StreamId, BaseChange.Value, Filter, RevisionsOnly).GetRefId(), Options.Bundle, MemoryCache);
+				return await Bundle.ReadAsync<DirectoryNode>(_storageClient, Options.NamespaceId, GetStreamBucketId(streamId), new CommitKey(streamId, baseChange.Value, filter, revisionsOnly).GetRefId(), Options.Bundle, _memoryCache);
 			}
 		}
 
 		/// <summary>
 		/// Replicates the contents of a stream to Horde storage, optionally using the given change as a starting point
 		/// </summary>
-		/// <param name="Stream">The stream to replicate</param>
-		/// <param name="Change">Commit to store the tree ref</param>
-		/// <param name="BaseChange">The base change to update from</param>
-		/// <param name="Filter">Depot path to query for changes. Will default to the entire depot (but filtered by the workspace)</param>
-		/// <param name="RevisionsOnly">Whether to replicate file revisions only</param>
+		/// <param name="stream">The stream to replicate</param>
+		/// <param name="change">Commit to store the tree ref</param>
+		/// <param name="baseChange">The base change to update from</param>
+		/// <param name="filter">Depot path to query for changes. Will default to the entire depot (but filtered by the workspace)</param>
+		/// <param name="revisionsOnly">Whether to replicate file revisions only</param>
 		/// <returns>Root tree object</returns>
-		public async Task WriteCommitTreeAsync(IStream Stream, int Change, int? BaseChange, string? Filter, bool RevisionsOnly)
+		public async Task WriteCommitTreeAsync(IStream stream, int change, int? baseChange, string? filter, bool revisionsOnly)
 		{
 			// Create a client to replicate from this stream
-			ReplicationClient ClientInfo = await FindOrAddReplicationClientAsync(Stream);
+			ReplicationClient clientInfo = await FindOrAddReplicationClientAsync(stream);
 
 			// Connect to the server and flush the workspace
-			using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(ClientInfo.Settings, Logger);
-			await FlushWorkspaceAsync(ClientInfo, Perforce, BaseChange ?? 0);
+			using IPerforceConnection perforce = await PerforceConnection.CreateAsync(clientInfo.Settings, _logger);
+			await FlushWorkspaceAsync(clientInfo, perforce, baseChange ?? 0);
 
 			// Get the initial bundle state
-			using Bundle<DirectoryNode> CommitBundle = await CreateOrReadBundle(Stream.Id, BaseChange, Filter, RevisionsOnly);
+			using Bundle<DirectoryNode> commitBundle = await CreateOrReadBundle(stream.Id, baseChange, filter, revisionsOnly);
 
 			// Apply all the updates
-			Logger.LogInformation("Updating client {Client} to changelist {Change}", ClientInfo.Client.Name, Change);
-			ClientInfo.Change = -1;
+			_logger.LogInformation("Updating client {Client} to changelist {Change}", clientInfo.Client.Name, change);
+			clientInfo.Change = -1;
 
-			Utf8String ClientRoot = new Utf8String(ClientInfo.Client.Root);
-			string QueryPath = $"//{ClientInfo.Client.Name}/{Filter}";
+			Utf8String clientRoot = new Utf8String(clientInfo.Client.Root);
+			string queryPath = $"//{clientInfo.Client.Name}/{filter}";
 
-			DirectoryNode Contents = CommitBundle.Root;
-			if (RevisionsOnly)
+			DirectoryNode contents = commitBundle.Root;
+			if (revisionsOnly)
 			{
-				int Count = 0;
-				await foreach (PerforceResponse<SyncRecord> Record in Perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"{QueryPath}@{Change}" }, null, default))
+				int count = 0;
+				await foreach (PerforceResponse<SyncRecord> record in perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"{queryPath}@{change}" }, null, default))
 				{
-					SyncRecord SyncRecord = Record.Data;
-					if (!SyncRecord.Path.StartsWith(ClientRoot))
+					SyncRecord syncRecord = record.Data;
+					if (!syncRecord.Path.StartsWith(clientRoot))
 					{
-						throw new ArgumentException($"Unable to make path {ClientInfo.Client.Root} relative to client root {ClientInfo.Client.Root}");
+						throw new ArgumentException($"Unable to make path {clientInfo.Client.Root} relative to client root {clientInfo.Client.Root}");
 					}
 
-					Utf8String Path = SyncRecord.Path.Substring(ClientRoot.Length);
-					FileNode File = await Contents.AddFileByPathAsync(CommitBundle, Path, FileEntryFlags.PerforceDepotPathAndRevision);
+					Utf8String path = syncRecord.Path.Substring(clientRoot.Length);
+					FileNode file = await contents.AddFileByPathAsync(commitBundle, path, FileEntryFlags.PerforceDepotPathAndRevision);
 
-					byte[] Data = Encoding.UTF8.GetBytes($"{SyncRecord.DepotFile}#{SyncRecord.Revision}");
-					File.Append(Data, Options.Chunking);
+					byte[] data = Encoding.UTF8.GetBytes($"{syncRecord.DepotFile}#{syncRecord.Revision}");
+					file.Append(data, Options.Chunking);
 
-					if (++Count > 1000)
+					if (++count > 1000)
 					{
-						await CommitBundle.TrimAsync();
-						Count = 0;
+						await commitBundle.TrimAsync();
+						count = 0;
 					}
 				}
 			}
@@ -912,104 +901,104 @@ namespace Horde.Build.Commits.Impl
 			{
 				const long TrimInterval = 1024 * 1024 * 256;
 
-				long DataSize = 0;
-				long TrimDataSize = TrimInterval;
+				long dataSize = 0;
+				long trimDataSize = TrimInterval;
 
-				Dictionary<int, FileNode> Files = new Dictionary<int, FileNode>();
-				await foreach (PerforceResponse Response in Perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { $"{QueryPath}@{Change}" }, null, typeof(SyncRecord), true, default))
+				Dictionary<int, FileNode> files = new Dictionary<int, FileNode>();
+				await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { $"{queryPath}@{change}" }, null, typeof(SyncRecord), true, default))
 				{
-					PerforceError? Error = Response.Error;
-					if (Error != null)
+					PerforceError? error = response.Error;
+					if (error != null)
 					{
-						Logger.LogWarning("Perforce: {Message}", Error.Data);
+						_logger.LogWarning("Perforce: {Message}", error.Data);
 						continue;
 					}
 
-					PerforceIo? Io = Response.Io;
-					if (Io != null)
+					PerforceIo? io = response.Io;
+					if (io != null)
 					{
-						if (Io.Command == PerforceIoCommand.Open)
+						if (io.Command == PerforceIoCommand.Open)
 						{
-							Utf8String Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
-							Files[Io.File] = await Contents.AddFileByPathAsync(CommitBundle, Path, 0);
+							Utf8String path = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
+							files[io.File] = await contents.AddFileByPathAsync(commitBundle, path, 0);
 						}
-						else if (Io.Command == PerforceIoCommand.Write)
+						else if (io.Command == PerforceIoCommand.Write)
 						{
-							FileNode File = Files[Io.File];
-							File.Append(Io.Payload, Options.Chunking);
-							DataSize += Io.Payload.Length;
+							FileNode file = files[io.File];
+							file.Append(io.Payload, Options.Chunking);
+							dataSize += io.Payload.Length;
 						}
-						else if (Io.Command == PerforceIoCommand.Close)
+						else if (io.Command == PerforceIoCommand.Close)
 						{
-							Files.Remove(Io.File);
+							files.Remove(io.File);
 						}
-						else if (Io.Command == PerforceIoCommand.Unlink)
+						else if (io.Command == PerforceIoCommand.Unlink)
 						{
-							Utf8String Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
-							await Contents.DeleteFileByPathAsync(CommitBundle, Path);
+							Utf8String path = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
+							await contents.DeleteFileByPathAsync(commitBundle, path);
 						}
 
-						if (DataSize > TrimDataSize)
+						if (dataSize > trimDataSize)
 						{
-							Logger.LogInformation("Trimming working set after receiving {NumBytes:n0}mb...", DataSize / (1024 * 1024));
-							await CommitBundle.TrimAsync();
-							TrimDataSize = DataSize + TrimInterval;
-							Logger.LogInformation("Trimming complete. Next trim at {NextNumBytes:n0}mb.", TrimDataSize / (1024 * 1024));
+							_logger.LogInformation("Trimming working set after receiving {NumBytes:n0}mb...", dataSize / (1024 * 1024));
+							await commitBundle.TrimAsync();
+							trimDataSize = dataSize + TrimInterval;
+							_logger.LogInformation("Trimming complete. Next trim at {NextNumBytes:n0}mb.", trimDataSize / (1024 * 1024));
 						}
 					}
 				}
 			}
 
-			ClientInfo.Change = Change;
+			clientInfo.Change = change;
 
 			// Create the key for this commit
-			CommitKey Key = new CommitKey(Stream.Id, Change, Filter, RevisionsOnly);
-			CbObject KeyObject = CbSerializer.Serialize(Key);
+			CommitKey key = new CommitKey(stream.Id, change, filter, revisionsOnly);
+			CbObject keyObject = CbSerializer.Serialize(key);
 
 			// Return the new root object
-			RefId RefId = new RefId(IoHash.Compute(KeyObject.GetView().Span));
-			Logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", RefId, Stream.Id, Change);
-			await CommitBundle.WriteAsync(GetStreamBucketId(Stream.Id), RefId, KeyObject, true);
+			RefId refId = new RefId(IoHash.Compute(keyObject.GetView().Span));
+			_logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", refId, stream.Id, change);
+			await commitBundle.WriteAsync(GetStreamBucketId(stream.Id), refId, keyObject, true);
 
 			// Print out stats for the new data
-			BundleStats Stats = CommitBundle.Stats;
-			Logger.LogInformation("Written ref {RefId} for {StreamId} change {Change}. Download: {NewBytes:n0} bytes ({NewRefCount} refs => {NewRefBytes:n0} bytes, {NewBlobCount} blobs => {NewBlobBytes:n0} bytes, {NewNodeCount:n0} nodes => {NewNodeBytes:n0} bytes).", RefId, Stream.Id, Change, Stats.NewRefBytes + Stats.NewBlobBytes, Stats.NewRefCount, Stats.NewRefBytes, Stats.NewBlobCount, Stats.NewBlobBytes, Stats.NewNodeCount, Stats.NewNodeBytes);
+			BundleStats stats = commitBundle.Stats;
+			_logger.LogInformation("Written ref {RefId} for {StreamId} change {Change}. Download: {NewBytes:n0} bytes ({NewRefCount} refs => {NewRefBytes:n0} bytes, {NewBlobCount} blobs => {NewBlobBytes:n0} bytes, {NewNodeCount:n0} nodes => {NewNodeBytes:n0} bytes).", refId, stream.Id, change, stats.NewRefBytes + stats.NewBlobBytes, stats.NewRefCount, stats.NewRefBytes, stats.NewBlobCount, stats.NewBlobBytes, stats.NewNodeCount, stats.NewNodeBytes);
 		}
 
-		async Task FlushWorkspaceAsync(ReplicationClient ClientInfo, IPerforceConnection Perforce, int Change)
+		async Task FlushWorkspaceAsync(ReplicationClient clientInfo, IPerforceConnection perforce, int change)
 		{
-			if (ClientInfo.Change != Change)
+			if (clientInfo.Change != change)
 			{
-				ClientInfo.Change = -1;
-				if (Change == 0)
+				clientInfo.Change = -1;
+				if (change == 0)
 				{
-					Logger.LogInformation("Flushing have table for {Client}", Perforce.Settings.ClientName);
-					await Perforce.SyncQuietAsync(SyncOptions.Force | SyncOptions.KeepWorkspaceFiles, -1, $"//...#0");
+					_logger.LogInformation("Flushing have table for {Client}", perforce.Settings.ClientName);
+					await perforce.SyncQuietAsync(SyncOptions.Force | SyncOptions.KeepWorkspaceFiles, -1, $"//...#0");
 				}
 				else
 				{
-					Logger.LogInformation("Flushing have table for {Client} to change {Change}", Perforce.Settings.ClientName, Change);
-					await Perforce.SyncQuietAsync(SyncOptions.Force | SyncOptions.KeepWorkspaceFiles, -1, $"//...@{Change}");
+					_logger.LogInformation("Flushing have table for {Client} to change {Change}", perforce.Settings.ClientName, change);
+					await perforce.SyncQuietAsync(SyncOptions.Force | SyncOptions.KeepWorkspaceFiles, -1, $"//...@{change}");
 				}
-				ClientInfo.Change = Change;
+				clientInfo.Change = change;
 			}
 		}
 
-		static Utf8String GetClientRelativePath(ReadOnlyMemory<byte> Data, Utf8String ClientRoot)
+		static Utf8String GetClientRelativePath(ReadOnlyMemory<byte> data, Utf8String clientRoot)
 		{
-			int Length = Data.Span.IndexOf((byte)0);
-			if (Length != -1)
+			int length = data.Span.IndexOf((byte)0);
+			if (length != -1)
 			{
-				Data = Data.Slice(0, Length);
+				data = data.Slice(0, length);
 			}
 
-			Utf8String Path = new Utf8String(Data);
-			if (!Path.StartsWith(ClientRoot, Utf8StringComparer.Ordinal))
+			Utf8String path = new Utf8String(data);
+			if (!path.StartsWith(clientRoot, Utf8StringComparer.Ordinal))
 			{
-				throw new ArgumentException($"Unable to make path {Path} relative to client root {ClientRoot}");
+				throw new ArgumentException($"Unable to make path {path} relative to client root {clientRoot}");
 			}
 
-			return Path.Substring(ClientRoot.Length).Clone();
+			return path.Substring(clientRoot.Length).Clone();
 		}
 
 		class ReplicationClient
@@ -1020,77 +1009,77 @@ namespace Horde.Build.Commits.Impl
 			public ClientRecord Client { get; }
 			public int Change { get; set; }
 
-			public ReplicationClient(PerforceSettings Settings, string ClusterName, InfoRecord ServerInfo, ClientRecord Client, int Change)
+			public ReplicationClient(PerforceSettings settings, string clusterName, InfoRecord serverInfo, ClientRecord client, int change)
 			{
-				this.Settings = Settings;
-				this.ClusterName = ClusterName;
-				this.ServerInfo = ServerInfo;
-				this.Client = Client;
-				this.Change = Change;
+				Settings = settings;
+				ClusterName = clusterName;
+				ServerInfo = serverInfo;
+				Client = client;
+				Change = change;
 			}
 		}
 
-		Dictionary<StreamId, ReplicationClient> CachedPerforceClients = new Dictionary<StreamId, ReplicationClient>();
+		readonly Dictionary<StreamId, ReplicationClient> _cachedPerforceClients = new Dictionary<StreamId, ReplicationClient>();
 
-		async Task<ReplicationClient?> FindReplicationClientAsync(IStream Stream)
+		async Task<ReplicationClient?> FindReplicationClientAsync(IStream stream)
 		{
-			ReplicationClient? ClientInfo;
-			if (CachedPerforceClients.TryGetValue(Stream.Id, out ClientInfo))
+			ReplicationClient? clientInfo;
+			if (_cachedPerforceClients.TryGetValue(stream.Id, out clientInfo))
 			{
-				if (!String.Equals(ClientInfo.ClusterName, Stream.ClusterName, StringComparison.Ordinal) && String.Equals(ClientInfo.Client.Stream, Stream.Name, StringComparison.Ordinal))
+				if (!String.Equals(clientInfo.ClusterName, stream.ClusterName, StringComparison.Ordinal) && String.Equals(clientInfo.Client.Stream, stream.Name, StringComparison.Ordinal))
 				{
-					PerforceSettings ServerSettings = new PerforceSettings(ClientInfo.Settings);
-					ServerSettings.ClientName = null;
+					PerforceSettings serverSettings = new PerforceSettings(clientInfo.Settings);
+					serverSettings.ClientName = null;
 
-					using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(Logger);
-					await Perforce.DeleteClientAsync(DeleteClientOptions.None, ClientInfo.Client.Name);
+					using IPerforceConnection perforce = await PerforceConnection.CreateAsync(_logger);
+					await perforce.DeleteClientAsync(DeleteClientOptions.None, clientInfo.Client.Name);
 
-					CachedPerforceClients.Remove(Stream.Id);
-					ClientInfo = null;
+					_cachedPerforceClients.Remove(stream.Id);
+					clientInfo = null;
 				}
 			}
-			return ClientInfo;
+			return clientInfo;
 		}
 
-		async Task<ReplicationClient> FindOrAddReplicationClientAsync(IStream Stream)
+		async Task<ReplicationClient> FindOrAddReplicationClientAsync(IStream stream)
 		{
-			ReplicationClient? ClientInfo = await FindReplicationClientAsync(Stream);
-			if (ClientInfo == null)
+			ReplicationClient? clientInfo = await FindReplicationClientAsync(stream);
+			if (clientInfo == null)
 			{
-				using IPerforceConnection? Perforce = await PerforceService.GetServiceUserConnection(Stream.ClusterName);
-				if (Perforce == null)
+				using IPerforceConnection? perforce = await _perforceService.GetServiceUserConnection(stream.ClusterName);
+				if (perforce == null)
 				{
 					throw new PerforceException($"Unable to create connection to Perforce server");
 				}
 
-				InfoRecord ServerInfo = await Perforce.GetInfoAsync(InfoOptions.ShortOutput);
+				InfoRecord serverInfo = await perforce.GetInfoAsync(InfoOptions.ShortOutput);
 
-				ClientRecord NewClient = new ClientRecord($"Horde.Build_{ServerInfo.ClientHost}_{Stream.Id}", Perforce.Settings.UserName, "/p4/");
-				NewClient.Description = "Created to mirror Perforce content to Horde Storage";
-				NewClient.Owner = Perforce.Settings.UserName;
-				NewClient.Host = ServerInfo.ClientHost;
-				NewClient.Stream = Stream.Name;
-				await Perforce.CreateClientAsync(NewClient);
-				Logger.LogInformation("Created client {ClientName} for {StreamName}", NewClient.Name, Stream.Name);
+				ClientRecord newClient = new ClientRecord($"Horde.Build_{serverInfo.ClientHost}_{stream.Id}", perforce.Settings.UserName, "/p4/");
+				newClient.Description = "Created to mirror Perforce content to Horde Storage";
+				newClient.Owner = perforce.Settings.UserName;
+				newClient.Host = serverInfo.ClientHost;
+				newClient.Stream = stream.Name;
+				await perforce.CreateClientAsync(newClient);
+				_logger.LogInformation("Created client {ClientName} for {StreamName}", newClient.Name, stream.Name);
 
-				PerforceSettings Settings = new PerforceSettings(Perforce.Settings);
-				Settings.ClientName = NewClient.Name;
-				Settings.PreferNativeClient = true;
+				PerforceSettings settings = new PerforceSettings(perforce.Settings);
+				settings.ClientName = newClient.Name;
+				settings.PreferNativeClient = true;
 
-				ClientInfo = new ReplicationClient(Settings, Stream.ClusterName, ServerInfo, NewClient, -1);
-				CachedPerforceClients.Add(Stream.Id, ClientInfo);
+				clientInfo = new ReplicationClient(settings, stream.ClusterName, serverInfo, newClient, -1);
+				_cachedPerforceClients.Add(stream.Id, clientInfo);
 			}
-			return ClientInfo;
+			return clientInfo;
 		}
 
 		/// <summary>
 		/// Get the bucket used for particular stream refs
 		/// </summary>
-		/// <param name="StreamId"></param>
+		/// <param name="streamId"></param>
 		/// <returns></returns>
-		static BucketId GetStreamBucketId(StreamId StreamId)
+		static BucketId GetStreamBucketId(StreamId streamId)
 		{
-			return new BucketId(StreamId.ToString());
+			return new BucketId(streamId.ToString());
 		}
 
 		#endregion

@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Xml;
+using EpicGames.Core;
 
 namespace Horde.Build.Utilities
 {
@@ -19,35 +13,35 @@ namespace Horde.Build.Utilities
 	/// </summary>
 	static class Schemas
 	{
-		static ConcurrentDictionary<Assembly, XmlDocument?> CachedDocumentation = new ConcurrentDictionary<Assembly, XmlDocument?>();
-		static ConcurrentDictionary<Type, JsonSchema> CachedSchemas = new ConcurrentDictionary<Type, JsonSchema>();
+		static readonly ConcurrentDictionary<Assembly, XmlDocument?> s_cachedDocumentation = new ConcurrentDictionary<Assembly, XmlDocument?>();
+		static readonly ConcurrentDictionary<Type, JsonSchema> s_cachedSchemas = new ConcurrentDictionary<Type, JsonSchema>();
 
 		/// <summary>
 		/// Create a Json schema (or retrieve a cached schema)
 		/// </summary>
-		/// <param name="Type"></param>
+		/// <param name="type"></param>
 		/// <returns></returns>
-		public static JsonSchema CreateSchema(Type Type)
+		public static JsonSchema CreateSchema(Type type)
 		{
-			JsonSchema? Schema;
-			if (!CachedSchemas.TryGetValue(Type, out Schema))
+			JsonSchema? schema;
+			if (!s_cachedSchemas.TryGetValue(type, out schema))
 			{
-				XmlDocument? Documentation;
-				if (!CachedDocumentation.TryGetValue(Type.Assembly, out Documentation))
+				XmlDocument? documentation;
+				if (!s_cachedDocumentation.TryGetValue(type.Assembly, out documentation))
 				{
-					FileReference InputDocumentationFile = new FileReference(Type.Assembly.Location).ChangeExtension(".xml");
-					if (FileReference.Exists(InputDocumentationFile))
+					FileReference inputDocumentationFile = new FileReference(type.Assembly.Location).ChangeExtension(".xml");
+					if (FileReference.Exists(inputDocumentationFile))
 					{
-						Documentation = new XmlDocument();
-						Documentation.Load(InputDocumentationFile.FullName);
+						documentation = new XmlDocument();
+						documentation.Load(inputDocumentationFile.FullName);
 					}
-					CachedDocumentation.TryAdd(Type.Assembly, Documentation);
+					s_cachedDocumentation.TryAdd(type.Assembly, documentation);
 				}
 
-				Schema = JsonSchema.FromType(Type, Documentation);
-				CachedSchemas.TryAdd(Type, Schema);
+				schema = JsonSchema.FromType(type, documentation);
+				s_cachedSchemas.TryAdd(type, schema);
 			}
-			return Schema;
+			return schema;
 		}
 	}
 }

@@ -1,23 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Collections;
-using HordeCommon.Rpc;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
-using System.Security.Policy;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 
 namespace Horde.Build.IssueHandlers.Impl
 {
@@ -40,70 +32,70 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
-		/// <param name="EventId">The event id to compare</param>
+		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? EventId)
+		public static bool IsMatchingEventId(EventId? eventId)
 		{
-			return EventId == KnownLogEvents.AutomationTool_MissingCopyright;
+			return eventId == KnownLogEvents.AutomationTool_MissingCopyright;
 		}
 
 		/// <summary>
 		/// Extracts a list of source files from an event
 		/// </summary>
-		/// <param name="Event">The event data</param>
-		/// <param name="SourceFiles">List of source files</param>
-		public static void GetSourceFiles(ILogEventData Event, HashSet<string> SourceFiles)
+		/// <param name="logEventData">The event data</param>
+		/// <param name="sourceFiles">List of source files</param>
+		public static void GetSourceFiles(ILogEventData logEventData, HashSet<string> sourceFiles)
 		{
-			foreach (ILogEventLine Line in Event.Lines)
+			foreach (ILogEventLine line in logEventData.Lines)
 			{
-				string? RelativePath;
-				if (Line.Data.TryGetNestedProperty("properties.file.relativePath", out RelativePath) || Line.Data.TryGetNestedProperty("properties.file", out RelativePath))
+				string? relativePath;
+				if (line.Data.TryGetNestedProperty("properties.file.relativePath", out relativePath) || line.Data.TryGetNestedProperty("properties.file", out relativePath))
 				{
-					int EndIdx = RelativePath.LastIndexOfAny(new char[] { '/', '\\' }) + 1;
-					string FileName = RelativePath.Substring(EndIdx);
-					SourceFiles.Add(FileName);
+					int endIdx = relativePath.LastIndexOfAny(new char[] { '/', '\\' }) + 1;
+					string fileName = relativePath.Substring(endIdx);
+					sourceFiles.Add(fileName);
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob Job, INode Node, ILogEventData EventData, [NotNullWhen(true)] out NewIssueFingerprint? Fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
-			if (!IsMatchingEventId(EventData.EventId))
+			if (!IsMatchingEventId(eventData.EventId))
 			{
-				Fingerprint = null;
+				fingerprint = null;
 				return false;
 			}
 
-			HashSet<string> NewFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			GetSourceFiles(EventData, NewFileNames);
-			Fingerprint = new NewIssueFingerprint(Type, NewFileNames, null);
+			HashSet<string> newFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			GetSourceFiles(eventData, newFileNames);
+			fingerprint = new NewIssueFingerprint(Type, newFileNames, null);
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint Fingerprint, List<SuspectChange> Suspects)
+		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
-			foreach (SuspectChange Suspect in Suspects)
+			foreach (SuspectChange suspect in suspects)
 			{
-				if (Suspect.ContainsCode)
+				if (suspect.ContainsCode)
 				{
-					if (FileNames.Any(x => Suspect.ModifiesFile(x)))
+					if (FileNames.Any(x => suspect.ModifiesFile(x)))
 					{
-						Suspect.Rank += 20;
+						suspect.Rank += 20;
 					}
 					else
 					{
-						Suspect.Rank += 10;
+						suspect.Rank += 10;
 					}
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint Fingerprint, IssueSeverity Severity)
+		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
-			return $"Missing copyright notice in {StringUtils.FormatList(Fingerprint.Keys.ToArray(), 2)}";
+			return $"Missing copyright notice in {StringUtils.FormatList(fingerprint.Keys.ToArray(), 2)}";
 		}
 	}
 }

@@ -1,8 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +8,9 @@ using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 
 namespace Horde.Build.Authentication
@@ -24,57 +24,57 @@ namespace Horde.Build.Authentication
 		public const string AuthenticationScheme = "ServiceAccount";
 		public const string Prefix = "ServiceAccount";
 
-		private readonly IServiceAccountCollection ServiceAccounts;
+		private readonly IServiceAccountCollection _serviceAccounts;
 
-		public ServiceAccountAuthHandler(IOptionsMonitor<ServiceAccountAuthOptions> Options,
-			ILoggerFactory Logger, UrlEncoder Encoder, ISystemClock Clock, IServiceAccountCollection ServiceAccounts)
-			: base(Options, Logger, Encoder, Clock)
+		public ServiceAccountAuthHandler(IOptionsMonitor<ServiceAccountAuthOptions> options,
+			ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock, IServiceAccountCollection serviceAccounts)
+			: base(options, logger, encoder, clock)
 		{
-			this.ServiceAccounts = ServiceAccounts;
+			_serviceAccounts = serviceAccounts;
 		}
 		
 		protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
 		{
-			if (!Context.Request.Headers.TryGetValue(HeaderNames.Authorization, out var HeaderValue))
+			if (!Context.Request.Headers.TryGetValue(HeaderNames.Authorization, out Microsoft.Extensions.Primitives.StringValues headerValue))
 			{
 				return AuthenticateResult.NoResult();
 			}
 
-			if (HeaderValue.Count < 1)
+			if (headerValue.Count < 1)
 			{
 				return AuthenticateResult.NoResult();
 			}
 
-			if (!HeaderValue[0].StartsWith(Prefix, StringComparison.Ordinal))
+			if (!headerValue[0].StartsWith(Prefix, StringComparison.Ordinal))
 			{
 				return AuthenticateResult.NoResult();
 			}
 			
-			string Token = HeaderValue[0].Replace(Prefix, "", StringComparison.Ordinal).Trim();
-			IServiceAccount? ServiceAccount = await ServiceAccounts.GetBySecretTokenAsync(Token);
+			string token = headerValue[0].Replace(Prefix, "", StringComparison.Ordinal).Trim();
+			IServiceAccount? serviceAccount = await _serviceAccounts.GetBySecretTokenAsync(token);
 
-			if (ServiceAccount == null)
+			if (serviceAccount == null)
 			{
-				return AuthenticateResult.Fail($"Service account for token {Token} not found");
+				return AuthenticateResult.Fail($"Service account for token {token} not found");
 			}
 
-			List<Claim> Claims = new List<Claim>(10);
-			Claims.Add(new Claim(ClaimTypes.Name, AuthenticationScheme));
-			Claims.AddRange(ServiceAccount.GetClaims().Select(ClaimPair => new Claim(ClaimPair.Type, ClaimPair.Value)));
+			List<Claim> claims = new List<Claim>(10);
+			claims.Add(new Claim(ClaimTypes.Name, AuthenticationScheme));
+			claims.AddRange(serviceAccount.GetClaims().Select(claimPair => new Claim(claimPair.Type, claimPair.Value)));
 
-			ClaimsIdentity Identity = new ClaimsIdentity(Claims, Scheme.Name);
-			ClaimsPrincipal Principal = new ClaimsPrincipal(Identity);
-			AuthenticationTicket Ticket = new AuthenticationTicket(Principal, Scheme.Name);
+			ClaimsIdentity identity = new ClaimsIdentity(claims, Scheme.Name);
+			ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+			AuthenticationTicket ticket = new AuthenticationTicket(principal, Scheme.Name);
 
-			return AuthenticateResult.Success(Ticket);
+			return AuthenticateResult.Success(ticket);
 		}
 	}
 
 	static class ServiceAccountExtensions
 	{
-		public static AuthenticationBuilder AddServiceAccount(this AuthenticationBuilder Builder, Action<ServiceAccountAuthOptions> Config)
+		public static AuthenticationBuilder AddServiceAccount(this AuthenticationBuilder builder, Action<ServiceAccountAuthOptions> config)
 		{
-			return Builder.AddScheme<ServiceAccountAuthOptions, ServiceAccountAuthHandler>(ServiceAccountAuthHandler.AuthenticationScheme, Config);
+			return builder.AddScheme<ServiceAccountAuthOptions, ServiceAccountAuthHandler>(ServiceAccountAuthHandler.AuthenticationScheme, config);
 		}
 	}
 }

@@ -1,22 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Serialization;
-using EpicGames.Serialization.Converters;
-using Horde.Build.Models;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Bson.Serialization.Serializers;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Serialization;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 
 namespace Horde.Build.Utilities
 {
@@ -37,40 +31,40 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// The text representing this id
 		/// </summary>
-		readonly string Text;
+		readonly string _text;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Input">Unique id for the string</param>
+		/// <param name="input">Unique id for the string</param>
 		[SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "<Pending>")]
-		public StringId(string Input)
+		public StringId(string input)
 		{
-			this.Text = Input;
+			_text = input;
 
-			if (Text.Length == 0)
+			if (_text.Length == 0)
 			{
 //				throw new ArgumentException("String id may not be empty");
 			}
 
 			const int MaxLength = 64;
-			if (Text.Length > MaxLength)
+			if (_text.Length > MaxLength)
 			{
 				throw new ArgumentException($"String id may not be longer than {MaxLength} characters");
 			}
 
-			for (int Idx = 0; Idx < Text.Length; Idx++)
+			for (int idx = 0; idx < _text.Length; idx++)
 			{
-				char Character = Text[Idx];
-				if (!IsValidCharacter(Character))
+				char character = _text[idx];
+				if (!IsValidCharacter(character))
 				{
-					if (Character >= 'A' && Character <= 'Z')
+					if (character >= 'A' && character <= 'Z')
 					{
-						Text = Text.ToLowerInvariant();
+						_text = _text.ToLowerInvariant();
 					}
 					else
 					{
-						throw new ArgumentException($"{Text} is not a valid string id");
+						throw new ArgumentException($"{_text} is not a valid string id");
 					}
 				}
 			}
@@ -79,77 +73,74 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Constructs from a nullable string
 		/// </summary>
-		/// <param name="Text">The text to construct from</param>
+		/// <param name="text">The text to construct from</param>
 		/// <returns></returns>
 		[SuppressMessage("Design", "CA1000:Do not declare static members on generic types")]
-		public static StringId<T>? FromNullable(string? Text)
+		public static StringId<T>? FromNullable(string? text)
 		{
-			if (String.IsNullOrEmpty(Text))
+			if (String.IsNullOrEmpty(text))
 			{
 				return null;
 			}
 			else
 			{
-				return new StringId<T>(Text);
+				return new StringId<T>(text);
 			}
 		}
 
 		/// <summary>
 		/// Generates a new string id from the given text
 		/// </summary>
-		/// <param name="Text">Text to generate from</param>
+		/// <param name="text">Text to generate from</param>
 		/// <returns>New string id</returns>
 		[SuppressMessage("Design", "CA1000:Do not declare static members on generic types", Justification = "<Pending>")]
-		public static StringId<T> Sanitize(string Text)
+		public static StringId<T> Sanitize(string text)
 		{
-			StringBuilder Result = new StringBuilder();
-			for (int Idx = 0; Idx < Text.Length; Idx++)
+			StringBuilder result = new StringBuilder();
+			for (int idx = 0; idx < text.Length; idx++)
 			{
-				char Character = Text[Idx];
-				if (Character >= 'A' && Character <= 'Z')
+				char character = text[idx];
+				if (character >= 'A' && character <= 'Z')
 				{
-					Result.Append((char)('a' + (Character - 'A')));
+					result.Append((char)('a' + (character - 'A')));
 				}
-				else if (IsValidCharacter(Character))
+				else if (IsValidCharacter(character))
 				{
-					Result.Append(Character);
+					result.Append(character);
 				}
-				else if (Result.Length > 0 && Result[Result.Length - 1] != '-')
+				else if (result.Length > 0 && result[^1] != '-')
 				{
-					Result.Append('-');
+					result.Append('-');
 				}
 			}
-			while(Result.Length > 0 && Result[Result.Length - 1] == '-')
+			while(result.Length > 0 && result[^1] == '-')
 			{
-				Result.Remove(Result.Length - 1, 1);
+				result.Remove(result.Length - 1, 1);
 			}
-			return new StringId<T>(Result.ToString());
+			return new StringId<T>(result.ToString());
 		}
 
 		/// <summary>
 		/// Checks whether this StringId is set
 		/// </summary>
-		public bool IsEmpty
-		{
-			get { return String.IsNullOrEmpty(Text); }
-		}
+		public bool IsEmpty => String.IsNullOrEmpty(_text);
 
 		/// <summary>
 		/// Checks whether the given character is valid within a string id
 		/// </summary>
-		/// <param name="Character">The character to check</param>
+		/// <param name="character">The character to check</param>
 		/// <returns>True if the character is valid</returns>
-		static bool IsValidCharacter(char Character)
+		static bool IsValidCharacter(char character)
 		{
-			if (Character >= 'a' && Character <= 'z')
+			if (character >= 'a' && character <= 'z')
 			{
 				return true;
 			}
-			if (Character >= '0' && Character <= '9')
+			if (character >= '0' && character <= '9')
 			{
 				return true;
 			}
-			if (Character == '-' || Character == '_' || Character == '.')
+			if (character == '-' || character == '_' || character == '.')
 			{
 				return true;
 			}
@@ -157,49 +148,49 @@ namespace Horde.Build.Utilities
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj)
+		public override bool Equals(object? obj)
 		{
-			return Obj is StringId<T> && Equals((StringId<T>)Obj);
+			return obj is StringId<T> id && Equals(id);
 		}
 
 		/// <inheritdoc/>
 		public override int GetHashCode()
 		{
-			return Text.GetHashCode(StringComparison.Ordinal);
+			return _text.GetHashCode(StringComparison.Ordinal);
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(StringId<T> Other)
+		public bool Equals(StringId<T> other)
 		{
-			return Text.Equals(Other.Text, StringComparison.Ordinal);
+			return _text.Equals(other._text, StringComparison.Ordinal);
 		}
 
 		/// <inheritdoc/>
 		public override string ToString()
 		{
-			return Text;
+			return _text;
 		}
 
 		/// <summary>
 		/// Compares two string ids for equality
 		/// </summary>
-		/// <param name="Left">The first string id</param>
-		/// <param name="Right">Second string id</param>
+		/// <param name="left">The first string id</param>
+		/// <param name="right">Second string id</param>
 		/// <returns>True if the two string ids are equal</returns>
-		public static bool operator ==(StringId<T> Left, StringId<T> Right)
+		public static bool operator ==(StringId<T> left, StringId<T> right)
 		{
-			return Left.Equals(Right);
+			return left.Equals(right);
 		}
 
 		/// <summary>
 		/// Compares two string ids for inequality
 		/// </summary>
-		/// <param name="Left">The first string id</param>
-		/// <param name="Right">Second string id</param>
+		/// <param name="left">The first string id</param>
+		/// <param name="right">Second string id</param>
 		/// <returns>True if the two string ids are not equal</returns>
-		public static bool operator !=(StringId<T> Left, StringId<T> Right)
+		public static bool operator !=(StringId<T> left, StringId<T> right)
 		{
-			return !Left.Equals(Right);
+			return !left.Equals(right);
 		}
 	}
 
@@ -209,15 +200,15 @@ namespace Horde.Build.Utilities
 	public class StringIdJsonConverter<T> : JsonConverter<StringId<T>>
 	{
 		/// <inheritdoc/>
-		public override StringId<T> Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override StringId<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			return new StringId<T>(Reader.GetString()!);
+			return new StringId<T>(reader.GetString()!);
 		}
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, StringId<T> Value, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, StringId<T> value, JsonSerializerOptions options)
 		{
-			Writer.WriteStringValue(Value.ToString());
+			writer.WriteStringValue(value.ToString());
 		}
 	}
 
@@ -227,15 +218,15 @@ namespace Horde.Build.Utilities
 	public class JsonStringIdConverterFactory : JsonConverterFactory
 	{
 		/// <inheritdoc/>
-		public override bool CanConvert(Type TypeToConvert)
+		public override bool CanConvert(Type typeToConvert)
 		{
-			return TypeToConvert.IsGenericType && TypeToConvert.GetGenericTypeDefinition() == typeof(StringId<>);
+			return typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(StringId<>);
 		}
 
 		/// <inheritdoc/>
-		public override JsonConverter? CreateConverter(Type Type, JsonSerializerOptions Options)
+		public override JsonConverter? CreateConverter(Type type, JsonSerializerOptions options)
 		{
-			return (JsonConverter?)Activator.CreateInstance(typeof(StringIdJsonConverter<>).MakeGenericType(Type.GetGenericArguments()));
+			return (JsonConverter?)Activator.CreateInstance(typeof(StringIdJsonConverter<>).MakeGenericType(type.GetGenericArguments()));
 		}
 	}
 
@@ -245,24 +236,24 @@ namespace Horde.Build.Utilities
 	public sealed class StringIdBsonSerializer<T> : SerializerBase<StringId<T>>
 	{
 		/// <inheritdoc/>
-		public override StringId<T> Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
+		public override StringId<T> Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			string Argument;
-			if (Context.Reader.CurrentBsonType == MongoDB.Bson.BsonType.ObjectId)
+			string argument;
+			if (context.Reader.CurrentBsonType == MongoDB.Bson.BsonType.ObjectId)
 			{
-				Argument = Context.Reader.ReadObjectId().ToString();
+				argument = context.Reader.ReadObjectId().ToString();
 			}
 			else
 			{
-				Argument = Context.Reader.ReadString();
+				argument = context.Reader.ReadString();
 			}
-			return new StringId<T>(Argument);
+			return new StringId<T>(argument);
 		}
 
 		/// <inheritdoc/>
-		public override void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, StringId<T> Value)
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, StringId<T> value)
 		{
-			Context.Writer.WriteString(Value.ToString());
+			context.Writer.WriteString(value.ToString());
 		}
 	}
 
@@ -287,19 +278,19 @@ namespace Horde.Build.Utilities
 
 	sealed class CbStringIdConverter<T> : CbConverterBase<StringId<T>>
 	{
-		public override StringId<T> Read(CbField Field)
+		public override StringId<T> Read(CbField field)
 		{
-			return new StringId<T>(Field.AsString().ToString());
+			return new StringId<T>(field.AsString().ToString());
 		}
 
-		public override void Write(CbWriter Writer, StringId<T> Value)
+		public override void Write(CbWriter writer, StringId<T> value)
 		{
-			Writer.WriteStringValue(Value.ToString());
+			writer.WriteStringValue(value.ToString());
 		}
 
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, StringId<T> Value)
+		public override void WriteNamed(CbWriter writer, Utf8String name, StringId<T> value)
 		{
-			Writer.WriteString(Name, Value.ToString());
+			writer.WriteString(name, value.ToString());
 		}
 	}
 
@@ -308,65 +299,65 @@ namespace Horde.Build.Utilities
 	/// </summary>
 	sealed class StringIdTypeConverter : TypeConverter
 	{
-		Type Type;
+		readonly Type _type;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type"></param>
-		public StringIdTypeConverter(Type Type)
+		/// <param name="type"></param>
+		public StringIdTypeConverter(Type type)
 		{
-			this.Type = Type;
+			_type = type;
 		}
 
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
 		{
-			return SourceType == typeof(string) || base.CanConvertFrom(Context, SourceType);
+			return sourceType == typeof(string) || base.CanConvertFrom(context, sourceType);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
 		{
-			return Activator.CreateInstance(Type, Value)!;
+			return Activator.CreateInstance(_type, value)!;
 		}
 
 		/// <inheritdoc/>
-		public override bool CanConvertTo(ITypeDescriptorContext? Context, Type? DestinationType)
+		public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
 		{
-			if (DestinationType == null)
+			if (destinationType == null)
 			{
 				return false;
 			}
-			if (DestinationType == typeof(string))
+			if (destinationType == typeof(string))
 			{
 				return true;
 			}
-			if (DestinationType.IsGenericType)
+			if (destinationType.IsGenericType)
 			{
-				Type GenericTypeDefinition = DestinationType.GetGenericTypeDefinition();
-				if (GenericTypeDefinition == typeof(StringId<>))
+				Type genericTypeDefinition = destinationType.GetGenericTypeDefinition();
+				if (genericTypeDefinition == typeof(StringId<>))
 				{
 					return true;
 				}
-				if (GenericTypeDefinition == typeof(Nullable<>))
+				if (genericTypeDefinition == typeof(Nullable<>))
 				{
-					return CanConvertTo(Context, GenericTypeDefinition.GetGenericArguments()[0]);
+					return CanConvertTo(context, genericTypeDefinition.GetGenericArguments()[0]);
 				}
 			}
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override object? ConvertTo(ITypeDescriptorContext? Context, CultureInfo? Culture, object? Value, Type DestinationType)
+		public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
 		{
-			if (DestinationType == typeof(string))
+			if (destinationType == typeof(string))
 			{
-				return Value?.ToString();
+				return value?.ToString();
 			}
 			else
 			{
-				return Activator.CreateInstance(DestinationType, Value);
+				return Activator.CreateInstance(destinationType, value);
 			}
 		}
 	}

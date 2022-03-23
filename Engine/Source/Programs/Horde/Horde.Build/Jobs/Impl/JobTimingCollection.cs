@@ -1,18 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.Runtime.Internal.Util;
-using Amazon.S3.Model.Internal.MarshallTransformations;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -36,15 +32,15 @@ namespace Horde.Build.Collections.Impl
 			[BsonConstructor]
 			private JobStepTimingDocument()
 			{
-				this.Name = null!;
+				Name = null!;
 			}
 
-			public JobStepTimingDocument(string Name, float? AverageWaitTime, float? AverageInitTime, float? AverageDuration)
+			public JobStepTimingDocument(string name, float? averageWaitTime, float? averageInitTime, float? averageDuration)
 			{
-				this.Name = Name;
-				this.AverageWaitTime = AverageWaitTime;
-				this.AverageInitTime = AverageInitTime;
-				this.AverageDuration = AverageDuration;
+				Name = name;
+				AverageWaitTime = averageWaitTime;
+				AverageInitTime = averageInitTime;
+				AverageDuration = averageDuration;
 			}
 		}
 
@@ -58,56 +54,56 @@ namespace Horde.Build.Collections.Impl
 			public int UpdateIndex { get; set; }
 
 			[BsonIgnore]
-			public Dictionary<string, IJobStepTiming>? NameToStep;
+			public Dictionary<string, IJobStepTiming>? _nameToStep;
 
-			public bool TryGetStepTiming(string Name, [NotNullWhen(true)] out IJobStepTiming? Timing)
+			public bool TryGetStepTiming(string name, [NotNullWhen(true)] out IJobStepTiming? timing)
 			{
-				if (NameToStep == null)
+				if (_nameToStep == null)
 				{
-					NameToStep = new Dictionary<string, IJobStepTiming>();
-					foreach (JobStepTimingDocument Step in Steps)
+					_nameToStep = new Dictionary<string, IJobStepTiming>();
+					foreach (JobStepTimingDocument step in Steps)
 					{
-						if (NameToStep.ContainsKey(Step.Name))
+						if (_nameToStep.ContainsKey(step.Name))
 						{
-							Serilog.Log.Logger.Warning("Step {Name} appears twice in job timing document {Id}", Step.Name, Id);
+							Serilog.Log.Logger.Warning("Step {Name} appears twice in job timing document {Id}", step.Name, Id);
 						}
-						NameToStep[Step.Name] = Step;
+						_nameToStep[step.Name] = step;
 					}
 				}
-				return NameToStep.TryGetValue(Name, out Timing);
+				return _nameToStep.TryGetValue(name, out timing);
 			}
 		}
 
 		/// <summary>
 		/// Collection of timing documents
 		/// </summary>
-		IMongoCollection<JobTimingDocument> Collection;
+		readonly IMongoCollection<JobTimingDocument> _collection;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service singleton</param>
-		public JobTimingCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service singleton</param>
+		public JobTimingCollection(DatabaseService databaseService)
 		{
-			Collection = DatabaseService.GetCollection<JobTimingDocument>("JobTiming");
+			_collection = databaseService.GetCollection<JobTimingDocument>("JobTiming");
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobTiming?> TryAddAsync(JobId JobId, List<JobStepTimingData> Steps)
+		public async Task<IJobTiming?> TryAddAsync(JobId jobId, List<JobStepTimingData> steps)
 		{
-			JobTimingDocument JobTiming = new JobTimingDocument();
-			JobTiming.Id = JobId;
-			JobTiming.Steps.AddRange(Steps.Select(x => new JobStepTimingDocument(x.Name, x.AverageWaitTime, x.AverageInitTime, x.AverageDuration)));
-			JobTiming.UpdateIndex = 1;
+			JobTimingDocument jobTiming = new JobTimingDocument();
+			jobTiming.Id = jobId;
+			jobTiming.Steps.AddRange(steps.Select(x => new JobStepTimingDocument(x.Name, x.AverageWaitTime, x.AverageInitTime, x.AverageDuration)));
+			jobTiming.UpdateIndex = 1;
 
 			try
 			{
-				await Collection.InsertOneAsync(JobTiming);
-				return JobTiming;
+				await _collection.InsertOneAsync(jobTiming);
+				return jobTiming;
 			}
-			catch (MongoWriteException Ex)
+			catch (MongoWriteException ex)
 			{
-				if (Ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+				if (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
 				{
 					return null;
 				}
@@ -119,27 +115,27 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobTiming?> TryGetAsync(JobId JobId)
+		public async Task<IJobTiming?> TryGetAsync(JobId jobId)
 		{
-			return await Collection.Find(x => x.Id == JobId).FirstOrDefaultAsync();
+			return await _collection.Find(x => x.Id == jobId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobTiming?> TryAddStepsAsync(IJobTiming JobTiming, List<JobStepTimingData> Steps)
+		public async Task<IJobTiming?> TryAddStepsAsync(IJobTiming jobTiming, List<JobStepTimingData> steps)
 		{
-			JobTimingDocument JobTimingDocument = (JobTimingDocument)JobTiming;
-			List<JobStepTimingDocument> StepDocuments = Steps.ConvertAll(x => new JobStepTimingDocument(x.Name, x.AverageWaitTime, x.AverageInitTime, x.AverageDuration));
+			JobTimingDocument jobTimingDocument = (JobTimingDocument)jobTiming;
+			List<JobStepTimingDocument> stepDocuments = steps.ConvertAll(x => new JobStepTimingDocument(x.Name, x.AverageWaitTime, x.AverageInitTime, x.AverageDuration));
 
-			FilterDefinition<JobTimingDocument> Filter = Builders<JobTimingDocument>.Filter.Expr(x => x.Id == JobTimingDocument.Id && x.UpdateIndex == JobTimingDocument.UpdateIndex);
-			UpdateDefinition<JobTimingDocument> Update = Builders<JobTimingDocument>.Update.Set(x => x.UpdateIndex, JobTimingDocument.UpdateIndex + 1).PushEach(x => x.Steps, StepDocuments);
+			FilterDefinition<JobTimingDocument> filter = Builders<JobTimingDocument>.Filter.Expr(x => x.Id == jobTimingDocument.Id && x.UpdateIndex == jobTimingDocument.UpdateIndex);
+			UpdateDefinition<JobTimingDocument> update = Builders<JobTimingDocument>.Update.Set(x => x.UpdateIndex, jobTimingDocument.UpdateIndex + 1).PushEach(x => x.Steps, stepDocuments);
 
-			UpdateResult Result = await Collection.UpdateOneAsync(Filter, Update);
-			if (Result.ModifiedCount > 0)
+			UpdateResult result = await _collection.UpdateOneAsync(filter, update);
+			if (result.ModifiedCount > 0)
 			{
-				JobTimingDocument.NameToStep = null;
-				JobTimingDocument.Steps.AddRange(StepDocuments);
-				JobTimingDocument.UpdateIndex++;
-				return JobTimingDocument;
+				jobTimingDocument._nameToStep = null;
+				jobTimingDocument.Steps.AddRange(stepDocuments);
+				jobTimingDocument.UpdateIndex++;
+				return jobTimingDocument;
 			}
 			return null;
 		}

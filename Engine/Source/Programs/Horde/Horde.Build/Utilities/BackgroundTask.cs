@@ -11,28 +11,28 @@ namespace Horde.Build.Utilities
 	/// </summary>
 	public sealed class BackgroundTask : IDisposable
 	{
-		Func<CancellationToken, Task> RunTask;
-		Task Task = Task.CompletedTask;
-		CancellationTokenSource CancellationTokenSource = new CancellationTokenSource();
+		readonly Func<CancellationToken, Task> _runTask;
+		Task _task = Task.CompletedTask;
+		readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="RunTask"></param>
-		public BackgroundTask(Func<CancellationToken, Task> RunTask)
+		/// <param name="runTask"></param>
+		public BackgroundTask(Func<CancellationToken, Task> runTask)
 		{
-			this.RunTask = RunTask;
+			_runTask = runTask;
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			if (!Task.IsCompleted)
+			if (!_task.IsCompleted)
 			{
-				CancellationTokenSource.Cancel();
+				_cancellationTokenSource.Cancel();
 				StopAsync().Wait();
 			}
-			CancellationTokenSource.Dispose();
+			_cancellationTokenSource.Dispose();
 		}
 
 		/// <summary>
@@ -40,11 +40,11 @@ namespace Horde.Build.Utilities
 		/// </summary>
 		public void Start()
 		{
-			if (!Task.IsCompleted)
+			if (!_task.IsCompleted)
 			{
 				throw new InvalidOperationException("Background task is already running");
 			}
-			Task = Task.Run(() => RunTask(CancellationTokenSource.Token), CancellationTokenSource.Token);
+			_task = Task.Run(() => _runTask(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
 		}
 
 		/// <summary>
@@ -55,8 +55,8 @@ namespace Horde.Build.Utilities
 		{
 			try
 			{
-				CancellationTokenSource.Cancel();
-				await Task;
+				_cancellationTokenSource.Cancel();
+				await _task;
 			}
 			catch (OperationCanceledException)
 			{

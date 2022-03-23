@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 
 namespace Horde.Build.IssueHandlers.Impl
 {
@@ -27,28 +25,28 @@ namespace Horde.Build.IssueHandlers.Impl
 		public int Priority => 0;
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob Job, INode Node, ILogEventData EventData, [NotNullWhen(true)] out NewIssueFingerprint? Fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
-			Fingerprint = new NewIssueFingerprint(Type, new[] { Node.Name }, null);
+			fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null);
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint Fingerprint, List<SuspectChange> Suspects)
+		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint Fingerprint, IssueSeverity Severity)
+		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
-			string NodeName = Fingerprint.Keys.FirstOrDefault() ?? "(unknown)";
-			if(Severity == IssueSeverity.Warning)
+			string nodeName = fingerprint.Keys.FirstOrDefault() ?? "(unknown)";
+			if(severity == IssueSeverity.Warning)
 			{
-				return $"Warnings in {NodeName}";
+				return $"Warnings in {nodeName}";
 			}
 			else
 			{
-				return $"Errors in {NodeName}";
+				return $"Errors in {nodeName}";
 			}
 		}
 	}

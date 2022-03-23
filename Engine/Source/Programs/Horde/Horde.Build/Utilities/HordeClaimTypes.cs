@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
+using Horde.Build.Collections;
+using Horde.Build.Models;
 
 namespace Horde.Build.Utilities
 {
@@ -72,54 +68,54 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Gets the Horde user id from a principal
 		/// </summary>
-		/// <param name="Principal"></param>
+		/// <param name="principal"></param>
 		/// <returns></returns>
-		public static UserId? GetUserId(this ClaimsPrincipal Principal)
+		public static UserId? GetUserId(this ClaimsPrincipal principal)
 		{
-			string? IdValue = Principal.FindFirstValue(HordeClaimTypes.UserId);
-			if(IdValue == null)
+			string? idValue = principal.FindFirstValue(HordeClaimTypes.UserId);
+			if(idValue == null)
 			{
 				return null;
 			}
 			else
 			{
-				return new UserId(IdValue);
+				return new UserId(idValue);
 			}
 		}
 
 		/// <summary>
 		/// Gets the Horde user name from a principal
 		/// </summary>
-		/// <param name="Principal"></param>
+		/// <param name="principal"></param>
 		/// <returns></returns>
-		public static string? GetUserName(this ClaimsPrincipal Principal)
+		public static string? GetUserName(this ClaimsPrincipal principal)
 		{
-			return Principal.FindFirstValue(HordeClaimTypes.User) ?? Principal.FindFirstValue(ClaimTypes.Name);
+			return principal.FindFirstValue(HordeClaimTypes.User) ?? principal.FindFirstValue(ClaimTypes.Name);
 		}
 
 		/// <summary>
 		/// Get the email for the given user
 		/// </summary>
-		/// <param name="User">The user to query the email for</param>
+		/// <param name="user">The user to query the email for</param>
 		/// <returns>The user's email address or null if not found</returns>
-		public static string? GetEmail(this ClaimsPrincipal User)
+		public static string? GetEmail(this ClaimsPrincipal user)
 		{
-			return User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+			return user.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
 		}
 
 		/// <summary>
 		/// Gets the perforce username for the given principal
 		/// </summary>
-		/// <param name="User">The principal to get the Perforce user for</param>
+		/// <param name="user">The principal to get the Perforce user for</param>
 		/// <returns>Perforce user name</returns>
-		public static string? GetPerforceUser(this ClaimsPrincipal User)
+		public static string? GetPerforceUser(this ClaimsPrincipal user)
 		{
-			Claim? Claim = User.FindFirst(HordeClaimTypes.PerforceUser);
-			if (Claim == null)
+			Claim? claim = user.FindFirst(HordeClaimTypes.PerforceUser);
+			if (claim == null)
 			{
 				return null;
 			}
-			return Claim.Value;
+			return claim.Value;
 		}
 	}
 }

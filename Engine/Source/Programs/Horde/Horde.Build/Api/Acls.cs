@@ -1,13 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Acls;
-using Horde.Build.Models;
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
+using Horde.Build.Acls;
 
 namespace Horde.Build.Api
 {
@@ -86,21 +81,21 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Claim">The claim to construct from</param>
-		public GetAclClaimResponse(AclClaim Claim)
-			: this(Claim.Type, Claim.Value)
+		/// <param name="claim">The claim to construct from</param>
+		public GetAclClaimResponse(AclClaim claim)
+			: this(claim.Type, claim.Value)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type">The claim type</param>
-		/// <param name="Value">The claim value</param>
-		public GetAclClaimResponse(string Type, string Value)
+		/// <param name="type">The claim type</param>
+		/// <param name="value">The claim value</param>
+		public GetAclClaimResponse(string type, string value)
 		{
-			this.Type = Type;
-			this.Value = Value;
+			Type = type;
+			Value = value;
 		}
 	}
 
@@ -122,11 +117,11 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AclEntry">The acl entry to construct from</param>
-		public GetAclEntryResponse(AclEntry AclEntry)
+		/// <param name="aclEntry">The acl entry to construct from</param>
+		public GetAclEntryResponse(AclEntry aclEntry)
 		{
-			this.Claim = new GetAclClaimResponse(AclEntry.Claim.Type, AclEntry.Claim.Value);
-			this.Actions = AclEntry.GetActionNames(AclEntry.Actions);
+			Claim = new GetAclClaimResponse(aclEntry.Claim.Type, aclEntry.Claim.Value);
+			Actions = AclEntry.GetActionNames(aclEntry.Actions);
 		}
 	}
 
@@ -154,12 +149,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Acl">The ACL to construct from</param>
-		public GetAclResponse(Acl Acl)
+		/// <param name="acl">The ACL to construct from</param>
+		public GetAclResponse(Acl acl)
 		{
-			this.Entries = Acl.Entries.ConvertAll(x => new GetAclEntryResponse(x));
-			this.Inherit = Acl.Inherit;
-			this.Exceptions = Acl.Exceptions?.ConvertAll(x => x.ToString());
+			Entries = acl.Entries.ConvertAll(x => new GetAclEntryResponse(x));
+			Inherit = acl.Inherit;
+			Exceptions = acl.Exceptions?.ConvertAll(x => x.ToString());
 		}
 	}
 }

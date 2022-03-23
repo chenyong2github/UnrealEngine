@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Models
 {
@@ -76,29 +74,29 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StartTime"></param>
-		/// <param name="FinishTime"></param>
-		public NewUtilizationTelemetry(DateTime StartTime, DateTime FinishTime)
+		/// <param name="startTime"></param>
+		/// <param name="finishTime"></param>
+		public NewUtilizationTelemetry(DateTime startTime, DateTime finishTime)
 		{
-			this.StartTime = StartTime;
-			this.FinishTime = FinishTime;
+			StartTime = startTime;
+			FinishTime = finishTime;
 		}
 
 		/// <summary>
 		/// Adds a new pool
 		/// </summary>
-		/// <param name="PoolId">The pool id</param>
+		/// <param name="poolId">The pool id</param>
 		/// <returns>Telemetry for the given pool</returns>
-		public NewPoolUtilizationTelemetry FindOrAddPool(PoolId PoolId)
+		public NewPoolUtilizationTelemetry FindOrAddPool(PoolId poolId)
 		{
-			NewPoolUtilizationTelemetry? Pool;
-			if (!PoolsLookup.TryGetValue(PoolId, out Pool))
+			NewPoolUtilizationTelemetry? pool;
+			if (!PoolsLookup.TryGetValue(poolId, out pool))
 			{
-				Pool = new NewPoolUtilizationTelemetry(PoolId);
-				Pools.Add(Pool);
-				PoolsLookup.Add(PoolId, Pool);
+				pool = new NewPoolUtilizationTelemetry(poolId);
+				Pools.Add(pool);
+				PoolsLookup.Add(poolId, pool);
 			}
-			return Pool;
+			return pool;
 		}
 	}
 
@@ -167,26 +165,26 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="PoolId"></param>
-		public NewPoolUtilizationTelemetry(PoolId PoolId)
+		/// <param name="poolId"></param>
+		public NewPoolUtilizationTelemetry(PoolId poolId)
 		{
-			this.PoolId = PoolId;
+			PoolId = poolId;
 		}
 
 		/// <summary>
 		/// Adds a stream to the object
 		/// </summary>
-		/// <param name="StreamId"></param>
-		public NewPoolUtilizationTelemetryStream FindOrAddStream(StreamId StreamId)
+		/// <param name="streamId"></param>
+		public NewPoolUtilizationTelemetryStream FindOrAddStream(StreamId streamId)
 		{
-			NewPoolUtilizationTelemetryStream? Stream;
-			if (!StreamLookup.TryGetValue(StreamId, out Stream))
+			NewPoolUtilizationTelemetryStream? stream;
+			if (!StreamLookup.TryGetValue(streamId, out stream))
 			{
-				Stream = new NewPoolUtilizationTelemetryStream(StreamId);
-				Streams.Add(Stream);
-				StreamLookup.Add(StreamId, Stream);
+				stream = new NewPoolUtilizationTelemetryStream(streamId);
+				Streams.Add(stream);
+				StreamLookup.Add(streamId, stream);
 			}
-			return Stream;
+			return stream;
 		}
 	}
 
@@ -220,10 +218,10 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StreamId"></param>
-		public NewPoolUtilizationTelemetryStream(StreamId StreamId)
+		/// <param name="streamId"></param>
+		public NewPoolUtilizationTelemetryStream(StreamId streamId)
 		{
-			this.StreamId = StreamId;
+			StreamId = streamId;
 		}
 	}
 }

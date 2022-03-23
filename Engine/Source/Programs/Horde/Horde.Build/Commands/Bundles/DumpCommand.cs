@@ -1,19 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Bundles;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Impl;
-using EpicGames.Serialization;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Commands.Bundles
 {
@@ -32,12 +23,12 @@ namespace Horde.Build.Commands.Bundles
 		[CommandLine("-OutputDir=")]
 		public DirectoryReference? OutputDir { get; set; }
 
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			OutputDir = DirectoryReference.Combine(Program.DataDir, "Bundles");
 
-			IStorageClient StorageClient = CreateStorageClient(Logger);
-			await BundleTools.WriteSummaryAsync(StorageClient, NamespaceId, BucketId, RefId, OutputDir);
+			IStorageClient storageClient = CreateStorageClient(logger);
+			await BundleTools.WriteSummaryAsync(storageClient, NamespaceId, BucketId, RefId, OutputDir);
 
 			return 0;
 		}

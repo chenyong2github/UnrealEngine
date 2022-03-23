@@ -1,5 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Linq;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Threading.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
@@ -11,23 +17,17 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using System;
-using System.Linq;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Authentication
 {
 	class HordeOpenIdConnectHandler : OpenIdConnectHandler
 	{
-		IUserCollection UserCollection;
+		readonly IUserCollection _userCollection;
 
-		public HordeOpenIdConnectHandler(IOptionsMonitor<OpenIdConnectOptions> Options, ILoggerFactory Logger, HtmlEncoder HtmlEncoder, UrlEncoder Encoder, ISystemClock Clock, IUserCollection UserCollection)
-			: base(Options, Logger, HtmlEncoder, Encoder, Clock)
+		public HordeOpenIdConnectHandler(IOptionsMonitor<OpenIdConnectOptions> options, ILoggerFactory logger, HtmlEncoder htmlEncoder, UrlEncoder encoder, ISystemClock clock, IUserCollection userCollection)
+			: base(options, logger, htmlEncoder, encoder, clock)
 		{
-			this.UserCollection = UserCollection;
+			_userCollection = userCollection;
 		}
 
 		/// <summary>
@@ -35,44 +35,44 @@ namespace Horde.Build.Authentication
 		///
 		/// If the claim is already set, it is skipped.
 		/// </summary>
-		/// <param name="UserInfo">User info from the OIDC /userinfo endpoint </param>
-		/// <param name="Identity">Identity which claims to modify</param>
-		/// <param name="ClaimName">Name of claim</param>
-		/// <param name="UserInfoFields">List of field names to try when mapping</param>
+		/// <param name="userInfo">User info from the OIDC /userinfo endpoint </param>
+		/// <param name="identity">Identity which claims to modify</param>
+		/// <param name="claimName">Name of claim</param>
+		/// <param name="userInfoFields">List of field names to try when mapping</param>
 		/// <exception cref="Exception">Thrown if no field name matches</exception>
-		private static void MapUserInfoFieldToClaim(JsonElement UserInfo, ClaimsIdentity Identity, string ClaimName, string[] UserInfoFields)
+		private static void MapUserInfoFieldToClaim(JsonElement userInfo, ClaimsIdentity identity, string claimName, string[] userInfoFields)
 		{
-			if (Identity.FindFirst(ClaimName) != null)
+			if (identity.FindFirst(claimName) != null)
 			{
 				return;
 			}
 
-			foreach (string UserDataField in UserInfoFields)
+			foreach (string userDataField in userInfoFields)
 			{
-				if (UserInfo.TryGetProperty(UserDataField, out JsonElement FieldElement))
+				if (userInfo.TryGetProperty(userDataField, out JsonElement fieldElement))
 				{
-					Identity.AddClaim(new Claim(ClaimName, FieldElement.ToString()));
+					identity.AddClaim(new Claim(claimName, fieldElement.ToString()));
 					return;
 				}
 			}
 
-			string Message = $"Unable to map a field from user info to claim '{ClaimName}' using list [{string.Join(", ", UserInfoFields)}].";
-			Message += " UserInfo: " + UserInfo;
-			throw new Exception(Message);
+			string message = $"Unable to map a field from user info to claim '{claimName}' using list [{String.Join(", ", userInfoFields)}].";
+			message += " UserInfo: " + userInfo;
+			throw new Exception(message);
 		}
 
-		public static void AddUserInfoClaims(ServerSettings Settings, JsonElement UserInfo, ClaimsIdentity Identity)
+		public static void AddUserInfoClaims(ServerSettings settings, JsonElement userInfo, ClaimsIdentity identity)
 		{
-			MapUserInfoFieldToClaim(UserInfo, Identity, ClaimTypes.Name, Settings.OidcClaimNameMapping);
-			MapUserInfoFieldToClaim(UserInfo, Identity, ClaimTypes.Email, Settings.OidcClaimEmailMapping);
-			MapUserInfoFieldToClaim(UserInfo, Identity, HordeClaimTypes.User, Settings.OidcClaimHordeUserMapping);
-			MapUserInfoFieldToClaim(UserInfo, Identity, HordeClaimTypes.PerforceUser, Settings.OidcClaimHordePerforceUserMapping);
+			MapUserInfoFieldToClaim(userInfo, identity, ClaimTypes.Name, settings.OidcClaimNameMapping);
+			MapUserInfoFieldToClaim(userInfo, identity, ClaimTypes.Email, settings.OidcClaimEmailMapping);
+			MapUserInfoFieldToClaim(userInfo, identity, HordeClaimTypes.User, settings.OidcClaimHordeUserMapping);
+			MapUserInfoFieldToClaim(userInfo, identity, HordeClaimTypes.PerforceUser, settings.OidcClaimHordePerforceUserMapping);
 
-			if (UserInfo.TryGetProperty("groups", out JsonElement GroupsElement) && GroupsElement.ValueKind == JsonValueKind.Array)
+			if (userInfo.TryGetProperty("groups", out JsonElement groupsElement) && groupsElement.ValueKind == JsonValueKind.Array)
 			{
-				for (int Idx = 0; Idx < GroupsElement.GetArrayLength(); Idx++)
+				for (int idx = 0; idx < groupsElement.GetArrayLength(); idx++)
 				{
-					Identity.AddClaim(new Claim(ClaimTypes.Role, GroupsElement[Idx].ToString()!));
+					identity.AddClaim(new Claim(ClaimTypes.Role, groupsElement[idx].ToString()!));
 				}
 			}
 		}
@@ -80,28 +80,28 @@ namespace Horde.Build.Authentication
 		protected override async Task<HandleRequestResult> HandleRemoteAuthenticateAsync()
 		{
 			// Authenticate with the OIDC provider
-			HandleRequestResult Result = await base.HandleRemoteAuthenticateAsync();
-			if (!Result.Succeeded)
+			HandleRequestResult result = await base.HandleRemoteAuthenticateAsync();
+			if (!result.Succeeded)
 			{
-				return Result;
+				return result;
 			}
 
-			ClaimsIdentity? Identity = (ClaimsIdentity?)Result.Principal?.Identity;
-			if (Identity == null)
+			ClaimsIdentity? identity = (ClaimsIdentity?)result.Principal?.Identity;
+			if (identity == null)
 			{
 				return HandleRequestResult.Fail("No identity specified");
 			}
 
-			string Login = Identity.FindFirst(ClaimTypes.Name)!.Value;
-			string? Name = Identity.FindFirst("name")?.Value;
-			string? Email = Identity.FindFirst(ClaimTypes.Email)?.Value;
+			string login = identity.FindFirst(ClaimTypes.Name)!.Value;
+			string? name = identity.FindFirst("name")?.Value;
+			string? email = identity.FindFirst(ClaimTypes.Email)?.Value;
 
-			IUser User = await UserCollection.FindOrAddUserByLoginAsync(Login, Name, Email);
-			Identity.AddClaim(new Claim(HordeClaimTypes.UserId, User.Id.ToString()));
+			IUser user = await _userCollection.FindOrAddUserByLoginAsync(login, name, email);
+			identity.AddClaim(new Claim(HordeClaimTypes.UserId, user.Id.ToString()));
 
-			await UserCollection.UpdateClaimsAsync(User.Id, Identity.Claims.Select(x => new UserClaim(x.Type, x.Value)));
+			await _userCollection.UpdateClaimsAsync(user.Id, identity.Claims.Select(x => new UserClaim(x.Type, x.Value)));
 
-			return Result;
+			return result;
 		}
 	}
 
@@ -109,26 +109,26 @@ namespace Horde.Build.Authentication
 	{
 		class MapRolesClaimAction : ClaimAction
 		{
-			private ServerSettings Settings;
-			public MapRolesClaimAction(ServerSettings Settings) : base(ClaimTypes.Role, ClaimTypes.Role) { this.Settings = Settings; }
-			public override void Run(JsonElement UserData, ClaimsIdentity Identity, string Issuer) { HordeOpenIdConnectHandler.AddUserInfoClaims(Settings, UserData, Identity); }
+			private readonly ServerSettings _settings;
+			public MapRolesClaimAction(ServerSettings settings) : base(ClaimTypes.Role, ClaimTypes.Role) { _settings = settings; }
+			public override void Run(JsonElement userData, ClaimsIdentity identity, string issuer) { HordeOpenIdConnectHandler.AddUserInfoClaims(_settings, userData, identity); }
 		}
 
-		static void ApplyDefaultOptions(ServerSettings Settings, OpenIdConnectOptions Options, Action<OpenIdConnectOptions> Handler)
+		static void ApplyDefaultOptions(ServerSettings settings, OpenIdConnectOptions options, Action<OpenIdConnectOptions> handler)
 		{
-			Options.ResponseType = OpenIdConnectResponseType.Code;
-			Options.GetClaimsFromUserInfoEndpoint = true;
-			Options.SaveTokens = true;
-			Options.TokenValidationParameters.NameClaimType = "name";
-			Options.ClaimActions.Add(new MapRolesClaimAction(Settings));
+			options.ResponseType = OpenIdConnectResponseType.Code;
+			options.GetClaimsFromUserInfoEndpoint = true;
+			options.SaveTokens = true;
+			options.TokenValidationParameters.NameClaimType = "name";
+			options.ClaimActions.Add(new MapRolesClaimAction(settings));
 
-			Handler(Options);
+			handler(options);
 		}
 
-		public static void AddHordeOpenId(this AuthenticationBuilder Builder, ServerSettings Settings, string AuthenticationScheme, string DisplayName, Action<OpenIdConnectOptions> Handler)
+		public static void AddHordeOpenId(this AuthenticationBuilder builder, ServerSettings settings, string authenticationScheme, string displayName, Action<OpenIdConnectOptions> handler)
 		{
-			Builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IPostConfigureOptions<OpenIdConnectOptions>, OpenIdConnectPostConfigureOptions>());
-			Builder.AddRemoteScheme<OpenIdConnectOptions, HordeOpenIdConnectHandler>(AuthenticationScheme, DisplayName, Options => ApplyDefaultOptions(Settings, Options, Handler));
+			builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IPostConfigureOptions<OpenIdConnectOptions>, OpenIdConnectPostConfigureOptions>());
+			builder.AddRemoteScheme<OpenIdConnectOptions, HordeOpenIdConnectHandler>(authenticationScheme, displayName, options => ApplyDefaultOptions(settings, options, handler));
 		}
 	}
 }

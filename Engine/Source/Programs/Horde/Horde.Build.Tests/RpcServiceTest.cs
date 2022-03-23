@@ -10,10 +10,10 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Grpc.Core;
-using HordeCommon.Rpc;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
+using HordeCommon.Rpc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Hosting;
@@ -329,7 +329,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task QueryServerSessionTest()
 		{
-			RpcService.LongPollTimeout = TimeSpan.FromMilliseconds(200);
+			RpcService._longPollTimeout = TimeSpan.FromMilliseconds(200);
 
 			TestAsyncStreamReader<QueryServerStateRequest> requestStream =
 				new TestAsyncStreamReader<QueryServerStateRequest>(_adminContext);

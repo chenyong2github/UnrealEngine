@@ -1,27 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.IdentityModel.Tokens;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading.Channels;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Microsoft.Extensions.Logging;
-using System.Runtime.InteropServices;
-using Microsoft.Extensions.Options;
-using System.IO.Compression;
-using System.Security.Cryptography.X509Certificates;
+using Horde.Build.Collections;
 using Horde.Build.Commands;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Services
 {
@@ -63,10 +56,10 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of the channel</param>
-		public AgentSoftwareChannel(AgentSoftwareChannelName Name)
+		/// <param name="name">Name of the channel</param>
+		public AgentSoftwareChannel(AgentSoftwareChannelName name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 	}
 
@@ -89,17 +82,17 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Finds an existing channel by the given name, or adds a new one
 		/// </summary>
-		/// <param name="Name"></param>
+		/// <param name="name"></param>
 		/// <returns></returns>
-		public AgentSoftwareChannel FindOrAddChannel(AgentSoftwareChannelName Name)
+		public AgentSoftwareChannel FindOrAddChannel(AgentSoftwareChannelName name)
 		{
-			AgentSoftwareChannel? Channel = Channels.FirstOrDefault(x => x.Name == Name);
-			if (Channel == null)
+			AgentSoftwareChannel? channel = Channels.FirstOrDefault(x => x.Name == name);
+			if (channel == null)
 			{
-				Channel = new AgentSoftwareChannel(Name);
-				Channels.Add(Channel);
+				channel = new AgentSoftwareChannel(name);
+				Channels.Add(channel);
 			}
-			return Channel;
+			return channel;
 		}
 	}
 
@@ -116,44 +109,43 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Collection of software documents
 		/// </summary>
-		IAgentSoftwareCollection Collection;
+		readonly IAgentSoftwareCollection _collection;
 
 		/// <summary>
 		/// Channels singleton
 		/// </summary>
-		ISingletonDocument<AgentSoftwareChannels> Singleton;
+		readonly ISingletonDocument<AgentSoftwareChannels> _singleton;
 
 		/// <summary>
 		/// Cached copy of the channels singleton
 		/// </summary>
-		LazyCachedValue<Task<AgentSoftwareChannels>> ChannelsDocument;
+		readonly LazyCachedValue<Task<AgentSoftwareChannels>> _channelsDocument;
 
 		/// <summary>
 		/// The server settings
 		/// </summary>
-		IOptionsMonitor<ServerSettings> Settings;
+		readonly IOptionsMonitor<ServerSettings> _settings;
 
 		/// <summary>
 		///  Logger for controller
 		/// </summary>
-		private readonly ILogger<AgentSoftwareService> Logger;
-
+		private readonly ILogger<AgentSoftwareService> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Collection">The software collection</param>
-		/// <param name="Singleton">The channels singleton</param>		
-		/// <param name="Settings">The settings monitor</param>		
-		/// <param name="Logger">The logger instance</param>
-		public AgentSoftwareService(IAgentSoftwareCollection Collection, ISingletonDocument<AgentSoftwareChannels> Singleton, IOptionsMonitor<ServerSettings> Settings, ILogger<AgentSoftwareService> Logger)
+		/// <param name="collection">The software collection</param>
+		/// <param name="singleton">The channels singleton</param>		
+		/// <param name="settings">The settings monitor</param>		
+		/// <param name="logger">The logger instance</param>
+		public AgentSoftwareService(IAgentSoftwareCollection collection, ISingletonDocument<AgentSoftwareChannels> singleton, IOptionsMonitor<ServerSettings> settings, ILogger<AgentSoftwareService> logger)
 		{
-			this.Collection = Collection;
-			this.Singleton = Singleton;
-			this.Settings = Settings;
-			this.Logger = Logger;
+			_collection = collection;
+			_singleton = singleton;
+			_settings = settings;
+			_logger = logger;
 
-			ChannelsDocument = new LazyCachedValue<Task<AgentSoftwareChannels>>(() => Singleton.GetAsync(), TimeSpan.FromSeconds(20.0));
+			_channelsDocument = new LazyCachedValue<Task<AgentSoftwareChannels>>(() => singleton.GetAsync(), TimeSpan.FromSeconds(20.0));
 
 			Task.Run(() => RegisterDefaultAgent(5000));
 		}
@@ -163,56 +155,56 @@ namespace Horde.Build.Services
 		/// </summary>
 		public async Task<List<IAgentSoftwareChannel>> FindChannelsAsync()
 		{
-			AgentSoftwareChannels Current = await ChannelsDocument.GetLatest();
-			return Current.Channels.ConvertAll<IAgentSoftwareChannel>(x => x);
+			AgentSoftwareChannels current = await _channelsDocument.GetLatest();
+			return current.Channels.ConvertAll<IAgentSoftwareChannel>(x => x);
 		}
 
 		/// <summary>
 		/// Gets a single software archive
 		/// </summary>
-		/// <param name="Name">Unique id of the channel to find software for</param>
-		public async Task<IAgentSoftwareChannel?> GetChannelAsync(AgentSoftwareChannelName Name)
+		/// <param name="name">Unique id of the channel to find software for</param>
+		public async Task<IAgentSoftwareChannel?> GetChannelAsync(AgentSoftwareChannelName name)
 		{
-			AgentSoftwareChannels Current = await ChannelsDocument.GetLatest();
-			return Current.Channels.FirstOrDefault(x => x.Name == Name);
+			AgentSoftwareChannels current = await _channelsDocument.GetLatest();
+			return current.Channels.FirstOrDefault(x => x.Name == name);
 		}
 
 		/// <summary>
 		/// Gets a cached channel name
 		/// </summary>
-		/// <param name="Name">The cached channel name</param>
+		/// <param name="name">The cached channel name</param>
 		/// <returns></returns>
-		public async Task<IAgentSoftwareChannel?> GetCachedChannelAsync(AgentSoftwareChannelName Name)
+		public async Task<IAgentSoftwareChannel?> GetCachedChannelAsync(AgentSoftwareChannelName name)
 		{
-			AgentSoftwareChannels Document = await ChannelsDocument.GetCached();
-			return Document.Channels.FirstOrDefault(x => x.Name == Name);
+			AgentSoftwareChannels document = await _channelsDocument.GetCached();
+			return document.Channels.FirstOrDefault(x => x.Name == name);
 		}
 
 		/// <summary>
 		/// Removes a channel
 		/// </summary>
-		/// <param name="Name">The channel id</param>
+		/// <param name="name">The channel id</param>
 		/// <returns>Async task</returns>
-		public async Task DeleteChannelAsync(AgentSoftwareChannelName Name)
+		public async Task DeleteChannelAsync(AgentSoftwareChannelName name)
 		{
 			for (; ; )
 			{
-				AgentSoftwareChannels Current = await Singleton.GetAsync();
+				AgentSoftwareChannels current = await _singleton.GetAsync();
 
-				int ChannelIdx = Current.Channels.FindIndex(x => x.Name == Name);
-				if (ChannelIdx == -1)
+				int channelIdx = current.Channels.FindIndex(x => x.Name == name);
+				if (channelIdx == -1)
 				{
 					break;
 				}
 
-				string Version = Current.Channels[ChannelIdx].Version;
-				Current.Channels.RemoveAt(ChannelIdx);
+				string version = current.Channels[channelIdx].Version;
+				current.Channels.RemoveAt(channelIdx);
 
-				if (await Singleton.TryUpdateAsync(Current))
+				if (await _singleton.TryUpdateAsync(current))
 				{
-					if (!Current.Channels.Any(x => x.Version == Version))
+					if (!current.Channels.Any(x => x.Version == version))
 					{
-						await Collection.RemoveAsync(Version);
+						await _collection.RemoveAsync(version);
 					}
 					break;
 				}
@@ -222,127 +214,127 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Updates a new software revision
 		/// </summary>
-		/// <param name="Name">Name of the channel</param>
-		/// <param name="Author">Name of the user uploading this file</param>
-		/// <param name="Data">The input data stream. This should be a zip archive containing the HordeAgent executable.</param>
+		/// <param name="name">Name of the channel</param>
+		/// <param name="author">Name of the user uploading this file</param>
+		/// <param name="data">The input data stream. This should be a zip archive containing the HordeAgent executable.</param>
 		/// <returns>Unique id for the file</returns>
-		public async Task<string> SetArchiveAsync(AgentSoftwareChannelName Name, string? Author, byte[] Data)
+		public async Task<string> SetArchiveAsync(AgentSoftwareChannelName name, string? author, byte[] data)
 		{
 			// Upload the software
-			string Version = AgentUtilities.ReadVersion(Data);
-			await Collection.AddAsync(Version, Data);
+			string version = AgentUtilities.ReadVersion(data);
+			await _collection.AddAsync(version, data);
 
 			// Update the channel
 			for(; ;)
 			{
-				AgentSoftwareChannels Instance = await Singleton.GetAsync();
+				AgentSoftwareChannels instance = await _singleton.GetAsync();
 
-				AgentSoftwareChannel Channel = Instance.FindOrAddChannel(Name);
-				Channel.ModifiedBy = Author;
-				Channel.ModifiedTime = DateTime.UtcNow;
-				Channel.Version = Version;
+				AgentSoftwareChannel channel = instance.FindOrAddChannel(name);
+				channel.ModifiedBy = author;
+				channel.ModifiedTime = DateTime.UtcNow;
+				channel.Version = version;
 
-				if (await Singleton.TryUpdateAsync(Instance))
+				if (await _singleton.TryUpdateAsync(instance))
 				{
 					break;
 				}
 			}
-			return Version;
+			return version;
 		}
 
 		/// <summary>
 		/// Gets the zip file for a given channel
 		/// </summary>
-		/// <param name="Name">The channel name</param>
+		/// <param name="name">The channel name</param>
 		/// <returns>Data for the given archive</returns>
-		public async Task<byte[]?> GetArchiveAsync(AgentSoftwareChannelName Name)
+		public async Task<byte[]?> GetArchiveAsync(AgentSoftwareChannelName name)
 		{
-			AgentSoftwareChannels Instance = await Singleton.GetAsync();
+			AgentSoftwareChannels instance = await _singleton.GetAsync();
 
-			AgentSoftwareChannel? Channel = Instance.Channels.FirstOrDefault(x => x.Name == Name);
-			if (Channel == null)
+			AgentSoftwareChannel? channel = instance.Channels.FirstOrDefault(x => x.Name == name);
+			if (channel == null)
 			{
 				return null;
 			}
 			else
 			{
-				return await Collection.GetAsync(Channel.Version);
+				return await _collection.GetAsync(channel.Version);
 			}
 		}
 
 		/// <summary>
 		/// Gets the zip file with a given version number
 		/// </summary>
-		/// <param name="Version">The version</param>
+		/// <param name="version">The version</param>
 		/// <returns>Data for the given archive</returns>
-		public Task<byte[]?> GetArchiveAsync(string Version)
+		public Task<byte[]?> GetArchiveAsync(string version)
 		{
-			return Collection.GetAsync(Version);
+			return _collection.GetAsync(version);
 		}
-		async Task RegisterDefaultAgent(int DelayMs)
+		async Task RegisterDefaultAgent(int delayMs)
 		{
-			await Task.Delay(DelayMs);
+			await Task.Delay(delayMs);
 
 			// Check whether we have an installed agent zip
-			FileReference AgentZip = FileReference.Combine(Program.AppDir, "DefaultAgent/Agent.zip");
-			if (!Settings.CurrentValue.SingleInstance || !FileReference.Exists(AgentZip))
+			FileReference agentZip = FileReference.Combine(Program.AppDir, "DefaultAgent/Agent.zip");
+			if (!_settings.CurrentValue.SingleInstance || !FileReference.Exists(agentZip))
 			{
 				return;
 			}
 
-			Logger.LogInformation("Checking for default agent software update");
+			_logger.LogInformation("Checking for default agent software update");
 
-			string AgentHash = ContentHash.MD5(AgentZip).ToString();
+			string agentHash = ContentHash.MD5(agentZip).ToString();
 
-			FileReference AgentHashFile = FileReference.Combine(Program.DataDir, "Agent/DefaultAgentHash");
+			FileReference agentHashFile = FileReference.Combine(Program.DataDir, "Agent/DefaultAgentHash");
 
 			try
 			{
 
-				if (FileReference.Exists(AgentHashFile) && FileReference.ReadAllText(AgentHashFile).Trim() == AgentHash)
+				if (FileReference.Exists(agentHashFile) && FileReference.ReadAllText(agentHashFile).Trim() == agentHash)
 				{
-					Logger.LogInformation("Default agent software is up to date");
+					_logger.LogInformation("Default agent software is up to date");
 					return;
 				}
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogError(Ex, "Error checking default agent software, {Message}", Ex.Message);
+				_logger.LogError(ex, "Error checking default agent software, {Message}", ex.Message);
 			}
 
-            byte[] Bytes = await File.ReadAllBytesAsync(AgentZip.ToString());
+            byte[] bytes = await File.ReadAllBytesAsync(agentZip.ToString());
 
-			using X509Certificate2? GrpcCertificate = ServerCommand.ReadGrpcCertificate(Settings.CurrentValue);
+			using X509Certificate2? grpcCertificate = ServerCommand.ReadGrpcCertificate(_settings.CurrentValue);
 
-			if (GrpcCertificate == null)
+			if (grpcCertificate == null)
 			{
 				throw new Exception("Unable to register default agent without valid grpc certicate");
 			}
 
 			// construct agent app settings
 			
-			string ProfileName = "Default";
+			string profileName = "Default";
 
-			string ServerUrl = $"https://{System.Net.Dns.GetHostName()}:{Settings.CurrentValue.HttpsPort}";			
+			string serverUrl = $"https://{System.Net.Dns.GetHostName()}:{_settings.CurrentValue.HttpsPort}";			
 
-			Dictionary<string, object> DefaultProfile = new Dictionary<string, object>() { { "Name", ProfileName }, { "Environment", "prod" }, { "Thumbprint", GrpcCertificate.Thumbprint }, { "Url", ServerUrl } };
+			Dictionary<string, object> defaultProfile = new Dictionary<string, object>() { { "Name", profileName }, { "Environment", "prod" }, { "Thumbprint", grpcCertificate.Thumbprint }, { "Url", serverUrl } };
 
-			List<object> ServerProfiles = new List<object>() { DefaultProfile };
+			List<object> serverProfiles = new List<object>() { defaultProfile };
 
-			Dictionary<string, object> AgentSettings = new Dictionary<string, object>() { { "ServerProfiles", ServerProfiles }, { "Server", ProfileName }};
+			Dictionary<string, object> agentSettings = new Dictionary<string, object>() { { "ServerProfiles", serverProfiles }, { "Server", profileName }};
 
-			Bytes = AgentUtilities.UpdateAppSettings(Bytes, AgentSettings);
+			bytes = AgentUtilities.UpdateAppSettings(bytes, agentSettings);
 
-			string Version = await SetArchiveAsync(new AgentSoftwareChannelName("default"), null, Bytes);
+			string version = await SetArchiveAsync(new AgentSoftwareChannelName("default"), null, bytes);
 
-			if (!DirectoryReference.Exists(AgentHashFile.Directory))
+			if (!DirectoryReference.Exists(agentHashFile.Directory))
 			{
-				DirectoryReference.CreateDirectory(AgentHashFile.Directory);
+				DirectoryReference.CreateDirectory(agentHashFile.Directory);
 			}
 
-			await FileReference.WriteAllTextAsync(AgentHashFile, AgentHash);
+			await FileReference.WriteAllTextAsync(agentHashFile, agentHash);
 
-			Logger.LogInformation("Updated default agent software to {AgentHash}", AgentHash);
+			_logger.LogInformation("Updated default agent software to {AgentHash}", agentHash);
 
 		}
 	}

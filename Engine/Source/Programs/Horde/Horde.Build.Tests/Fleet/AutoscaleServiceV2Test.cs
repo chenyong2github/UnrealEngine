@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using StatsdClient;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -13,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using StatsdClient;
 
 namespace Horde.Build.Tests.Fleet
 {
@@ -70,11 +70,11 @@ namespace Horde.Build.Tests.Fleet
 		{
 			using AutoscaleServiceV2 service = GetAutoscaleService(_fleetManagerSpy);
 			
-			IPool pool1 = await PoolService.CreatePoolAsync("bogusPoolLease1", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.LeaseUtilization);
-			IPool pool2 = await PoolService.CreatePoolAsync("bogusPoolLease2", null, true, 0, 0, SizeStrategy: null);
-			IPool pool3 = await PoolService.CreatePoolAsync("bogusPoolJobQueue1", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.JobQueue);
-			IPool pool4 = await PoolService.CreatePoolAsync("bogusPoolJobQueue2", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.JobQueue);
-			IPool pool5 = await PoolService.CreatePoolAsync("bogusPoolNoOp", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
+			IPool pool1 = await PoolService.CreatePoolAsync("bogusPoolLease1", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.LeaseUtilization);
+			IPool pool2 = await PoolService.CreatePoolAsync("bogusPoolLease2", null, true, 0, 0, sizeStrategy: null);
+			IPool pool3 = await PoolService.CreatePoolAsync("bogusPoolJobQueue1", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.JobQueue);
+			IPool pool4 = await PoolService.CreatePoolAsync("bogusPoolJobQueue2", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.JobQueue);
+			IPool pool5 = await PoolService.CreatePoolAsync("bogusPoolNoOp", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 
 			PoolSizeStrategySpy leaseUtilizationSpy = new();
 			PoolSizeStrategySpy jobQueueSpy = new();
@@ -99,7 +99,7 @@ namespace Horde.Build.Tests.Fleet
 		public async Task ScaleOutCooldown()
 		{
 			using AutoscaleServiceV2 service = GetAutoscaleService(_fleetManagerSpy);
-			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
+			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 
 			// First scale-out will succeed
 			await service.ResizePools(new() { new PoolSizeData(pool, new List<IAgent>(), 1, "Testing") });
@@ -119,7 +119,7 @@ namespace Horde.Build.Tests.Fleet
 		public async Task ScaleInCooldown()
 		{
 			using AutoscaleServiceV2 service = GetAutoscaleService(_fleetManagerSpy);
-			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
+			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 			IAgent agent1 = await CreateAgentAsync(pool);
 			IAgent agent2 = await CreateAgentAsync(pool);
 

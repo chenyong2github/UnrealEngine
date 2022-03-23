@@ -2,11 +2,11 @@
 
 using System.Collections.Generic;
 using Horde.Build.Api;
-using HordeCommon;
 using Horde.Build.Models;
+using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
-using Horde.Build.Utilities;
 
 namespace Horde.Build.Tests
 {

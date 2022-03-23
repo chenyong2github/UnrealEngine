@@ -1,21 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.ComponentModel;
+using System.Globalization;
 using EpicGames.Redis;
-using Horde.Build.Models;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Serializers;
 using StackExchange.Redis;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -30,102 +22,102 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// The text representing this id
 		/// </summary>
-		readonly string Name;
+		readonly string _name;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Hostname of the agent</param>
-		public AgentId(string Name)
+		/// <param name="name">Hostname of the agent</param>
+		public AgentId(string name)
 		{
-			if (Name.Length == 0)
+			if (name.Length == 0)
 			{
 				throw new ArgumentException("Agent name may not be empty");
 			}
 
-			char[] Result = new char[Name.Length];
-			for (int Idx = 0; Idx < Name.Length; Idx++)
+			char[] result = new char[name.Length];
+			for (int idx = 0; idx < name.Length; idx++)
 			{
-				char Character = Name[Idx];
-				if ((Character >= 'A' && Character <= 'Z') || (Character >= '0' && Character <= '9') || Character == '_' || Character == '-')
+				char character = name[idx];
+				if ((character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '_' || character == '-')
 				{
-					Result[Idx] = Character;
+					result[idx] = character;
 				}
-				else if (Character >= 'a' && Character <= 'z')
+				else if (character >= 'a' && character <= 'z')
 				{
-					Result[Idx] = (char)('A' + (Character - 'a'));
+					result[idx] = (char)('A' + (character - 'a'));
 				}
-				else if (Character == '.')
+				else if (character == '.')
 				{
-					if (Idx == 0)
+					if (idx == 0)
 					{
 						throw new ArgumentException("Agent name may not begin with the '.' character");
 					}
-					else if (Idx == Name.Length - 1)
+					else if (idx == name.Length - 1)
 					{
 						throw new ArgumentException("Agent name may not end with the '.' character");
 					}
-					else if (Name[Idx - 1] == '.')
+					else if (name[idx - 1] == '.')
 					{
 						throw new ArgumentException("Agent name may not contain two consecutive '.' characters");
 					}
 					else
 					{
-						Result[Idx] = Character;
+						result[idx] = character;
 					}
 				}
 				else
 				{
-					throw new ArgumentException($"Character '{Character}' in agent '{Name}' is invalid");
+					throw new ArgumentException($"Character '{character}' in agent '{name}' is invalid");
 				}
 			}
-			this.Name = new string(Result);
+			_name = new string(result);
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj)
+		public override bool Equals(object? obj)
 		{
-			return Obj is AgentId && Equals((AgentId)Obj);
+			return obj is AgentId id && Equals(id);
 		}
 
 		/// <inheritdoc/>
 		public override int GetHashCode()
 		{
-			return Name.GetHashCode(StringComparison.Ordinal);
+			return _name.GetHashCode(StringComparison.Ordinal);
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(AgentId Other)
+		public bool Equals(AgentId other)
 		{
-			return Name.Equals(Other.Name, StringComparison.Ordinal);
+			return _name.Equals(other._name, StringComparison.Ordinal);
 		}
 
 		/// <inheritdoc/>
 		public override string ToString()
 		{
-			return Name;
+			return _name;
 		}
 
 		/// <summary>
 		/// Compares two string ids for equality
 		/// </summary>
-		/// <param name="Left">The first string id</param>
-		/// <param name="Right">Second string id</param>
+		/// <param name="left">The first string id</param>
+		/// <param name="right">Second string id</param>
 		/// <returns>True if the two string ids are equal</returns>
-		public static bool operator ==(AgentId Left, AgentId Right)
+		public static bool operator ==(AgentId left, AgentId right)
 		{
-			return Left.Equals(Right);
+			return left.Equals(right);
 		}
 
 		/// <summary>
 		/// Compares two string ids for inequality
 		/// </summary>
-		/// <param name="Left">The first string id</param>
-		/// <param name="Right">Second string id</param>
+		/// <param name="left">The first string id</param>
+		/// <param name="right">Second string id</param>
 		/// <returns>True if the two string ids are not equal</returns>
-		public static bool operator !=(AgentId Left, AgentId Right)
+		public static bool operator !=(AgentId left, AgentId right)
 		{
-			return !Left.Equals(Right);
+			return !left.Equals(right);
 		}
 	}
 
@@ -135,10 +127,10 @@ namespace Horde.Build.Utilities
 	public sealed class AgentIdRedisConverter : IRedisConverter<AgentId>
 	{
 		/// <inheritdoc/>
-		public AgentId FromRedisValue(RedisValue Value) => new AgentId((string)Value);
+		public AgentId FromRedisValue(RedisValue value) => new AgentId((string)value);
 
 		/// <inheritdoc/>
-		public RedisValue ToRedisValue(AgentId Value) => Value.ToString();
+		public RedisValue ToRedisValue(AgentId value) => value.ToString();
 	}
 
 	/// <summary>
@@ -147,27 +139,26 @@ namespace Horde.Build.Utilities
 	public sealed class AgentIdBsonSerializer : SerializerBase<AgentId>
 	{
 		/// <inheritdoc/>
-		public override AgentId Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
+		public override AgentId Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			string Argument;
-			if (Context.Reader.CurrentBsonType == MongoDB.Bson.BsonType.ObjectId)
+			string argument;
+			if (context.Reader.CurrentBsonType == MongoDB.Bson.BsonType.ObjectId)
 			{
-				Argument = Context.Reader.ReadObjectId().ToString();
+				argument = context.Reader.ReadObjectId().ToString();
 			}
 			else
 			{
-				Argument = Context.Reader.ReadString();
+				argument = context.Reader.ReadString();
 			}
-			return new AgentId(Argument);
+			return new AgentId(argument);
 		}
 
 		/// <inheritdoc/>
-		public override void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, AgentId Value)
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, AgentId value)
 		{
-			Context.Writer.WriteString(Value.ToString());
+			context.Writer.WriteString(value.ToString());
 		}
 	}
-
 
 	/// <summary>
 	/// Type converter from strings to PropertyFilter objects
@@ -175,29 +166,29 @@ namespace Horde.Build.Utilities
 	sealed class AgentIdTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
 		{
-			return SourceType == typeof(string);
+			return sourceType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
 		{
-			return new AgentId((string)Value);
+			return new AgentId((string)value);
 		}
 
 		/// <inheritdoc/>
-		public override bool CanConvertTo(ITypeDescriptorContext? Context, Type? DestinationType)
+		public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
 		{
-			return DestinationType == typeof(string);
+			return destinationType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object? ConvertTo(ITypeDescriptorContext? Context, CultureInfo? Culture, object? Value, Type DestinationType)
+		public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
 		{
-			if (DestinationType == typeof(string))
+			if (destinationType == typeof(string))
 			{
-				return Value?.ToString();
+				return value?.ToString();
 			}
 			else
 			{

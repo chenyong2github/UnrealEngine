@@ -1,17 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using EpicGames.Horde.Storage;
+using MongoDB.Driver;
 
 namespace Horde.Build.Commits.Impl
 {
@@ -60,67 +58,67 @@ namespace Horde.Build.Commits.Impl
 			{
 			}
 
-			public Commit(NewCommit NewCommit)
+			public Commit(NewCommit newCommit)
 			{
-				this.Change = NewCommit.Change;
-				if (NewCommit.OriginalChange != NewCommit.Change)
+				Change = newCommit.Change;
+				if (newCommit.OriginalChange != newCommit.Change)
 				{
-					this.OriginalChange = NewCommit.OriginalChange;
+					OriginalChange = newCommit.OriginalChange;
 				}
-				this.StreamId = NewCommit.StreamId;
-				this.AuthorId = NewCommit.AuthorId;
-				if (NewCommit.OwnerId != NewCommit.AuthorId)
+				StreamId = newCommit.StreamId;
+				AuthorId = newCommit.AuthorId;
+				if (newCommit.OwnerId != newCommit.AuthorId)
 				{
-					this.OwnerId = NewCommit.OwnerId;
+					OwnerId = newCommit.OwnerId;
 				}
-				this.Description = NewCommit.Description;
-				this.BasePath = NewCommit.BasePath;
-				this.DateUtc = NewCommit.DateUtc;
+				Description = newCommit.Description;
+				BasePath = newCommit.BasePath;
+				DateUtc = newCommit.DateUtc;
 			}
 		}
 
-		IMongoCollection<Commit> Commits;
+		readonly IMongoCollection<Commit> _commits;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitCollection(DatabaseService DatabaseService)
+		public CommitCollection(DatabaseService databaseService)
 		{
-			Commits = DatabaseService.Database.GetCollection<Commit>("Commits");
+			_commits = databaseService.Database.GetCollection<Commit>("Commits");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				Commits.Indexes.CreateOne(new CreateIndexModel<Commit>(Builders<Commit>.IndexKeys.Ascending(x => x.StreamId).Descending(x => x.Change), new CreateIndexOptions { Unique = true }));
+				_commits.Indexes.CreateOne(new CreateIndexModel<Commit>(Builders<Commit>.IndexKeys.Ascending(x => x.StreamId).Descending(x => x.Change), new CreateIndexOptions { Unique = true }));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<ICommit> AddOrReplaceAsync(NewCommit NewCommit)
+		public async Task<ICommit> AddOrReplaceAsync(NewCommit newCommit)
 		{
-			Commit Commit = new Commit(NewCommit);
-			FilterDefinition<Commit> Filter = Builders<Commit>.Filter.Expr(x => x.StreamId == NewCommit.StreamId && x.Change == NewCommit.Change);
-			return await Commits.FindOneAndReplaceAsync(Filter, new Commit(NewCommit), new FindOneAndReplaceOptions<Commit> { IsUpsert = true, ReturnDocument = ReturnDocument.After });
+			Commit commit = new Commit(newCommit);
+			FilterDefinition<Commit> filter = Builders<Commit>.Filter.Expr(x => x.StreamId == newCommit.StreamId && x.Change == newCommit.Change);
+			return await _commits.FindOneAndReplaceAsync(filter, new Commit(newCommit), new FindOneAndReplaceOptions<Commit> { IsUpsert = true, ReturnDocument = ReturnDocument.After });
 		}
 
 		/// <inheritdoc/>
-		public async Task<ICommit?> GetCommitAsync(CommitId Id)
+		public async Task<ICommit?> GetCommitAsync(CommitId id)
 		{
-			return await Commits.Find(x => x.Id == Id).FirstOrDefaultAsync();
+			return await _commits.Find(x => x.Id == id).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ICommit>> FindCommitsAsync(StreamId StreamId, int? MinChange = null, int? MaxChange = null, int? Index = null, int? Count = null)
+		public async Task<List<ICommit>> FindCommitsAsync(StreamId streamId, int? minChange = null, int? maxChange = null, int? index = null, int? count = null)
 		{
-			FilterDefinition<Commit> Filter = Builders<Commit>.Filter.Eq(x => x.StreamId, StreamId);
-			if (MaxChange != null)
+			FilterDefinition<Commit> filter = Builders<Commit>.Filter.Eq(x => x.StreamId, streamId);
+			if (maxChange != null)
 			{
-				Filter &= Builders<Commit>.Filter.Lte(x => x.Change, MaxChange.Value);
+				filter &= Builders<Commit>.Filter.Lte(x => x.Change, maxChange.Value);
 			}
-			if (MinChange != null)
+			if (minChange != null)
 			{
-				Filter &= Builders<Commit>.Filter.Lte(x => x.Change, MinChange.Value);
+				filter &= Builders<Commit>.Filter.Lte(x => x.Change, minChange.Value);
 			}
-			return await Commits.Find(Filter).SortByDescending(x => x.Change).Range(Index, Count).ToListAsync<Commit, ICommit>();
+			return await _commits.Find(filter).SortByDescending(x => x.Change).Range(index, count).ToListAsync<Commit, ICommit>();
 		}
 	}
 }

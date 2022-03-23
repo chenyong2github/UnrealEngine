@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Net;
-using System.Security.Claims;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Api
 {
@@ -136,11 +130,11 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructs a model object
 		/// </summary>
-		/// <param name="CurrentTimeUtc">The current time</param>
+		/// <param name="currentTimeUtc">The current time</param>
 		/// <returns>New model object</returns>
-		public Schedule ToModel(DateTime CurrentTimeUtc)
+		public Schedule ToModel(DateTime currentTimeUtc)
 		{
-			return new Schedule(CurrentTimeUtc, Enabled, MaxActive, MaxChanges, RequireSubmittedChange, Gate?.ToModel(), Filter, Files, TemplateParameters, Patterns.ConvertAll(x => x.ToModel()));
+			return new Schedule(currentTimeUtc, Enabled, MaxActive, MaxChanges, RequireSubmittedChange, Gate?.ToModel(), Filter, Files, TemplateParameters, Patterns.ConvertAll(x => x.ToModel()));
 		}
 	}
 
@@ -172,13 +166,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Pattern">The pattern to construct from</param>
-		public GetSchedulePatternResponse(SchedulePattern Pattern)
+		/// <param name="pattern">The pattern to construct from</param>
+		public GetSchedulePatternResponse(SchedulePattern pattern)
 		{
-			this.DaysOfWeek = Pattern.DaysOfWeek?.ConvertAll(x => x.ToString());
-			this.MinTime = Pattern.MinTime;
-			this.MaxTime = Pattern.MaxTime;
-			this.Interval = Pattern.Interval;
+			DaysOfWeek = pattern.DaysOfWeek?.ConvertAll(x => x.ToString());
+			MinTime = pattern.MinTime;
+			MaxTime = pattern.MaxTime;
+			Interval = pattern.Interval;
 		}
 	}
 
@@ -200,11 +194,11 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Gate">Gate to construct from</param>
-		public GetScheduleGateResponse(ScheduleGate Gate)
+		/// <param name="gate">Gate to construct from</param>
+		public GetScheduleGateResponse(ScheduleGate gate)
 		{
-			TemplateId = Gate.TemplateRefId.ToString();
-			Target = Gate.Target;
+			TemplateId = gate.TemplateRefId.ToString();
+			Target = gate.Target;
 		}
 	}
 
@@ -271,23 +265,23 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Schedule">The schedule to construct from</param>
-		public GetScheduleResponse(Schedule Schedule)
+		/// <param name="schedule">The schedule to construct from</param>
+		public GetScheduleResponse(Schedule schedule)
 		{
-			this.Enabled = Schedule.Enabled;
-			this.MaxActive = Schedule.MaxActive;
-			this.MaxChanges = Schedule.MaxChanges;
-			this.RequireSubmittedChange = Schedule.RequireSubmittedChange;
-			if (Schedule.Gate != null)
+			Enabled = schedule.Enabled;
+			MaxActive = schedule.MaxActive;
+			MaxChanges = schedule.MaxChanges;
+			RequireSubmittedChange = schedule.RequireSubmittedChange;
+			if (schedule.Gate != null)
 			{
-				this.Gate = new GetScheduleGateResponse(Schedule.Gate);
+				Gate = new GetScheduleGateResponse(schedule.Gate);
 			}
-			this.Filter = Schedule.Filter;
-			this.TemplateParameters = Schedule.TemplateParameters;
-			this.Patterns = Schedule.Patterns.ConvertAll(x => new GetSchedulePatternResponse(x));
-			this.LastTriggerChange = Schedule.LastTriggerChange;
-			this.LastTriggerTime = Schedule.GetLastTriggerTimeUtc();
-			this.ActiveJobs = Schedule.ActiveJobs.ConvertAll(x => x.ToString());
+			Filter = schedule.Filter;
+			TemplateParameters = schedule.TemplateParameters;
+			Patterns = schedule.Patterns.ConvertAll(x => new GetSchedulePatternResponse(x));
+			LastTriggerChange = schedule.LastTriggerChange;
+			LastTriggerTime = schedule.GetLastTriggerTimeUtc();
+			ActiveJobs = schedule.ActiveJobs.ConvertAll(x => x.ToString());
 		}
 	}
 
@@ -304,10 +298,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Times">List of trigger times</param>
-		public GetScheduleForecastResponse(List<DateTime> Times)
+		/// <param name="times">List of trigger times</param>
+		public GetScheduleForecastResponse(List<DateTime> times)
 		{
-			this.Times = Times;
+			Times = times;
 		}
 	}
 }

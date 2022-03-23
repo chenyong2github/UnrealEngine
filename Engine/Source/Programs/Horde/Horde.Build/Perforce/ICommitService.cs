@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using EpicGames.Core;
-using MongoDB.Bson;
-using Horde.Build.Utilities;
 
 namespace Horde.Build.Commits
 {
@@ -19,8 +12,8 @@ namespace Horde.Build.Commits
 		/// <summary>
 		/// Registers a delegate to be called when a new commit is added
 		/// </summary>
-		/// <param name="OnAddCommit">Callback for a new commit being added</param>
+		/// <param name="onAddCommit">Callback for a new commit being added</param>
 		/// <returns>Disposable handler.</returns>
-		IDisposable AddListener(Action<ICommit> OnAddCommit);
+		IDisposable AddListener(Action<ICommit> onAddCommit);
 	}
 }

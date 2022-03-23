@@ -1,23 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Threading.Tasks;
-
-using Horde.Build.Models;
-using Horde.Build.Collections;
 using System;
-using Horde.Build.Utilities;
-using System.Threading;
-
-using Microsoft.Extensions.Logging;
-using HordeCommon;
-using MongoDB.Bson;
 using System.Collections.Generic;
-using System.Security.Claims;
-using System.Diagnostics.CodeAnalysis;
-using Horde.Build.Notifications;
-using System.Linq;
-using Horde.Build.Api;
-using Microsoft.Extensions.Hosting;
+using System.Threading.Tasks;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using MongoDB.Bson;
 
 namespace Horde.Build.Services
 {
@@ -29,59 +18,52 @@ namespace Horde.Build.Services
 	public sealed class NoticeService 
 	{
 		/// <summary>
-		/// Log output writer
-		/// </summary>
-		ILogger<NoticeService> Logger;
-
-		/// <summary>
 		/// Notice collection
 		/// </summary>
-		INoticeCollection Notices;
+		readonly INoticeCollection _notices;
 
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public NoticeService(INoticeCollection Notices, ILogger<NoticeService> Logger)
+		public NoticeService(INoticeCollection notices)
 		{
-			this.Notices = Notices;
-            this.Logger = Logger;			
+			_notices = notices;
 		}
 
 		/// <summary>
 		/// Add a notice
 		/// </summary>
-		/// <param name="Message"></param>
-		/// <param name="UserId"></param>
-		/// <param name="StartTime"></param>
-		/// <param name="FinishTime"></param>
+		/// <param name="message"></param>
+		/// <param name="userId"></param>
+		/// <param name="startTime"></param>
+		/// <param name="finishTime"></param>
 		/// <returns></returns>
-		public Task<INotice?> AddNoticeAsync(string Message, UserId? UserId, DateTime? StartTime, DateTime? FinishTime)
+		public Task<INotice?> AddNoticeAsync(string message, UserId? userId, DateTime? startTime, DateTime? finishTime)
 		{
-			return this.Notices.AddNoticeAsync(Message, UserId, StartTime, FinishTime);
+			return _notices.AddNoticeAsync(message, userId, startTime, finishTime);
 		}
 
 		/// <summary>
 		/// Update an existing notice
 		/// </summary>
-		/// <param name="Id"></param>
-		/// <param name="Message"></param>
-		/// <param name="StartTime"></param>
-		/// <param name="FinishTime"></param>
+		/// <param name="id"></param>
+		/// <param name="message"></param>
+		/// <param name="startTime"></param>
+		/// <param name="finishTime"></param>
 		/// <returns></returns>
-		public Task<bool> UpdateNoticeAsync(ObjectId Id, string? Message, DateTime? StartTime, DateTime? FinishTime)
+		public Task<bool> UpdateNoticeAsync(ObjectId id, string? message, DateTime? startTime, DateTime? finishTime)
 		{
-			return this.Notices.UpdateNoticeAsync(Id, Message, StartTime, FinishTime);
+			return _notices.UpdateNoticeAsync(id, message, startTime, finishTime);
 		}
-
 
 		/// <summary>
 		/// Get a notice by id
 		/// </summary>
-		/// <param name="NoticeId"></param>
+		/// <param name="noticeId"></param>
 		/// <returns></returns>
-		public Task<INotice?> GetNoticeAsync(ObjectId NoticeId)
+		public Task<INotice?> GetNoticeAsync(ObjectId noticeId)
 		{
-			return this.Notices.GetNoticeAsync(NoticeId);
+			return _notices.GetNoticeAsync(noticeId);
 		}
 
 		/// <summary>
@@ -90,18 +72,17 @@ namespace Horde.Build.Services
 		/// <returns></returns>
 		public Task<List<INotice>> GetNoticesAsync()
 		{
-			return this.Notices.GetNoticesAsync();
+			return _notices.GetNoticesAsync();
 		}
 
 		/// <summary>
 		/// Remove an existing notice
 		/// </summary>
-		/// <param name="Id"></param>
+		/// <param name="id"></param>
 		/// <returns></returns>
-		public Task<bool> RemoveNoticeAsync(ObjectId Id)
+		public Task<bool> RemoveNoticeAsync(ObjectId id)
 		{
-			return this.Notices.RemoveNoticeAsync(Id);
+			return _notices.RemoveNoticeAsync(id);
 		}
-
 	}
 }

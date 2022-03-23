@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -193,15 +189,15 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="UserData">The user data object</param>
-		internal GetUgsUserResponse(IUgsUserData UserData)
+		/// <param name="userData">The user data object</param>
+		internal GetUgsUserResponse(IUgsUserData userData)
 		{
-			this.User = UserData.User;
-			this.SyncTime = UserData.SyncTime;
-			this.Vote = (UserData.Vote == UgsUserVote.None) ? (UgsUserVote?)null : UserData.Vote;
-			this.Comment = UserData.Comment;
-			this.Investigating = UserData.Investigating;
-			this.Starred = UserData.Starred;
+			User = userData.User;
+			SyncTime = userData.SyncTime;
+			Vote = (userData.Vote == UgsUserVote.None) ? (UgsUserVote?)null : userData.Vote;
+			Comment = userData.Comment;
+			Investigating = userData.Investigating;
+			Starred = userData.Starred;
 		}
 	}
 
@@ -228,12 +224,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="BadgeData">The badge data object</param>
-		internal GetUgsBadgeResponse(IUgsBadgeData BadgeData)
+		/// <param name="badgeData">The badge data object</param>
+		internal GetUgsBadgeResponse(IUgsBadgeData badgeData)
 		{
-			this.Name = BadgeData.Name;
-			this.Url = BadgeData.Url;
-			this.State = BadgeData.State;
+			Name = badgeData.Name;
+			Url = badgeData.Url;
+			State = badgeData.State;
 		}
 	}
 
@@ -265,13 +261,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Metadata">Metadata object</param>
-		internal GetUgsMetadataResponse(IUgsMetadata Metadata)
+		/// <param name="metadata">Metadata object</param>
+		internal GetUgsMetadataResponse(IUgsMetadata metadata)
 		{
-			Change = Metadata.Change;
-			Project = Metadata.Project;
-			Users = Metadata.Users?.ConvertAll(x => new GetUgsUserResponse(x));
-			Badges = Metadata.Badges?.ConvertAll(x => new GetUgsBadgeResponse(x));
+			Change = metadata.Change;
+			Project = metadata.Project;
+			Users = metadata.Users?.ConvertAll(x => new GetUgsUserResponse(x));
+			Badges = metadata.Badges?.ConvertAll(x => new GetUgsBadgeResponse(x));
 		}
 	}
 
@@ -370,14 +366,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="Stream"></param>
-		/// <param name="Change"></param>
-		/// <param name="Outcome"></param>
-		public GetUgsIssueBuildResponse(string Stream, int Change, IssueBuildOutcome Outcome)
+		/// <param name="stream"></param>
+		/// <param name="change"></param>
+		/// <param name="outcome"></param>
+		public GetUgsIssueBuildResponse(string stream, int change, IssueBuildOutcome outcome)
 		{
-			this.Stream = Stream;
-			this.Change = Change;
-			this.Outcome = (int)Outcome;
+			Stream = stream;
+			Change = change;
+			Outcome = (int)outcome;
 		}
 	}
 
@@ -404,14 +400,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="BuildId">The corresponding build id</param>
-		/// <param name="Message">Message for the diagnostic</param>
-		/// <param name="Url">Link to the diagnostic</param>
-		public GetUgsIssueDiagnosticResponse(long? BuildId, string Message, Uri Url)
+		/// <param name="buildId">The corresponding build id</param>
+		/// <param name="message">Message for the diagnostic</param>
+		/// <param name="url">Link to the diagnostic</param>
+		public GetUgsIssueDiagnosticResponse(long? buildId, string message, Uri url)
 		{
-			this.BuildId = BuildId;
-			this.Message = Message;
-			this.Url = Url;
+			BuildId = buildId;
+			Message = message;
+			Url = url;
 		}
 	}
 
@@ -478,12 +474,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Whether to notify the user about this issue
 		/// </summary>
-		public bool bNotify { get; set; }
+		public bool BNotify { get; set; }
 
 		/// <summary>
 		/// Whether this issue just contains warnings
 		/// </summary>
-		public bool bWarning { get; set; }
+		public bool BWarning { get; set; }
 
 		/// <summary>
 		/// Link to the last build
@@ -498,27 +494,27 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
-		/// <param name="Details">Issue to construct from</param>
-		/// <param name="Owner"></param>
-		/// <param name="NominatedBy"></param>
+		/// <param name="details">Issue to construct from</param>
+		/// <param name="owner"></param>
+		/// <param name="nominatedBy"></param>
 		/// <param name="bNotify">Whether to notify the user about this issue</param>
-		/// <param name="BuildUrl">Link to the last build for this issue</param>
-		public GetUgsIssueResponse(IIssueDetails Details, IUser? Owner, IUser? NominatedBy, bool bNotify, Uri? BuildUrl)
+		/// <param name="buildUrl">Link to the last build for this issue</param>
+		public GetUgsIssueResponse(IIssueDetails details, IUser? owner, IUser? nominatedBy, bool bNotify, Uri? buildUrl)
 		{
-			IIssue Issue = Details.Issue;
-			this.Id = Issue.Id;
-			this.CreatedAt = Issue.CreatedAt;
-			this.RetrievedAt = DateTime.UtcNow;
-			this.Summary = Issue.Summary;
-			this.Owner = Owner?.Login;
-			this.NominatedBy = NominatedBy?.Login;
-			this.AcknowledgedAt = Issue.AcknowledgedAt;
-			this.FixChange = Issue.FixChange;
-			this.ResolvedAt = Issue.ResolvedAt;
-			this.bNotify = bNotify;
-			this.bWarning = Issue.Severity == IssueSeverity.Warning;
-			this.BuildUrl = BuildUrl;
-			this.Streams = Details.Spans.Select(x => x.StreamName ?? x.StreamId.ToString()).Distinct().ToList();
+			IIssue issue = details.Issue;
+			Id = issue.Id;
+			CreatedAt = issue.CreatedAt;
+			RetrievedAt = DateTime.UtcNow;
+			Summary = issue.Summary;
+			Owner = owner?.Login;
+			NominatedBy = nominatedBy?.Login;
+			AcknowledgedAt = issue.AcknowledgedAt;
+			FixChange = issue.FixChange;
+			ResolvedAt = issue.ResolvedAt;
+			BNotify = bNotify;
+			BWarning = issue.Severity == IssueSeverity.Warning;
+			BuildUrl = buildUrl;
+			Streams = details.Spans.Select(x => x.StreamName ?? x.StreamId.ToString()).Distinct().ToList();
 		}
 	}
 

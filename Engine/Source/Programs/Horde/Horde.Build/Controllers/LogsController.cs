@@ -1,15 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
 using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
@@ -19,10 +14,7 @@ using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using MongoDB.Bson;
 
 namespace Horde.Build.Controllers
@@ -54,127 +46,127 @@ namespace Horde.Build.Controllers
 	[Route("[controller]")]
 	public class LogsController : ControllerBase
 	{
-		private readonly ILogFileService LogFileService;
-		private readonly IIssueCollection IssueCollection;
-		private readonly AclService AclService;
-		private readonly JobService JobService;
+		private readonly ILogFileService _logFileService;
+		private readonly IIssueCollection _issueCollection;
+		private readonly AclService _aclService;
+		private readonly JobService _jobService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogsController(ILogFileService LogFileService, IIssueCollection IssueCollection, AclService AclService, JobService JobService)
+		public LogsController(ILogFileService logFileService, IIssueCollection issueCollection, AclService aclService, JobService jobService)
 		{
-			this.LogFileService = LogFileService;
-			this.IssueCollection = IssueCollection;
-			this.AclService = AclService;
-			this.JobService = JobService;
+			_logFileService = logFileService;
+			_issueCollection = issueCollection;
+			_aclService = aclService;
+			_jobService = jobService;
 		}
 
 		/// <summary>
 		/// Retrieve metadata about a specific log file
 		/// </summary>
-		/// <param name="LogFileId">Id of the log file to get information about</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="logFileId">Id of the log file to get information about</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
-		[Route("/api/v1/logs/{LogFileId}")]
+		[Route("/api/v1/logs/{logFileId}")]
 		[ProducesResponseType(typeof(GetLogFileResponse), 200)]
-		public async Task<ActionResult<object>> GetLog(LogId LogFileId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetLog(LogId logFileId, [FromQuery] PropertyFilter? filter = null)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
-			if (LogFile == null)
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			if (logFile == null)
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(LogFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
 			{
 				return Forbid();
 			}
 
-			LogMetadata Metadata = await LogFileService.GetMetadataAsync(LogFile);
-			return new GetLogFileResponse(LogFile, Metadata).ApplyFilter(Filter);       
+			LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile);
+			return new GetLogFileResponse(logFile, metadata).ApplyFilter(filter);       
 		}
 
 		/// <summary>
 		/// Retrieve raw data for a log file
 		/// </summary>
-		/// <param name="LogFileId">Id of the log file to get information about</param>
-		/// <param name="Format">Format for the returned data</param>
-		/// <param name="Offset">The log offset in bytes</param>
-		/// <param name="Length">Number of bytes to return</param>
-		/// <param name="FileName">Name of the default filename to download</param>
-		/// <param name="Download">Whether to download the file rather than display in the browser</param>
+		/// <param name="logFileId">Id of the log file to get information about</param>
+		/// <param name="format">Format for the returned data</param>
+		/// <param name="offset">The log offset in bytes</param>
+		/// <param name="length">Number of bytes to return</param>
+		/// <param name="fileName">Name of the default filename to download</param>
+		/// <param name="download">Whether to download the file rather than display in the browser</param>
 		/// <returns>Raw log data for the requested range</returns>
 		[HttpGet]
-		[Route("/api/v1/logs/{LogFileId}/data")]
-		public async Task<ActionResult> GetLogData(LogId LogFileId, [FromQuery] LogOutputFormat Format = LogOutputFormat.Raw, [FromQuery] long Offset = 0, [FromQuery] long Length = long.MaxValue, [FromQuery] string? FileName = null, [FromQuery] bool Download = false)
+		[Route("/api/v1/logs/{logFileId}/data")]
+		public async Task<ActionResult> GetLogData(LogId logFileId, [FromQuery] LogOutputFormat format = LogOutputFormat.Raw, [FromQuery] long offset = 0, [FromQuery] long length = Int64.MaxValue, [FromQuery] string? fileName = null, [FromQuery] bool download = false)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
-			if (LogFile == null)
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			if (logFile == null)
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(LogFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
 			{
 				return Forbid();
 			}
 
-			Func<Stream, ActionContext, Task> CopyTask;
-			if (Format == LogOutputFormat.Text && LogFile.Type == LogType.Json)
+			Func<Stream, ActionContext, Task> copyTask;
+			if (format == LogOutputFormat.Text && logFile.Type == LogType.Json)
 			{
-				CopyTask = (OutputStream, Context) => LogFileService.CopyPlainTextStreamAsync(LogFile, Offset, Length, OutputStream);
+				copyTask = (outputStream, context) => _logFileService.CopyPlainTextStreamAsync(logFile, offset, length, outputStream);
 			}
 			else
 			{
-				CopyTask = (OutputStream, Context) => LogFileService.CopyRawStreamAsync(LogFile, Offset, Length, OutputStream);
+				copyTask = (outputStream, context) => _logFileService.CopyRawStreamAsync(logFile, offset, length, outputStream);
 			}
 
-			return new CustomFileCallbackResult(FileName ?? $"log-{LogFileId}.txt", "text/plain", !Download, CopyTask);
+			return new CustomFileCallbackResult(fileName ?? $"log-{logFileId}.txt", "text/plain", !download, copyTask);
 		}
 
 		/// <summary>
 		/// Retrieve line data for a logfile
 		/// </summary>
-		/// <param name="LogFileId">Id of the log file to get information about</param>
-		/// <param name="Index">Index of the first line to retrieve</param>
-		/// <param name="Count">Number of lines to retrieve</param>
+		/// <param name="logFileId">Id of the log file to get information about</param>
+		/// <param name="index">Index of the first line to retrieve</param>
+		/// <param name="count">Number of lines to retrieve</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
-		[Route("/api/v1/logs/{LogFileId}/lines")]
-		public async Task<ActionResult> GetLogLines(LogId LogFileId, [FromQuery] int Index = 0, [FromQuery] int Count = int.MaxValue)
+		[Route("/api/v1/logs/{logFileId}/lines")]
+		public async Task<ActionResult> GetLogLines(LogId logFileId, [FromQuery] int index = 0, [FromQuery] int count = Int32.MaxValue)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
-			if (LogFile == null)
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			if (logFile == null)
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(LogFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
 			{
 				return Forbid();
 			}
 
-			LogMetadata Metadata = await LogFileService.GetMetadataAsync(LogFile);
+			LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile);
 
-			(int MinIndex, long MinOffset) = await LogFileService.GetLineOffsetAsync(LogFile, Index);
-			(int MaxIndex, long MaxOffset) = await LogFileService.GetLineOffsetAsync(LogFile, Index + Math.Min(Count, int.MaxValue - Index));
-			Index = MinIndex;
-			Count = MaxIndex - MinIndex;
+			(int minIndex, long minOffset) = await _logFileService.GetLineOffsetAsync(logFile, index);
+			(int maxIndex, long maxOffset) = await _logFileService.GetLineOffsetAsync(logFile, index + Math.Min(count, Int32.MaxValue - index));
+			index = minIndex;
+			count = maxIndex - minIndex;
 
-			byte[] Result;
-			using (System.IO.Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, MinOffset, MaxOffset - MinOffset))
+			byte[] result;
+			using (System.IO.Stream stream = await _logFileService.OpenRawStreamAsync(logFile, minOffset, maxOffset - minOffset))
 			{
-				Result = new byte[Stream.Length];
-				await Stream.ReadFixedSizeDataAsync(Result, 0, Result.Length);
+				result = new byte[stream.Length];
+				await stream.ReadFixedSizeDataAsync(result, 0, result.Length);
 			}
 
-			using (MemoryStream Stream = new MemoryStream(Result.Length + (Count * 20)))
+			using (MemoryStream stream = new MemoryStream(result.Length + (count * 20)))
 			{
-				Stream.WriteByte((byte)'{');
+				stream.WriteByte((byte)'{');
 
-				Stream.Write(Encoding.UTF8.GetBytes($"\"index\":{Index},"));
-				Stream.Write(Encoding.UTF8.GetBytes($"\"count\":{Count},"));
-				Stream.Write(Encoding.UTF8.GetBytes($"\"maxLineIndex\":{Metadata.MaxLineIndex},"));
-				Stream.Write(Encoding.UTF8.GetBytes($"\"format\":{ (LogFile.Type == LogType.Json ? "\"JSON\"" : "\"TEXT\"")},"));
+				stream.Write(Encoding.UTF8.GetBytes($"\"index\":{index},"));
+				stream.Write(Encoding.UTF8.GetBytes($"\"count\":{count},"));
+				stream.Write(Encoding.UTF8.GetBytes($"\"maxLineIndex\":{metadata.MaxLineIndex},"));
+				stream.Write(Encoding.UTF8.GetBytes($"\"format\":{ (logFile.Type == LogType.Json ? "\"JSON\"" : "\"TEXT\"")},"));
 
 //				Stream.Write(Encoding.UTF8.GetBytes($"\"minIndex\":{MinIndex},"));
 //				Stream.Write(Encoding.UTF8.GetBytes($"\"minOffset\":{MinOffset},"));
@@ -182,81 +174,81 @@ namespace Horde.Build.Controllers
 //				Stream.Write(Encoding.UTF8.GetBytes($"\"maxOffset\":{MaxOffset},"));
 //				Stream.Write(Encoding.UTF8.GetBytes($"\"length\":{Result.Length},"));
 
-				Stream.Write(Encoding.UTF8.GetBytes($"\"lines\":["));
-				Stream.WriteByte((byte)'\n');
+				stream.Write(Encoding.UTF8.GetBytes($"\"lines\":["));
+				stream.WriteByte((byte)'\n');
 
-				int Offset = 0;
-				for (int Line = Index; Line < Index + Count; Line++)
+				int offset = 0;
+				for (int line = index; line < index + count; line++)
 				{
-					Stream.WriteByte((byte)' ');
-					Stream.WriteByte((byte)' ');
+					stream.WriteByte((byte)' ');
+					stream.WriteByte((byte)' ');
 
-					if (LogFile.Type == LogType.Json)
+					if (logFile.Type == LogType.Json)
 					{
 						// Find the end of the line and output it as an opaque blob
-						int StartOffset = Offset;
-						for (; ; Offset++)
+						int startOffset = offset;
+						for (; ; offset++)
 						{
-							if (Offset == Result.Length)
+							if (offset == result.Length)
 							{
-								Stream.WriteByte((byte)'{');
-								Stream.WriteByte((byte)'}');
+								stream.WriteByte((byte)'{');
+								stream.WriteByte((byte)'}');
 								break;
 							}
-							else if (Result[Offset] == (byte)'\n')
+							else if (result[offset] == (byte)'\n')
 							{
-								await Stream.WriteAsync(Result.AsMemory(StartOffset, Offset - StartOffset));
-								Offset++;
+								await stream.WriteAsync(result.AsMemory(startOffset, offset - startOffset));
+								offset++;
 								break;
 							}
 						}
 					}
 					else
 					{
-						Stream.WriteByte((byte)'\"');
-						for (; Offset < Result.Length; Offset++)
+						stream.WriteByte((byte)'\"');
+						for (; offset < result.Length; offset++)
 						{
-							if (Result[Offset] == '\\' || Result[Offset] == '\"')
+							if (result[offset] == '\\' || result[offset] == '\"')
 							{
-								Stream.WriteByte((byte)'\\');
-								Stream.WriteByte(Result[Offset]);
+								stream.WriteByte((byte)'\\');
+								stream.WriteByte(result[offset]);
 							}
-							else if (Result[Offset] == (byte)'\n')
+							else if (result[offset] == (byte)'\n')
 							{
-								Offset++;
+								offset++;
 								break;
 							}
-							else if (Result[Offset] >= 32 && Result[Offset] <= 126)
+							else if (result[offset] >= 32 && result[offset] <= 126)
 							{
-								Stream.WriteByte(Result[Offset]);
+								stream.WriteByte(result[offset]);
 							}
 							else
 							{
-								Stream.Write(Encoding.UTF8.GetBytes($"\\x{Result[Offset]:x2}"));
+								stream.Write(Encoding.UTF8.GetBytes($"\\x{result[offset]:x2}"));
 							}
 						}
-						Stream.WriteByte((byte)'\"');
+						stream.WriteByte((byte)'\"');
 					}
 
-					if (Line + 1 < Index + Count)
+					if (line + 1 < index + count)
 					{
-						Stream.WriteByte((byte)',');
+						stream.WriteByte((byte)',');
 					}
 
-					Stream.WriteByte((byte)'\n');
+					stream.WriteByte((byte)'\n');
 				}
 
-				if (LogFile.Type == LogType.Json)
+				if (logFile.Type == LogType.Json)
 				{
-					Stream.Write(Encoding.UTF8.GetBytes($"]"));
+					stream.Write(Encoding.UTF8.GetBytes($"]"));
 				}
 
-				Stream.WriteByte((byte)'}');
+				stream.WriteByte((byte)'}');
 
 				Response.ContentType = "application/json";
-				Response.Headers.ContentLength = Stream.Length;
-				Stream.Position = 0;
-				await Stream.CopyToAsync(Response.Body);
+				Response.Headers.ContentLength = stream.Length;
+				stream.Position = 0;
+				await stream.CopyToAsync(Response.Body);
 			}
 			return new EmptyResult();
 		}
@@ -264,100 +256,100 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Search log data
 		/// </summary>
-		/// <param name="LogFileId">Id of the log file to get information about</param>
-		/// <param name="Text">Text to search for</param>
-		/// <param name="FirstLine">First line to search from</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="logFileId">Id of the log file to get information about</param>
+		/// <param name="text">Text to search for</param>
+		/// <param name="firstLine">First line to search from</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>Raw log data for the requested range</returns>
 		[HttpGet]
-		[Route("/api/v1/logs/{LogFileId}/search")]
-		public async Task<ActionResult<SearchLogFileResponse>> SearchLogFileAsync(LogId LogFileId, [FromQuery] string Text, [FromQuery] int FirstLine = 0, [FromQuery] int Count = 5)
+		[Route("/api/v1/logs/{logFileId}/search")]
+		public async Task<ActionResult<SearchLogFileResponse>> SearchLogFileAsync(LogId logFileId, [FromQuery] string text, [FromQuery] int firstLine = 0, [FromQuery] int count = 5)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
-			if (LogFile == null)
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			if (logFile == null)
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(LogFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
 			{
 				return Forbid();
 			}
 
-			SearchLogFileResponse Response = new SearchLogFileResponse();
-			Response.Stats = new LogSearchStats();
-			Response.Lines = await LogFileService.SearchLogDataAsync(LogFile, Text, FirstLine, Count, Response.Stats);
-			return Response;
+			SearchLogFileResponse response = new SearchLogFileResponse();
+			response.Stats = new LogSearchStats();
+			response.Lines = await _logFileService.SearchLogDataAsync(logFile, text, firstLine, count, response.Stats);
+			return response;
 		}
 
 		/// <summary>
 		/// Retrieve events for a logfile
 		/// </summary>
-		/// <param name="LogFileId">Id of the log file to get information about</param>
-		/// <param name="Index">Index of the first line to retrieve</param>
-		/// <param name="Count">Number of lines to retrieve</param>
+		/// <param name="logFileId">Id of the log file to get information about</param>
+		/// <param name="index">Index of the first line to retrieve</param>
+		/// <param name="count">Number of lines to retrieve</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
-		[Route("/api/v1/logs/{LogFileId}/events")]
+		[Route("/api/v1/logs/{logFileId}/events")]
 		[ProducesResponseType(typeof(List<GetLogEventResponse>), 200)]
-		public async Task<ActionResult<List<GetLogEventResponse>>> GetEventsAsync(LogId LogFileId, [FromQuery] int? Index = null, [FromQuery] int? Count = null)
+		public async Task<ActionResult<List<GetLogEventResponse>>> GetEventsAsync(LogId logFileId, [FromQuery] int? index = null, [FromQuery] int? count = null)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
-			if (LogFile == null)
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			if (logFile == null)
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(LogFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
 			{
 				return Forbid();
 			}
 
-			List<ILogEvent> LogEvents = await LogFileService.FindLogEventsAsync(LogFile, Index, Count);
+			List<ILogEvent> logEvents = await _logFileService.FindLogEventsAsync(logFile, index, count);
 
-			Dictionary<ObjectId, int?> SpanIdToIssueId = new Dictionary<ObjectId, int?>();
+			Dictionary<ObjectId, int?> spanIdToIssueId = new Dictionary<ObjectId, int?>();
 
-			List<GetLogEventResponse> Responses = new List<GetLogEventResponse>();
-			foreach (ILogEvent LogEvent in LogEvents)
+			List<GetLogEventResponse> responses = new List<GetLogEventResponse>();
+			foreach (ILogEvent logEvent in logEvents)
 			{
-				ILogEventData LogEventData = await LogFileService.GetEventDataAsync(LogFile, LogEvent.LineIndex, LogEvent.LineCount);
+				ILogEventData logEventData = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount);
 
-				int? IssueId = null;
-				if (LogEvent.SpanId != null && !SpanIdToIssueId.TryGetValue(LogEvent.SpanId.Value, out IssueId))
+				int? issueId = null;
+				if (logEvent.SpanId != null && !spanIdToIssueId.TryGetValue(logEvent.SpanId.Value, out issueId))
 				{
-					IIssueSpan? Span = await IssueCollection.GetSpanAsync(LogEvent.SpanId.Value);
-					IssueId = Span?.IssueId;
-					SpanIdToIssueId[LogEvent.SpanId.Value] = IssueId;
+					IIssueSpan? span = await _issueCollection.GetSpanAsync(logEvent.SpanId.Value);
+					issueId = span?.IssueId;
+					spanIdToIssueId[logEvent.SpanId.Value] = issueId;
 				}
 
-				Responses.Add(new GetLogEventResponse(LogEvent, LogEventData, IssueId));
+				responses.Add(new GetLogEventResponse(logEvent, logEventData, issueId));
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Appends data to a log file
 		/// </summary>
-		/// <param name="LogFileId">The logfile id</param>
-		/// <param name="Offset">Offset within the log file</param>
-		/// <param name="LineIndex">The line index</param>
+		/// <param name="logFileId">The logfile id</param>
+		/// <param name="offset">Offset within the log file</param>
+		/// <param name="lineIndex">The line index</param>
 		/// <returns>Http result code</returns>
 		[HttpPost]
-		[Route("/api/v1/logs/{LogFileId}")]
-		public async Task<ActionResult> WriteData(LogId LogFileId, [FromQuery] long Offset, [FromQuery] int LineIndex)
+		[Route("/api/v1/logs/{logFileId}")]
+		public async Task<ActionResult> WriteData(LogId logFileId, [FromQuery] long offset, [FromQuery] int lineIndex)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
-			if (LogFile == null)
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			if (logFile == null)
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(LogFile, AclAction.WriteLogData, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.WriteLogData, User, null))
 			{
 				return Forbid();
 			}
 
-			using (MemoryStream BodyStream = new MemoryStream())
+			using (MemoryStream bodyStream = new MemoryStream())
 			{
-				await Request.Body.CopyToAsync(BodyStream);
-				await LogFileService.WriteLogDataAsync(LogFile, Offset, LineIndex, BodyStream.ToArray(), false);
+				await Request.Body.CopyToAsync(bodyStream);
+				await _logFileService.WriteLogDataAsync(logFile, offset, lineIndex, bodyStream.ToArray(), false);
 			}
 			return Ok();
 		}
@@ -365,18 +357,18 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular template
 		/// </summary>
-		/// <param name="LogFile">The template to check</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="PermissionsCache">Permissions cache</param>
+		/// <param name="logFile">The template to check</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="permissionsCache">Permissions cache</param>
 		/// <returns>True if the action is authorized</returns>
-		async Task<bool> AuthorizeAsync(ILogFile LogFile, AclAction Action, ClaimsPrincipal User, JobPermissionsCache? PermissionsCache)
+		async Task<bool> AuthorizeAsync(ILogFile logFile, AclAction action, ClaimsPrincipal user, JobPermissionsCache? permissionsCache)
 		{
-			if (LogFile.JobId != JobId.Empty && await JobService.AuthorizeAsync(LogFile.JobId, Action, User, PermissionsCache))
+			if (logFile.JobId != JobId.Empty && await _jobService.AuthorizeAsync(logFile.JobId, action, user, permissionsCache))
 			{
 				return true;
 			}
-			if (LogFile.SessionId != null && await AclService.AuthorizeAsync(AclAction.ViewSession, User, PermissionsCache))
+			if (logFile.SessionId != null && await _aclService.AuthorizeAsync(AclAction.ViewSession, user, permissionsCache))
 			{
 				return true;
 			}

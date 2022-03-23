@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Serializers;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using System.Transactions;
+using MongoDB.Driver;
 
 namespace Horde.Build.Utilities
 {
@@ -28,22 +23,22 @@ namespace Horde.Build.Utilities
 			/// <summary>
 			/// The update definition
 			/// </summary>
-			public UpdateDefinition<TDocument> Update;
+			public UpdateDefinition<TDocument> _update;
 
 			/// <summary>
 			/// Applies an update to the given object
 			/// </summary>
-			public Action<object> Apply;
+			public Action<object> _apply;
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Update">The update definition</param>
-			/// <param name="Apply">Applies the update to a given object</param>
-			public FieldUpdate(UpdateDefinition<TDocument> Update, Action<object> Apply)
+			/// <param name="update">The update definition</param>
+			/// <param name="apply">Applies the update to a given object</param>
+			public FieldUpdate(UpdateDefinition<TDocument> update, Action<object> apply)
 			{
-				this.Update = Update;
-				this.Apply = Apply;
+				_update = update;
+				_apply = apply;
 			}
 		}
 
@@ -64,11 +59,11 @@ namespace Horde.Build.Utilities
 			/// <returns>The property info</returns>
 			static PropertyInfo GetIndexerProperty()
 			{
-				foreach (PropertyInfo Property in typeof(T).GetProperties())
+				foreach (PropertyInfo property in typeof(T).GetProperties())
 				{
-					if (Property.GetIndexParameters().Length > 0)
+					if (property.GetIndexParameters().Length > 0)
 					{
-						return Property;
+						return property;
 					}
 				}
 				return null!;
@@ -78,60 +73,57 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// List of field updates
 		/// </summary>
-		List<FieldUpdate> FieldUpdates = new List<FieldUpdate>();
+		readonly List<FieldUpdate> _fieldUpdates = new List<FieldUpdate>();
 
 		/// <summary>
 		/// Whether the transaction is currenty empty
 		/// </summary>
-		public bool IsEmpty
-		{
-			get { return FieldUpdates.Count == 0; }
-		}
+		public bool IsEmpty => _fieldUpdates.Count == 0;
 
 		/// <summary>
 		/// Adds a setting to this transaction
 		/// </summary>
 		/// <typeparam name="TField">Type of the field to be updated</typeparam>
-		/// <param name="Expr">The expresion defining the field to update</param>
-		/// <param name="Value">New value for the field</param>
-		public void Set<TField>(Expression<Func<TDocument, TField>> Expr, TField Value)
+		/// <param name="expr">The expresion defining the field to update</param>
+		/// <param name="value">New value for the field</param>
+		public void Set<TField>(Expression<Func<TDocument, TField>> expr, TField value)
 		{
-			UpdateDefinition<TDocument> Update = Builders<TDocument>.Update.Set(Expr, Value);
-			Action<object> Apply = Target => Assign(Target, Expr, Value);
-			FieldUpdates.Add(new FieldUpdate(Update, Apply));
+			UpdateDefinition<TDocument> update = Builders<TDocument>.Update.Set(expr, value);
+			void Apply(object target) => Assign(target, expr, value);
+			_fieldUpdates.Add(new FieldUpdate(update, Apply));
 		}
 
 		/// <summary>
 		/// Adds an update to remove a field
 		/// </summary>
-		/// <param name="Expr">The expresion defining the field to update</param>
-		public void Unset(Expression<Func<TDocument, object>> Expr)
+		/// <param name="expr">The expresion defining the field to update</param>
+		public void Unset(Expression<Func<TDocument, object>> expr)
 		{
-			UpdateDefinition<TDocument> Update = Builders<TDocument>.Update.Unset(Expr);
-			Action<object> Apply = Target => Unassign(Target, Expr.Body);
-			FieldUpdates.Add(new FieldUpdate(Update, Apply));
+			UpdateDefinition<TDocument> update = Builders<TDocument>.Update.Unset(expr);
+			void Apply(object target) => Unassign(target, expr.Body);
+			_fieldUpdates.Add(new FieldUpdate(update, Apply));
 		}
 
 		/// <summary>
 		/// Updates a property dictionary with a set of adds and removes
 		/// </summary>
-		/// <param name="Expr">Lambda expression defining a field to update</param>
-		/// <param name="Updates">List of updates</param>
-		public void UpdateDictionary<TKey, TValue>(Expression<Func<TDocument, Dictionary<TKey, TValue>>> Expr, IEnumerable<KeyValuePair<TKey, TValue?>> Updates) where TKey : class where TValue : class
+		/// <param name="expr">Lambda expression defining a field to update</param>
+		/// <param name="updates">List of updates</param>
+		public void UpdateDictionary<TKey, TValue>(Expression<Func<TDocument, Dictionary<TKey, TValue>>> expr, IEnumerable<KeyValuePair<TKey, TValue?>> updates) where TKey : class where TValue : class
 		{
-			PropertyInfo IndexerProperty = Reflection<Dictionary<TKey, TValue>>.Indexer;
-			foreach (KeyValuePair<TKey, TValue?> Update in Updates)
+			PropertyInfo indexerProperty = Reflection<Dictionary<TKey, TValue>>.Indexer;
+			foreach (KeyValuePair<TKey, TValue?> update in updates)
 			{
-				MethodCallExpression Index = Expression.Call(Expr.Body, IndexerProperty.GetMethod!, new[] { Expression.Constant(Update.Key) });
-				if (Update.Value == null)
+				MethodCallExpression index = Expression.Call(expr.Body, indexerProperty.GetMethod!, new[] { Expression.Constant(update.Key) });
+				if (update.Value == null)
 				{
-					Expression<Func<TDocument, object>> IndexExpression = Expression.Lambda<Func<TDocument, object>>(Index, Expr.Parameters[0]);
-					Unset(IndexExpression);
+					Expression<Func<TDocument, object>> indexExpression = Expression.Lambda<Func<TDocument, object>>(index, expr.Parameters[0]);
+					Unset(indexExpression);
 				}
 				else
 				{
-					Expression<Func<TDocument, TValue>> IndexExpression = Expression.Lambda<Func<TDocument, TValue>>(Index, Expr.Parameters[0]);
-					Set(IndexExpression, Update.Value);
+					Expression<Func<TDocument, TValue>> indexExpression = Expression.Lambda<Func<TDocument, TValue>>(index, expr.Parameters[0]);
+					Set(indexExpression, update.Value);
 				}
 			}
 		}
@@ -139,57 +131,57 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Applies this transaction to the given update
 		/// </summary>
-		/// <param name="Target">The object to update</param>
-		public void ApplyTo(TDocument Target)
+		/// <param name="target">The object to update</param>
+		public void ApplyTo(TDocument target)
 		{
-			foreach (FieldUpdate Setting in FieldUpdates)
+			foreach (FieldUpdate setting in _fieldUpdates)
 			{
-				Setting.Apply(Target);
+				setting._apply(target);
 			}
 		}
 
 		/// <summary>
 		/// Assign a value to a field
 		/// </summary>
-		/// <param name="Target">The target object to be updated</param>
-		/// <param name="FieldExpression">Lambda indicating the field to update</param>
-		/// <param name="Value">New value for the field</param>
-		static void Assign(object? Target, LambdaExpression FieldExpression, object? Value)
+		/// <param name="target">The target object to be updated</param>
+		/// <param name="fieldExpression">Lambda indicating the field to update</param>
+		/// <param name="value">New value for the field</param>
+		static void Assign(object? target, LambdaExpression fieldExpression, object? value)
 		{
-			Expression Body = FieldExpression.Body;
-			if (Body.NodeType == ExpressionType.MemberAccess)
+			Expression body = fieldExpression.Body;
+			if (body.NodeType == ExpressionType.MemberAccess)
 			{
-				MemberExpression MemberExpression = (MemberExpression)Body;
-				object? Object = Evaluate(MemberExpression.Expression!, Target);
-				PropertyInfo PropertyInfo = (PropertyInfo)MemberExpression.Member;
-				PropertyInfo.SetValue(Object, Value);
+				MemberExpression memberExpression = (MemberExpression)body;
+				object? obj = Evaluate(memberExpression.Expression!, target);
+				PropertyInfo propertyInfo = (PropertyInfo)memberExpression.Member;
+				propertyInfo.SetValue(obj, value);
 			}
-			else if (Body.NodeType == ExpressionType.ArrayIndex)
+			else if (body.NodeType == ExpressionType.ArrayIndex)
 			{
-				BinaryExpression BinaryExpression = (BinaryExpression)Body;
-				System.Collections.IList List = (System.Collections.IList)Evaluate(BinaryExpression.Left, Target)!;
-				int Index = (int)Evaluate(BinaryExpression.Right, Target)!;
-				List[Index] = Value;
+				BinaryExpression binaryExpression = (BinaryExpression)body;
+				System.Collections.IList list = (System.Collections.IList)Evaluate(binaryExpression.Left, target)!;
+				int index = (int)Evaluate(binaryExpression.Right, target)!;
+				list[index] = value;
 			}
-			else if (Body.NodeType == ExpressionType.Call)
+			else if (body.NodeType == ExpressionType.Call)
 			{
-				MethodCallExpression CallExpression = (MethodCallExpression)Body;
-				System.Collections.IDictionary Dictionary = (System.Collections.IDictionary)Evaluate(CallExpression.Object!, Target)!;
-				object? Key = Evaluate(CallExpression.Arguments[0], null);
-				Dictionary[Key!] = Value;
+				MethodCallExpression callExpression = (MethodCallExpression)body;
+				System.Collections.IDictionary dictionary = (System.Collections.IDictionary)Evaluate(callExpression.Object!, target)!;
+				object? key = Evaluate(callExpression.Arguments[0], null);
+				dictionary[key!] = value;
 			}
-			else if (Body.NodeType == ExpressionType.Index)
+			else if (body.NodeType == ExpressionType.Index)
 			{
-				IndexExpression IndexExpression = (IndexExpression)Body;
-				object? Object = Evaluate(IndexExpression.Object!, Target);
+				IndexExpression indexExpression = (IndexExpression)body;
+				object? obj = Evaluate(indexExpression.Object!, target);
 
-				object?[] Arguments = new object?[IndexExpression.Arguments.Count];
-				for (int Idx = 0; Idx < IndexExpression.Arguments.Count; Idx++)
+				object?[] arguments = new object?[indexExpression.Arguments.Count];
+				for (int idx = 0; idx < indexExpression.Arguments.Count; idx++)
 				{
-					Arguments[Idx] = Evaluate(IndexExpression.Arguments[Idx], null);
+					arguments[idx] = Evaluate(indexExpression.Arguments[idx], null);
 				}
 
-				IndexExpression.Indexer!.SetValue(Object, Value, Arguments);
+				indexExpression.Indexer!.SetValue(obj, value, arguments);
 			}
 			else
 			{
@@ -200,43 +192,43 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Removes an entry from a dictionary
 		/// </summary>
-		/// <param name="Target">The target object to be updated</param>
-		/// <param name="Body">Body of the expression indicating the field to update</param>
-		static void Unassign(object? Target, Expression Body)
+		/// <param name="target">The target object to be updated</param>
+		/// <param name="body">Body of the expression indicating the field to update</param>
+		static void Unassign(object? target, Expression body)
 		{
-			if (Body.NodeType == ExpressionType.MemberAccess)
+			if (body.NodeType == ExpressionType.MemberAccess)
 			{
-				MemberExpression MemberExpression = (MemberExpression)Body;
-				switch (MemberExpression.Member.MemberType)
+				MemberExpression memberExpression = (MemberExpression)body;
+				switch (memberExpression.Member.MemberType)
 				{
 					case MemberTypes.Field:
-						((FieldInfo)MemberExpression.Member).SetValue(Target, null);
+						((FieldInfo)memberExpression.Member).SetValue(target, null);
 						break;
 					case MemberTypes.Property:
-						((PropertyInfo)MemberExpression.Member).SetValue(Target, null);
+						((PropertyInfo)memberExpression.Member).SetValue(target, null);
 						break;
 					default:
 						throw new NotImplementedException();
 				}
 			}
-			else if (Body.NodeType == ExpressionType.Call)
+			else if (body.NodeType == ExpressionType.Call)
 			{
-				MethodCallExpression CallExpression = (MethodCallExpression)Body;
-				System.Collections.IDictionary? Dictionary = (System.Collections.IDictionary?)Evaluate(CallExpression.Object!, Target);
-				object? Key = Evaluate(CallExpression.Arguments[0], null);
-				Dictionary!.Remove(Key!);
+				MethodCallExpression callExpression = (MethodCallExpression)body;
+				System.Collections.IDictionary? dictionary = (System.Collections.IDictionary?)Evaluate(callExpression.Object!, target);
+				object? key = Evaluate(callExpression.Arguments[0], null);
+				dictionary!.Remove(key!);
 			}
-			else if (Body.NodeType == ExpressionType.Index)
+			else if (body.NodeType == ExpressionType.Index)
 			{
-				IndexExpression IndexExpression = (IndexExpression)Body;
-				System.Collections.IDictionary? Dictionary = (System.Collections.IDictionary?)Evaluate(IndexExpression.Object!, Target);
-				object? Key = Evaluate(IndexExpression.Arguments[0], null);
-				Dictionary!.Remove(Key!);
+				IndexExpression indexExpression = (IndexExpression)body;
+				System.Collections.IDictionary? dictionary = (System.Collections.IDictionary?)Evaluate(indexExpression.Object!, target);
+				object? key = Evaluate(indexExpression.Arguments[0], null);
+				dictionary!.Remove(key!);
 			}
-			else if (Body.NodeType == ExpressionType.Convert)
+			else if (body.NodeType == ExpressionType.Convert)
 			{
-				UnaryExpression UnaryExpression = (UnaryExpression)Body;
-				Unassign(Target, UnaryExpression.Operand);
+				UnaryExpression unaryExpression = (UnaryExpression)body;
+				Unassign(target, unaryExpression.Operand);
 			}
 			else
 			{
@@ -247,49 +239,49 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Evaluates an expression
 		/// </summary>
-		/// <param name="Expression">The expression to evaluate</param>
-		/// <param name="Parameter">Parameter to the unary lambda expression</param>
+		/// <param name="expression">The expression to evaluate</param>
+		/// <param name="parameter">Parameter to the unary lambda expression</param>
 		/// <returns>Value of the expression</returns>
-		static object? Evaluate(Expression Expression, object? Parameter)
+		static object? Evaluate(Expression expression, object? parameter)
 		{
-			if (Expression.NodeType == ExpressionType.Call)
+			if (expression.NodeType == ExpressionType.Call)
 			{
-				MethodCallExpression CallExpression = (MethodCallExpression)Expression;
-				object? Object = Evaluate(CallExpression.Object!, Parameter);
-				object?[] Arguments = CallExpression.Arguments.Select(x => Evaluate(x, Parameter)).ToArray();
-				return CallExpression.Method.Invoke(Object, Arguments);
+				MethodCallExpression callExpression = (MethodCallExpression)expression;
+				object? obj = Evaluate(callExpression.Object!, parameter);
+				object?[] arguments = callExpression.Arguments.Select(x => Evaluate(x, parameter)).ToArray();
+				return callExpression.Method.Invoke(obj, arguments);
 			}
-			else if (Expression.NodeType == ExpressionType.Constant)
+			else if (expression.NodeType == ExpressionType.Constant)
 			{
-				ConstantExpression ConstantExpression = (ConstantExpression)Expression;
-				return ConstantExpression.Value;
+				ConstantExpression constantExpression = (ConstantExpression)expression;
+				return constantExpression.Value;
 			}
-			else if (Expression.NodeType == ExpressionType.MemberAccess)
+			else if (expression.NodeType == ExpressionType.MemberAccess)
 			{
-				MemberExpression MemberExpression = (MemberExpression)Expression;
-				object? Target = Evaluate(MemberExpression.Expression!, Parameter);
+				MemberExpression memberExpression = (MemberExpression)expression;
+				object? target = Evaluate(memberExpression.Expression!, parameter);
 
-				MemberInfo Member = MemberExpression.Member;
-				switch (Member.MemberType)
+				MemberInfo member = memberExpression.Member;
+				switch (member.MemberType)
 				{
 					case MemberTypes.Property:
-						return ((PropertyInfo)Member).GetValue(Target);
+						return ((PropertyInfo)member).GetValue(target);
 					case MemberTypes.Field:
-						return ((FieldInfo)Member).GetValue(Target);
+						return ((FieldInfo)member).GetValue(target);
 					default:
 						throw new NotImplementedException("Unsupported expression type");
 				}
 			}
-			else if (Expression.NodeType == ExpressionType.ArrayIndex)
+			else if (expression.NodeType == ExpressionType.ArrayIndex)
 			{
-				BinaryExpression BinaryExpression = (BinaryExpression)Expression;
-				System.Collections.IList List = (System.Collections.IList)Evaluate(BinaryExpression.Left, Parameter)!;
-				int Index = (int)Evaluate(BinaryExpression.Right, null)!;
-				return List[Index];
+				BinaryExpression binaryExpression = (BinaryExpression)expression;
+				System.Collections.IList list = (System.Collections.IList)Evaluate(binaryExpression.Left, parameter)!;
+				int index = (int)Evaluate(binaryExpression.Right, null)!;
+				return list[index];
 			}
-			else if (Expression.NodeType == ExpressionType.Parameter)
+			else if (expression.NodeType == ExpressionType.Parameter)
 			{
-				return Parameter;
+				return parameter;
 			}
 			else
 			{
@@ -302,7 +294,7 @@ namespace Horde.Build.Utilities
 		/// </summary>
 		public UpdateDefinition<TDocument> ToUpdateDefinition()
 		{
-			return Builders<TDocument>.Update.Combine(FieldUpdates.Select(x => x.Update));
+			return Builders<TDocument>.Update.Combine(_fieldUpdates.Select(x => x._update));
 		}
 	}
 }

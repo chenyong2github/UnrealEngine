@@ -1,5 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Linq;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Threading.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
@@ -11,13 +17,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Authentication
 {
@@ -28,74 +27,74 @@ namespace Horde.Build.Authentication
 
 	class OktaHandler : OpenIdConnectHandler
 	{
-		IUserCollection UserCollection;
+		readonly IUserCollection _userCollection;
 
-		public OktaHandler(IOptionsMonitor<OpenIdConnectOptions> options, ILoggerFactory logger, HtmlEncoder htmlEncoder, UrlEncoder encoder, ISystemClock clock, IUserCollection UserCollection)
+		public OktaHandler(IOptionsMonitor<OpenIdConnectOptions> options, ILoggerFactory logger, HtmlEncoder htmlEncoder, UrlEncoder encoder, ISystemClock clock, IUserCollection userCollection)
 			: base(options, logger, htmlEncoder, encoder, clock)
 		{
-			this.UserCollection = UserCollection;
+			_userCollection = userCollection;
 		}
 
-		public static void AddUserInfoClaims(JsonElement UserInfo, ClaimsIdentity Identity)
+		public static void AddUserInfoClaims(JsonElement userInfo, ClaimsIdentity identity)
 		{
-			JsonElement UserElement;
-			if (UserInfo.TryGetProperty("preferred_username", out UserElement))
+			JsonElement userElement;
+			if (userInfo.TryGetProperty("preferred_username", out userElement))
 			{
-				if (Identity.FindFirst(ClaimTypes.Name) == null)
+				if (identity.FindFirst(ClaimTypes.Name) == null)
 				{
-					Identity.AddClaim(new Claim(ClaimTypes.Name, UserElement.ToString()!));
+					identity.AddClaim(new Claim(ClaimTypes.Name, userElement.ToString()!));
 				}
-				if (Identity.FindFirst(HordeClaimTypes.User) == null)
+				if (identity.FindFirst(HordeClaimTypes.User) == null)
 				{
-					Identity.AddClaim(new Claim(HordeClaimTypes.User, UserElement.ToString()!));
+					identity.AddClaim(new Claim(HordeClaimTypes.User, userElement.ToString()!));
 				}
-				if (Identity.FindFirst(HordeClaimTypes.PerforceUser) == null)
+				if (identity.FindFirst(HordeClaimTypes.PerforceUser) == null)
 				{
-					Identity.AddClaim(new Claim(HordeClaimTypes.PerforceUser, UserElement.ToString()!));
+					identity.AddClaim(new Claim(HordeClaimTypes.PerforceUser, userElement.ToString()!));
 				}
 			}
 
-			JsonElement GroupsElement;
-			if (UserInfo.TryGetProperty("groups", out GroupsElement) && GroupsElement.ValueKind == JsonValueKind.Array)
+			JsonElement groupsElement;
+			if (userInfo.TryGetProperty("groups", out groupsElement) && groupsElement.ValueKind == JsonValueKind.Array)
 			{
-				for (int Idx = 0; Idx < GroupsElement.GetArrayLength(); Idx++)
+				for (int idx = 0; idx < groupsElement.GetArrayLength(); idx++)
 				{
-					Identity.AddClaim(new Claim(ClaimTypes.Role, GroupsElement[Idx].ToString()!));
+					identity.AddClaim(new Claim(ClaimTypes.Role, groupsElement[idx].ToString()!));
 				}
 			}
 
-			JsonElement EmailElement;
-			if (UserInfo.TryGetProperty("email", out EmailElement) && Identity.FindFirst(ClaimTypes.Email) == null)
+			JsonElement emailElement;
+			if (userInfo.TryGetProperty("email", out emailElement) && identity.FindFirst(ClaimTypes.Email) == null)
 			{
-				Identity.AddClaim(new Claim(ClaimTypes.Email, EmailElement.ToString()!));
+				identity.AddClaim(new Claim(ClaimTypes.Email, emailElement.ToString()!));
 			}
 		}
 
 		protected override async Task<HandleRequestResult> HandleRemoteAuthenticateAsync()
 		{
 			// Authenticate with the OIDC provider
-			HandleRequestResult Result = await base.HandleRemoteAuthenticateAsync();
-			if (!Result.Succeeded)
+			HandleRequestResult result = await base.HandleRemoteAuthenticateAsync();
+			if (!result.Succeeded)
 			{
-				return Result;
+				return result;
 			}
 
-			ClaimsIdentity? Identity = (ClaimsIdentity?)Result.Principal?.Identity;
-			if (Identity == null)
+			ClaimsIdentity? identity = (ClaimsIdentity?)result.Principal?.Identity;
+			if (identity == null)
 			{
 				return HandleRequestResult.Fail("No identity specified");
 			}
 
-			string Login = Identity.FindFirst(HordeClaimTypes.User)!.Value;
-			string? Name = Identity.FindFirst(ClaimTypes.Name)?.Value;
-			string? Email = Identity.FindFirst(ClaimTypes.Email)?.Value;
+			string login = identity.FindFirst(HordeClaimTypes.User)!.Value;
+			string? name = identity.FindFirst(ClaimTypes.Name)?.Value;
+			string? email = identity.FindFirst(ClaimTypes.Email)?.Value;
 
-			IUser User = await UserCollection.FindOrAddUserByLoginAsync(Login, Name, Email);
-			Identity.AddClaim(new Claim(HordeClaimTypes.UserId, User.Id.ToString()));
+			IUser user = await _userCollection.FindOrAddUserByLoginAsync(login, name, email);
+			identity.AddClaim(new Claim(HordeClaimTypes.UserId, user.Id.ToString()));
 
-			await UserCollection.UpdateClaimsAsync(User.Id, Identity.Claims.Select(x => new UserClaim(x.Type, x.Value)));
+			await _userCollection.UpdateClaimsAsync(user.Id, identity.Claims.Select(x => new UserClaim(x.Type, x.Value)));
 
-			return Result;
+			return result;
 		}
 	}
 
@@ -108,30 +107,30 @@ namespace Horde.Build.Authentication
 			{
 			}
 
-			public override void Run(JsonElement UserData, ClaimsIdentity Identity, string Issuer)
+			public override void Run(JsonElement userData, ClaimsIdentity identity, string issuer)
 			{
-				OktaHandler.AddUserInfoClaims(UserData, Identity);
+				OktaHandler.AddUserInfoClaims(userData, identity);
 			}
 		}
 
-		static void ApplyDefaultOktaOptions(OpenIdConnectOptions Options, Action<OpenIdConnectOptions> Handler)
+		static void ApplyDefaultOktaOptions(OpenIdConnectOptions options, Action<OpenIdConnectOptions> handler)
 		{
-			Options.Scope.Add("profile");
-			Options.Scope.Add("groups");
-			Options.Scope.Add("email");
-			Options.ResponseType = OpenIdConnectResponseType.Code;
-			Options.GetClaimsFromUserInfoEndpoint = true;
-			Options.SaveTokens = true;
-			Options.TokenValidationParameters.NameClaimType = "name";
-			Options.ClaimActions.Add(new MapRolesClaimAction());
+			options.Scope.Add("profile");
+			options.Scope.Add("groups");
+			options.Scope.Add("email");
+			options.ResponseType = OpenIdConnectResponseType.Code;
+			options.GetClaimsFromUserInfoEndpoint = true;
+			options.SaveTokens = true;
+			options.TokenValidationParameters.NameClaimType = "name";
+			options.ClaimActions.Add(new MapRolesClaimAction());
 
-			Handler(Options);
+			handler(options);
 		}
 
-		public static void AddOkta(this AuthenticationBuilder Builder, string AuthenticationScheme, string DisplayName, Action<OpenIdConnectOptions> Handler)
+		public static void AddOkta(this AuthenticationBuilder builder, string authenticationScheme, string displayName, Action<OpenIdConnectOptions> handler)
 		{
-			Builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IPostConfigureOptions<OpenIdConnectOptions>, OpenIdConnectPostConfigureOptions>());
-			Builder.AddRemoteScheme<OpenIdConnectOptions, OktaHandler>(AuthenticationScheme, DisplayName, Options => ApplyDefaultOktaOptions(Options, Handler));
+			builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IPostConfigureOptions<OpenIdConnectOptions>, OpenIdConnectPostConfigureOptions>());
+			builder.AddRemoteScheme<OpenIdConnectOptions, OktaHandler>(authenticationScheme, displayName, options => ApplyDefaultOktaOptions(options, handler));
 		}
 	}
 }

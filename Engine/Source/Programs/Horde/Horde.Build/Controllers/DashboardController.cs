@@ -2,17 +2,15 @@
 
 // Copyright Epic Games, Inc. All Rights Reserved.	
 
-using Horde.Build.Authentication;
+using System;
+using System.Text;
+using System.Threading.Tasks;
+using Horde.Build.Controllers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
-using Horde.Build;
-using Horde.Build.Controllers;
 using Microsoft.Extensions.Options;
-using System;
-using System.Text;
 
 namespace Horde.Build
 {
@@ -26,15 +24,15 @@ namespace Horde.Build
 		/// <summary>
 		/// Authentication scheme in use
 		/// </summary>
-		string AuthenticationScheme;
+		readonly string _authenticationScheme;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ServerSettings">Server settings</param>
-		public DashboardChallengeController(IOptionsMonitor<ServerSettings> ServerSettings)
+		/// <param name="serverSettings">Server settings</param>
+		public DashboardChallengeController(IOptionsMonitor<ServerSettings> serverSettings)
 		{
-			AuthenticationScheme = AccountController.GetAuthScheme(ServerSettings.CurrentValue.AuthMethod);
+			_authenticationScheme = AccountController.GetAuthScheme(serverSettings.CurrentValue.AuthMethod);
 		}
 
 		/// <summary>	
@@ -52,35 +50,34 @@ namespace Horde.Build
 		/// <summary>
 		/// Login to server, redirecting to the specified URL on success
 		/// </summary>
-		/// <param name="Redirect"></param>
+		/// <param name="redirect"></param>
 		/// <returns></returns>
 		[HttpGet]
 		[Route("/api/v1/dashboard/login")]
-		public IActionResult Login([FromQuery] string? Redirect)
+		public IActionResult Login([FromQuery] string? redirect)
 		{
-			return new ChallengeResult(AuthenticationScheme, new AuthenticationProperties { RedirectUri = Redirect ?? "/" });
+			return new ChallengeResult(_authenticationScheme, new AuthenticationProperties { RedirectUri = redirect ?? "/" });
 		}
 
 		/// <summary>
 		/// Login to server, redirecting to the specified Base64 encoded URL, which fixes some escaping issues on some auth providers, on success
 		/// </summary>
-		/// <param name="Redirect"></param>
+		/// <param name="redirect"></param>
 		/// <returns></returns>
 		[HttpGet]
 		[Route("/api/v2/dashboard/login")]
-		public IActionResult LoginV2([FromQuery] string? Redirect)
+		public IActionResult LoginV2([FromQuery] string? redirect)
 		{
-			string? RedirectUri = null;
+			string? redirectUri = null;
 
-			if (Redirect != null)
+			if (redirect != null)
 			{
-				byte[] Data = Convert.FromBase64String(Redirect);
-				RedirectUri = Encoding.UTF8.GetString(Data);
+				byte[] data = Convert.FromBase64String(redirect);
+				redirectUri = Encoding.UTF8.GetString(data);
 			}
 
-			return new ChallengeResult(AuthenticationScheme, new AuthenticationProperties { RedirectUri = RedirectUri ?? "/index" });
+			return new ChallengeResult(_authenticationScheme, new AuthenticationProperties { RedirectUri = redirectUri ?? "/index" });
 		}
-
 
 		/// <summary>
 		/// Logout of the current account
@@ -93,17 +90,13 @@ namespace Horde.Build
 			await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 			try
 			{
-				await HttpContext.SignOutAsync(AuthenticationScheme);
+				await HttpContext.SignOutAsync(_authenticationScheme);
 			}
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch
-#pragma warning restore CA1031
 			{
 			}
 
 			return Ok();
 		}
-
-
 	}
 }

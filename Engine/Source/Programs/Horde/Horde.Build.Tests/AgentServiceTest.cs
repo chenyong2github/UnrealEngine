@@ -29,7 +29,7 @@ public class AgentServiceTest : TestSetup
 		Assert.AreEqual("hello2", (res.Value[0] as GetJobResponse)!.Name);
 		Assert.AreEqual("hello1", (res.Value[1] as GetJobResponse)!.Name);
 
-		res = await JobsController.FindJobsAsync(IncludePreflight: false);
+		res = await JobsController.FindJobsAsync(includePreflight: false);
 		Assert.AreEqual(1, res.Value!.Count);
 		Assert.AreEqual("hello2", (res.Value[0] as GetJobResponse)!.Name);
 	}

@@ -8,9 +8,7 @@ using System.Threading.Tasks;
 using Datadog.Trace;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
-using HordeCommon;
 using Horde.Build.Acls;
-using Horde.Build.Storage.Services;
 using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
 using Horde.Build.Controllers;
@@ -25,10 +23,12 @@ using Horde.Build.Notifications.Impl;
 using Horde.Build.Services;
 using Horde.Build.Services.Impl;
 using Horde.Build.Storage;
+using Horde.Build.Storage.Services;
 using Horde.Build.Tasks.Impl;
-using Horde.Build.Utilities;
 using Horde.Build.Tests.Stubs.Collections;
 using Horde.Build.Tests.Stubs.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -209,7 +209,7 @@ namespace Horde.Build.Tests
 		private JobsController GetJobsController()
         {
 			ILogger<JobsController> logger = ServiceProvider.GetRequiredService<ILogger<JobsController>>();
-			JobsController jobsCtrl = new JobsController(AclService, GraphCollection, PerforceService, StreamService, JobService,
+			JobsController jobsCtrl = new JobsController(GraphCollection, PerforceService, StreamService, JobService,
 		        TemplateCollection, ArtifactCollection, UserCollection, NotificationService, AgentService, logger);
 	        jobsCtrl.ControllerContext = GetControllerContext();
 	        return jobsCtrl;
@@ -217,7 +217,7 @@ namespace Horde.Build.Tests
 
 		private AgentsController GetAgentsController()
 		{
-			AgentsController agentCtrl = new AgentsController(AclService, AgentService, PoolService);
+			AgentsController agentCtrl = new AgentsController(AclService, AgentService);
 			agentCtrl.ControllerContext = GetControllerContext();
 			return agentCtrl;
 		}
@@ -232,7 +232,7 @@ namespace Horde.Build.Tests
 		private LeasesController GetLeasesController()
 		{
 			ILogger<LeasesController> logger = ServiceProvider.GetRequiredService<ILogger<LeasesController>>();
-			LeasesController controller = new LeasesController(AclService, AgentService, logger);
+			LeasesController controller = new LeasesController(AclService, AgentService);
 			controller.ControllerContext = GetControllerContext();
 			return controller;
 		}

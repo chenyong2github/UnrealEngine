@@ -1,26 +1,24 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Services;
-using MongoDB.Bson.Serialization.Attributes;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-
 using Horde.Build.Acls;
 using Horde.Build.Models;
-using MongoDB.Driver;
-using System;
+using Horde.Build.Services;
 using Horde.Build.Utilities;
-using System.Linq;
-
 using MongoDB.Bson;
-using System.Collections.Generic;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
-	using UserId = ObjectId<IUser>;
 	using ProjectId = StringId<IProject>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Collection of device documents
@@ -48,12 +46,11 @@ namespace Horde.Build.Collections.Impl
 				Name = null!;
 			}
 
-			public DevicePlatformDocument(DevicePlatformId Id, string Name)
+			public DevicePlatformDocument(DevicePlatformId id, string name)
 			{
-				this.Id = Id;
-				this.Name = Name;
+				Id = id;
+				Name = name;
 			}
-
 		}
 
 		/// <summary>
@@ -81,15 +78,13 @@ namespace Horde.Build.Collections.Impl
 			{
             }
 
-			public DevicePoolDocument(DevicePoolId Id, string Name, DevicePoolType PoolType, List<ProjectId>? ProjectIds)
+			public DevicePoolDocument(DevicePoolId id, string name, DevicePoolType poolType, List<ProjectId>? projectIds)
 			{
-				this.Id = Id;
-				this.Name = Name;
-                this.PoolType = PoolType;
-				this.ProjectIds = ProjectIds;
+				Id = id;
+				Name = name;
+                PoolType = poolType;
+				ProjectIds = projectIds;
             }
-
-
 		}
 
 		/// <summary>
@@ -150,25 +145,22 @@ namespace Horde.Build.Collections.Impl
 
 			}
 
-			public DeviceReservationDocument(ObjectId Id, DevicePoolId PoolId, List<DeviceId> Devices, List<string> RequestedDevicePlatforms, DateTime CreateTimeUtc, string? Hostname, string? ReservationDetails, string? JobId, string? StepId)
+			public DeviceReservationDocument(ObjectId id, DevicePoolId poolId, List<DeviceId> devices, List<string> requestedDevicePlatforms, DateTime createTimeUtc, string? hostname, string? reservationDetails, string? jobId, string? stepId)
 			{
-				this.Id = Id;
-				this.PoolId = PoolId;
-				this.Devices = Devices;
-				this.RequestedDevicePlatforms = RequestedDevicePlatforms;
-				this.CreateTimeUtc = CreateTimeUtc;
-				this.UpdateTimeUtc = CreateTimeUtc;
-				this.Hostname = Hostname;
-				this.ReservationDetails = ReservationDetails;
-                this.JobId = JobId;
-                this.StepId = StepId;
+				Id = id;
+				PoolId = poolId;
+				Devices = devices;
+				RequestedDevicePlatforms = requestedDevicePlatforms;
+				CreateTimeUtc = createTimeUtc;
+				UpdateTimeUtc = createTimeUtc;
+				Hostname = hostname;
+				ReservationDetails = reservationDetails;
+                JobId = jobId;
+                StepId = stepId;
 
-                this.LegacyGuid = Guid.NewGuid().ToString();
-
+                LegacyGuid = Guid.NewGuid().ToString();
 			}
-
 		}
-
 
 		/// <summary>
 		/// Concrete implementation of an device document
@@ -228,73 +220,70 @@ namespace Horde.Build.Collections.Impl
 			[BsonConstructor]
 			private DeviceDocument()
 			{
-
 			}
 
-			public DeviceDocument(DeviceId Id, DevicePlatformId PlatformId, DevicePoolId PoolId, string Name, bool Enabled, string? Address, string? ModelId, UserId? UserId)
+			public DeviceDocument(DeviceId id, DevicePlatformId platformId, DevicePoolId poolId, string name, bool enabled, string? address, string? modelId, UserId? userId)
 			{
-				this.Id = Id;
-				this.PlatformId = PlatformId;
-				this.PoolId = PoolId;
-				this.Name = Name;
-				this.Enabled = Enabled;
-				this.Address = Address;
-				this.ModelId = ModelId;
-                this.ModifiedByUser = UserId?.ToString();
+				Id = id;
+				PlatformId = platformId;
+				PoolId = poolId;
+				Name = name;
+				Enabled = enabled;
+				Address = address;
+				ModelId = modelId;
+                ModifiedByUser = userId?.ToString();
             }
-
 		}
 
-		readonly IMongoCollection<DevicePlatformDocument> Platforms;
+		readonly IMongoCollection<DevicePlatformDocument> _platforms;
 
-		readonly IMongoCollection<DeviceDocument> Devices;
+		readonly IMongoCollection<DeviceDocument> _devices;
 
-		readonly IMongoCollection<DevicePoolDocument> Pools;
+		readonly IMongoCollection<DevicePoolDocument> _pools;
 
-		readonly IMongoCollection<DeviceReservationDocument> Reservations;
+		readonly IMongoCollection<DeviceReservationDocument> _reservations;
 
-		readonly int CheckoutDays = 7;
+		readonly int _checkoutDays = 7;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DeviceCollection(DatabaseService DatabaseService)
+		public DeviceCollection(DatabaseService databaseService)
 		{
-			Devices = DatabaseService.GetCollection<DeviceDocument>("Devices");
-			Platforms = DatabaseService.GetCollection<DevicePlatformDocument>("Devices.Platforms");
-			Pools = DatabaseService.GetCollection<DevicePoolDocument>("Devices.Pools");
-			Reservations = DatabaseService.GetCollection<DeviceReservationDocument>("Devices.Reservations");
+			_devices = databaseService.GetCollection<DeviceDocument>("Devices");
+			_platforms = databaseService.GetCollection<DevicePlatformDocument>("Devices.Platforms");
+			_pools = databaseService.GetCollection<DevicePoolDocument>("Devices.Pools");
+			_reservations = databaseService.GetCollection<DeviceReservationDocument>("Devices.Reservations");
 
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
-				Platforms.Indexes.CreateOne(new CreateIndexModel<DevicePlatformDocument>(Builders<DevicePlatformDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
-				Pools.Indexes.CreateOne(new CreateIndexModel<DevicePoolDocument>(Builders<DevicePoolDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
-				Devices.Indexes.CreateOne(new CreateIndexModel<DeviceDocument>(Builders<DeviceDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
+				_platforms.Indexes.CreateOne(new CreateIndexModel<DevicePlatformDocument>(Builders<DevicePlatformDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
+				_pools.Indexes.CreateOne(new CreateIndexModel<DevicePoolDocument>(Builders<DevicePoolDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
+				_devices.Indexes.CreateOne(new CreateIndexModel<DeviceDocument>(Builders<DeviceDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, UserId? UserId)
+		public async Task<IDevice?> TryAddDeviceAsync(DeviceId id, string name, DevicePlatformId platformId, DevicePoolId poolId, bool? enabled, string? address, string? modelId, UserId? userId)
 		{
-			DeviceDocument NewDevice = new DeviceDocument(Id, PlatformId, PoolId, Name, Enabled ?? true, Address, ModelId, UserId);
-			await Devices.InsertOneAsync(NewDevice);
-			return NewDevice;
+			DeviceDocument newDevice = new DeviceDocument(id, platformId, poolId, name, enabled ?? true, address, modelId, userId);
+			await _devices.InsertOneAsync(newDevice);
+			return newDevice;
 		}
 
-
 		/// <inheritdoc/>
-		public async Task<IDevicePlatform?> TryAddPlatformAsync(DevicePlatformId Id, string Name)
+		public async Task<IDevicePlatform?> TryAddPlatformAsync(DevicePlatformId id, string name)
 		{
-			DevicePlatformDocument NewPlatform = new DevicePlatformDocument(Id, Name);
+			DevicePlatformDocument newPlatform = new DevicePlatformDocument(id, name);
 
 			try
 			{
-				await Platforms.InsertOneAsync(NewPlatform);
-				return NewPlatform;
+				await _platforms.InsertOneAsync(newPlatform);
+				return newPlatform;
 			}
-			catch (MongoWriteException Ex)
+			catch (MongoWriteException ex)
 			{
-				if (Ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+				if (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
 				{
 					return null;
 				}
@@ -308,25 +297,25 @@ namespace Horde.Build.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<List<IDevicePlatform>> FindAllPlatformsAsync()
 		{
-			List<DevicePlatformDocument> Results = await Platforms.Find(x => true).ToListAsync();
-			return Results.OrderBy(x => x.Name).Select<DevicePlatformDocument, IDevicePlatform>(x => x).ToList();
+			List<DevicePlatformDocument> results = await _platforms.Find(x => true).ToListAsync();
+			return results.OrderBy(x => x.Name).Select<DevicePlatformDocument, IDevicePlatform>(x => x).ToList();
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> UpdatePlatformAsync(DevicePlatformId PlatformId, string[]? ModelIds)
+		public async Task<bool> UpdatePlatformAsync(DevicePlatformId platformId, string[]? modelIds)
 		{
-			UpdateDefinitionBuilder<DevicePlatformDocument> UpdateBuilder = Builders<DevicePlatformDocument>.Update;
+			UpdateDefinitionBuilder<DevicePlatformDocument> updateBuilder = Builders<DevicePlatformDocument>.Update;
 
-			List<UpdateDefinition<DevicePlatformDocument>> Updates = new List<UpdateDefinition<DevicePlatformDocument>>();
+			List<UpdateDefinition<DevicePlatformDocument>> updates = new List<UpdateDefinition<DevicePlatformDocument>>();
 
-			if (ModelIds != null)
+			if (modelIds != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.Models, ModelIds.ToList()));
+				updates.Add(updateBuilder.Set(x => x.Models, modelIds.ToList()));
 			}
 
-			if (Updates.Count > 0)
+			if (updates.Count > 0)
 			{
-				await Platforms.FindOneAndUpdateAsync<DevicePlatformDocument>(x => x.Id == PlatformId, UpdateBuilder.Combine(Updates));
+				await _platforms.FindOneAndUpdateAsync<DevicePlatformDocument>(x => x.Id == platformId, updateBuilder.Combine(updates));
 			}
 
 			return true;
@@ -334,18 +323,18 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevicePool?> TryAddPoolAsync(DevicePoolId Id, string Name, DevicePoolType PoolType, List<ProjectId>? ProjectIds)
+		public async Task<IDevicePool?> TryAddPoolAsync(DevicePoolId id, string name, DevicePoolType poolType, List<ProjectId>? projectIds)
 		{
-			DevicePoolDocument NewPool = new DevicePoolDocument(Id, Name, PoolType, ProjectIds);
+			DevicePoolDocument newPool = new DevicePoolDocument(id, name, poolType, projectIds);
 
 			try
 			{
-				await Pools.InsertOneAsync(NewPool);
-				return NewPool;
+				await _pools.InsertOneAsync(newPool);
+				return newPool;
 			}
-			catch (MongoWriteException Ex)
+			catch (MongoWriteException ex)
 			{
-				if (Ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+				if (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
 				{
 					return null;
 				}
@@ -357,333 +346,329 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdatePoolAsync(DevicePoolId Id, List<ProjectId>? ProjectIds)
+		public async Task UpdatePoolAsync(DevicePoolId id, List<ProjectId>? projectIds)
 		{
-			UpdateDefinitionBuilder<DevicePoolDocument> UpdateBuilder = Builders<DevicePoolDocument>.Update;
+			UpdateDefinitionBuilder<DevicePoolDocument> updateBuilder = Builders<DevicePoolDocument>.Update;
 
-			List<UpdateDefinition<DevicePoolDocument>> Updates = new List<UpdateDefinition<DevicePoolDocument>>();
+			List<UpdateDefinition<DevicePoolDocument>> updates = new List<UpdateDefinition<DevicePoolDocument>>();
 
-			if (ProjectIds != null)
+			if (projectIds != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.ProjectIds, ProjectIds));
+				updates.Add(updateBuilder.Set(x => x.ProjectIds, projectIds));
 			}
 
-			if (Updates.Count > 0)
+			if (updates.Count > 0)
 			{
-				await Pools.FindOneAndUpdateAsync<DevicePoolDocument>(x => x.Id == Id, UpdateBuilder.Combine(Updates));
+				await _pools.FindOneAndUpdateAsync<DevicePoolDocument>(x => x.Id == id, updateBuilder.Combine(updates));
 			}
-
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IDevice>> FindAllDevicesAsync(List<DeviceId>? DeviceIds = null)
+		public async Task<List<IDevice>> FindAllDevicesAsync(List<DeviceId>? deviceIds = null)
 		{
-			FilterDefinition<DeviceDocument> Filter = Builders<DeviceDocument>.Filter.Empty;
-			if (DeviceIds != null)
+			FilterDefinition<DeviceDocument> filter = Builders<DeviceDocument>.Filter.Empty;
+			if (deviceIds != null)
 			{
-				Filter &= Builders<DeviceDocument>.Filter.In(x => x.Id, DeviceIds);
+				filter &= Builders<DeviceDocument>.Filter.In(x => x.Id, deviceIds);
 			}
-			List<DeviceDocument> Results = await Devices.Find(Filter).ToListAsync();
-			return Results.OrderBy(x => x.Name).Select<DeviceDocument, IDevice>(x => x).ToList();
+			List<DeviceDocument> results = await _devices.Find(filter).ToListAsync();
+			return results.OrderBy(x => x.Name).Select<DeviceDocument, IDevice>(x => x).ToList();
 		}
 
 		/// <inheritdoc/>
 		public async Task<List<IDevicePool>> FindAllPoolsAsync()
 		{
-			List<DevicePoolDocument> Results = await Pools.Find(x => true).ToListAsync();
-			return Results.OrderBy(x => x.Name).Select<DevicePoolDocument, IDevicePool>(x => x).ToList();
+			List<DevicePoolDocument> results = await _pools.Find(x => true).ToListAsync();
+			return results.OrderBy(x => x.Name).Select<DevicePoolDocument, IDevicePool>(x => x).ToList();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevicePlatform?> GetPlatformAsync(DevicePlatformId PlatformId)
+		public async Task<IDevicePlatform?> GetPlatformAsync(DevicePlatformId platformId)
 		{
-			return await Platforms.Find<DevicePlatformDocument>(x => x.Id == PlatformId).FirstOrDefaultAsync();
+			return await _platforms.Find<DevicePlatformDocument>(x => x.Id == platformId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevicePool?> GetPoolAsync(DevicePoolId PoolId)
+		public async Task<IDevicePool?> GetPoolAsync(DevicePoolId poolId)
 		{
-			return await Pools.Find<DevicePoolDocument>(x => x.Id == PoolId).FirstOrDefaultAsync();
+			return await _pools.Find<DevicePoolDocument>(x => x.Id == poolId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevice?> GetDeviceAsync(DeviceId DeviceId)
+		public async Task<IDevice?> GetDeviceAsync(DeviceId deviceId)
 		{
-			return await Devices.Find<DeviceDocument>(x => x.Id == DeviceId).FirstOrDefaultAsync();
+			return await _devices.Find<DeviceDocument>(x => x.Id == deviceId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevice?> GetDeviceByNameAsync(string DeviceName)
+		public async Task<IDevice?> GetDeviceByNameAsync(string deviceName)
 		{
-			return await Devices.Find<DeviceDocument>(x => x.Name == DeviceName).FirstOrDefaultAsync();
+			return await _devices.Find<DeviceDocument>(x => x.Name == deviceName).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task CheckoutDeviceAsync(DeviceId DeviceId, UserId? CheckedOutByUserId)
+		public async Task CheckoutDeviceAsync(DeviceId deviceId, UserId? checkedOutByUserId)
 		{
-			UpdateDefinitionBuilder<DeviceDocument> UpdateBuilder = Builders<DeviceDocument>.Update;
+			UpdateDefinitionBuilder<DeviceDocument> updateBuilder = Builders<DeviceDocument>.Update;
 
-			List<UpdateDefinition<DeviceDocument>> Updates = new List<UpdateDefinition<DeviceDocument>>();
+			List<UpdateDefinition<DeviceDocument>> updates = new List<UpdateDefinition<DeviceDocument>>();
 
-            string? UserId = CheckedOutByUserId?.ToString();
+            string? userId = checkedOutByUserId?.ToString();
 
-            Updates.Add(UpdateBuilder.Set(x => x.CheckedOutByUser, string.IsNullOrEmpty(UserId) ? null : UserId));			
+            updates.Add(updateBuilder.Set(x => x.CheckedOutByUser, String.IsNullOrEmpty(userId) ? null : userId));			
 
-			if (CheckedOutByUserId != null)
+			if (checkedOutByUserId != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.CheckOutTime, DateTime.UtcNow));
-				Updates.Add(UpdateBuilder.Set(x => x.CheckoutExpiringNotificationSent, false));
+				updates.Add(updateBuilder.Set(x => x.CheckOutTime, DateTime.UtcNow));
+				updates.Add(updateBuilder.Set(x => x.CheckoutExpiringNotificationSent, false));
 			}
 			else
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
+				updates.Add(updateBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
 			}
 
-			await Devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == DeviceId, UpdateBuilder.Combine(Updates));
+			await _devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == deviceId, updateBuilder.Combine(updates));
 		}
 
-
 		/// <inheritdoc/>
-		public async Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance, UserId? ModifiedByUserId = null)
+		public async Task UpdateDeviceAsync(DeviceId deviceId, DevicePoolId? newPoolId, string? newName, string? newAddress, string? newModelId, string? newNotes, bool? newEnabled, bool? newProblem, bool? newMaintenance, UserId? modifiedByUserId = null)
 		{
-			UpdateDefinitionBuilder<DeviceDocument> UpdateBuilder = Builders<DeviceDocument>.Update;
+			UpdateDefinitionBuilder<DeviceDocument> updateBuilder = Builders<DeviceDocument>.Update;
 
-			List<UpdateDefinition<DeviceDocument>> Updates = new List<UpdateDefinition<DeviceDocument>>();
+			List<UpdateDefinition<DeviceDocument>> updates = new List<UpdateDefinition<DeviceDocument>>();
 
-			DateTime UtcNow = DateTime.UtcNow;
+			DateTime utcNow = DateTime.UtcNow;
 
-			if (ModifiedByUserId != null)
+			if (modifiedByUserId != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.ModifiedByUser, ModifiedByUserId.ToString()));
+				updates.Add(updateBuilder.Set(x => x.ModifiedByUser, modifiedByUserId.ToString()));
 			}
 
-			if (NewPoolId != null)
+			if (newPoolId != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.PoolId, NewPoolId.Value));
+				updates.Add(updateBuilder.Set(x => x.PoolId, newPoolId.Value));
 			}
 
-			if (NewName != null)
+			if (newName != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.Name, NewName));
+				updates.Add(updateBuilder.Set(x => x.Name, newName));
 			}
 
-			if (NewEnabled != null)
+			if (newEnabled != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.Enabled, NewEnabled));
+				updates.Add(updateBuilder.Set(x => x.Enabled, newEnabled));
 			}
 
-			if (NewAddress != null)
+			if (newAddress != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.Address, NewAddress));
+				updates.Add(updateBuilder.Set(x => x.Address, newAddress));
 			}
 
-			if (!string.IsNullOrEmpty(NewModelId))
+			if (!String.IsNullOrEmpty(newModelId))
 			{
-				if (NewModelId == "Base")
+				if (newModelId == "Base")
 				{
-					Updates.Add(UpdateBuilder.Set(x => x.ModelId, null));
+					updates.Add(updateBuilder.Set(x => x.ModelId, null));
 				}
 				else
 				{
-					Updates.Add(UpdateBuilder.Set(x => x.ModelId, NewModelId));
+					updates.Add(updateBuilder.Set(x => x.ModelId, newModelId));
 				}				
 			}
 
-			if (NewNotes != null)
+			if (newNotes != null)
 			{
-				Updates.Add(UpdateBuilder.Set(x => x.Notes, NewNotes));
+				updates.Add(updateBuilder.Set(x => x.Notes, newNotes));
 			}
 
-			if (NewProblem.HasValue)
+			if (newProblem.HasValue)
 			{
-				DateTime? ProblemTime = null;
-				if (NewProblem.Value)
+				DateTime? problemTime = null;
+				if (newProblem.Value)
 				{
-					ProblemTime = UtcNow;
+					problemTime = utcNow;
 				}
 
-				Updates.Add(UpdateBuilder.Set(x => x.ProblemTimeUtc, ProblemTime));
+				updates.Add(updateBuilder.Set(x => x.ProblemTimeUtc, problemTime));
 			}
 
-			if (NewMaintenance.HasValue)
+			if (newMaintenance.HasValue)
 			{
-				DateTime? MaintenanceTime = null;
-				if (NewMaintenance.Value)
+				DateTime? maintenanceTime = null;
+				if (newMaintenance.Value)
 				{
-					MaintenanceTime = UtcNow;
+					maintenanceTime = utcNow;
 				}
 
-				Updates.Add(UpdateBuilder.Set(x => x.MaintenanceTimeUtc, MaintenanceTime));
+				updates.Add(updateBuilder.Set(x => x.MaintenanceTimeUtc, maintenanceTime));
 			}
 
-
-			if (Updates.Count > 0)
+			if (updates.Count > 0)
 			{
-				await Devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == DeviceId, UpdateBuilder.Combine(Updates));
+				await _devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == deviceId, updateBuilder.Combine(updates));
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> DeleteDeviceAsync(DeviceId DeviceId)
+		public async Task<bool> DeleteDeviceAsync(DeviceId deviceId)
 		{
-			FilterDefinition<DeviceDocument> Filter = Builders<DeviceDocument>.Filter.Eq(x => x.Id, DeviceId);
-			DeleteResult Result = await Devices.DeleteOneAsync(Filter);
-			return Result.DeletedCount > 0;
+			FilterDefinition<DeviceDocument> filter = Builders<DeviceDocument>.Filter.Eq(x => x.Id, deviceId);
+			DeleteResult result = await _devices.DeleteOneAsync(filter);
+			return result.DeletedCount > 0;
 
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IDeviceReservation>> FindAllDeviceReservationsAsync(DevicePoolId? PoolId = null)
+		public async Task<List<IDeviceReservation>> FindAllDeviceReservationsAsync(DevicePoolId? poolId = null)
 		{
-			return await Reservations.Find(A => PoolId == null || A.PoolId == PoolId).ToListAsync<DeviceReservationDocument, IDeviceReservation>();
+			return await _reservations.Find(a => poolId == null || a.PoolId == poolId).ToListAsync<DeviceReservationDocument, IDeviceReservation>();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId PoolId, List<DeviceRequestData> Request, string? Hostname, string? ReservationDetails, string? JobId, string? StepId)
+		public async Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? jobId, string? stepId)
 		{
 
-			if (Request.Count == 0)
+			if (request.Count == 0)
 			{
 				return null;
 			}
 
-			DevicePoolDocument? Pool = await Pools.Find<DevicePoolDocument>(x => x.Id == PoolId).FirstOrDefaultAsync();
+			DevicePoolDocument? pool = await _pools.Find<DevicePoolDocument>(x => x.Id == poolId).FirstOrDefaultAsync();
 
-			if (Pool == null || Pool.PoolType != DevicePoolType.Automation)
+			if (pool == null || pool.PoolType != DevicePoolType.Automation)
 			{
                 return null;
             }
 			
-			HashSet<DeviceId> Allocated = new HashSet<DeviceId>();
-			Dictionary<DeviceId, string> PlatformRequestMap = new Dictionary<DeviceId, string>();
+			HashSet<DeviceId> allocated = new HashSet<DeviceId>();
+			Dictionary<DeviceId, string> platformRequestMap = new Dictionary<DeviceId, string>();
 
-			List<DeviceReservationDocument> PoolReservations = await Reservations.Find(x => x.PoolId == PoolId).ToListAsync();
+			List<DeviceReservationDocument> poolReservations = await _reservations.Find(x => x.PoolId == poolId).ToListAsync();
 
-			DateTime ReservationTimeUtc = DateTime.UtcNow;
+			DateTime reservationTimeUtc = DateTime.UtcNow;
 
 			// Get available devices
-			List<DeviceDocument> PoolDevices = await Devices.Find(x =>
-				x.PoolId == PoolId &&
+			List<DeviceDocument> poolDevices = await _devices.Find(x =>
+				x.PoolId == poolId &&
 				x.Enabled &&
 				x.MaintenanceTimeUtc == null).ToListAsync();
 
 			// filter out problem devices
-			PoolDevices = PoolDevices.FindAll(x => (x.ProblemTimeUtc == null || ((ReservationTimeUtc - x.ProblemTimeUtc).Value.TotalMinutes > 30)));
+			poolDevices = poolDevices.FindAll(x => (x.ProblemTimeUtc == null || ((reservationTimeUtc - x.ProblemTimeUtc).Value.TotalMinutes > 30)));
 
 			// filter out currently reserved devices
-			PoolDevices = PoolDevices.FindAll(x => PoolReservations.FirstOrDefault(p => p.Devices.Contains(x.Id)) == null);
+			poolDevices = poolDevices.FindAll(x => poolReservations.FirstOrDefault(p => p.Devices.Contains(x.Id)) == null);
 
 			// sort to use last reserved first to cycle devices
-			PoolDevices.Sort((A, B) =>
+			poolDevices.Sort((a, b) =>
 			{
-				DateTime? ATime = A.ReservationTimeUtc;
-				DateTime? BTime = B.ReservationTimeUtc;
+				DateTime? aTime = a.ReservationTimeUtc;
+				DateTime? bTime = b.ReservationTimeUtc;
 
-				if (ATime == BTime)
+				if (aTime == bTime)
 				{
 					return 0;
 				}
 
-				if (ATime == null && BTime != null)
+				if (aTime == null && bTime != null)
 				{
 					return -1;
 				}
-				if (ATime != null && BTime == null)
+				if (aTime != null && bTime == null)
 				{
 					return 1;
 				}
 
-				return ATime < BTime ? -1 : 1;
+				return aTime < bTime ? -1 : 1;
 
 			});
 
-			foreach (DeviceRequestData Data in Request)
+			foreach (DeviceRequestData data in request)
 			{
-				DeviceDocument? Device = PoolDevices.FirstOrDefault(A =>
+				DeviceDocument? device = poolDevices.FirstOrDefault(a =>
 				{
 
-					if (Allocated.Contains(A.Id) || A.PlatformId != Data.PlatformId)
+					if (allocated.Contains(a.Id) || a.PlatformId != data.PlatformId)
 					{
 						return false;
 					}
 
-					if (Data.IncludeModels.Count > 0 && (A.ModelId == null || !Data.IncludeModels.Contains(A.ModelId)))
+					if (data.IncludeModels.Count > 0 && (a.ModelId == null || !data.IncludeModels.Contains(a.ModelId)))
 					{
 						return false;
 					}
 
-					if (Data.ExcludeModels.Count > 0 && (A.ModelId != null && Data.ExcludeModels.Contains(A.ModelId)))
+					if (data.ExcludeModels.Count > 0 && (a.ModelId != null && data.ExcludeModels.Contains(a.ModelId)))
 					{
 						return false;
 					}
-
 
 					return true;
 				});
 
-				if (Device == null)
+				if (device == null)
 				{
 					// can't fulfill request
 					return null;
 				}
 
-				Allocated.Add(Device.Id);
-				PlatformRequestMap.Add(Device.Id, Data.RequestedPlatform);
+				allocated.Add(device.Id);
+				platformRequestMap.Add(device.Id, data.RequestedPlatform);
 			}
 
 			// update reservation time and utilization for allocated devices 
-			foreach (DeviceId Id in Allocated)
+			foreach (DeviceId id in allocated)
 			{
-				DeviceDocument Device = PoolDevices.First((Device) => Device.Id == Id);
+				DeviceDocument device = poolDevices.First((device) => device.Id == id);
 
-				List<DeviceUtilizationTelemetry>? Utilization = Device.Utilization;
+				List<DeviceUtilizationTelemetry>? utilization = device.Utilization;
 
-				if (Utilization == null)
+				if (utilization == null)
 				{
-					Utilization = new List<DeviceUtilizationTelemetry>();
+					utilization = new List<DeviceUtilizationTelemetry>();
 				}
 
 				// keep up to 100, maintaining order
-				if (Utilization.Count > 99)
+				if (utilization.Count > 99)
 				{
-					Utilization = Utilization.GetRange(0, 99);
+					utilization = utilization.GetRange(0, 99);
 				}
 
-				Utilization.Insert(0, new DeviceUtilizationTelemetry(ReservationTimeUtc) { JobId = JobId, StepId = StepId });
+				utilization.Insert(0, new DeviceUtilizationTelemetry(reservationTimeUtc) { JobId = jobId, StepId = stepId });
 
-				UpdateDefinitionBuilder<DeviceDocument> DeviceBuilder = Builders<DeviceDocument>.Update;
-				List<UpdateDefinition<DeviceDocument>> DeviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
+				UpdateDefinitionBuilder<DeviceDocument> deviceBuilder = Builders<DeviceDocument>.Update;
+				List<UpdateDefinition<DeviceDocument>> deviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
 
-				DeviceUpdates.Add(DeviceBuilder.Set(x => x.ReservationTimeUtc, ReservationTimeUtc));
-				DeviceUpdates.Add(DeviceBuilder.Set(x => x.Utilization, Utilization));
+				deviceUpdates.Add(deviceBuilder.Set(x => x.ReservationTimeUtc, reservationTimeUtc));
+				deviceUpdates.Add(deviceBuilder.Set(x => x.Utilization, utilization));
 
-				await Devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == Id, DeviceBuilder.Combine(DeviceUpdates));
+				await _devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == id, deviceBuilder.Combine(deviceUpdates));
 			}
 
-			List<DeviceId> DeviceIds = Allocated.ToList();
-			List<string> RequestedPlatforms = DeviceIds.Select(x => PlatformRequestMap[x]).ToList();
+			List<DeviceId> deviceIds = allocated.ToList();
+			List<string> requestedPlatforms = deviceIds.Select(x => platformRequestMap[x]).ToList();
 
 			// Create new reservation
-			DeviceReservationDocument NewReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), PoolId, DeviceIds, RequestedPlatforms, ReservationTimeUtc, Hostname, ReservationDetails, JobId, StepId);
-			await Reservations.InsertOneAsync(NewReservation);
+			DeviceReservationDocument newReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), poolId, deviceIds, requestedPlatforms, reservationTimeUtc, hostname, reservationDetails, jobId, stepId);
+			await _reservations.InsertOneAsync(newReservation);
 
-			return NewReservation;
+			return newReservation;
 
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> TryUpdateReservationAsync(ObjectId Id)
+		public async Task<bool> TryUpdateReservationAsync(ObjectId id)
 		{
-			UpdateResult Result = await Reservations.UpdateOneAsync(x => x.Id == Id, Builders<DeviceReservationDocument>.Update.Set(x => x.UpdateTimeUtc, DateTime.UtcNow));
-			return Result.ModifiedCount == 1;
+			UpdateResult result = await _reservations.UpdateOneAsync(x => x.Id == id, Builders<DeviceReservationDocument>.Update.Set(x => x.UpdateTimeUtc, DateTime.UtcNow));
+			return result.ModifiedCount == 1;
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> DeleteReservationAsync(ObjectId Id)
+		public async Task<bool> DeleteReservationAsync(ObjectId id)
 		{
-			FilterDefinition<DeviceReservationDocument> Filter = Builders<DeviceReservationDocument>.Filter.Eq(x => x.Id, Id);
-			DeleteResult Result = await Reservations.DeleteOneAsync(Filter);
-			return Result.DeletedCount > 0;
+			FilterDefinition<DeviceReservationDocument> filter = Builders<DeviceReservationDocument>.Filter.Eq(x => x.Id, id);
+			DeleteResult result = await _reservations.DeleteOneAsync(filter);
+			return result.DeletedCount > 0;
 		}
 
 		/// <summary>
@@ -691,16 +676,16 @@ namespace Horde.Build.Collections.Impl
 		/// </summary>
 		public async Task<bool> ExpireReservationsAsync()
 		{
-			List<IDeviceReservation> Reserves = await Reservations.Find(A => true).ToListAsync<DeviceReservationDocument, IDeviceReservation>();
+			List<IDeviceReservation> reserves = await _reservations.Find(a => true).ToListAsync<DeviceReservationDocument, IDeviceReservation>();
 
-			DateTime UtcNow = DateTime.UtcNow;
+			DateTime utcNow = DateTime.UtcNow;
 
-			Reserves = Reserves.FindAll(R => (UtcNow - R.UpdateTimeUtc).TotalMinutes > 10).ToList();
+			reserves = reserves.FindAll(r => (utcNow - r.UpdateTimeUtc).TotalMinutes > 10).ToList();
 
-			if (Reserves.Count > 0)
+			if (reserves.Count > 0)
 			{
-				DeleteResult Result = await Reservations.DeleteManyAsync(Builders<DeviceReservationDocument>.Filter.In(x => x.Id, Reserves.Select(y => y.Id)));
-				return (Result.DeletedCount > 0);
+				DeleteResult result = await _reservations.DeleteManyAsync(Builders<DeviceReservationDocument>.Filter.In(x => x.Id, reserves.Select(y => y.Id)));
+				return (result.DeletedCount > 0);
 			}
 
 			return false;
@@ -712,33 +697,32 @@ namespace Horde.Build.Collections.Impl
 		/// </summary>
 		public async Task<List<(UserId, IDevice)>?> ExpireCheckedOutAsync()
 		{
-			FilterDefinition<DeviceDocument> Filter = Builders<DeviceDocument>.Filter.Empty;
-			Filter &= Builders<DeviceDocument>.Filter.Where(x => x.CheckedOutByUser != null && x.CheckOutTime != null);
+			FilterDefinition<DeviceDocument> filter = Builders<DeviceDocument>.Filter.Empty;
+			filter &= Builders<DeviceDocument>.Filter.Where(x => x.CheckedOutByUser != null && x.CheckOutTime != null);
 
-			List<DeviceDocument> CheckedOutDevices = await Devices.Find(Filter).ToListAsync();
+			List<DeviceDocument> checkedOutDevices = await _devices.Find(filter).ToListAsync();
 
-			DateTime UtcNow = DateTime.UtcNow;
-			List<DeviceDocument> ExpiredDevices = CheckedOutDevices.FindAll(x => (UtcNow - x.CheckOutTime!.Value).TotalDays >= CheckoutDays).ToList();
+			DateTime utcNow = DateTime.UtcNow;
+			List<DeviceDocument> expiredDevices = checkedOutDevices.FindAll(x => (utcNow - x.CheckOutTime!.Value).TotalDays >= _checkoutDays).ToList();
 
-			if (ExpiredDevices.Count > 0)
+			if (expiredDevices.Count > 0)
 			{
 
-				FilterDefinition<DeviceDocument> UpdateFilter = Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id));
+				FilterDefinition<DeviceDocument> updateFilter = Builders<DeviceDocument>.Filter.In(x => x.Id, expiredDevices.Select(y => y.Id));
 
-				UpdateDefinitionBuilder<DeviceDocument> DeviceBuilder = Builders<DeviceDocument>.Update;
-				List<UpdateDefinition<DeviceDocument>> DeviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
+				UpdateDefinitionBuilder<DeviceDocument> deviceBuilder = Builders<DeviceDocument>.Update;
+				List<UpdateDefinition<DeviceDocument>> deviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
 
-				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckedOutByUser, null));
-				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckOutTime, null));
-				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
+				deviceUpdates.Add(deviceBuilder.Set(x => x.CheckedOutByUser, null));
+				deviceUpdates.Add(deviceBuilder.Set(x => x.CheckOutTime, null));
+				deviceUpdates.Add(deviceBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
 
-				UpdateResult Result = await Devices.UpdateManyAsync(Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id)), DeviceBuilder.Combine(DeviceUpdates));
+				UpdateResult result = await _devices.UpdateManyAsync(Builders<DeviceDocument>.Filter.In(x => x.Id, expiredDevices.Select(y => y.Id)), deviceBuilder.Combine(deviceUpdates));
 
-				if (Result.ModifiedCount > 0)
+				if (result.ModifiedCount > 0)
 				{
-					return ExpiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice) x)).ToList();
+					return expiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice) x)).ToList();
 				}
-
 			}
 
 			return null;
@@ -750,59 +734,52 @@ namespace Horde.Build.Collections.Impl
 		/// </summary>
 		public async Task<List<(UserId, IDevice)>?> ExpireNotificatonsAsync()
 		{
-			FilterDefinition<DeviceDocument> Filter = Builders<DeviceDocument>.Filter.Empty;
-			Filter &= Builders<DeviceDocument>.Filter.Where(x => x.CheckedOutByUser != null && x.CheckoutExpiringNotificationSent != true);
+			FilterDefinition<DeviceDocument> filter = Builders<DeviceDocument>.Filter.Empty;
+			filter &= Builders<DeviceDocument>.Filter.Where(x => x.CheckedOutByUser != null && x.CheckoutExpiringNotificationSent != true);
 
-			List<DeviceDocument> CheckedOutDevices = await Devices.Find(Filter).ToListAsync();
+			List<DeviceDocument> checkedOutDevices = await _devices.Find(filter).ToListAsync();
 
-			DateTime UtcNow = DateTime.UtcNow;
-			List<DeviceDocument> ExpiredDevices = CheckedOutDevices.FindAll(x => (UtcNow - x.CheckOutTime!.Value).TotalDays >= (CheckoutDays - 1)).ToList();
+			DateTime utcNow = DateTime.UtcNow;
+			List<DeviceDocument> expiredDevices = checkedOutDevices.FindAll(x => (utcNow - x.CheckOutTime!.Value).TotalDays >= (_checkoutDays - 1)).ToList();
 
-			if (ExpiredDevices.Count > 0)
+			if (expiredDevices.Count > 0)
 			{
-				FilterDefinition<DeviceDocument> UpdateFilter = Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id));
+				FilterDefinition<DeviceDocument> updateFilter = Builders<DeviceDocument>.Filter.In(x => x.Id, expiredDevices.Select(y => y.Id));
 
-				UpdateDefinitionBuilder<DeviceDocument> DeviceBuilder = Builders<DeviceDocument>.Update;
-				List<UpdateDefinition<DeviceDocument>> DeviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
+				UpdateDefinitionBuilder<DeviceDocument> deviceBuilder = Builders<DeviceDocument>.Update;
+				List<UpdateDefinition<DeviceDocument>> deviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
 
-				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
+				deviceUpdates.Add(deviceBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
 
-				UpdateResult Result = await Devices.UpdateManyAsync(Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id)), DeviceBuilder.Combine(DeviceUpdates));
+				UpdateResult result = await _devices.UpdateManyAsync(Builders<DeviceDocument>.Filter.In(x => x.Id, expiredDevices.Select(y => y.Id)), deviceBuilder.Combine(deviceUpdates));
 
-				if (Result.ModifiedCount > 0)
+				if (result.ModifiedCount > 0)
 				{
-					return ExpiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice)x)).ToList();
+					return expiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice)x)).ToList();
 				}
-
 			}
 
 			return null;
-
 		}
-
 
 		/// <inheritdoc/>
 		public async Task<List<IDeviceReservation>> FindAllReservationsAsync()
 		{
-			List<DeviceReservationDocument> Results = await Reservations.Find(x => true).ToListAsync();
-			return Results.OrderBy(x => x.CreateTimeUtc.Ticks).Select<DeviceReservationDocument, IDeviceReservation>(x => x).ToList();
-		}
-
-
-		/// <inheritdoc/>
-		public async Task<IDeviceReservation?> TryGetReservationFromLegacyGuidAsync(string LegacyGuid)
-		{
-			return await Reservations.Find<DeviceReservationDocument>(R => R.LegacyGuid == LegacyGuid).FirstOrDefaultAsync();
+			List<DeviceReservationDocument> results = await _reservations.Find(x => true).ToListAsync();
+			return results.OrderBy(x => x.CreateTimeUtc.Ticks).Select<DeviceReservationDocument, IDeviceReservation>(x => x).ToList();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDeviceReservation?> TryGetDeviceReservationAsync(DeviceId Id)
+		public async Task<IDeviceReservation?> TryGetReservationFromLegacyGuidAsync(string legacyGuid)
 		{
-			List<DeviceReservationDocument> Results = await Reservations.Find(x => true).ToListAsync();
-			return Results.FirstOrDefault(R => R.Devices.Contains(Id));
+			return await _reservations.Find<DeviceReservationDocument>(r => r.LegacyGuid == legacyGuid).FirstOrDefaultAsync();
+		}
+
+		/// <inheritdoc/>
+		public async Task<IDeviceReservation?> TryGetDeviceReservationAsync(DeviceId id)
+		{
+			List<DeviceReservationDocument> results = await _reservations.Find(x => true).ToListAsync();
+			return results.FirstOrDefault(r => r.Devices.Contains(id));
         }
-
 	}
-
 }
-

@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,54 +16,54 @@ namespace Horde.Build.Utilities
 		class State
 		{
 			public readonly T Value;
-			Stopwatch Timer;
-			public Task<State>? Next;
+			readonly Stopwatch _timer;
+			public Task<State>? _next;
 
-			public TimeSpan Elapsed => Timer.Elapsed;
+			public TimeSpan Elapsed => _timer.Elapsed;
 
-			public State(T Value)
+			public State(T value)
 			{
-				this.Value = Value;
-				this.Timer = Stopwatch.StartNew();
+				Value = value;
+				_timer = Stopwatch.StartNew();
 			}
 		}
 
 		/// <summary>
 		/// The current state
 		/// </summary>
-		Task<State>? Current = null;
+		Task<State>? _current = null;
 
 		/// <summary>
 		/// Generator for the new value
 		/// </summary>
-		Func<Task<T>> Generator;
+		readonly Func<Task<T>> _generator;
 
 		/// <summary>
 		/// Time at which to start to refresh the value
 		/// </summary>
-		TimeSpan MinRefreshTime;
+		readonly TimeSpan _minRefreshTime;
 
 		/// <summary>
 		/// Time at which to wait for the value to refresh
 		/// </summary>
-		TimeSpan MaxRefreshTime;
+		readonly TimeSpan _maxRefreshTime;
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public AsyncCachedValue(Func<Task<T>> Generator, TimeSpan RefreshTime)
-			: this(Generator, RefreshTime * 0.75, RefreshTime)
+		public AsyncCachedValue(Func<Task<T>> generator, TimeSpan refreshTime)
+			: this(generator, refreshTime * 0.75, refreshTime)
 		{
 		}
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public AsyncCachedValue(Func<Task<T>> Generator, TimeSpan MinRefreshTime, TimeSpan MaxRefreshTime)
+		public AsyncCachedValue(Func<Task<T>> generator, TimeSpan minRefreshTime, TimeSpan maxRefreshTime)
 		{
-			this.Generator = Generator;
-			this.MinRefreshTime = MinRefreshTime;
-			this.MaxRefreshTime = MaxRefreshTime;
+			_generator = generator;
+			_minRefreshTime = minRefreshTime;
+			_maxRefreshTime = maxRefreshTime;
 		}
 
 		/// <summary>
@@ -74,56 +72,56 @@ namespace Horde.Build.Utilities
 		/// <returns>The cached value, if valid</returns>
 		public Task<T> GetAsync()
 		{
-			return GetAsync(MaxRefreshTime);
+			return GetAsync(_maxRefreshTime);
 		}
 
-		Task<State> CreateOrGetStateTask(ref Task<State>? StateTask)
+		Task<State> CreateOrGetStateTask(ref Task<State>? stateTask)
 		{
 			for(; ;)
 			{
-				Task<State>? CurrentStateTask = StateTask;
-				if (CurrentStateTask != null)
+				Task<State>? currentStateTask = stateTask;
+				if (currentStateTask != null)
 				{
-					return CurrentStateTask;
+					return currentStateTask;
 				}
 
-				Task<Task<State>> InnerNewStateTask = new Task<Task<State>>(() => CreateState());
-				if (Interlocked.CompareExchange(ref StateTask, InnerNewStateTask.Unwrap(), null) == null)
+				Task<Task<State>> innerNewStateTask = new Task<Task<State>>(() => CreateState());
+				if (Interlocked.CompareExchange(ref stateTask, innerNewStateTask.Unwrap(), null) == null)
 				{
-					InnerNewStateTask.Start();
+					innerNewStateTask.Start();
 				}
 			}
 		}
 
 		async Task<State> CreateState()
 		{
-			return new State(await Generator());
+			return new State(await _generator());
 		}
 
 		/// <summary>
 		/// Tries to get the current value
 		/// </summary>
 		/// <returns>The cached value, if valid</returns>
-		public async Task<T> GetAsync(TimeSpan MaxAge)
+		public async Task<T> GetAsync(TimeSpan maxAge)
 		{
-			Task<State> StateTask = CreateOrGetStateTask(ref Current);
+			Task<State> stateTask = CreateOrGetStateTask(ref _current);
 
-			State State = await StateTask;
-			if (State.Next != null && State.Next.IsCompleted)
+			State state = await stateTask;
+			if (state._next != null && state._next.IsCompleted)
 			{
-				_ = Interlocked.CompareExchange(ref Current, State.Next, StateTask);
-				State = await State.Next;
+				_ = Interlocked.CompareExchange(ref _current, state._next, stateTask);
+				state = await state._next;
 			}
-			if (State.Elapsed > MaxAge)
+			if (state.Elapsed > maxAge)
 			{
-				State = await CreateOrGetStateTask(ref State.Next);
+				state = await CreateOrGetStateTask(ref state._next);
 			}
-			if (State.Elapsed > MinRefreshTime)
+			if (state.Elapsed > _minRefreshTime)
 			{
-				_ = CreateOrGetStateTask(ref State.Next);
+				_ = CreateOrGetStateTask(ref state._next);
 			}
 
-			return State.Value;
+			return state.Value;
 		}
 	}
 }

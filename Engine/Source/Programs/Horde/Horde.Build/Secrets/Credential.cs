@@ -1,14 +1,9 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Models
 {
@@ -51,29 +46,29 @@ namespace Horde.Build.Models
 		[BsonConstructor]
 		private Credential()
 		{
-			this.Name = null!;
-			this.NormalizedName = null!;
+			Name = null!;
+			NormalizedName = null!;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of this credential</param>
-		public Credential(string Name)
+		/// <param name="name">Name of this credential</param>
+		public Credential(string name)
 		{
-			this.Id = ObjectId.GenerateNewId();
-			this.Name = Name;
-			this.NormalizedName = GetNormalizedName(Name);
+			Id = ObjectId.GenerateNewId();
+			Name = name;
+			NormalizedName = GetNormalizedName(name);
 		}
 
 		/// <summary>
 		/// Gets the normalized form of a name, used for case-insensitive comparisons
 		/// </summary>
-		/// <param name="Name">The name to normalize</param>
+		/// <param name="name">The name to normalize</param>
 		/// <returns>The normalized name</returns>
-		public static string GetNormalizedName(string Name)
+		public static string GetNormalizedName(string name)
 		{
-			return Name.ToUpperInvariant();
+			return name.ToUpperInvariant();
 		}
 	}
 }

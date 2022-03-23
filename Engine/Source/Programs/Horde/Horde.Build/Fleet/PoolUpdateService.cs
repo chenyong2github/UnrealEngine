@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Services
 {
@@ -21,111 +21,111 @@ namespace Horde.Build.Services
 	/// </summary>
 	public sealed class PoolUpdateService : IHostedService, IDisposable
 	{
-		IPoolCollection Pools;
-		IStreamCollection Streams;
-		ILogger<PoolService> Logger;
-		ITicker Ticker;
+		readonly IPoolCollection _pools;
+		readonly IStreamCollection _streams;
+		readonly ILogger<PoolService> _logger;
+		readonly ITicker _ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PoolUpdateService(IPoolCollection Pools, IStreamCollection Streams, IClock Clock, ILogger<PoolService> Logger)
+		public PoolUpdateService(IPoolCollection pools, IStreamCollection streams, IClock clock, ILogger<PoolService> logger)
 		{
-			this.Pools = Pools;
-			this.Streams = Streams;
-			this.Logger = Logger;
-			this.Ticker = Clock.AddTicker(TimeSpan.FromSeconds(30.0), UpdatePoolsAsync, Logger);
+			_pools = pools;
+			_streams = streams;
+			_logger = logger;
+			_ticker = clock.AddTicker($"{nameof(PoolUpdateService)}.{nameof(UpdatePoolsAsync)}", TimeSpan.FromSeconds(30.0), UpdatePoolsAsync, logger);
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken CancellationToken) => Ticker.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken CancellationToken) => Ticker.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
 
 		/// <inheritdoc/>
-		public void Dispose() => Ticker.Dispose();
+		public void Dispose() => _ticker.Dispose();
 
 		/// <summary>
 		/// Execute the background task
 		/// </summary>
-		/// <param name="StoppingToken">Cancellation token for the async task</param>
+		/// <param name="stoppingToken">Cancellation token for the async task</param>
 		/// <returns>Async task</returns>
-		async ValueTask UpdatePoolsAsync(CancellationToken StoppingToken)
+		async ValueTask UpdatePoolsAsync(CancellationToken stoppingToken)
 		{
 			// Capture the start time for this operation. We use this to attempt to sequence updates to agents, and prevent overriding another server's updates.
-			DateTime StartTime = DateTime.UtcNow;
+			DateTime startTime = DateTime.UtcNow;
 
 			// Update the list
 			bool bRetryUpdate = true;
-			while (bRetryUpdate && !StoppingToken.IsCancellationRequested)
+			while (bRetryUpdate && !stoppingToken.IsCancellationRequested)
 			{
-				Logger.LogDebug("Updating pool->workspace map");
+				_logger.LogDebug("Updating pool->workspace map");
 
 				// Assume this will be the last iteration
 				bRetryUpdate = false;
 
 				// Capture the list of pools at the start of this update
-				List<IPool> CurrentPools = await Pools.GetAsync();
+				List<IPool> currentPools = await _pools.GetAsync();
 
 				// Lookup table of pool id to workspaces
-				HashSet<PoolId> PoolsWithAutoSdk = new HashSet<PoolId>();
-				Dictionary<PoolId, List<AgentWorkspace>> PoolToAgentWorkspaces = new Dictionary<PoolId, List<AgentWorkspace>>();
+				HashSet<PoolId> poolsWithAutoSdk = new HashSet<PoolId>();
+				Dictionary<PoolId, List<AgentWorkspace>> poolToAgentWorkspaces = new Dictionary<PoolId, List<AgentWorkspace>>();
 
 				// Populate the workspace list from the current stream
-				List<IStream> ActiveStreams = await Streams.FindAllAsync();
-				foreach (IStream ActiveStream in ActiveStreams)
+				List<IStream> activeStreams = await _streams.FindAllAsync();
+				foreach (IStream activeStream in activeStreams)
 				{
-					foreach (KeyValuePair<string, AgentType> AgentTypePair in ActiveStream.AgentTypes)
+					foreach (KeyValuePair<string, AgentType> agentTypePair in activeStream.AgentTypes)
 					{
 						// Create the new agent workspace
-						(AgentWorkspace, bool)? Result;
-						if (ActiveStream.TryGetAgentWorkspace(AgentTypePair.Value, out Result))
+						(AgentWorkspace, bool)? result;
+						if (activeStream.TryGetAgentWorkspace(agentTypePair.Value, out result))
 						{
-							(AgentWorkspace AgentWorkspace, bool UseAutoSdk) = Result.Value;
-							AgentType AgentType = AgentTypePair.Value;
+							(AgentWorkspace agentWorkspace, bool useAutoSdk) = result.Value;
+							AgentType agentType = agentTypePair.Value;
 
 							// Find or add a list of workspaces for this pool
-							List<AgentWorkspace>? AgentWorkspaces;
-							if (!PoolToAgentWorkspaces.TryGetValue(AgentType.Pool, out AgentWorkspaces))
+							List<AgentWorkspace>? agentWorkspaces;
+							if (!poolToAgentWorkspaces.TryGetValue(agentType.Pool, out agentWorkspaces))
 							{
-								AgentWorkspaces = new List<AgentWorkspace>();
-								PoolToAgentWorkspaces.Add(AgentType.Pool, AgentWorkspaces);
+								agentWorkspaces = new List<AgentWorkspace>();
+								poolToAgentWorkspaces.Add(agentType.Pool, agentWorkspaces);
 							}
 
 							// Add it to the list
-							if (!AgentWorkspaces.Contains(AgentWorkspace))
+							if (!agentWorkspaces.Contains(agentWorkspace))
 							{
-								AgentWorkspaces.Add(AgentWorkspace);
+								agentWorkspaces.Add(agentWorkspace);
 							}
-							if (UseAutoSdk)
+							if (useAutoSdk)
 							{
-								PoolsWithAutoSdk.Add(AgentType.Pool);
+								poolsWithAutoSdk.Add(agentType.Pool);
 							}
 						}
 					}
 				}
 
 				// Update the list of workspaces for each pool
-				foreach (IPool CurrentPool in CurrentPools)
+				foreach (IPool currentPool in currentPools)
 				{
 					// Get the new list of workspaces for this pool
-					List<AgentWorkspace>? NewWorkspaces;
-					if (!PoolToAgentWorkspaces.TryGetValue(CurrentPool.Id, out NewWorkspaces))
+					List<AgentWorkspace>? newWorkspaces;
+					if (!poolToAgentWorkspaces.TryGetValue(currentPool.Id, out newWorkspaces))
 					{
-						NewWorkspaces = new List<AgentWorkspace>();
+						newWorkspaces = new List<AgentWorkspace>();
 					}
 
 					// Update the pools document
-					bool UseAutoSdk = PoolsWithAutoSdk.Contains(CurrentPool.Id);
-					if (!AgentWorkspace.SetEquals(CurrentPool.Workspaces, NewWorkspaces) || CurrentPool.Workspaces.Count != NewWorkspaces.Count || CurrentPool.UseAutoSdk != UseAutoSdk)
+					bool useAutoSdk = poolsWithAutoSdk.Contains(currentPool.Id);
+					if (!AgentWorkspace.SetEquals(currentPool.Workspaces, newWorkspaces) || currentPool.Workspaces.Count != newWorkspaces.Count || currentPool.UseAutoSdk != useAutoSdk)
 					{
-						Logger.LogInformation("New workspaces for pool {Pool}:{Workspaces}", CurrentPool.Id, String.Join("", NewWorkspaces.Select(x => $"\n  Identifier=\"{x.Identifier}\", Stream={x.Stream}")));
+						_logger.LogInformation("New workspaces for pool {Pool}:{Workspaces}", currentPool.Id, String.Join("", newWorkspaces.Select(x => $"\n  Identifier=\"{x.Identifier}\", Stream={x.Stream}")));
 
-						IPool? Result = await Pools.TryUpdateAsync(CurrentPool, NewWorkspaces: NewWorkspaces, NewUseAutoSdk: UseAutoSdk);
-						if (Result == null)
+						IPool? result = await _pools.TryUpdateAsync(currentPool, newWorkspaces: newWorkspaces, newUseAutoSdk: useAutoSdk);
+						if (result == null)
 						{
-							Logger.LogInformation("Pool modified; will retry");
+							_logger.LogInformation("Pool modified; will retry");
 							bRetryUpdate = true;
 						}
 					}

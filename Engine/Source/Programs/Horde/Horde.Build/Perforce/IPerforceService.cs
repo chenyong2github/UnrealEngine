@@ -1,25 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Perforce;
-using Horde.Build.Models;
-using Microsoft.Extensions.Logging;
-using Polly;
-using Polly.Extensions.Http;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-
-using P4 = Perforce.P4;
+using EpicGames.Perforce;
+using Horde.Build.Models;
 
 namespace Horde.Build.Services
 {
@@ -83,10 +70,10 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Maps a depot path into the stream
 		/// </summary>
-		/// <param name="DepotPath">The depot path</param>
-		/// <param name="StreamPath">The resulting stream path</param>
+		/// <param name="depotPath">The depot path</param>
+		/// <param name="streamPath">The resulting stream path</param>
 		/// <returns></returns>
-		bool TryGetStreamPath(string DepotPath, [NotNullWhen(true)] out string? StreamPath);
+		bool TryGetStreamPath(string depotPath, [NotNullWhen(true)] out string? streamPath);
 	}
 
 	/// <summary>
@@ -97,153 +84,153 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Finds or adds a user from the given Perforce server, adding the user (and populating their profile with Perforce data) if they do not currently exist
 		/// </summary>
-		/// <param name="ClusterName"></param>
-		/// <param name="UserName"></param>
+		/// <param name="clusterName"></param>
+		/// <param name="userName"></param>
 		/// <returns></returns>
-		public ValueTask<IUser> FindOrAddUserAsync(string ClusterName, string UserName);
+		public ValueTask<IUser> FindOrAddUserAsync(string clusterName, string userName);
 
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="ClusterName"></param>
+		/// <param name="clusterName"></param>
 		/// <returns></returns>
-		public Task<IPerforceConnection?> GetServiceUserConnection(string? ClusterName);
+		public Task<IPerforceConnection?> GetServiceUserConnection(string? clusterName);
 
 		/// <summary>
 		/// Gets the definition of a stream
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream name</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream name</param>
 		/// <returns></returns>
-		public Task<IStreamView> GetStreamViewAsync(string ClusterName, string StreamName);
+		public Task<IStreamView> GetStreamViewAsync(string clusterName, string streamName);
 
 		/// <summary>
 		/// Create a new changelist by submitting the given file
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream to query</param>
-		/// <param name="Path">Path for the file to submit</param>
-		/// <param name="Description">Description for the changelist</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream to query</param>
+		/// <param name="path">Path for the file to submit</param>
+		/// <param name="description">Description for the changelist</param>
 		/// <returns>New changelist number</returns>
-		public Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string Path, string Description);
+		public Task<int> CreateNewChangeAsync(string clusterName, string streamName, string path, string description);
 
 		/// <summary>
 		/// Gets the code change corresponding to an actual change submitted to a stream
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName"></param>
-		/// <param name="Change">The changelist number to query</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName"></param>
+		/// <param name="change">The changelist number to query</param>
 		/// <returns>Code change for the latest change</returns>
-		public Task<int> GetCodeChangeAsync(string ClusterName, string StreamName, int Change);
+		public Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change);
 
 		/// <summary>
 		/// Gets information about the given user
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="UserName">The user name</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="userName">The user name</param>
 		/// <returns>User information</returns>
-		public Task<PerforceUserInfo?> GetUserInfoAsync(string ClusterName, string UserName);
+		public Task<PerforceUserInfo?> GetUserInfoAsync(string clusterName, string userName);
 
 		/// <summary>
 		/// Finds changes submitted to a depot Gets the latest change for a particular stream
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="MinChange">The minimum changelist number</param>
-		/// <param name="MaxChange">The maximum changelist number</param>
-		/// <param name="MaxResults"></param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="minChange">The minimum changelist number</param>
+		/// <param name="maxChange">The maximum changelist number</param>
+		/// <param name="maxResults"></param>
 		/// <returns>Changelist information</returns>
-		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int? MaxChange, int MaxResults);
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream to query</param>
-		/// <param name="MinChange">The minimum changelist number</param>
-		/// <param name="MaxChange">The maximum changelist number</param>
-		/// <param name="Results">Number of results to return</param>
-		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream to query</param>
+		/// <param name="minChange">The minimum changelist number</param>
+		/// <param name="maxChange">The maximum changelist number</param>
+		/// <param name="results">Number of results to return</param>
+		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns>Latest changelist number</returns>
-		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser);
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int results, string? impersonateUser);
 
 		/// <summary>
 		/// Checks a shelf is valid for the given stream
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream to query</param>
-		/// <param name="ChangeNumber">Shelved changelist number</param>
-		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream to query</param>
+		/// <param name="changeNumber">Shelved changelist number</param>
+		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns></returns>
-		public Task<CheckShelfResult> CheckShelfAsync(string ClusterName, string StreamName, int ChangeNumber, string? ImpersonateUser);
+		public Task<CheckShelfResult> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream to query</param>
-		/// <param name="ChangeNumber">Change numbers to query</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream to query</param>
+		/// <param name="changeNumber">Change numbers to query</param>
 		/// <returns>Commit details</returns>
-		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, string StreamName, int ChangeNumber);
+		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, string streamName, int changeNumber);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream to query</param>
-		/// <param name="ChangeNumbers">Change numbers to query</param>
-		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream to query</param>
+		/// <param name="changeNumbers">Change numbers to query</param>
+		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns>Commit details</returns>
-		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string ClusterName, string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser);
+		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser);
 
 		/// <summary>
 		/// Gets the latest changes for a set of depot paths
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="Paths"></param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="paths"></param>
 		/// <returns></returns>
-		public Task<List<FileSummary>> FindFilesAsync(string ClusterName, IEnumerable<string> Paths);
+		public Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths);
 
 		/// <summary>
 		/// Gets the contents of a file in the depot
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="Path">Path to read</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="path">Path to read</param>
 		/// <returns>Data for the file</returns>
-		public Task<byte[]> PrintAsync(string ClusterName, string Path);
+		public Task<byte[]> PrintAsync(string clusterName, string path);
 
 		/// <summary>
 		/// Duplicates a shelved changelist
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="ShelvedChange">The shelved changelist</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="shelvedChange">The shelved changelist</param>
 		/// <returns>The duplicated changelist</returns>
-		public Task<int> DuplicateShelvedChangeAsync(string ClusterName, int ShelvedChange);
+		public Task<int> DuplicateShelvedChangeAsync(string clusterName, int shelvedChange);
 
 		/// <summary>
 		/// Submit a shelved changelist
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="ShelvedChange">The shelved changelist number, created by <see cref="DuplicateShelvedChangeAsync(string,int)"/></param>
-		/// <param name="OriginalChange">The original changelist number</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="shelvedChange">The shelved changelist number, created by <see cref="DuplicateShelvedChangeAsync(String,Int32)"/></param>
+		/// <param name="originalChange">The original changelist number</param>
 		/// <returns>Tuple consisting of the submitted changelist number and message</returns>
-		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string ClusterName, int ShelvedChange, int OriginalChange);
+		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string clusterName, int shelvedChange, int originalChange);
 
 		/// <summary>
 		/// Deletes a changelist containing shelved files.
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="ShelvedChange">The changelist containing shelved files</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="shelvedChange">The changelist containing shelved files</param>
 		/// <returns>Async tasy</returns>
-		public Task DeleteShelvedChangeAsync(string ClusterName, int ShelvedChange);
+		public Task DeleteShelvedChangeAsync(string clusterName, int shelvedChange);
 
 		/// <summary>
 		/// Updates a changelist description
 		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="Change">The change to update</param>
-		/// <param name="Description">The new description</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="change">The change to update</param>
+		/// <param name="description">The new description</param>
 		/// <returns>Async task</returns>
-		public Task UpdateChangelistDescription(string ClusterName, int Change, string Description);
+		public Task UpdateChangelistDescription(string clusterName, int change, string description);
 	}
 
 	/// <summary>
@@ -254,73 +241,73 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Creates a new change for a template
 		/// </summary>
-		/// <param name="Perforce">The Perforce service instance</param>
-		/// <param name="Stream">Stream containing the template</param>
-		/// <param name="Template">The template being built</param>
+		/// <param name="perforce">The Perforce service instance</param>
+		/// <param name="stream">Stream containing the template</param>
+		/// <param name="template">The template being built</param>
 		/// <returns>New changelist number</returns>
-		public static Task<int> CreateNewChangeForTemplateAsync(this IPerforceService Perforce, IStream Stream, ITemplate Template)
+		public static Task<int> CreateNewChangeForTemplateAsync(this IPerforceService perforce, IStream stream, ITemplate template)
 		{
-			string Description = (Template.SubmitDescription ?? "[Horde] New change for $(TemplateName)").Replace("$(TemplateName)", Template.Name, StringComparison.OrdinalIgnoreCase);
+			string description = (template.SubmitDescription ?? "[Horde] New change for $(TemplateName)").Replace("$(TemplateName)", template.Name, StringComparison.OrdinalIgnoreCase);
 
-			Match Match = Regex.Match(Template.SubmitNewChange!, @"^(//[^/]+/[^/]+)/(.+)$");
-			if (Match.Success)
+			Match match = Regex.Match(template.SubmitNewChange!, @"^(//[^/]+/[^/]+)/(.+)$");
+			if (match.Success)
 			{
-				return Perforce.CreateNewChangeAsync(Stream.ClusterName, Match.Groups[1].Value, Match.Groups[2].Value, Description);
+				return perforce.CreateNewChangeAsync(stream.ClusterName, match.Groups[1].Value, match.Groups[2].Value, description);
 			}
 			else
 			{
-				return Perforce.CreateNewChangeAsync(Stream.ClusterName, Stream.Name, Template.SubmitNewChange!, Description);
+				return perforce.CreateNewChangeAsync(stream.ClusterName, stream.Name, template.SubmitNewChange!, description);
 			}
 		}
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
 		/// </summary>
-		/// <param name="Perforce">The perforce implementation</param>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream to query</param>
-		/// <param name="ChangeNumber">Change number to query</param>
-		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
+		/// <param name="perforce">The perforce implementation</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream to query</param>
+		/// <param name="changeNumber">Change number to query</param>
+		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns>Commit details</returns>
-		public static async Task<ChangeDetails> GetChangeDetailsAsync(this IPerforceService Perforce, string ClusterName, string StreamName, int ChangeNumber, string? ImpersonateUser)
+		public static async Task<ChangeDetails> GetChangeDetailsAsync(this IPerforceService perforce, string clusterName, string streamName, int changeNumber, string? impersonateUser)
 		{
-			List<ChangeDetails> Results = await Perforce.GetChangeDetailsAsync(ClusterName, StreamName, new[] { ChangeNumber }, ImpersonateUser);
-			return Results[0];
+			List<ChangeDetails> results = await perforce.GetChangeDetailsAsync(clusterName, streamName, new[] { changeNumber }, impersonateUser);
+			return results[0];
 		}
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
 		/// </summary>
-		/// <param name="Perforce">The perforce implementation</param>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream to query</param>
-		/// <param name="MinChange">The minimum changelist number</param>
-		/// <param name="MaxChange">The maximum changelist number</param>
-		/// <param name="Results">Number of results to return</param>
-		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
+		/// <param name="perforce">The perforce implementation</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream to query</param>
+		/// <param name="minChange">The minimum changelist number</param>
+		/// <param name="maxChange">The maximum changelist number</param>
+		/// <param name="results">Number of results to return</param>
+		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns>Commit details</returns>
-		public static async Task<List<ChangeDetails>> GetChangeDetailsAsync(this IPerforceService Perforce, string ClusterName, string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser)
+		public static async Task<List<ChangeDetails>> GetChangeDetailsAsync(this IPerforceService perforce, string clusterName, string streamName, int? minChange, int? maxChange, int results, string? impersonateUser)
 		{
-			List<ChangeSummary> Changes = await Perforce.GetChangesAsync(ClusterName, StreamName, MinChange, MaxChange, Results, ImpersonateUser);
-			return await Perforce.GetChangeDetailsAsync(ClusterName, StreamName, Changes.ConvertAll(x => x.Number), ImpersonateUser);
+			List<ChangeSummary> changes = await perforce.GetChangesAsync(clusterName, streamName, minChange, maxChange, results, impersonateUser);
+			return await perforce.GetChangeDetailsAsync(clusterName, streamName, changes.ConvertAll(x => x.Number), impersonateUser);
 		}
 
 		/// <summary>
 		/// Get the latest submitted change to the stream
 		/// </summary>
-		/// <param name="Perforce">The perforce implementation</param>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream to query</param>
-		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
+		/// <param name="perforce">The perforce implementation</param>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="streamName">The stream to query</param>
+		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns>Latest changelist number</returns>
-		public static async Task<int> GetLatestChangeAsync(this IPerforceService Perforce, string ClusterName, string StreamName, string? ImpersonateUser)
+		public static async Task<int> GetLatestChangeAsync(this IPerforceService perforce, string clusterName, string streamName, string? impersonateUser)
 		{
-			List<ChangeSummary> Changes = await Perforce.GetChangesAsync(ClusterName, StreamName, null, null, 1, ImpersonateUser);
-			if (Changes.Count == 0)
+			List<ChangeSummary> changes = await perforce.GetChangesAsync(clusterName, streamName, null, null, 1, impersonateUser);
+			if (changes.Count == 0)
 			{
-				throw new Exception($"No changes have been submitted to stream {StreamName}");
+				throw new Exception($"No changes have been submitted to stream {streamName}");
 			}
-			return Changes[0].Number;
+			return changes[0].Number;
 		}
 	}
 }

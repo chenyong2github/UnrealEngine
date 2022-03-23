@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Models;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
+using EpicGames.Core;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -28,11 +26,11 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Stream">The stream</param>
-		public UtilizationTelemetryStream(IStreamUtilizationTelemetry Stream)
+		/// <param name="stream">The stream</param>
+		public UtilizationTelemetryStream(IStreamUtilizationTelemetry stream)
 		{
-			this.StreamId = Stream.StreamId.ToString();
-			this.Time = Stream.Time;
+			StreamId = stream.StreamId.ToString();
+			Time = stream.Time;
 		}
 	}
 
@@ -74,16 +72,16 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Pool"></param>
-		public UtilizationTelemetryPool(IPoolUtilizationTelemetry Pool)
+		/// <param name="pool"></param>
+		public UtilizationTelemetryPool(IPoolUtilizationTelemetry pool)
 		{
-			this.PoolId = Pool.PoolId.ToString();
-			this.NumAgents = Pool.NumAgents;
-			this.AdminTime = Pool.AdminTime;
-			this.HibernatingTime = Pool.HibernatingTime;
-			this.OtherTime = Pool.OtherTime;
+			PoolId = pool.PoolId.ToString();
+			NumAgents = pool.NumAgents;
+			AdminTime = pool.AdminTime;
+			HibernatingTime = pool.HibernatingTime;
+			OtherTime = pool.OtherTime;
 
-			this.Streams = Pool.Streams.ConvertAll(Stream => new UtilizationTelemetryStream(Stream));
+			Streams = pool.Streams.ConvertAll(stream => new UtilizationTelemetryStream(stream));
 		}
 	}
 
@@ -125,17 +123,15 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public UtilizationTelemetryResponse(IUtilizationTelemetry Telemetry)
+		public UtilizationTelemetryResponse(IUtilizationTelemetry telemetry)
 		{
-			this.StartTime = Telemetry.StartTime;
-			this.FinishTime = Telemetry.FinishTime;
-			this.AdminTime = Telemetry.AdminTime;
-			this.HibernatingTime = Telemetry.HibernatingTime;
-			this.NumAgents = Telemetry.NumAgents;
+			StartTime = telemetry.StartTime;
+			FinishTime = telemetry.FinishTime;
+			AdminTime = telemetry.AdminTime;
+			HibernatingTime = telemetry.HibernatingTime;
+			NumAgents = telemetry.NumAgents;
 
-			this.Pools = Telemetry.Pools.ConvertAll(Pool => new UtilizationTelemetryPool(Pool));
+			Pools = telemetry.Pools.ConvertAll(pool => new UtilizationTelemetryPool(pool));
 		}
 	}
-
-	
 }

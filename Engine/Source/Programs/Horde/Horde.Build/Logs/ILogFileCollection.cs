@@ -1,17 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Api;
 using Horde.Build.Models;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections
 {
@@ -42,14 +35,14 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Index">Index of the chunk</param>
-		/// <param name="Length">New length for the chunk</param>
-		/// <param name="LineCount">Number of lines in the chunk</param>
-		public CompleteLogChunkUpdate(int Index, int Length, int LineCount)
+		/// <param name="index">Index of the chunk</param>
+		/// <param name="length">New length for the chunk</param>
+		/// <param name="lineCount">Number of lines in the chunk</param>
+		public CompleteLogChunkUpdate(int index, int length, int lineCount)
 		{
-			this.Index = Index;
-			this.Length = Length;
-			this.LineCount = LineCount;
+			Index = index;
+			Length = length;
+			LineCount = lineCount;
 		}
 	}
 
@@ -61,48 +54,48 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Creates a new log
 		/// </summary>
-		/// <param name="JobId">Unique id of the job that owns this log file</param>
-		/// <param name="SessionId">Agent session allowed to update the log</param>
-		/// <param name="Type">Type of events to be stored in the log</param>
+		/// <param name="jobId">Unique id of the job that owns this log file</param>
+		/// <param name="sessionId">Agent session allowed to update the log</param>
+		/// <param name="type">Type of events to be stored in the log</param>
 		/// <returns>The new log file document</returns>
-		Task<ILogFile> CreateLogFileAsync(JobId JobId, SessionId? SessionId, LogType Type);
+		Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type);
 
 		/// <summary>
 		/// Adds a new chunk
 		/// </summary>
-		/// <param name="LogFileInterface">The current log file</param>
-		/// <param name="Offset">Offset of the new chunk</param>
-		/// <param name="LineIndex">Line index for the start of the chunk</param>
+		/// <param name="logFileInterface">The current log file</param>
+		/// <param name="offset">Offset of the new chunk</param>
+		/// <param name="lineIndex">Line index for the start of the chunk</param>
 		/// <returns>The updated log file document</returns>
-		Task<ILogFile?> TryAddChunkAsync(ILogFile LogFileInterface, long Offset, int LineIndex);
+		Task<ILogFile?> TryAddChunkAsync(ILogFile logFileInterface, long offset, int lineIndex);
 
 		/// <summary>
 		/// Update the log file with final information about certain chunks
 		/// </summary>
-		/// <param name="LogFileInterface">The current log file</param>
-		/// <param name="Chunks">Chunks to update. New chunks will be inserted</param>
+		/// <param name="logFileInterface">The current log file</param>
+		/// <param name="chunks">Chunks to update. New chunks will be inserted</param>
 		/// <returns>The updated log file document</returns>
-		Task<ILogFile?> TryCompleteChunksAsync(ILogFile LogFileInterface, IEnumerable<CompleteLogChunkUpdate> Chunks);
+		Task<ILogFile?> TryCompleteChunksAsync(ILogFile logFileInterface, IEnumerable<CompleteLogChunkUpdate> chunks);
 
 		/// <summary>
 		/// Update the log file with final information about the index
 		/// </summary>
-		/// <param name="LogFileInterface">The current log file</param>
-		/// <param name="NewIndexLength">New length of the index</param>
+		/// <param name="logFileInterface">The current log file</param>
+		/// <param name="newIndexLength">New length of the index</param>
 		/// <returns>The updated log file document</returns>
-		Task<ILogFile?> TryUpdateIndexAsync(ILogFile LogFileInterface, long NewIndexLength);
+		Task<ILogFile?> TryUpdateIndexAsync(ILogFile logFileInterface, long newIndexLength);
 
 		/// <summary>
 		/// Gets a logfile by ID
 		/// </summary>
-		/// <param name="LogFileId">Unique id of the log file</param>
+		/// <param name="logFileId">Unique id of the log file</param>
 		/// <returns>The logfile document</returns>
-		Task<ILogFile?> GetLogFileAsync(LogId LogFileId);
+		Task<ILogFile?> GetLogFileAsync(LogId logFileId);
 
 		/// <summary>
 		/// Gets all the log files
 		/// </summary>
 		/// <returns>List of log files</returns>
-		Task<List<ILogFile>> GetLogFilesAsync(int? Index = null, int? Count = null);
+		Task<List<ILogFile>> GetLogFilesAsync(int? index = null, int? count = null);
 	}
 }

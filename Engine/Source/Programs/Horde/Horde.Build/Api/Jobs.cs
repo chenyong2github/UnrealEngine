@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Security.Claims;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
+using HordeCommon;
 
 namespace Horde.Build.Api
 {
@@ -95,10 +92,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
-		public CreateJobRequest(string StreamId, string TemplateId)
+		public CreateJobRequest(string streamId, string templateId)
 		{
-			this.StreamId = StreamId;
-			this.TemplateId = TemplateId;
+			StreamId = streamId;
+			TemplateId = templateId;
 		}
 	}
 
@@ -115,10 +112,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Unique id for the new job</param>
-		public CreateJobResponse(string Id)
+		/// <param name="id">Unique id for the new job</param>
+		public CreateJobResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -181,12 +178,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Report"></param>
-		public GetReportResponse(IReport Report)
+		/// <param name="report"></param>
+		public GetReportResponse(IReport report)
 		{
-			Name = Report.Name;
-			Placement = Report.Placement;
-			ArtifactId = Report.ArtifactId.ToString();
+			Name = report.Name;
+			Placement = report.Placement;
+			ArtifactId = report.ArtifactId.ToString();
 		}
 	}
 
@@ -343,38 +340,38 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Job">Job to create a response for</param>
-		/// <param name="StartedByUserInfo">User that started this job</param>
-		/// <param name="AbortedByUserInfo">User that aborted this job</param>
-		/// <param name="AclResponse">The ACL response object</param>
-		public GetJobResponse(IJob Job, GetThinUserInfoResponse? StartedByUserInfo, GetThinUserInfoResponse? AbortedByUserInfo, GetAclResponse? AclResponse)
+		/// <param name="job">Job to create a response for</param>
+		/// <param name="startedByUserInfo">User that started this job</param>
+		/// <param name="abortedByUserInfo">User that aborted this job</param>
+		/// <param name="aclResponse">The ACL response object</param>
+		public GetJobResponse(IJob job, GetThinUserInfoResponse? startedByUserInfo, GetThinUserInfoResponse? abortedByUserInfo, GetAclResponse? aclResponse)
 		{
-			this.Id = Job.Id.ToString();
-			this.StreamId = Job.StreamId.ToString();
-			this.Name = Job.Name;
-			this.Change = Job.Change;
-			this.CodeChange = (Job.CodeChange != 0) ? (int?)Job.CodeChange : null;
-			this.PreflightChange = (Job.PreflightChange != 0) ? (int?)Job.PreflightChange : null;
-			this.ClonedPreflightChange = (Job.ClonedPreflightChange != 0) ? (int?)Job.ClonedPreflightChange : null;
-			this.TemplateId = Job.TemplateId.ToString();
-			this.TemplateHash = Job.TemplateHash?.ToString() ?? String.Empty;
-			this.GraphHash = Job.GraphHash.ToString();
-			this.StartedByUserId = Job.StartedByUserId?.ToString();
-			this.StartedByUser = StartedByUserInfo?.Login;
-			this.StartedByUserInfo = StartedByUserInfo;
-			this.AbortedByUser = AbortedByUserInfo?.Login;
-			this.AbortedByUserInfo = AbortedByUserInfo;
-			this.CreateTime = new DateTimeOffset(Job.CreateTimeUtc);
-			this.State = Job.GetState();
-			this.Priority = Job.Priority;
-			this.AutoSubmit = Job.AutoSubmit;
-			this.AutoSubmitChange = Job.AutoSubmitChange;
-			this.AutoSubmitMessage = Job.AutoSubmitMessage;
-			this.Reports = Job.Reports?.ConvertAll(x => new GetReportResponse(x));
-			this.Arguments = Job.Arguments.ToList();
-			this.UpdateTime = new DateTimeOffset(Job.UpdateTimeUtc);
-			this.UpdateIssues = Job.UpdateIssues;
-			this.Acl = AclResponse;
+			Id = job.Id.ToString();
+			StreamId = job.StreamId.ToString();
+			Name = job.Name;
+			Change = job.Change;
+			CodeChange = (job.CodeChange != 0) ? (int?)job.CodeChange : null;
+			PreflightChange = (job.PreflightChange != 0) ? (int?)job.PreflightChange : null;
+			ClonedPreflightChange = (job.ClonedPreflightChange != 0) ? (int?)job.ClonedPreflightChange : null;
+			TemplateId = job.TemplateId.ToString();
+			TemplateHash = job.TemplateHash?.ToString() ?? String.Empty;
+			GraphHash = job.GraphHash.ToString();
+			StartedByUserId = job.StartedByUserId?.ToString();
+			StartedByUser = startedByUserInfo?.Login;
+			StartedByUserInfo = startedByUserInfo;
+			AbortedByUser = abortedByUserInfo?.Login;
+			AbortedByUserInfo = abortedByUserInfo;
+			CreateTime = new DateTimeOffset(job.CreateTimeUtc);
+			State = job.GetState();
+			Priority = job.Priority;
+			AutoSubmit = job.AutoSubmit;
+			AutoSubmitChange = job.AutoSubmitChange;
+			AutoSubmitMessage = job.AutoSubmitMessage;
+			Reports = job.Reports?.ConvertAll(x => new GetReportResponse(x));
+			Arguments = job.Arguments.ToList();
+			UpdateTime = new DateTimeOffset(job.UpdateTimeUtc);
+			UpdateIssues = job.UpdateIssues;
+			Acl = aclResponse;
 		}
 	}
 
@@ -406,16 +403,16 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Job">The job object</param>
-		/// <param name="JobResponse">The job response</param>
-		/// <param name="Steps">Timing info for each steps</param>
-		/// <param name="Labels">Timing info for each label</param>
-		public GetJobTimingResponse(IJob? Job, GetJobResponse? JobResponse, Dictionary<string, GetStepTimingInfoResponse> Steps, List<GetLabelTimingInfoResponse> Labels)
+		/// <param name="job">The job object</param>
+		/// <param name="jobResponse">The job response</param>
+		/// <param name="steps">Timing info for each steps</param>
+		/// <param name="labels">Timing info for each label</param>
+		public GetJobTimingResponse(IJob? job, GetJobResponse? jobResponse, Dictionary<string, GetStepTimingInfoResponse> steps, List<GetLabelTimingInfoResponse> labels)
 		{
-			this.Job = Job;
-			this.JobResponse = JobResponse;
-			this.Steps = Steps;
-			this.Labels = Labels;
+			Job = job;
+			JobResponse = jobResponse;
+			Steps = steps;
+			Labels = labels;
 		}
 	}
 	
@@ -432,10 +429,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Timings">Timing info for each job</param>
-		public FindJobTimingsResponse(Dictionary<string, GetJobTimingResponse> Timings)
+		/// <param name="timings">Timing info for each job</param>
+		public FindJobTimingsResponse(Dictionary<string, GetJobTimingResponse> timings)
 		{
-			this.Timings = Timings;
+			Timings = timings;
 		}
 	}
 
@@ -579,29 +576,29 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Step">The step to construct from</param>
-		/// <param name="AbortedByUserInfo">User that aborted this step</param>
-		/// <param name="RetriedByUserInfo">User that retried this step</param>
-		public GetStepResponse(IJobStep Step, GetThinUserInfoResponse? AbortedByUserInfo, GetThinUserInfoResponse? RetriedByUserInfo)
+		/// <param name="step">The step to construct from</param>
+		/// <param name="abortedByUserInfo">User that aborted this step</param>
+		/// <param name="retriedByUserInfo">User that retried this step</param>
+		public GetStepResponse(IJobStep step, GetThinUserInfoResponse? abortedByUserInfo, GetThinUserInfoResponse? retriedByUserInfo)
 		{
-			this.Id = Step.Id.ToString();
-			this.NodeIdx = Step.NodeIdx;
-			this.State = Step.State;
-			this.Outcome = Step.Outcome;
-			this.AbortRequested = Step.AbortRequested;
-			this.AbortByUser = AbortedByUserInfo?.Login;
-			this.AbortedByUserInfo = AbortedByUserInfo;
-			this.RetryByUser = RetriedByUserInfo?.Login;
-			this.RetriedByUserInfo = RetriedByUserInfo;
-			this.LogId = Step.LogId?.ToString();
-			this.ReadyTime = Step.ReadyTimeUtc;
-			this.StartTime = Step.StartTimeUtc;
-			this.FinishTime = Step.FinishTimeUtc;
-			this.Reports = Step.Reports?.ConvertAll(x => new GetReportResponse(x));
+			Id = step.Id.ToString();
+			NodeIdx = step.NodeIdx;
+			State = step.State;
+			Outcome = step.Outcome;
+			AbortRequested = step.AbortRequested;
+			AbortByUser = abortedByUserInfo?.Login;
+			AbortedByUserInfo = abortedByUserInfo;
+			RetryByUser = retriedByUserInfo?.Login;
+			RetriedByUserInfo = retriedByUserInfo;
+			LogId = step.LogId?.ToString();
+			ReadyTime = step.ReadyTimeUtc;
+			StartTime = step.StartTimeUtc;
+			FinishTime = step.FinishTimeUtc;
+			Reports = step.Reports?.ConvertAll(x => new GetReportResponse(x));
 
-			if (Step.Properties != null && Step.Properties.Count > 0)
+			if (step.Properties != null && step.Properties.Count > 0)
 			{
-				this.Properties = Step.Properties;
+				Properties = step.Properties;
 			}
 		}
 	}
@@ -794,25 +791,25 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Converts this batch into a public response object
 		/// </summary>
-		/// <param name="Batch">The batch to construct from</param>
-		/// <param name="Steps">Steps in this batch</param>
-		/// <param name="AgentRate">Rate for this agent</param>
+		/// <param name="batch">The batch to construct from</param>
+		/// <param name="steps">Steps in this batch</param>
+		/// <param name="agentRate">Rate for this agent</param>
 		/// <returns>Response instance</returns>
-		public GetBatchResponse(IJobStepBatch Batch, List<GetStepResponse> Steps, double? AgentRate)
+		public GetBatchResponse(IJobStepBatch batch, List<GetStepResponse> steps, double? agentRate)
 		{
-			this.Id = Batch.Id.ToString();
-			this.LogId = Batch.LogId?.ToString();
-			this.GroupIdx = Batch.GroupIdx;
-			this.State = Batch.State;
-			this.Error = Batch.Error;
-			this.Steps = Steps;
-			this.AgentId = Batch.AgentId?.ToString();
-			this.AgentRate = AgentRate;
-			this.SessionId = Batch.SessionId?.ToString();
-			this.LeaseId = Batch.LeaseId?.ToString();
-			this.WeightedPriority = Batch.SchedulePriority;
-			this.StartTime = Batch.StartTimeUtc;
-			this.FinishTime = Batch.FinishTimeUtc;
+			Id = batch.Id.ToString();
+			LogId = batch.LogId?.ToString();
+			GroupIdx = batch.GroupIdx;
+			State = batch.State;
+			Error = batch.Error;
+			Steps = steps;
+			AgentId = batch.AgentId?.ToString();
+			AgentRate = agentRate;
+			SessionId = batch.SessionId?.ToString();
+			LeaseId = batch.LeaseId?.ToString();
+			WeightedPriority = batch.SchedulePriority;
+			StartTime = batch.StartTimeUtc;
+			FinishTime = batch.FinishTimeUtc;
 		}
 	}
 
@@ -881,12 +878,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="State">State of the label</param>
-		/// <param name="Outcome">Outcome of the label</param>
-		public GetLabelStateResponse(LabelState State, LabelOutcome Outcome)
+		/// <param name="state">State of the label</param>
+		/// <param name="outcome">Outcome of the label</param>
+		public GetLabelStateResponse(LabelState state, LabelOutcome outcome)
 		{
-			this.State = State;
-			this.Outcome = Outcome;
+			State = state;
+			Outcome = outcome;
 		}
 	}
 
@@ -903,13 +900,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="State">State of the label</param>
-		/// <param name="Outcome">Outcome of the label</param>
-		/// <param name="Nodes">List of nodes that are covered by the default label</param>
-		public GetDefaultLabelStateResponse(LabelState State, LabelOutcome Outcome, List<string> Nodes)
-			: base(State, Outcome)
+		/// <param name="state">State of the label</param>
+		/// <param name="outcome">Outcome of the label</param>
+		/// <param name="nodes">List of nodes that are covered by the default label</param>
+		public GetDefaultLabelStateResponse(LabelState state, LabelOutcome outcome, List<string> nodes)
+			: base(state, outcome)
 		{
-			this.Nodes = Nodes;
+			Nodes = nodes;
 		}
 	}
 
@@ -951,16 +948,16 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="TimingInfo">Timing info to construct from</param>
-		public GetTimingInfoResponse(TimingInfo TimingInfo)
+		/// <param name="timingInfo">Timing info to construct from</param>
+		public GetTimingInfoResponse(TimingInfo timingInfo)
 		{
-			this.TotalWaitTime = (float?)TimingInfo.TotalWaitTime?.TotalSeconds;
-			this.TotalInitTime = (float?)TimingInfo.TotalInitTime?.TotalSeconds;
-			this.TotalTimeToComplete = (float?)TimingInfo.TotalTimeToComplete?.TotalSeconds;
+			TotalWaitTime = (float?)timingInfo.TotalWaitTime?.TotalSeconds;
+			TotalInitTime = (float?)timingInfo.TotalInitTime?.TotalSeconds;
+			TotalTimeToComplete = (float?)timingInfo.TotalTimeToComplete?.TotalSeconds;
 
-			this.AverageTotalWaitTime = (float?)TimingInfo.AverageTotalWaitTime?.TotalSeconds;
-			this.AverageTotalInitTime = (float?)TimingInfo.AverageTotalInitTime?.TotalSeconds;
-			this.AverageTotalTimeToComplete = (float?)TimingInfo.AverageTotalTimeToComplete?.TotalSeconds;
+			AverageTotalWaitTime = (float?)timingInfo.AverageTotalWaitTime?.TotalSeconds;
+			AverageTotalInitTime = (float?)timingInfo.AverageTotalInitTime?.TotalSeconds;
+			AverageTotalTimeToComplete = (float?)timingInfo.AverageTotalTimeToComplete?.TotalSeconds;
 		}
 	}
 
@@ -992,15 +989,15 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of the node</param>
-		/// <param name="JobTimingInfo">Timing info to construct from</param>
-		public GetStepTimingInfoResponse(string? Name, TimingInfo JobTimingInfo)
-			: base(JobTimingInfo)
+		/// <param name="name">Name of the node</param>
+		/// <param name="jobTimingInfo">Timing info to construct from</param>
+		public GetStepTimingInfoResponse(string? name, TimingInfo jobTimingInfo)
+			: base(jobTimingInfo)
 		{
-			this.Name = Name;
-			this.AverageStepWaitTime = JobTimingInfo.StepTiming?.AverageWaitTime;
-			this.AverageStepInitTime = JobTimingInfo.StepTiming?.AverageInitTime;
-			this.AverageStepDuration = JobTimingInfo.StepTiming?.AverageDuration;
+			Name = name;
+			AverageStepWaitTime = jobTimingInfo.StepTiming?.AverageWaitTime;
+			AverageStepInitTime = jobTimingInfo.StepTiming?.AverageInitTime;
+			AverageStepDuration = jobTimingInfo.StepTiming?.AverageDuration;
 		}
 	}
 
@@ -1044,15 +1041,15 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Label">The label to construct from</param>
-		/// <param name="TimingInfo">Timing info to construct from</param>
-		public GetLabelTimingInfoResponse(ILabel Label, TimingInfo TimingInfo)
-			: base(TimingInfo)
+		/// <param name="label">The label to construct from</param>
+		/// <param name="timingInfo">Timing info to construct from</param>
+		public GetLabelTimingInfoResponse(ILabel label, TimingInfo timingInfo)
+			: base(timingInfo)
 		{
-			this.DashboardName = Label.DashboardName;
-			this.DashboardCategory = Label.DashboardCategory;
-			this.UgsName = Label.UgsName;
-			this.UgsProject = Label.UgsProject;
+			DashboardName = label.DashboardName;
+			DashboardCategory = label.DashboardCategory;
+			UgsName = label.UgsName;
+			UgsProject = label.UgsProject;
 		}
 	}
 
@@ -1114,19 +1111,19 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="JobStepRef">The jobstep ref to construct from</param>
-		public GetJobStepRefResponse(IJobStepRef JobStepRef)
+		/// <param name="jobStepRef">The jobstep ref to construct from</param>
+		public GetJobStepRefResponse(IJobStepRef jobStepRef)
 		{
-			this.JobId = JobStepRef.Id.JobId.ToString();
-			this.BatchId = JobStepRef.Id.BatchId.ToString();
-			this.StepId = JobStepRef.Id.StepId.ToString();
-			this.Change = JobStepRef.Change;
-			this.LogId = JobStepRef.LogId.ToString();
-			this.PoolId = JobStepRef.PoolId?.ToString();
-			this.AgentId = JobStepRef.AgentId?.ToString();
-			this.Outcome = JobStepRef.Outcome;
-			this.StartTime = JobStepRef.StartTimeUtc;
-			this.FinishTime = JobStepRef.FinishTimeUtc;
+			JobId = jobStepRef.Id.JobId.ToString();
+			BatchId = jobStepRef.Id.BatchId.ToString();
+			StepId = jobStepRef.Id.StepId.ToString();
+			Change = jobStepRef.Change;
+			LogId = jobStepRef.LogId.ToString();
+			PoolId = jobStepRef.PoolId?.ToString();
+			AgentId = jobStepRef.AgentId?.ToString();
+			Outcome = jobStepRef.Outcome;
+			StartTime = jobStepRef.StartTimeUtc;
+			FinishTime = jobStepRef.FinishTimeUtc;
 		}
 	}
 }

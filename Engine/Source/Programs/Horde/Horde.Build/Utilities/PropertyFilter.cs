@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -23,137 +18,137 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Specific filters for properties of this object. A key of '*' will match any property not matched by anything else, and a value of null will include the whole object.
 		/// </summary>
-		Dictionary<string, PropertyFilter?> NameToFilter = new Dictionary<string, PropertyFilter?>(StringComparer.OrdinalIgnoreCase);
+		readonly Dictionary<string, PropertyFilter?> _nameToFilter = new Dictionary<string, PropertyFilter?>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Parse a list of fields as a property filter
 		/// </summary>
-		/// <param name="Fields">List of fields to parse, separated by commas</param>
+		/// <param name="fields">List of fields to parse, separated by commas</param>
 		/// <returns>New property filter</returns>
-		public static PropertyFilter Parse(string? Fields)
+		public static PropertyFilter Parse(string? fields)
 		{
-			PropertyFilter RootFilter = new PropertyFilter();
-			if(Fields != null)
+			PropertyFilter rootFilter = new PropertyFilter();
+			if(fields != null)
 			{
-				foreach (string Field in Fields.Split(','))
+				foreach (string field in fields.Split(','))
 				{
 					// Split the field name into segments
-					string[] Segments = Field.Split('.');
+					string[] segments = field.Split('.');
 
 					// Create the tree of segments
-					Dictionary<string, PropertyFilter?> NameToFilter = RootFilter.NameToFilter;
-					for (int Idx = 0; Idx < Segments.Length - 1; Idx++)
+					Dictionary<string, PropertyFilter?> nameToFilter = rootFilter._nameToFilter;
+					for (int idx = 0; idx < segments.Length - 1; idx++)
 					{
-						PropertyFilter? NextFilter;
-						if (!NameToFilter.TryGetValue(Segments[Idx], out NextFilter))
+						PropertyFilter? nextFilter;
+						if (!nameToFilter.TryGetValue(segments[idx], out nextFilter))
 						{
-							NextFilter = new PropertyFilter();
-							NameToFilter[Segments[Idx]] = NextFilter;
+							nextFilter = new PropertyFilter();
+							nameToFilter[segments[idx]] = nextFilter;
 						}
-						else if (NextFilter == null)
+						else if (nextFilter == null)
 						{
 							break;
 						}
-						NameToFilter = NextFilter.NameToFilter;
+						nameToFilter = nextFilter._nameToFilter;
 					}
-					NameToFilter[Segments[Segments.Length - 1]] = null;
+					nameToFilter[segments[^1]] = null;
 				}
 			}
-			return RootFilter;
+			return rootFilter;
 		}
 
 		/// <summary>
 		/// Checks whether the filter contains the given field
 		/// </summary>
-		/// <param name="Filter">The filter to check</param>
-		/// <param name="Field">Name of the field to check for</param>
+		/// <param name="filter">The filter to check</param>
+		/// <param name="field">Name of the field to check for</param>
 		/// <returns>True if the filter includes the given field</returns>
-		public static bool Includes(PropertyFilter? Filter, string Field)
+		public static bool Includes(PropertyFilter? filter, string field)
 		{
-			return Filter == null || Filter.Includes(Field);
+			return filter == null || filter.Includes(field);
 		}
 
 		/// <summary>
 		/// Attempts to apply a property filter to a response object, where the property filter may be null.
 		/// </summary>
-		/// <param name="Response">Response object</param>
-		/// <param name="Filter">The filter to apply</param>
+		/// <param name="response">Response object</param>
+		/// <param name="filter">The filter to apply</param>
 		/// <returns>Filtered object</returns>
-		public static object Apply(object Response, PropertyFilter? Filter)
+		public static object Apply(object response, PropertyFilter? filter)
 		{
-			return (Filter == null) ? Response : Filter.ApplyTo(Response);
+			return (filter == null) ? response : filter.ApplyTo(response);
 		}
 
 		/// <summary>
 		/// Checks whether the filter contains the given field
 		/// </summary>
-		/// <param name="Field">Name of the field to check for</param>
+		/// <param name="field">Name of the field to check for</param>
 		/// <returns>True if the filter includes the given field</returns>
-		public bool Includes(string Field)
+		public bool Includes(string field)
 		{
-			return NameToFilter.Count == 0 || NameToFilter.ContainsKey(Field) || NameToFilter.ContainsKey("*");
+			return _nameToFilter.Count == 0 || _nameToFilter.ContainsKey(field) || _nameToFilter.ContainsKey("*");
 		}
 
 		/// <summary>
 		/// Extract the given fields from the response
 		/// </summary>
-		/// <param name="Response">The response to filter</param>
+		/// <param name="response">The response to filter</param>
 		/// <returns>Filtered response</returns>
-		public object ApplyTo(object Response)
+		public object ApplyTo(object response)
 		{
 			// If there are no filters at this depth, return the whole object
-			if (NameToFilter.Count == 0)
+			if (_nameToFilter.Count == 0)
 			{
-				return Response;
+				return response;
 			}
 
 			// Check if this object is a list. If it is, we'll apply the filter to each element in the list.
-			IList? List = Response as IList;
-			if (List != null)
+			IList? list = response as IList;
+			if (list != null)
 			{
-				List<object?> NewResponse = new List<object?>();
-				for (int Index = 0; Index < List.Count; Index++)
+				List<object?> newResponse = new List<object?>();
+				for (int index = 0; index < list.Count; index++)
 				{
-					object? Value = List[Index];
-					if (Value == null)
+					object? value = list[index];
+					if (value == null)
 					{
-						NewResponse.Add(Value);
+						newResponse.Add(value);
 					}
 					else
 					{
-						NewResponse.Add(ApplyTo(Value));
+						newResponse.Add(ApplyTo(value));
 					}
 				}
-				return NewResponse;
+				return newResponse;
 			}
 			else
 			{
-				Dictionary<string, object?> NewResponse = new Dictionary<string, object?>(StringComparer.Ordinal);
+				Dictionary<string, object?> newResponse = new Dictionary<string, object?>(StringComparer.Ordinal);
 
 				// Check if this object is a dictionary.
-				IDictionary? Dictionary = Response as IDictionary;
-				if (Dictionary != null)
+				IDictionary? dictionary = response as IDictionary;
+				if (dictionary != null)
 				{
-					foreach (DictionaryEntry? Entry in Dictionary)
+					foreach (DictionaryEntry? entry in dictionary)
 					{
-						if (Entry.HasValue)
+						if (entry.HasValue)
 						{
-							string? Key = Entry.Value.Key.ToString();
-							if (Key != null)
+							string? key = entry.Value.Key.ToString();
+							if (key != null)
 							{
-								Key = ConvertPascalToCamelCase(Key);
+								key = ConvertPascalToCamelCase(key);
 
-								PropertyFilter? Filter;
-								if (NameToFilter.TryGetValue(Key, out Filter))
+								PropertyFilter? filter;
+								if (_nameToFilter.TryGetValue(key, out filter))
 								{
-									object? Value = Entry.Value.Value;
-									if (Filter == null)
+									object? value = entry.Value.Value;
+									if (filter == null)
 									{
-										NewResponse[Key] = Value;
+										newResponse[key] = value;
 									}
-									else if (Value != null)
+									else if (value != null)
 									{
-										NewResponse[Key] = Filter.ApplyTo(Value);
+										newResponse[key] = filter.ApplyTo(value);
 									}
 								}
 							}
@@ -163,42 +158,42 @@ namespace Horde.Build.Utilities
 				else
 				{
 					// Otherwise try to get the properties of this object
-					foreach (PropertyInfo Property in Response.GetType().GetProperties(BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance))
+					foreach (PropertyInfo property in response.GetType().GetProperties(BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance))
 					{
-						PropertyFilter? Filter;
-						if (NameToFilter.TryGetValue(Property.Name, out Filter))
+						PropertyFilter? filter;
+						if (_nameToFilter.TryGetValue(property.Name, out filter))
 						{
-							string Key = ConvertPascalToCamelCase(Property.Name);
-							object? Value = Property.GetValue(Response);
-							if (Filter == null)
+							string key = ConvertPascalToCamelCase(property.Name);
+							object? value = property.GetValue(response);
+							if (filter == null)
 							{
-								NewResponse[Key] = Value;
+								newResponse[key] = value;
 							}
-							else if (Value != null)
+							else if (value != null)
 							{
-								NewResponse[Key] = Filter.ApplyTo(Value);
+								newResponse[key] = filter.ApplyTo(value);
 							}
 						}
 					}
 				}
-				return NewResponse;
+				return newResponse;
 			}
 		}
 
 		/// <summary>
 		/// Convert a property name to camel case
 		/// </summary>
-		/// <param name="Name">The name to convert to camelCase</param>
+		/// <param name="name">The name to convert to camelCase</param>
 		/// <returns>Camelcase version of the name</returns>
-		static string ConvertPascalToCamelCase(string Name)
+		static string ConvertPascalToCamelCase(string name)
 		{
-			if (Name[0] >= 'A' && Name[0] <= 'Z')
+			if (name[0] >= 'A' && name[0] <= 'Z')
 			{
-				return (char)(Name[0] - 'A' + 'a') + Name.Substring(1);
+				return (char)(name[0] - 'A' + 'a') + name.Substring(1);
 			}
 			else
 			{
-				return Name;
+				return name;
 			}
 		}
 	}
@@ -209,15 +204,15 @@ namespace Horde.Build.Utilities
 	public class PropertyFilterTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
 		{
-			return SourceType == typeof(string);
+			return sourceType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
 		{
-			return PropertyFilter.Parse((string)Value);
+			return PropertyFilter.Parse((string)value);
 		}
 	}
 
@@ -229,18 +224,18 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Apply a filter to a response object
 		/// </summary>
-		/// <param name="Obj">The object to filter</param>
-		/// <param name="Filter">The filter to apply</param>
+		/// <param name="obj">The object to filter</param>
+		/// <param name="filter">The filter to apply</param>
 		/// <returns>The filtered object</returns>
-		public static object ApplyFilter(this object Obj, PropertyFilter? Filter)
+		public static object ApplyFilter(this object obj, PropertyFilter? filter)
 		{
-			if (Filter == null)
+			if (filter == null)
 			{
-				return Obj;
+				return obj;
 			}
 			else
 			{
-				return Filter.ApplyTo(Obj);
+				return filter.ApplyTo(obj);
 			}
 		}
 	}

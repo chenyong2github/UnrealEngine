@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using StatsdClient;
-using Microsoft.Extensions.Hosting;
 using HordeCommon;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using StatsdClient;
 
 namespace Horde.Build.Services
 {
@@ -16,33 +15,33 @@ namespace Horde.Build.Services
 	/// </summary>
 	public sealed class MetricService : IHostedService, IDisposable
 	{
-		IDogStatsd DogStatsd;
-		ITicker Ticker;
+		readonly IDogStatsd _dogStatsd;
+		readonly ITicker _ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public MetricService(IDogStatsd DogStatsd, IClock Clock, ILogger<MetricService> Logger)
+		public MetricService(IDogStatsd dogStatsd, IClock clock, ILogger<MetricService> logger)
 		{
-			this.DogStatsd = DogStatsd;
-			this.Ticker = Clock.AddTicker(TimeSpan.FromSeconds(20.0), TickAsync, Logger);
+			_dogStatsd = dogStatsd;
+			_ticker = clock.AddTicker<MetricService>(TimeSpan.FromSeconds(20.0), TickAsync, logger);
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
 
 		/// <inheritdoc/>
-		public void Dispose() => Ticker.Dispose();
+		public void Dispose() => _ticker.Dispose();
 
 		/// <summary>
 		/// Execute the background task
 		/// </summary>
-		/// <param name="StoppingToken">Cancellation token for the async task</param>
+		/// <param name="stoppingToken">Cancellation token for the async task</param>
 		/// <returns>Async task</returns>
-		ValueTask TickAsync(CancellationToken StoppingToken)
+		ValueTask TickAsync(CancellationToken stoppingToken)
 		{
 			ReportGcMetrics();
 			ReportThreadMetrics();
@@ -51,35 +50,35 @@ namespace Horde.Build.Services
 
 		private void ReportThreadMetrics()
 		{
-			ThreadPool.GetMaxThreads(out int MaxWorkerThreads, out int MaxIoThreads);
-			ThreadPool.GetAvailableThreads(out int FreeWorkerThreads, out int FreeIoThreads);
-			ThreadPool.GetMinThreads(out int MinWorkerThreads, out int MinIoThreads);
+			ThreadPool.GetMaxThreads(out int maxWorkerThreads, out int maxIoThreads);
+			ThreadPool.GetAvailableThreads(out int freeWorkerThreads, out int freeIoThreads);
+			ThreadPool.GetMinThreads(out int minWorkerThreads, out int minIoThreads);
 
-			int BusyIoThreads = MaxIoThreads - FreeIoThreads;
-			int BusyWorkerThreads = MaxWorkerThreads - FreeWorkerThreads;
+			int busyIoThreads = maxIoThreads - freeIoThreads;
+			int busyWorkerThreads = maxWorkerThreads - freeWorkerThreads;
 			
-			DogStatsd.Gauge("horde.clr.threadpool.io.max", MaxIoThreads);
-			DogStatsd.Gauge("horde.clr.threadpool.io.min", MinIoThreads);
-			DogStatsd.Gauge("horde.clr.threadpool.io.free", FreeIoThreads);
-			DogStatsd.Gauge("horde.clr.threadpool.io.busy", BusyIoThreads);
+			_dogStatsd.Gauge("horde.clr.threadpool.io.max", maxIoThreads);
+			_dogStatsd.Gauge("horde.clr.threadpool.io.min", minIoThreads);
+			_dogStatsd.Gauge("horde.clr.threadpool.io.free", freeIoThreads);
+			_dogStatsd.Gauge("horde.clr.threadpool.io.busy", busyIoThreads);
 			
-			DogStatsd.Gauge("horde.clr.threadpool.worker.max", MaxWorkerThreads);
-			DogStatsd.Gauge("horde.clr.threadpool.worker.min", MinWorkerThreads);
-			DogStatsd.Gauge("horde.clr.threadpool.worker.free", FreeWorkerThreads);
-			DogStatsd.Gauge("horde.clr.threadpool.worker.busy", BusyWorkerThreads);
+			_dogStatsd.Gauge("horde.clr.threadpool.worker.max", maxWorkerThreads);
+			_dogStatsd.Gauge("horde.clr.threadpool.worker.min", minWorkerThreads);
+			_dogStatsd.Gauge("horde.clr.threadpool.worker.free", freeWorkerThreads);
+			_dogStatsd.Gauge("horde.clr.threadpool.worker.busy", busyWorkerThreads);
 		}
 
 		private void ReportGcMetrics()
 		{
-			GCMemoryInfo GcMemoryInfo = GC.GetGCMemoryInfo();
+			GCMemoryInfo gcMemoryInfo = GC.GetGCMemoryInfo();
 
-			DogStatsd.Gauge("horde.clr.gc.totalMemory", GC.GetTotalMemory(false));
-			DogStatsd.Gauge("horde.clr.gc.totalAllocated", GC.GetTotalAllocatedBytes());
-			DogStatsd.Gauge("horde.clr.gc.heapSize", GcMemoryInfo.HeapSizeBytes);
-			DogStatsd.Gauge("horde.clr.gc.fragmented", GcMemoryInfo.FragmentedBytes);
-			DogStatsd.Gauge("horde.clr.gc.memoryLoad", GcMemoryInfo.MemoryLoadBytes);
-			DogStatsd.Gauge("horde.clr.gc.totalAvailableMemory", GcMemoryInfo.TotalAvailableMemoryBytes);
-			DogStatsd.Gauge("horde.clr.gc.highMemoryLoadThreshold", GcMemoryInfo.HighMemoryLoadThresholdBytes);
+			_dogStatsd.Gauge("horde.clr.gc.totalMemory", GC.GetTotalMemory(false));
+			_dogStatsd.Gauge("horde.clr.gc.totalAllocated", GC.GetTotalAllocatedBytes());
+			_dogStatsd.Gauge("horde.clr.gc.heapSize", gcMemoryInfo.HeapSizeBytes);
+			_dogStatsd.Gauge("horde.clr.gc.fragmented", gcMemoryInfo.FragmentedBytes);
+			_dogStatsd.Gauge("horde.clr.gc.memoryLoad", gcMemoryInfo.MemoryLoadBytes);
+			_dogStatsd.Gauge("horde.clr.gc.totalAvailableMemory", gcMemoryInfo.TotalAvailableMemoryBytes);
+			_dogStatsd.Gauge("horde.clr.gc.highMemoryLoadThreshold", gcMemoryInfo.HighMemoryLoadThresholdBytes);
 		}
 	}
 }

@@ -1,20 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Bundles;
 using EpicGames.Horde.Bundles.Nodes;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Impl;
-using EpicGames.Serialization;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Commands.Bundles
 {
@@ -33,13 +25,13 @@ namespace Horde.Build.Commands.Bundles
 		[CommandLine("-OutputDir=", Required = true)]
 		public DirectoryReference OutputDir { get; set; } = null!;
 
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IStorageClient StorageClient = CreateStorageClient(Logger);
-			using (IMemoryCache Cache = new MemoryCache(new MemoryCacheOptions()))
+			IStorageClient storageClient = CreateStorageClient(logger);
+			using (IMemoryCache cache = new MemoryCache(new MemoryCacheOptions()))
 			{
-				using Bundle<DirectoryNode> NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, new BundleOptions(), Cache);
-				await NewBundle.Root.CopyToDirectoryAsync(NewBundle, OutputDir.ToDirectoryInfo(), Logger);
+				using Bundle<DirectoryNode> newBundle = await Bundle.ReadAsync<DirectoryNode>(storageClient, NamespaceId, BucketId, RefId, new BundleOptions(), cache);
+				await newBundle.Root.CopyToDirectoryAsync(newBundle, OutputDir.ToDirectoryInfo(), logger);
 			}
 			return 0;
 		}

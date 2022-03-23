@@ -2,24 +2,24 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using HordeCommon;
+using Horde.Build.Api;
+using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
-using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
-using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
-using Horde.Build.Api;
-using System.Linq;
-using Horde.Build.Collections;
-using Horde.Build.Utilities;
 
 namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
+	using ProjectId = StringId<IProject>;
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
 
 	[TestClass]
     public class SchedulerTests : TestSetup
@@ -126,7 +126,7 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			Schedule schedule = new Schedule(Clock.UtcNow, RequireSubmittedChange: false);
+			Schedule schedule = new Schedule(Clock.UtcNow, requireSubmittedChange: false);
 			schedule.Patterns.Add(new SchedulePattern(new List<DayOfWeek> { DayOfWeek.Friday, DayOfWeek.Sunday }, 13 * 60, null, null));
 
 			DateTime? nextTime = schedule.GetNextTriggerTimeUtc(startTime, TimeZoneInfo.Utc);
@@ -148,7 +148,7 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			Schedule schedule = new Schedule(Clock.UtcNow, RequireSubmittedChange: false);
+			Schedule schedule = new Schedule(Clock.UtcNow, requireSubmittedChange: false);
 			schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
 
 			DateTime? nextTime = schedule.GetNextTriggerTimeUtc(startTime, TimeZoneInfo.Utc);
@@ -176,7 +176,7 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			Schedule schedule = new Schedule(Clock.UtcNow, RequireSubmittedChange: false);
+			Schedule schedule = new Schedule(Clock.UtcNow, requireSubmittedChange: false);
 			schedule.Patterns.Add(new SchedulePattern(null, 11 * 60, 0, 0));
 			schedule.Patterns.Add(new SchedulePattern(null, 19 * 60, 0, 0));
 
@@ -358,7 +358,7 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(0, jobs3.Count);
 
 			// Mark the original job as complete
-			await JobService.UpdateJobAsync(jobs2[0], AbortedByUserId: KnownUsers.System);
+			await JobService.UpdateJobAsync(jobs2[0], abortedByUserId: KnownUsers.System);
 
 			// Test that another job does not trigger
 			await Clock.AdvanceAsync(TimeSpan.FromHours(0.5));
@@ -530,7 +530,7 @@ namespace Horde.Build.Tests
 					for (int stepIdx = 0; stepIdx < job1.Batches[batchIdx].Steps.Count; stepIdx++)
 					{
 						SubResourceId stepId1 = job1.Batches[batchIdx].Steps[stepIdx].Id;
-						job1 = Deref(await JobService.UpdateStepAsync(job1, batchId1, stepId1, JobStepState.Completed, JobStepOutcome.Success, NewLogId: LogId.GenerateNewId()));
+						job1 = Deref(await JobService.UpdateStepAsync(job1, batchId1, stepId1, JobStepState.Completed, JobStepOutcome.Success, newLogId: LogId.GenerateNewId()));
 					}
 					job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, LogId.GenerateNewId(), JobStepBatchState.Complete));
 				}
@@ -595,7 +595,7 @@ namespace Horde.Build.Tests
 			IStream stream = await SetScheduleAsync(schedule);
 
 			IStreamCollection streamCollection = ServiceProvider.GetRequiredService<IStreamCollection>();
-			await streamCollection.TryUpdatePauseStateAsync(stream, NewPausedUntil: startTime.AddHours(5), NewPauseComment: "testing");
+			await streamCollection.TryUpdatePauseStateAsync(stream, newPausedUntil: startTime.AddHours(5), newPauseComment: "testing");
 
 			// Try trigger a job. No job should be scheduled as the stream is paused
 			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));

@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -18,40 +14,40 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// The current value
 		/// </summary>
-		T? Value;
+		T? _value;
 
 		/// <summary>
 		/// Generator for the new value
 		/// </summary>
-		Func<T> Generator;
+		readonly Func<T> _generator;
 
 		/// <summary>
 		/// Time since the value was updated
 		/// </summary>
-		Stopwatch Timer = Stopwatch.StartNew();
+		readonly Stopwatch _timer = Stopwatch.StartNew();
 
 		/// <summary>
 		/// Default expiry time
 		/// </summary>
-		TimeSpan DefaultMaxAge;
+		readonly TimeSpan _defaultMaxAge;
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public LazyCachedValue(Func<T> Generator, TimeSpan MaxAge)
+		public LazyCachedValue(Func<T> generator, TimeSpan maxAge)
 		{
-			this.Generator = Generator;
-			this.DefaultMaxAge = MaxAge;
+			_generator = generator;
+			_defaultMaxAge = maxAge;
 		}
 
 		/// <summary>
 		/// Sets the new value
 		/// </summary>
-		/// <param name="Value">The value to store</param>
-		public void Set(T Value)
+		/// <param name="value">The value to store</param>
+		public void Set(T value)
 		{
-			this.Value = Value;
-			Timer.Restart();
+			_value = value;
+			_timer.Restart();
 		}
 
 		/// <summary>
@@ -60,22 +56,22 @@ namespace Horde.Build.Utilities
 		/// <returns>The cached value, if valid</returns>
 		public T GetCached()
 		{
-			return GetCached(DefaultMaxAge);
+			return GetCached(_defaultMaxAge);
 		}
 
 		/// <summary>
 		/// Tries to get the current value
 		/// </summary>
 		/// <returns>The cached value, if valid</returns>
-		public T GetCached(TimeSpan MaxAge)
+		public T GetCached(TimeSpan maxAge)
 		{
-			T? Current = Value;
-			if (Current == null || Timer.Elapsed > MaxAge)
+			T? current = _value;
+			if (current == null || _timer.Elapsed > maxAge)
 			{
-				Current = Generator();
-				Set(Current);
+				current = _generator();
+				Set(current);
 			}
-			return Current;
+			return current;
 		}
 
 		/// <summary>
@@ -84,9 +80,9 @@ namespace Horde.Build.Utilities
 		/// <returns>The latest value</returns>
 		public T GetLatest()
 		{
-			T NewValue = Generator();
-			Set(NewValue);
-			return NewValue;
+			T newValue = _generator();
+			Set(newValue);
+			return newValue;
 		}
 	}
 }

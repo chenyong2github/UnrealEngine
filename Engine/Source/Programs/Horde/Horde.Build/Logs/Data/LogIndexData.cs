@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Utilities;
-using OpenTracing;
-using OpenTracing.Util;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Utilities;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace Horde.Build.Logs
 {
@@ -42,16 +39,16 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="LineIndex">Index of the first line within this block</param>
-		/// <param name="LineCount">Number of lines in the block</param>
-		/// <param name="CachedPlainText">The decompressed plain text</param>
-		/// <param name="CompressedPlainText">The compressed text data</param>
-		public LogIndexBlock(int LineIndex, int LineCount, ILogText? CachedPlainText, ReadOnlyMemory<byte> CompressedPlainText)
+		/// <param name="lineIndex">Index of the first line within this block</param>
+		/// <param name="lineCount">Number of lines in the block</param>
+		/// <param name="cachedPlainText">The decompressed plain text</param>
+		/// <param name="compressedPlainText">The compressed text data</param>
+		public LogIndexBlock(int lineIndex, int lineCount, ILogText? cachedPlainText, ReadOnlyMemory<byte> compressedPlainText)
 		{
-			this.LineIndex = LineIndex;
-			this.LineCount = LineCount;
-			this.CachedPlainText = CachedPlainText;
-			this.CompressedPlainText = CompressedPlainText;
+			LineIndex = lineIndex;
+			LineCount = lineCount;
+			CachedPlainText = cachedPlainText;
+			CompressedPlainText = compressedPlainText;
 		}
 
 		/// <summary>
@@ -75,35 +72,35 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Deserialize an index block
 		/// </summary>
-		/// <param name="Reader">Reader to deserialize from</param>
+		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>The new index block</returns>
-		public static LogIndexBlock ReadLogIndexBlock(this MemoryReader Reader)
+		public static LogIndexBlock ReadLogIndexBlock(this MemoryReader reader)
 		{
-			int LineIndex = Reader.ReadInt32();
-			int LineCount = Reader.ReadInt32();
-			ReadOnlyMemory<byte> CompressedPlainText = Reader.ReadVariableLengthBytes();
-			return new LogIndexBlock(LineIndex, LineCount, null, CompressedPlainText);
+			int lineIndex = reader.ReadInt32();
+			int lineCount = reader.ReadInt32();
+			ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytes();
+			return new LogIndexBlock(lineIndex, lineCount, null, compressedPlainText);
 		}
 
 		/// <summary>
 		/// Serialize an index block
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Block">The block to serialize</param>
-		public static void WriteLogIndexBlock(this MemoryWriter Writer, LogIndexBlock Block)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="block">The block to serialize</param>
+		public static void WriteLogIndexBlock(this MemoryWriter writer, LogIndexBlock block)
 		{
-			Writer.WriteInt32(Block.LineIndex);
-			Writer.WriteInt32(Block.LineCount);
-			Writer.WriteVariableLengthBytes(Block.CompressedPlainText.Span);
+			writer.WriteInt32(block.LineIndex);
+			writer.WriteInt32(block.LineCount);
+			writer.WriteVariableLengthBytes(block.CompressedPlainText.Span);
 		}
 
 		/// <summary>
 		/// Gets the serialized size of a block
 		/// </summary>
-		/// <param name="Block">The block to serialize</param>
-		public static int GetSerializedSize(this LogIndexBlock Block)
+		/// <param name="block">The block to serialize</param>
+		public static int GetSerializedSize(this LogIndexBlock block)
 		{
-			return sizeof(int) + sizeof(int) + (sizeof(int) + Block.CompressedPlainText.Length);
+			return sizeof(int) + sizeof(int) + (sizeof(int) + block.CompressedPlainText.Length);
 		}
 	}
 
@@ -146,17 +143,17 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Index for tokens into the block list
 		/// </summary>
-		ReadOnlyTrie? CachedTrie;
+		ReadOnlyTrie? _cachedTrie;
 
 		/// <summary>
 		/// Number of bits in the index devoted to the block index
 		/// </summary>
-		int NumBlockBits;
+		readonly int _numBlockBits;
 
 		/// <summary>
 		/// List of text blocks
 		/// </summary>
-		LogIndexBlock[] Blocks;
+		readonly LogIndexBlock[] _blocks;
 
 		/// <summary>
 		/// Empty index data
@@ -166,32 +163,32 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Number of lines covered by the index
 		/// </summary>
-		public int LineCount => (Blocks.Length > 0) ? (Blocks[Blocks.Length - 1].LineIndex + Blocks[Blocks.Length - 1].LineCount) : 0;
+		public int LineCount => (_blocks.Length > 0) ? (_blocks[^1].LineIndex + _blocks[^1].LineCount) : 0;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="CachedTrie">Index into the text blocks</param>
-		/// <param name="NumBlockBits">Number of bits devoted to the block index</param>
-		/// <param name="Blocks">Bloom filters for this log file</param>
-		public LogIndexData(ReadOnlyTrie? CachedTrie, int NumBlockBits, LogIndexBlock[] Blocks)
+		/// <param name="cachedTrie">Index into the text blocks</param>
+		/// <param name="numBlockBits">Number of bits devoted to the block index</param>
+		/// <param name="blocks">Bloom filters for this log file</param>
+		public LogIndexData(ReadOnlyTrie? cachedTrie, int numBlockBits, LogIndexBlock[] blocks)
 		{
-			this.CachedTrie = CachedTrie;
-			this.NumBlockBits = NumBlockBits;
-			this.Blocks = Blocks;
+			_cachedTrie = cachedTrie;
+			_numBlockBits = numBlockBits;
+			_blocks = blocks;
 		}
 
 		/// <summary>
 		/// Updates the blocks in this index relative to a give line index
 		/// </summary>
-		/// <param name="LineIndex"></param>
-		public void SetBaseLineIndex(int LineIndex)
+		/// <param name="lineIndex"></param>
+		public void SetBaseLineIndex(int lineIndex)
 		{
-			for(int BlockIdx = 0; BlockIdx < Blocks.Length; BlockIdx++)
+			for(int blockIdx = 0; blockIdx < _blocks.Length; blockIdx++)
 			{
-				LogIndexBlock Block = Blocks[BlockIdx];
-				Blocks[BlockIdx] = new LogIndexBlock(LineIndex, Block.LineCount, Block.CachedPlainText, Block.CompressedPlainText);
-				LineIndex += Block.LineCount;
+				LogIndexBlock block = _blocks[blockIdx];
+				_blocks[blockIdx] = new LogIndexBlock(lineIndex, block.LineCount, block.CachedPlainText, block.CompressedPlainText);
+				lineIndex += block.LineCount;
 			}
 		}
 
@@ -201,185 +198,185 @@ namespace Horde.Build.Logs
 		/// <returns>The trie for this data</returns>
 		ReadOnlyTrie BuildTrie()
 		{
-			if(CachedTrie == null)
+			if(_cachedTrie == null)
 			{
-				ReadOnlyTrieBuilder Builder = new ReadOnlyTrieBuilder();
-				for (int BlockIdx = 0; BlockIdx < Blocks.Length; BlockIdx++)
+				ReadOnlyTrieBuilder builder = new ReadOnlyTrieBuilder();
+				for (int blockIdx = 0; blockIdx < _blocks.Length; blockIdx++)
 				{
-					LogIndexBlock Block = Blocks[BlockIdx];
-					LogToken.GetTokens(Block.InflatePlainText().Data.Span, Token => Builder.Add((Token << NumBlockBits) | (uint)BlockIdx));
+					LogIndexBlock block = _blocks[blockIdx];
+					LogToken.GetTokens(block.InflatePlainText().Data.Span, token => builder.Add((token << _numBlockBits) | (uint)blockIdx));
 				}
-				CachedTrie = Builder.Build();
+				_cachedTrie = builder.Build();
 			}
-			return CachedTrie;
+			return _cachedTrie;
 		}
 
 		/// <summary>
 		/// Create an index from an array of blocks
 		/// </summary>
-		/// <param name="Indexes">List of indexes to merge</param>
+		/// <param name="indexes">List of indexes to merge</param>
 		/// <returns>Index data</returns>
-		public static LogIndexData Merge(IEnumerable<LogIndexData> Indexes)
+		public static LogIndexData Merge(IEnumerable<LogIndexData> indexes)
 		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("LogIndexData.Merge").StartActive();
+			using IScope scope = GlobalTracer.Instance.BuildSpan("LogIndexData.Merge").StartActive();
 
 			// Create the combined block list
-			LogIndexBlock[] NewBlocks = Indexes.SelectMany(x => x.Blocks).ToArray();
+			LogIndexBlock[] newBlocks = indexes.SelectMany(x => x._blocks).ToArray();
 
 			// Figure out how many bits to devote to the block size
-			int NewNumBlockBits = 0;
-			while(NewBlocks.Length > (1 << NewNumBlockBits))
+			int newNumBlockBits = 0;
+			while(newBlocks.Length > (1 << newNumBlockBits))
 			{
-				NewNumBlockBits += 4;
+				newNumBlockBits += 4;
 			}
 
 			// Add all the blocks into a combined index
-			ReadOnlyTrieBuilder NewTrieBuilder = new ReadOnlyTrieBuilder();
+			ReadOnlyTrieBuilder newTrieBuilder = new ReadOnlyTrieBuilder();
 
-			int BlockCount = 0;
-			foreach(LogIndexData Index in Indexes)
+			int blockCount = 0;
+			foreach(LogIndexData index in indexes)
 			{
-				ulong BlockMask = ((1UL << Index.NumBlockBits) - 1);
-				foreach (ulong Value in Index.BuildTrie())
+				ulong blockMask = ((1UL << index._numBlockBits) - 1);
+				foreach (ulong value in index.BuildTrie())
 				{
-					ulong Token = Value >> Index.NumBlockBits;
-					int BlockIdx = (int)(Value & BlockMask);
+					ulong token = value >> index._numBlockBits;
+					int blockIdx = (int)(value & blockMask);
 
-					ulong NewToken = (Token << NewNumBlockBits) | (ulong)(long)(BlockCount + BlockIdx);
-					NewTrieBuilder.Add(NewToken);
+					ulong newToken = (token << newNumBlockBits) | (ulong)(long)(blockCount + blockIdx);
+					newTrieBuilder.Add(newToken);
 				}
-				BlockCount += Index.Blocks.Length;
+				blockCount += index._blocks.Length;
 			}
 
 			// Construct the new index data
-			ReadOnlyTrie NewTrie = NewTrieBuilder.Build();
-			return new LogIndexData(NewTrie, NewNumBlockBits, NewBlocks);
+			ReadOnlyTrie newTrie = newTrieBuilder.Build();
+			return new LogIndexData(newTrie, newNumBlockBits, newBlocks);
 		}
 
 		/// <summary>
 		/// Search for the given text in the index
 		/// </summary>
-		/// <param name="FirstLineIndex">First line index to search from</param>
-		/// <param name="Text">Text to search for</param>
-		/// <param name="Stats">Receives stats for the search</param>
+		/// <param name="firstLineIndex">First line index to search from</param>
+		/// <param name="text">Text to search for</param>
+		/// <param name="stats">Receives stats for the search</param>
 		/// <returns>List of line numbers for the text</returns>
-		public IEnumerable<int> Search(int FirstLineIndex, SearchText Text, LogSearchStats Stats)
+		public IEnumerable<int> Search(int firstLineIndex, SearchText text, LogSearchStats stats)
 		{
-			int LastBlockCount = 0;
-			foreach (int BlockIdx in EnumeratePossibleBlocks(Text.Bytes, FirstLineIndex))
+			int lastBlockCount = 0;
+			foreach (int blockIdx in EnumeratePossibleBlocks(text.Bytes, firstLineIndex))
 			{
-				LogIndexBlock Block = Blocks[BlockIdx];
+				LogIndexBlock block = _blocks[blockIdx];
 
-				Stats.NumScannedBlocks++;
-				Stats.NumDecompressedBlocks += (Block.CachedPlainText == null)? 1 : 0;
+				stats.NumScannedBlocks++;
+				stats.NumDecompressedBlocks += (block.CachedPlainText == null)? 1 : 0;
 
-				Stats.NumSkippedBlocks += BlockIdx - LastBlockCount;
-				LastBlockCount = BlockIdx + 1;
+				stats.NumSkippedBlocks += blockIdx - lastBlockCount;
+				lastBlockCount = blockIdx + 1;
 
 				// Decompress the text
-				ILogText BlockText = Block.InflatePlainText();
+				ILogText blockText = block.InflatePlainText();
 
 				// Find the initial offset within this block
-				int Offset = 0;
-				if(FirstLineIndex > Block.LineIndex)
+				int offset = 0;
+				if(firstLineIndex > block.LineIndex)
 				{
-					int LineIndexWithinBlock = FirstLineIndex - Block.LineIndex;
-					Offset = BlockText.LineOffsets[LineIndexWithinBlock];
+					int lineIndexWithinBlock = firstLineIndex - block.LineIndex;
+					offset = blockText.LineOffsets[lineIndexWithinBlock];
 				}
 
 				// Search within this block
 				for(; ;)
 				{
 					// Find the next offset
-					int NextOffset = BlockText.Data.Span.FindNextOcurrence(Offset, Text);
-					if(NextOffset == -1)
+					int nextOffset = blockText.Data.Span.FindNextOcurrence(offset, text);
+					if(nextOffset == -1)
 					{
-						Stats.NumScannedBytes += BlockText.Length - Offset;
+						stats.NumScannedBytes += blockText.Length - offset;
 						break;
 					}
 
 					// Update the stats
-					Stats.NumScannedBytes += NextOffset - Offset;
-					Offset = NextOffset;
+					stats.NumScannedBytes += nextOffset - offset;
+					offset = nextOffset;
 
 					// Check it's not another match within the same line
-					int LineIndexWithinBlock = BlockText.GetLineIndexForOffset(Offset);
-					yield return Block.LineIndex + LineIndexWithinBlock;
+					int lineIndexWithinBlock = blockText.GetLineIndexForOffset(offset);
+					yield return block.LineIndex + lineIndexWithinBlock;
 
 					// Move to the next line
-					Offset = BlockText.LineOffsets[LineIndexWithinBlock + 1];
+					offset = blockText.LineOffsets[lineIndexWithinBlock + 1];
 				}
 
 				// If the last scanned bytes is zero, we didn't have any matches from this chunk
-				if(Offset == 0 && CachedTrie != null)
+				if(offset == 0 && _cachedTrie != null)
 				{
-					Stats.NumFalsePositiveBlocks++;
+					stats.NumFalsePositiveBlocks++;
 				}
 			}
-			Stats.NumSkippedBlocks += Blocks.Length - LastBlockCount;
+			stats.NumSkippedBlocks += _blocks.Length - lastBlockCount;
 		}
 
 		/// <summary>
 		/// Search for the given text in the index
 		/// </summary>
-		/// <param name="Text">Text to search for</param>
-		/// <param name="LineIndex">The first </param>
+		/// <param name="text">Text to search for</param>
+		/// <param name="lineIndex">The first </param>
 		/// <returns>List of line numbers for the text</returns>
-		IEnumerable<int> EnumeratePossibleBlocks(ReadOnlyMemory<byte> Text, int LineIndex)
+		IEnumerable<int> EnumeratePossibleBlocks(ReadOnlyMemory<byte> text, int lineIndex)
 		{
 			// Find the starting block index
-			int BlockIdx = Blocks.BinarySearch(x => x.LineIndex, LineIndex);
-			if(BlockIdx < 0)
+			int blockIdx = _blocks.BinarySearch(x => x.LineIndex, lineIndex);
+			if(blockIdx < 0)
 			{
-				BlockIdx = Math.Max(~BlockIdx - 1, 0);
+				blockIdx = Math.Max(~blockIdx - 1, 0);
 			}
 
 			// Make sure we're not starting out of range
-			if (BlockIdx < Blocks.Length)
+			if (blockIdx < _blocks.Length)
 			{
 				// In order to be considered a possible block for a positive match, the block must contain an exact list of tokens parsed from the
 				// search text, along with a set of partial matches (for substrings that are not guaranteed to start on token boundaries). The former
 				// is relatively cheap to compute, and done by stepping through all enumerators for each token in a wave, only returning blocks
 				// which all contain the token. At the very least, this must contain blocks in the index from BlockIdx onwards.
-				List<IEnumerator<int>> Enumerators = new List<IEnumerator<int>>();
-				Enumerators.Add(Enumerable.Range(BlockIdx, Blocks.Length - BlockIdx).GetEnumerator());
+				List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>();
+				enumerators.Add(Enumerable.Range(blockIdx, _blocks.Length - blockIdx).GetEnumerator());
 
 				// The second aspect of the search requires a more expensive search through the trie. This is done by running a set of arbitrary 
 				// delegates to filter the matches returned from the enumerators.
-				List<Predicate<int>> Predicates = new List<Predicate<int>>();
+				List<Predicate<int>> predicates = new List<Predicate<int>>();
 
 				// If the index has a trie, tokenize the input and generate a list of enumerators and predicates.
-				if (CachedTrie != null)
+				if (_cachedTrie != null)
 				{
 					// Find a list of filters for matching blocks
-					HashSet<ulong> Tokens = new HashSet<ulong>();
-					for (int TokenPos = 0; TokenPos < Text.Length;)
+					HashSet<ulong> tokens = new HashSet<ulong>();
+					for (int tokenPos = 0; tokenPos < text.Length;)
 					{
-						ReadOnlySpan<byte> Token = LogToken.GetTokenText(Text.Span, TokenPos);
-						if (TokenPos == 0)
+						ReadOnlySpan<byte> token = LogToken.GetTokenText(text.Span, tokenPos);
+						if (tokenPos == 0)
 						{
-							GetUnalignedTokenPredicate(Token, Token.Length == Text.Length, Predicates);
+							GetUnalignedTokenPredicate(token, token.Length == text.Length, predicates);
 						}
 						else
 						{
-							GetAlignedTokenPredicate(Token, TokenPos + Token.Length == Text.Length, Tokens, Predicates);
+							GetAlignedTokenPredicate(token, tokenPos + token.Length == text.Length, tokens, predicates);
 						}
-						TokenPos += Token.Length;
+						tokenPos += token.Length;
 					}
 
 					// Create an enumerator for each token
-					foreach (ulong Token in Tokens)
+					foreach (ulong token in tokens)
 					{
-						ulong MinValue = (Token << NumBlockBits) | (ulong)(long)BlockIdx;
-						ulong MaxValue = MinValue + (1UL << NumBlockBits) - 1;
+						ulong minValue = (token << _numBlockBits) | (ulong)(long)blockIdx;
+						ulong maxValue = minValue + (1UL << _numBlockBits) - 1;
 
-						IEnumerator<int> Enumerator = CachedTrie.EnumerateRange(MinValue, MaxValue).Select(x => (int)(x - MinValue)).GetEnumerator();
-						if (!Enumerator.MoveNext())
+						IEnumerator<int> enumerator = _cachedTrie.EnumerateRange(minValue, maxValue).Select(x => (int)(x - minValue)).GetEnumerator();
+						if (!enumerator.MoveNext())
 						{
 							yield break;
 						}
 
-						Enumerators.Add(Enumerator);
+						enumerators.Add(enumerator);
 					}
 				}
 
@@ -388,19 +385,19 @@ namespace Horde.Build.Logs
 				{
 					// Advance all the enumerators that are behind the current block index. If they are all equal, we have a match.
 					bool bMatch = true;
-					foreach (IEnumerator<int> Enumerator in Enumerators)
+					foreach (IEnumerator<int> enumerator in enumerators)
 					{
-						while (Enumerator.Current < BlockIdx)
+						while (enumerator.Current < blockIdx)
 						{
-							if (!Enumerator.MoveNext())
+							if (!enumerator.MoveNext())
 							{
 								yield break;
 							}
 						}
 
-						if (Enumerator.Current > BlockIdx)
+						if (enumerator.Current > blockIdx)
 						{
-							BlockIdx = Enumerator.Current;
+							blockIdx = enumerator.Current;
 							bMatch = false;
 						}
 					}
@@ -408,11 +405,11 @@ namespace Horde.Build.Logs
 					// Return the match and move to the next block
 					if (bMatch)
 					{
-						if (Predicates.All(Predicate => Predicate(BlockIdx)))
+						if (predicates.All(predicate => predicate(blockIdx)))
 						{
-							yield return BlockIdx;
+							yield return blockIdx;
 						}
-						BlockIdx++;
+						blockIdx++;
 					}
 				}
 			}
@@ -421,173 +418,173 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Gets predicates for matching a token that starts 
 		/// </summary>
-		/// <param name="Text">The token text</param>
+		/// <param name="text">The token text</param>
 		/// <param name="bAllowPartialMatch">Whether to allow a partial match of the token</param>
-		/// <param name="Tokens">Set of aligned tokens that are required</param>
-		/// <param name="Predicates">List of predicates for the search</param>
-		void GetAlignedTokenPredicate(ReadOnlySpan<byte> Text, bool bAllowPartialMatch, HashSet<ulong> Tokens, List<Predicate<int>> Predicates)
+		/// <param name="tokens">Set of aligned tokens that are required</param>
+		/// <param name="predicates">List of predicates for the search</param>
+		void GetAlignedTokenPredicate(ReadOnlySpan<byte> text, bool bAllowPartialMatch, HashSet<ulong> tokens, List<Predicate<int>> predicates)
 		{
-			for (int Offset = 0; Offset < Text.Length; Offset += LogToken.MaxTokenBytes)
+			for (int offset = 0; offset < text.Length; offset += LogToken.MaxTokenBytes)
 			{
-				ulong Token = LogToken.GetWindowedTokenValue(Text, Offset);
-				if (Offset + LogToken.MaxTokenBytes > Text.Length && bAllowPartialMatch)
+				ulong token = LogToken.GetWindowedTokenValue(text, offset);
+				if (offset + LogToken.MaxTokenBytes > text.Length && bAllowPartialMatch)
 				{
-					ulong TokenMask = LogToken.GetWindowedTokenMask(Text, Offset, true);
-					Predicates.Add(BlockIdx => BlockContainsToken(BlockIdx, Token, TokenMask));
+					ulong tokenMask = LogToken.GetWindowedTokenMask(text, offset, true);
+					predicates.Add(blockIdx => BlockContainsToken(blockIdx, token, tokenMask));
 					break;
 				}
-				Tokens.Add(Token);
+				tokens.Add(token);
 			}
 		}
 
 		/// <summary>
 		/// Generates a predicate for matching a token which may or may not start on a regular token boundary
 		/// </summary>
-		/// <param name="Text">The token text</param>
+		/// <param name="text">The token text</param>
 		/// <param name="bAllowPartialMatch">Whether to allow a partial match of the token</param>
-		/// <param name="Predicates">List of predicates for the search</param>
-		void GetUnalignedTokenPredicate(ReadOnlySpan<byte> Text, bool bAllowPartialMatch, List<Predicate<int>> Predicates)
+		/// <param name="predicates">List of predicates for the search</param>
+		void GetUnalignedTokenPredicate(ReadOnlySpan<byte> text, bool bAllowPartialMatch, List<Predicate<int>> predicates)
 		{
-			byte[] TextCopy = Text.ToArray();
+			byte[] textCopy = text.ToArray();
 
-			Lazy<HashSet<int>> Blocks = new Lazy<HashSet<int>>(() =>
+			Lazy<HashSet<int>> blocks = new Lazy<HashSet<int>>(() =>
 			{
-				HashSet<int> Union = new HashSet<int>();
-				for (int Shift = 0; Shift < LogToken.MaxTokenBytes; Shift++)
+				HashSet<int> union = new HashSet<int>();
+				for (int shift = 0; shift < LogToken.MaxTokenBytes; shift++)
 				{
-					HashSet<int> Blocks = new HashSet<int>(BlocksContainingToken(TextCopy.AsSpan(), -Shift, bAllowPartialMatch));
-					for (int Offset = -Shift + LogToken.MaxTokenBytes; Offset < TextCopy.Length && Blocks.Count > 0; Offset += LogToken.MaxTokenBytes)
+					HashSet<int> blocks = new HashSet<int>(BlocksContainingToken(textCopy.AsSpan(), -shift, bAllowPartialMatch));
+					for (int offset = -shift + LogToken.MaxTokenBytes; offset < textCopy.Length && blocks.Count > 0; offset += LogToken.MaxTokenBytes)
 					{
-						Blocks.IntersectWith(BlocksContainingToken(TextCopy.AsSpan(), Offset, bAllowPartialMatch));
+						blocks.IntersectWith(BlocksContainingToken(textCopy.AsSpan(), offset, bAllowPartialMatch));
 					}
-					if (Blocks.Count > 0)
+					if (blocks.Count > 0)
 					{
-						Union.UnionWith(Blocks);
+						union.UnionWith(blocks);
 					}
 				}
-				return Union;
+				return union;
 			});
 
-			Predicates.Add(BlockIdx => Blocks.Value.Contains(BlockIdx));
+			predicates.Add(blockIdx => blocks.Value.Contains(blockIdx));
 		}
 
 		/// <summary>
 		/// Tests whether a block contains a particular token
 		/// </summary>
-		/// <param name="BlockIdx">Index of the block to search</param>
-		/// <param name="Token">The token to test</param>
-		/// <param name="TokenMask">Mask of which bits in the token are valid</param>
+		/// <param name="blockIdx">Index of the block to search</param>
+		/// <param name="token">The token to test</param>
+		/// <param name="tokenMask">Mask of which bits in the token are valid</param>
 		/// <returns>True if the given block contains a token</returns>
-		bool BlockContainsToken(int BlockIdx, ulong Token, ulong TokenMask)
+		bool BlockContainsToken(int blockIdx, ulong token, ulong tokenMask)
 		{
-			Token = (Token << NumBlockBits) | (uint)BlockIdx;
-			TokenMask = (TokenMask << NumBlockBits) | ((1UL << NumBlockBits) - 1);
-			return CachedTrie!.EnumerateValues((Value, ValueMask) => (Value & TokenMask) == (Token & ValueMask)).Any();
+			token = (token << _numBlockBits) | (uint)blockIdx;
+			tokenMask = (tokenMask << _numBlockBits) | ((1UL << _numBlockBits) - 1);
+			return _cachedTrie!.EnumerateValues((value, valueMask) => (value & tokenMask) == (token & valueMask)).Any();
 		}
 
 		/// <summary>
 		/// Tests whether a block contains a particular token
 		/// </summary>
-		/// <param name="Text">The token to test</param>
-		/// <param name="Offset">Offset of the window into the token to test</param>
+		/// <param name="text">The token to test</param>
+		/// <param name="offset">Offset of the window into the token to test</param>
 		/// <param name="bAllowPartialMatch">Whether to allow a partial match of the token</param>
 		/// <returns>True if the given block contains a token</returns>
-		IEnumerable<int> BlocksContainingToken(ReadOnlySpan<byte> Text, int Offset, bool bAllowPartialMatch)
+		IEnumerable<int> BlocksContainingToken(ReadOnlySpan<byte> text, int offset, bool bAllowPartialMatch)
 		{
-			ulong Token = LogToken.GetWindowedTokenValue(Text, Offset) << NumBlockBits;
-			ulong TokenMask = LogToken.GetWindowedTokenMask(Text, Offset, bAllowPartialMatch) << NumBlockBits;
-			ulong BlockMask = (1UL << NumBlockBits) - 1;
-			return CachedTrie!.EnumerateValues((Value, ValueMask) => (Value & TokenMask) == (Token & ValueMask)).Select(x => (int)(x & BlockMask)).Distinct();
+			ulong token = LogToken.GetWindowedTokenValue(text, offset) << _numBlockBits;
+			ulong tokenMask = LogToken.GetWindowedTokenMask(text, offset, bAllowPartialMatch) << _numBlockBits;
+			ulong blockMask = (1UL << _numBlockBits) - 1;
+			return _cachedTrie!.EnumerateValues((value, valueMask) => (value & tokenMask) == (token & valueMask)).Select(x => (int)(x & blockMask)).Distinct();
 		}
 
 		/// <summary>
 		/// Deserialize the index from memory
 		/// </summary>
-		/// <param name="Reader">Reader to deserialize from</param>
+		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>Index data</returns>
-		public static LogIndexData Read(MemoryReader Reader)
+		public static LogIndexData Read(MemoryReader reader)
 		{
-			int Version = Reader.ReadInt32();
-			if (Version == 0)
+			int version = reader.ReadInt32();
+			if (version == 0)
 			{
 				return LogIndexData.Empty;
 			}
-			else if (Version == 1)
+			else if (version == 1)
 			{
-				ReadOnlyTrie Index = Reader.ReadTrie();
-				int NumBlockBits = Reader.ReadInt32();
+				ReadOnlyTrie index = reader.ReadTrie();
+				int numBlockBits = reader.ReadInt32();
 
-				LogIndexBlock[] Blocks = new LogIndexBlock[Reader.ReadInt32()];
-				for (int Idx = 0; Idx < Blocks.Length; Idx++)
+				LogIndexBlock[] blocks = new LogIndexBlock[reader.ReadInt32()];
+				for (int idx = 0; idx < blocks.Length; idx++)
 				{
-					int LineIndex = (Idx > 0) ? (Blocks[Idx - 1].LineIndex + Blocks[Idx - 1].LineCount) : 0;
-					int LineCount = Reader.ReadInt32();
-					ReadOnlyMemory<byte> CompressedPlainText = Reader.ReadVariableLengthBytes();
-					Reader.ReadTrie();
-					Blocks[Idx] = new LogIndexBlock(LineIndex, LineCount, null, CompressedPlainText);
+					int lineIndex = (idx > 0) ? (blocks[idx - 1].LineIndex + blocks[idx - 1].LineCount) : 0;
+					int lineCount = reader.ReadInt32();
+					ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytes();
+					reader.ReadTrie();
+					blocks[idx] = new LogIndexBlock(lineIndex, lineCount, null, compressedPlainText);
 				}
 
-				return new LogIndexData(Index, NumBlockBits, Blocks);
+				return new LogIndexData(index, numBlockBits, blocks);
 			}
-			else if (Version == 2)
+			else if (version == 2)
 			{
-				ReadOnlyTrie Index = Reader.ReadTrie();
-				int NumBlockBits = Reader.ReadInt32();
+				ReadOnlyTrie index = reader.ReadTrie();
+				int numBlockBits = reader.ReadInt32();
 
-				LogIndexBlock[] Blocks = new LogIndexBlock[Reader.ReadInt32()];
-				for (int Idx = 0; Idx < Blocks.Length; Idx++)
+				LogIndexBlock[] blocks = new LogIndexBlock[reader.ReadInt32()];
+				for (int idx = 0; idx < blocks.Length; idx++)
 				{
-					int LineIndex = Reader.ReadInt32();
-					int LineCount = Reader.ReadInt32();
-					ReadOnlyMemory<byte> CompressedPlainText = Reader.ReadVariableLengthBytes();
-					Reader.ReadTrie();
-					Blocks[Idx] = new LogIndexBlock(LineIndex, LineCount, null, CompressedPlainText);
+					int lineIndex = reader.ReadInt32();
+					int lineCount = reader.ReadInt32();
+					ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytes();
+					reader.ReadTrie();
+					blocks[idx] = new LogIndexBlock(lineIndex, lineCount, null, compressedPlainText);
 				}
 
-				return new LogIndexData(Index, NumBlockBits, Blocks);
+				return new LogIndexData(index, numBlockBits, blocks);
 			}
-			else if (Version == 3)
+			else if (version == 3)
 			{
-				ReadOnlyTrie Index = Reader.ReadTrie();
-				int NumBlockBits = Reader.ReadInt32();
-				LogIndexBlock[] Blocks = Reader.ReadVariableLengthArray(() => Reader.ReadLogIndexBlock());
-				for(int Idx = 1; Idx < Blocks.Length; Idx++)
+				ReadOnlyTrie index = reader.ReadTrie();
+				int numBlockBits = reader.ReadInt32();
+				LogIndexBlock[] blocks = reader.ReadVariableLengthArray(() => reader.ReadLogIndexBlock());
+				for(int idx = 1; idx < blocks.Length; idx++)
 				{
-					if(Blocks[Idx].LineIndex == 0)
+					if(blocks[idx].LineIndex == 0)
 					{
-						int LineIndex = Blocks[Idx - 1].LineIndex + Blocks[Idx - 1].LineCount;
-						Blocks[Idx] = new LogIndexBlock(LineIndex, Blocks[Idx].LineCount, Blocks[Idx].CachedPlainText, Blocks[Idx].CompressedPlainText);
+						int lineIndex = blocks[idx - 1].LineIndex + blocks[idx - 1].LineCount;
+						blocks[idx] = new LogIndexBlock(lineIndex, blocks[idx].LineCount, blocks[idx].CachedPlainText, blocks[idx].CompressedPlainText);
 					}
 				}
-				return new LogIndexData(Index, NumBlockBits, Blocks);
+				return new LogIndexData(index, numBlockBits, blocks);
 			}
 			else
 			{
-				throw new InvalidDataException($"Invalid index version number {Version}");
+				throw new InvalidDataException($"Invalid index version number {version}");
 			}
 		}
 
 		/// <summary>
 		/// Serialize an index into memory
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		public void Write(MemoryWriter Writer)
+		/// <param name="writer">Writer to serialize to</param>
+		public void Write(MemoryWriter writer)
 		{
-			Writer.WriteInt32(3);
-			Writer.WriteTrie(BuildTrie());
-			Writer.WriteInt32(NumBlockBits);
-			Writer.WriteVariableLengthArray(Blocks, x => Writer.WriteLogIndexBlock(x));
+			writer.WriteInt32(3);
+			writer.WriteTrie(BuildTrie());
+			writer.WriteInt32(_numBlockBits);
+			writer.WriteVariableLengthArray(_blocks, x => writer.WriteLogIndexBlock(x));
 		}
 
 		/// <summary>
 		/// Deserialize the index from memory
 		/// </summary>
-		/// <param name="Memory">Memory to deserialize from</param>
+		/// <param name="memory">Memory to deserialize from</param>
 		/// <returns>Index data</returns>
-		public static LogIndexData FromMemory(ReadOnlyMemory<byte> Memory)
+		public static LogIndexData FromMemory(ReadOnlyMemory<byte> memory)
 		{
-			MemoryReader Reader = new MemoryReader(Memory);
-			return Read(Reader);
+			MemoryReader reader = new MemoryReader(memory);
+			return Read(reader);
 		}
 
 		/// <summary>
@@ -596,13 +593,13 @@ namespace Horde.Build.Logs
 		/// <returns>Index data</returns>
 		public byte[] ToByteArray()
 		{
-			byte[] Buffer = new byte[GetSerializedSize()];
+			byte[] buffer = new byte[GetSerializedSize()];
 
-			MemoryWriter Writer = new MemoryWriter(Buffer);
-			Write(Writer);
-			Writer.CheckOffset(Buffer.Length);
+			MemoryWriter writer = new MemoryWriter(buffer);
+			Write(writer);
+			writer.CheckOffset(buffer.Length);
 
-			return Buffer;
+			return buffer;
 		}
 
 		/// <summary>
@@ -611,7 +608,7 @@ namespace Horde.Build.Logs
 		/// <returns>The serialized size</returns>
 		public int GetSerializedSize()
 		{
-			return sizeof(int) + BuildTrie().GetSerializedSize() + sizeof(int) + (sizeof(int) + Blocks.Sum(x => x.GetSerializedSize()));
+			return sizeof(int) + BuildTrie().GetSerializedSize() + sizeof(int) + (sizeof(int) + _blocks.Sum(x => x.GetSerializedSize()));
 		}
 	}
 
@@ -620,21 +617,21 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Deserialize the index from memory
 		/// </summary>
-		/// <param name="Reader">Reader to deserialize from</param>
+		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>Index data</returns>
-		public static LogIndexData ReadLogIndexData(this MemoryReader Reader)
+		public static LogIndexData ReadLogIndexData(this MemoryReader reader)
 		{
-			return LogIndexData.Read(Reader);
+			return LogIndexData.Read(reader);
 		}
 
 		/// <summary>
 		/// Serialize an index into memory
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Index">The index to write</param>
-		public static void WriteLogIndexData(this MemoryWriter Writer, LogIndexData Index)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="index">The index to write</param>
+		public static void WriteLogIndexData(this MemoryWriter writer, LogIndexData index)
 		{
-			Index.Write(Writer);
+			index.Write(writer);
 		}
 	}
 }

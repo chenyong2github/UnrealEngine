@@ -2,8 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -16,28 +14,28 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Enumerates the hash codes for a given block of text
 		/// </summary>
-		/// <param name="Text">The text to parse</param>
+		/// <param name="text">The text to parse</param>
 		/// <returns></returns>
-		public static IEnumerable<int> GetHashCodes(ReadOnlyMemory<byte> Text)
+		public static IEnumerable<int> GetHashCodes(ReadOnlyMemory<byte> text)
 		{
-			if(Text.Length >= NgramLength)
+			if(text.Length >= NgramLength)
 			{
-				int Value = 0;
-				for(int Idx = 0; Idx < NgramLength - 1; Idx++)
+				int value = 0;
+				for(int idx = 0; idx < NgramLength - 1; idx++)
 				{
-					Value = (Value << 8) | ToLowerUtf8(Text.Span[Idx]);
+					value = (value << 8) | ToLowerUtf8(text.Span[idx]);
 				}
-				for(int Idx = NgramLength - 1; Idx < Text.Length; Idx++)
+				for(int idx = NgramLength - 1; idx < text.Length; idx++)
 				{
-					Value = ((Value << 8) | ToLowerUtf8(Text.Span[Idx])) & NgramMask;
+					value = ((value << 8) | ToLowerUtf8(text.Span[idx])) & NgramMask;
 
-					int HashValue = Value;
-					yield return HashValue;
+					int hashValue = value;
+					yield return hashValue;
 
-					for(int HashIdx = 1; HashIdx < NumHashes; HashIdx++)
+					for(int hashIdx = 1; hashIdx < NumHashes; hashIdx++)
 					{
-						HashValue = Scramble(HashValue);
-						yield return HashValue;
+						hashValue = Scramble(hashValue);
+						yield return hashValue;
 					}
 				}
 			}
@@ -46,31 +44,31 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Converts a character into a format for hashing
 		/// </summary>
-		/// <param name="Value">The input byte</param>
+		/// <param name="value">The input byte</param>
 		/// <returns>The value to include in the trigram</returns>
-		static byte ToLowerUtf8(byte Value)
+		static byte ToLowerUtf8(byte value)
 		{
-			if (Value >= 'A' && Value <= 'Z')
+			if (value >= 'A' && value <= 'Z')
 			{
-				return (byte)(Value + 'a' - 'A');
+				return (byte)(value + 'a' - 'A');
 			}
 			else
 			{
-				return Value;
+				return value;
 			}
 		}
 
 		/// <summary>
 		/// Scramble the given number using a pseudo-RNG
 		/// </summary>
-		/// <param name="Value">Initial value</param>
+		/// <param name="value">Initial value</param>
 		/// <returns>The scrambled value</returns>
-		private static int Scramble(int Value)
+		private static int Scramble(int value)
 		{
-			Value ^= Value << 13;
-			Value ^= Value >> 17;
-			Value ^= Value << 5;
-			return Value;
+			value ^= value << 13;
+			value ^= value >> 17;
+			value ^= value << 5;
+			return value;
 		}
 	}
 
@@ -87,24 +85,24 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Data">Data to construct from</param>
-		public ReadOnlyBloomFilter(ReadOnlyMemory<byte> Data)
+		/// <param name="data">Data to construct from</param>
+		public ReadOnlyBloomFilter(ReadOnlyMemory<byte> data)
 		{
-			this.Data = Data;
+			Data = data;
 		}
 
 		/// <summary>
 		/// Determines if the filter may contain a value
 		/// </summary>
-		/// <param name="HashCodes">Sequence of hash codes</param>
+		/// <param name="hashCodes">Sequence of hash codes</param>
 		/// <returns>True if the value is in the set</returns>
-		public bool Contains(IEnumerable<int> HashCodes)
+		public bool Contains(IEnumerable<int> hashCodes)
 		{
-			ReadOnlySpan<byte> Span = Data.Span;
-			foreach (int HashCode in HashCodes)
+			ReadOnlySpan<byte> span = Data.Span;
+			foreach (int hashCode in hashCodes)
 			{
-				int Index = HashCode & ((Span.Length << 3) - 1);
-				if ((Span[Index >> 3] & (1 << (Index & 7))) == 0)
+				int index = hashCode & ((span.Length << 3) - 1);
+				if ((span[index >> 3] & (1 << (index & 7))) == 0)
 				{
 					return false;
 				}
@@ -118,21 +116,21 @@ namespace Horde.Build.Utilities
 		/// <returns>Value between 0 and 1</returns>
 		public double CalculateLoadFactor()
 		{
-			int SetCount = 0;
+			int setCount = 0;
 
-			ReadOnlySpan<byte> Span = Data.Span;
-			for (int Idx = 0; Idx < Span.Length; Idx++)
+			ReadOnlySpan<byte> span = Data.Span;
+			for (int idx = 0; idx < span.Length; idx++)
 			{
-				for (int Bit = 0; Bit < 8; Bit++)
+				for (int bit = 0; bit < 8; bit++)
 				{
-					if ((Span[Idx] & (1 << Bit)) != 0)
+					if ((span[idx] & (1 << bit)) != 0)
 					{
-						SetCount++;
+						setCount++;
 					}
 				}
 			}
 
-			return (double)SetCount / (Span.Length * 8);
+			return (double)setCount / (span.Length * 8);
 		}
 	}
 
@@ -149,26 +147,26 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Constructs a new filter of the given size
 		/// </summary>
-		/// <param name="MinSize">The minimum size of the filter. Will be rounded up to the next power of two.</param>
-		public BloomFilter(int MinSize)
+		/// <param name="minSize">The minimum size of the filter. Will be rounded up to the next power of two.</param>
+		public BloomFilter(int minSize)
 		{
-			int Size = MinSize;
-			while ((Size & (Size - 1)) != 0)
+			int size = minSize;
+			while ((size & (size - 1)) != 0)
 			{
-				Size |= (Size - 1);
-				Size++;
+				size |= (size - 1);
+				size++;
 			}
-			Data = new byte[Size];
+			Data = new byte[size];
 		}
 
 		/// <summary>
 		/// Constructs a filter from raw data
 		/// </summary>
-		/// <param name="Data">The data to construct from</param>
-		public BloomFilter(byte[] Data)
+		/// <param name="data">The data to construct from</param>
+		public BloomFilter(byte[] data)
 		{
-			this.Data = Data;
-			if ((Data.Length & (Data.Length - 1)) != 0)
+			Data = data;
+			if ((data.Length & (data.Length - 1)) != 0)
 			{
 				throw new ArgumentException("Array for bloom filter must be a power of 2 in size.");
 			}
@@ -177,27 +175,27 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Add a value to the filter
 		/// </summary>
-		/// <param name="HashCodes">Sequence of hash codes</param>
-		public void Add(IEnumerable<int> HashCodes)
+		/// <param name="hashCodes">Sequence of hash codes</param>
+		public void Add(IEnumerable<int> hashCodes)
 		{
-			foreach(int HashCode in HashCodes)
+			foreach(int hashCode in hashCodes)
 			{
-				int Index = HashCode & ((Data.Length << 3) - 1);
-				Data[Index >> 3] = (byte)(Data[Index >> 3] | (1 << (Index & 7)));
+				int index = hashCode & ((Data.Length << 3) - 1);
+				Data[index >> 3] = (byte)(Data[index >> 3] | (1 << (index & 7)));
 			}
 		}
 
 		/// <summary>
 		/// Determines if the filter may contain a value
 		/// </summary>
-		/// <param name="HashCodes">Sequence of hash codes</param>
+		/// <param name="hashCodes">Sequence of hash codes</param>
 		/// <returns>True if the value is in the set</returns>
-		public bool Contains(IEnumerable<int> HashCodes)
+		public bool Contains(IEnumerable<int> hashCodes)
 		{
-			foreach (int HashCode in HashCodes)
+			foreach (int hashCode in hashCodes)
 			{
-				int Index = HashCode & ((Data.Length << 3) - 1);
-				if ((Data[Index >> 3] & (1 << (Index & 7))) == 0)
+				int index = hashCode & ((Data.Length << 3) - 1);
+				if ((Data[index >> 3] & (1 << (index & 7))) == 0)
 				{
 					return false;
 				}
@@ -211,20 +209,20 @@ namespace Horde.Build.Utilities
 		/// <returns>Value between 0 and 1</returns>
 		public double CalculateLoadFactor()
 		{
-			int SetCount = 0;
-			int AllCount = 0;
-			for (int Idx = 0; Idx < Data.Length; Idx++)
+			int setCount = 0;
+			int allCount = 0;
+			for (int idx = 0; idx < Data.Length; idx++)
 			{
-				for (int Bit = 0; Bit < 8; Bit++)
+				for (int bit = 0; bit < 8; bit++)
 				{
-					if ((Data[Idx] & (1 << Bit)) != 0)
+					if ((Data[idx] & (1 << bit)) != 0)
 					{
-						SetCount++;
+						setCount++;
 					}
-					AllCount++;
+					allCount++;
 				}
 			}
-			return (double)SetCount / AllCount;
+			return (double)setCount / allCount;
 		}
 	}
 }

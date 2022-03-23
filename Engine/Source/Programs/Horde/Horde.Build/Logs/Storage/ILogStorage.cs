@@ -1,15 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Storage;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Caching.Memory;
-using MongoDB.Bson;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs
 {
@@ -23,36 +17,36 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Attempts to read an index for the given log file
 		/// </summary>
-		/// <param name="LogId">Unique id of the log file</param>
-		/// <param name="Length">Length of the file covered by the index</param>
+		/// <param name="logId">Unique id of the log file</param>
+		/// <param name="length">Length of the file covered by the index</param>
 		/// <returns>Index for the log file</returns>
-		Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length);
+		Task<LogIndexData?> ReadIndexAsync(LogId logId, long length);
 
 		/// <summary>
 		/// Log file to write an index for
 		/// </summary>
-		/// <param name="LogId">Unique id of the log file</param>
-		/// <param name="Length">Length of the file covered by the index</param>
-		/// <param name="Index">The log file index</param>
+		/// <param name="logId">Unique id of the log file</param>
+		/// <param name="length">Length of the file covered by the index</param>
+		/// <param name="index">The log file index</param>
 		/// <returns>Async task</returns>
-		Task WriteIndexAsync(LogId LogId, long Length, LogIndexData Index);
+		Task WriteIndexAsync(LogId logId, long length, LogIndexData index);
 
 		/// <summary>
 		/// Retrieves an item from the cache
 		/// </summary>
-		/// <param name="LogId">Unique id of the log file</param>
-		/// <param name="Offset">Offset of the chunk to read</param>
-		/// <param name="LineIndex">First line of the chunk</param>
+		/// <param name="logId">Unique id of the log file</param>
+		/// <param name="offset">Offset of the chunk to read</param>
+		/// <param name="lineIndex">First line of the chunk</param>
 		/// <returns>Data for the given key, or null if it's not present</returns>
-		Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex);
+		Task<LogChunkData?> ReadChunkAsync(LogId logId, long offset, int lineIndex);
 
 		/// <summary>
 		/// Writes a chunk to storage
 		/// </summary>
-		/// <param name="LogId">Unique id of the log file</param>
-		/// <param name="Offset">Offset of the chunk to write</param>
-		/// <param name="ChunkData">Information about the chunk data</param>
+		/// <param name="logId">Unique id of the log file</param>
+		/// <param name="offset">Offset of the chunk to write</param>
+		/// <param name="chunkData">Information about the chunk data</param>
 		/// <returns>Async task</returns>
-		Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData);
+		Task WriteChunkAsync(LogId logId, long offset, LogChunkData chunkData);
 	}
 }

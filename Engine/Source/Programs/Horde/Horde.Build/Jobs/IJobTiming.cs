@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Models
 {
@@ -37,9 +33,9 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets timing information for a particular step
 		/// </summary>
-		/// <param name="Name">Name of the node being executed</param>
-		/// <param name="Timing">Receives the timing information for the given step</param>
+		/// <param name="name">Name of the node being executed</param>
+		/// <param name="timing">Receives the timing information for the given step</param>
 		/// <returns>True if the timing was found</returns>
-		public bool TryGetStepTiming(string Name, [NotNullWhen(true)] out IJobStepTiming? Timing);
+		public bool TryGetStepTiming(string name, [NotNullWhen(true)] out IJobStepTiming? timing);
 	}
 }

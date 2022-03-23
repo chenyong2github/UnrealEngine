@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Threading.Tasks;
 using Horde.Build.Services;
 using Horde.Build.Tools.Impl;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Driver;
 using StackExchange.Redis;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Tests
 {

@@ -3,12 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using HordeCommon;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Notifications;
 using Horde.Build.Notifications.Impl;
 using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -95,10 +95,10 @@ namespace Horde.Build.Tests
 			FakeNotificationSink fakeSink = ServiceProvider.GetRequiredService<FakeNotificationSink>();
 
 			NotificationService service = (NotificationService)ServiceProvider.GetRequiredService<INotificationService>();
-			await service.Ticker.StartAsync();
+			await service._ticker.StartAsync();
 
 			Fixture fixture = await CreateFixtureAsync();
-			IPool pool = await PoolService.CreatePoolAsync("BogusPool", Properties: new Dictionary<string, string>());
+			IPool pool = await PoolService.CreatePoolAsync("BogusPool", properties: new Dictionary<string, string>());
 
 			Assert.AreEqual(0, fakeSink.JobScheduledNotifications.Count);
 			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());
@@ -106,7 +106,7 @@ namespace Horde.Build.Tests
 			
 			// Currently no good way to wait for NotifyJobScheduled() to complete as the execution is completely async in background task (see ExecuteAsync)
 			await Task.Delay(1000);
-			await Clock.AdvanceAsync(service.NotificationBatchInterval + TimeSpan.FromMinutes(5));
+			await Clock.AdvanceAsync(service._notificationBatchInterval + TimeSpan.FromMinutes(5));
 			Assert.AreEqual(2, fakeSink.JobScheduledNotifications.Count);
 			Assert.AreEqual(1, fakeSink.JobScheduledCallCount);
 		}

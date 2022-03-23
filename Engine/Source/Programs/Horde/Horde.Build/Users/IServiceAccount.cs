@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using MongoDB.Bson;
 using System.Collections.Generic;
+using MongoDB.Bson;
 
 namespace Horde.Build.Models
 {
@@ -34,10 +34,10 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Add a claim
 		/// </summary>
-		/// <param name="Type">Type of claim</param>
-		/// <param name="Value">Value of claim</param>
+		/// <param name="type">Type of claim</param>
+		/// <param name="value">Value of claim</param>
 		/// <returns></returns>
-		public void AddClaim(string Type, string Value);
+		public void AddClaim(string type, string value);
 		
 		/// <summary>
 		/// Get list of claims

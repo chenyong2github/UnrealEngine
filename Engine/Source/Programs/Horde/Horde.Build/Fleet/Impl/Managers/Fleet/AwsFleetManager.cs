@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Amazon;
 using Amazon.EC2;
 using Amazon.EC2.Model;
 using Horde.Build.Collections;
 using Horde.Build.Models;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
 
@@ -23,127 +23,126 @@ namespace Horde.Build.Services.Impl
 	{
 		const string AwsTagPropertyName = "aws-tag";
 		const string PoolTagName = "Horde_Autoscale_Pool";
-
-		AmazonEC2Client Client;
-		IAgentCollection AgentCollection;
-		ILogger Logger;
+		readonly AmazonEC2Client _client;
+		readonly IAgentCollection _agentCollection;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AwsFleetManager(IAgentCollection AgentCollection, ILogger<AwsFleetManager> Logger)
+		public AwsFleetManager(IAgentCollection agentCollection, ILogger<AwsFleetManager> logger)
 		{
-			this.AgentCollection = AgentCollection;
-			this.Logger = Logger;
+			_agentCollection = agentCollection;
+			_logger = logger;
 
-			AmazonEC2Config Config = new AmazonEC2Config();
-			Config.RegionEndpoint = RegionEndpoint.USEast1;
+			AmazonEC2Config config = new AmazonEC2Config();
+			config.RegionEndpoint = RegionEndpoint.USEast1;
 
-			Logger.LogInformation("Initializing AWS fleet manager for region {Region}", Config.RegionEndpoint);
+			logger.LogInformation("Initializing AWS fleet manager for region {Region}", config.RegionEndpoint);
 
-			Client = new AmazonEC2Client(Config);
+			_client = new AmazonEC2Client(config);
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Client.Dispose();
+			_client.Dispose();
 		}
 
 		/// <inheritdoc/>
-		public async Task ExpandPoolAsync(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
+		public async Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
 		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
-			Scope.Span.SetTag("poolName", Pool.Name);
-			Scope.Span.SetTag("numAgents", Agents.Count);
-			Scope.Span.SetTag("count", Count);
+			using IScope scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
+			scope.Span.SetTag("poolName", pool.Name);
+			scope.Span.SetTag("numAgents", agents.Count);
+			scope.Span.SetTag("count", count);
 
-			DescribeInstancesResponse DescribeResponse;
-			using (IScope DescribeScope = GlobalTracer.Instance.BuildSpan("DescribeInstances").StartActive())
+			DescribeInstancesResponse describeResponse;
+			using (IScope describeScope = GlobalTracer.Instance.BuildSpan("DescribeInstances").StartActive())
 			{
 				// Find stopped instances in the correct pool
-				DescribeInstancesRequest DescribeRequest = new DescribeInstancesRequest();
-				DescribeRequest.Filters = new List<Filter>();
-				DescribeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
-				DescribeRequest.Filters.Add(new Filter("tag:" + PoolTagName, new List<string> { Pool.Name }));
-				DescribeResponse = await Client.DescribeInstancesAsync(DescribeRequest);
-				DescribeScope.Span.SetTag("res.statusCode", (int)DescribeResponse.HttpStatusCode);
-				DescribeScope.Span.SetTag("res.numReservations", DescribeResponse.Reservations.Count);
+				DescribeInstancesRequest describeRequest = new DescribeInstancesRequest();
+				describeRequest.Filters = new List<Filter>();
+				describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
+				describeRequest.Filters.Add(new Filter("tag:" + PoolTagName, new List<string> { pool.Name }));
+				describeResponse = await _client.DescribeInstancesAsync(describeRequest);
+				describeScope.Span.SetTag("res.statusCode", (int)describeResponse.HttpStatusCode);
+				describeScope.Span.SetTag("res.numReservations", describeResponse.Reservations.Count);
 			}
 
-			using (IScope StartScope = GlobalTracer.Instance.BuildSpan("StartInstances").StartActive())
+			using (IScope startScope = GlobalTracer.Instance.BuildSpan("StartInstances").StartActive())
 			{
 				// Try to start the given instances
-				StartInstancesRequest StartRequest = new StartInstancesRequest();
-				StartRequest.InstanceIds.AddRange(DescribeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Take(Count));
+				StartInstancesRequest startRequest = new StartInstancesRequest();
+				startRequest.InstanceIds.AddRange(describeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Take(count));
 				
-				StartScope.Span.SetTag("req.instanceIds", string.Join(",", StartRequest.InstanceIds));
-				if (StartRequest.InstanceIds.Count > 0)
+				startScope.Span.SetTag("req.instanceIds", String.Join(",", startRequest.InstanceIds));
+				if (startRequest.InstanceIds.Count > 0)
 				{
-					StartInstancesResponse StartResponse = await Client.StartInstancesAsync(StartRequest);
-					StartScope.Span.SetTag("res.statusCode", (int)StartResponse.HttpStatusCode);
-					StartScope.Span.SetTag("res.numInstances", StartResponse.StartingInstances.Count);
-					if ((int)StartResponse.HttpStatusCode >= 200 && (int)StartResponse.HttpStatusCode <= 299)
+					StartInstancesResponse startResponse = await _client.StartInstancesAsync(startRequest);
+					startScope.Span.SetTag("res.statusCode", (int)startResponse.HttpStatusCode);
+					startScope.Span.SetTag("res.numInstances", startResponse.StartingInstances.Count);
+					if ((int)startResponse.HttpStatusCode >= 200 && (int)startResponse.HttpStatusCode <= 299)
 					{
-						foreach (InstanceStateChange InstanceChange in StartResponse.StartingInstances)
+						foreach (InstanceStateChange instanceChange in startResponse.StartingInstances)
 						{
-							Logger.LogInformation("Starting instance {InstanceId} for pool {PoolId} (prev state {PrevState}, current state {CurrentState}", InstanceChange.InstanceId, Pool.Id, InstanceChange.PreviousState, InstanceChange.CurrentState);
+							_logger.LogInformation("Starting instance {InstanceId} for pool {PoolId} (prev state {PrevState}, current state {CurrentState}", instanceChange.InstanceId, pool.Id, instanceChange.PreviousState, instanceChange.CurrentState);
 						}
 					}
 				}
 
-				if (StartRequest.InstanceIds.Count < Count)
+				if (startRequest.InstanceIds.Count < count)
 				{
-					Logger.LogInformation("Unable to expand pool with the requested number of instances. " +
-					                      "Num requested instances to add {RequestedCount}. Actual instances started {InstancesStarted}", Count, StartRequest.InstanceIds.Count);
+					_logger.LogInformation("Unable to expand pool with the requested number of instances. " +
+					                      "Num requested instances to add {RequestedCount}. Actual instances started {InstancesStarted}", count, startRequest.InstanceIds.Count);
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task ShrinkPoolAsync(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
+		public async Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
 		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("ShrinkPool").StartActive();
-			Scope.Span.SetTag("poolName", Pool.Name);
-			Scope.Span.SetTag("count", Count);
+			using IScope scope = GlobalTracer.Instance.BuildSpan("ShrinkPool").StartActive();
+			scope.Span.SetTag("poolName", pool.Name);
+			scope.Span.SetTag("count", count);
 			
-			string AwsTagProperty = $"{AwsTagPropertyName}={PoolTagName}:{Pool.Name}";
+			string awsTagProperty = $"{AwsTagPropertyName}={PoolTagName}:{pool.Name}";
 			
 			// Sort the agents by number of active leases. It's better to shutdown agents currently doing nothing.
-			List<IAgent> FilteredAgents = Agents.OrderBy(x => x.Leases.Count).ToList();
-			List<IAgent> AgentsWithAwsTags = FilteredAgents.Where(x => x.HasProperty(AwsTagProperty)).ToList(); 
-			List<IAgent> AgentsLimitedByCount = AgentsWithAwsTags.Take(Count).ToList();
+			List<IAgent> filteredAgents = agents.OrderBy(x => x.Leases.Count).ToList();
+			List<IAgent> agentsWithAwsTags = filteredAgents.Where(x => x.HasProperty(awsTagProperty)).ToList(); 
+			List<IAgent> agentsLimitedByCount = agentsWithAwsTags.Take(count).ToList();
 			
-			Scope.Span.SetTag("agents.num", Agents.Count);
-			Scope.Span.SetTag("agents.filtered.num", FilteredAgents.Count);
-			Scope.Span.SetTag("agents.withAwsTags.num", AgentsWithAwsTags.Count);
-			Scope.Span.SetTag("agents.limitedByCount.num", AgentsLimitedByCount.Count);
+			scope.Span.SetTag("agents.num", agents.Count);
+			scope.Span.SetTag("agents.filtered.num", filteredAgents.Count);
+			scope.Span.SetTag("agents.withAwsTags.num", agentsWithAwsTags.Count);
+			scope.Span.SetTag("agents.limitedByCount.num", agentsLimitedByCount.Count);
 
-			foreach (IAgent Agent in AgentsLimitedByCount)
+			foreach (IAgent agent in agentsLimitedByCount)
 			{
-				IAuditLogChannel<AgentId> AgentLogger = AgentCollection.GetLogger(Agent.Id);
-				if (await AgentCollection.TryUpdateSettingsAsync(Agent, bRequestShutdown: true, ShutdownReason: "Autoscaler") != null)
+				IAuditLogChannel<AgentId> agentLogger = _agentCollection.GetLogger(agent.Id);
+				if (await _agentCollection.TryUpdateSettingsAsync(agent, bRequestShutdown: true, shutdownReason: "Autoscaler") != null)
 				{
-					AgentLogger.LogInformation("Marked for shutdown due to autoscaling (currently {NumLeases} leases outstanding)", Agent.Leases.Count);
+					agentLogger.LogInformation("Marked for shutdown due to autoscaling (currently {NumLeases} leases outstanding)", agent.Leases.Count);
 				}
 				else
 				{
-					AgentLogger.LogError("Unable to mark agent for shutdown due to autoscaling");
+					agentLogger.LogError("Unable to mark agent for shutdown due to autoscaling");
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<int> GetNumStoppedInstancesAsync(IPool Pool)
+		public async Task<int> GetNumStoppedInstancesAsync(IPool pool)
 		{
 			// Find all instances in the pool
-			DescribeInstancesRequest DescribeRequest = new DescribeInstancesRequest();
-			DescribeRequest.Filters = new List<Filter>();
-			DescribeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
-			DescribeRequest.Filters.Add(new Filter("tag:" + PoolTagName, new List<string> { Pool.Name }));
+			DescribeInstancesRequest describeRequest = new DescribeInstancesRequest();
+			describeRequest.Filters = new List<Filter>();
+			describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
+			describeRequest.Filters.Add(new Filter("tag:" + PoolTagName, new List<string> { pool.Name }));
 
-			DescribeInstancesResponse DescribeResponse = await Client.DescribeInstancesAsync(DescribeRequest);
-			return DescribeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Distinct().Count();
+			DescribeInstancesResponse describeResponse = await _client.DescribeInstancesAsync(describeRequest);
+			return describeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Distinct().Count();
 		}
 	}
 }

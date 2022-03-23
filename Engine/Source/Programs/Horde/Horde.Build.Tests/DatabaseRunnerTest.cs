@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
-    [TestClass]
+	[TestClass]
     public class DatabaseRunnerTest
     {
         [TestMethod]

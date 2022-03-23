@@ -1,24 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Horde.Compute;
-using EpicGames.Redis;
-using EpicGames.Serialization;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Storage;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Redis;
+using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace Horde.Build.Compute.Impl
 {
@@ -36,25 +28,25 @@ namespace Horde.Build.Compute.Impl
 		/// <summary>
 		/// Adds a task to a queue
 		/// </summary>
-		/// <param name="QueueId">The queue identifier</param>
-		/// <param name="TaskId">The task to add</param>
-		/// <param name="AtFront">Whether to insert at the front of the queue</param>
-		Task EnqueueAsync(TQueueId QueueId, TTask TaskId, bool AtFront);
+		/// <param name="queueId">The queue identifier</param>
+		/// <param name="taskId">The task to add</param>
+		/// <param name="atFront">Whether to insert at the front of the queue</param>
+		Task EnqueueAsync(TQueueId queueId, TTask taskId, bool atFront);
 
 		/// <summary>
 		/// Dequeue any task from a particular queue
 		/// </summary>
-		/// <param name="QueueId">The queue to remove a task from</param>
+		/// <param name="queueId">The queue to remove a task from</param>
 		/// <returns>Information about the task to be executed</returns>
-		Task<TTask?> DequeueAsync(TQueueId QueueId);
+		Task<TTask?> DequeueAsync(TQueueId queueId);
 
 		/// <summary>
 		/// Dequeues a task that the given agent can execute
 		/// </summary>
-		/// <param name="Predicate">Predicate for determining which queues can be removed from</param>
-		/// <param name="Token">Cancellation token for the operation. Will return a null entry rather than throwing an exception.</param>
+		/// <param name="predicate">Predicate for determining which queues can be removed from</param>
+		/// <param name="token">Cancellation token for the operation. Will return a null entry rather than throwing an exception.</param>
 		/// <returns>Information about the task to be executed</returns>
-		Task<(TQueueId, TTask)?> DequeueAsync(Func<TQueueId, ValueTask<bool>> Predicate, CancellationToken Token = default);
+		Task<(TQueueId, TTask)?> DequeueAsync(Func<TQueueId, ValueTask<bool>> predicate, CancellationToken token = default);
 
 		/// <summary>
 		/// Gets hashes of all the inactive task queues
@@ -74,56 +66,55 @@ namespace Horde.Build.Compute.Impl
 	{
 		class Listener
 		{
-			public Func<TQueueId, ValueTask<bool>> Predicate;
+			public Func<TQueueId, ValueTask<bool>> _predicate;
 			public TaskCompletionSource<(TQueueId, TTask)?> CompletionSource { get; }
 
-			public Listener(Func<TQueueId, ValueTask<bool>> Predicate)
+			public Listener(Func<TQueueId, ValueTask<bool>> predicate)
 			{
-				this.Predicate = Predicate;
-				this.CompletionSource = new TaskCompletionSource<(TQueueId, TTask)?>();
+				_predicate = predicate;
+				CompletionSource = new TaskCompletionSource<(TQueueId, TTask)?>();
 			}
 		}
 
-		IDatabase Redis;
-		RedisKey BaseKey;
-		RedisSet<TQueueId> QueueIndex;
-		RedisHash<TQueueId, DateTime> ActiveQueues; // Queues which are actively being dequeued from
-		ReadOnlyHashSet<TQueueId> LocalActiveQueues = new HashSet<TQueueId>();
-		Stopwatch ResetActiveQueuesTimer = Stopwatch.StartNew();
-
-		List<Listener> Listeners = new List<Listener>();
-		RedisChannel<TQueueId> NewQueueChannel;
-		Task QueueUpdateTask;
-		CancellationTokenSource CancellationSource = new CancellationTokenSource();
-		ILogger Logger;
+		readonly IDatabase _redis;
+		readonly RedisKey _baseKey;
+		readonly RedisSet<TQueueId> _queueIndex;
+		readonly RedisHash<TQueueId, DateTime> _activeQueues; // Queues which are actively being dequeued from
+		ReadOnlyHashSet<TQueueId> _localActiveQueues = new HashSet<TQueueId>();
+		readonly Stopwatch _resetActiveQueuesTimer = Stopwatch.StartNew();
+		readonly List<Listener> _listeners = new List<Listener>();
+		readonly RedisChannel<TQueueId> _newQueueChannel;
+		readonly Task _queueUpdateTask;
+		readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Redis">The Redis database instance</param>
-		/// <param name="BaseKey">Base key for all keys used by this scheduler</param>
-		/// <param name="Logger"></param>
-		public RedisTaskScheduler(IDatabase Redis, RedisKey BaseKey, ILogger Logger)
+		/// <param name="redis">The Redis database instance</param>
+		/// <param name="baseKey">Base key for all keys used by this scheduler</param>
+		/// <param name="logger"></param>
+		public RedisTaskScheduler(IDatabase redis, RedisKey baseKey, ILogger logger)
 		{
-			this.Redis = Redis;
-			this.BaseKey = BaseKey;
-			this.QueueIndex = new RedisSet<TQueueId>(Redis, BaseKey.Append("index"));
-			this.ActiveQueues = new RedisHash<TQueueId, DateTime>(Redis, BaseKey.Append("active"));
-			this.NewQueueChannel = new RedisChannel<TQueueId>(BaseKey.Append("new_queues").ToString());
-			this.Logger = Logger;
+			_redis = redis;
+			_baseKey = baseKey;
+			_queueIndex = new RedisSet<TQueueId>(redis, baseKey.Append("index"));
+			_activeQueues = new RedisHash<TQueueId, DateTime>(redis, baseKey.Append("active"));
+			_newQueueChannel = new RedisChannel<TQueueId>(baseKey.Append("new_queues").ToString());
+			_logger = logger;
 
-			QueueUpdateTask = Task.Run(() => UpdateQueuesAsync(CancellationSource.Token));
+			_queueUpdateTask = Task.Run(() => UpdateQueuesAsync(_cancellationSource.Token));
 		}
 
 		/// <inheritdoc/>
 		public async ValueTask DisposeAsync()
 		{
-			if (!QueueUpdateTask.IsCompleted)
+			if (!_queueUpdateTask.IsCompleted)
 			{
-				CancellationSource.Cancel();
-				await QueueUpdateTask;
+				_cancellationSource.Cancel();
+				await _queueUpdateTask;
 			}
-			CancellationSource.Dispose();
+			_cancellationSource.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -135,118 +126,118 @@ namespace Horde.Build.Compute.Impl
 		/// <summary>
 		/// Gets the key for a list of tasks for a particular queue
 		/// </summary>
-		/// <param name="QueueId">The queue identifier</param>
+		/// <param name="queueId">The queue identifier</param>
 		/// <returns></returns>
-		RedisKey GetQueueKey(TQueueId QueueId)
+		RedisKey GetQueueKey(TQueueId queueId)
 		{
-			return BaseKey.Append(RedisSerializer.Serialize(QueueId).AsKey());
+			return _baseKey.Append(RedisSerializer.Serialize(queueId).AsKey());
 		}
 
 		/// <summary>
 		/// Gets the key for a list of tasks for a particular queue
 		/// </summary>
-		/// <param name="QueueId">The queue identifier</param>
+		/// <param name="queueId">The queue identifier</param>
 		/// <returns></returns>
-		RedisList<TTask> GetQueue(TQueueId QueueId)
+		RedisList<TTask> GetQueue(TQueueId queueId)
 		{
-			return new RedisList<TTask>(Redis, GetQueueKey(QueueId));
+			return new RedisList<TTask>(_redis, GetQueueKey(queueId));
 		}
 
 		/// <summary>
 		/// Pushes a task onto either end of a queue
 		/// </summary>
-		static Task<long> PushTaskAsync(RedisList<TTask> List, TTask Task, When When, CommandFlags Flags, bool AtFront)
+		static Task<long> PushTaskAsync(RedisList<TTask> list, TTask task, When when, CommandFlags flags, bool atFront)
 		{
-			if (AtFront)
+			if (atFront)
 			{
-				return List.LeftPushAsync(Task, When, Flags);
+				return list.LeftPushAsync(task, when, flags);
 			}
 			else
 			{
-				return List.RightPushAsync(Task, When, Flags);
+				return list.RightPushAsync(task, when, flags);
 			}
 		}
 
 		/// <summary>
 		/// Adds a task to a particular queue, creating and adding that queue to the index if necessary
 		/// </summary>
-		/// <param name="QueueId">The queue to add the task to</param>
-		/// <param name="Task">Task to be scheduled</param>
-		/// <param name="AtFront">Whether to add to the front of the queue</param>
-		public async Task EnqueueAsync(TQueueId QueueId, TTask Task, bool AtFront)
+		/// <param name="queueId">The queue to add the task to</param>
+		/// <param name="task">Task to be scheduled</param>
+		/// <param name="atFront">Whether to add to the front of the queue</param>
+		public async Task EnqueueAsync(TQueueId queueId, TTask task, bool atFront)
 		{
-			RedisList<TTask> List = GetQueue(QueueId);
+			RedisList<TTask> list = GetQueue(queueId);
 			for (; ; )
 			{
-				long NewLength = await PushTaskAsync(List, Task, When.Exists, CommandFlags.None, AtFront);
-				if (NewLength > 0)
+				long newLength = await PushTaskAsync(list, task, When.Exists, CommandFlags.None, atFront);
+				if (newLength > 0)
 				{
-					Logger.LogInformation("Length of queue {QueueId} is {Length}", QueueId, NewLength);
+					_logger.LogInformation("Length of queue {QueueId} is {Length}", queueId, newLength);
 					break;
 				}
 
-				ITransaction Transaction = Redis.CreateTransaction();
-				_ = Transaction.With(QueueIndex).AddAsync(QueueId, CommandFlags.FireAndForget);
-				_ = PushTaskAsync(Transaction.With(List), Task, When.Always, CommandFlags.FireAndForget, AtFront);
+				ITransaction transaction = _redis.CreateTransaction();
+				_ = transaction.With(_queueIndex).AddAsync(queueId, CommandFlags.FireAndForget);
+				_ = PushTaskAsync(transaction.With(list), task, When.Always, CommandFlags.FireAndForget, atFront);
 
-				if (await Transaction.ExecuteAsync())
+				if (await transaction.ExecuteAsync())
 				{
-					Logger.LogInformation("Created queue {QueueId}", QueueId);
-					await Redis.PublishAsync(NewQueueChannel, QueueId);
+					_logger.LogInformation("Created queue {QueueId}", queueId);
+					await _redis.PublishAsync(_newQueueChannel, queueId);
 					break;
 				}
 
-				Logger.LogDebug("EnqueueAsync() retrying...");
+				_logger.LogDebug("EnqueueAsync() retrying...");
 			}
 		}
 
 		/// <summary>
 		/// Dequeues an item for execution by the given agent
 		/// </summary>
-		/// <param name="Predicate">Predicate for queues that tasks can be removed from</param>
-		/// <param name="Token">Cancellation token for waiting for an item</param>
+		/// <param name="predicate">Predicate for queues that tasks can be removed from</param>
+		/// <param name="token">Cancellation token for waiting for an item</param>
 		/// <returns>The dequeued item, or null if no item is available</returns>
-		public async Task<(TQueueId, TTask)?> DequeueAsync(Func<TQueueId, ValueTask<bool>> Predicate, CancellationToken Token = default)
+		public async Task<(TQueueId, TTask)?> DequeueAsync(Func<TQueueId, ValueTask<bool>> predicate, CancellationToken token = default)
 		{
 			// Compare against all the list of cached queues to see if we can dequeue something from any of them
-			Listener? Listener = null;
+			Listener? listener = null;
 			try
 			{
-				TQueueId[] Queues = await QueueIndex.MembersAsync();
-				while (!Token.IsCancellationRequested)
+				TQueueId[] queues = await _queueIndex.MembersAsync();
+				while (!token.IsCancellationRequested)
 				{
 					// Try to dequeue an item from the list
-					(TQueueId, TTask)? Entry = await TryAssignToLocalAgentAsync(Queues, Predicate);
-					if (Entry != null)
+					(TQueueId, TTask)? entry = await TryAssignToLocalAgentAsync(queues, predicate);
+					if (entry != null)
 					{
-						return Entry;
+						return entry;
 					}
 
 					// Create and register a listener for this waiter 
-					if (Listener == null)
+					if (listener == null)
 					{
-						Listener = new Listener(Predicate);
-						lock (Listeners)
+						listener = new Listener(predicate);
+						lock (_listeners)
 						{
-							Listeners.Add(Listener);
+							_listeners.Add(listener);
 						}
 					}
 					else
 					{
-						using (IDisposable Registration = Token.Register(() => Listener.CompletionSource.TrySetResult(null)))
+						using (IDisposable registration = token.Register(() => listener.CompletionSource.TrySetResult(null)))
 						{
-							return await Listener.CompletionSource.Task;
+							return await listener.CompletionSource.Task;
 						}
 					}
 				}
 			}
 			finally
 			{
-				if (Listener != null)
+				if (listener != null)
 				{
-					lock (Listeners)
+					lock (_listeners)
 					{
-						Listeners.Remove(Listener);
+						_listeners.Remove(listener);
 					}
 				}
 			}
@@ -256,19 +247,19 @@ namespace Horde.Build.Compute.Impl
 		/// <summary>
 		/// Attempts to dequeue a task from a set of queue
 		/// </summary>
-		/// <param name="QueueIds">The current array of queues</param>
-		/// <param name="Predicate">Predicate for queues that tasks can be removed from</param>
+		/// <param name="queueIds">The current array of queues</param>
+		/// <param name="predicate">Predicate for queues that tasks can be removed from</param>
 		/// <returns>The dequeued item, or null if no item is available</returns>
-		async Task<(TQueueId, TTask)?> TryAssignToLocalAgentAsync(TQueueId[] QueueIds, Func<TQueueId, ValueTask<bool>> Predicate)
+		async Task<(TQueueId, TTask)?> TryAssignToLocalAgentAsync(TQueueId[] queueIds, Func<TQueueId, ValueTask<bool>> predicate)
 		{
-			foreach (TQueueId QueueId in QueueIds)
+			foreach (TQueueId queueId in queueIds)
 			{
-				if (await Predicate(QueueId))
+				if (await predicate(queueId))
 				{
-					TTask? Task = await DequeueAsync(QueueId);
-					if (Task != null)
+					TTask? task = await DequeueAsync(queueId);
+					if (task != null)
 					{
-						return (QueueId, Task);
+						return (queueId, task);
 					}
 				}
 			}
@@ -278,45 +269,45 @@ namespace Horde.Build.Compute.Impl
 		/// <summary>
 		/// Dequeues the item at the front of a queue
 		/// </summary>
-		/// <param name="QueueId">The queue to dequeue from</param>
+		/// <param name="queueId">The queue to dequeue from</param>
 		/// <returns>The dequeued item, or null if the queue is empty</returns>
-		public async Task<TTask?> DequeueAsync(TQueueId QueueId)
+		public async Task<TTask?> DequeueAsync(TQueueId queueId)
 		{
-			await AddActiveQueue(QueueId);
+			await AddActiveQueue(queueId);
 
-			TTask? Item = await GetQueue(QueueId).LeftPopAsync();
-			if (Item == null)
+			TTask? item = await GetQueue(queueId).LeftPopAsync();
+			if (item == null)
 			{
-				ITransaction Transaction = Redis.CreateTransaction();
-				Transaction.AddCondition(Condition.KeyNotExists(GetQueueKey(QueueId)));
-				Task<bool> WasRemoved = Transaction.With(QueueIndex).RemoveAsync(QueueId);
+				ITransaction transaction = _redis.CreateTransaction();
+				transaction.AddCondition(Condition.KeyNotExists(GetQueueKey(queueId)));
+				Task<bool> wasRemoved = transaction.With(_queueIndex).RemoveAsync(queueId);
 
-				if (await Transaction.ExecuteAsync() && await WasRemoved)
+				if (await transaction.ExecuteAsync() && await wasRemoved)
 				{
-					Logger.LogInformation("Removed queue {QueueId} from index", QueueId);
+					_logger.LogInformation("Removed queue {QueueId} from index", queueId);
 				}
 			}
 
-			return Item;
+			return item;
 		}
 
 		/// <summary>
 		/// Marks a queue key as being actively monitored, preventing it being returned by <see cref="GetInactiveQueuesAsync"/>
 		/// </summary>
-		/// <param name="QueueId">The queue key</param>
+		/// <param name="queueId">The queue key</param>
 		/// <returns></returns>
-		async ValueTask AddActiveQueue(TQueueId QueueId)
+		async ValueTask AddActiveQueue(TQueueId queueId)
 		{
 			// Periodically clear out the set of active keys
-			TimeSpan ResetTime = TimeSpan.FromSeconds(10.0);
-			if (ResetActiveQueuesTimer.Elapsed > ResetTime)
+			TimeSpan resetTime = TimeSpan.FromSeconds(10.0);
+			if (_resetActiveQueuesTimer.Elapsed > resetTime)
 			{
-				lock (ResetActiveQueuesTimer)
+				lock (_resetActiveQueuesTimer)
 				{
-					if (ResetActiveQueuesTimer.Elapsed > ResetTime)
+					if (_resetActiveQueuesTimer.Elapsed > resetTime)
 					{
-						LocalActiveQueues = new HashSet<TQueueId>();
-						ResetActiveQueuesTimer.Restart();
+						_localActiveQueues = new HashSet<TQueueId>();
+						_resetActiveQueuesTimer.Restart();
 					}
 				}
 			}
@@ -326,19 +317,19 @@ namespace Horde.Build.Compute.Impl
 			// readers can thus access it without the need for any locking.
 			for(; ;)
 			{
-				ReadOnlyHashSet<TQueueId> LocalActiveQueuesCopy = LocalActiveQueues;
-				if (LocalActiveQueuesCopy.Contains(QueueId))
+				ReadOnlyHashSet<TQueueId> localActiveQueuesCopy = _localActiveQueues;
+				if (localActiveQueuesCopy.Contains(queueId))
 				{
 					break;
 				}
 
-				HashSet<TQueueId> NewLocalActiveQueues = new HashSet<TQueueId>(LocalActiveQueuesCopy);
-				NewLocalActiveQueues.Add(QueueId);
+				HashSet<TQueueId> newLocalActiveQueues = new HashSet<TQueueId>(localActiveQueuesCopy);
+				newLocalActiveQueues.Add(queueId);
 
-				if (Interlocked.CompareExchange(ref LocalActiveQueues, NewLocalActiveQueues, LocalActiveQueuesCopy) == LocalActiveQueuesCopy)
+				if (Interlocked.CompareExchange(ref _localActiveQueues, newLocalActiveQueues, localActiveQueuesCopy) == localActiveQueuesCopy)
 				{
-					Logger.LogInformation("Refreshing active queue {QueueId}", QueueId);
-					await ActiveQueues.SetAsync(QueueId, DateTime.UtcNow);
+					_logger.LogInformation("Refreshing active queue {QueueId}", queueId);
+					await _activeQueues.SetAsync(queueId, DateTime.UtcNow);
 					break;
 				}
 			}
@@ -350,114 +341,114 @@ namespace Horde.Build.Compute.Impl
 		/// <returns></returns>
 		public async Task<List<TQueueId>> GetInactiveQueuesAsync()
 		{
-			HashSet<TQueueId> Keys = new HashSet<TQueueId>(await QueueIndex.MembersAsync());
-			HashSet<TQueueId> InvalidKeys = new HashSet<TQueueId>();
+			HashSet<TQueueId> keys = new HashSet<TQueueId>(await _queueIndex.MembersAsync());
+			HashSet<TQueueId> invalidKeys = new HashSet<TQueueId>();
 
-			DateTime MinTime = DateTime.UtcNow - TimeSpan.FromMinutes(10.0);
+			DateTime minTime = DateTime.UtcNow - TimeSpan.FromMinutes(10.0);
 
-			HashEntry<TQueueId, DateTime>[] Entries = await ActiveQueues.GetAllAsync();
-			foreach (HashEntry<TQueueId, DateTime> Entry in Entries)
+			HashEntry<TQueueId, DateTime>[] entries = await _activeQueues.GetAllAsync();
+			foreach (HashEntry<TQueueId, DateTime> entry in entries)
 			{
-				if (Entry.Value < MinTime)
+				if (entry.Value < minTime)
 				{
-					InvalidKeys.Add(Entry.Name);
+					invalidKeys.Add(entry.Name);
 				}
 				else
 				{
-					Keys.Remove(Entry.Name);
+					keys.Remove(entry.Name);
 				}
 			}
 
-			if (InvalidKeys.Count > 0)
+			if (invalidKeys.Count > 0)
 			{
-				await ActiveQueues.DeleteAsync(InvalidKeys.ToArray());
+				await _activeQueues.DeleteAsync(invalidKeys.ToArray());
 			}
 
-			return Keys.ToList();
+			return keys.ToList();
 		}
 
-		async Task UpdateQueuesAsync(CancellationToken CancellationToken)
+		async Task UpdateQueuesAsync(CancellationToken cancellationToken)
 		{
-			Channel<TQueueId> NewQueues = Channel.CreateUnbounded<TQueueId>();
+			Channel<TQueueId> newQueues = Channel.CreateUnbounded<TQueueId>();
 
-			ISubscriber Subscriber = Redis.Multiplexer.GetSubscriber();
-			await using var _ = await Subscriber.SubscribeAsync(NewQueueChannel, (_, v) => NewQueues.Writer.TryWrite(v));
+			ISubscriber subscriber = _redis.Multiplexer.GetSubscriber();
+			await using RedisChannelSubscription<TQueueId>? _ = await subscriber.SubscribeAsync(_newQueueChannel, (_, v) => newQueues.Writer.TryWrite(v));
 
-			while (await NewQueues.Reader.WaitToReadAsync(CancellationToken))
+			while (await newQueues.Reader.WaitToReadAsync(cancellationToken))
 			{
-				HashSet<TQueueId> NewQueueIds = new HashSet<TQueueId>();
-				while (NewQueues.Reader.TryRead(out TQueueId? QueueId))
+				HashSet<TQueueId> newQueueIds = new HashSet<TQueueId>();
+				while (newQueues.Reader.TryRead(out TQueueId? queueId))
 				{
-					NewQueueIds.Add(QueueId);
+					newQueueIds.Add(queueId);
 				}
-				foreach (TQueueId NewQueueId in NewQueueIds)
+				foreach (TQueueId newQueueId in newQueueIds)
 				{
-					await TryDispatchToNewQueueAsync(NewQueueId);
+					await TryDispatchToNewQueueAsync(newQueueId);
 				}
 			}
 		}
 
-		async Task<bool> TryDispatchToNewQueueAsync(TQueueId QueueId)
+		async Task<bool> TryDispatchToNewQueueAsync(TQueueId queueId)
 		{
-			RedisList<TTask> Queue = GetQueue(QueueId);
+			RedisList<TTask> queue = GetQueue(queueId);
 
 			// Find a local listener that can execute the work
-			(TQueueId QueueId, TTask TaskId)? Entry = null;
+			(TQueueId QueueId, TTask TaskId)? entry = null;
 			try
 			{
 				for (; ; )
 				{
-					Listener? Listener = null;
+					Listener? listener = null;
 
 					// Look for a listener that can execute the task
-					HashSet<Listener> CheckedListeners = new HashSet<Listener>();
-					while(Listener == null)
+					HashSet<Listener> checkedListeners = new HashSet<Listener>();
+					while(listener == null)
 					{
 						// Find up to 10 listeners we haven't seen before
-						List<Listener> NewListeners = new List<Listener>();
-						lock (Listeners)
+						List<Listener> newListeners = new List<Listener>();
+						lock (_listeners)
 						{
-							NewListeners.AddRange(Listeners.Where(x => !x.CompletionSource.Task.IsCompleted && CheckedListeners.Add(x)).Take(10));
+							newListeners.AddRange(_listeners.Where(x => !x.CompletionSource.Task.IsCompleted && checkedListeners.Add(x)).Take(10));
 						}
-						if (NewListeners.Count == 0)
+						if (newListeners.Count == 0)
 						{
 							return false;
 						}
 
 						// Check predicates for each one against the new queue
-						foreach (Listener NewListener in NewListeners)
+						foreach (Listener newListener in newListeners)
 						{
-							if (await NewListener.Predicate(QueueId))
+							if (await newListener._predicate(queueId))
 							{
-								Listener = NewListener;
+								listener = newListener;
 								break;
 							}
 						}
 					}
 
 					// Pop an entry from the queue
-					if (Entry == null)
+					if (entry == null)
 					{
-						TTask? Task = await DequeueAsync(QueueId);
-						if (Task == null)
+						TTask? task = await DequeueAsync(queueId);
+						if (task == null)
 						{
 							return false;
 						}
-						Entry = (QueueId, Task);
+						entry = (queueId, task);
 					}
 
 					// Assign it to the listener
-					if (Listener.CompletionSource.TrySetResult(Entry))
+					if (listener.CompletionSource.TrySetResult(entry))
 					{
-						Entry = null;
+						entry = null;
 					}
 				}
 			}
 			finally
 			{
-				if (Entry != null)
+				if (entry != null)
 				{
-					await EnqueueAsync(Entry.Value.QueueId, Entry.Value.TaskId, true);
+					await EnqueueAsync(entry.Value.QueueId, entry.Value.TaskId, true);
 				}
 			}
 		}

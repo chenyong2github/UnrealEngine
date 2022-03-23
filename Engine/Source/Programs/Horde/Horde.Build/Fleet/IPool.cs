@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Horde.Common;
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
+using EpicGames.Horde.Common;
 using Horde.Build.Fleet.Autoscale;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Models
 {

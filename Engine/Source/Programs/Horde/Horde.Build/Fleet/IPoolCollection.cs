@@ -1,19 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Horde.Common;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
+using EpicGames.Horde.Common;
 using Horde.Build.Fleet.Autoscale;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Collections
 {
@@ -27,32 +20,32 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Creates a new pool
 		/// </summary>
-		/// <param name="Id">Unique id for the new pool</param>
-		/// <param name="Name">Name of the new pool</param>
-		/// <param name="Condition">Condition for agents to be included in this pool</param>
-		/// <param name="EnableAutoscaling">Whether to enable autoscaling for this pool</param>
-		/// <param name="MinAgents">Minimum number of agents in the pool</param>
-		/// <param name="NumReserveAgents">Minimum number of idle agents to maintain</param>
-		/// <param name="ScaleOutCooldown">Cooldown time between scale-out events</param>
-		/// <param name="ScaleInCooldown">Cooldown time between scale-in events</param>
-		/// <param name="SizeStrategy">Pool sizing strategy</param>
-		/// <param name="LeaseUtilizationSettings">Settings for lease utilization strategy</param>
-		/// <param name="JobQueueSettings">Settings for job queue strategy</param>
-		/// <param name="Properties">Properties for the pool</param>
+		/// <param name="id">Unique id for the new pool</param>
+		/// <param name="name">Name of the new pool</param>
+		/// <param name="condition">Condition for agents to be included in this pool</param>
+		/// <param name="enableAutoscaling">Whether to enable autoscaling for this pool</param>
+		/// <param name="minAgents">Minimum number of agents in the pool</param>
+		/// <param name="numReserveAgents">Minimum number of idle agents to maintain</param>
+		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
+		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
+		/// <param name="sizeStrategy">Pool sizing strategy</param>
+		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
+		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
+		/// <param name="properties">Properties for the pool</param>
 		/// <returns>The new pool document</returns>
 		Task<IPool> AddAsync(
-			PoolId Id,
-			string Name,
-			Condition? Condition = null,
-			bool? EnableAutoscaling = null,
-			int? MinAgents = null,
-			int? NumReserveAgents = null,
-			TimeSpan? ScaleOutCooldown = null,
-			TimeSpan? ScaleInCooldown = null,
-			PoolSizeStrategy? SizeStrategy = null,
-			LeaseUtilizationSettings? LeaseUtilizationSettings = null,
-			JobQueueSettings? JobQueueSettings = null,
-			IEnumerable<KeyValuePair<string, string>>? Properties = null);
+			PoolId id,
+			string name,
+			Condition? condition = null,
+			bool? enableAutoscaling = null,
+			int? minAgents = null,
+			int? numReserveAgents = null,
+			TimeSpan? scaleOutCooldown = null,
+			TimeSpan? scaleInCooldown = null,
+			PoolSizeStrategy? sizeStrategy = null,
+			LeaseUtilizationSettings? leaseUtilizationSettings = null,
+			JobQueueSettings? jobQueueSettings = null,
+			IEnumerable<KeyValuePair<string, string>>? properties = null);
 
 		/// <summary>
 		/// Enumerates all the pools
@@ -63,9 +56,9 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Gets a pool by ID
 		/// </summary>
-		/// <param name="Id">Unique id of the pool</param>
+		/// <param name="id">Unique id of the pool</param>
 		/// <returns>The pool document</returns>
-		Task<IPool?> GetAsync(PoolId Id);
+		Task<IPool?> GetAsync(PoolId id);
 
 		/// <summary>
 		/// Gets a list of all valid pool ids
@@ -76,46 +69,46 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Gets a pool by ID
 		/// </summary>
-		/// <param name="Id">Unique id of the pool</param>
+		/// <param name="id">Unique id of the pool</param>
 		/// <returns>The pool document</returns>
-		Task<bool> DeleteAsync(PoolId Id);
+		Task<bool> DeleteAsync(PoolId id);
 
 		/// <summary>
 		/// Updates a pool
 		/// </summary>
-		/// <param name="Pool">The pool to update</param>
-		/// <param name="NewName">New name for the pool</param>
-		/// <param name="NewCondition">New condition for the pool</param>
-		/// <param name="NewEnableAutoscaling">New setting for whether to enable autoscaling</param>
-		/// <param name="NewMinAgents">Minimum number of agents in the pool</param>
-		/// <param name="NewNumReserveAgents">Minimum number of idle agents to maintain</param>
-		/// <param name="NewWorkspaces">New workspaces for the pool</param>
-		/// <param name="NewUseAutoSdk">New setting for whether to use autosdk</param>
-		/// <param name="NewProperties">New properties for the pool</param>
-		/// <param name="LastScaleUpTime">New time for last (auto) scale up</param>
-		/// <param name="LastScaleDownTime">New time for last (auto) scale down</param>
-		/// <param name="ScaleOutCooldown">Cooldown time between scale-out events</param>
-		/// <param name="ScaleInCooldown">Cooldown time between scale-in events</param>
-		/// <param name="SizeStrategy">Pool sizing strategy</param>
-		/// <param name="LeaseUtilizationSettings">Settings for lease utilization strategy</param>
-		/// <param name="JobQueueSettings">Settings for job queue strategy</param>
+		/// <param name="pool">The pool to update</param>
+		/// <param name="newName">New name for the pool</param>
+		/// <param name="newCondition">New condition for the pool</param>
+		/// <param name="newEnableAutoscaling">New setting for whether to enable autoscaling</param>
+		/// <param name="newMinAgents">Minimum number of agents in the pool</param>
+		/// <param name="newNumReserveAgents">Minimum number of idle agents to maintain</param>
+		/// <param name="newWorkspaces">New workspaces for the pool</param>
+		/// <param name="newUseAutoSdk">New setting for whether to use autosdk</param>
+		/// <param name="newProperties">New properties for the pool</param>
+		/// <param name="lastScaleUpTime">New time for last (auto) scale up</param>
+		/// <param name="lastScaleDownTime">New time for last (auto) scale down</param>
+		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
+		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
+		/// <param name="sizeStrategy">Pool sizing strategy</param>
+		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
+		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
 		/// <returns>Async task</returns>
 		Task<IPool?> TryUpdateAsync(
-			IPool Pool,
-			string? NewName = null,
-			Condition? NewCondition = null,
-			bool? NewEnableAutoscaling = null,
-			int? NewMinAgents = null,
-			int? NewNumReserveAgents = null,
-			List<AgentWorkspace>? NewWorkspaces = null,
-			bool? NewUseAutoSdk = null,
-			Dictionary<string, string?>? NewProperties = null,
-			DateTime? LastScaleUpTime = null,
-			DateTime? LastScaleDownTime = null,
-			TimeSpan? ScaleOutCooldown = null,
-			TimeSpan? ScaleInCooldown = null,
-			PoolSizeStrategy? SizeStrategy = null,
-			LeaseUtilizationSettings? LeaseUtilizationSettings = null,
-			JobQueueSettings? JobQueueSettings = null);
+			IPool pool,
+			string? newName = null,
+			Condition? newCondition = null,
+			bool? newEnableAutoscaling = null,
+			int? newMinAgents = null,
+			int? newNumReserveAgents = null,
+			List<AgentWorkspace>? newWorkspaces = null,
+			bool? newUseAutoSdk = null,
+			Dictionary<string, string?>? newProperties = null,
+			DateTime? lastScaleUpTime = null,
+			DateTime? lastScaleDownTime = null,
+			TimeSpan? scaleOutCooldown = null,
+			TimeSpan? scaleInCooldown = null,
+			PoolSizeStrategy? sizeStrategy = null,
+			LeaseUtilizationSettings? leaseUtilizationSettings = null,
+			JobQueueSettings? jobQueueSettings = null);
 	}
 }

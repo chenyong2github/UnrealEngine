@@ -1,20 +1,17 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
+using Horde.Build.Models;
 using Horde.Build.Services;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
-using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Horde.Build.Models;
-using MongoDB.Bson;
-using Horde.Build.Utilities;
 
 namespace Horde.Build.Controllers
 {
@@ -31,124 +28,124 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Singleton instance of the ACL service
 		/// </summary>
-		private readonly AclService AclService;
+		private readonly AclService _aclService;
 
 		/// <summary>
 		/// Singleton instance of the client service
 		/// </summary>
-		private readonly AgentSoftwareService AgentSoftwareService;
+		private readonly AgentSoftwareService _agentSoftwareService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AclService">The ACL service</param>
-		/// <param name="AgentSoftwareService">The client service</param>
-		public AgentSoftwareController(AclService AclService, AgentSoftwareService AgentSoftwareService)
+		/// <param name="aclService">The ACL service</param>
+		/// <param name="agentSoftwareService">The client service</param>
+		public AgentSoftwareController(AclService aclService, AgentSoftwareService agentSoftwareService)
 		{
-			this.AclService = AclService;
-			this.AgentSoftwareService = AgentSoftwareService;
+			_aclService = aclService;
+			_agentSoftwareService = agentSoftwareService;
 		}
 
 		/// <summary>
 		/// Finds all uploaded software matching the given criteria
 		/// </summary>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Http response</returns>
 		[HttpGet]
 		[Route("/api/v1/agentsoftware")]
 		[ProducesResponseType(typeof(List<GetAgentSoftwareChannelResponse>), 200)]
-		public async Task<ActionResult<List<object>>> FindSoftwareAsync([FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> FindSoftwareAsync([FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.DownloadSoftware, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.DownloadSoftware, User))
 			{
 				return Forbid();
 			}
 
-			List<IAgentSoftwareChannel> Results = await AgentSoftwareService.FindChannelsAsync();
+			List<IAgentSoftwareChannel> results = await _agentSoftwareService.FindChannelsAsync();
 
-			List<object> Responses = new List<object>();
-			foreach (IAgentSoftwareChannel Result in Results)
+			List<object> responses = new List<object>();
+			foreach (IAgentSoftwareChannel result in results)
 			{
-				Responses.Add(new GetAgentSoftwareChannelResponse(Result).ApplyFilter(Filter));
+				responses.Add(new GetAgentSoftwareChannelResponse(result).ApplyFilter(filter));
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Finds all uploaded software matching the given criteria
 		/// </summary>
-		/// <param name="Name">Name of the channel to get</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="name">Name of the channel to get</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Http response</returns>
 		[HttpGet]
-		[Route("/api/v1/agentsoftware/{Name}")]
+		[Route("/api/v1/agentsoftware/{name}")]
 		[ProducesResponseType(typeof(GetAgentSoftwareChannelResponse), 200)]
-		public async Task<ActionResult<object>> FindSoftwareAsync(string Name, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> FindSoftwareAsync(string name, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.DownloadSoftware, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.DownloadSoftware, User))
 			{
 				return Forbid();
 			}
 
-			IAgentSoftwareChannel? Channel = await AgentSoftwareService.GetChannelAsync(new AgentSoftwareChannelName(Name));
-			if(Channel == null)
+			IAgentSoftwareChannel? channel = await _agentSoftwareService.GetChannelAsync(new AgentSoftwareChannelName(name));
+			if(channel == null)
 			{
 				return NotFound();
 			}
 
-			return new GetAgentSoftwareChannelResponse(Channel).ApplyFilter(Filter);
+			return new GetAgentSoftwareChannelResponse(channel).ApplyFilter(filter);
 		}
 
 		/// <summary>
 		/// Uploads a new agent zip file
 		/// </summary>
-		/// <param name="Name">Name of the channel to post to</param>
-		/// <param name="File">Zip archive containing the new client software</param>
+		/// <param name="name">Name of the channel to post to</param>
+		/// <param name="file">Zip archive containing the new client software</param>
 		/// <returns>Http result code</returns>
 		[HttpPost]
-		[Route("/api/v1/agentsoftware/{Name}/zip")]
-		public async Task<ActionResult> SetArchiveAsync(string Name, [FromForm] IFormFile File)
+		[Route("/api/v1/agentsoftware/{name}/zip")]
+		public async Task<ActionResult> SetArchiveAsync(string name, [FromForm] IFormFile file)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.UploadSoftware, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.UploadSoftware, User))
 			{
 				return Forbid();
 			}
 
-			byte[] Data;
-			using (MemoryStream MemoryStream = new MemoryStream())
+			byte[] data;
+			using (MemoryStream memoryStream = new MemoryStream())
 			{
-				using (System.IO.Stream Stream = File.OpenReadStream())
+				using (System.IO.Stream stream = file.OpenReadStream())
 				{
-					await Stream.CopyToAsync(MemoryStream);
+					await stream.CopyToAsync(memoryStream);
 				}
-				Data = MemoryStream.ToArray();
+				data = memoryStream.ToArray();
 			}
 
-			await AgentSoftwareService.SetArchiveAsync(new AgentSoftwareChannelName(Name), User.Identity?.Name, Data);
+			await _agentSoftwareService.SetArchiveAsync(new AgentSoftwareChannelName(name), User.Identity?.Name, data);
 			return Ok();
 		}
 
 		/// <summary>
 		/// Gets the zip file for a specific channel
 		/// </summary>
-		/// <param name="Name">Name of the channel</param>
+		/// <param name="name">Name of the channel</param>
 		/// <returns>Http response</returns>
 		[HttpGet]
-		[Route("/api/v1/agentsoftware/{Name}/zip")]
-		public async Task<ActionResult> GetArchiveAsync(string Name)
+		[Route("/api/v1/agentsoftware/{name}/zip")]
+		public async Task<ActionResult> GetArchiveAsync(string name)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.DownloadSoftware, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.DownloadSoftware, User))
 			{
 				return Forbid();
 			}
 
-			byte[]? Data = await AgentSoftwareService.GetArchiveAsync(new AgentSoftwareChannelName(Name));
-			if (Data == null)
+			byte[]? data = await _agentSoftwareService.GetArchiveAsync(new AgentSoftwareChannelName(name));
+			if (data == null)
 			{
 				return NotFound();
 			}
 
-			return new FileStreamResult(new MemoryStream(Data), new MediaTypeHeaderValue("application/octet-stream")) { FileDownloadName = $"HordeAgent.zip" };
+			return new FileStreamResult(new MemoryStream(data), new MediaTypeHeaderValue("application/octet-stream")) { FileDownloadName = $"HordeAgent.zip" };
 			
 		}
 	}

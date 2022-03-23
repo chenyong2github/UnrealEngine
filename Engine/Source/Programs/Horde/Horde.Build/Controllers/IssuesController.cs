@@ -1,24 +1,19 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Collections;
-using HordeCommon;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Server.Kestrel.Core.Features;
-using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -35,126 +30,124 @@ namespace Horde.Build.Controllers
 	[Route("[controller]")]
 	public class IssuesController : HordeControllerBase
 	{
-		private readonly IIssueCollection IssueCollection;
-		private readonly IIssueService IssueService;
-		private readonly JobService JobService;
-		private readonly StreamService StreamService;
-		private readonly IUserCollection UserCollection;
-		private readonly ILogEventCollection LogEventCollection;
-		private readonly ILogFileService LogFileService;
+		private readonly IIssueCollection _issueCollection;
+		private readonly IIssueService _issueService;
+		private readonly JobService _jobService;
+		private readonly StreamService _streamService;
+		private readonly IUserCollection _userCollection;
+		private readonly ILogFileService _logFileService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssuesController(IIssueCollection IssueCollection, IIssueService IssueService, JobService JobService, StreamService StreamService, IUserCollection UserCollection, ILogEventCollection LogEventCollection, ILogFileService LogFileService)
+		public IssuesController(IIssueCollection issueCollection, IIssueService issueService, JobService jobService, StreamService streamService, IUserCollection userCollection, ILogFileService logFileService)
 		{
-			this.IssueCollection = IssueCollection;
-			this.IssueService = IssueService;
-			this.JobService = JobService;
-			this.StreamService = StreamService;
-			this.UserCollection = UserCollection;
-			this.LogEventCollection = LogEventCollection;
-			this.LogFileService = LogFileService;
+			_issueCollection = issueCollection;
+			_issueService = issueService;
+			_jobService = jobService;
+			_streamService = streamService;
+			_userCollection = userCollection;
+			_logFileService = logFileService;
 		}
 
 		/// <summary>
 		/// Retrieve information about a specific issue
 		/// </summary>
-		/// <param name="Ids">Set of issue ids to find</param>
-		/// <param name="StreamId">The stream to query for</param>
-		/// <param name="MinChange">The minimum changelist range to query, inclusive</param>
-		/// <param name="MaxChange">The minimum changelist range to query, inclusive</param>
-		/// <param name="Resolved">Whether to include resolved issues</param>
-		/// <param name="Index">Starting offset of the window of results to return</param>
-		/// <param name="Count">Number of results to return</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="ids">Set of issue ids to find</param>
+		/// <param name="streamId">The stream to query for</param>
+		/// <param name="minChange">The minimum changelist range to query, inclusive</param>
+		/// <param name="maxChange">The minimum changelist range to query, inclusive</param>
+		/// <param name="resolved">Whether to include resolved issues</param>
+		/// <param name="index">Starting offset of the window of results to return</param>
+		/// <param name="count">Number of results to return</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
 		[Route("/api/v2/issues")]
 		[ProducesResponseType(typeof(List<GetIssueResponse>), 200)]
-		public async Task<ActionResult<object>> FindIssuesV2Async([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] StreamId? StreamId = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] bool? Resolved = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> FindIssuesV2Async([FromQuery(Name = "Id")] int[]? ids = null, [FromQuery] StreamId? streamId = null, [FromQuery] int? minChange = null, [FromQuery] int? maxChange = null, [FromQuery] bool? resolved = null, [FromQuery] int index = 0, [FromQuery] int count = 10, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (Ids != null && Ids.Length == 0)
+			if (ids != null && ids.Length == 0)
 			{
-				Ids = null;
+				ids = null;
 			}
 
-			List<object> Responses = new List<object>();
-			if (StreamId != null)
+			List<object> responses = new List<object>();
+			if (streamId != null)
 			{
-				if (!await StreamService.AuthorizeAsync(StreamId.Value, AclAction.ViewStream, User, new StreamPermissionsCache()))
+				if (!await _streamService.AuthorizeAsync(streamId.Value, AclAction.ViewStream, User, new StreamPermissionsCache()))
 				{
 					return Forbid();
 				}
 
-				List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(null, Ids, StreamId.Value, MinChange, MaxChange, Resolved);
-				if(Spans.Count > 0)
+				List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(null, ids, streamId.Value, minChange, maxChange, resolved);
+				if(spans.Count > 0)
 				{
 					// Group all the spans by their issue id
-					Dictionary<int, List<IIssueSpan>> IssueIdToSpans = new Dictionary<int, List<IIssueSpan>>();
-					foreach (IIssueSpan Span in Spans)
+					Dictionary<int, List<IIssueSpan>> issueIdToSpans = new Dictionary<int, List<IIssueSpan>>();
+					foreach (IIssueSpan span in spans)
 					{
-						List<IIssueSpan>? SpansForIssue;
-						if (!IssueIdToSpans.TryGetValue(Span.IssueId, out SpansForIssue))
+						List<IIssueSpan>? spansForIssue;
+						if (!issueIdToSpans.TryGetValue(span.IssueId, out spansForIssue))
 						{
-							SpansForIssue = new List<IIssueSpan>();
-							IssueIdToSpans.Add(Span.IssueId, SpansForIssue);
+							spansForIssue = new List<IIssueSpan>();
+							issueIdToSpans.Add(span.IssueId, spansForIssue);
 						}
-						SpansForIssue.Add(Span);
+						spansForIssue.Add(span);
 					}
 
 					// Find the matching issues
-					List<IIssue> Issues = await IssueCollection.FindIssuesAsync(IssueIdToSpans.Keys, Index: Index, Count: Count);
+					List<IIssue> issues = await _issueCollection.FindIssuesAsync(issueIdToSpans.Keys, index: index, count: count);
 
 					// Create the corresponding responses
-					foreach (IIssue Issue in Issues.OrderByDescending(x => x.Id))
+					foreach (IIssue issue in issues.OrderByDescending(x => x.Id))
 					{
-						IssueSeverity StreamSeverity = IssueSeverity.Unspecified;
+						IssueSeverity streamSeverity = IssueSeverity.Unspecified;
 
-						List<FindIssueSpanResponse> SpanResponses = new List<FindIssueSpanResponse>();
-						if (IssueIdToSpans.TryGetValue(Issue.Id, out List<IIssueSpan>? SpansForIssue))
+						List<FindIssueSpanResponse> spanResponses = new List<FindIssueSpanResponse>();
+						if (issueIdToSpans.TryGetValue(issue.Id, out List<IIssueSpan>? spansForIssue))
 						{
 							// Filter issues on resolved state
-							if (Resolved != null && (Resolved.Value != SpansForIssue.All(x => x.NextSuccess != null)))
+							if (resolved != null && (resolved.Value != spansForIssue.All(x => x.NextSuccess != null)))
 							{
 								continue;
 							}
 
 							// Find the current severity in the stream
-							DateTime LastStepTime = DateTime.MinValue;
-							foreach (IIssueSpan Span in SpansForIssue)
+							DateTime lastStepTime = DateTime.MinValue;
+							foreach (IIssueSpan span in spansForIssue)
 							{
-								if (Span.LastFailure != null && Span.LastFailure.StepTime > LastStepTime)
+								if (span.LastFailure != null && span.LastFailure.StepTime > lastStepTime)
 								{
-									LastStepTime = Span.LastFailure.StepTime;
-									StreamSeverity = Span.LastFailure.Severity;
+									lastStepTime = span.LastFailure.StepTime;
+									streamSeverity = span.LastFailure.Severity;
 								}
 							}
 
-							SpanResponses.AddRange(SpansForIssue.Select(x => new FindIssueSpanResponse(x)));
+							spanResponses.AddRange(spansForIssue.Select(x => new FindIssueSpanResponse(x)));
 						}
 					
-						IUser? Owner = null;
-						IUser? NominatedBy = null;
-						IUser? ResolvedBy = null;
+						IUser? owner = null;
+						IUser? nominatedBy = null;
+						IUser? resolvedBy = null;
 
-						if (Issue.OwnerId != null)
+						if (issue.OwnerId != null)
 						{
-							Owner = await UserCollection.GetCachedUserAsync(Issue.OwnerId.Value);
+							owner = await _userCollection.GetCachedUserAsync(issue.OwnerId.Value);
 						}
 						
-						if (Issue.NominatedById != null)
+						if (issue.NominatedById != null)
 						{
-							NominatedBy = await UserCollection.GetCachedUserAsync(Issue.NominatedById.Value);
+							nominatedBy = await _userCollection.GetCachedUserAsync(issue.NominatedById.Value);
 						}
 						
-						if (Issue.ResolvedById != null)
+						if (issue.ResolvedById != null)
 						{
-							ResolvedBy = await UserCollection.GetCachedUserAsync(Issue.ResolvedById.Value);
+							resolvedBy = await _userCollection.GetCachedUserAsync(issue.ResolvedById.Value);
 						}						
 
-						FindIssueResponse Response = new FindIssueResponse(Issue, Owner, NominatedBy, ResolvedBy, StreamSeverity, SpanResponses);
-						Responses.Add(PropertyFilter.Apply(Response, Filter));
+						FindIssueResponse response = new FindIssueResponse(issue, owner, nominatedBy, resolvedBy, streamSeverity, spanResponses);
+						responses.Add(PropertyFilter.Apply(response, filter));
 					}
 				}
 			}
@@ -163,326 +156,326 @@ namespace Horde.Build.Controllers
 				return BadRequest("Missing StreamId on request");
 			}
 
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Retrieve information about a specific issue
 		/// </summary>
-		/// <param name="Ids">Set of issue ids to find</param>
-		/// <param name="StreamId">The stream to query for</param>
-		/// <param name="Change">The changelist to query</param>
-		/// <param name="MinChange">The minimum changelist range to query, inclusive</param>
-		/// <param name="MaxChange">The minimum changelist range to query, inclusive</param>
-		/// <param name="JobId">Job id to filter by</param>
-		/// <param name="BatchId">The batch to filter by</param>
-		/// <param name="StepId">The step to filter by</param>
-		/// <param name="LabelIdx">The label within the job to filter by</param>
-		/// <param name="UserId">User to filter issues for</param>
-		/// <param name="Resolved">Whether to include resolved issues</param>
-		/// <param name="Promoted">Whether to include promoted issues</param>
-		/// <param name="Index">Starting offset of the window of results to return</param>
-		/// <param name="Count">Number of results to return</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="ids">Set of issue ids to find</param>
+		/// <param name="streamId">The stream to query for</param>
+		/// <param name="change">The changelist to query</param>
+		/// <param name="minChange">The minimum changelist range to query, inclusive</param>
+		/// <param name="maxChange">The minimum changelist range to query, inclusive</param>
+		/// <param name="jobId">Job id to filter by</param>
+		/// <param name="batchId">The batch to filter by</param>
+		/// <param name="stepId">The step to filter by</param>
+		/// <param name="labelIdx">The label within the job to filter by</param>
+		/// <param name="userId">User to filter issues for</param>
+		/// <param name="resolved">Whether to include resolved issues</param>
+		/// <param name="promoted">Whether to include promoted issues</param>
+		/// <param name="index">Starting offset of the window of results to return</param>
+		/// <param name="count">Number of results to return</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
 		[Route("/api/v1/issues")]
 		[ProducesResponseType(typeof(List<GetIssueResponse>), 200)]
-		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] string? StreamId = null, [FromQuery] int? Change = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] JobId? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string? UserId = null, [FromQuery] bool? Resolved = null, [FromQuery] bool? Promoted = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? ids = null, [FromQuery] string? streamId = null, [FromQuery] int? change = null, [FromQuery] int? minChange = null, [FromQuery] int? maxChange = null, [FromQuery] JobId? jobId = null, [FromQuery] string? batchId = null, [FromQuery] string? stepId = null, [FromQuery(Name = "label")] int? labelIdx = null, [FromQuery] string? userId = null, [FromQuery] bool? resolved = null, [FromQuery] bool? promoted = null, [FromQuery] int index = 0, [FromQuery] int count = 10, [FromQuery] PropertyFilter? filter = null)
 		{
-			if(Ids != null && Ids.Length == 0)
+			if(ids != null && ids.Length == 0)
 			{
-				Ids = null;
+				ids = null;
 			}
 
-			UserId? UserIdValue = null;
-			if (UserId != null)
+			UserId? userIdValue = null;
+			if (userId != null)
 			{
-				UserIdValue = new UserId(UserId);
+				userIdValue = new UserId(userId);
 			}
 
-			List<IIssue> Issues;
-			if (JobId == null)
+			List<IIssue> issues;
+			if (jobId == null)
 			{
-				StreamId? StreamIdValue = null;
-				if (StreamId != null)
+				StreamId? streamIdValue = null;
+				if (streamId != null)
 				{
-					StreamIdValue = new StreamId(StreamId);
+					streamIdValue = new StreamId(streamId);
 				}
 
-				Issues = await IssueService.FindIssuesAsync(Ids, UserIdValue, StreamIdValue, MinChange ?? Change, MaxChange ?? Change, Resolved, Promoted, Index, Count);
+				issues = await _issueService.FindIssuesAsync(ids, userIdValue, streamIdValue, minChange ?? change, maxChange ?? change, resolved, promoted, index, count);
 			}
 			else
 			{
-				IJob? Job = await JobService.GetJobAsync(JobId.Value);
-				if (Job == null)
+				IJob? job = await _jobService.GetJobAsync(jobId.Value);
+				if (job == null)
 				{
-					return NotFound(JobId.Value);
+					return NotFound(jobId.Value);
 				}
-				if(!await JobService.AuthorizeAsync(Job, AclAction.ViewJob, this.User, null))
+				if(!await _jobService.AuthorizeAsync(job, AclAction.ViewJob, User, null))
 				{
-					return Forbid(AclAction.ViewJob, JobId.Value);
+					return Forbid(AclAction.ViewJob, jobId.Value);
 				}
 
-				IGraph Graph = await JobService.GetGraphAsync(Job);
-				Issues = await IssueService.FindIssuesForJobAsync(Ids, Job, Graph, StepId?.ToSubResourceId(), BatchId?.ToSubResourceId(), LabelIdx, UserIdValue, Resolved, Promoted, Index, Count);
+				IGraph graph = await _jobService.GetGraphAsync(job);
+				issues = await _issueService.FindIssuesForJobAsync(ids, job, graph, stepId?.ToSubResourceId(), batchId?.ToSubResourceId(), labelIdx, userIdValue, resolved, promoted, index, count);
 			}
 
-			StreamPermissionsCache PermissionsCache = new StreamPermissionsCache();
+			StreamPermissionsCache permissionsCache = new StreamPermissionsCache();
 
-			List<object> Responses = new List<object>();
-			foreach (IIssue Issue in Issues)
+			List<object> responses = new List<object>();
+			foreach (IIssue issue in issues)
 			{
-				IIssueDetails Details = await IssueService.GetIssueDetailsAsync(Issue);
-				if (await AuthorizeIssue(Details, PermissionsCache))
+				IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
+				if (await AuthorizeIssue(details, permissionsCache))
 				{
-					bool bShowDesktopAlerts = IssueService.ShowDesktopAlertsForIssue(Issue, Details.Spans);
-					GetIssueResponse Response = await CreateIssueResponseAsync(Details, bShowDesktopAlerts);
-					Responses.Add(PropertyFilter.Apply(Response, Filter));
+					bool bShowDesktopAlerts = _issueService.ShowDesktopAlertsForIssue(issue, details.Spans);
+					GetIssueResponse response = await CreateIssueResponseAsync(details, bShowDesktopAlerts);
+					responses.Add(PropertyFilter.Apply(response, filter));
 				}
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Retrieve information about a specific issue
 		/// </summary>
-		/// <param name="IssueId">Id of the issue to get information about</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="issueId">Id of the issue to get information about</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
-		[Route("/api/v1/issues/{IssueId}")]
+		[Route("/api/v1/issues/{issueId}")]
 		[ProducesResponseType(typeof(GetIssueResponse), 200)]
-		public async Task<ActionResult<object>> GetIssueAsync(int IssueId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetIssueAsync(int issueId, [FromQuery] PropertyFilter? filter = null)
 		{
-			IIssueDetails? Details = await IssueService.GetIssueDetailsAsync(IssueId);
-			if (Details == null)
+			IIssueDetails? details = await _issueService.GetIssueDetailsAsync(issueId);
+			if (details == null)
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeIssue(Details, null))
+			if (!await AuthorizeIssue(details, null))
 			{
 				return Forbid();
 			}
 
-			bool bShowDesktopAlerts = IssueService.ShowDesktopAlertsForIssue(Details.Issue, Details.Spans);
-			return PropertyFilter.Apply(await CreateIssueResponseAsync(Details, bShowDesktopAlerts), Filter);
+			bool bShowDesktopAlerts = _issueService.ShowDesktopAlertsForIssue(details.Issue, details.Spans);
+			return PropertyFilter.Apply(await CreateIssueResponseAsync(details, bShowDesktopAlerts), filter);
 		}
 
 		/// <summary>
 		/// Retrieve historical information about a specific issue
 		/// </summary>
-		/// <param name="IssueId">Id of the agent to get information about</param>
-		/// <param name="MinTime">Minimum time for records to return</param>
-		/// <param name="MaxTime">Maximum time for records to return</param>
-		/// <param name="Index">Offset of the first result</param>
-		/// <param name="Count">Number of records to return</param>
+		/// <param name="issueId">Id of the agent to get information about</param>
+		/// <param name="minTime">Minimum time for records to return</param>
+		/// <param name="maxTime">Maximum time for records to return</param>
+		/// <param name="index">Offset of the first result</param>
+		/// <param name="count">Number of records to return</param>
 		/// <returns>Information about the requested agent</returns>
 		[HttpGet]
-		[Route("/api/v1/issues/{IssueId}/history")]
-		public async Task GetAgentHistoryAsync(int IssueId, [FromQuery] DateTime? MinTime = null, [FromQuery] DateTime? MaxTime = null, [FromQuery] int Index = 0, [FromQuery] int Count = 50)
+		[Route("/api/v1/issues/{issueId}/history")]
+		public async Task GetAgentHistoryAsync(int issueId, [FromQuery] DateTime? minTime = null, [FromQuery] DateTime? maxTime = null, [FromQuery] int index = 0, [FromQuery] int count = 50)
 		{
 			Response.ContentType = "application/json";
 			Response.StatusCode = 200;
 			await Response.StartAsync();
-			await IssueCollection.GetLogger(IssueId).FindAsync(Response.BodyWriter, MinTime, MaxTime, Index, Count);
+			await _issueCollection.GetLogger(issueId).FindAsync(Response.BodyWriter, minTime, maxTime, index, count);
 		}
 
 		/// <summary>
 		/// Create an issue response object
 		/// </summary>
-		/// <param name="Details"></param>
-		/// <param name="ShowDesktopAlerts"></param>
+		/// <param name="details"></param>
+		/// <param name="showDesktopAlerts"></param>
 		/// <returns></returns>
-		async Task<GetIssueResponse> CreateIssueResponseAsync(IIssueDetails Details, bool ShowDesktopAlerts)
+		async Task<GetIssueResponse> CreateIssueResponseAsync(IIssueDetails details, bool showDesktopAlerts)
 		{
-			List<GetIssueAffectedStreamResponse> AffectedStreams = new List<GetIssueAffectedStreamResponse>();
-			foreach (IGrouping<StreamId, IIssueSpan> StreamSpans in Details.Spans.GroupBy(x => x.StreamId))
+			List<GetIssueAffectedStreamResponse> affectedStreams = new List<GetIssueAffectedStreamResponse>();
+			foreach (IGrouping<StreamId, IIssueSpan> streamSpans in details.Spans.GroupBy(x => x.StreamId))
 			{
-				IStream? Stream = await StreamService.GetCachedStream(StreamSpans.Key);
-				AffectedStreams.Add(new GetIssueAffectedStreamResponse(Details, Stream, StreamSpans));
+				IStream? stream = await _streamService.GetCachedStream(streamSpans.Key);
+				affectedStreams.Add(new GetIssueAffectedStreamResponse(details, stream, streamSpans));
 			}
-			return new GetIssueResponse(Details, AffectedStreams, ShowDesktopAlerts);
+			return new GetIssueResponse(details, affectedStreams, showDesktopAlerts);
 		}
 
 		/// <summary>
 		/// Retrieve events for a specific issue
 		/// </summary>
-		/// <param name="IssueId">Id of the issue to get information about</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="issueId">Id of the issue to get information about</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
-		[Route("/api/v1/issues/{IssueId}/streams")]
+		[Route("/api/v1/issues/{issueId}/streams")]
 		[ProducesResponseType(typeof(List<GetIssueStreamResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetIssueStreamsAsync(int IssueId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetIssueStreamsAsync(int issueId, [FromQuery] PropertyFilter? filter = null)
 		{
-			IIssueDetails? Issue = await IssueService.GetIssueDetailsAsync(IssueId);
-			if (Issue == null)
+			IIssueDetails? issue = await _issueService.GetIssueDetailsAsync(issueId);
+			if (issue == null)
 			{
 				return NotFound();
 			}
 
-			StreamPermissionsCache Cache = new StreamPermissionsCache();
-			if (!await AuthorizeIssue(Issue, Cache))
+			StreamPermissionsCache cache = new StreamPermissionsCache();
+			if (!await AuthorizeIssue(issue, cache))
 			{
 				return Forbid();
 			}
 
-			List<object> Responses = new List<object>();
-			foreach (IGrouping<StreamId, IIssueSpan> SpanGroup in Issue.Spans.GroupBy(x => x.StreamId))
+			List<object> responses = new List<object>();
+			foreach (IGrouping<StreamId, IIssueSpan> spanGroup in issue.Spans.GroupBy(x => x.StreamId))
 			{
-				if (await StreamService.AuthorizeAsync(SpanGroup.Key, AclAction.ViewStream, User, Cache))
+				if (await _streamService.AuthorizeAsync(spanGroup.Key, AclAction.ViewStream, User, cache))
 				{
-					HashSet<ObjectId> SpanIds = new HashSet<ObjectId>(SpanGroup.Select(x => x.Id));
-					List<IIssueStep> Steps = Issue.Steps.Where(x => SpanIds.Contains(x.SpanId)).ToList();
-					Responses.Add(PropertyFilter.Apply(new GetIssueStreamResponse(SpanGroup.Key, SpanGroup.ToList(), Steps), Filter));
+					HashSet<ObjectId> spanIds = new HashSet<ObjectId>(spanGroup.Select(x => x.Id));
+					List<IIssueStep> steps = issue.Steps.Where(x => spanIds.Contains(x.SpanId)).ToList();
+					responses.Add(PropertyFilter.Apply(new GetIssueStreamResponse(spanGroup.Key, spanGroup.ToList(), steps), filter));
 				}
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Retrieve events for a specific issue
 		/// </summary>
-		/// <param name="IssueId">Id of the issue to get information about</param>
-		/// <param name="StreamId">The stream id</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="issueId">Id of the issue to get information about</param>
+		/// <param name="streamId">The stream id</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
-		[Route("/api/v1/issues/{IssueId}/streams/{StreamId}")]
+		[Route("/api/v1/issues/{issueId}/streams/{streamId}")]
 		[ProducesResponseType(typeof(List<GetIssueStreamResponse>), 200)]
-		public async Task<ActionResult<object>> GetIssueStreamAsync(int IssueId, string StreamId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetIssueStreamAsync(int issueId, string streamId, [FromQuery] PropertyFilter? filter = null)
 		{
-			IIssueDetails? Details = await IssueService.GetIssueDetailsAsync(IssueId);
-			if (Details == null)
+			IIssueDetails? details = await _issueService.GetIssueDetailsAsync(issueId);
+			if (details == null)
 			{
 				return NotFound();
 			}
 
-			StreamId StreamIdValue = new StreamId(StreamId);
-			if (!await StreamService.AuthorizeAsync(StreamIdValue, AclAction.ViewStream, User, null))
+			StreamId streamIdValue = new StreamId(streamId);
+			if (!await _streamService.AuthorizeAsync(streamIdValue, AclAction.ViewStream, User, null))
 			{
 				return Forbid();
 			}
 
-			List<IIssueSpan> Spans = Details.Spans.Where(x => x.StreamId == StreamIdValue).ToList();
-			if(Spans.Count == 0)
+			List<IIssueSpan> spans = details.Spans.Where(x => x.StreamId == streamIdValue).ToList();
+			if(spans.Count == 0)
 			{
 				return NotFound();
 			}
 
-			HashSet<ObjectId> SpanIds = new HashSet<ObjectId>(Spans.Select(x => x.Id));
-			List<IIssueStep> Steps = Details.Steps.Where(x => SpanIds.Contains(x.SpanId)).ToList();
+			HashSet<ObjectId> spanIds = new HashSet<ObjectId>(spans.Select(x => x.Id));
+			List<IIssueStep> steps = details.Steps.Where(x => spanIds.Contains(x.SpanId)).ToList();
 
-			return PropertyFilter.Apply(new GetIssueStreamResponse(StreamIdValue, Spans, Steps), Filter);
+			return PropertyFilter.Apply(new GetIssueStreamResponse(streamIdValue, spans, steps), filter);
 		}
 
 		/// <summary>
 		/// Retrieve events for a specific issue
 		/// </summary>
-		/// <param name="IssueId">Id of the issue to get information about</param>
-		/// <param name="JobId">The job id to filter for</param>
-		/// <param name="BatchId">The batch to filter by</param>
-		/// <param name="StepId">The step to filter by</param>
-		/// <param name="LabelIdx">The label within the job to filter by</param>
-		/// <param name="LogIds">List of log ids to return issues for</param>
-		/// <param name="Index">Index of the first event</param>
-		/// <param name="Count">Number of events to return</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="issueId">Id of the issue to get information about</param>
+		/// <param name="jobId">The job id to filter for</param>
+		/// <param name="batchId">The batch to filter by</param>
+		/// <param name="stepId">The step to filter by</param>
+		/// <param name="labelIdx">The label within the job to filter by</param>
+		/// <param name="logIds">List of log ids to return issues for</param>
+		/// <param name="index">Index of the first event</param>
+		/// <param name="count">Number of events to return</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
-		[Route("/api/v1/issues/{IssueId}/events")]
+		[Route("/api/v1/issues/{issueId}/events")]
 		[ProducesResponseType(typeof(List<GetLogEventResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetIssueEventsAsync(int IssueId, [FromQuery] JobId? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string[]? LogIds = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetIssueEventsAsync(int issueId, [FromQuery] JobId? jobId = null, [FromQuery] string? batchId = null, [FromQuery] string? stepId = null, [FromQuery(Name = "label")] int? labelIdx = null, [FromQuery] string[]? logIds = null, [FromQuery] int index = 0, [FromQuery] int count = 10, [FromQuery] PropertyFilter? filter = null)
 		{
-			HashSet<LogId> LogIdValues = new HashSet<LogId>();
-			if(JobId != null)
+			HashSet<LogId> logIdValues = new HashSet<LogId>();
+			if(jobId != null)
 			{
-				IJob? Job = await JobService.GetJobAsync(JobId.Value);
-				if(Job == null)
+				IJob? job = await _jobService.GetJobAsync(jobId.Value);
+				if(job == null)
 				{
 					return NotFound();
 				}
 
-				if (StepId != null)
+				if (stepId != null)
 				{
-					IJobStep? Step;
-					if (Job.TryGetStep(StepId.ToSubResourceId(), out Step) && Step.Outcome != JobStepOutcome.Success && Step.LogId != null)
+					IJobStep? step;
+					if (job.TryGetStep(stepId.ToSubResourceId(), out step) && step.Outcome != JobStepOutcome.Success && step.LogId != null)
 					{
-						LogIdValues.Add(Step.LogId.Value);
+						logIdValues.Add(step.LogId.Value);
 					}
 				}
-				else if (BatchId != null)
+				else if (batchId != null)
 				{
-					IJobStepBatch? Batch;
-					if (Job.TryGetBatch(BatchId.ToSubResourceId(), out Batch))
+					IJobStepBatch? batch;
+					if (job.TryGetBatch(batchId.ToSubResourceId(), out batch))
 					{
-						LogIdValues.UnionWith(Batch.Steps.Where(x => x.Outcome != JobStepOutcome.Success && x.LogId != null).Select(x => x.LogId!.Value));
+						logIdValues.UnionWith(batch.Steps.Where(x => x.Outcome != JobStepOutcome.Success && x.LogId != null).Select(x => x.LogId!.Value));
 					}
 				}
-				else if (LabelIdx != null)
+				else if (labelIdx != null)
 				{
-					IGraph Graph = await JobService.GetGraphAsync(Job);
+					IGraph graph = await _jobService.GetGraphAsync(job);
 
-					HashSet<NodeRef> IncludedNodes = new HashSet<NodeRef>(Graph.Labels[LabelIdx.Value].IncludedNodes);
+					HashSet<NodeRef> includedNodes = new HashSet<NodeRef>(graph.Labels[labelIdx.Value].IncludedNodes);
 
-					foreach (IJobStepBatch Batch in Job.Batches)
+					foreach (IJobStepBatch batch in job.Batches)
 					{
-						foreach (IJobStep Step in Batch.Steps)
+						foreach (IJobStep step in batch.Steps)
 						{
-							NodeRef NodeRef = new NodeRef(Batch.GroupIdx, Step.NodeIdx);
-							if (Step.Outcome != JobStepOutcome.Success && Step.LogId != null && IncludedNodes.Contains(NodeRef))
+							NodeRef nodeRef = new NodeRef(batch.GroupIdx, step.NodeIdx);
+							if (step.Outcome != JobStepOutcome.Success && step.LogId != null && includedNodes.Contains(nodeRef))
 							{
-								LogIdValues.Add(Step.LogId.Value);
+								logIdValues.Add(step.LogId.Value);
 							}
 						}
 					}
 				}
 				else
 				{
-					LogIdValues.UnionWith(Job.Batches.SelectMany(x => x.Steps).Where(x => x.Outcome != JobStepOutcome.Success && x.LogId != null).Select(x => x.LogId!.Value));
+					logIdValues.UnionWith(job.Batches.SelectMany(x => x.Steps).Where(x => x.Outcome != JobStepOutcome.Success && x.LogId != null).Select(x => x.LogId!.Value));
 				}
 			}
-			if(LogIds != null)
+			if(logIds != null)
 			{
-				LogIdValues.UnionWith(LogIds.Select(x => new LogId(x)));
+				logIdValues.UnionWith(logIds.Select(x => new LogId(x)));
 			}
 
-			List<ILogEvent> Events = await IssueService.FindEventsForIssueAsync(IssueId, LogIdValues.ToArray(), Index, Count);
+			List<ILogEvent> events = await _issueService.FindEventsForIssueAsync(issueId, logIdValues.ToArray(), index, count);
 
-			JobPermissionsCache PermissionsCache = new JobPermissionsCache();
-			Dictionary<LogId, ILogFile?> LogFiles = new Dictionary<LogId, ILogFile?>();
+			JobPermissionsCache permissionsCache = new JobPermissionsCache();
+			Dictionary<LogId, ILogFile?> logFiles = new Dictionary<LogId, ILogFile?>();
 
-			List<object> Responses = new List<object>();
-			foreach (ILogEvent Event in Events)
+			List<object> responses = new List<object>();
+			foreach (ILogEvent logEvent in events)
 			{
-				ILogFile? LogFile;
-				if (!LogFiles.TryGetValue(Event.LogId, out LogFile))
+				ILogFile? logFile;
+				if (!logFiles.TryGetValue(logEvent.LogId, out logFile))
 				{
-					LogFile = await LogFileService.GetLogFileAsync(Event.LogId);
-					LogFiles[Event.LogId] = LogFile;
+					logFile = await _logFileService.GetLogFileAsync(logEvent.LogId);
+					logFiles[logEvent.LogId] = logFile;
 				}
-				if (LogFile != null && await JobService.AuthorizeAsync(LogFile.JobId, AclAction.ViewLog, User, PermissionsCache))
+				if (logFile != null && await _jobService.AuthorizeAsync(logFile.JobId, AclAction.ViewLog, User, permissionsCache))
 				{
-					ILogEventData Data = await LogFileService.GetEventDataAsync(LogFile, Event.LineIndex, Event.LineCount);
-					GetLogEventResponse Response = new GetLogEventResponse(Event, Data, IssueId);
-					Responses.Add(PropertyFilter.Apply(Response, Filter));
+					ILogEventData data = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount);
+					GetLogEventResponse response = new GetLogEventResponse(logEvent, data, issueId);
+					responses.Add(PropertyFilter.Apply(response, filter));
 				}
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Authorize the current user to see an issue
 		/// </summary>
-		/// <param name="Issue">The issue to authorize</param>
-		/// <param name="PermissionsCache">Cache of permissions</param>
+		/// <param name="issue">The issue to authorize</param>
+		/// <param name="permissionsCache">Cache of permissions</param>
 		/// <returns>True if the user is authorized to see the issue</returns>
-		private async Task<bool> AuthorizeIssue(IIssueDetails Issue, StreamPermissionsCache? PermissionsCache)
+		private async Task<bool> AuthorizeIssue(IIssueDetails issue, StreamPermissionsCache? permissionsCache)
 		{
-			foreach (StreamId StreamId in Issue.Spans.Select(x => x.StreamId).Distinct())
+			foreach (StreamId streamId in issue.Spans.Select(x => x.StreamId).Distinct())
 			{
-				if (await StreamService.AuthorizeAsync(StreamId, AclAction.ViewStream, User, PermissionsCache))
+				if (await _streamService.AuthorizeAsync(streamId, AclAction.ViewStream, User, permissionsCache))
 				{
 					return true;
 				}
@@ -493,50 +486,50 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Update an issue
 		/// </summary>
-		/// <param name="IssueId">Id of the issue to get information about</param>
-		/// <param name="Request">The update information</param>
+		/// <param name="issueId">Id of the issue to get information about</param>
+		/// <param name="request">The update information</param>
 		/// <returns>List of matching agents</returns>
 		[HttpPut]
-		[Route("/api/v1/issues/{IssueId}")]
-		public async Task<ActionResult> UpdateIssueAsync(int IssueId, [FromBody] UpdateIssueRequest Request)
+		[Route("/api/v1/issues/{issueId}")]
+		public async Task<ActionResult> UpdateIssueAsync(int issueId, [FromBody] UpdateIssueRequest request)
 		{
-			UserId? NewOwnerId = null;
-			if (Request.OwnerId != null)
+			UserId? newOwnerId = null;
+			if (request.OwnerId != null)
 			{
-				NewOwnerId = Request.OwnerId.Length == 0 ? UserId.Empty : new UserId(Request.OwnerId);
+				newOwnerId = request.OwnerId.Length == 0 ? UserId.Empty : new UserId(request.OwnerId);
 			}
 
-			UserId? NewNominatedById = null;
-			if (Request.NominatedById != null)
+			UserId? newNominatedById = null;
+			if (request.NominatedById != null)
 			{
-				NewNominatedById = new UserId(Request.NominatedById);
+				newNominatedById = new UserId(request.NominatedById);
 			}
 
-			UserId? NewDeclinedById = null;
-			if (Request.Declined ?? false)
+			UserId? newDeclinedById = null;
+			if (request.Declined ?? false)
 			{
-				NewDeclinedById = User.GetUserId();
+				newDeclinedById = User.GetUserId();
 			}
 
-			UserId? NewResolvedById = null;
-			if (Request.Resolved.HasValue)
+			UserId? newResolvedById = null;
+			if (request.Resolved.HasValue)
 			{
-				NewResolvedById = Request.Resolved.Value ? User.GetUserId() : UserId.Empty;
+				newResolvedById = request.Resolved.Value ? User.GetUserId() : UserId.Empty;
 			}
 
-			List<ObjectId>? AddSpans = null;
-			if (Request.AddSpans != null && Request.AddSpans.Count > 0)
+			List<ObjectId>? addSpans = null;
+			if (request.AddSpans != null && request.AddSpans.Count > 0)
 			{
-				AddSpans = Request.AddSpans.ConvertAll(x => ObjectId.Parse(x));
+				addSpans = request.AddSpans.ConvertAll(x => ObjectId.Parse(x));
 			}
 
-			List<ObjectId>? RemoveSpans = null;
-			if (Request.RemoveSpans != null && Request.RemoveSpans.Count > 0)
+			List<ObjectId>? removeSpans = null;
+			if (request.RemoveSpans != null && request.RemoveSpans.Count > 0)
 			{
-				RemoveSpans = Request.RemoveSpans.ConvertAll(x => ObjectId.Parse(x));
+				removeSpans = request.RemoveSpans.ConvertAll(x => ObjectId.Parse(x));
 			}
 
-			if (!await IssueService.UpdateIssueAsync(IssueId, Request.Summary, Request.Description, Request.Promoted, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById, AddSpans, RemoveSpans))
+			if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans))
 			{
 				return NotFound();
 			}

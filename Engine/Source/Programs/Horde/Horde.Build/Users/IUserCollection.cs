@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using MongoDB.Bson;
 
 namespace Horde.Build.Collections
 {
@@ -23,75 +20,75 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Gets a user by unique id
 		/// </summary>
-		/// <param name="Id">Id of the user</param>
+		/// <param name="id">Id of the user</param>
 		/// <returns>The user information</returns>
-		Task<IUser?> GetUserAsync(UserId Id);
+		Task<IUser?> GetUserAsync(UserId id);
 
 		/// <summary>
 		/// Gets a cached user by unique id
 		/// </summary>
-		/// <param name="Id">Id of the user</param>
+		/// <param name="id">Id of the user</param>
 		/// <returns>The user information</returns>
-		ValueTask<IUser?> GetCachedUserAsync(UserId? Id);
+		ValueTask<IUser?> GetCachedUserAsync(UserId? id);
 
 		/// <summary>
 		/// Gets a user by unique id
 		/// </summary>
-		/// <param name="Ids">Ids of the users</param>
-		/// <param name="NameRegex">Name regex to match for the users</param>
-		/// <param name="Index">Maximum number of results</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="ids">Ids of the users</param>
+		/// <param name="nameRegex">Name regex to match for the users</param>
+		/// <param name="index">Maximum number of results</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>The user information</returns>
-		Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? Ids = null, string? NameRegex = null, int? Index = null, int? Count = null);
+		Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? ids = null, string? nameRegex = null, int? index = null, int? count = null);
 
 		/// <summary>
 		/// Gets a user by login
 		/// </summary>
-		/// <param name="Login">Login for the user</param>
+		/// <param name="login">Login for the user</param>
 		/// <returns>The user information</returns>
-		Task<IUser?> FindUserByLoginAsync(string Login);
+		Task<IUser?> FindUserByLoginAsync(string login);
 
 		/// <summary>
 		/// Find or add a user with the given claims. Claims will be updated if the user exists.
 		/// </summary>
-		/// <param name="Login">Login id of the user</param>
-		/// <param name="Name">Full name of the user</param>
-		/// <param name="Email">Email address of the user</param>
+		/// <param name="login">Login id of the user</param>
+		/// <param name="name">Full name of the user</param>
+		/// <param name="email">Email address of the user</param>
 		/// <returns>The user document</returns>
-		Task<IUser> FindOrAddUserByLoginAsync(string Login, string? Name = null, string? Email = null);
+		Task<IUser> FindOrAddUserByLoginAsync(string login, string? name = null, string? email = null);
 
 		/// <summary>
 		/// Gets the claims for a user
 		/// </summary>
-		/// <param name="UserId"></param>
+		/// <param name="userId"></param>
 		/// <returns></returns>
-		Task<IUserClaims> GetClaimsAsync(UserId UserId);
+		Task<IUserClaims> GetClaimsAsync(UserId userId);
 
 		/// <summary>
 		/// Update the claims for a user
 		/// </summary>
-		/// <param name="UserId"></param>
-		/// <param name="Claims"></param>
+		/// <param name="userId"></param>
+		/// <param name="claims"></param>
 		/// <returns></returns>
-		Task UpdateClaimsAsync(UserId UserId, IEnumerable<IUserClaim> Claims);
+		Task UpdateClaimsAsync(UserId userId, IEnumerable<IUserClaim> claims);
 
 		/// <summary>
 		/// Get settings for a user
 		/// </summary>
-		/// <param name="UserId"></param>
+		/// <param name="userId"></param>
 		/// <returns></returns>
-		Task<IUserSettings> GetSettingsAsync(UserId UserId);
+		Task<IUserSettings> GetSettingsAsync(UserId userId);
 
 		/// <summary>
 		/// Update a user
 		/// </summary>
-		/// <param name="UserId">The user to update</param>
-		/// <param name="EnableExperimentalFeatures"></param>
-		/// <param name="DashboardSettings">Opaque settings object for the dashboard</param>
-		/// <param name="AddPinnedJobIds"></param>
-		/// <param name="RemovePinnedJobIds"></param>
+		/// <param name="userId">The user to update</param>
+		/// <param name="enableExperimentalFeatures"></param>
+		/// <param name="dashboardSettings">Opaque settings object for the dashboard</param>
+		/// <param name="addPinnedJobIds"></param>
+		/// <param name="removePinnedJobIds"></param>
 		/// <returns>Updated user object</returns>
-		Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null);
+		Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures = null, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null);
 	}
 
 	/// <summary>
@@ -102,15 +99,15 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Gets a particular user info from the collection
 		/// </summary>
-		/// <param name="UserCollection"></param>
-		/// <param name="Principal"></param>
+		/// <param name="userCollection"></param>
+		/// <param name="principal"></param>
 		/// <returns></returns>
-		public static Task<IUser?> GetUserAsync(this IUserCollection UserCollection, ClaimsPrincipal Principal)
+		public static Task<IUser?> GetUserAsync(this IUserCollection userCollection, ClaimsPrincipal principal)
 		{
-			UserId? UserId = Principal.GetUserId();
-			if (UserId != null)
+			UserId? userId = principal.GetUserId();
+			if (userId != null)
 			{
-				return UserCollection.GetUserAsync(UserId.Value);
+				return userCollection.GetUserAsync(userId.Value);
 			}
 			else
 			{

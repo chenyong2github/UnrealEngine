@@ -1,27 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
+using System.Diagnostics;
+using System.Reflection;
 using Horde.Build.Api;
-using Horde.Build.Collections;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using System.Reflection;
-using System.Diagnostics;
 
 namespace Horde.Build.Controllers
 {
@@ -37,14 +21,14 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Settings for the server
 		/// </summary>
-		IOptionsMonitor<ServerSettings> Settings;
+		readonly IOptionsMonitor<ServerSettings> _settings;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ServerController(IOptionsMonitor<ServerSettings> Settings)
+		public ServerController(IOptionsMonitor<ServerSettings> settings)
 		{
-			this.Settings = Settings;
+			_settings = settings;
 		}
 		
 		/// <summary>
@@ -54,8 +38,8 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/server/version")]
 		public ActionResult GetVersionAsync()
 		{
-			FileVersionInfo FileVersionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);
-			return Ok(FileVersionInfo.ProductVersion);
+			FileVersionInfo fileVersionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);
+			return Ok(fileVersionInfo.ProductVersion);
 		}		
 
 		/// <summary>
@@ -66,7 +50,7 @@ namespace Horde.Build.Controllers
 		[ProducesResponseType(typeof(GetServerInfoResponse), 200)]
 		public ActionResult<GetServerInfoResponse> GetServerInfo()
 		{
-			return new GetServerInfoResponse(this.Settings.CurrentValue.SingleInstance);
+			return new GetServerInfoResponse(_settings.CurrentValue.SingleInstance);
 		}
 	}
 }

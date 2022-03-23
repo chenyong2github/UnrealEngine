@@ -1,19 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Grpc.Core;
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using Grpc.Core;
 
 namespace Horde.Build.Utilities
 {
 	/// <summary>
 	/// Exception class designed to allow logging structured log messages
 	/// </summary>
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1032:Implement standard exception constructors", Justification = "<Pending>")]
 	public class StructuredRpcException : RpcException
 	{
 		/// <summary>
@@ -29,54 +25,54 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StatusCode">Status code to return</param>
-		/// <param name="Format">The format string</param>
-		/// <param name="Args">Arguments for the format string</param>
-		public StructuredRpcException(StatusCode StatusCode, string Format, params object[] Args)
-			: base(new Status(StatusCode, FormatMessage(Format, Args)))
+		/// <param name="statusCode">Status code to return</param>
+		/// <param name="format">The format string</param>
+		/// <param name="args">Arguments for the format string</param>
+		public StructuredRpcException(StatusCode statusCode, string format, params object[] args)
+			: base(new Status(statusCode, FormatMessage(format, args)))
 		{
-			this.Format = Format;
-			this.Args = Args;
+			Format = format;
+			Args = args;
 		}
 
 		/// <summary>
 		/// Replace named arguments in the format message with their values
 		/// </summary>
-		/// <param name="Format"></param>
-		/// <param name="Args"></param>
+		/// <param name="format"></param>
+		/// <param name="args"></param>
 		/// <returns></returns>
-		static string FormatMessage(string Format, params object[] Args)
+		static string FormatMessage(string format, params object[] args)
 		{
-			string NewFormat = ConvertToFormatString(Format);
-			return String.Format(CultureInfo.CurrentCulture, NewFormat, Args);
+			string newFormat = ConvertToFormatString(format);
+			return String.Format(CultureInfo.CurrentCulture, newFormat, args);
 		}
 
 		/// <summary>
 		/// Converts a named parameter format string to a String.Format style string
 		/// </summary>
-		/// <param name="Format"></param>
+		/// <param name="format"></param>
 		/// <returns></returns>
-		static string ConvertToFormatString(string Format)
+		static string ConvertToFormatString(string format)
 		{
-			int ArgIdx = 0;
+			int argIdx = 0;
 
-			StringBuilder NewFormat = new StringBuilder();
-			for (int Idx = 0; Idx < Format.Length; Idx++)
+			StringBuilder newFormat = new StringBuilder();
+			for (int idx = 0; idx < format.Length; idx++)
 			{
-				char Character = Format[Idx];
-				NewFormat.Append(Character);
+				char character = format[idx];
+				newFormat.Append(character);
 
-				if (Character == '{' && Idx + 1 < Format.Length)
+				if (character == '{' && idx + 1 < format.Length)
 				{
-					char NextCharacter = Format[Idx + 1];
-					if ((NextCharacter >= 'a' && NextCharacter <= 'z') || (NextCharacter >= 'A' && NextCharacter <= 'Z') || NextCharacter == '_')
+					char nextCharacter = format[idx + 1];
+					if ((nextCharacter >= 'a' && nextCharacter <= 'z') || (nextCharacter >= 'A' && nextCharacter <= 'Z') || nextCharacter == '_')
 					{
-						for (int EndIdx = Idx + 2; EndIdx < Format.Length; EndIdx++)
+						for (int endIdx = idx + 2; endIdx < format.Length; endIdx++)
 						{
-							if (Format[EndIdx] == ':' || Format[EndIdx] == '}')
+							if (format[endIdx] == ':' || format[endIdx] == '}')
 							{
-								NewFormat.Append(ArgIdx++);
-								Idx = EndIdx - 1;
+								newFormat.Append(argIdx++);
+								idx = endIdx - 1;
 								break;
 							}
 						}
@@ -84,7 +80,7 @@ namespace Horde.Build.Utilities
 				}
 			}
 
-			return NewFormat.ToString();
+			return newFormat.ToString();
 		}
 	}
 }

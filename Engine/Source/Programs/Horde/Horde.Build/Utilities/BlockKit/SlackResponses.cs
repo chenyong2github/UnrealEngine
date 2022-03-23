@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Drawing;
 using Horde.Build.Utilities.Slack.BlockKit;
 
 namespace Horde.Build.Utilities.BlockKit
@@ -14,17 +13,17 @@ namespace Horde.Build.Utilities.BlockKit
 		/// <summary>
 		/// Creates a response to send to Slack about receiving bad data for a request.
 		/// </summary>
-		/// <param name="Message">A message explaining what was wrong with the data.</param>
+		/// <param name="message">A message explaining what was wrong with the data.</param>
 		/// <returns>A <see cref="BlockKitMessage"/> to be sent to Slack.</returns>
-		public static BlockKitMessage CreateBadDataResponse(string Message)
+		public static BlockKitMessage CreateBadDataResponse(string message)
 		{
-			BlockKitMessage BlockKitMessage = new BlockKitMessage();
-			BlockKitAttachment Attachment = new BlockKitAttachment();
-			Attachment.Color = BlockKitAttachmentColors.Error;
-			Attachment.Blocks.Add(new SectionBlock("Failed to process request due to bad data from Slack:"));
-			Attachment.Blocks.Add(new SectionBlock(Message));
-			BlockKitMessage.Attachments.Add(Attachment);
-			return BlockKitMessage;
+			BlockKitMessage blockKitMessage = new BlockKitMessage();
+			BlockKitAttachment attachment = new BlockKitAttachment();
+			attachment.Color = BlockKitAttachmentColors.Error;
+			attachment.Blocks.Add(new SectionBlock("Failed to process request due to bad data from Slack:"));
+			attachment.Blocks.Add(new SectionBlock(message));
+			blockKitMessage.Attachments.Add(attachment);
+			return blockKitMessage;
 		}
 
 		/// <summary>
@@ -32,14 +31,14 @@ namespace Horde.Build.Utilities.BlockKit
 		/// being found in the DB.
 		/// </summary>
 		/// <returns>A <see cref="BlockKitMessage"/> to be sent to Slack.</returns>
-		public static BlockKitMessage CreateIssueNotFoundResponse(int IssueId)
+		public static BlockKitMessage CreateIssueNotFoundResponse(int issueId)
 		{
-			BlockKitMessage BlockKitMessage = new BlockKitMessage();
-			BlockKitAttachment Attachment = new BlockKitAttachment();
-			Attachment.Color = BlockKitAttachmentColors.Error;
-			Attachment.Blocks.Add(new SectionBlock($"Failed to assign issue as issue {IssueId} could not be found."));
-			BlockKitMessage.Attachments.Add(Attachment);
-			return BlockKitMessage;
+			BlockKitMessage blockKitMessage = new BlockKitMessage();
+			BlockKitAttachment attachment = new BlockKitAttachment();
+			attachment.Color = BlockKitAttachmentColors.Error;
+			attachment.Blocks.Add(new SectionBlock($"Failed to assign issue as issue {issueId} could not be found."));
+			blockKitMessage.Attachments.Add(attachment);
+			return blockKitMessage;
 		}
 	}
 }

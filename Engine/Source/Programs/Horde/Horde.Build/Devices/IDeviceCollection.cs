@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
-	using UserId = ObjectId<IUser>;
 	using ProjectId = StringId<IProject>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Device reservation request data
@@ -42,12 +42,12 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DeviceRequestData(DevicePlatformId PlatformId, string RequestedPlatform, List<string>? IncludeModels = null, List<string>? ExcludeModels = null)
+		public DeviceRequestData(DevicePlatformId platformId, string requestedPlatform, List<string>? includeModels = null, List<string>? excludeModels = null)
 		{
-			this.PlatformId = PlatformId;
-			this.IncludeModels = IncludeModels ?? new List<string>();
-			this.ExcludeModels = ExcludeModels ?? new List<string>();
-			this.RequestedPlatform = RequestedPlatform;
+			PlatformId = platformId;
+			IncludeModels = includeModels ?? new List<string>();
+			ExcludeModels = excludeModels ?? new List<string>();
+			RequestedPlatform = requestedPlatform;
 		}
 	}
 
@@ -61,9 +61,9 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Add a platform 
 		/// </summary>
-		/// <param name="Id">The id of the platform</param>
-		/// <param name="Name">The friendly name of the platform</param>
-		Task<IDevicePlatform?> TryAddPlatformAsync(DevicePlatformId Id, string Name);
+		/// <param name="id">The id of the platform</param>
+		/// <param name="name">The friendly name of the platform</param>
+		Task<IDevicePlatform?> TryAddPlatformAsync(DevicePlatformId id, string name);
 
 		/// <summary>
 		/// Get a list of all available device platforms
@@ -73,37 +73,37 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Get a specific platform by id
 		/// </summary>
-		Task<IDevicePlatform?> GetPlatformAsync(DevicePlatformId PlatformId);
+		Task<IDevicePlatform?> GetPlatformAsync(DevicePlatformId platformId);
 
 		/// <summary>
 		/// Update a device platform
 		/// </summary>
 		/// <param name="platformId">The id of the device</param>
-		/// <param name="ModelIds">The available model ids for the platform</param>
-		Task<bool> UpdatePlatformAsync(DevicePlatformId platformId, string[]? ModelIds);
+		/// <param name="modelIds">The available model ids for the platform</param>
+		Task<bool> UpdatePlatformAsync(DevicePlatformId platformId, string[]? modelIds);
 
 		// POOLS
 
 		/// <summary>
 		/// Add a new device pool to the collection
 		/// </summary>
-		/// <param name="Id">The id of the new pool</param>
-		/// <param name="Name">The friendly name of the new pool</param>
-		/// <param name="PoolType">The pool type</param>
-		/// <param name="ProjectIds">Projects associated with this pool</param>
-		Task<IDevicePool?> TryAddPoolAsync(DevicePoolId Id, string Name, DevicePoolType PoolType, List<ProjectId>? ProjectIds );
+		/// <param name="id">The id of the new pool</param>
+		/// <param name="name">The friendly name of the new pool</param>
+		/// <param name="poolType">The pool type</param>
+		/// <param name="projectIds">Projects associated with this pool</param>
+		Task<IDevicePool?> TryAddPoolAsync(DevicePoolId id, string name, DevicePoolType poolType, List<ProjectId>? projectIds );
 
 		/// <summary>
 		/// Update a device pool
 		/// </summary>
-		/// <param name="Id">The id of the device pool to update</param>
-		/// <param name="ProjectIds">Associated project ids</param>
-		Task UpdatePoolAsync(DevicePoolId Id, List<ProjectId>? ProjectIds);
+		/// <param name="id">The id of the device pool to update</param>
+		/// <param name="projectIds">Associated project ids</param>
+		Task UpdatePoolAsync(DevicePoolId id, List<ProjectId>? projectIds);
 
 		/// <summary>
 		/// Get a pool by id
 		/// </summary>
-		Task<IDevicePool?> GetPoolAsync(DevicePoolId PoolId);
+		Task<IDevicePool?> GetPoolAsync(DevicePoolId poolId);
 
 		/// <summary>
 		/// Gets a list of existing device pools
@@ -115,85 +115,85 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Get a device by id
 		/// </summary>
-		Task<IDevice?> GetDeviceAsync(DeviceId DeviceId);
+		Task<IDevice?> GetDeviceAsync(DeviceId deviceId);
 
 		/// <summary>
 		/// Get a device by name
 		/// </summary>
-		Task<IDevice?> GetDeviceByNameAsync(string DeviceName);
+		Task<IDevice?> GetDeviceByNameAsync(string deviceName);
 
 		/// <summary>
 		/// Get a list of all devices
 		/// </summary>
-		/// <param name="DeviceIds">Optional list of device ids to get</param>
-		Task<List<IDevice>> FindAllDevicesAsync(List<DeviceId>? DeviceIds);
+		/// <param name="deviceIds">Optional list of device ids to get</param>
+		Task<List<IDevice>> FindAllDevicesAsync(List<DeviceId>? deviceIds);
 
 		/// <summary>
 		/// Adds a new device
 		/// </summary>
-		/// <param name="Id">The device id</param>
-		/// <param name="Name">The name of the device (unique)</param>
-		/// <param name="PlatformId">The platform of the device</param>
-		/// <param name="PoolId">Which pool to add it to</param>
-		/// <param name="Enabled">Whather the device is enabled by default</param>
-		/// <param name="Address">The network address or hostname the device can be reached at</param>
-		/// <param name="ModelId">The vendor model id of the device</param>
-        /// <param name="UserId">The user adding the device</param>
-		Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, UserId? UserId);
+		/// <param name="id">The device id</param>
+		/// <param name="name">The name of the device (unique)</param>
+		/// <param name="platformId">The platform of the device</param>
+		/// <param name="poolId">Which pool to add it to</param>
+		/// <param name="enabled">Whather the device is enabled by default</param>
+		/// <param name="address">The network address or hostname the device can be reached at</param>
+		/// <param name="modelId">The vendor model id of the device</param>
+        /// <param name="userId">The user adding the device</param>
+		Task<IDevice?> TryAddDeviceAsync(DeviceId id, string name, DevicePlatformId platformId, DevicePoolId poolId, bool? enabled, string? address, string? modelId, UserId? userId);
 
 		/// <summary>
 		/// Update a device
 		/// </summary>
-		/// <param name="DeviceId">The id of the device to update</param>
-		/// <param name="NewPoolId">The new pool to assign</param>
-		/// <param name="NewName">The new name to assign</param>		
-		/// <param name="NewAddress">The new device address or hostname</param>
-		/// <param name="NewModelId">The new model id</param>
-		/// <param name="NewNotes">The devices markdown notes</param>
-		/// <param name="NewEnabled">Whether the device is enabled or not</param>
-		/// <param name="NewProblem">Whether to set or clear problem state</param>
-		/// <param name="NewMaintenance">Whether to set or clear maintenance state</param>
-        /// <param name="ModifiedByUserId">The user who is updating the device</param>
-		Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance, UserId? ModifiedByUserId = null);
+		/// <param name="deviceId">The id of the device to update</param>
+		/// <param name="newPoolId">The new pool to assign</param>
+		/// <param name="newName">The new name to assign</param>		
+		/// <param name="newAddress">The new device address or hostname</param>
+		/// <param name="newModelId">The new model id</param>
+		/// <param name="newNotes">The devices markdown notes</param>
+		/// <param name="newEnabled">Whether the device is enabled or not</param>
+		/// <param name="newProblem">Whether to set or clear problem state</param>
+		/// <param name="newMaintenance">Whether to set or clear maintenance state</param>
+        /// <param name="modifiedByUserId">The user who is updating the device</param>
+		Task UpdateDeviceAsync(DeviceId deviceId, DevicePoolId? newPoolId, string? newName, string? newAddress, string? newModelId, string? newNotes, bool? newEnabled, bool? newProblem, bool? newMaintenance, UserId? modifiedByUserId = null);
 
 		/// <summary>
 		/// Delete a device from the collection
 		/// </summary>
-		/// <param name="DeviceId">The id of the device to delete</param>
-		Task<bool> DeleteDeviceAsync(DeviceId DeviceId);
+		/// <param name="deviceId">The id of the device to delete</param>
+		Task<bool> DeleteDeviceAsync(DeviceId deviceId);
 
 		/// <summary>
         /// Checkout or checkin the specified device
         /// </summary>
-        /// <param name="DeviceId"></param>
-        /// <param name="CheckedOutByUserId"></param>
+        /// <param name="deviceId"></param>
+        /// <param name="checkedOutByUserId"></param>
         /// <returns></returns>
-        Task CheckoutDeviceAsync(DeviceId DeviceId, UserId? CheckedOutByUserId);
+        Task CheckoutDeviceAsync(DeviceId deviceId, UserId? checkedOutByUserId);
 
         // RESERVATIONS
 
         /// <summary>
         /// Create a new reseveration in the pool with the specified devices
         /// </summary>
-        /// <param name="PoolId">The pool of devices to use for the new reservation</param>
-        /// <param name="Request">The requested devices for the reservation</param>
-        /// <param name="Hostname">The hostname of the machine making the reservation</param>
-        /// <param name="ReservationDetails">The details of the reservation</param>
-        /// <param name="JobId">The Job Id associated with the job</param>
-        /// <param name="StepId">The Step Id associated with the job</param>
-        Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId PoolId, List<DeviceRequestData> Request, string? Hostname, string? ReservationDetails, string? JobId, string? StepId);
+        /// <param name="poolId">The pool of devices to use for the new reservation</param>
+        /// <param name="request">The requested devices for the reservation</param>
+        /// <param name="hostname">The hostname of the machine making the reservation</param>
+        /// <param name="reservationDetails">The details of the reservation</param>
+        /// <param name="jobId">The Job Id associated with the job</param>
+        /// <param name="stepId">The Step Id associated with the job</param>
+        Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? jobId, string? stepId);
 
 		/// <summary>
 		/// Gets a reservation by guid for legacy clients
 		/// </summary>
-		/// <param name="LegacyGuid">YThe legacy guid of the reservation</param>
-		Task<IDeviceReservation?> TryGetReservationFromLegacyGuidAsync(string LegacyGuid);
+		/// <param name="legacyGuid">YThe legacy guid of the reservation</param>
+		Task<IDeviceReservation?> TryGetReservationFromLegacyGuidAsync(string legacyGuid);
 
         /// <summary>
         /// Gets a reservation by device id
         /// </summary>
-        /// <param name="Id">A device contained in reservation</param>
-        Task<IDeviceReservation?> TryGetDeviceReservationAsync(DeviceId Id);
+        /// <param name="id">A device contained in reservation</param>
+        Task<IDeviceReservation?> TryGetDeviceReservationAsync(DeviceId id);
 
         /// <summary>
         /// Get a list of all reservations
@@ -203,14 +203,14 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Updates a reservation to the current time, for expiration
 		/// </summary>
-		/// <param name="Id">The id of the reservation to update</param>
-		public Task<bool> TryUpdateReservationAsync(ObjectId Id);
+		/// <param name="id">The id of the reservation to update</param>
+		public Task<bool> TryUpdateReservationAsync(ObjectId id);
 
 		/// <summary>
 		/// Deletes a reservation and releases reserved devices
 		/// </summary>
-		/// <param name="Id">The id of the reservation to delete</param>
-		public Task<bool> DeleteReservationAsync(ObjectId Id);
+		/// <param name="id">The id of the reservation to delete</param>
+		public Task<bool> DeleteReservationAsync(ObjectId id);
 
 		/// <summary>
 		/// Deletes expired reservations
@@ -226,7 +226,5 @@ namespace Horde.Build.Collections
 		/// Gets a list of users to notify whose device checkout is about to expire
 		/// </summary>
 		public Task<List<(UserId, IDevice)>?> ExpireNotificatonsAsync();
-
 	}
-
 }

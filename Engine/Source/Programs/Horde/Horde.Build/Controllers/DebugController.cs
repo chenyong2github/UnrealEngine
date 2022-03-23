@@ -3,55 +3,14 @@
 //#define ENABLE_PUBLIC_DEBUG_CONTROLLER
 //#define ENABLE_SECURE_DEBUG_CONTROLLER
 
-using EpicGames.Core;
-using Horde.Build.Api;
-using HordeCommon;
+#if ENABLE_PUBLIC_DEBUG_CONTROLLER
+
 using Horde.Build.Collections;
 using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Tasks.Impl;
 using Horde.Build.Utilities;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Primitives;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Runtime;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Web;
-
-using MongoDB.Driver;
-using System.Text.Json;
-using System.Threading;
-using Horde.Build.Services.Impl;
-using Microsoft.Net.Http.Headers;
-using Horde.Build.Storage;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
-using StatsdClient;
-
-using Amazon.S3;
-using JetBrains.Profiler.SelfApi;
 
 namespace Horde.Build.Controllers
 {
-	using LogId = ObjectId<ILogFile>;
-	using PoolId = StringId<IPool>;
-	using ProjectId = StringId<IProject>;
-	using TemplateRefId = StringId<TemplateRef>;
-	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
-	using IStream = Horde.Build.Models.IStream;
-	using P4Debugging = Perforce.P4.P4Debugging;
-
-#if ENABLE_PUBLIC_DEBUG_CONTROLLER
 	/// <summary>
 	/// Public endpoints for the debug controller
 	/// </summary>
@@ -75,9 +34,9 @@ namespace Horde.Build.Controllers
 		/// <param name="DogStatsd"></param>
 		public PublicDebugController(RequestTrackerService RequestTrackerService, IHostApplicationLifetime ApplicationLifetime, IDogStatsd DogStatsd)
 		{
-			this.RequestTrackerService = RequestTrackerService;
-			this.ApplicationLifetime = ApplicationLifetime;
-			this.DogStatsd = DogStatsd;
+			RequestTrackerService = RequestTrackerService;
+			ApplicationLifetime = ApplicationLifetime;
+			DogStatsd = DogStatsd;
 		}
 
 		/// <summary>
@@ -365,22 +324,22 @@ namespace Horde.Build.Controllers
 		/// <param name="Settings">Settings</param>
 		public SecureDebugController(AclService AclService, DatabaseService DatabaseService, JobTaskSource JobTaskSource, ISingletonDocument<Globals> GlobalsSingleton, IPoolCollection PoolCollection, IProjectCollection ProjectCollection, IAgentCollection AgentCollection, ISessionCollection SessionCollection, ILeaseCollection LeaseCollection, ITemplateCollection TemplateCollection, IStreamCollection StreamCollection, IGraphCollection GraphCollection, ILogFileCollection LogFileCollection, IPerforceService Perforce, IFleetManager FleetManager, IOptionsMonitor<ServerSettings> Settings)
 		{
-			this.AclService = AclService;
-			this.DatabaseService = DatabaseService;
-			this.JobTaskSource = JobTaskSource;
-			this.GlobalsSingleton = GlobalsSingleton;
-			this.PoolCollection = PoolCollection;
-			this.ProjectCollection = ProjectCollection;
-			this.AgentCollection = AgentCollection;
-			this.SessionCollection = SessionCollection;
-			this.LeaseCollection = LeaseCollection;
-			this.TemplateCollection = TemplateCollection;
-			this.StreamCollection = StreamCollection;
-			this.GraphCollection = GraphCollection;
-			this.LogFileCollection = LogFileCollection;
-			this.Perforce = Perforce;
-			this.FleetManager = FleetManager;
-			this.Settings = Settings;
+			AclService = AclService;
+			DatabaseService = DatabaseService;
+			JobTaskSource = JobTaskSource;
+			GlobalsSingleton = GlobalsSingleton;
+			PoolCollection = PoolCollection;
+			ProjectCollection = ProjectCollection;
+			AgentCollection = AgentCollection;
+			SessionCollection = SessionCollection;
+			LeaseCollection = LeaseCollection;
+			TemplateCollection = TemplateCollection;
+			StreamCollection = StreamCollection;
+			GraphCollection = GraphCollection;
+			LogFileCollection = LogFileCollection;
+			Perforce = Perforce;
+			FleetManager = FleetManager;
+			Settings = Settings;
 		}
 
 		/// <summary>
@@ -931,5 +890,6 @@ namespace Horde.Build.Controllers
 			return PhysicalFile(SnapshotZipFile, "application/zip", Path.GetFileName(SnapshotZipFile));
 		}
 	}
-#endif
 }
+
+#endif

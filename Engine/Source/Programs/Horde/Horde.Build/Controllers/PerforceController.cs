@@ -1,14 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.AspNetCore.Mvc;
-using System.Net;
-using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Net;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
+using Horde.Build.Models;
 using Horde.Build.Services;
 using Microsoft.AspNetCore.Authorization;
-using Horde.Build.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Controllers
 {
@@ -23,26 +23,26 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// The database service instance
 		/// </summary>
-		private DatabaseService DatabaseService;
+		private readonly DatabaseService _databaseService;
 
 		/// <summary>
 		/// The ACL service instance
 		/// </summary>
-		private AclService AclService;
+		private readonly AclService _aclService;
 
 		/// <summary>
 		/// Load balancer instance
 		/// </summary>
-		private PerforceLoadBalancer PerforceLoadBalancer;
+		private readonly PerforceLoadBalancer _perforceLoadBalancer;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceController(DatabaseService DatabaseService, AclService AclService, PerforceLoadBalancer PerforceLoadBalancer)
+		public PerforceController(DatabaseService databaseService, AclService aclService, PerforceLoadBalancer perforceLoadBalancer)
 		{
-			this.DatabaseService = DatabaseService;
-			this.AclService = AclService;
-			this.PerforceLoadBalancer = PerforceLoadBalancer;
+			_databaseService = databaseService;
+			_aclService = aclService;
+			_perforceLoadBalancer = perforceLoadBalancer;
 		}
 
 		/// <summary>
@@ -53,14 +53,14 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/perforce/status")]
 		public async Task<ActionResult<List<object>>> GetStatusAsync()
 		{
-			List<IPerforceServer> Servers = await PerforceLoadBalancer.GetServersAsync();
+			List<IPerforceServer> servers = await _perforceLoadBalancer.GetServersAsync();
 
-			List<object> Responses = new List<object>();
-			foreach (IPerforceServer Server in Servers)
+			List<object> responses = new List<object>();
+			foreach (IPerforceServer server in servers)
 			{
-				Responses.Add(new { Server.ServerAndPort, Server.BaseServerAndPort, Server.Cluster, Server.NumLeases, Server.Status, Server.Detail, Server.LastUpdateTime });
+				responses.Add(new { server.ServerAndPort, server.BaseServerAndPort, server.Cluster, server.NumLeases, server.Status, server.Detail, server.LastUpdateTime });
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
@@ -71,13 +71,13 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/perforce/settings")]
 		public async Task<ActionResult<List<PerforceCluster>>> GetPerforceSettingsAsync()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
 
-			Globals Globals = await DatabaseService.GetGlobalsAsync();
-			return Globals.PerforceClusters;
+			Globals globals = await _databaseService.GetGlobalsAsync();
+			return globals.PerforceClusters;
 		}
 	}
 
@@ -91,14 +91,14 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Logger instance
 		/// </summary>
-		private readonly ILogger<PerforceController> Logger;
+		private readonly ILogger<PerforceController> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PublicPerforceController(ILogger<PerforceController> Logger)
+		public PublicPerforceController(ILogger<PerforceController> logger)
 		{
-			this.Logger = Logger;
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -106,13 +106,13 @@ namespace Horde.Build.Controllers
 		/// </summary>
 		/// <returns>200 OK on success</returns>
 		[HttpPost]
-		[Route("/api/v1/perforce/trigger/{Type}")]
-		public ActionResult TriggerCallback(string Type, [FromQuery] long? Changelist = null, [FromQuery(Name = "user")] string? PerforceUser = null)
+		[Route("/api/v1/perforce/trigger/{type}")]
+		public ActionResult TriggerCallback(string type, [FromQuery] long? changelist = null, [FromQuery(Name = "user")] string? perforceUser = null)
 		{
 			// Currently just a placeholder until correct triggers are in place.
-			Logger.LogDebug("Received Perforce trigger callback. Type={Type} Changelist={Changelist} User={User}", Type, Changelist, PerforceUser);
-			string Content = "{\"message\": \"Trigger received\"}";
-			return new ContentResult { ContentType = "text/plain", StatusCode = (int)HttpStatusCode.OK, Content = Content };
+			_logger.LogDebug("Received Perforce trigger callback. Type={Type} Changelist={Changelist} User={User}", type, changelist, perforceUser);
+			string content = "{\"message\": \"Trigger received\"}";
+			return new ContentResult { ContentType = "text/plain", StatusCode = (int)HttpStatusCode.OK, Content = content };
 		}
 	}
 }

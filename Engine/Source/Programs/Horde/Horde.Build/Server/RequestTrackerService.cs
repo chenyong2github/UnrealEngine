@@ -22,35 +22,35 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Writer for log output
 		/// </summary>
-		private readonly ILogger<RequestTrackerService> Logger;
+		private readonly ILogger<RequestTrackerService> _logger;
 
-		readonly ConcurrentDictionary<string, TrackedRequest> RequestsInProgress = new ConcurrentDictionary<string, TrackedRequest>();
+		readonly ConcurrentDictionary<string, TrackedRequest> _requestsInProgress = new ConcurrentDictionary<string, TrackedRequest>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Logger">Logger</param>
-		public RequestTrackerService(ILogger<RequestTrackerService> Logger)
+		/// <param name="logger">Logger</param>
+		public RequestTrackerService(ILogger<RequestTrackerService> logger)
 		{
-			this.Logger = Logger;
+			_logger = logger;
 		}
 
 		/// <summary>
 		/// Called by the middleware when a request is started
 		/// </summary>
-		/// <param name="Context">HTTP Context</param>
-		public void RequestStarted(HttpContext Context)
+		/// <param name="context">HTTP Context</param>
+		public void RequestStarted(HttpContext context)
 		{
-			RequestsInProgress[Context.TraceIdentifier] = new TrackedRequest(Context.Request);
+			_requestsInProgress[context.TraceIdentifier] = new TrackedRequest(context.Request);
 		}
 		
 		/// <summary>
 		/// Called by the middleware when a request is finished (no matter if an exception occurred or not)
 		/// </summary>
-		/// <param name="Context">HTTP Context</param>
-		public void RequestFinished(HttpContext Context)
+		/// <param name="context">HTTP Context</param>
+		public void RequestFinished(HttpContext context)
 		{
-			RequestsInProgress.Remove(Context.TraceIdentifier, out _);
+			_requestsInProgress.Remove(context.TraceIdentifier, out _);
 		}
 
 		/// <summary>
@@ -59,22 +59,22 @@ namespace Horde.Build.Utilities
 		/// <returns>The requests in progress</returns>
 		public IReadOnlyDictionary<string, TrackedRequest> GetRequestsInProgress()
 		{
-			return RequestsInProgress;
+			return _requestsInProgress;
 		}
 
 		private string GetRequestsInProgressAsString()
 		{
-			List<KeyValuePair<string, TrackedRequest>> Requests = GetRequestsInProgress().ToList();
-			Requests.Sort((A, B) => A.Value.StartedAt.CompareTo(B.Value.StartedAt));
-			StringBuilder Content = new StringBuilder();
-			foreach (KeyValuePair<string,TrackedRequest> Pair in Requests)
+			List<KeyValuePair<string, TrackedRequest>> requests = GetRequestsInProgress().ToList();
+			requests.Sort((a, b) => a.Value.StartedAt.CompareTo(b.Value.StartedAt));
+			StringBuilder content = new StringBuilder();
+			foreach (KeyValuePair<string,TrackedRequest> pair in requests)
 			{
-				int AgeInMs = Pair.Value.GetTimeSinceStartInMs();
-				string Path = Pair.Value.Request.Path;
-				Content.AppendLine(CultureInfo.InvariantCulture, $"{AgeInMs,9}  {Path}");
+				int ageInMs = pair.Value.GetTimeSinceStartInMs();
+				string path = pair.Value.Request.Path;
+				content.AppendLine(CultureInfo.InvariantCulture, $"{ageInMs,9}  {path}");
 			}
 
-			return Content.ToString();
+			return content.ToString();
 		}
 
 		/// <summary>
@@ -84,11 +84,11 @@ namespace Horde.Build.Utilities
 		{
 			if (GetRequestsInProgress().Count == 0)
 			{
-				Logger.LogInformation("There are no requests in progress!");
+				_logger.LogInformation("There are no requests in progress!");
 			}
 			else
 			{
-				Logger.LogInformation("Current open requests are:\n{RequestsInProgress}", GetRequestsInProgressAsString());
+				_logger.LogInformation("Current open requests are:\n{RequestsInProgress}", GetRequestsInProgressAsString());
 			}
 		}
 	}
@@ -111,11 +111,11 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Request">HTTP request being tracked</param>
-		public TrackedRequest(HttpRequest Request)
+		/// <param name="request">HTTP request being tracked</param>
+		public TrackedRequest(HttpRequest request)
 		{
 			StartedAt = DateTime.UtcNow;
-			this.Request = Request;
+			Request = request;
 		}
 
 		/// <summary>
@@ -133,41 +133,41 @@ namespace Horde.Build.Utilities
 	/// </summary>
 	public class RequestTrackerMiddleware
 	{
-		private readonly RequestDelegate Next;
+		private readonly RequestDelegate _next;
 	
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Next">Next middleware to call</param>
-		public RequestTrackerMiddleware(RequestDelegate Next)
+		/// <param name="next">Next middleware to call</param>
+		public RequestTrackerMiddleware(RequestDelegate next)
 		{
-			this.Next = Next;
+			_next = next;
 		}
 	
 		/// <summary>
 		/// Invoked by ASP.NET framework itself
 		/// </summary>
-		/// <param name="Context">HTTP Context</param>
-		/// <param name="Service">The RequestTrackerService singleton</param>
+		/// <param name="context">HTTP Context</param>
+		/// <param name="service">The RequestTrackerService singleton</param>
 		/// <returns></returns>
-		public async Task Invoke(HttpContext Context, RequestTrackerService Service)
+		public async Task Invoke(HttpContext context, RequestTrackerService service)
 		{
-			if (!Context.Request.Path.StartsWithSegments("/health", StringComparison.Ordinal))
+			if (!context.Request.Path.StartsWithSegments("/health", StringComparison.Ordinal))
 			{
 				try
 				{
-					Service.RequestStarted(Context);
-					await Next(Context);
+					service.RequestStarted(context);
+					await _next(context);
 				}
 				finally
 				{
-					Service.RequestFinished(Context);
+					service.RequestFinished(context);
 				}
 			}
 			else
 			{
 				// Ignore requests to /health/*
-				await Next(Context);
+				await _next(context);
 			}
 		}
 	}

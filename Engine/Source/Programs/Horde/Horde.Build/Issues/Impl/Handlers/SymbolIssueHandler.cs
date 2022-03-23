@@ -1,19 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using EpicGames.Core;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.IssueHandlers.Impl
 {
@@ -31,74 +26,74 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
-		/// <param name="EventId">The event id to compare</param>
+		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? EventId)
+		public static bool IsMatchingEventId(EventId? eventId)
 		{
-			return EventId == KnownLogEvents.Linker_UndefinedSymbol || EventId == KnownLogEvents.Linker_DuplicateSymbol || EventId == KnownLogEvents.Linker;
+			return eventId == KnownLogEvents.Linker_UndefinedSymbol || eventId == KnownLogEvents.Linker_DuplicateSymbol || eventId == KnownLogEvents.Linker;
 		}
 
 		/// <summary>
 		/// Parses symbol names from a log event
 		/// </summary>
-		/// <param name="EventData">The log event data</param>
-		/// <param name="SymbolNames">Receives the list of symbol names</param>
-		public static void GetSymbolNames(ILogEventData EventData, SortedSet<string> SymbolNames)
+		/// <param name="eventData">The log event data</param>
+		/// <param name="symbolNames">Receives the list of symbol names</param>
+		public static void GetSymbolNames(ILogEventData eventData, SortedSet<string> symbolNames)
 		{
-			foreach (ILogEventLine Line in EventData.Lines)
+			foreach (ILogEventLine line in eventData.Lines)
 			{
-				string? Identifier;
-				if (Line.Data.TryGetNestedProperty("properties.symbol.identifier", out Identifier))
+				string? identifier;
+				if (line.Data.TryGetNestedProperty("properties.symbol.identifier", out identifier))
 				{
-					SymbolNames.Add(Identifier);
+					symbolNames.Add(identifier);
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint Fingerprint, List<SuspectChange> Changes)
+		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> changes)
 		{
-			HashSet<string> Names = new HashSet<string>();
-			foreach (string Name in Fingerprint.Keys)
+			HashSet<string> names = new HashSet<string>();
+			foreach (string name in fingerprint.Keys)
 			{
-				Names.UnionWith(Name.Split("::", StringSplitOptions.RemoveEmptyEntries));
+				names.UnionWith(name.Split("::", StringSplitOptions.RemoveEmptyEntries));
 			}
 
-			foreach (SuspectChange Change in Changes)
+			foreach (SuspectChange change in changes)
 			{
-				if (Change.ContainsCode)
+				if (change.ContainsCode)
 				{
-					int Matches = Names.Count(x => Change.Details.Files.Any(y => y.Path.Contains(x, StringComparison.OrdinalIgnoreCase)));
-					Change.Rank += 10 + (10 * Matches);
+					int matches = names.Count(x => change.Details.Files.Any(y => y.Path.Contains(x, StringComparison.OrdinalIgnoreCase)));
+					change.Rank += 10 + (10 * matches);
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint Fingerprint, IssueSeverity Severity)
+		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
-			HashSet<string> Symbols = Fingerprint.Keys;
-			if (Symbols.Count == 1)
+			HashSet<string> symbols = fingerprint.Keys;
+			if (symbols.Count == 1)
 			{
-				return $"Undefined symbol '{Symbols.First()}'";
+				return $"Undefined symbol '{symbols.First()}'";
 			}
 			else
 			{
-				return $"Undefined symbols: {StringUtils.FormatList(Symbols.ToArray(), 3)}";
+				return $"Undefined symbols: {StringUtils.FormatList(symbols.ToArray(), 3)}";
 			}
 		}
 
-		public bool TryGetFingerprint(IJob Job, INode Node, ILogEventData EventData, [NotNullWhen(true)] out NewIssueFingerprint? Fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
-			if (!IsMatchingEventId(EventData.EventId))
+			if (!IsMatchingEventId(eventData.EventId))
 			{
-				Fingerprint = null;
+				fingerprint = null;
 				return false;
 			}
 
-			SortedSet<string> SymbolNames = new SortedSet<string>();
-			GetSymbolNames(EventData, SymbolNames);
-			Fingerprint = new NewIssueFingerprint(Type, SymbolNames, null);
+			SortedSet<string> symbolNames = new SortedSet<string>();
+			GetSymbolNames(eventData, symbolNames);
+			fingerprint = new NewIssueFingerprint(Type, symbolNames, null);
 			return true;
 		}
 	}

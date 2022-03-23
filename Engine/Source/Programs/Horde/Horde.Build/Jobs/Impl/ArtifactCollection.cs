@@ -1,29 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.Extensions.NETCore.Setup;
-using Amazon.Runtime;
-using Amazon.S3;
-using Amazon.S3.Model;
-using Horde.Build.Api;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Jobs;
 using Horde.Build.Models;
 using Horde.Build.Storage;
 using Horde.Build.Utilities;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Security.Claims;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Services
 {
@@ -58,157 +45,154 @@ namespace Horde.Build.Services
 			[BsonConstructor]
 			private Artifact()
 			{
-				this.Name = null!;
-				this.MimeType = null!;
+				Name = null!;
+				MimeType = null!;
 			}
 
-			public Artifact(JobId JobId, SubResourceId? StepId, string Name, long Length, string MimeType)
+			public Artifact(JobId jobId, SubResourceId? stepId, string name, long length, string mimeType)
 			{
-				this.Id = ObjectId.GenerateNewId();
-				this.JobId = JobId;
-				this.StepId = StepId;
-				this.Name = Name;
-				this.Length = Length;
-				this.MimeType = MimeType;
+				Id = ObjectId.GenerateNewId();
+				JobId = jobId;
+				StepId = stepId;
+				Name = name;
+				Length = length;
+				MimeType = mimeType;
 			}
 		}
 
-		private readonly IStorageBackend StorageBackend;
-		private readonly ILogger<ArtifactCollection> Logger;
-		private readonly IMongoCollection<Artifact> Artifacts;
+		private readonly IStorageBackend _storageBackend;
+		private readonly IMongoCollection<Artifact> _artifacts;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service</param>
-		/// <param name="StorageBackend">The storage backend</param>
-		/// <param name="Logger">Log interface</param>
-		public ArtifactCollection(DatabaseService DatabaseService, IStorageBackend<ArtifactCollection> StorageBackend, ILogger<ArtifactCollection> Logger)
+		/// <param name="databaseService">The database service</param>
+		/// <param name="storageBackend">The storage backend</param>
+		public ArtifactCollection(DatabaseService databaseService, IStorageBackend<ArtifactCollection> storageBackend)
 		{
-			this.StorageBackend = StorageBackend;
-			this.Logger = Logger;
+			_storageBackend = storageBackend;
 
 			// Initialize Artifacts table
-			Artifacts = DatabaseService.GetCollection<Artifact>("Artifacts");
-			if (!DatabaseService.ReadOnlyMode)
+			_artifacts = databaseService.GetCollection<Artifact>("Artifacts");
+			if (!databaseService.ReadOnlyMode)
 			{
-				Artifacts.Indexes.CreateOne(new CreateIndexModel<Artifact>(Builders<Artifact>.IndexKeys.Ascending(x => x.JobId)));
+				_artifacts.Indexes.CreateOne(new CreateIndexModel<Artifact>(Builders<Artifact>.IndexKeys.Ascending(x => x.JobId)));
 			}
 		}
 
 		/// <summary>
 		/// Creates a new artifact
 		/// </summary>
-		/// <param name="JobId">Unique id of the job that owns this artifact</param>
-		/// <param name="StepId">Optional Step id</param>
-		/// <param name="Name">Name of artifact</param>
-		/// <param name="MimeType">Type of artifact</param>
-		/// <param name="Data">The data to write</param>
+		/// <param name="jobId">Unique id of the job that owns this artifact</param>
+		/// <param name="stepId">Optional Step id</param>
+		/// <param name="name">Name of artifact</param>
+		/// <param name="mimeType">Type of artifact</param>
+		/// <param name="data">The data to write</param>
 		/// <returns>The new log file document</returns>
-		public async Task<IArtifact> CreateArtifactAsync(JobId JobId, SubResourceId? StepId, string Name, string MimeType, System.IO.Stream Data)
+		public async Task<IArtifact> CreateArtifactAsync(JobId jobId, SubResourceId? stepId, string name, string mimeType, System.IO.Stream data)
 		{
 			// upload first
-			string ArtifactName = ValidateName(Name);
-			await StorageBackend.WriteAsync(GetPath(JobId, StepId, ArtifactName), Data);
+			string artifactName = ValidateName(name);
+			await _storageBackend.WriteAsync(GetPath(jobId, stepId, artifactName), data);
 
 			// then create entry
-			Artifact NewArtifact = new Artifact(JobId, StepId, ArtifactName, Data.Length, MimeType);
-			await Artifacts.InsertOneAsync(NewArtifact);
-			return NewArtifact;
+			Artifact newArtifact = new Artifact(jobId, stepId, artifactName, data.Length, mimeType);
+			await _artifacts.InsertOneAsync(newArtifact);
+			return newArtifact;
 		}
 
 		/// <summary>
 		/// Gets all the available artifacts for a job
 		/// </summary>
-		/// <param name="JobId">Unique id of the job to query</param>
-		/// <param name="StepId">Unique id of the Step to query</param>
-		/// <param name="Name">Name of the artifact</param>
+		/// <param name="jobId">Unique id of the job to query</param>
+		/// <param name="stepId">Unique id of the Step to query</param>
+		/// <param name="name">Name of the artifact</param>
 		/// <returns>List of artifact documents</returns>
-		public async Task<List<IArtifact>> GetArtifactsAsync(JobId? JobId, SubResourceId? StepId, string? Name)
+		public async Task<List<IArtifact>> GetArtifactsAsync(JobId? jobId, SubResourceId? stepId, string? name)
 		{
-			FilterDefinitionBuilder<Artifact> Builder = Builders<Artifact>.Filter;
+			FilterDefinitionBuilder<Artifact> builder = Builders<Artifact>.Filter;
 
-			FilterDefinition<Artifact> Filter = FilterDefinition<Artifact>.Empty;
-			if (JobId != null)
+			FilterDefinition<Artifact> filter = FilterDefinition<Artifact>.Empty;
+			if (jobId != null)
 			{
-				Filter &= Builder.Eq(x => x.JobId, JobId.Value);
+				filter &= builder.Eq(x => x.JobId, jobId.Value);
 			}
-			if (StepId != null)
+			if (stepId != null)
 			{
-				Filter &= Builder.Eq(x => x.StepId, StepId.Value);
+				filter &= builder.Eq(x => x.StepId, stepId.Value);
 			}
-			if (Name != null)
+			if (name != null)
 			{
-				Filter &= Builder.Eq(x => x.Name, Name);
+				filter &= builder.Eq(x => x.Name, name);
 			}
 
-			return await Artifacts.Find(Filter).ToListAsync<Artifact, IArtifact>();
+			return await _artifacts.Find(filter).ToListAsync<Artifact, IArtifact>();
 		}
 
 		/// <summary>
 		/// Gets a specific list of artifacts based on id
 		/// </summary>
-		/// <param name="ArtifactIds">The list of artifact Ids</param>
+		/// <param name="artifactIds">The list of artifact Ids</param>
 		/// <returns>List of artifact documents</returns>
-		public async Task<List<IArtifact>> GetArtifactsAsync(IEnumerable<ObjectId> ArtifactIds)
+		public async Task<List<IArtifact>> GetArtifactsAsync(IEnumerable<ObjectId> artifactIds)
 		{
-			FilterDefinitionBuilder<Artifact> Builder = Builders<Artifact>.Filter;
+			FilterDefinitionBuilder<Artifact> builder = Builders<Artifact>.Filter;
 
-			FilterDefinition<Artifact> Filter = FilterDefinition<Artifact>.Empty;
-			Filter &= Builder.In(x => x.Id, ArtifactIds);
+			FilterDefinition<Artifact> filter = FilterDefinition<Artifact>.Empty;
+			filter &= builder.In(x => x.Id, artifactIds);
 			
-			return await Artifacts.Find(Filter).ToListAsync<Artifact, IArtifact>();
+			return await _artifacts.Find(filter).ToListAsync<Artifact, IArtifact>();
 		}
 
 		/// <summary>
 		/// Gets an artifact by ID
 		/// </summary>
-		/// <param name="ArtifactId">Unique id of the artifact</param>
+		/// <param name="artifactId">Unique id of the artifact</param>
 		/// <returns>The artifact document</returns>
-		public async Task<IArtifact?> GetArtifactAsync(ObjectId ArtifactId)
+		public async Task<IArtifact?> GetArtifactAsync(ObjectId artifactId)
 		{
-			return await Artifacts.Find<Artifact>(x => x.Id == ArtifactId).FirstOrDefaultAsync();
+			return await _artifacts.Find<Artifact>(x => x.Id == artifactId).FirstOrDefaultAsync();
 		}
 
 		/// <summary>
 		/// Attempts to update a single artifact document, if the update counter is valid
 		/// </summary>
-		/// <param name="Current">The current artifact document</param>
-		/// <param name="Update">The update definition</param>
+		/// <param name="current">The current artifact document</param>
+		/// <param name="update">The update definition</param>
 		/// <returns>True if the document was updated, false if another writer updated the document first</returns>
-		private async Task<bool> TryUpdateArtifactAsync(Artifact Current, UpdateDefinition<Artifact> Update)
+		private async Task<bool> TryUpdateArtifactAsync(Artifact current, UpdateDefinition<Artifact> update)
 		{
-			UpdateResult Result = await Artifacts.UpdateOneAsync<Artifact>(x => x.Id == Current.Id && x.UpdateIndex == Current.UpdateIndex, Update.Set(x => x.UpdateIndex, Current.UpdateIndex + 1));
-			return Result.ModifiedCount == 1;
+			UpdateResult result = await _artifacts.UpdateOneAsync<Artifact>(x => x.Id == current.Id && x.UpdateIndex == current.UpdateIndex, update.Set(x => x.UpdateIndex, current.UpdateIndex + 1));
+			return result.ModifiedCount == 1;
 		}
 
 		/// <summary>
 		/// Updates an artifact
 		/// </summary>
-		/// <param name="Artifact">The artifact</param>
-		/// <param name="NewMimeType">New mime type</param>
-		/// <param name="NewData">New data</param>
+		/// <param name="artifact">The artifact</param>
+		/// <param name="newMimeType">New mime type</param>
+		/// <param name="newData">New data</param>
 		/// <returns>Async task</returns>
-		public async Task<bool> UpdateArtifactAsync(IArtifact? Artifact, string NewMimeType, System.IO.Stream NewData)
+		public async Task<bool> UpdateArtifactAsync(IArtifact? artifact, string newMimeType, System.IO.Stream newData)
 		{
-			while (Artifact != null)
+			while (artifact != null)
 			{
-				UpdateDefinitionBuilder<Artifact> UpdateBuilder = Builders<Artifact>.Update;
+				UpdateDefinitionBuilder<Artifact> updateBuilder = Builders<Artifact>.Update;
 
-				List<UpdateDefinition<Artifact>> Updates = new List<UpdateDefinition<Artifact>>();
-				Updates.Add(UpdateBuilder.Set(x => x.MimeType, NewMimeType));
-				Updates.Add(UpdateBuilder.Set(x => x.Length, NewData.Length));
+				List<UpdateDefinition<Artifact>> updates = new List<UpdateDefinition<Artifact>>();
+				updates.Add(updateBuilder.Set(x => x.MimeType, newMimeType));
+				updates.Add(updateBuilder.Set(x => x.Length, newData.Length));
 
 				// re-upload the data to external
-				string ArtifactName = ValidateName(Artifact.Name);
-				await StorageBackend.WriteAsync(GetPath(Artifact.JobId, Artifact.StepId, ArtifactName), NewData);
+				string artifactName = ValidateName(artifact.Name);
+				await _storageBackend.WriteAsync(GetPath(artifact.JobId, artifact.StepId, artifactName), newData);
 
-				if (await TryUpdateArtifactAsync((Artifact)Artifact, UpdateBuilder.Combine(Updates)))
+				if (await TryUpdateArtifactAsync((Artifact)artifact, updateBuilder.Combine(updates)))
 				{
 					return true;
 				}
 
-				Artifact = await GetArtifactAsync(Artifact.Id);
+				artifact = await GetArtifactAsync(artifact.Id);
 			}
 			return false;
 		}
@@ -216,78 +200,78 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// gets artifact data
 		/// </summary>
-		/// <param name="Artifact">The artifact</param>
+		/// <param name="artifact">The artifact</param>
 		/// <returns>The chunk data</returns>
-		public async Task<System.IO.Stream> OpenArtifactReadStreamAsync(IArtifact Artifact)
+		public async Task<System.IO.Stream> OpenArtifactReadStreamAsync(IArtifact artifact)
 		{
-			System.IO.Stream? Stream = await StorageBackend.ReadAsync(GetPath(Artifact.JobId, Artifact.StepId, Artifact.Name));
-			if (Stream == null)
+			System.IO.Stream? stream = await _storageBackend.ReadAsync(GetPath(artifact.JobId, artifact.StepId, artifact.Name));
+			if (stream == null)
 			{
-				throw new Exception($"Unable to get artifact {Artifact.Id}");
+				throw new Exception($"Unable to get artifact {artifact.Id}");
 			}
-			return Stream;
+			return stream;
 		}
 
 		/// <summary>
 		/// Get the path for an artifact
 		/// </summary>
-		/// <param name="JobId"></param>
-		/// <param name="StepId"></param>
-		/// <param name="Name"></param>
+		/// <param name="jobId"></param>
+		/// <param name="stepId"></param>
+		/// <param name="name"></param>
 		/// <returns></returns>
-		private static string GetPath(JobId JobId, SubResourceId? StepId, string Name)
+		private static string GetPath(JobId jobId, SubResourceId? stepId, string name)
 		{
-			if (StepId == null)
+			if (stepId == null)
 			{
-				return $"{JobId}/{Name}";
+				return $"{jobId}/{name}";
 			}
 			else
 			{
-				return $"{JobId}/{StepId.Value}/{Name}";
+				return $"{jobId}/{stepId.Value}/{name}";
 			}
 		}
 
 		/// <summary>
 		/// Checks that the name given is valid for an artifact
 		/// </summary>
-		/// <param name="Name"></param>
-		private static string ValidateName(string Name)
+		/// <param name="name"></param>
+		private static string ValidateName(string name)
 		{
-			string NewName = Name.Replace('\\', '/');
-			if (NewName.Length == 0)
+			string newName = name.Replace('\\', '/');
+			if (newName.Length == 0)
 			{
 				throw new ArgumentException("Artifact name is empty");
 			}
-			else if (NewName.StartsWith('/'))
+			else if (newName.StartsWith('/'))
 			{
-				throw new ArgumentException($"Artifact has an absolute path ({NewName})");
+				throw new ArgumentException($"Artifact has an absolute path ({newName})");
 			}
-			else if (NewName.EndsWith('/'))
+			else if (newName.EndsWith('/'))
 			{
-				throw new ArgumentException($"Artifact does not have a file name ({NewName})");
+				throw new ArgumentException($"Artifact does not have a file name ({newName})");
 			}
-			else if (NewName.Contains("//", StringComparison.Ordinal))
+			else if (newName.Contains("//", StringComparison.Ordinal))
 			{
-				throw new ArgumentException($"Artifact name contains an invalid directory ({NewName})");
+				throw new ArgumentException($"Artifact name contains an invalid directory ({newName})");
 			}
 
-			string InvalidChars = ":<>|\"";
-			for (int Idx = 0; Idx < NewName.Length; Idx++)
+			string invalidChars = ":<>|\"";
+			for (int idx = 0; idx < newName.Length; idx++)
 			{
-				int MinIdx = Idx;
-				for (; Idx < NewName.Length && NewName[Idx] != '/'; Idx++)
+				int minIdx = idx;
+				for (; idx < newName.Length && newName[idx] != '/'; idx++)
 				{
-					if (InvalidChars.Contains(NewName[Idx], StringComparison.Ordinal))
+					if (invalidChars.Contains(newName[idx], StringComparison.Ordinal))
 					{
-						throw new ArgumentException($"Invalid character in artifact name ({NewName})");
+						throw new ArgumentException($"Invalid character in artifact name ({newName})");
 					}
 				}
-				if ((Idx == MinIdx + 1 && NewName[MinIdx] == '.') || (Idx == MinIdx + 2 && NewName[MinIdx] == '.' && NewName[MinIdx + 1] == '.'))
+				if ((idx == minIdx + 1 && newName[minIdx] == '.') || (idx == minIdx + 2 && newName[minIdx] == '.' && newName[minIdx + 1] == '.'))
 				{
-					throw new ArgumentException($"Artifact may not contain symbolic directory names ({NewName})");
+					throw new ArgumentException($"Artifact may not contain symbolic directory names ({newName})");
 				}
 			}
-			return NewName;
+			return newName;
 		}
 	}
 }

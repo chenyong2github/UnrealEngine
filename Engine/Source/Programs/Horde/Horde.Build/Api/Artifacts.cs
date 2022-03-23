@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -19,10 +18,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">The artifact file id</param>
-		public CreateArtifactResponse(string Id)
+		/// <param name="id">The artifact file id</param>
+		public CreateArtifactResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -49,14 +48,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="JobId">Job id to get all artifacts for</param>
-		/// <param name="StepId">step to filter by</param>
-		/// <param name="ArtifactIds">The artifact ids.  Returns all artifacts for a job </param>
-		public GetArtifactZipRequest(string? JobId, string? StepId, List<string>? ArtifactIds)
+		/// <param name="jobId">Job id to get all artifacts for</param>
+		/// <param name="stepId">step to filter by</param>
+		/// <param name="artifactIds">The artifact ids.  Returns all artifacts for a job </param>
+		public GetArtifactZipRequest(string? jobId, string? stepId, List<string>? artifactIds)
 		{
-			this.JobId = JobId;
-			this.StepId = StepId;
-			this.ArtifactIds = ArtifactIds;
+			JobId = jobId;
+			StepId = stepId;
+			ArtifactIds = artifactIds;
 		}
 	}
 
@@ -103,17 +102,17 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Artifact">The artifact to construct from</param>
-		/// <param name="Code">The direct download code</param>
-		public GetArtifactResponse(IArtifact Artifact, string? Code)
+		/// <param name="artifact">The artifact to construct from</param>
+		/// <param name="code">The direct download code</param>
+		public GetArtifactResponse(IArtifact artifact, string? code)
 		{
-			this.Id = Artifact.Id.ToString();
-			this.Name = Artifact.Name;
-			this.JobId = Artifact.JobId.ToString();
-			this.StepId = Artifact.StepId.ToString();
-			this.MimeType = Artifact.MimeType;
-			this.Length = Artifact.Length;
-			this.Code = Code;
+			Id = artifact.Id.ToString();
+			Name = artifact.Name;
+			JobId = artifact.JobId.ToString();
+			StepId = artifact.StepId.ToString();
+			MimeType = artifact.MimeType;
+			Length = artifact.Length;
+			Code = code;
 		}
 	}
 }

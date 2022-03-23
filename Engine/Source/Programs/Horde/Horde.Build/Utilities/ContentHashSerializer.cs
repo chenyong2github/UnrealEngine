@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using EpicGames.Core;
 using MongoDB.Bson.Serialization;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
@@ -15,40 +12,37 @@ namespace Horde.Build.Utilities
 	public sealed class ContentHashSerializer : IBsonSerializer<ContentHash>
 	{
 		/// <inheritdoc/>
-		public Type ValueType
+		public Type ValueType => typeof(ContentHash);
+
+		/// <inheritdoc/>
+		void IBsonSerializer.Serialize(BsonSerializationContext context, BsonSerializationArgs args, object value)
 		{
-			get { return typeof(ContentHash); }
+			Serialize(context, args, (ContentHash)value);
 		}
 
 		/// <inheritdoc/>
-		void IBsonSerializer.Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, object Value)
+		object IBsonSerializer.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			Serialize(Context, Args, (ContentHash)Value);
+			return ((IBsonSerializer<ContentHash>)this).Deserialize(context, args);
 		}
 
 		/// <inheritdoc/>
-		object IBsonSerializer.Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
+		public ContentHash Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			return ((IBsonSerializer<ContentHash>)this).Deserialize(Context, Args);
-		}
-
-		/// <inheritdoc/>
-		public ContentHash Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Args)
-		{
-			if (Context.Reader.CurrentBsonType == MongoDB.Bson.BsonType.ObjectId)
+			if (context.Reader.CurrentBsonType == MongoDB.Bson.BsonType.ObjectId)
 			{
-				return new ContentHash(Context.Reader.ReadObjectId().ToByteArray());
+				return new ContentHash(context.Reader.ReadObjectId().ToByteArray());
 			}
 			else
 			{
-				return ContentHash.Parse(Context.Reader.ReadString());
+				return ContentHash.Parse(context.Reader.ReadString());
 			}
 		}
 
 		/// <inheritdoc/>
-		public void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, ContentHash Value)
+		public void Serialize(BsonSerializationContext context, BsonSerializationArgs args, ContentHash value)
 		{
-			Context.Writer.WriteString(Value.ToString());
+			context.Writer.WriteString(value.ToString());
 		}
 	}
 }

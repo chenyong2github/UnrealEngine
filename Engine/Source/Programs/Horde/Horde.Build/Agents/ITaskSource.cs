@@ -1,23 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Google.Protobuf;
-using Google.Protobuf.Reflection;
-using Google.Protobuf.WellKnownTypes;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Protobuf;
+using Google.Protobuf.Reflection;
+using Google.Protobuf.WellKnownTypes;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Tasks
 {
@@ -68,46 +65,46 @@ namespace Horde.Build.Tasks
 		/// <summary>
 		/// Assigns a lease or waits for one to be available
 		/// </summary>
-		/// <param name="Agent">The agent to assign a lease to</param>
-		/// <param name="CancellationToken">Cancellation token for the wait</param>
+		/// <param name="agent">The agent to assign a lease to</param>
+		/// <param name="cancellationToken">Cancellation token for the wait</param>
 		/// <returns>New lease object</returns>
-		Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken);
+		Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Cancel a lease that was previously assigned to an agent, allowing it to be assigned out again
 		/// </summary>
-		/// <param name="Agent">The agent that was assigned the lease</param>
-		/// <param name="LeaseId">The lease id</param>
-		/// <param name="Payload">Payload for the lease</param>
+		/// <param name="agent">The agent that was assigned the lease</param>
+		/// <param name="leaseId">The lease id</param>
+		/// <param name="payload">Payload for the lease</param>
 		/// <returns></returns>
-		Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, Any Payload);
+		Task CancelLeaseAsync(IAgent agent, LeaseId leaseId, Any payload);
 
 		/// <summary>
 		/// Notification that a lease has been started
 		/// </summary>
-		/// <param name="Agent">The agent executing the lease</param>
-		/// <param name="LeaseId">The lease id</param>
-		/// <param name="Payload">Payload for the lease</param>
-		/// <param name="Logger">Logger for the agent</param>
-		Task OnLeaseStartedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, ILogger Logger);
+		/// <param name="agent">The agent executing the lease</param>
+		/// <param name="leaseId">The lease id</param>
+		/// <param name="payload">Payload for the lease</param>
+		/// <param name="logger">Logger for the agent</param>
+		Task OnLeaseStartedAsync(IAgent agent, LeaseId leaseId, Any payload, ILogger logger);
 
 		/// <summary>
 		/// Notification that a task has completed
 		/// </summary>
-		/// <param name="Agent">The agent that was allocated to the lease</param>
-		/// <param name="LeaseId">The lease id</param>
-		/// <param name="Payload">The lease payload</param>
-		/// <param name="Outcome">Outcome of the lease</param>
-		/// <param name="Output">Output from the task</param>
-		/// <param name="Logger">Logger for the agent</param>
-		Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger);
+		/// <param name="agent">The agent that was allocated to the lease</param>
+		/// <param name="leaseId">The lease id</param>
+		/// <param name="payload">The lease payload</param>
+		/// <param name="outcome">Outcome of the lease</param>
+		/// <param name="output">Output from the task</param>
+		/// <param name="logger">Logger for the agent</param>
+		Task OnLeaseFinishedAsync(IAgent agent, LeaseId leaseId, Any payload, LeaseOutcome outcome, ReadOnlyMemory<byte> output, ILogger logger);
 
 		/// <summary>
 		/// Gets information to include for a lease in a lease info response
 		/// </summary>
-		/// <param name="Payload">The lease payload</param>
-		/// <param name="Details">Properties for the lease</param>
-		void GetLeaseDetails(Any Payload, Dictionary<string, string> Details);
+		/// <param name="payload">The lease payload</param>
+		/// <param name="details">Properties for the lease</param>
+		void GetLeaseDetails(Any payload, Dictionary<string, string> details);
 	}
 	
 	/// <summary>
@@ -121,36 +118,36 @@ namespace Horde.Build.Tasks
 		/// </summary>
 		protected class PropertyList
 		{
-			internal StringBuilder FormatString = new StringBuilder();
-			internal List<Func<TMessage, object>> Accessors = new List<Func<TMessage, object>>();
-			internal List<(string, Func<TMessage, object>)> JsonAccessors = new List<(string, Func<TMessage, object>)>();
+			internal StringBuilder _formatString = new StringBuilder();
+			internal List<Func<TMessage, object>> _accessors = new List<Func<TMessage, object>>();
+			internal List<(string, Func<TMessage, object>)> _jsonAccessors = new List<(string, Func<TMessage, object>)>();
 
 			/// <summary>
 			/// Adds a new property to the list
 			/// </summary>
-			/// <param name="Expr">Accessor for the property</param>
-			public PropertyList Add(Expression<Func<TMessage, object>> Expr)
+			/// <param name="expr">Accessor for the property</param>
+			public PropertyList Add(Expression<Func<TMessage, object>> expr)
 			{
-				MemberInfo Member = ((MemberExpression)Expr.Body).Member;
-				return Add(Member.Name, Expr.Compile());
+				MemberInfo member = ((MemberExpression)expr.Body).Member;
+				return Add(member.Name, expr.Compile());
 			}
 
 			/// <summary>
 			/// Adds a new property to the list
 			/// </summary>
-			/// <param name="Name">Name of the property</param>
-			/// <param name="Accessor">Accessor for the property</param>
+			/// <param name="name">Name of the property</param>
+			/// <param name="accessor">Accessor for the property</param>
 			[System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "<Pending>")]
-			public PropertyList Add(string Name, Func<TMessage, object> Accessor)
+			public PropertyList Add(string name, Func<TMessage, object> accessor)
 			{
-				FormatString.Append(CultureInfo.InvariantCulture, $", {Name}={{{Name}}}");
-				Accessors.Add(Accessor);
-				JsonAccessors.Add((Name[0..1].ToLower(CultureInfo.InvariantCulture) + Name[1..], Accessor));
+				_formatString.Append(CultureInfo.InvariantCulture, $", {name}={{{name}}}");
+				_accessors.Add(accessor);
+				_jsonAccessors.Add((name[0..1].ToLower(CultureInfo.InvariantCulture) + name[1..], accessor));
 				return this;
 			}
 		}
 
-		static TMessage Message = new TMessage();
+		static readonly TMessage s_message = new TMessage();
 
 		/// <inheritdoc/>
 		public abstract string Type { get; }
@@ -162,57 +159,57 @@ namespace Horde.Build.Tasks
 		protected virtual PropertyList OnLeaseStartedProperties { get; } = new PropertyList();
 
 		/// <inheritdoc/>
-		public MessageDescriptor Descriptor => Message.Descriptor;
+		public MessageDescriptor Descriptor => s_message.Descriptor;
 
 		/// <inheritdoc/>
-		public abstract Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken);
+		public abstract Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
 
 		/// <inheritdoc/>
-		public Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, Any Payload) => CancelLeaseAsync(Agent, LeaseId, Payload.Unpack<TMessage>());
+		public Task CancelLeaseAsync(IAgent agent, LeaseId leaseId, Any payload) => CancelLeaseAsync(agent, leaseId, payload.Unpack<TMessage>());
 
 		/// <inheritdoc/>
-		public Task OnLeaseStartedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, ILogger Logger) => OnLeaseStartedAsync(Agent, LeaseId, Payload.Unpack<TMessage>(), Logger);
+		public Task OnLeaseStartedAsync(IAgent agent, LeaseId leaseId, Any payload, ILogger logger) => OnLeaseStartedAsync(agent, leaseId, payload.Unpack<TMessage>(), logger);
 
 		/// <inheritdoc/>
-		public Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger) => OnLeaseFinishedAsync(Agent, LeaseId, Payload.Unpack<TMessage>(), Outcome, Output, Logger);
+		public Task OnLeaseFinishedAsync(IAgent agent, LeaseId leaseId, Any payload, LeaseOutcome outcome, ReadOnlyMemory<byte> output, ILogger logger) => OnLeaseFinishedAsync(agent, leaseId, payload.Unpack<TMessage>(), outcome, output, logger);
 
 		/// <inheritdoc cref="ITaskSource.CancelLeaseAsync(IAgent, LeaseId, Any)"/>
-		public virtual Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, TMessage Payload) => Task.CompletedTask;
+		public virtual Task CancelLeaseAsync(IAgent agent, LeaseId leaseId, TMessage payload) => Task.CompletedTask;
 
 		/// <inheritdoc cref="ITaskSource.OnLeaseStartedAsync(IAgent, LeaseId, Any, ILogger)"/>
-		public virtual Task OnLeaseStartedAsync(IAgent Agent, LeaseId LeaseId, TMessage Payload, ILogger Logger)
+		public virtual Task OnLeaseStartedAsync(IAgent agent, LeaseId leaseId, TMessage payload, ILogger logger)
 		{
-			object[] Arguments = new object[2 + OnLeaseStartedProperties.Accessors.Count];
-			Arguments[0] = LeaseId;
-			Arguments[1] = Type;
-			for (int Idx = 0; Idx < OnLeaseStartedProperties.Accessors.Count; Idx++)
+			object[] arguments = new object[2 + OnLeaseStartedProperties._accessors.Count];
+			arguments[0] = leaseId;
+			arguments[1] = Type;
+			for (int idx = 0; idx < OnLeaseStartedProperties._accessors.Count; idx++)
 			{
-				Arguments[Idx + 2] = OnLeaseStartedProperties.Accessors[Idx](Payload);
+				arguments[idx + 2] = OnLeaseStartedProperties._accessors[idx](payload);
 			}
 #pragma warning disable CA2254 // Template should be a static expression
-			Logger.LogInformation($"Lease {{LeaseId}} started (Type={{Type}}{OnLeaseStartedProperties.FormatString})", Arguments);
+			logger.LogInformation($"Lease {{LeaseId}} started (Type={{Type}}{OnLeaseStartedProperties._formatString})", arguments);
 #pragma warning restore CA2254 // Template should be a static expression
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc cref="ITaskSource.OnLeaseFinishedAsync(IAgent, LeaseId, Any, LeaseOutcome, ReadOnlyMemory{byte}, ILogger)"/>
-		public virtual Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, TMessage Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
+		public virtual Task OnLeaseFinishedAsync(IAgent agent, LeaseId leaseId, TMessage payload, LeaseOutcome outcome, ReadOnlyMemory<byte> output, ILogger logger)
 		{
-			Logger.LogInformation("Lease {LeaseId} complete", LeaseId);
+			logger.LogInformation("Lease {LeaseId} complete", leaseId);
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public virtual void GetLeaseDetails(Any Payload, Dictionary<string, string> Details)
+		public virtual void GetLeaseDetails(Any payload, Dictionary<string, string> details)
 		{
-			Details["type"] = Type;
+			details["type"] = Type;
 
-			if (OnLeaseStartedProperties.Accessors.Count > 0)
+			if (OnLeaseStartedProperties._accessors.Count > 0)
 			{
-				TMessage Message = Payload.Unpack<TMessage>();
-				foreach ((string Name, Func<TMessage, object> GetMethod) in OnLeaseStartedProperties.JsonAccessors)
+				TMessage message = payload.Unpack<TMessage>();
+				foreach ((string name, Func<TMessage, object> getMethod) in OnLeaseStartedProperties._jsonAccessors)
 				{
-					Details[Name] = GetMethod(Message)?.ToString() ?? String.Empty;
+					details[name] = getMethod(message)?.ToString() ?? String.Empty;
 				}
 			}
 		}

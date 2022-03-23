@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Api;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Models
 {
@@ -93,33 +87,33 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets the chunk index containing the given offset.
 		/// </summary>
-		/// <param name="Chunks">The chunks to search</param>
-		/// <param name="Offset">The offset to search for</param>
+		/// <param name="chunks">The chunks to search</param>
+		/// <param name="offset">The offset to search for</param>
 		/// <returns>The chunk index containing the given offset</returns>
-		public static int GetChunkForOffset(this IReadOnlyList<ILogChunk> Chunks, long Offset)
+		public static int GetChunkForOffset(this IReadOnlyList<ILogChunk> chunks, long offset)
 		{
-			int ChunkIndex = Chunks.BinarySearch(x => x.Offset, Offset);
-			if (ChunkIndex < 0)
+			int chunkIndex = chunks.BinarySearch(x => x.Offset, offset);
+			if (chunkIndex < 0)
 			{
-				ChunkIndex = ~ChunkIndex - 1;
+				chunkIndex = ~chunkIndex - 1;
 			}
-			return ChunkIndex;
+			return chunkIndex;
 		}
 
 		/// <summary>
 		/// Gets the starting chunk index for the given line
 		/// </summary>
-		/// <param name="Chunks">The chunks to search</param>
-		/// <param name="LineIndex">Index of the line to query</param>
+		/// <param name="chunks">The chunks to search</param>
+		/// <param name="lineIndex">Index of the line to query</param>
 		/// <returns>Index of the chunk to fetch</returns>
-		public static int GetChunkForLine(this IReadOnlyList<ILogChunk> Chunks, int LineIndex)
+		public static int GetChunkForLine(this IReadOnlyList<ILogChunk> chunks, int lineIndex)
 		{
-			int ChunkIndex = Chunks.BinarySearch(x => x.LineIndex, LineIndex);
-			if(ChunkIndex < 0)
+			int chunkIndex = chunks.BinarySearch(x => x.LineIndex, lineIndex);
+			if(chunkIndex < 0)
 			{
-				ChunkIndex = ~ChunkIndex - 1;
+				chunkIndex = ~chunkIndex - 1;
 			}
-			return ChunkIndex;
+			return chunkIndex;
 		}
 	}
 }

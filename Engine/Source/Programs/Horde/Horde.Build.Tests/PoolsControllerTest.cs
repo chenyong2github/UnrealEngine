@@ -2,8 +2,8 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Api;
+using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +17,7 @@ namespace Horde.Build.Tests
         [TestMethod]
         public async Task GetPoolsTest()
         {
-	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", Properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
+	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
 	        ActionResult<List<object>> rawResult = await PoolsController.GetPoolsAsync();
 	        Assert.AreEqual(1, rawResult.Value!.Count);
 	        GetPoolResponse response = (rawResult.Value![0] as GetPoolResponse)!;
@@ -52,7 +52,7 @@ namespace Horde.Build.Tests
         [TestMethod]
         public async Task UpdatePoolTest()
         {
-	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", Properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
+	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
 
 	        await PoolsController.UpdatePoolAsync(pool1.Id.ToString(), new UpdatePoolRequest
 	        {

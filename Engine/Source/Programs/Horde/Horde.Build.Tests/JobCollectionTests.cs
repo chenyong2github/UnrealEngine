@@ -1,27 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
-using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
-using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
-using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
-
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using EpicGames.Core;
-using Moq;
-using Horde.Build.Models;
-using System.Threading.Tasks;
-using Horde.Build.Api;
 using System.Linq;
-using HordeCommon;
+using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Api;
+using Horde.Build.Models;
 using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using MongoDB.Bson;
+using Moq;
 
 namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
+	using PoolId = StringId<IPool>;
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
 
 	[TestClass]
 	public class JobCollectionTests : TestSetup

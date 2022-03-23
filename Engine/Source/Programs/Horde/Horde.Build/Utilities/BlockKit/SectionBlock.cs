@@ -12,12 +12,12 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">Any text to initiale the Section with</param>
-		/// <param name="IsMarkdown">If true, text is markdown, else text is considered plain text</param>
-		/// <param name="Emoji">If true, allows escaping of emoji with colon.</param>
-		public SectionBlock(string Text = "", bool IsMarkdown = true, bool Emoji = false)
+		/// <param name="text">Any text to initiale the Section with</param>
+		/// <param name="isMarkdown">If true, text is markdown, else text is considered plain text</param>
+		/// <param name="emoji">If true, allows escaping of emoji with colon.</param>
+		public SectionBlock(string text = "", bool isMarkdown = true, bool emoji = false)
 		{
-			this.Text = new TextObject(Text, IsMarkdown, Emoji);
+			Text = new TextObject(text, isMarkdown, emoji);
 		}
 
 		/// <summary>
@@ -26,12 +26,12 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		public TextObject Text { get; }
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, JsonSerializerOptions options)
 		{
-			Writer.WriteStartObject();
-			Writer.WriteString("type", "section");
-			Text.Write(Writer);
-			Writer.WriteEndObject();
+			writer.WriteStartObject();
+			writer.WriteString("type", "section");
+			Text.Write(writer);
+			writer.WriteEndObject();
 		}
 	}
 }

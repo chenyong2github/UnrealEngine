@@ -1,19 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Bundles;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Impl;
-using EpicGames.Serialization;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Commands.Bundles
 {
@@ -32,10 +23,10 @@ namespace Horde.Build.Commands.Bundles
 		[CommandLine("-Ref2=", Required = true)]
 		public RefId RefId2 { get; set; }
 
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IStorageClient StorageClient = CreateStorageClient(Logger);
-			await BundleTools.FindDeltaAsync(StorageClient, NamespaceId, BucketId, RefId1, RefId2, Logger);
+			IStorageClient storageClient = CreateStorageClient(logger);
+			await BundleTools.FindDeltaAsync(storageClient, NamespaceId, BucketId, RefId1, RefId2, logger);
 			return 0;
 		}
 	}

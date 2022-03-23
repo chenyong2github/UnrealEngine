@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using MongoDB.Bson;
 
 namespace Horde.Build.Collections
 {
@@ -19,29 +19,29 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Add a notice to the collection
 		/// </summary>
-		/// <param name="Message"></param>
-		/// <param name="UserId"></param>
-		/// <param name="StartTime"></param>
-		/// <param name="FinishTime"></param>
+		/// <param name="message"></param>
+		/// <param name="userId"></param>
+		/// <param name="startTime"></param>
+		/// <param name="finishTime"></param>
 		/// <returns></returns>
-		Task<INotice?> AddNoticeAsync(string Message, UserId? UserId, DateTime? StartTime, DateTime? FinishTime);
+		Task<INotice?> AddNoticeAsync(string message, UserId? userId, DateTime? startTime, DateTime? finishTime);
 
 		/// <summary>
 		/// Update an existing notice
 		/// </summary>
-		/// <param name="Id"></param>
-		/// <param name="Message"></param>
-		/// <param name="StartTime"></param>
-		/// <param name="FinishTime"></param>
+		/// <param name="id"></param>
+		/// <param name="message"></param>
+		/// <param name="startTime"></param>
+		/// <param name="finishTime"></param>
 		/// <returns></returns>
-		Task<bool> UpdateNoticeAsync(ObjectId Id, string? Message, DateTime? StartTime, DateTime? FinishTime);
+		Task<bool> UpdateNoticeAsync(ObjectId id, string? message, DateTime? startTime, DateTime? finishTime);
 
 		/// <summary>
 		/// Get a notice by id
 		/// </summary>
-		/// <param name="NoticeId"></param>
+		/// <param name="noticeId"></param>
 		/// <returns></returns>
-		Task<INotice?> GetNoticeAsync(ObjectId NoticeId);
+		Task<INotice?> GetNoticeAsync(ObjectId noticeId);
 
 		/// <summary>
 		/// Get all notices
@@ -52,11 +52,8 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Remove a notice
 		/// </summary>
-		/// <param name="Id"></param>
+		/// <param name="id"></param>
 		/// <returns></returns>
-		Task<bool> RemoveNoticeAsync(ObjectId Id);
-
-
+		Task<bool> RemoveNoticeAsync(ObjectId id);
 	}
-
 }

@@ -1,18 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using EpicGames.Core;
-using MongoDB.Bson;
+using Horde.Build.Models;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Commits
 {
-	using StreamId = StringId<IStream>;
 	using CommitId = ObjectId<ICommit>;
+	using StreamId = StringId<IStream>;
 
 	/// <summary>
 	/// Stores a collection of commits
@@ -22,26 +18,26 @@ namespace Horde.Build.Commits
 		/// <summary>
 		/// Adds or replaces an existing commit
 		/// </summary>
-		/// <param name="NewCommit">The new commit to add</param>
+		/// <param name="newCommit">The new commit to add</param>
 		/// <returns>The commit that was created</returns>
-		Task<ICommit> AddOrReplaceAsync(NewCommit NewCommit);
+		Task<ICommit> AddOrReplaceAsync(NewCommit newCommit);
 
 		/// <summary>
 		/// Gets a single commit
 		/// </summary>
-		/// <param name="Id">Identifier for the commit</param>
-		Task<ICommit?> GetCommitAsync(CommitId Id);
+		/// <param name="id">Identifier for the commit</param>
+		Task<ICommit?> GetCommitAsync(CommitId id);
 
 		/// <summary>
 		/// Finds commits matching certain criteria
 		/// </summary>
-		/// <param name="StreamId"></param>
-		/// <param name="MinChange"></param>
-		/// <param name="MaxChange"></param>
-		/// <param name="Index"></param>
-		/// <param name="Count"></param>
+		/// <param name="streamId"></param>
+		/// <param name="minChange"></param>
+		/// <param name="maxChange"></param>
+		/// <param name="index"></param>
+		/// <param name="count"></param>
 		/// <returns></returns>
-		Task<List<ICommit>> FindCommitsAsync(StreamId StreamId, int? MinChange = null, int? MaxChange = null, int? Index = null, int? Count = null);
+		Task<List<ICommit>> FindCommitsAsync(StreamId streamId, int? minChange = null, int? maxChange = null, int? index = null, int? count = null);
 	}
 
 	/// <summary>
@@ -52,18 +48,18 @@ namespace Horde.Build.Commits
 		/// <summary>
 		/// Gets a commit from a stream by changelist number
 		/// </summary>
-		/// <param name="CommitCollection">The commit collection</param>
-		/// <param name="StreamId"></param>
-		/// <param name="Change"></param>
+		/// <param name="commitCollection">The commit collection</param>
+		/// <param name="streamId"></param>
+		/// <param name="change"></param>
 		/// <returns></returns>
-		public static async Task<ICommit?> GetCommitAsync(this ICommitCollection CommitCollection, StreamId StreamId, int Change)
+		public static async Task<ICommit?> GetCommitAsync(this ICommitCollection commitCollection, StreamId streamId, int change)
 		{
-			List<ICommit> Commits = await CommitCollection.FindCommitsAsync(StreamId, Change, Change);
-			if (Commits.Count == 0)
+			List<ICommit> commits = await commitCollection.FindCommitsAsync(streamId, change, change);
+			if (commits.Count == 0)
 			{
 				return null;
 			}
-			return Commits[0];
+			return commits[0];
 		}
 	}
 }

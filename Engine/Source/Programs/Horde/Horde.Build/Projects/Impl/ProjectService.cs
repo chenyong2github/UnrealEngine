@@ -1,18 +1,12 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Services
 {
@@ -37,27 +31,27 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// The ACL service
 		/// </summary>
-		AclService AclService;
+		readonly AclService _aclService;
 
 		/// <summary>
 		/// Collection of project documents
 		/// </summary>
-		IProjectCollection Projects;
+		readonly IProjectCollection _projects;
 
 		/// <summary>
 		/// Accessor for the collection of project documents
 		/// </summary>
-		public IProjectCollection Collection => Projects;
+		public IProjectCollection Collection => _projects;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AclService">The ACL service</param>
-		/// <param name="Projects">Collection of project documents</param>
-		public ProjectService(AclService AclService, IProjectCollection Projects)
+		/// <param name="aclService">The ACL service</param>
+		/// <param name="projects">Collection of project documents</param>
+		public ProjectService(AclService aclService, IProjectCollection projects)
 		{
-			this.AclService = AclService;
-			this.Projects = Projects;
+			_aclService = aclService;
+			_projects = projects;
 		}
 
 		/// <summary>
@@ -66,93 +60,93 @@ namespace Horde.Build.Services
 		/// <returns>List of project documents</returns>
 		public Task<List<IProject>> GetProjectsAsync()
 		{
-			return Projects.FindAllAsync();
+			return _projects.FindAllAsync();
 		}
 
 		/// <summary>
 		/// Gets a project by ID
 		/// </summary>
-		/// <param name="ProjectId">Unique id of the project</param>
+		/// <param name="projectId">Unique id of the project</param>
 		/// <returns>The project document</returns>
-		public Task<IProject?> GetProjectAsync(ProjectId ProjectId)
+		public Task<IProject?> GetProjectAsync(ProjectId projectId)
 		{
-			return Projects.GetAsync(ProjectId);
+			return _projects.GetAsync(projectId);
 		}
 
 		/// <summary>
 		/// Gets a project's permissions info by ID
 		/// </summary>
-		/// <param name="ProjectId">Unique id of the project</param>
+		/// <param name="projectId">Unique id of the project</param>
 		/// <returns>The project document</returns>
-		public Task<IProjectPermissions?> GetProjectPermissionsAsync(ProjectId ProjectId)
+		public Task<IProjectPermissions?> GetProjectPermissionsAsync(ProjectId projectId)
 		{
-			return Projects.GetPermissionsAsync(ProjectId);
+			return _projects.GetPermissionsAsync(projectId);
 		}
 
 		/// <summary>
 		/// Deletes a project by id
 		/// </summary>
-		/// <param name="ProjectId">Unique id of the project</param>
-		public async Task DeleteProjectAsync(ProjectId ProjectId)
+		/// <param name="projectId">Unique id of the project</param>
+		public async Task DeleteProjectAsync(ProjectId projectId)
 		{
-			await Projects.DeleteAsync(ProjectId);
+			await _projects.DeleteAsync(projectId);
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular project
 		/// </summary>
-		/// <param name="Acl">Acl for the project to check</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="Cache">Cache for the scope table</param>
+		/// <param name="acl">Acl for the project to check</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="cache">Cache for the scope table</param>
 		/// <returns>True if the action is authorized</returns>
-		private Task<bool> AuthorizeAsync(Acl? Acl, AclAction Action, ClaimsPrincipal User, GlobalPermissionsCache? Cache)
+		private Task<bool> AuthorizeAsync(Acl? acl, AclAction action, ClaimsPrincipal user, GlobalPermissionsCache? cache)
 		{
-			bool? Result = Acl?.Authorize(Action, User);
-			if (Result == null)
+			bool? result = acl?.Authorize(action, user);
+			if (result == null)
 			{
-				return AclService.AuthorizeAsync(Action, User, Cache);
+				return _aclService.AuthorizeAsync(action, user, cache);
 			}
 			else
 			{
-				return Task.FromResult(Result.Value);
+				return Task.FromResult(result.Value);
 			}
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular project
 		/// </summary>
-		/// <param name="Project">The project to check</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="Cache">Cache for the scope table</param>
+		/// <param name="project">The project to check</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="cache">Cache for the scope table</param>
 		/// <returns>True if the action is authorized</returns>
-		public Task<bool> AuthorizeAsync(IProject Project, AclAction Action, ClaimsPrincipal User, GlobalPermissionsCache? Cache)
+		public Task<bool> AuthorizeAsync(IProject project, AclAction action, ClaimsPrincipal user, GlobalPermissionsCache? cache)
 		{
-			return AuthorizeAsync(Project.Acl, Action, User, Cache);
+			return AuthorizeAsync(project.Acl, action, user, cache);
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular project
 		/// </summary>
-		/// <param name="ProjectId">The project id to check</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="Cache">Cache for project permissions</param>
+		/// <param name="projectId">The project id to check</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="cache">Cache for project permissions</param>
 		/// <returns>True if the action is authorized</returns>
-		public async Task<bool> AuthorizeAsync(ProjectId ProjectId, AclAction Action, ClaimsPrincipal User, ProjectPermissionsCache? Cache)
+		public async Task<bool> AuthorizeAsync(ProjectId projectId, AclAction action, ClaimsPrincipal user, ProjectPermissionsCache? cache)
 		{
-			IProjectPermissions? Permissions;
-			if (Cache == null)
+			IProjectPermissions? permissions;
+			if (cache == null)
 			{
-				Permissions = await GetProjectPermissionsAsync(ProjectId);
+				permissions = await GetProjectPermissionsAsync(projectId);
 			}
-			else if (!Cache.Projects.TryGetValue(ProjectId, out Permissions))
+			else if (!cache.Projects.TryGetValue(projectId, out permissions))
 			{
-				Permissions = await GetProjectPermissionsAsync(ProjectId);
-				Cache.Projects.Add(ProjectId, Permissions);
+				permissions = await GetProjectPermissionsAsync(projectId);
+				cache.Projects.Add(projectId, permissions);
 			}
-			return await AuthorizeAsync(Permissions?.Acl, Action, User, Cache);
+			return await AuthorizeAsync(permissions?.Acl, action, user, cache);
 		}
 	}
 }

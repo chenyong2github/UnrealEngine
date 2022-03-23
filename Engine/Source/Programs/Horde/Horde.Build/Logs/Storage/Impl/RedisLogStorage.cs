@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 using StackExchange.Redis;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Logs.Storage.Impl
 {
@@ -23,153 +19,151 @@ namespace Horde.Build.Logs.Storage.Impl
 		/// <summary>
 		/// The Redis database
 		/// </summary>
-		IDatabase RedisDb;
+		readonly IDatabase _redisDb;
 
 		/// <summary>
 		/// Logging device
 		/// </summary>
-		ILogger Logger;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Inner storage layer
 		/// </summary>
-		ILogStorage Inner;
+		readonly ILogStorage _inner;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="RedisDb">Redis database</param>
-		/// <param name="Logger">Logger instance</param>
-		/// <param name="Inner">Inner storage layer</param>
-		public RedisLogStorage(IDatabase RedisDb, ILogger Logger, ILogStorage Inner)
+		/// <param name="redisDb">Redis database</param>
+		/// <param name="logger">Logger instance</param>
+		/// <param name="inner">Inner storage layer</param>
+		public RedisLogStorage(IDatabase redisDb, ILogger logger, ILogStorage inner)
 		{
-			this.RedisDb = RedisDb;
-			this.Logger = Logger;
-			this.Inner = Inner;
+			_redisDb = redisDb;
+			_logger = logger;
+			_inner = inner;
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Inner.Dispose();
+			_inner.Dispose();
 		}
 
 		/// <summary>
 		/// Gets the key for a log file's index
 		/// </summary>
-		/// <param name="LogId">The log file id</param>
-		/// <param name="Length">Length of the file covered by the index</param>
+		/// <param name="logId">The log file id</param>
+		/// <param name="length">Length of the file covered by the index</param>
 		/// <returns>The index key</returns>
-		static string IndexKey(LogId LogId, long Length)
+		static string IndexKey(LogId logId, long length)
 		{
-			return $"log-{LogId}-index-{Length}";
+			return $"log-{logId}-index-{length}";
 		}
 
 		/// <summary>
 		/// Gets the key for a chunk's data
 		/// </summary>
-		/// <param name="LogId">The log file id</param>
-		/// <param name="Offset">Offset of the chunk within the log file</param>
+		/// <param name="logId">The log file id</param>
+		/// <param name="offset">Offset of the chunk within the log file</param>
 		/// <returns>The chunk key</returns>
-		static string ChunkKey(LogId LogId, long Offset)
+		static string ChunkKey(LogId logId, long offset)
 		{
-			return $"log-{LogId}-chunk-{Offset}";
+			return $"log-{logId}-chunk-{offset}";
 		}
 
 		/// <summary>
 		/// Adds an index to the cache
 		/// </summary>
-		/// <param name="Key">Key for the item to store</param>
-		/// <param name="Value">Value to be stored</param>
+		/// <param name="key">Key for the item to store</param>
+		/// <param name="value">Value to be stored</param>
 		/// <returns>Async task</returns>
-		[SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-		async Task AddAsync(string Key, ReadOnlyMemory<byte> Value)
+		async Task AddAsync(string key, ReadOnlyMemory<byte> value)
 		{
 			try
 			{
-				await RedisDb.StringSetAsync(Key, Value, expiry: TimeSpan.FromHours(1.0));
-				Logger.LogDebug("Added key {Key} to Redis cache ({Size} bytes)", Key, Value.Length);
+				await _redisDb.StringSetAsync(key, value, expiry: TimeSpan.FromHours(1.0));
+				_logger.LogDebug("Added key {Key} to Redis cache ({Size} bytes)", key, value.Length);
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogError(Ex, "Error writing Redis key {Key}", Key);
+				_logger.LogError(ex, "Error writing Redis key {Key}", key);
 			}
 		}
 
 		/// <summary>
 		/// Adds an index to the cache
 		/// </summary>
-		/// <param name="Key">Key for the item to store</param>
-		/// <param name="Deserialize">Delegate to deserialize the item</param>
+		/// <param name="key">Key for the item to store</param>
+		/// <param name="deserialize">Delegate to deserialize the item</param>
 		/// <returns>Async task</returns>
-		[SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-		async Task<T?> GetAsync<T>(string Key, Func<ReadOnlyMemory<byte>, T> Deserialize) where T : class
+		async Task<T?> GetAsync<T>(string key, Func<ReadOnlyMemory<byte>, T> deserialize) where T : class
 		{
 			try
 			{
-				RedisValue Value = await RedisDb.StringGetAsync(Key);
-				if (Value.IsNullOrEmpty)
+				RedisValue value = await _redisDb.StringGetAsync(key);
+				if (value.IsNullOrEmpty)
 				{
-					Logger.LogDebug("Redis cache miss for {Key}", Key);
+					_logger.LogDebug("Redis cache miss for {Key}", key);
 					return null;
 				}
 				else
 				{
-					Logger.LogDebug("Redis cache hit for {Key}", Key);
-					return Deserialize(Value);
+					_logger.LogDebug("Redis cache hit for {Key}", key);
+					return deserialize(value);
 				}
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogError(Ex, "Error reading Redis key {Key}", Key);
+				_logger.LogError(ex, "Error reading Redis key {Key}", key);
 				return null;
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length)
+		public async Task<LogIndexData?> ReadIndexAsync(LogId logId, long length)
 		{
-			string Key = IndexKey(LogId, Length);
+			string key = IndexKey(logId, length);
 
-			LogIndexData? IndexData = await GetAsync(Key, Memory => LogIndexData.FromMemory(Memory));
-			if(IndexData == null)
+			LogIndexData? indexData = await GetAsync(key, memory => LogIndexData.FromMemory(memory));
+			if(indexData == null)
 			{
-				IndexData = await Inner.ReadIndexAsync(LogId, Length);
-				if(IndexData != null)
+				indexData = await _inner.ReadIndexAsync(logId, length);
+				if(indexData != null)
 				{
-					await AddAsync(Key, IndexData.ToByteArray());
+					await AddAsync(key, indexData.ToByteArray());
 				}
 			}
-			return IndexData;
+			return indexData;
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteIndexAsync(LogId LogId, long Length, LogIndexData Index)
+		public async Task WriteIndexAsync(LogId logId, long length, LogIndexData index)
 		{
-			await Inner.WriteIndexAsync(LogId, Length, Index);
+			await _inner.WriteIndexAsync(logId, length, index);
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex)
+		public async Task<LogChunkData?> ReadChunkAsync(LogId logId, long offset, int lineIndex)
 		{
-			string Key = ChunkKey(LogId, Offset);
+			string key = ChunkKey(logId, offset);
 
-			LogChunkData? ChunkData = await GetAsync(Key, Memory => LogChunkData.FromMemory(Memory, Offset, LineIndex));
-			if (ChunkData == null)
+			LogChunkData? chunkData = await GetAsync(key, memory => LogChunkData.FromMemory(memory, offset, lineIndex));
+			if (chunkData == null)
 			{
-				ChunkData = await Inner.ReadChunkAsync(LogId, Offset, LineIndex);
-				if (ChunkData != null)
+				chunkData = await _inner.ReadChunkAsync(logId, offset, lineIndex);
+				if (chunkData != null)
 				{
-					await AddAsync(Key, ChunkData.ToByteArray());
+					await AddAsync(key, chunkData.ToByteArray());
 				}
 			}
-			return ChunkData;
+			return chunkData;
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
+		public async Task WriteChunkAsync(LogId logId, long offset, LogChunkData chunkData)
 		{
-			await Inner.WriteChunkAsync(LogId, Offset, ChunkData);
+			await _inner.WriteChunkAsync(logId, offset, chunkData);
 		}
 	}
 }

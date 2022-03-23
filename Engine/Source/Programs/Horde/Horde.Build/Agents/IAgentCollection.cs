@@ -1,26 +1,18 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Acls;
-using Horde.Build.Api;
-using HordeCommon;
-using Horde.Build.Models;
-using HordeCommon.Rpc.Tasks;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
+using Horde.Build.Acls;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
 
 namespace Horde.Build.Collections
 {
-	using PoolId = StringId<IPool>;
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
@@ -31,140 +23,140 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Adds a new agent with the given properties
 		/// </summary>
-		/// <param name="Id">Id for the new agent</param>
+		/// <param name="id">Id for the new agent</param>
 		/// <param name="bEnabled">Whether the agent is enabled or not</param>
-		/// <param name="Channel">Channel to use for software run by this agent</param>
-		/// <param name="Pools">Pools for the agent</param>
-		Task<IAgent> AddAsync(AgentId Id, bool bEnabled, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null);
+		/// <param name="channel">Channel to use for software run by this agent</param>
+		/// <param name="pools">Pools for the agent</param>
+		Task<IAgent> AddAsync(AgentId id, bool bEnabled, AgentSoftwareChannelName? channel = null, List<PoolId>? pools = null);
 
 		/// <summary>
 		/// Deletes an agent
 		/// </summary>
-		/// <param name="Agent">Deletes the agent</param>
+		/// <param name="agent">Deletes the agent</param>
 		/// <returns>Async task</returns>
-		Task<IAgent?> TryDeleteAsync(IAgent Agent);
+		Task<IAgent?> TryDeleteAsync(IAgent agent);
 
 		/// <summary>
 		/// Deletes an agent
 		/// </summary>
-		/// <param name="AgentId">Unique id of the agent</param>
+		/// <param name="agentId">Unique id of the agent</param>
 		/// <returns>Async task</returns>
-		Task ForceDeleteAsync(AgentId AgentId);
+		Task ForceDeleteAsync(AgentId agentId);
 
 		/// <summary>
 		/// Gets an agent by ID
 		/// </summary>
-		/// <param name="AgentId">Unique id of the agent</param>
+		/// <param name="agentId">Unique id of the agent</param>
 		/// <returns>The agent document</returns>
-		Task<IAgent?> GetAsync(AgentId AgentId);
+		Task<IAgent?> GetAsync(AgentId agentId);
 
 		/// <summary>
 		/// Finds all agents matching certain criteria
 		/// </summary>
-		/// <param name="PoolId">The pool ID in string form containing the agent</param>
-		/// <param name="ModifiedAfter">If set, only returns agents modified after this time</param>
-		/// <param name="Status">Status to look for</param>
-		/// <param name="Index">Index of the first result</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="poolId">The pool ID in string form containing the agent</param>
+		/// <param name="modifiedAfter">If set, only returns agents modified after this time</param>
+		/// <param name="status">Status to look for</param>
+		/// <param name="index">Index of the first result</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>List of agents matching the given criteria</returns>
-		Task<List<IAgent>> FindAsync(PoolId? PoolId = null, DateTime? ModifiedAfter = null, AgentStatus? Status = null, int? Index = null, int? Count = null);
+		Task<List<IAgent>> FindAsync(PoolId? poolId = null, DateTime? modifiedAfter = null, AgentStatus? status = null, int? index = null, int? count = null);
 
 		/// <summary>
 		/// Finds all the expried agents
 		/// </summary>
-		/// <param name="UtcNow">The current time</param>
-		/// <param name="MaxAgents">Maximum number of agents to return</param>
+		/// <param name="utcNow">The current time</param>
+		/// <param name="maxAgents">Maximum number of agents to return</param>
 		/// <returns>List of agents</returns>
-		Task<List<IAgent>> FindExpiredAsync(DateTime UtcNow, int MaxAgents);
+		Task<List<IAgent>> FindExpiredAsync(DateTime utcNow, int maxAgents);
 
 		/// <summary>
 		/// Update an agent's settings
 		/// </summary>
-		/// <param name="Agent">Agent instance</param>
+		/// <param name="agent">Agent instance</param>
 		/// <param name="bEnabled">Whether the agent is enabled or not</param>
 		/// <param name="bRequestConform">Whether to request a conform job be run</param>
 		/// <param name="bRequestFullConform">Whether to request a full conform job be run</param>
 		/// <param name="bRequestRestart">Whether to request the machine be restarted</param>
 		/// <param name="bRequestShutdown">Whether to request the machine be shut down</param>
-		/// <param name="ShutdownReason">The reason for shutting down agent, ex. Autoscaler/Manual/Unexpected</param>
-		/// <param name="Channel">Override for the desired software channel</param>
-		/// <param name="Pools">List of pools for the agent</param>
-		/// <param name="Acl">New ACL for this agent</param>
-		/// <param name="Comment">New comment</param>
+		/// <param name="shutdownReason">The reason for shutting down agent, ex. Autoscaler/Manual/Unexpected</param>
+		/// <param name="channel">Override for the desired software channel</param>
+		/// <param name="pools">List of pools for the agent</param>
+		/// <param name="acl">New ACL for this agent</param>
+		/// <param name="comment">New comment</param>
 		/// <returns>Version of the software that needs to be installed on the agent. Null if the agent is running the correct version.</returns>
-		Task<IAgent?> TryUpdateSettingsAsync(IAgent Agent, bool? bEnabled = null, bool? bRequestConform = null, bool? bRequestFullConform = null, bool? bRequestRestart = null, bool? bRequestShutdown = null, string? ShutdownReason = null, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null, Acl? Acl = null, string? Comment = null);
+		Task<IAgent?> TryUpdateSettingsAsync(IAgent agent, bool? bEnabled = null, bool? bRequestConform = null, bool? bRequestFullConform = null, bool? bRequestRestart = null, bool? bRequestShutdown = null, string? shutdownReason = null, AgentSoftwareChannelName? channel = null, List<PoolId>? pools = null, Acl? acl = null, string? comment = null);
 
 		/// <summary>
 		/// Update the current workspaces for an agent.
 		/// </summary>
-		/// <param name="Agent">The agent to update</param>
-		/// <param name="Workspaces">Current list of workspaces</param>
-		/// <param name="RequestConform">Whether the agent still needs to run another conform</param>
+		/// <param name="agent">The agent to update</param>
+		/// <param name="workspaces">Current list of workspaces</param>
+		/// <param name="requestConform">Whether the agent still needs to run another conform</param>
 		/// <returns>New agent state</returns>
-		Task<IAgent?> TryUpdateWorkspacesAsync(IAgent Agent, List<AgentWorkspace> Workspaces, bool RequestConform);
+		Task<IAgent?> TryUpdateWorkspacesAsync(IAgent agent, List<AgentWorkspace> workspaces, bool requestConform);
 
 		/// <summary>
 		/// Sets the current session
 		/// </summary>
-		/// <param name="Agent">The agent to update</param>
-		/// <param name="SessionId">New session id</param>
-		/// <param name="SessionExpiresAt">Expiry time for the new session</param>
-		/// <param name="Status">Status of the agent</param>
-		/// <param name="Properties">Properties for the current session</param>
-		/// <param name="Resources">Resources for the agent</param>
-		/// <param name="DynamicPools">New list of dynamic pools for the agent</param>
-		/// <param name="Version">Current version of the agent software</param>
+		/// <param name="agent">The agent to update</param>
+		/// <param name="sessionId">New session id</param>
+		/// <param name="sessionExpiresAt">Expiry time for the new session</param>
+		/// <param name="status">Status of the agent</param>
+		/// <param name="properties">Properties for the current session</param>
+		/// <param name="resources">Resources for the agent</param>
+		/// <param name="dynamicPools">New list of dynamic pools for the agent</param>
+		/// <param name="version">Current version of the agent software</param>
 		/// <returns>New agent state</returns>
-		Task<IAgent?> TryStartSessionAsync(IAgent Agent, SessionId SessionId, DateTime SessionExpiresAt, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, IReadOnlyList<PoolId> DynamicPools, string? Version);
+		Task<IAgent?> TryStartSessionAsync(IAgent agent, SessionId sessionId, DateTime sessionExpiresAt, AgentStatus status, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources, IReadOnlyList<PoolId> dynamicPools, string? version);
 
 		/// <summary>
 		/// Attempt to update the agent state
 		/// </summary>
-		/// <param name="Agent">Agent instance</param>
-		/// <param name="Status">New status of the agent</param>
-		/// <param name="SessionExpiresAt">New expiry time for the current session</param>
-		/// <param name="Properties">Properties for the current session</param>
-		/// <param name="Resources">Resources for the agent</param>
-		/// <param name="DynamicPools">New list of dynamic pools for the agent</param>
-		/// <param name="Leases">New set of leases</param>
+		/// <param name="agent">Agent instance</param>
+		/// <param name="status">New status of the agent</param>
+		/// <param name="sessionExpiresAt">New expiry time for the current session</param>
+		/// <param name="properties">Properties for the current session</param>
+		/// <param name="resources">Resources for the agent</param>
+		/// <param name="dynamicPools">New list of dynamic pools for the agent</param>
+		/// <param name="leases">New set of leases</param>
 		/// <returns>True if the document was updated, false if another writer updated the document first</returns>
-		Task<IAgent?> TryUpdateSessionAsync(IAgent Agent, AgentStatus? Status, DateTime? SessionExpiresAt, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IReadOnlyList<PoolId>? DynamicPools, List<AgentLease>? Leases);
+		Task<IAgent?> TryUpdateSessionAsync(IAgent agent, AgentStatus? status, DateTime? sessionExpiresAt, IReadOnlyList<string>? properties, IReadOnlyDictionary<string, int>? resources, IReadOnlyList<PoolId>? dynamicPools, List<AgentLease>? leases);
 
 		/// <summary>
 		/// Terminates the current session
 		/// </summary>
-		/// <param name="Agent">The agent to terminate the session for</param>
+		/// <param name="agent">The agent to terminate the session for</param>
 		/// <returns>New agent state if it succeeded, otherwise null</returns>
-		Task<IAgent?> TryTerminateSessionAsync(IAgent Agent);
+		Task<IAgent?> TryTerminateSessionAsync(IAgent agent);
 
 		/// <summary>
 		/// Attempts to add a lease to an agent
 		/// </summary>
-		/// <param name="Agent">The agent to update</param>
-		/// <param name="NewLease">The new lease document</param>
+		/// <param name="agent">The agent to update</param>
+		/// <param name="newLease">The new lease document</param>
 		/// <returns>New agent state if it succeeded, otherwise null</returns>
-		Task<IAgent?> TryAddLeaseAsync(IAgent Agent, AgentLease NewLease);
+		Task<IAgent?> TryAddLeaseAsync(IAgent agent, AgentLease newLease);
 
 		/// <summary>
 		/// Attempts to cancel a lease
 		/// </summary>
-		/// <param name="Agent">The agent to update</param>
-		/// <param name="LeaseIdx">Index of the lease</param>
+		/// <param name="agent">The agent to update</param>
+		/// <param name="leaseIdx">Index of the lease</param>
 		/// <returns>New agent state if it succeeded, otherwise null</returns>
-		Task<IAgent?> TryCancelLeaseAsync(IAgent Agent, int LeaseIdx);
+		Task<IAgent?> TryCancelLeaseAsync(IAgent agent, int leaseIdx);
 
 		/// <summary>
 		/// Gets the log channel for an agent
 		/// </summary>
-		/// <param name="AgentId"></param>
+		/// <param name="agentId"></param>
 		/// <returns></returns>
-		IAuditLogChannel<AgentId> GetLogger(AgentId AgentId);
+		IAuditLogChannel<AgentId> GetLogger(AgentId agentId);
 
 		/// <summary>
 		/// Subscribe to notifications on agent states being updated
 		/// </summary>
-		/// <param name="OnUpdate">Callback for updates</param>
+		/// <param name="onUpdate">Callback for updates</param>
 		/// <returns>Disposable subscription object</returns>
-		Task<IDisposable> SubscribeToUpdateEventsAsync(Action<AgentId> OnUpdate);
+		Task<IDisposable> SubscribeToUpdateEventsAsync(Action<AgentId> onUpdate);
 	}
 }

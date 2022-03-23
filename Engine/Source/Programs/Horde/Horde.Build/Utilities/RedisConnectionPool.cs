@@ -16,22 +16,22 @@ namespace Horde.Build.Utilities
 	/// </summary>
 	public class RedisConnectionPool
 	{
-		private readonly ConcurrentBag<Lazy<ConnectionMultiplexer>> Connections;
-		private readonly int DefaultDatabaseIndex;
+		private readonly ConcurrentBag<Lazy<ConnectionMultiplexer>> _connections;
+		private readonly int _defaultDatabaseIndex;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="PoolSize">Size of the pool (i.e max number of connections)</param>
-		/// <param name="RedisConfString">Configuration string for Redis</param>
-		/// <param name="DefaultDatabaseIndex">The Redis database index to use. Use -1 for the default one</param>
-		public RedisConnectionPool(int PoolSize, string RedisConfString, int DefaultDatabaseIndex = -1)
+		/// <param name="poolSize">Size of the pool (i.e max number of connections)</param>
+		/// <param name="redisConfString">Configuration string for Redis</param>
+		/// <param name="defaultDatabaseIndex">The Redis database index to use. Use -1 for the default one</param>
+		public RedisConnectionPool(int poolSize, string redisConfString, int defaultDatabaseIndex = -1)
 		{
-			this.DefaultDatabaseIndex = DefaultDatabaseIndex;
-			Connections = new ConcurrentBag<Lazy<ConnectionMultiplexer>>();
-			for (int i = 0; i < PoolSize; i++)
+			_defaultDatabaseIndex = defaultDatabaseIndex;
+			_connections = new ConcurrentBag<Lazy<ConnectionMultiplexer>>();
+			for (int i = 0; i < poolSize; i++)
 			{
-				Connections.Add(new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(RedisConfString)));
+				_connections.Add(new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(redisConfString)));
 			}
 		}
 
@@ -43,21 +43,21 @@ namespace Horde.Build.Utilities
 		/// <returns>A Redis database connection</returns>
 		public IConnectionMultiplexer GetConnection()
 		{
-			Lazy<ConnectionMultiplexer> LazyConnection;
-			var LazyConnections = Connections.Where(x => x.IsValueCreated);
+			Lazy<ConnectionMultiplexer> lazyConnection;
+			IEnumerable<Lazy<ConnectionMultiplexer>>? lazyConnections = _connections.Where(x => x.IsValueCreated);
 
-			if (LazyConnections.Count() == Connections.Count)
+			if (lazyConnections.Count() == _connections.Count)
 			{
 				// No more new connections can be created, pick the least loaded one
-				LazyConnection = Connections.OrderBy(x => x.Value.GetCounters().TotalOutstanding).First();
+				lazyConnection = _connections.OrderBy(x => x.Value.GetCounters().TotalOutstanding).First();
 			}
 			else
 			{
 				// Create a new connection by picking a not yet initialized lazy value 
-				LazyConnection = Connections.First(x => !x.IsValueCreated);
+				lazyConnection = _connections.First(x => !x.IsValueCreated);
 			}
 
-			return LazyConnection.Value;
+			return lazyConnection.Value;
 		}
 
 		/// <summary>
@@ -66,8 +66,7 @@ namespace Horde.Build.Utilities
 		/// <returns>A Redis database</returns>
 		public IDatabase GetDatabase()
 		{
-			return GetConnection().GetDatabase(DefaultDatabaseIndex);
+			return GetConnection().GetDatabase(_defaultDatabaseIndex);
 		}
-
 	}
 }

@@ -1,17 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Models
 {
@@ -59,34 +56,34 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of this group</param>
-		public StreamCategory(string Name)
+		/// <param name="name">Name of this group</param>
+		public StreamCategory(string name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 
 		/// <summary>
 		/// Constructs a category from a request object
 		/// </summary>
-		/// <param name="Request">The request object</param>
-		public StreamCategory(CreateProjectCategoryRequest Request)
+		/// <param name="request">The request object</param>
+		public StreamCategory(CreateProjectCategoryRequest request)
 		{
-			this.Name = Request.Name;
-			this.Row = Request.Row;
-			this.ShowOnNavMenu = Request.ShowOnNavMenu;
-			this.IncludePatterns = Request.IncludePatterns;
-			this.ExcludePatterns = Request.ExcludePatterns;
+			Name = request.Name;
+			Row = request.Row;
+			ShowOnNavMenu = request.ShowOnNavMenu;
+			IncludePatterns = request.IncludePatterns;
+			ExcludePatterns = request.ExcludePatterns;
 		}
 
 		/// <summary>
 		/// Tests if a given name matches a pattern
 		/// </summary>
-		/// <param name="Name">The name to test</param>
-		/// <param name="Pattern">The pattern to match against</param>
+		/// <param name="name">The name to test</param>
+		/// <param name="pattern">The pattern to match against</param>
 		/// <returns>True if the pattern matches, false otherwise</returns>
-		public static bool MatchPattern(string Name, string Pattern)
+		public static bool MatchPattern(string name, string pattern)
 		{
-			return Regex.IsMatch(Name, Pattern);
+			return Regex.IsMatch(name, pattern);
 		}
 	}
 
@@ -170,64 +167,64 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Converts this object to a public response
 		/// </summary>
-		/// <param name="Project">The project instance</param>
+		/// <param name="project">The project instance</param>
 		/// <param name="bIncludeStreams">Whether to include streams in the response</param>
 		/// <param name="bIncludeCategories">Whether to include categories in the response</param>
-		/// <param name="Streams">The list of streams</param>
+		/// <param name="streams">The list of streams</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
 		/// <returns>Response instance</returns>
-		public static GetProjectResponse ToResponse(this IProject Project, bool bIncludeStreams, bool bIncludeCategories, List<IStream>? Streams, bool bIncludeAcl)
+		public static GetProjectResponse ToResponse(this IProject project, bool bIncludeStreams, bool bIncludeCategories, List<IStream>? streams, bool bIncludeAcl)
 		{
-			List<GetProjectStreamResponse>? StreamResponses = null;
+			List<GetProjectStreamResponse>? streamResponses = null;
 			if(bIncludeStreams)
 			{
-				StreamResponses = Streams!.ConvertAll(x => new GetProjectStreamResponse(x.Id.ToString(), x.Name));
+				streamResponses = streams!.ConvertAll(x => new GetProjectStreamResponse(x.Id.ToString(), x.Name));
 			}
 
-			List<GetProjectCategoryResponse>? CategoryResponses = null;
+			List<GetProjectCategoryResponse>? categoryResponses = null;
 			if (bIncludeCategories)
 			{
-				CategoryResponses = Project.Categories.ConvertAll(x => new GetProjectCategoryResponse(x));
-				if (Streams != null)
+				categoryResponses = project.Categories.ConvertAll(x => new GetProjectCategoryResponse(x));
+				if (streams != null)
 				{
-					foreach (IStream Stream in Streams)
+					foreach (IStream stream in streams)
 					{
-						GetProjectCategoryResponse? CategoryResponse = CategoryResponses.FirstOrDefault(x => MatchCategory(Stream.Name, x));
-						if(CategoryResponse == null)
+						GetProjectCategoryResponse? categoryResponse = categoryResponses.FirstOrDefault(x => MatchCategory(stream.Name, x));
+						if(categoryResponse == null)
 						{
-							int Row = (CategoryResponses.Count > 0) ? CategoryResponses.Max(x => x.Row) : 0;
-							if (CategoryResponses.Count(x => x.Row == Row) >= 3)
+							int row = (categoryResponses.Count > 0) ? categoryResponses.Max(x => x.Row) : 0;
+							if (categoryResponses.Count(x => x.Row == row) >= 3)
 							{
-								Row++;
+								row++;
 							}
 
-							StreamCategory OtherCategory = new StreamCategory("Other");
-							OtherCategory.Row = Row;
-							OtherCategory.IncludePatterns.Add(".*");
+							StreamCategory otherCategory = new StreamCategory("Other");
+							otherCategory.Row = row;
+							otherCategory.IncludePatterns.Add(".*");
 
-							CategoryResponse = new GetProjectCategoryResponse(OtherCategory);
-							CategoryResponses.Add(CategoryResponse);
+							categoryResponse = new GetProjectCategoryResponse(otherCategory);
+							categoryResponses.Add(categoryResponse);
 						}
-						CategoryResponse.Streams!.Add(Stream.Id.ToString());
+						categoryResponse.Streams!.Add(stream.Id.ToString());
 					}
 				}
 			}
 
-			GetAclResponse? AclResponse = (bIncludeAcl && Project.Acl != null) ? new GetAclResponse(Project.Acl) : null;
-			return new GetProjectResponse(Project.Id.ToString(), Project.Name, Project.Order, StreamResponses, CategoryResponses, AclResponse);
+			GetAclResponse? aclResponse = (bIncludeAcl && project.Acl != null) ? new GetAclResponse(project.Acl) : null;
+			return new GetProjectResponse(project.Id.ToString(), project.Name, project.Order, streamResponses, categoryResponses, aclResponse);
 		}
 
 		/// <summary>
 		/// Tests if a category response matches a given stream name
 		/// </summary>
-		/// <param name="Name">The stream name</param>
-		/// <param name="Category">The category response</param>
+		/// <param name="name">The stream name</param>
+		/// <param name="category">The category response</param>
 		/// <returns>True if the category matches</returns>
-		static bool MatchCategory(string Name, GetProjectCategoryResponse Category)
+		static bool MatchCategory(string name, GetProjectCategoryResponse category)
 		{
-			if (Category.IncludePatterns.Any(x => StreamCategory.MatchPattern(Name, x)))
+			if (category.IncludePatterns.Any(x => StreamCategory.MatchPattern(name, x)))
 			{
-				if (!Category.ExcludePatterns.Any(x => StreamCategory.MatchPattern(Name, x)))
+				if (!category.ExcludePatterns.Any(x => StreamCategory.MatchPattern(name, x)))
 				{
 					return true;
 				}

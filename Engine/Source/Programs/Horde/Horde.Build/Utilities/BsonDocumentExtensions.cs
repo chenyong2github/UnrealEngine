@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using MongoDB.Bson;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
+using MongoDB.Bson;
 
 namespace Horde.Build.Utilities
 {
@@ -17,48 +14,48 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Gets a property value from a document or subdocument, indicated with dotted notation
 		/// </summary>
-		/// <param name="Document">Document to get a property for</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="Type">Expected type of the property</param>
-		/// <param name="OutValue">Receives the property value</param>
+		/// <param name="document">Document to get a property for</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="type">Expected type of the property</param>
+		/// <param name="outValue">Receives the property value</param>
 		/// <returns>True if the property exists and was of the correct type</returns>
-		public static bool TryGetPropertyValue(this BsonDocument Document, string Name, BsonType Type, [NotNullWhen(true)] out BsonValue? OutValue)
+		public static bool TryGetPropertyValue(this BsonDocument document, string name, BsonType type, [NotNullWhen(true)] out BsonValue? outValue)
 		{
-			int DotIdx = Name.IndexOf('.', StringComparison.Ordinal);
-			if (DotIdx == -1)
+			int dotIdx = name.IndexOf('.', StringComparison.Ordinal);
+			if (dotIdx == -1)
 			{
-				return TryGetDirectPropertyValue(Document, Name, Type, out OutValue);
+				return TryGetDirectPropertyValue(document, name, type, out outValue);
 			}
 
-			BsonValue? DocValue;
-			if (TryGetDirectPropertyValue(Document, Name.Substring(0, DotIdx), BsonType.Document, out DocValue))
+			BsonValue? docValue;
+			if (TryGetDirectPropertyValue(document, name.Substring(0, dotIdx), BsonType.Document, out docValue))
 			{
-				return TryGetPropertyValue(DocValue.AsBsonDocument, Name.Substring(DotIdx + 1), Type, out OutValue);
+				return TryGetPropertyValue(docValue.AsBsonDocument, name.Substring(dotIdx + 1), type, out outValue);
 			}
 
-			OutValue = null;
+			outValue = null;
 			return false;
 		}
 
 		/// <summary>
 		/// Gets a property value that's an immediate child of the document
 		/// </summary>
-		/// <param name="Document">Document to get a property for</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="Type">Expected type of the property</param>
-		/// <param name="OutValue">Receives the property value</param>
+		/// <param name="document">Document to get a property for</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="type">Expected type of the property</param>
+		/// <param name="outValue">Receives the property value</param>
 		/// <returns>True if the property exists and was of the correct type</returns>
-		private static bool TryGetDirectPropertyValue(this BsonDocument Document, string Name, BsonType Type, [NotNullWhen(true)] out BsonValue? OutValue)
+		private static bool TryGetDirectPropertyValue(this BsonDocument document, string name, BsonType type, [NotNullWhen(true)] out BsonValue? outValue)
 		{
-			BsonValue Value;
-			if (Document.TryGetValue(Name, out Value) && Value.BsonType == Type)
+			BsonValue value;
+			if (document.TryGetValue(name, out value) && value.BsonType == type)
 			{
-				OutValue = Value;
+				outValue = value;
 				return true;
 			}
 			else
 			{
-				OutValue = null;
+				outValue = null;
 				return false;
 			}
 		}
@@ -66,21 +63,21 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Gets an int32 value from the document
 		/// </summary>
-		/// <param name="Document">Document to get a property for</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="OutValue">Receives the property value</param>
+		/// <param name="document">Document to get a property for</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="outValue">Receives the property value</param>
 		/// <returns>True if the property was retrieved</returns>
-		public static bool TryGetInt32(this BsonDocument Document, string Name, out int OutValue)
+		public static bool TryGetInt32(this BsonDocument document, string name, out int outValue)
 		{
-			BsonValue? Value;
-			if (Document.TryGetPropertyValue(Name, BsonType.Int32, out Value))
+			BsonValue? value;
+			if (document.TryGetPropertyValue(name, BsonType.Int32, out value))
 			{
-				OutValue = Value.AsInt32;
+				outValue = value.AsInt32;
 				return true;
 			}
 			else
 			{
-				OutValue = 0;
+				outValue = 0;
 				return false;
 			}
 		}
@@ -88,21 +85,21 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Gets a string value from the document
 		/// </summary>
-		/// <param name="Document">Document to get a property for</param>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="OutValue">Receives the property value</param>
+		/// <param name="document">Document to get a property for</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="outValue">Receives the property value</param>
 		/// <returns>True if the property was retrieved</returns>
-		public static bool TryGetString(this BsonDocument Document, string Name, [NotNullWhen(true)] out string? OutValue)
+		public static bool TryGetString(this BsonDocument document, string name, [NotNullWhen(true)] out string? outValue)
 		{
-			BsonValue? Value;
-			if (Document.TryGetPropertyValue(Name, BsonType.String, out Value))
+			BsonValue? value;
+			if (document.TryGetPropertyValue(name, BsonType.String, out value))
 			{
-				OutValue = Value.AsString;
+				outValue = value.AsString;
 				return true;
 			}
 			else
 			{
-				OutValue = null;
+				outValue = null;
 				return false;
 			}
 		}

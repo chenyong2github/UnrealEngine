@@ -1,15 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections
 {
@@ -23,46 +18,46 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Finds or adds a trigger
 		/// </summary>
-		/// <param name="TriggerId">The trigger id</param>
+		/// <param name="triggerId">The trigger id</param>
 		/// <returns>New trigger document</returns>
-		Task<INotificationTrigger> FindOrAddAsync(ObjectId TriggerId);
+		Task<INotificationTrigger> FindOrAddAsync(ObjectId triggerId);
 
 		/// <summary>
 		/// Finds an existing trigger with the given id, or adds one if it does not exist
 		/// </summary>
-		/// <param name="TriggerId"></param>
+		/// <param name="triggerId"></param>
 		/// <returns></returns>
-		Task<INotificationTrigger?> GetAsync(ObjectId TriggerId);
+		Task<INotificationTrigger?> GetAsync(ObjectId triggerId);
 
 		/// <summary>
 		/// Deletes a trigger
 		/// </summary>
-		/// <param name="TriggerId">The unique trigger id</param>
+		/// <param name="triggerId">The unique trigger id</param>
 		/// <returns>Async task</returns>
-		Task DeleteAsync(ObjectId TriggerId);
+		Task DeleteAsync(ObjectId triggerId);
 
 		/// <summary>
 		/// Deletes a trigger
 		/// </summary>
-		/// <param name="TriggerIds">The unique trigger id</param>
+		/// <param name="triggerIds">The unique trigger id</param>
 		/// <returns>Async task</returns>
-		Task DeleteAsync(List<ObjectId> TriggerIds);
+		Task DeleteAsync(List<ObjectId> triggerIds);
 
 		/// <summary>
 		/// Fires the trigger, and marks notifications has having been sent
 		/// </summary>
-		/// <param name="Trigger">The trigger to fire</param>
+		/// <param name="trigger">The trigger to fire</param>
 		/// <returns>The trigger document</returns>
-		Task<INotificationTrigger?> FireAsync(INotificationTrigger Trigger);
+		Task<INotificationTrigger?> FireAsync(INotificationTrigger trigger);
 
 		/// <summary>
 		/// Adds a subscriber to a particular trigger
 		/// </summary>
-		/// <param name="Trigger">The trigger to subscribe to</param>
-		/// <param name="UserId">The user name</param>
-		/// <param name="Email">Whether to receive email notifications</param>
-		/// <param name="Slack">Whether to receive Slack notifications</param>
+		/// <param name="trigger">The trigger to subscribe to</param>
+		/// <param name="userId">The user name</param>
+		/// <param name="email">Whether to receive email notifications</param>
+		/// <param name="slack">Whether to receive Slack notifications</param>
 		/// <returns>The new trigger state</returns>
-		Task<INotificationTrigger?> UpdateSubscriptionsAsync(INotificationTrigger Trigger, UserId UserId, bool? Email, bool? Slack);
+		Task<INotificationTrigger?> UpdateSubscriptionsAsync(INotificationTrigger trigger, UserId userId, bool? email, bool? slack);
 	}
 }

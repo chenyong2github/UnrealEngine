@@ -15,35 +15,38 @@ namespace Horde.Build.Utilities
 		///
 		/// The AWS SDK provided functionality was proven too much work, so this is a simplified version.
 		/// </summary>
-		/// <param name="ProfileName">Name of the AWS profile</param>
-		/// <param name="CredentialsFilePath">Override for the credentials file path, set to null for default path</param>
+		/// <param name="profileName">Name of the AWS profile</param>
+		/// <param name="credentialsFilePath">Override for the credentials file path, set to null for default path</param>
 		/// <returns>Credentials as a tuple</returns>
 		/// <exception cref="Exception"></exception>
-		public static (string AccessKey, string SecretAccessKey, string SecretToken) ReadAwsCredentials(string ProfileName, string? CredentialsFilePath = null)
+		public static (string AccessKey, string SecretAccessKey, string SecretToken) ReadAwsCredentials(string profileName, string? credentialsFilePath = null)
 		{
-			CredentialsFilePath ??= Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".aws", "credentials");
-			string[] Lines = File.ReadAllLines(CredentialsFilePath);
+			credentialsFilePath ??= Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".aws", "credentials");
+			string[] lines = File.ReadAllLines(credentialsFilePath);
 		    
-			string ReadValue(string Line, string ExpectedKey)
+			static string ReadValue(string line, string expectedKey)
 			{
-				if (Line.StartsWith(ExpectedKey, StringComparison.Ordinal)) return Line.Split("=")[1].Trim();
-				throw new Exception($"Unable to read key/value on line {Line} for key {ExpectedKey}");
+				if (line.StartsWith(expectedKey, StringComparison.Ordinal))
+				{
+					return line.Split("=")[1].Trim();
+				}
+				throw new Exception($"Unable to read key/value on line {line} for key {expectedKey}");
 			}
 
-			for (int i = 0; i < Lines.Length; i++)
+			for (int i = 0; i < lines.Length; i++)
 			{
-				string Line = Lines[i];
-				if (Line == $"[{ProfileName}]")
+				string line = lines[i];
+				if (line == $"[{profileName}]")
 				{
-					string AccessKey = ReadValue(Lines[i + 1], "aws_access_key_id");
-					string SecretAccessKey = ReadValue(Lines[i + 2], "aws_secret_access_key");
-					string SessionToken = ReadValue(Lines[i + 3], "aws_session_token");
+					string accessKey = ReadValue(lines[i + 1], "aws_access_key_id");
+					string secretAccessKey = ReadValue(lines[i + 2], "aws_secret_access_key");
+					string sessionToken = ReadValue(lines[i + 3], "aws_session_token");
 
-					return (AccessKey, SecretAccessKey, SessionToken);
+					return (accessKey, secretAccessKey, sessionToken);
 				}
 			}
 
-			throw new Exception($"Unable to find profile {ProfileName} in file {CredentialsFilePath}");
+			throw new Exception($"Unable to find profile {profileName} in file {credentialsFilePath}");
 		}
 	}
 }

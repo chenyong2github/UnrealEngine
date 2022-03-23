@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
+using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -43,9 +40,9 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CreateProjectCategoryRequest(string Name)
+		public CreateProjectCategoryRequest(string name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 	}
 
@@ -67,12 +64,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">The unique stream id</param>
-		/// <param name="Name">The stream name</param>
-		public GetProjectStreamResponse(string Id, string Name)
+		/// <param name="id">The unique stream id</param>
+		/// <param name="name">The stream name</param>
+		public GetProjectStreamResponse(string id, string name)
 		{
-			this.Id = Id;
-			this.Name = Name;
+			Id = id;
+			Name = name;
 		}
 	}
 
@@ -114,14 +111,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="StreamCategory">The category to construct from</param>
-		public GetProjectCategoryResponse(StreamCategory StreamCategory)
+		/// <param name="streamCategory">The category to construct from</param>
+		public GetProjectCategoryResponse(StreamCategory streamCategory)
 		{
-			this.Name = StreamCategory.Name;
-			this.Row = StreamCategory.Row;
-			this.ShowOnNavMenu = StreamCategory.ShowOnNavMenu;
-			this.IncludePatterns = StreamCategory.IncludePatterns;
-			this.ExcludePatterns = StreamCategory.ExcludePatterns;
+			Name = streamCategory.Name;
+			Row = streamCategory.Row;
+			ShowOnNavMenu = streamCategory.ShowOnNavMenu;
+			IncludePatterns = streamCategory.IncludePatterns;
+			ExcludePatterns = streamCategory.ExcludePatterns;
 		}
 	}
 
@@ -163,20 +160,20 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Unique id of the project</param>
-		/// <param name="Name">Name of the project</param>
-		/// <param name="Order">Order to show this project on the dashboard</param>
-		/// <param name="Streams">List of streams to display</param>
-		/// <param name="Categories">List of stream categories to display</param>
-		/// <param name="Acl">Custom permissions for this object</param>
-		public GetProjectResponse(string Id, string Name, int Order, List<GetProjectStreamResponse>? Streams, List<GetProjectCategoryResponse>? Categories, GetAclResponse? Acl)
+		/// <param name="id">Unique id of the project</param>
+		/// <param name="name">Name of the project</param>
+		/// <param name="order">Order to show this project on the dashboard</param>
+		/// <param name="streams">List of streams to display</param>
+		/// <param name="categories">List of stream categories to display</param>
+		/// <param name="acl">Custom permissions for this object</param>
+		public GetProjectResponse(string id, string name, int order, List<GetProjectStreamResponse>? streams, List<GetProjectCategoryResponse>? categories, GetAclResponse? acl)
 		{
-			this.Id = Id;
-			this.Name = Name;
-			this.Order = Order;
-			this.Streams = Streams;
-			this.Categories = Categories;
-			this.Acl = Acl;
+			Id = id;
+			Name = name;
+			Order = order;
+			Streams = streams;
+			Categories = categories;
+			Acl = acl;
 		}
 	}
 }

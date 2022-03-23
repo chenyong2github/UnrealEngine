@@ -1,23 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using HordeCommon;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
-using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
-using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
+using Horde.Build.Api;
+using Horde.Build.Models;
 using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
+	using ProjectId = StringId<IProject>;
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
 
 	[TestClass]
 	public class JobServiceTests : TestSetup
@@ -95,18 +95,18 @@ namespace Horde.Build.Tests
 		{
 			IUser user = await UserCollection.FindOrAddUserByLoginAsync(startedByUserName);
 			return await JobService.CreateJobAsync(
-				JobId: JobId.GenerateNewId(),
-				Stream: fixture!.Stream!,
-				TemplateRefId: new TemplateRefId(templateRefId),
-				TemplateHash: new ContentHash(Encoding.ASCII.GetBytes(templateHash)),
-				Graph: fixture!.Graph,
-				Name: "hello1",
-				Change: 1000001,
-				CodeChange: 1000002,
-				PreflightChange: preflightChange,
-				ClonedPreflightChange: null,
-				StartedByUserId: user.Id,
-				Priority: Priority.Normal,
+				jobId: JobId.GenerateNewId(),
+				stream: fixture!.Stream!,
+				templateRefId: new TemplateRefId(templateRefId),
+				templateHash: new ContentHash(Encoding.ASCII.GetBytes(templateHash)),
+				graph: fixture!.Graph,
+				name: "hello1",
+				change: 1000001,
+				codeChange: 1000002,
+				preflightChange: preflightChange,
+				clonedPreflightChange: null,
+				startedByUserId: user.Id,
+				priority: Priority.Normal,
 				null,
 				null,
 				null,
@@ -115,7 +115,7 @@ namespace Horde.Build.Tests
 				false,
 				null,
 				null,
-				Arguments: new List<string>(arguments)
+				arguments: new List<string>(arguments)
 			);
 		}
 		
@@ -163,9 +163,9 @@ namespace Horde.Build.Tests
 			groupA.Nodes.Add(new NewNode("Compile"));
 
 			NewGroup groupB = new NewGroup("win", new List<NewNode>());
-			groupB.Nodes.Add(new NewNode("Cook", RunEarly: true));
+			groupB.Nodes.Add(new NewNode("Cook", runEarly: true));
 			groupB.Nodes.Add(new NewNode("Middle"));
-			groupB.Nodes.Add(new NewNode("Pak", InputDependencies: new List<string> { "Compile", "Cook" }));
+			groupB.Nodes.Add(new NewNode("Pak", inputDependencies: new List<string> { "Compile", "Cook" }));
 
 			graph = await GraphCollection.AppendAsync(graph, new List<NewGroup> { groupA, groupB });
 

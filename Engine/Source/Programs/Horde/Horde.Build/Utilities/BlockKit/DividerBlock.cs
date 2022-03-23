@@ -10,11 +10,11 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 	public class DividerBlock : BlockBase
 	{
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, JsonSerializerOptions options)
 		{
-			Writer.WriteStartObject();
-			Writer.WriteString("type", "divider");
-			Writer.WriteEndObject();
+			writer.WriteStartObject();
+			writer.WriteString("type", "divider");
+			writer.WriteEndObject();
 		}
 	}
 }

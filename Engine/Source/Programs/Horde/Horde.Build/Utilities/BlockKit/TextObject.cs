@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Text.Json;
 
 namespace Horde.Build.Utilities.Slack.BlockKit
@@ -13,15 +12,15 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">Any text to initialize with</param>
-		/// <param name="IsMarkdown">If true, text is markdown, else text is considered plain text</param>
-		/// <param name="Emoji">If true, allows escaping of emojis with a colon</param>
-		public TextObject(string Text = "", bool IsMarkdown = true, bool Emoji = false)
+		/// <param name="text">Any text to initialize with</param>
+		/// <param name="isMarkdown">If true, text is markdown, else text is considered plain text</param>
+		/// <param name="emoji">If true, allows escaping of emojis with a colon</param>
+		public TextObject(string text = "", bool isMarkdown = true, bool emoji = false)
 		{
-			this.Text = Text;
-			this.IsMarkdown = IsMarkdown;
+			Text = text;
+			IsMarkdown = isMarkdown;
 			// force emoji to false if markdown is true as this invalidates the schema
-			this.Emoji = this.IsMarkdown ? false : Emoji;
+			Emoji = !IsMarkdown && emoji;
 		}
 
 		/// <summary>
@@ -42,26 +41,26 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Writes the TextObject JSON to a <see cref="Utf8JsonWriter"/>
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void Write(Utf8JsonWriter Writer)
+		/// <param name="writer"></param>
+		public void Write(Utf8JsonWriter writer)
 		{
-			Writer.WriteStartObject("text");
-			Writer.WriteString("type", IsMarkdown ? "mrkdwn" : "plain_text");
+			writer.WriteStartObject("text");
+			writer.WriteString("type", IsMarkdown ? "mrkdwn" : "plain_text");
 
 			const int MaxLength = 2048;
 
-			string TruncatedText = Text;
-			if (TruncatedText.Length > MaxLength)
+			string truncatedText = Text;
+			if (truncatedText.Length > MaxLength)
 			{
-				TruncatedText = TruncatedText.Substring(0, MaxLength) + "...\n(message truncated)";
+				truncatedText = truncatedText.Substring(0, MaxLength) + "...\n(message truncated)";
 			}
 
-			Writer.WriteString("text", TruncatedText);
+			writer.WriteString("text", truncatedText);
 			if (Emoji)
 			{
-				Writer.WriteBoolean("emoji", Emoji);
+				writer.WriteBoolean("emoji", Emoji);
 			}
-			Writer.WriteEndObject();
+			writer.WriteEndObject();
 		}
 	}
 }

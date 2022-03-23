@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Threading.Tasks;
 using Horde.Build.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -16,15 +16,15 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Singleton instance of the lifetime service
 		/// </summary>
-		LifetimeService LifetimeService;
+		readonly LifetimeService _lifetimeService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="LifetimeService">The lifetime service singleton</param>
-		public LifetimeController(LifetimeService LifetimeService)
+		/// <param name="lifetimeService">The lifetime service singleton</param>
+		public LifetimeController(LifetimeService lifetimeService)
 		{
-			this.LifetimeService = LifetimeService;
+			_lifetimeService = lifetimeService;
 		}
 
 		/// <summary>
@@ -40,16 +40,16 @@ namespace Horde.Build.Controllers
 		[Route("/health/ready")]
 		public Task<ActionResult> ServerReadiness()
 		{
-			int StatusCode = 200;
-			string Content = "ok";
+			int statusCode = 200;
+			string content = "ok";
 			
-			if (LifetimeService.IsPreStopping)
+			if (_lifetimeService.IsPreStopping)
 			{
-				StatusCode = 503; // Service Unavailable
-				Content = "stopping";
+				statusCode = 503; // Service Unavailable
+				content = "stopping";
 			}
 
-			return Task.FromResult<ActionResult>(new ContentResult { ContentType = "text/plain", StatusCode = StatusCode, Content = Content });
+			return Task.FromResult<ActionResult>(new ContentResult { ContentType = "text/plain", StatusCode = statusCode, Content = content });
 		}
 		
 		/// <summary>
@@ -59,7 +59,7 @@ namespace Horde.Build.Controllers
 		/// <returns>Ok if app is not stopping and all databases can be reached</returns>
 		[HttpGet]
 		[Route("/health/live")]
-		public ActionResult K8sLivenessProbe()
+		public ActionResult K8SLivenessProbe()
 		{
 			return new ContentResult { ContentType = "text/plain", StatusCode = 200, Content = "ok" };
 		}

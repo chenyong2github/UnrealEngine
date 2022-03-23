@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Bundles;
 using EpicGames.Horde.Bundles.Nodes;
@@ -7,26 +8,19 @@ using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Impl;
 using EpicGames.Serialization;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Commands.Bundles
 {
 	abstract class BundleCommandBase : Command
 	{
 		[CommandLine("-StorageDir=", Description = "Overrides the default storage server with a local directory")]
-		public DirectoryReference? StorageDir = null;
+		public DirectoryReference? _storageDir = null;
 
-		protected IStorageClient CreateStorageClient(ILogger Logger)
+		protected IStorageClient CreateStorageClient(ILogger logger)
 		{
-			StorageDir ??= DirectoryReference.Combine(Program.DataDir, "Storage");
-			return new FileStorageClient(StorageDir, Logger);
+			_storageDir ??= DirectoryReference.Combine(Program.DataDir, "Storage");
+			return new FileStorageClient(_storageDir, logger);
 		}
 	}
 
@@ -45,15 +39,15 @@ namespace Horde.Build.Commands.Bundles
 		[CommandLine("-InputDir=", Required = true)]
 		public DirectoryReference InputDir { get; set; } = null!;
 
-		public override async Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IStorageClient StorageClient = base.CreateStorageClient(Logger);
-			using (MemoryCache Cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50 * 1024 * 1024 }))
+			IStorageClient storageClient = base.CreateStorageClient(logger);
+			using (MemoryCache cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50 * 1024 * 1024 }))
 			{
-				using (Bundle<DirectoryNode> NewBundle = Bundle.Create<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), Cache))
+				using (Bundle<DirectoryNode> newBundle = Bundle.Create<DirectoryNode>(storageClient, NamespaceId, new BundleOptions(), cache))
 				{
-					await NewBundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), Logger);
-					await NewBundle.WriteAsync(BucketId, RefId, CbObject.Empty, false);
+					await newBundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), logger);
+					await newBundle.WriteAsync(BucketId, RefId, CbObject.Empty, false);
 				}
 			}
 

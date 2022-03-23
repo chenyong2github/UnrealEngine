@@ -1,17 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Collections
 {
@@ -28,28 +21,28 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Creates or replaces a stream configuration
 		/// </summary>
-		/// <param name="Id">Unique id for the new stream</param>
-		/// <param name="Stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
-		/// <param name="ConfigPath">Path to the config file</param>
-		/// <param name="Revision">The config file revision</param>
-		/// <param name="ProjectId">The project id</param>
-		/// <param name="Config">The stream configuration</param>
+		/// <param name="id">Unique id for the new stream</param>
+		/// <param name="stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
+		/// <param name="configPath">Path to the config file</param>
+		/// <param name="revision">The config file revision</param>
+		/// <param name="projectId">The project id</param>
+		/// <param name="config">The stream configuration</param>
 		/// <returns></returns>
-		Task<IStream?> TryCreateOrReplaceAsync(StreamId Id, IStream? Stream, string ConfigPath, string Revision, ProjectId ProjectId, StreamConfig Config);
+		Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string configPath, string revision, ProjectId projectId, StreamConfig config);
 
 		/// <summary>
 		/// Gets a stream by ID
 		/// </summary>
-		/// <param name="StreamId">Unique id of the stream</param>
+		/// <param name="streamId">Unique id of the stream</param>
 		/// <returns>The stream document</returns>
-		Task<IStream?> GetAsync(StreamId StreamId);
+		Task<IStream?> GetAsync(StreamId streamId);
 
 		/// <summary>
 		/// Gets a stream's permissions by ID
 		/// </summary>
-		/// <param name="StreamId">Unique id of the stream</param>
+		/// <param name="streamId">Unique id of the stream</param>
 		/// <returns>The stream document</returns>
-		Task<IStreamPermissions?> GetPermissionsAsync(StreamId StreamId);
+		Task<IStreamPermissions?> GetPermissionsAsync(StreamId streamId);
 
 		/// <summary>
 		/// Enumerates all streams
@@ -60,36 +53,36 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Gets all the available streams for a project
 		/// </summary>
-		/// <param name="ProjectIds">Unique id of the projects to query</param>
+		/// <param name="projectIds">Unique id of the projects to query</param>
 		/// <returns>List of stream documents</returns>
-		Task<List<IStream>> FindForProjectsAsync(ProjectId[] ProjectIds);
+		Task<List<IStream>> FindForProjectsAsync(ProjectId[] projectIds);
 
 		/// <summary>
 		/// Updates user-facing properties for an existing stream
 		/// </summary>
-		/// <param name="Stream">The stream to update</param>
-		/// <param name="NewPausedUntil">The new datetime for pausing builds</param>
-		/// <param name="NewPauseComment">The reason for pausing</param>
+		/// <param name="stream">The stream to update</param>
+		/// <param name="newPausedUntil">The new datetime for pausing builds</param>
+		/// <param name="newPauseComment">The reason for pausing</param>
 		/// <returns>The updated stream if successful, null otherwise</returns>
-		Task<IStream?> TryUpdatePauseStateAsync(IStream Stream, DateTime? NewPausedUntil, string? NewPauseComment);
+		Task<IStream?> TryUpdatePauseStateAsync(IStream stream, DateTime? newPausedUntil, string? newPauseComment);
 
 		/// <summary>
 		/// Attempts to update the last trigger time for a schedule
 		/// </summary>
-		/// <param name="Stream">The stream to update</param>
-		/// <param name="TemplateRefId">The template ref id</param>
-		/// <param name="LastTriggerTimeUtc">New last trigger time for the schedule</param>
-		/// <param name="LastTriggerChange">New last trigger changelist for the schedule</param>
-		/// <param name="NewActiveJobs">New list of active jobs</param>
+		/// <param name="stream">The stream to update</param>
+		/// <param name="templateRefId">The template ref id</param>
+		/// <param name="lastTriggerTimeUtc">New last trigger time for the schedule</param>
+		/// <param name="lastTriggerChange">New last trigger changelist for the schedule</param>
+		/// <param name="newActiveJobs">New list of active jobs</param>
 		/// <returns>The updated stream if successful, null otherwise</returns>
-		Task<IStream?> TryUpdateScheduleTriggerAsync(IStream Stream, TemplateRefId TemplateRefId, DateTime? LastTriggerTimeUtc, int? LastTriggerChange, List<JobId> NewActiveJobs);
+		Task<IStream?> TryUpdateScheduleTriggerAsync(IStream stream, TemplateRefId templateRefId, DateTime? lastTriggerTimeUtc, int? lastTriggerChange, List<JobId> newActiveJobs);
 
 		/// <summary>
 		/// Delete a stream
 		/// </summary>
-		/// <param name="StreamId">Unique id of the stream</param>
+		/// <param name="streamId">Unique id of the stream</param>
 		/// <returns>Async task</returns>
-		Task DeleteAsync(StreamId StreamId);
+		Task DeleteAsync(StreamId streamId);
 	}
 
 	static class StreamCollectionExtensions
@@ -97,24 +90,24 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Creates or replaces a stream configuration
 		/// </summary>
-		/// <param name="StreamCollection">The stream collection</param>
-		/// <param name="Id">Unique id for the new stream</param>
-		/// <param name="Stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
-		/// <param name="ConfigPath">Path to the config file</param>
-		/// <param name="Revision">The config file revision</param>
-		/// <param name="ProjectId">The project id</param>
-		/// <param name="Config">The stream configuration</param>
+		/// <param name="streamCollection">The stream collection</param>
+		/// <param name="id">Unique id for the new stream</param>
+		/// <param name="stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
+		/// <param name="configPath">Path to the config file</param>
+		/// <param name="revision">The config file revision</param>
+		/// <param name="projectId">The project id</param>
+		/// <param name="config">The stream configuration</param>
 		/// <returns></returns>
-		public static async Task<IStream> CreateOrReplaceAsync(this IStreamCollection StreamCollection, StreamId Id, IStream? Stream, string ConfigPath, string Revision, ProjectId ProjectId, StreamConfig Config)
+		public static async Task<IStream> CreateOrReplaceAsync(this IStreamCollection streamCollection, StreamId id, IStream? stream, string configPath, string revision, ProjectId projectId, StreamConfig config)
 		{
 			for (; ; )
 			{
-				Stream = await StreamCollection.TryCreateOrReplaceAsync(Id, Stream, ConfigPath, Revision, ProjectId, Config);
-				if (Stream != null)
+				stream = await streamCollection.TryCreateOrReplaceAsync(id, stream, configPath, revision, projectId, config);
+				if (stream != null)
 				{
-					return Stream;
+					return stream;
 				}
-				Stream = await StreamCollection.GetAsync(Id);
+				stream = await streamCollection.GetAsync(id);
 			}
 		}
 	}

@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
-    [TestClass]
+	[TestClass]
     public class JobsControllerTest : ControllerIntegrationTest
     {
         private static Uri GetUri(string jobId, string stepId, string fileName)

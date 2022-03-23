@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using MongoDB.Bson.Serialization.Attributes;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Models
 {
@@ -40,12 +40,4 @@ namespace Horde.Build.Models
 		/// </summary>
 		public string Message { get; }
 	}
-
 }
-
-
-
-
-
-
-

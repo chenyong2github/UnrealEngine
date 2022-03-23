@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.Runtime.Internal.Util;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -20,14 +15,14 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Logger instance
 		/// </summary>
-		ILogger<SwarmController> Logger;
+		readonly ILogger<SwarmController> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public SwarmController(ILogger<SwarmController> Logger)
+		public SwarmController(ILogger<SwarmController> logger)
 		{
-			this.Logger = Logger;
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -36,9 +31,9 @@ namespace Horde.Build.Controllers
 		/// <returns>Result code</returns>
 		[HttpPost]
 		[Route("/api/v1/swarm/reviews")]
-		public ActionResult AddReview(object Request)
+		public ActionResult AddReview(object request)
 		{
-			Logger.LogInformation("Added Swarm review: {Request}", Request.ToString());
+			_logger.LogInformation("Added Swarm review: {Request}", request.ToString());
 			return Ok();
 		}
 	}

@@ -1,21 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Api;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
+using HordeCommon;
+using MongoDB.Bson;
 
 namespace Horde.Build.Collections
 {
@@ -31,173 +24,172 @@ namespace Horde.Build.Collections
 	/// <summary>
 	/// Interface for a collection of job documents
 	/// </summary>
-	[SuppressMessage("Compiler", "CA1054:URI properties should not be strings")]
 	public interface IJobCollection
 	{
 		/// <summary>
 		/// Creates a new job
 		/// </summary>
-		/// <param name="JobId">A requested job id</param>
-		/// <param name="StreamId">Unique id of the stream that this job belongs to</param>
-		/// <param name="TemplateRefId">Name of the template ref</param>
-		/// <param name="TemplateHash">Template for this job</param>
-		/// <param name="Graph">The graph for the new job</param>
-		/// <param name="Name">Name of the job</param>
-		/// <param name="Change">The change to build</param>
-		/// <param name="CodeChange">The corresponding code changelist number</param>
-		/// <param name="PreflightChange">Optional changelist to preflight</param>
-		/// <param name="ClonedPreflightChange">Optional cloned preflight changelist</param>
-		/// <param name="StartedByUserId">User that started the job</param>
-		/// <param name="Priority">Priority of the job</param>
-		/// <param name="AutoSubmit">Whether to automatically submit the preflighted change on completion</param>
-		/// <param name="UpdateIssues">Whether to update issues based on the outcome of this job</param>
-		/// <param name="PromoteIssuesByDefault">Whether to promote issues based on the outcome of this job by default</param>
-		/// <param name="JobTriggers">List of downstream job triggers</param>
-		/// <param name="ShowUgsBadges">Whether to show badges in UGS for this job</param>
-		/// <param name="ShowUgsAlerts">Whether to show alerts in UGS for this job</param>
-		/// <param name="NotificationChannel">Notification channel for this job</param>
-		/// <param name="NotificationChannelFilter">Notification channel filter for this job</param>
-		/// <param name="Arguments">Arguments for the job</param>
+		/// <param name="jobId">A requested job id</param>
+		/// <param name="streamId">Unique id of the stream that this job belongs to</param>
+		/// <param name="templateRefId">Name of the template ref</param>
+		/// <param name="templateHash">Template for this job</param>
+		/// <param name="graph">The graph for the new job</param>
+		/// <param name="name">Name of the job</param>
+		/// <param name="change">The change to build</param>
+		/// <param name="codeChange">The corresponding code changelist number</param>
+		/// <param name="preflightChange">Optional changelist to preflight</param>
+		/// <param name="clonedPreflightChange">Optional cloned preflight changelist</param>
+		/// <param name="startedByUserId">User that started the job</param>
+		/// <param name="priority">Priority of the job</param>
+		/// <param name="autoSubmit">Whether to automatically submit the preflighted change on completion</param>
+		/// <param name="updateIssues">Whether to update issues based on the outcome of this job</param>
+		/// <param name="promoteIssuesByDefault">Whether to promote issues based on the outcome of this job by default</param>
+		/// <param name="jobTriggers">List of downstream job triggers</param>
+		/// <param name="showUgsBadges">Whether to show badges in UGS for this job</param>
+		/// <param name="showUgsAlerts">Whether to show alerts in UGS for this job</param>
+		/// <param name="notificationChannel">Notification channel for this job</param>
+		/// <param name="notificationChannelFilter">Notification channel filter for this job</param>
+		/// <param name="arguments">Arguments for the job</param>
 		/// <returns>The new job document</returns>
-		Task<IJob> AddAsync(JobId JobId, StreamId StreamId, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, bool? PromoteIssuesByDefault, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, List<string>? Arguments);
+		Task<IJob> AddAsync(JobId jobId, StreamId streamId, TemplateRefId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, int? preflightChange, int? clonedPreflightChange, UserId? startedByUserId, Priority? priority, bool? autoSubmit, bool? updateIssues, bool? promoteIssuesByDefault, List<ChainedJobTemplate>? jobTriggers, bool showUgsBadges, bool showUgsAlerts, string? notificationChannel, string? notificationChannelFilter, List<string>? arguments);
 
 		/// <summary>
 		/// Gets a job with the given unique id
 		/// </summary>
-		/// <param name="JobId">Job id to search for</param>
+		/// <param name="jobId">Job id to search for</param>
 		/// <returns>Information about the given job</returns>
-		Task<IJob?> GetAsync(JobId JobId);
+		Task<IJob?> GetAsync(JobId jobId);
 
 		/// <summary>
 		/// Deletes a job
 		/// </summary>
-		/// <param name="Job">The job to remove</param>
-		Task<bool> RemoveAsync(IJob Job);
+		/// <param name="job">The job to remove</param>
+		Task<bool> RemoveAsync(IJob job);
 
 		/// <summary>
 		/// Delete all the jobs for a stream
 		/// </summary>
-		/// <param name="StreamId">Unique id of the stream</param>
+		/// <param name="streamId">Unique id of the stream</param>
 		/// <returns>Async task</returns>
-		Task RemoveStreamAsync(StreamId StreamId);
+		Task RemoveStreamAsync(StreamId streamId);
 
 		/// <summary>
 		/// Gets a job's permissions info by ID
 		/// </summary>
-		/// <param name="JobId">Unique id of the job</param>
+		/// <param name="jobId">Unique id of the job</param>
 		/// <returns>The job document</returns>
-		Task<IJobPermissions?> GetPermissionsAsync(JobId JobId);
+		Task<IJobPermissions?> GetPermissionsAsync(JobId jobId);
 
 		/// <summary>
 		/// Searches for jobs matching the given criteria
 		/// </summary>
-		/// <param name="JobIds">List of job ids to return</param>
-		/// <param name="StreamId">The stream containing the job</param>
-		/// <param name="Name">Name of the job</param>
-		/// <param name="Templates">Templates to look for</param>
-		/// <param name="MinChange">The minimum changelist number</param>
-		/// <param name="MaxChange">The maximum changelist number</param>
-		/// <param name="PreflightChange">Preflight change to find</param>
-		/// <param name="PreflightOnly">Whether to only include preflights</param>
-		/// <param name="StartedByUser">User id for which to include jobs</param>
-		/// <param name="PreflightStartedByUser">User for which to include preflight jobs</param>
-		/// <param name="MinCreateTime">The minimum creation time</param>
-		/// <param name="MaxCreateTime">The maximum creation time</param>
-		/// <param name="ModifiedBefore">Filter the results by modified time</param>
-		/// <param name="ModifiedAfter">Filter the results by modified time</param>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Number of results to return</param>
-		/// <param name="ConsistentRead">If the database read should be made to the replica server</param>
-		/// <param name="IndexHint">Name of index to be specified as a hint to the database query planner</param>
-		/// <param name="ExcludeUserJobs">Whether to exclude user jobs from the find</param>
+		/// <param name="jobIds">List of job ids to return</param>
+		/// <param name="streamId">The stream containing the job</param>
+		/// <param name="name">Name of the job</param>
+		/// <param name="templates">Templates to look for</param>
+		/// <param name="minChange">The minimum changelist number</param>
+		/// <param name="maxChange">The maximum changelist number</param>
+		/// <param name="preflightChange">Preflight change to find</param>
+		/// <param name="preflightOnly">Whether to only include preflights</param>
+		/// <param name="startedByUser">User id for which to include jobs</param>
+		/// <param name="preflightStartedByUser">User for which to include preflight jobs</param>
+		/// <param name="minCreateTime">The minimum creation time</param>
+		/// <param name="maxCreateTime">The maximum creation time</param>
+		/// <param name="modifiedBefore">Filter the results by modified time</param>
+		/// <param name="modifiedAfter">Filter the results by modified time</param>
+		/// <param name="index">Index of the first result to return</param>
+		/// <param name="count">Number of results to return</param>
+		/// <param name="consistentRead">If the database read should be made to the replica server</param>
+		/// <param name="indexHint">Name of index to be specified as a hint to the database query planner</param>
+		/// <param name="excludeUserJobs">Whether to exclude user jobs from the find</param>
 		/// <returns>List of jobs matching the given criteria</returns>
-		Task<List<IJob>> FindAsync(JobId[]? JobIds = null, StreamId? StreamId = null, string? Name = null, TemplateRefId[]? Templates = null, int? MinChange = null, int? MaxChange = null, int? PreflightChange = null, bool? PreflightOnly = null, UserId? PreflightStartedByUser = null, UserId? StartedByUser = null, DateTimeOffset? MinCreateTime = null, DateTimeOffset? MaxCreateTime = null, DateTimeOffset? ModifiedBefore = null, DateTimeOffset? ModifiedAfter = null, int? Index = null, int? Count = null, bool ConsistentRead = true, string? IndexHint = null, bool? ExcludeUserJobs = null);
+		Task<List<IJob>> FindAsync(JobId[]? jobIds = null, StreamId? streamId = null, string? name = null, TemplateRefId[]? templates = null, int? minChange = null, int? maxChange = null, int? preflightChange = null, bool? preflightOnly = null, UserId? preflightStartedByUser = null, UserId? startedByUser = null, DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null, DateTimeOffset? modifiedBefore = null, DateTimeOffset? modifiedAfter = null, int? index = null, int? count = null, bool consistentRead = true, string? indexHint = null, bool? excludeUserJobs = null);
 
 		/// <summary>
 		/// Searches for jobs in a specified stream and templates
 		/// </summary>
-		/// <param name="StreamId">The stream containing the job</param>
-		/// <param name="Templates">Templates to look for</param>
-		/// <param name="PreflightStartedByUser">User for which to include preflight jobs</param>
-		/// <param name="MaxCreateTime">The maximum creation time</param>
-		/// <param name="ModifiedAfter">Filter the results by modified time</param>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Number of results to return</param>
-		/// <param name="ConsistentRead">If the database read should be made to the replica server</param>
-		Task<List<IJob>> FindLatestByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser = null, DateTimeOffset? MaxCreateTime = null, DateTimeOffset? ModifiedAfter = null, int? Index = null, int? Count = null, bool ConsistentRead = false);
+		/// <param name="streamId">The stream containing the job</param>
+		/// <param name="templates">Templates to look for</param>
+		/// <param name="preflightStartedByUser">User for which to include preflight jobs</param>
+		/// <param name="maxCreateTime">The maximum creation time</param>
+		/// <param name="modifiedAfter">Filter the results by modified time</param>
+		/// <param name="index">Index of the first result to return</param>
+		/// <param name="count">Number of results to return</param>
+		/// <param name="consistentRead">If the database read should be made to the replica server</param>
+		Task<List<IJob>> FindLatestByStreamWithTemplatesAsync(StreamId streamId, TemplateRefId[] templates, UserId? preflightStartedByUser = null, DateTimeOffset? maxCreateTime = null, DateTimeOffset? modifiedAfter = null, int? index = null, int? count = null, bool consistentRead = false);
 
 		/// <summary>
 		/// Updates a new job
 		/// </summary>
-		/// <param name="Job">The job document to update</param>
-		/// <param name="Graph">Graph for the job</param>
-		/// <param name="Name">Name of the job</param>
-		/// <param name="Priority">Priority of the job</param>
-		/// <param name="AutoSubmit">Automatically submit the job on completion</param>
-		/// <param name="AutoSubmitChange">Changelist that was automatically submitted</param>
-		/// <param name="AutoSubmitMessage"></param>
-		/// <param name="AbortedByUserId">Name of the user that aborted the job</param>
-		/// <param name="NotificationTriggerId">Id for a notification trigger</param>
-		/// <param name="Reports">New reports</param>
-		/// <param name="Arguments">New arguments for the job</param>
-		/// <param name="LabelIdxToTriggerId">New trigger ID for a label in the job</param>
-		/// <param name="JobTrigger">New downstream job id</param>
-		Task<IJob?> TryUpdateJobAsync(IJob Job, IGraph Graph, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, int? AutoSubmitChange = null, string? AutoSubmitMessage = null, UserId? AbortedByUserId = null, ObjectId? NotificationTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null, KeyValuePair<TemplateRefId, JobId>? JobTrigger = null);
+		/// <param name="job">The job document to update</param>
+		/// <param name="graph">Graph for the job</param>
+		/// <param name="name">Name of the job</param>
+		/// <param name="priority">Priority of the job</param>
+		/// <param name="autoSubmit">Automatically submit the job on completion</param>
+		/// <param name="autoSubmitChange">Changelist that was automatically submitted</param>
+		/// <param name="autoSubmitMessage"></param>
+		/// <param name="abortedByUserId">Name of the user that aborted the job</param>
+		/// <param name="notificationTriggerId">Id for a notification trigger</param>
+		/// <param name="reports">New reports</param>
+		/// <param name="arguments">New arguments for the job</param>
+		/// <param name="labelIdxToTriggerId">New trigger ID for a label in the job</param>
+		/// <param name="jobTrigger">New downstream job id</param>
+		Task<IJob?> TryUpdateJobAsync(IJob job, IGraph graph, string? name = null, Priority? priority = null, bool? autoSubmit = null, int? autoSubmitChange = null, string? autoSubmitMessage = null, UserId? abortedByUserId = null, ObjectId? notificationTriggerId = null, List<Report>? reports = null, List<string>? arguments = null, KeyValuePair<int, ObjectId>? labelIdxToTriggerId = null, KeyValuePair<TemplateRefId, JobId>? jobTrigger = null);
 
 		/// <summary>
 		/// Updates the state of a batch
 		/// </summary>
-		/// <param name="Job">Job to update</param>
-		/// <param name="Graph">The graph for this job</param>
-		/// <param name="BatchId">Unique id of the batch to update</param>
-		/// <param name="NewLogId">The new log file id</param>
-		/// <param name="NewState">New state of the jobstep</param>
-		/// <param name="NewError">Error code for the batch</param>
+		/// <param name="job">Job to update</param>
+		/// <param name="graph">The graph for this job</param>
+		/// <param name="batchId">Unique id of the batch to update</param>
+		/// <param name="newLogId">The new log file id</param>
+		/// <param name="newState">New state of the jobstep</param>
+		/// <param name="newError">Error code for the batch</param>
 		/// <returns>True if the job was updated, false if it was deleted</returns>
-		Task<IJob?> TryUpdateBatchAsync(IJob Job, IGraph Graph, SubResourceId BatchId, LogId? NewLogId, JobStepBatchState? NewState, JobStepBatchError? NewError);
+		Task<IJob?> TryUpdateBatchAsync(IJob job, IGraph graph, SubResourceId batchId, LogId? newLogId, JobStepBatchState? newState, JobStepBatchError? newError);
 
 		/// <summary>
 		/// Update a jobstep state
 		/// </summary>
-		/// <param name="Job">Job to update</param>
-		/// <param name="Graph">The graph for this job</param>
-		/// <param name="BatchId">Unique id of the batch containing the step</param>
-		/// <param name="StepId">Unique id of the step to update</param>
-		/// <param name="NewState">New state of the jobstep</param>
-		/// <param name="NewOutcome">New outcome of the jobstep</param>
-		/// <param name="NewAbortRequested">New state of request abort</param>
-		/// <param name="NewAbortByUserId">New name of user that requested the abort</param>
-		/// <param name="NewLogId">New log id for the jobstep</param>
-		/// <param name="NewNotificationTriggerId">New id for a notification trigger</param>
-		/// <param name="NewRetryByUserId">Whether the step should be retried</param>
-		/// <param name="NewPriority">New priority for this step</param>
-		/// <param name="NewReports">New report documents</param>
-		/// <param name="NewProperties">Property changes. Any properties with a null value will be removed.</param>
+		/// <param name="job">Job to update</param>
+		/// <param name="graph">The graph for this job</param>
+		/// <param name="batchId">Unique id of the batch containing the step</param>
+		/// <param name="stepId">Unique id of the step to update</param>
+		/// <param name="newState">New state of the jobstep</param>
+		/// <param name="newOutcome">New outcome of the jobstep</param>
+		/// <param name="newAbortRequested">New state of request abort</param>
+		/// <param name="newAbortByUserId">New name of user that requested the abort</param>
+		/// <param name="newLogId">New log id for the jobstep</param>
+		/// <param name="newNotificationTriggerId">New id for a notification trigger</param>
+		/// <param name="newRetryByUserId">Whether the step should be retried</param>
+		/// <param name="newPriority">New priority for this step</param>
+		/// <param name="newReports">New report documents</param>
+		/// <param name="newProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		Task<IJob?> TryUpdateStepAsync(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = default, JobStepOutcome NewOutcome = default, bool? NewAbortRequested = null, UserId? NewAbortByUserId = null, LogId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, UserId? NewRetryByUserId = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null);
+		Task<IJob?> TryUpdateStepAsync(IJob job, IGraph graph, SubResourceId batchId, SubResourceId stepId, JobStepState newState = default, JobStepOutcome newOutcome = default, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newNotificationTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null);
 
 		/// <summary>
 		/// Attempts to update the node groups to be executed for a job. Fails if another write happens in the meantime.
 		/// </summary>
-		/// <param name="Job">The job to update</param>
-		/// <param name="NewGraph">New graph for this job</param>
+		/// <param name="job">The job to update</param>
+		/// <param name="newGraph">New graph for this job</param>
 		/// <returns>True if the groups were updated to the given list. False if another write happened first.</returns>
-		Task<IJob?> TryUpdateGraphAsync(IJob Job, IGraph NewGraph);
+		Task<IJob?> TryUpdateGraphAsync(IJob job, IGraph newGraph);
 
 		/// <summary>
 		/// Removes a job from the dispatch queue. Ignores the state of any batches still remaining to execute. Should only be used to correct for inconsistent state.
 		/// </summary>
-		/// <param name="Job">Job</param>
+		/// <param name="job">Job</param>
 		/// <returns></returns>
-		Task<IJob?> TryRemoveFromDispatchQueueAsync(IJob Job);
+		Task<IJob?> TryRemoveFromDispatchQueueAsync(IJob job);
 
 		/// <summary>
 		/// Adds an issue to a job
 		/// </summary>
-		/// <param name="JobId">The job id</param>
-		/// <param name="IssueId">The issue to add</param>
+		/// <param name="jobId">The job id</param>
+		/// <param name="issueId">The issue to add</param>
 		/// <returns>Async task</returns>
-		Task AddIssueToJobAsync(JobId JobId, int IssueId);
+		Task AddIssueToJobAsync(JobId jobId, int issueId);
 
 		/// <summary>
 		/// Gets a queue of jobs to consider for execution
@@ -208,52 +200,52 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Marks a job as skipped
 		/// </summary>
-		/// <param name="Job">The job to update</param>
-		/// <param name="Graph">Graph for the job</param>
-		/// <param name="Reason">Reason for this batch being failed</param>
+		/// <param name="job">The job to update</param>
+		/// <param name="graph">Graph for the job</param>
+		/// <param name="reason">Reason for this batch being failed</param>
 		/// <returns>Updated version of the job</returns>
-		Task<IJob?> SkipAllBatchesAsync(IJob? Job, IGraph Graph, JobStepBatchError Reason);
+		Task<IJob?> SkipAllBatchesAsync(IJob? job, IGraph graph, JobStepBatchError reason);
 
 		/// <summary>
 		/// Marks a batch as skipped
 		/// </summary>
-		/// <param name="Job">The job to update</param>
-		/// <param name="BatchId">The batch to mark as skipped</param>
-		/// <param name="Graph">Graph for the job</param>
-		/// <param name="Reason">Reason for this batch being failed</param>
+		/// <param name="job">The job to update</param>
+		/// <param name="batchId">The batch to mark as skipped</param>
+		/// <param name="graph">Graph for the job</param>
+		/// <param name="reason">Reason for this batch being failed</param>
 		/// <returns>Updated version of the job</returns>
-		Task<IJob?> SkipBatchAsync(IJob? Job, SubResourceId BatchId, IGraph Graph, JobStepBatchError Reason);
+		Task<IJob?> SkipBatchAsync(IJob? job, SubResourceId batchId, IGraph graph, JobStepBatchError reason);
 
 		/// <summary>
 		/// Abort an agent's lease, and update the payload accordingly
 		/// </summary>
-		/// <param name="Job">The job to update</param>
-		/// <param name="BatchIdx">Index of the batch to cancel</param>
-		/// <param name="Graph">Graph for the job</param>
-		/// <param name="Reason">Reason for this batch being failed</param>
+		/// <param name="job">The job to update</param>
+		/// <param name="batchIdx">Index of the batch to cancel</param>
+		/// <param name="graph">Graph for the job</param>
+		/// <param name="reason">Reason for this batch being failed</param>
 		/// <returns>True if the job is updated</returns>
-		Task<IJob?> TryFailBatchAsync(IJob Job, int BatchIdx, IGraph Graph, JobStepBatchError Reason);
+		Task<IJob?> TryFailBatchAsync(IJob job, int batchIdx, IGraph graph, JobStepBatchError reason);
 
 		/// <summary>
 		/// Attempt to assign a lease to execute a batch
 		/// </summary>
-		/// <param name="Job">The job containing the batch</param>
-		/// <param name="BatchIdx">Index of the batch</param>
-		/// <param name="PoolId">The pool id</param>
-		/// <param name="AgentId">New agent to execute the batch</param>
-		/// <param name="SessionId">Session of the agent that is to execute the batch</param>
-		/// <param name="LeaseId">The lease unique id</param>
-		/// <param name="LogId">Unique id of the log for the batch</param>
+		/// <param name="job">The job containing the batch</param>
+		/// <param name="batchIdx">Index of the batch</param>
+		/// <param name="poolId">The pool id</param>
+		/// <param name="agentId">New agent to execute the batch</param>
+		/// <param name="sessionId">Session of the agent that is to execute the batch</param>
+		/// <param name="leaseId">The lease unique id</param>
+		/// <param name="logId">Unique id of the log for the batch</param>
 		/// <returns>True if the batch is updated</returns>
-		Task<IJob?> TryAssignLeaseAsync(IJob Job, int BatchIdx, PoolId PoolId, AgentId AgentId, SessionId SessionId, LeaseId LeaseId, LogId LogId);
+		Task<IJob?> TryAssignLeaseAsync(IJob job, int batchIdx, PoolId poolId, AgentId agentId, SessionId sessionId, LeaseId leaseId, LogId logId);
 
 		/// <summary>
 		/// Cancel a lease reservation on a batch (before it has started)
 		/// </summary>
-		/// <param name="Job">The job containing the lease</param>
-		/// <param name="BatchIdx">Index of the batch to cancel</param>
+		/// <param name="job">The job containing the lease</param>
+		/// <param name="batchIdx">Index of the batch to cancel</param>
 		/// <returns>True if the job is updated</returns>
-		Task<IJob?> TryCancelLeaseAsync(IJob Job, int BatchIdx);
+		Task<IJob?> TryCancelLeaseAsync(IJob job, int batchIdx);
 
 		/// <summary>
 		/// Upgrade all documents in the collection

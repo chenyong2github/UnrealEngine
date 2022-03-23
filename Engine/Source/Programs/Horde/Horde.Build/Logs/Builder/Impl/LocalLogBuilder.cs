@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs.Builder
 {
@@ -38,21 +36,21 @@ namespace Horde.Build.Logs.Builder
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Type">Type of data stored in this subchunk</param>
-			public PendingSubChunk(LogType Type)
+			/// <param name="type">Type of data stored in this subchunk</param>
+			public PendingSubChunk(LogType type)
 			{
-				this.Type = Type;
+				Type = type;
 			}
 
 			/// <summary>
 			/// Converts this pending sub-chunk to a concrete LogSubChunkData object
 			/// </summary>
-			/// <param name="Offset">Offset of this sub-chunk within the file</param>
-			/// <param name="LineIndex">The line index</param>
+			/// <param name="offset">Offset of this sub-chunk within the file</param>
+			/// <param name="lineIndex">The line index</param>
 			/// <returns>New sub-chunk data object</returns>
-			public LogSubChunkData ToSubChunkData(long Offset, int LineIndex)
+			public LogSubChunkData ToSubChunkData(long offset, int lineIndex)
 			{
-				return new LogSubChunkData(Type, Offset, LineIndex, new ReadOnlyLogText(Stream.ToArray()));
+				return new LogSubChunkData(Type, offset, lineIndex, new ReadOnlyLogText(Stream.ToArray()));
 			}
 		}
 
@@ -69,30 +67,30 @@ namespace Horde.Build.Logs.Builder
 			/// <summary>
 			/// Array of sub chunks for this chunk
 			/// </summary>
-			public List<PendingSubChunk> SubChunks = new List<PendingSubChunk>();
+			public List<PendingSubChunk> _subChunks = new List<PendingSubChunk>();
 
 			/// <summary>
 			/// The next sub-chunk
 			/// </summary>
-			public PendingSubChunk NextSubChunk;
+			public PendingSubChunk _nextSubChunk;
 
 			/// <summary>
 			/// Total length of this chunk
 			/// </summary>
-			public long Length;
+			public long _length;
 
 			/// <summary>
 			/// Whether the chunk is complete
 			/// </summary>
-			public bool Complete;
+			public bool _complete;
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Type">Type of data to store in this file</param>
-			public PendingChunk(LogType Type)
+			/// <param name="type">Type of data to store in this file</param>
+			public PendingChunk(LogType type)
 			{
-				NextSubChunk = new PendingSubChunk(Type);
+				_nextSubChunk = new PendingSubChunk(type);
 			}
 
 			/// <summary>
@@ -100,10 +98,10 @@ namespace Horde.Build.Logs.Builder
 			/// </summary>
 			public void CompleteSubChunk()
 			{
-				if (NextSubChunk.Stream.Length > 0)
+				if (_nextSubChunk.Stream.Length > 0)
 				{
-					SubChunks.Add(NextSubChunk);
-					NextSubChunk = new PendingSubChunk(NextSubChunk.Type);
+					_subChunks.Add(_nextSubChunk);
+					_nextSubChunk = new PendingSubChunk(_nextSubChunk.Type);
 				}
 			}
 		}
@@ -111,36 +109,36 @@ namespace Horde.Build.Logs.Builder
 		/// <summary>
 		/// Current log chunk state
 		/// </summary>
-		ConcurrentDictionary<(LogId, long), PendingChunk> PendingChunks = new ConcurrentDictionary<(LogId, long), PendingChunk>();
+		readonly ConcurrentDictionary<(LogId, long), PendingChunk> _pendingChunks = new ConcurrentDictionary<(LogId, long), PendingChunk>();
 
 		/// <inheritdoc/>
 		public bool FlushOnShutdown => true;
 
 		/// <inheritdoc/>
-		public Task<bool> AppendAsync(LogId LogId, long ChunkOffset, long WriteOffset, int WriteLineIndex, int WriteLineCount, ReadOnlyMemory<byte> Data, LogType Type)
+		public Task<bool> AppendAsync(LogId logId, long chunkOffset, long writeOffset, int writeLineIndex, int writeLineCount, ReadOnlyMemory<byte> data, LogType type)
 		{
-			PendingChunk? PendingChunk;
-			while (!PendingChunks.TryGetValue((LogId, ChunkOffset), out PendingChunk))
+			PendingChunk? pendingChunk;
+			while (!_pendingChunks.TryGetValue((logId, chunkOffset), out pendingChunk))
 			{
-				if(WriteOffset != ChunkOffset)
+				if(writeOffset != chunkOffset)
 				{
 					return Task.FromResult(false);
 				}
 
-				PendingChunk = new PendingChunk(Type);
+				pendingChunk = new PendingChunk(type);
 
-				if (PendingChunks.TryAdd((LogId, ChunkOffset), PendingChunk))
+				if (_pendingChunks.TryAdd((logId, chunkOffset), pendingChunk))
 				{
 					break;
 				}
 			}
 
-			lock (PendingChunk)
+			lock (pendingChunk)
 			{
-				if (!PendingChunk.Complete && ChunkOffset + PendingChunk.Length == WriteOffset)
+				if (!pendingChunk._complete && chunkOffset + pendingChunk._length == writeOffset)
 				{
-					PendingChunk.NextSubChunk.Stream.Write(Data.Span);
-					PendingChunk.Length += Data.Span.Length;
+					pendingChunk._nextSubChunk.Stream.Write(data.Span);
+					pendingChunk._length += data.Span.Length;
 					return Task.FromResult(true);
 				}
 			}
@@ -148,31 +146,31 @@ namespace Horde.Build.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public Task CompleteSubChunkAsync(LogId LogId, long Offset)
+		public Task CompleteSubChunkAsync(LogId logId, long offset)
 		{
-			PendingChunk? PendingChunk;
-			if (PendingChunks.TryGetValue((LogId, Offset), out PendingChunk))
+			PendingChunk? pendingChunk;
+			if (_pendingChunks.TryGetValue((logId, offset), out pendingChunk))
 			{
-				lock (PendingChunk)
+				lock (pendingChunk)
 				{
-					PendingChunk.CompleteSubChunk();
+					pendingChunk.CompleteSubChunk();
 				}
 			}
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task CompleteChunkAsync(LogId LogId, long Offset)
+		public Task CompleteChunkAsync(LogId logId, long offset)
 		{
-			PendingChunk? PendingChunk;
-			if (PendingChunks.TryGetValue((LogId, Offset), out PendingChunk))
+			PendingChunk? pendingChunk;
+			if (_pendingChunks.TryGetValue((logId, offset), out pendingChunk))
 			{
-				lock (PendingChunk)
+				lock (pendingChunk)
 				{
-					if (!PendingChunk.Complete)
+					if (!pendingChunk._complete)
 					{
-						PendingChunk.Complete = true;
-						PendingChunk.CompleteSubChunk();
+						pendingChunk._complete = true;
+						pendingChunk.CompleteSubChunk();
 					}
 				}
 			}
@@ -180,61 +178,61 @@ namespace Horde.Build.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public Task RemoveChunkAsync(LogId LogId, long Offset)
+		public Task RemoveChunkAsync(LogId logId, long offset)
 		{
-			PendingChunks.TryRemove((LogId, Offset), out _);
+			_pendingChunks.TryRemove((logId, offset), out _);
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task<LogChunkData?> GetChunkAsync(LogId LogId, long Offset, int LineIndex)
+		public Task<LogChunkData?> GetChunkAsync(LogId logId, long offset, int lineIndex)
 		{
-			PendingChunk? PendingChunk;
-			if (PendingChunks.TryGetValue((LogId, Offset), out PendingChunk))
+			PendingChunk? pendingChunk;
+			if (_pendingChunks.TryGetValue((logId, offset), out pendingChunk))
 			{
-				long SubChunkOffset = Offset;
-				int SubChunkLineIndex = LineIndex;
+				long subChunkOffset = offset;
+				int subChunkLineIndex = lineIndex;
 
-				List<LogSubChunkData> SubChunks = new List<LogSubChunkData>();
-				foreach(PendingSubChunk PendingSubChunk in PendingChunk.SubChunks)
+				List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
+				foreach(PendingSubChunk pendingSubChunk in pendingChunk._subChunks)
 				{
-					LogSubChunkData SubChunk = PendingSubChunk.ToSubChunkData(SubChunkOffset, SubChunkLineIndex);
-					SubChunkOffset += SubChunk.Length;
-					SubChunkLineIndex += SubChunk.LineCount;
-					SubChunks.Add(SubChunk);
+					LogSubChunkData subChunk = pendingSubChunk.ToSubChunkData(subChunkOffset, subChunkLineIndex);
+					subChunkOffset += subChunk.Length;
+					subChunkLineIndex += subChunk.LineCount;
+					subChunks.Add(subChunk);
 				}
 
-				PendingSubChunk NextSubChunk = PendingChunk.NextSubChunk;
-				if (NextSubChunk.Stream.Length > 0)
+				PendingSubChunk nextSubChunk = pendingChunk._nextSubChunk;
+				if (nextSubChunk.Stream.Length > 0)
 				{
-					LogSubChunkData SubChunkData = NextSubChunk.ToSubChunkData(SubChunkOffset, SubChunkLineIndex);
-					SubChunks.Add(SubChunkData);
+					LogSubChunkData subChunkData = nextSubChunk.ToSubChunkData(subChunkOffset, subChunkLineIndex);
+					subChunks.Add(subChunkData);
 				}
 
-				return Task.FromResult<LogChunkData?>(new LogChunkData(Offset, LineIndex, SubChunks));
+				return Task.FromResult<LogChunkData?>(new LogChunkData(offset, lineIndex, subChunks));
 			}
 
 			return Task.FromResult<LogChunkData?>(null);
 		}
 
 		/// <inheritdoc/>
-		public Task<List<(LogId, long)>> TouchChunksAsync(TimeSpan MinAge)
+		public Task<List<(LogId, long)>> TouchChunksAsync(TimeSpan minAge)
 		{
-			DateTime UtcNow = DateTime.UtcNow;
+			DateTime utcNow = DateTime.UtcNow;
 
-			List<(LogId, long)> Chunks = new List<(LogId, long)>();
-			foreach (KeyValuePair<(LogId, long), PendingChunk> PendingChunk in PendingChunks.ToArray())
+			List<(LogId, long)> chunks = new List<(LogId, long)>();
+			foreach (KeyValuePair<(LogId, long), PendingChunk> pendingChunk in _pendingChunks.ToArray())
 			{
-				lock (PendingChunk.Value)
+				lock (pendingChunk.Value)
 				{
-					if (PendingChunk.Value.CreateTimeUtc < UtcNow - MinAge)
+					if (pendingChunk.Value.CreateTimeUtc < utcNow - minAge)
 					{
-						Chunks.Add(PendingChunk.Key);
-						PendingChunk.Value.CreateTimeUtc = UtcNow;
+						chunks.Add(pendingChunk.Key);
+						pendingChunk.Value.CreateTimeUtc = utcNow;
 					}
 				}
 			}
-			return Task.FromResult(Chunks);
+			return Task.FromResult(chunks);
 		}
 	}
 }

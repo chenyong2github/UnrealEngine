@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Logs.Storage.Impl
 {
@@ -23,25 +19,25 @@ namespace Horde.Build.Logs.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length)
+		public Task<LogIndexData?> ReadIndexAsync(LogId logId, long length)
 		{
 			return Task.FromResult<LogIndexData?>(null);
 		}
 
 		/// <inheritdoc/>
-		public Task WriteIndexAsync(LogId LogId, long Length, LogIndexData Index)
+		public Task WriteIndexAsync(LogId logId, long length, LogIndexData index)
 		{
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex)
+		public Task<LogChunkData?> ReadChunkAsync(LogId logId, long offset, int lineIndex)
 		{
 			return Task.FromResult<LogChunkData?>(null);
 		}
 
 		/// <inheritdoc/>
-		public Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
+		public Task WriteChunkAsync(LogId logId, long offset, LogChunkData chunkData)
 		{
 			return Task.CompletedTask;
 		}

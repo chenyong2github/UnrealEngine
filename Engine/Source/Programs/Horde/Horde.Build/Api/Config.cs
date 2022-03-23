@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using Horde.Build.Models;
 
 namespace Horde.Build.Api
 {
@@ -140,7 +139,6 @@ namespace Horde.Build.Api
 		/// Local log/artifact storage directory, if using type filesystem
 		/// </summary>
 		public string LocalLogsDir { get; set; } = null!;
-
 
 		/// <summary>
 		/// Local blob storage directory, if using type filesystem
@@ -285,7 +283,6 @@ namespace Horde.Build.Api
 		/// </summary>
 		public string? UserServerSettingsPath { get; set; }
 
-
 		/// <summary>
 		/// Lazily computed timezone value
 		/// </summary>
@@ -294,93 +291,88 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>		
-		public GetServerSettingsResponse(ServerSettings Settings, string? GlobalConfigPath = null)
+		public GetServerSettingsResponse(ServerSettings settings, string? globalConfigPath = null)
 		{
-			this.GlobalConfigPath = GlobalConfigPath;
+			GlobalConfigPath = globalConfigPath;
 
-			if (this.GlobalConfigPath == null)
+			if (GlobalConfigPath == null)
 			{
-				this.GlobalConfigPath = Settings.ConfigPath;
+				GlobalConfigPath = settings.ConfigPath;
 			}
 
-			this.NumServerUpdates = 0;
+			NumServerUpdates = 0;
 
-			this.UserServerSettingsPath = Program.UserConfigFile.ToString();
-			this.DatabaseConnectionString = Settings.DatabaseConnectionString;
-			this.DatabaseName = Settings.DatabaseName;
-			this.DatabasePublicCert = Settings.DatabasePublicCert;
-			this.DatabaseReadOnlyMode = Settings.DatabaseReadOnlyMode;
+			UserServerSettingsPath = Program.UserConfigFile.ToString();
+			DatabaseConnectionString = settings.DatabaseConnectionString;
+			DatabaseName = settings.DatabaseName;
+			DatabasePublicCert = settings.DatabasePublicCert;
+			DatabaseReadOnlyMode = settings.DatabaseReadOnlyMode;
 
-			this.AdminClaimType = Settings.AdminClaimType;
-			this.AdminClaimValue = Settings.AdminClaimValue;
+			AdminClaimType = settings.AdminClaimType;
+			AdminClaimValue = settings.AdminClaimValue;
 
-			this.ServerPrivateCert = Settings.ServerPrivateCert;
-			this.OidcAuthority = Settings.OidcAuthority;
-			this.OidcClientId = Settings.OidcClientId;
-			this.OidcSigninRedirect = Settings.OidcSigninRedirect;
+			ServerPrivateCert = settings.ServerPrivateCert;
+			OidcAuthority = settings.OidcAuthority;
+			OidcClientId = settings.OidcClientId;
+			OidcSigninRedirect = settings.OidcSigninRedirect;
 
-			this.JwtIssuer = Settings.JwtIssuer;
-			this.JwtSecret = Settings.JwtSecret;
-			this.JwtExpiryTimeHours = Settings.JwtExpiryTimeHours;
+			JwtIssuer = settings.JwtIssuer;
+			JwtSecret = settings.JwtSecret;
+			JwtExpiryTimeHours = settings.JwtExpiryTimeHours;
 
-			this.CorsEnabled = Settings.CorsEnabled;
-			this.CorsOrigin = Settings.CorsOrigin;
-			this.EnableScheduleInTestData = Settings.EnableScheduleInTestData;
-			this.SchedulePollingInterval = Settings.SchedulePollingInterval;
+			CorsEnabled = settings.CorsEnabled;
+			CorsOrigin = settings.CorsOrigin;
+			EnableScheduleInTestData = settings.EnableScheduleInTestData;
+			SchedulePollingInterval = settings.SchedulePollingInterval;
 
+			NoResourceBackOffTime = settings.NoResourceBackOffTime;
+			InitiateJobBackOffTime = settings.InitiateJobBackOffTime;
+			UnknownErrorBackOffTime = settings.UnknownErrorBackOffTime;
 
-			this.NoResourceBackOffTime = Settings.NoResourceBackOffTime;
-			this.InitiateJobBackOffTime = Settings.InitiateJobBackOffTime;
-			this.UnknownErrorBackOffTime = Settings.UnknownErrorBackOffTime;
+			RedisConnectionConfig = settings.RedisConnectionConfig;
+			LogServiceWriteCacheType = settings.LogServiceWriteCacheType;
+			ExternalStorageProviderType = settings.ExternalStorageProviderType;
+			LocalLogsDir = settings.LocalLogsDir;
+			LocalBlobsDir = settings.LocalBlobsDir;
+			LocalArtifactsDir = settings.LocalArtifactsDir;
 
+			S3BucketRegion = settings.S3BucketRegion;
+			S3CredentialType = settings.S3CredentialType;
+			S3ClientKeyId = settings.S3ClientKeyId;
+			S3ClientSecret = settings.S3ClientSecret;
+			S3AssumeArn = settings.S3AssumeArn;
+			S3LogBucketName = settings.S3LogBucketName;
+			S3ArtifactBucketName = settings.S3ArtifactBucketName;
 
-			this.RedisConnectionConfig = Settings.RedisConnectionConfig;
-			this.LogServiceWriteCacheType = Settings.LogServiceWriteCacheType;
-			this.ExternalStorageProviderType = Settings.ExternalStorageProviderType;
-			this.LocalLogsDir = Settings.LocalLogsDir;
-			this.LocalBlobsDir = Settings.LocalBlobsDir;
-			this.LocalArtifactsDir = Settings.LocalArtifactsDir;
+			LogRelayServer = settings.LogRelayServer;
+			LogRelayBearerToken = settings.LogRelayBearerToken;
+			LogJsonToStdOut = settings.LogJsonToStdOut;
 
-			this.S3BucketRegion = Settings.S3BucketRegion;
-			this.S3CredentialType = Settings.S3CredentialType;
-			this.S3ClientKeyId = Settings.S3ClientKeyId;
-			this.S3ClientSecret = Settings.S3ClientSecret;
-			this.S3AssumeArn = Settings.S3AssumeArn;
-			this.S3LogBucketName = Settings.S3LogBucketName;
-			this.S3ArtifactBucketName = Settings.S3ArtifactBucketName;
+			FleetManager = settings.FleetManager;
+			DisableSchedules = settings.DisableSchedules;
+			ScheduleTimeZone = settings.ScheduleTimeZone;
 
-			this.LogRelayServer = Settings.LogRelayServer;
-			this.LogRelayBearerToken = Settings.LogRelayBearerToken;
-			this.LogJsonToStdOut = Settings.LogJsonToStdOut;
+			SlackToken = settings.SlackToken;
+			SlackSocketToken = settings.SlackSocketToken;
 
-			this.FleetManager = Settings.FleetManager;
-			this.DisableSchedules = Settings.DisableSchedules;
-			this.ScheduleTimeZone = Settings.ScheduleTimeZone;
+			SlackToken = settings.SlackToken;
+			SlackToken = settings.SlackToken;
+			UpdateStreamsNotificationChannel = settings.UpdateStreamsNotificationChannel;
 
-			this.SlackToken = Settings.SlackToken;
-			this.SlackSocketToken = Settings.SlackSocketToken;
+			SmtpServer = settings.SmtpServer;
+			EmailSenderAddress = settings.EmailSenderAddress;
+			EmailSenderName = settings.EmailSenderName;
 
+			UpdateStreamsNotificationChannel = settings.UpdateStreamsNotificationChannel;
+			UpdateStreamsNotificationChannel = settings.UpdateStreamsNotificationChannel;
+			UpdateStreamsNotificationChannel = settings.UpdateStreamsNotificationChannel;
 
-			this.SlackToken = Settings.SlackToken;
-			this.SlackToken = Settings.SlackToken;
-			this.UpdateStreamsNotificationChannel = Settings.UpdateStreamsNotificationChannel;
+			P4BridgeServiceUsername = settings.P4BridgeServiceUsername;
+			P4BridgeServicePassword = settings.P4BridgeServicePassword;
+			P4BridgeCanImpersonate = settings.P4BridgeCanImpersonate;
 
-			this.SmtpServer = Settings.SmtpServer;
-			this.EmailSenderAddress = Settings.EmailSenderAddress;
-			this.EmailSenderName = Settings.EmailSenderName;
-
-			this.UpdateStreamsNotificationChannel = Settings.UpdateStreamsNotificationChannel;
-			this.UpdateStreamsNotificationChannel = Settings.UpdateStreamsNotificationChannel;
-			this.UpdateStreamsNotificationChannel = Settings.UpdateStreamsNotificationChannel;
-
-			this.P4BridgeServiceUsername = Settings.P4BridgeServiceUsername;
-			this.P4BridgeServicePassword = Settings.P4BridgeServicePassword;
-			this.P4BridgeCanImpersonate = Settings.P4BridgeCanImpersonate;
-
-
-			this.GlobalThreadPoolMinSize = Settings.GlobalThreadPoolMinSize;
-			this.TimeZoneInfo = Settings.TimeZoneInfo;
-
+			GlobalThreadPoolMinSize = settings.GlobalThreadPoolMinSize;
+			TimeZoneInfo = settings.TimeZoneInfo;
 		}
 	}
 
@@ -393,7 +385,6 @@ namespace Horde.Build.Api
 		/// Delta settings to update
 		/// </summary>
 		public Dictionary<string, object>? Settings { get; set; }
-
 	}
 
 	/// <summary>
@@ -401,7 +392,6 @@ namespace Horde.Build.Api
 	/// </summary>
 	public class ServerUpdateResponse
 	{
-
 		/// <summary>
 		/// List of any error messages when updating
 		/// </summary>
@@ -411,9 +401,7 @@ namespace Horde.Build.Api
 		/// Whether a server restart is required
 		/// </summary>
 		public bool RestartRequired { get; set; } = false;
-
 	}
-
 
 	/// <summary>
 	/// Parameters to update global settings
@@ -444,8 +432,6 @@ namespace Horde.Build.Api
 		/// Default Pool Name
 		/// </summary>
 		public string? DefaultPoolName {get; set;}		
-
 	}
-
 }
 

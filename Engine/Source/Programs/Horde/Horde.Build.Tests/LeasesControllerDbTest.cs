@@ -3,10 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using HordeCommon;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 

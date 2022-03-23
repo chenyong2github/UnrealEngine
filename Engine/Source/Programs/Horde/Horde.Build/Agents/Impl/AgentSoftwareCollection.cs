@@ -1,26 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Models;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
-	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
-
 	/// <summary>
 	/// Collection of agent software documents
 	/// </summary>
@@ -43,16 +34,16 @@ namespace Horde.Build.Collections.Impl
             [BsonConstructor]
 			private AgentSoftwareDocument()
 			{
-				this.Id = null!;
-				this.Data = null;
-                this.ChunkIds = null;			
+				Id = null!;
+				Data = null;
+                ChunkIds = null;			
             }
 
-			public AgentSoftwareDocument(string Id, byte[]? Data, List<string>? ChunkIds = null)
+			public AgentSoftwareDocument(string id, byte[]? data, List<string>? chunkIds = null)
 			{
-				this.Id = Id;
-				this.Data = Data;
-                this.ChunkIds = ChunkIds;
+				Id = id;
+				Data = data;
+                ChunkIds = chunkIds;
             }
 		}
 
@@ -65,79 +56,75 @@ namespace Horde.Build.Collections.Impl
 
 			public string Version { get; set; }
 
-
             [BsonConstructor]
 			private ChunkDocument()
 			{
-				this.Id = null!;
-				this.Data = null!;
-                this.Version = null!;
+				Id = null!;
+				Data = null!;
+                Version = null!;
             }
 
-			public ChunkDocument(string Id, string Version, byte[] Data)
+			public ChunkDocument(string id, string version, byte[] data)
 			{
-				this.Id = Id;
-				this.Data = Data;
-                this.Version = Version;
+				Id = id;
+				Data = data;
+                Version = version;
             }
 		}
 
 		// MongoDB document size limit is 16 megs, we chunk at this with a 1k buffer for anything else in document
-		readonly int ChunkSize = 16 * 1024 * 1024 - 1024;
-
-
+		readonly int _chunkSize = 16 * 1024 * 1024 - 1024;
 
 		/// <summary>
 		/// Template documents
 		/// </summary>
-		IMongoCollection<AgentSoftwareDocument> Collection;
+		readonly IMongoCollection<AgentSoftwareDocument> _collection;
 
 		/// <summary>
 		/// Agent template chunks
 		/// </summary>
-		IMongoCollection<ChunkDocument> AgentChunks;
-
+		readonly IMongoCollection<ChunkDocument> _agentChunks;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service singleton</param>
-		public AgentSoftwareCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">The database service singleton</param>
+		public AgentSoftwareCollection(DatabaseService databaseService)
 		{
-			Collection = DatabaseService.GetCollection<AgentSoftwareDocument>("AgentSoftware");
-			AgentChunks = DatabaseService.GetCollection<ChunkDocument>("AgentSoftwareChunks");
+			_collection = databaseService.GetCollection<AgentSoftwareDocument>("AgentSoftware");
+			_agentChunks = databaseService.GetCollection<ChunkDocument>("AgentSoftwareChunks");
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> AddAsync(string Version, byte[] Data)
+		public async Task<bool> AddAsync(string version, byte[] data)
 		{
 
-			if (await ExistsAsync(Version))
+			if (await ExistsAsync(version))
 			{
                 return false;
             }
 
-            AgentSoftwareDocument Document;
+            AgentSoftwareDocument document;
 
             // Check if agent will fit in document, otherwise we need to chunk
-            if (Data.Length <= ChunkSize)
+            if (data.Length <= _chunkSize)
 			{
-				Document = new AgentSoftwareDocument(Version, Data);
-				await Collection.InsertOneAsync(Document);
+				document = new AgentSoftwareDocument(version, data);
+				await _collection.InsertOneAsync(document);
                 return true;
             }
 
-			int TotalRead = 0;            
-            byte[] Buffer = new byte[ChunkSize];            
-			List<ChunkDocument> Chunks = new List<ChunkDocument>();
-            using (MemoryStream ChunkStream = new MemoryStream(Data))
+			int totalRead = 0;            
+            byte[] buffer = new byte[_chunkSize];            
+			List<ChunkDocument> chunks = new List<ChunkDocument>();
+            using (MemoryStream chunkStream = new MemoryStream(data))
             {
                 for (; ; )
                 {
-					int BytesRead = await ChunkStream.ReadAsync(Buffer, 0, ChunkSize);
-					Chunks.Add(new ChunkDocument(ObjectId.GenerateNewId().ToString(), Version, Buffer.Take(BytesRead).ToArray()));
-					TotalRead += BytesRead;
-					if (TotalRead == Data.Length)
+					int bytesRead = await chunkStream.ReadAsync(buffer, 0, _chunkSize);
+					chunks.Add(new ChunkDocument(ObjectId.GenerateNewId().ToString(), version, buffer.Take(bytesRead).ToArray()));
+					totalRead += bytesRead;
+					if (totalRead == data.Length)
 					{
 						break;
 					}
@@ -145,62 +132,62 @@ namespace Horde.Build.Collections.Impl
             }
 
             // insert the chunks
-            await AgentChunks.InsertManyAsync(Chunks);
+            await _agentChunks.InsertManyAsync(chunks);
 
-            Document = new AgentSoftwareDocument(Version, null, Chunks.Select( Chunk => Chunk.Id).ToList());
-			await Collection.InsertOneAsync(Document);
+            document = new AgentSoftwareDocument(version, null, chunks.Select( chunk => chunk.Id).ToList());
+			await _collection.InsertOneAsync(document);
             return true;
         }
 
 		/// <inheritdoc/>
-		public async Task<bool> ExistsAsync(string Version)
+		public async Task<bool> ExistsAsync(string version)
 		{
-			return await Collection.Find(x => x.Id == Version).AnyAsync();
+			return await _collection.Find(x => x.Id == version).AnyAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> RemoveAsync(string Version)
+		public async Task<bool> RemoveAsync(string version)
 		{
 			// Delete any chunks
-			await AgentChunks.DeleteManyAsync(x => x.Version == Version);
+			await _agentChunks.DeleteManyAsync(x => x.Version == version);
 
-			DeleteResult Result = await Collection.DeleteOneAsync(x => x.Id == Version);			
-			return Result.DeletedCount > 0;
+			DeleteResult result = await _collection.DeleteOneAsync(x => x.Id == version);			
+			return result.DeletedCount > 0;
 		}
 
 		/// <inheritdoc/>
-		public async Task<byte[]?> GetAsync(string Version)
+		public async Task<byte[]?> GetAsync(string version)
 		{			
-			IFindFluent<AgentSoftwareDocument, AgentSoftwareDocument> Query = Collection.Find(x => x.Id == Version);
-			AgentSoftwareDocument? Software = await Query.FirstOrDefaultAsync();
+			IFindFluent<AgentSoftwareDocument, AgentSoftwareDocument> query = _collection.Find(x => x.Id == version);
+			AgentSoftwareDocument? software = await query.FirstOrDefaultAsync();
 
-			if (Software == null)
+			if (software == null)
 			{
                 return null;
             }
 
-			if (Software.Data != null && Software.Data.Length > 0)
+			if (software.Data != null && software.Data.Length > 0)
 			{
-                return Software.Data;
+                return software.Data;
             }
 
-			if (Software.ChunkIds != null)
+			if (software.ChunkIds != null)
 			{
-				FilterDefinitionBuilder<ChunkDocument> FilterBuilder = Builders<ChunkDocument>.Filter;
-				FilterDefinition<ChunkDocument> Filter = FilterBuilder.Empty;
-				Filter &= FilterBuilder.In(x => x.Id, Software.ChunkIds);
+				FilterDefinitionBuilder<ChunkDocument> filterBuilder = Builders<ChunkDocument>.Filter;
+				FilterDefinition<ChunkDocument> filter = filterBuilder.Empty;
+				filter &= filterBuilder.In(x => x.Id, software.ChunkIds);
 
-				IFindFluent<ChunkDocument, ChunkDocument> ChunkQuery = AgentChunks.Find(x => Software.ChunkIds.Contains(x.Id));				
-				List<ChunkDocument> Chunks = await ChunkQuery.ToListAsync();
+				IFindFluent<ChunkDocument, ChunkDocument> chunkQuery = _agentChunks.Find(x => software.ChunkIds.Contains(x.Id));				
+				List<ChunkDocument> chunks = await chunkQuery.ToListAsync();
 
-				using (MemoryStream DataStream = new MemoryStream())
+				using (MemoryStream dataStream = new MemoryStream())
 				{
-					foreach (string ChunkId in Software.ChunkIds)
+					foreach (string chunkId in software.ChunkIds)
 					{
-                        DataStream.Write(Chunks.First(x => x.Id == ChunkId).Data);
+                        dataStream.Write(chunks.First(x => x.Id == chunkId).Data);
                     }
 
-                    return DataStream.ToArray();
+                    return dataStream.ToArray();
                 }
 			}
 

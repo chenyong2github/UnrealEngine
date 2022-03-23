@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Api;
-using Horde.Build.Logs;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Horde.Build.Api;
+using Horde.Build.Logs;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
 {
 	[TestClass]
 	public class LogChunkTests
 	{
-		string[] _text =
+		readonly string[] _text =
 		{
 			@"{ ""id"": 1, ""message"": ""foo"" }",
 			@"{ ""id"": 2, ""message"": ""bar"" }",

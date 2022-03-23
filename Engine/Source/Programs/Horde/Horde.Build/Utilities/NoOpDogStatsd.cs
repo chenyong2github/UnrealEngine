@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using StatsdClient;
 
@@ -17,87 +16,85 @@ namespace Horde.Build.Utilities
 		public ITelemetryCounters TelemetryCounters { get; } = null!;
 		
 		/// <inheritdoc />
-		public void Configure(StatsdConfig Config)
+		public void Configure(StatsdConfig config)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Counter(string StatName, double Value, double SampleRate = 1, string[] Tags = null!)
+		public void Counter(string statName, double value, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Decrement(string StatName, int Value = 1, double SampleRate = 1, params string[] Tags)
+		public void Decrement(string statName, int value = 1, double sampleRate = 1, params string[] tags)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Event(string Title, string Text, string AlertType = null!, string AggregationKey = null!, string SourceType = null!,
-			int? DateHappened = null, string Priority = null!, string Hostname = null!, string[] Tags = null!)
+		public void Event(string title, string text, string alertType = null!, string aggregationKey = null!, string sourceType = null!,
+			int? dateHappened = null, string priority = null!, string hostname = null!, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Gauge(string StatName, double Value, double SampleRate = 1, string[] Tags = null!)
+		public void Gauge(string statName, double value, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Histogram(string StatName, double Value, double SampleRate = 1, string[] Tags = null!)
+		public void Histogram(string statName, double value, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Distribution(string StatName, double Value, double SampleRate = 1, string[] Tags = null!)
+		public void Distribution(string statName, double value, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Increment(string StatName, int Value = 1, double SampleRate = 1, string[] Tags = null!)
+		public void Increment(string statName, int value = 1, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Set<T>(string StatName, T Value, double SampleRate = 1, string[] Tags = null!)
+		public void Set<T>(string statName, T value, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public void Set(string StatName, string Value, double SampleRate = 1, string[] Tags = null!)
+		public void Set(string statName, string value, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public IDisposable StartTimer(string Name, double SampleRate = 1, string[] Tags = null!)
+		public IDisposable StartTimer(string name, double sampleRate = 1, string[] tags = null!)
 		{
 			// Some random object to satisfy IDisposable
 			return new MemoryStream();
 		}
 
 		/// <inheritdoc />
-		public void Time(Action Action, string StatName, double SampleRate = 1, string[] Tags = null!)
+		public void Time(Action action, string statName, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public T Time<T>(Func<T> Func, string StatName, double SampleRate = 1, string[] Tags = null!)
+		public T Time<T>(Func<T> func, string statName, double sampleRate = 1, string[] tags = null!)
 		{
-			return Func();
+			return func();
 		}
 
 		/// <inheritdoc />
-		public void Timer(string StatName, double Value, double SampleRate = 1, string[] Tags = null!)
+		public void Timer(string statName, double value, double sampleRate = 1, string[] tags = null!)
 		{
 		}
 
 		/// <inheritdoc />
-		public void ServiceCheck(string Name, Status Status, int? Timestamp = null, string Hostname = null!, string[] Tags = null!, string Message = null!)
+		public void ServiceCheck(string name, Status status, int? timestamp = null, string hostname = null!, string[] tags = null!, string message = null!)
 		{
 		}
 		
 		/// <inheritdoc />
-		[SuppressMessage("Design", "CA1063:Implement IDisposable correctly")]
-		[SuppressMessage("Usage", "CA1816:Call GC.SuppressFinalize correctly")]
 		public void Dispose()
 		{
 		}

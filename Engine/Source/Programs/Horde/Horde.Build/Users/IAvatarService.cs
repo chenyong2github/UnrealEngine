@@ -1,14 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
+using Horde.Build.Models;
 
 namespace Horde.Build.Services
 {
@@ -20,9 +13,9 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Gets a users's avatar
 		/// </summary>
-		/// <param name="User"></param>
+		/// <param name="user"></param>
 		/// <returns></returns>
-		Task<IAvatar?> GetAvatarAsync(IUser User);
+		Task<IAvatar?> GetAvatarAsync(IUser user);
 	}
 }
 

@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Api;
-using HordeCommon;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using EpicGames.Core;
+using HordeCommon;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Models
 {
@@ -111,19 +107,19 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="GroupIdx">Index of thr group containing the node</param>
-		/// <param name="NodeIdx">Index of the node within the group</param>
-		public NodeRef(int GroupIdx, int NodeIdx)
+		/// <param name="groupIdx">Index of thr group containing the node</param>
+		/// <param name="nodeIdx">Index of the node within the group</param>
+		public NodeRef(int groupIdx, int nodeIdx)
 		{
-			this.GroupIdx = GroupIdx;
-			this.NodeIdx = NodeIdx;
+			GroupIdx = groupIdx;
+			NodeIdx = nodeIdx;
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Other)
+		public override bool Equals(object? other)
 		{
-			NodeRef? OtherNodeRef = Other as NodeRef;
-			return OtherNodeRef != null && OtherNodeRef.GroupIdx == GroupIdx && OtherNodeRef.NodeIdx == NodeIdx;
+			NodeRef? otherNodeRef = other as NodeRef;
+			return otherNodeRef != null && otherNodeRef.GroupIdx == GroupIdx && otherNodeRef.NodeIdx == NodeIdx;
 		}
 
 		/// <inheritdoc/>
@@ -135,11 +131,11 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Converts this reference to a node name
 		/// </summary>
-		/// <param name="Groups">List of groups that this reference points to</param>
+		/// <param name="groups">List of groups that this reference points to</param>
 		/// <returns>Name of the referenced node</returns>
-		public INode ToNode(IReadOnlyList<INodeGroup> Groups)
+		public INode ToNode(IReadOnlyList<INodeGroup> groups)
 		{
-			return Groups[GroupIdx].Nodes[NodeIdx];
+			return groups[GroupIdx].Nodes[NodeIdx];
 		}
 	}
 
@@ -208,18 +204,18 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Enumerate all the required dependencies of this node group
 		/// </summary>
-		/// <param name="Label">The label instance</param>
-		/// <param name="Groups">List of groups for the job containing this aggregate</param>
+		/// <param name="label">The label instance</param>
+		/// <param name="groups">List of groups for the job containing this aggregate</param>
 		/// <returns>Sequence of nodes</returns>
-		public static IEnumerable<INode> GetDependencies(this ILabel Label, IReadOnlyList<INodeGroup> Groups)
+		public static IEnumerable<INode> GetDependencies(this ILabel label, IReadOnlyList<INodeGroup> groups)
 		{
-			foreach (NodeRef RequiredNode in Label.RequiredNodes)
+			foreach (NodeRef requiredNode in label.RequiredNodes)
 			{
-				yield return RequiredNode.ToNode(Groups);
+				yield return requiredNode.ToNode(groups);
 			}
-			foreach (NodeRef IncludedNode in Label.IncludedNodes)
+			foreach (NodeRef includedNode in label.IncludedNodes)
 			{
-				yield return IncludedNode.ToNode(Groups);
+				yield return includedNode.ToNode(groups);
 			}
 		}
 	}
@@ -263,59 +259,59 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets the node from a node reference
 		/// </summary>
-		/// <param name="Graph">The graph instance</param>
-		/// <param name="Ref">The node reference</param>
+		/// <param name="graph">The graph instance</param>
+		/// <param name="nodeRef">The node reference</param>
 		/// <returns>The node for the given reference</returns>
-		public static INode GetNode(this IGraph Graph, NodeRef Ref)
+		public static INode GetNode(this IGraph graph, NodeRef nodeRef)
 		{
-			return Graph.Groups[Ref.GroupIdx].Nodes[Ref.NodeIdx];
+			return graph.Groups[nodeRef.GroupIdx].Nodes[nodeRef.NodeIdx];
 		}
 
 		/// <summary>
 		/// Tries to find a node by name
 		/// </summary>
-		/// <param name="Graph">The graph to search</param>
-		/// <param name="NodeName">Name of the node</param>
-		/// <param name="Ref">Receives the node reference</param>
+		/// <param name="graph">The graph to search</param>
+		/// <param name="nodeName">Name of the node</param>
+		/// <param name="nodeRef">Receives the node reference</param>
 		/// <returns>True if the node was found, false otherwise</returns>
-		public static bool TryFindNode(this IGraph Graph, string NodeName, out NodeRef Ref)
+		public static bool TryFindNode(this IGraph graph, string nodeName, out NodeRef nodeRef)
 		{
-			for (int GroupIdx = 0; GroupIdx < Graph.Groups.Count; GroupIdx++)
+			for (int groupIdx = 0; groupIdx < graph.Groups.Count; groupIdx++)
 			{
-				INodeGroup Group = Graph.Groups[GroupIdx];
-				for (int NodeIdx = 0; NodeIdx < Group.Nodes.Count; NodeIdx++)
+				INodeGroup group = graph.Groups[groupIdx];
+				for (int nodeIdx = 0; nodeIdx < group.Nodes.Count; nodeIdx++)
 				{
-					INode Node = Group.Nodes[NodeIdx];
-					if (String.Equals(Node.Name, NodeName, StringComparison.OrdinalIgnoreCase))
+					INode node = group.Nodes[nodeIdx];
+					if (String.Equals(node.Name, nodeName, StringComparison.OrdinalIgnoreCase))
 					{
-						Ref = new NodeRef(GroupIdx, NodeIdx);
+						nodeRef = new NodeRef(groupIdx, nodeIdx);
 						return true;
 					}
 				}
 			}
 
-			Ref = new NodeRef(0, 0);
+			nodeRef = new NodeRef(0, 0);
 			return false;
 		}
 
 		/// <summary>
 		/// Tries to find a node by name
 		/// </summary>
-		/// <param name="Graph">The graph to search</param>
-		/// <param name="NodeName">Name of the node</param>
-		/// <param name="Node">Receives the node</param>
+		/// <param name="graph">The graph to search</param>
+		/// <param name="nodeName">Name of the node</param>
+		/// <param name="node">Receives the node</param>
 		/// <returns>True if the node was found, false otherwise</returns>
-		public static bool TryFindNode(this IGraph Graph, string NodeName, out INode? Node)
+		public static bool TryFindNode(this IGraph graph, string nodeName, out INode? node)
 		{
-			NodeRef Ref;
-			if (TryFindNode(Graph, NodeName, out Ref))
+			NodeRef nodeRef;
+			if (TryFindNode(graph, nodeName, out nodeRef))
 			{
-				Node = Graph.Groups[Ref.GroupIdx].Nodes[Ref.NodeIdx];
+				node = graph.Groups[nodeRef.GroupIdx].Nodes[nodeRef.NodeIdx];
 				return true;
 			}
 			else
 			{
-				Node = null;
+				node = null;
 				return false;
 			}
 		}
@@ -323,34 +319,34 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Tries to find a node by name
 		/// </summary>
-		/// <param name="Graph">The graph to search</param>
-		/// <param name="Name">Name of the node</param>
-		/// <param name="AggregateIdx">Receives the aggregate index</param>
+		/// <param name="graph">The graph to search</param>
+		/// <param name="name">Name of the node</param>
+		/// <param name="aggregateIdx">Receives the aggregate index</param>
 		/// <returns>True if the node was found, false otherwise</returns>
-		public static bool TryFindAggregate(this IGraph Graph, string Name, out int AggregateIdx)
+		public static bool TryFindAggregate(this IGraph graph, string name, out int aggregateIdx)
 		{
-			AggregateIdx = Graph.Aggregates.FindIndex(x => x.Name.Equals(Name, StringComparison.OrdinalIgnoreCase));
-			return AggregateIdx != -1;
+			aggregateIdx = graph.Aggregates.FindIndex(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+			return aggregateIdx != -1;
 		}
 
 		/// <summary>
 		/// Tries to find a node by name
 		/// </summary>
-		/// <param name="Graph">The graph to search</param>
-		/// <param name="Name">Name of the node</param>
-		/// <param name="Aggregate">Receives the aggregate</param>
+		/// <param name="graph">The graph to search</param>
+		/// <param name="name">Name of the node</param>
+		/// <param name="aggregate">Receives the aggregate</param>
 		/// <returns>True if the node was found, false otherwise</returns>
-		public static bool TryFindAggregate(this IGraph Graph, string Name, [NotNullWhen(true)] out IAggregate? Aggregate)
+		public static bool TryFindAggregate(this IGraph graph, string name, [NotNullWhen(true)] out IAggregate? aggregate)
 		{
-			int AggregateIdx;
-			if (TryFindAggregate(Graph, Name, out AggregateIdx))
+			int aggregateIdx;
+			if (TryFindAggregate(graph, name, out aggregateIdx))
 			{
-				Aggregate = Graph.Aggregates[AggregateIdx];
+				aggregate = graph.Aggregates[aggregateIdx];
 				return true;
 			}
 			else
 			{
-				Aggregate = null;
+				aggregate = null;
 				return false;
 			}
 		}
@@ -358,12 +354,12 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Gets a list of dependencies for the given node
 		/// </summary>
-		/// <param name="Graph">The graph instance</param>
-		/// <param name="Node">The node to return dependencies for</param>
+		/// <param name="graph">The graph instance</param>
+		/// <param name="node">The node to return dependencies for</param>
 		/// <returns>List of dependencies</returns>
-		public static IEnumerable<INode> GetDependencies(this IGraph Graph, INode Node)
+		public static IEnumerable<INode> GetDependencies(this IGraph graph, INode node)
 		{
-			return Enumerable.Concat(Node.InputDependencies, Node.OrderDependencies).Select(x => Graph.GetNode(x));
+			return Enumerable.Concat(node.InputDependencies, node.OrderDependencies).Select(x => graph.GetNode(x));
 		}
 	}
 
@@ -420,26 +416,26 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of the node</param>
-		/// <param name="InputDependencies">List of nodes which must have completed succesfully for this node to run</param>
-		/// <param name="OrderDependencies">List of nodes which must have completed for this node to run</param>
-		/// <param name="Priority">Priority of this node</param>
-		/// <param name="AllowRetry">Whether the node can be run multiple times</param>
-		/// <param name="RunEarly">Whether the node can run early, before dependencies of other nodes in the same group complete</param>
-		/// <param name="Warnings">Whether to include warnings in the diagnostic output (defaults to true)</param>
-		/// <param name="Credentials">Credentials required for this node to run</param>
-		/// <param name="Properties">Properties for the node</param>
-		public NewNode(string Name, List<string>? InputDependencies = null, List<string>? OrderDependencies = null, Priority? Priority = null, bool? AllowRetry = null, bool? RunEarly = null, bool? Warnings = null, Dictionary<string, string>? Credentials = null, Dictionary<string, string>? Properties = null)
+		/// <param name="name">Name of the node</param>
+		/// <param name="inputDependencies">List of nodes which must have completed succesfully for this node to run</param>
+		/// <param name="orderDependencies">List of nodes which must have completed for this node to run</param>
+		/// <param name="priority">Priority of this node</param>
+		/// <param name="allowRetry">Whether the node can be run multiple times</param>
+		/// <param name="runEarly">Whether the node can run early, before dependencies of other nodes in the same group complete</param>
+		/// <param name="warnings">Whether to include warnings in the diagnostic output (defaults to true)</param>
+		/// <param name="credentials">Credentials required for this node to run</param>
+		/// <param name="properties">Properties for the node</param>
+		public NewNode(string name, List<string>? inputDependencies = null, List<string>? orderDependencies = null, Priority? priority = null, bool? allowRetry = null, bool? runEarly = null, bool? warnings = null, Dictionary<string, string>? credentials = null, Dictionary<string, string>? properties = null)
 		{
-			this.Name = Name;
-			this.InputDependencies = InputDependencies;
-			this.OrderDependencies = OrderDependencies;
-			this.Priority = Priority;
-			this.AllowRetry = AllowRetry;
-			this.RunEarly = RunEarly;
-			this.Warnings = Warnings;
-			this.Credentials = Credentials;
-			this.Properties = Properties;
+			Name = name;
+			InputDependencies = inputDependencies;
+			OrderDependencies = orderDependencies;
+			Priority = priority;
+			AllowRetry = allowRetry;
+			RunEarly = runEarly;
+			Warnings = warnings;
+			Credentials = credentials;
+			Properties = properties;
 		}
 	}
 
@@ -461,12 +457,12 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AgentType">The type of agent to execute this group</param>
-		/// <param name="Nodes">Nodes in this group</param>
-		public NewGroup(string AgentType, List<NewNode> Nodes)
+		/// <param name="agentType">The type of agent to execute this group</param>
+		/// <param name="nodes">Nodes in this group</param>
+		public NewGroup(string agentType, List<NewNode> nodes)
 		{
-			this.AgentType = AgentType;
-			this.Nodes = Nodes;
+			AgentType = agentType;
+			Nodes = nodes;
 		}
 	}
 
@@ -541,14 +537,12 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of this aggregate</param>
-		/// <param name="Nodes">Nodes which must be part of the job for the aggregate to be shown</param>
-		public NewAggregate(string Name, List<string> Nodes)
+		/// <param name="name">Name of this aggregate</param>
+		/// <param name="nodes">Nodes which must be part of the job for the aggregate to be shown</param>
+		public NewAggregate(string name, List<string> nodes)
 		{
-			this.Name = Name;
-			this.Nodes = Nodes;
+			Name = name;
+			Nodes = nodes;
 		}
 	}
 }
-
-

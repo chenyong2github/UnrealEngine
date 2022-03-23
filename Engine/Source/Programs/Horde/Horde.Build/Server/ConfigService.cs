@@ -1,35 +1,28 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Collections;
-using Horde.Build.Controllers;
 using Horde.Build.Models;
 using Horde.Build.Notifications;
 using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.IO;
-using System.Text;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Reflection;
-
-using System.Globalization;
-using Horde.Build.Storage;
-using System.Text.Json.Serialization;
-using HordeCommon;
-using Microsoft.Extensions.Hosting;
 
 namespace Horde.Build.Services
 {
@@ -49,204 +42,200 @@ namespace Horde.Build.Services
 		/// Config file version number
 		/// </summary>
 		const int Version = 10;
-
-		DatabaseService DatabaseService;
-		ProjectService ProjectService;
-		StreamService StreamService;
-		IPerforceService PerforceService;
-		PerforceLoadBalancer PerforceLoadBalancer;
-		INotificationService NotificationService;
-		AgentService AgentService;
-		PoolService PoolService;
-		IOptionsMonitor<ServerSettings> Settings;
-		ITicker Ticker;
-		ILogger Logger;
+		readonly DatabaseService _databaseService;
+		readonly ProjectService _projectService;
+		readonly StreamService _streamService;
+		readonly IPerforceService _perforceService;
+		readonly INotificationService _notificationService;
+		readonly AgentService _agentService;
+		readonly PoolService _poolService;
+		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly ITicker _ticker;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService, PoolService PoolService, AgentService AgentService, PerforceLoadBalancer PerforceLoadBalancer, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
+		public ConfigService(DatabaseService databaseService, IPerforceService perforceService, ProjectService projectService, StreamService streamService, INotificationService notificationService, PoolService poolService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigService> logger)
 		{
-			this.DatabaseService = DatabaseService;
-			this.PerforceService = PerforceService;
-			this.PerforceLoadBalancer = PerforceLoadBalancer;
-			this.ProjectService = ProjectService;
-			this.StreamService = StreamService;
-			this.NotificationService = NotificationService;
-			this.PoolService = PoolService;
-			this.AgentService = AgentService;
-			this.Settings = Settings;
-			if (DatabaseService.ReadOnlyMode)
+			_databaseService = databaseService;
+			_perforceService = perforceService;
+			_projectService = projectService;
+			_streamService = streamService;
+			_notificationService = notificationService;
+			_poolService = poolService;
+			_agentService = agentService;
+			_settings = settings;
+			if (databaseService.ReadOnlyMode)
 			{
-				this.Ticker = new NullTicker();
+				_ticker = new NullTicker();
 			}
 			else
 			{
-				this.Ticker = Clock.AddSharedTicker<ConfigService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, Logger);
+				_ticker = clock.AddSharedTicker<ConfigService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, logger);
 			}
-			this.Logger = Logger;
+			_logger = logger;
 
 			// This will trigger if the local Horde.json user configuration is changed
-			this.Settings.OnChange(OnUserConfigUpdated);
+			_settings.OnChange(OnUserConfigUpdated);
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
 
 		/// <inheritdoc/>
-		public void Dispose() => Ticker.Dispose();
+		public void Dispose() => _ticker.Dispose();
 
+		GlobalConfig? _cachedGlobalConfig;
+		string? _cachedGlobalConfigRevision;
+		Dictionary<ProjectId, (ProjectConfig Config, string Revision)> _cachedProjectConfigs = new Dictionary<ProjectId, (ProjectConfig, string)>();
+		readonly Dictionary<ProjectId, string?> _cachedLogoRevisions = new Dictionary<ProjectId, string?>();
 
-		GlobalConfig? CachedGlobalConfig;
-		string? CachedGlobalConfigRevision;
-		Dictionary<ProjectId, (ProjectConfig Config, string Revision)> CachedProjectConfigs = new Dictionary<ProjectId, (ProjectConfig, string)>();
-		Dictionary<ProjectId, string?> CachedLogoRevisions = new Dictionary<ProjectId, string?>();
-
-		async Task UpdateConfigAsync(Uri ConfigPath)
+		async Task UpdateConfigAsync(Uri configPath)
 		{
 			// Update the globals singleton
-			GlobalConfig GlobalConfig;
+			GlobalConfig globalConfig;
 			for (; ; )
 			{
-				Dictionary<Uri, string> GlobalRevisions = await FindRevisionsAsync(new[] { ConfigPath });
-				if (GlobalRevisions.Count == 0)
+				Dictionary<Uri, string> globalRevisions = await FindRevisionsAsync(new[] { configPath });
+				if (globalRevisions.Count == 0)
 				{
-					throw new Exception($"Invalid config path: {ConfigPath}");
+					throw new Exception($"Invalid config path: {configPath}");
 				}
 
-				string Revision = GlobalRevisions.First().Value;
-				if (CachedGlobalConfig == null || Revision != CachedGlobalConfigRevision)
+				string revision = globalRevisions.First().Value;
+				if (_cachedGlobalConfig == null || revision != _cachedGlobalConfigRevision)
 				{
-					Logger.LogInformation("Caching global config from {Revision}", Revision);
+					_logger.LogInformation("Caching global config from {Revision}", revision);
 					try
 					{
-						CachedGlobalConfig = await ReadDataAsync<GlobalConfig>(ConfigPath);
-						CachedGlobalConfigRevision = Revision;
+						_cachedGlobalConfig = await ReadDataAsync<GlobalConfig>(configPath);
+						_cachedGlobalConfigRevision = revision;
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						await SendFailureNotificationAsync(Ex, ConfigPath);
+						await SendFailureNotificationAsync(ex, configPath);
 						return;
 					}
 				}
-				GlobalConfig = CachedGlobalConfig;
+				globalConfig = _cachedGlobalConfig;
 
-				Globals Globals = await DatabaseService.GetGlobalsAsync();
-				if (Globals.ConfigRevision == Revision)
+				Globals globals = await _databaseService.GetGlobalsAsync();
+				if (globals.ConfigRevision == revision)
 				{
-					Logger.LogInformation("Updating configuration from {ConfigPath}", Globals.ConfigRevision);
+					_logger.LogInformation("Updating configuration from {ConfigPath}", globals.ConfigRevision);
 					break;
 				}
 
-				Globals.ConfigRevision = Revision;
-				Globals.PerforceClusters = CachedGlobalConfig.PerforceClusters;
-				Globals.ScheduledDowntime = CachedGlobalConfig.Downtime;
-				Globals.MaxConformCount = CachedGlobalConfig.MaxConformCount;
-				Globals.ComputeClusters = CachedGlobalConfig.Compute;
-				Globals.RootAcl = Acl.Merge(null, CachedGlobalConfig.Acl);
+				globals.ConfigRevision = revision;
+				globals.PerforceClusters = _cachedGlobalConfig.PerforceClusters;
+				globals.ScheduledDowntime = _cachedGlobalConfig.Downtime;
+				globals.MaxConformCount = _cachedGlobalConfig.MaxConformCount;
+				globals.ComputeClusters = _cachedGlobalConfig.Compute;
+				globals.RootAcl = Acl.Merge(null, _cachedGlobalConfig.Acl);
 
-				if (await DatabaseService.TryUpdateSingletonAsync(Globals))
+				if (await _databaseService.TryUpdateSingletonAsync(globals))
 				{
 					break;
 				}
 			}
 
 			// Update the agent rate table
-			await AgentService.UpdateRateTableAsync(GlobalConfig.Rates);
+			await _agentService.UpdateRateTableAsync(globalConfig.Rates);
 
 			// Projects to remove
-			List<IProject> Projects = await ProjectService.GetProjectsAsync();
+			List<IProject> projects = await _projectService.GetProjectsAsync();
 
 			// Get the path to all the project configs
-			List<(ProjectConfigRef ProjectRef, Uri Path)> ProjectConfigs = GlobalConfig.Projects.Select(x => (x, CombinePaths(ConfigPath, x.Path))).ToList();
+			List<(ProjectConfigRef ProjectRef, Uri Path)> projectConfigs = globalConfig.Projects.Select(x => (x, CombinePaths(configPath, x.Path))).ToList();
 
-			Dictionary<ProjectId, (ProjectConfig Config, string Revision)> PrevCachedProjectConfigs = CachedProjectConfigs;
-			CachedProjectConfigs = new Dictionary<ProjectId, (ProjectConfig, string)>();
+			Dictionary<ProjectId, (ProjectConfig Config, string Revision)> prevCachedProjectConfigs = _cachedProjectConfigs;
+			_cachedProjectConfigs = new Dictionary<ProjectId, (ProjectConfig, string)>();
 
-			List<(ProjectId ProjectId, Uri Path)> ProjectLogos = new List<(ProjectId ProjectId, Uri Path)>();
+			List<(ProjectId ProjectId, Uri Path)> projectLogos = new List<(ProjectId ProjectId, Uri Path)>();
 
-			List<(ProjectId ProjectId, StreamConfigRef StreamRef, Uri Path)> StreamConfigs = new List<(ProjectId, StreamConfigRef, Uri)>();
+			List<(ProjectId ProjectId, StreamConfigRef StreamRef, Uri Path)> streamConfigs = new List<(ProjectId, StreamConfigRef, Uri)>();
 
 			// List of project ids that were not able to be updated. We will avoid removing any existing project or stream definitions for these.
-			HashSet<ProjectId> SkipProjectIds = new HashSet<ProjectId>();
+			HashSet<ProjectId> skipProjectIds = new HashSet<ProjectId>();
 
 			// Update any existing projects
-			Dictionary<Uri, string> ProjectRevisions = await FindRevisionsAsync(ProjectConfigs.Select(x => x.Path));
-			for (int Idx = 0; Idx < ProjectConfigs.Count; Idx++)
+			Dictionary<Uri, string> projectRevisions = await FindRevisionsAsync(projectConfigs.Select(x => x.Path));
+			for (int idx = 0; idx < projectConfigs.Count; idx++)
 			{
 				// Make sure we were able to fetch metadata for 
-				(ProjectConfigRef ProjectRef, Uri ProjectPath) = ProjectConfigs[Idx];
-				if (!ProjectRevisions.TryGetValue(ProjectPath, out string? Revision))
+				(ProjectConfigRef projectRef, Uri projectPath) = projectConfigs[idx];
+				if (!projectRevisions.TryGetValue(projectPath, out string? revision))
 				{
-					Logger.LogWarning("Unable to update project {ProjectId} due to missing revision information", ProjectRef.Id);
-					SkipProjectIds.Add(ProjectRef.Id);
+					_logger.LogWarning("Unable to update project {ProjectId} due to missing revision information", projectRef.Id);
+					skipProjectIds.Add(projectRef.Id);
 					continue;
 				}
 
-				IProject? Project = Projects.FirstOrDefault(x => x.Id == ProjectRef.Id);
-				bool Update = (Project == null || Project.ConfigPath != ProjectPath.ToString() || Project.ConfigRevision != Revision);
+				IProject? project = projects.FirstOrDefault(x => x.Id == projectRef.Id);
+				bool update = (project == null || project.ConfigPath != projectPath.ToString() || project.ConfigRevision != revision);
 
-				ProjectConfig? ProjectConfig;
-				if (!Update && PrevCachedProjectConfigs.TryGetValue(ProjectRef.Id, out (ProjectConfig Config, string Revision) Result) && Result.Revision == Revision)
+				ProjectConfig? projectConfig;
+				if (!update && prevCachedProjectConfigs.TryGetValue(projectRef.Id, out (ProjectConfig Config, string Revision) result) && result.Revision == revision)
 				{
-					ProjectConfig = Result.Config;
+					projectConfig = result.Config;
 				}
 				else
 				{
-					Logger.LogInformation("Caching configuration for project {ProjectId} ({Revision})", ProjectRef.Id, Revision);
+					_logger.LogInformation("Caching configuration for project {ProjectId} ({Revision})", projectRef.Id, revision);
 					try
 					{
-						ProjectConfig = await ReadDataAsync<ProjectConfig>(ProjectPath);
-						if (Update)
+						projectConfig = await ReadDataAsync<ProjectConfig>(projectPath);
+						if (update)
 						{
-							Logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", ProjectRef.Id, Revision);
-							await ProjectService.Collection.AddOrUpdateAsync(ProjectRef.Id, ProjectPath.ToString(), Revision, Idx, ProjectConfig);
+							_logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", projectRef.Id, revision);
+							await _projectService.Collection.AddOrUpdateAsync(projectRef.Id, projectPath.ToString(), revision, idx, projectConfig);
 						}
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						await SendFailureNotificationAsync(Ex, ProjectPath);
-						SkipProjectIds.Add(ProjectRef.Id);
+						await SendFailureNotificationAsync(ex, projectPath);
+						skipProjectIds.Add(projectRef.Id);
 						continue;
 					}
 				}
 
-				if (ProjectConfig.Logo != null)
+				if (projectConfig.Logo != null)
 				{
-					ProjectLogos.Add((ProjectRef.Id, CombinePaths(ProjectPath, ProjectConfig.Logo)));
+					projectLogos.Add((projectRef.Id, CombinePaths(projectPath, projectConfig.Logo)));
 				}
 
-				CachedProjectConfigs[ProjectRef.Id] = (ProjectConfig, Revision);
-				StreamConfigs.AddRange(ProjectConfig.Streams.Select(x => (ProjectRef.Id, x, CombinePaths(ProjectPath, x.Path))));
+				_cachedProjectConfigs[projectRef.Id] = (projectConfig, revision);
+				streamConfigs.AddRange(projectConfig.Streams.Select(x => (projectRef.Id, x, CombinePaths(projectPath, x.Path))));
 			}
 
 			// Get the logo revisions
-			Dictionary<Uri, string> LogoRevisions = await FindRevisionsAsync(ProjectLogos.Select(x => x.Path));
-			for (int Idx = 0; Idx < ProjectLogos.Count; Idx++)
+			Dictionary<Uri, string> logoRevisions = await FindRevisionsAsync(projectLogos.Select(x => x.Path));
+			for (int idx = 0; idx < projectLogos.Count; idx++)
 			{
-				(ProjectId ProjectId, Uri Path) = ProjectLogos[Idx];
-				if (LogoRevisions.TryGetValue(Path, out string? Revision))
+				(ProjectId projectId, Uri path) = projectLogos[idx];
+				if (logoRevisions.TryGetValue(path, out string? revision))
 				{
-					string? CurrentRevision;
-					if (!CachedLogoRevisions.TryGetValue(ProjectId, out CurrentRevision))
+					string? currentRevision;
+					if (!_cachedLogoRevisions.TryGetValue(projectId, out currentRevision))
 					{
-						CurrentRevision = (await ProjectService.Collection.GetLogoAsync(ProjectId))?.Revision;
-						CachedLogoRevisions[ProjectId] = CurrentRevision;
+						currentRevision = (await _projectService.Collection.GetLogoAsync(projectId))?.Revision;
+						_cachedLogoRevisions[projectId] = currentRevision;
 					}
-					if (Revision != CurrentRevision)
+					if (revision != currentRevision)
 					{
-						Logger.LogInformation("Updating logo for project {ProjectId} ({Revision})", ProjectId, Revision);
+						_logger.LogInformation("Updating logo for project {ProjectId} ({Revision})", projectId, revision);
 						try
 						{
-							await ProjectService.Collection.SetLogoAsync(ProjectId, Path.ToString(), Revision, GetMimeTypeFromPath(Path), await ReadDataAsync(Path));
-							CachedLogoRevisions[ProjectId] = Revision;
+							await _projectService.Collection.SetLogoAsync(projectId, path.ToString(), revision, GetMimeTypeFromPath(path), await ReadDataAsync(path));
+							_cachedLogoRevisions[projectId] = revision;
 						}
-						catch (Exception Ex)
+						catch (Exception ex)
 						{
-							await SendFailureNotificationAsync(Ex, Path);
+							await SendFailureNotificationAsync(ex, path);
 							continue;
 						}
 					}
@@ -254,27 +243,27 @@ namespace Horde.Build.Services
 			}
 
 			// Get the current streams
-			List<IStream> Streams = await StreamService.GetStreamsAsync();
+			List<IStream> streams = await _streamService.GetStreamsAsync();
 
 			// Get the revisions for all the stream documents
-			Dictionary<Uri, string> StreamRevisions = await FindRevisionsAsync(StreamConfigs.Select(x => x.Path));
-			for (int Idx = 0; Idx < StreamConfigs.Count; Idx++)
+			Dictionary<Uri, string> streamRevisions = await FindRevisionsAsync(streamConfigs.Select(x => x.Path));
+			for (int idx = 0; idx < streamConfigs.Count; idx++)
 			{
-				(ProjectId ProjectId, StreamConfigRef StreamRef, Uri StreamPath) = StreamConfigs[Idx];
-				if (StreamRevisions.TryGetValue(StreamPath, out string? Revision))
+				(ProjectId projectId, StreamConfigRef streamRef, Uri streamPath) = streamConfigs[idx];
+				if (streamRevisions.TryGetValue(streamPath, out string? revision))
 				{
-					IStream? Stream = Streams.FirstOrDefault(x => x.Id == StreamRef.Id);
-					if (Stream == null || Stream.ConfigPath != StreamPath.ToString() || Stream.ConfigRevision != Revision)
+					IStream? stream = streams.FirstOrDefault(x => x.Id == streamRef.Id);
+					if (stream == null || stream.ConfigPath != streamPath.ToString() || stream.ConfigRevision != revision)
 					{
-						Logger.LogInformation("Updating configuration for stream {StreamRef} ({Revision})", StreamRef.Id, Revision);
+						_logger.LogInformation("Updating configuration for stream {StreamRef} ({Revision})", streamRef.Id, revision);
 						try
 						{
-							StreamConfig StreamConfig = await ReadDataAsync<StreamConfig>(StreamPath);
-							Stream = await StreamService.StreamCollection.CreateOrReplaceAsync(StreamRef.Id, Stream, StreamPath.ToString(), Revision, ProjectId, StreamConfig);
+							StreamConfig streamConfig = await ReadDataAsync<StreamConfig>(streamPath);
+							stream = await _streamService.StreamCollection.CreateOrReplaceAsync(streamRef.Id, stream, streamPath.ToString(), revision, projectId, streamConfig);
 						}
-						catch (Exception Ex)
+						catch (Exception ex)
 						{
-							await SendFailureNotificationAsync(Ex, StreamPath);
+							await SendFailureNotificationAsync(ex, streamPath);
 							continue;
 						}
 					}
@@ -282,171 +271,171 @@ namespace Horde.Build.Services
 			}
 
 			// Remove any projects which are no longer used
-			HashSet<ProjectId> RemoveProjectIds = new HashSet<ProjectId>(Projects.Select(x => x.Id));
-			RemoveProjectIds.ExceptWith(ProjectConfigs.Select(y => y.ProjectRef.Id));
+			HashSet<ProjectId> removeProjectIds = new HashSet<ProjectId>(projects.Select(x => x.Id));
+			removeProjectIds.ExceptWith(projectConfigs.Select(y => y.ProjectRef.Id));
 
-			foreach (ProjectId RemoveProjectId in RemoveProjectIds)
+			foreach (ProjectId removeProjectId in removeProjectIds)
 			{
-				Logger.LogInformation("Removing project {ProjectId}", RemoveProjectId);
-				await ProjectService.DeleteProjectAsync(RemoveProjectId);
+				_logger.LogInformation("Removing project {ProjectId}", removeProjectId);
+				await _projectService.DeleteProjectAsync(removeProjectId);
 			}
 
 			// Remove any streams that are no longer used
-			HashSet<StreamId> RemoveStreamIds = new HashSet<StreamId>(Streams.Where(x => !SkipProjectIds.Contains(x.ProjectId)).Select(x => x.Id));
-			RemoveStreamIds.ExceptWith(StreamConfigs.Select(x => x.StreamRef.Id));
+			HashSet<StreamId> removeStreamIds = new HashSet<StreamId>(streams.Where(x => !skipProjectIds.Contains(x.ProjectId)).Select(x => x.Id));
+			removeStreamIds.ExceptWith(streamConfigs.Select(x => x.StreamRef.Id));
 
-			foreach (StreamId RemoveStreamId in RemoveStreamIds)
+			foreach (StreamId removeStreamId in removeStreamIds)
 			{
-				Logger.LogInformation("Removing stream {StreamId}", RemoveStreamId);
-				await StreamService.DeleteStreamAsync(RemoveStreamId);
+				_logger.LogInformation("Removing stream {StreamId}", removeStreamId);
+				await _streamService.DeleteStreamAsync(removeStreamId);
 			}
 		}
 
-		static FileExtensionContentTypeProvider ContentTypeProvider = new FileExtensionContentTypeProvider();
+		static readonly FileExtensionContentTypeProvider s_contentTypeProvider = new FileExtensionContentTypeProvider();
 
-		static string GetMimeTypeFromPath(Uri Path)
+		static string GetMimeTypeFromPath(Uri path)
 		{
-			string? ContentType;
-			if (!ContentTypeProvider.TryGetContentType(Path.AbsolutePath, out ContentType))
+			string? contentType;
+			if (!s_contentTypeProvider.TryGetContentType(path.AbsolutePath, out contentType))
 			{
-				ContentType = "application/octet-stream";
+				contentType = "application/octet-stream";
 			}
-			return ContentType;
+			return contentType;
 		}
 
-		static Uri CombinePaths(Uri BaseUri, string Path)
+		static Uri CombinePaths(Uri baseUri, string path)
 		{
-			if (Path.StartsWith("//", StringComparison.Ordinal))
+			if (path.StartsWith("//", StringComparison.Ordinal))
 			{
-				if (BaseUri.Scheme == PerforceScheme)
+				if (baseUri.Scheme == PerforceScheme)
 				{
-					return new Uri($"{PerforceScheme}://{BaseUri.Host}{Path}");
+					return new Uri($"{PerforceScheme}://{baseUri.Host}{path}");
 				}
 				else
 				{
-					return new Uri($"{PerforceScheme}://{PerforceCluster.DefaultName}{Path}");
+					return new Uri($"{PerforceScheme}://{PerforceCluster.DefaultName}{path}");
 				}
 			}
-			return new Uri(BaseUri, Path);
+			return new Uri(baseUri, path);
 		}
 
-		async Task<Dictionary<Uri, string>> FindRevisionsAsync(IEnumerable<Uri> Paths)
+		async Task<Dictionary<Uri, string>> FindRevisionsAsync(IEnumerable<Uri> paths)
 		{
-			Dictionary<Uri, string> Revisions = new Dictionary<Uri, string>();
+			Dictionary<Uri, string> revisions = new Dictionary<Uri, string>();
 
 			// Find all the Perforce uris
-			List<Uri> PerforcePaths = new List<Uri>();
-			foreach (Uri Path in Paths)
+			List<Uri> perforcePaths = new List<Uri>();
+			foreach (Uri path in paths)
 			{
-				if (Path.Scheme == FileScheme)
+				if (path.Scheme == FileScheme)
 				{
-					Revisions[Path] = $"ver={Version},md5={ContentHash.MD5(new FileReference(Path.LocalPath))}";
+					revisions[path] = $"ver={Version},md5={ContentHash.MD5(new FileReference(path.LocalPath))}";
 				}
-				else if (Path.Scheme == PerforceScheme)
+				else if (path.Scheme == PerforceScheme)
 				{
-					PerforcePaths.Add(Path);
+					perforcePaths.Add(path);
 				}
 				else
 				{
-					throw new Exception($"Invalid path format: {Path}");
+					throw new Exception($"Invalid path format: {path}");
 				}
 			}
 
 			// Query all the Perforce revisions
-			foreach (IGrouping<string, Uri> PerforcePath in PerforcePaths.GroupBy(x => x.Host, StringComparer.OrdinalIgnoreCase))
+			foreach (IGrouping<string, Uri> perforcePath in perforcePaths.GroupBy(x => x.Host, StringComparer.OrdinalIgnoreCase))
 			{
-				List<FileSummary> Files = await PerforceService.FindFilesAsync(PerforcePath.Key, PerforcePath.Select(x => x.AbsolutePath));
-				foreach (FileSummary File in Files)
+				List<FileSummary> files = await _perforceService.FindFilesAsync(perforcePath.Key, perforcePath.Select(x => x.AbsolutePath));
+				foreach (FileSummary file in files)
 				{
-					Uri FileUri = new Uri($"{PerforceScheme}://{PerforcePath.Key}{File.DepotPath}");
-					if (File.Error == null)
+					Uri fileUri = new Uri($"{PerforceScheme}://{perforcePath.Key}{file.DepotPath}");
+					if (file.Error == null)
 					{
-						Revisions[FileUri] = $"ver={Version},chg={File.Change},path={FileUri}";
+						revisions[fileUri] = $"ver={Version},chg={file.Change},path={fileUri}";
 					}
 					else
 					{
-						NotificationService.NotifyConfigUpdateFailure(File.Error, File.DepotPath);
+						_notificationService.NotifyConfigUpdateFailure(file.Error, file.DepotPath);
 					}
 				}
 			}
 
-			return Revisions;
+			return revisions;
 		}
 
-		async Task<T> ReadDataAsync<T>(Uri ConfigPath) where T : class
+		async Task<T> ReadDataAsync<T>(Uri configPath) where T : class
 		{
-			byte[] Data = await ReadDataAsync(ConfigPath);
+			byte[] data = await ReadDataAsync(configPath);
 
-			JsonSerializerOptions Options = new JsonSerializerOptions();
-			Startup.ConfigureJsonSerializer(Options);
+			JsonSerializerOptions options = new JsonSerializerOptions();
+			Startup.ConfigureJsonSerializer(options);
 
-			return JsonSerializer.Deserialize<T>(Data, Options)!;
+			return JsonSerializer.Deserialize<T>(data, options)!;
 		}
 
-		Task<byte[]> ReadDataAsync(Uri ConfigPath)
+		Task<byte[]> ReadDataAsync(Uri configPath)
 		{
-			switch(ConfigPath.Scheme)
+			switch(configPath.Scheme)
 			{
 				case FileScheme:
-					return File.ReadAllBytesAsync(ConfigPath.LocalPath);
+					return File.ReadAllBytesAsync(configPath.LocalPath);
 				case PerforceScheme:
-					return PerforceService.PrintAsync(ConfigPath.Host, ConfigPath.AbsolutePath);
+					return _perforceService.PrintAsync(configPath.Host, configPath.AbsolutePath);
 				default:
-					throw new Exception($"Invalid config path: {ConfigPath}");
+					throw new Exception($"Invalid config path: {configPath}");
 			}
 		}
 
-		async Task SendFailureNotificationAsync(Exception Ex, Uri ConfigPath)
+		async Task SendFailureNotificationAsync(Exception ex, Uri configPath)
 		{
-			Logger.LogError(Ex, "Unable to read data from {ConfigPath}: {Message}", ConfigPath, Ex.Message);
+			_logger.LogError(ex, "Unable to read data from {ConfigPath}: {Message}", configPath, ex.Message);
 
-			string FileName = ConfigPath.AbsolutePath;
-			int Change = -1;
-			IUser? Author = null;
-			string? Description = null;
+			string fileName = configPath.AbsolutePath;
+			int change = -1;
+			IUser? author = null;
+			string? description = null;
 
-			if (ConfigPath.Scheme == PerforceScheme)
+			if (configPath.Scheme == PerforceScheme)
 			{
 				try
 				{
-					List<FileSummary> Files = await PerforceService.FindFilesAsync(ConfigPath.Host, new[] { FileName });
-					Change = Files[0].Change;
+					List<FileSummary> files = await _perforceService.FindFilesAsync(configPath.Host, new[] { fileName });
+					change = files[0].Change;
 
-					List<ChangeSummary> Changes = await PerforceService.GetChangesAsync(ConfigPath.Host, Change, Change, 1);
-					if (Changes.Count > 0 && Changes[0].Number == Change)
+					List<ChangeSummary> changes = await _perforceService.GetChangesAsync(configPath.Host, change, change, 1);
+					if (changes.Count > 0 && changes[0].Number == change)
 					{
-						(Author, Description) = (Changes[0].Author, Changes[0].Description);
+						(author, description) = (changes[0].Author, changes[0].Description);
 					}
 				}
-				catch (Exception Ex2)
+				catch (Exception ex2)
 				{
-					Logger.LogError(Ex2, "Unable to identify change that last modified {ConfigPath} from Perforce", ConfigPath);
+					_logger.LogError(ex2, "Unable to identify change that last modified {ConfigPath} from Perforce", configPath);
 				}
 			}
 
-			NotificationService.NotifyConfigUpdateFailure(Ex.Message, FileName, Change, Author, Description);
+			_notificationService.NotifyConfigUpdateFailure(ex.Message, fileName, change, author, description);
 		}
 
 		/// <inheritdoc/>
-		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
+		async ValueTask TickLeaderAsync(CancellationToken stoppingToken)
 		{
 
-			Uri? ConfigUri = null;
+			Uri? configUri = null;
 			
-			if (Path.IsPathRooted(Settings.CurrentValue.ConfigPath) && !Settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
+			if (Path.IsPathRooted(_settings.CurrentValue.ConfigPath) && !_settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
 			{
 				// absolute path to config
-				ConfigUri = new Uri(Settings.CurrentValue.ConfigPath);					
+				configUri = new Uri(_settings.CurrentValue.ConfigPath);					
 			}
-			else if (Settings.CurrentValue.ConfigPath != null)
+			else if (_settings.CurrentValue.ConfigPath != null)
 			{
 				// relative (development) or perforce path
-				ConfigUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), Settings.CurrentValue.ConfigPath);				
+				configUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), _settings.CurrentValue.ConfigPath);				
 			}
 
-			if (ConfigUri != null)
+			if (configUri != null)
 			{
-				await UpdateConfigAsync(ConfigUri);
+				await UpdateConfigAsync(configUri);
 			}
 		}
 
@@ -457,79 +446,78 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Update the global configuration
 		/// </summary>
-		/// <param name="Request"></param>
+		/// <param name="request"></param>
 		/// <returns></returns>
-		public async Task<bool> UpdateGlobalConfig(UpdateGlobalConfigRequest Request)
+		public async Task<bool> UpdateGlobalConfig(UpdateGlobalConfigRequest request)
 		{
-			if (Settings.CurrentValue.ConfigPath == null || !Path.IsPathRooted(Settings.CurrentValue.ConfigPath) || Settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
+			if (_settings.CurrentValue.ConfigPath == null || !Path.IsPathRooted(_settings.CurrentValue.ConfigPath) || _settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
 			{
-				throw new Exception($"Global config path must be rooted for service updates.  (Perforce paths are not currently supported for live updates), {Settings.CurrentValue.ConfigPath}");
+				throw new Exception($"Global config path must be rooted for service updates.  (Perforce paths are not currently supported for live updates), {_settings.CurrentValue.ConfigPath}");
 			}
 			
-			FileReference GlobalConfigFile = new FileReference(Settings.CurrentValue.ConfigPath);
-			DirectoryReference GlobalConfigDirectory = GlobalConfigFile.Directory;
+			FileReference globalConfigFile = new FileReference(_settings.CurrentValue.ConfigPath);
+			DirectoryReference globalConfigDirectory = globalConfigFile.Directory;
 
 			// make sure the directory exists
-			if (!DirectoryReference.Exists(GlobalConfigDirectory))
+			if (!DirectoryReference.Exists(globalConfigDirectory))
 			{
-				DirectoryReference.CreateDirectory(GlobalConfigDirectory);
+				DirectoryReference.CreateDirectory(globalConfigDirectory);
 			}
 
-			bool ConfigDirty = false;
+			bool configDirty = false;
 
 			// projects
-			if (Request.ProjectsJson != null)
+			if (request.ProjectsJson != null)
 			{
-				ConfigDirty = true;
+				configDirty = true;
 
 				// write out the projects
-				foreach (KeyValuePair<string, string> Project in Request.ProjectsJson)
+				foreach (KeyValuePair<string, string> project in request.ProjectsJson)
 				{
-					await FileReference.WriteAllTextAsync(FileReference.Combine(GlobalConfigDirectory, Project.Key), Project.Value);
+					await FileReference.WriteAllTextAsync(FileReference.Combine(globalConfigDirectory, project.Key), project.Value);
 
-					if (Request.ProjectLogo != null)
+					if (request.ProjectLogo != null)
 					{
-						Byte[] bytes = Convert.FromBase64String(Request.ProjectLogo);
-						await FileReference.WriteAllBytesAsync(FileReference.Combine(GlobalConfigDirectory, Project.Key.Replace(".json", ".png", StringComparison.OrdinalIgnoreCase)), bytes);
+						byte[] bytes = Convert.FromBase64String(request.ProjectLogo);
+						await FileReference.WriteAllBytesAsync(FileReference.Combine(globalConfigDirectory, project.Key.Replace(".json", ".png", StringComparison.OrdinalIgnoreCase)), bytes);
 					}
 				}
-
 			}
 
 			// streams
-			if (Request.StreamsJson != null)
+			if (request.StreamsJson != null)
 			{
-				ConfigDirty = true;
+				configDirty = true;
 
 				// write out the streams
-				foreach (KeyValuePair<string, string> Stream in Request.StreamsJson)
+				foreach (KeyValuePair<string, string> stream in request.StreamsJson)
 				{
-					await FileReference.WriteAllTextAsync(FileReference.Combine(GlobalConfigDirectory, Stream.Key), Stream.Value);
+					await FileReference.WriteAllTextAsync(FileReference.Combine(globalConfigDirectory, stream.Key), stream.Value);
 				}
 			}
 
 			// update global config path
-			if (!string.IsNullOrEmpty(Request.GlobalsJson))
+			if (!String.IsNullOrEmpty(request.GlobalsJson))
 			{
-				ConfigDirty = true;
+				configDirty = true;
 
-				await FileReference.WriteAllTextAsync(GlobalConfigFile, Request.GlobalsJson);
+				await FileReference.WriteAllTextAsync(globalConfigFile, request.GlobalsJson);
 			}
 
-			if (ConfigDirty == true)
+			if (configDirty == true)
 			{				
-				await UpdateConfigAsync(new Uri("file://" + GlobalConfigFile.ToString()));				
+				await UpdateConfigAsync(new Uri("file://" + globalConfigFile.ToString()));				
 			}
 
 			// create the default pool 
-			if (Request.DefaultPoolName != null)
+			if (request.DefaultPoolName != null)
 			{
-				PoolId PoolIdValue = PoolId.Sanitize(Request.DefaultPoolName);
+				PoolId poolIdValue = PoolId.Sanitize(request.DefaultPoolName);
 
-				IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
-				if (Pool == null)
+				IPool? pool = await _poolService.GetPoolAsync(poolIdValue);
+				if (pool == null)
 				{
-					await PoolService.CreatePoolAsync(Request.DefaultPoolName, Condition: "OSFamily == 'Windows'", Properties: new Dictionary<string, string>() { ["Color"] = "0" });
+					await _poolService.CreatePoolAsync(request.DefaultPoolName, condition: "OSFamily == 'Windows'", properties: new Dictionary<string, string>() { ["Color"] = "0" });
 				}
 			}
 
@@ -540,136 +528,135 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Update the server settings
 		/// </summary>
-		/// <param name="Request"></param>
+		/// <param name="request"></param>
 		/// <returns></returns>
-		public async Task<ServerUpdateResponse> UpdateServerSettings(UpdateServerSettingsRequest Request)
+		public async Task<ServerUpdateResponse> UpdateServerSettings(UpdateServerSettingsRequest request)
 		{
 
-			ServerUpdateResponse Response = new ServerUpdateResponse();
+			ServerUpdateResponse response = new ServerUpdateResponse();
 
-			Dictionary<string, object> NewUserSettings = new Dictionary<string, object>();
+			Dictionary<string, object> newUserSettings = new Dictionary<string, object>();
 
 			try
 			{
 
-				if (Request.Settings == null || Request.Settings.Count == 0)
+				if (request.Settings == null || request.Settings.Count == 0)
 				{
-					return Response;
+					return response;
 				}
 
-				if (UserConfigUpdated != null)
+				if (_userConfigUpdated != null)
 				{
-					Response.Errors.Add("User configuation already being updated");
-					return Response;
+					response.Errors.Add("User configuation already being updated");
+					return response;
 				}
 
 				// Load the current user configuration
-				IConfiguration Config = new ConfigurationBuilder()
+				IConfiguration config = new ConfigurationBuilder()
 					.AddJsonFile(Program.UserConfigFile.FullName, optional: true)
 					.Build();
 
-				ServerSettings UserSettings = new ServerSettings();
-				Config.GetSection("Horde").Bind(UserSettings);
+				ServerSettings userSettings = new ServerSettings();
+				config.GetSection("Horde").Bind(userSettings);
 
 				// Figure out current and new settings
-				HashSet<string> UserProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+				HashSet<string> userProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 				if (FileReference.Exists(Program.UserConfigFile))
 				{
-					byte[] Data = await FileReference.ReadAllBytesAsync(Program.UserConfigFile);
+					byte[] data = await FileReference.ReadAllBytesAsync(Program.UserConfigFile);
 
-					JsonDocument Document = JsonDocument.Parse(Data);
-					JsonElement HordeElement;
+					JsonDocument document = JsonDocument.Parse(data);
+					JsonElement hordeElement;
 
-					if (Document.RootElement.TryGetProperty("Horde", out HordeElement))
+					if (document.RootElement.TryGetProperty("Horde", out hordeElement))
 					{
-						foreach (JsonProperty Property in HordeElement.EnumerateObject())
+						foreach (JsonProperty property in hordeElement.EnumerateObject())
 						{
-							UserProps.Add(Property.Name);
+							userProps.Add(property.Name);
 						}
 					}
 				}
 
-				foreach (string Name in Request.Settings.Keys)
+				foreach (string name in request.Settings.Keys)
 				{
-					UserProps.Add(Name);
+					userProps.Add(name);
 				}
 
 				// Apply the changes from the request
-				foreach (KeyValuePair<string, object> Pair in Request.Settings)
+				foreach (KeyValuePair<string, object> pair in request.Settings)
 				{
-					PropertyInfo? Property = UserSettings.GetType().GetProperty(Pair.Key, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
-					if (Property == null)
+					PropertyInfo? property = userSettings.GetType().GetProperty(pair.Key, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+					if (property == null)
 					{
-						Response.Errors.Add($"Horde configuration property {Pair.Key} does not exist when reading server settings");
-						Logger.LogError("Horde configuration property {Key} does not exist when reading server settings", Pair.Key);
+						response.Errors.Add($"Horde configuration property {pair.Key} does not exist when reading server settings");
+						_logger.LogError("Horde configuration property {Key} does not exist when reading server settings", pair.Key);
 						continue;
 					}
 
-					if (Property.SetMethod == null)
+					if (property.SetMethod == null)
 					{
-						Response.Errors.Add($"Horde configuration property {Pair.Key} does not have a set method");
-						Logger.LogError("Horde configuration property {Key} does not have a set method", Pair.Key);
+						response.Errors.Add($"Horde configuration property {pair.Key} does not have a set method");
+						_logger.LogError("Horde configuration property {Key} does not have a set method", pair.Key);
 						continue;
 					}
 
 					// explicit setting removal
-					if (Pair.Value == null)
+					if (pair.Value == null)
 					{
-						UserProps.Remove(Pair.Key);
+						userProps.Remove(pair.Key);
 						continue;
 					}					
 
+					JsonElement element = (JsonElement)pair.Value;
 
-					JsonElement Element = (JsonElement)Pair.Value;
+					object? value = null;
 
-					object? Value = null;
-
-					switch (Element.ValueKind)
+					switch (element.ValueKind)
 					{
 						case JsonValueKind.True:
-							Value = true;
+							value = true;
 							break;
 						case JsonValueKind.False:
-							Value = false;
+							value = false;
 							break;
 						case JsonValueKind.Number:
-							Value = Element.GetDouble();
+							value = element.GetDouble();
 							break;
 						case JsonValueKind.String:
-							Value = Element.GetString();
+							value = element.GetString();
 							break;
 					}
 
 					// unable to map type
-					if (Value == null)
+					if (value == null)
 					{
-						Response.Errors.Add($"Unable to map type for Property {Property.Name}");
+						response.Errors.Add($"Unable to map type for Property {property.Name}");
 						continue;
 					}					
 
 					// handle common conversions
-					if (Property.GetType() != Value.GetType())
+					if (property.GetType() != value.GetType())
 					{
 						try
 						{
-							Value =	Convert.ChangeType(Value, Property.PropertyType, CultureInfo.CurrentCulture);						
+							value =	Convert.ChangeType(value, property.PropertyType, CultureInfo.CurrentCulture);						
 						}
-						catch (Exception Ex)
+						catch (Exception ex)
 						{
-							Response.Errors.Add($"Property {Property.Name} raised exception during conversion, {Ex.Message}");
+							response.Errors.Add($"Property {property.Name} raised exception during conversion, {ex.Message}");
 							continue;							
 						}
 						
-						if (Value == null)
+						if (value == null)
 						{
-							Response.Errors.Add($"Property {Property.Name} had null value on conversion");
+							response.Errors.Add($"Property {property.Name} had null value on conversion");
 							continue;							
 						}
 					}
 					else 
 					{
-						Response.Errors.Add($"Property {Property.Name} is not assignable to {Value.ToString()}");
+						response.Errors.Add($"Property {property.Name} is not assignable to {value}");
 						continue;
 					}
 					
@@ -677,101 +664,99 @@ namespace Horde.Build.Services
 					//  Set the value, providing some validation
 					try
 					{
-						Property.SetMethod.Invoke(UserSettings, new object[] { Value });
+						property.SetMethod.Invoke(userSettings, new object[] { value });
 					}
-					catch (Exception Ex)
+					catch (Exception ex)
 					{
-						Response.Errors.Add($"Exception updating property {Pair.Key}, {Ex.Message}");
+						response.Errors.Add($"Exception updating property {pair.Key}, {ex.Message}");
 					}
-					
 				}
 
 				// Construct the new user settings
-				foreach (string Name in UserProps)
+				foreach (string name in userProps)
 				{
-					PropertyInfo? Property = UserSettings.GetType().GetProperty(Name, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
-					if (Property == null)
+					PropertyInfo? property = userSettings.GetType().GetProperty(name, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+					if (property == null)
 					{
-						Response.Errors.Add($"Horde configuration property {Name} does not exist when writing server settings");
-						Logger.LogError("Horde configuration property {Name} does not exist when writing server settings", Name);
+						response.Errors.Add($"Horde configuration property {name} does not exist when writing server settings");
+						_logger.LogError("Horde configuration property {Name} does not exist when writing server settings", name);
 
 						continue;
 					}
 
-					if (Property.GetMethod == null)
+					if (property.GetMethod == null)
 					{
-						Response.Errors.Add($"Horde configuration property {Name} does not have a get method");
-						Logger.LogError("Horde configuration property {Name} does not have a get method", Name);
+						response.Errors.Add($"Horde configuration property {name} does not have a get method");
+						_logger.LogError("Horde configuration property {Name} does not have a get method", name);
 						continue;
 					}
 
-					object? Result = Property.GetMethod.Invoke(UserSettings, null);
+					object? result = property.GetMethod.Invoke(userSettings, null);
 
-					if (Result == null)
+					if (result == null)
 					{
-						Response.Errors.Add($"Horde configuration property {Name} was null while writing and should have already been filtered out");
-						Logger.LogError("Horde configuration property {Name} was null while writing and should have already been filtered out", Name);
+						response.Errors.Add($"Horde configuration property {name} was null while writing and should have already been filtered out");
+						_logger.LogError("Horde configuration property {Name} was null while writing and should have already been filtered out", name);
 						continue;
 					}
 
-					NewUserSettings.Add(Property.Name, Result);
+					newUserSettings.Add(property.Name, result);
 
 				}
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Response.Errors.Add($"Exception while updating settings: {Ex.Message}");
-				Logger.LogError(Ex, "{Error}", Response.Errors.Last());
+				response.Errors.Add($"Exception while updating settings: {ex.Message}");
+				_logger.LogError(ex, "{Error}", response.Errors.Last());
 			}
 
-			if (Response.Errors.Count != 0)
+			if (response.Errors.Count != 0)
 			{
-				return Response;
+				return response;
 			}
 
-			Dictionary<string, object> NewLocalSettings = new Dictionary<string, object>();
-			NewLocalSettings["Horde"] = NewUserSettings;
+			Dictionary<string, object> newLocalSettings = new Dictionary<string, object>();
+			newLocalSettings["Horde"] = newUserSettings;
 
 			try
 			{
-				UserConfigUpdated = new TaskCompletionSource<bool>();
+				_userConfigUpdated = new TaskCompletionSource<bool>();
 
 				// This will trigger a setting update as the user config json is set to reload on change
 				try
 				{
-					await FileReference.WriteAllBytesAsync(Program.UserConfigFile, JsonSerializer.SerializeToUtf8Bytes(NewLocalSettings, new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }));
+					await FileReference.WriteAllBytesAsync(Program.UserConfigFile, JsonSerializer.SerializeToUtf8Bytes(newLocalSettings, new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }));
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					Response.Errors.Add($"Unable to serialize json settings to {Program.UserConfigFile.ToString()}, {Ex.Message}");
-					Logger.LogError(Ex, "Unable to serialize json settings to {ConfigFile}, {Message}", Program.UserConfigFile.ToString(), Ex.Message);
+					response.Errors.Add($"Unable to serialize json settings to {Program.UserConfigFile}, {ex.Message}");
+					_logger.LogError(ex, "Unable to serialize json settings to {ConfigFile}, {Message}", Program.UserConfigFile.ToString(), ex.Message);
 				}
 
-				if (Response.Errors.Count == 0)
+				if (response.Errors.Count == 0)
 				{
-					if (await Task.WhenAny(UserConfigUpdated.Task, Task.Delay(5000)) != UserConfigUpdated.Task)
+					if (await Task.WhenAny(_userConfigUpdated.Task, Task.Delay(5000)) != _userConfigUpdated.Task)
 					{
-						Response.Errors.Add("Server update timed out while awaiting write");
-						Logger.LogError("Server update timed out after writing config");
+						response.Errors.Add("Server update timed out while awaiting write");
+						_logger.LogError("Server update timed out after writing config");
 					}
 				}
-
 			}
 			finally
 			{
-				UserConfigUpdated = null;
+				_userConfigUpdated = null;
 			}
 
-			return Response;
+			return response;
 
 		}
-		void OnUserConfigUpdated(ServerSettings Settings, string Name)
+		void OnUserConfigUpdated(ServerSettings settings, string name)
 		{
 			NumUserConfigUpdates++;
-			UserConfigUpdated?.SetResult(true);
+			_userConfigUpdated?.SetResult(true);
 		}
 
-		private TaskCompletionSource<bool>? UserConfigUpdated;
+		private TaskCompletionSource<bool>? _userConfigUpdated;
 
 		/// <summary>
 		/// The number of server configuration updates that have been made while the server is running

@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.DependencyInjection;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Collections
 {
@@ -24,55 +18,55 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Adds a new session to the collection
 		/// </summary>
-		/// <param name="Id">The session id</param>
-		/// <param name="AgentId">The agent this session is for</param>
-		/// <param name="StartTime">Start time of this session</param>
-		/// <param name="Properties">Properties of this agent at the time the session started</param>
-		/// <param name="Resources">Resources which the agent has</param>
-		/// <param name="Version">Version of the agent software</param>
-		Task<ISession> AddAsync(SessionId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version);
+		/// <param name="id">The session id</param>
+		/// <param name="agentId">The agent this session is for</param>
+		/// <param name="startTime">Start time of this session</param>
+		/// <param name="properties">Properties of this agent at the time the session started</param>
+		/// <param name="resources">Resources which the agent has</param>
+		/// <param name="version">Version of the agent software</param>
+		Task<ISession> AddAsync(SessionId id, AgentId agentId, DateTime startTime, IReadOnlyList<string>? properties, IReadOnlyDictionary<string, int>? resources, string? version);
 
 		/// <summary>
 		/// Gets information about a particular session
 		/// </summary>
-		/// <param name="SessionId">The unique session id</param>
+		/// <param name="sessionId">The unique session id</param>
 		/// <returns>The session information</returns>
-		Task<ISession?> GetAsync(SessionId SessionId);
+		Task<ISession?> GetAsync(SessionId sessionId);
 
 		/// <summary>
 		/// Find sessions for the given agent
 		/// </summary>
-		/// <param name="AgentId">The unique agent id</param>
-		/// <param name="StartTime">Start time to include in the search</param>
-		/// <param name="FinishTime">Finish time to include in the search</param>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="agentId">The unique agent id</param>
+		/// <param name="startTime">Start time to include in the search</param>
+		/// <param name="finishTime">Finish time to include in the search</param>
+		/// <param name="index">Index of the first result to return</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>List of sessions matching the given criteria</returns>
-		Task<List<ISession>> FindAsync(AgentId AgentId, DateTime? StartTime, DateTime? FinishTime, int Index, int Count);
+		Task<List<ISession>> FindAsync(AgentId agentId, DateTime? startTime, DateTime? finishTime, int index, int count);
 
 		/// <summary>
 		/// Finds any active sessions
 		/// </summary>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Number of results to return</param>
+		/// <param name="index">Index of the first result to return</param>
+		/// <param name="count">Number of results to return</param>
 		/// <returns>List of sessions</returns>
-		Task<List<ISession>> FindActiveSessionsAsync(int? Index = null, int? Count = null);
+		Task<List<ISession>> FindActiveSessionsAsync(int? index = null, int? count = null);
 
 		/// <summary>
 		/// Update a session from the collection
 		/// </summary>
-		/// <param name="SessionId">The session to update</param>
-		/// <param name="FinishTime">Time at which the session finished</param>
-		/// <param name="Properties">The agent properties</param>
-		/// <param name="Resources">Resources which the agent has</param>
+		/// <param name="sessionId">The session to update</param>
+		/// <param name="finishTime">Time at which the session finished</param>
+		/// <param name="properties">The agent properties</param>
+		/// <param name="resources">Resources which the agent has</param>
 		/// <returns>Async task</returns>
-		Task UpdateAsync(SessionId SessionId, DateTime FinishTime, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources);
+		Task UpdateAsync(SessionId sessionId, DateTime finishTime, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources);
 
 		/// <summary>
 		/// Delete a session from the collection
 		/// </summary>
-		/// <param name="SessionId">The session id</param>
+		/// <param name="sessionId">The session id</param>
 		/// <returns>Async task</returns>
-		Task DeleteAsync(SessionId SessionId);
+		Task DeleteAsync(SessionId sessionId);
 	}
 }

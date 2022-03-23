@@ -5,20 +5,20 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using HordeCommon;
+using Horde.Build.Api;
 using Horde.Build.Collections;
+using Horde.Build.Jobs;
 using Horde.Build.Models;
 using Horde.Build.Services;
-using StreamId = Horde.Build.Utilities.StringId<Horde.Build.Models.IStream>;
-using TemplateRefId = Horde.Build.Utilities.StringId<Horde.Build.Models.TemplateRef>;
-using ProjectId = Horde.Build.Utilities.StringId<Horde.Build.Models.IProject>;
-using Horde.Build.Api;
-using Horde.Build.Jobs;
 using Horde.Build.Utilities;
+using HordeCommon;
 
 namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
+    using ProjectId = StringId<IProject>;
+    using StreamId = StringId<IStream>;
+    using TemplateRefId = StringId<TemplateRef>;
 
 	public class Fixture
 	{
@@ -84,18 +84,18 @@ namespace Horde.Build.Tests
 			);
 			
 			Job1 = await jobService.CreateJobAsync(
-				JobId: new JobId("5f283932841e7fdbcafb6ab5"),
-				Stream: Stream!,
-				TemplateRefId: TemplateRefId1,
-				TemplateHash: Template.Id,
-				Graph: Graph,
-				Name: "hello1",
-				Change: 1000001,
-				CodeChange: 1000002,
-				PreflightChange: 1001,
-				ClonedPreflightChange: null,
-				StartedByUserId: null,
-				Priority: Priority.Normal,
+				jobId: new JobId("5f283932841e7fdbcafb6ab5"),
+				stream: Stream!,
+				templateRefId: TemplateRefId1,
+				templateHash: Template.Id,
+				graph: Graph,
+				name: "hello1",
+				change: 1000001,
+				codeChange: 1000002,
+				preflightChange: 1001,
+				clonedPreflightChange: null,
+				startedByUserId: null,
+				priority: Priority.Normal,
 				null,
 				null,
 				null,
@@ -104,23 +104,23 @@ namespace Horde.Build.Tests
 				false,
 				null,
 				null,
-				Arguments: new List<string>()
+				arguments: new List<string>()
 			);
 			Job1 = (await jobService.GetJobAsync(Job1.Id))!;
 
 			Job2 = await jobService.CreateJobAsync(
-				JobId: new JobId("5f69ea1b68423e921b035106"),
-				Stream: Stream!,
-				TemplateRefId: new TemplateRefId("template-id-1"),
-				TemplateHash: ContentHash.MD5("made-up-template-hash"),
-				Graph: fg,
-				Name: "hello2",
-				Change: 2000001,
-				CodeChange: 2000002,
-				PreflightChange: null,
-				ClonedPreflightChange: null,
-				StartedByUserId: null,
-				Priority: Priority.Normal,
+				jobId: new JobId("5f69ea1b68423e921b035106"),
+				stream: Stream!,
+				templateRefId: new TemplateRefId("template-id-1"),
+				templateHash: ContentHash.MD5("made-up-template-hash"),
+				graph: fg,
+				name: "hello2",
+				change: 2000001,
+				codeChange: 2000002,
+				preflightChange: null,
+				clonedPreflightChange: null,
+				startedByUserId: null,
+				priority: Priority.Normal,
 				null,
 				null,
 				null,
@@ -129,7 +129,7 @@ namespace Horde.Build.Tests
 				false,
 				null,
 				null,
-				Arguments: new List<string>()
+				arguments: new List<string>()
 			);
 			Job2 = (await jobService.GetJobAsync(Job2.Id))!;
 

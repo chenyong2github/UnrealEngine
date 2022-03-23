@@ -1,23 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Collections;
-using HordeCommon;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Server.Kestrel.Core.Features;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -35,22 +28,22 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Collection of job documents
 		/// </summary>
-		private JobService JobService;
+		private readonly JobService _jobService;
 
 		/// <summary>
 		/// Collection of test data documents
 		/// </summary>
-		private readonly ITestDataCollection TestDataCollection;
+		private readonly ITestDataCollection _testDataCollection;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="JobService">The job service singleton</param>
-		/// <param name="TestDataCollection">Collection of test data documents</param>
-		public TestDataController(JobService JobService, ITestDataCollection TestDataCollection)
+		/// <param name="jobService">The job service singleton</param>
+		/// <param name="testDataCollection">Collection of test data documents</param>
+		public TestDataController(JobService jobService, ITestDataCollection testDataCollection)
 		{
-			this.JobService = JobService;
-			this.TestDataCollection = TestDataCollection;
+			_jobService = jobService;
+			_testDataCollection = testDataCollection;
 		}
 
 		/// <summary>
@@ -59,90 +52,90 @@ namespace Horde.Build.Controllers
 		/// <returns>The stream document</returns>
 		[HttpPost]
 		[Route("/api/v1/testdata")]
-		public async Task<ActionResult<CreateTestDataResponse>> CreateAsync(CreateTestDataRequest Request)
+		public async Task<ActionResult<CreateTestDataResponse>> CreateAsync(CreateTestDataRequest request)
 		{
-			IJob? Job = await JobService.GetJobAsync(new JobId(Request.JobId));
-			if (Job == null)
+			IJob? job = await _jobService.GetJobAsync(new JobId(request.JobId));
+			if (job == null)
 			{
 				return NotFound();
 			}
-			if (!await JobService.AuthorizeAsync(Job, AclAction.UpdateJob, User, null))
+			if (!await _jobService.AuthorizeAsync(job, AclAction.UpdateJob, User, null))
 			{
 				return Forbid();
 			}
 
-			IJobStep? JobStep;
-			if (!Job.TryGetStep(Request.StepId.ToSubResourceId(), out JobStep))
+			IJobStep? jobStep;
+			if (!job.TryGetStep(request.StepId.ToSubResourceId(), out jobStep))
 			{
 				return NotFound();
 			}
 
-			ITestData TestData = await TestDataCollection.AddAsync(Job, JobStep, Request.Key, new BsonDocument(Request.Data));
-			return new CreateTestDataResponse(TestData.Id.ToString());
+			ITestData testData = await _testDataCollection.AddAsync(job, jobStep, request.Key, new BsonDocument(request.Data));
+			return new CreateTestDataResponse(testData.Id.ToString());
 		}
 
 		/// <summary>
 		/// Searches for test data that matches a set of criteria
 		/// </summary>
-		/// <param name="StreamId">The stream id</param>
-		/// <param name="MinChange">The minimum changelist number to return (inclusive)</param>
-		/// <param name="MaxChange">The maximum changelist number to return (inclusive)</param>
-		/// <param name="JobId">The job id</param>
-		/// <param name="JobStepId">The unique step id</param>
-		/// <param name="Key">Key identifying the result to return</param>
-		/// <param name="Index">Offset within the results to return</param>
-		/// <param name="Count">Number of results to return</param>
-		/// <param name="Filter">Filter for properties to return</param>
+		/// <param name="streamId">The stream id</param>
+		/// <param name="minChange">The minimum changelist number to return (inclusive)</param>
+		/// <param name="maxChange">The maximum changelist number to return (inclusive)</param>
+		/// <param name="jobId">The job id</param>
+		/// <param name="jobStepId">The unique step id</param>
+		/// <param name="key">Key identifying the result to return</param>
+		/// <param name="index">Offset within the results to return</param>
+		/// <param name="count">Number of results to return</param>
+		/// <param name="filter">Filter for properties to return</param>
 		/// <returns>The stream document</returns>
 		[HttpGet]
 		[Route("/api/v1/testdata")]
 		[ProducesResponseType(typeof(List<GetTestDataResponse>), 200)]
-		public async Task<ActionResult<List<object>>> FindTestDataAsync([FromQuery] string? StreamId = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, string? JobId = null, string? JobStepId = null, string? Key = null, int Index = 0, int Count = 10, PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> FindTestDataAsync([FromQuery] string? streamId = null, [FromQuery] int? minChange = null, [FromQuery] int? maxChange = null, string? jobId = null, string? jobStepId = null, string? key = null, int index = 0, int count = 10, PropertyFilter? filter = null)
 		{
-			StreamId? StreamIdValue = null;
-			if(StreamId != null)
+			StreamId? streamIdValue = null;
+			if(streamId != null)
 			{
-				StreamIdValue = new StreamId(StreamId);
+				streamIdValue = new StreamId(streamId);
 			}
 
-			JobPermissionsCache Cache = new JobPermissionsCache();
+			JobPermissionsCache cache = new JobPermissionsCache();
 
-			List<object> Results = new List<object>();
+			List<object> results = new List<object>();
 
-			List<ITestData> Documents = await TestDataCollection.FindAsync(StreamIdValue, MinChange, MaxChange, JobId?.ToObjectId<IJob>(), JobStepId?.ToSubResourceId(), Key, Index, Count);
-			foreach (ITestData Document in Documents)
+			List<ITestData> documents = await _testDataCollection.FindAsync(streamIdValue, minChange, maxChange, jobId?.ToObjectId<IJob>(), jobStepId?.ToSubResourceId(), key, index, count);
+			foreach (ITestData document in documents)
 			{
-				if (await JobService.AuthorizeAsync(Document.JobId, AclAction.ViewJob, User, Cache))
+				if (await _jobService.AuthorizeAsync(document.JobId, AclAction.ViewJob, User, cache))
 				{
-					Results.Add(PropertyFilter.Apply(new GetTestDataResponse(Document), Filter));
+					results.Add(PropertyFilter.Apply(new GetTestDataResponse(document), filter));
 				}
 			}
 
-			return Results;
+			return results;
 		}
 
 		/// <summary>
 		/// Retrieve information about a specific issue
 		/// </summary>
-		/// <param name="TestDataId">Id of the document to get information about</param>
-		/// <param name="Filter">Filter for the properties to return</param>
+		/// <param name="testDataId">Id of the document to get information about</param>
+		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
-		[Route("/api/v1/testdata/{TestDataId}")]
+		[Route("/api/v1/testdata/{testDataId}")]
 		[ProducesResponseType(typeof(GetTestDataResponse), 200)]
-		public async Task<ActionResult<object>> GetTestDataAsync(string TestDataId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetTestDataAsync(string testDataId, [FromQuery] PropertyFilter? filter = null)
 		{
-			ITestData? TestData = await TestDataCollection.GetAsync(TestDataId.ToObjectId());
-			if (TestData == null)
+			ITestData? testData = await _testDataCollection.GetAsync(testDataId.ToObjectId());
+			if (testData == null)
 			{
 				return NotFound();
 			}
-			if (!await JobService.AuthorizeAsync(TestData.JobId, AclAction.ViewJob, User, null))
+			if (!await _jobService.AuthorizeAsync(testData.JobId, AclAction.ViewJob, User, null))
 			{
 				return Forbid();
 			}
 
-			return PropertyFilter.Apply(new GetTestDataResponse(TestData), Filter);
+			return PropertyFilter.Apply(new GetTestDataResponse(testData), filter);
 		}
 	}
 }

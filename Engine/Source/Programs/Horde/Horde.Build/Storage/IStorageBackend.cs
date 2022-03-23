@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace Horde.Build.Storage
 {
@@ -17,30 +15,30 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Opens a read stream for the given path.
 		/// </summary>
-		/// <param name="Path">Relative path within the bucket</param>
+		/// <param name="path">Relative path within the bucket</param>
 		/// <returns></returns>
-		Task<Stream?> ReadAsync(string Path);
+		Task<Stream?> ReadAsync(string path);
 
 		/// <summary>
 		/// Writes a stream to the given path. If the stream throws an exception during read, the write will be aborted.
 		/// </summary>
-		/// <param name="Path">Relative path within the bucket</param>
-		/// <param name="Stream">Stream to write</param>
-		Task WriteAsync(string Path, Stream Stream);
+		/// <param name="path">Relative path within the bucket</param>
+		/// <param name="stream">Stream to write</param>
+		Task WriteAsync(string path, Stream stream);
 
 		/// <summary>
 		/// Tests whether the given path exists
 		/// </summary>
-		/// <param name="Path">Relative path within the bucket</param>
+		/// <param name="path">Relative path within the bucket</param>
 		/// <returns></returns>
-		Task<bool> ExistsAsync(string Path);
+		Task<bool> ExistsAsync(string path);
 
 		/// <summary>
 		/// Deletes a file with the given path
 		/// </summary>
-		/// <param name="Path">Relative path within the bucket</param>
+		/// <param name="path">Relative path within the bucket</param>
 		/// <returns>Async task</returns>
-		Task DeleteAsync(string Path);
+		Task DeleteAsync(string path);
 	}
 
 	/// <summary>
@@ -62,57 +60,57 @@ namespace Horde.Build.Storage
 		/// <typeparam name="T"></typeparam>
 		class StorageBackend<T> : IStorageBackend<T>
 		{
-			IStorageBackend Inner;
+			readonly IStorageBackend _inner;
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Inner"></param>
-			public StorageBackend(IStorageBackend Inner) => this.Inner = Inner;
+			/// <param name="inner"></param>
+			public StorageBackend(IStorageBackend inner) => _inner = inner;
 
 			/// <inheritdoc/>
-			public Task<Stream?> ReadAsync(string Path) => Inner.ReadAsync(Path);
+			public Task<Stream?> ReadAsync(string path) => _inner.ReadAsync(path);
 
 			/// <inheritdoc/>
-			public Task WriteAsync(string Path, Stream Stream) => Inner.WriteAsync(Path, Stream);
+			public Task WriteAsync(string path, Stream stream) => _inner.WriteAsync(path, stream);
 
 			/// <inheritdoc/>
-			public Task DeleteAsync(string Path) => Inner.DeleteAsync(Path);
+			public Task DeleteAsync(string path) => _inner.DeleteAsync(path);
 
 			/// <inheritdoc/>
-			public Task<bool> ExistsAsync(string Path) => Inner.ExistsAsync(Path);
+			public Task<bool> ExistsAsync(string path) => _inner.ExistsAsync(path);
 		}
 
 		/// <summary>
 		/// Creates a typed wrapper around the given storage backend
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Backend"></param>
+		/// <param name="backend"></param>
 		/// <returns></returns>
-		public static IStorageBackend<T> ForType<T>(this IStorageBackend Backend)
+		public static IStorageBackend<T> ForType<T>(this IStorageBackend backend)
 		{
-			return new StorageBackend<T>(Backend);
+			return new StorageBackend<T>(backend);
 		}
 
 		/// <summary>
 		/// Writes a block of memory to storage
 		/// </summary>
-		/// <param name="StorageBackend"></param>
-		/// <param name="Path"></param>
+		/// <param name="storageBackend"></param>
+		/// <param name="path"></param>
 		/// <returns></returns>
-		public static async Task<ReadOnlyMemory<byte>?> ReadBytesAsync(this IStorageBackend StorageBackend, string Path)
+		public static async Task<ReadOnlyMemory<byte>?> ReadBytesAsync(this IStorageBackend storageBackend, string path)
 		{
-			using (Stream? InputStream = await StorageBackend.ReadAsync(Path))
+			using (Stream? inputStream = await storageBackend.ReadAsync(path))
 			{
-				if (InputStream == null)
+				if (inputStream == null)
 				{
 					return null;
 				}
 
-				using (MemoryStream OutputStream = new MemoryStream())
+				using (MemoryStream outputStream = new MemoryStream())
 				{
-					await InputStream.CopyToAsync(OutputStream);
-					return OutputStream.ToArray();
+					await inputStream.CopyToAsync(outputStream);
+					return outputStream.ToArray();
 				}
 			}
 		}
@@ -120,15 +118,15 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Writes a block of memory to storage
 		/// </summary>
-		/// <param name="StorageBackend"></param>
-		/// <param name="Path"></param>
-		/// <param name="Data"></param>
+		/// <param name="storageBackend"></param>
+		/// <param name="path"></param>
+		/// <param name="data"></param>
 		/// <returns></returns>
-		public static async Task WriteBytesAsync(this IStorageBackend StorageBackend, string Path, ReadOnlyMemory<byte> Data)
+		public static async Task WriteBytesAsync(this IStorageBackend storageBackend, string path, ReadOnlyMemory<byte> data)
 		{
-			using (ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Data))
+			using (ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(data))
 			{
-				await StorageBackend.WriteAsync(Path, Stream);
+				await storageBackend.WriteAsync(path, stream);
 			}
 		}
 	}

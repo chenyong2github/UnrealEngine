@@ -1,58 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.IO;
+using System.Net.Mime;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http.Headers;
-using System.Net.Mime;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Utilities
 {
-    /// <summary>
-    /// Class deriving from a FileResult that allows custom file types (used for zip file creation)
-    /// </summary>
-    public class CustomFileCallbackResult : FileResult
+	/// <summary>
+	/// Class deriving from a FileResult that allows custom file types (used for zip file creation)
+	/// </summary>
+	public class CustomFileCallbackResult : FileResult
     {
-        private Func<Stream, ActionContext, Task> Callback;
-		string FileName;
-		bool Inline;
+        private readonly Func<Stream, ActionContext, Task> _callback;
+		readonly string _fileName;
+		readonly bool _inline;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="FileName">Default filename for the downloaded file</param>
-		/// <param name="MimeType">Content type for the file</param>
-		/// <param name="Inline">Whether to display the file inline in the browser</param>
-		/// <param name="Callback">Callback used to write the data</param>
-		public CustomFileCallbackResult(string FileName, string MimeType, bool Inline, Func<Stream, ActionContext, Task> Callback)
-            : base(MimeType)
+		/// <param name="fileName">Default filename for the downloaded file</param>
+		/// <param name="mimeType">Content type for the file</param>
+		/// <param name="inline">Whether to display the file inline in the browser</param>
+		/// <param name="callback">Callback used to write the data</param>
+		public CustomFileCallbackResult(string fileName, string mimeType, bool inline, Func<Stream, ActionContext, Task> callback)
+            : base(mimeType)
         {
-			this.FileName = FileName;
-			this.Inline = Inline;
-            this.Callback = Callback;
+			_fileName = fileName;
+			_inline = inline;
+            _callback = callback;
         }
 
         /// <summary>
         /// Executes the action result
         /// </summary>
-        /// <param name="Context">The controller context</param>
+        /// <param name="context">The controller context</param>
         /// <returns></returns>
-        public override Task ExecuteResultAsync(ActionContext Context)
+        public override Task ExecuteResultAsync(ActionContext context)
         {
-			ContentDisposition ContentDisposition = new ContentDisposition();
-			ContentDisposition.Inline = Inline;
-			ContentDisposition.FileName = FileName;
-			Context.HttpContext.Response.Headers.Add("Content-Disposition", ContentDisposition.ToString());
+			ContentDisposition contentDisposition = new ContentDisposition();
+			contentDisposition.Inline = _inline;
+			contentDisposition.FileName = _fileName;
+			context.HttpContext.Response.Headers.Add("Content-Disposition", contentDisposition.ToString());
 
-			CustomFileCallbackResultExecutor Executor = new CustomFileCallbackResultExecutor(Context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>());
-            return Executor.ExecuteAsync(Context, this);
+			CustomFileCallbackResultExecutor executor = new CustomFileCallbackResultExecutor(context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>());
+            return executor.ExecuteAsync(context, this);
         }
 
         /// <summary>
@@ -63,22 +59,22 @@ namespace Horde.Build.Utilities
             /// <summary>
             /// Constructor
             /// </summary>
-            /// <param name="LoggerFactory">The logger</param>
-            public CustomFileCallbackResultExecutor(ILoggerFactory LoggerFactory)
-                : base(CreateLogger<CustomFileCallbackResultExecutor>(LoggerFactory))
+            /// <param name="loggerFactory">The logger</param>
+            public CustomFileCallbackResultExecutor(ILoggerFactory loggerFactory)
+                : base(CreateLogger<CustomFileCallbackResultExecutor>(loggerFactory))
             {
             }
 
             /// <summary>
             /// Executes a CustomFileResult callback
             /// </summary>
-            /// <param name="Context">The controller context</param>
-            /// <param name="Result">The custom file result</param>
+            /// <param name="context">The controller context</param>
+            /// <param name="result">The custom file result</param>
             /// <returns></returns>
-            public Task ExecuteAsync(ActionContext Context, CustomFileCallbackResult Result)
+            public Task ExecuteAsync(ActionContext context, CustomFileCallbackResult result)
             {
-                SetHeadersAndLog(Context, Result, null, false);
-                return Result.Callback(Context.HttpContext.Response.Body, Context);
+                SetHeadersAndLog(context, result, null, false);
+                return result._callback(context.HttpContext.Response.Body, context);
             }
         }
     }

@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Caching.Memory;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Driver;
 
 namespace Horde.Build.Utilities
 {
@@ -20,70 +20,70 @@ namespace Horde.Build.Utilities
 	{
 		class QueryState
 		{
-			public Stopwatch Timer = Stopwatch.StartNew();
-			public List<TDocument>? Results;
-			public Task? QueryTask;
+			public Stopwatch _timer = Stopwatch.StartNew();
+			public List<TDocument>? _results;
+			public Task? _queryTask;
 		}
 
-		IMongoCollection<TDocument> Collection;
-		MemoryCache Cache;
-		TimeSpan MaxLatency;
+		readonly IMongoCollection<TDocument> _collection;
+		readonly MemoryCache _cache;
+		readonly TimeSpan _maxLatency;
 
-		public MongoQueryCache(IMongoCollection<TDocument> Collection, TimeSpan MaxLatency)
+		public MongoQueryCache(IMongoCollection<TDocument> collection, TimeSpan maxLatency)
 		{
-			this.Collection = Collection;
+			_collection = collection;
 
-			MemoryCacheOptions Options = new MemoryCacheOptions();
-			this.Cache = new MemoryCache(Options);
+			MemoryCacheOptions options = new MemoryCacheOptions();
+			_cache = new MemoryCache(options);
 
-			this.MaxLatency = MaxLatency;
+			_maxLatency = maxLatency;
 		}
 
 		public void Dispose()
 		{
-			Cache.Dispose();
+			_cache.Dispose();
 		}
 
-		async Task RefreshAsync(QueryState State, FilterDefinition<TDocument> Filter)
+		async Task RefreshAsync(QueryState state, FilterDefinition<TDocument> filter)
 		{
-			State.Results = await Collection.Find(Filter).ToListAsync();
-			State.Timer.Restart();
+			state._results = await _collection.Find(filter).ToListAsync();
+			state._timer.Restart();
 		}
 
-		public async Task<List<TDocument>> FindAsync(FilterDefinition<TDocument> Filter, int Index, int Count)
+		public async Task<List<TDocument>> FindAsync(FilterDefinition<TDocument> filter, int index, int count)
 		{
-			BsonDocument Rendered = Filter.Render(BsonSerializer.LookupSerializer<TDocument>(), BsonSerializer.SerializerRegistry);
-			BsonDocument Document = new BsonDocument { new BsonElement("filter", Rendered), new BsonElement("index", Index), new BsonElement("count", Count) };
+			BsonDocument rendered = filter.Render(BsonSerializer.LookupSerializer<TDocument>(), BsonSerializer.SerializerRegistry);
+			BsonDocument document = new BsonDocument { new BsonElement("filter", rendered), new BsonElement("index", index), new BsonElement("count", count) };
 
-			string FilterKey = Document.ToString();
+			string filterKey = document.ToString();
 
-			QueryState? State;
-			if (!Cache.TryGetValue(FilterKey, out State) || State == null)
+			QueryState? state;
+			if (!_cache.TryGetValue(filterKey, out state) || state == null)
 			{
-				State = new QueryState();
-				using (ICacheEntry CacheEntry = Cache.CreateEntry(FilterKey))
+				state = new QueryState();
+				using (ICacheEntry cacheEntry = _cache.CreateEntry(filterKey))
 				{
-					CacheEntry.SetSlidingExpiration(TimeSpan.FromMinutes(5.0));
-					CacheEntry.SetValue(State);
+					cacheEntry.SetSlidingExpiration(TimeSpan.FromMinutes(5.0));
+					cacheEntry.SetValue(state);
 				}
 			}
 
-			if(State.QueryTask != null && State.QueryTask.IsCompleted)
+			if(state._queryTask != null && state._queryTask.IsCompleted)
 			{
-				await State.QueryTask;
-				State.QueryTask = null;
+				await state._queryTask;
+				state._queryTask = null;
 			}
 
-			if (State.QueryTask == null && (State.Results == null || State.Timer.Elapsed > MaxLatency))
+			if (state._queryTask == null && (state._results == null || state._timer.Elapsed > _maxLatency))
 			{
-				State.QueryTask = Task.Run(() => RefreshAsync(State, Filter));
+				state._queryTask = Task.Run(() => RefreshAsync(state, filter));
 			}
-			if (State.QueryTask != null && (State.Results == null || State.Timer.Elapsed > MaxLatency))
+			if (state._queryTask != null && (state._results == null || state._timer.Elapsed > _maxLatency))
 			{
-				await State.QueryTask;
+				await state._queryTask;
 			}
 
-			return State.Results!;
+			return state._results!;
 		}
 	}
 }

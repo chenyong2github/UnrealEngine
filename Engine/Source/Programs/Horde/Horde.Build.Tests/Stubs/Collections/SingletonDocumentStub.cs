@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Tests.Stubs.Collections
 {

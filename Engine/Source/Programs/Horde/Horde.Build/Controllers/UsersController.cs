@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Notifications.Impl;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Api;
+using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Horde.Build.Controllers
 {
@@ -40,12 +37,12 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="UserCollection"></param>
-		/// <param name="AvatarService"></param>
-		public UsersController(IUserCollection UserCollection, IAvatarService? AvatarService)
+		/// <param name="userCollection"></param>
+		/// <param name="avatarService"></param>
+		public UsersController(IUserCollection userCollection, IAvatarService? avatarService)
 		{
-			this.UserCollection = UserCollection;
-			this.AvatarService = AvatarService;
+			UserCollection = userCollection;
+			AvatarService = avatarService;
 		}
 
 		/// <summary>
@@ -53,26 +50,26 @@ namespace Horde.Build.Controllers
 		/// </summary>
 		/// <returns>Http result code</returns>
 		[HttpGet]
-		[Route("/api/v1/users/{Id}")]
+		[Route("/api/v1/users/{id}")]
 		[ProducesResponseType(typeof(List<GetUserResponse>), 200)]
-		public async Task<ActionResult<object>> GetUserAsync(string Id, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetUserAsync(string id, [FromQuery] PropertyFilter? filter = null)
 		{
-			UserId? UserId = ParseUserId(Id);
-			if(UserId == null)
+			UserId? userId = ParseUserId(id);
+			if(userId == null)
 			{
-				return BadRequest("Invalid user id '{Id}'", Id);
+				return BadRequest("Invalid user id '{Id}'", id);
 			}
 
-			IUser? User = await UserCollection.GetUserAsync(UserId.Value);
-			if (User == null)
+			IUser? user = await UserCollection.GetUserAsync(userId.Value);
+			if (user == null)
 			{
-				return NotFound(UserId.Value);
+				return NotFound(userId.Value);
 			}
 
-			IAvatar? Avatar = (AvatarService == null) ? (IAvatar?)null : await AvatarService.GetAvatarAsync(User);
-			IUserClaims? Claims = await UserCollection.GetClaimsAsync(User.Id);
-			IUserSettings? Settings = await UserCollection.GetSettingsAsync(User.Id);
-			return PropertyFilter.Apply(new GetUserResponse(User, Avatar, Claims, Settings), Filter);
+			IAvatar? avatar = (AvatarService == null) ? (IAvatar?)null : await AvatarService.GetAvatarAsync(user);
+			IUserClaims? claims = await UserCollection.GetClaimsAsync(user.Id);
+			IUserSettings? settings = await UserCollection.GetSettingsAsync(user.Id);
+			return PropertyFilter.Apply(new GetUserResponse(user, avatar, claims, settings), filter);
 		}
 
 		/// <summary>
@@ -83,42 +80,42 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/users")]
 		[ProducesResponseType(typeof(List<GetUserResponse>), 200)]
 		public async Task<ActionResult<List<GetUserResponse>>> FindUsersAsync(
-			[FromQuery] string[]? Ids = null,
-			[FromQuery] string? NameRegex = null,
-			[FromQuery] int Index = 0,
-			[FromQuery] int Count = 100,
-			[FromQuery] bool IncludeClaims = false,
-			[FromQuery] bool IncludeAvatar = false)
+			[FromQuery] string[]? ids = null,
+			[FromQuery] string? nameRegex = null,
+			[FromQuery] int index = 0,
+			[FromQuery] int count = 100,
+			[FromQuery] bool includeClaims = false,
+			[FromQuery] bool includeAvatar = false)
 		{
 
-			UserId[]? UserIds = null;
-			if (Ids != null && Ids.Length > 0)
+			UserId[]? userIds = null;
+			if (ids != null && ids.Length > 0)
 			{
-				UserIds = Ids.Select(x => new UserId(x)).ToArray();
+				userIds = ids.Select(x => new UserId(x)).ToArray();
 			}
 
-			List<IUser> Users = await UserCollection.FindUsersAsync(UserIds, NameRegex, Index, Count);
+			List<IUser> users = await UserCollection.FindUsersAsync(userIds, nameRegex, index, count);
 
-			List<GetUserResponse> Response = new List<GetUserResponse>();
-			foreach (IUser User in Users)
+			List<GetUserResponse> response = new List<GetUserResponse>();
+			foreach (IUser user in users)
 			{
-				IAvatar? Avatar = (AvatarService == null || !IncludeAvatar) ? (IAvatar?)null : await AvatarService.GetAvatarAsync(User);
-				IUserClaims? Claims = (!IncludeClaims) ? null : await UserCollection.GetClaimsAsync(User.Id);
-				Response.Add(new GetUserResponse(User, Avatar, Claims, null));
+				IAvatar? avatar = (AvatarService == null || !includeAvatar) ? (IAvatar?)null : await AvatarService.GetAvatarAsync(user);
+				IUserClaims? claims = (!includeClaims) ? null : await UserCollection.GetClaimsAsync(user.Id);
+				response.Add(new GetUserResponse(user, avatar, claims, null));
 			}
 
-			return Response;
+			return response;
 		}
 
-		UserId? ParseUserId(string Id)
+		UserId? ParseUserId(string id)
 		{
-			if (Id.Equals("current", StringComparison.OrdinalIgnoreCase))
+			if (id.Equals("current", StringComparison.OrdinalIgnoreCase))
 			{
 				return User.GetUserId();
 			}
-			else if(UserId.TryParse(Id, out UserId Result))
+			else if(UserId.TryParse(id, out UserId result))
 			{
-				return Result;
+				return result;
 			}
 			return null;
 		}

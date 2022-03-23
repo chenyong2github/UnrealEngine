@@ -1,17 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using EpicGames.Core;
 using Horde.Build.Api;
 using Horde.Build.Utilities;
-using ICSharpCode.SharpZipLib.BZip2;
-using Microsoft.AspNetCore.Routing.Constraints;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Logs
 {
@@ -48,28 +40,28 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Text data
 		/// </summary>
-		ILogText? TextInternal;
+		ILogText? _textInternal;
 
 		/// <summary>
 		/// Compressed text data
 		/// </summary>
-		ReadOnlyMemory<byte> CompressedTextInternal;
+		ReadOnlyMemory<byte> _compressedTextInternal;
 
 		/// <summary>
 		/// The index for this sub-chunk
 		/// </summary>
-		LogIndexData? IndexInternal;
+		LogIndexData? _indexInternal;
 
 		/// <summary>
 		/// The log text
 		/// </summary>
 		public ILogText InflateText()
 		{
-			if (TextInternal == null)
+			if (_textInternal == null)
 			{
-				TextInternal = new ReadOnlyLogText(CompressedTextInternal.DecompressBzip2());
+				_textInternal = new ReadOnlyLogText(_compressedTextInternal.DecompressBzip2());
 			}
-			return TextInternal;
+			return _textInternal;
 		}
 
 		/// <summary>
@@ -77,11 +69,11 @@ namespace Horde.Build.Logs
 		/// </summary>
 		public ReadOnlyMemory<byte> DeflateText()
 		{
-			if(CompressedTextInternal.IsEmpty)
+			if(_compressedTextInternal.IsEmpty)
 			{
-				CompressedTextInternal = TextInternal!.Data.CompressBzip2();
+				_compressedTextInternal = _textInternal!.Data.CompressBzip2();
 			}
-			return CompressedTextInternal;
+			return _compressedTextInternal;
 		}
 
 		/// <summary>
@@ -89,116 +81,116 @@ namespace Horde.Build.Logs
 		/// </summary>
 		public LogIndexData BuildIndex()
 		{
-			if(IndexInternal == null)
+			if(_indexInternal == null)
 			{
-				ILogText PlainText = InflateText();
+				ILogText plainText = InflateText();
 				if (Type != LogType.Text)
 				{
-					PlainText = PlainText.ToPlainText();
+					plainText = plainText.ToPlainText();
 				}
 
-				LogIndexBlock[] Blocks = new LogIndexBlock[1];
-				Blocks[0] = new LogIndexBlock(LineIndex, LineCount, PlainText, PlainText.Data.CompressBzip2());
-				IndexInternal = new LogIndexData(null, 0, Blocks);
+				LogIndexBlock[] blocks = new LogIndexBlock[1];
+				blocks[0] = new LogIndexBlock(LineIndex, LineCount, plainText, plainText.Data.CompressBzip2());
+				_indexInternal = new LogIndexData(null, 0, blocks);
 			}
-			return IndexInternal;
+			return _indexInternal;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type">Type of data stored in this subchunk</param>
-		/// <param name="Offset">Offset within the file of this sub-chunk</param>
-		/// <param name="LineIndex">Index of the first line in this sub-chunk</param>
-		/// <param name="Text">Text to add</param>
-		public LogSubChunkData(LogType Type, long Offset, int LineIndex, ILogText Text)
+		/// <param name="type">Type of data stored in this subchunk</param>
+		/// <param name="offset">Offset within the file of this sub-chunk</param>
+		/// <param name="lineIndex">Index of the first line in this sub-chunk</param>
+		/// <param name="text">Text to add</param>
+		public LogSubChunkData(LogType type, long offset, int lineIndex, ILogText text)
 		{
-			this.Type = Type;
-			this.Offset = Offset;
-			this.Length = Text.Data.Length;
-			this.LineIndex = LineIndex;
-			this.LineCount = Text.LineCount;
-			this.TextInternal = Text;
+			Type = type;
+			Offset = offset;
+			Length = text.Data.Length;
+			LineIndex = lineIndex;
+			LineCount = text.LineCount;
+			_textInternal = text;
 		}
 
 		/// <summary>
 		/// Constructor for raw data
 		/// </summary>
-		/// <param name="Type">Type of data stored in this subchunk</param>
-		/// <param name="Offset">Offset within the file of this sub-chunk</param>
-		/// <param name="Length">Length of the uncompressed data</param>
-		/// <param name="LineIndex">Index of the first line</param>
-		/// <param name="LineCount">Number of lines in the uncompressed text</param>
-		/// <param name="CompressedText">Compressed text data</param>
-		/// <param name="Index">Index data</param>
-		public LogSubChunkData(LogType Type, long Offset, int Length, int LineIndex, int LineCount, ReadOnlyMemory<byte> CompressedText, LogIndexData? Index)
+		/// <param name="type">Type of data stored in this subchunk</param>
+		/// <param name="offset">Offset within the file of this sub-chunk</param>
+		/// <param name="length">Length of the uncompressed data</param>
+		/// <param name="lineIndex">Index of the first line</param>
+		/// <param name="lineCount">Number of lines in the uncompressed text</param>
+		/// <param name="compressedText">Compressed text data</param>
+		/// <param name="index">Index data</param>
+		public LogSubChunkData(LogType type, long offset, int length, int lineIndex, int lineCount, ReadOnlyMemory<byte> compressedText, LogIndexData? index)
 		{
-			this.Type = Type;
-			this.Offset = Offset;
-			this.Length = Length;
-			this.LineIndex = LineIndex;
-			this.LineCount = LineCount;
-			this.CompressedTextInternal = CompressedText;
-			this.IndexInternal = Index;
+			Type = type;
+			Offset = offset;
+			Length = length;
+			LineIndex = lineIndex;
+			LineCount = lineCount;
+			_compressedTextInternal = compressedText;
+			_indexInternal = index;
 		}
 
 		/// <summary>
 		/// Constructs a sub-chunk from a block of memory. Uses slices of the given memory buffer rather than copying the data.
 		/// </summary>
-		/// <param name="Reader">The reader to read from</param>
-		/// <param name="Offset">Offset of the sub-chunk within this file</param>
-		/// <param name="LineIndex">Index of the first line in this subchunk</param>
+		/// <param name="reader">The reader to read from</param>
+		/// <param name="offset">Offset of the sub-chunk within this file</param>
+		/// <param name="lineIndex">Index of the first line in this subchunk</param>
 		/// <returns>New subchunk data</returns>
-		public static LogSubChunkData Read(MemoryReader Reader, long Offset, int LineIndex)
+		public static LogSubChunkData Read(MemoryReader reader, long offset, int lineIndex)
 		{
-			int Version = Reader.ReadInt32(); // Version placeholder
-			if (Version == 0)
+			int version = reader.ReadInt32(); // Version placeholder
+			if (version == 0)
 			{
-				LogType Type = (LogType)Reader.ReadInt32();
-				int Length = Reader.ReadInt32();
-				int LineCount = Reader.ReadInt32();
-				ReadOnlyMemory<byte> CompressedText = Reader.ReadVariableLengthBytes();
-				Reader.ReadVariableLengthBytes();
-				return new LogSubChunkData(Type, Offset, Length, LineIndex, LineCount, CompressedText, null);
+				LogType type = (LogType)reader.ReadInt32();
+				int length = reader.ReadInt32();
+				int lineCount = reader.ReadInt32();
+				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytes();
+				reader.ReadVariableLengthBytes();
+				return new LogSubChunkData(type, offset, length, lineIndex, lineCount, compressedText, null);
 			}
-			else if (Version == 1)
+			else if (version == 1)
 			{
-				LogType Type = (LogType)Reader.ReadInt32();
-				int Length = Reader.ReadInt32();
-				int LineCount = Reader.ReadInt32();
-				ReadOnlyMemory<byte> CompressedText = Reader.ReadVariableLengthBytes();
-				ReadOnlyMemory<byte> CompressedPlainText = Reader.ReadVariableLengthBytes();
-				ReadOnlyTrie Trie = Reader.ReadTrie();
-				LogIndexBlock IndexBlock = new LogIndexBlock(LineIndex, LineCount, null, CompressedPlainText);
-				LogIndexData Index = new LogIndexData(Trie, 0, new[] { IndexBlock });
-				return new LogSubChunkData(Type, Offset, Length, LineIndex, LineCount, CompressedText, Index);
+				LogType type = (LogType)reader.ReadInt32();
+				int length = reader.ReadInt32();
+				int lineCount = reader.ReadInt32();
+				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytes();
+				ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytes();
+				ReadOnlyTrie trie = reader.ReadTrie();
+				LogIndexBlock indexBlock = new LogIndexBlock(lineIndex, lineCount, null, compressedPlainText);
+				LogIndexData index = new LogIndexData(trie, 0, new[] { indexBlock });
+				return new LogSubChunkData(type, offset, length, lineIndex, lineCount, compressedText, index);
 			}
 			else
 			{
-				LogType Type = (LogType)Reader.ReadInt32();
-				int Length = Reader.ReadInt32();
-				int LineCount = Reader.ReadInt32();
-				ReadOnlyMemory<byte> CompressedText = Reader.ReadVariableLengthBytes();
-				LogIndexData Index = Reader.ReadLogIndexData();
-				Index.SetBaseLineIndex(LineIndex); // Fix for incorrectly saved data
-				return new LogSubChunkData(Type, Offset, Length, LineIndex, LineCount, CompressedText, Index);
+				LogType type = (LogType)reader.ReadInt32();
+				int length = reader.ReadInt32();
+				int lineCount = reader.ReadInt32();
+				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytes();
+				LogIndexData index = reader.ReadLogIndexData();
+				index.SetBaseLineIndex(lineIndex); // Fix for incorrectly saved data
+				return new LogSubChunkData(type, offset, length, lineIndex, lineCount, compressedText, index);
 			}
 		}
 
 		/// <summary>
 		/// Serializes the sub-chunk to a stream
 		/// </summary>
-		/// <param name="Writer">Writer to output to</param>
-		public void Write(MemoryWriter Writer)
+		/// <param name="writer">Writer to output to</param>
+		public void Write(MemoryWriter writer)
 		{
-			Writer.WriteInt32(2); // Version placeholder
+			writer.WriteInt32(2); // Version placeholder
 
-			Writer.WriteInt32((int)Type);
-			Writer.WriteInt32(Length);
-			Writer.WriteInt32(LineCount);
+			writer.WriteInt32((int)Type);
+			writer.WriteInt32(Length);
+			writer.WriteInt32(LineCount);
 
-			Writer.WriteVariableLengthBytes(DeflateText().Span);
-			Writer.WriteLogIndexData(BuildIndex());
+			writer.WriteVariableLengthBytes(DeflateText().Span);
+			writer.WriteLogIndexData(BuildIndex());
 		}
 
 		/// <summary>
@@ -207,13 +199,13 @@ namespace Horde.Build.Logs
 		/// <returns>Byte array</returns>
 		public byte[] ToByteArray()
 		{
-			byte[] Data = new byte[GetSerializedSize()];
+			byte[] data = new byte[GetSerializedSize()];
 
-			MemoryWriter Writer = new MemoryWriter(Data);
-			Write(Writer);
-			Writer.CheckOffset(Data.Length);
+			MemoryWriter writer = new MemoryWriter(data);
+			Write(writer);
+			writer.CheckOffset(data.Length);
 
-			return Data;
+			return data;
 		}
 
 		/// <summary>
@@ -233,23 +225,23 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Constructs a sub-chunk from a block of memory. Uses slices of the given memory buffer rather than copying the data.
 		/// </summary>
-		/// <param name="Reader">The reader to read from</param>
-		/// <param name="Offset">Offset of this sub-chunk within the file</param>
-		/// <param name="LineIndex">Index of the first line within this chunk</param>
+		/// <param name="reader">The reader to read from</param>
+		/// <param name="offset">Offset of this sub-chunk within the file</param>
+		/// <param name="lineIndex">Index of the first line within this chunk</param>
 		/// <returns>New subchunk data</returns>
-		public static LogSubChunkData ReadLogSubChunkData(this MemoryReader Reader, long Offset, int LineIndex)
+		public static LogSubChunkData ReadLogSubChunkData(this MemoryReader reader, long offset, int lineIndex)
 		{
-			return LogSubChunkData.Read(Reader, Offset, LineIndex);
+			return LogSubChunkData.Read(reader, offset, lineIndex);
 		}
 
 		/// <summary>
 		/// Serializes the sub-chunk to a stream
 		/// </summary>
-		/// <param name="Writer">Writer to output to</param>
-		/// <param name="SubChunkData">The sub-chunk data to write</param>
-		public static void WriteLogSubChunkData(this MemoryWriter Writer, LogSubChunkData SubChunkData)
+		/// <param name="writer">Writer to output to</param>
+		/// <param name="subChunkData">The sub-chunk data to write</param>
+		public static void WriteLogSubChunkData(this MemoryWriter writer, LogSubChunkData subChunkData)
 		{
-			SubChunkData.Write(Writer);
+			subChunkData.Write(writer);
 		}
 	}
 }

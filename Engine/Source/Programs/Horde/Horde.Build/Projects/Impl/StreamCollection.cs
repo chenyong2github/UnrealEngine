@@ -1,20 +1,19 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeCommon;
-using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
-using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Acls;
+using Horde.Build.Api;
+using Horde.Build.Models;
+using Horde.Build.Services;
+using Horde.Build.Utilities;
+using HordeCommon;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -83,11 +82,11 @@ namespace Horde.Build.Collections.Impl
 				Name = null!;
 			}
 
-			public StreamDocument(StreamId Id, string Name, ProjectId ProjectId)
+			public StreamDocument(StreamId id, string name, ProjectId projectId)
 			{
-				this.Id = Id;
-				this.Name = Name;
-				this.ProjectId = ProjectId;
+				Id = id;
+				Name = name;
+				ProjectId = projectId;
 			}
 		}
 
@@ -106,156 +105,156 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// The stream collection
 		/// </summary>
-		IMongoCollection<StreamDocument> Streams;
+		readonly IMongoCollection<StreamDocument> _streams;
 
 		/// <summary>
 		/// Clock
 		/// </summary>
-		IClock Clock;
+		readonly IClock _clock;
 
 		/// <summary>
 		/// The template collection
 		/// </summary>
-		ITemplateCollection TemplateCollection;
+		readonly ITemplateCollection _templateCollection;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		/// <param name="Clock"></param>
-		/// <param name="TemplateCollection"></param>
-		public StreamCollection(DatabaseService DatabaseService, IClock Clock, ITemplateCollection TemplateCollection)
+		/// <param name="databaseService">The database service instance</param>
+		/// <param name="clock"></param>
+		/// <param name="templateCollection"></param>
+		public StreamCollection(DatabaseService databaseService, IClock clock, ITemplateCollection templateCollection)
 		{
-			this.Streams = DatabaseService.GetCollection<StreamDocument>("Streams");
-			this.Clock = Clock;
-			this.TemplateCollection = TemplateCollection;
+			_streams = databaseService.GetCollection<StreamDocument>("Streams");
+			_clock = clock;
+			_templateCollection = templateCollection;
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId Id, IStream? Stream, string ConfigPath, string Revision, ProjectId ProjectId, StreamConfig Config)
+		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string configPath, string revision, ProjectId projectId, StreamConfig config)
 		{
-			List<StreamTab> Tabs = Config.Tabs.ConvertAll(x => StreamTab.FromRequest(x));
-			Dictionary<TemplateRefId, TemplateRef> TemplateRefs = await CreateTemplateRefsAsync(Config.Templates, Stream, TemplateCollection);
+			List<StreamTab> tabs = config.Tabs.ConvertAll(x => StreamTab.FromRequest(x));
+			Dictionary<TemplateRefId, TemplateRef> templateRefs = await CreateTemplateRefsAsync(config.Templates, stream, _templateCollection);
 
-			Dictionary<string, AgentType> AgentTypes = new Dictionary<string, AgentType>();
-			if (Config.AgentTypes != null)
+			Dictionary<string, AgentType> agentTypes = new Dictionary<string, AgentType>();
+			if (config.AgentTypes != null)
 			{
-				AgentTypes = Config.AgentTypes.Where(x => x.Value != null).ToDictionary(x => x.Key, x => new AgentType(x.Value!));
+				agentTypes = config.AgentTypes.Where(x => x.Value != null).ToDictionary(x => x.Key, x => new AgentType(x.Value!));
 			}
 
-			Dictionary<string, WorkspaceType> WorkspaceTypes = new Dictionary<string, WorkspaceType>();
-			if (Config.WorkspaceTypes != null)
+			Dictionary<string, WorkspaceType> workspaceTypes = new Dictionary<string, WorkspaceType>();
+			if (config.WorkspaceTypes != null)
 			{
-				WorkspaceTypes = Config.WorkspaceTypes.Where(x => x.Value != null).ToDictionary(x => x.Key, x => new WorkspaceType(x.Value!));
+				workspaceTypes = config.WorkspaceTypes.Where(x => x.Value != null).ToDictionary(x => x.Key, x => new WorkspaceType(x.Value!));
 			}
 
-			DefaultPreflight? DefaultPreflight = Config.DefaultPreflight?.ToModel();
-			if (DefaultPreflight == null && Config.DefaultPreflightTemplate != null)
+			DefaultPreflight? defaultPreflight = config.DefaultPreflight?.ToModel();
+			if (defaultPreflight == null && config.DefaultPreflightTemplate != null)
 			{
-				DefaultPreflight = new DefaultPreflight(new TemplateRefId(Config.DefaultPreflightTemplate), null);
+				defaultPreflight = new DefaultPreflight(new TemplateRefId(config.DefaultPreflightTemplate), null);
 			}
 
-			Validate(Id, DefaultPreflight, TemplateRefs, Tabs, AgentTypes, WorkspaceTypes);
+			Validate(id, defaultPreflight, templateRefs, tabs, agentTypes, workspaceTypes);
 
-			Acl? Acl = Acl.Merge(new Acl(), Config.Acl);
-			if (Stream == null)
+			Acl? acl = Acl.Merge(new Acl(), config.Acl);
+			if (stream == null)
 			{
-				return await TryCreateAsync(Id, ProjectId, ConfigPath, Revision, Config, DefaultPreflight, Tabs, AgentTypes, WorkspaceTypes, TemplateRefs, Acl);
+				return await TryCreateAsync(id, projectId, configPath, revision, config, defaultPreflight, tabs, agentTypes, workspaceTypes, templateRefs, acl);
 			}
 			else
 			{
-				return await TryReplaceAsync(Stream, ProjectId, ConfigPath, Revision, Config, DefaultPreflight, Tabs, AgentTypes, WorkspaceTypes, TemplateRefs, Acl);
+				return await TryReplaceAsync(stream, projectId, configPath, revision, config, defaultPreflight, tabs, agentTypes, workspaceTypes, templateRefs, acl);
 			}
 		}
 
 		/// <summary>
 		/// Creates a list of template refs from a set of request objects
 		/// </summary>
-		/// <param name="Requests">Request objects</param>
-		/// <param name="Stream">The current stream state</param>
-		/// <param name="TemplateCollection">The template service</param>
+		/// <param name="requests">Request objects</param>
+		/// <param name="stream">The current stream state</param>
+		/// <param name="templateCollection">The template service</param>
 		/// <returns>List of new template references</returns>
-		async Task<Dictionary<TemplateRefId, TemplateRef>> CreateTemplateRefsAsync(List<CreateTemplateRefRequest> Requests, IStream? Stream, ITemplateCollection TemplateCollection)
+		async Task<Dictionary<TemplateRefId, TemplateRef>> CreateTemplateRefsAsync(List<CreateTemplateRefRequest> requests, IStream? stream, ITemplateCollection templateCollection)
 		{
-			Dictionary<TemplateRefId, TemplateRef> NewTemplateRefs = new Dictionary<TemplateRefId, TemplateRef>();
-			foreach (CreateTemplateRefRequest Request in Requests)
+			Dictionary<TemplateRefId, TemplateRef> newTemplateRefs = new Dictionary<TemplateRefId, TemplateRef>();
+			foreach (CreateTemplateRefRequest request in requests)
 			{
 				// Create the template
-				ITemplate NewTemplate = await TemplateCollection.AddAsync(Request.Name, Request.Priority, Request.AllowPreflights, Request.UpdateIssues, Request.PromoteIssuesByDefault, Request.InitialAgentType, Request.SubmitNewChange, Request.SubmitDescription, Request.Arguments, Request.Parameters.ConvertAll(x => x.ToModel()));
+				ITemplate newTemplate = await templateCollection.AddAsync(request.Name, request.Priority, request.AllowPreflights, request.UpdateIssues, request.PromoteIssuesByDefault, request.InitialAgentType, request.SubmitNewChange, request.SubmitDescription, request.Arguments, request.Parameters.ConvertAll(x => x.ToModel()));
 
 				// Get an identifier for the new template ref
-				TemplateRefId NewTemplateRefId;
-				if (Request.Id != null)
+				TemplateRefId newTemplateRefId;
+				if (request.Id != null)
 				{
-					NewTemplateRefId = new TemplateRefId(Request.Id);
+					newTemplateRefId = new TemplateRefId(request.Id);
 				}
 				else
 				{
-					NewTemplateRefId = TemplateRefId.Sanitize(Request.Name);
+					newTemplateRefId = TemplateRefId.Sanitize(request.Name);
 				}
 
 				// Create the schedule object
-				Schedule? Schedule = null;
-				if (Request.Schedule != null)
+				Schedule? schedule = null;
+				if (request.Schedule != null)
 				{
-					Schedule = Request.Schedule.ToModel(Clock.UtcNow);
+					schedule = request.Schedule.ToModel(_clock.UtcNow);
 				}
 
 				// Add it to the list
-				TemplateRef NewTemplateRef = new TemplateRef(NewTemplate, Request.ShowUgsBadges, Request.ShowUgsAlerts, Request.NotificationChannel, Request.NotificationChannelFilter, Request.TriageChannel, Schedule, Request.ChainedJobs?.ConvertAll(x => new ChainedJobTemplate(x)), Acl.Merge(null, Request.Acl));
-				if (Stream != null && Stream.Templates.TryGetValue(NewTemplateRefId, out TemplateRef? OldTemplateRef))
+				TemplateRef newTemplateRef = new TemplateRef(newTemplate, request.ShowUgsBadges, request.ShowUgsAlerts, request.NotificationChannel, request.NotificationChannelFilter, request.TriageChannel, schedule, request.ChainedJobs?.ConvertAll(x => new ChainedJobTemplate(x)), Acl.Merge(null, request.Acl));
+				if (stream != null && stream.Templates.TryGetValue(newTemplateRefId, out TemplateRef? oldTemplateRef))
 				{
-					if (OldTemplateRef.Schedule != null && NewTemplateRef.Schedule != null)
+					if (oldTemplateRef.Schedule != null && newTemplateRef.Schedule != null)
 					{
-						NewTemplateRef.Schedule.CopyState(OldTemplateRef.Schedule);
+						newTemplateRef.Schedule.CopyState(oldTemplateRef.Schedule);
 					}
 				}
-				NewTemplateRefs.Add(NewTemplateRefId, NewTemplateRef);
+				newTemplateRefs.Add(newTemplateRefId, newTemplateRef);
 			}
-			foreach (TemplateRef TemplateRef in NewTemplateRefs.Values)
+			foreach (TemplateRef templateRef in newTemplateRefs.Values)
 			{
-				if (TemplateRef.ChainedJobs != null)
+				if (templateRef.ChainedJobs != null)
 				{
-					foreach (ChainedJobTemplate ChainedJob in TemplateRef.ChainedJobs)
+					foreach (ChainedJobTemplate chainedJob in templateRef.ChainedJobs)
 					{
-						if (!NewTemplateRefs.ContainsKey(ChainedJob.TemplateRefId))
+						if (!newTemplateRefs.ContainsKey(chainedJob.TemplateRefId))
 						{
-							throw new InvalidDataException($"Invalid template ref id '{ChainedJob.TemplateRefId}");
+							throw new InvalidDataException($"Invalid template ref id '{chainedJob.TemplateRefId}");
 						}
 					}
 				}
 			}
-			return NewTemplateRefs;
+			return newTemplateRefs;
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryCreateAsync(StreamId Id, ProjectId ProjectId, string ConfigPath, string ConfigRevision, StreamConfig Config, DefaultPreflight? DefaultPreflight, List<StreamTab> Tabs, Dictionary<string, AgentType> AgentTypes, Dictionary<string, WorkspaceType> WorkspaceTypes, Dictionary<TemplateRefId, TemplateRef> TemplateRefs, Acl? Acl)
+		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configPath, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<string, AgentType> agentTypes, Dictionary<string, WorkspaceType> workspaceTypes, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
 		{
-			StreamDocument NewStream = new StreamDocument(Id, Config.Name, ProjectId);
-			NewStream.ClusterName = Config.ClusterName;
-			NewStream.ConfigPath = ConfigPath;
-			NewStream.ConfigRevision = ConfigRevision;
-			NewStream.Order = Config.Order ?? StreamDocument.DefaultOrder;
-			NewStream.NotificationChannel = Config.NotificationChannel;
-			NewStream.NotificationChannelFilter = Config.NotificationChannelFilter;
-			NewStream.TriageChannel = Config.TriageChannel;
-			NewStream.DefaultPreflight = DefaultPreflight;
-			NewStream.Tabs = Tabs;
-			NewStream.AgentTypes = AgentTypes;
-			NewStream.WorkspaceTypes = WorkspaceTypes;
-			NewStream.Templates = TemplateRefs;
-			NewStream.ReplicationMode = Config.ReplicationMode;
-			NewStream.ReplicationFilter = Config.ReplicationFilter;
-			NewStream.Acl = Acl;
+			StreamDocument newStream = new StreamDocument(id, config.Name, projectId);
+			newStream.ClusterName = config.ClusterName;
+			newStream.ConfigPath = configPath;
+			newStream.ConfigRevision = configRevision;
+			newStream.Order = config.Order ?? StreamDocument.DefaultOrder;
+			newStream.NotificationChannel = config.NotificationChannel;
+			newStream.NotificationChannelFilter = config.NotificationChannelFilter;
+			newStream.TriageChannel = config.TriageChannel;
+			newStream.DefaultPreflight = defaultPreflight;
+			newStream.Tabs = tabs;
+			newStream.AgentTypes = agentTypes;
+			newStream.WorkspaceTypes = workspaceTypes;
+			newStream.Templates = templateRefs;
+			newStream.ReplicationMode = config.ReplicationMode;
+			newStream.ReplicationFilter = config.ReplicationFilter;
+			newStream.Acl = acl;
 
 			try
 			{
-				await Streams.InsertOneAsync(NewStream);
-				return NewStream;
+				await _streams.InsertOneAsync(newStream);
+				return newStream;
 			}
-			catch (MongoWriteException Ex)
+			catch (MongoWriteException ex)
 			{
-				if (Ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+				if (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
 				{
 					return null;
 				}
@@ -267,167 +266,167 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryReplaceAsync(IStream StreamInterface, ProjectId ProjectId, string ConfigPath, string ConfigRevision, StreamConfig Config, DefaultPreflight? DefaultPreflight, List<StreamTab> Tabs, Dictionary<string, AgentType>? AgentTypes, Dictionary<string, WorkspaceType>? WorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs, Acl? Acl)
+		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configPath, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<string, AgentType>? agentTypes, Dictionary<string, WorkspaceType>? workspaceTypes, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
 		{
-			int Order = Config.Order ?? StreamDocument.DefaultOrder;
+			int order = config.Order ?? StreamDocument.DefaultOrder;
 
-			StreamDocument Stream = (StreamDocument)StreamInterface;
+			StreamDocument stream = (StreamDocument)streamInterface;
 
-			UpdateDefinitionBuilder<StreamDocument> UpdateBuilder = Builders<StreamDocument>.Update;
+			UpdateDefinitionBuilder<StreamDocument> updateBuilder = Builders<StreamDocument>.Update;
 
-			List<UpdateDefinition<StreamDocument>> Updates = new List<UpdateDefinition<StreamDocument>>();
-			Updates.Add(UpdateBuilder.Set(x => x.Name, Config.Name));
-			Updates.Add(UpdateBuilder.Set(x => x.ProjectId, ProjectId));
-			Updates.Add(UpdateBuilder.Set(x => x.ClusterName, Config.ClusterName));
-			Updates.Add(UpdateBuilder.Set(x => x.ConfigPath, ConfigPath));
-			Updates.Add(UpdateBuilder.Set(x => x.ConfigRevision, ConfigRevision));
-			Updates.Add(UpdateBuilder.Set(x => x.Order, Order));
-			Updates.Add(UpdateBuilder.Set(x => x.NotificationChannel, Config.NotificationChannel));
-			Updates.Add(UpdateBuilder.Set(x => x.NotificationChannelFilter, Config.NotificationChannelFilter));
-			Updates.Add(UpdateBuilder.Set(x => x.TriageChannel, Config.TriageChannel));
-			Updates.Add(UpdateBuilder.Set(x => x.DefaultPreflight, DefaultPreflight));
-			Updates.Add(UpdateBuilder.Set(x => x.Tabs, Tabs ?? new List<StreamTab>()));
-			Updates.Add(UpdateBuilder.Set(x => x.AgentTypes, AgentTypes ?? new Dictionary<string, AgentType>()));
-			Updates.Add(UpdateBuilder.Set(x => x.WorkspaceTypes, WorkspaceTypes ?? new Dictionary<string, WorkspaceType>()));
-			Updates.Add(UpdateBuilder.Set(x => x.Templates, TemplateRefs ?? new Dictionary<TemplateRefId, TemplateRef>()));
-			Updates.Add(UpdateBuilder.Set(x => x.ReplicationMode, Config.ReplicationMode));
-			Updates.Add(UpdateBuilder.SetOrUnsetNullRef(x => x.ReplicationFilter, Config.ReplicationFilter));
-			Updates.Add(UpdateBuilder.SetOrUnsetNullRef(x => x.Acl, Acl));
-			Updates.Add(UpdateBuilder.Unset(x => x.Deleted));
+			List<UpdateDefinition<StreamDocument>> updates = new List<UpdateDefinition<StreamDocument>>();
+			updates.Add(updateBuilder.Set(x => x.Name, config.Name));
+			updates.Add(updateBuilder.Set(x => x.ProjectId, projectId));
+			updates.Add(updateBuilder.Set(x => x.ClusterName, config.ClusterName));
+			updates.Add(updateBuilder.Set(x => x.ConfigPath, configPath));
+			updates.Add(updateBuilder.Set(x => x.ConfigRevision, configRevision));
+			updates.Add(updateBuilder.Set(x => x.Order, order));
+			updates.Add(updateBuilder.Set(x => x.NotificationChannel, config.NotificationChannel));
+			updates.Add(updateBuilder.Set(x => x.NotificationChannelFilter, config.NotificationChannelFilter));
+			updates.Add(updateBuilder.Set(x => x.TriageChannel, config.TriageChannel));
+			updates.Add(updateBuilder.Set(x => x.DefaultPreflight, defaultPreflight));
+			updates.Add(updateBuilder.Set(x => x.Tabs, tabs ?? new List<StreamTab>()));
+			updates.Add(updateBuilder.Set(x => x.AgentTypes, agentTypes ?? new Dictionary<string, AgentType>()));
+			updates.Add(updateBuilder.Set(x => x.WorkspaceTypes, workspaceTypes ?? new Dictionary<string, WorkspaceType>()));
+			updates.Add(updateBuilder.Set(x => x.Templates, templateRefs ?? new Dictionary<TemplateRefId, TemplateRef>()));
+			updates.Add(updateBuilder.Set(x => x.ReplicationMode, config.ReplicationMode));
+			updates.Add(updateBuilder.SetOrUnsetNullRef(x => x.ReplicationFilter, config.ReplicationFilter));
+			updates.Add(updateBuilder.SetOrUnsetNullRef(x => x.Acl, acl));
+			updates.Add(updateBuilder.Unset(x => x.Deleted));
 
-			return await TryUpdateStreamAsync(Stream, UpdateBuilder.Combine(Updates));
+			return await TryUpdateStreamAsync(stream, updateBuilder.Combine(updates));
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> GetAsync(StreamId StreamId)
+		public async Task<IStream?> GetAsync(StreamId streamId)
 		{
-			return await Streams.Find<StreamDocument>(x => x.Id == StreamId).FirstOrDefaultAsync();
+			return await _streams.Find<StreamDocument>(x => x.Id == streamId).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStreamPermissions?> GetPermissionsAsync(StreamId StreamId)
+		public async Task<IStreamPermissions?> GetPermissionsAsync(StreamId streamId)
 		{
-			return await Streams.Find<StreamDocument>(x => x.Id == StreamId).Project<StreamPermissions>(StreamPermissions.Projection).FirstOrDefaultAsync();
+			return await _streams.Find<StreamDocument>(x => x.Id == streamId).Project<StreamPermissions>(StreamPermissions.Projection).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
 		public async Task<List<IStream>> FindAllAsync()
 		{
-			List<StreamDocument> Results = await Streams.Find(Builders<StreamDocument>.Filter.Ne(x => x.Deleted, true)).ToListAsync();
-			return Results.ConvertAll<IStream>(x => x);
+			List<StreamDocument> results = await _streams.Find(Builders<StreamDocument>.Filter.Ne(x => x.Deleted, true)).ToListAsync();
+			return results.ConvertAll<IStream>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IStream>> FindForProjectsAsync(ProjectId[] ProjectIds)
+		public async Task<List<IStream>> FindForProjectsAsync(ProjectId[] projectIds)
 		{
-			FilterDefinition<StreamDocument> Filter = Builders<StreamDocument>.Filter.In(x => x.ProjectId, ProjectIds) & Builders<StreamDocument>.Filter.Ne(x => x.Deleted, true);
-			List<StreamDocument> Results = await Streams.Find(Filter).ToListAsync();
-			return Results.ConvertAll<IStream>(x => x);
+			FilterDefinition<StreamDocument> filter = Builders<StreamDocument>.Filter.In(x => x.ProjectId, projectIds) & Builders<StreamDocument>.Filter.Ne(x => x.Deleted, true);
+			List<StreamDocument> results = await _streams.Find(filter).ToListAsync();
+			return results.ConvertAll<IStream>(x => x);
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryUpdatePauseStateAsync(IStream StreamInterface, DateTime? NewPausedUntil, string? NewPauseComment)
+		public async Task<IStream?> TryUpdatePauseStateAsync(IStream streamInterface, DateTime? newPausedUntil, string? newPauseComment)
 		{
-			StreamDocument Stream = (StreamDocument)StreamInterface;
+			StreamDocument stream = (StreamDocument)streamInterface;
 
-			UpdateDefinitionBuilder<StreamDocument> UpdateBuilder = Builders<StreamDocument>.Update;
+			UpdateDefinitionBuilder<StreamDocument> updateBuilder = Builders<StreamDocument>.Update;
 
-			List<UpdateDefinition<StreamDocument>> Updates = new List<UpdateDefinition<StreamDocument>>();
-			Stream.PausedUntil = NewPausedUntil;
-			Stream.PauseComment = NewPauseComment;
-			Updates.Add(UpdateBuilder.Set(x => x.PausedUntil, NewPausedUntil));
-			Updates.Add(UpdateBuilder.Set(x => x.PauseComment, NewPauseComment));
+			List<UpdateDefinition<StreamDocument>> updates = new List<UpdateDefinition<StreamDocument>>();
+			stream.PausedUntil = newPausedUntil;
+			stream.PauseComment = newPauseComment;
+			updates.Add(updateBuilder.Set(x => x.PausedUntil, newPausedUntil));
+			updates.Add(updateBuilder.Set(x => x.PauseComment, newPauseComment));
 
-			return await TryUpdateStreamAsync(Stream, UpdateBuilder.Combine(Updates));
+			return await TryUpdateStreamAsync(stream, updateBuilder.Combine(updates));
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryUpdateScheduleTriggerAsync(IStream StreamInterface, TemplateRefId TemplateId, DateTime? LastTriggerTimeUtc, int? LastTriggerChange, List<JobId> NewActiveJobs)
+		public async Task<IStream?> TryUpdateScheduleTriggerAsync(IStream streamInterface, TemplateRefId templateId, DateTime? lastTriggerTimeUtc, int? lastTriggerChange, List<JobId> newActiveJobs)
 		{
-			StreamDocument Stream = (StreamDocument)StreamInterface;
-			Schedule Schedule = Stream.Templates[TemplateId].Schedule!;
+			StreamDocument stream = (StreamDocument)streamInterface;
+			TemplateRef template = stream.Templates[templateId];
+			Schedule schedule = template.Schedule!;
 
 			// Build the updates. MongoDB driver cannot parse TemplateRefId in expression tree; need to specify field name explicitly
-			List<UpdateDefinition<StreamDocument>> Updates = new List<UpdateDefinition<StreamDocument>>();
-			if (LastTriggerTimeUtc.HasValue && LastTriggerTimeUtc.Value != Schedule.LastTriggerTime)
+			List<UpdateDefinition<StreamDocument>> updates = new List<UpdateDefinition<StreamDocument>>();
+			if (lastTriggerTimeUtc.HasValue && lastTriggerTimeUtc.Value != schedule.LastTriggerTime)
 			{
-				FieldDefinition<StreamDocument, DateTimeOffset> LastTriggerTimeField = $"{nameof(Stream.Templates)}.{TemplateId}.{nameof(Schedule)}.{nameof(Schedule.LastTriggerTime)}";
-				Updates.Add(Builders<StreamDocument>.Update.Set(LastTriggerTimeField, LastTriggerTimeUtc.Value));
-				Schedule.LastTriggerTimeUtc = LastTriggerTimeUtc.Value;
+				FieldDefinition<StreamDocument, DateTimeOffset> lastTriggerTimeField = $"{nameof(stream.Templates)}.{templateId}.{nameof(template.Schedule)}.{nameof(schedule.LastTriggerTime)}";
+				updates.Add(Builders<StreamDocument>.Update.Set(lastTriggerTimeField, lastTriggerTimeUtc.Value));
+				schedule.LastTriggerTimeUtc = lastTriggerTimeUtc.Value;
 			}
-			if (LastTriggerChange.HasValue && LastTriggerChange.Value > Schedule.LastTriggerChange)
+			if (lastTriggerChange.HasValue && lastTriggerChange.Value > schedule.LastTriggerChange)
 			{
-				FieldDefinition<StreamDocument, int> LastTriggerChangeField = $"{nameof(Stream.Templates)}.{TemplateId}.{nameof(Schedule)}.{nameof(Schedule.LastTriggerChange)}";
-				Updates.Add(Builders<StreamDocument>.Update.Set(LastTriggerChangeField, LastTriggerChange.Value));
-				Schedule.LastTriggerChange = LastTriggerChange.Value;
+				FieldDefinition<StreamDocument, int> lastTriggerChangeField = $"{nameof(stream.Templates)}.{templateId}.{nameof(template.Schedule)}.{nameof(schedule.LastTriggerChange)}";
+				updates.Add(Builders<StreamDocument>.Update.Set(lastTriggerChangeField, lastTriggerChange.Value));
+				schedule.LastTriggerChange = lastTriggerChange.Value;
 			}
-			if (NewActiveJobs != null)
+			if (newActiveJobs != null)
 			{
-				FieldDefinition<StreamDocument, List<JobId>> Field = $"{nameof(Stream.Templates)}.{TemplateId}.{nameof(Schedule)}.{nameof(Schedule.ActiveJobs)}";
-				Updates.Add(Builders<StreamDocument>.Update.Set(Field, NewActiveJobs));
-				Schedule.ActiveJobs = NewActiveJobs;
+				FieldDefinition<StreamDocument, List<JobId>> field = $"{nameof(stream.Templates)}.{templateId}.{nameof(template.Schedule)}.{nameof(schedule.ActiveJobs)}";
+				updates.Add(Builders<StreamDocument>.Update.Set(field, newActiveJobs));
+				schedule.ActiveJobs = newActiveJobs;
 			}
 
-			return (Updates.Count == 0)? StreamInterface : await TryUpdateStreamAsync(Stream, Builders<StreamDocument>.Update.Combine(Updates));
+			return (updates.Count == 0)? streamInterface : await TryUpdateStreamAsync(stream, Builders<StreamDocument>.Update.Combine(updates));
 		}
 
 		/// <summary>
 		/// Update a stream
 		/// </summary>
-		/// <param name="Stream">The stream to update</param>
-		/// <param name="Update">The update definition</param>
+		/// <param name="stream">The stream to update</param>
+		/// <param name="update">The update definition</param>
 		/// <returns>The updated document, or null the update failed</returns>
-		private async Task<StreamDocument?> TryUpdateStreamAsync(StreamDocument Stream, UpdateDefinition<StreamDocument> Update)
+		private async Task<StreamDocument?> TryUpdateStreamAsync(StreamDocument stream, UpdateDefinition<StreamDocument> update)
 		{
-			FilterDefinition<StreamDocument> Filter = Builders<StreamDocument>.Filter.Expr(x => x.Id == Stream.Id && x.UpdateIndex == Stream.UpdateIndex);
-			Update = Update.Set(x => x.UpdateIndex, Stream.UpdateIndex + 1);
+			FilterDefinition<StreamDocument> filter = Builders<StreamDocument>.Filter.Expr(x => x.Id == stream.Id && x.UpdateIndex == stream.UpdateIndex);
+			update = update.Set(x => x.UpdateIndex, stream.UpdateIndex + 1);
 
-			FindOneAndUpdateOptions<StreamDocument> Options = new FindOneAndUpdateOptions<StreamDocument> { ReturnDocument = ReturnDocument.After };
-			return await Streams.FindOneAndUpdateAsync(Filter, Update, Options);
+			FindOneAndUpdateOptions<StreamDocument> options = new FindOneAndUpdateOptions<StreamDocument> { ReturnDocument = ReturnDocument.After };
+			return await _streams.FindOneAndUpdateAsync(filter, update, options);
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(StreamId StreamId)
+		public async Task DeleteAsync(StreamId streamId)
 		{
-			await Streams.UpdateOneAsync<StreamDocument>(x => x.Id == StreamId, Builders<StreamDocument>.Update.Set(x => x.Deleted, true).Inc(x => x.UpdateIndex, 1));
+			await _streams.UpdateOneAsync<StreamDocument>(x => x.Id == streamId, Builders<StreamDocument>.Update.Set(x => x.Deleted, true).Inc(x => x.UpdateIndex, 1));
 		}
-
 
 		/// <summary>
 		/// Checks the stream definition for consistency
 		/// </summary>
-		public static void Validate(StreamId StreamId, DefaultPreflight? DefaultPreflight, IReadOnlyDictionary<TemplateRefId, TemplateRef> Templates, IReadOnlyList<StreamTab> Tabs, IReadOnlyDictionary<string, AgentType> AgentTypes, IReadOnlyDictionary<string, WorkspaceType> WorkspaceTypes)
+		public static void Validate(StreamId streamId, DefaultPreflight? defaultPreflight, IReadOnlyDictionary<TemplateRefId, TemplateRef> templates, IReadOnlyList<StreamTab> tabs, IReadOnlyDictionary<string, AgentType> agentTypes, IReadOnlyDictionary<string, WorkspaceType> workspaceTypes)
 		{
 			// Check the default preflight template is valid
-			if (DefaultPreflight != null)
+			if (defaultPreflight != null)
 			{
-				if (DefaultPreflight.TemplateRefId != null && !Templates.ContainsKey(DefaultPreflight.TemplateRefId.Value))
+				if (defaultPreflight.TemplateRefId != null && !templates.ContainsKey(defaultPreflight.TemplateRefId.Value))
 				{
-					throw new InvalidStreamException($"Default preflight template was listed as '{DefaultPreflight.TemplateRefId.Value}', but no template was found by that name");
+					throw new InvalidStreamException($"Default preflight template was listed as '{defaultPreflight.TemplateRefId.Value}', but no template was found by that name");
 				}
 			}
 
 			// Check that all the templates are referenced by a tab
-			HashSet<TemplateRefId> RemainingTemplates = new HashSet<TemplateRefId>(Templates.Keys);
-			foreach (JobsTab JobsTab in Tabs.OfType<JobsTab>())
+			HashSet<TemplateRefId> remainingTemplates = new HashSet<TemplateRefId>(templates.Keys);
+			foreach (JobsTab jobsTab in tabs.OfType<JobsTab>())
 			{
-				if (JobsTab.Templates != null)
+				if (jobsTab.Templates != null)
 				{
-					RemainingTemplates.ExceptWith(JobsTab.Templates);
+					remainingTemplates.ExceptWith(jobsTab.Templates);
 				}
 			}
-			if (RemainingTemplates.Count > 0)
+			if (remainingTemplates.Count > 0)
 			{
-				throw new InvalidStreamException(String.Join("\n", RemainingTemplates.Select(x => $"Template '{x}' is not listed on any tab for {StreamId}")));
+				throw new InvalidStreamException(String.Join("\n", remainingTemplates.Select(x => $"Template '{x}' is not listed on any tab for {streamId}")));
 			}
 
 			// Check that all the agent types reference valid workspace names
-			foreach (KeyValuePair<string, AgentType> Pair in AgentTypes)
+			foreach (KeyValuePair<string, AgentType> pair in agentTypes)
 			{
-				string? WorkspaceTypeName = Pair.Value.Workspace;
-				if (WorkspaceTypeName != null && !WorkspaceTypes.ContainsKey(WorkspaceTypeName))
+				string? workspaceTypeName = pair.Value.Workspace;
+				if (workspaceTypeName != null && !workspaceTypes.ContainsKey(workspaceTypeName))
 				{
-					throw new InvalidStreamException($"Agent type '{Pair.Key}' references undefined workspace type '{Pair.Value.Workspace}' in {StreamId}");
+					throw new InvalidStreamException($"Agent type '{pair.Key}' references undefined workspace type '{pair.Value.Workspace}' in {streamId}");
 				}
 			}
 		}

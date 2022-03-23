@@ -1,19 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Grpc.Core;
-using Grpc.Core.Interceptors;
-using Horde.Build.Utilities;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
-using System.Diagnostics;
 
 namespace Horde.Build.Services
 {
@@ -25,37 +17,32 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Writer for log output
 		/// </summary>
-		ILogger<LifetimeService> Logger;
+		readonly ILogger<LifetimeService> _logger;
 
 		/// <summary>
 		/// Task source for the server stopping
 		/// </summary>
-		TaskCompletionSource<bool> StoppingTaskCompletionSource;
+		readonly TaskCompletionSource<bool> _stoppingTaskCompletionSource;
 
 		/// <summary>
 		/// Task source for the server stopping
 		/// </summary>
-		TaskCompletionSource<bool> PreStoppingTaskCompletionSource;
+		readonly TaskCompletionSource<bool> _preStoppingTaskCompletionSource;
 
 		/// <summary>
 		/// Registration token for the stopping event
 		/// </summary>
-		CancellationTokenRegistration Registration;
+		readonly CancellationTokenRegistration _registration;
 		
 		/// <summary>
 		/// Singleton instance of the database service
 		/// </summary>
-		DatabaseService DatabaseService;
+		readonly DatabaseService _databaseService;
 		
 		/// <summary>
 		/// The Redis database
 		/// </summary>
-		IDatabase RedisDb;
-		
-		/// <summary>
-		/// Singleton instance of the request tracker service
-		/// </summary>
-		RequestTrackerService RequestTrackerService;
+		readonly IDatabase _redisDb;
 		
 		/*
 		/// <summary>
@@ -73,26 +60,24 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Lifetime">Application lifetime interface</param>
-		/// <param name="DatabaseService">Database singleton service</param>
-		/// <param name="RedisDb">Redis singleton service</param>
-		/// <param name="RequestTrackerService">Request tracker singleton service</param>
-		/// <param name="Logger">Logging interface</param>
-		public LifetimeService(IHostApplicationLifetime Lifetime, DatabaseService DatabaseService, IDatabase RedisDb, RequestTrackerService RequestTrackerService, ILogger<LifetimeService> Logger)
+		/// <param name="lifetime">Application lifetime interface</param>
+		/// <param name="databaseService">Database singleton service</param>
+		/// <param name="redisDb">Redis singleton service</param>
+		/// <param name="logger">Logging interface</param>
+		public LifetimeService(IHostApplicationLifetime lifetime, DatabaseService databaseService, IDatabase redisDb, ILogger<LifetimeService> logger)
 		{
-			this.DatabaseService = DatabaseService;
-			this.RedisDb = RedisDb;
-			this.RequestTrackerService = RequestTrackerService;
-			this.Logger = Logger;
-			this.StoppingTaskCompletionSource = new TaskCompletionSource<bool>();
-			this.PreStoppingTaskCompletionSource = new TaskCompletionSource<bool>();
-			this.Registration = Lifetime.ApplicationStopping.Register(ApplicationStopping);
+			_databaseService = databaseService;
+			_redisDb = redisDb;
+			_logger = logger;
+			_stoppingTaskCompletionSource = new TaskCompletionSource<bool>();
+			_preStoppingTaskCompletionSource = new TaskCompletionSource<bool>();
+			_registration = lifetime.ApplicationStopping.Register(ApplicationStopping);
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Registration.Dispose();
+			_registration.Dispose();
 		}
 
 		/// <summary>
@@ -100,17 +85,17 @@ namespace Horde.Build.Services
 		/// </summary>
 		void ApplicationStopping()
 		{
-			Logger.LogInformation("SIGTERM signal received");
+			_logger.LogInformation("SIGTERM signal received");
 			IsPreStopping = true;
 			IsStopping = true;
 
-			PreStoppingTaskCompletionSource.TrySetResult(true);
-			StoppingTaskCompletionSource.TrySetResult(true);
+			_preStoppingTaskCompletionSource.TrySetResult(true);
+			_stoppingTaskCompletionSource.TrySetResult(true);
 
-			int ShutdownDelayMs = 30 * 1000;
-			Logger.LogInformation("Delaying shutdown by sleeping {ShutdownDelayMs} ms...", ShutdownDelayMs);
-			Thread.Sleep(ShutdownDelayMs);
-			Logger.LogInformation("Server process now shutting down...");
+			int shutdownDelayMs = 30 * 1000;
+			_logger.LogInformation("Delaying shutdown by sleeping {ShutdownDelayMs} ms...", shutdownDelayMs);
+			Thread.Sleep(shutdownDelayMs);
+			_logger.LogInformation("Server process now shutting down...");
 			
 			/*
 			if (PreStoppingTaskCompletionSource.TrySetResult(true))
@@ -143,15 +128,6 @@ namespace Horde.Build.Services
 			*/
 		}
 
-		async Task ExecStoppingTask()
-		{
-			await Task.Delay(TimeSpan.FromSeconds(15.0));
-
-			Logger.LogInformation("Setting stopping event");
-			IsStopping = true;
-			StoppingTaskCompletionSource.TrySetResult(true);
-		}
-
 		/// <summary>
 		/// Returns true if the server is stopping
 		/// </summary>
@@ -165,121 +141,50 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Gets an awaitable task for the server stopping
 		/// </summary>
-		public Task StoppingTask
-		{
-			get { return StoppingTaskCompletionSource.Task; }
-		}
-		
+		public Task StoppingTask => _stoppingTaskCompletionSource.Task;
+
 		/// <summary>
 		/// Check if MongoDB can be reached
 		/// </summary>
 		/// <returns>True if communication works</returns>
-		[SuppressMessage("Design", "CA1031:Do not catch general exception types")]
 		public async Task<bool> IsMongoDbConnectionHealthy()
 		{
-			using CancellationTokenSource CancelSource = new CancellationTokenSource(10000);
-			bool IsHealthy = false;
+			using CancellationTokenSource cancelSource = new CancellationTokenSource(10000);
+			bool isHealthy = false;
 			try
 			{
-				await DatabaseService.Database.ListCollectionNamesAsync(null, CancelSource.Token);
-				IsHealthy = true;
+				await _databaseService.Database.ListCollectionNamesAsync(null, cancelSource.Token);
+				isHealthy = true;
 			}
 			catch (Exception e)
 			{
-				Logger.LogError("MongoDB call failed during health check", e);
+				_logger.LogError("MongoDB call failed during health check", e);
 			}
 			
-			return IsHealthy;
+			return isHealthy;
 		}
 		
 		/// <summary>
 		/// Check if Redis can be reached
 		/// </summary>
 		/// <returns>True if communication works</returns>
-		[SuppressMessage("Design", "CA1031:Do not catch general exception types")]
 		public async Task<bool> IsRedisConnectionHealthy()
 		{
-			using CancellationTokenSource CancelSource = new CancellationTokenSource(10000);
-			bool IsHealthy = false;
+			using CancellationTokenSource cancelSource = new CancellationTokenSource(10000);
+			bool isHealthy = false;
 			try
 			{
-				string Key = "HordeLifetimeService-Health-Check";
-				await RedisDb.StringSetAsync(Key, "ok");
-				await RedisDb.StringGetAsync(Key);
-				IsHealthy = true;
+				string key = "HordeLifetimeService-Health-Check";
+				await _redisDb.StringSetAsync(key, "ok");
+				await _redisDb.StringGetAsync(key);
+				isHealthy = true;
 			}
 			catch (Exception e)
 			{
-				Logger.LogError("Redis call failed during health check", e);
+				_logger.LogError("Redis call failed during health check", e);
 			}
 			
-			return IsHealthy;
-		}
-	}
-
-	/// <summary>
-	/// Intercept incoming gRPC calls and raise an abort exception if the server is shutting down
-	///
-	/// This is to avoid clients keeping connections to a server that is about to shut down.
-	/// The client must handle the RPC exception raised and simply retry the call on a different gRPC channel/connection.
-	/// By retrying the call on a new channel, it should hit a new valid server as the load balancer will not direct traffic
-	/// to a server process shutting down.
-	/// </summary>
-	public class LifetimeGrpcInterceptor : Interceptor
-	{
-		private readonly LifetimeService LifetimeService;
-		private readonly ILogger<LifetimeGrpcInterceptor> Logger;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="LifetimeService"></param>
-		/// <param name="Logger"></param>
-		public LifetimeGrpcInterceptor(LifetimeService LifetimeService, ILogger<LifetimeGrpcInterceptor> Logger)
-		{
-			this.LifetimeService = LifetimeService;
-			this.Logger = Logger;
-		}
-
-		[SuppressMessage("Performance", "CA1822:Mark members as static")]
-		[SuppressMessage("Usage", "CA1801:Review unused parameters")]
-		private void CheckIfServerIsBeingStopped(ServerCallContext Context)
-		{
-			/*
-			if (LifetimeService.IsStopping)
-			{
-				Logger.LogDebug("Refusing to serve {Method} as server process is being shut down.", Context.Method);
-				throw new RpcException(new Status(StatusCode.Aborted, "Server is shutting down."));
-			}
-			*/
-		}
-
-		/// <inheritdoc />
-		public override Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest Request, ServerCallContext Context, UnaryServerMethod<TRequest, TResponse> Continuation)
-		{
-			CheckIfServerIsBeingStopped(Context);
-			return base.UnaryServerHandler(Request, Context, Continuation);
-		}
-
-		/// <inheritdoc />
-		public override Task<TResponse> ClientStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> RequestStream, ServerCallContext Context, ClientStreamingServerMethod<TRequest, TResponse> Continuation)
-		{
-			CheckIfServerIsBeingStopped(Context);
-			return base.ClientStreamingServerHandler(RequestStream, Context, Continuation);
-		}
-
-		/// <inheritdoc />
-		public override Task ServerStreamingServerHandler<TRequest, TResponse>(TRequest Request, IServerStreamWriter<TResponse> ResponseStream, ServerCallContext Context, ServerStreamingServerMethod<TRequest, TResponse> Continuation)
-		{
-			CheckIfServerIsBeingStopped(Context);
-			return base.ServerStreamingServerHandler(Request, ResponseStream, Context, Continuation);
-		}
-
-		/// <inheritdoc />
-		public override Task DuplexStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> RequestStream, IServerStreamWriter<TResponse> ResponseStream, ServerCallContext Context, DuplexStreamingServerMethod<TRequest, TResponse> Continuation)
-		{
-			CheckIfServerIsBeingStopped(Context);
-			return base.DuplexStreamingServerHandler(RequestStream, ResponseStream, Context, Continuation);
+			return isHealthy;
 		}
 	}
 }

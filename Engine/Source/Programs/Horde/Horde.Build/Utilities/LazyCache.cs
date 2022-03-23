@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -37,91 +33,91 @@ namespace Horde.Build.Utilities
 	{
 		class Item
 		{
-			public Task<TValue>? CurrentTask;
-			public Stopwatch Timer = Stopwatch.StartNew();
-			public Task<TValue>? UpdateTask;
+			public Task<TValue>? _currentTask;
+			public Stopwatch _timer = Stopwatch.StartNew();
+			public Task<TValue>? _updateTask;
 		}
 
-		ConcurrentDictionary<TKey, Item> Dictionary = new ConcurrentDictionary<TKey, Item>();
-		Func<TKey, Task<TValue>> GetValueAsync;
-		LazyCacheOptions Options;
+		readonly ConcurrentDictionary<TKey, Item> _dictionary = new ConcurrentDictionary<TKey, Item>();
+		readonly Func<TKey, Task<TValue>> _getValueAsync;
+		readonly LazyCacheOptions _options;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="GetValueAsync">Function used to get a value</param>
-		/// <param name="Options"></param>
-		public LazyCache(Func<TKey, Task<TValue>> GetValueAsync, LazyCacheOptions Options)
+		/// <param name="getValueAsync">Function used to get a value</param>
+		/// <param name="options"></param>
+		public LazyCache(Func<TKey, Task<TValue>> getValueAsync, LazyCacheOptions options)
 		{
-			this.GetValueAsync = GetValueAsync;
-			this.Options = Options;
+			_getValueAsync = getValueAsync;
+			_options = options;
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			foreach (Item Item in Dictionary.Values)
+			foreach (Item item in _dictionary.Values)
 			{
-				Item.CurrentTask?.Wait();
-				Item.UpdateTask?.Wait();
+				item._currentTask?.Wait();
+				item._updateTask?.Wait();
 			}
 		}
 
 		/// <summary>
 		/// Gets the value associated with a key
 		/// </summary>
-		/// <param name="Key">The key to query</param>
-		/// <param name="MaxAge">Maximum age for values to return</param>
+		/// <param name="key">The key to query</param>
+		/// <param name="maxAge">Maximum age for values to return</param>
 		/// <returns></returns>
-		public Task<TValue> GetAsync(TKey Key, TimeSpan? MaxAge = null)
+		public Task<TValue> GetAsync(TKey key, TimeSpan? maxAge = null)
 		{
-			Item Item = Dictionary.GetOrAdd(Key, Key => new Item());
+			Item item = _dictionary.GetOrAdd(key, key => new Item());
 
 			// Create the task to get the current value
-			Task<TValue> CurrentTask = InterlockedCreateTask(ref Item.CurrentTask, () => GetValueAsync(Key));
+			Task<TValue> currentTask = InterlockedCreateTask(ref item._currentTask, () => _getValueAsync(key));
 
 			// If an update has completed, swap it out
-			Task<TValue>? UpdateTask = Item.UpdateTask;
-			if (UpdateTask != null && UpdateTask.IsCompleted)
+			Task<TValue>? updateTask = item._updateTask;
+			if (updateTask != null && updateTask.IsCompleted)
 			{
-				Interlocked.CompareExchange(ref Item.CurrentTask, UpdateTask, CurrentTask);
-				Interlocked.CompareExchange(ref Item.UpdateTask, null, UpdateTask);
-				Item.Timer.Restart();
+				Interlocked.CompareExchange(ref item._currentTask, updateTask, currentTask);
+				Interlocked.CompareExchange(ref item._updateTask, null, updateTask);
+				item._timer.Restart();
 			}
 
 			// Check if we need to update the value
-			TimeSpan Age = Item.Timer.Elapsed;
-			if (MaxAge != null && Age > MaxAge.Value)
+			TimeSpan age = item._timer.Elapsed;
+			if (maxAge != null && age > maxAge.Value)
 			{
-				return InterlockedCreateTask(ref Item.UpdateTask, () => GetValueAsync(Key));
+				return InterlockedCreateTask(ref item._updateTask, () => _getValueAsync(key));
 			}
-			if (Age > Options.RefreshTime)
+			if (age > _options.RefreshTime)
 			{
-				InterlockedCreateTask(ref Item.UpdateTask, () => GetValueAsync(Key));
+				InterlockedCreateTask(ref item._updateTask, () => _getValueAsync(key));
 			}
 
-			return CurrentTask;
+			return currentTask;
 		}
 
 		/// <summary>
 		/// Creates a task, guaranteeing that only one task will be assigned to the given slot. Creates a cold task and only starts it once the variable is set.
 		/// </summary>
-		/// <param name="Value"></param>
-		/// <param name="CreateTask"></param>
+		/// <param name="value"></param>
+		/// <param name="createTask"></param>
 		/// <returns></returns>
-		static Task<TValue> InterlockedCreateTask(ref Task<TValue>? Value, Func<Task<TValue>> CreateTask)
+		static Task<TValue> InterlockedCreateTask(ref Task<TValue>? value, Func<Task<TValue>> createTask)
 		{
-			Task<TValue>? CurrentTask = Value;
-			while (CurrentTask == null)
+			Task<TValue>? currentTask = value;
+			while (currentTask == null)
 			{
-				Task<Task<TValue>> NewTask = new Task<Task<TValue>>(CreateTask);
-				if (Interlocked.CompareExchange(ref Value, NewTask.Unwrap(), null) == null)
+				Task<Task<TValue>> newTask = new Task<Task<TValue>>(createTask);
+				if (Interlocked.CompareExchange(ref value, newTask.Unwrap(), null) == null)
 				{
-					NewTask.Start();
+					newTask.Start();
 				}
-				CurrentTask = Value;
+				currentTask = value;
 			}
-			return CurrentTask;
+			return currentTask;
 		}
 	}
 }

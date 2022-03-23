@@ -1,22 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Acls;
-using Horde.Build.Api;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
-using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
-using System.Linq.Expressions;
+using Horde.Build.Acls;
 using Horde.Build.Collections;
+using Horde.Build.Models;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Driver;
 
 namespace Horde.Build.Services
 {
@@ -44,32 +38,32 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// The project service instance
 		/// </summary>
-		ProjectService ProjectService;
+		readonly ProjectService _projectService;
 
 		/// <summary>
 		/// Collection of stream documents
 		/// </summary>
-		IStreamCollection Streams;
+		readonly IStreamCollection _streams;
 
 		/// <summary>
 		/// Cache of stream documents
 		/// </summary>
-		MemoryCache StreamCache = new MemoryCache(new MemoryCacheOptions());
+		readonly MemoryCache _streamCache = new MemoryCache(new MemoryCacheOptions());
 
 		/// <summary>
 		/// Accessor for the stream collection
 		/// </summary>
-		public IStreamCollection StreamCollection => Streams;
+		public IStreamCollection StreamCollection => _streams;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ProjectService">The project service instance</param>
-		/// <param name="Streams">Collection of stream documents</param>
-		public StreamService(ProjectService ProjectService, IStreamCollection Streams)
+		/// <param name="projectService">The project service instance</param>
+		/// <param name="streams">Collection of stream documents</param>
+		public StreamService(ProjectService projectService, IStreamCollection streams)
 		{
-			this.ProjectService = ProjectService;
-			this.Streams = Streams;
+			_projectService = projectService;
+			_streams = streams;
 		}
 
 		/// <summary>
@@ -77,34 +71,34 @@ namespace Horde.Build.Services
 		/// </summary>
 		public void Dispose()
 		{
-			StreamCache.Dispose();
+			_streamCache.Dispose();
 		}
 
 		/// <summary>
 		/// Deletes an existing stream
 		/// </summary>
-		/// <param name="StreamId">Unique id of the stream</param>
+		/// <param name="streamId">Unique id of the stream</param>
 		/// <returns>Async task object</returns>
-		public async Task DeleteStreamAsync(StreamId StreamId)
+		public async Task DeleteStreamAsync(StreamId streamId)
 		{
-			await Streams.DeleteAsync(StreamId);
+			await _streams.DeleteAsync(streamId);
 		}
 
 		/// <summary>
 		/// Updates an existing stream
 		/// </summary>
-		/// <param name="Stream">The stream to update</param>
-		/// <param name="NewPausedUntil">The new datetime for pausing builds</param>
-		/// <param name="NewPauseComment">The reason for pausing</param>
+		/// <param name="stream">The stream to update</param>
+		/// <param name="newPausedUntil">The new datetime for pausing builds</param>
+		/// <param name="newPauseComment">The reason for pausing</param>
 		/// <returns>Async task object</returns>
-		public async Task<IStream?> UpdatePauseStateAsync(IStream? Stream, DateTime? NewPausedUntil = null, string? NewPauseComment = null)
+		public async Task<IStream?> UpdatePauseStateAsync(IStream? stream, DateTime? newPausedUntil = null, string? newPauseComment = null)
 		{
-			for (; Stream != null; Stream = await GetStreamAsync(Stream.Id))
+			for (; stream != null; stream = await GetStreamAsync(stream.Id))
 			{
-				IStream? NewStream = await Streams.TryUpdatePauseStateAsync(Stream, NewPausedUntil, NewPauseComment);
-				if (NewStream != null)
+				IStream? newStream = await _streams.TryUpdatePauseStateAsync(stream, newPausedUntil, newPauseComment);
+				if (newStream != null)
 				{
-					return NewStream;
+					return newStream;
 				}
 			}
 			return null;
@@ -113,46 +107,46 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Attempts to update the last trigger time for a schedule
 		/// </summary>
-		/// <param name="Stream">The stream to update</param>
-		/// <param name="TemplateRefId">The template ref id</param>
-		/// <param name="LastTriggerTimeUtc"></param>
-		/// <param name="LastTriggerChange"></param>
-		/// <param name="AddJobs">Jobs to add</param>
-		/// <param name="RemoveJobs">Jobs to remove</param>
+		/// <param name="stream">The stream to update</param>
+		/// <param name="templateRefId">The template ref id</param>
+		/// <param name="lastTriggerTimeUtc"></param>
+		/// <param name="lastTriggerChange"></param>
+		/// <param name="addJobs">Jobs to add</param>
+		/// <param name="removeJobs">Jobs to remove</param>
 		/// <returns>True if the stream was updated</returns>
-		public async Task<IStream?> UpdateScheduleTriggerAsync(IStream Stream, TemplateRefId TemplateRefId, DateTime? LastTriggerTimeUtc = null, int? LastTriggerChange = null, List<JobId>? AddJobs = null, List<JobId>? RemoveJobs = null)
+		public async Task<IStream?> UpdateScheduleTriggerAsync(IStream stream, TemplateRefId templateRefId, DateTime? lastTriggerTimeUtc = null, int? lastTriggerChange = null, List<JobId>? addJobs = null, List<JobId>? removeJobs = null)
 		{
-			IStream? NewStream = Stream;
-			while (NewStream != null)
+			IStream? newStream = stream;
+			while (newStream != null)
 			{
-				TemplateRef? TemplateRef;
-				if (!NewStream.Templates.TryGetValue(TemplateRefId, out TemplateRef))
+				TemplateRef? templateRef;
+				if (!newStream.Templates.TryGetValue(templateRefId, out templateRef))
 				{
 					break;
 				}
-				if (TemplateRef.Schedule == null)
+				if (templateRef.Schedule == null)
 				{
 					break;
 				}
 
-				IEnumerable<JobId> NewActiveJobs = TemplateRef.Schedule.ActiveJobs;
-				if (RemoveJobs != null)
+				IEnumerable<JobId> newActiveJobs = templateRef.Schedule.ActiveJobs;
+				if (removeJobs != null)
 				{
-					NewActiveJobs = NewActiveJobs.Except(RemoveJobs);
+					newActiveJobs = newActiveJobs.Except(removeJobs);
 				}
-				if (AddJobs != null)
+				if (addJobs != null)
 				{
-					NewActiveJobs = NewActiveJobs.Union(AddJobs);
-				}
-
-				NewStream = await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, LastTriggerTimeUtc, LastTriggerChange, NewActiveJobs.ToList());
-
-				if (NewStream != null)
-				{
-					return NewStream;
+					newActiveJobs = newActiveJobs.Union(addJobs);
 				}
 
-				NewStream = await Streams.GetAsync(Stream.Id);
+				newStream = await _streams.TryUpdateScheduleTriggerAsync(newStream, templateRefId, lastTriggerTimeUtc, lastTriggerChange, newActiveJobs.ToList());
+
+				if (newStream != null)
+				{
+					return newStream;
+				}
+
+				newStream = await _streams.GetAsync(stream.Id);
 			}
 			return null;
 		}
@@ -163,164 +157,164 @@ namespace Horde.Build.Services
 		/// <returns>List of stream documents</returns>
 		public Task<List<IStream>> GetStreamsAsync()
 		{
-			return Streams.FindAllAsync();
+			return _streams.FindAllAsync();
 		}
 
 		/// <summary>
 		/// Gets all the available streams for a project
 		/// </summary>
-		/// <param name="ProjectId">Unique id of the project to query</param>
+		/// <param name="projectId">Unique id of the project to query</param>
 		/// <returns>List of stream documents</returns>
-		public Task<List<IStream>> GetStreamsAsync(ProjectId ProjectId)
+		public Task<List<IStream>> GetStreamsAsync(ProjectId projectId)
 		{
-			return Streams.FindForProjectsAsync(new[] { ProjectId });
+			return _streams.FindForProjectsAsync(new[] { projectId });
 		}
 
 		/// <summary>
 		/// Gets all the available streams for a project
 		/// </summary>
-		/// <param name="ProjectIds">Unique id of the project to query</param>
+		/// <param name="projectIds">Unique id of the project to query</param>
 		/// <returns>List of stream documents</returns>
-		public Task<List<IStream>> GetStreamsAsync(ProjectId[] ProjectIds)
+		public Task<List<IStream>> GetStreamsAsync(ProjectId[] projectIds)
 		{
-			if (ProjectIds.Length == 0)
+			if (projectIds.Length == 0)
 			{
-				return Streams.FindAllAsync();
+				return _streams.FindAllAsync();
 			}
 			else
 			{
-				return Streams.FindForProjectsAsync(ProjectIds);
+				return _streams.FindForProjectsAsync(projectIds);
 			}
 		}
 
 		/// <summary>
 		/// Gets a stream by ID
 		/// </summary>
-		/// <param name="StreamId">Unique id of the stream</param>
+		/// <param name="streamId">Unique id of the stream</param>
 		/// <returns>The stream document</returns>
-		public Task<IStream?> GetStreamAsync(StreamId StreamId)
+		public Task<IStream?> GetStreamAsync(StreamId streamId)
 		{
-			return Streams.GetAsync(StreamId);
+			return _streams.GetAsync(streamId);
 		}
 
 		/// <summary>
 		/// Adds a cached stream interface
 		/// </summary>
-		/// <param name="Stream">The stream to add</param>
+		/// <param name="stream">The stream to add</param>
 		/// <returns>The new stream</returns>
-		private void AddCachedStream(IStream Stream)
+		private void AddCachedStream(IStream stream)
 		{
-			MemoryCacheEntryOptions Options = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(1.0));
-			StreamCache.Set(Stream.Id, Stream, Options);
+			MemoryCacheEntryOptions options = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(1.0));
+			_streamCache.Set(stream.Id, stream, options);
 		}
 
 		/// <summary>
 		/// Gets a cached stream interface
 		/// </summary>
-		/// <param name="StreamId">Unique id for the stream</param>
+		/// <param name="streamId">Unique id for the stream</param>
 		/// <returns>The new stream</returns>
-		public async Task<IStream?> GetCachedStream(StreamId StreamId)
+		public async Task<IStream?> GetCachedStream(StreamId streamId)
 		{
-			object? Stream;
-			if (!StreamCache.TryGetValue(StreamId, out Stream))
+			object? stream;
+			if (!_streamCache.TryGetValue(streamId, out stream))
 			{
-				Stream = await GetStreamAsync(StreamId);
-				if (Stream != null)
+				stream = await GetStreamAsync(streamId);
+				if (stream != null)
 				{
-					AddCachedStream((IStream)Stream);
+					AddCachedStream((IStream)stream);
 				}
 			}
-			return (IStream?)Stream;
+			return (IStream?)stream;
 		}
 
 		/// <summary>
 		/// Gets a stream's permissions by ID
 		/// </summary>
-		/// <param name="StreamId">Unique id of the stream</param>
+		/// <param name="streamId">Unique id of the stream</param>
 		/// <returns>The stream document</returns>
-		public Task<IStreamPermissions?> GetStreamPermissionsAsync(StreamId StreamId)
+		public Task<IStreamPermissions?> GetStreamPermissionsAsync(StreamId streamId)
 		{
-			return Streams.GetPermissionsAsync(StreamId);
+			return _streams.GetPermissionsAsync(streamId);
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular stream
 		/// </summary>
-		/// <param name="Acl">ACL for the stream to check</param>
-		/// <param name="ProjectId">The parent project id</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="Cache">Cache of project permissions</param>
+		/// <param name="acl">ACL for the stream to check</param>
+		/// <param name="projectId">The parent project id</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="cache">Cache of project permissions</param>
 		/// <returns>True if the action is authorized</returns>
-		private Task<bool> AuthorizeAsync(Acl? Acl, ProjectId ProjectId, AclAction Action, ClaimsPrincipal User, ProjectPermissionsCache? Cache)
+		private Task<bool> AuthorizeAsync(Acl? acl, ProjectId projectId, AclAction action, ClaimsPrincipal user, ProjectPermissionsCache? cache)
 		{
-			bool? Result = Acl?.Authorize(Action, User);
-			if (Result == null)
+			bool? result = acl?.Authorize(action, user);
+			if (result == null)
 			{
-				return ProjectService.AuthorizeAsync(ProjectId, Action, User, Cache);
+				return _projectService.AuthorizeAsync(projectId, action, user, cache);
 			}
 			else
 			{
-				return Task.FromResult(Result.Value);
+				return Task.FromResult(result.Value);
 			}
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular stream
 		/// </summary>
-		/// <param name="Stream">The stream to check</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="Cache">Cache of project permissions</param>
+		/// <param name="stream">The stream to check</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="cache">Cache of project permissions</param>
 		/// <returns>True if the action is authorized</returns>
-		public Task<bool> AuthorizeAsync(IStream Stream, AclAction Action, ClaimsPrincipal User, ProjectPermissionsCache? Cache)
+		public Task<bool> AuthorizeAsync(IStream stream, AclAction action, ClaimsPrincipal user, ProjectPermissionsCache? cache)
 		{
-			return AuthorizeAsync(Stream.Acl, Stream.ProjectId, Action, User, Cache);
+			return AuthorizeAsync(stream.Acl, stream.ProjectId, action, user, cache);
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular stream
 		/// </summary>
-		/// <param name="Stream">The stream to check</param>
-		/// <param name="Template">Template within the stream to check</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="Cache">Cache of project permissions</param>
+		/// <param name="stream">The stream to check</param>
+		/// <param name="template">Template within the stream to check</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="cache">Cache of project permissions</param>
 		/// <returns>True if the action is authorized</returns>
-		public Task<bool> AuthorizeAsync(IStream Stream, TemplateRef Template, AclAction Action, ClaimsPrincipal User, ProjectPermissionsCache? Cache)
+		public Task<bool> AuthorizeAsync(IStream stream, TemplateRef template, AclAction action, ClaimsPrincipal user, ProjectPermissionsCache? cache)
 		{
-			bool? Result = Template.Acl?.Authorize(Action, User);
-			if (Result == null)
+			bool? result = template.Acl?.Authorize(action, user);
+			if (result == null)
 			{
-				return AuthorizeAsync(Stream, Action, User, Cache);
+				return AuthorizeAsync(stream, action, user, cache);
 			}
 			else
 			{
-				return Task.FromResult(Result.Value);
+				return Task.FromResult(result.Value);
 			}
 		}
 
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular project
 		/// </summary>
-		/// <param name="StreamId">The stream id to check</param>
-		/// <param name="Action">The action being performed</param>
-		/// <param name="User">The principal to authorize</param>
-		/// <param name="Cache">Cache of stream permissions</param>
+		/// <param name="streamId">The stream id to check</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <param name="cache">Cache of stream permissions</param>
 		/// <returns>True if the action is authorized</returns>
-		public async Task<bool> AuthorizeAsync(StreamId StreamId, AclAction Action, ClaimsPrincipal User, StreamPermissionsCache? Cache)
+		public async Task<bool> AuthorizeAsync(StreamId streamId, AclAction action, ClaimsPrincipal user, StreamPermissionsCache? cache)
 		{
-			IStreamPermissions? Permissions;
-			if (Cache == null)
+			IStreamPermissions? permissions;
+			if (cache == null)
 			{
-				Permissions = await GetStreamPermissionsAsync(StreamId);
+				permissions = await GetStreamPermissionsAsync(streamId);
 			}
-			else if (!Cache.Streams.TryGetValue(StreamId, out Permissions))
+			else if (!cache.Streams.TryGetValue(streamId, out permissions))
 			{
-				Permissions = await GetStreamPermissionsAsync(StreamId);
-				Cache.Streams.Add(StreamId, Permissions);
+				permissions = await GetStreamPermissionsAsync(streamId);
+				cache.Streams.Add(streamId, permissions);
 			}
-			return Permissions != null && await AuthorizeAsync(Permissions.Acl, Permissions.ProjectId, Action, User, Cache);
+			return permissions != null && await AuthorizeAsync(permissions.Acl, permissions.ProjectId, action, user, cache);
 		}
 	}
 }

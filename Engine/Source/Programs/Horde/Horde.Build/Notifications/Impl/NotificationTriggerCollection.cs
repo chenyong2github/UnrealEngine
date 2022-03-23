@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -35,18 +34,18 @@ namespace Horde.Build.Collections.Impl
 				User = null!;
 			}
 
-			public SubscriptionDocument(UserId UserId, bool Email, bool Slack)
+			public SubscriptionDocument(UserId userId, bool email, bool slack)
 			{
-				this.UserId = UserId;
-				this.Email = Email;
-				this.Slack = Slack;
+				UserId = userId;
+				Email = email;
+				Slack = slack;
 			}
 
-			public SubscriptionDocument(INotificationSubscription Subscription)
+			public SubscriptionDocument(INotificationSubscription subscription)
 			{
-				this.UserId = Subscription.UserId;
-				this.Email = Subscription.Email;
-				this.Slack = Subscription.Slack;
+				UserId = subscription.UserId;
+				Email = subscription.Email;
+				Slack = subscription.Slack;
 			}
 		}
 
@@ -60,71 +59,71 @@ namespace Horde.Build.Collections.Impl
 			IReadOnlyList<INotificationSubscription> INotificationTrigger.Subscriptions => Subscriptions;
 		}
 
-		IMongoCollection<TriggerDocument> Triggers;
-		IUserCollection UserCollection;
+		readonly IMongoCollection<TriggerDocument> _triggers;
+		readonly IUserCollection _userCollection;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database singleton</param>
-		/// <param name="UserCollection"></param>
-		public NotificationTriggerCollection(DatabaseService DatabaseService, IUserCollection UserCollection)
+		/// <param name="databaseService">The database singleton</param>
+		/// <param name="userCollection"></param>
+		public NotificationTriggerCollection(DatabaseService databaseService, IUserCollection userCollection)
 		{
-			this.Triggers = DatabaseService.GetCollection<TriggerDocument>("NotificationTriggers");
-			this.UserCollection = UserCollection;
+			_triggers = databaseService.GetCollection<TriggerDocument>("NotificationTriggers");
+			_userCollection = userCollection;
 		}
 
 		/// <inheritdoc/>
-		public async Task<INotificationTrigger?> GetAsync(ObjectId TriggerId)
+		public async Task<INotificationTrigger?> GetAsync(ObjectId triggerId)
 		{
-			TriggerDocument? Trigger = await Triggers.Find(x => x.Id == TriggerId).FirstOrDefaultAsync();
-			if (Trigger != null)
+			TriggerDocument? trigger = await _triggers.Find(x => x.Id == triggerId).FirstOrDefaultAsync();
+			if (trigger != null)
 			{
-				for (int Idx = 0; Idx < Trigger.Subscriptions.Count; Idx++)
+				for (int idx = 0; idx < trigger.Subscriptions.Count; idx++)
 				{
-					SubscriptionDocument Subscription = Trigger.Subscriptions[Idx];
-					if (Subscription.User != null)
+					SubscriptionDocument subscription = trigger.Subscriptions[idx];
+					if (subscription.User != null)
 					{
-						IUser? User = await UserCollection.FindUserByLoginAsync(Subscription.User);
-						if (User == null)
+						IUser? user = await _userCollection.FindUserByLoginAsync(subscription.User);
+						if (user == null)
 						{
-							Trigger.Subscriptions.RemoveAt(Idx);
-							Idx--;
+							trigger.Subscriptions.RemoveAt(idx);
+							idx--;
 						}
 						else
 						{
-							Subscription.UserId = User.Id;
-							Subscription.User = null;
+							subscription.UserId = user.Id;
+							subscription.User = null;
 						}
 					}
 				}
 			}
-			return Trigger;
+			return trigger;
 		}
 
 		/// <inheritdoc/>
-		public async Task<INotificationTrigger> FindOrAddAsync(ObjectId TriggerId)
+		public async Task<INotificationTrigger> FindOrAddAsync(ObjectId triggerId)
 		{
 			for (; ; )
 			{
 				// Find an existing trigger
-				INotificationTrigger? Existing = await GetAsync(TriggerId);
-				if (Existing != null)
+				INotificationTrigger? existing = await GetAsync(triggerId);
+				if (existing != null)
 				{
-					return Existing;
+					return existing;
 				}
 
 				// Try to insert a new document
 				try
 				{
-					TriggerDocument NewDocument = new TriggerDocument();
-					NewDocument.Id = TriggerId;
-					await Triggers.InsertOneAsync(NewDocument);
-					return NewDocument;
+					TriggerDocument newDocument = new TriggerDocument();
+					newDocument.Id = triggerId;
+					await _triggers.InsertOneAsync(newDocument);
+					return newDocument;
 				}
-				catch (MongoWriteException Ex)
+				catch (MongoWriteException ex)
 				{
-					if (Ex.WriteError.Category != ServerErrorCategory.DuplicateKey)
+					if (ex.WriteError.Category != ServerErrorCategory.DuplicateKey)
 					{
 						throw;
 					}
@@ -135,62 +134,62 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Updates an existing document
 		/// </summary>
-		/// <param name="Trigger">The trigger to update</param>
-		/// <param name="Transaction">The update definition</param>
+		/// <param name="trigger">The trigger to update</param>
+		/// <param name="transaction">The update definition</param>
 		/// <returns>The updated document</returns>
-		async Task<INotificationTrigger?> TryUpdateAsync(INotificationTrigger Trigger, TransactionBuilder<TriggerDocument> Transaction)
+		async Task<INotificationTrigger?> TryUpdateAsync(INotificationTrigger trigger, TransactionBuilder<TriggerDocument> transaction)
 		{
-			TriggerDocument Document = (TriggerDocument)Trigger;
-			int NextUpdateIndex = Document.UpdateIndex + 1;
+			TriggerDocument document = (TriggerDocument)trigger;
+			int nextUpdateIndex = document.UpdateIndex + 1;
 
-			FilterDefinition<TriggerDocument> Filter = Builders<TriggerDocument>.Filter.Expr(x => x.Id == Trigger.Id && x.UpdateIndex == Document.UpdateIndex);
-			UpdateDefinition<TriggerDocument> Update = Transaction.ToUpdateDefinition().Set(x => x.UpdateIndex, NextUpdateIndex);
+			FilterDefinition<TriggerDocument> filter = Builders<TriggerDocument>.Filter.Expr(x => x.Id == trigger.Id && x.UpdateIndex == document.UpdateIndex);
+			UpdateDefinition<TriggerDocument> update = transaction.ToUpdateDefinition().Set(x => x.UpdateIndex, nextUpdateIndex);
 
-			UpdateResult Result = await Triggers.UpdateOneAsync(Filter, Update);
-			if (Result.ModifiedCount > 0)
+			UpdateResult result = await _triggers.UpdateOneAsync(filter, update);
+			if (result.ModifiedCount > 0)
 			{
-				Transaction.ApplyTo(Document);
-				Document.UpdateIndex = NextUpdateIndex;
-				return Document;
+				transaction.ApplyTo(document);
+				document.UpdateIndex = nextUpdateIndex;
+				return document;
 			}
 
 			return null;
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(ObjectId TriggerId)
+		public async Task DeleteAsync(ObjectId triggerId)
 		{
-			await Triggers.DeleteOneAsync(x => x.Id == TriggerId);
+			await _triggers.DeleteOneAsync(x => x.Id == triggerId);
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(List<ObjectId> TriggerIds)
+		public async Task DeleteAsync(List<ObjectId> triggerIds)
 		{
-			FilterDefinition<TriggerDocument> Filter = Builders<TriggerDocument>.Filter.In(x => x.Id, TriggerIds);
-			await Triggers.DeleteManyAsync(Filter);
+			FilterDefinition<TriggerDocument> filter = Builders<TriggerDocument>.Filter.In(x => x.Id, triggerIds);
+			await _triggers.DeleteManyAsync(filter);
 		}
 
 		/// <inheritdoc/>
-		public async Task<INotificationTrigger?> FireAsync(INotificationTrigger Trigger)
+		public async Task<INotificationTrigger?> FireAsync(INotificationTrigger trigger)
 		{
-			if (Trigger.Fired)
+			if (trigger.Fired)
 			{
 				return null;
 			}
 
 			for (; ; )
 			{
-				TransactionBuilder<TriggerDocument> Transaction = new TransactionBuilder<TriggerDocument>();
-				Transaction.Set(x => x.Fired, true);
+				TransactionBuilder<TriggerDocument> transaction = new TransactionBuilder<TriggerDocument>();
+				transaction.Set(x => x.Fired, true);
 
-				INotificationTrigger? NewTrigger = await TryUpdateAsync(Trigger, Transaction);
-				if (NewTrigger != null)
+				INotificationTrigger? newTrigger = await TryUpdateAsync(trigger, transaction);
+				if (newTrigger != null)
 				{
-					return NewTrigger;
+					return newTrigger;
 				}
 
-				NewTrigger = await FindOrAddAsync(Trigger.Id); // Need to add to prevent race condition on triggering vs adding
-				if (NewTrigger == null || NewTrigger.Fired)
+				newTrigger = await FindOrAddAsync(trigger.Id); // Need to add to prevent race condition on triggering vs adding
+				if (newTrigger == null || newTrigger.Fired)
 				{
 					return null;
 				}
@@ -198,43 +197,43 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<INotificationTrigger?> UpdateSubscriptionsAsync(INotificationTrigger Trigger, UserId UserId, bool? Email, bool? Slack)
+		public async Task<INotificationTrigger?> UpdateSubscriptionsAsync(INotificationTrigger trigger, UserId userId, bool? email, bool? slack)
 		{
 			for (; ; )
 			{
 				// If the trigger has already fired, don't add a new subscription to it
-				if(Trigger.Fired)
+				if(trigger.Fired)
 				{
-					return Trigger;
+					return trigger;
 				}
 
 				// Try to update the trigger
-				List<SubscriptionDocument> NewSubscriptions = new List<SubscriptionDocument>();
-				NewSubscriptions.AddRange(Trigger.Subscriptions.Select(x => new SubscriptionDocument(x)));
+				List<SubscriptionDocument> newSubscriptions = new List<SubscriptionDocument>();
+				newSubscriptions.AddRange(trigger.Subscriptions.Select(x => new SubscriptionDocument(x)));
 
-				SubscriptionDocument? NewSubscription = NewSubscriptions.FirstOrDefault(x => x.UserId == UserId);
-				if (NewSubscription == null)
+				SubscriptionDocument? newSubscription = newSubscriptions.FirstOrDefault(x => x.UserId == userId);
+				if (newSubscription == null)
 				{
-					NewSubscription = new SubscriptionDocument(UserId, Email ?? false, Slack ?? false);
-					NewSubscriptions.Add(NewSubscription);
+					newSubscription = new SubscriptionDocument(userId, email ?? false, slack ?? false);
+					newSubscriptions.Add(newSubscription);
 				}
 				else
 				{
-					NewSubscription.Email = Email ?? NewSubscription.Email;
-					NewSubscription.Slack = Slack ?? NewSubscription.Slack;
+					newSubscription.Email = email ?? newSubscription.Email;
+					newSubscription.Slack = slack ?? newSubscription.Slack;
 				}
 
-				TransactionBuilder<TriggerDocument> Transaction = new TransactionBuilder<TriggerDocument>();
-				Transaction.Set(x => x.Subscriptions, NewSubscriptions);
+				TransactionBuilder<TriggerDocument> transaction = new TransactionBuilder<TriggerDocument>();
+				transaction.Set(x => x.Subscriptions, newSubscriptions);
 
-				INotificationTrigger? NewTrigger = await TryUpdateAsync(Trigger, Transaction);
-				if (NewTrigger != null)
+				INotificationTrigger? newTrigger = await TryUpdateAsync(trigger, transaction);
+				if (newTrigger != null)
 				{
-					return NewTrigger;
+					return newTrigger;
 				}
 
-				NewTrigger = await GetAsync(Trigger.Id);
-				if (NewTrigger == null)
+				newTrigger = await GetAsync(trigger.Id);
+				if (newTrigger == null)
 				{
 					return null;
 				}

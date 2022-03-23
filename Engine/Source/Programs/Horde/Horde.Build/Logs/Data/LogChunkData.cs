@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Api;
 
 namespace Horde.Build.Logs
 {
@@ -55,88 +51,88 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Offset">Offset of this chunk</param>
-		/// <param name="LineIndex">First line index of this chunk</param>
-		/// <param name="SubChunks">Sub-chunks for this chunk</param>
-		public LogChunkData(long Offset, int LineIndex, IReadOnlyList<LogSubChunkData> SubChunks)
+		/// <param name="offset">Offset of this chunk</param>
+		/// <param name="lineIndex">First line index of this chunk</param>
+		/// <param name="subChunks">Sub-chunks for this chunk</param>
+		public LogChunkData(long offset, int lineIndex, IReadOnlyList<LogSubChunkData> subChunks)
 		{
-			this.Offset = Offset;
-			this.LineIndex = LineIndex;
-			this.SubChunks = SubChunks;
-			this.SubChunkOffset = CreateSumLookup(SubChunks, x => x.Length);
-			this.SubChunkLineIndex = CreateSumLookup(SubChunks, x => x.LineCount);
+			Offset = offset;
+			LineIndex = lineIndex;
+			SubChunks = subChunks;
+			SubChunkOffset = CreateSumLookup(subChunks, x => x.Length);
+			SubChunkLineIndex = CreateSumLookup(subChunks, x => x.LineCount);
 
-			if(SubChunks.Count > 0)
+			if(subChunks.Count > 0)
 			{
-				int LastSubChunkIdx = SubChunks.Count - 1;
-				Length = SubChunkOffset[LastSubChunkIdx] + SubChunks[LastSubChunkIdx].Length;
-				LineCount = SubChunkLineIndex[LastSubChunkIdx] + SubChunks[LastSubChunkIdx].LineCount;
+				int lastSubChunkIdx = subChunks.Count - 1;
+				Length = SubChunkOffset[lastSubChunkIdx] + subChunks[lastSubChunkIdx].Length;
+				LineCount = SubChunkLineIndex[lastSubChunkIdx] + subChunks[lastSubChunkIdx].LineCount;
 			}
 		}
 
 		/// <summary>
 		/// Creates a lookup table by summing a field across a list of subchunks
 		/// </summary>
-		/// <param name="SubChunks"></param>
-		/// <param name="Field"></param>
+		/// <param name="subChunks"></param>
+		/// <param name="field"></param>
 		/// <returns></returns>
-		static int[] CreateSumLookup(IReadOnlyList<LogSubChunkData> SubChunks, Func<LogSubChunkData, int> Field)
+		static int[] CreateSumLookup(IReadOnlyList<LogSubChunkData> subChunks, Func<LogSubChunkData, int> field)
 		{
-			int[] Total = new int[SubChunks.Count];
+			int[] total = new int[subChunks.Count];
 
-			int Value = 0;
-			for (int Idx = 0; Idx + 1 < SubChunks.Count; Idx++)
+			int value = 0;
+			for (int idx = 0; idx + 1 < subChunks.Count; idx++)
 			{
-				Value += Field(SubChunks[Idx]);
-				Total[Idx + 1] = Value;
+				value += field(subChunks[idx]);
+				total[idx + 1] = value;
 			}
 
-			return Total;
+			return total;
 		}
 
 		/// <summary>
 		/// Gets the offset of a line within the file
 		/// </summary>
-		/// <param name="LineIdx">The line index</param>
+		/// <param name="lineIdx">The line index</param>
 		/// <returns>Offset of the line within the file</returns>
-		public long GetLineOffsetWithinChunk(int LineIdx)
+		public long GetLineOffsetWithinChunk(int lineIdx)
 		{
-			int SubChunkIdx = SubChunkLineIndex.BinarySearch(LineIdx);
-			if (SubChunkIdx < 0)
+			int subChunkIdx = SubChunkLineIndex.BinarySearch(lineIdx);
+			if (subChunkIdx < 0)
 			{
-				SubChunkIdx = ~SubChunkIdx - 1;
+				subChunkIdx = ~subChunkIdx - 1;
 			}
-			return SubChunkOffset[SubChunkIdx] + SubChunks[SubChunkIdx].InflateText().LineOffsets[LineIdx - SubChunkLineIndex[SubChunkIdx]];
+			return SubChunkOffset[subChunkIdx] + SubChunks[subChunkIdx].InflateText().LineOffsets[lineIdx - SubChunkLineIndex[subChunkIdx]];
 		}
 
 		/// <summary>
 		/// Gets the sub chunk index for the given line
 		/// </summary>
-		/// <param name="ChunkLineIdx">Line index within the chunk</param>
+		/// <param name="chunkLineIdx">Line index within the chunk</param>
 		/// <returns>Subchunk line index</returns>
-		public int GetSubChunkForLine(int ChunkLineIdx)
+		public int GetSubChunkForLine(int chunkLineIdx)
 		{
-			int SubChunkIdx = SubChunkLineIndex.BinarySearch(ChunkLineIdx);
-			if (SubChunkIdx < 0)
+			int subChunkIdx = SubChunkLineIndex.BinarySearch(chunkLineIdx);
+			if (subChunkIdx < 0)
 			{
-				SubChunkIdx = ~SubChunkIdx - 1;
+				subChunkIdx = ~subChunkIdx - 1;
 			}
-			return SubChunkIdx;
+			return subChunkIdx;
 		}
 
 		/// <summary>
 		/// Gets the index of the sub-chunk containing the given offset
 		/// </summary>
-		/// <param name="Offset">Offset to search for</param>
+		/// <param name="offset">Offset to search for</param>
 		/// <returns>Index of the sub-chunk</returns>
-		public int GetSubChunkForOffsetWithinChunk(int Offset)
+		public int GetSubChunkForOffsetWithinChunk(int offset)
 		{
-			int SubChunkIdx = SubChunkOffset.BinarySearch(Offset);
-			if (SubChunkIdx < 0)
+			int subChunkIdx = SubChunkOffset.BinarySearch(offset);
+			if (subChunkIdx < 0)
 			{
-				SubChunkIdx = ~SubChunkIdx - 1;
+				subChunkIdx = ~subChunkIdx - 1;
 			}
-			return SubChunkIdx;
+			return subChunkIdx;
 		}
 
 		/// <summary>
@@ -147,85 +143,85 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Read a log chunk from the given stream
 		/// </summary>
-		/// <param name="Reader">The reader to read from</param>
-		/// <param name="Offset">Offset of this chunk within the file</param>
-		/// <param name="LineIndex">Line index of this chunk</param>
+		/// <param name="reader">The reader to read from</param>
+		/// <param name="offset">Offset of this chunk within the file</param>
+		/// <param name="lineIndex">Line index of this chunk</param>
 		/// <returns>New log chunk data</returns>
-		public static LogChunkData Read(MemoryReader Reader, long Offset, int LineIndex)
+		public static LogChunkData Read(MemoryReader reader, long offset, int lineIndex)
 		{
-			int Signature = Reader.ReadInt32();
-			if ((Signature & 0xffffff) != CurrentSignature)
+			int signature = reader.ReadInt32();
+			if ((signature & 0xffffff) != CurrentSignature)
 			{
-				List<LogSubChunkData> SubChunks = new List<LogSubChunkData>();
-				SubChunks.Add(new LogSubChunkData(LogType.Json, Offset, LineIndex, new ReadOnlyLogText(Reader.Memory)));
-				Reader.Offset = Reader.Memory.Length;
-				return new LogChunkData(Offset, LineIndex, SubChunks);
+				List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
+				subChunks.Add(new LogSubChunkData(LogType.Json, offset, lineIndex, new ReadOnlyLogText(reader.Memory)));
+				reader.Offset = reader.Memory.Length;
+				return new LogChunkData(offset, lineIndex, subChunks);
 			}
 
-			int Version = Signature >> 24;
-			if (Version == 0)
+			int version = signature >> 24;
+			if (version == 0)
 			{
-				List<LogSubChunkData> SubChunks = ReadSubChunkList(Reader, Offset, LineIndex);
-				Reader.ReadVariableLengthBytes();
-				return new LogChunkData(Offset, LineIndex, SubChunks);
+				List<LogSubChunkData> subChunks = ReadSubChunkList(reader, offset, lineIndex);
+				reader.ReadVariableLengthBytes();
+				return new LogChunkData(offset, lineIndex, subChunks);
 			}
 			else
 			{
-				List<LogSubChunkData> SubChunks = ReadSubChunkList(Reader, Offset, LineIndex);
-				return new LogChunkData(Offset, LineIndex, SubChunks);
+				List<LogSubChunkData> subChunks = ReadSubChunkList(reader, offset, lineIndex);
+				return new LogChunkData(offset, lineIndex, subChunks);
 			}
 		}
 
 		/// <summary>
 		/// Read a list of sub-chunks from the given stream
 		/// </summary>
-		/// <param name="Reader">The reader to read from</param>
-		/// <param name="SubChunkOffset">Offset of this chunk within the file</param>
-		/// <param name="SubChunkLineIndex">Line index of this chunk</param>
+		/// <param name="reader">The reader to read from</param>
+		/// <param name="subChunkOffset">Offset of this chunk within the file</param>
+		/// <param name="subChunkLineIndex">Line index of this chunk</param>
 		/// <returns>List of sub-chunks</returns>
-		static List<LogSubChunkData> ReadSubChunkList(MemoryReader Reader, long SubChunkOffset, int SubChunkLineIndex)
+		static List<LogSubChunkData> ReadSubChunkList(MemoryReader reader, long subChunkOffset, int subChunkLineIndex)
 		{
-			int NumSubChunks = Reader.ReadInt32();
+			int numSubChunks = reader.ReadInt32();
 
-			List<LogSubChunkData> SubChunks = new List<LogSubChunkData>();
-			for (int Idx = 0; Idx < NumSubChunks; Idx++)
+			List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
+			for (int idx = 0; idx < numSubChunks; idx++)
 			{
-				LogSubChunkData SubChunkData = Reader.ReadLogSubChunkData(SubChunkOffset, SubChunkLineIndex);
-				SubChunkOffset += SubChunkData.Length;
-				SubChunkLineIndex += SubChunkData.LineCount;
-				SubChunks.Add(SubChunkData);
+				LogSubChunkData subChunkData = reader.ReadLogSubChunkData(subChunkOffset, subChunkLineIndex);
+				subChunkOffset += subChunkData.Length;
+				subChunkLineIndex += subChunkData.LineCount;
+				subChunks.Add(subChunkData);
 			}
 
-			return SubChunks;
+			return subChunks;
 		}
 
 		/// <summary>
 		/// Construct an object from flat memory buffer
 		/// </summary>
-		/// <param name="Memory">Memory buffer</param>
-		/// <param name="Offset">Offset of this chunk within the file</param>
-		/// <param name="LineIndex">Line index of this chunk</param>
+		/// <param name="memory">Memory buffer</param>
+		/// <param name="offset">Offset of this chunk within the file</param>
+		/// <param name="lineIndex">Line index of this chunk</param>
 		/// <returns>Log chunk data</returns>
-		public static LogChunkData FromMemory(ReadOnlyMemory<byte> Memory, long Offset, int LineIndex)
+		public static LogChunkData FromMemory(ReadOnlyMemory<byte> memory, long offset, int lineIndex)
 		{
-			MemoryReader Reader = new MemoryReader(Memory);
-			LogChunkData ChunkData = Read(Reader, Offset, LineIndex);
-			Reader.CheckOffset(Memory.Length);
-			return ChunkData;
+			MemoryReader reader = new MemoryReader(memory);
+			LogChunkData chunkData = Read(reader, offset, lineIndex);
+			reader.CheckOffset(memory.Length);
+			return chunkData;
 		}
 
 		/// <summary>
 		/// Write the chunk data to a stream
 		/// </summary>
 		/// <returns>Serialized data</returns>
-		public void Write(MemoryWriter Writer)
+		public void Write(MemoryWriter writer)
 		{
-			Writer.WriteInt32(CurrentSignature | (1 << 24));
+			writer.WriteInt32(CurrentSignature | (1 << 24));
 
-			Writer.WriteInt32(SubChunks.Count);
-			foreach (LogSubChunkData SubChunk in SubChunks)
+			writer.WriteInt32(SubChunks.Count);
+			foreach (LogSubChunkData subChunk in SubChunks)
 			{
-				Writer.WriteLogSubChunkData(SubChunk);
+				writer.WriteLogSubChunkData(subChunk);
 			}
 		}
 
@@ -235,11 +231,11 @@ namespace Horde.Build.Logs
 		/// <returns>Log chunk data</returns>
 		public byte[] ToByteArray()
 		{
-			byte[] Data = new byte[GetSerializedSize()];
-			MemoryWriter Writer = new MemoryWriter(Data);
-			Write(Writer);
-			Writer.CheckOffset(Data.Length);
-			return Data;
+			byte[] data = new byte[GetSerializedSize()];
+			MemoryWriter writer = new MemoryWriter(data);
+			Write(writer);
+			writer.CheckOffset(data.Length);
+			return data;
 		}
 
 		/// <summary>
@@ -259,22 +255,22 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Read a log chunk from the given stream
 		/// </summary>
-		/// <param name="Reader">The reader to read from</param>
-		/// <param name="Offset">Offset of this chunk within the file</param>
-		/// <param name="LineIndex">Line index of this chunk</param>
+		/// <param name="reader">The reader to read from</param>
+		/// <param name="offset">Offset of this chunk within the file</param>
+		/// <param name="lineIndex">Line index of this chunk</param>
 		/// <returns>New log chunk data</returns>
-		public static LogChunkData ReadLogChunkData(this MemoryReader Reader, long Offset, int LineIndex)
+		public static LogChunkData ReadLogChunkData(this MemoryReader reader, long offset, int lineIndex)
 		{
-			return LogChunkData.Read(Reader, Offset, LineIndex);
+			return LogChunkData.Read(reader, offset, lineIndex);
 		}
 
 		/// <summary>
 		/// Write the chunk data to a stream
 		/// </summary>
 		/// <returns>Serialized data</returns>
-		public static void WriteLogChunkData(this MemoryWriter Writer, LogChunkData ChunkData)
+		public static void WriteLogChunkData(this MemoryWriter writer, LogChunkData chunkData)
 		{
-			ChunkData.Write(Writer);
+			chunkData.Write(writer);
 		}
 	}
 }

@@ -1,26 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Horde.Build.Api;
 using Horde.Build.Models;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
-using Polly;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections
 {
-	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
@@ -46,14 +33,14 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Event">Name of the event</param>
-		/// <param name="UserId">User name</param>
-		/// <param name="NotificationType">Notification type</param>
-		public NewSubscription(EventRecord Event, UserId UserId, NotificationType NotificationType)
+		/// <param name="eventRecord">Name of the event</param>
+		/// <param name="userId">User name</param>
+		/// <param name="notificationType">Notification type</param>
+		public NewSubscription(EventRecord eventRecord, UserId userId, NotificationType notificationType)
 		{
-			this.Event = Event;
-			this.UserId = UserId;
-			this.NotificationType = NotificationType;
+			Event = eventRecord;
+			UserId = userId;
+			NotificationType = notificationType;
 		}
 	}
 
@@ -65,36 +52,36 @@ namespace Horde.Build.Collections
 		/// <summary>
 		/// Add new subscription documents
 		/// </summary>
-		/// <param name="Subscriptions">The new subscriptions to add</param>
+		/// <param name="subscriptions">The new subscriptions to add</param>
 		/// <returns>The subscriptions that were added</returns>
-		public Task<List<ISubscription>> AddAsync(IEnumerable<NewSubscription> Subscriptions);
+		public Task<List<ISubscription>> AddAsync(IEnumerable<NewSubscription> subscriptions);
 
 		/// <summary>
 		/// Remove a set of existing subscriptions
 		/// </summary>
-		/// <param name="Subscriptions">Subscriptions to remove</param>
+		/// <param name="subscriptions">Subscriptions to remove</param>
 		/// <returns>Async task</returns>
-		public Task RemoveAsync(IEnumerable<ISubscription> Subscriptions);
+		public Task RemoveAsync(IEnumerable<ISubscription> subscriptions);
 
 		/// <summary>
 		/// Gets a subscription by id
 		/// </summary>
-		/// <param name="SubscriptionId">Subscription to remove</param>
+		/// <param name="subscriptionId">Subscription to remove</param>
 		/// <returns>Async task</returns>
-		public Task<ISubscription?> GetAsync(string SubscriptionId);
+		public Task<ISubscription?> GetAsync(string subscriptionId);
 
 		/// <summary>
 		/// Find all subscribers of a certain event
 		/// </summary>
-		/// <param name="Event">Name of the event</param>
+		/// <param name="eventRecord">Name of the event</param>
 		/// <returns>Name of the event to find subscribers for</returns>
-		public Task<List<ISubscription>> FindSubscribersAsync(EventRecord Event);
+		public Task<List<ISubscription>> FindSubscribersAsync(EventRecord eventRecord);
 
 		/// <summary>
 		/// Find subscriptions for a particular user
 		/// </summary>
-		/// <param name="UserId">The user to search for</param>
+		/// <param name="userId">The user to search for</param>
 		/// <returns>List of subscriptions</returns>
-		public Task<List<ISubscription>> FindSubscriptionsAsync(UserId UserId);
+		public Task<List<ISubscription>> FindSubscriptionsAsync(UserId userId);
 	}
 }

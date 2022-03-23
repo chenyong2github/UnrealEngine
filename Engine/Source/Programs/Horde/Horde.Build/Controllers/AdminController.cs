@@ -1,26 +1,16 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using HordeCommon;
-using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Controllers
 {
@@ -64,55 +54,37 @@ namespace Horde.Build.Controllers
 	[Route("[controller]")]
 	public class AdminController : HordeControllerBase
 	{
-		/// <summary>
-		/// The database service singleton
-		/// </summary>
-		DatabaseService DatabaseService;
-
-		/// <summary>
-		/// The acl service singleton
-		/// </summary>
-		AclService AclService;
-
-		/// <summary>
-		/// The upgrade service singleton
-		/// </summary>
-		UpgradeService UpgradeService;
-
-		/// <summary>
-		/// Settings for the server
-		/// </summary>
-		IOptionsMonitor<ServerSettings> Settings;
+		readonly AclService _aclService;
+		readonly UpgradeService _upgradeService;
+		readonly IOptionsMonitor<ServerSettings> _settings;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service singleton</param>
-		/// <param name="AclService">The ACL service singleton</param>
-		/// <param name="UpgradeService">The upgrade service singelton</param>
-		/// <param name="Settings">Server settings</param>
-		public AdminController(DatabaseService DatabaseService, AclService AclService, UpgradeService UpgradeService, IOptionsMonitor<ServerSettings> Settings)
+		/// <param name="aclService">The ACL service singleton</param>
+		/// <param name="upgradeService">The upgrade service singelton</param>
+		/// <param name="settings">Server settings</param>
+		public AdminController(AclService aclService, UpgradeService upgradeService, IOptionsMonitor<ServerSettings> settings)
 		{
-			this.DatabaseService = DatabaseService;
-			this.AclService = AclService;
-			this.UpgradeService = UpgradeService;
-			this.Settings = Settings;
+			_aclService = aclService;
+			_upgradeService = upgradeService;
+			_settings = settings;
 		}
 
 		/// <summary>
 		/// Upgrade the database to the latest schema
 		/// </summary>
-		/// <param name="FromVersion">The schema version to upgrade from.</param>
+		/// <param name="fromVersion">The schema version to upgrade from.</param>
 		[HttpPost]
 		[Route("/api/v1/admin/upgradeschema")]
-		public async Task<ActionResult> UpgradeSchemaAsync([FromQuery] int? FromVersion = null)
+		public async Task<ActionResult> UpgradeSchemaAsync([FromQuery] int? fromVersion = null)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
 
-			await UpgradeService.UpgradeSchemaAsync(FromVersion);
+			await _upgradeService.UpgradeSchemaAsync(fromVersion);
 			return Ok();
 		}
 
@@ -124,32 +96,32 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/admin/token")]
 		public async Task<ActionResult<string>> GetTokenAsync()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.IssueBearerToken, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.IssueBearerToken, User))
 			{
 				return Forbid(AclAction.IssueBearerToken);
 			}
 
-			return AclService.IssueBearerToken(User.Claims, GetDefaultExpiryTime());
+			return _aclService.IssueBearerToken(User.Claims, GetDefaultExpiryTime());
 		}
 
 		/// <summary>
 		/// Issues a token for the given roles. Issues a token for the current user if not specified.
 		/// </summary>
-		/// <param name="Roles">Roles for the new token</param>
+		/// <param name="roles">Roles for the new token</param>
 		/// <returns>Administrative settings for the server</returns>
 		[HttpGet]
 		[Route("/api/v1/admin/roletoken")]
-		public async Task<ActionResult<string>> GetRoleTokenAsync([FromQuery] string Roles)
+		public async Task<ActionResult<string>> GetRoleTokenAsync([FromQuery] string roles)
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
 
-			List<Claim> Claims = new List<Claim>();
-			Claims.AddRange(Roles.Split('+').Select(x => new Claim(ClaimTypes.Role, x)));
+			List<Claim> claims = new List<Claim>();
+			claims.AddRange(roles.Split('+').Select(x => new Claim(ClaimTypes.Role, x)));
 
-			return AclService.IssueBearerToken(Claims, GetDefaultExpiryTime());
+			return _aclService.IssueBearerToken(claims, GetDefaultExpiryTime());
 		}
 
 		/// <summary>
@@ -160,16 +132,16 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/admin/registrationtoken")]
 		public async Task<ActionResult<string>> GetRegistrationTokenAsync()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
 
-			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
-			Claims.Add(AclService.AgentRegistrationClaim);
+			List<AclClaim> claims = new List<AclClaim>();
+			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
+			claims.Add(AclService.AgentRegistrationClaim);
 
-			return AclService.IssueBearerToken(Claims, null);
+			return _aclService.IssueBearerToken(claims, null);
 		}
 
 		/// <summary>
@@ -180,16 +152,16 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/admin/softwaretoken")]
 		public async Task<ActionResult<string>> GetSoftwareTokenAsync()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
 
-			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
-			Claims.Add(AclService.UploadSoftwareClaim);
+			List<AclClaim> claims = new List<AclClaim>();
+			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
+			claims.Add(AclService.UploadSoftwareClaim);
 
-			return AclService.IssueBearerToken(Claims, null);
+			return _aclService.IssueBearerToken(claims, null);
 		}
 
 		/// <summary>
@@ -200,16 +172,16 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/admin/softwaredownloadtoken")]
 		public async Task<ActionResult<string>> GetSoftwareDownloadTokenAsync()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
 				return Forbid(AclAction.AdminRead);
 			}
 
-			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
-			Claims.Add(AclService.DownloadSoftwareClaim);
+			List<AclClaim> claims = new List<AclClaim>();
+			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
+			claims.Add(AclService.DownloadSoftwareClaim);
 
-			return AclService.IssueBearerToken(Claims, null);
+			return _aclService.IssueBearerToken(claims, null);
 		}
 
 		/// <summary>
@@ -220,16 +192,16 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/admin/configtoken")]
 		public async Task<ActionResult<string>> GetConfigToken()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
 				return Forbid(AclAction.AdminRead);
 			}
 
-			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
-			Claims.Add(AclService.ConfigureProjectsClaim);
+			List<AclClaim> claims = new List<AclClaim>();
+			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
+			claims.Add(AclService.ConfigureProjectsClaim);
 
-			return AclService.IssueBearerToken(Claims, null);
+			return _aclService.IssueBearerToken(claims, null);
 		}
 
 		/// <summary>
@@ -240,16 +212,16 @@ namespace Horde.Build.Controllers
 		[Route("/api/v1/admin/chainedjobtoken")]
 		public async Task<ActionResult<string>> GetChainedJobToken()
 		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
 				return Forbid(AclAction.AdminRead);
 			}
 
-			List<AclClaim> Claims = new List<AclClaim>();
+			List<AclClaim> claims = new List<AclClaim>();
 			//Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity.Name ?? "Unknown"));
-			Claims.Add(AclService.StartChainedJobClaim);
+			claims.Add(AclService.StartChainedJobClaim);
 
-			return AclService.IssueBearerToken(Claims, null);
+			return _aclService.IssueBearerToken(claims, null);
 		}
 
 		/// <summary>
@@ -258,12 +230,12 @@ namespace Horde.Build.Controllers
 		/// <returns></returns>
 		private TimeSpan? GetDefaultExpiryTime()
 		{
-			TimeSpan? ExpiryTime = null;
-			if (Settings.CurrentValue.JwtExpiryTimeHours != -1)
+			TimeSpan? expiryTime = null;
+			if (_settings.CurrentValue.JwtExpiryTimeHours != -1)
 			{
-				ExpiryTime = TimeSpan.FromHours(Settings.CurrentValue.JwtExpiryTimeHours);
+				expiryTime = TimeSpan.FromHours(_settings.CurrentValue.JwtExpiryTimeHours);
 			}
-			return ExpiryTime;
+			return expiryTime;
 		}
 	}
 }

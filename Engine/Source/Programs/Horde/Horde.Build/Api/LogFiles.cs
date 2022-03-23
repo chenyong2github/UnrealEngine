@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
 using Horde.Build.Logs;
 using Horde.Build.Models;
 using Horde.Build.Services;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Api
 {
@@ -61,15 +56,15 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="LogFile">The logfile to construct from</param>
-		/// <param name="Metadata">Metadata about the log file</param>
-		public GetLogFileResponse(ILogFile LogFile, LogMetadata Metadata)
+		/// <param name="logFile">The logfile to construct from</param>
+		/// <param name="metadata">Metadata about the log file</param>
+		public GetLogFileResponse(ILogFile logFile, LogMetadata metadata)
 		{
-            this.Id = LogFile.Id.ToString();
-            this.JobId = LogFile.JobId.ToString();
-			this.Type = LogFile.Type;
-            this.Length = Metadata.Length;
-            this.LineCount = Metadata.MaxLineIndex;
+            Id = logFile.Id.ToString();
+            JobId = logFile.JobId.ToString();
+			Type = logFile.Type;
+            Length = metadata.Length;
+            LineCount = metadata.MaxLineIndex;
 		}
 	}
 

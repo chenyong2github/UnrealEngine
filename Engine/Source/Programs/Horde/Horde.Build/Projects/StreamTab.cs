@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
 using Horde.Build.Api;
 using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Models
 {
@@ -35,35 +33,35 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Title">Title of this page</param>
-		protected StreamTab(string Title)
+		/// <param name="title">Title of this page</param>
+		protected StreamTab(string title)
 		{
-			this.Title = Title;
+			Title = title;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Request">Public request object</param>
-		protected StreamTab(CreateStreamTabRequest Request)
+		/// <param name="request">Public request object</param>
+		protected StreamTab(CreateStreamTabRequest request)
 		{
-			Title = Request.Title;
+			Title = request.Title;
 		}
 
 		/// <summary>
 		/// Creates an instance from a request
 		/// </summary>
-		/// <param name="Request">The request object</param>
+		/// <param name="request">The request object</param>
 		/// <returns>New tab instance</returns>
-		public static StreamTab FromRequest(CreateStreamTabRequest Request)
+		public static StreamTab FromRequest(CreateStreamTabRequest request)
 		{
-			CreateJobsTabRequest? JobsRequest = Request as CreateJobsTabRequest;
-			if (JobsRequest != null)
+			CreateJobsTabRequest? jobsRequest = request as CreateJobsTabRequest;
+			if (jobsRequest != null)
 			{
-				return new JobsTab(JobsRequest);
+				return new JobsTab(jobsRequest);
 			}
 
-			throw new Exception($"Unknown tab request type '{Request.GetType()}'");
+			throw new Exception($"Unknown tab request type '{request.GetType()}'");
 		}
 
 		/// <summary>
@@ -101,22 +99,22 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Heading">Heading for this column</param>
-		/// <param name="RelativeWidth">Relative width of this column.</param>
-		protected JobsTabColumn(string Heading, int? RelativeWidth)
+		/// <param name="heading">Heading for this column</param>
+		/// <param name="relativeWidth">Relative width of this column.</param>
+		protected JobsTabColumn(string heading, int? relativeWidth)
 		{
-			this.Heading = Heading;
-			this.RelativeWidth = RelativeWidth;
+			Heading = heading;
+			RelativeWidth = relativeWidth;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Request">Public request object</param>
-		protected JobsTabColumn(CreateJobsTabColumnRequest Request)
+		/// <param name="request">Public request object</param>
+		protected JobsTabColumn(CreateJobsTabColumnRequest request)
 		{
-			this.Heading = Request.Heading;
-			this.RelativeWidth = Request.RelativeWidth;
+			Heading = request.Heading;
+			RelativeWidth = request.RelativeWidth;
 		}
 
 		/// <summary>
@@ -146,13 +144,13 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Heading">Heading for this column</param>
-		/// <param name="Category">Category of labels to display in this column</param>
-		/// <param name="RelativeWidth">Relative width of this column.</param>
-		public JobsTabLabelColumn(string Heading, string? Category, int? RelativeWidth)
-			: base(Heading, RelativeWidth)
+		/// <param name="heading">Heading for this column</param>
+		/// <param name="category">Category of labels to display in this column</param>
+		/// <param name="relativeWidth">Relative width of this column.</param>
+		public JobsTabLabelColumn(string heading, string? category, int? relativeWidth)
+			: base(heading, relativeWidth)
 		{
-			this.Category = Category;
+			Category = category;
 		}
 
 		/// <summary>
@@ -185,13 +183,13 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Heading">Heading for this column</param>
-		/// <param name="Parameter">Category of labels to display in this column</param>
-		/// <param name="RelativeWidth">Relative width of this column.</param>
-		public JobsTabParameterColumn(string Heading, string? Parameter, int? RelativeWidth)
-			: base(Heading, RelativeWidth)
+		/// <param name="heading">Heading for this column</param>
+		/// <param name="parameter">Category of labels to display in this column</param>
+		/// <param name="relativeWidth">Relative width of this column.</param>
+		public JobsTabParameterColumn(string heading, string? parameter, int? relativeWidth)
+			: base(heading, relativeWidth)
 		{
-			this.Parameter = Parameter;
+			Parameter = parameter;
 		}
 
 		/// <summary>
@@ -233,31 +231,31 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Title">Title for this page</param>
-		/// <param name="ShowNames">Show names of jobs on the page</param>
-		/// <param name="Templates">Template names to include on this page</param>
-		/// <param name="JobNames">Names of jobs to include on this page</param>
-		/// <param name="Columns">Columns ot display in the table</param>
-		public JobsTab(string Title, bool ShowNames, List<TemplateRefId>? Templates, List<string>? JobNames, List<JobsTabColumn>? Columns)
-			: base(Title)
+		/// <param name="title">Title for this page</param>
+		/// <param name="showNames">Show names of jobs on the page</param>
+		/// <param name="templates">Template names to include on this page</param>
+		/// <param name="jobNames">Names of jobs to include on this page</param>
+		/// <param name="columns">Columns ot display in the table</param>
+		public JobsTab(string title, bool showNames, List<TemplateRefId>? templates, List<string>? jobNames, List<JobsTabColumn>? columns)
+			: base(title)
 		{
-			this.ShowNames = ShowNames;
-			this.Templates = Templates;
-			this.JobNames = JobNames;
-			this.Columns = Columns;
+			ShowNames = showNames;
+			Templates = templates;
+			JobNames = jobNames;
+			Columns = columns;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Request">Public request object</param>
-		public JobsTab(CreateJobsTabRequest Request)
-			: base(Request)
+		/// <param name="request">Public request object</param>
+		public JobsTab(CreateJobsTabRequest request)
+			: base(request)
 		{
-			ShowNames = Request.ShowNames;
-			Templates = Request.Templates?.ConvertAll(x => new TemplateRefId(x));
-			JobNames = Request.JobNames;
-			Columns = Request.Columns?.ConvertAll(x => x.ToModel());
+			ShowNames = request.ShowNames;
+			Templates = request.Templates?.ConvertAll(x => new TemplateRefId(x));
+			JobNames = request.JobNames;
+			Columns = request.Columns?.ConvertAll(x => x.ToModel());
 		}
 
 		/// <inheritdoc/>

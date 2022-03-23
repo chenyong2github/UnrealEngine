@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Models;
-using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
+using HordeCommon;
 
 namespace Horde.Build.Api
 {
@@ -50,17 +46,17 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Event">The event to construct from</param>
-		/// <param name="EventData">The event data</param>
-		/// <param name="IssueId">The issue for this event</param>
-		public GetLogEventResponse(ILogEvent Event, ILogEventData EventData, int? IssueId)
+		/// <param name="logEvent">The event to construct from</param>
+		/// <param name="eventData">The event data</param>
+		/// <param name="issueId">The issue for this event</param>
+		public GetLogEventResponse(ILogEvent logEvent, ILogEventData eventData, int? issueId)
 		{
-			this.Severity = Event.Severity;
-			this.LogId = Event.LogId.ToString();
-			this.LineIndex = Event.LineIndex;
-			this.LineCount = Event.LineCount;
-			this.IssueId = IssueId;
-			this.Lines = EventData.Lines.ConvertAll(x => x.Data);
+			Severity = logEvent.Severity;
+			LogId = logEvent.LogId.ToString();
+			LineIndex = logEvent.LineIndex;
+			LineCount = logEvent.LineCount;
+			IssueId = issueId;
+			Lines = eventData.Lines.ConvertAll(x => x.Data);
 		}
 	}
 }

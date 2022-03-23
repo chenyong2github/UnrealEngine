@@ -1,5 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Threading.Tasks;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Services;
@@ -7,12 +12,6 @@ using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using MongoDB.Driver.Core.Authentication;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Collections.Impl
 {
@@ -43,9 +42,9 @@ namespace Horde.Build.Collections.Impl
 			long? IUgsUserData.SyncTime => SyncTime;
 			UgsUserVote IUgsUserData.Vote => Vote ?? UgsUserVote.None;
 
-			public UgsUserDataDocument(string User)
+			public UgsUserDataDocument(string user)
 			{
-				this.User = User;
+				User = user;
 			}
 		}
 
@@ -76,34 +75,34 @@ namespace Horde.Build.Collections.Impl
 			[BsonConstructor]
 			private UgsMetadataDocument()
 			{
-				this.Stream = String.Empty;
+				Stream = String.Empty;
 			}
 
-			public UgsMetadataDocument(string Stream, int Change, string Project)
+			public UgsMetadataDocument(string stream, int change, string project)
 			{
-				this.Id = ObjectId.GenerateNewId();
-				this.Stream = Stream;
-				this.Change = Change;
-				this.Project = Project;
+				Id = ObjectId.GenerateNewId();
+				Stream = stream;
+				Change = change;
+				Project = project;
 			}
 		}
 
-		IMongoCollection<UgsMetadataDocument> Collection;
+		readonly IMongoCollection<UgsMetadataDocument> _collection;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">Database service instance</param>
-		public UgsMetadataCollection(DatabaseService DatabaseService)
+		/// <param name="databaseService">Database service instance</param>
+		public UgsMetadataCollection(DatabaseService databaseService)
 		{
-			Collection = DatabaseService.GetCollection<UgsMetadataDocument>("UgsMetadata");
+			_collection = databaseService.GetCollection<UgsMetadataDocument>("UgsMetadata");
 			
-			if (!DatabaseService.ReadOnlyMode)
+			if (!databaseService.ReadOnlyMode)
 			{
 				void CreateIndex()
 				{
-					Collection.Indexes.CreateOne(new CreateIndexModel<UgsMetadataDocument>(Builders<UgsMetadataDocument>.IndexKeys.Ascending(x => x.Stream).Descending(x => x.Change).Ascending(x => x.Project), new CreateIndexOptions { Unique = true }));
-					Collection.Indexes.CreateOne(new CreateIndexModel<UgsMetadataDocument>(Builders<UgsMetadataDocument>.IndexKeys.Ascending(x => x.Stream).Descending(x => x.Change).Descending(x => x.UpdateTicks)));
+					_collection.Indexes.CreateOne(new CreateIndexModel<UgsMetadataDocument>(Builders<UgsMetadataDocument>.IndexKeys.Ascending(x => x.Stream).Descending(x => x.Change).Ascending(x => x.Project), new CreateIndexOptions { Unique = true }));
+					_collection.Indexes.CreateOne(new CreateIndexModel<UgsMetadataDocument>(Builders<UgsMetadataDocument>.IndexKeys.Ascending(x => x.Stream).Descending(x => x.Change).Descending(x => x.UpdateTicks)));
 				}
 				
 				try
@@ -113,7 +112,7 @@ namespace Horde.Build.Collections.Impl
 				catch (MongoCommandException)
 				{
 					// If index creation fails, drop all indexes and retry.
-					Collection.Indexes.DropAll();
+					_collection.Indexes.DropAll();
 					CreateIndex();
 				}
 			}
@@ -122,33 +121,33 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Find or add a document for the given change
 		/// </summary>
-		/// <param name="Stream">Stream containing the change</param>
-		/// <param name="Change">The changelist number to add a document for</param>
-		/// <param name="Project">Arbitrary identifier for this project</param>
+		/// <param name="stream">Stream containing the change</param>
+		/// <param name="change">The changelist number to add a document for</param>
+		/// <param name="project">Arbitrary identifier for this project</param>
 		/// <returns>The metadata document</returns>
-		public async Task<IUgsMetadata> FindOrAddAsync(string Stream, int Change, string? Project)
+		public async Task<IUgsMetadata> FindOrAddAsync(string stream, int change, string? project)
 		{
-			string NormalizedStream = GetNormalizedStream(Stream);
-			string NormalizedProject = GetNormalizedProject(Project);
+			string normalizedStream = GetNormalizedStream(stream);
+			string normalizedProject = GetNormalizedProject(project);
 			for (; ; )
 			{
 				// Find an existing document
-				UgsMetadataDocument? Existing = await Collection.Find(x => x.Stream == NormalizedStream && x.Change == Change && x.Project == NormalizedProject).FirstOrDefaultAsync();
-				if (Existing != null)
+				UgsMetadataDocument? existing = await _collection.Find(x => x.Stream == normalizedStream && x.Change == change && x.Project == normalizedProject).FirstOrDefaultAsync();
+				if (existing != null)
 				{
-					return Existing;
+					return existing;
 				}
 
 				// Try to insert a new document
 				try
 				{
-					UgsMetadataDocument NewDocument = new UgsMetadataDocument(NormalizedStream, Change, NormalizedProject);
-					await Collection.InsertOneAsync(NewDocument);
-					return NewDocument;
+					UgsMetadataDocument newDocument = new UgsMetadataDocument(normalizedStream, change, normalizedProject);
+					await _collection.InsertOneAsync(newDocument);
+					return newDocument;
 				}
-				catch (MongoWriteException Ex)
+				catch (MongoWriteException ex)
 				{
-					if (Ex.WriteError.Category != ServerErrorCategory.DuplicateKey)
+					if (ex.WriteError.Category != ServerErrorCategory.DuplicateKey)
 					{
 						throw;
 					}
@@ -157,149 +156,149 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUgsMetadata> UpdateUserAsync(IUgsMetadata Metadata, string UserName, bool? Synced, UgsUserVote? Vote, bool? Investigating, bool? Starred, string? Comment)
+		public async Task<IUgsMetadata> UpdateUserAsync(IUgsMetadata metadata, string userName, bool? synced, UgsUserVote? vote, bool? investigating, bool? starred, string? comment)
 		{
-			UpdateDefinitionBuilder<UgsMetadataDocument> UpdateBuilder = Builders<UgsMetadataDocument>.Update;
+			UpdateDefinitionBuilder<UgsMetadataDocument> updateBuilder = Builders<UgsMetadataDocument>.Update;
 			for (; ; )
 			{
-				UgsMetadataDocument Document = (UgsMetadataDocument)Metadata;
+				UgsMetadataDocument document = (UgsMetadataDocument)metadata;
 
-				int UserIdx = Document.Users.FindIndex(x => x.User.Equals(UserName, StringComparison.OrdinalIgnoreCase));
-				if (UserIdx == -1)
+				int userIdx = document.Users.FindIndex(x => x.User.Equals(userName, StringComparison.OrdinalIgnoreCase));
+				if (userIdx == -1)
 				{
 					// Create a new user entry
-					UgsUserDataDocument UserData = new UgsUserDataDocument(UserName);
-					UserData.SyncTime = (Synced == true) ? (long?)DateTime.UtcNow.Ticks : null;
-					UserData.Vote = Vote;
-					UserData.Investigating = (Investigating == true) ? Investigating : null;
-					UserData.Starred = (Starred == true) ? Starred : null;
-					UserData.Comment = Comment;
+					UgsUserDataDocument userData = new UgsUserDataDocument(userName);
+					userData.SyncTime = (synced == true) ? (long?)DateTime.UtcNow.Ticks : null;
+					userData.Vote = vote;
+					userData.Investigating = (investigating == true) ? investigating : null;
+					userData.Starred = (starred == true) ? starred : null;
+					userData.Comment = comment;
 
-					if (await TryUpdateAsync(Document, UpdateBuilder.Push(x => x.Users, UserData)))
+					if (await TryUpdateAsync(document, updateBuilder.Push(x => x.Users, userData)))
 					{
-						Document.Users.Add(UserData);
-						return Metadata;
+						document.Users.Add(userData);
+						return metadata;
 					}
 				}
 				else
 				{
 					// Update an existing entry
-					UgsUserDataDocument UserData = Document.Users[UserIdx];
+					UgsUserDataDocument userData = document.Users[userIdx];
 
-					long? NewSyncTime = Synced.HasValue ? (Synced.Value ? (long?)DateTime.UtcNow.Ticks : null) : UserData.SyncTime;
-					UgsUserVote? NewVote = Vote.HasValue ? ((Vote.Value != UgsUserVote.None) ? Vote : null) : UserData.Vote;
-					bool? NewInvestigating = Investigating.HasValue ? (Investigating.Value ? Investigating : null) : UserData.Investigating;
-					bool? NewStarred = Starred.HasValue ? (Starred.Value ? Starred : null) : UserData.Starred;
+					long? newSyncTime = synced.HasValue ? (synced.Value ? (long?)DateTime.UtcNow.Ticks : null) : userData.SyncTime;
+					UgsUserVote? newVote = vote.HasValue ? ((vote.Value != UgsUserVote.None) ? vote : null) : userData.Vote;
+					bool? newInvestigating = investigating.HasValue ? (investigating.Value ? investigating : null) : userData.Investigating;
+					bool? newStarred = starred.HasValue ? (starred.Value ? starred : null) : userData.Starred;
 
-					List<UpdateDefinition<UgsMetadataDocument>> Updates = new List<UpdateDefinition<UgsMetadataDocument>>();
-					if (NewSyncTime != UserData.SyncTime)
+					List<UpdateDefinition<UgsMetadataDocument>> updates = new List<UpdateDefinition<UgsMetadataDocument>>();
+					if (newSyncTime != userData.SyncTime)
 					{
-						Updates.Add(UpdateBuilder.Set(x => x.Users![UserIdx].SyncTime, NewSyncTime));
+						updates.Add(updateBuilder.Set(x => x.Users![userIdx].SyncTime, newSyncTime));
 					}
-					if (NewVote != UserData.Vote)
+					if (newVote != userData.Vote)
 					{
-						Updates.Add(UpdateBuilder.Set(x => x.Users![UserIdx].Vote, NewVote));
+						updates.Add(updateBuilder.Set(x => x.Users![userIdx].Vote, newVote));
 					}
-					if (NewInvestigating != UserData.Investigating)
+					if (newInvestigating != userData.Investigating)
 					{
-						Updates.Add(UpdateBuilder.SetOrUnsetNull(x => x.Users![UserIdx].Investigating, NewInvestigating));
+						updates.Add(updateBuilder.SetOrUnsetNull(x => x.Users![userIdx].Investigating, newInvestigating));
 					}
-					if (NewStarred != UserData.Starred)
+					if (newStarred != userData.Starred)
 					{
-						Updates.Add(UpdateBuilder.SetOrUnsetNull(x => x.Users![UserIdx].Starred, NewStarred));
+						updates.Add(updateBuilder.SetOrUnsetNull(x => x.Users![userIdx].Starred, newStarred));
 					}
-					if (Comment != null)
+					if (comment != null)
 					{
-						Updates.Add(UpdateBuilder.Set(x => x.Users![UserIdx].Comment, Comment));
+						updates.Add(updateBuilder.Set(x => x.Users![userIdx].Comment, comment));
 					}
 
-					if (Updates.Count == 0 || await TryUpdateAsync(Document, UpdateBuilder.Combine(Updates)))
+					if (updates.Count == 0 || await TryUpdateAsync(document, updateBuilder.Combine(updates)))
 					{
-						UserData.SyncTime = NewSyncTime;
-						UserData.Vote = Vote;
-						UserData.Investigating = NewInvestigating;
-						UserData.Starred = NewStarred;
-						UserData.Comment = Comment;
-						return Metadata;
+						userData.SyncTime = newSyncTime;
+						userData.Vote = vote;
+						userData.Investigating = newInvestigating;
+						userData.Starred = newStarred;
+						userData.Comment = comment;
+						return metadata;
 					}
 				}
 
 				// Update the document and try again
-				Metadata = await FindOrAddAsync(Metadata.Stream, Metadata.Change, Metadata.Project);
+				metadata = await FindOrAddAsync(metadata.Stream, metadata.Change, metadata.Project);
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUgsMetadata> UpdateBadgeAsync(IUgsMetadata Metadata, string Name, Uri? Url, UgsBadgeState State)
+		public async Task<IUgsMetadata> UpdateBadgeAsync(IUgsMetadata metadata, string name, Uri? url, UgsBadgeState state)
 		{
-			UpdateDefinitionBuilder<UgsMetadataDocument> UpdateBuilder = Builders<UgsMetadataDocument>.Update;
+			UpdateDefinitionBuilder<UgsMetadataDocument> updateBuilder = Builders<UgsMetadataDocument>.Update;
 			for (; ; )
 			{
-				UgsMetadataDocument Document = (UgsMetadataDocument)Metadata;
+				UgsMetadataDocument document = (UgsMetadataDocument)metadata;
 
 				// Update the document
-				int BadgeIdx = Document.Badges.FindIndex(x => x.Name.Equals(Name, StringComparison.OrdinalIgnoreCase));
-				if (BadgeIdx == -1)
+				int badgeIdx = document.Badges.FindIndex(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+				if (badgeIdx == -1)
 				{
 					// Create a new badge
-					UgsBadgeDataDocument NewBadge = new UgsBadgeDataDocument();
-					NewBadge.Name = Name;
-					NewBadge.Url = Url;
-					NewBadge.State = State;
+					UgsBadgeDataDocument newBadge = new UgsBadgeDataDocument();
+					newBadge.Name = name;
+					newBadge.Url = url;
+					newBadge.State = state;
 
-					if (await TryUpdateAsync(Document, UpdateBuilder.Push(x => x.Badges, NewBadge)))
+					if (await TryUpdateAsync(document, updateBuilder.Push(x => x.Badges, newBadge)))
 					{
-						Document.Badges.Add(NewBadge);
-						return Metadata;
+						document.Badges.Add(newBadge);
+						return metadata;
 					}
 				}
 				else
 				{
 					// Update an existing badge
-					List<UpdateDefinition<UgsMetadataDocument>> Updates = new List<UpdateDefinition<UgsMetadataDocument>>();
+					List<UpdateDefinition<UgsMetadataDocument>> updates = new List<UpdateDefinition<UgsMetadataDocument>>();
 
-					UgsBadgeDataDocument BadgeData = Document.Badges[BadgeIdx];
-					if (Url != BadgeData.Url)
+					UgsBadgeDataDocument badgeData = document.Badges[badgeIdx];
+					if (url != badgeData.Url)
 					{
-						Updates.Add(UpdateBuilder.Set(x => x.Badges![BadgeIdx].Url, Url));
+						updates.Add(updateBuilder.Set(x => x.Badges![badgeIdx].Url, url));
 					}
-					if (State != BadgeData.State)
+					if (state != badgeData.State)
 					{
-						Updates.Add(UpdateBuilder.Set(x => x.Badges![BadgeIdx].State, State));
+						updates.Add(updateBuilder.Set(x => x.Badges![badgeIdx].State, state));
 					}
 
-					if (Updates.Count == 0 || await TryUpdateAsync(Document, UpdateBuilder.Combine(Updates)))
+					if (updates.Count == 0 || await TryUpdateAsync(document, updateBuilder.Combine(updates)))
 					{
-						BadgeData.Url = Url;
-						BadgeData.State = State;
-						return Metadata;
+						badgeData.Url = url;
+						badgeData.State = state;
+						return metadata;
 					}
 				}
 
 				// Update the document and try again
-				Metadata = await FindOrAddAsync(Metadata.Stream, Metadata.Change, Metadata.Project);
+				metadata = await FindOrAddAsync(metadata.Stream, metadata.Change, metadata.Project);
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IUgsMetadata>> FindAsync(string Stream, int MinChange, int? MaxChange = null, long? MinTime = null)
+		public async Task<List<IUgsMetadata>> FindAsync(string stream, int minChange, int? maxChange = null, long? minTime = null)
 		{
-			FilterDefinitionBuilder<UgsMetadataDocument> FilterBuilder = Builders<UgsMetadataDocument>.Filter;
+			FilterDefinitionBuilder<UgsMetadataDocument> filterBuilder = Builders<UgsMetadataDocument>.Filter;
 
-			string NormalizedStream = GetNormalizedStream(Stream);
+			string normalizedStream = GetNormalizedStream(stream);
 
-			FilterDefinition<UgsMetadataDocument> Filter = FilterBuilder.Eq(x => x.Stream, NormalizedStream) & FilterBuilder.Gte(x => x.Change, MinChange);
-			if (MaxChange != null)
+			FilterDefinition<UgsMetadataDocument> filter = filterBuilder.Eq(x => x.Stream, normalizedStream) & filterBuilder.Gte(x => x.Change, minChange);
+			if (maxChange != null)
 			{
-				Filter &= FilterBuilder.Lte(x => x.Change, MaxChange.Value);
+				filter &= filterBuilder.Lte(x => x.Change, maxChange.Value);
 			}
-			if (MinTime != null)
+			if (minTime != null)
 			{
-				Filter &= FilterBuilder.Gt(x => x.UpdateTicks, MinTime.Value);
+				filter &= filterBuilder.Gt(x => x.UpdateTicks, minTime.Value);
 			}
 
-			List<UgsMetadataDocument> Documents = await Collection.Find(Filter).ToListAsync();
-			return Documents.ConvertAll<IUgsMetadata>(x =>
+			List<UgsMetadataDocument> documents = await _collection.Find(filter).ToListAsync();
+			return documents.ConvertAll<IUgsMetadata>(x =>
 			{
 				// Remove polluting null entries. Need to find the source of these.
 				x.Users = x.Users.Where(y => y != null).ToList();
@@ -311,51 +310,51 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Normalize a stream argument
 		/// </summary>
-		/// <param name="Stream">The stream name</param>
+		/// <param name="stream">The stream name</param>
 		/// <returns>Normalized name</returns>
 		[SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase")]
-		private static string GetNormalizedStream(string Stream)
+		private static string GetNormalizedStream(string stream)
 		{
-			return Stream.ToLowerInvariant().TrimEnd('/');
+			return stream.ToLowerInvariant().TrimEnd('/');
 		}
 
 		/// <summary>
 		/// Normalize a project argument
 		/// </summary>
-		/// <param name="Project">The project name</param>
+		/// <param name="project">The project name</param>
 		/// <returns>Normalized name</returns>
 		[SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase")]
-		private static string GetNormalizedProject(string? Project)
+		private static string GetNormalizedProject(string? project)
 		{
-			if(Project == null)
+			if(project == null)
 			{
 				return String.Empty;
 			}
 			else
 			{
-				return Project.ToLowerInvariant();
+				return project.ToLowerInvariant();
 			}
 		}
 
 		/// <summary>
 		/// Try to update a metadata document
 		/// </summary>
-		/// <param name="Document">The document to update</param>
-		/// <param name="Update">Update definition</param>
+		/// <param name="document">The document to update</param>
+		/// <param name="update">Update definition</param>
 		/// <returns>True if the update succeeded</returns>
-		private async Task<bool> TryUpdateAsync(UgsMetadataDocument Document, UpdateDefinition<UgsMetadataDocument> Update)
+		private async Task<bool> TryUpdateAsync(UgsMetadataDocument document, UpdateDefinition<UgsMetadataDocument> update)
 		{
-			int NewUpdateIndex = Document.UpdateIndex + 1;
-			Update = Update.Set(x => x.UpdateIndex, NewUpdateIndex);
+			int newUpdateIndex = document.UpdateIndex + 1;
+			update = update.Set(x => x.UpdateIndex, newUpdateIndex);
 
-			long NewUpdateTicks = DateTime.UtcNow.Ticks;
-			Update = Update.Set(x => x.UpdateTicks, NewUpdateTicks);
+			long newUpdateTicks = DateTime.UtcNow.Ticks;
+			update = update.Set(x => x.UpdateTicks, newUpdateTicks);
 
-			UpdateResult Result = await Collection.UpdateOneAsync(x => x.Change == Document.Change && x.UpdateIndex == Document.UpdateIndex, Update);
-			if (Result.ModifiedCount > 0)
+			UpdateResult result = await _collection.UpdateOneAsync(x => x.Change == document.Change && x.UpdateIndex == document.UpdateIndex, update);
+			if (result.ModifiedCount > 0)
 			{
-				Document.UpdateIndex = NewUpdateIndex;
-				Document.UpdateTicks = NewUpdateTicks;
+				document.UpdateIndex = newUpdateIndex;
+				document.UpdateTicks = newUpdateTicks;
 				return true;
 			}
 			return false;

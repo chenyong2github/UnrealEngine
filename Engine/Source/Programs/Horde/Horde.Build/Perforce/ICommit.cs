@@ -1,16 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using EpicGames.Perforce;
+using System;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Horde.Build.Commits
 {
@@ -101,24 +93,24 @@ namespace Horde.Build.Commits
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NewCommit(ICommit Commit)
-			: this(Commit.StreamId, Commit.Change, Commit.OriginalChange, Commit.AuthorId, Commit.OwnerId, Commit.Description, Commit.BasePath, Commit.DateUtc)
+		public NewCommit(ICommit commit)
+			: this(commit.StreamId, commit.Change, commit.OriginalChange, commit.AuthorId, commit.OwnerId, commit.Description, commit.BasePath, commit.DateUtc)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NewCommit(StreamId StreamId, int Change, int OriginalChange, UserId AuthorId, UserId OwnerId, string Description, string BasePath, DateTime DateUtc)
+		public NewCommit(StreamId streamId, int change, int originalChange, UserId authorId, UserId ownerId, string description, string basePath, DateTime dateUtc)
 		{
-			this.StreamId = StreamId;
-			this.Change = Change;
-			this.OriginalChange = OriginalChange;
-			this.AuthorId = AuthorId;
-			this.OwnerId = OwnerId;
-			this.Description = Description;
-			this.BasePath = BasePath;
-			this.DateUtc = DateUtc;
+			StreamId = streamId;
+			Change = change;
+			OriginalChange = originalChange;
+			AuthorId = authorId;
+			OwnerId = ownerId;
+			Description = description;
+			BasePath = basePath;
+			DateUtc = dateUtc;
 		}
 	}
 }

@@ -1,21 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
+using System.Threading;
+using System.Threading.Tasks;
 using Google.Protobuf;
-using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
-using HordeCommon;
-using HordeCommon.Rpc.Tasks;
 using Horde.Build.Api;
 using Horde.Build.Models;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
-using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using HordeCommon;
+using HordeCommon.Rpc.Tasks;
 
 namespace Horde.Build.Tasks.Impl
 {
@@ -29,33 +23,33 @@ namespace Horde.Build.Tasks.Impl
 
 		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled | TaskSourceFlags.AllowDuringDowntime;
 
-		ILogFileService LogService;
+		readonly ILogFileService _logService;
 
-		public ShutdownTaskSource(ILogFileService LogService)
+		public ShutdownTaskSource(ILogFileService logService)
 		{
-			this.LogService = LogService;
-			this.OnLeaseStartedProperties.Add(nameof(ShutdownTask.LogId), x => new LogId(x.LogId));
+			_logService = logService;
+			OnLeaseStartedProperties.Add(nameof(ShutdownTask.LogId), x => new LogId(x.LogId));
 		}
 
-		public override async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
+		public override async Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
-			if (!Agent.RequestShutdown)
+			if (!agent.RequestShutdown)
 			{
 				return null;
 			}
-			if (Agent.Leases.Count > 0)
+			if (agent.Leases.Count > 0)
 			{
 				return AgentLease.Drain;
 			}
 
-			ILogFile Log = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
+			ILogFile log = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json);
 
-			ShutdownTask Task = new ShutdownTask();
-			Task.LogId = Log.Id.ToString();
+			ShutdownTask task = new ShutdownTask();
+			task.LogId = log.Id.ToString();
 
-			byte[] Payload = Any.Pack(Task).ToByteArray();
+			byte[] payload = Any.Pack(task).ToByteArray();
 
-			return new AgentLease(LeaseId.GenerateNewId(), "Shutdown", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
+			return new AgentLease(LeaseId.GenerateNewId(), "Shutdown", null, null, log.Id, LeaseState.Pending, null, true, payload);
 		}
 	}
 }

@@ -1,20 +1,19 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-
 using System.Collections.Generic;
 using Horde.Build.Acls;
 using Horde.Build.Utilities;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Models
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
-	using UserId = ObjectId<IUser>;
 	using ProjectId = StringId<IProject>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// A reservation containing one or more devices
@@ -76,13 +75,11 @@ namespace Horde.Build.Models
 		/// </summary>
 		public List<string> RequestedDevicePlatforms { get; }
 
-
 		/// <summary>
 		/// The legacy reservation system guid, to be removed once can update Gauntlet client in all streams
 		/// </summary>
 		public string LegacyGuid { get; }
 	}
-
 
 	/// <summary>
 	/// A device platform 
@@ -103,7 +100,6 @@ namespace Horde.Build.Models
 		/// A list of valid models for the platform
 		/// </summary>
 		public IReadOnlyList<string>? Models { get; }
-
 	}
 
     /// <summary>
@@ -120,7 +116,6 @@ namespace Horde.Build.Models
         /// Shared by users with remote checking and checkouts
         /// </summary>
         Shared
-
     }
 
     /// <summary>
@@ -190,14 +185,12 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ReservationStartUtc"></param>
-		public DeviceUtilizationTelemetry( DateTime ReservationStartUtc )
+		/// <param name="reservationStartUtc"></param>
+		public DeviceUtilizationTelemetry( DateTime reservationStartUtc )
 		{
-			this.ReservationStartUtc = ReservationStartUtc;
+			ReservationStartUtc = reservationStartUtc;
 		}
-
 	}
-
 
 	/// <summary>
 	/// A physical device
@@ -229,7 +222,6 @@ namespace Horde.Build.Models
 		/// </summary>
 		public string? ModelId { get; }
 
-
 		/// <summary>
 		/// Address if the device supports shared network connections
 		/// </summary>
@@ -254,7 +246,6 @@ namespace Horde.Build.Models
 		/// The last time this device was checked out
 		/// </summary>
 		public DateTime? CheckOutTime { get; }
-
 
 		/// <summary>
 		/// The last time a problem was reported
@@ -282,10 +273,3 @@ namespace Horde.Build.Models
 		public Acl? Acl { get; }
 	}
 }
-
-
-
-
-
-
-

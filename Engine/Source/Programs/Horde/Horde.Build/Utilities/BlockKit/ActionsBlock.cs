@@ -18,32 +18,32 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		public List<ActionElement> Elements { get; } = new List<ActionElement>();
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, JsonSerializerOptions options)
 		{
-			Writer.WriteStartObject();
-			Writer.WriteString("type", "actions");
-			Writer.WriteStartArray("elements");
-			foreach (ActionElement Element in Elements)
+			writer.WriteStartObject();
+			writer.WriteString("type", "actions");
+			writer.WriteStartArray("elements");
+			foreach (ActionElement element in Elements)
 			{
-				Element.Write(Writer, Options);
+				element.Write(writer, options);
 			}
-			Writer.WriteEndArray();
-			Writer.WriteEndObject();
+			writer.WriteEndArray();
+			writer.WriteEndObject();
 		}
 
 		/// <summary>
 		/// Helper method to add a new <see cref="ActionButton"/> to the block.
 		/// </summary>
-		/// <param name="Text">The button text.</param>
-		/// <param name="URL">The URL to navigate to when clicked, if any.</param>
-		/// <param name="Value">
+		/// <param name="text">The button text.</param>
+		/// <param name="url">The URL to navigate to when clicked, if any.</param>
+		/// <param name="value">
 		/// The value, if any, that should be passed in the interaction payload if the button is clicked.
 		/// </param>
-		/// <param name="ActionId">An optional identifier for handling interaction logic.</param>
-		/// <param name="Style">An option button style to apply to the button.</param>
-		public void AddButton(string Text, Uri? URL = null, string? Value = null, string? ActionId = null, ActionButton.ButtonStyle Style = ActionButton.ButtonStyle.Default)
+		/// <param name="actionId">An optional identifier for handling interaction logic.</param>
+		/// <param name="style">An option button style to apply to the button.</param>
+		public void AddButton(string text, Uri? url = null, string? value = null, string? actionId = null, ActionButton.ButtonStyle style = ActionButton.ButtonStyle.Default)
 		{
-			Elements.Add(new ActionButton(Text, URL, Value, ActionId, Style));
+			Elements.Add(new ActionButton(text, url, value, actionId, style));
 		}
 	}
 
@@ -55,9 +55,9 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Writes the Json for an Action block element to the given <see cref="Utf8JsonWriter"/>.
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Options"></param>
-		public abstract void Write(Utf8JsonWriter Writer, JsonSerializerOptions Options);
+		/// <param name="writer"></param>
+		/// <param name="options"></param>
+		public abstract void Write(Utf8JsonWriter writer, JsonSerializerOptions options);
 	}
 
 	/// <summary>
@@ -89,20 +89,20 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// Construct a new Button action element.
 		/// </summary>
-		/// <param name="Text">The button text.</param>
-		/// <param name="URL">The URL to navigate to when clicked, if any.</param>
-		/// <param name="Value">
+		/// <param name="text">The button text.</param>
+		/// <param name="url">The URL to navigate to when clicked, if any.</param>
+		/// <param name="value">
 		/// The value, if any, that should be passed in the interaction payload if the button is clicked.
 		/// </param>
-		/// <param name="ActionId">An optional identifier for handling interaction logic.</param>
-		/// <param name="Style">An option button style to apply to the button.</param>
-		public ActionButton(string Text, Uri? URL = null, string? Value = null, string? ActionId = null, ButtonStyle Style = ButtonStyle.Default)
+		/// <param name="actionId">An optional identifier for handling interaction logic.</param>
+		/// <param name="style">An option button style to apply to the button.</param>
+		public ActionButton(string text, Uri? url = null, string? value = null, string? actionId = null, ButtonStyle style = ButtonStyle.Default)
 		{
-			this.Text = new TextObject(Text, IsMarkdown: false);
-			this.URL = URL;
-			this.Value = Value;
-			this.ActionId = ActionId;
-			this.Style = Style;
+			Text = new TextObject(text, isMarkdown: false);
+			Url = url;
+			Value = value;
+			ActionId = actionId;
+			Style = style;
 		}
 
 		/// <summary>
@@ -113,7 +113,7 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		/// <summary>
 		/// The URL to navigate to when clicked, if any.
 		/// </summary>
-		public Uri? URL { get; set; }
+		public Uri? Url { get; set; }
 
 		/// <summary>
 		/// The value, if any, that should be passed in the interaction payload if the button is clicked.
@@ -131,29 +131,29 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		public ButtonStyle Style { get; set; }
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, JsonSerializerOptions options)
 		{
-			Writer.WriteStartObject();
-			Writer.WriteString("type", "button");
-			Text.Write(Writer);
-			if (URL != null)
+			writer.WriteStartObject();
+			writer.WriteString("type", "button");
+			Text.Write(writer);
+			if (Url != null)
 			{
-				Writer.WriteString("url", URL.AbsoluteUri);
+				writer.WriteString("url", Url.AbsoluteUri);
 			}
-			if (!string.IsNullOrWhiteSpace(Value))
+			if (!String.IsNullOrWhiteSpace(Value))
 			{
-				Writer.WriteString("value", Value);
+				writer.WriteString("value", Value);
 			}
-			if (!string.IsNullOrWhiteSpace(ActionId))
+			if (!String.IsNullOrWhiteSpace(ActionId))
 			{
-				Writer.WriteString("action_id", ActionId);
+				writer.WriteString("action_id", ActionId);
 			}
 			if (Style != ButtonStyle.Default)
 			{
-				Writer.WriteString("style", Style.ToString().ToLower(CultureInfo.CurrentCulture));
+				writer.WriteString("style", Style.ToString().ToLower(CultureInfo.CurrentCulture));
 			}
 
-			Writer.WriteEndObject();
+			writer.WriteEndObject();
 		}
 	}
 }

@@ -1,19 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using HordeCommon;
-using Horde.Build.Models;
-using Horde.Build.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using Horde.Build.Models;
+using HordeCommon;
 
 namespace Horde.Build.Api
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Parameters to register a new agent
 	/// </summary>
@@ -59,10 +55,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Unique id for this agent</param>
-		public CreateAgentResponse(string Id)
+		/// <param name="id">Unique id for this agent</param>
+		public CreateAgentResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -185,38 +181,38 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Lease">The lease to initialize from</param>
-		/// <param name="Details">The payload details</param>
-		public GetAgentLeaseResponse(AgentLease Lease, Dictionary<string, string>? Details)
+		/// <param name="lease">The lease to initialize from</param>
+		/// <param name="details">The payload details</param>
+		public GetAgentLeaseResponse(AgentLease lease, Dictionary<string, string>? details)
 		{
-			this.Id = Lease.Id.ToString();
-			this.Name = Lease.Name;
-			this.LogId = Lease.LogId?.ToString();
-			this.State = Lease.State;
-			this.StartTime = Lease.StartTime;
-			this.Executing = Lease.Active;
-			this.FinishTime = Lease.ExpiryTime;
-			this.Details = Details;
+			Id = lease.Id.ToString();
+			Name = lease.Name;
+			LogId = lease.LogId?.ToString();
+			State = lease.State;
+			StartTime = lease.StartTime;
+			Executing = lease.Active;
+			FinishTime = lease.ExpiryTime;
+			Details = details;
 		}
 
 		/// <summary>
 		/// Converts this lease to a response object
 		/// </summary>
-		/// <param name="Lease">The lease to initialize from</param>
-		/// <param name="Details">The payload details</param>
-		/// <param name="AgentRate">Rate for running this agent</param>
-		public GetAgentLeaseResponse(ILease Lease, Dictionary<string, string>? Details, double? AgentRate)
+		/// <param name="lease">The lease to initialize from</param>
+		/// <param name="details">The payload details</param>
+		/// <param name="agentRate">Rate for running this agent</param>
+		public GetAgentLeaseResponse(ILease lease, Dictionary<string, string>? details, double? agentRate)
 		{
-			this.Id = Lease.Id.ToString();
-			this.AgentId = Lease.AgentId.ToString();
-			this.AgentRate = AgentRate;
-			this.Name = Lease.Name;
-			this.LogId = Lease.LogId?.ToString();
-			this.StartTime = Lease.StartTime;
-			this.Executing = (Lease.FinishTime == null);
-			this.FinishTime = Lease.FinishTime;
-			this.Details = Details;
-			this.Outcome = Lease.Outcome;
+			Id = lease.Id.ToString();
+			AgentId = lease.AgentId.ToString();
+			AgentRate = agentRate;
+			Name = lease.Name;
+			LogId = lease.LogId?.ToString();
+			StartTime = lease.StartTime;
+			Executing = (lease.FinishTime == null);
+			FinishTime = lease.FinishTime;
+			Details = details;
+			Outcome = lease.Outcome;
 		}
 	}
 
@@ -255,14 +251,14 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Session">The session to construct from</param>
-		public GetAgentSessionResponse(ISession Session)
+		/// <param name="session">The session to construct from</param>
+		public GetAgentSessionResponse(ISession session)
 		{
-			this.Id = Session.Id.ToString();
-			this.StartTime = Session.StartTime;
-			this.FinishTime = Session.FinishTime;
-			this.Properties = (Session.Properties != null) ? new List<string>(Session.Properties) : null;
-			this.Version = Session.Version?.ToString();
+			Id = session.Id.ToString();
+			StartTime = session.StartTime;
+			FinishTime = session.FinishTime;
+			Properties = (session.Properties != null) ? new List<string>(session.Properties) : null;
+			Version = session.Version?.ToString();
 		}
 	}
 
@@ -299,20 +295,20 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Whether to use an incremental workspace
 		/// </summary>
-		public bool bIncremental { get; set; }
+		public bool BIncremental { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Workspace">The workspace to construct from</param>
-		public GetAgentWorkspaceResponse(AgentWorkspace Workspace)
+		/// <param name="workspace">The workspace to construct from</param>
+		public GetAgentWorkspaceResponse(AgentWorkspace workspace)
 		{
-			this.Cluster = Workspace.Cluster;
-			this.UserName = Workspace.UserName;
-			this.Identifier = Workspace.Identifier;
-			this.Stream = Workspace.Stream;
-			this.View = Workspace.View;
-			this.bIncremental = Workspace.bIncremental;
+			Cluster = workspace.Cluster;
+			UserName = workspace.UserName;
+			Identifier = workspace.Identifier;
+			Stream = workspace.Stream;
+			View = workspace.View;
+			BIncremental = workspace.BIncremental;
 		}
 	}
 
@@ -459,43 +455,43 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Agent">The agent to construct from</param>
-		/// <param name="Leases">Active leases</param>
-		/// <param name="Rate">Rate for this agent</param>
+		/// <param name="agent">The agent to construct from</param>
+		/// <param name="leases">Active leases</param>
+		/// <param name="rate">Rate for this agent</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetAgentResponse(IAgent Agent, List<GetAgentLeaseResponse> Leases, double? Rate, bool bIncludeAcl)
+		public GetAgentResponse(IAgent agent, List<GetAgentLeaseResponse> leases, double? rate, bool bIncludeAcl)
 		{
-			this.Id = Agent.Id.ToString();
-			this.Name = Agent.Id.ToString();
-			this.Enabled = Agent.Enabled;
-			this.Rate = Rate;
-			this.Properties = new List<string>(Agent.Properties);
-			this.Resources = new Dictionary<string, int>(Agent.Resources);
-			this.SessionId = Agent.SessionId?.ToString();
-			this.Online = Agent.IsSessionValid(DateTime.UtcNow);
-			this.Deleted = Agent.Deleted;
-			this.PendingConform = Agent.RequestConform;
-			this.PendingFullConform = Agent.RequestFullConform;
-			this.PendingRestart = Agent.RequestRestart;
-			this.PendingShutdown = Agent.RequestShutdown;
-			this.LastShutdownReason = Agent.LastShutdownReason ?? "Unknown";
-			this.LastConformTime = Agent.LastConformTime;
-			this.NextConformTime =   Agent.LastConformTime;
-			this.ConformAttemptCount = Agent.ConformAttemptCount;
-			this.Version = Agent.Version?.ToString() ?? "Unknown";
-			if(Agent.Channel != null)
+			Id = agent.Id.ToString();
+			Name = agent.Id.ToString();
+			Enabled = agent.Enabled;
+			Rate = rate;
+			Properties = new List<string>(agent.Properties);
+			Resources = new Dictionary<string, int>(agent.Resources);
+			SessionId = agent.SessionId?.ToString();
+			Online = agent.IsSessionValid(DateTime.UtcNow);
+			Deleted = agent.Deleted;
+			PendingConform = agent.RequestConform;
+			PendingFullConform = agent.RequestFullConform;
+			PendingRestart = agent.RequestRestart;
+			PendingShutdown = agent.RequestShutdown;
+			LastShutdownReason = agent.LastShutdownReason ?? "Unknown";
+			LastConformTime = agent.LastConformTime;
+			NextConformTime =   agent.LastConformTime;
+			ConformAttemptCount = agent.ConformAttemptCount;
+			Version = agent.Version?.ToString() ?? "Unknown";
+			if(agent.Channel != null)
 			{
-				this.Version += $" ({Agent.Channel})";
+				Version += $" ({agent.Channel})";
 			}
-			this.Version = Agent.Version?.ToString();
-			this.Channel = Agent.Channel?.ToString();
-			this.UpdateTime = Agent.UpdateTime;
-			this.Pools = Agent.GetPools().Select(x => x.ToString()).ToList();
-			this.Workspaces = Agent.Workspaces.ConvertAll(x => new GetAgentWorkspaceResponse(x));
-			this.Capabilities = new { Devices = new[] { new { Properties = Agent.Properties, Resources = Agent.Resources } } };
-			this.Leases = Leases;
-			this.Acl = (bIncludeAcl && Agent.Acl != null) ? new GetAclResponse(Agent.Acl) : null;
-			this.Comment = Agent.Comment;
+			Version = agent.Version?.ToString();
+			Channel = agent.Channel?.ToString();
+			UpdateTime = agent.UpdateTime;
+			Pools = agent.GetPools().Select(x => x.ToString()).ToList();
+			Workspaces = agent.Workspaces.ConvertAll(x => new GetAgentWorkspaceResponse(x));
+			Capabilities = new { Devices = new[] { new { agent.Properties, agent.Resources } } };
+			Leases = leases;
+			Acl = (bIncludeAcl && agent.Acl != null) ? new GetAclResponse(agent.Acl) : null;
+			Comment = agent.Comment;
 		}
 	}
 }

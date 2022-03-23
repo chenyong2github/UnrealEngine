@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.	
 
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using System.Net.Http;
 using Polly;
 using Polly.Extensions.Http;
-using System.Text.Json;
-using System.Net.Http.Headers;
-using System.Collections.Concurrent;
 
 namespace Horde.Build.Services
 {
@@ -20,115 +20,113 @@ namespace Horde.Build.Services
 	/// </summary>
 	public sealed class JiraService : IJiraService, IDisposable
 	{
-		ILogger Logger;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// The server settings
 		/// </summary>
-		ServerSettings Settings;
-
-		HttpClient Client;
-		AsyncPolicy<HttpResponseMessage> RetryPolicy;
-
-		ConcurrentDictionary<string, JiraCacheValue> IssueCache = new ConcurrentDictionary<string, JiraCacheValue>();
+		readonly ServerSettings _settings;
+		readonly HttpClient _client;
+		readonly AsyncPolicy<HttpResponseMessage> _retryPolicy;
+		readonly ConcurrentDictionary<string, JiraCacheValue> _issueCache = new ConcurrentDictionary<string, JiraCacheValue>();
 
 		/// <summary>
 		/// Jira service constructor
 		/// </summary>
-		/// <param name="Settings"></param>
-		/// <param name="Logger"></param>
-		public JiraService(IOptions<ServerSettings> Settings, ILogger<JiraService> Logger)
+		/// <param name="settings"></param>
+		/// <param name="logger"></param>
+		public JiraService(IOptions<ServerSettings> settings, ILogger<JiraService> logger)
 		{
 
-			this.Settings = Settings.Value;
-			this.Logger = Logger;
+			_settings = settings.Value;
+			_logger = logger;
 
 			// setup http client for Jira rest api queries
-			Client = new HttpClient();
-			byte[] AuthBytes = Encoding.ASCII.GetBytes($"{this.Settings.JiraUsername}:{this.Settings.JiraApiToken}");
-			Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(AuthBytes));
-			Client.Timeout = TimeSpan.FromSeconds(15.0);			
-			RetryPolicy = HttpPolicyExtensions.HandleTransientHttpError().WaitAndRetryAsync(3, Attempt => TimeSpan.FromSeconds(Math.Pow(2.0, Attempt)));
+			_client = new HttpClient();
+			byte[] authBytes = Encoding.ASCII.GetBytes($"{_settings.JiraUsername}:{_settings.JiraApiToken}");
+			_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+			_client.Timeout = TimeSpan.FromSeconds(15.0);			
+			_retryPolicy = HttpPolicyExtensions.HandleTransientHttpError().WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2.0, attempt)));
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Client.Dispose();
+			_client.Dispose();
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<JiraIssue>> GetJiraIssuesAsync(string[] JiraKeys)
+		public async Task<List<JiraIssue>> GetJiraIssuesAsync(string[] jiraKeys)
 		{
-			List<JiraIssue> Result = new List<JiraIssue>();
+			List<JiraIssue> result = new List<JiraIssue>();
 			
-			if (Settings.JiraUrl == null || JiraKeys.Length == 0)
+			if (_settings.JiraUrl == null || jiraKeys.Length == 0)
 			{
-				return Result;
+				return result;
 			}
 
-			List<string> QueryJiras = new List<string>();
-			for (int i = 0; i < JiraKeys.Length; i++)
+			List<string> queryJiras = new List<string>();
+			for (int i = 0; i < jiraKeys.Length; i++)
 			{
-				JiraCacheValue Value;
-				if (IssueCache.TryGetValue(JiraKeys[i], out Value))
+				JiraCacheValue value;
+				if (_issueCache.TryGetValue(jiraKeys[i], out value))
 				{
-					if (DateTime.UtcNow.Subtract(Value.CacheTime).TotalMinutes >= 2)
+					if (DateTime.UtcNow.Subtract(value._cacheTime).TotalMinutes >= 2)
 					{
-						QueryJiras.Add(JiraKeys[i]);				
+						queryJiras.Add(jiraKeys[i]);				
 					}
 				}
 				else
 				{
-					QueryJiras.Add(JiraKeys[i]);
+					queryJiras.Add(jiraKeys[i]);
 				}
 			}
 
-			if (QueryJiras.Count > 0)
+			if (queryJiras.Count > 0)
 			{
-				Uri Uri = new Uri(Settings.JiraUrl, $"/rest/api/2/search?jql=issueKey%20in%20({string.Join(",", QueryJiras)})&fields=assignee,status,resolution,priority&maxResults={QueryJiras.Count}");
+				Uri uri = new Uri(_settings.JiraUrl, $"/rest/api/2/search?jql=issueKey%20in%20({String.Join(",", queryJiras)})&fields=assignee,status,resolution,priority&maxResults={queryJiras.Count}");
 
-				HttpResponseMessage Response = await RetryPolicy.ExecuteAsync(() => Client.GetAsync(Uri));
-				if (!Response.IsSuccessStatusCode)
+				HttpResponseMessage response = await _retryPolicy.ExecuteAsync(() => _client.GetAsync(uri));
+				if (!response.IsSuccessStatusCode)
 				{
-					Logger.LogError("GET to {Uri} returned {Code} ({Response})", Uri, Response.StatusCode, await Response.Content.ReadAsStringAsync());
+					_logger.LogError("GET to {Uri} returned {Code} ({Response})", uri, response.StatusCode, await response.Content.ReadAsStringAsync());
 					throw new Exception("GetJiraIssuesAsync call failed");
 				}
 
-				byte[] Data = await Response.Content.ReadAsByteArrayAsync();
-				IssueQueryResponse? Jiras = JsonSerializer.Deserialize<IssueQueryResponse>(Data.AsSpan(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+				byte[] data = await response.Content.ReadAsByteArrayAsync();
+				IssueQueryResponse? jiras = JsonSerializer.Deserialize<IssueQueryResponse>(data.AsSpan(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
 
-				if (Jiras != null)
+				if (jiras != null)
 				{
-					for (int i = 0; i < Jiras.Issues.Count; i++)
+					for (int i = 0; i < jiras.Issues.Count; i++)
 					{
-						IssueResponse Issue = Jiras.Issues[i];
+						IssueResponse issue = jiras.Issues[i];
 
-						JiraIssue JiraIssue = new JiraIssue();
-						JiraIssue.Key = Issue.Key;
-						JiraIssue.JiraLink = $"{Settings.JiraUrl}browse/{Issue.Key}";
-						JiraIssue.AssigneeName = Issue.Fields?.Assignee?.Name;
-						JiraIssue.AssigneeDisplayName = Issue.Fields?.Assignee?.DisplayName;
-						JiraIssue.AssigneeEmailAddress = Issue.Fields?.Assignee?.EmailAddress;
-						JiraIssue.PriorityName = Issue.Fields?.Priority?.Name;
-						JiraIssue.ResolutionName = Issue.Fields?.Resolution?.Name;
-						JiraIssue.StatusName = Issue.Fields?.Status?.Name;
+						JiraIssue jiraIssue = new JiraIssue();
+						jiraIssue.Key = issue.Key;
+						jiraIssue.JiraLink = $"{_settings.JiraUrl}browse/{issue.Key}";
+						jiraIssue.AssigneeName = issue.Fields?.Assignee?.Name;
+						jiraIssue.AssigneeDisplayName = issue.Fields?.Assignee?.DisplayName;
+						jiraIssue.AssigneeEmailAddress = issue.Fields?.Assignee?.EmailAddress;
+						jiraIssue.PriorityName = issue.Fields?.Priority?.Name;
+						jiraIssue.ResolutionName = issue.Fields?.Resolution?.Name;
+						jiraIssue.StatusName = issue.Fields?.Status?.Name;
 
-						IssueCache[Issue.Key] = new JiraCacheValue() { Issue = JiraIssue, CacheTime = DateTime.UtcNow };
+						_issueCache[issue.Key] = new JiraCacheValue() { _issue = jiraIssue, _cacheTime = DateTime.UtcNow };
 					}
 				}
 			}
 
-			for (int i = 0; i < JiraKeys.Length; i++)
+			for (int i = 0; i < jiraKeys.Length; i++)
 			{
-				JiraCacheValue Value;
-				if (IssueCache.TryGetValue(JiraKeys[i], out Value))
+				JiraCacheValue value;
+				if (_issueCache.TryGetValue(jiraKeys[i], out value))
 				{
-					Result.Add(Value.Issue);
+					result.Add(value._issue);
 				}
 			}
 
-			return Result;
+			return result;
 
 		}
 
@@ -136,8 +134,8 @@ namespace Horde.Build.Services
 
 		struct JiraCacheValue
 		{
-			public JiraIssue Issue;
-			public DateTime CacheTime;
+			public JiraIssue _issue;
+			public DateTime _cacheTime;
 		};
 
 		class IssueQueryResponse
@@ -188,6 +186,5 @@ namespace Horde.Build.Services
 		{
 			public string? Name { get; set; }
 		}
-
 	}
 }

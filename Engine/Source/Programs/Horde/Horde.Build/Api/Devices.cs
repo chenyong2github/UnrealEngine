@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Horde.Build.Models;
 
@@ -36,9 +35,9 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CreateDevicePlatformResponse(string Id)
+		public CreateDevicePlatformResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -52,7 +51,6 @@ namespace Horde.Build.Api
 		/// </summary>
 		public string[] ModelIds { get; set; } = null!;
 	}
-
 
 	/// <summary>
 	/// Get object response which describes a device platform
@@ -77,13 +75,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Response constructor
 		/// </summary>
-		public GetDevicePlatformResponse(string Id, string Name, string[] ModelIds)
+		public GetDevicePlatformResponse(string id, string name, string[] modelIds)
 		{
-			this.Id = Id;
-			this.Name = Name;
-			this.ModelIds = ModelIds;
+			Id = id;
+			Name = name;
+			ModelIds = modelIds;
 		}
-
 	}
 
 	/// <summary>
@@ -107,7 +104,6 @@ namespace Horde.Build.Api
 		/// Projects associated with this device pool
 		/// </summary>
 		public List<string>? ProjectIds { get; set; }
-
 	}
 
 	/// <summary>
@@ -124,7 +120,6 @@ namespace Horde.Build.Api
 		/// Projects associated with this device pool
 		/// </summary>
 		public List<string>? ProjectIds { get; set; }
-
 	}
 
 	/// <summary>
@@ -140,9 +135,9 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CreateDevicePoolResponse(string Id)
+		public CreateDevicePoolResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -174,12 +169,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetDevicePoolResponse(string Id, string Name, DevicePoolType PoolType, bool WriteAccess)
+		public GetDevicePoolResponse(string id, string name, DevicePoolType poolType, bool writeAccess)
 		{
-			this.Id = Id;
-			this.Name = Name;
-            this.PoolType = PoolType;
-			this.WriteAccess = WriteAccess;
+			Id = id;
+			Name = name;
+            PoolType = poolType;
+			WriteAccess = writeAccess;
         }
 	}
 
@@ -222,9 +217,7 @@ namespace Horde.Build.Api
 		/// The vendor model id of the device
 		/// </summary>
 		public string? ModelId { get; set; }
-
 	}
-
 
 	/// <summary>
 	/// Device creation response object
@@ -240,10 +233,10 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id"></param>
-		public CreateDeviceResponse(string Id)
+		/// <param name="id"></param>
+		public CreateDeviceResponse(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -275,17 +268,15 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Telemetry"></param>
-		public GetDeviceUtilizationResponse(DeviceUtilizationTelemetry Telemetry)
+		/// <param name="telemetry"></param>
+		public GetDeviceUtilizationResponse(DeviceUtilizationTelemetry telemetry)
 		{
-			this.JobId = Telemetry.JobId;
-			this.StepId = Telemetry.StepId;
-			this.ReservationStartUtc = Telemetry.ReservationStartUtc;
-			this.ReservationFinishUtc = Telemetry.ReservationFinishUtc;
+			JobId = telemetry.JobId;
+			StepId = telemetry.StepId;
+			ReservationStartUtc = telemetry.ReservationStartUtc;
+			ReservationFinishUtc = telemetry.ReservationFinishUtc;
 		}
-
 	}
-
 
 	/// <summary>
 	/// Get response object which describes a device
@@ -362,26 +353,25 @@ namespace Horde.Build.Api
 		/// </summary>
 		public List<GetDeviceUtilizationResponse>? Utilization { get; set;}
 
-
-	/// <summary>
-	/// Device response constructor
-	/// </summary>
-	public GetDeviceResponse(string Id, string PlatformId, string PoolId, string Name, bool Enabled, string? Address, string? ModelId, string? ModifiedByUser, string? Notes, DateTime? ProblemTime, DateTime? MaintenanceTime, List<DeviceUtilizationTelemetry>? Utilization, string? CheckedOutByUser = null, DateTime? CheckOutTime = null)
+		/// <summary>
+		/// Device response constructor
+		/// </summary>
+		public GetDeviceResponse(string id, string platformId, string poolId, string name, bool enabled, string? address, string? modelId, string? modifiedByUser, string? notes, DateTime? problemTime, DateTime? maintenanceTime, List<DeviceUtilizationTelemetry>? utilization, string? checkedOutByUser = null, DateTime? checkOutTime = null)
 		{
-			this.Id = Id;
-			this.Name = Name;
-			this.PlatformId = PlatformId;
-			this.PoolId = PoolId;
-			this.Enabled = Enabled;
-			this.Address = Address;
-			this.ModelId = ModelId;
-            this.ModifiedByUser = ModifiedByUser;
-            this.Notes = Notes;
-			this.ProblemTime = ProblemTime;
-			this.MaintenanceTime = MaintenanceTime;
-			this.Utilization = Utilization?.Select(U => new GetDeviceUtilizationResponse(U)).ToList();
-            this.CheckedOutByUserId = CheckedOutByUser;
-            this.CheckOutTime = CheckOutTime;
+			Id = id;
+			Name = name;
+			PlatformId = platformId;
+			PoolId = poolId;
+			Enabled = enabled;
+			Address = address;
+			ModelId = modelId;
+            ModifiedByUser = modifiedByUser;
+            Notes = notes;
+			ProblemTime = problemTime;
+			MaintenanceTime = maintenanceTime;
+			Utilization = utilization?.Select(u => new GetDeviceUtilizationResponse(u)).ToList();
+            CheckedOutByUserId = checkedOutByUser;
+            CheckOutTime = checkOutTime;
         }
 	}
 
@@ -442,7 +432,6 @@ namespace Horde.Build.Api
         public bool Checkout { get; set; }
     }
 
-
 	/// <summary>
 	/// Device reservation request object
 	/// </summary>
@@ -463,7 +452,6 @@ namespace Horde.Build.Api
 		/// The optional vendor model ids to exclude for this device
 		/// </summary>
 		public List<string>? ExcludeModels { get; set; }
-
 	}
 
 	/// <summary>
@@ -482,7 +470,6 @@ namespace Horde.Build.Api
 		/// </summary>
 		[Required]
 		public List<DeviceReservationRequest> Devices { get; set; } = null!;
-
 	}
 
 	/// <summary>
@@ -499,7 +486,6 @@ namespace Horde.Build.Api
 		/// The devices that were reserved
 		/// </summary>
 		public List<GetDeviceResponse> Devices { get; set; } = null!;
-
 	}
 
 	/// <summary>
@@ -560,7 +546,6 @@ namespace Horde.Build.Api
 		/// </summary>
 		public string LegacyGuid { get; set; } = null!;
 	}
-
 
 	// Legacy clients
 
@@ -654,12 +639,10 @@ namespace Horde.Build.Api
 		/// </summary>
 		public string? StepId { get; set; } = null;
 
-
 		/// <summary>
 		/// The legacy guid of the reservation
 		/// </summary>
 		[Required]
-		[SuppressMessage("Compiler", "CA1720: Identifier 'Guid' contains type name")]
 		public string Guid { get; set; } = null!;
 	}
 
@@ -684,7 +667,7 @@ namespace Horde.Build.Api
 		/// The IP or hostname of device
 		/// </summary>
 		[Required]
-		public string IPOrHostName { get; set; } = null!;
+		public string IpOrHostName { get; set; } = null!;
 
 		/// <summary>
 		/// The (legacy) perf spec of the device
@@ -739,8 +722,5 @@ namespace Horde.Build.Api
 		/// </summary>
 		[Required]
 		public Dictionary<string, string> PerfSpecHighMap { get; set; } = null!;
-
 	}
-
-
 }
