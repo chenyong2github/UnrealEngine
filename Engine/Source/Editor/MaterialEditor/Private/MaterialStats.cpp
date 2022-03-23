@@ -487,6 +487,11 @@ void FMaterialStats::BuildShaderPlatformDB()
 TSharedPtr<FShaderPlatformSettings> FMaterialStats::AddShaderPlatform(const EPlatformCategoryType PlatformType, const EShaderPlatform PlatformID, const FName PlatformName,
 	const bool bAllowPresenceInGrid, const bool bAllowCodeView, const FString& Description)
 {
+	if (!FDataDrivenShaderPlatformInfo::IsValid(PlatformID))
+	{
+		return TSharedPtr<FShaderPlatformSettings>();
+	}
+
 	TSharedPtr<FShaderPlatformSettings> PlatformPtr = MakeShareable(new FShaderPlatformSettings(PlatformType, PlatformID, PlatformName, bAllowPresenceInGrid, bAllowCodeView, Description));
 	ShaderPlatformStatsDB.Add(PlatformID, PlatformPtr);
 
