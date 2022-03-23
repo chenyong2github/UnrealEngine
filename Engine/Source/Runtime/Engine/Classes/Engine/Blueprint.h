@@ -621,6 +621,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TObjectPtr<class UInheritableComponentHandler> InheritableComponentHandler;
 
 #if WITH_EDITORONLY_DATA
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnExtensionAdded, TObjectPtr<UBlueprintExtension>);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnExtensionRemoved, TObjectPtr<UBlueprintExtension>);
+
 	/** Array of new variables to be added to generated class */
 	UPROPERTY()
 	TArray<struct FBPVariableDescription> NewVariables;
@@ -669,9 +672,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TMap<FName, FName> OldToNewComponentTemplateNames;
 
 	/** Array of extensions for this blueprint */
+	UE_DEPRECATED(5.1, "Please do not access this member directly; Instead use: UBlueprint::GetExtensions / UBlueprint::AddExtension / UBlueprint::RemoveExtension[At].")
 	UPROPERTY()
 	TArray<TObjectPtr<UBlueprintExtension>> Extensions;
 
+	/** Fires whenever BP extension added */
+	FOnExtensionAdded OnExtensionAdded;
+
+	/** Fires whenever BP extension removed */
+	FOnExtensionRemoved OnExtensionRemoved;
 #endif // WITH_EDITORONLY_DATA
 
 public:
@@ -688,7 +697,38 @@ public:
 	DECLARE_EVENT_OneParam(UBlueprint, FCompiledEvent, class UBlueprint*);
 	FCompiledEvent& OnCompiled() { return CompiledEvent; }
 	void BroadcastCompiled() { CompiledEvent.Broadcast(this); }
-#endif
+
+	/** Gives const access to extensions. */
+	TArrayView<const TObjectPtr<UBlueprintExtension>> GetExtensions() const;
+
+	/** Adds given extension, broadcasting on add. */
+	int32 AddExtension(const TObjectPtr<UBlueprintExtension>& InExtension);
+
+	/** Removes given extension, broadcasting on remove. */
+	int32 RemoveExtension(const TObjectPtr<UBlueprintExtension>& InExtension);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	/** Removes all extensions matching the predicate, broadcasting on remove if one exists. */
+	template <class PREDICATE_CLASS>
+	int32 RemoveAllExtension(const PREDICATE_CLASS& Predicate)
+	{
+		auto BroadcastRemovePredicate = [&Predicate, this](UBlueprintExtension* InExtension)
+		{
+			bool NotMatch = !::Invoke(Predicate, InExtension); // use a ! to guarantee it can't be anything other than zero or one
+
+			if (!NotMatch)
+			{
+				OnExtensionRemoved.Broadcast(InExtension);
+			}
+
+			return !NotMatch;
+		};
+
+		return Extensions.RemoveAll(BroadcastRemovePredicate);
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#endif // WITH_EDITOR
 
 	/** Whether or not this blueprint can be considered for a bytecode only compile */
 	virtual bool IsValidForBytecodeOnlyRecompile() const { return true; }

@@ -7,7 +7,6 @@
 
 UWidgetBlueprintExtension* UWidgetBlueprintExtension::RequestExtension(UWidgetBlueprint* InBlueprint, TSubclassOf<UWidgetBlueprintExtension> InExtensionType)
 {
-	
 	checkf(!InBlueprint->bBeingCompiled, TEXT("Do not use RequestExtension when a blueprint is being compiled."));
 
 	// Look for an existing extension
@@ -18,7 +17,7 @@ UWidgetBlueprintExtension* UWidgetBlueprintExtension::RequestExtension(UWidgetBl
 
 	// Not found, create one
 	UWidgetBlueprintExtension* NewExtension = NewObject<UWidgetBlueprintExtension>(InBlueprint, InExtensionType.Get());
-	InBlueprint->Extensions.Add(NewExtension);
+	InBlueprint->AddExtension(NewExtension);
 	return NewExtension;
 }
 
@@ -26,7 +25,7 @@ UWidgetBlueprintExtension* UWidgetBlueprintExtension::RequestExtension(UWidgetBl
 UWidgetBlueprintExtension* UWidgetBlueprintExtension::GetExtension(const UWidgetBlueprint* InBlueprint, TSubclassOf<UWidgetBlueprintExtension> InExtensionType)
 {
 	// Look for an existing extension
-	for (UBlueprintExtension* Extension : InBlueprint->Extensions)
+	for (TObjectPtr<UBlueprintExtension> Extension : InBlueprint->GetExtensions())
 	{
 		if (Extension && Extension->GetClass() == InExtensionType)
 		{
@@ -42,7 +41,7 @@ TArray<UWidgetBlueprintExtension*> UWidgetBlueprintExtension::GetExtensions(cons
 {
 	TArray<UWidgetBlueprintExtension*> Extensions;
 
-	for (UBlueprintExtension* Extension : InBlueprint->Extensions)
+	for (TObjectPtr<UBlueprintExtension> Extension : InBlueprint->GetExtensions())
 	{
 		if (Extension && Extension->GetClass()->IsChildOf(UWidgetBlueprintExtension::StaticClass()))
 		{
@@ -52,7 +51,6 @@ TArray<UWidgetBlueprintExtension*> UWidgetBlueprintExtension::GetExtensions(cons
 
 	return Extensions;
 }
-
 
 UWidgetBlueprint* UWidgetBlueprintExtension::GetWidgetBlueprint() const
 {

@@ -53,7 +53,7 @@ public:
 	template<typename Predicate>
 	static void ForEachExtension(const UWidgetBlueprint* InWidgetBlueprint, Predicate Pred)
 	{
-		for (UBlueprintExtension* BlueprintExtension : InWidgetBlueprint->Extensions)
+		for (TObjectPtr<UBlueprintExtension> BlueprintExtension : InWidgetBlueprint->GetExtensions())
 		{
 			if (UWidgetBlueprintExtension* WidgetBlueprintExtension = Cast<UWidgetBlueprintExtension>(BlueprintExtension))
 			{

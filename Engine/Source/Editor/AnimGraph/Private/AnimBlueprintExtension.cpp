@@ -35,14 +35,14 @@ UAnimBlueprintExtension* UAnimBlueprintExtension::RequestExtension(UAnimBlueprin
 
 	// Not found, create one
 	UAnimBlueprintExtension* NewExtension = NewObject<UAnimBlueprintExtension>(InAnimBlueprint, InExtensionType.Get());
-	InAnimBlueprint->Extensions.Add(NewExtension);
+	InAnimBlueprint->AddExtension(NewExtension);
 	return NewExtension;
 }
 
 UAnimBlueprintExtension* UAnimBlueprintExtension::GetExtension(UAnimBlueprint* InAnimBlueprint, TSubclassOf<UAnimBlueprintExtension> InExtensionType)
 {
 	// Look for an existing extension
-	for(UBlueprintExtension* Extension : InAnimBlueprint->Extensions)
+	for(TObjectPtr<UBlueprintExtension> Extension : InAnimBlueprint->GetExtensions())
 	{
 		if(Extension && Extension->GetClass() == InExtensionType)
 		{
@@ -57,7 +57,7 @@ TArray<UAnimBlueprintExtension*> UAnimBlueprintExtension::GetExtensions(UAnimBlu
 {
 	TArray<UAnimBlueprintExtension*> Extensions;
 	
-	for(UBlueprintExtension* Extension : InAnimBlueprint->Extensions)
+	for(TObjectPtr<UBlueprintExtension> Extension : InAnimBlueprint->GetExtensions())
 	{
 		if(Extension && Extension->GetClass()->IsChildOf(UAnimBlueprintExtension::StaticClass()))
 		{
@@ -117,7 +117,7 @@ void UAnimBlueprintExtension::RefreshExtensions(UAnimBlueprint* InAnimBlueprint)
 	}
 
 	// Remove all extensions that are no longer needed
-	InAnimBlueprint->Extensions.RemoveAll([](UBlueprintExtension* InExtension)
+	InAnimBlueprint->RemoveAllExtension([](UBlueprintExtension* InExtension)
 	{
 		if(UAnimBlueprintExtension* AnimBlueprintExtension = Cast<UAnimBlueprintExtension>(InExtension))
 		{
@@ -133,7 +133,7 @@ void UAnimBlueprintExtension::RefreshExtensions(UAnimBlueprint* InAnimBlueprint)
 
 void UAnimBlueprintExtension::ForEachExtension(UAnimBlueprint* InAnimBlueprint, TFunctionRef<void(UAnimBlueprintExtension*)> InFunction)
 {
-	for (UBlueprintExtension* BlueprintExtension : InAnimBlueprint->Extensions)
+	for (TObjectPtr<UBlueprintExtension> BlueprintExtension : InAnimBlueprint->GetExtensions())
 	{
 		if(UAnimBlueprintExtension* AnimBlueprintExtension = Cast<UAnimBlueprintExtension>(BlueprintExtension))
 		{

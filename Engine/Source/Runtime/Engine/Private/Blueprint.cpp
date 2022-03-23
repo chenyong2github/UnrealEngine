@@ -608,11 +608,13 @@ UClass* UBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* Previous
 	}
 	UBlueprint::ForceLoadMembers(this);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (UBlueprintExtension* Extension : Extensions)
 	{
 		ForceLoad(Extension);
 		Extension->PreloadObjectsForCompilation(this);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FBlueprintEditorUtils::PreloadConstructionScript( this );
 
@@ -1932,6 +1934,32 @@ UEdGraph* UBlueprint::GetLastEditedUberGraph() const
 	return nullptr;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+TArrayView<const TObjectPtr<UBlueprintExtension>> UBlueprint::GetExtensions() const
+{
+	return Extensions;
+}
+
+int32 UBlueprint::AddExtension(const TObjectPtr<UBlueprintExtension>& InExtension)
+{
+	int32 Index = Extensions.Add(InExtension);
+	OnExtensionAdded.Broadcast(InExtension);
+	return Index;
+}
+
+int32 UBlueprint::RemoveExtension(const TObjectPtr<UBlueprintExtension>& InExtension)
+{
+	int32 NumRemoved = Extensions.RemoveSingleSwap(InExtension);
+	if (NumRemoved > 0)
+	{
+		OnExtensionRemoved.Broadcast(InExtension);
+	}
+	return NumRemoved;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #endif //WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
@@ -1944,5 +1972,3 @@ void UBlueprint::LoadModulesRequiredForCompilation()
 	FModuleManager::Get().LoadModule(MovieSceneToolsModuleName);
 }
 #endif //WITH_EDITORONLY_DATA
-
-

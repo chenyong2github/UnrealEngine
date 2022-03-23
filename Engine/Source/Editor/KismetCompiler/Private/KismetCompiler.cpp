@@ -4341,7 +4341,7 @@ void FKismetCompilerContext::CreateFunctionList()
 		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_GenerateFunctionGraphs);
 
 		// Allow blueprint extensions for the blueprint to generate function graphs
-		for (UBlueprintExtension* Extension : Blueprint->Extensions)
+		for (TObjectPtr<UBlueprintExtension> Extension : Blueprint->GetExtensions())
 		{
 			Extension->GenerateFunctionGraphs(this);
 		}

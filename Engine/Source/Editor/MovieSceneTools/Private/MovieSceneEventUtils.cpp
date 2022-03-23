@@ -481,7 +481,7 @@ void FMovieSceneEventUtils::BindEventSectionToBlueprint(UMovieSceneEventSectionB
 {
 	check(EventSection && DirectorBP);
 
-	for (UBlueprintExtension* Extension : DirectorBP->Extensions)
+	for (TObjectPtr<UBlueprintExtension> Extension : DirectorBP->GetExtensions())
 	{
 		UMovieSceneEventBlueprintExtension* EventExtension = Cast<UMovieSceneEventBlueprintExtension>(Extension);
 		if (EventExtension)
@@ -493,7 +493,7 @@ void FMovieSceneEventUtils::BindEventSectionToBlueprint(UMovieSceneEventSectionB
 
 	UMovieSceneEventBlueprintExtension* EventExtension = NewObject<UMovieSceneEventBlueprintExtension>(DirectorBP);
 	EventExtension->Add(EventSection);
-	DirectorBP->Extensions.Add(EventExtension);
+	DirectorBP->AddExtension(EventExtension);
 }
 
 void FMovieSceneEventUtils::RemoveEndpointsForEventSection(UMovieSceneEventSectionBase* EventSection, UBlueprint* DirectorBP)
