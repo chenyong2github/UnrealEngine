@@ -9,9 +9,6 @@
 #include "Misc/Parse.h"
 #include "UObject/PropertyHelper.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 IMPLEMENT_FIELD(FFieldPathProperty)
 
 FFieldPathProperty::FFieldPathProperty(FFieldVariant InOwner, const UECodeGen_Private::FFieldPathPropertyParams& Prop)
@@ -216,5 +213,3 @@ bool FFieldPathProperty::SupportsNetSharedSerialization() const
 {
 	return false;
 }
-
-#include "UObject/DefineUPropertyMacros.h"

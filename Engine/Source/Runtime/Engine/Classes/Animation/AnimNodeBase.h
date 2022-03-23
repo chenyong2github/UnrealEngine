@@ -19,9 +19,6 @@
 #include "Animation/ExposedValueHandler.h"
 #include "AnimNodeFunctionRef.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 #include "AnimNodeBase.generated.h"
 
 #define DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Method) \
@@ -1035,5 +1032,3 @@ private:
 // Editor-only way of accessing mutable anim node data but with internal checks
 #define GET_MUTABLE_ANIM_NODE_DATA(Type, Identifier) (GetMutableData<Type>(GET_ANIM_NODE_DATA_ID_INTERNAL(Type, Identifier)))
 #endif
-
-#include "UObject/DefineUPropertyMacros.h"

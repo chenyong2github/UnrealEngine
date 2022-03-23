@@ -52,9 +52,6 @@
 #include "Math/InterpCurvePoint.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
 // the class tree outside of SetSuperStruct. It has been disabled because loading blueprints 
 // does a lot of mutation of the class tree, and the validation checks impact iteration time.
@@ -6472,5 +6469,3 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 	#endif
 #endif
-
-#include "UObject/DefineUPropertyMacros.h"

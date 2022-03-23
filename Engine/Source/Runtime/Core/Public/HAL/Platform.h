@@ -211,24 +211,8 @@
 #ifndef PLATFORM_COMPILER_DISTINGUISHES_INT_AND_LONG
 	#define PLATFORM_COMPILER_DISTINGUISHES_INT_AND_LONG			0
 #endif
-#ifdef _MSC_VER
-	#define PLATFORM_COMPILER_HAS_AUTO_RETURN_TYPES 1
-	#ifndef __clang__
-		#pragma deprecated("PLATFORM_COMPILER_HAS_AUTO_RETURN_TYPES")
-	#endif
-#else
-	#define PLATFORM_COMPILER_HAS_AUTO_RETURN_TYPES 1 DEPRECATED_MACRO(4.19, "PLATFORM_COMPILER_HAS_AUTO_RETURN_TYPES has been deprecated and should be replaced with 1.")
-#endif
 #ifndef PLATFORM_COMPILER_HAS_GENERIC_KEYWORD
 	#define PLATFORM_COMPILER_HAS_GENERIC_KEYWORD	0
-#endif
-#ifdef _MSC_VER
-	#define PLATFORM_COMPILER_HAS_DEFAULTED_FUNCTIONS 1
-	#ifndef __clang__
-		#pragma deprecated("PLATFORM_COMPILER_HAS_DEFAULTED_FUNCTIONS")
-	#endif
-#else
-	#define PLATFORM_COMPILER_HAS_DEFAULTED_FUNCTIONS 1 DEPRECATED_MACRO(4.19, "PLATFORM_COMPILER_HAS_DEFAULTED_FUNCTIONS has been deprecated and should be replaced with 1.")
 #endif
 #ifndef PLATFORM_COMPILER_COMMON_LANGUAGE_RUNTIME_COMPILATION
 	#define PLATFORM_COMPILER_COMMON_LANGUAGE_RUNTIME_COMPILATION 0
@@ -245,7 +229,7 @@
 		#pragma deprecated("PLATFORM_COMPILER_HAS_IF_CONSTEXPR")
 	#endif
 #else
-	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 1 DEPRECATED_MACRO(5.1, "PLATFORM_COMPILER_HAS_IF_CONSTEXPR has been deprecated and should be replaced with 1.")
+	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 1 UE_DEPRECATED_MACRO(5.1, "PLATFORM_COMPILER_HAS_IF_CONSTEXPR has been deprecated and should be replaced with 1.")
 #endif
 #ifndef PLATFORM_COMPILER_HAS_FOLD_EXPRESSIONS
 	#define PLATFORM_COMPILER_HAS_FOLD_EXPRESSIONS 0
@@ -692,26 +676,6 @@
 	#define RESTRICT __restrict						/* no alias hint */
 #endif
 
-/* Wrap a function signature in these to warn that callers should not ignore the return value */
-#ifndef FUNCTION_CHECK_RETURN_START
-	#define FUNCTION_CHECK_RETURN_START \
-		DEPRECATED_MACRO(4.26, "FUNCTION_CHECK_RETURN_START has been deprecated - please use UE_NODISCARD")
-#endif
-#ifndef FUNCTION_CHECK_RETURN_END
-	#define FUNCTION_CHECK_RETURN_END \
-		DEPRECATED_MACRO(4.26, "FUNCTION_CHECK_RETURN_END has been deprecated - please use UE_NODISCARD")
-#endif
-
-/* Wrap a function signature in these to indicate that the function never returns */
-#ifndef FUNCTION_NO_RETURN_START
-	#define FUNCTION_NO_RETURN_START \
-		DEPRECATED_MACRO(4.26, "FUNCTION_NO_RETURN_START has been deprecated - please use UE_NORETURN")
-#endif
-#ifndef FUNCTION_NO_RETURN_END
-	#define FUNCTION_NO_RETURN_END \
-		DEPRECATED_MACRO(4.26, "FUNCTION_NO_RETURN_END has been deprecated - please use UE_NORETURN")
-#endif
-
 /* Use before a function declaration to warn that callers should not ignore the return value */
 #if !defined(UE_NODISCARD) && defined(__has_cpp_attribute)
 	#if __has_cpp_attribute(nodiscard)
@@ -748,10 +712,6 @@
 	#define FUNCTION_NON_NULL_RETURN_END
 #endif
 
-#ifndef FUNCTION_CHECK_RETURN
-	#define FUNCTION_CHECK_RETURN(...) DEPRECATED_MACRO(4.12, "FUNCTION_CHECK_RETURN has been deprecated and should be replaced with FUNCTION_CHECK_RETURN_START and FUNCTION_CHECK_RETURN_END.") FUNCTION_CHECK_RETURN_START __VA_ARGS__ FUNCTION_CHECK_RETURN_END
-#endif
-
 /** Promise expression is true. Compiler can optimize accordingly with undefined behavior if wrong. Static analyzers understand this.  */
 #ifndef UE_ASSUME
 	#if defined(__clang__)
@@ -762,8 +722,6 @@
 		#define UE_ASSUME(x)
 	#endif
 #endif
-
-#define ASSUME(x) UE_ASSUME(x) DEPRECATED_MACRO(4.25, "Please use UE_ASSUME instead.")
 
 /** Branch prediction hints */
 #ifndef LIKELY						/* Hints compiler that expression is likely to be true, much softer than UE_ASSUME - allows (penalized by worse performance) expression to be false */
@@ -915,10 +873,6 @@
 #endif
 #ifndef FAST_BOOT_HACKS
 	#define FAST_BOOT_HACKS  0
-#endif
-
-#ifndef DEPRECATED_FORGAME
-	#define DEPRECATED_FORGAME(...) DEPRECATED_MACRO(4.22, "The DEPRECATED_FORGAME macro has been deprecated in favor of UE_DEPRECATED_FORGAME().")
 #endif
 
 // Console ANSICHAR/TCHAR command line handling

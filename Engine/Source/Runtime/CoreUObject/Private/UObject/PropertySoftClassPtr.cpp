@@ -7,9 +7,6 @@
 #include "UObject/UnrealTypePrivate.h"
 #include "UObject/LinkerPlaceholderClass.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 /*-----------------------------------------------------------------------------
 	FSoftClassProperty.
 -----------------------------------------------------------------------------*/
@@ -125,5 +122,3 @@ bool FSoftClassProperty::SameType(const FProperty* Other) const
 {
 	return Super::SameType(Other) && (MetaClass == ((FSoftClassProperty*)Other)->MetaClass);
 }
-
-#include "UObject/DefineUPropertyMacros.h"

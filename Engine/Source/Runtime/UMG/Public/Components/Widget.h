@@ -90,17 +90,6 @@ namespace UMWidget
 
 
 
-/**
- * Helper macro for binding to a delegate or using the constant value when constructing the underlying SWidget
- */
-#define OPTIONAL_BINDING(ReturnType, MemberName)				\
-	DEPRECATED_MACRO(4.17, "OPTIONAL_BINDING macro is deprecated.  Please use PROPERTY_BINDING in place and you'll need to define a PROPERTY_BINDING_IMPLEMENTATION in your header instead.") \
-	( MemberName ## Delegate.IsBound() && !IsDesignTime() )		\
-	?															\
-		TAttribute< ReturnType >::Create(MemberName ## Delegate.GetUObject(), MemberName ## Delegate.GetFunctionName()) \
-	:															\
-		TAttribute< ReturnType >(MemberName)
-
 #if WITH_EDITOR
 
 /**

@@ -13,9 +13,6 @@
 #include "UObject/CoreNet.h"
 #include "Misc/NetworkVersion.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 /*-----------------------------------------------------------------------------
 	FInterfaceProperty.
 -----------------------------------------------------------------------------*/
@@ -377,5 +374,3 @@ void FInterfaceProperty::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(InterfaceClass);
 	Super::AddReferencedObjects(Collector);
 }
-
-#include "UObject/DefineUPropertyMacros.h"

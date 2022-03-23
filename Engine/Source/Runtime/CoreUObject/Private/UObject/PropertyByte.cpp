@@ -13,9 +13,6 @@
 #include "Misc/NetworkVersion.h"
 #include "Hash/Blake3.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 /*-----------------------------------------------------------------------------
 	FByteProperty.
 -----------------------------------------------------------------------------*/
@@ -529,5 +526,3 @@ uint64 FByteProperty::GetMaxNetSerializeBits() const
 
 	return FMath::Min(DesiredBits, MaxBits);
 }
-
-#include "UObject/DefineUPropertyMacros.h"

@@ -22,9 +22,6 @@
 #include "UObject/LinkerPlaceholderFunction.h"
 #include "UObject/LinkerPlaceholderClass.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 /*-----------------------------------------------------------------------------
 	UProperty implementation.
 -----------------------------------------------------------------------------*/
@@ -925,5 +922,3 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UMulticastInlineDelegatePropertyWrapper, UMultica
 	{
 	}
 );
-
-#include "UObject/DefineUPropertyMacros.h"

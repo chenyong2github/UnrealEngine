@@ -10,9 +10,6 @@
 #include "Misc/ScopeExit.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 namespace UESetProperty_Private
 {
 	/**
@@ -1120,5 +1117,3 @@ void* FSetProperty::GetValueAddressAtIndex_Direct(const FProperty* Inner, void* 
 	checkf(false, TEXT("Set element index (%d) out of range"), Index);
 	return nullptr;
 }
-
-#include "UObject/DefineUPropertyMacros.h"

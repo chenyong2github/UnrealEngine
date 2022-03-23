@@ -12,9 +12,6 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "UObject/UObjectThreadContext.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 namespace UEMapProperty_Private
 {
 	/**
@@ -1349,5 +1346,3 @@ void* FMapProperty::GetValueAddressAtIndex_Direct(const FProperty* Inner, void* 
 	checkf(false, TEXT("Map element index (%d) out of range"), Index);
 	return nullptr;
 }
-
-#include "UObject/DefineUPropertyMacros.h"

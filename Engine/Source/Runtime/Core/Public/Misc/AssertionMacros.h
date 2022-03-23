@@ -177,7 +177,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 #endif // !UE_BUILD_SHIPPING
 
 #define _DebugBreakAndPromptForRemote() \
-	DEPRECATED_MACRO(5.1, "Use UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE.")
+	UE_DEPRECATED_MACRO(5.1, "Use UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE.")
 
 #if !UE_BUILD_SHIPPING
 	extern CORE_API bool GIgnoreDebugger;

@@ -198,7 +198,6 @@ OutType IntCastChecked(InType In)
 
 // Number of elements in an array.
 #define UE_ARRAY_COUNT( array ) (sizeof(UEArrayCountHelper(array)) - 1)
-#define ARRAY_COUNT( array ) DEPRECATED_MACRO(4.24, "The ARRAY_COUNT macro has been deprecated in favor of UE_ARRAY_COUNT.") UE_ARRAY_COUNT( array )
 
 // Offset of a struct member.
 #ifndef UNREAL_CODE_ANALYZER

@@ -10,9 +10,6 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Hash/Blake3.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 /*-----------------------------------------------------------------------------
 	FDelegateProperty.
 -----------------------------------------------------------------------------*/
@@ -250,5 +247,3 @@ void FDelegateProperty::BeginDestroy()
 
 	Super::BeginDestroy();
 }
-
-#include "UObject/DefineUPropertyMacros.h"

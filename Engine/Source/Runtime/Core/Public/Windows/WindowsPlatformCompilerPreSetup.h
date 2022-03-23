@@ -52,8 +52,6 @@
 	#endif // THIRD_PARTY_INCLUDES_END
 #else
 	#ifndef DISABLE_DEPRECATION
-		#define DEPRECATED(VERSION, MESSAGE) DEPRECATED_MACRO(4.22, "The DEPRECATED macro has been deprecated in favor of UE_DEPRECATED().") __declspec(deprecated(MESSAGE " Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile."))
-
 		#define PRAGMA_DISABLE_DEPRECATION_WARNINGS \
 			__pragma (warning(push)) \
 			__pragma (warning(disable: 4995)) /* 'function': name was marked as #pragma deprecated */ \
@@ -87,7 +85,7 @@
 
 	#ifndef PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 		#define PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS \
-			DEPRECATED_MACRO(5.0, "The PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS macro has been deprecated in favor of PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS. To force enable warnings use PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS.")
+			UE_DEPRECATED_MACRO(5.0, "The PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS macro has been deprecated in favor of PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS. To force enable warnings use PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS.")
 	#endif // PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 	#ifndef PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS

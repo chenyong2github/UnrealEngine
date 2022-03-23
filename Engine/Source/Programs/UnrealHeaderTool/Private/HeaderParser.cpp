@@ -8634,24 +8634,21 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 			// Handle #include directives as if they were 'dependson' keywords.
 			const FString& DependsOnHeaderName = Str;
 
-			if (DependsOnHeaderName != TEXT("\"UObject/DefineUPropertyMacros.h\"") && DependsOnHeaderName != TEXT("\"UObject/UndefineUPropertyMacros.h\""))
+			if (bFoundGeneratedInclude)
 			{
-				if (bFoundGeneratedInclude)
-				{
-					FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("#include found after .generated.h file - the .generated.h file should always be the last #include in a header"));
-				}
+				FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("#include found after .generated.h file - the .generated.h file should always be the last #include in a header"));
+			}
 
-				bFoundGeneratedInclude = DependsOnHeaderName.Contains(TEXT(".generated.h"));
-				if (!bFoundGeneratedInclude && DependsOnHeaderName.Len())
-				{
-					bool  bIsQuotedInclude = DependsOnHeaderName[0] == '\"';
-					int32 HeaderFilenameEnd = DependsOnHeaderName.Find(bIsQuotedInclude ? TEXT("\"") : TEXT(">"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1);
+			bFoundGeneratedInclude = DependsOnHeaderName.Contains(TEXT(".generated.h"));
+			if (!bFoundGeneratedInclude && DependsOnHeaderName.Len())
+			{
+				bool  bIsQuotedInclude = DependsOnHeaderName[0] == '\"';
+				int32 HeaderFilenameEnd = DependsOnHeaderName.Find(bIsQuotedInclude ? TEXT("\"") : TEXT(">"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1);
 
-					if (HeaderFilenameEnd != INDEX_NONE)
-					{
-						// Include the extension in the name so that we later know where this entry came from.
-						SourceFile.GetIncludes().AddUnique(FHeaderProvider(EHeaderProviderSourceType::FileName, FPaths::GetCleanFilename(DependsOnHeaderName.Mid(1, HeaderFilenameEnd - 1))));
-					}
+				if (HeaderFilenameEnd != INDEX_NONE)
+				{
+					// Include the extension in the name so that we later know where this entry came from.
+					SourceFile.GetIncludes().AddUnique(FHeaderProvider(EHeaderProviderSourceType::FileName, FPaths::GetCleanFilename(DependsOnHeaderName.Mid(1, HeaderFilenameEnd - 1))));
 				}
 			}
 		}

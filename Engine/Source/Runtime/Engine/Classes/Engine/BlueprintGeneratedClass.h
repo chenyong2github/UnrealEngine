@@ -12,9 +12,6 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Containers/SortedMap.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 #include "BlueprintGeneratedClass.generated.h"
 
 class AActor;
@@ -890,5 +887,3 @@ private:
 	FEditorTags CookedEditorTags;
 #endif // WITH_EDITORONLY_DATA
 };
-
-#include "UObject/DefineUPropertyMacros.h"

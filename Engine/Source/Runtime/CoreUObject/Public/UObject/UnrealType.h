@@ -34,9 +34,6 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/Field.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 class FBlake3;
 class UPropertyWrapper;
 
@@ -7085,5 +7082,3 @@ class COREUOBJECT_API UMulticastInlineDelegatePropertyWrapper : public UMulticas
 {
 	DECLARE_CLASS_INTRINSIC(UMulticastInlineDelegatePropertyWrapper, UMulticastDelegatePropertyWrapper, CLASS_Transient, TEXT("/Script/CoreUObject"));
 };
-
-#include "UObject/DefineUPropertyMacros.h"

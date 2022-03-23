@@ -12,9 +12,6 @@
 #include "Hash/Blake3.h"
 #include "IO/IoHash.h"
 
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
-
 static inline void PreloadInnerStructMembers(FStructProperty* StructProperty)
 {
 	if (UseCircularDependencyLoadDeferring())
@@ -478,6 +475,3 @@ void FStructProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) c
 	}
 }
 #endif
-
-
-#include "UObject/DefineUPropertyMacros.h"
