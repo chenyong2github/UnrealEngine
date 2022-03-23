@@ -88,6 +88,9 @@ namespace Horde.Storage.Implementation
                     // check all other namespaces that share the same storage pool for presence of the blob
                     foreach (NamespaceId blobNamespace in namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool))
                     {
+                        if (cancellationToken.IsCancellationRequested)
+                            break;
+                        
                         IBlobIndex.BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
 
                         if (blobIndex == null)

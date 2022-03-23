@@ -382,7 +382,6 @@ public class BlobService : IBlobService
     {
         bool blobNotFound = false;
         bool deletedAtLeastOnce = false;
-        Task removeFromIndexTask = _blobIndex.RemoveBlobFromIndex(ns, blob);
 
         foreach (IBlobStore store in _blobStores)
         {
@@ -404,7 +403,7 @@ public class BlobService : IBlobService
             }
         }
 
-        await removeFromIndexTask;
+        await _blobIndex.RemoveBlobFromRegion(ns, blob);
 
         if (deletedAtLeastOnce)
             return;
