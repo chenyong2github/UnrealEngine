@@ -448,6 +448,8 @@ protected:
 	// Creates default root and execute indirect signatures
 	virtual void CreateCommandSignatures();
 
+	void SetupGPUCrashDebuggingModesCommon();
+
 	FD3D12DynamicRHI* OwningRHI;
 
 	// LDA setups have one ID3D12Device

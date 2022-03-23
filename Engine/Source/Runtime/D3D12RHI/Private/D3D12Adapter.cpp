@@ -303,64 +303,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 #if PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && WITH_PIX_EVENT_RUNTIME)
 	
-	// Multiple ways to enable the different D3D12 crash debugging modes:
-	// - via RHI independent r.GPUCrashDebugging cvar: by default enable low overhead breadcrumbs and NvAftermath are enabled
-	// - via 'gpucrashdebugging' command line argument: enable all possible GPU crash debug modes (minor performance impact)
-	// - via 'r.D3D12.BreadCrumbs', 'r.D3D12.AfterMath' or 'r.D3D12.Dred' each type of GPU crash debugging mode can be enabled
-	// - via '-gpubreadcrumbs(=0)', '-nvaftermath(=0)' or '-dred(=0)' command line argument: each type of gpu crash debugging mode can enabled/disabled
-	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
-	{
-		GPUCrashDebuggingModes = ED3D12GPUCrashDebuggingModes::All;
-	}
-	else
-	{
-		// Parse the specific GPU crash debugging cvars and enable the different modes
-		const auto ParseCVar = [this](const TCHAR* CVarName, ED3D12GPUCrashDebuggingModes DebuggingMode)
-		{
-			IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(CVarName);
-			if (ConsoleVariable && ConsoleVariable->GetInt() > 0)
-			{
-				EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
-			}
-		};
-		ParseCVar(TEXT("r.GPUCrashDebugging"), ED3D12GPUCrashDebuggingModes((int)ED3D12GPUCrashDebuggingModes::BreadCrumbs | (int)ED3D12GPUCrashDebuggingModes::NvAftermath));
-		ParseCVar(TEXT("r.D3D12.BreadCrumbs"), ED3D12GPUCrashDebuggingModes::BreadCrumbs);
-		ParseCVar(TEXT("r.D3D12.NvAfterMath"), ED3D12GPUCrashDebuggingModes::NvAftermath);
-		ParseCVar(TEXT("r.D3D12.DRED"), ED3D12GPUCrashDebuggingModes::DRED);
-
-		// Enable/disable specific crash debugging modes if requested via command line argument
-		const auto ParseCommandLine = [this](const TCHAR* CommandLineArgument, ED3D12GPUCrashDebuggingModes DebuggingMode)
-		{
-			int32 Value = 0;
-			if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("%s="), CommandLineArgument), Value))
-			{
-				if (Value > 0)
-				{
-					EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
-				}
-				else
-				{
-					EnumRemoveFlags(GPUCrashDebuggingModes, DebuggingMode);
-				}
-			}
-			else  if (FParse::Param(FCommandLine::Get(), CommandLineArgument))
-			{
-				EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
-			}
-		};
-		ParseCommandLine(TEXT("gpubreadcrumbs"), ED3D12GPUCrashDebuggingModes::BreadCrumbs);
-		ParseCommandLine(TEXT("nvaftermath"), ED3D12GPUCrashDebuggingModes::NvAftermath);
-		ParseCommandLine(TEXT("dred"), ED3D12GPUCrashDebuggingModes::DRED);
-	}
-
-	// Submit draw events when any crash debugging mode is enabled
-	if (GPUCrashDebuggingModes != ED3D12GPUCrashDebuggingModes::None)
-	{
-		SetEmitDrawEvents(true);
-	}
-
-	bool bBreadcrumbs = EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::BreadCrumbs);
-	FGenericCrashContext::SetEngineData(TEXT("RHI.Breadcrumbs"), bBreadcrumbs ? TEXT("true") : TEXT("false"));
+    SetupGPUCrashDebuggingModesCommon();
 
 #if NV_AFTERMATH
 	if (IsRHIDeviceNVIDIA() && GDX12NVAfterMathModuleLoaded)
@@ -1205,6 +1148,69 @@ void FD3D12Adapter::CreateCommandSignatures()
 	VERIFYD3D12RESULT(Device->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(DispatchIndirectGraphicsCommandSignature.GetInitReference())));
 
 	checkf(DispatchIndirectComputeCommandSignature.IsValid(), TEXT("Indirect compute dispatch command signature is expected to be created by platform-specific D3D12 adapter implementation."))
+}
+
+void FD3D12Adapter::SetupGPUCrashDebuggingModesCommon()
+{
+	// Multiple ways to enable the different D3D12 crash debugging modes:
+	// - via RHI independent r.GPUCrashDebugging cvar: by default enable low overhead breadcrumbs and NvAftermath are enabled
+	// - via 'gpucrashdebugging' command line argument: enable all possible GPU crash debug modes (minor performance impact)
+	// - via 'r.D3D12.BreadCrumbs', 'r.D3D12.AfterMath' or 'r.D3D12.Dred' each type of GPU crash debugging mode can be enabled
+	// - via '-gpubreadcrumbs(=0)', '-nvaftermath(=0)' or '-dred(=0)' command line argument: each type of gpu crash debugging mode can enabled/disabled
+	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
+	{
+		GPUCrashDebuggingModes = ED3D12GPUCrashDebuggingModes::All;
+	}
+	else
+	{
+		// Parse the specific GPU crash debugging cvars and enable the different modes
+		const auto ParseCVar = [this](const TCHAR* CVarName, ED3D12GPUCrashDebuggingModes DebuggingMode)
+		{
+			IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(CVarName);
+			if (ConsoleVariable && ConsoleVariable->GetInt() > 0)
+			{
+				EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
+			}
+		};
+		ParseCVar(TEXT("r.GPUCrashDebugging"), ED3D12GPUCrashDebuggingModes((int)ED3D12GPUCrashDebuggingModes::BreadCrumbs | (int)ED3D12GPUCrashDebuggingModes::NvAftermath));
+		ParseCVar(TEXT("r.D3D12.BreadCrumbs"), ED3D12GPUCrashDebuggingModes::BreadCrumbs);
+		ParseCVar(TEXT("r.D3D12.NvAfterMath"), ED3D12GPUCrashDebuggingModes::NvAftermath);
+		ParseCVar(TEXT("r.D3D12.DRED"), ED3D12GPUCrashDebuggingModes::DRED);
+
+		// Enable/disable specific crash debugging modes if requested via command line argument
+		const auto ParseCommandLine = [this](const TCHAR* CommandLineArgument, ED3D12GPUCrashDebuggingModes DebuggingMode)
+		{
+			int32 Value = 0;
+			if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("%s="), CommandLineArgument), Value))
+			{
+				if (Value > 0)
+				{
+					EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
+				}
+				else
+				{
+					EnumRemoveFlags(GPUCrashDebuggingModes, DebuggingMode);
+				}
+			}
+			else  if (FParse::Param(FCommandLine::Get(), CommandLineArgument))
+			{
+				EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
+			}
+		};
+		ParseCommandLine(TEXT("gpubreadcrumbs"), ED3D12GPUCrashDebuggingModes::BreadCrumbs);
+		ParseCommandLine(TEXT("nvaftermath"), ED3D12GPUCrashDebuggingModes::NvAftermath);
+		ParseCommandLine(TEXT("dred"), ED3D12GPUCrashDebuggingModes::DRED);
+	}
+
+	// Submit draw events when any crash debugging mode is enabled
+	if (GPUCrashDebuggingModes != ED3D12GPUCrashDebuggingModes::None)
+	{
+		SetEmitDrawEvents(true);
+	}
+
+	bool bBreadcrumbs = EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::BreadCrumbs);
+	FGenericCrashContext::SetEngineData(TEXT("RHI.Breadcrumbs"), bBreadcrumbs ? TEXT("true") : TEXT("false"));
+
 }
 
 

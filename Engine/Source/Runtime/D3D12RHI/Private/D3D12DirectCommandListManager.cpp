@@ -329,7 +329,7 @@ FD3D12CommandListManager::FD3D12CommandListManager(FD3D12Device* InParent, D3D12
 	, CommandListFence(nullptr)
 	, CommandListType(InCommandListType)
 	, QueueType(InQueueType)
-	, BreadCrumbResourceAddress(nullptr)
+	, DiagnosticBuffer({ nullptr, nullptr, nullptr, 0 })
 	, bExcludeBackbufferWriteTransitionTime(false)
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	, bShouldTrackCmdListTime(false)
@@ -369,14 +369,7 @@ void FD3D12CommandListManager::Destroy()
 		CommandListFence.SafeRelease();
 	}
 
-	if (BreadCrumbResource)
-	{
-		BreadCrumbResource.SafeRelease();
-		BreadCrumbHeap.SafeRelease();
-
-		VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
-		BreadCrumbResourceAddress = nullptr;
-	}
+	DestroyDiagnosticBuffer(DiagnosticBuffer);
 }
 
 void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists, uint32 Priority)
@@ -435,49 +428,12 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 
 			DiagnosticBufferOffset = EventBufferSize;
 
-			BreadCrumbResourceAddress = VirtualAlloc(nullptr, BreadCrumbBufferSize, MEM_COMMIT, PAGE_READWRITE);
-			if (BreadCrumbResourceAddress)
-			{
-				// Create non refcounted heap because SetHeap function will take ownership without perform AddRef
-				ID3D12Heap* D3D12Heap = nullptr;
-				hr = D3D12Device3->OpenExistingHeapFromAddress(BreadCrumbResourceAddress, IID_PPV_ARGS(&D3D12Heap));
-				if (SUCCEEDED(hr))
-				{
-					BreadCrumbHeap = new FD3D12Heap(Device, GetVisibilityMask());
-					BreadCrumbHeap->SetHeap(D3D12Heap, TEXT("BreadCrumbHeap"));
+			// Create the platform-specific diagnostic buffer
+			TCHAR TempStr[MAX_SPRINTF] = TEXT("");
+			FCString::Sprintf(TempStr, TEXT("BreadCrumbResource_%s"), Name);
 
-					TCHAR TempStr[MAX_SPRINTF] = TEXT("");
-					FCString::Sprintf(TempStr, TEXT("BreadCrumbResource_%s"), Name);
-
-					const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(BreadCrumbBufferSize, D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
-					hr = Adapter->CreatePlacedResource(BufferDesc, BreadCrumbHeap.GetReference(), 0, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, BreadCrumbResource.GetInitReference(), TempStr, false);
-					if (SUCCEEDED(hr))
-					{
-						UE_LOG(LogD3D12RHI, Log, TEXT("[GPUBreadCrumb] Successfully setup breadcrumb resource for %s"), Name);
-						BreadCrumbResourceGPUAddress = BreadCrumbResource->GetGPUVirtualAddress();
-					}
-					else
-					{
-						BreadCrumbHeap.SafeRelease();
-
-						VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
-						BreadCrumbResourceAddress = nullptr;
-
-						UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to CreatePlacedResource, error: %x"), hr);
-					}
-				}
-				else
-				{
-					VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
-					BreadCrumbResourceAddress = nullptr;
-
-					UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to OpenExistingHeapFromAddress, error: %x"), hr);
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] ID3D12Device3 not available (only available on Windows 10 1709+), error: %x"), hr);
+			const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(BreadCrumbBufferSize, D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
+			DiagnosticBuffer = CreateDiagnosticBuffer(Adapter, Device, BufferDesc, Name);
 		}
 	}
 }
@@ -1152,6 +1108,66 @@ bool FD3D12CommandListManager::ShouldTrackCommandListTime() const
 #else
 	return false;
 #endif
+}
+
+FD3D12CommandListManager::FDiagnosticBuffer FD3D12CommandListManager::CreateDiagnosticBuffer(FD3D12Adapter *Adapter, FD3D12Device *Device, const D3D12_RESOURCE_DESC& Desc, const TCHAR* Name)
+{
+	TRefCountPtr<ID3D12Device3> D3D12Device3;
+	HRESULT hr = Device->GetDevice()->QueryInterface(IID_PPV_ARGS(D3D12Device3.GetInitReference()));
+	if (SUCCEEDED(hr))
+	{
+		void* BreadCrumbResourceAddress = VirtualAlloc(nullptr, Desc.Width, MEM_COMMIT, PAGE_READWRITE);
+		if (BreadCrumbResourceAddress)
+		{
+			ID3D12Heap* D3D12Heap = nullptr;
+			hr = D3D12Device3->OpenExistingHeapFromAddress(BreadCrumbResourceAddress, IID_PPV_ARGS(&D3D12Heap));
+			if (SUCCEEDED(hr))
+			{
+				TRefCountPtr<FD3D12Heap> BreadCrumbHeap = new FD3D12Heap(Device, GetVisibilityMask());
+				BreadCrumbHeap->SetHeap(D3D12Heap, TEXT("DiagnosticBuffer"));
+
+				TRefCountPtr<FD3D12Resource> BreadCrumbResource;
+				hr = Adapter->CreatePlacedResource(Desc, BreadCrumbHeap.GetReference(), 0, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, BreadCrumbResource.GetInitReference(), Name, false);
+				if (SUCCEEDED(hr))
+				{
+					UE_LOG(LogD3D12RHI, Log, TEXT("[GPUBreadCrumb] Successfully setup breadcrumb resource for %s"), Name);
+
+					return { BreadCrumbHeap, BreadCrumbResource, BreadCrumbResourceAddress, BreadCrumbResource->GetGPUVirtualAddress() };
+				}
+				else
+				{
+					BreadCrumbHeap.SafeRelease();
+					VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
+					UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to CreatePlacedResource, error: %x"), hr);
+				}
+			}
+			else
+			{
+				VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
+				UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to OpenExistingHeapFromAddress, error: %x"), hr);
+			}
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to VirtualAlloc resource memory"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] ID3D12Device3 not available (only available on Windows 10 1709+), error: %x"), hr);
+	}
+
+	return { nullptr, nullptr, nullptr, 0 };
+}
+
+void FD3D12CommandListManager::DestroyDiagnosticBuffer(FDiagnosticBuffer& Buffer)
+{
+	Buffer.BreadCrumbResource.SafeRelease();
+	Buffer.BreadCrumbHeap.SafeRelease();
+
+	VirtualFree(Buffer.BreadCrumbResourceAddress, 0, MEM_RELEASE);
+	Buffer.BreadCrumbResourceAddress = nullptr;
+	Buffer.BreadCrumbResourceGPUAddress = 0;
 }
 
 FD3D12FenceCore* FD3D12FenceCorePool::ObtainFenceCore(uint32 GPUIndex)

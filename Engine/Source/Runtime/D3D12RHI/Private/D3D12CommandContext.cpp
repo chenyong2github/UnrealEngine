@@ -151,10 +151,8 @@ FD3D12CommandContext::~FD3D12CommandContext()
 /** Write out the event stack to the bread crumb resource if available */
 void FD3D12CommandContext::WriteGPUEventStackToBreadCrumbData(bool bBeginEvent)
 {
-	// Only in Windows for now, could be made available on Xbox as well
-#if PLATFORM_WINDOWS
 	// Write directly to command list if breadcrumb resource is available
-	FD3D12Resource* BreadCrumbResource = CommandListHandle.GetCommandListManager()->GetBreadCrumbResource();
+	FD3D12Resource* BreadCrumbResource = GetCommandListManager().GetBreadCrumbResource();
 	ID3D12GraphicsCommandList2* CommandList2 = CommandListHandle.GraphicsCommandList2();
 	if (BreadCrumbResource && CommandList2)
 	{
@@ -200,7 +198,6 @@ void FD3D12CommandContext::WriteGPUEventStackToBreadCrumbData(bool bBeginEvent)
 			FMemory::Free(Mem);
 		}
 	}
-#endif // PLATFORM_WINDOWS
 }
 
 
