@@ -6,14 +6,10 @@
 #include "InterchangeFactoryBase.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "Mesh/InterchangeStaticMeshPayload.h"
 
 #include "InterchangeStaticMeshFactory.generated.h"
 
-
-namespace UE::Interchange
-{
-	struct FStaticMeshPayloadData;
-}
 
 class UStaticMesh;
 class UInterchangeStaticMeshLodDataNode;
