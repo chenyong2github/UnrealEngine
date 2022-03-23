@@ -146,6 +146,11 @@ int32 UKismetStringLibrary::Conv_StringToInt(const FString& InString)
 	return FCString::Atoi(*InString);
 }
 
+int64 UKismetStringLibrary::Conv_StringToInt64(const FString& InString)
+{
+	return FCString::Atoi64(*InString);
+}
+
 float UKismetStringLibrary::Conv_StringToFloat(const FString& InString)
 {
 	return FCString::Atof(*InString);

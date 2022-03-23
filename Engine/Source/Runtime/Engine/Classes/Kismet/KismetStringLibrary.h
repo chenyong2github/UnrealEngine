@@ -88,6 +88,10 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "String To Integer", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static int32 Conv_StringToInt(const FString& InString);
 
+	/** Converts a string to a int value */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "String To Integer64", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	static int64 Conv_StringToInt64(const FString& InString);
+
 	/** Converts a string to a float value */
 	UE_DEPRECATED(5.0, "This method has been deprecated and will be removed. Please use LexFromString instead.")
 	static float Conv_StringToFloat(const FString& InString);
