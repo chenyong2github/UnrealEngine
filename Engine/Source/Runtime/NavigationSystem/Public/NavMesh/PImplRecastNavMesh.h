@@ -159,6 +159,8 @@ public:
 	bool GetPolyCenter(NavNodeRef PolyID, FVector& OutCenter) const;
 	/** Retrieves the vertices for the specified polygon. Returns false on error. */
 	bool GetPolyVerts(NavNodeRef PolyID, TArray<FVector>& OutVerts) const;
+	/** Retrieves a random point inside the specified polygon. Returns false on error. */
+	bool GetRandomPointInPoly(NavNodeRef PolyID, FVector& OutPoint) const;
 	/** Retrieves the flags for the specified polygon. Returns false on error. */
 	bool GetPolyData(NavNodeRef PolyID, uint16& Flags, uint8& AreaType) const;
 	/** Retrieves area ID for the specified polygon. */

@@ -2194,6 +2194,24 @@ bool FPImplRecastNavMesh::GetPolyVerts(NavNodeRef PolyID, TArray<FVector>& OutVe
 	return false;
 }
 
+bool FPImplRecastNavMesh::GetRandomPointInPoly(NavNodeRef PolyID, FVector& OutPoint) const
+{
+	if (DetourNavMesh)
+	{
+		INITIALIZE_NAVQUERY_SIMPLE(NavQuery, RECAST_MAX_SEARCH_NODES);
+
+		FVector::FReal RandPt[3];
+		dtStatus Status = NavQuery.findRandomPointInPoly((dtPolyRef)PolyID, FMath::FRand, RandPt);
+		if (dtStatusSucceed(Status))
+		{
+			OutPoint = Recast2UnrVector(RandPt);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 uint32 FPImplRecastNavMesh::GetPolyAreaID(NavNodeRef PolyID) const
 {
 	uint32 AreaID = RECAST_NULL_AREA;

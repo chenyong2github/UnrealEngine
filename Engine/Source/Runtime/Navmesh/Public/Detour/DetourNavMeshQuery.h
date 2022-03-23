@@ -639,6 +639,13 @@ public:
 										 const dtQueryFilter* filter, float(*frand)(),
 										 dtPolyRef* randomRef, dtReal* randomPt) const;
 
+	/// Returns random location inside the specified polygon.
+	///  @param[in]		ref				The reference id of the polygon.
+	///  @param[in]		frand			Function returning a random number [0..1).
+	///  @param[out]	randomPt		The random location. [(x, y, z)]
+	/// @returns The status flags for the query.
+	dtStatus findRandomPointInPoly(dtPolyRef ref, float(*frand)(), dtReal* randomPt) const;
+
 	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	/// Check if there is a path from start polygon to the end polygon using cluster graph

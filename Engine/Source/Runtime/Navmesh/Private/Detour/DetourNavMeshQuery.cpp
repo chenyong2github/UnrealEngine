@@ -372,13 +372,11 @@ dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float(*fra
 		return DT_FAILURE;
 
 	// Randomly pick point on polygon.
-	const dtReal* v = &tile->verts[poly->verts[0]*3];
 	dtReal verts[3*DT_VERTS_PER_POLYGON];
 	dtReal areas[DT_VERTS_PER_POLYGON];
-	dtVcopy(&verts[0*3],v);
-	for (int j = 1; j < poly->vertCount; ++j)
+	for (int j = 0; j < poly->vertCount; ++j)
 	{
-		v = &tile->verts[poly->verts[j]*3];
+		const dtReal* v = &tile->verts[poly->verts[j]*3];
 		dtVcopy(&verts[j*3],v);
 	}
 	
@@ -570,11 +568,9 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const d
 		const dtPoly* testPoly = 0;
 		m_nav->getTileAndPolyByRefUnsafe(testRef, &testTile, &testPoly);
 
-		const dtReal* v = &testTile->verts[testPoly->verts[0]*3];
-		dtVcopy(&verts[0*3],v);
-		for (int j = 1; j < testPoly->vertCount; ++j)
+		for (int j = 0; j < testPoly->vertCount; ++j)
 		{
-			v = &testTile->verts[testPoly->verts[j]*3];
+			const dtReal* v = &testTile->verts[testPoly->verts[j]*3];
 			dtVcopy(&verts[j*3],v);
 		}
 
@@ -603,6 +599,40 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const d
 	}
 
 	return foundPt ? DT_SUCCESS : DT_FAILURE;
+}
+
+dtStatus dtNavMeshQuery::findRandomPointInPoly(dtPolyRef ref, float(*frand)(), dtReal* randomPt) const
+{
+	dtAssert(m_nav);
+
+	const dtMeshTile* tile = 0;
+	const dtPoly* poly = 0;
+	if (dtStatusFailed(m_nav->getTileAndPolyByRef(ref, &tile, &poly)))
+		return DT_FAILURE | DT_INVALID_PARAM;
+
+	dtReal verts[3*DT_VERTS_PER_POLYGON] = {0};
+	dtReal areas[DT_VERTS_PER_POLYGON] = {0};
+	for (int j = 0; j < poly->vertCount; ++j)
+	{
+		const dtReal* v = &tile->verts[poly->verts[j]*3];
+		dtVcopy(&verts[j*3],v);
+	}
+
+	const dtReal s = frand();
+	const dtReal t = frand();
+
+	dtReal pt[3];
+	dtRandomPointInConvexPoly(verts, poly->vertCount, areas, s, t, pt);
+
+	dtReal h = 0.0;
+	dtStatus status = getPolyHeight(ref, pt, &h);
+	if (dtStatusFailed(status))
+		return status;
+	pt[1] = h;
+
+	dtVcopy(randomPt, pt);
+
+	return DT_SUCCESS;
 }
 
 //@UE BEGIN
@@ -663,13 +693,11 @@ dtStatus dtNavMeshQuery::findRandomPointInCluster(dtClusterRef clusterRef, float
 	dtPolyRef randomPolyRef = m_nav->getPolyRefBase(searchTile) | (dtPolyRef)randomPolyIdx;
 
 	// Randomly pick point on polygon.
-	const dtReal* v = &searchTile->verts[randomPoly->verts[0]*3];
 	dtReal verts[3*DT_VERTS_PER_POLYGON];
 	dtReal areas[DT_VERTS_PER_POLYGON];
-	dtVcopy(&verts[0*3],v);
-	for (int j = 1; j < randomPoly->vertCount; ++j)
+	for (int j = 0; j < randomPoly->vertCount; ++j)
 	{
-		v = &searchTile->verts[randomPoly->verts[j]*3];
+		const dtReal* v = &searchTile->verts[randomPoly->verts[j]*3];
 		dtVcopy(&verts[j*3],v);
 	}
 
