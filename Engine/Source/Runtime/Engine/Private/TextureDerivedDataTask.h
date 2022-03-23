@@ -95,7 +95,7 @@ struct FTextureSourceData
 		Blocks.Empty();
 	}
 
-	FName TextureName;
+	FString TextureFullName;
 	FTextureSource AsyncSource;
 	TArray<FTextureSourceLayerData> Layers;
 	TArray<FTextureSourceBlockData> Blocks;

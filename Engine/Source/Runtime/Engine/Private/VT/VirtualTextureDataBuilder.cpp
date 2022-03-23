@@ -16,6 +16,7 @@
 #define SAVE_TILES 0
 
 #if SAVE_TILES
+#include "ImageCoreUtils.h"
 #include "ImageUtils.h"
 #endif
 
@@ -200,7 +201,7 @@ struct FPixelDataRectangle
 #if SAVE_TILES
 	FImageView GetImageView() const 
 	{
-		ERawImageFormat::Type RawFormat = FImageUtils::ConvertToRawImageFormat(Format);
+		ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(Format);
 		return FImageView(Data,Width,Height,RawFormat);
 	}
 
@@ -1088,7 +1089,10 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 #if SAVE_TILES
 			{
 				const FString BasePath = FPaths::ProjectUserDir();
-				const FString MipFileName = BasePath / FString::Format(TEXT("{0}_{1}"), TArray<FStringFormatArg>({ SourceData.TextureName.ToString(), LayerIndex }));
+				int32 ObjectNameStart;
+				SourceData.TextureFullName.FindLastChar('.', ObjectNameStart);
+				FString ObjectName = SourceData.TextureFullName.Right(SourceData.TextureFullName.Len() - ObjectNameStart - 1);
+				const FString MipFileName = BasePath / FString::Format(TEXT("{0}_{1}"), TArray<FStringFormatArg>({MoveTemp(ObjectName), LayerIndex}));
 				DstPixelData.Save(MipFileName, ImageWrapper);
 			}
 #endif // SAVE_TILES

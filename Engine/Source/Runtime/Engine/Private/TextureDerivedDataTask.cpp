@@ -228,7 +228,7 @@ void FTextureSourceData::Init(UTexture& InTexture, TextureMipGenSettings InMipGe
 		Block.MipBias = MipBiasX;
 	}
 
-	TextureName = InTexture.GetFName();
+	TextureFullName = InTexture.GetFullName();
 
 	if (bAllowAsyncLoading && !InTexture.Source.IsBulkDataLoaded())
 	{
@@ -245,7 +245,7 @@ void FTextureSourceData::GetSourceMips(FTextureSource& Source, IImageWrapperModu
 	{
 		if (Source.HasHadBulkDataCleared())
 		{	// don't do any work we can't reload this
-			UE_LOG(LogTexture, Error, TEXT("Unable to get texture source mips because its bulk data was released. %s"), *TextureName.ToString())
+			UE_LOG(LogTexture, Error, TEXT("Unable to get texture source mips because its bulk data was released. %s"), *TextureFullName)
 				return;
 		}
 
@@ -275,7 +275,7 @@ void FTextureSourceData::GetSourceMips(FTextureSource& Source, IImageWrapperModu
 
 						if (!ScopedMipData.GetMipData(SourceMip->RawData, BlockIndex, LayerIndex, MipIndex))
 						{
-							UE_LOG(LogTexture, Warning, TEXT("Cannot retrieve source data for mip %d of texture %s"), MipIndex, *TextureName.ToString());
+							UE_LOG(LogTexture, Warning, TEXT("Cannot retrieve source data for mip %d of %s"), MipIndex, *TextureFullName);
 							ReleaseMemory();
 							bValid = false;
 							break;
