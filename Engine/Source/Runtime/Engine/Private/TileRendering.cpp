@@ -264,11 +264,8 @@ bool FCanvasTileRendererItem::Render_RenderThread(FCanvasRenderContext& RenderCo
 
 	Data->RenderTiles(RenderContext, DrawRenderState, View, Canvas->IsHitTesting(), bNeedsToSwitchVerticalAxis);
 
-	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
-	{
-		RenderContext.DeferredRelease(MoveTemp(Data));
-		Data = nullptr;
-	}
+	RenderContext.DeferredRelease(MoveTemp(Data));
+	Data = nullptr;
 
 	return true;
 }
@@ -309,7 +306,6 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRe
 
 		const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
 		const bool bIsHitTesting = Canvas->IsHitTesting();
-		const bool bDeleteOnRender = Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender;
 
 		bool bRequiresExplicit128bitRT = false;
 
@@ -335,10 +331,7 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRe
 			RenderContext.DeferredDelete(View);
 		});
 
-		if (bDeleteOnRender)
-		{
-			Data = nullptr;
-		}
+		Data = nullptr;
 
 		return true;
 	}

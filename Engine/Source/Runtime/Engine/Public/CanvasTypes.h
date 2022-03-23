@@ -217,10 +217,11 @@ public:
 	 **/
 	enum ECanvasAllowModes
 	{
+		Allow_None = 0,
 		// flushing and rendering
 		Allow_Flush = 1 << 0,
 		// delete the render batches when rendering
-		Allow_DeleteOnRender = 1 << 1
+		Allow_DeleteOnRender UE_DEPRECATED(5.1, "Allow_DeleteOnRender is now always enabled.") = 1 << 1
 	};
 
 	enum ECanvasDrawMode
@@ -792,6 +793,7 @@ public:
 	ENGINE_API FCanvasSortElement& GetSortElement(int32 DepthSortKey);
 
 	friend class FCanvasRenderContext;
+	friend class FCanvasRenderThreadScope;
 };
 
 /**

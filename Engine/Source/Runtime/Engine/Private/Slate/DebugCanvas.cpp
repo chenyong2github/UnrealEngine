@@ -204,7 +204,7 @@ void FDebugCanvasDrawer::InitDebugCanvas(FViewportClient* ViewportClient, UWorld
 		GameThreadCanvas = MakeShared<FCanvas, ESPMode::ThreadSafe>(RenderTarget, nullptr, InWorld, InWorld ? InWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel, FCanvas::CDM_DeferDrawing, DPIScale);
 
 		// Do not allow the canvas to be flushed outside of our debug rendering path
-		GameThreadCanvas->SetAllowedModes(FCanvas::Allow_DeleteOnRender);
+		GameThreadCanvas->SetAllowedModes(FCanvas::Allow_None);
 	}
 
 	if (GameThreadCanvas.IsValid())
