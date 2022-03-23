@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundFrontendDataTypeRegistry.h"
 
+#include "MetasoundTrace.h"
 
 namespace Metasound
 {
@@ -516,6 +517,8 @@ namespace Metasound
 
 			bool FDataTypeRegistry::RegisterDataType(TUniquePtr<IDataTypeRegistryEntry>&& InEntry)
 			{
+				METASOUND_LLM_SCOPE;
+
 				if (InEntry.IsValid())
 				{
 					const FName Name = InEntry->GetDataTypeInfo().DataTypeName;
@@ -975,3 +978,4 @@ namespace Metasound
 
 	}
 }
+

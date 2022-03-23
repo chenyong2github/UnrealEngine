@@ -327,6 +327,7 @@ namespace Metasound
 
 			virtual void Prime() override
 			{
+				METASOUND_LLM_SCOPE;
 				FScopeLock Lock(&QueryCriticalSection);
 				Update();
 			}
@@ -335,6 +336,7 @@ namespace Metasound
 			// result.
 			ResultType UpdateAndFindResult(const FFrontendQueryKey& InKey)
 			{
+				METASOUND_LLM_SCOPE;
 				FScopeLock Lock(&QueryCriticalSection);
 
 				Update();
@@ -349,6 +351,7 @@ namespace Metasound
 			// to OutResult. Returns true on success, false on failure. 
 			bool UpdateAndFindResult(const FFrontendQueryKey& InKey, ResultType& OutResult)
 			{
+				METASOUND_LLM_SCOPE;
 				FScopeLock Lock(&QueryCriticalSection);
 
 				Update();
@@ -757,6 +760,7 @@ namespace Metasound
 
 		void FSearchEngine::Prime()
 		{
+			METASOUND_LLM_SCOPE;
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::Prime);
 
 			FindAllClassesQuery.Prime();
@@ -884,3 +888,4 @@ namespace Metasound
 		}
 	}
 }
+

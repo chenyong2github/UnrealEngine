@@ -5,8 +5,8 @@
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundTrace.h"
 #include "HAL/IConsoleManager.h"
-
 
 // Convenience exec commands to push values to global params.
 static FAutoConsoleCommand GPushFloatCommand(
@@ -176,6 +176,7 @@ namespace Metasound
 
 	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::GetDataChannel(const FSendAddress& InAddress, const FOperatorSettings& InOperatorSettings)
 	{
+		METASOUND_LLM_SCOPE;
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = FindDataChannel(InAddress);
 
 		if (!DataChannel.IsValid())
@@ -195,6 +196,7 @@ namespace Metasound
 
 	TUniquePtr<ISender> FAddressRouter::RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams)
 	{
+		METASOUND_LLM_SCOPE;
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InAddress, InitParams.OperatorSettings);
 
 		if (DataChannel.IsValid())
@@ -209,6 +211,7 @@ namespace Metasound
 
 	bool FAddressRouter::UnregisterDataChannel(const FSendAddress& InAddress)
 	{
+		METASOUND_LLM_SCOPE;
 		FScopeLock ScopeLock(&DataChannelMapMutationLock);
 
 		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* Channel = DataChannelMap.Find(InAddress))
@@ -229,6 +232,7 @@ namespace Metasound
 
 	bool FAddressRouter::UnregisterDataChannelIfUnconnected(const FSendAddress& InAddress)
 	{
+		METASOUND_LLM_SCOPE;
 		FScopeLock ScopeLock(&DataChannelMapMutationLock);
 
 		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* Channel = DataChannelMap.Find(InAddress))
@@ -247,6 +251,7 @@ namespace Metasound
 
 	TUniquePtr<IReceiver> FAddressRouter::RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
 	{
+		METASOUND_LLM_SCOPE;
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InAddress, InitParams.OperatorSettings);
 
 		if (DataChannel.IsValid())

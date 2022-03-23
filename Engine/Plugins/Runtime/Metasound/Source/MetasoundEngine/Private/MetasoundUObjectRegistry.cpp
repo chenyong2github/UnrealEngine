@@ -18,7 +18,6 @@
 #include "MetasoundTrace.h"
 #include "UObject/Object.h"
 
-
 namespace Metasound
 {
 	class FMetasoundUObjectRegistry : public IMetasoundUObjectRegistry
@@ -28,6 +27,8 @@ namespace Metasound
 
 			void RegisterUClassInterface(TUniquePtr<IMetasoundUObjectRegistryEntry>&& InEntry) override
 			{
+				METASOUND_LLM_SCOPE;
+
 				if (InEntry.IsValid())
 				{
 					Frontend::FInterfaceRegistryKey Key = Frontend::GetInterfaceRegistryKey(InEntry->GetInterfaceVersion());
@@ -70,6 +71,8 @@ namespace Metasound
 
 			UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const override
 			{
+				METASOUND_LLM_SCOPE;
+
 				TArray<const IMetasoundUObjectRegistryEntry*> AllInterfaceEntries;
 
 				for (const FMetasoundFrontendVersion& InterfaceVersion : InDocument.Interfaces)
@@ -220,3 +223,4 @@ namespace Metasound
 		return Registry;
 	}
 }
+

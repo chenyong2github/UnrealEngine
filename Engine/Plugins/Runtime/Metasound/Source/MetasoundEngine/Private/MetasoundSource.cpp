@@ -273,6 +273,8 @@ void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNod
 
 void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName)
 {
+	METASOUND_LLM_SCOPE;
+
 	// Have to call cache vs a simple get as the source may have yet to start playing/has not been registered
 	// via InitResources. If it has, this call is fast and returns the already cached RuntimeData.
 	const FRuntimeData& RuntimeData = CacheRuntimeData();
@@ -463,6 +465,8 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 void UMetaSoundSource::InitResources()
 {
 	using namespace Metasound::Frontend;
+
+	METASOUND_LLM_SCOPE;
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSource::InitResources);
 
 	FMetaSoundAssetRegistrationOptions RegOptions;
@@ -510,6 +514,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	using namespace Metasound::Frontend;
 	using namespace Metasound::Engine;
 
+	METASOUND_LLM_SCOPE;
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSource::CreateSoundGenerator);
 
 	SampleRate = InParams.SampleRate;
@@ -791,6 +796,8 @@ bool UMetaSoundSource::IsOneShot() const
 
 TUniquePtr<Audio::IParameterTransmitter> UMetaSoundSource::CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const
 {
+	METASOUND_LLM_SCOPE;
+
 	Metasound::FMetaSoundParameterTransmitter::FInitParams InitParams(GetOperatorSettings(InParams.SampleRate), InParams.InstanceID);
 
 	for (const FSendInfoAndVertexName& InfoAndName : FMetasoundAssetBase::GetSendInfos(InParams.InstanceID))

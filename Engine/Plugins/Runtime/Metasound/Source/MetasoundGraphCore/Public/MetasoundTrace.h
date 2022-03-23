@@ -28,3 +28,7 @@
 #define METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(Name)
 
 #endif
+
+// Convenience macro for MetaSound LLM scope to avoid misspells. 
+#define METASOUND_LLM_SCOPE LLM_SCOPE_BYNAME(TEXT("Audio/MetaSound"));
+

@@ -4,6 +4,7 @@
 
 #include "HAL/PlatformTime.h"
 #include "MetasoundFrontendRegistryTransaction.h"
+#include "MetasoundTrace.h"
 
 namespace Metasound
 {
@@ -18,6 +19,8 @@ namespace Metasound
 
 				virtual void RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) override
 				{
+					METASOUND_LLM_SCOPE;
+
 					FInterfaceRegistryTransaction::FTimeType TransactionTime = FPlatformTime::Cycles64();
 					if (InEntry.IsValid())
 					{

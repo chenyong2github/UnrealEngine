@@ -3040,11 +3040,11 @@ int32 USoundWave::GetCompressionQuality() const
 
 FSoundWaveProxyPtr USoundWave::CreateSoundWaveProxy()
 {
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
+
 #if WITH_EDITORONLY_DATA
 	LoadZerothChunk();
 #endif // #if WITH_EDITORONLY_DATA
-
-	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 
 	check(SoundWaveDataPtr);
 	SoundWaveDataPtr->InitializeDataFromSoundWave(*this);
@@ -3055,6 +3055,7 @@ FSoundWaveProxyPtr USoundWave::CreateSoundWaveProxy()
 TUniquePtr<Audio::IProxyData> USoundWave::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	check(SoundWaveDataPtr);
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 
 #if WITH_EDITORONLY_DATA
 	if (!LoadZerothChunk())
@@ -3062,8 +3063,6 @@ TUniquePtr<Audio::IProxyData> USoundWave::CreateNewProxyData(const Audio::FProxy
 		return nullptr;
 	}
 #endif // #if WITH_EDITORONLY_DATA
-
-	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 
 	check(SoundWaveDataPtr);
 	SoundWaveDataPtr->InitializeDataFromSoundWave(*this);

@@ -13,9 +13,6 @@
 #include "MetasoundTrace.h"
 #include "Misc/ScopeLock.h"
 
-#ifndef WITH_METASOUND_FRONTEND
-#define WITH_METASOUND_FRONTEND 0
-#endif
 
 namespace Metasound
 {
@@ -159,6 +156,7 @@ namespace Metasound
 
 			void FRegistryContainerImpl::RegisterPendingNodes()
 			{
+				METASOUND_LLM_SCOPE;
 				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FRegistryContainerImpl::RegisterPendingNodes);
 				{
 					FScopeLock ScopeLock(&LazyInitCommandCritSection);
@@ -259,6 +257,8 @@ namespace Metasound
 
 			FNodeRegistryKey FRegistryContainerImpl::RegisterNode(TUniquePtr<INodeRegistryEntry>&& InEntry)
 			{
+				METASOUND_LLM_SCOPE;
+
 				FNodeRegistryKey Key;
 
 				if (InEntry.IsValid())
@@ -288,6 +288,8 @@ namespace Metasound
 
 			bool FRegistryContainerImpl::UnregisterNode(const FNodeRegistryKey& InKey)
 			{
+				METASOUND_LLM_SCOPE;
+
 				if (NodeRegistryKey::IsValid(InKey))
 				{
 					if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
@@ -646,4 +648,5 @@ bool FMetasoundFrontendRegistryContainer::GetOutputNodeRegistryKeyForDataType(co
 	}
 	return false;
 }
+
 
