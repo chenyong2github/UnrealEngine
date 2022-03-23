@@ -51,8 +51,8 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, TSharedRef<ICon
 	OnSessionClicked = InArgs._OnSessionClicked;
 	OnSessionDoubleClicked = InArgs._OnSessionDoubleClicked;
 	OnRequestedDeleteSession = InArgs._OnRequestedDeleteSession;
-	CanArchiveSession = InArgs._CanArchiveSession;
-	CanDeleteSession = InArgs._CanDeleteSession;
+	CanDeleteArchivedSession = InArgs._CanDeleteArchivedSession;
+	CanDeleteActiveSession = InArgs._CanDeleteActiveSession;
 
 	// Setup search filter.
 	SearchedText = InSearchText; // Reload a previous search text (in any). Useful to remember searched text between join/leave sessions, but not persistent if the tab is closed.
@@ -1024,27 +1024,22 @@ void SConcertSessionBrowser::RequestRenameSession(const TSharedPtr<FConcertSessi
 
 void SConcertSessionBrowser::RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& DeletedItem)
 {
-	const FText SessionNameInText = FText::FromString(DeletedItem->SessionName);
-	const FText SeverNameInText = FText::FromString(DeletedItem->ServerName);
-	const FText ConfirmationMessage = FText::Format(LOCTEXT("DeleteSessionConfirmationMessage", "Do you really want to delete the session \"{0}\" from the server \"{1}\"?"), SessionNameInText, SeverNameInText);
-	const FText ConfirmationTitle = LOCTEXT("DeleteSessionConfirmationTitle", "Delete Session Confirmation");
-	
 	if (DeletedItem->Type == FConcertSessionItem::EType::ActiveSession)
 	{
-		if (!CanArchiveSession.IsBound() || CanArchiveSession.Execute(DeletedItem))
+		if (!CanDeleteActiveSession.IsBound() || CanDeleteActiveSession.Execute(DeletedItem))
 		{
 			GetController()->DeleteActiveSession(DeletedItem->ServerAdminEndpointId, DeletedItem->SessionId);
-			OnRequestedDeleteSession.ExecuteIfBound(DeletedItem);
 		}
 	}
 	else if (DeletedItem->Type == FConcertSessionItem::EType::ArchivedSession)
 	{
-		if (!CanDeleteSession.IsBound() || CanDeleteSession.Execute(DeletedItem))
+		if (!CanDeleteArchivedSession.IsBound() || CanDeleteArchivedSession.Execute(DeletedItem))
 		{
 			GetController()->DeleteArchivedSession(DeletedItem->ServerAdminEndpointId, DeletedItem->SessionId);
-			OnRequestedDeleteSession.ExecuteIfBound(DeletedItem);
 		}
 	}
+	
+	OnRequestedDeleteSession.ExecuteIfBound(DeletedItem);
 }
 
 #undef LOCTEXT_NAMESPACE

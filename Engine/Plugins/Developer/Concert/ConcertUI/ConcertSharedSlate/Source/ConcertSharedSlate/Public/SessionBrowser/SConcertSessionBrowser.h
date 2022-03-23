@@ -75,9 +75,9 @@ public:
 	SLATE_EVENT(FSessionDelegate, OnRequestedDeleteSession)
 
 	/** Ask the user to confirm archiving - most obvious implementation is showing a dialog box */
-	SLATE_EVENT(FCanRemoveSession, CanArchiveSession)
+	SLATE_EVENT(FCanRemoveSession, CanDeleteArchivedSession)
 	/** Ask the user to confirm deleting - most obvious implementation is showing a dialog box */
-	SLATE_EVENT(FCanRemoveSession, CanDeleteSession)
+	SLATE_EVENT(FCanRemoveSession, CanDeleteActiveSession)
 	
 	SLATE_END_ARGS();
 
@@ -192,8 +192,8 @@ private:
 	FSessionDelegate OnSessionClicked;
 	FSessionDelegate OnSessionDoubleClicked;
 	FSessionDelegate OnRequestedDeleteSession;
-	FCanRemoveSession CanArchiveSession;
-	FCanRemoveSession CanDeleteSession;
+	FCanRemoveSession CanDeleteArchivedSession;
+	FCanRemoveSession CanDeleteActiveSession;
 
 	// The items displayed in the session list view. It might be filtered and sorted compared to the full list hold by the controller.
 	TArray<TSharedPtr<FConcertSessionItem>> Sessions;

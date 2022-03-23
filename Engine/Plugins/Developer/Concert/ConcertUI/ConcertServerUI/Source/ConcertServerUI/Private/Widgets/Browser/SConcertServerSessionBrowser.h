@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SMessageDialog;
 class FConcertServerSessionBrowserController;
 class SSearchBox;
 
@@ -18,6 +19,7 @@ public:
 	SLATE_BEGIN_ARGS(SConcertServerSessionBrowser) { }
 		SLATE_EVENT(FSessionDelegate, DoubleClickSession)
 	SLATE_END_ARGS()
+	~SConcertServerSessionBrowser();
 
 	void Construct(const FArguments& InArgs, TSharedRef<FConcertServerSessionBrowserController> InController);
 
@@ -27,12 +29,17 @@ private:
 
 	/** We can ask the controller about information and notify it about UI events. */
 	TWeakPtr<FConcertServerSessionBrowserController> Controller;
+	/** Tracks whether there is a dialog asking the user to delete a session. Used to avoid opening multiple. */
+	TWeakPtr<SMessageDialog> DeleteSessionDialog;
 
 	TSharedPtr<FText> SearchText;
 	TSharedPtr<SConcertSessionBrowser> SessionBrowser;
 	
 	TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
 
-	bool ConfirmArchiveOperationWithDialog(TSharedPtr<FConcertSessionItem> SessionItem);
-	bool ConfirmDeleteOperationWithDialog(TSharedPtr<FConcertSessionItem> SessionItem);
+	void RequestDeleteSession(TSharedPtr<FConcertSessionItem> SessionItem);
+	void OnRootWindowClosed(const TSharedRef<SWindow>&) const;
+	void UnregisterFromOnRootWindowClosed() const;
+	void DeleteArchivedSessionWithNonModalQuestion(TSharedPtr<FConcertSessionItem> SessionItem);
+	void DeleteActiveSessionWithNonModalQuestion(TSharedPtr<FConcertSessionItem> SessionItem);
 };

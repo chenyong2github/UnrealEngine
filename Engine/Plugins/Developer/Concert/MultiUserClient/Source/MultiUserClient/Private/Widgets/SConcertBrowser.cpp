@@ -1037,7 +1037,7 @@ private:
 	// Manipulates the sessions view (the array and the UI).
 	void OnSessionSelectionChanged(TSharedPtr<FConcertSessionItem> SelectedSession);
 	void OnSessionDoubleClicked(TSharedPtr<FConcertSessionItem> SelectedSession);
-	bool CanDeleteSession(TSharedPtr<FConcertSessionItem> DeletedItem);
+	bool ConfirmDeleteSessionWithDialog(TSharedPtr<FConcertSessionItem> SessionItem);
 
 	// Update server/session/clients lists.
 	EActiveTimerReturnType TickDiscovery(double InCurrentTime, float InDeltaTime);
@@ -1175,6 +1175,8 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeBrowserContent(TSharedPtr<
 					.OnSessionClicked_Raw(this, &SConcertClientSessionBrowser::OnSessionSelectionChanged)
 					.OnSessionDoubleClicked_Raw(this, &SConcertClientSessionBrowser::OnSessionDoubleClicked)
 					.OnRequestedDeleteSession_Lambda([this](auto) { UpdateDiscovery(); /* Don't wait up to 1s, kick discovery right now */ })
+					.CanDeleteArchivedSession(this, &SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog)
+					.CanDeleteActiveSession(this, &SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog)
 			]
 
 			// Session details.
@@ -1715,10 +1717,10 @@ void SConcertClientSessionBrowser::OnSessionDoubleClicked(TSharedPtr<FConcertSes
 	}
 }
 
-bool SConcertClientSessionBrowser::CanDeleteSession(TSharedPtr<FConcertSessionItem> DeletedItem)
+bool SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog(TSharedPtr<FConcertSessionItem> SessionItem)
 {
-	const FText SessionNameInText = FText::FromString(DeletedItem->SessionName);
-	const FText SeverNameInText = FText::FromString(DeletedItem->ServerName);
+	const FText SessionNameInText = FText::FromString(SessionItem->SessionName);
+	const FText SeverNameInText = FText::FromString(SessionItem->ServerName);
 	const FText ConfirmationMessage = FText::Format(LOCTEXT("DeleteSessionConfirmationMessage", "Do you really want to delete the session \"{0}\" from the server \"{1}\"?"), SessionNameInText, SeverNameInText);
 	const FText ConfirmationTitle = LOCTEXT("DeleteSessionConfirmationTitle", "Delete Session Confirmation");
 	return FMessageDialog::Open(EAppMsgType::YesNo, ConfirmationMessage, &ConfirmationTitle) == EAppReturnType::Yes;
