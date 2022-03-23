@@ -331,11 +331,10 @@ void FLumenSurfaceCacheAllocator::GetStats(FStats& Stats) const
 
 		if (NumElements > 0)
 		{
-			FBinStats BinStats;
-			BinStats.ElementSize = Bin.ElementSize;
-			BinStats.NumAllocations = NumElements;
-			BinStats.NumPages = Bin.BinAllocations.Num();
-			Stats.Bins.Add(BinStats);
+			FBinStats& NewBinStats = Stats.Bins.AddDefaulted_GetRef();
+			NewBinStats.ElementSize = Bin.ElementSize;
+			NewBinStats.NumAllocations = NumElements;
+			NewBinStats.NumPages = Bin.BinAllocations.Num();
 		}
 	}
 

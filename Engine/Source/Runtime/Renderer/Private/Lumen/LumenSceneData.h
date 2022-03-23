@@ -302,9 +302,9 @@ public:
 
 	struct FBinStats
 	{
-		FIntPoint ElementSize;
-		int32 NumAllocations;
-		int32 NumPages;
+		FIntPoint ElementSize = FIntPoint(0, 0);
+		int32 NumAllocations = 0;
+		int32 NumPages = 0;
 	};
 
 	struct FStats
