@@ -188,6 +188,8 @@ void UPCGGraph::OnNodeRemoved(UPCGNode* InNode)
 		{
 			SubgraphNode->OnNodeStructuralSettingsChangedDelegate.RemoveAll(this);
 		}
+
+		NotifyGraphChanged(/*bIsStructural=*/true);
 	}
 #endif
 }
@@ -215,6 +217,61 @@ UPCGNode* UPCGGraph::AddEdge(UPCGNode* From, UPCGNode* To)
 bool UPCGGraph::Contains(UPCGNode* Node) const
 {
 	return Node == InputNode || Node == OutputNode || Nodes.Contains(Node);
+}
+
+void UPCGGraph::RemoveNode(UPCGNode* InNode)
+{
+	check(InNode);
+
+	for (UPCGNode* Input : InNode->InboundNodes)
+	{
+		Input->OutboundNodes.Remove(InNode);
+	}
+	for (UPCGNode* Output : InNode->OutboundNodes)
+	{
+		Output->InboundNodes.Remove(InNode);
+	}
+
+	Nodes.Remove(InNode);
+	OnNodeRemoved(InNode);
+}
+
+void UPCGGraph::RemoveEdge(UPCGNode* From, UPCGNode* To)
+{
+	if (!From || !To)
+	{
+		// TODO: log error
+		return;
+	}
+
+	From->RemoveConnection(To);
+	To->RemoveConnection(From);
+
+#if WITH_EDITOR
+	NotifyGraphChanged(/*bIsStructural=*/true);
+#endif
+}
+
+void UPCGGraph::RemoveInboundEdges(UPCGNode* InNode)
+{
+	check(InNode);
+
+	for (int32 i = InNode->InboundNodes.Num() - 1; i >= 0; --i)
+	{
+		UPCGNode* InboundNode = InNode->InboundNodes[i];
+		RemoveEdge(InNode, InboundNode);
+	}
+}
+
+void UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode)
+{
+	check(InNode);
+
+	for (int32 i = InNode->OutboundNodes.Num() - 1; i >= 0; --i)
+	{
+		UPCGNode* OutboundNode = InNode->OutboundNodes[i];
+		RemoveEdge(InNode, OutboundNode);
+	}
 }
 
 #if WITH_EDITOR

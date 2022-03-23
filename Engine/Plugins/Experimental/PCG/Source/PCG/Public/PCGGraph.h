@@ -57,6 +57,11 @@ public:
 
 	bool Contains(UPCGNode* Node) const;
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }
+	void RemoveNode(UPCGNode* InNode);
+	void RemoveEdge(UPCGNode* From, UPCGNode* To);
+	void RemoveInboundEdges(UPCGNode* InNode);
+	void RemoveOutboundEdges(UPCGNode* InNode);
+
 #if WITH_EDITOR
 	FPCGTagToSettingsMap GetTrackedTagsToSettings() const;
 #endif

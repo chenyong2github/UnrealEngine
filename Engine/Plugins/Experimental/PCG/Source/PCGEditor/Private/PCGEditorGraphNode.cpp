@@ -9,6 +9,7 @@
 
 #include "PCGNode.h"
 #include "PCGSettings.h"
+#include "PCGEditorGraphSchema.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphNode"
 
@@ -36,8 +37,12 @@ void UPCGEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, class UGrap
 		return;
 	}
 
-	FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
+	FToolMenuSection& NodeSection = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsHeader", "Node Actions"));
+	{
+		NodeSection.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+	}
 
+	FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
 	Section.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
 		{
 			{
@@ -70,6 +75,21 @@ void UPCGEditorGraphNode::AllocateDefaultPins()
 	{
 		CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, FName(TEXT("In")));
 	}
+}
+
+void UPCGEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
+{
+	if (FromPin->Direction == EEdGraphPinDirection::EGPD_Output)
+	{
+		UEdGraphPin* ToPin = FindPinChecked(TEXT("In"), EEdGraphPinDirection::EGPD_Input);
+		GetSchema()->TryCreateConnection(FromPin, ToPin);
+	}
+	else if (FromPin->Direction == EEdGraphPinDirection::EGPD_Input)
+	{
+		UEdGraphPin* ToPin = FindPinChecked(TEXT("Out"), EEdGraphPinDirection::EGPD_Output);
+		GetSchema()->TryCreateConnection(FromPin, ToPin);
+	}
+	NodeConnectionListChanged();
 }
 
 #undef LOCTEXT_NAMESPACE

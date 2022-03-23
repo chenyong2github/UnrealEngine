@@ -33,5 +33,13 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 	NewNode->NodePosY = Location.Y;
 	NodeCreator.Finalize();
 
+	NewPCGNode->PositionX = Location.X;
+	NewPCGNode->PositionY = Location.Y;
+
+	if (FromPin)
+	{
+		NewNode->AutowireNewNode(FromPin);
+	}
+
 	return NewNode;
 }

@@ -34,6 +34,9 @@ private:
 	/** Whether we can select every node */
 	bool CanSelectAllNodes();
 
+	/** Delete all selected nodes in the graph */
+	void DeleteSelectedNodes();
+
 	void OnAlignTop();
 	void OnAlignMiddle();
 	void OnAlignBottom();

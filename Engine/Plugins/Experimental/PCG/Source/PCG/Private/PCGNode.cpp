@@ -82,6 +82,12 @@ void UPCGNode::ConnectFrom(UPCGNode* InPredecessor)
 	InboundNodes.AddUnique(InPredecessor);
 }
 
+void UPCGNode::RemoveConnection(UPCGNode* InNode)
+{
+	InboundNodes.Remove(InNode);
+	OutboundNodes.Remove(InNode);
+}
+
 #if WITH_EDITOR
 
 void UPCGNode::PreEditChange(FProperty* PropertyAboutToChange)

@@ -63,6 +63,8 @@ protected:
 	void ConnectTo(UPCGNode* InSuccessor);
 	void ConnectFrom(UPCGNode* InPredecessor);
 
+	void RemoveConnection(UPCGNode* InNode);
+
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
