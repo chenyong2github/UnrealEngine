@@ -17,10 +17,6 @@ using Microsoft.Win32.SafeHandles;
 using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
 using Microsoft.Build.Utilities;
 
-//EPIC BEGIN
-#nullable disable
-//EPIC END
-
 namespace Microsoft.Build.Shared
 {
     /// <summary>

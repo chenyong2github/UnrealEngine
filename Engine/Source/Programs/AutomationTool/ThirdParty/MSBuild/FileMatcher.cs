@@ -13,10 +13,6 @@ using System.Threading.Tasks;
 using Microsoft.Build.Shared.FileSystem;
 using Microsoft.Build.Utilities;
 
-//EPIC BEGIN
-#nullable disable
-//EPIC END
-
 namespace Microsoft.Build.Shared
 {
     /// <summary>

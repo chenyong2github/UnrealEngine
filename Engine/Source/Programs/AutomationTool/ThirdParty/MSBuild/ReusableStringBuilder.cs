@@ -9,10 +9,6 @@ using System.Globalization;
 using System.Text;
 using System.Threading;
 
-//EPIC BEGIN
-#nullable disable
-//EPIC END
-
 namespace Microsoft.Build.Shared
 {
     /// <summary>

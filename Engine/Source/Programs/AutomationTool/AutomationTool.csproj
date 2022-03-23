@@ -75,6 +75,24 @@
     <Compile Include="..\Shared\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
+    <Compile Include="CompileScriptModules.cs" />
+    <Compile Include="ThirdParty\MSBuild\ErrorUtilities.cs" />
+    <Compile Include="ThirdParty\MSBuild\ExceptionHandling.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileMatcher.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileSystem\FileSystems.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileSystem\IFileSystem.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileSystem\ManagedFileSystem.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileSystem\MSBuildOnWindowsFileSystem.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileSystem\NativeWin32Exception.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileSystem\SafeFileHandle.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileSystem\WindowsFileSystem.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileSystem\WindowsNative.cs" />
+    <Compile Include="ThirdParty\MSBuild\FileUtilities.cs" />
+    <Compile Include="ThirdParty\MSBuild\InternalErrorException.cs" />
+    <Compile Include="ThirdParty\MSBuild\NativeMethodsShared.cs" />
+    <Compile Include="ThirdParty\MSBuild\ResourceUtilities.cs" />
+    <Compile Include="ThirdParty\MSBuild\ReusableStringBuilder.cs" />
+    <Compile Include="ThirdParty\MSBuild\Traits.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="app.manifest">

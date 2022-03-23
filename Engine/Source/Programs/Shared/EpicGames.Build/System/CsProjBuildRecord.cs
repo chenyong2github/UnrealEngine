@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace EpicGames.Core
+namespace UnrealBuildBase
 {
 	// Acceleration structure:
 	// used to encapsulate a full set of dependencies for an msbuild project - explicit and globbed
