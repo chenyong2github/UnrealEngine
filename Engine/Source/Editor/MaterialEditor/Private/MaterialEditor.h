@@ -670,7 +670,8 @@ private:
 
 	/** Helper functions for the feature level node display toggling */
 	void SetFeaturePreview(ERHIFeatureLevel::Type NewFeatureLevel);
-	bool IsFeaturePreviewChecked(ERHIFeatureLevel::Type TestFeatureLevel);
+	bool IsFeaturePreviewChecked(ERHIFeatureLevel::Type TestFeatureLevel) const;
+	bool IsFeaturePreviewAvailable(ERHIFeatureLevel::Type TestFeatureLevel) const;
 
 
 public:

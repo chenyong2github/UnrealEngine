@@ -1501,9 +1501,14 @@ void FMaterialEditor::SetFeaturePreview(ERHIFeatureLevel::Type NewFeatureLevel)
 	bPreviewFeaturesChanged = true;
 }
 
-bool FMaterialEditor::IsFeaturePreviewChecked(ERHIFeatureLevel::Type TestFeatureLevel)
+bool FMaterialEditor::IsFeaturePreviewChecked(ERHIFeatureLevel::Type TestFeatureLevel) const
 {
 	return NodeFeatureLevel == TestFeatureLevel;
+}
+
+bool FMaterialEditor::IsFeaturePreviewAvailable(ERHIFeatureLevel::Type TestFeatureLevel) const
+{
+	return GMaxRHIFeatureLevel >= TestFeatureLevel;
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -1980,6 +1985,7 @@ void FMaterialEditor::GeneratePreviewMenuContent(UToolMenu* Menu)
 		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_All);
 		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES31);
 		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM5);
+		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM6);
 	}
 
 	FToolMenuSection& StaticSwitchSection = Menu->AddSection("StaticSwitchPreview", LOCTEXT("StaticSwitchHeading", "Switch Params"));
@@ -3379,13 +3385,18 @@ void FMaterialEditor::BindCommands()
 	ToolkitCommands->MapAction(
 		Commands.FeatureLevel_ES31,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::ES3_1),
-		FCanExecuteAction(),
+		FCanExecuteAction::CreateSP(this, &FMaterialEditor::IsFeaturePreviewAvailable, ERHIFeatureLevel::ES3_1),
 		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::ES3_1));
 	ToolkitCommands->MapAction(
 		Commands.FeatureLevel_SM5,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::SM5),
-		FCanExecuteAction(),
+		FCanExecuteAction::CreateSP(this, &FMaterialEditor::IsFeaturePreviewAvailable, ERHIFeatureLevel::SM5),
 		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::SM5));
+	ToolkitCommands->MapAction(
+		Commands.FeatureLevel_SM6,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::SM6),
+		FCanExecuteAction::CreateSP(this, &FMaterialEditor::IsFeaturePreviewAvailable, ERHIFeatureLevel::SM6),
+		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::SM6));
 }
 
 void FMaterialEditor::OnApply()

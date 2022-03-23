@@ -192,6 +192,7 @@ public:
 	TSharedPtr< FUICommandInfo > FeatureLevel_All;
 	TSharedPtr< FUICommandInfo > FeatureLevel_ES31;
 	TSharedPtr< FUICommandInfo > FeatureLevel_SM5;
+	TSharedPtr< FUICommandInfo > FeatureLevel_SM6;
 
 	/**
 	 * Initialize commands
