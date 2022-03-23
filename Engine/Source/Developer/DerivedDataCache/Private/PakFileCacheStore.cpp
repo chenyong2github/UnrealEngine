@@ -10,7 +10,6 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
-#include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValue.h"
 #include "HAL/CriticalSection.h"
@@ -30,7 +29,6 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
-#include "Tasks/Task.h"
 #include "Templates/Greater.h"
 #include "Templates/UniquePtr.h"
 
@@ -1529,29 +1527,6 @@ bool FPakFileCacheStore::FileExists(const FStringView Path)
 	return CacheItems.ContainsByHash(PathHash, Path);
 }
 
-static void ScheduleAsyncRequest(IRequestOwner& Owner, const TCHAR* DebugName, TUniqueFunction<void (IRequestOwner& Owner)>&& Function)
-{
-	class FAsyncRequest final : public FRequestBase
-	{
-	public:
-		Tasks::FTask Task;
-		TUniqueFunction<void (IRequestOwner& Owner)> Function;
-
-		void SetPriority(EPriority Priority) final {}
-		void Cancel() final { Task.Wait(); }
-		void Wait() final { Task.Wait(); }
-	};
-
-	FAsyncRequest* Request = new FAsyncRequest;
-	Request->Function = MoveTemp(Function);
-	Tasks::FTaskEvent TaskEvent(TEXT("ScheduleAsyncRequest"));
-	Request->Task = Tasks::Launch(DebugName,
-		[Request, &Owner] { Owner.End(Request, [Request, &Owner] { Request->Function(Owner); }); },
-		TaskEvent, Tasks::ETaskPriority::BackgroundNormal);
-	Owner.Begin(Request);
-	TaskEvent.Trigger();
-}
-
 class FCompressedPakFileCacheStore final : public FPakFileCacheStore
 {
 public:
@@ -1620,8 +1595,8 @@ void FCompressedPakFileCacheStore::Put(
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
-	ScheduleAsyncRequest(Owner, TEXT("PakFileDDC_Put"),
-		[this, Requests = TArray<FCachePutRequest, TInlineAllocator<1>>(Requests), OnComplete = MoveTemp(OnComplete)](IRequestOwner& Owner) mutable
+	Owner.LaunchTask(TEXT("PakFileDDC_Put"),
+		[this, &Owner, Requests = TArray<FCachePutRequest, TInlineAllocator<1>>(Requests), OnComplete = MoveTemp(OnComplete)]() mutable
 		{
 			for (FCachePutRequest& Request : Requests)
 			{
@@ -1633,8 +1608,8 @@ void FCompressedPakFileCacheStore::Put(
 				}
 				Request.Record = Builder.Build();
 			}
-			Private::ExecuteInCacheThreadPool(Owner,
-				[this, Requests = MoveTemp(Requests), OnComplete = MoveTemp(OnComplete)](IRequestOwner& Owner, bool bCancel) mutable
+			Private::LaunchTaskInCacheThreadPool(Owner,
+				[this, &Owner, Requests = MoveTemp(Requests), OnComplete = MoveTemp(OnComplete)]() mutable
 				{
 					FPakFileCacheStore::Put(Requests, Owner, MoveTemp(OnComplete));
 				});
@@ -1646,15 +1621,15 @@ void FCompressedPakFileCacheStore::PutValue(
 	IRequestOwner& Owner,
 	FOnCachePutValueComplete&& OnComplete)
 {
-	ScheduleAsyncRequest(Owner, TEXT("PakFileDDC_PutValue"),
-		[this, Requests = TArray<FCachePutValueRequest, TInlineAllocator<1>>(Requests), OnComplete = MoveTemp(OnComplete)](IRequestOwner& Owner) mutable
+	Owner.LaunchTask(TEXT("PakFileDDC_PutValue"),
+		[this, &Owner, Requests = TArray<FCachePutValueRequest, TInlineAllocator<1>>(Requests), OnComplete = MoveTemp(OnComplete)]() mutable
 		{
 			for (FCachePutValueRequest& Request : Requests)
 			{
 				Request.Value = Compress(Request.Value);
 			}
-			Private::ExecuteInCacheThreadPool(Owner,
-				[this, Requests = MoveTemp(Requests), OnComplete = MoveTemp(OnComplete)](IRequestOwner& Owner, bool bCancel) mutable
+			Private::LaunchTaskInCacheThreadPool(Owner,
+				[this, &Owner, Requests = MoveTemp(Requests), OnComplete = MoveTemp(OnComplete)]() mutable
 				{
 					FPakFileCacheStore::PutValue(Requests, Owner, MoveTemp(OnComplete));
 				});

@@ -6,15 +6,12 @@
 #include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataLegacyCacheStore.h"
-#include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValueId.h"
-#include "Experimental/Async/LazyEvent.h"
 #include "Memory/SharedBuffer.h"
 #include "MemoryCacheStore.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
-#include "Tasks/Task.h"
 #include "Templates/Invoke.h"
 
 namespace UE::DerivedData
@@ -177,130 +174,6 @@ void FCacheStoreAsync::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 	}
 }
 
-class FDerivedDataAsyncWrapperRequest final : public FRequestBase, private IQueuedWork
-{
-public:
-	inline FDerivedDataAsyncWrapperRequest(
-		IRequestOwner& InOwner,
-		TUniqueFunction<void (IRequestOwner& Owner, bool bCancel)>&& InFunction)
-		: Owner(InOwner)
-		, Function(MoveTemp(InFunction))
-	{
-	}
-
-	inline void Start(EPriority Priority)
-	{
-		Owner.Begin(this);
-		DoneEvent.Reset();
-		Private::GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
-	}
-
-	inline void Execute(bool bCancel)
-	{
-		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
-		Owner.End(this, [this, bCancel]
-		{
-			Function(Owner, bCancel);
-			DoneEvent.Trigger();
-		});
-		// DO NOT ACCESS ANY MEMBERS PAST THIS POINT!
-	}
-
-	// IRequest Interface
-
-	inline void SetPriority(EPriority Priority) final
-	{
-		if (Private::GCacheThreadPool->RetractQueuedWork(this))
-		{
-			Private::GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
-		}
-	}
-
-	inline void Cancel() final
-	{
-		if (!DoneEvent.Wait(0))
-		{
-			if (Private::GCacheThreadPool->RetractQueuedWork(this))
-			{
-				Abandon();
-			}
-			else
-			{
-				FScopeCycleCounter Scope(GetStatId());
-				DoneEvent.Wait();
-			}
-		}
-	}
-
-	inline void Wait() final
-	{
-		if (!DoneEvent.Wait(0))
-		{
-			if (Private::GCacheThreadPool->RetractQueuedWork(this))
-			{
-				DoThreadedWork();
-			}
-			else
-			{
-				FScopeCycleCounter Scope(GetStatId());
-				DoneEvent.Wait();
-			}
-		}
-	}
-
-private:
-	static EQueuedWorkPriority GetPriority(EPriority Priority)
-	{
-		switch (Priority)
-		{
-		case EPriority::Blocking: return EQueuedWorkPriority::Blocking;
-		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
-		case EPriority::High:     return EQueuedWorkPriority::High;
-		case EPriority::Normal:   return EQueuedWorkPriority::Normal;
-		case EPriority::Low:      return EQueuedWorkPriority::Low;
-		case EPriority::Lowest:   return EQueuedWorkPriority::Lowest;
-		default: checkNoEntry();  return EQueuedWorkPriority::Normal;
-		}
-	}
-
-	// IQueuedWork Interface
-
-	inline void DoThreadedWork() final
-	{
-		Execute(/*bCancel*/ false);
-	}
-
-	inline void Abandon() final
-	{
-		Execute(/*bCancel*/ true);
-	}
-
-	inline TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FDerivedDataAsyncWrapperRequest, STATGROUP_ThreadPoolAsyncTasks);
-	}
-
-private:
-	IRequestOwner& Owner;
-	TUniqueFunction<void (IRequestOwner& Owner, bool bCancel)> Function;
-	FLazyEvent DoneEvent{EEventMode::ManualReset};
-};
-
-void Private::ExecuteInCacheThreadPool(
-	IRequestOwner& Owner,
-	TUniqueFunction<void (IRequestOwner& Owner, bool bCancel)>&& Function)
-{
-	if (GCacheThreadPool)
-	{
-		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner, MoveTemp(Function));
-		Request->Start(Owner.GetPriority());
-	}
-	else
-	{
-		Invoke(Function, Owner, /*bCancel*/ false);
-	}
-}
-
 template <typename RequestType, typename OnCompleteType, typename OnExecuteType>
 void FCacheStoreAsync::Execute(
 	COOK_STAT(CookStatsFunction OnAddStats,)
@@ -323,19 +196,19 @@ void FCacheStoreAsync::Execute(
 	};
 
 	FDerivedDataBackend::Get().AddToAsyncCompletionCounter(Requests.Num());
-	if (Owner.GetPriority() == EPriority::Blocking || !Private::GCacheThreadPool)
+	if (Owner.GetPriority() == EPriority::Blocking)
 	{
 		return ExecuteWithStats(Requests, Owner, MoveTemp(OnComplete));
 	}
 
-	Private::ExecuteInCacheThreadPool(Owner,
+	Private::LaunchTaskInCacheThreadPool(Owner,
 		[this,
+		&Owner,
 		Requests = TArray<RequestType>(Requests),
 		OnComplete = MoveTemp(OnComplete),
-		ExecuteWithStats = MoveTemp(ExecuteWithStats)]
-		(IRequestOwner& Owner, bool bCancel) mutable
+		ExecuteWithStats = MoveTemp(ExecuteWithStats)]() mutable
 		{
-			if (!bCancel)
+			if (!Owner.IsCanceled())
 			{
 				ExecuteWithStats(Requests, Owner, MoveTemp(OnComplete));
 			}

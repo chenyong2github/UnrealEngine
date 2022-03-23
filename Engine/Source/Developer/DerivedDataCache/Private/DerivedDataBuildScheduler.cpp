@@ -10,7 +10,6 @@
 #include "Experimental/Async/LazyEvent.h"
 #include "Misc/Guid.h"
 #include "Misc/ScopeLock.h"
-#include "Tasks/Task.h"
 
 namespace UE::DerivedData::Private
 {
@@ -19,24 +18,7 @@ namespace UE::DerivedData::Private
 
 static void ScheduleAsyncStep(IBuildJob& Job, IRequestOwner& Owner, const TCHAR* DebugName)
 {
-	class FStepAsyncRequest final : public FRequestBase
-	{
-	public:
-		Tasks::FTask Task;
-
-		void SetPriority(EPriority Priority) final {}
-		void Cancel() final { Task.Wait(); }
-		void Wait() final { Task.Wait(); }
-	};
-
-	FStepAsyncRequest* Request = new FStepAsyncRequest;
-
-	Tasks::FTaskEvent TaskEvent(TEXT("ScheduleAsyncStep"));
-	Request->Task = Tasks::Launch(DebugName,
-		[&Job, &Owner, Request] { Owner.End(Request, [&Job] { Job.StepExecution(); }); },
-		TaskEvent, Tasks::ETaskPriority::BackgroundNormal);
-	Owner.Begin(Request);
-	TaskEvent.Trigger();
+	Owner.LaunchTask(DebugName, [&Job] { Job.StepExecution(); });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

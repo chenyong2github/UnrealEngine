@@ -9,7 +9,10 @@
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
+#include "Tasks/Task.h"
+#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
+#include <atomic>
 
 namespace UE::DerivedData::Private
 {
@@ -275,5 +278,28 @@ void FRequestOwner::Wait()                              { return ToSharedOwner(O
 bool FRequestOwner::Poll() const                        { return ToSharedOwner(Owner.Get())->Poll(); }
 FRequestOwner::operator IRequest*()                     { return ToSharedOwner(Owner.Get()); }
 void FRequestOwner::Destroy(IRequestOwner& SharedOwner) { return ToSharedOwner(&SharedOwner)->Destroy(); }
+
+void IRequestOwner::LaunchTask(const TCHAR* DebugName, TUniqueFunction<void ()>&& TaskBody)
+{
+	using namespace Tasks;
+
+	struct FTaskRequest final : public FRequestBase
+	{
+		void SetPriority(EPriority Priority) final {}
+		void Cancel() final { Task.Wait(); }
+		void Wait() final { Task.Wait(); }
+		FTask Task;
+	};
+
+	Tasks::FTaskEvent TaskEvent(TEXT("LaunchTaskRequest"));
+	FTaskRequest* Request = new FTaskRequest;
+	Request->Task = Launch(
+		DebugName,
+		[this, Request, TaskBody = MoveTemp(TaskBody)] { End(Request, TaskBody); },
+		TaskEvent,
+		GetPriority() <= EPriority::Normal ? ETaskPriority::BackgroundNormal : ETaskPriority::BackgroundHigh);
+	Begin(Request);
+	TaskEvent.Trigger();
+}
 
 } // UE::DerivedData

@@ -14,7 +14,9 @@
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
+#include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CommandLine.h"
@@ -191,6 +193,121 @@ namespace UE::DerivedData::Private
 {
 
 FQueuedThreadPool* GCacheThreadPool;
+
+class FCacheThreadPoolTaskRequest final : public FRequestBase, private IQueuedWork
+{
+public:
+	inline FCacheThreadPoolTaskRequest(
+		IRequestOwner& InOwner,
+		TUniqueFunction<void ()>&& InTaskBody)
+		: Owner(InOwner)
+		, TaskBody(MoveTemp(InTaskBody))
+	{
+	}
+
+	inline void Start(EPriority Priority)
+	{
+		Owner.Begin(this);
+		DoneEvent.Reset();
+		GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
+	}
+
+	inline void Execute()
+	{
+		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
+		Owner.End(this, [this]
+		{
+			TaskBody();
+			DoneEvent.Trigger();
+		});
+		// DO NOT ACCESS ANY MEMBERS PAST THIS POINT!
+	}
+
+	// IRequest Interface
+
+	inline void SetPriority(EPriority Priority) final
+	{
+		if (GCacheThreadPool->RetractQueuedWork(this))
+		{
+			GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
+		}
+	}
+
+	inline void Cancel() final
+	{
+		if (!DoneEvent.Wait(0))
+		{
+			if (GCacheThreadPool->RetractQueuedWork(this))
+			{
+				Abandon();
+			}
+			else
+			{
+				FScopeCycleCounter Scope(GetStatId());
+				DoneEvent.Wait();
+			}
+		}
+	}
+
+	inline void Wait() final
+	{
+		if (!DoneEvent.Wait(0))
+		{
+			if (GCacheThreadPool->RetractQueuedWork(this))
+			{
+				DoThreadedWork();
+			}
+			else
+			{
+				FScopeCycleCounter Scope(GetStatId());
+				DoneEvent.Wait();
+			}
+		}
+	}
+
+private:
+	static EQueuedWorkPriority GetPriority(EPriority Priority)
+	{
+		switch (Priority)
+		{
+		case EPriority::Blocking: return EQueuedWorkPriority::Blocking;
+		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
+		case EPriority::High:     return EQueuedWorkPriority::High;
+		case EPriority::Normal:   return EQueuedWorkPriority::Normal;
+		case EPriority::Low:      return EQueuedWorkPriority::Low;
+		case EPriority::Lowest:   return EQueuedWorkPriority::Lowest;
+		default: checkNoEntry();  return EQueuedWorkPriority::Normal;
+		}
+	}
+
+	// IQueuedWork Interface
+
+	inline void DoThreadedWork() final { Execute(); }
+	inline void Abandon() final { Execute(); }
+
+	inline TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FCacheThreadPoolTaskRequest, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+private:
+	IRequestOwner& Owner;
+	TUniqueFunction<void ()> TaskBody;
+	FLazyEvent DoneEvent{EEventMode::ManualReset};
+};
+
+void LaunchTaskInCacheThreadPool(IRequestOwner& Owner, TUniqueFunction<void ()>&& TaskBody)
+{
+	if (GCacheThreadPool)
+	{
+		FCacheThreadPoolTaskRequest* Request = new FCacheThreadPoolTaskRequest(Owner, MoveTemp(TaskBody));
+		Request->Start(Owner.GetPriority());
+	}
+	else
+	{
+		TaskBody();
+	}
+}
 
 /**
  * Implementation of the derived data cache

@@ -1416,7 +1416,7 @@ void FDerivedDataBackendInterface::LegacyGet(
 			FLegacyCacheValue LegacyValue(FCompositeBuffer(MoveTemp(Value)));
 			if (LegacyValue.HasData() && LegacyMode == EBackendLegacyMode::ValueWithLegacyFallback)
 			{
-				Private::ExecuteInCacheThreadPool(AsyncOwner, [this, Request, LegacyValue](IRequestOwner& AsyncOwner, bool bCancel)
+				Private::LaunchTaskInCacheThreadPool(AsyncOwner, [this, &AsyncOwner, Request, LegacyValue]
 				{
 					ILegacyCacheStore::LegacyPut({{Request.Name, Request.Key, LegacyValue}}, AsyncOwner, [](auto&&){});
 				});
