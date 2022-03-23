@@ -5,7 +5,6 @@
 #include "Templates/SharedPointer.h"
 
 class FDatasmithMesh;
-class FDatasmithMeshExporterImpl;
 class IDatasmithMeshElement;
 
 class DATASMITHEXPORTER_API FDatasmithMeshExporter
@@ -25,8 +24,8 @@ public:
 	 *
 	 * @return				A IDatasmithMeshElement that refers to the exported file
 	 */
-	TSharedPtr< IDatasmithMeshElement > ExportToUObject( const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV );
-	
+	TSharedPtr< IDatasmithMeshElement > ExportToUObject( const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat=false );
+
 	/**
 	 * Exports a FDatasmithMesh as a UObject and link it to the given IDatasmithMeshElementElement.
 	 *
@@ -46,6 +45,6 @@ public:
 	FString GetLastError() const;
 
 private:
-
-	FDatasmithMeshExporterImpl* Impl;
+	TUniquePtr<class FDatasmithMeshExporterImpl> Impl;
+	TUniquePtr<class FDatasmithMeshExporterImpl2> Impl2;
 };

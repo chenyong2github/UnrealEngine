@@ -253,6 +253,11 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 		return;
 	}
 
+	if (!ImportContext.AssetsContext.StaticMeshesFinalPackage || ImportContext.AssetsContext.StaticMeshesFinalPackage->GetFName() == NAME_None || ImportContext.SceneTranslator == nullptr)
+	{
+		return;
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportStaticMeshes);
 
 	TUniquePtr<FScopedSlowTask> ProgressPtr;
@@ -266,10 +271,7 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 	TMap<TSharedRef<IDatasmithMeshElement>, TFuture<FDatasmithMeshElementPayload*>> MeshElementPayloads;
 
 	FDatasmithTranslatorCapabilities TranslatorCapabilities;
-	if (ImportContext.SceneTranslator)
-	{
-		ImportContext.SceneTranslator->Initialize(TranslatorCapabilities);
-	}
+	ImportContext.SceneTranslator->Initialize(TranslatorCapabilities);
 
 	// Parallelize loading by doing a first pass to send translator loading into async task
 	if (TranslatorCapabilities.bParallelLoadStaticMeshSupported)
@@ -279,11 +281,6 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 			if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
 			{
 				ImportContext.bUserCancelled = true;
-			}
-
-			if (!ImportContext.AssetsContext.StaticMeshesFinalPackage || ImportContext.AssetsContext.StaticMeshesFinalPackage->GetFName() == NAME_None || ImportContext.SceneTranslator == nullptr)
-			{
-				continue;
 			}
 
 			TSharedRef<IDatasmithMeshElement> MeshElement = ImportContext.FilteredScene->GetMesh( MeshIndex ).ToSharedRef();

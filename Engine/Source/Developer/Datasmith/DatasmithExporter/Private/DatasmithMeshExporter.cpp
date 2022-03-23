@@ -2,6 +2,7 @@
 
 #include "DatasmithMeshExporter.h"
 
+#include "DatasmithCore.h"
 #include "DatasmithExporterManager.h"
 #include "DatasmithMesh.h"
 #include "DatasmithMeshUObject.h"
@@ -23,6 +24,22 @@
  */
 constexpr int32 DSMeshGarbageCollectionThreshold{ 2000 };
 
+struct FDatasmithMeshExporterOptions
+{
+	FDatasmithMeshExporterOptions( const FString& InFullPath, FDatasmithMesh& InMesh, EDSExportLightmapUV InLightmapUV, FDatasmithMesh* InCollisionMesh = nullptr )
+		: MeshFullPath( InFullPath )
+		, Mesh( InMesh )
+		, LightmapUV( InLightmapUV )
+		, CollisionMesh( InCollisionMesh )
+	{}
+
+	FString MeshFullPath;
+	FDatasmithMesh& Mesh;
+	EDSExportLightmapUV LightmapUV;
+	FDatasmithMesh* CollisionMesh;
+};
+void CreateDefaultUVs(FDatasmithMesh& DatasmithMesh);
+
 /**
  *	Implementation class of the DatasmithMeshExporter
  *	We use a lockfree UDatasmithMesh pool to avoid creating new UObject when exporting and reduces our memory footprint.
@@ -30,20 +47,6 @@ constexpr int32 DSMeshGarbageCollectionThreshold{ 2000 };
 class FDatasmithMeshExporterImpl
 {
 public:
-	struct FDatasmithMeshExporterOptions
-	{
-		FDatasmithMeshExporterOptions( const FString& InFullPath, FDatasmithMesh& InMesh, EDSExportLightmapUV InLightmapUV, FDatasmithMesh* InCollisionMesh = nullptr )
-			: MeshFullPath( InFullPath )
-			, Mesh( InMesh )
-			, LightmapUV( InLightmapUV )
-			, CollisionMesh( InCollisionMesh )
-		{}
-
-		FString MeshFullPath;
-		FDatasmithMesh& Mesh;
-		EDSExportLightmapUV LightmapUV;
-		FDatasmithMesh* CollisionMesh;
-	};
 
 	FDatasmithMeshExporterImpl() :
 		UniqueID(FGuid::NewGuid())
@@ -64,9 +67,6 @@ public:
 	void PreExport( const FDatasmithMeshExporterOptions& ExporterOptions );
 	bool ExportMeshes( const FDatasmithMeshExporterOptions& ExporterOptions, FMD5Hash& OutHash );
 	void PostExport(const FDatasmithMesh& DatasmithMesh, TSharedPtr< IDatasmithMeshElement >& MeshElement);
-
-	void CreateDefaultUVs(FDatasmithMesh& DatasmithMesh);
-	void RegisterStaticMeshAttributes(FMeshDescription& MeshDescription);
 
 	FString LastError;
 
@@ -114,27 +114,66 @@ private:
 
 TAtomic<int32> FDatasmithMeshExporterImpl::NumberOfUMeshPendingGC(0);
 
-FDatasmithMeshExporter::FDatasmithMeshExporter()
+
+class FDatasmithMeshExporterImpl2
 {
-	Impl = new FDatasmithMeshExporterImpl();
+public:
+	bool DoExport( TSharedPtr< IDatasmithMeshElement >& MeshElement, const FDatasmithMeshExporterOptions& ExportOptions );
+	FString LastError;
+
+private:
+	bool WriteMeshFile(const FDatasmithMeshExporterOptions& ExporterOptions, FMD5Hash& OutHash);
+};
+
+bool FDatasmithMeshExporterImpl2::DoExport(TSharedPtr< IDatasmithMeshElement >& MeshElement, const FDatasmithMeshExporterOptions& ExportOptions)
+{
+	FDatasmithMesh& Mesh = ExportOptions.Mesh;
+
+	// If the mesh doesn't have a name, use the filename as its name
+	if ( FCString::Strlen( Mesh.GetName() ) == 0 )
+	{
+		Mesh.SetName( *FPaths::GetBaseFilename( ExportOptions.MeshFullPath ) );
+	}
+
+	// make sure we have at least one UV channels on each source models
+	CreateDefaultUVs( Mesh );
+	for ( int32 LODIndex = 0; LODIndex < Mesh.GetLODsCount(); ++LODIndex )
+	{
+		if ( FDatasmithMesh* LODMesh = Mesh.GetLOD( LODIndex ) )
+		{
+			CreateDefaultUVs( *LODMesh );
+		}
+	}
+
+	FMD5Hash Hash;
+	if ( WriteMeshFile( ExportOptions, Hash ) )
+	{
+		// If no existing MeshElement provided, create one.
+		if ( !MeshElement )
+		{
+			MeshElement = FDatasmithSceneFactory::CreateMesh( Mesh.GetName() );
+		}
+		MeshElement->SetFile( *ExportOptions.MeshFullPath );
+		MeshElement->SetFileHash( Hash );
+
+		FBox Extents = Mesh.GetExtents();
+		float Width = Extents.Max[0] - Extents.Min[0];
+		float Height = Extents.Max[2] - Extents.Min[2];
+		float Depth = Extents.Max[1] - Extents.Min[1];
+
+		MeshElement->SetDimensions( Mesh.ComputeArea(), Width, Height, Depth );
+		MeshElement->SetLightmapSourceUV( Mesh.GetLightmapSourceUVChannel() );
+
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogDatasmith, Warning, TEXT("Cannot export mesh %s"), Mesh.GetName());
+	}
+
+	return false;
 }
 
-FDatasmithMeshExporter::~FDatasmithMeshExporter()
-{
-	delete Impl;
-	Impl = nullptr;
-}
-
-FString GetMeshFilePath( const TCHAR* Filepath, const TCHAR* Filename )
-{
-	FString NormalizedFilepath = Filepath;
-	FPaths::NormalizeDirectoryName( NormalizedFilepath );
-
-	FString NormalizedFilename = Filename;
-	FPaths::NormalizeFilename( NormalizedFilename );
-
-	return FPaths::Combine( *NormalizedFilepath, FPaths::SetExtension( NormalizedFilename, UDatasmithMesh::GetFileExtension() ) );
-}
 
 bool FDatasmithMeshExporterImpl::ExportMeshes( const FDatasmithMeshExporterOptions& ExporterOptions, FMD5Hash& OutHash )
 {
@@ -188,19 +227,93 @@ bool FDatasmithMeshExporterImpl::ExportMeshes( const FDatasmithMeshExporterOptio
 		*Archive << Bytes;
 	}
 	OutHash.Set( MD5 );
-
-	Archive->Close();
-
 	return true;
 }
 
-TSharedPtr< IDatasmithMeshElement > FDatasmithMeshExporter::ExportToUObject( const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV )
+
+
+FDatasmithMeshExporter::FDatasmithMeshExporter()
+	: Impl(MakeUnique<FDatasmithMeshExporterImpl>())
+	, Impl2(MakeUnique<FDatasmithMeshExporterImpl2>())
+{}
+
+FDatasmithMeshExporter::~FDatasmithMeshExporter() = default;
+
+FString GetMeshFilePath( const TCHAR* Filepath, const TCHAR* Filename )
+{
+	FString NormalizedFilepath = Filepath;
+	FPaths::NormalizeDirectoryName( NormalizedFilepath );
+
+	FString NormalizedFilename = Filename;
+	FPaths::NormalizeFilename( NormalizedFilename );
+
+	return FPaths::Combine( *NormalizedFilepath, FPaths::SetExtension( NormalizedFilename, UDatasmithMesh::GetFileExtension() ) );
+}
+
+
+bool FDatasmithMeshExporterImpl2::WriteMeshFile( const FDatasmithMeshExporterOptions& ExporterOptions, FMD5Hash& OutHash )
+{
+	FDatasmithPackedMeshes Pack;
+
+	auto PackMeshModels = [&](FDatasmithMesh& Mesh, bool bIsCollisionMesh) -> FDatasmithMeshModels
+	{
+		FDatasmithMeshModels Models;
+		Models.bIsCollisionMesh = bIsCollisionMesh;
+		Models.MeshName = Mesh.GetName();
+
+		Models.SourceModels.Reserve(Mesh.GetLODsCount() + 1);
+		FMeshDescription& BaseMeshDescription = Models.SourceModels.AddDefaulted_GetRef();
+		FDatasmithMeshUtils::ToMeshDescription(Mesh, BaseMeshDescription);
+
+		for (int32 LodIndex = 0; LodIndex < Mesh.GetLODsCount(); ++LodIndex)
+		{
+			if (const FDatasmithMesh* LodMesh = Mesh.GetLOD(LodIndex))
+			{
+				FMeshDescription& LodMeshDescription = Models.SourceModels.AddDefaulted_GetRef();
+				FDatasmithMeshUtils::ToMeshDescription(*LodMesh, LodMeshDescription);
+			}
+		}
+
+		return Models;
+	};
+
+	Pack.MeshesToExport.Add(PackMeshModels(ExporterOptions.Mesh, false));
+	if (ExporterOptions.CollisionMesh)
+	{
+		Pack.MeshesToExport.Add(PackMeshModels(*ExporterOptions.CollisionMesh, true));
+	}
+
+	TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileWriter(*ExporterOptions.MeshFullPath) );
+	if (!Archive.IsValid())
+	{
+		LastError = FString::Printf( TEXT( "Failed writing to file %s" ), *ExporterOptions.MeshFullPath );
+		return false;
+	}
+
+	int32 LegacyMeshCount = 0;
+	*Archive << LegacyMeshCount; // the legacy importer expect a mesh count on the first bytes. Just in case a new file would end up parsed by the legacy code...
+	*Archive << Pack;
+
+	OutHash = Pack.OutHash;
+	return !Archive->IsError();
+}
+
+
+
+TSharedPtr< IDatasmithMeshElement > FDatasmithMeshExporter::ExportToUObject(const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat/*=false */)
 {
 	FString FullPath( GetMeshFilePath( Filepath, Filename ) );
-	FDatasmithMeshExporterImpl::FDatasmithMeshExporterOptions ExportOptions( MoveTemp( FullPath ), Mesh, LightmapUV, CollisionMesh );
 
 	TSharedPtr<IDatasmithMeshElement> ExportedMeshElement;
-	Impl->DoExport( ExportedMeshElement, ExportOptions );
+	FDatasmithMeshExporterOptions ExportOptions( MoveTemp( FullPath ), Mesh, LightmapUV, CollisionMesh );
+	if (NewFormat)
+	{
+		Impl2->DoExport( ExportedMeshElement, ExportOptions );
+	}
+	else
+	{
+		Impl->DoExport( ExportedMeshElement, ExportOptions );
+	}
 
 	return ExportedMeshElement;
 }
@@ -208,14 +321,15 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithMeshExporter::ExportToUObject( con
 bool FDatasmithMeshExporter::ExportToUObject( TSharedPtr< IDatasmithMeshElement >& MeshElement, const TCHAR* Filepath, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV )
 {
 	FString FullPath( GetMeshFilePath( Filepath, MeshElement->GetName() ) );
-	FDatasmithMeshExporterImpl::FDatasmithMeshExporterOptions ExportOptions( MoveTemp( FullPath ), Mesh, LightmapUV, CollisionMesh );
+	FDatasmithMeshExporterOptions ExportOptions( FullPath, Mesh, LightmapUV, CollisionMesh );
 
 	return Impl->DoExport( MeshElement, ExportOptions );
 }
 
+
 FString FDatasmithMeshExporter::GetLastError() const
 {
-	return Impl->LastError;
+	return Impl->LastError.IsEmpty() ? Impl2->LastError : Impl->LastError;
 }
 
 bool FDatasmithMeshExporterImpl::DoExport( TSharedPtr< IDatasmithMeshElement >& MeshElement, const FDatasmithMeshExporterOptions& ExportOptions )
@@ -278,7 +392,7 @@ void FDatasmithMeshExporterImpl::PostExport( const FDatasmithMesh& DatasmithMesh
 	MeshElement->SetLightmapSourceUV( DatasmithMesh.GetLightmapSourceUVChannel() );
 }
 
-void FDatasmithMeshExporterImpl::CreateDefaultUVs( FDatasmithMesh& Mesh )
+void CreateDefaultUVs( FDatasmithMesh& Mesh )
 {
 	if ( Mesh.GetUVChannelsCount() > 0 )
 	{
@@ -287,7 +401,7 @@ void FDatasmithMeshExporterImpl::CreateDefaultUVs( FDatasmithMesh& Mesh )
 
 	// Get the mesh description to generate BoxUV.
 	FMeshDescription MeshDescription;
-	RegisterStaticMeshAttributes(MeshDescription);
+	FStaticMeshAttributes(MeshDescription).Register();
 	FDatasmithMeshUtils::ToMeshDescription(Mesh, MeshDescription);
 	FUVMapParameters UVParameters(Mesh.GetExtents().GetCenter(), FQuat::Identity, Mesh.GetExtents().GetSize(), FVector::OneVector, FVector2D::UnitVector);
 	TMap<FVertexInstanceID, FVector2D> TexCoords;
@@ -324,11 +438,6 @@ void FDatasmithMeshExporterImpl::CreateDefaultUVs( FDatasmithMesh& Mesh )
 		check(IndicesOffset + 2 < IndicesMapping.Num());
 		Mesh.SetFaceUV(FaceIndex, 0, IndicesMapping[IndicesOffset + 0], IndicesMapping[IndicesOffset + 1], IndicesMapping[IndicesOffset + 2]);
 	}
-}
-
-void FDatasmithMeshExporterImpl::RegisterStaticMeshAttributes(FMeshDescription& MeshDescription)
-{
-	FStaticMeshAttributes(MeshDescription).Register();
 }
 
 TSharedPtr<UDatasmithMesh> FDatasmithMeshExporterImpl::GeneratePooledUDatasmithMeshFromFDatasmithMesh(const FDatasmithMesh& Mesh, bool bIsCollisionMesh)

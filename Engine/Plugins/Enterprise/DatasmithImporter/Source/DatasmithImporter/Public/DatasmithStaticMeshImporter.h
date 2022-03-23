@@ -11,7 +11,6 @@
 
 struct FDatasmithAssetsImportContext;
 struct FDatasmithImportContext;
-class FDatasmithLegacyImporter;
 class FDatasmithMesh;
 struct FDatasmithStaticMeshImportOptions;
 struct FMeshDescription;
@@ -20,7 +19,6 @@ struct FOverlappingCorners;
 class IDatasmithMeshElement;
 class IDatasmithScene;
 class IMeshUtilities;
-class UDatasmithMesh;
 class UObject;
 class UPackage;
 class UStaticMesh;
@@ -29,9 +27,6 @@ struct FDatasmithMeshElementPayload;
 class DATASMITHIMPORTER_API FDatasmithStaticMeshImporter
 {
 public:
-	/** DEPRECATED. Imports a static mesh from a Mesh Element */
-	static UStaticMesh* ImportStaticMesh( const TSharedRef< IDatasmithMeshElement > MeshElement, FDatasmithLegacyImporter& DatasmithImporter, EObjectFlags ObjectFlags, const FDatasmithStaticMeshImportOptions& ImportOptions, FDatasmithAssetsImportContext& AssetsContext, UStaticMesh* ExistingMesh );
-
 	/** Imports a static mesh from a Mesh Element */
 	static UStaticMesh* ImportStaticMesh( const TSharedRef< IDatasmithMeshElement > MeshElement, FDatasmithMeshElementPayload& Payload, EObjectFlags ObjectFlags, const FDatasmithStaticMeshImportOptions& ImportOptions, FDatasmithAssetsImportContext& AssetsContext, UStaticMesh* ExistingMesh );
 
@@ -43,7 +38,7 @@ public:
 
 	/** Setup a UStaticMesh from an IDatasmithMeshElement. */
 	static void SetupStaticMesh( FDatasmithAssetsImportContext& AssetsContext, TSharedRef< IDatasmithMeshElement > MeshElement, UStaticMesh* StaticMesh, const FDatasmithStaticMeshImportOptions& StaticMeshImportOptions, float LightmapWeight );
-	
+
 	/** Cleanup any invalid data in mesh descriptions that might cause the editor to crash or behave erratically (i.e. Having vertex position with NaN values). */
 	static void CleanupMeshDescriptions(TArray< FMeshDescription >& MeshDescriptions);
 

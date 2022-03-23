@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "MeshDescription.h"
 #include "RawMesh.h"
 
 #include "UObject/Object.h"
@@ -41,4 +42,20 @@ public:
 
 	UPROPERTY()
 	TArray< FDatasmithMeshSourceModel > SourceModels;
+};
+
+struct FDatasmithMeshModels
+{
+	FString MeshName;
+	bool bIsCollisionMesh;
+	TArray<FMeshDescription> SourceModels;
+
+	DATASMITHCORE_API friend void operator << (FArchive& Ar, FDatasmithMeshModels& Models);
+};
+
+struct FDatasmithPackedMeshes
+{
+	TArray<FDatasmithMeshModels> MeshesToExport;
+	DATASMITHCORE_API friend void operator << (FArchive& Ar, FDatasmithPackedMeshes& Pack);
+	FMD5Hash OutHash;
 };

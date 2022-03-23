@@ -293,24 +293,16 @@ bool FDatasmithMeshUtils::ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMes
 	return true;
 }
 
-bool FDatasmithMeshUtils::ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription)
+bool FDatasmithMeshUtils::ToMeshDescription(const FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription)
 {
 	MeshDescription.Empty();
 
 	FStaticMeshAttributes Attributes(MeshDescription);
+	Attributes.Register();
 	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-
-	// Prepared for static mesh usage ?
-	if (!ensure(VertexPositions.IsValid())
-	 || !ensure(VertexInstanceNormals.IsValid())
-	 || !ensure(VertexInstanceUVs.IsValid())
-	 || !ensure(PolygonGroupImportedMaterialSlotNames.IsValid()) )
-	{
-		return false;
-	}
 
 	// Reserve space for attributes.
 	int32 VertexCount = DsMesh.GetVerticesCount();
@@ -1219,7 +1211,10 @@ namespace DatasmithSceneUtilsImpl
 			TFunction<void(TSharedPtr<IDatasmithElement>&&, const FString&)> AddAsset;
 			AddAsset = [this](TSharedPtr<IDatasmithElement>&& InElementPtr, const FString& AssetPrefix) -> void
 			{
-				AssetElementMapping.Add(AssetPrefix + InElementPtr->GetName(), MoveTemp(InElementPtr));
+				if (InElementPtr)
+				{
+					AssetElementMapping.Add(AssetPrefix + InElementPtr->GetName(), MoveTemp(InElementPtr));
+				}
 			};
 
 			for (int32 Index = 0; Index < Scene->GetTexturesCount(); ++Index)
@@ -1527,7 +1522,6 @@ namespace DatasmithSceneUtilsImpl
 void FDatasmithSceneUtils::CleanUpScene(TSharedRef<IDatasmithScene> Scene, bool bRemoveUnused)
 {
 	using namespace DatasmithSceneUtilsImpl;
-	using namespace DirectLink;
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithSceneUtils::CleanUpScene);
 

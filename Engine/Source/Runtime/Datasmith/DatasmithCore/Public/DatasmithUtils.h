@@ -135,7 +135,7 @@ public:
 	 * For example a collision mesh don't need to have a valid raw mesh
 	 */
 	static bool ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMesh, bool bValidateRawMesh = true);
-	static bool ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription);
+	static bool ToMeshDescription(const FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription);
 
 
 	/**
