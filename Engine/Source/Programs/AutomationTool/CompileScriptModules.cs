@@ -159,8 +159,8 @@ namespace AutomationToolDriver
 				if (FoundAutomationProjects.All(x => ValidBuildRecords.ContainsKey(x)))
                 {
 					bBuildSuccess = true;
-					return new HashSet<FileReference>(ValidBuildRecords.Select(x => FileReference.Combine(x.Key.Directory, x.Value.TargetPath)));
-                }
+					return new HashSet<FileReference>(FoundAutomationProjects.Select(x => FileReference.Combine(x.Directory, ValidBuildRecords[x].TargetPath!)));
+				}
 			}
 
 			// Fall back to the slower approach: use msbuild to load csproj files & build as necessary
