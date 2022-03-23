@@ -20,6 +20,10 @@ using System.Threading;
 using Microsoft.Build.Utilities;
 using Microsoft.Build.Shared.FileSystem;
 
+//EPIC BEGIN
+#nullable disable
+//EPIC END
+
 namespace Microsoft.Build.Shared
 {
     /// <summary>
@@ -890,14 +894,14 @@ namespace Microsoft.Build.Shared
             }
         }
 
-        /// <summary>
-        /// Returns if the directory exists
-        /// </summary>
-        /// <param name="fullPath">Full path to the directory in the filesystem</param>
-        /// <param name="fileSystem">The file system</param>
-        /// <returns></returns>
-        internal static bool DirectoryExistsNoThrow(string fullPath, IFileSystem fileSystem = null)
-        {
+		/// <summary>
+		/// Returns if the directory exists
+		/// </summary>
+		/// <param name="fullPath">Full path to the directory in the filesystem</param>
+		/// <param name="fileSystem">The file system</param>
+		/// <returns></returns>
+		internal static bool DirectoryExistsNoThrow(string fullPath, IFileSystem fileSystem = null)
+		{
             fullPath = AttemptToShortenPath(fullPath);
 
             try

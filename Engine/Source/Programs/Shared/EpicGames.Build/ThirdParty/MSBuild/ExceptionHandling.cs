@@ -20,6 +20,10 @@ using Microsoft.Build.Shared.FileSystem;
 using System.Xml.Schema;
 using System.Runtime.Serialization;
 
+//EPIC BEGIN
+#nullable disable
+//EPIC END
+
 namespace Microsoft.Build.Shared
 #endif
 {

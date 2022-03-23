@@ -5,6 +5,10 @@ using System;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 
+//EPIC BEGIN
+#nullable disable
+//EPIC END
+
 namespace Microsoft.Build.Shared
 {
     /// <summary>

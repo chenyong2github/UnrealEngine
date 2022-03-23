@@ -11,6 +11,9 @@ using System.ComponentModel;
 #if BUILDINGAPPXTASKS
 namespace Microsoft.Build.AppxPackage.Shared
 #else
+//EPIC BEGIN
+#nullable disable
+//EPIC END
 namespace Microsoft.Build.Shared
 #endif
 {

@@ -12,9 +12,6 @@ using System.Reflection;
 using EpicGames.Core;
 using System.IO;
 using System.Collections.Generic;
-using System.Text;
-using Microsoft.Build.Execution;
-using Microsoft.Build.Framework.Profiler;
 using UnrealBuildBase;
 
 namespace AutomationToolDriver
@@ -421,7 +418,7 @@ namespace AutomationToolDriver
 				? null
 				: AutomationToolCommandLine.CommandsToExecute;
 			bool bBuildSuccess;
-			HashSet<FileReference> ScriptModuleAssemblyPaths = InitializeScriptModules(
+			HashSet<FileReference> ScriptModuleAssemblyPaths = CompileScriptModule.InitializeScriptModules(
 					ScriptsForProject, AdditionalScriptDirs, bForceCompile, bNoCompile, bUseBuildRecords, out bBuildSuccess);
 
 			if (!bBuildSuccess)
