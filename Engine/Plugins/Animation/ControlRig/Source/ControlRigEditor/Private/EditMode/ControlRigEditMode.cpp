@@ -743,7 +743,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						}
 						if (PDI)
 						{
-							const bool bHitTesting = PDI && PDI->IsHitTesting() && bBoolSetHitProxies && (TransformElement->GetType() == ERigElementType::Bone);
+							const bool bHitTesting = PDI->IsHitTesting() && bBoolSetHitProxies && (TransformElement->GetType() == ERigElementType::Bone);
 							if (bHitTesting)
 							{
 								PDI->SetHitProxy(new HFKRigBoneProxy(TransformElement->GetName(), ControlRig));
