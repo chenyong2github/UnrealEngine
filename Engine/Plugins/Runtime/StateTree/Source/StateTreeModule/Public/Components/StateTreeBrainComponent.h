@@ -68,7 +68,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = AI, meta=(RequiredAssetDataTags="Schema=BrainComponentStateTreeSchema"))
 	UStateTree* StateTree;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	FStateTreeExecutionContext StateTreeContext;
 
 	/** if set, state tree execution is allowed */

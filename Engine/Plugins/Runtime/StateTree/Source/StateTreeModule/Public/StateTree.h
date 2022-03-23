@@ -21,8 +21,8 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 
 public:
 
-	/** @return Size required for the instance data in bytes. */
-	int32 GetInstanceDataSize() const;
+	/** @return Default value for the instance data. */
+	const FStateTreeInstanceData& GetInstanceDataDefaultValue() const { return InstanceDataDefaultValue; };
 	
 	/** @return Number of runtime data (Evaluators, Tasks, Conditions) in the runtime storage. */
 	int32 GetNumInstances() const { return Instances.Num(); }
@@ -61,6 +61,7 @@ protected:
 	void Link();
 
 	virtual void PostLoad() override;
+	virtual void Serialize(FStructuredArchiveRecord Record) override;
 	
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeInstanceData.h"
+#include "UObject/UnrealType.h"
 #include "Algo/Transform.h"
 
 //----------------------------------------------------------------//
@@ -89,6 +90,136 @@ void FStateTreeInstanceData::AddStructReferencedObjects(class FReferenceCollecto
 			Collector.AddReferencedObjects(Item.ScriptStruct, Memory + Item.Offset);
 		}
 	}
+
+	for (const UObject* Object : InstanceObjects)
+	{
+		Collector.AddReferencedObject(Object);
+	}	
+}
+
+bool FStateTreeInstanceData::Identical(const FStateTreeInstanceData* Other, uint32 PortFlags) const
+{
+	if (UNLIKELY(Other == nullptr))
+	{
+		return false;
+	}
+
+	// Identical if both are uninitialized.
+	if (UNLIKELY(!IsValid() && !Other->IsValid()))
+	{
+		return true;
+	}
+
+	// Not identical if one is valid and other is not.
+	if (UNLIKELY(IsValid() != Other->IsValid()))
+	{
+		return false;
+	}
+
+	// Not identical if different amount of instanced objects.
+	if (UNLIKELY(InstanceObjects.Num() != Other->InstanceObjects.Num()))
+	{
+		return false;
+	}
+
+	// Not identical if different layouts.
+	if (Layout != Other->Layout)
+	{
+		return false;
+	}
+
+	bool bResult = true;
+
+	// Check that the struct contents are identical.
+	for (int32 Index = 0; Index < Layout->Num(); Index++)
+	{
+		const FStateTreeInstanceDataLayout::FLayoutItem Item = Layout->GetItem(Index);
+		const FStateTreeInstanceDataLayout::FLayoutItem OtherItem = Other->Layout->GetItem(Index);
+		if (Item.ScriptStruct != nullptr && OtherItem.ScriptStruct != nullptr)
+		{
+			check(Item.ScriptStruct == OtherItem.ScriptStruct);
+			const uint8* ItemMemory = Memory + Item.Offset;
+			const uint8* OtherItemMemory = Other->Memory + OtherItem.Offset;
+			
+			if (Item.ScriptStruct->CompareScriptStruct(ItemMemory, OtherItemMemory, PortFlags) == false)
+			{
+				bResult = false;
+				break;
+			}
+		}
+	}
+
+	// Check that the instance object contents are identical.
+	if (bResult)
+	{
+		// Copied from object property.
+		auto AreObjectsIndentical = [](UObject* A, UObject* B, uint32 PortFlags) -> bool
+		{
+			if ((PortFlags & PPF_DuplicateForPIE) != 0)
+			{
+				return false;
+			}
+
+			if (A == B)
+			{
+				return true;
+			}
+
+			// Resolve the object handles and run the deep comparison logic 
+			if ((PortFlags & (PPF_DeepCompareInstances | PPF_DeepComparison)) != 0)
+			{
+				return FObjectPropertyBase::StaticIdentical(A, B, PortFlags);
+			}
+
+			return true;
+		};
+		
+		for (int32 Index = 0; Index < InstanceObjects.Num(); Index++)
+		{
+			if (InstanceObjects[Index] != nullptr && Other->InstanceObjects[Index] != nullptr)
+			{
+				if (!AreObjectsIndentical(InstanceObjects[Index], Other->InstanceObjects[Index], PortFlags))
+				{
+					bResult = false;
+					break;
+				}
+			}
+			else
+			{
+				bResult = false;
+				break;
+			}
+		}
+	}
+	
+	return bResult;
+}
+
+bool FStateTreeInstanceData::Serialize(FArchive& Ar)
+{
+	if (Ar.IsModifyingWeakAndStrongReferences())
+	{
+		// Just enough support to allow to replace a recompiled Blueprint.
+
+		// Items
+		if (Layout.IsValid())
+		{
+			for (int32 Index = 0; Index < Layout->Num(); ++Index)
+			{
+				const FStateTreeInstanceDataLayout::FLayoutItem Item = Layout->GetItem(Index);
+				UScriptStruct* NonConstScriptStruct = const_cast<UScriptStruct*>(Item.ScriptStruct);
+				if (NonConstScriptStruct != nullptr)
+				{
+					NonConstScriptStruct->SerializeItem(Ar, Memory + Item.Offset, nullptr);
+				}
+			}
+		}
+
+		// Instances
+		Ar << InstanceObjects;
+	}
+
+	return true;
 }
 
 void FStateTreeInstanceData::Allocate(const TSharedPtr<FStateTreeInstanceDataLayout>& InLayout)
@@ -110,7 +241,7 @@ void FStateTreeInstanceData::Allocate(const TSharedPtr<FStateTreeInstanceDataLay
 	}
 }
 
-void FStateTreeInstanceData::CopyFrom(const FStateTreeInstanceData& InOther)
+void FStateTreeInstanceData::CopyFrom(UObject& InOwner, const FStateTreeInstanceData& InOther)
 {
 	if (&InOther == this)
 	{
@@ -119,7 +250,7 @@ void FStateTreeInstanceData::CopyFrom(const FStateTreeInstanceData& InOther)
 	
 	Allocate(InOther.GetLayout());
 
-	// Copy values over
+	// Copy struct values over
 	for (int32 Index = 0; Index < Layout->Num(); Index++)
 	{
 		const FStateTreeInstanceDataLayout::FLayoutItem& Item = Layout->GetItem(Index);
@@ -128,9 +259,20 @@ void FStateTreeInstanceData::CopyFrom(const FStateTreeInstanceData& InOther)
 			Item.ScriptStruct->CopyScriptStruct(Memory + Item.Offset, InOther.Memory + Item.Offset);
 		}
 	}
+
+	// Copy instance objects.
+	InstanceObjects.Reset();
+	for (const UObject* Instance : InOther.InstanceObjects)
+	{
+		if (ensure(Instance != nullptr))
+		{
+			ensure(Instance->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists) == false);
+			InstanceObjects.Add(DuplicateObject(Instance, &InOwner));
+		}
+	}
 }
 
-void FStateTreeInstanceData::Initialize(TConstArrayView<FInstancedStruct> InValues)
+void FStateTreeInstanceData::Initialize(UObject& InOwner, TConstArrayView<FInstancedStruct> InValues, TConstArrayView<TObjectPtr<UObject>> InObjects)
 {
 	TArray<const UScriptStruct*> Structs;
 	Algo::Transform(InValues, Structs, [](const FInstancedStruct& Value) { return Value.GetScriptStruct(); });
@@ -147,6 +289,17 @@ void FStateTreeInstanceData::Initialize(TConstArrayView<FInstancedStruct> InValu
 		if (Item.ScriptStruct != nullptr)
 		{
 			Item.ScriptStruct->CopyScriptStruct(Memory + Item.Offset, Value.GetMutableMemory());
+		}
+	}
+
+	// Copy UObjects
+	InstanceObjects.Reset();
+	for (const UObject* Instance : InObjects)
+	{
+		if (ensure(Instance != nullptr))
+		{
+			ensure(Instance->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists) == false);
+			InstanceObjects.Add(DuplicateObject(Instance, &InOwner));
 		}
 	}
 }
@@ -170,4 +323,6 @@ void FStateTreeInstanceData::Reset()
 	FMemory::Free(Memory);
 	Memory = nullptr;
 	Layout = nullptr;
+
+	InstanceObjects.Reset();
 }

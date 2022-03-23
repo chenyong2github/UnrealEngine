@@ -35,9 +35,6 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 
 	/** Running time of the delayed transition */
 	float GatedTransitionTime = 0.0f;
-
-	/** Object instances, ref counting handled manually. */
-	TArray<UObject*> InstanceObjects;
 };
 
 UENUM()
@@ -67,9 +64,6 @@ public:
 
 	/** Resets the instance to initial empty state. Note: Does not call ExitState(). */
 	void Reset();
-
-	/** Initializes external instance data (no need to call, if using internal storage). */
-	static bool InitInstanceData(UObject& InOwner, const UStateTree& InStateTree, FStateTreeInstanceData& OutInstanceData);
 
 	/** Returns the StateTree asset in use. */
 	const UStateTree* GetStateTree() const { return StateTree; }
@@ -241,9 +235,6 @@ public:
 	void DebugPrintInternalLayout(const FStateTreeInstanceData* ExternalInstanceData = nullptr);
 #endif
 
-	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
-	void AddStructReferencedObjects(const FStateTreeInstanceData* ExternalInstanceData, class FReferenceCollector& Collector) const;
-
 protected:
 
 	/** @return Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, empty by default. */
@@ -335,8 +326,7 @@ protected:
 	{
 		if (UNLIKELY(bIsObject == true))
 		{
-			const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
-			return FStateTreeDataView(Exec.InstanceObjects[Index]);
+			return FStateTreeDataView(InstanceData.GetMutableObject(Index));
 		}
 		
 		return FStateTreeDataView(InstanceData.GetMutable(Index));
@@ -371,30 +361,22 @@ protected:
 	FString DebugGetStatePath(TArrayView<FStateTreeHandle> ActiveStateHandles, int32 ActiveStateIndex) const;
 
 	/** The StateTree asset the context is initialized for */
-	UPROPERTY()
-	const UStateTree* StateTree = nullptr;
+	UPROPERTY(Transient)
+	TObjectPtr<const UStateTree> StateTree = nullptr;
 
-	UPROPERTY()
-	UObject* Owner = nullptr;
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> Owner = nullptr;
 	
+	/** Optional Instance of the storage */
+	UPROPERTY(Transient)
+	FStateTreeInstanceData InternalInstanceData;
+
 	/** States visited during a tick while updating evaluators. Initialized to match the number of states in the asset. */ 
 	TArray<bool> VisitedStates;
 
 	/** Array of data pointers (external data, tasks, evaluators, conditions), used during evaluation. Initialized to match the number of items in the asset. */
 	TArray<FStateTreeDataView> DataViews;
 
-	/** Optional Instance of the storage */
-	FStateTreeInstanceData InternalInstanceData;
-
 	/** Storage type of the context */
 	EStateTreeStorage StorageType = EStateTreeStorage::Internal;
-};
-
-template<>
-struct TStructOpsTypeTraits<FStateTreeExecutionContext> : public TStructOpsTypeTraitsBase2<FStateTreeExecutionContext>
-{
-	enum
-	{
-		WithAddStructReferencedObjects = true,
-	};
 };

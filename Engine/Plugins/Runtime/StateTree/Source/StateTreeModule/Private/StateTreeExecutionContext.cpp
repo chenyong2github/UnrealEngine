@@ -47,7 +47,7 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 	if (StorageType == EStateTreeStorage::Internal)
 	{
 		// Duplicate instance state.
-		InitInstanceData(InOwner, *StateTree, InternalInstanceData);
+		InternalInstanceData.CopyFrom(InOwner, StateTree->GetInstanceDataDefaultValue());
 	}
 
 	// Initialize data views for all possible items.
@@ -69,22 +69,6 @@ void FStateTreeExecutionContext::Reset()
 	Owner = nullptr;
 }
 
-bool FStateTreeExecutionContext::InitInstanceData(UObject& InOwner, const UStateTree& InStateTree, FStateTreeInstanceData& OutInstanceData)
-{
-	OutInstanceData.CopyFrom(InStateTree.InstanceDataDefaultValue);
-
-	check (OutInstanceData.IsValid());
-	FStateTreeExecutionState& Exec = GetExecState(OutInstanceData);
-
-	Exec.InstanceObjects.Reset();
-	for (const UObject* Instance : InStateTree.InstanceObjects)
-	{
-		Exec.InstanceObjects.Add(DuplicateObject(Instance, &InOwner));
-	}
-
-	return true;
-}
-
 EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* ExternalInstanceData)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Start);
@@ -95,7 +79,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* Ex
 	}
 	
 	FStateTreeInstanceData& InstanceData = SelectMutableInstanceData(ExternalInstanceData);
-	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
 	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	// Stop if still running previous state.
@@ -159,7 +143,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeInstanceData* Ext
 	}
 	
 	FStateTreeInstanceData& InstanceData = SelectMutableInstanceData(ExternalInstanceData);
-	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
 	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	// Exit states if still in some valid state.
@@ -186,7 +170,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 		return EStateTreeRunStatus::Failed;
 	}
 	FStateTreeInstanceData& InstanceData = SelectMutableInstanceData(ExternalInstanceData);
-	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
 	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	// No ticking of the tree is done or stopped.
@@ -908,28 +892,6 @@ EStateTreeRunStatus FStateTreeExecutionContext::GetLastTickStatus(const FStateTr
 	return Exec.LastTickStatus;
 }
 
-void FStateTreeExecutionContext::AddStructReferencedObjects(FReferenceCollector& Collector) const
-{
-	if (StorageType == EStateTreeStorage::Internal)
-	{
-		AddStructReferencedObjects(&InternalInstanceData, Collector);
-	}
-}
-
-void FStateTreeExecutionContext::AddStructReferencedObjects(const FStateTreeInstanceData* InstanceData, FReferenceCollector& Collector) const
-{
-	if (InstanceData && InstanceData->IsValid())
-	{
-		const FStateTreeExecutionState& Exec = GetExecState(*InstanceData);
-		for (const UObject* Object : Exec.InstanceObjects)
-		{
-			Collector.AddReferencedObject(Object);
-		}
-		
-		InstanceData->AddStructReferencedObjects(Collector);
-	}
-}
-
 #if WITH_GAMEPLAY_DEBUGGER
 
 FString FStateTreeExecutionContext::GetDebugInfoString(const FStateTreeInstanceData* ExternalInstanceData) const
@@ -939,7 +901,7 @@ FString FStateTreeExecutionContext::GetDebugInfoString(const FStateTreeInstanceD
 		return FString(TEXT("No StateTree asset."));
 	}
 	const FStateTreeInstanceData& InstanceData = SelectInstanceData(ExternalInstanceData);
-	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
 	const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	FString DebugString = FString::Printf(TEXT("StateTree (asset: '%s')\n"), *GetNameSafe(StateTree));
@@ -1027,7 +989,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(const FStateTreeInstan
 
 	// Instance InstanceData offsets (e.g. tasks, evaluators, conditions)
 
-	if (const FStateTreeInstanceDataLayout* InstanceLayout = StateTree->InstanceDataDefaultValue.GetLayout().Get())
+	if (const FStateTreeInstanceDataLayout* InstanceLayout = StateTree->GetInstanceDataDefaultValue().GetLayout().Get())
 	{
 		DebugString += FString::Printf(TEXT("\nInstance Data Offsets(%d)\n  [ %-40s | %-6s ]\n"), InstanceLayout->Num(), TEXT("Name"), TEXT("Offset"));
 
@@ -1123,7 +1085,7 @@ FString FStateTreeExecutionContext::GetActiveStateName(const FStateTreeInstanceD
 		return FString(TEXT("<None>"));
 	}
 	const FStateTreeInstanceData& InstanceData = SelectInstanceData(ExternalInstanceData);
-	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
 	const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	FString FullStateName;

@@ -324,12 +324,13 @@ FText FStateTreeEditor::GetStatisticsText() const
 		return FText::GetEmpty();
 	}
 
-	const FText SizeText = FText::AsMemory((uint64)StateTree->GetInstanceDataSize());
+	const FStateTreeInstanceData& InstanceDataDefaultValue = StateTree->GetInstanceDataDefaultValue();
+	const uint64 LayoutSize = InstanceDataDefaultValue.IsValid() ? InstanceDataDefaultValue.GetLayout()->GetLayoutInstanceSize() : 0;
+	
+	const FText SizeText = FText::AsMemory(LayoutSize);
 	const FText NumNodesText = FText::AsNumber(StateTree->GetNumInstances());
 
 	return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} nodes"), SizeText, NumNodesText);
-	
-	return FText::GetEmpty();
 }
 
 void FStateTreeEditor::HandleModelAssetChanged()

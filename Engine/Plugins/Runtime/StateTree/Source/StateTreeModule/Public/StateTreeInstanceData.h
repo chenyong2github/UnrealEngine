@@ -64,10 +64,11 @@ private:
 	int32 NumItems = 0;
 };
 
-
 /**
  * StateTree instance data is used to store the runtime state of a StateTree.
  * The layout of the data is described in a FStateTreeInstanceDataLayout.
+ *
+ * Note: Serialization is supported only for FArchive::IsModifyingWeakAndStrongReferences(), that is replacing object references.
  */
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeInstanceData
@@ -78,10 +79,10 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	~FStateTreeInstanceData() { Reset(); }
 
 	/** Creates new layout from an array if instanced structs, and copies the values into the instance data. */
-	void Initialize(TConstArrayView<FInstancedStruct> InValues);
+	void Initialize(UObject& InOwner, TConstArrayView<FInstancedStruct> InValues, TConstArrayView<TObjectPtr<UObject>> InObjects);
 
 	/** Shares the layout from another instance data, and copies the data over. */
-	void CopyFrom(const FStateTreeInstanceData& InOther);
+	void CopyFrom(UObject& InOwner, const FStateTreeInstanceData& InOther);
 
 	/** Resets the data to empty. */
 	void Reset();
@@ -146,14 +147,31 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	/** @return const view to the struct at specified index. */
 	FConstStructView Get(const int32 Index) const { return GetMutable(Index); }
 
-	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
+	/** @return number of instance objects */
+	int32 NumObjects() const { return InstanceObjects.Num(); }
 
+	/** @return pointer to an instance object   */
+	UObject* GetMutableObject(const int32 Index) const { return InstanceObjects[Index]; }
+
+	/** @return const pointer to an instance object   */
+	const UObject* GetObject(const int32 Index) const { return InstanceObjects[Index]; }
+
+	/** Type traits */
+	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
+	bool Identical(const FStateTreeInstanceData* Other, uint32 PortFlags) const;
+	bool Serialize(FArchive& Ar);
+	
 private:
 	
 	void Allocate(const TSharedPtr<FStateTreeInstanceDataLayout>& InLayout);
-	
+
+	/** Struct instances */
 	uint8* Memory = nullptr;
 	TSharedPtr<FStateTreeInstanceDataLayout> Layout;
+
+	/** Object instances. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UObject>> InstanceObjects;
 };
 
 template<>
@@ -161,6 +179,8 @@ struct TStructOpsTypeTraits<FStateTreeInstanceData> : public TStructOpsTypeTrait
 {
 	enum
 	{
+		WithSerializer = true,
+		WithIdentical = true,
 		WithAddStructReferencedObjects = true,
 	};
 };

@@ -56,11 +56,21 @@ void UStateTree::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 void UStateTree::PostLoad()
 {
 	Super::PostLoad();
-	
-	PropertyBindings.ResolvePaths();
-
 	Link();
 }
+
+void UStateTree::Serialize(FStructuredArchiveRecord Record)
+{
+	Super::Serialize(Record);
+
+	// We need to link and rebind property bindings each time a BP is compiled,
+	// because property bindings may get invalid, and instance data potentially needs refreshed.
+	if (Record.GetUnderlyingArchive().IsModifyingWeakAndStrongReferences())
+	{
+		Link();
+	}
+}
+
 
 void UStateTree::Link()
 {
@@ -87,17 +97,8 @@ void UStateTree::Link()
 	InstanceDataDefaultValue.Reset();
 	if (Instances.Num() > 0)
 		{
-		InstanceDataDefaultValue.Initialize(Instances);
-	}
-}
-
-int32 UStateTree::GetInstanceDataSize() const
-{
-	if (!InstanceDataDefaultValue.IsValid() || !InstanceDataDefaultValue.GetLayout().IsValid())
-	{
-		return 0;
+		InstanceDataDefaultValue.Initialize(*this, Instances, InstanceObjects);
 	}
 
-	// TODO: this should count all allocated data (arrays, objects).
-	return InstanceDataDefaultValue.GetLayout()->GetLayoutInstanceSize();
+	PropertyBindings.ResolvePaths();
 }

@@ -2,7 +2,6 @@
 
 #include "MassStateTreeSubsystem.h"
 #include "StateTree.h"
-#include "StateTreeExecutionContext.h"
 #include "Engine/Engine.h"
 
 
@@ -30,8 +29,7 @@ FMassStateTreeInstanceHandle UMassStateTreeSubsystem::AllocateInstanceData(const
 	}
 
 	FMassStateTreeInstanceDataItem& Item = InstanceDataArray[Index];
-	
-	FStateTreeExecutionContext::InitInstanceData(*this, *StateTree, Item.InstanceData);
+	Item.InstanceData.CopyFrom(*this, StateTree->GetInstanceDataDefaultValue());
 	
 	return FMassStateTreeInstanceHandle::Make(Index, Item.Generation);
 }
