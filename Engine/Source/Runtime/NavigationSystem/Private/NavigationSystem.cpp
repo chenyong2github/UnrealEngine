@@ -4411,6 +4411,12 @@ void UNavigationSystemV1::CycleNavigationDataDrawn()
 
 bool UNavigationSystemV1::IsNavigationDirty() const
 {
+	if (!IsThereAnywhereToBuildNavigation())
+	{
+		// Nowhere to build navigation so it can't be dirty.
+		return false;
+	}
+	
 #if !UE_BUILD_SHIPPING
 	if (DefaultDirtyAreasController.HadDirtyAreasReportedWhileAccumulationLocked())
 	{
