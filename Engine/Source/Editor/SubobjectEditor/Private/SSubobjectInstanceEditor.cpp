@@ -229,6 +229,12 @@ void SSubobjectInstanceEditor::OnDeleteNodes()
 			{
 				TreeWidget->SetSelection(NodeToSelect);
 			}
+			// If there are no components left, then fall back to the generic root node.
+			// This may be the case if you have deleted all components on a native instance actor
+			else if(!RootNodes.IsEmpty())
+			{
+				TreeWidget->SetSelection(RootNodes[0]);
+			}
 			
 			UpdateTree();
 

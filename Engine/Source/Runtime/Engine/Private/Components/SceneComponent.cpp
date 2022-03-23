@@ -941,11 +941,15 @@ void USceneComponent::DestroyComponent(bool bPromoteChildren/*= false*/)
 				USceneComponent* const * FindResult =
 					AttachedChildren.FindByPredicate([Owner](USceneComponent* Child){ return Child != nullptr && !Child->IsEditorOnly() && Child->GetOwner() == Owner; });
 
+				const bool bIsNativeOwnerClass = Owner->GetClass()->IsNative();
+
 				if (FindResult != nullptr)
 				{
 					ChildToPromote = *FindResult;
 				}
-				else
+				// Native C++ classes do not need to always have a DefaultSceneRoot, it can be empty on
+				// instances placed in the level directly from the C++ class
+				else if (!bIsNativeOwnerClass)
 				{
 					// Didn't find a suitable component to promote so create a new default component
 
@@ -968,7 +972,6 @@ void USceneComponent::DestroyComponent(bool bPromoteChildren/*= false*/)
 				Owner->Modify();
 
 				// Set the selected child node as the new root
-				check(ChildToPromote != nullptr);
 				Owner->SetRootComponent(ChildToPromote);
 			}
 			else    // ...not the root node, so we'll promote the selected child node to this position in its AttachParent's child array.

@@ -57,10 +57,26 @@ bool FSubobjectData::CanEdit() const
 
 bool FSubobjectData::CanDelete() const
 {
-	// Components can be deleted if they are not inherited or the scene root
+	// Components can be deleted if they are not inherited
 	if (const UActorComponent* ComponentTemplate = GetComponentTemplate())
 	{
-		return !IsInheritedComponent() && !IsDefaultSceneRoot() && !IsChildActor();
+		// Inherited components cannot be deleted
+		if (IsInheritedComponent() || IsChildActor())
+		{
+			return false;
+		}
+		// You can delete the default scene root on instances of Native C++ actors in the level
+		// but not inside of a blueprint or on BP created actors
+		else if (IsDefaultSceneRoot())
+		{
+			if (const AActor* Actor = ComponentTemplate->GetOwner())
+			{
+				return Actor->GetClass()->IsNative();
+			}
+
+			// Otherwise you can't delete the default scene root
+			return false;
+		}
 	}
 	
 	// Otherwise, it can't be deleted
