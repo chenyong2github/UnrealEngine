@@ -23,7 +23,17 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FConcertServerSessionBrowserController> InController);
 
-	void RefreshSessionList() { SessionBrowser->RefreshSessionList(); }
+	void RequestRefreshListNextTick() { bRequestedRefresh = true; }
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override
+	{
+		if (bRequestedRefresh)
+		{
+			SessionBrowser->RefreshSessionList();
+			bRequestedRefresh = false;
+		}
+
+		SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	}
 	
 private:
 
@@ -31,6 +41,8 @@ private:
 	TWeakPtr<FConcertServerSessionBrowserController> Controller;
 	/** Tracks whether there is a dialog asking the user to delete a session. Used to avoid opening multiple. */
 	TWeakPtr<SMessageDialog> DeleteSessionDialog;
+
+	bool bRequestedRefresh = false;
 
 	TSharedPtr<FText> SearchText;
 	TSharedPtr<SConcertSessionBrowser> SessionBrowser;

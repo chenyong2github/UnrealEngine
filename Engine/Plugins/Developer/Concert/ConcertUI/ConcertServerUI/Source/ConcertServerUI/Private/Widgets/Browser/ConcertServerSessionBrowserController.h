@@ -6,6 +6,8 @@
 #include "SessionBrowser/IConcertSessionBrowserController.h"
 #include "Widgets/IConcertComponent.h"
 
+class IConcertServerSession;
+class IConcertServer;
 class FConcertSessionItem;
 class FSpawnTabArgs;
 class SDockTab;
@@ -21,6 +23,8 @@ class FConcertServerSessionBrowserController
 public:
 
 	int32 GetNumConnectedClients(const FGuid& SessionId) const;
+
+	~FConcertServerSessionBrowserController();
 	
 	//~ Begin IConcertComponent Interface
 	virtual void Init(const FConcertComponentInitParams& Params) override;
@@ -59,6 +63,14 @@ private:
 	
 	TSharedRef<SDockTab> SpawnSessionBrowserTab(const FSpawnTabArgs& Args);
 
+	// Update view when session list changes
+	void OnLiveSessionCreated(bool, const IConcertServer&, TSharedRef<IConcertServerSession>) { RefreshSessionList(); }
+	void OnLiveSessionDestroyed(const IConcertServer&, TSharedRef<IConcertServerSession>) { RefreshSessionList(); }
+	void OnArchivedSessionCreated(bool, const IConcertServer&, const FString&, const FConcertSessionInfo&) { RefreshSessionList(); }
+	void OnArchivedSessionDestroyed(const IConcertServer&, const FGuid&) { RefreshSessionList(); }
+	
+	void RefreshSessionList();
+
 	// Session actions
 	void OpenSession(TSharedPtr<FConcertSessionItem> SessionItem);
 	void RenameSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName);
@@ -66,6 +78,5 @@ private:
 
 	// Notifications
 	void NotifyUserOfFinishedSessionAction(const bool bSuccess, const FText& Title) { NotifyUserOfFinishedSessionAction(bSuccess, Title, FText::GetEmpty()); }
-    /** Shared logic for displaying a notification after creating, archiving, restoring, renaming and deleting a session. */
 	void NotifyUserOfFinishedSessionAction(const bool bSuccess, const FText& Title, const FText& Details);
 };

@@ -2,6 +2,7 @@
 
 #include "ConcertServerSessionBrowserController.h"
 
+#include "ConcertServerEvents.h"
 #include "ConcertServerStyle.h"
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
@@ -24,6 +25,14 @@ int32 FConcertServerSessionBrowserController::GetNumConnectedClients(const FGuid
 	return ensure(Session) ? Session->GetSessionClients().Num() : 0;
 }
 
+FConcertServerSessionBrowserController::~FConcertServerSessionBrowserController()
+{
+	ConcertServerEvents::OnLiveSessionCreated().RemoveAll(this);
+	ConcertServerEvents::OnLiveSessionDestroyed().RemoveAll(this);
+	ConcertServerEvents::OnArchivedSessionCreated().RemoveAll(this);
+	ConcertServerEvents::OnArchivedSessionDestroyed().RemoveAll(this);
+}
+
 void FConcertServerSessionBrowserController::Init(const FConcertComponentInitParams& Params)
 {
 	ServerInstance = Params.Server;
@@ -35,6 +44,11 @@ void FConcertServerSessionBrowserController::Init(const FConcertComponentInitPar
 		.SetDisplayName(LOCTEXT("SessionBrowserTabTitle", "Session Browser"))
 		.SetTooltipText(LOCTEXT("SessionBrowserTooltipText", "A section to browse, start, archive, and restore server sessions."))
 		.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.MultiUser")));
+
+	ConcertServerEvents::OnLiveSessionCreated().AddSP(this, &FConcertServerSessionBrowserController::OnLiveSessionCreated);
+	ConcertServerEvents::OnLiveSessionDestroyed().AddSP(this, &FConcertServerSessionBrowserController::OnLiveSessionDestroyed);
+	ConcertServerEvents::OnArchivedSessionCreated().AddSP(this, &FConcertServerSessionBrowserController::OnArchivedSessionCreated);
+	ConcertServerEvents::OnArchivedSessionDestroyed().AddSP(this, &FConcertServerSessionBrowserController::OnArchivedSessionDestroyed);
 }
 
 TArray<FConcertServerInfo> FConcertServerSessionBrowserController::GetServers() const
@@ -140,6 +154,16 @@ TSharedRef<SDockTab> FConcertServerSessionBrowserController::SpawnSessionBrowser
 	return DockTab;
 }
 
+void FConcertServerSessionBrowserController::RefreshSessionList()
+{
+	if (ConcertBrowser.IsValid())
+	{
+		// 1. Accumulate several events in same tick so list is only updated once
+		// 2. Several events, e.g. OnLiveSessionCreated, are called before the session creation is visible to getter functions
+		ConcertBrowser->RequestRefreshListNextTick();
+	}
+}
+
 void FConcertServerSessionBrowserController::OpenSession(TSharedPtr<FConcertSessionItem> SessionItem)
 {
 	Owner.Pin()->OpenSessionTab(SessionItem->SessionId);
@@ -183,7 +207,7 @@ void FConcertServerSessionBrowserController::NotifyUserOfFinishedSessionAction(c
 
 	if (bSuccess)
 	{
-		ConcertBrowser->RefreshSessionList();
+		ConcertBrowser->RequestRefreshListNextTick();
 	}
 }
 
