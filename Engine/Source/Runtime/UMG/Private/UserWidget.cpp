@@ -115,8 +115,6 @@ bool UUserWidget::Initialize()
 	// If it's not initialized initialize it, as long as it's not the CDO, we never initialize the CDO.
 	if (!bInitialized && !HasAnyFlags(RF_ClassDefaultObject))
 	{
-		bInitialized = true;
-
 		// If this is a sub-widget of another UserWidget, default designer flags and player context to match those of the owning widget
 		if (UUserWidget* OwningUserWidget = GetTypedOuter<UUserWidget>())
 		{
@@ -159,6 +157,7 @@ bool UUserWidget::Initialize()
 			NativeOnInitialized();
 		}
 
+		bInitialized = true;
 		return true;
 	}
 

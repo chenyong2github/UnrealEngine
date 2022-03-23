@@ -1256,7 +1256,7 @@ public:
 	UPROPERTY()
 	uint8 bHasScriptImplementedPaint : 1;
 
-protected:
+private:
 
 	/** Has this widget been initialized by its class yet? */
 	uint8 bInitialized : 1;

@@ -129,8 +129,8 @@ public:
 	static void InitializeWidgetStatic(UUserWidget* UserWidget
 		, const UClass* InClass
 		, UWidgetTree* InWidgetTree
-		, const TArray< UWidgetAnimation* >& InAnimations
-		, const TArray< FDelegateRuntimeBinding >& InBindings);
+		, const TArrayView<UWidgetAnimation*> InAnimations
+		, const TArrayView<const FDelegateRuntimeBinding> InBindings);
 
 	bool ClassRequiresNativeTick() const { return bClassRequiresNativeTick; }
 
@@ -162,7 +162,7 @@ public:
 	}
 
 private:
-	static void InitializeBindingsStatic(UUserWidget* UserWidget, const TArray< FDelegateRuntimeBinding >& InBindings);
-	static void BindAnimations(UUserWidget* Instance, const TArray< UWidgetAnimation* >& InAnimations);
+	static void InitializeBindingsStatic(UUserWidget* UserWidget, const TArrayView<const FDelegateRuntimeBinding> InBindings, const TMap<FName, FObjectPropertyBase*>& InPropertyMap);
+	static void BindAnimationsStatic(UUserWidget* Instance, const TArrayView<UWidgetAnimation*> InAnimations, const TMap<FName, FObjectPropertyBase*>& InPropertyMap);
 	void InitializeFieldNotification(const UUserWidget*);
 };
