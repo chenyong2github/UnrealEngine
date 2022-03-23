@@ -182,6 +182,10 @@ private:
 
 	static void AddLiveLinkSource(UTakeRecorderSources* Sources,  const FName& SubjectName)
 	{
+		FScopedTransaction Transaction(LOCTEXT("AddLiveLinkSource","Add Live Link Source"));
+
+		Sources->Modify();
+
 		UTakeRecorderLiveLinkSource* NewSource = Sources->AddSource<UTakeRecorderLiveLinkSource>();
 		NewSource->SubjectName = SubjectName;
 	}
