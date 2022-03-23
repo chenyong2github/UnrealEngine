@@ -2851,6 +2851,11 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 
 		for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
 		{
+			if (!Column->CanBeFiltered())
+			{
+				continue;
+			}
+
 			switch (Column->GetDataType())
 			{
 				case ETableCellDataType::Int64:
@@ -2911,6 +2916,11 @@ bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 
 	for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
 	{
+		if (!Column->CanBeFiltered())
+		{
+			continue;
+		}
+
 		switch (Column->GetDataType())
 		{
 			case ETableCellDataType::Int64:

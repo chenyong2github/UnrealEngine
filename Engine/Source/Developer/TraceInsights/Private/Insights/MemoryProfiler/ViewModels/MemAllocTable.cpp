@@ -684,7 +684,9 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("TagColumnTitle", "LLM Tag"));
 		Column.SetDescription(LOCTEXT("TagColumnDesc", "LLM tag of allocation"));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		// This column is filtered with a custom filter with suggestions 
+		// so we do not mark it here as CanBeFiltered to prevent it from having a default string filter set.
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(120.0f);

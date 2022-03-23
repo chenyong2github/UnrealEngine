@@ -68,6 +68,8 @@ private:
 	bool TextBox_OnVerifyTextChanged(const FText& InText, FText& OutErrorMessage);
 
 	void SuggestionTextBox_GetSuggestions(const FString& Text, TArray<FString>& Suggestions);
+	void SuggestionTextBox_GetHistory(TArray<FString>& Suggestions);
+
 	void SuggestionTextBox_OnValueChanged(const FText& InNewText);
 	FText SuggestionTextBox_GetValue() const;
 	void SuggestionTextBox_OnValueCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);

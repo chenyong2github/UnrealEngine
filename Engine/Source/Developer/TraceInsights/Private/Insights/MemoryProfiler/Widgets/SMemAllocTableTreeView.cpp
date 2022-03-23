@@ -42,6 +42,7 @@ namespace Insights
 {
 
 const int SMemAllocTableTreeView::FullCallStackIndex = 0x0000FFFFF;
+const int SMemAllocTableTreeView::LLMFilterIndex = 0x0000FFFFE;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1141,6 +1142,12 @@ bool SMemAllocTableTreeView::ApplyCustomAdvancedFilters(const FTableTreeNodePtr&
 		Context.SetFilterData<FString>(FullCallStackIndex, MemNodePtr->GetFullCallstack().ToString());
 	}
 
+	if (FilterConfigurator && FilterConfigurator->IsKeyUsed(LLMFilterIndex))
+	{
+		FMemAllocNodePtr MemNodePtr = StaticCastSharedPtr<FMemAllocNode>(NodePtr);
+		Context.SetFilterData<FString>(LLMFilterIndex, MemNodePtr->GetMemAlloc()->GetTag());
+	}
+
 	return true;
 }
 
@@ -1152,6 +1159,38 @@ void SMemAllocTableTreeView::AddCustomAdvancedFilters()
 
 	AvailableFilters->Add(MakeShared<FFilter>(FullCallStackIndex, LOCTEXT("FullCallstack", "Full Callstack"), LOCTEXT("SearchFullCallstack", "Search in all the callstack frames"), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
 	Context.AddFilterData<FString>(FullCallStackIndex, FString());
+
+	TSharedPtr<FFilterWithSuggestions> LLMCategoryFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(LLMFilterIndex), LOCTEXT("LLMTag", "LLM Tag"), LOCTEXT("LLMTag", "LLM Tag"), EFilterDataType::String, FFilterService::Get()->GetStringOperators());
+	Context.AddFilterData<FString>(LLMFilterIndex, FString());
+	LLMCategoryFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
+	{
+		this->PopulateLLMTagSuggestionList(Text, OutSuggestions);
+	};
+
+	AvailableFilters->Add(LLMCategoryFilter);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::PopulateLLMTagSuggestionList(const FString& Text, TArray<FString>& OutSuggestions)
+{
+	const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
+	if (!AllocationsProvider)
+	{
+		return;
+	}
+
+	TraceServices::IAllocationsProvider::FReadScopeLock _(*AllocationsProvider);
+
+	AllocationsProvider->EnumerateTags([&OutSuggestions, &Text](const TCHAR* Display, const TCHAR* FullPath, TraceServices::TagIdType CurrentTag, TraceServices::TagIdType ParentTag)
+	{
+		if (Text.IsEmpty() || FCString::Stristr(Display, *Text))
+		{
+			OutSuggestions.Push(Display);
+		}
+
+		return true;
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -107,6 +107,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 					.ToolTipText(this, &SFilterConfiguratorRow::GetTextBoxTooltipText)
 					.HintText(this, &SFilterConfiguratorRow::GetTextBoxHintText)
 					.OnShowingSuggestions(FOnShowingSuggestions::CreateSP(this, &SFilterConfiguratorRow::SuggestionTextBox_GetSuggestions))
+					.OnShowingHistory(FOnShowingHistory::CreateSP(this, &SFilterConfiguratorRow::SuggestionTextBox_GetHistory))
 				];
 		}
 		else
@@ -532,6 +533,14 @@ void SFilterConfiguratorRow::SuggestionTextBox_GetSuggestions(const FString& Tex
 		TSharedPtr<FFilterWithSuggestions> FilterWithSuggestions = StaticCastSharedPtr<FFilterWithSuggestions>(Filter);
 		FilterWithSuggestions->Callback(Text, Suggestions);
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFilterConfiguratorRow::SuggestionTextBox_GetHistory(TArray<FString>& Suggestions)
+{
+	// We show all suggestion instead of history when arrow up/down is used.
+	SuggestionTextBox_GetSuggestions(FString(), Suggestions);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -5047,7 +5047,7 @@ void STimingView::PopulateTrackSuggestionList(const FString& Text, TArray<FStrin
 {
 	for (auto& Entry : AllTracks)
 	{
-		if (Entry.Value->GetName().Contains(Text))
+		if (Text.IsEmpty() || Entry.Value->GetName().Contains(Text))
 		{
 			OutSuggestions.Add(Entry.Value->GetName());
 		}
@@ -5074,6 +5074,11 @@ void STimingView::PopulateTimerNameSuggestionList(const FString& Text, TArray<FS
 			const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(TimerIndex);
 			if (Timer && Timer->Name)
 			{
+				if (Text.IsEmpty())
+				{
+					OutSuggestions.Add(Timer->Name);
+					continue;
+				}
 				const TCHAR* FoundString = FCString::Stristr(Timer->Name, *Text);
 				if (FoundString)
 				{
