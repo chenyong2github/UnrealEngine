@@ -56,13 +56,14 @@ FPhysicsAssetRenderSettings::FPhysicsAssetRenderSettings()
 	, COMRenderColor(255, 255, 100)
 	, COMRenderSize(5.0f)
 	, InfluenceLineLength(2.0f)
+{}
+
+void FPhysicsAssetRenderSettings::InitPhysicsAssetRenderSettings(UMaterialInterface* InBoneUnselectedMaterial, UMaterialInterface* InBoneNoCollisionMaterial)
 {
-	UMaterialInterface* BaseBoneUnselectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_UnselectedMaterial.PhAT_UnselectedMaterial"), NULL, LOAD_None, NULL);
-	BoneUnselectedMaterial = UMaterialInstanceDynamic::Create(BaseBoneUnselectedMaterial, GetTransientPackage());
+	BoneUnselectedMaterial = InBoneUnselectedMaterial;
 	check(BoneUnselectedMaterial);
 
-	UMaterialInterface* BaseBoneNoCollisionMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_NoCollisionMaterial.PhAT_NoCollisionMaterial"), NULL, LOAD_None, NULL);
-	BoneNoCollisionMaterial = UMaterialInstanceDynamic::Create(BaseBoneNoCollisionMaterial, GetTransientPackage());
+	BoneNoCollisionMaterial = InBoneNoCollisionMaterial;
 	check(BoneNoCollisionMaterial);
 }
 
@@ -600,6 +601,9 @@ void UPhysicsAssetRenderUtilities::InitialiseImpl()
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetRenamed().AddUObject(this, &UPhysicsAssetRenderUtilities::OnAssetRenamed);
 	AssetRegistryModule.Get().OnInMemoryAssetDeleted().AddUObject(this, &UPhysicsAssetRenderUtilities::OnAssetRemoved);
+
+	BoneUnselectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_UnselectedMaterial.PhAT_UnselectedMaterial"), NULL, LOAD_None, NULL);
+	BoneNoCollisionMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_NoCollisionMaterial.PhAT_NoCollisionMaterial"), NULL, LOAD_None, NULL);
 }
 
 FPhysicsAssetRenderSettings* UPhysicsAssetRenderUtilities::GetSettingsImpl(const uint32 InPhysicsAssetPathNameHash)
@@ -608,8 +612,9 @@ FPhysicsAssetRenderSettings* UPhysicsAssetRenderUtilities::GetSettingsImpl(const
 
 	if (!Settings)
 	{
-		IdToSettingsMap.Add(InPhysicsAssetPathNameHash, FPhysicsAssetRenderSettings());
-		Settings = IdToSettingsMap.Find(InPhysicsAssetPathNameHash);
+		FPhysicsAssetRenderSettings& NewSettings = IdToSettingsMap.Add(InPhysicsAssetPathNameHash, FPhysicsAssetRenderSettings());
+		NewSettings.InitPhysicsAssetRenderSettings(BoneUnselectedMaterial, BoneNoCollisionMaterial);
+		Settings = &NewSettings;
 	}
 
 	return Settings;

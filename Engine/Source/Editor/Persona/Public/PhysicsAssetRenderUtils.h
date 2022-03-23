@@ -35,6 +35,7 @@ struct PERSONA_API FPhysicsAssetRenderSettings
 public:
 
 	FPhysicsAssetRenderSettings();
+	void InitPhysicsAssetRenderSettings(class UMaterialInterface* InBoneUnselectedMaterial, class UMaterialInterface* InBoneNoCollisionMaterial);
 
 	/** Accessors/helper methods */
 	bool IsBodyHidden(const int32 BodyIndex) const;
@@ -107,10 +108,10 @@ public:
 
 	// Materials
 	UPROPERTY()
-	TObjectPtr<class UMaterialInstanceDynamic> BoneUnselectedMaterial;
+	TObjectPtr<class UMaterialInterface> BoneUnselectedMaterial;
 
 	UPROPERTY()
-	TObjectPtr<class UMaterialInstanceDynamic> BoneNoCollisionMaterial;
+	TObjectPtr<class UMaterialInterface> BoneNoCollisionMaterial;
 
 	UPROPERTY()
 	TArray<int32> HiddenBodies;
@@ -154,6 +155,12 @@ private:
 
 	UPROPERTY()
 	TMap< uint32, FPhysicsAssetRenderSettings > IdToSettingsMap;
+
+	UPROPERTY(transient)
+	TObjectPtr<class UMaterialInterface> BoneUnselectedMaterial;
+
+	UPROPERTY(transient)
+	TObjectPtr<class UMaterialInterface> BoneNoCollisionMaterial;
 
 	IPhysicsAssetRenderInterface* PhysicsAssetRenderInterface;
 };
