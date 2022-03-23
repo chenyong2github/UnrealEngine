@@ -45,6 +45,8 @@ public:
 	static FLazyName CustomFormatTileWidthAttributeName;
 	/** Name of attribute in the Exr file for the tile height for our custom format. */
 	static FLazyName CustomFormatTileHeightAttributeName;
+	/** Name of attribute in the Exr file for the tile border size for our custom format. */
+	static FLazyName CustomFormatTileBorderAttributeName;
 
 protected:
 

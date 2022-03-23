@@ -297,12 +297,27 @@ bool FExrImgMediaReader::GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& 
 	OutInfo.Srgb = false;
 	OutInfo.UncompressedSize = InputFile.GetUncompressedSize();
 	OutInfo.NumChannels = InputFile.GetNumChannels();
-	OutInfo.bHasTiles = InputFile.GetTileSize(OutInfo.TileDimensions);
+
+	int32 CustomFormat = 0;
+	InputFile.GetIntAttribute(IImgMediaModule::CustomFormatAttributeName.Resolve().ToString(), CustomFormat);
+	bool bIsCustomFormat = CustomFormat > 0;
+	if (bIsCustomFormat)
+	{
+		// Get tile size.
+		OutInfo.bHasTiles = InputFile.GetIntAttribute(IImgMediaModule::CustomFormatTileWidthAttributeName.Resolve().ToString(), OutInfo.TileDimensions.X);
+		OutInfo.bHasTiles = OutInfo.bHasTiles && InputFile.GetIntAttribute(IImgMediaModule::CustomFormatTileHeightAttributeName.Resolve().ToString(), OutInfo.TileDimensions.Y);
+		InputFile.GetIntAttribute(IImgMediaModule::CustomFormatTileBorderAttributeName.Resolve().ToString(), OutInfo.TileBorder);
+	}
+	else
+	{
+		OutInfo.bHasTiles = InputFile.GetTileSize(OutInfo.TileDimensions);
+		OutInfo.TileBorder = 0;
+	}
+
 	if (OutInfo.bHasTiles)
 	{
 		OutInfo.NumTiles = FIntPoint(OutInfo.Dim.X / OutInfo.TileDimensions.X, OutInfo.Dim.Y / OutInfo.TileDimensions.Y);
 	}
-
 	return (OutInfo.UncompressedSize > 0) && (OutInfo.Dim.GetMin() > 0);
 }
 

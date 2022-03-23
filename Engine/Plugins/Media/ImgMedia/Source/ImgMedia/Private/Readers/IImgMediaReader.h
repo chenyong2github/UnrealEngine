@@ -46,6 +46,9 @@ struct FImgMediaFrameInfo
 
 	/** Tile dimensions. */
 	FIntPoint TileDimensions;
+
+	/** Tile border size in texels. This is required for more elaborate tile texel sampling. */
+	int32 TileBorder;
 };
 
 
