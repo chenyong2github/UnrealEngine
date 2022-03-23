@@ -2070,6 +2070,7 @@ public:
 	 * @param OAuthProvider			Url to OAuth provider, for example "https://myprovider.com/oauth2/v1/token".
 	 * @param OAuthClientId			OAuth client identifier.
 	 * @param OAuthData				OAuth form data to send to login service. Can either be the raw form data or a Windows network file address (starting with "\\").
+	 * @param OAuthScope			OAuth scope identifier
 	 */
 	FHttpCacheStore(
 		const TCHAR* ServiceUrl, 
@@ -2079,6 +2080,7 @@ public:
 		const TCHAR* OAuthProvider, 
 		const TCHAR* OAuthClientId, 
 		const TCHAR* OAuthData,
+		const TCHAR* OAuthScope,
 		EBackendLegacyMode LegacyMode,
 		bool bReadOnly);
 
@@ -2146,6 +2148,7 @@ public:
 	const FString& GetOAuthProvider() const { return OAuthProvider; }
 	const FString& GetOAuthClientId() const { return OAuthClientId; }
 	const FString& GetOAuthSecret() const { return OAuthSecret; }
+	const FString& GetOAuthScope() const { return OAuthScope; }
 
 private:
 	FString Domain;
@@ -2155,6 +2158,7 @@ private:
 	FString OAuthProvider;
 	FString OAuthClientId;
 	FString OAuthSecret;
+	FString OAuthScope;
 	FCriticalSection AccessCs;
 	FDerivedDataCacheUsageStats UsageStats;
 	FBackendDebugOptions DebugOptions;
@@ -2240,6 +2244,7 @@ FHttpCacheStore::FHttpCacheStore(
 	const TCHAR* InOAuthProvider,
 	const TCHAR* InOAuthClientId,
 	const TCHAR* InOAuthSecret,
+	const TCHAR* InOAuthScope,
 	const EBackendLegacyMode InLegacyMode,
 	const bool bInReadOnly)
 	: Domain(InServiceUrl)
@@ -2249,6 +2254,7 @@ FHttpCacheStore::FHttpCacheStore(
 	, OAuthProvider(InOAuthProvider)
 	, OAuthClientId(InOAuthClientId)
 	, OAuthSecret(InOAuthSecret)
+	, OAuthScope(InOAuthScope)
 	, Access(nullptr)
 	, bIsUsable(false)
 	, bReadOnly(bInReadOnly)
@@ -2442,8 +2448,9 @@ bool FHttpCacheStore::AcquireAccessToken()
 			}
 
 			FString OAuthFormData = FString::Printf(
-				TEXT("client_id=%s&scope=cache_access&grant_type=client_credentials&client_secret=%s"),
+				TEXT("client_id=%s&scope=%s&grant_type=client_credentials&client_secret=%s"),
 				*OAuthClientId,
+				*OAuthScope,
 				*OAuthSecret
 			);
 
@@ -4194,12 +4201,13 @@ ILegacyCacheStore* CreateHttpCacheStore(
 	const TCHAR* OAuthProvider,
 	const TCHAR* OAuthClientId,
 	const TCHAR* OAuthData,
+	const TCHAR* OAuthScope,
 	const FDerivedDataBackendInterface::ESpeedClass* ForceSpeedClass,
 	EBackendLegacyMode LegacyMode,
 	bool bReadOnly)
 {
 #if WITH_HTTP_DDC_BACKEND
-	FHttpCacheStore* Backend = new FHttpCacheStore(ServiceUrl, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthData, LegacyMode, bReadOnly);
+	FHttpCacheStore* Backend = new FHttpCacheStore(ServiceUrl, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthData, OAuthScope, LegacyMode, bReadOnly);
 	if (Backend->IsUsable())
 	{
 		return Backend;
@@ -4218,6 +4226,7 @@ FDerivedDataBackendInterface* GetAnyHttpCacheStore(
 	FString& OutOAuthProvider,
 	FString& OutOAuthClientId,
 	FString& OutOAuthSecret,
+	FString& OutOAuthScope,
 	FString& OutNamespace,
 	FString& OutStructuredNamespace)
 {
@@ -4228,6 +4237,7 @@ FDerivedDataBackendInterface* GetAnyHttpCacheStore(
 		OutOAuthProvider = HttpBackend->GetOAuthProvider();
 		OutOAuthClientId = HttpBackend->GetOAuthClientId();
 		OutOAuthSecret = HttpBackend->GetOAuthSecret();
+		OutOAuthScope = HttpBackend->GetOAuthScope();
 		OutNamespace = HttpBackend->GetNamespace();
 		OutStructuredNamespace = HttpBackend->GetStructuredNamespace();
 

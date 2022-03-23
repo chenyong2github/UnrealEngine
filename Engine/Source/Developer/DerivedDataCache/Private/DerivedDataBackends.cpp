@@ -60,6 +60,7 @@ ILegacyCacheStore* CreateHttpCacheStore(
 	const TCHAR* OAuthProvider,
 	const TCHAR* OAuthClientId,
 	const TCHAR* OAuthData, 
+	const TCHAR* OAuthScope,
 	const FDerivedDataBackendInterface::ESpeedClass* ForceSpeedClass,
 	EBackendLegacyMode LegacyMode,
 	bool bReadOnly);
@@ -777,6 +778,7 @@ public:
 		FString& OAuthProvider,
 		FString& OAuthClientId,
 		FString& OAuthSecret,
+		FString& OAuthScope,
 		EBackendLegacyMode& LegacyMode,
 		bool& bReadOnly)
 	{
@@ -787,7 +789,7 @@ public:
 			const TCHAR* ServerSection = TEXT("HordeStorageServers");
 			if (GConfig->GetString(ServerSection, *ServerId, ServerEntry, IniFilename))
 			{
-				ParseHttpCacheParams(NodeName, *ServerEntry, IniFilename, IniSection, Host, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, LegacyMode, bReadOnly);
+				ParseHttpCacheParams(NodeName, *ServerEntry, IniFilename, IniSection, Host, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, OAuthScope, LegacyMode, bReadOnly);
 			}
 			else
 			{
@@ -821,8 +823,30 @@ public:
 		FParse::Value(Entry, TEXT("Namespace="), Namespace);
 		FParse::Value(Entry, TEXT("StructuredNamespace="), StructuredNamespace);
 		FParse::Value(Entry, TEXT("OAuthProvider="), OAuthProvider);
+		
+		FString CommandLineOAuthProvidorOverride;
+		if (FParse::Value(Entry, TEXT("CommandLineOAuthProviderOverride="), CommandLineOAuthProvidorOverride))
+		{
+			if (FParse::Value(FCommandLine::Get(), *(CommandLineOAuthProvidorOverride + TEXT("=")), OAuthProvider))
+			{
+				UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s found command line override for OAuthProvider %s=%s"), NodeName, *CommandLineOAuthProvidorOverride, *OAuthProvider);
+			}
+		}
+		
 		FParse::Value(Entry, TEXT("OAuthClientId="), OAuthClientId);
 		FParse::Value(Entry, TEXT("OAuthSecret="), OAuthSecret);
+		
+		FString CommandLineOAuthSecretOverride;
+		if (FParse::Value(Entry, TEXT("CommandLineOAuthSecretOverride="), CommandLineOAuthSecretOverride))
+		{
+			if (FParse::Value(FCommandLine::Get(), *(CommandLineOAuthSecretOverride + TEXT("=")), OAuthSecret))
+			{
+				UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s found command line override for OAuthSecret %s=%s"), NodeName, *CommandLineOAuthSecretOverride, *OAuthSecret);
+			}
+		}
+		
+		FParse::Value(Entry, TEXT("OAuthScope="), OAuthScope);
+		
 		FParse::Bool(Entry, TEXT("ReadOnly="), bReadOnly);
 
 		if (FString LegacyModeString; FParse::Value(Entry, TEXT("LegacyMode="), LegacyModeString))
@@ -850,10 +874,11 @@ public:
 		FString OAuthProvider;
 		FString OAuthClientId;
 		FString OAuthSecret;
+		FString OAuthScope;
 		EBackendLegacyMode LegacyMode = EBackendLegacyMode::ValueOnly;
 		bool bReadOnly = false;
 
-		ParseHttpCacheParams(NodeName, Entry, IniFilename, IniSection, Host, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, LegacyMode, bReadOnly);
+		ParseHttpCacheParams(NodeName, Entry, IniFilename, IniSection, Host, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, OAuthScope, LegacyMode, bReadOnly);
 
 		if (Host.IsEmpty())
 		{
@@ -900,6 +925,11 @@ public:
 			}
 		}
 
+		if (OAuthScope.IsEmpty())
+		{
+			OAuthScope = TEXT("cache_access");
+		}
+		
 		FDerivedDataBackendInterface::ESpeedClass ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Unknown;
 		FString ForceSpeedClassValue;
 		if (FParse::Value(FCommandLine::Get(), TEXT("HttpForceSpeedClass="), ForceSpeedClassValue))
@@ -932,7 +962,7 @@ public:
 		}
 
 		return MakeTuple(CreateHttpCacheStore(
-			NodeName, *Host, bResolveHostCanonicalName, *Namespace, *StructuredNamespace, *OAuthProvider, *OAuthClientId, *OAuthSecret,
+			NodeName, *Host, bResolveHostCanonicalName, *Namespace, *StructuredNamespace, *OAuthProvider, *OAuthClientId, *OAuthSecret, *OAuthScope,
 			ForceSpeedClass == FDerivedDataBackendInterface::ESpeedClass::Unknown ? nullptr : &ForceSpeedClass, LegacyMode, bReadOnly),
 			ECacheStoreFlags::Remote | ECacheStoreFlags::Query | (bReadOnly ? ECacheStoreFlags::None : ECacheStoreFlags::Store));
 	}

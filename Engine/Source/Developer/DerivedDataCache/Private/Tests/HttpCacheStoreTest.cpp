@@ -43,6 +43,7 @@ FDerivedDataBackendInterface* GetAnyHttpCacheStore(
 	FString& OutOAuthProvider,
 	FString& OutOAuthClientId,
 	FString& OutOAuthSecret,
+	FString& OutOAuthScope,
 	FString& OutNamespace,
 	FString& OutStructuredNamespace);
 
@@ -157,7 +158,7 @@ protected:
 	static FDerivedDataBackendInterface* GetTestBackend()
 	{
 		static FDerivedDataBackendInterface* CachedBackend = GetAnyHttpCacheStore(
-			TestDomain, TestOAuthProvider, TestOAuthClientId, TestOAuthSecret, TestNamespace, TestStructuredNamespace);
+			TestDomain, TestOAuthProvider, TestOAuthClientId, TestOAuthSecret, TestOAuthScope, TestNamespace, TestStructuredNamespace);
 		return CachedBackend;
 	}
 
@@ -486,6 +487,7 @@ protected:
 	static inline FString TestOAuthProvider;
 	static inline FString TestOAuthClientId;
 	static inline FString TestOAuthSecret;
+	static inline FString TestOAuthScope;
 	static inline FString TestNamespace;
 	static inline FString TestStructuredNamespace;
 };
