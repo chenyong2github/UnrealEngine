@@ -48,7 +48,7 @@ FAutoConsoleVariableRef GVarLumenReflectionHierarchicalScreenTraceRelativeDepthT
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness = .1f;
+float GLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness = .01f;
 FAutoConsoleVariableRef GVarLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness(
 	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.HistoryDepthTestRelativeThickness"),
 	GLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness,

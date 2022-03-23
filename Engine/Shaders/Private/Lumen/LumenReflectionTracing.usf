@@ -144,13 +144,13 @@ void ReflectionTraceScreenTexturesCS(
 				if (bHit)
 				{
 					// Calculate the expected depth of the pixel last frame
-					float PrevSceneDepth = ConvertFromDeviceZ(HitHistoryScreenPosition.z);
+					float PrevDeviceZ = HitHistoryScreenPosition.z;
 
 					// Lookup the actual depth at the same screen position last frame
 					float2 HitHistoryScreenUVForDepth = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBiasForDepth.xy + PrevScreenPositionScaleBiasForDepth.zw;
-					float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalPointClampedSampler, HitHistoryScreenUVForDepth, 0).x);
+					float HistoryDeviceZ = Texture2DSampleLevel(HistorySceneDepth, GlobalPointClampedSampler, HitHistoryScreenUVForDepth, 0).x;
 
-					bHit = abs(HistoryDepth - PrevSceneDepth) < HistoryDepthTestRelativeThickness * lerp(.5f, 2.0f, Noise) * PrevSceneDepth;
+					bHit = abs(HistoryDeviceZ - PrevDeviceZ) < HistoryDepthTestRelativeThickness * lerp(.5f, 2.0f, Noise);
 
 					if (!bHit)
 					{
@@ -494,7 +494,6 @@ void TraceVoxels(
 
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 	float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-	const float3 SceneNormal = ReadMaterialData(ScreenUV * View.BufferSizeAndInvSize.xy).WorldNormal;
 	FRayData RayData = GetRayData(ReflectionTracingCoord);
 
 	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;

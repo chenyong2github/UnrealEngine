@@ -55,7 +55,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherRelativeDepthThickness(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenScreenProbeGatherHistoryDepthTestRelativeThickness = .1f;
+float GLumenScreenProbeGatherHistoryDepthTestRelativeThickness = .01f;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherHistoryDepthTestRelativeThickness(
 	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.HistoryDepthTestRelativeThickness"),
 	GLumenScreenProbeGatherHistoryDepthTestRelativeThickness,
