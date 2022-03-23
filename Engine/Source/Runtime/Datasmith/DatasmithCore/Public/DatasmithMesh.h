@@ -138,7 +138,7 @@ public:
 	 */
 	uint32 GetHashForUVChannel(int32 Channel) const;
 
-	/** 
+	/**
 	 * Gets the UV coordinates for a channel
 	 *
 	 * @param Channel	The channel we want to retrieve the UVs from
@@ -220,5 +220,4 @@ public:
 private:
 	class FDatasmithMeshImpl;
 	FDatasmithMeshImpl* Impl;
-
 };
