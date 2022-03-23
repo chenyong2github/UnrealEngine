@@ -774,6 +774,7 @@ struct FStrataOperator
 	FStrataLobeStatistic BottomUpRefractionLobeStat;	// The lobe used for the scene rough refraction from back to front, e.g. used for opaque rough refraction of incoming light within sub layers
 
 	// Opaque rough refraction
+	float				 OpaqueRoughRefractCoverage;	// The coverage of the top layer to account for in order to fade out the influence on the blur.
 	float				 OpaqueRoughRefractThicknessCm;	// The thickness of stack material from the top layer to the bottom layer.
 	float				 OpaqueRoughRefractTopRoughness;// The roughness of the top layer. This is enough because we currently assume all the bottom layers have a constant IOR, so eta will after that always be 1 and no refraction will occur after.
 
@@ -2714,7 +2715,7 @@ void PackStrataOut(
 		{
 			uint RootOperatorIndex = Strata.OperatorIndex;
 			const FStrataOperator RootOperator = StrataTree.Operators[Strata.OperatorIndex];
-			OpaqueRoughRefractionData.Coverage = RootOperator.Coverage;
+			OpaqueRoughRefractionData.Coverage = RootOperator.OpaqueRoughRefractCoverage;
 			// STRATA_TODO Fake variance place holder for now
 			OpaqueRoughRefractionData.VarianceCm = GetVarianceFromRoughness(RootOperator.OpaqueRoughRefractTopRoughness) * RootOperator.OpaqueRoughRefractThicknessCm;
 		}
