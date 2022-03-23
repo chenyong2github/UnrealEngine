@@ -397,6 +397,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bMobileSupportFetchBindedCustomStencilBuffer : 1;
 	uint32 bSupportsBindless : 1;
 	uint32 bSupportsVolumeTextureAtomics : 1;
+	uint32 bSupportsROV : 1;
 	uint32 bSupportsOIT : 1;
 		
 #if WITH_EDITOR
@@ -921,6 +922,11 @@ public:
 		return Infos[Platform].bSupportsVolumeTextureAtomics;
 	}
 
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsROV(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsROV;
+	}
+
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsOIT(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsOIT;
@@ -1294,6 +1300,8 @@ enum class EShaderCodeResourceBindingType : uint8
 	RWBuffer,
 	RWStructuredBuffer,
 	RWByteAddressBuffer,
+
+	RasterizerOrderedTexture2D,
 
 	MAX
 };

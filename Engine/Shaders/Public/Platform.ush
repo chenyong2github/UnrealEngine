@@ -92,6 +92,10 @@
 #define PLATFORM_SUPPORTS_SRV_UB 0
 #endif
 
+#ifndef PLATFORM_SUPPORTS_ROV
+#define PLATFORM_SUPPORTS_ROV 0
+#endif
+
 #ifndef SM6_PROFILE
 #define SM6_PROFILE 0
 #endif
@@ -1031,6 +1035,16 @@ uint MaskedBitCount( uint2 Bits, uint Index )
 	Offset += countbits( Bits.y & ( bLow ? 0 : Mask ) );
 	return Offset;
 }
+
+// Lock a critical region of code within a pixel shader and guarantees no concurrent execution for the same pixel
+#ifndef RASTER_ORDERED_VIEW_LOCK
+#define RASTER_ORDERED_VIEW_LOCK()
+#endif
+
+// Unlock a critical region of code within a pixel shader.
+#ifndef RASTER_ORDERED_VIEW_UNLOCK
+#define RASTER_ORDERED_VIEW_UNLOCK()
+#endif
 
 #if PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
 

@@ -236,6 +236,10 @@ EShaderCodeResourceBindingType ParseShaderResourceBindingType(const TCHAR* Shade
 	{
 		BindingType = EShaderCodeResourceBindingType::RaytracingAccelerationStructure;
 	}
+	else if (bIsRasterizerOrderedResource)
+	{
+		BindingType = EShaderCodeResourceBindingType::RasterizerOrderedTexture2D;
+	}
 	return BindingType;
 }
 
@@ -261,6 +265,7 @@ const TCHAR* const kShaderCodeResourceBindingTypeNames[] = {
 	TEXT("RWBuffer"),
 	TEXT("RWStructuredBuffer"),
 	TEXT("RWByteAddressBuffer"),
+	TEXT("RasterizerOrderedTexture2D"),
 };
 
 static_assert(UE_ARRAY_COUNT(kShaderCodeResourceBindingTypeNames) == int32(EShaderCodeResourceBindingType::MAX), "TODO.");
@@ -593,7 +598,8 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 					BindingType == EShaderCodeResourceBindingType::RWTexture2DArray ||
 					BindingType == EShaderCodeResourceBindingType::RWTexture3D ||
 					BindingType == EShaderCodeResourceBindingType::RWTextureCube ||
-					BindingType == EShaderCodeResourceBindingType::RWTextureMetadata)
+					BindingType == EShaderCodeResourceBindingType::RWTextureMetadata ||
+					BindingType == EShaderCodeResourceBindingType::RasterizerOrderedTexture2D)
 				{
 					bIsValidBindingType = (
 						BaseType == UBMT_UAV ||

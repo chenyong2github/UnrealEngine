@@ -247,6 +247,7 @@ namespace CrossCompiler
 		RWTexture1DArray,
 		RWTexture2D,
 		RWTexture2DArray,
+		RasterizerOrderedTexture2D,
 		RWTexture3D,
 		StructuredBuffer,
 		ConstantBuffer,

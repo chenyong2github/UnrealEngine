@@ -2381,6 +2381,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bMobileSupportFetchBindedCustomStencilBuffer);
 	GET_SECTION_BOOL_HELPER(bSupportsBindless);
 	GET_SECTION_BOOL_HELPER(bSupportsVolumeTextureAtomics);
+	GET_SECTION_BOOL_HELPER(bSupportsROV);
 	GET_SECTION_BOOL_HELPER(bSupportsOIT);
 #undef GET_SECTION_BOOL_HELPER
 #undef GET_SECTION_INT_HELPER

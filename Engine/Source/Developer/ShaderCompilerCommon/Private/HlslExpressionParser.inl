@@ -360,6 +360,7 @@ namespace CrossCompiler
 		case EHlslToken::RWTexture1DArray:
 		case EHlslToken::RWTexture2D:
 		case EHlslToken::RWTexture2DArray:
+		case EHlslToken::RasterizerOrderedTexture2D:
 		case EHlslToken::RWTexture3D:
 		case EHlslToken::ConstantBuffer:
 		case EHlslToken::StructuredBuffer:

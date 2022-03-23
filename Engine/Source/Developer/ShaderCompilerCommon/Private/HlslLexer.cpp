@@ -401,6 +401,7 @@ namespace CrossCompiler
 				InsertToken(TEXT("RW_Texture2D"), EHlslToken::RWTexture2D);	// PSSL
 				InsertToken(TEXT("RWTexture2DArray"), EHlslToken::RWTexture2DArray);
 				InsertToken(TEXT("RW_Texture2D_Array"), EHlslToken::RWTexture2DArray);	// PSSL
+				InsertToken(TEXT("RasterizerOrderedTexture2D"), EHlslToken::RasterizerOrderedTexture2D);
 				InsertToken(TEXT("RWTexture3D"), EHlslToken::RWTexture3D);
 				InsertToken(TEXT("RW_Texture3D"), EHlslToken::RWTexture3D);	// PSSL
 				InsertToken(TEXT("StructuredBuffer"), EHlslToken::StructuredBuffer);
