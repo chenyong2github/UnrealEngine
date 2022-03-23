@@ -89,7 +89,7 @@ static bool IsOITSortedTrianglesSupported(EShaderPlatform InShaderPlatform)
 
 static bool IsOITSortedPixelsSupported(EShaderPlatform InShaderPlatform)
 {
-	return RHISupportsComputeShaders(InShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsOIT(InShaderPlatform);
+	return RHISupportsComputeShaders(InShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsROV(InShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsOIT(InShaderPlatform);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

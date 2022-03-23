@@ -230,6 +230,8 @@ uint2 GetStoringCoord(uint2 InBaseCoord, uint InSampleIt)
 // Multi-Layer Alpha Blending (MLAB) - Sample are inserted in a sorted manner and overflow sample are merged with alpha blending
 void AddOITSample_MLAB(uint2 InPixelCoord, float3 InColor, float3 InTrans, float InDepth)
 {
+	RASTER_ORDERED_VIEW_LOCK();
+
 	// ROV read to for pixel synchronization
 	uint SampleCount = min(TranslucentBasePass.OIT.OutOITSampleCount[InPixelCoord], TranslucentBasePass.OIT.MaxSamplePerPixel);
 
@@ -293,6 +295,8 @@ void AddOITSample_MLAB(uint2 InPixelCoord, float3 InColor, float3 InTrans, float
 	// Write to ROV to unlock pixel
 	SampleCount = min(SampleCount + 1, TranslucentBasePass.OIT.MaxSamplePerPixel);
 	TranslucentBasePass.OIT.OutOITSampleCount[InPixelCoord] = SampleCount;
+
+	RASTER_ORDERED_VIEW_UNLOCK();
 }
 
 // Add a translucent sample to the list of existing translucent samples
