@@ -27,6 +27,9 @@
 #include "SBlueprintContextTargetMenu.h"
 #include "SBlueprintNamespaceEntry.h"
 #include "BlueprintEditorSettings.h"
+#include "BlueprintActionMenuItem.h"
+#include "BlueprintNodeSpawner.h"
+#include "BlueprintNamespaceUtilities.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintGraphContextMenu"
 
@@ -562,7 +565,7 @@ void SBlueprintActionMenu::OnActionSelected( const TArray< TSharedPtr<FEdGraphSc
 	{
 		for ( int32 ActionIndex = 0; ActionIndex < SelectedAction.Num(); ActionIndex++ )
 		{
-			if ( SelectedAction[ActionIndex].IsValid() && GraphObj != NULL )
+			if ( SelectedAction[ActionIndex].IsValid() && GraphObj != nullptr )
 			{
 				// Don't dismiss when clicking on dummy action
 				if ( !bActionExecuted && (SelectedAction[ActionIndex]->GetTypeId() != FEdGraphSchemaAction_Dummy::StaticGetTypeId()))
@@ -573,9 +576,28 @@ void SBlueprintActionMenu::OnActionSelected( const TArray< TSharedPtr<FEdGraphSc
 
 				UEdGraphNode* ResultNode = SelectedAction[ActionIndex]->PerformAction(GraphObj, DraggedFromPins, NewNodePosition);
 
-				if ( ResultNode != NULL )
+				if ( ResultNode != nullptr )
 				{
 					NewNodePosition.Y += UEdGraphSchema_K2::EstimateNodeHeight( ResultNode );
+
+					if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+					{
+						if (SelectedAction[ActionIndex]->GetTypeId() == FBlueprintActionMenuItem::StaticGetTypeId())
+						{
+							// Check for a node spawner associated with this menu item.
+							const UBlueprintNodeSpawner* NodeSpawner = StaticCastSharedPtr<FBlueprintActionMenuItem>(SelectedAction[ActionIndex])->GetRawAction();
+
+							TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
+							if (NodeSpawner && BlueprintEditorPtr.IsValid())
+							{
+								if (const UObject* ImportTarget = NodeSpawner->ImportTarget.Get())
+								{
+									// Auto-import the namespace associated with the node spawner's import target.
+									BlueprintEditorPtr->ImportNamespace(FBlueprintNamespaceUtilities::GetObjectNamespace(ImportTarget));
+								}
+							}
+						}
+					}
 				}
 			}
 		}

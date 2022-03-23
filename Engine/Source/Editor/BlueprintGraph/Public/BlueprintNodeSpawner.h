@@ -136,6 +136,13 @@ public:
 	UPROPERTY()
 	TSubclassOf<UEdGraphNode> NodeClass;
 
+	/**
+	 * A weak reference to an object whose namespace must be imported for this spawner's
+	 * action to be visible in the context menu. If NULL (default), no import is required.
+	 */
+	UPROPERTY()
+	TWeakObjectPtr<const UObject> ImportTarget;
+
 	/** Defines how this spawner is presented in the ui */
 	FBlueprintActionUiSpec  DefaultMenuSignature;
 

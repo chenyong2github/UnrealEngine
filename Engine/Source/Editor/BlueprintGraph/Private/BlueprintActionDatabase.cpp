@@ -158,6 +158,15 @@ static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeMacroNodeSpawner
 	UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(UK2Node_MacroInstance::StaticClass());
 	check(NodeSpawner != nullptr);
 
+	// Set the import reference for macro library instance node spawner actions.
+	if (const UBlueprint* MacroBlueprint = MacroGraph->GetTypedOuter<UBlueprint>())
+	{
+		if (MacroBlueprint->BlueprintType == BPTYPE_MacroLibrary)
+		{
+			NodeSpawner->ImportTarget = MacroBlueprint;
+		}
+	}
+
 	auto CustomizeMacroNodeLambda = [](UEdGraphNode* NewNode, bool bIsTemplateNode, TWeakObjectPtr<UEdGraph> InMacroGraph)
 	{
 		UK2Node_MacroInstance* MacroNode = CastChecked<UK2Node_MacroInstance>(NewNode);

@@ -66,14 +66,20 @@ FFieldVariant UBlueprintFieldNodeSpawner::GetField() const
 
 void UBlueprintFieldNodeSpawner::SetField(FFieldVariant InField)
 {
+	const UStruct* OwnerStruct;
+
 	if (InField.IsUObject())
 	{
 		Field = InField.Get<UField>();
+		OwnerStruct = Field->GetOwnerStruct();
 	}
 	else
 	{
 		Property = InField.Get<FProperty>();
+		OwnerStruct = Property->GetOwnerStruct();
 	}
+
+	ImportTarget = OwnerStruct;
 }
 
 #undef LOCTEXT_NAMESPACE
