@@ -21,9 +21,9 @@ static TAutoConsoleVariable<int32> CVarStrataOpaqueMaterialRoughRefraction(
 
 static TAutoConsoleVariable<float> CVarStrataOpaqueMaterialRoughRefractionBlurScale(
 	TEXT("r.Strata.OpaqueMaterialRoughRefraction.BlurScale"),
-	1,
+	1.0f,
 	TEXT("Scale opaque rough refraction strengh for debug purposes."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+	ECVF_RenderThreadSafe);
 
 
 namespace Strata
@@ -110,6 +110,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(TempTexture, LoadAction);
 		PassParameters->BlurDirection = FVector2f(1.0f, 0.0f);
+		PassParameters->BlurScale = FMath::Max(0.0f, CVarStrataOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
 
 		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(true);
@@ -166,6 +167,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = TempTexture;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->BlurDirection = FVector2f(0.0f, 1.0f);
+		PassParameters->BlurScale = FMath::Max(0.0f, CVarStrataOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
 
 		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(true);
@@ -223,6 +225,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->BlurDirection = FVector2f(0.0f, 0.0f);
+		PassParameters->BlurScale = FMath::Max(0.0f, CVarStrataOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
 
 		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(false);
