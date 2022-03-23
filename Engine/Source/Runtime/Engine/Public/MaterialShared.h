@@ -1702,6 +1702,16 @@ public:
 	 */
 	ENGINE_API bool CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr);
 
+#if WITH_EDITOR
+	/**
+	 * Submits local compile jobs for the exact given shader types and vertex factory type combination.
+	 * @note CacheShaders() should be called first to prepare the resource for compilation.
+	 * @note The arrays of shader types and vertex factory types must match.
+	 * @note These compile jobs are submitted async and it is up to client code to block on results if needed.
+	 */
+	ENGINE_API void CacheGivenTypes(EShaderPlatform ShaderPlatform, const TArray<FVertexFactoryType*>& VFTypes, const TArray<FShaderType*>& ShaderTypes, const ITargetPlatform* TargetPlatform = nullptr);
+#endif
+
 	/**
 	 * Should the shader for this material with the given platform, shader type and vertex 
 	 * factory type combination be compiled
@@ -2076,17 +2086,17 @@ public:
 	void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, struct FStableShaderKeyAndValue& SaveKeyVal); // arg is non-const, we modify it as we go
 
 #if WITH_EDITOR
-/**
-*	Gathers a list of shader types sorted by vertex factory types that should be cached for this material.  Avoids doing expensive material
-*	and shader compilation to acquire this information.
-*
-*	@param	Platform		The shader platform to get info for.
-*	@param	OutShaderInfo	Array of results sorted by vertex factory type, and shader type.
-*
-*/
-	void GetShaderTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FDebugShaderTypeInfo>& OutShaderInfo);
+	/**
+	*	Gathers a list of shader types sorted by vertex factory types that should be cached for this material.  Avoids doing expensive material
+	*	and shader compilation to acquire this information.
+	*
+	*	@param	Platform		The shader platform to get info for.
+	*	@param	OutShaderInfo	Array of results sorted by vertex factory type, and shader type.
+	*
+	*/
+	ENGINE_API void GetShaderTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FDebugShaderTypeInfo>& OutShaderInfo) const;
 
-	void GetShaderTypesForLayout(EShaderPlatform Platform, const FShaderMapLayout& Layout, FVertexFactoryType* VertexFactory, TArray<FDebugShaderTypeInfo>& OutShaderInfo);
+	void GetShaderTypesForLayout(EShaderPlatform Platform, const FShaderMapLayout& Layout, FVertexFactoryType* VertexFactory, TArray<FDebugShaderTypeInfo>& OutShaderInfo) const;
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR

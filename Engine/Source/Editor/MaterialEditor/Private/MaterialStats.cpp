@@ -15,6 +15,7 @@
 #include "IMaterialEditor.h"
 #include "Preferences/MaterialStatsOptions.h"
 #include "MaterialEditorSettings.h"
+#include "ShaderCompiler.h"
 
 #include "Modules/ModuleManager.h"
 #include "Developer/MessageLog/Public/MessageLogModule.h"
@@ -202,7 +203,34 @@ bool FShaderPlatformSettings::CheckShaders()
 				}
 
 				Data.LastTimeCompilationRequested = CurrentTime;
-				Data.MaterialResourcesStats->CacheShaders(PlatformShaderID);
+
+				TMap<FName, TArray<FMaterialStatsUtils::FRepresentativeShaderInfo>> ShaderTypeNamesAndDescriptions;
+				FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(ShaderTypeNamesAndDescriptions, Data.MaterialResourcesStats);
+
+				TArray<FVertexFactoryType*> VFTypes;
+				TArray<FShaderType*> ShaderTypes;
+				for (auto& DescriptionPair : ShaderTypeNamesAndDescriptions)
+				{
+					FVertexFactoryType* VFType = FindVertexFactoryType(DescriptionPair.Key);
+					check(VFType);
+
+					auto& DescriptionArray = DescriptionPair.Value;
+					for (const FMaterialStatsUtils::FRepresentativeShaderInfo& ShaderInfo : DescriptionArray)
+					{
+						FShaderType* ShaderType = FindShaderTypeByName(ShaderInfo.ShaderName);
+						if (ShaderType && VFType)
+						{
+							VFTypes.Add(VFType);
+							ShaderTypes.Add(ShaderType);
+						}
+					}
+				}
+
+				// Prepare the resource for compilation, but don't compile the completed shader map.
+				Data.MaterialResourcesStats->CacheShaders(PlatformShaderID, EMaterialShaderPrecompileMode::None);
+
+				// Compile just the types we want.
+				Data.MaterialResourcesStats->CacheGivenTypes(PlatformShaderID, VFTypes, ShaderTypes);
 
 				Data.bCompilingShaders = true;
 				Data.bUpdateShaderCode = true;
@@ -263,7 +291,7 @@ bool FShaderPlatformSettings::Update()
 					}
 				}
 
-				FMaterialStatsUtils::ExtractMatertialStatsInfo(QualityItem.ShaderStatsInfo, Resource);
+				FMaterialStatsUtils::ExtractMatertialStatsInfo(PlatformShaderID, QualityItem.ShaderStatsInfo, Resource);
 
 				bRetValue = true;
 			}

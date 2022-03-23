@@ -2526,6 +2526,42 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	return bShaderMapValid;
 }
 
+#if WITH_EDITOR
+void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<FVertexFactoryType*>& VFTypes, const TArray<FShaderType*>& ShaderTypes, const ITargetPlatform* TargetPlatform)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CacheGivenTypes);
+	check(IsInGameThread());
+	checkf(ShaderTypes.Num() == VFTypes.Num(), TEXT("The size of the shader type array and vertex factory type array must match."));
+	checkf(GameThreadShaderMap, TEXT("Shader map is not initialized.  Please call CacheShaders first."));
+	checkf(GetGameThreadCompilingShaderMapId() != 0, TEXT("Material is not prepared to compile yet.  Please call CacheShaders first."));
+
+	TArray<FShaderCommonCompileJobPtr> CompileJobs;
+	for (int i = 0; i < VFTypes.Num(); ++i)
+	{
+		FVertexFactoryType* VFType = VFTypes[i];
+		check(VFType);
+
+		FShaderType* ShaderType = ShaderTypes[i];
+		check(ShaderType);
+
+		ShaderType->AsMeshMaterialShaderType()->BeginCompileShader(
+			EShaderCompileJobPriority::ForceLocal,
+			GetGameThreadCompilingShaderMapId(),
+			0,
+			Platform,
+			GameThreadShaderMap->GetPermutationFlags(),
+			this,
+			GameThreadPendingCompilerEnvironment,
+			VFType,
+			CompileJobs,
+			nullptr,
+			nullptr);
+	}
+
+	GShaderCompilingManager->SubmitJobs(CompileJobs, GetBaseMaterialPathName(), GameThreadShaderMap->GetDebugDescription());
+}
+#endif // WITH_EDITOR
+
 bool FMaterial::Translate_Legacy(const FMaterialShaderMapId& ShaderMapId,
 	const FStaticParameterSet& InStaticParameters,
 	EShaderPlatform InPlatform,
@@ -4115,7 +4151,7 @@ void FMaterial::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, FStab
 }
 
 #if WITH_EDITOR
-void FMaterial::GetShaderTypesForLayout(EShaderPlatform Platform, const FShaderMapLayout& Layout, FVertexFactoryType* VertexFactory, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
+void FMaterial::GetShaderTypesForLayout(EShaderPlatform Platform, const FShaderMapLayout& Layout, FVertexFactoryType* VertexFactory, TArray<FDebugShaderTypeInfo>& OutShaderInfo) const
 {
 	FDebugShaderTypeInfo DebugInfo;
 	DebugInfo.VFType = VertexFactory;
@@ -4147,7 +4183,7 @@ void FMaterial::GetShaderTypesForLayout(EShaderPlatform Platform, const FShaderM
 	OutShaderInfo.Add(DebugInfo);
 }
 
-void FMaterial::GetShaderTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
+void FMaterial::GetShaderTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FDebugShaderTypeInfo>& OutShaderInfo) const
 {
 	const FMaterialShaderParameters MaterialParameters(this);
 	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(Platform, GetShaderPermutationFlags(LayoutParams), MaterialParameters);

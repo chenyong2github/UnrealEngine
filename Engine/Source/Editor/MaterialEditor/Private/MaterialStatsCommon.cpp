@@ -343,6 +343,11 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 
 		ShaderTypeNamesAndDescriptions.FindOrAdd(FGPUFactoryName)
 			.Add(FRepresentativeShaderInfo(ERepresentativeShader::SkeletalMesh, TBasePassVSFNoLightMapPolicyName, TEXT("Base pass vertex shader")));
+
+		// Add the shader type with the most sampler usages so we can accurately report the worst case scenario.
+		// This is ad-hoc, and ideally we have a better way for finding this shader type in the future.
+		ShaderTypeNamesAndDescriptions.FindOrAdd(FLocalVertexFactoryName)
+			.Add(FRepresentativeShaderInfo(ERepresentativeShader::StationarySurface, FName(TEXT("TBasePassPSFCachedVolumeIndirectLightingPolicy")), TEXT("MaxSampler")));
 	}
 	else
 	{
@@ -484,7 +489,7 @@ void FMaterialStatsUtils::GetRepresentativeInstructionCounts(TArray<FShaderInstr
 	//when adding a shader type here be sure to update FPreviewMaterial::ShouldCache()
 	//so the shader type will get compiled with preview materials
 	const FMaterialShaderMap* MaterialShaderMap = Target->GetGameThreadShaderMap();
-	if (MaterialShaderMap && MaterialShaderMap->IsCompilationFinalized())
+	if (MaterialShaderMap)
 	{
 		GetRepresentativeShaderTypesAndDescriptions(ShaderTypeNamesAndDescriptions, Target);
 		TStaticArray<bool, (int32)ERepresentativeShader::Num> bShaderTypeAdded(InPlace, false);
@@ -559,7 +564,7 @@ void FMaterialStatsUtils::GetRepresentativeInstructionCounts(TArray<FShaderInstr
 	}
 }
 
-void FMaterialStatsUtils::ExtractMatertialStatsInfo(FShaderStatsInfo& OutInfo, const FMaterialResource* MaterialResource)
+void FMaterialStatsUtils::ExtractMatertialStatsInfo(EShaderPlatform ShaderPlatform, FShaderStatsInfo& OutInfo, const FMaterialResource* MaterialResource)
 {
 	// extract potential errors
 	const ERHIFeatureLevel::Type MaterialFeatureLevel = MaterialResource->GetFeatureLevel();
@@ -599,7 +604,7 @@ void FMaterialStatsUtils::ExtractMatertialStatsInfo(FShaderStatsInfo& OutInfo, c
 		OutInfo.SamplersCount.StrDescription = FString::Printf(TEXT("%u/%u"), SamplersUsed, MaxSamplers);
 		OutInfo.SamplersCount.StrDescriptionLong = FString::Printf(TEXT("%s samplers: %u/%u"), TEXT("Texture"), SamplersUsed, MaxSamplers);
 
-		// extract esimated sample info
+		// extract estimated sample info
 		uint32 NumVSTextureSamples = 0, NumPSTextureSamples = 0;
 		MaterialResource->GetEstimatedNumTextureSamples(NumVSTextureSamples, NumPSTextureSamples);
 
@@ -622,11 +627,26 @@ void FMaterialStatsUtils::ExtractMatertialStatsInfo(FShaderStatsInfo& OutInfo, c
 		OutInfo.InterpolatorsCount.StrDescriptionLong = FString::Printf(TEXT("User interpolators: %u/%u Scalars (%u/4 Vectors) (TexCoords: %i, Custom: %i)"),
 			TotalScalars, MaxScalars, MaxScalars / 4, UVScalarsUsed, CustomInterpolatorScalarsUsed);
 
-		// extract total shader count info
-		const uint32 ShaderCount = MaterialResource->GetGameThreadShaderMap()->GetShaderNum();
+		// Extract total shader count w/o having to compile shaders.
+		FPlatformTypeLayoutParameters LayoutParams;
+		LayoutParams.InitializeForPlatform(nullptr);
 
-		OutInfo.ShaderCount.StrDescription = FString::Printf(TEXT("%u"), ShaderCount);
-		OutInfo.ShaderCount.StrDescriptionLong = FString::Printf(TEXT("Total Shaders: %u"), ShaderCount);
+		TArray<FDebugShaderTypeInfo> OutShaderInfo;
+		MaterialResource->GetShaderTypes(ShaderPlatform, LayoutParams, OutShaderInfo);
+
+		int TotalShadersForMaterial = 0;
+		for (const FDebugShaderTypeInfo& ShaderInfo : OutShaderInfo)
+		{
+			TotalShadersForMaterial += ShaderInfo.ShaderTypes.Num();
+
+			for (const FDebugShaderPipelineInfo& PipelineInfo : ShaderInfo.Pipelines)
+			{
+				TotalShadersForMaterial += PipelineInfo.ShaderTypes.Num();
+			}
+		}
+
+		OutInfo.ShaderCount.StrDescription = FString::Printf(TEXT("%u"), TotalShadersForMaterial);
+		OutInfo.ShaderCount.StrDescriptionLong = FString::Printf(TEXT("Total Shaders: %u"), TotalShadersForMaterial);
 	}
 }
 

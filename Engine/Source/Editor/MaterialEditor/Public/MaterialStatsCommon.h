@@ -104,7 +104,7 @@ public:
 	static void GetRepresentativeInstructionCounts(TArray<FShaderInstructionsInfo>& Results, const class FMaterialResource* Target);
 
 	MATERIALEDITOR_API static void GetRepresentativeShaderTypesAndDescriptions(TMap<FName, TArray<FRepresentativeShaderInfo>>& OutShaderTypeNameAndDescriptions, const class FMaterial* TargetMaterial);
-	MATERIALEDITOR_API static void ExtractMatertialStatsInfo(struct FShaderStatsInfo& OutInfo, const FMaterialResource* Target);
+	MATERIALEDITOR_API static void ExtractMatertialStatsInfo(EShaderPlatform ShaderPlatform, struct FShaderStatsInfo& OutInfo, const FMaterialResource* Target);
 
 	static FString RepresentativeShaderTypeToString(const ERepresentativeShader ShaderType);
 
