@@ -14,6 +14,7 @@ namespace EVisualLoggerVersion
 		AddedOwnerClassName = 2,
 		StatusCategoryWithChildren = 3,
 		TransformationForShapes = 4,
+		LargeWorldCoordinatesAndLocationValidityFlag = 5,
 		// -----<new versions can be added before this line>-------------------------------------------------
 		// - this needs to be the last line (see note below)
 		VersionPlusOne,
