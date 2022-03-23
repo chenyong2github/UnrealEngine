@@ -130,6 +130,7 @@ type NodeOptionFields = typeof nodeOptionFieldsPrototype
 const edgeOptionFieldsPrototype = {
 	...commonOptionFieldsPrototype,
 
+	branchspec: '',
 	additionalSlackChannel: '',
 
 	terminal: false, // changes go along terminal edges but no further

@@ -678,9 +678,6 @@ function computeTargetsImpl(
 		const targetBranch = edgeTargetBranch(initialEdge)
 		const furtherEdgeBranches = furtherEdges.map(edgeTargetBranch)
 		for (const skipTarget of skipTargets) {
-			console.log('skip stuff!!!', initialEdge.source.debugName, skipTarget.name, furtherEdgeBranches)
-			console.log('skip stuff!!!', targetBranch.forcedDownstream)
-			console.log('skip stuff!!!', furtherEdgeBranches.map(b => b.forcedDownstream))
 			if (furtherEdgeBranches.indexOf(skipTarget) < 0
 				&&
 

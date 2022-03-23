@@ -149,7 +149,7 @@ if (botname === '__TEST__') {
 			}
 		}
 
-		// set up branchspecs to use
+		// old style branchspecs
 		if (branchGraph.branchspecs) {
 			for (let def of branchGraph.branchspecs) {
 				// get the name
@@ -169,11 +169,11 @@ if (botname === '__TEST__') {
 
 				// add forward and reverse entries
 				if (!fromBranch.config.ignoreBranchspecs) {
-					fromBranch.branchspec.set(toBranch.upperName, {name: name, reverse: false})
+					fromBranch.branchspec.set(toBranch.upperName, {name, reverse: false})
 				}
 
 				if (!toBranch.config.ignoreBranchspecs) {
-					toBranch.branchspec.set(fromBranch.upperName, {name: name, reverse: true})
+					toBranch.branchspec.set(fromBranch.upperName, {name, reverse: true})
 				}
 			}
 		}
@@ -192,6 +192,10 @@ if (botname === '__TEST__') {
 				}
 
 				source!.edgeProperties.set(targetName, edge)
+
+				if (edge.branchspec) {
+					source!.branchspec.set(targetName, {name: edge.branchspec, reverse: false})
+				}
 			}
 		}
 
