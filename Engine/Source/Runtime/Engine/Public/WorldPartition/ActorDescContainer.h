@@ -44,6 +44,9 @@ public:
 	
 	DECLARE_EVENT_OneParam(UWorldPartition, FActorDescRemovedEvent, FWorldPartitionActorDesc*);
 	FActorDescRemovedEvent OnActorDescRemovedEvent;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FActorDescContainerInitializeDelegate, UActorDescContainer*);
+	static FActorDescContainerInitializeDelegate OnActorDescContainerInitialized;
 #endif
 
 	UPROPERTY(Transient)

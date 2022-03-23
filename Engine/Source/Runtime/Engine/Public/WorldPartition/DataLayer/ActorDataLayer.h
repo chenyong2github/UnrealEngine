@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "WorldPartition/DataLayer/DataLayerUtils.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 #include "ActorDataLayer.generated.h"
 

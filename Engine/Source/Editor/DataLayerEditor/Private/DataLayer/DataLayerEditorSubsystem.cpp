@@ -6,9 +6,12 @@
 #include "WorldPartition/DataLayer/DeprecatedDataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/ActorDescContainer.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/MessageDialog.h"
 #include "DataLayerEditorModule.h"
@@ -24,8 +27,11 @@
 #include "Subsystems/ActorEditorContextSubsystem.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
+
+DEFINE_LOG_CATEGORY_STATIC(LogDataLayerEditorSubsystem, All, All);
 
 //////////////////////////////////////////////////////////////////////////
 // FDataLayersBroadcast
@@ -44,6 +50,7 @@ private:
 	void OnObjectPostEditChange(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	void OnLevelActorsAdded(AActor* InActor) { DataLayerEditorSubsystem->InitializeNewActorDataLayers(InActor); }
 	void OnLevelSelectionChanged(UObject* InObject) { DataLayerEditorSubsystem->OnSelectionChanged(); }
+	void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer);
 
 	UDataLayerEditorSubsystem* DataLayerEditorSubsystem;
 	bool bIsInitialized;
@@ -72,6 +79,7 @@ void FDataLayersBroadcast::Deinitialize()
 		GEngine->OnLevelActorAdded().RemoveAll(this);
 		USelection::SelectionChangedEvent.RemoveAll(this);
 		USelection::SelectObjectEvent.RemoveAll(this);
+		UActorDescContainer::OnActorDescContainerInitialized.RemoveAll(this);
 	}
 }
 
@@ -86,7 +94,13 @@ void FDataLayersBroadcast::Initialize()
 		GEngine->OnLevelActorAdded().AddRaw(this, &FDataLayersBroadcast::OnLevelActorsAdded);
 		USelection::SelectionChangedEvent.AddRaw(this, &FDataLayersBroadcast::OnLevelSelectionChanged);
 		USelection::SelectObjectEvent.AddRaw(this, &FDataLayersBroadcast::OnLevelSelectionChanged);
+		UActorDescContainer::OnActorDescContainerInitialized.AddRaw(this, &FDataLayersBroadcast::OnActorDescContainerInitialized);
 	}
+}
+
+void FDataLayersBroadcast::OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer)
+{
+	UDataLayerEditorSubsystem::OnActorDescContainerInitialized(InActorDescContainer);
 }
 
 void FDataLayersBroadcast::OnObjectPostEditChange(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent)
@@ -149,6 +163,21 @@ void UDataLayerEditorSubsystem::Deinitialize()
 	Super::Deinitialize();
 
 	DataLayersBroadcast->Deinitialize();
+}
+
+void UDataLayerEditorSubsystem::OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer)
+{
+	check(InActorDescContainer);
+
+	UE_SCOPED_TIMER(*FString::Printf(TEXT("Resolving Data Layer Instance Names for %s"), *InActorDescContainer->GetContainerPackage().ToString()), LogDataLayerEditorSubsystem, Display);
+
+	const FWorldDataLayersActorDesc* WorldDataLayersActorDesc = FDataLayerUtils::GetWorldDataLayersActorDesc(InActorDescContainer);
+	for (FActorDescList::TIterator<> Iterator(InActorDescContainer); Iterator; ++Iterator)
+	{
+		FWorldPartitionActorDesc* ActorDesc = *Iterator;
+		check(ActorDesc->GetContainer() == InActorDescContainer);
+		ActorDesc->DataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(ActorDesc, /*WorldDataLayers*/nullptr, WorldDataLayersActorDesc);
+	}
 }
 
 void UDataLayerEditorSubsystem::OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor)

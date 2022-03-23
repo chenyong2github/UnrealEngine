@@ -8,6 +8,7 @@
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/DataLayer/DeprecatedDataLayerInstance.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "EngineUtils.h"
 #include "Engine/CoreSettings.h"
 #include "Net/UnrealNetwork.h"
@@ -903,7 +904,7 @@ bool AWorldDataLayers::RemoveDataLayer(const UDEPRECATED_DataLayer* InDataLayer)
 FName AWorldDataLayers::GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const
 {
 	int32 DataLayerIndex = 0;
-	const FName DataLayerLabelSanitized = DataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
+	const FName DataLayerLabelSanitized = FDataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
 	FName UniqueNewDataLayerLabel = DataLayerLabelSanitized;
 	while (GetDataLayerFromLabel(UniqueNewDataLayerLabel))
 	{
@@ -921,7 +922,7 @@ bool AWorldDataLayers::ContainsDataLayer(const UDEPRECATED_DataLayer* InDataLaye
 
 const UDataLayerInstance* AWorldDataLayers::GetDataLayerFromLabel(const FName& InDataLayerLabel) const
 {
-	const FName DataLayerLabelSanitized = DataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
+	const FName DataLayerLabelSanitized = FDataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
 
 	for (const UDataLayerInstance* DataLayer : DataLayerInstances)
 	{

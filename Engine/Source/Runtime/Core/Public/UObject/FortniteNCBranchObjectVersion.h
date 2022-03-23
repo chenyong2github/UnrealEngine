@@ -18,6 +18,9 @@ struct CORE_API FFortniteNCBranchObjectVersion
 		// Fixed FDataLayerInstanceDesc
 		FixedDataLayerInstanceDesc,
 
+		// Serialize DataLayerAssets in WorldPartitionActorDesc
+		WorldPartitionActorDescSerializeDataLayerAssets,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

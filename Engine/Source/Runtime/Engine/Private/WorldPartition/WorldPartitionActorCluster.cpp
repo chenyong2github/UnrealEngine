@@ -13,7 +13,7 @@
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 template<class LayerNameContainer>
-TSet<const UDataLayerInstance*> GetDataLayers(UWorld* InWorld, const LayerNameContainer& DataLayerInstanceNames)
+TSet<const UDataLayerInstance*> GetDataLayerInstances(UWorld* InWorld, const LayerNameContainer& DataLayerInstanceNames)
 {
 	TSet<const UDataLayerInstance*> DataLayerInstances;
 	if (const AWorldDataLayers* WorldDataLayers = InWorld->GetWorldDataLayers())
@@ -22,7 +22,7 @@ TSet<const UDataLayerInstance*> GetDataLayers(UWorld* InWorld, const LayerNameCo
 		{
 			if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName))
 			{
-				if (DataLayerInstance->IsRuntime())
+				if (ensure(DataLayerInstance->IsRuntime()))
 				{
 					DataLayerInstances.Add(DataLayerInstance);
 				}
@@ -38,7 +38,7 @@ FActorCluster::FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView
 	, Bounds(InActorDescView.GetBounds())
 {
 	Actors.Add(InActorDescView.GetGuid());
-	DataLayers = GetDataLayers(InWorld, InActorDescView.GetDataLayers());
+	DataLayers = GetDataLayerInstances(InWorld, InActorDescView.GetRuntimeDataLayers());
 	DataLayersID = FDataLayersID(DataLayers.Array());
 }
 
@@ -83,7 +83,7 @@ FActorClusterContext::FActorClusterContext(TArray<FActorContainerInstance>&& InC
 	}
 }
 
-FActorContainerInstance::FActorContainerInstance(const FActorContainerID& InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap)
+FActorContainerInstance::FActorContainerInstance(const FActorContainerID& InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InRuntimeDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap)
 	: ID(InID)
 	, Transform(InTransform)
 	, Bounds(InBounds)
@@ -91,7 +91,7 @@ FActorContainerInstance::FActorContainerInstance(const FActorContainerID& InID, 
 	, Container(InContainer)
 	, ActorDescViewMap(InActorDescViewMap)
 {
-	DataLayers = GetDataLayers(InContainer->GetWorld(), InDataLayers);
+	DataLayers = GetDataLayerInstances(InContainer->GetWorld(), InRuntimeDataLayers);
 }
 
 const FWorldPartitionActorDescView& FActorContainerInstance::GetActorDescView(const FGuid& InGuid) const

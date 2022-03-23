@@ -5,6 +5,8 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/ActorDescContainer.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView()
 	: FWorldPartitionActorDescView(nullptr)
@@ -15,7 +17,20 @@ FWorldPartitionActorDescView::FWorldPartitionActorDescView(const FWorldPartition
 	, bIsForcedNonSpatiallyLoaded(false)
 	, bInvalidDataLayers(false)
 	, bInvalidRuntimeGrid(false)
-{}
+{
+	ResolveRuntimeDataLayers();
+}
+
+//The only case where we need to call ResolveRuntimeDataLayers and pass a Container is for the "unsaved actors" case of FWorldPartitionStreamingGenerator
+void FWorldPartitionActorDescView::ResolveRuntimeDataLayers(const UActorDescContainer* InContainer)
+{
+	bool bSuccess = true;
+	RuntimeDataLayers = FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(ActorDesc, InContainer, &bSuccess);
+	if (!bSuccess)
+	{
+		RuntimeDataLayers.Reset();
+	}
+}
 
 const FGuid& FWorldPartitionActorDescView::GetGuid() const
 {
@@ -76,6 +91,12 @@ const TArray<FName>& FWorldPartitionActorDescView::GetDataLayers() const
 {
 	static TArray<FName> EmptyDataLayers;
 	return bInvalidDataLayers ? EmptyDataLayers : ActorDesc->GetDataLayerInstanceNames();
+}
+
+const TArray<FName>& FWorldPartitionActorDescView::GetRuntimeDataLayers() const
+{
+	static TArray<FName> EmptyDataLayers;
+	return (bInvalidDataLayers || !RuntimeDataLayers.IsSet()) ? EmptyDataLayers : RuntimeDataLayers.GetValue();
 }
 
 FName FWorldPartitionActorDescView::GetActorPackage() const
@@ -161,4 +182,10 @@ void FWorldPartitionActorDescView::SetInvalidDataLayers()
 		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' data layers invalidated"), *GetActorLabel().ToString());
 	}
 }
+
+bool FWorldPartitionActorDescView::IsResaveNeeded() const
+{
+	return ActorDesc->IsResaveNeeded();
+}
+
 #endif

@@ -665,5 +665,7 @@ private:
 	/** The path at which the "Pick A Data Layer Asset" will be opened*/
 	mutable FString PickDataLayerDialogPath;
 
+	static void OnActorDescContainerInitialized(class UActorDescContainer* InActorDescContainer);
+
 	friend class FDataLayersBroadcast;
 };

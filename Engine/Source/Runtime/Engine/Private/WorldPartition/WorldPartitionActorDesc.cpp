@@ -12,9 +12,13 @@
 #include "Engine/Level.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "UObject/FortniteNCBranchObjectVersion.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "Engine/Public/ActorReferencesUtils.h"
 #endif
 
@@ -23,7 +27,8 @@ uint32 FWorldPartitionActorDesc::GlobalTag = 0;
 bool FWorldPartitionActorDesc::bForceAlwaysLoaded = false;
 
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
-	: SoftRefCount(0)
+	: bIsUsingDataLayerAsset(false)
+	, SoftRefCount(0)
 	, HardRefCount(0)
 	, Container(nullptr)
 	, Tag(0)
@@ -49,7 +54,40 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	bLevelBoundsRelevant = InActor->IsLevelBoundsRelevant();
 	bActorIsHLODRelevant = InActor->IsHLODRelevant();
 	HLODLayer = InActor->GetHLODLayer() ? FName(InActor->GetHLODLayer()->GetPathName()) : FName();
-	DataLayers = InActor->GetDataLayerInstanceNames();
+	
+	// DataLayers
+	{
+		TArray<FName> LocalDataLayerAssetPaths;
+		TArray<FName> LocalDataLayerInstanceNames;
+		const AWorldDataLayers* WorldDataLayers = InActor->GetWorld()->GetWorldDataLayers();
+		if (WorldDataLayers)
+		{
+			LocalDataLayerAssetPaths.Reserve(InActor->GetDataLayerAssets().Num());
+			for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : InActor->GetDataLayerAssets())
+			{
+				if (DataLayerAsset && WorldDataLayers->GetDataLayerInstance(DataLayerAsset))
+				{
+					LocalDataLayerAssetPaths.Add(*DataLayerAsset->GetPathName());
+				}
+			}
+
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			LocalDataLayerInstanceNames = WorldDataLayers->GetDataLayerInstanceNames(InActor->GetActorDataLayers());
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+		// Validation
+		const bool bHasDataLayerAssets = LocalDataLayerAssetPaths.Num() > 0;
+		const bool bHasDeprecatedDataLayers = LocalDataLayerInstanceNames.Num() > 0;
+		check((!bHasDataLayerAssets && !bHasDeprecatedDataLayers) || (bHasDataLayerAssets != bHasDeprecatedDataLayers));
+
+		// Init DataLayers persistent info
+		bIsUsingDataLayerAsset = bHasDataLayerAssets;
+		DataLayers = bIsUsingDataLayerAsset ? MoveTemp(LocalDataLayerAssetPaths) : MoveTemp(LocalDataLayerInstanceNames);
+
+		// Init DataLayers transient info
+		DataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(this, WorldDataLayers);
+	}
+
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
 	FolderPath = InActor->GetFolderPath();
@@ -112,6 +150,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		bActorIsEditorOnly == Other->bActorIsEditorOnly && 
 		bLevelBoundsRelevant == Other->bLevelBoundsRelevant && 
 		bActorIsHLODRelevant == Other->bActorIsHLODRelevant && 
+		bIsUsingDataLayerAsset == Other->bIsUsingDataLayerAsset &&
 		HLODLayer == Other->HLODLayer && 
 		FolderPath == Other->FolderPath &&
 		FolderGuid == Other->FolderGuid &&
@@ -124,12 +163,14 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		SortedDataLayers.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
 		SortedDataLayersOther.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
 
-		TArray<FGuid> SortedReferences(References);
-		TArray<FGuid> SortedReferencesOther(Other->References);
-		SortedReferences.Sort();
-		SortedReferencesOther.Sort();
-
-		return SortedDataLayers == SortedDataLayersOther && SortedReferences == SortedReferencesOther;
+		if (SortedDataLayers == SortedDataLayersOther)
+		{
+			TArray<FGuid> SortedReferences(References);
+			TArray<FGuid> SortedReferencesOther(Other->References);
+			SortedReferences.Sort();
+			SortedReferencesOther.Sort();
+			return (SortedReferences == SortedReferencesOther);
+		}
 	}
 
 	return false;
@@ -195,6 +236,7 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
 
 	Ar << Class << Guid;
 
@@ -241,6 +283,11 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeDataLayers)
 	{
 		Ar << DataLayers;
+	}
+
+	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescSerializeDataLayerAssets)
+	{
+		Ar << bIsUsingDataLayerAsset;
 	}
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeActorLabel)

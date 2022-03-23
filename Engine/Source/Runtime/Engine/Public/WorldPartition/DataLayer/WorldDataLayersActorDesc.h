@@ -3,7 +3,7 @@
 #pragma once
 
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/DataLayer/DataLayerUtils.h"
+#include "WorldPartition/DataLayer/DataLayerType.h"
 
 #if WITH_EDITOR
 
@@ -64,6 +64,7 @@ protected:
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual bool IsResaveNeeded() const override { return !IsValid(); }
 
 private:
 	TArray<FDataLayerInstanceDesc> DataLayerInstances;

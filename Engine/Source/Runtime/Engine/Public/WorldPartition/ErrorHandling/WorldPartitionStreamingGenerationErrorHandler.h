@@ -57,5 +57,10 @@ public:
 	 * Called when two data layer instances share the same asset
 	 */
 	virtual void OnDataLayerAssetConflict(const UDataLayerInstanceWithAsset* DataLayerInstance, const UDataLayerInstanceWithAsset* ConflictingDataLayerInstance) = 0;
+
+	/**
+	 * Called when an actor needs to be resaved.
+	 */
+	virtual void OnActorNeedsResave(const FWorldPartitionActorDescView& ActorDescView) = 0;
 };
 #endif

@@ -6,9 +6,11 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
-#include "WorldPartition/DataLayer/DataLayerAsset.h"
+#include "WorldPartition/DataLayer/DataLayerType.h"
 
 #include "DataLayerInstance.generated.h"
+
+#define DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED 1
 
 class IStreamingGenerationErrorHandler;
 
@@ -55,7 +57,7 @@ public:
 	bool IsLoadedInEditorChangedByUserOperation() const { return bIsLoadedInEditorChangedByUserOperation; }
 	void ClearLoadedInEditorChangedByUserOperation() { bIsLoadedInEditorChangedByUserOperation = false; }
 
-	const TCHAR* GetDataLayerIconName() const { return DataLayerUtils::GetDataLayerIconName(GetType()); }
+	const TCHAR* GetDataLayerIconName() const;
 
 	bool CanParent(const UDataLayerInstance* InParent) const;
 	bool IsDataLayerTypeValidToParent(EDataLayerType ParentDataLayerType) const;
@@ -78,7 +80,6 @@ public:
 #if DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED
 	virtual bool SupportRelabeling() const { return false; }
 	virtual bool RelabelDataLayer(FName NewDataLayerLabel) { return false; }
-
 #endif // DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED
 
 #endif // WITH_EDITOR

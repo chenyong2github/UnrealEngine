@@ -37,6 +37,8 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend class UActorDescContainer;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
+	friend class UDataLayerEditorSubsystem;
+	friend class FDataLayerUtils;
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}
@@ -52,7 +54,7 @@ public:
 	inline bool GetLevelBoundsRelevant() const { return bLevelBoundsRelevant; }
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
 	inline FName GetHLODLayer() const { return HLODLayer; }
-	inline const TArray<FName>& GetDataLayerInstanceNames() const { return DataLayers; }
+	inline const TArray<FName>& GetDataLayerInstanceNames() const { return DataLayerInstanceNames; }
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
@@ -60,12 +62,14 @@ public:
 	inline const FGuid& GetFolderGuid() const { return FolderGuid; }
 	FBox GetBounds() const;
 	inline const FGuid& GetParentActor() const { return ParentActor; }
+	inline bool IsUsingDataLayerAsset() const { return bIsUsingDataLayerAsset; }
 
 	FName GetActorName() const;
 	FName GetActorLabelOrName() const;
 
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
+	virtual bool IsResaveNeeded() const { return false; }
 
 	bool operator==(const FWorldPartitionActorDesc& Other) const
 	{
@@ -178,6 +182,7 @@ protected:
 	bool							bActorIsEditorOnly;
 	bool							bLevelBoundsRelevant;
 	bool							bActorIsHLODRelevant;
+	bool							bIsUsingDataLayerAsset; // Used to know if DataLayers array represents DataLayers Asset paths or the FNames of the deprecated version of Data Layers
 	FName							HLODLayer;
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
@@ -192,6 +197,7 @@ protected:
 	UClass*							ActorClass;
 	mutable TWeakObjectPtr<AActor>	ActorPtr;
 	UActorDescContainer*			Container;
+	TArray<FName>					DataLayerInstanceNames;
 
 public:
 	// Tagging

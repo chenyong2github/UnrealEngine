@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
@@ -42,7 +43,7 @@ void UDEPRECATED_DataLayer::PostLoad()
 	bIsVisible = bIsInitiallyVisible;
 
 	// Sanitize Label
-	DataLayerLabel = DataLayerUtils::GetSanitizedDataLayerLabel(DataLayerLabel);
+	DataLayerLabel = FDataLayerUtils::GetSanitizedDataLayerLabel(DataLayerLabel);
 
 	if (DebugColor == FColor::Black)
 	{

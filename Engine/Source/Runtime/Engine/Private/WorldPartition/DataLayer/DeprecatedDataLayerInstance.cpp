@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/DataLayer/DeprecatedDataLayerInstance.h"
-
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 UDeprecatedDataLayerInstance::UDeprecatedDataLayerInstance(const FObjectInitializer& ObjectInitializer)
@@ -79,7 +79,7 @@ bool UDeprecatedDataLayerInstance::ContainsActor(const AActor* Actor) const
 
 bool UDeprecatedDataLayerInstance::RelabelDataLayer(FName InDataLayerLabel)
 {
-	FName SanitizedLabel = DataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
+	FName SanitizedLabel = FDataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
 	FName UniqueNewDataLayerLabel = GetOuterAWorldDataLayers()->GenerateUniqueDataLayerLabel(SanitizedLabel);
 	if (Label != UniqueNewDataLayerLabel)
 	{

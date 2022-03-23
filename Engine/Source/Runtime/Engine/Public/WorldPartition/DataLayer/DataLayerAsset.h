@@ -7,7 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 
-#include "WorldPartition/DataLayer/DataLayerUtils.h" 
+#include "WorldPartition/DataLayer/DataLayerType.h" 
 
 #include "DataLayerAsset.generated.h"
 

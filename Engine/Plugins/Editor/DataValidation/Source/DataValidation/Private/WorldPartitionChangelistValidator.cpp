@@ -346,5 +346,9 @@ void UWorldPartitionChangelistValidator::OnDataLayerAssetConflict(const UDataLay
 	}
 }
 
+void UWorldPartitionChangelistValidator::OnActorNeedsResave(const FWorldPartitionActorDescView& ActorDescView)
+{
+	// Changelist validation already ensures that dirty actors must be part of the changelist
+}
 
 #undef LOCTEXT_NAMESPACE

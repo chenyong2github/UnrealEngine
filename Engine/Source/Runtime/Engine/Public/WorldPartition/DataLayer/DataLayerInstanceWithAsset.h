@@ -2,10 +2,9 @@
 #pragma once
 
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
 
 #include "DataLayerInstanceWithAsset.generated.h"
-
-class UDataLayerAsset;
 
 UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, AutoCollapseCategories = ("Data Layer|Advanced"), AutoExpandCategories = ("Data Layer|Editor", "Data Layer|Advanced|Runtime"))
 class ENGINE_API UDataLayerInstanceWithAsset : public UDataLayerInstance

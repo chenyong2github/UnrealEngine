@@ -11,6 +11,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/CoreRedirects.h"
 #include "Engine/World.h"
+
+UActorDescContainer::FActorDescContainerInitializeDelegate UActorDescContainer::OnActorDescContainerInitialized;
 #endif
 
 UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitializer)
@@ -109,6 +111,8 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 			AddActorDescriptor(ActorDesc.Release());
 		}
 	}
+
+	OnActorDescContainerInitialized.Broadcast(this);
 
 	RegisterEditorDelegates();
 

@@ -6,6 +6,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 
@@ -91,6 +92,11 @@ bool UDataLayerInstance::IsLocked() const
 	}
 
 	return IsRuntime() && !GetOuterAWorldDataLayers()->GetAllowRuntimeDataLayerEditing();
+}
+
+const TCHAR* UDataLayerInstance::GetDataLayerIconName() const
+{
+	return FDataLayerUtils::GetDataLayerIconName(GetType());
 }
 
 bool UDataLayerInstance::CanParent(const UDataLayerInstance* InParent) const

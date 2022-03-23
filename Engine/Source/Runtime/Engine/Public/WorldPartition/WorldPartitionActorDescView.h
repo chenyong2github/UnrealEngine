@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Optional.h"
 
 #if WITH_EDITOR
 class FWorldPartitionActorDesc;
@@ -32,6 +33,8 @@ public:
 	bool GetActorIsHLODRelevant() const;
 	FName GetHLODLayer() const;
 	const TArray<FName>& GetDataLayers() const;
+	const TArray<FName>& GetRuntimeDataLayers() const;
+	void ResolveRuntimeDataLayers(const UActorDescContainer* InContainer = nullptr);
 	FName GetActorPackage() const;
 	FName GetActorPath() const;
 	FName GetActorLabel() const;
@@ -53,6 +56,8 @@ public:
 
 	void SetInvalidDataLayers();
 
+	bool IsResaveNeeded() const;
+
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{
 		return GetGuid() == Other.GetGuid();
@@ -68,5 +73,6 @@ protected:
 	bool bIsForcedNonSpatiallyLoaded;
 	bool bInvalidDataLayers;
 	bool bInvalidRuntimeGrid;
+	TOptional<TArray<FName>> RuntimeDataLayers;
 };
 #endif
