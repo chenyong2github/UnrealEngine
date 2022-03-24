@@ -562,9 +562,10 @@ public:
 	{
 	}
 
-	FReplayExternalData(FBitReader&& InReader, const float InTimeSeconds) : TimeSeconds(InTimeSeconds)
+	FReplayExternalData(FBitReader&& InReader, const float InTimeSeconds) 
+		: Reader(MoveTemp(InReader))
+		, TimeSeconds(InTimeSeconds)
 	{
-		Reader = MoveTemp(InReader);
 	}
 
 	FBitReader	Reader;
