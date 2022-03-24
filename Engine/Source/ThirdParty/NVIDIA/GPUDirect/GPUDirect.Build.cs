@@ -22,7 +22,7 @@ public class GPUDirect : ModuleRules
 			String DVPDLLPath = "$(EngineDir)/Binaries/ThirdParty/NVIDIA/GPUDirect/Win64/" + DVPDLLFullName;
 
 			PrivateRuntimeLibraryPaths.Add("$(EngineDir)/Binaries/ThirdParty/NVIDIA/GPUDirect/Win64");
-			RuntimeDependencies.Add(DVPDLLPath);
+			PublicDelayLoadDLLs.Add(DVPDLLFullName);
 		}
 	}
 }
