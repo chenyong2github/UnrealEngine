@@ -1203,8 +1203,12 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 								if (PassMaterials.Num() == PassMaterialSlots.Num())
 								{
 									const uint32 MaterialSlotCount = uint32(PassMaterialSlots.Num());
+									const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
 
-									void* MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, MaterialSlotCount);
+									// TODO: Make this more robust, and catch issues earlier on
+									const uint32 UploadEntryCount = FMath::Max(MaterialSlotCount, TableEntryCount);
+
+									void* MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, UploadEntryCount);
 									uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
 									for (uint32 Entry = 0; Entry < MaterialSlotCount; ++Entry)
 									{
