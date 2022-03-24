@@ -156,6 +156,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody()
 #if WITH_EDITORONLY_DATA
 	, bComponentSpaceSimulation_DEPRECATED(true)
 #endif
+	, SimulationTiming(ESimulationTiming::Default)
 	, WorldTimeSeconds(0.0f)
 	, LastEvalTimeSeconds(0.0f)
 	, AccumulatedDeltaTime(0.0f)
