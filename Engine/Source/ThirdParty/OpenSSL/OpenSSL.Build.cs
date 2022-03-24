@@ -11,15 +11,16 @@ public class OpenSSL : ModuleRules
 
 		string OpenSSL111cPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1c");
 		string OpenSSL111kPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1k");
+		string OpenSSL111nPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1n");
 
 		string PlatformSubdir = Target.Platform.ToString();
 		string ConfigFolder = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release";
 
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			PublicIncludePaths.Add(Path.Combine(OpenSSL111kPath, "include", PlatformSubdir));
+			PublicIncludePaths.Add(Path.Combine(OpenSSL111nPath, "include", PlatformSubdir));
 
-			string LibPath = Path.Combine(OpenSSL111kPath, "lib", PlatformSubdir);
+			string LibPath = Path.Combine(OpenSSL111nPath, "lib", PlatformSubdir);
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
@@ -75,12 +76,12 @@ public class OpenSSL : ModuleRules
 				"x64",
 			};
 
-			PublicIncludePaths.Add(OpenSSL111kPath + "/include/Android/");
+			PublicIncludePaths.Add(OpenSSL111nPath + "/include/Android/");
 
 			foreach(var Architecture in Architectures)
 			{
-				PublicAdditionalLibraries.Add(OpenSSL111kPath + "/lib/Android/" + Architecture + "/libcrypto.a");
-				PublicAdditionalLibraries.Add(OpenSSL111kPath + "/lib/Android/" + Architecture + "/libssl.a");
+				PublicAdditionalLibraries.Add(OpenSSL111nPath + "/lib/Android/" + Architecture + "/libcrypto.a");
+				PublicAdditionalLibraries.Add(OpenSSL111nPath + "/lib/Android/" + Architecture + "/libssl.a");
 			}
 		}
 	}
