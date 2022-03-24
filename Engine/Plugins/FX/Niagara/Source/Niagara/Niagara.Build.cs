@@ -70,7 +70,7 @@ public class Niagara : ModuleRules
         PublicDefinitions.AddRange(
             new string[]
             {
-                "VECTORVM_SUPPORTS_EXPERIMENTAL=1",
+                "VECTORVM_SUPPORTS_EXPERIMENTAL=0",
                 "VECTORVM_SUPPORTS_LEGACY=1"
             });
     }
