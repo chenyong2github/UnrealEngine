@@ -16,6 +16,7 @@
 namespace StageAppBeaconReceiverConstants
 {
 	const uint8 ProtocolVersion = 0;
+	const TArray<uint8> ProtocolIdentifier = { 'E', 'S', '@', 'p' };
 }
 
 FStageAppBeaconReceiver::FStageAppBeaconReceiver()
@@ -145,9 +146,21 @@ void FStageAppBeaconReceiver::ReceiveBeaconMessages()
 
 void FStageAppBeaconReceiver::HandleBeaconMessage(FArrayReader& MessageData, TSharedRef<FInternetAddr> Source)
 {
-	if (MessageData.Num() != 1)
+	if (MessageData.Num() != 5)
 	{
 		return;
+	}
+
+	// Check that the protocol identifier matches. If not, this message is probably unrelated.
+	for (const uint8 ExpectedByte : StageAppBeaconReceiverConstants::ProtocolIdentifier)
+	{
+		uint8 AppByte;
+		MessageData << AppByte;
+
+		if (AppByte != ExpectedByte)
+		{
+			return;
+		}
 	}
 
 	// We don't do anything with this yet, but could use it to ignore beacons from apps with incompatible protocols
