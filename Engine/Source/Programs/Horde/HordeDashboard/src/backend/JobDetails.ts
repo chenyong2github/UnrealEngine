@@ -96,7 +96,9 @@ export class JobDetails {
 
                 this.stepId = stepId;
                 this.labelIdx = labelIdx;
-                requests.push(this.getIssues());
+                if (!this.suppressIssues) {
+                    requests.push(this.getIssues());
+                }
 
                 this.history = undefined;
 
@@ -881,7 +883,9 @@ export class JobDetails {
 
             if (!this.isLogView) {
                 requests.push(backend.getJobTestData(this.id!));
-                requests.push(this.getIssues());
+                if (!this.suppressIssues) {
+                    requests.push(this.getIssues());
+                }                
                 requests.push(this.queryReports());
             }
 
@@ -1030,6 +1034,8 @@ export class JobDetails {
     updateTimingInfo = 0;
 
     fatalError?: string;
+
+    suppressIssues:boolean = false;
 
     private static templates = new Map<string, GetTemplateResponse>();
 }
