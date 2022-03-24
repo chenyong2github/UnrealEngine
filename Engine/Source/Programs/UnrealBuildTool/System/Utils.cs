@@ -1255,7 +1255,7 @@ namespace UnrealBuildTool
 				NumPhysicalCores = NumLogicalCores;
 			}
 
-			Log.TraceInformation($"Determining max actions to execute in parallel ({NumPhysicalCores} physical cores, {NumLogicalCores} logical cores)");
+			Log.TraceInformationOnce($"Determining max actions to execute in parallel ({NumPhysicalCores} physical cores, {NumLogicalCores} logical cores)");
 
 			// The number of actions to execute in parallel is trying to keep the CPU busy enough in presence of I/O stalls.
 			int MaxActionsToExecuteInParallel;
@@ -1264,12 +1264,12 @@ namespace UnrealBuildTool
 				// The CPU has more logical cores than physical ones, aka uses hyper-threading. 
 				// Use multiplier if provided
 				MaxActionsToExecuteInParallel = (int)(NumPhysicalCores * ProcessorCountMultiplier);
-				Log.TraceInformation($"  Requested {ProcessorCountMultiplier} process count multiplier: limiting max parallel actions to {MaxActionsToExecuteInParallel}");
+				Log.TraceInformationOnce($"  Requested {ProcessorCountMultiplier} process count multiplier: limiting max parallel actions to {MaxActionsToExecuteInParallel}");
 			}
 			// kick off a task per physical core - evidence suggests that, in general, using more cores does not yield significantly better throughput
 			else
 			{
-				Log.TraceInformation($"  Executing up to {NumPhysicalCores} processes, one per physical core");
+				Log.TraceInformationOnce($"  Executing up to {NumPhysicalCores} processes, one per physical core");
 				MaxActionsToExecuteInParallel = NumPhysicalCores;
 			}
 
@@ -1283,7 +1283,7 @@ namespace UnrealBuildTool
 					if (TotalMemoryActions < MaxActionsToExecuteInParallel)
 					{
 						MaxActionsToExecuteInParallel = Math.Max(1, Math.Min(MaxActionsToExecuteInParallel, TotalMemoryActions));
-						Log.TraceInformation($"  Requested {StringUtils.FormatBytesString(MemoryPerActionBytes)} free memory per action, {StringUtils.FormatBytesString(FreeMemoryBytes)} available: limiting max parallel actions to {MaxActionsToExecuteInParallel}");
+						Log.TraceInformationOnce($"  Requested {StringUtils.FormatBytesString(MemoryPerActionBytes)} free memory per action, {StringUtils.FormatBytesString(FreeMemoryBytes)} available: limiting max parallel actions to {MaxActionsToExecuteInParallel}");
 					}
 				}
 			}
@@ -1291,7 +1291,7 @@ namespace UnrealBuildTool
 			if (MaxProcessorCount < MaxActionsToExecuteInParallel)
 			{
 				MaxActionsToExecuteInParallel = Math.Max(1, Math.Min(MaxActionsToExecuteInParallel, MaxProcessorCount));
-				Log.TraceInformation($"  Requested max {MaxProcessorCount} action(s): limiting max parallel actions to {MaxActionsToExecuteInParallel}");
+				Log.TraceInformationOnce($"  Requested max {MaxProcessorCount} action(s): limiting max parallel actions to {MaxActionsToExecuteInParallel}");
 			}
 			return MaxActionsToExecuteInParallel;
 		}

@@ -328,6 +328,34 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Selects an ActionExecutor
+		/// </summary>
+		private static ActionExecutor SelectExecutor(BuildConfiguration BuildConfiguration, int ActionCount, List<TargetDescriptor> TargetDescriptors)
+		{
+			if (ActionCount > ParallelExecutor.GetDefaultNumParallelProcesses())
+			{
+				if (BuildConfiguration.bAllowHybridExecutor && HybridExecutor.IsAvailable())
+				{
+					return new HybridExecutor(TargetDescriptors, BuildConfiguration.MaxParallelActions);
+				}
+				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable() && ActionCount >= XGE.MinActions)
+				{
+					return new XGE();
+				}
+				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable())
+				{
+					return new FASTBuild(BuildConfiguration.MaxParallelActions);
+				}
+				else if (BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable())
+				{
+					return new SNDBS(TargetDescriptors);
+				}
+			}
+
+			return new ParallelExecutor(BuildConfiguration.MaxParallelActions);
+		}
+
+		/// <summary>
 		/// Executes a list of actions.
 		/// </summary>
 		public static void ExecuteActions(BuildConfiguration BuildConfiguration, List<LinkedAction> ActionsToExecute, List<TargetDescriptor> TargetDescriptors)
@@ -339,27 +367,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// Figure out which executor to use
-				ActionExecutor Executor;
-				if (BuildConfiguration.bAllowHybridExecutor && HybridExecutor.IsAvailable())
-				{
-					Executor = new HybridExecutor(TargetDescriptors, BuildConfiguration.MaxParallelActions);
-				}
-				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable() && ActionsToExecute.Count >= XGE.MinActions)
-				{
-					Executor = new XGE();
-				}
-				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable())
-				{
-					Executor = new FASTBuild(BuildConfiguration.MaxParallelActions);
-				}
-				else if (BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable())
-				{
-					Executor = new SNDBS(TargetDescriptors);
-				}
-				else
-				{
-					Executor = new ParallelExecutor(BuildConfiguration.MaxParallelActions);
-				}
+				ActionExecutor Executor = SelectExecutor(BuildConfiguration, ActionsToExecute.Count, TargetDescriptors);
 
 				// Execute the build
 				Stopwatch Timer = Stopwatch.StartNew();
