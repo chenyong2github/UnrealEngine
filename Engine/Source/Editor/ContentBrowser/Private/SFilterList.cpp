@@ -1424,7 +1424,7 @@ void SFilterList::PopulateAddFilterMenu(UToolMenu* Menu)
 				FUIAction(
 				FExecuteAction::CreateSP( this, &SFilterList::FilterByTypeCategoryClicked, MenuExpansion ),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &SFilterList::IsAssetTypeCategoryInUse, MenuExpansion ) ),
+				FGetActionCheckState::CreateSP(this, &SFilterList::IsAssetTypeCategoryChecked, MenuExpansion ) ),
 				EUserInterfaceActionType::ToggleButton
 				);
 		}
@@ -1458,7 +1458,7 @@ void SFilterList::PopulateAddFilterMenu(UToolMenu* Menu)
 					FUIAction(
 					FExecuteAction::CreateSP(this, &SFilterList::FilterByTypeCategoryClicked, CategoryMenuPair.Key),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SFilterList::IsAssetTypeCategoryInUse, CategoryMenuPair.Key)),
+					FGetActionCheckState::CreateSP(this, &SFilterList::IsAssetTypeCategoryChecked, CategoryMenuPair.Key)),
 					EUserInterfaceActionType::ToggleButton
 					);
 			}
@@ -1594,21 +1594,53 @@ void SFilterList::FilterByTypeCategoryClicked(EAssetTypeCategories::Type Categor
 
 bool SFilterList::IsAssetTypeCategoryInUse(EAssetTypeCategories::Type Category) const
 {
+	ECheckBoxState AssetTypeCategoryCheckState = IsAssetTypeCategoryChecked(Category);
+
+	if (AssetTypeCategoryCheckState == ECheckBoxState::Unchecked)
+	{
+		return false;
+	}
+
+	// An asset type category is in use if any of its type actions are in use (ECheckBoxState::Checked or ECheckBoxState::Undetermined)
+	return true;
+}
+
+ECheckBoxState SFilterList::IsAssetTypeCategoryChecked(EAssetTypeCategories::Type Category) const
+{
 	TArray<TWeakPtr<IAssetTypeActions>> TypeActionsList;
 	GetTypeActionsForCategory(Category, TypeActionsList);
+
+	bool bIsAnyActionInUse = false;
+	bool bIsAnyActionNotInUse = false;
 
 	for (const TWeakPtr<IAssetTypeActions>& AssetTypeActions : TypeActionsList)
 	{
 		if (AssetTypeActions.IsValid())
 		{
-			if (!IsAssetTypeActionsInUse(AssetTypeActions))
+			if (IsAssetTypeActionsInUse(AssetTypeActions))
 			{
-				return false;
+				bIsAnyActionInUse = true;
+			}
+			else
+			{
+				bIsAnyActionNotInUse = true;
+			}
+
+			if (bIsAnyActionInUse && bIsAnyActionNotInUse)
+			{
+				return ECheckBoxState::Undetermined;
 			}
 		}
 	}
 
-	return true;
+	if (bIsAnyActionInUse)
+	{
+		return ECheckBoxState::Checked;
+	}
+	else
+	{
+		return ECheckBoxState::Unchecked;
+	}
 }
 
 void SFilterList::GetTypeActionsForCategory(EAssetTypeCategories::Type Category, TArray< TWeakPtr<IAssetTypeActions> >& TypeActions) const

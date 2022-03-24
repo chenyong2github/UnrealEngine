@@ -140,10 +140,13 @@ private:
 	void FilterByTypeCategoryClicked(EAssetTypeCategories::Type Category);
 
 	/** Handler to determine the "checked" state of an asset type category in the filter dropdown */
-	bool IsAssetTypeCategoryInUse(EAssetTypeCategories::Type Category) const;
+	ECheckBoxState IsAssetTypeCategoryChecked(EAssetTypeCategories::Type Category) const;
 
 	/** Returns all the asset type actions objects for the specified category */
 	void GetTypeActionsForCategory(EAssetTypeCategories::Type Category, TArray< TWeakPtr<IAssetTypeActions> >& TypeActions) const;
+
+	/** Function to check if a given asset type category is in use */
+	bool IsAssetTypeCategoryInUse(EAssetTypeCategories::Type Category) const;
 
 	void FrontendFilterClicked(TSharedRef<FFrontendFilter> FrontendFilter);
 	bool IsFrontendFilterInUse(TSharedRef<FFrontendFilter> FrontendFilter) const;
