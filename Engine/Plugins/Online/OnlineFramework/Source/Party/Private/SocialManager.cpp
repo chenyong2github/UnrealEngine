@@ -21,6 +21,12 @@
 #include "OnlineSubsystemSessionSettings.h"
 #include "Misc/Base64.h"
 
+static TAutoConsoleVariable<bool> CVarForceDisconnectedToPartyService(
+	TEXT("SocialUI.ForceDisconnectedToPartyService"),
+	false,
+	TEXT("Overrides the bIsConnectedToPartyService state"));
+
+
 //////////////////////////////////////////////////////////////////////////
 // FRejoinableParty
 //////////////////////////////////////////////////////////////////////////
@@ -1234,6 +1240,11 @@ void USocialManager::HandleLeavePartyForJoinComplete(ELeavePartyCompletionResult
 	{
 		UE_LOG(LogParty, Verbose, TEXT("Attempt to leave party [%s] for pending join completed with result [%s]"), *LeftParty->ToDebugString(), ToString(LeaveResult));
 	}
+}
+
+bool USocialManager::IsConnectedToPartyService() const
+{
+	return bIsConnectedToPartyService && !CVarForceDisconnectedToPartyService.GetValueOnAnyThread();
 }
 
 void USocialManager::HandlePartyDisconnected(USocialParty* DisconnectingParty)

@@ -98,7 +98,7 @@ public:
 		return Cast<PartyT>(GetPartyInternal(PartyId));
 	}
 
-	bool IsConnectedToPartyService() const { return bIsConnectedToPartyService; }
+	bool IsConnectedToPartyService() const;
 
 	void HandlePartyDisconnected(USocialParty* LeavingParty);
 
