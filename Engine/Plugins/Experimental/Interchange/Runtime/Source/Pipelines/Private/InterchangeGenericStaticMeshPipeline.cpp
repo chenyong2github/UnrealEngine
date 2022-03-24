@@ -15,6 +15,7 @@
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeUserDefinedAttribute.h"
 #include "Tasks/Task.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -466,7 +467,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticM
 			LodDataNode->SetParentUid(StaticMeshFactoryUid);
 			StaticMeshFactoryNode->AddLodDataUniqueId(StaticMeshLodDataUniqueID);
 		}
-
+		constexpr bool bAddSourceNodeName = true;
 		for (const FString& NodeUid : NodeUids)
 		{
 			TArray<FString> MaterialDependencies;
@@ -477,6 +478,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticM
 				if (BaseNodeContainer->IsNodeUidValid(MeshDependency))
 				{
 					const UInterchangeMeshNode* MeshDependencyNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(MeshDependency));
+					UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(MeshDependencyNode, StaticMeshFactoryNode, bAddSourceNodeName);
 					StaticMeshFactoryNode->AddTargetNodeUid(MeshDependency);
 					MeshDependencyNode->AddTargetNodeUid(StaticMeshFactoryNode->GetUniqueID());
 					MeshDependencyNode->GetMaterialDependencies(MaterialDependencies);
@@ -485,9 +487,11 @@ void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticM
 				{
 					SceneNode->GetMaterialDependencyUids(MaterialDependencies);
 				}
+				UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(SceneNode, StaticMeshFactoryNode, bAddSourceNodeName);
 			}
 			else if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
+				UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(MeshNode, StaticMeshFactoryNode, bAddSourceNodeName);
 				StaticMeshFactoryNode->AddTargetNodeUid(NodeUid);
 				MeshNode->AddTargetNodeUid(StaticMeshFactoryNode->GetUniqueID());
 				MeshNode->GetMaterialDependencies(MaterialDependencies);

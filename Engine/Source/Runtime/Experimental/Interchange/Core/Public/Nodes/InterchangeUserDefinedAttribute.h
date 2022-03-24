@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Types/AttributeStorage.h"
 #include "Misc/Optional.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "UObject/Class.h"
@@ -9,6 +10,19 @@
 #include "UObject/ObjectMacros.h"
 
 #include "InterchangeUserDefinedAttribute.generated.h"
+
+USTRUCT(BlueprintType)
+struct FInterchangeUserDefinedAttributeInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange | Node | UserDefinedAttributeInfo")
+	FString Name;
+
+	UE::Interchange::EAttributeTypes Type;
+
+	TOptional<FString> PayloadKey;
+};
 
 /**
  * UInterchangeUserDefinedAttributesAPI is used to store and retrieve user defined attributes (i.e. DCC node attributes, pipelines will have access to those attributes)
@@ -84,11 +98,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
 	static bool GetUserDefinedAttribute_FString(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, FString& OutValue, FString& OutPayloadKey);
 
-	static TArray<FString> GetUserDefinedAttributeNames(const UInterchangeBaseNode* InterchangeNode);
+	static TArray<FInterchangeUserDefinedAttributeInfo> GetUserDefinedAttributeInfos(const UInterchangeBaseNode* InterchangeNode);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static void GetUserDefinedAttributeNames(const UInterchangeBaseNode* InterchangeNode, TArray<FString>& UserDefinedAttributeNames);
+	static void GetUserDefinedAttributeInfos(const UInterchangeBaseNode* InterchangeNode, TArray<FInterchangeUserDefinedAttributeInfo>& UserDefinedAttributeInfos);
  
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
+	static void DuplicateAllUserDefinedAttribute(const UInterchangeBaseNode* InterchangeSourceNode, UInterchangeBaseNode* InterchangeDestinationNode, bool bAddSourceNodeName);
+
 private:
 	static const FString UserDefinedAttributeBaseKey;
 	static const FString UserDefinedAttributeValuePostKey;

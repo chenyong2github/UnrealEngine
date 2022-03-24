@@ -9,7 +9,7 @@
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
-
+#include "Nodes/InterchangeUserDefinedAttribute.h"
 
 namespace UE::Interchange::Private
 {
@@ -153,6 +153,24 @@ namespace UE::Interchange::Private
 		// but then slave components can't play since they're only partial
 		// if the hierarchy matches, and if it's more then 1 bone, we allow
 		return (NumOfBoneMatches > 0);
+	}
+
+	void FSkeletonHelper::RecursiveAddSkeletonMetaDataValues(UInterchangeBaseNodeContainer* NodeContainer, UInterchangeBaseNode* DestinationNode, const FString& JointUid)
+	{
+		const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(JointUid));
+		if (!SceneNode || !SceneNode->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
+		{
+			return;
+		}
+		constexpr bool bAddSourceNodeName = true;
+		UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(SceneNode, DestinationNode, bAddSourceNodeName);
+
+		//Iterate childrens
+		const TArray<FString> ChildrenIds = NodeContainer->GetNodeChildrenUids(JointUid);
+		for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
+		{
+			RecursiveAddSkeletonMetaDataValues(NodeContainer, DestinationNode, ChildrenIds[ChildIndex]);
+		}
 	}
 
 	void FSkeletonHelper::RecursiveAddBones(const UInterchangeBaseNodeContainer* NodeContainer, const FString& JointNodeId, TArray <FJointInfo>& JointInfos, int32 ParentIndex, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary, const bool bUseTimeZeroAsBindPose, bool& bOutDiffPose)

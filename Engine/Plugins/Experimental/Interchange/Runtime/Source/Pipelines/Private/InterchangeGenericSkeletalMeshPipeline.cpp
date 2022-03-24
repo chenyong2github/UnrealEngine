@@ -20,6 +20,7 @@
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeUserDefinedAttribute.h"
 #if WITH_EDITOR
 #include "PhysicsAssetUtils.h"
 #endif //WITH_EDITOR
@@ -294,6 +295,11 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeleton
 		SkeletonFactoryNode->SetEnabled(false);
 		SkeletonFactoryNode->ReferenceObject = CommonSkeletalMeshesAndAnimationsProperties->Skeleton;
 	}
+#if WITH_EDITOR
+	//Iterate all joints to set the meta data value in the skeleton node
+	UE::Interchange::Private::FSkeletonHelper::RecursiveAddSkeletonMetaDataValues(BaseNodeContainer, SkeletonFactoryNode, RootJointUid);
+#endif //WITH_EDITOR
+
 	return SkeletonFactoryNode;
 }
 
@@ -527,6 +533,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 			LodDataNode->SetCustomSkeletonUid(SkeletonUid);
 			SkeletalMeshFactoryNode->AddLodDataUniqueId(SkeletalMeshLodDataUniqueID);
 		}
+		constexpr bool bAddSourceNodeName = true;
 		for (const FString& NodeUid : NodeUids)
 		{
 			TArray<FString> MaterialDependencies;
@@ -537,6 +544,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 				if (BaseNodeContainer->IsNodeUidValid(MeshDependency))
 				{
 					const UInterchangeMeshNode* MeshDependencyNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(MeshDependency));
+					UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(MeshDependencyNode, SkeletalMeshFactoryNode, bAddSourceNodeName);
 					SkeletalMeshFactoryNode->AddTargetNodeUid(MeshDependency);
 					MeshDependencyNode->AddTargetNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
 					MeshDependencyNode->GetMaterialDependencies(MaterialDependencies);
@@ -545,9 +553,11 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 				{
 					SceneNode->GetMaterialDependencyUids(MaterialDependencies);
 				}
+				UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(SceneNode, SkeletalMeshFactoryNode, bAddSourceNodeName);
 			}
 			else if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
+				UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(MeshNode, SkeletalMeshFactoryNode, bAddSourceNodeName);
 				SkeletalMeshFactoryNode->AddTargetNodeUid(NodeUid);
 				MeshNode->AddTargetNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
 				MeshNode->GetMaterialDependencies(MaterialDependencies);

@@ -139,27 +139,134 @@ bool UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute_FString(const
 	return bResult;
 }
 
-TArray<FString> UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttributeNames(const UInterchangeBaseNode* InterchangeNode)
+TArray<FInterchangeUserDefinedAttributeInfo> UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttributeInfos(const UInterchangeBaseNode* InterchangeNode)
 {
 	check(InterchangeNode);
 	TArray<UE::Interchange::FAttributeKey> AttributeKeys;
 	InterchangeNode->GetAttributeKeys(AttributeKeys);
-	TArray<FString> UserDefinedAttributeNames;
+	TArray<FInterchangeUserDefinedAttributeInfo> UserDefinedAttributeInfos;
 	int32 RightChopIndex = UserDefinedAttributeBaseKey.Len();
 	int32 LeftChopIndex = UserDefinedAttributeValuePostKey.Len();
 	for (UE::Interchange::FAttributeKey& AttributeKey : AttributeKeys)
 	{
 		if (AttributeKey.Key.StartsWith(UserDefinedAttributeBaseKey) && AttributeKey.Key.EndsWith(UserDefinedAttributeValuePostKey))
 		{
-			FString UserDefineAttributeName = AttributeKey.Key.RightChop(RightChopIndex).LeftChop(LeftChopIndex);
-			UserDefinedAttributeNames.Add(UserDefineAttributeName);
+			FString UserDefinedAttributeName = AttributeKey.Key.RightChop(RightChopIndex).LeftChop(LeftChopIndex);
+			FInterchangeUserDefinedAttributeInfo& UserDefinedAttributeInfo = UserDefinedAttributeInfos.AddDefaulted_GetRef();
+			UserDefinedAttributeInfo.Type = InterchangeNode->GetAttributeType(AttributeKey);
+			UserDefinedAttributeInfo.Name = UserDefinedAttributeName;
+
+			//Get the optional payload key
+			const FString StorageBaseKey = UserDefinedAttributeBaseKey + UserDefinedAttributeName;
+			const UE::Interchange::FAttributeKey UserDefinedPayloadKey = UE::Interchange::FAttributeKey(StorageBaseKey + UserDefinedAttributePayLoadPostKey);
+			if (InterchangeNode->HasAttribute(UserDefinedPayloadKey))
+			{
+				FString PayloadKey;
+				InterchangeNode->GetStringAttribute(UserDefinedPayloadKey.Key, PayloadKey);
+				UserDefinedAttributeInfo.PayloadKey = PayloadKey;
+			}
 		}
 	}
-	return UserDefinedAttributeNames;
+	return UserDefinedAttributeInfos;
 }
 
-void UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttributeNames(const UInterchangeBaseNode* InterchangeNode, TArray<FString>& UserDefinedAttributeNames)
+void UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttributeInfos(const UInterchangeBaseNode* InterchangeNode, TArray<FInterchangeUserDefinedAttributeInfo>& UserDefinedAttributeInfos)
 {
 	check(InterchangeNode);
-	UserDefinedAttributeNames = GetUserDefinedAttributeNames(InterchangeNode);
+	UserDefinedAttributeInfos = GetUserDefinedAttributeInfos(InterchangeNode);
+}
+
+void UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(const UInterchangeBaseNode* InterchangeSourceNode, UInterchangeBaseNode* InterchangeDestinationNode, bool bAddSourceNodeName)
+{
+	check(InterchangeSourceNode);
+	check(InterchangeDestinationNode);
+	TArray<UE::Interchange::FAttributeKey> AttributeKeys;
+	InterchangeSourceNode->GetAttributeKeys(AttributeKeys);
+	int32 RightChopIndex = UserDefinedAttributeBaseKey.Len();
+	int32 LeftChopIndex = UserDefinedAttributeValuePostKey.Len();
+	for (UE::Interchange::FAttributeKey& AttributeKey : AttributeKeys)
+	{
+		if (AttributeKey.Key.StartsWith(UserDefinedAttributeBaseKey) && AttributeKey.Key.EndsWith(UserDefinedAttributeValuePostKey))
+		{
+			FString UserDefinedAttributeName = AttributeKey.Key.RightChop(RightChopIndex).LeftChop(LeftChopIndex);
+			//Get the optional payload key
+			const FString StorageBaseKey = UserDefinedAttributeBaseKey + UserDefinedAttributeName;
+
+			UE::Interchange::EAttributeTypes Type = InterchangeSourceNode->GetAttributeType(AttributeKey);
+			FString DuplicateName = UserDefinedAttributeName;
+			if (bAddSourceNodeName)
+			{
+				DuplicateName = InterchangeSourceNode->GetDisplayLabel() + TEXT(".") + UserDefinedAttributeName;
+			}
+
+			const UE::Interchange::FAttributeKey UserDefinedPayloadKey = UE::Interchange::FAttributeKey(StorageBaseKey + UserDefinedAttributePayLoadPostKey);
+			TOptional<FString> PayloadKey;
+			if (InterchangeSourceNode->HasAttribute(UserDefinedPayloadKey))
+			{
+				FString PayloadKeyValue;
+				InterchangeSourceNode->GetStringAttribute(UserDefinedPayloadKey.Key, PayloadKeyValue);
+				PayloadKey = PayloadKeyValue;
+			}
+			switch (Type)
+			{
+				case UE::Interchange::EAttributeTypes::Bool:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<bool>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Int8:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<int8>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Int16:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<int16>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Int32:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<int32>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Int64:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<int64>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::UInt8:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<uint8>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::UInt16:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<uint16>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::UInt32:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<uint32>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::UInt64:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<uint64>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Float:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<float>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Float16:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<FFloat16>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Vector2f:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<FVector2f>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Vector3f:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<FVector3f>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Vector4f:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<FVector4f>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Double:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<double>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Vector2d:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<FVector2D>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Vector3d:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<FVector3d>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::Vector4d:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<FVector4d>(AttributeKey.Key), PayloadKey);
+					break;
+				case UE::Interchange::EAttributeTypes::String:
+					CreateUserDefinedAttribute(InterchangeDestinationNode, DuplicateName, InterchangeSourceNode->GetAttributeChecked<FString>(AttributeKey.Key), PayloadKey);
+					break;
+			}
+		}
+	}
 }

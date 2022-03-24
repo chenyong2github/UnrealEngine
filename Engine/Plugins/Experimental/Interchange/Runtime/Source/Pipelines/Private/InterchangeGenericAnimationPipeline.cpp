@@ -205,6 +205,16 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 		//USkeleton cannot be created without a valid skeletalmesh
 		const FString SkeletonUid = SkeletonFactoryNode->GetUniqueID();
 		AnimSequenceFactoryNode->AddFactoryDependencyUid(SkeletonUid);
+
+		FString RootJointUid;
+		if(SkeletonFactoryNode->GetCustomRootJointUid(RootJointUid))
+		{
+#if WITH_EDITOR
+			//Iterate all joints to set the meta data value in the anim sequence factory node
+			UE::Interchange::Private::FSkeletonHelper::RecursiveAddSkeletonMetaDataValues(BaseNodeContainer, AnimSequenceFactoryNode, RootJointUid);
+#endif //WITH_EDITOR
+		}
+
 		const bool bImportOnlyAnimation = CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations;
 		
 		//Iterate dependencies
@@ -231,8 +241,6 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 
 		if (!CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull())
 		{
-			FString RootJointUid;
-			SkeletonFactoryNode->GetCustomRootJointUid(RootJointUid);
 			bool bSkeletonCompatible = true;
 
 			//TODO: support skeleton helper in runtime

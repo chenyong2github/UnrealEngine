@@ -391,6 +391,17 @@ public:
 	bool GetLinearColorAttribute(const FString& NodeAttributeKey, FLinearColor& OutValue) const;
 
 	template<typename AttributeType>
+	AttributeType GetAttributeChecked(const FString& NodeAttributeKey) const
+	{
+		AttributeType Value;
+		check(HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey)));
+		UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> Handle = GetAttributeHandle<AttributeType>(UE::Interchange::FAttributeKey(NodeAttributeKey));
+		check(Handle.IsValid());
+		check(Handle.Get(Value) == UE::Interchange::EAttributeStorageResult::Operation_Success);
+		return Value;
+	}
+
+	template<typename AttributeType>
 	bool GetAttribute(const FString& NodeAttributeKey, AttributeType& OutValue) const
 	{
 		INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(AttributeType);
