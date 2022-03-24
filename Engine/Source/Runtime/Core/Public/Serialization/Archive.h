@@ -238,7 +238,7 @@ public:
 	 * Queries a custom version from the archive.  If the archive is being used to write, the custom version must have already been registered.
 	 *
 	 * @param Key The guid of the custom version to query.
-	 * @return The version number, or 0 if the custom tag isn't stored in the archive.
+	 * @return The version number, or -1 if the custom tag isn't stored in the archive.
 	 */
 	int32 CustomVer(const struct FGuid& Key) const;
 
