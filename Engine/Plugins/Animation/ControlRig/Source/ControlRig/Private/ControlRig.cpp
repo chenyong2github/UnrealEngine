@@ -1234,10 +1234,13 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 
 			URigHierarchy* Hierarchy = GetHierarchy();
 #if WITH_EDITOR
-			Hierarchy->ReadTransformsPerInstructionPerSlice.Reset();
-			Hierarchy->WrittenTransformsPerInstructionPerSlice.Reset();
-			Hierarchy->ReadTransformsPerInstructionPerSlice.AddZeroed(VM->GetByteCode().GetNumInstructions());
-			Hierarchy->WrittenTransformsPerInstructionPerSlice.AddZeroed(VM->GetByteCode().GetNumInstructions());
+
+			if(Hierarchy->bRecordTransformsAtRuntime)
+			{
+				Hierarchy->ReadTransformsAtRuntime.Reset();
+				Hierarchy->WrittenTransformsAtRuntime.Reset();
+			}
+			
 #endif
 			FRigHierarchyExecuteContextBracket HierarchyContextGuard(Hierarchy, &VM->GetContext());
 

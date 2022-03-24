@@ -94,6 +94,7 @@ public:
 
 	typedef TMap<int32, TArray<int32>> TElementDependencyMap;
 	typedef TPair<int32, TArray<int32>> TElementDependencyMapPair;
+	typedef TTuple<int32, int32, int32, ERigTransformType::Type> TInstructionSliceElement;
 
 	URigHierarchy();
 
@@ -2976,10 +2977,9 @@ private:
 	const FRigVMExtendedExecuteContext* ExecuteContext;
 
 #if WITH_EDITOR
-	mutable bool bRecordTransformsPerInstruction;
-	mutable TArray<TArray<TArray<int32>>> ReadTransformsPerInstructionPerSlice;
-	mutable TArray<TArray<TArray<int32>>> WrittenTransformsPerInstructionPerSlice;
-
+	mutable bool bRecordTransformsAtRuntime;
+	mutable TArray<TInstructionSliceElement> ReadTransformsAtRuntime;
+	mutable TArray<TInstructionSliceElement> WrittenTransformsAtRuntime;
 public:
 
 	TElementDependencyMap GetDependenciesForVM(const URigVM* InVM, FName InEventName = NAME_None) const;
