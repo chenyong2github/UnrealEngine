@@ -809,7 +809,7 @@ namespace DatasmithRevitExporter
 					// Hash the Datasmith mesh actor name to shorten it.
 					string HashedActorName = FDatasmithFacadeElement.GetStringHash("A:" + GetActorName(true));
 
-					if (BaseElementType.FamilyName == "Decal")
+					if (BaseElementType != null && BaseElementType.FamilyName == "Decal")
 					{
 						bOptimizeHierarchy = false;
 						bIsDecalElement = true;
