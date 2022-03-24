@@ -12,6 +12,8 @@
 
 #include "MediaSource.generated.h"
 
+/** Delegate for creating a media source from a string. */
+DECLARE_DELEGATE_RetVal_OneParam(UMediaSource*, FMediaSourceSpawnDelegate, const FString&);
 
 /**
  * Abstract base class for media sources.
@@ -47,6 +49,31 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaSource")
 	virtual bool Validate() const PURE_VIRTUAL(UMediaSource::Validate, return false;);
+
+	/**
+	 * Call this to register a callback when someone calls SpawnMediaSourceForString.
+	 * This lets you spawn a media source if the file extension matches what you want.
+	 * 
+	 * @param Extension		File extension to match. This is case insensitive.
+	 * @param InDelegate	This will get called if the Url passed into GetMediaSourceForUrl
+	 *						matches Extension.
+	 */
+	static void RegisterSpawnFromFileExtension(const FString& Extension, FMediaSourceSpawnDelegate InDelegate);
+	
+	/**
+	 * Call this to unregister a callback set with RegisterSpawnFromFileExtension.
+	 *
+	 * @param Extension		File extension that the callack was registered with.
+	 */
+	static void UnregisterSpawnFromFileExtension(const FString& Extension);
+
+	/**
+	 * Call this to try and create a media source appropriate for the media.
+	 *
+	 * @param MediaPath		Can be a file location or a Url.
+	 * @return				Media source or nullptr if none are appropriate.
+	 */
+	static UMediaSource* SpawnMediaSourceForString(const FString& MediaPath);
 
 public:
 
@@ -90,4 +117,9 @@ private:
 	 * Sets the media option specified by Key to the supplied Variant.
 	 */
 	void SetMediaOption(const FName& Key, FVariant& Value);
+
+	/**
+	 * Get a mapping of file extensions to spawn delegates.
+	 */
+	static TMap<FString, FMediaSourceSpawnDelegate>& GetSpawnFromFileExtensionDelegates();
 };

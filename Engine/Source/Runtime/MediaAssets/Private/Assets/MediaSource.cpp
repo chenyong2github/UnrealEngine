@@ -2,6 +2,48 @@
 
 #include "MediaSource.h"
 
+#include "Misc/Paths.h"
+
+void UMediaSource::RegisterSpawnFromFileExtension(const FString& Extension,
+	FMediaSourceSpawnDelegate InDelegate)
+{
+	TMap<FString, FMediaSourceSpawnDelegate>& Delegates =
+		GetSpawnFromFileExtensionDelegates();
+
+	Delegates.Emplace(Extension, InDelegate);
+}
+
+void UMediaSource::UnregisterSpawnFromFileExtension(const FString& Extension)
+{
+	TMap<FString, FMediaSourceSpawnDelegate>& Delegates =
+		GetSpawnFromFileExtensionDelegates();
+
+	Delegates.Remove(Extension);
+}
+
+UMediaSource* UMediaSource::SpawnMediaSourceForString(const FString& MediaPath)
+{
+	TObjectPtr<UMediaSource> MediaSource = nullptr;
+
+	// Do we know about this file extension?
+	FString FileExtension = FPaths::GetExtension(MediaPath);
+	TMap<FString, FMediaSourceSpawnDelegate>& Delegates =
+		GetSpawnFromFileExtensionDelegates();
+	FMediaSourceSpawnDelegate* Delegate = Delegates.Find(FileExtension);
+	if ((Delegate != nullptr) && (Delegate->IsBound()))
+	{
+		MediaSource = Delegate->Execute(MediaPath);
+	}
+
+	return MediaSource;
+}
+
+TMap<FString, FMediaSourceSpawnDelegate>& UMediaSource::GetSpawnFromFileExtensionDelegates()
+{
+	static TMap<FString, FMediaSourceSpawnDelegate> Delegates;
+	return Delegates;
+}
+
 /* IMediaOptions interface
  *****************************************************************************/
 
