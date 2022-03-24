@@ -256,6 +256,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	virtual bool RunBehaviorTree(UBehaviorTree* BTAsset);
 
+protected:
+	virtual void CleanupBrainComponent();
+
+public:
 	/**
 	 * Makes AI use the specified Blackboard asset & creates a Blackboard Component if one does not already exist.
 	 * @param	BlackboardAsset			The Blackboard asset to use.

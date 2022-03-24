@@ -533,9 +533,9 @@ void AAIController::OnUnPossess()
 		PathFollowingComponent->Cleanup();
 	}
 
-	if (bStopAILogicOnUnposses && BrainComponent)
+	if (bStopAILogicOnUnposses)
 	{
-		BrainComponent->Cleanup();
+		CleanupBrainComponent();
 	}
 
 	if (CachedGameplayTasksComponent && (CachedGameplayTasksComponent->GetOwner() == CurrentPawn))
@@ -938,6 +938,14 @@ bool AAIController::RunBehaviorTree(UBehaviorTree* BTAsset)
 	}
 
 	return bSuccess;
+}
+
+void AAIController::CleanupBrainComponent()
+{
+	if (BrainComponent)
+	{
+		BrainComponent->Cleanup();
+	}
 }
 
 void AAIController::ClaimTaskResource(TSubclassOf<UGameplayTaskResource> ResourceClass)
