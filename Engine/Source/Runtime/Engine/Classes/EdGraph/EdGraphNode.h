@@ -827,6 +827,12 @@ public:
 	/** Update node size to new value */
 	virtual void ResizeNode(const FVector2D& NewSize) {}
 
+	/**
+	 * Returns whether or not this node has dependencies on an external structure
+	 * If OptionalOutput isn't null, it should be filled with the known dependencies objects (Classes, Structures, Functions, etc).
+	 */
+	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput = nullptr) const { return false; }
+
 	// Returns true if this node is deprecated
 	virtual bool IsDeprecated() const;
 

@@ -52,6 +52,7 @@ class UK2Node_CustomEvent : public UK2Node_Event
 	virtual FText GetKeywords() const override;
 	virtual bool HasDeprecatedReference() const override { return bIsDeprecated; }
 	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
+	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface
@@ -59,7 +60,6 @@ class UK2Node_CustomEvent : public UK2Node_Event
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	virtual void FixupPinStringDataReferences(FArchive* SavingArchive) override;
 	virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
-	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	//~ End UK2Node Interface
 
 	//~ Begin UK2Node_EditablePinBase Interface

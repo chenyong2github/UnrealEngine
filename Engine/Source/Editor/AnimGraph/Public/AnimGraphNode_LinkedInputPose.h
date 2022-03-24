@@ -78,9 +78,9 @@ public:
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
 	virtual void PostPlacedNewNode() override;
 	virtual bool IsCompatibleWithGraph(UEdGraph const* Graph) const override;
+	virtual bool HasExternalDependencies(TArray<UStruct*>* OptionalOutput) const override;
 
 	/** UK2Node interface */
-	virtual bool HasExternalDependencies(TArray<UStruct*>* OptionalOutput) const override;
 	virtual void ExpandNode(class FKismetCompilerContext& InCompilerContext, UEdGraph* InSourceGraph) override;
 
 	/** UAnimGraphNode_Base interface */

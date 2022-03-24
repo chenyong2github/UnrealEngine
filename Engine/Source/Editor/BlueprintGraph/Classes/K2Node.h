@@ -216,12 +216,6 @@ public:
 	/** Returns whether this node is considered 'pure' by the compiler */
 	virtual bool IsNodePure() const { return false; }
 
-	/** 
-	 * Returns whether or not this node has dependencies on an external structure 
-	 * If OptionalOutput isn't null, it should be filled with the known dependencies objects (Classes, Structures, Functions, etc).
-	 */
-	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput = nullptr) const { return false; }
-
 	/** Returns whether this node can have breakpoints placed on it in the debugger */
 	BLUEPRINTGRAPH_API virtual bool CanPlaceBreakpoints() const;
 

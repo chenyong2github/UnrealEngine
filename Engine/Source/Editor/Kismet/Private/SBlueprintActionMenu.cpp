@@ -582,19 +582,30 @@ void SBlueprintActionMenu::OnActionSelected( const TArray< TSharedPtr<FEdGraphSc
 
 					if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
 					{
-						if (SelectedAction[ActionIndex]->GetTypeId() == FBlueprintActionMenuItem::StaticGetTypeId())
+						TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
+						if (BlueprintEditorPtr.IsValid())
 						{
-							// Check for a node spawner associated with this menu item.
-							const UBlueprintNodeSpawner* NodeSpawner = StaticCastSharedPtr<FBlueprintActionMenuItem>(SelectedAction[ActionIndex])->GetRawAction();
-
-							TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
-							if (NodeSpawner && BlueprintEditorPtr.IsValid())
+							// Determine which namespace(s) to import, based on the node's external dependencies.
+							TSet<FString> NamespacesToImport;
+							TArray<UStruct*> ExternalDependencies;
+							if (ResultNode->HasExternalDependencies(&ExternalDependencies))
 							{
-								if (const UObject* ImportTarget = NodeSpawner->ImportTarget.Get())
+								for (const UStruct* ExternalDependency : ExternalDependencies)
 								{
-									// Auto-import the namespace associated with the node spawner's import target.
-									BlueprintEditorPtr->ImportNamespace(FBlueprintNamespaceUtilities::GetObjectNamespace(ImportTarget));
+									FString ObjectNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(ExternalDependency);
+									if (!ObjectNamespace.IsEmpty())
+									{
+										NamespacesToImport.Add(MoveTemp(ObjectNamespace));
+									}
 								}
+							}
+
+							if (NamespacesToImport.Num() > 0)
+							{
+								// Auto-import the namespace(s) gathered above. Additional type objects within the imported scope may be loaded here.
+								FBlueprintEditor::FImportNamespaceExParameters Params;
+								Params.NamespacesToImport = MoveTemp(NamespacesToImport);
+								BlueprintEditorPtr->ImportNamespaceEx(Params);
 							}
 						}
 					}
@@ -647,8 +658,9 @@ void SBlueprintActionMenu::OnNamespaceSelectedForImport(const FString& InNamespa
 	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
 	if (BlueprintEditorPtr.IsValid())
 	{
-		FBlueprintEditor::FImportNamespaceParameters Params;
-		Params.OnImportCallback = FSimpleDelegate::CreateLambda([GraphActionMenu = this->GraphActionMenu]()
+		FBlueprintEditor::FImportNamespaceExParameters Params;
+		Params.NamespacesToImport.Add(InNamespace);
+		Params.OnPostImportCallback = FSimpleDelegate::CreateLambda([GraphActionMenu = this->GraphActionMenu]()
 		{
 			// Now that additional types have been loaded/imported, update the menu to include any additional action(s).
 			const bool bPreserveExpansion = true;
@@ -657,7 +669,7 @@ void SBlueprintActionMenu::OnNamespaceSelectedForImport(const FString& InNamespa
 		});
 
 		// Auto-import the namespace into the current editor context. This may load additional type assets.
-		BlueprintEditorPtr->ImportNamespace(InNamespace, Params);
+		BlueprintEditorPtr->ImportNamespaceEx(Params);
 	}
 }
 

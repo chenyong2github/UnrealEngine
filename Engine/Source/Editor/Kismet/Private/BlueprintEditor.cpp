@@ -2039,17 +2039,25 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 	}
 }
 
-void FBlueprintEditor::ImportNamespace(const FString& InNamespace, const FImportNamespaceParameters& InParams)
+void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
 {
-	// No need to import the global namespace.
-	if (InNamespace.IsEmpty())
+	FImportNamespaceExParameters Params;
+	Params.NamespacesToImport.Add(InNamespace);
+	ImportNamespaceEx(Params);
+}
+
+void FBlueprintEditor::ImportNamespaceEx(const FImportNamespaceExParameters& InParams)
+{
+	// Exit now if no input was given.
+	if (InParams.NamespacesToImport.IsEmpty())
 	{
 		return;
 	}
 
 	auto AddNamespaceToImportList = [](UBlueprint* InBlueprint, const FString& InNamespace) -> bool
 	{
-		if (!InBlueprint->ImportedNamespaces.Contains(InNamespace))
+		// No need to include the global namespace (empty string) in the import list.
+		if (!InNamespace.IsEmpty() && !InBlueprint->ImportedNamespaces.Contains(InNamespace))
 		{
 			InBlueprint->Modify();
 			InBlueprint->ImportedNamespaces.Add(InNamespace);
@@ -2067,18 +2075,18 @@ void FBlueprintEditor::ImportNamespace(const FString& InNamespace, const FImport
 	{
 		if (UBlueprint* BlueprintObj = Cast<UBlueprint>(EditingObj))
 		{
-			// Add it into the Blueprint's user-facing import set.
-			bWasAdded |= AddNamespaceToImportList(BlueprintObj, InNamespace);
-			for (const FString& AdditionalNamespace : InParams.AdditionalNamespaces)
+			// Add each namespace into the Blueprint's user-facing import set.
+			for (const FString& NamespaceToImport : InParams.NamespacesToImport)
 			{
-				bWasAdded |= AddNamespaceToImportList(BlueprintObj, AdditionalNamespace);
+				bWasAdded |= AddNamespaceToImportList(BlueprintObj, NamespaceToImport);
 			}
 		}
 	}
 
 	auto AddNamespaceToEditorContext = [](TSharedPtr<FBlueprintNamespaceHelper> ImportsHelper, const FString& InNamespace) -> bool
 	{
-		if (!ImportsHelper->IsIncludedInNamespaceList(InNamespace))
+		// Note: The global namespace (empty string) is implicitly included.
+		if (!InNamespace.IsEmpty() && !ImportsHelper->IsIncludedInNamespaceList(InNamespace))
 		{
 			ImportsHelper->AddNamespace(InNamespace);
 			return true;
@@ -2087,15 +2095,14 @@ void FBlueprintEditor::ImportNamespace(const FString& InNamespace, const FImport
 		return false;
 	};
 
-	// Add it to the current scope of the Blueprint's editor context. Note that in certain cases, imports may already be associated
+	// Add to the current scope of the Blueprint's editor context. Note that in certain cases, imports may already be associated
 	// with the Blueprint, but not yet associated with the editor context (e.g. - auto-import after setting a Blueprint's namespace;
 	// we won't add it to the Blueprint's import list, but we still want to add to the editor context and do any post-import actions).
 	if (ImportedNamespaceHelper.IsValid())
 	{
-		bWasAdded |= AddNamespaceToEditorContext(ImportedNamespaceHelper, InNamespace);
-		for (const FString& AdditionalNamespace : InParams.AdditionalNamespaces)
+		for (const FString& NamespaceToImport : InParams.NamespacesToImport)
 		{
-			bWasAdded |= AddNamespaceToEditorContext(ImportedNamespaceHelper, AdditionalNamespace);
+			bWasAdded |= AddNamespaceToEditorContext(ImportedNamespaceHelper, NamespaceToImport);
 		}
 	}
 
@@ -2112,7 +2119,7 @@ void FBlueprintEditor::ImportNamespace(const FString& InNamespace, const FImport
 		}
 
 		// If bound, execute the post-import callback.
-		InParams.OnImportCallback.ExecuteIfBound();
+		InParams.OnPostImportCallback.ExecuteIfBound();
 	}
 }
 

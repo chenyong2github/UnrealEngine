@@ -77,10 +77,10 @@ public:
 	virtual bool CanJumpToDefinition() const override;
 	virtual void JumpToDefinition() const override;
 	virtual FString GetPinMetaData(FName InPinName, FName InKey) override;
+	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin K2Node Interface
-	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	virtual bool DrawNodeAsVariable() const override { return true; }
 	virtual ERedirectType DoPinsMatchForReconstruction(const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex)  const override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;

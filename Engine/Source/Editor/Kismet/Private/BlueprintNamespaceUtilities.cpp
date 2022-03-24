@@ -154,7 +154,7 @@ FString FBlueprintNamespaceUtilities::GetObjectNamespace(const FSoftObjectPath& 
 	return GetAssetNamespace(AssetData);
 }
 
-void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TArray<FString>& OutNamespaces)
+void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces)
 {
 	if (!InStruct || !InProperty || !InContainer)
 	{
@@ -215,7 +215,7 @@ void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InS
 			if (ObjectPath.IsValid())
 			{
 				FString Namespace = GetObjectNamespace(ObjectPath);
-				OutNamespaces.AddUnique(Namespace);
+				OutNamespaces.Add(Namespace);
 			}
 		}
 		else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(InProperty))
@@ -224,7 +224,7 @@ void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InS
 			if (ObjectValue)
 			{
 				FString Namespace = GetObjectNamespace(ObjectValue);
-				OutNamespaces.AddUnique(Namespace);
+				OutNamespaces.Add(Namespace);
 			}
 		}
 	}

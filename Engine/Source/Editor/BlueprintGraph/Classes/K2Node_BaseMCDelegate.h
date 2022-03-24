@@ -30,7 +30,6 @@ public:
 	virtual FString GetDocumentationExcerptName() const override;
 	virtual bool AllowMultipleSelfs(bool bInputAsArray) const override { return true; }
 	virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
-	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	virtual void GetNodeAttributes( TArray<TKeyValuePair<FString, FString>>& OutNodeAttributes ) const override;
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual bool HasDeprecatedReference() const override;
@@ -41,6 +40,7 @@ public:
 	virtual void AllocateDefaultPins() override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
 	virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
+	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	// End of UEdGraphNode interface
 
 	BLUEPRINTGRAPH_API void SetFromProperty(const FProperty* Property, bool bSelfContext, UClass* OwnerClass)

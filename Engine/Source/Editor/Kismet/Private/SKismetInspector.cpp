@@ -1016,36 +1016,36 @@ void SKismetInspector::ImportNamespacesForPropertyValue(const FProperty* InPrope
 		return;
 	}
 
-	// Gather all namespace identifier strings associated with the property's value for each edited object.
-	TArray<FString> AssociatedNamespaces;
-	for (const TWeakObjectPtr<UObject>& SelectedObjectPtr : SelectedObjects)
+	TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
+	if (BlueprintEditor.IsValid())
 	{
-		if (const UObject* SelectedObject = SelectedObjectPtr.Get())
+		// Gather all namespace identifier strings associated with the property's value for each edited object.
+		TSet<FString> AssociatedNamespaces;
+		for (const TWeakObjectPtr<UObject>& SelectedObjectPtr : SelectedObjects)
 		{
-			const UStruct* SelectedType = SelectedObject->GetClass();
-
-			// Ensure that the selected object type matches the property's owner.
-			// For example, a details customization may select an unrelated object
-			// and then customize each row with an external object reference. In
-			// those cases, the customization would need to handle this explicitly.
-			if (SelectedType != InProperty->GetOwnerStruct())
+			if (const UObject* SelectedObject = SelectedObjectPtr.Get())
 			{
-				continue;
+				const UStruct* SelectedType = SelectedObject->GetClass();
+
+				// Ensure that the selected object type matches the property's owner.
+				// For example, a details customization may select an unrelated object
+				// and then customize each row with an external object reference. In
+				// those cases, the customization would need to handle this explicitly.
+				if (SelectedType != InProperty->GetOwnerStruct())
+				{
+					continue;
+				}
+
+				FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(SelectedType, InProperty, SelectedObject, AssociatedNamespaces);
 			}
-
-			FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(SelectedType, InProperty, SelectedObject, AssociatedNamespaces);
 		}
-	}
 
-	// Auto-import any namespace(s) associated with the property's value into the current editor context.
-	if (AssociatedNamespaces.Num() > 0)
-	{
-		TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
-		if (BlueprintEditor.IsValid())
+		// Auto-import any namespace(s) associated with the property's value into the current editor context.
+		if (AssociatedNamespaces.Num() > 0)
 		{
-			FBlueprintEditor::FImportNamespaceParameters Params;
-			Params.AdditionalNamespaces = MakeArrayView(AssociatedNamespaces).RightChop(1);
-			BlueprintEditor->ImportNamespace(AssociatedNamespaces[0], Params);
+			FBlueprintEditor::FImportNamespaceExParameters Params;
+			Params.NamespacesToImport = MoveTemp(AssociatedNamespaces);
+			BlueprintEditor->ImportNamespaceEx(Params);
 		}
 	}
 }

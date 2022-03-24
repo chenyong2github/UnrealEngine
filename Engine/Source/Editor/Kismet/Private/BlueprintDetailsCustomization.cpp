@@ -2782,20 +2782,15 @@ void FBlueprintVarActionDetails::ImportNamespacesForPropertyValue(const UStruct*
 	}
 
 	// Auto-import any namespace(s) associated with the property's value into the current editor context.
-	TArray<FString> AssociatedNamespaces;
-	FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(InStruct, InProperty, InContainer, AssociatedNamespaces);
-	if (AssociatedNamespaces.Num() > 0)
+	TSharedPtr<SMyBlueprint> MyBlueprintPtr = MyBlueprint.Pin();
+	if (MyBlueprintPtr.IsValid())
 	{
-		TSharedPtr<SMyBlueprint> MyBlueprintPtr = MyBlueprint.Pin();
-		if (MyBlueprintPtr.IsValid())
+		TSharedPtr<FBlueprintEditor> BlueprintEditor = MyBlueprintPtr->GetBlueprintEditor().Pin();
+		if (BlueprintEditor.IsValid())
 		{
-			TSharedPtr<FBlueprintEditor> BlueprintEditor = MyBlueprintPtr->GetBlueprintEditor().Pin();
-			if (BlueprintEditor.IsValid())
-			{
-				FBlueprintEditor::FImportNamespaceParameters Params;
-				Params.AdditionalNamespaces = MakeArrayView(AssociatedNamespaces).RightChop(1);
-				BlueprintEditor->ImportNamespace(AssociatedNamespaces[0], Params);
-			}
+			FBlueprintEditor::FImportNamespaceExParameters Params;
+			FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(InStruct, InProperty, InContainer, Params.NamespacesToImport);
+			BlueprintEditor->ImportNamespaceEx(Params);
 		}
 	}
 }
@@ -5678,15 +5673,16 @@ void FBlueprintImportsLayout::OnNamespaceSelected(const FString& InNamespace)
 	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
 	if (BlueprintEditorPtr.IsValid())
 	{
-		FBlueprintEditor::FImportNamespaceParameters Params;
+		FBlueprintEditor::FImportNamespaceExParameters Params;
 		Params.bIsAutoImport = false;
-		Params.OnImportCallback = FSimpleDelegate::CreateLambda([this]()
+		Params.NamespacesToImport.Add(InNamespace);
+		Params.OnPostImportCallback = FSimpleDelegate::CreateLambda([this]()
 		{
 			RegenerateChildContent();
 		});
 
 		// Add to edited Blueprint(s) and import into the current editor context.
-		BlueprintEditorPtr->ImportNamespace(InNamespace, Params);
+		BlueprintEditorPtr->ImportNamespaceEx(Params);
 	}
 
 	OnRefreshInDetailsView();
@@ -6051,15 +6047,16 @@ void FBlueprintGlobalOptionsDetails::HandleNamespaceValueChange(const FString& I
 			}
 			else if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
 			{
-				FBlueprintEditor::FImportNamespaceParameters Params;
+				FBlueprintEditor::FImportNamespaceExParameters Params;
 				Params.bIsAutoImport = false;
-				Params.OnImportCallback = FSimpleDelegate::CreateLambda([&bRefreshDetailsView]()
+				Params.NamespacesToImport.Add(InNewValue);
+				Params.OnPostImportCallback = FSimpleDelegate::CreateLambda([&bRefreshDetailsView]()
 				{
 					bRefreshDetailsView = true;
 				});
 
 				// Import the new namespace into the current editor context.
-				BlueprintEditor->ImportNamespace(InNewValue, Params);
+				BlueprintEditor->ImportNamespaceEx(Params);
 			}
 
 			// Refresh the details view if necessary.

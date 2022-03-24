@@ -720,29 +720,32 @@ public:
 
 	/** Gets the default schema for this editor */
 	TSubclassOf<UEdGraphSchema> GetDefaultSchema() const { return GetDefaultSchemaClass(); }
+	
+	/** Imports the given namespace into the editor. This may trigger a load event for additional macro and/or function library assets if not already loaded. */
+	void ImportNamespace(const FString& InNamespace);
 
-	/** Extended parameters for the ImportNamespace() method */
-	struct FImportNamespaceParameters
+	/** Parameters for the extended ImportNamespaceEx() method */
+	struct FImportNamespaceExParameters
 	{
 		/** Whether this is an automatic or explicit (i.e. user-initiated) action. */
 		bool bIsAutoImport;
 
 		/** Callback to use for any post-import actions. Will not be invoked if nothing is imported. */
-		FSimpleDelegate OnImportCallback;
+		FSimpleDelegate OnPostImportCallback;
 
-		/** Additional namespaces to be imported as part of the single transaction. */
-		TArray<FString> AdditionalNamespaces;
+		/** One or more unique namespace identifiers to be imported as part of the single transaction. */
+		TSet<FString> NamespacesToImport;
 
 		/** Default ctor (for initialization). */
-		FImportNamespaceParameters()
+		FImportNamespaceExParameters()
 		{
 			// Treat as auto-import by default (implies that the editor will auto-refresh the details view).
 			bIsAutoImport = true;
 		}
 	};
-	
-	/** Imports the given namespace into the editor. This may trigger a load event for additional macro and/or function library assets if not already loaded. */
-	void ImportNamespace(const FString& InNamespace, const FImportNamespaceParameters& InParams = FImportNamespaceParameters());
+
+	/** Imports a set of namespace(s) into the editor. This may trigger a load event for additional macro and/or function library assets if not already loaded. */
+	void ImportNamespaceEx(const FImportNamespaceExParameters& InParams);
 
 	/** Removes the given namespace from the editor's current import context. However, this will NOT unload any associated macro and/or function library assets. */
 	void RemoveNamespace(const FString& InNamespace);
