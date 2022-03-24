@@ -1215,6 +1215,9 @@ public:
 	// @param	bInDeferRootNodeInitialization	When set to true, defer init of the blend tree until the first Update() call
 	void InitializeAnimation(bool bInDeferRootNodeInitialization = false);
 
+	/** Called on the game thread before UpdateAnimation is called on linked instances */
+	virtual void PreUpdateLinkedInstances(float DeltaSeconds) {}
+
 	/** Update Animation code-paths, updates and advances animation state, returns whether or not the actual update should have been called immediately */
 	void UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag = EUpdateAnimationFlag::Default );
 
