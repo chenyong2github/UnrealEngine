@@ -91,6 +91,10 @@ namespace UnrealBuildTool
 		{
 		}
 
+		public virtual void ModifyTargetReceipt(TargetReceipt Receipt)
+		{
+		}
+
 		public virtual void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
 		{
 		}

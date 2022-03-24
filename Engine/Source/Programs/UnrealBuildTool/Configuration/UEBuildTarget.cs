@@ -1653,6 +1653,8 @@ namespace UnrealBuildTool
 				Receipt.AdditionalProperties.Add(new ReceiptProperty("CustomConfig", Rules.CustomConfig));
 			}
 
+			ToolChain.ModifyTargetReceipt(Receipt);
+
 			return Receipt;
 		}
 
