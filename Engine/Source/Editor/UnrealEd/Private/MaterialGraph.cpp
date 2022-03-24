@@ -127,7 +127,10 @@ UMaterialGraphNode_Base* FindGraphNodeForObject(const UObject* Object)
 {
 	if (const UMaterialExpression* MaterialExpression = Cast<UMaterialExpression>(Object))
 	{
-		return CastChecked<UMaterialGraphNode_Base>(MaterialExpression->GraphNode);
+		if (MaterialExpression->GraphNode)
+		{
+			return CastChecked<UMaterialGraphNode_Base>(MaterialExpression->GraphNode);
+		}
 	}
 	else if (const UMaterial* Material = Cast<UMaterial>(Object))
 	{

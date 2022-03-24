@@ -39,6 +39,7 @@ static UE::Shader::EValueType GetShaderType(EMaterialValueType MaterialType)
 	case MCT_Float4: return UE::Shader::EValueType::Float4;
 	case MCT_Float: return UE::Shader::EValueType::Float1;
 	case MCT_StaticBool: return UE::Shader::EValueType::Bool1;
+	case MCT_Bool: return UE::Shader::EValueType::Bool1;
 	case MCT_MaterialAttributes: return UE::Shader::EValueType::Struct;
 	case MCT_ShadingModel: return UE::Shader::EValueType::Int1;
 	case MCT_LWCScalar: return UE::Shader::EValueType::Double1;

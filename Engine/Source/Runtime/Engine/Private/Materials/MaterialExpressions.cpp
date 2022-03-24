@@ -458,8 +458,13 @@ bool CanConnectMaterialValueTypes(const uint32 InputType, const uint32 OutputTyp
 	}
 	// Need to do more checks here to see whether types can be cast
 	// just check if both are float for now
-	if (InputType & MCT_Float && OutputType & MCT_Float)
+	if ((InputType & MCT_Numeric) && (OutputType & MCT_Numeric))
 	{
+		return true;
+	}
+	if (InputType == MCT_StaticBool && OutputType == MCT_Bool)
+	{
+		// StaticBool is allowed to connect to Bool (but not the other way around)
 		return true;
 	}
 	return false;
@@ -8660,7 +8665,15 @@ uint32 UMaterialExpressionStaticSwitch::GetInputType(int32 InputIndex)
 	}
 	else
 	{
-		return MCT_StaticBool;
+		if (IsUsingNewHLSLGenerator())
+		{
+			// Allow non-static bool when using new HLSL generator
+			return MCT_Bool;
+		}
+		else
+		{
+			return MCT_StaticBool;
+		}
 	}
 }
 

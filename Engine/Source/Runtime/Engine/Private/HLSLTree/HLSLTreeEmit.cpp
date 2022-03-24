@@ -400,31 +400,17 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 		PrepareValueMap.Add(InExpression, Result);
 	}
 
-	if (bMarkLiveValues)
-	{
-		if (Result->bPreparingValue)
-		{
-			return Result->PreparedType;
-		}
-
-		const EExpressionEvaluation Evaluation = Result->PreparedType.GetEvaluation(Scope, RequestedType);
-		if (Evaluation == EExpressionEvaluation::None || IsConstantEvaluation(Evaluation))
-		{
-			// Don't need to prepare constant values, since we are just replacing the expression with a constant
-			// Can't set the 'bIsLive' flag here, since expression may not be constant in all contexts
-			return Result->PreparedType;
-		}
-	}
-
 	if (Result->bPreparingValue)
 	{
 		// Valid for this to be called reentrantly
 		// Code should ensure that the type is set before the reentrant call, otherwise type will not be valid here
 		// LocalPHI nodes rely on this to break loops
-		check(!bMarkLiveValues);
-		FEmitScope* LoopScope = Scope.FindLoop();
-		check(LoopScope);
-		Result->PreparedType.SetLoopEvaluation(*LoopScope, RequestedType);
+		if (!bMarkLiveValues)
+		{
+			FEmitScope* LoopScope = Scope.FindLoop();
+			check(LoopScope);
+			Result->PreparedType.SetLoopEvaluation(*LoopScope, RequestedType);
+		}
 		return Result->PreparedType;
 	}
 
@@ -774,11 +760,6 @@ FEmitShaderExpression* FEmitContext::InternalEmitExpression(FEmitScope& Scope, T
 {
 	FEmitShaderExpression* ShaderValue = nullptr;
 
-	if (Code.Contains(TEXT("(Local253.xy - float3(0.00000000f, 0.00000000f, 1.00000000f))")))
-	{
-		int a = 0;
-	}
-
 	FXxHash64Builder Hasher;
 	Hasher.Update(Code.GetData(), Code.Len() * sizeof(TCHAR));
 	if (bInline)
@@ -795,6 +776,27 @@ FEmitShaderExpression* FEmitContext::InternalEmitExpression(FEmitScope& Scope, T
 		ShaderValue = *PrevShaderValue;
 		check(ShaderValue->Type == Type);
 		Private::MoveToScope(ShaderValue, Scope);
+
+		// Check to see if we have any new dependencies to add to the previous expression
+		TArray<FEmitShaderNode*, TInlineAllocator<32>> NewDependencies;
+		bool bHasNewDependencies = false;
+		for (FEmitShaderNode* Dependency : Dependencies)
+		{
+			if (!ShaderValue->Dependencies.Contains(Dependency))
+			{
+				if (!bHasNewDependencies)
+				{
+					NewDependencies.Reserve(ShaderValue->Dependencies.Num() + Dependencies.Num());
+					NewDependencies.Append(ShaderValue->Dependencies.GetData(), ShaderValue->Dependencies.Num());
+					bHasNewDependencies = true;
+				}
+				NewDependencies.Add(Dependency);
+			}
+		}
+		if (bHasNewDependencies)
+		{
+			ShaderValue->Dependencies = MemStack::AllocateArrayView(*Allocator, MakeArrayView(NewDependencies));
+		}
 	}
 	else
 	{

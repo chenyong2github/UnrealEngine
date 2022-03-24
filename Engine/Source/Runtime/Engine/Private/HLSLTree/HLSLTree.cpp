@@ -1261,6 +1261,16 @@ Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& 
 	return GetValuePreshader(Context, Scope, RequestedType, PreparedType, PreparedType.GetType(), OutPreshader);
 }
 
+Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader) const
+{
+	return GetValuePreshader(Context, Scope, ResultType, ResultType, OutPreshader);
+}
+
+Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, Shader::EValueType ResultType, Shader::FPreshaderData& OutPreshader) const\
+{
+	return GetValuePreshader(Context, Scope, ResultType, ResultType, OutPreshader);
+}
+
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType) const
 {
 	FEmitOwnerScope OwnerScope(Context, this);

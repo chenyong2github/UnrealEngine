@@ -446,24 +446,21 @@ void FExpressionParameter::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 
 bool FExpressionParameter::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
+	FEmitData& EmitData = Context.FindData<FEmitData>();
 	const EMaterialParameterType ParameterType = ParameterMeta.Value.Type;
 	const Shader::FType ResultType = GetShaderValueType(ParameterType);
 
-	if (Context.bMarkLiveValues)
+	if (Context.bMarkLiveValues && EmitData.CachedExpressionData)
 	{
-		FEmitData& EmitData = Context.FindData<FEmitData>();
-		if (EmitData.CachedExpressionData)
+		if (!ParameterInfo.Name.IsNone())
 		{
-			if (!ParameterInfo.Name.IsNone())
-			{
-				EmitData.CachedExpressionData->Parameters.AddParameter(ParameterInfo, ParameterMeta);
-			}
+			EmitData.CachedExpressionData->Parameters.AddParameter(ParameterInfo, ParameterMeta);
+		}
 
-			UObject* ReferencedTexture = ParameterMeta.Value.AsTextureObject();
-			if (ReferencedTexture)
-			{
-				EmitData.CachedExpressionData->ReferencedTextures.AddUnique(ReferencedTexture);
-			}
+		UObject* ReferencedTexture = ParameterMeta.Value.AsTextureObject();
+		if (ReferencedTexture)
+		{
+			EmitData.CachedExpressionData->ReferencedTextures.AddUnique(ReferencedTexture);
 		}
 	}
 
@@ -1115,7 +1112,7 @@ bool FExpressionMaterialLayers::PrepareValue(FEmitContext& Context, FEmitScope& 
 bool FExpressionSceneTexture::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	Context.PrepareExpression(TexCoordExpression, Scope, Shader::EValueType::Float2);
-	if (Context.bMarkLiveValues)
+	if (Context.bMarkLiveValues && Context.MaterialCompilationOutput)
 	{
 		Context.MaterialCompilationOutput->bNeedsSceneTextures = true;
 		Context.MaterialCompilationOutput->SetIsSceneTextureUsed((ESceneTextureId)SceneTextureId);

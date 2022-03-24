@@ -548,9 +548,19 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 	FPreparedType InputPreparedType[MaxInputs];
 	Shader::FValue ConstantInput[MaxInputs];
 	bool bConstantZeroInput[MaxInputs] = { false };
+	bool bMarkLiveInput[MaxInputs] = { false };
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
-		InputPreparedType[Index] = Context.PrepareExpression(Inputs[Index], Scope, RequestedTypes.InputType[Index]);
+		if (Context.bMarkLiveValues)
+		{
+			InputPreparedType[Index] = Context.GetPreparedType(Inputs[Index]);
+			bMarkLiveInput[Index] = true;
+		}
+		else
+		{
+			InputPreparedType[Index] = Context.PrepareExpression(Inputs[Index], Scope, RequestedTypes.InputType[Index]);
+		}
+
 		if (InputPreparedType[Index].IsVoid())
 		{
 			return false;
@@ -581,6 +591,7 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 		Context.MarkInputType(Inputs[Index], Types.InputType[Index]);
 	}
 
+	bool bMarkInputsLive = Context.bMarkLiveValues;
 	switch (Op)
 	{
 	case EOperation::Mul:
@@ -588,10 +599,31 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 		{
 			// X * 0 == 0
 			Types.ResultType.SetEvaluation(EExpressionEvaluation::ConstantZero);
+			// If one input is 0, we can avoid marking the other input as live (since we don't care what it is)
+			// In the case 'both' inputs are 0, we still need to mark one of them live...in this case we could potentially somehow choose the simplest input to mark live, but for now just pick one
+			if (bConstantZeroInput[0])
+			{
+				bMarkLiveInput[1] = false;
+			}
+			else
+			{
+				bMarkLiveInput[0] = false;
+			}
 		}
 		break;
 	default:
 		break;
+	}
+
+	if (Context.bMarkLiveValues)
+	{
+		for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
+		{
+			if (bMarkLiveInput[Index])
+			{
+				Context.PrepareExpression(Inputs[Index], Scope, RequestedTypes.InputType[Index]);
+			}
+		}
 	}
 
 	return OutResult.SetType(Context, RequestedType, Types.ResultType);

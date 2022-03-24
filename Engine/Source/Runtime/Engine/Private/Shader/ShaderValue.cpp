@@ -676,6 +676,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		case 2: return EValueType::Int2;
 		case 3: return EValueType::Int3;
 		case 4: return EValueType::Int4;
+		case 16: return EValueType::Float4x4; // no explicit int/bool matrix types...so use float instead
 		default: break;
 		}
 		break;
@@ -686,6 +687,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		case 2: return EValueType::Bool2;
 		case 3: return EValueType::Bool3;
 		case 4: return EValueType::Bool4;
+		case 16: return EValueType::Float4x4;
 		default: break;
 		}
 		break;

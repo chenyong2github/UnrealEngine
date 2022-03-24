@@ -178,6 +178,11 @@ enum EMaterialValueType
 
 	/** Used for code chunks that are statements with no value, rather than expressions */
 	MCT_VoidStatement         = 1 << 22,
+
+	/** Non-static bool, only used in new HLSL translator */
+	MCT_Bool = 1 << 23,
+
+	MCT_Numeric = MCT_Float | MCT_LWCType | MCT_Bool,
 };
 
 /** @return the number of components in a vector type. */

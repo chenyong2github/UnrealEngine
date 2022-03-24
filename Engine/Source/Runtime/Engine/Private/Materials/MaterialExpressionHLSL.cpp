@@ -221,11 +221,17 @@ bool UMaterialExpressionShadingModel::GenerateHLSLExpression(FMaterialHLSLGenera
 
 bool UMaterialExpressionStaticSwitch::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
 {
-	const UE::HLSLTree::FExpression* ConditionExpression = Value.AcquireHLSLExpressionOrConstant(Generator, Scope, (bool)DefaultValue);
-	const UE::HLSLTree::FExpression* TrueExpression = A.TryAcquireHLSLExpression(Generator, Scope);
-	const UE::HLSLTree::FExpression* FalseExpression = B.TryAcquireHLSLExpression(Generator, Scope);
+	using namespace UE::HLSLTree;
 
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSelect>(ConditionExpression, TrueExpression, FalseExpression);
+	const FExpression* ConditionExpression = Value.AcquireHLSLExpressionOrConstant(Generator, Scope, (bool)DefaultValue);
+	const FExpression* TrueExpression = A.TryAcquireHLSLExpression(Generator, Scope);
+	const FExpression* FalseExpression = B.TryAcquireHLSLExpression(Generator, Scope);
+	if (!ConditionExpression)
+	{
+		return false;
+	}
+
+	OutExpression = Generator.GenerateBranch(Scope, ConditionExpression, TrueExpression, FalseExpression);
 	return true;
 }
 
@@ -371,8 +377,9 @@ bool UMaterialExpressionStaticSwitchParameter::GenerateHLSLExpression(FMaterialH
 		return false;
 	}
 
+	// No reason to generate a dynamic branch here, since the condition is always a static switch parameter
 	const FExpression* ExpressionSwitch = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta);
-	OutExpression = Generator.GetTree().NewExpression <FExpressionSelect>(ExpressionSwitch, ExpressionA, ExpressionB);
+	OutExpression = Generator.GetTree().NewExpression<FExpressionSelect>(ExpressionSwitch, ExpressionA, ExpressionB);
 	return true;
 }
 
@@ -1966,7 +1973,7 @@ bool UMaterialExpressionIf::GenerateHLSLExpression(FMaterialHLSLGenerator& Gener
 	using namespace UE::Shader;
 
 	const FExpression* ExpressionA = A.AcquireHLSLExpression(Generator, Scope);
-	const FExpression* ExpressionB = A.AcquireHLSLExpressionOrConstant(Generator, Scope, ConstB);
+	const FExpression* ExpressionB = B.AcquireHLSLExpressionOrConstant(Generator, Scope, ConstB);
 	const FExpression* ExpressionAGreaterThanB = AGreaterThanB.AcquireHLSLExpression(Generator, Scope);
 	const FExpression* ExpressionALessThanB = ALessThanB.AcquireHLSLExpression(Generator, Scope);
 	if (!ExpressionA || !ExpressionB || !ExpressionAGreaterThanB || !ExpressionALessThanB)
@@ -1976,14 +1983,14 @@ bool UMaterialExpressionIf::GenerateHLSLExpression(FMaterialHLSLGenerator& Gener
 
 	UE::HLSLTree::FTree& Tree = Generator.GetTree();
 	const FExpression* ExpressionCondAGreaterEqualB = Tree.NewGreaterEqual(ExpressionA, ExpressionB);
-	OutExpression = Tree.NewExpression<FExpressionSelect>(ExpressionCondAGreaterEqualB, ExpressionAGreaterThanB, ExpressionALessThanB);
+	OutExpression = Generator.GenerateBranch(Scope, ExpressionCondAGreaterEqualB, ExpressionAGreaterThanB, ExpressionALessThanB);
 
 	const FExpression* ExpressionAEqualsB = AEqualsB.TryAcquireHLSLExpression(Generator, Scope);
 	if (ExpressionAEqualsB)
 	{
 		const FExpression* ExpressionThreshold = Generator.NewConstant(EqualsThreshold);
 		const FExpression* ExpressionCondANotEqualsB = Tree.NewGreater(Tree.NewAbs(Tree.NewSub(ExpressionA, ExpressionB)), ExpressionThreshold);
-		OutExpression = Tree.NewExpression<FExpressionSelect>(ExpressionCondANotEqualsB, OutExpression, ExpressionAEqualsB);
+		OutExpression = Generator.GenerateBranch(Scope, ExpressionCondANotEqualsB, OutExpression, ExpressionAEqualsB);
 	}
 
 	return true;

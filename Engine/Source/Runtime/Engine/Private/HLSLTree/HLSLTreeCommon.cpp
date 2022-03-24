@@ -780,10 +780,7 @@ bool FExpressionSwitchBase::PrepareValue(FEmitContext& Context, FEmitScope& Scop
 		if (IsInputActive(Context, InputIndex))
 		{
 			const FPreparedType& InputType = Context.PrepareExpression(Input[InputIndex], Scope, RequestedType);
-			if (ResultType.IsVoid() && !InputType.IsVoid())
-			{
-				ResultType = InputType;
-			}
+			ResultType = MergePreparedTypes(ResultType, InputType);
 		}
 	}
 

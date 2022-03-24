@@ -701,6 +701,51 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE
 	return Result;
 }
 
+const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateBranch(UE::HLSLTree::FScope& Scope,
+	const UE::HLSLTree::FExpression* ConditionExpression,
+	const UE::HLSLTree::FExpression* TrueExpression,
+	const UE::HLSLTree::FExpression* FalseExpression)
+{
+	using namespace UE::HLSLTree;
+
+	FXxHash64 Hash;
+	{
+		FXxHash64Builder Hasher;
+		Hasher.Update(&ConditionExpression, sizeof(FExpression*));
+		Hasher.Update(&TrueExpression, sizeof(FExpression*));
+		Hasher.Update(&FalseExpression, sizeof(FExpression));
+		Hash = Hasher.Finalize();
+	}
+
+	FExpression const* const* PrevExpression = BranchMap.Find(Hash);
+	if (PrevExpression)
+	{
+		return *PrevExpression;
+	}
+
+	TStringBuilder<64> LocalNameBuilder;
+	LocalNameBuilder.Appendf(TEXT("__InternalBranch%d"), BranchMap.Num());
+	const FName LocalName(LocalNameBuilder.ToString());
+
+	FFunction* Function = GetTree().NewFunction();
+	FStatementIf* IfStatement = GetTree().NewStatement<FStatementIf>(Function->GetRootScope());
+	IfStatement->ConditionExpression = ConditionExpression;
+	IfStatement->ThenScope = NewOwnedScope(*IfStatement);
+	IfStatement->ElseScope = NewOwnedScope(*IfStatement);
+	IfStatement->NextScope = NewScope(Function->GetRootScope(), EMaterialNewScopeFlag::NoPreviousScope);
+	IfStatement->NextScope->AddPreviousScope(*IfStatement->ThenScope);
+	IfStatement->NextScope->AddPreviousScope(*IfStatement->ElseScope);
+
+	GetTree().AssignLocal(*IfStatement->ThenScope, LocalName, TrueExpression);
+	GetTree().AssignLocal(*IfStatement->ElseScope, LocalName, FalseExpression);
+	const FExpression* ResultExpression = GetTree().AcquireLocal(*IfStatement->NextScope, LocalName);
+
+	Function->OutputExpressions.Add(ResultExpression);
+	const FExpression* Result = GetTree().NewFunctionCall(Scope, Function, 0);
+	BranchMap.Add(Hash, Result);
+	return Result;
+}
+
 bool FMaterialHLSLGenerator::GetParameterOverrideValueForCurrentFunction(EMaterialParameterType ParameterType, FName ParameterName, FMaterialParameterMetadata& OutResult) const
 {
 	bool bResult = false;

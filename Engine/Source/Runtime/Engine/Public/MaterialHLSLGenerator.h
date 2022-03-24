@@ -152,6 +152,11 @@ public:
 		TArrayView<const UE::HLSLTree::FExpression*> ConnectedInputs,
 		int32 OutputIndex);
 
+	const UE::HLSLTree::FExpression* GenerateBranch(UE::HLSLTree::FScope& Scope,
+		const UE::HLSLTree::FExpression* ConditionExpression,
+		const UE::HLSLTree::FExpression* TrueExpression,
+		const UE::HLSLTree::FExpression* FalseExpression);
+
 	template<typename T, typename... ArgTypes>
 	T* NewExpressionData(const UMaterialExpression* MaterialExpression, ArgTypes... Args)
 	{
@@ -254,6 +259,7 @@ private:
 	TArray<FFunctionCallEntry*, TInlineAllocator<8>> FunctionCallStack;
 	TArray<UE::HLSLTree::FScope*> JoinedScopeStack;
 	TMap<FXxHash64, TUniquePtr<FFunctionCallEntry>> FunctionCallMap;
+	TMap<FXxHash64, const UE::HLSLTree::FExpression*> BranchMap;
 	TMap<UMaterialFunctionInterface*, UE::HLSLTree::FFunction*> FunctionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
 	TMap<FExpressionDataKey, void*> ExpressionDataMap;
