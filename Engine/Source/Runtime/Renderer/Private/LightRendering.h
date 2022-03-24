@@ -154,7 +154,7 @@ namespace StencilingGeometry
 			for (int32 i = 0; i < NumRings + 1; i++)
 			{
 				const float Angle = i * RadiansPerRingSegment;
-				ArcVerts.Add(UE::Math::TVector<float>(0.0f, FMath::Sin(Angle), FMath::Cos(Angle)));
+				ArcVerts.Add(FVector3f(0.0f, FMath::Sin(Angle), FMath::Cos(Angle)));
 			}
 
 			TResourceArray<VectorType, VERTEXBUFFER_ALIGNMENT> Verts;

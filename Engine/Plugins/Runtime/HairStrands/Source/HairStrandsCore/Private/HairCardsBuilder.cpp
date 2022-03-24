@@ -3466,7 +3466,7 @@ void BuildGeometry(
 	{
 		check(FMath::IsFinite(Out.Cards.Positions[PointIt].X) && FMath::IsFinite(Out.Cards.Positions[PointIt].Y) && FMath::IsFinite(Out.Cards.Positions[PointIt].Z));
 		Out.RenderData.Positions[PointIt] = FVector4f(Out.Cards.Positions[PointIt], *((float*)&Out.Cards.CardIndices[PointIt]));
-		Out.RenderData.UVs[PointIt] = Out.Cards.UVs[PointIt];
+		Out.RenderData.UVs[PointIt] = FVector4f(Out.Cards.UVs[PointIt]);
 		Out.RenderData.Normals[PointIt * 2] = FVector4f(Out.Cards.Tangents[PointIt], 0);
 		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4f(Out.Cards.Normals[PointIt], 1);
 
@@ -3539,13 +3539,13 @@ void BuildGeometry(
 	Out.RenderData.CardsStrandsPositions.SetNum(StrandsPointCount);
 	for (uint32 PointIt = 0; PointIt < StrandsPointCount; ++PointIt)
 	{
-		Out.RenderData.CardsStrandsPositions[PointIt] = Out.Atlas.StrandsPositions[PointIt];
+		Out.RenderData.CardsStrandsPositions[PointIt] = FVector4f(Out.Atlas.StrandsPositions[PointIt]);
 	}
 
 	Out.RenderData.CardsStrandsAttributes.SetNum(StrandsPointCount);
 	for (uint32 PointIt = 0; PointIt < StrandsPointCount; ++PointIt)
 	{
-		Out.RenderData.CardsStrandsAttributes[PointIt] = Out.Atlas.StrandsAttributes[PointIt];
+		Out.RenderData.CardsStrandsAttributes[PointIt] = FVector4f(Out.Atlas.StrandsAttributes[PointIt]);
 	}
 
 	// Interpolation data
@@ -3716,7 +3716,7 @@ bool InternalImportGeometry(
 	for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 	{
 		OutBulk.Positions[PointIt] = FVector4f(Out.Cards.Positions[PointIt], 0);
-		OutBulk.UVs[PointIt] = Out.Cards.UVs[PointIt];
+		OutBulk.UVs[PointIt] = FVector4f(Out.Cards.UVs[PointIt]);
 		OutBulk.Normals[PointIt * 2] = FVector4f(Out.Cards.Tangents[PointIt], 0);
 		OutBulk.Normals[PointIt * 2 + 1] = FVector4f(Out.Cards.Normals[PointIt], TangentFrameSigns[PointIt]);
 		OutBulk.Materials[PointIt] = 0;
